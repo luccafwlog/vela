@@ -24,7 +24,7 @@ correção e efeitos da ADR 0078.
 o código da Etapa 14 executados localmente (migrations `174` a `189`; ver as
 notas de execução em cada etapa). Nenhum `it.fails` restante nas suítes
 `auditoria*`. A revisão da PR 929, em 2026-10-11, corrigiu os achados nas
-migrations `190` a `200` e no frontend (seção
+migrations `190` a `201` e no frontend (seção
 [Revisão da PR 929](#revisão-da-pr-929-2026-10-11)). Restam só passos do dono:
 na Etapa 0, as consultas em leitura na produção (pré-requisito do deploy) e a
 orientação da operação; na Etapa 13, o ensaio em Preview e a ligação do
@@ -45,8 +45,8 @@ criadas por shell, sem editar nenhuma existente.
   (`sudo scripts/setup-local-pg.sh --reset` e as suítes `local-pg` do CI com
   `--no-file-parallelism`, duas vezes seguidas, sem resíduo de namespace).
 - **Migrations:** sempre arquivo novo, no próximo número livre (as deste plano
-  são `174`–`200`: a `173` foi usada pelo Desbloqueio de CE, já em produção, e
-  a revisão da PR 929 acrescentou `190`–`200`);
+  são `174`–`201`: a `173` foi usada pelo Desbloqueio de CE, já em produção, e
+  a revisão da PR 929 acrescentou `190`–`201`);
   nunca editar migration existente (protegida por
   `.claude/hooks/protect-files.sh`). Redefinir a função a partir da definição
   **efetiva** no banco replicado, não da primeira migration que a criou. Se a
@@ -826,7 +826,9 @@ não reescrevem linhas; o código de tela foi corrigido no mesmo branch.
   simultâneos da mesma Viagem, um com IMO e outro sem, não duplicam navio nem
   Viagem (achado da revisão automática da PR). Na prévia, linhas da mesma
   Viagem nova com o mesmo IMO ou o mesmo nome entram juntas na conferência de
-  datas repetidas.
+  datas repetidas. A `201` pega todas as travas antes da primeira linha, em
+  ordem fixa (sem deadlock entre dois arquivos com as mesmas Viagens em ordens
+  diferentes), e a planilha de datas confere a prévia que viu a descarga vazia.
 - **`194` — B/L de container e Baplie.** Container com Invoice de Demurrage não
   sai por reimportação (mensagem verdadeira); linha VIN que aponta para
   container que sai é recusada sozinha; chassi em B/L ou Viagem cancelados não

@@ -14,6 +14,7 @@
 // - o primeiro contexto de importação da transação vale até o fim.
 // Migration 197: o status de Demurrage "em atraso" volta a ser gravado.
 // Migration 200: container de B/L ou de Viagem Cancelados sai do atraso.
+// Migration 201: a planilha de datas confere a prévia que viu a descarga vazia.
 //
 // Namespace exclusivo: ids 99190xxx, B/Ls 'R190-*', usuário ...000000190001.
 // A limpeza roda com `session_replication_role = replica`, porque a Viagem
@@ -234,6 +235,17 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
     expect(lastJson<{ unchanged_ids: number[] }>(second.stdout).unchanged_ids).toHaveLength(1)
     expect(psql(`SELECT string_agg(return_date::text, ',') FROM public.bl_containers WHERE bl_id IN ('${bl.shareA}', '${bl.shareB}')`))
       .toBe('2026-09-10,2026-09-10')
+  })
+
+  it('a planilha de datas confere a prévia que viu a descarga vazia (201)', () => {
+    psql(`INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('${bl.shareA}', 'RVCU2010001', '40HC')`)
+    // Outra sessão grava a descarga depois da prévia, que a viu vazia.
+    psql(`UPDATE public.bl_containers SET discharge_date = '2026-09-02' WHERE container_number = 'RVCU2010001'`)
+    const stale = asAdmin(`SELECT public.apply_container_dates_atomic(gen_random_uuid(), '${bl.shareA}',
+      '[{"container_number":"RVCU2010001","discharge_date":"2026-09-05","return_date":null,
+         "expected_discharge_date":null,"expected_return_date":null}]'::jsonb, '${adminId}'::uuid)`)
+    expect(stale.stderr).toMatch(/Preview obsoleto para RVCU2010001/)
+    expect(psql(`SELECT discharge_date FROM public.bl_containers WHERE container_number = 'RVCU2010001'`)).toBe('2026-09-02')
   })
 
   it('UPDATE em item de carga solta não esbarra na modalidade de carga', () => {

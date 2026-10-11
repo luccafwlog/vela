@@ -81,6 +81,7 @@ foram editadas.
 | `198` | Granito: sugestão de Cliente na detecção de mudança da reimportação (achado da revisão automática) |
 | `199` | Programação por planilha: trava da Viagem nova pelo nome e pelo IMO, para arquivos simultâneos com e sem IMO (achado da revisão automática) |
 | `200` | Demurrage: container de B/L ou de Viagem Cancelados sai do atraso, no cancelamento e no job diário (achado da revisão automática) |
+| `201` | Planilha de datas confere a prévia que viu a descarga vazia; Programação pega as travas antes da primeira linha, em ordem fixa, sem deadlock (achados da revisão automática) |
 
 No front:
 
@@ -108,17 +109,18 @@ o código anterior: falham sem a correção e passam com ela.
 
 Local, Postgres 16 descartável:
 
-- replay limpo das migrations `001`–`200` com as checagens de invariantes do
+- replay limpo das migrations `001`–`201` com as checagens de invariantes do
   CI;
-- as 76 suítes `local-pg` na ordem do CI: 589 + 3 testes;
+- as 76 suítes `local-pg` na ordem do CI: 591 + 3 testes;
 - 4.414 testes unitários;
 - `typecheck`, `lint`, `build`, `docs:check`, `migrations:check`, `rpc:check`
   e `verificar_guardas.py` verdes.
 
-Os casos novos das `196`–`200` falham sem a migration e passam com ela. No
+Os casos novos das `196`–`201` falham sem a migration e passam com ela. No
 caso da `199`, sem a migration, dois arquivos simultâneos criaram dois navios
 (um com IMO e outro sem). No caso da `200`, o container seguia em atraso
-depois de cancelar o B/L.
+depois de cancelar o B/L. No caso da `201`, dois arquivos com as mesmas Viagens
+em ordens diferentes davam "deadlock detected".
 
 O que vale como evidência final é o CI do último commit da PR.
 

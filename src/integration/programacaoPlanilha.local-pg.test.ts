@@ -6,6 +6,8 @@
 // e porto vale; Viagem oculta enviada sem data nova é publicada.
 // Migration 199: dois arquivos simultâneos da mesma Viagem nova, um com IMO e
 // outro sem, esperam um pelo outro e não duplicam navio nem Viagem.
+// Migration 201: dois arquivos com as mesmas Viagens novas em ordens
+// diferentes não se travam mutuamente (deadlock).
 //
 // Namespace exclusivo: navios 'A235 *', IMO 9235xxx, usuário ...0000002350NN.
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
@@ -160,5 +162,27 @@ describeLocal('Programação por planilha atômica (migration 188)', () => {
     expect(second).toEqual({ code: 0, stderr: '' })
     expect(psql(`SELECT count(*) || ':' || string_agg(COALESCE(imo, '-'), ',') FROM public.vessels WHERE name = 'A235 LAMBDA';`)).toBe('1:9235011')
     expect(psql(`SELECT count(*) FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name = 'A235 LAMBDA';`)).toBe('1')
+  })
+
+  it('dois arquivos com as mesmas Viagens novas em ordens diferentes não se travam mutuamente', async () => {
+    const asUserPrefix = `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${userId}';`
+    const mu = row('A235 MU', '', '012N', '2026-11-12')
+    const nu = row('A235 NU', '', '013N', '2026-11-13')
+    const sheet = (rows: unknown[]) => `SELECT public.apply_schedule_sheet_atomic('${JSON.stringify(rows)}'::jsonb, '${carrierName}', '');`
+    // Outra sessão segura a trava da Viagem NU. O arquivo [NU, MU] espera por
+    // ela; o [MU, NU] chega depois. Pegando as travas na ordem do arquivo, o
+    // segundo seguraria MU e esperaria NU enquanto o primeiro, já com NU,
+    // esperaria MU.
+    const nuKey = `hashtextextended('schedule_voyage:name:A235 NU:013N', 0)`
+    const holder = runAsync(`SELECT pg_advisory_lock(${nuKey}); SELECT pg_sleep(1.5); SELECT pg_advisory_unlock(${nuKey});`)
+    await sleep(300)
+    const reversed = runAsync(`${asUserPrefix} ${sheet([nu, mu])}`)
+    await sleep(300)
+    const ordered = runAsync(`${asUserPrefix} ${sheet([mu, nu])}`)
+    const [held, first, second] = await Promise.all([holder, reversed, ordered])
+    expect(held.code).toBe(0)
+    expect(first).toEqual({ code: 0, stderr: '' })
+    expect(second).toEqual({ code: 0, stderr: '' })
+    expect(psql(`SELECT count(*) FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name IN ('A235 MU', 'A235 NU');`)).toBe('2')
   })
 })
