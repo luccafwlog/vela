@@ -3,6 +3,7 @@ import type { BaplieContainer } from '../baplieParser'
 
 const mocks = vi.hoisted(() => ({
   existing: [] as Array<Record<string, unknown>>,
+  voyage: { voyage_number: '12N', vessel: { name: 'GREEN SANTOS' } } as Record<string, unknown> | null,
   rpc: vi.fn(),
   getBaplieManifestForVoyage: vi.fn(),
   replaceVaziosFromBaplie: vi.fn(),
@@ -12,7 +13,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../supabase', () => ({
   supabase: {
     // listBaplieStagingForDiff pagina (order + range): uma página basta aqui.
-    from: () => ({ select: () => ({ eq: () => ({ order: () => ({ range: () => Promise.resolve({ data: mocks.existing, error: null }) }) }) }) }),
+    // fetchBaplieVoyageContext lê a Viagem com maybeSingle.
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          order: () => ({ range: () => Promise.resolve({ data: mocks.existing, error: null }) }),
+          maybeSingle: () => Promise.resolve({ data: mocks.voyage, error: null }),
+        }),
+      }),
+    }),
     rpc: mocks.rpc,
   },
 }))
@@ -22,7 +31,16 @@ vi.mock('../vaziosImportacaoImport', () => ({
   replaceVaziosFromBaplie: mocks.replaceVaziosFromBaplie,
 }))
 
-import { applyBaplieVoyageRules, baplieReplacementConfirmOptions, diffBaplieStaging, reimportBaplie, retryBaplieVazios } from '../baplieImport'
+import {
+  applyBaplieVoyageRules,
+  baplieImportToast,
+  baplieReplacementConfirmOptions,
+  baplieVoyageContextBlock,
+  diffBaplieStaging,
+  fetchBaplieVoyageContext,
+  reimportBaplie,
+  retryBaplieVazios,
+} from '../baplieImport'
 
 const box = (container_number: string, over: Partial<BaplieContainer> = {}): BaplieContainer => ({
   container_number, size_type: '40HC', status: 'empty', weight_kg: 3800, pol: 'CNTAC', pod: 'BRVIX',
@@ -164,5 +182,68 @@ describe('Baplie completo e regras da Viagem (etapa 9)', () => {
       expect.objectContaining({ severity: 'error', message: expect.stringMatching(/viagem 14; a viagem escolhida é 15/) }),
       expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/fora das escalas da Viagem \(BRSSZ\)/) }),
     ]))
+  })
+})
+
+describe('revisão da etapa 9 (E9)', () => {
+  const context = { voyageNumber: '12N', vesselName: 'GREEN SANTOS', eligiblePods: [] }
+  const parsed = (over: Partial<Parameters<typeof applyBaplieVoyageRules>[0]>) =>
+    ({ containers: [box('AAAU1111111')], issues: [], voyage_number: '12N', vessel_name: 'GREEN SANTOS', vessel_name_source: 'identification' as const, ...over })
+
+  // E9-01: get_voyage_eligible_pods não tem GRANT para authenticated.
+  it('lê as escalas pela RPC guardada list_voyage_eligible_pods', async () => {
+    mocks.rpc.mockResolvedValue({ data: [{ pod: 'BRVIX' }, { pod: 'BRSSZ' }], error: null })
+    await expect(fetchBaplieVoyageContext(22)).resolves.toEqual({ voyageNumber: '12N', vesselName: 'GREEN SANTOS', eligiblePods: ['BRVIX', 'BRSSZ'] })
+    expect(mocks.rpc).toHaveBeenCalledWith('list_voyage_eligible_pods', { p_voyage_id: 22 })
+    expect(mocks.rpc).not.toHaveBeenCalledWith('get_voyage_eligible_pods', expect.anything())
+  })
+
+  it('sem a Viagem conferida a importação fica bloqueada, com o motivo da falha', () => {
+    expect(baplieVoyageContextBlock({ data: undefined, isError: false })).toEqual({ state: 'loading', message: expect.stringMatching(/Conferindo/) })
+    expect(baplieVoyageContextBlock({ data: undefined, isError: true, error: { code: '42501', message: 'permission denied for function list_voyage_eligible_pods' } }))
+      .toEqual({ state: 'error', message: 'Não foi possível conferir a Viagem: Sem permissao para esta acao. Solicite acesso administrativo.' })
+    // Falha de refetch com dado antigo também bloqueia: a conferência não está confirmada.
+    expect(baplieVoyageContextBlock({ data: context, isError: true, error: new Error('rede') })?.state).toBe('error')
+    expect(baplieVoyageContextBlock({ data: context, isError: false })).toBeNull()
+  })
+
+  // E9-03a: zeros à esquerda não mudam a viagem (regra de blDocumentImport.ts).
+  it('viagem 0012N do TDT é a mesma 12N da Viagem', () => {
+    const ruled = applyBaplieVoyageRules(parsed({ voyage_number: '0012N' }), context)
+    expect(ruled.issues).toEqual([])
+    expect(applyBaplieVoyageRules(parsed({ voyage_number: '13N' }), context).issues)
+      .toEqual([expect.objectContaining({ field: 'voyage', severity: 'error' })])
+  })
+
+  // E9-03b: só o nome vindo do C222 bloqueia; o palpite só avisa.
+  it('navio diferente bloqueia só quando o nome vem da identificação do transporte', () => {
+    expect(applyBaplieVoyageRules(parsed({ vessel_name: 'DGXX', vessel_name_source: 'heuristic' }), context).issues)
+      .toEqual([expect.objectContaining({ field: 'vessel', severity: 'warning', message: expect.stringMatching(/nome lido \(DGXX\)/) })])
+    expect(applyBaplieVoyageRules(parsed({ vessel_name: 'GREEN VITORIA', vessel_name_source: 'identification' }), context).issues)
+      .toEqual([expect.objectContaining({ field: 'vessel', severity: 'error' })])
+  })
+
+  // E9-08: só `reissued` é fatura reemitida; pendências e falhas aparecem à parte.
+  it('o resumo conta como reemitido só o status reissued e informa pendentes e falhas', async () => {
+    mocks.applyFlags.mockResolvedValue({
+      applied: 1,
+      applied_to: [{ container: 'AAAU1111111', bl_id: 'BL-1' }],
+      cleared: [],
+      divergent_manual: [],
+      invoice_reissues: [
+        { bl_id: 'BL-1', status: 'reissued' },
+        { bl_id: 'BL-2', status: 'pending', pending_reason: 'sem usuario para reemitir' },
+        { bl_id: 'BL-3', status: 'has_payment' },
+        { bl_id: 'BL-4', status: 'corrected' },
+        { status: 'error', bl_ids: ['BL-5', 'BL-6'], message: 'deadlock' },
+      ],
+    })
+    const result = await reimportBaplie({ voyageId: 22, containers: [box('AAAU1111111', { status: 'full' })], actorId: 'user-1', confirmReplacement: vi.fn() })
+    expect(result).toMatchObject({ status: 'imported', flags: { reissues: 1, corrected: 1, reissuesPending: 2, reissueErrors: 2 } })
+    const toast = baplieImportToast(result as Exclude<typeof result, { status: 'cancelled' }>)
+    expect(toast).toContain('fatura reemitida pela mudança de base em 1 B/L(s)')
+    expect(toast).toContain('fatura não reemitida em 2 B/L(s) (pendente em Alertas)')
+    expect(toast).toContain('falha ao refazer a fatura em 2 B/L(s)')
+    expect(toast).not.toMatch(/5 fatura/)
   })
 })

@@ -22,6 +22,13 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   parseVehicleImportFile: vi.fn(),
   importVehicleRows: vi.fn(),
+  refetchVoyageContext: vi.fn(),
+  // Viagem conferida: as regras do Baplie rodaram e a importação pode seguir.
+  voyageContext: {
+    data: { voyageNumber: '14N', vesselName: 'GREEN SANTOS', eligiblePods: [] } as unknown,
+    isError: false,
+    error: null as unknown,
+  },
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -49,8 +56,11 @@ vi.mock('../../../services/baplieParser', () => ({
   parseBaplieFile: mocks.parseBaplieFile,
 }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
-vi.mock('../../../hooks/useBaplieVoyageContext', () => ({ useBaplieVoyageContext: () => ({ data: undefined }) }))
-vi.mock('../../../services/baplieImport', () => ({
+vi.mock('../../../hooks/useBaplieVoyageContext', () => ({
+  useBaplieVoyageContext: () => ({ ...mocks.voyageContext, refetch: mocks.refetchVoyageContext }),
+}))
+vi.mock('../../../services/baplieImport', async (importOriginal) => ({
+  baplieVoyageContextBlock: (await importOriginal<typeof import('../../../services/baplieImport')>()).baplieVoyageContextBlock,
   // Regras da Viagem (etapa 9): aqui a prévia é a do parser.
   applyBaplieVoyageRules: (parsed: { containers: unknown[]; pods?: string[]; issues: unknown[] }) => ({ containers: parsed.containers, pods: parsed.pods ?? [], issues: parsed.issues }),
   reimportBaplie: mocks.reimportBaplie,
@@ -91,6 +101,7 @@ beforeEach(() => {
   mocks.confirm.mockReset()
   mocks.confirm.mockResolvedValue(true)
   mocks.navigate.mockReset()
+  mocks.voyageContext = { data: { voyageNumber: '14N', vesselName: 'GREEN SANTOS', eligiblePods: [] }, isError: false, error: null }
 })
 afterEach(cleanup)
 
@@ -483,4 +494,29 @@ it('resultado parcial de veículos fica no modal com as linhas recusadas e só C
   expect(screen.getByText('Importação gravada em parte. As linhas recusadas estão acima.')).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Concluir' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: /Importar 2 veículos/ })).toBeNull()
+})
+
+// E9-01: sem a Viagem conferida, navio/viagem e escalas do arquivo não são checados.
+it('Baplie: não importa enquanto a Viagem carrega nem quando a conferência falha', async () => {
+  mocks.parseBaplieFile.mockResolvedValue(validBaplie)
+  mocks.voyageContext = { data: undefined, isError: true, error: { code: 'PGRST202', message: 'Could not find the function public.list_voyage_eligible_pods' } }
+  const { container, rerender } = renderActions()
+  fireEvent.click(screen.getByRole('button', { name: /Baplie/ }))
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['edi'], 'baplie.edi', { type: 'text/plain' })] },
+  })
+  await waitFor(() => expect(mocks.parseBaplieFile).toHaveBeenCalledTimes(1))
+  expect(await screen.findByText('Não foi possível conferir a Viagem: a leitura do navio, da viagem e das escalas falhou. Tente novamente.')).toBeTruthy()
+  expect(screen.getByText('Importação bloqueada até a Viagem ser conferida.')).toBeTruthy()
+  const confirm = screen.getByRole('button', { name: 'Importar Baplie' }) as HTMLButtonElement
+  expect(confirm.disabled).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+  expect(mocks.refetchVoyageContext).toHaveBeenCalled()
+
+  mocks.voyageContext = { data: undefined, isError: false, error: null }
+  rerender(<VoyageImportActions voyageId={7} voyageLabel="GREEN SANTOS / 14N" userId="user-1" types={['bb', 'granite', 'baplie']} />)
+  expect(await screen.findByText('Conferindo navio, viagem e escalas da Viagem…')).toBeTruthy()
+  expect((screen.getByRole('button', { name: 'Importar Baplie' }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Importar Baplie' }))
+  expect(mocks.reimportBaplie).not.toHaveBeenCalled()
 })

@@ -1,5 +1,5 @@
 import { useBaplieVoyageContext } from '../hooks/useBaplieVoyageContext'
-import { afterBaplieImportado } from '../services/cacheEffects'
+import { afterBaplieImportado, afterCargaAlterada } from '../services/cacheEffects'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -24,13 +24,13 @@ import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { parseBaplieFile } from '../services/baplieParser'
-import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../services/baplieImport'
+import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, baplieVoyageContextBlock, describeBaplieFlags, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, summarizeBaplieFlags, type BaplieImportDone } from '../services/baplieImport'
 import { BaplieImportPartialNotice } from '../components/shared/BaplieImportPartialNotice'
 import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { userFacingErrorMessage } from '../lib/errors'
 import { hasBlsForVoyage, listBaplieStaging } from '../services/baplieReadModel'
 import {
-  applyBapliePhysicalFlags,
+  applyBapliePhysicalFlagsDetailed,
   countPendingBapliePhysicalFlags,
   reconcileBaplieWithManifest,
   resolveBaplieDivergence,
@@ -251,8 +251,11 @@ export function Baplie() {
               canApply={Boolean(user)}
               onApply={async () => {
                 if (!user) return
-                await applyBapliePhysicalFlags(Number(voyageId), user.id)
+                // Mesmo resumo da importação: o que foi aplicado, o que caiu,
+                // divergências e o efeito nas faturas.
+                const summary = summarizeBaplieFlags(await applyBapliePhysicalFlagsDetailed(Number(voyageId), user.id))
                 await afterBaplieImportado(queryClient, { voyageId })
+                showToast(`IMO/OOG do Baplie aplicados aos B/Ls.${describeBaplieFlags(summary)}`, summary.reissuesPending || summary.reissueErrors ? 'info' : 'success')
               }}
             />
           ) : null}
@@ -363,7 +366,7 @@ function PendingFlagsNotice({ count, canApply, onApply }: { count: number; canAp
     try {
       await onApply()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao aplicar IMO/OOG aos B/Ls.')
+      setError(userFacingErrorMessage(err, 'Falha ao aplicar IMO/OOG aos B/Ls.'))
     } finally {
       setApplying(false)
     }
@@ -560,7 +563,7 @@ function ReconciliacaoSection({
                     <td>{item.bl_id ? <Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link> : '—'}</td>
                     <td><ContainerOwnershipBadge ownership={item.bl_ownership} /></td>
                     <td><ContainerOwnershipBadge ownership={item.baplie_ownership} /></td>
-                    <td><ValeOBlButton blContainerId={item.bl_container_id} field="ownership" label={`${item.container_number} no B/L ${item.bl_id ?? ''}`} onDone={onRetry} /></td>
+                    <td><ValeOBlButton blContainerId={item.bl_container_id} field="ownership" label={`${item.container_number} no B/L ${item.bl_id ?? ''}`} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -593,7 +596,7 @@ function ReconciliacaoSection({
                     <td>{item.bl_id ? <Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link> : '—'}</td>
                     <td>{item.bl_profile}</td>
                     <td>{item.baplie_profile}</td>
-                    <td><ValeOBlButton blContainerId={item.bl_container_id} field="profile" label={`${item.container_number} no B/L ${item.bl_id ?? ''}`} onDone={onRetry} /></td>
+                    <td><ValeOBlButton blContainerId={item.bl_container_id} field="profile" label={`${item.container_number} no B/L ${item.bl_id ?? ''}`} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -605,10 +608,13 @@ function ReconciliacaoSection({
   )
 }
 
-// "Vale o B/L" (ADR 0078, item 21): encerra a divergência com motivo.
-function ValeOBlButton({ blContainerId, field, label, onDone }: { blContainerId: number; field: 'ownership' | 'profile'; label: string; onDone: () => void }) {
+// "Vale o B/L" (ADR 0078, item 21): encerra a divergência com motivo. A RPC
+// muda a origem do valor no container do B/L e grava no Histórico do B/L:
+// passa pelo efeito de carga alterada, que refaz conciliação, ficha e Histórico.
+function ValeOBlButton({ blContainerId, field, label }: { blContainerId: number; field: 'ownership' | 'profile'; label: string }) {
   const confirmWithReason = useConfirmWithReason()
   const { showToast } = useToast()
+  const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
   async function handleClick() {
     const reason = await confirmWithReason({
@@ -623,7 +629,7 @@ function ValeOBlButton({ blContainerId, field, label, onDone }: { blContainerId:
     try {
       await resolveBaplieDivergence(blContainerId, field, reason)
       showToast('Divergência encerrada: vale o B/L.', 'success')
-      onDone()
+      await afterCargaAlterada(queryClient)
     } catch (error) {
       showToast(userFacingErrorMessage(error, 'Não foi possível encerrar a divergência.'), 'error')
     } finally {
@@ -780,7 +786,7 @@ function ContainerList({
     const term = filters.container.trim().toLowerCase()
     return rows.filter(({ container, coverage }) => {
       return (!term || container.container_number.toLowerCase().includes(term) || (container.slot ?? '').toLowerCase().includes(term) || (container.bl_ref ?? '').toLowerCase().includes(term))
-        && (!filters.coverage || coverage?.key === filters.coverage)
+        && (!filters.coverage || Boolean(coverage?.keys.includes(filters.coverage)))
         && (!filters.status || (container.status === 'empty' ? 'empty' : 'full') === filters.status)
         && (!filters.type || container.size_type === filters.type)
         && (!filters.pol || container.pol === filters.pol)
@@ -816,6 +822,7 @@ function ContainerList({
               <option value="covered">Com B/L</option>
               <option value="missing">Sem B/L</option>
               <option value="ownership">SOC/COC diverge</option>
+              <option value="profile">IMO/OOG manual diverge</option>
               <option value="out_of_scope">Fora da conciliação (sem B/L na rota)</option>
               <option value="empty">Vazios</option>
             </Select>
@@ -979,7 +986,10 @@ function BaplieUploadModal({
   const pods = ruled?.pods ?? []
   const filteredContainers = (ruled?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
   const issues = ruled?.issues ?? []
-  const canImport = Boolean(parsed && voyageId && canImportPreview(filteredContainers.length > 0, issues))
+  // Sem a Viagem conferida (carregando ou com falha), as regras acima não
+  // rodaram: importar fica bloqueado.
+  const contextBlock = voyageId ? baplieVoyageContextBlock(voyageContext) : null
+  const canImport = Boolean(parsed && voyageId && !contextBlock && canImportPreview(filteredContainers.length > 0, issues))
   const destination = voyageLabel(voyages, voyageId)
 
   async function handleImport() {
@@ -1013,6 +1023,7 @@ function BaplieUploadModal({
   if (partial) footnote = baplieFootnoteForPendency(partial)
   else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
   else if (parsed && !voyageId) footnote = 'Escolha a viagem de destino para importar.'
+  else if (parsed && contextBlock) footnote = contextBlock.state === 'loading' ? contextBlock.message : 'Importação bloqueada até a Viagem ser conferida.'
   else if (parsed && !canImport) footnote = filteredContainers.length ? 'Há erro na prévia; corrija o arquivo e escolha de novo.' : 'Nenhum container selecionado para importar.'
   else if (parsed) footnote = `${plural(filteredContainers.length, 'container será gravado', 'containers serão gravados')}. Se a viagem já tem Baplie, você confere a diferença antes de substituir.`
 
@@ -1037,6 +1048,13 @@ function BaplieUploadModal({
           <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
             <p>{readError}</p>
             <p>Confira se é o Baplie EDIFACT da viagem e escolha de novo.</p>
+          </ImportNotice>
+        ) : null}
+        {contextBlock?.state === 'error' && !partial ? (
+          <ImportNotice tone="danger" role="alert" title="Importação bloqueada">
+            <p>{contextBlock.message}</p>
+            <p>Sem essa conferência, o navio, a viagem e as escalas do arquivo não são checados.</p>
+            <Button variant="secondary" className="app-btn--sm" onClick={() => void voyageContext.refetch()}>Tentar novamente</Button>
           </ImportNotice>
         ) : null}
         {parsed ? (

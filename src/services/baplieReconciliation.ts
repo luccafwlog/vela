@@ -134,6 +134,10 @@ export type BapliePhysicalUpdate = {
  * containers dessas rotas não viram divergência `missing_in_manifest` (o B/L
  * pode não ter chegado), mas continuam contando como presentes no Baplie, para
  * não gerar `missing_in_baplie` falso do outro lado.
+ *
+ * B/L cancelado não conta (ADR 0078, item 21): seu container não aparece "em
+ * B/L, fora do Baplie", e o container cujo único B/L está cancelado continua
+ * "no Baplie, sem B/L".
  */
 export function computeExistenceDivergences(
   staged: BaplieContainerRow[],
@@ -141,9 +145,10 @@ export function computeExistenceDivergences(
   pendingRoutes?: Set<string>,
 ): BaplieReconciliationItem[] {
   const items: BaplieReconciliationItem[] = []
+  const activeBlContainers = blContainers.filter((c) => !c.cancelled)
 
   const blByNumber = new Map<string, BlContainerPhysical[]>()
-  for (const c of blContainers) {
+  for (const c of activeBlContainers) {
     const key = normalizeContainerNumber(c.container_number)
     const list = blByNumber.get(key) ?? []
     list.push(c)
@@ -175,7 +180,7 @@ export function computeExistenceDivergences(
   }
 
   // Container em B/L e ausente do Baplie (full).
-  for (const mc of blContainers) {
+  for (const mc of activeBlContainers) {
     const key = normalizeContainerNumber(mc.container_number)
     if (!baplieFullNumbers.has(key)) {
       items.push({
@@ -419,10 +424,13 @@ async function fetchStagingAndBlContainers(voyageId: number) {
   const staged: BaplieContainerRow[] = []
   let from = 0
   while (true) {
+    // Paginação exige ordem estável: sem ORDER BY, páginas podem repetir ou
+    // pular linhas.
     const { data, error } = await supabase
       .from('baplie_containers')
       .select('*')
       .eq('voyage_id', voyageId)
+      .order('id')
       .range(from, from + PAGE - 1)
     if (error) throw error
     staged.push(...(data ?? []))
@@ -439,6 +447,7 @@ async function fetchStagingAndBlContainers(voyageId: number) {
         .from('bl_containers')
         .select('id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership, ownership_source, profile_source' as 'id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership, ownership_source')
         .in('bl_id', blIds)
+        .order('id')
         .range(fromC, fromC + PAGE - 1)
       if (error) throw error
       blContainers.push(...((data ?? []) as unknown as BlContainerPhysical[]).map((c) => ({ ...c, cancelled: cancelledBls.has(String(c.bl_id)) })))
@@ -508,8 +517,9 @@ export async function reconcileBaplieWithManifest(
   const isD7 = await resolveIsD7(voyageId, options)
 
   const fullStaged = staged.filter((c) => c.status !== 'empty')
-  // Só B/L COM containers cobre rota: um B/L sem container não conferiu nada.
-  const blIdsWithContainers = new Set(blContainers.map((c) => String(c.bl_id)))
+  // Só B/L ativo COM containers cobre rota: um B/L sem container (ou
+  // cancelado) não conferiu nada.
+  const blIdsWithContainers = new Set(blContainers.filter((c) => !c.cancelled).map((c) => String(c.bl_id)))
   const blsWithContainers = blRows.filter((bl) => blIdsWithContainers.has(String(bl.id)))
   const { covered, pending } = computeBaplieRouteCoverage(
     fullStaged.length > 0 ? fullStaged : staged,
@@ -545,7 +555,12 @@ export type BaplieFlagsApplyResult = {
   applied_to: Array<{ container: string; bl_id: string; flags?: string }>
   cleared: Array<{ container: string; bl_id: string }>
   divergent_manual: Array<{ container: string; bl_id: string }>
-  invoice_reissues: Array<{ bl_id?: string; status?: string }>
+  /**
+   * Um item por B/L com fatura viva cuja base mudou (`apply_invoice_basis_changes`,
+   * migration 128): `reissued`, `corrected`, `pending`, `has_payment`; a falha
+   * do reprocessamento vem como um item `error` com `bl_ids` (migration 130).
+   */
+  invoice_reissues: Array<{ bl_id?: string; bl_ids?: string[]; status?: string; pending_reason?: string | null; message?: string }>
 }
 
 /** Aplica as marcas do Baplie gravado e diz o que aplicou, onde e o que caiu (migration 182). */

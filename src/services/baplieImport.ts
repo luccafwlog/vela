@@ -3,20 +3,25 @@ import type { BaplieContainer, ParsedBaplie } from './baplieParser'
 import type { ImportIssue } from './importValidation'
 import { normalizePortCode } from './portCode'
 import { canonicalizeVesselName } from '../lib/vesselAlias'
+import { userFacingErrorMessage } from '../lib/errors'
 import { getBaplieManifestForVoyage, replaceVaziosFromBaplie } from './vaziosImportacaoImport'
-import { applyBapliePhysicalFlagsDetailed } from './baplieReconciliation'
+import { applyBapliePhysicalFlagsDetailed, type BaplieFlagsApplyResult } from './baplieReconciliation'
 
 export type BaplieVoyageContext = {
   voyageNumber: string | null
   vesselName: string | null
-  /** Portos das escalas ativas da Viagem (`get_voyage_eligible_pods`). */
+  /** Portos das escalas ativas da Viagem (`list_voyage_eligible_pods`, migration 190). */
   eligiblePods: string[]
 }
 
 export async function fetchBaplieVoyageContext(voyageId: number): Promise<BaplieVoyageContext> {
+  // `get_voyage_eligible_pods` não tem GRANT para authenticated: a chamada
+  // falhava e as regras da Viagem não rodavam. A versão guardada (usuário
+  // interno ativo) devolve o mesmo `TABLE(pod text)`. O cast fica até a
+  // regeneração dos tipos (database.ts protegido).
   const [voyage, pods] = await Promise.all([
     supabase.from('voyages').select('voyage_number, vessel:vessels(name)').eq('id', voyageId).maybeSingle(),
-    supabase.rpc('get_voyage_eligible_pods' as never, { p_voyage_id: voyageId } as never),
+    supabase.rpc('list_voyage_eligible_pods' as never, { p_voyage_id: voyageId } as never),
   ])
   if (voyage.error) throw voyage.error
   if (pods.error) throw pods.error
@@ -25,15 +30,42 @@ export async function fetchBaplieVoyageContext(voyageId: number): Promise<Baplie
   return { voyageNumber: row?.voyage_number ?? null, vesselName: row?.vessel?.name ?? null, eligiblePods: eligible }
 }
 
-const voyageKey = (value: string | null | undefined) => String(value ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+/**
+ * Sem o contexto da Viagem, as regras de navio/viagem e de escalas não rodam
+ * e o arquivo passaria sem conferência: a importação espera a leitura e, se
+ * ela falhar, fica bloqueada com o motivo. `null` libera.
+ */
+export function baplieVoyageContextBlock(context: {
+  data?: BaplieVoyageContext | null
+  isError?: boolean
+  error?: unknown
+}): { state: 'loading' | 'error'; message: string } | null {
+  if (context.isError) {
+    return {
+      state: 'error',
+      message: `Não foi possível conferir a Viagem: ${userFacingErrorMessage(context.error, 'a leitura do navio, da viagem e das escalas falhou. Tente novamente.')}`,
+    }
+  }
+  if (!context.data) return { state: 'loading', message: 'Conferindo navio, viagem e escalas da Viagem…' }
+  return null
+}
+
+// Mesma regra da importação documental de B/L (`normalizeVoyageNumber` em
+// blDocumentImport.ts): pontuação e zeros à esquerda não mudam a viagem
+// ("0012N" = "12N", "033" = "33"). ponytail: cópia de uma linha porque o
+// helper de lá não é exportado; se a regra mudar, mude nos dois.
+const voyageKey = (value: string | null | undefined) =>
+  String(value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^0+/, '')
 
 /**
  * Regras do Baplie que dependem da Viagem escolhida (ADR 0078, item 21): o
  * TDT de outro navio ou viagem bloqueia; container com POD fora das escalas
  * da Viagem é ignorado com aviso. Sem escalas cadastradas, nada é filtrado.
+ * O navio só bloqueia quando o nome vem da identificação do transporte (C222);
+ * nome deduzido por heurística só avisa.
  */
 export function applyBaplieVoyageRules(
-  parsed: Pick<ParsedBaplie, 'containers' | 'issues' | 'voyage_number' | 'vessel_name'>,
+  parsed: Pick<ParsedBaplie, 'containers' | 'issues' | 'voyage_number' | 'vessel_name' | 'vessel_name_source'>,
   context: BaplieVoyageContext | null | undefined,
 ): { containers: BaplieContainer[]; pods: string[]; issues: ImportIssue[] } {
   const issues: ImportIssue[] = [...parsed.issues]
@@ -47,9 +79,12 @@ export function applyBaplieVoyageRules(
     }
     if (parsed.vessel_name && context.vesselName
         && canonicalizeVesselName(parsed.vessel_name) !== canonicalizeVesselName(context.vesselName)) {
+      const identified = parsed.vessel_name_source === 'identification'
       issues.push({
-        row: 0, field: 'vessel', code: 'ambiguous_voyage', severity: 'error',
-        message: `O arquivo é do navio ${parsed.vessel_name}; a viagem escolhida é do navio ${context.vesselName}.`,
+        row: 0, field: 'vessel', code: 'ambiguous_voyage', severity: identified ? 'error' : 'warning',
+        message: identified
+          ? `O arquivo é do navio ${parsed.vessel_name}; a viagem escolhida é do navio ${context.vesselName}.`
+          : `O TDT do arquivo não traz o nome do navio na identificação do transporte; o nome lido (${parsed.vessel_name}) difere do navio da viagem escolhida (${context.vesselName}). Confira antes de importar.`,
       })
     }
     if (context.eligiblePods.length) {
@@ -257,7 +292,33 @@ export type BaplieFlagsSummary = {
   appliedBls: number
   cleared: number
   divergentManual: number
+  /** B/Ls com fatura de fato reemitida (`reissued`). */
   reissues: number
+  /** B/Ls com fatura paga corrigida por abatimento ou restituição (`corrected`). */
+  corrected?: number
+  /** B/Ls cuja fatura não foi reemitida (`pending`, `has_payment`): ficam em Alertas. */
+  reissuesPending?: number
+  /** B/Ls em que o reprocessamento da base falhou (`error`): ficam em Alertas. */
+  reissueErrors?: number
+}
+
+/**
+ * Resumo do retorno de `apply_baplie_physical_flags_atomic`. Cada item de
+ * `invoice_reissues` é um B/L com o status de `apply_invoice_basis_changes`
+ * (migration 128): só `reissued` é reemissão; `error` traz `bl_ids`.
+ */
+export function summarizeBaplieFlags(result: BaplieFlagsApplyResult): BaplieFlagsSummary {
+  const byStatus = (statuses: string[]) => result.invoice_reissues.filter((item) => statuses.includes(String(item.status ?? '')))
+  return {
+    appliedContainers: new Set(result.applied_to.map((item) => item.container)).size,
+    appliedBls: new Set(result.applied_to.map((item) => item.bl_id)).size,
+    cleared: result.cleared.length,
+    divergentManual: result.divergent_manual.length,
+    reissues: byStatus(['reissued']).length,
+    corrected: byStatus(['corrected']).length,
+    reissuesPending: byStatus(['pending', 'has_payment']).length,
+    reissueErrors: byStatus(['error']).reduce((total, item) => total + (Array.isArray(item.bl_ids) && item.bl_ids.length ? item.bl_ids.length : 1), 0),
+  }
 }
 
 export function describeBaplieFlags(summary: BaplieFlagsSummary | null | undefined): string {
@@ -266,7 +327,10 @@ export function describeBaplieFlags(summary: BaplieFlagsSummary | null | undefin
     summary.appliedContainers ? `marcas aplicadas a ${summary.appliedContainers} container(s) em ${summary.appliedBls} B/L(s)` : '',
     summary.cleared ? `${summary.cleared} marca(s) do Baplie anterior retirada(s)` : '',
     summary.divergentManual ? `${summary.divergentManual} perfil(is) manual(is) mantido(s) como divergência` : '',
-    summary.reissues ? `${summary.reissues} fatura(s) reemitida(s) pela mudança de base` : '',
+    summary.reissues ? `fatura reemitida pela mudança de base em ${summary.reissues} B/L(s)` : '',
+    summary.corrected ? `fatura paga corrigida pela mudança de base em ${summary.corrected} B/L(s)` : '',
+    summary.reissuesPending ? `fatura não reemitida em ${summary.reissuesPending} B/L(s) (pendente em Alertas)` : '',
+    summary.reissueErrors ? `falha ao refazer a fatura em ${summary.reissueErrors} B/L(s) (pendente em Alertas)` : '',
   ].filter(Boolean)
   return parts.length ? ` ${parts.join('; ')}.` : ''
 }
@@ -301,17 +365,7 @@ function errorText(error: unknown, fallback: string): string {
 
 async function applyFlagsAfterStaging(voyageId: number, actorId: string): Promise<{ flagsError: string | null; flags: BaplieFlagsSummary | null }> {
   try {
-    const result = await applyBapliePhysicalFlagsDetailed(voyageId, actorId)
-    return {
-      flagsError: null,
-      flags: {
-        appliedContainers: new Set(result.applied_to.map((item) => item.container)).size,
-        appliedBls: new Set(result.applied_to.map((item) => item.bl_id)).size,
-        cleared: result.cleared.length,
-        divergentManual: result.divergent_manual.length,
-        reissues: result.invoice_reissues.length,
-      },
-    }
+    return { flagsError: null, flags: summarizeBaplieFlags(await applyBapliePhysicalFlagsDetailed(voyageId, actorId)) }
   } catch (error) {
     return { flagsError: errorText(error, 'Falha ao aplicar IMO/OOG aos B/Ls.'), flags: null }
   }

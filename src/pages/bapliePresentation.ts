@@ -4,6 +4,7 @@
 import {
   normalizeContainerNumber,
   routeKey as baplieRouteKey,
+  type BaplieReconciliationItem,
   type BaplieReconciliationResult,
 } from '../services/baplieReconciliation'
 
@@ -99,13 +100,24 @@ export function buildReconciliationOverview({
   }
 }
 
-export type RowCoverage = { label: string; tone: 'success' | 'warning' | 'neutral' | 'info'; key: CoverageFilter }
-export type CoverageFilter = 'covered' | 'missing' | 'ownership' | 'out_of_scope' | 'empty'
+/** `keys` lista cada recorte do filtro em que a linha entra (SOC/COC e IMO/OOG podem divergir juntos). */
+export type RowCoverage = { label: string; tone: 'success' | 'warning' | 'neutral' | 'info'; keys: readonly CoverageFilter[] }
+export type CoverageFilter = 'covered' | 'missing' | 'ownership' | 'profile' | 'out_of_scope' | 'empty'
+
+type ReconciliationKind = BaplieReconciliationItem['kind']
 
 export function indexReconciliation(reconciliation: BaplieReconciliationResult | undefined) {
   // O item de SOC/COC traz o número como está no B/L; o do Baplie pode vir com
-  // outra grafia. A chave é o número normalizado, como na conciliação.
-  return new Map((reconciliation?.items ?? []).map((item) => [normalizeContainerNumber(item.container_number), item.kind]))
+  // outra grafia. A chave é o número normalizado, como na conciliação. Um
+  // container pode ter mais de uma divergência: guarda todas, sem sobrescrever.
+  const index = new Map<string, Set<ReconciliationKind>>()
+  for (const item of reconciliation?.items ?? []) {
+    const key = normalizeContainerNumber(item.container_number)
+    const kinds = index.get(key) ?? new Set<ReconciliationKind>()
+    kinds.add(item.kind)
+    index.set(key, kinds)
+  }
+  return index
 }
 
 /**
@@ -116,17 +128,21 @@ export function describeRowCoverage(
   row: StagedRow,
   overview: ReconciliationOverview,
   reconciliation: BaplieReconciliationResult | undefined,
-  index: ReadonlyMap<string, string> = indexReconciliation(reconciliation),
+  index: ReadonlyMap<string, ReadonlySet<ReconciliationKind>> = indexReconciliation(reconciliation),
 ): RowCoverage | null {
-  if (!isFull(row)) return { label: 'Fora da conciliação', tone: 'neutral', key: 'empty' }
-  if (overview.state === 'no_bls') return { label: 'Viagem sem B/L', tone: 'neutral', key: 'out_of_scope' }
+  if (!isFull(row)) return { label: 'Fora da conciliação', tone: 'neutral', keys: ['empty'] }
+  if (overview.state === 'no_bls') return { label: 'Viagem sem B/L', tone: 'neutral', keys: ['out_of_scope'] }
   if (!reconciliation || overview.state === 'loading' || overview.state === 'error') return null
   const key = baplieRouteKey(row)
   if (overview.state === 'awaiting_route_coverage' || (key !== null && overview.pendingRoutes.includes(key))) {
-    return { label: 'Fora · rota sem B/L', tone: 'neutral', key: 'out_of_scope' }
+    return { label: 'Fora · rota sem B/L', tone: 'neutral', keys: ['out_of_scope'] }
   }
-  const kind = index.get(normalizeContainerNumber(row.container_number))
-  if (kind === 'missing_in_manifest') return { label: 'Sem B/L', tone: 'warning', key: 'missing' }
-  if (kind === 'ownership_mismatch') return { label: 'Com B/L · SOC/COC diverge', tone: 'warning', key: 'ownership' }
-  return { label: 'Com B/L', tone: 'success', key: 'covered' }
+  const kinds = index.get(normalizeContainerNumber(row.container_number))
+  if (kinds?.has('missing_in_manifest')) return { label: 'Sem B/L', tone: 'warning', keys: ['missing'] }
+  const ownership = kinds?.has('ownership_mismatch') ?? false
+  const profile = kinds?.has('profile_mismatch') ?? false
+  if (ownership && profile) return { label: 'Com B/L · SOC/COC e IMO/OOG manual divergem', tone: 'warning', keys: ['ownership', 'profile'] }
+  if (ownership) return { label: 'Com B/L · SOC/COC diverge', tone: 'warning', keys: ['ownership'] }
+  if (profile) return { label: 'Com B/L · IMO/OOG manual diverge', tone: 'warning', keys: ['profile'] }
+  return { label: 'Com B/L', tone: 'success', keys: ['covered'] }
 }

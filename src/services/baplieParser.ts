@@ -26,6 +26,13 @@ export type BaplieContainer = {
 
 export type ParsedBaplie = {
   vessel_name: string | null
+  /**
+   * De onde veio o nome do navio: `identification` = 4º componente do C222
+   * (identificação do transporte), o único que bloqueia navio diferente;
+   * `heuristic` = palpite (nome do armador no C040 ou último composto
+   * alfabético), que só gera aviso.
+   */
+  vessel_name_source?: 'identification' | 'heuristic' | null
   voyage_number: string | null
   /** Operador do navio (TDT, ou o NAD+CA mais frequente quando o TDT não traz). */
   operator?: string | null
@@ -40,6 +47,12 @@ const POD_QUALIFIERS = new Set(['11', '12'])
 const FINAL_DEST_QUALIFIERS = new Set(['83'])
 const WEIGHT_QUALIFIERS = new Set(['WT', 'VGM'])
 const SLOT_QUALIFIER = '147'
+// C222 (identificação do transporte): indicativo de chamada (103) ou nº IMO
+// (146), agência e o NOME do navio no 4º componente.
+const TRANSPORT_ID_QUALIFIERS = new Set(['103', '146'])
+// DIM de excesso (5 = frente, 6 = trás, 7 = direita, 8 = esquerda, 9 = altura).
+// DIM+1 (dimensões brutas) e demais medidas não são excesso.
+const OOG_DIM_QUALIFIERS = new Set(['5', '6', '7', '8', '9'])
 
 type Delimiters = { component: string; element: string; release: string; terminator: string }
 
@@ -203,6 +216,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
     : []
 
   let vessel_name: string | null = null
+  let vessel_name_source: ParsedBaplie['vessel_name_source'] = null
   let voyage_number: string | null = null
   let tdtCarrier: string | null = null
 
@@ -212,13 +226,20 @@ export function parseBaplieText(text: string): ParsedBaplie {
     // TDT 3127 (carrier): o operador do navio, comparado com o NAD+CA de cada container.
     tdtCarrier = seg.components[5]?.[0]?.trim().toUpperCase() || tdtCarrier
     const flat = seg.components.flat().map((c) => c.trim()).filter(Boolean)
-    // Identificação do transporte (C222): call sign:código:agência:NOME. Preferir o
-    // 4º subcampo evita pegar o código da transportadora (ex.: COT:172:20), que vem depois.
+    // Identificação do transporte (C222): call sign:código:agência:NOME. O C222 é
+    // o composto com qualificador 103/146 (há dialeto que o põe fora do 8º
+    // elemento) ou, sem qualificador, o 8º elemento do padrão.
+    const transportId = seg.components.find((c, index) => index >= 3 && TRANSPORT_ID_QUALIFIERS.has((c[1] ?? '').trim()))
+      ?? seg.components[8]
+    const identified = transportId?.[3]?.trim() || null
+    // ponytail: sem nome no C222, cai no 4º componente de outro composto (o C040
+    // traz ali o nome do ARMADOR) e depois no último composto alfabético (pode
+    // ser o call sign). Serve para mostrar e avisar; não bloqueia (E9-03).
     const named = seg.components.map((c) => c[3]?.trim()).find(Boolean)
-    // ponytail: sem C222 completo, cai na heurística do último composto alfabético.
-    const vessel = named ?? [...flat].reverse().find((part) => /[A-Z]/.test(part) && part !== '20')
+    const vessel = identified ?? named ?? [...flat].reverse().find((part) => /[A-Z]/.test(part) && part !== '20')
     if (vessel && vessel !== voyage_number) {
       vessel_name = vessel.replace(/:/g, ' ').trim() || null
+      vessel_name_source = vessel_name ? (identified ? 'identification' : 'heuristic') : null
     }
   }
 
@@ -262,7 +283,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
 
   const containers: BaplieContainer[] = []
   const issues: ImportIssue[] = []
-  const ignored: Array<{ container_number: string; reason: 'transshipment' | 'operator'; group: number; operator?: string }> = []
+  const ignored: Array<{ container_number: string; reason: 'transshipment' | 'operator' | 'unknown_pod'; group: number; operator?: string; pod?: string | null }> = []
   const operatorByContainer = new Map<string, string>()
   for (const segment of trailingSegments) {
     issues.push({
@@ -334,10 +355,12 @@ export function parseBaplieText(text: string): ParsedBaplie {
       const ownWeightResult = lastValue(weightValues)
       const ownWeight = ownWeightResult?.value ?? null
       const ownOog = ownItems.some((i) => i.tag === 'DIM' && hasOogDims(i, delimiters))
-      // Carga LQ (quantidade limitada) é carga normal: não marca IMO.
+      // Carga LQ (quantidade limitada) é carga normal: só o DGS em LQ deixa de
+      // marcar IMO; outro DGS do mesmo container continua valendo.
       const dgsSegments = ownItems.filter((i) => i.tag === 'DGS')
-      const limitedQuantity = dgsSegments.some((i) => i.components.flat().some((part) => part.trim().toUpperCase() === 'LQ'))
-      const dgs = limitedQuantity ? null : lastValue(dgsSegments.map((i) => parseDgs(i)))
+      const isLimitedQuantity = (i: ParsedSegment) => i.components.flat().some((part) => part.trim().toUpperCase() === 'LQ')
+      const limitedQuantity = dgsSegments.some(isLimitedQuantity)
+      const dgs = lastValue(dgsSegments.filter((i) => !isLimitedQuantity(i)).map((i) => parseDgs(i)))
       const ownOperator = lastValue(ownItems.filter((i) => i.tag === 'NAD' && (i.components[1]?.[0] ?? '').trim() === 'CA')
         .map((i) => i.components[2]?.[0]?.trim().toUpperCase() || null))
       // EQD 8249 = 6: em transbordo, não descarrega nesta operação.
@@ -381,11 +404,20 @@ export function parseBaplieText(text: string): ParsedBaplie {
           field: 'is_imo',
           code: 'invalid_group',
           severity: 'warning',
-          message: `Container ${container_number}: carga LQ (quantidade limitada) tratada como carga normal, sem IMO.`,
+          message: dgs
+            ? `Container ${container_number}: DGS em quantidade limitada (LQ) desconsiderado; o IMO vem dos demais DGS (classe ${dgs.imo_class ?? '—'}).`
+            : `Container ${container_number}: carga LQ (quantidade limitada) tratada como carga normal, sem IMO.`,
         })
       }
       if (equipmentStatus === '6') {
         ignored.push({ container_number, reason: 'transshipment', group: group.order })
+        return
+      }
+      // POD informado mas fora dos portos conhecidos (ex.: UYMVD): o container
+      // não descarga nesta operação e sai com aviso, como o filtro de escalas
+      // (ADR 0078, item 21). Só o arquivo sem nenhum container restante bloqueia.
+      if (podRaw && !ownPod.recognized && !useDeliveryAsPod) {
+        ignored.push({ container_number, reason: 'unknown_pod', group: group.order, pod: podRaw })
         return
       }
       if (ownOperator) operatorByContainer.set(container_number, ownOperator)
@@ -448,7 +480,7 @@ export function parseBaplieText(text: string): ParsedBaplie {
           message: `Container ${container_number}: POL ${polRaw ? `não reconhecido (${polRaw})` : 'ausente'} no conjunto ${group.order}.`,
         })
       }
-      if (useDeliveryAsPod || (eqdPos === 0 && (!ownPod.code || !ownPod.recognized))) {
+      if (useDeliveryAsPod || (eqdPos === 0 && !ownPod.code)) {
         issues.push({
           row: group.order,
           field: 'pod',
@@ -492,6 +524,16 @@ export function parseBaplieText(text: string): ParsedBaplie {
     return true
   })
   for (const item of ignored) {
+    if (item.reason === 'unknown_pod') {
+      issues.push({
+        row: item.group,
+        field: 'pod',
+        code: 'unknown_port',
+        severity: 'warning',
+        message: `Container ${item.container_number}: porto de descarga não reconhecido (${item.pod}); fora das escalas, ignorado.`,
+      })
+      continue
+    }
     issues.push({
       row: item.group,
       field: 'container_number',
@@ -502,9 +544,18 @@ export function parseBaplieText(text: string): ParsedBaplie {
         : `Container ${item.container_number}: de outro operador (${item.operator}); ignorado.`,
     })
   }
+  if (!kept.length && ignored.length) {
+    issues.push({
+      row: 0,
+      field: 'container_number',
+      code: 'invalid_group',
+      severity: 'error',
+      message: `Nenhum container a importar: ${ignored.length === 1 ? 'o único container do arquivo foi ignorado' : `os ${ignored.length} containers do arquivo foram ignorados`} (avisos acima).`,
+    })
+  }
 
   const pods = Array.from(new Set(kept.map((c) => c.pod).filter((p): p is string => Boolean(p)))).sort()
-  return { vessel_name, voyage_number, operator, containers: kept, pods, issues, encoding: 'utf-8' }
+  return { vessel_name, vessel_name_source, voyage_number, operator, containers: kept, pods, issues, encoding: 'utf-8' }
 }
 
 function lastValue<T>(values: Array<T | null>): T | null {
@@ -567,9 +618,11 @@ function parseWeight(segment: ParsedSegment, delimiters: Delimiters): ParsedWeig
   return { value: number * factor, issue: null }
 }
 
-// OOG só com excesso de dimensão maior que zero (ADR 0078, item 21): o
-// primeiro componente do DIM é a unidade (ex.: CMT), não uma medida.
+// OOG só com excesso de dimensão maior que zero (ADR 0078, item 21): só os
+// qualificadores de excesso contam, e o primeiro componente do DIM é a
+// unidade (ex.: CMT), não uma medida.
 function hasOogDims(segment: ParsedSegment, delimiters: Delimiters): boolean {
+  if (!OOG_DIM_QUALIFIERS.has(qualifierOf(segment))) return false
   const dimsRaw = segment.rawElements[2] ?? ''
   const dims = splitRespectingRelease(dimsRaw, delimiters.component, delimiters.release)
   return dims.some((d) => {

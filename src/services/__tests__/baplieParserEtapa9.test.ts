@@ -56,6 +56,37 @@ describe('Baplie — regras da etapa 9', () => {
     ]))
   })
 
+  // E9-05: só DIM de excesso (5 a 9) marca OOG; DIM+1 são as dimensões brutas.
+  it('dimensão bruta (DIM+1) não marca OOG', () => {
+    const parsed = parse([
+      ...unit(["EQD+CN+MSCU1234566+45G1+++5'", "DIM+1+CMT:1219:244:290'"]),
+      ...unit(["EQD+CN+MSCU7654329+45G1+++5'", "DIM+1+CMT:1219:244:290'", "DIM+9+CMT:::35'"]),
+    ])
+    expect(parsed.containers.map((c) => [c.container_number, c.is_oog])).toEqual([['MSCU1234566', false], ['MSCU7654329', true]])
+  })
+
+  // E9-04: o LQ apaga só o DGS em quantidade limitada, não o IMO do container.
+  it('DGS em LQ não apaga o outro DGS do mesmo container', () => {
+    const parsed = parse([
+      ...unit(["EQD+CN+MSCU1234566+45G1+++5'", "DGS+IMD+3+1263+++++LQ'", "DGS+IMD+8+1830'"]),
+    ])
+    expect(parsed.containers[0]).toMatchObject({ is_imo: true, imo_class: '8', un_number: '1830' })
+    expect(parsed.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/LQ\) desconsiderado; o IMO vem dos demais DGS \(classe 8\)/) }),
+    ]))
+  })
+
+  // E9-03: só o nome no C222 identifica o navio; o resto é palpite.
+  it.each([
+    ['C222 com nome', "TDT+20+12+++HLC:172:20+++5LFD3:103::GREEN SANTOS'", 'GREEN SANTOS', 'identification'],
+    ['C222 fora do 8º elemento (COSCO)', "TDT+20+22++BPCF5:103::COSCO SHIPPING FAN RONG++COT:172:20'", 'COSCO SHIPPING FAN RONG', 'identification'],
+    ['C222 só com call sign', "TDT+20+0012N+++HLC:172:20+++DGXX:103'", 'DGXX', 'heuristic'],
+    ['nome do armador no C040', "TDT+20+14+++COS:172:20:COSCO SHIPPING LINES'", 'COSCO SHIPPING LINES', 'heuristic'],
+  ])('origem do nome do navio: %s', (_case, tdt, vessel, source) => {
+    const parsed = parseBaplieText([tdt, "UNT+2+1'"].join('\n'))
+    expect(parsed).toMatchObject({ vessel_name: vessel, vessel_name_source: source })
+  })
+
   it('dígito verificador errado vira aviso e não bloqueia', () => {
     const parsed = parse([...unit(["EQD+CN+MSCU1234567+45G1+++5'"])])
     expect(parsed.containers).toHaveLength(1)

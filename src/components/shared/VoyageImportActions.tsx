@@ -30,7 +30,7 @@ import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVazio
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile, vehicleUnpackingConfirmOptions } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
-import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../../services/baplieImport'
+import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, baplieVoyageContextBlock, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../../services/baplieImport'
 import { BaplieImportPartialNotice } from './BaplieImportPartialNotice'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
@@ -431,7 +431,10 @@ function BaplieImportModal({
   const filteredContainers = (ruled?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
   const includedPods = pods.filter((pod) => !excludedPods.has(pod)).length
   const issues = ruled?.issues ?? []
-  const canImport = canImportPreview(filteredContainers.length > 0, issues)
+  // Sem a Viagem conferida (carregando ou com falha), as regras acima não
+  // rodaram: importar fica bloqueado.
+  const contextBlock = baplieVoyageContextBlock(voyageContext)
+  const canImport = !contextBlock && canImportPreview(filteredContainers.length > 0, issues)
 
   async function handleImport() {
     if (!canImport) return
@@ -463,6 +466,7 @@ function BaplieImportModal({
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
   if (partial) footnote = baplieFootnoteForPendency(partial)
   else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (parsed && contextBlock) footnote = contextBlock.state === 'loading' ? contextBlock.message : 'Importação bloqueada até a Viagem ser conferida.'
   else if (parsed && !canImport) footnote = filteredContainers.length ? 'Há erro na prévia; corrija o arquivo e escolha de novo.' : 'Nenhum container selecionado para importar.'
   else if (parsed) footnote = `${plural(filteredContainers.length, 'container será gravado', 'containers serão gravados')}. Se a viagem já tem Baplie, você confirma a substituição antes.`
 
@@ -476,6 +480,13 @@ function BaplieImportModal({
           <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
             <p>{readError}</p>
             <p>Confira se é o Baplie EDIFACT da viagem e escolha de novo.</p>
+          </ImportNotice>
+        ) : null}
+        {contextBlock?.state === 'error' && !partial ? (
+          <ImportNotice tone="danger" role="alert" title="Importação bloqueada">
+            <p>{contextBlock.message}</p>
+            <p>Sem essa conferência, o navio, a viagem e as escalas do arquivo não são checados.</p>
+            <Button variant="secondary" className="app-btn--sm" onClick={() => void voyageContext.refetch()}>Tentar novamente</Button>
           </ImportNotice>
         ) : null}
         {parsed ? (

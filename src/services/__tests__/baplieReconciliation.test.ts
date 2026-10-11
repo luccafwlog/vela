@@ -30,6 +30,7 @@ function createBuilder(result: QueryResult) {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
     in: vi.fn(() => builder),
+    order: vi.fn(() => builder),
     range: vi.fn(() => builder),
     update: vi.fn(() => builder),
     insert: vi.fn(() => builder),
@@ -52,13 +53,16 @@ function createMutationBuilder(table: string, method: string, payload: unknown) 
   return builder
 }
 
+const builders: Record<string, ReturnType<typeof createBuilder>> = {}
+
 function installReconcileMocks(input: { bls?: unknown[]; baplie?: unknown[]; containers?: unknown[] }) {
   mockFrom.mockImplementation((table: string) => {
     if (table === 'bls') return createBuilder({ data: input.bls ?? [], error: null })
-    if (table === 'baplie_containers') return createBuilder({ data: input.baplie ?? [], error: null })
+    if (table === 'baplie_containers') return (builders[table] = createBuilder({ data: input.baplie ?? [], error: null }))
     if (table === 'baplie_reconciliation_resolutions') return createBuilder({ data: [], error: null })
     if (table === 'bl_containers') {
       const builder = createBuilder({ data: input.containers ?? [], error: null })
+      builders[table] = builder
       builder.update.mockImplementation(((payload: unknown) => createMutationBuilder(table, 'update', payload)) as never)
       return builder
     }
@@ -119,6 +123,22 @@ describe('computeExistenceDivergences', () => {
       blcs([]),
     )
     expect(items).toEqual([])
+  })
+
+  // E9-15: B/L cancelado fica de fora da conciliação (ADR 0078, item 21).
+  it('ignora container de B/L cancelado nas duas direções', () => {
+    const items = computeExistenceDivergences(
+      staged([{ container_number: 'ABCD1234567', status: 'full', bl_ref: null, slot: '01' }]),
+      blcs([
+        // Único B/L do container do Baplie está cancelado: continua "sem B/L".
+        { id: 10, bl_id: 'BL-CANC', container_number: 'ABCD1234567', cancelled: true },
+        // Container só em B/L cancelado: não aparece "em B/L, fora do Baplie".
+        { id: 11, bl_id: 'BL-CANC', container_number: 'WXYZ7654321', cancelled: true },
+      ]),
+    )
+    expect(items).toEqual([
+      { kind: 'missing_in_manifest', container_number: 'ABCD1234567', baplie_bl_ref: null, slot: '01' },
+    ])
   })
 
   it('não aponta divergência de atributo (IMO/OOG divergentes mas mesmo container)', () => {
@@ -311,6 +331,31 @@ describe('reconcileBaplieWithManifest', () => {
     expect(result.source).toBe('reconciled')
     expect(result.items).toHaveLength(1)
     expect(result.items[0]).toMatchObject({ kind: 'missing_in_manifest', container_number: 'XYZU9876543' })
+  })
+
+  // E9-17: paginação sem ORDER BY pode repetir ou pular linhas entre páginas.
+  it('pagina Baplie e containers dos B/Ls em ordem estável', async () => {
+    installReconcileMocks({
+      bls: [{ id: 'BL1' }],
+      baplie: [{ container_number: 'ABCD1234567', status: 'full' }],
+      containers: [{ id: 10, bl_id: 'BL1', container_number: 'ABCD1234567' }],
+    })
+    await reconcileBaplieWithManifest(1, { isD7: false })
+    expect(builders.baplie_containers.order).toHaveBeenCalledWith('id')
+    expect(builders.bl_containers.order).toHaveBeenCalledWith('id')
+  })
+
+  it('B/L cancelado não cobre a rota nem entra na conciliação', async () => {
+    installReconcileMocks({
+      bls: [{ id: 'BL1', pol: 'CNTAO', pod: 'BRSSZ', cancelled_at: '2026-10-01T00:00:00Z' }],
+      baplie: [{ container_number: 'ABCD1234567', pol: 'CNTAO', pod: 'BRSSZ', status: 'full' }],
+      containers: [{ id: 10, bl_id: 'BL1', container_number: 'ABCD1234567' }],
+    })
+    await expect(reconcileBaplieWithManifest(1, { isD7: false })).resolves.toEqual({
+      items: [], source: 'awaiting_route_coverage', pendingRoutes: ['CNTAO::BRSSZ'],
+    })
+    const forced = await reconcileBaplieWithManifest(1, { isD7: true })
+    expect(forced.items).toEqual([expect.objectContaining({ kind: 'missing_in_manifest', container_number: 'ABCD1234567' })])
   })
 
   it('resolve D-7 automaticamente pela RPC quando o chamador não informa isD7', async () => {
