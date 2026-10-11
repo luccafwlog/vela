@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
+const mocks = vi.hoisted(() => ({ confirm: vi.fn(), correct: vi.fn() }))
+
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }) }))
-vi.mock('../../ui/ConfirmDialog', () => ({ useConfirmWithReason: () => vi.fn() }))
+vi.mock('../../ui/ConfirmDialog', () => ({ useConfirmWithReason: () => mocks.confirm }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
+vi.mock('../../../services/cacheEffects', () => ({ afterBlEstadoAlterado: vi.fn() }))
+vi.mock('../../../services/blCeMercante', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/blCeMercante')>()),
+  correctBlCeMercante: mocks.correct,
+}))
 
 import { BlCeMercanteField } from '../BlCeMercanteField'
 
@@ -26,4 +33,19 @@ it('B/L com CE oferece Corrigir e Remover', () => {
 
   expect(screen.getByRole('button', { name: 'Corrigir' })).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Remover' })).toBeTruthy()
+})
+
+// Migration 207 (achado da revisão automática): a correção leva o CE exibido,
+// para o banco recusar se outra sessão o trocou com o diálogo aberto.
+it('Corrigir manda o CE que a ficha exibia', async () => {
+  mocks.confirm.mockResolvedValue('CE digitado errado')
+  mocks.correct.mockResolvedValue(undefined)
+  render(<BlCeMercanteField blId="BL-1" voyageId={7} ce="123456789012345" />)
+
+  fireEvent.change(screen.getByLabelText('CE Mercante novo'), { target: { value: '123456789012346' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Corrigir' }))
+
+  await waitFor(() => expect(mocks.correct).toHaveBeenCalledWith({
+    blId: 'BL-1', ce: '123456789012346', reason: 'CE digitado errado', expectedCe: '123456789012345',
+  }))
 })

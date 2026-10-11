@@ -16,7 +16,8 @@
   containers dos B/Ls da Viagem, com o cabeçalho do arquivo como reserva e aviso. **Granito
   (`206`):** planilha sem B/L em comum com a Viagem vira outro manifesto, sem perguntar pelos
   demais. O runner de efeitos precisa estar ligado antes de dados reais, e tudo sai na PR 929
-  com ensaio em Preview.
+  com ensaio em Preview. **`207`:** mudar o POL do B/L também desvincula o Manifesto Mercante, e
+  Corrigir CE Mercante pela ficha é recusado se outra sessão trocou o CE com o diálogo aberto.
 - **Revisão da PR 929 (2026-10-11, implementação local; [plano de correção das
   importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md#revisão-da-pr-929-2026-10-11)):**
   correções das importações em seis migrations novas, sem reescrever linhas.

@@ -248,6 +248,13 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(manifestoOf('A228-M1')).toBe('')
     expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-M1' AND field_name = 'manifesto_mercante' ORDER BY id DESC LIMIT 1;`))
       .toMatch(/POD ou a Viagem/)
+
+    // Migration 207: o Manifesto é da rota inteira; trocar o POL também desvincula.
+    expect(json<{ moved: number }>(`SELECT public.move_bls_to_manifesto_mercante(ARRAY['A228-M2'], 'A228E00000001', 'Volta ao manifesto (A228)');`).moved).toBe(1)
+    psql(`UPDATE public.bls SET pol = 'A228X' WHERE id = 'A228-M2';`)
+    expect(manifestoOf('A228-M2')).toBe('')
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-M2' AND field_name = 'manifesto_mercante' ORDER BY id DESC LIMIT 1;`))
+      .toMatch(/POL, o POD ou a Viagem/)
   })
 
   it('emissão em lotes: a gravação só calcula; o lote emite como Sistema — CE Mercante', () => {
@@ -431,7 +438,11 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
   it('K2: corrigir ou remover o CE pela ficha depois do Desbloqueio conferido abre o alerta; a planilha não duplica', () => {
     insertBl('A228-U1', { container: 'ADCU2280036', withCustomer: false, ce: '992280000000051' })
     confirmUnlock('A228-U1', '992280000000051')
-    expect(asAdmin(`SELECT public.correct_bl_ce_mercante('A228-U1', '992280000000052', 'CE digitado errado (A228)');`).error).toBeNull()
+    // Migration 207: a ficha manda o CE que exibia; outro CE no banco recusa sem gravar.
+    expect(asAdmin(`SELECT public.correct_bl_ce_mercante('A228-U1', '992280000000052', 'CE digitado errado (A228)', '992280000000059');`).error)
+      .toMatch(/mudou depois que a ficha foi aberta \(agora: 992280000000051\)/)
+    expect(psql(`SELECT ce_mercante FROM public.bls WHERE id = 'A228-U1';`)).toBe('992280000000051')
+    expect(asAdmin(`SELECT public.correct_bl_ce_mercante('A228-U1', '992280000000052', 'CE digitado errado (A228)', '992280000000051');`).error).toBeNull()
     expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-U1')).toMatch(/992280000000051 -> 992280000000052/)
     expect(psql(`SELECT source FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'ce_trocado_com_desbloqueio' AND a.entity_id = 'A228-U1';`)).toBe('ce_mercante_ficha')

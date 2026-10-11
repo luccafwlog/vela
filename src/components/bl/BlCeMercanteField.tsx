@@ -65,8 +65,8 @@ export function BlCeMercanteField({
       reversibility: 'Corrigir de novo, com motivo.',
       confirmLabel: 'Corrigir CE',
     })
-    if (reason === null) return
-    await run(() => correctBlCeMercante({ blId, ce: next, reason }), 'CE Mercante corrigido.', 'Falha ao corrigir o CE Mercante.')
+    if (reason === null || !ce) return
+    await run(() => correctBlCeMercante({ blId, ce: next, reason, expectedCe: ce }), 'CE Mercante corrigido.', 'Falha ao corrigir o CE Mercante.')
   }
 
   async function handleRemove() {

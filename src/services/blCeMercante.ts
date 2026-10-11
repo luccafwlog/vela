@@ -11,11 +11,17 @@ export function normalizeCeMercanteInput(value: string): string {
   return value.replace(/\D/g, '')
 }
 
-export async function correctBlCeMercante(input: { blId: string; ce: string; reason: string }): Promise<void> {
+/**
+ * `expectedCe` é o CE que a ficha exibia: se outra sessão o trocou ou removeu
+ * enquanto o diálogo estava aberto, o banco recusa em vez de gravar por cima
+ * (migration 207).
+ */
+export async function correctBlCeMercante(input: { blId: string; ce: string; reason: string; expectedCe: string }): Promise<void> {
   const { error } = await supabase.rpc('correct_bl_ce_mercante' as never, {
     p_bl_id: input.blId,
     p_ce: normalizeCeMercanteInput(input.ce),
     p_reason: input.reason,
+    p_expected_ce: input.expectedCe,
   } as never)
   if (error) throw error
 }

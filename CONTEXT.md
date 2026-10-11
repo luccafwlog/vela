@@ -1065,8 +1065,8 @@ com importadores existentes. Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-merc
 Nº** e a planilha usam o mesmo cadastro (`manifestos_mercante`; a tabela legada
 fica como espelho); B/Ls são movidos ou desvinculados em lote, com motivo, pela
 Viagem (Rotas e Manifestos → **Ver B/Ls**), pela ficha ou pela planilha (outro
-número move o B/L depois de confirmação com motivo na prévia); e mudar o POD ou
-a Viagem desvincula o B/L. É distinto dos CEs individuais dos
+número move o B/L depois de confirmação com motivo na prévia); e mudar o POL, o
+POD ou a Viagem desvincula o B/L (o POL desde a migration `207`). É distinto dos CEs individuais dos
 B/Ls e não se confunde com o número de viagem interna da agência.
 
 - **Vazios de Importação:** cada rota dos vazios (porto de origem → porto de
