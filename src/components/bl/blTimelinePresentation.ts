@@ -155,11 +155,14 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
 
 // Contexto que a importação grava em cada linha do Histórico (migration 189,
 // `_set_import_context`): "Importação de <tipo> · Viagem … · Manifesto …".
-// É rastro do sistema, não justificativa deliberada.
+// É rastro do sistema, não justificativa deliberada — salvo quando traz o
+// motivo que a pessoa informou (troca de CE pela planilha, migration 195).
 const IMPORT_CONTEXT_PREFIX = 'Importação de '
+const REASON_MARK = ' · Motivo: '
 
 export function isImportContext(justification: string | null | undefined): boolean {
-  return Boolean(justification && justification.trim().startsWith(IMPORT_CONTEXT_PREFIX))
+  const text = justification?.trim() ?? ''
+  return text.startsWith(IMPORT_CONTEXT_PREFIX) && !text.includes(REASON_MARK)
 }
 
 // Auditoria = entrada com justificativa deliberada (ver CONTEXT.md).

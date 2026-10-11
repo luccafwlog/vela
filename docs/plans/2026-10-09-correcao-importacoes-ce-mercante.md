@@ -12,16 +12,23 @@ Os ids `M01`–`M25` são os problemas-raiz da seção 5 do relatório.
 [ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
 (citada abaixo como "ADR 0078, item N") e no `CONTEXT.md`. Diferença de fatura
 paga é sempre tratada por restituição (item 4 da ADR 0077), nunca por crédito em
-outra fatura. Não há decisão pendente.
+outra fatura. As decisões da ADR 0078 estão tomadas; a revisão da PR 929 levantou
+pontos novos que esperam decisão do dono, listados em
+[Revisão da PR 929](#revisão-da-pr-929-2026-10-11).
 
 **Objetivo:** fazer as importações deixarem de apagar dado válido, de cobrar
 errado e de esconder o que gravaram, e implementar as regras de entrada,
 correção e efeitos da ADR 0078.
 
-**Estado em 2026-10-10:** Etapas 0, 1, 2, 3 e 5 executadas localmente (migrations `174` a `176`;
-ver as notas de execução nas etapas). Decisões tomadas. As checagens de
-aceitação das Etapas 4, 6 e 7 continuam no repositório como `it.fails` e rodam no
-CI; as regras novas da ADR 0078 ganham checagem na etapa que as implementa.
+**Estado em 2026-10-11:** Etapas 1 a 12, a parte do agente nas Etapas 0 e 13 e
+o código da Etapa 14 executados localmente (migrations `174` a `189`; ver as
+notas de execução em cada etapa). Nenhum `it.fails` restante nas suítes
+`auditoria*`. A revisão da PR 929, em 2026-10-11, corrigiu os achados nas
+migrations `190` a `196` e no frontend (seção
+[Revisão da PR 929](#revisão-da-pr-929-2026-10-11)). Restam só passos do dono:
+na Etapa 0, as consultas em leitura na produção (pré-requisito do deploy) e a
+orientação da operação; na Etapa 13, o ensaio em Preview e a ligação do
+`import-effects-runner`.
 **Migrations:** o hook `.claude/hooks/protect-files.sh` bloqueia qualquer
 arquivo em `supabase/migrations/`; as migrations novas desta execução foram
 criadas por shell, sem editar nenhuma existente.
@@ -38,7 +45,8 @@ criadas por shell, sem editar nenhuma existente.
   (`sudo scripts/setup-local-pg.sh --reset` e as suítes `local-pg` do CI com
   `--no-file-parallelism`, duas vezes seguidas, sem resíduo de namespace).
 - **Migrations:** sempre arquivo novo, no próximo número livre (as deste plano
-  são `174`–`189`: a `173` foi usada pelo Desbloqueio de CE, já em produção);
+  são `174`–`196`: a `173` foi usada pelo Desbloqueio de CE, já em produção, e
+  a revisão da PR 929 acrescentou `190`–`196`);
   nunca editar migration existente (protegida por
   `.claude/hooks/protect-files.sh`). Redefinir a função a partir da definição
   **efetiva** no banco replicado, não da primeira migration que a criou. Se a
@@ -229,13 +237,24 @@ número, máscara de zeros como texto, data do Excel como `AAAA-MM-DD` pelo
 serial) e lê CSV sempre como texto; `src/lib/importDate.ts` é o parser único de
 datas (datas de container, Embarque de Vazios, programação de Chegadas/Saídas e
 do Portal, Granito, PIX, ZPT e o Laden on Board do B/L); `parseImportNumber`
-ignora a célula numérica tipada como evidência de separador. Cabeçalho repetido
-ou duas colunas do mesmo campo bloqueiam; linhas e abas ocultas são ignoradas e
+ignora a célula numérica tipada como evidência de separador. Duas colunas do
+mesmo campo bloqueiam; linhas e abas ocultas são ignoradas e
 o aviso aparece no seletor de arquivo comum (`ImportFilePicker`); CSV
 Windows-1252 é aceito com aviso. O modelo de CE grava a coluna CE como texto.
 Os 9 casos viraram `it`, com checagens novas em `importCore.test.ts` (colunas
 duplicadas, linhas e abas ocultas, Windows-1252, CSV como texto, máscara de
 zeros), `ImportFilePickerWarnings.test.tsx` e para CE e CNPJ numéricos.
+**Revisão da PR 929 (2026-10-11):** o mesmo cabeçalho duas vezes não bloqueia a
+leitura (a repetição ganha sufixo, `Unit_1`); bloqueia quando duas colunas casam
+o mesmo campo do parser (`matchHeaders`/`createHeaderMapper`, também no extrato
+PIX), com a mensagem "A coluna … aparece duas vezes". Pasta gravada no sistema
+de datas 1904 é lida com o dia certo, também no Laden on Board. Máscara de CNPJ
+ou CEP com o literal escapado (`00000\-000`) ou entre aspas mantém os zeros à
+esquerda. Dado só em linha ou aba oculta dá o erro que diz onde ele está, em
+vez de "Planilha vazia."; o aviso de linhas ocultas sai por aba. O Embarque de
+Vazios passou ao seletor comum, com os avisos de leitura, e pede confirmação
+antes de gravar quando há linhas ou abas ocultas (as unidades delas sairiam do
+Embarque).
 Limitação: a aba VIN do arquivo de B/L ainda é lida pelo `sheet_to_json` do
 próprio parser (linhas ocultas não são filtradas ali).
 
@@ -292,8 +311,10 @@ Simulação: `simulate_import_effects` e `apply_import_effects_review`
 `reconcile_import_effects_queue_alert` e job `import-effects-queue-health`
 (SQL, de hora em hora; não processa efeitos). Drift mecânico: os Comunicados
 automáticos não ganharam filtro próprio; a guarda de INSERT os recusa em Viagem
-Cancelada. `auditoriaEfeitosImportacao` 10/10 e a suíte nova
-`efeitosViagemCancelada` (5) no CI.
+Cancelada (a `190` acrescentou o filtro: NOA, NOR, NOB e CE Mercante/Taxas
+automáticos ignoram a Viagem Cancelada em vez de falhar a cada ciclo).
+`auditoriaEfeitosImportacao` 10/10 e a suíte nova `efeitosViagemCancelada` (5)
+no CI.
 
 ## Etapa 5 — Container compartilhado (M03, M24; ADR 0078, item 11)
 
@@ -362,9 +383,9 @@ irmão, não o do próprio B/L, cujo cálculo é refeito pelo CE e pela Liberaç
 com o mesmo CE recebem a mensagem amigável; a planilha de CE como
 `authenticated` grava o manifesto sem `permission denied`.
 
-**Execução (2026-10-10, local):** migration `177`: `ce_mercante_key` (só
-dígitos), pré-checagem que aborta listando CEs repetidos, índice único
-`bls_ce_mercante_active_key` e gatilho `guard_ce_mercante_unique` em `bls` e
+**Execução (2026-10-10, local):** migration `177`: `ce_mercante_key` (letras e
+dígitos, maiúsculas, sem zeros à esquerda), pré-checagem que aborta listando CEs
+repetidos, índice único `bls_ce_mercante_active_key` e gatilho `guard_ce_mercante_unique` em `bls` e
 `granite_bls` (cobre todas as portas, Granito e `reactivate_bl`, com trava
 consultiva e mensagem amigável `P0010`); porta única `_set_bl_ce_mercante`
 (15 dígitos, Histórico com motivo, alerta `comunicado_ce_reenvio_pendente`) e
@@ -703,6 +724,10 @@ invertida; nenhuma suíte pulada por sonda com a variável ligada.
   RPC canônica da `181`) e `createInvoiceForReturnedBL`, com os testes.
 - `npm run localpg:check` (no CI) falha quando surge `*.local-pg.test.ts` fora
   da lista.
+- O aceite pede as suítes "verdes em ordem natural e invertida", mas o CI roda
+  numa ordem só (a da lista, com `--no-file-parallelism`, e a bateria
+  financeira depois) e não há registro de execução em ordem invertida: essa
+  parte do aceite segue sem evidência.
 
 ## Etapa 13 — Ligar o processamento automático (ADR 0078, item 18)
 
@@ -752,3 +777,91 @@ migrations do plano, ainda não publicadas, passaram de `173`–`188` para
 `174`–`189`, com as referências em documentação, testes e código; os nomes
 `_legacy_*` criados por elas acompanham o número novo. As notas de execução
 acima já citam os números novos.
+
+## Revisão da PR 929 (2026-10-11)
+
+A revisão da PR das importações achou falhas nas migrations `174`–`189` e no
+frontend. As correções são migrations novas (nenhuma existente foi editada) e
+não reescrevem linhas; o código de tela foi corrigido no mesmo branch.
+
+- **`190` — segurança, fila e Viagem Cancelada.** Quatro funções internas
+  (`bl_container_share_signature`, `demurrage_group_bl_ids`,
+  `demurrage_group_anchor`, `import_effects_queue_health`) deixam de ser
+  executáveis por `authenticated`. A tela do Baplie lê as escalas por
+  `list_voyage_eligible_pods` (antes a conferência de navio, viagem e escalas
+  nunca rodava). O primeiro contexto de importação da transação vale até o fim.
+  O job `import-effects-queue-health` passa a abrir e fechar o Alerta de fila
+  parada (sem JWT ele recusava) e mede pelo vencimento da tentativa
+  (`next_attempt_at`). A planilha de datas aceita o segundo B/L que divide o
+  container; UPDATE em item de carga solta volta a funcionar. Na Viagem
+  Cancelada, cancelar fatura de B/L ou de Granito passa, consolidada e avulsa
+  não nascem, e NOA, NOR, NOB e CE Mercante/Taxas automáticos a ignoram. Na
+  fila, efeito de B/L Cancelado sai como `superseded` e `vehicle_followup` não
+  cancela fatura com pagamento. A ATA da Viagem não preenche mais a descarga
+  (saiu `trg_propagate_voyage_ata_to_containers`).
+- **`191` — Demurrage e container compartilhado.** Irmão com fatura paga não
+  bloqueia a emissão do B/L que chega (`P0007` só quando a fatura do irmão ainda
+  pode ser reemitida). Recebível sem fatura viva nem baixa não trava a exclusão
+  de B/L, Viagem ou escala. A completude do grupo de Demurrage é conferida só
+  na emissão; cancelar B/L cuja caixa está numa Invoice de Demurrage viva do
+  grupo é recusado. B/L cancelado não ancora grupo nem recebe Invoice. Linha
+  antiga com devolução gravada entra no cálculo pela data. Estorno de Invoice
+  suspensa por datas alteradas reemite ou tira a suspensão. Descarga posterior
+  à devolução gravada recusa com mensagem de negócio.
+- **`192` — Base de Clientes, Granito, Vazios, omissão e carga solta.** O B/L
+  vinculado pela Base sai da Revisão pela regra dona, com a fila de
+  Reconciliação e os Alertas acompanhando; B/L de Viagem Cancelada fica fora.
+  Granito: B/L ausente com Invoice é mantido e informado, sem recusar o arquivo.
+  Vazios de Importação: rota por `normalize_port_code`, Nº na forma canônica e
+  espelho da rota atualizado. O Transbordo do B/L importado depois da omissão
+  aparece no Histórico. Carga solta: fila de Reconciliação para todo B/L, Troca
+  de Consignatário recusada não troca o Consignee, mesmo Cliente preserva a
+  retenção.
+- **`193` — Programação por planilha e Veículos.** O IMO só identifica navio
+  com 7 dígitos e IMO conflitante recusa a linha; Viagem cancelada é erro da
+  linha; a mesma Viagem e porto com datas diferentes é recusada; a última linha
+  vale; Viagem oculta é publicada no Portal. Mover veículos registra B/L,
+  container e Viagem no Histórico e trava os B/Ls em ordem de id.
+- **`194` — B/L de container e Baplie.** Container com Invoice de Demurrage não
+  sai por reimportação (mensagem verdadeira); linha VIN que aponta para
+  container que sai é recusada sozinha; chassi em B/L ou Viagem cancelados não
+  recusa a linha; e-mail do arquivo compara o CNPJ com as letras. Baplie:
+  IMO/OOG declarado no B/L tem origem `bl`; SOC/COC trocado em container de
+  perfil manual divergente recalcula; correção feita durante a aplicação não é
+  sobrescrita; **Vale o B/L** de SOC/COC não vira correção manual e vale para o
+  par de valores; correção manual e **Vale o B/L** valem para o Part Lot ativo.
+- **`195` — CE Mercante.** Espera de Cliente ou de Revisão na emissão em lotes
+  aparece como "Aguardando", sem Alerta; `billing_auto_issue_failed` fecha
+  quando a fatura sai por qualquer caminho. O alerta de Desbloqueio conferido
+  sai da porta única (`_set_bl_ce_mercante`), também na ficha.
+  `apply_ce_mercante_update` fica só para `service_role`. Remover CE e a prévia
+  enxergam a consolidada; a prévia recusa CE já em B/L de Granito; o Histórico
+  do CE leva tipo, Viagem, Manifesto, rota e motivo; CE legado com a mesma chave
+  é normalização; B/L não nasce com CE fora da planilha.
+- **`196` — Granito.** A reimportação refaz os totais de todos os manifestos
+  de Granito da Viagem, não só do mais recente (achado da revisão automática
+  da PR). No frontend, o aceite de Troca de Consignatário e a confirmação de
+  faturamento do B/L avulso em lote listam os B/Ls de todos os arquivos.
+- **Frontend.** Manifesto BB em XLSX não multiplica peso e cubagem por mil;
+  ignora B/L cancelado com aviso; descrição montada não sobrescreve B/L
+  existente. Prévia do B/L de container bloqueia a linha do container que sai
+  com Invoice de Demurrage ou com veículos que ficam nele, e exige a
+  confirmação de veículos quando a aba VIN os tira dele. Histórico mostra o contexto da
+  importação como "Origem", não como auditoria. Leitura de planilhas: ver a
+  nota da Etapa 3.
+
+**Decisões pendentes (dono).** Nenhuma foi tomada nesta revisão:
+
+1. A reemissão automática de Invoice de Demurrage por mudança de datas emite
+   uma Invoice nova pelo cálculo, sem o desconto nem a disputa da cancelada.
+2. `demurrage_status = 'overdue'` não é mais gravado desde a Etapa 7, mas o
+   KPI "Containers em atraso", o sinal do cabeçalho, a lista da aba Containers,
+   o botão **Gerar Fatura** de B/L ainda fora e a ficha do Cliente ainda o leem.
+3. B/L que já tem CE e recebe o Cliente pela Base de Clientes sai da Revisão
+   (quando não sobra outra pendência) e é calculado, mas só é faturado pela
+   fila de efeitos (`local_billing`), que espera a ligação do runner.
+4. Recusas de negócio como "B/L sem linhas faturaveis" e "Tabela de cobranca
+   incompleta ou inativa" ainda abrem `billing_auto_issue_failed` na emissão em
+   lotes do CE.
+5. Correção manual de perfil ou SOC/COC num Part Lot com qualquer B/L faturado
+   recusa a correção inteira, inclusive nos B/Ls não faturados.

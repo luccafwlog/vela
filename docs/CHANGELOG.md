@@ -4,13 +4,41 @@
 
 ## 2026-10
 
+- **Revisão da PR 929 (2026-10-11, implementação local; [plano de correção das
+  importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md#revisão-da-pr-929-2026-10-11)):**
+  correções das importações em seis migrations novas, sem reescrever linhas.
+  **Segurança e fila (`190`):** um usuário do Portal deixa de poder chamar as funções internas de
+  rateio de container, grupo de Demurrage e saúde da fila; o Alerta de fila parada abre e fecha
+  pelo job de hora em hora e mede pelo vencimento da tentativa. **Viagem Cancelada (`190`):** a
+  fatura de B/L ou de Granito pode ser cancelada, consolidada e avulsa não nascem nela e os
+  Comunicados automáticos a ignoram. **Datas (`190`, `191`):** a ATA não preenche a descarga; o
+  segundo B/L do container compartilhado aceita a mesma data; descarga posterior à devolução
+  recusa com mensagem de negócio. **Demurrage e container compartilhado (`191`):** irmão com
+  fatura paga não bloqueia o B/L que chega; recebível sem fatura não trava exclusão; B/L
+  cancelado não recebe Invoice; cancelar B/L com caixa em Invoice de Demurrage viva é recusado.
+  **Base de Clientes, Granito, Vazios e carga solta (`192`):** o B/L vinculado pela Base sai da
+  Revisão; Granito mantém e informa o B/L ausente com Invoice; Vazios com POD BRNVT/BRREC não
+  perdem o Manifesto. **Programação e Veículos (`193`):** IMO de 7 dígitos, IMO conflitante e
+  Viagem cancelada viram erro da linha; Viagem oculta é publicada no Portal; Mover registra B/L,
+  container e Viagem no Histórico. **B/L de container e Baplie (`194`):** container com Invoice de
+  Demurrage não sai por reimportação (a recusa diz isso), chassi de B/L cancelado não bloqueia,
+  e-mail pelo CNPJ com letras; **Vale o B/L**
+  de SOC/COC não vira correção manual, e correção manual e **Vale o B/L** valem para o Part Lot.
+  **CE Mercante (`195`):** espera de Cliente ou Revisão aparece como "Aguardando", sem Alerta, e a
+  falha de emissão fecha quando a fatura sai; `apply_ce_mercante_update` sai da API. **Granito
+  (`196`):** a reimportação refaz os totais de todos os manifestos da Viagem. **Telas:**
+  Manifesto BB em XLSX não multiplica peso por mil; leitura de planilhas com cabeçalho repetido,
+  sistema de datas 1904 e máscaras escapadas; Embarque de Vazios no seletor comum; Histórico
+  mostra a "Origem" da importação. Decisões novas ficam pendentes do dono (lista no plano).
 - **Rastro das importações (2026-10-10, implementação local; Etapa 14 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   o Histórico de cada registro alterado por uma importação diz qual importação foi, a Viagem e o
   Nº de Manifesto (migration `189`, ADR 0078 item 9).
 - **Testes e CI (2026-10-10; Etapa 12 do
   [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
-  todas as 74 suítes `local-pg` rodam no CI (`npm run localpg:check` impede suíte fora da lista);
+  todas as suítes `local-pg` rodam no CI (74 ao fim da etapa; 76 depois de `rastroImportacoes` e
+  `correcoesRevisaoImportacoes`: 75 no passo principal e a bateria financeira no passo próprio;
+  `npm run localpg:check` impede suíte fora da lista);
   sonda de pré-requisito falha em vez de pular; a bateria financeira tem passo próprio; fixtures
   sem resíduo global; código sem chamador removido.
 - **Programação por planilha (2026-10-10, implementação local; Etapa 11 do

@@ -39,9 +39,17 @@ para a decisão completa.
   `181`), a gravação guarda o CE e o cálculo e a tela emite logo depois em
   lotes de 25 (`emit_ce_mercante_billing`, que reaproveita o cálculo do dia do
   CE), com progresso e Retomar; o efeito `local_billing` é a rede. A fatura sai
-  com a nota "Sistema — CE Mercante", e a falha de um B/L abre
-  `billing_auto_issue_failed` (ADR 0041). Sem CE, qualquer desses modos fica em
-  “Aguardando CE Mercante” na Validação; a exceção manual é a emissão
+  com a nota "Sistema — CE Mercante". Desde a migration `195`, B/L que só
+  espera (Cliente não conciliado, Revisão pendente) volta como aguardando, com
+  a frase de negócio, sem Alerta; a falha técnica de um B/L abre
+  `billing_auto_issue_failed` (ADR 0041), que fecha quando a fatura do B/L sai —
+  no próprio lote ou por qualquer outro caminho (gatilho do CE, fila de efeitos,
+  Portal, **Emitir fatura**), pelo gatilho `resolve_auto_issue_alert_on_invoiced`.
+  Alertas já abertos para B/L faturado antes da `195` fecham na próxima emissão
+  do lote ou à mão. Recusas de negócio que não são espera de Cliente nem de
+  Revisão (por exemplo "B/L sem linhas faturaveis" ou tabela de cobrança
+  incompleta) ainda abrem o Alerta (decisão pendente). Sem CE, qualquer desses
+  modos fica em “Aguardando CE Mercante” na Validação; a exceção manual é a emissão
   individual “Emitir”, que mantém os mesmos gates. Granito é apoio operacional
   e não emite invoice (nota de 2026-09-23 na ADR 0042). Embarque de Vazios não emite CE nem possui faturamento de
   cliente.
@@ -392,7 +400,7 @@ menores e específicas descritas no catálogo.
 
 ## Fluxos e invariantes
 
-### Documento da fatura congelado (ADR 0078, item 15)
+### Documento da fatura congelado (ADR 0078, item 13)
 
 Desde a migration `183`, a emissão (status diferente de rascunho) grava em
 `invoice_document_snapshots`, no fim da transação, a razão social, o CNPJ e o
@@ -659,7 +667,13 @@ também verifica os B/Ls vizinhos. Na emissão, cada vínculo de fatura grava o
 rateio com que o B/L entrou (`invoice_bls.container_shares`); a guarda
 `guard_shared_container_invoice` recusa (SQLSTATE `P0007`, nomeando o B/L irmão)
 só quando o irmão faturado tem rateio diferente do atual
-(`bl_container_share_signature`), também na consolidada.
+(`bl_container_share_signature`), também na consolidada. Desde a migration
+`191`, a recusa vale só enquanto a fatura do irmão ainda pode ser reemitida: se
+ela tem pagamento, baixa parcial, cobertura por consolidada paga ou correção
+registrada, não é reemitida (ADR 0077, item 4), o vínculo guarda o rateio
+antigo e o B/L que chega fatura com o rateio atual. O caso de cobrar o
+container mais de uma vez (irmão sem pagamento ainda não reemitido) continua
+recusado com `P0007`.
 
 Se o efeito financeiro falhar, `invoice_basis_pending_changes` conserva a
 pendência; o Administrativo usa **Tentar aplicar correção** no histórico da

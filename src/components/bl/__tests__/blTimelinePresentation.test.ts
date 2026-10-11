@@ -46,5 +46,9 @@ describe('describeTimelineEvent', () => {
     expect(isAudited({ justification: context } as never)).toBe(false)
     expect(isImportContext(context)).toBe(true)
     expect(isImportContext('Importacao CE Mercante: CE corrigido pelo armador')).toBe(false)
+    // Troca de CE pela planilha com motivo (migration 195) é deliberada: conta como auditoria.
+    const withReason = 'Importação de CE Mercante · Viagem NAVIO 001N · Manifesto 1226501860578 · Motivo: CE corrigido pelo armador'
+    expect(isImportContext(withReason)).toBe(false)
+    expect(isAudited({ justification: withReason } as never)).toBe(true)
   })
 })

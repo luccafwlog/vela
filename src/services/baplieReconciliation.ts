@@ -348,11 +348,12 @@ const maxText = (left: string | null, right: string | null) => (left === null ? 
 
 /**
  * Containers de B/L que `apply_baplie_physical_flags_atomic` ainda alteraria
- * (pura, testável). Espelha a regra da função no banco (migration 121), não a
- * de `computeBapliePhysicalUpdates`: só status `full`; agrupa pelo número com
- * `trim` + maiúsculas; IMO/OOG por OU, classe/ONU pelo maior valor não nulo e
- * zerados sem IMO; casa com exatamente um container de B/L; SOC/COC só conta
- * quando a origem não é o B/L nem correção manual. Zero quando a última
+ * (pura, testável). Espelha a regra da função no banco (`_baplie_flag_plan`,
+ * migrations 182 e 194), não a de `computeBapliePhysicalUpdates`: só status
+ * `full`; agrupa pelo número com `trim` + maiúsculas; IMO/OOG por OU,
+ * classe/ONU pelo maior valor não nulo e zerados sem IMO; vale para todo B/L
+ * ativo que divide o container (Part Lot); SOC/COC só conta quando a origem
+ * não é o B/L nem correção manual. Zero quando a última
  * aplicação deu certo; acima de zero, a aplicação falhou ou não rodou.
  * ponytail: o maior texto usa a ordem do JavaScript, não a collation do
  * Postgres; classe e ONU são ASCII. Se a função do banco mudar, mude aqui junto.
