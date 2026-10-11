@@ -646,4 +646,49 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     expect(blState(blId)?.customer_id).toBe(beta.id)
     expect(localPsql(`SELECT manifest_customer_cnpj_cpf FROM public.bls WHERE id = '${blId}';`)).toBe(beta.cnpj)
   })
+
+  // --- Achados B3, B5 e B6 da revisão da PR 929 (migration 192) -------------
+  function queueOf(blId: string): string {
+    return localPsql(`SELECT status || ':' || COALESCE(customer_id::text, '-') FROM public.customer_reconciliation_queue WHERE bl_id = '${blId}';`)
+  }
+
+  it('B/L sem Cliente que passa a ter Cliente por CNPJ sai da fila de Reconciliação de Cliente', () => {
+    const blId = 'A201-BB12'
+    expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'none', consignee: 'A201 CONSIGNATARIO BB12' })], 'a201-bb12-sem-cnpj.xlsx').error).toBeNull()
+    expect(queueOf(blId)).toBe('pending:-')
+
+    expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: alfa })], 'a201-bb12-com-cnpj.xlsx').error).toBeNull()
+    expect(blState(blId)).toMatchObject({ customer_id: alfa.id, customer_reconciliation_status: 'matched_document' })
+    expect(queueOf(blId)).toBe(`approved:${alfa.id}`)
+  })
+
+  it('reimportação com o mesmo Cliente preserva a retenção do Portal', () => {
+    const blId = 'A201-BB13'
+    const line = breakbulkLine(voyageA, blId, { kind: 'document', customer: gama })
+    expect(importBreakbulk(voyageA, [line]).error).toBeNull()
+    expect(importCeSheet('A201MAN000013', voyageA, [{ blId, ce: '201001000000013' }])).toMatchObject({ ok: true })
+    const hold = `SELECT COALESCE(billing_hold_reason, '-') FROM public.bls WHERE id = '${blId}';`
+    expect(localPsql(hold)).toBe('Acesso ao portal nao provisionado')
+
+    expect(importBreakbulk(voyageA, [line], 'a201-bb13-reimportado.xlsx').error).toBeNull()
+    expect(localPsql(hold)).toBe('Acesso ao portal nao provisionado')
+  })
+
+  it('Troca de Consignatário recusada não grava o Consignee novo', () => {
+    const blId = 'A201-BB14'
+    expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: gama })]).error).toBeNull()
+    // Avulsa recebida do Cliente atual: a troca exige devolver antes (blocker do relink).
+    localPsql(`
+      SET session_replication_role = replica;
+      INSERT INTO public.invoices (invoice_number, customer_id, bl_id, voyage_id, total_brl, total_paid_brl, status, invoice_type)
+      VALUES ('A201-AVULSA-BB14', ${gama.id}, '${blId}', ${voyageA}, 100, 100, 'paid', 'manual');
+      SET session_replication_role = origin;
+    `)
+    const accepted = breakbulkLine(voyageA, blId, { kind: 'document', customer: beta })
+    const result = importBreakbulkResult(importBreakbulk(
+      voyageA, [{ ...accepted, row: { ...accepted.row, relink_customer: true } as typeof accepted.row }], 'a201-bb14-beta-aceite.xlsx',
+    ))
+    expect(result.customer_relinks).toMatchObject([{ bl_id: blId, applied: false }])
+    expect(localPsql(`SELECT customer_id || ':' || consignee FROM public.bls WHERE id = '${blId}';`)).toBe(`${gama.id}:${gama.name}`)
+  })
 })

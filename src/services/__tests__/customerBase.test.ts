@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { customerNameChanges, importCustomerBaseRows, parseCustomerBaseRows, sameName, type CustomerBaseRow } from '../customerBase'
+import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, parseCustomerBaseRows, sameName, type CustomerBaseRow } from '../customerBase'
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -88,5 +88,39 @@ describe('razão social na Base de Clientes (ADR 0078, item 24)', () => {
       { ...base },
     ]
     expect(customerNameChanges(rows).map((row) => row.existingCustomerId)).toEqual([1])
+  })
+})
+
+// Consulta falsa do PostgREST: aplica os filtros pedidos (inclusive o do
+// recurso embutido, `voyage.status`) sobre as linhas da fixture.
+function fakeQuery(rows: Array<Record<string, unknown>>) {
+  const filters: Array<(row: Record<string, unknown>) => boolean> = []
+  const read = (row: Record<string, unknown>, path: string) =>
+    path.split('.').reduce<unknown>((value, key) => (value as Record<string, unknown> | null)?.[key], row)
+  const builder = {
+    select: () => builder,
+    in: (column: string, values: unknown[]) => { filters.push((row) => values.includes(read(row, column))); return builder },
+    is: (column: string, value: unknown) => { filters.push((row) => read(row, column) === value); return builder },
+    neq: (column: string, value: unknown) => { filters.push((row) => read(row, column) !== value); return builder },
+    then: (resolve: (result: { data: unknown[]; error: null }) => unknown) =>
+      resolve({ data: rows.filter((row) => filters.every((filter) => filter(row))), error: null }),
+  }
+  return builder
+}
+
+describe('prévia do vínculo da Base de Clientes (migration 192)', () => {
+  it('não oferece B/L de Viagem cancelada para vínculo', async () => {
+    const cnpj = '12345678000195'
+    const bls = [
+      { id: 'BL-ATIVA', manifest_customer_cnpj_cpf: cnpj, customer_reconciliation_status: 'missing_customer', customer_id: null, cancelled_at: null, voyage: { status: 'active' } },
+      { id: 'BL-VIAGEM-CANCELADA', manifest_customer_cnpj_cpf: cnpj, customer_reconciliation_status: 'missing_customer', customer_id: null, cancelled_at: null, voyage: { status: 'cancelled' } },
+      { id: 'BL-REJEITADO', manifest_customer_cnpj_cpf: cnpj, customer_reconciliation_status: 'rejected', customer_id: null, cancelled_at: null, voyage: { status: 'active' } },
+    ]
+    mockFrom.mockImplementation((table: string) => fakeQuery(table === 'bls' ? bls : []))
+    const row: CustomerBaseRow = { cnpj_cpf: cnpj, name: 'Empresa', trade_name: null, emails: ['a@b.co'], address: null, city: null, state: null, zip: null }
+
+    const { rows } = await compareCustomerBaseWithExisting({ rows: [row], rowErrors: [] })
+
+    expect(rows[0]).toMatchObject({ pendingBlIds: ['BL-ATIVA'], rejectedBlIds: ['BL-REJEITADO'] })
   })
 })

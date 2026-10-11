@@ -1,4 +1,5 @@
 import { importDateOrNull } from '../lib/importDate'
+import { userFacingErrorMessage } from '../lib/errors'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
@@ -92,6 +93,12 @@ export type ParsedGraniteManifest = {
   vesselVoyage: string
   bls: ParsedGraniteBl[]
   rowErrors: RowError[]
+  /**
+   * Todos os números de B/L lidos do arquivo, inclusive das linhas com erro
+   * (peso zero, duplicadas): B/L presente no arquivo nunca é oferecido para
+   * sair da Viagem na reimportação.
+   */
+  fileBlNumbers: string[]
 }
 
 export async function parseGraniteManifestFile(file: File): Promise<ParsedGraniteManifest> {
@@ -222,7 +229,7 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
 
   const vesselVoyage = bls.find((bl) => bl.vessel_voyage)?.vessel_voyage ?? ''
 
-  return { vesselVoyage, bls, rowErrors: rowErrors.errors }
+  return { vesselVoyage, bls, rowErrors: rowErrors.errors, fileBlNumbers: [...seenBlNumbers] }
 }
 
 /**
@@ -307,6 +314,8 @@ export type GraniteImportResult = {
   updated: number
   removed: string[]
   keptMissing: string[]
+  /** Ausentes com Invoice: ficam mesmo com a saída confirmada (migration 192). */
+  keptInvoiced: string[]
 }
 
 /** Números de B/L de Granito já gravados na Viagem. */
@@ -346,6 +355,7 @@ export function describeGraniteImport(result: GraniteImportResult): string {
     `${result.updated} atualizado(s)`,
     result.removed.length ? `${result.removed.length} retirado(s)` : '',
     result.keptMissing.length ? `${result.keptMissing.length} fora do arquivo mantido(s)` : '',
+    result.keptInvoiced.length ? `${result.keptInvoiced.length} com Invoice mantido(s): ${result.keptInvoiced.join(', ')}` : '',
   ].filter(Boolean).join(', ')
 }
 
@@ -396,7 +406,8 @@ export async function importGraniteManifest({
       charge_status: 'not_calculated' as const,
     }))
 
-  const missing = missingGraniteBls(await fetchGraniteBlNumbersForVoyage(voyageId), manifest.bls.map((bl) => bl.bl_number))
+  // Ausente é o que o arquivo não traz em linha nenhuma, nem nas com erro.
+  const missing = missingGraniteBls(await fetchGraniteBlNumbersForVoyage(voyageId), manifest.fileBlNumbers)
   const removeMissing = missing.length && confirmRemoval && (await confirmRemoval(missing)) ? missing : []
 
   const { data, error } = await supabase.rpc('import_granite_manifest_transactional', {
@@ -410,13 +421,22 @@ export async function importGraniteManifest({
     p_bls: blRows,
     p_remove_missing: removeMissing,
   } as never)
-  if (error) throw error
+  // O erro do PostgREST não é `Error`: as duas telas (Granito e Viagem) mostram
+  // a mensagem de negócio da RPC pela classificação compartilhada.
+  if (error) throw new Error(userFacingErrorMessage(error, 'Falha ao importar o manifesto Granito.'), { cause: error })
   if (data === null || typeof data !== 'object' || Array.isArray(data) || !('manifest_id' in data) || typeof data.manifest_id !== 'string') {
     throw new Error('Falha ao criar manifesto.')
   }
 
   const pendingCount = manifest.bls.filter((bl) => bl.reconciliationStatus !== 'matched').length
-  const raw = data as { manifest_id: string; inserted_bls?: number; updated_bls?: number; removed_bl_numbers?: string[]; kept_missing_bl_numbers?: string[] }
+  const raw = data as {
+    manifest_id: string
+    inserted_bls?: number
+    updated_bls?: number
+    removed_bl_numbers?: string[]
+    kept_missing_bl_numbers?: string[]
+    kept_missing_invoiced_bl_numbers?: string[]
+  }
 
   return {
     manifestId: raw.manifest_id,
@@ -425,5 +445,6 @@ export async function importGraniteManifest({
     updated: Number(raw.updated_bls ?? 0),
     removed: raw.removed_bl_numbers ?? [],
     keptMissing: raw.kept_missing_bl_numbers ?? [],
+    keptInvoiced: raw.kept_missing_invoiced_bl_numbers ?? [],
   }
 }

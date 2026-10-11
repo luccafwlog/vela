@@ -3,6 +3,9 @@
 // containers dela preservando a natureza; o recadastro pelo Baplie preserva a
 // natureza e não deixa manifestos vazios; o Embarque de Vazios atualiza por
 // container e preserva as unidades incluídas à mão.
+// Migration 192: a rota é comparada pela forma do cadastro (`normalize_port_code`,
+// BRNVT → BRITJ) e o Nº pela forma canônica; corrigir o Nº atualiza o espelho
+// `voyage_route_ce_master`.
 //
 // Namespace exclusivo: ids 99234xxx, containers 'AZCU234xxxx', usuário ...0000002340NN.
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -38,7 +41,8 @@ function cleanup() {
     DELETE FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};
     DELETE FROM public.vazios_importacao_containers WHERE manifest_id IN (SELECT id FROM public.vazios_importacao_manifests WHERE voyage_id = ${voyageId});
     DELETE FROM public.vazios_importacao_manifests WHERE voyage_id = ${voyageId};
-    DELETE FROM public.manifestos_mercante WHERE voyage_id = ${voyageId};
+    DELETE FROM public.voyage_route_ce_master WHERE voyage_id = ${voyageId};
+    DELETE FROM public.manifestos_mercante WHERE voyage_id = ${voyageId} OR numero = '1226A23409999';
     DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};
     DELETE FROM public.depots WHERE code = '${depotCode}';
     DELETE FROM public.audit_logs WHERE changed_by = '${userId}';
@@ -131,5 +135,45 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
     expect(psql(`SELECT count(*) FROM public.vazios_manifests vm WHERE vm.voyage_id = ${voyageId}
       AND NOT EXISTS (SELECT 1 FROM public.vazios_bookings b WHERE b.manifest_id = vm.id);`)).toBe('0')
     expect(psql(`SELECT sum(total_bookings) FROM public.vazios_manifests WHERE voyage_id = ${voyageId};`)).toBe('2')
+  })
+
+  function importRoute(container: string, pod: string, numero: string) {
+    const rows = [{ container_number: container, container_type: '40HC', tare_kg: 3800, pol: 'CNSHA', pod }]
+    return asUser(`SELECT public.import_vazios_importacao_transactional(${voyageId}, 'A234 ${pod}', '${userId}',
+      '${JSON.stringify(rows)}'::jsonb, '[{"pol":"CNSHA","pod":"${pod}","numero":"${numero}"}]'::jsonb);`)
+  }
+
+  const nvtMirror = `SELECT ce_master FROM public.voyage_route_ce_master
+    WHERE voyage_id = ${voyageId} AND cargo_mode = 'vazios' AND pol = 'CNSHA' AND pod = 'BRITJ';`
+
+  // Achado V2 da revisão da PR 929: o Manifesto é gravado com BRITJ e o prune
+  // comparava com o BRNVT do container, apagando o Manifesto recém-criado.
+  it('rota com POD BRNVT: o Manifesto (BRITJ no cadastro) fica, o id volta e o espelho aponta para ele', () => {
+    const result = importRoute('AZCU2340021', 'BRNVT', '1226A23400021')
+    expect(result.stderr).toBe('')
+    const ids = (JSON.parse(result.stdout) as { mercante_manifest_ids: string[] | null }).mercante_manifest_ids
+    expect(ids).toHaveLength(1)
+    expect(psql(`SELECT id || ':' || pol || '>' || pod FROM public.manifestos_mercante WHERE numero = '1226A23400021';`))
+      .toBe(`${ids?.[0]}:CNSHA>BRITJ`)
+    expect(psql(nvtMirror)).toBe('1226A23400021')
+  })
+
+  // Achados V11 e V10: o Nº é comparado na forma canônica (minúsculas e
+  // separadores) e a correção chega ao espelho da rota.
+  it('corrigir o Nº da rota (minúsculas e separadores) atualiza o Manifesto e o espelho', () => {
+    const before = psql(`SELECT id FROM public.manifestos_mercante WHERE numero = '1226A23400021';`)
+    expect(before).not.toBe('')
+    const result = importRoute('AZCU2340021', 'BRNVT', '1226a2340-0022')
+    expect(result.stderr).toBe('')
+    expect(psql(`SELECT id FROM public.manifestos_mercante WHERE numero = '1226A23400022';`)).toBe(before)
+    expect(psql(nvtMirror)).toBe('1226A23400022')
+  })
+
+  it('Nº já cadastrado em outra rota, escrito com minúsculas, é recusado com a mensagem de negócio', () => {
+    psql(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza)
+      VALUES (${voyageId}, 'CNSHA', 'BRSSZ', '1226A23409999', 'carga');`)
+    const result = importRoute('AZCU2340031', 'BRVIX', '1226a2340.9999')
+    expect(result.stderr).toMatch(/já foi cadastrado/)
+    expect(result.stderr).not.toMatch(/duplicate key/)
   })
 })

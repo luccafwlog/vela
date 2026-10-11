@@ -2,6 +2,8 @@
 // item 25). Reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls de
 // Granito pelo número, preservando CE e Cliente, sem duplicar linhas; B/L
 // ausente do arquivo novo só sai com confirmação e nunca com Invoice.
+// Migration 192: o ausente com Invoice fica e volta em
+// `kept_missing_invoiced_bl_numbers`, sem recusar o arquivo inteiro.
 //
 // Namespace exclusivo: ids 99233xxx, B/Ls 'A233-*', usuário ...0000002330NN.
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -16,6 +18,7 @@ const carrierId = 99233001
 const vesselId = 99233002
 const voyageId = 99233003
 const customerId = 99233004
+const invoiceId = 99233005
 
 function psql(sql: string): string {
   return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -36,6 +39,8 @@ function cleanup() {
     SET session_replication_role = replica;
     DELETE FROM public.import_effect_attempts WHERE effect_id IN (SELECT id FROM public.import_pending_effects WHERE entity_id IN (SELECT id::text FROM ${granite} AS x));
     DELETE FROM public.import_pending_effects WHERE entity_id IN (SELECT id::text FROM ${granite} AS x) OR created_by = '${userId}';
+    DELETE FROM public.invoice_granite_bls WHERE invoice_id = ${invoiceId};
+    DELETE FROM public.invoices WHERE id = ${invoiceId};
     DELETE FROM public.granite_bls WHERE id IN ${granite};
     DELETE FROM public.granite_manifests WHERE voyage_id = ${voyageId};
     DELETE FROM public.audit_logs WHERE changed_by = '${userId}' OR entity_id LIKE 'A233-%';
@@ -110,5 +115,28 @@ describeLocal('Granito: reimportação por número do B/L na Viagem (migration 1
 
   it('o CE de Granito não dispara cálculo', () => {
     expect(psql(`SELECT charge_status FROM public.granite_bls WHERE bl_number = 'A233-1';`)).toBe('not_calculated')
+  })
+
+  // Achado V3 da revisão da PR 929: a confirmação promete que o B/L com
+  // Invoice nunca sai, mas um só deles recusava (23503) o arquivo inteiro.
+  it('B/L ausente com Invoice fica mesmo com a saída confirmada; os demais saem', () => {
+    expect(importFile([bl('A233-1', 150), bl('A233-2', 200), bl('A233-4', 400)]).stderr).toBe('')
+    psql(`
+      SET session_replication_role = replica;
+      INSERT INTO public.invoices (id, invoice_number, customer_id, total_brl, status, invoice_type)
+      VALUES (${invoiceId}, 'A233-INV', ${customerId}, 100, 'issued', 'granite');
+      INSERT INTO public.invoice_granite_bls (invoice_id, granite_bl_id, subtotal_brl)
+      SELECT ${invoiceId}, g.id, 100 FROM ${granite} AS x JOIN public.granite_bls g ON g.id = x.id WHERE g.bl_number = 'A233-2';
+    `)
+
+    const result = importFile([bl('A233-1', 150)], ['A233-2', 'A233-4'])
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      removed_bl_numbers: ['A233-4'],
+      kept_missing_bl_numbers: ['A233-2'],
+      kept_missing_invoiced_bl_numbers: ['A233-2'],
+    })
+    expect(rows()).toContain('A233-2')
+    expect(rows()).not.toContain('A233-4')
   })
 })

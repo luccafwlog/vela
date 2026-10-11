@@ -102,6 +102,11 @@ describeLocal('COD na reimportação e documento da fatura (migration 183)', () 
     expect(psql(`SELECT omission_id || ':' || disposition FROM public.bl_transshipments WHERE bl_id = '${lateBl}';`))
       .toBe(`${omissionId}:transshipment`)
     expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_id = '${lateBl}' AND field_name = 'transbordo';`)).toBe('1')
+    // Achado B1 da revisão da PR 929 (migration 192): o evento aparece no
+    // Histórico do B/L, que só lê `entity_type = 'bl'` fora do instante da criação.
+    const timeline = asAdmin(`SELECT field_name || ':' || new_value FROM public.bl_timeline('${lateBl}') WHERE field_name = 'transbordo';`)
+    expect(timeline.stderr).toBe('')
+    expect(timeline.stdout).toBe('transbordo:A230D')
   })
 
   it('o detalhe da fatura lê o documento congelado na emissão, não os dados vivos', () => {

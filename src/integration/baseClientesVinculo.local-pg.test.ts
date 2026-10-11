@@ -2,6 +2,9 @@
 // item 24). A Base de Clientes vincula só os B/Ls pendentes de Cliente com o
 // mesmo CNPJ, como vínculo por documento, e reavalia a Revisão; B/L rejeitado
 // nunca é vinculado; razão social diferente da gravada pede confirmação.
+// Migration 192: a Revisão do B/L vinculado é liberada pela dona da regra
+// (`recompute_bl_review_status`), a fila de Reconciliação acompanha, e B/L de
+// Viagem cancelada fica de fora sem derrubar a linha do Cliente.
 //
 // Namespace exclusivo: ids 99232xxx, B/Ls 'A232-*', usuário ...0000002320NN.
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -16,11 +19,15 @@ const carrierId = 99232001
 const vesselId = 99232002
 const voyageId = 99232003
 const customerId = 99232004
+const cancelledVoyageId = 99232005
 const cnpj = '99232001000129'
 const pendingBl = 'A232-PEND'
 const rejectedBl = 'A232-REJ'
 const cancelledBl = 'A232-CANC'
-const bls = [pendingBl, rejectedBl, cancelledBl]
+const staleBl = 'A232-STALE'
+const cancelledVoyageBl = 'A232-VCANC'
+const staleConsignee = 'A232 CONSIGNATARIO'
+const bls = [pendingBl, rejectedBl, cancelledBl, staleBl, cancelledVoyageBl]
 const list = bls.map((id) => `'${id}'`).join(', ')
 
 function psql(sql: string): string {
@@ -43,7 +50,13 @@ function cleanup() {
     DELETE FROM public.charge_calculations WHERE bl_id IN (${list});
     DELETE FROM public.bls WHERE id IN (${list});
     DELETE FROM public.audit_logs WHERE entity_id IN (${list}) OR changed_by = '${userId}';
-    DELETE FROM public.voyages WHERE id = ${voyageId};
+    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE a.entity_type = 'customer' AND a.entity_id IN ('${customerId}', '${staleConsignee}'));
+    DELETE FROM public.internal_notifications WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_type = 'customer' AND entity_id IN ('${customerId}', '${staleConsignee}'));
+    DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_type = 'customer' AND entity_id IN ('${customerId}', '${staleConsignee}'));
+    DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id IN ('${customerId}', '${staleConsignee}');
+    DELETE FROM public.customer_billing_portal_releases WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${cnpj}');
+    DELETE FROM public.voyages WHERE id IN (${voyageId}, ${cancelledVoyageId});
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
     DELETE FROM public.customer_contacts WHERE customer_id IN (SELECT id FROM public.customers WHERE cnpj_cpf = '${cnpj}');
@@ -110,5 +123,53 @@ describeLocal('Base de Clientes: vínculo só dos B/Ls pendentes (migration 185)
     const review = psql(`SELECT COALESCE(notes, '') FROM public.bls WHERE id = '${pendingBl}';`)
     expect(review).toMatch(/Acesso ao portal nao provisionado/)
     expect(review).not.toMatch(/cliente/i)
+  })
+
+  // Achado V1 da revisão da PR 929: o gate da importação só acrescenta
+  // pendências; o B/L vinculado continuava em `pending_review` com a nota
+  // velha "Cliente nao vinculado" e o faturamento travado.
+  it('libera a Revisão do B/L vinculado: a nota velha sai e a fila de Reconciliação não fica pendente', () => {
+    // Os gatilhos de Alerta exigem ator ativo: a fixture roda com o usuário da suíte.
+    psql(`
+      SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${userId}';
+      INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
+      VALUES (${customerId}, 'Fixture A232: Portal liberado', '${userId}', now() + interval '1 day');
+      INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, consignee, manifest_customer_cnpj_cpf,
+        customer_reconciliation_status, review_status, notes)
+      VALUES ('${staleBl}', ${voyageId}, 'A232O', 'A232P', 'container', '${staleConsignee}', '${cnpj}',
+        'missing_customer', 'pending_review', 'Pendencias de importacao: Cliente nao vinculado');
+      SELECT public.sync_customer_reconciliation_queue_for_bl('${staleBl}');
+    `)
+    expect(psql(`SELECT status FROM public.customer_reconciliation_queue WHERE bl_id = '${staleBl}';`)).toBe('pending')
+    const unlinkedAlert = `SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'review_customer_unlinked' AND a.entity_type = 'customer'
+        AND a.entity_id = '${staleConsignee}' AND i.status = 'active';`
+    expect(psql(unlinkedAlert)).toBe('1')
+
+    const result = importBase('A232 OUTRA RAZAO SA', false)
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toMatchObject({ bls_linked: 1, linked_bl_ids: [staleBl] })
+    // Sem pendência real (Portal liberado), o B/L sai da Revisão e a nota velha some.
+    expect(psql(`SELECT review_status || ':' || COALESCE(notes, '-') FROM public.bls WHERE id = '${staleBl}';`)).toBe('reviewed:-')
+    expect(psql(`SELECT status || ':' || customer_id FROM public.customer_reconciliation_queue WHERE bl_id = '${staleBl}';`))
+      .toBe(`approved:${customerId}`)
+    // O Alerta do consignatário sem Cliente é reconciliado no fim do lote.
+    expect(psql(unlinkedAlert)).toBe('0')
+  })
+
+  // Achado V9: o UPDATE do vínculo caía em `trg_guard_voyage_cancelled_bls`
+  // (42501) e a linha do Cliente inteira falhava.
+  it('B/L pendente em Viagem cancelada fica de fora e não derruba a linha do Cliente', () => {
+    psql(`
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${cancelledVoyageId}, ${vesselId}, 'A232C', 'active');
+      INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, manifest_customer_cnpj_cpf, customer_reconciliation_status, review_status)
+      VALUES ('${cancelledVoyageBl}', ${cancelledVoyageId}, 'A232O', 'A232P', 'container', '${cnpj}', 'missing_customer', 'pending_review');
+      SET session_replication_role = replica;
+      UPDATE public.voyages SET status = 'cancelled' WHERE id = ${cancelledVoyageId};
+    `)
+    const result = importBase('A232 OUTRA RAZAO SA', false)
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toMatchObject({ bls_linked: 0 })
+    expect(psql(`SELECT COALESCE(customer_id::text, '-') FROM public.bls WHERE id = '${cancelledVoyageBl}';`)).toBe('-')
   })
 })

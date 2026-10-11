@@ -27,6 +27,7 @@ import {
 } from '../services/graniteImport'
 import { listGraniteBls, calculateGraniteBlCharges } from '../services/graniteCharges'
 import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
+import { userFacingErrorMessage } from '../lib/errors'
 import { CNPJ_INPUT_MAX_LENGTH, canonicalizeDocument, normalizeCnpj } from '../lib/cnpj'
 import { loadCustomerMaps, findMatchedCustomer, resolveCustomerLink } from '../services/customerReconciliation'
 import { rowErrorsToImportIssues } from '../services/importValidation'
@@ -144,7 +145,9 @@ export function Granite() {
       setVoyageId('')
       setCnpjOverrides({})
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Falha ao importar.', 'error')
+      // O erro do PostgREST não é `Error`: a mensagem de negócio da RPC vem
+      // pela classificação compartilhada (src/lib/errors.ts).
+      showToast(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar.'), 'error')
     } finally {
       setSubmitting(false)
     }

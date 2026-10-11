@@ -74,12 +74,15 @@ export async function compareCustomerBaseWithExisting(parsed: ParsedCustomerBase
   const rejected = new Map<string, string[]>()
   for (let from = 0; from < parsed.rows.length; from += 200) {
     const documents = parsed.rows.slice(from, from + 200).map((row) => row.cnpj_cpf)
+    // Mesmo filtro do vínculo (migration 192): B/L de Viagem cancelada é
+    // somente leitura e a Base não o vincula.
     const { data, error } = await supabase
       .from('bls')
-      .select('id, manifest_customer_cnpj_cpf, customer_reconciliation_status')
+      .select('id, manifest_customer_cnpj_cpf, customer_reconciliation_status, voyage:voyages!inner(status)')
       .in('manifest_customer_cnpj_cpf', documents)
       .is('customer_id', null)
       .is('cancelled_at', null)
+      .neq('voyage.status', 'cancelled')
     if (error) throw error
     for (const bl of (data ?? []) as Array<{ id: string; manifest_customer_cnpj_cpf: string; customer_reconciliation_status: string | null }>) {
       const target = bl.customer_reconciliation_status === 'rejected' ? rejected : pending

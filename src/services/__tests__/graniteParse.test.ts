@@ -99,6 +99,20 @@ it('US-077: registra erro de linha quando o Real Weight esta ausente ou zero', a
   expect(parsed.rowErrors.length).toBeGreaterThan(0)
 })
 
+it('reimportação (migration 192): B/L de linha com erro continua entre os números lidos do arquivo', async () => {
+  const parsed = await parseGraniteManifestFile(
+    cosco([
+      { '#': 1, BL: 'BL-G20', 'Navio/Viagem': 'NAVIO/14', 'Real Weight': 5000 },
+      { '#': 2, BL: 'bl-g21', 'Navio/Viagem': 'NAVIO/14', 'Real Weight': 0 },
+      { '#': 3, BL: 'BL-G20', 'Navio/Viagem': 'NAVIO/14', 'Real Weight': 4000 },
+    ]),
+  )
+
+  expect(parsed.bls.map((bl) => bl.bl_number)).toEqual(['BL-G20'])
+  expect(parsed.rowErrors).toHaveLength(2)
+  expect(parsed.fileBlNumbers).toEqual(['BL-G20', 'BL-G21'])
+})
+
 it('S03: rejeita coerção silenciosa de expoente e letras em pesos', async () => {
   const parsed = await parseGraniteManifestFile(
     cosco([
