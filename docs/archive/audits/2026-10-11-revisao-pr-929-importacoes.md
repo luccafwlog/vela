@@ -1,0 +1,160 @@
+# Revisão da PR 929 (correção das importações e do CE Mercante) — 2026-10-11
+
+## Escopo
+
+Revisão extensiva da PR 929 (`claude/correcao-importacoes-ce-mercante`, head
+`36a993d`, base `main` em `b5785db`). A PR executa o
+[plano de correção das importações](../../plans/2026-10-09-correcao-importacoes-ce-mercante.md)
+(Etapas 0–14) com as migrations `174`–`189`, cerca de 196 arquivos e 17 mil
+linhas.
+
+A revisão foi feita por nove revisores independentes, um por etapa e um
+transversal (CI, testes e documentação). Cada achado foi confirmado no código
+e, quando possível, reproduzido no Postgres 16 local com o replay das
+migrations. Também entraram os três achados P1 da revisão automática (Codex)
+publicados na PR.
+
+O critério de comparação foi a
+[ADR 0078](../../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md),
+a [ADR 0077](../../adr/0077-fatura-emitida-nao-muda-de-valor.md) e o
+`CONTEXT.md`.
+
+## Conclusão
+
+A PR não regrediu nenhuma função por partir de uma definição antiga. Conferimos
+todas as redefinições contra a definição efetiva anterior, inclusive a `173` da
+`main` e a renumeração `173–188 → 174–189`.
+
+O CI estava vermelho no "Security guard replay", e as regras novas tinham
+furos fora do caminho feliz. Os mais graves:
+
+- **Segurança.** Quatro funções SECURITY DEFINER sem guarda estavam abertas a
+  `authenticated`. Um usuário do Portal conseguia ler containers e o rateio de
+  B/L de outro Cliente, os B/Ls do grupo de Demurrage dele e as métricas da
+  fila.
+- **Manifesto BB em XLSX.** Peso e cubagem digitados como número eram
+  multiplicados por mil sem aviso: 135,263 t virava 135.263 t e ia para a taxa
+  por tonelada. O próprio modelo `.xlsx` da tela era recusado.
+- **Baplie.** A conferência de navio, viagem e escalas nunca rodava, porque a
+  RPC das escalas não tinha GRANT para usuários. Um Baplie de outra viagem
+  substituía as marcas e podia reemitir fatura.
+- **Alerta de fila parada.** O job do pg_cron falhava toda hora sem JWT, e o
+  Alerta nunca abria.
+- **Viagem Cancelada.** A fatura de Granito (e a de B/L) da Viagem Cancelada
+  não podia ser cancelada. Os Comunicados automáticos dessa Viagem falhavam a
+  cada ciclo.
+- **Datas, Demurrage e container compartilhado.**
+  - A planilha de datas recusava o segundo B/L que divide o container.
+  - Um irmão com fatura paga bloqueava para sempre a emissão do B/L que chega
+    depois.
+  - O B/L cancelado ancorava o grupo de Demurrage, e a mesma caixa era cobrada
+    duas vezes.
+  - Mudar o grupo depois da Invoice travava a baixa.
+  - O recebível sem fatura travava a exclusão do B/L.
+  - Qualquer UPDATE em itens de carga solta falhava.
+- **Base de Clientes e Vazios.**
+  - A Base de Clientes vinculava o B/L mas não o tirava da Revisão.
+  - A importação de Vazios com POD BRNVT ou BRREC apagava o Manifesto Mercante
+    recém-criado.
+- **CE Mercante.**
+  - A emissão em lotes abria Alerta crítico para B/L que só estava aguardando,
+    e esse Alerta nunca fechava.
+  - Corrigir o CE pela ficha não abria o alerta de Desbloqueio.
+  - `apply_ce_mercante_update` continuava aberta como porta paralela, sem
+    confirmação e sem motivo.
+
+## Correções aplicadas
+
+Todas foram aplicadas na mesma PR, em migrations novas. As `174`–`189` não
+foram editadas.
+
+| Migration | Tema |
+|---|---|
+| `190` | Segurança (REVOKE das quatro funções), `list_voyage_eligible_pods`, contexto do Histórico, fila parada no cron e por `next_attempt_at`, planilha de datas com container compartilhado, modalidade de carga, Viagem Cancelada (cancelar fatura, consolidada/avulsa, Comunicados automáticos), executor da fila, ATA sem preencher descarga |
+| `191` | Demurrage e container compartilhado (irmão pago, recebível sem fatura, grupo, B/L cancelado, linhas antigas, estorno, descarga após devolução) |
+| `192` | Base de Clientes (Revisão e fila), Granito (ausente com Invoice), Vazios (porto normalizado, Nº canônico, espelho), Histórico do Transbordo, carga solta (fila, Consignee, retenção) |
+| `193` | Programação por planilha (Portal, IMO, Viagem Cancelada, linhas repetidas) e Veículos (Histórico do Mover, travas) |
+| `194` | B/L de container (mensagens, VIN, chassi em cancelado, CNPJ alfanumérico) e Baplie no banco (SOC/COC com perfil manual, origem "bl", "Vale o B/L", Part Lot, corrida) |
+| `195` | CE Mercante (esperas na emissão, alerta de Desbloqueio pela ficha, porta paralela, consolidada, Granito na prévia, INSERT com CE, rastro, portos normalizados) |
+| `196` | Granito: totais de todos os manifestos da Viagem (achado da revisão automática) |
+
+No front:
+
+- leitor de planilhas: Embarque de Vazios com o seletor comum e confirmação de
+  linhas ocultas; CSV Windows-1252; colunas repetidas por campo; sistema de
+  datas 1904; máscaras; avisos de linhas ocultas;
+- Baplie: POD desconhecido, TDT, LQ, OOG, reemissões, conciliação;
+- prévias da importação de B/L e do Manifesto BB;
+- aceite por lote no B/L avulso;
+- CE Mercante: esperas, "Ver B/Ls" com portos normalizados, prévia refeita;
+- relatório da escala com o perfil manual;
+- Histórico, onde o contexto da importação aparece como "Origem";
+- catálogo de Alertas.
+
+Cada correção não trivial tem caso de regressão. Os casos foram rodados contra
+o código anterior: falham sem a correção e passam com ela.
+
+## Evidência
+
+Local, Postgres 16 descartável:
+
+- replay limpo das migrations `001`–`195` com as checagens de invariantes do
+  CI;
+- as 76 suítes `local-pg` na ordem do CI: 584 + 3 testes;
+- 4.404 testes unitários;
+- `typecheck`, `lint`, `build`, `docs:check`, `migrations:check`, `rpc:check`
+  e `verificar_guardas.py` verdes.
+
+A `196` foi aplicada depois, sobre esse banco, e só a suíte do Granito rodou
+contra ela.
+
+No CI, o commit `24fa48f` ficou verde em todos os jobs. O que vale como
+evidência final é o CI do último commit da PR.
+
+Nada foi verificado em navegador nem em ambiente Supabase real. Nenhuma
+migration foi aplicada em produção.
+
+## Decisões pendentes (não decididas pela revisão)
+
+1. **Demurrage reemitida por mudança de datas** (ADR 0078, item 19): a fatura
+   nova nasce sem o desconto e sem a disputa da anterior. Opções: levar desconto
+   e disputa para a nova, ou tratar Invoice com desconto ou disputa como o caso
+   pago (Alerta, sem reemitir).
+2. **`overdue` não é mais gravado** desde a `179`. O selo de alertas, o KPI de
+   containers em atraso, a ficha do Cliente e o filtro da página Demurrage
+   leem esse status e ficam zerados. Calcular o status na leitura ou por job?
+3. **Estorno da baixa de Invoice de Demurrage suspensa** (`191`): reemite
+   automaticamente quando as datas ainda diferem. Isso segue a leitura do item
+   19, mas é ação automática disparada por estorno.
+4. **B/L com CE vinculado pela Base de Clientes ou pela Revisão**: a fatura só
+   sai quando a fila de efeitos processar, e a fila está desligada até a
+   Etapa 13.
+5. **Emissão pelo CE**:
+   - as esperas ficam com status `blocked` e `waiting: true`, e não "retida";
+   - "B/L sem linhas faturáveis" e "Tabela incompleta" ainda abrem
+     `billing_auto_issue_failed`.
+6. **Correção manual de perfil ou SOC/COC no Part Lot** (`194`): um irmão
+   faturado recusa a correção inteira, e a correção que parte de B/L cancelado
+   é recusada.
+7. **Baplie "outro operador"**: o NAD+CA é comparado com o elemento do TDT. Em
+   navio de parceiro (VSA, slot charter), containers do armador da Viagem podem
+   ser ignorados. A referência poderia ser o SCAC do armador.
+8. **Granito**: duas planilhas COSCO legítimas da mesma Viagem passam a ser
+   tratadas como reimportação.
+9. **Escopo da PR**: o plano prevê uma PR por etapa, e esta traz as Etapas
+   0–14 mais as correções desta revisão.
+
+## Limitações conhecidas não corrigidas (baixo impacto)
+
+- Separador de CSV escolhido pelo SheetJS quando há empate entre `;` e `,`.
+- Modelo `ce-mercante-modelo.xlsx`: coluna CE como texto só em B2:B3, e CEs de
+  exemplo com 9 dígitos.
+- Importar B/L avisa "linhas ocultas ignoradas", mas o parser do B/L lê as
+  linhas ocultas. As telas de PIX e ZPT não mostram o aviso de linhas ocultas.
+- A prévia de carga solta não avisa B/L novo em porto omitido.
+- O documento congelado da fatura não cobre a consolidada no Vela nem o
+  Granito.
+- `import_vehicle_rows_transactional` e dois B/Ls do mesmo arquivo com o mesmo
+  chassi ainda podem dar 23505 cru.
+- Desempenho da prévia e do gatilho de unicidade do CE com volume real: a
+  medição não incluiu faturas nem Granito.
