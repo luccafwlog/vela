@@ -1573,11 +1573,9 @@ recebe Invoice, e a completude do grupo é conferida só na emissão (migration
 
 Pendentes de decisão do dono (revisão da PR 929, 2026-10-11): a Invoice
 reemitida por mudança de datas nasce do cálculo, sem o desconto nem a disputa
-da cancelada; e o monitoramento de containers ainda fora depende de o status de
-Demurrage do container estar em atraso (`overdue`), que nenhum caminho grava
-desde a correção das importações, então a aba Containers da Demurrage, o KPI de
-containers em atraso, o sinal do cabeçalho e a Demurrage correndo da ficha do
-Cliente não mostram esses containers.
+da cancelada. O status de Demurrage do container em atraso (`overdue`) é
+gravado pelo banco: a cada gravação de datas e por um job diário para o
+container que vence sem ninguém mexer nele (migration `197`).
 
 - **Ver também:** P1, P2, Free Time, ROE, Recálculo Diário
 

@@ -4,9 +4,11 @@
 // Migration 193: IMO só identifica com 7 dígitos e IMO distinto nunca funde;
 // Viagem cancelada é recusada com o nome dela; a última linha da mesma Viagem
 // e porto vale; Viagem oculta enviada sem data nova é publicada.
+// Migration 199: dois arquivos simultâneos da mesma Viagem nova, um com IMO e
+// outro sem, esperam um pelo outro e não duplicam navio nem Viagem.
 //
 // Namespace exclusivo: navios 'A235 *', IMO 9235xxx, usuário ...0000002350NN.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -27,6 +29,16 @@ function asUser(sql: string): { stdout: string; stderr: string } {
   { encoding: 'utf8' })
   return { stdout: run.stdout.trim(), stderr: run.stderr }
 }
+
+/** psql em outra sessão, sem bloquear o teste (para abrir uma janela de concorrência). */
+function runAsync(sql: string): Promise<{ code: number | null; stderr: string }> {
+  const child = spawn('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { stdio: ['ignore', 'ignore', 'pipe'] })
+  let stderr = ''
+  child.stderr.on('data', (chunk) => { stderr += String(chunk) })
+  return new Promise((resolve) => child.on('close', (code) => resolve({ code, stderr })))
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const voyagesOfNamespace = `(SELECT v.id FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name LIKE 'A235 %')`
 
@@ -134,5 +146,19 @@ describeLocal('Programação por planilha atômica (migration 188)', () => {
     expect(result.stderr).toBe('')
     expect(JSON.parse(result.stdout)).toMatchObject({ created: 0, updated: 1, changes: 0 })
     expect(psql(`SELECT show_on_portal FROM public.voyages WHERE id = ${hidden};`)).toBe('t')
+  })
+
+  it('dois arquivos simultâneos da mesma Viagem nova, um com IMO e outro sem, criam um navio e uma Viagem', async () => {
+    const asUserPrefix = `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${userId}';`
+    const sheet = (imo: string, eta: string) => `SELECT public.apply_schedule_sheet_atomic('${JSON.stringify([row('A235 LAMBDA', imo, '011N', eta)])}'::jsonb, '${carrierName}', '');`
+    // O arquivo com IMO grava e segura a transação aberta; o sem IMO chega no meio.
+    const withImo = runAsync(`BEGIN; ${asUserPrefix} ${sheet('9235011', '2026-11-11')} SELECT pg_sleep(2); COMMIT;`)
+    await sleep(500)
+    const withoutImo = runAsync(`${asUserPrefix} ${sheet('', '2026-11-12')}`)
+    const [first, second] = await Promise.all([withImo, withoutImo])
+    expect(first).toEqual({ code: 0, stderr: '' })
+    expect(second).toEqual({ code: 0, stderr: '' })
+    expect(psql(`SELECT count(*) || ':' || string_agg(COALESCE(imo, '-'), ',') FROM public.vessels WHERE name = 'A235 LAMBDA';`)).toBe('1:9235011')
+    expect(psql(`SELECT count(*) FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name = 'A235 LAMBDA';`)).toBe('1')
   })
 })

@@ -77,6 +77,9 @@ foram editadas.
 | `194` | B/L de container (mensagens, VIN, chassi em cancelado, CNPJ alfanumérico) e Baplie no banco (SOC/COC com perfil manual, origem "bl", "Vale o B/L", Part Lot, corrida) |
 | `195` | CE Mercante (esperas na emissão, alerta de Desbloqueio pela ficha, porta paralela, consolidada, Granito na prévia, INSERT com CE, rastro, portos normalizados) |
 | `196` | Granito: totais de todos os manifestos da Viagem (achado da revisão automática) |
+| `197` | Demurrage: status `overdue` gravado a cada gravação de datas e por job diário (achado da revisão automática) |
+| `198` | Granito: sugestão de Cliente na detecção de mudança da reimportação (achado da revisão automática) |
+| `199` | Programação por planilha: trava da Viagem nova pelo nome e pelo IMO, para arquivos simultâneos com e sem IMO (achado da revisão automática) |
 
 No front:
 
@@ -98,18 +101,19 @@ o código anterior: falham sem a correção e passam com ela.
 
 Local, Postgres 16 descartável:
 
-- replay limpo das migrations `001`–`195` com as checagens de invariantes do
+- replay limpo das migrations `001`–`199` com as checagens de invariantes do
   CI;
-- as 76 suítes `local-pg` na ordem do CI: 584 + 3 testes;
-- 4.404 testes unitários;
-- `typecheck`, `lint`, `build`, `docs:check`, `migrations:check`, `rpc:check`
-  e `verificar_guardas.py` verdes.
+- as 76 suítes `local-pg` na ordem do CI: 588 + 3 testes;
+- 4.409 testes unitários;
+- `typecheck`, `lint`, `docs:check`, `migrations:check`, `rpc:check` e
+  `verificar_guardas.py` verdes; o `build` rodou no último commit com
+  frontend alterado.
 
-A `196` foi aplicada depois, sobre esse banco, e só a suíte do Granito rodou
-contra ela.
+Os casos novos das `196`–`199` falham sem a migration e passam com ela. No
+caso da `199`, sem a migration, dois arquivos simultâneos criaram dois navios
+(um com IMO e outro sem).
 
-No CI, o commit `24fa48f` ficou verde em todos os jobs. O que vale como
-evidência final é o CI do último commit da PR.
+O que vale como evidência final é o CI do último commit da PR.
 
 Nada foi verificado em navegador nem em ambiente Supabase real. Nenhuma
 migration foi aplicada em produção.
@@ -122,7 +126,9 @@ migration foi aplicada em produção.
    pago (Alerta, sem reemitir).
 2. **`overdue` não é mais gravado** desde a `179`. O selo de alertas, o KPI de
    containers em atraso, a ficha do Cliente e o filtro da página Demurrage
-   leem esse status e ficam zerados. Calcular o status na leitura ou por job?
+   leem esse status e ficam zerados. *Corrigido depois, na mesma revisão, pela
+   migration `197` (achado P1 da revisão automática): status gravado a cada
+   gravação de datas e por job diário.*
 3. **Estorno da baixa de Invoice de Demurrage suspensa** (`191`): reemite
    automaticamente quando as datas ainda diferem. Isso segue a leitura do item
    19, mas é ação automática disparada por estorno.
@@ -149,8 +155,9 @@ migration foi aplicada em produção.
 - Separador de CSV escolhido pelo SheetJS quando há empate entre `;` e `,`.
 - Modelo `ce-mercante-modelo.xlsx`: coluna CE como texto só em B2:B3, e CEs de
   exemplo com 9 dígitos.
-- Importar B/L avisa "linhas ocultas ignoradas", mas o parser do B/L lê as
-  linhas ocultas. As telas de PIX e ZPT não mostram o aviso de linhas ocultas.
+- As telas de PIX e ZPT não mostram o aviso de linhas ocultas. (No Importar
+  B/L, que lê o arquivo pela posição das células, o aviso passou a dizer que as
+  linhas e abas ocultas são lidas — achado da revisão automática.)
 - A prévia de carga solta não avisa B/L novo em porto omitido.
 - O documento congelado da fatura não cobre a consolidada no Vela nem o
   Granito.
@@ -158,3 +165,8 @@ migration foi aplicada em produção.
   chassi ainda podem dar 23505 cru.
 - Desempenho da prévia e do gatilho de unicidade do CE com volume real: a
   medição não incluiu faturas nem Granito.
+- Baplie: o POD fora da lista fixa de portos (`portCode.ts`) é ignorado antes
+  da conferência com as escalas da Viagem. Hoje isso não descarta container de
+  escala válida, porque toda escala é gravada pela mesma lista: porto fora dela
+  vira `-`. Se a lista passar a vir do cadastro de portos, as duas pontas mudam
+  juntas (achado da revisão automática, não corrigido).

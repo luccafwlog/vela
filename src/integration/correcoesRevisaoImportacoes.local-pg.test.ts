@@ -12,6 +12,7 @@
 // - efeito de B/L Cancelado sai como `superseded`; `vehicle_followup` não
 //   cancela fatura com pagamento;
 // - o primeiro contexto de importação da transação vale até o fim.
+// Migration 197: o status de Demurrage "em atraso" volta a ser gravado.
 //
 // Namespace exclusivo: ids 99190xxx, B/Ls 'R190-*', usuário ...000000190001.
 // A limpeza roda com `session_replication_role = replica`, porque a Viagem
@@ -41,6 +42,7 @@ const bl = {
   breakbulk: 'R190-BB',
   cancelledVoyage: 'R190-CV',
   cancelledBl: 'R190-CB',
+  overdue: 'R190-OVD',
 }
 const allBls = Object.values(bl)
 const sharedContainer = 'RVCU1900001'
@@ -153,7 +155,9 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
         ('${bl.shareB}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated'),
         ('${bl.breakbulk}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'carga_solta', 'pending', 'not_calculated'),
         ('${bl.cancelledVoyage}', ${cancelledVoyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated'),
-        ('${bl.cancelledBl}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated');
+        ('${bl.cancelledBl}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated'),
+        ('${bl.overdue}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated');
+      UPDATE public.bls SET free_time_override = 5 WHERE id = '${bl.overdue}';
       INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES
         ('${bl.shareA}', '${sharedContainer}', '40HC'),
         ('${bl.shareB}', '${sharedContainer}', '40HC');
@@ -329,5 +333,31 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
 
   it('id numérico longo não estoura a busca da Viagem do efeito', () => {
     expect(psql(`SELECT COALESCE(public._import_effect_voyage_id('local_billing', '12345678901234567890123')::text, 'nulo')`)).toBe('nulo')
+  })
+
+  it('o container sem devolução fica em atraso quando passa do free time (197)', () => {
+    const status = (number: string) => psql(`SELECT demurrage_status FROM public.bl_containers WHERE container_number = '${number}'`)
+    psql(`
+      INSERT INTO public.bl_containers (bl_id, container_number, type, discharge_date) VALUES
+        ('${bl.overdue}', 'RVCU1970001', '40HC', current_date - 10),
+        ('${bl.overdue}', 'RVCU1970002', '40HC', current_date - 2);
+      INSERT INTO public.bl_containers (bl_id, container_number, type, discharge_date, ownership) VALUES
+        ('${bl.overdue}', 'RVCU1970003', '40HC', current_date - 10, 'SOC');
+    `)
+    expect(status('RVCU1970001')).toBe('overdue')
+    expect(status('RVCU1970002')).toBe('within_free_time')
+    expect(status('RVCU1970003')).toBe('within_free_time')
+
+    psql(`UPDATE public.bl_containers SET return_date = current_date WHERE container_number = 'RVCU1970001'`)
+    expect(status('RVCU1970001')).toBe('returned')
+
+    // Ninguém mexeu no container e o free time venceu: o job diário refaz.
+    psql(`SET session_replication_role = replica;
+          UPDATE public.bl_containers SET discharge_date = current_date - 20 WHERE container_number = 'RVCU1970002';`)
+    expect(status('RVCU1970002')).toBe('within_free_time')
+    const refreshed = run(`SELECT public.refresh_containers_demurrage_status()`)
+    expect(refreshed.status, refreshed.stderr).toBe(0)
+    expect(status('RVCU1970002')).toBe('overdue')
+    expect(psql(`SELECT has_function_privilege('authenticated', 'public.refresh_containers_demurrage_status()', 'EXECUTE')`)).toBe('f')
   })
 })

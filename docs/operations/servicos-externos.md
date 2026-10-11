@@ -336,6 +336,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
+| `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação (SQL puro; B/L e Viagem Cancelados ficam de fora) | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
@@ -351,7 +352,7 @@ abaixo e em [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disp
 
 #### Roteiro para ligar o `import-effects-runner` (ADR 0078, item 18)
 
-Ato do dono, depois que as migrations `174` a `196` estiverem em produção. Nada
+Ato do dono, depois que as migrations `174` a `199` estiverem em produção. Nada
 aqui é feito pelo agente; registre data, quem executou e o resultado de cada
 passo nesta seção.
 

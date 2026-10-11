@@ -63,9 +63,10 @@ aviso e a busca é pelo nome. Nome igual com outro IMO cadastrado é erro da lin
 ("IMO conflitante"), nunca fusão. Viagem cancelada é erro da linha (somente
 leitura). A mesma Viagem e porto em mais de uma linha com datas diferentes
 recusa essas linhas. **Gravar programação** grava tudo numa transação
-(`apply_schedule_sheet_atomic`, migrations `188` e `193`, com as mesmas regras
+(`apply_schedule_sheet_atomic`, migrations `188`, `193` e `199`, com as mesmas regras
 de navio, IMO e Viagem cancelada): Viagem nova é criada uma vez, toda Viagem
-enviada é publicada no Portal, cada evento de agenda leva horário próprio (a
+enviada é publicada no Portal, dois arquivos simultâneos da mesma Viagem nova
+(com e sem IMO) esperam um pelo outro e não duplicam navio nem Viagem, cada evento de agenda leva horário próprio (a
 última linha do arquivo vale) e qualquer falha desfaz o arquivo inteiro; linhas
 com erro na prévia ficam de fora. Depois de gravar (planilha ou modal), a tela
 atualiza as consultas pelo dono `afterViagemAlterada` (opções de Viagem, agenda,
@@ -105,7 +106,7 @@ lanes e ordena pela menor ETA de POD.
 | Carregar publicados | Sessão interna | Montagem de `/chegadas-saidas` | `useQuery(['portal-schedule-voyages'])` | RPC `portal_ship_schedule` projetada em linhas | Preenche tabela por ETA | Erro de leitura da RPC exibido na página | **Código**, **Teste** |
 | Adicionar/anexar viagem | Usuário interno ativo; navio, VOY e ao menos um POD com data | Modal | `buildScheduleLanes` + `createOrAttachVoyageFromSchedule` | `voyages.show_on_portal`, `audit_logs` POL/POD | Invalida `['portal-schedule-voyages']` e `['voyages']` | Campos obrigatórios, identidade divergente ou falha ao persistir | **Código**, **Teste** |
 | Editar publicação | Usuário interno ativo; viagem já visível | Botão Editar/modal | Pré-preenche datas projetadas e salva pelo mesmo serviço | Atualiza somente ETD/ETA informados | Last write wins em ETD/ETA digitados | Conflitos de identidade e erro do serviço | **Código**, **Teste** |
-| Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload`: área de arquivo comum (`ImportFilePicker`), “Conferir prévia” e “Gravar programação”; escolher o arquivo ou conferir não grava | `parseScheduleRows` + `planScheduleSheet` (prévia) + `applyScheduleSheetPlan` → `apply_schedule_sheet_atomic` (migrations `188` e `193`) | Mesma persistência do modal, numa transação; publica a Viagem oculta | Prévia por viagem; resumo após gravar; `afterViagemAlterada` | Erro de linha aparece na prévia e a linha fica de fora; falha na gravação não grava nada | **Código**, **Teste**, **Integração em PostgreSQL local:** `programacaoPlanilha.local-pg.test.ts` |
+| Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload`: área de arquivo comum (`ImportFilePicker`), “Conferir prévia” e “Gravar programação”; escolher o arquivo ou conferir não grava | `parseScheduleRows` + `planScheduleSheet` (prévia) + `applyScheduleSheetPlan` → `apply_schedule_sheet_atomic` (migrations `188`, `193` e `199`) | Mesma persistência do modal, numa transação; publica a Viagem oculta | Prévia por viagem; resumo após gravar; `afterViagemAlterada` | Erro de linha aparece na prévia e a linha fica de fora; falha na gravação não grava nada | **Código**, **Teste**, **Integração em PostgreSQL local:** `programacaoPlanilha.local-pg.test.ts` |
 | Consultar no Portal | Sessão do Portal | `ShipScheduleWidget` | `usePortalScheduleVoyages` | RPC `portal_ship_schedule` | Cache `['portal-schedule-voyages']` | Erro de RPC e estados vazio/loading no widget | **Código**, **Teste**, **Teste de contrato SQL** |
 
 ## Estado e dados

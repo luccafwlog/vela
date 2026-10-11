@@ -652,7 +652,8 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     const before = containersOf(blId)
     expect(before).toMatchObject([
       { container_number: 'AZCU2020011', discharge_date: '2026-09-01', return_date: '2026-09-20', demurrage_status: 'returned', unpacking_location: 'A202 ARMAZEM 7' },
-      { container_number: 'AZCU2020012', discharge_date: '2026-09-01', return_date: null, demurrage_status: 'within_free_time', unpacking_location: null },
+      // Sem devolução e descarga há mais que o free time: em atraso (migration 197).
+      { container_number: 'AZCU2020012', discharge_date: '2026-09-01', return_date: null, demurrage_status: 'overdue', unpacking_location: null },
     ])
 
     const reimport = await importBls(

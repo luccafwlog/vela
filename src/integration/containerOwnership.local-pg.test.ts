@@ -150,7 +150,10 @@ describeLocal('SOC/COC — B/L soberano, taxas e Demurrage', () => {
   })
 
   it('container SOC nunca fica em atraso de Demurrage', () => {
-    psql(`UPDATE public.bl_containers SET demurrage_status = 'overdue' WHERE bl_id = '${blId}' AND container_number IN ('${socByBl}', '${conflict}')`)
+    // O status é derivado das datas pelo banco (migration 197): descarga há 60
+    // dias, sem devolução, passa de qualquer free time da tabela — o COC fica em
+    // atraso, o SOC não.
+    psql(`UPDATE public.bl_containers SET discharge_date = CURRENT_DATE - 60 WHERE bl_id = '${blId}' AND container_number IN ('${socByBl}', '${conflict}')`)
     expect(psql(`SELECT string_agg(container_number || ':' || demurrage_status, ',' ORDER BY container_number)
       FROM public.bl_containers WHERE bl_id = '${blId}' AND container_number IN ('${socByBl}', '${conflict}')`))
       .toBe(`${socByBl}:within_free_time,${conflict}:overdue`)
