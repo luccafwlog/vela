@@ -34,7 +34,9 @@
   um com IMO e outro sem, não duplicam navio nem Viagem; na prévia, linhas da mesma Viagem
   nova com e sem IMO são conferidas juntas; dois arquivos com as mesmas Viagens em ordens
   diferentes não se travam (`201`). **Datas (`201`):** a planilha confere a prévia que viu a
-  descarga vazia e não sobrescreve a descarga gravada depois dela. **Aceites:** a troca de Cliente e a confirmação de
+  descarga vazia e não sobrescreve a descarga gravada depois dela. **`202`:** o navio sem IMO
+  achado pelo nome recebe o IMO da planilha de Programação (outra grafia com o mesmo IMO não
+  duplica), e Mover para outro B/L recusa veículo de Viagem Cancelada. **Aceites:** a troca de Cliente e a confirmação de
   faturamento da carga solta valem para as transições mostradas e são conferidas de novo na
   gravação; a troca de CE confirmada que mudou depois da prévia volta para a prévia; a troca de
   razão social da Base de Clientes vale para o nome de antes mostrado na prévia. **PIX e ZPT:**

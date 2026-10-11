@@ -7,7 +7,9 @@
 // Migration 199: dois arquivos simultâneos da mesma Viagem nova, um com IMO e
 // outro sem, esperam um pelo outro e não duplicam navio nem Viagem.
 // Migration 201: dois arquivos com as mesmas Viagens novas em ordens
-// diferentes não se travam mutuamente (deadlock).
+// diferentes não se travam mutuamente (deadlock). Migration 202: o navio sem
+// IMO achado pelo nome recebe o IMO do arquivo, e outra grafia com o mesmo IMO
+// não duplica navio nem Viagem.
 //
 // Namespace exclusivo: navios 'A235 *', IMO 9235xxx, usuário ...0000002350NN.
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
@@ -184,5 +186,17 @@ describeLocal('Programação por planilha atômica (migration 188)', () => {
     expect(first).toEqual({ code: 0, stderr: '' })
     expect(second).toEqual({ code: 0, stderr: '' })
     expect(psql(`SELECT count(*) FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name IN ('A235 MU', 'A235 NU');`)).toBe('2')
+  })
+
+  it('navio sem IMO achado pelo nome recebe o IMO, e outra grafia com o mesmo IMO não duplica', () => {
+    const result = apply([
+      row('A235 XI', '', '014N', '2026-11-14'),
+      row('A235 XI', '9235014', '014N', '2026-11-14'),
+      row('A235 X1', '9235014', '014N', '2026-11-14'),
+    ])
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toMatchObject({ created: 1, updated: 2 })
+    expect(psql(`SELECT string_agg(name || ':' || COALESCE(imo, '-'), ',') FROM public.vessels WHERE name IN ('A235 XI', 'A235 X1');`)).toBe('A235 XI:9235014')
+    expect(psql(`SELECT count(*) FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name IN ('A235 XI', 'A235 X1');`)).toBe('1')
   })
 })

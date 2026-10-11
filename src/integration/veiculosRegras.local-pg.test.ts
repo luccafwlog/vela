@@ -4,7 +4,8 @@
 // isento anula o Recebível; Mover para outro B/L e Excluir valem para qualquer
 // usuário, com motivo, mesmo com CE. Migration 193: o Histórico do Mover
 // guarda B/L, container e Viagem com o motivo, e as travas dos B/Ls seguem a
-// ordem de id (movimentos cruzados não se travam mutuamente).
+// ordem de id (movimentos cruzados não se travam mutuamente). Migration 202:
+// veículo de Viagem Cancelada não sai dela pelo Mover.
 //
 // Namespace exclusivo: ids 99231xxx, B/Ls 'A231-*', usuário ...0000002310NN.
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
@@ -20,15 +21,18 @@ const vesselId = 99231002
 const voyageId = 99231003
 const otherVoyageId = 99231004
 const customerId = 99231005
+const cancelledVoyageId = 99231006
 const blA = 'A231-BLA'
 const blB = 'A231-BLB'
 const blOther = 'A231-OUT'
 const blCancelled = 'A231-CAN'
+const blCancelledVoyage = 'A231-VCN'
 const cA = 99231011
 const cB = 99231012
 const cOther = 99231013
 const cCancelled = 99231014
-const bls = [blA, blB, blOther, blCancelled]
+const cCancelledVoyage = 99231015
+const bls = [blA, blB, blOther, blCancelled, blCancelledVoyage]
 
 function psql(sql: string): string {
   return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -71,7 +75,7 @@ function cleanup() {
     DELETE FROM public.bl_containers WHERE bl_id IN (${list});
     DELETE FROM public.bls WHERE id IN (${list});
     DELETE FROM public.audit_logs WHERE entity_id IN (${list}) OR changed_by = '${userId}';
-    DELETE FROM public.voyages WHERE id IN (${voyageId}, ${otherVoyageId});
+    DELETE FROM public.voyages WHERE id IN (${voyageId}, ${otherVoyageId}, ${cancelledVoyageId});
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
     DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}));
@@ -193,4 +197,21 @@ describeLocal('Veículos: regras da importação e ações da página (migration
     expect(moved.stderr).toBe('')
     expect(psql(`SELECT bl_id FROM public.vehicles WHERE id = ${vehicleId};`)).toBe(blB)
   }, 20_000)
+
+  it('veículo de Viagem Cancelada não sai dela pelo Mover (202)', () => {
+    psql(`
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${cancelledVoyageId}, ${vesselId}, 'A231C', 'active');
+      INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, movement_to, financial_status, charge_status) VALUES
+        ('${blCancelledVoyage}', ${cancelledVoyageId}, ${customerId}, 'A231O', 'A231P', 'container', 'CY', 'pending', 'not_calculated');
+      INSERT INTO public.bl_containers (id, bl_id, container_number, type) VALUES (${cCancelledVoyage}, '${blCancelledVoyage}', 'ADCU2310005', '40HC');
+      INSERT INTO public.vehicles (voyage_id, container_id, bl_id, chassis, brand, model, weight_kg, cbm) VALUES
+        (${cancelledVoyageId}, ${cCancelledVoyage}, '${blCancelledVoyage}', 'A231CHASSIVCAN', 'BYD', 'X', 1500, 12);
+      SET session_replication_role = replica;
+      UPDATE public.voyages SET status = 'cancelled' WHERE id = ${cancelledVoyageId};
+    `)
+    const vehicleId = psql(`SELECT id FROM public.vehicles WHERE chassis = 'A231CHASSIVCAN';`)
+    const refused = asUser(`SELECT public.move_vehicles_to_bl(ARRAY[${vehicleId}]::bigint[], '${blA}', 'Tirar da Viagem cancelada (A231)', ${cA});`)
+    expect(refused.stderr).toMatch(/Viagem A231 NAVIO A231C cancelada: o veículo A231CHASSIVCAN não sai dela/)
+    expect(psql(`SELECT bl_id || ':' || voyage_id FROM public.vehicles WHERE id = ${vehicleId};`)).toBe(`${blCancelledVoyage}:${cancelledVoyageId}`)
+  })
 })
