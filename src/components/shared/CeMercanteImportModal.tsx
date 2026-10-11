@@ -129,6 +129,18 @@ export function CeMercanteImportModal({
         reason: needsConfirmation ? reason.trim() : undefined,
         deferBilling: target === 'bls',
       })
+
+      // Outra planilha gravou CE ou Manifesto destes B/Ls depois da prévia: o
+      // servidor pede confirmação. A prévia é refeita e mostra a troca a
+      // confirmar, em vez de repetir a recusa a cada clique (K9).
+      if (target === 'bls' && result.needsConfirmation) {
+        const fresh = await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: lockedVoyageId })
+        setServerPreview(fresh)
+        setConfirmed(false)
+        setReport(null)
+        showToast('Os B/Ls mudaram depois da prévia. Confira a prévia atualizada e confirme a troca com o motivo.', 'info')
+        return
+      }
       setReport(result)
 
       await invalidateBls()
@@ -480,6 +492,20 @@ function ServerPreviewSection({
   )
 }
 
+// Frase da tela quando o servidor não manda `message`: o código cru não aparece.
+const BILLING_REASON_LABEL: Record<string, string> = {
+  customer_reconciliation_pending: 'Aguardando conciliação do Cliente.',
+  review_pending: 'Aguardando Revisão do B/L.',
+  not_found: 'B/L não encontrado.',
+  auto_billing_failed: 'A emissão automática falhou; o Alerta de faturamento traz o detalhe.',
+}
+
+function billingResultMessage(item: Pick<CeBillingResult, 'message' | 'reason'>): string {
+  const message = item.message?.trim()
+  if (message) return message
+  return (item.reason && BILLING_REASON_LABEL[item.reason]) || 'Motivo não informado pelo servidor.'
+}
+
 function BillingProgress({
   billing,
   onResume,
@@ -488,7 +514,9 @@ function BillingProgress({
   onResume: () => void
 }) {
   const count = (status: CeBillingResult['status']) => billing.results.filter((item) => item.status === status).length
-  const blocked = billing.results.filter((item) => item.status === 'blocked')
+  // Espera de negócio (Cliente, Revisão) não é falha: aparece à parte (K1).
+  const waiting = billing.results.filter((item) => item.status === 'blocked' && item.waiting)
+  const blocked = billing.results.filter((item) => item.status === 'blocked' && !item.waiting)
   return (
     <section className="app-import-section" aria-label="Emissão das faturas">
       <div className="app-import-section__head">
@@ -499,15 +527,23 @@ function BillingProgress({
             { label: 'processados', value: `${billing.results.length} de ${billing.total}` },
             { label: 'faturados', value: count('invoiced') },
             { label: 'retidos', value: count('held') },
+            { label: 'aguardando', value: waiting.length, tone: waiting.length ? 'warning' : 'default' },
             { label: 'bloqueados', value: blocked.length, tone: blocked.length ? 'danger' : 'default' },
           ]}
         />
       </div>
       {billing.running ? <p role="status">Emitindo as faturas em lotes. Não feche esta janela.</p> : null}
+      {waiting.length ? (
+        <ImportNotice tone="warning" title="Aguardando">
+          <ul className="app-import-notice__list">
+            {waiting.map((item) => <li key={item.bl_id}>{item.bl_id}: {billingResultMessage(item)}</li>)}
+          </ul>
+        </ImportNotice>
+      ) : null}
       {blocked.length ? (
         <ImportNotice tone="danger" title="Bloqueados">
           <ul className="app-import-notice__list">
-            {blocked.map((item) => <li key={item.bl_id}>{item.bl_id}: {item.message ?? item.reason}</li>)}
+            {blocked.map((item) => <li key={item.bl_id}>{item.bl_id}: {billingResultMessage(item)}</li>)}
           </ul>
         </ImportNotice>
       ) : null}

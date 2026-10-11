@@ -7,6 +7,7 @@ import { useToast } from '../ui/Toast'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { useMoveBlsToManifestoMercante, useUnlinkBlsFromManifestoMercante } from '../../hooks/useManifestosMercante'
 import { canonicalManifestoNumero, MANIFESTO_NUMERO_PATTERN } from '../../services/manifestosMercanteService'
+import { afterBlEstadoAlterado } from '../../services/cacheEffects'
 import { queryKeys } from '../../services/queryKeys'
 
 // Manifesto Mercante do B/L na ficha: Mover ou Desvincular, com motivo
@@ -32,9 +33,11 @@ export function BlManifestoField({
   const valid = MANIFESTO_NUMERO_PATTERN.test(target) && target !== numero
   const busy = move.isPending || unlink.isPending
 
+  // Ficha, Histórico (`bl-timeline`) e listas do B/L, como Corrigir CE
+  // (BlCeMercanteField): o vínculo do Manifesto entra no Histórico.
   async function refresh() {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(blId) }),
+      afterBlEstadoAlterado(queryClient, { blId, voyageId }),
       queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', blId) }),
     ])
   }

@@ -15,6 +15,9 @@ const bls = [
   { id: 'BL-3', pol: 'CNSHA', pod: 'BRVIX', cancelled: false, manifestoNumero: null },
   { id: 'BL-4', pol: 'CNSHA', pod: 'BRVIX', cancelled: true, manifestoNumero: null },
   { id: 'BL-9', pol: 'CNSHA', pod: 'BRSSZ', cancelled: false, manifestoNumero: null },
+  // Sinônimos do mesmo porto (BRVIT, VITORIA = BRVIX; SHANGHAI = CNSHA): mesma rota.
+  { id: 'BL-5', pol: 'SHANGHAI', pod: 'BRVIT', cancelled: false, manifestoNumero: null },
+  { id: 'BL-6', pol: 'cnsha', pod: 'VITORIA', cancelled: false, manifestoNumero: null },
 ]
 
 vi.mock('../../../hooks/useManifestosMercante', () => ({
@@ -47,6 +50,14 @@ it('lista só os B/Ls da rota e Shift seleciona o intervalo, sem o cancelado', (
   expect((screen.getByLabelText('Selecionar BL-4') as HTMLInputElement).disabled).toBe(true)
 })
 
+it('B/L com POL/POD sinônimo da rota aparece e pode ser movido (migration 195, K5)', () => {
+  renderModal()
+  fireEvent.click(screen.getByLabelText('Selecionar BL-5'))
+  fireEvent.click(screen.getByLabelText('Selecionar BL-6'))
+  expect((screen.getByLabelText('Selecionar BL-5') as HTMLInputElement).checked).toBe(true)
+  expect((screen.getByLabelText('Selecionar BL-6') as HTMLInputElement).checked).toBe(true)
+})
+
 it('Colar lista seleciona os B/Ls da rota e aponta os que não estão nela', () => {
   renderModal()
   fireEvent.change(screen.getByLabelText(/Lista de B\/Ls/), { target: { value: 'bl-2, BL-3\nBL-9' } })
@@ -65,9 +76,9 @@ it('Mover confirma "N B/Ls sairão de … e irão para …" e envia o número ca
   fireEvent.change(screen.getByLabelText(/Mover para/), { target: { value: '1226 b01-849.909' } })
   fireEvent.click(screen.getByRole('button', { name: /^Mover/ }))
 
-  await waitFor(() => expect(mocks.move).toHaveBeenCalledWith({ blIds: ['BL-1', 'BL-2', 'BL-3'], numero: '1226B01849909', reason: 'Manifesto reemitido' }))
+  await waitFor(() => expect(mocks.move).toHaveBeenCalledWith({ blIds: ['BL-1', 'BL-2', 'BL-3', 'BL-5', 'BL-6'], numero: '1226B01849909', reason: 'Manifesto reemitido' }))
   expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
-    message: '3 B/L(s) sairão de 1226501860578, sem Manifesto e irão para 1226B01849909.',
+    message: '5 B/L(s) sairão de 1226501860578, sem Manifesto e irão para 1226B01849909.',
   }))
 })
 

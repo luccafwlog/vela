@@ -115,6 +115,8 @@ export type CeBillingResult = {
   status: 'invoiced' | 'held' | 'blocked' | 'skipped'
   reason?: string | null
   message?: string | null
+  /** Espera de negócio (Cliente não conciliado, Revisão pendente), não falha (migration 195). */
+  waiting?: boolean
   invoice_number?: string | null
 }
 

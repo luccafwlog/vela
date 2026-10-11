@@ -208,3 +208,69 @@ it('erro do lote sem linha não aparece como "Linha 0"', async () => {
   await screen.findByText('Os B/Ls da planilha não pertencem à viagem selecionada.')
   expect(screen.queryByText(/Linha 0/)).toBeNull()
 })
+
+it('a gravação que volta pedindo confirmação refaz a prévia e mostra a troca a confirmar (migration 195, K9)', async () => {
+  mocks.importRows.mockReset()
+  const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
+  mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })
+  // Prévia limpa; entre a prévia e a gravação outra planilha gravou outro CE.
+  mocks.preview
+    .mockResolvedValueOnce(cleanPreview)
+    .mockResolvedValueOnce({
+      ...cleanPreview,
+      changes: 1,
+      needs_confirmation: true,
+      rows: [{ row: 2, bl_id: 'BL001', status: 'change', current_ce: '122605051526080', new_ce: '122605051526081', target_manifesto: '1226501860578' }],
+    })
+  mocks.importRows
+    .mockResolvedValueOnce({
+      processed: 1, updated: 0, overwritten: 0, unchanged: 0, errorCount: 1, needsConfirmation: true,
+      errors: [{ row: 0, message: 'A planilha troca o CE de 1 B/L(s) e muda o Manifesto de 0 B/L(s): confirme na prévia, com motivo.' }],
+    })
+    .mockResolvedValueOnce({ processed: 1, updated: 1, overwritten: 1, unchanged: 0, errorCount: 0, errors: [], billingPendingBlIds: [] })
+
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+  fireEvent.change(screen.getByPlaceholderText('Ex.: 1226501860578'), { target: { value: '1226501860578' } })
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(['x'], 'ce.xlsx')] } })
+  await waitFor(() => expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
+
+  // A prévia atualizada mostra a troca e a confirmação com motivo.
+  await screen.findByText('122605051526080 → 122605051526081')
+  expect(mocks.preview).toHaveBeenCalledTimes(2)
+  expect(screen.queryByText(/Nada foi gravado: 1 erro/)).toBeNull()
+  const importar = screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement
+  expect(importar.disabled).toBe(true)
+
+  fireEvent.click(screen.getByRole('checkbox'))
+  fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: 'CE retificado no Mercante' } })
+  await waitFor(() => expect(importar.disabled).toBe(false))
+  fireEvent.click(importar)
+  await waitFor(() => expect(mocks.importRows).toHaveBeenLastCalledWith([row], expect.objectContaining({
+    confirmChanges: true,
+    reason: 'CE retificado no Mercante',
+  })))
+})
+
+it('emissão: espera de negócio aparece em "Aguardando" com a frase; sem mensagem, a tela não mostra o código cru (K1)', async () => {
+  const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
+  mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })
+  mocks.preview.mockResolvedValue(cleanPreview)
+  mocks.importRows.mockResolvedValue({ processed: 2, updated: 2, overwritten: 0, unchanged: 0, errorCount: 0, errors: [], billingPendingBlIds: ['BL001', 'BL002', 'BL003'] })
+  mocks.emit.mockResolvedValue([
+    { bl_id: 'BL001', status: 'blocked', reason: 'customer_reconciliation_pending', waiting: true, message: 'Aguardando conciliação do Cliente: a fatura sai quando o Cliente do B/L for conciliado.' },
+    { bl_id: 'BL002', status: 'blocked', reason: 'review_pending', waiting: true, message: null },
+    { bl_id: 'BL003', status: 'blocked', reason: 'auto_billing_failed', message: 'Tabela de cobranca incompleta.' },
+  ])
+
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+  fireEvent.change(screen.getByPlaceholderText('Ex.: 1226501860578'), { target: { value: '1226501860578' } })
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(['x'], 'ce.xlsx')] } })
+  await waitFor(() => expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
+
+  await screen.findByText('BL001: Aguardando conciliação do Cliente: a fatura sai quando o Cliente do B/L for conciliado.')
+  expect(screen.getByText('BL002: Aguardando Revisão do B/L.')).toBeTruthy()
+  expect(screen.getByText('BL003: Tabela de cobranca incompleta.')).toBeTruthy()
+  expect(screen.queryByText(/customer_reconciliation_pending|review_pending/)).toBeNull()
+})

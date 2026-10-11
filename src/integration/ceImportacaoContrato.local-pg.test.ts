@@ -20,6 +20,12 @@ const carrierId = 99228010
 const vesselId = 99228011
 const voyageId = 99228021
 const otherVoyageId = 99228022
+// Viagem só do Alerta "CE Mercante pendente" (migration 195, K6).
+const alertVoyageId = 99228023
+const graniteManifestId = '00000000-0000-0000-0000-000000228061'
+const graniteBlId = '00000000-0000-0000-0000-000000228062'
+const unlockRequestId = '00000000-0000-0000-0000-000000228071'
+const vaziosManifestId = '00000000-0000-0000-0000-000000228081'
 const chargeTableId = 99228031
 const chargeItemId = 99228032
 const fee = 321
@@ -50,12 +56,13 @@ function jsonLiteral(value: unknown): string {
   return `$json$${JSON.stringify(value)}$json$::jsonb`
 }
 
-function insertBl(id: string, options: { voyage?: number; blPod?: string; ce?: string | null; container?: string } = {}) {
+function insertBl(id: string, options: { voyage?: number; blPod?: string; ce?: string | null; container?: string; withCustomer?: boolean } = {}) {
+  const withCustomer = options.withCustomer ?? true
   psql(`
     INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status,
       customer_reconciliation_status, review_status, consignee)
-    VALUES ('${id}', ${options.voyage ?? voyageId}, ${customer.id}, '${pol}', '${options.blPod ?? pod}', 'container', 'pending', 'not_calculated',
-      'matched_document', 'ok', '${customer.name}');
+    VALUES ('${id}', ${options.voyage ?? voyageId}, ${withCustomer ? customer.id : 'NULL'}, '${pol}', '${options.blPod ?? pod}', 'container', 'pending', 'not_calculated',
+      '${withCustomer ? 'matched_document' : 'missing_customer'}', 'ok', '${customer.name}');
     INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('${id}', '${options.container ?? 'ADCU2280000'}', '40HC');
     ${options.ce ? `UPDATE public.bls SET ce_mercante = '${options.ce}' WHERE id = '${id}';` : ''}
   `)
@@ -76,7 +83,10 @@ function cleanup() {
     SET session_replication_role = replica;
     CREATE TEMP TABLE a228_bls AS SELECT id FROM public.bls WHERE id LIKE 'A228-%';
     CREATE TEMP TABLE a228_invoices AS SELECT id FROM public.invoices WHERE bl_id IN (SELECT id FROM a228_bls)
-      OR id IN (SELECT invoice_id FROM public.invoice_bls WHERE bl_id IN (SELECT id FROM a228_bls));
+      OR id IN (SELECT invoice_id FROM public.invoice_bls WHERE bl_id IN (SELECT id FROM a228_bls))
+      OR id IN (SELECT invoice_id FROM public.invoice_receivable_links WHERE bl_id IN (SELECT id FROM a228_bls));
+    CREATE TEMP TABLE a228_alerts AS SELECT id FROM public.alerts WHERE entity_id IN (SELECT id FROM a228_bls)
+      OR (entity_type = 'voyage' AND entity_id IN ('${voyageId}', '${otherVoyageId}', '${alertVoyageId}'));
     DELETE FROM public.invoice_receivable_links WHERE invoice_id IN (SELECT id FROM a228_invoices) OR bl_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.invoice_lifecycle_events WHERE invoice_id IN (SELECT id FROM a228_invoices);
     DELETE FROM public.invoice_items WHERE invoice_id IN (SELECT id FROM a228_invoices);
@@ -89,20 +99,30 @@ function cleanup() {
     DELETE FROM public.import_effect_attempts WHERE effect_id IN (SELECT id FROM public.import_pending_effects WHERE entity_id IN (SELECT id FROM a228_bls));
     DELETE FROM public.import_pending_effects WHERE entity_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.portal_notifications WHERE customer_id = ${customer.id};
-    DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id IN (SELECT id FROM a228_bls));
-    DELETE FROM public.alerts WHERE entity_id IN (SELECT id FROM a228_bls);
+    DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE alert_id IN (SELECT id FROM a228_alerts));
+    DELETE FROM public.alert_item_dismissals WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE alert_id IN (SELECT id FROM a228_alerts));
+    DELETE FROM public.internal_notifications WHERE alert_id IN (SELECT id FROM a228_alerts);
+    DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM a228_alerts);
+    DELETE FROM public.alerts WHERE id IN (SELECT id FROM a228_alerts);
+    DELETE FROM public.ce_unlock_request_bls WHERE bl_id IN (SELECT id FROM a228_bls) OR request_id = '${unlockRequestId}';
+    DELETE FROM public.ce_unlock_requests WHERE id = '${unlockRequestId}';
+    DELETE FROM public.granite_bls WHERE id = '${graniteBlId}' OR manifest_id = '${graniteManifestId}';
+    DELETE FROM public.granite_manifests WHERE id = '${graniteManifestId}';
+    DELETE FROM public.vazios_importacao_containers WHERE manifest_id = '${vaziosManifestId}';
+    DELETE FROM public.vazios_importacao_manifests WHERE id = '${vaziosManifestId}';
     DELETE FROM public.audit_logs WHERE entity_id IN (SELECT id FROM a228_bls)
-      OR (entity_type IN ('voyage', 'voyages') AND entity_id IN ('${voyageId}', '${otherVoyageId}'))
+      OR (entity_type IN ('voyage', 'voyages') AND entity_id IN ('${voyageId}', '${otherVoyageId}', '${alertVoyageId}'))
+      OR (entity_type = 'voyage_pod_schedule' AND entity_id LIKE '${alertVoyageId}::%')
       OR changed_by = '${actorId}';
     DELETE FROM public.bl_containers WHERE bl_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.bls WHERE id IN (SELECT id FROM a228_bls);
-    DELETE FROM public.voyage_route_ce_master WHERE voyage_id IN (${voyageId}, ${otherVoyageId});
-    DELETE FROM public.manifestos_mercante WHERE voyage_id IN (${voyageId}, ${otherVoyageId});
+    DELETE FROM public.voyage_route_ce_master WHERE voyage_id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId});
+    DELETE FROM public.manifestos_mercante WHERE voyage_id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId});
     DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId} OR charge_item_id = ${chargeItemId};
     DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
-    DELETE FROM public.voyages WHERE id IN (${voyageId}, ${otherVoyageId});
+    DELETE FROM public.voyages WHERE id IN (${voyageId}, ${otherVoyageId}, ${alertVoyageId});
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
     DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customer.id};
@@ -129,7 +149,8 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'A228 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'A228 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
-        (${voyageId}, ${vesselId}, 'A228A', 'active'), (${otherVoyageId}, ${vesselId}, 'A228B', 'active');
+        (${voyageId}, ${vesselId}, 'A228A', 'active'), (${otherVoyageId}, ${vesselId}, 'A228B', 'active'),
+        (${alertVoyageId}, ${vesselId}, 'A228C', 'active');
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela A228', '${pod}', CURRENT_DATE - 30, true, 'container');
       INSERT INTO public.charge_table_items (id, charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency)
@@ -246,5 +267,185 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     const again = json<{ results: Array<{ status: string }> }>(`SELECT public.emit_ce_mercante_billing(ARRAY['A228-E1']);`)
     expect(again.results[0].status).toBe('invoiced')
     expect(psql(`SELECT count(*) FROM public.invoices WHERE bl_id = 'A228-E1';`)).toBe('1')
+  })
+
+  // --- Migration 195: correções da revisão da PR 929 -------------------------
+  function activeAlert(type: string, entityId: string, entityType = 'bl'): string {
+    return psql(`SELECT COALESCE(string_agg(i.status || ':' || COALESCE(i.message, ''), ' | '), '')
+      FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = '${type}' AND a.entity_type = '${entityType}' AND a.entity_id = '${entityId}' AND i.status = 'active';`)
+  }
+
+  function confirmUnlock(blId: string, ce: string) {
+    psql(`
+      SET session_replication_role = replica;
+      INSERT INTO public.ce_unlock_requests (id, customer_id, state, source, created_by)
+      VALUES ('${unlockRequestId}', ${customer.id}, 'completed', 'request', '${actorId}') ON CONFLICT (id) DO NOTHING;
+      INSERT INTO public.ce_unlock_request_bls (request_id, bl_id, ce_at_request, active, confirmed_at, confirmed_by, confirmed_ce)
+      VALUES ('${unlockRequestId}', '${blId}', '${ce}', true, now(), '${actorId}', '${ce}');
+      SET session_replication_role = origin;
+    `)
+  }
+
+  it('K1: emissão pelo CE — espera de negócio vem com a frase e sem alerta crítico', () => {
+    insertBl('A228-W1', { container: 'ADCU2280031', withCustomer: false })
+    insertBl('A228-W2', { container: 'ADCU2280032' })
+    psql(`UPDATE public.bls SET review_status = 'pending_review' WHERE id = 'A228-W2';`)
+    const result = apply([
+      { row: 2, bl_id: 'A228-W1', ce: '992280000000041' },
+      { row: 3, bl_id: 'A228-W2', ce: '992280000000042' },
+    ], 'A228H00000001', `, false, NULL, true`)
+    expect(result.ok).toBe(true)
+
+    const emitted = json<{ results: Array<{ bl_id: string; status: string; reason: string; message: string | null; waiting: boolean }> }>(
+      `SELECT public.emit_ce_mercante_billing(ARRAY['A228-W1', 'A228-W2']);`)
+    expect(emitted.results).toEqual([
+      expect.objectContaining({ bl_id: 'A228-W1', status: 'blocked', reason: 'customer_reconciliation_pending', waiting: true,
+        message: expect.stringMatching(/^Aguardando conciliação do Cliente/) }),
+      expect.objectContaining({ bl_id: 'A228-W2', status: 'blocked', reason: 'review_pending', waiting: true,
+        message: expect.stringMatching(/^Aguardando Revisão do B\/L/) }),
+    ])
+    expect(activeAlert('billing_auto_issue_failed', 'A228-W1')).toBe('')
+    expect(activeAlert('billing_auto_issue_failed', 'A228-W2')).toBe('')
+  })
+
+  it('K1: a falha de emissão automática fecha quando a fatura sai, no lote ou pelo gatilho do CE', () => {
+    insertBl('A228-W3', { container: 'ADCU2280033' })
+    insertBl('A228-W4', { container: 'ADCU2280034' })
+    for (const blId of ['A228-W3', 'A228-W4']) {
+      expect(asAdmin(`SELECT public.upsert_billing_alert('billing_auto_issue_failed', '${blId}', 'Falha anterior (A228)');`).error).toBeNull()
+      expect(activeAlert('billing_auto_issue_failed', blId)).toMatch(/^active:/)
+    }
+
+    // Lote da tela: `invoiced` resolve.
+    expect(apply([{ row: 2, bl_id: 'A228-W3', ce: '992280000000043' }], 'A228H00000002', `, false, NULL, true`).ok).toBe(true)
+    const emitted = json<{ results: Array<{ status: string }> }>(`SELECT public.emit_ce_mercante_billing(ARRAY['A228-W3']);`)
+    expect(emitted.results[0].status).toBe('invoiced')
+    expect(activeAlert('billing_auto_issue_failed', 'A228-W3')).toBe('')
+
+    // Sem adiar: o gatilho do CE emite e a fatura nascida fecha o alerta.
+    expect(apply([{ row: 2, bl_id: 'A228-W4', ce: '992280000000044' }], 'A228H00000002').ok).toBe(true)
+    expect(psql(`SELECT financial_status FROM public.bls WHERE id = 'A228-W4';`)).toBe('invoiced')
+    expect(activeAlert('billing_auto_issue_failed', 'A228-W4')).toBe('')
+  })
+
+  it('K8: o Histórico do CE e do vínculo leva tipo, Viagem, Manifesto, rota e motivo, mesmo sem Viagem na tela', () => {
+    const context = 'Importação de CE Mercante · Viagem A228 NAVIO A228A · Manifesto A228H00000001 · Rota A228O → A228P'
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-W1' AND field_name = 'ce_mercante' ORDER BY id DESC LIMIT 1;`)).toBe(context)
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-W1' AND field_name = 'manifesto_mercante' ORDER BY id DESC LIMIT 1;`)).toBe(context)
+
+    insertBl('A228-R1', { container: 'ADCU2280035' })
+    const rows: Rows = [{ row: 2, bl_id: 'A228-R1', ce: '992280000000045' }]
+    expect(json<{ ok: boolean }>(`SELECT public.apply_ce_mercante_rows_atomic(${jsonLiteral(rows)}, '${actorId}'::uuid, 'bls', 'a228-h0000-0003', NULL, false, NULL, true);`).ok).toBe(true)
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-R1' AND field_name = 'ce_mercante' ORDER BY id DESC LIMIT 1;`))
+      .toBe('Importação de CE Mercante · Viagem A228 NAVIO A228A · Manifesto A228H00000003 · Rota A228O → A228P')
+
+    // A troca confirmada leva o motivo junto do contexto.
+    expect(apply([{ row: 2, bl_id: 'A228-R1', ce: '992280000000046' }], 'A228H00000003', `, true, 'CE retificado (A228)', true`).ok).toBe(true)
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-R1' AND field_name = 'ce_mercante' ORDER BY id DESC LIMIT 1;`))
+      .toBe('Importação de CE Mercante · Viagem A228 NAVIO A228A · Manifesto A228H00000003 · Rota A228O → A228P · Motivo: CE retificado (A228)')
+  })
+
+  it('K2: corrigir ou remover o CE pela ficha depois do Desbloqueio conferido abre o alerta; a planilha não duplica', () => {
+    insertBl('A228-U1', { container: 'ADCU2280036', withCustomer: false, ce: '992280000000051' })
+    confirmUnlock('A228-U1', '992280000000051')
+    expect(asAdmin(`SELECT public.correct_bl_ce_mercante('A228-U1', '992280000000052', 'CE digitado errado (A228)');`).error).toBeNull()
+    expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-U1')).toMatch(/992280000000051 -> 992280000000052/)
+    expect(psql(`SELECT source FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'ce_trocado_com_desbloqueio' AND a.entity_id = 'A228-U1';`)).toBe('ce_mercante_ficha')
+
+    expect(asAdmin(`SELECT public.remove_bl_ce_mercante('A228-U1', 'CE do B/L errado (A228)');`).error).toBeNull()
+    expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-U1')).toMatch(/removido/)
+
+    // Planilha: um alerta por troca, aberto pela porta única.
+    psql(`DELETE FROM public.ce_unlock_request_bls WHERE bl_id = 'A228-U1';`)
+    insertBl('A228-U2', { container: 'ADCU2280037', withCustomer: false, ce: '992280000000053' })
+    confirmUnlock('A228-U2', '992280000000053')
+    expect(apply([{ row: 2, bl_id: 'A228-U2', ce: '992280000000054' }], 'A228H00000004', `, true, 'CE retificado (A228)'`).ok).toBe(true)
+    expect(psql(`SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'ce_trocado_com_desbloqueio' AND a.entity_id = 'A228-U2';`)).toBe('1')
+    expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-U2')).toMatch(/992280000000053 -> 992280000000054/)
+  })
+
+  it('K10: mesmo CE em outro formato é normalização — sem troca, efeito nem alerta de Desbloqueio', () => {
+    insertBl('A228-N1', { container: 'ADCU2280038', withCustomer: false, ce: '92280000000061' })
+    confirmUnlock('A228-N1', '92280000000061')
+    const rows: Rows = [{ row: 2, bl_id: 'A228-N1', ce: '092280000000061' }]
+    const preview = json<{ rows: Array<{ status: string }>; needs_confirmation: boolean }>(
+      `SELECT public.preview_ce_mercante_rows(${jsonLiteral(rows)}, 'A228H00000005', ${voyageId});`)
+    expect(preview.rows[0].status).toBe('same')
+    expect(preview.needs_confirmation).toBe(false)
+    const effectsBefore = psql(`SELECT count(*) FROM public.import_pending_effects WHERE entity_id = 'A228-N1';`)
+
+    expect(apply(rows, 'A228H00000005')).toMatchObject({ ok: true, unchanged: 1, overwritten: 0, inserted: 0 })
+    expect(psql(`SELECT ce_mercante FROM public.bls WHERE id = 'A228-N1';`)).toBe('092280000000061')
+    expect(psql(`SELECT count(*) FROM public.import_pending_effects WHERE entity_id = 'A228-N1';`)).toBe(effectsBefore)
+    expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-N1')).toBe('')
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-N1' AND field_name = 'ce_mercante' ORDER BY id DESC LIMIT 1;`))
+      .toMatch(/^Formato do CE Mercante normalizado/)
+  })
+
+  it('K4: a fatura consolidada (vínculo de recebível) trava Remover CE e aparece na prévia', () => {
+    insertBl('A228-C1', { container: 'ADCU2280039', withCustomer: false, ce: '992280000000071' })
+    psql(`
+      SET session_replication_role = replica;
+      INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, status, invoice_type, pix_payload)
+      VALUES (99228901, 'A228-CONS-1', ${customer.id}, NULL, 10.00, 'issued', 'consolidated', 'A228');
+      INSERT INTO public.bl_receivables (id, bl_id, customer_id, original_amount_brl, balance_brl)
+      VALUES (99228902, 'A228-C1', ${customer.id}, 10.00, 10.00);
+      INSERT INTO public.invoice_receivable_links (invoice_id, receivable_id, bl_id, subtotal_brl, status)
+      VALUES (99228901, 99228902, 'A228-C1', 10.00, 'active');
+      SET session_replication_role = origin;
+    `)
+    expect(asAdmin(`SELECT public.remove_bl_ce_mercante('A228-C1', 'CE do B/L errado (A228)');`).error).toMatch(/A228-CONS-1/)
+    expect(psql(`SELECT ce_mercante FROM public.bls WHERE id = 'A228-C1';`)).toBe('992280000000071')
+
+    const preview = json<{ rows: Array<{ live_invoices: string[] }> }>(
+      `SELECT public.preview_ce_mercante_rows(${jsonLiteral([{ row: 2, bl_id: 'A228-C1', ce: '992280000000072' }])}, 'A228H00000006', ${voyageId});`)
+    expect(preview.rows[0].live_invoices).toEqual(['A228-CONS-1'])
+  })
+
+  it('K7: CE que já está num B/L de Granito é erro na prévia, como na gravação', () => {
+    psql(`
+      INSERT INTO public.granite_manifests (id, voyage_id, vessel_voyage) VALUES ('${graniteManifestId}', ${voyageId}, 'A228 NAVIO A228A');
+      INSERT INTO public.granite_bls (id, manifest_id, bl_number, ce_mercante) VALUES ('${graniteBlId}', '${graniteManifestId}', 'A228-GRA-1', '992280000000081');
+    `)
+    insertBl('A228-G1', { container: 'ADCU2280040', withCustomer: false })
+    const rows: Rows = [{ row: 5, bl_id: 'A228-G1', ce: '992280000000081' }]
+    const preview = json<{ errors: Array<{ row?: number; message: string }> }>(
+      `SELECT public.preview_ce_mercante_rows(${jsonLiteral(rows)}, 'A228H00000007', ${voyageId});`)
+    expect(preview.errors).toEqual([expect.objectContaining({ row: 5, message: expect.stringMatching(/B\/L de Granito A228-GRA-1/) })])
+  })
+
+  it('K12: B/L cadastrado pela API já com CE é recusado; sem CE passa', () => {
+    expect(asAdmin(`BEGIN; INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, ce_mercante) VALUES ('A228-I1', ${voyageId}, '${pol}', '${pod}', 'carga_solta', '992280000000091'); ROLLBACK;`).error)
+      .toMatch(/cadastrado ja com CE Mercante/)
+    expect(asAdmin(`BEGIN; INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode) VALUES ('A228-I1', ${voyageId}, '${pol}', '${pod}', 'carga_solta'); ROLLBACK;`).error)
+      .toBeNull()
+  })
+
+  it('K3: apply_ce_mercante_update não é executável pela API', () => {
+    expect(psql(`SELECT has_function_privilege('authenticated', 'public.apply_ce_mercante_update(text,text,uuid)', 'EXECUTE');`)).toBe('f')
+  })
+
+  it('K6: Alerta "CE Mercante pendente" compara portos normalizados (rota de vazios e B/L com sinônimo)', () => {
+    psql(`
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by)
+      VALUES ('voyage_pod_schedule', '${alertVoyageId}::BRVIX', 'eta', NULL, to_char(CURRENT_DATE, 'YYYY-MM-DD'), '${actorId}');
+      INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${alertVoyageId}, 'CNSHA', 'BRVIX', 'A228V00000001', 'vazio');
+      SET session_replication_role = replica;
+      INSERT INTO public.vazios_importacao_manifests (id, voyage_id) VALUES ('${vaziosManifestId}', ${alertVoyageId});
+      INSERT INTO public.vazios_importacao_containers (manifest_id, container_number, pol, pod) VALUES ('${vaziosManifestId}', 'ADCU2280091', 'SHANGHAI', 'BRVIX');
+      SET session_replication_role = origin;
+    `)
+    const reconcile = () => psql(`SELECT public.reconcile_voyage_ce_mercante_missing_alerts(${alertVoyageId});`)
+    // A rota de vazios Xangai → Vitória tem Nº de Manifesto (gravado normalizado): sem alerta.
+    reconcile()
+    expect(activeAlert('voyage_ce_mercante_missing', String(alertVoyageId), 'voyage')).toBe('')
+
+    // B/L com POD "VITORIA" e sem CE conta para a escala BRVIX.
+    insertBl('A228-V1', { voyage: alertVoyageId, blPod: 'VITORIA', container: 'ADCU2280092', withCustomer: false })
+    reconcile()
+    expect(activeAlert('voyage_ce_mercante_missing', String(alertVoyageId), 'voyage')).toMatch(/1 B\/L\(s\)/)
   })
 })

@@ -16,9 +16,15 @@ import {
   parsePastedBlList,
   type VoyageManifestoBl,
 } from '../../services/manifestosMercanteService'
+import { normalizePortCode } from '../../services/portCode'
 
-const sameRoute = (a: string | null | undefined, b: string | null | undefined) =>
-  String(a ?? '').trim().toUpperCase() === String(b ?? '').trim().toUpperCase()
+// A rota da Viagem e o Manifesto guardam o porto normalizado; o B/L pode trazer
+// sinônimo (BRVIT, VITORIA, NAVEGANTES). Compara como `manifestosOfRoute`.
+const portKey = (value: string | null | undefined) => {
+  const raw = String(value ?? '').trim().toUpperCase()
+  return normalizePortCode(raw) ?? raw
+}
+const sameRoute = (a: string | null | undefined, b: string | null | undefined) => portKey(a) === portKey(b)
 
 /**
  * Ver B/Ls da rota (Viagem → Rotas e Manifestos): Mover ou Desvincular em

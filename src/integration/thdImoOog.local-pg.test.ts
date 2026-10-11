@@ -47,6 +47,20 @@ function asAdmin(sql: string) {
   `], { encoding: 'utf8' })
 }
 
+// `apply_ce_mercante_update` saiu da API (migration 195): o CE da fixture é
+// gravado como manutenção server-side, com o operador como ator; o gatilho do
+// CE emite como antes.
+function asService(sql: string) {
+  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+    BEGIN;
+    SET LOCAL ROLE service_role;
+    SET LOCAL request.jwt.claim.role = 'service_role';
+    SET LOCAL request.jwt.claim.sub = '${actorId}';
+    ${sql};
+    COMMIT;
+  `], { encoding: 'utf8' })
+}
+
 function calculate(blId: string) {
   const result = asAdmin(`SELECT public.calculate_bl_local_charges('${blId}', '${actorId}'::uuid, true)`)
   expect(result.status, result.stderr).toBe(0)
@@ -154,7 +168,7 @@ describeLocal('129 — THD de container IMO e OOG ao mesmo tempo', () => {
   })
 
   it('B/L faturado cujo container vira IMO e OOG é reemitido pelo valor novo', () => {
-    const ce = asAdmin(`DO $$ BEGIN PERFORM public.apply_ce_mercante_update('${bl.billed}', '129000000000001', '${actorId}'::uuid); END $$`)
+    const ce = asService(`DO $$ BEGIN PERFORM public.apply_ce_mercante_update('${bl.billed}', '129000000000001', '${actorId}'::uuid); END $$`)
     expect(ce.status, ce.stderr).toBe(0)
     const invoice = Number(psql(`SELECT id FROM public.invoices WHERE bl_id = '${bl.billed}' AND status = 'issued'`))
     expect(psql(`SELECT total_brl FROM public.invoices WHERE id = ${invoice}`)).toBe('1420.00')

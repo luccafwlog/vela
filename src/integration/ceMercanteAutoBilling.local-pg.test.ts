@@ -155,6 +155,8 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
   afterAll(cleanup)
 
   it('calcula, emite e cria o recebível com a Liberação vigente, sem conta pronta do Portal', () => {
+    // `apply_ce_mercante_update` saiu da API (migration 195): grava o CE como
+    // manutenção server-side, com o operador como ator, e o gatilho emite.
     psqlAsDatabaseRole(`
       DO $$
       BEGIN
@@ -163,7 +165,7 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
         );
       END
       $$;
-    `, 'authenticated', 'authenticated', actorId)
+    `, 'service_role', 'service_role', actorId)
 
     const result = JSON.parse(psql(`
       SELECT jsonb_build_object(
@@ -307,6 +309,8 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
       SELECT public.auto_bill_bl_after_ce_mercante('${blId}', '${actorId}'::uuid);
     `)).toThrow()
     expect(psql(`SELECT has_function_privilege('authenticated', 'public.auto_bill_bl_after_ce_mercante(text,uuid)', 'EXECUTE');`)).toBe('f')
+    // A gravação de CE sem confirmação nem motivo também não é da API (K3, migration 195).
+    expect(psql(`SELECT has_function_privilege('authenticated', 'public.apply_ce_mercante_update(text,text,uuid)', 'EXECUTE');`)).toBe('f')
   })
 
   it('processa efeito atrasado como no-op depois da emissão imediata', () => {
