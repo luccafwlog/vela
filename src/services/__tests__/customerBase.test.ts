@@ -80,18 +80,23 @@ describe('customerBase import', () => {
 describe('aceite da troca de razão social (revisão da PR 929)', () => {
   beforeEach(() => mockRpc.mockReset())
 
-  it('vale só para o Cliente cuja troca apareceu na prévia', async () => {
+  it('vale só para o Cliente cuja troca apareceu na prévia, com o nome de antes que ela mostrou', async () => {
     mockRpc.mockResolvedValue({ data: { created: false }, error: null })
+    // Depois da prévia, outra sessão renomeou o Cliente 4 (de "Antiga 4" para "Renomeada").
+    mockFrom.mockImplementation((table: string) => fakeQuery(table === 'customers'
+      ? [{ id: 1, name: 'Antiga' }, { id: 4, name: 'Renomeada' }]
+      : []))
     const base = { name: 'Nova', trade_name: null, emails: ['a@b.com'], address: null, city: null, state: null, zip: null }
 
     await importCustomerBaseRows([
       { ...base, cnpj_cpf: '11111111000111', existingCustomerId: 1, currentName: 'Antiga' },
       { ...base, cnpj_cpf: '22222222000122', existingCustomerId: 2, currentName: null },
       { ...base, cnpj_cpf: '33333333000133' },
+      { ...base, cnpj_cpf: '44444444000144', existingCustomerId: 4, currentName: 'Antiga 4' },
     ], { changedBy: 'actor-1', confirmNameChange: true })
 
     const confirmations = mockRpc.mock.calls.map(([, args]) => [(args as { p_cnpj: string }).p_cnpj, (args as { p_confirm_name_change: boolean }).p_confirm_name_change])
-    expect(confirmations).toEqual([['11111111000111', true], ['22222222000122', false], ['33333333000133', false]])
+    expect(confirmations).toEqual([['11111111000111', true], ['22222222000122', false], ['33333333000133', false], ['44444444000144', false]])
   })
 })
 

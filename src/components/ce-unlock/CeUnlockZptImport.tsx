@@ -27,9 +27,18 @@ export function CeUnlockZptImport() {
     try {
       assertUploadFile(file, [".xls", ".xlsx", ".csv"]);
       const parsed = await parseCeUnlockZptFile(await file.arrayBuffer());
+      // Linhas e abas ocultas e linhas sem CE ou Status ficam de fora: a
+      // confirmação diz isso antes de conciliar um arquivo parcial.
+      const leftOut = [
+        ...parsed.warnings,
+        ...(parsed.rowErrors.length
+          ? [`${parsed.rowErrors.length} linha(s) sem CE ou sem Status ignorada(s) (linha ${parsed.rowErrors.map((error) => error.row).join(", ")}).`]
+          : []),
+      ];
       if (
         !(await confirm({
           message: `Conciliar ${parsed.rows.length} carga(s) do arquivo da ZPT?`,
+          ...(leftOut.length ? { affected: { summary: "Fora da conciliação", items: leftOut } } : {}),
           consequence:
             "BLs desbloqueados na ZPT ficam como conferidos; BLs exportados e ainda bloqueados ficam como divergentes. Nada é enviado ao cliente.",
           reversibility: "Uma nova conciliação atualiza o resultado.",

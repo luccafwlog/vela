@@ -157,6 +157,14 @@ describe('planScheduleSheet', () => {
       'Viagem em 2 linhas com datas diferentes (BRSSA ETA: 2026-01-22, 2026-01-25). Deixe uma linha por viagem.',
     ])
 
+    // Mesmo navio novo com dois IMOs válidos: a gravação desfaria o arquivo;
+    // a prévia recusa as duas linhas, mesmo com datas iguais.
+    const twoImos = await planScheduleSheet([sheetRow(), sheetRow({ vesselImo: '9976502' })], 'user-1')
+    expect(twoImos.map((row) => row.error)).toEqual([
+      'Navio GREEN PECEM com IMOs diferentes no arquivo (9976501, 9976502). Deixe um IMO por navio.',
+      'Navio GREEN PECEM com IMOs diferentes no arquivo (9976501, 9976502). Deixe um IMO por navio.',
+    ])
+
     // Outro navio com o mesmo número de viagem continua sendo outra Viagem.
     const otherVessel = await planScheduleSheet([
       sheetRow(),

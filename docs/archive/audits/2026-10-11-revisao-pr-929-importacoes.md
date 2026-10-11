@@ -91,7 +91,10 @@ No front:
 - Baplie: POD desconhecido, TDT, LQ, OOG, reemissões, conciliação;
 - prévias da importação de B/L e do Manifesto BB;
 - prévia da Programação: a mesma Viagem nova com e sem IMO entra na
-  conferência de datas repetidas;
+  conferência de datas repetidas, e o mesmo navio novo com dois IMOs recusa as
+  linhas;
+- Base de Clientes: o aceite da troca de razão social vale para o nome de antes
+  que a prévia mostrou;
 - aceite por lote no B/L avulso; o aceite da troca de Cliente e a confirmação
   de faturamento da carga solta guardam as transições mostradas e são
   conferidos de novo na gravação (trocar arquivo ou Viagem desmarca);
@@ -112,7 +115,7 @@ Local, Postgres 16 descartável:
 - replay limpo das migrations `001`–`201` com as checagens de invariantes do
   CI;
 - as 76 suítes `local-pg` na ordem do CI: 591 + 3 testes;
-- 4.414 testes unitários;
+- 4.415 testes unitários;
 - `typecheck`, `lint`, `build`, `docs:check`, `migrations:check`, `rpc:check`
   e `verificar_guardas.py` verdes.
 
@@ -164,9 +167,11 @@ migration foi aplicada em produção.
 - Separador de CSV escolhido pelo SheetJS quando há empate entre `;` e `,`.
 - Modelo `ce-mercante-modelo.xlsx`: coluna CE como texto só em B2:B3, e CEs de
   exemplo com 9 dígitos.
-- As telas de PIX e ZPT não mostram o aviso de linhas ocultas. (No Importar
-  B/L, que lê o arquivo pela posição das células, o aviso passou a dizer que as
-  linhas e abas ocultas são lidas — achado da revisão automática.)
+- ~~As telas de PIX e ZPT não mostram o aviso de linhas ocultas.~~ Corrigido
+  depois, na mesma revisão (achado da revisão automática): o PIX mostra o aviso
+  no resultado, antes de Confirmar, e a ZPT o lista na confirmação. No Importar
+  B/L, que lê o arquivo pela posição das células, o aviso diz que as linhas e
+  abas ocultas são lidas.
 - A prévia de carga solta não avisa B/L novo em porto omitido.
 - O documento congelado da fatura não cobre a consolidada no Vela nem o
   Granito.

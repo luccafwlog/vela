@@ -370,6 +370,16 @@ export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: 
   })
   for (const indexes of groups.values()) {
     if (indexes.length < 2) continue
+    // Mesmo navio novo (nome e viagem) com IMOs diferentes: a gravação criaria
+    // o navio pela primeira linha e recusaria a outra ("IMO conflitante"),
+    // desfazendo o arquivo inteiro. A prévia recusa as linhas antes.
+    const imos = [...new Set(indexes.flatMap((index) => (plan[index].vesselImo ? [plan[index].vesselImo] : [])))]
+    if (imos.length > 1) {
+      for (const index of indexes) {
+        Object.assign(plan[index], { error: `Navio ${plan[index].vesselName} com IMOs diferentes no arquivo (${imos.join(', ')}). Deixe um IMO por navio.`, changes: [], publishes: false, createsVoyage: false })
+      }
+      continue
+    }
     const conflict = conflictingRepeatedLanes(indexes.map((index) => rows[index]))
     if (!conflict) continue
     for (const index of indexes) {

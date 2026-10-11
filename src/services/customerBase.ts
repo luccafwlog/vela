@@ -133,6 +133,27 @@ export async function importCustomerBaseRows(rows: CustomerBaseRow[], options: {
   let blsLinked = 0
   const errors: Array<{ cnpj_cpf: string; message: string }> = []
 
+  // O aceite vale só para a troca de razão social que a prévia mostrou, com o
+  // nome de antes que ela mostrou: Cliente criado ou renomeado depois da prévia
+  // volta a pedir confirmação (a RPC recusa a troca sem o aceite).
+  // ponytail: entre esta leitura e a RPC da linha sobra uma janela curta;
+  // fechá-la exige a RPC receber a razão social esperada.
+  const previewedNames = new Map<number, string>()
+  if (options.confirmNameChange) {
+    const ids = uniqueRows.filter((row) => row.existingCustomerId && row.currentName).map((row) => Number(row.existingCustomerId))
+    if (ids.length) {
+      const { data, error } = await supabase.from('customers').select('id, name').in('id', ids)
+      if (error) throw error
+      for (const customer of (data ?? []) as Array<{ id: number; name: string | null }>) {
+        previewedNames.set(Number(customer.id), String(customer.name ?? '').trim())
+      }
+    }
+  }
+  const confirmsNameChange = (row: CustomerBaseRow) => Boolean(
+    options.confirmNameChange && row.existingCustomerId && row.currentName
+      && previewedNames.get(Number(row.existingCustomerId)) === row.currentName.trim(),
+  )
+
   // Cada linha e uma unidade: falha de unicidade/contato em um cliente nao
   // desfaz os clientes anteriores nem deixa upsert parcial no navegador.
   for (const row of uniqueRows) {
@@ -146,9 +167,7 @@ export async function importCustomerBaseRows(rows: CustomerBaseRow[], options: {
       p_zip: row.zip,
       p_emails: row.emails,
       p_changed_by: options.changedBy,
-      // O aceite vale só para a troca de razão social que a prévia mostrou: um
-      // Cliente criado ou renomeado depois da prévia volta a pedir confirmação.
-      p_confirm_name_change: Boolean(options.confirmNameChange) && Boolean(row.existingCustomerId && row.currentName),
+      p_confirm_name_change: confirmsNameChange(row),
     } as never)
     if (error) {
       errors.push({ cnpj_cpf: row.cnpj_cpf, message: error.message || 'Falha ao importar cliente.' })

@@ -11,6 +11,8 @@ import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { formatResultCount, summarizeReconciliation } from '../lib/operationalState'
 import { parsePixExtractFile } from '../services/demurrage/demurrageKpis'
+import { readSpreadsheetWarnings } from '../services/importCore'
+import { ImportNotice } from '../components/shared/ImportParts'
 import {
   confirmUnifiedPixReconciliation,
   createPixImportKey,
@@ -197,6 +199,9 @@ function ReconciliacaoContent() {
   const { isAdmin } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
   const [matches, setMatches] = useState<UnifiedPixMatch[] | null>(null)
+  // Linhas e abas ocultas ficam fora da leitura: o aviso aparece junto do
+  // resultado, antes de Confirmar, para o extrato parcial não passar por inteiro.
+  const [fileWarnings, setFileWarnings] = useState<string[]>([])
   const [confirmationResult, setConfirmationResult] = useState<UnifiedPixConfirmationResult | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<{ invoiceId: number; paymentId: number | null } | null>(null)
@@ -224,7 +229,8 @@ function ReconciliacaoContent() {
 
   const matchMutation = useMutation({
     mutationFn: async (file: File) => {
-      const transactions = await parsePixExtractFile(file)
+      const [transactions, warnings] = await Promise.all([parsePixExtractFile(file), readSpreadsheetWarnings(file)])
+      setFileWarnings(warnings)
       if (!transactions.length) throw new Error('Nenhuma transacao PIX encontrada.')
       const [importKey, found] = await Promise.all([
         createPixImportKey(file),
@@ -317,6 +323,7 @@ function ReconciliacaoContent() {
 
   function processFile(file: File) {
     setMatches(null)
+    setFileWarnings([])
     setConfirmationResult(null)
     matchMutation.mutate(file)
   }
@@ -500,6 +507,14 @@ function ReconciliacaoContent() {
 
       {matches !== null ? (
         <>
+          {fileWarnings.length ? (
+            <ImportNotice tone="warning" role="status" className="mb-4" title="Parte do extrato ficou de fora">
+              <ul className="app-import-notice__list">
+                {fileWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+              </ul>
+              <p>Só as linhas visíveis foram conciliadas. Reexiba as ocultas e envie de novo se elas também devem entrar.</p>
+            </ImportNotice>
+          ) : null}
           <Card className="mb-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>

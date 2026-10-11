@@ -36,7 +36,9 @@
   diferentes não se travam (`201`). **Datas (`201`):** a planilha confere a prévia que viu a
   descarga vazia e não sobrescreve a descarga gravada depois dela. **Aceites:** a troca de Cliente e a confirmação de
   faturamento da carga solta valem para as transições mostradas e são conferidas de novo na
-  gravação; a troca de CE confirmada que mudou depois da prévia volta para a prévia. **Telas:**
+  gravação; a troca de CE confirmada que mudou depois da prévia volta para a prévia; a troca de
+  razão social da Base de Clientes vale para o nome de antes mostrado na prévia. **PIX e ZPT:**
+  linhas e abas ocultas ficam de fora com aviso antes de confirmar. **Telas:**
   Manifesto BB em XLSX não multiplica peso por mil; leitura de planilhas com cabeçalho repetido,
   sistema de datas 1904 e máscaras escapadas; Embarque de Vazios no seletor comum; Histórico
   mostra a "Origem" da importação. Decisões novas ficam pendentes do dono (lista no plano).
