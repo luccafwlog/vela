@@ -80,6 +80,7 @@ foram editadas.
 | `197` | Demurrage: status `overdue` gravado a cada gravação de datas e por job diário (achado da revisão automática) |
 | `198` | Granito: sugestão de Cliente na detecção de mudança da reimportação (achado da revisão automática) |
 | `199` | Programação por planilha: trava da Viagem nova pelo nome e pelo IMO, para arquivos simultâneos com e sem IMO (achado da revisão automática) |
+| `200` | Demurrage: container de B/L ou de Viagem Cancelados sai do atraso, no cancelamento e no job diário (achado da revisão automática) |
 
 No front:
 
@@ -88,6 +89,8 @@ No front:
   datas 1904; máscaras; avisos de linhas ocultas;
 - Baplie: POD desconhecido, TDT, LQ, OOG, reemissões, conciliação;
 - prévias da importação de B/L e do Manifesto BB;
+- prévia da Programação: a mesma Viagem nova com e sem IMO entra na
+  conferência de datas repetidas;
 - aceite por lote no B/L avulso;
 - CE Mercante: esperas, "Ver B/Ls" com portos normalizados, prévia refeita;
 - relatório da escala com o perfil manual;
@@ -101,17 +104,17 @@ o código anterior: falham sem a correção e passam com ela.
 
 Local, Postgres 16 descartável:
 
-- replay limpo das migrations `001`–`199` com as checagens de invariantes do
+- replay limpo das migrations `001`–`200` com as checagens de invariantes do
   CI;
-- as 76 suítes `local-pg` na ordem do CI: 588 + 3 testes;
-- 4.409 testes unitários;
-- `typecheck`, `lint`, `docs:check`, `migrations:check`, `rpc:check` e
-  `verificar_guardas.py` verdes; o `build` rodou no último commit com
-  frontend alterado.
+- as 76 suítes `local-pg` na ordem do CI: 589 + 3 testes;
+- 4.410 testes unitários;
+- `typecheck`, `lint`, `build`, `docs:check`, `migrations:check`, `rpc:check`
+  e `verificar_guardas.py` verdes.
 
-Os casos novos das `196`–`199` falham sem a migration e passam com ela. No
+Os casos novos das `196`–`200` falham sem a migration e passam com ela. No
 caso da `199`, sem a migration, dois arquivos simultâneos criaram dois navios
-(um com IMO e outro sem).
+(um com IMO e outro sem). No caso da `200`, o container seguia em atraso
+depois de cancelar o B/L.
 
 O que vale como evidência final é o CI do último commit da PR.
 

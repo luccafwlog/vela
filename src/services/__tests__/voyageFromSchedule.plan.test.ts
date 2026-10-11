@@ -142,4 +142,26 @@ describe('planScheduleSheet', () => {
     const repeated = await planScheduleSheet([sheetRow(), sheetRow()], 'user-1')
     expect(repeated.map((row) => row.error)).toEqual([null, null])
   })
+
+  // A gravação acha o navio da Viagem nova pelo IMO ou pelo nome: as duas
+  // linhas são a mesma Viagem mesmo que só uma traga o IMO.
+  it('Viagem nova em duas linhas, uma com IMO e outra sem, com datas diferentes recusa as duas', async () => {
+    calls.findVoyage.mockResolvedValue(null)
+
+    const mixed = await planScheduleSheet([
+      sheetRow(),
+      sheetRow({ vesselImo: '', lanes: [{ code: 'BRSSA', kind: 'pod', date: '2026-01-25' }] }),
+    ], 'user-1')
+    expect(mixed.map((row) => row.error)).toEqual([
+      'Viagem em 2 linhas com datas diferentes (BRSSA ETA: 2026-01-22, 2026-01-25). Deixe uma linha por viagem.',
+      'Viagem em 2 linhas com datas diferentes (BRSSA ETA: 2026-01-22, 2026-01-25). Deixe uma linha por viagem.',
+    ])
+
+    // Outro navio com o mesmo número de viagem continua sendo outra Viagem.
+    const otherVessel = await planScheduleSheet([
+      sheetRow(),
+      sheetRow({ vesselName: 'GREEN SANTOS', vesselImo: '', lanes: [{ code: 'BRSSA', kind: 'pod', date: '2026-01-25' }] }),
+    ], 'user-1')
+    expect(otherVessel.map((row) => row.error)).toEqual([null, null])
+  })
 })

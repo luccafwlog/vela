@@ -13,6 +13,7 @@
 //   cancela fatura com pagamento;
 // - o primeiro contexto de importação da transação vale até o fim.
 // Migration 197: o status de Demurrage "em atraso" volta a ser gravado.
+// Migration 200: container de B/L ou de Viagem Cancelados sai do atraso.
 //
 // Namespace exclusivo: ids 99190xxx, B/Ls 'R190-*', usuário ...000000190001.
 // A limpeza roda com `session_replication_role = replica`, porque a Viagem
@@ -31,6 +32,7 @@ const voyageId = 99190003
 const cancelledVoyageId = 99190004
 const customerId = 99190005
 const contactId = 99190006
+const overdueVoyageId = 99190007
 const blInvoiceId = 99190010
 const graniteInvoiceId = 99190011
 const paidInvoiceId = 99190012
@@ -43,6 +45,7 @@ const bl = {
   cancelledVoyage: 'R190-CV',
   cancelledBl: 'R190-CB',
   overdue: 'R190-OVD',
+  overdueVoyage: 'R190-OVC',
 }
 const allBls = Object.values(bl)
 const sharedContainer = 'RVCU1900001'
@@ -118,8 +121,8 @@ function cleanup() {
     DELETE FROM public.import_effect_attempts WHERE effect_id IN (SELECT id FROM public.import_pending_effects WHERE entity_id IN (${blList}));
     DELETE FROM public.import_pending_effects WHERE entity_id IN (${blList});
     DELETE FROM public.audit_logs WHERE entity_id IN (${blList}) OR entity_id LIKE '${voyageId}%' OR entity_id LIKE '${cancelledVoyageId}%'
-      OR changed_by = '${adminId}';
-    DELETE FROM public.voyages WHERE id IN (${voyageId}, ${cancelledVoyageId});
+      OR entity_id LIKE '${overdueVoyageId}%' OR changed_by = '${adminId}';
+    DELETE FROM public.voyages WHERE id IN (${voyageId}, ${cancelledVoyageId}, ${overdueVoyageId});
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
     DELETE FROM public.customer_contact_box_links WHERE contact_id = ${contactId};
@@ -149,15 +152,17 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'R190 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
         (${voyageId}, ${vesselId}, 'R190A', 'active'),
-        (${cancelledVoyageId}, ${vesselId}, 'R190C', 'active');
+        (${cancelledVoyageId}, ${vesselId}, 'R190C', 'active'),
+        (${overdueVoyageId}, ${vesselId}, 'R190D', 'active');
       INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status) VALUES
         ('${bl.shareA}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated'),
         ('${bl.shareB}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated'),
         ('${bl.breakbulk}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'carga_solta', 'pending', 'not_calculated'),
         ('${bl.cancelledVoyage}', ${cancelledVoyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated'),
         ('${bl.cancelledBl}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated'),
-        ('${bl.overdue}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated');
-      UPDATE public.bls SET free_time_override = 5 WHERE id = '${bl.overdue}';
+        ('${bl.overdue}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated'),
+        ('${bl.overdueVoyage}', ${overdueVoyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated');
+      UPDATE public.bls SET free_time_override = 5 WHERE id IN ('${bl.overdue}', '${bl.overdueVoyage}');
       INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES
         ('${bl.shareA}', '${sharedContainer}', '40HC'),
         ('${bl.shareB}', '${sharedContainer}', '40HC');
@@ -359,5 +364,34 @@ describeLocal('Correções da revisão das importações (migration 190)', () =>
     expect(refreshed.status, refreshed.stderr).toBe(0)
     expect(status('RVCU1970002')).toBe('overdue')
     expect(psql(`SELECT has_function_privilege('authenticated', 'public.refresh_containers_demurrage_status()', 'EXECUTE')`)).toBe('f')
+  })
+
+  it('container de B/L ou de Viagem Cancelados sai do atraso (200)', () => {
+    const status = (number: string) => psql(`SELECT demurrage_status FROM public.bl_containers WHERE container_number = '${number}'`)
+    psql(`INSERT INTO public.bl_containers (bl_id, container_number, type, discharge_date) VALUES
+      ('${bl.overdueVoyage}', 'RVCU2000001', '40HC', current_date - 10);`)
+    expect(status('RVCU1970002')).toBe('overdue')
+    expect(status('RVCU2000001')).toBe('overdue')
+
+    // Cancelar o B/L tira o container do atraso na hora; reativar devolve.
+    const cancelledBl = asAdmin(`SELECT public.cancel_bl('${bl.overdue}', 'B/L substituído (R200)', false)`)
+    expect(cancelledBl.status, cancelledBl.stderr).toBe(0)
+    expect(status('RVCU1970002')).toBe('within_free_time')
+    expect(run(`SELECT public.refresh_containers_demurrage_status()`).status).toBe(0)
+    expect(status('RVCU1970002')).toBe('within_free_time')
+    const reactivated = asAdmin(`SELECT public.reactivate_bl('${bl.overdue}', 'Cancelamento por engano (R200)')`)
+    expect(reactivated.status, reactivated.stderr).toBe(0)
+    expect(status('RVCU1970002')).toBe('overdue')
+
+    // Viagem Cancelada: o atraso sai, o job não o devolve e o container segue selado.
+    const cancelledVoyage = asAdmin(`SELECT public.cancel_voyage(${overdueVoyageId}, 'Armador cancelou a escala (R200)', '${adminId}')`)
+    expect(cancelledVoyage.status, cancelledVoyage.stderr).toBe(0)
+    expect(status('RVCU2000001')).toBe('within_free_time')
+    expect(run(`SELECT public.refresh_containers_demurrage_status()`).status).toBe(0)
+    expect(status('RVCU2000001')).toBe('within_free_time')
+    expect(run(`UPDATE public.bl_containers SET demurrage_status = 'overdue' WHERE container_number = 'RVCU2000001'`).status).toBe(0)
+    expect(status('RVCU2000001')).toBe('within_free_time')
+    expect(run(`UPDATE public.bl_containers SET discharge_date = current_date WHERE container_number = 'RVCU2000001'`).stderr)
+      .toMatch(/cancelada: operação selada/)
   })
 })

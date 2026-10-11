@@ -345,11 +345,28 @@ export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: 
   }
 
   // Mesma Viagem e porto em mais de uma linha com datas diferentes: recusa.
-  const groups = new Map<string, number[]>()
+  // Viagem nova: a gravação acha o navio pelo IMO ou pelo nome (193), então
+  // linhas com o mesmo número e o mesmo IMO ou o mesmo nome são a mesma Viagem,
+  // ainda que só uma traga o IMO.
+  const parent = plan.map((_, index) => index)
+  const root = (index: number): number => (parent[index] === index ? index : (parent[index] = root(parent[index])))
+  const firstByKey = new Map<string, number>()
   plan.forEach((row, index) => {
     if (row.error) return
-    const key = row.voyageId ? `id:${row.voyageId}` : `novo:${row.vesselImo ?? row.vesselName}:${row.voyageNumber.toUpperCase()}`
-    groups.set(key, [...(groups.get(key) ?? []), index])
+    const number = row.voyageNumber.toUpperCase()
+    const keys = row.voyageId
+      ? [`id:${row.voyageId}`]
+      : [`nome:${row.vesselName}:${number}`, ...(row.vesselImo ? [`imo:${row.vesselImo}:${number}`] : [])]
+    for (const key of keys) {
+      const first = firstByKey.get(key)
+      if (first === undefined) firstByKey.set(key, index)
+      else parent[root(index)] = root(first)
+    }
+  })
+  const groups = new Map<number, number[]>()
+  plan.forEach((row, index) => {
+    if (row.error) return
+    groups.set(root(index), [...(groups.get(root(index)) ?? []), index])
   })
   for (const indexes of groups.values()) {
     if (indexes.length < 2) continue

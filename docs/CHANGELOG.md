@@ -29,8 +29,10 @@
   (`196` e `198`):** a reimportação refaz os totais de todos os manifestos da Viagem e grava
   a sugestão de Cliente nova mesmo quando o resto da planilha é igual. **Demurrage
   (`197`):** o container sem devolução volta a ficar "em atraso" (`overdue`) quando passa do
-  free time, na gravação das datas e por job diário. **Programação (`199`):** dois arquivos
-  simultâneos da mesma Viagem nova, um com IMO e outro sem, não duplicam navio nem Viagem. **Telas:**
+  free time, na gravação das datas e por job diário; container de B/L ou Viagem Cancelados sai
+  do atraso (`200`). **Programação (`199`):** dois arquivos simultâneos da mesma Viagem nova,
+  um com IMO e outro sem, não duplicam navio nem Viagem; na prévia, linhas da mesma Viagem
+  nova com e sem IMO são conferidas juntas. **Telas:**
   Manifesto BB em XLSX não multiplica peso por mil; leitura de planilhas com cabeçalho repetido,
   sistema de datas 1904 e máscaras escapadas; Embarque de Vazios no seletor comum; Histórico
   mostra a "Origem" da importação. Decisões novas ficam pendentes do dono (lista no plano).

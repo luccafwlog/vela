@@ -62,7 +62,8 @@ navio com 7 dígitos (prefixo "IMO" aceito); "TBA", "-" e afins são ignorados c
 aviso e a busca é pelo nome. Nome igual com outro IMO cadastrado é erro da linha
 ("IMO conflitante"), nunca fusão. Viagem cancelada é erro da linha (somente
 leitura). A mesma Viagem e porto em mais de uma linha com datas diferentes
-recusa essas linhas. **Gravar programação** grava tudo numa transação
+recusa essas linhas; na Viagem nova, linhas com o mesmo número e o mesmo IMO
+ou o mesmo nome contam como a mesma Viagem, mesmo que só uma traga o IMO. **Gravar programação** grava tudo numa transação
 (`apply_schedule_sheet_atomic`, migrations `188`, `193` e `199`, com as mesmas regras
 de navio, IMO e Viagem cancelada): Viagem nova é criada uma vez, toda Viagem
 enviada é publicada no Portal, dois arquivos simultâneos da mesma Viagem nova

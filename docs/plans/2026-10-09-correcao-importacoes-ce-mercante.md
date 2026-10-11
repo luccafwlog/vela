@@ -24,7 +24,7 @@ correção e efeitos da ADR 0078.
 o código da Etapa 14 executados localmente (migrations `174` a `189`; ver as
 notas de execução em cada etapa). Nenhum `it.fails` restante nas suítes
 `auditoria*`. A revisão da PR 929, em 2026-10-11, corrigiu os achados nas
-migrations `190` a `199` e no frontend (seção
+migrations `190` a `200` e no frontend (seção
 [Revisão da PR 929](#revisão-da-pr-929-2026-10-11)). Restam só passos do dono:
 na Etapa 0, as consultas em leitura na produção (pré-requisito do deploy) e a
 orientação da operação; na Etapa 13, o ensaio em Preview e a ligação do
@@ -45,8 +45,8 @@ criadas por shell, sem editar nenhuma existente.
   (`sudo scripts/setup-local-pg.sh --reset` e as suítes `local-pg` do CI com
   `--no-file-parallelism`, duas vezes seguidas, sem resíduo de namespace).
 - **Migrations:** sempre arquivo novo, no próximo número livre (as deste plano
-  são `174`–`199`: a `173` foi usada pelo Desbloqueio de CE, já em produção, e
-  a revisão da PR 929 acrescentou `190`–`199`);
+  são `174`–`200`: a `173` foi usada pelo Desbloqueio de CE, já em produção, e
+  a revisão da PR 929 acrescentou `190`–`200`);
   nunca editar migration existente (protegida por
   `.claude/hooks/protect-files.sh`). Redefinir a função a partir da definição
   **efetiva** no banco replicado, não da primeira migration que a criou. Se a
@@ -824,7 +824,9 @@ não reescrevem linhas; o código de tela foi corrigido no mesmo branch.
   container e Viagem no Histórico e trava os B/Ls em ordem de id. A `199`
   trava a Viagem nova pelo nome e, com IMO, também pelo IMO: dois arquivos
   simultâneos da mesma Viagem, um com IMO e outro sem, não duplicam navio nem
-  Viagem (achado da revisão automática da PR).
+  Viagem (achado da revisão automática da PR). Na prévia, linhas da mesma
+  Viagem nova com o mesmo IMO ou o mesmo nome entram juntas na conferência de
+  datas repetidas.
 - **`194` — B/L de container e Baplie.** Container com Invoice de Demurrage não
   sai por reimportação (mensagem verdadeira); linha VIN que aponta para
   container que sai é recusada sozinha; chassi em B/L ou Viagem cancelados não
@@ -844,7 +846,8 @@ não reescrevem linhas; o código de tela foi corrigido no mesmo branch.
 - **`197` — Demurrage.** O status `overdue` do container sem devolução volta a
   ser gravado (a 179 tinha deixado de gravar): a cada gravação de datas, tipo,
   B/L ou SOC/COC, e pelo job diário `container-demurrage-status` (achado P1 da
-  revisão automática da PR). No Importar B/L, o aviso de linhas e abas ocultas
+  revisão automática da PR). A `200` tira do atraso o container de B/L ou de
+  Viagem Cancelados, na hora do cancelamento e no job. No Importar B/L, o aviso de linhas e abas ocultas
   diz que elas são lidas (o arquivo é posicional).
 - **`196` e `198` — Granito.** A reimportação refaz os totais de todos os
   manifestos de Granito da Viagem, não só do mais recente, e a sugestão de
