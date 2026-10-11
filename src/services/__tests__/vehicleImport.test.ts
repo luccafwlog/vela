@@ -393,6 +393,7 @@ describe('vehicleImport', () => {
     containers: Array<Record<string, unknown>>
     otherVoyage?: Array<Record<string, unknown>>
     bls?: string[]
+    cancelledBls?: string[]
   }) {
     const inserted: Array<Record<string, unknown>> = []
     mockFrom.mockImplementation((table: string) => {
@@ -405,7 +406,7 @@ describe('vehicleImport', () => {
         }
       }
       if (table === 'bls') {
-        const all = (options.bls ?? ['BL001']).map((id) => ({ id, voyage_id: 7 }))
+        const all = (options.bls ?? ['BL001']).map((id) => ({ id, voyage_id: 7, cancelled_at: options.cancelledBls?.includes(id) ? '2026-10-01T00:00:00Z' : null }))
         return {
           select: () => ({
             eq: () => ({
@@ -499,6 +500,48 @@ describe('vehicleImport', () => {
     expect(result.errors.map((e) => e.row)).toEqual([3, 4])
     expect(confirmUnpacking).toHaveBeenCalledWith([{ containerNumber: 'CAXU0000001', blId: 'BL001', current: 'TVV', next: 'CFS' }])
     expect(inserted).toEqual([expect.objectContaining({ chassis: 'V1', unpacking_location: 'CFS', unpacking_confirmed: false })])
+  })
+
+  it('B/L cancelado recusa a linha na prévia, sem mandar o lote ao servidor', async () => {
+    const inserted = regraMocks({
+      bls: ['BL001', 'BL002'],
+      cancelledBls: ['BL002'],
+      containers: [
+        { id: 1, bl_id: 'BL001', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: null, bl: { voyage_id: 7 } },
+        { id: 2, bl_id: 'BL002', container_number: 'CAXU0000002', type: '40HC', seal_number: 'S2', unpacking_location: null, bl: { voyage_id: 7 } },
+      ],
+    })
+    const result = await importVehicleRows({
+      voyageId: 7,
+      rows: [
+        { ...vehicle, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1' },
+        { ...vehicle, bl_id: 'BL002', rowNumber: 3, chassis: 'V2', container_number: 'CAXU0000002', container_type: '40HC', seal_number: 'S2' },
+      ],
+    })
+    expect(result.errors).toEqual([{ row: 3, message: 'B/L cancelado: não recebe veículos.' }])
+    expect(inserted.map((r) => r.bl_id)).toEqual(['BL001'])
+  })
+
+  it('container compartilhado por dois B/Ls com desova diferente no arquivo recusa as linhas dele', async () => {
+    const inserted = regraMocks({
+      bls: ['BL001', 'BL002'],
+      containers: [
+        { id: 1, bl_id: 'BL001', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: null, bl: { voyage_id: 7 } },
+        { id: 3, bl_id: 'BL002', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: null, bl: { voyage_id: 7 } },
+        { id: 2, bl_id: 'BL001', container_number: 'CAXU0000002', type: '40HC', seal_number: 'S2', unpacking_location: null, bl: { voyage_id: 7 } },
+      ],
+    })
+    const result = await importVehicleRows({
+      voyageId: 7,
+      rows: [
+        { ...vehicle, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1', unpacking_location: 'TVV' },
+        { ...vehicle, bl_id: 'BL002', rowNumber: 3, chassis: 'V2', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1', unpacking_location: 'CFS' },
+        { ...vehicle, rowNumber: 4, chassis: 'V3', container_number: 'CAXU0000002', container_type: '40HC', seal_number: 'S2', unpacking_location: 'CFS' },
+      ],
+    })
+    expect(result.errors.map((e) => e.row)).toEqual([2, 3])
+    expect(result.errors[0].message).toBe('Local de desova diferente para o container CAXU0000001 no mesmo arquivo.')
+    expect(inserted.map((r) => r.chassis)).toEqual(['V3'])
   })
 
   it('persiste o follow-up quando o BL ja estava faturado', async () => {

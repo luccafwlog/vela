@@ -253,14 +253,17 @@ export async function importVehicleRows({
     chassisInOtherVoyage.set(normalizeKey(vehicle.chassis), vehicle.voyage?.voyage_number ?? `#${vehicle.voyage_id}`)
   }
 
+  // B/L cancelado não recebe veículo: o servidor recusa o lote inteiro
+  // (migration 184), então a prévia recusa a linha antes.
   const matchedBls = await fetchInChunks(blsToLoad, 250, async (chunk) => {
     const { data, error } = await supabase
       .from('bls')
-      .select('id, voyage_id')
+      .select('id, voyage_id, cancelled_at')
       .eq('voyage_id', voyageId)
       .in('id', chunk)
     if (error) throw error
-    return (data ?? []) as Array<{ id: string; voyage_id: number | null }>
+    // `cancelled_at` ainda não está nos tipos gerados (src/types/database.ts).
+    return (data ?? []) as unknown as Array<{ id: string; voyage_id: number | null; cancelled_at?: string | null }>
   })
 
   const blMap = new Map((matchedBls ?? []).map((bl) => [normalizeKey(bl.id), bl]))
@@ -341,6 +344,10 @@ export async function importVehicleRows({
       errors.push({ row: row.rowNumber, message: 'BL nao encontrado na viagem selecionada.' })
       continue
     }
+    if (matchedBl.cancelled_at) {
+      errors.push({ row: row.rowNumber, message: 'B/L cancelado: não recebe veículos.' })
+      continue
+    }
 
     const containerCandidates = containersByBlAndNumber.get(`${normalizeKey(row.bl_id)}|${row.container_number}`) ?? []
     if (!containerCandidates.length) {
@@ -410,17 +417,20 @@ export async function importVehicleRows({
 
   // Local de desova: a planilha só preenche vazio; conflito no próprio arquivo
   // recusa as linhas daquele container; divergência do gravado pede confirmação.
-  const unpackingByContainer = new Map<number, Set<string>>()
+  // O conflito é pelo número do container, como no servidor (migration 184):
+  // container compartilhado por dois B/Ls é a mesma caixa física.
+  const unpackingByContainer = new Map<string, Set<string>>()
   for (const row of rowsToInsert) {
     const next = row.unpacking_location?.trim()
     if (!next) continue
-    const values = unpackingByContainer.get(row.container_id) ?? new Set<string>()
+    const key = normalizeKey(row.container_number)
+    const values = unpackingByContainer.get(key) ?? new Set<string>()
     values.add(next.toUpperCase())
-    unpackingByContainer.set(row.container_id, values)
+    unpackingByContainer.set(key, values)
   }
-  const conflicted = new Set([...unpackingByContainer].filter(([, values]) => values.size > 1).map(([id]) => id))
+  const conflicted = new Set([...unpackingByContainer].filter(([, values]) => values.size > 1).map(([key]) => key))
   const accepted = rowsToInsert.filter((row) => {
-    if (!conflicted.has(row.container_id)) return true
+    if (!conflicted.has(normalizeKey(row.container_number))) return true
     errors.push({ row: row.rowNumber, message: `Local de desova diferente para o container ${row.container_number} no mesmo arquivo.` })
     return false
   })

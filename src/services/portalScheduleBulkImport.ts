@@ -40,6 +40,25 @@ function isBlankCell(raw: unknown): boolean {
   return value === '' || value.toUpperCase() === 'X'
 }
 
+/**
+ * Duas colunas para o mesmo campo bloqueiam (ADR 0078, item 22). O leitor
+ * comum dá sufixo à repetição (`VOY`, `VOY_1`) e este parser lê por nome: sem
+ * esta checagem, a segunda coluna seria ignorada em silêncio.
+ */
+export function assertNoRepeatedScheduleColumns(headers: readonly string[]) {
+  const known = new Set([...scheduleTemplateColumns(), ...PORTAL_SCHEDULE_LANES.map((lane) => lane.label)]
+    .map((column) => stripAccents(column).trim().toUpperCase()))
+  const counts = new Map<string, number>()
+  for (const header of headers) {
+    const base = stripAccents(String(header ?? '')).trim().toUpperCase().replace(/_\d+$/, '')
+    if (known.has(base)) counts.set(base, (counts.get(base) ?? 0) + 1)
+  }
+  const repeated = [...counts].filter(([, count]) => count > 1).map(([column]) => `"${column}"`)
+  if (repeated.length) {
+    throw new Error(`A coluna ${repeated.join(', ')} aparece mais de uma vez no cabeçalho. Deixe só uma e importe de novo.`)
+  }
+}
+
 export function parseScheduleRows(rows: Array<Record<string, unknown>>): BulkScheduleRow[] {
   return rows
     .map((row) => {

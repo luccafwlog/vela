@@ -41,6 +41,7 @@ import { ImportReadProgress } from './ImportReadProgress'
 import { ImportContext, ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from './ImportParts'
 import { plural } from './importPresentation'
 import { SummaryStrip } from '../ui/SummaryStrip'
+import { userFacingErrorMessage } from '../../lib/errors'
 
 type ImportType = 'bb' | 'granite' | 'ceMercanteGranite' | 'vaziosImp' | 'vaziosExp' | 'vehicles' | 'baplie' | 'blFreight' | 'blBreakbulk' | 'ceMercante'
 
@@ -457,7 +458,7 @@ function BaplieImportModal({
       handleClose()
     } catch (err) {
       await afterBaplieImportado(queryClient, { voyageId: String(voyageId) })
-      setImportError(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.')
+      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar Baplie EDI.'))
     } finally {
       setImporting(false)
     }
@@ -614,7 +615,7 @@ function VehiclesImportModal({
       if (nextResult.errorCount) setResult(nextResult)
       else onClose()
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Falha ao importar veículos.')
+      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar veículos.'))
     } finally {
       setImporting(false)
     }

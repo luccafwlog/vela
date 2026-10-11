@@ -28,6 +28,7 @@ import { UNPACKING_LOCATION_NONE, useVehicleOptions, useVehicles, useVoyageVehic
 import { deleteVehicles } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
+import { userFacingErrorMessage } from '../lib/errors'
 import { importVehicleRows, parseVehicleImportFile, vehicleUnpackingConfirmOptions, type ParsedVehicleImport } from '../services/vehicleImport'
 import { setContainerUnpackingLocation } from '../services/vaziosNatureza'
 import { exportVehicleWorkbook } from '../services/exports'
@@ -320,8 +321,7 @@ export function Veiculos() {
       const outcome = formatDeleteOutcome('veículo(s)', result)
       showToast(outcome.message, outcome.tone)
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'erro desconhecido'
-      showToast(`Falha ao excluir veículo(s): ${detail}`, 'error')
+      showToast(`Falha ao excluir veículo(s): ${userFacingErrorMessage(err, 'tente novamente.')}`, 'error')
     } finally {
       setDeleting(false)
     }
@@ -758,7 +758,10 @@ function VehicleImportModal({ initialVoyageId, onClose }: { initialVoyageId: str
         onClose()
       }
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Falha ao importar veículos.')
+      // A recusa do servidor (B/L cancelado, chassi em outra Viagem, desova
+      // divergente) chega como erro do banco, não como Error: a mensagem de
+      // negócio vem de userFacingErrorMessage.
+      setImportError(userFacingErrorMessage(err, 'Falha ao importar veículos.'))
     } finally {
       setImporting(false)
     }

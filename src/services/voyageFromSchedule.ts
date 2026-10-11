@@ -185,7 +185,7 @@ export async function createOrAttachVoyageFromSchedule(
   return { voyageId, created: existingId === null }
 }
 
-// ── Programação por planilha: prévia e gravação atômica (migration 188) ──────
+// ── Programação por planilha: prévia e gravação atômica (migrations 188 e 193) ──
 
 export type ScheduleSheetChange = {
   entity_type: string
@@ -199,16 +199,80 @@ export type ScheduleSheetChange = {
 export type ScheduleSheetPlanRow = {
   label: string
   vesselName: string
+  /** IMO que identifica o navio: 7 dígitos, ou null (a busca é pelo nome). */
   vesselImo: string | null
+  /** IMO da planilha que não identifica navio ("TBA", "-"): a busca foi pelo nome. */
+  ignoredImo: string | null
   voyageNumber: string
   voyageId: number | null
   /** Viagem nova: criada na gravação, com o navio pelo IMO ou nome. */
   createsVoyage: boolean
+  /** Viagem existente oculta no Portal: a gravação a publica, mesmo sem data que mude. */
+  publishes: boolean
   changes: ScheduleSheetChange[]
   error: string | null
 }
 
 const portOf = (entityId: string) => entityId.split('::').slice(1).join('::')
+
+/**
+ * IMO que identifica o navio na planilha: 7 dígitos, com ou sem o prefixo
+ * "IMO". "TBA", "-" e afins não casam com navio nenhum (migration 193).
+ */
+export function scheduleSheetImo(value: string | null | undefined): string | null {
+  const imo = normalizeVesselImo(value)
+  return imo && /^\d{7}$/.test(imo) ? imo : null
+}
+
+/** Linha que a gravação envia: Viagem nova, Viagem a publicar ou data que muda. */
+export function isScheduleSheetWrite(row: ScheduleSheetPlanRow): boolean {
+  return !row.error && (row.createsVoyage || row.publishes || row.changes.length > 0)
+}
+
+/**
+ * Navio que a gravação usará para a Viagem nova, pelas mesmas regras do
+ * servidor (migration 193): IMO de 7 dígitos primeiro, depois o nome
+ * canônico; nome igual com outro IMO cadastrado é conflito, nunca fusão.
+ */
+async function newVoyageVesselProblem(name: string, imo: string | null): Promise<string | null> {
+  if (imo) {
+    // ponytail: no máximo 20 candidatos pelo trecho do IMO, igualdade conferida
+    // em memória (o servidor compara todos); upgrade = IMO canônico indexado.
+    const { data, error } = await supabase.from('vessels').select('id, imo').ilike('imo', `%${imo}%`).limit(20)
+    if (error) throw error
+    const byImo = (data ?? []).filter((vessel) => normalizeVesselImo(vessel.imo) === imo)
+    if (byImo.length > 1) return `Navio com IMO ${imo} ambíguo: mais de um cadastro. Corrija antes de importar.`
+    if (byImo.length === 1) return null
+  }
+  const { data, error } = await supabase.from('vessels').select('id, imo').eq('name', name).limit(2)
+  if (error) throw error
+  if ((data ?? []).length > 1) return `Navio ${name} ambíguo: mais de um cadastro. Corrija antes de importar.`
+  const registeredImo = normalizeVesselImo(data?.[0]?.imo)
+  if (imo && registeredImo && registeredImo !== imo) {
+    return `Navio ${name} com IMO conflitante (${registeredImo} vs ${imo}). Corrija antes de importar.`
+  }
+  return null
+}
+
+/**
+ * Mesma Viagem e porto em mais de uma linha com datas diferentes: a data
+ * vigente dependeria da ordem do arquivo, então as linhas são recusadas.
+ */
+function conflictingRepeatedLanes(rows: VoyageScheduleInput[]): string | null {
+  const dates = new Map<string, Set<string>>()
+  for (const row of rows) {
+    for (const lane of row.lanes) {
+      const date = (lane.date ?? '').trim()
+      if (!date) continue
+      const key = `${lane.code} ${lane.kind === 'pol' ? 'ETD' : 'ETA'}`
+      const seen = dates.get(key) ?? new Set<string>()
+      seen.add(date)
+      dates.set(key, seen)
+    }
+  }
+  const conflicts = [...dates].filter(([, seen]) => seen.size > 1).map(([key, seen]) => `${key}: ${[...seen].join(', ')}`)
+  return conflicts.length ? conflicts.join('; ') : null
+}
 
 /**
  * Prévia da planilha: para cada linha, a Viagem (existente ou nova) e as datas
@@ -217,14 +281,23 @@ const portOf = (entityId: string) => entityId.split('::').slice(1).join('::')
 export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: string | null): Promise<ScheduleSheetPlanRow[]> {
   const plan: ScheduleSheetPlanRow[] = []
   for (const row of rows) {
+    const imo = scheduleSheetImo(row.vesselImo)
+    const rawImo = normalizeVesselImo(row.vesselImo)
     const base = {
       label: `${row.vesselName} / ${row.voyageNumber}`,
       vesselName: canonicalizeVesselName(row.vesselName.trim()),
-      vesselImo: normalizeVesselImo(row.vesselImo),
+      vesselImo: imo,
+      ignoredImo: rawImo && !imo ? row.vesselImo.trim() : null,
       voyageNumber: row.voyageNumber.trim(),
+      publishes: false,
     }
     try {
-      const voyageId = await findVoyageByNumberAndVessel(row.voyageNumber, row.vesselImo, row.vesselName)
+      const voyageId = await findVoyageByNumberAndVessel(row.voyageNumber, imo ?? '', row.vesselName)
+      const vesselProblem = voyageId === null ? await newVoyageVesselProblem(base.vesselName, imo) : null
+      if (vesselProblem) {
+        plan.push({ ...base, voyageId: null, createsVoyage: false, changes: [], error: vesselProblem })
+        continue
+      }
       const { pols, pods } = partitionScheduleLanes(row.lanes)
       const prefix = voyageId ?? 0
       const polIds = pols.map((pol) => buildVoyagePolEntityId(prefix, pol.code))
@@ -252,13 +325,47 @@ export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: 
       plan.push({ ...base, voyageId: null, createsVoyage: false, changes: [], error: error instanceof Error ? error.message : 'falha inesperada' })
     }
   }
+
+  // Viagem existente: cancelada é erro da linha (somente leitura); oculta no
+  // Portal é publicada pela gravação, como no cadastro pela tela.
+  const voyageIds = [...new Set(plan.flatMap((row) => (row.voyageId ? [row.voyageId] : [])))]
+  if (voyageIds.length) {
+    const { data, error } = await supabase.from('voyages').select('id, status, show_on_portal').in('id', voyageIds)
+    if (error) throw error
+    const byId = new Map((data ?? []).map((voyage) => [Number(voyage.id), voyage]))
+    for (const row of plan) {
+      const voyage = row.voyageId ? byId.get(row.voyageId) : undefined
+      if (!voyage || row.error) continue
+      if (voyage.status === 'cancelled') {
+        Object.assign(row, { error: `Viagem ${row.label} cancelada: a programação dela não muda. Retire a linha da planilha.`, changes: [] })
+      } else if (voyage.show_on_portal !== true) {
+        row.publishes = true
+      }
+    }
+  }
+
+  // Mesma Viagem e porto em mais de uma linha com datas diferentes: recusa.
+  const groups = new Map<string, number[]>()
+  plan.forEach((row, index) => {
+    if (row.error) return
+    const key = row.voyageId ? `id:${row.voyageId}` : `novo:${row.vesselImo ?? row.vesselName}:${row.voyageNumber.toUpperCase()}`
+    groups.set(key, [...(groups.get(key) ?? []), index])
+  })
+  for (const indexes of groups.values()) {
+    if (indexes.length < 2) continue
+    const conflict = conflictingRepeatedLanes(indexes.map((index) => rows[index]))
+    if (!conflict) continue
+    for (const index of indexes) {
+      Object.assign(plan[index], { error: `Viagem em ${indexes.length} linhas com datas diferentes (${conflict}). Deixe uma linha por viagem.`, changes: [], publishes: false, createsVoyage: false })
+    }
+  }
   return plan
 }
 
 /** Grava a prévia numa transação: se uma linha falha, nada é gravado. */
-export async function applyScheduleSheetPlan(plan: ScheduleSheetPlanRow[]): Promise<{ created: number; updated: number; changes: number }> {
-  const rows = plan.filter((row) => !row.error && (row.createsVoyage || row.changes.length))
-  if (!rows.length) return { created: 0, updated: 0, changes: 0 }
+export async function applyScheduleSheetPlan(plan: ScheduleSheetPlanRow[]): Promise<{ created: number; updated: number; changes: number; voyage_ids: number[] }> {
+  const rows = plan.filter(isScheduleSheetWrite)
+  if (!rows.length) return { created: 0, updated: 0, changes: 0, voyage_ids: [] }
   const { data, error } = await supabase.rpc('apply_schedule_sheet_atomic' as never, {
     p_rows: rows.map((row) => ({
       voyage_id: row.voyageId,
@@ -271,5 +378,6 @@ export async function applyScheduleSheetPlan(plan: ScheduleSheetPlanRow[]): Prom
     p_carrier_scac: DEFAULT_CARRIER_SCAC,
   } as never)
   if (error) throw error
-  return data as unknown as { created: number; updated: number; changes: number }
+  const result = data as unknown as { created: number; updated: number; changes: number; voyage_ids?: number[] | null }
+  return { ...result, voyage_ids: (result.voyage_ids ?? []).map(Number) }
 }

@@ -2,10 +2,12 @@
 // itens 8 e 23). A importação de veículos confere no servidor B/L, chassi em
 // outra Viagem e local de desova; sem fatura viva recalcula na hora e B/L
 // isento anula o Recebível; Mover para outro B/L e Excluir valem para qualquer
-// usuário, com motivo, mesmo com CE.
+// usuário, com motivo, mesmo com CE. Migration 193: o Histórico do Mover
+// guarda B/L, container e Viagem com o motivo, e as travas dos B/Ls seguem a
+// ordem de id (movimentos cruzados não se travam mutuamente).
 //
 // Namespace exclusivo: ids 99231xxx, B/Ls 'A231-*', usuário ...0000002310NN.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -41,6 +43,21 @@ function asUser(sql: string): { stdout: string; stderr: string } {
 }
 
 const list = bls.map((id) => `'${id}'`).join(', ')
+
+/** psql em processo próprio, sem esperar: para sessões concorrentes. */
+function psqlAsync(sql: string, asTheUser = false): Promise<{ stdout: string; stderr: string }> {
+  const prefix = asTheUser
+    ? `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${userId}'; `
+    : ''
+  return new Promise((resolveRun) => {
+    const child = spawn('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', prefix + sql])
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (chunk) => { stdout += String(chunk) })
+    child.stderr.on('data', (chunk) => { stderr += String(chunk) })
+    child.on('close', () => resolveRun({ stdout: stdout.trim(), stderr }))
+  })
+}
 
 function cleanup() {
   psql(`
@@ -147,6 +164,10 @@ describeLocal('Veículos: regras da importação e ações da página (migration
     expect(psql(`SELECT bl_id || ':' || container_id FROM public.vehicles WHERE id = ${vehicleId};`)).toBe(`${blB}:${cB}`)
     expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_type = 'vehicles' AND entity_id = '${vehicleId}' AND field_name = 'bl_id';`))
       .toBe('Chassi no B/L errado (A231)')
+    // O vínculo anterior e o novo do container também ficam no Histórico, com o motivo.
+    expect(psql(`SELECT old_value || '>' || new_value || ':' || justification FROM public.audit_logs
+      WHERE entity_type = 'vehicles' AND entity_id = '${vehicleId}' AND field_name = 'container_id';`))
+      .toBe(`${cA}>${cB}:Chassi no B/L errado (A231)`)
 
     const withCe = psql(`SELECT id FROM public.vehicles WHERE chassis = 'A231V2';`)
     const deleted = asUser(`SELECT public.delete_vehicles_with_reason(ARRAY[${withCe}]::bigint[], 'Veículo não embarcou (A231)');`)
@@ -154,4 +175,22 @@ describeLocal('Veículos: regras da importação e ações da página (migration
     expect(JSON.parse(deleted.stdout)).toEqual({ deleted_ids: [Number(withCe)] })
     expect(psql(`SELECT count(*) FROM public.vehicles WHERE id = ${withCe};`)).toBe('0')
   })
+
+  it('Mover trava origem e destino em ordem de id: o destino só é travado depois da origem', async () => {
+    const vehicleId = psql(`SELECT id FROM public.vehicles WHERE chassis = 'A231CHASSICANC' AND bl_id = '${blA}';`)
+    // Outra sessão segura a origem (A231-BLA, menor id) e, depois, tenta o
+    // destino sem esperar. Antes da 193 o Mover já tinha travado o destino.
+    const holder = psqlAsync(`BEGIN;
+      SELECT 1 FROM public.bls WHERE id = '${blA}' FOR UPDATE;
+      SELECT pg_sleep(2);
+      SELECT id FROM public.bls WHERE id = '${blB}' FOR UPDATE NOWAIT;
+      ROLLBACK;`)
+    await new Promise((resolveWait) => setTimeout(resolveWait, 500))
+    const mover = psqlAsync(`SELECT public.move_vehicles_to_bl(ARRAY[${vehicleId}]::bigint[], '${blB}', 'Movimento concorrente (A231)', ${cB});`, true)
+    const [held, moved] = await Promise.all([holder, mover])
+    expect(held.stderr).toBe('')
+    expect(held.stdout).toContain(blB)
+    expect(moved.stderr).toBe('')
+    expect(psql(`SELECT bl_id FROM public.vehicles WHERE id = ${vehicleId};`)).toBe(blB)
+  }, 20_000)
 })

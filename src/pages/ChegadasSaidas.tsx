@@ -15,9 +15,10 @@ import { useAuth } from '../hooks/useAuth'
 import { userFacingErrorMessage } from '../lib/errors'
 import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
 import { PORTAL_SCHEDULE_LANES, type PortalScheduleLane } from '../services/portalScheduleLanes'
-import { parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
+import { assertNoRepeatedScheduleColumns, parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
 import { fetchPortalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
-import { applyScheduleSheetPlan, createOrAttachVoyageFromSchedule, planScheduleSheet, type ScheduleSheetPlanRow } from '../services/voyageFromSchedule'
+import { applyScheduleSheetPlan, createOrAttachVoyageFromSchedule, isScheduleSheetWrite, planScheduleSheet, type ScheduleSheetPlanRow } from '../services/voyageFromSchedule'
+import { afterViagemAlterada } from '../services/cacheEffects'
 import { readSheet } from '../services/importCore'
 import { inspectImportFile, type ImportFileInspection } from '../services/importText'
 
@@ -131,12 +132,17 @@ function SchedulePlanPreview({ plan, applying, onApply, onCancel }: {
   onCancel: () => void
 }) {
   const valid = plan.rows.filter((row) => !row.error)
-  const writes = valid.filter((row) => row.createsVoyage || row.changes.length)
+  const writes = plan.rows.filter(isScheduleSheetWrite)
   const errors = plan.rows.filter((row) => row.error)
+  const publishing = valid.filter((row) => !row.createsVoyage && row.publishes).length
+  const dateText = (row: ScheduleSheetPlanRow) => row.changes
+    .filter((change) => change.field_name === 'eta' || change.field_name === 'etd')
+    .map((change) => `${change.port} ${change.field_name.toUpperCase()}: ${change.old_value ?? '—'} → ${change.new_value ?? '—'}`)
+    .join('; ')
   return (
     <div className="mt-4 grid gap-3 border-t border-[var(--app-border)] pt-4 text-sm" role="region" aria-label="Prévia da planilha">
       <p className="m-0 font-medium">
-        Prévia: {valid.filter((row) => row.createsVoyage).length} viagem(ns) nova(s), {valid.filter((row) => !row.createsVoyage && row.changes.length).length} com datas que mudam, {valid.filter((row) => !row.createsVoyage && !row.changes.length).length} sem mudança
+        Prévia: {valid.filter((row) => row.createsVoyage).length} viagem(ns) nova(s), {valid.filter((row) => !row.createsVoyage && row.changes.length).length} com datas que mudam,{publishing ? ` ${publishing} passa(m) a aparecer no Portal,` : ''} {valid.filter((row) => !isScheduleSheetWrite(row)).length} sem mudança
         {errors.length ? ` · ${errors.length} com erro (não entram)` : ''}
       </p>
       <div className="app-table-scroll max-h-72">
@@ -150,8 +156,10 @@ function SchedulePlanPreview({ plan, applying, onApply, onCancel }: {
                 <td>
                   {row.error ? <span className="text-[var(--app-danger-fg)]">{row.error}</span>
                     : row.createsVoyage ? `Cria a viagem e grava ${row.changes.filter((change) => change.field_name === 'eta' || change.field_name === 'etd').length} data(s)`
-                      : row.changes.length ? row.changes.filter((change) => change.field_name === 'eta' || change.field_name === 'etd').map((change) => `${change.port} ${change.field_name.toUpperCase()}: ${change.old_value ?? '—'} → ${change.new_value ?? '—'}`).join('; ') || 'Atualiza a escala'
-                        : <span className="text-[var(--app-muted)]">Sem mudança</span>}
+                      : row.publishes ? ['Publica no Portal', dateText(row)].filter(Boolean).join('; ')
+                        : row.changes.length ? dateText(row) || 'Atualiza a escala'
+                          : <span className="text-[var(--app-muted)]">Sem mudança</span>}
+                  {!row.error && row.ignoredImo ? <span className="block text-[var(--app-muted)]">IMO “{row.ignoredImo}” ignorado (não tem 7 dígitos): viagem procurada pelo nome do navio.</span> : null}
                 </td>
               </tr>
             ))}
@@ -170,7 +178,7 @@ function SchedulePlanPreview({ plan, applying, onApply, onCancel }: {
   )
 }
 
-function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate: () => void }) {
+function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate: (voyageIds: number[]) => void }) {
   const [uploading, setUploading] = useState(false)
   const [readError, setReadError] = useState<string | null>(null)
   const [result, setResult] = useState<{ inspection: ImportFileInspection; updated: string[]; errors: string[]; warnings: string[] } | null>(null)
@@ -211,7 +219,8 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
       assertUploadSize(file)
       const buf = await file.arrayBuffer()
       const inspection = inspectImportFile(buf)
-      const { rows } = await readSheet(buf)
+      const { headers, rows } = await readSheet(buf)
+      assertNoRepeatedScheduleColumns(headers)
       const parsed = parseScheduleRows(rows)
       const warnings = parsed
         .filter((row) => row.invalidCells.length > 0)
@@ -232,7 +241,7 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
     setApplying(true)
     try {
       const outcome = await applyScheduleSheetPlan(plan.rows)
-      const touched = plan.rows.filter((row) => !row.error && (row.createsVoyage || row.changes.length))
+      const touched = plan.rows.filter(isScheduleSheetWrite)
       setResult({
         inspection: plan.inspection,
         updated: touched.map((row) => row.label),
@@ -243,7 +252,7 @@ function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate
       setChosenFiles([])
       if (touched.length) {
         showToast(`${outcome.created} viagem(ns) criada(s), ${outcome.updated} atualizada(s).`, 'success')
-        onUpdate()
+        onUpdate(outcome.voyage_ids)
       } else {
         showToast('Nada a gravar: a planilha não muda nenhuma data.', 'info')
       }
@@ -339,10 +348,11 @@ export function ChegadasSaidas() {
     queryFn: () => fetchPortalScheduleVoyages(),
   })
 
-  const invalidateSchedules = () => {
-    queryClient.invalidateQueries({ queryKey: ['portal-schedule-voyages'] })
-    queryClient.invalidateQueries({ queryKey: ['voyages'] })
-    queryClient.invalidateQueries({ queryKey: ['voyage-escala-schedules'] })
+  // Viagem criada, publicada ou com datas novas muda as opções de Viagem, a
+  // agenda, a ficha e o Line-Up: o dono é afterViagemAlterada. Uma chamada
+  // basta, pois ele invalida as famílias inteiras (inclusive a linha do tempo).
+  const invalidateSchedules = (voyageIds: number[]) => {
+    if (voyageIds.length) void afterViagemAlterada(queryClient, { voyageId: voyageIds[0] })
   }
 
   const openAdd = () => {
@@ -427,14 +437,14 @@ export function ChegadasSaidas() {
 
     setSaving(true)
     try {
-      await createOrAttachVoyageFromSchedule({
+      const saved = await createOrAttachVoyageFromSchedule({
         vesselName: formData.vesselName,
         vesselImo: formData.vesselImo,
         voyageNumber: formData.voyageNumber,
         lanes,
       }, user?.id ?? null, { mode: 'form', voyageId: editingId ?? undefined, canRemoveEscala: isAdmin })
       showToast(editingId ? 'Programação atualizada no Portal.' : 'Viagem cadastrada e publicada no Portal.', 'success')
-      invalidateSchedules()
+      invalidateSchedules([saved.voyageId])
       closeDialog()
     } catch (error) {
       showToast(userFacingErrorMessage(error, editingId ? 'Falha ao salvar a programação.' : 'Falha ao cadastrar a viagem.'), 'error')
