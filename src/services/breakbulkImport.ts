@@ -48,7 +48,8 @@ type CustomerChange = BreakbulkReimportCheck['customerChanges'][number]
 type BilledRouteChange = BreakbulkReimportCheck['billedRouteChanges'][number]
 
 const customerChangeKey = (change: CustomerChange) => [change.blId, change.currentCustomer, change.fileCustomer].join('\u0000')
-const billedRouteChangeKey = (change: BilledRouteChange) => [change.blId, ...change.fields].join('\u0000')
+const billedRouteChangeKey = (change: BilledRouteChange) =>
+  [change.blId, change.fields.join(','), change.currentRoute, change.fileRoute].join('\u0000')
 
 function covers<T>(approved: T[], shown: T[], key: (item: T) => string) {
   const keys = new Set(approved.map(key))
@@ -399,7 +400,8 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: Breakbu
   for (const record of customerMaps.customersByDocument.values()) customerNames.set(record.id, record.name)
 
   const check: BreakbulkReimportCheck = { ...empty, existing: existingIds }
-  const routeChanges: Array<{ blId: string; fields: string[]; billedByStatus: boolean }> = []
+  const routeChanges: Array<BilledRouteChange & { billedByStatus: boolean }> = []
+  const route = (pol: string | null, pod: string | null) => `${pol ?? '—'} → ${pod ?? '—'}`
   for (const bl of existing) {
     const row = rows.get(bl.id)
     if (!row) continue
@@ -421,13 +423,23 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: Breakbu
       row.pol && row.pol !== bl.pol ? 'POL' : null,
       podChanges && !cod.has(bl.id) ? 'POD' : null,
     ].filter((field): field is string => Boolean(field))
-    if (fields.length) routeChanges.push({ blId: bl.id, fields, billedByStatus: isBlFinanciallyLocked(bl.financial_status) })
+    if (fields.length) {
+      routeChanges.push({
+        blId: bl.id,
+        fields,
+        currentRoute: route(bl.pol, bl.pod),
+        fileRoute: route(row.pol || bl.pol, podChanges && !cod.has(bl.id) ? row.pod : bl.pod),
+        billedByStatus: isBlFinanciallyLocked(bl.financial_status),
+      })
+    }
   }
   // Faturado, como na gravação (migration 174): status faturado/pago ou fatura
   // viva, inclusive rascunho. Só consulta quem muda de rota sem o status.
   const withLiveInvoice = await fetchBlsWithLiveInvoice(routeChanges.filter((change) => !change.billedByStatus).map((change) => change.blId))
   for (const change of routeChanges) {
-    if (change.billedByStatus || withLiveInvoice.has(change.blId)) check.billedRouteChanges.push({ blId: change.blId, fields: change.fields })
+    if (change.billedByStatus || withLiveInvoice.has(change.blId)) {
+      check.billedRouteChanges.push({ blId: change.blId, fields: change.fields, currentRoute: change.currentRoute, fileRoute: change.fileRoute })
+    }
   }
   return check
 }

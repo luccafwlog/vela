@@ -596,7 +596,7 @@ describe('breakbulkImport', () => {
       uploadedBy: '00000000-0000-0000-0000-000000000001',
       approval: {
         customerChanges: [{ blId: 'BB009', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' }],
-        billedRouteChanges: [{ blId: 'BB009', fields: ['POD'] }],
+        billedRouteChanges: [{ blId: 'BB009', fields: ['POD'], currentRoute: 'CNTAC → BRSSZ', fileRoute: 'CNTAC → BRVIX' }],
       },
     })
     const stale = mockRpc.mock.calls.find(([name]) => name === 'import_breakbulk_manifest_transactional')?.[1]
@@ -733,7 +733,7 @@ describe('breakbulkImport', () => {
       expect(check.existing).toEqual(['OUTRA', 'TROCA', 'FATURADO', 'COD'])
       expect(check.otherVoyage).toEqual([{ blId: 'OUTRA', voyageLabel: 'NAVIO / V9' }])
       expect(check.customerChanges).toEqual([{ blId: 'TROCA', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' }])
-      expect(check.billedRouteChanges).toEqual([{ blId: 'FATURADO', fields: ['POD'] }])
+      expect(check.billedRouteChanges).toEqual([{ blId: 'FATURADO', fields: ['POD'], currentRoute: 'CNSHA → BRVIX', fileRoute: 'CNSHA → BRSSZ' }])
       expect(check.codPodKept).toEqual(['COD'])
     })
 
@@ -760,23 +760,28 @@ describe('breakbulkImport', () => {
           { blId: 'TROCA', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' },
           { blId: 'MUDOU', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' },
         ],
-        billedRouteChanges: [{ blId: 'FATURADO', fields: ['POD'] }],
+        billedRouteChanges: [
+          { blId: 'FATURADO', fields: ['POD'], currentRoute: 'CNSHA → BRVIX', fileRoute: 'CNSHA → BRSSZ' },
+          { blId: 'ROTAMUDOU', fields: ['POD'], currentRoute: 'CNSHA → BRVIX', fileRoute: 'CNSHA → BRSSZ' },
+        ],
       }
-      // Depois da prévia, outra sessão passou MUDOU para GAMA e nasceu uma
-      // fatura em NOVAFATURA: nenhum dos dois foi visto pelo operador.
+      // Depois da prévia, outra sessão passou MUDOU para GAMA, mudou o POD de
+      // ROTAMUDOU para BRRIO e nasceu uma fatura em NOVAFATURA: nada disso foi
+      // visto pelo operador.
       mockExisting(
         [
           { id: 'TROCA', voyage_id: 10, customer_id: 1, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', cancelled_at: null, customer: { name: 'ALFA' }, voyage: voyage('V10') },
           { id: 'MUDOU', voyage_id: 10, customer_id: 3, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', cancelled_at: null, customer: { name: 'GAMA' }, voyage: voyage('V10') },
           { id: 'FATURADO', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRVIX', financial_status: 'invoiced', cancelled_at: null, customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
           { id: 'NOVAFATURA', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRVIX', financial_status: 'invoiced', cancelled_at: null, customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
+          { id: 'ROTAMUDOU', voyage_id: 10, customer_id: 2, pol: 'CNSHA', pod: 'BRRIO', financial_status: 'invoiced', cancelled_at: null, customer: { name: 'BETA LTDA' }, voyage: voyage('V10') },
         ],
       )
 
       await importBreakbulkManifest({
         filename: 'lote.pdf',
         voyageId: 10,
-        manifest: { layout: 'summary', rowErrors: [], bls: [line('TROCA'), line('MUDOU'), line('FATURADO'), line('NOVAFATURA')] },
+        manifest: { layout: 'summary', rowErrors: [], bls: [line('TROCA'), line('MUDOU'), line('FATURADO'), line('NOVAFATURA'), line('ROTAMUDOU')] },
         uploadedBy: '00000000-0000-0000-0000-000000000001',
         approval: reviewed,
       })
@@ -787,6 +792,7 @@ describe('breakbulkImport', () => {
       expect(row('MUDOU')).not.toHaveProperty('relink_customer')
       expect(row('FATURADO')).toMatchObject({ override_billing: true })
       expect(row('NOVAFATURA')).not.toHaveProperty('override_billing')
+      expect(row('ROTAMUDOU')).not.toHaveProperty('override_billing')
     })
 
     it('o aceite marcado cobre só as transições mostradas', () => {
@@ -822,7 +828,7 @@ describe('breakbulkImport', () => {
 
       const check = await checkBreakbulkReimport(10, { layout: 'summary', rowErrors: [], bls: [line('RASCUNHO'), line('CANCELADA')] })
 
-      expect(check.billedRouteChanges).toEqual([{ blId: 'RASCUNHO', fields: ['POD'] }])
+      expect(check.billedRouteChanges).toEqual([{ blId: 'RASCUNHO', fields: ['POD'], currentRoute: 'CNSHA → BRVIX', fileRoute: 'CNSHA → BRSSZ' }])
     })
 
     // B7 (revisão da PR 929): B/L cancelado é somente leitura e derrubava o

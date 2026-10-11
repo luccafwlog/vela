@@ -106,7 +106,7 @@ export function BreakbulkReimportReview({
                 <ul className="app-import-notice__list">
                   {check.billedRouteChanges.map((change) => (
                     <li key={change.blId}>
-                      <span className="app-import-code">{change.blId}</span>: {change.fields.join(' e ')}
+                      <span className="app-import-code">{change.blId}</span>: {change.fields.join(' e ')} ({change.currentRoute} ⇒ {change.fileRoute})
                     </li>
                   ))}
                 </ul>

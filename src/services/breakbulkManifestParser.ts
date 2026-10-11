@@ -111,8 +111,12 @@ export type BreakbulkReimportCheck = {
   otherVoyage: Array<{ blId: string; voyageLabel: string }>
   /** CNPJ de outro Cliente: Troca de Consignatário só com aceite. */
   customerChanges: Array<{ blId: string; currentCustomer: string; fileCustomer: string }>
-  /** Rota diferente em B/L faturado: pede a confirmação de faturamento. */
-  billedRouteChanges: Array<{ blId: string; fields: string[] }>
+  /**
+   * Rota diferente em B/L faturado: pede a confirmação de faturamento. A rota
+   * gravada e a que o arquivo deixa ("POL → POD") identificam a transição
+   * confirmada, não só o campo.
+   */
+  billedRouteChanges: Array<{ blId: string; fields: string[]; currentRoute: string; fileRoute: string }>
   /** B/L em COD: o POD do arquivo não será aplicado. */
   codPodKept: string[]
 }
