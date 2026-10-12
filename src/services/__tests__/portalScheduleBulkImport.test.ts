@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseScheduleRows, scheduleTemplateColumns } from '../portalScheduleBulkImport'
+import { assertNoRepeatedScheduleColumns, parseScheduleRows, scheduleTemplateColumns } from '../portalScheduleBulkImport'
 
 describe('parseScheduleRows', () => {
   it('gera colunas do template a partir da constante de lanes', () => {
@@ -24,12 +24,12 @@ describe('parseScheduleRows', () => {
     expect(row.lanes.find((lane) => lane.code === 'BRSSA')?.date).toBe('2026-01-22')
   })
 
-  it('aceita celula Date (Excel auto-formatado) convertendo para ISO', () => {
+  it('aceita a célula de data do Excel, que o leitor comum entrega como AAAA-MM-DD', () => {
     const [row] = parseScheduleRows([{
       'VESSEL NAME': 'GREEN PECEM',
       VOY: '6',
       IMO: '9976501',
-      'QINGDAO ETD': new Date('2026-01-04T00:00:00'),
+      'QINGDAO ETD': '2026-01-04',
     }])
     expect(row.lanes.find((lane) => lane.code === 'CNTAO')?.date).toBe('2026-01-04')
   })
@@ -56,5 +56,16 @@ describe('parseScheduleRows', () => {
     expect(row.lanes.find((lane) => lane.code === 'BRSSA')?.date).toBe(null)
     expect(row.lanes.find((lane) => lane.code === 'CNTAO')?.date).toBe(null)
     expect(row.invalidCells).toEqual(expect.arrayContaining(['SALVADOR ETA', 'QINGDAO ETD']))
+  })
+})
+
+describe('assertNoRepeatedScheduleColumns', () => {
+  it('recusa a mesma coluna duas vezes (o leitor comum dá sufixo à repetição)', () => {
+    expect(() => assertNoRepeatedScheduleColumns(['VESSEL NAME', 'VOY', 'SALVADOR ETA', 'SALVADOR ETA_1']))
+      .toThrow(/"SALVADOR ETA" aparece mais de uma vez/)
+  })
+
+  it('aceita cabeçalho sem repetição e ignora colunas que o parser não lê', () => {
+    expect(() => assertNoRepeatedScheduleColumns(['VESSEL NAME', 'VOY', 'IMO', 'OBS', 'OBS_1'])).not.toThrow()
   })
 })

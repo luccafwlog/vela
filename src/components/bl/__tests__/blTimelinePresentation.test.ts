@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeTimelineEvent, familyLabel, isAudited } from '../blTimelinePresentation'
+import { describeTimelineEvent, familyLabel, isAudited, isImportContext } from '../blTimelinePresentation'
 
 describe('describeTimelineEvent', () => {
   it('nomeia o container e o campo vindos da auditoria por coluna (migration 079)', () => {
@@ -7,6 +7,19 @@ describe('describeTimelineEvent', () => {
     expect(describeTimelineEvent(devolucao)).toBe('Container TCLU1234567 · Devolução: - → 20/10/2026')
     const imo = { family: 'container', entity_type: 'bl_container', field_name: 'is_imo|TCLU1234567', old_value: 'false', new_value: 'true', justification: null } as never
     expect(describeTimelineEvent(imo)).toBe('Container TCLU1234567 · IMO: Não → Sim')
+  })
+  it('edição das datas pela ficha mostra só as datas que mudaram, sem o JSON do evento', () => {
+    const edit = {
+      family: 'edicao', entity_type: 'bl', field_name: 'container_dates',
+      old_value: '{"container": "TCLU0790001", "discharge_date": "2026-10-14", "return_date": "2026-10-20"}',
+      new_value: '{"container": "TCLU0790001", "discharge_date": "2026-10-14", "return_date": null, "propagated_bl_ids": ["BL1"]}',
+      justification: 'Terminal estornou a devolução',
+    } as never
+    expect(describeTimelineEvent(edit)).toBe('Container TCLU0790001 · datas: Devolução: 20/10/2026 → -')
+  })
+  it('desvínculo do Manifesto Mercante tem o nome do campo', () => {
+    const unlink = { family: 'edicao', entity_type: 'bl', field_name: 'manifesto_mercante', old_value: '1226501860578', new_value: null, justification: 'Desvínculo automático' } as never
+    expect(describeTimelineEvent(unlink)).toBe('Manifesto Mercante: 1226501860578 → -')
   })
   it('humanizes a field edit', () => {
     const e = { family: 'edicao', entity_type: 'bl', field_name: 'notify_party', old_value: 'X', new_value: 'Y', justification: 'ajuste' } as never
@@ -40,5 +53,15 @@ describe('describeTimelineEvent', () => {
   it('flags audited entries (with justification)', () => {
     expect(isAudited({ justification: 'motivo' } as never)).toBe(true)
     expect(isAudited({ justification: null } as never)).toBe(false)
+  })
+  it('o contexto gravado pela importação não conta como auditoria (migration 189)', () => {
+    const context = 'Importação de B/L · Viagem NAVIO 001N'
+    expect(isAudited({ justification: context } as never)).toBe(false)
+    expect(isImportContext(context)).toBe(true)
+    expect(isImportContext('Importacao CE Mercante: CE corrigido pelo armador')).toBe(false)
+    // Troca de CE pela planilha com motivo (migration 195) é deliberada: conta como auditoria.
+    const withReason = 'Importação de CE Mercante · Viagem NAVIO 001N · Manifesto 1226501860578 · Motivo: CE corrigido pelo armador'
+    expect(isImportContext(withReason)).toBe(false)
+    expect(isAudited({ justification: withReason } as never)).toBe(true)
   })
 })

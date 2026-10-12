@@ -93,7 +93,9 @@ só a data do prazo (nunca "vencido"), e seu histórico omite exportação, entr
 *Desbloqueio conferido* (mesmo sem exportação pelo Vela); exportado e ainda bloqueado
 vira *Divergente* com status, descrição e colunas em "Não"; bloqueado e nunca exportado
 é ignorado. O Vela guarda status, descrição, data e colunas em "Não"; nunca o CPF/nome do
-operador da ZPT. A conciliação não altera o prazo nem o que o Portal mostra.
+operador da ZPT. A conciliação não altera o prazo nem o que o Portal mostra. Linhas e
+abas ocultas e linhas sem CE ou Status ficam de fora da leitura; a confirmação de
+**Conciliar** as lista em "Fora da conciliação" antes de gravar.
 
 ## Catálogo de ações
 

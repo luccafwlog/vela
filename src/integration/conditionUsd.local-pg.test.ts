@@ -74,6 +74,9 @@ function cleanup() {
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
+    DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN ${customers}));
+    DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN ${customers}) OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN ${customers}));
+    DELETE FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id IN ${customers});
     DELETE FROM public.customers WHERE id IN ${customers};
     DELETE FROM public.audit_logs WHERE changed_by = '${actorId}';
     DELETE FROM public.user_profiles WHERE id = '${actorId}';

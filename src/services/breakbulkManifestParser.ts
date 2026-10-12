@@ -44,7 +44,10 @@ const headerMap = {
   gross_weight_kg: ['peso_kg', 'peso', 'peso bruto', 'weight (kg)'],
 } as const
 
-const bbRequiredHeaders = ['BL', 'CE', 'MAQUINAS', 'PACKAGES', 'PACKAGES TOTAL', 'WEIGHT (TON)', 'CBM (M3)', 'SHIPPER', 'CONSIGNEE', 'NOTIFY'] as const
+// O CE Mercante não faz parte do Manifesto BB (ADR 0078, item 1): entra pela
+// planilha de CE Mercante. A coluna continua reconhecida só para avisar que foi
+// ignorada num arquivo antigo.
+const bbRequiredHeaders = ['BL', 'MAQUINAS', 'PACKAGES', 'PACKAGES TOTAL', 'WEIGHT (TON)', 'CBM (M3)', 'SHIPPER', 'CONSIGNEE', 'NOTIFY'] as const
 const legacyRequiredHeaders = ['BL', 'CONSIGNATARIO', 'CNPJ', 'POL', 'POD', 'DESCRICAO', 'VOLUMES', 'PESO_KG', 'CBM'] as const
 
 type DestinationField = keyof typeof headerMap
@@ -53,7 +56,7 @@ type DestinationField = keyof typeof headerMap
 export type BreakbulkLayout = 'summary' | 'legacy' | 'carrier' | 'bl_document'
 const SUMMARY_SPEC: HeaderSpec<DestinationField> = {
   aliases: headerMap,
-  required: ['bl_id', 'ce_mercante', 'machine_qty', 'packages_qty', 'packages_total', 'gross_weight_ton', 'cbm', 'shipper', 'consignee', 'notify_party'],
+  required: ['bl_id', 'machine_qty', 'packages_qty', 'packages_total', 'gross_weight_ton', 'cbm', 'shipper', 'consignee', 'notify_party'],
 }
 const LEGACY_SPEC: HeaderSpec<DestinationField> = {
   aliases: headerMap,
@@ -63,7 +66,6 @@ const LEGACY_SPEC: HeaderSpec<DestinationField> = {
 export type BreakbulkImportRow = {
   rowNumber: number
   bl_id: string
-  ce_mercante: string | null
   shipper: string | null
   consignee: string
   notify_party: string | null
@@ -74,14 +76,22 @@ export type BreakbulkImportRow = {
   bb_packages_qty: number | null
   bb_packages_total: number | null
   bb_weight_ton: number | null
-  /** Cubagem da carga solta. Vai para bls.bb_cbm; bls.total_cbm e do conteiner. */
-  bb_cbm: number
+  /**
+   * Cubagem da carga solta. Vai para bls.bb_cbm; bls.total_cbm e do conteiner.
+   * Ausente vai null: a reimportação mantém a cubagem gravada (a RPC só
+   * preserva NULL; zero apagaria).
+   */
+  bb_cbm: number | null
+  /**
+   * Itens da carga. Número ausente no documento vai null: na reimportação de
+   * um item, a gravação mantém o valor do item gravado (migration 213).
+   */
   items: Array<{
     item_description: string
-    package_qty: number
+    package_qty: number | null
     package_unit: string | null
-    gross_weight_kg: number
-    cbm: number
+    gross_weight_kg: number | null
+    cbm: number | null
     marks: string | null
   }>
 }
@@ -95,6 +105,31 @@ export type ParsedBreakbulkManifest = {
    * mas pede conferência — hoje só a ambiguidade de separador decimal.
    */
   rowErrors: { row: number; message: string; raw: unknown; severity?: 'error' | 'warning' }[]
+  /**
+   * Conferência com os B/Ls já gravados, preenchida pela prévia
+   * (`withBreakbulkReimportCheck` em breakbulkImport.ts), nunca pelo parser.
+   */
+  reimport?: BreakbulkReimportCheck
+}
+
+/** Situação dos B/Ls do arquivo que já existem, mostrada na prévia. */
+export type BreakbulkReimportCheck = {
+  existing: string[]
+  /** B/L que já está em outra Viagem: recusa o lote (ADR 0078, item 14). */
+  otherVoyage: Array<{ blId: string; voyageLabel: string }>
+  /**
+   * CNPJ de outro Cliente, ou de consignatário não cadastrado
+   * (`fileCustomerMissing`): Troca de Consignatário só com aceite.
+   */
+  customerChanges: Array<{ blId: string; currentCustomer: string; fileCustomer: string; fileCustomerMissing?: boolean }>
+  /**
+   * Rota diferente em B/L faturado: pede a confirmação de faturamento. A rota
+   * gravada e a que o arquivo deixa ("POL → POD") identificam a transição
+   * confirmada, não só o campo.
+   */
+  billedRouteChanges: Array<{ blId: string; fields: string[]; currentRoute: string; fileRoute: string }>
+  /** B/L em COD: o POD do arquivo não será aplicado. */
+  codPodKept: string[]
 }
 
 export function hasBlockingRowErrors(rowErrors: ParsedBreakbulkManifest['rowErrors']) {
@@ -121,10 +156,10 @@ export async function parseBreakbulkManifestBuffer(
   buffer: ArrayBuffer,
   options: ParseBreakbulkOptions = {},
 ): Promise<ParsedBreakbulkManifest> {
-  const { headers: rawHeaders, matrix, rows } = await readSheet(buffer)
+  const { headers: rawHeaders, matrix, rowNumbers, rows } = await readSheet(buffer)
 
   if (looksLikeCarrierBreakbulk(matrix as (string | number | null)[][])) {
-    return parseCarrierBreakbulkRows(matrix as (string | number | null)[][], options)
+    return parseCarrierBreakbulkRows(matrix as (string | number | null)[][], options, rowNumbers)
   }
 
   const layout = detectLayout(rawHeaders)
@@ -143,9 +178,12 @@ function parseBreakbulkRows(
 function parseCarrierBreakbulkRows(
   rawRows: (string | number | null)[][],
   options: ParseBreakbulkOptions = {},
+  /** Linha física de cada linha de `rawRows` (o leitor tira as linhas ocultas da matriz). */
+  rowNumbers: readonly number[] = [],
 ): ParsedBreakbulkManifest {
   const rowErrors: ParsedBreakbulkManifest['rowErrors'] = []
   const bls: BreakbulkImportRow[] = []
+  const lineOf = (index: number) => rowNumbers[index] ?? index + 1
 
   const headerRowIndex = rawRows.findIndex((row) => isCarrierHeaderRow(row))
   const headerRow = headerRowIndex >= 0 ? rawRows[headerRowIndex] : []
@@ -175,7 +213,7 @@ function parseCarrierBreakbulkRows(
     // arquivo e a declaração do operador podem sobrepor.
     'en-US',
   )
-  pushFormatConflict(rowErrors, carrierFormat, headerRowIndex + 1)
+  pushFormatConflict(rowErrors, carrierFormat, lineOf(headerRowIndex))
 
   const previewText = rawRows.slice(0, 20).map((row) => row.map((cell) => asString(cell)).join(' ')).join(' ')
   let currentPol = inferPortFromText(previewText, 'pol') ?? ''
@@ -207,6 +245,8 @@ function parseCarrierBreakbulkRows(
     if (!looksLikeCarrierBreakbulkBl(candidateBl)) continue
 
     const groupRows = collectCarrierBlRows(rawRows, index, colBl)
+    // A linha do B/L (a primeira do grupo), como a planilha a numera.
+    const blLine = lineOf(index)
     index += groupRows.length - 1
 
     const descriptionBlock = joinedStringsFromColumn(groupRows, colDescription >= 0 ? colDescription : 3)
@@ -223,14 +263,17 @@ function parseCarrierBreakbulkRows(
     const isWeightError = Boolean(weightIssue && (weightIssue.severity ?? 'error') === 'error')
     const isCbmError = Boolean(cbmIssue && (cbmIssue.severity ?? 'error') === 'error')
     const grossWeightKg = isWeightError ? 0 : readWeightKg ?? 0
-    const cbm = isCbmError ? 0 : readCbm ?? 0
+    // Cubagem ausente ou ilegível vai null, nunca zero: zero apagaria a
+    // cubagem gravada na reimportação (a gravação só preserva NULL). O aviso
+    // de cubagem ausente continua no `cbmIssue`.
+    const cbm = isCbmError ? null : readCbm
 
     // Os layouts resumido e legado rejeitam a linha sem peso; o carrier aceitava
     // em silêncio e o B/L entrava sem peso nenhum, indistinguível de uma carga
     // que realmente não tem peso declarado. O peso alimenta a taxa por tonelada,
     // então a ausência tem de aparecer como issue, não como zero.
-    if (weightIssue) rowErrors.push({ row: index + 1, ...weightIssue, raw: row })
-    if (cbmIssue) rowErrors.push({ row: index + 1, ...cbmIssue, raw: row })
+    if (weightIssue) rowErrors.push({ row: blLine, ...weightIssue, raw: row })
+    if (cbmIssue) rowErrors.push({ row: blLine, ...cbmIssue, raw: row })
     const packageInfo = parseCarrierPackageInfo(descriptionBlock, firstValueFromColumn(groupRows, colQty))
     const itemDescription = normalizeCarrierBreakbulkDescription(descriptionBlock)
     const splitParties = parseCarrierSplitPartyRows(groupRows)
@@ -255,16 +298,15 @@ function parseCarrierBreakbulkRows(
 
     if (!consignee) {
       rowErrors.push({
-        row: index + 1,
+        row: blLine,
         message: `Consignatario nao identificado para o BL ${candidateBl}.`,
         raw: row,
       })
     }
 
     bls.push({
-      rowNumber: index + 1,
+      rowNumber: blLine,
       bl_id: candidateBl,
-      ce_mercante: null,
       shipper: shipper || null,
       consignee: consignee || 'CONSIGNATARIO NAO IDENTIFICADO',
       notify_party: notifyParty || null,
@@ -306,12 +348,13 @@ function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {})
     options.numberFormat,
   )
   pushFormatConflict(rowErrors, format, rows[0]?.rowNumber ?? 1)
+  const ignoredCeRows: number[] = []
 
   mappedRows.forEach(({ row, mapped }) => {
     const rowNumber = row.rowNumber
 
     const bl_id = normalizeKey(mapped.bl_id)
-    const ce_mercante = asNullableDigits(mapped.ce_mercante)
+    if (asNullableDigits(mapped.ce_mercante)) ignoredCeRows.push(rowNumber)
     const numbers = readNumericColumns(mapped, SUMMARY_NUMERIC_FIELDS, format)
     if (numbers.problems.length) {
       rowErrors.push({ row: rowNumber, message: numbers.problems.join(' '), raw: row })
@@ -345,7 +388,6 @@ function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {})
     parsedRows.push({
       rowNumber,
       bl_id,
-      ce_mercante,
       shipper,
       consignee,
       notify_party: notifyParty,
@@ -360,6 +402,8 @@ function parseSummaryRows(rows: SheetRow[], options: ParseBreakbulkOptions = {})
       items: [],
     })
   })
+
+  if (ignoredCeRows.length) rowErrors.push(ignoredCeWarning(ignoredCeRows))
 
   return {
     layout: 'summary',
@@ -452,7 +496,6 @@ function parseLegacyRows(rows: SheetRow[], options: ParseBreakbulkOptions = {}):
       byBl.set(row.bl_id, {
         rowNumber: row.rowNumber,
         bl_id: row.bl_id,
-        ce_mercante: null,
         shipper: row.shipper,
         consignee: row.consignee,
         notify_party: null,
@@ -492,7 +535,7 @@ function parseLegacyRows(rows: SheetRow[], options: ParseBreakbulkOptions = {}):
       continue
     }
 
-    current.bb_cbm += row.cbm
+    current.bb_cbm = (current.bb_cbm ?? 0) + row.cbm
     current.bb_packages_total = Number(current.bb_packages_total ?? 0) + row.package_qty
     current.bb_packages_qty = Number(current.bb_packages_qty ?? 0) + row.package_qty
     current.bb_weight_ton = Number(current.bb_weight_ton ?? 0) + row.gross_weight_kg / 1000
@@ -839,6 +882,22 @@ function asNullableString(value: unknown) {
   return normalized ? normalized : null
 }
 
+/**
+ * ADR 0078, item 1: o Manifesto BB não grava CE. Um arquivo antigo com a
+ * coluna preenchida importa normalmente; o aviso diz que o CE foi ignorado e
+ * por onde ele entra.
+ */
+function ignoredCeWarning(rows: number[]): ParsedBreakbulkManifest['rowErrors'][number] {
+  const shown = rows.slice(0, 10).join(', ')
+  const more = rows.length > 10 ? ` e mais ${rows.length - 10}` : ''
+  return {
+    row: rows[0],
+    message: `Coluna CE ignorada nas linhas ${shown}${more}: o Manifesto BB não grava CE Mercante; o CE entra pela planilha de CE Mercante ou pela ficha do B/L.`,
+    raw: { ignored_ce_rows: rows },
+    severity: 'warning',
+  }
+}
+
 function asNullableDigits(value: unknown) {
   const digits = onlyDigits(asString(value))
   return digits || null
@@ -978,7 +1037,9 @@ function formatLabel(format: ImportNumberFormat) {
 type NumericCell = { ok: true; value: number } | { ok: false; reason: 'empty' | 'syntax' }
 
 function readNumericCell(value: unknown, format: BreakbulkNumberFormat): NumericCell {
-  const parsed = parseImportNumber(normalizeNumericText(value), format)
+  // Célula numérica tipada (leitor comum) já é o número exato: convertê-la em
+  // texto e reler no formato da planilha transformaria 135.263 t em 135263 t.
+  const parsed = parseImportNumber(typeof value === 'number' ? value : normalizeNumericText(value), format)
   if (parsed.kind === 'value') {
     const numeric = Number(parsed.decimal)
     return Number.isFinite(numeric) ? { ok: true, value: numeric } : { ok: false, reason: 'syntax' }
@@ -1103,8 +1164,7 @@ function describeNumericProblem(field: string, raw: unknown, reason: 'empty' | '
 }
 
 function parseNumber(value: unknown, format: ImportNumberFormat = 'unknown') {
-  const text = normalizeNumericText(value)
-  const parsed = parseImportNumber(text, format)
+  const parsed = parseImportNumber(typeof value === 'number' ? value : normalizeNumericText(value), format)
   return parsed.kind === 'value' ? Number(parsed.decimal) : null
 }
 

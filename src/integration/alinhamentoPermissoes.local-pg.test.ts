@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Bloco 3 do plano docs/archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md:
 // execução real no Postgres descartável (scripts/setup-local-pg.sh), não só o
@@ -31,7 +32,7 @@ function migration077Applied() {
   }
 }
 
-const describeLocal = migration077Applied() ? describe : describe.skip
+const describeLocal = describeWithProbe(migration077Applied, 'migration077Applied')
 
 const CARRIER_ID = 7701
 const VESSEL_ID = 7702
@@ -108,7 +109,7 @@ function migration078Applied() {
   }
 }
 
-const describe078 = migration078Applied() ? describe : describe.skip
+const describe078 = describeWithProbe(migration078Applied, 'migration078Applied')
 
 describe078('078 — PIX sem conciliação na fila do Administrativo', () => {
   const ENTITY = 'pix-078-local-pg'
@@ -148,7 +149,7 @@ function migration079Applied() {
   }
 }
 
-const describe079 = migration079Applied() ? describe : describe.skip
+const describe079 = describeWithProbe(migration079Applied, 'migration079Applied')
 
 describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
   const BL_ID = 'BL079LOCALPG'
@@ -158,6 +159,7 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
     psql(`
       SET session_replication_role = replica;
       DELETE FROM public.audit_logs WHERE entity_type IN ('bl_container', 'bl_containers') AND entity_id IN (SELECT id::text FROM public.bl_containers WHERE bl_id = '${BL_ID}');
+      DELETE FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = '${BL_ID}';
       DELETE FROM public.bl_containers WHERE bl_id = '${BL_ID}';
       DELETE FROM public.bls WHERE id = '${BL_ID}';
       DELETE FROM public.voyages WHERE id = 7793;
@@ -203,19 +205,23 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
   })
 
   it('edição com justificativa aparece uma vez só, com o motivo', () => {
-    // update_container_demurrage_dates grava o evento semântico 'bl_container'
-    // com justificativa e dispara o gatilho por coluna na mesma transação.
-    const result = runAs(USER, `SELECT public.update_container_demurrage_dates(
-      (SELECT id FROM public.bl_containers WHERE bl_id = '${BL_ID}'), '2026-10-14', '2026-10-25', NULL, 'Cliente devolveu no dia 25');`)
+    // `set_container_dates` (a porta das datas desde a 179; a função legada
+    // `update_container_demurrage_dates` deixou a API na 211) grava a data com
+    // o motivo, e o gatilho por coluna registra o evento na mesma transação.
+    const result = runAs(USER, `SELECT public.set_container_dates(
+      (SELECT id FROM public.bl_containers WHERE bl_id = '${BL_ID}'), '2026-10-14', '2026-10-25', 'Cliente devolveu no dia 25');`)
     expect(result.stderr).toBe('')
     const rows = psql(`
       BEGIN;
       SELECT set_config('request.jwt.claim.sub', '${USER}', true);
       SELECT field_name || ' ' || coalesce(justification, '-') FROM public.bl_timeline('${BL_ID}', 50, 0)
-      WHERE new_value = '2026-10-25';
+      WHERE new_value = '2026-10-25' OR (field_name = 'container_dates' AND new_value::jsonb->>'return_date' = '2026-10-25');
       COMMIT;
     `)
-    expect(rows.split('\n').filter((line) => line.startsWith('return_date'))).toEqual(['return_date Cliente devolveu no dia 25'])
+    // O motivo aparece uma vez, no evento da edição das datas; a linha por
+    // coluna registra a mudança sem repetir o motivo.
+    expect(rows.split('\n').filter((line) => line.endsWith('Cliente devolveu no dia 25'))).toEqual(['container_dates Cliente devolveu no dia 25'])
+    expect(rows.split('\n')).toContain('return_date|TCLU0790001 -')
   })
 })
 
@@ -228,7 +234,7 @@ function migration133Applied() {
   }
 }
 
-const describe133 = migration133Applied() ? describe : describe.skip
+const describe133 = describeWithProbe(migration133Applied, 'migration133Applied')
 
 describe133('133 — Histórico do B/L sem alterações fictícias da criação', () => {
   const BL_ID = 'BL122LOCALPG'
@@ -287,53 +293,10 @@ describe133('133 — Histórico do B/L sem alterações fictícias da criação'
   })
 })
 
-function migration080Applied() {
-  if (!enabled) return false
-  try {
-    return psql(`SELECT count(*) FROM pg_policies WHERE tablename = 'voyage_export_schedules' AND policyname = 'voyage_export_schedules_delete_active_global';`) === '1'
-  } catch {
-    return false
-  }
-}
-
-const describe080 = migration080Applied() ? describe : describe.skip
-
-describe080('080 — escala de exportação sem vínculo removida por qualquer Departamento', () => {
-  const OPS = '77777777-0000-4000-8000-000000000080'
-  const SCHEDULE = '80808080-0000-4000-8000-000000000080'
-
-  function clean() {
-    psql(`
-      SET session_replication_role = replica;
-      DELETE FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';
-      DELETE FROM public.voyages WHERE id = 7803;
-      DELETE FROM public.vessels WHERE id = 7802;
-      DELETE FROM public.carriers WHERE id = 7801;
-      DELETE FROM public.user_profiles WHERE id = '${OPS}';
-      DELETE FROM auth.users WHERE id = '${OPS}';
-      SET session_replication_role = origin;
-    `)
-  }
-
-  beforeAll(() => {
-    clean()
-    psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${OPS}', 'ops-080@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${OPS}', 'Operações 080', 'operacoes', true);
-      INSERT INTO public.carriers (id, name) VALUES (7801, 'Carrier 080');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (7802, 'Vessel 080', 7801);
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (7803, 7802, 'V080', 'active');
-      INSERT INTO public.voyage_export_schedules (id, voyage_id, pol, tem_exportacao) VALUES ('${SCHEDULE}', 7803, 'BRVIX', true);
-    `)
-  })
-  afterAll(clean)
-
-  it('Operações apaga a exportação sem Granito nem vazios', () => {
-    const result = runAs(OPS, `DELETE FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';`)
-    expect(result.stderr).toBe('')
-    expect(psql(`SELECT count(*) FROM public.voyage_export_schedules WHERE id = '${SCHEDULE}';`)).toBe('0')
-  })
-})
+// O bloco da migration 080 (escala de exportação removida por qualquer
+// Departamento) saiu na Etapa 12 do plano de correção das importações: a
+// política `voyage_export_schedules_delete_active_global` não existe mais no
+// replay, e a sonda pulava o bloco em silêncio.
 
 function migration081Applied() {
   if (!enabled) return false
@@ -344,7 +307,7 @@ function migration081Applied() {
   }
 }
 
-const describe081 = migration081Applied() ? describe : describe.skip
+const describe081 = describeWithProbe(migration081Applied, 'migration081Applied')
 
 describe081('081 — Administrativo responde disputa de Demurrage', () => {
   const ADMIN = '77777777-0000-4000-8000-000000000081'
@@ -416,7 +379,7 @@ function migration082Applied() {
   }
 }
 
-const describe082 = migration082Applied() ? describe : describe.skip
+const describe082 = describeWithProbe(migration082Applied, 'migration082Applied')
 
 describe082('082 — CE Mercante por planilha tudo ou nada', () => {
   const USER = '77777777-0000-4000-8000-000000000820'
@@ -428,6 +391,10 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
     psql(`
       SET session_replication_role = replica;
       DELETE FROM public.bls WHERE id IN ('${BL_A}', '${BL_B}', '${BL_C}');
+      DELETE FROM public.audit_logs WHERE (entity_type = 'bl' AND entity_id IN ('${BL_A}', '${BL_B}', '${BL_C}'))
+        OR (entity_type IN ('voyage', 'voyages') AND entity_id = '7823');
+      DELETE FROM public.import_pending_effects WHERE entity_id IN ('${BL_A}', '${BL_B}', '${BL_C}');
+      DELETE FROM public.voyage_route_ce_master WHERE voyage_id = 7823;
       DELETE FROM public.manifestos_mercante WHERE voyage_id = 7823;
       DELETE FROM public.voyages WHERE id = 7823;
       DELETE FROM public.vessels WHERE id = 7822;
@@ -452,7 +419,7 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
   })
   afterAll(clean)
 
-  const call = (rows: string, numero = 'M082-1') =>
+  const call = (rows: string, numero = 'M082000000001') =>
     runAs(USER, `SELECT public.apply_ce_mercante_rows_atomic('${rows}'::jsonb, '${USER}'::uuid, 'bls', '${numero}', 7823);`)
   const payloadOf = (stdout: string) => JSON.parse(stdout.trim().split('\n').find((line) => line.startsWith('{')) ?? '{}')
   const manifestoOf = (bl: string) => psql(`SELECT coalesce(m.numero, '') FROM public.bls b LEFT JOIN public.manifestos_mercante m ON m.id = b.manifesto_mercante_id WHERE b.id = '${bl}';`)
@@ -478,8 +445,8 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
     expect(result.stderr).toBe('')
     expect(psql(`SELECT count(*) FROM public.bls WHERE id IN ('${BL_A}', '${BL_B}') AND ce_mercante IS NOT NULL;`)).toBe('2')
     // 164: o manifesto informado é criado na rota dos B/Ls e vinculado na mesma transação
-    expect(manifestoOf(BL_A)).toBe('M082-1')
-    expect(psql(`SELECT voyage_id || ' ' || pol || ' ' || pod || ' ' || natureza FROM public.manifestos_mercante WHERE numero = 'M082-1';`))
+    expect(manifestoOf(BL_A)).toBe('M082000000001')
+    expect(psql(`SELECT voyage_id || ' ' || pol || ' ' || pod || ' ' || natureza FROM public.manifestos_mercante WHERE numero = 'M082000000001';`))
       .toBe('7823 CNNSA BRVIX carga')
   })
 
@@ -494,29 +461,37 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
     const payload = payloadOf(call(JSON.stringify([
       { row: 2, bl_id: BL_A, ce: '152608200000001' },
       { row: 3, bl_id: BL_C, ce: '152608200000003' },
-    ]), 'M082-2').stdout)
+    ]), 'M082000000002').stdout)
     expect(payload.ok).toBe(false)
     expect(payload.errors[0].message).toMatch(/mais de uma viagem ou rota/)
     expect(psql(`SELECT coalesce(ce_mercante, '') FROM public.bls WHERE id = '${BL_C}';`)).toBe('')
-    expect(psql(`SELECT count(*) FROM public.manifestos_mercante WHERE numero = 'M082-2';`)).toBe('0')
+    expect(psql(`SELECT count(*) FROM public.manifestos_mercante WHERE numero = 'M082000000002';`)).toBe('0')
   })
 
   it('164 — número já usado em outra rota é recusado; outro número na rota cria um segundo manifesto', () => {
-    const reused = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_C, ce: '152608200000003' }]), 'M082-1').stdout)
+    const reused = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_C, ce: '152608200000003' }]), 'M082000000001').stdout)
     expect(reused.ok).toBe(false)
     expect(reused.errors[0].message).toMatch(/outra viagem, rota ou natureza/)
     expect(psql(`SELECT coalesce(ce_mercante, '') FROM public.bls WHERE id = '${BL_C}';`)).toBe('')
 
-    const second = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_C, ce: '152608200000003' }]), 'M082-3').stdout)
+    const second = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_C, ce: '152608200000003' }]), 'M082000000003').stdout)
     expect(second.ok).toBe(true)
-    expect(manifestoOf(BL_C)).toBe('M082-3')
+    expect(manifestoOf(BL_C)).toBe('M082000000003')
   })
 
-  it('164 — B/L já vinculado a outro manifesto não troca de manifesto pela planilha', () => {
-    const payload = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_A, ce: '152608200000001' }]), 'M082-4').stdout)
+  // 181 (ADR 0078, item 7): outro número na planilha move o B/L só com
+  // confirmação e motivo na prévia.
+  it('181 — planilha com outro número só move o B/L com confirmação e motivo', () => {
+    const payload = payloadOf(call(JSON.stringify([{ row: 2, bl_id: BL_A, ce: '152608200000001' }]), 'M082000000004').stdout)
     expect(payload.ok).toBe(false)
-    expect(payload.errors[0].message).toMatch(/já vinculado a outro Manifesto Mercante: BL082A/)
-    expect(manifestoOf(BL_A)).toBe('M082-1')
-    expect(psql(`SELECT count(*) FROM public.manifestos_mercante WHERE numero = 'M082-4';`)).toBe('0')
+    expect(payload.needs_confirmation).toBe(true)
+    expect(payload.errors[0].message).toMatch(/confirme na prévia, com motivo/)
+    expect(manifestoOf(BL_A)).toBe('M082000000001')
+    expect(psql(`SELECT count(*) FROM public.manifestos_mercante WHERE numero = 'M082000000004';`)).toBe('0')
+
+    const confirmed = payloadOf(runAs(USER, `SELECT public.apply_ce_mercante_rows_atomic('${JSON.stringify([{ row: 2, bl_id: BL_A, ce: '152608200000001' }])}'::jsonb, '${USER}'::uuid, 'bls', 'M082000000004', 7823, true, 'Manifesto reemitido pela Receita (082)');`).stdout)
+    expect(confirmed.ok).toBe(true)
+    expect(manifestoOf(BL_A)).toBe('M082000000004')
+    expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_id = '${BL_A}' AND field_name = 'manifesto_mercante' AND old_value = 'M082000000001' AND new_value = 'M082000000004';`)).toBe('1')
   })
 })

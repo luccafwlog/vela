@@ -4,6 +4,8 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Field, Input, Select, Textarea } from '../ui/Input'
+import { BlCeMercanteField } from './BlCeMercanteField'
+import { BlManifestoField } from './BlManifestoField'
 import type { BlForm } from '../../hooks/useBlEditForm'
 import type { CargoMode } from '../../pages/blDetalheHelpers'
 import { formatNcm, listBlNcms } from '../../lib/ncm'
@@ -124,7 +126,13 @@ export function BlOperacionalTab({
                 <Input type="date" value={(form.bl_emission_date ?? '').slice(0, 10)} onChange={(event) => onFieldChange('bl_emission_date', event.target.value)} />
               </Field>
               {text('issue_place', 'Local de emissão')}
-              {text('ce_mercante', 'CE Mercante')}
+              <BlCeMercanteField blId={bl.id} voyageId={bl.voyage_id} ce={bl.ce_mercante} disabled={Boolean((bl as BLDetail & { cancelled_at?: string | null }).cancelled_at)} />
+              <BlManifestoField
+                blId={bl.id}
+                voyageId={bl.voyage_id}
+                numero={(bl as BLDetail & { manifesto_mercante?: { numero?: string | null } | null }).manifesto_mercante?.numero ?? null}
+                disabled={Boolean((bl as BLDetail & { cancelled_at?: string | null }).cancelled_at)}
+              />
               <Field label="Pagamento">
                 <Select
                   value={form.payment_type ?? ''}

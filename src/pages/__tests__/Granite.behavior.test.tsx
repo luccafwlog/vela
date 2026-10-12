@@ -26,7 +26,13 @@ vi.mock('../../hooks/useBls', () => ({
   useVoyageOptions: () => ({ data: [{ id: 7, voyage_number: '14N', vessel: { name: 'GREEN' } }] }),
 }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
-vi.mock('../../services/graniteImport', () => ({ parseGraniteManifestFile: mocks.parse, importGraniteManifest: mocks.importManifest }))
+vi.mock('../../services/graniteImport', () => ({
+  parseGraniteManifestFile: mocks.parse,
+  importGraniteManifest: mocks.importManifest,
+  graniteRemovalConfirmOptions: (missing: string[]) => ({ message: missing.join(',') }),
+  describeGraniteImport: (result: { inserted: number; updated: number }) => `${result.inserted} novo(s), ${result.updated} atualizado(s)`,
+}))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn().mockResolvedValue(true) }))
 vi.mock('../../services/graniteCharges', () => ({ listGraniteBls: vi.fn(), calculateGraniteBlCharges: vi.fn() }))
 vi.mock('../../services/customerReconciliation', () => ({
   loadCustomerMaps: mocks.loadMaps,
@@ -109,7 +115,7 @@ it('US-079: importar com pendencias chama importGraniteManifest e reporta a pend
   mocks.parse.mockResolvedValue({ vesselVoyage: 'NAVIO/14', bls: [bl(), bl({ bl_number: 'BL-G2' })], rowErrors: [] })
   // Sem match: os dois B/Ls seguem pendentes ao confirmar.
   mocks.findMatch.mockReturnValue(null)
-  mocks.importManifest.mockResolvedValue({ manifestId: 'm1', pendingCount: 2 })
+  mocks.importManifest.mockResolvedValue({ manifestId: 'm1', pendingCount: 2, inserted: 2, updated: 0, removed: [], keptMissing: [] })
   renderGranite()
 
   await user.click(screen.getByRole('button', { name: /Importar Planilha COSCO/ }))

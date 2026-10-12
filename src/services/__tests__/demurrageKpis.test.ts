@@ -28,6 +28,15 @@ describe('parsePixExtract', () => {
     ])
   })
 
+  it('recusa extrato com a mesma coluna duas vezes (ADR 0078, item 22)', async () => {
+    const rows = [
+      ['identificador', 'CPF/CNPJ', 'pago em', 'valor pago', 'valor pago'],
+      ['INV-003', '12.345.678/0001-95', '05/06/2026', '100,00', '1.000,00'],
+    ]
+
+    await expect(parsePixExtract(pixWorkbook(rows))).rejects.toThrow(/"valor pago" aparece mais de uma vez/)
+  })
+
   it('mantem data vazia quando a planilha traz uma data impossivel', async () => {
     const rows = [
       ['identificador', 'CPF/CNPJ', 'pago em', 'valor pago'],
@@ -81,5 +90,20 @@ describe('parsePixExtract', () => {
         lineNumber: 2,
       },
     ])
+  })
+
+  // Revisão da PR 929 (E3-11): com linhas ocultas fora da matriz, o índice
+  // da matriz não é a linha da planilha que a Reconciliação mostra.
+  it('numera a transação pela linha física da planilha, mesmo com linha oculta antes', async () => {
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['identificador', 'CPF/CNPJ', 'pago em', 'valor pago'],
+      ['INV-OCULTA', '12.345.678/0001-95', '05/06/2026', '10,00'],
+      ['INV-002', '12.345.678/0001-95', '05/06/2026', '20,00'],
+    ])
+    sheet['!rows'] = [{}, { hidden: true }, {}]
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, sheet, 'PIX')
+    const parsed = await parsePixExtract(XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer)
+    expect(parsed.map((transaction) => [transaction.txid, transaction.lineNumber])).toEqual([['INV-002', 3]])
   })
 })

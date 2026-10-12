@@ -250,6 +250,7 @@ describe('vehicleImport', () => {
                 error: null,
               }),
             }),
+            neq: () => ({ in: async () => ({ data: [], error: null }) }),
           }),
         }
       }
@@ -388,12 +389,24 @@ describe('vehicleImport', () => {
     expect(mockRpc).not.toHaveBeenCalledWith('cancel_invoice', expect.anything())
   })
 
-  it('casa o veículo com o B/L irmão quando o mestre (…00) foi desdobrado no manifesto', async () => {
+  function regraMocks(options: {
+    containers: Array<Record<string, unknown>>
+    otherVoyage?: Array<Record<string, unknown>>
+    bls?: string[]
+    cancelledBls?: string[]
+  }) {
     const inserted: Array<Record<string, unknown>> = []
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'vehicles') return { select: () => ({ eq: () => ({ in: async () => ({ data: [], error: null }) }) }) }
+      if (table === 'vehicles') {
+        return {
+          select: () => ({
+            eq: () => ({ in: async () => ({ data: [], error: null }) }),
+            neq: () => ({ in: async () => ({ data: options.otherVoyage ?? [], error: null }) }),
+          }),
+        }
+      }
       if (table === 'bls') {
-        const all = ['CSC00', 'CSC01', 'CSC02'].map((id) => ({ id, voyage_id: 7 }))
+        const all = (options.bls ?? ['BL001']).map((id) => ({ id, voyage_id: 7, cancelled_at: options.cancelledBls?.includes(id) ? '2026-10-01T00:00:00Z' : null }))
         return {
           select: () => ({
             eq: () => ({
@@ -404,11 +417,7 @@ describe('vehicleImport', () => {
         }
       }
       if (table === 'bl_containers') {
-        const data = [
-          { id: 1, bl_id: 'CSC00', container_number: 'CAXU0000001', type: '40FP', seal_number: 'S1', bl: { voyage_id: 7 } },
-          { id: 2, bl_id: 'CSC02', container_number: 'CAXU0000002', type: '48FR', seal_number: 'S2', bl: { voyage_id: 7 } },
-        ]
-        return { select: () => ({ in: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data, error: null }) }) }) }) }) }
+        return { select: () => ({ in: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: options.containers, error: null }) }) }) }) }) }
       }
       throw new Error(`Tabela nao mockada: ${table}`)
     })
@@ -416,23 +425,130 @@ describe('vehicleImport', () => {
       inserted.push(...(args.p_rows ?? []))
       return Promise.resolve({ data: null, error: null })
     })
-    const base = { brand: 'BYD', model: 'X', weight_kg: 1400, cbm: 11, bl_id: 'CSC00' }
+    return inserted
+  }
+
+  const vehicle = { brand: 'BYD', model: 'X', weight_kg: 1400, cbm: 11, bl_id: 'BL001' }
+
+  it('não busca o B/L "parecido": o mestre (…00) sem o container recusa a linha', async () => {
+    const inserted = regraMocks({
+      bls: ['CSC00', 'CSC02'],
+      containers: [{ id: 2, bl_id: 'CSC02', container_number: 'CAXU0000002', type: '40FR', seal_number: 'S2', unpacking_location: null, bl: { voyage_id: 7 } }],
+    })
+    const result = await importVehicleRows({
+      voyageId: 7,
+      rows: [{ ...vehicle, bl_id: 'CSC00', rowNumber: 2, chassis: 'V2', container_number: 'CAXU0000002', container_type: '40FR', seal_number: 'S2' }],
+    })
+    expect(result.errors.map((e) => e.message)).toEqual(['BL nao pertence ao container informado.'])
+    expect(inserted).toEqual([])
+  })
+
+  it('aceita tipo ISO equivalente, lacre com zeros à esquerda e flat rack sem lacre', async () => {
+    const inserted = regraMocks({
+      containers: [
+        { id: 1, bl_id: 'BL001', container_number: 'CAXU0000001', type: '40HC', seal_number: '123', unpacking_location: null, bl: { voyage_id: 7 } },
+        { id: 2, bl_id: 'BL001', container_number: 'CAXU0000002', type: '40FR', seal_number: null, unpacking_location: null, bl: { voyage_id: 7 } },
+      ],
+    })
     const result = await importVehicleRows({
       voyageId: 7,
       rows: [
-        { ...base, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40FP', seal_number: 'S1' },
-        { ...base, rowNumber: 3, chassis: 'V2', container_number: 'CAXU0000002', container_type: '48FR', seal_number: 'S2' },
+        { ...vehicle, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40HQ', seal_number: '000123' },
+        { ...vehicle, rowNumber: 3, chassis: 'V2', container_number: 'CAXU0000002', container_type: '42P1', seal_number: '' },
       ],
     })
     expect(result.errors).toEqual([])
-    expect(inserted.map((r) => [r.chassis, r.bl_id, r.container_id])).toEqual([['V1', 'CSC00', 1], ['V2', 'CSC02', 2]])
+    expect(inserted.map((r) => r.container_id)).toEqual([1, 2])
+  })
+
+  it('chassi em outra Viagem ativa recusa a linha; em B/L cancelado não', async () => {
+    regraMocks({
+      containers: [{ id: 1, bl_id: 'BL001', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: null, bl: { voyage_id: 7 } }],
+      otherVoyage: [
+        { chassis: 'V1', voyage_id: 3, bl: { cancelled_at: null }, voyage: { status: 'active', voyage_number: '012N' } },
+        { chassis: 'V2', voyage_id: 4, bl: { cancelled_at: '2026-10-01' }, voyage: { status: 'active', voyage_number: '013N' } },
+      ],
+    })
+    const result = await importVehicleRows({
+      voyageId: 7,
+      rows: [
+        { ...vehicle, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1' },
+        { ...vehicle, rowNumber: 3, chassis: 'V2', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1' },
+      ],
+    })
+    expect(result.errors).toEqual([{ row: 2, message: 'Chassi ja cadastrado na Viagem 012N.' }])
+    expect(result.successCount).toBe(1)
+  })
+
+  it('local de desova: conflito no arquivo recusa as linhas; divergência do gravado pede confirmação', async () => {
+    const inserted = regraMocks({
+      containers: [
+        { id: 1, bl_id: 'BL001', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: 'TVV', bl: { voyage_id: 7 } },
+        { id: 2, bl_id: 'BL001', container_number: 'CAXU0000002', type: '40HC', seal_number: 'S2', unpacking_location: null, bl: { voyage_id: 7 } },
+      ],
+    })
+    const confirmUnpacking = vi.fn().mockResolvedValue(false)
+    const result = await importVehicleRows({
+      voyageId: 7,
+      confirmUnpacking,
+      rows: [
+        { ...vehicle, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1', unpacking_location: 'CFS' },
+        { ...vehicle, rowNumber: 3, chassis: 'V2', container_number: 'CAXU0000002', container_type: '40HC', seal_number: 'S2', unpacking_location: 'TVV' },
+        { ...vehicle, rowNumber: 4, chassis: 'V3', container_number: 'CAXU0000002', container_type: '40HC', seal_number: 'S2', unpacking_location: 'CFS' },
+      ],
+    })
+    expect(result.errors.map((e) => e.row)).toEqual([3, 4])
+    expect(confirmUnpacking).toHaveBeenCalledWith([{ containerNumber: 'CAXU0000001', blId: 'BL001', current: 'TVV', next: 'CFS' }])
+    expect(inserted).toEqual([expect.objectContaining({ chassis: 'V1', unpacking_location: 'CFS', unpacking_confirmed: false })])
+  })
+
+  it('B/L cancelado recusa a linha na prévia, sem mandar o lote ao servidor', async () => {
+    const inserted = regraMocks({
+      bls: ['BL001', 'BL002'],
+      cancelledBls: ['BL002'],
+      containers: [
+        { id: 1, bl_id: 'BL001', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: null, bl: { voyage_id: 7 } },
+        { id: 2, bl_id: 'BL002', container_number: 'CAXU0000002', type: '40HC', seal_number: 'S2', unpacking_location: null, bl: { voyage_id: 7 } },
+      ],
+    })
+    const result = await importVehicleRows({
+      voyageId: 7,
+      rows: [
+        { ...vehicle, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1' },
+        { ...vehicle, bl_id: 'BL002', rowNumber: 3, chassis: 'V2', container_number: 'CAXU0000002', container_type: '40HC', seal_number: 'S2' },
+      ],
+    })
+    expect(result.errors).toEqual([{ row: 3, message: 'B/L cancelado: não recebe veículos.' }])
+    expect(inserted.map((r) => r.bl_id)).toEqual(['BL001'])
+  })
+
+  it('container compartilhado por dois B/Ls com desova diferente no arquivo recusa as linhas dele', async () => {
+    const inserted = regraMocks({
+      bls: ['BL001', 'BL002'],
+      containers: [
+        { id: 1, bl_id: 'BL001', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: null, bl: { voyage_id: 7 } },
+        { id: 3, bl_id: 'BL002', container_number: 'CAXU0000001', type: '40HC', seal_number: 'S1', unpacking_location: null, bl: { voyage_id: 7 } },
+        { id: 2, bl_id: 'BL001', container_number: 'CAXU0000002', type: '40HC', seal_number: 'S2', unpacking_location: null, bl: { voyage_id: 7 } },
+      ],
+    })
+    const result = await importVehicleRows({
+      voyageId: 7,
+      rows: [
+        { ...vehicle, rowNumber: 2, chassis: 'V1', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1', unpacking_location: 'TVV' },
+        { ...vehicle, bl_id: 'BL002', rowNumber: 3, chassis: 'V2', container_number: 'CAXU0000001', container_type: '40HC', seal_number: 'S1', unpacking_location: 'CFS' },
+        { ...vehicle, rowNumber: 4, chassis: 'V3', container_number: 'CAXU0000002', container_type: '40HC', seal_number: 'S2', unpacking_location: 'CFS' },
+      ],
+    })
+    expect(result.errors.map((e) => e.row)).toEqual([2, 3])
+    expect(result.errors[0].message).toBe('Local de desova diferente para o container CAXU0000001 no mesmo arquivo.')
+    expect(inserted.map((r) => r.chassis)).toEqual(['V3'])
   })
 
   it('persiste o follow-up quando o BL ja estava faturado', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'vehicles') {
         return {
-          select: () => ({ eq: () => ({ in: async () => ({ data: [], error: null }) }) }),
+          select: () => ({ eq: () => ({ in: async () => ({ data: [], error: null }) }), neq: () => ({ in: async () => ({ data: [], error: null }) }) }),
           insert: async () => ({ error: null }),
         }
       }
@@ -510,6 +626,7 @@ describe('vehicleImport', () => {
                 error: null,
               }),
             }),
+            neq: () => ({ in: async () => ({ data: [], error: null }) }),
           }),
           insert: async () => ({ error: null }),
         }
@@ -670,5 +787,64 @@ describe('vehicleImport — P1-9: validação de chassi e teto de absurdo', () =
     const parsed = await parseVehicleImportBuffer(buffer)
     expect(parsed.rows).toHaveLength(0)
     expect(parsed.rowErrors[0]?.message).toContain('obrigatorios')
+  })
+})
+
+// Revisão da PR 929: a procura da aba de veículos não aborta numa aba anterior
+// que não é a dos dados (regressão em relação ao main).
+describe('vehicleImport — procura da aba de veículos', () => {
+  const HEADER = ['CHASSI', 'MARCA', 'MODELO', 'PESO', 'CUBAGEM', 'CONTAINER', 'TIPO_CONTAINER', 'LACRE', 'BL']
+  const VEHICLE = ['9BWZZZ377VT004251', 'BYD', 'DOLPHIN', '1.650,50', '12,3', 'CAXU1234567', '40FM', 'SEL123', 'BL001']
+
+  async function book(sheets: Array<{ name: string; rows: string[][]; hiddenRows?: number[] }>) {
+    const XLSX = await import('@e965/xlsx')
+    const workbook = XLSX.utils.book_new()
+    for (const { name, rows, hiddenRows = [] } of sheets) {
+      const sheet = XLSX.utils.aoa_to_sheet(rows)
+      if (hiddenRows.length) sheet['!rows'] = rows.map((_, index) => (hiddenRows.includes(index) ? { hidden: true } : {}))
+      XLSX.utils.book_append_sheet(workbook, sheet, name)
+    }
+    return XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+
+  it('aba anterior com duas colunas para um campo (e sem os demais) não aborta: lê a aba dos veículos', async () => {
+    const buffer = await book([
+      { name: 'Resumo', rows: [['Tipo', 'Tipo do container'], ['40FM', '40FM']] },
+      { name: 'Veiculos', rows: [HEADER, VEHICLE] },
+    ])
+    const parsed = await parseVehicleImportBuffer(buffer)
+    expect(parsed.rowErrors).toEqual([])
+    expect(parsed.rows.map((row) => row.chassis)).toEqual(['9BWZZZ377VT004251'])
+  })
+
+  it('aba anterior com os dados só em linhas ocultas é pulada', async () => {
+    const buffer = await book([
+      { name: 'Rascunho', rows: [['Notas'], ['oculta 1'], ['oculta 2']], hiddenRows: [1, 2] },
+      { name: 'Veiculos', rows: [HEADER, VEHICLE] },
+    ])
+    const parsed = await parseVehicleImportBuffer(buffer)
+    expect(parsed.rows.map((row) => row.chassis)).toEqual(['9BWZZZ377VT004251'])
+  })
+
+  it('a aba com todos os campos e uma coluna repetida continua recusada', async () => {
+    const buffer = await book([
+      { name: 'Veiculos', rows: [[...HEADER, 'CHASSIS'], [...VEHICLE, '9BWZZZ377VT004252']] },
+    ])
+    await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow('são o mesmo campo')
+  })
+
+  it('sem aba qualificada: os dados só em linhas ocultas dão a mensagem de dados ocultos', async () => {
+    const buffer = await book([
+      { name: 'Veiculos', rows: [HEADER, VEHICLE], hiddenRows: [1] },
+    ])
+    await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow('Os dados estão em linhas ou abas ocultas')
+  })
+
+  it('sem aba qualificada: aba sem os campos e outra com dados ocultos dizem as duas coisas', async () => {
+    const buffer = await book([
+      { name: 'Resumo', rows: [['Brand', 'QTY'], ['BYD', '2']] },
+      { name: 'Veiculos', rows: [HEADER, VEHICLE], hiddenRows: [1] },
+    ])
+    await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow(/Colunas obrigatorias: .*Há também dados em linhas ou abas ocultas/)
   })
 })

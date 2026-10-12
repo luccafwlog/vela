@@ -3,6 +3,7 @@ import {
   decodeImportBytes,
   detectImportFormat,
   inspectImportFile,
+  inspectImportUpload,
   isBinarySpreadsheetBuffer,
 } from '../importText'
 
@@ -122,5 +123,16 @@ describe('inspectImportFile', () => {
       preview: 'BL;Cidade\n1;Vitória',
       byteLength: bytes.byteLength,
     })
+  })
+
+  // ADR 0078, item 22: o diagnóstico do modal roda antes do parser e não pode
+  // recusar o CSV Windows-1252 que o leitor de planilhas aceita com aviso.
+  it('aceita CSV Windows-1252 e o sinaliza no encoding; false recusa', async () => {
+    // "BL;Cidade\n1;São" em Windows-1252.
+    const bytes = Uint8Array.from([0x42, 0x4c, 0x3b, 0x43, 0x69, 0x64, 0x61, 0x64, 0x65, 0x0a, 0x31, 0x3b, 0x53, 0xe3, 0x6f])
+    const buffer = bytes.buffer as ArrayBuffer
+    expect(inspectImportFile(buffer)).toMatchObject({ format: 'csv', encoding: 'windows-1252', preview: 'BL;Cidade\n1;São' })
+    await expect(inspectImportUpload({ arrayBuffer: async () => buffer })).resolves.toMatchObject({ encoding: 'windows-1252' })
+    expect(() => inspectImportFile(buffer, { allowWindows1252Fallback: false })).toThrow(/sem fallback autorizado/)
   })
 })

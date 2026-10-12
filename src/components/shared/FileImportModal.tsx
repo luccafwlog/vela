@@ -9,6 +9,7 @@ import { ImportIssuesPanel } from './ImportIssuesPanel'
 import { ImportReadProgress } from './ImportReadProgress'
 import { ImportFilePicker, ImportFootnote, ImportNotice } from './ImportParts'
 import { formatFileSize, plural } from './importPresentation'
+import { userFacingErrorMessage } from '../../lib/errors'
 
 function yieldToBrowser() {
   return new Promise<void>((resolve) => setTimeout(resolve, 0))
@@ -41,6 +42,12 @@ type Props<T, TResult = void> = {
   reparseKey?: string | number
   inspectFile?: (file: File) => Promise<ImportFileInspection>
   importer?: (preview: T, file: File, allowOverride?: boolean) => Promise<TResult>
+  /**
+   * Pergunta antes de gravar cada arquivo (ex.: planilha com linhas ocultas que
+   * a gravação vai tirar). `false` interrompe sem gravar nada e mantém a prévia
+   * aberta, sem mensagem de falha: foi a pessoa que voltou.
+   */
+  confirmBeforeImport?: (preview: T, file: File) => Promise<boolean>
   batchImporter?: (entries: FilePreviewEntry<T>[], allowOverride?: boolean) => Promise<void>
   canImport: (preview: T, allowOverride?: boolean) => boolean
   getIssues?: (preview: T) => readonly ImportIssue[]
@@ -68,6 +75,7 @@ export function FileImportModal<T, TResult = void>({
   reparseKey,
   inspectFile,
   importer,
+  confirmBeforeImport,
   batchImporter,
   canImport,
   renderPreview,
@@ -185,6 +193,11 @@ export function FileImportModal<T, TResult = void>({
   async function handleImport() {
     const importableEntries = entries.filter((entry) => canImport(entry.preview, allowOverride))
     if (!importableEntries.length) return
+    if (confirmBeforeImport) {
+      for (const entry of importableEntries) {
+        if (!(await confirmBeforeImport(entry.preview, entry.file))) return
+      }
+    }
     const controller = new AbortController()
     importControllerRef.current = controller
     setImporting(true)
@@ -207,7 +220,7 @@ export function FileImportModal<T, TResult = void>({
     } catch (err) {
       // A falha fica na tela, junto da prévia que a causou; o arquivo
       // continua escolhido para o operador ajustar e tentar de novo.
-      setImportError(err instanceof Error ? err.message : 'Falha ao importar.')
+      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar.'))
     } finally {
       setImporting(false)
       if (importControllerRef.current === controller) importControllerRef.current = null

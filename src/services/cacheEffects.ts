@@ -25,7 +25,8 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   ['containers'], ['container-type-options'], queryKeys.bls.portOptions(),
   queryKeys.vehicles.all(), ['vehicle-stats'], ['voyage-vehicle-stats'],
   queryKeys.voyages.all(), queryKeys.voyages.detail(), ['voyage-billing-status'],
-  ['baplie-bls-exist'], ['baplie-reconciliation'], ['bl-timeline'], ['voyage-timeline'],
+  // O contexto do Baplie lista os containers dos B/Ls da Viagem (ADR 0079, decisão 6).
+  ['baplie-bls-exist'], ['baplie-reconciliation'], ['baplie-voyage-context'], ['bl-timeline'], ['voyage-timeline'],
   ['agency-report'], ['review-queue'], ['op-count'], ['report-operational'],
   ['customer-detail'], ['customer-ficha'], ['customers-summary'],
   ['customer-communications'], queryKeys.dashboard(),
@@ -92,7 +93,7 @@ export async function afterViagemAlterada(queryClient: QueryInvalidator, options
 }
 
 export async function afterEscalaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
-  await invalidate(queryClient, [...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], queryKeys.voyages.detail(Number(options.voyageId)), ['baplie-reconciliation'], ['bl-cockpit'], ['agency-report'], ...LINEUP_KEYS])
+  await invalidate(queryClient, [...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], queryKeys.voyages.detail(Number(options.voyageId)), ['baplie-reconciliation'], queryKeys.baplie.voyageContext(Number(options.voyageId)), ['bl-cockpit'], ['agency-report'], ...LINEUP_KEYS])
 }
 
 export async function afterRotaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {

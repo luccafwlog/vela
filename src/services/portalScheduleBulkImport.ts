@@ -1,4 +1,4 @@
-import { isValidCalendarDate } from './importValidation'
+import { importDateOrNull } from '../lib/importDate'
 import { PORTAL_SCHEDULE_LANES, portalLaneCode, type PortalScheduleLaneKind } from './portalScheduleLanes'
 import type { ScheduleLaneInput } from './voyageFromSchedule'
 
@@ -27,26 +27,36 @@ export function scheduleTemplateColumns(): string[] {
   return ['VESSEL NAME', 'VOY', 'IMO', ...PORTAL_SCHEDULE_LANES.map((lane) => laneColumn(lane.label, lane.kind))]
 }
 
+// Data civil única dos imports (src/lib/importDate.ts). "X" marca escala sem data.
 export function parseCellDate(raw: unknown): string | null {
-  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
-    const iso = raw.toISOString().slice(0, 10)
-    return isValidCalendarDate(iso) ? iso : null
-  }
   const value = String(raw ?? '').trim()
   if (!value || value.toUpperCase() === 'X') return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value) && isValidCalendarDate(value)) return value
-  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (match) {
-    const iso = `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
-    if (isValidCalendarDate(iso)) return iso
-  }
-  return null
+  return importDateOrNull(value)
 }
 
 function isBlankCell(raw: unknown): boolean {
   if (raw == null) return true
   const value = String(raw).trim()
   return value === '' || value.toUpperCase() === 'X'
+}
+
+/**
+ * Duas colunas para o mesmo campo bloqueiam (ADR 0078, item 22). O leitor
+ * comum dá sufixo à repetição (`VOY`, `VOY_1`) e este parser lê por nome: sem
+ * esta checagem, a segunda coluna seria ignorada em silêncio.
+ */
+export function assertNoRepeatedScheduleColumns(headers: readonly string[]) {
+  const known = new Set([...scheduleTemplateColumns(), ...PORTAL_SCHEDULE_LANES.map((lane) => lane.label)]
+    .map((column) => stripAccents(column).trim().toUpperCase()))
+  const counts = new Map<string, number>()
+  for (const header of headers) {
+    const base = stripAccents(String(header ?? '')).trim().toUpperCase().replace(/_\d+$/, '')
+    if (known.has(base)) counts.set(base, (counts.get(base) ?? 0) + 1)
+  }
+  const repeated = [...counts].filter(([, count]) => count > 1).map(([column]) => `"${column}"`)
+  if (repeated.length) {
+    throw new Error(`A coluna ${repeated.join(', ')} aparece mais de uma vez no cabeçalho. Deixe só uma e importe de novo.`)
+  }
 }
 
 export function parseScheduleRows(rows: Array<Record<string, unknown>>): BulkScheduleRow[] {

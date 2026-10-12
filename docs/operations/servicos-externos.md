@@ -297,7 +297,13 @@ posterior em 07/10: `RECALC_CRON_SECRET` provisionado em par, validado via
 HTTP 200 e job agendado às 17h UTC de segunda a sexta. `IMPORT_EFFECTS_CRON_SECRET`
 fica sem provisionar de propósito: o `import-effects-runner` está pausado
 (`IMPORT_EFFECTS_RUNNER_ENABLED` desligado) e o segredo será criado em par
-quando o runner for ativado (decisão do dono, 2026-10-08). A migration `107` deixa
+quando o runner for ativado (decisão do dono, 2026-10-08). **Condição para
+ligar (ADR 0078, item 18):** o runner fica desligado até a Etapa 13 do
+[plano de correção das importações](../plans/2026-10-09-correcao-importacoes-ce-mercante.md),
+depois da correção das tarefas da fila (Etapas 4 e 7 em produção), do ensaio
+em Preview e da aprovação do acumulado pela simulação; a ligação em produção é
+ato do dono. O diagnóstico da fila em leitura está em
+`supabase/scripts/diagnostico_importacoes_ce_somente_leitura.sql`. A migration `107` deixa
 `portal-email-events-runner` e `import-effects-runner` agendados; para o
 segundo, o dispatcher emite `WARNING` e não chama a Edge Function enquanto o
 segredo do Vault estiver ausente. O job `recalc-demurrage-ptax` foi agendado manualmente em 07/10 (jobid 26). Um `succeeded` em `cron.job_run_details` só comprova que o
@@ -330,6 +336,8 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
+| `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação e tira do atraso o de B/L ou Viagem Cancelados (SQL puro; migration `200`) | — |
+| `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
 
@@ -339,6 +347,78 @@ e a rodada afetada só voltava no ciclo seguinte. Correção e verificação des
 abaixo e em [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disparos).
 
 `billing-release-expiry-review` é SQL puro, sem Vault nem Edge Function; o retorno (`customers`, `bls` reavaliados) fica em `cron.job_run_details`. Parado por mais de 7 dias, rode a função à mão com janela maior, por exemplo `SELECT public.reevaluate_expired_billing_releases(interval '30 days');`.
+
+`import-effects-queue-health` é SQL puro (migration `178`) e não processa efeitos. Até a migration `190` ele não reconciliava de fato: o `pg_cron` roda sem JWT e a reconciliação de Alertas recusava ("Sem permissão."), então o Alerta nunca abria nem fechava. Desde a `190`, a função assume o papel de serviço só durante a própria execução, abre e fecha o Alerta crítico `import_effects_queue_stalled` e mede a idade pelo vencimento da tentativa (`next_attempt_at`), não pela criação: efeito em backoff legítimo não conta. Com o `import-effects-runner` pausado, o Alerta fica aberto até o runner ser ligado sempre que houver efeito vencido há mais de 60 minutos, e é o sinal esperado. Antes de ligar o runner, rode a simulação do acumulado (`simulate_import_effects`, server-only) e aprove ou descarte com `apply_import_effects_review` (Etapa 13 do plano de correção das importações).
+
+#### Roteiro para ligar o `import-effects-runner` (ADR 0078, item 18)
+
+Ato do dono, depois que as migrations `174` a `217` estiverem em produção, e
+antes de o sistema receber dados reais (ADR 0079, decisão 3). Nada
+aqui é feito pelo agente; registre data, quem executou e o resultado de cada
+passo nesta seção.
+
+**Pré-requisito do deploy das migrations:** rodar antes, em leitura, o
+diagnóstico da Etapa 0
+(`supabase/scripts/diagnostico_importacoes_ce_somente_leitura.sql`, numa
+transação `READ ONLY`). A `177` aborta o deploy se houver CE repetido entre
+B/Ls não cancelados, somando Granito, pela chave normalizada (`ce_mercante_key`:
+letras e dígitos, maiúsculas, sem zeros à esquerda), e a `181` reescreve o Nº de
+Manifesto Mercante na forma canônica de 13 caracteres e aborta listando os
+números que colidem depois da normalização. Se as consultas 2a–2c ou 4 do
+diagnóstico devolverem linhas, resolva antes do deploy.
+
+As funções da simulação e da revisão exigem o papel de serviço
+(`auth.role() = 'service_role'`). No SQL Editor do Supabase, defina o papel só
+dentro da transação:
+
+```sql
+-- Simulação: só relato; termina em ROLLBACK.
+BEGIN;
+SET LOCAL request.jwt.claim.role = 'service_role';
+SELECT public.simulate_import_effects(NULL, 200);
+ROLLBACK;
+
+-- Revisão: grava o descarte e processa o aprovado; termina em COMMIT.
+BEGIN;
+SET LOCAL request.jwt.claim.role = 'service_role';
+SELECT public.apply_import_effects_review(ARRAY[<aprovar>]::bigint[],
+  ARRAY[<descartar>]::bigint[], '<motivo>', '<uuid de quem revisou>');
+COMMIT;
+```
+
+1. **Ensaio em Preview (antes de produção).** Na branch de Preview do Supabase,
+   com as migrations aplicadas: crie `IMPORT_EFFECTS_CRON_SECRET` em par
+   (Edge Function Secret e Vault, [segredos-cron](segredos-cron.md)), ligue
+   `IMPORT_EFFECTS_RUNNER_ENABLED=true` e confira três ciclos seguidos
+   (`3-59/5 * * * *`) em `cron.job_run_details` e no retorno HTTP da função:
+   `import_effects_queue_health()` com `running` voltando a zero entre os
+   ciclos (efeito tomado fica `running` até o fim do `lease_until`; não existe
+   status `leased`) e o Alerta
+   `import_effects_queue_stalled` fechado. Depois desligue
+   (`IMPORT_EFFECTS_RUNNER_ENABLED` ausente ou diferente de `true`) e confira que
+   a função responde `503 paused` e a fila para de andar sem perder efeitos.
+2. **Simulação do acumulado em produção (sem gravar).** Com o runner ainda
+   desligado, rode a simulação como mostrado acima (`BEGIN`, `SET LOCAL`,
+   `SELECT public.simulate_import_effects(NULL, 200);`, `ROLLBACK`). Para cada
+   efeito, a resposta diz o que ele faria (`would_succeed` ou `would_fail`, com
+   faturas emitidas e canceladas e recálculos) e desfaz o que ele fez. A
+   simulação executa cada efeito de verdade numa subtransação desfeita no fim:
+   enquanto um efeito roda, ele trava os B/Ls e as faturas que tocaria, como o
+   processamento real, e 200 efeitos podem levar minutos. Rode fora do
+   expediente. Repita com `p_entity_prefix` por B/L quando quiser olhar um caso.
+3. **Aprovar ou descartar o acumulado.** Decida, por efeito, o que vale
+   processar e o que é obsoleto e rode `apply_import_effects_review` com o
+   papel de serviço, como mostrado acima, terminando em `COMMIT`.
+   O descarte vira `superseded` com o motivo no Histórico; o aprovado é
+   processado na hora.
+4. **Ligar em produção.** Crie `IMPORT_EFFECTS_CRON_SECRET` em par (Vault e
+   Edge Function Secret) e defina `IMPORT_EFFECTS_RUNNER_ENABLED=true` na Edge
+   Function. A partir daí o processamento fica sempre ligado.
+5. **Conferir.** Na primeira hora: `cron.job_run_details` com chamadas HTTP 200,
+   `import_effects_queue_health()` sem pendente antigo e o Alerta
+   `import_effects_queue_stalled` fechado. Para desligar numa emergência, retire
+   `IMPORT_EFFECTS_RUNNER_ENABLED`; a fila acumula e o Alerta volta a abrir
+   depois de 60 minutos.
 
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 

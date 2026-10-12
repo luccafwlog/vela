@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { syntheticCnpj, describeWithProbe } from './localTestData'
 
 // Migration 129 (ADR 0077, decisão de 2026-10-02): container IMO e OOG ao mesmo
 // tempo paga o THD normal com 150% de majoração (× 2,5), sem revisão manual.
@@ -34,13 +34,27 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = migrationApplied() ? describe : describe.skip
+const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied')
 
 function asAdmin(sql: string) {
   return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
     BEGIN;
     SET LOCAL ROLE authenticated;
     SET LOCAL request.jwt.claim.role = 'authenticated';
+    SET LOCAL request.jwt.claim.sub = '${actorId}';
+    ${sql};
+    COMMIT;
+  `], { encoding: 'utf8' })
+}
+
+// `apply_ce_mercante_update` saiu da API (migration 195): o CE da fixture é
+// gravado como manutenção server-side, com o operador como ator; o gatilho do
+// CE emite como antes.
+function asService(sql: string) {
+  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+    BEGIN;
+    SET LOCAL ROLE service_role;
+    SET LOCAL request.jwt.claim.role = 'service_role';
     SET LOCAL request.jwt.claim.sub = '${actorId}';
     ${sql};
     COMMIT;
@@ -154,7 +168,7 @@ describeLocal('129 — THD de container IMO e OOG ao mesmo tempo', () => {
   })
 
   it('B/L faturado cujo container vira IMO e OOG é reemitido pelo valor novo', () => {
-    const ce = asAdmin(`DO $$ BEGIN PERFORM public.apply_ce_mercante_update('${bl.billed}', '129000000000001', '${actorId}'::uuid); END $$`)
+    const ce = asService(`DO $$ BEGIN PERFORM public.apply_ce_mercante_update('${bl.billed}', '129000000000001', '${actorId}'::uuid); END $$`)
     expect(ce.status, ce.stderr).toBe(0)
     const invoice = Number(psql(`SELECT id FROM public.invoices WHERE bl_id = '${bl.billed}' AND status = 'issued'`))
     expect(psql(`SELECT total_brl FROM public.invoices WHERE id = ${invoice}`)).toBe('1420.00')

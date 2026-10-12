@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Pencil } from 'lucide-react'
+import { ListChecks, Pencil } from 'lucide-react'
+import { ManifestoBlsModal } from './ManifestoBlsModal'
 import { useVoyageTransshipments } from '../../hooks/useTransshipments'
 import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante'
 import { Button } from '../ui/Button'
@@ -32,6 +34,7 @@ export function VoyageManifestosTab({
   onEditPol: (payload: EditingPolPayload) => void
 }) {
   const { data: transshipmentData } = useVoyageTransshipments(voyage.id)
+  const [blsRoute, setBlsRoute] = useState<{ pol: string; pod: string; label: string } | null>(null)
   const { data: dbManifestos } = useManifestosMercanteByVoyage(voyage.id)
   const manifestRows = collectVoyageManifestBatchRows({
     voyageId: voyage.id,
@@ -176,6 +179,18 @@ export function VoyageManifestosTab({
                         })()}
                       </td>
                       <td className="px-3 py-2 text-center">
+                        {!row.isVazios && row.blCount > 0 ? (
+                          <Button
+                            variant="secondary"
+                            className="app-voyage-icon-btn"
+                            aria-label={`Ver B/Ls de ${row.routeLabel}`}
+                            title="Ver B/Ls: mover ou desvincular de Manifesto Mercante"
+                            onClick={() => setBlsRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel })}
+                            disabled={!canEdit}
+                          >
+                            <ListChecks size={15} />
+                          </Button>
+                        ) : null}
                         <Button
                           variant="secondary"
                           className="app-voyage-icon-btn"
@@ -201,6 +216,10 @@ export function VoyageManifestosTab({
             </table>
           </div>
         </div>
+
+      {blsRoute ? (
+        <ManifestoBlsModal open voyageId={voyage.id} route={blsRoute} onClose={() => setBlsRoute(null)} />
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3 px-0.5 text-xs leading-5 text-[var(--app-muted-soft)]">
         <span><b className="text-[var(--app-muted)]">CE Mercante</b> é a cobertura por B/L; o <b className="text-[var(--app-muted)]">Nº de manifesto Mercante</b> agrupa a rota. São coisas diferentes.</span>

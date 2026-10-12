@@ -66,6 +66,7 @@ function cleanup(): void {
     DELETE FROM public.invoices WHERE id = ANY(ARRAY[${invoiceIds.join(',')}]::bigint[]);
     DELETE FROM public.bl_receivables WHERE id IN (${badReceivableId}, ${validReceivableId});
     DELETE FROM public.charge_calculations WHERE id = ${chargeCalculationId};
+    DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId} OR charge_item_id = ${chargeItemId};
     DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
     DELETE FROM public.bls WHERE id = ANY(ARRAY['${blIds.join("','")}']::text[]);

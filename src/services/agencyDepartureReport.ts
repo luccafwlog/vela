@@ -794,7 +794,7 @@ async function listTransshipmentBlIds(voyageId: number, port: string): Promise<s
   return [...new Set((blTransshipmentsRes.data ?? []).map((row) => row.bl_id))]
 }
 
-const BL_CONTAINERS_SELECT = 'id, container_number, type, is_imo, is_oog, bl:bls!inner(voyage_id, pod, transshipments:bl_transshipments(disposition))'
+const BL_CONTAINERS_SELECT = 'id, container_number, type, is_imo, is_oog, profile_source, bl:bls!inner(voyage_id, pod, transshipments:bl_transshipments(disposition))'
 const BREAKBULK_SELECT = 'cargo_mode, bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'
 const VEHICLES_SELECT = 'brand, model, bl_id, chassis, container_id, container:bl_containers(container_number, type, unpacking_location)'
 
@@ -1092,14 +1092,17 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     type: string | null
     is_imo: boolean | null
     is_oog: boolean | null
+    profile_source?: string | null
     bl: { transshipments: Array<{ disposition: string }> | null } | null
   }
   // Idem: containers do porto da escala e containers em transbordo (bls.pod
   // apontando para o porto omitido) nunca se sobrepõem.
+  // ponytail: `profile_source` (migration 182) falta nos tipos gerados
+  // (database.ts é protegido); o cast sai quando os tipos forem regenerados.
   const blContainers = [
     ...(blContainersRes.data ?? []),
     ...(transshipmentBlContainersRes.data ?? []),
-  ] as AgencyReportBlContainer[]
+  ] as unknown as AgencyReportBlContainer[]
   const baplieByContainerNumber = new Map(baplieContainers.map((container) => [normalizeContainerNumber(container.container_number), container]))
   const blContainerNumbers = new Set(blContainers.map((container) => normalizeContainerNumber(container.container_number)))
   // Um container compartilhado (ADR 0025/blFreightImport.ts) gera uma linha em
@@ -1113,8 +1116,11 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   for (const container of blContainers) {
     const baplie = baplieByContainerNumber.get(normalizeContainerNumber(container.container_number))
     const isTransshipment = container.bl?.transshipments?.some((transshipment) => transshipment.disposition === 'transshipment') ?? false
-    const isImo = baplie ? Boolean(baplie.is_imo) : Boolean(container.is_imo)
-    const isOog = baplie ? Boolean(baplie.is_oog) : Boolean(container.is_oog)
+    // Perfil IMO/OOG corrigido à mão (migration 182) vence o Baplie, como na
+    // cobrança: o relatório e as taxas leem a mesma marca (ADR 0078, item 21).
+    const useBaplie = baplie && container.profile_source !== 'manual'
+    const isImo = useBaplie ? Boolean(baplie.is_imo) : Boolean(container.is_imo)
+    const isOog = useBaplie ? Boolean(baplie.is_oog) : Boolean(container.is_oog)
     const category: MatrixCategory = isOog ? 'oog' : isImo ? 'imo' : 'carga_geral'
 
     const key = normalizeContainerNumber(container.container_number)

@@ -19,7 +19,13 @@ export type ActiveAlertType =
   | 'pix_unreconciled'
   | 'billing_calculation_blocked'
   | 'billing_auto_issue_failed'
+  | 'billing_charge_table_missing'
   | 'import_effect_blocked'
+  | 'import_effects_queue_stalled'
+  | 'demurrage_invoice_dates_changed'
+  | 'ce_trocado_com_desbloqueio'
+  | 'bl_vehicles_changed_on_reimport'
+  | 'comunicado_ce_reenvio_pendente'
   | 'demurrage_ptax_recalc_failed'
   | 'calendario_feriados_pendente'
   | 'portal_pendencia_geral'
@@ -63,7 +69,13 @@ export const TYPE_LABELS: Record<string, string> = {
   pix_unreconciled: 'PIX sem conciliação segura',
   billing_calculation_blocked: 'Cálculo bloqueado',
   billing_auto_issue_failed: 'Falha de emissão automática',
+  billing_charge_table_missing: 'Tabela de cobrança faltando',
   import_effect_blocked: 'Efeito de importação bloqueado',
+  import_effects_queue_stalled: 'Fila de efeitos de importação parada',
+  demurrage_invoice_dates_changed: 'Datas mudaram em Invoice de Demurrage emitida',
+  ce_trocado_com_desbloqueio: 'CE trocado depois do Desbloqueio conferido',
+  bl_vehicles_changed_on_reimport: 'Veículos alterados na reimportação do B/L',
+  comunicado_ce_reenvio_pendente: 'Reenviar Comunicado de CE e Taxas',
   demurrage_ptax_recalc_failed: 'Falha na atualização da PTAX Demurrage',
   calendario_feriados_pendente: 'Calendário de feriados pendente',
   portal_pendencia_geral: 'Portal do Cliente — pendência geral',
@@ -106,6 +118,8 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   demurrage_invoice: 'Invoice Demurrage',
   exchange_rate_reference: 'Referência cambial',
   import_effect: 'Efeito de importação',
+  import_effect_queue: 'Fila de efeitos de importação',
+  charge_table_gap: 'Tabela de cobrança',
   pix_transaction: 'Transação PIX',
 }
 

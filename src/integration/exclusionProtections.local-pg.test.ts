@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Migration 086 (ADR 0071; plano 2026-09-24-politica-de-exclusao, Fase 1):
 // nem o Administrativo apaga documento fiscal ou auditoria pela API, e a
@@ -26,7 +27,7 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = migrationApplied() ? describe : describe.skip
+const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied')
 
 const ADMIN_ID = '08600000-0000-4000-8000-0000000000a1'
 const CUSTOMER_ID = 8600001

@@ -204,6 +204,72 @@ describe('normalizeBlDocumentFields', () => {
 })
 
 describe('blDocumentToManifest', () => {
+  // B10 (revisão da PR 929): a gravação só preserva NULL; zero apagaria a
+  // cubagem do B/L já gravado na reimportação.
+  it('B/L sem CBM vai com cubagem nula, não zero', () => {
+    const document = normalizeBlDocumentFields(
+      {
+        blNumber: 'ABC123456789',
+        codeName: null,
+        shipper: 'SHIPPER LTDA',
+        consignee: 'IMPORTADOR LTDA',
+        notifyParty: 'NOTIFY LTDA',
+        vessel: 'NAVIO TESTE V.12',
+        pol: 'TAICANG,CHINA',
+        pod: 'VITORIA,BRAZIL',
+        originals: '3',
+        marks: 'N/M',
+        description: '4 CASES\nMAQUINA DE TESTE',
+        grossWeight: '1000 KGS',
+        measurement: null,
+        placeAndDateOfIssue: null,
+        sayTotal: null,
+        freight: null,
+        remarks: null,
+      },
+      'pdf',
+      'labeled',
+    )
+
+    expect(document.total_cbm).toBeNull()
+    expect(blDocumentToManifest(document).bls[0]?.bb_cbm).toBeNull()
+  })
+
+  // Migration 213: o item também leva null no que o documento não traz; na
+  // reimportação a gravação mantém o valor do item gravado.
+  it('item sem cubagem, peso ou volumes vai com null, não zero', () => {
+    const document = normalizeBlDocumentFields(
+      {
+        blNumber: 'ABC123456789',
+        codeName: null,
+        shipper: 'SHIPPER LTDA',
+        consignee: 'IMPORTADOR LTDA',
+        notifyParty: 'NOTIFY LTDA',
+        vessel: 'NAVIO TESTE V.12',
+        pol: 'TAICANG,CHINA',
+        pod: 'VITORIA,BRAZIL',
+        originals: '3',
+        marks: null,
+        description: 'MAQUINA DE TESTE',
+        grossWeight: null,
+        measurement: null,
+        placeAndDateOfIssue: null,
+        sayTotal: null,
+        freight: null,
+        remarks: null,
+      },
+      'pdf',
+      'labeled',
+    )
+
+    expect(blDocumentToManifest(document).bls[0]?.items[0]).toMatchObject({
+      package_qty: null,
+      gross_weight_kg: null,
+      cbm: null,
+      marks: null,
+    })
+  })
+
   it('entrega o B/L no modelo do manifesto BB, com os avisos no lote', () => {
     const document = normalizeBlDocumentFields(
       {
@@ -234,7 +300,7 @@ describe('blDocumentToManifest', () => {
     expect(manifest.layout).toBe('bl_document')
     expect(manifest.bls).toHaveLength(1)
     expect(manifest.bls[0]?.bl_id).toBe('ABC123456789')
-    expect(manifest.bls[0]?.ce_mercante).toBeNull()
+    expect(manifest.bls[0]).not.toHaveProperty('ce_mercante')
     expect(manifest.bls[0]?.bb_weight_ton).toBe(1)
     expect(manifest.bls[0]?.bb_weight_ton).toBe(1)
     expect(manifest.bls[0]?.bb_cbm).toBe(12.5)

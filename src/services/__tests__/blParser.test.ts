@@ -285,6 +285,20 @@ describe('blParser', () => {
     expect(parsed.dates.ladenOnBoard).toBe('2026-02-19')
   })
 
+  // Revisão da PR 929 (E3-05): pasta do Excel antigo de Mac (sistema 1904) —
+  // o serial é 1462 dias menor, e sem a flag o Laden on Board saía 2022-02-18.
+  it('parseia Laden on Board de pasta no sistema de datas 1904', async () => {
+    const XLSX = await import('@e965/xlsx')
+    const workbook = XLSX.read(coscoBuffer(), { type: 'array' })
+    workbook.Sheets['Page 1']['AB35'] = { t: 'n', v: 46072 - 1462, z: 'dd/mm/yyyy' }
+    workbook.Workbook = { ...(workbook.Workbook ?? {}), WBProps: { ...(workbook.Workbook?.WBProps ?? {}), date1904: true } }
+    const rewritten = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+
+    const parsed = await parseBLBuffer(rewritten)
+
+    expect(parsed.dates.ladenOnBoard).toBe('2026-02-19')
+  })
+
   it('parseia datas com espaço em vez de barra e rótulo embutido na mesma célula (layout real COSCO)', async () => {
     // Um B/L real da COSCO (não o fixture sintético acima) escreve "22 05 2026"
     // (espaço, não barra) em Laden on Board, e embute o rótulo na mesma célula

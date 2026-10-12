@@ -4,6 +4,208 @@
 
 ## 2026-10
 
+- **Revisão final da PR 929 (2026-10-12, implementação local;
+  [registro](archive/audits/2026-10-12-revisao-final-pr-929.md),
+  [ADR 0080](adr/0080-decisoes-da-revisao-final-da-pr-929.md)):** **Demurrage (`211`, `214`):** a
+  Invoice do grupo é cobrada por caixa (caixa já cobrada nunca é cobrada de novo; a do B/L que
+  chega depois sai em Invoice complementar), a reconciliação de datas não cancela Invoice paga ao
+  mesmo tempo, o atraso conta pela data de São Paulo, datas só mudam pela ficha e pela planilha, e
+  duas gravações num container compartilhado não entram em deadlock. **Viagem Cancelada (`211`,
+  `216`):** não recebe Invoice de Demurrage, nenhuma linha sai dela trocando de Viagem ou de B/L, e
+  reativar a Viagem devolve à fila os efeitos que o cancelamento encerrou. **CE e Manifesto
+  (`212`, `215`):** o Manifesto Mercante só muda pelas RPCs; "Informar Nº" recusa trocar ou limpar
+  o número que já tem B/L e manda usar Mover ou Desvincular; a importação de CE não fecha durante
+  a emissão e devolve à emissão o B/L que ficou sem fatura; "Nada a faturar" sai do alerta de
+  tabela faltando; Ver B/Ls pagina. **B/L (`213`):** Troca de Consignatário sem aceite mantém o
+  consignatário gravado (container e carga solta, inclusive CNPJ não cadastrado); cubagem e itens
+  ausentes no arquivo não zeram os gravados; POD corrigido limpa o terminal do POD antigo.
+  **Programação:** porto removido volta pela planilha em vez de recusar o arquivo para sempre; IMO
+  conflitante entre viagens é recusado na prévia; travas das Viagens em ordem (`213`) e do navio
+  novo, que dois arquivos simultâneos não cadastram duas vezes (`217`); dois "Informar Nº"
+  simultâneos na mesma rota não deixam Manifesto sobrando (`217`).
+  **Planilhas:** Vazios de Importação pedem confirmação antes de tirar unidades de linhas ocultas;
+  a procura da aba de Veículos não para em aba alheia; avisos de linhas ocultas corrigidos.
+  **Deploy:** a `181` pula Viagem Cancelada (editada antes do primeiro deploy, com autorização) e
+  o diagnóstico ganhou a consulta 4c. O Histórico do B/L mostra a edição das datas de container
+  de forma legível.
+- **Decisões do dono sobre a revisão da PR 929 (2026-10-11, implementação local;
+  [ADR 0079](adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md)):** **Demurrage (`203`):**
+  Invoice com desconto ou disputa aberta não é reemitida sozinha quando as datas mudam: sai da
+  Régua e o alerta pede refazer à mão; a confirmação do estorno de baixa avisa que as datas
+  mudaram e o que o estorno fará. **Emissão pelo CE (`204`):** sem tabela de cobrança, o B/L fica
+  "Aguardando tabela de cobrança" com um alerta por POD e modalidade que fecha quando as faturas
+  saem; com todas as taxas zeradas, "Nada a faturar", sem alerta. **Part Lot (`205`):** a correção
+  manual de perfil ou SOC/COC feita pelo B/L sem fatura vale para o irmão faturado, que segue a
+  ADR 0077; o aviso de sucesso diz isso. **Baplie:** "outro operador" é medido contra os
+  containers dos B/Ls da Viagem, com o cabeçalho do arquivo como reserva e aviso. **Granito
+  (`206`):** planilha sem B/L em comum com a Viagem vira outro manifesto, sem perguntar pelos
+  demais. O runner de efeitos precisa estar ligado antes de dados reais, e tudo sai na PR 929
+  com ensaio em Preview. **`207`:** mudar o POL do B/L também desvincula o Manifesto Mercante, e
+  Corrigir CE Mercante pela ficha é recusado se outra sessão trocou o CE com o diálogo aberto.
+  **`208`:** o B/L cancelado, sem CE, com outro POD ou de Viagem cancelada sai do alerta de tabela
+  faltando, e o alerta de datas da Invoice de Demurrage fecha quando as datas voltam às
+  faturadas; a importação de CE de Granito aceita o número de B/L repetido em outra Viagem. A
+  planilha de datas confere a gravação contra as datas que a prévia mostrou. **`209`:** Remover
+  CE Mercante, Mover e Desvincular do Manifesto e a Programação por planilha recusam quando
+  outra sessão mudou o dado depois da tela; duas emissões pelo CE ao mesmo tempo no mesmo POD
+  não apagam B/L do alerta de tabela faltando. **`210`:** definir ou remover só a devolução pela
+  ficha do B/L não reverte uma descarga corrigida por outra sessão.
+- **Revisão da PR 929 (2026-10-11, implementação local; [plano de correção das
+  importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md#revisão-da-pr-929-2026-10-11)):**
+  correções das importações em seis migrations novas, sem reescrever linhas.
+  **Segurança e fila (`190`):** um usuário do Portal deixa de poder chamar as funções internas de
+  rateio de container, grupo de Demurrage e saúde da fila; o Alerta de fila parada abre e fecha
+  pelo job de hora em hora e mede pelo vencimento da tentativa. **Viagem Cancelada (`190`):** a
+  fatura de B/L ou de Granito pode ser cancelada, consolidada e avulsa não nascem nela e os
+  Comunicados automáticos a ignoram. **Datas (`190`, `191`):** a ATA não preenche a descarga; o
+  segundo B/L do container compartilhado aceita a mesma data; descarga posterior à devolução
+  recusa com mensagem de negócio. **Demurrage e container compartilhado (`191`):** irmão com
+  fatura paga não bloqueia o B/L que chega; recebível sem fatura não trava exclusão; B/L
+  cancelado não recebe Invoice; cancelar B/L com caixa em Invoice de Demurrage viva é recusado.
+  **Base de Clientes, Granito, Vazios e carga solta (`192`):** o B/L vinculado pela Base sai da
+  Revisão; Granito mantém e informa o B/L ausente com Invoice; Vazios com POD BRNVT/BRREC não
+  perdem o Manifesto. **Programação e Veículos (`193`):** IMO de 7 dígitos, IMO conflitante e
+  Viagem cancelada viram erro da linha; Viagem oculta é publicada no Portal; Mover registra B/L,
+  container e Viagem no Histórico. **B/L de container e Baplie (`194`):** container com Invoice de
+  Demurrage não sai por reimportação (a recusa diz isso), chassi de B/L cancelado não bloqueia,
+  e-mail pelo CNPJ com letras; **Vale o B/L**
+  de SOC/COC não vira correção manual, e correção manual e **Vale o B/L** valem para o Part Lot.
+  **CE Mercante (`195`):** espera de Cliente ou Revisão aparece como "Aguardando", sem Alerta, e a
+  falha de emissão fecha quando a fatura sai; `apply_ce_mercante_update` sai da API. **Granito
+  (`196` e `198`):** a reimportação refaz os totais de todos os manifestos da Viagem e grava
+  a sugestão de Cliente nova mesmo quando o resto da planilha é igual. **Demurrage
+  (`197`):** o container sem devolução volta a ficar "em atraso" (`overdue`) quando passa do
+  free time, na gravação das datas e por job diário; container de B/L ou Viagem Cancelados sai
+  do atraso (`200`). **Programação (`199`):** dois arquivos simultâneos da mesma Viagem nova,
+  um com IMO e outro sem, não duplicam navio nem Viagem; na prévia, linhas da mesma Viagem
+  nova com e sem IMO são conferidas juntas; dois arquivos com as mesmas Viagens em ordens
+  diferentes não se travam (`201`). **Datas (`201`):** a planilha confere a prévia que viu a
+  descarga vazia e não sobrescreve a descarga gravada depois dela. **`202`:** o navio sem IMO
+  achado pelo nome recebe o IMO da planilha de Programação (outra grafia com o mesmo IMO não
+  duplica), e Mover para outro B/L recusa veículo de Viagem Cancelada. **Aceites:** a troca de Cliente e a confirmação de
+  faturamento da carga solta valem para as transições mostradas e são conferidas de novo na
+  gravação; a troca de CE confirmada que mudou depois da prévia volta para a prévia; a troca de
+  razão social da Base de Clientes vale para o nome de antes mostrado na prévia. **PIX e ZPT:**
+  linhas e abas ocultas ficam de fora com aviso antes de confirmar. **Telas:**
+  Manifesto BB em XLSX não multiplica peso por mil; leitura de planilhas com cabeçalho repetido,
+  sistema de datas 1904 e máscaras escapadas; Embarque de Vazios no seletor comum; Histórico
+  mostra a "Origem" da importação. As decisões que ficaram com o dono estão na entrada acima.
+- **Rastro das importações (2026-10-10, implementação local; Etapa 14 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  o Histórico de cada registro alterado por uma importação diz qual importação foi, a Viagem e o
+  Nº de Manifesto (migration `189`, ADR 0078 item 9).
+- **Testes e CI (2026-10-10; Etapa 12 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  todas as suítes `local-pg` rodam no CI (74 ao fim da etapa; 76 depois de `rastroImportacoes` e
+  `correcoesRevisaoImportacoes`: 75 no passo principal e a bateria financeira no passo próprio;
+  `npm run localpg:check` impede suíte fora da lista);
+  sonda de pré-requisito falha em vez de pular; a bateria financeira tem passo próprio; fixtures
+  sem resíduo global; código sem chamador removido.
+- **Programação por planilha (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  em Chegadas e Saídas, a planilha mostra antes o que cria e o que muda por viagem e grava tudo
+  de uma vez: uma falha não deixa parte gravada e o reenvio não duplica a viagem (migration
+  `188`).
+- **Vazios (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar Vazios de Importação da mesma rota substitui a lista sem duplicar e sem perder a
+  natureza (cama/cover plate); o recadastro pelo Baplie também preserva a natureza e não deixa
+  manifestos vazios; o Embarque de Vazios atualiza por container e mantém as unidades incluídas à
+  mão (migration `187`, ADR 0078 item 25).
+- **Granito (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls pelo número, preservando CE e
+  Cliente, sem duplicar; B/L que o arquivo novo não traz só sai com confirmação e nunca com
+  Invoice (migration `186`, ADR 0078 item 25).
+- **Base de Clientes (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  a prévia mostra os B/Ls que cada CNPJ vincula; o vínculo vale só para B/L pendente de Cliente
+  (o rejeitado na Revisão fica de fora), sai da Revisão e segue para o faturamento; trocar a razão
+  social de um Cliente já cadastrado pede confirmação (migration `185`, ADR 0078 item 24).
+- **Veículos (2026-10-10, implementação local; Etapa 11 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  na página Veículos, **Mover para outro B/L** e **Excluir** para qualquer usuário, com motivo,
+  mesmo com CE; a planilha não procura mais o B/L "parecido", recusa chassi já em outra Viagem,
+  aceita tipos ISO equivalentes e lacre sem zeros à esquerda (opcional em flat rack e plataforma)
+  e só preenche local de desova vazio, pedindo confirmação para trocar; veículo novo recalcula as
+  Taxas Locais na hora e B/L isento anula o Recebível (migration `184`, ADR 0078 itens 8 e 23).
+- **COD e documento da fatura (2026-10-10, implementação local; Etapa 10 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar B/L em COD não muda o POD (a prévia avisa); B/L importado depois da omissão entra
+  como afetado, com disposição Transbordo; a fatura emitida guarda razão social, CNPJ, endereço,
+  Viagem, navio, POL e POD, e o detalhe e a impressão no Vela e no Portal leem essa cópia
+  (migration `183`, ADR 0078 itens 13 e 15).
+- **Baplie (2026-10-10, implementação local; Etapa 9 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  marcas valem para todos os B/Ls ativos que dividem o container; IMO/OOG corrigido à mão fica
+  protegido e vira divergência; o Baplie completo apaga, após confirmação na prévia, as marcas que
+  caíram; containers de outro operador, em transbordo ou fora das escalas são ignorados com aviso;
+  TDT de outro navio bloqueia; **Vale o B/L** encerra a divergência com motivo (migration `182`,
+  ADR 0078 item 21).
+- **Contrato da importação de CE (2026-10-10, implementação local; Etapa 8 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  a planilha de CE fica rápida com base grande; o Nº de Manifesto Mercante tem 13 caracteres e um
+  cadastro único (**Informar Nº** e a planilha); B/Ls são movidos ou desvinculados em lote, com
+  motivo, pela Viagem, pela ficha ou pela planilha; a prévia é conferida no servidor e a troca de
+  CE pede confirmação com motivo; linha sem CE e mais de uma aba são recusadas e B/L cancelado é
+  ignorado com aviso; a emissão sai logo depois, em lotes com progresso e Retomar, como "Sistema —
+  CE Mercante"; erros em linguagem de negócio (migrations `180` e `181`, ADR 0078 itens 4, 6, 7
+  e 9).
+- **Faturas, Demurrage, datas e Comunicado (2026-10-10, implementação local; Etapa 7 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  a notificação "Nova fatura emitida" traz o total real; B/L Cancelado sai do Comunicado de CE e
+  Taxas; datas de container não reabrem a Revisão de B/L faturado; a Invoice de Demurrage aceita
+  container devolvido no free time e ignora SOC; a planilha de datas não apaga devolução com célula
+  vazia, aplica a data a todos os B/Ls que dividem o container e mostra "antes → depois"; remover
+  data pede motivo; B/Ls do mesmo Cliente que dividem container recebem uma única Invoice de
+  Demurrage; datas alteradas depois da emissão reemitem a Invoice (sem pagamento) ou a tiram da
+  Régua (com pagamento); recebível sem fatura não trava cancelar nem excluir o B/L (migration
+  `179`, ADR 0078 itens 12, 19 e 20).
+- **Fila de efeitos e Viagem Cancelada (2026-10-10, implementação local; Etapa 4 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  os efeitos de importação revalidam o estado atual (veículos não cancelam fatura de FCL; taxas
+  mantêm o cálculo do dia do CE e não varrem a Viagem), contenção vira nova tentativa, lease
+  esgotado abre Alerta, a Viagem Cancelada fica selada também para containers, Granito, faturas e
+  Comunicados, há simulação do acumulado antes de processar e o Alerta de fila parada
+  `import_effects_queue_stalled` (job `import-effects-queue-health`; migration `178`, ADR 0078
+  item 18). O processamento automático continua desligado.
+- **CE Mercante único e porta única (2026-10-10, implementação local; Etapa 6 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  um CE só fica num B/L não cancelado (carga e Granito, também na reativação), com recusa
+  amigável; a planilha de CE acusa CE repetido na prévia; a ficha do B/L deixa de gravar o CE pelo
+  Salvar e ganha **Corrigir** e **Remover** CE, com motivo no Histórico; remover com fatura viva é
+  recusado; Comunicado já enviado abre o alerta `comunicado_ce_reenvio_pendente`; a conciliação
+  ZPT casa pela mesma chave (migration `177`, ADR 0078 itens 1–3 e 5).
+- **Container compartilhado (2026-10-10, implementação local; Etapa 5 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  B/Ls do mesmo Cliente que dividem um container passam a ser todos faturados com o rateio
+  (antes só o primeiro); irmão que chega ou é cancelado depois do faturamento reemite a fatura do
+  outro pela ADR 0077; a proteção contra cobrar o container duas vezes fica; container FCL entre
+  Clientes diferentes é recusado na importação de B/L (migration `176`, ADR 0078 item 11).
+- **Leitura de planilhas (2026-10-10, implementação local; Etapa 3 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  datas curtas do Excel, CSV com vírgula decimal ou `05/03/2026`, data/hora de Brasília, tara com
+  milhar, valor PIX numérico e CE em célula numérica passam a ser lidos como a célula mostra
+  (leitor comum tipado e parser de data único, ADR 0078 item 22); ano fora de quatro dígitos é
+  recusado; cabeçalho repetido ou duas colunas do mesmo campo bloqueiam; linhas e abas ocultas são
+  ignoradas com aviso; CSV Windows-1252 aceito com aviso.
+- **Reimportação de B/L de container (2026-10-10, implementação local; Etapa 2 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar o B/L deixa de apagar e recriar os contêineres (datas, desova, status de Demurrage
+  e perfil preservados; migration `175`, ADR 0078 itens 16 e 17); contêiner que o arquivo não traz
+  só sai com a remoção mostrada na prévia; veículos só mudam com aba VIN e confirmação, com alerta
+  no B/L; confirmação de faturamento por B/L; Laden on Board ilegível mantém a data; POD fora do
+  cadastro de portos bloqueia a linha; reimportação idêntica de B/L faturado não reabre a Revisão
+  nem enfileira recálculo; e-mail do consignatário novo não vira contato do Cliente antigo (M14).
+- **Reimportação de carga solta (2026-10-10, implementação local; Etapas 0 e 1 do
+  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  reimportar Manifesto BB ou B/L avulso deixa de apagar o CE, de desfazer o Cliente confirmado
+  na Revisão, de trocar o Cliente sem aceite e de mover B/L de outra Viagem (migration `174`,
+  ADR 0078 itens 1 e 14). O Manifesto BB não grava mais CE (coluna fora dos modelos; num arquivo
+  antigo, ignorada com aviso). A prévia mostra os B/Ls já cadastrados, pede aceite da Troca de
+  Consignatário e confirmação de faturamento para rota de B/L faturado; o resultado lista novos,
+  corrigidos, sem mudança e pendências. Runner de efeitos segue desligado até a Etapa 13, com
+  diagnóstico somente leitura para o dono rodar. Sem publicação nem mudança em produção.
 - **Memorando de liberação de documentos no Portal (2026-10-10):** a aba Nova solicitação do
   [Desbloqueio de CE](modules/desbloqueio-ce.md) oferece o modelo `.docx` do memorando que o
   cliente leva preenchido para retirar documentos na agência. É download avulso, fora dos

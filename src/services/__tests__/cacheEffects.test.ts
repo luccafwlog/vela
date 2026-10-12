@@ -27,6 +27,8 @@ describe('cache effects', () => {
     expect(keys()).toEqual(expect.arrayContaining(keySet([
       ['voyage-pod-schedules'], ['voyage-pol-schedules'], ['voyage-export-schedules'], ['voyage-escala-schedules'], ['portal-schedule-voyages'],
       ['voyage-timeline', '24'], ['voyages'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
+      // As escalas mudam a conferência do Baplie (TDT e portos da Viagem).
+      ['baplie-voyage-context', 24],
     ])))
   })
 

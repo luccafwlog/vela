@@ -166,7 +166,10 @@ acompanhado em suas escalas, agendas e cargas.
 Viagem que não será mais realizada pelo armador, embora tenha sido cadastrada
 ou programada. O cancelamento preserva seus registros e vínculos para
 rastreabilidade; não é conclusão nem exclusão. Uma viagem cancelada por
-engano pode ser reativada pelo Administrativo, com motivo.
+engano pode ser reativada pelo Administrativo, com motivo. A Viagem Cancelada é
+somente leitura: B/Ls, containers e suas datas, Granito e seu CE, faturas novas e
+Comunicados novos são recusados, e os efeitos de importação pendentes dela são
+encerrados no cancelamento (migration `178`, ADR 0078 item 18).
 
 Hoje, uma viagem não cancelada só pode ser excluída pelo Administrativo se
 ainda não recebeu qualquer dado vinculado. A regra decidida na
@@ -276,7 +279,7 @@ afetados.
 Cada complementação é auditada pela RPC `update_voyage_omission`; a disposição
 `transshipment` ou `cod` continua no grão individual do B/L.
 
-Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), um B/L com POD no porto omitido importado
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), um B/L com POD no porto omitido importado
 depois da omissão entra como afetado, com disposição Transbordo, herdando o
 registro global; a reimportação não altera o POD de B/L em COD, e mudar o POD
 por reimportação ou pela ficha é correção, nunca COD.
@@ -686,7 +689,7 @@ tem duas contagens independentes.
 **Local de Desova**
 Local onde um container com veículo foi desovado. Atributo do container,
 agregado por marca no ADR. A planilha de veículos só o preenche quando está
-vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+vazio; divergência do valor gravado pede confirmação na prévia ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
 
 **Ocorrência da Escala**
 Lançamento livre no diário da escala dentro do ADR: texto com autor,
@@ -803,9 +806,10 @@ depois que o Financeiro cancelou ou estornou as faturas e recebíveis abertos
 dele. O B/L sai do faturamento, aparece no Portal como cancelado se já tiver
 sido liberado e libera o CE para o B/L reemitido. Pode ser reativado se o
 cancelamento foi por engano. B/L sem CE não é cancelado: é excluído.
-Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), recebível sem fatura não bloqueia o
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `179`), recebível sem fatura não bloqueia o
 cancelamento: cancelar ou excluir o B/L anula o cálculo e o recebível, com
-registro no Histórico.
+registro no Histórico. O B/L Cancelado sai da prontidão e do conteúdo do
+Comunicado de CE e Taxas e do Alerta de CE Mercante pendente.
 Cancelado, fica somente leitura e deixa de contar nos Alertas de revisão do
 Cliente; cancelar ou reativar reconcilia esses Alertas na hora (migration
 `169`).
@@ -885,7 +889,13 @@ faturamento financeiro.
 
 O CE Mercante de Granito não calcula nem emite: o cálculo do Granito é feito
 pela Validação. Reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls
-pelo número, preservando CE e Cliente ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+pelo número, preservando CE e Cliente; B/L ausente do arquivo novo só sai com
+confirmação e nunca com Invoice ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `186`).
+Planilha sem nenhum B/L em comum com os já gravados na Viagem é outro manifesto
+(duas planilhas COSCO legítimas convivem); com B/L em comum, a reimportação e a
+pergunta pelos ausentes ficam nos manifestos que ela toca
+([ADR 0079](docs/adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md), decisão 7;
+migration `206`).
 
 ## Baplie e reconciliação
 
@@ -929,19 +939,34 @@ O B/L declara carga perigosa no nível do conhecimento (DG Class e número ONU n
 descrição da mercadoria), aplicando-se inicialmente a todos os containers do
 B/L; o Baplie refina depois quais containers são de fato IMO.
 
-Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente):
+Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `182`):
 
 - as marcas do Baplie valem para todos os B/Ls ativos que dividem o container
   (Part Lot tem sempre as mesmas características); B/L cancelado é ignorado;
 - perfil IMO/OOG corrigido à mão com justificativa (o armador confirma fora do
-  Baplie) não é sobrescrito: o Baplie diferente vira Divergência de Atributo;
+  Baplie) não é sobrescrito: o Baplie diferente vira Divergência de Atributo; a
+  correção manual de perfil vale para o container em todos os B/Ls ativos da
+  Viagem que o dividem (Part Lot). Feita pelo B/L sem fatura, ela vale também
+  para o irmão faturado, que não é recalculado e segue a
+  [ADR 0077](docs/adr/0077-fatura-emitida-nao-muda-de-valor.md) pela base
+  alterada; partindo do próprio B/L faturado, continua recusada e a mensagem
+  aponta o B/L sem fatura do mesmo container
+  ([ADR 0079](docs/adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md),
+  decisão 5; migration `205`);
+- IMO/OOG declarado no B/L tem origem própria (`bl`): o Baplie que o confirma
+  não troca a origem, e um Baplie seguinte sem o container não o apaga
+  (migration `194`);
 - o Baplie é sempre completo: marca ou container ausente apaga as marcas que
   vieram do Baplie anterior, depois de confirmação na prévia; marcas do B/L ou
   manuais continuam;
 - OOG exige excesso de dimensão maior que zero; carga perigosa em quantidade
   limitada (LQ) é carga normal, sem THD de IMO;
 - containers fora das escalas da Viagem, de outro operador ou em transbordo
-  são ignorados com aviso; Baplie de outro navio ou viagem é bloqueado.
+  são ignorados com aviso; Baplie de outro navio ou viagem é bloqueado. "Outro
+  operador" é medido contra o operador (NAD+CA) dos containers do arquivo que
+  estão nos B/Ls ativos da Viagem, que nunca são ignorados por operador; sem
+  nenhum deles no arquivo, vale o operador do cabeçalho, com aviso
+  ([ADR 0079](docs/adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md), decisão 6).
 
 **IMO**
 Classificação de carga perigosa segundo a International Maritime Organization.
@@ -963,7 +988,14 @@ Baplie no EQD (8077: 1 = SOC, 2 = COC). O B/L é soberano: o Baplie só preenche
 o que o B/L não declarou, e a discordância entre os dois aparece na conciliação
 do Baplie e na aba Carga do B/L, sem trocar o valor. Sem informação em nenhuma
 fonte, o container é tratado como COC e aparece como "Não informado".
-A divergência ganha a ação **Vale o B/L**, com motivo, que a encerra ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+A divergência ganha a ação **Vale o B/L**, com motivo, que a encerra ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)).
+Desde a migration `194`, **Vale o B/L** não vira correção manual: registra só a
+resolução daquele par de valores (Baplie novo com outro valor volta a
+divergir), a origem continua do B/L e a reimportação do B/L ainda corrige o
+SOC/COC. A correção manual de SOC/COC vale para o container em todos os B/Ls
+ativos da Viagem que o dividem (Part Lot), nem o Baplie nem a reimportação do
+B/L a sobrescrevem, e a diferença para o Baplie continua aparecendo como
+divergência.
 Container SOC não volta ao estoque: não tem devolução a esperar nem Demurrage,
 e não paga as taxas locais marcadas como "não cobra de SOC" (Drop Off Fee e
 Damage Protection Fee).
@@ -991,15 +1023,24 @@ da conta do Cliente. O Comunicado de CE e Taxas depende da prontidão do conjunt
 Cliente/Viagem, da chave de envio e do processamento do canal, não de um envio
 imediato garantido ao salvar o CE. A relação CE × B/L é 1:1: um
 número de CE não pode ser usado por mais de um B/L não cancelado, somando B/Ls
-de carga e de Granito; o [B/L Cancelado](#operação-marítima) libera o CE. Hoje o
-banco não impõe essa unicidade (ADR 0071 e [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+de carga e de Granito; o [B/L Cancelado](#operação-marítima) libera o CE. O
+banco impõe essa unicidade em todas as portas e na reativação, comparando o CE
+pela chave normalizada: letras e dígitos, maiúsculas, sem zeros à esquerda
+(ADR 0071 e [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `177`). CE legado gravado com máscara ou
+sem o zero à esquerda e com a mesma chave é normalização, não troca: a forma
+canônica é gravada sem reenvio de Comunicado nem alerta (migration `195`).
 
-Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente):
+O Manifesto BB e o B/L avulso não gravam CE: a coluna CE saiu do modelo e, num
+arquivo antigo, é ignorada com aviso na prévia (migration `174`).
+
+Decidido na [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (unicidade, porta única, Corrigir e Remover
+entregues na migration `177`; confirmação da troca na prévia e emissão em lotes
+na `181`):
 
 - o CE entra pela planilha de CE Mercante e é corrigido ou removido pela ficha
   do B/L (**Corrigir CE Mercante**, **Remover CE Mercante**), por qualquer
-  usuário ativo, com as regras da planilha e motivo no Histórico; o Manifesto BB
-  não grava CE; a repetição do CE é recusada em todas as portas e na reativação;
+  usuário ativo, com as regras da planilha e motivo no Histórico; a repetição do
+  CE é recusada em todas as portas e na reativação;
 - trocar um CE já gravado exige confirmação com motivo na prévia, que mostra o
   CE atual e o novo; a fatura não muda; Comunicado já enviado abre pendência de
   reenvio ao Cliente;
@@ -1018,12 +1059,14 @@ descontinuada do sistema em favor de "Nº de Manifesto Mercante". É registrado 
 tabela `manifestos_mercante`, que suporta múltiplos manifestos por rota e
 segregação por natureza de carga (`natureza IN ('carga', 'vazio')`). Convive com
 a tabela legada `voyage_route_ce_master`, preservada para compatibilidade retroativa
-com importadores existentes. Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), o número tem
+com importadores existentes. Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `181`), o número tem
 13 caracteres, letras ou dígitos em qualquer posição (ex.: `1226501860578`,
 `1226B01849909`), guardado em maiúsculas sem espaços nem separadores; **Informar
-Nº** e a planilha passam a usar um cadastro único; B/Ls podem ser movidos ou
-desvinculados em lote, com motivo, pela Viagem, pela ficha ou pela planilha; e
-mudar o POD ou a Viagem desvincula o B/L. É distinto dos CEs individuais dos
+Nº** e a planilha usam o mesmo cadastro (`manifestos_mercante`; a tabela legada
+fica como espelho); B/Ls são movidos ou desvinculados em lote, com motivo, pela
+Viagem (Rotas e Manifestos → **Ver B/Ls**), pela ficha ou pela planilha (outro
+número move o B/L depois de confirmação com motivo na prévia); e mudar o POL, o
+POD ou a Viagem desvincula o B/L (o POL desde a migration `207`). É distinto dos CEs individuais dos
 B/Ls e não se confunde com o número de viagem interna da agência.
 
 - **Vazios de Importação:** cada rota dos vazios (porto de origem → porto de
@@ -1031,8 +1074,10 @@ B/Ls e não se confunde com o número de viagem interna da agência.
   vários portos de origem, ou de uma origem para dois destinos, pedem um número
   por rota. O número é obrigatório: a importação por
   planilha o exige; os vazios vindos do Baplie entram sem número e a pendência
-  aparece no alerta CE Mercante pendente. Reimportar só é bloqueado quando o
-  número informado já está cadastrado (decisões de 2026-10-01).
+  aparece no alerta CE Mercante pendente. Reimportar a mesma rota substitui os
+  containers dela, preservando a natureza (cama/cover plate), e reaproveita ou
+  corrige o número da rota; número cadastrado em outra rota ou Viagem é recusado
+  (decisões de 2026-10-01; ADR 0078, item 25, migration `187`).
 - **Carga (planilha de CE Mercante):** cada importação da planilha é um
   manifesto. Antes de importar, o operador informa o Nº de Manifesto Mercante
   daquele lote (obrigatório); manifesto = navio + viagem + rota (par POL → POD)
@@ -1042,7 +1087,17 @@ B/Ls e não se confunde com o número de viagem interna da agência.
   entra por planilha (decisão de 2026-10-08) e, pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), é corrigido ou
   removido pela ficha do B/L; EDI, no Vela, é o Baplie. Na planilha, linha sem
   CE é erro e bloqueia a importação, B/L cancelado é ignorado com aviso e mais
-  de uma aba com dados é recusada (implementação pendente).
+  de uma aba com dados é recusada (migration `181`). A prévia é conferida no
+  servidor (CE atual → novo, faturas, Portal, Comunicado, Desbloqueio e
+  Manifesto); trocar CE já gravado ou mudar o Manifesto pede confirmação com
+  motivo. A gravação guarda CE e cálculo; a emissão sai logo depois, em lotes
+  de 25 conduzidos pela tela, com progresso e **Retomar**, e o resultado por B/L
+  (faturado, retido, aguardando ou bloqueado com motivo). Desde a migration
+  `195`, B/L que espera o Cliente ou a Revisão aparece como aguardando, sem
+  Alerta; só a falha técnica abre o Alerta de falha da emissão automática, que
+  fecha quando a fatura do B/L sai por qualquer caminho. **Pendente de decisão
+  do dono** (revisão da PR 929): recusas de negócio como "B/L sem linhas
+  faturaveis" ou tabela de cobrança incompleta ainda abrem esse Alerta.
 
 **Frete & Despesas do BL**
 Linhas da seção "Freight & Charges" do conhecimento de embarque (B/L): frete
@@ -1075,8 +1130,13 @@ preenche o vínculo; faturamento considera exclusivamente `customer_id` e
 
 A importação da Base de Clientes vincula só os B/Ls pendentes de Cliente com o
 mesmo CNPJ, mostrados na prévia, como vínculo por documento; B/L rejeitado na
-Revisão nunca é vinculado pela Base e recebe o Cliente manualmente na Revisão
-([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+Revisão nunca é vinculado pela Base e recebe o Cliente manualmente na Revisão;
+B/L de Viagem cancelada também fica de fora; razão social diferente da gravada
+pede confirmação ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migrations `185` e `192`). O B/L vinculado sai da
+Revisão pela regra dona da Revisão quando não sobra outra pendência, e as Taxas
+Locais são calculadas. **Pendente de decisão do dono** (revisão da PR 929): se
+o B/L já tem CE, a fatura só sai pela fila de efeitos (`local_billing`), que
+espera a ligação do `import-effects-runner`.
 
 **Troca de Consignatário**
 Correção do consignatário de um B/L já gravado, feita reimportando o arquivo do
@@ -1092,9 +1152,18 @@ Não é automática em três situações, sinalizadas antes do aceite: fatura
 consolidada com outros B/Ls, fatura com pagamento registrado, e consignatário
 ainda não cadastrado como Cliente havendo cobrança. Nesses casos o vínculo fica
 como está e os demais campos do B/L seguem sendo corrigidos. Ver ADR 0017.
+Na reimportação do B/L de container (migration `175`), os contêineres que
+continuam no arquivo mantêm datas, desova e Demurrage, o que o arquivo não traz
+sai só com a remoção mostrada na prévia, os veículos só mudam com aba VIN e
+confirmação, e a confirmação de faturamento é por B/L. O e-mail do arquivo só
+vira contato do Cliente cujo CNPJ é o do arquivo, comparado com as letras do
+CNPJ alfanumérico (`normalize_document_text`, migration `194`); na Troca de
+Consignatário aceita, ele vai para o Cliente novo.
 Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), a mesma regra vale para a reimportação de carga solta (Manifesto BB
-e B/L avulso; implementação pendente — hoje a reimportação troca o Cliente sem
-aceite, ver [Manifesto EDI](docs/modules/manifesto-edi.md#catálogo-de-ações)).
+e B/L avulso, desde a migration `174`): CNPJ de outro Cliente só troca com
+aceite na prévia, a rota de B/L faturado pede a confirmação de faturamento, B/L
+de outra Viagem recusa o lote e a ausência do CE ou do CNPJ no arquivo nunca
+apaga (ver [Manifesto EDI](docs/modules/manifesto-edi.md#catálogo-de-ações)).
 
 **Cliente**
 Pessoa jurídica responsável por cargas e cobranças no sistema; não existe
@@ -1129,7 +1198,9 @@ caixa definidos pela regra de captura: como adicional, Documentação e Operaç�
 Financeiro na confirmação de taxas); como principal, todas as caixas. A captura fica
 visível na Ficha do Cliente e na Linha do Tempo. Um endereço anteriormente
 desativado é reativado quando reaparece em outro B/L, recebendo as caixas
-pertinentes sem sobrescrever nome ou telefone já existentes.
+pertinentes sem sobrescrever nome ou telefone já existentes. O endereço só entra
+no Cliente cujo CNPJ é o do documento: na Troca de Consignatário, vai para o
+Cliente novo, nunca para o antigo (migration `175`).
 
 **Ficha do Cliente**
 Hub de consulta do Cliente em `/clientes/:cnpj`, organizado em abas (Visão
@@ -1208,21 +1279,24 @@ destino e não reprecifica; o COD é a exceção de ADR 0051: altera o destino f
 e gera um Ajuste de COD pela diferença entre os valores localizados, mantendo o
 CE Mercante inalterado. A emissão do documento financeiro resultante é um ato
 do Financeiro. A fatura de Taxas Locais emitida pela transição do CE é emissão
-automática, registrada como **Sistema — CE Mercante** ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+automática, registrada como **Sistema — CE Mercante** ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `181`, na nota da fatura).
 
 Por isso a fatura de taxas locais é emitida dias antes da atracação: o cliente
 precisa dela paga para retirar a carga. O documento emitido preserva seu valor
 e, pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), também a identificação impressa (razão social, CNPJ, endereço do
-Cliente, Viagem, navio, POL e POD; implementação pendente);
+Cliente, Viagem, navio, POL e POD, lidos pelo detalhe e pela impressão no Vela e no Portal);
 ajustes posteriores, como COD, seguem atos próprios e não reescrevem o snapshot.
 
-B/Ls que dividem um mesmo container **recebem o CE no mesmo momento**. É essa
-regra operacional — não uma trava de software — que garante o rateio correto de
-taxa de container compartilhado. Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente), container
+B/Ls do mesmo Cliente que dividem um container são faturados cada um com o
+rateio do container, recebam o CE juntos ou em momentos diferentes. A emissão só
+é recusada quando um B/L irmão foi faturado com um rateio que não é mais o atual
+(a fatura dele é reemitida antes), o que impede cobrar o container duas vezes.
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `176`), container
 FCL não é dividido entre Clientes diferentes (só veículos LCL, que não pagam
-Taxas Locais nem Demurrage) e a importação recusa esse caso; quando o conjunto de
-B/Ls de um container muda depois do faturamento, a fatura emitida segue a ADR
-0077.
+Taxas Locais nem Demurrage) e a importação de B/L recusa esse caso; quando o
+conjunto de B/Ls de um container muda depois do faturamento (irmão que chega ou
+é cancelado), a importação ou o cancelamento é aceito e a fatura emitida segue a
+ADR 0077: sem pagamento, é reemitida com o rateio novo.
 
 - **Ver também:** Fato Gerador, Omissao de Escala, COD, Data de Referência da Tarifa
 
@@ -1370,7 +1444,7 @@ apenas inferíveis do valor zero.
 Veículo gravado no B/L errado é corrigido na página Veículos (**Mover para
 outro B/L**, **Excluir**), por qualquer usuário, com motivo, mesmo com CE; o
 efeito na cobrança segue a ADR 0077. O mesmo chassi em outra Viagem é erro
-([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `184`).
 
 - **Ver também:** Movimento (FCL/LCL), Taxas Locais
 
@@ -1419,7 +1493,7 @@ A descarga é a data informada pelo terminal, que entra pela planilha de datas;
 a ATA não preenche a descarga. Na planilha, a chave é B/L + container, e a data
 vale para todos os B/Ls que dividem o container na mesma Viagem; célula ou
 coluna vazia não apaga a data gravada, e remover uma data é correção isolada
-na edição do container, com motivo ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+na edição do container, com motivo ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `179`, RPC `set_container_dates`).
 
 **Free Time**
 Período após a descarga durante o qual o container pode ficar no pátio sem
@@ -1495,13 +1569,30 @@ não se fatura com container ainda fora, pois os dias de demurrage (e portanto o
 pagamento. O monitoramento de containers ainda fora (demurrage correndo) é
 operacional, não gera fatura.
 
-Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (implementação pendente): B/Ls do mesmo Cliente ligados por container
+Pela [ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (migration `179`): B/Ls do mesmo Cliente ligados por container
 compartilhado recebem uma única Invoice de Demurrage, com cada caixa uma vez,
-emitida quando todos os containers do grupo estiverem devolvidos. Mudança de
+emitida pelo B/L de menor número do grupo quando todos os containers não-SOC do
+grupo estiverem devolvidos; o container devolvido no free time entra com valor
+zero, e o grupo sem sobreestadia não fatura. Mudança de
 datas que altera uma Invoice de Demurrage emitida a cancela e reemite
 automaticamente se não houver pagamento (ou só cancela, se o valor for zero);
 com pagamento, a diferença segue a ADR 0077. Abre alerta, e a Régua de Cobrança
-para de cobrar essa fatura até a situação se resolver.
+para de cobrar essa fatura até a situação se resolver. Hoje, com pagamento, a
+diferença não é abatida nem vira restituição sozinha: a fatura sai da Régua e o
+Alerta `demurrage_invoice_dates_changed` leva ao Administrativo, que usa a
+restituição de Demurrage ou uma avulsa. A Invoice sem pagamento mas com
+desconto ou disputa aberta é tratada como a paga: não é reemitida sozinha, sai
+da Régua e o mesmo alerta pede a reemissão à mão, refazendo o desconto ou
+respondendo a disputa ([ADR 0079](docs/adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md),
+decisão 1; migration `203`). O estorno da baixa de Invoice suspensa reemite
+quando as datas ainda diferem, e a confirmação do estorno avisa antes (decisão
+2). B/L cancelado não ancora grupo nem recebe Invoice, e a completude do grupo
+é conferida só na emissão (migration `191`).
+
+O status de Demurrage do container em atraso (`overdue`) é
+gravado pelo banco: a cada gravação de datas e por um job diário para o
+container que vence sem ninguém mexer nele (migration `197`). Container de
+B/L Cancelado ou de Viagem Cancelada não fica em atraso (migration `200`).
 
 - **Ver também:** P1, P2, Free Time, ROE, Recálculo Diário
 
@@ -1535,8 +1626,16 @@ Linha do tempo completa dos acontecimentos de um B/L: alterações manuais de
 campos, mudanças em containers, cálculo e revisão de taxas, e emissão e
 pagamento de faturas. É o termo guarda-chuva que abrange a Auditoria — não um
 sinônimo dela. Toda importação registra, em cada registro alterado, quem fez,
-data e hora, o tipo de importação, o contexto (Nº de Manifesto, Viagem, rota),
-o valor anterior e o novo e o motivo quando houver ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); implementação pendente).
+data e hora, o tipo de importação, o contexto, o valor anterior e o novo e o
+motivo quando houver ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migration `189`).
+O contexto genérico traz o tipo, a Viagem e o Nº de Manifesto, gravados na
+justificativa de cada linha, como "Importação de Vazios de Importação · Viagem
+<navio> <número> · Manifesto <Nº>"; o primeiro contexto da transação vale até o
+fim, mesmo quando uma importação chama outra (migration `190`). A rota entra só
+na importação de CE Mercante, junto com o motivo da troca (migration `195`). No
+Histórico do B/L esse contexto aparece como **Origem**, não como motivo: a
+linha não conta como Auditoria — salvo quando traz o motivo informado pela
+pessoa (troca de CE pela planilha), que é alteração deliberada.
 
 **Auditoria**
 Subconjunto do Histórico: as alterações deliberadas registradas com

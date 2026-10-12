@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Migration 091 (ADR 0073): tarifa usada só se desativa; override desativado
 // sai do cálculo; desativar/reativar tarifa é do Administrativo.
@@ -22,7 +23,7 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = migrationApplied() ? describe : describe.skip
+const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied')
 
 const ADMIN_ID = '09100000-0000-4000-8000-0000000000a1'
 const OPS_ID = '09100000-0000-4000-8000-0000000000b1'

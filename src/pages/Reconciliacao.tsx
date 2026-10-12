@@ -11,6 +11,8 @@ import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { formatResultCount, summarizeReconciliation } from '../lib/operationalState'
 import { parsePixExtractFile } from '../services/demurrage/demurrageKpis'
+import { readSpreadsheetNotices } from '../services/importCore'
+import { ImportNotice } from '../components/shared/ImportParts'
 import {
   confirmUnifiedPixReconciliation,
   createPixImportKey,
@@ -197,6 +199,11 @@ function ReconciliacaoContent() {
   const { isAdmin } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
   const [matches, setMatches] = useState<UnifiedPixMatch[] | null>(null)
+  // Linhas e abas ocultas ficam fora da leitura: o aviso aparece junto do
+  // resultado, antes de Confirmar, para o extrato parcial não passar por inteiro.
+  // Avisos de leitura do extrato; `firstSheetHiddenRows`: linhas ocultas da aba
+  // que o parser PIX lê (a primeira visível) — só elas tiram linhas da conciliação.
+  const [fileNotices, setFileNotices] = useState<{ warnings: string[]; firstSheetHiddenRows: number }>({ warnings: [], firstSheetHiddenRows: 0 })
   const [confirmationResult, setConfirmationResult] = useState<UnifiedPixConfirmationResult | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<{ invoiceId: number; paymentId: number | null } | null>(null)
@@ -224,7 +231,8 @@ function ReconciliacaoContent() {
 
   const matchMutation = useMutation({
     mutationFn: async (file: File) => {
-      const transactions = await parsePixExtractFile(file)
+      const [transactions, notices] = await Promise.all([parsePixExtractFile(file), readSpreadsheetNotices(file)])
+      setFileNotices(notices)
       if (!transactions.length) throw new Error('Nenhuma transacao PIX encontrada.')
       const [importKey, found] = await Promise.all([
         createPixImportKey(file),
@@ -317,6 +325,7 @@ function ReconciliacaoContent() {
 
   function processFile(file: File) {
     setMatches(null)
+    setFileNotices({ warnings: [], firstSheetHiddenRows: 0 })
     setConfirmationResult(null)
     matchMutation.mutate(file)
   }
@@ -500,6 +509,21 @@ function ReconciliacaoContent() {
 
       {matches !== null ? (
         <>
+          {fileNotices.warnings.length ? (
+            <ImportNotice
+              tone="warning"
+              role="status"
+              className="mb-4"
+              title={fileNotices.firstSheetHiddenRows > 0 ? 'Parte do extrato ficou de fora' : 'Avisos de leitura do extrato'}
+            >
+              <ul className="app-import-notice__list">
+                {fileNotices.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+              </ul>
+              {fileNotices.firstSheetHiddenRows > 0 ? (
+                <p>Só as linhas visíveis foram conciliadas. Reexiba as ocultas e envie de novo se elas também devem entrar.</p>
+              ) : null}
+            </ImportNotice>
+          ) : null}
           <Card className="mb-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>

@@ -1,3 +1,5 @@
+import { importDateOrNull } from '../lib/importDate'
+import { userFacingErrorMessage } from '../lib/errors'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
@@ -91,6 +93,18 @@ export type ParsedGraniteManifest = {
   vesselVoyage: string
   bls: ParsedGraniteBl[]
   rowErrors: RowError[]
+  /**
+   * Todos os números de B/L lidos do arquivo, inclusive das linhas com erro
+   * (peso zero, duplicadas): B/L presente no arquivo nunca é oferecido para
+   * sair da Viagem na reimportação.
+   */
+  fileBlNumbers: string[]
+  /**
+   * Linhas e abas ocultas que o leitor ignorou (`readSheet`). B/L que só está
+   * numa linha oculta não está em `fileBlNumbers` e aparece como ausente na
+   * reimportação: a confirmação de saída avisa isso.
+   */
+  hidden?: { rows: number; sheets: string[] }
 }
 
 export async function parseGraniteManifestFile(file: File): Promise<ParsedGraniteManifest> {
@@ -100,9 +114,8 @@ export async function parseGraniteManifestFile(file: File): Promise<ParsedGranit
 }
 
 async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGraniteManifest> {
-  const { headers, rows } = await readSheet(buffer, {
+  const { headers, rows, hidden } = await readSheet(buffer, {
     expectedHeaders: GRANITE_HEADER_MARKERS,
-    dates: 'date',
   })
   const { missing } = matchHeaders(headers, GRANITE_HEADER_SPEC)
   if (missing.length) {
@@ -222,7 +235,7 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
 
   const vesselVoyage = bls.find((bl) => bl.vessel_voyage)?.vessel_voyage ?? ''
 
-  return { vesselVoyage, bls, rowErrors: rowErrors.errors }
+  return { vesselVoyage, bls, rowErrors: rowErrors.errors, fileBlNumbers: [...seenBlNumbers], hidden }
 }
 
 /**
@@ -250,27 +263,11 @@ function parseGraniteNumber(
   return number
 }
 
+// Data civil única dos imports (src/lib/importDate.ts): AAAA-MM-DD (célula de
+// data do Excel) ou DD/MM/AAAA; ano de quatro dígitos.
 function parseDateBR(value: unknown): string | null {
-  if (value instanceof Date) {
-    if (!Number.isFinite(value.getTime())) return null
-    const date = `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`
-    return IsoDateSchema.safeParse(date).success ? date : null
-  }
-  if (typeof value !== 'string' || !value.trim()) return null
-  // dd/mm/yy or dd/mm/yyyy
-  const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
-  if (!match) return null
-  const [, d, m, y] = match
-  const year = y.length === 2 ? `20${y}` : y
-  const isoDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
-  if (!IsoDateSchema.safeParse(isoDate).success) return null
-  const parsed = new Date(Date.UTC(Number(year), Number(m) - 1, Number(d)))
-  if (
-    parsed.getUTCFullYear() !== Number(year)
-    || parsed.getUTCMonth() !== Number(m) - 1
-    || parsed.getUTCDate() !== Number(d)
-  ) return null
-  return isoDate
+  const date = importDateOrNull(value)
+  return date && IsoDateSchema.safeParse(date).success ? date : null
 }
 
 function resolveGranitePort(
@@ -309,6 +306,99 @@ export type ImportGraniteArgs = {
   allowRowErrors?: boolean
   /** Permite importar BLs sem client_id resolvido; esses ficarão sem faturamento */
   allowPending?: boolean
+  /**
+   * Reimportação (ADR 0078, item 25): B/Ls dos manifestos que o arquivo toca e
+   * que ele não traz só saem se esta confirmação devolver true; sem ela, ficam.
+   * Arquivo sem B/L em comum é manifesto novo e não pergunta (ADR 0079,
+   * decisão 7).
+   */
+  confirmRemoval?: (missingBlNumbers: string[]) => Promise<boolean>
+}
+
+export type GraniteImportResult = {
+  manifestId: string
+  pendingCount: number
+  inserted: number
+  updated: number
+  removed: string[]
+  keptMissing: string[]
+  /** Ausentes com Invoice: ficam mesmo com a saída confirmada (migration 192). */
+  keptInvoiced: string[]
+  /** Arquivo sem B/L em comum, gravado como outro manifesto da Viagem que já tinha Granito (migration 206). */
+  separateManifest?: boolean
+}
+
+/** B/L de Granito gravado na Viagem, com o manifesto em que está. */
+export type GraniteVoyageBl = { bl_number: string; manifest_id: string }
+
+/** B/Ls de Granito já gravados na Viagem. */
+export async function fetchGraniteBlNumbersForVoyage(voyageId: number): Promise<GraniteVoyageBl[]> {
+  const { data, error } = await supabase
+    .from('granite_bls')
+    .select('bl_number, manifest_id, manifest:granite_manifests!inner(voyage_id)')
+    .eq('manifest.voyage_id', voyageId)
+  if (error) throw error
+  return ((data ?? []) as Array<GraniteVoyageBl>).map((row) => ({ bl_number: row.bl_number, manifest_id: row.manifest_id }))
+}
+
+/**
+ * O que o arquivo faz na Viagem (ADR 0079, decisão 7; mesma regra da
+ * migration 206). Os manifestos tocados são os que já têm algum B/L enviado
+ * (`sentBlNumbers`); nenhum = manifesto novo, sem ausentes. Com manifesto
+ * tocado, ausente é o B/L dele que o arquivo não traz em linha nenhuma, nem
+ * nas com erro (`fileBlNumbers`). Comparação sem caixa e espaços.
+ */
+export function graniteImportScope(existing: GraniteVoyageBl[], sentBlNumbers: string[], fileBlNumbers: string[]): {
+  newManifest: boolean
+  missing: string[]
+} {
+  const key = (value: string) => value.trim().toUpperCase()
+  const sent = new Set(sentBlNumbers.map(key))
+  const inFile = new Set(fileBlNumbers.map(key))
+  const touched = new Set(existing.filter((row) => sent.has(key(row.bl_number))).map((row) => row.manifest_id))
+  const missing = existing
+    .filter((row) => touched.has(row.manifest_id) && !inFile.has(key(row.bl_number)))
+    .map((row) => row.bl_number)
+    .sort()
+  return { newManifest: touched.size === 0, missing }
+}
+
+/**
+ * Texto da confirmação da saída dos B/Ls ausentes do arquivo novo. Com linhas
+ * ou abas ocultas no arquivo (`hidden`), diz que elas foram ignoradas: um B/L
+ * "ausente" pode estar numa linha oculta.
+ */
+export function graniteRemovalConfirmOptions(missing: string[], hidden?: ParsedGraniteManifest['hidden']) {
+  const hiddenParts: string[] = []
+  if (hidden?.rows) hiddenParts.push(hidden.rows === 1 ? '1 linha oculta' : `${hidden.rows} linhas ocultas`)
+  if (hidden?.sheets.length) {
+    const names = hidden.sheets.map((name) => `"${name}"`).join(', ')
+    hiddenParts.push(hidden.sheets.length === 1 ? `a aba oculta ${names}` : `as abas ocultas ${names}`)
+  }
+  const hiddenNote = hiddenParts.length
+    ? ` Linhas e abas ocultas não são lidas, e este arquivo tem ${hiddenParts.join(' e ')}: um B/L que esteja nelas conta como fora do arquivo.`
+    : ''
+  return {
+    title: 'B/Ls fora do arquivo novo',
+    message: `${missing.length} B/L(s) de Granito do manifesto que este arquivo atualiza não estão no arquivo.${hiddenNote}`,
+    confirmLabel: 'Tirar da Viagem',
+    cancelLabel: 'Manter gravados',
+    tone: 'danger' as const,
+    consequence: 'Os B/Ls com Invoice nunca saem; os demais saem com o CE e o vínculo de Cliente.',
+    affected: { summary: `${missing.length} B/L(s)`, items: missing },
+  }
+}
+
+/** Resumo da reimportação para o aviso da tela. */
+export function describeGraniteImport(result: GraniteImportResult): string {
+  return [
+    result.separateManifest ? 'manifesto novo na Viagem (nenhum B/L em comum com os já gravados)' : '',
+    `${result.inserted} novo(s)`,
+    `${result.updated} atualizado(s)`,
+    result.removed.length ? `${result.removed.length} retirado(s)` : '',
+    result.keptMissing.length ? `${result.keptMissing.length} fora do arquivo mantido(s)` : '',
+    result.keptInvoiced.length ? `${result.keptInvoiced.length} com Invoice mantido(s): ${result.keptInvoiced.join(', ')}` : '',
+  ].filter(Boolean).join(', ')
 }
 
 export async function importGraniteManifest({
@@ -318,7 +408,8 @@ export async function importGraniteManifest({
   uploadedBy,
   allowRowErrors = false,
   allowPending = true,
-}: ImportGraniteArgs): Promise<{ manifestId: string; pendingCount: number }> {
+  confirmRemoval,
+}: ImportGraniteArgs): Promise<GraniteImportResult> {
   if (manifest.rowErrors.length && !allowRowErrors) throw new Error(formatGraniteRowErrors(manifest.rowErrors))
 
   const totalWeightKg = manifest.bls.reduce((sum, bl) => sum + bl.real_weight_kg, 0)
@@ -357,6 +448,11 @@ export async function importGraniteManifest({
       charge_status: 'not_calculated' as const,
     }))
 
+  // Ausente é o que o arquivo não traz em linha nenhuma, nem nas com erro.
+  const existing = await fetchGraniteBlNumbersForVoyage(voyageId)
+  const { newManifest, missing } = graniteImportScope(existing, blRows.map((row) => row.bl_number), manifest.fileBlNumbers)
+  const removeMissing = missing.length && confirmRemoval && (await confirmRemoval(missing)) ? missing : []
+
   const { data, error } = await supabase.rpc('import_granite_manifest_transactional', {
     p_voyage_id: voyageId,
     p_vessel_voyage: vesselVoyage,
@@ -366,13 +462,34 @@ export async function importGraniteManifest({
     p_total_weight_kg: totalWeightKg,
     p_uploaded_by: uploadedBy,
     p_bls: blRows,
-  })
-  if (error) throw error
+    p_remove_missing: removeMissing,
+  } as never)
+  // O erro do PostgREST não é `Error`: as duas telas (Granito e Viagem) mostram
+  // a mensagem de negócio da RPC pela classificação compartilhada.
+  if (error) throw new Error(userFacingErrorMessage(error, 'Falha ao importar o manifesto Granito.'), { cause: error })
   if (data === null || typeof data !== 'object' || Array.isArray(data) || !('manifest_id' in data) || typeof data.manifest_id !== 'string') {
     throw new Error('Falha ao criar manifesto.')
   }
 
   const pendingCount = manifest.bls.filter((bl) => bl.reconciliationStatus !== 'matched').length
+  const raw = data as {
+    manifest_id: string
+    inserted_bls?: number
+    updated_bls?: number
+    removed_bl_numbers?: string[]
+    kept_missing_bl_numbers?: string[]
+    kept_missing_invoiced_bl_numbers?: string[]
+    new_manifest?: boolean
+  }
 
-  return { manifestId: data.manifest_id, pendingCount }
+  return {
+    manifestId: raw.manifest_id,
+    pendingCount,
+    inserted: Number(raw.inserted_bls ?? 0),
+    updated: Number(raw.updated_bls ?? 0),
+    removed: raw.removed_bl_numbers ?? [],
+    keptMissing: raw.kept_missing_bl_numbers ?? [],
+    keptInvoiced: raw.kept_missing_invoiced_bl_numbers ?? [],
+    separateManifest: (raw.new_manifest ?? newManifest) && existing.length > 0,
+  }
 }

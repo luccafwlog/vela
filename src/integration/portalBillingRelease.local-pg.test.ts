@@ -58,8 +58,13 @@ function sqlError(run: () => unknown): string {
   return ''
 }
 
+// `apply_ce_mercante_update` saiu da API (migration 195): o CE da fixture é
+// gravado pelo papel `service_role` real, com o Administrativo como ator.
 function setCe(blId: string, ce: string): void {
-  asUser(`SELECT public.apply_ce_mercante_update('${blId}', '${ce}', '${adminId}'::uuid);`, adminId)
+  execFileSync('psql', [
+    '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
+    '-c', `SET ROLE service_role; SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${adminId}'; SELECT public.apply_ce_mercante_update('${blId}', '${ce}', '${adminId}'::uuid);`,
+  ], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
 }
 
 function blState(blId: string) {
@@ -120,6 +125,7 @@ function cleanup(): void {
     DELETE FROM public.charge_calculations WHERE bl_id = ANY(${blList});
     DELETE FROM public.bl_containers WHERE bl_id = ANY(${blList});
     DELETE FROM public.bls WHERE id = ANY(${blList});
+    DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId} OR charge_item_id = ${chargeItemId};
     DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
     DELETE FROM public.voyages WHERE id = ${voyageId};

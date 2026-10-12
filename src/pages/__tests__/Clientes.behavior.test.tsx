@@ -68,6 +68,7 @@ vi.mock('../../services/customerBase', () => ({
   parseCustomerBaseFile: mocks.parseCustomerBaseFile,
   compareCustomerBaseWithExisting: mocks.compareCustomerBaseWithExisting,
   importCustomerBaseRows: mocks.importCustomerBaseRows,
+  customerNameChanges: (rows: Array<{ existingCustomerId?: number; currentName?: string | null }>) => rows.filter((row) => row.existingCustomerId && row.currentName),
 }))
 vi.mock('../../services/exports', () => ({ exportCustomerBaseWorkbook: mocks.exportCustomerBaseWorkbook }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: mocks.supabaseFrom } }))
@@ -244,7 +245,7 @@ describe('Clientes page behaviours', () => {
     expect(mocks.compareCustomerBaseWithExisting).toHaveBeenCalledWith(parsedBase)
     await user.click(within(screen.getByRole('dialog', { name: 'Importar base de clientes' })).getByRole('button', { name: 'Importar base' }))
 
-    await waitFor(() => expect(mocks.importCustomerBaseRows).toHaveBeenCalledWith(parsedBase.rows, { changedBy: 'user-1' }))
+    await waitFor(() => expect(mocks.importCustomerBaseRows).toHaveBeenCalledWith(parsedBase.rows, { changedBy: 'user-1', confirmNameChange: false }))
     for (const queryKey of [['customers'], ['customer-lookup'], ['bls']]) {
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey })
     }

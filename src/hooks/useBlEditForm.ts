@@ -32,7 +32,6 @@ const editableFields: (keyof Pick<
   | 'place_of_delivery'
   | 'issue_place'
   | 'bl_emission_date'
-  | 'ce_mercante'
   | 'bb_machine_qty'
   | 'bb_packages_qty'
   | 'bb_packages_total'
@@ -56,7 +55,6 @@ const editableFields: (keyof Pick<
   'place_of_delivery',
   'issue_place',
   'bl_emission_date',
-  'ce_mercante',
   'bb_machine_qty',
   'bb_packages_qty',
   'bb_packages_total',
@@ -95,7 +93,6 @@ const EDITABLE_FIELD_LABELS: Record<keyof BlForm, string> = {
   place_of_delivery: 'Place of Delivery',
   issue_place: 'Local de emissão',
   bl_emission_date: 'Data de emissão',
-  ce_mercante: 'CE Mercante',
   bb_machine_qty: 'Máquinas',
   bb_packages_qty: 'Packages',
   bb_packages_total: 'Total de packages',
@@ -271,7 +268,6 @@ function makeForm(bl: BLDetail): BlForm {
     place_of_delivery: bl.place_of_delivery,
     issue_place: documentBl.issue_place ?? null,
     bl_emission_date: bl.bl_emission_date,
-    ce_mercante: bl.ce_mercante,
     bb_machine_qty: bl.bb_machine_qty,
     bb_packages_qty: bl.bb_packages_qty,
     bb_packages_total: bl.bb_packages_total,

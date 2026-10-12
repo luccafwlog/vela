@@ -106,17 +106,16 @@ beforeEach(() => {
 
 describe('authoritative Demurrage invoice creation', () => {
   it('sends only the identity inputs to the server authority', async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: { status: 'issued', invoice_id: 321, anchor_bl_id: 'BL-1' }, error: null })
     const invoiceId = await createInvoiceForBL('BL-1')
 
-    expect(mocks.rpc).toHaveBeenCalledWith('create_demurrage_invoice_authoritative', {
-      p_doc_number: expect.stringMatching(/^DEM-\d{4}-/),
+    expect(mocks.rpc).toHaveBeenCalledWith('issue_demurrage_invoice_for_bl', {
       p_bl_id: 'BL-1',
-      p_customer_id: 9,
-      p_container_ids: [4],
+      p_doc_number: expect.stringMatching(/^DEM-\d{4}-/),
     })
+    expect(mocks.from).not.toHaveBeenCalled()
     expect(mocks.calculate).not.toHaveBeenCalled()
     expect(mocks.fetchROE).not.toHaveBeenCalled()
-    expect(mocks.ensureRates).not.toHaveBeenCalled()
     expect(invoiceId).toBe(321)
   })
 
@@ -127,5 +126,20 @@ describe('authoritative Demurrage invoice creation', () => {
     })
 
     await expect(createInvoiceForBL('BL-1')).rejects.toThrow('Já existe fatura de Demurrage emitida ou paga para este B/L. Cancele a fatura atual antes de reemitir.')
+  })
+
+  it('caixa já cobrada (214): mostra a recusa do banco, que nomeia o container', async () => {
+    const message = 'Já existe fatura de Demurrage emitida ou paga para o container ABCU1234567 do B/L BL-1. Cancele a fatura atual antes de reemitir.'
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: { code: '23505', message } })
+    await expect(createInvoiceForBL('BL-1')).rejects.toThrow(message)
+    mocks.rpc.mockResolvedValueOnce({ data: { status: 'existing', invoice_id: 7, anchor_bl_id: 'BL-1' }, error: null })
+    await expect(createInvoiceForBL('BL-1')).rejects.toThrow('Todos os containers deste B/L já estão em Invoice de Demurrage emitida ou paga.')
+  })
+
+  it('explica por que o grupo ainda não fatura', async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: { status: 'waiting_return', anchor_bl_id: 'BL-0' }, error: null })
+    await expect(createInvoiceForBL('BL-1')).rejects.toThrow('Aguardando a devolução de todos os containers do B/L (grupo do B/L BL-0).')
+    mocks.rpc.mockResolvedValueOnce({ data: { status: 'no_overstay', anchor_bl_id: 'BL-1' }, error: null })
+    await expect(createInvoiceForBL('BL-1')).rejects.toThrow('Nenhum container com sobreestadia para este B/L.')
   })
 })

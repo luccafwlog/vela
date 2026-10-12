@@ -35,8 +35,33 @@ para a decisão completa.
   locais nasce na transição do CE Mercante (ADRs 0020 e 0042): o gatilho
   server-side calcula as taxas, promove o B/L e emite a invoice/recebível na
   mesma transação quando os dados do cliente, a reconciliação e os demais
-  critérios financeiros estão prontos. Sem CE, qualquer desses modos fica em
-  “Aguardando CE Mercante” na Validação; a exceção manual é a emissão
+  critérios financeiros estão prontos. Pela planilha de CE Mercante (migration
+  `181`), a gravação guarda o CE e o cálculo e a tela emite logo depois em
+  lotes de 25 (`emit_ce_mercante_billing`, que reaproveita o cálculo do dia do
+  CE), com progresso e Retomar; o efeito `local_billing` é a rede. A fatura sai
+  com a nota "Sistema — CE Mercante". Desde a migration `195`, B/L que só
+  espera (Cliente não conciliado, Revisão pendente) volta como aguardando, com
+  a frase de negócio, sem Alerta; a falha técnica de um B/L abre
+  `billing_auto_issue_failed` (ADR 0041), que fecha quando a fatura do B/L sai —
+  no próprio lote ou por qualquer outro caminho (gatilho do CE, fila de efeitos,
+  Portal, **Emitir fatura**), pelo gatilho `resolve_auto_issue_alert_on_invoiced`.
+  Alertas já abertos para B/L faturado antes da `195` fecham na próxima emissão
+  do lote ou à mão. Desde a migration `204` (ADR 0079, decisão 4), B/L sem
+  tabela de cobrança ativa para o POD e a modalidade volta como "Aguardando
+  tabela de cobrança" e entra num alerta `billing_charge_table_missing` por POD
+  e modalidade, com a lista dos B/Ls, que fecha quando as faturas saem; a
+  emissão recalcula quando a tabela passa a existir. O B/L cancelado, sem CE,
+  com outro POD ou outra modalidade, ou de Viagem cancelada também sai da lista
+  (migration `208`). A lista é travada antes de ser lida: duas emissões
+  simultâneas no mesmo POD não apagam o B/L uma da outra (migration `209`). B/L calculado com todas as
+  taxas zeradas volta como "Nada a faturar", sem alerta. Nenhum dos dois abre
+  `billing_auto_issue_failed`. Desde a migration `212`, o B/L que sai do lote
+  sem fatura a emitir ("Nada a faturar", isento, sem CE ou cancelado) também
+  deixa a lista do alerta de tabela faltando e fecha a falha de emissão
+  anterior; e a mesma planilha de CE importada de novo devolve ao lote o B/L
+  ativo, com CE e sem fatura que uma emissão interrompida deixou para trás. A
+  tela não fecha (X ou Escape) enquanto grava ou emite. Sem CE, qualquer desses
+  modos fica em “Aguardando CE Mercante” na Validação; a exceção manual é a emissão
   individual “Emitir”, que mantém os mesmos gates. Granito é apoio operacional
   e não emite invoice (nota de 2026-09-23 na ADR 0042). Embarque de Vazios não emite CE nem possui faturamento de
   cliente.
@@ -387,6 +412,16 @@ menores e específicas descritas no catálogo.
 
 ## Fluxos e invariantes
 
+### Documento da fatura congelado (ADR 0078, item 13)
+
+Desde a migration `183`, a emissão (status diferente de rascunho) grava em
+`invoice_document_snapshots`, no fim da transação, a razão social, o CNPJ e o
+endereço do Cliente, a Viagem, o navio e, por B/L, POL, POD, Viagem e navio. O
+detalhe (`list_invoice_details`) e o Portal (`_portal_invoice_details_core`)
+sobrepõem essa cópia aos dados vivos, e a impressão mostra o endereço
+congelado. Corrigir o Cliente ou o B/L depois não reescreve uma fatura já
+emitida; mudanças de valor seguem a ADR 0077.
+
 ### Correção após emissão (ADR 0077)
 
 Fatura emitida não oferece edição manual de itens; as RPCs antigas foram
@@ -440,8 +475,11 @@ Depois de um cancelamento, o recálculo desvincula os itens da fatura cancelada
 das linhas de cálculo antigas (`126`). Cancelar fatura individual coberta por
 consolidada aberta é recusado; o efeito de veículos cancela a consolidada do B/L
 isento e a encerra sem reemissão (`128`). Erro de preço (tabela ou Condição do
-Cliente) não reemite: vale para faturas futuras. Limite conhecido: o rateio de
-container compartilhado não reavalia o B/L vizinho.
+Cliente) não reemite: vale para faturas futuras. O rateio de container
+compartilhado entra na base (`bl_invoice_basis_snapshot` lista os B/Ls que
+dividem cada container): irmão que chega ou é cancelado depois do faturamento
+reemite a fatura do B/L faturado com o rateio novo (migration `176`; a guarda de
+mutação de container compartilhado saiu).
 
 
 ```mermaid
@@ -637,7 +675,17 @@ O evento COD criado na mesma operação é vinculado à correção automática e
 marcado liquidado, sem repetir abatimento ou devolução. O alerta Fatura
 desatualizada só fecha quando todos os recebíveis relacionados concordam com
 Cliente e cálculo atuais. Alteração de participação em container compartilhado
-também verifica os B/Ls vizinhos, preservando as travas de edição existentes.
+também verifica os B/Ls vizinhos. Na emissão, cada vínculo de fatura grava o
+rateio com que o B/L entrou (`invoice_bls.container_shares`); a guarda
+`guard_shared_container_invoice` recusa (SQLSTATE `P0007`, nomeando o B/L irmão)
+só quando o irmão faturado tem rateio diferente do atual
+(`bl_container_share_signature`), também na consolidada. Desde a migration
+`191`, a recusa vale só enquanto a fatura do irmão ainda pode ser reemitida: se
+ela tem pagamento, baixa parcial, cobertura por consolidada paga ou correção
+registrada, não é reemitida (ADR 0077, item 4), o vínculo guarda o rateio
+antigo e o B/L que chega fatura com o rateio atual. O caso de cobrar o
+container mais de uma vez (irmão sem pagamento ainda não reemitido) continua
+recusado com `P0007`.
 
 Se o efeito financeiro falhar, `invoice_basis_pending_changes` conserva a
 pendência; o Administrativo usa **Tentar aplicar correção** no histórico da

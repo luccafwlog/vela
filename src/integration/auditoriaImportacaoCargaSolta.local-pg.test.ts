@@ -1,6 +1,7 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
-// Cada it.fails documenta um defeito confirmado e roda no job local-pg do CI; quando a correção entrar, troque it.fails por it.
+// Os casos nasceram como it.fails (um defeito confirmado cada) e viraram it com a migration 174 (Etapa 1 do plano
+// docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md); as checagens novas da Etapa 1 estão no fim da suíte.
 //
 // Problema-raiz M01: reimportação de carga solta (Manifesto BB e B/L avulso
 // PDF/DOCX) pela RPC `import_breakbulk_manifest_transactional`. O ON CONFLICT
@@ -171,6 +172,21 @@ function releaseImportRateLimit(): void {
     WHERE uploaded_by = '${actorId}';
     SET session_replication_role = origin;
   `)
+}
+
+type BreakbulkResult = {
+  inserted_bl_ids: string[]
+  updated_bl_ids: string[]
+  unchanged_bl_ids: string[]
+  ce_ignored: string[]
+  customer_changes_ignored: Array<{ bl_id: string; customer_id: number; file_customer_id: number }>
+  customer_relinks: Array<{ bl_id: string; applied: boolean }>
+  billing_locked: Array<{ bl_id: string; fields: string[] }>
+}
+
+function importBreakbulkResult(result: { output: string | null; error: string | null }): BreakbulkResult {
+  expect(result.error).toBeNull()
+  return JSON.parse(result.output ?? '{}') as BreakbulkResult
 }
 
 function importBreakbulk(voyageId: number, lines: Array<ReturnType<typeof breakbulkLine>>, filename = 'a201-carga-solta.pdf') {
@@ -376,7 +392,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     const blId = 'A201-BB1'
     const blDocument = breakbulkLine(voyageA, blId, { kind: 'document', customer: gama })
     expect(importBreakbulk(voyageA, [blDocument]).error).toBeNull()
-    expect(importCeSheet('A201-MAN-1', voyageA, [{ blId, ce: '201001000000001' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A201MAN000001', voyageA, [{ blId, ce: '201001000000001' }])).toMatchObject({ ok: true })
     const before = blState(blId)
     expect(before).toMatchObject({ ce_mercante: '201001000000001', customer_id: gama.id })
     expect(before?.manifesto_mercante_id).toBeTruthy()
@@ -389,7 +405,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     expect(ceAfterDocumentReimport?.id).toBe(blId)
   })
 
-  it.fails('esperado: reimportar sem a chave de CE preserva o CE já gravado [BL-01, CED-03, OUT-01, ORDCE-02, TST-01] — regra: manifesto-edi.md:293, BlDocumentImportModal.tsx:101-102, breakbulkImport.ts:77-78, CONTEXT.md:1026', () => {
+  it('esperado: reimportar sem a chave de CE preserva o CE já gravado [BL-01, CED-03, OUT-01, ORDCE-02, TST-01] — regra: manifesto-edi.md:293, BlDocumentImportModal.tsx:101-102, breakbulkImport.ts:77-78, CONTEXT.md:1026', () => {
     expect(ceAfterDocumentReimport?.ce_mercante).toBe('201001000000001')
   })
 
@@ -401,7 +417,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     const newBl = 'A201-BB7'
     const invoicedDocument = breakbulkLine(voyageA, invoicedBl, { kind: 'document', customer: alfa })
     expect(importBreakbulk(voyageA, [invoicedDocument]).error).toBeNull()
-    expect(importCeSheet('A201-MAN-2', voyageA, [{ blId: invoicedBl, ce: '201001000000002' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A201MAN000002', voyageA, [{ blId: invoicedBl, ce: '201001000000002' }])).toMatchObject({ ok: true })
     expect(blState(invoicedBl)).toMatchObject({ ce_mercante: '201001000000002', financial_status: 'invoiced' })
     expect(invoicesOf(invoicedBl)).toMatchObject([{ customer_id: alfa.id, status: 'issued' }])
     expect(blState(newBl)).toBeNull()
@@ -419,7 +435,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     expect(invoicedLotResult.invoiced?.id).toBe(invoicedBl)
   })
 
-  it.fails('esperado: o lote é aceito, o B/L novo entra e o faturado mantém CE e fatura [OUT-01, CED-03, TST-01] — regra: manifesto-edi.md:293, CONTEXT.md:1026 e ADR 0071 item 5 (docs/adr/0071-ce-mercante-como-trava-de-exclusao.md:66)', () => {
+  it('esperado: o lote é aceito, o B/L novo entra e o faturado mantém CE e fatura [OUT-01, CED-03, TST-01] — regra: manifesto-edi.md:293, CONTEXT.md:1026 e ADR 0071 item 5 (docs/adr/0071-ce-mercante-como-trava-de-exclusao.md:66)', () => {
     expect(invoicedLotResult?.error).toBeNull()
     expect(invoicedLotResult?.newBl?.id).toBe('A201-BB7')
     expect(invoicedLotResult?.invoiced?.ce_mercante).toBe('201001000000002')
@@ -453,7 +469,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     expect(afterReviewReimport?.id).toBe(blId)
   })
 
-  it.fails('esperado: a reimportação sem CNPJ preserva o Cliente confirmado na Revisão [OUT-02, ORDCE-03, BL-01] — regra: CONTEXT.md:1011-1021 (Reconciliação de Cliente) e ADR 0043', () => {
+  it('esperado: a reimportação sem CNPJ preserva o Cliente confirmado na Revisão [OUT-02, ORDCE-03, BL-01] — regra: CONTEXT.md:1011-1021 (Reconciliação de Cliente) e ADR 0043', () => {
     expect(afterReviewReimport).toMatchObject({ customer_id: alfa.id, customer_reconciliation_status: 'reconciled' })
   })
 
@@ -463,7 +479,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
   it('cenário 4: Manifesto BB (layout resumido, mesma coluna CE) reimportado com o CNPJ de outro Cliente sobre B/L faturado', () => {
     const blId = 'A201-BB4'
     expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: alfa })], 'a201-bb-resumo.xlsx').error).toBeNull()
-    expect(importCeSheet('A201-MAN-4', voyageA, [{ blId, ce: '201001000000004' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A201MAN000004', voyageA, [{ blId, ce: '201001000000004' }])).toMatchObject({ ok: true })
     const issued = invoicesOf(blId)
     expect(issued).toMatchObject([{ customer_id: alfa.id, status: 'issued' }])
     expect(blState(blId)).toMatchObject({ customer_id: alfa.id, financial_status: 'invoiced' })
@@ -481,7 +497,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     expect(customerSwap.bl?.ce_mercante).toBe('201001000000004')
   })
 
-  it.fails('esperado: sem aceite, o Cliente do B/L faturado não muda e a fatura emitida não é cancelada [OUT-02, ORDCE-V02] — regra: CONTEXT.md:1023-1036 (Troca de Consignatário: só com aceite explícito)', () => {
+  it('esperado: sem aceite, o Cliente do B/L faturado não muda e a fatura emitida não é cancelada [OUT-02, ORDCE-V02] — regra: CONTEXT.md:1023-1036 (Troca de Consignatário: só com aceite explícito)', () => {
     expect(customerSwap?.bl?.customer_id).toBe(alfa.id)
     expect(customerSwap?.invoices.find((invoice) => invoice.id === customerSwap?.originalInvoiceId)?.status).toBe('issued')
   })
@@ -495,7 +511,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
   it('cenário 5: Manifesto BB da Viagem B contém B/L faturado da Viagem A (mesmo CE e CNPJ)', () => {
     const blId = 'A201-BB5'
     expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: alfa })], 'a201-bb-viagem-a.xlsx').error).toBeNull()
-    expect(importCeSheet('A201-MAN-5', voyageA, [{ blId, ce: '201001000000005' }])).toMatchObject({ ok: true })
+    expect(importCeSheet('A201MAN000005', voyageA, [{ blId, ce: '201001000000005' }])).toMatchObject({ ok: true })
     expect(blState(blId)).toMatchObject({ voyage_id: voyageA, financial_status: 'invoiced' })
     expect(invoicesOf(blId)).toMatchObject([{ status: 'issued' }])
 
@@ -515,7 +531,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     expect(otherVoyage.bl?.id).toBe(blId)
   })
 
-  it.fails('esperado: o Manifesto BB não move B/L faturado de outra Viagem [OUT-03] — regra: ADR 0017 nota de 2026-08-28 (docs/adr/0017-bl-fonte-ingestao-correcao-autoridade-compartilhada.md:175-181: viagem de B/L faturado só muda com override auditado) e manifesto-edi.md:294', () => {
+  it('esperado: o Manifesto BB não move B/L faturado de outra Viagem [OUT-03] — regra: ADR 0017 nota de 2026-08-28 (docs/adr/0017-bl-fonte-ingestao-correcao-autoridade-compartilhada.md:175-181: viagem de B/L faturado só muda com override auditado) e manifesto-edi.md:294', () => {
     expect(otherVoyage?.bl?.voyage_id).toBe(voyageA)
   })
 
@@ -531,7 +547,7 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     expect(suggested).toMatchObject({ customer_id: null, customer_reconciliation_status: 'matched_name' })
   })
 
-  it.fails('esperado: a sugestão por nome é gravada em suggested_customer_id [OUT-12, TST-11, BL-12] — regra: ADR 0043 (docs/adr/0043-vinculo-de-cliente-somente-por-documento.md:21), CONTEXT.md:1018-1020, RASTREABILIDADE.md:583', () => {
+  it('esperado: a sugestão por nome é gravada em suggested_customer_id [OUT-12, TST-11, BL-12] — regra: ADR 0043 (docs/adr/0043-vinculo-de-cliente-somente-por-documento.md:21), CONTEXT.md:1018-1020, RASTREABILIDADE.md:583', () => {
     expect(suggested?.suggested_customer_id).toBe(beta.id)
   })
 
@@ -549,5 +565,130 @@ describeLocal('M01 — reimportação de carga solta (Manifesto BB e B/L avulso)
     expect(linked).toMatchObject({ customer_id: alfa.id, customer_reconciliation_status: 'matched_document' })
     expect(linked?.review_status).not.toBe('pending_review')
     expect(linked?.notes ?? '').not.toContain('Cliente nao vinculado')
+  })
+
+  // --- Checagens novas da Etapa 1 (ADR 0078, itens 1 e 14) -------------------
+  it('BB com a coluna CE preenchida não grava CE e devolve o B/L em ce_ignored', () => {
+    const blId = 'A201-BB9'
+    const result = importBreakbulkResult(importBreakbulk(
+      voyageA,
+      [breakbulkLine(voyageA, blId, { kind: 'document', customer: gama }, '201001000000009')],
+      'a201-bb-com-ce.xlsx',
+    ))
+    expect(result.inserted_bl_ids).toEqual([blId])
+    expect(result.ce_ignored).toEqual([blId])
+    expect(blState(blId)?.ce_mercante).toBeNull()
+  })
+
+  it('correção de POD por reimportação atualiza o B/L e desvincula o Manifesto Mercante', () => {
+    const blId = 'A201-BB10'
+    const line = breakbulkLine(voyageA, blId, { kind: 'document', customer: gama })
+    expect(importBreakbulk(voyageA, [line]).error).toBeNull()
+    expect(importCeSheet('A201MAN000010', voyageA, [{ blId, ce: '201001000000010' }])).toMatchObject({ ok: true })
+    expect(blState(blId)?.manifesto_mercante_id).toBeTruthy()
+    // Gama não tem Liberação: o CE fica retido, sem cálculo nem fatura.
+    expect(invoicesOf(blId)).toHaveLength(0)
+
+    const corrected = { ...line, row: { ...line.row, pod: 'A201Q' } }
+    const result = importBreakbulkResult(importBreakbulk(voyageA, [corrected], 'a201-bb-pod-corrigido.xlsx'))
+    expect(result.updated_bl_ids).toEqual([blId])
+    const after = JSON.parse(localPsql(`SELECT row_to_json(t) FROM (SELECT pod, manifesto_mercante_id, ce_mercante FROM public.bls WHERE id = '${blId}') t;`))
+    expect(after).toEqual({ pod: 'A201Q', manifesto_mercante_id: null, ce_mercante: '201001000000010' })
+    // Rastro da reimportação com Viagem e rota (ADR 0078, item 9).
+    const trail = localPsql(`
+      SELECT justification FROM public.audit_logs
+      WHERE entity_id = '${blId}' AND field_name = 'reimportacao_carga_solta'
+      ORDER BY id DESC LIMIT 1;
+    `)
+    expect(trail).toContain('A201A')
+    expect(trail).toContain('A201O -> A201Q')
+  })
+
+  it('reimportar o mesmo arquivo de B/L faturado não altera nada nem enfileira efeito', () => {
+    const blId = 'A201-BB2'
+    const before = invoicesOf(blId)
+    const effectsBefore = localPsql(`SELECT count(*) FROM public.import_pending_effects WHERE entity_id = '${blId}';`)
+    const result = importBreakbulkResult(importBreakbulk(
+      voyageA,
+      [breakbulkLine(voyageA, blId, { kind: 'document', customer: alfa })],
+      'a201-bb2-identico.pdf',
+    ))
+    expect(result.unchanged_bl_ids).toEqual([blId])
+    expect(result.updated_bl_ids).toEqual([])
+    expect(invoicesOf(blId)).toEqual(before)
+    expect(localPsql(`SELECT count(*) FROM public.import_pending_effects WHERE entity_id = '${blId}';`)).toBe(effectsBefore)
+  })
+
+  it('POD diferente em B/L faturado sem confirmação de faturamento fica e volta em billing_locked', () => {
+    const blId = 'A201-BB2'
+    const line = breakbulkLine(voyageA, blId, { kind: 'document', customer: alfa })
+    const result = importBreakbulkResult(importBreakbulk(
+      voyageA, [{ ...line, row: { ...line.row, pod: 'A201Q' } }], 'a201-bb2-pod-sem-confirmacao.pdf',
+    ))
+    expect(result.billing_locked).toEqual([{ bl_id: blId, fields: ['pod'] }])
+    expect(localPsql(`SELECT pod FROM public.bls WHERE id = '${blId}';`)).toBe(pod)
+  })
+
+  it('Troca de Consignatário com aceite troca o Cliente pelo contrato do B/L de container', () => {
+    const blId = 'A201-BB11'
+    expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: gama })]).error).toBeNull()
+    const ignored = importBreakbulkResult(importBreakbulk(
+      voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: beta })], 'a201-bb11-beta.xlsx',
+    ))
+    expect(ignored.customer_changes_ignored).toMatchObject([{ bl_id: blId, customer_id: gama.id, file_customer_id: beta.id }])
+    expect(blState(blId)?.customer_id).toBe(gama.id)
+
+    const accepted = breakbulkLine(voyageA, blId, { kind: 'document', customer: beta })
+    const result = importBreakbulkResult(importBreakbulk(
+      voyageA, [{ ...accepted, row: { ...accepted.row, relink_customer: true } as typeof accepted.row }], 'a201-bb11-beta-aceite.xlsx',
+    ))
+    expect(result.customer_relinks).toMatchObject([{ bl_id: blId, applied: true }])
+    expect(blState(blId)?.customer_id).toBe(beta.id)
+    expect(localPsql(`SELECT manifest_customer_cnpj_cpf FROM public.bls WHERE id = '${blId}';`)).toBe(beta.cnpj)
+  })
+
+  // --- Achados B3, B5 e B6 da revisão da PR 929 (migration 192) -------------
+  function queueOf(blId: string): string {
+    return localPsql(`SELECT status || ':' || COALESCE(customer_id::text, '-') FROM public.customer_reconciliation_queue WHERE bl_id = '${blId}';`)
+  }
+
+  it('B/L sem Cliente que passa a ter Cliente por CNPJ sai da fila de Reconciliação de Cliente', () => {
+    const blId = 'A201-BB12'
+    expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'none', consignee: 'A201 CONSIGNATARIO BB12' })], 'a201-bb12-sem-cnpj.xlsx').error).toBeNull()
+    expect(queueOf(blId)).toBe('pending:-')
+
+    expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: alfa })], 'a201-bb12-com-cnpj.xlsx').error).toBeNull()
+    expect(blState(blId)).toMatchObject({ customer_id: alfa.id, customer_reconciliation_status: 'matched_document' })
+    expect(queueOf(blId)).toBe(`approved:${alfa.id}`)
+  })
+
+  it('reimportação com o mesmo Cliente preserva a retenção do Portal', () => {
+    const blId = 'A201-BB13'
+    const line = breakbulkLine(voyageA, blId, { kind: 'document', customer: gama })
+    expect(importBreakbulk(voyageA, [line]).error).toBeNull()
+    expect(importCeSheet('A201MAN000013', voyageA, [{ blId, ce: '201001000000013' }])).toMatchObject({ ok: true })
+    const hold = `SELECT COALESCE(billing_hold_reason, '-') FROM public.bls WHERE id = '${blId}';`
+    expect(localPsql(hold)).toBe('Acesso ao portal nao provisionado')
+
+    expect(importBreakbulk(voyageA, [line], 'a201-bb13-reimportado.xlsx').error).toBeNull()
+    expect(localPsql(hold)).toBe('Acesso ao portal nao provisionado')
+  })
+
+  it('Troca de Consignatário recusada não grava o Consignee novo', () => {
+    const blId = 'A201-BB14'
+    expect(importBreakbulk(voyageA, [breakbulkLine(voyageA, blId, { kind: 'document', customer: gama })]).error).toBeNull()
+    // Avulsa recebida do Cliente atual: a troca exige devolver antes (blocker do relink).
+    localPsql(`
+      SET session_replication_role = replica;
+      INSERT INTO public.invoices (invoice_number, customer_id, bl_id, voyage_id, total_brl, total_paid_brl, status, invoice_type)
+      VALUES ('A201-AVULSA-BB14', ${gama.id}, '${blId}', ${voyageA}, 100, 100, 'paid', 'manual');
+      SET session_replication_role = origin;
+    `)
+    const accepted = breakbulkLine(voyageA, blId, { kind: 'document', customer: beta })
+    const result = importBreakbulkResult(importBreakbulk(
+      voyageA, [{ ...accepted, row: { ...accepted.row, relink_customer: true } as typeof accepted.row }], 'a201-bb14-beta-aceite.xlsx',
+    ))
+    expect(result.customer_relinks).toMatchObject([{ bl_id: blId, applied: false }])
+    expect(localPsql(`SELECT customer_id || ':' || consignee FROM public.bls WHERE id = '${blId}';`)).toBe(`${gama.id}:${gama.name}`)
   })
 })

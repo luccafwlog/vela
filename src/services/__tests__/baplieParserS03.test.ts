@@ -208,7 +208,7 @@ describe('baplie S03 vetores', () => {
     expect(hasBlockingIssues(parsed.issues)).toBe(true)
   })
 
-  it('bloqueia conjunto sem POL/POD ou com LOCODE desconhecido', () => {
+  it('bloqueia conjunto sem POD ou com POL desconhecido', () => {
     const parsed = parseBaplieText([
       "TDT+20+14+++:::GREEN SANTOS'",
       "LOC+147+010101'",
@@ -218,7 +218,50 @@ describe('baplie S03 vetores', () => {
     ].join('\n'))
 
     expect(parsed.issues.filter((issue) => issue.code === 'unknown_port')).toHaveLength(2)
-    expect(parsed.issues.every((issue) => issue.severity === 'error')).toBe(true)
+    // O dígito verificador de TCLU1234567 não confere: aviso à parte (etapa 9).
+    expect(parsed.issues.filter((issue) => issue.code === 'unknown_port').every((issue) => issue.severity === 'error')).toBe(true)
     expect(hasBlockingIssues(parsed.issues)).toBe(true)
+  })
+
+  // E9-02 (ADR 0078, item 21): POD fora dos portos conhecidos é container fora
+  // das escalas — sai do staging com aviso, sem bloquear o arquivo.
+  it('POD não reconhecido (UYMVD) ignora o container com aviso e não bloqueia o resto', () => {
+    const parsed = parseBaplieText([
+      "TDT+20+14+++:::GREEN SANTOS'",
+      "LOC+147+010101'",
+      "LOC+6+CNTAC'",
+      "LOC+12+UYMVD'",
+      "MEA+WT++KGM:10000'",
+      "EQD+CN+MSCU1234566+45G1+++5'",
+      "LOC+147+010102'",
+      "LOC+6+CNTAC'",
+      "LOC+12+BRVIX'",
+      "MEA+WT++KGM:10000'",
+      "EQD+CN+MSCU7654329+45G1+++5'",
+      "UNT+10+1'",
+    ].join('\n'))
+
+    expect(parsed.containers.map((c) => c.container_number)).toEqual(['MSCU7654329'])
+    expect(parsed.pods).toEqual(['BRVIX'])
+    expect(parsed.issues).toEqual([
+      expect.objectContaining({ field: 'pod', code: 'unknown_port', severity: 'warning', message: expect.stringMatching(/MSCU1234566: porto de descarga não reconhecido \(UYMVD\)/) }),
+    ])
+    expect(hasBlockingIssues(parsed.issues)).toBe(false)
+  })
+
+  it('só bloqueia o POD não reconhecido quando não sobra nenhum container', () => {
+    const parsed = parseBaplieText([
+      "TDT+20+14+++:::GREEN SANTOS'",
+      "LOC+147+010101'",
+      "LOC+6+CNTAC'",
+      "LOC+12+UYMVD'",
+      "MEA+WT++KGM:10000'",
+      "EQD+CN+MSCU1234566+45G1+++5'",
+      "UNT+10+1'",
+    ].join('\n'))
+
+    expect(parsed.containers).toEqual([])
+    expect(parsed.issues).toContainEqual(expect.objectContaining({ code: 'unknown_port', severity: 'warning' }))
+    expect(parsed.issues).toContainEqual(expect.objectContaining({ severity: 'error', message: expect.stringMatching(/Nenhum container a importar/) }))
   })
 })

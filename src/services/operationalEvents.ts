@@ -8,9 +8,7 @@ type OperationalEventCode =
   | 'invoice_create_conflict'
   | 'invoice_payment_invalid'
   | 'invoice_cancel_blocked'
-  | 'bl_auto_billing_failed'
   | 'customer_finance_communication_failed'
-  | 'ce_reimport_already_invoiced'
   | 'granite_reimport_already_invoiced'
 
 type LogOperationalEventInput = {

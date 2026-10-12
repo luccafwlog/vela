@@ -63,7 +63,7 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
       ON CONFLICT (id) DO NOTHING;`)
     // O fixture emite uma invoice abaixo; o CE preenchido satisfaz o gate de
     // emissão universal introduzido pela migration 047.
-    psql(`INSERT INTO public.bls (id, voyage_id, customer_id, ce_mercante) VALUES ('${BL_ID}', ${CUSTOMER_ID}, ${CUSTOMER_ID}, '123456789012345')
+    psql(`INSERT INTO public.bls (id, voyage_id, customer_id, ce_mercante) VALUES ('${BL_ID}', ${CUSTOMER_ID}, ${CUSTOMER_ID}, '619701000000145')
       ON CONFLICT (id) DO NOTHING;`)
     // Inserir cliente auto-provisiona a conta do Portal (inativa); ativar por UPDATE.
     psql(`INSERT INTO auth.users (id, email) VALUES

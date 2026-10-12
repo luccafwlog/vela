@@ -1,5 +1,6 @@
 import { canonicalizeDocument } from '../lib/cnpj'
 import { extractErrorText } from '../lib/errors'
+import { importDateOrNull } from '../lib/importDate'
 import { extractNcmCodes } from '../lib/ncm'
 import { normalizeIsoContainerNumber } from '../lib/containerNumber'
 import { canonicalizeVesselName } from '../lib/vesselAlias'
@@ -7,7 +8,7 @@ import { extractConsigneeShortName } from '../lib/consigneeName'
 import type { BL, BLContainer, BlFreightLine, Vehicle } from '../types/database'
 import { extractTaxId, type ParsedBLDocument } from './blParser'
 import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, type CustomerMaps } from './customerReconciliation'
-import { normalizePortCode } from './portCode'
+import { normalizePortCode, resolvePortCode } from './portCode'
 import { calculateLocalChargesBatch } from './charges/chargeOperationsService'
 import { supabase } from './supabase'
 
@@ -54,8 +55,22 @@ export type BlFreightImportRow = {
   blNumber: string
   status: 'new' | 'updated' | 'unchanged' | 'blocked'
   existing: boolean
-  /** contêineres que o B/L já tem no banco: a reimportação apaga e regrava esse conjunto */
+  /** contêineres que o B/L já tem no banco */
   existingContainerNumbers?: string[]
+  /** contêineres gravados que o arquivo não traz: saem do B/L ao confirmar (ADR 0071, item 10) */
+  removedContainers?: string[]
+  /** entradas, saídas e mudanças de veículos pela aba VIN; null sem aba ou sem mudança */
+  vehicleChanges?: BlVehicleChanges | null
+  /** B/L já gravado cuja lista de veículos muda: só aplica com confirmação */
+  requiresVehicleConfirmation?: boolean
+  /**
+   * Contêineres que saem do B/L levando os veículos (a aba VIN os tira dali):
+   * só saem com a lista de veículos confirmada; sem ela a gravação recusaria o
+   * lote inteiro (migration 175, P0006). A confirmação passa a ser obrigatória.
+   */
+  vehicleConfirmationRequiredFor?: string[]
+  /** avisos que não bloqueiam (ex.: Laden on Board ilegível mantém a data gravada) */
+  warnings?: string[]
   voyageId: number | null
   /** Numero da viagem declarado no B/L (nao o id interno), para exibicao no preview. */
   voyageNumber: string | null
@@ -88,7 +103,15 @@ export type BlFreightImportPreview = {
     blockedCount: number
     billingOverrideCount: number
     customerChangeCount: number
+    vehicleConfirmationCount?: number
   }
+}
+
+/** Veículos da aba VIN comparados aos gravados, por chassi. */
+export type BlVehicleChanges = {
+  added: string[]
+  removed: string[]
+  changed: string[]
 }
 
 export type BlFreightRpcPayload = {
@@ -135,6 +158,10 @@ export type BlFreightRpcPayload = {
   relink_customer: boolean
   /** NCM declarado no documento; vazio nunca apaga o cadastro manual (migration 358) */
   ncm_codes: string[]
+  /** contêineres que a prévia mostrou saindo; os demais ausentes ficam (migration 175) */
+  remove_containers?: string[]
+  /** operador confirmou entradas, saídas e mudanças de veículos (migration 175) */
+  confirm_vehicle_changes?: boolean
   freight_lines: Array<{
     seq: number
     description: string
@@ -158,7 +185,8 @@ export type BlFreightRpcPayload = {
     /** SOC/COC declarado no B/L; o B/L é soberano sobre o Baplie (migration 121) */
     ownership: 'SOC' | 'COC' | null
   }>
-  vehicles: Array<{
+  /** só presente quando o arquivo tem a aba VIN; ausente, os veículos gravados ficam */
+  vehicles?: Array<{
     chassis: string
     container_number: string | null
     brand: string
@@ -202,8 +230,8 @@ type ExistingBl = Pick<
   notify_cnpj_cpf?: string | null
   manifest_customer_email?: string | null
   ncm_codes?: string[] | null
-  vehicles?: Pick<Vehicle, 'chassis'>[] | null
-  bl_containers?: (Pick<BLContainer, 'container_number' | 'seal_number' | 'type' | 'tare_weight_kg' | 'gross_weight_kg' | 'cbm' | 'is_imo' | 'is_oog' | 'imo_class' | 'un_number'> & { ownership?: string | null })[] | null
+  vehicles?: (Pick<Vehicle, 'chassis'> & Partial<Pick<Vehicle, 'brand' | 'model' | 'weight_kg' | 'cbm' | 'container_id'>>)[] | null
+  bl_containers?: (Pick<BLContainer, 'container_number' | 'seal_number' | 'type' | 'tare_weight_kg' | 'gross_weight_kg' | 'cbm' | 'is_imo' | 'is_oog' | 'imo_class' | 'un_number'> & { id?: number; ownership?: string | null; ownership_source?: string | null })[] | null
   bl_freight_lines?: Pick<BlFreightLine, 'seq' | 'description' | 'category' | 'mercante_code' | 'currency' | 'amount' | 'payment'>[] | null
 }
 
@@ -261,8 +289,17 @@ export type BuildBlFreightPreviewArgs = {
   billingLockedBlIds?: Set<string>
   /** container numbers that already belong to a different B/L (container_distinct_voyage billing) */
   sharedContainerNumbers?: Set<string>
+  /**
+   * B/Ls de outro arquivo que dividem cada container na Viagem escolhida, com o
+   * Cliente: container FCL não é dividido entre Clientes diferentes (ADR 0078, item 11).
+   */
+  containerSiblings?: Map<string, ContainerSibling[]> | null
   selectedVoyage?: BlFreightSelectedVoyage | null
   onlyBlId?: string | null
+  /** B/Ls em COD vivo: a reimportação não muda o POD (ADR 0078, item 13) */
+  codBlIds?: Set<string> | null
+  /** portos omitidos (não revertidos) na Viagem escolhida */
+  omittedPods?: Set<string> | null
   /** customers indexed by document/name so the import links each B/L to its payer */
   customerMaps?: CustomerMaps | null
   /** current payer of each existing B/L, indexed by customer id */
@@ -271,6 +308,33 @@ export type BuildBlFreightPreviewArgs = {
   invoicesByBl?: Map<string, BlInvoiceSnapshot[]> | null
   /** ledger receivables of each existing B/L, indexed by B/L id */
   receivablesByBl?: Map<string, BlReceivableSnapshot[]> | null
+  /**
+   * Cadastro de portos (nome e LOCODE). Presente, o POD que nem a tabela de
+   * apelidos nem o cadastro reconhecem bloqueia a linha (ADR 0078, item 17).
+   */
+  knownPorts?: PortCatalogEntry[] | null
+  /**
+   * O que impede cada contêiner gravado de sair do B/L, pelo id da linha em
+   * `bl_containers`. Presente, a prévia recusa a linha que a gravação recusaria
+   * (migration 175, P0006) em vez de deixar o lote inteiro cair.
+   */
+  containerRemovalBlockers?: ContainerRemovalBlockers | null
+}
+
+export type ContainerRemovalBlockers = {
+  /** contêineres com item de Invoice de Demurrage, de qualquer status */
+  demurrageContainerIds: Set<number>
+  /** chassis dos veículos gravados em cada contêiner */
+  vehiclesByContainer: Map<number, string[]>
+}
+
+export type PortCatalogEntry = { name: string | null; locode: string | null }
+
+export type ContainerSibling = {
+  blId: string
+  customerId: number | null
+  customerName: string | null
+  loadType: string | null
 }
 
 export async function previewBlFreightImport(args: {
@@ -287,24 +351,41 @@ export async function previewBlFreightImport(args: {
   // with a unique one (same count) still changes container_distinct_voyage billing.
   const existingContainerNumbers = existingBls.flatMap((bl) => (bl.bl_containers ?? []).map((container) => container.container_number))
   const sharedContainerNumbers = await fetchSharedContainerNumbers(blNumbers, [...containerNumbers, ...existingContainerNumbers])
-  const selectedVoyage = await fetchSelectedVoyage(args.voyageId)
+  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods] = await Promise.all([
+    fetchSelectedVoyage(args.voyageId),
+    fetchPortCatalog(),
+    fetchContainerSiblings(args.voyageId, blNumbers, containerNumbers),
+    fetchCodBlIds([...existingIds]),
+    fetchOmittedPods(args.voyageId),
+  ])
   if (!selectedVoyage) throw new Error('Viagem selecionada nao encontrada.')
 
   // Troca de consignatario: o preview precisa dizer de quem para quem o B/L vai
   // e o que acontece com a fatura ja emitida, antes de o operador confirmar.
   // Os clientes envolvidos sao os dois lados: o dono atual do B/L e o cliente
   // que o documento passa a declarar (resolvido pelo mesmo casamento do payload).
-  const targetCustomerIds = args.documents.map((doc) => {
+  const existingById = new Map(existingBls.map((bl) => [bl.id, bl]))
+  const targetCustomerIds: Array<number | null> = []
+  // Contêineres gravados que o arquivo não traz: a prévia confere o que impede
+  // a saída de cada um antes de prometê-la.
+  const removalCandidateIds: number[] = []
+  for (const doc of args.documents) {
     const payload = buildBlFreightPayload(doc, selectedVoyage.id)
-    return findMatchedCustomer(
+    targetCustomerIds.push(findMatchedCustomer(
       { cnpjCpf: payload.manifest_customer_cnpj_cpf, consignee: payload.consignee },
       customerMaps,
-    )?.customer.id ?? null
-  })
-  const [customersById, invoicesByBl, receivablesByBl] = await Promise.all([
+    )?.customer.id ?? null)
+    const existing = existingById.get(doc.blNumber)
+    if (existing) {
+      const incoming = payload.containers.map((container) => container.container_number)
+      removalCandidateIds.push(...missingContainerEntries(existing, incoming).flatMap((entry) => entry.ids))
+    }
+  }
+  const [customersById, invoicesByBl, receivablesByBl, containerRemovalBlockers] = await Promise.all([
     fetchCustomerSnapshots([...existingBls.map((bl) => bl.customer_id ?? null), ...targetCustomerIds]),
     fetchBlInvoiceSnapshots([...existingIds]),
     fetchBlReceivableSnapshots([...existingIds]),
+    fetchContainerRemovalBlockers(removalCandidateIds),
   ])
 
   return buildBlFreightPreview({
@@ -318,6 +399,11 @@ export async function previewBlFreightImport(args: {
     customersById,
     invoicesByBl,
     receivablesByBl,
+    knownPorts,
+    containerSiblings,
+    codBlIds,
+    omittedPods,
+    containerRemovalBlockers,
   })
 }
 
@@ -332,6 +418,11 @@ export function buildBlFreightPreview({
   customersById = null,
   invoicesByBl = null,
   receivablesByBl = null,
+  knownPorts = null,
+  containerSiblings = null,
+  codBlIds = null,
+  omittedPods = null,
+  containerRemovalBlockers = null,
 }: BuildBlFreightPreviewArgs): BlFreightImportPreview {
   const existingById = new Map(existingBls.map((bl) => [bl.id, bl]))
   const rows = documents.map((doc) => {
@@ -341,6 +432,8 @@ export function buildBlFreightPreview({
     if (payload && existing) {
       preserveExistingContainerPhysicalAttributes(payload, existing)
     }
+    const warnings: string[] = []
+    const portBlock = knownPorts && payload ? applyPortCatalog(payload, doc, knownPorts) : null
     const matchedCustomer = payload && customerMaps
       ? findMatchedCustomer(
         { cnpjCpf: payload.manifest_customer_cnpj_cpf, consignee: payload.consignee },
@@ -366,6 +459,30 @@ export function buildBlFreightPreview({
     ))
     if (incompleteVehicles.length > 0) {
       blockedReasons.push(`${incompleteVehicles.length} VIN(s) sem marca, modelo, peso e cubagem positivos; revise o veículo antes de importar.`)
+    }
+    if (portBlock) blockedReasons.push(portBlock)
+    const fclConflict = payload && containerSiblings ? describeFclConflict(payload, existing, containerSiblings) : null
+    if (fclConflict) blockedReasons.push(fclConflict)
+    const removedContainers = existing && payload ? missingContainers(existing, payload) : []
+    // Antes da troca de consignatário: a linha que a gravação recusaria fica
+    // bloqueada aqui, e linha bloqueada não anuncia troca nem pede confirmação.
+    const removal = existing && payload && containerRemovalBlockers
+      ? describeContainerRemovalBlocks(existing, payload, containerRemovalBlockers)
+      : { blockedReasons: [], vehicleConfirmationRequiredFor: [] }
+    blockedReasons.push(...removal.blockedReasons)
+    // COD vivo: o POD do B/L é o destino do COD; o arquivo não o troca
+    // (o servidor também mantém, migration 183). Mudar POD aqui é correção, nunca COD.
+    if (payload && existing && codBlIds?.has(existing.id) && payload.pod && existing.pod && payload.pod !== existing.pod) {
+      warnings.push(`B/L em COD: o POD continua ${existing.pod} (o arquivo traz ${payload.pod}); os demais campos atualizam.`)
+      payload.pod = existing.pod
+    }
+    if (payload && !existing && payload.pod && omittedPods?.has(payload.pod)) {
+      warnings.push(`POD ${payload.pod} foi omitido nesta Viagem: o B/L entra como afetado pela omissão, com disposição Transbordo.`)
+    }
+    if (!normalizeDate(doc.dates.ladenOnBoard)) {
+      warnings.push(doc.dates.ladenOnBoard.trim()
+        ? `Laden on Board ilegível ("${doc.dates.ladenOnBoard.trim()}"): a data gravada não muda.`
+        : 'Laden on Board vazio no arquivo: a data gravada não muda.')
     }
 
     const consigneeDocumentMatches = payload && existing?.manifest_customer_cnpj_cpf
@@ -400,11 +517,15 @@ export function buildBlFreightPreview({
     const requiresCustomerConfirmation = Boolean(customerChange && !customerChange.blockedReasons.length)
 
     const diffs = existing && payload ? diffExistingBl(existing, payload, impact) : []
+    const vehicleChanges = existing && payload ? describeVehicleChanges(existing, payload) : null
+    const requiresVehicleConfirmation = Boolean(vehicleChanges)
     // Only the operator's override decision is pending; a billing impact never nulls the payload.
     if (payload) {
       payload.billing_impact = requiresBillingOverride
       payload.override_billing = !requiresBillingOverride
       payload.relink_customer = false
+      // A remoção vai explícita: só sai o que a prévia mostrou (migration 175).
+      if (existing) payload.remove_containers = removedContainers
     }
 
     const status: BlFreightImportRow['status'] = blockedReasons.length
@@ -423,6 +544,11 @@ export function buildBlFreightPreview({
         const number = normalizeIsoContainerNumber(container.container_number)
         return number ? [number] : []
       }),
+      removedContainers,
+      vehicleChanges,
+      requiresVehicleConfirmation: requiresVehicleConfirmation && !blockedReasons.length,
+      vehicleConfirmationRequiredFor: blockedReasons.length ? [] : removal.vehicleConfirmationRequiredFor,
+      warnings,
       voyageId,
       voyageNumber: doc.route.voyage?.trim() || selectedVoyage?.voyageNumber || null,
       pol: payload?.pol ?? normalizePortCode(doc.route.pol),
@@ -449,6 +575,7 @@ export function buildBlFreightPreview({
       blockedCount: rows.filter((row) => row.status === 'blocked').length,
       billingOverrideCount: rows.filter((row) => row.requiresBillingOverride).length,
       customerChangeCount: rows.filter((row) => row.requiresCustomerConfirmation).length,
+      vehicleConfirmationCount: rows.filter((row) => row.requiresVehicleConfirmation).length,
     },
   }
 }
@@ -464,13 +591,65 @@ export type LocalChargeCalculationError = {
   message: string
 }
 
+/** O que a RPC fez em cada B/L: contêineres e veículos que entraram, mudaram ou saíram. */
+export type BlImportChangeSummary = {
+  blNumber: string
+  inserted: string[]
+  updated: string[]
+  removed: string[]
+}
+
 export type BlFreightImportResult = {
   /** retorno cru da RPC de importacao, um item por lote enviado */
   result: unknown[]
+  containerChanges: BlImportChangeSummary[]
+  vehicleChanges: BlImportChangeSummary[]
+  /** linhas da aba VIN recusadas (chassi em outro B/L, container ausente) */
+  vehiclesDiscarded: Array<{ blNumber: string; chassis: string; reason: string }>
+  /** B/Ls cuja mudança de veículos não foi confirmada: nada mudou nos veículos */
+  vehicleChangesPending: string[]
   /** trocas de cliente pedidas no preview e recusadas pelo servidor */
   refusedCustomerRelinks: RefusedCustomerRelink[]
+  /**
+   * B/Ls com Troca de Consignatário sem aceite: Cliente, consignatário, CNPJ,
+   * razão social e e-mail gravados ficaram (migration 213).
+   */
+  customerChangesIgnored: string[]
   /** B/Ls persistidos cuja tentativa de cálculo imediato falhou */
   calculationErrors: LocalChargeCalculationError[]
+}
+
+/** B/Ls cuja Troca de Consignatário o servidor ignorou por falta de aceite (migration 213). */
+export function readCustomerChangesIgnored(data: unknown): string[] {
+  const ignored = (data as { customer_changes_ignored?: unknown } | null)?.customer_changes_ignored
+  if (!Array.isArray(ignored)) return []
+  return ignored.flatMap((entry) => {
+    const blId = (entry as { bl_id?: unknown } | null)?.bl_id
+    return typeof blId === 'string' && blId ? [blId] : []
+  })
+}
+
+/**
+ * Campos do consignatário (e a reconciliação de Cliente que vem com ele) que só
+ * mudam com a Troca de Consignatário aceita. Sem o aceite eles não vão: o B/L
+ * fica com o consignatário gravado, sem a retenção do consignatário novo (a RPC
+ * também os mantém, migration 213, como a carga solta desde a 192).
+ */
+const CUSTOMER_SWAP_FIELDS = [
+  'consignee',
+  'consignee_block',
+  'manifest_customer_cnpj_cpf',
+  'manifest_customer_name',
+  'manifest_customer_email',
+  'customer_reconciliation_status',
+  'customer_reconciliation_notes',
+  'billing_hold_reason',
+] as const
+
+function withoutCustomerSwapFields<T extends Partial<Record<(typeof CUSTOMER_SWAP_FIELDS)[number], unknown>>>(payload: T): T {
+  const kept = { ...payload }
+  for (const field of CUSTOMER_SWAP_FIELDS) delete kept[field]
+  return kept
 }
 
 /**
@@ -492,6 +671,32 @@ export function readRefusedCustomerRelinks(data: unknown): RefusedCustomerRelink
   })
 }
 
+function readChangeSummaries(data: unknown, key: 'container_changes' | 'vehicle_changes'): BlImportChangeSummary[] {
+  const entries = (data as Record<string, unknown> | null)?.[key]
+  if (!Array.isArray(entries)) return []
+  const list = (value: unknown) => (Array.isArray(value) ? value.map(String) : [])
+  return entries.map((entry) => {
+    const item = entry as { bl_id?: unknown; inserted?: unknown; updated?: unknown; removed?: unknown }
+    return { blNumber: String(item.bl_id ?? ''), inserted: list(item.inserted), updated: list(item.updated), removed: list(item.removed) }
+  })
+}
+
+/** Lê do retorno da RPC o que mudou em contêineres e veículos, por B/L. */
+export function readImportChanges(data: unknown) {
+  const raw = data as { vehicles_discarded?: unknown; vehicle_changes_pending?: unknown } | null
+  return {
+    containerChanges: readChangeSummaries(data, 'container_changes'),
+    vehicleChanges: readChangeSummaries(data, 'vehicle_changes'),
+    vehiclesDiscarded: Array.isArray(raw?.vehicles_discarded)
+      ? raw.vehicles_discarded.map((entry) => {
+        const item = entry as { bl_id?: unknown; chassis?: unknown; reason?: unknown }
+        return { blNumber: String(item.bl_id ?? ''), chassis: String(item.chassis ?? ''), reason: String(item.reason ?? '') }
+      })
+      : [],
+    vehicleChangesPending: Array.isArray(raw?.vehicle_changes_pending) ? raw.vehicle_changes_pending.map(String) : [],
+  }
+}
+
 export function readLocalChargeCalculationErrors(data: unknown): LocalChargeCalculationError[] {
   if (!Array.isArray(data)) return []
   return data.flatMap((entry) => {
@@ -511,16 +716,41 @@ export function readLocalChargeCalculationErrors(data: unknown): LocalChargeCalc
 export async function confirmBlFreightImport(
   preview: BlFreightImportPreview,
   changedBy: string,
-  overrideBilling = false,
+  /** Confirmação de faturamento: todos os B/Ls (true) ou só os marcados na prévia, por B/L. */
+  overrideBilling: boolean | ReadonlySet<string> = false,
   filename = 'importacao-bl.xlsx',
   confirmCustomerChange = false,
+  confirmVehicleChanges = false,
 ): Promise<BlFreightImportResult> {
+  // Contêiner que sai levando os veículos só sai com a lista confirmada: sem
+  // ela a gravação recusa o lote inteiro (migration 175, P0006). Nada é
+  // enviado antes de o operador confirmar.
+  const awaitingVehicles = confirmVehicleChanges
+    ? []
+    : preview.rows.filter((row) => row.payload && row.vehicleConfirmationRequiredFor?.length)
+  if (awaitingVehicles.length) {
+    throw new Error(`Confirme a lista de veículos da aba VIN: ${describeVehicleConfirmationRequired(awaitingVehicles)}. Nada foi gravado.`)
+  }
+  const overrides = (blNumber: string) => (typeof overrideBilling === 'boolean' ? overrideBilling : overrideBilling.has(blNumber))
+  // Troca de Consignatário de B/L que já tem Cliente, sem aceite (ou impedida
+  // na prévia): o consignatário gravado fica e o resultado avisa.
+  const keptCustomer = new Set<string>()
   const payload = preview.rows.flatMap((row) => {
     if (!row.payload) return []
     // Rows that touch a billing variable only apply the physical change when the operator overrode.
-    const base = row.requiresBillingOverride ? { ...row.payload, override_billing: overrideBilling } : row.payload
+    const withBilling = row.requiresBillingOverride ? { ...row.payload, override_billing: overrides(row.blNumber) } : row.payload
+    const base = row.requiresVehicleConfirmation ? { ...withBilling, confirm_vehicle_changes: confirmVehicleChanges } : withBilling
     // A troca muda o B/L; documentos e recebimentos anteriores ficam preservados. Só acontece com
     // aceite explicito, e nunca quando o preview ja apontou um impedimento.
+    const accepted = row.requiresCustomerConfirmation && confirmCustomerChange
+    const change = row.customerChange
+    // Troca de Cliente: o B/L tem Cliente e o arquivo aponta outro, ou um
+    // consignatário não cadastrado. O mesmo Cliente com outro CNPJ não é troca.
+    const swapsCustomer = change?.fromCustomerId != null && change.toCustomerId !== change.fromCustomerId
+    if (swapsCustomer && !accepted) {
+      keptCustomer.add(row.blNumber)
+      return [{ ...withoutCustomerSwapFields(base), relink_customer: false }]
+    }
     if (!row.requiresCustomerConfirmation) return [base]
     return [{ ...base, relink_customer: confirmCustomerChange }]
   })
@@ -535,6 +765,7 @@ export async function confirmBlFreightImport(
   const voyageId = payload.find((bl) => bl.voyage_id != null)?.voyage_id ?? null
   const usesBatchContract = voyageId != null
   const results: unknown[] = []
+  const changes: ReturnType<typeof readImportChanges> = { containerChanges: [], vehicleChanges: [], vehiclesDiscarded: [], vehicleChangesPending: [] }
   const refusedCustomerRelinks: RefusedCustomerRelink[] = []
   const calculationErrors: LocalChargeCalculationError[] = []
   let imported = 0
@@ -573,7 +804,13 @@ export async function confirmBlFreightImport(
     const wrapped = rawData as { result?: unknown; calculation_errors?: unknown } | null
     const data = usesBatchContract && wrapped && 'result' in wrapped ? wrapped.result : rawData
     results.push(data)
+    const chunkChanges = readImportChanges(data)
+    changes.containerChanges.push(...chunkChanges.containerChanges)
+    changes.vehicleChanges.push(...chunkChanges.vehicleChanges)
+    changes.vehiclesDiscarded.push(...chunkChanges.vehiclesDiscarded)
+    changes.vehicleChangesPending.push(...chunkChanges.vehicleChangesPending)
     refusedCustomerRelinks.push(...readRefusedCustomerRelinks(data))
+    for (const blNumber of readCustomerChangesIgnored(data)) keptCustomer.add(blNumber)
     if (usesBatchContract && wrapped) calculationErrors.push(...readLocalChargeCalculationErrors(wrapped.calculation_errors))
     imported += chunk.length
   }
@@ -596,7 +833,7 @@ export async function confirmBlFreightImport(
     }
   }
 
-  return { result: results, refusedCustomerRelinks, calculationErrors }
+  return { result: results, ...changes, refusedCustomerRelinks, customerChangesIgnored: [...keptCustomer].sort(), calculationErrors }
 }
 
 const BL_IMPORT_CHUNK_SIZE = 20
@@ -741,18 +978,226 @@ export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | 
       payment: charge.payment,
     })),
     containers,
-    vehicles: doc.vehicles.flatMap((vehicle) => {
-      if (!vehicle.brand?.trim() || !vehicle.model?.trim() || !(vehicle.weightKg && vehicle.weightKg > 0) || !(vehicle.cbm && vehicle.cbm > 0)) return []
-      return [{
-        chassis: vehicle.chassis,
-        container_number: normalizeIsoContainerNumber(vehicle.containerNumber),
-        brand: vehicle.brand.trim(),
-        model: vehicle.model.trim(),
-        weight_kg: vehicle.weightKg,
-        cbm: vehicle.cbm,
-      }]
-    }),
+    // Sem aba VIN o B/L não declara veículos: a chave fica de fora e a RPC
+    // preserva os gravados (ADR 0078, item 16).
+    ...(doc.vinSheet || doc.vehicles.length ? {
+      vehicles: doc.vehicles.flatMap((vehicle) => {
+        if (!vehicle.brand?.trim() || !vehicle.model?.trim() || !(vehicle.weightKg && vehicle.weightKg > 0) || !(vehicle.cbm && vehicle.cbm > 0)) return []
+        return [{
+          chassis: vehicle.chassis,
+          container_number: normalizeIsoContainerNumber(vehicle.containerNumber),
+          brand: vehicle.brand.trim(),
+          model: vehicle.model.trim(),
+          weight_kg: vehicle.weightKg,
+          cbm: vehicle.cbm,
+        }]
+      }),
+    } : {}),
   }
+}
+
+/** Contêineres gravados que o arquivo não traz. */
+function missingContainers(existing: ExistingBl, payload: BlFreightRpcPayload) {
+  return missingContainerEntries(existing, payload.containers.map((container) => container.container_number)).map((entry) => entry.number)
+}
+
+/** Contêineres gravados que o arquivo não traz, com os ids das linhas em `bl_containers`. */
+function missingContainerEntries(existing: ExistingBl, incomingNumbers: Iterable<string>) {
+  const incoming = new Set(incomingNumbers)
+  const idsByNumber = new Map<string, number[]>()
+  for (const container of existing.bl_containers ?? []) {
+    const number = normalizeIsoContainerNumber(container.container_number)
+    if (!number || incoming.has(number)) continue
+    const ids = idsByNumber.get(number) ?? []
+    if (container.id != null) ids.push(container.id)
+    idsByNumber.set(number, ids)
+  }
+  return [...idsByNumber.keys()].sort().map((number) => ({ number, ids: idsByNumber.get(number) ?? [] }))
+}
+
+/**
+ * Contêiner que sai do B/L e que a gravação não deixa sair (migration 175,
+ * P0006, que derruba o lote inteiro): item de Invoice de Demurrage, de
+ * qualquer status (cancelar a invoice não destrava), ou veículo que continua
+ * nele. A prévia recusa só a linha do B/L. Quando a aba VIN tira todos os
+ * veículos do contêiner, a saída depende da confirmação da lista de veículos.
+ */
+function describeContainerRemovalBlocks(
+  existing: ExistingBl,
+  payload: BlFreightRpcPayload,
+  blockers: ContainerRemovalBlockers,
+): { blockedReasons: string[]; vehicleConfirmationRequiredFor: string[] } {
+  const blockedReasons: string[] = []
+  const vehicleConfirmationRequiredFor: string[] = []
+  const incomingContainers = new Set(payload.containers.map((container) => container.container_number))
+  const key = (chassis: string | null | undefined) => (chassis ?? '').trim().toUpperCase()
+  const incomingVehicles = payload.vehicles ? new Map(payload.vehicles.map((vehicle) => [key(vehicle.chassis), vehicle])) : null
+  for (const { number, ids } of missingContainerEntries(existing, incomingContainers)) {
+    if (ids.some((id) => blockers.demurrageContainerIds.has(id))) {
+      blockedReasons.push(`O container ${number} tem Invoice de Demurrage e não sai por reimportação.`)
+      continue
+    }
+    const chassis = ids.flatMap((id) => blockers.vehiclesByContainer.get(id) ?? [])
+    if (!chassis.length) continue
+    // Sem aba VIN os veículos não mudam (ADR 0078, item 16): continuam no contêiner.
+    if (!incomingVehicles) {
+      blockedReasons.push(`O container ${number} tem veículos: reimporte com a aba VIN e confirme a lista de veículos.`)
+      continue
+    }
+    // O veículo sai do contêiner quando a aba VIN o tira do B/L ou o põe em
+    // outro contêiner do arquivo; contêiner fora do arquivo é recusado pela
+    // gravação (`vehicles_discarded`) e o veículo fica onde está.
+    const staying = chassis.filter((item) => {
+      const next = incomingVehicles.get(key(item))
+      return Boolean(next) && !(next?.container_number && incomingContainers.has(next.container_number))
+    })
+    if (staying.length) {
+      blockedReasons.push(`O container ${number} tem veículos que a aba VIN mantém nele (${staying.join(', ')}): ponha esses veículos em outro container do arquivo ou tire-os da aba VIN.`)
+      continue
+    }
+    vehicleConfirmationRequiredFor.push(number)
+  }
+  return { blockedReasons, vehicleConfirmationRequiredFor }
+}
+
+function describeVehicleConfirmationRequired(rows: BlFreightImportRow[]) {
+  return rows
+    .map((row) => {
+      const containers = row.vehicleConfirmationRequiredFor ?? []
+      return containers.length === 1
+        ? `no B/L ${row.blNumber}, o container ${containers[0]} só sai do B/L com os veículos`
+        : `no B/L ${row.blNumber}, os containers ${containers.join(', ')} só saem do B/L com os veículos`
+    })
+    .join('; ')
+}
+
+/**
+ * Veículos da aba VIN contra os gravados. Sem aba (`vehicles` ausente), nada
+ * muda e não há o que confirmar.
+ */
+function describeVehicleChanges(existing: ExistingBl, payload: BlFreightRpcPayload): BlVehicleChanges | null {
+  if (!payload.vehicles) return null
+  const key = (chassis: string | null | undefined) => (chassis ?? '').trim().toUpperCase()
+  const containerById = new Map((existing.bl_containers ?? []).map((container) => [container.id, normalizeIsoContainerNumber(container.container_number)]))
+  const current = new Map((existing.vehicles ?? []).map((vehicle) => [key(vehicle.chassis), vehicle]))
+  const incoming = new Map(payload.vehicles.map((vehicle) => [key(vehicle.chassis), vehicle]))
+  const added = [...incoming.keys()].filter((chassis) => !current.has(chassis))
+  const removed = [...current.keys()].filter((chassis) => !incoming.has(chassis))
+  const changed = [...incoming.entries()].flatMap(([chassis, next]) => {
+    const before = current.get(chassis)
+    if (!before) return []
+    // Só compara o atributo que a consulta trouxe (o chassi sozinho não muda nada).
+    const differs = (before.brand !== undefined && (before.brand ?? null) !== next.brand)
+      || (before.model !== undefined && (before.model ?? null) !== next.model)
+      || (before.weight_kg !== undefined && normalizeComparable(before.weight_kg) !== normalizeComparable(next.weight_kg))
+      || (before.cbm !== undefined && normalizeComparable(before.cbm) !== normalizeComparable(next.cbm))
+      || (before.container_id != null && containerById.has(before.container_id) && containerById.get(before.container_id) !== next.container_number)
+    return differs ? [chassis] : []
+  })
+  if (!added.length && !removed.length && !changed.length) return null
+  return { added: added.sort(), removed: removed.sort(), changed: changed.sort() }
+}
+
+/**
+ * POD pelo apelido conhecido ou pelo cadastro de portos (nome ou LOCODE). POD
+ * que nenhum dos dois reconhece recusa a linha; o POL reconhecido pelo
+ * cadastro também é gravado como LOCODE.
+ */
+function applyPortCatalog(payload: BlFreightRpcPayload, doc: ParsedBLDocument, ports: PortCatalogEntry[]): string | null {
+  const pod = resolveCatalogPort(doc.route.pod, ports)
+  const pol = resolveCatalogPort(doc.route.pol, ports)
+  if (pol) payload.pol = pol
+  if (pod) {
+    payload.pod = pod
+    return null
+  }
+  const declared = doc.route.pod.trim()
+  return declared
+    ? `POD "${declared}" não está no cadastro de portos: cadastre o porto ou corrija o arquivo.`
+    : 'POD ausente no arquivo: informe o porto de descarga.'
+}
+
+function resolveCatalogPort(value: string, ports: PortCatalogEntry[]): string | null {
+  const known = resolvePortCode(value)
+  if (known.recognized) return known.code
+  const text = normalizeText(value)
+  if (!text) return null
+  const byCode = ports.find((port) => port.locode && normalizeText(port.locode) === text)
+  if (byCode?.locode) return byCode.locode.toUpperCase()
+  const byName = ports
+    .filter((port) => port.locode && port.name && normalizeText(port.name).length >= 3 && text.includes(normalizeText(port.name)))
+    .sort((left, right) => normalizeText(right.name).length - normalizeText(left.name).length)[0]
+  return byName?.locode ? byName.locode.toUpperCase() : null
+}
+
+/**
+ * Container FCL em B/Ls de Clientes diferentes recusa a linha, como a RPC
+ * (`assert_no_fcl_shared_between_customers`). B/L LCL (veículos) é aceito.
+ */
+function describeFclConflict(
+  payload: BlFreightRpcPayload,
+  existing: ExistingBl | null,
+  siblings: Map<string, ContainerSibling[]>,
+): string | null {
+  const customerId = payload.customer_id ?? existing?.customer_id ?? null
+  // B/L de veículos é LCL. Sem aba VIN os veículos gravados continuam no B/L
+  // (ADR 0078, item 16): eles contam, senão a reimportação viraria "FCL".
+  const hasVehicles = payload.vehicles ? payload.vehicles.length > 0 : (existing?.vehicles?.length ?? 0) > 0
+  if (customerId == null || hasVehicles) return null
+  for (const container of payload.containers) {
+    const other = (siblings.get(container.container_number) ?? []).find((sibling) => (
+      sibling.blId !== payload.id
+      && sibling.customerId != null
+      && sibling.customerId !== customerId
+      && (sibling.loadType ?? 'FCL') !== 'LCL'
+    ))
+    if (other) {
+      return `Container ${container.container_number} já está no B/L ${other.blId}${other.customerName ? ` (${other.customerName})` : ''}: container FCL não é dividido entre Clientes diferentes.`
+    }
+  }
+  return null
+}
+
+async function fetchContainerSiblings(voyageId: number, blNumbers: string[], containerNumbers: string[]) {
+  const siblings = new Map<string, ContainerSibling[]>()
+  const numbers = [...new Set(containerNumbers.map((number) => normalizeIsoContainerNumber(number)).filter((number): number is string => Boolean(number)))]
+  if (!numbers.length) return siblings
+  const { data: links, error } = await supabase.from('bl_containers').select('container_number, bl_id').in('container_number', numbers)
+  if (error) throw error
+  const importing = new Set(blNumbers)
+  const linkRows = ((links ?? []) as Array<{ container_number: string | null; bl_id: string | null }>)
+    .filter((row) => row.container_number && row.bl_id && !importing.has(row.bl_id))
+  const blIds = [...new Set(linkRows.map((row) => row.bl_id as string))]
+  if (!blIds.length) return siblings
+  const { data: bls, error: blError } = await supabase
+    .from('bls')
+    .select('id, voyage_id, customer_id, container_load_type, cancelled_at')
+    .in('id', blIds)
+  if (blError) throw blError
+  const blRows = ((bls ?? []) as unknown as Array<{ id: string; voyage_id: number | null; customer_id: number | null; container_load_type: string | null; cancelled_at: string | null }>)
+    .filter((bl) => bl.voyage_id === voyageId && !bl.cancelled_at)
+  const customerIds = [...new Set(blRows.map((bl) => bl.customer_id).filter((id): id is number => id != null))]
+  const names = customerIds.length ? await fetchCustomerSnapshots(customerIds) : new Map<number, BlCustomerSnapshot>()
+  const byId = new Map(blRows.map((bl) => [bl.id, bl]))
+  for (const row of linkRows) {
+    const bl = byId.get(row.bl_id as string)
+    if (!bl) continue
+    const number = normalizeIsoContainerNumber(row.container_number)
+    if (!number) continue
+    siblings.set(number, [...(siblings.get(number) ?? []), {
+      blId: bl.id,
+      customerId: bl.customer_id,
+      customerName: bl.customer_id != null ? names.get(bl.customer_id)?.name ?? null : null,
+      loadType: bl.container_load_type,
+    }])
+  }
+  return siblings
+}
+
+async function fetchPortCatalog(): Promise<PortCatalogEntry[]> {
+  const { data, error } = await supabase.from('ports').select('name, locode')
+  if (error) throw error
+  return (data ?? []) as PortCatalogEntry[]
 }
 
 const CUSTOMER_RECONCILIATION_HOLD_REASON = 'Aguardando reconciliacao de cliente antes do faturamento.'
@@ -838,12 +1283,13 @@ function computeBillingImpact(
   // Veiculo e unidade faturada por si (chassis), e a reimportacao sem anexo de
   // veiculos apaga a lista inteira (migration 205). Sem entrar aqui, o diff saia
   // como mudanca comum e o override vinha ligado por padrao.
+  // Sem aba VIN os veículos gravados ficam (migration 175): não há impacto.
   const existingVehicleSet = normalizeVehicleSet(existing.vehicles ?? [])
-  const nextVehicleSet = normalizeVehicleSet(payload.vehicles)
+  const nextVehicleSet = payload.vehicles ? normalizeVehicleSet(payload.vehicles) : existingVehicleSet
   const vehicles = existingVehicleSet !== nextVehicleSet
   if (vehicles) {
     const existingVehicleCount = (existing.vehicles ?? []).length
-    messages.push(`Veiculos (chassis): ${existingVehicleCount} -> ${payload.vehicles.length}`)
+    messages.push(`Veiculos (chassis): ${existingVehicleCount} -> ${payload.vehicles?.length ?? existingVehicleCount}`)
   }
 
   const isBreakBulk = existing.cargo_mode === 'carga_solta' || existing.cargo_mode === 'misto'
@@ -988,7 +1434,7 @@ function diffExistingBl(existing: ExistingBl, payload: BlFreightRpcPayload, impa
   }
 
   const existingVehicles = normalizeVehicleSet(existing.vehicles ?? [])
-  const nextVehicles = normalizeVehicleSet(payload.vehicles)
+  const nextVehicles = payload.vehicles ? normalizeVehicleSet(payload.vehicles) : existingVehicles
   addDiff(diffs, 'vehicles', existingVehicles, nextVehicles, impact.vehicles)
 
   const existingFreight = normalizeFreightSet(existing.bl_freight_lines ?? [])
@@ -1001,17 +1447,20 @@ function diffExistingBl(existing: ExistingBl, payload: BlFreightRpcPayload, impa
 /**
  * Containers cujo SOC/COC declarado no B/L difere do gravado. Linha sem
  * declaracao no arquivo nao muda nada (o Baplie preenche depois); container
- * novo entra pela diferenca de conjunto, nao aqui.
+ * novo entra pela diferenca de conjunto, nao aqui. SOC/COC corrigido à mão
+ * (`ownership_source = 'manual'`) fica: a gravação o preserva (migration 175).
  */
 function ownershipChanges(
   existingContainers: NonNullable<ExistingBl['bl_containers']>,
   nextContainers: BlFreightRpcPayload['containers'],
 ) {
-  const existingOwnership = new Map(existingContainers.map((container) => [normalizeIsoContainerNumber(container.container_number), container.ownership ?? null]))
+  const existingByNumber = new Map(existingContainers.map((container) => [normalizeIsoContainerNumber(container.container_number), container]))
   return nextContainers.flatMap((container) => {
     if (!container.ownership) return []
-    const before = existingOwnership.get(normalizeIsoContainerNumber(container.container_number))
-    if (before === undefined || before === container.ownership) return []
+    const current = existingByNumber.get(normalizeIsoContainerNumber(container.container_number))
+    if (!current || current.ownership_source === 'manual') return []
+    const before = current.ownership ?? null
+    if (before === container.ownership) return []
     return [{ containerNumber: container.container_number, from: before, to: container.ownership }]
   })
 }
@@ -1139,9 +1588,9 @@ async function fetchExistingBls(blNumbers: string[]): Promise<ExistingBl[]> {
       place_of_receipt, movement_from, movement_to, issue_place,
       customer_id, shipper_block, consignee_block, notify_block, notify2_block, notify_cnpj_cpf,
       manifest_customer_email, ncm_codes,
-      bl_containers(container_number, seal_number, type, tare_weight_kg, gross_weight_kg, cbm, is_imo, is_oog, imo_class, un_number, ownership),
+      bl_containers(id, container_number, seal_number, type, tare_weight_kg, gross_weight_kg, cbm, is_imo, is_oog, imo_class, un_number, ownership, ownership_source),
       bl_freight_lines(seq, description, category, mercante_code, currency, amount, payment),
-      vehicles(chassis)
+      vehicles(chassis, brand, model, weight_kg, cbm, container_id)
     `)
     .in('id', blNumbers)
   if (error) throw error
@@ -1277,6 +1726,56 @@ async function fetchBlReceivableSnapshots(blNumbers: string[]) {
   return byBl
 }
 
+/**
+ * O que impede a saída de cada contêiner que o arquivo não traz, as mesmas
+ * consultas da gravação (migration 175): item de Invoice de Demurrage, de
+ * qualquer status, e veículos gravados no contêiner.
+ */
+async function fetchContainerRemovalBlockers(containerIds: number[]): Promise<ContainerRemovalBlockers> {
+  const blockers: ContainerRemovalBlockers = { demurrageContainerIds: new Set(), vehiclesByContainer: new Map() }
+  const ids = [...new Set(containerIds)]
+  if (!ids.length) return blockers
+  const [items, vehicles] = await Promise.all([
+    supabase.from('demurrage_invoice_items').select('container_id').in('container_id', ids),
+    supabase.from('vehicles').select('container_id, chassis').in('container_id', ids),
+  ])
+  if (items.error) throw items.error
+  if (vehicles.error) throw vehicles.error
+  for (const row of (items.data ?? []) as Array<{ container_id: number | null }>) {
+    if (row.container_id != null) blockers.demurrageContainerIds.add(row.container_id)
+  }
+  for (const row of (vehicles.data ?? []) as Array<{ container_id: number | null; chassis: string | null }>) {
+    if (row.container_id == null) continue
+    blockers.vehiclesByContainer.set(row.container_id, [...(blockers.vehiclesByContainer.get(row.container_id) ?? []), row.chassis?.trim() || '(sem chassi)'])
+  }
+  return blockers
+}
+
+async function fetchCodBlIds(blIds: string[]) {
+  if (!blIds.length) return new Set<string>()
+  const { data, error } = await supabase
+    .from('bl_transshipments')
+    .select('bl_id, omission:voyage_omissions(reverted_at)')
+    .eq('disposition', 'cod')
+    .in('bl_id', blIds)
+  if (error) throw error
+  return new Set(
+    ((data ?? []) as unknown as Array<{ bl_id: string; omission: { reverted_at: string | null } | null }>)
+      .filter((row) => !row.omission?.reverted_at)
+      .map((row) => row.bl_id),
+  )
+}
+
+async function fetchOmittedPods(voyageId: number) {
+  const { data, error } = await supabase
+    .from('voyage_omissions')
+    .select('omitted_pod')
+    .eq('voyage_id', voyageId)
+    .is('reverted_at', null)
+  if (error) throw error
+  return new Set(((data ?? []) as Array<{ omitted_pod: string | null }>).map((row) => row.omitted_pod).filter((pod): pod is string => Boolean(pod)))
+}
+
 async function fetchBillingLockedBlIds(blNumbers: string[]) {
   if (!blNumbers.length) return new Set<string>()
   const [charges, invoices] = await Promise.all([
@@ -1368,24 +1867,11 @@ function extractPhone(value: string) {
 function normalizeDate(value: string): string | null {
   const trimmed = value.trim()
   if (!trimmed) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return isValidIsoDate(trimmed) ? trimmed : null
   // Real COSCO B/L templates write "Date Laden on Board" as plain text
   // "DD MM YYYY" (space-separated, no real date cell format) instead of
-  // DD/MM/YYYY — split on whitespace too, not just -/. delimiters.
-  const parts = trimmed.split(/[-/.\s]+/)
-  if (parts.length === 3 && parts[0].length <= 2) {
-    const [day, month, year] = parts
-    const iso = `${year.padStart(4, '20')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-    return isValidIsoDate(iso) ? iso : null
-  }
-  return null
-}
-
-function isValidIsoDate(iso: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false
-  const [year, month, day] = iso.split('-').map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  // DD/MM/YYYY. Data civil única dos imports: ano de quatro dígitos.
+  const text = /^\d{1,2}\s+\d{1,2}\s+\d{4}$/.test(trimmed) ? trimmed.split(/\s+/).join('/') : trimmed
+  return importDateOrNull(text)
 }
 
 function sumNumbers(values: Array<number | null>) {

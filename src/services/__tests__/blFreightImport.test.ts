@@ -5,6 +5,8 @@ import {
   buildBlFreightPreview,
   chunkBlPayload,
   confirmBlFreightImport,
+  previewBlFreightImport,
+  readCustomerChangesIgnored,
   type BlFreightImportPreview,
 } from '../blFreightImport'
 import type { ParsedBLDocument } from '../blParser'
@@ -180,7 +182,7 @@ describe('blFreightImport', () => {
       // SOC/COC do B/L segue para a RPC, que o grava como soberano (migration 121)
       ownership: 'COC',
     })
-    expect(payload.vehicles[0]).toMatchObject({ chassis: '9BWZZZ377VT004251', container_number: 'TCLU1234567', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 })
+    expect(payload.vehicles?.[0]).toMatchObject({ chassis: '9BWZZZ377VT004251', container_number: 'TCLU1234567', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 })
   })
 
   it('mantém todas as linhas aceitas pelo parser no payload, sem segundo filtro por descrição', () => {
@@ -374,6 +376,24 @@ describe('blFreightImport', () => {
       suggested_customer_id: 44,
       customer_reconciliation_status: 'matched_name',
     })
+  })
+
+  it('B/L em COD mantém o POD na reimportação e avisa; B/L novo em porto omitido avisa o Transbordo', () => {
+    const cod = buildBlFreightPreview({
+      documents: [parsedBL()],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      existingBls: [{ ...existingBl(), pod: 'BRVIX' }] as never,
+      codBlIds: new Set(['CSC45250E02Y00']),
+    })
+    expect(cod.rows[0].payload?.pod).toBe('BRVIX')
+    expect((cod.rows[0].warnings ?? []).join(' ')).toMatch(/B\/L em COD: o POD continua BRVIX \(o arquivo traz BRSSZ\)/)
+
+    const late = buildBlFreightPreview({
+      documents: [parsedBL()],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      omittedPods: new Set(['BRSSZ']),
+    })
+    expect((late.rows[0].warnings ?? []).join(' ')).toMatch(/POD BRSSZ foi omitido nesta Viagem.*Transbordo/)
   })
 
   it('flags container-set changes as override-required without dropping the payload', () => {
@@ -689,7 +709,12 @@ describe('blFreightImport', () => {
 
     await expect(confirmBlFreightImport(preview, 'user-1')).resolves.toEqual({
       result: [{ bls_received: 1 }],
+      containerChanges: [],
+      vehicleChanges: [],
+      vehiclesDiscarded: [],
+      vehicleChangesPending: [],
       refusedCustomerRelinks: [],
+      customerChangesIgnored: [],
       calculationErrors: [],
     })
     expect(mockRpc).toHaveBeenCalledWith('import_bl_freight_with_metadata', {
@@ -1098,14 +1123,25 @@ describe('blFreightImport', () => {
       },
     })
 
-    await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', false)
-    const withoutConfirmation = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<{ relink_customer: boolean }>
+    const unconfirmed = await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', false)
+    const withoutConfirmation = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<Record<string, unknown>>
     expect(withoutConfirmation[0].relink_customer).toBe(false)
+    // Sem aceite, o consignatário do arquivo não vai: o gravado fica (migration 213).
+    for (const field of ['consignee', 'consignee_block', 'manifest_customer_cnpj_cpf', 'manifest_customer_name', 'manifest_customer_email', 'billing_hold_reason']) {
+      expect(withoutConfirmation[0]).not.toHaveProperty(field)
+    }
+    expect(unconfirmed.customerChangesIgnored).toEqual([preview.rows[0]?.blNumber])
 
     mockRpc.mockClear()
-    await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', true)
+    const accepted = await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', true)
     const confirmed = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<{ relink_customer: boolean; customer_id: number | null }>
-    expect(confirmed[0]).toMatchObject({ relink_customer: true, customer_id: 43 })
+    expect(confirmed[0]).toMatchObject({ relink_customer: true, customer_id: 43, manifest_customer_cnpj_cpf: '98765432000110' })
+    expect(accepted.customerChangesIgnored).toEqual([])
+  })
+
+  it('lê do retorno da RPC a Troca de Consignatário que o servidor ignorou', () => {
+    expect(readCustomerChangesIgnored({ customer_changes_ignored: [{ bl_id: 'BL-1', customer_id: 1 }, { bl_id: '' }, null] })).toEqual(['BL-1'])
+    expect(readCustomerChangesIgnored({})).toEqual([])
   })
   it('grava o NCM declarado no documento e o mostra no diff', () => {
     const doc = parsedBL()
@@ -1227,6 +1263,8 @@ describe('blFreightImport', () => {
 
   it('trata a lista de veiculos como variavel de faturamento propria', () => {
     const doc = parsedBL()
+    // Aba VIN presente e vazia: a lista vale e os veículos sairiam.
+    doc.vinSheet = true
     doc.vehicles = []
 
     const preview = buildBlFreightPreview({
@@ -1372,5 +1410,238 @@ describe('blFreightImport', () => {
     expect(row.payload?.containers[0].container_number).toBe('TCLU9999999')
     expect(row.payload?.freight_lines).toHaveLength(1)
     expect(row.payload?.freight_lines[0].description).toBe('OCEAN FREIGHT')
+  })
+
+  describe('reimportação de B/L de container (ADR 0078, itens 16 e 17)', () => {
+    const voyage = { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' }
+
+    it('arquivo sem aba VIN não envia veículos nem pede confirmação', () => {
+      const doc = parsedBL()
+      doc.vehicles = []
+      const preview = buildBlFreightPreview({ documents: [doc], selectedVoyage: voyage, existingBls: [existingBl()] })
+      const row = preview.rows[0]
+      expect(row?.payload).not.toHaveProperty('vehicles')
+      expect(row?.vehicleChanges).toBeNull()
+      expect(row?.requiresVehicleConfirmation).toBe(false)
+      expect(row?.diffs.find((diff) => diff.field === 'vehicles')).toBeUndefined()
+    })
+
+    it('aba VIN com chassis diferentes lista entradas, saídas e mudanças e pede confirmação', async () => {
+      const doc = parsedBL()
+      doc.vinSheet = true
+      doc.vehicles = [
+        { chassis: '9BWZZZ377VT004251', containerNumber: 'TCLU1234567', blNumber: doc.blNumber, brand: 'BYD', model: 'SEAL', weightKg: 1800, cbm: 8.5 },
+        { chassis: 'NOVOCHASSI0000001', containerNumber: 'TCLU1234567', blNumber: doc.blNumber, brand: 'BYD', model: 'DOLPHIN', weightKg: 1800, cbm: 8.5 },
+      ]
+      const existing = {
+        ...existingBl(),
+        vehicles: [
+          { chassis: '9BWZZZ377VT004251', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 },
+          { chassis: 'SAIUCHASSI0000001', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5 },
+        ],
+      }
+      const preview = buildBlFreightPreview({ documents: [doc], selectedVoyage: voyage, existingBls: [existing] })
+      const row = preview.rows[0]!
+      expect(row.vehicleChanges).toEqual({ added: ['NOVOCHASSI0000001'], removed: ['SAIUCHASSI0000001'], changed: ['9BWZZZ377VT004251'] })
+      expect(row.requiresVehicleConfirmation).toBe(true)
+      expect(preview.summary.vehicleConfirmationCount).toBe(1)
+
+      mockRpc.mockResolvedValue({ data: { result: { bls_received: 1 } }, error: null })
+      await confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, false)
+      expect(mockRpc.mock.calls.at(-1)?.[1].p_bls[0]).toMatchObject({ confirm_vehicle_changes: false })
+      await confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, true)
+      expect(mockRpc.mock.calls.at(-1)?.[1].p_bls[0]).toMatchObject({ confirm_vehicle_changes: true })
+    })
+
+    it('envia como remoção só os contêineres gravados que o arquivo não traz', () => {
+      const existing = {
+        ...existingBl(),
+        bl_containers: [existingContainer(), { ...existingContainer(), container_number: 'MSKU7654321' }],
+      }
+      const preview = buildBlFreightPreview({ documents: [parsedBL()], selectedVoyage: voyage, existingBls: [existing] })
+      expect(preview.rows[0]?.removedContainers).toEqual(['MSKU7654321'])
+      expect(preview.rows[0]?.payload?.remove_containers).toEqual(['MSKU7654321'])
+    })
+
+    it('Laden on Board ilegível ou vazio vira aviso e não vai no payload', () => {
+      const unreadable = parsedBL()
+      unreadable.dates.ladenOnBoard = '31/02/2026'
+      const empty = parsedBL()
+      empty.blNumber = 'OUTROBL0001'
+      empty.dates.ladenOnBoard = ''
+      const preview = buildBlFreightPreview({ documents: [unreadable, empty], selectedVoyage: voyage })
+      expect(preview.rows[0]?.warnings).toEqual(['Laden on Board ilegível ("31/02/2026"): a data gravada não muda.'])
+      expect(preview.rows[0]?.payload?.laden_on_board).toBeNull()
+      expect(preview.rows[1]?.warnings).toEqual(['Laden on Board vazio no arquivo: a data gravada não muda.'])
+      expect(preview.rows[0]?.status).toBe('new')
+    })
+
+    it('POD reconhecido pelo cadastro de portos vale; POD desconhecido recusa a linha', () => {
+      const byName = parsedBL()
+      byName.route.pod = 'PORTO DE IMBITUBA, BRAZIL'
+      const unknown = parsedBL()
+      unknown.blNumber = 'OUTROBL0002'
+      unknown.route.pod = 'ATLANTIS'
+      const preview = buildBlFreightPreview({
+        documents: [byName, unknown],
+        selectedVoyage: voyage,
+        knownPorts: [{ name: 'Imbituba', locode: 'BRIBB' }],
+      })
+      expect(preview.rows[0]?.payload?.pod).toBe('BRIBB')
+      expect(preview.rows[0]?.status).toBe('new')
+      expect(preview.rows[1]?.status).toBe('blocked')
+      expect(preview.rows[1]?.blockedReasons).toContain('POD "ATLANTIS" não está no cadastro de portos: cadastre o porto ou corrija o arquivo.')
+    })
+
+    it('confirmação de faturamento vale por B/L', async () => {
+      const first = parsedBL()
+      first.route.pod = 'BRVIX'
+      const second = parsedBL()
+      second.blNumber = 'CSC45250E02Y01'
+      second.route.pod = 'BRVIX'
+      const preview = buildBlFreightPreview({
+        documents: [first, second],
+        selectedVoyage: voyage,
+        billingLockedBlIds: new Set([first.blNumber, second.blNumber]),
+        existingBls: [existingBl(), { ...existingBl(), id: second.blNumber }],
+      })
+      expect(preview.rows.every((row) => row.requiresBillingOverride)).toBe(true)
+      mockRpc.mockResolvedValue({ data: { result: { bls_received: 2 } }, error: null })
+      await confirmBlFreightImport(preview, 'user-1', new Set([second.blNumber]))
+      const sent = mockRpc.mock.calls.at(-1)?.[1].p_bls as Array<{ id: string; override_billing: boolean }>
+      expect(sent.map((bl) => [bl.id, bl.override_billing])).toEqual([[first.blNumber, false], [second.blNumber, true]])
+    })
+  })
+
+  describe('correções da revisão da PR 929', () => {
+    const voyage = { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' }
+    const leaving = { ...existingContainer(), id: 2, container_number: 'MSKU7654321' }
+    const vin = (chassis: string, containerNumber: string) => ({
+      chassis, containerNumber, blNumber: 'CSC45250E02Y00', brand: 'BYD', model: 'DOLPHIN', weightKg: 1800, cbm: 8.5,
+    })
+
+    /** Cliente Supabase da prévia: cada tabela devolve as linhas dadas, em qualquer encadeamento. */
+    function mockTables(tables: Record<string, unknown>, selects: Array<[string, string]> = []) {
+      mockFrom.mockImplementation(((table: string) => {
+        const data = tables[table] ?? []
+        const query: Record<string, unknown> = {}
+        for (const method of ['in', 'eq', 'is', 'order', 'range']) query[method] = vi.fn(() => query)
+        query.select = vi.fn((columns: string) => {
+          selects.push([table, columns])
+          return query
+        })
+        query.maybeSingle = vi.fn(() => Promise.resolve({ data: Array.isArray(data) ? data[0] ?? null : data, error: null }))
+        query.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+          Promise.resolve({ data, error: null }).then(resolve, reject)
+        return query
+      }) as never)
+    }
+
+    // A1: a gravação recusa (P0006) o contêiner que sai com Invoice de Demurrage
+    // ou com veículos, e derruba o lote inteiro; a prévia recusa só a linha.
+    it('prévia consulta a Invoice de Demurrage do contêiner que sai e bloqueia só a linha', async () => {
+      const selects: Array<[string, string]> = []
+      mockTables({
+        bls: [{ ...existingBl(), bl_containers: [{ ...existingContainer(), id: 1 }, leaving] }],
+        voyages: [{ id: 7, voyage_number: '14', vessel: { name: 'GREEN SANTOS' } }],
+        ports: [{ name: 'Santos', locode: 'BRSSZ' }, { name: 'Shanghai', locode: 'CNSHA' }],
+        demurrage_invoice_items: [{ container_id: 2 }],
+      }, selects)
+      const doc = parsedBL()
+      doc.vehicles = []
+
+      const preview = await previewBlFreightImport({ documents: [doc], voyageId: 7 })
+
+      const row = preview.rows[0]!
+      expect(row.status).toBe('blocked')
+      expect(row.blockedReasons).toContain('O container MSKU7654321 tem Invoice de Demurrage e não sai por reimportação.')
+      expect(row.payload).toBeNull()
+      // A6: a prévia lê a origem do SOC/COC para não prometer troca do manual.
+      expect(selects.find(([table]) => table === 'bls')?.[1]).toContain('ownership_source')
+    })
+
+    it('contêiner com veículos e arquivo sem aba VIN bloqueia a linha', () => {
+      const doc = parsedBL()
+      doc.vehicles = []
+      const preview = buildBlFreightPreview({
+        documents: [doc],
+        selectedVoyage: voyage,
+        existingBls: [{ ...existingBl(), bl_containers: [{ ...existingContainer(), id: 1 }, leaving], vehicles: [{ chassis: 'CHASSI0000000001', container_id: 2 }] }],
+        containerRemovalBlockers: { demurrageContainerIds: new Set(), vehiclesByContainer: new Map([[2, ['CHASSI0000000001']]]) },
+      })
+      expect(preview.rows[0]?.status).toBe('blocked')
+      expect(preview.rows[0]?.blockedReasons).toContain('O container MSKU7654321 tem veículos: reimporte com a aba VIN e confirme a lista de veículos.')
+    })
+
+    it('aba VIN que tira os veículos do contêiner que sai torna a confirmação de veículos obrigatória', async () => {
+      const doc = parsedBL()
+      doc.vinSheet = true
+      doc.vehicles = [vin('CHASSI0000000001', 'TCLU1234567')]
+      const existing = {
+        ...existingBl(),
+        bl_containers: [{ ...existingContainer(), id: 1 }, leaving],
+        vehicles: [{ chassis: 'CHASSI0000000001', brand: 'BYD', model: 'DOLPHIN', weight_kg: 1800, cbm: 8.5, container_id: 2 }],
+      }
+      const preview = buildBlFreightPreview({
+        documents: [doc],
+        selectedVoyage: voyage,
+        existingBls: [existing],
+        containerRemovalBlockers: { demurrageContainerIds: new Set(), vehiclesByContainer: new Map([[2, ['CHASSI0000000001']]]) },
+      })
+      const row = preview.rows[0]!
+      expect(row.status).toBe('updated')
+      expect(row.vehicleChanges).toEqual({ added: [], removed: [], changed: ['CHASSI0000000001'] })
+      expect(row.vehicleConfirmationRequiredFor).toEqual(['MSKU7654321'])
+
+      mockRpc.mockResolvedValue({ data: { result: { bls_received: 1 } }, error: null })
+      await expect(confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, false))
+        .rejects.toThrow('Confirme a lista de veículos da aba VIN: no B/L CSC45250E02Y00, o container MSKU7654321 só sai do B/L com os veículos. Nada foi gravado.')
+      expect(mockRpc).not.toHaveBeenCalled()
+
+      await confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, true)
+      expect(mockRpc.mock.calls.at(-1)?.[1].p_bls[0]).toMatchObject({ remove_containers: ['MSKU7654321'], confirm_vehicle_changes: true })
+    })
+
+    it('aba VIN que mantém o veículo no contêiner que sai bloqueia a linha', () => {
+      const doc = parsedBL()
+      doc.vinSheet = true
+      doc.vehicles = [vin('CHASSI0000000001', 'MSKU7654321')]
+      const preview = buildBlFreightPreview({
+        documents: [doc],
+        selectedVoyage: voyage,
+        existingBls: [{ ...existingBl(), bl_containers: [{ ...existingContainer(), id: 1 }, leaving], vehicles: [{ chassis: 'CHASSI0000000001', container_id: 2 }] }],
+        containerRemovalBlockers: { demurrageContainerIds: new Set(), vehiclesByContainer: new Map([[2, ['CHASSI0000000001']]]) },
+      })
+      expect(preview.rows[0]?.status).toBe('blocked')
+      expect(preview.rows[0]?.blockedReasons.join(' ')).toContain('O container MSKU7654321 tem veículos que a aba VIN mantém nele (CHASSI0000000001)')
+    })
+
+    // A5: sem aba VIN os veículos gravados continuam; o B/L segue LCL.
+    it('B/L de veículos reimportado sem aba VIN não vira FCL dividido entre Clientes', () => {
+      const doc = parsedBL()
+      doc.vehicles = []
+      const previewWith = (vehicles: Array<{ chassis: string }>) => buildBlFreightPreview({
+        documents: [doc],
+        selectedVoyage: voyage,
+        existingBls: [{ ...existingBl(), customer_id: 42, vehicles }],
+        containerSiblings: new Map([['TCLU1234567', [{ blId: 'OUTROBL', customerId: 99, customerName: 'OUTRO CLIENTE', loadType: null }]]]),
+      }).rows[0]!
+      expect(previewWith([{ chassis: '9BWZZZ377VT004251' }]).status).not.toBe('blocked')
+      expect(previewWith([]).blockedReasons).toContain('Container TCLU1234567 já está no B/L OUTROBL (OUTRO CLIENTE): container FCL não é dividido entre Clientes diferentes.')
+    })
+
+    // A6: SOC/COC corrigido à mão fica; a prévia não promete a troca.
+    it('SOC/COC manual não aparece como troca nem como impacto de faturamento', () => {
+      const previewWith = (ownership_source: string) => buildBlFreightPreview({
+        documents: [parsedBL()],
+        selectedVoyage: voyage,
+        billingLockedBlIds: new Set(['CSC45250E02Y00']),
+        existingBls: [{ ...existingBl(), bl_containers: [{ ...existingContainer(), ownership: 'SOC', ownership_source }] }],
+      }).rows[0]!
+      const manual = previewWith('manual')
+      expect(manual.diffs.map((diff) => diff.field)).not.toContain('container_ownership')
+      expect(manual.billingImpacts).not.toContain('SOC/COC dos containers muda')
+      expect(previewWith('baplie').billingImpacts).toContain('SOC/COC dos containers muda')
+    })
   })
 })

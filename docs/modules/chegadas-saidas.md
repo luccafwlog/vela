@@ -52,12 +52,45 @@ receber o último ATD (passa a Concluída); antes disso, só sai por Excluir ou
 Cancelar em `/viagens` (ADR 0071, item 12; "Remover do Portal" foi retirado na
 Fase 4a da política de exclusão).
 
-O upload em lote baixa um template gerado da mesma constante de lanes. O resultado fica na tela com a contagem e a lista nominal das viagens não atualizadas e das datas ignoradas; o diagnóstico do arquivo fica recolhido. Cada
-linha da planilha (`VESSEL NAME`, `VOY`, `IMO`, lanes ETD/ETA) vira uma chamada
-ao mesmo `createOrAttachVoyageFromSchedule`. Datas aceitas: ISO ou
-`DD/MM/AAAA`; vazio/`X` significa "não escala". Antes do parse, o arquivo é
-classificado pelo conteúdo (XLSX/XLS ou CSV), bytes inválidos são recusados sem
-fallback implícito e o diagnóstico do preview informa formato, encoding, BOM e
+O upload em lote baixa um template gerado da mesma constante de lanes. **Conferir
+prévia** lê o arquivo e mostra, por linha (`VESSEL NAME`, `VOY`, `IMO`, lanes
+ETD/ETA), se a viagem é nova, quais datas mudam, se ela passa a aparecer no
+Portal ("Publica no Portal": Viagem existente oculta, mesmo sem data que mude)
+ou o erro (ex.: viagem ambígua), sem gravar (`planScheduleSheet`, com as mesmas
+regras de agenda da gravação individual). Na planilha, o IMO só identifica o
+navio com 7 dígitos (prefixo "IMO" aceito); "TBA", "-" e afins são ignorados com
+aviso e a busca é pelo nome. Nome igual com outro IMO cadastrado é erro da linha
+("IMO conflitante"), nunca fusão. Viagem cancelada é erro da linha (somente
+leitura). A mesma Viagem e porto em mais de uma linha com datas diferentes
+recusa essas linhas; na Viagem nova, linhas com o mesmo número e o mesmo IMO
+ou o mesmo nome contam como a mesma Viagem, mesmo que só uma traga o IMO, e o
+mesmo navio novo com dois IMOs diferentes no arquivo recusa as linhas, também
+quando estão em viagens diferentes e o navio é achado pelo nome (a gravação
+grava o primeiro IMO no navio e recusaria o segundo). Porto removido da Viagem
+(POD com "Excluir") que volta na planilha entra com a data que tinha como
+"antes" e volta ao planejamento (`deleted=false`), como na gravação pela tela;
+antes a gravação recusava o arquivo para sempre como prévia obsoleta. **Gravar programação** grava tudo numa transação
+(`apply_schedule_sheet_atomic`, migrations `188`, `193`, `199`, `201`, `202`, `209`, `213` e `217`, com as mesmas regras
+de navio, IMO e Viagem cancelada): Viagem nova é criada uma vez, toda Viagem
+enviada é publicada no Portal, dois arquivos simultâneos da mesma Viagem nova
+(com e sem IMO) esperam um pelo outro e não duplicam navio nem Viagem, as travas
+são pegas antes da primeira linha e em ordem fixa (dois arquivos com as mesmas
+Viagens em ordens diferentes não se travam; as Viagens já cadastradas do arquivo são travadas em ordem de id antes do laço, `213`, e o navio novo também é travado pelo nome e pelo IMO, sem o número da Viagem, para dois arquivos com o mesmo navio em viagens diferentes não o cadastrarem duas vezes, `217`), o navio sem IMO achado pelo nome
+recebe o IMO do arquivo, como no cadastro pela tela (`202`), cada evento de agenda leva horário próprio (a
+última linha do arquivo vale), a data que a prévia viu tem de ser a vigente (outra
+gravada depois recusa o arquivo como prévia obsoleta, `209`; mandar de novo a mesma
+data passa) e qualquer falha desfaz o arquivo inteiro; linhas
+com erro na prévia ficam de fora. Depois de gravar (planilha ou modal), a tela
+atualiza as consultas pelo dono `afterViagemAlterada` (opções de Viagem, agenda,
+ficha e Line-Up). O resultado fica na tela com a contagem e a lista nominal das
+viagens não gravadas e das datas ignoradas; o diagnóstico do arquivo fica
+recolhido. Datas aceitas: ISO ou
+`DD/MM/AAAA` (parser único `src/lib/importDate.ts`; o CSV não é mais
+reinterpretado como mês/dia); vazio/`X` significa "não escala". Antes do parse, o arquivo é
+classificado pelo conteúdo (XLSX/XLS ou CSV), CSV Windows-1252 é aceito com
+aviso, uma coluna do modelo repetida no cabeçalho (ex.: duas `VOY`) bloqueia a
+leitura ("A coluna … aparece mais de uma vez no cabeçalho") e o diagnóstico do
+preview informa formato, encoding, BOM e
 tamanho do arquivo.
 
 ### Widget do Portal
@@ -85,7 +118,7 @@ lanes e ordena pela menor ETA de POD.
 | Carregar publicados | Sessão interna | Montagem de `/chegadas-saidas` | `useQuery(['portal-schedule-voyages'])` | RPC `portal_ship_schedule` projetada em linhas | Preenche tabela por ETA | Erro de leitura da RPC exibido na página | **Código**, **Teste** |
 | Adicionar/anexar viagem | Usuário interno ativo; navio, VOY e ao menos um POD com data | Modal | `buildScheduleLanes` + `createOrAttachVoyageFromSchedule` | `voyages.show_on_portal`, `audit_logs` POL/POD | Invalida `['portal-schedule-voyages']` e `['voyages']` | Campos obrigatórios, identidade divergente ou falha ao persistir | **Código**, **Teste** |
 | Editar publicação | Usuário interno ativo; viagem já visível | Botão Editar/modal | Pré-preenche datas projetadas e salva pelo mesmo serviço | Atualiza somente ETD/ETA informados | Last write wins em ETD/ETA digitados | Conflitos de identidade e erro do serviço | **Código**, **Teste** |
-| Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload`: área de arquivo comum (`ImportFilePicker`) e “Enviar planilha”; escolher o arquivo não grava | `parseScheduleRows` + `createOrAttachVoyageFromSchedule` por linha | Mesma persistência do modal | Resumo de sucesso/erro por linha; invalida caches | Erro de parse/linha exibido no resumo; pode haver sucesso parcial | **Código**, **Teste** |
+| Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload`: área de arquivo comum (`ImportFilePicker`), “Conferir prévia” e “Gravar programação”; escolher o arquivo ou conferir não grava | `parseScheduleRows` + `planScheduleSheet` (prévia) + `applyScheduleSheetPlan` → `apply_schedule_sheet_atomic` (migrations `188`, `193`, `199`, `201`, `202`, `209`, `213` e `217`) | Mesma persistência do modal, numa transação; publica a Viagem oculta | Prévia por viagem; resumo após gravar; `afterViagemAlterada` | Erro de linha aparece na prévia e a linha fica de fora; falha na gravação não grava nada | **Código**, **Teste**, **Integração em PostgreSQL local:** `programacaoPlanilha.local-pg.test.ts` |
 | Consultar no Portal | Sessão do Portal | `ShipScheduleWidget` | `usePortalScheduleVoyages` | RPC `portal_ship_schedule` | Cache `['portal-schedule-voyages']` | Erro de RPC e estados vazio/loading no widget | **Código**, **Teste**, **Teste de contrato SQL** |
 
 ## Estado e dados

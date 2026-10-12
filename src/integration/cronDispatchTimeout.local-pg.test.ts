@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Migration 165: o dispatcher dos jobs pg_cron passa a dar 30 s ao pg_net (o
 // padrão de 5 s inclui DNS e perdia a rodada nos minutos de rajada) e os jobs
@@ -25,7 +26,7 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = migrationApplied() ? describe : describe.skip
+const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied')
 
 describeLocal('165 — dispatcher dos jobs pg_cron fora da rajada', () => {
   it('envia a chamada com 30 s de timeout, URL e cabeçalho lidos do cofre', () => {

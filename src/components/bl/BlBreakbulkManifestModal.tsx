@@ -12,10 +12,15 @@ import {
   hasBlockingRowErrors,
   importBreakbulkManifest,
   parseBreakbulkManifestFile,
+  NO_BREAKBULK_APPROVAL,
+  withBreakbulkReimportCheck,
+  type BreakbulkApproval,
+  type BreakbulkImportResult,
   type BreakbulkNumberFormat,
   type ParseBreakbulkOptions,
   type ParsedBreakbulkManifest,
 } from '../../services/breakbulkImport'
+import { BreakbulkImportOutcome, BreakbulkReimportReview } from '../shared/BreakbulkReimportReview'
 import { afterManifestoImportado } from '../../services/cacheEffects'
 import { inspectImportUpload } from '../../services/importText'
 import { rowErrorsToImportIssues } from '../../services/importValidation'
@@ -39,6 +44,7 @@ export function BreakbulkManifestUploadModal({
   // resolve; declarar o formato é o que desfaz a ambiguidade de vez. Ver
   // `readNumericColumns` em breakbulkManifestParser.ts.
   const [numberFormat, setNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
+  const [approval, setApproval] = useState<BreakbulkApproval>(NO_BREAKBULK_APPROVAL)
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
@@ -46,36 +52,46 @@ export function BreakbulkManifestUploadModal({
     () => (numberFormat === 'auto' ? {} : { numberFormat }),
     [numberFormat],
   )
+  // A prévia confere o arquivo com os B/Ls já gravados da viagem escolhida.
   const parseManifest = useCallback(
-    (file: File) => parseBreakbulkManifestFile(file, parseOptions),
-    [parseOptions],
+    async (file: File) => {
+      const manifest = await parseBreakbulkManifestFile(file, parseOptions)
+      return voyageId ? withBreakbulkReimportCheck(manifest, Number(voyageId)) : manifest
+    },
+    [parseOptions, voyageId],
   )
+
+  function reset() {
+    setVoyageId('')
+    setNumberFormat('auto')
+    setApproval(NO_BREAKBULK_APPROVAL)
+  }
 
   if (!open) return null
 
   return (
-    <FileImportModal
+    <FileImportModal<ParsedBreakbulkManifest, BreakbulkImportResult>
       issuesFilename="manifesto-bb-issues.csv"
       title="Importar manifesto de carga solta (BB)"
       accept=".xlsx,.xls,.csv"
       parser={parseManifest}
-      reparseKey={numberFormat}
+      reparseKey={`${numberFormat}:${voyageId}`}
       inspectFile={inspectImportUpload}
       importer={async (nextManifest, file, override) => {
-        if (!user || !voyageId) return
-        await importBreakbulkManifest({
+        if (!user || !voyageId) throw new Error('Escolha a viagem de destino.')
+        const result = await importBreakbulkManifest({
           filename: file.name,
           voyageId: Number(voyageId),
           manifest: nextManifest,
           uploadedBy: user.id,
           allowRowErrors: Boolean(override),
+          approval,
         })
         await afterManifestoImportado(queryClient, { voyageId })
         showToast('Manifesto de carga solta importado.', 'success')
-        setVoyageId('')
-        setNumberFormat('auto')
-        onClose()
+        return result
       }}
+      renderImportResult={(result) => <BreakbulkImportOutcome result={result} />}
       canImport={(nextManifest, override) =>
         nextManifest.bls.length > 0 && (!hasBlockingRowErrors(nextManifest.rowErrors) || Boolean(override))
       }
@@ -105,23 +121,32 @@ export function BreakbulkManifestUploadModal({
           </Field>
         </div>
       }
-      renderPreview={(nextManifest) => <BreakbulkPreview manifest={nextManifest} />}
+      renderPreview={(nextManifest) => (
+        <>
+          <BreakbulkReimportReview
+            check={nextManifest.reimport}
+            approval={approval}
+            onApprovalChange={setApproval}
+          />
+          <BreakbulkPreview manifest={nextManifest} />
+        </>
+      )}
       helper={
         <ImportGuide
-          required="BL, CE, MAQUINAS, PACKAGES, PACKAGES TOTAL, WEIGHT (TON), CBM (M3), SHIPPER, CONSIGNEE, NOTIFY."
+          required="BL, MAQUINAS, PACKAGES, PACKAGES TOTAL, WEIGHT (TON), CBM (M3), SHIPPER, CONSIGNEE, NOTIFY."
           optional="CNPJ, POL, POD."
           details={
             <p>
-              Cada linha cria ou atualiza um B/L de carga solta da viagem escolhida; um B/L que já tem contêineres
-              passa a misto. Os CEs podem vir na planilha ou depois, pela importação de CE Mercante.
+              Cada linha cria ou corrige um B/L de carga solta da viagem escolhida; um B/L que já tem contêineres
+              passa a misto. O CE Mercante não vem no manifesto: entra pela importação de CE Mercante (uma coluna CE
+              num arquivo antigo é ignorada, com aviso). Reimportar não apaga CE, Cliente vinculado nem observações.
             </p>
           }
           templates={<ImportTemplateLinks baseName="carga-solta-modelo" />}
         />
       }
       onClose={() => {
-        setVoyageId('')
-        setNumberFormat('auto')
+        reset()
         onClose()
       }}
     />
@@ -152,7 +177,7 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
         <table className="app-table app-table--compact min-w-[1100px] text-left whitespace-nowrap">
           <thead>
             <tr>
-              {['B/L', 'CE', ...numeric, 'Shipper', 'Consignee', 'Notify'].map((label) => (
+              {['B/L', ...numeric, 'Shipper', 'Consignee', 'Notify'].map((label) => (
                 <th key={label} scope="col" className={numeric.includes(label) ? 'text-right' : undefined}>{label}</th>
               ))}
             </tr>
@@ -161,7 +186,6 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
             {manifest.bls.slice(0, 25).map((bl) => (
               <tr key={bl.bl_id}>
                 <td className="font-medium text-[var(--app-text-strong)]">{bl.bl_id}</td>
-                <td className="app-bl-code">{bl.ce_mercante ?? '—'}</td>
                 <td className="text-right tabular-nums">{formatBBNumber(bl.bb_machine_qty)}</td>
                 <td className="text-right tabular-nums">{formatBBNumber(bl.bb_packages_qty)}</td>
                 <td className="text-right tabular-nums">{formatBBNumber(bl.bb_packages_total)}</td>

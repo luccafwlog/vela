@@ -74,6 +74,14 @@ importação e 25 problemas-raiz; as decisões de negócio estão na
 [ADR 0078](adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), o
 [plano de correção](plans/2026-10-09-correcao-importacoes-ce-mercante.md)
 organiza as etapas, e 43 checagens `it.fails` reproduzem os defeitos no CI.
+A [revisão da PR 929 de 2026-10-11](archive/audits/2026-10-11-revisao-pr-929-importacoes.md)
+registra o que a execução do plano deixou de fora do caminho feliz, as
+correções das migrations `190`–`202` e as decisões que ficaram para o dono,
+tomadas na [ADR 0079](adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md)
+(migrations `203`–`206`; a `207` a `210` fecham achados da revisão automática).
+A [revisão final de 2026-10-12](archive/audits/2026-10-12-revisao-final-pr-929.md)
+fecha os achados restantes nas migrations `211`–`217`, com as decisões da
+[ADR 0080](adr/0080-decisoes-da-revisao-final-da-pr-929.md).
 
 A [revisão financeira de 2026-10-04](archive/audits/2026-10-04-revisao-fluxo-financeiro.md)
 registra testes locais de emissão, pagamento, conciliação, correção e cancelamento,

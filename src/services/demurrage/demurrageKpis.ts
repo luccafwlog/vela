@@ -1,3 +1,5 @@
+import { importDateOrNull } from '../../lib/importDate'
+import { parseImportNumber } from '../../lib/importNumber'
 import { supabase } from '../supabase'
 import { assertUploadFile } from '../../lib/fileGuard'
 import { reportBestEffortFailure } from '../../lib/telemetry'
@@ -131,8 +133,10 @@ export async function fetchDemurrageKPIs(): Promise<DemurrageKPIs> {
 }
 
 export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTransaction[]> {
-  const { matrix } = await readSheet(arrayBuffer, { dates: 'date' })
-  const rows = matrix as (string | Date | number | null)[][]
+  // `rowNumbers`: linha física de cada linha da matriz. Com linhas ocultas
+  // fora da matriz, o índice não é mais a linha da planilha.
+  const { matrix, rowNumbers } = await readSheet(arrayBuffer)
+  const rows = matrix
 
   let headerRowIdx = -1
   for (let i = 0; i < rows.length; i++) {
@@ -151,6 +155,17 @@ export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTran
 
   if (colId === -1) throw new Error('Coluna "identificador" não encontrada.')
   if (colValue === -1) throw new Error('Coluna "valor pago" não encontrada.')
+  // Duas colunas para o mesmo campo bloqueiam (ADR 0078, item 22): ler a
+  // primeira em silêncio poderia baixar o valor da coluna errada.
+  const repeated = [
+    ['identificador', headers.filter((h) => h === 'identificador').length],
+    ['CPF/CNPJ', headers.filter((h) => h.includes('cpf') || h.includes('cnpj')).length],
+    ['pago em', headers.filter((h) => h.includes('pago em')).length],
+    ['valor pago', headers.filter((h) => h.includes('valor pago')).length],
+  ].filter(([, count]) => Number(count) > 1).map(([label]) => `"${label}"`)
+  if (repeated.length) {
+    throw new Error(`A coluna ${repeated.join(', ')} aparece mais de uma vez no cabeçalho do extrato. Deixe só uma e importe de novo.`)
+  }
 
   const transactions: PixTransaction[] = []
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
@@ -164,56 +179,22 @@ export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTran
 
     let amount = 0
     if (colValue >= 0) {
-      amount = parseFloat(String(row[colValue] ?? '').trim().replace(/\./g, '').replace(',', '.')) || 0
+      // Célula numérica chega como número; texto do extrato é pt-BR (1.500,50).
+      const parsed = parseImportNumber(row[colValue], 'pt-BR')
+      amount = parsed.kind === 'value' ? Number(parsed.decimal) : 0
     }
     if (amount <= 0) continue
 
     const cnpj = colCnpj >= 0 ? String(row[colCnpj] ?? '').trim() : ''
-    transactions.push({ txid, cnpj, date, amount, lineNumber: i + 1 })
+    transactions.push({ txid, cnpj, date, amount, lineNumber: rowNumbers[i] ?? i + 1 })
   }
   return transactions
 }
 
+// Data civil única dos imports (src/lib/importDate.ts): a célula de data/hora
+// do Excel chega como AAAA-MM-DD HH:MM; o texto do extrato, DD/MM/AAAA HH:MM.
 function parsePixPaidDate(raw: unknown): string {
-  if (raw instanceof Date) {
-    if (isNaN(raw.getTime())) return ''
-    const y = raw.getUTCFullYear()
-    const m = raw.getUTCMonth() + 1
-    const d = raw.getUTCDate()
-    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-  }
-
-  const str = String(raw ?? '').trim()
-  if (!str) return ''
-
-  const num = Number(str)
-  if (Number.isFinite(num) && num > 40000 && num < 200000) {
-    const epoch = new Date(Date.UTC(1899, 11, 30))
-    const date = new Date(epoch.getTime() + num * 86_400_000)
-    if (isNaN(date.getTime())) return ''
-    const y = date.getUTCFullYear()
-    const m = date.getUTCMonth() + 1
-    const d = date.getUTCDate()
-    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-  }
-
-  const match = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+.*)?$/)
-  if (!match) return ''
-
-  const day = Number(match[1])
-  const month = Number(match[2])
-  const year = Number(match[3])
-  const candidate = new Date(Date.UTC(year, month - 1, day))
-
-  if (
-    candidate.getUTCFullYear() !== year ||
-    candidate.getUTCMonth() !== month - 1 ||
-    candidate.getUTCDate() !== day
-  ) {
-    return ''
-  }
-
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return importDateOrNull(raw) ?? ''
 }
 
 export async function parsePixExtractFile(file: File): Promise<PixTransaction[]> {

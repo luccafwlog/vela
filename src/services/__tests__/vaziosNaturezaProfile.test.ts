@@ -18,7 +18,7 @@ vi.mock('../supabase', () => ({
   supabase: supabaseMock,
 }))
 
-import { setContainerProfile } from '../vaziosNatureza'
+import { partLotInvoicedNotice, setContainerProfile } from '../vaziosNatureza'
 
 describe('vaziosNatureza setContainerProfile', () => {
   beforeEach(() => {
@@ -41,6 +41,16 @@ describe('vaziosNatureza setContainerProfile', () => {
       p_justification: 'Carga com excesso de altura',
       p_changed_by: 'user-op',
     })
+  })
+
+  it('devolve os B/Ls do mesmo container que já estavam faturados (Part Lot, ADR 0079)', async () => {
+    mockRpc.mockResolvedValueOnce({ data: { bl_id: 'B2', invoiced_bls: ['B1'] }, error: null })
+
+    const result = await setContainerProfile({ containerId: 99, profile: 'imo', justification: 'Armador confirmou IMO' })
+
+    expect(result.invoicedBls).toEqual(['B1'])
+    expect(partLotInvoicedNotice(result.invoicedBls)).toContain('O B/L B1, do mesmo container, já foi faturado')
+    expect(partLotInvoicedNotice([])).toBe('')
   })
 
   it('lança erro legível quando a RPC falha', async () => {

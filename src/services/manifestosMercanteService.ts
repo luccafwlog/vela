@@ -13,54 +13,6 @@ export type ManifestoMercante = {
   updated_at?: string
 }
 
-export type CreateManifestoMercanteInput = {
-  voyage_id: number
-  pol: string
-  pod: string
-  numero: string
-  natureza: ManifestoMercanteNatureza
-}
-
-export async function createManifestoMercante(
-  input: CreateManifestoMercanteInput,
-): Promise<ManifestoMercante> {
-  const pol = input.pol.trim()
-  const pod = input.pod.trim()
-  const numero = input.numero.trim()
-  const natureza = input.natureza
-
-  if (!pol || !pod) {
-    throw new Error('Portos de origem (POL) e destino (POD) são obrigatórios.')
-  }
-  if (!numero) {
-    throw new Error('Número do manifesto Mercante é obrigatório.')
-  }
-  if (natureza !== 'carga' && natureza !== 'vazio') {
-    throw new Error('Natureza do manifesto deve ser "carga" ou "vazio".')
-  }
-
-  const { data, error } = await supabase
-    .from('manifestos_mercante')
-    .insert({
-      voyage_id: input.voyage_id,
-      pol,
-      pod,
-      numero,
-      natureza,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    if (error.code === '23505') {
-      throw new Error(`O número de manifesto Mercante "${numero}" já foi cadastrado no sistema.`)
-    }
-    throw error
-  }
-
-  return data as ManifestoMercante
-}
-
 export async function listManifestosMercanteByVoyage(
   voyageId: number,
 ): Promise<ManifestoMercante[]> {
@@ -91,27 +43,93 @@ export async function listManifestosMercanteByRota(
   return (data ?? []) as ManifestoMercante[]
 }
 
-export async function linkBlToManifestoMercante(
-  blId: string,
-  manifestoId: string | null,
-): Promise<void> {
-  const { error } = await supabase
-    .from('bls')
-    .update({ manifesto_mercante_id: manifestoId })
-    .eq('id', blId)
-
-  if (error) throw error
+/** Forma canônica do Nº de Manifesto Mercante: 13 letras ou dígitos (ADR 0078, item 6). */
+export function canonicalManifestoNumero(value: string): string {
+  return value.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
 }
 
-export async function linkBlsToManifestoMercante(
-  blIds: string[],
-  manifestoId: string | null,
-): Promise<void> {
-  if (!blIds.length) return
-  const { error } = await supabase
-    .from('bls')
-    .update({ manifesto_mercante_id: manifestoId })
-    .in('id', blIds)
+export const MANIFESTO_NUMERO_PATTERN = /^[A-Z0-9]{13}$/
 
+/** Lista colada: B/Ls separados por espaço, vírgula, ponto e vírgula ou linha. */
+export function parsePastedBlList(text: string): string[] {
+  return Array.from(new Set(text.split(/[\s,;]+/).map((item) => item.trim().toUpperCase()).filter(Boolean)))
+}
+
+export type VoyageManifestoBl = {
+  id: string
+  pol: string | null
+  pod: string | null
+  cancelled: boolean
+  manifestoNumero: string | null
+}
+
+/** Teto de linhas por resposta do PostgREST (`max_rows`). */
+export const VOYAGE_BLS_PAGE_SIZE = 1000
+
+export async function listVoyageBlsForManifesto(voyageId: number): Promise<VoyageManifestoBl[]> {
+  type Row = { id: string; pol: string | null; pod: string | null; cancelled_at?: string | null; manifesto: { numero: string } | null }
+  // Viagem com mais B/Ls que uma página: sem paginar, a lista de Mover /
+  // Desvincular perdia os B/Ls além do teto, sem aviso.
+  const rows: Row[] = []
+  for (let from = 0; ; from += VOYAGE_BLS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('bls')
+      .select('id, pol, pod, cancelled_at, manifesto:manifestos_mercante!bls_manifesto_mercante_id_fkey(numero)')
+      .eq('voyage_id', voyageId)
+      .order('id')
+      .range(from, from + VOYAGE_BLS_PAGE_SIZE - 1)
+    if (error) throw error
+    const page = (data ?? []) as unknown as Row[]
+    rows.push(...page)
+    if (page.length < VOYAGE_BLS_PAGE_SIZE) break
+  }
+  return rows.map((row) => ({
+    id: row.id,
+    pol: row.pol,
+    pod: row.pod,
+    cancelled: Boolean(row.cancelled_at),
+    manifestoNumero: row.manifesto?.numero ?? null,
+  }))
+}
+
+/**
+ * Mover B/Ls para um Manifesto Mercante (migration 181): tudo ou nada, com
+ * motivo no Histórico; o destino novo é validado e criado na hora.
+ */
+/**
+ * B/L → Nº de Manifesto que a tela exibia (null = sem Manifesto). O banco
+ * recusa Mover e Desvincular se algum B/L estiver em outro Manifesto quando
+ * a gravação o trava (migration 209).
+ */
+export type ExpectedManifestos = Record<string, string | null>
+
+/**
+ * Recusa do banco porque o estado mudou depois da tela (migration 209): o
+ * Manifesto em Mover / Desvincular ou o CE em Corrigir / Remover. A tela
+ * recarrega os dados, para a nova tentativa partir do estado atual.
+ */
+export function isStaleScreenRefusal(error: unknown): boolean {
+  const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown }
+  return code === '22023' && typeof message === 'string' && /mudou depois (da tela|que a ficha foi aberta)/.test(message)
+}
+
+export async function moveBlsToManifestoMercante(blIds: string[], numero: string, reason: string, expected: ExpectedManifestos) {
+  const { data, error } = await supabase.rpc('move_bls_to_manifesto_mercante' as never, {
+    p_bl_ids: blIds,
+    p_numero: numero,
+    p_reason: reason,
+    p_expected: expected,
+  } as never)
   if (error) throw error
+  return data as unknown as { numero: string; created: boolean; moved: number; unchanged: number }
+}
+
+export async function unlinkBlsFromManifestoMercante(blIds: string[], reason: string, expected: ExpectedManifestos) {
+  const { data, error } = await supabase.rpc('unlink_bls_from_manifesto_mercante' as never, {
+    p_bl_ids: blIds,
+    p_reason: reason,
+    p_expected: expected,
+  } as never)
+  if (error) throw error
+  return data as unknown as { unlinked: number; unchanged: number }
 }

@@ -12,8 +12,7 @@ describe('baplieParser', () => {
     ['12', null, 'BRSEP', 'BRSEP', 'warning'],
     ['12', 'BRVIX', 'BRSEP', 'BRVIX', null],
     ['11', 'BRVIX', 'BRSEP', 'BRVIX', null],
-    ['12', 'N', 'XXXXX', null, 'error'],
-    ['12', 'N', null, null, 'error'],
+    ['12', null, null, null, 'error'],
   ])('resolve POD de LOC+%s (%s) com Delivery %s', (qualifier, pod, delivery, expectedPod, severity) => {
     const parsed = parseBaplieText([
       "LOC+147+010101'",
@@ -28,6 +27,26 @@ describe('baplieParser', () => {
     expect(parsed.pods).toEqual(expectedPod ? [expectedPod] : [])
     expect(parsed.issues).toEqual(severity ? [expect.objectContaining({ field: 'pod', severity })] : [])
     if (severity === 'warning') expect(parsed.issues[0].message).toContain('Utilizado o local de entrega BRSEP (LOC+83)')
+  })
+
+  // E9-02: POD informado e não reconhecido, sem local de entrega que o
+  // substitua, é porto fora das escalas: o container sai com aviso. Aqui é o
+  // único container, então o arquivo bloqueia por não sobrar nenhum.
+  it.each([['XXXXX'], [null]])('POD não reconhecido (N) com Delivery %s tira o container com aviso', (delivery) => {
+    const parsed = parseBaplieText([
+      "LOC+147+010101'",
+      "LOC+6+TAO'",
+      "LOC+12+N'",
+      ...(delivery === null ? [] : [`LOC+83+${delivery}'`]),
+      "MEA+VGM++KGM:12000'",
+      "EQD+CN+CAAU2184518+45G1+++5'",
+    ].join('\n'))
+
+    expect(parsed.containers).toEqual([])
+    expect(parsed.issues).toEqual([
+      expect.objectContaining({ field: 'pod', code: 'unknown_port', severity: 'warning', message: expect.stringContaining('não reconhecido (N)') }),
+      expect.objectContaining({ severity: 'error', message: expect.stringMatching(/Nenhum container a importar/) }),
+    ])
   })
 
   it('deduplica containers repetidos no EDI preservando atributos fisicos', async () => {

@@ -130,7 +130,7 @@ describeIntegration('supabase integration - hardening gate', () => {
     expect(result.error?.code).toBe('PT409')
   })
 
-  it('apply_ce_mercante_update retorna unchanged quando CE nao muda', async () => {
+  it('Corrigir CE Mercante com o mesmo CE retorna unchanged (a porta da ficha)', async () => {
     if (!env.blIdWithCe) return
 
     const current = await client.from('bls').select('ce_mercante').eq('id', env.blIdWithCe).single()
@@ -141,14 +141,16 @@ describeIntegration('supabase integration - hardening gate', () => {
     const ce = String(current.data?.ce_mercante ?? '').trim()
     if (!ce) return
 
-    const result = await client.rpc('apply_ce_mercante_update', {
+    // `apply_ce_mercante_update` saiu da API (migration 195); a ficha usa
+    // `correct_bl_ce_mercante`, com motivo.
+    const result = await client.rpc('correct_bl_ce_mercante' as never, {
       p_bl_id: env.blIdWithCe,
-      p_new_ce: ce,
-      p_changed_by: userId,
-    })
+      p_ce: ce,
+      p_reason: 'Teste de integração: CE igual',
+    } as never)
 
     expect(result.error).toBeNull()
-    expect(result.data).toBe('unchanged')
+    expect((result.data as { status?: string } | null)?.status).toBe('unchanged')
   })
 
   operatorRlsTest('RLS financeiro permite leitura e bloqueia mutacao para operador', async () => {

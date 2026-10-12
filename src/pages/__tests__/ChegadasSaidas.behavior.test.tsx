@@ -5,6 +5,9 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  planSheet: vi.fn(),
+  applyPlan: vi.fn(),
+  readSheet: vi.fn(),
   invalidateQueries: vi.fn(),
   showToast: vi.fn(),
   createOrAttach: vi.fn(),
@@ -47,8 +50,19 @@ vi.mock('../../components/ui/Toast', () => ({
 vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => mocks.confirm,
 }))
-vi.mock('../../services/voyageFromSchedule', () => ({
+vi.mock('../../services/voyageFromSchedule', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/voyageFromSchedule')>()),
   createOrAttachVoyageFromSchedule: mocks.createOrAttach,
+  planScheduleSheet: mocks.planSheet,
+  applyScheduleSheetPlan: mocks.applyPlan,
+}))
+vi.mock('../../services/importCore', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/importCore')>()),
+  readSheet: mocks.readSheet,
+}))
+vi.mock('../../services/importText', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/importText')>()),
+  inspectImportFile: () => ({ format: 'xlsx', encoding: null, hadBom: false, byteLength: 1, preview: '' }),
 }))
 vi.mock('../../services/voyages', () => ({
   setVoyageShowOnPortal: mocks.setShow,
@@ -149,9 +163,59 @@ describe('ChegadasSaidas user behaviours', () => {
     render(<ChegadasSaidas />)
 
     expect(screen.getByRole('button', { name: /Adicionar navio/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Enviar planilha/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Conferir prévia/ })).toBeTruthy()
     expect(screen.getAllByTitle('Editar').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /Baixar planilha modelo/ })).toBeTruthy()
+  })
+
+  it('planilha mostra a prévia e só grava, numa transação, ao confirmar', async () => {
+    mocks.effectiveRole.mockReturnValue('equipamentos')
+    mocks.readSheet.mockResolvedValue({ headers: [], rows: [{ 'VESSEL NAME': 'NAVIO A', VOY: '1', IMO: '9976501' }] })
+    const planRows = [
+      { label: 'NAVIO A / 1', vesselName: 'NAVIO A', vesselImo: '9976501', voyageNumber: '1', voyageId: null, createsVoyage: true, changes: [{ entity_type: 'voyage_pod_schedule', port: 'BRSSA', field_name: 'eta', old_value: null, new_value: '2026-01-22', justification: '' }], error: null },
+      { label: 'NAVIO B / 2', vesselName: 'NAVIO B', vesselImo: null, voyageNumber: '2', voyageId: null, createsVoyage: false, changes: [], error: 'Viagem 2 ambígua' },
+    ]
+    mocks.planSheet.mockResolvedValue(planRows)
+    mocks.applyPlan.mockResolvedValue({ created: 1, updated: 0, changes: 1 })
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+    await user.upload(screen.getByLabelText(/Planilha de programação/), new File(['x'], 'programacao.xlsx'))
+    await user.click(screen.getByRole('button', { name: /Conferir prévia/ }))
+
+    const preview = await screen.findByRole('region', { name: 'Prévia da planilha' })
+    expect(preview.textContent).toMatch(/1 viagem\(ns\) nova\(s\)/)
+    expect(preview.textContent).toMatch(/Viagem 2 ambígua/)
+    expect(mocks.applyPlan).not.toHaveBeenCalled()
+    expect(mocks.createOrAttach).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: /Gravar programação \(1\)/ }))
+    expect(mocks.applyPlan).toHaveBeenCalledWith(planRows)
+    expect(mocks.showToast).toHaveBeenCalledWith('1 viagem(ns) criada(s), 0 atualizada(s).', 'success')
+  })
+
+  it('planilha publica a Viagem oculta mesmo sem data que mude e atualiza opções de Viagem e Line-Up', async () => {
+    mocks.effectiveRole.mockReturnValue('equipamentos')
+    mocks.readSheet.mockResolvedValue({ headers: [], rows: [{ 'VESSEL NAME': 'NAVIO C', VOY: '3', IMO: 'TBA' }] })
+    const planRows = [
+      { label: 'NAVIO C / 3', vesselName: 'NAVIO C', vesselImo: null, ignoredImo: 'TBA', voyageNumber: '3', voyageId: 9, createsVoyage: false, publishes: true, changes: [], error: null },
+    ]
+    mocks.planSheet.mockResolvedValue(planRows)
+    mocks.applyPlan.mockResolvedValue({ created: 0, updated: 1, changes: 0, voyage_ids: [9] })
+    const user = userEvent.setup()
+    render(<ChegadasSaidas />)
+    await user.upload(screen.getByLabelText(/Planilha de programação/), new File(['x'], 'programacao.xlsx'))
+    await user.click(screen.getByRole('button', { name: /Conferir prévia/ }))
+
+    const preview = await screen.findByRole('region', { name: 'Prévia da planilha' })
+    expect(preview.textContent).toMatch(/1 passa\(m\) a aparecer no Portal, 0 sem mudança/)
+    expect(within(preview).getByText('Publica no Portal')).toBeTruthy()
+    expect(preview.textContent).toMatch(/IMO “TBA” ignorado/)
+
+    await user.click(screen.getByRole('button', { name: /Gravar programação \(1\)/ }))
+    expect(mocks.applyPlan).toHaveBeenCalledWith(planRows)
+    await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyage-options'] }))
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['voyage-pod-schedules'] })
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['lineup-tv-v3'] })
   })
 
   it('mantém a falha de leitura da planilha no conteúdo, não só no toast', async () => {
@@ -162,11 +226,11 @@ describe('ChegadasSaidas user behaviours', () => {
     Object.defineProperty(big, 'size', { value: 11 * 1024 * 1024 })
 
     // Área de arquivo comum: escolher não grava; o envio é um passo explícito.
-    expect((screen.getByRole('button', { name: /Enviar planilha/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: /Conferir prévia/ }) as HTMLButtonElement).disabled).toBe(true)
     await user.upload(screen.getByLabelText(/Planilha de programação/), big)
     expect(screen.getByText('programacao.xlsx')).toBeTruthy()
     expect(mocks.createOrAttach).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: /Enviar planilha/ }))
+    await user.click(screen.getByRole('button', { name: /Conferir prévia/ }))
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/Não foi possível ler programacao\.xlsx.*Nada foi gravado/)
     expect(mocks.createOrAttach).not.toHaveBeenCalled()

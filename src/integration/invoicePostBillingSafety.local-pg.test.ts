@@ -1,6 +1,6 @@
 import { execFile, execFileSync, spawnSync } from 'node:child_process'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { afterEach, beforeEach, expect, it } from 'vitest'
+import { syntheticCnpj, describeWithProbe } from './localTestData'
 
 // Migration 128 (ADR 0077, decisões de 2026-10-02): toda correção do B/L —
 // alteração direta, reimportação ou Baplie — é tratada no fim da transação.
@@ -49,13 +49,27 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = migrationApplied() ? describe : describe.skip
+const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied')
 
 function asAdmin(sql: string) {
   return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
     BEGIN;
     SET LOCAL ROLE authenticated;
     SET LOCAL request.jwt.claim.role = 'authenticated';
+    SET LOCAL request.jwt.claim.sub = '${actorId}';
+    ${sql};
+    COMMIT;
+  `], { encoding: 'utf8' })
+}
+
+// `apply_ce_mercante_update` saiu da API (migration 195): o CE da fixture é
+// gravado como manutenção server-side, com o operador como ator; o gatilho do
+// CE emite como antes.
+function asService(sql: string) {
+  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+    BEGIN;
+    SET LOCAL ROLE service_role;
+    SET LOCAL request.jwt.claim.role = 'service_role';
     SET LOCAL request.jwt.claim.sub = '${actorId}';
     ${sql};
     COMMIT;
@@ -70,7 +84,7 @@ function adminJson<T>(sql: string): T {
 }
 
 function issueByCe(blId: string, ce: string) {
-  const result = asAdmin(`DO $$ BEGIN PERFORM public.apply_ce_mercante_update('${blId}', '${ce}', '${actorId}'::uuid); END $$`)
+  const result = asService(`DO $$ BEGIN PERFORM public.apply_ce_mercante_update('${blId}', '${ce}', '${actorId}'::uuid); END $$`)
   expect(result.status, result.stderr).toBe(0)
   return Number(psql(`SELECT id FROM public.invoices WHERE bl_id = '${blId}' AND status = 'issued' AND invoice_type = 'individual'`))
 }

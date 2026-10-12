@@ -52,7 +52,7 @@ describeLocal('S10 — guardas de readiness de CE Mercante', () => {
         id, voyage_id, customer_id, cargo_mode, ce_mercante, financial_status,
         review_status, customer_reconciliation_status
       ) VALUES (
-        '${blId}', ${voyageId}, ${customerId}, 'container', '123456789012345',
+        '${blId}', ${voyageId}, ${customerId}, 'container', '555301000000145',
         'invoiced', 'reviewed', 'reconciled'
       );
       SET session_replication_role = origin;

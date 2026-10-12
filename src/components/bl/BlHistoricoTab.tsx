@@ -4,7 +4,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { useBlTimeline } from '../../hooks/useBlTimeline'
-import { describeTimelineEvent, familyLabel, isAudited } from './blTimelinePresentation'
+import { describeTimelineEvent, familyLabel, isAudited, isImportContext } from './blTimelinePresentation'
 import { useBlCommunicationHistory } from '../../hooks/useCustomerCommunications'
 import { customerCommunicationKindLabel, customerCommunicationStatusLabel } from '../../services/customerCommunications'
 
@@ -31,7 +31,9 @@ export function BlHistoricoTab({ active, blId }: { active: boolean; blId?: strin
       node: (
         <>
           <div className="app-bl-history__title">{describeTimelineEvent(event)}</div>
-          {event.justification ? <div className="app-bl-facts__sub">Motivo: {event.justification}</div> : null}
+          {event.justification
+            ? <div className="app-bl-facts__sub">{isImportContext(event.justification) ? 'Origem' : 'Motivo'}: {event.justification}</div>
+            : null}
         </>
       ),
     })),

@@ -7,6 +7,7 @@ import { Card, InlineError, PageHeader } from "../components/ui/Card";
 import { Modal } from "../components/ui/Modal";
 import { Field, Input, Select } from "../components/ui/Input";
 import { VoyageCombobox } from "../components/shared/VoyageCombobox";
+import { ImportFilePicker } from "../components/shared/ImportParts";
 import { Combobox, type ComboOption } from "../components/ui/Combobox";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../components/ui/Toast";
@@ -25,6 +26,7 @@ import {
 import {
   importVaziosManifest,
   parseVaziosManifestFile,
+  type ParsedVaziosManifest,
 } from "../services/vaziosImport";
 import {
   listArmazenagemServices,
@@ -57,6 +59,32 @@ type OperationRow = {
 
 function operationLabel(item: OperationRow): string {
   return voyageLabel(item.voyage?.vessel?.name, item.voyage?.voyage_number, item.voyage_id);
+}
+
+/**
+ * Pergunta da confirmação quando a planilha tem linhas ou abas ocultas: o
+ * leitor as ignora (ADR 0078, item 22; a planilha filtrada por depot é o caso
+ * comum) e a importação substitui a lista da escala, então as unidades delas
+ * saem do Embarque. `null` quando nada ficou oculto.
+ */
+function hiddenUnitsQuestion(hidden: ParsedVaziosManifest["hidden"]): string | null {
+  const parts: string[] = [];
+  if (hidden.rows > 0) {
+    parts.push(
+      hidden.rows === 1
+        ? "1 linha oculta foi ignorada e as unidades dela sairão do Embarque."
+        : `${hidden.rows} linhas ocultas foram ignoradas e as unidades delas sairão do Embarque.`,
+    );
+  }
+  if (hidden.sheets.length) {
+    const names = hidden.sheets.map((name) => `"${name}"`).join(", ");
+    parts.push(
+      hidden.sheets.length === 1
+        ? `A aba oculta ${names} foi ignorada; se ela tiver unidades, elas sairão do Embarque.`
+        : `As abas ocultas ${names} foram ignoradas; se elas tiverem unidades, elas sairão do Embarque.`,
+    );
+  }
+  return parts.length ? `${parts.join(" ")} Continuar?` : null;
 }
 
 function countByField<T>(rows: T[], keyOf: (row: T) => string): Array<{ label: string; count: number }> {
@@ -309,8 +337,30 @@ export function EmbarqueVazios() {
   }
   async function importUnits() {
     if (!file || !selectedOperation || !user?.id) return;
+    let parsed: ParsedVaziosManifest;
+    try {
+      parsed = await parseVaziosManifestFile(file, depotRows);
+    } catch (error) {
+      showToast(classifyDbError(error).message, "error");
+      return;
+    }
+    // Com divergência nada é gravado (importVaziosManifest recusa o lote), e a
+    // mensagem das linhas vem pelo aviso de erro; a pergunta só vale quando a
+    // gravação vai acontecer.
+    const hiddenQuestion = parsed.rowErrors.length ? null : hiddenUnitsQuestion(parsed.hidden);
+    if (hiddenQuestion) {
+      const proceed = await confirm({
+        title: "Planilha com dados ocultos",
+        message: hiddenQuestion,
+        consequence:
+          "Só as linhas visíveis entram na lista de Unidades Embarcadas da escala. Para importar as ocultas, reexiba-as na planilha e escolha o arquivo de novo.",
+        reversibility: "Importar de novo a planilha com as linhas reexibidas devolve as unidades à lista.",
+        confirmLabel: "Importar sem as ocultas",
+        tone: "danger",
+      });
+      if (!proceed) return;
+    }
     await notify(async () => {
-      const parsed = await parseVaziosManifestFile(file, depotRows);
       await importVaziosManifest({
         filename: file.name,
         voyageId: selectedOperation.voyage_id,
@@ -1225,16 +1275,14 @@ export function EmbarqueVazios() {
                   </a>
                 </div>
               </div>
-              <Field label="Arquivo .xlsx, .xls ou .csv">
-                <Input
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={(event) =>
-                    setFile(event.target.files?.[0] ?? null)
-                  }
-                />
-              </Field>
-              {file ? <div className="app-panel__meta">Arquivo selecionado: {file.name}</div> : null}
+              {/* O seletor comum mostra os avisos de leitura (linhas e abas
+                  ocultas, CSV Windows-1252) assim que o arquivo é escolhido. */}
+              <ImportFilePicker
+                accept=".xlsx,.xls,.csv"
+                files={file ? [file] : []}
+                onFiles={(files) => setFile(files[0] ?? null)}
+                disabled={!canEdit}
+              />
               <div className="app-modal__actions">
                 <Button
                   variant="secondary"

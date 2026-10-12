@@ -35,3 +35,20 @@ it('requires a justification and submits the trimmed reason', async () => {
   // O titulo cita a chave natural do documento, nunca `demurrage_invoices.id`.
   expect(screen.getByRole('dialog', { name: 'Cancelar baixa de Demurrage DEM-2026-0042' })).toBeTruthy()
 })
+
+// ADR 0079, decisão 2: o estorno de Invoice suspensa por datas alteradas
+// avisa a consequência antes de confirmar.
+it('avisa que a Invoice com datas alteradas é reemitida ao cancelar a baixa', async () => {
+  const { DemurragePaymentReversalModal: ReversalModal } = await import('../DemurragePaymentReversalModal')
+  const { rerender } = render(
+    <ReversalModal open docNumber="DEM-2026-0043" datesChanged={{ negotiated: false }} loading={false} onClose={vi.fn()} onSubmit={vi.fn()} />,
+  )
+  expect(screen.getByText('As datas do container mudaram depois do pagamento')).toBeTruthy()
+  expect(screen.getByText(/a Invoice é cancelada e reemitida com as datas atuais/)).toBeTruthy()
+
+  rerender(<ReversalModal open docNumber="DEM-2026-0043" datesChanged={{ negotiated: true }} loading={false} onClose={vi.fn()} onSubmit={vi.fn()} />)
+  expect(screen.getByText(/tem desconto ou disputa aberta: cancele/)).toBeTruthy()
+
+  rerender(<ReversalModal open docNumber="DEM-2026-0043" loading={false} onClose={vi.fn()} onSubmit={vi.fn()} />)
+  expect(screen.queryByText('As datas do container mudaram depois do pagamento')).toBeNull()
+})

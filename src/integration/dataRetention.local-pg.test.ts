@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Migration 094 (ADR 0074): a rotina de guarda apaga auditoria com mais de 5
 // anos (menos as marcas de escala, que são dado operacional) e eventos do
@@ -23,7 +24,7 @@ function functionPresent() {
   }
 }
 
-const describeLocal = functionPresent() ? describe : describe.skip
+const describeLocal = describeWithProbe(functionPresent, 'functionPresent')
 
 const CUSTOMER_ID = 9400001
 const TAG = 'ret094'

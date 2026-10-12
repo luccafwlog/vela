@@ -48,6 +48,11 @@ function cleanup() {
     DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId};
     DELETE FROM public.charge_table_items WHERE charge_table_id = ${chargeTableId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
+    -- Resíduo do Cliente sintético: só as contas e eventos dele (CNPJ exclusivo da suíte).
+    DELETE FROM public.portal_provisioning_events WHERE customer_id = ${customerId}
+      OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
+    DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
+    DELETE FROM public.customer_contacts WHERE customer_id = ${customerId};
     DELETE FROM public.customers WHERE id = ${customerId};
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
@@ -81,7 +86,7 @@ describeLocal('SOC/COC — B/L soberano, taxas e Demurrage', () => {
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'SOC120 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'SOC120 Vessel', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'S120', 'active');
-      INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${customerId}, 'Cliente SOC 120', '11222333000181');
+      INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${customerId}, 'Cliente SOC 120', '12012012000115');
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela SOC 120', '${pod}', '2026-01-01', true, 'container');
       INSERT INTO public.charge_table_items (
@@ -145,7 +150,10 @@ describeLocal('SOC/COC — B/L soberano, taxas e Demurrage', () => {
   })
 
   it('container SOC nunca fica em atraso de Demurrage', () => {
-    psql(`UPDATE public.bl_containers SET demurrage_status = 'overdue' WHERE bl_id = '${blId}' AND container_number IN ('${socByBl}', '${conflict}')`)
+    // O status é derivado das datas pelo banco (migration 197): descarga há 60
+    // dias, sem devolução, passa de qualquer free time da tabela — o COC fica em
+    // atraso, o SOC não.
+    psql(`UPDATE public.bl_containers SET discharge_date = CURRENT_DATE - 60 WHERE bl_id = '${blId}' AND container_number IN ('${socByBl}', '${conflict}')`)
     expect(psql(`SELECT string_agg(container_number || ':' || demurrage_status, ',' ORDER BY container_number)
       FROM public.bl_containers WHERE bl_id = '${blId}' AND container_number IN ('${socByBl}', '${conflict}')`))
       .toBe(`${socByBl}:within_free_time,${conflict}:overdue`)

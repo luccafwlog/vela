@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe } from './localTestData'
 
 // Migration 087 (ADR 0071; plano 2026-09-24-politica-de-exclusao, Fase 2):
 // delete_records exclui cada item por inteiro ou devolve o motivo, sem deixar
@@ -24,7 +25,7 @@ function functionPresent() {
   }
 }
 
-const describeLocal = functionPresent() ? describe : describe.skip
+const describeLocal = describeWithProbe(functionPresent, 'functionPresent')
 
 const ADMIN_ID = '08700000-0000-4000-8000-0000000000a1'
 const FIN_ID = '08700000-0000-4000-8000-0000000000f1'

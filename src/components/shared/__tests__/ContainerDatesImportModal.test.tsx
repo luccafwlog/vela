@@ -13,7 +13,7 @@ vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../../services/cacheEffects', () => ({ afterDatasContainerAlteradas: mocks.after }))
 vi.mock('../../../services/containerDatesImport', () => ({
-  parseContainerDatesFile: mocks.parse,
+  readContainerDatesFile: mocks.parse,
   importContainerDates: mocks.importDates,
 }))
 

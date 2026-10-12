@@ -112,6 +112,10 @@ export const queryKeys = {
   transshipments: {
     byVoyage: (voyageId: number) => ['transshipments', 'voyage', voyageId] as const,
   },
+  baplie: {
+    /** Navio, viagem e escalas da Viagem para as regras do Baplie (ADR 0078, item 21). */
+    voyageContext: (voyageId: number) => ['baplie-voyage-context', voyageId] as const,
+  },
   customers: {
     all: () => ['customers'] as const,
     detail: (cnpj?: string) =>

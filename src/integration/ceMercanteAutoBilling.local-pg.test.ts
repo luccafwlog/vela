@@ -76,6 +76,7 @@ function cleanup(): void {
     DELETE FROM public.charge_calculations WHERE bl_id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
     DELETE FROM public.bl_containers WHERE bl_id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
     DELETE FROM public.bls WHERE id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
+    DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${chargeTableId} OR charge_item_id = ${chargeItemId};
     DELETE FROM public.charge_table_items WHERE id = ${chargeItemId};
     DELETE FROM public.charge_tables WHERE id = ${chargeTableId};
     DELETE FROM public.customer_billing_portal_releases WHERE customer_id = ${customerId};
@@ -83,6 +84,9 @@ function cleanup(): void {
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
+    DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}));
+    DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}) OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}));
+    DELETE FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId});
     DELETE FROM public.customers WHERE id = ${customerId};
     DELETE FROM public.audit_logs WHERE changed_by = '${actorId}';
     DELETE FROM public.user_profiles WHERE id = '${actorId}';
@@ -123,13 +127,13 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
         ('${blId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
           'pending', 'not_calculated', 'reconciled', NULL),
         ('${peerBlId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
-          'pending', 'not_calculated', 'reconciled', '123456789012346'),
+          'pending', 'not_calculated', 'reconciled', '771301000000146'),
         ('${blockedBlId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
-          'pending', 'not_calculated', 'missing_customer', '123456789012347'),
+          'pending', 'not_calculated', 'missing_customer', '771301000000147'),
         ('${workerOriginBlId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
-          'pending', 'not_calculated', 'reconciled', '123456789012348'),
+          'pending', 'not_calculated', 'reconciled', '771301000000148'),
         ('${workerPeerBlId}', ${voyageId}, ${customerId}, 'CEAUTO', 'container',
-          'pending', 'not_calculated', 'reconciled', '123456789012349');
+          'pending', 'not_calculated', 'reconciled', '771301000000149');
       INSERT INTO public.bl_containers (bl_id, container_number)
       VALUES
         ('${blId}', 'MSCU1234567'),
@@ -151,15 +155,17 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
   afterAll(cleanup)
 
   it('calcula, emite e cria o recebível com a Liberação vigente, sem conta pronta do Portal', () => {
+    // `apply_ce_mercante_update` saiu da API (migration 195): grava o CE como
+    // manutenção server-side, com o operador como ator, e o gatilho emite.
     psqlAsDatabaseRole(`
       DO $$
       BEGIN
         PERFORM public.apply_ce_mercante_update(
-          '${blId}', '123456789012345', '${actorId}'::uuid
+          '${blId}', '771301000000145', '${actorId}'::uuid
         );
       END
       $$;
-    `, 'authenticated', 'authenticated', actorId)
+    `, 'service_role', 'service_role', actorId)
 
     const result = JSON.parse(psql(`
       SELECT jsonb_build_object(
@@ -214,7 +220,9 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
     ]))
     expect(psql(`SELECT count(*) FROM public.invoices WHERE bl_id = '${workerOriginBlId}';`)).toBe('1')
     expect(psql(`SELECT count(*) FROM public.invoices WHERE bl_id = '${workerPeerBlId}';`)).toBe('0')
-    expect(Number(psql(`SELECT count(*) FROM public.charge_calculations WHERE bl_id = '${workerPeerBlId}';`))).toBeGreaterThan(0)
+    // O efeito do B/L de origem não toca o irmão que já tem CE: o cálculo dele
+    // é o do dia do próprio CE (migration 178, ADR 0078 item 18).
+    expect(psql(`SELECT count(*) FROM public.charge_calculations WHERE bl_id = '${workerPeerBlId}';`)).toBe('0')
   })
 
   it('preserva bloqueio de reconciliação como resultado recuperável do worker', () => {
@@ -301,6 +309,8 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
       SELECT public.auto_bill_bl_after_ce_mercante('${blId}', '${actorId}'::uuid);
     `)).toThrow()
     expect(psql(`SELECT has_function_privilege('authenticated', 'public.auto_bill_bl_after_ce_mercante(text,uuid)', 'EXECUTE');`)).toBe('f')
+    // A gravação de CE sem confirmação nem motivo também não é da API (K3, migration 195).
+    expect(psql(`SELECT has_function_privilege('authenticated', 'public.apply_ce_mercante_update(text,text,uuid)', 'EXECUTE');`)).toBe('f')
   })
 
   it('processa efeito atrasado como no-op depois da emissão imediata', () => {

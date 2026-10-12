@@ -12,7 +12,7 @@ import {
   firstMeaningfulPartyLine,
   normalizeCarrierBreakbulkDescription,
 } from './breakbulkCargoText'
-import type { BreakbulkImportRow, ParsedBreakbulkManifest } from './breakbulkManifestParser'
+import type { BreakbulkImportManifest } from './breakbulkImport'
 import { extractDocxTextBlocks } from './blDocumentDocx'
 import {
   collectFieldsFromBlocks,
@@ -161,13 +161,11 @@ export function normalizeBlDocumentFields(
  * taxas locais). Os avisos viajam como erros de linha para ficarem registrados
  * no lote — a conferência do operador é o que fecha a importação.
  */
-export function blDocumentToManifest(document: ParsedBlDocument): ParsedBreakbulkManifest {
+export function blDocumentToManifest(document: ParsedBlDocument): BreakbulkImportManifest {
   const weightKg = document.gross_weight_kg ?? 0
-  const cbm = document.total_cbm ?? 0
-  const row: BreakbulkImportRow = {
+  const row: BreakbulkImportManifest['bls'][number] = {
     rowNumber: 1,
     bl_id: document.bl_id,
-    ce_mercante: null,
     shipper: document.shipper,
     consignee: document.consignee ?? CONSIGNEE_FALLBACK,
     notify_party: document.notify_party,
@@ -178,14 +176,19 @@ export function blDocumentToManifest(document: ParsedBlDocument): ParsedBreakbul
     bb_packages_qty: document.packages_qty,
     bb_packages_total: document.packages_qty,
     bb_weight_ton: weightKg > 0 ? weightKg / 1000 : null,
-    bb_cbm: cbm,
+    // Documento sem CBM: null. Zero apagaria a cubagem gravada na
+    // reimportação (a gravação só preserva NULL).
+    bb_cbm: document.total_cbm,
     items: [
       {
+        // O que o documento não traz vai null (ou vazio, na descrição): na
+        // reimportação, a gravação mantém o valor do item gravado; no B/L novo,
+        // número ausente entra como zero (migration 213).
         item_description: document.cargo_description ?? '',
-        package_qty: document.packages_qty ?? 0,
+        package_qty: document.packages_qty,
         package_unit: document.package_unit,
-        gross_weight_kg: weightKg,
-        cbm,
+        gross_weight_kg: document.gross_weight_kg,
+        cbm: document.total_cbm,
         marks: document.marks,
       },
     ],

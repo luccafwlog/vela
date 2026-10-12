@@ -9,6 +9,7 @@ import { Modal } from '../components/ui/Modal'
 import { PreviewBox } from '../components/ui/PreviewBox'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { useToast } from '../components/ui/Toast'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { TruncationNote } from '../components/shared/TruncationNote'
 import { CeMercanteImportModal } from '../components/shared/CeMercanteImportModal'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
@@ -18,12 +19,15 @@ import { afterManifestoImportado } from '../services/cacheEffects'
 import { PAGE_SIZES, usePageFilters } from '../hooks/usePageFilters'
 import {
   parseGraniteManifestFile,
+  describeGraniteImport,
+  graniteRemovalConfirmOptions,
   importGraniteManifest,
   type ParsedGraniteManifest,
   type ReconciliationStatus,
 } from '../services/graniteImport'
 import { listGraniteBls, calculateGraniteBlCharges } from '../services/graniteCharges'
 import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
+import { userFacingErrorMessage } from '../lib/errors'
 import { CNPJ_INPUT_MAX_LENGTH, canonicalizeDocument, normalizeCnpj } from '../lib/cnpj'
 import { loadCustomerMaps, findMatchedCustomer, resolveCustomerLink } from '../services/customerReconciliation'
 import { rowErrorsToImportIssues } from '../services/importValidation'
@@ -45,6 +49,7 @@ export function Granite() {
   const { user, profile } = useAuth()
   const canWrite = Boolean(profile || user)
   const { showToast } = useToast()
+  const confirm = useConfirm()
   const initialVoyageId = searchParams.get('voyage') ?? ''
 
   const { filters, updateFilter } = usePageFilters<Filters>({
@@ -116,12 +121,14 @@ export function Granite() {
     if (!manifest || manifest.rowErrors.length > 0 || !voyageId || !user) return
     setSubmitting(true)
     try {
-      const { pendingCount } = await importGraniteManifest({
+      const result = await importGraniteManifest({
         filename: file?.name ?? 'granito.xlsx',
         voyageId: Number(voyageId),
         manifest,
         uploadedBy: user.id,
+        confirmRemoval: (missing) => confirm(graniteRemovalConfirmOptions(missing, manifest.hidden)),
       })
+      const { pendingCount } = result
       await Promise.all([
         afterManifestoImportado(queryClient, { voyageId: Number(voyageId) }),
         queryClient.invalidateQueries({ queryKey: ['granite-bls'] }),
@@ -131,14 +138,16 @@ export function Granite() {
         queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
       ])
       const msg = pendingCount
-        ? `Importado com ${manifest.bls.length} B/Ls. ${pendingCount} com reconciliação pendente.`
-        : `${manifest.bls.length} B/Ls importados com sucesso.`
+        ? `Granito importado: ${describeGraniteImport(result)}. ${pendingCount} com reconciliação pendente.`
+        : `Granito importado: ${describeGraniteImport(result)}.`
       showToast(msg, 'success')
       closeUpload()
       setVoyageId('')
       setCnpjOverrides({})
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Falha ao importar.', 'error')
+      // O erro do PostgREST não é `Error`: a mensagem de negócio da RPC vem
+      // pela classificação compartilhada (src/lib/errors.ts).
+      showToast(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar.'), 'error')
     } finally {
       setSubmitting(false)
     }

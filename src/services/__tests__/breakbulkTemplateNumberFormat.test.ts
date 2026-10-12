@@ -10,6 +10,7 @@
 // célula fica com a forma ambígua `259.312`.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import * as XLSX from '@e965/xlsx'
 import { hasBlockingRowErrors, parseBreakbulkManifestBuffer } from '../breakbulkManifestParser'
 
 function readTemplate(relativePath: string): ArrayBuffer {
@@ -46,6 +47,32 @@ describe('modelo de manifesto de carga solta (tela /bls)', () => {
 })
 
 describe('modelo de manifesto BB (tela de viagem)', () => {
+  it('importa o modelo .xlsx oferecido pela tela da Viagem', async () => {
+    const parsed = await parseBreakbulkManifestBuffer(readTemplate('public/templates/manifesto-bb-modelo.xlsx'))
+
+    expect(parsed.rowErrors).toEqual([])
+    expect(parsed.bls).toHaveLength(1)
+    expect(parsed.bls[0]?.bb_weight_ton).toBeCloseTo(12.5, 3)
+  })
+
+  it('lê peso e cubagem digitados como número no XLSX sem escalar por mil', async () => {
+    // O leitor comum entrega a célula numérica tipada. 135,263 t digitado no
+    // Excel é o número 135.263: relê-lo como texto em pt-BR daria 135263 t.
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['BL', 'MAQUINAS', 'PACKAGES', 'PACKAGES TOTAL', 'WEIGHT (TON)', 'CBM (M3)', 'SHIPPER', 'CONSIGNEE', 'NOTIFY'],
+      ['BL-NUMERO', 1, 2, 2, 135.263, 64.803, 'EMBARCADOR', 'CONSIGNATARIO', 'NOTIFY'],
+    ])
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, sheet, 'Manifesto')
+    const out = XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+
+    const parsed = await parseBreakbulkManifestBuffer(out)
+
+    expect(parsed.rowErrors.filter((error) => (error.severity ?? 'error') === 'error')).toEqual([])
+    expect(parsed.bls[0]?.bb_weight_ton).toBeCloseTo(135.263, 3)
+    expect(parsed.bls[0]?.bb_cbm).toBeCloseTo(64.803, 3)
+  })
+
   it('importa o modelo com ponto decimal', async () => {
     // `12.5` tem uma casa decimal: prova que o ponto é decimal neste arquivo, e
     // com isso a coluna inteira é lida certo. Sob o pt-BR fixo anterior, este
@@ -112,7 +139,7 @@ describe('layout carrier: peso e cubagem ilegíveis', () => {
 // ---------------------------------------------------------------------------
 
 const SUMMARY_HEADER =
-  'BL,CE,MAQUINAS,PACKAGES,PACKAGES TOTAL,WEIGHT (TON),CBM (M3),SHIPPER,CONSIGNEE,NOTIFY,CNPJ,POL,POD'
+  'BL,MAQUINAS,PACKAGES,PACKAGES TOTAL,WEIGHT (TON),CBM (M3),SHIPPER,CONSIGNEE,NOTIFY,CNPJ,POL,POD'
 
 function summaryCsv(...rows: string[]): ArrayBuffer {
   return new TextEncoder().encode([SUMMARY_HEADER, ...rows].join('\n')).buffer as ArrayBuffer
@@ -125,7 +152,7 @@ describe('separador decimal ambiguo no manifesto de carga solta', () => {
   // a unidade. `"1217,11"` "provava" pt-BR, e o peso entrava como 259.312
   // toneladas, sem erro nem aviso, alimentando a taxa por tonelada.
   const mixedLocaleRow =
-    'BLD1,122605051526081,8,24,32,"259.312 TON","1217,11",SANY,TIMBRO,NOTIFY,12345678000195,CNNSA,BRVIT'
+    'BLD1,8,24,32,"259.312 TON","1217,11",SANY,TIMBRO,NOTIFY,12345678000195,CNNSA,BRVIT'
 
   it('bloqueia a celula ambigua com unidade colada, mesmo com o resto do arquivo "provando" pt-BR', async () => {
     const parsed = await parseBreakbulkManifestBuffer(summaryCsv(mixedLocaleRow))
@@ -140,7 +167,7 @@ describe('separador decimal ambiguo no manifesto de carga solta', () => {
     // `(177120).toLocaleString('pt-BR')` e a string `177.120` — identica ao
     // valor cru. O aviso anterior dizia `"177.120" foi lido como 177.120`.
     const parsed = await parseBreakbulkManifestBuffer(
-      summaryCsv('BLE1,122605051528106,8,16,24,177.120,810.106,S,C,N,12345678000195,CNQDG,BRSSA'),
+      summaryCsv('BLE1,8,16,24,177.120,810.106,S,C,N,12345678000195,CNQDG,BRSSA'),
     )
 
     const message = parsed.rowErrors.map((error) => error.message).join(' ')
@@ -151,7 +178,7 @@ describe('separador decimal ambiguo no manifesto de carga solta', () => {
 
   it('declarar o formato resolve a ambiguidade e importa a linha', async () => {
     const parsed = await parseBreakbulkManifestBuffer(
-      summaryCsv('BLE1,122605051528106,8,16,24,177.120,810.106,S,C,N,12345678000195,CNQDG,BRSSA'),
+      summaryCsv('BLE1,8,16,24,177.120,810.106,S,C,N,12345678000195,CNQDG,BRSSA'),
       { numberFormat: 'en-US' },
     )
 
@@ -162,7 +189,7 @@ describe('separador decimal ambiguo no manifesto de carga solta', () => {
 
   it('recusa quando o formato declarado contradiz o arquivo, em vez de corrigir sozinho', async () => {
     const parsed = await parseBreakbulkManifestBuffer(
-      summaryCsv('BLG1,122605051526081,8,24,32,"12,5","30,25",S,C,N,12345678000195,CNNSA,BRVIT'),
+      summaryCsv('BLG1,8,24,32,"12,5","30,25",S,C,N,12345678000195,CNNSA,BRVIT'),
       { numberFormat: 'en-US' },
     )
 
@@ -174,7 +201,7 @@ describe('separador decimal ambiguo no manifesto de carga solta', () => {
     // Rede que nao depende de heuristica: mesmo com o formato declarado, 259
     // mil toneladas num B/L so nao descrevem um B/L.
     const parsed = await parseBreakbulkManifestBuffer(
-      summaryCsv('BLH1,122605051526081,8,24,32,"259312,5","1217,11",S,C,N,12345678000195,CNNSA,BRVIT'),
+      summaryCsv('BLH1,8,24,32,"259312,5","1217,11",S,C,N,12345678000195,CNNSA,BRVIT'),
       { numberFormat: 'pt-BR' },
     )
 
@@ -188,7 +215,7 @@ describe('hasBlockingRowErrors', () => {
     // Com o formato declarado, a célula ambígua vira aviso: o operador afirmou
     // o separador daquele arquivo, e o parser registra o que entrou.
     const parsed = await parseBreakbulkManifestBuffer(
-      summaryCsv('BLI1,122605051528106,8,16,24,177.120,"810,11",S,C,N,12345678000195,CNQDG,BRSSA'),
+      summaryCsv('BLI1,8,16,24,177.120,"810,11",S,C,N,12345678000195,CNQDG,BRSSA'),
       { numberFormat: 'pt-BR' },
     )
 

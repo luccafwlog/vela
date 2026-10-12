@@ -142,6 +142,7 @@ function ImportBasePreview({ parsedBase }: { parsedBase: ParsedCustomerBase }) {
   const creates = parsedBase.rows.length - updates - unchanged
   const emails = parsedBase.rows.reduce((sum, row) => sum + row.emails.length, 0)
   const ignored = parsedBase.rowErrors.length
+  const linked = parsedBase.rows.reduce((sum, row) => sum + (row.pendingBlIds?.length ?? 0), 0)
   return (
     <ImportSection
       title="Prévia"
@@ -153,6 +154,7 @@ function ImportBasePreview({ parsedBase }: { parsedBase: ParsedCustomerBase }) {
             { label: updates === 1 ? 'atualizado' : 'atualizados', value: updates },
             { label: 'sem alteração', value: unchanged },
             { label: emails === 1 ? 'e-mail' : 'e-mails', value: emails },
+            { label: linked === 1 ? 'B/L vinculado' : 'B/Ls vinculados', value: linked },
             { label: ignored === 1 ? 'linha ignorada' : 'linhas ignoradas', value: ignored, tone: ignored ? 'warning' : 'default' },
           ]}
         />
@@ -166,6 +168,7 @@ function ImportBasePreview({ parsedBase }: { parsedBase: ParsedCustomerBase }) {
               <th scope="col">CNPJ</th>
               <th scope="col">Nome</th>
               <th scope="col">O que acontece</th>
+              <th scope="col">B/Ls pendentes</th>
               <th scope="col">E-mails</th>
               <th scope="col">Cidade/UF</th>
               <th scope="col">Endereço</th>
@@ -182,6 +185,15 @@ function ImportBasePreview({ parsedBase }: { parsedBase: ParsedCustomerBase }) {
                       ? <>Atualiza: <span className="app-import-tone--warning">{row.changedFields.join(', ')}</span></>
                       : <span className="app-import-tone--muted">Já cadastrado, sem alteração</span>
                     : 'Cria'}
+                  {row.currentName ? <><br /><span className="app-import-tone--warning">Razão social: {row.currentName} → {row.name} (pede confirmação)</span></> : null}
+                </td>
+                <td>
+                  {row.pendingBlIds?.length
+                    ? <span title={row.pendingBlIds.join(', ')}>Vincula {row.pendingBlIds.join(', ')}</span>
+                    : <span className="app-import-tone--muted">—</span>}
+                  {row.rejectedBlIds?.length
+                    ? <><br /><span className="app-import-tone--muted">Rejeitado na Revisão, fica de fora: {row.rejectedBlIds.join(', ')}</span></>
+                    : null}
                 </td>
                 <td>
                   <span className="app-table__truncate app-table__truncate--xl" title={row.emails.join('; ')}>

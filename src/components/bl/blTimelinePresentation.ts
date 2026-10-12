@@ -41,6 +41,7 @@ const FIELD_LABELS: Record<string, string> = {
   bl_emission_date: 'Data de emissão',
   issue_place: 'Local de emissão',
   ce_mercante: 'CE Mercante',
+  manifesto_mercante: 'Manifesto Mercante',
   ncm_codes: 'NCM',
   cargo_description: 'Descrição da carga',
   notes: 'Notas',
@@ -126,8 +127,44 @@ function formatTimelineValue(fieldName: string, val: string | null | undefined):
   return fieldLabels?.[normalized.toLowerCase()] ?? normalized
 }
 
+type ContainerDatesSnapshot = { container?: unknown; discharge_date?: unknown; return_date?: unknown }
+
+function parseContainerDates(value: string | null | undefined): ContainerDatesSnapshot | null {
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return parsed && typeof parsed === 'object' ? (parsed as ContainerDatesSnapshot) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Edição das datas pela ficha do B/L (`set_container_dates`, migration 179):
+ * o evento guarda o antes e o depois em JSON, com o motivo na justificativa.
+ * Mostra só as datas que mudaram, no formato da tela.
+ */
+function describeContainerDates(oldValue: string | null | undefined, newValue: string | null | undefined): string | null {
+  const before = parseContainerDates(oldValue)
+  const after = parseContainerDates(newValue)
+  if (!before && !after) return null
+  const container = String(after?.container ?? before?.container ?? '').trim()
+  const parts = (['discharge_date', 'return_date'] as const).flatMap((field) => {
+    const from = before?.[field] == null ? null : String(before[field])
+    const to = after?.[field] == null ? null : String(after[field])
+    if (from === to) return []
+    return [`${FIELD_LABELS[field]}: ${formatTimelineValue(field, from)} → ${formatTimelineValue(field, to)}`]
+  })
+  const subject = container ? `Container ${container} · datas` : 'Datas do container'
+  return parts.length ? `${subject}: ${parts.join('; ')}` : subject
+}
+
 export function describeTimelineEvent(event: BlTimelineEvent): string {
   const { entity_type, field_name, old_value, new_value } = event
+  if (entity_type === 'bl' && field_name === 'container_dates') {
+    const described = describeContainerDates(old_value, new_value)
+    if (described) return described
+  }
   if (entity_type === 'invoice') {
     if (new_value && /^INV-/i.test(new_value)) return `Fatura ${new_value}`
     if (new_value === 'issued') return 'Fatura emitida'
@@ -153,7 +190,19 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
   return `${cleanField}: ${formatTimelineValue(field_name, old_value)} → ${formatTimelineValue(field_name, new_value)}`
 }
 
+// Contexto que a importação grava em cada linha do Histórico (migration 189,
+// `_set_import_context`): "Importação de <tipo> · Viagem … · Manifesto …".
+// É rastro do sistema, não justificativa deliberada — salvo quando traz o
+// motivo que a pessoa informou (troca de CE pela planilha, migration 195).
+const IMPORT_CONTEXT_PREFIX = 'Importação de '
+const REASON_MARK = ' · Motivo: '
+
+export function isImportContext(justification: string | null | undefined): boolean {
+  const text = justification?.trim() ?? ''
+  return text.startsWith(IMPORT_CONTEXT_PREFIX) && !text.includes(REASON_MARK)
+}
+
 // Auditoria = entrada com justificativa deliberada (ver CONTEXT.md).
 export function isAudited(event: BlTimelineEvent): boolean {
-  return Boolean(event.justification && event.justification.trim())
+  return Boolean(event.justification && event.justification.trim()) && !isImportContext(event.justification)
 }

@@ -1,3 +1,4 @@
+import { useBaplieVoyageContext } from '../../hooks/useBaplieVoyageContext'
 import { useCallback, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada, afterManifestoImportado, afterBaplieImportado } from '../../services/cacheEffects'
@@ -13,19 +14,25 @@ import { FileImportModal } from './FileImportModal'
 import { BlImportModal } from './BlImportModal'
 import { BlDocumentImportModal } from './BlDocumentImportModal'
 import { CeMercanteImportModal } from './CeMercanteImportModal'
+import { BreakbulkImportOutcome, BreakbulkReimportReview } from './BreakbulkReimportReview'
 import {
   hasBlockingRowErrors,
   importBreakbulkManifest,
+  NO_BREAKBULK_APPROVAL,
+  withBreakbulkReimportCheck,
+  type BreakbulkApproval,
+  type BreakbulkImportResult,
+  type ParsedBreakbulkManifest,
   parseBreakbulkManifestFile,
   type BreakbulkNumberFormat,
   type ParseBreakbulkOptions,
 } from '../../services/breakbulkImport'
-import { importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestNumbers } from '../../services/vaziosImportacaoImport'
+import { describeGraniteImport, graniteRemovalConfirmOptions, importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
+import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestNumbers, vaziosImportacaoHiddenConfirmOptions } from '../../services/vaziosImportacaoImport'
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
-import { importVehicleRows, parseVehicleImportFile } from '../../services/vehicleImport'
+import { importVehicleRows, parseVehicleImportFile, vehicleUnpackingConfirmOptions } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
-import { baplieImportToast, baplieReplacementConfirmOptions, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../../services/baplieImport'
+import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, baplieVoyageContextBlock, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, type BaplieImportDone } from '../../services/baplieImport'
 import { BaplieImportPartialNotice } from './BaplieImportPartialNotice'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
@@ -36,6 +43,7 @@ import { ImportReadProgress } from './ImportReadProgress'
 import { ImportContext, ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from './ImportParts'
 import { plural } from './importPresentation'
 import { SummaryStrip } from '../ui/SummaryStrip'
+import { userFacingErrorMessage } from '../../lib/errors'
 
 type ImportType = 'bb' | 'granite' | 'ceMercanteGranite' | 'vaziosImp' | 'vaziosExp' | 'vehicles' | 'baplie' | 'blFreight' | 'blBreakbulk' | 'ceMercante'
 
@@ -95,10 +103,13 @@ export function VoyageImportActions({
 }) {
   const [activeType, setActiveType] = useState<ImportType | null>(null)
   const [bbNumberFormat, setBbNumberFormat] = useState<'auto' | BreakbulkNumberFormat>('auto')
+  const [bbApproval, setBbApproval] = useState<BreakbulkApproval>(NO_BREAKBULK_APPROVAL)
   const [vaziosManifestNumbers, setVaziosManifestNumbers] = useState<Record<string, string>>({})
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  // Confirmações dos importadores desta barra (Granito e Vazios IMP).
+  const confirmImport = useConfirm()
   const { profile } = useAuth()
   const canEditVazios = Boolean(profile || userId)
   const canEditVehicles = Boolean(profile || userId)
@@ -113,8 +124,11 @@ export function VoyageImportActions({
     [bbNumberFormat],
   )
   const parseBbManifest = useCallback(
-    (file: File) => (bbNumberFormat === 'auto' ? parseBreakbulkManifestFile(file) : parseBreakbulkManifestFile(file, bbParseOptions)),
-    [bbNumberFormat, bbParseOptions],
+    async (file: File) => withBreakbulkReimportCheck(
+      await (bbNumberFormat === 'auto' ? parseBreakbulkManifestFile(file) : parseBreakbulkManifestFile(file, bbParseOptions)),
+      voyageId,
+    ),
+    [bbNumberFormat, bbParseOptions, voyageId],
   )
   const actionGroups: Array<{ group: ImportGroup; types: ImportType[] }> = []
   for (const type of allowedTypes) {
@@ -146,7 +160,7 @@ export function VoyageImportActions({
       </div>
 
       {activeType === 'bb' ? (
-        <FileImportModal
+        <FileImportModal<ParsedBreakbulkManifest, BreakbulkImportResult>
           title="Importar manifesto BB (carga solta)"
           subtitle={<ImportContext label="Viagem">{voyageLabel}</ImportContext>}
           confirmLabel="Importar manifesto"
@@ -172,25 +186,42 @@ export function VoyageImportActions({
           canImport={(p, override) => p.bls.length > 0 && (!hasBlockingRowErrors(p.rowErrors) || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, file, override) => {
-            await importBreakbulkManifest({ filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override) })
+            const result = await importBreakbulkManifest({
+              filename: file.name,
+              voyageId,
+              manifest: preview,
+              uploadedBy: userId,
+              allowRowErrors: Boolean(override),
+              approval: bbApproval,
+            })
             await invalidateAfterBLImport()
             showToast(`Manifesto BB importado: ${preview.bls.length} B/L(s).`, 'success')
+            return result
           }}
+          renderImportResult={(result) => <BreakbulkImportOutcome result={result} />}
           renderPreview={(preview) => {
             const errors = preview.rowErrors.filter((e) => (e.severity ?? 'error') === 'error').length
             return (
-              <SummaryStrip
-                label="Resumo do manifesto"
-                items={[
-                  { label: preview.bls.length === 1 ? 'B/L lido' : 'B/Ls lidos', value: preview.bls.length },
-                  { label: errors === 1 ? 'linha com erro' : 'linhas com erro', value: errors, tone: errors ? 'danger' : 'default' },
-                  { label: 'avisos', value: preview.rowErrors.length - errors, tone: preview.rowErrors.length - errors ? 'warning' : 'default' },
-                ]}
-              />
+              <>
+                <BreakbulkReimportReview
+                  check={preview.reimport}
+                  approval={bbApproval}
+                  onApprovalChange={setBbApproval}
+                />
+                <SummaryStrip
+                  label="Resumo do manifesto"
+                  items={[
+                    { label: preview.bls.length === 1 ? 'B/L lido' : 'B/Ls lidos', value: preview.bls.length },
+                    { label: errors === 1 ? 'linha com erro' : 'linhas com erro', value: errors, tone: errors ? 'danger' : 'default' },
+                    { label: 'avisos', value: preview.rowErrors.length - errors, tone: preview.rowErrors.length - errors ? 'warning' : 'default' },
+                  ]}
+                />
+              </>
             )
           }}
           onClose={() => {
             setBbNumberFormat('auto')
+            setBbApproval(NO_BREAKBULK_APPROVAL)
             setActiveType(null)
           }}
         />
@@ -207,7 +238,10 @@ export function VoyageImportActions({
           canImport={(p, override) => p.bls.length > 0 && (p.rowErrors.length === 0 || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, file, override) => {
-            const result = await importGraniteManifest({ filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override) })
+            const result = await importGraniteManifest({
+              filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override),
+              confirmRemoval: (missing) => confirmImport(graniteRemovalConfirmOptions(missing, preview.hidden)),
+            })
             await Promise.all([
               invalidateAfterBLImport(),
               queryClient.invalidateQueries({ queryKey: ['voyages'] }),
@@ -216,7 +250,7 @@ export function VoyageImportActions({
               // P0-4: alimenta "Carga carregada" no ADR.
               queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
             ])
-            showToast(`Manifesto Granito importado: ${preview.bls.length} B/L(s).`, 'success')
+            showToast(`Manifesto Granito importado: ${describeGraniteImport(result)}.`, 'success')
             return result
           }}
           renderPreview={(preview) => {
@@ -267,6 +301,10 @@ export function VoyageImportActions({
           helper={<VaziosImportacaoGuide />}
           canImport={(p, override) => resolveVaziosManifestNumbers(p, vaziosManifestNumbers).manifestos !== null && (p.rowErrors.length === 0 || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
+          confirmBeforeImport={async (preview) => {
+            const hiddenQuestion = vaziosImportacaoHiddenConfirmOptions(preview.hidden)
+            return hiddenQuestion ? confirmImport(hiddenQuestion) : true
+          }}
           importer={async (preview, _file, override) => {
             await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, manifestNumbers: vaziosManifestNumbers, allowRowErrors: Boolean(override) })
             setVaziosManifestNumbers({})
@@ -360,6 +398,7 @@ function BaplieImportModal({
   const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  const voyageContext = useBaplieVoyageContext(voyageId)
   // Baplie gravado com IMO/OOG ou vazios pendentes: falha parcial que fica à vista.
   const [partial, setPartial] = useState<BaplieImportDone | null>(null)
 
@@ -388,11 +427,17 @@ function BaplieImportModal({
     })
   }
 
-  const pods = parsed?.pods ?? []
-  const filteredContainers = (parsed?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
+  // Regras que dependem da Viagem (ADR 0078, item 21): TDT de outro navio ou
+  // viagem bloqueia; POD fora das escalas é ignorado com aviso.
+  const ruled = useMemo(() => (parsed ? applyBaplieVoyageRules(parsed, voyageContext.data) : null), [parsed, voyageContext.data])
+  const pods = ruled?.pods ?? []
+  const filteredContainers = (ruled?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
   const includedPods = pods.filter((pod) => !excludedPods.has(pod)).length
-  const issues = parsed?.issues ?? []
-  const canImport = canImportPreview(filteredContainers.length > 0, issues)
+  const issues = ruled?.issues ?? []
+  // Sem a Viagem conferida (carregando ou com falha), as regras acima não
+  // rodaram: importar fica bloqueado.
+  const contextBlock = baplieVoyageContextBlock(voyageContext)
+  const canImport = !contextBlock && canImportPreview(filteredContainers.length > 0, issues)
 
   async function handleImport() {
     if (!canImport) return
@@ -415,7 +460,7 @@ function BaplieImportModal({
       handleClose()
     } catch (err) {
       await afterBaplieImportado(queryClient, { voyageId: String(voyageId) })
-      setImportError(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.')
+      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar Baplie EDI.'))
     } finally {
       setImporting(false)
     }
@@ -424,6 +469,7 @@ function BaplieImportModal({
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
   if (partial) footnote = baplieFootnoteForPendency(partial)
   else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (parsed && contextBlock) footnote = contextBlock.state === 'loading' ? contextBlock.message : 'Importação bloqueada até a Viagem ser conferida.'
   else if (parsed && !canImport) footnote = filteredContainers.length ? 'Há erro na prévia; corrija o arquivo e escolha de novo.' : 'Nenhum container selecionado para importar.'
   else if (parsed) footnote = `${plural(filteredContainers.length, 'container será gravado', 'containers serão gravados')}. Se a viagem já tem Baplie, você confirma a substituição antes.`
 
@@ -437,6 +483,13 @@ function BaplieImportModal({
           <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
             <p>{readError}</p>
             <p>Confira se é o Baplie EDIFACT da viagem e escolha de novo.</p>
+          </ImportNotice>
+        ) : null}
+        {contextBlock?.state === 'error' && !partial ? (
+          <ImportNotice tone="danger" role="alert" title="Importação bloqueada">
+            <p>{contextBlock.message}</p>
+            <p>Sem essa conferência, o navio, a viagem e as escalas do arquivo não são checados.</p>
+            <Button variant="secondary" className="app-btn--sm" onClick={() => void voyageContext.refetch()}>Tentar novamente</Button>
           </ImportNotice>
         ) : null}
         {parsed ? (
@@ -530,6 +583,7 @@ function VehiclesImportModal({
   const [readError, setReadError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [result, setResult] = useState<Awaited<ReturnType<typeof importVehicleRows>> | null>(null)
+  const confirm = useConfirm()
 
   async function handleFiles(files: File[]) {
     setAllowOverride(false)
@@ -556,14 +610,14 @@ function VehiclesImportModal({
     setImporting(true)
     setImportError(null)
     try {
-      const nextResult = await importVehicleRows({ voyageId, rows: preview.rows })
+      const nextResult = await importVehicleRows({ voyageId, rows: preview.rows, confirmUnpacking: (items) => confirm(vehicleUnpackingConfirmOptions(items)) })
       await afterCargaAlterada(queryClient)
       showToast(`Veículos importados: ${nextResult.successCount} gravado(s), ${nextResult.errorCount} recusado(s).`, nextResult.errorCount ? 'info' : 'success')
       // Com recusas o modal fica aberto e lista o que não entrou.
       if (nextResult.errorCount) setResult(nextResult)
       else onClose()
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Falha ao importar veículos.')
+      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar veículos.'))
     } finally {
       setImporting(false)
     }
