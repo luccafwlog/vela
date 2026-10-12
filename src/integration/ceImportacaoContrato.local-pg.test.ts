@@ -446,6 +446,17 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(gap()).toBe('')
   })
 
+  // Migration 217: a rota sem linha no espelho também é travada.
+  it('dois "Informar Nº" simultâneos numa rota nova deixam um Manifesto só', async () => {
+    const informar = (numero: string) => `SELECT public.set_voyage_route_ce_master(${otherVoyageId}, '${pol}', 'A228S', '${numero}', '${actorId}'::uuid, 'container');`
+    const first = runAsync(`BEGIN; ${informar('A228S00000001')} SELECT pg_sleep(1.5); COMMIT;`)
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    const second = runAsync(informar('A228S00000002'))
+    expect(await Promise.all([first, second])).toEqual([{ code: 0, stderr: '' }, { code: 0, stderr: '' }])
+    expect(psql(`SELECT string_agg(numero, ',' ORDER BY numero) FROM public.manifestos_mercante WHERE voyage_id = ${otherVoyageId} AND pod = 'A228S';`)).toBe('A228S00000002')
+    expect(psql(`SELECT ce_master FROM public.voyage_route_ce_master WHERE voyage_id = ${otherVoyageId} AND pod = 'A228S';`)).toBe('A228S00000002')
+  })
+
   // Migration 209: dois lotes ao mesmo tempo no mesmo POD não perdem B/L da lista.
   it('duas emissões simultâneas no mesmo POD sem tabela mantêm os dois B/Ls no Alerta', async () => {
     const first = runAsync(`BEGIN; SELECT public._note_charge_table_gap('A228R', 'container', 'A228-Q1'); SELECT pg_sleep(1.5); COMMIT;`)

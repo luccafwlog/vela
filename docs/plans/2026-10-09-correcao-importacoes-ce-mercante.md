@@ -32,7 +32,7 @@ notas de execução em cada etapa). Nenhum `it.fails` restante nas suítes
 migrations `190` a `202` e no frontend, e as decisões do dono sobre os pontos
 que ela deixou abertos (ADR 0079) estão nas migrations `203` a `206` (seção
 [Revisão da PR 929](#revisão-da-pr-929-2026-10-11)). A revisão final, em
-2026-10-12, corrigiu os achados nas migrations `211` a `216` e no frontend, com
+2026-10-12, corrigiu os achados nas migrations `211` a `217` e no frontend, com
 as decisões do dono na [ADR 0080](../adr/0080-decisoes-da-revisao-final-da-pr-929.md)
 (e a `181` editada antes do primeiro deploy, com autorização;
 [registro](../archive/audits/2026-10-12-revisao-final-pr-929.md)). Restam só passos do dono:
@@ -56,10 +56,10 @@ criadas por shell, sem editar nenhuma existente.
   (`sudo scripts/setup-local-pg.sh --reset` e as suítes `local-pg` do CI com
   `--no-file-parallelism`, duas vezes seguidas, sem resíduo de namespace).
 - **Migrations:** sempre arquivo novo, no próximo número livre (as deste plano
-  são `174`–`216`: a `173` foi usada pelo Desbloqueio de CE, já em produção, a
+  são `174`–`217`: a `173` foi usada pelo Desbloqueio de CE, já em produção, a
   revisão da PR 929 acrescentou `190`–`202`, as decisões da ADR 0079,
   `203`–`206`, a revisão automática depois delas, `207` a `210`, e a revisão
-  final, `211` a `216`);
+  final, `211` a `217`);
   nunca editar migration existente (protegida por
   `.claude/hooks/protect-files.sh`). Redefinir a função a partir da definição
   **efetiva** no banco replicado, não da primeira migration que a criou. Se a

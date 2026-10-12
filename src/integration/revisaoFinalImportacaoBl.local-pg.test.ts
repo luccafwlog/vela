@@ -478,6 +478,10 @@ function cleanupSchedule() {
     DELETE FROM public.audit_logs WHERE changed_by = '${scheduleUser}'
       OR (entity_type IN ('voyage_pod_schedule', 'voyage_pol_schedule') AND split_part(entity_id, '::', 1) IN ('${voyageX}', '${voyageY}'))
       OR (entity_type = 'voyages' AND entity_id IN ('${voyageX}', '${voyageY}'));
+    DELETE FROM public.audit_logs WHERE entity_type = 'voyages' AND entity_id IN (
+      SELECT v.id::text FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name = 'R217 NAVIO NOVO');
+    DELETE FROM public.voyages WHERE vessel_id IN (SELECT id FROM public.vessels WHERE name = 'R217 NAVIO NOVO');
+    DELETE FROM public.vessels WHERE name = 'R217 NAVIO NOVO';
     DELETE FROM public.voyages WHERE id IN (${voyageX}, ${voyageY});
     DELETE FROM public.vessels WHERE id = 99213043;
     DELETE FROM public.carriers WHERE id = 99213044;
@@ -529,5 +533,24 @@ describeLocal('Programação por planilha: Viagens já cadastradas (migration 21
     expect(first).toEqual({ code: 0, stderr: '' })
     expect(second).toEqual({ code: 0, stderr: '' })
     expect(psql(`SELECT count(*) FROM public.audit_logs WHERE changed_by = '${scheduleUser}' AND entity_type = 'voyage_pod_schedule';`)).toBe('4')
+  })
+
+  it('dois arquivos com o mesmo navio novo em viagens diferentes criam um cadastro só do navio (217)', async () => {
+    const row = (number: string) => ({ vessel_name: 'R217 NAVIO NOVO', vessel_imo: '9217001', voyage_number: number, changes: [] })
+    const sheet = (tag: string, number: string, hold: boolean) =>
+      `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated'; SET LOCAL request.jwt.claim.sub = '${scheduleUser}';
+       SELECT /* ${tag} */ public.apply_schedule_sheet_atomic('${JSON.stringify([row(number)])}'::jsonb, '${scheduleCarrier}', '');
+       ${hold ? 'SELECT pg_sleep(1.5);' : ''} COMMIT;`
+
+    // O primeiro arquivo cria o navio e segura a transação; o segundo, com
+    // outra viagem do mesmo navio, espera em vez de criar outro cadastro.
+    const first = runAsync(sheet('r217_first', 'R217A', true))
+    await sleep(500)
+    const second = runAsync(sheet('r217_second', 'R217B', false))
+    await waitForLockWait('r217_second')
+
+    expect(await Promise.all([first, second])).toEqual([{ code: 0, stderr: '' }, { code: 0, stderr: '' }])
+    expect(psql(`SELECT count(*) FROM public.vessels WHERE name = 'R217 NAVIO NOVO';`)).toBe('1')
+    expect(psql(`SELECT count(*) FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name = 'R217 NAVIO NOVO';`)).toBe('2')
   })
 })

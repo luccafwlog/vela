@@ -20,7 +20,9 @@
   consignatário gravado (container e carga solta, inclusive CNPJ não cadastrado); cubagem e itens
   ausentes no arquivo não zeram os gravados; POD corrigido limpa o terminal do POD antigo.
   **Programação:** porto removido volta pela planilha em vez de recusar o arquivo para sempre; IMO
-  conflitante entre viagens é recusado na prévia; travas das Viagens em ordem (`213`).
+  conflitante entre viagens é recusado na prévia; travas das Viagens em ordem (`213`) e do navio
+  novo, que dois arquivos simultâneos não cadastram duas vezes (`217`); dois "Informar Nº"
+  simultâneos na mesma rota não deixam Manifesto sobrando (`217`).
   **Planilhas:** Vazios de Importação pedem confirmação antes de tirar unidades de linhas ocultas;
   a procura da aba de Veículos não para em aba alheia; avisos de linhas ocultas corrigidos.
   **Deploy:** a `181` pula Viagem Cancelada (editada antes do primeiro deploy, com autorização) e

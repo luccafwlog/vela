@@ -127,6 +127,14 @@ perdeu correção anterior: nenhuma perdeu.
     verificador inválido na Base de Clientes; modelo de vazios sem a coluna que
     o parser pede.
 
+### Revisão automática sobre as correções (Codex, commit `b155f15`)
+
+32. **Dois arquivos com o mesmo navio novo em viagens diferentes criavam dois
+    cadastros do navio.** As travas da `213` incluíam o número da Viagem; entram
+    as travas do navio (nome e IMO), na mesma ordem fixa (`217`).
+33. **Dois "Informar Nº" simultâneos numa rota nova deixavam um Manifesto
+    sobrando.** A rota é travada antes de ler o número antigo (`217`).
+
 ### Mantidos como estão
 
 - O alerta `demurrage_invoice_dates_changed` aberto pela reemissão automática
@@ -140,7 +148,7 @@ perdeu correção anterior: nenhuma perdeu.
 
 ## Evidência
 
-PostgreSQL 16 local, replay limpo das migrations `001`–`216`, checagens de
+PostgreSQL 16 local, replay limpo das migrations `001`–`217`, checagens de
 invariantes do CI, todas as suítes `local-pg` na ordem do CI, testes de
 unidade, `typecheck`, `lint`, `build`, `docs:check`, `migrations:check`,
 `rpc:check` e `localpg:check`. Cada correção tem caso de regressão que falha
