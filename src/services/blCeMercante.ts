@@ -26,10 +26,12 @@ export async function correctBlCeMercante(input: { blId: string; ce: string; rea
   if (error) throw error
 }
 
-export async function removeBlCeMercante(input: { blId: string; reason: string }): Promise<void> {
+/** `expectedCe` é o CE que a ficha exibia (migration 209), como na correção. */
+export async function removeBlCeMercante(input: { blId: string; reason: string; expectedCe: string }): Promise<void> {
   const { error } = await supabase.rpc('remove_bl_ce_mercante' as never, {
     p_bl_id: input.blId,
     p_reason: input.reason,
+    p_expected_ce: input.expectedCe,
   } as never)
   if (error) throw error
 }

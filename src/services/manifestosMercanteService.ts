@@ -84,20 +84,29 @@ export async function listVoyageBlsForManifesto(voyageId: number): Promise<Voyag
  * Mover B/Ls para um Manifesto Mercante (migration 181): tudo ou nada, com
  * motivo no Histórico; o destino novo é validado e criado na hora.
  */
-export async function moveBlsToManifestoMercante(blIds: string[], numero: string, reason: string) {
+/**
+ * B/L → Nº de Manifesto que a tela exibia (null = sem Manifesto). O banco
+ * recusa Mover e Desvincular se algum B/L estiver em outro Manifesto quando
+ * a gravação o trava (migration 209).
+ */
+export type ExpectedManifestos = Record<string, string | null>
+
+export async function moveBlsToManifestoMercante(blIds: string[], numero: string, reason: string, expected: ExpectedManifestos) {
   const { data, error } = await supabase.rpc('move_bls_to_manifesto_mercante' as never, {
     p_bl_ids: blIds,
     p_numero: numero,
     p_reason: reason,
+    p_expected: expected,
   } as never)
   if (error) throw error
   return data as unknown as { numero: string; created: boolean; moved: number; unchanged: number }
 }
 
-export async function unlinkBlsFromManifestoMercante(blIds: string[], reason: string) {
+export async function unlinkBlsFromManifestoMercante(blIds: string[], reason: string, expected: ExpectedManifestos) {
   const { data, error } = await supabase.rpc('unlink_bls_from_manifesto_mercante' as never, {
     p_bl_ids: blIds,
     p_reason: reason,
+    p_expected: expected,
   } as never)
   if (error) throw error
   return data as unknown as { unlinked: number; unchanged: number }

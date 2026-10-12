@@ -74,10 +74,12 @@ describe('manifestosMercanteService', () => {
   // com motivo no Histórico (o UPDATE direto em bls saiu).
   it('move e desvincula B/Ls pelas RPCs, com motivo', async () => {
     mockRpc.mockResolvedValue({ data: { moved: 2 }, error: null })
-    await moveBlsToManifestoMercante(['BL-001', 'BL-002'], '1226501860578', 'Reemissão')
-    expect(mockRpc).toHaveBeenCalledWith('move_bls_to_manifesto_mercante', { p_bl_ids: ['BL-001', 'BL-002'], p_numero: '1226501860578', p_reason: 'Reemissão' })
-    await unlinkBlsFromManifestoMercante(['BL-001'], 'B/L de outro manifesto')
-    expect(mockRpc).toHaveBeenCalledWith('unlink_bls_from_manifesto_mercante', { p_bl_ids: ['BL-001'], p_reason: 'B/L de outro manifesto' })
+    await moveBlsToManifestoMercante(['BL-001', 'BL-002'], '1226501860578', 'Reemissão', { 'BL-001': null, 'BL-002': '1226B01849909' })
+    expect(mockRpc).toHaveBeenCalledWith('move_bls_to_manifesto_mercante', {
+      p_bl_ids: ['BL-001', 'BL-002'], p_numero: '1226501860578', p_reason: 'Reemissão', p_expected: { 'BL-001': null, 'BL-002': '1226B01849909' },
+    })
+    await unlinkBlsFromManifestoMercante(['BL-001'], 'B/L de outro manifesto', { 'BL-001': '1226501860578' })
+    expect(mockRpc).toHaveBeenCalledWith('unlink_bls_from_manifesto_mercante', { p_bl_ids: ['BL-001'], p_reason: 'B/L de outro manifesto', p_expected: { 'BL-001': '1226501860578' } })
     expect(mockFrom).not.toHaveBeenCalled()
   })
 

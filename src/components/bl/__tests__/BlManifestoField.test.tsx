@@ -49,5 +49,6 @@ it('Desvincular também atualiza o Histórico do B/L', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Desvincular' }))
 
   await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('B/L desvinculado do Manifesto Mercante.', 'success'))
+  expect(mocks.unlink).toHaveBeenCalledWith({ blIds: ['BL-1'], reason: 'B/L de outro Manifesto', expected: { 'BL-1': '1226501860578' } })
   expect(invalidatedKeys()).toContain('["bl-timeline"]')
 })

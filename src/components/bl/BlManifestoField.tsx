@@ -52,7 +52,7 @@ export function BlManifestoField({
     })
     if (reason === null) return
     try {
-      await move.mutateAsync({ blIds: [blId], numero: target, reason })
+      await move.mutateAsync({ blIds: [blId], numero: target, reason, expected: { [blId]: numero } })
       await refresh()
       setDraft('')
       showToast(`B/L movido para o Manifesto ${target}.`, 'success')
@@ -72,7 +72,7 @@ export function BlManifestoField({
     })
     if (reason === null) return
     try {
-      await unlink.mutateAsync({ blIds: [blId], reason })
+      await unlink.mutateAsync({ blIds: [blId], reason, expected: { [blId]: numero } })
       await refresh()
       showToast('B/L desvinculado do Manifesto Mercante.', 'success')
     } catch (error) {

@@ -6,6 +6,8 @@
 // e porto vale; Viagem oculta enviada sem data nova é publicada.
 // Migration 199: dois arquivos simultâneos da mesma Viagem nova, um com IMO e
 // outro sem, esperam um pelo outro e não duplicam navio nem Viagem.
+// Migration 209: a data que a prévia viu tem de ser a vigente; outra gravada
+// depois recusa o arquivo como prévia obsoleta.
 // Migration 201: dois arquivos com as mesmas Viagens novas em ordens
 // diferentes não se travam mutuamente (deadlock). Migration 202: o navio sem
 // IMO achado pelo nome recebe o IMO do arquivo, e outra grafia com o mesmo IMO
@@ -144,6 +146,21 @@ describeLocal('Programação por planilha atômica (migration 188)', () => {
     expect(psql(`SELECT new_value FROM public.audit_logs WHERE entity_id = '${voyageId}::BRSSA' AND field_name = 'eta' ORDER BY changed_at DESC LIMIT 1;`)).toBe('2026-11-10')
   })
 
+  // Migration 209: a data que a prévia viu é conferida; outra gravada depois recusa o arquivo.
+  it('ETA mudada por outra sessão depois da prévia recusa o arquivo e mantém a data nova', () => {
+    const voyageId = seedVoyage('A235 MU2', '9235021', '021N')
+    const eta = (oldValue: string | null, newValue: string) => [{ voyage_id: Number(voyageId), vessel_name: 'A235 MU2', vessel_imo: '9235021', voyage_number: '021N',
+      changes: [{ entity_type: 'voyage_pod_schedule', port: 'BRSSA', field_name: 'eta', old_value: oldValue, new_value: newValue, justification: 'Atualizacao manual de ETA por POD' }] }]
+    expect(apply(eta(null, '2026-12-01')).stderr).toBe('')
+    // Outra sessão muda a ETA para 05/12 depois de a prévia ter visto 01/12.
+    expect(apply(eta('2026-12-01', '2026-12-05')).stderr).toBe('')
+    const stale = apply(eta('2026-12-01', '2026-12-09'))
+    expect(stale.stderr).toMatch(/A programação da Viagem A235 MU2 021N mudou depois da prévia: ETA em BRSSA agora é 2026-12-05/)
+    expect(psql(`SELECT pod_schedule_snapshot->'BRSSA'->>'eta' FROM public.voyages WHERE id = ${voyageId};`)).toBe('2026-12-05')
+    // Mandar de novo a mesma data é aceito (nada a conferir).
+    expect(apply(eta('2026-12-01', '2026-12-05')).stderr).toBe('')
+  })
+
   it('Viagem existente oculta enviada sem data nova passa a aparecer no Portal', () => {
     const hidden = seedVoyage('A235 KAPPA', '9235010', '010N', 'active', false)
     const result = apply([{ voyage_id: Number(hidden), vessel_name: 'A235 KAPPA', vessel_imo: '9235010', voyage_number: '010N', changes: [] }])
@@ -161,7 +178,10 @@ describeLocal('Programação por planilha atômica (migration 188)', () => {
     const withoutImo = runAsync(`${asUserPrefix} ${sheet('', '2026-11-12')}`)
     const [first, second] = await Promise.all([withImo, withoutImo])
     expect(first).toEqual({ code: 0, stderr: '' })
-    expect(second).toEqual({ code: 0, stderr: '' })
+    // O segundo espera, acha a Viagem já criada e não duplica. A prévia dele
+    // não viu a ETA gravada pelo primeiro: recusa como prévia obsoleta (209).
+    expect(second.code).toBe(1)
+    expect(second.stderr).toMatch(/A programação da Viagem A235 LAMBDA 011N mudou depois da prévia: ETA em BRSSA agora é 2026-11-11/)
     expect(psql(`SELECT count(*) || ':' || string_agg(COALESCE(imo, '-'), ',') FROM public.vessels WHERE name = 'A235 LAMBDA';`)).toBe('1:9235011')
     expect(psql(`SELECT count(*) FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name = 'A235 LAMBDA';`)).toBe('1')
   })

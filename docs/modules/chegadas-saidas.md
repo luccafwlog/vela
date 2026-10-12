@@ -72,7 +72,9 @@ enviada é publicada no Portal, dois arquivos simultâneos da mesma Viagem nova
 são pegas antes da primeira linha e em ordem fixa (dois arquivos com as mesmas
 Viagens em ordens diferentes não se travam), o navio sem IMO achado pelo nome
 recebe o IMO do arquivo, como no cadastro pela tela (`202`), cada evento de agenda leva horário próprio (a
-última linha do arquivo vale) e qualquer falha desfaz o arquivo inteiro; linhas
+última linha do arquivo vale), a data que a prévia viu tem de ser a vigente (outra
+gravada depois recusa o arquivo como prévia obsoleta, `209`; mandar de novo a mesma
+data passa) e qualquer falha desfaz o arquivo inteiro; linhas
 com erro na prévia ficam de fora. Depois de gravar (planilha ou modal), a tela
 atualiza as consultas pelo dono `afterViagemAlterada` (opções de Viagem, agenda,
 ficha e Line-Up). O resultado fica na tela com a contagem e a lista nominal das

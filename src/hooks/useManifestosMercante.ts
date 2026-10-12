@@ -4,6 +4,7 @@ import {
   listVoyageBlsForManifesto,
   moveBlsToManifestoMercante,
   unlinkBlsFromManifestoMercante,
+  type ExpectedManifestos,
   type ManifestoMercante,
 } from '../services/manifestosMercanteService'
 import { queryKeys } from '../services/queryKeys'
@@ -36,8 +37,8 @@ async function afterManifestoChanged(queryClient: ReturnType<typeof useQueryClie
 export function useMoveBlsToManifestoMercante(voyageId?: number | null) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ blIds, numero, reason }: { blIds: string[]; numero: string; reason: string }) =>
-      moveBlsToManifestoMercante(blIds, numero, reason),
+    mutationFn: ({ blIds, numero, reason, expected }: { blIds: string[]; numero: string; reason: string; expected: ExpectedManifestos }) =>
+      moveBlsToManifestoMercante(blIds, numero, reason, expected),
     onSuccess: () => afterManifestoChanged(queryClient, voyageId),
   })
 }
@@ -45,7 +46,8 @@ export function useMoveBlsToManifestoMercante(voyageId?: number | null) {
 export function useUnlinkBlsFromManifestoMercante(voyageId?: number | null) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ blIds, reason }: { blIds: string[]; reason: string }) => unlinkBlsFromManifestoMercante(blIds, reason),
+    mutationFn: ({ blIds, reason, expected }: { blIds: string[]; reason: string; expected: ExpectedManifestos }) =>
+      unlinkBlsFromManifestoMercante(blIds, reason, expected),
     onSuccess: () => afterManifestoChanged(queryClient, voyageId),
   })
 }

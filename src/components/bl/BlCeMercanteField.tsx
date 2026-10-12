@@ -79,7 +79,8 @@ export function BlCeMercanteField({
       tone: 'danger',
     })
     if (reason === null) return
-    await run(() => removeBlCeMercante({ blId, reason }), 'CE Mercante removido.', 'Falha ao remover o CE Mercante.')
+    if (!ce) return
+    await run(() => removeBlCeMercante({ blId, reason, expectedCe: ce }), 'CE Mercante removido.', 'Falha ao remover o CE Mercante.')
   }
 
   return (

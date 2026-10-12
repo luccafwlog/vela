@@ -76,7 +76,11 @@ it('Mover confirma "N B/Ls sairão de … e irão para …" e envia o número ca
   fireEvent.change(screen.getByLabelText(/Mover para/), { target: { value: '1226 b01-849.909' } })
   fireEvent.click(screen.getByRole('button', { name: /^Mover/ }))
 
-  await waitFor(() => expect(mocks.move).toHaveBeenCalledWith({ blIds: ['BL-1', 'BL-2', 'BL-3', 'BL-5', 'BL-6'], numero: '1226B01849909', reason: 'Manifesto reemitido' }))
+  // O Manifesto que a tela mostrava vai junto, para o banco conferir (migration 209).
+  await waitFor(() => expect(mocks.move).toHaveBeenCalledWith({
+    blIds: ['BL-1', 'BL-2', 'BL-3', 'BL-5', 'BL-6'], numero: '1226B01849909', reason: 'Manifesto reemitido',
+    expected: { 'BL-1': '1226501860578', 'BL-2': '1226501860578', 'BL-3': null, 'BL-5': null, 'BL-6': null },
+  }))
   expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
     message: '5 B/L(s) sairão de 1226501860578, sem Manifesto e irão para 1226B01849909.',
   }))

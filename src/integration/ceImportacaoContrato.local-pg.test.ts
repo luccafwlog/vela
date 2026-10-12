@@ -6,7 +6,7 @@
 // As ações usam as RPCs reais como `authenticated` (Administrativo).
 // Namespace exclusivo: ids 99228xxx, B/Ls 'A228-*', usuário ...0000002280NN,
 // manifestos 'A228*' (13 caracteres), CEs '992280…'.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -49,6 +49,15 @@ function asAdmin(sql: string): { output: string; error: string | null } {
   { encoding: 'utf8' })
   const error = run.stderr.split('\n').find((line) => line.startsWith('ERROR:')) ?? null
   return { output: run.stdout.trim(), error: error?.trim() ?? null }
+}
+
+/** psql em outra sessão, sem bloquear o teste (janela de concorrência). */
+function runAsync(sql: string): Promise<{ code: number | null; stderr: string }> {
+  const child = spawn('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`], { stdio: ['ignore', 'ignore', 'pipe'] })
+  let stderr = ''
+  child.stderr.on('data', (chunk) => { stderr += String(chunk) })
+  return new Promise((resolve) => child.on('close', (code) => resolve({ code, stderr })))
 }
 
 function json<T>(sql: string): T {
@@ -243,7 +252,13 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-M1' AND field_name = 'manifesto_mercante' ORDER BY id DESC LIMIT 1;`)).toBe('Reemissão (A228)')
 
     expect(asAdmin(`SELECT public.unlink_bls_from_manifesto_mercante(ARRAY['A228-M2'], NULL);`).error).toMatch(/motivo/)
-    expect(json<{ unlinked: number }>(`SELECT public.unlink_bls_from_manifesto_mercante(ARRAY['A228-M2'], 'B/L de outro manifesto (A228)');`).unlinked).toBe(1)
+    // Migration 209: a tela manda o Manifesto que exibia; outro no banco recusa sem mexer.
+    expect(asAdmin(`SELECT public.unlink_bls_from_manifesto_mercante(ARRAY['A228-M2'], 'Teste (A228)', '{"A228-M2": "A228X00000009"}'::jsonb);`).error)
+      .toMatch(/Manifesto Mercante mudou depois da tela: A228-M2 está em A228E00000001/)
+    expect(asAdmin(`SELECT public.move_bls_to_manifesto_mercante(ARRAY['A228-M2'], 'A228E00000002', 'Teste (A228)', '{"A228-M2": null}'::jsonb);`).error)
+      .toMatch(/Manifesto Mercante mudou depois da tela: A228-M2 está em A228E00000001/)
+    expect(manifestoOf('A228-M2')).toBe('A228E00000001')
+    expect(json<{ unlinked: number }>(`SELECT public.unlink_bls_from_manifesto_mercante(ARRAY['A228-M2'], 'B/L de outro manifesto (A228)', '{"A228-M2": "a228-e0000-0001"}'::jsonb);`).unlinked).toBe(1)
     expect(manifestoOf('A228-M2')).toBe('')
 
     psql(`UPDATE public.bls SET pod = 'A228Q' WHERE id = 'A228-M1';`)
@@ -406,6 +421,16 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(gap()).toBe('')
   })
 
+  // Migration 209: dois lotes ao mesmo tempo no mesmo POD não perdem B/L da lista.
+  it('duas emissões simultâneas no mesmo POD sem tabela mantêm os dois B/Ls no Alerta', async () => {
+    const first = runAsync(`BEGIN; SELECT public._note_charge_table_gap('A228R', 'container', 'A228-Q1'); SELECT pg_sleep(1.5); COMMIT;`)
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    const second = runAsync(`SELECT public._note_charge_table_gap('A228R', 'container', 'A228-Q2');`)
+    expect(await Promise.all([first, second])).toEqual([{ code: 0, stderr: '' }, { code: 0, stderr: '' }])
+    expect(activeAlert('billing_charge_table_missing', 'A228R:container', 'charge_table_gap'))
+      .toMatch(/2 B\/L\(s\) aguardando a fatura \(A228-Q1, A228-Q2\)/)
+  })
+
   it('B/L calculado sem nenhuma taxa com valor sai como "Nada a faturar", sem Alerta', () => {
     insertChargeTable(zeroTable, 0)
     insertBl('A228-Z1', { container: 'ADCU2280053', blPod: zeroTable.pod })
@@ -475,7 +500,11 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(psql(`SELECT source FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'ce_trocado_com_desbloqueio' AND a.entity_id = 'A228-U1';`)).toBe('ce_mercante_ficha')
 
-    expect(asAdmin(`SELECT public.remove_bl_ce_mercante('A228-U1', 'CE do B/L errado (A228)');`).error).toBeNull()
+    // Migration 209: remover também confere o CE exibido.
+    expect(asAdmin(`SELECT public.remove_bl_ce_mercante('A228-U1', 'CE do B/L errado (A228)', '992280000000051');`).error)
+      .toMatch(/mudou depois que a ficha foi aberta \(agora: 992280000000052\)/)
+    expect(psql(`SELECT ce_mercante FROM public.bls WHERE id = 'A228-U1';`)).toBe('992280000000052')
+    expect(asAdmin(`SELECT public.remove_bl_ce_mercante('A228-U1', 'CE do B/L errado (A228)', '992280000000052');`).error).toBeNull()
     expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-U1')).toMatch(/removido/)
 
     // Planilha: um alerta por troca, aberto pela porta única.

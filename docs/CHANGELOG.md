@@ -21,7 +21,10 @@
   **`208`:** o B/L cancelado, sem CE, com outro POD ou de Viagem cancelada sai do alerta de tabela
   faltando, e o alerta de datas da Invoice de Demurrage fecha quando as datas voltam às
   faturadas; a importação de CE de Granito aceita o número de B/L repetido em outra Viagem. A
-  planilha de datas confere a gravação contra as datas que a prévia mostrou.
+  planilha de datas confere a gravação contra as datas que a prévia mostrou. **`209`:** Remover
+  CE Mercante, Mover e Desvincular do Manifesto e a Programação por planilha recusam quando
+  outra sessão mudou o dado depois da tela; duas emissões pelo CE ao mesmo tempo no mesmo POD
+  não apagam B/L do alerta de tabela faltando.
 - **Revisão da PR 929 (2026-10-11, implementação local; [plano de correção das
   importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md#revisão-da-pr-929-2026-10-11)):**
   correções das importações em seis migrations novas, sem reescrever linhas.

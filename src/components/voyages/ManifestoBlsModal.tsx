@@ -96,6 +96,11 @@ export function ManifestoBlsModal({
     setPasteMissing(wanted.filter((id) => !byId.has(id)))
   }
 
+  // O Manifesto de cada B/L como a tela mostrou (migration 209).
+  function shownManifestos(): Record<string, string | null> {
+    return Object.fromEntries(selectedBls.map((bl) => [bl.id, bl.manifestoNumero ?? null]))
+  }
+
   function origins(): string {
     const numbers = Array.from(new Set(selectedBls.map((bl) => bl.manifestoNumero ?? 'sem Manifesto')))
     return numbers.join(', ')
@@ -112,7 +117,7 @@ export function ManifestoBlsModal({
     })
     if (reason === null) return
     try {
-      const result = await moveMutation.mutateAsync({ blIds: selectedBls.map((bl) => bl.id), numero: canonicalTarget, reason })
+      const result = await moveMutation.mutateAsync({ blIds: selectedBls.map((bl) => bl.id), numero: canonicalTarget, reason, expected: shownManifestos() })
       showToast(`${result.moved} B/L(s) movido(s) para ${result.numero}${result.created ? ' (Manifesto cadastrado agora)' : ''}.`, 'success')
       setSelected(new Set())
     } catch (error) {
@@ -132,7 +137,7 @@ export function ManifestoBlsModal({
     })
     if (reason === null) return
     try {
-      const result = await unlinkMutation.mutateAsync({ blIds: selectedBls.map((bl) => bl.id), reason })
+      const result = await unlinkMutation.mutateAsync({ blIds: selectedBls.map((bl) => bl.id), reason, expected: shownManifestos() })
       showToast(`${result.unlinked} B/L(s) desvinculado(s).`, 'success')
       setSelected(new Set())
     } catch (error) {

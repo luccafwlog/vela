@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ confirm: vi.fn(), correct: vi.fn() }))
+const mocks = vi.hoisted(() => ({ confirm: vi.fn(), correct: vi.fn(), remove: vi.fn() }))
 
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }) }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirmWithReason: () => mocks.confirm }))
@@ -11,6 +11,7 @@ vi.mock('../../../services/cacheEffects', () => ({ afterBlEstadoAlterado: vi.fn(
 vi.mock('../../../services/blCeMercante', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../services/blCeMercante')>()),
   correctBlCeMercante: mocks.correct,
+  removeBlCeMercante: mocks.remove,
 }))
 
 import { BlCeMercanteField } from '../BlCeMercanteField'
@@ -48,4 +49,15 @@ it('Corrigir manda o CE que a ficha exibia', async () => {
   await waitFor(() => expect(mocks.correct).toHaveBeenCalledWith({
     blId: 'BL-1', ce: '123456789012346', reason: 'CE digitado errado', expectedCe: '123456789012345',
   }))
+})
+
+// Migration 209: remover também leva o CE exibido.
+it('Remover manda o CE que a ficha exibia', async () => {
+  mocks.confirm.mockResolvedValue('CE do B/L errado')
+  mocks.remove.mockResolvedValue(undefined)
+  render(<BlCeMercanteField blId="BL-1" voyageId={7} ce="123456789012345" />)
+
+  fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+
+  await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ blId: 'BL-1', reason: 'CE do B/L errado', expectedCe: '123456789012345' }))
 })
