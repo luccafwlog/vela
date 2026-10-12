@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages, conferido em 2026-10-10); compatibilidade frontend/backend, homologação e ativação pendentes · **Atualizado:** 2026-10-10 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages, conferido em 2026-10-10); compatibilidade frontend/backend, homologação e ativação pendentes · **Atualizado:** 2026-10-12 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -119,7 +119,10 @@ RLS sem acesso direto do navegador e RPCs com escopo server-side. A `160` acresc
 cliente/internal usam dispatchers distintos com allowlists (Portal: `draft`, `submit`,
 `cancel`); retries compartilham chave idempotente e recusam alteração de payload.
 `ce_unlock_reconcile` é função própria (sem receipts: o payload é grande e a operação é
-idempotente) e só aceita escrita interna. Campos de envio/ZPT são removidos das
+idempotente) e só aceita escrita interna; casa o CE pela chave normalizada
+`ce_mercante_key` (migration `177`), a mesma da unicidade do CE entre B/Ls ativos e
+Granito. Trocar o CE de um B/L com *Desbloqueio conferido*, pela planilha ou pela ficha,
+abre o alerta `ce_trocado_com_desbloqueio` (`181`, `195`). Campos de envio/ZPT são removidos das
 projeções do Portal (`ce_unlock_private.portal_view`). Inspeção tem wrappers de leitura.
 As ações `sent` e `confirm` foram removidas; confirmações externas antigas permanecem
 como histórico do desk.

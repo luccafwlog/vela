@@ -26,6 +26,14 @@ não fecha itens deste plano, mas suas Etapas 6 e 8.7 corrigem defeitos que
 afetam o Desbloqueio e passam a bloquear a ativação; ver "Caminho crítico para
 ativação".
 
+**Estado conferido em 2026-10-12, após o merge da PR 929:** as Etapas 6 e 8.7 do
+plano de 2026-10-09 estão concluídas e publicadas em produção (ver "Fontes");
+deixaram de bloquear a ativação. Este plano continua vivo: restam os aceites
+(operacional/jurídico e ZPT), as provas que protegem dinheiro e dados, a
+compatibilidade dos frontends com o backend atual, o resultado do expurgo e o
+fluxo completo com clientes A/B. As demais pendências `[ ]` sem
+**[bloqueia ativação]** podem ser aceitas como dívida registrada no aceite.
+
 **Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
 fonte indicada; `[ ]` registra trabalho ou evidência ainda necessários. Um teste
 existente não equivale a execução recente, e código integrado não comprova deploy.
@@ -38,7 +46,10 @@ Portal estão em `ceUnlockService.ts`; regras/layout e seus testes estão em
 propostos nas tarefas abaixo são referência do desenho inicial, não arquivos
 faltantes quando substituídos por esses donos. O bloco CE atual é `139`–`149`,
 mais `160`–`161` do fluxo revisado de 2026-10-07; `137`–`138` pertencem à
-Central de Informações. Tipos gerados preservados.
+Central de Informações. Tipos gerados preservados. A `173` (modelo DOCX) e, da
+PR 929, a `177` (unicidade do CE e conciliação ZPT pela chave do CE) e as `181`
+e `195` (alerta de troca de CE com Desbloqueio conferido) também afetam o
+Desbloqueio.
 
 Fontes da reconciliação:
 
@@ -74,6 +85,20 @@ Fontes da reconciliação:
   objeto `.docx` no Storage com tipo DOCX e tamanho conferido (13.508 bytes).
   Workflow *Cloudflare Pages Production* run 176 (commit `eb0eadb`) com sucesso: prova
   a publicação dos dois sites, não a compatibilidade frontend/backend.
+- **Remoto (2026-10-12, leitura no projeto Supabase de produção, após o merge da
+  PR 929):** `schema_migrations` contém `174`–`217`; índice único
+  `bls_ce_mercante_active_key`; gatilho `guard_ce_mercante_unique` em `bls` e
+  `granite_bls` e `guard_bl_ce_mercante_port` em `bls`; `_set_bl_ce_mercante`
+  abre o alerta `ce_trocado_com_desbloqueio`; `preview_ce_mercante_rows` existe;
+  `ce_unlock_reconcile` casa por `ce_mercante_key`. Dados: 1 pedido e 1
+  exportação de teste. Testes não reexecutados; resultado do CI do merge e
+  publicação dos frontends depois dele não conferidos.
+- **Teste (conferência estática em 2026-10-12):** `ceUnlock.local-pg.test.ts`,
+  que roda no CI, tem desde 2026-10-07 os cenários "exportação aguarda reversão
+  financeira concorrente e recusa requisito perdido" e "exportação aguarda
+  cancelamento concorrente e recusa lote". A reversão é simulada por alteração
+  direta do recebível sob transação concorrente, não pelo comando de cancelar
+  a baixa.
 
 ## Restrições globais
 
@@ -98,20 +123,24 @@ abrir o Desbloqueio a clientes reais; os demais `[ ]` podem ser aceitos como
 dívida registrada no aceite, sem impedir a operação. Ordem proposta:
 
 1. ~~Publicar a migration `173` e as funções de documento; cadastrar o DOCX oficial (Tarefa 1).~~ Feito em 2026-10-10.
-2. Etapa 6 do plano de 2026-10-09 (unicidade do CE): hoje o mesmo CE pode ser
+2. ~~Etapa 6 do plano de 2026-10-09 (unicidade do CE): o mesmo CE podia ser
    aceito em dois B/Ls e a conciliação ZPT pelo número desbloquearia os dois
-   (cenário 12 da [revisão de 2026-10-09](../archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md)).
-3. Etapa 8.7 do mesmo plano: troca de CE pela planilha sem prévia reabre o
-   Desbloqueio em silêncio (cenários 11 e 13).
-4. Homologar a planilha ZPT (Tarefa 6) e o aceite operacional, incluindo a
-   análise humana do conteúdo dos documentos (Tarefa 1).
-5. Demonstrar as matrizes que protegem dinheiro e dados: pagamento
-   parcial/consolidado (Tarefa 2), baixa cancelada concorrente ao envio e à
-   exportação (Tarefas 2 e 6) e acesso a IDs/caminhos/downloads de outro CNPJ
-   (Tarefa 3).
-6. Conferir a compatibilidade dos frontends publicados com o backend (a publicação
-   já foi conferida) e executar o fluxo completo com clientes A/B
-   no ambiente autorizado (Tarefa 7).
+   (cenário 12 da [revisão de 2026-10-09](../archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md)).~~
+   Feito: PR 929, em produção em 2026-10-12 (ver "Fontes").
+3. ~~Etapa 8.7 do mesmo plano: troca de CE pela planilha sem prévia reabria o
+   Desbloqueio em silêncio (cenários 11 e 13).~~ Feito: PR 929, em produção em
+   2026-10-12 (ver "Fontes").
+4. Homologar com o responsável/ZPT a planilha exportada (`zpt-5-v2`) e o
+   arquivo "Exportar Tela" usado na conciliação (Tarefa 6), e obter o aceite
+   operacional, incluindo a análise humana do conteúdo dos documentos (Tarefa 1).
+5. Demonstrar as matrizes que protegem dinheiro e dados: fatura consolidada
+   parcialmente paga (Tarefa 2), baixa cancelada concorrente ao envio
+   (Tarefa 2; a exportação já tem teste, ver "Fontes") e acesso a
+   IDs/caminhos/downloads de outro CNPJ no serviço real (Tarefa 3).
+6. Conferir a compatibilidade dos frontends publicados com o backend atual,
+   de novo depois da PR 929, que mudou os dois lados, e executar o fluxo
+   completo com clientes A/B no ambiente autorizado (Tarefa 7).
+7. Validar o resultado do expurgo no Storage real (Tarefa 7).
 
 ## Foco da revisão
 
@@ -179,7 +208,9 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [x] Registrar replay local descartável, testes SQL e gates de migrations/RPC da entrega original; registrar limitações dos shims. **Teste histórico:** relatório local, sem aplicação remota.
 - [x] Integrar a fundação e correções na `main`; a antiga etapa de commit isolado está superada.
 - [ ] **[bloqueia ativação, só a fatura consolidada parcialmente paga]** Completar/demonstrar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível, consolidada parcialmente paga e obrigação de COD.
-- [ ] **[bloqueia ativação, só a baixa cancelada]** Demonstrar concorrência de dois pedidos para o mesmo B/L e cancelamento de baixa durante envio/exportação; os testes existentes de reversão na confirmação e cancelamento no registro de envio não cobrem essas mesmas transições.
+- [x] Demonstrar reversão financeira concorrente à exportação: a exportação espera a transação e recusa o requisito perdido. **Teste:** `ceUnlock.local-pg.test.ts` (2026-10-07, no CI), com a reversão simulada no recebível (ver "Fontes").
+- [ ] **[bloqueia ativação, só a baixa cancelada]** Demonstrar cancelamento de baixa concorrente ao envio do pedido.
+- [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e o cancelamento de baixa pelo comando real, não só pela alteração do recebível.
 - [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
 - [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
 
@@ -291,12 +322,14 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 
 - [x] Implementar layout em `ceUnlockRules.ts` e teste de cinco colunas, ordem, B/L textual e sanitização. **Teste:** `ceUnlockRules.test.ts`, aprovado nesta sessão; amostra gerada/reaberta no runtime local histórico, sem homologação externa.
 - [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
-- [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Teste:** suíte SQL cobre exportação sem desbloqueio, confirmação individual, CE divergente, revogação e concorrência em confirmação/registro de envio; não reexecutada nesta revisão.
-- [ ] **[bloqueia ativação, só a baixa cancelada]** Demonstrar bloqueio por cada requisito e baixa cancelada concorrente à criação da exportação, snapshot imutável e retry do mesmo lote.
+- [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Superado** pela revisão de 2026-10-07: as ações `sent` e `confirm` saíram; exportar registra o envio e a conciliação com o "Exportar Tela" da ZPT marca *Desbloqueio conferido* ou *Divergente* ([módulo vivo](../modules/desbloqueio-ce.md)). Confirmações antigas ficam como histórico do desk.
+- [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número; troca de CE com Desbloqueio conferido abre alerta. **Código/Remoto:** migrations `177`, `181` e `195` (PR 929), em produção em 2026-10-12.
+- [x] Demonstrar baixa cancelada concorrente à criação da exportação. **Teste:** "exportação aguarda reversão financeira concorrente…" em `ceUnlock.local-pg.test.ts` (ver "Fontes").
+- [ ] Demonstrar bloqueio por cada requisito (hoje há teste de pagamento e de termo anual revogado), snapshot imutável e retry do mesmo lote.
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.
 - [ ] Reconciliar o requisito inicial de estado explícito de falha recuperável: a geração pode ser repetida sobre o lote preservado, mas isso não comprova um estado persistido de falha do arquivo.
 - [ ] Resolver/aceitar a limitação registrada de hash do lote sem preenchimento; diferenciar do hash de PDF já implementado.
-- [ ] **[bloqueia ativação]** Homologar a amostra com responsável/ZPT no ambiente autorizado e registrar aceite externo. Código e amostra já estão integrados; não falta um commit separado de exportação.
+- [ ] **[bloqueia ativação]** Homologar a amostra com responsável/ZPT no ambiente autorizado e registrar aceite externo, incluindo o arquivo "Exportar Tela" lido pela conciliação. Código e amostra já estão integrados; não falta um commit separado de exportação.
 
 ## Tarefa 7 — Validação completa, documentação e entrega
 
@@ -309,10 +342,10 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Registrar gates da entrega local original: docs, tipos, lint, testes, build, migrations e RPC, com skips e limites do banco/shims no relatório. Não equivale à execução atual de todos os gates na árvore integrada.
 - [x] Documentar ordem backend → funções → frontend e reversão preservando consulta/histórico. Preview e publicação são itens separados, sem evidência na reconciliação de 2026-10-07; em 2026-10-10 a publicação em produção foi conferida (ver "Fontes"), e a validação em Preview e a compatibilidade frontend/backend seguem sem evidência.
 - [x] Conferir histórico remoto e publicar migrations CE `139`–`149` e `160`–`161` e as cinco funções. **Remoto:** leitura de produção em 2026-10-10 (ver "Fontes").
-- [ ] **[bloqueia ativação]** Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. A publicação foi conferida em 2026-10-10 (ver "Fontes"); a compatibilidade não. A Vercel ficou só como rollback manual.
+- [ ] **[bloqueia ativação]** Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. A publicação foi conferida em 2026-10-10 (ver "Fontes"); a compatibilidade não. A PR 929 mudou backend e frontend; a conferência vale para a versão publicada depois dela. A Vercel ficou só como rollback manual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
 - [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes").
-- [ ] **[bloqueia ativação]** Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md).
+- [x] Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md). **Código/Remoto:** PR 929; migrations `174`–`217` em produção em 2026-10-12 (ver "Fontes").
 - [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
 - [ ] Validar fluxo VIP completo no ambiente controlado, incluindo dois pedidos sem reanexação, vencimento/renovação e preservação de histórico.
@@ -330,5 +363,13 @@ Atualização em 2026-10-10: leitura (somente SELECT) do banco, das funções e 
 pg_cron no projeto Supabase de produção, confronto com o plano de 2026-10-09 e
 sua revisão de origem, e marcação dos itens que bloqueiam a ativação. Nenhum
 teste foi reexecutado e nenhum dado remoto foi alterado.
+
+Atualização em 2026-10-12, após o merge da PR 929: leitura (somente SELECT) do
+banco de produção e conferência estática da suíte SQL do Desbloqueio. Fechou os
+itens das Etapas 6 e 8.7, a reversão financeira concorrente à exportação e a
+confirmação individual superada; acrescentou a homologação do "Exportar Tela" e
+a nova conferência de compatibilidade. Nenhum teste foi reexecutado, nenhum dado
+remoto foi alterado, e o CI do merge e a publicação dos frontends depois dele
+não foram conferidos.
 As propostas originais de contratos acima não substituem o módulo vivo nem
 exigem recriar arquivos/RPCs já atendidos pelos dispatchers existentes.

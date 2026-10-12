@@ -2,9 +2,9 @@
 
 > **Arquivado em 2026-10-12 — concluído.** A PR 929 foi integrada à `main` e as
 > migrations `174` a `217` estão em produção; o `import-effects-runner` foi
-> ligado em 2026-10-12 e a migration `218` (PR seguinte) o acelera. Ficam com o
-> dono, fora deste plano: orientar a operação (Etapa 0) e, se quiser, o teste
-> de desligamento do runner. O ensaio em Preview foi dispensado pelo dono (dados
+> ligado em 2026-10-12 e a migration `218` (PR seguinte) o acelera. A
+> orientação da operação (Etapa 0) foi superada pelo deploy. Fica com o dono,
+> fora deste plano, só o teste de desligamento do runner, se quiser. O ensaio em Preview foi dispensado pelo dono (dados
 > de produção são de teste). Registro da ligação em
 > [servicos-externos.md](../../operations/servicos-externos.md) ("Roteiro para
 > ligar o `import-effects-runner`").
@@ -122,9 +122,10 @@ hoje), depois 6 e 4, depois as demais.
   sem separadores); containers com `demurrage_status = 'returned'` e
   `return_date` nula; containers FCL em B/Ls de Clientes diferentes; mesmo
   chassi em Viagens diferentes. O resultado orienta as Etapas 4, 5, 6, 8 e 11.
-- [ ] (dono, fora do plano a partir do arquivamento) Orientar a operação até as correções: não reimportar Manifesto BB, B/L
+- [x] **Superado pelo deploy (2026-10-12).** (dono) Orientar a operação até as correções: não reimportar Manifesto BB, B/L
   avulso nem B/L de container de B/L já com CE; em XLSX, digitar datas como
-  texto `DD/MM/AAAA`; conferir dia e mês na prévia de datas.
+  texto `DD/MM/AAAA`; conferir dia e mês na prévia de datas. A orientação valia
+  até as correções chegarem à produção, o que ocorreu com a PR 929.
 
 **Aceitação:** condição registrada no manual; consultas anexadas à PR da
 Etapa 4.
@@ -760,7 +761,8 @@ invertida; nenhuma suíte pulada por sonda com a variável ligada.
 
 ## Etapa 13 — Ligar o processamento automático (ADR 0078, item 18)
 
-Pré-requisitos: Etapas 4 e 7 em produção.
+Pré-requisitos: Etapas 4 e 7 em produção (atendido: migrations `178` e `179`
+em produção, conferido em leitura em 2026-10-12).
 
 **Antes de dados reais (dono, 2026-10-11; ADR 0079, decisão 3):** o runner
 precisa estar ligado antes de o sistema receber dados reais. Sem ele, o B/L que
@@ -804,6 +806,10 @@ orientação da operação) e, na Etapa 13, o ensaio em Preview e a ligação do
 [servicos-externos.md](../../operations/servicos-externos.md). Quando o dono os
 concluir ou assumir, o plano vai para `docs/archive/plans/` e sai de
 `docs/plans/README.md`.
+
+**Atualização (2026-10-12):** com a PR 929 em produção, os itens do dono na
+Etapa 0 ficaram superados (ver a etapa). Restam só o ensaio em Preview e a
+ligação do `import-effects-runner` em produção, na Etapa 13.
 
 **Renumeração (2026-10-10):** a PR 927 publicou em produção a migration
 `173_ce_unlock_modelo_termo_docx.sql` enquanto este plano era executado. As
