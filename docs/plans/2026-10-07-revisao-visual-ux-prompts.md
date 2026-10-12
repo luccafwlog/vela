@@ -1,13 +1,35 @@
 # Revisão visual e UX do Vela e Portal — pacote de prompts
 
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
-Estado: etapas 00, 01 e 02 concluídas em 2026-10-07, 03, 04, 05 e 06 em 2026-10-08 e 07, 08, 09 e 10 em 2026-10-09 (direção visual, inventário, tokens, primitivas, shells, acesso, Viagens, importações, B/Ls, carga física, Revisão, Clientes, Tabelas de Taxas Locais e faturamento interno registrados abaixo); próxima: etapa 11.
+Estado: etapas 00, 01 e 02 concluídas em 2026-10-07, 03, 04, 05 e 06 em 2026-10-08 e 07, 08, 09 e 10 em 2026-10-09 (direção visual, inventário, tokens, primitivas, shells, acesso, Viagens, importações, B/Ls, carga física, Revisão, Clientes, Tabelas de Taxas Locais e faturamento interno registrados abaixo); próxima: etapa 11. Revisado em 2026-10-12 depois do merge da PR 929 (nota editorial abaixo).
 
 > **Nota editorial (2026-10-08):** a conformidade das etapas 00–05 com o contrato comum foi auditada em [2026-10-08 — auditoria de conformidade das etapas 00–05](../archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md). Desvios pequenos foram corrigidos nos donos das etapas; as pendências novas por dono (01, 02, 03, 04, 05, 13, 19 e 21) estão na seção "Pendências com dono" do relatório e devem ser lidas pelas etapas donas junto com os registros abaixo, que não foram reescritos. A correção está planejada em [2026-10-08 — correção das pendências da auditoria](../archive/plans/2026-10-08-correcao-pendencias-auditoria-etapas-00-05.md), cujos passos R0 e R1 precedem a etapa 06. Esse plano foi concluído e arquivado em 2026-10-08 (PR 903 na `main`; decisões N1 e N2 tomadas).
 
 > **Decisão do responsável (2026-10-08), revisa o "Contrato visual":** (1) cabeçalho de tabela volta ao azul-marinho com texto branco em todas as tabelas, no Vela e no Portal, em caixa normal 12/600; (2) a faixa de viagens (`VoyageRail`) volta ao card anterior à etapa 03, com só a cor do estado corrigida para contraste, e a ficha da viagem (`VoyageCard` e suas abas, `VoyageSectionCards`) também volta à versão anterior à etapa 03, inclusive os botões Omitir/Excluir na linha da escala; (3) o Line-Up na TV volta ao quadro claro anterior à etapa 03, mantendo o status de CE igual ao Painel e o aviso "Sem atualização desde" quando a consulta falha com dados anteriores; (4) bordas, texto secundário e fundo de superfície do tema claro ficam mais escuros (`--app-border`, `--app-border-strong`, `--app-muted`, `--app-muted-soft`, `--app-surface-muted`). As etapas seguintes não reabrem esses pontos sem nova decisão.
 
 > **Complemento do responsável (2026-10-08), refina o item (2):** a ficha da viagem não é cópia literal da versão anterior à etapa 03. Ela mantém a composição antiga (identidade, quatro indicadores, abas e conteúdo das abas) com melhorias: faixa de identidade em azul-marinho liso (`--app-navy`), sem o degradê e a sombra anteriores, com rotas e ações (Editar, Cancelar viagem, Excluir) dentro dela; filetes internos suaves (`--app-border-soft`, só dentro de `.app-voyage-ficha__body`; controles continuam com `--app-border-strong`); blocos levemente escurecidos (`--app-surface-muted`) sem sombra nem degradê e com raio de 8 px; abas no padrão sublinhado (`TabList`) com os atalhos Baplie EDI, B/Ls da viagem e Granito como links com seta na mesma linha; rótulos em caixa normal e no mínimo 12 px em todas as abas, inclusive a ADR, cujos quadros internos perdem a borda e ficam só levemente escurecidos. A faixa de viagens (`VoyageRail`) e a TV continuam como no item (2) e (3).
+
+> **Nota editorial (2026-10-12), impacto da PR 929:** a PR 929 ([correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md), merge `b42427c` na `main`) entrou depois da etapa 10. Ela mudou regras de negócio e telas de etapas concluídas e futuras sem passar por este contrato visual. A ordem da campanha não muda e nenhuma etapa concluída é reaberta; a etapa 11 em diante parte de uma base que inclui a PR. Os registros das etapas 00–10 abaixo não foram reescritos.
+>
+> - **Regras novas que as telas mostram como são:** [ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), [ADR 0079](../adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md), [ADR 0080](../adr/0080-decisoes-da-revisao-final-da-pr-929.md) e o `CONTEXT.md` atualizado. Entre elas: Viagem Cancelada somente leitura, CE único entre B/Ls ativos, Demurrage cobrada uma vez por caixa com Invoice complementar, Invoice suspensa por datas alteradas, status Em atraso gravado pelo banco e Granito por manifesto. Os prompts 11, 12, 13, 15, 17, 19, 20, 21 e 23 ganharam itens de aceite com o que lhes cabe.
+> - **Trabalho vivo de outro plano:** o plano de correção das importações continua vivo só com passos do dono: consultas da Etapa 0, ensaio em Preview e ligação do `import-effects-runner`. Até a ligação, a fatura de B/L que recebe o CE depois só sai pela emissão manual em Taxas Locais (ADR 0079, decisão 3). Nenhuma etapa desta campanha altera as RPCs, migrations ou regras desse plano.
+> - **Superfícies novas ou refeitas depois da entrega da etapa dona** (**Código**, conferido em 2026-10-12; nada observado em runtime):
+>
+>   | Superfície | Dono | O que conferir contra o contrato |
+>   |---|---|---|
+>   | `voyages/ManifestoBlsModal.tsx` (Rotas e Manifestos → Ver B/Ls: Mover/Desvincular em lote, com motivo) e "Informar Nº" em `VoyageManifestosTab.tsx` | 03 | Mensagem de estado em `text-red-400`, cor do tema escuro; seleção, colar lista e motivo |
+>   | Programação por planilha com prévia em `/chegadas-saidas` | 03 | Resultado, "nada a gravar" e falha só em toast |
+>   | `shared/BreakbulkReimportReview.tsx` (novo) e as prévias refeitas de `BlImportModal`, `CeMercanteImportModal` (emissão em lotes com progresso, **Retomar** e resultado por B/L), `BlDocumentImportModal`, `ContainerDatesImportModal`, `ImportBaseModal` (confirmação de razão social) e `ImportParts` (avisos de linhas e abas ocultas e de CSV Windows-1252) | 04 | Resultado e falha parcial no modal, erro × aviso, botão com verbo e objeto, 360 px |
+>   | `bl/BlCeMercanteField.tsx` e `bl/BlManifestoField.tsx` (novos: corrigir CE e Manifesto na ficha), `BlDemurrageSection.tsx`, `BlBreakbulkManifestModal.tsx` | 05 | Erro junto do campo, motivo, estado em andamento |
+>   | `vehicles/MoveVehiclesModal.tsx` (novo: Mover veículos para outro B/L, com motivo); `/baplie` com regras da Viagem e "Vale o B/L" | 06; `src/components/vehicles/` passa a ser da 06 | Mensagem de estado em `text-red-400`; bloqueio do Baplie enquanto a Viagem não é conferida |
+>
+>   Essas superfícies seguem o item 7 de "Como enviar sem interferência": execução focada ao dono, integrada antes de quem depender dela. No mais tardar, entram na verificação da 23.
+> - **Pendências registradas que a PR 929 não resolveu** (**Código**, 2026-10-12):
+>   - mensagens sem acento nos parsers (`ceMercanteImport.ts`, `containerDatesImport.ts`, `vehicleImport.ts`) e "Nao informado" em `useVehicles.ts`;
+>   - linha com erro na importação de veículos: a página bloqueia o lote, e a ação rápida da Viagem aceita gravar só as válidas;
+>   - `VaziosImportacaoPreview` com cores fixas do tema escuro (21);
+>   - Granito com input nativo e "Não calc." próprio (20);
+>   - "Abrir em Demurrage" por `?busca=` (05, 08 → 11).
 
 ## O que este pacote cobre
 
@@ -126,6 +148,8 @@ O inventário de 2026-10-07 encontrou superfícies sem dono explícito na tabela
 | `demurrage/DemurrageBadges.tsx` | 11 | Relatórios (22) |
 | `review/ReviewCustomerOnboarding.tsx` | 07 | Cliente na ficha do B/L (05) |
 | `voyages/VoyageRail.tsx` (faixa de Viagens) | 03 | Baplie e Veículos (06) |
+| `vehicles/` (`MoveVehiclesModal.tsx`, acrescentado pela PR 929 em 2026-10-12) | 06 | Veículos |
+| `shared/BreakbulkReimportReview.tsx` (acrescentado pela PR 929 em 2026-10-12) | 04 | Ação rápida da Viagem, `BlDocumentImportModal` e Manifesto de carga solta em `/bls` (05) |
 | `bl/BlRailsPipeline.tsx` (trilhos da ficha) | 05, até a 01 entregar um trilho genérico; depois 05 migra para a primitiva | Ficha do B/L |
 | `PortalTransshipmentCard`, definido dentro de `PortalOperacao.tsx` | 14 | Portal e inspeção |
 | Arquivos auxiliares em `src/pages/` (`adminTabs.ts`, `blDetalheHelpers.ts`, `faturamentoInvoiceStatus.ts`, `revisaoHelpers.ts` etc.) | Etapa da página que os nomeia | Componentes que os importam |
@@ -1170,9 +1194,11 @@ Execute somente a etapa 11 — Demurrage, acordos, tarifas e disputas internas d
 
 Escopo: /demurrage; /demurrage/taxas; acordos exibidos em outros fluxos.
 Owners de apresentação: src/pages/Demurrage.tsx; src/pages/DemurrageRates.tsx; src/components/demurrage/ exceto InvoiceDocument.tsx e CustomerSummaryReport.tsx.
-Leia primeiro: docs/modules/demurrage.md; docs/operations/manual-financeiro.md.
+Leia primeiro: docs/modules/demurrage.md; docs/operations/manual-financeiro.md; CONTEXT.md — Demurrage; docs/adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md (decisões 1 e 2); docs/adr/0080-decisoes-da-revisao-final-da-pr-929.md (decisão 1).
 
 Revise abas de Containers, Clientes e invoices, free time, datas, períodos, tarifas, acordos por Cliente, descontos, PTAX, emissão, baixa, cancelamento, régua de cobrança e conversas de disputa. Explique valores previstos e emitidos, moeda e câmbio, sem mudar fórmulas nem fixar um free time visual. Separe informação operacional da decisão financeira. Revise modais e seus campos condicionais, justificativas, mensagens e estado de atualização. Esta etapa possui acordos e seus componentes mesmo quando consumidos na ficha do Cliente. Documentos e relatório imprimível são da 13; conversa/disputa do Portal é da 15. Preserve pausa de cobrança e os estados reais de disputa.
+
+Itens de aceite vindos da PR 929 (nota editorial de 2026-10-12): mostre sem alterar a regra (1) o status Em atraso gravado pelo banco, que não vale para container de B/L ou Viagem Cancelada (migrations 197 e 200); (2) a Invoice única por grupo de container compartilhado e a Invoice complementar, que cobra só as caixas ainda não cobradas — um grupo pode ter mais de uma Invoice, e a tela deve dizer em qual Invoice cada caixa foi cobrada; (3) a Invoice tirada da Régua por datas alteradas depois do pagamento, ou com desconto ou disputa aberta, que espera reemissão à mão pelo alerta `demurrage_invoice_dates_changed`; (4) o aviso do estorno em `DemurragePaymentReversalModal`, que deve ser preservado; (5) "Gerar Fatura" também para B/L devolvido com sobreestadia. Na edição de datas do container, o motivo obrigatório para remover a devolução hoje só é cobrado por toast: leve o erro para junto do campo. O card "Containers em atraso" usa cores do tema escuro (`text-slate-400`, `text-red-400`). Pendência das etapas 05 e 08: "Abrir em Demurrage" usa `?busca=`; um parâmetro que abra a fatura direto seria mais preciso.
 
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
@@ -1187,6 +1213,8 @@ Owners de apresentação: src/pages/Reconciliacao.tsx; src/components/billing/Re
 Leia primeiro: docs/modules/reconciliacao-pix.md; docs/operations/manual-financeiro.md; plano vivo da integração Itaú Pix.
 
 Revise o monitor Cobranças Pix Itaú, status de consulta, cobranças pendentes/incertas/com erro, recebimento sem baixa e tratamento com motivo. Revise também upload do extrato, matching, linhas seguras/ambíguas/sem candidato, parcial/excesso, confirmação do lote, resultado por item, histórico, filtros e exportação. Faça a diferença entre Pix recebido, baixa confirmada e exceção pendente ficar clara. Exiba resultado parcial honesto e não prometa baixa porque um spinner acabou. Preserve matching, TXID, idempotência e permissões; não chame o banco real durante testes. Consuma InvoiceDetailModal da 10 e documento/recibo da 13 sem editá-los. Se encontrar falha de saldo ou liquidação, registre como defeito funcional separado do design.
+
+Item de aceite vindo da PR 929 (nota editorial de 2026-10-12): o upload do extrato avisa linhas e abas ocultas antes de Confirmar (`readSpreadsheetNotices` e `ImportNotice` da 04), e só as linhas visíveis são conciliadas. Preserve o aviso e essa regra.
 
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
@@ -1203,6 +1231,8 @@ Leia primeiro: WORKFLOW.md §10; docs/modules/faturamento.md; docs/modules/demur
 Crie uma apresentação consistente e profissional para fatura individual, consolidada, avulsa, Demurrage, recibo, resumo de Cliente e ADR. Revise hierarquia, identidade, dados do emissor/Cliente, números, datas, itens longos, moeda, totais, quebras de página, rodapé e impressão A4. Diferencie total emitido de dinheiro efetivamente recebido, abatimento, cobertura, restituição e líquido; não descreva cobertura como dinheiro pago. Recibo não deve induzir novo pagamento; preserve o contrato que não exibe PIX nesse documento. Confira visualização em tela e saída de impressão/Salvar como PDF, sem adotar biblioteca nova automaticamente. Esta etapa possui o kit e os documentos compartilhados, mas não a lógica de emissão/baixa ou handlers das páginas. Verifique consumidores internos e do Portal; mude handlers somente em uma etapa do respectivo owner se houver necessidade comprovada.
 
 Item de aceite vindo da auditoria de 2026-10-08 (docs/archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md): `AgencyReportDocument` sem título em caixa alta (`InvoiceDocTitle uppercase` no título "Agency Departure Report").
+
+Itens de aceite vindos da PR 929 (nota editorial de 2026-10-12): o documento lê os dados congelados na emissão (Cliente, Viagem, navio, POL e POD; migration 183), não o cadastro atual; a fatura local passou a trazer o endereço do Cliente; a fatura emitida pela transição do CE é registrada como "Sistema — CE Mercante". Na Demurrage, um grupo pode ter Invoice complementar só com as caixas ainda não cobradas (ADR 0080, decisão 1): confira se o documento deixa isso claro sem sugerir cobrança repetida da mesma caixa.
 
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
@@ -1232,6 +1262,8 @@ Leia primeiro: docs/modules/portal-cliente.md; docs/modules/faturamento.md; docs
 
 Revise a jornada do Cliente da lista até entender, pagar e consultar recibo. Inclua Taxas Locais, avulsas com ou sem B/L/Viagem, consolidadas, Demurrage, filtros, seleção, saldo e detalhe. Faça fatura, consolidada e recibo terem funções claras. Dê atenção ao QR Code, Copiar código PIX, confirmação da cópia, atualização da cobrança, indisponibilidade, pagamento parcial e quitação. Não simule confirmação de pagamento nem trate emissão de cobrança como recebimento. Revise abertura e acompanhamento de disputa, anexos quando existentes e conversas. Reduza redundâncias, rolagem desnecessária e modais em cascata, sem esconder itens ou condições. Notas públicas da avulsa não autorizam expor notas internas. Consuma documentos da 13; confira client e inspect, inclusive ações bloqueadas. Não altere integrações bancárias.
 
+Itens de aceite vindos da PR 929 (nota editorial de 2026-10-12): o detalhe e a impressão leem os dados congelados na emissão (migration 183); na Demurrage, um grupo pode ter Invoice complementar (ADR 0080, decisão 1). Mostre isso ao Cliente sem jargão interno.
+
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
 
@@ -1259,6 +1291,8 @@ Owners de apresentação: src/pages/DesbloqueioCe.tsx; src/pages/PortalDesbloque
 Leia primeiro: docs/modules/desbloqueio-ce.md; docs/operations/seguranca.md; planos vivo e arquivado da revisão de CE.
 
 Primeiro identifique as alterações já feitas no ajuste anterior de Desbloqueio de CE e preserve sua intenção. Revise solicitação do Cliente, requisitos, upload/lista de documentos, histórico, fila interna, análise, entrega física, prazos, documentos anuais VIP por CNPJ e importação ZPT. Faça a pessoa entender o que falta, quem precisa agir e qual etapa foi concluída, sem prometer desbloqueio externo que o sistema só registra. Diferencie enviar documento de aprovar requisito e solicitar de concluir. Melhore feedback de arquivo/processamento, rejeição e reenvio. Esta etapa é a única dona dos componentes ce-unlock, inclusive CeUnlockVipCoveragePanel consumido na ficha do Cliente e Portal. Preserve validade anual, papéis, dados internos e formato ZPT vigente. Não altere o trabalho anterior por preferência estética nem execute envios reais.
+
+Itens de aceite vindos da PR 929 (nota editorial de 2026-10-12): a confirmação da planilha ZPT lista o que fica "Fora da conciliação" (linhas e abas ocultas, linhas sem CE ou Status) e o aviso de CSV Windows-1252; preserve. O CE é único entre B/Ls ativos pela chave normalizada (migration 177), e o alerta `ce_trocado_com_desbloqueio` abre quando o CE de um B/L com Desbloqueio já conferido é trocado ou removido. Torne essa situação compreensível na fila e na solicitação sem mudar a regra.
 
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
@@ -1290,6 +1324,8 @@ Transforme os painéis em entradas úteis para agir: prioridade, motivo e destin
 
 Itens de aceite vindos da auditoria de 2026-10-08 (docs/archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md): `Painel.tsx` sem texto abaixo de 12 px (16 ocorrências no runtime da auditoria) e `PortalDashboard.tsx` sem rótulo dos cards em caixa alta espaçada.
 
+Itens de aceite vindos da PR 929 (nota editorial de 2026-10-12): o catálogo ganhou `billing_charge_table_missing` (um por POD e modalidade, ADR 0079 decisão 4), `import_effects_queue_stalled`, `demurrage_invoice_dates_changed`, `ce_trocado_com_desbloqueio`, `bl_vehicles_changed_on_reimport` e `comunicado_ce_reenvio_pendente`. Os alertas de tabela e de datas fecham sozinhos (migration 208). Cubra-os em Alertas e Regras com motivo, destino e ação, sem mudar produtor nem fechamento.
+
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
 
@@ -1303,6 +1339,8 @@ Owners de apresentação: src/pages/Granite.tsx; src/pages/GraniteRates.tsx; com
 Leia primeiro: docs/modules/granito.md; CONTEXT.md — Granito.
 
 Revise operação de Granito, seleção de Viagem/porto, documentos, carga, CE, totais e tarifas, incluindo formulários, modais e exportações existentes. Priorize unidades e comparação entre previsto e realizado. Evite copiar linguagem de Containers onde não se aplica. Integre visualmente com Viagens e Revisão sem reimplementar os componentes desses módulos. Preserve a distinção de Granito como apoio operacional e não crie faturamento de Cliente para esse fluxo. Importações comuns permanecem da 04 e documentos de ADR da 13. Teste longos identificadores, quantidades e estados sem carga.
+
+Itens de aceite vindos da PR 929 (ADR 0078 item 25; ADR 0079 decisão 7; nota editorial de 2026-10-12): a reimportação atualiza pelo número do B/L e preserva CE e Cliente; B/L ausente só sai com confirmação e nunca com Invoice; planilha sem B/L em comum com a Viagem é manifesto novo; os totais somam todos os manifestos (migration 196); a reimportação sugere Cliente (198); o CE de Granito conta na unicidade do CE; a Viagem Cancelada é somente leitura. O resultado da importação hoje fica só em toast (`describeGraniteImport`): leve-o para o conteúdo, como a 04. Continuam abertos o input nativo no modal e o "Não calc." próprio.
 
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
@@ -1319,6 +1357,8 @@ Leia primeiro: docs/modules/manifesto-edi.md; docs/modules/viagens.md.
 Revise unidades de vazios, filtros, datas, seleção por escala, importação, inclusão manual, serviços, valores sugeridos e cadastro de terminais/depots. Diferencie vazio de importação, Embarque de Vazios e container cheio; explique unidade física e linha de serviço sem misturar totais. Preserve os controles operacionais de ADR e atribuição de terminal. Dê aos formulários campos claros e ações consistentes, com feedback no item afetado. Não crie CE ou faturamento de Cliente para Embarque de Vazios. Consuma importações da 04 e programação da 03. O cadastro operacional é seu; publicação/instruções da Central de Informações são da 16: não faça um segundo editor dessas informações.
 
 Item de aceite vindo da auditoria de 2026-10-08 (docs/archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md): título do modal de `VaziosImportacao.tsx` em caixa normal e com acento ("Importar planilha de vazios (importação)"), além da pendência já registrada pela 04.
+
+Itens de aceite vindos da PR 929 (nota editorial de 2026-10-12): Embarque de Vazios já usa `ImportFilePicker` e pergunta antes de importar sem as linhas ou abas ocultas, cujas unidades saem do Embarque; Vazios de importação preservam natureza e unidades manuais na reimportação e recusam número de manifesto de outra rota ou Viagem (migration 187). Preserve as confirmações. A falha de leitura do arquivo em `EmbarqueVazios` ainda é só toast.
 
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
@@ -1347,6 +1387,8 @@ Owners de apresentação: Revisão global; correções locais de integração co
 Leia primeiro: AGENTS.md; WORKFLOW.md §11; contrato visual e entregas anteriores.
 
 Faça um passe completo de consistência e fluxos entre módulos. Confirme cobertura de todas as rotas atuais, abas, modais, documentos, redirecionamentos e estados, marcando o que realmente foi observado. Percorra com dados sintéticos Operação → Revisão → Cliente/Portal → Faturamento → PIX/recibo, e as jornadas de consulta do Portal, Informações e CE. Revise desktop, celular, teclado, foco, contraste, erros, carregamento e listas extensas. Procure conflitos de tokens, alterações desfazendo decisões anteriores, ações duplicadas remanescentes, links quebrados, dados desatualizados e divergência client/inspect. Corrija regressões de integração sem iniciar outro redesenho e valide consumidores do owner afetado. Execute os gates obrigatórios e produza resumo de antes/depois, cobertura, pendências e evidência. Arquive este plano e retire sua entrada do índice apenas quando toda a campanha tiver sido concluída ou formalmente encerrada; não confunda o preparo dos prompts com execução.
+
+Itens de aceite vindos da PR 929 (nota editorial de 2026-10-12): verifique as superfícies novas ou refeitas listadas na nota que não tiverem passado por execução focada do dono, e confira em todas as telas que gravam que a Viagem Cancelada aparece como somente leitura, com motivo, em vez de falhar só na RPC.
 
 Use os critérios completos do contrato comum, incluindo criatividade, revisão de textos e botões redundantes, dropdowns/modais, carregamento, acessibilidade, responsividade, checks e registro de entrega. Não avance para outra etapa nesta sessão.
 ```
