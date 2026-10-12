@@ -19,7 +19,8 @@ const sourceFiles = [
   ...walk(path.join(root, 'supabase', 'functions')).filter((file) => /\.(?:ts|tsx)$/.test(file)),
 ]
 const called = new Set()
-const rpcCall = /\.rpc\(\s*['"`]([^'"`]+)['"`]/g
+// `rpc(` sem ponto cobre o cliente injetado (laço do import-effects-runner).
+const rpcCall = /(?:\.|\b)rpc\(\s*['"`]([^'"`]+)['"`]/g
 for (const file of sourceFiles) {
   const content = fs.readFileSync(file, 'utf8')
   for (const match of content.matchAll(rpcCall)) called.add(match[1])

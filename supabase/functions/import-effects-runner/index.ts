@@ -48,6 +48,9 @@ Deno.serve(instrumentEdgeHandler('import-effects-runner', async (req: Request) =
   const startedAt = Date.now()
   const result = await drainImportEffects((name, args) => supabase.rpc(name, args), workerId)
   if (!result.ok) return json(502, { error: result.error })
+  // Outro runner tem a vez: os efeitos novos entram no bloco seguinte dele ou
+  // no próximo minuto.
+  if ('skipped' in result) return json(200, { ok: true, worker_id: workerId, skipped: result.skipped })
 
   return json(200, {
     ok: true,

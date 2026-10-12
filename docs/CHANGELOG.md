@@ -9,7 +9,8 @@
   falha nem fatura; segredo em par no Vault e na Edge Function). A migration `218` faz a própria
   importação disparar o runner (uma vez por transação que grava efeito; sem segredo no Vault, não
   dispara nem avisa) e passa o job de rede de segurança de 5 minutos para 1 minuto; a função deixa
-  o lote fixo de 20 e trabalha em blocos de 10 por até ~25 s (`drain.ts`). Efeito para quem opera:
+  o lote fixo de 20 e trabalha em blocos de 10 por até ~25 s (`drain.ts`), um runner por vez, para
+  que efeitos da mesma Viagem não disputem travas e acabem bloqueados. Efeito para quem opera:
   a fatura e as marcações saem segundos depois da importação, não em até 5 minutos. O
   [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)
   foi arquivado.

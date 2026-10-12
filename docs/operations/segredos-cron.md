@@ -330,7 +330,8 @@ Mesmo com o Vault preenchido, `import-effects-runner` exige
 `IMPORT_EFFECTS_RUNNER_ENABLED=true` (ligado em produção em 2026-10-12). Além do
 job, a migration `218` dispara o runner a cada transação que grava efeito
 pendente, por `ops.kick_import_effects_runner()`; sem o par no Vault esse
-disparo não acontece e não gera `WARNING`; o job de PTAX permanece inativo até a
+disparo não acontece e não gera `WARNING`. Só um runner trabalha por vez
+(`ops.import_effects_runner_lease`); o job de PTAX permanece inativo até a
 liberação operacional após validação de Preview e gateway.
 
 ## Risco residual
