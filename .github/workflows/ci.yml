@@ -255,6 +255,7 @@ jobs:
             src/integration/revisaoFinalDemurrage.local-pg.test.ts \
             src/integration/revisaoFinalCeMercante.local-pg.test.ts \
             src/integration/revisaoFinalImportacaoBl.local-pg.test.ts \
+            src/integration/demurrageCobrancaPorCaixa.local-pg.test.ts \
             src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts \
             src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts \
             src/integration/conditionUsd.local-pg.test.ts \

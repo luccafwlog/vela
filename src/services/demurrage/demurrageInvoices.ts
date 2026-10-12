@@ -52,18 +52,24 @@ type IssueDemurrageResult = {
   anchor_bl_id?: string
 }
 
-// Emissão pelo banco (migration 179): B/Ls do mesmo Cliente que dividem
-// container na Viagem formam um grupo com uma única Invoice de Demurrage,
-// emitida pelo B/L-âncora quando todos os containers não-SOC voltaram; o
-// container devolvido no free time entra com valor zero.
+// Emissão pelo banco (migrations 179 e 214): B/Ls do mesmo Cliente que dividem
+// container na Viagem formam um grupo, emitido pelo B/L-âncora quando todos os
+// containers não-SOC voltaram; o container devolvido no free time entra com
+// valor zero. Cada caixa é cobrada uma vez: a que já está em Invoice emitida ou
+// paga fica fora, e a nova sai numa Invoice complementar (ADR 0080).
 async function issueDemurrageInvoiceForBl(blId: string): Promise<IssueDemurrageResult> {
   const { data, error } = await supabase.rpc('issue_demurrage_invoice_for_bl' as never, {
     p_bl_id: blId,
     p_doc_number: genDemurrageDocnum(blId),
   } as never)
   if (error) {
+    // 23505 (migration 214): a caixa já está numa Invoice emitida ou paga da
+    // mesma Viagem e Cliente; a mensagem do banco nomeia o container.
     if ((error as { code?: string }).code === '23505') {
-      throw new Error('Já existe fatura de Demurrage emitida ou paga para este B/L. Cancele a fatura atual antes de reemitir.')
+      const message = (error as { message?: string }).message?.trim() ?? ''
+      throw new Error(message.startsWith('Já existe fatura de Demurrage')
+        ? message
+        : 'Já existe fatura de Demurrage emitida ou paga para este B/L. Cancele a fatura atual antes de reemitir.')
     }
     throw error
   }
@@ -74,7 +80,7 @@ export async function createInvoiceForBL(blId: string): Promise<number> {
   const result = await issueDemurrageInvoiceForBl(blId)
   if (result.status === 'issued' && result.invoice_id) return result.invoice_id
   const group = result.anchor_bl_id && result.anchor_bl_id !== blId ? ` (grupo do B/L ${result.anchor_bl_id})` : ''
-  if (result.status === 'existing') throw new Error(`Já existe Invoice de Demurrage para este B/L${group}.`)
+  if (result.status === 'existing') throw new Error(`Todos os containers deste B/L${group} já estão em Invoice de Demurrage emitida ou paga.`)
   if (result.status === 'waiting_return') throw new Error(`Aguardando a devolução de todos os containers do B/L${group}.`)
   if (result.status === 'no_overstay') throw new Error(`Nenhum container com sobreestadia para este B/L${group}.`)
   throw new Error('Nenhum container para faturar neste B/L.')
