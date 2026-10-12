@@ -4,6 +4,16 @@
 
 ## 2026-10
 
+- **Fila de efeitos de importação ligada e acelerada (2026-10-12):** o `import-effects-runner`
+  foi ligado em produção depois do merge da PR 929 (simulação dos 1.000 efeitos mais antigos sem
+  falha nem fatura; segredo em par no Vault e na Edge Function). A migration `218` faz a própria
+  importação disparar o runner (uma vez por transação que grava efeito; sem segredo no Vault, não
+  dispara nem avisa) e passa o job de rede de segurança de 5 minutos para 1 minuto; a função deixa
+  o lote fixo de 20 e trabalha em blocos de 10 por até ~25 s (`drain.ts`), um runner por vez, para
+  que efeitos da mesma Viagem não disputem travas e acabem bloqueados. Efeito para quem opera:
+  a fatura e as marcações saem segundos depois da importação, não em até 5 minutos. O
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)
+  foi arquivado.
 - **Revisão final da PR 929 (2026-10-12, implementação local;
   [registro](archive/audits/2026-10-12-revisao-final-pr-929.md),
   [ADR 0080](adr/0080-decisoes-da-revisao-final-da-pr-929.md)):** **Demurrage (`211`, `214`):** a
@@ -51,7 +61,7 @@
   não apagam B/L do alerta de tabela faltando. **`210`:** definir ou remover só a devolução pela
   ficha do B/L não reverte uma descarga corrigida por outra sessão.
 - **Revisão da PR 929 (2026-10-11, implementação local; [plano de correção das
-  importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md#revisão-da-pr-929-2026-10-11)):**
+  importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md#revisão-da-pr-929-2026-10-11)):**
   correções das importações em seis migrations novas, sem reescrever linhas.
   **Segurança e fila (`190`):** um usuário do Portal deixa de poder chamar as funções internas de
   rateio de container, grupo de Demurrage e saúde da fila; o Alerta de fila parada abre e fecha
@@ -91,59 +101,59 @@
   sistema de datas 1904 e máscaras escapadas; Embarque de Vazios no seletor comum; Histórico
   mostra a "Origem" da importação. As decisões que ficaram com o dono estão na entrada acima.
 - **Rastro das importações (2026-10-10, implementação local; Etapa 14 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   o Histórico de cada registro alterado por uma importação diz qual importação foi, a Viagem e o
   Nº de Manifesto (migration `189`, ADR 0078 item 9).
 - **Testes e CI (2026-10-10; Etapa 12 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   todas as suítes `local-pg` rodam no CI (74 ao fim da etapa; 76 depois de `rastroImportacoes` e
   `correcoesRevisaoImportacoes`: 75 no passo principal e a bateria financeira no passo próprio;
   `npm run localpg:check` impede suíte fora da lista);
   sonda de pré-requisito falha em vez de pular; a bateria financeira tem passo próprio; fixtures
   sem resíduo global; código sem chamador removido.
 - **Programação por planilha (2026-10-10, implementação local; Etapa 11 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   em Chegadas e Saídas, a planilha mostra antes o que cria e o que muda por viagem e grava tudo
   de uma vez: uma falha não deixa parte gravada e o reenvio não duplica a viagem (migration
   `188`).
 - **Vazios (2026-10-10, implementação local; Etapa 11 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar Vazios de Importação da mesma rota substitui a lista sem duplicar e sem perder a
   natureza (cama/cover plate); o recadastro pelo Baplie também preserva a natureza e não deixa
   manifestos vazios; o Embarque de Vazios atualiza por container e mantém as unidades incluídas à
   mão (migration `187`, ADR 0078 item 25).
 - **Granito (2026-10-10, implementação local; Etapa 11 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar a planilha COSCO da mesma Viagem atualiza os B/Ls pelo número, preservando CE e
   Cliente, sem duplicar; B/L que o arquivo novo não traz só sai com confirmação e nunca com
   Invoice (migration `186`, ADR 0078 item 25).
 - **Base de Clientes (2026-10-10, implementação local; Etapa 11 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   a prévia mostra os B/Ls que cada CNPJ vincula; o vínculo vale só para B/L pendente de Cliente
   (o rejeitado na Revisão fica de fora), sai da Revisão e segue para o faturamento; trocar a razão
   social de um Cliente já cadastrado pede confirmação (migration `185`, ADR 0078 item 24).
 - **Veículos (2026-10-10, implementação local; Etapa 11 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   na página Veículos, **Mover para outro B/L** e **Excluir** para qualquer usuário, com motivo,
   mesmo com CE; a planilha não procura mais o B/L "parecido", recusa chassi já em outra Viagem,
   aceita tipos ISO equivalentes e lacre sem zeros à esquerda (opcional em flat rack e plataforma)
   e só preenche local de desova vazio, pedindo confirmação para trocar; veículo novo recalcula as
   Taxas Locais na hora e B/L isento anula o Recebível (migration `184`, ADR 0078 itens 8 e 23).
 - **COD e documento da fatura (2026-10-10, implementação local; Etapa 10 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar B/L em COD não muda o POD (a prévia avisa); B/L importado depois da omissão entra
   como afetado, com disposição Transbordo; a fatura emitida guarda razão social, CNPJ, endereço,
   Viagem, navio, POL e POD, e o detalhe e a impressão no Vela e no Portal leem essa cópia
   (migration `183`, ADR 0078 itens 13 e 15).
 - **Baplie (2026-10-10, implementação local; Etapa 9 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   marcas valem para todos os B/Ls ativos que dividem o container; IMO/OOG corrigido à mão fica
   protegido e vira divergência; o Baplie completo apaga, após confirmação na prévia, as marcas que
   caíram; containers de outro operador, em transbordo ou fora das escalas são ignorados com aviso;
   TDT de outro navio bloqueia; **Vale o B/L** encerra a divergência com motivo (migration `182`,
   ADR 0078 item 21).
 - **Contrato da importação de CE (2026-10-10, implementação local; Etapa 8 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   a planilha de CE fica rápida com base grande; o Nº de Manifesto Mercante tem 13 caracteres e um
   cadastro único (**Informar Nº** e a planilha); B/Ls são movidos ou desvinculados em lote, com
   motivo, pela Viagem, pela ficha ou pela planilha; a prévia é conferida no servidor e a troca de
@@ -152,7 +162,7 @@
   CE Mercante"; erros em linguagem de negócio (migrations `180` e `181`, ADR 0078 itens 4, 6, 7
   e 9).
 - **Faturas, Demurrage, datas e Comunicado (2026-10-10, implementação local; Etapa 7 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   a notificação "Nova fatura emitida" traz o total real; B/L Cancelado sai do Comunicado de CE e
   Taxas; datas de container não reabrem a Revisão de B/L faturado; a Invoice de Demurrage aceita
   container devolvido no free time e ignora SOC; a planilha de datas não apaga devolução com célula
@@ -162,7 +172,7 @@
   Régua (com pagamento); recebível sem fatura não trava cancelar nem excluir o B/L (migration
   `179`, ADR 0078 itens 12, 19 e 20).
 - **Fila de efeitos e Viagem Cancelada (2026-10-10, implementação local; Etapa 4 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   os efeitos de importação revalidam o estado atual (veículos não cancelam fatura de FCL; taxas
   mantêm o cálculo do dia do CE e não varrem a Viagem), contenção vira nova tentativa, lease
   esgotado abre Alerta, a Viagem Cancelada fica selada também para containers, Granito, faturas e
@@ -170,27 +180,27 @@
   `import_effects_queue_stalled` (job `import-effects-queue-health`; migration `178`, ADR 0078
   item 18). O processamento automático continua desligado.
 - **CE Mercante único e porta única (2026-10-10, implementação local; Etapa 6 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   um CE só fica num B/L não cancelado (carga e Granito, também na reativação), com recusa
   amigável; a planilha de CE acusa CE repetido na prévia; a ficha do B/L deixa de gravar o CE pelo
   Salvar e ganha **Corrigir** e **Remover** CE, com motivo no Histórico; remover com fatura viva é
   recusado; Comunicado já enviado abre o alerta `comunicado_ce_reenvio_pendente`; a conciliação
   ZPT casa pela mesma chave (migration `177`, ADR 0078 itens 1–3 e 5).
 - **Container compartilhado (2026-10-10, implementação local; Etapa 5 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   B/Ls do mesmo Cliente que dividem um container passam a ser todos faturados com o rateio
   (antes só o primeiro); irmão que chega ou é cancelado depois do faturamento reemite a fatura do
   outro pela ADR 0077; a proteção contra cobrar o container duas vezes fica; container FCL entre
   Clientes diferentes é recusado na importação de B/L (migration `176`, ADR 0078 item 11).
 - **Leitura de planilhas (2026-10-10, implementação local; Etapa 3 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   datas curtas do Excel, CSV com vírgula decimal ou `05/03/2026`, data/hora de Brasília, tara com
   milhar, valor PIX numérico e CE em célula numérica passam a ser lidos como a célula mostra
   (leitor comum tipado e parser de data único, ADR 0078 item 22); ano fora de quatro dígitos é
   recusado; cabeçalho repetido ou duas colunas do mesmo campo bloqueiam; linhas e abas ocultas são
   ignoradas com aviso; CSV Windows-1252 aceito com aviso.
 - **Reimportação de B/L de container (2026-10-10, implementação local; Etapa 2 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar o B/L deixa de apagar e recriar os contêineres (datas, desova, status de Demurrage
   e perfil preservados; migration `175`, ADR 0078 itens 16 e 17); contêiner que o arquivo não traz
   só sai com a remoção mostrada na prévia; veículos só mudam com aba VIN e confirmação, com alerta
@@ -198,7 +208,7 @@
   cadastro de portos bloqueia a linha; reimportação idêntica de B/L faturado não reabre a Revisão
   nem enfileira recálculo; e-mail do consignatário novo não vira contato do Cliente antigo (M14).
 - **Reimportação de carga solta (2026-10-10, implementação local; Etapas 0 e 1 do
-  [plano de correção das importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)):**
   reimportar Manifesto BB ou B/L avulso deixa de apagar o CE, de desfazer o Cliente confirmado
   na Revisão, de trocar o Cliente sem aceite e de mover B/L de outra Viagem (migration `174`,
   ADR 0078 itens 1 e 14). O Manifesto BB não grava mais CE (coluna fora dos modelos; num arquivo
@@ -220,7 +230,7 @@
   remoção com motivo, emissão pelo CE em lotes como "Sistema — CE Mercante", Nº de Manifesto
   canônico com Mover/Desvincular, rastro no Histórico, datas e Demurrage de container
   compartilhado, Baplie completo, veículos, Base de Clientes, Granito e vazios). `CONTEXT.md` e o
-  [plano de correção](plans/2026-10-09-correcao-importacoes-ce-mercante.md) atualizados; ADRs
+  [plano de correção](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md) atualizados; ADRs
   0071 e 0020 com nota de supersessão parcial. Checagem de container compartilhado entre Clientes
   diferentes retirada (caso inexistente em FCL); as checagens passam a 43 `it.fails` e o plano
   revisto, a 15 etapas (0 a 14). Diferença de fatura paga só por restituição, sem
@@ -228,7 +238,7 @@
 - **Revisão das importações e do CE Mercante (2026-10-09, investigação local):** relatório em
   [archive/audits](archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md) com mapa das
   portas de entrada, alcance do CE, matriz de campos, ordens de importação, 25 problemas-raiz e
-  22 decisões de negócio pendentes; [plano de correção](plans/2026-10-09-correcao-importacoes-ce-mercante.md)
+  22 decisões de negócio pendentes; [plano de correção](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)
   em 13 etapas. Seis suítes `local-pg` novas (no CI) e uma unitária reproduzem 44 defeitos como
   `it.fails`. Sem mudança de produto, migration ou produção. Documentação viva corrigida onde
   descrevia comportamento inexistente: exceção da `051` revogada, CE de Granito sem cálculo,

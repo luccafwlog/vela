@@ -1,7 +1,7 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
 // Os casos nasceram como it.fails e viraram it com a migration 176 (Etapa 5 do plano
-// docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md); as checagens novas da Etapa 5 estão no fim da suíte.
+// docs/archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md); as checagens novas da Etapa 5 estão no fim da suíte.
 //
 // Problema-raiz M03: container compartilhado entre B/Ls. O motor rateia a taxa
 // por container (`container_distinct_voyage`, 1/share_count) e a transição do CE

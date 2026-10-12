@@ -1,11 +1,13 @@
 // S05 — runner da fila de efeitos de import.
 //
 // O claim e a execução de cada efeito são server-only. A Edge Function só
-// coordena lotes pequenos; a transação, a classificação de erro e a conclusão
-// idempotente vivem em `process_import_effect`.
+// coordena blocos pequenos dentro de um orçamento de tempo (`drain.ts`); a
+// transação, a classificação de erro e a conclusão idempotente vivem em
+// `process_import_effect`.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { drainImportEffects } from './drain.ts'
 
 function timingSafeEqual(leftValue: string, rightValue: string): boolean {
   const encoder = new TextEncoder()
@@ -43,45 +45,19 @@ Deno.serve(instrumentEdgeHandler('import-effects-runner', async (req: Request) =
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
   const workerId = `import-effects-runner:${crypto.randomUUID()}`
-  const { data: claimed, error: claimError } = await supabase.rpc('claim_import_effects', {
-    p_worker_id: workerId,
-    p_limit: 20,
-    p_lease_seconds: 300,
-  })
-  if (claimError) {
-    console.error('import-effects-runner: claim falhou', claimError)
-    return json(502, { error: 'claim_failed' })
-  }
-
-  const effects = Array.isArray(claimed) ? claimed : []
-  const outcomes: Array<{ effect_id: number; status: string }> = []
-  for (const effect of effects) {
-    const effectId = Number((effect as { id?: unknown }).id)
-    if (!Number.isSafeInteger(effectId) || effectId <= 0) {
-      console.error('import-effects-runner: claim retornou id inválido')
-      continue
-    }
-
-    const { data: processResult, error: processError } = await supabase.rpc('process_import_effect', {
-      p_effect_id: effectId,
-      p_worker_id: workerId,
-    })
-    if (processError) {
-      // Em erro de rede o lease expira e outro ciclo recupera o efeito. O
-      // payload não é repetido no log para não vazar snapshot de importação.
-      console.error('import-effects-runner: processamento falhou', { effectId, error: processError })
-      outcomes.push({ effect_id: effectId, status: 'completed_with_error' })
-      continue
-    }
-    const processedStatus = (processResult as { effect?: { status?: unknown } } | null)?.effect?.status
-    outcomes.push({ effect_id: effectId, status: typeof processedStatus === 'string' ? processedStatus : 'completed' })
-  }
+  const startedAt = Date.now()
+  const result = await drainImportEffects((name, args) => supabase.rpc(name, args), workerId)
+  if (!result.ok) return json(502, { error: result.error })
+  // Outro runner tem a vez: os efeitos novos entram no bloco seguinte dele ou
+  // no próximo minuto.
+  if ('skipped' in result) return json(200, { ok: true, worker_id: workerId, skipped: result.skipped })
 
   return json(200, {
     ok: true,
     worker_id: workerId,
-    claimed: effects.length,
-    completed: outcomes.length,
-    outcomes,
+    claimed: result.claimed,
+    completed: result.outcomes.length,
+    elapsed_ms: Date.now() - startedAt,
+    outcomes: result.outcomes,
   })
 }))

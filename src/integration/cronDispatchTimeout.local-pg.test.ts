@@ -76,7 +76,7 @@ describeLocal('165 — dispatcher dos jobs pg_cron fora da rajada', () => {
       'alerts-foundation-detectors=2-59/15 * * * *=true=true',
       'customer-communication-auto-runner=4-59/15 * * * *=true=true',
       'demurrage-dunning=7 * * * *=true=true',
-      'import-effects-runner=3-59/5 * * * *=true=true',
+      'import-effects-runner=* * * * *=true=true',
       'portal-daily-digest=0 11 * * *=true=true',
       'portal-email-events-runner=* * * * *=true=true',
     ])

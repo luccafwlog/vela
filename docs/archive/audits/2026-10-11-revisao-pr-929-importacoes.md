@@ -4,7 +4,7 @@
 
 Revisão extensiva da PR 929 (`claude/correcao-importacoes-ce-mercante`, head
 `36a993d`, base `main` em `b5785db`). A PR executa o
-[plano de correção das importações](../../plans/2026-10-09-correcao-importacoes-ce-mercante.md)
+[plano de correção das importações](../plans/2026-10-09-correcao-importacoes-ce-mercante.md)
 (Etapas 0–14) com as migrations `174`–`189`, cerca de 196 arquivos e 17 mil
 linhas.
 

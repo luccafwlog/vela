@@ -5,7 +5,7 @@
 > **Nota editorial — 2026-10-12.** A [ADR 0080](./0080-decisoes-da-revisao-final-da-pr-929.md) refina o item 20 (a Invoice de Demurrage do grupo é cobrada por caixa: caixa já cobrada nunca é cobrada de novo e a do B/L que chega depois sai em Invoice complementar) e o item 6 ("Informar Nº" não troca nem limpa o Manifesto que já tem B/L).
 
 Status: aceito — 2026-10-09 (decisões do dono). Implementação pendente no
-[plano de correção das importações](../plans/2026-10-09-correcao-importacoes-ce-mercante.md).
+[plano de correção das importações](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md).
 
 Supersede parcialmente a [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md)
 (item 5, a parte dos itens 3 e 9 sobre recebível sem fatura e o "desvio

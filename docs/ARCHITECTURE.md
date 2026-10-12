@@ -616,7 +616,9 @@ informa falhas ao operador e mantém `provisional_charges` apenas como recupera�
 - `portal-email-events-runner`: consome a inbox de eventos do provedor com
   retries e ordenação server-side;
 - `import-effects-runner`: consome efeitos pós-commit com lease e bloqueio
-  investigável, inicialmente fail-closed;
+  investigável; ligado em produção desde 2026-10-12, disparado pela própria
+  importação e por job de 1 minuto, trabalhando por orçamento de tempo
+  (migration `218`);
 - `recalc-demurrage-ptax`: recálculo diário do BRL das invoices de demurrage,
   com alerta persistente em falha e job nominal inativo até validação externa;
 

@@ -1,7 +1,7 @@
 // Checagens de aceitação da revisão das importações (2026-10-09; docs/archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 // As referências `arquivo:linha` apontam para o checkout `fa5f238` da revisão; as regras decididas depois estão na ADR 0078.
 // Os casos nasceram como it.fails e viraram it com o leitor tipado (Etapa 3 do plano
-// docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md); arquivo unitário, roda em `npm test`.
+// docs/archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md); arquivo unitário, roda em `npm test`.
 //
 // Problema-raiz M05 (+ CE numérico de P2): o leitor comum `readSheet`
 // (src/services/importCore.ts:73-137) não entrega o valor da célula.

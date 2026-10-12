@@ -4,12 +4,13 @@ import { describe, expect, it } from 'vitest'
 
 const root = resolve(process.cwd())
 const runnerSource = readFileSync(resolve(root, 'supabase/functions/import-effects-runner/index.ts'), 'utf8')
+const drainSource = readFileSync(resolve(root, 'supabase/functions/import-effects-runner/drain.ts'), 'utf8')
 const migrationSource = readFileSync(resolve(root, 'supabase/migrations/025_import_effect_worker.sql'), 'utf8')
 
 describe('runner dos efeitos pós-commit de import', () => {
   it('faz claim e delega cada efeito a um consumidor SQL protegido', () => {
-    expect(runnerSource).toContain("'claim_import_effects'")
-    expect(runnerSource).toContain("'process_import_effect'")
+    expect(drainSource).toContain("'claim_import_effects'")
+    expect(drainSource).toContain("'process_import_effect'")
     expect(runnerSource).toContain('IMPORT_EFFECTS_CRON_SECRET')
     expect(runnerSource).toContain('IMPORT_EFFECTS_RUNNER_ENABLED')
     expect(runnerSource).not.toContain('consumer_handlers_pending')

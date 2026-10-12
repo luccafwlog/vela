@@ -51,7 +51,7 @@ decidido por regra existente, esta revisão deixou **44 checagens executáveis**
 (`it.fails`) que reproduzem cada defeito e passam a exigir o comportamento
 correto quando a correção entrar (seção 7.3). Nenhuma correção de produto ou
 migration foi feita: o plano está em
-[2026-10-09 — Correção das importações e do CE Mercante](../../plans/2026-10-09-correcao-importacoes-ce-mercante.md).
+[2026-10-09 — Correção das importações e do CE Mercante](../plans/2026-10-09-correcao-importacoes-ce-mercante.md).
 
 ## Método e limites
 
