@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS ops.import_effects_runner_lease (
 INSERT INTO ops.import_effects_runner_lease (singleton) VALUES (true)
 ON CONFLICT (singleton) DO NOTHING;
 REVOKE ALL ON TABLE ops.import_effects_runner_lease FROM PUBLIC, anon, authenticated, service_role;
+-- RLS sem policy: só as funções abaixo (SECURITY DEFINER, donas da tabela)
+-- leem e escrevem a vez.
+ALTER TABLE ops.import_effects_runner_lease ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE ops.import_effects_runner_lease IS
   'Vez única do import-effects-runner (migration 218): um runner por vez, renovada antes de cada bloco.';
