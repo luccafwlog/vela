@@ -1,4 +1,4 @@
-# Architecture Decision Records
+# Architecture Decision Records 
 
 Relações de supersessão revisadas em 2026-09-18 por leitura estática. Este índice informa quais decisões continuam
 vigentes e onde uma decisão posterior alterou parte de uma ADR anterior.
