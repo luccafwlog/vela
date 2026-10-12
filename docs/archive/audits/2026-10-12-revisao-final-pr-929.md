@@ -139,6 +139,10 @@ perdeu correção anterior: nenhuma perdeu.
     Baplie, mas a conferência guardava uma só por container; com o Baplie
     alternando entre IMO e OOG, a outra reaparecia. A conferência considera
     todas (`baplieReconciliation.ts`).
+35. **Resoluções do Baplie além de 1.000 linhas eram ignoradas (commit
+    `d23b057`).** A leitura não paginava, e o PostgREST corta a resposta em
+    1.000 linhas; passa a paginar em ordem estável, como o staging e os
+    containers.
 
 ### Mantidos como estão
 

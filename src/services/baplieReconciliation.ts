@@ -606,14 +606,23 @@ async function fetchResolutions(voyageId: number): Promise<{
   profile: Map<number, Set<string>>
   ownership: Map<number, Set<string>>
 }> {
-  const { data, error } = await supabase
-    .from('baplie_reconciliation_resolutions')
-    .select('bl_container_id, baplie_value, manifest_value, field_name, resolution')
-    .eq('voyage_id', voyageId)
-  if (error) throw error
-  const rows = (data ?? []) as Array<{
-    bl_container_id: number; baplie_value: string; manifest_value: string | null; field_name: string; resolution: string
-  }>
+  type ResolutionRow = { bl_container_id: number; baplie_value: string; manifest_value: string | null; field_name: string; resolution: string }
+  // Paginado em ordem estável, como o staging e os containers: acima do teto
+  // do PostgREST (1.000 linhas) a resolução fora da página voltava a divergir.
+  const PAGE = 1000
+  const rows: ResolutionRow[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('baplie_reconciliation_resolutions')
+      .select('bl_container_id, baplie_value, manifest_value, field_name, resolution')
+      .eq('voyage_id', voyageId)
+      .order('id')
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    const page = (data ?? []) as ResolutionRow[]
+    rows.push(...page)
+    if (page.length < PAGE) break
+  }
   const valeOBl = rows.filter((row) => row.resolution === 'vale_o_bl')
   const ownership = new Map<number, Set<string>>()
   for (const row of valeOBl.filter((r) => r.field_name === 'ownership')) {

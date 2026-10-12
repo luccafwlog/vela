@@ -60,7 +60,21 @@ function installReconcileMocks(input: { bls?: unknown[]; baplie?: unknown[]; con
   mockFrom.mockImplementation((table: string) => {
     if (table === 'bls') return createBuilder({ data: input.bls ?? [], error: null })
     if (table === 'baplie_containers') return (builders[table] = createBuilder({ data: input.baplie ?? [], error: null }))
-    if (table === 'baplie_reconciliation_resolutions') return createBuilder({ data: input.resolutions ?? [], error: null })
+    if (table === 'baplie_reconciliation_resolutions') {
+      // Como o PostgREST: no máximo 1.000 linhas por resposta, a página que
+      // `range` pedir (sem `range`, a primeira).
+      const all = input.resolutions ?? []
+      let window = { from: 0, to: 999 }
+      const builder = {
+        select: vi.fn(() => builder),
+        eq: vi.fn(() => builder),
+        order: vi.fn(() => builder),
+        range: vi.fn((from: number, to: number) => { window = { from, to: Math.min(to, from + 999) }; return builder }),
+        then: (resolve: (value: QueryResult) => unknown) =>
+          Promise.resolve({ data: all.slice(window.from, window.to + 1), error: null }).then(resolve),
+      }
+      return builder
+    }
     if (table === 'bl_containers') {
       const builder = createBuilder({ data: input.containers ?? [], error: null })
       builders[table] = builder
@@ -297,6 +311,18 @@ describe('reconcileBaplieWithManifest', () => {
       })
       await expect(reconcileBaplieWithManifest(1)).resolves.toEqual({ items: [], source: 'reconciled', pendingRoutes: [] })
     }
+  })
+
+  it('lê as resoluções além da primeira página de 1.000 linhas', async () => {
+    const filler = Array.from({ length: 1000 }, (_, index) => (
+      { bl_container_id: 5000 + index, baplie_value: 'IMO', manifest_value: 'sem marca', field_name: 'profile', resolution: 'vale_o_bl' }))
+    installReconcileMocks({
+      bls: [{ id: 'BL1' }],
+      baplie: [{ container_number: 'ABCD1234567', status: 'full', bl_ref: 'BL1', slot: null, is_imo: true }],
+      containers: [{ id: 10, bl_id: 'BL1', container_number: 'ABCD1234567', is_imo: false, is_oog: false, profile_source: 'manual' }],
+      resolutions: [...filler, { bl_container_id: 10, baplie_value: 'IMO', manifest_value: 'sem marca', field_name: 'profile', resolution: 'vale_o_bl' }],
+    })
+    await expect(reconcileBaplieWithManifest(1)).resolves.toEqual({ items: [], source: 'reconciled', pendingRoutes: [] })
   })
 
   it('gera divergência de existência quando o container do Baplie não está em nenhum B/L', async () => {
