@@ -32,17 +32,19 @@ describe('datas do container pela RPC set_container_dates', () => {
     mocks.rpc.mockResolvedValue({ data: {}, error: null })
   })
 
-  it('a devolução mantém a descarga gravada', async () => {
+  // Migration 210: a descarga é a gravada, lida pelo banco sob a trava do
+  // container; a tela não a relê (outra sessão podia corrigi-la no meio).
+  it('a devolução mantém a descarga gravada, lida pelo banco', async () => {
     await updateContainerReturnDate(7, '2026-02-20')
     expect(mocks.rpc).toHaveBeenCalledWith('set_container_dates', {
-      p_container_id: 7, p_discharge_date: '2026-01-01', p_return_date: '2026-02-20', p_reason: null,
+      p_container_id: 7, p_discharge_date: null, p_return_date: '2026-02-20', p_reason: null, p_keep_discharge: true,
     })
   })
 
   it('remover a devolução leva o motivo', async () => {
     await updateContainerReturnDate(7, null, '  Devolução lançada no container errado  ')
     expect(mocks.rpc).toHaveBeenCalledWith('set_container_dates', {
-      p_container_id: 7, p_discharge_date: '2026-01-01', p_return_date: null, p_reason: 'Devolução lançada no container errado',
+      p_container_id: 7, p_discharge_date: null, p_return_date: null, p_reason: 'Devolução lançada no container errado', p_keep_discharge: true,
     })
   })
 

@@ -87,13 +87,18 @@ export async function updateContainerDates(
   if (error) throw error
 }
 
+/**
+ * Só a devolução muda: a descarga é a gravada, lida pelo banco sob a trava do
+ * container (`p_keep_discharge`, migration 210). A tela não a relê, porque
+ * outra sessão podia corrigi-la entre a leitura e a gravação.
+ */
 export async function updateContainerReturnDate(containerId: number, returnDate: string | null, reason?: string | null): Promise<void> {
-  const { data, error } = await supabase
-    .from('bl_containers')
-    .select('discharge_date')
-    .eq('id', containerId)
-    .single()
-    .overrideTypes<{ discharge_date: string | null }, { merge: false }>()
+  const { error } = await supabase.rpc('set_container_dates' as never, {
+    p_container_id: containerId,
+    p_discharge_date: null,
+    p_return_date: returnDate || null,
+    p_reason: reason?.trim() || null,
+    p_keep_discharge: true,
+  } as never)
   if (error) throw error
-  await updateContainerDates(containerId, data?.discharge_date ?? null, returnDate, reason)
 }

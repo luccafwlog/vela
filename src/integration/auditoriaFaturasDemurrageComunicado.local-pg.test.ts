@@ -931,6 +931,17 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
   })
 
   // C14: descarga nova posterior à devolução gravada, com a devolução vazia na planilha.
+  // Migration 210: remover só a devolução usa a descarga gravada, não a que a tela leu.
+  it('remover a devolução com p_keep_discharge preserva a descarga gravada', () => {
+    insertBl('A207-D2', voyage.descarga, pod, [{ number: 'ADCU2070142' }])
+    importContainerDates('A207-D2', [{ number: 'ADCU2070142', discharge: '2026-07-01', return: '2026-07-10' }])
+    const id = containerIds('A207-D2').ADCU2070142
+    // Outra sessão corrige a descarga depois que a tela leu 01/07.
+    asAdmin(`SELECT public.set_container_dates(${id}, '2026-07-03', '2026-07-10', 'Terminal corrigiu a descarga (A207)');`)
+    asAdmin(`SELECT public.set_container_dates(${id}, NULL, NULL, 'Devolução lançada errada (A207)', true);`)
+    expect(containerDates('A207-D2').ADCU2070142).toEqual({ discharge: '2026-07-03', return: null })
+  })
+
   it('planilha com descarga posterior à devolução gravada e devolução vazia é recusada com mensagem de negócio', () => {
     insertBl('A207-D1', voyage.descarga, pod, [{ number: 'ADCU2070141' }])
     importContainerDates('A207-D1', [{ number: 'ADCU2070141', discharge: '2026-07-01', return: '2026-07-10' }])

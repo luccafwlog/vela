@@ -24,7 +24,8 @@
   planilha de datas confere a gravação contra as datas que a prévia mostrou. **`209`:** Remover
   CE Mercante, Mover e Desvincular do Manifesto e a Programação por planilha recusam quando
   outra sessão mudou o dado depois da tela; duas emissões pelo CE ao mesmo tempo no mesmo POD
-  não apagam B/L do alerta de tabela faltando.
+  não apagam B/L do alerta de tabela faltando. **`210`:** definir ou remover só a devolução pela
+  ficha do B/L não reverte uma descarga corrigida por outra sessão.
 - **Revisão da PR 929 (2026-10-11, implementação local; [plano de correção das
   importações](plans/2026-10-09-correcao-importacoes-ce-mercante.md#revisão-da-pr-929-2026-10-11)):**
   correções das importações em seis migrations novas, sem reescrever linhas.

@@ -52,9 +52,9 @@ criadas por shell, sem editar nenhuma existente.
   (`sudo scripts/setup-local-pg.sh --reset` e as suítes `local-pg` do CI com
   `--no-file-parallelism`, duas vezes seguidas, sem resíduo de namespace).
 - **Migrations:** sempre arquivo novo, no próximo número livre (as deste plano
-  são `174`–`209`: a `173` foi usada pelo Desbloqueio de CE, já em produção, a
+  são `174`–`210`: a `173` foi usada pelo Desbloqueio de CE, já em produção, a
   revisão da PR 929 acrescentou `190`–`202`, as decisões da ADR 0079,
-  `203`–`206`, e a revisão automática depois delas, `207` a `209`);
+  `203`–`206`, e a revisão automática depois delas, `207` a `210`);
   nunca editar migration existente (protegida por
   `.claude/hooks/protect-files.sh`). Redefinir a função a partir da definição
   **efetiva** no banco replicado, não da primeira migration que a criou. Se a
@@ -926,3 +926,7 @@ Manifesto que a tela mostrava por B/L; a lista do Alerta de tabela faltando é
 travada antes de ser lida (duas emissões simultâneas no mesmo POD não se
 apagam); a Programação por planilha recusa o arquivo cuja data a prévia viu e
 que outra gravação mudou depois. Os parâmetros novos têm `DEFAULT NULL`.
+
+**`210` — devolução preserva a descarga gravada.** Remover ou definir só a
+devolução pela ficha do B/L usa a descarga gravada, lida sob a trava do
+container (`p_keep_discharge`); a tela não a relê.
