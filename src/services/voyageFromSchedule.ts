@@ -234,24 +234,28 @@ export function isScheduleSheetWrite(row: ScheduleSheetPlanRow): boolean {
  * servidor (migration 193): IMO de 7 dígitos primeiro, depois o nome
  * canônico; nome igual com outro IMO cadastrado é conflito, nunca fusão.
  */
-async function newVoyageVesselProblem(name: string, imo: string | null): Promise<string | null> {
+/**
+ * Navio de uma Viagem nova: o problema que a gravação recusaria e se o IMO já
+ * acha um navio cadastrado (`byImo`). Sem isso a gravação acha pelo nome.
+ */
+async function newVoyageVesselProblem(name: string, imo: string | null): Promise<{ problem: string | null; byImo: boolean }> {
   if (imo) {
     // ponytail: no máximo 20 candidatos pelo trecho do IMO, igualdade conferida
     // em memória (o servidor compara todos); upgrade = IMO canônico indexado.
     const { data, error } = await supabase.from('vessels').select('id, imo').ilike('imo', `%${imo}%`).limit(20)
     if (error) throw error
     const byImo = (data ?? []).filter((vessel) => normalizeVesselImo(vessel.imo) === imo)
-    if (byImo.length > 1) return `Navio com IMO ${imo} ambíguo: mais de um cadastro. Corrija antes de importar.`
-    if (byImo.length === 1) return null
+    if (byImo.length > 1) return { problem: `Navio com IMO ${imo} ambíguo: mais de um cadastro. Corrija antes de importar.`, byImo: false }
+    if (byImo.length === 1) return { problem: null, byImo: true }
   }
   const { data, error } = await supabase.from('vessels').select('id, imo').eq('name', name).limit(2)
   if (error) throw error
-  if ((data ?? []).length > 1) return `Navio ${name} ambíguo: mais de um cadastro. Corrija antes de importar.`
+  if ((data ?? []).length > 1) return { problem: `Navio ${name} ambíguo: mais de um cadastro. Corrija antes de importar.`, byImo: false }
   const registeredImo = normalizeVesselImo(data?.[0]?.imo)
   if (imo && registeredImo && registeredImo !== imo) {
-    return `Navio ${name} com IMO conflitante (${registeredImo} vs ${imo}). Corrija antes de importar.`
+    return { problem: `Navio ${name} com IMO conflitante (${registeredImo} vs ${imo}). Corrija antes de importar.`, byImo: false }
   }
-  return null
+  return { problem: null, byImo: false }
 }
 
 /**
@@ -280,6 +284,10 @@ function conflictingRepeatedLanes(rows: VoyageScheduleInput[]): string | null {
  */
 export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: string | null): Promise<ScheduleSheetPlanRow[]> {
   const plan: ScheduleSheetPlanRow[] = []
+  // Linhas de Viagem nova cujo navio a gravação acha pelo nome, com IMO: a
+  // primeira grava o IMO no navio (202) e outra com IMO diferente, mesmo em
+  // outra viagem, seria recusada como "IMO conflitante", desfazendo o arquivo.
+  const byNameImos = new Map<string, number[]>()
   for (const row of rows) {
     const imo = scheduleSheetImo(row.vesselImo)
     const rawImo = normalizeVesselImo(row.vesselImo)
@@ -293,7 +301,9 @@ export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: 
     }
     try {
       const voyageId = await findVoyageByNumberAndVessel(row.voyageNumber, imo ?? '', row.vesselName)
-      const vesselProblem = voyageId === null ? await newVoyageVesselProblem(base.vesselName, imo) : null
+      const vessel = voyageId === null ? await newVoyageVesselProblem(base.vesselName, imo) : null
+      if (vessel && !vessel.byImo && imo) byNameImos.set(base.vesselName, [...(byNameImos.get(base.vesselName) ?? []), plan.length])
+      const vesselProblem = vessel?.problem ?? null
       if (vesselProblem) {
         plan.push({ ...base, voyageId: null, createsVoyage: false, changes: [], error: vesselProblem })
         continue
@@ -303,7 +313,10 @@ export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: 
       const polIds = pols.map((pol) => buildVoyagePolEntityId(prefix, pol.code))
       const podIds = pods.map((pod) => buildVoyagePodEntityId(prefix, pod.pod))
       const [currentPols, currentPods] = voyageId
-        ? await Promise.all([listVoyagePolSchedules(polIds), listVoyagePodSchedules(podIds)])
+        // POD removido entra com as datas que tinha e volta ao planejamento
+        // (`deleted=false`): a gravação confere o `old_value` contra o último
+        // valor no Histórico, que é o de antes da remoção (209).
+        ? await Promise.all([listVoyagePolSchedules(polIds), listVoyagePodSchedules(podIds, { includeDeleted: true })])
         : [new Map(), new Map()]
       const changes: ScheduleSheetChange[] = []
       const push = (list: Array<{ entity_type: string; entity_id: string; field_name: string; old_value: string | null; new_value: string | null; justification: string | null }>) => {
@@ -341,6 +354,15 @@ export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: 
       } else if (voyage.show_on_portal !== true) {
         row.publishes = true
       }
+    }
+  }
+
+  for (const [name, indexes] of byNameImos) {
+    const open = indexes.filter((index) => !plan[index].error)
+    const imos = [...new Set(open.map((index) => plan[index].vesselImo))]
+    if (imos.length < 2) continue
+    for (const index of open) {
+      Object.assign(plan[index], { error: `Navio ${name} com IMOs diferentes no arquivo (${imos.join(', ')}). Deixe um IMO por navio.`, changes: [], publishes: false, createsVoyage: false })
     }
   }
 

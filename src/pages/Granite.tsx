@@ -126,7 +126,7 @@ export function Granite() {
         voyageId: Number(voyageId),
         manifest,
         uploadedBy: user.id,
-        confirmRemoval: (missing) => confirm(graniteRemovalConfirmOptions(missing)),
+        confirmRemoval: (missing) => confirm(graniteRemovalConfirmOptions(missing, manifest.hidden)),
       })
       const { pendingCount } = result
       await Promise.all([

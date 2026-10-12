@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { excelSerialToCivil, parseImportDate } from '../importDate'
+import { excelSerialTimeOfDay, excelSerialToCivil, parseImportDate } from '../importDate'
 
 /** Serial do Excel (sistema 1900) para a data/hora civil informada, em segundos exatos. */
 function serial1900(iso: string, hours = 0, minutes = 0, seconds = 0) {
@@ -51,5 +51,24 @@ describe('parseImportDate', () => {
 
   it('não troca dia e mês: 03/15/2026 é recusado', () => {
     expect(parseImportDate('03/15/2026').kind).toBe('invalid')
+  })
+})
+
+describe('excelSerialTimeOfDay — célula só de hora', () => {
+  it('serial entre 0 e 1 é a hora HH:MM, truncada no minuto', () => {
+    expect(excelSerialTimeOfDay(0.5)).toBe('12:00')
+    expect(excelSerialTimeOfDay((16 * 3600 + 29 * 60 + 40) / 86_400)).toBe('16:29')
+    expect(excelSerialTimeOfDay(1 / 1440)).toBe('00:01')
+  })
+
+  it('serial com data, zero ou inválido não é hora pura', () => {
+    expect(excelSerialTimeOfDay(46235.5)).toBeNull()
+    expect(excelSerialTimeOfDay(1)).toBeNull()
+    expect(excelSerialTimeOfDay(0)).toBeNull()
+    expect(excelSerialTimeOfDay(Number.NaN)).toBeNull()
+  })
+
+  it('a hora entregue pelo leitor é recusada como data, com motivo', () => {
+    expect(parseImportDate('12:00')).toEqual({ kind: 'invalid', reason: '"12:00" não está em DD/MM/AAAA' })
   })
 })

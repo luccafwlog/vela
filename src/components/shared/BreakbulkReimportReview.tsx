@@ -80,6 +80,13 @@ export function BreakbulkReimportReview({
                     </li>
                   ))}
                 </ul>
+                {check.customerChanges.some((change) => change.fileCustomerMissing) ? (
+                  <p>
+                    Consignatário não cadastrado: com a troca confirmada, o B/L sai do Cliente atual e volta para a
+                    Reconciliação de Cliente até o novo consignatário ser cadastrado. Com fatura ou recebível a troca é
+                    recusada; cadastre o Cliente antes de reimportar.
+                  </p>
+                ) : null}
               </ImportNotice>
               <label className="app-import-override">
                 <input
@@ -93,7 +100,7 @@ export function BreakbulkReimportReview({
                   </span>
                   <span className="app-import-override__hint">
                     O B/L passa ao novo consignatário e as taxas locais são reemitidas; com recebimento, devolva ao Cliente
-                    original antes da nova cobrança. Sem marcar, o Cliente atual fica.
+                    original antes da nova cobrança. Sem marcar, o Cliente, o consignatário e o CNPJ gravados ficam.
                   </span>
                 </span>
               </label>

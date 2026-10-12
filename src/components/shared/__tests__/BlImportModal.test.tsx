@@ -444,6 +444,31 @@ it('informa B/Ls cujo calculo automatico falhou sem esconder a importacao', asyn
   expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Importação de B/L concluída'), 'success')
 })
 
+it('avisa no resultado quando a Troca de Consignatário não foi confirmada (migration 213)', async () => {
+  mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU555'))
+  mocks.previewBlFreightImport.mockResolvedValue({
+    ...previewWithDiff,
+    rows: [{ ...previewWithDiff.rows[0], blNumber: 'COSU555', payload: { id: 'COSU555' } }],
+    summary: { ...previewWithDiff.summary, total: 1, updatedCount: 0 },
+  })
+  mocks.confirmBlFreightImport.mockResolvedValue(Object.assign(
+    { result: { imported: 1 }, refusedCustomerRelinks: [], calculationErrors: [] },
+    { customerChangesIgnored: ['COSU555'] },
+  ))
+  const { container } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'bl.xlsx')] },
+  })
+  await screen.findByText('COSU555')
+  const confirm = await screen.findByRole('button', { name: /^Importar/ })
+  await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(confirm)
+
+  expect(await screen.findByText(/Consignatário mantido em COSU555: a troca de cliente não foi confirmada/)).toBeTruthy()
+  expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('consignatário mantido em COSU555'), 'error')
+})
+
 it('mostra o impedimento quando a fatura nao pode acompanhar a troca de cliente', async () => {
   const previewBlockedChange = {
     rows: [{

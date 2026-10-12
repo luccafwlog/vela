@@ -79,6 +79,9 @@ registra o que a execução do plano deixou de fora do caminho feliz, as
 correções das migrations `190`–`202` e as decisões que ficaram para o dono,
 tomadas na [ADR 0079](adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md)
 (migrations `203`–`206`; a `207` a `210` fecham achados da revisão automática).
+A [revisão final de 2026-10-12](archive/audits/2026-10-12-revisao-final-pr-929.md)
+fecha os achados restantes nas migrations `211`–`216`, com as decisões da
+[ADR 0080](adr/0080-decisoes-da-revisao-final-da-pr-929.md).
 
 A [revisão financeira de 2026-10-04](archive/audits/2026-10-04-revisao-fluxo-financeiro.md)
 registra testes locais de emissão, pagamento, conciliação, correção e cancelamento,

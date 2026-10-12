@@ -3,7 +3,7 @@ import { asString, chunkArray, normalizeHeader } from '../lib/utils'
 import { inferSeparatorFormat, parseImportNumber, type ImportNumberFormat } from '../lib/importNumber'
 import { IsoContainerSchema, VinSchema } from './importValidation'
 import { supabase } from './supabase'
-import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
+import { HIDDEN_DATA_MESSAGE, matchHeaders, missingHeaderFields, readSheet, type HeaderSpec, type SheetRow } from './importCore'
 
 // Aliases por campo. Cobrem tres formatos de origem:
 // 1) Planilha modelo do sistema (cabecalhos em portugues: CHASSI, MARCA, ...).
@@ -162,7 +162,12 @@ export async function parseVehicleImportBuffer(buffer: ArrayBuffer): Promise<Par
   let chosenRows: SheetRow[] | undefined
   let chosenNumberFormat: ImportNumberFormat = 'pt-BR'
   let lastMissing: string[] = Object.values(requiredHeaders)
+  let headersChecked = false
+  let hiddenDataSeen = false
 
+  // Aba anterior que não é a dos veículos não aborta a procura: aba vazia, aba
+  // com os dados só em linhas ocultas e aba sem os campos são puladas. Coluna
+  // repetida para o mesmo campo só recusa a aba que tem todos os campos.
   for (let sheetIndex = 0; ; sheetIndex += 1) {
     let content
     try {
@@ -170,19 +175,29 @@ export async function parseVehicleImportBuffer(buffer: ArrayBuffer): Promise<Par
     } catch (error) {
       if (error instanceof Error && error.message === 'Arquivo sem abas validas.') break
       if (error instanceof Error && error.message === 'Planilha vazia.') continue
+      if (error instanceof Error && error.message === HIDDEN_DATA_MESSAGE) {
+        hiddenDataSeen = true
+        continue
+      }
       throw error
     }
-    const { missing } = matchHeaders(content.headers, SPEC)
-    if (!missing.length) {
-      chosenRows = content.rows
-      chosenNumberFormat = inferVehicleNumberFormat(content.headers)
-      break
+    headersChecked = true
+    const absent = missingHeaderFields(content.headers, SPEC)
+    if (absent.length) {
+      lastMissing = absent.map((field) => requiredHeaders[field as keyof typeof requiredHeaders] ?? field)
+      continue
     }
-    lastMissing = missing.map((field) => requiredHeaders[field as keyof typeof requiredHeaders] ?? field)
+    // Aba com todos os campos: aqui a coluna repetida recusa (matchHeaders).
+    matchHeaders(content.headers, SPEC)
+    chosenRows = content.rows
+    chosenNumberFormat = inferVehicleNumberFormat(content.headers)
+    break
   }
 
   if (!chosenRows) {
-    throw new Error(`Planilha invalida. Colunas obrigatorias: ${lastMissing.join(', ')}.`)
+    if (hiddenDataSeen && !headersChecked) throw new Error(HIDDEN_DATA_MESSAGE)
+    const hiddenNote = hiddenDataSeen ? ' Há também dados em linhas ou abas ocultas, que são ignoradas.' : ''
+    throw new Error(`Planilha invalida. Colunas obrigatorias: ${lastMissing.join(', ')}.${hiddenNote}`)
   }
   return parseVehicleImportRows(chosenRows, chosenNumberFormat)
 }

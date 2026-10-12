@@ -229,6 +229,35 @@ it('emite em lotes depois de gravar e oferece Retomar quando um lote falha', asy
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Retomar emissão' })).toBeNull())
 })
 
+it('X e Escape não fecham durante a emissão; o lote que falha mantém "Retomar emissão"', async () => {
+  const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
+  mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })
+  mocks.preview.mockResolvedValue(cleanPreview)
+  mocks.importRows.mockResolvedValue({ processed: 1, updated: 1, overwritten: 0, unchanged: 0, errorCount: 0, errors: [], billingPendingBlIds: ['BL001'] })
+  let failChunk: (error: unknown) => void = () => {}
+  mocks.emit.mockReturnValueOnce(new Promise((_resolve, reject) => { failChunk = reject }))
+  const onClose = vi.fn()
+
+  const { container } = render(<CeMercanteImportModal open onClose={onClose} />)
+  fireEvent.change(screen.getByPlaceholderText('Ex.: 1226501860578'), { target: { value: '1226501860578' } })
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(['x'], 'ce.xlsx')] } })
+  await waitFor(() => expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
+  await screen.findByText('Emitindo as faturas em lotes. Não feche esta janela.')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Fechar modal' }))
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+  expect(onClose).not.toHaveBeenCalled()
+  expect(mocks.showToast).toHaveBeenCalledWith('Aguarde: a gravação ou a emissão das faturas ainda está em andamento.', 'info')
+
+  failChunk(Object.assign(new Error('timeout'), { code: '57014', done: [] }))
+  await screen.findByRole('button', { name: 'Retomar emissão' })
+  // Parada a emissão, fechar volta a valer.
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Fechar' }) as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(screen.getByRole('button', { name: 'Fechar modal' }))
+  expect(onClose).toHaveBeenCalledTimes(1)
+})
+
 it('erro do lote sem linha não aparece como "Linha 0"', async () => {
   const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
   mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })

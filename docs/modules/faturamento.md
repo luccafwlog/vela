@@ -55,7 +55,12 @@ para a decisão completa.
   (migration `208`). A lista é travada antes de ser lida: duas emissões
   simultâneas no mesmo POD não apagam o B/L uma da outra (migration `209`). B/L calculado com todas as
   taxas zeradas volta como "Nada a faturar", sem alerta. Nenhum dos dois abre
-  `billing_auto_issue_failed`. Sem CE, qualquer desses
+  `billing_auto_issue_failed`. Desde a migration `212`, o B/L que sai do lote
+  sem fatura a emitir ("Nada a faturar", isento, sem CE ou cancelado) também
+  deixa a lista do alerta de tabela faltando e fecha a falha de emissão
+  anterior; e a mesma planilha de CE importada de novo devolve ao lote o B/L
+  ativo, com CE e sem fatura que uma emissão interrompida deixou para trás. A
+  tela não fecha (X ou Escape) enquanto grava ou emite. Sem CE, qualquer desses
   modos fica em “Aguardando CE Mercante” na Validação; a exceção manual é a emissão
   individual “Emitir”, que mantém os mesmos gates. Granito é apoio operacional
   e não emite invoice (nota de 2026-09-23 na ADR 0042). Embarque de Vazios não emite CE nem possui faturamento de

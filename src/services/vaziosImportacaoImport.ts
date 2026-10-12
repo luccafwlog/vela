@@ -54,6 +54,10 @@ type ParsedVaziosImportacaoContainer = {
 export type ParsedVaziosImportacaoManifest = {
   containers: ParsedVaziosImportacaoContainer[]
   rowErrors: RowError[]
+  /** Avisos de leitura (linhas/abas ocultas, Windows-1252), como no Embarque de Vazios. */
+  warnings: string[]
+  /** Linhas e abas ocultas que o leitor ignorou (`readSheet`). */
+  hidden: { rows: number; sheets: string[] }
 }
 
 export async function parseVaziosImportacaoFile(file: File): Promise<ParsedVaziosImportacaoManifest> {
@@ -63,7 +67,7 @@ export async function parseVaziosImportacaoFile(file: File): Promise<ParsedVazio
 }
 
 export async function parseVaziosImportacaoBuffer(buffer: ArrayBuffer): Promise<ParsedVaziosImportacaoManifest> {
-  const { headers, rows } = await readSheet(buffer, {
+  const { headers, rows, warnings, hidden } = await readSheet(buffer, {
     expectedHeaders: VAZIOS_IMPORTACAO_HEADER_MARKERS,
   })
   const { missing } = matchHeaders(headers, VAZIOS_IMPORTACAO_HEADER_SPEC)
@@ -124,7 +128,40 @@ export async function parseVaziosImportacaoBuffer(buffer: ArrayBuffer): Promise<
     })
   })
 
-  return { containers, rowErrors: rowErrors.errors }
+  return { containers, rowErrors: rowErrors.errors, warnings, hidden }
+}
+
+/**
+ * Confirmação antes de gravar uma planilha com linhas ou abas ocultas: o leitor
+ * as ignora (ADR 0078, item 22) e a gravação substitui os containers de cada
+ * rota (POL/POD) presente no arquivo, então os containers ocultos da mesma
+ * rota saem do manifesto da Viagem. Mesmo padrão da pergunta do Embarque de
+ * Vazios (`EmbarqueVazios.tsx`). `null` quando nada ficou oculto.
+ */
+export function vaziosImportacaoHiddenConfirmOptions(hidden: ParsedVaziosImportacaoManifest['hidden'] | undefined) {
+  if (!hidden) return null
+  const parts: string[] = []
+  if (hidden.rows > 0) {
+    parts.push(hidden.rows === 1
+      ? '1 linha oculta foi ignorada e as unidades dela sairão do manifesto.'
+      : `${hidden.rows} linhas ocultas foram ignoradas e as unidades delas sairão do manifesto.`)
+  }
+  if (hidden.sheets.length) {
+    const names = hidden.sheets.map((name) => `"${name}"`).join(', ')
+    parts.push(hidden.sheets.length === 1
+      ? `A aba oculta ${names} foi ignorada; se ela tiver unidades, elas sairão do manifesto.`
+      : `As abas ocultas ${names} foram ignoradas; se elas tiverem unidades, elas sairão do manifesto.`)
+  }
+  if (!parts.length) return null
+  return {
+    title: 'Planilha com dados ocultos',
+    message: `${parts.join(' ')} Continuar?`,
+    consequence:
+      'A importação substitui os containers de cada rota (POL/POD) da planilha na Viagem: só as linhas visíveis ficam no manifesto. Para importar as ocultas, reexiba-as na planilha e escolha o arquivo de novo.',
+    reversibility: 'Importar de novo a planilha com as linhas reexibidas devolve as unidades ao manifesto.',
+    confirmLabel: 'Importar sem as ocultas',
+    tone: 'danger' as const,
+  }
 }
 
 function resolveVaziosPort(
@@ -205,7 +242,8 @@ export function resolveVaziosManifestNumbers(
 }
 
 export type ImportVaziosImportacaoArgs = {
-  manifest: ParsedVaziosImportacaoManifest
+  /** A gravação usa só os containers e os erros de linha; a pergunta das ocultas é de quem chama. */
+  manifest: Pick<ParsedVaziosImportacaoManifest, 'containers' | 'rowErrors'>
   uploadedBy: string
   voyageId: number
   /** Nº do manifesto Mercante por rota da planilha (chave `vaziosRouteKey`), obrigatório em todas. */

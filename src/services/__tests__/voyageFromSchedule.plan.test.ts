@@ -172,4 +172,41 @@ describe('planScheduleSheet', () => {
     ], 'user-1')
     expect(otherVessel.map((row) => row.error)).toEqual([null, null])
   })
+
+  it('navio achado pelo nome com IMOs diferentes em viagens diferentes recusa as linhas na prévia', async () => {
+    // A gravação grava o IMO da primeira linha no navio (202) e recusaria a
+    // segunda como "IMO conflitante", desfazendo o arquivo inteiro.
+    calls.findVoyage.mockResolvedValue(null)
+    calls.vessels = { byImo: [], byName: [] }
+
+    const plan = await planScheduleSheet([
+      sheetRow({ vesselImo: '9111111', voyageNumber: '6' }),
+      sheetRow({ vesselImo: '9222222', voyageNumber: '7' }),
+      sheetRow({ vesselName: 'OUTRO NAVIO', vesselImo: '9333333', voyageNumber: '8' }),
+    ], 'user-1')
+
+    expect(plan[0].error).toBe('Navio GREEN PECEM com IMOs diferentes no arquivo (9111111, 9222222). Deixe um IMO por navio.')
+    expect(plan[1].error).toBe(plan[0].error)
+    expect(plan[2]).toMatchObject({ error: null, createsVoyage: true })
+  })
+
+  it('POD removido da Viagem volta ao planejamento com a data que tinha como "antes"', async () => {
+    // Sem isso a prévia mandava `old_value` vazio e a gravação (209) recusava
+    // o arquivo para sempre: o Histórico ainda tem a ETA de antes da remoção.
+    calls.findVoyage.mockResolvedValue(42)
+    calls.listPod.mockImplementation(async (_ids: string[], options?: { includeDeleted?: boolean }) => {
+      const pods = podOnDate(42, '2026-01-10')
+      pods.get('42::BRSSA')!.deleted = true
+      return options?.includeDeleted ? pods : new Map()
+    })
+    calls.voyages = [{ id: 42, status: 'active', show_on_portal: true }]
+
+    const [row] = await planScheduleSheet([sheetRow()], 'user-1')
+
+    expect(row.error).toBeNull()
+    expect(row.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field_name: 'eta', old_value: '2026-01-10', new_value: '2026-01-22' }),
+      expect.objectContaining({ field_name: 'deleted', old_value: 'true', new_value: 'false' }),
+    ]))
+  })
 })

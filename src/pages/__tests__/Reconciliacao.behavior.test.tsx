@@ -30,7 +30,7 @@ vi.mock('../../services/demurrage/demurrageKpis', () => ({
 }))
 vi.mock('../../services/importCore', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/importCore')>()),
-  readSpreadsheetWarnings: mocks.sheetWarnings,
+  readSpreadsheetNotices: mocks.sheetWarnings,
 }))
 vi.mock('../../services/reconciliacao', () => ({
   matchUnifiedPixTransactions: mocks.match,
@@ -169,7 +169,7 @@ describe('Reconciliacao PIX user behaviours', () => {
     authState.isAdmin = true
     mocks.parse.mockResolvedValue([transaction])
     mocks.match.mockResolvedValue([safeMatch, ambiguousMatch, unmatchedMatch])
-    mocks.sheetWarnings.mockResolvedValue([])
+    mocks.sheetWarnings.mockResolvedValue({ warnings: [], firstSheetHiddenRows: 0 })
     mocks.createImportKey.mockResolvedValue('sha256:pix-import')
     mocks.getLineIdentity.mockImplementation((transaction: { lineNumber?: number }) => transaction.lineNumber ?? 1)
     mocks.persist.mockResolvedValue([
@@ -210,7 +210,7 @@ describe('Reconciliacao PIX user behaviours', () => {
   // Revisão da PR 929 (achado da revisão automática): linhas ocultas do extrato
   // ficam fora da leitura; o aviso aparece antes de Confirmar.
   it('avisa as linhas ocultas do extrato antes de confirmar', async () => {
-    mocks.sheetWarnings.mockResolvedValueOnce(['2 linhas ocultas ignoradas: o filtro da planilha indica importar só o visível.'])
+    mocks.sheetWarnings.mockResolvedValueOnce({ warnings: ['2 linhas ocultas ignoradas: o filtro da planilha indica importar só o visível.'], firstSheetHiddenRows: 2 })
     const user = userEvent.setup()
     renderPage()
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
@@ -219,7 +219,26 @@ describe('Reconciliacao PIX user behaviours', () => {
 
     expect(await screen.findByText('Parte do extrato ficou de fora')).toBeTruthy()
     expect(screen.getByText(/2 linhas ocultas ignoradas/)).toBeTruthy()
+    expect(screen.getByText(/Só as linhas visíveis foram conciliadas/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Confirmar 1 pagamento(s)' })).toBeTruthy()
+  })
+
+  // Revisão da PR 929: linhas ocultas de OUTRA aba (que o parser PIX não lê)
+  // não tiram nada da conciliação — o aviso não diz que só o visível entrou.
+  it('linhas ocultas em outra aba: avisa sem dizer que parte do extrato ficou de fora', async () => {
+    mocks.sheetWarnings.mockResolvedValueOnce({
+      warnings: ['3 linhas ocultas ignoradas na aba "Resumo": o filtro da planilha indica importar só o visível.'],
+      firstSheetHiddenRows: 0,
+    })
+    const user = userEvent.setup()
+    renderPage()
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+
+    await user.upload(input, new File(['xlsx'], 'pix.xlsx', { type: 'application/vnd.ms-excel' }))
+
+    expect(await screen.findByText('Avisos de leitura do extrato')).toBeTruthy()
+    expect(screen.queryByText('Parte do extrato ficou de fora')).toBeNull()
+    expect(screen.queryByText(/Só as linhas visíveis foram conciliadas/)).toBeNull()
   })
 
   it('recarrega pendencias PIX persistidas e oferece nova tentativa segura', async () => {

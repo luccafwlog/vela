@@ -61,3 +61,25 @@ it('Remover manda o CE que a ficha exibia', async () => {
 
   await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ blId: 'BL-1', reason: 'CE do B/L errado', expectedCe: '123456789012345' }))
 })
+
+// Revisão final da PR 929: recusa "mudou depois que a ficha foi aberta" recarrega
+// a ficha, para a nova tentativa mandar o CE atual; outra recusa não recarrega.
+it('Corrigir recusado por CE antigo recarrega a ficha', async () => {
+  const { afterBlEstadoAlterado } = await import('../../../services/cacheEffects')
+  vi.mocked(afterBlEstadoAlterado).mockClear()
+  mocks.correct.mockClear()
+  mocks.confirm.mockResolvedValue('CE digitado errado')
+  mocks.correct.mockRejectedValueOnce({ code: '22023', message: 'O CE Mercante do B/L BL-1 mudou depois que a ficha foi aberta (agora: 123456789012399). Recarregue a ficha e confira antes de corrigir.' })
+  render(<BlCeMercanteField blId="BL-1" voyageId={7} ce="123456789012345" />)
+
+  fireEvent.change(screen.getByLabelText('CE Mercante novo'), { target: { value: '123456789012346' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Corrigir' }))
+  await waitFor(() => expect(afterBlEstadoAlterado).toHaveBeenCalledWith(expect.anything(), { blId: 'BL-1', voyageId: 7 }))
+
+  vi.mocked(afterBlEstadoAlterado).mockClear()
+  mocks.correct.mockRejectedValueOnce({ code: '22023', message: 'CE Mercante invalido.' })
+  fireEvent.click(screen.getByRole('button', { name: 'Corrigir' }))
+  await waitFor(() => expect(mocks.correct).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Corrigir' }) as HTMLButtonElement).disabled).toBe(false))
+  expect(afterBlEstadoAlterado).not.toHaveBeenCalled()
+})

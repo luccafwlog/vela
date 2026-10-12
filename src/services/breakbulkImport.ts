@@ -1,4 +1,5 @@
 import { isBlFinanciallyLocked } from '../lib/chargeStatus'
+import { canonicalizeDocument } from '../lib/cnpj'
 import { extractNcmCodes } from '../lib/ncm'
 import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, type CustomerMaps } from './customerReconciliation'
 import { calculateLocalChargesBatch } from './charges/chargeOperationsService'
@@ -67,13 +68,11 @@ export function approvesBilledRouteChanges(approval: BreakbulkApproval, check: P
 }
 
 /**
- * Manifesto aceito pela importação. A cubagem pode faltar (B/L avulso sem
- * CBM): ausente vai como null e a gravação mantém a cubagem gravada (a RPC
- * só preserva NULL; zero apagaria).
+ * Manifesto aceito pela importação. A cubagem e os números do item podem
+ * faltar (B/L avulso, Manifesto BB do armador sem CBM): ausentes vão como null
+ * e a gravação mantém o valor gravado (a RPC só preserva NULL; zero apagaria).
  */
-export type BreakbulkImportManifest = Omit<ParsedBreakbulkManifest, 'bls'> & {
-  bls: Array<Omit<ParsedBreakbulkManifest['bls'][number], 'bb_cbm'> & { bb_cbm: number | null }>
-}
+export type BreakbulkImportManifest = ParsedBreakbulkManifest
 
 /** Aviso da linha de B/L cancelado, o mesmo da planilha de CE Mercante (ADR 0078, item 7). */
 export function describeCancelledBl(blId: string) {
@@ -236,7 +235,7 @@ export type BreakbulkImportResult = {
   ceIgnored: string[]
   /** B/Ls cancelados no momento da gravação: a linha foi ignorada (somente leitura). */
   cancelledIgnored: string[]
-  /** CNPJ de outro Cliente sem aceite: o Cliente vinculado ficou. */
+  /** Troca de Consignatário sem aceite: o Cliente e o consignatário gravados ficaram. */
   customerChangesIgnored: string[]
   refusedCustomerRelinks: Array<{ blId: string; blockers: string[] }>
   /** Rota de B/L faturado mantida por falta da confirmação de faturamento. */
@@ -254,7 +253,7 @@ export function describeBreakbulkPending(result: BreakbulkImportResult): string[
       : null,
     ...(result.cancelledIgnored ?? []).map(describeCancelledBl),
     result.customerChangesIgnored.length
-      ? `Cliente mantido em ${result.customerChangesIgnored.join(', ')}: a troca de Cliente não foi confirmada.`
+      ? `Cliente e consignatário mantidos em ${result.customerChangesIgnored.join(', ')}: a troca de Cliente não foi confirmada.`
       : null,
     ...result.refusedCustomerRelinks.map((entry) => `Troca de Cliente recusada em ${entry.blId}: ${entry.blockers.join(' ')}`),
     ...result.billingLocked.map((entry) => `${entry.bl_id}: ${entry.fields.join(' e ').toUpperCase()} mantido (B/L faturado, sem confirmação).`),
@@ -351,7 +350,8 @@ type ExistingBreakbulkBl = {
   pod: string | null
   financial_status: string | null
   cancelled_at: string | null
-  customer: { name: string | null } | null
+  manifest_customer_cnpj_cpf: string | null
+  customer: { name: string | null; cnpj_cpf: string | null } | null
   voyage: { voyage_number: string | null; vessel: { name: string | null } | null } | null
 }
 
@@ -371,7 +371,7 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: Breakbu
   for (let i = 0; i < ids.length; i += CHECK_CHUNK) {
     const { data, error } = await supabase
       .from('bls')
-      .select('id, voyage_id, customer_id, pol, pod, financial_status, cancelled_at, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, vessel:vessels(name))')
+      .select('id, voyage_id, customer_id, pol, pod, financial_status, cancelled_at, manifest_customer_cnpj_cpf, customer:customers!bls_customer_id_fkey(name, cnpj_cpf), voyage:voyages(voyage_number, vessel:vessels(name))')
       .in('id', ids.slice(i, i + CHECK_CHUNK))
     if (error) throw error
     found.push(...((data ?? []) as unknown as ExistingBreakbulkBl[]))
@@ -410,11 +410,26 @@ export async function checkBreakbulkReimport(voyageId: number, manifest: Breakbu
       check.otherVoyage.push({ blId: bl.id, voyageLabel: label || `#${bl.voyage_id}` })
       continue
     }
+    // Troca de Consignatário: outro Cliente cadastrado, ou um CNPJ que não é o
+    // gravado nem o do Cliente vinculado e não tem Cliente (consignatário não
+    // cadastrado). A RPC aplica a mesma regra (migration 213): sem aceite, o
+    // consignatário gravado fica.
+    const fileDocument = canonicalizeDocument(row.manifest_customer_cnpj_cpf)
+    const unregisteredChange = bl.customer_id != null && row.customer_id == null && Boolean(fileDocument)
+      && fileDocument !== canonicalizeDocument(bl.manifest_customer_cnpj_cpf)
+      && fileDocument !== canonicalizeDocument(bl.customer?.cnpj_cpf)
     if (bl.customer_id != null && row.customer_id != null && row.customer_id !== bl.customer_id) {
       check.customerChanges.push({
         blId: bl.id,
         currentCustomer: bl.customer?.name ?? `Cliente #${bl.customer_id}`,
         fileCustomer: customerNames.get(row.customer_id) ?? row.consignee,
+      })
+    } else if (unregisteredChange) {
+      check.customerChanges.push({
+        blId: bl.id,
+        currentCustomer: bl.customer?.name ?? `Cliente #${bl.customer_id}`,
+        fileCustomer: `${row.manifest_customer_name || row.consignee} (consignatário não cadastrado)`,
+        fileCustomerMissing: true,
       })
     }
     const podChanges = Boolean(row.pod && row.pod !== bl.pod)

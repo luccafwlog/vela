@@ -99,6 +99,7 @@ export function excelSerialToCivil(
   // (16:29:40 é 16:29, não 16:30).
   const totalSeconds = Math.round(serial1900 * 86_400)
   const whole = Math.floor(totalSeconds / 86_400)
+  // Serial sem dia inteiro é célula só de hora (`excelSerialTimeOfDay`), não data.
   if (whole < 1) return null
   // 1900 é tratado pelo Excel como bissexto: o serial 60 é o inexistente 29/02/1900
   // (lido como 01/03/1900). O serial 25569 é 01/01/1970; a conversão é
@@ -108,6 +109,25 @@ export function excelSerialToCivil(
   const minutes = Math.floor((totalSeconds - whole * 86_400) / 60)
   if (minutes <= 0) return { date, time: null }
   return { date, time: `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}` }
+}
+
+/**
+ * Hora `HH:MM` de uma célula só de hora (`hh:mm`), cujo serial fica entre 0 e
+ * 1 (fração do dia, sem data), ou `null` quando o serial tem data. O leitor
+ * comum entrega esse texto no lugar da célula vazia: a hora não some em
+ * silêncio, e o parser de data a recusa com motivo ("não está em DD/MM/AAAA").
+ *
+ * O serial 0 é tratado como vazio (`null` aqui e em `excelSerialToCivil`): é o
+ * que uma fórmula que aponta para célula vazia devolve numa coluna de data.
+ * ponytail: a meia-noite digitada como hora pura (`00:00`) também é 0 e cai
+ * nesse vazio; upgrade = olhar o formato da célula (só hora × data).
+ */
+export function excelSerialTimeOfDay(serial: number): string | null {
+  if (!Number.isFinite(serial) || serial <= 0) return null
+  const totalSeconds = Math.round(serial * 86_400)
+  if (totalSeconds >= 86_400) return null
+  const minutes = Math.floor(totalSeconds / 60)
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 }
 
 /** Dias desde 01/01/1970 → data civil (algoritmo de H. Hinnant, sem `Date`). */

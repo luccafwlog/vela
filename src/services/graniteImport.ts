@@ -99,6 +99,12 @@ export type ParsedGraniteManifest = {
    * sair da Viagem na reimportação.
    */
   fileBlNumbers: string[]
+  /**
+   * Linhas e abas ocultas que o leitor ignorou (`readSheet`). B/L que só está
+   * numa linha oculta não está em `fileBlNumbers` e aparece como ausente na
+   * reimportação: a confirmação de saída avisa isso.
+   */
+  hidden?: { rows: number; sheets: string[] }
 }
 
 export async function parseGraniteManifestFile(file: File): Promise<ParsedGraniteManifest> {
@@ -108,7 +114,7 @@ export async function parseGraniteManifestFile(file: File): Promise<ParsedGranit
 }
 
 async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGraniteManifest> {
-  const { headers, rows } = await readSheet(buffer, {
+  const { headers, rows, hidden } = await readSheet(buffer, {
     expectedHeaders: GRANITE_HEADER_MARKERS,
   })
   const { missing } = matchHeaders(headers, GRANITE_HEADER_SPEC)
@@ -229,7 +235,7 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
 
   const vesselVoyage = bls.find((bl) => bl.vessel_voyage)?.vessel_voyage ?? ''
 
-  return { vesselVoyage, bls, rowErrors: rowErrors.errors, fileBlNumbers: [...seenBlNumbers] }
+  return { vesselVoyage, bls, rowErrors: rowErrors.errors, fileBlNumbers: [...seenBlNumbers], hidden }
 }
 
 /**
@@ -357,11 +363,24 @@ export function graniteImportScope(existing: GraniteVoyageBl[], sentBlNumbers: s
   return { newManifest: touched.size === 0, missing }
 }
 
-/** Texto da confirmação da saída dos B/Ls ausentes do arquivo novo. */
-export function graniteRemovalConfirmOptions(missing: string[]) {
+/**
+ * Texto da confirmação da saída dos B/Ls ausentes do arquivo novo. Com linhas
+ * ou abas ocultas no arquivo (`hidden`), diz que elas foram ignoradas: um B/L
+ * "ausente" pode estar numa linha oculta.
+ */
+export function graniteRemovalConfirmOptions(missing: string[], hidden?: ParsedGraniteManifest['hidden']) {
+  const hiddenParts: string[] = []
+  if (hidden?.rows) hiddenParts.push(hidden.rows === 1 ? '1 linha oculta' : `${hidden.rows} linhas ocultas`)
+  if (hidden?.sheets.length) {
+    const names = hidden.sheets.map((name) => `"${name}"`).join(', ')
+    hiddenParts.push(hidden.sheets.length === 1 ? `a aba oculta ${names}` : `as abas ocultas ${names}`)
+  }
+  const hiddenNote = hiddenParts.length
+    ? ` Linhas e abas ocultas não são lidas, e este arquivo tem ${hiddenParts.join(' e ')}: um B/L que esteja nelas conta como fora do arquivo.`
+    : ''
   return {
     title: 'B/Ls fora do arquivo novo',
-    message: `${missing.length} B/L(s) de Granito do manifesto que este arquivo atualiza não estão no arquivo.`,
+    message: `${missing.length} B/L(s) de Granito do manifesto que este arquivo atualiza não estão no arquivo.${hiddenNote}`,
     confirmLabel: 'Tirar da Viagem',
     cancelLabel: 'Manter gravados',
     tone: 'danger' as const,

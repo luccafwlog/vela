@@ -1,4 +1,4 @@
-import { isDate1904Workbook, typedSheetMatrix } from './importCore'
+import { isDate1904Workbook, positionalSheetNames, typedSheetMatrix } from './importCore'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeValidCnpj } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
@@ -96,7 +96,8 @@ export async function parseBLBuffer(buffer: ArrayBuffer): Promise<ParsedBLDocume
   // Laden on Board) vira data civil AAAA-MM-DD a partir do serial, sem fuso.
   const workbook = XLSX.read(buffer, { type: 'array', cellNF: true })
   // ponytail: acoplado ao layout COSCO Page 1; upgrade = detectar layout por armador/template.
-  const page1 = workbook.Sheets['Page 1'] ?? workbook.Sheets[workbook.SheetNames[0]]
+  // As abas lidas (Page 1 e VIN) seguem `positionalSheetNames`, a mesma regra do aviso do seletor.
+  const page1 = workbook.Sheets[positionalSheetNames(workbook.SheetNames).page ?? '']
   // Pasta do Excel antigo de Mac (sistema 1904): sem a flag, o Laden on Board
   // sairia 4 anos e 1 dia antes.
   const rows: RawSheetRow[] = typedSheetMatrix(page1 as unknown as Record<string, unknown>, XLSX, {
@@ -296,15 +297,15 @@ function parseContainers(rows: RawSheetRow[]): ParsedBLContainer[] {
   return containers
 }
 
-function findVinSheetName(workbook: { Sheets: Record<string, unknown> }) {
-  return Object.keys(workbook.Sheets).find((name) => name.trim().toUpperCase() === 'VIN')
+function findVinSheetName(workbook: { SheetNames: string[] }) {
+  return positionalSheetNames(workbook.SheetNames).vin
 }
 
-function hasVinSheet(workbook: { Sheets: Record<string, unknown> }) {
+function hasVinSheet(workbook: { SheetNames: string[] }) {
   return Boolean(findVinSheetName(workbook))
 }
 
-function parseVehicles(workbook: { Sheets: Record<string, unknown> }, utils: typeof import('@e965/xlsx').utils) {
+function parseVehicles(workbook: { SheetNames: string[]; Sheets: Record<string, unknown> }, utils: typeof import('@e965/xlsx').utils) {
   const vinSheetName = findVinSheetName(workbook)
   const vinSheet = vinSheetName ? workbook.Sheets[vinSheetName] : null
   if (!vinSheet) return []

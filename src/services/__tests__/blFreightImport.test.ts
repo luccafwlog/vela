@@ -6,6 +6,7 @@ import {
   chunkBlPayload,
   confirmBlFreightImport,
   previewBlFreightImport,
+  readCustomerChangesIgnored,
   type BlFreightImportPreview,
 } from '../blFreightImport'
 import type { ParsedBLDocument } from '../blParser'
@@ -713,6 +714,7 @@ describe('blFreightImport', () => {
       vehiclesDiscarded: [],
       vehicleChangesPending: [],
       refusedCustomerRelinks: [],
+      customerChangesIgnored: [],
       calculationErrors: [],
     })
     expect(mockRpc).toHaveBeenCalledWith('import_bl_freight_with_metadata', {
@@ -1121,14 +1123,25 @@ describe('blFreightImport', () => {
       },
     })
 
-    await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', false)
-    const withoutConfirmation = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<{ relink_customer: boolean }>
+    const unconfirmed = await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', false)
+    const withoutConfirmation = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<Record<string, unknown>>
     expect(withoutConfirmation[0].relink_customer).toBe(false)
+    // Sem aceite, o consignatário do arquivo não vai: o gravado fica (migration 213).
+    for (const field of ['consignee', 'consignee_block', 'manifest_customer_cnpj_cpf', 'manifest_customer_name', 'manifest_customer_email', 'billing_hold_reason']) {
+      expect(withoutConfirmation[0]).not.toHaveProperty(field)
+    }
+    expect(unconfirmed.customerChangesIgnored).toEqual([preview.rows[0]?.blNumber])
 
     mockRpc.mockClear()
-    await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', true)
+    const accepted = await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', true)
     const confirmed = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<{ relink_customer: boolean; customer_id: number | null }>
-    expect(confirmed[0]).toMatchObject({ relink_customer: true, customer_id: 43 })
+    expect(confirmed[0]).toMatchObject({ relink_customer: true, customer_id: 43, manifest_customer_cnpj_cpf: '98765432000110' })
+    expect(accepted.customerChangesIgnored).toEqual([])
+  })
+
+  it('lê do retorno da RPC a Troca de Consignatário que o servidor ignorou', () => {
+    expect(readCustomerChangesIgnored({ customer_changes_ignored: [{ bl_id: 'BL-1', customer_id: 1 }, { bl_id: '' }, null] })).toEqual(['BL-1'])
+    expect(readCustomerChangesIgnored({})).toEqual([])
   })
   it('grava o NCM declarado no documento e o mostra no diff', () => {
     const doc = parsedBL()

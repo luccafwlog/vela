@@ -159,6 +159,7 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
     psql(`
       SET session_replication_role = replica;
       DELETE FROM public.audit_logs WHERE entity_type IN ('bl_container', 'bl_containers') AND entity_id IN (SELECT id::text FROM public.bl_containers WHERE bl_id = '${BL_ID}');
+      DELETE FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = '${BL_ID}';
       DELETE FROM public.bl_containers WHERE bl_id = '${BL_ID}';
       DELETE FROM public.bls WHERE id = '${BL_ID}';
       DELETE FROM public.voyages WHERE id = 7793;
@@ -204,19 +205,23 @@ describe079('079 — Histórico do B/L mostra mudanças nos containers', () => {
   })
 
   it('edição com justificativa aparece uma vez só, com o motivo', () => {
-    // update_container_demurrage_dates grava o evento semântico 'bl_container'
-    // com justificativa e dispara o gatilho por coluna na mesma transação.
-    const result = runAs(USER, `SELECT public.update_container_demurrage_dates(
-      (SELECT id FROM public.bl_containers WHERE bl_id = '${BL_ID}'), '2026-10-14', '2026-10-25', NULL, 'Cliente devolveu no dia 25');`)
+    // `set_container_dates` (a porta das datas desde a 179; a função legada
+    // `update_container_demurrage_dates` deixou a API na 211) grava a data com
+    // o motivo, e o gatilho por coluna registra o evento na mesma transação.
+    const result = runAs(USER, `SELECT public.set_container_dates(
+      (SELECT id FROM public.bl_containers WHERE bl_id = '${BL_ID}'), '2026-10-14', '2026-10-25', 'Cliente devolveu no dia 25');`)
     expect(result.stderr).toBe('')
     const rows = psql(`
       BEGIN;
       SELECT set_config('request.jwt.claim.sub', '${USER}', true);
       SELECT field_name || ' ' || coalesce(justification, '-') FROM public.bl_timeline('${BL_ID}', 50, 0)
-      WHERE new_value = '2026-10-25';
+      WHERE new_value = '2026-10-25' OR (field_name = 'container_dates' AND new_value::jsonb->>'return_date' = '2026-10-25');
       COMMIT;
     `)
-    expect(rows.split('\n').filter((line) => line.startsWith('return_date'))).toEqual(['return_date Cliente devolveu no dia 25'])
+    // O motivo aparece uma vez, no evento da edição das datas; a linha por
+    // coluna registra a mudança sem repetir o motivo.
+    expect(rows.split('\n').filter((line) => line.endsWith('Cliente devolveu no dia 25'))).toEqual(['container_dates Cliente devolveu no dia 25'])
+    expect(rows.split('\n')).toContain('return_date|TCLU0790001 -')
   })
 })
 

@@ -224,6 +224,18 @@ export function CeMercanteImportModal({
     onClose()
   }
 
+  // Gravação ou emissão em andamento: o X e o Escape não fecham. Fechar no
+  // meio deixava o laço de emissão seguindo sem tela e o lote que falhasse
+  // sem "Retomar emissão".
+  const busy = submitting || Boolean(billing?.running)
+  function requestClose() {
+    if (busy) {
+      showToast('Aguarde: a gravação ou a emissão das faturas ainda está em andamento.', 'info')
+      return
+    }
+    resetAndClose()
+  }
+
   // Planilha é "tudo ou nada" (migration 082): erro de estrutura na prévia
   // bloqueia a confirmação.
   const sheetBlocked = Boolean(preview && preview.rowErrors.length > 0)
@@ -246,7 +258,7 @@ export function CeMercanteImportModal({
   const submitCount = preview?.rows.length ?? 0
 
   return (
-    <Modal open={open} onClose={resetAndClose} title="Importar CE Mercante">
+    <Modal open={open} onClose={requestClose} title="Importar CE Mercante">
       <div className="app-import">
         {target === 'bls' ? (
           <Field
@@ -354,7 +366,7 @@ export function CeMercanteImportModal({
 
         <div className="app-modal__actions">
           <ImportFootnote tone={rejectedAfterSubmit || sheetBlocked ? 'warning' : 'default'}>{footnote}</ImportFootnote>
-          <Button variant="secondary" disabled={submitting || Boolean(billing?.running)} onClick={parsing ? cancelReading : resetAndClose}>
+          <Button variant="secondary" disabled={busy} onClick={parsing ? cancelReading : requestClose}>
             {parsing ? 'Interromper leitura' : billing ? 'Fechar' : 'Voltar'}
           </Button>
           <Button disabled={!canSubmit || parsing} loading={submitting} loadingLabel="Importando…" onClick={handleSheetImport}>

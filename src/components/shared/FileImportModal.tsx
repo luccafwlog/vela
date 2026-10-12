@@ -42,6 +42,12 @@ type Props<T, TResult = void> = {
   reparseKey?: string | number
   inspectFile?: (file: File) => Promise<ImportFileInspection>
   importer?: (preview: T, file: File, allowOverride?: boolean) => Promise<TResult>
+  /**
+   * Pergunta antes de gravar cada arquivo (ex.: planilha com linhas ocultas que
+   * a gravação vai tirar). `false` interrompe sem gravar nada e mantém a prévia
+   * aberta, sem mensagem de falha: foi a pessoa que voltou.
+   */
+  confirmBeforeImport?: (preview: T, file: File) => Promise<boolean>
   batchImporter?: (entries: FilePreviewEntry<T>[], allowOverride?: boolean) => Promise<void>
   canImport: (preview: T, allowOverride?: boolean) => boolean
   getIssues?: (preview: T) => readonly ImportIssue[]
@@ -69,6 +75,7 @@ export function FileImportModal<T, TResult = void>({
   reparseKey,
   inspectFile,
   importer,
+  confirmBeforeImport,
   batchImporter,
   canImport,
   renderPreview,
@@ -186,6 +193,11 @@ export function FileImportModal<T, TResult = void>({
   async function handleImport() {
     const importableEntries = entries.filter((entry) => canImport(entry.preview, allowOverride))
     if (!importableEntries.length) return
+    if (confirmBeforeImport) {
+      for (const entry of importableEntries) {
+        if (!(await confirmBeforeImport(entry.preview, entry.file))) return
+      }
+    }
     const controller = new AbortController()
     importControllerRef.current = controller
     setImporting(true)

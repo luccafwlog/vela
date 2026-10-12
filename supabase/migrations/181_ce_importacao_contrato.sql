@@ -77,12 +77,18 @@ END;
 $precheck_180$;
 
 -- Data status (AGENTS.md): os números gravados passam à forma canônica.
-UPDATE public.manifestos_mercante
-   SET numero = public.canonical_manifesto_numero(numero)
- WHERE numero IS DISTINCT FROM public.canonical_manifesto_numero(numero);
-UPDATE public.voyage_route_ce_master
-   SET ce_master = public.canonical_manifesto_numero(ce_master)
- WHERE ce_master IS DISTINCT FROM public.canonical_manifesto_numero(ce_master);
+-- Viagem Cancelada fica de fora: as linhas dela são seladas (guarda da 066) e
+-- a reescrita abortaria a migration (revisão final da PR 929, editada com
+-- autorização do dono em 2026-10-12, antes do primeiro deploy). O número
+-- antigo dela fica como está; a consulta 4c do diagnóstico os lista.
+UPDATE public.manifestos_mercante AS m
+   SET numero = public.canonical_manifesto_numero(m.numero)
+ WHERE m.numero IS DISTINCT FROM public.canonical_manifesto_numero(m.numero)
+   AND NOT EXISTS (SELECT 1 FROM public.voyages AS v WHERE v.id = m.voyage_id AND v.status = 'cancelled');
+UPDATE public.voyage_route_ce_master AS r
+   SET ce_master = public.canonical_manifesto_numero(r.ce_master)
+ WHERE r.ce_master IS DISTINCT FROM public.canonical_manifesto_numero(r.ce_master)
+   AND NOT EXISTS (SELECT 1 FROM public.voyages AS v WHERE v.id = r.voyage_id AND v.status = 'cancelled');
 
 -- O formato vale para todo número novo; os antigos fora dele ficam listados.
 ALTER TABLE public.manifestos_mercante DROP CONSTRAINT IF EXISTS manifestos_mercante_numero_canonical;

@@ -8,6 +8,19 @@ describe('describeTimelineEvent', () => {
     const imo = { family: 'container', entity_type: 'bl_container', field_name: 'is_imo|TCLU1234567', old_value: 'false', new_value: 'true', justification: null } as never
     expect(describeTimelineEvent(imo)).toBe('Container TCLU1234567 · IMO: Não → Sim')
   })
+  it('edição das datas pela ficha mostra só as datas que mudaram, sem o JSON do evento', () => {
+    const edit = {
+      family: 'edicao', entity_type: 'bl', field_name: 'container_dates',
+      old_value: '{"container": "TCLU0790001", "discharge_date": "2026-10-14", "return_date": "2026-10-20"}',
+      new_value: '{"container": "TCLU0790001", "discharge_date": "2026-10-14", "return_date": null, "propagated_bl_ids": ["BL1"]}',
+      justification: 'Terminal estornou a devolução',
+    } as never
+    expect(describeTimelineEvent(edit)).toBe('Container TCLU0790001 · datas: Devolução: 20/10/2026 → -')
+  })
+  it('desvínculo do Manifesto Mercante tem o nome do campo', () => {
+    const unlink = { family: 'edicao', entity_type: 'bl', field_name: 'manifesto_mercante', old_value: '1226501860578', new_value: null, justification: 'Desvínculo automático' } as never
+    expect(describeTimelineEvent(unlink)).toBe('Manifesto Mercante: 1226501860578 → -')
+  })
   it('humanizes a field edit', () => {
     const e = { family: 'edicao', entity_type: 'bl', field_name: 'notify_party', old_value: 'X', new_value: 'Y', justification: 'ajuste' } as never
     expect(describeTimelineEvent(e)).toBe('Notify Party: X → Y')

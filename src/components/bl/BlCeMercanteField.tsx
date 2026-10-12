@@ -6,6 +6,7 @@ import { useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { afterBlEstadoAlterado } from '../../services/cacheEffects'
+import { isStaleScreenRefusal } from '../../services/manifestosMercanteService'
 import { queryKeys } from '../../services/queryKeys'
 import {
   CE_MERCANTE_PATTERN,
@@ -52,6 +53,9 @@ export function BlCeMercanteField({
       showToast(success, 'success')
     } catch (error) {
       showToast(userFacingErrorMessage(error, fallback), 'error')
+      // O CE mudou depois que a ficha abriu (migration 209): a ficha recarrega
+      // e a nova tentativa manda o CE atual.
+      if (isStaleScreenRefusal(error)) await refresh()
     } finally {
       setBusy(false)
     }

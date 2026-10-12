@@ -2,7 +2,7 @@
 // Extraído de vaziosImport/graniteImport (audit T11) — apenas a interseção
 // visível entre os parsers, sem framework genérico.
 
-import { excelSerialToCivil } from '../lib/importDate'
+import { excelSerialTimeOfDay, excelSerialToCivil } from '../lib/importDate'
 import { normalizeHeader } from '../lib/utils'
 
 /** Erro de linha acumulado durante o parse, no formato comum aos parsers. */
@@ -145,6 +145,11 @@ export function typedCellValue(
       const value = Number(cell.v)
       const format = typeof cell.z === 'string' ? cell.z : typeof cell.z === 'number' ? String(XLSX.SSF.get_table()[cell.z] ?? '') : ''
       if (format && XLSX.SSF.is_date(format)) {
+        // Célula só de hora (`hh:mm`, serial entre 0 e 1, em qualquer sistema
+        // de datas): entrega a hora como texto, para não sumir em silêncio
+        // como célula vazia. Coluna de data a recusa com motivo.
+        const timeOnly = excelSerialTimeOfDay(value)
+        if (timeOnly) return timeOnly
         const civil = excelSerialToCivil(value, { date1904: options.date1904 })
         if (!civil) return ''
         return civil.time ? `${civil.date} ${civil.time}` : civil.date
@@ -162,15 +167,36 @@ export function typedCellValue(
   }
 }
 
-/** Conta as linhas ocultas que têm alguma célula (as vazias não fazem falta). */
-function countHiddenRows(sheet: Record<string, unknown>, XLSX: XlsxModule): number {
+/**
+ * Conta as linhas ocultas que têm alguma célula (as vazias não fazem falta).
+ *
+ * `belowFirstVisibleRow`: só conta as ocultas abaixo da primeira linha visível
+ * com dado. O cabeçalho é sempre uma linha visível, então título e instruções
+ * ocultos ACIMA dele não são linhas de dado e não entram na conta.
+ *
+ * ponytail: sem saber qual é o cabeçalho (o seletor não conhece o parser), uma
+ * linha oculta entre um título visível e o cabeçalho ainda conta. Upgrade:
+ * o seletor receber os cabeçalhos esperados do parser e usar
+ * `locateHeaderRowIndex`, como `readSheet`.
+ */
+function countHiddenRows(
+  sheet: Record<string, unknown>,
+  XLSX: XlsxModule,
+  options: { belowFirstVisibleRow?: boolean } = {},
+): number {
   const ref = typeof sheet['!ref'] === 'string' ? sheet['!ref'] : null
   if (!ref) return 0
   const range = XLSX.utils.decode_range(ref)
   const rowInfo = (sheet['!rows'] ?? []) as Array<{ hidden?: boolean } | undefined>
   let hiddenRows = 0
+  let seenVisibleRow = !options.belowFirstVisibleRow
   for (let r = range.s.r; r <= range.e.r; r += 1) {
-    if (rowInfo[r]?.hidden && rowHasCell(sheet, XLSX, r, range.s.c, range.e.c)) hiddenRows += 1
+    const hasCell = rowHasCell(sheet, XLSX, r, range.s.c, range.e.c)
+    if (!rowInfo[r]?.hidden) {
+      if (hasCell) seenVisibleRow = true
+      continue
+    }
+    if (seenVisibleRow && hasCell) hiddenRows += 1
   }
   return hiddenRows
 }
@@ -195,13 +221,14 @@ export function typedSheetMatrix(
   const ref = typeof sheet['!ref'] === 'string' ? sheet['!ref'] : null
   const matrix: SheetCellValue[][] = []
   const rowNumbers: number[] = []
-  let hiddenRows = 0
-  if (!ref) return { matrix, rowNumbers, hiddenRows }
+  /** Linha física (1-based) de cada linha oculta com dado, deixada fora da matriz. */
+  const hiddenRowNumbers: number[] = []
+  if (!ref) return { matrix, rowNumbers, hiddenRows: 0, hiddenRowNumbers }
   const range = XLSX.utils.decode_range(ref)
   const rowInfo = (sheet['!rows'] ?? []) as Array<{ hidden?: boolean } | undefined>
   for (let r = range.s.r; r <= range.e.r; r += 1) {
     if (rowInfo[r]?.hidden && !options.keepHidden) {
-      if (rowHasCell(sheet, XLSX, r, range.s.c, range.e.c)) hiddenRows += 1
+      if (rowHasCell(sheet, XLSX, r, range.s.c, range.e.c)) hiddenRowNumbers.push(r + 1)
       continue
     }
     const row: SheetCellValue[] = []
@@ -214,8 +241,14 @@ export function typedSheetMatrix(
     matrix.push(row)
     rowNumbers.push(r + 1)
   }
-  return { matrix, rowNumbers, hiddenRows }
+  return { matrix, rowNumbers, hiddenRows: hiddenRowNumbers.length, hiddenRowNumbers }
 }
+
+/**
+ * Aviso do CSV em Windows-1252. Não é dado deixado de fora (o arquivo foi lido
+ * inteiro): quem lista "o que ficou fora" separa este aviso pelo texto exato.
+ */
+export const WINDOWS_1252_WARNING = 'Arquivo CSV em Windows-1252 (ANSI): os acentos foram convertidos; confira nomes e descrições na prévia.'
 
 /** Pasta aberta pelo leitor comum, com o aviso de encoding do CSV. */
 async function openWorkbook(buffer: ArrayBuffer, allowWindows1252Fallback: boolean) {
@@ -231,9 +264,7 @@ async function openWorkbook(buffer: ArrayBuffer, allowWindows1252Fallback: boole
   let workbook: XlsxWorkbook
   if (isText) {
     const decoded = decodeImportBytes(buffer, { allowWindows1252Fallback })
-    if (decoded.encoding === 'windows-1252') {
-      warnings.push('Arquivo CSV em Windows-1252 (ANSI): os acentos foram convertidos; confira nomes e descrições na prévia.')
-    }
+    if (decoded.encoding === 'windows-1252') warnings.push(WINDOWS_1252_WARNING)
     // raw: o CSV chega ao parser como o texto do arquivo, sem conversão.
     workbook = XLSX.read(decoded.text, { type: 'string', raw: true, dense: false })
   } else {
@@ -262,7 +293,7 @@ function hiddenRowsWarning(hiddenRows: number, sheetName: string | null) {
 }
 
 /** Os dados só existem em linhas ou abas ocultas: dizer onde estão, não "Planilha vazia.". */
-const HIDDEN_DATA_MESSAGE = 'Os dados estão em linhas ou abas ocultas, que são ignoradas; reexiba-as ou copie para uma aba visível.'
+export const HIDDEN_DATA_MESSAGE = 'Os dados estão em linhas ou abas ocultas, que são ignoradas; reexiba-as ou copie para uma aba visível.'
 
 export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions = {}): Promise<SheetContent> {
   const book = await openWorkbook(buffer, options.allowWindows1252Fallback ?? true)
@@ -279,12 +310,16 @@ export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions =
   const sheet = sheetName ? sheetOf(sheetName) : undefined
   const dataInHiddenSheet = hiddenNames.some(hasData)
   if (!sheet) {
-    if (!visibleNames.length && dataInHiddenSheet) throw new Error(HIDDEN_DATA_MESSAGE)
+    // Só a aba 0 diz que o dado está oculto: quem percorre as abas (Veículos)
+    // para na primeira posição sem aba, em vez de receber a mesma mensagem sempre.
+    if (sheetIndex === 0 && !visibleNames.length && dataInHiddenSheet) throw new Error(HIDDEN_DATA_MESSAGE)
     throw new Error('Arquivo sem abas validas.')
   }
 
-  const { matrix, rowNumbers, hiddenRows } = typedSheetMatrix(sheet, XLSX, { textOnly: book.isText, date1904: book.date1904 })
-  if (hiddenRows > 0) warnings.push(hiddenRowsWarning(hiddenRows, visibleNames.length > 1 ? sheetName : null))
+  const { matrix, rowNumbers, hiddenRowNumbers } = typedSheetMatrix(sheet, XLSX, { textOnly: book.isText, date1904: book.date1904 })
+  // Até achar o cabeçalho, toda linha oculta com dado conta; depois, só as
+  // abaixo dele (título e instruções ocultos acima não são linhas de dado).
+  let hiddenRows = hiddenRowNumbers.length
   // Aba sem nenhuma linha visível com dado: se o dado está escondido (linhas
   // ocultas desta aba, ou aba oculta sem outra visível com dado), o erro diz
   // onde ele está. Com outra aba visível com dado, segue "Planilha vazia." — o
@@ -299,6 +334,9 @@ export async function readSheet(buffer: ArrayBuffer, options: SheetReadOptions =
     ? locateHeaderRowIndex(matrix, options.expectedHeaders, options.headerWindow ?? 5)
     : 0
   if (headerRowIndex < 0) throw new Error('Cabeçalho não encontrado na janela inicial da planilha.')
+  const headerRowNumber = rowNumbers[headerRowIndex] ?? 0
+  hiddenRows = hiddenRowNumbers.filter((rowNumber) => rowNumber > headerRowNumber).length
+  if (hiddenRows > 0) warnings.push(hiddenRowsWarning(hiddenRows, visibleNames.length > 1 ? sheetName : null))
 
   const headers = dedupeHeaders((matrix[headerRowIndex] ?? []).map((cell) => String(cell ?? '').trim()))
 
@@ -373,30 +411,48 @@ function sameFieldError(columns: readonly string[], headers: readonly string[]):
 }
 
 /**
- * Avisos de leitura de uma planilha escolhida, para a prévia: abas ocultas,
- * linhas ocultas de CADA aba visível (o parser pode ler outra aba que não a
- * primeira) e CSV Windows-1252. Não depende de a leitura dar certo: com o dado
- * só em linhas ocultas, o aviso aparece junto do erro do parser. Falha ao abrir
- * o arquivo devolve lista vazia (o erro aparece pelo parser do importador).
+ * Abas que o leitor posicional do B/L COSCO (`blParser.ts`) lê, visíveis ou
+ * ocultas: a "Page 1" (ou a primeira aba da pasta, sem ela) e a aba "VIN".
+ * As demais abas o B/L nunca lê. Mora aqui para o aviso do seletor e o parser
+ * seguirem a mesma regra.
  */
+export function positionalSheetNames(sheetNames: readonly string[]): { page: string | undefined; vin: string | undefined } {
+  return {
+    page: sheetNames.includes('Page 1') ? 'Page 1' : sheetNames[0],
+    vin: sheetNames.find((name) => name.trim().toUpperCase() === 'VIN'),
+  }
+}
+
 /**
- * Avisos de leitura do seletor de arquivo. `positional`: o parser lê o arquivo
- * pela posição das células (B/L COSCO, `blParser.ts`), inclusive linhas e abas
- * ocultas — o aviso diz isso em vez de prometer que as ocultas ficaram de fora.
+ * Avisos de leitura de uma planilha escolhida, para a prévia, e as linhas
+ * ocultas da aba que `readSheet` lê por padrão (a primeira visível).
+ *
+ * Sem `positional`: abas ocultas, linhas ocultas de CADA aba visível (o parser
+ * pode ler outra aba que não a primeira) e CSV Windows-1252. Não depende de a
+ * leitura dar certo: com o dado só em linhas ocultas, o aviso aparece junto do
+ * erro do parser. Falha ao abrir o arquivo devolve lista vazia (o erro aparece
+ * pelo parser do importador).
+ *
+ * `positional`: o parser lê o arquivo pela posição das células (B/L COSCO,
+ * `blParser.ts`), inclusive linhas e abas ocultas — o aviso diz isso em vez de
+ * prometer que as ocultas ficaram de fora, e só fala das abas que ele lê
+ * (`positionalSheetNames`).
  */
-export async function readSpreadsheetWarnings(
+export async function readSpreadsheetNotices(
   file: { arrayBuffer: () => Promise<ArrayBuffer> },
   options: { positional?: boolean } = {},
-): Promise<string[]> {
+): Promise<{ warnings: string[]; firstSheetHiddenRows: number }> {
   try {
-    const { XLSX, warnings, visibleNames, hiddenNames, sheetOf } = await openWorkbook(await file.arrayBuffer(), true)
+    const { XLSX, workbook, warnings, visibleNames, hiddenNames, sheetOf } = await openWorkbook(await file.arrayBuffer(), true)
     if (options.positional) {
-      const all = [...visibleNames, ...hiddenNames]
+      const all = workbook.SheetNames
+      const { page, vin } = positionalSheetNames(all)
+      const read = all.filter((name) => name === page || name === vin)
       const notices = warnings.filter((warning) => !warning.startsWith('Aba oculta '))
-      for (const name of hiddenNames) {
+      for (const name of hiddenNames.filter((hidden) => read.includes(hidden))) {
         notices.push(`Aba oculta "${name}": este arquivo é lido mesmo com abas ocultas; confira se ela não deve entrar.`)
       }
-      for (const name of all) {
+      for (const name of read) {
         const sheet = sheetOf(name)
         const hiddenRows = sheet ? countHiddenRows(sheet, XLSX) : 0
         if (hiddenRows > 0) {
@@ -404,17 +460,27 @@ export async function readSpreadsheetWarnings(
             + 'este arquivo é lido inteiro, inclusive as linhas ocultas; apague as que não devem entrar.')
         }
       }
-      return notices
+      return { warnings: notices, firstSheetHiddenRows: 0 }
     }
-    for (const name of visibleNames) {
+    let firstSheetHiddenRows = 0
+    visibleNames.forEach((name, index) => {
       const sheet = sheetOf(name)
-      const hiddenRows = sheet ? countHiddenRows(sheet, XLSX) : 0
+      const hiddenRows = sheet ? countHiddenRows(sheet, XLSX, { belowFirstVisibleRow: true }) : 0
+      if (index === 0) firstSheetHiddenRows = hiddenRows
       if (hiddenRows > 0) warnings.push(hiddenRowsWarning(hiddenRows, visibleNames.length > 1 ? name : null))
-    }
-    return warnings
+    })
+    return { warnings, firstSheetHiddenRows }
   } catch {
-    return []
+    return { warnings: [], firstSheetHiddenRows: 0 }
   }
+}
+
+/** Avisos de leitura do seletor de arquivo (`readSpreadsheetNotices`). */
+export async function readSpreadsheetWarnings(
+  file: { arrayBuffer: () => Promise<ArrayBuffer> },
+  options: { positional?: boolean } = {},
+): Promise<string[]> {
+  return (await readSpreadsheetNotices(file, options)).warnings
 }
 
 export async function readFirstSheetRows(buffer: ArrayBuffer): Promise<SheetRow[]> {
@@ -446,14 +512,18 @@ export type HeaderSpec<F extends string> = {
   readonly required: readonly F[]
 }
 
+function columnsForField<F extends string>(headers: readonly string[], spec: HeaderSpec<F>, field: F): string[] {
+  const accepted = new Set(spec.aliases[field].map(normalizeHeader))
+  return headers.filter((header) => accepted.has(normalizeHeader(fileHeader(header, headers))))
+}
+
 export function matchHeaders<F extends string>(
   headers: readonly string[],
   spec: HeaderSpec<F>,
 ): { columnByField: Partial<Record<F, string>>; missing: F[] } {
   const columnByField: Partial<Record<F, string>> = {}
   for (const field of Object.keys(spec.aliases) as F[]) {
-    const accepted = new Set(spec.aliases[field].map(normalizeHeader))
-    const found = headers.filter((header) => accepted.has(normalizeHeader(fileHeader(header, headers))))
+    const found = columnsForField(headers, spec, field)
     // Duas colunas para o mesmo campo bloqueiam (ADR 0078, item 22): escolher
     // uma delas pela ordem do arquivo gravaria o valor errado sem aviso. Vale
     // também para o mesmo cabeçalho repetido, que o leitor renomeia (`Unit_1`).
@@ -462,4 +532,13 @@ export function matchHeaders<F extends string>(
   }
   const missing = spec.required.filter((field) => columnByField[field] === undefined)
   return { columnByField, missing }
+}
+
+/**
+ * Campos obrigatórios sem nenhuma coluna no cabeçalho, sem recusar coluna
+ * repetida. Serve a quem procura, entre várias abas, a que tem os campos: a
+ * repetição de uma aba que nem é a dos dados não deve abortar a procura.
+ */
+export function missingHeaderFields<F extends string>(headers: readonly string[], spec: HeaderSpec<F>): F[] {
+  return spec.required.filter((field) => columnsForField(headers, spec, field).length === 0)
 }

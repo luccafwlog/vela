@@ -318,6 +318,35 @@ describe('breakbulkImport', () => {
     expect(bl?.cnpj_cpf).toBe('12116971001071')
   })
 
+  it('carrier sem CBM envia cubagem null, não zero, e mantém o aviso (migration 213)', async () => {
+    const buffer = jsonToBuffer([
+      { A: 'CARGO MANIFEST' },
+      { A: 'B/L NO.', B: 'POD', C: 'DECRIPTION', D: 'Pkg', E: 'G.W(KGS)', F: 'CBM', G: 'SHIPPER', H: 'CONSIGNEE', I: 'NOTIFY' },
+      {
+        A: 'JQV37ZJGPAR002',
+        B: 'VITORIA,BRAZIL',
+        C: '1 UNIT EXCAVATOR',
+        D: 1,
+        E: 20000,
+        F: '',
+        G: 'SHIPPER LTDA',
+        H: 'CONSIGNEE LTDA',
+        I: 'SAME AS CONSIGNEE',
+      },
+    ])
+
+    const manifest = await parseBreakbulkManifestBuffer(buffer)
+    const bl = manifest.bls[0]
+
+    expect(manifest.layout).toBe('carrier')
+    expect(bl?.bb_cbm).toBeNull()
+    expect(bl?.items[0]?.cbm).toBeNull()
+    expect(bl?.bb_weight_ton).toBeCloseTo(20)
+    expect(manifest.rowErrors).toEqual([
+      expect.objectContaining({ severity: 'warning', message: expect.stringContaining('cubagem ausente para o BL JQV37ZJGPAR002') }),
+    ])
+  })
+
   it('parseia carrier TAICANG com partes em linhas SH/CN/NP', async () => {
     const buffer = aoaToBuffer([
       ['EXPORT CARGO MANIFEST'],
@@ -735,6 +764,27 @@ describe('breakbulkImport', () => {
       expect(check.customerChanges).toEqual([{ blId: 'TROCA', currentCustomer: 'ALFA', fileCustomer: 'BETA LTDA' }])
       expect(check.billedRouteChanges).toEqual([{ blId: 'FATURADO', fields: ['POD'], currentRoute: 'CNSHA → BRVIX', fileRoute: 'CNSHA → BRSSZ' }])
       expect(check.codPodKept).toEqual(['COD'])
+    })
+
+    it('CNPJ de consignatário não cadastrado diferente do gravado é Troca de Consignatário (migration 213)', async () => {
+      mockExisting([
+        { id: 'NAOCAD', voyage_id: 10, customer_id: 1, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', manifest_customer_cnpj_cpf: '11.444.777/0001-61', customer: { name: 'ALFA', cnpj_cpf: '11444777000161' }, voyage: voyage('V10') },
+        { id: 'MESMODOC', voyage_id: 10, customer_id: 1, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', manifest_customer_cnpj_cpf: '44555666000172', customer: { name: 'ALFA', cnpj_cpf: '11444777000161' }, voyage: voyage('V10') },
+        { id: 'SEMDOC', voyage_id: 10, customer_id: 1, pol: 'CNSHA', pod: 'BRSSZ', financial_status: 'pending', manifest_customer_cnpj_cpf: '11444777000161', customer: { name: 'ALFA', cnpj_cpf: '11444777000161' }, voyage: voyage('V10') },
+      ])
+      const unregistered = { consignee: 'GAMA COMERCIO SA', cnpj_cpf: '44.555.666/0001-72' }
+      const check = await checkBreakbulkReimport(10, {
+        layout: 'summary',
+        rowErrors: [],
+        bls: [line('NAOCAD', unregistered), line('MESMODOC', unregistered), line('SEMDOC', { consignee: 'GAMA COMERCIO SA', cnpj_cpf: null })],
+      })
+
+      expect(check.customerChanges).toEqual([{
+        blId: 'NAOCAD',
+        currentCustomer: 'ALFA',
+        fileCustomer: 'GAMA COMERCIO SA (consignatário não cadastrado)',
+        fileCustomerMissing: true,
+      }])
     })
 
     it('B/L de outra Viagem vira erro de linha que bloqueia a prévia', async () => {

@@ -789,3 +789,62 @@ describe('vehicleImport — P1-9: validação de chassi e teto de absurdo', () =
     expect(parsed.rowErrors[0]?.message).toContain('obrigatorios')
   })
 })
+
+// Revisão da PR 929: a procura da aba de veículos não aborta numa aba anterior
+// que não é a dos dados (regressão em relação ao main).
+describe('vehicleImport — procura da aba de veículos', () => {
+  const HEADER = ['CHASSI', 'MARCA', 'MODELO', 'PESO', 'CUBAGEM', 'CONTAINER', 'TIPO_CONTAINER', 'LACRE', 'BL']
+  const VEHICLE = ['9BWZZZ377VT004251', 'BYD', 'DOLPHIN', '1.650,50', '12,3', 'CAXU1234567', '40FM', 'SEL123', 'BL001']
+
+  async function book(sheets: Array<{ name: string; rows: string[][]; hiddenRows?: number[] }>) {
+    const XLSX = await import('@e965/xlsx')
+    const workbook = XLSX.utils.book_new()
+    for (const { name, rows, hiddenRows = [] } of sheets) {
+      const sheet = XLSX.utils.aoa_to_sheet(rows)
+      if (hiddenRows.length) sheet['!rows'] = rows.map((_, index) => (hiddenRows.includes(index) ? { hidden: true } : {}))
+      XLSX.utils.book_append_sheet(workbook, sheet, name)
+    }
+    return XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+
+  it('aba anterior com duas colunas para um campo (e sem os demais) não aborta: lê a aba dos veículos', async () => {
+    const buffer = await book([
+      { name: 'Resumo', rows: [['Tipo', 'Tipo do container'], ['40FM', '40FM']] },
+      { name: 'Veiculos', rows: [HEADER, VEHICLE] },
+    ])
+    const parsed = await parseVehicleImportBuffer(buffer)
+    expect(parsed.rowErrors).toEqual([])
+    expect(parsed.rows.map((row) => row.chassis)).toEqual(['9BWZZZ377VT004251'])
+  })
+
+  it('aba anterior com os dados só em linhas ocultas é pulada', async () => {
+    const buffer = await book([
+      { name: 'Rascunho', rows: [['Notas'], ['oculta 1'], ['oculta 2']], hiddenRows: [1, 2] },
+      { name: 'Veiculos', rows: [HEADER, VEHICLE] },
+    ])
+    const parsed = await parseVehicleImportBuffer(buffer)
+    expect(parsed.rows.map((row) => row.chassis)).toEqual(['9BWZZZ377VT004251'])
+  })
+
+  it('a aba com todos os campos e uma coluna repetida continua recusada', async () => {
+    const buffer = await book([
+      { name: 'Veiculos', rows: [[...HEADER, 'CHASSIS'], [...VEHICLE, '9BWZZZ377VT004252']] },
+    ])
+    await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow('são o mesmo campo')
+  })
+
+  it('sem aba qualificada: os dados só em linhas ocultas dão a mensagem de dados ocultos', async () => {
+    const buffer = await book([
+      { name: 'Veiculos', rows: [HEADER, VEHICLE], hiddenRows: [1] },
+    ])
+    await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow('Os dados estão em linhas ou abas ocultas')
+  })
+
+  it('sem aba qualificada: aba sem os campos e outra com dados ocultos dizem as duas coisas', async () => {
+    const buffer = await book([
+      { name: 'Resumo', rows: [['Brand', 'QTY'], ['BYD', '2']] },
+      { name: 'Veiculos', rows: [HEADER, VEHICLE], hiddenRows: [1] },
+    ])
+    await expect(parseVehicleImportBuffer(buffer)).rejects.toThrow(/Colunas obrigatorias: .*Há também dados em linhas ou abas ocultas/)
+  })
+})

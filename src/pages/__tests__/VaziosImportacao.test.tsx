@@ -40,6 +40,10 @@ vi.mock('@tanstack/react-query', () => ({
   },
 }))
 
+vi.mock('../../components/ui/ConfirmDialog', () => ({
+  useConfirm: () => vi.fn(() => Promise.resolve(true)),
+}))
+
 vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
 }))
@@ -59,6 +63,7 @@ vi.mock('../../services/vaziosImportacaoImport', () => ({
   importVaziosImportacaoManifest: vi.fn(),
   resolveVaziosManifestNumbers: vi.fn(() => ({ manifestos: null, error: 'sem número' })),
   resolveVaziosManifestRoutes: vi.fn(() => ({ routes: null, error: 'sem rota' })),
+  vaziosImportacaoHiddenConfirmOptions: vi.fn(() => null),
   vaziosRouteKey: (route: { pol: string; pod: string }) => `${route.pol}__${route.pod}`,
   VAZIOS_IMPORTACAO_REQUIRED_COLUMNS: ['Container', 'POL', 'POD'],
   VAZIOS_IMPORTACAO_OPTIONAL_COLUMNS: ['Tipo', 'Tara (kg)'],

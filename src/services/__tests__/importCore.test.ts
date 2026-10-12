@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createHeaderMapper, createRowErrorCollector, locateHeaderRowIndex, matchHeaders, readFirstSheetRows, readSheet, readSpreadsheetWarnings, type HeaderSpec } from '../importCore'
+import { createHeaderMapper, createRowErrorCollector, locateHeaderRowIndex, matchHeaders, missingHeaderFields, positionalSheetNames, readFirstSheetRows, readSheet, readSpreadsheetNotices, readSpreadsheetWarnings, WINDOWS_1252_WARNING, type HeaderSpec } from '../importCore'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
 describe('createHeaderMapper', () => {
@@ -375,5 +375,120 @@ describe('readSheet — regras comuns (ADR 0078, item 22)', () => {
     })
     const { rows } = await readSheet(buffer)
     expect(rows).toEqual([{ Descarga: '2026-08-01', 'Pago em': '2026-08-01 12:00' }])
+  })
+})
+
+// Revisão da PR 929 (correções de leitura): avisos que não dizem mais do que
+// aconteceu e célula só de hora que não some.
+describe('readSheet e avisos — revisão da PR 929', () => {
+  async function workbookWith(build: (XLSX: typeof import('@e965/xlsx')) => import('@e965/xlsx').WorkBook) {
+    const XLSX = await import('@e965/xlsx')
+    return XLSX.write(build(XLSX), { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+  }
+
+  it('título e instruções ocultos ACIMA do cabeçalho não contam como linhas de dado ocultas', async () => {
+    const buffer = await workbookWith((XLSX) => {
+      const sheet = XLSX.utils.aoa_to_sheet([['Instruções do armador'], ['Não editar'], ['Container'], ['VISI1234567'], ['OCUL1234567']])
+      sheet['!rows'] = [{ hidden: true }, { hidden: true }, {}, {}, { hidden: true }]
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, sheet, 'Plan1')
+      return book
+    })
+    const { rows, warnings, hidden } = await readSheet(buffer, { expectedHeaders: ['container'] })
+    expect(rows.map((row) => row.Container)).toEqual(['VISI1234567'])
+    expect(hidden.rows).toBe(1)
+    expect(warnings).toEqual(['1 linha oculta ignorada: o filtro da planilha indica importar só o visível.'])
+    expect(await readSpreadsheetWarnings({ arrayBuffer: async () => buffer }))
+      .toEqual(['1 linha oculta ignorada: o filtro da planilha indica importar só o visível.'])
+  })
+
+  it('só o título oculto acima do cabeçalho: nenhum aviso de linha oculta', async () => {
+    const buffer = await workbookWith((XLSX) => {
+      const sheet = XLSX.utils.aoa_to_sheet([['Relatório COSCO'], ['Container'], ['VISI1234567']])
+      sheet['!rows'] = [{ hidden: true }]
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, sheet, 'Plan1')
+      return book
+    })
+    const { warnings, hidden } = await readSheet(buffer, { expectedHeaders: ['container'] })
+    expect(hidden.rows).toBe(0)
+    expect(warnings).toEqual([])
+    expect(await readSpreadsheetWarnings({ arrayBuffer: async () => buffer })).toEqual([])
+  })
+
+  it('linhas ocultas só da primeira aba lida contam em firstSheetHiddenRows', async () => {
+    const buffer = await workbookWith((XLSX) => {
+      const resumo = XLSX.utils.aoa_to_sheet([['Total'], ['10'], ['20']])
+      resumo['!rows'] = [{}, { hidden: true }, { hidden: true }]
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Identificador'], ['TX1']]), 'Extrato')
+      XLSX.utils.book_append_sheet(book, resumo, 'Resumo')
+      return book
+    })
+    const notices = await readSpreadsheetNotices({ arrayBuffer: async () => buffer })
+    expect(notices.firstSheetHiddenRows).toBe(0)
+    expect(notices.warnings).toEqual(['2 linhas ocultas ignoradas na aba "Resumo": o filtro da planilha indica importar só o visível.'])
+  })
+
+  it('B/L posicional: só fala das abas que o parser lê (Page 1 e VIN)', async () => {
+    expect(positionalSheetNames(['Capa', 'Page 1', 'vin '])).toEqual({ page: 'Page 1', vin: 'vin ' })
+    expect(positionalSheetNames(['Plan1', 'Rascunho'])).toEqual({ page: 'Plan1', vin: undefined })
+    const buffer = await workbookWith((XLSX) => {
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['B/L']]), 'Page 1')
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Notas']]), 'Rascunho')
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['VIN']]), 'VIN')
+      book.Workbook = { Sheets: [{ Hidden: 0 }, { Hidden: 1 }, { Hidden: 1 }] }
+      return book
+    })
+    expect(await readSpreadsheetWarnings({ arrayBuffer: async () => buffer }, { positional: true }))
+      .toEqual(['Aba oculta "VIN": este arquivo é lido mesmo com abas ocultas; confira se ela não deve entrar.'])
+  })
+
+  it('célula só de hora (hh:mm) chega como o texto da hora, não como vazio; data segue data', async () => {
+    const buffer = await workbookWith((XLSX) => {
+      const sheet = XLSX.utils.aoa_to_sheet([['Hora', 'Data', 'Zero']])
+      sheet.A2 = { t: 'n', v: 0.5, z: 'hh:mm' }
+      sheet.B2 = { t: 'n', v: 46235, z: 'dd/mm/yyyy' }
+      sheet.C2 = { t: 'n', v: 0, z: 'dd/mm/yyyy' }
+      sheet['!ref'] = 'A1:C2'
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, sheet, 'Plan1')
+      return book
+    })
+    const { rows } = await readSheet(buffer)
+    expect(rows).toEqual([{ Hora: '12:00', Data: '2026-08-01', Zero: '' }])
+  })
+
+  it('célula só de hora em pasta 1904 não vira 01/01/1904', async () => {
+    const buffer = await workbookWith((XLSX) => {
+      const sheet = XLSX.utils.aoa_to_sheet([['Hora']])
+      sheet.A2 = { t: 'n', v: 0.75, z: 'hh:mm' }
+      sheet['!ref'] = 'A1:A2'
+      const book = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(book, sheet, 'Plan1')
+      book.Workbook = { WBProps: { date1904: true } }
+      return book
+    })
+    const { rows } = await readSheet(buffer)
+    expect(rows).toEqual([{ Hora: '18:00' }])
+  })
+
+  it('CSV Windows-1252: o aviso é a constante exportada (quem separa "fora da leitura" compara por ela)', async () => {
+    // "Descrição;Peso\nMáquina;12,5" codificado em Windows-1252.
+    const bytes = new Uint8Array([
+      0x44, 0x65, 0x73, 0x63, 0x72, 0x69, 0xe7, 0xe3, 0x6f, 0x3b, 0x50, 0x65, 0x73, 0x6f, 0x0a,
+      0x4d, 0xe1, 0x71, 0x75, 0x69, 0x6e, 0x61, 0x3b, 0x31, 0x32, 0x2c, 0x35, 0x0a,
+    ])
+    const { warnings } = await readSheet(bytes.buffer)
+    expect(warnings).toEqual([WINDOWS_1252_WARNING])
+  })
+})
+
+describe('missingHeaderFields', () => {
+  it('lista os obrigatórios ausentes sem recusar coluna repetida', () => {
+    expect(missingHeaderFields(['Container', 'Conteiner'], spec)).toEqual(['tipo'])
+    expect(missingHeaderFields(['Container', 'Conteiner', 'Tipo'], spec)).toEqual([])
+    expect(() => matchHeaders(['Container', 'Conteiner', 'Tipo'], spec)).toThrow('são o mesmo campo')
   })
 })

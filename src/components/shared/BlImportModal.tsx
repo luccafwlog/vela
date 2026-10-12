@@ -28,6 +28,8 @@ type ConfirmOutcome = {
   imported: number
   blocked: number
   refusedRelinks: string[]
+  /** Troca de Consignatário sem aceite: o consignatário gravado ficou (migration 213) */
+  customerKept: string[]
   calculationErrors: string[]
   /** contêineres e veículos que entraram, mudaram ou saíram, por B/L */
   changes: string[]
@@ -208,16 +210,18 @@ export function BlImportModal({
         confirmVehicleChanges,
       )
       const { refusedCustomerRelinks, calculationErrors } = result
+      const customerKept = result.customerChangesIgnored ?? []
       const { changes, vehicleIssues } = describeChanges(result)
       await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
       const refused = refusedCustomerRelinks.map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`)
       const failedCalculations = calculationErrors.map((failure) => `${failure.blNumber} (${failure.message})`)
-      if (refused.length || failedCalculations.length || vehicleIssues.length || changes.length) {
+      if (refused.length || customerKept.length || failedCalculations.length || vehicleIssues.length || changes.length) {
         // Importou com contêineres ou veículos alterados, ou algo pedido não
         // aconteceu: o modal fica aberto com o resultado por B/L. Fechar
         // esconderia o que mudou e o que o operador precisa resolver.
         const warnings: string[] = []
         if (refused.length) warnings.push(`a troca de cliente foi recusada em ${refused.length} B/L(s): ${refused.join(' | ')}`)
+        if (customerKept.length) warnings.push(`consignatário mantido em ${customerKept.join(', ')}: a troca não foi confirmada`)
         if (failedCalculations.length) warnings.push(`${failedCalculations.length} B/L(s) ficaram sem cálculo automático: ${failedCalculations.join(' | ')}`)
         if (vehicleIssues.length) warnings.push(`${vehicleIssues.length} pendência(s) de veículos`)
         showToast(warnings.length ? `Importação gravada, mas ${warnings.join(' | ')}` : 'Importação gravada; confira o resultado por B/L.', warnings.length ? 'error' : 'success')
@@ -225,6 +229,7 @@ export function BlImportModal({
           imported: importableCount,
           blocked: preview.summary.blockedCount,
           refusedRelinks: refused,
+          customerKept,
           calculationErrors: failedCalculations,
           changes,
           vehicleIssues,
@@ -246,7 +251,7 @@ export function BlImportModal({
   }
 
   const blockedAll = Boolean(preview && importableCount === 0)
-  const outcomePending = Boolean(outcome && (outcome.refusedRelinks.length || outcome.calculationErrors.length || outcome.vehicleIssues.length))
+  const outcomePending = Boolean(outcome && (outcome.refusedRelinks.length || outcome.customerKept.length || outcome.calculationErrors.length || outcome.vehicleIssues.length))
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
   if (outcome) footnote = outcomePending ? 'Importação gravada com pendências; veja acima.' : 'Importação gravada; veja acima o resultado por B/L.'
   else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
@@ -355,8 +360,8 @@ export function BlImportModal({
                   </span>
                   <span className="app-import-override__hint">
                     O B/L passa a pertencer ao novo consignatário e as taxas locais são reemitidas; com recebimento,
-                    devolva ao Cliente original antes da nova cobrança. Sem marcar, os demais campos são aplicados e o
-                    vínculo de cliente fica como está.
+                    devolva ao Cliente original antes da nova cobrança. Sem marcar, o Cliente, o consignatário e o CNPJ
+                    gravados ficam como estão e os demais campos são aplicados.
                   </span>
                 </span>
               </label>
@@ -384,6 +389,12 @@ export function BlImportModal({
                   {outcome.refusedRelinks.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </>
+            ) : null}
+            {outcome.customerKept.length ? (
+              <p>
+                Consignatário mantido em {outcome.customerKept.join(', ')}: a troca de cliente não foi confirmada. O
+                Cliente, o consignatário e o CNPJ gravados ficaram; os demais campos foram aplicados.
+              </p>
             ) : null}
             {outcome.changes.length ? (
               <>

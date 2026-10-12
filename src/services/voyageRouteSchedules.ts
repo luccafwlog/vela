@@ -170,7 +170,12 @@ export async function listVoyagePolSchedules(entityIds: string[]) {
   return hydratePolSchedules(data ?? [])
 }
 
-export async function listVoyagePodSchedules(entityIds: string[]) {
+/**
+ * Agenda vigente dos PODs. `includeDeleted` mantém o POD removido (soft-delete)
+ * para quem grava: reincluí-lo parte das datas que ele tinha e grava
+ * `deleted=false` (`buildVoyagePodScheduleChanges`).
+ */
+export async function listVoyagePodSchedules(entityIds: string[], options: { includeDeleted?: boolean } = {}) {
   if (!entityIds.length) return new Map<string, VoyagePodSchedule>()
 
   const { data, error } = await supabase
@@ -183,7 +188,7 @@ export async function listVoyagePodSchedules(entityIds: string[]) {
 
   if (error) throw error
 
-  return hydratePodSchedules(data ?? [])
+  return hydratePodSchedules(data ?? [], options)
 }
 
 export async function listVoyagePodSchedulesByVoyageIds(voyageIds: number[]) {
@@ -530,7 +535,7 @@ export async function saveVoyagePodSchedule({
   changedBy: string | null
 }) {
   const entityId = buildVoyagePodEntityId(voyageId, pod)
-  const current = (await listVoyagePodSchedules([entityId])).get(entityId) ?? makeEmptyPodSchedule(entityId)
+  const current = (await listVoyagePodSchedules([entityId], { includeDeleted: true })).get(entityId) ?? makeEmptyPodSchedule(entityId)
   const changes = buildVoyagePodScheduleChanges(entityId, current, {
     justification, eta, etb, ata, atb, etd, atd, rtw, ceStatus, linked, escalaNumber, temImportacao, changedBy,
   })

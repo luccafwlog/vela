@@ -9,7 +9,7 @@ vi.mock('../customerReconciliation', () => ({
 }))
 vi.mock('../supabase', () => ({ supabase: { from: vi.fn() } }))
 
-import { parseGraniteManifestFile } from '../graniteImport'
+import { graniteRemovalConfirmOptions, parseGraniteManifestFile } from '../graniteImport'
 
 function cosco(rows: Array<Record<string, string | number>>) {
   return new File([jsonToBuffer(rows)], 'cosco.xlsx')
@@ -170,4 +170,24 @@ it('S03: normaliza data valida e bloqueia porto fora do contrato', async () => {
   expect(parsed.rowErrors).toEqual([
     expect.objectContaining({ row: 2, message: expect.stringContaining('D/PORT') }),
   ])
+})
+
+// Revisão da PR 929: B/L numa linha oculta não é lido e aparece como fora do
+// arquivo; a confirmação de "Tirar da Viagem" precisa dizer que havia ocultas.
+it('reimportação com linhas ocultas: o parser as conta e a confirmação de saída avisa', async () => {
+  const XLSX = await import('@e965/xlsx')
+  const sheet = XLSX.utils.aoa_to_sheet([['BL', 'Real Weight'], ['BL-G1', 5000], ['BL-G2', 4000]])
+  sheet['!rows'] = [{}, {}, { hidden: true }]
+  const book = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(book, sheet, 'Plan1')
+  const parsed = await parseGraniteManifestFile(new File([XLSX.write(book, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer], 'g.xlsx'))
+
+  expect(parsed.fileBlNumbers).toEqual(['BL-G1'])
+  expect(parsed.hidden).toEqual({ rows: 1, sheets: [] })
+  const options = graniteRemovalConfirmOptions(['BL-G2'], parsed.hidden)
+  expect(options.message).toContain('Linhas e abas ocultas não são lidas, e este arquivo tem 1 linha oculta')
+  expect(options.affected.items).toEqual(['BL-G2'])
+  expect(graniteRemovalConfirmOptions(['BL-G2'], { rows: 0, sheets: [] }).message).not.toContain('oculta')
+  expect(graniteRemovalConfirmOptions(['BL-G2'], { rows: 2, sheets: ['Antigo'] }).message)
+    .toContain('este arquivo tem 2 linhas ocultas e a aba oculta "Antigo"')
 })

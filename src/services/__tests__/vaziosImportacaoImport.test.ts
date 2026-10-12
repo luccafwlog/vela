@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes } from '../vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes, vaziosImportacaoHiddenConfirmOptions } from '../vaziosImportacaoImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
 const { rpcMock, fromMock } = vi.hoisted(() => ({ rpcMock: vi.fn(), fromMock: vi.fn() }))
@@ -240,5 +240,51 @@ describe('resolveVaziosManifestRoutes', () => {
 
   it('aceita os números quando cada porto tem o seu', () => {
     expect(resolveVaziosManifestNumbers({ containers: [container('A')] }, { CNTAC__BRVIX: '9' }).manifestos).toEqual([{ ...ROTA, numero: '9' }])
+  })
+})
+
+// Revisão da PR 929: a gravação substitui os containers de cada rota do
+// arquivo; linha oculta da mesma rota sairia do manifesto sem pergunta.
+describe('Vazios de Importação — linhas e abas ocultas', () => {
+  async function bookWithHidden() {
+    const XLSX = await import('@e965/xlsx')
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['Container', 'POL', 'POD'],
+      ['MSCU1234567', 'CNTAC', 'BRVIX'],
+      ['TGHU7654325', 'CNTAC', 'BRVIX'],
+    ])
+    sheet['!rows'] = [{}, {}, { hidden: true }]
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, sheet, 'Plan1')
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Container'], ['TEMU1234567']]), 'Depot B')
+    book.Workbook = { Sheets: [{ Hidden: 0 }, { Hidden: 1 }] }
+    return XLSX.write(book, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+  }
+
+  it('o parser devolve as ocultas e os avisos de leitura', async () => {
+    const manifest = await parseVaziosImportacaoBuffer(await bookWithHidden())
+    expect(manifest.containers.map((c) => c.container_number)).toEqual(['MSCU1234567'])
+    expect(manifest.hidden).toEqual({ rows: 1, sheets: ['Depot B'] })
+    expect(manifest.warnings).toEqual([
+      'Aba oculta "Depot B" ignorada.',
+      '1 linha oculta ignorada: o filtro da planilha indica importar só o visível.',
+    ])
+  })
+
+  it('a confirmação diz que as unidades ocultas sairão do manifesto', async () => {
+    const { hidden } = await parseVaziosImportacaoBuffer(await bookWithHidden())
+    const options = vaziosImportacaoHiddenConfirmOptions(hidden)
+    expect(options).toMatchObject({ tone: 'danger', confirmLabel: 'Importar sem as ocultas' })
+    expect(options?.message).toBe(
+      '1 linha oculta foi ignorada e as unidades dela sairão do manifesto. '
+      + 'A aba oculta "Depot B" foi ignorada; se ela tiver unidades, elas sairão do manifesto. Continuar?',
+    )
+  })
+
+  it('sem nada oculto, não pergunta', async () => {
+    const { hidden } = await parseVaziosImportacaoBuffer(jsonToBuffer([{ Container: 'MSCU1234567', POL: 'CNTAC', POD: 'BRVIX' }]))
+    expect(hidden).toEqual({ rows: 0, sheets: [] })
+    expect(vaziosImportacaoHiddenConfirmOptions(hidden)).toBeNull()
+    expect(vaziosImportacaoHiddenConfirmOptions({ rows: 3, sheets: [] })?.message).toMatch(/^3 linhas ocultas foram ignoradas e as unidades delas sairão do manifesto/)
   })
 })

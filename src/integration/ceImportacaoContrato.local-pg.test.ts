@@ -51,6 +51,12 @@ function asAdmin(sql: string): { output: string; error: string | null } {
   return { output: run.stdout.trim(), error: error?.trim() ?? null }
 }
 
+/** Como o dono das funções (as RPCs SECURITY DEFINER), que é quem grava o cadastro de Manifestos desde a 212. */
+function asOwner(sql: string): { error: string | null } {
+  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
+  return { error: run.stderr.split('\n').find((line) => line.startsWith('ERROR:'))?.trim() ?? null }
+}
+
 /** psql em outra sessão, sem bloquear o teste (janela de concorrência). */
 function runAsync(sql: string): Promise<{ code: number | null; stderr: string }> {
   const child = spawn('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
@@ -177,9 +183,12 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
   afterAll(cleanup)
 
   it('o Nº de Manifesto Mercante é guardado na forma canônica e recusado fora de 13 caracteres', () => {
-    expect(asAdmin(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${voyageId}, '${pol}', '${pod}', ' a228-b0000-0001 ', 'carga');`).error).toBeNull()
+    // A API não grava o cadastro direto (212); as RPCs gravam como dono.
+    expect(asAdmin(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${voyageId}, '${pol}', '${pod}', ' a228-b0000-0001 ', 'carga');`).error)
+      .toMatch(/permission denied/)
+    expect(asOwner(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${voyageId}, '${pol}', '${pod}', ' a228-b0000-0001 ', 'carga');`).error).toBeNull()
     expect(psql(`SELECT numero FROM public.manifestos_mercante WHERE voyage_id = ${voyageId};`)).toBe('A228B00000001')
-    expect(asAdmin(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${voyageId}, '${pol}', '${pod}', 'A228-CURTO', 'carga');`).error)
+    expect(asOwner(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${voyageId}, '${pol}', '${pod}', 'A228-CURTO', 'carga');`).error)
       .toMatch(/13 caracteres/)
     // A busca acha pelo número digitado com separadores.
     expect(json<Array<{ numero: string }>>(`SELECT COALESCE(jsonb_agg(m), '[]') FROM public.find_manifesto_mercante('a228 b0000 0001') AS m;`)).toEqual([
@@ -192,6 +201,22 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(psql(`SELECT numero || ':' || natureza FROM public.manifestos_mercante WHERE voyage_id = ${otherVoyageId};`)).toBe('A228C00000001:carga')
     expect(psql(`SELECT ce_master FROM public.voyage_route_ce_master WHERE voyage_id = ${otherVoyageId};`)).toBe('A228C00000001')
     expect(asAdmin(`SELECT public.set_voyage_route_ce_master(${otherVoyageId}, '${pol}', '${pod}', '123', '${actorId}'::uuid, 'container');`).error).toMatch(/13 caracteres/)
+  })
+
+  it('Informar Nº corrige o número sem B/L e recusa trocar ou limpar o Manifesto que já tem B/L (215)', () => {
+    const informar = (numero: string) =>
+      asAdmin(`SELECT public.set_voyage_route_ce_master(${otherVoyageId}, '${pol}', '${pod}', '${numero}', '${actorId}'::uuid, 'container');`).error
+    // Sem B/L: o número digitado errado sai do cadastro, sem deixar dois números na rota.
+    expect(informar('A228C00000002')).toBeNull()
+    expect(psql(`SELECT string_agg(numero, ',' ORDER BY numero) FROM public.manifestos_mercante WHERE voyage_id = ${otherVoyageId};`)).toBe('A228C00000002')
+
+    insertBl('A228-INF1', { voyage: otherVoyageId, container: 'ADCU2280091' })
+    psql(`UPDATE public.bls SET manifesto_mercante_id = (SELECT id FROM public.manifestos_mercante WHERE numero = 'A228C00000002') WHERE id = 'A228-INF1';`)
+    expect(informar('A228C00000003')).toMatch(/Ver B\/Ls → Mover/)
+    expect(informar('')).toMatch(/Ver B\/Ls → Mover/)
+    expect(psql(`SELECT string_agg(numero, ',' ORDER BY numero) FROM public.manifestos_mercante WHERE voyage_id = ${otherVoyageId};`)).toBe('A228C00000002')
+    expect(manifestoOf('A228-INF1')).toBe('A228C00000002')
+    expect(psql(`SELECT ce_master FROM public.voyage_route_ce_master WHERE voyage_id = ${otherVoyageId};`)).toBe('A228C00000002')
   })
 
   it('prévia: CE atual → novo, troca exige confirmação com motivo, cancelado é ignorado e linha sem CE é erro', () => {

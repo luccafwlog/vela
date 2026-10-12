@@ -610,8 +610,46 @@ export type BlFreightImportResult = {
   vehicleChangesPending: string[]
   /** trocas de cliente pedidas no preview e recusadas pelo servidor */
   refusedCustomerRelinks: RefusedCustomerRelink[]
+  /**
+   * B/Ls com Troca de Consignatário sem aceite: Cliente, consignatário, CNPJ,
+   * razão social e e-mail gravados ficaram (migration 213).
+   */
+  customerChangesIgnored: string[]
   /** B/Ls persistidos cuja tentativa de cálculo imediato falhou */
   calculationErrors: LocalChargeCalculationError[]
+}
+
+/** B/Ls cuja Troca de Consignatário o servidor ignorou por falta de aceite (migration 213). */
+export function readCustomerChangesIgnored(data: unknown): string[] {
+  const ignored = (data as { customer_changes_ignored?: unknown } | null)?.customer_changes_ignored
+  if (!Array.isArray(ignored)) return []
+  return ignored.flatMap((entry) => {
+    const blId = (entry as { bl_id?: unknown } | null)?.bl_id
+    return typeof blId === 'string' && blId ? [blId] : []
+  })
+}
+
+/**
+ * Campos do consignatário (e a reconciliação de Cliente que vem com ele) que só
+ * mudam com a Troca de Consignatário aceita. Sem o aceite eles não vão: o B/L
+ * fica com o consignatário gravado, sem a retenção do consignatário novo (a RPC
+ * também os mantém, migration 213, como a carga solta desde a 192).
+ */
+const CUSTOMER_SWAP_FIELDS = [
+  'consignee',
+  'consignee_block',
+  'manifest_customer_cnpj_cpf',
+  'manifest_customer_name',
+  'manifest_customer_email',
+  'customer_reconciliation_status',
+  'customer_reconciliation_notes',
+  'billing_hold_reason',
+] as const
+
+function withoutCustomerSwapFields<T extends Partial<Record<(typeof CUSTOMER_SWAP_FIELDS)[number], unknown>>>(payload: T): T {
+  const kept = { ...payload }
+  for (const field of CUSTOMER_SWAP_FIELDS) delete kept[field]
+  return kept
 }
 
 /**
@@ -694,6 +732,9 @@ export async function confirmBlFreightImport(
     throw new Error(`Confirme a lista de veículos da aba VIN: ${describeVehicleConfirmationRequired(awaitingVehicles)}. Nada foi gravado.`)
   }
   const overrides = (blNumber: string) => (typeof overrideBilling === 'boolean' ? overrideBilling : overrideBilling.has(blNumber))
+  // Troca de Consignatário de B/L que já tem Cliente, sem aceite (ou impedida
+  // na prévia): o consignatário gravado fica e o resultado avisa.
+  const keptCustomer = new Set<string>()
   const payload = preview.rows.flatMap((row) => {
     if (!row.payload) return []
     // Rows that touch a billing variable only apply the physical change when the operator overrode.
@@ -701,6 +742,15 @@ export async function confirmBlFreightImport(
     const base = row.requiresVehicleConfirmation ? { ...withBilling, confirm_vehicle_changes: confirmVehicleChanges } : withBilling
     // A troca muda o B/L; documentos e recebimentos anteriores ficam preservados. Só acontece com
     // aceite explicito, e nunca quando o preview ja apontou um impedimento.
+    const accepted = row.requiresCustomerConfirmation && confirmCustomerChange
+    const change = row.customerChange
+    // Troca de Cliente: o B/L tem Cliente e o arquivo aponta outro, ou um
+    // consignatário não cadastrado. O mesmo Cliente com outro CNPJ não é troca.
+    const swapsCustomer = change?.fromCustomerId != null && change.toCustomerId !== change.fromCustomerId
+    if (swapsCustomer && !accepted) {
+      keptCustomer.add(row.blNumber)
+      return [{ ...withoutCustomerSwapFields(base), relink_customer: false }]
+    }
     if (!row.requiresCustomerConfirmation) return [base]
     return [{ ...base, relink_customer: confirmCustomerChange }]
   })
@@ -760,6 +810,7 @@ export async function confirmBlFreightImport(
     changes.vehiclesDiscarded.push(...chunkChanges.vehiclesDiscarded)
     changes.vehicleChangesPending.push(...chunkChanges.vehicleChangesPending)
     refusedCustomerRelinks.push(...readRefusedCustomerRelinks(data))
+    for (const blNumber of readCustomerChangesIgnored(data)) keptCustomer.add(blNumber)
     if (usesBatchContract && wrapped) calculationErrors.push(...readLocalChargeCalculationErrors(wrapped.calculation_errors))
     imported += chunk.length
   }
@@ -782,7 +833,7 @@ export async function confirmBlFreightImport(
     }
   }
 
-  return { result: results, ...changes, refusedCustomerRelinks, calculationErrors }
+  return { result: results, ...changes, refusedCustomerRelinks, customerChangesIgnored: [...keptCustomer].sort(), calculationErrors }
 }
 
 const BL_IMPORT_CHUNK_SIZE = 20

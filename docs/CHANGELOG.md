@@ -4,6 +4,28 @@
 
 ## 2026-10
 
+- **Revisão final da PR 929 (2026-10-12, implementação local;
+  [registro](archive/audits/2026-10-12-revisao-final-pr-929.md),
+  [ADR 0080](adr/0080-decisoes-da-revisao-final-da-pr-929.md)):** **Demurrage (`211`, `214`):** a
+  Invoice do grupo é cobrada por caixa (caixa já cobrada nunca é cobrada de novo; a do B/L que
+  chega depois sai em Invoice complementar), a reconciliação de datas não cancela Invoice paga ao
+  mesmo tempo, o atraso conta pela data de São Paulo, datas só mudam pela ficha e pela planilha, e
+  duas gravações num container compartilhado não entram em deadlock. **Viagem Cancelada (`211`,
+  `216`):** não recebe Invoice de Demurrage, nenhuma linha sai dela trocando de Viagem ou de B/L, e
+  reativar a Viagem devolve à fila os efeitos que o cancelamento encerrou. **CE e Manifesto
+  (`212`, `215`):** o Manifesto Mercante só muda pelas RPCs; "Informar Nº" recusa trocar ou limpar
+  o número que já tem B/L e manda usar Mover ou Desvincular; a importação de CE não fecha durante
+  a emissão e devolve à emissão o B/L que ficou sem fatura; "Nada a faturar" sai do alerta de
+  tabela faltando; Ver B/Ls pagina. **B/L (`213`):** Troca de Consignatário sem aceite mantém o
+  consignatário gravado (container e carga solta, inclusive CNPJ não cadastrado); cubagem e itens
+  ausentes no arquivo não zeram os gravados; POD corrigido limpa o terminal do POD antigo.
+  **Programação:** porto removido volta pela planilha em vez de recusar o arquivo para sempre; IMO
+  conflitante entre viagens é recusado na prévia; travas das Viagens em ordem (`213`).
+  **Planilhas:** Vazios de Importação pedem confirmação antes de tirar unidades de linhas ocultas;
+  a procura da aba de Veículos não para em aba alheia; avisos de linhas ocultas corrigidos.
+  **Deploy:** a `181` pula Viagem Cancelada (editada antes do primeiro deploy, com autorização) e
+  o diagnóstico ganhou a consulta 4c. O Histórico do B/L mostra a edição das datas de container
+  de forma legível.
 - **Decisões do dono sobre a revisão da PR 929 (2026-10-11, implementação local;
   [ADR 0079](adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md)):** **Demurrage (`203`):**
   Invoice com desconto ou disputa aberta não é reemitida sozinha quando as datas mudam: sai da

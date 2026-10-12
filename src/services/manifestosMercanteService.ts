@@ -63,15 +63,27 @@ export type VoyageManifestoBl = {
   manifestoNumero: string | null
 }
 
+/** Teto de linhas por resposta do PostgREST (`max_rows`). */
+export const VOYAGE_BLS_PAGE_SIZE = 1000
+
 export async function listVoyageBlsForManifesto(voyageId: number): Promise<VoyageManifestoBl[]> {
-  const { data, error } = await supabase
-    .from('bls')
-    .select('id, pol, pod, cancelled_at, manifesto:manifestos_mercante!bls_manifesto_mercante_id_fkey(numero)')
-    .eq('voyage_id', voyageId)
-    .order('id')
-  if (error) throw error
   type Row = { id: string; pol: string | null; pod: string | null; cancelled_at?: string | null; manifesto: { numero: string } | null }
-  return ((data ?? []) as unknown as Row[]).map((row) => ({
+  // Viagem com mais B/Ls que uma página: sem paginar, a lista de Mover /
+  // Desvincular perdia os B/Ls além do teto, sem aviso.
+  const rows: Row[] = []
+  for (let from = 0; ; from += VOYAGE_BLS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('bls')
+      .select('id, pol, pod, cancelled_at, manifesto:manifestos_mercante!bls_manifesto_mercante_id_fkey(numero)')
+      .eq('voyage_id', voyageId)
+      .order('id')
+      .range(from, from + VOYAGE_BLS_PAGE_SIZE - 1)
+    if (error) throw error
+    const page = (data ?? []) as unknown as Row[]
+    rows.push(...page)
+    if (page.length < VOYAGE_BLS_PAGE_SIZE) break
+  }
+  return rows.map((row) => ({
     id: row.id,
     pol: row.pol,
     pod: row.pod,
@@ -90,6 +102,16 @@ export async function listVoyageBlsForManifesto(voyageId: number): Promise<Voyag
  * a gravação o trava (migration 209).
  */
 export type ExpectedManifestos = Record<string, string | null>
+
+/**
+ * Recusa do banco porque o estado mudou depois da tela (migration 209): o
+ * Manifesto em Mover / Desvincular ou o CE em Corrigir / Remover. A tela
+ * recarrega os dados, para a nova tentativa partir do estado atual.
+ */
+export function isStaleScreenRefusal(error: unknown): boolean {
+  const { code, message } = (error ?? {}) as { code?: unknown; message?: unknown }
+  return code === '22023' && typeof message === 'string' && /mudou depois (da tela|que a ficha foi aberta)/.test(message)
+}
 
 export async function moveBlsToManifestoMercante(blIds: string[], numero: string, reason: string, expected: ExpectedManifestos) {
   const { data, error } = await supabase.rpc('move_bls_to_manifesto_mercante' as never, {

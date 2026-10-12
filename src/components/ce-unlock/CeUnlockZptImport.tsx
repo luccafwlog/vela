@@ -9,6 +9,7 @@ import { useConfirm } from "../ui/ConfirmDialog";
 import { assertUploadFile } from "../../lib/fileGuard";
 import { afterCeUnlockChanged } from "../../services/cacheEffects";
 import { parseCeUnlockZptFile, reconcileCeUnlockZpt } from "../../services/ceUnlockZptReconcile";
+import { WINDOWS_1252_WARNING } from "../../services/importCore";
 import type { CeUnlockReconcileSummary } from "../../types/ceUnlock";
 
 /** Concilia o "Exportar Tela" da ZPT com o que o Vela exportou. Resultado só para o desk. */
@@ -28,16 +29,18 @@ export function CeUnlockZptImport() {
       assertUploadFile(file, [".xls", ".xlsx", ".csv"]);
       const parsed = await parseCeUnlockZptFile(await file.arrayBuffer());
       // Linhas e abas ocultas e linhas sem CE ou Status ficam de fora: a
-      // confirmação diz isso antes de conciliar um arquivo parcial.
+      // confirmação diz isso antes de conciliar um arquivo parcial. O aviso de
+      // CSV em Windows-1252 não tira nada da leitura: vai à parte, no texto.
+      const encodingNotices = parsed.warnings.filter((warning) => warning === WINDOWS_1252_WARNING);
       const leftOut = [
-        ...parsed.warnings,
+        ...parsed.warnings.filter((warning) => warning !== WINDOWS_1252_WARNING),
         ...(parsed.rowErrors.length
           ? [`${parsed.rowErrors.length} linha(s) sem CE ou sem Status ignorada(s) (linha ${parsed.rowErrors.map((error) => error.row).join(", ")}).`]
           : []),
       ];
       if (
         !(await confirm({
-          message: `Conciliar ${parsed.rows.length} carga(s) do arquivo da ZPT?`,
+          message: [...encodingNotices, `Conciliar ${parsed.rows.length} carga(s) do arquivo da ZPT?`].join(" "),
           ...(leftOut.length ? { affected: { summary: "Fora da conciliação", items: leftOut } } : {}),
           consequence:
             "BLs desbloqueados na ZPT ficam como conferidos; BLs exportados e ainda bloqueados ficam como divergentes. Nada é enviado ao cliente.",

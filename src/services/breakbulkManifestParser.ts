@@ -76,14 +76,22 @@ export type BreakbulkImportRow = {
   bb_packages_qty: number | null
   bb_packages_total: number | null
   bb_weight_ton: number | null
-  /** Cubagem da carga solta. Vai para bls.bb_cbm; bls.total_cbm e do conteiner. */
-  bb_cbm: number
+  /**
+   * Cubagem da carga solta. Vai para bls.bb_cbm; bls.total_cbm e do conteiner.
+   * Ausente vai null: a reimportação mantém a cubagem gravada (a RPC só
+   * preserva NULL; zero apagaria).
+   */
+  bb_cbm: number | null
+  /**
+   * Itens da carga. Número ausente no documento vai null: na reimportação de
+   * um item, a gravação mantém o valor do item gravado (migration 213).
+   */
   items: Array<{
     item_description: string
-    package_qty: number
+    package_qty: number | null
     package_unit: string | null
-    gross_weight_kg: number
-    cbm: number
+    gross_weight_kg: number | null
+    cbm: number | null
     marks: string | null
   }>
 }
@@ -109,8 +117,11 @@ export type BreakbulkReimportCheck = {
   existing: string[]
   /** B/L que já está em outra Viagem: recusa o lote (ADR 0078, item 14). */
   otherVoyage: Array<{ blId: string; voyageLabel: string }>
-  /** CNPJ de outro Cliente: Troca de Consignatário só com aceite. */
-  customerChanges: Array<{ blId: string; currentCustomer: string; fileCustomer: string }>
+  /**
+   * CNPJ de outro Cliente, ou de consignatário não cadastrado
+   * (`fileCustomerMissing`): Troca de Consignatário só com aceite.
+   */
+  customerChanges: Array<{ blId: string; currentCustomer: string; fileCustomer: string; fileCustomerMissing?: boolean }>
   /**
    * Rota diferente em B/L faturado: pede a confirmação de faturamento. A rota
    * gravada e a que o arquivo deixa ("POL → POD") identificam a transição
@@ -252,7 +263,10 @@ function parseCarrierBreakbulkRows(
     const isWeightError = Boolean(weightIssue && (weightIssue.severity ?? 'error') === 'error')
     const isCbmError = Boolean(cbmIssue && (cbmIssue.severity ?? 'error') === 'error')
     const grossWeightKg = isWeightError ? 0 : readWeightKg ?? 0
-    const cbm = isCbmError ? 0 : readCbm ?? 0
+    // Cubagem ausente ou ilegível vai null, nunca zero: zero apagaria a
+    // cubagem gravada na reimportação (a gravação só preserva NULL). O aviso
+    // de cubagem ausente continua no `cbmIssue`.
+    const cbm = isCbmError ? null : readCbm
 
     // Os layouts resumido e legado rejeitam a linha sem peso; o carrier aceitava
     // em silêncio e o B/L entrava sem peso nenhum, indistinguível de uma carga
@@ -521,7 +535,7 @@ function parseLegacyRows(rows: SheetRow[], options: ParseBreakbulkOptions = {}):
       continue
     }
 
-    current.bb_cbm += row.cbm
+    current.bb_cbm = (current.bb_cbm ?? 0) + row.cbm
     current.bb_packages_total = Number(current.bb_packages_total ?? 0) + row.package_qty
     current.bb_packages_qty = Number(current.bb_packages_qty ?? 0) + row.package_qty
     current.bb_weight_ton = Number(current.bb_weight_ton ?? 0) + row.gross_weight_kg / 1000

@@ -28,7 +28,7 @@ import {
   type ParseBreakbulkOptions,
 } from '../../services/breakbulkImport'
 import { describeGraniteImport, graniteRemovalConfirmOptions, importGraniteManifest, parseGraniteManifestFile } from '../../services/graniteImport'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestNumbers } from '../../services/vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, parseVaziosImportacaoFile, resolveVaziosManifestNumbers, vaziosImportacaoHiddenConfirmOptions } from '../../services/vaziosImportacaoImport'
 import { VaziosImportacaoGuide, VaziosImportacaoManifestNumbers } from './VaziosImportacaoImportParts'
 import { importVehicleRows, parseVehicleImportFile, vehicleUnpackingConfirmOptions } from '../../services/vehicleImport'
 import { parseBaplieFile } from '../../services/baplieParser'
@@ -108,7 +108,8 @@ export function VoyageImportActions({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
-  const confirmGranite = useConfirm()
+  // Confirmações dos importadores desta barra (Granito e Vazios IMP).
+  const confirmImport = useConfirm()
   const { profile } = useAuth()
   const canEditVazios = Boolean(profile || userId)
   const canEditVehicles = Boolean(profile || userId)
@@ -239,7 +240,7 @@ export function VoyageImportActions({
           importer={async (preview, file, override) => {
             const result = await importGraniteManifest({
               filename: file.name, voyageId, manifest: preview, uploadedBy: userId, allowRowErrors: Boolean(override),
-              confirmRemoval: (missing) => confirmGranite(graniteRemovalConfirmOptions(missing)),
+              confirmRemoval: (missing) => confirmImport(graniteRemovalConfirmOptions(missing, preview.hidden)),
             })
             await Promise.all([
               invalidateAfterBLImport(),
@@ -300,6 +301,10 @@ export function VoyageImportActions({
           helper={<VaziosImportacaoGuide />}
           canImport={(p, override) => resolveVaziosManifestNumbers(p, vaziosManifestNumbers).manifestos !== null && (p.rowErrors.length === 0 || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
+          confirmBeforeImport={async (preview) => {
+            const hiddenQuestion = vaziosImportacaoHiddenConfirmOptions(preview.hidden)
+            return hiddenQuestion ? confirmImport(hiddenQuestion) : true
+          }}
           importer={async (preview, _file, override) => {
             await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, manifestNumbers: vaziosManifestNumbers, allowRowErrors: Boolean(override) })
             setVaziosManifestNumbers({})

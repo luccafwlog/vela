@@ -6,12 +6,14 @@
 --
 -- Todas as consultas rodam numa transação READ ONLY: nenhuma linha é gravada.
 --
--- Pré-requisito do deploy das migrations 174–195: a 177 aborta se houver CE
+-- Pré-requisito do deploy das migrations 174–213: a 177 aborta se houver CE
 -- repetido entre B/Ls não cancelados (somando Granito) pela chave normalizada
 -- (`ce_mercante_key`: só letras e dígitos, maiúsculas, sem zeros à esquerda),
 -- e a 181 reescreve o Nº de Manifesto na forma canônica (13 caracteres) — duas
 -- grafias do mesmo número na mesma Viagem colidem. As consultas 2a–2c e 4 usam
 -- exatamente essas chaves; se devolverem linhas, resolva antes do deploy.
+-- A 181 também aborta se a reescrita cair numa Viagem Cancelada (a guarda da
+-- 066 sela as linhas dela): a consulta 4c lista esses casos.
 -- Uso: psql "$PROD_DATABASE_URL" -X -f supabase/scripts/diagnostico_importacoes_ce_somente_leitura.sql
 \set ON_ERROR_STOP on
 BEGIN TRANSACTION READ ONLY;
@@ -74,6 +76,20 @@ FROM public.manifestos_mercante
 WHERE numero IS NOT NULL
   AND upper(regexp_replace(numero, '[^0-9A-Za-z]', '', 'g')) !~ '^[0-9A-Z]{13}$'
 ORDER BY voyage_id, numero;
+
+\echo '4c. Nº de Manifesto ou CE Master de rota em Viagem Cancelada que a 181 reescreveria (a guarda da Viagem Cancelada aborta a 181)'
+SELECT 'manifestos_mercante' AS origem, m.voyage_id, m.numero AS gravado,
+       NULLIF(upper(regexp_replace(COALESCE(m.numero, ''), '[^A-Za-z0-9]', '', 'g')), '') AS canonico
+FROM public.manifestos_mercante m
+JOIN public.voyages v ON v.id = m.voyage_id AND v.status = 'cancelled'
+WHERE m.numero IS DISTINCT FROM NULLIF(upper(regexp_replace(COALESCE(m.numero, ''), '[^A-Za-z0-9]', '', 'g')), '')
+UNION ALL
+SELECT 'voyage_route_ce_master', r.voyage_id, r.ce_master,
+       NULLIF(upper(regexp_replace(COALESCE(r.ce_master, ''), '[^A-Za-z0-9]', '', 'g')), '')
+FROM public.voyage_route_ce_master r
+JOIN public.voyages v ON v.id = r.voyage_id AND v.status = 'cancelled'
+WHERE r.ce_master IS DISTINCT FROM NULLIF(upper(regexp_replace(COALESCE(r.ce_master, ''), '[^A-Za-z0-9]', '', 'g')), '')
+ORDER BY 1, 2;
 
 \echo '5. Containers devolvidos sem data de devolução (Etapa 7)'
 SELECT c.bl_id, c.container_number, c.discharge_date

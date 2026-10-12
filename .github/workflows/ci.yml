@@ -252,6 +252,9 @@ jobs:
             src/integration/programacaoPlanilha.local-pg.test.ts \
             src/integration/rastroImportacoes.local-pg.test.ts \
             src/integration/correcoesRevisaoImportacoes.local-pg.test.ts \
+            src/integration/revisaoFinalDemurrage.local-pg.test.ts \
+            src/integration/revisaoFinalCeMercante.local-pg.test.ts \
+            src/integration/revisaoFinalImportacaoBl.local-pg.test.ts \
             src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts \
             src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts \
             src/integration/conditionUsd.local-pg.test.ts \

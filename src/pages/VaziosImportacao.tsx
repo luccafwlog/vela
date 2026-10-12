@@ -8,6 +8,7 @@ import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { useToast } from '../components/ui/Toast'
+import { useConfirm } from '../components/ui/ConfirmDialog'
 import { TruncationNote } from '../components/shared/TruncationNote'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { FileImportModal } from '../components/shared/FileImportModal'
@@ -22,6 +23,7 @@ import {
   parseVaziosImportacaoFile,
   importVaziosImportacaoManifest,
   resolveVaziosManifestNumbers,
+  vaziosImportacaoHiddenConfirmOptions,
   listVaziosImportacaoContainers,
   listVaziosImportacaoManifests,
   type ParsedVaziosImportacaoManifest,
@@ -81,6 +83,7 @@ export function VaziosImportacao() {
   const { user, profile } = useAuth()
   const canImport = Boolean(profile || user)
   const { showToast } = useToast()
+  const confirm = useConfirm()
 
   const { filters, setFilters, updateFilter } = usePageFilters<Filters>({
     search: '',
@@ -436,6 +439,10 @@ export function VaziosImportacao() {
           accept=".xlsx,.xls,.csv"
           parser={parseVaziosImportacaoFile}
           inspectFile={inspectImportUpload}
+          confirmBeforeImport={async (nextManifest) => {
+            const hiddenQuestion = vaziosImportacaoHiddenConfirmOptions(nextManifest.hidden)
+            return hiddenQuestion ? confirm(hiddenQuestion) : true
+          }}
           importer={async (nextManifest, _file, override) => {
             if (!user || !voyageId) return
             await importVaziosImportacaoManifest({ manifest: nextManifest, uploadedBy: user.id, voyageId: Number(voyageId), manifestNumbers, description: description.trim() || undefined, allowRowErrors: Boolean(override) })

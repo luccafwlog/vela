@@ -251,3 +251,45 @@ it('lê o CSV Windows-1252 pelo diagnóstico comum, sem falha de leitura', async
   expect(screen.getByLabelText('Diagnóstico do arquivo').textContent).toContain('Encoding: Windows-1252')
   expect(screen.queryByText('Não foi possível ler o arquivo')).toBeNull()
 })
+
+// Revisão da PR 929: Vazios de Importação pergunta antes de gravar uma
+// planilha com ocultas. Voltar não grava, não mostra falha e mantém a prévia.
+it('confirmBeforeImport: voltar não grava e mantém a prévia; confirmar grava', async () => {
+  const onClose = vi.fn()
+  const importer = vi.fn(async () => undefined)
+  const confirmBeforeImport = vi.fn<(preview: { rows: number }) => Promise<boolean>>()
+    .mockResolvedValueOnce(false)
+    .mockResolvedValueOnce(true)
+  const { container } = render(
+    <ToastProvider>
+      <FileImportModal
+        title="Importar arquivo"
+        accept=".csv"
+        confirmLabel="Importar manifesto"
+        parser={async () => ({ rows: 1 })}
+        canImport={() => true}
+        confirmBeforeImport={confirmBeforeImport}
+        importer={importer}
+        renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
+        onClose={onClose}
+      />
+    </ToastProvider>,
+  )
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ok.csv')] },
+  })
+  await waitFor(() => expect(screen.getByText('Linhas: 1')).toBeTruthy())
+
+  fireEvent.click(screen.getByRole('button', { name: 'Importar manifesto' }))
+  await waitFor(() => expect(confirmBeforeImport).toHaveBeenCalledTimes(1))
+  expect(confirmBeforeImport).toHaveBeenCalledWith({ rows: 1 }, expect.any(File))
+  expect(importer).not.toHaveBeenCalled()
+  expect(screen.queryByText('A importação não foi concluída')).toBeNull()
+  expect(screen.getByText('Linhas: 1')).toBeTruthy()
+  expect(onClose).not.toHaveBeenCalled()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Importar manifesto' }))
+  await waitFor(() => expect(importer).toHaveBeenCalledTimes(1))
+  await waitFor(() => expect(onClose).toHaveBeenCalled())
+})

@@ -73,6 +73,26 @@ describe('ImportFilePicker — avisos de leitura', () => {
     expect(screen.queryByText(/ignorad/)).toBeNull()
   })
 
+  // Revisão da PR 929: o B/L lê só a "Page 1" (ou a primeira aba) e a "VIN";
+  // aba oculta que ele não lê não é "lida mesmo oculta".
+  it('arquivo posicional (B/L): só fala das abas que o B/L lê', async () => {
+    const XLSX = await import('@e965/xlsx')
+    const rascunho = XLSX.utils.aoa_to_sheet([['Notas'], ['a'], ['b']])
+    rascunho['!rows'] = [{}, { hidden: true }]
+    const page = XLSX.utils.aoa_to_sheet([['B/L'], ['VISI1234567'], ['OCUL1234567']])
+    page['!rows'] = [{}, {}, { hidden: true }]
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, page, 'Page 1')
+    XLSX.utils.book_append_sheet(book, rascunho, 'Rascunho')
+    book.Workbook = { Sheets: [{ Hidden: 0 }, { Hidden: 1 }] }
+    const file = new File([XLSX.write(book, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer], 'bl.xlsx')
+
+    render(<ImportFilePicker accept=".xlsx,.xls" positional files={[file]} onFiles={() => undefined} />)
+
+    expect(await screen.findByText(/1 linha oculta na aba "Page 1"/)).toBeTruthy()
+    expect(screen.queryByText(/Rascunho/)).toBeNull()
+  })
+
   it('sem nada oculto, não mostra aviso', async () => {
     const file = new File([new TextEncoder().encode('Container\nVISI1234567\n')], 'limpo.csv')
     render(<ImportFilePicker accept=".xlsx,.csv" files={[file]} onFiles={() => undefined} />)

@@ -12,6 +12,9 @@ vi.mock('../../services/supabase', () => ({
 
 import {
   canonicalManifestoNumero,
+  isStaleScreenRefusal,
+  listVoyageBlsForManifesto,
+  VOYAGE_BLS_PAGE_SIZE,
   moveBlsToManifestoMercante,
   unlinkBlsFromManifestoMercante,
   listManifestosMercanteByRota,
@@ -81,6 +84,36 @@ describe('manifestosMercanteService', () => {
     await unlinkBlsFromManifestoMercante(['BL-001'], 'B/L de outro manifesto', { 'BL-001': '1226501860578' })
     expect(mockRpc).toHaveBeenCalledWith('unlink_bls_from_manifesto_mercante', { p_bl_ids: ['BL-001'], p_reason: 'B/L de outro manifesto', p_expected: { 'BL-001': '1226501860578' } })
     expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  // PostgREST devolve no máximo `max_rows` linhas: a lista de Ver B/Ls da
+  // rota pagina até a página incompleta, sem perder os B/Ls além do teto.
+  it('lista os B/Ls da Viagem em páginas até a última', async () => {
+    const bl = (index: number) => ({ id: `BL-${String(index).padStart(5, '0')}`, pol: 'CNSHA', pod: 'BRVIX', cancelled_at: null, manifesto: null })
+    const pages = [
+      Array.from({ length: VOYAGE_BLS_PAGE_SIZE }, (_, index) => bl(index)),
+      [{ ...bl(VOYAGE_BLS_PAGE_SIZE), cancelled_at: '2026-10-01T00:00:00Z', manifesto: { numero: '1226501860578' } }],
+    ]
+    const rangeMock = vi.fn((from: number) => Promise.resolve({ data: pages[from / VOYAGE_BLS_PAGE_SIZE] ?? [], error: null }))
+    const orderMock = vi.fn().mockReturnValue({ range: rangeMock })
+    const eqMock = vi.fn().mockReturnValue({ order: orderMock })
+    mockFrom.mockReturnValue({ select: vi.fn().mockReturnValue({ eq: eqMock }) })
+
+    const results = await listVoyageBlsForManifesto(10)
+
+    expect(mockFrom).toHaveBeenCalledWith('bls')
+    expect(eqMock).toHaveBeenCalledWith('voyage_id', 10)
+    expect(rangeMock.mock.calls).toEqual([[0, VOYAGE_BLS_PAGE_SIZE - 1], [VOYAGE_BLS_PAGE_SIZE, 2 * VOYAGE_BLS_PAGE_SIZE - 1]])
+    expect(results).toHaveLength(VOYAGE_BLS_PAGE_SIZE + 1)
+    expect(results.at(-1)).toEqual({ id: bl(VOYAGE_BLS_PAGE_SIZE).id, pol: 'CNSHA', pod: 'BRVIX', cancelled: true, manifestoNumero: '1226501860578' })
+  })
+
+  it('reconhece a recusa por estado visto na tela (migration 209)', () => {
+    expect(isStaleScreenRefusal({ code: '22023', message: 'O Manifesto Mercante mudou depois da tela: BL-1 está em X.' })).toBe(true)
+    expect(isStaleScreenRefusal({ code: '22023', message: 'O CE Mercante do B/L BL-1 mudou depois que a ficha foi aberta (agora: 1).' })).toBe(true)
+    expect(isStaleScreenRefusal({ code: '22023', message: 'Informe o motivo da mudança de Manifesto Mercante.' })).toBe(false)
+    expect(isStaleScreenRefusal({ code: 'P0001', message: 'mudou depois da tela' })).toBe(false)
+    expect(isStaleScreenRefusal(null)).toBe(false)
   })
 
   it('normaliza o Nº de Manifesto para a forma canônica', () => {
