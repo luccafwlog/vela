@@ -88,12 +88,24 @@ escrita:
 | `mcp__context7`, `mcp__playwright`, `mcp__shadcn` | servidores de `.mcp.json` | consultas e navegação local |
 
 Assim, sessões cloud (ambiente Vela Cloud) e locais não pedem confirmação para
-elas. A ausência de prompt não muda as regras deste documento: `apply_migration`
+elas, desde que o próprio conector também as libere (abaixo). A ausência de
+prompt não muda as regras deste documento: `apply_migration`
 continua vetado para produção (seção 5), e envio de e-mails, mudanças em
 serviços externos e em produção continuam exigindo autorização da tarefa. Para
 voltar a pedir confirmação, remova a regra. A regra usa o nome do conector na
 sessão; um conector com outro nome numa instalação local não é coberto. A
 sessão cloud só lê esse arquivo quando tem um único repositório.
+
+Os conectores do claude.ai têm permissão própria por ferramenta, ajustada em
+<https://claude.ai/customize/connectors>. Uma ferramenta marcada ali como
+"precisa de aprovação" pede confirmação a cada chamada, mesmo no modo
+automático e mesmo coberta por `permissions.allow`. O pedido oferece apenas
+"Negar" e "Permitir uma vez", sem opção de lembrar a escolha. Em 2026-10-12, o
+`execute_sql` do Supabase estava assim e pedia confirmação até para
+`select 1`, enquanto `list_projects` passava direto; depois de liberar a
+ferramenta no conector, as leituras rodaram sem prompt na mesma sessão. Se esse
+pedido voltar, ajuste a ferramenta no conector; se a opção estiver bloqueada,
+quem decide é um administrador da organização no claude.ai.
 
 ## 1. Stack verificada
 
