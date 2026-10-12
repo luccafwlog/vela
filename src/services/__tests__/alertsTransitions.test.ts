@@ -234,3 +234,8 @@ it('usa item_type legado para filtrar um alerta financeiro na fila', async () =>
     { id: 10, type: 'aggregate', item_type: 'billing_auto_issue_failed', entity_type: 'bl' },
   ])
 })
+
+it('alerta de Invoice de Demurrage abre a Invoice direto no detalhe', () => {
+  expect(alertEntityLink({ type: 'demurrage_invoice_dates_changed', entity_type: 'demurrage_invoice', entity_id: '41' })).toBe('/demurrage?fatura=41')
+  expect(alertEntityLink({ type: 'demurrage_invoice_dates_changed', entity_type: 'demurrage_invoice', entity_id: 'abc' })).toBe('/demurrage')
+})

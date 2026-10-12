@@ -356,7 +356,10 @@ export function alertEntityLink(alert: {
   if (alert.entity_type === 'container') return `/demurrage?busca=${encodeURIComponent(alert.entity_id)}`
   if (alert.entity_type === 'bl') return `/bls/${encodeURIComponent(alert.entity_id)}`
   if (alert.entity_type === 'granite_bl') return '/granito'
-  if (alert.entity_type === 'demurrage_invoice') return '/demurrage'
+  // A Invoice abre direto no detalhe de /demurrage (etapa 11).
+  if (alert.entity_type === 'demurrage_invoice') {
+    return /^\d+$/.test(alert.entity_id) ? `/demurrage?fatura=${alert.entity_id}` : '/demurrage'
+  }
   if (alert.entity_type === 'agency_departure_report') {
     return agencyReportAlertLink(alert.entity_id, alert.metadata ?? undefined)
   }

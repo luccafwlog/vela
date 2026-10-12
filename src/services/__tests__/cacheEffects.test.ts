@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
+import { afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -102,4 +102,20 @@ it('propaga efeitos financeiros de importação, Baplie e cancelamento ao Portal
       expect(keys()).toContain(JSON.stringify([family]))
     }
   }
+})
+
+it('gravação em Invoice de Demurrage atualiza lista, detalhe, caixas cobradas, fichas, Portal e alertas', async () => {
+  const { client, keys } = fakeQueryClient()
+  await afterFaturaDemurrageAlterada(client)
+  expect(keys()).toEqual(expect.arrayContaining(keySet([
+    ['demurrage-invoices'], ['demurrage-invoice-detail'], ['demurrage-kpis'], ['demurrage-containers'],
+    ['demurrage-customer-summary'], ['demurrage-disputes'], ['bl-detail'], ['customer-ficha'],
+    ['portal-demurrage-invoices'], ['alerts'], ['header-alert'],
+  ])))
+})
+
+it('tarifa ou acordo alterado refaz a previsão da aba Containers', async () => {
+  const { client, keys } = fakeQueryClient()
+  await afterReferenciaDemurrageAlterada(client)
+  expect(keys()).toEqual(expect.arrayContaining(keySet([['demurrage-containers']])))
 })

@@ -74,7 +74,7 @@ describe('buildFichaOverview', () => {
     })
     expect(items.map((item) => item.key)).toEqual(['vencidas', 'revisao', 'correndo', 'contato'])
     expect(items[1]).toMatchObject({ title: '2 B/Ls em revisão', actions: [{ label: 'Abrir na Revisão', to: '/revisao?busca=12345678000195' }] })
-    expect(items[2].actions[0]).toEqual({ label: 'Abrir em Demurrage', to: '/demurrage?busca=Atl%C3%A2ntico%20%26%20Cia' })
+    expect(items[2].actions[0]).toEqual({ label: 'Abrir em Demurrage', to: '/demurrage?lente=atraso&busca=Atl%C3%A2ntico%20%26%20Cia' })
     expect(items[3].detail).toMatch(/Não impede o faturamento/)
   })
 

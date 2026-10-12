@@ -65,15 +65,21 @@ function parseDate(value: string | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-export function demurrageDunningPauseReason(invoice: Pick<DemurrageInvoice, 'paid_at' | 'dispute_open'>, hasValidContact: boolean): string | null {
+// Colunas lidas com `select('*')` que o tipo gerado ainda não traz.
+type DunningInvoiceFields = Pick<DemurrageInvoice, 'paid_at' | 'dispute_open'> & { dunning_suspended_reason?: string | null }
+
+export function demurrageDunningPauseReason(invoice: DunningInvoiceFields, hasValidContact: boolean): string | null {
   if (invoice.paid_at) return 'liquidada'
+  // A Régua não cobra Invoice suspensa (migrations 179, 203 e 214): datas do
+  // container alteradas depois do pagamento ou com desconto/disputa aberta.
+  if (invoice.dunning_suspended_reason?.trim()) return 'datas alteradas, aguarda tratamento'
   if (invoice.dispute_open) return 'disputa aberta'
   if (!hasValidContact) return 'cliente sem contatos válidos'
   return null
 }
 
 export function getDemurrageDunningDisplay(
-  invoice: Pick<DemurrageInvoice, 'id' | 'first_billed_at' | 'paid_at' | 'dispute_open' | 'status'>,
+  invoice: Pick<DemurrageInvoice, 'id' | 'first_billed_at' | 'paid_at' | 'dispute_open' | 'status'> & { dunning_suspended_reason?: string | null },
   input: { attempts?: readonly DemurrageDunningAttempt[]; attemptCount?: number; lastAttemptAt?: string | null; hasValidContact?: boolean; intervalDays?: number; now?: Date } = {},
 ): DemurrageDunningDisplay {
   const attempts = input.attempts ?? []

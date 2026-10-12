@@ -1,4 +1,5 @@
 import type { DemurrageDunningDisplay } from '../../services/demurrageDunning'
+import { formatDate } from '../../lib/utils'
 
 type Props = {
   display?: DemurrageDunningDisplay
@@ -8,17 +9,17 @@ type Props = {
 
 export function DemurrageDunningStatus({ display, loading = false, error = false }: Props) {
   if (loading) {
-    return <div data-testid="demurrage-dunning-status" className="text-slate-400">Verificando régua...</div>
+    return <div data-testid="demurrage-dunning-status" className="app-dem-dunning app-dem-dunning--muted">Verificando a Régua…</div>
   }
   if (error || !display) {
-    return <div data-testid="demurrage-dunning-status" className="text-amber-300">Régua indisponível</div>
+    return <div data-testid="demurrage-dunning-status" className="app-dem-dunning app-dem-dunning--warning">Régua indisponível</div>
   }
 
   return (
-    <div data-testid="demurrage-dunning-status" className={display.pauseReason ? 'text-amber-300' : 'text-slate-300'}>
-      <div className="font-medium">{display.statusLabel}</div>
+    <div data-testid="demurrage-dunning-status" className={display.pauseReason ? 'app-dem-dunning app-dem-dunning--warning' : 'app-dem-dunning'}>
+      <div className="app-dem-dunning__label">{display.statusLabel}</div>
       {display.lastAttemptAt && !display.pauseReason ? (
-        <div className="text-xs text-slate-500">Último envio: {new Date(display.lastAttemptAt).toLocaleDateString('pt-BR')}</div>
+        <div className="app-dem-dunning__meta">Último envio: {formatDate(display.lastAttemptAt)}</div>
       ) : null}
     </div>
   )

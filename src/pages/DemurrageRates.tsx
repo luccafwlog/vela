@@ -1,41 +1,34 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, MoreVertical, Pencil, Plus } from 'lucide-react'
+import { ActionMenu } from '../components/ui/ActionMenu'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
-import { Card, InlineError, PageHeader } from '../components/ui/Card'
+import { EmptyState, PageHeader } from '../components/ui/Card'
 import { TabButton } from '../components/ui/TabButton'
+import { TabList } from '../components/ui/TabList'
 import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
-import { Field, Input } from '../components/ui/Input'
-import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
+import { QueryStateGate } from '../components/shared/QueryStateGate'
+import { CustomerDemurrageAgreementsTab } from '../components/demurrage/CustomerDemurrageAgreementsTab'
+import { DemurrageRateModal } from '../components/demurrage/DemurrageRateModal'
 import { useAuth } from '../hooks/useAuth'
-import type { DemurrageRate } from '../types/database'
 import {
   useDeleteDemurrageRate,
   useDemurrageRates,
   useSaveDemurrageRate,
   useToggleDemurrageRateActive,
 } from '../hooks/useDemurrageRates'
-import { CustomerDemurrageAgreementsTab } from '../components/demurrage/CustomerDemurrageAgreementsTab'
+import type { DemurrageRateUpsertInput } from '../services/demurrage/demurrageRateUpsertPayload'
+import type { DemurrageRate } from '../types/database'
+import { extractErrorText } from '../lib/errors'
 import { formatDate, formatUSD } from '../lib/utils'
 
-type DemurrageRateForm = Omit<DemurrageRate, 'id' | 'created_at' | 'updated_at' | 'valid_from'> & {
-  valid_from: string | null
-}
+type RatesTab = 'padrao' | 'acordos'
 
-const EMPTY_FORM: DemurrageRateForm = {
-  container_type: '',
-  free_days: 21,
-  p1_day_from: 22,
-  p1_day_to: 30,
-  p1_usd: 0,
-  p2_day_from: 31,
-  p2_usd: 0,
-  valid_from: null,
-  valid_to: null,
-  active: true,
-  notes: null,
+function rateVigencia(rate: DemurrageRate) {
+  const from = rate.valid_from ? formatDate(rate.valid_from) : 'sem início'
+  return rate.valid_to ? `${from} até ${formatDate(rate.valid_to)}` : `desde ${from}`
 }
 
 export function DemurrageRates() {
@@ -44,318 +37,226 @@ export function DemurrageRates() {
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const [searchParams, setSearchParams] = useSearchParams()
-  const currentTab = searchParams.get('tab') === 'acordos' ? 'acordos' : 'padrao'
-  const [tab, setTab] = useState<'padrao' | 'acordos'>(currentTab)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<DemurrageRateForm & { id?: number }>(EMPTY_FORM)
+  const tab: RatesTab = searchParams.get('tab') === 'acordos' ? 'acordos' : 'padrao'
+  const [editing, setEditing] = useState<{ rate: DemurrageRate | null } | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  const { data: rates, isLoading, error } = useDemurrageRates()
+  const ratesQuery = useDemurrageRates()
+  const rates = ratesQuery.data
   const saveMutation = useSaveDemurrageRate()
   const deleteMutation = useDeleteDemurrageRate()
   const toggleMutation = useToggleDemurrageRateActive()
 
-  function handleSelectTab(nextTab: 'padrao' | 'acordos') {
-    setTab(nextTab)
+  function selectTab(next: RatesTab) {
     setSearchParams((params) => {
-      if (nextTab === 'acordos') params.set('tab', 'acordos')
-      else params.delete('tab')
-      return params
+      const updated = new URLSearchParams(params)
+      if (next === 'acordos') updated.set('tab', 'acordos')
+      else {
+        updated.delete('tab')
+        updated.delete('cliente')
+      }
+      return updated
     }, { replace: true })
   }
 
-  function openNew() {
-    setForm({ ...EMPTY_FORM })
-    setModalOpen(true)
+  function openRate(rate: DemurrageRate | null) {
+    setSaveError(null)
+    setEditing({ rate })
   }
 
-  function openEdit(rate: DemurrageRate) {
-    setForm({ ...rate })
-    setModalOpen(true)
-  }
-
-  function field<K extends keyof DemurrageRateForm>(key: K) {
-    return (value: DemurrageRateForm[K]) => setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
-  async function handleSave() {
-    if (!form.container_type) {
-      showToast('Informe o tipo de container.', 'error')
-      return
-    }
-
-    const originalRate = form.id ? rates?.find((r) => r.id === form.id) : null
-    const changes = originalRate
+  async function handleSave(input: Omit<DemurrageRateUpsertInput, 'id' | 'active'>) {
+    const original = editing?.rate ?? null
+    const changes = original
       ? [
-          { field: 'Tipo de container', before: originalRate.container_type, after: form.container_type },
-          { field: 'Free Time', before: `${originalRate.free_days} dias`, after: `${form.free_days} dias` },
-          { field: 'Período P1 (dias)', before: `${originalRate.p1_day_from} a ${originalRate.p1_day_to}`, after: `${form.p1_day_from} a ${form.p1_day_to}` },
-          { field: 'Tarifa P1', before: `USD ${originalRate.p1_usd}`, after: `USD ${form.p1_usd}` },
-          { field: 'Período P2 (a partir do dia)', before: String(originalRate.p2_day_from), after: String(form.p2_day_from) },
-          { field: 'Tarifa P2', before: `USD ${originalRate.p2_usd}`, after: `USD ${form.p2_usd}` },
-          { field: 'Vigência de', before: originalRate.valid_from ? originalRate.valid_from.slice(0, 10) : '', after: form.valid_from ? form.valid_from.slice(0, 10) : '' },
-          { field: 'Vigência até', before: originalRate.valid_to ? originalRate.valid_to.slice(0, 10) : '', after: form.valid_to ? form.valid_to.slice(0, 10) : '' },
-          { field: 'Status', before: originalRate.active ? 'Ativa' : 'Inativa', after: form.active ? 'Ativa' : 'Inativa' },
-        ].filter((c) => c.before !== c.after)
+          { field: 'Tipo de container', before: original.container_type, after: input.container_type },
+          { field: 'Free time', before: `${original.free_days} dias`, after: `${input.free_days} dias` },
+          { field: 'Faixa P1 (dias)', before: `${original.p1_day_from} a ${original.p1_day_to}`, after: `${input.p1_day_from} a ${input.p1_day_to}` },
+          { field: 'Diária P1', before: formatUSD(original.p1_usd), after: formatUSD(input.p1_usd) },
+          { field: 'P2 a partir do dia', before: String(original.p2_day_from), after: String(input.p2_day_from) },
+          { field: 'Diária P2', before: formatUSD(original.p2_usd), after: formatUSD(input.p2_usd) },
+          { field: 'Vigência de', before: original.valid_from ? formatDate(original.valid_from) : '', after: input.valid_from ? formatDate(input.valid_from) : '' },
+          { field: 'Vigência até', before: original.valid_to ? formatDate(original.valid_to) : '', after: input.valid_to ? formatDate(input.valid_to) : '' },
+          { field: 'Observações', before: original.notes ?? '', after: input.notes ?? '' },
+        ].filter((change) => change.before !== change.after)
       : []
-
-    if (originalRate && changes.length === 0) {
-      showToast('Nenhuma alteração para salvar.', 'info')
+    if (original && changes.length === 0) {
+      setSaveError('Nenhuma alteração para salvar.')
       return
     }
-
     const confirmed = await confirm({
-      title: form.id ? 'Salvar tarifa de Demurrage' : 'Cadastrar tarifa de Demurrage',
-      message: form.id
-        ? `Salvar as alterações da tarifa padrão para container ${form.container_type}?`
-        : `Cadastrar nova tarifa padrão para container ${form.container_type}?`,
-      confirmLabel: form.id ? 'Salvar alterações' : 'Cadastrar tarifa',
-      changes: originalRate ? changes : undefined,
-      affected: !originalRate
-        ? { summary: `${form.container_type} · Free Time ${form.free_days} dias · P1 USD ${form.p1_usd} · P2 USD ${form.p2_usd}` }
+      title: original ? 'Salvar tarifa de Demurrage' : 'Cadastrar tarifa de Demurrage',
+      message: original
+        ? `Salvar as alterações da tarifa padrão do container ${input.container_type}?`
+        : `Cadastrar a tarifa padrão do container ${input.container_type}?`,
+      confirmLabel: original ? 'Salvar alterações' : 'Cadastrar tarifa',
+      changes: original ? changes : undefined,
+      affected: !original
+        ? { summary: `${input.container_type} · Free time ${input.free_days} dias · P1 ${formatUSD(input.p1_usd)}/dia · P2 ${formatUSD(input.p2_usd)}/dia` }
         : undefined,
-      consequence: 'A tarifa padrão será utilizada nos cálculos de Demurrage para este tipo de container quando o cliente não possuir acordo específico.',
+      consequence: 'Vale para os cálculos novos deste tipo de container quando o B/L não tem condição própria e o Cliente não tem acordo vigente na descarga. Invoices já emitidas não mudam.',
       reversibility: 'A tarifa pode ser editada ou desativada no cadastro.',
     })
     if (!confirmed) return
-
-    saveMutation.mutate(form, {
+    saveMutation.mutate({ ...input, ...(original ? { id: original.id, active: original.active } : { active: true }) }, {
       onSuccess: () => {
-        showToast(form.id ? 'Tarifa atualizada.' : 'Tarifa criada.', 'success')
-        setModalOpen(false)
+        showToast(original ? 'Tarifa atualizada.' : 'Tarifa cadastrada.', 'success')
+        setEditing(null)
       },
-      onError: () => showToast('Falha ao salvar tarifa.', 'error'),
+      onError: (error) => setSaveError(extractErrorText(error)),
     })
   }
 
-  async function handleDelete(id: number) {
-    const reason = await confirmWithReason({ title: 'Excluir tarifa de Demurrage', message: 'Excluir esta tarifa de Demurrage?', consequence: 'A tarifa sai do cadastro e não entra em cálculos novos.', reversibility: 'Não é possível desfazer; cadastre de novo se precisar.', tone: 'danger', confirmLabel: 'Excluir' })
+  async function handleDelete(rate: DemurrageRate) {
+    const reason = await confirmWithReason({
+      title: `Excluir tarifa ${rate.container_type}`,
+      message: `Excluir a tarifa padrão de Demurrage do container ${rate.container_type}?`,
+      consequence: 'A tarifa sai do cadastro e não entra em cálculos novos. Sem outra tarifa vigente para o tipo, o cálculo desse container falha até uma nova ser cadastrada.',
+      reversibility: 'Não é possível desfazer; cadastre de novo se precisar. Para parar de usar sem apagar, desative.',
+      tone: 'danger',
+      confirmLabel: 'Excluir tarifa',
+    })
     if (reason === null) return
-    deleteMutation.mutate({ id, reason }, {
-      onSuccess: () => showToast('Tarifa removida.', 'success'),
-      onError: () => showToast('Falha ao remover tarifa.', 'error'),
+    deleteMutation.mutate({ id: rate.id, reason }, {
+      onSuccess: () => showToast('Tarifa excluída.', 'success'),
+      onError: (error) => showToast(`Falha ao excluir a tarifa: ${extractErrorText(error)}`, 'error'),
     })
   }
 
   async function handleToggleActive(rate: DemurrageRate) {
     const nextActive = !rate.active
     const confirmed = await confirm({
-      title: nextActive ? 'Reativar tarifa de Demurrage' : 'Desativar tarifa de Demurrage',
+      title: nextActive ? `Reativar tarifa ${rate.container_type}` : `Desativar tarifa ${rate.container_type}`,
       message: nextActive
         ? `Reativar a tarifa padrão do container ${rate.container_type}?`
         : `Desativar a tarifa padrão do container ${rate.container_type}?`,
       confirmLabel: nextActive ? 'Reativar' : 'Desativar',
       tone: nextActive ? 'primary' : 'danger',
+      changes: [{ field: 'Situação', before: rate.active ? 'Ativa' : 'Inativa', after: nextActive ? 'Ativa' : 'Inativa' }],
       consequence: nextActive
-        ? 'A tarifa padrão volta a ser considerada nos cálculos de Demurrage.'
-        : 'A tarifa não será aplicada a novos cálculos de Demurrage; faturamentos anteriores não são afetados.',
-      reversibility: nextActive ? 'Desative novamente se necessário.' : 'Reative a tarifa quando precisar.',
+        ? 'A tarifa volta a ser considerada nos cálculos de Demurrage.'
+        : 'A tarifa deixa de ser usada em cálculos novos; Invoices já emitidas não mudam.',
+      reversibility: nextActive ? 'Desative de novo se precisar.' : 'Reative a tarifa quando precisar.',
     })
     if (!confirmed) return
-
     toggleMutation.mutate(
       { id: rate.id, active: nextActive },
-      { onError: () => showToast('Falha ao alterar status.', 'error') },
+      {
+        onSuccess: () => showToast(nextActive ? 'Tarifa reativada.' : 'Tarifa desativada.', 'success'),
+        onError: (error) => showToast(`Falha ao alterar a situação: ${extractErrorText(error)}`, 'error'),
+      },
     )
   }
 
   return (
-    <div className="space-y-6">
+    <main className="app-dem-page">
+      <Link className="app-fin-link app-dem-back" to="/demurrage"><ArrowLeft size={14} aria-hidden="true" />Demurrage</Link>
       <PageHeader
         title="Tarifas de Demurrage"
-        description="Gerencie a tabela geral por tipo de container e acordos comerciais customizados por cliente."
+        description={`Ordem de aplicação em cada container: condição do B/L, depois o acordo do Cliente vigente na data de descarga, depois a tabela padrão.${isAdmin ? '' : ' Só o Administrativo cadastra e altera tarifas e acordos.'}`}
         action={isAdmin && tab === 'padrao' ? (
-          <Button onClick={openNew}>
-            <Plus size={16} />
-            Nova Tarifa
+          <Button onClick={() => openRate(null)}>
+            <Plus size={16} aria-hidden="true" />
+            Nova tarifa
           </Button>
         ) : undefined}
       />
+      <TabList label="Tarifas de Demurrage" className="app-dem-tabs">
+        <TabButton id="dem-rates-tab-padrao" controls="dem-rates-panel" active={tab === 'padrao'} label="Tabela padrão" onClick={() => selectTab('padrao')} />
+        <TabButton id="dem-rates-tab-acordos" controls="dem-rates-panel" active={tab === 'acordos'} label="Acordos de Clientes" onClick={() => selectTab('acordos')} />
+      </TabList>
 
-      <div className="flex flex-wrap gap-2" role="tablist">
-        <TabButton active={tab === 'padrao'} label="Tabela Padrão (Armador)" onClick={() => handleSelectTab('padrao')} />
-        <TabButton active={tab === 'acordos'} label="Acordos de Clientes" onClick={() => handleSelectTab('acordos')} />
+      <div id="dem-rates-panel" role="tabpanel" aria-labelledby={`dem-rates-tab-${tab}`}>
+        {tab === 'acordos' ? (
+          <CustomerDemurrageAgreementsTab canEdit={isAdmin} />
+        ) : (
+          <QueryStateGate
+            isLoading={ratesQuery.isLoading}
+            isError={Boolean(ratesQuery.error)}
+            hasData={rates !== undefined}
+            errorMessage="Não foi possível carregar as tarifas de Demurrage."
+            onRetry={() => void ratesQuery.refetch()}
+            loadingLabel="Carregando tarifas…"
+          >
+            {!rates?.length ? (
+              <EmptyState title="Nenhuma tarifa cadastrada" description="Sem tarifa vigente para o tipo de container, o cálculo de Demurrage falha com aviso ao operador." />
+            ) : (
+              <div className="app-surface app-dem-table-surface">
+                <div className="app-table-scroll">
+                  <table className="app-table app-table--compact app-dem-table app-dem-table--rates">
+                    <caption className="sr-only">Tabela padrão de tarifas de Demurrage</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Tipo de container</th>
+                        <th scope="col" className="app-dem-num">Free time</th>
+                        <th scope="col">P1</th>
+                        <th scope="col">P2</th>
+                        <th scope="col">Vigência</th>
+                        <th scope="col">Situação</th>
+                        {isAdmin ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rates.map((rate) => (
+                        <tr key={rate.id}>
+                          <td>
+                            <div className="app-table__cell-stack">
+                              <span className="app-dem-code app-dem-strong">{rate.container_type}</span>
+                              {rate.notes ? <span className="app-dem-meta">{rate.notes}</span> : null}
+                            </div>
+                          </td>
+                          <td className="app-dem-num">{rate.free_days} dias</td>
+                          <td>
+                            <div className="app-table__cell-stack">
+                              <span className="tabular-nums">{formatUSD(rate.p1_usd ?? 0)}/dia</span>
+                              <span className="app-dem-meta">dias {rate.p1_day_from} a {rate.p1_day_to}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="app-table__cell-stack">
+                              <span className="tabular-nums">{formatUSD(rate.p2_usd ?? 0)}/dia</span>
+                              <span className="app-dem-meta">a partir do dia {rate.p2_day_from}</span>
+                            </div>
+                          </td>
+                          <td className="tabular-nums">{rateVigencia(rate)}</td>
+                          <td><Badge tone={rate.active ? 'success' : 'neutral'}>{rate.active ? 'Ativa' : 'Inativa'}</Badge></td>
+                          {isAdmin ? (
+                            <td className="app-dem-row-action">
+                              <div className="app-dem-row-buttons">
+                                <Button variant="ghost" className="app-btn--sm" onClick={() => openRate(rate)} aria-label={`Editar tarifa ${rate.container_type}`}>
+                                  <Pencil size={14} aria-hidden="true" />
+                                  Editar
+                                </Button>
+                                <ActionMenu
+                                  label={`Mais ações da tarifa ${rate.container_type}`}
+                                  triggerClassName="app-table__icon-button app-table__icon-button--sm"
+                                  trigger={<MoreVertical size={16} aria-hidden="true" />}
+                                  items={[
+                                    { key: 'toggle', label: rate.active ? 'Desativar tarifa' : 'Reativar tarifa', onSelect: () => void handleToggleActive(rate) },
+                                    { key: 'delete', label: 'Excluir tarifa', danger: true, disabled: deleteMutation.isPending && deleteMutation.variables?.id === rate.id, onSelect: () => void handleDelete(rate) },
+                                  ]}
+                                />
+                              </div>
+                            </td>
+                          ) : null}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </QueryStateGate>
+        )}
       </div>
 
-      {tab === 'acordos' ? (
-        <CustomerDemurrageAgreementsTab canEdit={isAdmin} />
-      ) : (
-        <>
-          {error ? <InlineError message="Erro ao carregar tarifas de demurrage." /> : null}
-
-          <Card className="overflow-hidden p-0">
-            <div className="app-table-scroll">
-              <table className="app-table app-table--compact min-w-[800px] text-left text-sm whitespace-nowrap">
-                <caption className="sr-only">Tabela padrão de tarifas de demurrage</caption>
-                <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
-                  <tr>
-                    <th scope="col" className="px-4 py-3">Tipo Container</th>
-                    <th scope="col" className="px-4 py-3">Free time</th>
-                    <th scope="col" className="px-4 py-3">P1 (dias)</th>
-                    <th scope="col" className="px-4 py-3">P1 USD/dia</th>
-                    <th scope="col" className="px-4 py-3">P2 (dias)</th>
-                    <th scope="col" className="px-4 py-3">P2 USD/dia</th>
-                    <th scope="col" className="px-4 py-3">Vigência</th>
-                    <th scope="col" className="px-4 py-3">Status</th>
-                    {isAdmin && <th scope="col" className="px-4 py-3 w-20">Ações</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#30363d]">
-                  {isLoading && (
-                    <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
-                        Carregando...
-                      </td>
-                    </tr>
-                  )}
-                  {!isLoading && !rates?.length && (
-                    <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
-                        Nenhuma tarifa cadastrada.
-                      </td>
-                    </tr>
-                  )}
-                  {(rates ?? []).map((rate) => (
-                    <tr key={rate.id} className="hover:bg-[#21262d]/60">
-                  <td className="px-4 py-3 font-mono font-semibold">{rate.container_type}</td>
-                  <td className="px-4 py-3">{rate.free_days}</td>
-                  <td className="px-4 py-3">
-                    {rate.p1_day_from}–{rate.p1_day_to}
-                  </td>
-                  <td className="px-4 py-3">{formatUSD(rate.p1_usd ?? 0)}</td>
-                  <td className="px-4 py-3">{rate.p2_day_from}+</td>
-                  <td className="px-4 py-3">{formatUSD(rate.p2_usd ?? 0)}</td>
-                  <td className="px-4 py-3 text-slate-400">
-                    {rate.valid_from ? formatDate(rate.valid_from) : '—'} {rate.valid_to ? `→ ${formatDate(rate.valid_to)}` : ''}
-                  </td>
-                  <td className="px-4 py-3">
-                    {isAdmin ? (
-                      <button onClick={() => handleToggleActive(rate)} className="app-status-toggle">
-                        <Badge tone={rate.active ? 'green' : 'slate'}>{rate.active ? 'Ativo' : 'Inativo'}</Badge>
-                      </button>
-                    ) : (
-                      <Badge tone={rate.active ? 'green' : 'slate'}>{rate.active ? 'Ativo' : 'Inativo'}</Badge>
-                    )}
-                  </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openEdit(rate)}
-                          className="app-table__icon-button app-table__icon-button--sm"
-                          title="Editar"
-                          aria-label="Editar tarifa"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(rate.id)}
-                          disabled={deleteMutation.isPending && deleteMutation.variables?.id === rate.id}
-                          className="app-table__icon-button app-table__icon-button--danger app-table__icon-button--sm"
-                          title="Excluir"
-                          aria-label="Excluir tarifa"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={form.id ? 'Editar Tarifa' : 'Nova Tarifa'}>
-        <div className="space-y-4">
-          <Field label="Tipo de Container (ex: 20GP, 40HC, 40RF)">
-            <Input
-              value={form.container_type}
-              onChange={(e) => field('container_type')(e.target.value.toUpperCase())}
-              placeholder="20GP"
-            />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Free time">
-              <Input
-                type="number"
-                value={String(form.free_days)}
-                onChange={(e) => field('free_days')(Number(e.target.value))}
-              />
-            </Field>
-            <Field label="P1 Início (dia)">
-              <Input
-                type="number"
-                value={String(form.p1_day_from)}
-                onChange={(e) => field('p1_day_from')(Number(e.target.value))}
-              />
-            </Field>
-            <Field label="P1 Fim (dia)">
-              <Input
-                type="number"
-                value={String(form.p1_day_to)}
-                onChange={(e) => field('p1_day_to')(Number(e.target.value))}
-              />
-            </Field>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="P1 USD/dia">
-              <Input
-                type="number"
-                value={String(form.p1_usd)}
-                onChange={(e) => field('p1_usd')(Number(e.target.value))}
-              />
-            </Field>
-            <Field label="P2 Início (dia)">
-              <Input
-                type="number"
-                value={String(form.p2_day_from)}
-                onChange={(e) => field('p2_day_from')(Number(e.target.value))}
-              />
-            </Field>
-            <Field label="P2 USD/dia">
-              <Input
-                type="number"
-                value={String(form.p2_usd)}
-                onChange={(e) => field('p2_usd')(Number(e.target.value))}
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Válido de">
-              <Input
-                type="date"
-                value={form.valid_from ?? ''}
-                onChange={(e) => field('valid_from')(e.target.value || null)}
-              />
-            </Field>
-            <Field label="Válido até">
-              <Input
-                type="date"
-                value={form.valid_to ?? ''}
-                onChange={(e) => field('valid_to')(e.target.value || null)}
-              />
-            </Field>
-          </div>
-          <Field label="Observações">
-            <Input
-              value={form.notes ?? ''}
-              onChange={(e) => field('notes')(e.target.value || null)}
-              placeholder="Opcional"
-            />
-          </Field>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>
-              Voltar
-            </Button>
-            <Button onClick={handleSave} loading={saveMutation.isPending}>
-              Salvar
-            </Button>
-          </div>
-        </div>
-      </Modal>
-        </>
-      )}
-    </div>
+      <DemurrageRateModal
+        open={editing != null}
+        rate={editing?.rate ?? null}
+        saving={saveMutation.isPending}
+        error={saveError}
+        onClose={() => setEditing(null)}
+        onSubmit={(input) => void handleSave(input)}
+      />
+    </main>
   )
 }

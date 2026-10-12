@@ -5,6 +5,7 @@ import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useAppSettings, useSetDemurrageDunningIntervalDays } from '../../hooks/useAppSettings'
+import { useAuth } from '../../hooks/useAuth'
 
 type Props = {
   open: boolean
@@ -12,7 +13,10 @@ type Props = {
 }
 
 export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
-  const { data: settings } = useAppSettings()
+  const { data: settings, isLoading, error: settingsError } = useAppSettings()
+  // A RPC `set_demurrage_dunning_interval_days` aceita só o Administrativo.
+  const { effectiveRole } = useAuth()
+  const canEdit = effectiveRole === 'administrativo'
   const setDunningMutation = useSetDemurrageDunningIntervalDays()
   const confirm = useConfirm()
   const [daysInput, setDaysInput] = useState<string | null>(null)
@@ -22,6 +26,7 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    if (!canEdit) return
     setError(null)
     const days = Number(currentDays)
     if (!Number.isInteger(days) || days < 1 || days > 365) {
@@ -60,34 +65,48 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
     onClose()
   }
 
+  const savedDays = settings?.demurrage_dunning_interval_days ?? 7
+
   return (
-    <Modal open={open} onClose={handleClose} title="Régua de Cobrança de Demurrage">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-[var(--app-muted)]">
-          Configure o intervalo em dias entre cobranças automáticas por e-mail para faturas de demurrage emitidas e não pagas. A régua é contínua e não possui limite de tentativas.
+    <Modal open={open} onClose={handleClose} title="Régua de Cobrança de Demurrage" size="sm">
+      <form onSubmit={handleSubmit} className="app-dem-form" noValidate>
+        <p className="app-dem-note">
+          A Régua envia a cobrança por e-mail às caixas Financeiro e Demurrage do Cliente, a partir da emissão e depois a cada intervalo, sem limite de tentativas, enquanto a Invoice estiver emitida e não paga.
         </p>
+        <ul className="app-dem-rules">
+          <li>Pausa com disputa aberta ou sem contato válido, e volta quando a situação se regulariza.</li>
+          <li>Não cobra a Invoice tirada da Régua por datas alteradas depois do pagamento, ou com desconto ou disputa; ela espera tratamento à mão pelo alerta.</li>
+          <li>O comunicado mostra o valor em USD, o BRL do dia como referência e o link do Portal.</li>
+        </ul>
 
-        <Field label="Intervalo em dias entre cobranças (1 a 365)">
-          <Input
-            type="number"
-            min={1}
-            max={365}
-            value={currentDays}
-            onChange={(event) => setDaysInput(event.target.value)}
-            placeholder="Ex.: 7"
-            required
-          />
-        </Field>
+        {settingsError ? <InlineError message="Não foi possível ler o intervalo atual." /> : null}
+        {canEdit ? (
+          <Field label="Intervalo entre cobranças, em dias" required hint="De 1 a 365. Salvar não envia cobrança na hora." error={error ?? undefined}>
+            <Input
+              type="number"
+              min={1}
+              max={365}
+              value={currentDays}
+              disabled={isLoading}
+              onChange={(event) => { setDaysInput(event.target.value); setError(null) }}
+              placeholder="Ex.: 7"
+            />
+          </Field>
+        ) : (
+          <p className="app-dem-facts-line">
+            Intervalo atual: <strong>{isLoading ? '…' : `${savedDays} ${savedDays === 1 ? 'dia' : 'dias'}`}</strong>. Só o Administrativo altera o intervalo.
+          </p>
+        )}
 
-        {error ? <InlineError message={error} /> : null}
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={handleClose}>
+        <div className="app-dem-form__actions">
+          <Button type="button" variant={canEdit ? 'ghost' : 'secondary'} onClick={handleClose}>
             Voltar
           </Button>
-          <Button type="submit" loading={setDunningMutation.isPending}>
-            Salvar intervalo
-          </Button>
+          {canEdit ? (
+            <Button type="submit" loading={setDunningMutation.isPending} loadingLabel="Salvando…">
+              Salvar intervalo
+            </Button>
+          ) : null}
         </div>
       </form>
     </Modal>

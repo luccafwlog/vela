@@ -54,8 +54,9 @@ describe('DemurrageDisputeConversation', () => {
 
   it('renders the dispute subject and status', () => {
     renderConversation()
-    expect(screen.getByText('DEM-123 · Test Customer')).toBeTruthy()
-    expect(screen.getByText('aberta')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'DEM-123 · Test Customer' })).toBeTruthy()
+    expect(screen.getByText('Aberta')).toBeTruthy()
+    expect(screen.getByText('Aguarda a nossa resposta')).toBeTruthy()
   })
 
   it('renders a form for new messages when state is aberta', () => {
@@ -73,7 +74,7 @@ describe('DemurrageDisputeConversation', () => {
     mockState = 'resolvida'
     renderConversation()
     expect(screen.getByPlaceholderText('Justifique a reabertura...')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Reabrir Dispute/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Reabrir Disputa/ })).toBeTruthy()
   })
 
   it('oculta a conversa para departamentos fora de Equipamentos e Administrativo', () => {
@@ -99,5 +100,25 @@ describe('DemurrageDisputeConversation', () => {
     expect(authState.mutateAsync).not.toHaveBeenCalled()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar resposta' }))
     await waitFor(() => expect(authState.mutateAsync).toHaveBeenCalledWith({ id: 1, body: 'Documento corrigido.', nextResponder: 'cliente' }))
+  })
+})
+
+describe('DemurrageDisputeConversation — foco e andamento', () => {
+  beforeEach(() => {
+    authState.mutateAsync.mockReset().mockResolvedValue({ message_id: 12 })
+    mockState = 'aberta'
+    authState.role = 'equipamentos'
+  })
+
+  it('destaca a Disputa aberta pelo alerta (?dispute=)', () => {
+    render(<ConfirmDialogProvider><DemurrageDisputeConversation focusDisputeId={1} /></ConfirmDialogProvider>)
+    expect(document.getElementById('dispute-1')?.className).toContain('app-dem-dispute--focused')
+  })
+
+  it('pede a resposta junto do campo antes de confirmar', () => {
+    render(<ConfirmDialogProvider><DemurrageDisputeConversation /></ConfirmDialogProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta' }))
+    expect(screen.getByRole('alert').textContent).toContain('Escreva a resposta antes de enviar.')
+    expect(authState.mutateAsync).not.toHaveBeenCalled()
   })
 })

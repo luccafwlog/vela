@@ -34,7 +34,7 @@ describe('DemurrageDunningStatus', () => {
 
   it('expõe carregamento e falha sem fabricar um status da régua', () => {
     const { rerender } = render(<DemurrageDunningStatus loading />)
-    expect(screen.getByText('Verificando régua...')).toBeTruthy()
+    expect(screen.getByText('Verificando a Régua…')).toBeTruthy()
 
     rerender(<DemurrageDunningStatus error />)
     expect(screen.getByText('Régua indisponível')).toBeTruthy()

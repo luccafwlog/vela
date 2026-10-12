@@ -1,9 +1,14 @@
 import { useState } from 'react'
-import { Pencil, Plus, Trash2, Users } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { MoreVertical, Pencil, Plus, Users } from 'lucide-react'
+import { ActionMenu } from '../ui/ActionMenu'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Card, EmptyState, InlineError } from '../ui/Card'
+import { EmptyState } from '../ui/Card'
 import { Input } from '../ui/Input'
+import { SummaryStrip } from '../ui/SummaryStrip'
+import { QueryStateGate } from '../shared/QueryStateGate'
+import { useNarrowViewport } from '../bl/useNarrowViewport'
 import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import {
@@ -11,30 +16,69 @@ import {
   useDeleteCustomerDemurrageAgreement,
   useToggleCustomerDemurrageAgreementActive,
 } from '../../hooks/useCustomerDemurrageAgreements'
-import { formatCnpjCpf, formatDate, formatUSD } from '../../lib/utils'
+import { AGREEMENT_SITUATION_LABELS, agreementSituation, type AgreementSituation } from '../../services/demurrage/demurragePresentation'
+import { extractErrorText } from '../../lib/errors'
+import { formatCnpjCpf } from '../../lib/utils'
 import { CustomerDemurrageAgreementModal } from './CustomerDemurrageAgreementModal'
+import { agreementPeriodText, agreementRatesText } from './demurrageFormRules'
 import type { CustomerDemurrageAgreementListItem } from '../../types/customerDemurrageAgreements'
+
+const SITUATION_TONES: Record<AgreementSituation, 'success' | 'info' | 'neutral'> = {
+  vigente: 'success',
+  futuro: 'info',
+  encerrado: 'neutral',
+  inativo: 'neutral',
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+/** Situação do acordo hoje; a escolha no cálculo é pela data de descarga. */
+export function AgreementSituationBadge({ agreement }: { agreement: Pick<CustomerDemurrageAgreementListItem, 'active' | 'valid_from' | 'valid_to'> }) {
+  const situation = agreementSituation(agreement, todayIso())
+  return <Badge tone={SITUATION_TONES[situation]}>{AGREEMENT_SITUATION_LABELS[situation]}</Badge>
+}
+
+function vigencia(agreement: CustomerDemurrageAgreementListItem) {
+  return agreementPeriodText(agreement)
+}
 
 export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
-
-  const [search, setSearch] = useState('')
+  const narrow = useNarrowViewport()
+  const [searchParams, setSearchParams] = useSearchParams()
+  // `?cliente=` vem do "Ver em Tarifas" da ficha do Cliente.
+  const search = searchParams.get('cliente') ?? ''
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedAgreement, setSelectedAgreement] = useState<CustomerDemurrageAgreementListItem | null>(null)
 
-  const { data: agreements, isLoading, error } = useCustomerDemurrageAgreements()
+  const agreementsQuery = useCustomerDemurrageAgreements()
+  const agreements = agreementsQuery.data
   const deleteMutation = useDeleteCustomerDemurrageAgreement()
   const toggleMutation = useToggleCustomerDemurrageAgreementActive()
 
-  const filtered = (agreements ?? []).filter((a) => {
-    if (!search.trim()) return true
-    const term = search.toLowerCase()
-    const name = a.customer?.name?.toLowerCase() ?? ''
-    const cnpj = a.customer?.cnpj_cpf?.toLowerCase() ?? ''
-    return name.includes(term) || cnpj.includes(term)
+  function setSearch(value: string) {
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params)
+      if (value.trim()) next.set('cliente', value)
+      else next.delete('cliente')
+      return next
+    }, { replace: true })
+  }
+
+  const term = search.trim().toLowerCase()
+  const digits = term.replace(/\D/g, '')
+  const filtered = (agreements ?? []).filter((agreement) => {
+    if (!term) return true
+    const name = agreement.customer?.name?.toLowerCase() ?? ''
+    const cnpj = agreement.customer?.cnpj_cpf ?? ''
+    return name.includes(term) || (digits.length >= 3 && cnpj.includes(digits))
   })
+  const today = todayIso()
+  const vigentes = filtered.filter((agreement) => agreementSituation(agreement, today) === 'vigente').length
 
   function handleOpenNew() {
     setSelectedAgreement(null)
@@ -50,9 +94,9 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
     const customerName = agreement.customer?.name ?? `Cliente #${agreement.customer_id}`
     const reason = await confirmWithReason({
       title: 'Excluir Acordo de Demurrage',
-      message: `Excluir o acordo de Demurrage de ${customerName}?`,
+      message: `Excluir o acordo de Demurrage de ${customerName} (${vigencia(agreement)})?`,
       consequence: 'Cálculos novos de Demurrage deste cliente voltam a usar a tarifa padrão.',
-      reversibility: 'Não é possível desfazer; cadastre o acordo de novo se precisar.',
+      reversibility: 'Não é possível desfazer; cadastre o acordo de novo se precisar. Para parar de usar sem apagar, desative.',
       tone: 'danger',
       confirmLabel: 'Excluir',
     })
@@ -61,8 +105,8 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
     deleteMutation.mutate(
       { id: agreement.id, reason, customerId: agreement.customer_id },
       {
-        onSuccess: () => showToast('Acordo removido com sucesso.', 'success'),
-        onError: (err) => showToast(err instanceof Error ? err.message : 'Erro ao remover acordo.', 'error'),
+        onSuccess: () => showToast('Acordo excluído.', 'success'),
+        onError: (err) => showToast(`Falha ao excluir o acordo: ${extractErrorText(err)}`, 'error'),
       },
     )
   }
@@ -75,7 +119,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
       message: `${nextActive ? 'Ativar' : 'Desativar'} o acordo de Demurrage de ${customerName}?`,
       confirmLabel: nextActive ? 'Ativar acordo' : 'Desativar acordo',
       affected: {
-        summary: `${customerName} · ${agreement.free_days} dias de Free Time · ${formatDate(agreement.valid_from)} a ${agreement.valid_to ? formatDate(agreement.valid_to) : 'sem data final'}`,
+        summary: `${customerName} · ${agreement.free_days} dias de Free Time · ${vigencia(agreement)}`,
       },
       changes: [{ field: 'Status', before: agreement.active ? 'Ativo' : 'Inativo', after: nextActive ? 'Ativo' : 'Inativo' }],
       consequence: nextActive
@@ -87,148 +131,129 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
     toggleMutation.mutate(
       { id: agreement.id, active: nextActive, customerId: agreement.customer_id },
       {
-        onSuccess: () => showToast(`Acordo ${!agreement.active ? 'ativado' : 'inativado'}.`, 'success'),
-        onError: (err) => showToast(err instanceof Error ? err.message : 'Falha ao alterar status.', 'error'),
+        onSuccess: () => showToast(nextActive ? 'Acordo ativado.' : 'Acordo desativado.', 'success'),
+        onError: (err) => showToast(`Falha ao alterar o status: ${extractErrorText(err)}`, 'error'),
       },
     )
   }
 
+  function rowActions(item: CustomerDemurrageAgreementListItem) {
+    if (!canEdit) return null
+    return (
+      <div className="app-dem-row-buttons">
+        <Button variant="ghost" className="app-btn--sm" onClick={() => handleOpenEdit(item)} aria-label={`Editar acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`}>
+          <Pencil size={14} aria-hidden="true" />
+          Editar
+        </Button>
+        <ActionMenu
+          label={`Mais ações do acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`}
+          triggerClassName="app-table__icon-button app-table__icon-button--sm"
+          trigger={<MoreVertical size={16} aria-hidden="true" />}
+          items={[
+            { key: 'toggle', label: item.active ? 'Desativar acordo' : 'Ativar acordo', onSelect: () => void handleToggleActive(item) },
+            { key: 'delete', label: 'Excluir acordo', danger: true, onSelect: () => void handleDelete(item) },
+          ]}
+        />
+      </div>
+    )
+  }
+
+  function customerCell(item: CustomerDemurrageAgreementListItem) {
+    const name = item.customer?.name ?? `Cliente #${item.customer_id}`
+    return (
+      <div className="app-table__cell-stack">
+        {item.customer?.cnpj_cpf ? (
+          <Link className="app-dem-link app-dem-strong" to={`/clientes/${encodeURIComponent(item.customer.cnpj_cpf)}?tab=financeiro`}>{name}</Link>
+        ) : <span className="app-dem-strong">{name}</span>}
+        <span className="app-dem-meta tabular-nums">{item.customer?.cnpj_cpf ? formatCnpjCpf(item.customer.cnpj_cpf) : '—'}</span>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="max-w-md flex-1">
-          <Input
-            placeholder="Buscar por cliente ou CNPJ..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+    <div className="app-dem-tab">
+      <div className="app-dem-toolbar">
+        <div className="app-dem-toolbar__search">
+          <label className="sr-only" htmlFor="demurrage-agreement-search">Buscar acordo por Cliente ou CNPJ</label>
+          <Input id="demurrage-agreement-search" type="search" placeholder="Cliente ou CNPJ" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {canEdit ? (
           <Button onClick={handleOpenNew}>
-            <Plus size={16} />
-            Novo Acordo
+            <Plus size={16} aria-hidden="true" />
+            Novo acordo
           </Button>
         ) : null}
       </div>
 
-      {error ? (
-        <InlineError message="Falha ao carregar os acordos de Demurrage." />
-      ) : isLoading ? (
-        <Card className="py-12 text-center text-slate-400">Carregando acordos...</Card>
-      ) : filtered.length === 0 ? (
-        <div className="space-y-4">
+      <QueryStateGate
+        isLoading={agreementsQuery.isLoading}
+        isError={Boolean(agreementsQuery.error)}
+        hasData={agreements !== undefined}
+        errorMessage="Falha ao carregar os acordos de Demurrage."
+        onRetry={() => void agreementsQuery.refetch?.()}
+        loadingLabel="Carregando acordos…"
+      >
+        {filtered.length ? (
+          <SummaryStrip
+            label="Resumo dos acordos"
+            items={[
+              { label: filtered.length === 1 ? 'acordo' : 'acordos', value: String(filtered.length) },
+              { label: vigentes === 1 ? 'vigente hoje' : 'vigentes hoje', value: String(vigentes) },
+            ]}
+          />
+        ) : null}
+        {filtered.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="Nenhum acordo de Demurrage encontrado"
-            description={
-              search
-                ? 'Tente ajustar os termos de busca.'
-                : 'Cadastre condições especiais de free time e tarifas customizadas por cliente.'
-            }
+            title={term ? 'Nenhum acordo nesta busca' : 'Nenhum acordo de Demurrage'}
+            description={term ? `Nada encontrado para "${search.trim()}".` : 'Cadastre free time e diárias negociados por Cliente; sem acordo, vale a tabela padrão.'}
+            action={term ? <Button variant="secondary" onClick={() => setSearch('')}>Limpar busca</Button> : canEdit ? <Button variant="secondary" onClick={handleOpenNew}><Plus size={16} aria-hidden="true" />Cadastrar primeiro acordo</Button> : undefined}
           />
-          {canEdit && !search ? (
-            <div className="text-center">
-              <Button onClick={handleOpenNew} variant="secondary">
-                <Plus size={16} />
-                Cadastrar primeiro acordo
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      ) : (
-        <Card className="overflow-hidden p-0">
-          <div className="app-table-scroll">
-            <table className="app-table w-full text-left text-sm">
-              <caption className="sr-only">Acordos de demurrage por cliente</caption>
-              <thead className="bg-[#0d1117] text-xs uppercase text-slate-400">
-                <tr>
-                  <th scope="col" className="px-4 py-3">Cliente</th>
-                  <th scope="col" className="px-4 py-3">Free Time</th>
-                  <th scope="col" className="px-4 py-3">Tarifa P1</th>
-                  <th scope="col" className="px-4 py-3">Tarifa P2</th>
-                  <th scope="col" className="px-4 py-3">Vigência</th>
-                  <th scope="col" className="px-4 py-3">Status</th>
-                  <th scope="col" className="px-4 py-3">Observações</th>
-                  {canEdit ? <th scope="col" className="px-4 py-3 text-right">Ações</th> : null}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#30363d]">
-                {filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#161b22]/50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-white">{item.customer?.name ?? `Cliente #${item.customer_id}`}</div>
-                      <div className="text-xs text-slate-400">
-                        {item.customer?.cnpj_cpf ? formatCnpjCpf(item.customer.cnpj_cpf) : '—'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-white">
-                      {item.free_days} dias
-                    </td>
-                    <td className="px-4 py-3 text-slate-300">
-                      {item.p1_usd != null ? (
-                        formatUSD(item.p1_usd)
-                      ) : (
-                        <span className="text-xs italic text-slate-500">Tabela geral</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-300">
-                      {item.p2_usd != null ? (
-                        formatUSD(item.p2_usd)
-                      ) : (
-                        <span className="text-xs italic text-slate-500">Tabela geral</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-300">
-                      <div>{formatDate(item.valid_from)}</div>
-                      <div className="text-slate-500">
-                        até {item.valid_to ? formatDate(item.valid_to) : 'indeterminado'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => canEdit && void handleToggleActive(item)}
-                        disabled={!canEdit}
-                        className={canEdit ? 'cursor-pointer' : 'cursor-default'}
-                        title={canEdit ? 'Clique para alternar status' : undefined}
-                      >
-                        <Badge tone={item.active ? 'green' : 'slate'}>
-                          {item.active ? 'Ativo' : 'Inativo'}
-                        </Badge>
-                      </button>
-                    </td>
-                    <td className="max-w-[200px] truncate px-4 py-3 text-xs text-slate-400" title={item.notes ?? ''}>
-                      {item.notes ?? '—'}
-                    </td>
-                    {canEdit ? (
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEdit(item)}
-                            className="rounded p-1 text-slate-400 hover:bg-[#21262d] hover:text-white"
-                            title="Editar acordo"
-                          >
-                            <Pencil size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(item)}
-                            className="rounded p-1 text-slate-400 hover:bg-[#21262d] hover:text-rose-400"
-                            title="Excluir acordo"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    ) : null}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        ) : narrow ? (
+          <div className="app-dem-cards">
+            {filtered.map((item) => (
+              <article key={item.id} className="app-dem-card" aria-label={`Acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`}>
+                <div className="app-dem-card__head">{customerCell(item)}<AgreementSituationBadge agreement={item} /></div>
+                <p><span className="app-dem-strong">{item.free_days} dias</span> de free time · {agreementRatesText(item)}</p>
+                <p className="app-dem-meta">Vigência {vigencia(item)}{item.notes ? ` · ${item.notes}` : ''}</p>
+                {rowActions(item)}
+              </article>
+            ))}
           </div>
-        </Card>
-      )}
+        ) : (
+          <div className="app-surface app-dem-table-surface">
+            <div className="app-table-scroll">
+              <table className="app-table app-table--compact app-dem-table">
+                <caption className="sr-only">Acordos de Demurrage por Cliente</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Cliente</th>
+                    <th scope="col" className="app-dem-num">Free time</th>
+                    <th scope="col">Diárias</th>
+                    <th scope="col">Vigência</th>
+                    <th scope="col">Situação</th>
+                    <th scope="col">Observações</th>
+                    {canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((item) => (
+                    <tr key={item.id}>
+                      <td>{customerCell(item)}</td>
+                      <td className="app-dem-num app-dem-strong">{item.free_days} dias</td>
+                      <td className="tabular-nums">{agreementRatesText(item)}</td>
+                      <td className="tabular-nums">{vigencia(item)}</td>
+                      <td><AgreementSituationBadge agreement={item} /></td>
+                      <td className="app-dem-notes" title={item.notes ?? undefined}>{item.notes ?? '—'}</td>
+                      {canEdit ? <td className="app-dem-row-action">{rowActions(item)}</td> : null}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </QueryStateGate>
 
       {modalOpen ? (
         <CustomerDemurrageAgreementModal

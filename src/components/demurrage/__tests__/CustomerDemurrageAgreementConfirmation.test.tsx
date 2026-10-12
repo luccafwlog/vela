@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -84,11 +85,34 @@ describe('Acordos de Demurrage — confirmação', () => {
 
   it('confirma a ativação antes de gravar o status', async () => {
     const user = userEvent.setup()
-    render(<CustomerDemurrageAgreementsTab canEdit />)
-    await user.click(screen.getByRole('button', { name: 'Ativo' }))
+    render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit /></MemoryRouter>)
+    await user.click(screen.getByRole('button', { name: 'Mais ações do acordo de Cliente Sul' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Desativar acordo' }))
 
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
     expect(mocks.confirm.mock.calls[0][0].changes).toEqual([{ field: 'Status', before: 'Ativo', after: 'Inativo' }])
     expect(mocks.toggle).not.toHaveBeenCalled()
+  })
+})
+
+describe('Acordos de Demurrage — lista e formulário', () => {
+  it('abre filtrada pelo Cliente que veio da ficha (?cliente=)', () => {
+    render(<MemoryRouter initialEntries={['/demurrage/taxas?tab=acordos&cliente=Norte']}><CustomerDemurrageAgreementsTab canEdit /></MemoryRouter>)
+    expect(screen.getByText('Nenhum acordo nesta busca')).toBeTruthy()
+  })
+
+  it('mostra a situação do acordo hoje e as diárias herdadas', () => {
+    render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit={false} /></MemoryRouter>)
+    expect(screen.getByText('P1 US$ 50,00/dia · P2 US$ 70,00/dia')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Mais ações/ })).toBeNull()
+  })
+
+  it('leva o erro para junto do campo, sem confirmar', async () => {
+    const user = userEvent.setup()
+    render(<CustomerDemurrageAgreementModal open onClose={vi.fn()} initialAgreement={agreement} />)
+    await user.clear(screen.getByLabelText('Free Time (dias) *'))
+    await user.click(screen.getByRole('button', { name: 'Salvar Alterações' }))
+    expect(screen.getByRole('alert').textContent).toContain('Informe os dias de free time')
+    expect(mocks.confirm).not.toHaveBeenCalled()
   })
 })

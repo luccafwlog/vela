@@ -1,96 +1,225 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { FileText } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Card, EmptyState, InlineError } from '../ui/Card'
+import { EmptyState } from '../ui/Card'
+import { Input } from '../ui/Input'
+import { SummaryStrip } from '../ui/SummaryStrip'
+import { QueryStateGate } from '../shared/QueryStateGate'
+import { useNarrowViewport } from '../bl/useNarrowViewport'
 import { InvoiceStatusBadge } from './DemurrageBadges'
-import { fmtBRL, fmtUSD } from '../../services/demurrage/demurragePresentation'
-import { formatResultCount } from '../../lib/operationalState'
-import { formatDate } from '../../lib/utils'
-import type { DemurrageInvoice } from '../../types/database'
+import { demurrageInvoiceNotices, fmtBRL, fmtUSD, invoiceNetUsd, type DemurrageInvoiceRow } from '../../services/demurrage/demurragePresentation'
+import { formatCnpjCpf, formatDate } from '../../lib/utils'
+import type { DemurrageInvoiceListItem } from '../../services/demurrage/demurrageInvoices'
 import { fetchDemurrageDunningStatuses, getDemurrageDunningDisplay } from '../../services/demurrageDunning'
 import { queryKeys } from '../../services/queryKeys'
 import { supabase } from '../../services/supabase'
 import { DemurrageDunningStatus } from './DemurrageDunningStatus'
 
+type InvoiceTab = 'emitidas' | 'pagas' | 'canceladas'
+
 type Props = {
-  tab: string
-  tabLabel: string
-  invoices: DemurrageInvoice[] | undefined
+  tab: InvoiceTab
+  invoices: DemurrageInvoiceListItem[] | undefined
+  search: string
   loading: boolean
   error: unknown
+  onRetry: () => void
+  onSearchChange: (value: string) => void
   onOpenDetail: (invoiceId: number) => void
-  onOpenDocument: (invoiceId: number, type: 'invoice' | 'receipt') => void
 }
 
-export function DemurrageInvoicesTab({
-  tab,
-  tabLabel,
-  invoices,
-  loading,
-  error,
-  onOpenDetail,
-  onOpenDocument,
-}: Props) {
-  const invoiceIds = useMemo(() => (invoices ?? []).map((invoice) => invoice.id), [invoices])
+const EMPTY_TEXT: Record<InvoiceTab, { title: string; description: string }> = {
+  emitidas: { title: 'Nenhuma Invoice aguardando pagamento', description: 'As Invoices emitidas pela aba Containers aparecem aqui até a baixa.' },
+  pagas: { title: 'Nenhuma Invoice paga', description: 'As Invoices baixadas pelo PIX, pelo extrato ou à mão aparecem aqui.' },
+  canceladas: { title: 'Nenhuma Invoice cancelada', description: 'Invoices canceladas à mão ou substituídas por reemissão aparecem aqui.' },
+}
+
+function matchesSearch(invoice: DemurrageInvoiceListItem, query: string) {
+  if (!query) return true
+  const term = query.toLowerCase()
+  const digits = term.replace(/\D/g, '')
+  return (
+    invoice.doc_number.toLowerCase().includes(term)
+    || invoice.bl_id.toLowerCase().includes(term)
+    || (invoice.customer?.name ?? '').toLowerCase().includes(term)
+    || (digits.length >= 3 && (invoice.customer?.cnpj_cpf ?? '').replace(/\D/g, '').includes(digits))
+  )
+}
+
+/** Situação curta para a linha: o que impede ou pausa a cobrança. */
+function rowFlags(invoice: DemurrageInvoiceRow): string[] {
+  const flags: string[] = demurrageInvoiceNotices(invoice)
+    .filter((notice) => notice.key !== 'roe-cache')
+    .map((notice) => (notice.key === 'dispute' ? 'Disputa aberta' : 'Fora da Régua: datas alteradas'))
+  if (Number(invoice.discount_value ?? 0) > 0) flags.push('Com desconto')
+  return flags
+}
+
+export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, onRetry, onSearchChange, onOpenDetail }: Props) {
+  const narrow = useNarrowViewport()
+  const visible = useMemo(() => (invoices ?? []).filter((invoice) => matchesSearch(invoice, search.trim())), [invoices, search])
+  const invoiceIds = useMemo(() => visible.map((invoice) => invoice.id), [visible])
   const canReadDunning = typeof (supabase as { from?: unknown }).from === 'function'
     && typeof (supabase as { rpc?: unknown }).rpc === 'function'
+  const showDunning = tab === 'emitidas'
   const dunningQuery = useQuery({
     queryKey: queryKeys.demurrage.dunning(invoiceIds),
-    enabled: invoiceIds.length > 0 && canReadDunning,
-    queryFn: () => fetchDemurrageDunningStatuses(invoices ?? []),
+    enabled: showDunning && invoiceIds.length > 0 && canReadDunning,
+    queryFn: () => fetchDemurrageDunningStatuses(visible),
   })
   const dunningStatuses = dunningQuery.data ?? new Map()
+  const totals = visible.reduce((sum, invoice) => ({
+    usd: sum.usd + invoiceNetUsd(invoice).netUsd,
+    brl: sum.brl + Number(invoice.current_total_brl ?? 0),
+  }), { usd: 0, brl: 0 })
+  const filtering = Boolean(search.trim())
+
+  function dunningCell(invoice: DemurrageInvoiceListItem) {
+    const status = dunningStatuses.get(invoice.id)
+    const display = status ? getDemurrageDunningDisplay(invoice as DemurrageInvoiceRow, status) : undefined
+    return <DemurrageDunningStatus display={display} loading={dunningQuery.isLoading} error={Boolean(dunningQuery.error) || !canReadDunning} />
+  }
 
   return (
-    <>
-      {loading && <Card>Carregando...</Card>}
-      {error && <InlineError message="Erro ao carregar faturas." />}
-      {!loading && !error && !invoices?.length && (
-        <EmptyState icon={FileText} title="Nenhuma fatura" description={`Nenhuma fatura com status "${tab}".`} />
-      )}
+    <div className="app-dem-tab">
+      <div className="app-dem-toolbar">
+        <div className="app-dem-toolbar__search">
+          <label className="sr-only" htmlFor="demurrage-invoice-search">Buscar Invoice, B/L, Cliente ou CNPJ</label>
+          <Input
+            id="demurrage-invoice-search"
+            type="search"
+            placeholder="Invoice, B/L, Cliente ou CNPJ"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </div>
+      </div>
 
-      {invoices && invoices.length > 0 && (
-        <Card className="overflow-hidden p-0">
-          <div className="billing-table__head flex flex-col gap-1 border-b px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-            <span className="font-semibold text-white">{formatResultCount(invoices.length, 'fatura visível', 'faturas visíveis')}</span>
-            <span className="text-xs">Filtros ativos: Status {tabLabel}</span>
+      <QueryStateGate
+        isLoading={loading}
+        isError={Boolean(error)}
+        hasData={invoices !== undefined}
+        errorMessage="Não foi possível carregar as Invoices de Demurrage."
+        onRetry={onRetry}
+        loadingLabel="Carregando Invoices…"
+      >
+        <div className="app-dem-tablebar">
+          <SummaryStrip
+            label="Resumo das Invoices"
+            items={[
+              { label: visible.length === 1 ? 'Invoice' : 'Invoices', value: String(visible.length) },
+              { label: 'USD a cobrar', value: fmtUSD(totals.usd) },
+              { label: tab === 'pagas' ? 'BRL recebido' : tab === 'emitidas' ? 'BRL hoje' : 'BRL no cancelamento', value: fmtBRL(totals.brl) },
+            ]}
+          />
+          {tab === 'emitidas' ? <p className="app-dem-note">O USD fica travado na emissão; o BRL acompanha a PTAX até o pagamento.</p> : null}
+        </div>
+
+        {visible.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title={filtering ? 'Nenhuma Invoice nesta busca' : EMPTY_TEXT[tab].title}
+            description={filtering ? `Nada encontrado para "${search.trim()}".` : EMPTY_TEXT[tab].description}
+            action={filtering ? <Button variant="secondary" onClick={() => onSearchChange('')}>Limpar busca</Button> : undefined}
+          />
+        ) : narrow ? (
+          <div className="app-dem-cards">
+            {visible.map((invoice) => {
+              const net = invoiceNetUsd(invoice)
+              const flags = rowFlags(invoice as DemurrageInvoiceRow)
+              return (
+                <article key={invoice.id} className="app-dem-card" aria-label={`Invoice ${invoice.doc_number}`}>
+                  <div className="app-dem-card__head">
+                    <button type="button" className="app-dem-link app-dem-code app-dem-strong" onClick={() => onOpenDetail(invoice.id)}>{invoice.doc_number}</button>
+                    <InvoiceStatusBadge status={invoice.status} />
+                  </div>
+                  <p className="app-dem-card__customer">{invoice.customer?.name ?? 'Cliente não identificado'}</p>
+                  <p className="app-dem-meta">
+                    B/L <Link className="app-dem-link app-dem-code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link>
+                    {' · '}Emitida em {invoice.billed_at ? formatDate(invoice.billed_at) : '—'}
+                  </p>
+                  <div className="app-dem-card__foot">
+                    <div className="app-table__cell-stack">
+                      <span className="app-dem-amount">{fmtUSD(net.netUsd)}</span>
+                      <span className="app-dem-meta">{fmtBRL(invoice.current_total_brl)}</span>
+                    </div>
+                    {flags.length ? <span className="app-dem-state app-dem-state--warning">{flags.join(' · ')}</span> : null}
+                  </div>
+                  {showDunning ? dunningCell(invoice) : null}
+                </article>
+              )
+            })}
           </div>
-          <div className="app-table-scroll app-table-scroll--sticky">
-            <table className="app-table app-table--compact min-w-[1360px] text-left text-sm">
-              <caption className="sr-only">Faturas de demurrage filtradas</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="px-4 py-3">Documento / BL</th><th scope="col" className="px-4 py-3">Cliente</th><th scope="col" className="px-4 py-3">Emissão</th><th scope="col" className="px-4 py-3">Financeiro</th><th scope="col" className="px-4 py-3">Status</th><th scope="col" className="px-4 py-3">Régua de cobrança</th><th scope="col" className="px-4 py-3">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((invoice) => {
-                  const customer = (invoice as { customer?: { name?: string } }).customer
-                  const dunningStatus = dunningStatuses.get(invoice.id)
-                  const dunning = dunningStatus ? getDemurrageDunningDisplay(invoice, dunningStatus) : undefined
-                  return (
-                    <tr key={invoice.id}>
-                      <td className="px-4 py-3"><div className="app-table__cell-stack" data-testid="demurrage-invoice-context"><div className="font-semibold text-white">{invoice.doc_number}</div><div className="app-table__cell-value text-blue-400">{invoice.bl_id}</div></div></td>
-                      <td className="px-4 py-3"><div className="app-table__cell-stack"><div className="app-table__cell-value app-table__truncate app-table__truncate--xl" title={customer?.name ?? '—'}>{customer?.name ?? '—'}</div><div className="app-table__cell-meta">{(invoice as { customer?: { cnpj_cpf?: string } }).customer?.cnpj_cpf ?? 'Cliente não identificado'}</div></div></td>
-                      <td className="px-4 py-3">{invoice.billed_at ? formatDate(invoice.billed_at) : <span className="text-slate-500">—</span>}</td>
-                      <td className="px-4 py-3"><div className="app-table__cell-stack" data-testid="demurrage-invoice-financial"><div className="app-table__cell-value app-table__cell-value--financial">USD {fmtUSD(invoice.total_usd)}</div><div className="app-table__cell-meta text-green-400">BRL {fmtBRL(invoice.current_total_brl)}</div>
-                        {invoice.roe_source === 'cached' && (
-                          <div className="app-table__cell-meta">ROE via cache</div>
-                        )}
-                      </div></td>
-                      <td className="px-4 py-3"><InvoiceStatusBadge status={invoice.status} /></td>
-                      <td className="px-4 py-3"><DemurrageDunningStatus display={dunning} loading={dunningQuery.isLoading} error={Boolean(dunningQuery.error) || !canReadDunning} /></td>
-                      <td className="px-4 py-3"><div data-testid="demurrage-invoice-primary-action" className="flex flex-nowrap items-center gap-2 whitespace-nowrap"><Button variant="secondary" onClick={() => onOpenDetail(invoice.id)}>Detalhes</Button>{tab === 'emitidas' && <Button variant="ghost" onClick={() => onOpenDocument(invoice.id, 'invoice')}>Fatura</Button>}</div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+        ) : (
+          <div className="app-surface app-dem-table-surface">
+            <div className="app-table-scroll app-table-scroll--sticky">
+              <table className="app-table app-table--compact app-dem-table">
+                <caption className="sr-only">Invoices de Demurrage</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Invoice</th>
+                    <th scope="col">Cliente</th>
+                    <th scope="col">{tab === 'pagas' ? 'Emissão · pagamento' : 'Emissão'}</th>
+                    <th scope="col" className="app-dem-num">USD a cobrar</th>
+                    <th scope="col" className="app-dem-num">{tab === 'pagas' ? 'BRL pago' : 'BRL'}</th>
+                    <th scope="col">Situação</th>
+                    {showDunning ? <th scope="col">Régua de cobrança</th> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((invoice) => {
+                    const net = invoiceNetUsd(invoice)
+                    const flags = rowFlags(invoice as DemurrageInvoiceRow)
+                    return (
+                      <tr key={invoice.id}>
+                        <td>
+                          <div className="app-table__cell-stack" data-testid="demurrage-invoice-context">
+                            <button type="button" className="app-dem-link app-dem-code app-dem-strong" onClick={() => onOpenDetail(invoice.id)}>{invoice.doc_number}</button>
+                            <span className="app-dem-meta">B/L <Link className="app-dem-link app-dem-code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="app-table__cell-stack">
+                            <span className="app-table__truncate app-table__truncate--xl" title={invoice.customer?.name ?? undefined}>{invoice.customer?.name ?? 'Cliente não identificado'}</span>
+                            <span className="app-dem-meta tabular-nums">{invoice.customer?.cnpj_cpf ? formatCnpjCpf(invoice.customer.cnpj_cpf) : '—'}</span>
+                          </div>
+                        </td>
+                        <td className="tabular-nums">
+                          <div className="app-table__cell-stack">
+                            <span>{invoice.billed_at ? formatDate(invoice.billed_at) : '—'}</span>
+                            {tab === 'pagas' && invoice.paid_at ? <span className="app-dem-meta">Paga em {formatDate(invoice.paid_at)}</span> : null}
+                          </div>
+                        </td>
+                        <td className="app-dem-num">
+                          <div className="app-table__cell-stack" data-testid="demurrage-invoice-financial">
+                            <span className="app-dem-amount">{fmtUSD(net.netUsd)}</span>
+                            {net.discountUsd > 0 ? <span className="app-dem-meta">{fmtUSD(net.totalUsd)} − desconto</span> : null}
+                          </div>
+                        </td>
+                        <td className="app-dem-num">
+                          <div className="app-table__cell-stack">
+                            <span className="tabular-nums">{fmtBRL(invoice.current_total_brl)}</span>
+                            {invoice.current_roe ? <span className="app-dem-meta">ROE {Number(invoice.current_roe).toFixed(4).replace('.', ',')}{invoice.roe_source === 'cached' ? ' · cache' : ''}</span> : null}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="app-table__cell-stack">
+                            <InvoiceStatusBadge status={invoice.status} />
+                            {flags.map((flag) => <span key={flag} className="app-dem-meta app-dem-meta--warning">{flag}</span>)}
+                          </div>
+                        </td>
+                        {showDunning ? <td>{dunningCell(invoice)}</td> : null}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </Card>
-      )}
-    </>
+        )}
+      </QueryStateGate>
+    </div>
   )
 }

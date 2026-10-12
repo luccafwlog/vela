@@ -1,86 +1,152 @@
-import { FileText } from 'lucide-react'
+import { Fragment } from 'react'
+import { ChevronDown, ChevronRight, FileText, Printer } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Card, EmptyState } from '../ui/Card'
+import { EmptyState, InlineError } from '../ui/Card'
+import { SummaryStrip } from '../ui/SummaryStrip'
+import { QueryStateGate } from '../shared/QueryStateGate'
 import { fmtBRL, fmtUSD } from '../../services/demurrage/demurragePresentation'
-import { formatResultCount } from '../../lib/operationalState'
-import { formatDate } from '../../lib/utils'
+import { formatCnpjCpf, formatDate } from '../../lib/utils'
 import type { CustomerDemurrageDetailItem, CustomerDemurrageSummary } from '../../services/demurrage/demurrageKpis'
 
 type Props = {
   summary: CustomerDemurrageSummary[] | undefined
+  loading: boolean
+  error: unknown
+  onRetry: () => void
   detail: CustomerDemurrageDetailItem[] | undefined
+  detailLoading: boolean
+  detailError: unknown
   expandedCustomer: number | null
   onExpandedCustomerChange: (customerId: number) => void
   onOpenReport: () => void
+  onOpenInvoice: (invoiceId: number) => void
 }
 
-export function DemurrageCustomersTab({ summary, detail, expandedCustomer, onExpandedCustomerChange, onOpenReport }: Props) {
+/** Saldo de Demurrage em aberto por Cliente: Invoices emitidas e não pagas. */
+export function DemurrageCustomersTab({
+  summary,
+  loading,
+  error,
+  onRetry,
+  detail,
+  detailLoading,
+  detailError,
+  expandedCustomer,
+  onExpandedCustomerChange,
+  onOpenReport,
+  onOpenInvoice,
+}: Props) {
+  const rows = summary ?? []
+  const totals = rows.reduce((sum, row) => ({ usd: sum.usd + row.total_usd, brl: sum.brl + row.total_brl, count: sum.count + row.invoice_count }), { usd: 0, brl: 0, count: 0 })
+
   return (
-    <>
-      <div className="mb-3 flex items-center justify-between">
-        <span className="font-semibold text-white">
-          {formatResultCount(summary?.length ?? 0, 'consignatário', 'consignatários')}
-        </span>
-        <Button variant="secondary" disabled={!summary?.length} onClick={onOpenReport}>
-          <FileText size={15} />
-          Imprimir
-        </Button>
-      </div>
-      {!summary?.length ? (
-        <EmptyState icon={FileText} title="Nada em aberto" description="Nenhuma fatura de demurrage emitida e não paga." />
-      ) : (
-        <div className="space-y-2">
-          {summary.map((customer) => {
-            const isExpanded = expandedCustomer === customer.customer_id
-            const panelId = `demurrage-customer-panel-${customer.customer_id}`
-            return (
-              <Card key={customer.customer_id} className="overflow-hidden">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/5"
-                  onClick={() => onExpandedCustomerChange(customer.customer_id)}
-                  aria-expanded={isExpanded}
-                  aria-controls={panelId}
-                >
-                  <span className="font-medium text-white">{customer.customer_name}</span>
-                  <span className="flex items-center gap-4 text-sm">
-                    <span className="text-slate-400">{customer.invoice_count} fat.</span>
-                    <span className="font-semibold text-amber-400">{fmtUSD(customer.total_usd)}</span>
-                    <span className="font-semibold text-green-400">{fmtBRL(customer.total_brl)}</span>
-                  </span>
-                </button>
-                {isExpanded && (
-                  <div id={panelId} className="border-t border-[#30363d] px-4 py-2">
-                    <table className="w-full text-sm">
-                      <caption className="sr-only">Invoices de demurrage de {customer.customer_name}</caption>
-                      <thead className="text-xs uppercase text-slate-500">
-                        <tr>
-                          <th className="py-1 text-left">Nº Doc</th>
-                          <th className="py-1 text-left">BL</th>
-                          <th className="py-1 text-left">Emissão</th>
-                          <th className="py-1 text-right">USD</th>
-                          <th className="py-1 text-right">BRL</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(detail ?? []).map((invoice) => (
-                          <tr key={invoice.id}>
-                            <td className="py-1 font-mono text-xs">{invoice.doc_number}</td>
-                            <td className="py-1 text-blue-400">{invoice.bl_id}</td>
-                            <td className="py-1">{invoice.billed_at ? formatDate(invoice.billed_at) : '—'}</td>
-                            <td className="py-1 text-right text-amber-400">{fmtUSD(invoice.total_usd)}</td>
-                            <td className="py-1 text-right text-green-400">{fmtBRL(invoice.current_total_brl)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Card>
-            )
-          })}
+    <div className="app-dem-tab">
+      <QueryStateGate
+        isLoading={loading}
+        isError={Boolean(error)}
+        hasData={summary !== undefined}
+        errorMessage="Não foi possível carregar o saldo de Demurrage por Cliente."
+        onRetry={onRetry}
+        loadingLabel="Carregando Clientes…"
+      >
+        <div className="app-dem-tablebar">
+          <SummaryStrip
+            label="Resumo por Cliente"
+            items={[
+              { label: rows.length === 1 ? 'Cliente' : 'Clientes', value: String(rows.length) },
+              { label: totals.count === 1 ? 'Invoice em aberto' : 'Invoices em aberto', value: String(totals.count) },
+              { label: 'USD', value: fmtUSD(totals.usd) },
+              { label: 'BRL hoje', value: fmtBRL(totals.brl) },
+            ]}
+          />
+          <Button variant="secondary" disabled={!rows.length} onClick={onOpenReport}>
+            <Printer size={15} aria-hidden="true" />
+            Imprimir relatório
+          </Button>
         </div>
-      )}
-    </>
+        {!rows.length ? (
+          <EmptyState icon={FileText} title="Nada em aberto" description="Nenhuma Invoice de Demurrage emitida e não paga." />
+        ) : (
+          <div className="app-surface app-dem-table-surface">
+            <div className="app-table-scroll">
+              <table className="app-table app-table--compact app-dem-table">
+                <caption className="sr-only">Demurrage em aberto por Cliente</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Cliente</th>
+                    <th scope="col" className="app-dem-num">Invoices</th>
+                    <th scope="col" className="app-dem-num">USD</th>
+                    <th scope="col" className="app-dem-num">BRL hoje</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((customer) => {
+                    const isExpanded = expandedCustomer === customer.customer_id
+                    const panelId = `demurrage-customer-panel-${customer.customer_id}`
+                    return (
+                      <Fragment key={customer.customer_id}>
+                        <tr>
+                          <td>
+                            <button
+                              type="button"
+                              className="app-dem-disclosure"
+                              onClick={() => onExpandedCustomerChange(customer.customer_id)}
+                              aria-expanded={isExpanded}
+                              aria-controls={panelId}
+                            >
+                              {isExpanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+                              <span className="app-table__cell-stack">
+                                <span className="app-dem-strong">{customer.customer_name}</span>
+                                <span className="app-dem-meta tabular-nums">{customer.cnpj_cpf ? formatCnpjCpf(customer.cnpj_cpf) : '—'}</span>
+                              </span>
+                            </button>
+                          </td>
+                          <td className="app-dem-num">{customer.invoice_count}</td>
+                          <td className="app-dem-num app-dem-amount">{fmtUSD(customer.total_usd)}</td>
+                          <td className="app-dem-num">{fmtBRL(customer.total_brl)}</td>
+                        </tr>
+                        {isExpanded ? (
+                          <tr className="app-dem-subrow">
+                            <td colSpan={4} id={panelId}>
+                              {detailError ? <InlineError message="Não foi possível carregar as Invoices deste Cliente." /> : null}
+                              {detailLoading ? <p className="app-dem-meta" role="status">Carregando Invoices…</p> : null}
+                              {detail?.length ? (
+                                <table className="app-dem-subtable">
+                                  <caption className="sr-only">Invoices de Demurrage em aberto de {customer.customer_name}</caption>
+                                  <thead>
+                                    <tr>
+                                      <th scope="col">Invoice</th>
+                                      <th scope="col">B/L</th>
+                                      <th scope="col">Emissão</th>
+                                      <th scope="col" className="app-dem-num">USD</th>
+                                      <th scope="col" className="app-dem-num">BRL hoje</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {detail.map((invoice) => (
+                                      <tr key={invoice.id}>
+                                        <td><button type="button" className="app-dem-link app-dem-code" onClick={() => onOpenInvoice(invoice.id)}>{invoice.doc_number}</button></td>
+                                        <td className="app-dem-code">{invoice.bl_id}</td>
+                                        <td className="tabular-nums">{invoice.billed_at ? formatDate(invoice.billed_at) : '—'}</td>
+                                        <td className="app-dem-num">{fmtUSD(invoice.total_usd)}</td>
+                                        <td className="app-dem-num">{fmtBRL(invoice.current_total_brl)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              ) : null}
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </QueryStateGate>
+    </div>
   )
 }

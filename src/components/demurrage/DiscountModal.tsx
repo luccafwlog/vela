@@ -1,72 +1,94 @@
 import { Button } from '../ui/Button'
 import { Field, Input, Select, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
-import {
-  DISCOUNT_TYPE_LABELS,
-  type DiscountForm,
-} from '../../services/demurrage/demurrageForms'
+import { SegmentedControl } from '../ui/SegmentedControl'
+import { DISCOUNT_TYPE_LABELS, type DiscountForm } from '../../services/demurrage/demurrageForms'
+import { discountPreview, fmtUSD } from '../../services/demurrage/demurragePresentation'
 import type { DemurrageInvoice } from '../../types/database'
+
+export type DiscountFieldErrors = Partial<Record<'discount_value' | 'discount_justification' | 'form', string>>
 
 type Props = {
   open: boolean
+  docNumber?: string | null
+  totalUsd?: number | null
+  hadDiscount?: boolean
   form: DiscountForm
   loading: boolean
+  errors?: DiscountFieldErrors
   onFormChange: (form: DiscountForm) => void
   onClose: () => void
   onSubmit: () => void
 }
 
-export function DiscountModal({ open, form, loading, onFormChange, onClose, onSubmit }: Props) {
+/**
+ * Desconto em USD, antes da conversão para BRL (ADR 0014; RPC
+ * `apply_demurrage_discount`). A justificativa é exigida pela RPC em toda
+ * alteração, inclusive para tirar o desconto.
+ */
+export function DiscountModal({ open, docNumber, totalUsd, hadDiscount = false, form, loading, errors = {}, onFormChange, onClose, onSubmit }: Props) {
+  const preview = totalUsd != null ? discountPreview(totalUsd, form.discount_mode, form.discount_value) : null
+  const removing = hadDiscount && !String(form.discount_value ?? '').trim()
+
   return (
-    <Modal open={open} onClose={onClose} title="Desconto">
-      <div className="space-y-4 p-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+    <Modal open={open} onClose={onClose} title={docNumber ? `Desconto da Invoice ${docNumber}` : 'Desconto'} size="md">
+      <form className="app-dem-form" noValidate onSubmit={(event) => { event.preventDefault(); onSubmit() }}>
+        <div className="app-dem-form__grid">
           <Field label="Tipo de desconto">
             <Select
               value={form.discount_type ?? ''}
               onChange={(event) => onFormChange({ ...form, discount_type: (event.target.value || null) as DemurrageInvoice['discount_type'] })}
             >
-              <option value="">Sem desconto</option>
+              <option value="">Não classificado</option>
               {(Object.entries(DISCOUNT_TYPE_LABELS) as [NonNullable<DemurrageInvoice['discount_type']>, string][]).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Modo">
-            <Select
+          <div className="app-field">
+            <span className="app-field__label" id="dem-discount-mode">Como descontar</span>
+            <SegmentedControl
+              label="Como descontar"
               value={form.discount_mode}
-              onChange={(event) => onFormChange({ ...form, discount_mode: event.target.value as 'percent' | 'fixed' })}
-            >
-              <option value="percent">Percentual (%)</option>
-              <option value="fixed">Valor fixo (USD)</option>
-            </Select>
-          </Field>
+              onChange={(mode) => onFormChange({ ...form, discount_mode: mode })}
+              options={[
+                { value: 'percent', label: 'Percentual (%)' },
+                { value: 'fixed', label: 'Valor fixo (USD)' },
+              ]}
+            />
+          </div>
         </div>
-        <Field label="Valor do desconto">
+        <Field
+          label={form.discount_mode === 'fixed' ? 'Desconto em USD' : 'Desconto em %'}
+          error={errors.discount_value}
+          hint={hadDiscount ? 'Deixe em branco para tirar o desconto.' : form.discount_mode === 'fixed' ? 'Não pode passar do total da Invoice.' : 'De 0 a 100.'}
+        >
           <Input
-            type="number"
-            min="0"
-            step="0.01"
+            inputMode="decimal"
             value={form.discount_value}
             onChange={(event) => onFormChange({ ...form, discount_value: event.target.value })}
           />
-          <p className="mt-1 text-xs text-slate-400">
-            {form.discount_mode === 'fixed'
-              ? 'Valor em dólares (USD), descontado antes da conversão para BRL.'
-              : 'Percentual sobre o total USD.'}
-          </p>
         </Field>
-        <Field label="Justificativa">
+        {totalUsd != null ? (
+          <dl className="app-dem-facts" aria-live="polite">
+            <div><dt>Total dos itens</dt><dd>{fmtUSD(totalUsd)}</dd></div>
+            <div><dt>Desconto</dt><dd>{preview ? `− ${fmtUSD(preview.discountUsd)}` : '—'}</dd></div>
+            <div><dt>USD a cobrar</dt><dd className="app-dem-strong">{fmtUSD(preview ? preview.netUsd : totalUsd)}</dd></div>
+          </dl>
+        ) : null}
+        <Field label="Justificativa" required error={errors.discount_justification} hint="Fica no Histórico da Invoice.">
           <Textarea rows={2} value={form.discount_justification} onChange={(event) => onFormChange({ ...form, discount_justification: event.target.value })} />
         </Field>
         <Field label="Aprovador">
           <Input type="text" value={form.discount_approver} onChange={(event) => onFormChange({ ...form, discount_approver: event.target.value })} />
         </Field>
-        <div className="flex gap-2">
-          <Button loading={loading} onClick={onSubmit}>Salvar</Button>
-          <Button variant="ghost" onClick={onClose}>Voltar</Button>
+        <p className="app-dem-note">O BRL e o PIX são recalculados na hora. Com desconto, datas alteradas depois não reemitem a Invoice sozinhas: ela sai da Régua e espera reemissão à mão.</p>
+        {errors.form ? <p className="app-dem-form__error" role="alert">{errors.form} O desconto não foi alterado.</p> : null}
+        <div className="app-dem-form__actions">
+          <Button type="button" variant="ghost" onClick={onClose}>Voltar</Button>
+          <Button type="submit" loading={loading} loadingLabel="Salvando…">{removing ? 'Tirar desconto' : 'Salvar desconto'}</Button>
         </div>
-      </div>
+      </form>
     </Modal>
   )
 }

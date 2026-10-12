@@ -65,26 +65,44 @@ afterEach(cleanup)
 it('US-051: lista as tarifas de demurrage', async () => {
   renderPage()
   expect(await screen.findByText('20GP')).toBeTruthy()
-  expect(screen.getByText('Ativo')).toBeTruthy()
+  expect(screen.getByText('Ativa')).toBeTruthy()
+  expect(screen.getByText('dias 22 a 30')).toBeTruthy()
+  expect(screen.getByText('a partir do dia 31')).toBeTruthy()
 })
 
 it('US-052: cria uma nova tarifa pelo modal', async () => {
   const user = userEvent.setup()
   renderPage()
 
-  await user.click(screen.getByRole('button', { name: /Nova Tarifa/ }))
+  await user.click(screen.getByRole('button', { name: /Nova tarifa/ }))
   await user.type(screen.getByPlaceholderText('20GP'), '40HC')
-  await user.click(screen.getByRole('button', { name: 'Salvar' }))
+  const [p1Usd, p2Usd] = screen.getAllByLabelText(/Diária \(USD\)/)
+  await user.type(p1Usd, '75,50')
+  await user.type(p2Usd, '150')
+  await user.click(screen.getByRole('button', { name: 'Cadastrar tarifa' }))
 
   await waitFor(() => expect(svc.upsertDemurrageRate).toHaveBeenCalled())
-  expect((svc.upsertDemurrageRate.mock.calls[0] as unknown[])[0]).toMatchObject({ container_type: '40HC' })
+  expect((svc.upsertDemurrageRate.mock.calls[0] as unknown[])[0]).toMatchObject({ container_type: '40HC', p1_usd: 75.5, p2_usd: 150, free_days: 21, active: true })
 })
 
-it('US-053: ativa/desativa a tarifa pelo badge de status', async () => {
+it('mostra o erro junto do campo e não grava a tarifa sem diária', async () => {
   const user = userEvent.setup()
   renderPage()
 
-  await user.click((await screen.findByText('Ativo')).closest('button') as HTMLButtonElement)
+  await user.click(screen.getByRole('button', { name: /Nova tarifa/ }))
+  await user.type(screen.getByPlaceholderText('20GP'), '40HC')
+  await user.click(screen.getByRole('button', { name: 'Cadastrar tarifa' }))
+
+  expect(screen.getAllByRole('alert').map((node) => node.textContent)).toContain('Informe a diária de P1 em USD.')
+  expect(svc.upsertDemurrageRate).not.toHaveBeenCalled()
+})
+
+it('US-053: ativa/desativa a tarifa pelo menu da linha', async () => {
+  const user = userEvent.setup()
+  renderPage()
+
+  await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 20GP' }))
+  await user.click(screen.getByRole('menuitem', { name: 'Desativar tarifa' }))
 
   await waitFor(() => expect(svc.toggleDemurrageRateActive).toHaveBeenCalledWith(1, false))
 })
@@ -93,12 +111,13 @@ it('US-054: exclui a tarifa', async () => {
   const user = userEvent.setup()
   renderPage()
 
-  await user.click(await screen.findByRole('button', { name: 'Excluir tarifa' }))
+  await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 20GP' }))
+  await user.click(screen.getByRole('menuitem', { name: 'Excluir tarifa' }))
 
   await waitFor(() => expect(svc.deleteDemurrageRate).toHaveBeenCalledWith(1, 'motivo'))
 })
 
-it('lista os acordos de clientes na aba correspondente', async () => {
+it('lista os acordos de clientes na aba correspondente, refletida na URL', async () => {
   const user = userEvent.setup()
   renderPage()
 
@@ -107,5 +126,11 @@ it('lista os acordos de clientes na aba correspondente', async () => {
   expect(await screen.findByText('ACME LOGISTICA')).toBeTruthy()
   expect(screen.getByText('28 dias')).toBeTruthy()
   expect(screen.getByText('Acordo VIP')).toBeTruthy()
+  expect(screen.getByText('Vigente')).toBeTruthy()
 })
 
+it('abre os acordos filtrados pelo Cliente vindo da ficha', async () => {
+  renderPage(['/demurrage/taxas?tab=acordos&cliente=ACME'])
+  expect(await screen.findByText('ACME LOGISTICA')).toBeTruthy()
+  expect((screen.getByLabelText('Buscar acordo por Cliente ou CNPJ') as HTMLInputElement).value).toBe('ACME')
+})
