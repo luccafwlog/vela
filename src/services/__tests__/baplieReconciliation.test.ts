@@ -56,11 +56,11 @@ function createMutationBuilder(table: string, method: string, payload: unknown) 
 
 const builders: Record<string, ReturnType<typeof createBuilder>> = {}
 
-function installReconcileMocks(input: { bls?: unknown[]; baplie?: unknown[]; containers?: unknown[] }) {
+function installReconcileMocks(input: { bls?: unknown[]; baplie?: unknown[]; containers?: unknown[]; resolutions?: unknown[] }) {
   mockFrom.mockImplementation((table: string) => {
     if (table === 'bls') return createBuilder({ data: input.bls ?? [], error: null })
     if (table === 'baplie_containers') return (builders[table] = createBuilder({ data: input.baplie ?? [], error: null }))
-    if (table === 'baplie_reconciliation_resolutions') return createBuilder({ data: [], error: null })
+    if (table === 'baplie_reconciliation_resolutions') return createBuilder({ data: input.resolutions ?? [], error: null })
     if (table === 'bl_containers') {
       const builder = createBuilder({ data: input.containers ?? [], error: null })
       builders[table] = builder
@@ -280,6 +280,25 @@ describe('reconcileBaplieWithManifest', () => {
     await expect(reconcileBaplieWithManifest(1)).resolves.toEqual({ items: [], source: 'reconciled', pendingRoutes: [] })
   })
 
+  it('perfil manual resolvido com "Vale o B/L" para dois valores do Baplie não volta a divergir em nenhum', async () => {
+    // A tabela guarda uma resolução por valor do Baplie (IMO e depois OOG): a
+    // leitura que guardava uma só por container reabria a outra.
+    const resolutions = [
+      { bl_container_id: 10, baplie_value: 'OOG', manifest_value: 'sem marca', field_name: 'profile', resolution: 'vale_o_bl' },
+      { bl_container_id: 10, baplie_value: 'IMO', manifest_value: 'sem marca', field_name: 'profile', resolution: 'vale_o_bl' },
+    ]
+    const container = { id: 10, bl_id: 'BL1', container_number: 'ABCD1234567', is_imo: false, is_oog: false, profile_source: 'manual' }
+    for (const flags of [{ is_imo: true }, { is_oog: true }]) {
+      installReconcileMocks({
+        bls: [{ id: 'BL1' }],
+        baplie: [{ container_number: 'ABCD1234567', status: 'full', bl_ref: 'BL1', slot: null, ...flags }],
+        containers: [container],
+        resolutions,
+      })
+      await expect(reconcileBaplieWithManifest(1)).resolves.toEqual({ items: [], source: 'reconciled', pendingRoutes: [] })
+    }
+  })
+
   it('gera divergência de existência quando o container do Baplie não está em nenhum B/L', async () => {
     installReconcileMocks({
       bls: [{ id: 'BL1' }],
@@ -467,6 +486,6 @@ describe('computeProfileDivergences — perfil manual (migration 182)', () => {
     expect(computeProfileDivergences(baplie, containers)).toEqual([
       { kind: 'profile_mismatch', container_number: 'ABCD1234567', bl_container_id: 1, bl_id: 'BL1', bl_profile: 'sem marca', baplie_profile: 'IMO' },
     ])
-    expect(computeProfileDivergences(baplie, containers, new Map([[1, 'IMO']]))).toEqual([])
+    expect(computeProfileDivergences(baplie, containers, new Map([[1, new Set(['IMO'])]]))).toEqual([])
   })
 })

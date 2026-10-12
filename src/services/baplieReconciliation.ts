@@ -238,12 +238,12 @@ export function computeOwnershipDivergences(
 /**
  * Perfil IMO/OOG manual que o Baplie contradiz (pura, testável): o Baplie
  * não troca a correção manual; a divergência fica até "Vale o B/L".
- * `resolved` são os ids de container já resolvidos com o mesmo valor do Baplie.
+ * `resolved`: por container, os valores do Baplie já resolvidos com "Vale o B/L".
  */
 export function computeProfileDivergences(
   staged: Array<Pick<BaplieContainerRow, 'container_number' | 'status' | 'is_imo' | 'is_oog'>>,
   blContainers: BlContainerPhysical[],
-  resolved: ReadonlyMap<number, string> = new Map(),
+  resolved: ReadonlyMap<number, ReadonlySet<string>> = new Map(),
 ): BaplieReconciliationItem[] {
   const desired = new Map<string, { isImo: boolean; isOog: boolean }>()
   for (const row of staged) {
@@ -259,7 +259,7 @@ export function computeProfileDivergences(
     if (!want) continue
     const baplieProfile = profileLabel(want.isImo, want.isOog)
     if (want.isImo === Boolean(c.is_imo) && want.isOog === Boolean(c.is_oog)) continue
-    if (resolved.get(c.id) === baplieProfile) continue
+    if (resolved.get(c.id)?.has(baplieProfile)) continue
     items.push({
       kind: 'profile_mismatch',
       container_number: c.container_number,
@@ -597,11 +597,13 @@ export function ownershipResolutionKey(baplieValue: string | null | undefined, b
 }
 
 /**
- * Divergências já encerradas com "Vale o B/L": perfil (container → valor do
- * Baplie resolvido) e SOC/COC (container → pares "baplie|B/L" resolvidos).
+ * Divergências já encerradas com "Vale o B/L": perfil (container → valores do
+ * Baplie resolvidos) e SOC/COC (container → pares "baplie|B/L" resolvidos).
+ * O mesmo container pode ter várias resoluções de perfil (o Baplie mudou de
+ * IMO para OOG e as duas foram confirmadas): todas valem.
  */
 async function fetchResolutions(voyageId: number): Promise<{
-  profile: Map<number, string>
+  profile: Map<number, Set<string>>
   ownership: Map<number, Set<string>>
 }> {
   const { data, error } = await supabase
@@ -619,10 +621,13 @@ async function fetchResolutions(voyageId: number): Promise<{
     keys.add(ownershipResolutionKey(row.baplie_value, row.manifest_value))
     ownership.set(row.bl_container_id, keys)
   }
-  return {
-    profile: new Map(valeOBl.filter((row) => row.field_name === 'profile').map((row) => [row.bl_container_id, row.baplie_value])),
-    ownership,
+  const profile = new Map<number, Set<string>>()
+  for (const row of valeOBl.filter((r) => r.field_name === 'profile')) {
+    const values = profile.get(row.bl_container_id) ?? new Set<string>()
+    values.add(row.baplie_value)
+    profile.set(row.bl_container_id, values)
   }
+  return { profile, ownership }
 }
 
 function normalizeVal(v: string | null | undefined) {

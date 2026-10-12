@@ -134,6 +134,11 @@ perdeu correção anterior: nenhuma perdeu.
     as travas do navio (nome e IMO), na mesma ordem fixa (`217`).
 33. **Dois "Informar Nº" simultâneos numa rota nova deixavam um Manifesto
     sobrando.** A rota é travada antes de ler o número antigo (`217`).
+34. **Divergência de perfil do Baplie já resolvida podia voltar (commit
+    `bcefae1`).** A tabela guarda uma resolução "Vale o B/L" por valor do
+    Baplie, mas a conferência guardava uma só por container; com o Baplie
+    alternando entre IMO e OOG, a outra reaparecia. A conferência considera
+    todas (`baplieReconciliation.ts`).
 
 ### Mantidos como estão
 
