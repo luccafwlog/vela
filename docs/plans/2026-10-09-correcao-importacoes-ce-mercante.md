@@ -35,11 +35,17 @@ que ela deixou abertos (ADR 0079) estão nas migrations `203` a `206` (seção
 2026-10-12, corrigiu os achados nas migrations `211` a `217` e no frontend, com
 as decisões do dono na [ADR 0080](../adr/0080-decisoes-da-revisao-final-da-pr-929.md)
 (e a `181` editada antes do primeiro deploy, com autorização;
-[registro](../archive/audits/2026-10-12-revisao-final-pr-929.md)). Restam só passos do dono:
-na Etapa 0, as consultas em leitura na produção (pré-requisito do deploy) e a
-orientação da operação; na Etapa 13, o ensaio em Preview e a ligação do
-`import-effects-runner`, que é pré-requisito antes de dados reais (ADR 0079,
-decisão 3).
+[registro](../archive/audits/2026-10-12-revisao-final-pr-929.md)).
+
+**Estado conferido em 2026-10-12:** PR 929 integrada na `main`; leitura (somente
+SELECT) no projeto Supabase de produção mostra as migrations `174` a `217`
+aplicadas. Os dois itens do dono na Etapa 0 ficaram superados pelo deploy (ver
+a etapa). Restam só passos do dono na Etapa 13: o ensaio em Preview e a ligação
+do `import-effects-runner`, que é pré-requisito antes de dados reais (ADR 0079,
+decisão 3). Na mesma leitura, o job `import-effects-runner` está agendado e
+ativo no `pg_cron`, e `import_pending_effects` tem 3.081 efeitos `pending`, o
+mais antigo de 2026-09-30, coerente com a função ainda desligada pela variável
+`IMPORT_EFFECTS_RUNNER_ENABLED` (não legível por SQL; não conferida).
 **Migrations:** o hook `.claude/hooks/protect-files.sh` bloqueia qualquer
 arquivo em `supabase/migrations/`; as migrations novas desta execução foram
 criadas por shell, sem editar nenhuma existente.
@@ -106,16 +112,22 @@ hoje), depois 6 e 4, depois as demais.
 - [x] Manter `IMPORT_EFFECTS_RUNNER_ENABLED` desligado até a Etapa 13.
   Registrar a condição na seção do runner em
   [`servicos-externos.md`](../operations/servicos-externos.md).
-- [ ] O dono roda, **em leitura**, no banco de produção: efeitos pendentes por
+- [x] **Superado pelo deploy (2026-10-12).** O dono roda, **em leitura**, no banco de produção: efeitos pendentes por
   `effect_kind` e idade em `import_pending_effects`; B/Ls não cancelados com o
   mesmo CE (em `bls` e entre `bls` e `granite_bls`); CEs fora de
   `^[0-9]{15}$`; Nº de Manifesto que colidem depois da normalização (maiúsculas,
   sem separadores); containers com `demurrage_status = 'returned'` e
   `return_date` nula; containers FCL em B/Ls de Clientes diferentes; mesmo
   chassi em Viagens diferentes. O resultado orienta as Etapas 4, 5, 6, 8 e 11.
-- [ ] (dono) Orientar a operação até as correções: não reimportar Manifesto BB, B/L
+  As consultas eram pré-requisito do deploy, e as migrations `174` a `217` já
+  estão em produção sem registro delas neste plano. A `177` aborta quando há CE
+  repetido entre B/Ls ativos e foi aplicada, então não havia repetição. O
+  acumulado de `import_pending_effects` passa a ser revisado pela simulação do
+  roteiro da Etapa 13.
+- [x] **Superado pelo deploy (2026-10-12).** (dono) Orientar a operação até as correções: não reimportar Manifesto BB, B/L
   avulso nem B/L de container de B/L já com CE; em XLSX, digitar datas como
-  texto `DD/MM/AAAA`; conferir dia e mês na prévia de datas.
+  texto `DD/MM/AAAA`; conferir dia e mês na prévia de datas. A orientação valia
+  até as correções chegarem à produção, o que ocorreu com a PR 929.
 
 **Aceitação:** condição registrada no manual; consultas anexadas à PR da
 Etapa 4.
@@ -744,7 +756,8 @@ invertida; nenhuma suíte pulada por sonda com a variável ligada.
 
 ## Etapa 13 — Ligar o processamento automático (ADR 0078, item 18)
 
-Pré-requisitos: Etapas 4 e 7 em produção.
+Pré-requisitos: Etapas 4 e 7 em produção (atendido: migrations `178` e `179`
+em produção, conferido em leitura em 2026-10-12).
 
 **Antes de dados reais (dono, 2026-10-11; ADR 0079, decisão 3):** o runner
 precisa estar ligado antes de o sistema receber dados reais. Sem ele, o B/L que
@@ -788,6 +801,10 @@ orientação da operação) e, na Etapa 13, o ensaio em Preview e a ligação do
 [servicos-externos.md](../operations/servicos-externos.md). Quando o dono os
 concluir ou assumir, o plano vai para `docs/archive/plans/` e sai de
 `docs/plans/README.md`.
+
+**Atualização (2026-10-12):** com a PR 929 em produção, os itens do dono na
+Etapa 0 ficaram superados (ver a etapa). Restam só o ensaio em Preview e a
+ligação do `import-effects-runner` em produção, na Etapa 13.
 
 **Renumeração (2026-10-10):** a PR 927 publicou em produção a migration
 `173_ce_unlock_modelo_termo_docx.sql` enquanto este plano era executado. As
