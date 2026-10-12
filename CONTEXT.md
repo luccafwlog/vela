@@ -1134,9 +1134,9 @@ Revisão nunca é vinculado pela Base e recebe o Cliente manualmente na Revisão
 B/L de Viagem cancelada também fica de fora; razão social diferente da gravada
 pede confirmação ([ADR 0078](docs/adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md); migrations `185` e `192`). O B/L vinculado sai da
 Revisão pela regra dona da Revisão quando não sobra outra pendência, e as Taxas
-Locais são calculadas. **Pendente de decisão do dono** (revisão da PR 929): se
-o B/L já tem CE, a fatura só sai pela fila de efeitos (`local_billing`), que
-espera a ligação do `import-effects-runner`.
+Locais são calculadas. Se o B/L já tem CE, a fatura sai pela
+fila de efeitos (`local_billing`), processada pelo `import-effects-runner`
+segundos depois da gravação.
 
 **Troca de Consignatário**
 Correção do consignatário de um B/L já gravado, feita reimportando o arquivo do

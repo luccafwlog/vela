@@ -295,11 +295,11 @@ correspondente na Edge Function não foi conferido. `IMPORT_EFFECTS_CRON_SECRET`
 e `RECALC_CRON_SECRET` não existiam no Vault nessa conferência. Nota de execução
 posterior em 07/10: `RECALC_CRON_SECRET` provisionado em par, validado via
 HTTP 200 e job agendado às 17h UTC de segunda a sexta. `IMPORT_EFFECTS_CRON_SECRET`
-fica sem provisionar de propósito: o `import-effects-runner` está pausado
-(`IMPORT_EFFECTS_RUNNER_ENABLED` desligado) e o segredo será criado em par
-quando o runner for ativado (decisão do dono, 2026-10-08). **Condição para
+ficou sem provisionar de propósito até a ligação do `import-effects-runner`
+(decisão do dono, 2026-10-08); foi criado em par em 2026-10-12, quando o runner
+foi ligado (ver o roteiro abaixo). **Condição para
 ligar (ADR 0078, item 18):** o runner fica desligado até a Etapa 13 do
-[plano de correção das importações](../plans/2026-10-09-correcao-importacoes-ce-mercante.md),
+[plano de correção das importações](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md),
 depois da correção das tarefas da fila (Etapas 4 e 7 em produção), do ensaio
 em Preview e da aprovação do acumulado pela simulação; a ligação em produção é
 ato do dono. O diagnóstico da fila em leitura está em
@@ -325,7 +325,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `portal-email-events-runner` | a cada minuto | processa eventos da Resend (entrega, bounce, reclamação), suprime endereços e abre Alertas | — |
 | `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática | — |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente (respeita a chave global) | — |
-| `import-effects-runner` | a cada 5 min, em :03/:08/…/:58 (`3-59/5 * * * *`, migration `165`) | fila de efeitos de importação; pausado (`IMPORT_EFFECTS_RUNNER_ENABLED` desligado, segredo ausente) | — |
+| `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Cada chamada trabalha em blocos de 10 por até ~25 s | `import-effects-runner` |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
 | `customer-communication-auto-runner` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `165`) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global) | `customer-communication-auto-runner` |
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos e abre Alerta de reenvio | — |
@@ -348,7 +348,7 @@ abaixo e em [segredos e cron](segredos-cron.md#horários-e-tempo-limite-dos-disp
 
 `billing-release-expiry-review` é SQL puro, sem Vault nem Edge Function; o retorno (`customers`, `bls` reavaliados) fica em `cron.job_run_details`. Parado por mais de 7 dias, rode a função à mão com janela maior, por exemplo `SELECT public.reevaluate_expired_billing_releases(interval '30 days');`.
 
-`import-effects-queue-health` é SQL puro (migration `178`) e não processa efeitos. Até a migration `190` ele não reconciliava de fato: o `pg_cron` roda sem JWT e a reconciliação de Alertas recusava ("Sem permissão."), então o Alerta nunca abria nem fechava. Desde a `190`, a função assume o papel de serviço só durante a própria execução, abre e fecha o Alerta crítico `import_effects_queue_stalled` e mede a idade pelo vencimento da tentativa (`next_attempt_at`), não pela criação: efeito em backoff legítimo não conta. Com o `import-effects-runner` pausado, o Alerta fica aberto até o runner ser ligado sempre que houver efeito vencido há mais de 60 minutos, e é o sinal esperado. Antes de ligar o runner, rode a simulação do acumulado (`simulate_import_effects`, server-only) e aprove ou descarte com `apply_import_effects_review` (Etapa 13 do plano de correção das importações).
+`import-effects-queue-health` é SQL puro (migration `178`) e não processa efeitos. Até a migration `190` ele não reconciliava de fato: o `pg_cron` roda sem JWT e a reconciliação de Alertas recusava ("Sem permissão."), então o Alerta nunca abria nem fechava. Desde a `190`, a função assume o papel de serviço só durante a própria execução, abre e fecha o Alerta crítico `import_effects_queue_stalled` e mede a idade pelo vencimento da tentativa (`next_attempt_at`), não pela criação: efeito em backoff legítimo não conta. Com o `import-effects-runner` ligado (desde 2026-10-12), o Alerta só abre se a fila parar: efeito vencido há mais de 60 minutos. Antes de ligar o runner, rode a simulação do acumulado (`simulate_import_effects`, server-only) e aprove ou descarte com `apply_import_effects_review` (Etapa 13 do plano de correção das importações).
 
 #### Roteiro para ligar o `import-effects-runner` (ADR 0078, item 18)
 
@@ -419,6 +419,21 @@ COMMIT;
    `import_effects_queue_stalled` fechado. Para desligar numa emergência, retire
    `IMPORT_EFFECTS_RUNNER_ENABLED`; a fila acumula e o Alerta volta a abrir
    depois de 60 minutos.
+
+**Execução (2026-10-12, produção):** migrations `174` a `217` aplicadas no
+merge da PR 929, depois do diagnóstico da Etapa 0 (uma duplicata de CE entre
+B/Ls de teste, resolvida cancelando `CFRV22ZJGVIT016` pelo `cancel_bl`, com
+autorização do dono). Simulação dos 1.000 efeitos mais antigos (o máximo por
+chamada): todos `would_succeed`, sem fatura emitida nem cancelada. Por decisão
+do dono, sem ensaio em Preview (dados de produção são de teste) e sem revisão
+efeito a efeito: o acumulado é processado pelo próprio runner. O agente criou
+`IMPORT_EFFECTS_CRON_SECRET` no Vault com valor gerado pelo banco; o dono
+criou o par e `IMPORT_EFFECTS_RUNNER_ENABLED=true` na Edge Function. Primeiro
+ciclo às 22:03 UTC; até 22:36, 140 efeitos `succeeded`, nenhum em
+`retry_wait` ou `blocked`. O teste de desligamento (`503 paused`) não foi
+feito. A migration `218` passa o job para cada minuto, faz a importação
+disparar o runner e a função trabalhar por orçamento de tempo; a função nova
+precisa ser publicada (`supabase functions deploy import-effects-runner`).
 
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 

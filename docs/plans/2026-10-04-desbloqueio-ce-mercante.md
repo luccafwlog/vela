@@ -21,7 +21,7 @@ Modelo oficial e homologação externa seguem sem evidência de conclusão.
 **Estado conferido em 2026-10-10:** backend publicado em produção (migrations,
 Edge Functions, bucket e agendamentos; ver "Fontes"). O modelo oficial passou a ser DOCX
 (código da PR 927; migration `173` e funções de documento conferidas ativas em
-produção, ver "Fontes") e foi cadastrado pelo responsável no mesmo dia. O [plano de correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md)
+produção, ver "Fontes") e foi cadastrado pelo responsável no mesmo dia. O [plano de correção das importações e do CE Mercante](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)
 não fecha itens deste plano, mas suas Etapas 6 e 8.7 corrigem defeitos que
 afetam o Desbloqueio e passam a bloquear a ativação; ver "Caminho crítico para
 ativação".
@@ -312,7 +312,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [ ] **[bloqueia ativação]** Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. A publicação foi conferida em 2026-10-10 (ver "Fontes"); a compatibilidade não. A Vercel ficou só como rollback manual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
 - [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes").
-- [ ] **[bloqueia ativação]** Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](2026-10-09-correcao-importacoes-ce-mercante.md).
+- [ ] **[bloqueia ativação]** Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md).
 - [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
 - [ ] Validar fluxo VIP completo no ambiente controlado, incluindo dois pedidos sem reanexação, vencimento/renovação e preservação de histórico.

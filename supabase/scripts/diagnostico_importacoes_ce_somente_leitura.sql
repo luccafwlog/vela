@@ -1,6 +1,6 @@
 -- Diagnóstico das importações e do CE Mercante — SOMENTE LEITURA.
 --
--- Etapa 0 do plano docs/plans/2026-10-09-correcao-importacoes-ce-mercante.md
+-- Etapa 0 do plano docs/archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md
 -- (salvaguardas). O dono roda no banco de produção, em leitura, e anexa o
 -- resultado à PR da Etapa 4. O resultado orienta as Etapas 4, 5, 6, 8 e 11.
 --

@@ -1,5 +1,14 @@
 # Correção das importações e do CE Mercante — plano de implementação
 
+> **Arquivado em 2026-10-12 — concluído.** A PR 929 foi integrada à `main` e as
+> migrations `174` a `217` estão em produção; o `import-effects-runner` foi
+> ligado em 2026-10-12 e a migration `218` (PR seguinte) o acelera. Ficam com o
+> dono, fora deste plano: orientar a operação (Etapa 0) e, se quiser, o teste
+> de desligamento do runner. O ensaio em Preview foi dispensado pelo dono (dados
+> de produção são de teste). Registro da ligação em
+> [servicos-externos.md](../../operations/servicos-externos.md) ("Roteiro para
+> ligar o `import-effects-runner`").
+
 > **Para execução por agentes:** usar `executing-plans`. Cada etapa é uma
 > mudança própria (uma PR), executável sozinha na ordem da tabela de
 > dependências. Este plano não autoriza mudança em produção, publicação nem
@@ -9,16 +18,16 @@
 > correções da revisão saem numa PR só (PR 929), com ensaio em Preview antes da
 > produção.
 
-**Origem:** [revisão das importações e do CE Mercante de 2026-10-09](../archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
+**Origem:** [revisão das importações e do CE Mercante de 2026-10-09](../../archive/audits/2026-10-09-revisao-importacoes-ce-mercante.md).
 Os ids `M01`–`M25` são os problemas-raiz da seção 5 do relatório.
 
 **Regras de negócio:** decididas pelo dono em 2026-10-09 e registradas na
-[ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
+[ADR 0078](../../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
 (citada abaixo como "ADR 0078, item N") e no `CONTEXT.md`. Diferença de fatura
 paga é sempre tratada por restituição (item 4 da ADR 0077), nunca por crédito em
 outra fatura. As decisões da ADR 0078 estão tomadas; os pontos novos da revisão
 da PR 929 foram decididos pelo dono em 2026-10-11 e registrados na
-[ADR 0079](../adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md) (ver
+[ADR 0079](../../adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md) (ver
 [Revisão da PR 929](#revisão-da-pr-929-2026-10-11)).
 
 **Objetivo:** fazer as importações deixarem de apagar dado válido, de cobrar
@@ -33,9 +42,9 @@ migrations `190` a `202` e no frontend, e as decisões do dono sobre os pontos
 que ela deixou abertos (ADR 0079) estão nas migrations `203` a `206` (seção
 [Revisão da PR 929](#revisão-da-pr-929-2026-10-11)). A revisão final, em
 2026-10-12, corrigiu os achados nas migrations `211` a `217` e no frontend, com
-as decisões do dono na [ADR 0080](../adr/0080-decisoes-da-revisao-final-da-pr-929.md)
+as decisões do dono na [ADR 0080](../../adr/0080-decisoes-da-revisao-final-da-pr-929.md)
 (e a `181` editada antes do primeiro deploy, com autorização;
-[registro](../archive/audits/2026-10-12-revisao-final-pr-929.md)). Restam só passos do dono:
+[registro](../../archive/audits/2026-10-12-revisao-final-pr-929.md)). Restam só passos do dono:
 na Etapa 0, as consultas em leitura na produção (pré-requisito do deploy) e a
 orientação da operação; na Etapa 13, o ensaio em Preview e a ligação do
 `import-effects-runner`, que é pré-requisito antes de dados reais (ADR 0079,
@@ -105,20 +114,27 @@ hoje), depois 6 e 4, depois as demais.
 
 - [x] Manter `IMPORT_EFFECTS_RUNNER_ENABLED` desligado até a Etapa 13.
   Registrar a condição na seção do runner em
-  [`servicos-externos.md`](../operations/servicos-externos.md).
-- [ ] O dono roda, **em leitura**, no banco de produção: efeitos pendentes por
+  [`servicos-externos.md`](../../operations/servicos-externos.md).
+- [x] O dono roda, **em leitura**, no banco de produção: efeitos pendentes por
   `effect_kind` e idade em `import_pending_effects`; B/Ls não cancelados com o
   mesmo CE (em `bls` e entre `bls` e `granite_bls`); CEs fora de
   `^[0-9]{15}$`; Nº de Manifesto que colidem depois da normalização (maiúsculas,
   sem separadores); containers com `demurrage_status = 'returned'` e
   `return_date` nula; containers FCL em B/Ls de Clientes diferentes; mesmo
   chassi em Viagens diferentes. O resultado orienta as Etapas 4, 5, 6, 8 e 11.
-- [ ] (dono) Orientar a operação até as correções: não reimportar Manifesto BB, B/L
+- [ ] (dono, fora do plano a partir do arquivamento) Orientar a operação até as correções: não reimportar Manifesto BB, B/L
   avulso nem B/L de container de B/L já com CE; em XLSX, digitar datas como
   texto `DD/MM/AAAA`; conferir dia e mês na prévia de datas.
 
 **Aceitação:** condição registrada no manual; consultas anexadas à PR da
 Etapa 4.
+
+**Execução (2026-10-12, produção, em leitura):** o agente rodou as consultas
+pelo conector do Supabase, com autorização do dono, antes do merge da PR 929.
+Única pendência: CE `122605304003855` em dois B/Ls de teste da Viagem 1
+(`CFRV22ZJGVIT012` e `CFRV22ZJGVIT016`), que abortaria a `177`; o
+`CFRV22ZJGVIT016` foi cancelado pelo `cancel_bl`, com motivo e auditoria. As
+demais consultas voltaram vazias; a fila tinha 3.201 efeitos pendentes.
 
 ## Etapa 1 — Reimportação de carga solta (M01; ADR 0078, itens 1 e 14)
 
@@ -751,19 +767,19 @@ precisa estar ligado antes de o sistema receber dados reais. Sem ele, o B/L que
 já tem CE e recebe o Cliente depois (Base de Clientes ou Revisão) é calculado,
 mas a fatura só sai pela emissão manual em Taxas Locais.
 
-- [ ] Ensaio em Preview: ligar, rodar a simulação do acumulado, conferir 3
+- [ ] (dispensado pelo dono em 2026-10-12) Ensaio em Preview: ligar, rodar a simulação do acumulado, conferir 3
   ciclos sem efeito travado, testar o desligamento.
 - [x] Roteiro para o dono em `servicos-externos.md`: rodar a simulação em
   produção, aprovar o que for processado, criar `IMPORT_EFFECTS_CRON_SECRET` em
   par (Vault e função) e ligar `IMPORT_EFFECTS_RUNNER_ENABLED`; depois, o
   processamento fica sempre ligado.
-- [ ] A ligação em produção é ato do dono; o agente entrega o roteiro e a
+- [x] A ligação em produção é ato do dono; o agente entrega o roteiro e a
   evidência do ensaio.
 
 **Aceitação:** ensaio em Preview registrado; roteiro revisado pelo dono.
 
 **Execução (2026-10-10, local):** roteiro escrito em
-[servicos-externos.md](../operations/servicos-externos.md) ("Roteiro para ligar
+[servicos-externos.md](../../operations/servicos-externos.md) ("Roteiro para ligar
 o `import-effects-runner`"). O ensaio em Preview não foi feito pelo agente: exige
 criar segredos e ligar a função num ambiente externo, o que esta sessão não está
 autorizada a fazer; fica como primeiro passo do roteiro, com o dono. A ligação
@@ -774,7 +790,7 @@ em produção é ato do dono.
 - [x] Nenhum `it.fails` restante nas suítes `auditoria*`.
 - [x] `CONTEXT.md` sem "implementação pendente" nos itens da ADR 0078;
   documentação viva da seção 8 do relatório atualizada.
-- [ ] Mover este plano para `docs/archive/plans/` e retirar a linha de
+- [x] Mover este plano para `docs/archive/plans/` e retirar a linha de
   `docs/plans/README.md` na mesma mudança que concluir a última etapa.
 
 **Execução (2026-10-10, local):** migration `189` fecha o rastro do item 9 da
@@ -785,7 +801,7 @@ do `CONTEXT.md`. A ADR 0041 ganhou nota editorial sobre o alerta
 passos do dono — os dois itens da Etapa 0 (consultas em leitura na produção e
 orientação da operação) e, na Etapa 13, o ensaio em Preview e a ligação do
 `import-effects-runner` em produção, pelo roteiro em
-[servicos-externos.md](../operations/servicos-externos.md). Quando o dono os
+[servicos-externos.md](../../operations/servicos-externos.md). Quando o dono os
 concluir ou assumir, o plano vai para `docs/archive/plans/` e sai de
 `docs/plans/README.md`.
 
@@ -886,7 +902,7 @@ não reescrevem linhas; o código de tela foi corrigido no mesmo branch.
 
 **Decisões do dono (2026-10-11).** Os pontos que a revisão deixou abertos foram
 decididos e registrados na
-[ADR 0079](../adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md):
+[ADR 0079](../../adr/0079-decisoes-pendentes-da-revisao-da-pr-929.md):
 
 - **`203` — Demurrage com desconto ou disputa (decisão 1).** Mudança de datas
   em Invoice emitida com desconto ou disputa aberta não reemite: a Régua

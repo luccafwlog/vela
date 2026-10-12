@@ -193,7 +193,8 @@ Migration `179` (ADR 0078, itens 19 e 20):
   leitura e grava as datas por B/L em `apply_container_dates_atomic` (cada B/L
   é atômico; um B/L recusado não desfaz os outros). Quando todos os containers
   do B/L foram devolvidos, a RPC enfileira o efeito `demurrage_billing`; a
-  emissão depende do `import-effects-runner`, hoje pausado, e não há emissão
+  emissão sai pelo `import-effects-runner` (ligado desde 2026-10-12, segundos
+  depois da gravação), e não há emissão
   no navegador (`createInvoiceForReturnedBL`, que não tinha chamador, saiu na
   Etapa 12 do plano de correção das importações).
 - O modal `Editar datas do container` altera descarga e devolução, validando
