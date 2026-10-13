@@ -43,15 +43,21 @@ jobs:
         # O esm.sh às vezes derruba a conexão (main, 2026-10-13: "connection reset"
         # no import do supabase-js). Baixa as dependências antes, com até 3
         # tentativas; o teste roda só do cache, sem rede para os imports.
+        # O deno.lock da raiz cobre só os imports remotos desse teste: sem
+        # package.json nem deno.json, uma atualização de dependência npm ou do
+        # import map das funções não invalida o lock (`--frozen`).
+        env:
+          DENO_NO_PACKAGE_JSON: "1"
         run: |
           dir=supabase/functions/portal-ce-unlock-document
+          deno_lock="--no-config --lock=deno.lock --frozen"
           for attempt in 1 2 3; do
-            npx --yes deno@2.9.6 cache --frozen "$dir/index.ts" "$dir/index.test.ts" && break
+            npx --yes deno@2.9.6 cache $deno_lock "$dir/index.ts" "$dir/index.test.ts" && break
             [ "$attempt" = 3 ] && exit 1
             echo "Download das dependências falhou ($attempt/3); nova tentativa em 10 s."
             sleep 10
           done
-          npx --yes deno@2.9.6 test --frozen --cached-only --allow-env --allow-net "$dir/index.test.ts"
+          npx --yes deno@2.9.6 test $deno_lock --cached-only --allow-env --allow-net "$dir/index.test.ts"
 
       - name: Squash generator self-check
         run: node scripts/build-squash-migrations.mjs --self-check
