@@ -41,7 +41,11 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     carga" passa à coluna Carga (o próprio "2 CNTR" abre a carga embaixo da
     linha); o menu ⋮ sai, Excluir fica só na seleção em lote e "Copiar
     número do B/L" vira um ícone ao lado do número, visível ao passar o
-    mouse na linha ou ao receber o foco do teclado. Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
+    mouse na linha ou ao receber o foco do teclado. O mesmo ícone vale para
+    o CE Mercante e o CNPJ, em todas as telas: vira peça compartilhada
+    (`CopyValue` em `src/components/ui`), que substitui as cópias feitas à
+    mão em `Bls.tsx`, `BlDetalhe.tsx`, `ClienteFicha.tsx` e `Clientes.tsx`;
+    na ficha do Cliente, "Copiar CNPJ" sai do menu. Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
     Faturamento, Taxas locais e Perfil de carga em "Mais filtros". Ao
     implementar, a regra 3 passa a dizer que os cartões aparecem quando a
     tela precisa deles.
