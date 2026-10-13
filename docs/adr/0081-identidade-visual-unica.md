@@ -103,3 +103,11 @@ sublinhado aparece ao passar o mouse ou com o foco do teclado. A faixa de
 identidade foi ajustada; as famílias de página que ainda sublinham links em
 repouso (`app-invoices__number`, `app-dem-link`, `app-pix-link` e outras)
 mudam quando a tela dona migrar.
+
+## Nota de 2026-10-13: uma pendência, um lugar
+
+Na revisão da lista de BLs, o responsável pediu que cada pendência de um
+registro seja informada uma vez só. Um B/L sem Cliente mostrava "Revisão
+pendente" sob o número e "Sem cliente vinculado" na coluna Cliente: dois avisos
+para o mesmo fato. A regra 5 passa a dizer que, em lista, a pendência aparece
+na coluna em que se resolve, sem aviso genérico repetindo o fato.
