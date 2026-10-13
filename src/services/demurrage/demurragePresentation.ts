@@ -168,6 +168,17 @@ export type DemurrageInvoiceRow = DemurrageInvoice & { dunning_suspended_reason?
 export const DATES_CHANGED_PAID_PREFIX = 'Datas de container alteradas depois do pagamento'
 export const DATES_CHANGED_NEGOTIATED_PREFIX = 'Datas de container alteradas em Invoice com desconto ou disputa'
 
+/**
+ * Invoice paga suspensa porque as datas do container mudaram depois do
+ * pagamento (migrations 179 e 191): o estorno da baixa a reemite, ou a deixa
+ * para reemissão à mão quando tem desconto ou disputa (migration 203). Usado
+ * pelo cancelamento de baixa em Demurrage e na Conciliação PIX.
+ */
+export function reversalDatesNotice(invoice: { dunning_suspended_reason?: string | null; discount_value?: number | null; dispute_open?: boolean | null }): { negotiated: boolean } | null {
+  if (!invoice.dunning_suspended_reason?.startsWith(DATES_CHANGED_PAID_PREFIX)) return null
+  return { negotiated: Number(invoice.discount_value ?? 0) > 0 || Boolean(invoice.dispute_open) }
+}
+
 export type InvoiceNotice = { key: string; tone: 'warning' | 'info' | 'danger'; title: string; text: string }
 
 /**

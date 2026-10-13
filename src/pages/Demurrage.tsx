@@ -51,12 +51,12 @@ import { listDemurrageDisputes } from '../services/demurrage/demurrageDisputes'
 import { DEMURRAGE_INVOICE_TABS } from '../services/demurrage/demurrageInvoiceTabs'
 import { EMPTY_DISCOUNT, EMPTY_DISPUTE, type DiscountForm, type DisputeForm } from '../services/demurrage/demurrageForms'
 import {
-  DATES_CHANGED_PAID_PREFIX,
   discountPreview,
   fmtBRL,
   invoiceNetUsd,
   isPtaxWarningEligible,
   lastBusinessDayISO,
+  reversalDatesNotice,
 } from '../services/demurrage/demurragePresentation'
 import { reverseDemurragePayment } from '../services/reconciliacao'
 import { demurrageDiscountSchema } from '../services/financialValidation'
@@ -88,16 +88,6 @@ function discountErrors(form: DiscountForm): DiscountFieldErrors {
   // A RPC exige justificativa em toda alteração, inclusive para tirar o desconto.
   if (!form.discount_justification.trim()) errors.discount_justification = 'Informe a justificativa do desconto.'
   return errors
-}
-
-/**
- * Invoice paga suspensa porque as datas do container mudaram depois do
- * pagamento (migrations 179 e 191): o estorno da baixa a reemite, ou a deixa
- * para reemissão à mão quando tem desconto ou disputa (migration 203).
- */
-function reversalDatesNotice(invoice: { dunning_suspended_reason?: string | null; discount_value?: number | null; dispute_open?: boolean | null }): DemurrageReversalDatesNotice | null {
-  if (!invoice.dunning_suspended_reason?.startsWith(DATES_CHANGED_PAID_PREFIX)) return null
-  return { negotiated: Number(invoice.discount_value ?? 0) > 0 || Boolean(invoice.dispute_open) }
 }
 
 export function Demurrage() {

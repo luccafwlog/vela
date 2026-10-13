@@ -376,7 +376,7 @@ export async function matchUnifiedPixTransactions(transactions: PixTransaction[]
       // O PIX copia-e-cola tem valor fixo, entao a fatura ja foi casada pela 1a linha.
       ambiguityReason = 'TXID repetido no mesmo extrato.'
     } else if (!Number.isFinite(amountDiff)) {
-      ambiguityReason = 'Valor do documento nao e numerico.'
+      ambiguityReason = 'Valor do documento não é numérico.'
     } else if (
       entry.source === 'demurrage'
         ? !demurrageAmountAcceptable(entry.id, tx.date, tx.amount, entry.amount)
@@ -386,8 +386,8 @@ export async function matchUnifiedPixTransactions(transactions: PixTransaction[]
       // aceita a janela das duas PTAX (QR de um dia anterior ainda e pagavel).
       ambiguityReason =
         entry.source === 'demurrage'
-          ? 'Valor do PIX diverge da demurrage (fora da janela das duas PTAX).'
-          : 'Valor do PIX diverge do saldo aberto da fatura.'
+          ? 'Valor do Pix diferente da Invoice de Demurrage (fora da janela das duas PTAX).'
+          : 'Valor do Pix diferente do valor da cobrança da fatura.'
     }
 
     if (key && !ambiguityReason) seenTxids.add(key)
@@ -417,7 +417,7 @@ export async function confirmUnifiedPixReconciliation(matches: UnifiedPixMatch[]
     .map((match) => {
       const paidAt = match.transaction.date
       if (!paidAt) {
-        throw new Error(`Data do extrato nao parseada para ${match.docNumber}.`)
+        throw new Error(`Data do pagamento não identificada no extrato para ${match.docNumber}.`)
       }
 
       return {

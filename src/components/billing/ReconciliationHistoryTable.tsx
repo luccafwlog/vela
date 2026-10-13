@@ -1,101 +1,121 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { ArrowDown, ArrowUp, ArrowUpDown, Download } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Card, EmptyState, InlineError } from '../ui/Card'
+import { EmptyState } from '../ui/Card'
 import { SkeletonTable } from '../ui/Skeleton'
 import { FilterBar } from '../ui/FilterBar'
 import { Field, Input, Select } from '../ui/Input'
 import { Combobox, type ComboOption } from '../ui/Combobox'
-import { useToast } from '../ui/Toast'
-import { formatBRL, formatDate } from '../../lib/utils'
-import { invoiceTypeLabel, listBillingCustomers } from '../../services/billing'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
-import { listReconciliationHistory, exportReconciliationHistoryExcel, type ReconciliationFilters } from '../../services/reconciliacao'
-
-type SortField = NonNullable<ReconciliationFilters['sort']>
-
-type SortConfig = { field: SortField; dir: 'asc' | 'desc' }
-
-const DEFAULT_SORT: SortConfig = { field: 'paidAt', dir: 'desc' }
-
-const PAGE_SIZES = [20, 50, 100]
+import { useToast } from '../ui/Toast'
+import { useNarrowViewport } from '../bl/useNarrowViewport'
+import { describePageRange } from '../../lib/pagination'
+import { extractErrorText } from '../../lib/errors'
+import { formatBRL, formatCnpjCpf, formatDate } from '../../lib/utils'
+import { invoiceTypeLabel, listBillingCustomers } from '../../services/billing'
+import { historyRowStatus } from './pixReconciliationPresentation'
+import { queryKeys } from '../../services/queryKeys'
+import {
+  exportReconciliationHistoryExcel,
+  listReconciliationHistory,
+  type ReconciliationFilters,
+  type ReconciliationHistoryRow,
+} from '../../services/reconciliacao'
+import {
+  HISTORY_PAGE_SIZES,
+  countActiveHistoryFilters,
+  historyStateFromSearch,
+  withHistoryCustomer,
+  withHistoryFilter,
+  withHistoryPage,
+  withHistoryPageSize,
+  withHistorySort,
+  withoutHistoryFilters,
+  type HistoryFilterKey,
+  type HistorySortField,
+} from '../../pages/reconciliacaoState'
 
 type ReconciliationHistoryTableProps = {
   onSelectLocalInvoice?: (invoiceId: number, paymentId: number | null) => void
   onSelectDemurrageInvoice?: (demurrageId: number) => void
 }
 
+function amountLines(row: ReconciliationHistoryRow) {
+  const lines: string[] = []
+  if (Math.abs(row.totalAmount - row.blAmount) > 0.005) lines.push(`de ${formatBRL(row.totalAmount)} na fatura`)
+  if (row.status === 'partially_paid' && row.totalPaid != null) {
+    lines.push(`recebido ${formatBRL(row.totalPaid)}${row.balance != null ? ` · saldo ${formatBRL(row.balance)}` : ''}`)
+  }
+  return lines
+}
+
+function docTypeLabel(row: ReconciliationHistoryRow) {
+  return row.source === 'demurrage' ? 'Demurrage' : `Taxas Locais · ${invoiceTypeLabel(row.invoiceType)}`
+}
+
+function shipLine(row: ReconciliationHistoryRow) {
+  const ship = [row.vesselName, row.voyageNumber].filter(Boolean).join(' · ')
+  return [ship || null, row.pod].filter(Boolean).join(' · ') || '—'
+}
+
+/**
+ * Histórico de baixas confirmadas (Taxas Locais e Demurrage), seja pelo Itaú,
+ * pelo extrato ou pelo registro manual. Filtros, ordenação e página ficam na
+ * URL; o número do documento abre o detalhe, onde a baixa pode ser cancelada.
+ */
 export function ReconciliationHistoryTable({
   onSelectLocalInvoice,
   onSelectDemurrageInvoice,
 }: ReconciliationHistoryTableProps) {
   const { showToast } = useToast()
-  const [paidFrom, setPaidFrom] = useState('')
-  const [paidTo, setPaidTo] = useState('')
-  const [sourceFilter, setSourceFilter] = useState<'' | 'local' | 'demurrage'>('')
-  const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'' | 'consolidated' | 'single' | 'manual'>('')
-  const [customerId, setCustomerId] = useState('')
-  const [blSearch, setBlSearch] = useState('')
-  const [vesselSearch, setVesselSearch] = useState('')
-  const [voyageSearch, setVoyageSearch] = useState('')
-  const [pod, setPod] = useState('')
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
-  const [sort, setSort] = useState<SortConfig>(DEFAULT_SORT)
+  const narrow = useNarrowViewport()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const state = historyStateFromSearch(searchParams)
   const [exporting, setExporting] = useState(false)
 
   const filters: ReconciliationFilters = {
-    paidFrom, paidTo, source: sourceFilter, customerId,
-    blSearch, vesselSearch, voyageSearch, invoiceTypeFilter, pod,
-    sort: sort.field, sortDir: sort.dir,
-    page, pageSize,
+    paidFrom: state.paidFrom,
+    paidTo: state.paidTo,
+    source: state.source,
+    customerId: state.customerId,
+    blSearch: state.blSearch.trim(),
+    vesselSearch: state.vesselSearch.trim(),
+    voyageSearch: state.voyageSearch.trim(),
+    invoiceTypeFilter: state.invoiceTypeFilter,
+    pod: state.pod.trim(),
+    sort: state.sort,
+    sortDir: state.sortDir,
+    page: state.page,
+    pageSize: state.pageSize,
   }
+  const activeCount = countActiveHistoryFilters(state)
 
-  const activeCount = useMemo(() => {
-    let n = 0
-    if (paidFrom) n++
-    if (paidTo) n++
-    if (sourceFilter) n++
-    if (invoiceTypeFilter) n++
-    if (customerId) n++
-    if (blSearch) n++
-    if (vesselSearch) n++
-    if (voyageSearch) n++
-    if (pod) n++
-    return n
-  }, [paidFrom, paidTo, sourceFilter, invoiceTypeFilter, customerId, blSearch, vesselSearch, voyageSearch, pod])
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['reconciliation-history', filters],
+  const query = useQuery({
+    queryKey: [...queryKeys.reconciliation.history(), filters],
     queryFn: () => listReconciliationHistory(filters),
     staleTime: 15_000,
   })
 
-  const rows = useMemo(() => data?.rows ?? [], [data?.rows])
-  const totalCount = data?.totalCount ?? 0
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const rows = query.data?.rows ?? []
+  const totalCount = query.data?.totalCount ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / state.pageSize))
+  const failed = Boolean(query.error)
+  // Página além do fim (link compartilhado, ou baixa cancelada na última página):
+  // vai para a última existente em vez de dizer que não há baixas.
+  const pastEnd = Boolean(query.data) && state.page > totalPages
+  const range = query.data && !pastEnd ? describePageRange({ page: state.page, pageSize: state.pageSize, totalCount }) : null
 
-  function updateSort(field: SortField) {
-    setSort((prev) => ({
-      field,
-      dir: prev.field === field && prev.dir === 'desc' ? 'asc' : 'desc',
-    }))
-    setPage(1)
-  }
-
-  function clearFilters() {
-    setPaidFrom('')
-    setPaidTo('')
-    setSourceFilter('')
-    setInvoiceTypeFilter('')
-    setCustomerId('')
-    setBlSearch('')
-    setVesselSearch('')
-    setVoyageSearch('')
-    setPod('')
-    setPage(1)
+  const update = (next: (params: URLSearchParams) => URLSearchParams) => setSearchParams((params) => next(params), { replace: true })
+  useEffect(() => {
+    if (pastEnd) setSearchParams((params) => withHistoryPage(params, totalPages), { replace: true })
+  }, [pastEnd, totalPages, setSearchParams])
+  const setFilter = (key: HistoryFilterKey, value: string) => update((params) => withHistoryFilter(params, key, value))
+  const open = (row: ReconciliationHistoryRow) => {
+    if (row.source === 'local') onSelectLocalInvoice?.(row.invoiceId, row.paymentId)
+    else onSelectDemurrageInvoice?.(row.invoiceId)
   }
 
   async function handleExport() {
@@ -103,210 +123,200 @@ export function ReconciliationHistoryTable({
     try {
       await exportReconciliationHistoryExcel(filters)
     } catch {
-      showToast('Falha ao exportar o histórico de conciliação.', 'error')
+      showToast('Falha ao exportar o histórico de baixas.', 'error')
     } finally {
       setExporting(false)
     }
   }
 
-  function renderSortCell(field: SortField, label: string) {
-    const active = sort.field === field
+  function sortHeader(field: HistorySortField, label: string, className?: string) {
+    const active = state.sort === field
     return (
-      <th
-        scope="col"
-        aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
-        className="px-4 py-3"
-      >
-        <button type="button" className="app-table__sort" onClick={() => updateSort(field)}>
+      <th scope="col" className={className} aria-sort={active ? (state.sortDir === 'asc' ? 'ascending' : 'descending') : undefined}>
+        <button type="button" className="app-table__sort" onClick={() => update((params) => withHistorySort(params, field))}>
           {label}
           {active ? (
-            sort.dir === 'desc' ? <ArrowDown size={13} /> : <ArrowUp size={13} />
+            state.sortDir === 'desc' ? <ArrowDown size={13} aria-hidden="true" /> : <ArrowUp size={13} aria-hidden="true" />
           ) : (
-            <ArrowUpDown size={13} className="opacity-30" />
+            <ArrowUpDown size={13} className="opacity-30" aria-hidden="true" />
           )}
         </button>
       </th>
     )
   }
 
+  const empty = !query.isLoading && !failed && !pastEnd && rows.length === 0
+  const emptyState = activeCount > 0 ? (
+    <EmptyState
+      title="Nenhuma baixa neste recorte"
+      description="Nenhum pagamento confirmado bate com os filtros."
+      action={<Button variant="secondary" onClick={() => update(withoutHistoryFilters)}>Limpar filtros</Button>}
+    />
+  ) : (
+    <EmptyState title="Nenhuma baixa registrada ainda" description="Pagamentos confirmados pelo Itaú, pelo extrato ou registrados à mão aparecem aqui." />
+  )
+
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="border-b border-[#30363d] p-4">
-        <FilterBar activeCount={activeCount} onClear={clearFilters} title="Filtros do histórico">
+    <section className="app-invoices app-pix-history" aria-label="Histórico de baixas">
+      <div className="app-pix-history__filters">
+        <FilterBar activeCount={activeCount} onClear={() => update(withoutHistoryFilters)} title="Filtros do histórico">
           <div className="app-filter-grid">
-            <Field label="Período de">
-              <Input type="date" value={paidFrom} onChange={(e) => { setPaidFrom(e.target.value); setPage(1) }} />
+            <Field label="Pago de">
+              <Input type="date" value={state.paidFrom} max={state.paidTo || undefined} onChange={(e) => setFilter('paidFrom', e.target.value)} />
             </Field>
-            <Field label="Período até">
-              <Input type="date" value={paidTo} onChange={(e) => { setPaidTo(e.target.value); setPage(1) }} />
+            <Field label="Pago até">
+              <Input type="date" value={state.paidTo} min={state.paidFrom || undefined} onChange={(e) => setFilter('paidTo', e.target.value)} />
             </Field>
-            <Field label="Tipo">
-              <Select value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value as '' | 'local' | 'demurrage'); setPage(1) }}>
-                <option value="">Todos</option>
+            <Field label="Origem">
+              <Select value={state.source} onChange={(e) => setFilter('source', e.target.value)}>
+                <option value="">Todas</option>
                 <option value="local">Taxas Locais</option>
                 <option value="demurrage">Demurrage</option>
               </Select>
             </Field>
-            <Field label="Tipo Doc.">
-              <Select value={invoiceTypeFilter} onChange={(e) => { setInvoiceTypeFilter(e.target.value as '' | 'consolidated' | 'single' | 'manual'); setPage(1) }}>
+            <Field label="Tipo de fatura" hint={state.source === 'demurrage' ? 'Só vale para Taxas Locais.' : undefined}>
+              <Select value={state.invoiceTypeFilter} disabled={state.source === 'demurrage'} onChange={(e) => setFilter('invoiceTypeFilter', e.target.value)}>
                 <option value="">Todos</option>
-                <option value="consolidated">Consolidada</option>
-                <option value="single">Único BL</option>
-                <option value="manual">Avulsa</option>
+                <option value="single">{invoiceTypeLabel('individual')}</option>
+                <option value="consolidated">{invoiceTypeLabel('consolidated')}</option>
+                <option value="manual">{invoiceTypeLabel('manual')}</option>
               </Select>
             </Field>
             <Combobox
-              key={`cust-${page}`}
-              label="Consignatário"
+              key={state.customerId || 'sem-cliente'}
+              label="Cliente"
               placeholder="Nome ou CNPJ"
-              initialValue=""
-              onValueChange={(value) => { if (!value.trim()) { setCustomerId(''); setPage(1) } }}
+              initialValue={state.customerName}
+              onValueChange={(value) => { if (!value.trim() && state.customerId) update((params) => withHistoryCustomer(params, null)) }}
               fetchOptions={async (q) =>
-                (await listBillingCustomers(q)).map((c): ComboOption => ({ value: String(c.id), label: c.name, meta: c.cnpj_cpf }))
+                (await listBillingCustomers(q)).map((c): ComboOption => ({ value: String(c.id), label: c.name, meta: formatCnpjCpf(c.cnpj_cpf) }))
               }
-              onSelectOption={(option) => { setCustomerId(option.value); setPage(1) }}
+              onSelectOption={(option) => update((params) => withHistoryCustomer(params, { id: option.value, name: option.label }))}
             />
             <Field label="B/L">
-              <Input
-                type="text"
-                placeholder="Número do BL"
-                value={blSearch}
-                onChange={(e) => { setBlSearch(e.target.value); setPage(1) }}
-              />
+              <Input type="text" value={state.blSearch} onChange={(e) => setFilter('blSearch', e.target.value)} />
             </Field>
             <Field label="Navio">
-              <Input
-                type="text"
-                placeholder="Nome do navio"
-                value={vesselSearch}
-                onChange={(e) => { setVesselSearch(e.target.value); setPage(1) }}
-              />
+              <Input type="text" value={state.vesselSearch} onChange={(e) => setFilter('vesselSearch', e.target.value)} />
             </Field>
             <Field label="Viagem">
-              <Input
-                type="text"
-                placeholder="Nº da viagem"
-                value={voyageSearch}
-                onChange={(e) => { setVoyageSearch(e.target.value); setPage(1) }}
-              />
+              <Input type="text" value={state.voyageSearch} onChange={(e) => setFilter('voyageSearch', e.target.value)} />
             </Field>
             <Field label="POD">
-              <Input
-                type="text"
-                placeholder="Porto de destino"
-                value={pod}
-                onChange={(e) => { setPod(e.target.value); setPage(1) }}
-              />
-            </Field>
-            <Field label="Itens por página">
-              <Select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}>
-                {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}/pág.</option>)}
-              </Select>
+              <Input type="text" value={state.pod} onChange={(e) => setFilter('pod', e.target.value)} />
             </Field>
           </div>
         </FilterBar>
       </div>
 
-      <div className="flex flex-col gap-1 border-b border-[#30363d] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-semibold text-white">{totalCount} registro(s) encontrado(s)</span>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400">
-            Página {page} de {totalPages}
-          </span>
-          <Button variant="secondary" className="text-xs" onClick={handleExport} loading={exporting}>
-            Exportar Excel
+      <div className="app-invoices__bar">
+        <p className="app-invoices__summary" aria-live="polite">{range ?? (failed ? 'Histórico indisponível' : 'Carregando…')}</p>
+        <div className="app-invoices__actions">
+          <Button
+            variant="secondary"
+            onClick={handleExport}
+            loading={exporting}
+            loadingLabel="Exportando…"
+            disabled={!totalCount}
+            title={totalCount ? undefined : 'Nada a exportar neste recorte'}
+          >
+            <Download size={15} aria-hidden="true" />
+            Exportar planilha
           </Button>
         </div>
       </div>
 
-      {error ? <InlineError message="Erro ao carregar histórico de conciliação." /> : null}
+      {failed ? (
+        <div role="alert" className="app-invoices__error">
+          <p>Não foi possível carregar o histórico de baixas: {extractErrorText(query.error)}</p>
+          <Button variant="secondary" onClick={() => void query.refetch()}>Tentar novamente</Button>
+        </div>
+      ) : null}
 
-      <div className="app-table-scroll app-table-scroll--sticky">
-        <table className="app-table app-table--compact min-w-[1200px] text-left text-sm">
-          <caption className="sr-only">Histórico de conciliações</caption>
-          <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
-            <tr>
-              {renderSortCell('blId', 'B/L')}
-              {renderSortCell('docNumber', 'Nº Documento')}
-              <th scope="col" className="px-4 py-3">Tipo</th>
-              {renderSortCell('customerName', 'Consignatário')}
-              {renderSortCell('blAmount', 'Valor BL')}
-              {renderSortCell('totalAmount', 'Valor Total')}
-              <th scope="col" className="px-4 py-3">Navio</th>
-              <th scope="col" className="px-4 py-3">Viagem</th>
-              <th scope="col" className="px-4 py-3">POD</th>
-              {renderSortCell('paidAt', 'Pagamento')}
-              <th scope="col" className="w-12 px-2 py-3 text-center">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#30363d]">
-            {isLoading ? (
-              <tr><td colSpan={11} className="p-0"><SkeletonTable rows={6} cols={11} /></td></tr>
-            ) : null}
-            {!isLoading && rows.length === 0 ? (
-              <tr><td colSpan={11} className="p-0"><EmptyState title="Nenhum pagamento encontrado." description={activeCount > 0 ? 'Tente limpar os filtros.' : 'Nenhuma conciliação registrada ainda.'} /></td></tr>
-            ) : null}
-            {rows.map((row) => {
-              return (
-                <tr key={row.id}>
-                  <td className="px-4 py-3 font-semibold text-[#58a6ff]">{row.blId === '-' ? 'Sem B/L' : row.blId}</td>
-                  <td className="px-4 py-3">
-                    <div className="app-table__cell-stack">
-                      <div className="font-semibold text-white">{row.docNumber}</div>
-                      {row.source !== 'demurrage' && (
-                        <Badge tone={row.invoiceType === 'consolidated' ? 'blue' : 'green'} className="text-[10px] px-1.5 py-0.5">
-                          {invoiceTypeLabel(row.invoiceType)}
-                        </Badge>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {row.source === 'demurrage' ? (
-                      <Badge tone="blue">Demurrage</Badge>
-                    ) : (
-                      <Badge tone="green">Taxas Locais</Badge>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="app-table__cell-stack">
-                      <div className="app-table__truncate app-table__truncate--xl" title={row.customerName}>
-                        {row.customerName || '—'}
-                      </div>
-                      <div className="app-table__cell-meta">{row.customerCnpj || ''}</div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-medium text-[var(--app-link)]">{formatBRL(row.blAmount)}</td>
-                  <td className="px-4 py-3 text-green-400">{formatBRL(row.totalAmount)}</td>
-                  <td className="px-4 py-3 text-slate-300">{row.vesselName || '—'}</td>
-                  <td className="px-4 py-3 text-slate-300">{row.voyageNumber || '—'}</td>
-                  <td className="px-4 py-3 text-slate-300">{row.pod || '—'}</td>
-                  <td className="px-4 py-3">{row.paidAt ? formatDate(row.paidAt) : <span className="text-slate-500">—</span>}</td>
-                  <td className="w-12 px-2 py-3 text-center">
-                    <button
-                      className="app-btn app-btn--secondary p-1 leading-none"
-                      title="Detalhes"
-                      onClick={() => {
-                        if (row.source === 'local') onSelectLocalInvoice?.(row.invoiceId, row.paymentId)
-                        else onSelectDemurrageInvoice?.(row.invoiceId)
-                      }}
-                    >
-                      <Eye size={15} />
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      {narrow ? (
+        <div className="app-invoice-cards">
+          {query.isLoading ? <SkeletonTable rows={4} cols={2} /> : null}
+          {empty ? emptyState : null}
+          {rows.map((row) => {
+            const status = historyRowStatus(row)
+            return (
+              <article key={row.id} className="app-invoice-card">
+                <div className="app-invoice-card__head">
+                  <button type="button" className="app-invoices__number" onClick={() => open(row)}>{row.docNumber}</button>
+                  <Badge tone={status.tone}>{status.label}</Badge>
+                </div>
+                <p className="app-invoice-card__amount">
+                  <span className="app-invoices__amount">{formatBRL(row.blAmount)}</span>
+                  {amountLines(row).map((line) => <span key={line} className="app-invoices__meta">{line}</span>)}
+                </p>
+                <p className="app-invoices__meta">{docTypeLabel(row)} · pago em {row.paidAt ? formatDate(row.paidAt) : '—'}</p>
+                <p className="app-invoices__customer">{row.customerName || '—'}</p>
+                <p className="app-invoices__meta">
+                  {row.blId === '-' ? 'Sem B/L' : <span className="app-pix-code">{row.blId}</span>} · {shipLine(row)}
+                </p>
+              </article>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="app-table-scroll app-table-scroll--sticky">
+          <table className="app-table app-table--compact app-pix-history__table">
+            <caption className="sr-only">Histórico de baixas</caption>
+            <thead>
+              <tr>
+                {sortHeader('docNumber', 'Fatura')}
+                {sortHeader('blId', 'B/L')}
+                {sortHeader('customerName', 'Cliente')}
+                <th scope="col">Navio / Viagem · POD</th>
+                {sortHeader('paidAt', 'Pago em')}
+                <th scope="col">Situação</th>
+                {sortHeader('blAmount', 'Valor', 'app-invoices__num')}
+              </tr>
+            </thead>
+            <tbody>
+              {query.isLoading ? (
+                <tr><td colSpan={7} className="p-0"><SkeletonTable rows={6} cols={7} /></td></tr>
+              ) : null}
+              {empty ? <tr><td colSpan={7} className="p-0">{emptyState}</td></tr> : null}
+              {rows.map((row) => {
+                const status = historyRowStatus(row)
+                return (
+                  <tr key={row.id}>
+                    <td>
+                      <button type="button" className="app-invoices__number" onClick={() => open(row)}>{row.docNumber}</button>
+                      <span className="app-invoices__meta">{docTypeLabel(row)}</span>
+                    </td>
+                    <td>{row.blId === '-' ? <span className="app-pix-muted">Sem B/L</span> : <span className="app-pix-code">{row.blId}</span>}</td>
+                    <td>
+                      <span className="app-invoices__customer app-invoices__clamp" title={row.customerName}>{row.customerName || '—'}</span>
+                      {row.customerCnpj ? <span className="app-invoices__meta tabular-nums">{formatCnpjCpf(row.customerCnpj)}</span> : null}
+                    </td>
+                    <td><span className="app-invoices__clamp">{shipLine(row)}</span></td>
+                    <td className="app-invoices__date tabular-nums">{row.paidAt ? formatDate(row.paidAt) : '—'}</td>
+                    <td><Badge tone={status.tone}>{status.label}</Badge></td>
+                    <td className="app-invoices__num">
+                      <span className="app-invoices__amount">{formatBRL(row.blAmount)}</span>
+                      {amountLines(row).map((line) => <span key={line} className="app-invoices__meta">{line}</span>)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
+      {query.data && !pastEnd ? (
       <TableFooterPagination
-        page={page}
-        pageSize={pageSize}
+        page={state.page}
+        pageSize={state.pageSize}
         totalCount={totalCount}
         totalPages={totalPages}
-        onPageChange={setPage}
+        pageSizes={HISTORY_PAGE_SIZES}
+        onPageChange={(page) => update((params) => withHistoryPage(params, page))}
+        onPageSizeChange={(size) => update((params) => withHistoryPageSize(params, size))}
       />
-    </Card>
+      ) : null}
+    </section>
   )
 }

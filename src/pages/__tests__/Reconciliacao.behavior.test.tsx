@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -21,16 +22,23 @@ const mocks = vi.hoisted(() => ({
   showToast: vi.fn(),
   itauMonitor: vi.fn(),
   markHandled: vi.fn(),
+  sheetNotices: vi.fn(),
   sheetWarnings: vi.fn(),
+  navigate: vi.fn(),
 }))
 const authState = vi.hoisted(() => ({ isAdmin: true }))
 
+vi.mock('react-router-dom', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router-dom')>()),
+  useNavigate: () => mocks.navigate,
+}))
 vi.mock('../../services/demurrage/demurrageKpis', () => ({
   parsePixExtractFile: mocks.parse,
 }))
 vi.mock('../../services/importCore', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/importCore')>()),
-  readSpreadsheetNotices: mocks.sheetWarnings,
+  readSpreadsheetNotices: mocks.sheetNotices,
+  readSpreadsheetWarnings: mocks.sheetWarnings,
 }))
 vi.mock('../../services/reconciliacao', () => ({
   matchUnifiedPixTransactions: mocks.match,
@@ -52,12 +60,30 @@ vi.mock('../../services/demurrage/demurrageInvoices', () => ({
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({ isAdmin: authState.isAdmin }),
 }))
+vi.mock('../../hooks/useFinancialRefunds', () => ({
+  useFinancialRefunds: () => ({ data: { pending: 0, settled: 0 }, error: null }),
+}))
 vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
 }))
 vi.mock('../../components/billing/InvoiceDetailModal', () => ({
   InvoiceDetailModal: ({ invoiceId, paymentId }: { invoiceId: number | null; paymentId: number | null }) =>
-    invoiceId ? <div>Detalhe local {invoiceId}/{paymentId}<button>Imprimir recibo</button></div> : null,
+    invoiceId ? <div>Detalhe local {invoiceId}/{String(paymentId)}</div> : null,
+}))
+vi.mock('../../components/demurrage/DemurrageInvoiceDetailModal', () => ({
+  DemurrageInvoiceDetailModal: ({ invoiceId, onReversePayment, onOpenDocument, onRegisterPayment }: {
+    invoiceId: number | null
+    onReversePayment: (invoice: object) => void
+    onOpenDocument: (id: number, type: 'invoice' | 'receipt') => void
+    onRegisterPayment: (invoice: object) => void
+  }) => invoiceId ? (
+    <div>
+      Detalhe Demurrage {invoiceId}
+      <button onClick={() => onReversePayment({ id: invoiceId, doc_number: 'DEM-31', dunning_suspended_reason: null })}>Cancelar baixa…</button>
+      <button onClick={() => onOpenDocument(invoiceId, 'receipt')}>Ver recibo</button>
+      <button onClick={() => onRegisterPayment({ id: invoiceId })}>Registrar pagamento</button>
+    </div>
+  ) : null,
 }))
 vi.mock('../../components/billing/ReconciliationHistoryTable', () => ({
   ReconciliationHistoryTable: ({
@@ -74,42 +100,45 @@ vi.mock('../../components/billing/ReconciliationHistoryTable', () => ({
   ),
 }))
 vi.mock('../../components/demurrage/InvoiceDocument', () => ({
-  InvoiceDocument: () => <div>Recibo demurrage</div>,
+  InvoiceDocument: ({ type }: { type: string }) => <div>Documento demurrage {type}</div>,
 }))
 
 import { Reconciliacao } from '../Reconciliacao'
 
-function renderPage() {
+function renderPage(path = '/reconciliacao') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
   render(
     <QueryClientProvider client={queryClient}>
-      <Reconciliacao />
+      <MemoryRouter initialEntries={[path]}>
+        <Reconciliacao />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
   return { invalidate }
 }
 
-const transaction = { txid: 'INV-001', cnpj: '123', date: '2026-06-23', amount: 100 }
+const transaction = { txid: 'INV-001', cnpj: '123', date: '2026-06-23', amount: 100, lineNumber: 5 }
 const safeMatch = {
   transaction,
   source: 'local' as const,
   invoiceId: 11,
   docNumber: 'INV-001',
-  customerName: 'Cliente',
-  customerCnpj: '123',
+  customerName: 'Cliente Seguro',
+  customerCnpj: '12345678000190',
   amount: 100,
   ambiguous: false,
   matchType: 'txid' as const,
 }
 const ambiguousMatch = {
   ...safeMatch,
+  transaction: { ...transaction, txid: 'TX-DIV', lineNumber: 6 },
   invoiceId: 12,
   docNumber: 'INV-002',
   ambiguous: true,
-  ambiguityReason: 'Valor divergente',
+  ambiguityReason: 'Valor do Pix diferente do valor da cobrança da fatura.',
 }
 const unmatchedMatch = {
   ...safeMatch,
@@ -120,62 +149,35 @@ const unmatchedMatch = {
   ambiguityReason: 'Nenhum documento aberto usa este TXID.',
   candidateCount: 0,
   matchType: 'unmatched' as const,
-  transaction: { ...transaction, txid: 'SEM-MATCH' },
+  transaction: { ...transaction, txid: 'SEM-MATCH', lineNumber: 7 },
 }
 
-describe('Reconciliacao PIX user behaviours', () => {
+const exceptionRow = {
+  id: 42, importKey: 'sha256:pix-import', lineNumber: 8, txid: 'TX-42', cnpj: '12345678000190',
+  paidAt: '2026-06-23T00:00:00+00:00', amount: 100, reason: 'ambiguous' as const, candidateCount: 2,
+  metadata: { ambiguity_reason: '2 documentos usam o mesmo TXID.' }, status: 'active' as const,
+  createdAt: '2026-06-23T13:00:00Z', updatedAt: '2026-06-23T13:00:00Z', resolvedAt: null,
+}
+
+async function uploadExtract(user: ReturnType<typeof userEvent.setup>) {
+  const input = document.querySelector('input[type="file"]') as HTMLInputElement
+  await user.upload(input, new File(['xlsx'], 'pix.xlsx', { type: 'application/vnd.ms-excel' }))
+  await screen.findByText('Conferência do extrato')
+}
+
+describe('Conciliação PIX', () => {
   afterEach(cleanup)
-
-  it('monitoramento Itaú mostra cancelamento pendente, resposta incerta e Pix sem baixa', async () => {
-    const base = { attempts: 1, lastError: null, amount: 10, nextAttemptAt: '', updatedAt: '', invoiceId: 1, uncertain: false }
-    mocks.itauMonitor.mockResolvedValue({
-      provider: 'itau',
-      polledUntil: '2026-10-06T15:00:00Z',
-      counts: { active: 4 },
-      charges: [
-        { ...base, id: 1, txid: 'VELA1', status: 'pending_cancel', source: 'local', docNumber: 'FL-100' },
-        { ...base, id: 2, txid: 'VELA2', status: 'pending_create', source: 'demurrage', docNumber: 'DM-200', uncertain: true, attempts: 3, lastError: 'timeout' },
-      ],
-      receipts: [{ endToEndId: 'E1', txid: 'VELA9', amount: 5, paidAt: '2026-10-06T14:00:00Z', reason: 'Valor recebido difere do valor da cobrança.' }],
-    })
-    renderPage()
-    expect(await screen.findByText('Cancelamento pendente')).toBeTruthy()
-    expect(screen.getByText('FL-100')).toBeTruthy()
-    expect(screen.getByText('Resposta incerta')).toBeTruthy()
-    expect(screen.getByText('timeout')).toBeTruthy()
-    expect(screen.getByText(/Valor recebido difere/)).toBeTruthy()
-    expect(screen.getByText('4 ativa(s)')).toBeTruthy()
-    expect(screen.getByText(/Baixa automática ligada/)).toBeTruthy()
-  })
-
-  it('Pix Itaú em análise só é marcado como tratado com motivo', async () => {
-    mocks.itauMonitor.mockResolvedValue({
-      provider: 'itau', polledUntil: null, counts: {}, charges: [],
-      receipts: [{ endToEndId: 'E9', txid: 'VELA9', amount: 5, paidAt: '2026-10-06T14:00:00Z', reason: 'Fatura cancelada.' }],
-    })
-    mocks.markHandled.mockResolvedValue(undefined)
-    renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Marcar como tratado' }))
-    const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
-    expect(confirm.disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText('Motivo do tratamento'), { target: { value: 'Restituição registrada' } })
-    fireEvent.click(confirm)
-    await waitFor(() => expect(mocks.markHandled).toHaveBeenCalledWith('E9', 'Restituição registrada'))
-    expect(mocks.showToast).toHaveBeenCalledWith('Pix marcado como tratado.', 'success')
-  })
 
   beforeEach(() => {
     vi.clearAllMocks()
     authState.isAdmin = true
     mocks.parse.mockResolvedValue([transaction])
     mocks.match.mockResolvedValue([safeMatch, ambiguousMatch, unmatchedMatch])
-    mocks.sheetWarnings.mockResolvedValue({ warnings: [], firstSheetHiddenRows: 0 })
+    mocks.sheetNotices.mockResolvedValue({ warnings: [], firstSheetHiddenRows: 0 })
+    mocks.sheetWarnings.mockResolvedValue([])
     mocks.createImportKey.mockResolvedValue('sha256:pix-import')
-    mocks.getLineIdentity.mockImplementation((transaction: { lineNumber?: number }) => transaction.lineNumber ?? 1)
-    mocks.persist.mockResolvedValue([
-      { id: 42, lineNumber: 1, status: 'active' },
-      { id: 43, lineNumber: 2, status: 'active' },
-    ])
+    mocks.getLineIdentity.mockImplementation((tx: { lineNumber?: number }) => tx.lineNumber ?? 1)
+    mocks.persist.mockResolvedValue([{ id: 43, lineNumber: 6, status: 'active' }, { id: 44, lineNumber: 7, status: 'active' }])
     mocks.listExceptions.mockResolvedValue([])
     mocks.listCandidates.mockResolvedValue([])
     mocks.linkCandidate.mockResolvedValue({ id: 42, status: 'active' })
@@ -193,136 +195,292 @@ describe('Reconciliacao PIX user behaviours', () => {
     })
   })
 
-  it('processa o arquivo e separa seguros, ambiguos e sem candidato', async () => {
-    const user = userEvent.setup()
-    renderPage()
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-
-    await user.upload(input, new File(['xlsx'], 'pix.xlsx', { type: 'application/vnd.ms-excel' }))
-
-    expect(await screen.findByText('Sem documento candidato (1)')).toBeTruthy()
-    expect(mocks.persist).toHaveBeenCalledWith('sha256:pix-import', [safeMatch, ambiguousMatch, unmatchedMatch])
-    expect(screen.getByText('Correspondencias confirmadas (1)')).toBeTruthy()
-    expect(screen.getByText('Ambiguas - ignoradas na confirmacao (1)')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Confirmar 1 pagamento(s)' })).toBeTruthy()
-  })
-
-  // Revisão da PR 929 (achado da revisão automática): linhas ocultas do extrato
-  // ficam fora da leitura; o aviso aparece antes de Confirmar.
-  it('avisa as linhas ocultas do extrato antes de confirmar', async () => {
-    mocks.sheetWarnings.mockResolvedValueOnce({ warnings: ['2 linhas ocultas ignoradas: o filtro da planilha indica importar só o visível.'], firstSheetHiddenRows: 2 })
-    const user = userEvent.setup()
-    renderPage()
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-
-    await user.upload(input, new File(['xlsx'], 'pix.xlsx', { type: 'application/vnd.ms-excel' }))
-
-    expect(await screen.findByText('Parte do extrato ficou de fora')).toBeTruthy()
-    expect(screen.getByText(/2 linhas ocultas ignoradas/)).toBeTruthy()
-    expect(screen.getByText(/Só as linhas visíveis foram conciliadas/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Confirmar 1 pagamento(s)' })).toBeTruthy()
-  })
-
-  // Revisão da PR 929: linhas ocultas de OUTRA aba (que o parser PIX não lê)
-  // não tiram nada da conciliação — o aviso não diz que só o visível entrou.
-  it('linhas ocultas em outra aba: avisa sem dizer que parte do extrato ficou de fora', async () => {
-    mocks.sheetWarnings.mockResolvedValueOnce({
-      warnings: ['3 linhas ocultas ignoradas na aba "Resumo": o filtro da planilha indica importar só o visível.'],
-      firstSheetHiddenRows: 0,
+  it('monitor Itaú: horário de Brasília, fila do banco com o que pede ação primeiro e Pix sem baixa', async () => {
+    const base = { attempts: 1, lastError: null, amount: 10, nextAttemptAt: '', updatedAt: '2026-10-06T10:00:00Z', invoiceId: 1, uncertain: false }
+    mocks.itauMonitor.mockResolvedValue({
+      provider: 'itau',
+      polledUntil: '2026-10-06T15:00:00Z',
+      counts: { active: 4 },
+      charges: [
+        { ...base, id: 1, txid: 'VELA1', status: 'pending_cancel', source: 'local', docNumber: 'FL-100' },
+        { ...base, id: 2, txid: 'VELA2', status: 'pending_create', source: 'demurrage', docNumber: 'DM-200', uncertain: true, attempts: 3, lastError: 'timeout', updatedAt: '2026-10-06T11:00:00Z' },
+      ],
+      receipts: [{ endToEndId: 'E1', txid: 'VELA9', amount: 5, paidAt: '2026-10-06T14:00:00Z', reason: 'Valor recebido difere do valor da cobrança.' }],
     })
+    renderPage()
+
+    // 15:00 UTC é meio-dia em Brasília; a hora literal do texto seria 3 h adiantada.
+    expect(await screen.findByText(/06\/10\/2026 às 12:00 \(há/)).toBeTruthy()
+    expect(screen.getByText('A consulta de recebimentos do Itaú não está avançando')).toBeTruthy()
+    expect(screen.getByText('Cancelamento pendente')).toBeTruthy()
+    expect(screen.getByText('Resposta incerta')).toBeTruthy()
+    expect(screen.getByText('timeout')).toBeTruthy()
+    expect(screen.getByText(/Valor recebido difere/)).toBeTruthy()
+    expect(screen.getByText(/recebido em 06\/10\/2026 às 11:00/)).toBeTruthy()
+    const queue = screen.getByRole('heading', { name: /Cobranças aguardando o Itaú/ }).closest('section')!
+    const docs = within(queue).getAllByRole('button').map((button) => button.textContent)
+    expect(docs).toEqual(['DM-200', 'FL-100'])
+    // Pix sem baixa e cobrança com resposta incerta pedem ação; o cancelamento na fila não.
+    expect(screen.getByRole('tab', { name: /Pendências/ }).textContent).toContain('2')
+  })
+
+  it('consulta Itaú recente não mostra o aviso de consulta parada', async () => {
+    mocks.itauMonitor.mockResolvedValue({ provider: 'itau', polledUntil: new Date().toISOString(), counts: {}, charges: [], receipts: [] })
+    renderPage()
+    expect(await screen.findByText(/agora há pouco/)).toBeTruthy()
+    expect(screen.queryByText('A consulta de recebimentos do Itaú não está avançando')).toBeNull()
+  })
+
+  it('Pix Itaú em análise só é marcado como tratado com motivo; Voltar devolve o foco e a recusa fica no campo', async () => {
+    mocks.itauMonitor.mockResolvedValue({
+      provider: 'itau', polledUntil: new Date().toISOString(), counts: {}, charges: [],
+      receipts: [{ endToEndId: 'E9', txid: 'VELA9', amount: 5, paidAt: '2026-10-06T14:00:00Z', reason: 'Fatura cancelada.' }],
+    })
+    mocks.markHandled.mockRejectedValueOnce(new Error('Pix Itaú não está em análise.')).mockResolvedValueOnce(undefined)
     const user = userEvent.setup()
     renderPage()
+
+    const trigger = await screen.findByRole('button', { name: 'Marcar como tratado…' })
+    await user.click(trigger)
+    expect(document.activeElement).toBe(screen.getByLabelText(/Motivo do tratamento/))
+    await user.click(screen.getByRole('button', { name: 'Voltar' }))
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('Marcar como tratado…'))
+
+    await user.click(screen.getByRole('button', { name: 'Marcar como tratado…' }))
+    const submit = screen.getByRole('button', { name: 'Marcar como tratado' }) as HTMLButtonElement
+    expect(submit.disabled).toBe(true)
+    await user.type(screen.getByLabelText(/Motivo do tratamento/), 'Rest.')
+    await user.click(submit)
+    expect(await screen.findByText('Pix Itaú não está em análise.')).toBeTruthy()
+    await user.type(screen.getByLabelText(/Motivo do tratamento/), ' registrada')
+    await user.click(screen.getByRole('button', { name: 'Marcar como tratado' }))
+    await waitFor(() => expect(mocks.markHandled).toHaveBeenLastCalledWith('E9', 'Rest. registrada'))
+    expect(await screen.findByText(/marcado como tratado; o Alerta do recebimento foi encerrado/)).toBeTruthy()
+  })
+
+  it('lê o extrato, salva as exceções e separa o que entra no lote do que fica pendente', async () => {
+    const user = userEvent.setup()
+    const { invalidate } = renderPage('/reconciliacao?tab=extrato')
+    await uploadExtract(user)
+
+    expect(mocks.persist).toHaveBeenCalledWith('sha256:pix-import', [safeMatch, ambiguousMatch, unmatchedMatch])
+    const ready = screen.getByRole('table', { name: 'Linhas do extrato prontas para baixa' })
+    expect(within(ready).getAllByText('INV-001')).toHaveLength(2) // TXID e fatura
+    expect(within(ready).getByText('12.345.678/0001-90')).toBeTruthy()
+    const pending = screen.getByRole('table', { name: 'Linhas do extrato que ficam como exceção pendente' })
+    expect(within(pending).getByText('Ambígua')).toBeTruthy()
+    expect(within(pending).getByText('Sem documento')).toBeTruthy()
+    expect(within(pending).getByText('Valor do Pix diferente do valor da cobrança da fatura.')).toBeTruthy()
+    expect(screen.getByText('Nada foi baixado ainda.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Confirmar 1 baixa' })).toBeTruthy()
+    // As exceções gravadas na leitura aparecem em Pendências sem recarregar.
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['pix-reconciliation-exceptions'] })
+  })
+
+  it('falha de leitura fica na tela, com nada baixado', async () => {
+    mocks.parse.mockRejectedValueOnce(new Error('Coluna "valor pago" não encontrada.'))
+    const user = userEvent.setup()
+    renderPage('/reconciliacao?tab=extrato')
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(input, new File(['xlsx'], 'pix.xlsx'))
 
-    await user.upload(input, new File(['xlsx'], 'pix.xlsx', { type: 'application/vnd.ms-excel' }))
+    expect(await screen.findByText('Não foi possível ler o extrato')).toBeTruthy()
+    expect(screen.getByText(/valor pago" não encontrada\. Nada foi baixado\./)).toBeTruthy()
+    expect(mocks.showToast).not.toHaveBeenCalled()
+  })
 
-    expect(await screen.findByText('Avisos de leitura do extrato')).toBeTruthy()
+  // Revisão da PR 929: linhas ocultas do extrato ficam fora da leitura; o aviso aparece antes de Confirmar.
+  it('avisa as linhas ocultas do extrato antes de confirmar', async () => {
+    mocks.sheetNotices.mockResolvedValueOnce({ warnings: ['2 linhas ocultas ignoradas: o filtro da planilha indica importar só o visível.'], firstSheetHiddenRows: 2 })
+    mocks.sheetWarnings.mockResolvedValueOnce(['2 linhas ocultas ignoradas: o filtro da planilha indica importar só o visível.'])
+    const user = userEvent.setup()
+    renderPage('/reconciliacao?tab=extrato')
+    await uploadExtract(user)
+
+    expect(screen.getByText('Parte do extrato ficou de fora')).toBeTruthy()
+    expect(screen.getByText(/2 linhas ocultas da aba lida não entraram/)).toBeTruthy()
+    expect(screen.getByText(/Só as linhas visíveis entram na conciliação/)).toBeTruthy()
+    expect(await screen.findByText(/2 linhas ocultas ignoradas: o filtro/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Confirmar 1 baixa' })).toBeTruthy()
+  })
+
+  // Revisão da PR 929: linhas ocultas de OUTRA aba não tiram nada da conciliação.
+  it('linhas ocultas em outra aba: avisa a leitura sem dizer que parte do extrato ficou de fora', async () => {
+    mocks.sheetNotices.mockResolvedValueOnce({ warnings: ['3 linhas ocultas ignoradas na aba "Resumo".'], firstSheetHiddenRows: 0 })
+    mocks.sheetWarnings.mockResolvedValueOnce(['3 linhas ocultas ignoradas na aba "Resumo".'])
+    const user = userEvent.setup()
+    renderPage('/reconciliacao?tab=extrato')
+    await uploadExtract(user)
+
+    expect(await screen.findByText('Avisos de leitura do arquivo')).toBeTruthy()
+    expect(screen.getByText(/aba "Resumo"/)).toBeTruthy()
     expect(screen.queryByText('Parte do extrato ficou de fora')).toBeNull()
-    expect(screen.queryByText(/Só as linhas visíveis foram conciliadas/)).toBeNull()
   })
 
-  it('recarrega pendencias PIX persistidas e oferece nova tentativa segura', async () => {
-    mocks.listExceptions.mockResolvedValueOnce([{
-      id: 42,
-      importKey: 'sha256:pix-import',
-      lineNumber: 8,
-      txid: '',
-      cnpj: '123',
-      paidAt: '2026-06-23',
-      amount: 100,
-      reason: 'unmatched',
-      candidateCount: 0,
-      metadata: {},
-      status: 'active',
-      createdAt: '2026-06-23T10:00:00Z',
-      updatedAt: '2026-06-23T10:00:00Z',
-      resolvedAt: null,
-    }])
-    renderPage()
-
-    expect(await screen.findByText('Pendencias PIX persistidas (1)')).toBeTruthy()
-    expect(screen.getByText(/Linha 8 · TXID ausente/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Tentar conciliar' })).toBeTruthy()
-  })
-
-  it('permite escolher candidata e confirma somente pela autoridade financeira', async () => {
+  it('confirma só o lote seguro e mostra o resultado que o banco devolveu, com caminho para o detalhe', async () => {
     const user = userEvent.setup()
-    mocks.listExceptions.mockResolvedValueOnce([{
-      id: 42, importKey: 'sha256:pix-import', lineNumber: 8, txid: 'TX-42', cnpj: '123',
-      paidAt: '2026-06-23', amount: 100, reason: 'ambiguous', candidateCount: 2,
-      metadata: {}, status: 'active', createdAt: '2026-06-23T10:00:00Z', updatedAt: '2026-06-23T10:00:00Z', resolvedAt: null,
-    }])
-    mocks.listCandidates.mockResolvedValueOnce([{ source: 'local', invoiceId: 10, docNumber: 'INV-010', amount: 100 }])
-    renderPage()
+    const { invalidate } = renderPage('/reconciliacao?tab=extrato')
+    await uploadExtract(user)
 
-    await user.click(await screen.findByRole('button', { name: 'Escolher candidata' }))
-    expect(await screen.findByText('INV-010')).toBeTruthy()
-    expect(screen.getByText(/vinculo nao confirma a baixa/i)).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Vincular candidata' }))
-    await waitFor(() => expect(mocks.linkCandidate).toHaveBeenCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10 })))
-    expect(mocks.confirm).toHaveBeenCalledWith([expect.objectContaining({ source: 'local', invoiceId: 10, ambiguous: false })])
-    expect(mocks.resolveException).toHaveBeenCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10, txid: 'TX-42' }))
-    expect(mocks.showToast).toHaveBeenCalledWith(expect.stringMatching(/Pendência conciliada/), 'success')
-  })
-
-  it('confirma somente o match seguro, exibe o resultado e invalida consumidores', async () => {
-    const user = userEvent.setup()
-    const { invalidate } = renderPage()
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    await user.upload(input, new File(['xlsx'], 'pix.xlsx', { type: 'application/vnd.ms-excel' }))
-
-    await user.click(await screen.findByRole('button', { name: 'Confirmar 1 pagamento(s)' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar 1 baixa' }))
 
     expect(mocks.confirm).toHaveBeenCalledWith([expect.objectContaining(safeMatch)])
-    expect(await screen.findByText('Pagamentos confirmados')).toBeTruthy()
+    expect(await screen.findByText('1 baixa confirmada pelo banco')).toBeTruthy()
+    expect(screen.getByText('Baixa confirmada')).toBeTruthy()
+    expect(screen.getByText(/2 linhas não entraram no lote e estão/)).toBeTruthy()
+    expect(screen.queryByText('Conferência do extrato')).toBeNull()
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['reconciliation-history'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['demurrage-invoices'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['billing-ledger'] })
+
+    await user.click(screen.getByRole('button', { name: 'INV-001' }))
+    expect(screen.getByText('Detalhe local 11/null')).toBeTruthy()
   })
 
-  it('abre os detalhes local e demurrage e exige justificativa para o estorno', async () => {
+  it('lote recusado: nada é baixado, a conferência continua e a recusa fica junto do botão', async () => {
+    mocks.confirm.mockRejectedValueOnce(new Error('Valor do PIX diverge do saldo da invoice INV-001.'))
     const user = userEvent.setup()
-    const { invalidate } = renderPage()
+    renderPage('/reconciliacao?tab=extrato')
+    await uploadExtract(user)
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar 1 baixa' }))
+
+    expect(await screen.findByText('Nenhuma baixa foi gravada')).toBeTruthy()
+    expect(screen.getByText(/diverge do saldo da invoice INV-001/)).toBeTruthy()
+    expect(screen.getByText('Conferência do extrato')).toBeTruthy()
+    expect(screen.queryByText(/baixa confirmada pelo banco/)).toBeNull()
+  })
+
+  it('resposta com menos itens que o enviado não promete a baixa que faltou', async () => {
+    mocks.match.mockResolvedValueOnce([safeMatch, { ...safeMatch, invoiceId: 13, docNumber: 'INV-003', transaction: { ...transaction, txid: 'TX-3', lineNumber: 9 } }])
+    const user = userEvent.setup()
+    renderPage('/reconciliacao?tab=extrato')
+    await uploadExtract(user)
+    expect(screen.getByText(/As 2 baixas são gravadas juntas/)).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar 2 baixas' }))
+
+    expect(await screen.findByText('1 baixa confirmada pelo banco')).toBeTruthy()
+    expect(screen.getByText(/1 linha enviada não voltou na resposta/)).toBeTruthy()
+  })
+
+  it('Demurrage paga com a cotação anterior explica a diferença na linha pronta', async () => {
+    mocks.match.mockResolvedValueOnce([{ ...safeMatch, source: 'demurrage', invoiceId: 31, docNumber: 'DEM-31', amount: 104.2 }])
+    const user = userEvent.setup()
+    renderPage('/reconciliacao?tab=extrato')
+    await uploadExtract(user)
+    expect(screen.getByText(/Cotação anterior aceita \(janela das duas PTAX\)/)).toBeTruthy()
+  })
+
+  it('exceção persistida: motivo, CNPJ e dia do extrato; Tentar de novo sem fatura segura explica na linha', async () => {
+    mocks.listExceptions.mockResolvedValue([exceptionRow])
+    mocks.match.mockResolvedValueOnce([{ ...ambiguousMatch, ambiguityReason: 'TXID repetido no mesmo extrato.' }])
+    const user = userEvent.setup()
+    renderPage()
+
+    expect(await screen.findByText(/2 documentos usam o mesmo TXID\./)).toBeTruthy()
+    expect(screen.getByText('12.345.678/0001-90')).toBeTruthy()
+    // A data do extrato fica no dia escrito, não no dia anterior de Brasília.
+    expect(screen.getByText('pago em 23/06/2026')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByText(/Ainda não há uma fatura segura para esta linha: TXID repetido/)).toBeTruthy()
+    expect(mocks.confirm).not.toHaveBeenCalled()
+  })
+
+  it('escolher fatura baixa pela autoridade financeira e encerra a exceção', async () => {
+    mocks.listExceptions.mockResolvedValue([exceptionRow])
+    mocks.listCandidates.mockResolvedValueOnce([{ source: 'local', invoiceId: 10, docNumber: 'INV-010', amount: 100 }])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Escolher fatura…' }))
+    expect(await screen.findByText('INV-010')).toBeTruthy()
+    expect(screen.getByText('mesmo valor do Pix')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Baixar nesta fatura' }))
+
+    await waitFor(() => expect(mocks.resolveException).toHaveBeenCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10, txid: 'TX-42' })))
+    expect(mocks.linkCandidate).toHaveBeenCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10 }))
+    expect(mocks.confirm).toHaveBeenCalledWith([expect.objectContaining({ source: 'local', invoiceId: 10, ambiguous: false })])
+    expect(await screen.findByText(/INV-010: baixa confirmada pelo banco/)).toBeTruthy()
+  })
+
+  it('baixa gravada e exceção não encerrada: pede para não repetir e só encerra a exceção', async () => {
+    mocks.listExceptions.mockResolvedValue([exceptionRow])
+    mocks.listCandidates.mockResolvedValueOnce([{ source: 'local', invoiceId: 10, docNumber: 'INV-010', amount: 100 }])
+    mocks.resolveException.mockRejectedValueOnce(new Error('timeout'))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Escolher fatura…' }))
+    await user.click(await screen.findByRole('button', { name: 'Baixar nesta fatura' }))
+    expect(await screen.findByText(/A baixa em INV-010 foi gravada, mas a exceção não foi encerrada: timeout Não repita a baixa; use Encerrar exceção/)).toBeTruthy()
+    // A fatura já não está aberta: Tentar de novo e Escolher fatura não a achariam.
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Escolher fatura…' })).toBeNull()
+    expect(mocks.confirm).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole('button', { name: 'Encerrar exceção' }))
+    expect(await screen.findByText('INV-010: exceção encerrada; a baixa já estava gravada.')).toBeTruthy()
+    expect(mocks.resolveException).toHaveBeenLastCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10, txid: 'TX-42' }))
+    expect(mocks.confirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('histórico abre o detalhe local com a baixa e o de Demurrage com cancelamento e recibo no mesmo fluxo', async () => {
+    const user = userEvent.setup()
+    const { invalidate } = renderPage('/reconciliacao?tab=historico')
 
     await user.click(screen.getByRole('button', { name: 'Abrir local' }))
     expect(screen.getByText('Detalhe local 11/21')).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: 'Imprimir recibo' }).length).toBeGreaterThan(0)
 
     await user.click(screen.getByRole('button', { name: 'Abrir demurrage' }))
-    expect(await screen.findByText('Recibo demurrage')).toBeTruthy()
-    expect(screen.getAllByRole('button', { name: 'Imprimir recibo' }).length).toBeGreaterThan(0)
-    const reverseButton = screen.getByRole('button', { name: 'Cancelar baixa' })
-    expect((reverseButton as HTMLButtonElement).disabled).toBe(true)
-
+    expect(screen.getByText('Detalhe Demurrage 31')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Cancelar baixa…' }))
+    const reverse = screen.getByRole('button', { name: 'Cancelar baixa' }) as HTMLButtonElement
+    expect(reverse.disabled).toBe(true)
     await user.type(screen.getByLabelText(/Justificativa para cancelar a baixa/), 'Pagamento duplicado')
-    await user.click(reverseButton)
-
+    await user.click(reverse)
     await waitFor(() => expect(mocks.reverseDemurrage).toHaveBeenCalledWith(31, 'Pagamento duplicado'))
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['reconciliation-history'] })
+    expect(await screen.findByText('Detalhe Demurrage 31')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Ver recibo' }))
+    expect(await screen.findByText('Documento demurrage receipt')).toBeTruthy()
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+    expect(await screen.findByText('Detalhe Demurrage 31')).toBeTruthy()
+
+    // Pagamento, desconto e disputa são de Demurrage: a Invoice abre lá.
+    await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
+    expect(mocks.navigate).toHaveBeenCalledWith('/demurrage?fatura=31')
   })
 
-  it('bloqueia a página para quem não é administrador', () => {
+  it('cancelar a baixa de Demurrage recusado: a recusa fica no formulário', async () => {
+    mocks.reverseDemurrage.mockRejectedValueOnce(new Error('Restituição depende desta baixa.'))
+    const user = userEvent.setup()
+    renderPage('/reconciliacao?tab=historico')
+    await user.click(screen.getByRole('button', { name: 'Abrir demurrage' }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar baixa…' }))
+    await user.type(screen.getByLabelText(/Justificativa para cancelar a baixa/), 'Engano')
+    await user.click(screen.getByRole('button', { name: 'Cancelar baixa' }))
+    expect(await screen.findByText(/Restituição depende desta baixa\. A baixa continua registrada\./)).toBeTruthy()
+  })
+
+  it('a aba fica na URL e o extrato lido sobrevive à troca de aba', async () => {
+    const user = userEvent.setup()
+    renderPage('/reconciliacao?tab=extrato')
+    await uploadExtract(user)
+    await user.click(screen.getByRole('tab', { name: /Histórico de baixas/ }))
+    expect(screen.getByRole('button', { name: 'Abrir local' })).toBeTruthy()
+    await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
+    expect(screen.getByText('Conferência do extrato')).toBeTruthy()
+    expect(mocks.parse).toHaveBeenCalledTimes(1)
+  })
+
+  it('bloqueia a página para quem não é do Administrativo, com o motivo e a saída', () => {
     authState.isAdmin = false
     renderPage()
     expect(screen.getByText('Acesso restrito')).toBeTruthy()
-    expect(screen.queryByText('Conciliação PIX')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Voltar para o Painel' })).toBeTruthy()
+    expect(screen.queryByRole('tab')).toBeNull()
+    expect(mocks.itauMonitor).not.toHaveBeenCalled()
   })
 })
