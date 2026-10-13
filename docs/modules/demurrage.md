@@ -304,8 +304,9 @@ Migration `179` (ADR 0078, itens 19 e 20):
   pagamento: a paga ou cancelada aberta como fatura não traz mais o QR. A
   Invoice complementar diz de qual Invoice anterior ela completa e que cobra só
   as caixas ainda não cobradas (`useDemurrageComplementOf`, mesma regra de
-  `earlierLiveInvoices` do detalhe; no Portal a marca ainda não chega ao
-  documento). O documento lê Cliente, B/L, navio e rota do cadastro atual: a
+  `earlierLiveInvoices` do detalhe; enquanto essa consulta carrega ou se falhar,
+  `Imprimir` fica bloqueado com o motivo na tela; no Portal a marca ainda não
+  chega ao documento). O documento lê Cliente, B/L, navio e rota do cadastro atual: a
   cópia congelada da migration `183` é só de Taxas Locais.
 
 ### `/bls/:blId` → aba `faturamento`

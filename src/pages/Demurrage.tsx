@@ -394,13 +394,14 @@ export function Demurrage() {
 
   function printInvoiceDocument() {
     if (document?.type === 'receipt' && !receiptRefunds.data) return
+    if (complement.pending || complement.failed) return
     const content = window.document.querySelector<HTMLElement>('.invoice-print-content')
     if (!content) return
     printDocumentElement(content, document?.type === 'receipt' ? 'Recibo de Demurrage' : 'Fatura de Demurrage')
   }
 
   const documentDetail = documentQuery.data
-  const complementOf = useDemurrageComplementOf(documentDetail?.invoice)
+  const complement = useDemurrageComplementOf(documentDetail?.invoice)
   const panelId = 'demurrage-panel'
 
   return (
@@ -603,16 +604,19 @@ export function Demurrage() {
           title={`${document.type === 'invoice' ? 'Fatura' : 'Recibo'} de Demurrage${documentDetail ? ` ${documentDetail.invoice.doc_number}` : ''}`}
         >
           <div className="app-dem-document-toolbar">
-            <Button variant="secondary" disabled={!documentDetail || (document.type === 'receipt' && !receiptRefunds.data)} onClick={printInvoiceDocument}>Imprimir</Button>
+            <Button variant="secondary" disabled={!documentDetail || (document.type === 'receipt' && !receiptRefunds.data) || complement.pending || complement.failed} onClick={printInvoiceDocument}>Imprimir</Button>
           </div>
           {documentQuery.error ? <p className="app-dem-form__error" role="alert">Não foi possível carregar o documento: {extractErrorText(documentQuery.error)}</p> : null}
           {!documentDetail && !documentQuery.error ? <p className="app-dem-meta" role="status">Carregando o documento…</p> : null}
+          {documentDetail && (complement.pending || complement.failed) ? (
+            <p role="status" className="app-dem-meta">{complement.failed ? 'Falha ao conferir as outras Invoices deste B/L. Recarregue antes de imprimir.' : 'Conferindo as outras Invoices deste B/L…'}</p>
+          ) : null}
           {document.type === 'receipt' && documentDetail && !receiptRefunds.data ? (
             <p role="status" className="app-dem-meta">{receiptRefunds.error ? 'Falha ao consultar restituições. Recarregue antes de emitir o recibo.' : 'Consultando restituições…'}</p>
           ) : null}
           {documentDetail ? (
             <div className="invoice-print-content">
-              <InvoiceDocument detail={{ ...documentDetail.invoice, items: documentDetail.items, refund_summary: receiptRefunds.data, complement_of: complementOf } satisfies DemurrageInvoiceDocumentDetail} type={document.type} />
+              <InvoiceDocument detail={{ ...documentDetail.invoice, items: documentDetail.items, refund_summary: receiptRefunds.data, complement_of: complement.complementOf } satisfies DemurrageInvoiceDocumentDetail} type={document.type} />
             </div>
           ) : null}
         </Modal>
