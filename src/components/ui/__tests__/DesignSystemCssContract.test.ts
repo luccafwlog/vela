@@ -141,7 +141,11 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-block__title\s*\{[^}]*color:\s*var\(--app-strip-text\)/s)
     expect(css).toMatch(/\.app-btn--ghost\s*\{[^}]*border-color:\s*var\(--app-border\)/s)
     expect(css).toMatch(/\.app-identity\s*\{[^}]*background:\s*var\(--app-navy\)/s)
-    // Linha fina e clara entre grupos (nota de 2026-10-13 na ADR 0081), não faixa grossa.
-    expect(css).toMatch(/\.app-shell table \.app-table__divider\s*\{[^}]*border-left:\s*1px solid var\(--app-border-soft\)/s)
+    // Tabela padrão (nota de 2026-10-13 na ADR 0081): tudo centralizado, texto
+    // longo à esquerda, grupo com traço sob o título e sem linha vertical.
+    expect(css).toMatch(/table\.app-table--padrao th,\s*\.app-shell table\.app-table--padrao td\s*\{[^}]*text-align:\s*center/s)
+    expect(css).toMatch(/\.app-table--padrao \.app-table__text\s*\{[^}]*text-align:\s*left[^}]*text-overflow:\s*ellipsis/s)
+    expect(css).toMatch(/th\.app-table__group > span\s*\{[^}]*border-bottom:\s*2px solid/s)
+    expect(css).not.toMatch(/app-table__divider/)
   })
 })

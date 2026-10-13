@@ -81,3 +81,15 @@ vertical de 3 px entre os grupos de colunas (regra 6). A separação continua,
 mas como linha de 1 px bem clara, no cabeçalho e no corpo. Vale para todas as
 tabelas com grupos; o texto da regra em
 [identidade-visual.md](../identidade-visual.md) já reflete a mudança.
+
+## Nota de 2026-10-13: tabela padrão centralizada
+
+Comparando quatro formatos da mesma tabela, o responsável escolheu o
+centralizado e trocou a nota anterior. Na tabela padrão
+(`app-table--padrao`), títulos dos grupos, cabeçalhos e células ficam
+centralizados, números inclusive. A exceção é o texto longo que pode passar do
+limite da coluna (nome do Cliente ou do consignatário, descrição): ele fica à
+esquerda, para o começo do valor aparecer. Os grupos de colunas são marcados
+pelo título centralizado com um traço embaixo, sem linha vertical entre
+colunas. A regra 6 em [identidade-visual.md](../identidade-visual.md) foi
+reescrita; as tabelas passam ao padrão tela a tela.

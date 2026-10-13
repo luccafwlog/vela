@@ -14899,22 +14899,37 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-muted-soft);
 }
 
-/* Grupos de colunas (regra 6): faixa própria no cabeçalho e uma linha fina e
-   clara entre os grupos, no cabeçalho e no corpo (decisão de 2026-10-13: a
-   faixa grossa pesava na leitura). */
+/* Tabela padrão (regra 6, decisão de 2026-10-13): títulos dos grupos,
+   cabeçalhos e células centralizados; texto longo que pode passar do limite
+   da coluna (nome do Cliente, descrição) fica à esquerda, para o começo do
+   valor aparecer. Grupos de colunas: título centralizado com traço embaixo,
+   sem linha vertical entre as colunas. */
+.app-shell table.app-table--padrao th,
+.app-shell table.app-table--padrao td {
+  text-align: center;
+}
+
+.app-shell table.app-table--padrao .app-table__text {
+  max-width: 280px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-shell table thead th.app-table__group {
   background: var(--app-navy-2);
   font-size: var(--app-size-caption);
   padding-top: 6px;
-  padding-bottom: 6px;
+  padding-bottom: 0;
+  text-align: center;
 }
 
-.app-shell table .app-table__divider {
-  border-left: 1px solid var(--app-border-soft);
-}
-
-.app-shell table thead .app-table__divider {
-  border-left-color: color-mix(in srgb, #ffffff 20%, var(--app-navy));
+.app-shell table thead th.app-table__group > span {
+  display: block;
+  margin-inline: 8px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid color-mix(in srgb, #ffffff 35%, var(--app-navy-2));
 }
 
 @media (max-width: 639px) {

@@ -29,7 +29,7 @@ porque os assuntos não estavam separados e o que importa não se destacava.
 | 3 | **Lugar fixo para cada coisa** | Ficha: `IdentityBand`, `NextAction`, situação (trilhos), abas, blocos. Lista: título e ações, cartões que filtram, filtros, tabela. Sempre nessa ordem. |
 | 4 | **Ausência não faz barulho** | Falta de dado é `NoValue` ("—" discreto, com significado para leitor de tela). Coluna sem nenhum dado sai da tabela, com uma nota. Zero conhecido continua escrito ("Nenhuma", "R$ 0,00"). Nunca "X" ou o mesmo texto em toda linha. |
 | 5 | **Cor só para o que pede ação** | Vermelho bloqueia ou venceu, âmbar aguarda, verde concluiu, azul informa; sempre com texto. Uma única próxima ação por tela, na `NextAction`. O resto fica em tinta normal. |
-| 6 | **Grupos de colunas separados** | Colunas do mesmo grupo ficam sob uma faixa própria (`th.app-table__group`) com uma linha vertical fina e clara (`.app-table__divider`, 1 px) entre os grupos; nada de faixa grossa entre colunas. O grupo que decide vem primeiro. |
+| 6 | **Tabela padrão** | Tabela com a classe `app-table--padrao`: títulos dos grupos, cabeçalhos e células centralizados, números inclusive. Texto longo que pode passar do limite da coluna (nome do Cliente ou do consignatário, descrição) fica à esquerda com `.app-table__text`, para o começo do valor aparecer; o que não cabe vira "…". Colunas do mesmo grupo ficam sob uma faixa própria (`th.app-table__group`) com o título centralizado e um traço embaixo; não há linha vertical entre colunas. O grupo que decide vem primeiro. |
 | 7 | **Estrutura azul-marinho, fundo neutro** | Barra, cabeçalho de tabela, faixa de identidade e aba ativa em azul-marinho; fundo cinza liso, sem textura. No Vela, dourado só no marcador e nas contagens da navegação. |
 | 8 | **Uma família de letra** | DM Sans em tudo; IBM Plex Mono para códigos que confundem O com 0 (container, CE, lacre, TXID, código Pix). Syne só no nome "Vela". |
 | 9 | **Ação tem cara de botão** | Tudo o que faz algo, ou leva a resolver algo, é `Button`, com borda ou preenchimento; pode ter cor, mas nunca é só texto colorido. Texto sublinhado fica para o identificador que abre o próprio registro (número do B/L, nome do Cliente, navio) e para o caminho de navegação (breadcrumb). |
@@ -46,7 +46,7 @@ Uma tela compõe estas peças; não cria CSS próprio para elas.
 | `IdentityBand` | `src/components/ui/IdentityBand.tsx` | Faixa azul-marinho da ficha: tipo, identificador (o `h1` da página), fatos e ações. |
 | `NextAction` | `src/components/ui/NextAction.tsx` | A próxima ação da tela, com motivo e botão (`tone` `danger`, `warning` ou `info`). |
 | `NoValue` | `src/components/ui/NoValue.tsx` | "—" com o significado para leitor de tela. |
-| Grupos de colunas | `th.app-table__group`, `.app-table__divider` | Faixa de grupo e linha fina entre grupos de colunas (regra 6). |
+| Tabela padrão | `table.app-table--padrao`, `th.app-table__group > span`, `.app-table__text` | Alinhamento centralizado, faixa de grupo com traço sob o título e texto longo à esquerda (regra 6). |
 | `Button` | `src/components/ui/Button.tsx` | `primary` (preenchido, um por região), `secondary` (contorno), `danger` (contorno vermelho; sólido na confirmação) e `ghost` (o mais discreto, ainda com borda). |
 | Demais primitivas | `src/components/ui/` | `Modal`, `Drawer`, `TabList`, `SegmentedControl`, `SummaryStrip`, `StepRail`, `MetricCard`, `Badge`, `Combobox`, paginação e estados de consulta, descritas em [ARCHITECTURE.md](ARCHITECTURE.md). |
 
@@ -87,7 +87,7 @@ Cor de estado só por esses aliases. Cor escrita direto no componente
 
 Mínimo de 12 px. Caixa normal em rótulos, cabeçalhos, tags e abas; caixa alta
 só em códigos que já são maiúsculos (LOCODE, container, B/L). Números, valores
-e datas com `tabular-nums`, alinhados à direita em tabela.
+e datas com `tabular-nums`; na tabela padrão ficam centralizados (regra 6).
 
 ## Vela e Portal
 

@@ -147,20 +147,20 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
       </div>
       {showContainers && shownContainers.length ? (
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact">
+          <table className="app-table app-table--compact app-table--padrao">
             <thead>
               <tr>
                 <th scope="col" className="app-table__group"><span className="sr-only">Contêiner</span></th>
-                <th scope="colgroup" colSpan={2} className="app-table__group app-table__divider">Devolução</th>
-                <th scope="colgroup" colSpan={3} className="app-table__group app-table__divider">No terminal</th>
+                <th scope="colgroup" colSpan={2} className="app-table__group"><span>Devolução</span></th>
+                <th scope="colgroup" colSpan={3} className="app-table__group"><span>No terminal</span></th>
               </tr>
               <tr>
                 <th scope="col">Contêiner</th>
-                <th scope="col" className="app-table__divider">Data</th>
+                <th scope="col">Data</th>
                 <th scope="col">Demurrage</th>
-                <th scope="col" className="app-table__divider">Descarga</th>
+                <th scope="col">Descarga</th>
                 <th scope="col">Lacre</th>
-                <th scope="col" className="text-right">Peso bruto (kg)</th>
+                <th scope="col">Peso bruto (kg)</th>
               </tr>
             </thead>
             <tbody>
@@ -169,15 +169,15 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
                 return (
                   <tr key={container.id}>
                     <td className="app-bl-code text-[var(--app-text-strong)]">{container.container_number}</td>
-                    <td className="app-table__divider tabular-nums">
+                    <td className="tabular-nums">
                       {container.return_date ? formatDate(container.return_date) : <NoValue label={soc ? 'SOC, sem devolução' : 'Sem data de devolução'} />}
                     </td>
                     <td>{soc ? <NoValue label="SOC, sem Demurrage" /> : <DemurrageStatusBadge status={container.demurrage_status} />}</td>
-                    <td className="app-table__divider tabular-nums">
+                    <td className="tabular-nums">
                       {container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem descarga" />}
                     </td>
                     <td className="app-bl-code">{container.seal_number ?? <NoValue label="Sem lacre" />}</td>
-                    <td className="text-right tabular-nums">{container.gross_weight_kg == null ? <NoValue label="Sem peso bruto" /> : formatNumber(container.gross_weight_kg)}</td>
+                    <td className="tabular-nums">{container.gross_weight_kg == null ? <NoValue label="Sem peso bruto" /> : formatNumber(container.gross_weight_kg)}</td>
                   </tr>
                 )
               })}
