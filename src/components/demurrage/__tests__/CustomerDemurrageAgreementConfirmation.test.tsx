@@ -102,9 +102,27 @@ describe('Acordos de Demurrage — lista e formulário', () => {
   })
 
   it('mostra a situação do acordo hoje e as diárias herdadas', () => {
-    render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit={false} /></MemoryRouter>)
-    expect(screen.getByText('P1 US$ 50,00/dia · P2 US$ 70,00/dia')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Mais ações/ })).toBeNull()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      // 31/12 às 22h em Brasília já é 01/01 em UTC: o acordo ainda está vigente.
+      vi.setSystemTime(new Date('2027-01-01T01:00:00Z'))
+      render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit={false} /></MemoryRouter>)
+      expect(screen.getByText('Vigente')).toBeTruthy()
+      expect(screen.getByText('P1 US$ 50,00/dia · P2 US$ 70,00/dia')).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /Mais ações/ })).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('free time acima de 365 dias é recusado junto do campo, como a tabela', async () => {
+    const user = userEvent.setup()
+    render(<CustomerDemurrageAgreementModal open onClose={vi.fn()} initialAgreement={agreement} />)
+    await user.clear(screen.getByLabelText('Free Time (dias) *'))
+    await user.type(screen.getByLabelText('Free Time (dias) *'), '400')
+    await user.click(screen.getByRole('button', { name: 'Salvar Alterações' }))
+    expect(screen.getByRole('alert').textContent).toContain('vai até 365 dias')
+    expect(mocks.confirm).not.toHaveBeenCalled()
   })
 
   it('leva o erro para junto do campo, sem confirmar', async () => {

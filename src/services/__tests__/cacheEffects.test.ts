@@ -108,7 +108,7 @@ it('gravação em Invoice de Demurrage atualiza lista, detalhe, caixas cobradas,
   const { client, keys } = fakeQueryClient()
   await afterFaturaDemurrageAlterada(client)
   expect(keys()).toEqual(expect.arrayContaining(keySet([
-    ['demurrage-invoices'], ['demurrage-invoice-detail'], ['demurrage-kpis'], ['demurrage-containers'],
+    ['demurrage-invoices'], ['demurrage-invoice-detail'], ['demurrage-kpis'], ['demurrage-containers'], ['portal-disputes'],
     ['demurrage-customer-summary'], ['demurrage-disputes'], ['bl-detail'], ['customer-ficha'],
     ['portal-demurrage-invoices'], ['alerts'], ['header-alert'],
   ])))

@@ -7,7 +7,7 @@ import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useSaveCustomerDemurrageAgreement } from '../../hooks/useCustomerDemurrageAgreements'
 import { listOverrideCustomers } from '../../services/charges/chargeRateService'
-import { extractErrorText } from '../../lib/errors'
+import { classifyDbError } from '../../lib/errors'
 import { saoPauloTodayIso } from '../../lib/dates'
 import { formatCnpjCpf, formatDate, formatUSD } from '../../lib/utils'
 import type { CustomerDemurrageAgreementListItem } from '../../types/customerDemurrageAgreements'
@@ -104,7 +104,7 @@ function CustomerDemurrageAgreementForm({
       showToast(initialAgreement ? 'Acordo de Demurrage atualizado.' : 'Acordo de Demurrage cadastrado.', 'success')
       onClose()
     } catch (err) {
-      setErrors({ form: extractErrorText(err) })
+      setErrors({ form: classifyDbError(err).message })
     } finally {
       setSaving(false)
     }

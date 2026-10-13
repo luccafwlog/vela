@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Mail, Upload } from 'lucide-react'
@@ -183,8 +183,8 @@ export function Demurrage() {
   // Link direto (`?fatura=`) vindo de fora (ficha, Alerta): abre também a aba
   // da situação da Invoice. A Invoice aberta por esta tela fica na aba atual
   // (Containers não tem `tab` na URL, e trocar de aba apagaria a lente).
-  const openedHere = useRef<number | null>(null)
-  const linkedInvoiceId = state.invoiceId != null && !searchParams.has('tab') && openedHere.current !== state.invoiceId ? state.invoiceId : null
+  const [openedHere, setOpenedHere] = useState<number | null>(null)
+  const linkedInvoiceId = state.invoiceId != null && !searchParams.has('tab') && openedHere !== state.invoiceId ? state.invoiceId : null
   const linkedDetailQuery = useQuery({
     queryKey: ['demurrage-invoice-detail', linkedInvoiceId],
     queryFn: () => getInvoiceDetail(linkedInvoiceId!),
@@ -216,7 +216,7 @@ export function Demurrage() {
   const setSearch = (value: string) => updateParams((params) => withDemurrageParam(params, 'busca', value))
   const setLens = (value: ContainerLens) => updateParams((params) => withDemurrageParam(params, 'lente', value))
   const openInvoice = (invoiceId: number) => {
-    openedHere.current = invoiceId
+    setOpenedHere(invoiceId)
     updateParams((params) => withDemurrageParam(params, 'fatura', invoiceId))
   }
   const closeInvoice = () => updateParams((params) => withDemurrageParam(params, 'fatura', null))

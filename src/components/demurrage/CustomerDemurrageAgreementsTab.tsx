@@ -17,7 +17,7 @@ import {
   useToggleCustomerDemurrageAgreementActive,
 } from '../../hooks/useCustomerDemurrageAgreements'
 import { AGREEMENT_SITUATION_LABELS, agreementSituation, type AgreementSituation } from '../../services/demurrage/demurragePresentation'
-import { extractErrorText } from '../../lib/errors'
+import { classifyDbError } from '../../lib/errors'
 import { saoPauloTodayIso } from '../../lib/dates'
 import { formatCnpjCpf } from '../../lib/utils'
 import { CustomerDemurrageAgreementModal } from './CustomerDemurrageAgreementModal'
@@ -73,7 +73,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
   const filtered = (agreements ?? []).filter((agreement) => {
     if (!term) return true
     const name = agreement.customer?.name?.toLowerCase() ?? ''
-    const cnpj = agreement.customer?.cnpj_cpf ?? ''
+    const cnpj = (agreement.customer?.cnpj_cpf ?? '').replace(/\D/g, '')
     return name.includes(term) || (digits.length >= 3 && cnpj.includes(digits))
   })
   const today = todayIso()
@@ -94,7 +94,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
     const reason = await confirmWithReason({
       title: 'Excluir Acordo de Demurrage',
       message: `Excluir o acordo de Demurrage de ${customerName} (${vigencia(agreement)})?`,
-      consequence: 'Cálculos novos de Demurrage deste cliente voltam a usar a tarifa padrão.',
+      consequence: 'O acordo ainda não entrou em vigor: sai do cadastro antes de valer para qualquer descarga. Na vigência dele, valem a condição do B/L e, sem ela, a tabela padrão.',
       reversibility: 'Não é possível desfazer; cadastre o acordo de novo se precisar. Para parar de usar sem apagar, desative.',
       tone: 'danger',
       confirmLabel: 'Excluir',
@@ -105,7 +105,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
       { id: agreement.id, reason, customerId: agreement.customer_id },
       {
         onSuccess: () => showToast('Acordo excluído.', 'success'),
-        onError: (err) => showToast(`Falha ao excluir o acordo: ${extractErrorText(err)}`, 'error'),
+        onError: (err) => showToast(`Falha ao excluir o acordo: ${classifyDbError(err).message}`, 'error'),
       },
     )
   }
@@ -131,7 +131,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
       { id: agreement.id, active: nextActive, customerId: agreement.customer_id },
       {
         onSuccess: () => showToast(nextActive ? 'Acordo ativado.' : 'Acordo desativado.', 'success'),
-        onError: (err) => showToast(`Falha ao alterar o status: ${extractErrorText(err)}`, 'error'),
+        onError: (err) => showToast(`Falha ao alterar o status: ${classifyDbError(err).message}`, 'error'),
       },
     )
   }
@@ -150,7 +150,10 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
           trigger={<MoreVertical size={16} aria-hidden="true" />}
           items={[
             { key: 'toggle', label: item.active ? 'Desativar acordo' : 'Ativar acordo', onSelect: () => void handleToggleActive(item) },
-            { key: 'delete', label: 'Excluir acordo', danger: true, onSelect: () => void handleDelete(item) },
+            // O banco só apaga acordo que ainda não entrou em vigor (guard_used_tariff_delete, migration 091).
+            !item.valid_from || item.valid_from.slice(0, 10) <= todayIso()
+              ? { key: 'delete', label: 'Excluir acordo (já em vigor: desative)', disabled: true }
+              : { key: 'delete', label: 'Excluir acordo', danger: true, onSelect: () => void handleDelete(item) },
           ]}
         />
       </div>

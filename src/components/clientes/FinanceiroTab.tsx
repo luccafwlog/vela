@@ -62,6 +62,15 @@ function Empty({ children }: { children: ReactNode }) {
   return <p className="app-customer-muted app-customer-empty-line">{children}</p>
 }
 
+/**
+ * Termo que acha só este Cliente nas buscas de Demurrage: o CNPJ (as duas
+ * buscas comparam os dígitos). Pelo nome, "ACME" traria também "ACME LOGISTICA".
+ */
+function customerSearchTerm(data: { name: string; cnpj_cpf?: string | null }): string {
+  const digits = (data.cnpj_cpf ?? '').replace(/\D/g, '')
+  return digits.length >= 11 ? digits : data.name
+}
+
 export function FinanceiroTab({ data }: { data: Data }) {
   const dem = useCustomerDemurrageInvoices(data.id)
   const rec = useCustomerReceivables(data.id)
@@ -118,7 +127,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
         </QueryBody>
       </Section>
 
-      <Section title="Faturas de Demurrage" count={dem.data && !restricted(dem.data.denied) ? dem.data.rows.length : undefined} links={<SectionLink to={`/demurrage?tab=faturas&busca=${encodeURIComponent(data.name)}`}>Abrir em Demurrage</SectionLink>}>
+      <Section title="Faturas de Demurrage" count={dem.data && !restricted(dem.data.denied) ? dem.data.rows.length : undefined} links={<SectionLink to={`/demurrage?tab=faturas&busca=${encodeURIComponent(customerSearchTerm(data))}`}>Aguardando pagamento em Demurrage</SectionLink>}>
         <QueryBody query={dem} restricted={restricted(dem.data?.denied)}>
           {dem.data?.rows.length ? (
             <div className="app-table-scroll">
@@ -202,7 +211,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
                 Novo acordo
               </Button>
             ) : null}
-            <SectionLink to={`/demurrage/taxas?tab=acordos&cliente=${encodeURIComponent(data.name)}`}>Ver em Tarifas</SectionLink>
+            <SectionLink to={`/demurrage/taxas?tab=acordos&cliente=${encodeURIComponent(customerSearchTerm(data))}`}>Ver em Tarifas</SectionLink>
           </>
         )}
       >

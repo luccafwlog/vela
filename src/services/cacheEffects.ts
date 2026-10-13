@@ -214,7 +214,7 @@ export async function afterFaturaDemurrageAlterada(queryClient: QueryInvalidator
     ['demurrage-customer-summary'], ['demurrage-customer-detail'], ['demurrage-disputes'], ['demurrage-report'],
     ['demurrage-latest-recalc'], ['financial-refunds'], ['bl-detail'], ['bl-cockpit'], ['customer-ficha'],
     ['customer-detail'], ['portal-demurrage-invoices'], ['portal-demurrage-invoices-page'],
-    ['portal-demurrage-invoice-detail'], ['reconciliation-history'],
+    ['portal-demurrage-invoice-detail'], ['portal-disputes'], ['reconciliation-history'],
     ['alerts'], ['header-alert'],
   ])
 }

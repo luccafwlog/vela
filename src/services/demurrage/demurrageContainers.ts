@@ -310,7 +310,20 @@ export async function listDemurrageContainers(filters?: DemurrageContainerFilter
     rows = rows.filter((r) => r.bl?.voyage_id === filters.voyageId)
   }
 
-  const groups = buildBillingGroups(await readGroupBoxes([...new Set(rows.map((row) => row.bl_id).filter(Boolean))]), billedIndex)
+  // O grupo só é lido onde a ação pode mudar: B/L com alguma caixa listada
+  // ainda sem Invoice viva. Todo devolvido fica `returned` para sempre, e ler o
+  // grupo de todo o histórico cresceria sem limite.
+  // ponytail: B/L com todas as caixas listadas já cobradas fica sem
+  // `billing_group` (a tela diz "Todas as caixas cobradas"), mesmo que um irmão
+  // ainda no free time e fora da lista esteja sem Invoice; ele aparece quando
+  // entrar em atraso ou voltar. Upgrade: a mesma RPC de leitura do grupo.
+  const pendingBlIds = [...new Set(rows
+    .filter((row) => {
+      const key = demurrageBoxKey(row.bl?.voyage_id, row.bl?.customer?.id, row.container_number)
+      return Boolean(row.bl_id) && !(key && billedIndex.get(key)?.length)
+    })
+    .map((row) => row.bl_id))]
+  const groups = pendingBlIds.length ? buildBillingGroups(await readGroupBoxes(pendingBlIds), billedIndex) : new Map<string, DemurrageBillingGroup>()
 
   return rows.map((row) => {
     const customerId = row.bl?.customer?.id

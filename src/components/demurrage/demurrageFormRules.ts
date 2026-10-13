@@ -2,6 +2,7 @@
 // antes da gravação, com a mensagem que aparece junto do campo. Não decidem
 // cálculo nem permissão; o banco continua dono das duas coisas.
 import { demurrageDatesSchema } from '../../services/financialValidation'
+import { parseImportNumber } from '../../lib/importNumber'
 import { formatDate, formatUSD } from '../../lib/utils'
 import type { DemurrageRate } from '../../types/database'
 import type { DemurrageRateUpsertInput } from '../../services/demurrage/demurrageRateUpsertPayload'
@@ -37,12 +38,26 @@ export function isPlausiblePtax(ptax: number): boolean {
 
 export type AgreementErrors = Partial<Record<'customer' | 'freeDays' | 'p1' | 'p2' | 'validFrom' | 'validTo' | 'form', string>>
 
+/** Valor em USD digitado em pt-BR ("60", "60,50", "1.234,56"); null quando não é número. */
+function parseUsd(value: string): number | null {
+  const parsed = parseImportNumber(value.trim(), 'pt-BR')
+  if (parsed.kind !== 'value') return null
+  const number = Number(parsed.decimal)
+  return Number.isFinite(number) ? number : null
+}
+
+const USD_FORMAT_HINT = 'Use só números, com vírgula nos centavos (ex.: 1.234,56).'
+
 function parseMoney(value: string) {
   const text = value.trim()
-  if (!text) return { value: null as number | null, valid: true }
-  const number = Number(text.replace(',', '.'))
-  return { value: number, valid: Number.isFinite(number) && number >= 0 }
+  if (!text) return { value: null as number | null, valid: true, reason: null as string | null }
+  const number = parseUsd(text)
+  if (number == null) return { value: null, valid: false, reason: USD_FORMAT_HINT }
+  return { value: number, valid: number >= 0, reason: number >= 0 ? null : 'O valor não pode ser negativo.' }
 }
+
+/** Free time do acordo: a tabela aceita de 0 a 365 dias (`customer_demurrage_agreements_free_days_check`). */
+export const AGREEMENT_MAX_FREE_DAYS = 365
 
 /** Confere o formulário do acordo; devolve os erros por campo. */
 export function validateAgreementDraft(draft: { customerId: number | null; freeDays: string; p1: string; p2: string; validFrom: string; validTo: string }) {
@@ -52,8 +67,9 @@ export function validateAgreementDraft(draft: { customerId: number | null; freeD
   const p2 = parseMoney(draft.p2)
   if (!draft.customerId) errors.customer = 'Escolha o Cliente na lista.'
   if (draft.freeDays.trim() === '' || !Number.isInteger(free) || free < 0) errors.freeDays = 'Informe os dias de free time (número inteiro, 0 ou mais).'
-  if (!p1.valid) errors.p1 = 'Informe um valor em USD, 0 ou mais, ou deixe em branco.'
-  if (!p2.valid) errors.p2 = 'Informe um valor em USD, 0 ou mais, ou deixe em branco.'
+  else if (free > AGREEMENT_MAX_FREE_DAYS) errors.freeDays = `O free time do acordo vai até ${AGREEMENT_MAX_FREE_DAYS} dias.`
+  if (!p1.valid) errors.p1 = p1.reason ?? 'Informe um valor em USD, 0 ou mais, ou deixe em branco.'
+  if (!p2.valid) errors.p2 = p2.reason ?? 'Informe um valor em USD, 0 ou mais, ou deixe em branco.'
   if (!draft.validFrom) errors.validFrom = 'Informe o início da vigência.'
   if (draft.validTo && draft.validFrom && draft.validTo < draft.validFrom) errors.validTo = 'O fim da vigência não pode ser antes do início.'
   return { errors, free, p1: p1.value, p2: p2.value }
@@ -138,14 +154,23 @@ function wholeNumber(value: string) {
 }
 
 function money(value: string) {
-  const number = Number(value.trim().replace(',', '.'))
-  return value.trim() !== '' && Number.isFinite(number) && number >= 0 ? number : null
+  if (!value.trim()) return null
+  const number = parseUsd(value)
+  return number != null && number >= 0 ? number : null
+}
+
+function moneyError(value: string, label: string) {
+  if (!value.trim()) return `Informe a diária de ${label} em USD.`
+  const number = parseUsd(value)
+  if (number == null) return USD_FORMAT_HINT
+  return 'A diária não pode ser negativa.'
 }
 
 /**
- * Confere o formulário da tarifa padrão. Só regras de formato e ordem que o
- * cálculo pressupõe (faixa P1 com início e fim, vigência em ordem); o banco
- * continua dono do resto.
+ * Confere o formulário da tarifa padrão com as regras de
+ * `demurrage_rates_intrinsic_sanity_chk` (migration 012): P1 começa no dia 1 ou
+ * depois, termina depois de começar, P2 começa depois do fim de P1, diárias e
+ * free time não negativos, vigência em ordem. O banco continua dono do resto.
  */
 export function validateRateDraft(draft: RateDraft): { errors: RateErrors; input: Omit<DemurrageRateUpsertInput, 'id' | 'active'> | null } {
   const errors: RateErrors = {}
@@ -158,11 +183,13 @@ export function validateRateDraft(draft: RateDraft): { errors: RateErrors; input
   if (!draft.container_type.trim()) errors.container_type = 'Informe o tipo de container.'
   if (freeDays == null) errors.free_days = 'Informe os dias de free time (número inteiro).'
   if (p1From == null) errors.p1_day_from = 'Informe o dia de início de P1.'
+  else if (p1From < 1) errors.p1_day_from = 'P1 começa no dia 1 ou depois.'
   if (p1To == null) errors.p1_day_to = 'Informe o dia de fim de P1.'
   else if (p1From != null && p1To < p1From) errors.p1_day_to = 'O fim de P1 não pode ser antes do início.'
   if (p2From == null) errors.p2_day_from = 'Informe o dia de início de P2.'
-  if (p1Usd == null) errors.p1_usd = 'Informe a diária de P1 em USD.'
-  if (p2Usd == null) errors.p2_usd = 'Informe a diária de P2 em USD.'
+  else if (p1To != null && p2From <= p1To) errors.p2_day_from = `P2 começa depois do fim de P1 (dia ${p1To + 1} ou depois).`
+  if (p1Usd == null) errors.p1_usd = moneyError(draft.p1_usd, 'P1')
+  if (p2Usd == null) errors.p2_usd = moneyError(draft.p2_usd, 'P2')
   if (draft.valid_to && draft.valid_from && draft.valid_to < draft.valid_from) errors.valid_to = 'O fim da vigência não pode ser antes do início.'
   if (Object.keys(errors).length) return { errors, input: null }
   return {

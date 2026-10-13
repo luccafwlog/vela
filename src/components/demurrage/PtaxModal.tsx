@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '../ui/Button'
 import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
@@ -23,19 +23,20 @@ type Props = {
  * vira ROE com o markup de 1,065 no banco e todas as Invoices emitidas e não
  * pagas passam a usar esse câmbio. Invoice paga não muda.
  */
-export function PtaxModal({ open, value, loading, error = null, openTotalBrl = null, onValueChange, onClose, onSubmit }: Props) {
+export function PtaxModal({ open, loading, onClose, ...props }: Props) {
+  // O formulário nasce ao abrir: erro e confirmação do envio anterior não voltam.
+  return (
+    <Modal open={open} onClose={() => { if (!loading) onClose() }} title="Informar PTAX" size="sm">
+      {open ? <PtaxForm loading={loading} onClose={onClose} {...props} /> : null}
+    </Modal>
+  )
+}
+
+function PtaxForm({ value, loading, error = null, openTotalBrl = null, onValueChange, onClose, onSubmit }: Omit<Props, 'open'>) {
   const [fieldError, setFieldError] = useState<string | null>(null)
   const [confirmedOutOfRange, setConfirmedOutOfRange] = useState<string | null>(null)
   const ptax = parsePtaxInput(value)
   const roe = ptax ? (ptax * DEMURRAGE_ROE_MARKUP).toFixed(4).replace('.', ',') : null
-
-  // Erro e confirmação são do envio anterior; reabrir o modal começa limpo.
-  useEffect(() => {
-    if (open) {
-      setFieldError(null)
-      setConfirmedOutOfRange(null)
-    }
-  }, [open])
 
   function submit() {
     if (!ptax) {
@@ -52,7 +53,6 @@ export function PtaxModal({ open, value, loading, error = null, openTotalBrl = n
   }
 
   return (
-    <Modal open={open} onClose={() => { if (!loading) onClose() }} title="Informar PTAX" size="sm">
       <form className="app-dem-form" noValidate onSubmit={(event) => { event.preventDefault(); submit() }}>
         <p className="app-dem-note">
           Use quando o BCB estiver fora ou o recálculo automático falhar. Todas as Invoices emitidas e não pagas passam a usar este câmbio; as pagas não mudam.
@@ -67,6 +67,5 @@ export function PtaxModal({ open, value, loading, error = null, openTotalBrl = n
           <Button type="submit" loading={loading} loadingLabel="Recalculando…">Recalcular Invoices</Button>
         </div>
       </form>
-    </Modal>
   )
 }

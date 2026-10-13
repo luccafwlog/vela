@@ -8,6 +8,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const rates = [
   { id: 1, container_type: '20GP', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 100, p2_day_from: 31, p2_usd: 150, valid_from: null, valid_to: null, active: true, notes: null },
+  { id: 2, container_type: '45HC', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 110, p2_day_from: 31, p2_usd: 160, valid_from: '2099-01-01', valid_to: null, active: true, notes: null },
 ]
 
 const agreements = [
@@ -65,9 +66,9 @@ afterEach(cleanup)
 it('US-051: lista as tarifas de demurrage', async () => {
   renderPage()
   expect(await screen.findByText('20GP')).toBeTruthy()
-  expect(screen.getByText('Ativa')).toBeTruthy()
-  expect(screen.getByText('dias 22 a 30')).toBeTruthy()
-  expect(screen.getByText('a partir do dia 31')).toBeTruthy()
+  expect(screen.getAllByText('Ativa')).toHaveLength(2)
+  expect(screen.getAllByText('dias 22 a 30').length).toBeGreaterThan(0)
+  expect(screen.getAllByText('a partir do dia 31').length).toBeGreaterThan(0)
 })
 
 it('US-052: cria uma nova tarifa pelo modal', async () => {
@@ -107,14 +108,60 @@ it('US-053: ativa/desativa a tarifa pelo menu da linha', async () => {
   await waitFor(() => expect(svc.toggleDemurrageRateActive).toHaveBeenCalledWith(1, false))
 })
 
-it('US-054: exclui a tarifa', async () => {
+it('US-054: exclui a tarifa que ainda não entrou em vigor', async () => {
+  const user = userEvent.setup()
+  renderPage()
+
+  await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 45HC' }))
+  await user.click(screen.getByRole('menuitem', { name: 'Excluir tarifa' }))
+
+  await waitFor(() => expect(svc.deleteDemurrageRate).toHaveBeenCalledWith(2, 'motivo'))
+})
+
+it('tarifa em vigor não oferece excluir, que o banco sempre recusa (migration 091)', async () => {
   const user = userEvent.setup()
   renderPage()
 
   await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 20GP' }))
-  await user.click(screen.getByRole('menuitem', { name: 'Excluir tarifa' }))
+  const item = screen.getByRole('menuitem', { name: 'Excluir tarifa (já em vigor: desative)' })
+  expect(item.hasAttribute('disabled') || item.getAttribute('aria-disabled') === 'true').toBe(true)
+  await user.click(item)
+  expect(svc.deleteDemurrageRate).not.toHaveBeenCalled()
+})
 
-  await waitFor(() => expect(svc.deleteDemurrageRate).toHaveBeenCalledWith(1, 'motivo'))
+it('P2 começando dentro de P1 é recusado junto do campo, como a constraint do banco', async () => {
+  const user = userEvent.setup()
+  renderPage()
+
+  await user.click(screen.getByRole('button', { name: /Nova tarifa/ }))
+  await user.type(screen.getByPlaceholderText('20GP'), '40HC')
+  const [p1Usd, p2Usd] = screen.getAllByLabelText(/Diária \(USD\)/)
+  await user.type(p1Usd, '75')
+  await user.type(p2Usd, '150')
+  const p2From = screen.getByLabelText(/A partir do dia/)
+  await user.clear(p2From)
+  await user.type(p2From, '30')
+  await user.click(screen.getByRole('button', { name: 'Cadastrar tarifa' }))
+
+  expect(screen.getAllByRole('alert').map((node) => node.textContent)).toContain('P2 começa depois do fim de P1 (dia 31 ou depois).')
+  expect(svc.upsertDemurrageRate).not.toHaveBeenCalled()
+})
+
+it('recusa de constraint do banco aparece legível, sem o texto cru do Postgres', async () => {
+  svc.upsertDemurrageRate.mockImplementationOnce(() => Promise.reject({ code: '23514', message: 'new row for relation "demurrage_rates" violates check constraint "demurrage_rates_intrinsic_sanity_chk"' }))
+  const user = userEvent.setup()
+  renderPage()
+
+  await user.click(screen.getByRole('button', { name: /Nova tarifa/ }))
+  await user.type(screen.getByPlaceholderText('20GP'), '40HC')
+  const [p1Usd, p2Usd] = screen.getAllByLabelText(/Diária \(USD\)/)
+  await user.type(p1Usd, '75')
+  await user.type(p2Usd, '150')
+  await user.click(screen.getByRole('button', { name: 'Cadastrar tarifa' }))
+
+  const alert = await screen.findByText(/A tarifa não foi salva/)
+  expect(alert.textContent).toContain('Dados fora das regras do cadastro.')
+  expect(alert.textContent).not.toContain('violates')
 })
 
 it('lista os acordos de clientes na aba correspondente, refletida na URL', async () => {

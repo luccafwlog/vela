@@ -1,7 +1,7 @@
 # Revisão visual e UX do Vela e Portal — pacote de prompts
 
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
-Estado: etapas 00, 01 e 02 concluídas em 2026-10-07, 03, 04, 05 e 06 em 2026-10-08 07, 08, 09 e 10 em 2026-10-09 e 11 em 2026-10-12 (direção visual, inventário, tokens, primitivas, shells, acesso, Viagens, importações, B/Ls, carga física, Revisão, Clientes, Tabelas de Taxas Locais, faturamento interno e Demurrage registrados abaixo); próxima: etapa 12. Revisado em 2026-10-12 depois do merge da PR 929 (nota editorial abaixo).
+Estado: etapas 00, 01 e 02 concluídas em 2026-10-07, 03, 04, 05 e 06 em 2026-10-08, 07, 08, 09 e 10 em 2026-10-09 e 11 em 2026-10-12 (revisada em 2026-10-13) (direção visual, inventário, tokens, primitivas, shells, acesso, Viagens, importações, B/Ls, carga física, Revisão, Clientes, Tabelas de Taxas Locais, faturamento interno e Demurrage registrados abaixo); próxima: etapa 12. Revisado em 2026-10-12 depois do merge da PR 929 (nota editorial abaixo).
 
 > **Nota editorial (2026-10-08):** a conformidade das etapas 00–05 com o contrato comum foi auditada em [2026-10-08 — auditoria de conformidade das etapas 00–05](../archive/audits/2026-10-08-auditoria-contrato-etapas-00-05.md). Desvios pequenos foram corrigidos nos donos das etapas; as pendências novas por dono (01, 02, 03, 04, 05, 13, 19 e 21) estão na seção "Pendências com dono" do relatório e devem ser lidas pelas etapas donas junto com os registros abaixo, que não foram reescritos. A correção está planejada em [2026-10-08 — correção das pendências da auditoria](../archive/plans/2026-10-08-correcao-pendencias-auditoria-etapas-00-05.md), cujos passos R0 e R1 precedem a etapa 06. Esse plano foi concluído e arquivado em 2026-10-08 (PR 903 na `main`; decisões N1 e N2 tomadas).
 
@@ -941,6 +941,23 @@ Quem mantém o cadastro precisa responder, antes de mexer: qual tabela o cálcul
 - **Owners tocados fora da lista, só de dado:** `hooks/useLocalCharges.ts` (`useOverrideCustomerLookup`, mesma chave de `useOverrideCustomers`) e `services/charges/chargeRateService.ts` (a lista de condições passa a trazer `active` e `application_basis` do item; mensagem de sobreposição em dd/mm/aaaa). Validação em `pages/taxasLocaisHelpers.ts` ganhou o campo do erro, textos acentuados e leitura de "1.420,50". Cálculo, RPCs, schema e cache não mudaram; as invalidações seguem as dos hooks.
 - **Consumidores conferidos sem alteração:** `FinanceiroTab` da ficha do Cliente (link `?tab=overrides&cliente=`), `resolveTaxasLocaisRedirect`, `ManualChargeFormFields` (10), `ReferenceSections` da Central de Informações (16, usa `applicationBasisLabel` sem mudança), primitivas `Modal`, `Combobox`, `ActionMenu`, `SegmentedControl`, `SummaryStrip`, `TabList` (01) e `useNarrowViewport` (05).
 
+### Correções da revisão (2026-10-13)
+
+Revisão rigorosa da PR 932 antes do merge; tudo corrigido na mesma branch, sem schema, RPC ou arquivo protegido.
+
+- **Estado de cobrança pelo grupo inteiro.** Antes, a ação do B/L olhava só as linhas visíveis: com a lente Devolvidos, um B/L com caixa irmã ainda fora mostrava **Gerar Invoice** (o banco recusa com `waiting_return`); buscando a caixa já cobrada, "Todas as caixas cobradas" escondia a complementar. Agora `listDemurrageContainers` monta o grupo de cobrança (`billing_group`, regra de `demurrage_group_bl_ids`) com todas as caixas dos B/Ls envolvidos, inclusive as ainda fora no free time que a aba não lista, e `blBillingState` decide na ordem de `issue_demurrage_invoice_for_bl`. Container compartilhado conta uma vez e tem uma só ação por grupo (decisão de revisão: o primeiro B/L do grupo na lista mostra a ação; os outros dizem com qual B/L a cobrança sai).
+- **Leituras paginadas:** itens de Invoices vivas, acordos e containers passam de 1000 linhas sem corte silencioso; os ids de Invoice vão em lotes.
+- **Busca com espaço:** o texto digitado não é mais aparado a cada tecla ("ACME LTDA" virava "ACMELTDA").
+- **Desconto:** a prévia usa o mesmo leitor pt-BR do formulário ("1.000" mostrava US$ 1 e gravava US$ 1.000), arredonda o desconto como `apply_demurrage_discount`, recusa fixo acima do total junto do campo; o desconto fracionário gravado volta como "12,5".
+- **Aba:** Invoice aberta pela própria página fica na aba atual e preserva a lente; só o link vindo de fora leva à aba da situação.
+- **Hoje em Brasília** (`saoPauloTodayIso`): pagamento, situação do acordo e previsão não viram o dia seguinte depois das 21h.
+- **Formulários:** não fecham durante a gravação; a recusa de cancelar Invoice e de cancelar baixa fica no diálogo; o detalhe é relido antes de voltar; PTAX só com dígitos e confirmação fora de 2 a 15.
+- **Por Cliente** em USD a cobrar (líquido do desconto), como Faturas.
+- **Complementar:** lista todas as Invoices vivas anteriores e desempata `created_at` igual pelo id.
+- **Disputas:** anexo que falhou com a mensagem gravada pode ser reenviado sozinho; o campo de arquivo volta vazio; a rolagem até a Disputa em foco não se repete; `['portal-disputes']` entra em `afterFaturaDemurrageAlterada`.
+- **Tarifas e acordos:** erros do banco por `classifyDbError` (sem texto cru de constraint); validação de P1 ≥ 1, P2 depois de P1, free time do acordo até 365 e valores pt-BR; Excluir só antes da vigência (migration `091`); vigência obrigatória ao editar tarifa; "nada mudou" não é erro; links da ficha do Cliente buscam pelo CNPJ.
+- **Outros:** free time mostrado é o prazo, não o dia corrido; `cancelDemurrageInvoice` exige motivo; Régua lida para a aba inteira, não por tecla; sem o intervalo lido, a Régua não mostra 7 dias inventados; `<main>` aninhado virou `<div>`.
+
 ### Achados de contrato (fora do design, sem alteração)
 
 | Dono | Achado |
@@ -1066,7 +1083,7 @@ Quem opera Demurrage precisa ver o que está correndo e o que já pode ser cobra
 - **Caixa cobrada pela chave do banco:** `listDemurrageContainers` lê os itens das Invoices vivas com Viagem e Cliente e casa por `_demurrage_billed_container_keys` (Viagem, Cliente, número). Só leitura; a emissão continua decidida por `issue_demurrage_invoice_for_bl`.
 - **Previsão com o acordo vigente na descarga:** a listagem anexa o acordo (mesma ordem do banco: B/L > acordo > tabela). Não muda fórmula: `calculateDemurrage` já aceitava o acordo, e a página não o passava.
 - **Complementar inferida:** a RPC devolve `complementary`, mas não grava; o detalhe marca Complementar quando há outra Invoice viva anterior no mesmo B/L (ponytail no código).
-- **"Gerar" escondido com o motivo quando a caixa listada está fora:** o banco recusaria sempre (`waiting_return`); a linha diz "Aguarda devolução". O caso de irmão do grupo ainda fora continua como recusa do banco, agora na linha.
+- **"Gerar" escondido com o motivo quando o grupo tem caixa fora:** o banco recusaria sempre (`waiting_return`); a linha diz "Aguarda devolução". Desde a revisão de 2026-10-13, a decisão é sobre o grupo de cobrança inteiro (ver "Correções da revisão").
 - **Permissão visível:** gerar, cancelar Invoice e cancelar baixa (Administrativo); pagamento e desconto (Financeiro e Administrativo); PTAX (também Equipamentos); Disputas (Equipamentos e Administrativo); intervalo da Régua e acordos (Administrativo). A guarda continua no banco.
 - **Sem modal sobre modal:** ações do detalhe trocam o diálogo e voltam; `ConfirmDialog` segue como conferência final de cancelar Invoice.
 - **Owners tocados fora da lista, só de leitura, rótulo ou link:** `services/demurrage/demurrageContainers.ts` (itens e acordos na listagem), `demurrageInvoices.ts` (motivo do cancelamento), `demurragePresentation.ts` (leituras puras), `services/demurrageDunning.ts` (pausa por suspensão), `services/cacheEffects.ts` (`afterFaturaDemurrageAlterada`; `afterReferenciaDemurrageAlterada` também refaz a aba Containers), `services/alerts.ts` (Invoice de Demurrage abre `?fatura=`), `clientes/FinanceiroTab.tsx` (link da Invoice, "Abrir em Demurrage" em Faturas, acordos só para o Administrativo, situação do acordo), `clientes/fichaOverview.ts` (Demurrage correndo abre a lente Em atraso) e `bl/BlDemurrageSection.tsx` (número da Invoice abre o detalhe). CSS no bloco `.app-dem-*` no fim de `src/index.css`, só com tokens existentes; o detalhe reaproveita `.app-invoice-detail*` e `.app-invoice-amounts*` da 10.
@@ -1077,7 +1094,9 @@ Quem opera Demurrage precisa ver o que está correndo e o que já pode ser cobra
 | Dono | Achado |
 |---|---|
 | Negócio / banco | `register_demurrage_payment` procura a foto financeira até a data paga: data anterior à emissão falha com mensagem sem acento. A tela agora impede antes, mas a regra e o texto são do banco. |
-| Negócio / banco | `issue_demurrage_invoice_for_bl` devolve `complementary` e `invoice_ids`, mas `demurrage_invoices` não guarda se a Invoice é complementar; a marca da tela é inferida. Gravar a marca daria certeza ao Portal e aos documentos. |
+| Negócio / banco | `issue_demurrage_invoice_for_bl` devolve `complementary` e `invoice_ids`, mas `demurrage_invoices` não guarda se a Invoice é complementar; a marca da tela é inferida e some se a original for cancelada. Gravar a marca daria certeza ao Portal e aos documentos. |
+| Negócio / banco | `register_demurrage_payment` não recusa data paga futura (a RPC de baixa da migration `136` recusa). A tela impede, no dia de Brasília; a guarda no banco depende de migration. |
+| Banco | A aba Containers monta o grupo de cobrança no navegador, com várias leituras. Uma RPC de leitura que devolva o estado do grupo por B/L tiraria a ponytail (número igual, ordem do âncora). |
 | Serviços | `DEMURRAGE_INVOICE_STATUS_LABELS` diz "Faturado/Pago/Cancelado" (masculino) e a ficha do Cliente usa "Emitida/Paga"; é compartilhado com Relatórios (22) e exportação. Mantido para não divergir entre telas. |
 | Tipos | `src/types/database.ts` (protegido) não tem `dunning_suspended_reason`; a tela usa um tipo local até a regeneração autorizada. |
 

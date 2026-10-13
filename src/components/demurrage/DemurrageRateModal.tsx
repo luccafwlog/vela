@@ -11,23 +11,29 @@ type Props = {
   rate: DemurrageRate | null
   saving: boolean
   error?: string | null
+  /** Qualquer edição apaga a recusa da gravação anterior. */
+  onDraftChange?: () => void
   onClose: () => void
   onSubmit: (input: Omit<DemurrageRateUpsertInput, 'id' | 'active'>) => void
 }
 
-function RateForm({ rate, saving, error, onClose, onSubmit }: Omit<Props, 'open'>) {
+function RateForm({ rate, saving, error, onDraftChange, onClose, onSubmit }: Omit<Props, 'open'>) {
   const [draft, setDraft] = useState<RateDraft>(() => toDraftFromRate(rate))
   const [errors, setErrors] = useState<RateErrors>({})
 
   function set<K extends keyof RateDraft>(key: K, value: string) {
     setDraft((current) => ({ ...current, [key]: value }))
     setErrors((current) => ({ ...current, [key]: undefined }))
+    onDraftChange?.()
   }
 
   function submit() {
     const result = validateRateDraft(draft)
-    setErrors(result.errors)
-    if (result.input) onSubmit(result.input)
+    // Ao editar, vigência em branco não é gravada (o payload omite null) e a
+    // data antiga ficaria: a tela exige a data em vez de prometer "hoje".
+    const errors = rate && !draft.valid_from ? { ...result.errors, valid_from: 'Informe o início da vigência.' } : result.errors
+    setErrors(errors)
+    if (result.input && !errors.valid_from) onSubmit(result.input)
   }
 
   return (
@@ -67,7 +73,7 @@ function RateForm({ rate, saving, error, onClose, onSubmit }: Omit<Props, 'open'
       </fieldset>
       <p className="app-dem-note">O free time do B/L ou do acordo do Cliente move só o início da cobrança; as faixas P1 e P2 continuam as desta tabela.</p>
       <div className="app-dem-form__grid">
-        <Field label="Vigência de" hint="Em branco, vale a partir de hoje.">
+        <Field label="Vigência de" required={Boolean(rate)} error={errors.valid_from} hint={rate ? undefined : 'Em branco, vale a partir de hoje.'}>
           <Input type="date" value={draft.valid_from} onChange={(event) => set('valid_from', event.target.value)} />
         </Field>
         <Field label="Vigência até" error={errors.valid_to} hint="Em branco, sem data final.">
@@ -79,7 +85,7 @@ function RateForm({ rate, saving, error, onClose, onSubmit }: Omit<Props, 'open'
       </Field>
       {error ? <p className="app-dem-form__error" role="alert">{error} A tarifa não foi salva.</p> : null}
       <div className="app-dem-form__actions">
-        <Button type="button" variant="ghost" onClick={onClose}>Voltar</Button>
+        <Button type="button" variant="ghost" disabled={saving} onClick={onClose}>Voltar</Button>
         <Button type="submit" loading={saving} loadingLabel="Salvando…">{rate ? 'Salvar tarifa' : 'Cadastrar tarifa'}</Button>
       </div>
     </form>
@@ -88,7 +94,7 @@ function RateForm({ rate, saving, error, onClose, onSubmit }: Omit<Props, 'open'
 
 export function DemurrageRateModal({ open, rate, ...props }: Props) {
   return (
-    <Modal open={open} onClose={props.onClose} title={rate ? `Tarifa ${rate.container_type}` : 'Nova tarifa de Demurrage'} size="md">
+    <Modal open={open} onClose={() => { if (!props.saving) props.onClose() }} title={rate ? `Tarifa ${rate.container_type}` : 'Nova tarifa de Demurrage'} size="md">
       {open ? <RateForm key={rate?.id ?? 'new'} rate={rate} {...props} /> : null}
     </Modal>
   )

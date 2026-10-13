@@ -21,7 +21,8 @@ import {
 } from '../hooks/useDemurrageRates'
 import type { DemurrageRateUpsertInput } from '../services/demurrage/demurrageRateUpsertPayload'
 import type { DemurrageRate } from '../types/database'
-import { extractErrorText } from '../lib/errors'
+import { classifyDbError } from '../lib/errors'
+import { saoPauloTodayIso } from '../lib/dates'
 import { formatDate, formatUSD } from '../lib/utils'
 
 type RatesTab = 'padrao' | 'acordos'
@@ -29,6 +30,11 @@ type RatesTab = 'padrao' | 'acordos'
 function rateVigencia(rate: DemurrageRate) {
   const from = rate.valid_from ? formatDate(rate.valid_from) : 'sem início'
   return rate.valid_to ? `${from} até ${formatDate(rate.valid_to)}` : `desde ${from}`
+}
+
+/** Tarifa ou acordo com vigência já iniciada (sem data conta como em vigor). */
+function inForce(validFrom: string | null | undefined) {
+  return !validFrom || validFrom.slice(0, 10) <= saoPauloTodayIso()
 }
 
 export function DemurrageRates() {
@@ -80,7 +86,9 @@ export function DemurrageRates() {
         ].filter((change) => change.before !== change.after)
       : []
     if (original && changes.length === 0) {
-      setSaveError('Nenhuma alteração para salvar.')
+      // Nada a gravar não é falha: fecha e avisa.
+      showToast('Nada mudou na tarifa.', 'info')
+      setEditing(null)
       return
     }
     const confirmed = await confirm({
@@ -102,7 +110,9 @@ export function DemurrageRates() {
         showToast(original ? 'Tarifa atualizada.' : 'Tarifa cadastrada.', 'success')
         setEditing(null)
       },
-      onError: (error) => setSaveError(extractErrorText(error)),
+      // classifyDbError guarda a orientação de negócio do banco e troca o texto
+      // cru de constraint ("violates check constraint …") por uma frase legível.
+      onError: (error) => setSaveError(classifyDbError(error).message),
     })
   }
 
@@ -110,7 +120,7 @@ export function DemurrageRates() {
     const reason = await confirmWithReason({
       title: `Excluir tarifa ${rate.container_type}`,
       message: `Excluir a tarifa padrão de Demurrage do container ${rate.container_type}?`,
-      consequence: 'A tarifa sai do cadastro e não entra em cálculos novos. Sem outra tarifa vigente para o tipo, o cálculo desse container falha até uma nova ser cadastrada.',
+      consequence: 'A tarifa ainda não entrou em vigor: sai do cadastro antes de valer para qualquer cálculo.',
       reversibility: 'Não é possível desfazer; cadastre de novo se precisar. Para parar de usar sem apagar, desative.',
       tone: 'danger',
       confirmLabel: 'Excluir tarifa',
@@ -118,7 +128,7 @@ export function DemurrageRates() {
     if (reason === null) return
     deleteMutation.mutate({ id: rate.id, reason }, {
       onSuccess: () => showToast('Tarifa excluída.', 'success'),
-      onError: (error) => showToast(`Falha ao excluir a tarifa: ${extractErrorText(error)}`, 'error'),
+      onError: (error) => showToast(`Falha ao excluir a tarifa: ${classifyDbError(error).message}`, 'error'),
     })
   }
 
@@ -142,7 +152,7 @@ export function DemurrageRates() {
       { id: rate.id, active: nextActive },
       {
         onSuccess: () => showToast(nextActive ? 'Tarifa reativada.' : 'Tarifa desativada.', 'success'),
-        onError: (error) => showToast(`Falha ao alterar a situação: ${extractErrorText(error)}`, 'error'),
+        onError: (error) => showToast(`Falha ao alterar a situação: ${classifyDbError(error).message}`, 'error'),
       },
     )
   }
@@ -232,7 +242,10 @@ export function DemurrageRates() {
                                   trigger={<MoreVertical size={16} aria-hidden="true" />}
                                   items={[
                                     { key: 'toggle', label: rate.active ? 'Desativar tarifa' : 'Reativar tarifa', onSelect: () => void handleToggleActive(rate) },
-                                    { key: 'delete', label: 'Excluir tarifa', danger: true, disabled: deleteMutation.isPending && deleteMutation.variables?.id === rate.id, onSelect: () => void handleDelete(rate) },
+                                    // O banco só apaga tarifa que ainda não entrou em vigor (guard_used_tariff_delete, migration 091).
+                                    inForce(rate.valid_from)
+                                      ? { key: 'delete', label: 'Excluir tarifa (já em vigor: desative)', disabled: true }
+                                      : { key: 'delete', label: 'Excluir tarifa', danger: true, disabled: deleteMutation.isPending && deleteMutation.variables?.id === rate.id, onSelect: () => void handleDelete(rate) },
                                   ]}
                                 />
                               </div>
@@ -255,6 +268,7 @@ export function DemurrageRates() {
         saving={saveMutation.isPending}
         error={saveError}
         onClose={() => setEditing(null)}
+        onDraftChange={() => setSaveError(null)}
         onSubmit={(input) => void handleSave(input)}
       />
     </div>

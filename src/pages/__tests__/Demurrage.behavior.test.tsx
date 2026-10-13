@@ -309,6 +309,29 @@ describe('Demurrage page behaviours', () => {
     expect(screen.queryByRole('dialog', { name: 'Informar PTAX' })).toBeNull()
   })
 
+  it('PTAX fora da faixa usual pede um segundo clique antes de recalcular', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Informar PTAX' }))
+    await user.type(screen.getByLabelText(/PTAX \(cotação de venda\)/), '54,321')
+    await user.click(screen.getByRole('button', { name: 'Recalcular Invoices' }))
+    expect(screen.getByText(/fora da faixa usual/)).toBeTruthy()
+    expect(mocks.recalculateManual).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Recalcular Invoices' }))
+    await waitFor(() => expect(mocks.recalculateManual).toHaveBeenCalledWith(54.321))
+  })
+
+  it('a recusa do cancelamento da Invoice aparece no detalhe, não só num aviso passageiro', async () => {
+    mocks.cancelInvoice.mockRejectedValue(new Error('A Invoice tem baixa registrada.'))
+    const user = userEvent.setup()
+    renderPage()
+    const detail = await openIssuedDetail(user)
+    await user.click(within(detail).getByRole('button', { name: /Cancelar Invoice/ }))
+    expect((await within(detail).findByRole('alert')).textContent).toContain('A Invoice tem baixa registrada. A Invoice não foi cancelada.')
+    expect(mocks.showToast).not.toHaveBeenCalledWith(expect.anything(), 'error')
+  })
+
   it('a falha do recálculo fica no modal da PTAX', async () => {
     mocks.recalculateManual.mockRejectedValue(new Error('Sem permissao.'))
     const user = userEvent.setup()

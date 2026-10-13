@@ -21,10 +21,8 @@ describe('estado de /demurrage na URL', () => {
 
   it('a busca guarda o espaço digitado entre as palavras', () => {
     let params = new URLSearchParams('')
-    let typed = ''
     for (const key of 'ACME LTDA') {
-      typed = (params.get('busca') ?? '') + key
-      params = withDemurrageParam(params, 'busca', typed)
+      params = withDemurrageParam(params, 'busca', (params.get('busca') ?? '') + key)
     }
     expect(demurrageStateFromSearch(params).search).toBe('ACME LTDA')
     expect(withDemurrageParam(params, 'busca', '   ').has('busca')).toBe(false)

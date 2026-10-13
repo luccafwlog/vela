@@ -43,6 +43,7 @@ const baseData = { id: 101, name: 'ACME', invoices: [], invoices_access_denied: 
 
 afterEach(() => {
   cleanup()
+  mocks.isAdmin = true
   mocks.demurrage = { data: undefined, isLoading: false, isError: false }
   mocks.receivables = { data: undefined, isLoading: false, isError: false }
   mocks.payments = { data: undefined, isLoading: false, isError: false }
@@ -92,13 +93,18 @@ describe('FinanceiroTab — estados de carregamento e erro', () => {
     expect(screen.queryByRole('button', { name: /Novo acordo/ })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Editar acordo de 28 dias' })).toBeNull()
     expect(screen.getByText('Cadastrar e editar acordos é do Administrativo.')).toBeTruthy()
-    mocks.isAdmin = true
   })
 
   it('abre a Invoice de Demurrage direto no detalhe de /demurrage', () => {
     mocks.demurrage = { data: { rows: [{ id: 77, doc_number: 'DEM-077', bl_id: 'BL-9', billed_at: '2026-07-01', status: 'issued', total_usd: 100, current_total_brl: 550 }], denied: false }, isLoading: false, isError: false }
     render(<MemoryRouter><FinanceiroTab data={baseData} /></MemoryRouter>)
     expect(screen.getByRole('link', { name: 'DEM-077' }).getAttribute('href')).toBe('/demurrage?fatura=77')
-    expect(screen.getByRole('link', { name: /Abrir em Demurrage/ }).getAttribute('href')).toBe('/demurrage?tab=faturas&busca=ACME')
+    expect(screen.getByRole('link', { name: /Aguardando pagamento em Demurrage/ }).getAttribute('href')).toBe('/demurrage?tab=faturas&busca=ACME')
+  })
+
+  it('com CNPJ, os links de Demurrage buscam só este Cliente, não os de nome parecido', () => {
+    render(<MemoryRouter><FinanceiroTab data={{ ...(baseData as object), cnpj_cpf: '12.345.678/0001-95' } as never} /></MemoryRouter>)
+    expect(screen.getByRole('link', { name: /Aguardando pagamento em Demurrage/ }).getAttribute('href')).toBe('/demurrage?tab=faturas&busca=12345678000195')
+    expect(screen.getByRole('link', { name: 'Ver em Tarifas' }).getAttribute('href')).toBe('/demurrage/taxas?tab=acordos&cliente=12345678000195')
   })
 })
