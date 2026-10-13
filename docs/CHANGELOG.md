@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Autor da baixa no detalhe da fatura e na Ficha do Cliente (2026-10-13, migration `221`):**
+  "Pagamentos registrados" do detalhe da fatura passa a mostrar quem registrou cada baixa e a
+  referência bancária (antes só Observação, que ficava "—" quando a referência era o único
+  dado, como na baixa Pix da INV-2026-0014). A tabela de pagamentos da Ficha do Cliente ganha a
+  mesma coluna "Registrado por". O nome vem de `list_payment_registrar_names`, que devolve só o
+  autor das baixas pedidas a quem pode ler pagamentos. Quem cancelou uma baixa continua fora da
+  tela: o cancelamento apaga a baixa e o registro de auditoria não diz qual baixa foi.
 - **Desbloqueio de CE: cancelamento de baixa durante o envio sem deadlock (2026-10-13, migration `220`):**
   um teste novo achou que o cancelamento de baixa feito pelo Financeiro enquanto o cliente envia o pedido
   terminava em `deadlock detected`, desfazendo uma das duas operações (às vezes o cancelamento). A trava do
