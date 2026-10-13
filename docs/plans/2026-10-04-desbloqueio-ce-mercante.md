@@ -40,7 +40,10 @@ envio (Tarefa 2), ambas pelos comandos reais do financeiro. O segundo teste
 achou deadlock entre estorno e envio, corrigido pela migration `220` (trava do
 Cliente em `FOR NO KEY UPDATE`); a `220` ainda não está em produção. Das provas
 que protegem dinheiro e dados, resta o acesso de outro CNPJ no serviço real
-(Tarefa 3).
+(Tarefa 3). Na leitura de produção do mesmo dia, os sites publicados e o backend
+correspondem ao commit `c4a984f` da `main` (compatibilidade conferida no
+código). O expurgo roda todo dia sem erro, mas nunca teve documento elegível:
+a remoção física continua sem prova.
 
 **Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
 fonte indicada; `[ ]` registra trabalho ou evidência ainda necessários. Um teste
@@ -117,6 +120,21 @@ Fontes da reconciliação:
   três de três rodadas com `deadlock detected`; com ela, a suíte passou (33
   testes, duas rodadas) e as 80 suítes `local-pg` do CI passaram (655 testes).
   Não comprova o ambiente remoto.
+- **Remoto (2026-10-13, leitura somente SELECT no projeto Supabase de produção,
+  logs e GitHub Actions):** *Cloudflare Pages Production* run 184 publicou o
+  commit `c4a984f` (HEAD da `main`, CI run 2035 verde). `schema_migrations` vai
+  até `219`, como a `main`. As 1.042 funções de `public` e `ce_unlock_private`
+  têm o mesmo texto do replay local da `main` (12 funções antigas diferem só por
+  fim de linha CRLF); `ce_unlock_private.command` e `ce_unlock_prepare_upload`
+  ainda estão na versão anterior à `220`. O deploy das Edge Functions de
+  2026-10-13 11:46 UTC conferiu `portal-ce-unlock-document`,
+  `ce-unlock-document-download`, `ce-unlock-cleanup` e `ce-unlock-notify-email`
+  sem mudança e republicou `ce-unlock-export` a partir da `main`. Expurgo: job
+  `ce-unlock-cleanup` com rodadas diárias `succeeded` de 08/10 a 13/10 e a
+  função respondendo HTTP 200 às 06:00 UTC de 13/10; `ce_unlock_cleanup_candidates()`
+  vazio, nenhum documento com `purged_at`, nenhum rascunho, 4 documentos com
+  objeto presente no bucket e nenhum objeto órfão. A remoção física nunca foi
+  exercitada em produção. Nenhum dado remoto foi alterado.
 
 ## Restrições globais
 
@@ -156,10 +174,12 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    (Tarefa 2)~~ feitas em 2026-10-13 (ver "Fontes"; a `220` precisa estar em
    produção antes da ativação); falta o acesso a IDs/caminhos/downloads de
    outro CNPJ no serviço real (Tarefa 3).
-6. Conferir a compatibilidade dos frontends publicados com o backend atual,
-   de novo depois da PR 929, que mudou os dois lados, e executar o fluxo
-   completo com clientes A/B no ambiente autorizado (Tarefa 7).
-7. Validar o resultado do expurgo no Storage real (Tarefa 7).
+6. ~~Conferir a compatibilidade dos frontends publicados com o backend atual~~
+   (feito em 2026-10-13, ver "Fontes") e executar o fluxo completo com
+   clientes A/B no ambiente autorizado (Tarefa 7).
+7. Validar o resultado do expurgo no Storage real (Tarefa 7). Em 2026-10-13
+   não havia documento elegível; a prova exige um documento de teste elegível
+   em produção (por exemplo, rascunho com mais de 7 dias) e autorização para criá-lo.
 
 ## Foco da revisão
 
@@ -362,10 +382,10 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Registrar gates da entrega local original: docs, tipos, lint, testes, build, migrations e RPC, com skips e limites do banco/shims no relatório. Não equivale à execução atual de todos os gates na árvore integrada.
 - [x] Documentar ordem backend → funções → frontend e reversão preservando consulta/histórico. Preview e publicação são itens separados, sem evidência na reconciliação de 2026-10-07; em 2026-10-10 a publicação em produção foi conferida (ver "Fontes"), e a validação em Preview e a compatibilidade frontend/backend seguem sem evidência.
 - [x] Conferir histórico remoto e publicar migrations CE `139`–`149` e `160`–`161` e as cinco funções. **Remoto:** leitura de produção em 2026-10-10 (ver "Fontes").
-- [ ] **[bloqueia ativação]** Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. A publicação foi conferida em 2026-10-10 (ver "Fontes"); a compatibilidade não. A PR 929 mudou backend e frontend; a conferência vale para a versão publicada depois dela. A Vercel ficou só como rollback manual.
+- [x] Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. **Remoto:** em 2026-10-13 os sites, as migrations, as funções do banco e as Edge Functions do Desbloqueio correspondiam ao commit `c4a984f` da `main`, com CI verde (ver "Fontes"). Conferência de código, não de uso: o fluxo na tela é o item A/B abaixo. Refazer se um merge mudar só um dos lados. A Vercel ficou só como rollback manual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
 - [ ] **[bloqueia ativação]** Conferir a migration `220` (trava do Cliente sem deadlock com o estorno de baixa) aplicada em produção depois do merge.
-- [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes").
+- [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes"). Em 2026-10-13 o job e a função rodavam sem erro, mas nunca houve documento elegível; falta ver um documento de teste elegível ser removido do Storage e marcado com `purged_at`.
 - [x] Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md). **Código/Remoto:** PR 929; migrations `174`–`217` em produção em 2026-10-12 (ver "Fontes").
 - [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
@@ -386,8 +406,11 @@ sua revisão de origem, e marcação dos itens que bloqueiam a ativação. Nenhu
 teste foi reexecutado e nenhum dado remoto foi alterado.
 
 Atualização em 2026-10-13: dois cenários novos na suíte SQL local e a migration
-`220`, validados no Postgres local descartável (ver "Fontes"). Nenhum ambiente
-remoto foi lido ou alterado; a `220` chega à produção pelo fluxo normal de merge.
+`220`, validados no Postgres local descartável (ver "Fontes"); a `220` chega à
+produção pelo fluxo normal de merge. Depois, leitura somente SELECT de produção,
+logs e GitHub Actions: fechou a compatibilidade dos frontends com o backend e
+registrou que o expurgo nunca teve documento elegível. Nenhum dado remoto foi
+alterado.
 
 Atualização em 2026-10-12, após o merge da PR 929: leitura (somente SELECT) do
 banco de produção e conferência estática da suíte SQL do Desbloqueio. Fechou os
