@@ -1,5 +1,9 @@
 # ADR 0063 — Configuração dos jobs `pg_cron` mora no Supabase Vault, não em `app.settings.*`
 
+> **Situação atual (2026-10-13).** A decisão vale e foi implementada na migration `007`; a `165` deu 30 s ao dispatcher e deslocou os horários, e os segredos de job criados depois seguem o mesmo contrato de nomes no Vault.
+> Decisão pendente: as migrations `218` e `219` criaram `ops.kick_import_effects_runner` e `ops.kick_itau_pix_runner`, `SECURITY DEFINER` e acionados por gatilho com o papel de quem importa ou emite; o primeiro consulta o Vault antes de chamar o dispatcher e o segundo lê o Vault e monta o próprio `net.http_post`, fora do caminho único de leitura dos itens 2 a 4.
+> Regra vigente em [Segredos dos jobs `pg_cron`](../operations/segredos-cron.md), seções "Onde os valores moram hoje" e "Quem lê", e em [Serviços externos](../operations/servicos-externos.md), seção "Jobs agendados (`pg_cron`)".
+
 Status: aceito — 2026-09-03
 
 ## Contexto

@@ -1,6 +1,10 @@
 # 0077 — Fatura emitida não muda de valor
 
-Status: aceito — 2026-10-01, revisado em 2026-10-02 (decisões do dono).
+> **Situação atual (2026-10-13).** A decisão vale (migrations `122` a `130` e `136`). A [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) a estendeu ao rateio de container compartilhado (item 11, migration `176`, que resolve o "limite conhecido" abaixo) e à Invoice de Demurrage quando as datas de container mudam (itens 19 e 20); a [ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md) a estendeu à correção manual de Part Lot com irmão faturado (decisão 5) e manda suspender, em vez de reemitir, a Invoice de Demurrage com desconto ou disputa (decisão 1).
+> Não valem mais "Não altera Demurrage" nem "Este checkout usa Pix estático": a cobrança Pix dinâmica do Itaú está ativa em produção desde 2026-10-07 (migrations `151` a `154`), ainda sem ADR própria.
+> Regra vigente em [Faturamento](../modules/faturamento.md), seção "Correção após emissão (ADR 0077)", e no [Manual financeiro](../operations/manual-financeiro.md), seções 5 e 6.
+
+Status: estendida — 2026-10-01, revisado em 2026-10-02 (decisões do dono).
 Implementação local nas migrations `122` a `130`; deploy remoto não verificado.
 
 ## Contexto

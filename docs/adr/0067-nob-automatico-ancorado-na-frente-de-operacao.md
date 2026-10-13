@@ -1,5 +1,10 @@
 # 0067 — NOB automático, ancorado na Frente de Operação do B/L
 
+> **Situação atual (2026-10-13).** O NOB automático por Atracação e a janela de 30 dias valem. Pela [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md), não vale mais a âncora derivada só de `cargo_mode → modalidade`: o NOB usa o terminal resolvido do B/L (`resolve_bl_terminal_id`), a exceção individual vence a frente mesmo sem frente naquele terminal, e o B/L misto não cai mais em `carga_cheia` (exige as duas frentes no terminal).
+> A produtora vigente é a da migration `190`, não a da `062` citada na nota abaixo; ela aplica essa regra e não comunica Viagem cancelada.
+> Decisão pendente: o NOB manual (conferência na tela, Edge Function `send-customer-communication` e RPC `create_customer_communication_atomic`) ainda escolhe o público pela frente da modalidade, ignora a exceção de terminal e recusa o B/L misto, ao contrário da régua.
+> Regra vigente em [Clientes](../modules/clientes.md), seção `/clientes/comunicacao`.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** NOB usa terminal resolvido do B/L, incluindo exceção, não apenas modalidade da frente. A produtora vigente foi redefinida em 062; a variante _045 ficou inerte.
 > Rastreabilidade: [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md); [migration ativa 062](../../supabase/migrations/062_pr698_audit_remediations.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

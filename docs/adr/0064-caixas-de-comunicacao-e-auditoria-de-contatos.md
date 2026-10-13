@@ -1,5 +1,9 @@
 # ADR 0064 — Caixas de comunicação, salvamento atômico e auditoria de contatos
 
+> **Situação atual (2026-10-13).** A decisão vale: Caixas, vínculos, salvamento atômico, desativação lógica, captura protegida e trilha append-only estão nas migrations `008` e `010` (catálogo reposto pela `116`; última definição de `ensure_customer_contact_email` na `106`).
+> Decisões pendentes, em que o código diverge da decisão: a produtora automática vigente (`evaluate_and_dispatch_automatic_communications`, migration `190`) ainda exclui contatos com preferência legada desligada em `customer_contact_preferences` (NOA, NOR, NOB e CE e Taxas), contra o item 9, enquanto a tela e a Edge Function não leem essa tabela; e a conferência do disparo fixa no TypeScript o mapa caixa → modelo (`CUSTOMER_COMMUNICATION_BOX_KINDS`), contra a extensibilidade do item 1.
+> Regra vigente em [Clientes](../modules/clientes.md), seções `/clientes/:cnpj` (aba Cadastro e contatos) e `/clientes/comunicacao`.
+
 > **Implementação conferida em 2026-09-18 (Código):** 008/010 implementam caixas e roteamento; 032/038/039 refinam estados de entrega, 045/062 a produção automática.
 
 Status: aceito — 2026-09-03

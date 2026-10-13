@@ -1,6 +1,11 @@
 # 0075 — Fatura avulsa flexível no modelo de invoices
 
-Status: aceito — 2026-09-26. Implementada localmente nas migrations `097`, `098` e `099`;
+> **Situação atual (2026-10-13).** A avulsa como `invoice_type = 'manual'`, sem ledger local e com o Portal escopado ao Cliente, vale (migrations `097` a `099`).
+> A [ADR 0077](./0077-fatura-emitida-nao-muda-de-valor.md) a estendeu: o Tipo de cobrança "item da tabela" exige B/L do Cliente e preço resolvido no servidor, com Condição do Cliente e ROE (migration `123`); "Outra" mantém o item livre e o B/L e a Viagem opcionais do item 2; e o Administrativo pode autorizar a restituição excepcional de avulsa recebida (migration `136`).
+> "Deploy remoto não verificado" ficou superado: a emissão de avulsa e o saldo no Portal foram conferidos em produção em 2026-09-29, e uma avulsa já foi baixada pelo Itaú com recibo no Portal.
+> Regra vigente em [Faturamento](../modules/faturamento.md), seções "Propósito e escopo" e "Catálogo de ações", e no [Manual financeiro](../operations/manual-financeiro.md).
+
+Status: estendida — 2026-09-26. Implementada localmente nas migrations `097`, `098` e `099`;
 deploy remoto não verificado.
 
 ## Contexto

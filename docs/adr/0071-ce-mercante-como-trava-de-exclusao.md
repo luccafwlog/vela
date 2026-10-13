@@ -1,6 +1,11 @@
 # 0071 — O CE Mercante é a trava de exclusão
 
-Status: aceito — 2026-09-24. Implementado em 2026-09-25 (ver nota).
+> **Situação atual (2026-10-13).** A trava pelo CE Mercante e por documento financeiro emitido, a exclusão de viagem em cascata com prévia e a autoria do Administrativo valem e estão implementadas (migrations `086` a `090`).
+> Pela [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), não valem mais: o item 5 (Remover CE é ação da ficha, com motivo, só sem fatura viva; liberação no Portal deixou de ser critério), o recebível sem fatura como trava nos itens 3 e 9 (ele é anulado com o B/L) e o desvio aceito da unicidade CE × B/L, hoje imposta em todas as portas, inclusive Granito (migration `177`). A [ADR 0073](./0073-cadastro-usado-so-se-desativa.md) (cadastros e clientes, o "Em aberto" abaixo) e a [ADR 0074](./0074-usuarios-retencao-e-backup-diario.md) (usuários e guarda) complementam a decisão sem alterá-la.
+> Decisão pendente: a tela recusa excluir escala que tenha qualquer B/L naquele porto, mesmo sem CE, mas `delete_escala` aceita, e o item 1 não exige "sem B/L".
+> Regra vigente em [Viagens](../modules/viagens.md), seção "Catálogo de ações", e em [Regras de negócio](../operations/regras-de-negocio.md), seção "Hard delete controlado".
+
+Status: supersedida parcialmente — 2026-09-24. Implementado em 2026-09-25 (ver nota).
 
 > **Nota editorial — 2026-10-09 · supersedida parcialmente.** A
 > [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)

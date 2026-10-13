@@ -1,5 +1,9 @@
 # 0068 — Terminal do B/L herdado da Frente de Operação, com exceção individual auditada
 
+> **Situação atual (2026-10-13).** A decisão vale: `bls.terminal_id` com FK composta, `resolve_bl_terminal_id`, as pendências `review:mixed_bl_terminal_conflict` e `review:bl_terminal_sem_frente` e o misto sem fallback estão nas migrations `055`, `059` e `060`, e a régua automática do NOB usa o terminal resolvido (migration `190`).
+> Implementação parcial, com decisões pendentes em que o código diverge da decisão 2 ("vence a frente, sempre e em toda leitura") e da 8: o ADR por terminal não aplica a exceção nem separa a carga por frente, e dois terminais da mesma escala exibem e congelam a mesma carga; escala sem ADR terminalizado cai no ADR legado `(viagem, porto)`, criado e fechado sem a trava de frente `TBC`; e o NOB manual (tela, Edge Function e RPC) escolhe o público pela frente da modalidade.
+> Regra vigente em [Manifestos & EDI](../modules/manifesto-edi.md), seção "Catálogo de ações" (B/L — definir exceção de terminal), e em [Viagens](../modules/viagens.md).
+
 > **Implementação conferida em 2026-09-18 (Código):** 055 cria colunas/resolvedor; 059/060 endurecem validação, FK composta, auditoria e limpeza da exceção em COD.
 
 Status: aceito — 2026-09-16
