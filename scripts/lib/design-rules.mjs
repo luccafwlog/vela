@@ -38,8 +38,9 @@ export function cssFamily(className) {
 
 /**
  * Conta blocos de regra por família, ignorando @media/@layer e comentários.
- * Num seletor agrupado (".a, .b"), cada parte conta pela sua primeira classe:
- * agrupar CSS de página com uma peça comum não esconde a família da página.
+ * Cada família citada no seletor conta uma vez por regra, agrupada (".a, .b")
+ * ou aninhada (".a .b"): pôr CSS de página dentro ou ao lado de uma peça
+ * comum não esconde a família da página.
  */
 export function countCssFamilies(css) {
   const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '')
@@ -48,10 +49,7 @@ export function countCssFamilies(css) {
     const selector = match[1].trim()
     if (!selector || selector.startsWith('@')) continue
     const families = new Set()
-    for (const part of selector.split(',')) {
-      const first = part.match(/\.([A-Za-z][\w-]*)/)
-      if (first) families.add(cssFamily(first[1]))
-    }
+    for (const match of selector.matchAll(/\.([A-Za-z][\w-]*)/g)) families.add(cssFamily(match[1]))
     for (const family of families) counts[family] = (counts[family] ?? 0) + 1
   }
   return counts

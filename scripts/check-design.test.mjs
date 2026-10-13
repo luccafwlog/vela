@@ -25,11 +25,11 @@ assert.deepEqual(
   `),
   { 'app-bl': 2, 'app-block': 1 },
 )
-// Seletor agrupado conta cada família uma vez: CSS de página junto de uma
-// peça comum continua contando para a página.
+// Cada família do seletor conta uma vez por regra, agrupada ou aninhada: CSS
+// de página junto ou dentro de uma peça comum continua contando para a página.
 assert.deepEqual(
-  countCssFamilies('.app-block, .app-customer-new { gap: 4px; } .app-bl-row .app-btn, .app-bl-card { gap: 2px; }'),
-  { 'app-block': 1, 'app-customer': 1, 'app-bl': 1 },
+  countCssFamilies('.app-block, .app-customer-new { gap: 4px; } .app-block .app-invoice-x { gap: 1px; } .app-bl-row .app-bl-cell, .app-bl-card { gap: 2px; }'),
+  { 'app-block': 2, 'app-customer': 1, 'app-invoice': 1, 'app-bl': 1 },
 )
 
 // Catraca: só aumento falha; queda é sugerida para travar o ganho.
