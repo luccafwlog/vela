@@ -196,7 +196,7 @@ export function DemurrageRates() {
                     <caption className="sr-only">Tabela padrão de tarifas de Demurrage</caption>
                     <thead>
                       <tr>
-                        <th scope="col">Tipo de container</th>
+                        <th scope="col" className="app-table__text-head">Tipo de container</th>
                         <th scope="col" className="app-dem-num">Free time</th>
                         <th scope="col">P1</th>
                         <th scope="col">P2</th>

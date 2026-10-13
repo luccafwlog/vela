@@ -3,6 +3,8 @@ import { RefreshCw } from "lucide-react";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { InlineError } from "../ui/Card";
+import { CopyValue } from "../ui/CopyValue";
+import { NoValue } from "../ui/NoValue";
 import { useConfirm, useConfirmWithReason } from "../ui/ConfirmDialog";
 import { CeUnlockDocumentList } from "./CeUnlockDocuments";
 import { CeUnlockRequirementIcon } from "./CeUnlockRequirements";
@@ -128,15 +130,15 @@ export function CeUnlockRequestDetail({
       <div className="space-y-3">
         <h3 className="app-panel__title">BLs da solicitação</h3>
         <div className="app-table-scroll rounded-lg border border-[var(--app-border)]">
-          <table className="app-table app-table--compact min-w-[640px] text-left text-sm">
+          <table className="app-table app-table--compact min-w-[640px] text-sm">
             <caption className="sr-only">Requisitos de cada BL da solicitação</caption>
             <thead>
               <tr>
                 <th scope="col" className="px-3 py-2">BL / CE</th>
-                <th scope="col" className="px-2 py-2 text-center">Termo</th>
-                <th scope="col" className="px-2 py-2 text-center">Procuração</th>
-                <th scope="col" className="px-2 py-2 text-center">Taxas</th>
-                <th scope="col" className="px-2 py-2 text-center">BL original</th>
+                <th scope="col" className="px-2 py-2">Termo</th>
+                <th scope="col" className="px-2 py-2">Procuração</th>
+                <th scope="col" className="px-2 py-2">Taxas</th>
+                <th scope="col" className="px-2 py-2">BL original</th>
                 <th scope="col" className="px-3 py-2">Situação</th>
               </tr>
             </thead>
@@ -145,14 +147,14 @@ export function CeUnlockRequestDetail({
                 <tr key={i.bl_id}>
                   <td className="px-3 py-2">
                     <span className="app-table__cell-stack">
-                      <span className="app-table__cell-value font-semibold">{i.bl_id}</span>
-                      <span className="app-table__cell-meta whitespace-nowrap">CE {i.ce_mercante ?? "—"}</span>
+                      <span className="app-table__cell-value font-semibold"><CopyValue value={i.bl_id} label="número do B/L" /></span>
+                      <span className="app-table__cell-meta whitespace-nowrap">CE {i.ce_mercante ? <CopyValue value={i.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</span>
                     </span>
                   </td>
-                  <td className="px-2 py-2 text-center"><CeUnlockRequirementIcon ok={i.termo} label="Termo de devolução" /></td>
-                  <td className="px-2 py-2 text-center"><CeUnlockRequirementIcon ok={i.procuracao} label="Procuração" /></td>
-                  <td className="px-2 py-2 text-center"><CeUnlockRequirementIcon ok={i.paid} label="Taxas locais" /></td>
-                  <td className="px-2 py-2 text-center"><CeUnlockRequirementIcon ok={i.delivered} label="BL original" /></td>
+                  <td className="px-2 py-2"><CeUnlockRequirementIcon ok={i.termo} label="Termo de devolução" /></td>
+                  <td className="px-2 py-2"><CeUnlockRequirementIcon ok={i.procuracao} label="Procuração" /></td>
+                  <td className="px-2 py-2"><CeUnlockRequirementIcon ok={i.paid} label="Taxas locais" /></td>
+                  <td className="px-2 py-2"><CeUnlockRequirementIcon ok={i.delivered} label="BL original" /></td>
                   <td className="px-3 py-2">
                     {i.confirmed ? (
                       <span className="app-table__cell-meta">Confirmação externa registrada (histórico anterior)</span>

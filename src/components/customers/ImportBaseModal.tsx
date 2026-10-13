@@ -5,6 +5,7 @@ import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSect
 import { plural } from '../shared/importPresentation'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
+import { NoValue } from '../ui/NoValue'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { formatCnpjCpf } from '../../lib/utils'
 import { rowErrorsToImportIssues } from '../../services/importValidation'
@@ -161,48 +162,54 @@ function ImportBasePreview({ parsedBase }: { parsedBase: ParsedCustomerBase }) {
       }
     >
       <div className="app-table-scroll app-import-table">
-        <table className="app-table app-table--compact min-w-[860px] text-left">
+        <table className="app-table app-table--compact min-w-[860px]">
           <caption className="sr-only">Prévia dos clientes lidos</caption>
           <thead>
             <tr>
               <th scope="col">CNPJ</th>
-              <th scope="col">Nome</th>
-              <th scope="col">O que acontece</th>
-              <th scope="col">B/Ls pendentes</th>
-              <th scope="col">E-mails</th>
+              <th scope="col" className="app-table__text-head">Nome</th>
+              <th scope="col" className="app-table__text-head">O que acontece</th>
+              <th scope="col" className="app-table__text-head">B/Ls pendentes</th>
+              <th scope="col" className="app-table__text-head">E-mails</th>
               <th scope="col">Cidade/UF</th>
-              <th scope="col">Endereço</th>
+              <th scope="col" className="app-table__text-head">Endereço</th>
             </tr>
           </thead>
           <tbody>
             {parsedBase.rows.slice(0, SAMPLE_SIZE).map((row) => (
               <tr key={row.cnpj_cpf}>
                 <td className="tabular-nums whitespace-nowrap">{formatCnpjCpf(row.cnpj_cpf)}</td>
-                <td className="font-semibold text-[var(--app-text-strong)]">{row.name}</td>
+                <td className="app-table__text font-semibold text-[var(--app-text-strong)]" title={row.name}>{row.name}</td>
                 <td>
-                  {row.existingCustomerId
-                    ? row.changedFields?.length
-                      ? <>Atualiza: <span className="app-import-tone--warning">{row.changedFields.join(', ')}</span></>
-                      : <span className="app-import-tone--muted">Já cadastrado, sem alteração</span>
-                    : 'Cria'}
-                  {row.currentName ? <><br /><span className="app-import-tone--warning">Razão social: {row.currentName} → {row.name} (pede confirmação)</span></> : null}
+                  <div className="app-table__cell-stack">
+                    <span>
+                      {row.existingCustomerId
+                        ? row.changedFields?.length
+                          ? <>Atualiza: <span className="app-import-tone--warning">{row.changedFields.join(', ')}</span></>
+                          : <span className="app-import-tone--muted">Já cadastrado, sem alteração</span>
+                        : 'Cria'}
+                    </span>
+                    {row.currentName ? <span className="app-import-tone--warning">Razão social: {row.currentName} → {row.name} (pede confirmação)</span> : null}
+                  </div>
                 </td>
                 <td>
-                  {row.pendingBlIds?.length
-                    ? <span title={row.pendingBlIds.join(', ')}>Vincula {row.pendingBlIds.join(', ')}</span>
-                    : <span className="app-import-tone--muted">—</span>}
-                  {row.rejectedBlIds?.length
-                    ? <><br /><span className="app-import-tone--muted">Rejeitado na Revisão, fica de fora: {row.rejectedBlIds.join(', ')}</span></>
-                    : null}
+                  <div className="app-table__cell-stack">
+                    {row.pendingBlIds?.length
+                      ? <span title={row.pendingBlIds.join(', ')}>Vincula {row.pendingBlIds.join(', ')}</span>
+                      : <NoValue label="Sem B/L pendente" />}
+                    {row.rejectedBlIds?.length
+                      ? <span className="app-import-tone--muted">Rejeitado na Revisão, fica de fora: {row.rejectedBlIds.join(', ')}</span>
+                      : null}
+                  </div>
                 </td>
                 <td>
                   <span className="app-table__truncate app-table__truncate--xl" title={row.emails.join('; ')}>
-                    {row.emails.length ? row.emails.join('; ') : '—'}
+                    {row.emails.length ? row.emails.join('; ') : <NoValue label="Sem e-mail" />}
                   </span>
                 </td>
-                <td>{row.city || row.state ? `${row.city ?? '—'}/${row.state ?? '—'}` : '—'}</td>
+                <td>{row.city || row.state ? <>{row.city ?? <NoValue label="Sem cidade" />}/{row.state ?? <NoValue label="Sem UF" />}</> : <NoValue label="Sem cidade/UF" />}</td>
                 <td>
-                  <span className="app-table__truncate app-table__truncate--xl" title={row.address ?? undefined}>{row.address ?? '—'}</span>
+                  <span className="app-table__truncate app-table__truncate--xl" title={row.address ?? undefined}>{row.address ?? <NoValue label="Sem endereço" />}</span>
                 </td>
               </tr>
             ))}

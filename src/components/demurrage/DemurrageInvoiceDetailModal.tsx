@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Ban, CircleDollarSign, FileText, MessageSquare, Percent, Receipt, RotateCcw } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
 import { Modal } from '../ui/Modal'
+import { NoValue } from '../ui/NoValue'
 import { FinancialRefundsPanel } from '../billing/FinancialRefundsPanel'
 import { ImportNotice } from '../shared/ImportParts'
 import { InvoiceStatusBadge } from './DemurrageBadges'
@@ -179,10 +181,10 @@ function DetailBody({
           </p>
           <p className="app-invoice-detail__customer">{invoice.customer?.name ?? 'Cliente não identificado'}</p>
           <p className="app-invoice-detail__meta">
-            <span className="tabular-nums">{invoice.customer?.cnpj_cpf ? formatCnpjCpf(invoice.customer.cnpj_cpf) : 'CNPJ não informado'}</span>
-            <span>B/L <Link className="app-invoice-detail__link app-invoice-detail__code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></span>
+            <span className="tabular-nums">{invoice.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(invoice.customer.cnpj_cpf)} label="CNPJ/CPF" /> : 'CNPJ não informado'}</span>
+            <span>B/L <CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-invoice-detail__link app-invoice-detail__code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></CopyValue></span>
             {voyage?.voyage_number ? <span>Viagem {voyage.voyage_number}{voyage.vessel?.name ? ` · ${voyage.vessel.name}` : ''}</span> : null}
-            <span>Emitida em {invoice.billed_at ? formatDate(invoice.billed_at) : '—'}</span>
+            <span>Emitida em {invoice.billed_at ? formatDate(invoice.billed_at) : <NoValue label="Sem data de emissão" />}</span>
             {invoice.paid_at ? <span>Paga em {formatDate(invoice.paid_at)}</span> : null}
           </p>
         </div>
@@ -259,7 +261,7 @@ function DetailBody({
                   <button type="button" className="app-invoice-detail__link app-invoice-detail__code" onClick={() => onOpenInvoice(other.id)}>{other.doc_number}</button>
                   <span>{statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, other.status)}</span>
                   <span className="tabular-nums">{fmtUSD(other.total_usd)}</span>
-                  <span className="app-invoice-detail__note">Emitida em {other.billed_at ? formatDate(other.billed_at) : '—'}</span>
+                  <span className="app-invoice-detail__note">Emitida em {other.billed_at ? formatDate(other.billed_at) : <NoValue label="Sem data de emissão" />}</span>
                 </li>
               ))}
             </ul>
@@ -290,14 +292,14 @@ function DetailBody({
             <tbody>
               {items.length ? items.map((item) => (
                 <tr key={item.id}>
-                  <td className="app-invoice-detail__code">{item.container_number}</td>
-                  <td>{item.container_type ?? '—'}</td>
+                  <td className="app-invoice-detail__code"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                  <td>{item.container_type ?? <NoValue label="Sem tipo" />}</td>
                   <td className="tabular-nums">{formatDate(item.discharge_date)}</td>
                   <td className="tabular-nums">{formatDate(item.return_date)}</td>
                   <td className="app-invoice-detail__num">{item.total_days}</td>
                   <td className="app-invoice-detail__num">{item.free_days}</td>
-                  <td className="app-invoice-detail__num">{item.days_p1 > 0 ? `${item.days_p1} × ${fmtUSD(item.rate_p1_usd)}` : '—'}</td>
-                  <td className="app-invoice-detail__num">{item.days_p2 > 0 ? `${item.days_p2} × ${fmtUSD(item.rate_p2_usd)}` : '—'}</td>
+                  <td className="app-invoice-detail__num">{item.days_p1 > 0 ? `${item.days_p1} × ${fmtUSD(item.rate_p1_usd)}` : <NoValue label="Sem dias em P1" />}</td>
+                  <td className="app-invoice-detail__num">{item.days_p2 > 0 ? `${item.days_p2} × ${fmtUSD(item.rate_p2_usd)}` : <NoValue label="Sem dias em P2" />}</td>
                   <td className="app-invoice-detail__num">{fmtUSD(item.subtotal_usd)}</td>
                 </tr>
               )) : (

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Pencil, Plus } from 'lucide-react'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
+import { NoValue } from '../ui/NoValue'
+import { CopyValue } from '../ui/CopyValue'
 import { useCustomerDemurrageInvoices, useCustomerManualChargeBls, useCustomerPayments, useCustomerRateOverrides, useCustomerReceivables } from '../../hooks/useCustomerFicha'
 import { useCustomerDemurrageAgreements } from '../../hooks/useCustomerDemurrageAgreements'
 import { formatBRL, formatCountLabel, formatDate, formatUSD } from '../../lib/utils'
@@ -55,7 +57,7 @@ function Section({ title, count, links, children }: { title: string; count?: num
 }
 
 function SectionLink({ to, children }: { to: string; children: ReactNode }) {
-  return <Link className="app-customer-text-link" to={to}>{children} <ArrowRight size={14} aria-hidden="true" /></Link>
+  return <Link className="app-btn app-btn--secondary app-btn--sm" to={to}>{children} <ArrowRight size={14} aria-hidden="true" /></Link>
 }
 
 function Empty({ children }: { children: ReactNode }) {
@@ -107,7 +109,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
         <QueryBody query={{}} restricted={data.invoices_access_denied}>
           {invoices.length ? (
             <div className="app-table-scroll">
-              <table className="app-table app-table--compact app-customer-subtable text-left text-sm">
+              <table className="app-table app-table--compact app-customer-subtable text-sm">
                 <caption className="sr-only">Faturas de Taxas Locais do cliente</caption>
                 <thead><tr><th scope="col">Fatura</th><th scope="col">Emissão</th><th scope="col">Situação</th><th scope="col" className="app-customer-subtable__money">Total</th><th scope="col" className="app-customer-subtable__money">Saldo</th></tr></thead>
                 <tbody>
@@ -117,7 +119,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
                       <td className="tabular-nums">{formatDate(row.issued_at)}</td>
                       <td>{statusLabel(INVOICE_STATUS_LABELS, row.status)}</td>
                       <td className="app-customer-subtable__money">{formatBRL(row.total_brl)}</td>
-                      <td className="app-customer-subtable__money">{row.balance_brl == null ? '—' : formatBRL(row.balance_brl)}</td>
+                      <td className="app-customer-subtable__money">{row.balance_brl == null ? <NoValue label="Saldo não informado" /> : formatBRL(row.balance_brl)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -131,19 +133,19 @@ export function FinanceiroTab({ data }: { data: Data }) {
         <QueryBody query={dem} restricted={restricted(dem.data?.denied)}>
           {dem.data?.rows.length ? (
             <div className="app-table-scroll">
-              <table className="app-table app-table--compact app-customer-subtable text-left text-sm">
+              <table className="app-table app-table--compact app-customer-subtable text-sm">
                 <caption className="sr-only">Faturas de Demurrage do cliente</caption>
-                <thead><tr><th scope="col">Documento</th><th scope="col">B/L</th><th scope="col">Emissão</th><th scope="col">Situação</th><th scope="col">Disputa</th><th scope="col" className="app-customer-subtable__money">USD</th><th scope="col" className="app-customer-subtable__money">BRL atual</th></tr></thead>
+                <thead><tr><th scope="col">Documento</th><th scope="col">B/L</th><th scope="col">Emissão</th><th scope="col">Situação</th><th scope="col" className="app-table__text-head">Disputa</th><th scope="col" className="app-customer-subtable__money">USD</th><th scope="col" className="app-customer-subtable__money">BRL atual</th></tr></thead>
                 <tbody>
                   {dem.data.rows.map((row) => (
                     <tr key={row.id}>
                       <td><Link className="app-customer-link app-customer-code" to={demurrageInvoiceHref(row.id)}>{row.doc_number}</Link></td>
-                      <td><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></td>
+                      <td><CopyValue value={row.bl_id} label="número do B/L"><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></CopyValue></td>
                       <td className="tabular-nums">{formatDate(row.billed_at)}</td>
-                      <td>{row.status ? DEMURRAGE_STATUS_LABELS[row.status] ?? row.status : '—'}</td>
-                      <td>{row.dispute_open || row.dispute_status === 'aberto' ? <span className="app-customer-note app-customer-note--warning">Aberta{row.dispute_subject ? ` · ${row.dispute_subject}` : ''}</span> : '—'}</td>
+                      <td>{row.status ? DEMURRAGE_STATUS_LABELS[row.status] ?? row.status : <NoValue label="Sem situação" />}</td>
+                      <td className="app-table__text">{row.dispute_open || row.dispute_status === 'aberto' ? <span className="app-customer-note app-customer-note--warning" title={row.dispute_subject ?? undefined}>Aberta{row.dispute_subject ? ` · ${row.dispute_subject}` : ''}</span> : <NoValue label="Sem disputa aberta" />}</td>
                       <td className="app-customer-subtable__money">{formatUSD(row.total_usd)}</td>
-                      <td className="app-customer-subtable__money">{row.current_total_brl == null ? '—' : formatBRL(row.current_total_brl)}</td>
+                      <td className="app-customer-subtable__money">{row.current_total_brl == null ? <NoValue label="Sem valor atual em BRL" /> : formatBRL(row.current_total_brl)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -157,13 +159,13 @@ export function FinanceiroTab({ data }: { data: Data }) {
         <QueryBody query={rec} restricted={restricted(rec.data?.denied)}>
           {rec.data?.rows.length ? (
             <div className="app-table-scroll">
-              <table className="app-table app-table--compact app-customer-subtable text-left text-sm">
+              <table className="app-table app-table--compact app-customer-subtable text-sm">
                 <caption className="sr-only">Recebíveis de Taxas Locais do cliente, por B/L</caption>
                 <thead><tr><th scope="col">B/L</th><th scope="col">Situação</th><th scope="col" className="app-customer-subtable__money">Original</th><th scope="col" className="app-customer-subtable__money">Liquidado</th><th scope="col" className="app-customer-subtable__money">Saldo</th></tr></thead>
                 <tbody>
                   {rec.data.rows.map((row) => (
                     <tr key={row.id}>
-                      <td><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></td>
+                      <td><CopyValue value={row.bl_id} label="número do B/L"><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></CopyValue></td>
                       <td>{RECEIVABLE_STATUS_LABELS[row.status] ?? row.status}</td>
                       <td className="app-customer-subtable__money">{formatBRL(row.original_amount_brl)}</td>
                       <td className="app-customer-subtable__money">{formatBRL(row.settled_amount_brl)}</td>
@@ -181,16 +183,16 @@ export function FinanceiroTab({ data }: { data: Data }) {
         <QueryBody query={pay} restricted={restricted(pay.data?.denied)}>
           {pay.data?.rows.length ? (
             <div className="app-table-scroll">
-              <table className="app-table app-table--compact app-customer-subtable text-left text-sm">
+              <table className="app-table app-table--compact app-customer-subtable text-sm">
                 <caption className="sr-only">Pagamentos registrados para o cliente</caption>
                 <thead><tr><th scope="col">Data</th><th scope="col">Fatura</th><th scope="col">Método</th><th scope="col">Registrado por</th><th scope="col" className="app-customer-subtable__money">Valor</th></tr></thead>
                 <tbody>
                   {pay.data.rows.map((row) => (
                     <tr key={row.id}>
                       <td className="tabular-nums">{formatDate(row.paid_at)}</td>
-                      <td>{row.invoice ? <Link className="app-customer-link" to={`${billingHref}&invoice=${row.invoice.id}`}>{row.invoice.invoice_number ?? `INV-${row.invoice.id}`}</Link> : '—'}</td>
-                      <td>{row.payment_method ?? '—'}</td>
-                      <td>{row.registered_by_name || '—'}</td>
+                      <td>{row.invoice ? <Link className="app-customer-link" to={`${billingHref}&invoice=${row.invoice.id}`}>{row.invoice.invoice_number ?? `INV-${row.invoice.id}`}</Link> : <NoValue label="Sem fatura vinculada" />}</td>
+                      <td>{row.payment_method ?? <NoValue label="Sem método informado" />}</td>
+                      <td>{row.registered_by_name || <NoValue label="Sem registro de quem lançou" />}</td>
                       <td className="app-customer-subtable__money">{formatBRL(row.amount_brl)}</td>
                     </tr>
                   ))}
@@ -258,8 +260,8 @@ export function FinanceiroTab({ data }: { data: Data }) {
                   {overrides.data.map((row) => (
                     <li key={row.id}>
                       <div className="app-customer-rows__main">
-                        <strong>{row.charge_item?.name ?? '—'}</strong>
-                        <span className="app-customer-muted">{row.charge_item?.charge_table?.name ?? '—'} · desde {row.valid_from ? formatDate(row.valid_from) : '—'}</span>
+                        <strong>{row.charge_item?.name ?? <NoValue label="Sem item de cobrança" />}</strong>
+                        <span className="app-customer-muted">{row.charge_item?.charge_table?.name ?? <NoValue label="Sem tabela" />} · desde {row.valid_from ? formatDate(row.valid_from) : <NoValue label="Sem data de início" />}</span>
                       </div>
                       <span className="app-customer-money">{row.charge_item?.currency === 'USD' ? formatUSD(row.override_value) : formatBRL(row.override_value)}</span>
                     </li>
@@ -275,7 +277,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
                 <ul className="app-customer-rows">
                   {manual.data.map((row) => (
                     <li key={row.bl_id}>
-                      <Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}?tab=faturamento`}>{row.bl_id}</Link>
+                      <CopyValue value={row.bl_id} label="número do B/L"><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}?tab=faturamento`}>{row.bl_id}</Link></CopyValue>
                       <span className="app-customer-muted">{formatCountLabel(row.manual_count, 'item manual', 'itens manuais')}</span>
                     </li>
                   ))}

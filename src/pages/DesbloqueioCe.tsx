@@ -7,9 +7,11 @@ import { useCeUnlock, useCeUnlockRequest } from "../hooks/useCeUnlock";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, EmptyState, InlineError, PageHeader } from "../components/ui/Card";
+import { CopyValue } from "../components/ui/CopyValue";
 import { FilterBar } from "../components/ui/FilterBar";
 import { Field, Input, Select } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
+import { NoValue } from "../components/ui/NoValue";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { TabButton } from "../components/ui/TabButton";
 import { TableFooterPagination } from "../components/ui/TableFooterPagination";
@@ -306,7 +308,7 @@ export function DesbloqueioCe() {
               onRetry={() => void list.refetch?.()}
             >
               <div className="app-table-scroll app-table-scroll--sticky">
-                <table className="app-table app-table--compact min-w-[1240px] whitespace-nowrap text-left text-sm">
+                <table className="app-table app-table--compact min-w-[1240px] whitespace-nowrap text-sm">
                   <caption className="sr-only">Requisitos de desbloqueio de cada BL</caption>
                   <thead>
                     <tr>
@@ -326,13 +328,13 @@ export function DesbloqueioCe() {
                         />
                       </th>
                       <th scope="col" className="px-3 py-3">BL / CE</th>
-                      <th scope="col" className="px-3 py-3">Cliente</th>
-                      <th scope="col" className="px-3 py-3">Viagem / POD</th>
+                      <th scope="col" className="px-3 py-3 app-table__text-head">Cliente</th>
+                      <th scope="col" className="px-3 py-3 app-table__text-head">Viagem / POD</th>
                       <th scope="col" className="px-3 py-3">Solicitação</th>
-                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3 text-center">T. de Devolução</th>
-                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3 text-center">Procuração</th>
-                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3 text-center">Financeiro</th>
-                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3 text-center">BL de Entrega</th>
+                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">T. de Devolução</th>
+                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">Procuração</th>
+                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">Financeiro</th>
+                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">BL de Entrega</th>
                       <th scope="col" className="px-3 py-3">Prazo</th>
                       <th scope="col" className="px-3 py-3">ZPT</th>
                     </tr>
@@ -376,10 +378,12 @@ export function DesbloqueioCe() {
                         </td>
                         <td className="px-3 py-3">
                           <span className="app-table__cell-stack">
-                            <Link className="font-semibold text-[var(--app-link)] hover:underline" to={`/bls/${encodeURIComponent(i.bl_id)}`}>
-                              {i.bl_id}
-                            </Link>
-                            <span className="app-table__cell-meta whitespace-nowrap">CE {i.ce_mercante ?? "—"}</span>
+                            <CopyValue value={i.bl_id} label="número do B/L">
+                              <Link className="font-semibold text-[var(--app-link)] hover:underline" to={`/bls/${encodeURIComponent(i.bl_id)}`}>
+                                {i.bl_id}
+                              </Link>
+                            </CopyValue>
+                            <span className="app-table__cell-meta whitespace-nowrap">CE {i.ce_mercante ? <CopyValue value={i.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</span>
                           </span>
                         </td>
                         <td className="px-3 py-3">
@@ -392,7 +396,7 @@ export function DesbloqueioCe() {
                               {i.customer_name}
                             </Link>
                             <span className="app-table__cell-meta flex items-center gap-1.5">
-                              {i.cnpj_cpf}
+                              <CopyValue value={i.cnpj_cpf} label="CNPJ/CPF" />
                               {i.vip && <Badge tone="blue">VIP</Badge>}
                             </span>
                           </span>
@@ -402,7 +406,7 @@ export function DesbloqueioCe() {
                             <span className="app-table__truncate app-table__truncate--sm" title={`${i.vessel_name} · ${i.voyage_number}`}>
                               {i.vessel_name} · {i.voyage_number}
                             </span>
-                            <span className="app-table__cell-meta">{i.pod ?? "—"}</span>
+                            <span className="app-table__cell-meta">{i.pod ?? <NoValue label="Sem POD" />}</span>
                           </span>
                         </td>
                         <td className="px-3 py-3">
@@ -420,10 +424,10 @@ export function DesbloqueioCe() {
                             {i.requested_at && <span className="app-table__cell-meta">{ceDateTime(i.requested_at)}</span>}
                           </span>
                         </td>
-                        <td className="px-2 py-3 text-center"><CeUnlockRequirementIcon label="T. de Devolução" subject={i.bl_id} ok={i.termo} /></td>
-                        <td className="px-2 py-3 text-center"><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} /></td>
-                        <td className="px-2 py-3 text-center"><CeUnlockRequirementIcon label="Financeiro" subject={i.bl_id} ok={i.paid} /></td>
-                        <td className="px-2 py-3 text-center">
+                        <td className="px-2 py-3"><CeUnlockRequirementIcon label="T. de Devolução" subject={i.bl_id} ok={i.termo} /></td>
+                        <td className="px-2 py-3"><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} /></td>
+                        <td className="px-2 py-3"><CeUnlockRequirementIcon label="Financeiro" subject={i.bl_id} ok={i.paid} /></td>
+                        <td className="px-2 py-3">
                           <input
                             type="checkbox"
                             className="h-4 w-4 cursor-pointer accent-[var(--app-green)] disabled:cursor-default"
@@ -482,7 +486,7 @@ export function DesbloqueioCe() {
           {exports.data?.length === 0 && <EmptyState icon={History} title="Nenhuma planilha exportada ainda" />}
           {!!exports.data?.length && (
             <div className="app-table-scroll rounded-lg border border-[var(--app-border)]">
-              <table className="app-table app-table--compact min-w-[560px] text-left text-sm">
+              <table className="app-table app-table--compact min-w-[560px] text-sm">
                 <caption className="sr-only">Planilhas exportadas para a ZPT</caption>
                 <thead>
                   <tr>

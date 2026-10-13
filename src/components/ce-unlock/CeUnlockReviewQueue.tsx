@@ -3,6 +3,7 @@ import { FileCheck2 } from "lucide-react";
 import { Badge, type BadgeTone } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card, EmptyState } from "../ui/Card";
+import { CopyValue } from "../ui/CopyValue";
 import { SkeletonTable } from "../ui/Skeleton";
 import { TableFooterPagination } from "../ui/TableFooterPagination";
 import { QueryStateGate } from "../shared/QueryStateGate";
@@ -38,12 +39,12 @@ export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onO
         onRetry={() => void queue.refetch()}
       >
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[860px] text-left text-sm">
+          <table className="app-table app-table--compact min-w-[860px] text-sm">
             <caption className="sr-only">Solicitações com documentos a validar</caption>
             <thead>
               <tr>
                 {["Solicitação", "Cliente", "BLs", "Termo de devolução", "Procuração", "Prazo", ""].map((c) => (
-                  <th scope="col" className="px-3 py-3" key={c || "acao"}>
+                  <th scope="col" className={c === "Cliente" ? "px-3 py-3 app-table__text-head" : "px-3 py-3"} key={c || "acao"}>
                     {c || <span className="sr-only">Ação</span>}
                   </th>
                 ))}
@@ -79,7 +80,7 @@ export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onO
                   <td className="px-3 py-3">
                     <span className="app-table__cell-stack">
                       <span className="app-table__cell-value">{r.customer_name}</span>
-                      <span className="app-table__cell-meta">{r.cnpj_cpf}</span>
+                      <span className="app-table__cell-meta"><CopyValue value={r.cnpj_cpf} label="CNPJ/CPF" /></span>
                     </span>
                   </td>
                   <td className="px-3 py-3">
@@ -93,7 +94,7 @@ export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onO
                   <td className="px-3 py-3"><DocumentStatus status={r.termo_status} /></td>
                   <td className="px-3 py-3"><DocumentStatus status={r.procuracao_status} /></td>
                   <td className="px-3 py-3"><CeUnlockSla start={r.sla_started_at} /></td>
-                  <td className="px-3 py-3 text-right">
+                  <td className="px-3 py-3">
                     <Button variant="secondary" className="app-btn--sm" aria-label={`Analisar ${r.protocol}`} onClick={() => onOpen(r.id)}>
                       Analisar
                     </Button>

@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
+import { NoValue } from '../components/ui/NoValue'
 import { EmptyState, PageHeader } from '../components/ui/Card'
 import { SummaryStrip } from '../components/ui/SummaryStrip'
 import { WorkspaceNav } from '../components/ui/WorkspaceNav'
@@ -162,6 +163,9 @@ export function Clientes() {
   // O resumo é uma consulta própria: falha ou carregamento vira "—", nunca zero.
   const metric = (value: number | undefined, format: (n: number) => string = String) =>
     summary && value !== undefined ? format(value) : '—'
+  // Mesma regra no resumo do recorte, que aceita o traço discreto (o MetricCard só aceita texto).
+  const summaryMetric = (value: number | undefined) =>
+    summary && value !== undefined ? String(value) : <NoValue label="Resumo indisponível" />
 
   async function handleCreateCustomer() {
     const validation = customerCreateSchema.safeParse({
@@ -489,12 +493,12 @@ export function Clientes() {
   )
 
   const summaryItems = summaryQuery.isError
-    ? [{ label: 'resumo indisponível', value: '—' }]
+    ? [{ label: 'resumo indisponível', value: <NoValue label="Resumo indisponível" /> }]
     : [
-        { label: summary?.totalCustomers === 1 ? 'cliente' : 'clientes', value: metric(summary?.totalCustomers) },
-        { label: 'B/Ls vinculados', value: metric(summary?.totalBls) },
-        { label: 'com taxas a revisar', value: metric(summary?.chargePending), tone: summary?.chargePending ? 'warning' as const : 'default' as const },
-        { label: 'prontos para faturar', value: metric(summary?.chargeReady) },
+        { label: summary?.totalCustomers === 1 ? 'cliente' : 'clientes', value: summaryMetric(summary?.totalCustomers) },
+        { label: 'B/Ls vinculados', value: summaryMetric(summary?.totalBls) },
+        { label: 'com taxas a revisar', value: summaryMetric(summary?.chargePending), tone: summary?.chargePending ? 'warning' as const : 'default' as const },
+        { label: 'prontos para faturar', value: summaryMetric(summary?.chargeReady) },
       ]
 
   return (

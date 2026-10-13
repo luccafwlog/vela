@@ -4,6 +4,8 @@ import { MoreVertical, Pencil, Plus, Users } from 'lucide-react'
 import { ActionMenu } from '../ui/ActionMenu'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { EmptyState } from '../ui/Card'
 import { Input } from '../ui/Input'
 import { SummaryStrip } from '../ui/SummaryStrip'
@@ -167,7 +169,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
         {item.customer?.cnpj_cpf ? (
           <Link className="app-dem-link app-dem-strong" to={`/clientes/${encodeURIComponent(item.customer.cnpj_cpf)}?tab=financeiro`}>{name}</Link>
         ) : <span className="app-dem-strong">{name}</span>}
-        <span className="app-dem-meta tabular-nums">{item.customer?.cnpj_cpf ? formatCnpjCpf(item.customer.cnpj_cpf) : '—'}</span>
+        <span className="app-dem-meta tabular-nums">{item.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(item.customer.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span>
       </div>
     )
   }
@@ -229,12 +231,12 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
                 <caption className="sr-only">Acordos de Demurrage por Cliente</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Cliente</th>
+                    <th scope="col" className="app-table__text-head">Cliente</th>
                     <th scope="col" className="app-dem-num">Free time</th>
                     <th scope="col">Diárias</th>
                     <th scope="col">Vigência</th>
                     <th scope="col">Situação</th>
-                    <th scope="col">Observações</th>
+                    <th scope="col" className="app-table__text-head">Observações</th>
                     {canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                   </tr>
                 </thead>
@@ -246,7 +248,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
                       <td className="tabular-nums">{agreementRatesText(item)}</td>
                       <td className="tabular-nums">{vigencia(item)}</td>
                       <td><AgreementSituationBadge agreement={item} /></td>
-                      <td className="app-dem-notes" title={item.notes ?? undefined}>{item.notes ?? '—'}</td>
+                      <td className="app-dem-notes app-table__text" title={item.notes ?? undefined}>{item.notes ?? <NoValue label="Sem observações" />}</td>
                       {canEdit ? <td className="app-dem-row-action">{rowActions(item)}</td> : null}
                     </tr>
                   ))}
