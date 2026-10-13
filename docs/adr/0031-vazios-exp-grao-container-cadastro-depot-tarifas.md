@@ -1,5 +1,11 @@
 # 0031 — VAZIOS EXP: grão-container substitui booking; Cadastro de Depot é a fonte de tarifas
 
+> **Situação atual (2026-10-13).** Ficam do original o cadastro dos locais (hoje Cadastro de Terminais), o Embarque Direto, a armazenagem descontada do free time do depot (hoje por condição) e a importação com viagem e porto.
+> Não valem mais o grão-container, o mapa de colunas, as tarifas por depot e os custos automáticos ([ADR 0032](./0032-cadastro-depot-servicos-precificados-por-tipo-de-calculo.md), [ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md)), nem a edição restrita a Administrativo e Equipamentos (qualquer Departamento ativo edita, [ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md)).
+> A reimportação do Embarque de Vazios atualiza por container e preserva as unidades incluídas à mão ([ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 25).
+> A migration `035` citada abaixo é da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente: [Manifestos & EDI](../modules/manifesto-edi.md), Embarque de Vazios e Cadastro de Terminais.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Modelo atual separa unidades importadas e linhas manuais de serviço; grão-container e tarifas automáticas descritos originalmente não governam o custo atual.
 > Rastreabilidade: [ADR 0032](./0032-cadastro-depot-servicos-precificados-por-tipo-de-calculo.md), [ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

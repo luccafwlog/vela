@@ -1,5 +1,11 @@
 # 0027 — Agency Departure Report: agregado por escala, exibição derivada e fechamento com snapshot
 
+> **Situação atual (2026-10-13).** Permanecem a exibição derivada, a resolução explícita por seção, o fechamento com snapshot e a reabertura justificada.
+> Não valem mais: o ADR por POD com chave (viagem, porto) — é da escala POL/POD ([ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md)) e, desde a [spec arquivada de múltiplos terminais](../archive/specs/2026-08-18-escala-multiplos-terminais-design.md), um por terminal, com o legado legível;
+> o sign-off por seção como gate (três sign-offs departamentais, [ADR 0029](./0029-adr-signoff-departamental-fases-ciclo.md)); as Ocorrências (Observação por seção, [ADR 0030](./0030-adr-observacoes-por-secao-substitui-ocorrencias.md)); sete seções (seis, [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md)); Documentação dona da carga carregada (é de Equipamentos, migration arquivada `258`).
+> Decisão pendente: o ADR de cada terminal ainda conta a carga da escala inteira, sem aplicar a frente nem a exceção de terminal do B/L ([ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md)).
+> Regra vigente: [Viagens](../modules/viagens.md), regras do Agency Departure Report.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** ADR usa identidade por terminal da escala; seis seções, três sign-offs departamentais, observações por seção e terminal resolvido por B/L. O agregado legado continua legível.
 > Rastreabilidade: [ADR 0029](./0029-adr-signoff-departamental-fases-ciclo.md), [ADR 0030](./0030-adr-observacoes-por-secao-substitui-ocorrencias.md), [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md), [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md), [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md); [migration ativa 059](../../supabase/migrations/059_pr698_integrity_hardening.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

@@ -1,5 +1,11 @@
 # 0039 — Prazo de Conclusão do ADR: contagem a partir do ATD real, medida por departamento
 
+> **Situação atual (2026-10-13).** Permanecem três dias úteis a partir da data real do ATD, um prazo por departamento cumprido pela assinatura vigente e o impresso sem veredito.
+> Não valem mais: o ATD da escala unificada, com reserva do POL, como marco zero (conta o ATD da Atracação do terminal, nota de 2026-08-24 abaixo e [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md); o ADR legado, sem terminal, não tem prazo nem alerta de prazo);
+> o agregado em `/admin/usuarios` (é a aba `/admin/prazo-adr`); e a falta de cron (os detectores rodam a cada 15 minutos). O ADR por terminal veio da [spec arquivada de múltiplos terminais](../archive/specs/2026-08-18-escala-multiplos-terminais-design.md), não da ADR 0027, como diz a nota.
+> As migrations `214`, `223`, `227`, `251`, `271`, `306`, `323` e `326` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente: [Viagens](../modules/viagens.md), prazo do Agency Departure Report.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** No ADR terminalizado o prazo usa ATD da Atracação; o caminho legado por escala permanece. O agregado administrativo está na aba prazo-adr.
 > Rastreabilidade: [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

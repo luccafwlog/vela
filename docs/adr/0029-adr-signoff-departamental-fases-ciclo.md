@@ -1,5 +1,10 @@
 # 0029 — Sign-off do ADR por departamento, seções na ordem do ciclo e operação de pátio como seção própria
 
+> **Situação atual (2026-10-13).** Permanecem o sign-off por departamento (três), a resolução de cada seção como pré-requisito, o fechamento em 3/3, os alertas por departamento e a justificativa em dois níveis.
+> Não valem mais: Operação de pátio como seção assinável e as cinco fases ([ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md): seis seções), as Ocorrências ([ADR 0030](./0030-adr-observacoes-por-secao-substitui-ocorrencias.md)) e a ordem do ciclo na aba, que agrupa as seções por departamento desde o redesenho de `/viagens`
+> ([plano arquivado](../archive/plans/2026-08-26-redesenho-da-pagina-viagens.md), sem ADR). No ADR por terminal, a pendência conta do ATD da Atracação ([ADR 0039](./0039-prazo-de-conclusao-do-adr-medido-por-departamento.md), nota de 2026-08-24).
+> Regra vigente: [Viagens](../modules/viagens.md), regras do Agency Departure Report.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Ocorrências deram lugar a observações por seção; Operação de Pátio é subseção de Embarque de Vazios, não seção assinável separada.
 > Rastreabilidade: [ADR 0030](./0030-adr-observacoes-por-secao-substitui-ocorrencias.md), [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

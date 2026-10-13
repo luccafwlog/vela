@@ -1,6 +1,11 @@
 # 0028 — Sign-off do ADR com histórico auditável e justificativa de reversão
 
-Status: aceito — 2026-07-21
+> **Situação atual (2026-10-13).** Decisão vigente e implementada (definição atual de `set_agency_report_signoff` na migration `002`). Estendida pela [ADR 0029](./0029-adr-signoff-departamental-fases-ciclo.md) (justificativa também ao reabrir o sign-off departamental) e pela [ADR 0030](./0030-adr-observacoes-por-secao-substitui-ocorrencias.md) (a Observação fica fora do histórico).
+> No ADR por terminal o histórico grava `entity_id = {report_id}::{section}`; o formato `{voyageId}::{PORT}::{section}` vale só para o ADR legado.
+> As migrations `213`, `218`, `220` e `221` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente: [Viagens](../modules/viagens.md), regras do Agency Departure Report.
+
+Status: estendida — 2026-07-21
 
 ## Contexto
 

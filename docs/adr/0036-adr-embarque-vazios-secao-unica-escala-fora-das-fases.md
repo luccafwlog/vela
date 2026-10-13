@@ -1,6 +1,12 @@
 # 0036 — Embarque de Vazios volta a ser uma seção só, e a Escala sai das fases do ciclo
 
-Status: aceito — 2026-08-04
+> **Situação atual (2026-10-13).** Permanecem as seis seções, o Embarque de vazios como seção única (subseções Containers embarcados e Operação de pátio), o rótulo "Carga carregada" e a Observação sob demanda em modal.
+> Não valem mais: Documentação com 3 seções e Equipamentos com 2 (Carga carregada passou a Equipamentos na migration arquivada `258`, preservada pela [spec arquivada do Bloco 524](../archive/specs/2026-08-17-bloco-524-adr-alertas-design.md)); as duas fases com a Escala fora delas
+> (a aba agrupa as seções por departamento desde o redesenho de `/viagens`, [plano arquivado](../archive/plans/2026-08-26-redesenho-da-pagina-viagens.md)); e o terminal editável no ADR por terminal (vem do Cadastro de Terminais). Nenhuma ADR registra essas mudanças.
+> As migrations `222`, `225` e `253` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente: [Viagens](../modules/viagens.md), regras do Agency Departure Report.
+
+Status: supersedida parcialmente — 2026-08-04
 
 ## Contexto
 
