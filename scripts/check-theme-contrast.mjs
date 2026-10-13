@@ -6,12 +6,17 @@ import { resolve } from 'node:path'
 
 const css = readFileSync(resolve('src/index.css'), 'utf8')
 // "portal" é o tema claro com as redeclarações de `.app-shell--portal` (marca
-// FWLOG, ADR 0081): o Portal só tem tema claro.
-const themes = ['light', 'dark', 'portal']
+// FWLOG, ADR 0081). "portal-dark" é o Portal dentro do Vela no tema escuro
+// (Modo Inspeção): tema escuro, marca FWLOG e as correções de texto do escuro.
+const themes = ['light', 'dark', 'portal', 'portal-dark']
+const markers = {
+  portal: '.app-shell--portal {',
+  'portal-dark': ":root[data-visual-theme='dark'] .app-shell--portal,",
+}
 const minimum = 4.5
 
 function themeBlock(theme) {
-  const marker = theme === 'portal' ? '.app-shell--portal {' : `:root[data-visual-theme='${theme}']`
+  const marker = markers[theme] ?? `:root[data-visual-theme='${theme}']`
   const markerStart = css.indexOf(marker)
   if (markerStart < 0) throw new Error(`Tema ausente: ${theme}`)
   const open = css.indexOf('{', markerStart)
@@ -26,11 +31,16 @@ function themeBlock(theme) {
   throw new Error(`Bloco CSS incompleto para o tema: ${theme}`)
 }
 
-function readTokens(theme) {
-  const own = Object.fromEntries(
+function ownTokens(theme) {
+  return Object.fromEntries(
     [...themeBlock(theme).matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((match) => [match[1], match[2].trim()]),
   )
-  return theme === 'portal' ? { ...readTokens('light'), ...own } : own
+}
+
+function readTokens(theme) {
+  if (theme === 'portal') return { ...ownTokens('light'), ...ownTokens('portal') }
+  if (theme === 'portal-dark') return { ...ownTokens('dark'), ...ownTokens('portal'), ...ownTokens('portal-dark') }
+  return ownTokens(theme)
 }
 
 function tokenValue(name, tokens) {

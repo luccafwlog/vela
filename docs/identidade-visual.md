@@ -103,6 +103,9 @@ O Modo Inspeção usa o shell e as telas do Portal, então mostra a marca FWLOG.
 Os tokens da marca ficam na raiz do `portal.html` (`data-app="portal"`) e no
 shell `.app-shell--portal`: login, ativação, recuperação de senha, avisos e
 modais fora do shell também recebem a marca.
+No Modo Inspeção com o Vela no tema escuro, a marca fica na barra e no
+cabeçalho de tabela e o texto (link, informação, faixa) volta aos tokens do
+escuro; `npm run a11y:contrast` confere esse caso como `portal-dark`.
 Toque (ponteiro grosso) mantém 44 px de alvo nos dois produtos.
 
 ## Superfícies especiais

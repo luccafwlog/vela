@@ -280,6 +280,18 @@
   --app-focus-ring: #1d67b3;
 }
 
+/* Portal sobre o tema escuro (Modo Inspeção com o Vela no escuro): a marca
+   FWLOG fica na barra e no cabeçalho de tabela; o texto sobre a superfície
+   escura volta aos tokens do tema escuro, para manter o contraste. */
+:root[data-visual-theme='dark'] .app-shell--portal,
+:root[data-visual-theme='dark'][data-app='portal'] {
+  --app-link: #93c5fd;
+  --app-info-fg: #bfdbfe;
+  --app-focus-ring: #60a5fa;
+  --app-strip: #16243d;
+  --app-strip-text: #dbe5f5;
+}
+
 /* Degraus que o Tailwind não tem por padrão. Os demais: 12 = text-xs,
    14 = text-sm, 16 = text-base, 20 = text-xl, 24 = text-2xl. */
 @theme {

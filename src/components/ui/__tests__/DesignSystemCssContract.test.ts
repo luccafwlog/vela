@@ -5,8 +5,8 @@ const css = fs.readFileSync('src/index.css', 'utf8')
 
 describe('contrato visual compartilhado', () => {
   it('define tokens usados por links e estados de hover nos dois temas', () => {
-    // current, light, dark e a marca FWLOG do Portal
-    expect(css.match(/--app-link:/g)).toHaveLength(4)
+    // current, light, dark, a marca FWLOG do Portal e o Portal sobre o escuro
+    expect(css.match(/--app-link:/g)).toHaveLength(5)
     expect(css.match(/--app-surface-hover:/g)).toHaveLength(3)
   })
 
@@ -53,9 +53,9 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-input\s*\{[^}]*background:\s*var\(--app-surface-strong\)/s)
     for (const role of ['success', 'warning', 'danger', 'info', 'neutral']) {
       for (const part of ['fg', 'bg', 'border']) {
-        // current, light e dark; o Portal redeclara só o que deriva da marca FWLOG
+        // current, light e dark; o Portal (claro e sobre o escuro) redeclara só o que deriva da marca FWLOG
         const declarations = css.match(new RegExp(`--app-${role}-${part}:`, 'g')) ?? []
-        expect(declarations.length - (role === 'info' && part === 'fg' ? 1 : 0)).toBe(3)
+        expect(declarations.length - (role === 'info' && part === 'fg' ? 2 : 0)).toBe(3)
       }
     }
     expect(css).toMatch(/\.app-badge--green\s*\{[^}]*color:\s*var\(--app-success-fg\)/s)
