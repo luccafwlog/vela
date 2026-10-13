@@ -1,5 +1,9 @@
 # 0019 — Politica de senha e signup fechado
 
+> **Situação atual (2026-10-13).** Continuam valendo, nas duas fronteiras, a senha de no mínimo 8 caracteres com maiúscula, minúscula e dígito, o signup fechado e o provisionamento controlado.
+> Não vale mais o usuário interno criado pelo dashboard do Supabase: o Administrativo o cria na aba Usuários de `/admin`, com senha definida, pela Edge Function `admin-users` ([ADR 0037](./0037-usuario-interno-criado-pelo-admin-com-senha-definida.md)). O cliente do Portal entra por convite de uso único ([ADR 0048](./0048-confirmacao-de-email-do-portal-em-rota-publica.md)).
+> Regra vigente em [Segurança](../operations/seguranca.md), seção "Duas fronteiras de autenticação", e em [Operação e Suporte](../modules/operacao-suporte.md), seção "Anatomia das telas".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Usuário interno é provisionado pelo admin via admin-users com senha definida; a exigência de provisionamento controlado e signup fechado permanece.
 > Rastreabilidade: [ADR 0037](./0037-usuario-interno-criado-pelo-admin-com-senha-definida.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

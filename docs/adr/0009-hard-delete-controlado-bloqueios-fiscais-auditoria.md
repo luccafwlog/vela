@@ -1,6 +1,11 @@
 # 0009 — Hard delete controlado com bloqueios fiscais e auditoria
 
-Status: aceito — 2026-06-09
+> **Situação atual (2026-10-13).** Continua rejeitado o soft delete generalizado.
+> Não valem mais o critério de bloqueio fiscal, a viagem excluível só sem nenhum vínculo, o papel admin e a auditoria best-effort: pela [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md), a Trava de exclusão é o CE Mercante do B/L ou um documento financeiro, a viagem sem trava sai em cascata com prévia, excluir é do Administrativo ([ADR 0074](./0074-usuarios-retencao-e-backup-diario.md)) com motivo, e a auditoria é gravada na mesma transação.
+> Cliente e tarifa já usados só se desativam ([ADR 0073](./0073-cadastro-usado-so-se-desativa.md)); recebível sem fatura não trava a exclusão ([ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 12).
+> Regra vigente em [Regras de negócio](../operations/regras-de-negocio.md), seção "Hard delete controlado".
+
+Status: supersedida parcialmente — 2026-06-09
 
 > **Nota editorial — 2026-09-24.** Supersedida parcialmente pela
 > [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md): o critério de

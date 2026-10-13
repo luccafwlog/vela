@@ -1,5 +1,9 @@
 # 0008 — Demurrage integrado sem unificar persistência
 
+> **Situação atual (2026-10-13).** Demurrage continua com persistência própria, fora do ledger local.
+> Não valem mais: o cálculo e a emissão nos serviços do navegador, porque o banco calcula e grava o snapshot ([ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md)); `/faturamento` como superfície de Demurrage, inclusive a faixa de métricas da nota de 2026-08-06, porque `/faturamento` virou redirect e a operação fica só em `/demurrage` ([ADR 0050](./0050-financeiro-segregado-por-processo-faturavel.md)); e o valor fixo desde a emissão, porque o BRL acompanha a PTAX até o pagamento ([ADR 0014](./0014-demurrage-recalculo-diario-substitui-roe-congelado.md)).
+> Regra vigente em [Demurrage](../modules/demurrage.md), seção "Propósito e escopo".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Persistência própria permanece; o banco calcula a emissão e snapshots de Demurrage. A operação financeira fica em /demurrage, não numa faixa de /faturamento.
 > Rastreabilidade: [ADR 0014](./0014-demurrage-recalculo-diario-substitui-roe-congelado.md), [ADR 0050](./0050-financeiro-segregado-por-processo-faturavel.md), [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 023](../../supabase/migrations/023_demurrage_calculation_snapshot.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

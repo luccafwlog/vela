@@ -1,5 +1,10 @@
 # 0016 — Migrations: nomenclatura numerada sequencial única
 
+> **Situação atual (2026-10-13).** Continua valendo o prefixo sequencial de três dígitos: a migration nova usa o maior prefixo da cadeia ativa + 1, sem preencher lacunas (`014` e `114`) nem renomear arquivo aplicado.
+> Não vale mais a cadeia descrita abaixo: pela [ADR 0062](./0062-consolidacao-migrations-schema-1-0.md), ela foi consolidada em `001` a `003` e guardada no arquivo, e nenhum arquivo ativo tem o cabeçalho "Renumbered from".
+> As migrations `001`–`159`, `009`, `017` e `054` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [WORKFLOW.md](../../WORKFLOW.md), seção "5. Migrations Supabase".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** A sequência histórica foi consolidada em 001/002 e preservada em migrations_archive. Novas migrations usam o maior prefixo ativo + 1; não renumerar a lacuna histórica 014.
 > Rastreabilidade: [ADR 0062](./0062-consolidacao-migrations-schema-1-0.md); [migration ativa 001](../../supabase/migrations/001_initial_schema.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

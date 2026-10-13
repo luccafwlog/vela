@@ -1,5 +1,10 @@
 # 0002 — Cliente pode refazer a própria consolidada pelo Portal
 
+> **Situação atual (2026-10-13).** O cliente continua desfazendo pelo Portal a consolidada aberta e sem pagamento, com rastro e aviso no Portal.
+> Não valem mais o `p_session_token`, porque o cliente vem da sessão do Supabase Auth ([ADR 0001](./0001-portal-login-supabase-auth.md)), nem o estado `overdue`, que saiu da fatura local ([ADR 0055](./0055-taxa-local-sem-vencimento-praticado.md)). A RPC vigente (migration `109`) também limita as tentativas e recusa a fatura com PIX em conciliação.
+> Implementação parcial, com duas decisões pendentes: não há alerta aos operadores internos (retirado pela migration arquivada `327`, sem ADR), e a RPC confere só que a consolidada é do Cliente, não quem a emitiu.
+> Regra vigente em [Portal do Cliente](../modules/portal-cliente.md), seção "Catálogo de ações".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Reconsolidação permanece; sessão é resolvida por Auth e overdue não integra mais o estado da invoice local.
 > Rastreabilidade: [ADR 0055](./0055-taxa-local-sem-vencimento-praticado.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

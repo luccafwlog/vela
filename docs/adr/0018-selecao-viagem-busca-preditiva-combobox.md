@@ -1,5 +1,9 @@
 # 0018 — Seleção de viagem padronizada em busca preditiva (Combobox)
 
+> **Situação atual (2026-10-13).** A decisão continua valendo: toda seleção de viagem usa o `VoyageCombobox`, obrigatório nas importações e limpável nos filtros.
+> Implementação parcial: as importações de B/L e de CE Mercante abertas na página da viagem, e o Embarque de Vazios aberto por ela, travam a viagem, contra a decisão 2 (viagem pré-semeada e editável); é decisão pendente.
+> Regra vigente em [Viagens](../modules/viagens.md), seções "Anatomia das telas" e "Catálogo de ações".
+
 Status: aceito — 2026-07-01
 
 ## Contexto
