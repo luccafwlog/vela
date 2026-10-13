@@ -1,0 +1,87 @@
+# Suítes `*.local-pg.test.ts` do job migration-replay do CI, na ordem de execução.
+# Rodam em série num banco só (`npm run test:local-pg`); o CI as roda nesta ordem
+# e depois de trás para frente (`-- --reverse`) no mesmo banco, o que prova que
+# nenhuma depende da anterior nem deixa resíduo que quebre a seguinte.
+# A bateria financeira (`financialBattery.local-pg.test.ts`) fica fora: roda
+# sozinha, por último, num passo próprio do CI. `npm run localpg:check` falha
+# quando surge suíte fora desta lista e do CI.
+src/integration/appSettingsSingleton.local-pg.test.ts
+src/integration/alinhamentoPermissoes.local-pg.test.ts
+src/integration/auditoriaRun2.local-pg.test.ts
+src/integration/auditoriaRun2Reforcos.local-pg.test.ts
+src/integration/auditSecurityBoundaries.local-pg.test.ts
+src/integration/communicationEligibility.local-pg.test.ts
+src/integration/customerCommunicationCatalog.local-pg.test.ts
+src/integration/ceUnlock.local-pg.test.ts
+src/integration/demurrageAuthority.local-pg.test.ts
+src/integration/demurrageMoney.local-pg.test.ts
+src/integration/emailInbox.local-pg.test.ts
+src/integration/escalaDocumentalStatus.local-pg.test.ts
+src/integration/exchangeRateIntegrity.local-pg.test.ts
+src/integration/importAtomicity.local-pg.test.ts
+src/integration/importEffects.local-pg.test.ts
+src/integration/localBillingIntegrity.local-pg.test.ts
+src/integration/manualInvoice.local-pg.test.ts
+src/integration/operationalLists.local-pg.test.ts
+src/integration/portalInspectionParity.local-pg.test.ts
+src/integration/portalInformation.local-pg.test.ts
+src/integration/recoveryNotifications.local-pg.test.ts
+src/integration/rpcCatalog.local-pg.test.ts
+src/integration/adminUsuarios.local-pg.test.ts
+src/integration/agencyReportAlertsFoundation.local-pg.test.ts
+src/integration/agencyReportCloserName.local-pg.test.ts
+src/integration/alertsReviewHardening.local-pg.test.ts
+src/integration/rpcFinalDefinition.local-pg.test.ts
+src/integration/pr698ClaudeReview.local-pg.test.ts
+src/integration/pr698Auditoria.local-pg.test.ts
+src/integration/exclusionProtections.local-pg.test.ts
+src/integration/deleteRecords.local-pg.test.ts
+src/integration/deleteLock.local-pg.test.ts
+src/integration/blCancel.local-pg.test.ts
+src/integration/tariffDeactivate.local-pg.test.ts
+src/integration/customerDeactivate.local-pg.test.ts
+src/integration/dataRetention.local-pg.test.ts
+src/integration/catalogDeleteReason.local-pg.test.ts
+src/integration/invoiceAutoReissue.local-pg.test.ts
+src/integration/invoiceCorrection.local-pg.test.ts
+src/integration/invoiceReissue.local-pg.test.ts
+src/integration/invoiceBasisCorrection.local-pg.test.ts
+src/integration/invoicePostBillingSafety.local-pg.test.ts
+src/integration/portalConsolidadaPaga.local-pg.test.ts
+src/integration/itauPixCharges.local-pg.test.ts
+src/integration/thdImoOog.local-pg.test.ts
+src/integration/auditoriaImportacaoCargaSolta.local-pg.test.ts
+src/integration/auditoriaImportacaoBlContainer.local-pg.test.ts
+src/integration/auditoriaCeContainerCompartilhado.local-pg.test.ts
+src/integration/auditoriaEfeitosImportacao.local-pg.test.ts
+src/integration/efeitosViagemCancelada.local-pg.test.ts
+src/integration/ceMercanteAutoBilling.local-pg.test.ts
+src/integration/portalBillingRelease.local-pg.test.ts
+src/integration/ceImportacaoContrato.local-pg.test.ts
+src/integration/baplieMarcas.local-pg.test.ts
+src/integration/codDocumentoFatura.local-pg.test.ts
+src/integration/veiculosRegras.local-pg.test.ts
+src/integration/baseClientesVinculo.local-pg.test.ts
+src/integration/granitoReimportacao.local-pg.test.ts
+src/integration/vaziosReimportacao.local-pg.test.ts
+src/integration/programacaoPlanilha.local-pg.test.ts
+src/integration/rastroImportacoes.local-pg.test.ts
+src/integration/correcoesRevisaoImportacoes.local-pg.test.ts
+src/integration/revisaoFinalDemurrage.local-pg.test.ts
+src/integration/revisaoFinalCeMercante.local-pg.test.ts
+src/integration/revisaoFinalImportacaoBl.local-pg.test.ts
+src/integration/demurrageCobrancaPorCaixa.local-pg.test.ts
+src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts
+src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts
+src/integration/conditionUsd.local-pg.test.ts
+src/integration/baplieFlagsOnBlImport.local-pg.test.ts
+src/integration/blCbmSemantics.local-pg.test.ts
+src/integration/blDocumentalGates.local-pg.test.ts
+src/integration/containerOwnership.local-pg.test.ts
+src/integration/containerProfile.local-pg.test.ts
+src/integration/cronDispatchTimeout.local-pg.test.ts
+src/integration/runnerEfeitosDisparoImediato.local-pg.test.ts
+src/integration/customerCommunicationPartial.local-pg.test.ts
+src/integration/customerCommunicationReadinessGuards.local-pg.test.ts
+src/integration/pixBrCode.local-pg.test.ts
+src/integration/voyageHardDeleteGuard.local-pg.test.ts

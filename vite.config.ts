@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config'
+import { BaseSequencer, type TestSpecification } from 'vitest/node'
 import { loadEnv } from 'vite'
 import { execSync } from 'node:child_process'
 import { resolve } from 'node:path'
@@ -17,6 +18,20 @@ function resolveCommitSha() {
       .trim()
   } catch {
     return 'unknown'
+  }
+}
+
+// Ordem das suítes local-pg vinda de scripts/run-local-pg-suites.mjs: o
+// BaseSequencer reordenaria os arquivos (falhos e lentos primeiro, depois por
+// tamanho), e o CI precisa da ordem da lista e da invertida.
+class LocalPgSuiteOrderSequencer extends BaseSequencer {
+  async sort(files: TestSpecification[]) {
+    const order = (process.env.LOCAL_PG_SUITE_ORDER ?? '').split('\n').map((path) => resolve(path))
+    const position = (file: TestSpecification) => {
+      const index = order.indexOf(resolve(file.moduleId))
+      return index === -1 ? order.length : index
+    }
+    return [...files].sort((a, b) => position(a) - position(b))
   }
 }
 
@@ -119,6 +134,7 @@ export default defineConfig(({ mode }) => {
       environment: 'node',
       include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
       setupFiles: ['./src/test/setup.ts'],
+      ...(process.env.LOCAL_PG_SUITE_ORDER ? { sequence: { sequencer: LocalPgSuiteOrderSequencer } } : {}),
     },
   }
 })

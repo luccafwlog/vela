@@ -1,8 +1,8 @@
 # 0080 — Decisões da revisão final da PR 929
 
-Status: aceito — 2026-10-12 (decisões do dono). Implementação local nas
-migrations `181` (editada antes do primeiro deploy), `214` e `215`; deploy
-remoto não verificado.
+Status: aceito — 2026-10-12 (decisões do dono). Implementado nas migrations
+`181` (editada antes do primeiro deploy), `214` e `215`, em produção desde o
+merge da PR 929 em 2026-10-12 (ver "Evidência").
 
 Refina o item 20 da
 [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
@@ -56,5 +56,12 @@ código. O dono decidiu os três em 2026-10-12.
 Testes de contrato no PostgreSQL 16 local com replay das migrations `001`–`215`
 (`demurrageCobrancaPorCaixa`, `ceImportacaoContrato`) e replay da cadeia
 `181`–`213` sobre um banco com Viagem Cancelada de número fora do formato, em
-que a `181` original abortava. Nada foi verificado em navegador nem em Supabase
-real.
+que a `181` original abortava. Até a decisão, nada foi verificado em navegador
+nem em Supabase real.
+
+**Deploy (conferido em 2026-10-13, em leitura):** o registro de migrations do
+projeto Supabase de produção lista `181`, `214` e `215`, dentro da cadeia
+`174`–`219`; a aplicação está registrada em
+[servicos-externos.md](../operations/servicos-externos.md) ("Execução
+(2026-10-12, produção)"). O registro prova que as migrations foram aplicadas,
+não o comportamento em produção nem o fluxo em navegador.

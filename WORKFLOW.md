@@ -657,13 +657,21 @@ Há dois caminhos distintos:
 
 Para Postgres local, depois do replay, execute as suítes relevantes com
 `npx vitest run --no-file-parallelism <arquivos.local-pg.test.ts>`.
-Use a lista explícita de `.github/workflows/ci.yml` para reproduzir o gate
-completo; ela inclui `ceUnlock.local-pg.test.ts` e a paridade de Inspeção. As suítes compartilham banco e precisam rodar em série; cada uma deve
+Para reproduzir o gate completo, use `npm run test:local-pg`, que roda em
+série as suítes de [`scripts/local-pg-suites.txt`](scripts/local-pg-suites.txt)
+na ordem da lista; `npm run test:local-pg -- --reverse` roda de trás para
+frente. O Vitest reordena os arquivos por conta própria (falhos e lentos
+primeiro); o script passa a ordem ao sequenciador do `vite.config.ts`. O CI
+roda as duas ordens seguidas no mesmo banco, o que prova que nenhuma suíte
+depende da anterior nem deixa resíduo que quebre a seguinte. As suítes
+compartilham banco e precisam rodar em série; cada uma deve
 usar seu próprio namespace de IDs e documentos nas fixtures e apagar o que
 cria, inclusive versões de regra de tarifa e contas de Portal do próprio Cliente:
 a bateria financeira roda num passo próprio, por último, e falha com resíduo
-global. Toda suíte nova entra na lista do CI; `npm run localpg:check` falha
-quando um `*.local-pg.test.ts` fica fora dela. Sonda de pré-requisito usa
+global. Toda suíte nova entra em `scripts/local-pg-suites.txt`;
+`npm run localpg:check` falha quando um `*.local-pg.test.ts` fica fora dela
+(e dos passos do CI), quando há suíte repetida ou quando o CI deixa de rodar
+uma das duas ordens. Sonda de pré-requisito usa
 `describeWithProbe` (`src/integration/localTestData.ts`): com
 `LOCAL_PG_INTEGRATION=1`, sonda falsa falha o teste em vez de pular a suíte.
 

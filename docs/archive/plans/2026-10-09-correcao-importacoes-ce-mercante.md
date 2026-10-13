@@ -759,6 +759,12 @@ invertida; nenhuma suíte pulada por sonda com a variável ligada.
   financeira depois) e não há registro de execução em ordem invertida: essa
   parte do aceite segue sem evidência.
 
+> **Nota editorial (2026-10-13):** a ordem também não era a da lista: o Vitest
+> reordena os arquivos por conta própria. A lista passou para
+> `scripts/local-pg-suites.txt`, `npm run test:local-pg` a roda na ordem pedida
+> e o CI roda a ordem natural e a invertida no mesmo banco (ver
+> [WORKFLOW.md](../../../WORKFLOW.md) §11 e o CHANGELOG de 2026-10-13).
+
 ## Etapa 13 — Ligar o processamento automático (ADR 0078, item 18)
 
 Pré-requisitos: Etapas 4 e 7 em produção (atendido: migrations `178` e `179`
