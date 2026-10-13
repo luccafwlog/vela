@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Search, X } from 'lucide-react'
 import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { Field, Input } from '../ui/Input'
 import { ReviewCustomerOnboarding, type ReviewCustomerOnboardingInput } from '../review/ReviewCustomerOnboarding'
 import { BlPortalCard, type BlPortalStatus } from './BlPortalCard'
@@ -258,7 +260,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
     >
           {linked ? (
             <div className="grid gap-3">
-              <LeadValue detail={<span className="app-bl-code">{formatCnpjCpf(linked.cnpj_cpf)}</span>}>
+              <LeadValue detail={<span className="app-bl-code">{linked.cnpj_cpf ? <CopyValue value={formatCnpjCpf(linked.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span>}>
                 {linked.cnpj_cpf ? (
                   <Link className="app-bl-link" to={`/clientes/${encodeURIComponent(linked.cnpj_cpf)}`}>
                     {linked.name}
@@ -278,7 +280,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
               </div>
               {manifestDiverges ? (
                 <p className="app-bl-notice app-bl-notice--warning">
-                  O manifesto declara outro cliente: {manifestName ?? '—'} ({formatCnpjCpf(manifestDocument)}).
+                  O manifesto declara outro cliente: {manifestName ?? <NoValue label="Sem nome no manifesto" />} ({formatCnpjCpf(manifestDocument)}).
                 </p>
               ) : null}
             </div>
@@ -307,7 +309,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
                   <div className="min-w-0">
                     <div className="app-facts__label">Declarado no manifesto</div>
                     <div className="font-medium text-[var(--app-text-strong)]">{manifestName}</div>
-                    <div className="app-bl-code app-facts__detail">{formatCnpjCpf(manifestDocument)}</div>
+                    <div className="app-bl-code app-facts__detail"><CopyValue value={formatCnpjCpf(manifestDocument)} label="CNPJ/CPF" /></div>
                   </div>
                   <Button type="button" onClick={() => void linkManifestCustomer()} loading={saving}>Vincular este cliente</Button>
                 </div>

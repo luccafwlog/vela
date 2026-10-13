@@ -277,17 +277,16 @@ describe('Página Bls (unificada)', () => {
     const trigger = screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' })
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
 
-    const copyItem = screen.getByRole('menuitem', { name: 'Copiar número do B/L' })
     const deleteItem = screen.getByRole('menuitem', { name: 'Excluir B/L' })
-    expect(document.activeElement).toBe(copyItem)
-    // "Abrir detalhes" saiu: o número do B/L já é o link para a ficha.
-    expect(screen.queryByRole('menuitem', { name: 'Abrir detalhes' })).toBeNull()
-
-    fireEvent.keyDown(copyItem, { key: 'ArrowDown' })
     expect(document.activeElement).toBe(deleteItem)
+    // "Abrir detalhes" saiu: o número do B/L já é o link para a ficha; copiar
+    // o número é o ícone ao lado dele (CopyValue), não item do menu.
+    expect(screen.queryByRole('menuitem', { name: 'Abrir detalhes' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Copiar número do B/L' })).toBeNull()
+
     fireEvent.keyDown(deleteItem, { key: 'ArrowDown' })
-    expect(document.activeElement).toBe(copyItem)
-    fireEvent.keyDown(copyItem, { key: 'ArrowUp' })
+    expect(document.activeElement).toBe(deleteItem)
+    fireEvent.keyDown(deleteItem, { key: 'ArrowUp' })
     expect(document.activeElement).toBe(deleteItem)
     fireEvent.keyDown(deleteItem, { key: 'Escape' })
     expect(document.activeElement).toBe(trigger)
@@ -308,11 +307,11 @@ describe('Página Bls (unificada)', () => {
         </QueryClientProvider>,
       )
 
-      fireEvent.click(screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Copiar número do B/L' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Copiar número do B/L BL-CNTR' }))
 
-      await waitFor(() => expect(showToastMock).toHaveBeenCalledWith('Não foi possível copiar o número do B/L.', 'error'))
-      expect(showToastMock).not.toHaveBeenCalledWith(expect.stringContaining('copiado'), 'success')
+      expect(writeText).toHaveBeenCalledWith('BL-CNTR')
+      expect(await screen.findByText('Não foi possível copiar o número do B/L')).toBeTruthy()
+      expect(screen.queryByText('número do B/L copiado')).toBeNull()
     } finally {
       if (previousClipboard) Object.defineProperty(navigator, 'clipboard', previousClipboard)
       else Reflect.deleteProperty(navigator, 'clipboard')
@@ -333,7 +332,7 @@ describe('Página Bls (unificada)', () => {
     const trigger = screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' })
     fireEvent.click(trigger)
 
-    expect(screen.getByRole('menuitem', { name: 'Copiar número do B/L' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Copiar número do B/L' })).toBeNull()
     expect(screen.getByRole('menuitem', { name: 'Excluir B/L' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'BL-CNTR' }).getAttribute('href')).toBe('/bls/BL-CNTR')
   })

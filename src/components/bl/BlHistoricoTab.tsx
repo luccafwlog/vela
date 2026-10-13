@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { NoValue } from '../ui/NoValue'
 import { useBlTimeline } from '../../hooks/useBlTimeline'
 import { describeTimelineEvent, familyLabel, isAudited, isImportContext } from './blTimelinePresentation'
 import { useBlCommunicationHistory } from '../../hooks/useCustomerCommunications'
@@ -52,7 +53,7 @@ export function BlHistoricoTab({ active, blId }: { active: boolean; blId?: strin
           <div className="app-bl-facts__sub">
             {[communication.anchor_port, communication.attachments.length ? `${communication.attachments.length} anexo(s)` : null].filter(Boolean).join(' · ')}
             {communication.anchor_port || communication.attachments.length ? ' · ' : ''}
-            <Link to={`/clientes/comunicacao?tab=historico&communication=${encodeURIComponent(String(communication.id))}`} className="app-bl-link">Abrir comunicado</Link>
+            <Link to={`/clientes/comunicacao?tab=historico&communication=${encodeURIComponent(String(communication.id))}`} className="app-btn app-btn--secondary app-btn--sm">Abrir comunicado</Link>
           </div>
         </>
       ),
@@ -80,7 +81,7 @@ export function BlHistoricoTab({ active, blId }: { active: boolean; blId?: strin
             {rows.map((row) => (
               <li key={row.key} className="app-bl-history__item">
                 <div className="app-bl-history__meta">
-                  <time className="tabular-nums" dateTime={row.at}>{dateTime(row.at)}</time>
+                  {row.at ? <time className="tabular-nums" dateTime={row.at}>{dateTime(row.at)}</time> : <NoValue label="Sem data" />}
                   <span>{row.kind}</span>
                 </div>
                 <div className="min-w-0">{row.node}</div>

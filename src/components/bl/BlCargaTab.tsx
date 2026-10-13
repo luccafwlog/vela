@@ -3,6 +3,8 @@ import { Badge } from '../ui/Badge'
 import { Card } from '../ui/Card'
 import { Field, Input, Select } from '../ui/Input'
 import { SummaryStrip } from '../ui/SummaryStrip'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { formatDate, normalizeText } from '../../lib/utils'
 import { CONTAINER_PROFILE_LABELS, containerProfileOf, type ContainerProfile } from '../../services/vaziosNatureza'
 import { formatNumber } from '../../pages/blDetalheHelpers'
@@ -97,9 +99,9 @@ export function BlCargaTab({
                   <th scope="col">Container</th>
                   <th scope="col">Lacre</th>
                   <th scope="col">Tipo</th>
-                  <th scope="col" className="text-right">Tara (kg)</th>
-                  <th scope="col" className="text-right">Peso bruto (kg)</th>
-                  <th scope="col" className="text-right">CBM (m³)</th>
+                  <th scope="col">Tara (kg)</th>
+                  <th scope="col">Peso bruto (kg)</th>
+                  <th scope="col">CBM (m³)</th>
                   <th scope="col">Perfil</th>
                   <th scope="col">SOC/COC</th>
                   <th scope="col">Descarga</th>
@@ -109,12 +111,12 @@ export function BlCargaTab({
                 {bl.bl_containers?.length ? (
                   bl.bl_containers.map((container) => (
                     <tr key={container.id}>
-                      <td className="app-bl-code text-[var(--app-text-strong)]">{container.container_number}</td>
-                      <td className="app-bl-code">{container.seal_number ?? '—'}</td>
-                      <td>{container.type ?? '—'}</td>
-                      <td className="text-right tabular-nums">{container.tare_weight_kg == null ? '—' : formatNumber(container.tare_weight_kg)}</td>
-                      <td className="text-right tabular-nums">{container.gross_weight_kg == null ? '—' : formatNumber(container.gross_weight_kg)}</td>
-                      <td className="text-right tabular-nums">{container.cbm == null ? '—' : formatNumber(container.cbm)}</td>
+                      <td className="app-bl-code text-[var(--app-text-strong)]"><CopyValue value={container.container_number} label="número do contêiner" /></td>
+                      <td className="app-bl-code">{container.seal_number ?? <NoValue label="Sem lacre" />}</td>
+                      <td>{container.type ?? <NoValue label="Sem tipo" />}</td>
+                      <td className="tabular-nums">{container.tare_weight_kg == null ? <NoValue label="Sem tara" /> : formatNumber(container.tare_weight_kg)}</td>
+                      <td className="tabular-nums">{container.gross_weight_kg == null ? <NoValue label="Sem peso bruto" /> : formatNumber(container.gross_weight_kg)}</td>
+                      <td className="tabular-nums">{container.cbm == null ? <NoValue label="Sem CBM" /> : formatNumber(container.cbm)}</td>
                       <td>
                         {onChangeProfile ? (
                           <Select
@@ -160,7 +162,7 @@ export function BlCargaTab({
                           ) : null}
                         </div>
                       </td>
-                      <td className="tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <span className="app-bl-facts__missing">—</span>}</td>
+                      <td className="tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
                     </tr>
                   ))
                 ) : (
@@ -193,23 +195,23 @@ export function BlCargaTab({
               <table className="app-table app-table--compact app-bl-subtable min-w-[640px]">
                 <thead>
                   <tr>
-                    <th scope="col">Descrição</th>
-                    <th scope="col" className="text-right">Packages</th>
+                    <th scope="col" className="app-table__text-head">Descrição</th>
+                    <th scope="col">Packages</th>
                     <th scope="col">Unidade</th>
-                    <th scope="col" className="text-right">Peso bruto (kg)</th>
-                    <th scope="col" className="text-right">CBM (m³)</th>
-                    <th scope="col">Marcas</th>
+                    <th scope="col">Peso bruto (kg)</th>
+                    <th scope="col">CBM (m³)</th>
+                    <th scope="col" className="app-table__text-head">Marcas</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bl.bl_breakbulk_items.map((item) => (
                     <tr key={item.id}>
-                      <td className="font-medium text-[var(--app-text-strong)]">{item.item_description}</td>
-                      <td className="text-right tabular-nums">{formatNumber(item.package_qty)}</td>
-                      <td>{item.package_unit ?? '—'}</td>
-                      <td className="text-right tabular-nums">{formatNumber(item.gross_weight_kg)}</td>
-                      <td className="text-right tabular-nums">{formatNumber(item.cbm)}</td>
-                      <td>{item.marks ?? '—'}</td>
+                      <td className="app-table__text font-medium text-[var(--app-text-strong)]" title={item.item_description ?? undefined}>{item.item_description}</td>
+                      <td className="tabular-nums">{formatNumber(item.package_qty)}</td>
+                      <td>{item.package_unit ?? <NoValue label="Sem unidade" />}</td>
+                      <td className="tabular-nums">{formatNumber(item.gross_weight_kg)}</td>
+                      <td className="tabular-nums">{formatNumber(item.cbm)}</td>
+                      <td className="app-table__text" title={item.marks ?? undefined}>{item.marks ?? <NoValue label="Sem marcas" />}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -243,8 +245,8 @@ export function BlCargaTab({
                     <th scope="col">Chassi</th>
                     <th scope="col">Marca</th>
                     <th scope="col">Container</th>
-                    <th scope="col" className="text-right">Peso (kg)</th>
-                    <th scope="col" className="text-right">Cubagem (m³)</th>
+                    <th scope="col">Peso (kg)</th>
+                    <th scope="col">Cubagem (m³)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -253,9 +255,9 @@ export function BlCargaTab({
                       <tr key={vehicle.id}>
                         <td className="app-bl-code text-[var(--app-text-strong)]">{vehicle.chassis}</td>
                         <td>{vehicle.brand}</td>
-                        <td className="app-bl-code">{vehicle.container?.container_number ?? '—'}</td>
-                        <td className="text-right tabular-nums">{formatNumber(vehicle.weight_kg)}</td>
-                        <td className="text-right tabular-nums">{formatNumber(vehicle.cbm)}</td>
+                        <td className="app-bl-code">{vehicle.container?.container_number ? <CopyValue value={vehicle.container.container_number} label="número do contêiner" /> : <NoValue label="Sem contêiner" />}</td>
+                        <td className="tabular-nums">{formatNumber(vehicle.weight_kg)}</td>
+                        <td className="tabular-nums">{formatNumber(vehicle.cbm)}</td>
                       </tr>
                     ))
                   ) : (

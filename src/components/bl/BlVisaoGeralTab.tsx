@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { NoValue } from '../ui/NoValue'
+import { CopyValue } from '../ui/CopyValue'
 import { DemurrageStatusBadge } from '../demurrage/DemurrageBadges'
 import type { BLDetail } from '../../types/database'
 import type { ContainerSummary, BreakbulkSummary } from './BlCargaTab'
@@ -98,7 +99,7 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
   const mercante = (
     <Block title="Documento Mercante">
       <LeadValue detail="CE do B/L; não muda com COD">
-        {bl.ce_mercante ? <span className="font-(family-name:--app-font-mono) tabular-nums">{bl.ce_mercante}</span> : <NoValue label="CE Mercante não informado" />}
+        {bl.ce_mercante ? <span className="font-(family-name:--app-font-mono) tabular-nums"><CopyValue value={bl.ce_mercante} label="CE Mercante" /></span> : <NoValue label="CE Mercante não informado" />}
       </LeadValue>
       <FactList columns={1}>
         <Fact label="Manifesto Mercante" detail="Agrupa os B/Ls da rota na viagem">
@@ -147,7 +148,7 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
       </div>
       {showContainers && shownContainers.length ? (
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact app-table--padrao">
+          <table className="app-table app-table--compact">
             <thead>
               <tr>
                 <th scope="col" className="app-table__group"><span className="sr-only">Contêiner</span></th>
@@ -168,7 +169,9 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
                 const soc = container.ownership === 'SOC'
                 return (
                   <tr key={container.id}>
-                    <td className="app-bl-code text-[var(--app-text-strong)]">{container.container_number}</td>
+                    <td className="app-bl-code text-[var(--app-text-strong)]">
+                      {container.container_number ? <CopyValue value={container.container_number} label="número do contêiner" /> : <NoValue label="Sem número do contêiner" />}
+                    </td>
                     <td className="tabular-nums">
                       {container.return_date ? formatDate(container.return_date) : <NoValue label={soc ? 'SOC, sem devolução' : 'Sem data de devolução'} />}
                     </td>
