@@ -15,12 +15,20 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   aprovado na página da identidade. Ver o registro abaixo.
 - **Próximo:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
-  foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade") e
+  foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
+  republicada na conta do responsável e atualizada com as decisões abaixo) e
   aguardam a resposta do responsável, tela a tela: aprovado, ajustar ou
   recusado. Decisões pedidas:
-  - **Lista de BLs:** esconder os zeros de carga solta no resumo quando o
-    recorte não tem carga solta? Quais filtros ficam sempre abertos (proposta:
-    Busca, Viagem, POL e POD)?
+  - **Lista de BLs** (em revisão com o responsável; decidido em 2026-10-13):
+    tabela sem faixa de grupos, com as colunas B/L, Cliente, Navio, Viagem,
+    Trecho, Carga, CE Mercante e Taxas locais (só a situação; a coluna Fatura
+    sai). Saem os cartões "Pendentes de revisão", "Prontos para faturar" e
+    "Sem faturamento"; o resumo do recorte vira seis cartões de total (B/Ls,
+    Contêineres, Volume, Carga solta, Taxas pendentes e Isentos), que
+    acompanham os filtros. Carga solta aparece mesmo zerado. Só Taxas
+    pendentes filtra a lista ao toque. Ao implementar, a regra 3 passa a dizer
+    que os cartões aparecem quando a tela precisa deles. Falta decidir quais
+    filtros ficam sempre abertos (proposta: Busca, Viagem, POL e POD).
   - **Ficha da Viagem:** qual é a próxima ação da viagem (proposta: Manifestos
     Mercante a informar; alternativa: escala sem ETA) e qual vem primeiro
     quando houver mais de uma? Manter por ora o texto técnico do evento
