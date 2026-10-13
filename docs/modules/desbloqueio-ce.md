@@ -111,7 +111,7 @@ abas ocultas e linhas sem CE ou Status ficam de fora da leitura; a confirmação
 
 ## Persistência e segurança
 
-Migrations `137`–`149`, `160`, `161` e `173`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
+Migrations `137`–`149`, `160`, `161`, `173` e `220`: tabelas `ce_unlock_*`, schema privado de helpers/receipts,
 RLS sem acesso direto do navegador e RPCs com escopo server-side. A `160` acrescenta
 `exported_at/exported_by/export_id` em `ce_unlock_request_bls`, `ce_unlock_zpt_status`
 (conciliação) e `ce_unlock_email_outbox`. A `173` faz o modelo publicado pelo desk ser
@@ -126,6 +126,13 @@ abre o alerta `ce_trocado_com_desbloqueio` (`181`, `195`). Campos de envio/ZPT s
 projeções do Portal (`ce_unlock_private.portal_view`). Inspeção tem wrappers de leitura.
 As ações `sent` e `confirm` foram removidas; confirmações externas antigas permanecem
 como histórico do desk.
+
+Comandos CE do mesmo Cliente se serializam pela trava `FOR NO KEY UPDATE` na linha do
+Cliente (`220`; antes `FOR UPDATE`, que entrava em deadlock com o estorno de baixa,
+cujo aviso no Portal pede `FOR KEY SHARE` no Cliente). Envio e exportação travam os
+recebíveis do B/L e revalidam a liquidação depois de esperar uma baixa ou estorno em
+curso: B/L que perdeu a liquidação é recusado. Fatura consolidada parcialmente paga
+libera só o B/L cujo recebível foi liquidado, nunca pelo status da fatura.
 
 Bucket privado `ce-unlock-documents`. Upload pela Edge Function valida sessão,
 PDF/MIME/assinatura, 10 MiB, 20 uploads/24h e 100 MiB ativos por cliente. Download

@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Desbloqueio de CE: estorno de baixa durante o envio sem deadlock (2026-10-13, migration `220`):**
+  um teste novo achou que o estorno de baixa feito pelo Financeiro enquanto o cliente envia o pedido
+  terminava em `deadlock detected`, desfazendo uma das duas operações (às vezes o estorno). A trava do
+  Cliente nos comandos CE passou a `FOR NO KEY UPDATE`: o envio espera o estorno e recusa o B/L que
+  perdeu a liquidação. Um segundo teste comprova que a fatura consolidada parcialmente paga libera só
+  o B/L efetivamente liquidado. Ambos usam os comandos reais do financeiro, em
+  `ceUnlock.local-pg.test.ts`.
 - **Pix Itaú: fila completa e QR em segundos (2026-10-13, migration `219`):** a reserva da fila
   passa a pegar a alteração de cobrança (PTAX da Demurrage, renovação das Taxas Locais) e a
   conferência de vencimento, que até aqui nunca chegavam ao Itaú: a cobrança ficava com o valor

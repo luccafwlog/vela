@@ -34,6 +34,14 @@ compatibilidade dos frontends com o backend atual, o resultado do expurgo e o
 fluxo completo com clientes A/B. As demais pendências `[ ]` sem
 **[bloqueia ativação]** podem ser aceitas como dívida registrada no aceite.
 
+**Estado conferido em 2026-10-13:** demonstradas no Postgres local as matrizes
+de fatura consolidada parcialmente paga e de estorno de baixa concorrente ao
+envio (Tarefa 2), ambas pelos comandos reais do financeiro. O segundo teste
+achou deadlock entre estorno e envio, corrigido pela migration `220` (trava do
+Cliente em `FOR NO KEY UPDATE`); a `220` ainda não está em produção. Das provas
+que protegem dinheiro e dados, resta o acesso de outro CNPJ no serviço real
+(Tarefa 3).
+
 **Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
 fonte indicada; `[ ]` registra trabalho ou evidência ainda necessários. Um teste
 existente não equivale a execução recente, e código integrado não comprova deploy.
@@ -49,7 +57,7 @@ mais `160`–`161` do fluxo revisado de 2026-10-07; `137`–`138` pertencem à
 Central de Informações. Tipos gerados preservados. A `173` (modelo DOCX) e, da
 PR 929, a `177` (unicidade do CE e conciliação ZPT pela chave do CE) e as `181`
 e `195` (alerta de troca de CE com Desbloqueio conferido) também afetam o
-Desbloqueio.
+Desbloqueio, assim como a `220` (trava do Cliente sem deadlock com o estorno de baixa).
 
 Fontes da reconciliação:
 
@@ -99,6 +107,16 @@ Fontes da reconciliação:
   cancelamento concorrente e recusa lote". A reversão é simulada por alteração
   direta do recebível sob transação concorrente, não pelo comando de cancelar
   a baixa.
+- **Teste (2026-10-13, Postgres 16 local com replay das 218 migrations, shims
+  do `setup-local-pg.sh`):** `ceUnlock.local-pg.test.ts` ganhou "fatura
+  consolidada parcialmente paga libera só o B/L efetivamente liquidado"
+  (`create_local_consolidated_invoice` + `register_ledger_invoice_payment`
+  parcial e depois integral) e "envio do pedido aguarda estorno concorrente da
+  baixa e recusa o B/L que perdeu a liquidação" (`reverse_invoice_payment` em
+  transação aberta enquanto o cliente envia). Sem a `220`, o segundo falhou em
+  três de três rodadas com `deadlock detected`; com ela, a suíte passou (33
+  testes, duas rodadas) e as 80 suítes `local-pg` do CI passaram (655 testes).
+  Não comprova o ambiente remoto.
 
 ## Restrições globais
 
@@ -133,10 +151,11 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
 4. Homologar com o responsável/ZPT a planilha exportada (`zpt-5-v2`) e o
    arquivo "Exportar Tela" usado na conciliação (Tarefa 6), e obter o aceite
    operacional, incluindo a análise humana do conteúdo dos documentos (Tarefa 1).
-5. Demonstrar as matrizes que protegem dinheiro e dados: fatura consolidada
+5. Demonstrar as matrizes que protegem dinheiro e dados: ~~fatura consolidada
    parcialmente paga (Tarefa 2), baixa cancelada concorrente ao envio
-   (Tarefa 2; a exportação já tem teste, ver "Fontes") e acesso a
-   IDs/caminhos/downloads de outro CNPJ no serviço real (Tarefa 3).
+   (Tarefa 2)~~ feitas em 2026-10-13 (ver "Fontes"; a `220` precisa estar em
+   produção antes da ativação); falta o acesso a IDs/caminhos/downloads de
+   outro CNPJ no serviço real (Tarefa 3).
 6. Conferir a compatibilidade dos frontends publicados com o backend atual,
    de novo depois da PR 929, que mudou os dois lados, e executar o fluxo
    completo com clientes A/B no ambiente autorizado (Tarefa 7).
@@ -207,10 +226,11 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [x] Disponibilizar testes SQL de escopo/papéis, pagamento parcial, cobertura VIP, revogação, troca de Cliente, versões e confirmação por B/L. **Teste:** `ceUnlock.local-pg.test.ts`; existência conferida, sem nova execução nesta revisão.
 - [x] Registrar replay local descartável, testes SQL e gates de migrations/RPC da entrega original; registrar limitações dos shims. **Teste histórico:** relatório local, sem aplicação remota.
 - [x] Integrar a fundação e correções na `main`; a antiga etapa de commit isolado está superada.
-- [ ] **[bloqueia ativação, só a fatura consolidada parcialmente paga]** Completar/demonstrar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível, consolidada parcialmente paga e obrigação de COD.
+- [x] Demonstrar fatura consolidada parcialmente paga: só o B/L cujo recebível foi liquidado fica pago; o status da fatura não conta. **Teste:** `ceUnlock.local-pg.test.ts` (2026-10-13, ver "Fontes").
+- [ ] Completar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível e obrigação de COD.
 - [x] Demonstrar reversão financeira concorrente à exportação: a exportação espera a transação e recusa o requisito perdido. **Teste:** `ceUnlock.local-pg.test.ts` (2026-10-07, no CI), com a reversão simulada no recebível (ver "Fontes").
-- [ ] **[bloqueia ativação, só a baixa cancelada]** Demonstrar cancelamento de baixa concorrente ao envio do pedido.
-- [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e o cancelamento de baixa pelo comando real, não só pela alteração do recebível.
+- [x] Demonstrar cancelamento de baixa concorrente ao envio do pedido, pelo comando real `reverse_invoice_payment`. **Teste/Código:** `ceUnlock.local-pg.test.ts` e migration `220`, que corrigiu o deadlock achado pelo teste (2026-10-13, ver "Fontes"). Publicar a `220` em produção antes da ativação.
+- [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e o estorno de baixa concorrente à exportação pelo comando real (o teste da exportação altera o recebível diretamente).
 - [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
 - [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
 
@@ -344,6 +364,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Conferir histórico remoto e publicar migrations CE `139`–`149` e `160`–`161` e as cinco funções. **Remoto:** leitura de produção em 2026-10-10 (ver "Fontes").
 - [ ] **[bloqueia ativação]** Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. A publicação foi conferida em 2026-10-10 (ver "Fontes"); a compatibilidade não. A PR 929 mudou backend e frontend; a conferência vale para a versão publicada depois dela. A Vercel ficou só como rollback manual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
+- [ ] **[bloqueia ativação]** Conferir a migration `220` (trava do Cliente sem deadlock com o estorno de baixa) aplicada em produção depois do merge.
 - [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes").
 - [x] Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md). **Código/Remoto:** PR 929; migrations `174`–`217` em produção em 2026-10-12 (ver "Fontes").
 - [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
@@ -363,6 +384,10 @@ Atualização em 2026-10-10: leitura (somente SELECT) do banco, das funções e 
 pg_cron no projeto Supabase de produção, confronto com o plano de 2026-10-09 e
 sua revisão de origem, e marcação dos itens que bloqueiam a ativação. Nenhum
 teste foi reexecutado e nenhum dado remoto foi alterado.
+
+Atualização em 2026-10-13: dois cenários novos na suíte SQL local e a migration
+`220`, validados no Postgres local descartável (ver "Fontes"). Nenhum ambiente
+remoto foi lido ou alterado; a `220` chega à produção pelo fluxo normal de merge.
 
 Atualização em 2026-10-12, após o merge da PR 929: leitura (somente SELECT) do
 banco de produção e conferência estática da suíte SQL do Desbloqueio. Fechou os
