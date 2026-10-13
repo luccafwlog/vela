@@ -183,13 +183,14 @@ export function FinanceiroTab({ data }: { data: Data }) {
             <div className="app-table-scroll">
               <table className="app-table app-table--compact app-customer-subtable text-left text-sm">
                 <caption className="sr-only">Pagamentos registrados para o cliente</caption>
-                <thead><tr><th scope="col">Data</th><th scope="col">Fatura</th><th scope="col">Método</th><th scope="col" className="app-customer-subtable__money">Valor</th></tr></thead>
+                <thead><tr><th scope="col">Data</th><th scope="col">Fatura</th><th scope="col">Método</th><th scope="col">Registrado por</th><th scope="col" className="app-customer-subtable__money">Valor</th></tr></thead>
                 <tbody>
                   {pay.data.rows.map((row) => (
                     <tr key={row.id}>
                       <td className="tabular-nums">{formatDate(row.paid_at)}</td>
                       <td>{row.invoice ? <Link className="app-customer-link" to={`${billingHref}&invoice=${row.invoice.id}`}>{row.invoice.invoice_number ?? `INV-${row.invoice.id}`}</Link> : '—'}</td>
                       <td>{row.payment_method ?? '—'}</td>
+                      <td>{row.registered_by_name || '—'}</td>
                       <td className="app-customer-subtable__money">{formatBRL(row.amount_brl)}</td>
                     </tr>
                   ))}

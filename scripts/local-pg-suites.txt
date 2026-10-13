@@ -85,3 +85,4 @@ src/integration/customerCommunicationPartial.local-pg.test.ts
 src/integration/customerCommunicationReadinessGuards.local-pg.test.ts
 src/integration/pixBrCode.local-pg.test.ts
 src/integration/voyageHardDeleteGuard.local-pg.test.ts
+src/integration/paymentRegistrarNames.local-pg.test.ts

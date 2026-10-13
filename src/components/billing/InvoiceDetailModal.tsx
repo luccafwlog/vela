@@ -471,6 +471,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                         <tr>
                           <th scope="col">Data</th>
                           <th scope="col">Método</th>
+                          <th scope="col">Registrado por</th>
+                          <th scope="col">Referência bancária</th>
                           <th scope="col">Observação</th>
                           <th scope="col" className="app-invoice-detail__num">Valor</th>
                           {isAdmin ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
@@ -481,6 +483,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                           <tr key={payment.id} aria-current={reversalFormVisible && payment.id === reversalPaymentId ? 'true' : undefined} className={reversalFormVisible && payment.id === reversalPaymentId ? 'app-invoice-detail__row--selected' : undefined}>
                             <td>{formatDate(payment.paid_at)}</td>
                             <td>{paymentMethodLabel(payment.payment_method)}</td>
+                            <td>{payment.registered_by_name || '—'}</td>
+                            <td><span className="app-invoice-detail__wrap">{payment.bank_reference || '—'}</span></td>
                             <td><span className="app-invoice-detail__wrap">{payment.notes || '—'}</span></td>
                             <td className="app-invoice-detail__num">{formatBRL(payment.amount_brl)}</td>
                             {isAdmin ? (
