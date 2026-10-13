@@ -45,7 +45,17 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     o CE Mercante e o CNPJ, em todas as telas: vira peça compartilhada
     (`CopyValue` em `src/components/ui`), que substitui as cópias feitas à
     mão em `Bls.tsx`, `BlDetalhe.tsx`, `ClienteFicha.tsx` e `Clientes.tsx`;
-    na ficha do Cliente, "Copiar CNPJ" sai do menu. Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
+    na ficha do Cliente, "Copiar CNPJ" sai do menu. A carga aberta na linha
+    ganha resumo (contêineres, COC/SOC, peso, CBM, devolvidos) e o atalho
+    "Abrir na ficha do B/L"; a tabela de dentro usa cabeçalho claro (exceção
+    à regra do cabeçalho azul-marinho, só para tabela dentro de tabela) e as
+    colunas Contêiner (com copiar), Tipo, COC/SOC, Perfil, Lacre, Tara, Peso
+    bruto, CBM, Descarga, Devolução e Demurrage. A RPC `operational_list_bls`
+    já devolve a linha inteira de `bl_containers`; o tipo `BLListItem` é que
+    precisa incluir `ownership`, `return_date` e `demurrage_status` (fora de
+    `src/types/database.ts`, que é protegido). Carga solta mostra Máquinas,
+    Packages, Peso e CBM como dados soltos, a tabela de itens quando houver e
+    uma frase só quando não houver dado. Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
     Faturamento, Taxas locais e Perfil de carga em "Mais filtros". Ao
     implementar, a regra 3 passa a dizer que os cartões aparecem quando a
     tela precisa deles.
