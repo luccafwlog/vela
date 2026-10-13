@@ -73,13 +73,18 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     decidida na lista de BLs). O bloco Contêineres inclui os vazios a
     descarregar, com os tipos (manifesto de Vazios de Importação, via
     `useVaziosImportacaoStats`). O Planejamento por escala, recusado na
-    primeira proposta por confuso, volta em duas formas: A, tabela com uma
-    linha de cabeçalho, sem grupos e sem coluna de botões (o porto abre a
-    edição; Omitir e Excluir ficam dentro dela); B, uma faixa por escala. Qual
-    é a próxima ação da viagem (proposta: Manifestos
-    Mercante a informar; alternativa: escala sem ETA) e qual vem primeiro
-    quando houver mais de uma? Manter por ora o texto técnico do evento
-    "Dados da viagem alterados"?
+    primeira proposta por confuso, fica na forma A: tabela com uma linha de
+    cabeçalho, sem grupos e sem coluna de botões; o porto abre a edição, com
+    Omitir e Excluir dentro dela; as atracações abrem embaixo, em tabela de
+    cabeçalho claro. Sem faixa de próxima ação (recusada pelo responsável);
+    os Manifestos Mercante a informar seguem em âmbar no bloco Conciliação.
+    Nenhum texto técnico na Linha do tempo: o evento de
+    `pod_schedule_snapshot` (cópia interna da situação das escalas, que
+    repete o "CE atualizado" do mesmo instante) sai, e campo da viagem sem
+    rótulo em `TIMELINE_VOYAGE_FIELD_LABELS` (`src/services/voyageSummaries.ts`)
+    nunca mostra o nome técnico nem o valor bruto. Em aberto: a recusa da
+    próxima ação vale só para a Viagem ou também para a ficha do B/L (já
+    entregue com `NextAction`) e a ficha do Cliente?
   - **Ficha do Cliente:** com mais de uma pendência, a mais urgente vai para a
     próxima ação e as outras para um bloco Pendências?
   - **Taxas Locais:** "Aguardando envio automático" e fatura cancelada em
