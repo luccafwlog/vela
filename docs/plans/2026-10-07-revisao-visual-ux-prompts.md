@@ -1185,6 +1185,7 @@ O Administrativo abre a Conciliação para saber se o Pix do Itaú está dando b
 - Exceções do extrato: com a baixa gravada e o encerramento recusado, a linha oferece **Encerrar exceção** (só `resolve_pix_reconciliation_exception`), já que Tentar de novo e Escolher fatura não acham mais a fatura paga; guardado só enquanto a tela está aberta (ponytail).
 - Cache: leitura com exceções e Marcar como tratado usam `afterPendenciaPixAlterada`; a leitura passou a atualizar também `financial-alerts`.
 - **Teste:** `ReconciliationHistoryTable.behavior.test.tsx`, `reconciliacaoState.test.ts`, `Reconciliacao.behavior.test.tsx` e `cacheEffects.test.ts`; os casos novos falham sem a correção. Sem runtime no navegador nesta rodada.
+- **Decisão do responsável (2026-10-13):** a baixa de rotina é a automática pela API do Itaú; a conciliação pelo extrato fica como plano B, sem ser removida. O achado de contrato acima (matcher × RPC local) e a avulsa por QR estático, que o matching do extrato não acha, só afetam esse caminho de contingência e não foram corrigidos (registrado em `docs/modules/reconciliacao-pix.md`).
 
 ### Evidência e limites
 

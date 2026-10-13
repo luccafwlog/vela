@@ -7,9 +7,24 @@
 Procedimentos para linhas ambíguas, QR antigo, cancelamento de baixa e
 restituição estão no [manual financeiro](../operations/manual-financeiro.md).
 
-Reconciliação PIX recebe a planilha bancária, extrai transações, casa TXIDs com
-documentos locais ou de Demurrage, separa resultados seguros de ambiguidades,
-confirma o lote, apresenta histórico/exportação e permite cancelar baixas.
+A baixa de rotina é automática pela API do Itaú: a cobrança Pix de cada fatura
+é emitida no banco e o recebimento é consultado a cada minuto e baixado sem
+intervenção (job `itau-pix-queue`, migrations 151–154 e 219). A Conciliação
+acompanha essa baixa (aba Pendências), mostra o histórico de baixas e permite
+cancelar uma baixa.
+
+A conciliação pelo extrato (aba Conciliar extrato) é **plano B**, decidido pelo
+responsável em 2026-10-13: fica para quando a API do Itaú ou a consulta de
+recebimentos falhar, ou quando a cobrança Itaú estiver desligada e as faturas
+voltarem ao QR estático. Ela recebe a planilha bancária, extrai transações,
+casa TXIDs com documentos locais ou de Demurrage, separa resultados seguros de
+ambiguidades e confirma o lote. Não é a rotina de baixa; achados que só afetam
+esse caminho têm prioridade de contingência. Limites conhecidos do plano B:
+a fatura avulsa paga pelo QR estático não é achada pelo extrato (o TXID dela é
+o número da fatura, que o matching não usa como chave, embora
+`reconcile_invoice_payment_by_txid` aceite) e vira "Sem documento"; e uma
+fatura local sem versão de cobrança pode aparecer pronta e ter o lote recusado
+(`no_match`).
 
 - A rota interna está em `src/AppInterno.tsx` e a composição em
   `src/pages/Reconciliacao.tsx` (abas e detalhes); as abas são
