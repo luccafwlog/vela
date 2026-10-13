@@ -31,10 +31,12 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     "Revisão pendente" sob o número do B/L; B/L sem Cliente mostra, na coluna
     Cliente, o nome declarado no manifesto em cinza e "Sem cliente vinculado"
     (regra 5; "falta vincular" foi recusado por sugerir Cliente já cadastrado).
-    Em aberto: o nome do cartão "Taxas pendentes" e da etiqueta "Revisão" da
-    coluna Taxas locais, que se confundem com a tela Revisão. Ao implementar, a regra 3 passa a dizer
-    que os cartões aparecem quando a tela precisa deles. Falta decidir quais
-    filtros ficam sempre abertos (proposta: Busca, Viagem, POL e POD).
+    O cartão passa a "Taxas a calcular" (taxa não calculada ou com cálculo
+    travado). Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
+    Faturamento, Taxas locais e Perfil de carga em "Mais filtros". Em aberto:
+    renomear a etiqueta "Revisão" (`review_required`) da coluna Taxas locais
+    para "Cálculo travado". Ao implementar, a regra 3 passa a dizer
+    que os cartões aparecem quando a tela precisa deles.
   - **Ficha da Viagem:** qual é a próxima ação da viagem (proposta: Manifestos
     Mercante a informar; alternativa: escala sem ETA) e qual vem primeiro
     quando houver mais de uma? Manter por ora o texto técnico do evento
