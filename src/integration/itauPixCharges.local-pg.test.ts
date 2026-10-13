@@ -337,6 +337,26 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${expiring}`)).toBe('NULL')
   })
 
+  it('validade curta das Taxas Locais: renova com metade da validade, não a cada minuto', () => {
+    // 219: com folga fixa de 7 dias e validade de 1 h, a cobrança recém-renovada já
+    // nascia "a menos de 7 dias do fim" e o Itaú recebia uma alteração por minuto.
+    setProvider('itau')
+    const invoice = manualInvoice('ITAU219-CURTA', 0.06)
+    const charge = activate(`invoice_id = ${invoice}`, '000201ITAU219C')
+    try {
+      psql(`UPDATE public.app_settings SET itau_pix_expiration_seconds = 3600 WHERE id = 1;
+        UPDATE public.itau_pix_charges SET expires_at = now() + interval '50 minutes' WHERE id = ${charge.id}`)
+      const maintain = () => psql("SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_maintain()")
+      maintain()
+      expect(charges(`id = ${charge.id}`)[0].status).toBe('active')
+      psql(`UPDATE public.itau_pix_charges SET expires_at = now() + interval '20 minutes' WHERE id = ${charge.id}`)
+      maintain()
+      expect(charges(`id = ${charge.id}`)[0].status).toBe('pending_update')
+    } finally {
+      psql('UPDATE public.app_settings SET itau_pix_expiration_seconds = 2592000 WHERE id = 1')
+    }
+  })
+
   it('às 14h de dia útil, Demurrage sem a PTAX do dia abre Alerta para a Documentação', () => {
     setProvider('itau')
     const before = psql("SELECT coalesce(quote_date::text, '') FROM public.exchange_rate_reference WHERE id = 1")

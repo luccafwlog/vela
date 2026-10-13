@@ -26,6 +26,10 @@
 --      PTAX, prazos). Só a fila: recebimentos e prazos seguem no job de 1 min.
 --      Sem o par no Vault, não dispara nem avisa; falha do pg_net vira WARNING
 --      e nunca derruba a emissão.
+--   4. `itau_pix_maintain` renova as Taxas Locais com folga de 7 dias ou
+--      metade da validade configurada, o que for menor: validade abaixo de
+--      7 dias pedia uma alteração ao Itaú por minuto, agora que a renovação
+--      chega à fila.
 --
 -- Não reescreve nem apaga linhas de negócio.
 --
@@ -37,7 +41,7 @@
 --   DROP FUNCTION public.acquire_itau_pix_runner(text, integer);
 --   DROP FUNCTION public.release_itau_pix_runner(text);
 --   DROP TABLE ops.itau_pix_runner_lease;
---   e reaplicar `itau_pix_claim` da 151.
+--   e reaplicar `itau_pix_claim` da 151 e `itau_pix_maintain` da 153.
 
 -- ===========================================================================
 -- 1. Reserva dos quatro estados pendentes
@@ -217,3 +221,88 @@ CREATE TRIGGER trg_kick_itau_pix_runner_update
   REFERENCING NEW TABLE AS changed_charges
   FOR EACH STATEMENT
   EXECUTE FUNCTION public._kick_itau_pix_runner_trigger();
+
+-- ===========================================================================
+-- 4. Renovação das Taxas Locais sem laço com validade curta
+-- ===========================================================================
+
+-- Corpo da 153 com uma mudança (passo 2). Com a reserva corrigida acima, a
+-- renovação passa a chegar ao Itaú; a validade configurável aceita de 1 h a
+-- 365 dias (151).
+CREATE OR REPLACE FUNCTION public.itau_pix_maintain(p_now timestamptz DEFAULT now())
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  v_expired integer; v_renewed integer; v_extended integer; v_pending integer;
+  v_local_day date := (p_now AT TIME ZONE 'America/Sao_Paulo')::date;
+  v_ref public.exchange_rate_reference%ROWTYPE;
+  v_cutoff timestamptz;
+BEGIN
+  IF (SELECT pix_provider FROM public.app_settings WHERE id = 1) IS DISTINCT FROM 'itau' THEN
+    RETURN jsonb_build_object('skipped', 'provider_static');
+  END IF;
+  -- 1. Passou da validade: confirmar no banco antes de substituir.
+  UPDATE public.itau_pix_charges SET status = 'pending_expire_check', next_attempt_at = p_now, updated_at = p_now
+  WHERE status = 'active' AND expires_at <= p_now;
+  GET DIAGNOSTICS v_expired = ROW_COUNT;
+
+  -- 2. Taxas Locais abertas: renovar a mesma cobrança com 7 dias de folga, ou
+  -- metade da validade configurada quando ela for menor que 14 dias (219: com
+  -- validade abaixo de 7 dias, a cobrança recém-renovada voltava a pedir
+  -- renovação no minuto seguinte, e o Itaú recebia uma alteração por minuto).
+  -- ponytail: folga fixa; ajustar se o Itaú limitar a validade máxima.
+  UPDATE public.itau_pix_charges c SET status = 'pending_update', next_attempt_at = p_now, updated_at = p_now,
+    expiration_seconds = ceil(extract(epoch FROM p_now + make_interval(secs => s.itau_pix_expiration_seconds) - c.bank_created_at))::integer
+  FROM public.app_settings s, public.invoices i
+  WHERE s.id = 1 AND i.id = c.invoice_id AND c.status = 'active'
+    AND c.expires_at < p_now + least(interval '7 days', make_interval(secs => s.itau_pix_expiration_seconds) / 2)
+    AND i.status IN ('issued', 'partially_paid', 'overdue');
+  GET DIAGNOSTICS v_renewed = ROW_COUNT;
+
+  -- 3. Demurrage que já reflete a PTAX de hoje e não mudou de valor (ROE
+  -- igual ao de ontem não dispara o gatilho): estender até o próximo corte.
+  SELECT * INTO v_ref FROM public.exchange_rate_reference WHERE id = 1;
+  IF v_ref.quote_date = v_local_day THEN
+    v_cutoff := public.itau_pix_cutoff(p_now);
+    UPDATE public.itau_pix_charges c SET status = 'pending_update', next_attempt_at = p_now, updated_at = p_now,
+      expiration_seconds = ceil(extract(epoch FROM v_cutoff - c.bank_created_at))::integer
+    FROM public.demurrage_invoices d
+    WHERE d.id = c.demurrage_invoice_id AND c.status = 'active' AND c.expires_at < v_cutoff
+      AND d.status IN ('issued', 'overdue') AND d.current_roe = v_ref.roe;
+    GET DIAGNOSTICS v_extended = ROW_COUNT;
+  END IF;
+
+  -- 4. Às 14h de dia útil, Demurrage aberta sem a PTAX do dia confirmada na cobrança.
+  IF public.itau_pix_business_day(v_local_day) AND (p_now AT TIME ZONE 'America/Sao_Paulo')::time >= time '14:00' THEN
+    SELECT count(*) INTO v_pending FROM public.demurrage_invoices d
+    LEFT JOIN public.itau_pix_charges c ON c.demurrage_invoice_id = d.id AND c.status = 'active'
+    WHERE d.status IN ('issued', 'overdue') AND coalesce(d.current_total_brl, 0) > 0
+      AND (v_ref.quote_date IS DISTINCT FROM v_local_day OR d.current_roe IS DISTINCT FROM v_ref.roe
+        OR c.id IS NULL OR c.amount_brl <> d.current_total_brl OR c.expires_at < public.itau_pix_cutoff(p_now));
+    IF v_pending > 0 THEN
+      PERFORM public.upsert_alert_item('demurrage_ptax_recalc_failed', 'exchange_rate_reference', 'itau-pix-14h',
+        v_pending || ' fatura(s) de Demurrage sem a PTAX de hoje refletida na cobrança Pix às 14h. Confira a atualização da PTAX; '
+          || 'o corte das 14h30 encerra as cobranças atuais e as novas saem com o último valor disponível.',
+        'itau_pix', 'documentacao', jsonb_build_object('pending', v_pending, 'day', v_local_day), '/demurrage');
+    ELSE
+      PERFORM public.resolve_alert_item('demurrage_ptax_recalc_failed', 'exchange_rate_reference', 'itau-pix-14h',
+        'itau_pix', jsonb_build_object('day', v_local_day));
+    END IF;
+  END IF;
+
+  -- 5. Calendário do ano seguinte, 60 dias antes da virada.
+  IF v_local_day >= make_date(extract(year FROM v_local_day)::int, 11, 1)
+     AND NOT EXISTS (SELECT 1 FROM public.business_holidays WHERE extract(year FROM day) = extract(year FROM v_local_day) + 1) THEN
+    PERFORM public.upsert_alert_item('calendario_feriados_pendente', 'business_holidays', 'itau-pix-calendar',
+      'Cadastre os feriados de Vitória/ES de ' || (extract(year FROM v_local_day) + 1) || ' em business_holidays: '
+        || 'sem eles o prazo das cobranças Pix da Demurrage conta só fins de semana e vence às 14h30 de feriados.',
+      'itau_pix', 'documentacao', jsonb_build_object('year', extract(year FROM v_local_day) + 1), '/demurrage');
+  ELSIF EXISTS (SELECT 1 FROM public.business_holidays WHERE extract(year FROM day) = extract(year FROM v_local_day) + 1) THEN
+    PERFORM public.resolve_alert_item('calendario_feriados_pendente', 'business_holidays', 'itau-pix-calendar',
+      'itau_pix', jsonb_build_object('year', extract(year FROM v_local_day) + 1));
+  END IF;
+
+  RETURN jsonb_build_object('expired', v_expired, 'renewed', v_renewed, 'extended', coalesce(v_extended, 0), 'ptax_pending', v_pending);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.itau_pix_maintain(timestamptz) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.itau_pix_maintain(timestamptz) TO service_role;

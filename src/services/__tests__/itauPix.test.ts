@@ -285,7 +285,7 @@ describe('processador da fila de cobranças', () => {
       .mockResolvedValueOnce(ativa(b.txid, { status: 'REMOVIDA_PELO_USUARIO_RECEBEDOR' }))
     const recorded: [number, string][] = []
     const summary = await processItauPixQueue(createItauPixClient(config, fetchMtls), {
-      claim: async () => [a, b],
+      claim: vi.fn().mockResolvedValueOnce([a, b]).mockResolvedValue([]),
       record: async (id, outcome) => { recorded.push([id, outcome.outcome]) },
     })
     expect(recorded).toEqual([[10, 'active'], [11, 'cancelled']])
@@ -294,7 +294,7 @@ describe('processador da fila de cobranças', () => {
 
   // Migration 219: blocos pequenos por orçamento de tempo, teto por execução, parada no 429
   // e vez única do runner. Cliente falso: um ms por chamada no relógio do teste.
-  const queueOf = (total: number, options: { failOn?: number; renew?: boolean[] } = {}) => {
+  const queueOf = (total: number, options: { failOn?: number; failStatus?: number; renew?: boolean[]; spawnOn?: number } = {}) => {
     let clock = 0
     let next = 1
     const claims: number[] = []
@@ -302,7 +302,7 @@ describe('processador da fila de cobranças', () => {
     const client = {
       async createCob(txid: string) {
         clock += 1000
-        if (options.failOn !== undefined && recorded.length + 1 === options.failOn) throw new ItauPixError('limite', 429, null)
+        if (options.failOn !== undefined && recorded.length + 1 === options.failOn) throw new ItauPixError('falha', options.failStatus ?? 429, null)
         return cob(txid, { valor: { original: '2.50' } })
       },
     } as never
@@ -314,7 +314,11 @@ describe('processador da fila de cobranças', () => {
         claims.push(batch.length)
         return batch
       },
-      record: async (id: number) => { recorded.push(id) },
+      record: async (id: number) => {
+        recorded.push(id)
+        // O registro cria trabalho novo (substituta da cobrança vencida).
+        if (id === options.spawnOn) total += 1
+      },
       ...(renewals ? { renew: async () => renewals.shift() ?? true } : {}),
     }
     return { client, queue, claims, recorded, now: () => clock }
@@ -340,6 +344,22 @@ describe('processador da fila de cobranças', () => {
     const summary = await processItauPixQueue(q.client, q.queue, { now: q.now })
     expect(q.recorded).toEqual([1, 2, 3])
     expect(summary).toMatchObject({ active: 2, error: 1, throttled: true })
+  })
+
+  it('Itaú sem resposta: registra a incerta e para, sem esperar o resto do bloco', async () => {
+    const q = queueOf(20, { failOn: 2, failStatus: 0 })
+    const summary = await processItauPixQueue(q.client, q.queue, { now: q.now })
+    expect(q.recorded).toEqual([1, 2])
+    expect(summary).toMatchObject({ active: 1, uncertain: 1, unreachable: true, throttled: false })
+  })
+
+  it('cobrança criada durante a execução: entra na mesma execução', async () => {
+    // Antes, um bloco menor que 5 encerrava a execução e a substituta esperava o minuto seguinte.
+    const q = queueOf(1, { spawnOn: 1 })
+    const summary = await processItauPixQueue(q.client, q.queue, { now: q.now })
+    expect(q.recorded).toEqual([1, 2])
+    expect(q.claims).toEqual([1, 1, 0])
+    expect(summary).toMatchObject({ active: 2 })
   })
 
   it('perdeu a vez entre blocos: encerra sem pedir outro bloco', async () => {

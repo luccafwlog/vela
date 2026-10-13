@@ -356,7 +356,10 @@ export async function stepCharge(client: ItauPixClient, charge: QueuedCharge, no
 // (~0,3–1 s). Blocos de 5 mantêm cada reserva (1 min no primeiro claim) longe
 // do vencimento, e o teto limita a carga numa API cujos limites nunca foram
 // medidos (relatório de 2026-10-07: "não provocar carga").
-// ponytail: sequencial, teto fixo de 60 por execução e parada no primeiro 429.
+// A execução para no primeiro 429 e na primeira cobrança sem resposta: com o
+// Itaú parado, cada cobrança espera até 2 × 15 s (token e chamada), e um bloco
+// inteiro passaria da vez do runner (120 s) e da reserva da cobrança (1 min).
+// ponytail: sequencial, teto fixo de 60 por execução.
 // Caminho de upgrade: medir o limite do Itaú e ajustar teto/paralelismo.
 export const ITAU_PIX_CHUNK = 5
 export const ITAU_PIX_BUDGET_MS = 20_000
@@ -372,8 +375,8 @@ export async function processItauPixQueue(
   const maxCharges = options.maxCharges ?? ITAU_PIX_MAX_PER_RUN
   const now = options.now ?? Date.now
   const startedAt = now()
-  const summary: Record<ChargeOutcome['outcome'], number> & { throttled: boolean } = {
-    active: 0, cancelled: 0, concluded: 0, expired: 0, uncertain: 0, error: 0, throttled: false,
+  const summary: Record<ChargeOutcome['outcome'], number> & { throttled: boolean; unreachable: boolean } = {
+    active: 0, cancelled: 0, concluded: 0, expired: 0, uncertain: 0, error: 0, throttled: false, unreachable: false,
   }
   let processed = 0
   for (let round = 0; now() - startedAt < budgetMs && processed < maxCharges; round += 1) {
@@ -389,8 +392,15 @@ export async function processItauPixQueue(
         summary.throttled = true
         return summary
       }
+      if (outcome.outcome === 'uncertain') {
+        summary.unreachable = true
+        return summary
+      }
     }
-    if (charges.length < chunk) break
+    // Para só com a fila vazia: o registro de um resultado pode criar trabalho novo
+    // (substituta da vencida, cancelamento pedido durante a emissão), e o disparo
+    // dele encontra esta execução com a vez.
+    if (charges.length === 0) break
   }
   return summary
 }

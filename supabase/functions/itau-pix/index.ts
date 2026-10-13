@@ -69,7 +69,11 @@ if (typeof Deno !== "undefined")
         // Prazos (vencimento, renovação, PTAX do dia e Alerta das 14h) antes da fila.
         const { data: maintenance, error: maintenanceError } = await admin.rpc("itau_pix_maintain", {});
         if (maintenanceError) throw new Error("Falha na manutenção dos prazos Itaú.");
-        const charges = await runCharges();
+        // A fila falha isolada (vez, reserva, registro): os recebimentos seguem neste minuto.
+        const charges = await runCharges().catch((error) => {
+          console.error("itau-pix: fila de cobranças falhou", error);
+          return { error: error instanceof Error ? error.message : "Falha na fila de cobranças" };
+        });
         // Recebimentos falham isolados: a fila de cobranças já foi processada.
         const receipts = await pollItauPixReceipts(client, {
           async checkpoint() {
