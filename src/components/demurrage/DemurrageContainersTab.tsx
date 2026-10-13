@@ -93,10 +93,12 @@ export function DemurrageContainersTab({
   const calcs = useMemo(() => new Map((containers ?? []).map((container) => [container.id, safeCalc(container)])), [containers])
 
   // Devolvido no free time e sem Invoice não é monitoramento; o que já está
-  // numa Invoice fica para dizer onde a caixa foi cobrada.
+  // numa Invoice fica para dizer onde a caixa foi cobrada, e o que não se
+  // calcula (tipo sem tarifa) fica para o erro e a correção aparecerem.
   const monitored = useMemo(() => (containers ?? []).filter((container) => (
     container.demurrage_status !== 'returned'
     || (calcs.get(container.id)?.calc?.total_usd ?? 0) > 0
+    || Boolean(calcs.get(container.id)?.error)
     || Boolean(container.billed_in?.length)
   )), [containers, calcs])
   const searched = monitored.filter((container) => matchesSearch(container, search.trim()))

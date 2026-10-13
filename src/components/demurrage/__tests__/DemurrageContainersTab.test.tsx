@@ -9,7 +9,9 @@ import type { DemurrageContainerRow } from '../../../services/demurrage/demurrag
 
 // Cálculo determinístico: 400 USD para container com devolução ou ainda fora.
 vi.mock('../../../services/demurrage/demurrageRates', () => ({
-  calculateDemurrage: (_type: string, _discharge: string, _end: string, override?: number | null, _p1?: unknown, _p2?: unknown, agreement?: { free_days?: number | null } | null) => ({
+  calculateDemurrage: (type: string, _discharge: string, _end: string, override?: number | null, _p1?: unknown, _p2?: unknown, agreement?: { free_days?: number | null } | null) => {
+    if (type === 'XXXX') throw new Error('Tipo de container "XXXX" sem tarifa de Demurrage cadastrada.')
+    return ({
     total_days: 40,
     free_days: override ?? agreement?.free_days ?? 10,
     days_p1: 20,
@@ -18,7 +20,8 @@ vi.mock('../../../services/demurrage/demurrageRates', () => ({
     rate_p2_usd: 20,
     total_usd: 400,
     status: 'overdue',
-  }),
+  })
+  },
 }))
 
 afterEach(cleanup)
@@ -140,6 +143,13 @@ describe('DemurrageContainersTab', () => {
     await user.click(screen.getByRole('button', { name: 'Limpar busca e recorte' }))
     expect(onSearchChange).toHaveBeenCalledWith('')
     expect(onLensChange).toHaveBeenCalledWith('todos')
+  })
+
+  it('container devolvido que não se calcula continua visível, com o erro e a edição de datas', () => {
+    renderTab([{ ...row('BL-009', 9, { returned: true }), type: 'XXXX' } as DemurrageContainerRow])
+    expect(screen.getByText(/sem tarifa de Demurrage cadastrada/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Editar datas de MSCU9000000' })).toBeTruthy()
+    expect(screen.queryByText('Nenhum container em Demurrage')).toBeNull()
   })
 
   it('erro de consulta não vira "nenhum container"', () => {
