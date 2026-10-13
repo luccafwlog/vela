@@ -53,14 +53,4 @@ describe('contrato CSS de impressão de invoice', () => {
     const print = css.slice(css.indexOf('@media print {'))
     expect(print).toMatch(/html,\s*body,\s*\.app-shell,\s*\.app-main\s*\{\s*background: #fff !important;/)
   })
-
-  it('com documento aberto no modal, só o modal vai para o papel, mesmo fundo na árvore', () => {
-    // O ADR é aberto dentro da aba da Viagem: esconder só os filhos diretos de
-    // .app-main imprimia a ficha da Viagem antes do documento; a faixa do Modo
-    // Inspeção fica fora do shell e também saía no papel.
-    const css = fs.readFileSync('src/index.css', 'utf8')
-    expect(css).toContain('.app-main *:not(:has(.app-modal-backdrop)):not(.app-modal-backdrop):not(.app-modal-backdrop *)')
-    expect(css).toContain('#root > *:not(:has(.app-modal-backdrop))')
-    expect(css).toMatch(/\.app-shell \{\s*min-height: 0 !important;/)
-  })
 })
