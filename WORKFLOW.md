@@ -724,7 +724,9 @@ requer PostgreSQL 16:
 1. `quality` — verificação documental e autotestes, lint, self-check do gerador
    de squash, declaração de migration destrutiva e autotestes desse checker;
    inclui o contrato de upload CE em Deno 2.9.6, com HTTP simulado e
-   dependências remotas verificadas por `deno.lock` (`--frozen`);
+   dependências remotas verificadas por `deno.lock` (`--frozen`); o lock da
+   raiz cobre só esses imports remotos (`--no-config` e
+   `DENO_NO_PACKAGE_JSON=1`), então atualizações npm não o invalidam;
 2. `build` — build (`tsc` + `vite`) e orçamento de bundle;
 3. `test` — suíte Vitest dividida em 3 shards (`--shard=N/3`);
 4. `security-audit` — autotestes do analisador e replay estático de autorização
