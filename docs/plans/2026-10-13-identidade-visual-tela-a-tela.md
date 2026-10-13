@@ -68,7 +68,7 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     o que está errado. Os B/Ls de teste COSU6401234505, 509 e 510 estão
     "não calculado" só porque `scripts/design-audit/seed_audit.sql` os cria
     assim.
-  - **Ficha da Viagem:** a tabela de atracações, dentro do Planejamento por
+  - **Ficha da Viagem** (aprovada em 2026-10-13): a tabela de atracações, dentro do Planejamento por
     escala, passa ao cabeçalho claro (regra de tabela dentro de tabela,
     decidida na lista de BLs). O bloco Contêineres inclui os vazios a
     descarregar, com os tipos (manifesto de Vazios de Importação, via
@@ -87,8 +87,11 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     nunca mostra o nome técnico nem o valor bruto. Em aberto: a recusa da
     próxima ação vale só para a Viagem ou também para a ficha do B/L (já
     entregue com `NextAction`) e a ficha do Cliente?
-  - **Ficha do Cliente:** com mais de uma pendência, a mais urgente vai para a
-    próxima ação e as outras para um bloco Pendências?
+  - **Ficha do Cliente:** sem faixa de próxima ação, como na Viagem; a
+    pendência fica no bloco do assunto (Portal sem conta no bloco Portal, com
+    o motivo e os dois caminhos como botões). Na Atividade recente, só o
+    identificador é link, sem sublinhado. Em aberto: com mais de uma
+    pendência, cada uma no bloco do seu assunto?
   - **Taxas Locais:** "Aguardando envio automático" e fatura cancelada em
     cinza?
   - **Faturas do Portal:** o que escrever no lugar do vencimento, que a taxa
@@ -129,7 +132,7 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 |---|---|---|---|---|
 | 1 | Ficha do B/L | `/bls/:blId` | Visão geral numa caixa só com filetes; "Resolver na Revisão", "Definir exceção" e "Ver itens da carga" como texto (regra 9) | Entregue em 2026-10-13 (aba Visão geral, faixa, próxima ação e trilhos; as demais abas herdam a base) |
 | 2 | Lista de BLs | `/bls` | Cartões que filtram, faixa de resumo, linha com duas ações | Aprovada em 2026-10-13 (lote 1), aguardando implementação |
-| 3 | Ficha da Viagem e Viagens | `/viagens`, `/viagens/:voyageId` | Ficha restaurada em 2026-10-08 com faixa azul-marinho; conferir contra as regras | Proposta da ficha no lote 1, aguardando resposta |
+| 3 | Ficha da Viagem e Viagens | `/viagens`, `/viagens/:voyageId` | Ficha restaurada em 2026-10-08 com faixa azul-marinho; conferir contra as regras | Ficha aprovada em 2026-10-13 (lote 1), aguardando implementação |
 | 4 | Chegadas e Saídas e programação do Portal | `/chegadas-saidas`, Painel do Portal | "X" em toda célula, grupos ETD/ETA sem separação. Decidir: Chegada no Brasil antes da Saída; esconder porto sem data; previsão de saída já passada em cinza | Pendente |
 | 5 | Ficha do Cliente e Clientes | `/clientes`, `/clientes/:cnpj` | `.app-customer-*` é a maior família de CSS de página | Proposta da ficha no lote 1, aguardando resposta |
 | 6 | Revisão | `/revisao` | `review-link-button` como ação em texto (regra 9) | Pendente |
