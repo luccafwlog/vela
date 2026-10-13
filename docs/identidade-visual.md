@@ -129,7 +129,9 @@ de base `scripts/design-baseline.json` e falha quando:
   da paleta do Tailwind ou a fonte de marca;
 - uma folha de estilo de `src/` ganha regras numa família de CSS de página (por
   exemplo `.app-bl-*`, `.app-customer-*`), inclusive agrupada ou aninhada com
-  uma peça comum, ou num `.css` novo. As peças comuns acima podem crescer.
+  uma peça comum, ou num `.css` novo. As peças comuns acima podem crescer,
+  pelo nome exato do bloco: `.app-block-cliente` conta como página, não como
+  `app-block`.
 
 A linha de base guarda o que já existia em 2026-10-13 e só desce: ao migrar uma
 tela, rode `npm run design:check -- --update` e confira no diff que os números

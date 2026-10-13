@@ -34,6 +34,12 @@ assert.deepEqual(
   { 'app-block': 2, 'app-customer': 1, 'app-invoice': 1, 'app-bl': 1 },
 )
 
+// Classe de página que só começa como uma peça comum não fica isenta.
+assert.deepEqual(
+  countCssFamilies('.app-block-customer { gap: 1px; } .app-block__title { gap: 1px; } .app-next-action--danger { gap: 1px; } .app-identity-extra { gap: 1px; }'),
+  { 'app-block-customer': 1, 'app-block': 1, 'app-next': 1, 'app-identity-extra': 1 },
+)
+
 // Catraca: só aumento falha; queda é sugerida para travar o ganho.
 const { increases, decreases } = compare(
   { 'src/pages/Bls.tsx': { hex: 2 }, 'src/index.css': { 'app-bl': 10 } },

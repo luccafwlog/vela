@@ -6,12 +6,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compare, countCssFamilies, countTsx } from './lib/design-rules.mjs'
+import { compare, countCssFamilies, countTsx, SHARED_FAMILIES } from './lib/design-rules.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 const baselinePath = path.join(root, 'scripts/design-baseline.json')
-// Peças comuns da identidade: podem crescer sem atualizar a linha de base.
-const SHARED_FAMILIES = new Set(['app-block', 'app-lead', 'app-facts', 'app-identity', 'app-next', 'app-no'])
 
 function walk(dir, ext, files = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

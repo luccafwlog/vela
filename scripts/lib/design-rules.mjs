@@ -39,6 +39,26 @@ export function cssFamily(className) {
   return base.split('-').slice(0, 2).join('-')
 }
 
+// Peças comuns da identidade, pelo nome exato do bloco (antes de "__" e
+// "--"). A família delas pode crescer sem atualizar a linha de base.
+const SHARED_BLOCKS = new Set(['app-block', 'app-lead', 'app-facts', 'app-identity', 'app-next-action', 'app-no-value', 'app-copy'])
+export const SHARED_FAMILIES = new Set([...SHARED_BLOCKS].map(cssFamily))
+
+/**
+ * Família de uma classe para a catraca. Classe de página que só começa como
+ * uma peça comum (".app-block-customer") conta pelo nome inteiro do bloco,
+ * para não se esconder na família isenta.
+ * ponytail: modificador "--x" de peça comum (".app-block--flush") continua
+ * isento, inclusive um modificador de página; separar exigiria listar os
+ * modificadores aprovados de cada peça.
+ */
+export function cssFamilyForGate(className) {
+  const family = cssFamily(className)
+  if (!SHARED_FAMILIES.has(family)) return family
+  const block = className.split('__')[0].split('--')[0]
+  return SHARED_BLOCKS.has(block) ? family : block
+}
+
 /**
  * Conta blocos de regra por família, ignorando @media/@layer e comentários.
  * Cada família citada no seletor conta uma vez por regra, agrupada (".a, .b")
@@ -52,7 +72,7 @@ export function countCssFamilies(css) {
     const selector = match[1].trim()
     if (!selector || selector.startsWith('@')) continue
     const families = new Set()
-    for (const match of selector.matchAll(/\.([A-Za-z][\w-]*)/g)) families.add(cssFamily(match[1]))
+    for (const match of selector.matchAll(/\.([A-Za-z][\w-]*)/g)) families.add(cssFamilyForGate(match[1]))
     for (const family of families) counts[family] = (counts[family] ?? 0) + 1
   }
   return counts
