@@ -25,8 +25,8 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     sai). Saem os cartões "Pendentes de revisão", "Prontos para faturar" e
     "Sem faturamento"; o resumo do recorte vira seis cartões de total (B/Ls,
     Contêineres, Volume, Carga solta, Taxas pendentes e Isentos), que
-    acompanham os filtros. Carga solta aparece mesmo zerado. Só Taxas
-    pendentes filtra a lista ao toque. Ao implementar, a regra 3 passa a dizer
+    acompanham os filtros. Carga solta aparece mesmo zerado. Taxas pendentes
+    e Isentos filtram a lista ao toque; os outros só mostram o total. Ao implementar, a regra 3 passa a dizer
     que os cartões aparecem quando a tela precisa deles. Falta decidir quais
     filtros ficam sempre abertos (proposta: Busca, Viagem, POL e POD).
   - **Ficha da Viagem:** qual é a próxima ação da viagem (proposta: Manifestos
