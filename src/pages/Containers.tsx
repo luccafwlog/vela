@@ -76,7 +76,7 @@ function partyName(row: ContainerRow) {
 function VoyageCell({ row }: { row: ContainerRow }) {
   const voyage = row.bl?.voyage
   return (
-    <span className="app-cargo-cell__stack">
+    <span className="app-cargo-cell__stack app-table__cell-stack">
       {voyage?.id ? (
         <Link className="app-cargo-link app-cargo-cell__truncate" to={`/viagens/${voyage.id}`} title={voyageText(row)}>{voyageText(row)}</Link>
       ) : <NoValue label="Sem viagem" />}
@@ -88,7 +88,7 @@ function VoyageCell({ row }: { row: ContainerRow }) {
 function BlCell({ row }: { row: ContainerRow }) {
   const name = partyName(row)
   return (
-    <span className="app-cargo-cell__stack">
+    <span className="app-cargo-cell__stack app-table__cell-stack">
       {row.bl?.id ? <CopyValue value={row.bl.id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${row.bl.id}`}>{row.bl.id}</Link></CopyValue> : <NoValue label="Sem B/L" />}
       {name ? <span className="app-cargo-cell__sub app-cargo-cell__truncate" title={name}>{name}</span> : null}
     </span>
@@ -98,7 +98,7 @@ function BlCell({ row }: { row: ContainerRow }) {
 function OwnershipCell({ row }: { row: ContainerRow }) {
   const source = ownershipSourceLabel(row.ownership_source, row.ownership)
   return (
-    <span className="app-cargo-cell__stack">
+    <span className="app-cargo-cell__stack app-table__cell-stack">
       <ContainerOwnershipBadge ownership={row.ownership} />
       {source ? <span className="app-cargo-cell__sub">{source}</span> : null}
     </span>
@@ -479,7 +479,7 @@ export function Containers() {
                         </td>
                       ) : null}
                       <td className="app-cargo-table__id">
-                        <span className="app-cargo-cell__stack">
+                        <span className="app-cargo-cell__stack app-table__cell-stack">
                           <span className="app-cargo-code app-cargo-id"><CopyValue value={row.container_number} label="número do contêiner" /></span>
                           {row.seal_number ? <span className="app-cargo-cell__sub">Lacre {row.seal_number}</span> : null}
                         </span>

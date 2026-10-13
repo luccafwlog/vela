@@ -561,7 +561,7 @@ export function Veiculos() {
                               onChange={() => selection.toggle(row.id)}
                             />
                           ) : null}
-                          <span className="app-cargo-cell__stack">
+                          <span className="app-cargo-cell__stack app-table__cell-stack">
                             <span className="app-cargo-code">{row.chassis}</span>
                             <span className="app-cargo-cell__sub">{[row.brand, row.model].filter(Boolean).join(' ')} · {formatKg(row.weight_kg)} · {formatCbm(row.cbm)}</span>
                             {group.blIds.length > 1 && row.bl?.id ? <VehicleBlLink blId={row.bl.id} /> : null}
@@ -630,7 +630,7 @@ export function Veiculos() {
                               </td>
                             ) : null}
                             <td>
-                              <span className="app-cargo-cell__stack">
+                              <span className="app-cargo-cell__stack app-table__cell-stack">
                                 <span className="app-cargo-code">{row.chassis}</span>
                                 {group.blIds.length > 1 && row.bl?.id ? <VehicleBlLink blId={row.bl.id} /> : null}
                               </span>

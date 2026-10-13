@@ -160,10 +160,9 @@ export function Clientes() {
   const pageOutOfRange = Boolean(data && data.totalCount > 0 && filters.page >= totalPages)
   if (pageOutOfRange) setFilters((current) => ({ ...current, page: Math.max(0, totalPages - 1) }))
 
-  // O resumo é uma consulta própria: falha ou carregamento vira "—", nunca zero.
+  // O resumo é uma consulta própria: falha ou carregamento vira o traço discreto, nunca zero.
   const metric = (value: number | undefined, format: (n: number) => string = String) =>
-    summary && value !== undefined ? format(value) : '—'
-  // Mesma regra no resumo do recorte, que aceita o traço discreto (o MetricCard só aceita texto).
+    summary && value !== undefined ? format(value) : <NoValue label="Resumo indisponível" />
   const summaryMetric = (value: number | undefined) =>
     summary && value !== undefined ? String(value) : <NoValue label="Resumo indisponível" />
 

@@ -4,6 +4,15 @@
 
 ## 2026-10
 
+- **Passada única da identidade visual (2026-10-13, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md#passada-única-2026-10-13)):**
+  o que vale igual em qualquer tela foi aplicado de uma vez no Vela e no Portal: toda tabela segue
+  a tabela padrão (centralizada, com nome, descrição e observação à esquerda); a tabela dentro de
+  outra tabela tem cabeçalho claro; número de B/L, fatura, navio e Invoice não fica mais sublinhado
+  em repouso; dado ausente aparece como traço discreto; número do B/L, CE Mercante, CNPJ e número
+  do contêiner ganham o ícone de copiar (peça `CopyValue`), e as ações "Copiar …" que ficaram
+  repetidas saíram dos menus; ação escrita como texto sublinhado ou só ícone virou botão com nome
+  (Editar, Omitir, Excluir, Abrir …). A reorganização de cada tela segue em lotes, descritos no
+  plano. Documentos impressos não mudaram.
 - **Ficha do B/L na identidade visual (2026-10-13, tela 1 do
   [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):** a ficha passa a seguir
   a ordem fixa da identidade: faixa azul-marinho com número, navio, trecho, CE e Cliente; a próxima

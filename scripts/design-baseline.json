@@ -98,7 +98,7 @@
       "cor-tailwind": 13
     },
     "src/pages/ClientesComunicacao.tsx": {
-      "tamanho-solto": 10,
+      "tamanho-solto": 9,
       "caixa-alta": 2,
       "cor-tailwind": 16
     },
@@ -107,7 +107,7 @@
     },
     "src/pages/ClientesPortal.tsx": {
       "tamanho-solto": 1,
-      "cor-tailwind": 9
+      "cor-tailwind": 8
     },
     "src/pages/DesbloqueioCe.tsx": {
       "hex": 1
@@ -123,7 +123,7 @@
     "src/pages/GraniteRates.tsx": {
       "hex": 3,
       "caixa-alta": 1,
-      "cor-tailwind": 7
+      "cor-tailwind": 5
     },
     "src/pages/LineUpTVDisplay.tsx": {
       "hex": 1,

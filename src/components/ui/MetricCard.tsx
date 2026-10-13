@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 // Cartão de métrica/KPI padrão do app (estilo "app-metric-tile"): rótulo em
 // caixa normal + valor em destaque, fundo neutro, legível em tema claro e escuro.
 // Unifica as 7 cópias que existiam por página. Use no máximo quatro por tela e
@@ -11,7 +12,8 @@ export function MetricCard({
   selected = false,
 }: {
   label: string
-  value: string | number
+  /** Número ou texto; para ausência, `<NoValue />`. */
+  value: ReactNode
   tone?: 'primary' | 'secondary'
   onSelect?: () => void
   /** Filtro do card aplicado no momento. */

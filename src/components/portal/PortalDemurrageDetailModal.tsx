@@ -40,8 +40,8 @@ export function PortalDemurrageDetailModal({
             <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
               <MetricCard label="Status" value={portalInvoiceStatusLabel(invoice.status)} />
               <MetricCard label="Total USD" value={`$ ${Number(invoice.total_usd).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
-              <MetricCard label="Total BRL" value={invoice.current_total_brl != null ? formatBRL(invoice.current_total_brl) : '-'} />
-              <MetricCard label="ROE aplicado" value={invoice.current_roe != null ? formatBRL(invoice.current_roe) : '-'} />
+              <MetricCard label="Total BRL" value={invoice.current_total_brl != null ? formatBRL(invoice.current_total_brl) : <NoValue label="Sem total" />} />
+              <MetricCard label="ROE aplicado" value={invoice.current_roe != null ? formatBRL(invoice.current_roe) : <NoValue label="Sem ROE aplicado" />} />
             </div>
             <p className="text-xs text-[var(--app-muted)]">
               Valores atualizados em {formatDate(invoice.updated_at) ?? '-'} · fonte {portalRoeSourceLabel(invoice.roe_source)}.

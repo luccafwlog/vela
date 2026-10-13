@@ -926,7 +926,7 @@ function ProfileTag({ container }: { container: BaplieContainer }) {
   if (!container.is_imo && !container.is_oog) return <NoValue label="Sem IMO nem OOG" />
   const detail = container.is_imo ? [container.imo_class ? `classe ${container.imo_class}` : null, container.un_number ? `ONU ${container.un_number}` : null].filter(Boolean).join(' · ') : ''
   return (
-    <span className="app-cargo-cell__stack">
+    <span className="app-cargo-cell__stack app-table__cell-stack">
       <CargoProfileBadge isImo={Boolean(container.is_imo)} isOog={Boolean(container.is_oog)} />
       {detail ? <span className="app-cargo-cell__sub">{detail}</span> : null}
     </span>

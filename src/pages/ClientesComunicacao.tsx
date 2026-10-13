@@ -1004,10 +1004,10 @@ export function ClientesComunicacao() {
 
               <div className="p-5">
                 <div className="grid grid-cols-2 gap-2.5">
-                  <MetricCard label="Clientes" value={showConference ? conference.totalCustomers : '—'} />
-                  <MetricCard label="E-mails elegíveis" value={showConference ? conference.totalEligibleEmails : '—'} />
-                  <MetricCard label="Excluídos" value={showConference ? conference.totalExcludedEmails : '—'} />
-                  <MetricCard label="Selecionados" value={showConference ? selectedRows.length : '—'} tone={showConference ? 'primary' : 'secondary'} />
+                  <MetricCard label="Clientes" value={showConference ? conference.totalCustomers : <NoValue label="Sem conferência" />} />
+                  <MetricCard label="E-mails elegíveis" value={showConference ? conference.totalEligibleEmails : <NoValue label="Sem conferência" />} />
+                  <MetricCard label="Excluídos" value={showConference ? conference.totalExcludedEmails : <NoValue label="Sem conferência" />} />
+                  <MetricCard label="Selecionados" value={showConference ? selectedRows.length : <NoValue label="Sem conferência" />} tone={showConference ? 'primary' : 'secondary'} />
                 </div>
                 {!showConference ? (
                   <p className="mt-3 text-xs leading-relaxed text-[var(--app-muted)]">

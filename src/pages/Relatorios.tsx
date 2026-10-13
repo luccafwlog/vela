@@ -532,8 +532,8 @@ function CustomerReportTab() {
         </div>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
           <MetricCard label="Clientes ativos" value={String(data?.kpis.totalCustomers ?? 0)} />
-          <MetricCard label="Top por volume (B/Ls)" value={data?.kpis.topByBls ?? '-'} />
-          <MetricCard label="Top por faturamento" value={data?.kpis.topByInvoiced ?? '-'} />
+          <MetricCard label="Top por volume (B/Ls)" value={data?.kpis.topByBls ?? <NoValue label="Sem dados no período" />} />
+          <MetricCard label="Top por faturamento" value={data?.kpis.topByInvoiced ?? <NoValue label="Sem dados no período" />} />
         </div>
       </div>
 
