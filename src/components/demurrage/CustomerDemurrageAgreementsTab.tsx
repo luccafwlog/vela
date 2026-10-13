@@ -248,7 +248,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
                       <td className="tabular-nums">{agreementRatesText(item)}</td>
                       <td className="tabular-nums">{vigencia(item)}</td>
                       <td><AgreementSituationBadge agreement={item} /></td>
-                      <td className="app-dem-notes app-table__text" title={item.notes ?? undefined}>{item.notes ?? <NoValue label="Sem observações" />}</td>
+                      <td className="app-dem-notes app-table__text app-table__text--wrap">{item.notes ?? <NoValue label="Sem observações" />}</td>
                       {canEdit ? <td className="app-dem-row-action">{rowActions(item)}</td> : null}
                     </tr>
                   ))}

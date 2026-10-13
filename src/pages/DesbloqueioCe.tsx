@@ -1,3 +1,4 @@
+import { formatCnpjCpf } from "../lib/utils";
 import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -327,10 +328,10 @@ export function DesbloqueioCe() {
                           }
                         />
                       </th>
-                      <th scope="col" className="px-3 py-3">BL / CE</th>
+                      <th scope="col" className="px-3 py-3 app-table__text-head">BL / CE</th>
                       <th scope="col" className="px-3 py-3 app-table__text-head">Cliente</th>
                       <th scope="col" className="px-3 py-3 app-table__text-head">Viagem / POD</th>
-                      <th scope="col" className="px-3 py-3">Solicitação</th>
+                      <th scope="col" className="px-3 py-3 app-table__text-head">Solicitação</th>
                       <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">T. de Devolução</th>
                       <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">Procuração</th>
                       <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">Financeiro</th>
@@ -396,7 +397,7 @@ export function DesbloqueioCe() {
                               {i.customer_name}
                             </Link>
                             <span className="app-table__cell-meta flex items-center gap-1.5">
-                              <CopyValue value={i.cnpj_cpf} label="CNPJ/CPF" />
+                              <CopyValue value={i.cnpj_cpf ? formatCnpjCpf(i.cnpj_cpf) : null} label="CNPJ/CPF" />
                               {i.vip && <Badge tone="blue">VIP</Badge>}
                             </span>
                           </span>

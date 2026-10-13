@@ -21,14 +21,29 @@ export function CopyValue({
   /** O que aparece; padrão: o próprio valor. */
   children?: ReactNode
 }) {
+  const text = value?.trim() ?? ''
+  if (!text) return <>{children ?? null}</>
+  return (
+    <span className="app-copy">
+      {children ?? text}
+      <CopyButton value={text} label={label} />
+    </span>
+  )
+}
+
+/**
+ * Só o ícone de copiar, para quando o valor fica num elemento que não pode
+ * conter o botão (o título da ficha: o nome do título continua só o número).
+ * Quem usa põe o valor e o botão dentro de um elemento `.app-copy`.
+ */
+export function CopyButton({ value, label }: { value: string; label: string }) {
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current)
   }, [])
 
-  const text = value?.trim() ?? ''
-  if (!text) return <>{children ?? null}</>
+  const text = value.trim()
 
   async function copy() {
     try {
@@ -43,8 +58,7 @@ export function CopyValue({
   }
 
   return (
-    <span className="app-copy">
-      {children ?? text}
+    <>
       <button
         type="button"
         className="app-copy__button"
@@ -62,6 +76,6 @@ export function CopyValue({
       <span className="sr-only" aria-live="polite">
         {state === 'copied' ? `${label} copiado` : state === 'failed' ? `Não foi possível copiar o ${label}` : ''}
       </span>
-    </span>
+    </>
   )
 }

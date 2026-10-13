@@ -10,8 +10,9 @@ export const TSX_RULES = {
   // Cor por função CSS ("rgb(255,0,0)", "text-[hsl(0,0%,10%)]"): use os
   // tokens. Nome de cor solto ("red") fica de fora: confunde com texto comum.
   'cor-funcao': /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/g,
-  // Tamanho de letra fora da escala ("text-[11px]").
-  'tamanho-solto': /\btext-\[\d+(?:\.\d+)?px\]/g,
+  // Tamanho de letra fora da escala ("text-[11px]", "text-[0.7rem]",
+  // "text-[length:11pt]", style={{ fontSize: 11 }}).
+  'tamanho-solto': /\btext-\[(?:length:)?\d*\.?\d+(?:px|rem|em|pt)\]|\bfontSize:\s*['"]?\d/g,
   // Caixa alta em rótulo, cabeçalho, tag ou aba.
   'caixa-alta': /\buppercase\b/g,
   // Cor da paleta do Tailwind fora dos tokens ("text-slate-400", "bg-red-50").

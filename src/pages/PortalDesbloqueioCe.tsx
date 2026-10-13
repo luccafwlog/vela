@@ -323,7 +323,7 @@ export function PortalDesbloqueioCe() {
                           onChange={() => toggle(pageSelectable, !allPageSelected)}
                         />
                       </th>
-                      <th scope="col" className="px-3 py-3">BL / CE</th>
+                      <th scope="col" className="app-table__text-head px-3 py-3">BL / CE</th>
                       <th scope="col" className="app-table__text-head px-3 py-3">Navio / Viagem</th>
                       <th scope="col" className="px-3 py-3">POD</th>
                       <th scope="col" className="px-3 py-3">Taxas locais</th>
@@ -386,7 +386,7 @@ export function PortalDesbloqueioCe() {
                           </td>
                           <td className="px-3 py-3">{i.pod ?? <NoValue label="Sem POD" />}</td>
                           <td className="px-3 py-3">
-                            <span className="app-table__cell-stack">
+                            <span className="app-table__cell-stack app-table__cell-stack--center">
                               <span>
                                 <Badge tone={i.paid ? "green" : "yellow"}>{i.paid ? "Pagas" : "Pendentes"}</Badge>
                               </span>
@@ -571,7 +571,7 @@ export function PortalDesbloqueioCe() {
                     <caption className="sr-only">Requisitos de cada BL</caption>
                     <thead>
                       <tr>
-                        <th scope="col" className="px-3 py-2">BL / CE</th>
+                        <th scope="col" className="app-table__text-head px-3 py-2">BL / CE</th>
                         <th scope="col" className="px-2 py-2">Termo</th>
                         <th scope="col" className="px-2 py-2">Procuração</th>
                         <th scope="col" className="px-2 py-2">Taxas locais</th>

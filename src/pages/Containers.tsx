@@ -98,7 +98,7 @@ function BlCell({ row }: { row: ContainerRow }) {
 function OwnershipCell({ row }: { row: ContainerRow }) {
   const source = ownershipSourceLabel(row.ownership_source, row.ownership)
   return (
-    <span className="app-cargo-cell__stack app-table__cell-stack">
+    <span className="app-cargo-cell__stack app-table__cell-stack app-table__cell-stack--center">
       <ContainerOwnershipBadge ownership={row.ownership} />
       {source ? <span className="app-cargo-cell__sub">{source}</span> : null}
     </span>
@@ -453,7 +453,7 @@ export function Containers() {
                         />
                       </th>
                     ) : null}
-                    <th scope="col" className="app-cargo-table__id">Container</th>
+                    <th scope="col" className="app-cargo-table__id app-table__text-head">Container</th>
                     <th scope="col" className="app-table__text-head">B/L e cliente</th>
                     <th scope="col" className="app-table__text-head">Navio / Viagem</th>
                     <th scope="col">Tipo</th>

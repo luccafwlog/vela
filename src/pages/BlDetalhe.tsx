@@ -383,7 +383,8 @@ export function BlDetalhe() {
             {cancelledAt ? <> · <Badge tone="danger">Cancelado</Badge></> : null}
           </>
         )}
-        title={<CopyValue value={bl.id} label="número do B/L" />}
+        title={bl.id}
+        titleCopy={{ value: bl.id, label: 'número do B/L' }}
         facts={[
           { label: 'Navio / Viagem', value: bl.voyage_id && voyageLabel ? <Link to={`/viagens/${bl.voyage_id}`}>{voyageLabel}</Link> : <NoValue label="Sem viagem" /> },
           { label: 'Trecho', value: `${bl.pol ?? '—'} → ${bl.pod ?? '—'}` },

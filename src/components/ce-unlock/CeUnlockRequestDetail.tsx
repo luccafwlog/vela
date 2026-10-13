@@ -134,7 +134,7 @@ export function CeUnlockRequestDetail({
             <caption className="sr-only">Requisitos de cada BL da solicitação</caption>
             <thead>
               <tr>
-                <th scope="col" className="px-3 py-2">BL / CE</th>
+                <th scope="col" className="app-table__text-head px-3 py-2">BL / CE</th>
                 <th scope="col" className="px-2 py-2">Termo</th>
                 <th scope="col" className="px-2 py-2">Procuração</th>
                 <th scope="col" className="px-2 py-2">Taxas</th>

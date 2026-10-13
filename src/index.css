@@ -2867,6 +2867,13 @@ button.app-metric-tile[aria-pressed='true'] {
   color: #ffffff;
 }
 
+/* No tema escuro o azul-marinho quase some no fundo: a aba ativa ganha o
+   traço na cor de link (3:1 ou mais contra a superfície). */
+:root[data-visual-theme='dark'] .app-tab--active,
+:root[data-visual-theme='dark'] .app-tab[aria-selected='true'] {
+  box-shadow: inset 0 -3px 0 var(--app-link);
+}
+
 @media (pointer: fine) {
   .app-shell--vela .app-tab {
     min-height: 40px;
@@ -14788,6 +14795,11 @@ tr[data-inactive] .app-rates-item__value {
   color: #ffffff;
 }
 
+/* Mesma razão no tema escuro: a faixa de identidade ganha borda. */
+:root[data-visual-theme='dark'] .app-identity {
+  border: 1px solid var(--app-border-strong);
+}
+
 .app-identity__main {
   flex: 1 1 420px;
   min-width: 0;
@@ -14941,11 +14953,43 @@ tr[data-inactive] .app-rates-item__value {
   white-space: nowrap;
 }
 
+/* Linhas empilhadas dentro da célula (nome e e-mail, navio e viagem) cortam
+   cada uma com "…", em vez de sumirem na borda da coluna. */
+.app-shell table.app-table .app-table__text:not(.app-table__text--wrap) > :is(div, p) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Texto corrido que é o próprio conteúdo da linha e não aparece inteiro em
+   outro lugar (mensagem do alerta, observação, descrição do item na fatura):
+   à esquerda, quebrando linha, sem "…" (revisão da PR 940). */
+.app-shell table.app-table .app-table__text--wrap {
+  max-width: 420px;
+  min-width: 160px;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: pre-line;
+}
+
+/* Célula que ocupa a linha inteira (linha aberta, aviso, carregando) não é
+   coluna de dado: o conteúdo segue à esquerda, como antes da tabela padrão.
+   Quem quiser centralizar mantém o text-center. */
+.app-shell table.app-table td[colspan]:not([class~='text-center']) {
+  text-align: left;
+}
+
 /* Texto que já se declara longo (truncado ou empilhado) fica à esquerda sem
    marcação extra. */
-.app-shell table.app-table :is(th, td):has(> .app-table__truncate, > .app-table__cell-stack),
+.app-shell table.app-table :is(th, td):has(> .app-table__truncate, > .app-table__cell-stack:not(.app-table__cell-stack--center)),
 .app-shell table.app-table th.app-table__text-head {
   text-align: left;
+}
+
+/* Pilha de selo ou número (situação, free time, valor) não é texto longo:
+   segue centralizada, como o título da coluna. Fora da tabela não muda nada. */
+.app-shell table.app-table .app-table__cell-stack--center {
+  justify-items: center;
 }
 
 /* Tabela dentro de tabela (linha aberta, atracações): cabeçalho claro, para
@@ -14995,7 +15039,11 @@ tr[data-inactive] .app-rates-item__value {
 /* Regra 9 (decisão de 2026-10-13): identificador que abre o registro (B/L,
    fatura, navio, Invoice) fica só na cor de link; sublinha ao passar o mouse
    ou receber o foco. Link no meio de uma frase continua sublinhado. */
-.app-shell main a:not(.app-btn, [role], [class*='card']):is(:hover, :focus-visible) {
+/* ponytail: lista de exclusão por nome de classe. Link com cara de botão,
+   cartão, chip ou item de navegação não sublinha; um link novo desse tipo
+   com classe fora desta lista sublinha ao passar o mouse. A saída é uma
+   classe comum de identificador, se a lista crescer. */
+.app-shell main a:not(.app-btn, [role], [class*='card'], [class*='nav'], [class*='action'], [class*='rounded'], [class*='border']):is(:hover, :focus-visible) {
   text-decoration: underline;
   text-underline-offset: 3px;
 }

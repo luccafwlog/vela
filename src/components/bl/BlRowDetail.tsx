@@ -78,7 +78,7 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
                   rows={items.map((item, index) => ({
                     key: String(item.id ?? `${item.item_description}-${index}`),
                     cells: [
-                      <span className="font-medium text-[var(--app-text-strong)]">{item.item_description || <NoValue label="Sem descrição" />}</span>,
+                      <span className="font-medium text-[var(--app-text-strong)]" title={item.item_description || undefined}>{item.item_description || <NoValue label="Sem descrição" />}</span>,
                       formatOptionalNumber(item.package_qty, 'Sem packages'),
                       item.package_unit ?? <NoValue label="Sem unidade" />,
                       formatOptionalNumber(item.gross_weight_kg, 'Sem peso'),

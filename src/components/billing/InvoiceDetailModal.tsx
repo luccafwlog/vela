@@ -373,7 +373,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   </p>
                   <p className="app-invoice-detail__customer">{detailInvoice.customer_name ?? 'Cliente não identificado'}</p>
                   <p className="app-invoice-detail__meta">
-                    {detailInvoice.customer_cnpj_cpf ? <span>CNPJ <CopyValue value={formatCnpjCpf(detailInvoice.customer_cnpj_cpf)} label="CNPJ" /></span> : null}
+                    {detailInvoice.customer_cnpj_cpf ? <span>CNPJ <CopyValue value={formatCnpjCpf(detailInvoice.customer_cnpj_cpf)} label="CNPJ/CPF" /></span> : null}
                     {voyageParts ? <span>Navio / Viagem {voyageParts}</span> : null}
                   </p>
                   {detailIsManual && detailInvoice.notes ? <p className="app-invoice-detail__description"><span className="sr-only">Descrição da cobrança: </span>{detailInvoice.notes}</p> : null}
@@ -448,7 +448,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                         const usdNote = describeUsdConversionNote(item)
                         return (
                           <tr key={item.id}>
-                            <td className="app-table__text">
+                            <td className="app-table__text app-table__text--wrap">
                               {stripBlPrefix(item.description, item.bl_id)}
                               {usdNote ? <span className="app-invoice-detail__cell-note">{usdNote}</span> : null}
                             </td>
@@ -487,7 +487,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                             <td>{paymentMethodLabel(payment.payment_method)}</td>
                             <td>{payment.registered_by_name || <NoValue label="Sem responsável pelo registro" />}</td>
                             <td><span className="app-invoice-detail__wrap">{payment.bank_reference || <NoValue label="Sem referência bancária" />}</span></td>
-                            <td className="app-table__text"><span className="app-invoice-detail__wrap">{payment.notes || <NoValue label="Sem observação" />}</span></td>
+                            <td className="app-table__text app-table__text--wrap"><span className="app-invoice-detail__wrap">{payment.notes || <NoValue label="Sem observação" />}</span></td>
                             <td className="app-invoice-detail__num">{formatBRL(payment.amount_brl)}</td>
                             {isAdmin ? (
                               <td className="app-invoice-detail__row-action">

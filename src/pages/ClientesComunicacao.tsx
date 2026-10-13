@@ -1,3 +1,4 @@
+import { formatCnpjCpf } from '../lib/utils'
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Building2, CheckCircle2, Eye, History, Info, Mail, Paperclip, Pencil, Send, Users } from 'lucide-react'
@@ -1356,7 +1357,7 @@ function ConferenceRow({
         <div className="app-table__cell-stack">
           <div className="font-semibold text-[var(--app-text-strong)]">{row.customerName}</div>
           <div className="mt-0.5 font-mono text-[11px] text-[var(--app-muted)]">
-            {row.customerCnpj ? <CopyValue value={row.customerCnpj} label="CNPJ" /> : 'CNPJ não informado'}
+            {row.customerCnpj ? <CopyValue value={formatCnpjCpf(row.customerCnpj)} label="CNPJ/CPF" /> : 'CNPJ não informado'}
           </div>
           {row.terminalName ? <div className="mt-1"><Badge tone="blue">{row.terminalName}</Badge></div> : null}
         </div>

@@ -309,7 +309,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
                   <div className="min-w-0">
                     <div className="app-facts__label">Declarado no manifesto</div>
                     <div className="font-medium text-[var(--app-text-strong)]">{manifestName}</div>
-                    <div className="app-bl-code app-facts__detail"><CopyValue value={formatCnpjCpf(manifestDocument)} label="CNPJ/CPF" /></div>
+                    <div className="app-bl-code app-facts__detail"><CopyValue value={manifestDocument ? formatCnpjCpf(manifestDocument) : null} label="CNPJ/CPF" /></div>
                   </div>
                   <Button type="button" onClick={() => void linkManifestCustomer()} loading={saving}>Vincular este cliente</Button>
                 </div>

@@ -216,13 +216,13 @@ export function DemurrageRates() {
                           </td>
                           <td className="app-dem-num">{rate.free_days} dias</td>
                           <td>
-                            <div className="app-table__cell-stack">
+                            <div className="app-table__cell-stack app-table__cell-stack--center">
                               <span className="tabular-nums">{formatUSD(rate.p1_usd ?? 0)}/dia</span>
                               <span className="app-dem-meta">dias {rate.p1_day_from} a {rate.p1_day_to}</span>
                             </div>
                           </td>
                           <td>
-                            <div className="app-table__cell-stack">
+                            <div className="app-table__cell-stack app-table__cell-stack--center">
                               <span className="tabular-nums">{formatUSD(rate.p2_usd ?? 0)}/dia</span>
                               <span className="app-dem-meta">a partir do dia {rate.p2_day_from}</span>
                             </div>

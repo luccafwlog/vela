@@ -46,14 +46,24 @@ function measure() {
 const current = measure()
 const flatten = (data) => ({ ...data.tsx, ...data.css })
 
+const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'))
+const { increases, decreases } = compare(flatten(baseline), flatten(current))
+
 if (process.argv.includes('--update')) {
+  // A linha de base só desce: `--update` recusa aumento. Regra nova do gate
+  // ou peça comum registrada no documento da identidade entram com
+  // `--allow-increase`, que lista o que subiu para ir na descrição da PR.
+  if (increases.length && !process.argv.includes('--allow-increase')) {
+    console.error('A linha de base só desce; estes pontos subiram e não foram gravados:')
+    for (const { scope, key, previous, value } of increases) console.error(`- ${scope}: "${key}" de ${previous} para ${value}`)
+    console.error('Corrija as violações ou, se o aumento for intencional (regra nova do gate, peça comum registrada), rode com `--update --allow-increase` e justifique na PR.')
+    process.exit(1)
+  }
+  for (const { scope, key, previous, value } of increases) console.warn(`Aumento aceito: ${scope}: "${key}" de ${previous} para ${value}`)
   fs.writeFileSync(baselinePath, `${JSON.stringify(current, null, 2)}\n`)
   console.log(`Linha de base atualizada em ${path.relative(root, baselinePath)}.`)
   process.exit(0)
 }
-
-const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'))
-const { increases, decreases } = compare(flatten(baseline), flatten(current))
 
 if (decreases.length) {
   console.log(`Melhorou em ${decreases.length} ponto(s) desde a linha de base; rode \`npm run design:check -- --update\` para travar o ganho.`)

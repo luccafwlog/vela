@@ -173,9 +173,13 @@ export function BlVisaoGeralTab({ active, bl, cargoMode, containerSummary, break
                       {container.container_number ? <CopyValue value={container.container_number} label="número do contêiner" /> : <NoValue label="Sem número do contêiner" />}
                     </td>
                     <td className="tabular-nums">
-                      {container.return_date ? formatDate(container.return_date) : <NoValue label={soc ? 'SOC, sem devolução' : 'Sem data de devolução'} />}
+                      {container.return_date ? formatDate(container.return_date) : soc ? <span className="text-[var(--app-muted)]">Não se aplica (SOC)</span> : <NoValue label="Sem data de devolução" />}
                     </td>
-                    <td>{soc ? <NoValue label="SOC, sem Demurrage" /> : <DemurrageStatusBadge status={container.demurrage_status} />}</td>
+                    <td>
+                      {/* Sem descarga o banco grava "no free time" por padrão (migration 197):
+                          o selo só aparece depois que o contêiner descarregou. */}
+                      {soc ? <span className="text-[var(--app-muted)]">Não se aplica (SOC)</span> : container.discharge_date ? <DemurrageStatusBadge status={container.demurrage_status} /> : <NoValue label="Sem descarga" />}
+                    </td>
                     <td className="tabular-nums">
                       {container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem descarga" />}
                     </td>

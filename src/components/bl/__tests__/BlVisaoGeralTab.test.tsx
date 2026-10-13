@@ -123,4 +123,23 @@ describe('BlVisaoGeralTab — blocos da identidade', () => {
     expect(screen.getByText('Sem vínculo com Manifesto Mercante')).toBeTruthy()
     expect(within(carga).getByText('Sem data de devolução')).toBeTruthy()
   })
+
+  it('não mostra free time de contêiner que ainda não descarregou, e SOC não tem devolução nem Demurrage', () => {
+    render(
+      <MemoryRouter>
+        <BlVisaoGeralTab
+          active
+          bl={{ ...(baseBl as object), bl_containers: [container(1, 'CSNU6012301', { discharge_date: null }), container(2, 'SOCU6012302', { ownership: 'SOC' })] } as never}
+          cargoMode="container"
+          containerSummary={{ ...containerSummary, distinct: 2, coc: 1, soc: 1 }}
+          breakbulkSummary={breakbulkSummary}
+          baplieStatus={{ state: 'not_imported', divergenceCount: 0 }}
+        />
+      </MemoryRouter>,
+    )
+    const carga = screen.getByRole('region', { name: 'Carga' })
+    expect(within(carga).queryByText('No free time')).toBeNull()
+    expect(within(carga).getAllByText('Sem descarga').length).toBeGreaterThan(0)
+    expect(within(carga).getAllByText('Não se aplica (SOC)')).toHaveLength(2)
+  })
 })

@@ -115,7 +115,7 @@ export function InvoicesTable({
                       <InvoiceNumberButton invoice={invoice} onSelect={onSelectInvoice} />
                       <span className="app-invoices__meta">{typeText(invoice, bls)}</span>
                     </td>
-                    <td className="app-table__text"><CustomerCell invoice={invoice} /></td>
+                    <td className="app-table__text app-table__text--wrap"><CustomerCell invoice={invoice} /></td>
                     <td><BlLinks bls={bls} manual={invoice.invoice_type === 'manual'} /></td>
                     <td>
                       <span className="app-invoices__clamp">{formatVesselVoyage(bls, invoice) ?? <NoValue label="Sem navio e viagem" />}</span>

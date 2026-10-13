@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { CopyButton } from './CopyValue'
 
 export type IdentityFact = { label: string; value: ReactNode }
 
@@ -10,11 +11,14 @@ export type IdentityFact = { label: string; value: ReactNode }
 export function IdentityBand({
   kind,
   title,
+  titleCopy,
   facts = [],
   actions,
 }: {
   kind?: ReactNode
   title: ReactNode
+  /** Ícone de copiar ao lado do título, fora do `h1` (o nome do título fica só o identificador). */
+  titleCopy?: { value: string; label: string }
   facts?: IdentityFact[]
   actions?: ReactNode
 }) {
@@ -22,7 +26,14 @@ export function IdentityBand({
     <header className="app-identity">
       <div className="app-identity__main">
         {kind ? <p className="app-identity__kind">{kind}</p> : null}
-        <h1 className="app-identity__title">{title}</h1>
+        {titleCopy ? (
+          <div className="app-copy">
+            <h1 className="app-identity__title">{title}</h1>
+            <CopyButton value={titleCopy.value} label={titleCopy.label} />
+          </div>
+        ) : (
+          <h1 className="app-identity__title">{title}</h1>
+        )}
         {facts.length ? (
           <dl className="app-identity__facts">
             {facts.map((fact) => (

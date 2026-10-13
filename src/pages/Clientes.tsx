@@ -163,8 +163,6 @@ export function Clientes() {
   // O resumo é uma consulta própria: falha ou carregamento vira o traço discreto, nunca zero.
   const metric = (value: number | undefined, format: (n: number) => string = String) =>
     summary && value !== undefined ? format(value) : <NoValue label="Resumo indisponível" />
-  const summaryMetric = (value: number | undefined) =>
-    summary && value !== undefined ? String(value) : <NoValue label="Resumo indisponível" />
 
   async function handleCreateCustomer() {
     const validation = customerCreateSchema.safeParse({
@@ -494,10 +492,10 @@ export function Clientes() {
   const summaryItems = summaryQuery.isError
     ? [{ label: 'resumo indisponível', value: <NoValue label="Resumo indisponível" /> }]
     : [
-        { label: summary?.totalCustomers === 1 ? 'cliente' : 'clientes', value: summaryMetric(summary?.totalCustomers) },
-        { label: 'B/Ls vinculados', value: summaryMetric(summary?.totalBls) },
-        { label: 'com taxas a revisar', value: summaryMetric(summary?.chargePending), tone: summary?.chargePending ? 'warning' as const : 'default' as const },
-        { label: 'prontos para faturar', value: summaryMetric(summary?.chargeReady) },
+        { label: summary?.totalCustomers === 1 ? 'cliente' : 'clientes', value: metric(summary?.totalCustomers) },
+        { label: 'B/Ls vinculados', value: metric(summary?.totalBls) },
+        { label: 'com taxas a revisar', value: metric(summary?.chargePending), tone: summary?.chargePending ? 'warning' as const : 'default' as const },
+        { label: 'prontos para faturar', value: metric(summary?.chargeReady) },
       ]
 
   return (

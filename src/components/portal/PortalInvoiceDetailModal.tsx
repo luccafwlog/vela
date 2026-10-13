@@ -147,7 +147,7 @@ export function PortalInvoiceDetailModal({
                 <table className="app-table app-table--compact min-w-[680px] text-sm">
                   <thead>
                     <tr>
-                      <th scope="col" className="app-table__text-head px-3 py-2">Descricao</th>
+                      <th scope="col" className="app-table__text-head px-3 py-2">Descrição</th>
                       {hasItemBls ? <th scope="col" className="px-3 py-2">B/L</th> : null}
                       <th scope="col" className="px-3 py-2">Qtd</th>
                       <th scope="col" className="px-3 py-2">Valor unit.</th>
@@ -157,7 +157,7 @@ export function PortalInvoiceDetailModal({
                   <tbody>
                     {(detail?.items ?? []).map((item) => (
                       <tr key={item.id}>
-                        <td className="app-table__text px-3 py-2">{stripBlPrefix(item.description, item.bl_id)}</td>
+                        <td className="app-table__text app-table__text--wrap px-3 py-2">{stripBlPrefix(item.description, item.bl_id)}</td>
                         {hasItemBls ? <td className="px-3 py-2">{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L" /> : <NoValue label="Sem B/L" />}</td> : null}
                         <td className="px-3 py-2">{item.quantity ?? <NoValue label="Sem quantidade" />}</td>
                         <td className="px-3 py-2">{item.unit_value_brl != null ? formatBRL(item.unit_value_brl) : <NoValue label="Sem valor unitário" />}</td>

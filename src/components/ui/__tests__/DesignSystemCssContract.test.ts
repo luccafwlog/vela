@@ -151,6 +151,13 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/table\.app-table th,\s*\.app-shell table\.app-table td\s*\{[^}]*text-align:\s*center/s)
     expect(css).toMatch(/table\.app-table \.app-table__text\s*\{[^}]*text-align:\s*left[^}]*text-overflow:\s*ellipsis/s)
     expect(css).not.toMatch(/app-table--padrao/)
+    // Revisão da PR 940: texto corrido quebra linha; pilha de selo ou número
+    // segue centralizada; célula de linha inteira (colspan) fica à esquerda.
+    expect(css).toMatch(/\.app-table__text--wrap\s*\{[^}]*white-space:\s*pre-line/s)
+    expect(css).toMatch(/> \.app-table__cell-stack:not\(\.app-table__cell-stack--center\)\)/)
+    expect(css).toMatch(/td\[colspan\]:not\(\[class~='text-center'\]\)\s*\{[^}]*text-align:\s*left/s)
+    // Tema escuro: a aba ativa tem traço visível e a faixa de identidade, borda.
+    expect(css).toMatch(/\[data-visual-theme='dark'\] \.app-tab\[aria-selected='true'\]\s*\{[^}]*box-shadow:\s*inset 0 -3px 0 var\(--app-link\)/s)
     // Tabela dentro de tabela: cabeçalho claro pela faixa dos blocos.
     expect(css).toMatch(/table\.app-table--nested\s*\{[^}]*--app-thead-bg:\s*var\(--app-strip\)/s)
     expect(css).toMatch(/th\.app-table__group > span\s*\{[^}]*border-bottom:\s*2px solid/s)

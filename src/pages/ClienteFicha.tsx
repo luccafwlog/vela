@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card'
 import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { useCustomerDetail } from '../hooks/useCustomers'
 import { buildCustomerBillingUrl } from '../lib/customerTableViewModel'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -100,7 +101,7 @@ export function ClienteFicha() {
           <p className="app-customer-head__eyebrow">
             <span>Cliente</span>
             <span aria-hidden="true">·</span>
-            <span>CNPJ <span className="tabular-nums"><CopyValue value={formatCnpjCpf(data.cnpj_cpf)} label="CNPJ" /></span></span>
+            <span>CNPJ <span className="tabular-nums">{data.cnpj_cpf ? <CopyValue value={formatCnpjCpf(data.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span></span>
             {deactivatedAt ? <Badge tone="neutral">Desativado</Badge> : null}
           </p>
           <h1 className="app-customer-head__title">{data.name}</h1>

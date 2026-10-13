@@ -444,7 +444,7 @@ function SituationCell({ container, onOpenInvoice }: { container: DemurrageConta
   const note = situationNote(container)
   const billed = container.billed_in ?? []
   return (
-    <div className="app-table__cell-stack">
+    <div className="app-table__cell-stack app-table__cell-stack--center">
       <DemurrageStatusBadge status={container.demurrage_status} />
       {note ? <span className="app-dem-meta">{note}</span> : null}
       {billed.length ? (
@@ -484,7 +484,7 @@ function ContainerRow({
       <td className="tabular-nums">{container.return_date ? formatDate(container.return_date) : <span className="app-dem-meta">Não devolvido</span>}</td>
       <td>
         {result ? (
-          <div className="app-table__cell-stack">
+          <div className="app-table__cell-stack app-table__cell-stack--center">
             <span className="tabular-nums">{containerFreeTimeDays(container) ?? result.free_days} dias</span>
             <span className="app-dem-meta">{FREE_TIME_SOURCE_LABELS[freeTimeSource(container)]}</span>
           </div>
@@ -492,7 +492,7 @@ function ContainerRow({
       </td>
       <td className="tabular-nums">{result ? `${result.days_p1} d · ${result.days_p2} d` : <NoValue label="Sem dias calculados" />}</td>
       <td><SituationCell container={container} onOpenInvoice={onOpenInvoice} /></td>
-      <td className="app-dem-num"><div className="app-table__cell-stack"><UsdCell container={container} calc={calc} /></div></td>
+      <td className="app-dem-num"><div className="app-table__cell-stack app-table__cell-stack--center"><UsdCell container={container} calc={calc} /></div></td>
       <td className="app-dem-row-action">
         <Button
           type="button"

@@ -8,6 +8,11 @@ assert.deepEqual(
 )
 assert.deepEqual(countTsx('<Block title="Carga"><LeadValue>0 de 2 devolvidos</LeadValue></Block>'), {})
 assert.deepEqual(countTsx('const fonte = "Syne"'), { 'fonte-de-marca': 1 })
+// Tamanho fora da escala em qualquer unidade e no style; token não conta.
+assert.deepEqual(
+  countTsx('className="text-[0.7rem] text-[length:11pt] text-[13px] text-[var(--app-size-caption)]" style={{ fontSize: 11 }}'),
+  { 'tamanho-solto': 4 },
+)
 assert.deepEqual(countTsx('href="#exemplo" className="text-[var(--app-link)]"'), {})
 // Cor por função CSS também é cor escrita direto; "var(--app-x)" não é.
 assert.deepEqual(countTsx('style={{ color: "rgb(255, 0, 0)" }} className="text-[hsl(0,0%,10%)] bg-[var(--app-surface)]"'), { 'cor-funcao': 2 })

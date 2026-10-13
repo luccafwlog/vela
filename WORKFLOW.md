@@ -578,7 +578,8 @@ comuns e aprovação tela a tela da organização. Em resumo:
 - não crie CSS próprio de página nem cor, tamanho de letra ou caixa alta fora
   dos tokens; `npm run design:check` recusa o que cresce além da linha de base
   `scripts/design-baseline.json`, e `npm run design:check -- --update` trava o
-  ganho depois de migrar uma tela;
+  ganho depois de migrar uma tela (recusa número que subiu; aumento
+  intencional usa `--allow-increase` e é justificado na PR);
 - use tokens CSS de `src/index.css`;
 - mantenha lógica de domínio fora de primitivas visuais;
 - preserve estados de loading, vazio, erro e feedback de mutation;

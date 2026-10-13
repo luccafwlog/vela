@@ -21,6 +21,7 @@ import {
 } from '../../services/reconciliacao'
 import { extractErrorText } from '../../lib/errors'
 import { formatBRL, formatCnpjCpf } from '../../lib/utils'
+import { CopyValue } from '../ui/CopyValue'
 import {
   describeConfirmation,
   exceptionKindLabel,
@@ -326,9 +327,9 @@ function ExtractLines({ lines, variant }: { lines: UnifiedPixMatch[]; variant: '
                       <span className="app-pix-doc">{match.docNumber}</span>
                       <span className="app-pix-meta">{sourceLabel(match.source)}</span>
                     </td>
-                    <td className="app-table__text">
+                    <td className="app-table__text app-table__text--wrap">
                       <span className="app-pix-clamp">{match.customerName || <NoValue label="Sem Cliente" />}</span>
-                      {match.customerCnpj ? <span className="app-pix-meta tabular-nums">{formatCnpjCpf(match.customerCnpj)}</span> : null}
+                      {match.customerCnpj ? <span className="app-pix-meta tabular-nums"><CopyValue value={formatCnpjCpf(match.customerCnpj)} label="CNPJ/CPF" /></span> : null}
                     </td>
                   </>
                 ) : (

@@ -529,7 +529,7 @@ function AlertRow({
           <NoValue label="Sem responsável" />
         )}
       </td>
-      <td className="app-table__text px-4 py-3 text-[var(--app-text)]" title={alert.message}>{alert.message}</td>
+      <td className="app-table__text app-table__text--wrap px-4 py-3 text-[var(--app-text)]">{alert.message}</td>
       <td className="app-table__text px-4 py-3 text-[var(--app-muted)]">
         {entityFormatted ? (
           <span className="text-xs">{entityFormatted}</span>

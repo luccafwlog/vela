@@ -258,7 +258,7 @@ function OperationalReportTab() {
                   </td>
                   <td className="px-4 py-3">{row.pol ?? <NoValue label="Sem POL" />}</td>
                   <td className="px-4 py-3">{row.pod ?? <NoValue label="Sem POD" />}</td>
-                  <td className="app-table__text px-4 py-3 text-[var(--app-text)]">{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
+                  <td className="app-table__text px-4 py-3 text-[var(--app-text)]" title={row.customer?.name ?? undefined}>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
                   <td className="px-4 py-3">{(row.bl_containers ?? []).length}</td>
                   <td className="px-4 py-3 font-mono">
                     {blTotalWeightKg(row).toLocaleString('pt-BR')}
@@ -425,8 +425,8 @@ function FinancialReportTab() {
                   {data?.rows.map((row) => (
                     <tr key={row.id}>
                       <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]">{row.invoice_number ?? `INV-${row.id}`}</td>
-                      <td className="app-table__text px-4 py-3 text-[var(--app-text)]">{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
-                      <td className="px-4 py-3 text-[var(--app-muted)]">{formatDate(row.issued_at)}</td>
+                      <td className="app-table__text px-4 py-3 text-[var(--app-text)]" title={row.customer?.name ?? undefined}>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
+                      <td className="px-4 py-3 text-[var(--app-muted)]">{row.issued_at ? formatDate(row.issued_at) : <NoValue label="Sem data de emissão" />}</td>
                       <td className="px-4 py-3 font-mono text-[var(--app-text-strong)]">{formatBRL(row.total_brl ?? 0)}</td>
                       <td className="px-4 py-3 font-mono text-amber-700">{formatBRL(row.balance_brl ?? 0)}</td>
                       <td className="px-4 py-3">
@@ -580,7 +580,7 @@ function CustomerReportTab() {
               ) : null}
               {data?.rows.map((row) => (
                 <tr key={row.customer_id}>
-                  <td className="app-table__text px-4 py-3 font-semibold text-[var(--app-text-strong)]">{row.name}</td>
+                  <td className="app-table__text px-4 py-3 font-semibold text-[var(--app-text-strong)]" title={row.name ?? undefined}>{row.name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-[var(--app-muted)]">{row.cnpj_cpf ? <CopyValue value={formatCnpjCpf(row.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</td>
                   <td className="px-4 py-3">{row.blCount}</td>
                   <td className="px-4 py-3 font-mono">
@@ -740,7 +740,7 @@ function DemurrageReportTab() {
                 <tr key={invoice.id}>
                   <td className="px-4 py-2 font-mono text-xs text-[var(--app-text-strong)]">{invoice.doc_number}</td>
                   <td className="px-4 py-2 text-[var(--app-blue-btn)]"><CopyValue value={invoice.bl_id} label="número do B/L" /></td>
-                  <td className="app-table__text px-4 py-2">{invoice.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
+                  <td className="app-table__text px-4 py-2" title={invoice.customer?.name ?? undefined}>{invoice.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
                   <td className="px-4 py-2 text-[var(--app-muted)]">{invoice.doc_date ? formatDate(invoice.doc_date) : <NoValue label="Sem data de emissão" />}</td>
                   <td className="px-4 py-2 text-[var(--app-muted)]">{invoice.due_date ? formatDate(invoice.due_date) : <NoValue label="Sem vencimento" />}</td>
                   <td className="px-4 py-2 font-mono font-semibold text-amber-700">{formatUSD(invoice.total_usd ?? 0)}</td>

@@ -370,7 +370,7 @@ export function Granite() {
               <tbody>
                 {chargeLines.map((line, i) => (
                   <tr key={i}>
-                    <td className="app-table__text px-3 py-2">{line.description ?? <NoValue label="Sem descrição" />}</td>
+                    <td className="app-table__text px-3 py-2" title={line.description ?? undefined}>{line.description ?? <NoValue label="Sem descrição" />}</td>
                     <td className="px-3 py-2">{line.charge_type ?? <NoValue label="Sem tipo" />}</td>
                     <td className="px-3 py-2">{line.quantity != null ? Number(line.quantity).toLocaleString('pt-BR') : <NoValue label="Sem quantidade" />}</td>
                     <td className="px-3 py-2">{line.unit_value != null ? Number(line.unit_value).toLocaleString('pt-BR', { minimumFractionDigits: 4 }) : <NoValue label="Sem valor unitário" />}</td>

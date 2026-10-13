@@ -269,9 +269,11 @@ export function Admin() {
                     const legacyRoleTitle = u.role !== normalizedRole ? `Perfil legado: ${PROFILE_LABELS[u.role] ?? u.role}` : undefined
                     return (
                       <tr key={u.id} className={!u.active ? 'opacity-60' : undefined}>
-                        <td className="app-table__text px-4 py-3">
-                          <div className="font-medium text-[var(--app-text-strong)]">{u.full_name}</div>
-                          <div className="text-xs text-[var(--app-muted)]">{u.email ?? <NoValue label="Sem e-mail" />}</div>
+                        <td className="px-4 py-3">
+                          <div className="app-table__cell-stack">
+                            <div className="app-table__truncate app-table__truncate--xl font-medium text-[var(--app-text-strong)]" title={u.full_name ?? undefined}>{u.full_name}</div>
+                            <div className="app-table__truncate app-table__truncate--xl text-xs text-[var(--app-muted)]" title={u.email ?? undefined}>{u.email ?? <NoValue label="Sem e-mail" />}</div>
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <select
@@ -465,7 +467,7 @@ export function Admin() {
                           <td className="px-4 py-2 text-[var(--app-muted)]">
                             {AGENCY_REPORT_DEPARTMENT_LABELS[f.department] ?? f.department}
                           </td>
-                          <td className="app-table__text px-4 py-2 text-rose-400 text-xs" title={f.reason ?? undefined}>
+                          <td className="app-table__text app-table__text--wrap px-4 py-2 text-rose-400 text-xs">
                             {f.reason}
                           </td>
                           <td className="px-4 py-2">

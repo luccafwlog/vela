@@ -121,7 +121,7 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
               {renderInvoiceBadge(invoice.status)}
             </div>
             <div className="mt-2 flex items-center justify-between text-sm text-[var(--app-muted)]">
-              <span>{invoiceTypeLabel(invoice.invoice_type)} · {formatDate(invoice.issued_at)}</span>
+              <span>{invoiceTypeLabel(invoice.invoice_type)} · {invoice.issued_at ? formatDate(invoice.issued_at) : <NoValue label="Sem data de emissão" />}</span>
               <span className="font-semibold text-[var(--app-text)]">{formatBRL(invoice.total_brl)}</span>
             </div>
             <div className="mt-1 text-sm text-[var(--app-muted)]">{(invoice.vessel_voyages ?? []).join(' / ') || <NoValue label="Sem navio/viagem" />}</div>

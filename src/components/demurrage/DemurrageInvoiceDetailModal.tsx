@@ -294,12 +294,12 @@ function DetailBody({
                 <tr key={item.id}>
                   <td className="app-invoice-detail__code"><CopyValue value={item.container_number} label="número do contêiner" /></td>
                   <td>{item.container_type ?? <NoValue label="Sem tipo" />}</td>
-                  <td className="tabular-nums">{formatDate(item.discharge_date)}</td>
-                  <td className="tabular-nums">{formatDate(item.return_date)}</td>
+                  <td className="tabular-nums">{item.discharge_date ? formatDate(item.discharge_date) : <NoValue label="Sem descarga" />}</td>
+                  <td className="tabular-nums">{item.return_date ? formatDate(item.return_date) : <NoValue label="Sem devolução" />}</td>
                   <td className="app-invoice-detail__num">{item.total_days}</td>
                   <td className="app-invoice-detail__num">{item.free_days}</td>
-                  <td className="app-invoice-detail__num">{item.days_p1 > 0 ? `${item.days_p1} × ${fmtUSD(item.rate_p1_usd)}` : <NoValue label="Sem dias em P1" />}</td>
-                  <td className="app-invoice-detail__num">{item.days_p2 > 0 ? `${item.days_p2} × ${fmtUSD(item.rate_p2_usd)}` : <NoValue label="Sem dias em P2" />}</td>
+                  <td className="app-invoice-detail__num">{item.days_p1 > 0 ? `${item.days_p1} × ${fmtUSD(item.rate_p1_usd)}` : '0 d'}</td>
+                  <td className="app-invoice-detail__num">{item.days_p2 > 0 ? `${item.days_p2} × ${fmtUSD(item.rate_p2_usd)}` : '0 d'}</td>
                   <td className="app-invoice-detail__num">{fmtUSD(item.subtotal_usd)}</td>
                 </tr>
               )) : (

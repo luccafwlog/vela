@@ -12,7 +12,12 @@
   do contêiner ganham o ícone de copiar (peça `CopyValue`), e as ações "Copiar …" que ficaram
   repetidas saíram dos menus; ação escrita como texto sublinhado ou só ícone virou botão com nome
   (Editar, Omitir, Excluir, Abrir …). A reorganização de cada tela segue em lotes, descritos no
-  plano. Documentos impressos não mudaram.
+  plano. Documentos impressos não mudaram. Na revisão da PR: mensagem do alerta, observação e
+  descrição de item voltam a quebrar linha em vez de virar "…"; a Visão geral do B/L não mostra
+  mais "No free time" em contêiner que ainda não descarregou, e SOC aparece como "Não se aplica";
+  o CNPJ é copiado sempre formatado; o Tracking do Portal mantém o botão "Copiar número do B/L";
+  no tema escuro a aba ativa ganha traço e a faixa de identidade, borda; e
+  `design:check -- --update` passa a recusar número que subiu.
 - **Ficha do B/L na identidade visual (2026-10-13, tela 1 do
   [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):** a ficha passa a seguir
   a ordem fixa da identidade: faixa azul-marinho com número, navio, trecho, CE e Cliente; a próxima

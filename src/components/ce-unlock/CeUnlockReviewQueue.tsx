@@ -1,3 +1,4 @@
+import { formatCnpjCpf } from "../../lib/utils";
 import { useState } from "react";
 import { FileCheck2 } from "lucide-react";
 import { Badge, type BadgeTone } from "../ui/Badge";
@@ -44,7 +45,7 @@ export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onO
             <thead>
               <tr>
                 {["Solicitação", "Cliente", "BLs", "Termo de devolução", "Procuração", "Prazo", ""].map((c) => (
-                  <th scope="col" className={c === "Cliente" ? "px-3 py-3 app-table__text-head" : "px-3 py-3"} key={c || "acao"}>
+                  <th scope="col" className={["Solicitação", "Cliente", "BLs"].includes(c) ? "px-3 py-3 app-table__text-head" : "px-3 py-3"} key={c || "acao"}>
                     {c || <span className="sr-only">Ação</span>}
                   </th>
                 ))}
@@ -80,7 +81,7 @@ export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onO
                   <td className="px-3 py-3">
                     <span className="app-table__cell-stack">
                       <span className="app-table__cell-value">{r.customer_name}</span>
-                      <span className="app-table__cell-meta"><CopyValue value={r.cnpj_cpf} label="CNPJ/CPF" /></span>
+                      <span className="app-table__cell-meta"><CopyValue value={r.cnpj_cpf ? formatCnpjCpf(r.cnpj_cpf) : null} label="CNPJ/CPF" /></span>
                     </span>
                   </td>
                   <td className="px-3 py-3">

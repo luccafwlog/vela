@@ -235,7 +235,7 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                       <tr className={`cursor-pointer ${isOpen ? 'bg-[var(--app-surface-hover)]' : ''}`} onClick={() => setOpenBl(isOpen ? null : row.bl_id)}>
                         <td className="px-4 py-3 font-semibold"><CopyValue value={row.bl_id} label="número do B/L" />{row.cancelled_at ? <> <Badge tone="red">Cancelado</Badge></> : null}</td>
                         <td className="px-4 py-3">{row.ce_mercante ? <CopyValue value={row.ce_mercante} label="CE Mercante"><Badge tone="blue">CE {row.ce_mercante}</Badge></CopyValue> : <Badge>Sem CE</Badge>}</td>
-                        <td className="app-table__text px-4 py-3">{row.vessel_name ?? <NoValue label="Sem navio" />}</td>
+                        <td className="app-table__text px-4 py-3" title={row.vessel_name ?? undefined}>{row.vessel_name ?? <NoValue label="Sem navio" />}</td>
                         <td className="px-4 py-3">{row.voyage_number ?? <NoValue label="Sem viagem" />}</td>
                         <td className="px-4 py-3">{row.pol ?? <NoValue label="Sem POL" />}</td>
                         <td className="px-4 py-3">{row.pod ?? <NoValue label="Sem POD" />}</td>
@@ -412,7 +412,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
                     <td className="px-4 py-3">{c.type ?? <NoValue label="Sem tipo" />}</td>
                     <td className="px-4 py-3"><CopyValue value={c.bl_id} label="número do B/L" /></td>
                     <td className="px-4 py-3">{c.ce_mercante ? <CopyValue value={c.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</td>
-                    <td className="app-table__text px-4 py-3">{c.vessel_name ?? <NoValue label="Sem navio" />}</td>
+                    <td className="app-table__text px-4 py-3" title={c.vessel_name ?? undefined}>{c.vessel_name ?? <NoValue label="Sem navio" />}</td>
                     <td className="px-4 py-3">{c.voyage_number ?? <NoValue label="Sem viagem" />}</td>
                     <td className="px-4 py-3">{c.pol ?? <NoValue label="Sem POL" />}</td>
                     <td className="px-4 py-3">{c.pod ?? <NoValue label="Sem POD" />}</td>
