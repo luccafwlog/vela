@@ -8,8 +8,7 @@ vi.mock('../../services/demurrage/demurrageInvoices', () => ({ listDemurrageInvo
 import { useDemurrageComplementOf } from '../useDemurrageComplementOf'
 import { listDemurrageInvoices } from '../../services/demurrage/demurrageInvoices'
 
-function wrapper() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+function wrapper(client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
 
@@ -40,4 +39,18 @@ it('Invoice única do B/L não é complementar', async () => {
   const { result } = renderHook(() => useDemurrageComplementOf(original as never), { wrapper: wrapper() })
   await waitFor(() => expect(result.current.pending).toBe(false))
   expect(result.current.complementOf).toEqual([])
+})
+
+it('com a lista em cache, espera a recarga e trata a falha dela como falha', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(['demurrage-invoices', { blId: 'BL-1' }], [complement])
+  let reject: (error: Error) => void = () => {}
+  vi.mocked(listDemurrageInvoices).mockReturnValue(new Promise((_, fail) => { reject = fail }) as never)
+  const { result } = renderHook(() => useDemurrageComplementOf(complement as never), { wrapper: wrapper(client) })
+  // O cache dizia "não é complementar", mas ainda está sendo conferido.
+  expect(result.current).toEqual({ complementOf: undefined, pending: true, failed: false })
+
+  reject(new Error('rede'))
+  await waitFor(() => expect(result.current.failed).toBe(true))
+  expect(result.current.complementOf).toBeUndefined()
 })

@@ -28,7 +28,10 @@ export function useDemurrageComplementOf(invoice: InvoiceRef | null | undefined)
     enabled: Boolean(invoice?.bl_id),
   })
   if (!invoice) return { complementOf: undefined, pending: false, failed: false }
-  if (!siblings.data) return { complementOf: undefined, pending: !siblings.error, failed: Boolean(siblings.error) }
+  // Cache aberto pelo detalhe é recarregado ao montar: até a resposta chegar
+  // (ou se ela falhar), a lista guardada pode estar velha e não vale para o papel.
+  if (siblings.isError) return { complementOf: undefined, pending: false, failed: true }
+  if (!siblings.data || siblings.isFetching) return { complementOf: undefined, pending: true, failed: false }
   return {
     complementOf: earlierLiveInvoices<Pick<DemurrageInvoiceListItem, 'id' | 'status' | 'created_at' | 'doc_number'>>(invoice, siblings.data).map((other) => other.doc_number),
     pending: false,
