@@ -4,6 +4,7 @@ import { isCustomerReconciliationResolved } from './customerReconciliation'
 import { formatBRL } from '../lib/utils'
 import { classifyDbError } from '../lib/errors'
 import { accountSituationLabel, provisioningDecisionLabel } from '../lib/portalProvisioningViewModel'
+import { fetchPaymentRegistrarNames } from './billing'
 import { fetchCustomerCommunicationHistory, customerCommunicationKindLabel, customerCommunicationStatusLabel, type CustomerCommunicationHistoryItem } from './customerCommunications'
 
 export type FichaLocalInvoiceRow = {
@@ -17,7 +18,7 @@ export type FichaLocalInvoiceRow = {
 
 export type FichaDemurrageInvoiceRow = Pick<DemurrageInvoice, 'id' | 'doc_number' | 'bl_id' | 'due_date' | 'billed_at' | 'paid_at' | 'total_usd' | 'current_total_brl' | 'status' | 'dispute_open' | 'dispute_status' | 'dispute_subject'>
 export type FichaReceivableRow = { id: number; bl_id: string; original_amount_brl: number; settled_amount_brl: number; balance_brl: number; status: string }
-export type FichaPaymentRow = { id: number; amount_brl: number; payment_method: string | null; paid_at: string | null; notes: string | null; invoice: { id: number; invoice_number: string | null } | null }
+export type FichaPaymentRow = { id: number; amount_brl: number; payment_method: string | null; paid_at: string | null; notes: string | null; registered_by_name?: string | null; invoice: { id: number; invoice_number: string | null } | null }
 export type FichaOverrideRow = Pick<CustomerRateOverride, 'id' | 'override_value' | 'valid_from' | 'valid_to' | 'notes'> & { charge_item: { id: number; name: string | null; currency: string | null; charge_table: { id: number; name: string | null; pod: string | null; cargo_mode: string | null } | null } | null }
 export type FichaManualChargeBlRow = { bl_id: string; manual_count: number }
 export type FichaPendingReconciliationRow = { id: string; consignee: string | null; customer_reconciliation_status: string | null }
@@ -231,7 +232,8 @@ export async function fetchCustomerPayments(customerId: number) {
     supabase.from('payments').select('id, amount_brl, payment_method, paid_at, notes, invoice:invoices!inner(id, invoice_number, customer_id)').eq('invoice.customer_id', customerId).order('paid_at', { ascending: false }).range(from, to).overrideTypes<FichaPaymentRow[], { merge: false }>(),
   )
   if (error) { if (classifyDbError(error).kind === 'permissao') return { rows: [], denied: true }; throw error }
-  return { rows, denied: false }
+  const names = await fetchPaymentRegistrarNames(rows.map((row) => row.id))
+  return { rows: rows.map((row) => ({ ...row, registered_by_name: names.get(row.id) ?? null })), denied: false }
 }
 
 export async function fetchCustomerRateOverrides(customerId: number) {

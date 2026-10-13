@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Autor da baixa no detalhe da fatura e na Ficha do Cliente (2026-10-13, migration `221`):**
+  "Pagamentos registrados" do detalhe da fatura passa a mostrar quem registrou cada baixa e a
+  referência bancária (antes só Observação, que ficava "—" quando a referência era o único
+  dado, como na baixa Pix da INV-2026-0014). A tabela de pagamentos da Ficha do Cliente ganha a
+  mesma coluna "Registrado por". O nome vem de `list_payment_registrar_names`, que devolve só o
+  autor das baixas pedidas a quem pode ler pagamentos. Quem cancelou uma baixa continua fora da
+  tela: o cancelamento apaga a baixa e o registro de auditoria não diz qual baixa foi.
 - **Suítes `local-pg` em ordem explícita e invertida no CI (2026-10-13):** o Vitest reordenava
   os arquivos (falhos e lentos primeiro, depois por tamanho) e ignorava a ordem da lista do
   workflow, então a "ordem explícita" da Etapa 12 do

@@ -697,3 +697,42 @@ describe('listInvoiceDetails — fatura avulsa', () => {
     expect(detail.invoice?.vessel_name).toBe('Navio Exemplo')
   })
 })
+
+describe('listInvoiceDetails — autor da baixa', () => {
+  const detailPayload = {
+    invoice: { id: 14, invoice_type: 'manual', voyage_number: '10N', vessel_name: 'Navio Exemplo' },
+    bls: [],
+    items: [],
+    payments: [
+      { id: 7, invoice_id: 14, amount_brl: 100, payment_method: 'pix', bank_reference: 'teste', notes: null, registered_by: 'u-1' },
+      { id: 8, invoice_id: 14, amount_brl: 50, payment_method: 'boleto', bank_reference: null, notes: null, registered_by: null },
+    ],
+  }
+
+  it('resolve o nome de quem registrou cada baixa pelas baixas da fatura', async () => {
+    supabaseMocks.rpc
+      .mockResolvedValueOnce({ data: detailPayload, error: null })
+      .mockResolvedValueOnce({ data: [{ payment_id: 7, registered_by_name: 'Lucca Juliatti' }], error: null })
+
+    const detail = await listInvoiceDetails(14)
+
+    expect(supabaseMocks.rpc).toHaveBeenLastCalledWith('list_payment_registrar_names', { p_payment_ids: [7, 8] })
+    expect(detail.payments.map((payment) => [payment.id, payment.registered_by_name, payment.bank_reference])).toEqual([
+      [7, 'Lucca Juliatti', 'teste'],
+      [8, null, null],
+    ])
+  })
+
+  it('mantém as baixas listadas quando o nome não pode ser resolvido', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    supabaseMocks.rpc
+      .mockResolvedValueOnce({ data: detailPayload, error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'function not found' } })
+
+    const detail = await listInvoiceDetails(14)
+
+    expect(detail.payments).toHaveLength(2)
+    expect(detail.payments.every((payment) => payment.registered_by_name === null)).toBe(true)
+    warn.mockRestore()
+  })
+})
