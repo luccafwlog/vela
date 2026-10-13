@@ -269,11 +269,14 @@ export type QueuedCharge = {
 
 export type ChargeOutcome =
   | { outcome: 'active'; revision: number; pixCopiaECola: string; bankCreatedAt: string }
-  | { outcome: 'cancelled' | 'concluded' | 'expired' | 'uncertain' | 'error'; error?: string }
+  | { outcome: 'cancelled' | 'concluded' | 'expired' | 'uncertain' | 'error'; error?: string; throttled?: true }
 
 export type ChargeQueue = {
   claim(limit: number): Promise<QueuedCharge[]>
   record(id: number, outcome: ChargeOutcome): Promise<void>
+  // Renova a vez única do runner (migration 219) antes de cada bloco seguinte;
+  // falso encerra a execução. Ausente: sem vez (testes, ações manuais).
+  renew?(): Promise<boolean>
 }
 
 function active(cob: ItauCob): ChargeOutcome {
@@ -338,6 +341,9 @@ export async function stepCharge(client: ItauPixClient, charge: QueuedCharge, no
   } catch (error) {
     if (!(error instanceof ItauPixError)) return { outcome: 'error', error: 'Falha inesperada no processador.' }
     if (error.status === 0) return { outcome: 'uncertain', error: error.message }
+    // Limite de requisições do Itaú: a cobrança volta à fila com o recuo do claim, e a
+    // execução para de chamar o banco (os limites nunca foram medidos; não forçar).
+    if (error.status === 429) return { outcome: 'error', error: error.message, throttled: true }
     // Paga antes do cancelamento ou da alteração: preservar para a baixa/análise.
     if (charge.status !== 'pending_create' && (error.body as Partial<ItauCob> | null)?.status === 'CONCLUIDA') return { outcome: 'concluded' }
     // Nunca chegou a existir no banco: nada a cancelar.
@@ -346,13 +352,55 @@ export async function stepCharge(client: ItauPixClient, charge: QueuedCharge, no
   }
 }
 
-export async function processItauPixQueue(client: ItauPixClient, queue: ChargeQueue, limit = 20) {
-  const summary: Record<ChargeOutcome['outcome'], number> = { active: 0, cancelled: 0, concluded: 0, expired: 0, uncertain: 0, error: 0 }
-  // ponytail: sequencial; paralelizar só se a fila passar de dezenas por minuto.
-  for (const charge of await queue.claim(limit)) {
-    const outcome = await stepCharge(client, charge)
-    await queue.record(charge.id, outcome)
-    summary[outcome.outcome]++
+// Orçamento por execução (migration 219). Cada cobrança é uma chamada ao Itaú
+// (~0,3–1 s). Blocos de 5 mantêm cada reserva (1 min no primeiro claim) longe
+// do vencimento, e o teto limita a carga numa API cujos limites nunca foram
+// medidos (relatório de 2026-10-07: "não provocar carga").
+// A execução para no primeiro 429 e na primeira cobrança sem resposta: com o
+// Itaú parado, cada cobrança espera até 2 × 15 s (token e chamada), e um bloco
+// inteiro passaria da vez do runner (120 s) e da reserva da cobrança (1 min).
+// ponytail: sequencial, teto fixo de 60 por execução.
+// Caminho de upgrade: medir o limite do Itaú e ajustar teto/paralelismo.
+export const ITAU_PIX_CHUNK = 5
+export const ITAU_PIX_BUDGET_MS = 20_000
+export const ITAU_PIX_MAX_PER_RUN = 60
+
+export async function processItauPixQueue(
+  client: ItauPixClient,
+  queue: ChargeQueue,
+  options: { chunk?: number; budgetMs?: number; maxCharges?: number; now?: () => number } = {},
+) {
+  const chunk = options.chunk ?? ITAU_PIX_CHUNK
+  const budgetMs = options.budgetMs ?? ITAU_PIX_BUDGET_MS
+  const maxCharges = options.maxCharges ?? ITAU_PIX_MAX_PER_RUN
+  const now = options.now ?? Date.now
+  const startedAt = now()
+  const summary: Record<ChargeOutcome['outcome'], number> & { throttled: boolean; unreachable: boolean } = {
+    active: 0, cancelled: 0, concluded: 0, expired: 0, uncertain: 0, error: 0, throttled: false, unreachable: false,
+  }
+  let processed = 0
+  for (let round = 0; now() - startedAt < budgetMs && processed < maxCharges; round += 1) {
+    if (round > 0 && queue.renew && !(await queue.renew())) break
+    const charges = await queue.claim(Math.min(chunk, maxCharges - processed))
+    for (const charge of charges) {
+      const outcome = await stepCharge(client, charge)
+      await queue.record(charge.id, outcome)
+      summary[outcome.outcome]++
+      processed++
+      // As cobranças já reservadas e não chamadas voltam pela própria reserva vencida.
+      if (outcome.outcome === 'error' && outcome.throttled) {
+        summary.throttled = true
+        return summary
+      }
+      if (outcome.outcome === 'uncertain') {
+        summary.unreachable = true
+        return summary
+      }
+    }
+    // Para só com a fila vazia: o registro de um resultado pode criar trabalho novo
+    // (substituta da vencida, cancelamento pedido durante a emissão), e o disparo
+    // dele encontra esta execução com a vez.
+    if (charges.length === 0) break
   }
   return summary
 }

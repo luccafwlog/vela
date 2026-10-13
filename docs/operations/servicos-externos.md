@@ -323,7 +323,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
 | `portal-email-events-runner` | a cada minuto | processa eventos da Resend (entrega, bounce, reclamação), suprime endereços e abre Alertas | — |
-| `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática | — |
+| `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú (um runner por vez, até 60 cobranças por execução, para no primeiro 429 ou na primeira cobrança sem resposta) e baixa automática | `itau-pix` |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente (respeita a chave global) | — |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s | `import-effects-runner` |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
@@ -433,9 +433,9 @@ ciclo às 22:03 UTC; até 22:36, 140 efeitos `succeeded`, nenhum em
 `retry_wait` ou `blocked`. O teste de desligamento (`503 paused`) não foi
 feito. A migration `218` passa o job para cada minuto, faz a importação
 disparar o runner, um runner por vez, e a função trabalhar por orçamento de
-tempo; a função nova precisa ser publicada logo depois da migration
-(`supabase functions deploy import-effects-runner`): até lá, a função antiga
-roda sem a vez única e pode ter chamadas simultâneas.
+tempo. Em produção desde 2026-10-13: a `218` aplicada e a função nova
+publicada (as respostas trazem `elapsed_ms`); o acumulado de ~2.800 efeitos
+esvaziou em ~7 minutos, a 490–610 efeitos por minuto em `local_billing`.
 
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 
