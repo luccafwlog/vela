@@ -43,7 +43,11 @@ que protegem dinheiro e dados, resta o acesso de outro CNPJ no serviço real
 (Tarefa 3). Na leitura de produção do mesmo dia, os sites publicados e o backend
 correspondem ao commit `c4a984f` da `main` (compatibilidade conferida no
 código). O expurgo roda todo dia sem erro, mas nunca teve documento elegível:
-a remoção física continua sem prova.
+a remoção física continua sem prova; um documento de teste elegível foi criado
+em produção para a rodada de 14/10. No mesmo dia, o fluxo A/B foi executado em
+produção com os Clientes 1 (A) e 2 (B), operado pelo responsável e conferido no
+banco, até a exportação; B não leu, alterou nem baixou nada de A pelo serviço
+real. Falta a conciliação com um "Exportar Tela" real da ZPT (Tarefa 6).
 
 **Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
 fonte indicada; `[ ]` registra trabalho ou evidência ainda necessários. Um teste
@@ -135,6 +139,33 @@ Fontes da reconciliação:
   vazio, nenhum documento com `purged_at`, nenhum rascunho, 4 documentos com
   objeto presente no bucket e nenhum objeto órfão. A remoção física nunca foi
   exercitada em produção. Nenhum dado remoto foi alterado.
+- **Remoto (2026-10-13, escrita autorizada pelo responsável):** documento de
+  teste do expurgo em produção: rascunho `7e57e7e5-0000-4c13-a000-202610130001`
+  (Cliente 1, criado com data de 8 dias antes, sem B/L) e termo
+  `7e57e7e5-0000-4c13-a000-202610130002` com registro
+  `1/teste-expurgo-2026-10-13.pdf` no bucket, inserido por SQL e sem conteúdo
+  (sem chave de serviço não há upload real). `ce_unlock_cleanup_candidates()`
+  passou a devolvê-lo. A rodada das 06:00 UTC de 14/10 deve cancelar o
+  rascunho, revogar o documento, remover o objeto e gravar `purged_at`; prova o
+  ciclo do expurgo, não a remoção de bytes de um PDF real.
+- **Runtime (2026-10-13, produção, operação do responsável no Chrome e
+  conferência SQL a cada etapa):** Cliente 2 (B) teve a conta do Portal ativada
+  e a fatura INV-2026-0014 emitida automaticamente; antes da baixa, o B/L
+  `CSC45160N05G00` ficou recusado por taxas sem liquidação, e depois da baixa,
+  apto. Upload de `.docx` renomeado para `.pdf` recusado (HTTP 422). Pedido B
+  CE-CFB4766089BF e pedido A CE-766697E301DE (`TEST-ITAU-CONS1/CONS2-20261008`)
+  enviados com PDFs gravados no prefixo do próprio Cliente e eventos
+  `draft`/`upload_*`/`submit`; B/L não pago de A (`CSC45370901400`) não entrou
+  em pedido. Recusa do termo de A com motivo: versão recusada preservada, aviso
+  no sino com o motivo, e-mail `skipped` (comunicados desligados); reenvio só
+  do termo, procuração aprovada mantida. Entrega parcial: CONS1 apto, CONS2
+  aguardando original, pedido sem conclusão; com as entregas, os dois pedidos
+  `completed` e aviso de documentação validada com prazo. Exportação `zpt-5-v2`
+  com os 3 B/Ls (quatro requisitos = sim) e `exported_at` por B/L. Acesso
+  cruzado, sessão do B contra o A: leitura do pedido, cancelamento, rascunho com
+  B/L de A, download e upload no pedido de A recusados com 403 (`42501`);
+  objeto de A no Storage com 400 "Object not found"; controle (B lendo o próprio
+  pedido) com 200; nenhum dado de A alterado. Conciliação ZPT não executada.
 
 ## Restrições globais
 
@@ -169,14 +200,15 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
 4. Homologar com o responsável/ZPT a planilha exportada (`zpt-5-v2`) e o
    arquivo "Exportar Tela" usado na conciliação (Tarefa 6), e obter o aceite
    operacional, incluindo a análise humana do conteúdo dos documentos (Tarefa 1).
-5. Demonstrar as matrizes que protegem dinheiro e dados: ~~fatura consolidada
+5. ~~Demonstrar as matrizes que protegem dinheiro e dados: fatura consolidada
    parcialmente paga (Tarefa 2), baixa cancelada concorrente ao envio
-   (Tarefa 2)~~ feitas em 2026-10-13 (ver "Fontes"; a `220` precisa estar em
-   produção antes da ativação); falta o acesso a IDs/caminhos/downloads de
-   outro CNPJ no serviço real (Tarefa 3).
-6. ~~Conferir a compatibilidade dos frontends publicados com o backend atual~~
-   (feito em 2026-10-13, ver "Fontes") e executar o fluxo completo com
-   clientes A/B no ambiente autorizado (Tarefa 7).
+   (Tarefa 2) e acesso a IDs/caminhos/downloads de outro CNPJ no serviço real
+   (Tarefa 3).~~ Feito em 2026-10-13 (ver "Fontes"); a `220` precisa estar em
+   produção antes da ativação.
+6. ~~Conferir a compatibilidade dos frontends publicados com o backend atual e
+   executar o fluxo completo com clientes A/B no ambiente autorizado
+   (Tarefa 7).~~ Feito em 2026-10-13 até a exportação (ver "Fontes"); a
+   conciliação com evidência externa fica no item 4.
 7. Validar o resultado do expurgo no Storage real (Tarefa 7). Em 2026-10-13
    não havia documento elegível; a prova exige um documento de teste elegível
    em produção (por exemplo, rascunho com mais de 7 dias) e autorização para criá-lo.
@@ -285,7 +317,8 @@ RPCs internas `set_ce_unlock_vip`, `review_ce_unlock_vip_document`,
 - [x] Implementar entrega/reversão independente por B/L e cancelamento auditado que libera reserva, preservando histórico e separando ação externa.
 - [x] Implementar expurgo server-only com reivindicação antes de remoção via Storage API e preservação de modelo/anuais vigentes; agendamento é etapa operacional separada.
 - [x] Disponibilizar testes de PDF falso/vazio/tamanho/corpo, falha de upload, resposta de finalização perdida, versão antiga/substituída, reenvio, revogação e expurgo sob lock. **Teste:** suites CE, handler Deno e suíte SQL; execução histórica conforme relatório, sem afirmar falha inicial de todos os casos.
-- [ ] **[bloqueia ativação, só caminhos/downloads de outro CNPJ]** Completar/demonstrar matriz de quota/rate limit, caminhos de outro CNPJ, sessão revogada e downloads/papéis no serviço gerenciado real.
+- [x] Demonstrar que outro CNPJ não lê, altera nem baixa IDs, caminhos e documentos no serviço gerenciado real. **Runtime:** produção, 2026-10-13, sessão do Cliente B contra pedido, B/L, documento e objeto do Cliente A: 403 nas RPCs e Edge Functions, 400 "Object not found" no Storage, nada alterado no banco (ver "Fontes").
+- [ ] Completar a matriz de quota/rate limit, sessão revogada e downloads/papéis internos no serviço gerenciado real.
 - [ ] Completar matriz anual: termo vigente/procuração vencida, pedido atravessando vencimento e renovação aplicada a múltiplos itens sem alterar snapshots antigos. Limites 31/12–01/01 e ano inválido já têm teste unitário.
 - [ ] Demonstrar retry sem eventos duplicados e preservação de documentos enviados/anuais no expurgo, incluindo anuais sem pedido e quotas VIP.
 - [x] Publicar a função e o job de expurgo. **Remoto:** `ce-unlock-cleanup` ativo e agendado diariamente em 2026-10-10.
@@ -316,7 +349,8 @@ modo, cliente de inspeção, filtros, paginação e ID, sem compartilhar caches 
 - [x] Registrar observação local de seleção/rascunho, envio bloqueado sem anexos e mobile a 390 px. **Runtime histórico:** relatório; login por CNPJ e gateway real não foram cobertos.
 - [x] Integrar Portal na `main`; typecheck da entrega original registrado no relatório.
 - [ ] Completar testes de modelo disponível, confirmação, correção completa e retry de rede preservando chave idempotente; demonstrar VIP expirado/pendente e renovação em análise na UI.
-- [ ] Validar teclado, login real por CNPJ, upload/reenvio e perda de pagamento entre seleção e envio, com atualização visível e URLs de inspeção.
+- [ ] Validar teclado, perda de pagamento entre seleção e envio, com atualização visível, e URLs de inspeção. Login real por CNPJ, upload, recusa de não-PDF e reenvio foram observados em produção em 2026-10-13 (ver "Fontes").
+- [ ] Mensagem de recusa de anexo: "Use PDF válido de até 10 MiB" não diz que o arquivo não é PDF de verdade (em 2026-10-13, um `.docx` renomeado para `.pdf` foi recusado com HTTP 422 sem que a causa ficasse clara). Avaliar texto que oriente salvar o documento como PDF.
 
 ## Tarefa 5 — Vela: página de gestão por B/L
 
@@ -387,7 +421,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [ ] **[bloqueia ativação]** Conferir a migration `220` (trava do Cliente sem deadlock com o cancelamento de baixa) aplicada em produção depois do merge.
 - [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes"). Em 2026-10-13 o job e a função rodavam sem erro, mas nunca houve documento elegível; falta ver um documento de teste elegível ser removido do Storage e marcado com `purged_at`.
 - [x] Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md). **Código/Remoto:** PR 929; migrations `174`–`217` em produção em 2026-10-12 (ver "Fontes").
-- [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
+- [x] Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial e exportação. **Runtime:** produção, 2026-10-13 (ver "Fontes"). A confirmação com evidência externa (conciliação com o "Exportar Tela" real) fica no item bloqueante de homologação da Tarefa 6; papel Financeiro e Operações nas telas não foram exercidos.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
 - [ ] Validar fluxo VIP completo no ambiente controlado, incluindo dois pedidos sem reanexação, vencimento/renovação e preservação de histórico.
 - [ ] Registrar gates da árvore integrada no fechamento técnico e validação de Preview/gateway/Storage; distinguir testes locais, skips e observação remota.
@@ -409,8 +443,11 @@ Atualização em 2026-10-13: dois cenários novos na suíte SQL local e a migrat
 `220`, validados no Postgres local descartável (ver "Fontes"); a `220` chega à
 produção pelo fluxo normal de merge. Depois, leitura somente SELECT de produção,
 logs e GitHub Actions: fechou a compatibilidade dos frontends com o backend e
-registrou que o expurgo nunca teve documento elegível. Nenhum dado remoto foi
-alterado.
+registrou que o expurgo nunca teve documento elegível. Por fim, com
+autorização do responsável, foi criado em produção o documento de teste do
+expurgo, e o fluxo A/B foi executado em produção pelo responsável, com
+conferência no banco a cada etapa; esses são os únicos dados remotos criados ou
+alterados nesta atualização.
 
 Atualização em 2026-10-12, após o merge da PR 929: leitura (somente SELECT) do
 banco de produção e conferência estática da suíte SQL do Desbloqueio. Fechou os
