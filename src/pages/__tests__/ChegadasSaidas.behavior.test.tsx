@@ -105,7 +105,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     expect((screen.getByLabelText(/Nome do Navio/) as HTMLInputElement).value).toBe('ALPHA')
     expect((screen.getByLabelText(/Viagem \(VOY\)/) as HTMLInputElement).value).toBe('001')
   })
@@ -114,7 +114,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
     await user.clear(dateInput)
     await user.type(dateInput, '2026-01-25')
@@ -131,7 +131,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     expect((screen.getByLabelText(/Nome do Navio/) as HTMLInputElement).disabled).toBe(true)
     expect((screen.getByLabelText(/Viagem \(VOY\)/) as HTMLInputElement).disabled).toBe(true)
     expect((screen.getByLabelText('Número IMO') as HTMLInputElement).disabled).toBe(true)
@@ -164,7 +164,7 @@ describe('ChegadasSaidas user behaviours', () => {
 
     expect(screen.getByRole('button', { name: /Adicionar navio/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Conferir prévia/ })).toBeTruthy()
-    expect(screen.getAllByTitle('Editar').length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: /^Editar programação de/ }).length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /Baixar planilha modelo/ })).toBeTruthy()
   })
 
@@ -240,7 +240,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
     const checkbox = screen.getAllByLabelText('Não escala')[0] as HTMLInputElement
 
@@ -263,7 +263,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     const dateInput = screen.getByLabelText(/Salvador/)
 
     await user.type(dateInput, '{Enter}')
@@ -274,7 +274,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
     const checkbox = screen.getAllByLabelText('Não escala')[0] as HTMLInputElement
 
@@ -323,7 +323,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
     await user.clear(dateInput)
     await user.type(dateInput, '2026-02-15')
@@ -351,7 +351,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     await user.click(screen.getByRole('button', { name: /Salvar/ }))
 
     expect(mocks.confirm).not.toHaveBeenCalled()
@@ -363,7 +363,7 @@ describe('ChegadasSaidas user behaviours', () => {
     const user = userEvent.setup()
     render(<ChegadasSaidas />)
 
-    await user.click(screen.getAllByTitle('Editar')[0])
+    await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     // Desmarca "Não escala" em Vitória (preenche data automaticamente)
     const vitoriaCheckbox = screen.getAllByLabelText('Não escala')[1] as HTMLInputElement
     await user.click(vitoriaCheckbox)

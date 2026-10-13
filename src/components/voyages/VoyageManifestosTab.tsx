@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ListChecks, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { ManifestoBlsModal } from './ManifestoBlsModal'
 import { useVoyageTransshipments } from '../../hooks/useTransshipments'
 import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
+import { NoValue } from '../ui/NoValue'
 import { formatDate } from '../../lib/utils'
 import { formatPortDisplayName } from '../../lib/voyageFormat'
 import type { VoyagePolSchedule } from '../../services/voyageRouteSchedules'
@@ -67,15 +68,15 @@ export function VoyageManifestosTab({
 
       <div className="app-voyage-table-frame">
           <div className="app-table-scroll">
-            <table className="app-table app-table--compact app-table--dense w-full table-fixed text-left text-sm">
+            <table className="app-table app-table--compact app-table--dense w-full table-fixed text-sm">
               <caption className="sr-only">Rotas e manifestos da viagem</caption>
               <colgroup>
-                <col className="w-[46%]" />
+                <col className="w-[40%]" />
                 <col className="w-[13%]" />
                 <col className="w-[8%]" />
                 <col className="w-[13%]" />
                 <col className="w-[13%]" />
-                <col className="w-[7%]" />
+                <col className="w-[13%]" />
               </colgroup>
               <thead>
                 <tr>
@@ -131,7 +132,7 @@ export function VoyageManifestosTab({
                       </td>
                       <td className="px-3 py-2 text-center">
                         {row.isVazios ? (
-                          <span className="text-[var(--app-muted-soft)]">-</span>
+                          <NoValue label="Sem CE Mercante em rota de vazios" />
                         ) : (
                           renderCeCoverage(row.ceFilled, row.ceTotal)
                         )}
@@ -175,32 +176,34 @@ export function VoyageManifestosTab({
                               </button>
                             )
                           }
-                          return <span className="text-[var(--app-muted-soft)]">-</span>
+                          return <NoValue label="Sem Nº de manifesto Mercante" />
                         })()}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {!row.isVazios && row.blCount > 0 ? (
+                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                          {!row.isVazios && row.blCount > 0 ? (
+                            <Button
+                              variant="secondary"
+                              className="app-btn--sm"
+                              aria-label={`Ver B/Ls de ${row.routeLabel}`}
+                              title="Ver B/Ls: mover ou desvincular de Manifesto Mercante"
+                              onClick={() => setBlsRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel })}
+                              disabled={!canEdit}
+                            >
+                              Ver B/Ls
+                            </Button>
+                          ) : null}
                           <Button
                             variant="secondary"
-                            className="app-voyage-icon-btn"
-                            aria-label={`Ver B/Ls de ${row.routeLabel}`}
-                            title="Ver B/Ls: mover ou desvincular de Manifesto Mercante"
-                            onClick={() => setBlsRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel })}
-                            disabled={!canEdit}
+                            className="app-btn--sm"
+                            aria-label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
+                            title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
+                            onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
+                            disabled={!canEdit || !row.pol || row.pol === '-'}
                           >
-                            <ListChecks size={15} />
+                            Editar
                           </Button>
-                        ) : null}
-                        <Button
-                          variant="secondary"
-                          className="app-voyage-icon-btn"
-                          aria-label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
-                          title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
-                          onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
-                          disabled={!canEdit || !row.pol || row.pol === '-'}
-                        >
-                          <Pencil size={15} />
-                        </Button>
+                        </div>
                       </td>
                     </tr>
                     )

@@ -7,6 +7,7 @@ import { formatMetric, formatPortDisplayName } from '../../lib/voyageFormat'
 import { splitVoyageBls, summarizeBreakbulk, summarizeImportByPod, type PodImportSummary } from '../../services/voyageSummaries'
 import { VoyageImportActions } from '../shared/VoyageImportActions'
 import type { Voyage } from './voyageCardTypes'
+import { NoValue } from '../ui/NoValue'
 
 type CountToken = { label: string; count: number }
 
@@ -198,7 +199,7 @@ function MiniStats({ stats }: { stats: Array<[string, number]> }) {
 }
 
 function CountPills({ values }: { values: CountToken[] }) {
-  if (!values.length) return <span className="text-xs text-[var(--app-muted-soft)]">—</span>
+  if (!values.length) return <span className="text-xs"><NoValue label="Sem registros" /></span>
   return <div className="flex flex-wrap gap-1.5">{values.map(({ label, count }) => <span key={`${label}-${count}`} className="app-voyage-token gap-1.5 bg-[var(--app-surface-muted)] px-2 py-0.5"><span className="font-semibold text-[var(--app-text)]">{label}</span><span className="font-[var(--app-font-mono)] text-[var(--app-muted-soft)]">{count}</span></span>)}</div>
 }
 

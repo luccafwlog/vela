@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { Mountain, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { Field, Input, Select } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
@@ -259,15 +261,15 @@ export function Granite() {
         {error ? <InlineError message="Erro ao carregar B/Ls de granito." /> : null}
 
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[1200px] text-left text-sm whitespace-nowrap">
+          <table className="app-table app-table--compact min-w-[1200px] text-sm whitespace-nowrap">
             <caption className="sr-only">Manifestos de granito</caption>
             <thead>
               <tr>
                 <th scope="col" className="px-4 py-3">B/L</th>
                 <th scope="col" className="px-4 py-3">Booking</th>
-                <th scope="col" className="px-4 py-3">Shipper</th>
+                <th scope="col" className="app-table__text-head px-4 py-3">Shipper</th>
                 <th scope="col" className="px-4 py-3">CNPJ</th>
-                <th scope="col" className="px-4 py-3">Navio/Viagem</th>
+                <th scope="col" className="app-table__text-head px-4 py-3">Navio/Viagem</th>
                 <th scope="col" className="px-4 py-3">Peso Real (kg)</th>
                 <th scope="col" className="px-4 py-3">Peso Real (ton)</th>
                 <th scope="col" className="px-4 py-3">CBM Final</th>
@@ -293,25 +295,25 @@ export function Granite() {
               ) : null}
               {(data?.rows ?? []).map((bl) => (
                 <tr key={bl.id} className="hover:bg-[#21262d]/60">
-                  <td className="px-4 py-3 font-semibold text-[#58a6ff]">{bl.bl_number}</td>
-                  <td className="px-4 py-3">{bl.booking_number ?? '-'}</td>
+                  <td className="px-4 py-3 font-semibold text-[#58a6ff]"><CopyValue value={bl.bl_number} label="número do B/L" /></td>
+                  <td className="px-4 py-3">{bl.booking_number ?? <NoValue label="Sem booking" />}</td>
                   <td className="px-4 py-3">
                     <span className="app-table__truncate app-table__truncate--lg" title={bl.shipper_name ?? '-'}>
-                      {(bl as { customer?: { name?: string } }).customer?.name ?? bl.shipper_name ?? '-'}
+                      {(bl as { customer?: { name?: string } }).customer?.name ?? bl.shipper_name ?? <NoValue label="Sem shipper" />}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{bl.shipper_cnpj ?? '-'}</td>
+                  <td className="px-4 py-3">{bl.shipper_cnpj ? <CopyValue value={bl.shipper_cnpj} label="CNPJ" /> : <NoValue label="Sem CNPJ" />}</td>
                   <td className="px-4 py-3">
                     <span className="app-table__truncate app-table__truncate--xl" title={bl.vessel_voyage ?? '-'}>
-                      {bl.vessel_voyage ?? '-'}
+                      {bl.vessel_voyage ?? <NoValue label="Sem navio e viagem" />}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{bl.real_weight_kg != null ? Number(bl.real_weight_kg).toLocaleString('pt-BR') : '-'}</td>
+                  <td className="px-4 py-3">{bl.real_weight_kg != null ? Number(bl.real_weight_kg).toLocaleString('pt-BR') : <NoValue label="Sem peso real" />}</td>
                   <td className="px-4 py-3">
-                    {bl.real_weight_kg != null ? Number(Number(bl.real_weight_kg) / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 3 }) : '-'}
+                    {bl.real_weight_kg != null ? Number(Number(bl.real_weight_kg) / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 3 }) : <NoValue label="Sem peso real" />}
                   </td>
-                  <td className="px-4 py-3">{bl.final_m3 != null ? Number(bl.final_m3).toLocaleString('pt-BR') : '-'}</td>
-                  <td className="px-4 py-3">{bl.phase ?? '-'}</td>
+                  <td className="px-4 py-3">{bl.final_m3 != null ? Number(bl.final_m3).toLocaleString('pt-BR') : <NoValue label="Sem CBM final" />}</td>
+                  <td className="px-4 py-3">{bl.phase ?? <NoValue label="Sem fase" />}</td>
                   <td className="px-4 py-3">
                     <ChargeStatusBadge status={bl.charge_status} />
                   </td>
@@ -357,7 +359,7 @@ export function Granite() {
             <table className="app-table app-table--compact w-full text-sm">
               <thead>
                 <tr>
-                  <th scope="col" className="px-3 py-2">Taxa</th>
+                  <th scope="col" className="app-table__text-head px-3 py-2">Taxa</th>
                   <th scope="col" className="px-3 py-2">Tipo</th>
                   <th scope="col" className="px-3 py-2">Quantidade</th>
                   <th scope="col" className="px-3 py-2">Valor Unit.</th>
@@ -368,11 +370,11 @@ export function Granite() {
               <tbody>
                 {chargeLines.map((line, i) => (
                   <tr key={i}>
-                    <td className="px-3 py-2">{line.description ?? '-'}</td>
-                    <td className="px-3 py-2">{line.charge_type ?? '-'}</td>
-                    <td className="px-3 py-2">{line.quantity != null ? Number(line.quantity).toLocaleString('pt-BR') : '-'}</td>
-                    <td className="px-3 py-2">{line.unit_value != null ? Number(line.unit_value).toLocaleString('pt-BR', { minimumFractionDigits: 4 }) : '-'}</td>
-                    <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{line.subtotal != null ? Number(line.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '-'}</td>
+                    <td className="app-table__text px-3 py-2">{line.description ?? <NoValue label="Sem descrição" />}</td>
+                    <td className="px-3 py-2">{line.charge_type ?? <NoValue label="Sem tipo" />}</td>
+                    <td className="px-3 py-2">{line.quantity != null ? Number(line.quantity).toLocaleString('pt-BR') : <NoValue label="Sem quantidade" />}</td>
+                    <td className="px-3 py-2">{line.unit_value != null ? Number(line.unit_value).toLocaleString('pt-BR', { minimumFractionDigits: 4 }) : <NoValue label="Sem valor unitário" />}</td>
+                    <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{line.subtotal != null ? Number(line.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : <NoValue label="Sem subtotal" />}</td>
                     <td className="px-3 py-2">{line.currency ?? 'BRL'}</td>
                   </tr>
                 ))}
@@ -441,12 +443,12 @@ export function Granite() {
               ) : null}
 
               <div className="app-table-scroll max-h-80 rounded-xl border border-[var(--app-border)]">
-                <table className="app-table app-table--compact min-w-[900px] text-left text-sm whitespace-nowrap">
+                <table className="app-table app-table--compact min-w-[900px] text-sm whitespace-nowrap">
                   <thead>
                     <tr>
                       <th scope="col" className="px-3 py-2">Status</th>
                       <th scope="col" className="px-3 py-2">BL</th>
-                      <th scope="col" className="px-3 py-2">Shipper</th>
+                      <th scope="col" className="app-table__text-head px-3 py-2">Shipper</th>
                       <th scope="col" className="px-3 py-2">CNPJ</th>
                       <th scope="col" className="px-3 py-2">Peso Real (kg)</th>
                       <th scope="col" className="px-3 py-2">Fase</th>
@@ -460,7 +462,7 @@ export function Granite() {
                         </td>
                         <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{bl.bl_number}</td>
                         <td className="px-3 py-2">
-                          <span className="app-table__truncate app-table__truncate--lg">{bl.shipper_name ?? '-'}</span>
+                          <span className="app-table__truncate app-table__truncate--lg">{bl.shipper_name ?? <NoValue label="Sem shipper" />}</span>
                         </td>
                         <td className="px-3 py-2">
                           {bl.reconciliationStatus !== 'matched' ? (
@@ -472,11 +474,11 @@ export function Granite() {
                               onChange={(e) => handleCnpjOverride(idx, normalizeCnpj(e.target.value))}
                             />
                           ) : (
-                            bl.shipper_cnpj ?? '-'
+                            bl.shipper_cnpj ?? <NoValue label="Sem CNPJ" />
                           )}
                         </td>
                         <td className="px-3 py-2">{Number(bl.real_weight_kg).toLocaleString('pt-BR')}</td>
-                        <td className="px-3 py-2">{bl.phase ?? '-'}</td>
+                        <td className="px-3 py-2">{bl.phase ?? <NoValue label="Sem fase" />}</td>
                       </tr>
                     ))}
                   </tbody>

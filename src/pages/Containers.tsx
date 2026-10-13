@@ -5,6 +5,8 @@ import { afterCargaAlterada } from '../services/cacheEffects'
 import { CalendarDays, Download, MoreVertical, Trash2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { ActionMenu } from '../components/ui/ActionMenu'
+import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
@@ -77,7 +79,7 @@ function VoyageCell({ row }: { row: ContainerRow }) {
     <span className="app-cargo-cell__stack">
       {voyage?.id ? (
         <Link className="app-cargo-link app-cargo-cell__truncate" to={`/viagens/${voyage.id}`} title={voyageText(row)}>{voyageText(row)}</Link>
-      ) : <span>—</span>}
+      ) : <NoValue label="Sem viagem" />}
       <span className="app-cargo-cell__sub">{routeText(row)}</span>
     </span>
   )
@@ -87,7 +89,7 @@ function BlCell({ row }: { row: ContainerRow }) {
   const name = partyName(row)
   return (
     <span className="app-cargo-cell__stack">
-      {row.bl?.id ? <Link className="app-cargo-link app-cargo-id" to={`/bls/${row.bl.id}`}>{row.bl.id}</Link> : <span>—</span>}
+      {row.bl?.id ? <CopyValue value={row.bl.id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${row.bl.id}`}>{row.bl.id}</Link></CopyValue> : <NoValue label="Sem B/L" />}
       {name ? <span className="app-cargo-cell__sub app-cargo-cell__truncate" title={name}>{name}</span> : null}
     </span>
   )
@@ -104,18 +106,19 @@ function OwnershipCell({ row }: { row: ContainerRow }) {
 }
 
 function ProfileCell({ row }: { row: ContainerRow }) {
-  if (!row.is_imo && !row.is_oog) return <span className="app-cargo-cell__muted" aria-label="Sem IMO nem OOG">—</span>
+  if (!row.is_imo && !row.is_oog) return <NoValue label="Sem IMO nem OOG" />
   return <CargoProfileBadge isImo={Boolean(row.is_imo)} isOog={Boolean(row.is_oog)} />
 }
 
 function DateCell({ value, label }: { value: string | null | undefined; label: string }) {
-  if (!value) return <span className="app-cargo-cell__muted" aria-label={`Sem ${label}`}>—</span>
+  if (!value) return <NoValue label={`Sem ${label}`} />
   return <span className="app-cargo-num">{formatDate(value)}</span>
 }
 
 function ReturnCell({ row }: { row: ContainerRow }) {
   const { text, muted, srText } = describeReturn(row.return_date, row.ownership, formatDate)
-  return <span className={muted ? 'app-cargo-cell__muted' : 'app-cargo-num'} aria-label={srText}>{text}</span>
+  if (srText) return <NoValue label={srText} />
+  return <span className={muted ? 'app-cargo-cell__muted' : 'app-cargo-num'}>{text}</span>
 }
 
 export function Containers() {
@@ -411,7 +414,7 @@ export function Containers() {
                       />
                     ) : null}
                     <div className="app-cargo-card__id">
-                      <span className="app-cargo-code app-cargo-id">{row.container_number}</span>
+                      <span className="app-cargo-code app-cargo-id"><CopyValue value={row.container_number} label="número do contêiner" /></span>
                       <span className="app-cargo-cell__sub">
                         {row.type ?? 'Tipo não informado'}{row.seal_number ? ` · Lacre ${row.seal_number}` : ''}
                       </span>
@@ -451,8 +454,8 @@ export function Containers() {
                       </th>
                     ) : null}
                     <th scope="col" className="app-cargo-table__id">Container</th>
-                    <th scope="col">B/L e cliente</th>
-                    <th scope="col">Navio / Viagem</th>
+                    <th scope="col" className="app-table__text-head">B/L e cliente</th>
+                    <th scope="col" className="app-table__text-head">Navio / Viagem</th>
                     <th scope="col">Tipo</th>
                     <th scope="col">IMO / OOG</th>
                     <th scope="col">SOC/COC</th>
@@ -477,13 +480,13 @@ export function Containers() {
                       ) : null}
                       <td className="app-cargo-table__id">
                         <span className="app-cargo-cell__stack">
-                          <span className="app-cargo-code app-cargo-id">{row.container_number}</span>
+                          <span className="app-cargo-code app-cargo-id"><CopyValue value={row.container_number} label="número do contêiner" /></span>
                           {row.seal_number ? <span className="app-cargo-cell__sub">Lacre {row.seal_number}</span> : null}
                         </span>
                       </td>
                       <td><BlCell row={row} /></td>
                       <td><VoyageCell row={row} /></td>
-                      <td>{row.type ?? <span className="app-cargo-cell__muted" aria-label="Tipo não informado">—</span>}</td>
+                      <td>{row.type ?? <NoValue label="Tipo não informado" />}</td>
                       <td><ProfileCell row={row} /></td>
                       <td><OwnershipCell row={row} /></td>
                       <td><DateCell value={row.discharge_date} label="descarga" /></td>

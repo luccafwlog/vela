@@ -1,8 +1,9 @@
 import { Fragment, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronDown, ChevronUp, Clock, Pencil, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, Clock, Plus } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
+import { NoValue } from '../ui/NoValue'
 import { MetricSection } from '../shared/VoyageSectionCards'
 import { useToast } from '../ui/Toast'
 import { useConfirmWithReason } from '../ui/ConfirmDialog'
@@ -312,22 +313,22 @@ export function VoyageVisaoTab({
                           {canEditVoyages ? (
                             <Button
                               variant="secondary"
-                              className="app-voyage-icon-btn"
+                              className="app-btn--sm"
                               aria-label={`Editar planejamento da escala ${row.port}`}
                               onClick={() => onEditEscala(buildEscalaModalData(row))}
                             >
-                              <Pencil size={15} />
+                              Editar
                             </Button>
                           ) : null}
                           {canEditVoyages && row.temImportacao && !row.omitted ? (
                             <Button
                               variant="secondary"
-                              className="app-voyage-icon-btn"
+                              className="app-btn--sm"
                               aria-label={`Omitir escala do POD ${row.port}`}
                               title={`Omitir escala do POD ${row.port}`}
                               onClick={() => onOmitPod(row.port)}
                             >
-                              <AlertTriangle size={15} />
+                              Omitir
                             </Button>
                           ) : null}
                           {canEdit && isAdmin ? (
@@ -335,11 +336,11 @@ export function VoyageVisaoTab({
                             // (delete_escala, migration 088; ADR 0071).
                             <Button
                               variant="danger"
-                              className="app-voyage-icon-btn"
+                              className="app-btn--sm"
                               aria-label={`Excluir escala ${row.port}`}
                               onClick={() => handleDeleteEscala(row)}
                             >
-                              <Trash2 size={15} />
+                              Excluir
                             </Button>
                           ) : null}
                         </div>
@@ -384,17 +385,17 @@ export function VoyageVisaoTab({
                                     <td className="px-3 py-2 text-center">{formatDate(atracacao.atb)}</td>
                                     <td className="px-3 py-2 text-center text-[var(--app-muted)]">{formatDate(atracacao.etd)}</td>
                                     <td className="px-3 py-2 text-center">{formatDate(atracacao.atd)}</td>
-                                    <td className="px-3 py-2 text-center font-mono text-xs">{atracacao.rtw ?? '—'}</td>
+                                    <td className="px-3 py-2 text-center font-mono text-xs">{atracacao.rtw ?? <NoValue label="Sem restow" />}</td>
                                     <td className="px-3 py-2 text-center">
                                       {canEditVoyages ? (
                                         <Button
                                           type="button"
-                                          variant="ghost"
-                                          className="app-table__icon-button app-table__icon-button--sm"
+                                          variant="secondary"
+                                          className="app-btn--sm"
                                           aria-label={atracacaoEditLabel(atracacao, row.port)}
                                           onClick={() => onEditEscala(buildEscalaModalData(row, atracacao.terminalId))}
                                         >
-                                          <Pencil size={14} />
+                                          Editar
                                         </Button>
                                       ) : null}
                                     </td>
@@ -568,13 +569,13 @@ function VoyageTimeline({
               ))}
             </ol>
             {hasMore ? (
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => setExpanded((value) => !value)}
-                className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-[var(--app-link)] hover:underline"
+                className="app-btn--sm mt-2"
               >
                 {expanded ? 'Mostrar menos' : `Mostrar todos os ${events.length} eventos`}
-              </button>
+              </Button>
             ) : null}
           </>
         ) : (

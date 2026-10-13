@@ -6,6 +6,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, Clock3, Download, Upload, XCircle } from 'lucide-react'
 import { exportBaplieWorkbook } from '../services/exports'
 import { Badge } from '../components/ui/Badge'
+import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { Button } from '../components/ui/Button'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
@@ -501,9 +503,9 @@ function ReconciliacaoSection({
               <tbody>
                 {missing.map((item) => (
                   <tr key={item.container_number}>
-                    <td className="app-cargo-code app-cargo-id">{item.container_number}</td>
-                    <td className="app-cargo-code">{item.baplie_bl_ref ?? <span className="app-cargo-cell__muted" aria-label="Não citado">—</span>}</td>
-                    <td className="app-cargo-code">{item.slot ?? '—'}</td>
+                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                    <td className="app-cargo-code">{item.baplie_bl_ref ? <CopyValue value={item.baplie_bl_ref} label="número do B/L" /> : <NoValue label="B/L não citado" />}</td>
+                    <td className="app-cargo-code">{item.slot ?? <NoValue label="Sem slot" />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -529,8 +531,8 @@ function ReconciliacaoSection({
               <tbody>
                 {missingInBaplie.map((item) => (
                   <tr key={item.container_number}>
-                    <td className="app-cargo-code app-cargo-id">{item.container_number}</td>
-                    <td>{item.bl_id ? <Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link> : '—'}</td>
+                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                    <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -559,8 +561,8 @@ function ReconciliacaoSection({
               <tbody>
                 {ownershipMismatch.map((item) => (
                   <tr key={`${item.container_number}-${item.bl_container_id}`}>
-                    <td className="app-cargo-code app-cargo-id">{item.container_number}</td>
-                    <td>{item.bl_id ? <Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link> : '—'}</td>
+                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                    <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
                     <td><ContainerOwnershipBadge ownership={item.bl_ownership} /></td>
                     <td><ContainerOwnershipBadge ownership={item.baplie_ownership} /></td>
                     <td><ValeOBlButton blContainerId={item.bl_container_id} field="ownership" label={`${item.container_number} no B/L ${item.bl_id ?? ''}`} /></td>
@@ -592,8 +594,8 @@ function ReconciliacaoSection({
               <tbody>
                 {profileMismatch.map((item) => (
                   <tr key={`${item.container_number}-${item.bl_container_id}`}>
-                    <td className="app-cargo-code app-cargo-id">{item.container_number}</td>
-                    <td>{item.bl_id ? <Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link> : '—'}</td>
+                    <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                    <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
                     <td>{item.bl_profile}</td>
                     <td>{item.baplie_profile}</td>
                     <td><ValeOBlButton blContainerId={item.bl_container_id} field="profile" label={`${item.container_number} no B/L ${item.bl_id ?? ''}`} /></td>
@@ -853,7 +855,7 @@ function ContainerList({
               <li key={c.id} className="app-cargo-card">
                 <div className="app-cargo-card__head">
                   <div className="app-cargo-card__id">
-                    <span className="app-cargo-code app-cargo-id">{c.container_number}</span>
+                    <span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do contêiner" /></span>
                     <span className="app-cargo-cell__sub">{[c.status === 'empty' ? 'Vazio' : 'Cheio', c.size_type, `${c.pol ?? '—'} → ${c.pod ?? '—'}`, c.slot ? `slot ${c.slot}` : null, c.bl_ref ? `B/L citado ${c.bl_ref}` : null].filter(Boolean).join(' · ')}</span>
                   </div>
                 </div>
@@ -885,15 +887,15 @@ function ContainerList({
               <tbody>
                 {paginated.map(({ container: c, coverage }) => (
                   <tr key={c.id}>
-                    <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id">{c.container_number}</span></td>
+                    <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do contêiner" /></span></td>
                     <td><CoverageTag coverage={coverage} /></td>
                     <td>{c.status === 'empty' ? 'Vazio' : 'Cheio'}</td>
-                    <td>{c.size_type ?? '—'}</td>
-                    <td className="whitespace-nowrap">{c.pol ?? '—'} → {c.pod ?? '—'}</td>
-                    <td className="app-cargo-code">{c.slot ?? '—'}</td>
+                    <td>{c.size_type ?? <NoValue label="Sem tipo" />}</td>
+                    <td className="whitespace-nowrap">{c.pol ?? <NoValue label="Sem POL" />} → {c.pod ?? <NoValue label="Sem POD" />}</td>
+                    <td className="app-cargo-code">{c.slot ?? <NoValue label="Sem slot" />}</td>
                     <td><ProfileTag container={c} /></td>
                     <td><ContainerOwnershipBadge ownership={c.ownership} /></td>
-                    <td className="app-cargo-code">{c.bl_ref ?? <span className="app-cargo-cell__muted" aria-label="Não citado">—</span>}</td>
+                    <td className="app-cargo-code">{c.bl_ref ? <CopyValue value={c.bl_ref} label="número do B/L" /> : <NoValue label="B/L não citado" />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -916,12 +918,12 @@ function ContainerList({
 }
 
 function CoverageTag({ coverage }: { coverage: ReturnType<typeof describeRowCoverage> }) {
-  if (!coverage) return <span className="app-cargo-cell__muted" aria-label="Conciliação indisponível">—</span>
+  if (!coverage) return <NoValue label="Conciliação indisponível" />
   return <Badge tone={coverage.tone}>{coverage.label}</Badge>
 }
 
 function ProfileTag({ container }: { container: BaplieContainer }) {
-  if (!container.is_imo && !container.is_oog) return <span className="app-cargo-cell__muted" aria-label="Sem IMO nem OOG">—</span>
+  if (!container.is_imo && !container.is_oog) return <NoValue label="Sem IMO nem OOG" />
   const detail = container.is_imo ? [container.imo_class ? `classe ${container.imo_class}` : null, container.un_number ? `ONU ${container.un_number}` : null].filter(Boolean).join(' · ') : ''
   return (
     <span className="app-cargo-cell__stack">

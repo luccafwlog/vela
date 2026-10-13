@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Badge } from '../ui/Badge'
+import { NoValue } from '../ui/NoValue'
 import { EmptyState } from '../ui/Card'
 import type { LineUpRow } from '../../services/lineup'
 import { formatShortDateSafe } from '../../lib/utils'
@@ -21,7 +22,7 @@ export function LineUpTable({
 }) {
   return (
     <div className="app-table-scroll">
-      <table className="app-table app-table--dense app-table--lineup min-w-full table-fixed text-left">
+      <table className="app-table app-table--dense app-table--lineup min-w-full table-fixed">
         <caption className="sr-only">Programação de viagens e escalas</caption>
         <colgroup>
           <col className="w-[18%]" />
@@ -42,7 +43,7 @@ export function LineUpTable({
         </colgroup>
         <thead>
           <tr>
-            <th scope="col" className="text-left">Navio</th>
+            <th scope="col" className="app-table__text-head">Navio</th>
             <th scope="col" className="text-center">Viagem</th>
             <th scope="col" className="text-center" title="Porto de descarga">POD</th>
             <th scope="col" className="text-center" title="Terminal da operação, por sentido">Terminal</th>
@@ -81,7 +82,7 @@ export function LineUpTable({
                 key={row.id}
                 className={`${isExport ? 'app-lineup-export-row' : ''} ${isBerthed ? 'app-lineup-row--berthed' : ''}`.trim() || undefined}
               >
-                <td className="font-semibold">
+                <td className="app-table__text font-semibold">
                   <Link to={`/viagens/${row.voyageId}`}>{row.vesselName}</Link>
                 </td>
                 <td className="text-center">{row.voyageNumber}</td>
@@ -117,7 +118,7 @@ export function LineUpTable({
                     <td className="text-right tabular-nums">
                       <Link to={`/vazios-importacao?${podQuery}`}>{formatLineUpInteger(row.mty)}</Link>
                     </td>
-                    <td className="text-right tabular-nums">{row.rtw === null ? '—' : formatLineUpInteger(row.rtw)}</td>
+                    <td className="text-right tabular-nums">{row.rtw === null ? <NoValue label="Sem restow" /> : formatLineUpInteger(row.rtw)}</td>
                     <td className="text-right">
                       <Link to={`/bls?${podQuery}&cargoMode=carga_solta`} className="app-lineup-bb" aria-label={`${formatLineUpInteger(row.bbMachines)} máquinas e ${formatLineUpInteger(row.bbPackages)} packages`}>
                         {formatLineUpInteger(row.bbMachines)} / {formatLineUpInteger(row.bbPackages)}

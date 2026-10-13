@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react'
 import { Button } from '../ui/Button'
 import { Field, Input, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { userFacingErrorMessage } from '../../lib/errors'
@@ -173,7 +175,7 @@ export function ManifestoBlsModal({
         </details>
 
         <div className="app-table-scroll max-h-80">
-          <table className="app-table app-table--compact w-full text-left text-sm">
+          <table className="app-table app-table--compact w-full text-sm">
             <caption className="sr-only">B/Ls da rota; Shift seleciona um intervalo</caption>
             <thead>
               <tr>
@@ -197,8 +199,8 @@ export function ManifestoBlsModal({
                       onChange={() => undefined}
                     />
                   </td>
-                  <td className="font-mono">{bl.id}{bl.cancelled ? ' (cancelado)' : ''}</td>
-                  <td className="font-mono">{bl.manifestoNumero ?? '—'}</td>
+                  <td className="font-mono"><CopyValue value={bl.id} label="número do B/L" />{bl.cancelled ? ' (cancelado)' : ''}</td>
+                  <td className="font-mono">{bl.manifestoNumero ?? <NoValue label="Sem Manifesto Mercante" />}</td>
                 </tr>
               )) : (
                 <tr><td colSpan={3}>Nenhum B/L nesta busca.</td></tr>

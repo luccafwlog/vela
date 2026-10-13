@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Badge } from '../components/ui/Badge'
+import { NoValue } from '../components/ui/NoValue'
 import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
@@ -242,16 +243,16 @@ export function Admin() {
           ) : (
             <Card className="overflow-hidden p-0">
               <div className="app-table-scroll">
-              <table className="app-table app-table--compact min-w-[760px] text-left text-sm">
+              <table className="app-table app-table--compact min-w-[760px] text-sm">
                 <caption className="sr-only">Usuários internos</caption>
                 <thead>
                   <tr>
-                    <th scope="col" className="px-4 py-3">Nome</th>
+                    <th scope="col" className="app-table__text-head px-4 py-3">Nome</th>
                     <th scope="col" className="px-4 py-3">Perfil de acesso</th>
                     <th scope="col" className="px-4 py-3">Status</th>
                     <th scope="col" className="px-4 py-3">Último acesso</th>
                     <th scope="col" className="px-4 py-3">Criado em</th>
-                    <th scope="col" className="px-4 py-3 text-right">Ações</th>
+                    <th scope="col" className="px-4 py-3">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -268,9 +269,9 @@ export function Admin() {
                     const legacyRoleTitle = u.role !== normalizedRole ? `Perfil legado: ${PROFILE_LABELS[u.role] ?? u.role}` : undefined
                     return (
                       <tr key={u.id} className={!u.active ? 'opacity-60' : undefined}>
-                        <td className="px-4 py-3">
+                        <td className="app-table__text px-4 py-3">
                           <div className="font-medium text-[var(--app-text-strong)]">{u.full_name}</div>
-                          <div className="text-xs text-[var(--app-muted)]">{u.email ?? '—'}</div>
+                          <div className="text-xs text-[var(--app-muted)]">{u.email ?? <NoValue label="Sem e-mail" />}</div>
                         </td>
                         <td className="px-4 py-3">
                           <select
@@ -297,10 +298,10 @@ export function Admin() {
                         <td className="px-4 py-3 tabular-nums text-[var(--app-muted)]">
                           {u.created_at
                             ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(u.created_at))
-                            : '-'}
+                            : <NoValue label="Sem data de criação" />}
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
                               disabled={isBusy}
@@ -423,15 +424,15 @@ export function Admin() {
               <div className="py-12 text-center text-[var(--app-muted)]">Carregando falhas...</div>
             ) : (
               <div className="app-table-scroll">
-                <table className="app-table app-table--compact min-w-[800px] text-left text-sm">
+                <table className="app-table app-table--compact min-w-[800px] text-sm">
                   <caption className="sr-only">Falhas de roteamento de notificações</caption>
                   <thead>
                     <tr>
                       <th scope="col" className="px-4 py-3">Data/Hora</th>
                       <th scope="col" className="px-4 py-3">Tipo do Alerta</th>
                       <th scope="col" className="px-4 py-3">Setor Esperado</th>
-                      <th scope="col" className="px-4 py-3">Motivo da Falha</th>
-                      <th scope="col" className="px-4 py-3 text-right">Alerta de Origem</th>
+                      <th scope="col" className="app-table__text-head px-4 py-3">Motivo da Falha</th>
+                      <th scope="col" className="px-4 py-3">Alerta de Origem</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -464,20 +465,20 @@ export function Admin() {
                           <td className="px-4 py-2 text-[var(--app-muted)]">
                             {AGENCY_REPORT_DEPARTMENT_LABELS[f.department] ?? f.department}
                           </td>
-                          <td className="px-4 py-2 text-rose-400 text-xs">
+                          <td className="app-table__text px-4 py-2 text-rose-400 text-xs" title={f.reason ?? undefined}>
                             {f.reason}
                           </td>
-                          <td className="px-4 py-2 text-right">
+                          <td className="px-4 py-2">
                             {link ? (
                               <Link
                                 to={link}
-                                className="inline-flex items-center gap-1 text-xs text-[var(--app-link)] hover:underline"
+                                className="app-btn app-btn--secondary app-btn--sm inline-flex items-center gap-1 whitespace-nowrap"
                               >
                                 <span>{linkLabel}</span>
                                 <ExternalLink size={12} />
                               </Link>
                             ) : (
-                              <span className="text-xs text-[var(--app-muted)]">—</span>
+                              <NoValue label="Sem alerta de origem" />
                             )}
                           </td>
                         </tr>
@@ -580,7 +581,7 @@ export function Admin() {
               <div className="py-12 text-center text-[var(--app-muted)]">Carregando logs...</div>
             ) : (
               <div className="app-table-scroll">
-              <table className="app-table app-table--compact min-w-[920px] text-left text-sm">
+              <table className="app-table app-table--compact min-w-[920px] text-sm">
                 <caption className="sr-only">Logs de ações administrativas</caption>
                 <thead>
                   <tr>
@@ -588,7 +589,7 @@ export function Admin() {
                     <th scope="col" className="px-4 py-3">Usuário</th>
                     <th scope="col" className="px-4 py-3">Módulo</th>
                     <th scope="col" className="px-4 py-3">Ação</th>
-                    <th scope="col" className="px-4 py-3">Detalhes</th>
+                    <th scope="col" className="app-table__text-head px-4 py-3">Detalhes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -604,12 +605,12 @@ export function Admin() {
                       <td className="px-4 py-2 tabular-nums text-[var(--app-muted)] whitespace-nowrap">
                         {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(log.changed_at))}
                       </td>
-                      <td className="px-4 py-2 font-medium text-[var(--app-text-strong)]">{log.changer_name ?? log.changed_by ?? '-'}</td>
+                      <td className="px-4 py-2 font-medium text-[var(--app-text-strong)]">{log.changer_name ?? log.changed_by ?? <NoValue label="Sem usuário" />}</td>
                       <td className="px-4 py-2 text-[var(--app-muted)]">{log.entity_type}</td>
-                      <td className="px-4 py-2">{log.field_name ?? '-'}</td>
+                      <td className="px-4 py-2">{log.field_name ?? <NoValue label="Sem ação" />}</td>
                       <td className="px-4 py-2">
                         <span className="app-table__truncate app-table__truncate--xl text-[var(--app-muted)]" title={log.new_value ?? undefined}>
-                          {log.new_value ?? log.justification ?? '-'}
+                          {log.new_value ?? log.justification ?? <NoValue label="Sem detalhes" />}
                         </span>
                       </td>
                     </tr>
@@ -732,11 +733,11 @@ export function Admin() {
           ) : (
             <Card className="overflow-hidden p-0">
               <div className="app-table-scroll">
-              <table className="app-table app-table--compact min-w-[980px] text-left text-sm">
+              <table className="app-table app-table--compact min-w-[980px] text-sm">
                 <caption className="sr-only">Resumo de SLA por viagem</caption>
                 <thead>
                   <tr>
-                    <th scope="col" className="px-4 py-3">Navio / Viagem</th>
+                    <th scope="col" className="app-table__text-head px-4 py-3">Navio / Viagem</th>
                     <th scope="col" className="px-4 py-3">Porto</th>
                     <th scope="col" className="px-4 py-3">Terminal</th>
                     <th scope="col" className="px-4 py-3">ATD</th>
@@ -757,9 +758,9 @@ export function Admin() {
                   ) : null}
                   {slaRows?.map((row) => (
                     <tr key={`${row.voyageId}::${row.port}::${row.terminal ?? 'legacy'}`}>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-[var(--app-text-strong)]">{row.vesselName ?? '—'}</div>
-                        <div className="text-xs text-[var(--app-muted)]">{row.voyageNumber ?? '—'}</div>
+                      <td className="app-table__text px-4 py-3">
+                        <div className="font-medium text-[var(--app-text-strong)]">{row.vesselName ?? <NoValue label="Sem navio" />}</div>
+                        <div className="text-xs text-[var(--app-muted)]">{row.voyageNumber ?? <NoValue label="Sem número de viagem" />}</div>
                       </td>
                       <td className="px-4 py-3">{row.port}</td>
                       <td className="px-4 py-3">{row.terminal ?? 'Legado'}</td>
@@ -780,7 +781,7 @@ export function Admin() {
                         </td>
                       ))}
                       <td className="px-4 py-3 tabular-nums text-[var(--app-muted)]">
-                        {row.elapsedCalendarDaysToClosure !== null ? `${row.elapsedCalendarDaysToClosure} dia(s) corrido(s)` : '—'}
+                        {row.elapsedCalendarDaysToClosure !== null ? `${row.elapsedCalendarDaysToClosure} dia(s) corrido(s)` : <NoValue label="Sem fechamento" />}
                       </td>
                     </tr>
                   ))}
