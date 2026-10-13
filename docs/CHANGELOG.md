@@ -4,6 +4,16 @@
 
 ## 2026-10
 
+- **Suítes `local-pg` em ordem explícita e invertida no CI (2026-10-13):** o Vitest reordenava
+  os arquivos (falhos e lentos primeiro, depois por tamanho) e ignorava a ordem da lista do
+  workflow, então a "ordem explícita" da Etapa 12 do
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)
+  não valia. A lista passou para `scripts/local-pg-suites.txt`; `npm run test:local-pg` a roda em
+  série com um sequenciador que respeita a ordem, e o CI roda a lista na ordem natural e, depois de
+  um novo replay do banco, de trás para frente (aceite da Etapa 12 que estava sem evidência). `npm run
+  localpg:check` também acusa suíte repetida e CI sem uma das duas ordens. As ADRs 0078, 0079 e
+  0080 deixam de dizer "implementação pendente" ou "deploy não verificado": o registro de
+  migrations de produção lista `174`–`219`.
 - **Pix Itaú: fila completa e QR em segundos (2026-10-13, migration `219`):** a reserva da fila
   passa a pegar a alteração de cobrança (PTAX da Demurrage, renovação das Taxas Locais) e a
   conferência de vencimento, que até aqui nunca chegavam ao Itaú: a cobrança ficava com o valor
