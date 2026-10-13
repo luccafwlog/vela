@@ -74,8 +74,8 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     descarregar, com os tipos (manifesto de Vazios de Importação, via
     `useVaziosImportacaoStats`). O Planejamento por escala, recusado na
     primeira proposta por confuso, fica na forma A: tabela com uma linha de
-    cabeçalho, sem grupos e sem coluna de botões; o porto abre a edição, com
-    Omitir e Excluir dentro dela; as atracações abrem embaixo, em tabela de
+    cabeçalho e sem grupos; cada escala e cada atracação tem o seu botão
+    Editar, com Omitir e Excluir dentro da edição; as atracações abrem embaixo, em tabela de
     cabeçalho claro. Sem faixa de próxima ação (recusada pelo responsável);
     os Manifestos Mercante a informar seguem em âmbar no bloco Conciliação.
     Nenhum texto técnico na Linha do tempo: o evento de
