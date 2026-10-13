@@ -253,6 +253,10 @@
   }
 }
 
+/* Na raiz do Portal (portal.html) também, para as telas públicas (login,
+   ativação, recuperação de senha), os avisos e os modais que ficam fora do
+   shell autenticado. */
+:root[data-app='portal'],
 .app-shell--portal {
   --app-control-h: 44px;
   --app-control-h-sm: 44px;

@@ -100,6 +100,9 @@ e datas com `tabular-nums`; na tabela padrão ficam centralizados (regra 6).
 | Pergunta da tela | "O que está pendente e onde ajo?" | "O que preciso fazer e quanto devo?" |
 
 O Modo Inspeção usa o shell e as telas do Portal, então mostra a marca FWLOG.
+Os tokens da marca ficam na raiz do `portal.html` (`data-app="portal"`) e no
+shell `.app-shell--portal`: login, ativação, recuperação de senha, avisos e
+modais fora do shell também recebem a marca.
 Toque (ponteiro grosso) mantém 44 px de alvo nos dois produtos.
 
 ## Superfícies especiais

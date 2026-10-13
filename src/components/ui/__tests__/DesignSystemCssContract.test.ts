@@ -132,6 +132,10 @@ describe('contrato visual compartilhado', () => {
     expect(css.match(/--app-font-display:\s*"DM Sans"/g)?.length).toBeGreaterThanOrEqual(2)
     const brandUsers = [...css.matchAll(/^\.([\w-]+)\s*\{[^}]*font-family:\s*var\(--app-font-brand\)/gms)].map((match) => match[1])
     expect(brandUsers.sort()).toEqual(['app-auth__logo-name', 'app-header__wordmark', 'app-lineup-display-brand__name'])
+    // A marca do Portal vale na raiz da entrada do Portal (login, ativação,
+    // avisos e modais fora do shell), não só no shell autenticado.
+    expect(fs.readFileSync('portal.html', 'utf8')).toMatch(/<html[^>]*data-app="portal"/)
+    expect(css).toMatch(/:root\[data-app='portal'\],\s*\.app-shell--portal\s*\{[^}]*--app-blue-btn:\s*#1d67b3/s)
     expect(css).toMatch(/\.app-shell--portal\s*\{[^}]*--app-navy:\s*#0d2b5e[^}]*--app-nav-active:\s*#5aaaf0[^}]*--app-thead-bg:\s*#0d2b5e/s)
     expect(css).toMatch(/\.page-header__title\s*\{[^}]*font-size:\s*var\(--app-size-title\)/s)
   })
