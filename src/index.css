@@ -14899,8 +14899,9 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-muted-soft);
 }
 
-/* Grupos de colunas (regra 6): faixa própria no cabeçalho e divisória
-   vertical entre os grupos, no cabeçalho e no corpo. */
+/* Grupos de colunas (regra 6): faixa própria no cabeçalho e uma linha fina e
+   clara entre os grupos, no cabeçalho e no corpo (decisão de 2026-10-13: a
+   faixa grossa pesava na leitura). */
 .app-shell table thead th.app-table__group {
   background: var(--app-navy-2);
   font-size: var(--app-size-caption);
@@ -14909,11 +14910,11 @@ tr[data-inactive] .app-rates-item__value {
 }
 
 .app-shell table .app-table__divider {
-  border-left: 3px solid var(--app-border);
+  border-left: 1px solid var(--app-border-soft);
 }
 
 .app-shell table thead .app-table__divider {
-  border-left-color: color-mix(in srgb, #ffffff 30%, var(--app-navy));
+  border-left-color: color-mix(in srgb, #ffffff 20%, var(--app-navy));
 }
 
 @media (max-width: 639px) {

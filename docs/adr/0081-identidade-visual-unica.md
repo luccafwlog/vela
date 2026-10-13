@@ -73,3 +73,11 @@ cinza, IBM Plex Sans).
 - Estende a [ADR 0066](./0066-transicao-marca-vela.md): a separação de marcas
   Vela, Fwlog e Transhipping passa a ter tokens próprios no Portal.
 - Não altera regras de negócio, autorização, RPCs ou schema.
+
+## Nota de 2026-10-13: linha entre grupos de colunas
+
+Ao ver a ficha do B/L implementada, o responsável achou pesada a faixa
+vertical de 3 px entre os grupos de colunas (regra 6). A separação continua,
+mas como linha de 1 px bem clara, no cabeçalho e no corpo. Vale para todas as
+tabelas com grupos; o texto da regra em
+[identidade-visual.md](../identidade-visual.md) já reflete a mudança.

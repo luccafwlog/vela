@@ -141,6 +141,7 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-block__title\s*\{[^}]*color:\s*var\(--app-strip-text\)/s)
     expect(css).toMatch(/\.app-btn--ghost\s*\{[^}]*border-color:\s*var\(--app-border\)/s)
     expect(css).toMatch(/\.app-identity\s*\{[^}]*background:\s*var\(--app-navy\)/s)
-    expect(css).toMatch(/\.app-shell table \.app-table__divider\s*\{[^}]*border-left:\s*3px solid/s)
+    // Linha fina e clara entre grupos (nota de 2026-10-13 na ADR 0081), não faixa grossa.
+    expect(css).toMatch(/\.app-shell table \.app-table__divider\s*\{[^}]*border-left:\s*1px solid var\(--app-border-soft\)/s)
   })
 })
