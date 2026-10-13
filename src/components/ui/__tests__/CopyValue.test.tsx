@@ -44,6 +44,9 @@ describe('CopyValue', () => {
       fireEvent.click(screen.getByRole('button', { name: /Copiar CNPJ/ }))
     })
     expect(screen.getByText('Não foi possível copiar o CNPJ')).toBeTruthy()
+    const button = screen.getByRole('button', { name: /Copiar CNPJ/ })
+    expect(button.getAttribute('data-state')).toBe('failed')
+    expect(button.getAttribute('title')).toBe('Não foi possível copiar o CNPJ')
   })
 
   it('sem valor, não oferece cópia', () => {

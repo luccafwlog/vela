@@ -15024,6 +15024,10 @@ tr:hover .app-copy__button,
   color: var(--app-success-fg);
 }
 
+.app-copy__button[data-state='failed'] {
+  color: var(--app-danger-fg);
+}
+
 .app-identity .app-copy__button {
   color: #a9cdf7;
 }

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy, X } from 'lucide-react'
 
 /**
  * Identificador com o ícone de copiar ao lado (ADR 0081, decisão de
  * 2026-10-13): número do B/L, CE Mercante, CNPJ e número do contêiner. O
  * ícone aparece ao passar o mouse na linha ou no valor e ao receber o foco do
- * teclado; em tela de toque fica sempre visível. A confirmação é local (ícone
- * de visto e aviso ao leitor de tela), sem depender do ToastProvider.
+ * teclado; em tela de toque fica sempre visível. O retorno é local (visto verde
+ * ao copiar, X vermelho na falha, e aviso ao leitor de tela), sem depender do
+ * ToastProvider.
  */
 export function CopyValue({
   value,
@@ -48,7 +49,7 @@ export function CopyValue({
         type="button"
         className="app-copy__button"
         aria-label={`Copiar ${label} ${text}`}
-        title={`Copiar ${label}`}
+        title={state === 'failed' ? `Não foi possível copiar o ${label}` : `Copiar ${label}`}
         data-state={state}
         onClick={(event) => {
           event.preventDefault()
@@ -56,7 +57,7 @@ export function CopyValue({
           void copy()
         }}
       >
-        {state === 'copied' ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+        {state === 'copied' ? <Check size={13} aria-hidden="true" /> : state === 'failed' ? <X size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
       </button>
       <span className="sr-only" aria-live="polite">
         {state === 'copied' ? `${label} copiado` : state === 'failed' ? `Não foi possível copiar o ${label}` : ''}
