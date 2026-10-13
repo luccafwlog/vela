@@ -1,23 +1,23 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@sentry/deno@11.3.0": "11.3.0"
+    "npm:@sentry/deno@11.6.0": "11.6.0"
   },
   "npm": {
     "@opentelemetry/api@1.9.1": {
       "integrity": "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="
     },
-    "@sentry/conventions@0.25.0": {
-      "integrity": "sha512-7SouCAX3qx+AzLsxb6gbl3dKVWNhp2wFjdYQ/T90sGwqPPQUoZVA9YwsWwvx07hqcCiSqFW9mUAzyUftASnuhQ=="
+    "@sentry/conventions@0.26.0": {
+      "integrity": "sha512-ttSRcoLf2kIENDIFzH12aJaVMdxnidMYLvVNwEX/JjXfXaQot8u5M47QmgAFOOhVJ4nQ2uU8wTCh+fwSPrrCfg=="
     },
-    "@sentry/core@11.3.0": {
-      "integrity": "sha512-ZRexUGcm/0hojTCPTb4ZoNm0wGQsHv93t2Z/E3U1w8XFakb5DKkTx+z1tBi3KXKLo9xjGlhYyiob9cF0D2MLoQ==",
+    "@sentry/core@11.6.0": {
+      "integrity": "sha512-PbITT1kfJYKJiS9fH4ZtOcwIONKyt+tUsTZSPtcAjPdkUDOzMKT61MkUa1Ze07VzNtLALT24ZdUOc6d9K4YoKA==",
       "dependencies": [
         "@sentry/conventions"
       ]
     },
-    "@sentry/deno@11.3.0": {
-      "integrity": "sha512-fFkyMKZs9+V84g1or8W9bg8U6BOVO6LoElP/TDO4lWAL3wq5nouSHSFgf0uFe9o/5cK+3EQaZE4L8npbiKcMAw==",
+    "@sentry/deno@11.6.0": {
+      "integrity": "sha512-ItyN6/6vOiUqktaE1e58GSuXRFNR0gyiTwgdj/sOxQJn4/dEdnHPsejDRbUxPy4UWn0PvCfajv8aeymgTqy3wg==",
       "dependencies": [
         "@opentelemetry/api",
         "@sentry/conventions",
@@ -26,15 +26,15 @@
         "@sentry/server-utils"
       ]
     },
-    "@sentry/server-runtime-injection@11.3.0": {
-      "integrity": "sha512-IZyUo9j6416r2HK1sITPkNCRryvsxbPacW1X0CrjLx9SPuwqxx2iFdifUv5mtPj00NFaQMfKCq1uUfgktyNuZg==",
+    "@sentry/server-runtime-injection@11.6.0": {
+      "integrity": "sha512-3plQzwQfvz4HJkXLDfr5VuQQL5vyjar7RKn7UwFne3jc+9OSXRkxkZ6S0Z3RdBgbaFO1GkFwf/mFNX4H8nNcuw==",
       "dependencies": [
         "@sentry/core",
         "@sentry/server-utils"
       ]
     },
-    "@sentry/server-utils@11.3.0": {
-      "integrity": "sha512-yaUgvegTIC4c/zpiInD009WqiUvx3w96Hjb846LEsQIzdYKP4hXnLL2DNd1vm9E4IM064Ixs8f2Kc/zFIhSR+A==",
+    "@sentry/server-utils@11.6.0": {
+      "integrity": "sha512-pVpGqwxBOXDMSngxTVARRlYyEXEfKA3WU1ENCdgLCeJ4xJ4vNRf4ODGXYPvXBk0zkt2NZZFvray2JHXIeYG+tg==",
       "dependencies": [
         "@opentelemetry/api",
         "@sentry/conventions",
@@ -70,7 +70,7 @@
   },
   "workspace": {
     "dependencies": [
-      "npm:@sentry/deno@11.3.0"
+      "npm:@sentry/deno@11.6.0"
     ]
   }
 }
