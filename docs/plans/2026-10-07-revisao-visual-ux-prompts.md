@@ -1179,6 +1179,13 @@ O Administrativo abre a Conciliação para saber se o Pix do Itaú está dando b
 | 13 | `components/demurrage/InvoiceDocument.tsx` repete a chave React `USD/Dia` no cabeçalho da tabela (aviso no console ao abrir fatura ou recibo de Demurrage, também em `/demurrage`). |
 | 23 | Marcar como tratado e baixa de exceção gravados pela tela só por teste automatizado; cancelar baixa local na Conciliação (10) não exercido em runtime; leitor de tela, zoom de 200% e muitas linhas não observados. |
 
+### Correções da revisão da PR 935 (2026-10-13)
+
+- Histórico: escolher a origem Demurrage tira o tipo de fatura (antes ficava no filtro com o campo desativado e esvaziava a lista); `tipo` com `origem=demurrage` vindo de link é ignorado. Página além do fim vai para a última existente, em vez de "Nenhuma baixa registrada ainda" com "Exibindo 49.901–3 de 3" e sem botões (achados do Codex, reproduzidos por teste).
+- Exceções do extrato: com a baixa gravada e o encerramento recusado, a linha oferece **Encerrar exceção** (só `resolve_pix_reconciliation_exception`), já que Tentar de novo e Escolher fatura não acham mais a fatura paga; guardado só enquanto a tela está aberta (ponytail).
+- Cache: leitura com exceções e Marcar como tratado usam `afterPendenciaPixAlterada`; a leitura passou a atualizar também `financial-alerts`.
+- **Teste:** `ReconciliationHistoryTable.behavior.test.tsx`, `reconciliacaoState.test.ts`, `Reconciliacao.behavior.test.tsx` e `cacheEffects.test.ts`; os casos novos falham sem a correção. Sem runtime no navegador nesta rodada.
+
 ### Evidência e limites
 
 - **Gates:** `npm run docs:check`, `typecheck`, `lint`, `build`, `a11y:contrast` (34/34) e `size-limit` (248,97 KiB no Vela, 208,17 KiB no Portal) passaram; `npm test` passou em 746 arquivos (4.611 testes; integrações de banco puladas sem `LOCAL_PG_INTEGRATION=1`); `git diff --check` limpo.

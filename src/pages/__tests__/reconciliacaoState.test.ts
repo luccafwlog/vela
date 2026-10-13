@@ -30,6 +30,13 @@ describe('estado de /reconciliacao na URL', () => {
     expect(countActiveHistoryFilters(state)).toBe(0)
   })
 
+  it('Tipo de fatura não vale com a Origem Demurrage, nem vindo de link', () => {
+    expect(historyStateFromSearch(params('origem=demurrage&tipo=manual')).invoiceTypeFilter).toBe('')
+    expect(historyStateFromSearch(params('origem=local&tipo=manual')).invoiceTypeFilter).toBe('manual')
+    expect(withHistoryFilter(params('tipo=manual'), 'source', 'demurrage').toString()).toBe('origem=demurrage')
+    expect(withHistoryFilter(params('tipo=manual'), 'source', 'local').toString()).toBe('tipo=manual&origem=local')
+  })
+
   it('filtro novo volta à primeira página e preserva aba e texto com espaço', () => {
     const next = withHistoryFilter(params('tab=historico&pagina=3'), 'vesselSearch', 'XIN PU ')
     expect(next.get('pagina')).toBeNull()

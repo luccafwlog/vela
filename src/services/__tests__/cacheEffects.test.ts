@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
+import { afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -129,4 +129,12 @@ it('baixa por Pix na Conciliação atualiza fatura local, Demurrage, histórico,
     ['reconciliation-history'], ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['alerts'], ['header-alert'],
   ])))
   expect(new Set(keys()).size).toBe(keys().length)
+})
+
+it('pendência PIX gravada ou tratada atualiza Pendências e o Alerta sem reler as faturas', async () => {
+  const { client, keys } = fakeQueryClient()
+  await afterPendenciaPixAlterada(client)
+  expect(keys()).toEqual(keySet([
+    ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['alerts'], ['financial-alerts'], ['header-alert'],
+  ]))
 })

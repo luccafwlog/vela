@@ -71,11 +71,14 @@ export function historyStateFromSearch(params: URLSearchParams): HistoryUrlState
     return ISO_DATE.test(value) ? value : ''
   }
   const customerId = positiveInt(params.get(PARAM.customerId))
+  // Tipo de fatura só existe em Taxas Locais: com Demurrage, um `tipo` vindo de
+  // link antigo esvaziaria a lista sem que o campo (desativado) pudesse mudá-lo.
+  const demurrage = source === 'demurrage'
   return {
     paidFrom: date('paidFrom'),
     paidTo: date('paidTo'),
-    source: source === 'local' || source === 'demurrage' ? source : '',
-    invoiceTypeFilter: type === 'consolidated' || type === 'single' || type === 'manual' ? type : '',
+    source: source === 'local' || demurrage ? source : '',
+    invoiceTypeFilter: !demurrage && (type === 'consolidated' || type === 'single' || type === 'manual') ? type : '',
     customerId: customerId ? String(customerId) : '',
     customerName: customerId ? params.get(PARAM.customerName) ?? '' : '',
     blSearch: params.get(PARAM.blSearch) ?? '',
@@ -103,6 +106,7 @@ export function withHistoryFilter(params: URLSearchParams, key: HistoryFilterKey
   const next = new URLSearchParams(params)
   setOrDelete(next, PARAM[key], value, false)
   if (key === 'customerId' && !value.trim()) next.delete(PARAM.customerName)
+  if (key === 'source' && value === 'demurrage') next.delete(PARAM.invoiceTypeFilter)
   next.delete(PARAM.page)
   return next
 }

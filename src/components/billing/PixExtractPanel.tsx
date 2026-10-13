@@ -6,8 +6,7 @@ import { Button } from '../ui/Button'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice } from '../shared/ImportParts'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
-import { afterPixConciliado } from '../../services/cacheEffects'
-import { queryKeys } from '../../services/queryKeys'
+import { afterPendenciaPixAlterada, afterPixConciliado } from '../../services/cacheEffects'
 import { parsePixExtractFile } from '../../services/demurrage/demurrageKpis'
 import { readSpreadsheetNotices } from '../../services/importCore'
 import {
@@ -68,9 +67,7 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
     onSuccess: async (result) => {
       setRead(result)
       if (result.matches.some((match) => extractLineKind(match) !== 'ready')) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.pixExceptions() })
-        await queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() })
-        await queryClient.invalidateQueries({ queryKey: ['header-alert'] })
+        await afterPendenciaPixAlterada(queryClient)
       }
     },
   })

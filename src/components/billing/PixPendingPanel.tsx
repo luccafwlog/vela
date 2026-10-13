@@ -4,8 +4,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Field, Textarea } from '../ui/Input'
 import { ImportNotice } from '../shared/ImportParts'
-import { afterPixConciliado } from '../../services/cacheEffects'
-import { queryKeys } from '../../services/queryKeys'
+import { afterPendenciaPixAlterada, afterPixConciliado } from '../../services/cacheEffects'
 import { useItauPixMonitor, usePixExceptions } from '../../hooks/usePixReconciliation'
 import { extractErrorText } from '../../lib/errors'
 import { formatBRL, formatCnpjCpf } from '../../lib/utils'
@@ -17,6 +16,7 @@ import {
   matchUnifiedPixTransactions,
   resolvePixReconciliationException,
   type ItauPixMonitor,
+  type PixExceptionResolution,
   type PixReconciliationCandidate,
   type PixReconciliationException,
   type UnifiedPixMatch,
@@ -129,10 +129,7 @@ function ReceiptsSection({ monitor }: { monitor: ItauPixMonitor | undefined }) {
     onSuccess: async (_data, { amount }) => {
       setForm(null)
       setDone(`Pix de ${formatBRL(amount)} marcado como tratado; o Alerta do recebimento foi encerrado.`)
-      await queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.itauPixMonitor() })
-      await queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() })
-      await queryClient.invalidateQueries({ queryKey: queryKeys.alerts.financial() })
-      await queryClient.invalidateQueries({ queryKey: ['header-alert'] })
+      await afterPendenciaPixAlterada(queryClient)
     },
     onError: (error: Error) => setForm((current) => (current ? { ...current, error: extractErrorText(error) } : current)),
   })
@@ -217,9 +214,12 @@ function ReceiptsSection({ monitor }: { monitor: ItauPixMonitor | undefined }) {
 
 class SettleError extends Error {
   readonly stage: 'link' | 'confirm' | 'resolve'
-  constructor(stage: 'link' | 'confirm' | 'resolve', cause: unknown) {
+  /** Só no passo `resolve`: a baixa já existe e falta encerrar a exceção com esta resolução. */
+  readonly pending: { resolution: PixExceptionResolution; docNumber: string } | null
+  constructor(stage: 'link' | 'confirm' | 'resolve', cause: unknown, pending: SettleError['pending'] = null) {
     super(extractErrorText(cause))
     this.stage = stage
+    this.pending = pending
   }
 }
 
@@ -237,22 +237,23 @@ async function settleException(exception: PixReconciliationException, match: Uni
     try { await linkPixReconciliationCandidate(exception.id, link) } catch (error) { throw new SettleError('link', error) }
   }
   try { await confirmUnifiedPixReconciliation([match]) } catch (error) { throw new SettleError('confirm', error) }
+  const resolution: PixExceptionResolution = {
+    source: match.source,
+    invoiceId: match.source === 'local' ? match.invoiceId : undefined,
+    demurrageInvoiceId: match.source === 'demurrage' ? match.invoiceId : undefined,
+    txid: match.transaction.txid,
+  }
   try {
-    await resolvePixReconciliationException(exception.id, {
-      source: match.source,
-      invoiceId: match.source === 'local' ? match.invoiceId : undefined,
-      demurrageInvoiceId: match.source === 'demurrage' ? match.invoiceId : undefined,
-      txid: match.transaction.txid,
-    })
+    await resolvePixReconciliationException(exception.id, resolution)
   } catch (error) {
-    throw new SettleError('resolve', error)
+    throw new SettleError('resolve', error, { resolution, docNumber: match.docNumber })
   }
   return match.docNumber
 }
 
 function settleErrorText(error: unknown, docNumber: string | null) {
   if (error instanceof SettleError && error.stage === 'resolve') {
-    return `A baixa${docNumber ? ` em ${docNumber}` : ''} foi gravada, mas a exceção não foi encerrada: ${error.message} Não repita a baixa; confira a fatura no histórico.`
+    return `A baixa${docNumber ? ` em ${docNumber}` : ''} foi gravada, mas a exceção não foi encerrada: ${error.message} Não repita a baixa; use Encerrar exceção.`
   }
   if (error instanceof SettleError && error.stage === 'link') return `Não foi possível vincular a fatura: ${error.message} Nenhuma baixa foi gravada.`
   return `${extractErrorText(error)} Nenhuma baixa foi gravada; a exceção continua pendente.`
@@ -264,7 +265,20 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
   const queryClient = useQueryClient()
   const [openId, setOpenId] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<ExceptionFeedback | null>(null)
+  // Exceções com baixa gravada e encerramento recusado. A fatura já não está
+  // aberta, então Tentar de novo e Escolher fatura não a acham mais; só falta
+  // `resolve_pix_reconciliation_exception`, que aceita a fatura já baixada.
+  // ponytail: guardado só nesta tela; depois de recarregar a página a exceção
+  // volta a mostrar só Tentar de novo. Se isso ocorrer na prática, gravar a
+  // fatura na exceção antes da baixa (vínculo) e encerrar a partir dela.
+  const [unclosed, setUnclosed] = useState<ReadonlyMap<number, { resolution: PixExceptionResolution; docNumber: string }>>(() => new Map())
   const exceptions = query.data ?? []
+
+  function rememberUnclosed(exceptionId: number, error: unknown) {
+    if (!(error instanceof SettleError) || !error.pending) return
+    const pending = error.pending
+    setUnclosed((current) => new Map(current).set(exceptionId, pending))
+  }
 
   const candidatesQuery = useQuery({
     queryKey: ['pix-reconciliation-candidates', openId],
@@ -286,7 +300,8 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
       await afterPixConciliado(queryClient)
     },
     onError: async (error, exception) => {
-      setFeedback({ id: exception.id, tone: 'danger', text: error instanceof SettleError ? settleErrorText(error, null) : extractErrorText(error) })
+      setFeedback({ id: exception.id, tone: 'danger', text: error instanceof SettleError ? settleErrorText(error, error.pending?.docNumber ?? null) : extractErrorText(error) })
+      rememberUnclosed(exception.id, error)
       if (error instanceof SettleError && error.stage === 'resolve') await afterPixConciliado(queryClient)
     },
   })
@@ -315,11 +330,32 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
     },
     onError: async (error, { exception, candidate }) => {
       setFeedback({ id: exception.id, tone: 'danger', text: settleErrorText(error, candidate.docNumber) })
-      if (error instanceof SettleError && error.stage === 'resolve') await afterPixConciliado(queryClient)
+      rememberUnclosed(exception.id, error)
+      if (error instanceof SettleError && error.stage === 'resolve') {
+        setOpenId(null)
+        await afterPixConciliado(queryClient)
+      }
     },
   })
 
-  const busyId = retryMutation.isPending ? retryMutation.variables?.id : linkMutation.isPending ? linkMutation.variables?.exception.id : null
+  const closeMutation = useMutation({
+    mutationFn: ({ exception, resolution }: { exception: PixReconciliationException; resolution: PixExceptionResolution; docNumber: string }) =>
+      resolvePixReconciliationException(exception.id, resolution),
+    onMutate: () => setFeedback(null),
+    onSuccess: async (_data, { exception, docNumber }) => {
+      setUnclosed((current) => { const next = new Map(current); next.delete(exception.id); return next })
+      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: exceção encerrada; a baixa já estava gravada.` })
+      await afterPixConciliado(queryClient)
+    },
+    onError: (error, { exception, docNumber }) =>
+      setFeedback({ id: exception.id, tone: 'danger', text: `A baixa em ${docNumber} continua gravada e a exceção segue aberta: ${extractErrorText(error)}` }),
+  })
+
+  const busyId = retryMutation.isPending
+    ? retryMutation.variables?.id
+    : linkMutation.isPending
+      ? linkMutation.variables?.exception.id
+      : closeMutation.isPending ? closeMutation.variables?.exception.id : null
   const successElsewhere = feedback?.tone === 'success' && !exceptions.some((exception) => exception.id === feedback.id)
 
   return (
@@ -352,6 +388,7 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
             const open = openId === exception.id
             const rowFeedback = feedback?.id === exception.id ? feedback : null
             const busy = busyId === exception.id
+            const pendingClose = unclosed.get(exception.id)
             return (
               <li key={exception.id} className="app-pix-row">
                 <div className="app-pix-row__main">
@@ -373,27 +410,41 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
                     <p className={rowFeedback.tone === 'danger' ? 'app-pix-row__error' : 'app-pix-done'} role={rowFeedback.tone === 'danger' ? 'alert' : 'status'}>{rowFeedback.text}</p>
                   ) : null}
                 </div>
-                <div className="app-pix-row__side">
-                  <Button
-                    variant="secondary"
-                    loading={busy && retryMutation.isPending}
-                    loadingLabel="Conferindo…"
-                    disabled={busy}
-                    onClick={() => retryMutation.mutate(exception)}
-                  >
-                    Tentar de novo
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    aria-expanded={open}
-                    aria-controls={`pix-candidates-${exception.id}`}
-                    disabled={busy}
-                    onClick={() => setOpenId((current) => (current === exception.id ? null : exception.id))}
-                  >
-                    {open ? 'Fechar faturas' : 'Escolher fatura…'}
-                  </Button>
-                </div>
-                {open ? (
+                {pendingClose ? (
+                  <div className="app-pix-row__side">
+                    <Button
+                      variant="secondary"
+                      loading={busy && closeMutation.isPending}
+                      loadingLabel="Encerrando…"
+                      disabled={busy}
+                      onClick={() => closeMutation.mutate({ exception, ...pendingClose })}
+                    >
+                      Encerrar exceção
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="app-pix-row__side">
+                    <Button
+                      variant="secondary"
+                      loading={busy && retryMutation.isPending}
+                      loadingLabel="Conferindo…"
+                      disabled={busy}
+                      onClick={() => retryMutation.mutate(exception)}
+                    >
+                      Tentar de novo
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      aria-expanded={open}
+                      aria-controls={`pix-candidates-${exception.id}`}
+                      disabled={busy}
+                      onClick={() => setOpenId((current) => (current === exception.id ? null : exception.id))}
+                    >
+                      {open ? 'Fechar faturas' : 'Escolher fatura…'}
+                    </Button>
+                  </div>
+                )}
+                {open && !pendingClose ? (
                   <div id={`pix-candidates-${exception.id}`} className="app-pix-candidates">
                     <p className="app-pix-section__hint">Faturas abertas que aceitam este TXID. A baixa só é gravada se o banco aceitar o TXID e o valor da fatura escolhida.</p>
                     {candidatesQuery.isLoading ? <p className="app-pix-muted" role="status">Procurando faturas…</p> : null}

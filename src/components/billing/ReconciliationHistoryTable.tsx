@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ArrowUpDown, Download } from 'lucide-react'
@@ -103,9 +103,15 @@ export function ReconciliationHistoryTable({
   const totalCount = query.data?.totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / state.pageSize))
   const failed = Boolean(query.error)
-  const range = query.data ? describePageRange({ page: state.page, pageSize: state.pageSize, totalCount }) : null
+  // Página além do fim (link compartilhado, ou baixa cancelada na última página):
+  // vai para a última existente em vez de dizer que não há baixas.
+  const pastEnd = Boolean(query.data) && state.page > totalPages
+  const range = query.data && !pastEnd ? describePageRange({ page: state.page, pageSize: state.pageSize, totalCount }) : null
 
   const update = (next: (params: URLSearchParams) => URLSearchParams) => setSearchParams((params) => next(params), { replace: true })
+  useEffect(() => {
+    if (pastEnd) setSearchParams((params) => withHistoryPage(params, totalPages), { replace: true })
+  }, [pastEnd, totalPages, setSearchParams])
   const setFilter = (key: HistoryFilterKey, value: string) => update((params) => withHistoryFilter(params, key, value))
   const open = (row: ReconciliationHistoryRow) => {
     if (row.source === 'local') onSelectLocalInvoice?.(row.invoiceId, row.paymentId)
@@ -139,7 +145,7 @@ export function ReconciliationHistoryTable({
     )
   }
 
-  const empty = !query.isLoading && !failed && rows.length === 0
+  const empty = !query.isLoading && !failed && !pastEnd && rows.length === 0
   const emptyState = activeCount > 0 ? (
     <EmptyState
       title="Nenhuma baixa neste recorte"
@@ -300,7 +306,7 @@ export function ReconciliationHistoryTable({
         </div>
       )}
 
-      {query.data ? (
+      {query.data && !pastEnd ? (
       <TableFooterPagination
         page={state.page}
         pageSize={state.pageSize}

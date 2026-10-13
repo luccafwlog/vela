@@ -233,3 +233,15 @@ export async function afterPixConciliado(queryClient: QueryInvalidator): Promise
     queryKeys.reconciliation.pixExceptions(), queryKeys.reconciliation.itauPixMonitor(), ['pix-reconciliation-candidates'],
   ])
 }
+
+/**
+ * Pendência PIX aberta ou encerrada sem baixa: exceções gravadas na leitura do
+ * extrato ou Pix Itaú marcado como tratado. Muda as listas de Pendências e o
+ * Alerta `pix_unreconciled` (lista, Financeiro e cabeçalho), não as faturas.
+ */
+export async function afterPendenciaPixAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [
+    queryKeys.reconciliation.pixExceptions(), queryKeys.reconciliation.itauPixMonitor(),
+    queryKeys.alerts.all(), queryKeys.alerts.financial(), ['header-alert'],
+  ])
+}

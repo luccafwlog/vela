@@ -78,7 +78,16 @@ só daquela linha; sem fatura segura, explica o motivo na linha e não chama a
 baixa. **Escolher fatura…** lista as faturas abertas que aceitam o TXID, com o
 valor de cada uma ao lado do Pix; **Baixar nesta fatura** vincula, baixa e
 encerra. A falha diz até onde chegou: antes da baixa, nada foi gravado; depois
-dela, a baixa existe e só a exceção ficou aberta (não repetir a baixa).
+dela, a baixa existe e só a exceção ficou aberta (não repetir a baixa). Nesse
+caso a linha troca Tentar de novo e Escolher fatura por **Encerrar exceção**,
+que chama só `resolve_pix_reconciliation_exception` com a fatura já baixada (a
+fatura não está mais aberta, então o matching e a lista de faturas não a
+acham). A tela guarda essa fatura só enquanto está aberta; depois de recarregar,
+a linha volta a oferecer só Tentar de novo (ponytail em `PixPendingPanel.tsx`).
+
+Gravar exceções na leitura e marcar um Pix como tratado usam
+`afterPendenciaPixAlterada` (`cacheEffects.ts`): exceções, monitor Itaú e o
+Alerta `pix_unreconciled` na lista, no Financeiro e no cabeçalho.
 
 ### Upload e matching
 
@@ -135,6 +144,9 @@ baixas**) combina:
 - `demurrage_invoices.status = paid`;
 - filtros de período, origem, tipo de fatura (só Taxas Locais), Cliente, B/L,
   navio, viagem e POD, todos na URL com a ordenação, a página e o tamanho;
+  escolher a origem Demurrage tira o tipo de fatura, e um `tipo` vindo de link
+  com `origem=demurrage` é ignorado; página além do fim (link antigo ou baixa
+  cancelada na última página) vai para a última existente;
 - situação gravada (Paga, Parcialmente paga com recebido e saldo, Coberta pela
   consolidada) e o valor do B/L com o total da fatura quando difere;
 - "Exibindo 1–N de M" no topo e no rodapé; erro de consulta com Tentar

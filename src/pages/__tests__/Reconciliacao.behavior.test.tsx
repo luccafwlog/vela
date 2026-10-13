@@ -404,7 +404,7 @@ describe('Conciliação PIX', () => {
     expect(await screen.findByText(/INV-010: baixa confirmada pelo banco/)).toBeTruthy()
   })
 
-  it('baixa gravada e exceção não encerrada: diz o que aconteceu e pede para não repetir', async () => {
+  it('baixa gravada e exceção não encerrada: pede para não repetir e só encerra a exceção', async () => {
     mocks.listExceptions.mockResolvedValue([exceptionRow])
     mocks.listCandidates.mockResolvedValueOnce([{ source: 'local', invoiceId: 10, docNumber: 'INV-010', amount: 100 }])
     mocks.resolveException.mockRejectedValueOnce(new Error('timeout'))
@@ -413,7 +413,16 @@ describe('Conciliação PIX', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Escolher fatura…' }))
     await user.click(await screen.findByRole('button', { name: 'Baixar nesta fatura' }))
-    expect(await screen.findByText(/A baixa em INV-010 foi gravada, mas a exceção não foi encerrada: timeout Não repita a baixa/)).toBeTruthy()
+    expect(await screen.findByText(/A baixa em INV-010 foi gravada, mas a exceção não foi encerrada: timeout Não repita a baixa; use Encerrar exceção/)).toBeTruthy()
+    // A fatura já não está aberta: Tentar de novo e Escolher fatura não a achariam.
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Escolher fatura…' })).toBeNull()
+    expect(mocks.confirm).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole('button', { name: 'Encerrar exceção' }))
+    expect(await screen.findByText('INV-010: exceção encerrada; a baixa já estava gravada.')).toBeTruthy()
+    expect(mocks.resolveException).toHaveBeenLastCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10, txid: 'TX-42' }))
+    expect(mocks.confirm).toHaveBeenCalledTimes(1)
   })
 
   it('histórico abre o detalhe local com a baixa e o de Demurrage com cancelamento e recibo no mesmo fluxo', async () => {

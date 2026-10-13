@@ -129,6 +129,7 @@ it('mostra a situação gravada, o recebido da parcial e o CNPJ com máscara', (
 })
 
 it('filtros vão para a URL, voltam à primeira página e são os da exportação', async () => {
+  mocks.queryState.data = { ...mocks.queryState.data!, totalCount: 60 }
   const user = userEvent.setup()
   renderTable('/reconciliacao?tab=historico&pagina=2')
   expect(lastFilters()).toEqual(expect.objectContaining({ page: 2 }))
@@ -149,6 +150,26 @@ it('o Cliente vem da URL com o nome e Tipo de fatura não vale para Demurrage', 
   expect(screen.getByText('Cliente: ACME LTDA')).toBeTruthy()
   expect((screen.getByLabelText(/Tipo de fatura/) as HTMLSelectElement).disabled).toBe(true)
   expect(lastFilters()).toEqual(expect.objectContaining({ customerId: '7', source: 'demurrage' }))
+})
+
+it('trocar a Origem para Demurrage tira o Tipo de fatura em vez de prendê-lo no filtro', async () => {
+  const user = userEvent.setup()
+  renderTable('/reconciliacao?tab=historico&tipo=manual')
+
+  await user.selectOptions(screen.getByLabelText('Origem'), 'demurrage')
+  const type = screen.getByLabelText(/Tipo de fatura/) as HTMLSelectElement
+  expect(type.disabled).toBe(true)
+  expect(type.value).toBe('')
+  expect(screen.getByTestId('search').textContent).toBe('?tab=historico&origem=demurrage')
+  expect(lastFilters()).toEqual(expect.objectContaining({ source: 'demurrage', invoiceTypeFilter: '' }))
+})
+
+it('página além do fim vai para a última existente sem dizer que não há baixas', () => {
+  renderTable('/reconciliacao?tab=historico&pagina=999')
+
+  expect(screen.getByTestId('search').textContent).toBe('?tab=historico')
+  expect(screen.queryByText('Nenhuma baixa registrada ainda')).toBeNull()
+  expect(screen.getAllByText('Exibindo 1–3 de 3')).toHaveLength(2)
 })
 
 it('erro de consulta não vira lista vazia nem "Nenhum registro"', async () => {
