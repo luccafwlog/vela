@@ -75,9 +75,9 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     `useVaziosImportacaoStats`). O Planejamento por escala, recusado na
     primeira proposta por confuso, fica na forma A: tabela com uma linha de
     cabeçalho e sem grupos; cada escala e cada atracação tem o seu botão
-    Editar, com Omitir e Excluir dentro da edição; uma coluna Atracações mostra
-    quantas a escala tem, e o número é o botão que as abre (mesmo com 0, para
-    chegar ao "+ Adicionar atracação"); as atracações abrem embaixo, em tabela de
+    Editar, com Omitir e Excluir dentro da edição;  uma seta no começo da linha,
+    antes do porto, abre as atracações (escolhida entre seta, linhas sempre
+    à mostra e atracações só dentro de Editar); as atracações abrem embaixo, em tabela de
     cabeçalho claro. Sem faixa de próxima ação (recusada pelo responsável);
     os Manifestos Mercante a informar seguem em âmbar no bloco Conciliação.
     Nenhum texto técnico na Linha do tempo: o evento de
