@@ -4,6 +4,8 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { EmptyState } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { usePortalConsolidatableReceivables, usePortalCreateConsolidation } from '../../hooks/usePortalBilling'
@@ -89,16 +91,16 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
           ) : rows.length === 0 ? (
             <EmptyState title="Sem B/Ls" description="Você não possui B/Ls com saldo aberto para consolidar." />
           ) : (
-            <table className="app-table app-table--compact min-w-[640px] text-left text-sm">
+            <table className="app-table app-table--compact min-w-[640px] text-sm">
               <caption className="sr-only">B/Ls com saldo aberto para consolidação</caption>
               <thead>
                 <tr>
                   <th scope="col" className="px-3 py-2">Sel.</th>
                   <th scope="col" className="px-3 py-2">B/L</th>
-                  <th scope="col" className="px-3 py-2">Navio/Viagem</th>
+                  <th scope="col" className="app-table__text-head px-3 py-2">Navio/Viagem</th>
                   <th scope="col" className="px-3 py-2">Individual</th>
                   <th scope="col" className="px-3 py-2">Saldo</th>
-                  <th scope="col" className="px-3 py-2">Elegibilidade</th>
+                  <th scope="col" className="app-table__text-head px-3 py-2">Elegibilidade</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,15 +117,15 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
                           onChange={() => toggle(r.receivable_id)}
                         />
                       </td>
-                      <td className="px-3 py-2 font-semibold">{r.bl_id}</td>
-                      <td className="px-3 py-2">{[r.vessel_name, r.voyage_number].filter(Boolean).join(' / ') || '—'}</td>
-                      <td className="px-3 py-2">{r.individual_invoice_number ?? '—'}</td>
+                      <td className="px-3 py-2 font-semibold"><CopyValue value={r.bl_id} label="número do B/L" /></td>
+                      <td className="app-table__text px-3 py-2">{[r.vessel_name, r.voyage_number].filter(Boolean).join(' / ') || <NoValue label="Sem navio/viagem" />}</td>
+                      <td className="px-3 py-2">{r.individual_invoice_number ?? <NoValue label="Sem fatura individual" />}</td>
                       <td className="px-3 py-2">{formatBRL(r.balance_brl)}</td>
-                      <td className="px-3 py-2">
+                      <td className={eligible ? 'px-3 py-2' : 'app-table__text px-3 py-2'}>
                         {eligible ? (
                           <Badge tone="green">Elegível</Badge>
                         ) : (
-                          <span className="text-xs opacity-80">{r.eligibility_reason}</span>
+                          <span className="text-xs opacity-80" title={r.eligibility_reason ?? undefined}>{r.eligibility_reason}</span>
                         )}
                       </td>
                     </tr>

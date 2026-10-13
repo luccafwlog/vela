@@ -4,8 +4,10 @@ import { CircleCheck, Download, FileSignature, FileText, Inbox, PackageCheck, Re
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, EmptyState, InlineError, PageHeader } from "../components/ui/Card";
+import { CopyValue } from "../components/ui/CopyValue";
 import { Field, Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
+import { NoValue } from "../components/ui/NoValue";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { TabButton } from "../components/ui/TabButton";
 import { TableFooterPagination } from "../components/ui/TableFooterPagination";
@@ -218,16 +220,16 @@ export function PortalDesbloqueioCe() {
                 {vip?.enabled ? (
                   "Coberto pelo termo anual VIP."
                 ) : flow.model.data ? (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 font-semibold text-[var(--app-link)] hover:underline"
+                  <Button
+                    variant="secondary"
+                    className="app-btn--sm"
                     onClick={() =>
                       void downloadCeUnlockDocument(flow.model.data!.id, flow.scope).catch((e) => setError(e.message))
                     }
                   >
                     <Download size={12} aria-hidden="true" />
                     Baixar modelo do termo de devolução
-                  </button>
+                  </Button>
                 ) : (
                   "Modelo ainda não disponibilizado pela agência."
                 )}
@@ -245,7 +247,7 @@ export function PortalDesbloqueioCe() {
             <p className="mt-4 border-t border-[var(--app-border)] pt-3 text-xs text-[var(--app-muted)]">
               Para retirar documentos na agência, leve o memorando preenchido em papel timbrado e assinado.{" "}
               <a
-                className="inline-flex items-center gap-1 font-semibold text-[var(--app-link)] hover:underline"
+                className="app-btn app-btn--secondary app-btn--sm"
                 href="/templates/memorando-liberacao-documentos-modelo.docx"
                 download="memorando-liberacao-documentos.docx"
               >
@@ -259,9 +261,9 @@ export function PortalDesbloqueioCe() {
             (vipPending ? (
               <div className="app-callout app-callout--warning">
                 Documentos anuais VIP precisam de regularização antes de uma nova solicitação.{" "}
-                <button type="button" className="underline" onClick={() => changeTab("annual")}>
+                <Button variant="secondary" className="app-btn--sm" onClick={() => changeTab("annual")}>
                   Abrir Documentos anuais
-                </button>
+                </Button>
               </div>
             ) : (
               <p className="app-panel app-panel--padded flex items-center gap-2 text-sm">
@@ -308,7 +310,7 @@ export function PortalDesbloqueioCe() {
               onRetry={() => void flow.list.refetch?.()}
             >
               <div className="app-table-scroll">
-                <table className="app-table app-table--compact min-w-[760px] text-left text-sm">
+                <table className="app-table app-table--compact min-w-[760px] text-sm">
                   <caption className="sr-only">BLs com CE Mercante</caption>
                   <thead>
                     <tr>
@@ -322,7 +324,7 @@ export function PortalDesbloqueioCe() {
                         />
                       </th>
                       <th scope="col" className="px-3 py-3">BL / CE</th>
-                      <th scope="col" className="px-3 py-3">Navio / Viagem</th>
+                      <th scope="col" className="app-table__text-head px-3 py-3">Navio / Viagem</th>
                       <th scope="col" className="px-3 py-3">POD</th>
                       <th scope="col" className="px-3 py-3">Taxas locais</th>
                       <th scope="col" className="px-3 py-3">Situação</th>
@@ -366,14 +368,23 @@ export function PortalDesbloqueioCe() {
                           </td>
                           <td className="px-3 py-3">
                             <span className="app-table__cell-stack">
-                              <span className="app-table__cell-value font-semibold">{i.bl_id}</span>
-                              <span className="app-table__cell-meta whitespace-nowrap">CE {i.ce_mercante ?? "—"}</span>
+                              <span className="app-table__cell-value font-semibold">
+                                <CopyValue value={i.bl_id} label="número do B/L" />
+                              </span>
+                              <span className="app-table__cell-meta whitespace-nowrap">
+                                CE{" "}
+                                {i.ce_mercante ? (
+                                  <CopyValue value={i.ce_mercante} label="CE Mercante" />
+                                ) : (
+                                  <NoValue label="Sem CE Mercante" />
+                                )}
+                              </span>
                             </span>
                           </td>
-                          <td className="px-3 py-3">
-                            {[i.vessel_name, i.voyage_number].filter(Boolean).join(" · ") || "—"}
+                          <td className="app-table__text px-3 py-3">
+                            {[i.vessel_name, i.voyage_number].filter(Boolean).join(" · ") || <NoValue label="Sem navio/viagem" />}
                           </td>
-                          <td className="px-3 py-3">{i.pod ?? "—"}</td>
+                          <td className="px-3 py-3">{i.pod ?? <NoValue label="Sem POD" />}</td>
                           <td className="px-3 py-3">
                             <span className="app-table__cell-stack">
                               <span>
@@ -381,7 +392,7 @@ export function PortalDesbloqueioCe() {
                               </span>
                               {!i.paid && (
                                 <a
-                                  className="app-table__cell-meta font-semibold text-[var(--app-link)] hover:underline"
+                                  className="app-btn app-btn--secondary app-btn--sm"
                                   href={portalPath(flow.scope, "/billing")}
                                 >
                                   Ver faturas
@@ -443,7 +454,7 @@ export function PortalDesbloqueioCe() {
               />
             ) : (
               <div className="app-table-scroll">
-                <table className="app-table app-table--compact min-w-[520px] text-left text-sm">
+                <table className="app-table app-table--compact min-w-[520px] text-sm">
                   <caption className="sr-only">Minhas solicitações de desbloqueio</caption>
                   <thead>
                     <tr>
@@ -465,7 +476,7 @@ export function PortalDesbloqueioCe() {
                         <td className="px-3 py-3 text-[var(--app-muted)]">
                           {r.source === "vip_annual" ? "Anuais VIP" : "Anexados à solicitação"}
                         </td>
-                        <td className="px-3 py-3 text-right">
+                        <td className="px-3 py-3">
                           <Button
                             variant="secondary"
                             className="app-btn--sm"
@@ -556,15 +567,15 @@ export function PortalDesbloqueioCe() {
               <div className="space-y-3">
                 <h3 className="app-panel__title">BLs da solicitação</h3>
                 <div className="app-table-scroll rounded-lg border border-[var(--app-border)]">
-                  <table className="app-table app-table--compact min-w-[560px] text-left text-sm">
+                  <table className="app-table app-table--compact min-w-[560px] text-sm">
                     <caption className="sr-only">Requisitos de cada BL</caption>
                     <thead>
                       <tr>
                         <th scope="col" className="px-3 py-2">BL / CE</th>
-                        <th scope="col" className="px-2 py-2 text-center">Termo</th>
-                        <th scope="col" className="px-2 py-2 text-center">Procuração</th>
-                        <th scope="col" className="px-2 py-2 text-center">Taxas locais</th>
-                        <th scope="col" className="px-2 py-2 text-center">BL original</th>
+                        <th scope="col" className="px-2 py-2">Termo</th>
+                        <th scope="col" className="px-2 py-2">Procuração</th>
+                        <th scope="col" className="px-2 py-2">Taxas locais</th>
+                        <th scope="col" className="px-2 py-2">BL original</th>
                         <th scope="col" className="px-3 py-2">Pendências</th>
                       </tr>
                     </thead>
@@ -573,20 +584,29 @@ export function PortalDesbloqueioCe() {
                         <tr key={i.bl_id}>
                           <td className="px-3 py-2">
                             <span className="app-table__cell-stack">
-                              <span className="app-table__cell-value font-semibold">{i.bl_id}</span>
-                              <span className="app-table__cell-meta whitespace-nowrap">CE {i.ce_mercante ?? "—"}</span>
+                              <span className="app-table__cell-value font-semibold">
+                                <CopyValue value={i.bl_id} label="número do B/L" />
+                              </span>
+                              <span className="app-table__cell-meta whitespace-nowrap">
+                                CE{" "}
+                                {i.ce_mercante ? (
+                                  <CopyValue value={i.ce_mercante} label="CE Mercante" />
+                                ) : (
+                                  <NoValue label="Sem CE Mercante" />
+                                )}
+                              </span>
                             </span>
                           </td>
-                          <td className="px-2 py-2 text-center">
+                          <td className="px-2 py-2">
                             <CeUnlockRequirementIcon ok={!!i.termo} label="Termo de devolução" />
                           </td>
-                          <td className="px-2 py-2 text-center">
+                          <td className="px-2 py-2">
                             <CeUnlockRequirementIcon ok={!!i.procuracao} label="Procuração" />
                           </td>
-                          <td className="px-2 py-2 text-center">
+                          <td className="px-2 py-2">
                             <CeUnlockRequirementIcon ok={!!i.paid} label="Taxas locais" />
                           </td>
-                          <td className="px-2 py-2 text-center">
+                          <td className="px-2 py-2">
                             <CeUnlockRequirementIcon ok={!!i.delivered} label="BL original" />
                           </td>
                           <td className="px-3 py-2">

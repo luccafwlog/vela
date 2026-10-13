@@ -1,4 +1,6 @@
 import { Card } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { MetricCard } from '../ui/MetricCard'
 import { Modal } from '../ui/Modal'
 import { portalInvoiceStatusLabel } from '../../lib/portalInvoiceStatus'
@@ -63,10 +65,10 @@ export function PortalDemurrageDetailModal({
                   <tbody>
                     {detail.items.map((item) => (
                       <tr key={item.id}>
-                        <td className="px-3 py-2 font-semibold">{item.container_number}</td>
+                        <td className="px-3 py-2 font-semibold"><CopyValue value={item.container_number} label="número do contêiner" /></td>
                         <td className="px-3 py-2">{item.container_type}</td>
-                        <td className="px-3 py-2">{formatDate(item.discharge_date)}</td>
-                        <td className="px-3 py-2">{formatDate(item.return_date)}</td>
+                        <td className="px-3 py-2">{item.discharge_date ? formatDate(item.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
+                        <td className="px-3 py-2">{item.return_date ? formatDate(item.return_date) : <NoValue label="Sem data de devolução" />}</td>
                         <td className="px-3 py-2">{item.total_days}</td>
                         <td className="px-3 py-2">$ {Number(item.subtotal_usd).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>

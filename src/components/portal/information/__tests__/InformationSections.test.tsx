@@ -49,7 +49,7 @@ describe('Central de Informações', () => {
   it('oculta cópia e link anteriores quando a atualização dos B/Ls falha', async () => {
     mocks.operation.mockReturnValue({ data: operationRows, isLoading: false, error: new Error('network'), refetch: mocks.refetchOperation })
     render(<MemoryRouter initialEntries={['/?bl=BL1']}><TrackingSection information={information} /></MemoryRouter>)
-    expect(screen.queryByRole('button', { name: 'Copiar B/L' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Copiar número do B\/L/ })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Abrir tracking do armador' })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
     expect(mocks.refetchOperation).toHaveBeenCalledOnce()
@@ -85,16 +85,16 @@ describe('Central de Informações', () => {
     render(<MemoryRouter initialEntries={['/?bl=BL1']}><TrackingSection information={information} /></MemoryRouter>)
     expect(screen.queryByRole('link', { name: 'Abrir tracking do armador' })).toBeNull()
     expect(screen.getByRole('link', { name: 'Abrir tracking de Armador seguro' }).getAttribute('href')).toBe('https://example.com/tracking')
-    await user.click(screen.getByRole('button', { name: 'Copiar B/L' }))
+    await user.click(screen.getByRole('button', { name: 'Copiar número do B/L BL1' }))
     expect(write).toHaveBeenCalledWith('BL1')
-    expect(screen.getByRole('status').textContent).toBe('B/L copiado.')
+    expect(screen.getByText('número do B/L copiado')).toBeTruthy()
   })
   it('mostra falha de clipboard sem confirmar cópia', async () => {
     const user = userEvent.setup()
     vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'))
     render(<MemoryRouter initialEntries={['/?bl=BL1']}><TrackingSection information={information} /></MemoryRouter>)
-    await user.click(screen.getByRole('button', { name: 'Copiar B/L' }))
-    expect(screen.getByRole('status').textContent).toContain('Não foi possível copiar')
+    await user.click(screen.getByRole('button', { name: 'Copiar número do B/L BL1' }))
+    expect(screen.getByText('Não foi possível copiar o número do B/L')).toBeTruthy()
   })
   it('preserva contexto e prefixo do Modo Inspeção nos atalhos', () => {
     const scope: PortalScope = { mode: 'inspect', customerId: 10, basePath: '/clientes/portal/inspecao/10', overview: null }

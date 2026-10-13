@@ -163,7 +163,7 @@ export function TaxasLocais() {
         title="Taxas Locais"
         action={
           <>
-            <Link className="app-fin-link" to="/taxas-locais/tabelas">Tabelas e condições<ArrowRight size={14} aria-hidden="true" /></Link>
+            <Link className="app-btn app-btn--secondary" to="/taxas-locais/tabelas">Tabelas e condições<ArrowRight size={14} aria-hidden="true" /></Link>
             <Button variant="secondary" onClick={() => setManualOpen(true)}><FilePlus2 size={16} />Gerar fatura avulsa</Button>
             <Button onClick={() => setConsolidatedOpen(true)}><FilePlus2 size={16} />Gerar fatura consolidada</Button>
           </>

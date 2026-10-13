@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { NoValue } from '../ui/NoValue'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice } from '../shared/ImportParts'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
@@ -303,7 +304,7 @@ function ExtractLines({ lines, variant }: { lines: UnifiedPixMatch[]; variant: '
             <th scope="col" className="app-pix-num">Valor do Pix</th>
             <th scope="col">TXID</th>
             <th scope="col">{variant === 'ready' ? 'Fatura' : 'Situação'}</th>
-            <th scope="col">{variant === 'ready' ? 'Cliente' : 'Documento indicado'}</th>
+            <th scope="col" className={variant === 'ready' ? 'app-table__text-head' : undefined}>{variant === 'ready' ? 'Cliente' : 'Documento indicado'}</th>
           </tr>
         </thead>
         <tbody>
@@ -312,7 +313,7 @@ function ExtractLines({ lines, variant }: { lines: UnifiedPixMatch[]; variant: '
             const note = readyAmountNote(match)
             return (
               <tr key={`${variant}-${getPixLineIdentity(match.transaction)}-${index}`}>
-                <td className="app-pix-num">{match.transaction.lineNumber ?? '—'}</td>
+                <td className="app-pix-num">{match.transaction.lineNumber ?? <NoValue label="Sem número de linha" />}</td>
                 <td className="tabular-nums">{formatExtractDay(match.transaction.date)}</td>
                 <td className="app-pix-num">
                   <span className="app-pix-amount">{formatBRL(match.transaction.amount)}</span>
@@ -325,8 +326,8 @@ function ExtractLines({ lines, variant }: { lines: UnifiedPixMatch[]; variant: '
                       <span className="app-pix-doc">{match.docNumber}</span>
                       <span className="app-pix-meta">{sourceLabel(match.source)}</span>
                     </td>
-                    <td>
-                      <span className="app-pix-clamp">{match.customerName || '—'}</span>
+                    <td className="app-table__text">
+                      <span className="app-pix-clamp">{match.customerName || <NoValue label="Sem Cliente" />}</span>
                       {match.customerCnpj ? <span className="app-pix-meta tabular-nums">{formatCnpjCpf(match.customerCnpj)}</span> : null}
                     </td>
                   </>
@@ -334,10 +335,10 @@ function ExtractLines({ lines, variant }: { lines: UnifiedPixMatch[]; variant: '
                   <>
                     <td>
                       <Badge tone={kind === 'unmatched' ? 'neutral' : 'warning'}>{exceptionKindLabel(kind === 'unmatched' ? 'unmatched' : 'ambiguous')}</Badge>
-                      <span className="app-pix-meta">{match.ambiguityReason ?? '—'}</span>
+                      <span className="app-pix-meta">{match.ambiguityReason ?? <NoValue label="Sem motivo informado" />}</span>
                     </td>
                     <td>
-                      {match.source === 'unmatched' ? '—' : (
+                      {match.source === 'unmatched' ? <NoValue label="Sem documento indicado" /> : (
                         <>
                           <span className="app-pix-doc">{match.docNumber}</span>
                           <span className="app-pix-meta">{sourceLabel(match.source)} · {formatBRL(match.amount)}</span>

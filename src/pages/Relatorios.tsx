@@ -6,6 +6,8 @@ import { Button } from '../components/ui/Button'
 import { MetricCard } from '../components/ui/MetricCard'
 import { TabButton } from '../components/ui/TabButton'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
+import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { Field, Input, Select } from '../components/ui/Input'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { InvoiceStatusBadge } from '../components/demurrage/DemurrageBadges'
@@ -217,7 +219,7 @@ function OperationalReportTab() {
         />
         {error ? <InlineError message="Erro ao carregar relatório operacional." /> : null}
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[1100px] text-left text-sm">
+          <table className="app-table app-table--compact min-w-[1100px] text-sm">
             <caption className="sr-only">B/Ls do relatório de cobrança</caption>
             <thead>
               <tr>
@@ -225,10 +227,10 @@ function OperationalReportTab() {
                 <th scope="col" className="px-4 py-3">Navio/Viagem</th>
                 <th scope="col" className="px-4 py-3">POL</th>
                 <th scope="col" className="px-4 py-3">POD</th>
-                <th scope="col" className="px-4 py-3">Cliente</th>
-                <th scope="col" className="px-4 py-3 text-right">Containers</th>
-                <th scope="col" className="px-4 py-3 text-right">Peso (kg)</th>
-                <th scope="col" className="px-4 py-3 text-right">CBM</th>
+                <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
+                <th scope="col" className="px-4 py-3">Containers</th>
+                <th scope="col" className="px-4 py-3">Peso (kg)</th>
+                <th scope="col" className="px-4 py-3">CBM</th>
                 <th scope="col" className="px-4 py-3">Revisão</th>
                 <th scope="col" className="px-4 py-3">Financeiro</th>
               </tr>
@@ -250,18 +252,18 @@ function OperationalReportTab() {
               ) : null}
               {data?.rows.map((row) => (
                 <tr key={row.id}>
-                  <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]">{row.id}</td>
+                  <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]"><CopyValue value={row.id} label="número do B/L" /></td>
                   <td className="px-4 py-3 text-[var(--app-text)]">
-                    {row.voyage?.vessel?.name ?? '-'} / {row.voyage?.voyage_number ?? '-'}
+                    {row.voyage?.vessel?.name ?? <NoValue label="Sem navio" />} / {row.voyage?.voyage_number ?? <NoValue label="Sem viagem" />}
                   </td>
-                  <td className="px-4 py-3">{row.pol ?? '-'}</td>
-                  <td className="px-4 py-3">{row.pod ?? '-'}</td>
-                  <td className="px-4 py-3 text-[var(--app-text)]">{row.customer?.name ?? '-'}</td>
-                  <td className="px-4 py-3 text-right">{(row.bl_containers ?? []).length}</td>
-                  <td className="px-4 py-3 text-right font-mono">
+                  <td className="px-4 py-3">{row.pol ?? <NoValue label="Sem POL" />}</td>
+                  <td className="px-4 py-3">{row.pod ?? <NoValue label="Sem POD" />}</td>
+                  <td className="app-table__text px-4 py-3 text-[var(--app-text)]">{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
+                  <td className="px-4 py-3">{(row.bl_containers ?? []).length}</td>
+                  <td className="px-4 py-3 font-mono">
                     {blTotalWeightKg(row).toLocaleString('pt-BR')}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono">
+                  <td className="px-4 py-3 font-mono">
                     {blTotalCbm(row).toLocaleString('pt-BR')}
                   </td>
                   <td className="px-4 py-3">
@@ -393,15 +395,15 @@ function FinancialReportTab() {
             />
             {error ? <InlineError message="Erro ao carregar relatório financeiro." /> : null}
             <div className="app-table-scroll">
-              <table className="app-table app-table--compact min-w-[980px] text-left text-sm">
+              <table className="app-table app-table--compact min-w-[980px] text-sm">
                 <caption className="sr-only">Invoices do relatório financeiro</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="px-4 py-3">Invoice</th>
-                    <th scope="col" className="px-4 py-3">Cliente</th>
+                    <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
                     <th scope="col" className="px-4 py-3">Emissão</th>
-                    <th scope="col" className="px-4 py-3 text-right">Total BRL</th>
-                    <th scope="col" className="px-4 py-3 text-right">Saldo BRL</th>
+                    <th scope="col" className="px-4 py-3">Total BRL</th>
+                    <th scope="col" className="px-4 py-3">Saldo BRL</th>
                     <th scope="col" className="px-4 py-3">Status</th>
                   </tr>
                 </thead>
@@ -423,10 +425,10 @@ function FinancialReportTab() {
                   {data?.rows.map((row) => (
                     <tr key={row.id}>
                       <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]">{row.invoice_number ?? `INV-${row.id}`}</td>
-                      <td className="px-4 py-3 text-[var(--app-text)]">{row.customer?.name ?? '-'}</td>
+                      <td className="app-table__text px-4 py-3 text-[var(--app-text)]">{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
                       <td className="px-4 py-3 text-[var(--app-muted)]">{formatDate(row.issued_at)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-[var(--app-text-strong)]">{formatBRL(row.total_brl ?? 0)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-amber-700">{formatBRL(row.balance_brl ?? 0)}</td>
+                      <td className="px-4 py-3 font-mono text-[var(--app-text-strong)]">{formatBRL(row.total_brl ?? 0)}</td>
+                      <td className="px-4 py-3 font-mono text-amber-700">{formatBRL(row.balance_brl ?? 0)}</td>
                       <td className="px-4 py-3">
                         <Badge tone={invoiceStatusTone(row.status)}>{statusLabel(INVOICE_STATUS_LABELS, row.status)}</Badge>
                       </td>
@@ -547,18 +549,18 @@ function CustomerReportTab() {
         />
         {error ? <InlineError message="Erro ao carregar relatório por cliente." /> : null}
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[1020px] text-left text-sm">
+          <table className="app-table app-table--compact min-w-[1020px] text-sm">
             <caption className="sr-only">Clientes por faturamento</caption>
             <thead>
               <tr>
-                <th scope="col" className="px-4 py-3">Cliente</th>
+                <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
                 <th scope="col" className="px-4 py-3">CNPJ</th>
-                <th scope="col" className="px-4 py-3 text-right">B/Ls</th>
-                <th scope="col" className="px-4 py-3 text-right">Peso (kg)</th>
-                <th scope="col" className="px-4 py-3 text-right">CBM</th>
-                <th scope="col" className="px-4 py-3 text-right">Invoices</th>
-                <th scope="col" className="px-4 py-3 text-right">Emitido</th>
-                <th scope="col" className="px-4 py-3 text-right">Em aberto</th>
+                <th scope="col" className="px-4 py-3">B/Ls</th>
+                <th scope="col" className="px-4 py-3">Peso (kg)</th>
+                <th scope="col" className="px-4 py-3">CBM</th>
+                <th scope="col" className="px-4 py-3">Invoices</th>
+                <th scope="col" className="px-4 py-3">Emitido</th>
+                <th scope="col" className="px-4 py-3">Em aberto</th>
               </tr>
             </thead>
             <tbody>
@@ -578,18 +580,18 @@ function CustomerReportTab() {
               ) : null}
               {data?.rows.map((row) => (
                 <tr key={row.customer_id}>
-                  <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]">{row.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-[var(--app-muted)]">{formatCnpjCpf(row.cnpj_cpf)}</td>
-                  <td className="px-4 py-3 text-right">{row.blCount}</td>
-                  <td className="px-4 py-3 text-right font-mono">
+                  <td className="app-table__text px-4 py-3 font-semibold text-[var(--app-text-strong)]">{row.name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-[var(--app-muted)]">{row.cnpj_cpf ? <CopyValue value={formatCnpjCpf(row.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</td>
+                  <td className="px-4 py-3">{row.blCount}</td>
+                  <td className="px-4 py-3 font-mono">
                     {row.totalWeightKg.toLocaleString('pt-BR')}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono">
+                  <td className="px-4 py-3 font-mono">
                     {row.totalCbm.toLocaleString('pt-BR')}
                   </td>
-                  <td className="px-4 py-3 text-right">{row.invoiceCount}</td>
-                  <td className="px-4 py-3 text-right font-mono text-[var(--app-text-strong)]">{formatBRL(row.totalIssued)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-amber-700">{formatBRL(row.totalBalance)}</td>
+                  <td className="px-4 py-3">{row.invoiceCount}</td>
+                  <td className="px-4 py-3 font-mono text-[var(--app-text-strong)]">{formatBRL(row.totalIssued)}</td>
+                  <td className="px-4 py-3 font-mono text-amber-700">{formatBRL(row.totalBalance)}</td>
                 </tr>
               ))}
             </tbody>
@@ -705,17 +707,17 @@ function DemurrageReportTab() {
         />
         {error ? <InlineError message="Erro ao carregar relatório de demurrage." /> : null}
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[900px] text-left text-sm">
+          <table className="app-table app-table--compact min-w-[900px] text-sm">
             <caption className="sr-only">Invoices do relatório de demurrage</caption>
             <thead>
               <tr>
                 <th scope="col" className="px-4 py-3">Doc</th>
                 <th scope="col" className="px-4 py-3">BL</th>
-                <th scope="col" className="px-4 py-3">Cliente</th>
+                <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
                 <th scope="col" className="px-4 py-3">Emissão</th>
                 <th scope="col" className="px-4 py-3">Vencimento</th>
-                <th scope="col" className="px-4 py-3 text-right">Total USD</th>
-                <th scope="col" className="px-4 py-3 text-right">Total BRL</th>
+                <th scope="col" className="px-4 py-3">Total USD</th>
+                <th scope="col" className="px-4 py-3">Total BRL</th>
                 <th scope="col" className="px-4 py-3">Status</th>
               </tr>
             </thead>
@@ -737,12 +739,12 @@ function DemurrageReportTab() {
               {invoices.map((invoice) => (
                 <tr key={invoice.id}>
                   <td className="px-4 py-2 font-mono text-xs text-[var(--app-text-strong)]">{invoice.doc_number}</td>
-                  <td className="px-4 py-2 text-[var(--app-blue-btn)]">{invoice.bl_id}</td>
-                  <td className="px-4 py-2">{invoice.customer?.name ?? '—'}</td>
-                  <td className="px-4 py-2 text-[var(--app-muted)]">{invoice.doc_date ? formatDate(invoice.doc_date) : '—'}</td>
-                  <td className="px-4 py-2 text-[var(--app-muted)]">{invoice.due_date ? formatDate(invoice.due_date) : '—'}</td>
-                  <td className="px-4 py-2 text-right font-mono font-semibold text-amber-700">{formatUSD(invoice.total_usd ?? 0)}</td>
-                  <td className="px-4 py-2 text-right font-mono font-semibold text-green-700">{formatBRL(invoice.current_total_brl ?? 0)}</td>
+                  <td className="px-4 py-2 text-[var(--app-blue-btn)]"><CopyValue value={invoice.bl_id} label="número do B/L" /></td>
+                  <td className="app-table__text px-4 py-2">{invoice.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
+                  <td className="px-4 py-2 text-[var(--app-muted)]">{invoice.doc_date ? formatDate(invoice.doc_date) : <NoValue label="Sem data de emissão" />}</td>
+                  <td className="px-4 py-2 text-[var(--app-muted)]">{invoice.due_date ? formatDate(invoice.due_date) : <NoValue label="Sem vencimento" />}</td>
+                  <td className="px-4 py-2 font-mono font-semibold text-amber-700">{formatUSD(invoice.total_usd ?? 0)}</td>
+                  <td className="px-4 py-2 font-mono font-semibold text-green-700">{formatBRL(invoice.current_total_brl ?? 0)}</td>
                   <td className="px-4 py-2"><InvoiceStatusBadge status={invoice.status} /></td>
                 </tr>
               ))}

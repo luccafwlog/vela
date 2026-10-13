@@ -4,6 +4,8 @@ import { CheckSquare, ChevronDown, ChevronUp, Square } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card, EmptyState, InlineError } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { useBlLocalChargeLines } from '../../hooks/useLocalCharges'
 import { formatBRL, formatCnpjCpf, formatDateTime, formatUSD } from '../../lib/utils'
 import { formatPortDisplayName } from '../../lib/voyageFormat'
@@ -56,7 +58,7 @@ export function ValidacaoOperationsTable({
     <Card className="overflow-hidden p-0">
       {hasError ? <InlineError message="Falha ao carregar operação de taxas locais." /> : null}
       <div className="app-table-scroll">
-        <table className="app-table app-table--compact min-w-[1100px] text-left text-sm whitespace-nowrap">
+        <table className="app-table app-table--compact min-w-[1100px] text-sm whitespace-nowrap">
           <caption className="sr-only">B/Ls da operação de taxas locais</caption>
           <thead>
             <tr>
@@ -70,9 +72,9 @@ export function ValidacaoOperationsTable({
               <th scope="col" className="px-4 py-3">Modo de carga</th>
               <th scope="col" className="px-4 py-3">Navio/Viagem</th>
               <th scope="col" className="px-4 py-3">Cálculo</th>
-              <th scope="col" className="px-4 py-3">Cliente</th>
+              <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
               <th scope="col" className="px-4 py-3">Vínculo do Cliente</th>
-              <th scope="col" className="px-4 py-3 text-right">Subtotal</th>
+              <th scope="col" className="px-4 py-3">Subtotal</th>
               <th scope="col" className="px-4 py-3"><span className="sr-only">Ações</span></th>
             </tr>
           </thead>
@@ -112,20 +114,22 @@ export function ValidacaoOperationsTable({
                       </button>
                     </td>
                     <td className="px-4 py-3 font-semibold">
-                      <Link
-                        className="app-invoices__bl"
-                        to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${encodeURIComponent(row.id)}`}
-                      >
-                        {row.id}
-                      </Link>
+                      <CopyValue value={row.id} label="número do B/L">
+                        <Link
+                          className="app-invoices__bl"
+                          to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${encodeURIComponent(row.id)}`}
+                        >
+                          {row.id}
+                        </Link>
+                      </CopyValue>
                     </td>
                     <td className="px-4 py-3"><div className="max-w-[360px] whitespace-normal"><Badge tone={blockTone(block.code)}>{block.label}</Badge>{isExpanded ? null : <div className="mt-1 text-xs text-[var(--app-muted)]">{block.detail}</div>}</div></td>
                     <td className="px-4 py-3">{cargoModeLabel(row.cargo_mode)}</td>
-                    <td className="px-4 py-3">{row.voyage?.vessel?.name ?? '-'} / {row.voyage?.voyage_number ?? '-'}</td>
+                    <td className="px-4 py-3">{row.voyage?.vessel?.name ?? <NoValue label="Sem navio" />} / {row.voyage?.voyage_number ?? <NoValue label="Sem viagem" />}</td>
                     <td className="px-4 py-3">{renderChargeStatus(row.charge_status, row.financial_status, row.cargo_mode)}</td>
-                    <td className="px-4 py-3"><span className="app-table__truncate app-table__truncate--lg" title={row.customer?.name ?? '-'}>{row.customer?.name ?? '-'}</span></td>
+                    <td className="px-4 py-3"><span className="app-table__truncate app-table__truncate--lg" title={row.customer?.name ?? undefined}>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</span></td>
                     <td className="px-4 py-3">{renderReconciliationStatus(row.customer_reconciliation_status)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatBRL(row.totals.total_brl)}</td>
+                    <td className="px-4 py-3 tabular-nums">{formatBRL(row.totals.total_brl)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" onClick={() => onRecalculateRow?.(row)} disabled={isBlLockedForRecalc(row.financial_status)} title={isBlLockedForRecalc(row.financial_status) ? 'B/L já faturado ou financeiramente bloqueado.' : undefined}>
@@ -169,14 +173,17 @@ export function ValidacaoOperationsTable({
                               </div>
                               <div>
                                 <div className="text-[var(--app-muted)]">CE Mercante</div>
-                                <div className="text-[var(--app-text-strong)]">{row.ce_mercante?.trim() ? row.ce_mercante : 'Não informado'}</div>
+                                <div className="text-[var(--app-text-strong)]">{row.ce_mercante?.trim() ? <CopyValue value={row.ce_mercante} label="CE Mercante" /> : 'Não informado'}</div>
                               </div>
                               <div className="col-span-2">
                                 <div className="text-[var(--app-muted)]">Cliente vinculado</div>
                                 <div className="whitespace-normal text-[var(--app-text-strong)]">
-                                  {row.customer?.id
-                                    ? `${row.customer.name ?? 'Sem nome cadastrado'}${row.customer.cnpj_cpf ? ` · ${formatCnpjCpf(row.customer.cnpj_cpf)}` : ''}`
-                                    : 'Nenhum cliente vinculado a este B/L.'}
+                                  {row.customer?.id ? (
+                                    <>
+                                      {row.customer.name ?? 'Sem nome cadastrado'}
+                                      {row.customer.cnpj_cpf ? <> · <CopyValue value={formatCnpjCpf(row.customer.cnpj_cpf)} label="CNPJ/CPF" /></> : null}
+                                    </>
+                                  ) : 'Nenhum cliente vinculado a este B/L.'}
                                 </div>
                               </div>
                               {reconciliationPending && queueItem ? (
@@ -187,7 +194,7 @@ export function ValidacaoOperationsTable({
                                   </div>
                                   <div>
                                     <div className="text-[var(--app-muted)]">CNPJ</div>
-                                    <div className="text-[var(--app-text-strong)]">{queueItem.cnpj_cpf ? formatCnpjCpf(queueItem.cnpj_cpf) : 'Não informado no manifesto'}</div>
+                                    <div className="text-[var(--app-text-strong)]">{queueItem.cnpj_cpf ? <CopyValue value={formatCnpjCpf(queueItem.cnpj_cpf)} label="CNPJ" /> : 'Não informado no manifesto'}</div>
                                   </div>
                                   <div>
                                     <div className="text-[var(--app-muted)]">Cliente sugerido</div>

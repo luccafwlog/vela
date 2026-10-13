@@ -1,6 +1,8 @@
 import { Printer, RotateCcw } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { MetricCard } from '../ui/MetricCard'
 import { Modal } from '../ui/Modal'
 import { portalInvoiceStatusLabel } from '../../lib/portalInvoiceStatus'
@@ -97,12 +99,12 @@ export function PortalInvoiceDetailModal({
               {detail.corrections.map((correction, index) => <p key={index}>B/L {correction.bl_id}: redução de {formatBRL(correction.amount_brl)}, com {formatBRL(correction.offset_brl)} abatidos do saldo e {formatBRL(correction.refund_brl)} registrados para restituição.</p>)}
             </Card> : null}
             {detail?.bls.length ? <DetailSection title="B/Ls" subtitle="Conhecimentos de embarque desta fatura">
-              <table className="app-table app-table--compact min-w-[620px] text-left text-sm">
+              <table className="app-table app-table--compact min-w-[620px] text-sm">
                 <caption className="sr-only">B/Ls incluídos na invoice</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="px-3 py-2">B/L</th>
-                    <th scope="col" className="px-3 py-2">Navio/Viagem</th>
+                    <th scope="col" className="app-table__text-head px-3 py-2">Navio/Viagem</th>
                     <th scope="col" className="px-3 py-2">Trecho</th>
                     <th scope="col" className="px-3 py-2">Subtotal BRL</th>
                   </tr>
@@ -110,9 +112,9 @@ export function PortalInvoiceDetailModal({
                 <tbody>
                   {(detail?.bls ?? []).map((row) => (
                     <tr key={row.id}>
-                      <td className="px-3 py-2 font-semibold">{row.bl_id}</td>
-                      <td className="px-3 py-2">{[row.vessel_name, row.voyage_number].filter(Boolean).join(' / ') || '-'}</td>
-                      <td className="px-3 py-2">{row.pol ?? '-'} - {row.pod ?? '-'}</td>
+                      <td className="px-3 py-2 font-semibold"><CopyValue value={row.bl_id} label="número do B/L" /></td>
+                      <td className="app-table__text px-3 py-2">{[row.vessel_name, row.voyage_number].filter(Boolean).join(' / ') || <NoValue label="Sem navio/viagem" />}</td>
+                      <td className="px-3 py-2">{row.pol ?? <NoValue label="Sem POL" />} - {row.pod ?? <NoValue label="Sem POD" />}</td>
                       <td className="px-3 py-2">{formatBRL(row.subtotal_brl)}</td>
                     </tr>
                   ))}
@@ -142,24 +144,24 @@ export function PortalInvoiceDetailModal({
 
             {(detail?.items?.length ?? 0) > 0 ? (
               <DetailSection title="Itens cobrados" subtitle="Taxas, quantidades e valores">
-                <table className="app-table app-table--compact min-w-[680px] text-left text-sm">
+                <table className="app-table app-table--compact min-w-[680px] text-sm">
                   <thead>
                     <tr>
-                      <th scope="col" className="px-3 py-2">Descricao</th>
+                      <th scope="col" className="app-table__text-head px-3 py-2">Descricao</th>
                       {hasItemBls ? <th scope="col" className="px-3 py-2">B/L</th> : null}
-                      <th scope="col" className="px-3 py-2 text-right">Qtd</th>
-                      <th scope="col" className="px-3 py-2 text-right">Valor unit.</th>
-                      <th scope="col" className="px-3 py-2 text-right">Total</th>
+                      <th scope="col" className="px-3 py-2">Qtd</th>
+                      <th scope="col" className="px-3 py-2">Valor unit.</th>
+                      <th scope="col" className="px-3 py-2">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(detail?.items ?? []).map((item) => (
                       <tr key={item.id}>
-                        <td className="px-3 py-2">{stripBlPrefix(item.description, item.bl_id)}</td>
-                        {hasItemBls ? <td className="px-3 py-2">{item.bl_id ?? '-'}</td> : null}
-                        <td className="px-3 py-2 text-right">{item.quantity ?? '-'}</td>
-                        <td className="px-3 py-2 text-right">{item.unit_value_brl != null ? formatBRL(item.unit_value_brl) : '-'}</td>
-                        <td className="px-3 py-2 text-right font-semibold">{formatBRL(item.total_value_brl)}</td>
+                        <td className="app-table__text px-3 py-2">{stripBlPrefix(item.description, item.bl_id)}</td>
+                        {hasItemBls ? <td className="px-3 py-2">{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L" /> : <NoValue label="Sem B/L" />}</td> : null}
+                        <td className="px-3 py-2">{item.quantity ?? <NoValue label="Sem quantidade" />}</td>
+                        <td className="px-3 py-2">{item.unit_value_brl != null ? formatBRL(item.unit_value_brl) : <NoValue label="Sem valor unitário" />}</td>
+                        <td className="px-3 py-2 font-semibold">{formatBRL(item.total_value_brl)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -169,24 +171,24 @@ export function PortalInvoiceDetailModal({
 
             {(detail?.containers?.length ?? 0) > 0 ? (
               <DetailSection title="Containers" subtitle="Equipamentos vinculados aos B/Ls">
-                <table className="app-table app-table--compact min-w-[620px] text-left text-sm">
+                <table className="app-table app-table--compact min-w-[620px] text-sm">
                   <thead>
                     <tr>
                       <th scope="col" className="px-3 py-2">Container</th>
                       <th scope="col" className="px-3 py-2">Tipo</th>
                       <th scope="col" className="px-3 py-2">B/L</th>
                       <th scope="col" className="px-3 py-2">Lacre</th>
-                      <th scope="col" className="px-3 py-2 text-right">Peso bruto (kg)</th>
+                      <th scope="col" className="px-3 py-2">Peso bruto (kg)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(detail?.containers ?? []).map((cont) => (
                       <tr key={cont.id}>
-                        <td className="px-3 py-2 font-semibold">{cont.container_number}</td>
-                        <td className="px-3 py-2">{cont.type ?? '-'}</td>
-                        <td className="px-3 py-2">{cont.bl_id ?? '-'}</td>
-                        <td className="px-3 py-2">{cont.seal_number ?? '-'}</td>
-                        <td className="px-3 py-2 text-right">{cont.gross_weight_kg != null ? cont.gross_weight_kg.toLocaleString('pt-BR') : '-'}</td>
+                        <td className="px-3 py-2 font-semibold"><CopyValue value={cont.container_number} label="número do contêiner" /></td>
+                        <td className="px-3 py-2">{cont.type ?? <NoValue label="Sem tipo" />}</td>
+                        <td className="px-3 py-2">{cont.bl_id ? <CopyValue value={cont.bl_id} label="número do B/L" /> : <NoValue label="Sem B/L" />}</td>
+                        <td className="px-3 py-2">{cont.seal_number ?? <NoValue label="Sem lacre" />}</td>
+                        <td className="px-3 py-2">{cont.gross_weight_kg != null ? cont.gross_weight_kg.toLocaleString('pt-BR') : <NoValue label="Sem peso bruto" />}</td>
                       </tr>
                     ))}
                   </tbody>

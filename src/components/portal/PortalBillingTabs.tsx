@@ -1,7 +1,9 @@
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { FilterBar } from '../ui/FilterBar'
 import { Field, Input, Select } from '../ui/Input'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
@@ -52,14 +54,14 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
 
       {/* Desktop */}
       <div className="hidden app-table-scroll md:block">
-        <table className="app-table app-table--compact min-w-[920px] text-left text-sm">
+        <table className="app-table app-table--compact min-w-[920px] text-sm">
           <caption className="sr-only">Faturas de taxas locais e avulsas do cliente</caption>
           <thead>
             <tr>
               <th scope="col" className="px-4 py-3">B/L</th>
               <th scope="col" className="px-4 py-3">Fatura</th>
               <th scope="col" className="px-4 py-3">Tipo</th>
-              <th scope="col" className="px-4 py-3">Navio / Viagem · POD</th>
+              <th scope="col" className="app-table__text-head px-4 py-3">Navio / Viagem · POD</th>
               <th scope="col" className="px-4 py-3">Emissão</th>
               <th scope="col" className="px-4 py-3">Financeiro</th>
               <th scope="col" className="px-4 py-3">Status</th>
@@ -75,14 +77,14 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
             ) : null}
             {invoices.map((invoice) => (
               <tr key={invoice.id}>
-                <td className="px-4 py-3 font-semibold">{formatBlList(invoice.bls)}</td>
+                <td className="px-4 py-3 font-semibold">{renderBlList(invoice.bls, true)}</td>
                 <td className="px-4 py-3">{invoice.invoice_number ?? `INV-${invoice.id}`}</td>
                 <td className="px-4 py-3">{invoiceTypeLabel(invoice.invoice_type)}</td>
-                <td className="px-4 py-3">
-                  <div>{(invoice.vessel_voyages ?? []).join(' / ') || '—'}</div>
-                  <div className="text-xs text-[var(--app-muted)]">{(invoice.pods ?? []).join(' / ') || '—'}</div>
+                <td className="app-table__text px-4 py-3">
+                  <div>{(invoice.vessel_voyages ?? []).join(' / ') || <NoValue label="Sem navio/viagem" />}</div>
+                  <div className="text-xs text-[var(--app-muted)]">{(invoice.pods ?? []).join(' / ') || <NoValue label="Sem POD" />}</div>
                 </td>
-                <td className="px-4 py-3">{formatDate(invoice.issued_at)}</td>
+                <td className="px-4 py-3">{invoice.issued_at ? formatDate(invoice.issued_at) : <NoValue label="Sem data de emissão" />}</td>
                 <td className="px-4 py-3">
                   <div className="font-semibold">{formatBRL(invoice.total_brl)}</div>
                   <div className="text-xs text-[var(--app-muted)]">Saldo {formatBRL(invoice.balance_brl)}</div>
@@ -122,8 +124,8 @@ export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading
               <span>{invoiceTypeLabel(invoice.invoice_type)} · {formatDate(invoice.issued_at)}</span>
               <span className="font-semibold text-[var(--app-text)]">{formatBRL(invoice.total_brl)}</span>
             </div>
-            <div className="mt-1 text-sm text-[var(--app-muted)]">{(invoice.vessel_voyages ?? []).join(' / ') || '—'}</div>
-            <div className="mt-1 text-sm text-[var(--app-muted)]">B/L: {formatBlList(invoice.bls)}</div>
+            <div className="mt-1 text-sm text-[var(--app-muted)]">{(invoice.vessel_voyages ?? []).join(' / ') || <NoValue label="Sem navio/viagem" />}</div>
+            <div className="mt-1 text-sm text-[var(--app-muted)]">B/L: {renderBlList(invoice.bls, false)}</div>
             {invoice.covered_by_invoice_number ? (
               <div className="mt-1 text-sm text-[var(--app-muted)]">Coberta pela {invoice.covered_by_invoice_number}</div>
             ) : null}
@@ -177,7 +179,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
       {error ? <div className="px-5 py-4 text-sm text-[var(--app-red)]">Falha ao consultar faturas de demurrage.</div> : null}
 
       <div className="hidden app-table-scroll md:block">
-        <table className="app-table app-table--compact min-w-[820px] text-left text-sm">
+        <table className="app-table app-table--compact min-w-[820px] text-sm">
           <caption className="sr-only">Faturas de demurrage do cliente</caption>
           <thead>
             <tr>
@@ -201,11 +203,11 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
             {invoices.map((inv) => (
               <tr key={inv.id}>
                 <td className="px-4 py-3 font-semibold">{inv.doc_number}</td>
-                <td className="px-4 py-3">{inv.bl_id} — {inv.pol ?? '-'} / {inv.pod ?? '-'}</td>
-                <td className="px-4 py-3">{formatDate(inv.billed_at)}</td>
+                <td className="px-4 py-3"><CopyValue value={inv.bl_id} label="número do B/L" /> — {inv.pol ?? <NoValue label="Sem POL" />} / {inv.pod ?? <NoValue label="Sem POD" />}</td>
+                <td className="px-4 py-3">{inv.billed_at ? formatDate(inv.billed_at) : <NoValue label="Sem data de emissão" />}</td>
                 <td className="px-4 py-3">{formatDate(inv.updated_at)}</td>
                 <td className="px-4 py-3">$ {Number(inv.total_usd).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td className="px-4 py-3">{inv.current_total_brl != null ? formatBRL(inv.current_total_brl) : '—'}</td>
+                <td className="px-4 py-3">{inv.current_total_brl != null ? formatBRL(inv.current_total_brl) : <NoValue label="Sem total em BRL" />}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     {renderDemurrageBadge(inv.status)}
@@ -242,7 +244,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
                 {inv.dispute_open ? <Badge tone="yellow">D</Badge> : null}
               </div>
             </div>
-            <div className="mt-1 text-sm text-[var(--app-muted)]">{inv.bl_id} · {inv.pol ?? '-'} / {inv.pod ?? '-'}</div>
+            <div className="mt-1 text-sm text-[var(--app-muted)]"><CopyValue value={inv.bl_id} label="número do B/L" /> · {inv.pol ?? <NoValue label="Sem POL" />} / {inv.pod ?? <NoValue label="Sem POD" />}</div>
             <div className="mt-2 text-sm">$ {Number(inv.total_usd).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div className="mt-2 flex gap-1">
               <Button variant="secondary" onClick={() => onOpenDetail(inv.id)}>Detalhes</Button>
@@ -316,8 +318,11 @@ function FiltersControls({ filters, onFilters, vesselOptions, pods }: { filters:
   )
 }
 
-function formatBlList(bls: string[] | null | undefined) {
-  if (!bls || bls.length === 0) return '—'
+// Com um único B/L, a célula da tabela ganha o ícone de copiar; o cartão
+// mobile é um <button> e não pode conter outro botão (copy = false).
+function renderBlList(bls: string[] | null | undefined, copy: boolean): ReactNode {
+  if (!bls || bls.length === 0) return <NoValue label="Sem B/L" />
+  if (bls.length === 1 && copy) return <CopyValue value={bls[0]} label="número do B/L" />
   if (bls.length <= 2) return bls.join(', ')
   return `${bls.slice(0, 2).join(', ')} +${bls.length - 2}`
 }

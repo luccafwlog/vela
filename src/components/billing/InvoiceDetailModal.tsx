@@ -8,6 +8,8 @@ import { InvoiceCorrectionPanel } from './InvoiceCorrectionPanel'
 import { InvoiceDocumentLocal } from './InvoiceDocumentLocal'
 import { describeInvoiceAmounts, invoiceStatusTag, paymentMethodLabel } from './invoiceDetailPresentation'
 import { Badge } from '../ui/Badge'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { Button } from '../ui/Button'
 import { SkeletonTable } from '../ui/Skeleton'
 import { Field, Input, Select, Textarea } from '../ui/Input'
@@ -371,7 +373,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   </p>
                   <p className="app-invoice-detail__customer">{detailInvoice.customer_name ?? 'Cliente não identificado'}</p>
                   <p className="app-invoice-detail__meta">
-                    {detailInvoice.customer_cnpj_cpf ? <span>CNPJ {formatCnpjCpf(detailInvoice.customer_cnpj_cpf)}</span> : null}
+                    {detailInvoice.customer_cnpj_cpf ? <span>CNPJ <CopyValue value={formatCnpjCpf(detailInvoice.customer_cnpj_cpf)} label="CNPJ" /></span> : null}
                     {voyageParts ? <span>Navio / Viagem {voyageParts}</span> : null}
                   </p>
                   {detailIsManual && detailInvoice.notes ? <p className="app-invoice-detail__description"><span className="sr-only">Descrição da cobrança: </span>{detailInvoice.notes}</p> : null}
@@ -413,8 +415,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                       <thead><tr><th scope="col">B/L</th><th scope="col">Trecho</th><th scope="col" className="app-invoice-detail__num">Subtotal</th></tr></thead>
                       <tbody>{detail.bls.map((row) => (
                         <tr key={row.id}>
-                          <td><Link className="app-invoice-detail__link app-invoice-detail__code" to={`/bls/${encodeURIComponent(row.bl_id)}`}>{row.bl_id}</Link></td>
-                          <td>{row.pol ?? '—'} → {row.pod ?? '—'}</td>
+                          <td><CopyValue value={row.bl_id} label="número do B/L"><Link className="app-invoice-detail__link app-invoice-detail__code" to={`/bls/${encodeURIComponent(row.bl_id)}`}>{row.bl_id}</Link></CopyValue></td>
+                          <td>{row.pol ?? <NoValue label="Sem porto de origem" />} → {row.pod ?? <NoValue label="Sem porto de destino" />}</td>
                           <td className="app-invoice-detail__num">{formatBRL(row.subtotal_brl)}</td>
                         </tr>
                       ))}</tbody>
@@ -430,7 +432,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   <table className="app-table app-table--compact app-invoice-detail__table">
                     <thead>
                       <tr>
-                        <th scope="col">Descrição</th>
+                        <th scope="col" className="app-table__text-head">Descrição</th>
                         <th scope="col">Origem</th>
                         <th scope="col" className="app-invoice-detail__num">Qtd.</th>
                         <th scope="col" className="app-invoice-detail__num">Unitário</th>
@@ -446,7 +448,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                         const usdNote = describeUsdConversionNote(item)
                         return (
                           <tr key={item.id}>
-                            <td>
+                            <td className="app-table__text">
                               {stripBlPrefix(item.description, item.bl_id)}
                               {usdNote ? <span className="app-invoice-detail__cell-note">{usdNote}</span> : null}
                             </td>
@@ -473,7 +475,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                           <th scope="col">Método</th>
                           <th scope="col">Registrado por</th>
                           <th scope="col">Referência bancária</th>
-                          <th scope="col">Observação</th>
+                          <th scope="col" className="app-table__text-head">Observação</th>
                           <th scope="col" className="app-invoice-detail__num">Valor</th>
                           {isAdmin ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                         </tr>
@@ -483,9 +485,9 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                           <tr key={payment.id} aria-current={reversalFormVisible && payment.id === reversalPaymentId ? 'true' : undefined} className={reversalFormVisible && payment.id === reversalPaymentId ? 'app-invoice-detail__row--selected' : undefined}>
                             <td>{formatDate(payment.paid_at)}</td>
                             <td>{paymentMethodLabel(payment.payment_method)}</td>
-                            <td>{payment.registered_by_name || '—'}</td>
-                            <td><span className="app-invoice-detail__wrap">{payment.bank_reference || '—'}</span></td>
-                            <td><span className="app-invoice-detail__wrap">{payment.notes || '—'}</span></td>
+                            <td>{payment.registered_by_name || <NoValue label="Sem responsável pelo registro" />}</td>
+                            <td><span className="app-invoice-detail__wrap">{payment.bank_reference || <NoValue label="Sem referência bancária" />}</span></td>
+                            <td className="app-table__text"><span className="app-invoice-detail__wrap">{payment.notes || <NoValue label="Sem observação" />}</span></td>
                             <td className="app-invoice-detail__num">{formatBRL(payment.amount_brl)}</td>
                             {isAdmin ? (
                               <td className="app-invoice-detail__row-action">
