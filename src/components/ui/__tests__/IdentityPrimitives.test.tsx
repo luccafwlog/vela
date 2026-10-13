@@ -40,6 +40,11 @@ describe('peças da identidade visual (ADR 0081)', () => {
     expect(container.querySelectorAll('.app-lead__detail')).toHaveLength(1)
   })
 
+  it('contagem zero na faixa do bloco continua escrita', () => {
+    const { container } = render(<Block title="Avisos" aside={0}>Nenhum</Block>)
+    expect(container.querySelector('.app-block__aside')?.textContent).toBe('0')
+  })
+
   it('Block com flush entrega o conteúdo sem o recuo do corpo, para tabela', () => {
     const { container } = render(<Block title="Contêineres" flush headingLevel={3}><table /></Block>)
     expect(container.querySelector('.app-block__flush > table')).toBeTruthy()

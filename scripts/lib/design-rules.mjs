@@ -7,6 +7,9 @@ export const TSX_RULES = {
   // --app-*. A forma #RGBA só conta com alguma letra, para "#1234" (número de
   // documento) não virar cor.
   hex: /(?<![\w&/])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|(?=\d*[a-fA-F])[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![\w-])/g,
+  // Cor por função CSS ("rgb(255,0,0)", "text-[hsl(0,0%,10%)]"): use os
+  // tokens. Nome de cor solto ("red") fica de fora: confunde com texto comum.
+  'cor-funcao': /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/g,
   // Tamanho de letra fora da escala ("text-[11px]").
   'tamanho-solto': /\btext-\[\d+(?:\.\d+)?px\]/g,
   // Caixa alta em rótulo, cabeçalho, tag ou aba.

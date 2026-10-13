@@ -123,10 +123,12 @@ Toque (ponteiro grosso) mantém 44 px de alvo nos dois produtos.
 `npm run design:check` (no CI, job "Docs + Lint") compara o código com a linha
 de base `scripts/design-baseline.json` e falha quando:
 
-- um arquivo TSX ganha cor escrita direto, tamanho de letra fora da escala
-  (`text-[11px]`), caixa alta, cor da paleta do Tailwind ou a fonte de marca;
-- `src/index.css` ganha regras numa família de CSS de página (por exemplo
-  `.app-bl-*`, `.app-customer-*`). As peças comuns acima podem crescer.
+- um arquivo TSX ganha cor escrita direto (`#152238`, `#fff8`, `rgb(…)`,
+  `hsl(…)`), tamanho de letra fora da escala (`text-[11px]`), caixa alta, cor
+  da paleta do Tailwind ou a fonte de marca;
+- uma folha de estilo de `src/` ganha regras numa família de CSS de página (por
+  exemplo `.app-bl-*`, `.app-customer-*`), inclusive agrupada ou aninhada com
+  uma peça comum, ou num `.css` novo. As peças comuns acima podem crescer.
 
 A linha de base guarda o que já existia em 2026-10-13 e só desce: ao migrar uma
 tela, rode `npm run design:check -- --update` e confira no diff que os números

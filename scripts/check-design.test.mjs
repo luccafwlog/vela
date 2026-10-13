@@ -9,6 +9,8 @@ assert.deepEqual(
 assert.deepEqual(countTsx('<Block title="Carga"><LeadValue>0 de 2 devolvidos</LeadValue></Block>'), {})
 assert.deepEqual(countTsx('const fonte = "Syne"'), { 'fonte-de-marca': 1 })
 assert.deepEqual(countTsx('href="#exemplo" className="text-[var(--app-link)]"'), {})
+// Cor por função CSS também é cor escrita direto; "var(--app-x)" não é.
+assert.deepEqual(countTsx('style={{ color: "rgb(255, 0, 0)" }} className="text-[hsl(0,0%,10%)] bg-[var(--app-surface)]"'), { 'cor-funcao': 2 })
 // #RGBA também é cor escrita direto.
 assert.deepEqual(countTsx('style={{ color: "#fff8" }} className="bg-[#fff8]"'), { hex: 2 })
 

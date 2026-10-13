@@ -31,7 +31,7 @@ export function Block({
     <section className={cn('app-block', className)} aria-labelledby={titleId}>
       <header className="app-block__header">
         <Heading id={titleId} className="app-block__title">{title}</Heading>
-        {aside ? <div className="app-block__aside">{aside}</div> : null}
+        {hasContent(aside) ? <div className="app-block__aside">{aside}</div> : null}
       </header>
       <div className={cn(flush ? 'app-block__flush' : 'app-block__body', bodyClassName)}>{children}</div>
     </section>
