@@ -143,8 +143,12 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-identity\s*\{[^}]*background:\s*var\(--app-navy\)/s)
     // Tabela padrão (nota de 2026-10-13 na ADR 0081): tudo centralizado, texto
     // longo à esquerda, grupo com traço sob o título e sem linha vertical.
-    expect(css).toMatch(/table\.app-table--padrao th,\s*\.app-shell table\.app-table--padrao td\s*\{[^}]*text-align:\s*center/s)
-    expect(css).toMatch(/\.app-table--padrao \.app-table__text\s*\{[^}]*text-align:\s*left[^}]*text-overflow:\s*ellipsis/s)
+    // Desde a passada única vale para toda .app-table, sem modificador.
+    expect(css).toMatch(/table\.app-table th,\s*\.app-shell table\.app-table td\s*\{[^}]*text-align:\s*center/s)
+    expect(css).toMatch(/table\.app-table \.app-table__text\s*\{[^}]*text-align:\s*left[^}]*text-overflow:\s*ellipsis/s)
+    expect(css).not.toMatch(/app-table--padrao/)
+    // Tabela dentro de tabela: cabeçalho claro pela faixa dos blocos.
+    expect(css).toMatch(/table\.app-table--nested\s*\{[^}]*--app-thead-bg:\s*var\(--app-strip\)/s)
     expect(css).toMatch(/th\.app-table__group > span\s*\{[^}]*border-bottom:\s*2px solid/s)
     expect(css).not.toMatch(/app-table__divider/)
   })

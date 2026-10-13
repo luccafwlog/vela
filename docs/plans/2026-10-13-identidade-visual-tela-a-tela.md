@@ -13,6 +13,9 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   `a11y:contrast` no CI. Nenhuma tela foi reorganizada.
 - **Ficha do B/L entregue em 2026-10-13** (tela 1), a partir do exemplo
   aprovado na página da identidade. Ver o registro abaixo.
+- **Passada única em 2026-10-13** (ver a seção própria): tabela padrão,
+  identificador sem sublinhado, vazio discreto, copiar identificador e ação
+  como botão em todas as telas. Os lotes seguem só para a organização.
 - **Próximo:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -100,6 +103,48 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     a retenção pela Conta de Portal não ativa ou defeito (regra de dado, à
     parte).
 
+## Passada única (2026-10-13)
+
+Decidida pelo responsável em 2026-10-13 (nota na ADR 0081): o que vale igual
+em qualquer tela foi aplicado de uma vez, em todo o Vela e o Portal, na PR
+[#940](https://github.com/luccafwlog/vela/pull/940), sem esperar os lotes:
+
+1. Tabela padrão em toda `.app-table` (centralizada; texto longo à esquerda
+   com `.app-table__text`/`.app-table__text-head`, ou quando a célula já usa
+   `.app-table__truncate`/`.app-table__cell-stack`).
+2. Identificador sem sublinhado em repouso, em todas as famílias; sublinha ao
+   passar o mouse ou com o foco.
+3. Cabeçalho claro em tabela dentro de tabela (`tr[data-row-detail]`, tabela
+   dentro de `.app-table` e `app-table--nested`).
+4. Dado vazio com `NoValue` no lugar de "-", "—" ou texto vazio.
+5. `CopyValue` em número do B/L, CE Mercante, CNPJ e número do contêiner; as
+   ações "Copiar …" de menu que ficaram redundantes saíram.
+6. Ação escrita como texto sublinhado ou só-ícone em linha de tabela virou
+   botão com nome (Editar, Omitir, Excluir…). Menus ⋮, setas de abrir linha,
+   ordenação e paginação ficaram como estão.
+
+Fora da passada: documentos impressos (faturas, recibos, ADR) e qualquer
+reorganização de tela (faixa de identidade, blocos, dado principal, colunas,
+cartões), que segue pelos lotes abaixo.
+
+## Lotes
+
+Cada lote passa pela página de aprovação (captura de hoje, proposta, o que
+muda) e é implementado depois de aprovado. Com a passada única feita, os
+lotes tratam só da organização de cada tela.
+
+| Lote | Telas (ordem da tabela "Telas") | Estado |
+|---|---|---|
+| 1 | Lista de BLs (2), ficha da Viagem (3), ficha do Cliente (5, com as seis abas), Taxas Locais · Faturas (7), Portal · Faturas (10) | Em aprovação: BLs e Viagem aprovadas; Cliente com a Visão geral decidida e as outras cinco abas por propor; Taxas Locais e Portal · Faturas por discutir |
+| 2 | Operação do dia a dia: Revisão (6), Chegadas e Saídas e programação do Portal (4), Demurrage (8), Containers, Veículos e Baplie (14); listas de Viagens e de Clientes | Proposto em 2026-10-13, a confirmar |
+| 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Proposto, a confirmar |
+| 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12) | Proposto, a confirmar |
+| 5 | Apoio e administração: Painel e Alertas (13), Provisionamento, Comunicação e Modo Inspeção (16), Granito, Vazios e depots (17), Relatórios e Administração (18) | Proposto, a confirmar |
+| 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21) | Proposto, a confirmar |
+
+O lote 2 vem logo depois do 1 por ser onde a operação passa mais tempo; o 6
+fica por último porque essas telas mudam pouco além da passada única.
+
 ## Como cada tela passa
 
 1. Capturar a tela de hoje no ambiente local com dados sintéticos
@@ -114,13 +159,10 @@ Regras e peças: [identidade visual](../identidade-visual.md).
 5. Validar com os gates do [AGENTS.md](../../AGENTS.md), capturas depois em
    1440, 768 e 360 px e registrar abaixo.
 
-Desde 2026-10-13 (nota na ADR 0081), identificador que abre o registro não é
-sublinhado em repouso. Ao migrar cada tela, tirar o sublinhado das famílias que
-ainda o têm: `.app-invoices__number`, `.app-invoices__bl`,
-`.app-invoice-detail__link`, `.app-invoice-comm__link`, `.app-fin-link`,
-`.app-fin-alerts__link`, `.app-dem-link`, `.app-pix-link`,
-`.app-voyage-shortcut`, `.app-schedule-vessel-link`, `.billing-demurrage-notice a`,
-`.app-import-templates a` e o pontilhado do Line-Up.
+Desde a passada única (abaixo), identificador que abre o registro não é
+sublinhado em repouso em nenhuma família; link no meio de frase
+(`.billing-demurrage-notice a`, `.app-import-templates a`, login) continua
+sublinhado.
 
 Decisão de negócio encontrada no caminho (cálculo, regra, RPC) é registrada à
 parte e não entra na mudança visual. As pendências não visuais anotadas no

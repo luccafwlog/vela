@@ -5885,7 +5885,7 @@ button.app-metric-tile[aria-pressed='true'] {
   background: transparent;
   color: inherit;
   font-weight: 600;
-  text-decoration: underline;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -7465,7 +7465,7 @@ a.app-step-rail__link:focus-visible {
 /* Line-Up do Painel (etapa 03): os números levam às listas filtradas sem
    pintar a tabela inteira de azul; o sublinhado pontilhado indica o atalho. */
 .app-table--lineup tbody a {
-  text-decoration: underline dotted;
+  text-decoration: none;
   text-decoration-color: var(--app-border-strong);
   text-underline-offset: 3px;
 }
@@ -7595,7 +7595,7 @@ a.app-step-rail__link:focus-visible {
   align-items: center;
   gap: 4px;
   color: var(--app-link);
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 3px;
 }
 
@@ -10308,7 +10308,7 @@ a.app-step-rail__link:focus-visible {
   color: var(--app-link);
   font-size: var(--app-size-table);
   font-weight: 500;
-  text-decoration: underline;
+  text-decoration: none;
   text-decoration-color: transparent;
   text-underline-offset: 3px;
 }
@@ -13000,7 +13000,7 @@ tr[data-inactive] .app-rates-item__value {
 
 .app-invoice-detail__link {
   color: var(--app-link);
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
 }
 
@@ -13294,7 +13294,7 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-link);
   font-size: var(--app-size-body);
   font-weight: 500;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
 }
 
@@ -13366,7 +13366,7 @@ tr[data-inactive] .app-rates-item__value {
   font: inherit;
   font-size: var(--app-size-table);
   font-weight: 500;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
   cursor: pointer;
   white-space: nowrap;
@@ -13441,7 +13441,7 @@ tr[data-inactive] .app-rates-item__value {
   font: inherit;
   font-weight: 600;
   text-align: left;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
   cursor: pointer;
   white-space: nowrap;
@@ -13478,7 +13478,7 @@ tr[data-inactive] .app-rates-item__value {
 .app-invoices__bl {
   color: var(--app-link);
   font-family: var(--app-font-mono);
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
 }
 
@@ -13579,7 +13579,7 @@ tr[data-inactive] .app-rates-item__value {
   padding: 0;
   color: var(--app-link);
   font: inherit;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
   cursor: pointer;
 }
@@ -13711,7 +13711,7 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-link);
   font: inherit;
   text-align: left;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
   cursor: pointer;
 }
@@ -14489,7 +14489,7 @@ tr[data-inactive] .app-rates-item__value {
   padding: 0;
   color: var(--app-link);
   font: inherit;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
   cursor: pointer;
 }
@@ -14905,22 +14905,44 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-muted-soft);
 }
 
-/* Tabela padrão (regra 6, decisão de 2026-10-13): títulos dos grupos,
+/* Tabela padrão (regra 6, decisão de 2026-10-13), em toda .app-table desde a
+   passada única: títulos dos grupos,
    cabeçalhos e células centralizados; texto longo que pode passar do limite
    da coluna (nome do Cliente, descrição) fica à esquerda, para o começo do
    valor aparecer. Grupos de colunas: título centralizado com traço embaixo,
    sem linha vertical entre as colunas. */
-.app-shell table.app-table--padrao th,
-.app-shell table.app-table--padrao td {
+.app-shell table.app-table th,
+.app-shell table.app-table td {
   text-align: center;
 }
 
-.app-shell table.app-table--padrao .app-table__text {
+.app-shell table.app-table .app-table__text {
   max-width: 280px;
   overflow: hidden;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Texto que já se declara longo (truncado ou empilhado) fica à esquerda sem
+   marcação extra. */
+.app-shell table.app-table :is(th, td):has(> .app-table__truncate, > .app-table__cell-stack),
+.app-shell table.app-table th.app-table__text-head {
+  text-align: left;
+}
+
+/* Tabela dentro de tabela (linha aberta, atracações): cabeçalho claro, para
+   não competir com o azul-marinho da tabela de fora (decisão de 2026-10-13). */
+.app-shell :is(tr[data-row-detail], .app-table) table,
+.app-shell table.app-table--nested {
+  --app-thead-bg: var(--app-strip);
+  --app-thead-text: var(--app-strip-text);
+  --app-thead-border: var(--app-border);
+}
+
+.app-shell :is(tr[data-row-detail], .app-table) table thead th,
+.app-shell table.app-table--nested thead th {
+  background: var(--app-thead-bg);
 }
 
 .app-shell table thead th.app-table__group {
@@ -14950,5 +14972,69 @@ tr[data-inactive] .app-rates-item__value {
 
   .app-identity__actions {
     margin-left: 0;
+  }
+}
+
+/* Regra 9 (decisão de 2026-10-13): identificador que abre o registro (B/L,
+   fatura, navio, Invoice) fica só na cor de link; sublinha ao passar o mouse
+   ou receber o foco. Link no meio de uma frase continua sublinhado. */
+.app-shell main a:not(.app-btn, [role], [class*='card']):is(:hover, :focus-visible) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Copiar identificador (CopyValue): o ícone aparece ao passar o mouse na
+   linha ou no valor, ou com o foco; em tela de toque fica sempre visível. */
+.app-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.app-copy__button {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--app-muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.app-copy:hover .app-copy__button,
+tr:hover .app-copy__button,
+.app-copy__button:focus-visible,
+.app-copy__button[data-state='copied'],
+.app-copy__button[data-state='failed'] {
+  opacity: 1;
+}
+
+.app-copy__button:hover {
+  background: var(--app-panel-strong);
+  color: var(--app-text);
+}
+
+.app-copy__button[data-state='copied'] {
+  color: var(--app-success-fg);
+}
+
+.app-identity .app-copy__button {
+  color: #a9cdf7;
+}
+
+.app-identity .app-copy__button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+@media (hover: none) {
+  .app-copy__button {
+    opacity: 1;
   }
 }

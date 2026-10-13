@@ -111,3 +111,21 @@ registro seja informada uma vez só. Um B/L sem Cliente mostrava "Revisão
 pendente" sob o número e "Sem cliente vinculado" na coluna Cliente: dois avisos
 para o mesmo fato. A regra 5 passa a dizer que, em lista, a pendência aparece
 na coluna em que se resolve, sem aviso genérico repetindo o fato.
+
+## Nota de 2026-10-13: passada única e pendência no bloco do assunto
+
+Ao revisar o lote 1, o responsável recusou a faixa de próxima ação na ficha da
+Viagem e na ficha do Cliente e a manteve na ficha do B/L: nessas fichas a
+pendência fica no bloco do seu assunto (regras 3 e 5). Também aprovou ícone de
+copiar para número do B/L, CE Mercante, CNPJ e número do contêiner, e
+cabeçalho claro para tabela dentro de tabela.
+
+Em seguida decidiu aplicar de uma vez, em todas as telas do Vela e do Portal,
+o que não depende de decisão por tela: tabela padrão em toda `.app-table` (o
+modificador `app-table--padrao` deixou de existir), identificador sem
+sublinhado (inclusive nas famílias de página citadas na nota anterior), traço
+discreto para dado vazio, ícone de copiar e ação como botão com nome. A
+reorganização de cada tela (faixa de identidade, blocos, dado principal,
+colunas) continua passando pela aprovação, em lotes, conforme o
+[plano tela a tela](../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+Documentos impressos ficam fora: seguem só as regras de impressão.
