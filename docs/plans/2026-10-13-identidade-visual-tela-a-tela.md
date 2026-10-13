@@ -31,13 +31,13 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     "Revisão pendente" sob o número do B/L; B/L sem Cliente mostra, na coluna
     Cliente, o nome declarado no manifesto em cinza e "Sem cliente vinculado"
     (regra 5; "falta vincular" foi recusado por sugerir Cliente já cadastrado).
-    A coluna Taxas locais mostra só dois estados: **Pendente** (qualquer
+    A coluna Taxas locais mostra só três estados: **Pendente** (qualquer
     impeditivo à emissão da fatura de Taxas Locais ao Cliente; o motivo se
-    trata na Revisão manual) e **Emitida** (a fatura foi emitida). Os
+    trata na Revisão manual), **Emitida** (a fatura foi emitida) e
+    **Isenta** (em cinza; o B/L nunca terá essa fatura). Os
     estados técnicos do cálculo (não calculado, revisão, calculado, pronto
     para faturar) não aparecem na lista; o cartão volta a "Taxas pendentes"
-    e conta os Pendentes. Em aberto: como aparece o B/L isento, que nunca
-    terá fatura. Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
+    e conta os Pendentes. Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
     Faturamento, Taxas locais e Perfil de carga em "Mais filtros". Ao
     implementar, a regra 3 passa a dizer que os cartões aparecem quando a
     tela precisa deles.
