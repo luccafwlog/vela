@@ -4,6 +4,17 @@
 
 ## 2026-10
 
+- **Ficha do B/L na identidade visual (2026-10-13, tela 1 do
+  [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):** a ficha passa a seguir
+  a ordem fixa da identidade: faixa azul-marinho com número, navio, trecho, CE e Cliente; a próxima
+  ação em faixa própria, com "Resolver na Revisão" como botão; os trilhos Operacional e Documental
+  em blocos; e a Visão geral em cinco blocos (Embarque, Documento Mercante, Cliente, Carga e
+  Portal), cada um com o seu dado principal. O bloco Carga mostra "x de y devolvidos" e a tabela
+  dos contêineres com os grupos Devolução e No terminal. "Definir exceção", "Ver na aba Carga" e
+  "Enviar convite do Portal" viraram botões. A aba ativa de todo o sistema passa a azul-marinho
+  preenchido (regra 7). Dados, abas e ações não mudaram; o CSS próprio da ficha caiu de 138 para
+  108 regras. A catraca `design:check` passou a pegar cor `#RGBA` e CSS de página escondido num
+  seletor agrupado com uma peça comum.
 - **Identidade visual única do Vela e do Portal (2026-10-13, [ADR 0081](adr/0081-identidade-visual-unica.md)):**
   depois da etapa 12 da campanha de revisão visual, o responsável revisou o contrato e escolheu a
   direção "Marinha" com fundo neutro: azul-marinho estrutura a tela, blocos com título em faixa e

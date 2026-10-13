@@ -3,8 +3,10 @@
 
 /** Padrões proibidos em componentes e páginas (TSX). */
 export const TSX_RULES = {
-  // Cor escrita direto ("#152238", "bg-[#0d1117]"): use os tokens --app-*.
-  hex: /(?<![\w&/])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![\w-])/g,
+  // Cor escrita direto ("#152238", "bg-[#0d1117]", "#fff8"): use os tokens
+  // --app-*. A forma #RGBA só conta com alguma letra, para "#1234" (número de
+  // documento) não virar cor.
+  hex: /(?<![\w&/])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|(?=\d*[a-fA-F])[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![\w-])/g,
   // Tamanho de letra fora da escala ("text-[11px]").
   'tamanho-solto': /\btext-\[\d+(?:\.\d+)?px\]/g,
   // Caixa alta em rótulo, cabeçalho, tag ou aba.
@@ -25,26 +27,32 @@ export function countTsx(text) {
 }
 
 /**
- * Família de uma regra de CSS: os dois primeiros segmentos da primeira classe
- * do seletor (".app-bl-cell__truncate" → "app-bl"). Famílias de página são as
- * que cada tela criou para si; a catraca não as deixa crescer.
+ * Família de uma classe de CSS: os dois primeiros segmentos
+ * (".app-bl-cell__truncate" → "app-bl"). Famílias de página são as que cada
+ * tela criou para si; a catraca não as deixa crescer.
  */
 export function cssFamily(className) {
   const base = className.split('__')[0]
   return base.split('-').slice(0, 2).join('-')
 }
 
-/** Conta blocos de regra por família, ignorando @media/@layer e comentários. */
+/**
+ * Conta blocos de regra por família, ignorando @media/@layer e comentários.
+ * Num seletor agrupado (".a, .b"), cada parte conta pela sua primeira classe:
+ * agrupar CSS de página com uma peça comum não esconde a família da página.
+ */
 export function countCssFamilies(css) {
   const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '')
   const counts = {}
   for (const match of withoutComments.matchAll(/([^{}]+)\{/g)) {
     const selector = match[1].trim()
     if (!selector || selector.startsWith('@')) continue
-    const first = selector.match(/\.([A-Za-z][\w-]*)/)
-    if (!first) continue
-    const family = cssFamily(first[1])
-    counts[family] = (counts[family] ?? 0) + 1
+    const families = new Set()
+    for (const part of selector.split(',')) {
+      const first = part.match(/\.([A-Za-z][\w-]*)/)
+      if (first) families.add(cssFamily(first[1]))
+    }
+    for (const family of families) counts[family] = (counts[family] ?? 0) + 1
   }
   return counts
 }

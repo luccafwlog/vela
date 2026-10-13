@@ -27,6 +27,19 @@ describe('peças da identidade visual (ADR 0081)', () => {
     expect(within(region).getByRole('definition').textContent).toBe('Não importado')
   })
 
+  it('zero conhecido no detalhe continua escrito; só a falta de detalhe some', () => {
+    const { container } = render(
+      <>
+        <LeadValue detail={0}>Disputas</LeadValue>
+        <FactList><Fact label="Avisos" detail={0}>Nenhum</Fact></FactList>
+        <LeadValue detail={null}>Sem detalhe</LeadValue>
+      </>,
+    )
+    expect(container.querySelector('.app-lead__detail')?.textContent).toBe('0')
+    expect(container.querySelector('.app-facts__detail')?.textContent).toBe('0')
+    expect(container.querySelectorAll('.app-lead__detail')).toHaveLength(1)
+  })
+
   it('Block com flush entrega o conteúdo sem o recuo do corpo, para tabela', () => {
     const { container } = render(<Block title="Contêineres" flush headingLevel={3}><table /></Block>)
     expect(container.querySelector('.app-block__flush > table')).toBeTruthy()

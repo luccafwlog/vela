@@ -56,9 +56,14 @@ export function LeadValue({
   return (
     <div className={cn('app-lead', className)}>
       <p className={cn('app-lead__value', tone !== 'default' && `app-lead__value--${tone}`)}>{children}</p>
-      {detail ? <p className="app-lead__detail">{detail}</p> : null}
+      {hasContent(detail) ? <p className="app-lead__detail">{detail}</p> : null}
     </div>
   )
+}
+
+// Zero conhecido é dado (regra 4): só nulo, vazio ou false some.
+function hasContent(value: ReactNode) {
+  return value != null && value !== false && value !== ''
 }
 
 /** Pares rótulo/valor de apoio: rótulo cinza em cima, valor embaixo. */
@@ -72,7 +77,7 @@ export function Fact({ label, children, detail }: { label: ReactNode; children: 
       <dt className="app-facts__label">{label}</dt>
       <dd className="app-facts__value">
         {children}
-        {detail ? <span className="app-facts__detail">{detail}</span> : null}
+        {hasContent(detail) ? <span className="app-facts__detail">{detail}</span> : null}
       </dd>
     </div>
   )

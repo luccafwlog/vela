@@ -11,9 +11,29 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   (`Block`, `LeadValue`, `FactList`, `IdentityBand`, `NextAction`, `NoValue`,
   grupos de colunas), `npm run design:check` com linha de base e
   `a11y:contrast` no CI. Nenhuma tela foi reorganizada.
-- **Próximo:** ficha do B/L, partindo do exemplo aprovado como ilustração das
-  regras (blocos por assunto, próxima ação em faixa própria, contêineres no
-  bloco Carga).
+- **Ficha do B/L entregue em 2026-10-13** (tela 1), a partir do exemplo
+  aprovado na página da identidade. Ver o registro abaixo.
+- **Próximo:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
+  e Faturas do Portal). As cinco propostas
+  foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade") e
+  aguardam a resposta do responsável, tela a tela: aprovado, ajustar ou
+  recusado. Decisões pedidas:
+  - **Lista de BLs:** esconder os zeros de carga solta no resumo quando o
+    recorte não tem carga solta? Quais filtros ficam sempre abertos (proposta:
+    Busca, Viagem, POL e POD)?
+  - **Ficha da Viagem:** qual é a próxima ação da viagem (proposta: Manifestos
+    Mercante a informar; alternativa: escala sem ETA) e qual vem primeiro
+    quando houver mais de uma? Manter por ora o texto técnico do evento
+    "Dados da viagem alterados"?
+  - **Ficha do Cliente:** com mais de uma pendência, a mais urgente vai para a
+    próxima ação e as outras para um bloco Pendências?
+  - **Taxas Locais:** "Aguardando envio automático" e fatura cancelada em
+    cinza?
+  - **Faturas do Portal:** o que escrever no lugar do vencimento, que a taxa
+    local não tem (ADR 0055)? Botão "Copiar código Pix" (ação nova)? O cartão
+    Saldo pendente mostra R$ 0,00 com a FAT-2026-0018 em aberto: conferir se é
+    a retenção pela Conta de Portal não ativa ou defeito (regra de dado, à
+    parte).
 
 ## Como cada tela passa
 
@@ -37,16 +57,16 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 
 | Ordem | Tela | Rotas | Pontos já conhecidos | Estado |
 |---|---|---|---|---|
-| 1 | Ficha do B/L | `/bls/:blId` | Visão geral numa caixa só com filetes; "Resolver na Revisão", "Definir exceção" e "Ver itens da carga" como texto (regra 9) | Pendente |
-| 2 | Lista de BLs | `/bls` | Cartões que filtram, faixa de resumo, linha com duas ações | Pendente |
-| 3 | Ficha da Viagem e Viagens | `/viagens`, `/viagens/:voyageId` | Ficha restaurada em 2026-10-08 com faixa azul-marinho; conferir contra as regras | Pendente |
+| 1 | Ficha do B/L | `/bls/:blId` | Visão geral numa caixa só com filetes; "Resolver na Revisão", "Definir exceção" e "Ver itens da carga" como texto (regra 9) | Entregue em 2026-10-13 (aba Visão geral, faixa, próxima ação e trilhos; as demais abas herdam a base) |
+| 2 | Lista de BLs | `/bls` | Cartões que filtram, faixa de resumo, linha com duas ações | Proposta no lote 1, aguardando resposta |
+| 3 | Ficha da Viagem e Viagens | `/viagens`, `/viagens/:voyageId` | Ficha restaurada em 2026-10-08 com faixa azul-marinho; conferir contra as regras | Proposta da ficha no lote 1, aguardando resposta |
 | 4 | Chegadas e Saídas e programação do Portal | `/chegadas-saidas`, Painel do Portal | "X" em toda célula, grupos ETD/ETA sem separação. Decidir: Chegada no Brasil antes da Saída; esconder porto sem data; previsão de saída já passada em cinza | Pendente |
-| 5 | Ficha do Cliente e Clientes | `/clientes`, `/clientes/:cnpj` | `.app-customer-*` é a maior família de CSS de página | Pendente |
+| 5 | Ficha do Cliente e Clientes | `/clientes`, `/clientes/:cnpj` | `.app-customer-*` é a maior família de CSS de página | Proposta da ficha no lote 1, aguardando resposta |
 | 6 | Revisão | `/revisao` | `review-link-button` como ação em texto (regra 9) | Pendente |
-| 7 | Taxas Locais e detalhe da fatura | `/taxas-locais`, `/taxas-locais/tabelas` | `app-invoice-comm__link`, `app-fin-alerts__link` | Pendente |
+| 7 | Taxas Locais e detalhe da fatura | `/taxas-locais`, `/taxas-locais/tabelas` | `app-invoice-comm__link`, `app-fin-alerts__link` | Proposta da lista de Faturas no lote 1, aguardando resposta |
 | 8 | Demurrage | `/demurrage`, `/demurrage/taxas` | `app-dem-link` (número da Invoice é identificador; conferir as ações) | Pendente |
 | 9 | Conciliação PIX | `/reconciliacao` | `app-pix-link` | Pendente |
-| 10 | Portal: Faturas, PIX, consolidada e disputa | `/portal/billing` e inspeção | Pix abaixo dos itens no detalhe; saldo pendente diverge entre telas (regra de dado, à parte) | Pendente |
+| 10 | Portal: Faturas, PIX, consolidada e disputa | `/portal/billing` e inspeção | Pix abaixo dos itens no detalhe; saldo pendente diverge entre telas (regra de dado, à parte) | Proposta de Faturas no lote 1, aguardando resposta |
 | 11 | Portal: B/Ls e Containers | `/portal/operacao` e inspeção | | Pendente |
 | 12 | Portal: Painel, Central de Informações, Desbloqueio de CE, Perfil | `/portal`, `/portal/informacoes`, `/portal/desbloqueio-ce`, `/portal/perfil` | | Pendente |
 | 13 | Painel, Alertas | `/painel`, `/alertas`, `/alertas/regras` | | Pendente |
@@ -68,3 +88,4 @@ em TSX, ou quando o responsável encerrar formalmente o que restar.
 | Data | Tela | Base / branch | Resumo, checks e evidência |
 |---|---|---|---|
 | 2026-10-13 | Base da identidade | `2f06add`; `claude/trusting-cerf-bkwctp` | Ver "Estado". **Teste:** `docs:check`, `typecheck`, `lint`, `npm test` (747 arquivos, 4.622 testes; 81 arquivos de integração pulados sem banco), `build`, `size-limit` (Vela 248,95 KiB, igual à base; Portal 208,17 KiB), `a11y:contrast` (63 pares, incluindo o tema do Portal) e `design:check`. **Runtime:** capturas antes e depois em ambiente local com dados sintéticos (12 telas a 1440 px e BLs a 360 px), sem erro de console; nenhuma tela reorganizada. **Não verificado:** tema escuro e Portal fora do Modo Inspeção. |
+| 2026-10-13 | Ficha do B/L | `9e55f1c`; `claude/trusting-cerf-bkwctp` | `IdentityBand`, `NextAction` com "Resolver na Revisão" como botão, trilhos em `Block`, Visão geral em cinco blocos (Embarque, Documento Mercante, Cliente; Carga com tabela de contêineres em grupos Devolução e No terminal; Portal); botões em "Definir exceção", "Ver na aba Carga", "Abrir conciliação" e "Enviar convite do Portal"; aba ativa em azul-marinho em todo o sistema; família `app-bl` de 138 para 108 regras. Refeita a partir do exemplo aprovado, porque a implementação da sessão anterior não chegou a ser enviada. Junto: `design:check` passa a contar `#RGBA` e cada parte de seletor agrupado (linha de base remedida sobre o mesmo CSS), e `LeadValue`/`Fact` mantêm detalhe 0. **Teste:** `docs:check`, `typecheck`, `lint`, `npm test` (748 arquivos, 4.627 testes; 81 de integração pulados sem banco), `build`, `size-limit` (Vela 248,93 KiB; Portal 208,16 KiB), `a11y:contrast`, `design:check`. **Runtime:** Postgres 16 local com `validation_seed` e `seed_audit`, `sb-shim` e Vite; B/Ls COSU6401234501 (normal), COSU6401234505 (sem Cliente, cadastro na largura toda) e COSU6401234509 (carga solta) a 1440, 768 e 360 px, sem rolagem lateral nem erro de console. **Não verificado:** tema escuro, B/L misto e cancelado em runtime, e as demais telas com a aba ativa nova. |

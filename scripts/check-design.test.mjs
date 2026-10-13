@@ -9,6 +9,8 @@ assert.deepEqual(
 assert.deepEqual(countTsx('<Block title="Carga"><LeadValue>0 de 2 devolvidos</LeadValue></Block>'), {})
 assert.deepEqual(countTsx('const fonte = "Syne"'), { 'fonte-de-marca': 1 })
 assert.deepEqual(countTsx('href="#exemplo" className="text-[var(--app-link)]"'), {})
+// #RGBA também é cor escrita direto.
+assert.deepEqual(countTsx('style={{ color: "#fff8" }} className="bg-[#fff8]"'), { hex: 2 })
 
 // CSS: família pelos dois primeiros segmentos da primeira classe.
 assert.equal(cssFamily('app-bl-cell__truncate'), 'app-bl')
@@ -22,6 +24,12 @@ assert.deepEqual(
     :root { --app-bg: #f6f7f9; }
   `),
   { 'app-bl': 2, 'app-block': 1 },
+)
+// Seletor agrupado conta cada família uma vez: CSS de página junto de uma
+// peça comum continua contando para a página.
+assert.deepEqual(
+  countCssFamilies('.app-block, .app-customer-new { gap: 4px; } .app-bl-row .app-btn, .app-bl-card { gap: 2px; }'),
+  { 'app-block': 1, 'app-customer': 1, 'app-bl': 1 },
 )
 
 // Catraca: só aumento falha; queda é sugerida para travar o ganho.
