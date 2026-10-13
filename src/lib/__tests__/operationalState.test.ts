@@ -3,7 +3,6 @@ import {
   describeActiveFilters,
   describeEmptyState,
   formatResultCount,
-  summarizeReconciliation,
 } from '../operationalState'
 
 describe('operationalState', () => {
@@ -42,13 +41,6 @@ describe('operationalState', () => {
     })).toEqual({
       title: 'Nenhuma fatura encontrada.',
       description: 'Os filtros atuais nao retornaram faturas. Ajuste ou limpe os filtros para ampliar a busca.',
-    })
-  })
-
-  it('summarizes reconciliation review risk without approving ambiguous items', () => {
-    expect(summarizeReconciliation({ safe: 2, ambiguous: 1, total: 3 })).toEqual({
-      status: '1 pendencia exige revisao humana',
-      risk: 'Itens ambiguos nao serao conciliados automaticamente.',
     })
   })
 })

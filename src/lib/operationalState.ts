@@ -41,32 +41,3 @@ export function describeEmptyState({
     description: 'Quando houver dados para este módulo, eles aparecerão aqui.',
   }
 }
-
-export function summarizeReconciliation({
-  safe,
-  ambiguous,
-  total,
-}: {
-  safe: number
-  ambiguous: number
-  total: number
-}) {
-  if (ambiguous > 0) {
-    return {
-      status: `${ambiguous} ${ambiguous === 1 ? 'pendencia exige' : 'pendencias exigem'} revisao humana`,
-      risk: 'Itens ambiguos nao serao conciliados automaticamente.',
-    }
-  }
-
-  if (safe > 0) {
-    return {
-      status: `${safe} ${safe === 1 ? 'pagamento seguro' : 'pagamentos seguros'} para conciliacao`,
-      risk: 'Confirmar apenas itens com correspondencia unica por TXID.',
-    }
-  }
-
-  return {
-    status: total === 0 ? 'Nenhuma correspondencia encontrada' : 'Nenhum pagamento seguro para conciliacao',
-    risk: 'Revise o extrato e as invoices abertas antes de tentar novamente.',
-  }
-}

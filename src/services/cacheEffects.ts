@@ -202,6 +202,15 @@ export async function afterReferenciaDemurrageAlterada(queryClient: QueryInvalid
   await invalidate(queryClient, [queryKeys.portalInformation.all(), ['portal-operation-bls'], ['demurrage-containers']])
 }
 
+const DEMURRAGE_INVOICE_KEYS: readonly (readonly unknown[])[] = [
+  ['demurrage-invoices'], ['demurrage-invoice-detail'], ['demurrage-kpis'], ['demurrage-containers'],
+  ['demurrage-customer-summary'], ['demurrage-customer-detail'], ['demurrage-disputes'], ['demurrage-report'],
+  ['demurrage-latest-recalc'], ['financial-refunds'], ['bl-detail'], ['bl-cockpit'], ['customer-ficha'],
+  ['customer-detail'], ['portal-demurrage-invoices'], ['portal-demurrage-invoices-page'],
+  ['portal-demurrage-invoice-detail'], ['portal-disputes'], ['reconciliation-history'],
+  ['alerts'], ['header-alert'],
+]
+
 /**
  * Emissão, baixa, estorno, cancelamento, desconto, disputa ou PTAX de uma
  * Invoice de Demurrage: a lista, o detalhe, os totais, as caixas cobradas na
@@ -209,12 +218,18 @@ export async function afterReferenciaDemurrageAlterada(queryClient: QueryInvalid
  * mesmo documento.
  */
 export async function afterFaturaDemurrageAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, DEMURRAGE_INVOICE_KEYS)
+}
+
+/**
+ * Baixa por Pix pela Conciliação (lote do extrato ou exceção conciliada): a
+ * fatura local passa pelo ledger e a Invoice de Demurrage pela persistência
+ * própria; as duas famílias, o histórico, as exceções PIX, o monitor Itaú e o
+ * Alerta `pix_unreconciled` leem o resultado.
+ */
+export async function afterPixConciliado(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [
-    ['demurrage-invoices'], ['demurrage-invoice-detail'], ['demurrage-kpis'], ['demurrage-containers'],
-    ['demurrage-customer-summary'], ['demurrage-customer-detail'], ['demurrage-disputes'], ['demurrage-report'],
-    ['demurrage-latest-recalc'], ['financial-refunds'], ['bl-detail'], ['bl-cockpit'], ['customer-ficha'],
-    ['customer-detail'], ['portal-demurrage-invoices'], ['portal-demurrage-invoices-page'],
-    ['portal-demurrage-invoice-detail'], ['portal-disputes'], ['reconciliation-history'],
-    ['alerts'], ['header-alert'],
+    ...INVOICE_BASIS_CACHE_KEYS, ...DEMURRAGE_INVOICE_KEYS,
+    queryKeys.reconciliation.pixExceptions(), queryKeys.reconciliation.itauPixMonitor(), ['pix-reconciliation-candidates'],
   ])
 }

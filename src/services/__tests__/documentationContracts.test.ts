@@ -30,8 +30,8 @@ const contracts: Array<{
       'pix_reconciliation_exceptions',
     ],
     effects: [
-      'resolver pendência invalida exceções, `invoices`, `demurrage-invoices` e histórico',
-      'confirmar o lote importado também invalida `demurrage-kpis`, B/Ls e detalhe do cliente',
+      'baixar a exceção e confirmar o lote usam `afterPixConciliado`',
+      'ledger, faturas locais, Demurrage, Portal, histórico, exceções, monitor e alertas',
     ],
     evidence: [
       'src/pages/__tests__/Reconciliacao.behavior.test.tsx',

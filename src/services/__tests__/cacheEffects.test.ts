@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
+import { afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -118,4 +118,15 @@ it('tarifa ou acordo alterado refaz a previsão da aba Containers', async () => 
   const { client, keys } = fakeQueryClient()
   await afterReferenciaDemurrageAlterada(client)
   expect(keys()).toEqual(expect.arrayContaining(keySet([['demurrage-containers']])))
+})
+
+it('baixa por Pix na Conciliação atualiza fatura local, Demurrage, histórico, exceções e monitor Itaú uma vez cada', async () => {
+  const { client, keys } = fakeQueryClient()
+  await afterPixConciliado(client)
+  expect(keys()).toEqual(expect.arrayContaining(keySet([
+    ['invoices'], ['invoice-detail'], ['billing-ledger'], ['bls'], ['bl-detail'], ['customer-ficha'], ['portal-invoices'],
+    ['demurrage-invoices'], ['demurrage-invoice-detail'], ['portal-demurrage-invoices'], ['financial-refunds'],
+    ['reconciliation-history'], ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['alerts'], ['header-alert'],
+  ])))
+  expect(new Set(keys()).size).toBe(keys().length)
 })
