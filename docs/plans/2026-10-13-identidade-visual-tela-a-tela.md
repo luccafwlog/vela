@@ -37,7 +37,11 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     **Isenta** (em cinza; o B/L nunca terá essa fatura). Os
     estados técnicos do cálculo (não calculado, revisão, calculado, pronto
     para faturar) não aparecem na lista; o cartão volta a "Taxas pendentes"
-    e conta os Pendentes. Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
+    e conta os Pendentes. Sai a coluna de botões no fim da linha: "Ver
+    carga" passa à coluna Carga (o próprio "2 CNTR" abre a carga embaixo da
+    linha); o menu ⋮ sai, Excluir fica só na seleção em lote e "Copiar
+    número do B/L" vira um ícone ao lado do número, visível ao passar o
+    mouse na linha ou ao receber o foco do teclado. Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
     Faturamento, Taxas locais e Perfil de carga em "Mais filtros". Ao
     implementar, a regra 3 passa a dizer que os cartões aparecem quando a
     tela precisa deles.
