@@ -38,7 +38,7 @@ por nome:
 | `PORTAL_EMAIL_EVENTS_CRON_SECRET` | `portal-email-events-runner` | `PORTAL_EMAIL_EVENTS_CRON_SECRET` |
 | `IMPORT_EFFECTS_CRON_SECRET` | `import-effects-runner` | `IMPORT_EFFECTS_CRON_SECRET` |
 | `RECALC_CRON_SECRET` | `recalc-demurrage-ptax` | `RECALC_CRON_SECRET` |
-| `ITAU_PIX_ADMIN_SECRET` | `itau-pix-queue` | `ITAU_PIX_ADMIN_SECRET` |
+| `ITAU_PIX_ADMIN_SECRET` | `itau-pix-queue` e o disparo da fila (`ops.kick_itau_pix_runner`, migration `219`) | `ITAU_PIX_ADMIN_SECRET` |
 
 Os nomes são iguais aos dos Edge Function Secrets de propósito: o par
 banco/Function é o contrato, e rotacionar um sem o outro derruba o job.

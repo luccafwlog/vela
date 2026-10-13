@@ -325,6 +325,10 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(charges(`id = ${old.id}`)[0].status).toBe('pending_expire_check')
     expect(charges(`id = ${kept.id}`)[0].status).toBe('pending_update')
     expect(psql(`SELECT expiration_seconds > 29 * 86400 FROM public.itau_pix_charges WHERE id = ${kept.id}`)).toBe('t')
+    // A fila reserva os dois estados novos (219; a 151 só reservava criação e cancelamento,
+    // e a vencida e a renovação nunca chegavam ao Itaú).
+    const claimed = psql(`SELECT string_agg(id::text, ',') FROM public.itau_pix_claim(100) WHERE id IN (${old.id}, ${kept.id})`)
+    expect(claimed.split(',').sort()).toEqual([String(old.id), String(kept.id)].sort())
     // Banco confirma: vencida e não paga → nova cobrança, novo TXID, QR em preparação.
     psql(`SELECT public.itau_pix_record(${old.id}, 'expired')`)
     const replaced = charges(`invoice_id = ${expiring}`)
@@ -432,5 +436,72 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     settle('E153ERRO', charge.txid, '0.08')
     expect(charges(`id = ${charge.id}`)[0].status).toBe('concluded')
     expect(monitorOf().charges.map((c) => c.txid)).not.toContain(charge.txid)
+  })
+  // Migration 219: disparo imediato da fila e vez única do runner Pix.
+  const captureHttpPost = `
+    CREATE TEMP TABLE IF NOT EXISTS captured_post (url text, body jsonb);
+    TRUNCATE pg_temp.captured_post;
+    CREATE OR REPLACE FUNCTION net.http_post(url text, body jsonb DEFAULT '{}'::jsonb, params jsonb DEFAULT '{}'::jsonb, headers jsonb DEFAULT '{}'::jsonb, timeout_milliseconds integer DEFAULT 5000)
+    RETURNS bigint LANGUAGE plpgsql AS $f$
+    BEGIN
+      INSERT INTO pg_temp.captured_post VALUES (url, body);
+      RETURN 1;
+    END $f$;
+    DELETE FROM vault.secrets WHERE name IN ('SUPABASE_URL', 'ITAU_PIX_ADMIN_SECRET');
+    SELECT vault.create_secret('https://exemplo.supabase.co', 'SUPABASE_URL', '');
+    SELECT vault.create_secret('segredo-219', 'ITAU_PIX_ADMIN_SECRET', '');
+  `
+  const posts = `SELECT count(*) || '|' || coalesce(min(url), '') || '|' || coalesce(min(body::text), '') FROM pg_temp.captured_post;`
+
+  it('emitir fatura dispara só a fila do itau-pix, uma vez por transação', () => {
+    setProvider('itau')
+    const out = psql(`BEGIN; ${captureHttpPost}
+      INSERT INTO public.invoices(invoice_number, customer_id, total_brl, balance_brl, invoice_type, status)
+      VALUES ('ITAU219-K1', ${customerId}, 1.5, 1.5, 'manual', 'issued'), ('ITAU219-K2', ${customerId}, 2.5, 2.5, 'manual', 'issued');
+      ${posts} ROLLBACK;`)
+    expect(out.split('\n').at(-1)).toBe('1|https://exemplo.supabase.co/functions/v1/itau-pix|{"action": "process_charges"}')
+  })
+
+  it('a reserva da fila não dispara; cancelar a fatura com cobrança ativa dispara', () => {
+    setProvider('itau')
+    const id = manualInvoice('ITAU219-C', 3)
+    const [charge] = charges(`invoice_id = ${id}`)
+    const claim = psql(`BEGIN; ${captureHttpPost} SELECT count(*) FROM public.itau_pix_claim(100); ${posts} ROLLBACK;`)
+    expect(claim.split('\n').at(-1)?.startsWith('0|')).toBe(true)
+    psql(`SELECT public.itau_pix_claim(100); SELECT public.itau_pix_record(${charge.id}, 'active', 0, '000201ITAU219C', NULL, now())`)
+    const cancel = psql(`BEGIN; ${captureHttpPost}
+      SET LOCAL request.jwt.claim.sub = '${userId}';
+      UPDATE public.invoices SET status = 'cancelled' WHERE id = ${id};
+      SELECT status FROM public.itau_pix_charges WHERE id = ${charge.id};
+      ${posts} ROLLBACK;`).split('\n')
+    expect(cancel.at(-2)).toBe('pending_cancel')
+    expect(cancel.at(-1)?.startsWith('1|')).toBe(true)
+  })
+
+  it('sem o segredo no Vault (Preview), emitir não dispara', () => {
+    setProvider('itau')
+    const out = psql(`BEGIN; ${captureHttpPost}
+      DELETE FROM vault.secrets WHERE name = 'ITAU_PIX_ADMIN_SECRET';
+      INSERT INTO public.invoices(invoice_number, customer_id, total_brl, balance_brl, invoice_type, status)
+      VALUES ('ITAU219-SV', ${customerId}, 1, 1, 'manual', 'issued');
+      ${posts} ROLLBACK;`)
+    expect(out.split('\n').at(-1)?.startsWith('0|')).toBe(true)
+  })
+
+  it('um runner Pix por vez: renovada por quem a tem, recusada a outro, devolvida, e só do servidor', () => {
+    const out = psql(`BEGIN;
+      SET LOCAL request.jwt.claim.role = 'service_role';
+      UPDATE ops.itau_pix_runner_lease SET holder = NULL, lease_until = NULL;
+      SELECT public.acquire_itau_pix_runner('pix-a', 120) || '|' || public.acquire_itau_pix_runner('pix-b', 120)
+        || '|' || public.acquire_itau_pix_runner('pix-a', 120);
+      SELECT public.release_itau_pix_runner('pix-b');
+      SELECT public.acquire_itau_pix_runner('pix-b', 120)::text;
+      SELECT public.release_itau_pix_runner('pix-a');
+      SELECT public.acquire_itau_pix_runner('pix-b', 120)::text;
+      ROLLBACK;`)
+    expect(out.split('\n').filter((line) => line !== '')).toEqual(['true|false|true', 'false', 'true'])
+    expect(psql(`SELECT has_function_privilege('authenticated', 'public.acquire_itau_pix_runner(text, integer)', 'EXECUTE')
+      || '|' || has_function_privilege('anon', 'public.release_itau_pix_runner(text)', 'EXECUTE')
+      || '|' || has_function_privilege('authenticated', 'ops.kick_itau_pix_runner()', 'EXECUTE')`)).toBe('false|false|false')
   })
 })

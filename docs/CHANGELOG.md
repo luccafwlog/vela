@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Pix Itaú: fila completa e QR em segundos (2026-10-13, migration `219`):** a reserva da fila
+  passa a pegar a alteração de cobrança (PTAX da Demurrage, renovação das Taxas Locais) e a
+  conferência de vencimento, que até aqui nunca chegavam ao Itaú: a cobrança ficava com o valor
+  antigo e, vencida, a fatura perdia o QR. A emissão dispara a fila na hora (só cobranças; prazos e
+  recebimentos seguem no job de 1 minuto), com um runner por vez, blocos de 5 em até 20 s, teto de
+  60 cobranças por execução e parada no primeiro 429. Antes, o QR saía em 6 a 56 s (mediana 25 s)
+  e a fila andava 20 cobranças por minuto.
 - **Fila de efeitos de importação ligada e acelerada (2026-10-12):** o `import-effects-runner`
   foi ligado em produção depois do merge da PR 929 (simulação dos 1.000 efeitos mais antigos sem
   falha nem fatura; segredo em par no Vault e na Edge Function). A migration `218` faz a própria

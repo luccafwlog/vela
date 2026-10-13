@@ -291,6 +291,68 @@ describe('processador da fila de cobranças', () => {
     expect(recorded).toEqual([[10, 'active'], [11, 'cancelled']])
     expect(summary).toMatchObject({ active: 1, cancelled: 1, error: 0 })
   })
+
+  // Migration 219: blocos pequenos por orçamento de tempo, teto por execução, parada no 429
+  // e vez única do runner. Cliente falso: um ms por chamada no relógio do teste.
+  const queueOf = (total: number, options: { failOn?: number; renew?: boolean[] } = {}) => {
+    let clock = 0
+    let next = 1
+    const claims: number[] = []
+    const recorded: number[] = []
+    const client = {
+      async createCob(txid: string) {
+        clock += 1000
+        if (options.failOn !== undefined && recorded.length + 1 === options.failOn) throw new ItauPixError('limite', 429, null)
+        return cob(txid, { valor: { original: '2.50' } })
+      },
+    } as never
+    const renewals = options.renew ? [...options.renew] : undefined
+    const queue = {
+      claim: async (limit: number) => {
+        const batch: QueuedCharge[] = []
+        while (batch.length < limit && next <= total) batch.push(charge({ id: next++, txid: newVelaTxid() }))
+        claims.push(batch.length)
+        return batch
+      },
+      record: async (id: number) => { recorded.push(id) },
+      ...(renewals ? { renew: async () => renewals.shift() ?? true } : {}),
+    }
+    return { client, queue, claims, recorded, now: () => clock }
+  }
+
+  it('fila grande: blocos de 5 até o teto de 60 por execução', async () => {
+    const q = queueOf(200)
+    const summary = await processItauPixQueue(q.client, q.queue, { now: q.now, budgetMs: 1_000_000 })
+    expect(q.recorded).toHaveLength(60)
+    expect(q.claims.every((n) => n === 5)).toBe(true)
+    expect(summary).toMatchObject({ active: 60, throttled: false })
+  })
+
+  it('cobranças lentas: para de pedir blocos quando acaba o orçamento de 20 s', async () => {
+    const q = queueOf(200)
+    await processItauPixQueue(q.client, q.queue, { now: q.now })
+    // 1 s por chamada: o 4º bloco termina em 20 s e nenhum outro é pedido.
+    expect(q.claims).toEqual([5, 5, 5, 5])
+  })
+
+  it('429 do Itaú: registra a cobrança e para de chamar o banco', async () => {
+    const q = queueOf(20, { failOn: 3 })
+    const summary = await processItauPixQueue(q.client, q.queue, { now: q.now })
+    expect(q.recorded).toEqual([1, 2, 3])
+    expect(summary).toMatchObject({ active: 2, error: 1, throttled: true })
+  })
+
+  it('perdeu a vez entre blocos: encerra sem pedir outro bloco', async () => {
+    const q = queueOf(20, { renew: [false] })
+    await processItauPixQueue(q.client, q.queue, { now: q.now })
+    expect(q.claims).toEqual([5])
+  })
+
+  it('stepCharge marca 429 como limite, sem incerteza', async () => {
+    const c = charge()
+    const limited = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json({}, { status: 429 }))
+    expect(await stepCharge(createItauPixClient(config, limited), c)).toMatchObject({ outcome: 'error', throttled: true })
+  })
 })
 
 describe('consulta de recebimentos', () => {

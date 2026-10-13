@@ -1,7 +1,9 @@
 // Integração Itaú Pix. Chamada só pelo cron e pela equipe técnica, com segredo
 // próprio; nunca pelo navegador.
-// Corpo vazio (cron) ou {"action":"process_queue"}: processa a fila de cobranças das faturas
-// e consulta os recebimentos para a baixa automática.
+// Corpo vazio (cron) ou {"action":"process_queue"}: prazos, fila de cobranças das faturas e
+// recebimentos para a baixa automática. {"action":"process_charges"} (disparo da migration
+// 219, quando uma cobrança fica pendente): só a fila. A fila roda com a vez única do runner;
+// sem ela, a execução não chama o Itaú para cobranças (prazos e recebimentos seguem).
 // Diagnóstico (Fase 1): token, create_test (até R$ 1,00), get, update_test, cancel, list_pix.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
 import { validCleanupAuthorization as validBearer } from "../_shared/ceUnlockCleanupAuth.ts";
@@ -24,9 +26,18 @@ if (typeof Deno !== "undefined")
       const config = itauPixConfigFromEnv((name) => Deno.env.get(name));
       const httpClient = Deno.createHttpClient({ cert: config.certPem, key: config.keyPem });
       const client = createItauPixClient(config, (url, init) => fetch(url, { ...init, client: httpClient }));
-      if (input.action === undefined || input.action === "process_queue") {
+      const chargesOnly = input.action === "process_charges";
+      if (input.action === undefined || input.action === "process_queue" || chargesOnly) {
         const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+        const workerId = `itau-pix:${crypto.randomUUID()}`;
+        const acquire = async () => {
+          const { data, error } = await admin.rpc("acquire_itau_pix_runner", { p_worker_id: workerId, p_lease_seconds: 120 });
+          if (error) throw new Error("Falha ao obter a vez do runner Itaú.");
+          return data === true;
+        };
         const queue: ChargeQueue = {
+          // Falha ao renovar encerra a fila desta execução; a vez vence sozinha.
+          renew: () => acquire().catch(() => false),
           async claim(limit) {
             const { data, error } = await admin.rpc("itau_pix_claim", { p_limit: limit });
             if (error) throw new Error("Falha ao reservar a fila Itaú.");
@@ -43,10 +54,22 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao registrar resultado Itaú.");
           },
         };
+        const runCharges = async () => {
+          // Outra execução tem a vez: as cobranças entram no bloco seguinte dela ou no próximo minuto.
+          if (!(await acquire())) return { skipped: "busy" as const };
+          try {
+            return await processItauPixQueue(client, queue);
+          } finally {
+            const { error } = await admin.rpc("release_itau_pix_runner", { p_worker_id: workerId });
+            // Sem a devolução, a vez vence sozinha em 120 s.
+            if (error) console.error("itau-pix: devolução da vez falhou", error);
+          }
+        };
+        if (chargesOnly) return Response.json({ charges: await runCharges() });
         // Prazos (vencimento, renovação, PTAX do dia e Alerta das 14h) antes da fila.
         const { data: maintenance, error: maintenanceError } = await admin.rpc("itau_pix_maintain", {});
         if (maintenanceError) throw new Error("Falha na manutenção dos prazos Itaú.");
-        const charges = await processItauPixQueue(client, queue);
+        const charges = await runCharges();
         // Recebimentos falham isolados: a fila de cobranças já foi processada.
         const receipts = await pollItauPixReceipts(client, {
           async checkpoint() {

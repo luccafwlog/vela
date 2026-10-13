@@ -282,6 +282,19 @@ monitoramento acima; a correção é remover a troca de `Z` em
 `supabase/functions/_shared/itauPix.ts`. Operação e segredos no
 [manual de serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos).
 
+**Fila completa e disparo imediato (migration 219, 2026-10-13).** Até a
+`219`, `itau_pix_claim` só reservava `pending_create` e `pending_cancel`: a
+alteração (`pending_update`, PTAX da Demurrage e renovação das Taxas Locais) e
+a conferência de vencimento (`pending_expire_check`) nunca chegavam ao Itaú.
+A cobrança ficava com o valor antigo e, vencida, a fatura perdia o QR. Agora a
+reserva cobre os quatro estados. A transação que deixa cobrança pendente
+dispara a função com `{"action":"process_charges"}` (só a fila; prazos e
+recebimentos seguem no job de 1 minuto), um runner por vez
+(`ops.itau_pix_runner_lease`). Cada execução trabalha em blocos de 5 por até
+20 s, no máximo 60 cobranças, e para no primeiro 429: os limites do Itaú nunca
+foram medidos. Antes, o QR saía em 6 a 56 s (mediana 25 s, 11 cobranças de
+07–08/10), só pelo job de 1 minuto, 20 cobranças por chamada.
+
 **Runtime em produção (07 e 08/10):** avulsas, individual, consolidada e
 Demurrage de teste pagas por QR Itaú foram baixadas pelo cron entre 23 e 58 s
 depois do pagamento; a consolidada (v8) cancelou no ciclo seguinte as
