@@ -29,6 +29,7 @@
     "cloudflare:provision:test": "node --test scripts/cloudflare-pages-provision.test.mjs",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:local-pg": "node scripts/run-local-pg-suites.mjs",
     "test:integration": "vitest run src/integration/supabase.integration.test.ts",
     "size-limit": "node scripts/check-size-limit.mjs",
     "preview": "vite preview",

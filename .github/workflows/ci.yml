@@ -185,13 +185,16 @@ jobs:
         # devem usar ids e `customers.cnpj_cpf` do próprio namespace da suíte,
         # porque o CNPJ é UNIQUE e a limpeza remove por id.
         #
-        # A lista é explícita, não `src/integration/`, porque estas suítes
-        # compartilham um único banco e precisam de execução serializada.
-        # A bateria financeira roda no passo seguinte, sozinha, porque altera
-        # temporariamente o snapshot global de PTAX e confere que nenhuma suíte
-        # deixou tarifa ou cálculo residual (ordem explícita, Etapa 12 do plano
-        # de correção das importações). `npm run localpg:check` falha quando
-        # surge um `*.local-pg.test.ts` fora destas duas listas.
+        # A lista é explícita (scripts/local-pg-suites.txt), não
+        # `src/integration/`, porque estas suítes compartilham um único banco e
+        # precisam de execução serializada. O Vitest reordenaria os arquivos
+        # (falhos e lentos primeiro); `npm run test:local-pg` os roda na ordem
+        # da lista com o sequenciador do vite.config.ts. A bateria financeira
+        # roda depois, sozinha, porque altera temporariamente o snapshot global
+        # de PTAX e confere que nenhuma suíte deixou tarifa ou cálculo residual
+        # (ordem explícita, Etapa 12 do plano de correção das importações).
+        # `npm run localpg:check` falha quando surge um `*.local-pg.test.ts`
+        # fora da lista e dos passos deste job.
         #
         # Sonda de pré-requisito com LOCAL_PG_INTEGRATION=1 falha o teste
         # (`describeWithProbe` em src/integration/localTestData.ts), em vez de
@@ -199,88 +202,21 @@ jobs:
         env:
           LOCAL_PG_INTEGRATION: '1'
           LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
-        run: |
-          npx vitest run --no-file-parallelism \
-            src/integration/appSettingsSingleton.local-pg.test.ts \
-            src/integration/alinhamentoPermissoes.local-pg.test.ts \
-            src/integration/auditoriaRun2.local-pg.test.ts \
-            src/integration/auditoriaRun2Reforcos.local-pg.test.ts \
-            src/integration/auditSecurityBoundaries.local-pg.test.ts \
-            src/integration/communicationEligibility.local-pg.test.ts \
-            src/integration/customerCommunicationCatalog.local-pg.test.ts \
-            src/integration/ceUnlock.local-pg.test.ts \
-            src/integration/demurrageAuthority.local-pg.test.ts \
-            src/integration/demurrageMoney.local-pg.test.ts \
-            src/integration/emailInbox.local-pg.test.ts \
-            src/integration/escalaDocumentalStatus.local-pg.test.ts \
-            src/integration/exchangeRateIntegrity.local-pg.test.ts \
-            src/integration/importAtomicity.local-pg.test.ts \
-            src/integration/importEffects.local-pg.test.ts \
-            src/integration/localBillingIntegrity.local-pg.test.ts \
-            src/integration/manualInvoice.local-pg.test.ts \
-            src/integration/operationalLists.local-pg.test.ts \
-            src/integration/portalInspectionParity.local-pg.test.ts \
-            src/integration/portalInformation.local-pg.test.ts \
-            src/integration/recoveryNotifications.local-pg.test.ts \
-            src/integration/rpcCatalog.local-pg.test.ts \
-            src/integration/adminUsuarios.local-pg.test.ts \
-            src/integration/agencyReportAlertsFoundation.local-pg.test.ts \
-            src/integration/agencyReportCloserName.local-pg.test.ts \
-            src/integration/alertsReviewHardening.local-pg.test.ts \
-            src/integration/rpcFinalDefinition.local-pg.test.ts \
-            src/integration/pr698ClaudeReview.local-pg.test.ts \
-            src/integration/pr698Auditoria.local-pg.test.ts \
-            src/integration/exclusionProtections.local-pg.test.ts \
-            src/integration/deleteRecords.local-pg.test.ts \
-            src/integration/deleteLock.local-pg.test.ts \
-            src/integration/blCancel.local-pg.test.ts \
-            src/integration/tariffDeactivate.local-pg.test.ts \
-            src/integration/customerDeactivate.local-pg.test.ts \
-            src/integration/dataRetention.local-pg.test.ts \
-            src/integration/catalogDeleteReason.local-pg.test.ts \
-            src/integration/invoiceAutoReissue.local-pg.test.ts \
-            src/integration/invoiceCorrection.local-pg.test.ts \
-            src/integration/invoiceReissue.local-pg.test.ts \
-            src/integration/invoiceBasisCorrection.local-pg.test.ts \
-            src/integration/invoicePostBillingSafety.local-pg.test.ts \
-            src/integration/portalConsolidadaPaga.local-pg.test.ts \
-            src/integration/itauPixCharges.local-pg.test.ts \
-            src/integration/thdImoOog.local-pg.test.ts \
-            src/integration/auditoriaImportacaoCargaSolta.local-pg.test.ts \
-            src/integration/auditoriaImportacaoBlContainer.local-pg.test.ts \
-            src/integration/auditoriaCeContainerCompartilhado.local-pg.test.ts \
-            src/integration/auditoriaEfeitosImportacao.local-pg.test.ts \
-            src/integration/efeitosViagemCancelada.local-pg.test.ts \
-            src/integration/ceMercanteAutoBilling.local-pg.test.ts \
-            src/integration/portalBillingRelease.local-pg.test.ts \
-            src/integration/ceImportacaoContrato.local-pg.test.ts \
-            src/integration/baplieMarcas.local-pg.test.ts \
-            src/integration/codDocumentoFatura.local-pg.test.ts \
-            src/integration/veiculosRegras.local-pg.test.ts \
-            src/integration/baseClientesVinculo.local-pg.test.ts \
-            src/integration/granitoReimportacao.local-pg.test.ts \
-            src/integration/vaziosReimportacao.local-pg.test.ts \
-            src/integration/programacaoPlanilha.local-pg.test.ts \
-            src/integration/rastroImportacoes.local-pg.test.ts \
-            src/integration/correcoesRevisaoImportacoes.local-pg.test.ts \
-            src/integration/revisaoFinalDemurrage.local-pg.test.ts \
-            src/integration/revisaoFinalCeMercante.local-pg.test.ts \
-            src/integration/revisaoFinalImportacaoBl.local-pg.test.ts \
-            src/integration/demurrageCobrancaPorCaixa.local-pg.test.ts \
-            src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts \
-            src/integration/auditoriaFaturasDemurrageComunicado.local-pg.test.ts \
-            src/integration/conditionUsd.local-pg.test.ts \
-            src/integration/baplieFlagsOnBlImport.local-pg.test.ts \
-            src/integration/blCbmSemantics.local-pg.test.ts \
-            src/integration/blDocumentalGates.local-pg.test.ts \
-            src/integration/containerOwnership.local-pg.test.ts \
-            src/integration/containerProfile.local-pg.test.ts \
-            src/integration/cronDispatchTimeout.local-pg.test.ts \
-            src/integration/runnerEfeitosDisparoImediato.local-pg.test.ts \
-            src/integration/customerCommunicationPartial.local-pg.test.ts \
-            src/integration/customerCommunicationReadinessGuards.local-pg.test.ts \
-            src/integration/pixBrCode.local-pg.test.ts \
-            src/integration/voyageHardDeleteGuard.local-pg.test.ts
+        run: npm run test:local-pg
+
+      - name: Replay the database again before the reverse pass
+        # Banco limpo para a passada invertida: no banco da passada natural, a
+        # suíte que depende sem querer do que outra deixou (A antes de B)
+        # encontraria esse estado também na ordem invertida e passaria.
+        run: sudo scripts/setup-local-pg.sh --reset
+
+      - name: Run the SQL contract suites in reverse order
+        # Falha aqui e não na passada natural indica dependência de ordem
+        # entre suítes (aceite da Etapa 12 do plano de correção das importações).
+        env:
+          LOCAL_PG_INTEGRATION: '1'
+          LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
+        run: npm run test:local-pg -- --reverse
 
       - name: Run the financial battery after the other suites
         env:
