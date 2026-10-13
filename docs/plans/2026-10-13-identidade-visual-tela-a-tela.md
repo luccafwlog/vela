@@ -70,7 +70,13 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     assim.
   - **Ficha da Viagem:** a tabela de atracações, dentro do Planejamento por
     escala, passa ao cabeçalho claro (regra de tabela dentro de tabela,
-    decidida na lista de BLs). Qual é a próxima ação da viagem (proposta: Manifestos
+    decidida na lista de BLs). O bloco Contêineres inclui os vazios a
+    descarregar, com os tipos (manifesto de Vazios de Importação, via
+    `useVaziosImportacaoStats`). O Planejamento por escala, recusado na
+    primeira proposta por confuso, volta em duas formas: A, tabela com uma
+    linha de cabeçalho, sem grupos e sem coluna de botões (o porto abre a
+    edição; Omitir e Excluir ficam dentro dela); B, uma faixa por escala. Qual
+    é a próxima ação da viagem (proposta: Manifestos
     Mercante a informar; alternativa: escala sem ETA) e qual vem primeiro
     quando houver mais de uma? Manter por ora o texto técnico do evento
     "Dados da viagem alterados"?
