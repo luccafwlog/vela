@@ -762,7 +762,7 @@ invertida; nenhuma suíte pulada por sonda com a variável ligada.
 > **Nota editorial (2026-10-13):** a ordem também não era a da lista: o Vitest
 > reordena os arquivos por conta própria. A lista passou para
 > `scripts/local-pg-suites.txt`, `npm run test:local-pg` a roda na ordem pedida
-> e o CI roda a ordem natural e a invertida no mesmo banco (ver
+> e o CI roda a ordem natural e a invertida, cada uma num banco recém-replicado (ver
 > [WORKFLOW.md](../../../WORKFLOW.md) §11 e o CHANGELOG de 2026-10-13).
 
 ## Etapa 13 — Ligar o processamento automático (ADR 0078, item 18)

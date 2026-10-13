@@ -204,10 +204,15 @@ jobs:
           LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
         run: npm run test:local-pg
 
-      - name: Run the SQL contract suites again in reverse order
-        # Mesmo banco, sem novo replay: cada suíte roda pela segunda vez e com
-        # vizinhas diferentes. Falha aqui e não na passada anterior indica
-        # dependência de ordem ou resíduo de fixture (aceite da Etapa 12).
+      - name: Replay the database again before the reverse pass
+        # Banco limpo para a passada invertida: no banco da passada natural, a
+        # suíte que depende sem querer do que outra deixou (A antes de B)
+        # encontraria esse estado também na ordem invertida e passaria.
+        run: sudo scripts/setup-local-pg.sh --reset
+
+      - name: Run the SQL contract suites in reverse order
+        # Falha aqui e não na passada natural indica dependência de ordem
+        # entre suítes (aceite da Etapa 12 do plano de correção das importações).
         env:
           LOCAL_PG_INTEGRATION: '1'
           LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test

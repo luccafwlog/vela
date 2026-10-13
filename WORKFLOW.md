@@ -662,8 +662,9 @@ série as suítes de [`scripts/local-pg-suites.txt`](scripts/local-pg-suites.txt
 na ordem da lista; `npm run test:local-pg -- --reverse` roda de trás para
 frente. O Vitest reordena os arquivos por conta própria (falhos e lentos
 primeiro); o script passa a ordem ao sequenciador do `vite.config.ts`. O CI
-roda as duas ordens seguidas no mesmo banco, o que prova que nenhuma suíte
-depende da anterior nem deixa resíduo que quebre a seguinte. As suítes
+roda as duas ordens, cada uma num banco recém-replicado
+(`setup-local-pg.sh --reset` antes da invertida), o que prova que nenhuma suíte
+depende do que a anterior fez nem é quebrada por ela. As suítes
 compartilham banco e precisam rodar em série; cada uma deve
 usar seu próprio namespace de IDs e documentos nas fixtures e apagar o que
 cria, inclusive versões de regra de tarifa e contas de Portal do próprio Cliente:

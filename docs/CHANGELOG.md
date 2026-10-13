@@ -9,8 +9,8 @@
   workflow, então a "ordem explícita" da Etapa 12 do
   [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)
   não valia. A lista passou para `scripts/local-pg-suites.txt`; `npm run test:local-pg` a roda em
-  série com um sequenciador que respeita a ordem, e o CI roda a lista na ordem natural e, no mesmo
-  banco, de trás para frente (aceite da Etapa 12 que estava sem evidência). `npm run
+  série com um sequenciador que respeita a ordem, e o CI roda a lista na ordem natural e, depois de
+  um novo replay do banco, de trás para frente (aceite da Etapa 12 que estava sem evidência). `npm run
   localpg:check` também acusa suíte repetida e CI sem uma das duas ordens. As ADRs 0078, 0079 e
   0080 deixam de dizer "implementação pendente" ou "deploy não verificado": o registro de
   migrations de produção lista `174`–`219`.
