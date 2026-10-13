@@ -1,5 +1,9 @@
 # 0046 — Escrita interna global com rastro obrigatório
 
+> **Situação atual (2026-10-13).** A escrita interna global com rastro continua sendo a regra, mas as exceções não são mais só as três abaixo. Têm guarda própria: Comunicados e edição de caixas (`customer_communications`, [ADR 0060](./0060-primeira-permissao-do-perfil-equipamentos.md) e [ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md)); ligar a chave global de envio ([ADR 0059](./0059-chave-global-de-envio-desligada-por-padrao.md)); conceder a Liberação de faturamento sem Portal ([ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md)) e emitir fatura manualmente ([ADR 0077](./0077-fatura-emitida-nao-muda-de-valor.md)); e reabrir ADR de Saída fechado (migration arquivada `218`, confirmada no alinhamento de 2026-09-23) — estas quatro só do Administrativo.
+> A nota de 2026-09-23 abaixo abriu o Baplie e a exclusão de escala de exportação a todos e deu as Disputes a Equipamentos e Administrativo. A implementação original é a migration arquivada `295`.
+> Regra vigente em [Segurança](../operations/seguranca.md), seções "RLS-first" e "Roles internas".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Comunicação e edição de caixas têm permissão customer_communications; a chave global de envio possui guarda administrativa própria. São exceções posteriores à escrita global.
 > Rastreabilidade: [ADR 0059](./0059-chave-global-de-envio-desligada-por-padrao.md), [ADR 0060](./0060-primeira-permissao-do-perfil-equipamentos.md), [ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md); [migration ativa 008](../../supabase/migrations/008_portal_contact_boxes.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

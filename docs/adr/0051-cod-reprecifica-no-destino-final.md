@@ -1,6 +1,10 @@
 # 0051 — COD reprecifica a Taxa Local no destino final, com ajuste financeiro registrado
 
-Status: aceito — 2026-08-18
+> **Situação atual (2026-10-13).** Vale: o COD reprecifica a Taxa Local pelo destino final, Transbordo e Omissão não; o B/L não faturado recalcula no ato; a reversão é simétrica, exige justificativa, e o CE do B/L não muda. Não vale mais a forma do ajuste em B/L já faturado (ramos faturados da decisão 2 e decisão 3): desde a correção automática da [ADR 0077](./0077-fatura-emitida-nao-muda-de-valor.md) (migrations `128` e `130`), sem pagamento a fatura é cancelada e reemitida sozinha; com pagamento, a redução abate o saldo e restitui o excedente, o aumento vai em fatura avulsa, e o Ajuste de COD é liquidado por essa correção. A ADR 0077 diz não alterar o ajuste de COD, mas sua seção de 2026-10-02 e o código o incluem.
+> As migrations `108`, `111`, `291` e `308`–`316` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [Faturamento](../modules/faturamento.md), seções "Correção após emissão (ADR 0077)" e "Segurança da correção automática — migration 130".
+
+Status: supersedida parcialmente — 2026-08-18
 
 Supersede parcialmente a [ADR 0038](./0038-taxa-local-valor-congelado-ancorado-na-escala.md),
 decisão 1.

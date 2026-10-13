@@ -1,5 +1,8 @@
 # 0045 — Inspeção do Portal por núcleo compartilhado e invólucro interno
 
+> **Situação atual (2026-10-13).** A Inspeção do Portal vale como decidida e está implementada. Divergência entre código e decisão, registrada como decisão pendente: o console de provisionamento ainda mascara para Operações os campos que esta ADR mandou abrir (`portal_list_provisioning_console` com `v_full_access` sem `operacoes`, migration `103`; a regressão veio da migration arquivada `325`).
+> Regra vigente em [Portal do Cliente](../modules/portal-cliente.md), seção "Inspeção do Portal".
+
 Status: aceito — 2026-08-13
 
 ## Contexto

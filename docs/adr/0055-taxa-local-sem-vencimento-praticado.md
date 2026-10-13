@@ -1,5 +1,8 @@
 # 0055 — Taxa local não tem vencimento praticado: `due_date` e `overdue` saem do domínio
 
+> **Situação atual (2026-10-13).** Decisão vigente e implementada (migration arquivada `348`). As migrations `024`, `031`, `157`, `327`, `329` e `347` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062; `024`, `031` e `157` também existem na cadeia ativa, com outro conteúdo.
+> Regra vigente em [Regras de negócio](../operations/regras-de-negocio.md), seção "Vencimento e inadimplência".
+
 Status: aceito — 2026-08-27
 
 ## Contexto

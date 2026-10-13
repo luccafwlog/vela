@@ -1,6 +1,9 @@
 # ADR 0047 — Grants de função fechados por padrão em `public`
 
-**Data:** 2026-08-14 · **Status:** aceito
+> **Situação atual (2026-10-13).** Decisão vigente e implementada. As migrations `078`, `088`, `093`, `152`, `182`, `257`, `296` e `297` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062; `078`, `088`, `093`, `152` e `182` também existem na cadeia ativa, com outro conteúdo. Na cadeia ativa, o default fechado está nas migrations `001` e `006` e a varredura do resíduo na `003`.
+> Regra vigente em [Segurança](../operations/seguranca.md), seção "RLS-first" (item "Default-deny em funções").
+
+Status: aceito — 2026-08-14
 
 Estende a [ADR 0011](./0011-revogacao-anon-security-definer-default-deny.md), que
 estabeleceu o default-deny como *disciplina de autor*, e encerra formalmente a
