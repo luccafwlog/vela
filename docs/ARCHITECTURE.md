@@ -306,11 +306,14 @@ opcional), `SegmentedControl` (duas a quatro opções exclusivas),
 `SummaryStrip` (faixa de resumo de uma linha), `StepRail` (trilho de etapas),
 `MetricCard` (com `onSelect`, aplica o filtro do card) e
 `TableFooterPagination`, cujo texto vem de `describePageRange`
-(`src/lib/pagination.ts`). O contrato visual completo está na etapa 00 do
-[plano de revisão visual](plans/2026-10-07-revisao-visual-ux-prompts.md).
+(`src/lib/pagination.ts`). As peças da identidade visual (`Block`,
+`LeadValue`, `FactList`, `IdentityBand`, `NextAction`, `NoValue`) e as nove
+regras que toda tela segue estão na [identidade visual](identidade-visual.md)
+([ADR 0081](adr/0081-identidade-visual-unica.md)).
 
-Tela nova: use `TabList`/`TabButton`, `Modal` ou `Drawer` e as classes do design
-system em vez de overlays próprios; grades com três ou mais colunas devem
+Tela nova: componha as peças da identidade visual, use `TabList`/`TabButton`,
+`Modal` ou `Drawer` e as classes do design system em vez de overlays próprios,
+sem CSS próprio de página (`npm run design:check`); grades com três ou mais colunas devem
 começar em uma coluna (`grid sm:grid-cols-3`), e tabelas largas ficam dentro de
 `.app-table-scroll`.
 

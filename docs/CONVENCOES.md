@@ -12,6 +12,7 @@ As instruções de trabalho dos agentes permanecem em [AGENTS.md](../AGENTS.md).
 | Camadas, integrações e mapa de rotas | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Instalação, comandos, testes, migrations e deploy | [WORKFLOW.md](../WORKFLOW.md) |
 | Comportamento de telas e ações de um domínio | Módulo correspondente no [índice documental](README.md) |
+| Aparência, regras visuais e peças comuns de tela | [identidade-visual.md](identidade-visual.md) |
 | Caminho da ação até código, banco e evidências | [RASTREABILIDADE.md](RASTREABILIDADE.md) |
 | Motivo de uma decisão e suas alternativas | ADR numerada e [índice de ADRs](adr/README.md) |
 | Trabalho ainda pretendido | Plano ou spec vivos |

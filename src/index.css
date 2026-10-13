@@ -6,25 +6,25 @@
 :root[data-visual-theme='current'] {
   color-scheme: light;
   --app-header-height: 56px;
-  --app-bg: #f4f1ea;
-  --app-dot-pattern: radial-gradient(circle, rgba(168, 160, 145, 0.38) 1px, transparent 1px);
-  --app-bg-elevated: #ece9e1;
+  --app-bg: #f6f7f9;
+  --app-dot-pattern: none;
+  --app-bg-elevated: #eef1f5;
   --app-surface: #ffffff;
   --app-surface-strong: #ffffff;
-  --app-surface-muted: #f3f0e9;
-  --app-surface-hover: #f1eee7;
-  --app-panel: #ede9df;
-  --app-panel-strong: #e2ddd2;
-  --app-border: #bdb7aa;
-  --app-border-strong: #a39c8e;
+  --app-surface-muted: #f1f4f8;
+  --app-surface-hover: #eef2f6;
+  --app-panel: #eceff4;
+  --app-panel-strong: #e1e6ee;
+  --app-border: #c3cad5;
+  --app-border-strong: #9aa4b2;
   /* Filete entre blocos de uma mesma superfície (decorativo; controles usam --app-border-strong). */
-  --app-border-soft: #d9d4ca;
+  --app-border-soft: #e2e6ec;
   --app-border-focus: rgba(37, 99, 168, 0.22);
   --app-focus-ring: #1d4d88;
-  --app-text: #1c1915;
-  --app-text-strong: #0e0c0a;
-  --app-muted: #4d483e;
-  --app-muted-soft: #5f5a50;
+  --app-text: #121822;
+  --app-text-strong: #0b1018;
+  --app-muted: #4f5868;
+  --app-muted-soft: #5d6676;
   --app-navy: #152238;
   --app-navy-2: #1e3050;
   --app-topbar: #0e1825;
@@ -54,6 +54,7 @@
   --app-size-body: 14px;
   --app-size-section: 16px;
   --app-size-panel: 20px;
+  --app-size-title: 22px;
   --app-size-page: 24px;
   --app-size-hero: 32px;
   /* Aliases semânticos: cor de estado só por estes pares (texto, fundo, borda). */
@@ -70,23 +71,29 @@
   --app-info-bg: var(--app-blue-soft);
   --app-info-border: #bfd3ee;
   --app-neutral-fg: var(--app-muted);
-  --app-neutral-bg: #f1efe9;
-  --app-neutral-border: #dcd7cc;
+  --app-neutral-bg: #eef1f5;
+  --app-neutral-border: #d5dbe3;
   --app-thead-border: var(--app-navy);
-  /* Cabeçalho de tabela claro; azul-marinho só no Line Up e na TV. */
   /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
   --app-thead-bg: var(--app-navy);
   --app-thead-text: #ffffff;
-  --app-font-display: "Syne", "DM Sans", sans-serif;
+  --app-font-display: "DM Sans", "Segoe UI", sans-serif;
   --app-font-body: "DM Sans", "Segoe UI", sans-serif;
   --app-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* Identidade visual (ADR 0081): faixa de título dos blocos, aba e navegação ativas e marca. */
+  --app-strip: #eef2f7;
+  --app-strip-text: var(--app-navy);
+  --app-nav-active: var(--app-gold);
+  --app-nav-active-text: var(--app-navy);
+  --app-font-brand: "Syne", "DM Sans", sans-serif;
   font-family: var(--app-font-body);
 }
 
 :root[data-visual-theme='dark'] {
   color-scheme: dark;
   --app-bg: #091220;
-  --app-dot-pattern: radial-gradient(circle, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  --app-dot-pattern: none;
   --app-bg-elevated: #0e1728;
   --app-surface: rgba(16, 26, 45, 0.92);
   --app-surface-strong: #101a2d;
@@ -141,30 +148,34 @@
   /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
   --app-thead-bg: var(--app-navy);
   --app-thead-text: #ffffff;
+  --app-strip: #16243d;
+  --app-strip-text: #dbe5f5;
+  --app-nav-active: var(--app-gold);
+  --app-nav-active-text: var(--app-navy);
 }
 
 :root[data-visual-theme='light'] {
   color-scheme: light;
   --app-header-height: 56px;
-  --app-bg: #f4f1ea;
-  --app-dot-pattern: radial-gradient(circle, rgba(168, 160, 145, 0.38) 1px, transparent 1px);
-  --app-bg-elevated: #ece9e1;
+  --app-bg: #f6f7f9;
+  --app-dot-pattern: none;
+  --app-bg-elevated: #eef1f5;
   --app-surface: #ffffff;
   --app-surface-strong: #ffffff;
-  --app-surface-muted: #f3f0e9;
-  --app-surface-hover: #f1eee7;
-  --app-panel: #ede9df;
-  --app-panel-strong: #e2ddd2;
-  --app-border: #bdb7aa;
-  --app-border-strong: #a39c8e;
+  --app-surface-muted: #f1f4f8;
+  --app-surface-hover: #eef2f6;
+  --app-panel: #eceff4;
+  --app-panel-strong: #e1e6ee;
+  --app-border: #c3cad5;
+  --app-border-strong: #9aa4b2;
   /* Filete entre blocos de uma mesma superfície (decorativo; controles usam --app-border-strong). */
-  --app-border-soft: #d9d4ca;
+  --app-border-soft: #e2e6ec;
   --app-border-focus: rgba(37, 99, 168, 0.22);
   --app-focus-ring: #1d4d88;
-  --app-text: #1c1915;
-  --app-text-strong: #0e0c0a;
-  --app-muted: #4d483e;
-  --app-muted-soft: #5f5a50;
+  --app-text: #121822;
+  --app-text-strong: #0b1018;
+  --app-muted: #4f5868;
+  --app-muted-soft: #5d6676;
   --app-navy: #152238;
   --app-navy-2: #1e3050;
   --app-topbar: #0e1825;
@@ -194,6 +205,7 @@
   --app-size-body: 14px;
   --app-size-section: 16px;
   --app-size-panel: 20px;
+  --app-size-title: 22px;
   --app-size-page: 24px;
   --app-size-hero: 32px;
   /* Aliases semânticos: cor de estado só por estes pares (texto, fundo, borda). */
@@ -210,16 +222,22 @@
   --app-info-bg: var(--app-blue-soft);
   --app-info-border: #bfd3ee;
   --app-neutral-fg: var(--app-muted);
-  --app-neutral-bg: #f1efe9;
-  --app-neutral-border: #dcd7cc;
+  --app-neutral-bg: #eef1f5;
+  --app-neutral-border: #d5dbe3;
   --app-thead-border: var(--app-navy);
-  /* Cabeçalho de tabela claro; azul-marinho só no Line Up e na TV. */
   /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
   --app-thead-bg: var(--app-navy);
   --app-thead-text: #ffffff;
-  --app-font-display: "Syne", "DM Sans", sans-serif;
+  --app-font-display: "DM Sans", "Segoe UI", sans-serif;
   --app-font-body: "DM Sans", "Segoe UI", sans-serif;
   --app-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* Identidade visual (ADR 0081): faixa de título dos blocos, aba e navegação ativas e marca. */
+  --app-strip: #eef2f7;
+  --app-strip-text: var(--app-navy);
+  --app-nav-active: var(--app-gold);
+  --app-nav-active-text: var(--app-navy);
+  --app-font-brand: "Syne", "DM Sans", sans-serif;
   font-family: var(--app-font-body);
 }
 
@@ -240,6 +258,22 @@
   --app-control-h-sm: 44px;
   --app-row-h: 52px;
   --app-cell-py: 14px;
+  /* Marca FWLOG (ADR 0081): azul-marinho da logo, azul do globo na navegação
+     ativa e no botão principal; sem dourado e sem Syne. Tokens derivados de
+     --app-navy são redeclarados aqui porque var() resolve no :root. */
+  --app-navy: #0d2b5e;
+  --app-navy-2: #163a74;
+  --app-topbar: #0d2b5e;
+  --app-blue-btn: #1d67b3;
+  --app-link: #1a5aa0;
+  --app-nav-active: #5aaaf0;
+  --app-nav-active-text: #0d2b5e;
+  --app-thead-bg: #0d2b5e;
+  --app-thead-border: #0d2b5e;
+  --app-strip: #edf3fa;
+  --app-strip-text: #0d2b5e;
+  --app-info-fg: #1d67b3;
+  --app-focus-ring: #1d67b3;
 }
 
 /* Degraus que o Tailwind não tem por padrão. Os demais: 12 = text-xs,
@@ -486,7 +520,7 @@ textarea {
 
 .app-header__wordmark {
   color: #ffffff;
-  font-family: var(--app-font-display);
+  font-family: var(--app-font-brand);
   font-size: 18px;
   font-weight: 700;
   line-height: 1;
@@ -777,7 +811,7 @@ textarea {
 
 .app-nav-link.active {
   color: #ffffff;
-  box-shadow: inset 0 -3px 0 var(--app-gold);
+  box-shadow: inset 0 -3px 0 var(--app-nav-active);
 }
 
 .app-nav-badge {
@@ -788,8 +822,8 @@ textarea {
   height: 18px;
   border-radius: 999px;
   padding: 0 6px;
-  background: var(--app-gold);
-  color: var(--app-navy);
+  background: var(--app-nav-active);
+  color: var(--app-nav-active-text);
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
@@ -800,7 +834,7 @@ textarea {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--app-gold);
+  background: var(--app-nav-active);
 }
 
 .app-nav-dropdown {
@@ -864,7 +898,7 @@ textarea {
   background: var(--app-surface-muted);
   color: var(--app-text-strong);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--app-gold);
+  box-shadow: inset 3px 0 0 var(--app-nav-active);
 }
 
 .app-nav-dropdown__item .app-nav-badge,
@@ -2048,21 +2082,23 @@ span.review-items__id {
   gap: 0;
 }
 
-/* Título da página: Syne 24/32 no Vela; 32/40 no Portal (contrato da etapa 00). */
+/* Título da página (ADR 0081): DM Sans 22/28 no Vela; 24/32 no Portal, na cor
+   da marca FWLOG. Syne fica só no nome "Vela". */
 .page-header__title {
   margin: 0;
   color: var(--app-text-strong);
   font-family: var(--app-font-display);
-  font-size: var(--app-size-page);
+  font-size: var(--app-size-title);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 32px;
+  letter-spacing: -0.01em;
+  line-height: 28px;
   text-wrap: balance;
 }
 
 .app-shell--portal .page-header__title {
-  font-size: var(--app-size-hero);
-  line-height: 40px;
+  color: var(--app-navy);
+  font-size: var(--app-size-page);
+  line-height: 32px;
 }
 
 .page-header__description {
@@ -2733,16 +2769,26 @@ button.app-metric-tile[aria-pressed='true'] {
   border-color: var(--app-red);
 }
 
+/* Regra 9 da identidade (ADR 0081): ação tem cara de botão. O ghost é o botão
+   mais discreto, mas continua com borda; só o fechar do modal e os ícones da
+   barra ficam sem borda. */
 .app-btn--ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--app-muted);
+  background: var(--app-surface);
+  border-color: var(--app-border);
+  color: var(--app-text);
   box-shadow: none;
 }
 
 .app-btn--ghost:hover:not(:disabled) {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--app-text);
+  background: var(--app-surface-hover);
+  border-color: var(--app-border-strong);
+  color: var(--app-text-strong);
+}
+
+.app-btn--ghost.app-modal__close,
+.app-header .app-btn--ghost {
+  background: transparent;
+  border-color: transparent;
 }
 
 /* Aba: padrão único sublinhado (etapa 01). Troca a vista da mesma página;
@@ -4741,7 +4787,7 @@ button.app-metric-tile[aria-pressed='true'] {
 
 .app-auth__logo-name {
   color: #ffffff;
-  font-family: var(--app-font-display);
+  font-family: var(--app-font-brand);
   font-size: 32px;
   font-weight: 700;
   line-height: 40px;
@@ -6408,7 +6454,7 @@ button.app-metric-tile[aria-pressed='true'] {
 
   .app-nav-link.active {
     background: rgba(255, 255, 255, 0.1);
-    box-shadow: inset 3px 0 0 var(--app-gold);
+    box-shadow: inset 3px 0 0 var(--app-nav-active);
   }
 
   .app-nav-dropdown {
@@ -6536,8 +6582,8 @@ button.app-metric-tile[aria-pressed='true'] {
   }
 
   .app-shell--portal .page-header__title {
-    font-size: var(--app-size-hero);
-    line-height: 40px;
+    font-size: var(--app-size-page);
+    line-height: 32px;
   }
 }
 
@@ -9540,7 +9586,7 @@ a.app-step-rail__link:focus-visible {
 
 .app-lineup-display-brand__name {
   color: #152238;
-  font-family: var(--app-font-display);
+  font-family: var(--app-font-brand);
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.04em;
@@ -14799,5 +14845,300 @@ tr[data-inactive] .app-rates-item__value {
   .app-pix-candidate .app-btn {
     margin-left: 0;
     width: 100%;
+  }
+}
+
+/* ===========================================================================
+   Identidade visual (ADR 0081, docs/identidade-visual.md)
+   ---------------------------------------------------------------------------
+   Peças comuns das nove regras: bloco com título em faixa, dado principal,
+   pares rótulo/valor, faixa de identidade da ficha, próxima ação, ausência de
+   dado e grupos de colunas. Telas novas compõem estas peças; não criam CSS
+   próprio de página (npm run design:check).
+   =========================================================================== */
+.app-block {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+
+.app-block__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--app-border-soft);
+  background: var(--app-strip);
+}
+
+.app-block__title {
+  margin: 0;
+  color: var(--app-strip-text);
+  font-size: var(--app-size-body);
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.app-block__aside {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+}
+
+.app-block__body {
+  display: grid;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+
+.app-block__flush {
+  min-width: 0;
+}
+
+.app-lead {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-lead__value {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+
+.app-lead__value--warning {
+  color: var(--app-warning-fg);
+}
+
+.app-lead__value--danger {
+  color: var(--app-danger-fg);
+}
+
+.app-lead__detail {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-facts {
+  display: grid;
+  gap: 10px 20px;
+  margin: 0;
+}
+
+.app-facts--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.app-facts--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.app-facts--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.app-facts__item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-facts__label {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-facts__value {
+  margin: 0;
+  color: var(--app-text);
+  font-size: var(--app-size-body);
+  font-weight: 500;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.app-facts__detail {
+  display: block;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.app-identity {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  padding: 16px 20px;
+  border-radius: var(--app-radius);
+  background: var(--app-navy);
+  color: #ffffff;
+}
+
+.app-identity__main {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.app-identity__kind {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: var(--app-size-caption);
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.app-identity__title {
+  margin: 2px 0 10px;
+  color: #ffffff;
+  font-size: var(--app-size-page);
+  font-weight: 700;
+  line-height: 30px;
+  overflow-wrap: anywhere;
+}
+
+.app-identity__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0;
+}
+
+.app-identity__fact {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-identity__fact dt {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-identity__fact dd {
+  margin: 0;
+  font-size: var(--app-size-body);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.app-identity a {
+  color: #ffffff;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.5);
+  text-underline-offset: 3px;
+}
+
+.app-identity__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.app-identity .app-btn--secondary,
+.app-identity .app-btn--ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+}
+
+.app-identity .app-btn--secondary:hover:not(:disabled),
+.app-identity .app-btn--ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+.app-next-action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  border: 1px solid var(--app-danger-border);
+  border-left-width: 4px;
+  border-radius: var(--app-radius);
+  background: var(--app-danger-bg);
+}
+
+.app-next-action__label {
+  color: var(--app-danger-fg);
+  font-size: var(--app-size-body);
+  font-weight: 700;
+}
+
+.app-next-action__text {
+  flex: 1 1 280px;
+  margin: 0;
+  color: var(--app-text);
+  font-size: var(--app-size-body);
+  line-height: 20px;
+}
+
+.app-next-action__action {
+  margin-left: auto;
+}
+
+.app-next-action--warning {
+  border-color: var(--app-warning-border);
+  background: var(--app-warning-bg);
+}
+
+.app-next-action--warning .app-next-action__label {
+  color: var(--app-warning-fg);
+}
+
+.app-next-action--info {
+  border-color: var(--app-info-border);
+  background: var(--app-info-bg);
+}
+
+.app-next-action--info .app-next-action__label {
+  color: var(--app-info-fg);
+}
+
+.app-no-value {
+  color: var(--app-muted-soft);
+}
+
+/* Grupos de colunas (regra 6): faixa própria no cabeçalho e divisória
+   vertical entre os grupos, no cabeçalho e no corpo. */
+.app-shell table thead th.app-table__group {
+  background: var(--app-navy-2);
+  font-size: var(--app-size-caption);
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.app-shell table .app-table__divider {
+  border-left: 3px solid var(--app-border);
+}
+
+.app-shell table thead .app-table__divider {
+  border-left-color: color-mix(in srgb, #ffffff 30%, var(--app-navy));
+}
+
+@media (max-width: 639px) {
+  .app-facts--3,
+  .app-facts--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-identity {
+    padding: 14px 16px;
+  }
+
+  .app-identity__actions {
+    margin-left: 0;
   }
 }

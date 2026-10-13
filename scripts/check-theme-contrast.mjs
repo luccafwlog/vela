@@ -5,11 +5,13 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const css = readFileSync(resolve('src/index.css'), 'utf8')
-const themes = ['light', 'dark']
+// "portal" é o tema claro com as redeclarações de `.app-shell--portal` (marca
+// FWLOG, ADR 0081): o Portal só tem tema claro.
+const themes = ['light', 'dark', 'portal']
 const minimum = 4.5
 
 function themeBlock(theme) {
-  const marker = `:root[data-visual-theme='${theme}']`
+  const marker = theme === 'portal' ? '.app-shell--portal {' : `:root[data-visual-theme='${theme}']`
   const markerStart = css.indexOf(marker)
   if (markerStart < 0) throw new Error(`Tema ausente: ${theme}`)
   const open = css.indexOf('{', markerStart)
@@ -25,9 +27,14 @@ function themeBlock(theme) {
 }
 
 function readTokens(theme) {
-  return Object.fromEntries(
+  const own = Object.fromEntries(
     [...themeBlock(theme).matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((match) => [match[1], match[2].trim()]),
   )
+  return theme === 'portal' ? { ...readTokens('light'), ...own } : own
+}
+
+function tokenValue(name, tokens) {
+  return name.startsWith('#') ? name : resolveToken(tokens[name], tokens)
 }
 
 function resolveToken(value, tokens, stack = []) {
@@ -109,6 +116,12 @@ const checks = [
   ['info tag text on info tag', '--app-info-fg', '--app-info-bg'],
   ['neutral tag text on neutral tag', '--app-neutral-fg', '--app-neutral-bg'],
   ['danger text on surface', '--app-danger-fg', '--app-surface-strong'],
+  // Identidade visual (ADR 0081): faixa de título dos blocos, contagem da
+  // navegação ativa, botão principal e texto da barra.
+  ['block title on block strip', '--app-strip-text', '--app-strip'],
+  ['navigation count on active marker', '--app-nav-active-text', '--app-nav-active'],
+  ['primary button text on primary button', '#ffffff', '--app-blue-btn'],
+  ['header text on header', '#ffffff', '--app-navy'],
 ]
 
 const rows = []
@@ -116,8 +129,8 @@ for (const theme of themes) {
   const tokens = readTokens(theme)
   const under = parseColor(resolveToken(tokens['--app-surface-strong'], tokens))
   for (const [label, foregroundToken, backgroundToken] of checks) {
-    const foreground = opaque(parseColor(resolveToken(tokens[foregroundToken], tokens)), under)
-    const background = opaque(parseColor(resolveToken(tokens[backgroundToken], tokens)), under)
+    const foreground = opaque(parseColor(tokenValue(foregroundToken, tokens)), under)
+    const background = opaque(parseColor(tokenValue(backgroundToken, tokens)), under)
     const ratio = contrast(foreground, background)
     rows.push({ theme, label, foregroundToken, backgroundToken, ratio: Number(ratio.toFixed(2)), minimum, pass: ratio >= minimum })
   }

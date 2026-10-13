@@ -4,6 +4,17 @@
 
 ## 2026-10
 
+- **Identidade visual única do Vela e do Portal (2026-10-13, [ADR 0081](adr/0081-identidade-visual-unica.md)):**
+  depois da etapa 12 da campanha de revisão visual, o responsável revisou o contrato e escolheu a
+  direção "Marinha" com fundo neutro: azul-marinho estrutura a tela, blocos com título em faixa e
+  nove regras que valem para todas as telas, descritas em [identidade-visual.md](identidade-visual.md).
+  Nesta entrega mudam só fundo (cinza liso, sem pontos), bordas e textos frios, títulos de página
+  em DM Sans (Syne só no nome "Vela"), o Portal com a marca FWLOG (azul da logo e do globo, sem
+  dourado) e o botão `ghost`, que ganhou borda. Peças novas em `src/components/ui/` (`Block`,
+  `LeadValue`, `FactList`, `IdentityBand`, `NextAction`, `NoValue`) e `npm run design:check`, uma
+  catraca no CI sobre cor solta, tamanho fora da escala, caixa alta e CSS de página. A campanha de
+  2026-10-07 foi encerrada e arquivada; as telas migram pelo
+  [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md), com aprovação de cada uma.
 - **Desbloqueio de CE: cancelamento de baixa durante o envio sem deadlock (2026-10-13, migration `220`):**
   um teste novo achou que o cancelamento de baixa feito pelo Financeiro enquanto o cliente envia o pedido
   terminava em `deadlock detected`, desfazendo uma das duas operações (às vezes o cancelamento). A trava do

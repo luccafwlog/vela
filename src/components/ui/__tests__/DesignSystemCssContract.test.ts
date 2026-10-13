@@ -5,7 +5,8 @@ const css = fs.readFileSync('src/index.css', 'utf8')
 
 describe('contrato visual compartilhado', () => {
   it('define tokens usados por links e estados de hover nos dois temas', () => {
-    expect(css.match(/--app-link:/g)).toHaveLength(3)
+    // current, light, dark e a marca FWLOG do Portal
+    expect(css.match(/--app-link:/g)).toHaveLength(4)
     expect(css.match(/--app-surface-hover:/g)).toHaveLength(3)
   })
 
@@ -52,8 +53,9 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-input\s*\{[^}]*background:\s*var\(--app-surface-strong\)/s)
     for (const role of ['success', 'warning', 'danger', 'info', 'neutral']) {
       for (const part of ['fg', 'bg', 'border']) {
-        // current, light e dark
-        expect(css.match(new RegExp(`--app-${role}-${part}:`, 'g'))).toHaveLength(3)
+        // current, light e dark; o Portal redeclara só o que deriva da marca FWLOG
+        const declarations = css.match(new RegExp(`--app-${role}-${part}:`, 'g')) ?? []
+        expect(declarations.length - (role === 'info' && part === 'fg' ? 1 : 0)).toBe(3)
       }
     }
     expect(css).toMatch(/\.app-badge--green\s*\{[^}]*color:\s*var\(--app-success-fg\)/s)
@@ -106,12 +108,12 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-empty-state__action\s*\{[^}]*display:\s*inline-flex/s)
   })
 
-  it('shell da etapa 02: faixa de 28px, barra única e dourado só na navegação ativa', () => {
+  it('shell da etapa 02: faixa de 28px, barra única e marcador da navegação ativa por token', () => {
     expect(css).toMatch(/\.app-market-strip__content\s*\{[^}]*min-height:\s*28px/s)
     // O aviso operacional cede por último; o câmbio encolhe antes.
     expect(css).toMatch(/\.app-market-strip__center\s*\{[^}]*flex:\s*0 1 auto[^}]*overflow:\s*hidden/s)
     expect(css).not.toMatch(/\.app-nav-bar\s*\{/)
-    expect(css).toMatch(/\.app-nav-link\.active\s*\{[^}]*box-shadow:\s*inset 0 -3px 0 var\(--app-gold\)/s)
+    expect(css).toMatch(/\.app-nav-link\.active\s*\{[^}]*box-shadow:\s*inset 0 -3px 0 var\(--app-nav-active\)/s)
     expect(css).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.app-nav-scroll--open\s*\{[^}]*position:\s*absolute[^}]*top:\s*100%/s)
   })
 
@@ -123,5 +125,22 @@ describe('contrato visual compartilhado', () => {
       const sizes = [...block.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]))
       expect(sizes.filter((size) => size < 12)).toEqual([])
     }
+  })
+
+  it('identidade (ADR 0081): fundo liso, Syne só no nome Vela e Portal com a marca FWLOG', () => {
+    expect(css.match(/--app-dot-pattern:\s*none/g)).toHaveLength(3)
+    expect(css.match(/--app-font-display:\s*"DM Sans"/g)?.length).toBeGreaterThanOrEqual(2)
+    const brandUsers = [...css.matchAll(/^\.([\w-]+)\s*\{[^}]*font-family:\s*var\(--app-font-brand\)/gms)].map((match) => match[1])
+    expect(brandUsers.sort()).toEqual(['app-auth__logo-name', 'app-header__wordmark', 'app-lineup-display-brand__name'])
+    expect(css).toMatch(/\.app-shell--portal\s*\{[^}]*--app-navy:\s*#0d2b5e[^}]*--app-nav-active:\s*#5aaaf0[^}]*--app-thead-bg:\s*#0d2b5e/s)
+    expect(css).toMatch(/\.page-header__title\s*\{[^}]*font-size:\s*var\(--app-size-title\)/s)
+  })
+
+  it('identidade (ADR 0081): bloco com faixa de título e botão ghost com borda', () => {
+    expect(css).toMatch(/\.app-block__header\s*\{[^}]*background:\s*var\(--app-strip\)/s)
+    expect(css).toMatch(/\.app-block__title\s*\{[^}]*color:\s*var\(--app-strip-text\)/s)
+    expect(css).toMatch(/\.app-btn--ghost\s*\{[^}]*border-color:\s*var\(--app-border\)/s)
+    expect(css).toMatch(/\.app-identity\s*\{[^}]*background:\s*var\(--app-navy\)/s)
+    expect(css).toMatch(/\.app-shell table \.app-table__divider\s*\{[^}]*border-left:\s*3px solid/s)
   })
 })

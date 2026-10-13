@@ -26,6 +26,7 @@ database schema, consult the corresponding source below.
 | --- | --- |
 | Business rule or terminology | [CONTEXT.md](CONTEXT.md), then the affected module from [docs/README.md](docs/README.md) |
 | Screen, route or user action | [RASTREABILIDADE.md](docs/RASTREABILIDADE.md), then the linked implementation and module |
+| Appearance, layout or UI component | [Visual identity](docs/identidade-visual.md): nine rules, shared pieces and the screen-by-screen approval in its plan |
 | Shared code, imports or architecture | Relevant sections of [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ADR index](docs/adr/README.md) |
 | Authentication, permissions or customer data | [Security](docs/operations/seguranca.md), affected policies/RPCs and session contracts in [WORKFLOW.md](WORKFLOW.md) |
 | Schema, commands, environment, testing or deployment | Relevant procedure in [WORKFLOW.md](WORKFLOW.md); exact commands in [package.json](package.json) |
@@ -143,6 +144,7 @@ Choose checks by impact using [WORKFLOW.md](WORKFLOW.md) §11:
 | --- | --- |
 | Markdown or agent instructions only | `npm run docs:check` and `git diff --check`; inspect the meaning and referenced paths too |
 | Application or configuration affecting its contracts | `npm run docs:check`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` |
+| Screen appearance, CSS or UI components | Above, plus `npm run design:check` and `npm run a11y:contrast` |
 | Schema or RPC contract | Above gates as applicable, plus `npm run migrations:check` and `npm run rpc:check`; follow the database validation procedure |
 | Skill scripts | Documentation checks plus verification of the changed scripts |
 

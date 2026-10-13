@@ -569,7 +569,16 @@ Guard de rota não substitui autorização no banco.
 
 ## 9. Componentes e interface
 
-- reutilize componentes de `src/components/ui/`;
+A aparência segue a [identidade visual](docs/identidade-visual.md)
+([ADR 0081](docs/adr/0081-identidade-visual-unica.md)): nove regras, peças
+comuns e aprovação tela a tela da organização. Em resumo:
+
+- componha as peças de `src/components/ui/` (`Block`, `LeadValue`,
+  `FactList`, `IdentityBand`, `NextAction`, `NoValue`, `Button` e as demais);
+- não crie CSS próprio de página nem cor, tamanho de letra ou caixa alta fora
+  dos tokens; `npm run design:check` recusa o que cresce além da linha de base
+  `scripts/design-baseline.json`, e `npm run design:check -- --update` trava o
+  ganho depois de migrar uma tela;
 - use tokens CSS de `src/index.css`;
 - mantenha lógica de domínio fora de primitivas visuais;
 - preserve estados de loading, vazio, erro e feedback de mutation;
@@ -615,6 +624,10 @@ npm run lint
 npm test
 npm run build
 ```
+
+Mudança de aparência, CSS ou componente visual roda também
+`npm run design:check` e `npm run a11y:contrast` (os dois estão no job
+"Docs + Lint" do CI).
 
 Execute testes focados durante a implementação. Após corrigir falhas, repita os
 checks afetados; resultados de código e ambiente inalterados continuam válidos.
