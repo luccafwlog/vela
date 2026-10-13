@@ -4,6 +4,13 @@
 
 ## 2026-10
 
+- **Desbloqueio de CE: cancelamento de baixa durante o envio sem deadlock (2026-10-13, migration `220`):**
+  um teste novo achou que o cancelamento de baixa feito pelo Financeiro enquanto o cliente envia o pedido
+  terminava em `deadlock detected`, desfazendo uma das duas operações (às vezes o cancelamento). A trava do
+  Cliente nos comandos CE passou a `FOR NO KEY UPDATE`: o envio espera o cancelamento e recusa o B/L que
+  perdeu a liquidação. Um segundo teste comprova que a fatura consolidada parcialmente paga libera só
+  o B/L efetivamente liquidado. Ambos usam os comandos reais do financeiro, em
+  `ceUnlock.local-pg.test.ts`.
 - **Suítes `local-pg` em ordem explícita e invertida no CI (2026-10-13):** o Vitest reordenava
   os arquivos (falhos e lentos primeiro, depois por tamanho) e ignorava a ordem da lista do
   workflow, então a "ordem explícita" da Etapa 12 do
