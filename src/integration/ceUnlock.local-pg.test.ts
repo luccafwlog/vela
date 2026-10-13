@@ -21,7 +21,7 @@ function cancelOpenRequests(reason:string) {
 }
 async function heldTransaction(q:string) {
   const process = spawn('psql',['-X','-Atq','-v','ON_ERROR_STOP=1','-d',db,'-f','-'],{stdio:['pipe','pipe','pipe']})
-  const done = new Promise<void>((resolve,reject)=> { process.on('exit',code => code===0 ? resolve() : reject(new Error('Worker SQL failed'))); process.on('error',reject) })
+  const done = new Promise<void>((resolve,reject)=> { let stderr=''; process.stderr.on('data',c=>{stderr+=c}); process.on('exit',code => code===0 ? resolve() : reject(new Error('Worker SQL failed: '+stderr))); process.on('error',reject) })
   process.stdin.end(q.replaceAll(';', ';\n'))
   await new Promise<void>((resolve,reject)=> { process.stdout.on('data',chunk=> { if(String(chunk).includes('LOCKED')) resolve() }); process.on('error',reject) })
   return { done }
@@ -47,9 +47,33 @@ function reviewScenario(query: string) {
     ${query}
     ROLLBACK;`)
 }
+// Emitir fatura e cancelar baixa exigem conta do Portal pronta (gate de faturamento).
+const portalReady = `UPDATE public.customer_portal_accounts SET contact_email='ce-a@example.test',portal_email='ce-a@example.test',login_cnpj='00000000557001',
+  provisioning_decision='aprovado_para_provisionar',recovery_email='ce-a@example.test',recovery_email_source='informado_manualmente',recovery_email_status='ok' WHERE customer_id=998557;`
+// Fixture do cancelamento de baixa concorrente: B/L com fatura individual aberta, sem baixa.
+const reversalBl = 'CE557-REV'
+const reversalId = 998863
+const dropReversalFixture = `SET session_replication_role=replica;
+  CREATE TEMP TABLE rev_requests ON COMMIT DROP AS SELECT request_id FROM public.ce_unlock_request_bls WHERE bl_id='${reversalBl}';
+  DELETE FROM public.ce_unlock_email_outbox WHERE request_id IN(SELECT request_id FROM rev_requests);
+  DELETE FROM public.ce_unlock_events WHERE request_id IN(SELECT request_id FROM rev_requests) OR bl_id='${reversalBl}';
+  DELETE FROM public.ce_unlock_documents WHERE request_id IN(SELECT request_id FROM rev_requests);
+  DELETE FROM public.ce_unlock_request_bls WHERE bl_id='${reversalBl}';
+  DELETE FROM public.ce_unlock_requests WHERE id IN(SELECT request_id FROM rev_requests);
+  DELETE FROM public.portal_notifications WHERE customer_id=998557 AND message LIKE 'Fatura CE557-REV-IND %';
+  DELETE FROM public.ledger_settlements WHERE receivable_id=${reversalId} OR invoice_id=${reversalId};
+  DELETE FROM public.invoice_lifecycle_events WHERE invoice_id=${reversalId};
+  DELETE FROM public.payments WHERE invoice_id=${reversalId};
+  DELETE FROM public.invoice_receivable_links WHERE invoice_id=${reversalId};
+  DELETE FROM public.invoice_bls WHERE invoice_id=${reversalId};
+  DELETE FROM public.invoices WHERE id=${reversalId};
+  DELETE FROM public.bl_receivables WHERE id=${reversalId};
+  DELETE FROM public.bls WHERE id='${reversalBl}';
+  SET session_replication_role=origin;`
 
 local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
   beforeAll(()=> {
+    sql(`BEGIN; ${dropReversalFixture} COMMIT;`)
     sql(`SET session_replication_role=replica;
       DELETE FROM ce_unlock_private.receipts WHERE actor_id IN ('${admin}','${client}','${foreign}');
       DELETE FROM public.ce_unlock_events WHERE customer_id IN(998557,998558);
@@ -527,6 +551,57 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(message).toContain('Procuração: assinatura ausente')
     expect(error('SELECT public.ce_unlock_email_pending(5);', admin)).toContain('permission denied')
     expect(error("SELECT public.ce_unlock_email_finish(1,'sent',NULL,NULL);", client)).toContain('permission denied')
+  })
+
+  it('fatura consolidada parcialmente paga libera só o B/L efetivamente liquidado', () => {
+    const consolidated = "(SELECT max(id) FROM public.invoices WHERE customer_id=998557 AND invoice_type='consolidated')"
+    const paidFlags = "SELECT string_agg((j->>'bl_id')||':'||(j->>'paid')||':'||(j->>'can_submit'),',' ORDER BY j->>'bl_id') FROM jsonb_array_elements(public.portal_list_ce_unlock_bls('{\"search\":\"CE557-CONS\"}',1)->'items') j;"
+    const result = reviewScenario(`
+      SET LOCAL session_replication_role=replica;
+      INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('CE557-CONS1',998557,998557,'123456789018501'),('CE557-CONS2',998557,998557,'123456789018502');
+      INSERT INTO public.bl_receivables(id,bl_id,customer_id,source,original_amount_brl,settled_amount_brl,balance_brl,status,voyage_id) VALUES
+        (998861,'CE557-CONS1',998557,'local_charges',100,0,100,'open',998557),(998862,'CE557-CONS2',998557,'local_charges',100,0,100,'open',998557);
+      ${portalReady}
+      SET LOCAL session_replication_role=origin;
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
+      SELECT public.create_local_consolidated_invoice(998557,ARRAY[998861,998862]::bigint[],NULL,NULL)->>'invoice_type';
+      SELECT public.register_ledger_invoice_payment(${consolidated},100,'ted',now(),NULL,'manual','Parcial da consolidada',NULL)->>'status';
+      SET LOCAL request.jwt.claim.sub='${client}';
+      ${paidFlags}
+      SET LOCAL request.jwt.claim.sub='${admin}';
+      SELECT public.register_ledger_invoice_payment(${consolidated},100,'ted',now(),NULL,'manual','Saldo da consolidada',NULL)->>'status';
+      SET LOCAL request.jwt.claim.sub='${client}';
+      ${paidFlags}`)
+    // O pagamento parcial liquida um recebível inteiro; o status da fatura não conta como prova para o outro B/L.
+    expect(result.split('\n')).toEqual([
+      'consolidated', 'partially_paid',
+      'CE557-CONS1:true:true,CE557-CONS2:false:false',
+      'paid',
+      'CE557-CONS1:true:true,CE557-CONS2:true:true',
+    ])
+  })
+  it('envio do pedido aguarda cancelamento concorrente da baixa e recusa o B/L que perdeu a liquidação', async () => {
+    sql(`SET session_replication_role=replica;
+      INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('${reversalBl}',998557,998557,'123456789018503');
+      INSERT INTO public.bl_receivables(id,bl_id,customer_id,source,original_amount_brl,settled_amount_brl,balance_brl,status,voyage_id) VALUES(${reversalId},'${reversalBl}',998557,'local_charges',100,0,100,'open',998557);
+      INSERT INTO public.invoices(id,invoice_number,customer_id,bl_id,total_brl,total_paid_brl,balance_brl,status,invoice_type,issued_by) VALUES(${reversalId},'CE557-REV-IND',998557,'${reversalBl}',100,0,100,'issued','individual','${admin}');
+      INSERT INTO public.invoice_bls(invoice_id,bl_id,subtotal_brl) VALUES(${reversalId},'${reversalBl}',100);
+      INSERT INTO public.invoice_receivable_links(invoice_id,receivable_id,bl_id,subtotal_brl,status) VALUES(${reversalId},${reversalId},'${reversalBl}',100,'active');
+      ${portalReady}
+      SET session_replication_role=origin;`)
+    try {
+      // Baixa e cancelamento da baixa pelos comandos reais do financeiro, não por alteração direta do recebível.
+      const payment = JSON.parse(sql(`SELECT public.register_ledger_invoice_payment(${reversalId},100,'ted',now(),NULL,'manual','Baixa do teste CE',NULL);`, admin))
+      const draft = command('draft', { bl_ids: [reversalBl], request_key: crypto.randomUUID() }, client)
+      sql(`INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by) VALUES
+        (998557,'${draft.id}','termo','request','uploaded','rev-term.pdf','reversal/term-${draft.id}',10,'hash','${client}'),
+        (998557,'${draft.id}','procuracao','request','uploaded','rev-proc.pdf','reversal/proc-${draft.id}',10,'hash','${client}');`)
+      const worker = await heldTransaction(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}'; SELECT public.reverse_invoice_payment(${payment.payment_id},'Cancelamento de baixa concorrente ao envio',NULL); SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
+      try { expect(() => command('submit', { request_id: draft.id, expected_version: draft.version, request_key: crypto.randomUUID() }, client)).toThrow(`B/L ${reversalBl} perdeu elegibilidade`) }
+      finally { await worker.done }
+      expect(sql(`SELECT state FROM public.ce_unlock_requests WHERE id='${draft.id}';`)).toBe('draft')
+      expect(JSON.parse(sql("SELECT public.portal_list_ce_unlock_bls('{\"search\":\"CE557-REV\"}',1);", client)).items[0]).toMatchObject({ bl_id: reversalBl, paid: false })
+    } finally { sql(`BEGIN; ${dropReversalFixture} COMMIT;`) }
   })
 
 })
