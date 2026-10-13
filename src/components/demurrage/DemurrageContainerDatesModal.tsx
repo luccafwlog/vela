@@ -64,7 +64,7 @@ function ContainerDatesForm({ container, loading, error, onClose, onSubmit }: Om
       ) : null}
       {error ? <p className="app-dem-form__error" role="alert">{error} As datas não foram alteradas.</p> : null}
       <div className="app-dem-form__actions">
-        <Button type="button" variant="ghost" onClick={onClose}>Voltar</Button>
+        <Button type="button" variant="ghost" disabled={loading} onClick={onClose}>Voltar</Button>
         <Button type="submit" loading={loading} loadingLabel="Salvando…">Salvar datas</Button>
       </div>
     </form>
@@ -73,7 +73,7 @@ function ContainerDatesForm({ container, loading, error, onClose, onSubmit }: Om
 
 export function DemurrageContainerDatesModal({ container, ...props }: Props) {
   return (
-    <Modal open={container != null} onClose={props.onClose} title={container ? `Datas do container ${container.container_number}` : 'Datas do container'} size="md">
+    <Modal open={container != null} onClose={() => { if (!props.loading) props.onClose() }} title={container ? `Datas do container ${container.container_number}` : 'Datas do container'} size="md">
       {container ? <ContainerDatesForm key={container.id} container={container} {...props} /> : null}
     </Modal>
   )

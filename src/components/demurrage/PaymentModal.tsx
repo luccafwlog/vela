@@ -4,6 +4,7 @@ import { Field, Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { fmtBRL, fmtUSD } from '../../services/demurrage/demurragePresentation'
 import { formatDate } from '../../lib/utils'
+import { saoPauloTodayIso } from '../../lib/dates'
 
 export type PaymentTarget = {
   id: number
@@ -24,10 +25,6 @@ type Props = {
   onSubmit: (id: number, date: string) => void
 }
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10)
-}
-
 /**
  * Baixa manual (`register_demurrage_payment`): congela o valor em BRL e o
  * ROE da Invoice, e o recálculo diário dela termina. A data não pode ser
@@ -36,7 +33,7 @@ function todayIso() {
 export function PaymentModal({ open, invoice, paymentDate, loading = false, error = null, onPaymentDateChange, onClose, onSubmit }: Props) {
   const [dateError, setDateError] = useState<string | null>(null)
   const minDate = invoice?.billedAt?.slice(0, 10)
-  const maxDate = todayIso()
+  const maxDate = saoPauloTodayIso()
 
   function submit() {
     if (!invoice) return
@@ -48,7 +45,7 @@ export function PaymentModal({ open, invoice, paymentDate, loading = false, erro
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={invoice ? `Registrar pagamento ${invoice.docNumber}` : 'Registrar pagamento'} size="sm">
+    <Modal open={open} onClose={() => { if (!loading) onClose() }} title={invoice ? `Registrar pagamento ${invoice.docNumber}` : 'Registrar pagamento'} size="sm">
       <form className="app-dem-form" noValidate onSubmit={(event) => { event.preventDefault(); submit() }}>
         {invoice ? (
           <dl className="app-dem-facts">
@@ -59,10 +56,10 @@ export function PaymentModal({ open, invoice, paymentDate, loading = false, erro
         <Field label="Data do pagamento" required error={dateError ?? undefined} hint={minDate ? `Entre ${formatDate(minDate)} e hoje.` : undefined}>
           <Input type="date" value={paymentDate} min={minDate} max={maxDate} onChange={(event) => { onPaymentDateChange(event.target.value); setDateError(null) }} />
         </Field>
-        <p className="app-dem-note">A baixa congela o valor em BRL e o ROE da Invoice; o recálculo pela PTAX termina. Para baixar pelo extrato ou pelo PIX, use a Conciliação.</p>
+        <p className="app-dem-note">A baixa congela o valor em BRL e o ROE da Invoice pela foto financeira da data paga (com data anterior, pode diferir do BRL de hoje); o recálculo pela PTAX termina. Para baixar pelo extrato ou pelo PIX, use a Conciliação.</p>
         {error ? <p className="app-dem-form__error" role="alert">{error} Nada foi baixado.</p> : null}
         <div className="app-dem-form__actions">
-          <Button type="button" variant="ghost" onClick={onClose}>Voltar</Button>
+          <Button type="button" variant="ghost" disabled={loading} onClick={onClose}>Voltar</Button>
           <Button type="submit" loading={loading} loadingLabel="Registrando…">Registrar pagamento</Button>
         </div>
       </form>

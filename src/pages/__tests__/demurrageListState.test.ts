@@ -19,6 +19,17 @@ describe('estado de /demurrage na URL', () => {
     expect(withDemurrageParam(new URLSearchParams('lente=atraso'), 'lente', 'todos').toString()).toBe('')
   })
 
+  it('a busca guarda o espaço digitado entre as palavras', () => {
+    let params = new URLSearchParams('')
+    let typed = ''
+    for (const key of 'ACME LTDA') {
+      typed = (params.get('busca') ?? '') + key
+      params = withDemurrageParam(params, 'busca', typed)
+    }
+    expect(demurrageStateFromSearch(params).search).toBe('ACME LTDA')
+    expect(withDemurrageParam(params, 'busca', '   ').has('busca')).toBe(false)
+  })
+
   it('link direto da Invoice', () => {
     expect(demurrageInvoiceHref(77)).toBe('/demurrage?fatura=77')
   })

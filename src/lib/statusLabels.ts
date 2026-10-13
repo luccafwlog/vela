@@ -34,6 +34,7 @@ export const INVOICE_STATUS_LABELS: Record<string, string> = {
 export const DEMURRAGE_INVOICE_STATUS_LABELS: Record<string, string> = {
   draft: 'Rascunho',
   issued: 'Faturado',
+  overdue: 'Vencido',
   paid: 'Pago',
   cancelled: 'Cancelado',
 }

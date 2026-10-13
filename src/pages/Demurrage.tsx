@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Mail, Upload } from 'lucide-react'
@@ -52,6 +52,7 @@ import { DEMURRAGE_INVOICE_TABS } from '../services/demurrage/demurrageInvoiceTa
 import { EMPTY_DISCOUNT, EMPTY_DISPUTE, type DiscountForm, type DisputeForm } from '../services/demurrage/demurrageForms'
 import {
   DATES_CHANGED_PAID_PREFIX,
+  discountPreview,
   fmtBRL,
   invoiceNetUsd,
   isPtaxWarningEligible,
@@ -60,6 +61,7 @@ import {
 import { reverseDemurragePayment } from '../services/reconciliacao'
 import { demurrageDiscountSchema } from '../services/financialValidation'
 import { extractErrorText } from '../lib/errors'
+import { saoPauloTodayIso } from '../lib/dates'
 import { printDocumentElement } from '../lib/printDocument'
 import { demurrageStateFromSearch, withDemurrageParam, withDemurrageTab, type ContainerLens, type DemurrageTab } from './demurrageListState'
 
@@ -72,9 +74,7 @@ function isInvoiceTab(tab: DemurrageTab): tab is InvoiceTab {
   return tab === 'emitidas' || tab === 'pagas' || tab === 'canceladas'
 }
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10)
-}
+const todayIso = () => saoPauloTodayIso()
 
 /** Erros de validação do desconto por campo, com a mensagem da tela. */
 function discountErrors(form: DiscountForm): DiscountFieldErrors {
@@ -127,6 +127,8 @@ export function Demurrage() {
   const [paying, setPaying] = useState<PaymentTarget | null>(null)
   const [payDate, setPayDate] = useState(todayIso())
   const [payError, setPayError] = useState<string | null>(null)
+  const [reverseError, setReverseError] = useState<string | null>(null)
+  const [cancelError, setCancelError] = useState<string | null>(null)
   const [reversing, setReversing] = useState<{ id: number; docNumber: string | null; datesChanged: DemurrageReversalDatesNotice | null } | null>(null)
   const [discountTarget, setDiscountTarget] = useState<{ id: number; docNumber: string; totalUsd: number; hadDiscount: boolean } | null>(null)
   const [discountForm, setDiscountForm] = useState<DiscountForm>(EMPTY_DISCOUNT)
@@ -178,18 +180,22 @@ export function Demurrage() {
     enabled: invoiceStatus != null,
   })
 
-  // Link direto (`?fatura=`) sem aba: abre também a aba da situação da Invoice.
+  // Link direto (`?fatura=`) vindo de fora (ficha, Alerta): abre também a aba
+  // da situação da Invoice. A Invoice aberta por esta tela fica na aba atual
+  // (Containers não tem `tab` na URL, e trocar de aba apagaria a lente).
+  const openedHere = useRef<number | null>(null)
+  const linkedInvoiceId = state.invoiceId != null && !searchParams.has('tab') && openedHere.current !== state.invoiceId ? state.invoiceId : null
   const linkedDetailQuery = useQuery({
-    queryKey: ['demurrage-invoice-detail', state.invoiceId],
-    queryFn: () => getInvoiceDetail(state.invoiceId!),
-    enabled: state.invoiceId != null && !searchParams.has('tab'),
+    queryKey: ['demurrage-invoice-detail', linkedInvoiceId],
+    queryFn: () => getInvoiceDetail(linkedInvoiceId!),
+    enabled: linkedInvoiceId != null,
   })
-  const linkedStatus = linkedDetailQuery.data?.invoice.status
+  const linkedStatus = linkedInvoiceId != null ? linkedDetailQuery.data?.invoice.status : undefined
   useEffect(() => {
-    if (!linkedStatus || searchParams.has('tab')) return
+    if (!linkedStatus) return
     const target = TAB_BY_STATUS[linkedStatus]
     if (target) setSearchParams((params) => withDemurrageTab(params, target), { replace: true })
-  }, [linkedStatus, searchParams, setSearchParams])
+  }, [linkedStatus, setSearchParams])
 
   const receiptRefunds = useFinancialRefunds('demurrage', document?.type === 'receipt' ? document.id : null)
   const documentQuery = useQuery({
@@ -209,7 +215,10 @@ export function Demurrage() {
   const selectTab = (next: DemurrageTab) => updateParams((params) => withDemurrageTab(params, next))
   const setSearch = (value: string) => updateParams((params) => withDemurrageParam(params, 'busca', value))
   const setLens = (value: ContainerLens) => updateParams((params) => withDemurrageParam(params, 'lente', value))
-  const openInvoice = (invoiceId: number) => updateParams((params) => withDemurrageParam(params, 'fatura', invoiceId))
+  const openInvoice = (invoiceId: number) => {
+    openedHere.current = invoiceId
+    updateParams((params) => withDemurrageParam(params, 'fatura', invoiceId))
+  }
   const closeInvoice = () => updateParams((params) => withDemurrageParam(params, 'fatura', null))
 
   /** Ação aberta a partir do detalhe: o formulário toma o lugar do diálogo e volta para ele. */
@@ -221,6 +230,15 @@ export function Demurrage() {
   function backToDetail() {
     if (returnTo != null) openInvoice(returnTo)
     setReturnTo(null)
+  }
+  /**
+   * Depois de gravar, relê o detalhe antes de voltar a ele: enquanto o
+   * formulário estava aberto o detalhe não tinha observador, e a invalidação só
+   * o marcava velho (voltaria mostrando "Registrar pagamento" numa Invoice paga).
+   */
+  async function refreshDetailAndBack() {
+    if (returnTo != null) await queryClient.refetchQueries({ queryKey: ['demurrage-invoice-detail', returnTo], type: 'all' })
+    backToDetail()
   }
 
   const recalcManualMutation = useMutation({
@@ -261,27 +279,30 @@ export function Demurrage() {
       setPayError(null)
       await afterFaturaDemurrageAlterada(queryClient)
       showToast('Pagamento registrado.', 'success')
-      backToDetail()
+      await refreshDetailAndBack()
     },
     onError: (error: Error) => setPayError(extractErrorText(error)),
   })
   const unpayMutation = useMutation({
     mutationFn: ({ id, reason }: { id: number; reason: string }) => reverseDemurragePayment(id, reason),
+    onMutate: () => setReverseError(null),
     onSuccess: async () => {
       setReversing(null)
       await afterFaturaDemurrageAlterada(queryClient)
       showToast('Baixa cancelada com auditoria.', 'success')
-      backToDetail()
+      await refreshDetailAndBack()
     },
-    onError: (error: Error) => showToast(extractErrorText(error), 'error'),
+    onError: (error: Error) => setReverseError(extractErrorText(error)),
   })
   const cancelMutation = useMutation({
     mutationFn: ({ id, reason }: { id: number; reason: string }) => cancelDemurrageInvoice(id, reason),
+    onMutate: () => setCancelError(null),
     onSuccess: async () => {
       await afterFaturaDemurrageAlterada(queryClient)
       showToast('Invoice cancelada.', 'success')
     },
-    onError: (error: Error) => showToast(extractErrorText(error), 'error'),
+    // A recusa fica no detalhe, onde o cancelamento foi pedido.
+    onError: (error: Error) => setCancelError(extractErrorText(error)),
   })
   const discountMutation = useMutation({
     mutationFn: async ({ id, form }: { id: number; form: DiscountForm }) => {
@@ -299,7 +320,7 @@ export function Demurrage() {
       setDiscountTarget(null)
       await afterFaturaDemurrageAlterada(queryClient)
       showToast('Desconto atualizado.', 'success')
-      backToDetail()
+      await refreshDetailAndBack()
     },
     onError: (error: Error) => setDiscountFieldErrors({ form: extractErrorText(error) }),
   })
@@ -313,7 +334,7 @@ export function Demurrage() {
       setDisputeTarget(null)
       await afterFaturaDemurrageAlterada(queryClient)
       showToast('Dados da disputa salvos.', 'success')
-      backToDetail()
+      await refreshDetailAndBack()
     },
     onError: (error: Error) => setDisputeError(extractErrorText(error)),
   })
@@ -330,7 +351,8 @@ export function Demurrage() {
     fromDetail(() => {
       setDiscountForm({
         discount_type: invoice.discount_type as DiscountForm['discount_type'],
-        discount_value: invoice.discount_value != null ? String(invoice.discount_value) : '',
+        // O campo lê pt-BR: 12.5 do banco vira "12,5" para não ser recusado ao salvar.
+        discount_value: invoice.discount_value != null ? String(invoice.discount_value).replace('.', ',') : '',
         discount_mode: invoice.discount_mode === 'fixed' ? 'fixed' : 'percent',
         discount_justification: '',
         discount_approver: invoice.discount_approver ?? '',
@@ -369,6 +391,9 @@ export function Demurrage() {
   function submitDiscount() {
     if (!discountTarget) return
     const errors = discountErrors(discountForm)
+    if (discountPreview(discountTarget.totalUsd, discountForm.discount_mode, discountForm.discount_value)?.exceedsTotal) {
+      errors.discount_value = 'O desconto fixo não pode passar do total da Invoice.'
+    }
     setDiscountFieldErrors(errors)
     if (Object.keys(errors).length) return
     discountMutation.mutate({ id: discountTarget.id, form: discountForm })
@@ -523,7 +548,8 @@ export function Demurrage() {
         invoiceId={state.invoiceId}
         permissions={{ canSettle, canAdmin, canAnswerDispute }}
         cancelling={cancelMutation.isPending}
-        onClose={closeInvoice}
+        cancelError={cancelError}
+        onClose={() => { setCancelError(null); closeInvoice() }}
         onOpenInvoice={openInvoice}
         onRegisterPayment={openPayment}
         onDiscount={openDiscount}
@@ -571,7 +597,8 @@ export function Demurrage() {
           docNumber={reversing.docNumber}
           datesChanged={reversing.datesChanged}
           loading={unpayMutation.isPending}
-          onClose={() => { setReversing(null); backToDetail() }}
+          error={reverseError}
+          onClose={() => { setReversing(null); setReverseError(null); backToDetail() }}
           onSubmit={(reason) => unpayMutation.mutate({ id: reversing.id, reason })}
         />
       ) : null}

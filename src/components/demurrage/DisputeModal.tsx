@@ -21,7 +21,7 @@ type Props = {
  */
 export function DisputeModal({ open, docNumber, form, loading, error = null, onFormChange, onClose, onSubmit }: Props) {
   return (
-    <Modal open={open} onClose={onClose} title={docNumber ? `Dados da disputa ${docNumber}` : 'Dados da disputa'} size="md">
+    <Modal open={open} onClose={() => { if (!loading) onClose() }} title={docNumber ? `Dados da disputa ${docNumber}` : 'Dados da disputa'} size="md">
       <form className="app-dem-form" noValidate onSubmit={(event) => { event.preventDefault(); onSubmit() }}>
         <p className="app-dem-note">
           Registro interno. Abrir, encerrar ou reabrir a Disputa e responder ao Cliente é feito na aba Disputas.
@@ -37,7 +37,7 @@ export function DisputeModal({ open, docNumber, form, loading, error = null, onF
         </Field>
         {error ? <p className="app-dem-form__error" role="alert">{error} Nada foi salvo.</p> : null}
         <div className="app-dem-form__actions">
-          <Button type="button" variant="ghost" onClick={onClose}>Voltar</Button>
+          <Button type="button" variant="ghost" disabled={loading} onClick={onClose}>Voltar</Button>
           <Button type="submit" loading={loading} loadingLabel="Salvando…">Salvar dados</Button>
         </div>
       </form>

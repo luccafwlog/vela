@@ -41,9 +41,6 @@ vi.mock('../../services/demurrage/demurrageContainers', () => ({
   updateContainerDates: mocks.updateContainerDates,
 }))
 vi.mock('../../services/demurrage/demurrageInvoices', () => ({
-  applyDemurrageUsdDiscount: (total: number, mode: string | null, value: number | null) => (
-    !value ? total : mode === 'percent' ? total * (1 - value / 100) : Math.max(0, total - value)
-  ),
   createInvoiceForBL: mocks.createInvoice,
   listDemurrageInvoices: mocks.listInvoices,
   getInvoiceDetail: mocks.getInvoiceDetail,
@@ -374,6 +371,34 @@ describe('Demurrage page behaviours', () => {
     expect(mocks.applyDiscount).not.toHaveBeenCalled()
   })
 
+  it('a prévia do desconto lê o valor como o formulário grava: "1.000" é mil dólares', async () => {
+    detailOverrides[21] = { total_usd: 2000 }
+    const user = userEvent.setup()
+    renderPage()
+    await openIssuedDetail(user)
+    await user.click(screen.getByRole('button', { name: 'Aplicar desconto' }))
+    const discountDialog = screen.getByRole('dialog', { name: 'Desconto da Invoice DEM-001' })
+    await user.click(within(discountDialog).getByRole('radio', { name: 'Valor fixo (USD)' }))
+    await user.type(within(discountDialog).getByLabelText(/Desconto em USD/), '1.000')
+    expect(within(discountDialog).getByText(/− US\$\s?1\.000,00/)).toBeTruthy()
+    await user.type(within(discountDialog).getByLabelText(/Justificativa/), 'Acordo')
+    await user.click(within(discountDialog).getByRole('button', { name: 'Salvar desconto' }))
+    await waitFor(() => expect(mocks.applyDiscount).toHaveBeenCalledWith(expect.objectContaining({ discountValue: 1000, discountMode: 'fixed' })))
+  })
+
+  it('editar um desconto fracionário já gravado não é recusado pelo formato', async () => {
+    detailOverrides[21] = { discount_value: 12.5, discount_mode: 'percent' }
+    const user = userEvent.setup()
+    renderPage()
+    await openIssuedDetail(user)
+    await user.click(screen.getByRole('button', { name: /desconto/i }))
+    const discountDialog = screen.getByRole('dialog', { name: 'Desconto da Invoice DEM-001' })
+    expect((within(discountDialog).getByLabelText(/Desconto em %/) as HTMLInputElement).value).toBe('12,5')
+    await user.type(within(discountDialog).getByLabelText(/Justificativa/), 'Só a classificação')
+    await user.click(within(discountDialog).getByRole('button', { name: 'Salvar desconto' }))
+    await waitFor(() => expect(mocks.applyDiscount).toHaveBeenCalledWith(expect.objectContaining({ discountValue: 12.5 })))
+  })
+
   it('cancelar a Invoice pede confirmação com motivo; nenhum "Voltar" cancela', async () => {
     const user = userEvent.setup()
     const { invalidateQueries } = renderPage()
@@ -440,6 +465,17 @@ describe('Demurrage page behaviours', () => {
     renderPage(['/demurrage?fatura=22'])
     expect(await screen.findByRole('dialog', { name: 'Invoice de Demurrage DEM-002' })).toBeTruthy()
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Pagas' }).getAttribute('aria-selected')).toBe('true'))
+  })
+
+  it('Invoice aberta a partir de Containers fica na aba Containers e preserva a lente', async () => {
+    const user = userEvent.setup()
+    renderPage(['/demurrage?lente=devolvidos'])
+    await user.click(await screen.findByRole('button', { name: 'Gerar Invoice do B/L BL-001' }))
+    expect(await screen.findByRole('dialog', { name: 'Invoice de Demurrage DEM-001' })).toBeTruthy()
+    // O detalhe já carregou a situação (emitida); nada pode levar a Faturas.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByRole('tab', { name: 'Containers' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('radio', { name: /Devolvidos/ }).getAttribute('aria-checked')).toBe('true')
   })
 
   it('a busca da URL também filtra as Invoices', async () => {

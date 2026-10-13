@@ -26,7 +26,7 @@ import {
   discountPreview,
   freeTimeSource,
   invoiceNetUsd,
-  previousLiveInvoice,
+  earlierLiveInvoices,
 } from '../demurragePresentation'
 import type { DemurrageContainerRow } from '../demurrageContainers'
 
@@ -109,25 +109,40 @@ describe('demurrageInvoiceNotices', () => {
   })
 })
 
-describe('previousLiveInvoice (Invoice complementar)', () => {
+describe('earlierLiveInvoices (Invoice complementar)', () => {
   const original = { id: 1, status: 'paid', created_at: '2026-07-01T10:00:00Z' }
   const cancelled = { id: 2, status: 'cancelled', created_at: '2026-07-02T10:00:00Z' }
   const complement = { id: 3, status: 'issued', created_at: '2026-07-05T10:00:00Z' }
+  const third = { id: 4, status: 'issued', created_at: '2026-07-06T10:00:00Z' }
 
-  it('a complementar aponta a Invoice viva anterior; a original não aponta nenhuma', () => {
-    expect(previousLiveInvoice(complement, [original, cancelled, complement])?.id).toBe(1)
-    expect(previousLiveInvoice(original, [original, cancelled, complement])).toBeNull()
+  it('a complementar aponta as Invoices vivas anteriores; a original não aponta nenhuma', () => {
+    expect(earlierLiveInvoices(complement, [original, cancelled, complement]).map((i) => i.id)).toEqual([1])
+    expect(earlierLiveInvoices(original, [original, cancelled, complement])).toEqual([])
+    expect(earlierLiveInvoices(third, [third, complement, original]).map((i) => i.id)).toEqual([1, 3])
   })
 
   it('reemissão depois de cancelamento não é complementar', () => {
-    expect(previousLiveInvoice(complement, [cancelled, complement])).toBeNull()
+    expect(earlierLiveInvoices(complement, [cancelled, complement])).toEqual([])
+  })
+
+  it('emissões na mesma transação (mesmo created_at) desempatam pelo id', () => {
+    const a = { id: 10, status: 'issued', created_at: '2026-07-05T10:00:00Z' }
+    const b = { id: 11, status: 'issued', created_at: '2026-07-05T10:00:00Z' }
+    expect(earlierLiveInvoices(b, [a, b]).map((i) => i.id)).toEqual([10])
+    expect(earlierLiveInvoices(a, [a, b])).toEqual([])
   })
 })
 
 describe('desconto em USD antes da conversão', () => {
   it('percentual e valor fixo em centavos, como a RPC', () => {
     expect(discountPreview(1000, 'percent', '12,5')).toEqual({ totalUsd: 1000, discountUsd: 125, netUsd: 875 })
-    expect(discountPreview(1000, 'fixed', 1500)).toEqual({ totalUsd: 1000, discountUsd: 1000, netUsd: 0 })
+    expect(discountPreview(1000, 'fixed', 1500)).toMatchObject({ exceedsTotal: true })
+    // Mesmo leitor do formulário: "1.000" é mil, não um dólar.
+    expect(discountPreview(2000, 'fixed', '1.000')).toEqual({ totalUsd: 2000, discountUsd: 1000, netUsd: 1000 })
+    expect(discountPreview(2000, 'fixed', '1.234,56')).toEqual({ totalUsd: 2000, discountUsd: 1234.56, netUsd: 765.44 })
+    // A RPC arredonda o desconto (round(total × % / 100, 2)), não o líquido.
+    expect(discountPreview(4350.1, 'percent', 5)?.netUsd).toBe(4132.59)
+    expect(discountPreview(1.01, 'percent', 50)?.discountUsd).toBe(0.51)
     expect(discountPreview(1000, 'percent', '')).toBeNull()
   })
 

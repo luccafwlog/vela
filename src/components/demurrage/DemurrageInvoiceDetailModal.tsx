@@ -12,7 +12,7 @@ import {
   fmtBRL,
   fmtUSD,
   invoiceNetUsd,
-  previousLiveInvoice,
+  earlierLiveInvoices,
   type DemurrageInvoiceRow,
 } from '../../services/demurrage/demurragePresentation'
 import { DISCOUNT_TYPE_LABELS } from '../../services/demurrage/demurrageForms'
@@ -38,6 +38,8 @@ type Props = {
   invoiceId: number | null
   permissions: DemurrageDetailPermissions
   cancelling: boolean
+  /** Recusa do banco ao cancelar, mostrada no detalhe. */
+  cancelError?: string | null
   onClose: () => void
   onOpenInvoice: (invoiceId: number) => void
   onRegisterPayment: (invoice: DemurrageDetailInvoice) => void
@@ -66,6 +68,7 @@ export function DemurrageInvoiceDetailModal({
   invoiceId,
   permissions,
   cancelling,
+  cancelError = null,
   onClose,
   onOpenInvoice,
   onRegisterPayment,
@@ -89,7 +92,7 @@ export function DemurrageInvoiceDetailModal({
     enabled: Boolean(invoice?.bl_id),
   })
   const siblings = (siblingsQuery.data ?? []).filter((other) => other.id !== invoice?.id)
-  const previous = invoice ? previousLiveInvoice(invoice, siblingsQuery.data ?? []) : null
+  const earlier = invoice ? earlierLiveInvoices(invoice, siblingsQuery.data ?? []) : []
 
   const title = invoice ? `Invoice de Demurrage ${invoice.doc_number}` : 'Invoice de Demurrage'
 
@@ -106,11 +109,12 @@ export function DemurrageInvoiceDetailModal({
         <DetailBody
           invoice={invoice}
           items={items}
-          previous={previous}
+          earlier={earlier}
           siblings={siblings}
           siblingsError={Boolean(siblingsQuery.error)}
           permissions={permissions}
           cancelling={cancelling}
+          cancelError={cancelError}
           onOpenInvoice={onOpenInvoice}
           onRegisterPayment={onRegisterPayment}
           onDiscount={onDiscount}
@@ -128,11 +132,12 @@ export function DemurrageInvoiceDetailModal({
 function DetailBody({
   invoice,
   items,
-  previous,
+  earlier,
   siblings,
   siblingsError,
   permissions,
   cancelling,
+  cancelError,
   onOpenInvoice,
   onRegisterPayment,
   onDiscount,
@@ -144,13 +149,14 @@ function DetailBody({
 }: Omit<Props, 'invoiceId' | 'onClose'> & {
   invoice: DemurrageDetailInvoice
   items: DemurrageInvoiceItem[]
-  previous: DemurrageInvoiceListItem | null
+  earlier: DemurrageInvoiceListItem[]
   siblings: DemurrageInvoiceListItem[]
   siblingsError: boolean
 }) {
   const net = invoiceNetUsd(invoice)
   const notices = demurrageInvoiceNotices(invoice)
-  const issued = invoice.status === 'issued'
+  // `overdue` é emitida vencida: a Régua e as ações a tratam como emitida.
+  const issued = invoice.status === 'issued' || invoice.status === 'overdue'
   const paid = invoice.status === 'paid'
   const hasReceipt = paid || (invoice.status === 'cancelled' && Boolean(invoice.paid_at))
   const voyage = invoice.bl?.voyage
@@ -167,7 +173,7 @@ function DetailBody({
         <div className="app-invoice-detail__identity">
           <p className="app-invoice-detail__tags">
             <InvoiceStatusBadge status={invoice.status} />
-            {previous ? <Badge tone="info">Complementar</Badge> : null}
+            {earlier.length ? <Badge tone="info">Complementar</Badge> : null}
             {Number(invoice.discount_value ?? 0) > 0 ? <Badge tone="neutral">Com desconto</Badge> : null}
             {invoice.dispute_open ? <Badge tone="warning">Disputa aberta</Badge> : null}
           </p>
@@ -234,14 +240,15 @@ function DetailBody({
           <Button variant="danger" loading={cancelling} loadingLabel="Cancelando…" onClick={() => onCancelInvoice(invoice)}><Ban size={16} aria-hidden="true" />Cancelar Invoice…</Button>
         ) : null}
       </div>
+      {cancelError ? <p className="app-invoice-detail__alert" role="alert">{cancelError} A Invoice não foi cancelada.</p> : null}
       {restrictions.length ? <p className="app-invoice-detail__note">{restrictions.join(' ')}</p> : null}
 
-      {previous || siblings.length || siblingsError ? (
+      {earlier.length || siblings.length || siblingsError ? (
         <section className="app-invoice-detail__section" aria-labelledby="dem-detail-group">
           <h3 id="dem-detail-group" className="app-invoice-detail__heading">Outras Invoices deste B/L</h3>
-          {previous ? (
+          {earlier.length ? (
             <p className="app-invoice-detail__note">
-              Esta é uma Invoice complementar: cobra só as caixas que ainda não estavam em Invoice. As já cobradas ficaram em {previous.doc_number}.
+              Esta é uma Invoice complementar: cobra só as caixas que ainda não estavam em Invoice. As já cobradas ficaram em {earlier.map((other) => other.doc_number).join(', ')}.
             </p>
           ) : null}
           {siblingsError ? <p className="app-invoice-detail__alert">Não foi possível conferir as outras Invoices deste B/L.</p> : null}

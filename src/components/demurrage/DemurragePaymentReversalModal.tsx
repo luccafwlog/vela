@@ -16,6 +16,7 @@ export function DemurragePaymentReversalModal({
   docNumber,
   datesChanged = null,
   loading,
+  error = null,
   onClose,
   onSubmit,
 }: {
@@ -29,6 +30,8 @@ export function DemurragePaymentReversalModal({
   /** Invoice suspensa porque as datas do container mudaram depois do pagamento. */
   datesChanged?: DemurrageReversalDatesNotice | null
   loading: boolean
+  /** Recusa do banco, mostrada no próprio modal. */
+  error?: string | null
   onClose: () => void
   onSubmit: (reason: string) => void
 }) {
@@ -37,7 +40,7 @@ export function DemurragePaymentReversalModal({
   const trimmedReason = reason.trim()
 
   return (
-    <Modal open={open} onClose={onClose} title={`Cancelar baixa de Demurrage${docNumber ? ` ${docNumber}` : ''}`}>
+    <Modal open={open} onClose={() => { if (!loading) onClose() }} title={`Cancelar baixa de Demurrage${docNumber ? ` ${docNumber}` : ''}`}>
       <div className="space-y-4 p-4">
         {datesChanged ? (
           <ImportNotice tone="warning" role="status" title="As datas do container mudaram depois do pagamento">
@@ -61,8 +64,9 @@ export function DemurragePaymentReversalModal({
             placeholder="Descreva o motivo do cancelamento desta baixa."
           />
         </Field>
+        {error ? <p className="app-dem-form__error" role="alert">{error} A baixa continua registrada.</p> : null}
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>Voltar</Button>
+          <Button variant="ghost" disabled={loading} onClick={onClose}>Voltar</Button>
           <Button
             variant="danger"
             loading={loading}

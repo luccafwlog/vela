@@ -8,6 +8,7 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useSaveCustomerDemurrageAgreement } from '../../hooks/useCustomerDemurrageAgreements'
 import { listOverrideCustomers } from '../../services/charges/chargeRateService'
 import { extractErrorText } from '../../lib/errors'
+import { saoPauloTodayIso } from '../../lib/dates'
 import { formatCnpjCpf, formatDate, formatUSD } from '../../lib/utils'
 import type { CustomerDemurrageAgreementListItem } from '../../types/customerDemurrageAgreements'
 import { validateAgreementDraft, type AgreementErrors } from './demurrageFormRules'
@@ -36,7 +37,7 @@ function CustomerDemurrageAgreementForm({
   const [freeDays, setFreeDays] = useState<string>(initialAgreement?.free_days != null ? String(initialAgreement.free_days) : '21')
   const [p1Usd, setP1Usd] = useState<string>(initialAgreement?.p1_usd != null ? String(Number(initialAgreement.p1_usd)) : '')
   const [p2Usd, setP2Usd] = useState<string>(initialAgreement?.p2_usd != null ? String(Number(initialAgreement.p2_usd)) : '')
-  const [validFrom, setValidFrom] = useState<string>(initialAgreement?.valid_from ? initialAgreement.valid_from.slice(0, 10) : new Date().toISOString().slice(0, 10))
+  const [validFrom, setValidFrom] = useState<string>(initialAgreement?.valid_from ? initialAgreement.valid_from.slice(0, 10) : saoPauloTodayIso())
   const [validTo, setValidTo] = useState<string>(initialAgreement?.valid_to ? initialAgreement.valid_to.slice(0, 10) : '')
   const [active, setActive] = useState<boolean>(initialAgreement?.active ?? true)
   const [notes, setNotes] = useState<string>(initialAgreement?.notes ?? '')

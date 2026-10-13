@@ -5,10 +5,11 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DemurrageContainersTab } from '../DemurrageContainersTab'
-import type { DemurrageContainerRow } from '../../../services/demurrage/demurrageContainers'
+import type { DemurrageBillingGroup, DemurrageContainerRow } from '../../../services/demurrage/demurrageContainers'
 
 // Cálculo determinístico: 400 USD para container com devolução ou ainda fora.
 vi.mock('../../../services/demurrage/demurrageRates', () => ({
+  demurrageFreeTimeDays: (_type: string, override?: number | null, agreement?: { free_days?: number | null } | null) => override ?? agreement?.free_days ?? 10,
   calculateDemurrage: (type: string, _discharge: string, _end: string, override?: number | null, _p1?: unknown, _p2?: unknown, agreement?: { free_days?: number | null } | null) => {
     if (type === 'XXXX') throw new Error('Tipo de container "XXXX" sem tarifa de Demurrage cadastrada.')
     return ({
@@ -26,17 +27,18 @@ vi.mock('../../../services/demurrage/demurrageRates', () => ({
 
 afterEach(cleanup)
 
-function row(blId: string, id: number, options: { returned?: boolean; billed?: Array<{ id: number; doc_number: string; status: string }>; agreementDays?: number } = {}): DemurrageContainerRow {
+function row(blId: string, id: number, options: { returned?: boolean; billed?: Array<{ id: number; doc_number: string; status: string }>; agreementDays?: number; number?: string; group?: DemurrageBillingGroup } = {}): DemurrageContainerRow {
   return {
     id,
     bl_id: blId,
-    container_number: `MSCU${id}000000`,
+    container_number: options.number ?? `MSCU${id}000000`,
     type: '40HC',
     discharge_date: '2026-06-01',
     return_date: options.returned ? '2026-07-11' : null,
     demurrage_status: options.returned ? 'returned' : 'overdue',
     customer_agreement: options.agreementDays != null ? { id: 1, free_days: options.agreementDays, p1_usd: null, p2_usd: null } : null,
     billed_in: (options.billed ?? []).map((ref) => ({ ...ref, bl_id: blId })),
+    billing_group: options.group ?? null,
     bl: {
       id: blId,
       voyage_id: 3,
@@ -150,6 +152,42 @@ describe('DemurrageContainersTab', () => {
     expect(screen.getByText(/sem tarifa de Demurrage cadastrada/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Editar datas de MSCU9000000' })).toBeTruthy()
     expect(screen.queryByText('Nenhum container em Demurrage')).toBeNull()
+  })
+
+  it('a lente não esconde a caixa irmã ainda fora: o B/L continua aguardando a devolução', () => {
+    renderTab([row('BL-001', 1, { returned: true }), row('BL-001', 2)], { lens: 'devolvidos' })
+    expect(screen.getByText('Aguarda devolução de 1 container')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Gerar/ })).toBeNull()
+  })
+
+  it('buscar a caixa já cobrada não esconde a irmã sem Invoice', () => {
+    renderTab([
+      row('BL-001', 1, { returned: true, billed: [{ id: 9, doc_number: 'DEM-009', status: 'issued' }] }),
+      row('BL-001', 2, { returned: true }),
+    ], { search: 'MSCU1000000' })
+    expect(screen.queryByText('Todas as caixas cobradas')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Gerar Invoice complementar do B/L BL-001' })).toBeTruthy()
+  })
+
+  it('caixa do grupo ainda fora no free time (fora da lista) segura a emissão, como no banco', () => {
+    const group: DemurrageBillingGroup = { anchorBlId: 'BL-001', blIds: ['BL-001'], boxes: 2, stillOut: 1, uncovered: 2, invoices: [] }
+    renderTab([row('BL-001', 1, { returned: true, group })])
+    expect(screen.getByText('Aguarda devolução de 1 container')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Gerar/ })).toBeNull()
+  })
+
+  it('container compartilhado entre B/Ls do grupo conta uma vez e tem uma só ação, no primeiro B/L', () => {
+    const group: DemurrageBillingGroup = { anchorBlId: 'BL-001', blIds: ['BL-001', 'BL-002'], boxes: 1, stillOut: 0, uncovered: 1, invoices: [] }
+    renderTab([
+      row('BL-001', 1, { returned: true, number: 'SHAR1234567', group }),
+      row('BL-002', 2, { returned: true, number: 'SHAR1234567', group }),
+    ])
+    expect(screen.getAllByRole('button', { name: /Gerar Invoice/ })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Gerar Invoice do B/L BL-001' })).toBeTruthy()
+    expect(screen.getByText('Container compartilhado: cobrança junto com o B/L BL-001')).toBeTruthy()
+    const strip = screen.getByLabelText('Resumo dos containers')
+    expect(within(strip).getAllByText('US$ 400,00').length).toBeGreaterThan(0)
+    expect(within(strip).queryByText('US$ 800,00')).toBeNull()
   })
 
   it('erro de consulta não vira "nenhum container"', () => {

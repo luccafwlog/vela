@@ -22,3 +22,19 @@ export function isWithinNextCalendarDays(dateStr: string | null, days: number, t
   const diffDays = Math.round((targetDay - calendarDayUtc(today)) / DAY_MS)
   return diffDays >= 0 && diffDays <= days
 }
+
+/**
+ * Data de hoje (aaaa-mm-dd) no calendário de Brasília, o mesmo que o banco usa
+ * (`now() AT TIME ZONE 'America/Sao_Paulo'`). `toISOString()` é UTC e vira o
+ * dia seguinte a partir das 21h.
+ */
+export function saoPauloTodayIso(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+  return `${values.year}-${values.month}-${values.day}`
+}

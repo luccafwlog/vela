@@ -31,7 +31,7 @@ export function DiscountModal({ open, docNumber, totalUsd, hadDiscount = false, 
   const removing = hadDiscount && !String(form.discount_value ?? '').trim()
 
   return (
-    <Modal open={open} onClose={onClose} title={docNumber ? `Desconto da Invoice ${docNumber}` : 'Desconto'} size="md">
+    <Modal open={open} onClose={() => { if (!loading) onClose() }} title={docNumber ? `Desconto da Invoice ${docNumber}` : 'Desconto'} size="md">
       <form className="app-dem-form" noValidate onSubmit={(event) => { event.preventDefault(); onSubmit() }}>
         <div className="app-dem-form__grid">
           <Field label="Tipo de desconto">
@@ -73,9 +73,10 @@ export function DiscountModal({ open, docNumber, totalUsd, hadDiscount = false, 
           <dl className="app-dem-facts" aria-live="polite">
             <div><dt>Total dos itens</dt><dd>{fmtUSD(totalUsd)}</dd></div>
             <div><dt>Desconto</dt><dd>{preview ? `− ${fmtUSD(preview.discountUsd)}` : '—'}</dd></div>
-            <div><dt>USD a cobrar</dt><dd className="app-dem-strong">{fmtUSD(preview ? preview.netUsd : totalUsd)}</dd></div>
+            <div><dt>USD a cobrar</dt><dd className="app-dem-strong">{preview?.exceedsTotal ? '—' : fmtUSD(preview ? preview.netUsd : totalUsd)}</dd></div>
           </dl>
         ) : null}
+        {preview?.exceedsTotal ? <p className="app-dem-note app-dem-note--warning" role="status">O desconto fixo não pode passar do total da Invoice ({fmtUSD(totalUsd)}).</p> : null}
         <Field label="Justificativa" required error={errors.discount_justification} hint="Fica no Histórico da Invoice.">
           <Textarea rows={2} value={form.discount_justification} onChange={(event) => onFormChange({ ...form, discount_justification: event.target.value })} />
         </Field>
@@ -85,7 +86,7 @@ export function DiscountModal({ open, docNumber, totalUsd, hadDiscount = false, 
         <p className="app-dem-note">O BRL e o PIX são recalculados na hora. Com desconto, datas alteradas depois não reemitem a Invoice sozinhas: ela sai da Régua e espera reemissão à mão.</p>
         {errors.form ? <p className="app-dem-form__error" role="alert">{errors.form} O desconto não foi alterado.</p> : null}
         <div className="app-dem-form__actions">
-          <Button type="button" variant="ghost" onClick={onClose}>Voltar</Button>
+          <Button type="button" variant="ghost" disabled={loading} onClick={onClose}>Voltar</Button>
           <Button type="submit" loading={loading} loadingLabel="Salvando…">{removing ? 'Tirar desconto' : 'Salvar desconto'}</Button>
         </div>
       </form>

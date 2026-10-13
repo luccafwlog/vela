@@ -14,9 +14,24 @@ export function canAnswerDemurrageDispute(role: string | null | undefined) {
 }
 
 
+/** PTAX digitada: só dígitos com vírgula ou ponto decimal ("5,4321"); nada de "0x10" ou "1e1". */
 export function parsePtaxInput(value: string): number | null {
-  const ptax = Number(value.trim().replace(',', '.'))
+  const text = value.trim()
+  if (!/^\d{1,4}([.,]\d{1,6})?$/.test(text)) return null
+  const ptax = Number(text.replace(',', '.'))
   return Number.isFinite(ptax) && ptax > 0 ? ptax : null
+}
+
+/**
+ * Faixa em que uma PTAX USD/BRL é plausível. A RPC aceita até 1000 (migration
+ * 066), e um dígito a mais recalcularia todas as Invoices abertas por um câmbio
+ * dez vezes maior; fora da faixa a tela pede para confirmar.
+ * ponytail: faixa fixa; revisar se o câmbio sair dela de verdade.
+ */
+export const PTAX_PLAUSIBLE_RANGE = { min: 2, max: 15 } as const
+
+export function isPlausiblePtax(ptax: number): boolean {
+  return ptax >= PTAX_PLAUSIBLE_RANGE.min && ptax <= PTAX_PLAUSIBLE_RANGE.max
 }
 
 

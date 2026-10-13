@@ -71,8 +71,14 @@ it('US-043: rejeita marcar paga uma invoice em draft', async () => {
 
 it('US-045: cancela a invoice', async () => {
   results.demurrage_invoices = { data: null, error: null }
-  await cancelDemurrageInvoice(5)
-  expect(rpcMock).toHaveBeenCalledWith('cancel_demurrage_invoice', expect.objectContaining({ p_invoice_id: 5 }))
+  await cancelDemurrageInvoice(5, ' Cliente pagou por outra Invoice ')
+  expect(rpcMock).toHaveBeenCalledWith('cancel_demurrage_invoice', expect.objectContaining({ p_invoice_id: 5, p_reason: 'Cliente pagou por outra Invoice' }))
+})
+
+it('US-045: cancelar sem motivo não chama a RPC', async () => {
+  rpcMock.mockClear()
+  await expect(cancelDemurrageInvoice(5, '  ')).rejects.toThrow(/motivo/)
+  expect(rpcMock).not.toHaveBeenCalledWith('cancel_demurrage_invoice', expect.anything())
 })
 
 it('US-047: atualiza assunto da disputa via patch, sem mexer no estado', async () => {

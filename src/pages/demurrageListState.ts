@@ -50,8 +50,11 @@ export function withDemurrageParam(
   value: string | number | null,
 ): URLSearchParams {
   const next = new URLSearchParams(params)
-  const text = value == null ? '' : String(value).trim()
-  const isDefault = !text || (key === 'tab' && text === 'containers') || (key === 'lente' && text === 'todos')
+  const raw = value == null ? '' : String(value)
+  // A busca é o que a pessoa está digitando: tirar o espaço aqui comeria o
+  // espaço entre "ACME" e "LTDA" a cada tecla. Quem filtra é que faz o trim.
+  const text = key === 'busca' ? raw : raw.trim()
+  const isDefault = !text.trim() || (key === 'tab' && text === 'containers') || (key === 'lente' && text === 'todos')
   if (isDefault) next.delete(key)
   else next.set(key, text)
   return next

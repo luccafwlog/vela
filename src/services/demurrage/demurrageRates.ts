@@ -256,6 +256,19 @@ function noonMs(dateStr: string): number {
   return ms
 }
 
+/**
+ * Free time que vale para o container (B/L > acordo > tabela). O
+ * `free_days` de `calculateDemurrage` é o dia corrido quando a caixa ainda
+ * está dentro do free time, não o prazo.
+ */
+export function demurrageFreeTimeDays(
+  containerType: string | null,
+  freeTimeOverride?: number | null,
+  customerAgreement?: CustomerAgreementRates,
+): number {
+  return getRate(containerType, freeTimeOverride, null, null, customerAgreement).freeUntil
+}
+
 export function calculateDemurrage(
   containerType: string | null,
   dischargeDate: string,

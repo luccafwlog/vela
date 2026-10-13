@@ -11,8 +11,10 @@ import { useNarrowViewport } from '../bl/useNarrowViewport'
 import { DemurrageStatusBadge } from './DemurrageBadges'
 import {
   FREE_TIME_SOURCE_LABELS,
+  containerFreeTimeDays,
   blBillingState,
   daysSince,
+  distinctBoxes,
   effectiveDemurrage,
   fmtUSD,
   freeTimeSource,
@@ -22,6 +24,7 @@ import {
 import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import { formatCountLabel, formatDate } from '../../lib/utils'
 import { extractErrorText } from '../../lib/errors'
+import { saoPauloTodayIso } from '../../lib/dates'
 import type { DemurrageContainerRow } from '../../services/demurrage/demurrageContainers'
 import type { ContainerLens } from '../../pages/demurrageListState'
 
@@ -53,9 +56,7 @@ function safeCalc(container: DemurrageContainerRow): Calc {
   }
 }
 
-function today() {
-  return new Date().toISOString().slice(0, 10)
-}
+const today = () => saoPauloTodayIso()
 
 function matchesSearch(container: DemurrageContainerRow, query: string) {
   if (!query) return true
@@ -112,12 +113,36 @@ export function DemurrageContainersTab({
       : lens === 'devolvidos' ? Boolean(container.return_date)
         : true
   ))
-  const grouped = groupByBl(visible) as Map<string, DemurrageContainerRow[]>
-  const runningUsd = visible
+  const grouped = groupByBl(visible)
+  // O estado de cobrança é do grupo inteiro (todas as caixas monitoradas dos
+  // B/Ls do grupo), nunca só do que a busca ou a lente deixaram visível: com a
+  // lente Devolvidos, a caixa irmã ainda fora continua segurando a emissão.
+  const billing = useMemo(() => {
+    const rowsByGroup = new Map<string, DemurrageContainerRow[]>()
+    for (const container of monitored) {
+      const key = groupKeyOf(container)
+      rowsByGroup.set(key, [...(rowsByGroup.get(key) ?? []), container])
+    }
+    const states = new Map<string, BlBillingState>()
+    for (const [key, rows] of rowsByGroup) states.set(key, blBillingState(rows, rows[0]?.billing_group))
+    return states
+  }, [monitored])
+  const stateOf = (rows: DemurrageContainerRow[]) => billing.get(groupKeyOf(rows[0])) ?? blBillingState(rows)
+  // A ação aparece uma vez por grupo, no primeiro B/L dele na lista; o banco
+  // emite pelo âncora qualquer que seja o B/L pedido.
+  const leadBlOfGroup = new Map<string, string>()
+  for (const [blId, rows] of grouped) {
+    const key = groupKeyOf(rows[0])
+    if (!leadBlOfGroup.has(key)) leadBlOfGroup.set(key, blId)
+  }
+  const leadOf = (blId: string, rows: DemurrageContainerRow[]) => leadBlOfGroup.get(groupKeyOf(rows[0])) ?? blId
+  // Container compartilhado entre B/Ls do grupo conta uma vez.
+  const visibleBoxes = distinctBoxes(visible)
+  const runningUsd = visibleBoxes
     .filter((container) => !container.return_date)
     .reduce((sum, container) => sum + (calcs.get(container.id)?.calc?.total_usd ?? 0), 0)
-  const toBillUsd = Array.from(grouped.values()).reduce((sum, rows) => {
-    const state = blBillingState(rows)
+  const toBillUsd = [...leadBlOfGroup.values()].reduce((sum, blId) => {
+    const state = stateOf(grouped.get(blId)!)
     return sum + (state.action === 'generate' || state.action === 'complement' ? state.uncoveredUsd : 0)
   }, 0)
   const filtering = Boolean(search.trim()) || lens !== 'todos'
@@ -159,7 +184,7 @@ export function DemurrageContainersTab({
           <SummaryStrip
             label="Resumo dos containers"
             items={[
-              { label: visible.length === 1 ? 'container' : 'containers', value: String(visible.length) },
+              { label: visibleBoxes.length === 1 ? 'container' : 'containers', value: String(visibleBoxes.length) },
               { label: grouped.size === 1 ? 'B/L' : 'B/Ls', value: String(grouped.size) },
               { label: 'correndo até hoje', value: fmtUSD(runningUsd), tone: runningUsd > 0 ? 'danger' : 'default' },
               { label: 'a faturar (previsto)', value: fmtUSD(toBillUsd), tone: toBillUsd > 0 ? 'warning' : 'default' },
@@ -190,6 +215,8 @@ export function DemurrageContainersTab({
                 key={blId}
                 blId={blId}
                 rows={rows}
+                state={stateOf(rows)}
+                leadBlId={leadOf(blId, rows)}
                 calcs={calcs}
                 canIssue={canIssue}
                 generatingBl={generatingBl}
@@ -220,7 +247,7 @@ export function DemurrageContainersTab({
                 </thead>
                 <tbody>
                   {Array.from(grouped.entries()).map(([blId, rows]) => {
-                    const state = blBillingState(rows)
+                    const state = stateOf(rows)
                     return (
                       <Fragment key={blId}>
                         <tr className="app-dem-group">
@@ -229,6 +256,7 @@ export function DemurrageContainersTab({
                               blId={blId}
                               rows={rows}
                               state={state}
+                              leadBlId={leadOf(blId, rows)}
                               canIssue={canIssue}
                               generatingBl={generatingBl}
                               error={generateError?.blId === blId ? generateError.message : null}
@@ -269,6 +297,11 @@ function Legend() {
       USD: sobreestadia calculada até a devolução ou até hoje; o valor cobrado é o da Invoice, travado na emissão.
     </p>
   )
+}
+
+/** Grupo de cobrança da caixa: o âncora do banco, ou o próprio B/L sem grupo. */
+function groupKeyOf(container: DemurrageContainerRow | undefined): string {
+  return container?.billing_group?.anchorBlId ?? `bl:${container?.bl_id ?? ''}`
 }
 
 function blContext(rows: DemurrageContainerRow[]) {
@@ -338,6 +371,7 @@ function BlHeader({
   blId,
   rows,
   state,
+  leadBlId,
   canIssue,
   generatingBl,
   error,
@@ -347,6 +381,8 @@ function BlHeader({
   blId: string
   rows: DemurrageContainerRow[]
   state: BlBillingState
+  /** B/L do mesmo grupo que mostra a ação; nos demais, só a referência a ele. */
+  leadBlId: string
   canIssue: boolean
   generatingBl: string | null
   error?: string | null
@@ -354,6 +390,7 @@ function BlHeader({
   onOpenInvoice: (id: number) => void
 }) {
   const { customerName, voyage } = blContext(rows)
+  const isLead = leadBlId === blId
   return (
     <div className="app-dem-group__row">
       <div className="app-dem-group__identity">
@@ -363,15 +400,18 @@ function BlHeader({
         <InvoiceRefs state={state} onOpenInvoice={onOpenInvoice} />
       </div>
       <div className="app-dem-group__actions">
-        {state.uncoveredUsd > 0 && state.action !== 'covered' ? (
+        {!isLead ? (
+          <span className="app-dem-state app-dem-state--muted">Container compartilhado: cobrança junto com o B/L {leadBlId}</span>
+        ) : null}
+        {isLead && state.uncoveredUsd > 0 && state.action !== 'covered' ? (
           <span className="app-dem-group__amount" title="Sobreestadia prevista das caixas ainda sem Invoice">
             {fmtUSD(state.uncoveredUsd)}
             <span className="app-dem-group__amount-label">{state.action === 'waiting' ? ' correndo' : ' a faturar'}</span>
           </span>
         ) : null}
-        <BillingAction blId={blId} state={state} canIssue={canIssue} generatingBl={generatingBl} onGenerateInvoice={onGenerateInvoice} />
+        {isLead ? <BillingAction blId={blId} state={state} canIssue={canIssue} generatingBl={generatingBl} onGenerateInvoice={onGenerateInvoice} /> : null}
       </div>
-      {state.action === 'complement' ? (
+      {isLead && state.action === 'complement' ? (
         <p className="app-dem-group__hint">
           O grupo já tem Invoice. A complementar cobra só {state.uncovered.length === 1 ? 'a caixa ainda não cobrada' : 'as caixas ainda não cobradas'}: {state.uncovered.map((container) => container.container_number).join(', ')}.
         </p>
@@ -393,7 +433,7 @@ function UsdCell({ container, calc }: { container: DemurrageContainerRow; calc: 
   return (
     <>
       <span className="app-dem-amount">{calc.calc.total_usd > 0 ? fmtUSD(calc.calc.total_usd) : fmtUSD(0)}</span>
-      <span className="app-dem-meta">{billed ? `na ${billed.doc_number}` : container.return_date ? 'previsto' : 'até hoje'}</span>
+      <span className="app-dem-meta">{billed ? `recalculado hoje; o cobrado é o da ${billed.doc_number}` : container.return_date ? 'previsto' : 'até hoje'}</span>
     </>
   )
 }
@@ -443,7 +483,7 @@ function ContainerRow({
       <td>
         {result ? (
           <div className="app-table__cell-stack">
-            <span className="tabular-nums">{result.free_days} dias</span>
+            <span className="tabular-nums">{containerFreeTimeDays(container) ?? result.free_days} dias</span>
             <span className="app-dem-meta">{FREE_TIME_SOURCE_LABELS[freeTimeSource(container)]}</span>
           </div>
         ) : '—'}
@@ -470,6 +510,8 @@ function ContainerRow({
 function BlCard({
   blId,
   rows,
+  state,
+  leadBlId,
   calcs,
   canIssue,
   generatingBl,
@@ -480,6 +522,8 @@ function BlCard({
 }: {
   blId: string
   rows: DemurrageContainerRow[]
+  state: BlBillingState
+  leadBlId: string
   calcs: Map<number, Calc>
   canIssue: boolean
   generatingBl: string | null
@@ -488,13 +532,13 @@ function BlCard({
   onEditContainer: (container: DemurrageContainerRow) => void
   onOpenInvoice: (id: number) => void
 }) {
-  const state = blBillingState(rows)
   return (
     <article className="app-dem-card" aria-label={`B/L ${blId}`}>
       <BlHeader
         blId={blId}
         rows={rows}
         state={state}
+        leadBlId={leadBlId}
         canIssue={canIssue}
         generatingBl={generatingBl}
         error={error}
@@ -521,7 +565,7 @@ function BlCard({
               </div>
               <p className="app-dem-meta">
                 Descarga {container.discharge_date ? formatDate(container.discharge_date) : '—'} · Devolução {container.return_date ? formatDate(container.return_date) : 'pendente'}
-                {calc.calc ? ` · Free time ${calc.calc.free_days} dias (${FREE_TIME_SOURCE_LABELS[freeTimeSource(container)]})` : ''}
+                {calc.calc ? ` · Free time ${containerFreeTimeDays(container) ?? calc.calc.free_days} dias (${FREE_TIME_SOURCE_LABELS[freeTimeSource(container)]})` : ''}
               </p>
               <div className="app-dem-card__foot">
                 <SituationCell container={container} onOpenInvoice={onOpenInvoice} />

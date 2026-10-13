@@ -18,6 +18,7 @@ import {
 } from '../../hooks/useCustomerDemurrageAgreements'
 import { AGREEMENT_SITUATION_LABELS, agreementSituation, type AgreementSituation } from '../../services/demurrage/demurragePresentation'
 import { extractErrorText } from '../../lib/errors'
+import { saoPauloTodayIso } from '../../lib/dates'
 import { formatCnpjCpf } from '../../lib/utils'
 import { CustomerDemurrageAgreementModal } from './CustomerDemurrageAgreementModal'
 import { agreementPeriodText, agreementRatesText } from './demurrageFormRules'
@@ -30,9 +31,7 @@ const SITUATION_TONES: Record<AgreementSituation, 'success' | 'info' | 'neutral'
   inativo: 'neutral',
 }
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10)
-}
+const todayIso = () => saoPauloTodayIso()
 
 /** Situação do acordo hoje; a escolha no cálculo é pela data de descarga. */
 export function AgreementSituationBadge({ agreement }: { agreement: Pick<CustomerDemurrageAgreementListItem, 'active' | 'valid_from' | 'valid_to'> }) {
