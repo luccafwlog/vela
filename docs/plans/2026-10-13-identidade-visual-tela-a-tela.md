@@ -28,8 +28,9 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     acompanham os filtros. Carga solta aparece mesmo zerado. Taxas pendentes
     e Isentos filtram a lista ao toque; os outros só mostram o total.
     Cada pendência aparece uma vez só, na coluna em que se resolve: sai o
-    "Revisão pendente" sob o número do B/L; B/L sem Cliente mostra o Cliente
-    sugerido pelo manifesto e "falta vincular" na coluna Cliente (regra 5).
+    "Revisão pendente" sob o número do B/L; B/L sem Cliente mostra, na coluna
+    Cliente, o nome declarado no manifesto em cinza e "Sem cliente vinculado"
+    (regra 5; "falta vincular" foi recusado por sugerir Cliente já cadastrado).
     Em aberto: o nome do cartão "Taxas pendentes" e da etiqueta "Revisão" da
     coluna Taxas locais, que se confundem com a tela Revisão. Ao implementar, a regra 3 passa a dizer
     que os cartões aparecem quando a tela precisa deles. Falta decidir quais
