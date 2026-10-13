@@ -148,7 +148,7 @@ export function DemurrageRates() {
   }
 
   return (
-    <main className="app-dem-page">
+    <div className="app-dem-page">
       <Link className="app-fin-link app-dem-back" to="/demurrage"><ArrowLeft size={14} aria-hidden="true" />Demurrage</Link>
       <PageHeader
         title="Tarifas de Demurrage"
@@ -257,6 +257,6 @@ export function DemurrageRates() {
         onClose={() => setEditing(null)}
         onSubmit={(input) => void handleSave(input)}
       />
-    </main>
+    </div>
   )
 }

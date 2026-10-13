@@ -14,7 +14,6 @@ import { formatCnpjCpf, formatDate } from '../../lib/utils'
 import type { DemurrageInvoiceListItem } from '../../services/demurrage/demurrageInvoices'
 import { fetchDemurrageDunningStatuses, getDemurrageDunningDisplay } from '../../services/demurrageDunning'
 import { queryKeys } from '../../services/queryKeys'
-import { supabase } from '../../services/supabase'
 import { DemurrageDunningStatus } from './DemurrageDunningStatus'
 
 type InvoiceTab = 'emitidas' | 'pagas' | 'canceladas'
@@ -52,7 +51,7 @@ function matchesSearch(invoice: DemurrageInvoiceListItem, query: string) {
 function rowFlags(invoice: DemurrageInvoiceRow): string[] {
   const flags: string[] = demurrageInvoiceNotices(invoice)
     .filter((notice) => notice.key !== 'roe-cache')
-    .map((notice) => (notice.key === 'dispute' ? 'Disputa aberta' : 'Fora da Régua: datas alteradas'))
+    .map((notice) => (notice.key === 'dispute' ? 'Disputa aberta' : notice.key === 'suspended' ? 'Fora da Régua' : 'Fora da Régua: datas alteradas'))
   if (Number(invoice.discount_value ?? 0) > 0) flags.push('Com desconto')
   return flags
 }
@@ -60,14 +59,15 @@ function rowFlags(invoice: DemurrageInvoiceRow): string[] {
 export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, onRetry, onSearchChange, onOpenDetail }: Props) {
   const narrow = useNarrowViewport()
   const visible = useMemo(() => (invoices ?? []).filter((invoice) => matchesSearch(invoice, search.trim())), [invoices, search])
-  const invoiceIds = useMemo(() => visible.map((invoice) => invoice.id), [visible])
-  const canReadDunning = typeof (supabase as { from?: unknown }).from === 'function'
-    && typeof (supabase as { rpc?: unknown }).rpc === 'function'
+  // A Régua é lida para a aba inteira, não para o recorte da busca: digitar
+  // não refaz a consulta a cada tecla.
+  const allInvoices = useMemo(() => invoices ?? [], [invoices])
+  const invoiceIds = useMemo(() => allInvoices.map((invoice) => invoice.id), [allInvoices])
   const showDunning = tab === 'emitidas'
   const dunningQuery = useQuery({
     queryKey: queryKeys.demurrage.dunning(invoiceIds),
-    enabled: showDunning && invoiceIds.length > 0 && canReadDunning,
-    queryFn: () => fetchDemurrageDunningStatuses(visible),
+    enabled: showDunning && invoiceIds.length > 0,
+    queryFn: () => fetchDemurrageDunningStatuses(allInvoices),
   })
   const dunningStatuses = dunningQuery.data ?? new Map()
   const totals = visible.reduce((sum, invoice) => ({
@@ -79,7 +79,7 @@ export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, on
   function dunningCell(invoice: DemurrageInvoiceListItem) {
     const status = dunningStatuses.get(invoice.id)
     const display = status ? getDemurrageDunningDisplay(invoice as DemurrageInvoiceRow, status) : undefined
-    return <DemurrageDunningStatus display={display} loading={dunningQuery.isLoading} error={Boolean(dunningQuery.error) || !canReadDunning} />
+    return <DemurrageDunningStatus display={display} loading={dunningQuery.isLoading} error={Boolean(dunningQuery.error)} />
   }
 
   return (

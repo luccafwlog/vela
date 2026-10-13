@@ -68,6 +68,10 @@ vi.mock('../../services/demurrage/demurrageDisputes', () => ({
 }))
 vi.mock('../../services/reconciliacao', () => ({ reverseDemurragePayment: mocks.reversePayment }))
 vi.mock('../../services/supabase', () => ({ supabase: {} }))
+vi.mock('../../services/demurrageDunning', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/demurrageDunning')>()),
+  fetchDemurrageDunningStatuses: vi.fn(async () => new Map()),
+}))
 vi.mock('../../components/billing/FinancialRefundsPanel', () => ({ FinancialRefundsPanel: () => null }))
 vi.mock('../../hooks/useFinancialRefunds', () => ({ useFinancialRefunds: () => ({ data: undefined, error: null }) }))
 vi.mock('../../hooks/useAppSettings', () => ({

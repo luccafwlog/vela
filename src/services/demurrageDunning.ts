@@ -72,7 +72,8 @@ export function demurrageDunningPauseReason(invoice: DunningInvoiceFields, hasVa
   if (invoice.paid_at) return 'liquidada'
   // A Régua não cobra Invoice suspensa (migrations 179, 203 e 214): datas do
   // container alteradas depois do pagamento ou com desconto/disputa aberta.
-  if (invoice.dunning_suspended_reason?.trim()) return 'datas alteradas, aguarda tratamento'
+  const suspended = invoice.dunning_suspended_reason?.trim()
+  if (suspended) return suspended.startsWith('Datas de container alteradas') ? 'datas alteradas, aguarda tratamento' : 'suspensa, aguarda tratamento'
   if (invoice.dispute_open) return 'disputa aberta'
   if (!hasValidContact) return 'cliente sem contatos válidos'
   return null

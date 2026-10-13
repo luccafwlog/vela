@@ -256,6 +256,8 @@ export function Demurrage() {
     mutationFn: ({ id, input }: { id: number; input: ContainerDatesInput }) => updateContainerDates(id, input.discharge, input.ret, input.reason),
     onSuccess: async () => {
       await afterDatasContainerAlteradas(queryClient)
+      // A recusa da emissão era sobre as datas antigas.
+      setGenerateError(null)
       setEditingContainer(null)
       showToast('Datas atualizadas.', 'success')
     },
@@ -410,7 +412,7 @@ export function Demurrage() {
   const panelId = 'demurrage-panel'
 
   return (
-    <main className="app-dem-page">
+    <div className="app-dem-page">
       <PageHeader
         title="Demurrage"
         action={
@@ -625,6 +627,6 @@ export function Demurrage() {
       ) : null}
       {customerReportOpen && customerSummaryQuery.data ? <CustomerReportModal open rows={customerSummaryQuery.data} onClose={() => setCustomerReportOpen(false)} /> : null}
       <DemurrageDunningSettingsModal open={dunningModalOpen} onClose={() => setDunningModalOpen(false)} />
-    </main>
+    </div>
   )
 }

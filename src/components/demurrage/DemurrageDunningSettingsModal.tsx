@@ -22,7 +22,10 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
   const [daysInput, setDaysInput] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const currentDays = daysInput ?? String(settings?.demurrage_dunning_interval_days ?? 7)
+  // Sem a leitura do intervalo, nada de "7 dias" inventado: o campo começa vazio
+  // e não há "antes" para comparar.
+  const storedDays = settings?.demurrage_dunning_interval_days ?? null
+  const currentDays = daysInput ?? (storedDays != null ? String(storedDays) : '')
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -33,7 +36,7 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
       setError('Informe um intervalo válido entre 1 e 365 dias.')
       return
     }
-    if (days === Number(settings?.demurrage_dunning_interval_days ?? 7)) {
+    if (storedDays != null && days === Number(storedDays)) {
       onClose()
       return
     }
@@ -43,7 +46,7 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
       confirmLabel: 'Salvar intervalo',
       changes: [{
         field: 'Intervalo entre cobranças',
-        before: `${settings?.demurrage_dunning_interval_days ?? 7} dias`,
+        before: storedDays != null ? `${storedDays} dias` : 'não lido',
         after: `${days} dias`,
       }],
       consequence: 'A régua automática de Demurrage usará o novo intervalo para faturas emitidas e não pagas; salvar não envia cobrança imediatamente.',
@@ -65,7 +68,6 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
     onClose()
   }
 
-  const savedDays = settings?.demurrage_dunning_interval_days ?? 7
 
   return (
     <Modal open={open} onClose={handleClose} title="Régua de Cobrança de Demurrage" size="sm">
@@ -94,7 +96,7 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
           </Field>
         ) : (
           <p className="app-dem-facts-line">
-            Intervalo atual: <strong>{isLoading ? '…' : `${savedDays} ${savedDays === 1 ? 'dia' : 'dias'}`}</strong>. Só o Administrativo altera o intervalo.
+            Intervalo atual: <strong>{isLoading ? '…' : storedDays == null ? 'não lido' : `${storedDays} ${storedDays === 1 ? 'dia' : 'dias'}`}</strong>. Só o Administrativo altera o intervalo.
           </p>
         )}
 

@@ -273,7 +273,7 @@ export function discountPreview(totalUsd: number, mode: string | null | undefine
 }
 
 /** USD a cobrar: `total_usd` é o total dos itens; o desconto sai antes da conversão. */
-export function invoiceNetUsd(invoice: Pick<DemurrageInvoice, 'total_usd' | 'discount_mode' | 'discount_value'>): DiscountPreview {
+export function invoiceNetUsd(invoice: { total_usd: number | null | undefined; discount_mode?: string | null; discount_value?: number | null }): DiscountPreview {
   return discountPreview(invoice.total_usd ?? 0, invoice.discount_mode, invoice.discount_value)
     ?? { totalUsd: invoice.total_usd ?? 0, discountUsd: 0, netUsd: invoice.total_usd ?? 0 }
 }

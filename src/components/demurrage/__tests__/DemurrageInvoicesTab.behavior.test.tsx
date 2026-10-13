@@ -8,6 +8,10 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { DemurrageInvoicesTab } from '../DemurrageInvoicesTab'
 
 vi.mock('../../../services/supabase', () => ({ supabase: {} }))
+vi.mock('../../../services/demurrageDunning', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../services/demurrageDunning')>()),
+  fetchDemurrageDunningStatuses: vi.fn(async () => new Map()),
+}))
 
 afterEach(cleanup)
 

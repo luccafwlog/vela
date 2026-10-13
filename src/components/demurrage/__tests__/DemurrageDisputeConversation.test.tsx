@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { DemurrageDisputeConversation } from '../DemurrageDisputeConversation'
 import { ConfirmDialogProvider } from '../../ui/ConfirmDialog'
 
-const authState = vi.hoisted(() => ({ role: 'equipamentos', mutateAsync: vi.fn() }))
+const authState = vi.hoisted(() => ({ role: 'equipamentos', mutateAsync: vi.fn(), upload: vi.fn() }))
 
 const mockDispute = {
   id: 1,
@@ -36,6 +36,13 @@ vi.mock('@tanstack/react-query', () => ({
     isPending: false,
   })),
 }))
+vi.mock('../../../services/demurrage/demurrageDisputes', () => ({
+  listDemurrageDisputes: vi.fn(),
+  addDemurrageDisputeMessage: vi.fn(),
+  reopenDemurrageDispute: vi.fn(),
+  uploadDemurrageDisputeAttachment: authState.upload,
+}))
+vi.mock('../../../services/cacheEffects', () => ({ afterFaturaDemurrageAlterada: vi.fn() }))
 vi.mock('../../../hooks/useAuth', () => ({
   useAuth: () => ({ effectiveRole: authState.role }),
 }))
@@ -120,5 +127,24 @@ describe('DemurrageDisputeConversation — foco e andamento', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta' }))
     expect(screen.getByRole('alert').textContent).toContain('Escreva a resposta antes de enviar.')
     expect(authState.mutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('anexo que falhou depois da mensagem gravada pode ser reenviado sozinho', async () => {
+    authState.upload.mockReset().mockRejectedValueOnce(new Error('rede')).mockResolvedValueOnce(undefined)
+    render(<ConfirmDialogProvider><DemurrageDisputeConversation /></ConfirmDialogProvider>)
+    fireEvent.change(screen.getByPlaceholderText('Responder ao cliente...'), { target: { value: 'Segue o comprovante.' } })
+    const file = new File(['x'], 'comprovante.pdf', { type: 'application/pdf' })
+    fireEvent.change(screen.getByLabelText('Anexo da Disputa'), { target: { files: [file] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar resposta' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Confirmar resposta ao cliente' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar resposta' }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain('A resposta foi enviada, mas o anexo não')
+    // O campo de arquivo volta vazio; o arquivo que falhou fica no botão de reenvio.
+    expect((screen.getByLabelText('Anexo da Disputa') as HTMLInputElement).files?.length ?? 0).toBe(0)
+    fireEvent.click(screen.getByRole('button', { name: /Reenviar o anexo comprovante.pdf/ }))
+    await waitFor(() => expect(authState.upload).toHaveBeenLastCalledWith(12, 1, 1, file))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Reenviar o anexo/ })).toBeNull())
+    expect(authState.mutateAsync).toHaveBeenCalledTimes(1)
   })
 })

@@ -56,6 +56,10 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
   const [nextResponders, setNextResponders] = useState<Record<number, 'cliente' | 'ninguem'>>({})
   const [errors, setErrors] = useState<Record<number, string>>({})
   const [attachments, setAttachments] = useState<Record<number, File | null>>({})
+  // O campo de arquivo não é controlado: trocar a chave o recria vazio depois do envio.
+  const [fileInputKeys, setFileInputKeys] = useState<Record<number, number>>({})
+  // Mensagem gravada cujo anexo falhou: o arquivo fica para reenviar só ele.
+  const [failedUploads, setFailedUploads] = useState<Record<number, { messageId: number; file: File } | null>>({})
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
   const [pendingId, setPendingId] = useState<number | null>(null)
   const [sentId, setSentId] = useState<number | null>(null)
@@ -94,10 +98,29 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
       return waitLeft - waitRight || right.updated_at.localeCompare(left.updated_at)
     })
 
+  // Rola só quando a Disputa em foco muda, não a cada releitura da lista.
+  const focusedId = focused?.id ?? null
   useEffect(() => {
-    if (!focused) return
-    document.getElementById(`dispute-${focused.id}`)?.scrollIntoView?.({ block: 'start' })
-  }, [focused])
+    if (focusedId == null) return
+    document.getElementById(`dispute-${focusedId}`)?.scrollIntoView?.({ block: 'start' })
+  }, [focusedId])
+
+  async function retryUpload(dispute: DemurrageDispute) {
+    const failed = failedUploads[dispute.id]
+    if (!failed) return
+    setPendingId(dispute.id)
+    try {
+      await uploadDemurrageDisputeAttachment(failed.messageId, dispute.id, dispute.customer_id, failed.file)
+      setFailedUploads((current) => ({ ...current, [dispute.id]: null }))
+      setErrors((current) => ({ ...current, [dispute.id]: '' }))
+      setSentId(dispute.id)
+      await afterFaturaDemurrageAlterada(queryClient)
+    } catch (cause) {
+      setErrors((current) => ({ ...current, [dispute.id]: `O anexo ainda não foi enviado: ${portalErrorMessage(cause, 'falha no envio do arquivo.')}` }))
+    } finally {
+      setPendingId(null)
+    }
+  }
 
   async function submit(dispute: DemurrageDispute) {
     const body = (drafts[dispute.id] ?? '').trim()
@@ -142,13 +165,15 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
           try {
             await uploadDemurrageDisputeAttachment(result.message_id, dispute.id, dispute.customer_id, file)
           } catch (cause) {
-            // A mensagem já foi gravada: a falha é só do anexo.
+            // A mensagem já foi gravada: a falha é só do anexo, que pode ser reenviado.
+            setFailedUploads((current) => ({ ...current, [dispute.id]: { messageId: result.message_id!, file } }))
             setErrors((current) => ({ ...current, [dispute.id]: `A resposta foi enviada, mas o anexo não: ${portalErrorMessage(cause, 'falha no envio do arquivo.')}` }))
           }
         }
       }
       setDrafts((current) => ({ ...current, [dispute.id]: '' }))
       setAttachments((current) => ({ ...current, [dispute.id]: null }))
+      setFileInputKeys((current) => ({ ...current, [dispute.id]: (current[dispute.id] ?? 0) + 1 }))
       setSentId(dispute.id)
       await afterFaturaDemurrageAlterada(queryClient)
     } catch (cause) {
@@ -255,7 +280,7 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
                       <div className="app-dem-dispute__options">
                         <label className="app-dem-file">
                           <span className="app-field__label">Anexo (PDF, JPG, PNG ou TXT até 10 MB)</span>
-                          <input type="file" accept="application/pdf,image/jpeg,image/png,text/plain" onChange={(event) => setAttachments((current) => ({ ...current, [dispute.id]: event.target.files?.[0] ?? null }))} aria-label="Anexo da Disputa" />
+                          <input key={fileInputKeys[dispute.id] ?? 0} type="file" accept="application/pdf,image/jpeg,image/png,text/plain" onChange={(event) => setAttachments((current) => ({ ...current, [dispute.id]: event.target.files?.[0] ?? null }))} aria-label="Anexo da Disputa" />
                         </label>
                         <label className="app-dem-file">
                           <span className="app-field__label">Depois de enviar</span>
@@ -272,6 +297,12 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
                       </div>
                     ) : null}
                     {errors[dispute.id] ? <InlineError message={errors[dispute.id]} /> : null}
+                    {failedUploads[dispute.id] ? (
+                      <Button variant="secondary" className="app-btn--sm" loading={pendingId === dispute.id} loadingLabel="Enviando anexo…" onClick={() => void retryUpload(dispute)}>
+                        <Paperclip size={14} aria-hidden="true" />
+                        Reenviar o anexo {failedUploads[dispute.id]!.file.name}
+                      </Button>
+                    ) : null}
                     {sentId === dispute.id && !errors[dispute.id] ? <p className="app-dem-state app-dem-state--success" role="status">{dispute.state === 'aberta' ? 'Resposta registrada.' : 'Disputa atualizada.'}</p> : null}
                     <div className="app-dem-form__actions">
                       <Button loading={pendingId === dispute.id} loadingLabel="Enviando…" disabled={pendingId != null && pendingId !== dispute.id} onClick={() => void submit(dispute)}>
