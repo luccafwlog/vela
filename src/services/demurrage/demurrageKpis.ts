@@ -5,6 +5,8 @@ import { assertUploadFile } from '../../lib/fileGuard'
 import { reportBestEffortFailure } from '../../lib/telemetry'
 import type { PixTransaction, RoeSource } from '../../types/database'
 import { readSheet } from '../importCore'
+import { invoiceNetUsd } from './demurragePresentation'
+import { saoPauloTodayIso } from '../../lib/dates'
 
 // Spread fixo do armador aplicado sobre a PTAX (ADR 0014). Ponto canônico no
 // frontend; o backend replica a mesma constante na RPC de recálculo.
@@ -15,6 +17,7 @@ export type CustomerDemurrageSummary = {
   customer_name: string
   cnpj_cpf: string | null
   invoice_count: number
+  /** USD a cobrar: itens menos o desconto (o BRL já é líquido). */
   total_usd: number
   total_brl: number
 }
@@ -24,6 +27,7 @@ export type CustomerDemurrageDetailItem = {
   doc_number: string
   bl_id: string
   billed_at: string | null
+  /** USD a cobrar, líquido do desconto, como na aba Faturas. */
   total_usd: number
   current_total_brl: number | null
   current_roe: number | null
@@ -31,12 +35,13 @@ export type CustomerDemurrageDetailItem = {
 
 /**
  * Agrega as faturas de Demurrage emitidas e não pagas por consignatário (cliente):
- * USD estável + BRL (snapshot do último recálculo). Usado pela aba "Por Cliente".
+ * USD a cobrar (líquido do desconto, como em Faturas) + BRL (snapshot do último
+ * recálculo, que o banco já calcula sem o desconto). Usado pela aba "Por Cliente".
  */
 export async function fetchCustomerDemurrageSummary(): Promise<CustomerDemurrageSummary[]> {
   const { data, error } = await supabase
     .from('demurrage_invoices')
-    .select('customer_id, total_usd, current_total_brl, customer:customers(id,name,cnpj_cpf)')
+    .select('customer_id, total_usd, discount_mode, discount_value, current_total_brl, customer:customers(id,name,cnpj_cpf)')
     .eq('status', 'issued')
     .is('paid_at', null)
   if (error) throw error
@@ -45,6 +50,8 @@ export async function fetchCustomerDemurrageSummary(): Promise<CustomerDemurrage
   for (const row of (data ?? []) as unknown as Array<{
     customer_id: number
     total_usd: number | null
+    discount_mode: string | null
+    discount_value: number | null
     current_total_brl: number | null
     customer: { id: number; name: string; cnpj_cpf: string | null } | null
   }>) {
@@ -58,7 +65,7 @@ export async function fetchCustomerDemurrageSummary(): Promise<CustomerDemurrage
       total_brl: 0,
     }
     existing.invoice_count += 1
-    existing.total_usd += row.total_usd ?? 0
+    existing.total_usd += invoiceNetUsd(row).netUsd
     existing.total_brl += row.current_total_brl ?? 0
     byCustomer.set(id, existing)
   }
@@ -69,13 +76,17 @@ export async function fetchCustomerDemurrageSummary(): Promise<CustomerDemurrage
 export async function fetchCustomerDemurrageDetail(customerId: number): Promise<CustomerDemurrageDetailItem[]> {
   const { data, error } = await supabase
     .from('demurrage_invoices')
-    .select('id, doc_number, bl_id, billed_at, total_usd, current_total_brl, current_roe')
+    .select('id, doc_number, bl_id, billed_at, total_usd, discount_mode, discount_value, current_total_brl, current_roe')
     .eq('status', 'issued')
     .is('paid_at', null)
     .eq('customer_id', customerId)
     .order('billed_at', { ascending: false })
   if (error) throw error
-  return (data ?? []) as unknown as CustomerDemurrageDetailItem[]
+  type Row = CustomerDemurrageDetailItem & { discount_mode: string | null; discount_value: number | null }
+  return ((data ?? []) as unknown as Row[]).map(({ discount_mode, discount_value, ...row }) => ({
+    ...row,
+    total_usd: invoiceNetUsd({ total_usd: row.total_usd, discount_mode, discount_value }).netUsd,
+  }))
 }
 
 export type DemurrageKPIs = {
@@ -109,7 +120,7 @@ export async function recalculateInvoicesManual(ptax: number): Promise<{ updated
   await persistExchangeRateReference({
     ptax,
     roe: parseFloat((ptax * DEMURRAGE_ROE_MARKUP).toFixed(4)),
-    effectiveDate: new Date().toISOString().slice(0, 10),
+    effectiveDate: saoPauloTodayIso(),
     source: 'manual',
   })
   const updated = Number((data as { updated?: number } | null)?.updated ?? 0)

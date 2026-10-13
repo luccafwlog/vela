@@ -1,38 +1,43 @@
-import { useState } from 'react'
-import { FinancialRefundsPanel } from '../components/billing/FinancialRefundsPanel'
-import { useFinancialRefunds } from '../hooks/useFinancialRefunds'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { afterDatasContainerAlteradas } from '../services/cacheEffects'
-import { AlertTriangle, DollarSign, Mail, Upload } from 'lucide-react'
+import { ArrowRight, Mail, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { Card, PageHeader } from '../components/ui/Card'
-import { Field, Input } from '../components/ui/Input'
+import { PageHeader } from '../components/ui/Card'
+import { MetricCard } from '../components/ui/MetricCard'
 import { Modal } from '../components/ui/Modal'
+import { TabButton } from '../components/ui/TabButton'
+import { TabList } from '../components/ui/TabList'
 import { useToast } from '../components/ui/Toast'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { ImportNotice } from '../components/shared/ImportParts'
 import { ContainerDatesImportModal } from '../components/shared/ContainerDatesImportModal'
 import { CustomerReportModal } from '../components/demurrage/CustomerReportModal'
-import { TabButton } from '../components/ui/TabButton'
 import { DemurrageContainersTab } from '../components/demurrage/DemurrageContainersTab'
+import { DemurrageContainerDatesModal } from '../components/demurrage/DemurrageContainerDatesModal'
+import { canAnswerDemurrageDispute, type ContainerDatesInput } from '../components/demurrage/demurrageFormRules'
 import { DemurrageCustomersTab } from '../components/demurrage/DemurrageCustomersTab'
 import { DemurrageDunningSettingsModal } from '../components/demurrage/DemurrageDunningSettingsModal'
+import { DemurrageInvoiceDetailModal, type DemurrageDetailInvoice } from '../components/demurrage/DemurrageInvoiceDetailModal'
 import { DemurrageInvoicesTab } from '../components/demurrage/DemurrageInvoicesTab'
 import { DemurragePaymentReversalModal, type DemurrageReversalDatesNotice } from '../components/demurrage/DemurragePaymentReversalModal'
 import { DemurrageDisputeConversation } from '../components/demurrage/DemurrageDisputeConversation'
-import { DiscountModal } from '../components/demurrage/DiscountModal'
+import { DiscountModal, type DiscountFieldErrors } from '../components/demurrage/DiscountModal'
 import { DisputeModal } from '../components/demurrage/DisputeModal'
 import { InvoiceDocument, type DemurrageInvoiceDocumentDetail } from '../components/demurrage/InvoiceDocument'
-import { PaymentModal } from '../components/demurrage/PaymentModal'
+import { PaymentModal, type PaymentTarget } from '../components/demurrage/PaymentModal'
 import { PtaxModal } from '../components/demurrage/PtaxModal'
-import { listDemurrageContainers, updateContainerDates } from '../services/demurrage/demurrageContainers'
+import { useFinancialRefunds } from '../hooks/useFinancialRefunds'
+import { useAuth } from '../hooks/useAuth'
+import { afterDatasContainerAlteradas, afterFaturaDemurrageAlterada } from '../services/cacheEffects'
+import { listDemurrageContainers, updateContainerDates, type DemurrageContainerRow } from '../services/demurrage/demurrageContainers'
 import {
+  applyDemurrageDiscount,
   cancelDemurrageInvoice,
   createInvoiceForBL,
   getInvoiceDetail,
   listDemurrageInvoices,
   markInvoicePaid,
-  applyDemurrageDiscount,
   updateDemurrageInvoice,
 } from '../services/demurrage/demurrageInvoices'
 import {
@@ -42,109 +47,161 @@ import {
   fetchLatestRecalcDate,
   recalculateInvoicesManual,
 } from '../services/demurrage/demurrageKpis'
+import { listDemurrageDisputes } from '../services/demurrage/demurrageDisputes'
 import { DEMURRAGE_INVOICE_TABS } from '../services/demurrage/demurrageInvoiceTabs'
 import { EMPTY_DISCOUNT, EMPTY_DISPUTE, type DiscountForm, type DisputeForm } from '../services/demurrage/demurrageForms'
-import { effectiveDemurrage, fmtBRL, fmtUSD, groupByBl, isPtaxWarningEligible, lastBusinessDayISO } from '../services/demurrage/demurragePresentation'
+import {
+  DATES_CHANGED_PAID_PREFIX,
+  discountPreview,
+  fmtBRL,
+  invoiceNetUsd,
+  isPtaxWarningEligible,
+  lastBusinessDayISO,
+} from '../services/demurrage/demurragePresentation'
 import { reverseDemurragePayment } from '../services/reconciliacao'
-import { demurrageDatesSchema, demurrageDiscountSchema, formatValidationError } from '../services/financialValidation'
-import type { DemurrageContainerListItem, DemurrageInvoice, DemurrageInvoiceItem } from '../types/database'
-import { describeActiveFilters } from '../lib/operationalState'
+import { demurrageDiscountSchema } from '../services/financialValidation'
+import { extractErrorText } from '../lib/errors'
+import { saoPauloTodayIso } from '../lib/dates'
 import { printDocumentElement } from '../lib/printDocument'
-import { formatDate } from '../lib/utils'
-import { useAuth } from '../hooks/useAuth'
+import { demurrageStateFromSearch, withDemurrageParam, withDemurrageTab, type ContainerLens, type DemurrageTab } from './demurrageListState'
 
-type DemurrageTab = 'containers' | 'clientes' | (typeof DEMURRAGE_INVOICE_TABS)[number]['key']
+type InvoiceTab = (typeof DEMURRAGE_INVOICE_TABS)[number]['key']
 
-const TAB_LABELS: { key: DemurrageTab; label: string }[] = [
-  { key: 'containers', label: 'Containers' },
-  ...DEMURRAGE_INVOICE_TABS.map(({ key, label }) => ({ key, label })),
-  { key: 'clientes', label: 'Por Cliente' },
-]
+const STATUS_BY_TAB = Object.fromEntries(DEMURRAGE_INVOICE_TABS.map(({ key, status }) => [key, status])) as Record<InvoiceTab, string>
+const TAB_BY_STATUS: Record<string, InvoiceTab> = { issued: 'emitidas', overdue: 'emitidas', paid: 'pagas', cancelled: 'canceladas' }
 
-const TAB_TO_STATUS = Object.fromEntries(
-  DEMURRAGE_INVOICE_TABS.map(({ key, status }) => [key, status]),
-) as Record<Exclude<DemurrageTab, 'containers' | 'clientes'>, NonNullable<DemurrageInvoice['status']>>
+function isInvoiceTab(tab: DemurrageTab): tab is InvoiceTab {
+  return tab === 'emitidas' || tab === 'pagas' || tab === 'canceladas'
+}
+
+const todayIso = () => saoPauloTodayIso()
+
+/** Erros de validação do desconto por campo, com a mensagem da tela. */
+function discountErrors(form: DiscountForm): DiscountFieldErrors {
+  const validation = demurrageDiscountSchema.safeParse(form)
+  const errors: DiscountFieldErrors = {}
+  if (!validation.success) {
+    for (const issue of validation.error.issues) {
+      if (issue.path[0] === 'discount_value') errors.discount_value = form.discount_mode === 'percent' ? 'Informe um percentual de 0 a 100.' : 'Informe um valor em USD maior ou igual a zero.'
+    }
+  }
+  // A RPC exige justificativa em toda alteração, inclusive para tirar o desconto.
+  if (!form.discount_justification.trim()) errors.discount_justification = 'Informe a justificativa do desconto.'
+  return errors
+}
+
+/**
+ * Invoice paga suspensa porque as datas do container mudaram depois do
+ * pagamento (migrations 179 e 191): o estorno da baixa a reemite, ou a deixa
+ * para reemissão à mão quando tem desconto ou disputa (migration 203).
+ */
+function reversalDatesNotice(invoice: { dunning_suspended_reason?: string | null; discount_value?: number | null; dispute_open?: boolean | null }): DemurrageReversalDatesNotice | null {
+  if (!invoice.dunning_suspended_reason?.startsWith(DATES_CHANGED_PAID_PREFIX)) return null
+  return { negotiated: Number(invoice.discount_value ?? 0) > 0 || Boolean(invoice.dispute_open) }
+}
 
 export function Demurrage() {
   const queryClient = useQueryClient()
   const { effectiveRole } = useAuth()
-  // A RPC aceita Financeiro, Administrativo e Equipamentos (migration 110); o botão segue a mesma regra.
-  const canInformPtax = effectiveRole === 'financeiro' || effectiveRole === 'administrativo' || effectiveRole === 'equipamentos'
   const { showToast } = useToast()
-  const confirm = useConfirm()
-  const [tab, setTab] = useState<DemurrageTab>('containers')
-  // ?busca= permite que alertas de demurrage abram a página já filtrada.
-  const [searchParams] = useSearchParams()
-  const [search, setSearch] = useState(() => searchParams.get('busca') ?? '')
+  const confirmWithReason = useConfirmWithReason()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const state = demurrageStateFromSearch(searchParams)
+  const { tab, search, lens } = state
+
+  // Permissões das RPCs, para a tela não oferecer o que o banco recusa.
+  const canIssue = effectiveRole === 'administrativo' // issue_demurrage_invoice_for_bl (is_admin)
+  const canAdmin = effectiveRole === 'administrativo' // cancel_demurrage_invoice, reverse_demurrage_payment
+  const canSettle = effectiveRole === 'financeiro' || effectiveRole === 'administrativo' // register_demurrage_payment, apply_demurrage_discount
+  const canInformPtax = canSettle || effectiveRole === 'equipamentos' // migration 110
+  const canAnswerDispute = canAnswerDemurrageDispute(effectiveRole)
+  const activeTab: DemurrageTab = tab === 'disputas' && !canAnswerDispute ? 'containers' : tab
+
   const [generatingBl, setGeneratingBl] = useState<string | null>(null)
+  const [generateError, setGenerateError] = useState<{ blId: string; message: string } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
-  const [editingContainer, setEditingContainer] = useState<DemurrageContainerListItem | null>(null)
-  const [editDischarge, setEditDischarge] = useState('')
-  const [editReturn, setEditReturn] = useState('')
-  const [editReason, setEditReason] = useState('')
-  const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null)
-  const [docType, setDocType] = useState<'invoice' | 'receipt'>('invoice')
-  const [payingId, setPayingId] = useState<number | null>(null)
-  // Guarda o doc_number junto do id: o titulo do modal mostra a chave natural,
-  // e o breakdown que a originou pode ja estar fechado quando ele abre.
-  const [reversingPayment, setReversingPayment] = useState<{ id: number; docNumber: string | null; datesChanged: DemurrageReversalDatesNotice | null } | null>(null)
-  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10))
-  const [detailInvoiceId, setDetailInvoiceId] = useState<number | null>(null)
-  const [discountInvoiceId, setDiscountInvoiceId] = useState<number | null>(null)
+  const [editingContainer, setEditingContainer] = useState<DemurrageContainerRow | null>(null)
+  const [datesError, setDatesError] = useState<string | null>(null)
+  const [returnTo, setReturnTo] = useState<number | null>(null)
+  const [document, setDocument] = useState<{ id: number; type: 'invoice' | 'receipt' } | null>(null)
+  const [paying, setPaying] = useState<PaymentTarget | null>(null)
+  const [payDate, setPayDate] = useState(todayIso())
+  const [payError, setPayError] = useState<string | null>(null)
+  const [reverseError, setReverseError] = useState<string | null>(null)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [reversing, setReversing] = useState<{ id: number; docNumber: string | null; datesChanged: DemurrageReversalDatesNotice | null } | null>(null)
+  const [discountTarget, setDiscountTarget] = useState<{ id: number; docNumber: string; totalUsd: number; hadDiscount: boolean } | null>(null)
   const [discountForm, setDiscountForm] = useState<DiscountForm>(EMPTY_DISCOUNT)
-  const [disputeInvoiceId, setDisputeInvoiceId] = useState<number | null>(null)
+  const [discountFieldErrors, setDiscountFieldErrors] = useState<DiscountFieldErrors>({})
+  const [disputeTarget, setDisputeTarget] = useState<{ id: number; docNumber: string } | null>(null)
   const [disputeForm, setDisputeForm] = useState<DisputeForm>(EMPTY_DISPUTE)
+  const [disputeError, setDisputeError] = useState<string | null>(null)
   const [ptaxModalOpen, setPtaxModalOpen] = useState(false)
   const [ptaxInput, setPtaxInput] = useState('')
+  const [ptaxError, setPtaxError] = useState<string | null>(null)
   const [dunningModalOpen, setDunningModalOpen] = useState(false)
   const [expandedCustomer, setExpandedCustomer] = useState<number | null>(null)
   const [customerReportOpen, setCustomerReportOpen] = useState(false)
+  const [focusInvoiceId, setFocusInvoiceId] = useState<number | null>(null)
 
-  const { data: containers, isLoading: containersLoading, error: containersError } = useQuery({
+  const containersQuery = useQuery({
     queryKey: ['demurrage-containers'],
     queryFn: () => listDemurrageContainers(),
     staleTime: 60_000,
-    enabled: tab === 'containers',
+    enabled: activeTab === 'containers',
   })
-  const { data: kpis } = useQuery({
-    queryKey: ['demurrage-kpis'],
-    queryFn: fetchDemurrageKPIs,
-    staleTime: 60_000,
-  })
-  const { data: customerSummary } = useQuery({
+  const kpisQuery = useQuery({ queryKey: ['demurrage-kpis'], queryFn: fetchDemurrageKPIs, staleTime: 60_000 })
+  const kpis = kpisQuery.data
+  const customerSummaryQuery = useQuery({
     queryKey: ['demurrage-customer-summary'],
     queryFn: fetchCustomerDemurrageSummary,
     staleTime: 60_000,
-    enabled: tab === 'clientes',
+    enabled: activeTab === 'clientes',
   })
-  const { data: customerDetail } = useQuery({
+  const customerDetailQuery = useQuery({
     queryKey: ['demurrage-customer-detail', expandedCustomer],
     queryFn: () => fetchCustomerDemurrageDetail(expandedCustomer!),
-    enabled: expandedCustomer != null,
+    enabled: expandedCustomer != null && activeTab === 'clientes',
   })
-  const { data: latestRecalcDate } = useQuery({
-    queryKey: ['demurrage-latest-recalc'],
-    queryFn: fetchLatestRecalcDate,
-    staleTime: 60_000,
+  const { data: latestRecalcDate } = useQuery({ queryKey: ['demurrage-latest-recalc'], queryFn: fetchLatestRecalcDate, staleTime: 60_000 })
+  const disputesQuery = useQuery({
+    queryKey: ['demurrage-disputes'],
+    queryFn: () => listDemurrageDisputes(),
+    staleTime: 30_000,
+    enabled: canAnswerDispute,
   })
+  const disputesWaiting = (disputesQuery.data ?? []).filter((dispute) => dispute.state === 'aberta' && dispute.next_responder === 'equipamentos').length
 
-  const invoiceStatus = tab !== 'containers' && tab !== 'clientes' ? TAB_TO_STATUS[tab] : null
-  const { data: invoices, isLoading: invoicesLoading, error: invoicesError } = useQuery({
+  const invoiceStatus = isInvoiceTab(activeTab) ? STATUS_BY_TAB[activeTab] : null
+  const invoicesQuery = useQuery({
     queryKey: ['demurrage-invoices', invoiceStatus],
-    queryFn: () => listDemurrageInvoices({ status: invoiceStatus! }),
+    queryFn: () => listDemurrageInvoices({ status: invoiceStatus as DemurrageDetailInvoice['status'] }),
     staleTime: 30_000,
     enabled: invoiceStatus != null,
   })
-  const receiptRefunds = useFinancialRefunds('demurrage', viewInvoiceId)
-  const { data: invoiceDetail } = useQuery({
-    queryKey: ['demurrage-invoice-detail', viewInvoiceId],
-    queryFn: () => getInvoiceDetail(viewInvoiceId!),
-    enabled: viewInvoiceId != null,
+
+  // Link direto (`?fatura=`) vindo de fora (ficha, Alerta): abre também a aba
+  // da situação da Invoice. A Invoice aberta por esta tela fica na aba atual
+  // (Containers não tem `tab` na URL, e trocar de aba apagaria a lente).
+  const [openedHere, setOpenedHere] = useState<number | null>(null)
+  const linkedInvoiceId = state.invoiceId != null && !searchParams.has('tab') && openedHere !== state.invoiceId ? state.invoiceId : null
+  const linkedDetailQuery = useQuery({
+    queryKey: ['demurrage-invoice-detail', linkedInvoiceId],
+    queryFn: () => getInvoiceDetail(linkedInvoiceId!),
+    enabled: linkedInvoiceId != null,
   })
-  const { data: breakdownDetail } = useQuery({
-    queryKey: ['demurrage-invoice-detail', detailInvoiceId],
-    queryFn: () => getInvoiceDetail(detailInvoiceId!),
-    enabled: detailInvoiceId != null,
+  const linkedStatus = linkedInvoiceId != null ? linkedDetailQuery.data?.invoice.status : undefined
+  useEffect(() => {
+    if (!linkedStatus) return
+    const target = TAB_BY_STATUS[linkedStatus]
+    if (target) setSearchParams((params) => withDemurrageTab(params, target), { replace: true })
+  }, [linkedStatus, setSearchParams])
+
+  const receiptRefunds = useFinancialRefunds('demurrage', document?.type === 'receipt' ? document.id : null)
+  const documentQuery = useQuery({
+    queryKey: ['demurrage-invoice-detail', document?.id ?? null],
+    queryFn: () => getInvoiceDetail(document!.id),
+    enabled: document != null,
   })
 
   const recalcStale =
@@ -152,101 +209,106 @@ export function Demurrage() {
     isPtaxWarningEligible() &&
     (latestRecalcDate == null || latestRecalcDate < lastBusinessDayISO())
 
-  function invalidateInvoices() {
-    void queryClient.invalidateQueries({ queryKey: ['demurrage-invoices'] })
-    void queryClient.invalidateQueries({ queryKey: ['demurrage-kpis'] })
+  function updateParams(next: (params: URLSearchParams) => URLSearchParams) {
+    setSearchParams((params) => next(params), { replace: true })
   }
-
-  function printInvoiceDocument() {
-    if (docType === 'receipt' && !receiptRefunds.data) return
-    const content = document.querySelector<HTMLElement>('.invoice-print-content')
-    if (!content) return
-    printDocumentElement(content, 'Fatura de Demurrage')
+  const selectTab = (next: DemurrageTab) => updateParams((params) => withDemurrageTab(params, next))
+  const setSearch = (value: string) => updateParams((params) => withDemurrageParam(params, 'busca', value))
+  const setLens = (value: ContainerLens) => updateParams((params) => withDemurrageParam(params, 'lente', value))
+  const openInvoice = (invoiceId: number) => {
+    setOpenedHere(invoiceId)
+    updateParams((params) => withDemurrageParam(params, 'fatura', invoiceId))
   }
+  const closeInvoice = () => updateParams((params) => withDemurrageParam(params, 'fatura', null))
 
-  function openEditContainer(container: DemurrageContainerListItem) {
-    setEditingContainer(container)
-    setEditDischarge(container.discharge_date ?? '')
-    setEditReturn(container.return_date ?? '')
-    setEditReason('')
+  /** Ação aberta a partir do detalhe: o formulário toma o lugar do diálogo e volta para ele. */
+  function fromDetail(action: () => void) {
+    setReturnTo(state.invoiceId)
+    closeInvoice()
+    action()
   }
-
-  function openDiscount(invoice: DemurrageInvoice) {
-    setDiscountForm({
-      discount_type: invoice.discount_type,
-      discount_value: invoice.discount_value != null ? String(invoice.discount_value) : '',
-      discount_mode: invoice.discount_mode === 'fixed' ? 'fixed' : 'percent',
-      discount_justification: invoice.discount_justification ?? '',
-      discount_approver: invoice.discount_approver ?? '',
-    })
-    setDiscountInvoiceId(invoice.id)
+  function backToDetail() {
+    if (returnTo != null) openInvoice(returnTo)
+    setReturnTo(null)
   }
-
-  function openDispute(invoice: DemurrageInvoice) {
-    setDisputeForm({
-      dispute_subject: invoice.dispute_subject ?? '',
-      dispute_reason: invoice.dispute_reason ?? '',
-      dispute_notes: invoice.dispute_notes ?? '',
-    })
-    setDisputeInvoiceId(invoice.id)
+  /**
+   * Depois de gravar, relê o detalhe antes de voltar a ele: enquanto o
+   * formulário estava aberto o detalhe não tinha observador, e a invalidação só
+   * o marcava velho (voltaria mostrando "Registrar pagamento" numa Invoice paga).
+   */
+  async function refreshDetailAndBack() {
+    if (returnTo != null) await queryClient.refetchQueries({ queryKey: ['demurrage-invoice-detail', returnTo], type: 'all' })
+    backToDetail()
   }
 
   const recalcManualMutation = useMutation({
     mutationFn: (ptax: number) => recalculateInvoicesManual(ptax),
-    onSuccess: (result) => {
-      showToast(`PTAX aplicada — ${result.updated} fatura(s) recalculada(s).`, 'success')
+    onSuccess: async (result) => {
       setPtaxModalOpen(false)
       setPtaxInput('')
-      void queryClient.invalidateQueries({ queryKey: ['demurrage-latest-recalc'] })
-      invalidateInvoices()
+      setPtaxError(null)
+      await afterFaturaDemurrageAlterada(queryClient)
+      showToast(`PTAX aplicada: ${result.updated} ${result.updated === 1 ? 'Invoice recalculada' : 'Invoices recalculadas'}.`, 'success')
     },
-    onError: (error) => showToast(error instanceof Error ? error.message : 'Falha ao recalcular.', 'error'),
+    onError: (error) => setPtaxError(extractErrorText(error)),
   })
   const containerDatesMutation = useMutation({
-    mutationFn: ({ id, discharge, ret, reason }: { id: number; discharge: string; ret: string | null; reason: string | null }) => updateContainerDates(id, discharge, ret, reason),
+    mutationFn: ({ id, input }: { id: number; input: ContainerDatesInput }) => updateContainerDates(id, input.discharge, input.ret, input.reason),
     onSuccess: async () => {
       await afterDatasContainerAlteradas(queryClient)
+      // A recusa da emissão era sobre as datas antigas.
+      setGenerateError(null)
       setEditingContainer(null)
       showToast('Datas atualizadas.', 'success')
     },
-    onError: (error: Error) => showToast(error.message, 'error'),
+    onError: (error: Error) => setDatesError(extractErrorText(error)),
   })
   const generateMutation = useMutation({
     mutationFn: (blId: string) => createInvoiceForBL(blId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['demurrage-containers'] })
-      invalidateInvoices()
-      showToast('Invoice de demurrage criada com sucesso.', 'success')
+    onSuccess: async (invoiceId) => {
+      setGenerateError(null)
+      await afterFaturaDemurrageAlterada(queryClient)
+      showToast('Invoice de Demurrage emitida.', 'success')
+      if (typeof invoiceId === 'number') openInvoice(invoiceId)
     },
-    onError: (error: Error) => showToast(error.message ?? 'Erro ao gerar invoice.', 'error'),
+    onError: (error: Error, blId) => setGenerateError({ blId, message: extractErrorText(error) }),
     onSettled: () => setGeneratingBl(null),
   })
   const payMutation = useMutation({
-    mutationFn: ({ id, date }: { id: number; date: string }) => {
-      return markInvoicePaid(id, date)
+    mutationFn: ({ id, date }: { id: number; date: string }) => markInvoicePaid(id, date),
+    onSuccess: async () => {
+      setPaying(null)
+      setPayError(null)
+      await afterFaturaDemurrageAlterada(queryClient)
+      showToast('Pagamento registrado.', 'success')
+      await refreshDetailAndBack()
     },
-    onSuccess: () => { invalidateInvoices(); setPayingId(null); showToast('Pagamento registrado.', 'success') },
-    onError: (error: Error) => showToast(error.message, 'error'),
+    onError: (error: Error) => setPayError(extractErrorText(error)),
   })
   const unpayMutation = useMutation({
     mutationFn: ({ id, reason }: { id: number; reason: string }) => reverseDemurragePayment(id, reason),
-    onSuccess: () => {
-      invalidateInvoices()
-      setReversingPayment(null)
+    onMutate: () => setReverseError(null),
+    onSuccess: async () => {
+      setReversing(null)
+      await afterFaturaDemurrageAlterada(queryClient)
       showToast('Baixa cancelada com auditoria.', 'success')
+      await refreshDetailAndBack()
     },
-    onError: (error: Error) => showToast(error.message, 'error'),
+    onError: (error: Error) => setReverseError(extractErrorText(error)),
   })
   const cancelMutation = useMutation({
-    mutationFn: cancelDemurrageInvoice,
-    onSuccess: () => { invalidateInvoices(); showToast('Invoice cancelada.', 'success') },
-    onError: (error: Error) => showToast(error.message, 'error'),
+    mutationFn: ({ id, reason }: { id: number; reason: string }) => cancelDemurrageInvoice(id, reason),
+    onMutate: () => setCancelError(null),
+    onSuccess: async () => {
+      await afterFaturaDemurrageAlterada(queryClient)
+      showToast('Invoice cancelada.', 'success')
+    },
+    // A recusa fica no detalhe, onde o cancelamento foi pedido.
+    onError: (error: Error) => setCancelError(extractErrorText(error)),
   })
   const discountMutation = useMutation({
     mutationFn: async ({ id, form }: { id: number; form: DiscountForm }) => {
-      const validation = demurrageDiscountSchema.safeParse(form)
-      if (!validation.success) throw new Error(formatValidationError(validation.error, 'Desconto invalido.'))
-      const discount = validation.data
+      const discount = demurrageDiscountSchema.parse(form)
       await applyDemurrageDiscount({
         invoiceId: id,
         discountType: discount.discount_type,
@@ -256,217 +318,315 @@ export function Demurrage() {
         approver: discount.discount_approver,
       })
     },
-    onSuccess: () => {
-      invalidateInvoices()
-      setDiscountInvoiceId(null)
+    onSuccess: async () => {
+      setDiscountTarget(null)
+      await afterFaturaDemurrageAlterada(queryClient)
       showToast('Desconto atualizado.', 'success')
+      await refreshDetailAndBack()
     },
-    onError: (error: Error) => showToast(error.message, 'error'),
+    onError: (error: Error) => setDiscountFieldErrors({ form: extractErrorText(error) }),
   })
   const disputeMutation = useMutation({
     mutationFn: ({ id, form }: { id: number; form: DisputeForm }) => updateDemurrageInvoice(id, {
-      dispute_subject: form.dispute_subject || null,
-      dispute_reason: form.dispute_reason || null,
-      dispute_notes: form.dispute_notes || null,
+      dispute_subject: form.dispute_subject.trim() || null,
+      dispute_reason: form.dispute_reason.trim() || null,
+      dispute_notes: form.dispute_notes.trim() || null,
     }),
-    onSuccess: () => {
-      invalidateInvoices()
-      setDisputeInvoiceId(null)
-      showToast('Disputa atualizada.', 'success')
+    onSuccess: async () => {
+      setDisputeTarget(null)
+      await afterFaturaDemurrageAlterada(queryClient)
+      showToast('Dados da disputa salvos.', 'success')
+      await refreshDetailAndBack()
     },
-    onError: (error: Error) => showToast(error.message, 'error'),
+    onError: (error: Error) => setDisputeError(extractErrorText(error)),
   })
 
-  async function handleCancelInvoice(invoiceId: number) {
-    const ok = await confirm({
-      title: 'Cancelar invoice',
-      message: 'Cancelar esta invoice de demurrage?',
-      confirmLabel: 'Cancelar invoice',
-      tone: 'danger',
+  function openPayment(invoice: DemurrageDetailInvoice) {
+    fromDetail(() => {
+      setPayDate(todayIso())
+      setPayError(null)
+      setPaying({ id: invoice.id, docNumber: invoice.doc_number, netUsd: invoiceNetUsd(invoice).netUsd, currentTotalBrl: invoice.current_total_brl, billedAt: invoice.billed_at })
     })
-    if (ok) cancelMutation.mutate(invoiceId)
   }
 
-  const filtered = (containers ?? []).filter((container) => {
-    // Devolvido dentro do free time (sem demurrage) não é monitoramento operacional.
-    if (container.demurrage_status === 'returned' && (effectiveDemurrage(container)?.total_usd ?? 0) <= 0) return false
-    if (!search) return true
-    const query = search.toLowerCase()
-    return (
-      container.container_number.toLowerCase().includes(query) ||
-      (container.bl_id ?? '').toLowerCase().includes(query) ||
-      ((container.bl as { customer?: { name?: string } } | null)?.customer?.name ?? '').toLowerCase().includes(query)
-    )
-  })
-  const grouped = groupByBl(filtered)
-  const containerFilterDescription = describeActiveFilters([{ label: 'Busca', value: search }])
-  const totalOverdueUSD = filtered.reduce((sum, container) => sum + (effectiveDemurrage(container)?.total_usd ?? 0), 0)
-  const activeTabLabel = TAB_LABELS.find((item) => item.key === tab)?.label ?? tab
+  function openDiscount(invoice: DemurrageDetailInvoice) {
+    fromDetail(() => {
+      setDiscountForm({
+        discount_type: invoice.discount_type as DiscountForm['discount_type'],
+        // O campo lê pt-BR: 12.5 do banco vira "12,5" para não ser recusado ao salvar.
+        discount_value: invoice.discount_value != null ? String(invoice.discount_value).replace('.', ',') : '',
+        discount_mode: invoice.discount_mode === 'fixed' ? 'fixed' : 'percent',
+        discount_justification: '',
+        discount_approver: invoice.discount_approver ?? '',
+      })
+      setDiscountFieldErrors({})
+      setDiscountTarget({ id: invoice.id, docNumber: invoice.doc_number, totalUsd: invoice.total_usd, hadDiscount: Number(invoice.discount_value ?? 0) > 0 })
+    })
+  }
+
+  function openDisputeData(invoice: DemurrageDetailInvoice) {
+    fromDetail(() => {
+      setDisputeForm({
+        dispute_subject: invoice.dispute_subject ?? '',
+        dispute_reason: invoice.dispute_reason ?? '',
+        dispute_notes: invoice.dispute_notes ?? '',
+      })
+      setDisputeError(null)
+      setDisputeTarget({ id: invoice.id, docNumber: invoice.doc_number })
+    })
+  }
+
+  async function handleCancelInvoice(invoice: DemurrageDetailInvoice) {
+    const reason = await confirmWithReason({
+      title: `Cancelar Invoice ${invoice.doc_number}`,
+      message: `Cancelar a Invoice de Demurrage ${invoice.doc_number} do B/L ${invoice.bl_id}?`,
+      consequence: 'A Invoice sai da Régua e do Portal e não aceita mais baixa. As caixas dela voltam a ficar sem Invoice e podem ser cobradas de novo pela aba Containers.',
+      reversibility: 'Invoice cancelada não volta: para cobrar de novo, gere outra Invoice.',
+      reasonLabel: 'Motivo do cancelamento (obrigatório)',
+      confirmLabel: 'Cancelar Invoice',
+      tone: 'danger',
+    })
+    if (reason === null) return
+    cancelMutation.mutate({ id: invoice.id, reason })
+  }
+
+  function submitDiscount() {
+    if (!discountTarget) return
+    const errors = discountErrors(discountForm)
+    if (discountPreview(discountTarget.totalUsd, discountForm.discount_mode, discountForm.discount_value)?.exceedsTotal) {
+      errors.discount_value = 'O desconto fixo não pode passar do total da Invoice.'
+    }
+    setDiscountFieldErrors(errors)
+    if (Object.keys(errors).length) return
+    discountMutation.mutate({ id: discountTarget.id, form: discountForm })
+  }
+
+  function printInvoiceDocument() {
+    if (document?.type === 'receipt' && !receiptRefunds.data) return
+    const content = window.document.querySelector<HTMLElement>('.invoice-print-content')
+    if (!content) return
+    printDocumentElement(content, document?.type === 'receipt' ? 'Recibo de Demurrage' : 'Fatura de Demurrage')
+  }
+
+  const documentDetail = documentQuery.data
+  const panelId = 'demurrage-panel'
 
   return (
-    <>
+    <div className="app-dem-page">
+      <PageHeader
+        title="Demurrage"
+        action={
+          <>
+            <Link className="app-fin-link" to="/demurrage/taxas">Tarifas e acordos<ArrowRight size={14} aria-hidden="true" /></Link>
+            <Button variant="secondary" onClick={() => setDunningModalOpen(true)}><Mail size={15} aria-hidden="true" />Régua de cobrança</Button>
+            {canInformPtax ? <Button variant="secondary" onClick={() => { setPtaxError(null); setPtaxModalOpen(true) }}>Informar PTAX</Button> : null}
+            <Button onClick={() => setImportOpen(true)}><Upload size={15} aria-hidden="true" />Importar datas</Button>
+          </>
+        }
+      />
+
+      {recalcStale ? (
+        <ImportNotice tone="warning" role="status" title="PTAX de hoje não obtida do BCB" className="app-dem-banner">
+          <p>Os valores em BRL das Invoices aguardando pagamento podem estar desatualizados.</p>
+          {canInformPtax ? <Button variant="secondary" className="app-btn--sm mt-2" onClick={() => { setPtaxError(null); setPtaxModalOpen(true) }}>Informar PTAX</Button> : null}
+        </ImportNotice>
+      ) : null}
+
+      <div className="app-dem-metrics">
+        <MetricCard
+          label="Containers em atraso"
+          value={kpisQuery.error ? '—' : kpis ? String(kpis.overdueContainers) : '…'}
+          tone={kpis && kpis.overdueContainers > 0 ? 'primary' : 'secondary'}
+          selected={activeTab === 'containers' && lens === 'atraso'}
+          onSelect={() => updateParams((params) => withDemurrageParam(withDemurrageTab(params, 'containers'), 'lente', 'atraso'))}
+        />
+        <MetricCard
+          label="Aguardando pagamento (BRL hoje)"
+          value={kpisQuery.error ? '—' : kpis ? fmtBRL(kpis.issuedInvoicesTotalBrl) : '…'}
+          selected={activeTab === 'emitidas'}
+          onSelect={() => selectTab('emitidas')}
+        />
+        {canAnswerDispute ? (
+          <MetricCard
+            label="Disputas aguardando resposta"
+            value={disputesQuery.error ? '—' : disputesQuery.data ? String(disputesWaiting) : '…'}
+            tone={disputesWaiting > 0 ? 'primary' : 'secondary'}
+            selected={activeTab === 'disputas'}
+            onSelect={() => selectTab('disputas')}
+          />
+        ) : null}
+      </div>
+      {kpisQuery.error ? <p className="app-dem-note app-dem-note--warning" role="status">Os totais do topo não carregaram; as listas abaixo seguem válidas.</p> : null}
+
+      <TabList label="Seções de Demurrage" className="app-dem-tabs">
+        <TabButton id="dem-tab-containers" controls={panelId} active={activeTab === 'containers'} label="Containers" onClick={() => selectTab('containers')} />
+        {DEMURRAGE_INVOICE_TABS.map((item) => (
+          <TabButton key={item.key} id={`dem-tab-${item.key}`} controls={panelId} active={activeTab === item.key} label={item.label} onClick={() => selectTab(item.key)} />
+        ))}
+        <TabButton id="dem-tab-clientes" controls={panelId} active={activeTab === 'clientes'} label="Por Cliente" onClick={() => selectTab('clientes')} />
+        {canAnswerDispute ? (
+          <TabButton
+            id="dem-tab-disputas"
+            controls={panelId}
+            active={activeTab === 'disputas'}
+            label="Disputas"
+            count={disputesQuery.data ? disputesWaiting : null}
+            countLabel={`${disputesWaiting} aguardando resposta`}
+            onClick={() => selectTab('disputas')}
+          />
+        ) : null}
+      </TabList>
+
+      <div id={panelId} role="tabpanel" aria-labelledby={`dem-tab-${activeTab}`}>
+        {activeTab === 'containers' ? (
+          <DemurrageContainersTab
+            containers={containersQuery.data}
+            search={search}
+            lens={lens}
+            loading={containersQuery.isLoading}
+            error={containersQuery.error}
+            canIssue={canIssue}
+            generatingBl={generatingBl}
+            generateError={generateError}
+            onRetry={() => void containersQuery.refetch()}
+            onSearchChange={setSearch}
+            onLensChange={setLens}
+            onGenerateInvoice={(blId) => { setGenerateError(null); setGeneratingBl(blId); generateMutation.mutate(blId) }}
+            onEditContainer={(container) => { setDatesError(null); setEditingContainer(container) }}
+            onOpenInvoice={openInvoice}
+          />
+        ) : null}
+        {isInvoiceTab(activeTab) ? (
+          <DemurrageInvoicesTab
+            tab={activeTab}
+            invoices={invoicesQuery.data}
+            search={search}
+            loading={invoicesQuery.isLoading}
+            error={invoicesQuery.error}
+            onRetry={() => void invoicesQuery.refetch()}
+            onSearchChange={setSearch}
+            onOpenDetail={openInvoice}
+          />
+        ) : null}
+        {activeTab === 'clientes' ? (
+          <DemurrageCustomersTab
+            summary={customerSummaryQuery.data}
+            loading={customerSummaryQuery.isLoading}
+            error={customerSummaryQuery.error}
+            onRetry={() => void customerSummaryQuery.refetch()}
+            detail={customerDetailQuery.data}
+            detailLoading={customerDetailQuery.isLoading}
+            detailError={customerDetailQuery.error}
+            expandedCustomer={expandedCustomer}
+            onExpandedCustomerChange={(customerId) => setExpandedCustomer((id) => (id === customerId ? null : customerId))}
+            onOpenReport={() => setCustomerReportOpen(true)}
+            onOpenInvoice={openInvoice}
+          />
+        ) : null}
+        {activeTab === 'disputas' ? (
+          <DemurrageDisputeConversation focusDisputeId={state.disputeId} focusInvoiceId={focusInvoiceId} onOpenInvoice={openInvoice} />
+        ) : null}
+      </div>
+
       <ContainerDatesImportModal open={importOpen} onClose={() => setImportOpen(false)} />
       <PtaxModal
         open={ptaxModalOpen}
         value={ptaxInput}
         loading={recalcManualMutation.isPending}
+        error={ptaxError}
+        openTotalBrl={kpis?.issuedInvoicesTotalBrl ?? null}
         onValueChange={setPtaxInput}
         onClose={() => setPtaxModalOpen(false)}
         onSubmit={(ptax) => recalcManualMutation.mutate(ptax)}
-        onInvalid={() => showToast('Informe uma PTAX válida maior que zero.', 'error')}
       />
-
-      <PageHeader
-        title="Demurrage"
-        description="Rastreamento e faturamento de sobreestadia de containers"
-        action={
-          <>
-            <Link to="/demurrage/taxas">
-              <Button variant="secondary"><DollarSign size={15} />Tarifas</Button>
-            </Link>
-            <Button variant="secondary" onClick={() => setDunningModalOpen(true)}><Mail size={15} />Régua de Cobrança</Button>
-            <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload size={15} />Importar Datas</Button>
-            {canInformPtax ? <Button variant="secondary" onClick={() => setPtaxModalOpen(true)}><DollarSign size={15} />Informar PTAX</Button> : null}
-          </>
-        }
+      <DemurrageContainerDatesModal
+        container={editingContainer}
+        loading={containerDatesMutation.isPending}
+        error={datesError}
+        onClose={() => setEditingContainer(null)}
+        onSubmit={(input) => editingContainer && containerDatesMutation.mutate({ id: editingContainer.id, input })}
       />
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Card className="p-4"><div className="text-xs text-slate-400">Containers em atraso</div><div className="text-2xl font-bold text-red-400">{kpis?.overdueContainers ?? '—'}</div></Card>
-        <Card className="p-4"><div className="text-xs text-slate-400">Total USD (visível)</div><div className="text-2xl font-bold text-amber-400">{fmtUSD(totalOverdueUSD)}</div></Card>
-        <Card className="p-4"><div className="text-xs text-slate-400">Aguardando pagamento (BRL)</div><div className="text-2xl font-bold text-blue-400">{kpis ? fmtBRL(kpis.issuedInvoicesTotalBrl) : '—'}</div></Card>
-      </div>
-
-      {recalcStale ? (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
-          <span className="flex items-center gap-2"><AlertTriangle size={16} />PTAX de hoje não obtida do BCB. Os valores em BRL podem estar desatualizados.</span>
-          {canInformPtax ? <Button variant="secondary" onClick={() => setPtaxModalOpen(true)}>Informar PTAX</Button> : null}
-        </div>
+      <DemurrageInvoiceDetailModal
+        invoiceId={state.invoiceId}
+        permissions={{ canSettle, canAdmin, canAnswerDispute }}
+        cancelling={cancelMutation.isPending}
+        cancelError={cancelError}
+        onClose={() => { setCancelError(null); closeInvoice() }}
+        onOpenInvoice={openInvoice}
+        onRegisterPayment={openPayment}
+        onDiscount={openDiscount}
+        onDisputeData={openDisputeData}
+        onOpenDisputes={(invoice) => { setFocusInvoiceId(invoice.id); updateParams((params) => withDemurrageTab(withDemurrageParam(params, 'fatura', null), 'disputas')) }}
+        onOpenDocument={(id, type) => fromDetail(() => setDocument({ id, type }))}
+        onCancelInvoice={(invoice) => void handleCancelInvoice(invoice)}
+        onReversePayment={(invoice) => fromDetail(() => setReversing({ id: invoice.id, docNumber: invoice.doc_number, datesChanged: reversalDatesNotice(invoice) }))}
+      />
+      <PaymentModal
+        open={paying != null}
+        invoice={paying}
+        paymentDate={payDate}
+        loading={payMutation.isPending}
+        error={payError}
+        onPaymentDateChange={setPayDate}
+        onClose={() => { setPaying(null); backToDetail() }}
+        onSubmit={(id, date) => payMutation.mutate({ id, date })}
+      />
+      <DiscountModal
+        open={discountTarget != null}
+        docNumber={discountTarget?.docNumber}
+        totalUsd={discountTarget?.totalUsd}
+        hadDiscount={discountTarget?.hadDiscount}
+        form={discountForm}
+        loading={discountMutation.isPending}
+        errors={discountFieldErrors}
+        onFormChange={(form) => { setDiscountForm(form); setDiscountFieldErrors({}) }}
+        onClose={() => { setDiscountTarget(null); backToDetail() }}
+        onSubmit={submitDiscount}
+      />
+      <DisputeModal
+        open={disputeTarget != null}
+        docNumber={disputeTarget?.docNumber}
+        form={disputeForm}
+        loading={disputeMutation.isPending}
+        error={disputeError}
+        onFormChange={setDisputeForm}
+        onClose={() => { setDisputeTarget(null); backToDetail() }}
+        onSubmit={() => disputeTarget && disputeMutation.mutate({ id: disputeTarget.id, form: disputeForm })}
+      />
+      {reversing != null ? (
+        <DemurragePaymentReversalModal
+          open
+          docNumber={reversing.docNumber}
+          datesChanged={reversing.datesChanged}
+          loading={unpayMutation.isPending}
+          error={reverseError}
+          onClose={() => { setReversing(null); setReverseError(null); backToDetail() }}
+          onSubmit={(reason) => unpayMutation.mutate({ id: reversing.id, reason })}
+        />
       ) : null}
-      <DemurrageDisputeConversation />
-
-      <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Seções de Demurrage">
-        {TAB_LABELS.map((item) => (
-          <TabButton key={item.key} active={tab === item.key} label={item.label} onClick={() => setTab(item.key)} />
-        ))}
-      </div>
-
-      {tab === 'containers' && (
-        <DemurrageContainersTab
-          search={search}
-          filtered={filtered}
-          grouped={grouped}
-          filterDescription={containerFilterDescription}
-          loading={containersLoading}
-          error={containersError}
-          generatingBl={generatingBl}
-          onSearchChange={setSearch}
-          onGenerateInvoice={(blId) => { setGeneratingBl(blId); generateMutation.mutate(blId) }}
-          onEditContainer={openEditContainer}
-        />
-      )}
-      {tab === 'clientes' && (
-        <DemurrageCustomersTab
-          summary={customerSummary}
-          detail={customerDetail}
-          expandedCustomer={expandedCustomer}
-          onExpandedCustomerChange={(customerId) => setExpandedCustomer((id) => id === customerId ? null : customerId)}
-          onOpenReport={() => setCustomerReportOpen(true)}
-        />
-      )}
-      {tab !== 'containers' && tab !== 'clientes' && (
-        <DemurrageInvoicesTab
-          tab={tab}
-          tabLabel={activeTabLabel}
-          invoices={invoices}
-          loading={invoicesLoading}
-          error={invoicesError}
-          onOpenDetail={setDetailInvoiceId}
-          onOpenDocument={(invoiceId, type) => { setViewInvoiceId(invoiceId); setDocType(type) }}
-        />
-      )}
-
-      <Modal open={editingContainer != null} onClose={() => setEditingContainer(null)} title="Editar datas do container">
-        {editingContainer && (
-          <div className="space-y-4 p-4">
-            <div className="text-sm font-semibold text-[var(--app-text-strong)]">{editingContainer.container_number}</div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Data de descarga" required><Input type="date" value={editDischarge} onChange={(event) => setEditDischarge(event.target.value)} /></Field>
-              <Field label="Data de devolução"><Input type="date" value={editReturn} onChange={(event) => setEditReturn(event.target.value)} /></Field>
-            </div>
-            {editingContainer.return_date && !editReturn ? (
-              <Field label="Motivo da remoção" required hint="A devolução sai de todos os B/Ls que dividem o container nesta Viagem.">
-                <Input value={editReason} onChange={(event) => setEditReason(event.target.value)} />
-              </Field>
-            ) : null}
-            <div className="flex gap-2">
-              <Button loading={containerDatesMutation.isPending} onClick={() => {
-                if (!editDischarge) return showToast('Data de descarga obrigatória.', 'error')
-                const validation = demurrageDatesSchema.safeParse({ discharge: editDischarge, ret: editReturn })
-                if (!validation.success) return showToast(formatValidationError(validation.error), 'error')
-                const removing = Boolean(editingContainer.return_date) && !validation.data.ret
-                if (removing && !editReason.trim()) return showToast('Informe o motivo para remover a data de devolução.', 'error')
-                containerDatesMutation.mutate({ id: editingContainer.id, discharge: validation.data.discharge, ret: validation.data.ret, reason: removing ? editReason.trim() : null })
-              }}>Salvar</Button>
-              <Button variant="ghost" onClick={() => setEditingContainer(null)}>Voltar</Button>
-            </div>
+      {document ? (
+        <Modal
+          open
+          onClose={() => { setDocument(null); backToDetail() }}
+          title={`${document.type === 'invoice' ? 'Fatura' : 'Recibo'} de Demurrage${documentDetail ? ` ${documentDetail.invoice.doc_number}` : ''}`}
+        >
+          <div className="app-dem-document-toolbar">
+            <Button variant="secondary" disabled={!documentDetail || (document.type === 'receipt' && !receiptRefunds.data)} onClick={printInvoiceDocument}>Imprimir</Button>
           </div>
-        )}
-      </Modal>
-
-      <Modal open={detailInvoiceId != null} onClose={() => setDetailInvoiceId(null)} title="Detalhes da invoice">
-        {breakdownDetail ? (
-          <div className="p-4">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><div className="font-semibold text-[var(--app-text-strong)]">{breakdownDetail.invoice.doc_number}</div><div className="text-sm text-slate-400">{breakdownDetail.invoice.bl_id} — {fmtUSD(breakdownDetail.invoice.total_usd)}</div></div><div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => { setDetailInvoiceId(null); openDiscount(breakdownDetail.invoice as DemurrageInvoice) }}>Desconto</Button>
-              <Button variant="secondary" onClick={() => { setDetailInvoiceId(null); openDispute(breakdownDetail.invoice as DemurrageInvoice) }}>Disputa</Button>
-              {breakdownDetail.invoice.status === 'issued' && <><Button variant="secondary" onClick={() => { setDetailInvoiceId(null); setPayingId(breakdownDetail.invoice.id) }}>Registrar Pgto</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); void handleCancelInvoice(breakdownDetail.invoice.id) }}>Voltar</Button></>}
-              {(breakdownDetail.invoice.status === 'paid' || breakdownDetail.invoice.status === 'cancelled' && breakdownDetail.invoice.paid_at) && <><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('receipt') }}>Recibo</Button><Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setViewInvoiceId(breakdownDetail.invoice.id); setDocType('invoice') }}>Fatura</Button>{breakdownDetail.invoice.status === 'paid' ? <Button variant="ghost" onClick={() => { setDetailInvoiceId(null); setReversingPayment({ id: breakdownDetail.invoice.id, docNumber: breakdownDetail.invoice.doc_number, datesChanged: reversalDatesNotice(breakdownDetail.invoice) }) }}>Cancelar baixa</Button> : null}</>}
-            </div></div>
-            <div className="overflow-x-auto">
-              <table className="app-table app-table--compact min-w-[700px] text-left text-sm">
-                <caption className="sr-only">Containers vinculados à invoice de demurrage</caption>
-                <thead className="bg-[#0d1117] text-xs uppercase text-slate-500"><tr><th scope="col" className="py-2">Container</th><th scope="col" className="py-2">Tipo</th><th scope="col" className="py-2">Descarga</th><th scope="col" className="py-2">Devolução</th><th scope="col" className="py-2">Dias</th><th scope="col" className="py-2">Free</th><th scope="col" className="py-2">P1</th><th scope="col" className="py-2">P2</th><th scope="col" className="py-2">Subtotal</th></tr></thead>
-                <tbody className="divide-y divide-[#30363d]">
-                  {(breakdownDetail.items as DemurrageInvoiceItem[]).map((item) => (
-                    <tr key={item.id}>
-                      <td className="py-2 font-semibold text-white">{item.container_number}</td><td className="py-2">{item.container_type}</td><td className="py-2">{formatDate(item.discharge_date)}</td><td className="py-2">{formatDate(item.return_date)}</td><td className="py-2">{item.total_days}d</td><td className="py-2 text-slate-400">{item.free_days}d</td>
-                      <td className="py-2">{item.days_p1 > 0 ? <span className="text-amber-400">{item.days_p1}d @ ${item.rate_p1_usd}</span> : '—'}</td><td className="py-2">{item.days_p2 > 0 ? <span className="text-red-400">{item.days_p2}d @ ${item.rate_p2_usd}</span> : '—'}</td><td className="py-2 font-semibold text-amber-400">{fmtUSD(item.subtotal_usd)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {documentQuery.error ? <p className="app-dem-form__error" role="alert">Não foi possível carregar o documento: {extractErrorText(documentQuery.error)}</p> : null}
+          {!documentDetail && !documentQuery.error ? <p className="app-dem-meta" role="status">Carregando o documento…</p> : null}
+          {document.type === 'receipt' && documentDetail && !receiptRefunds.data ? (
+            <p role="status" className="app-dem-meta">{receiptRefunds.error ? 'Falha ao consultar restituições. Recarregue antes de emitir o recibo.' : 'Consultando restituições…'}</p>
+          ) : null}
+          {documentDetail ? (
+            <div className="invoice-print-content">
+              <InvoiceDocument detail={{ ...documentDetail.invoice, items: documentDetail.items, refund_summary: receiptRefunds.data } satisfies DemurrageInvoiceDocumentDetail} type={document.type} />
             </div>
-            <FinancialRefundsPanel key={breakdownDetail.invoice.id} source="demurrage" invoiceId={breakdownDetail.invoice.id} />
-            <div className="mt-3 flex justify-end text-sm font-semibold text-amber-400">Total: {fmtUSD(breakdownDetail.invoice.total_usd)}</div>
-          </div>
-        ) : <div className="p-4 text-sm text-slate-400">Carregando...</div>}
-      </Modal>
-
-      <DiscountModal open={discountInvoiceId != null} form={discountForm} loading={discountMutation.isPending} onFormChange={setDiscountForm} onClose={() => setDiscountInvoiceId(null)} onSubmit={() => discountInvoiceId && discountMutation.mutate({ id: discountInvoiceId, form: discountForm })} />
-      <DisputeModal open={disputeInvoiceId != null} form={disputeForm} loading={disputeMutation.isPending} onFormChange={setDisputeForm} onClose={() => setDisputeInvoiceId(null)} onSubmit={() => disputeInvoiceId && disputeMutation.mutate({ id: disputeInvoiceId, form: disputeForm })} />
-      <PaymentModal open={payingId != null} paymentId={payingId} paymentDate={payDate} onPaymentDateChange={setPayDate} onClose={() => setPayingId(null)} onSubmit={(id, date) => payMutation.mutate({ id, date })} />
-
-      {reversingPayment != null && <DemurragePaymentReversalModal open docNumber={reversingPayment.docNumber} datesChanged={reversingPayment.datesChanged} loading={unpayMutation.isPending} onClose={() => setReversingPayment(null)} onSubmit={(reason) => unpayMutation.mutate({ id: reversingPayment.id, reason })} />}
-      {viewInvoiceId && invoiceDetail && (
-        <Modal open onClose={() => setViewInvoiceId(null)} title={docType === 'invoice' ? 'Fatura de Demurrage' : 'Recibo de Demurrage'}>
-          <div className="mb-2 flex justify-end gap-2"><Button variant="secondary" disabled={docType === 'receipt' && !receiptRefunds.data} onClick={printInvoiceDocument}>Imprimir</Button></div>
-          {docType === 'receipt' && !receiptRefunds.data ? <p role="status">{receiptRefunds.error ? 'Falha ao consultar restituições. Recarregue antes de emitir o recibo.' : 'Consultando restituições...'}</p> : null}
-          <div className="invoice-print-content"><InvoiceDocument detail={{ ...invoiceDetail.invoice, items: invoiceDetail.items, refund_summary: receiptRefunds.data } satisfies DemurrageInvoiceDocumentDetail} type={docType} /></div>
+          ) : null}
         </Modal>
-      )}
-      {customerReportOpen && customerSummary && <CustomerReportModal open rows={customerSummary} onClose={() => setCustomerReportOpen(false)} />}
+      ) : null}
+      {customerReportOpen && customerSummaryQuery.data ? <CustomerReportModal open rows={customerSummaryQuery.data} onClose={() => setCustomerReportOpen(false)} /> : null}
       <DemurrageDunningSettingsModal open={dunningModalOpen} onClose={() => setDunningModalOpen(false)} />
-    </>
+    </div>
   )
-}
-
-/**
- * Invoice paga suspensa porque as datas do container mudaram depois do
- * pagamento (migrations 179 e 191): o estorno da baixa a reemite, ou a deixa
- * para reemissão à mão quando tem desconto ou disputa (migration 203).
- */
-function reversalDatesNotice(invoice: { dunning_suspended_reason?: string | null; discount_value?: number | null; dispute_open?: boolean | null }): DemurrageReversalDatesNotice | null {
-  if (!invoice.dunning_suspended_reason?.startsWith('Datas de container alteradas')) return null
-  return { negotiated: Number(invoice.discount_value ?? 0) > 0 || Boolean(invoice.dispute_open) }
 }

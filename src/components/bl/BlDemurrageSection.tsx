@@ -18,6 +18,7 @@ import { queryKeys } from '../../services/queryKeys'
 import { formatDate, formatUSD } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
+import { demurrageInvoiceHref } from '../../pages/demurrageListState'
 import type { BLDetail } from '../../types/database'
 
 // Seção consolidada de demurrage do B/L: config geral (free time + P1/P2) e
@@ -235,7 +236,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
         <ul className="app-bl-invoice-list" aria-label="Faturas de Demurrage do B/L">
           {invoices.map((invoice) => (
             <li key={invoice.id}>
-              <span className="app-bl-code">{invoice.doc_number ?? `#${invoice.id}`}</span>
+              <Link className="app-bl-link app-bl-code" to={demurrageInvoiceHref(invoice.id)}>{invoice.doc_number ?? `#${invoice.id}`}</Link>
               <span>{statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, invoice.status, 'Situação não informada')}</span>
               {invoice.total_usd != null ? <span className="tabular-nums">{formatUSD(invoice.total_usd)}</span> : null}
             </li>

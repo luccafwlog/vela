@@ -39,3 +39,15 @@ describe('estado da régua de Demurrage', () => {
     expect(display.statusLabel).toContain('08/09/2026')
   })
 })
+
+describe('Invoice tirada da Régua por datas alteradas', () => {
+  it('não promete a próxima cobrança: a Régua não cobra Invoice suspensa (migrations 179, 203 e 214)', () => {
+    const display = getDemurrageDunningDisplay(
+      { ...invoice, dunning_suspended_reason: 'Datas de container alteradas em Invoice com desconto ou disputa; reemitir à mão.' },
+      { attempts: [], intervalDays: 7, hasValidContact: true },
+    )
+    expect(display.pauseReason).toBe('datas alteradas, aguarda tratamento')
+    expect(display.nextDate).toBeNull()
+    expect(display.statusLabel).toBe('Pausada: datas alteradas, aguarda tratamento')
+  })
+})

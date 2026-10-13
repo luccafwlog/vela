@@ -198,5 +198,23 @@ export async function afterReferenciaPortalAlterada(queryClient: QueryInvalidato
 
 /** Tarifas e acordos mudam o free time e o status calculados na operação. */
 export async function afterReferenciaDemurrageAlterada(queryClient: QueryInvalidator): Promise<void> {
-  await invalidate(queryClient, [queryKeys.portalInformation.all(), ['portal-operation-bls']])
+  // A aba Containers de /demurrage prevê a sobreestadia com o acordo vigente na descarga.
+  await invalidate(queryClient, [queryKeys.portalInformation.all(), ['portal-operation-bls'], ['demurrage-containers']])
+}
+
+/**
+ * Emissão, baixa, estorno, cancelamento, desconto, disputa ou PTAX de uma
+ * Invoice de Demurrage: a lista, o detalhe, os totais, as caixas cobradas na
+ * aba Containers, a ficha do B/L e do Cliente, o Portal e os alertas leem o
+ * mesmo documento.
+ */
+export async function afterFaturaDemurrageAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [
+    ['demurrage-invoices'], ['demurrage-invoice-detail'], ['demurrage-kpis'], ['demurrage-containers'],
+    ['demurrage-customer-summary'], ['demurrage-customer-detail'], ['demurrage-disputes'], ['demurrage-report'],
+    ['demurrage-latest-recalc'], ['financial-refunds'], ['bl-detail'], ['bl-cockpit'], ['customer-ficha'],
+    ['customer-detail'], ['portal-demurrage-invoices'], ['portal-demurrage-invoices-page'],
+    ['portal-demurrage-invoice-detail'], ['portal-disputes'], ['reconciliation-history'],
+    ['alerts'], ['header-alert'],
+  ])
 }

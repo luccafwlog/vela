@@ -2,13 +2,16 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Pencil, Plus } from 'lucide-react'
 import { Card } from '../ui/Card'
-import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { useCustomerDemurrageInvoices, useCustomerManualChargeBls, useCustomerPayments, useCustomerRateOverrides, useCustomerReceivables } from '../../hooks/useCustomerFicha'
 import { useCustomerDemurrageAgreements } from '../../hooks/useCustomerDemurrageAgreements'
 import { formatBRL, formatCountLabel, formatDate, formatUSD } from '../../lib/utils'
 import { INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import { CustomerDemurrageAgreementModal } from '../demurrage/CustomerDemurrageAgreementModal'
+import { AgreementSituationBadge } from '../demurrage/CustomerDemurrageAgreementsTab'
+import { agreementPeriodText, agreementRatesText } from '../demurrage/demurrageFormRules'
+import { demurrageInvoiceHref } from '../../pages/demurrageListState'
+import { useAuth } from '../../hooks/useAuth'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
 import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvisioning'
 import { isPortalReadyForBilling } from '../../lib/portalProvisioningViewModel'
@@ -59,6 +62,15 @@ function Empty({ children }: { children: ReactNode }) {
   return <p className="app-customer-muted app-customer-empty-line">{children}</p>
 }
 
+/**
+ * Termo que acha só este Cliente nas buscas de Demurrage: o CNPJ (as duas
+ * buscas comparam os dígitos). Pelo nome, "ACME" traria também "ACME LOGISTICA".
+ */
+function customerSearchTerm(data: { name: string; cnpj_cpf?: string | null }): string {
+  const digits = (data.cnpj_cpf ?? '').replace(/\D/g, '')
+  return digits.length >= 11 ? digits : data.name
+}
+
 export function FinanceiroTab({ data }: { data: Data }) {
   const dem = useCustomerDemurrageInvoices(data.id)
   const rec = useCustomerReceivables(data.id)
@@ -67,6 +79,8 @@ export function FinanceiroTab({ data }: { data: Data }) {
   const manual = useCustomerManualChargeBls(data.id)
   const agreements = useCustomerDemurrageAgreements({ customerId: data.id })
   const { data: portalRow } = usePortalProvisioningForCustomer(data.id)
+  // Acordo de Demurrage: só o Administrativo grava (policy admin_gerencia_customer_demurrage_agreements).
+  const { isAdmin } = useAuth()
 
   const [agreementModalOpen, setAgreementModalOpen] = useState(false)
   const [selectedAgreement, setSelectedAgreement] = useState<CustomerDemurrageAgreementListItem | null>(null)
@@ -113,7 +127,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
         </QueryBody>
       </Section>
 
-      <Section title="Faturas de Demurrage" count={dem.data && !restricted(dem.data.denied) ? dem.data.rows.length : undefined} links={<SectionLink to={`/demurrage?busca=${encodeURIComponent(data.name)}`}>Abrir em Demurrage</SectionLink>}>
+      <Section title="Faturas de Demurrage" count={dem.data && !restricted(dem.data.denied) ? dem.data.rows.length : undefined} links={<SectionLink to={`/demurrage?tab=faturas&busca=${encodeURIComponent(customerSearchTerm(data))}`}>Aguardando pagamento em Demurrage</SectionLink>}>
         <QueryBody query={dem} restricted={restricted(dem.data?.denied)}>
           {dem.data?.rows.length ? (
             <div className="app-table-scroll">
@@ -123,7 +137,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
                 <tbody>
                   {dem.data.rows.map((row) => (
                     <tr key={row.id}>
-                      <td className="app-customer-code">{row.doc_number}</td>
+                      <td><Link className="app-customer-link app-customer-code" to={demurrageInvoiceHref(row.id)}>{row.doc_number}</Link></td>
                       <td><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></td>
                       <td className="tabular-nums">{formatDate(row.billed_at)}</td>
                       <td>{row.status ? DEMURRAGE_STATUS_LABELS[row.status] ?? row.status : '—'}</td>
@@ -191,11 +205,13 @@ export function FinanceiroTab({ data }: { data: Data }) {
         count={agreements.data?.length || undefined}
         links={(
           <>
-            <Button variant="secondary" onClick={handleOpenNewAgreement}>
-              <Plus size={14} aria-hidden="true" />
-              Novo acordo
-            </Button>
-            <SectionLink to={`/demurrage/taxas?tab=acordos&cliente=${encodeURIComponent(data.name)}`}>Ver em Tarifas</SectionLink>
+            {isAdmin ? (
+              <Button variant="secondary" onClick={handleOpenNewAgreement}>
+                <Plus size={14} aria-hidden="true" />
+                Novo acordo
+              </Button>
+            ) : null}
+            <SectionLink to={`/demurrage/taxas?tab=acordos&cliente=${encodeURIComponent(customerSearchTerm(data))}`}>Ver em Tarifas</SectionLink>
           </>
         )}
       >
@@ -206,22 +222,25 @@ export function FinanceiroTab({ data }: { data: Data }) {
                 <li key={ag.id}>
                   <div className="app-customer-rows__main">
                     <span className="app-customer-rows__title">
-                      <strong>{ag.free_days} dias Free Time</strong>
-                      <Badge tone={ag.active ? 'success' : 'neutral'}>{ag.active ? 'Ativo' : 'Inativo'}</Badge>
+                      <strong>{ag.free_days} dias de free time</strong>
+                      <AgreementSituationBadge agreement={ag} />
                     </span>
                     <span className="app-customer-muted">
-                      P1: {ag.p1_usd != null ? formatUSD(ag.p1_usd) : 'Padrão'} · P2: {ag.p2_usd != null ? formatUSD(ag.p2_usd) : 'Padrão'} · Vigência: {formatDate(ag.valid_from)} até {ag.valid_to ? formatDate(ag.valid_to) : 'indeterminado'}
+                      {agreementRatesText(ag)} · Vigência {agreementPeriodText(ag)}
                       {ag.notes ? ` · ${ag.notes}` : ''}
                     </span>
                   </div>
-                  <Button variant="ghost" className="app-btn--sm" onClick={() => handleOpenEditAgreement(ag)} aria-label={`Editar acordo de ${ag.free_days} dias`}>
-                    <Pencil size={14} aria-hidden="true" />
-                    Editar
-                  </Button>
+                  {isAdmin ? (
+                    <Button variant="ghost" className="app-btn--sm" onClick={() => handleOpenEditAgreement(ag)} aria-label={`Editar acordo de ${ag.free_days} dias`}>
+                      <Pencil size={14} aria-hidden="true" />
+                      Editar
+                    </Button>
+                  ) : null}
                 </li>
               ))}
             </ul>
-          ) : <Empty>Nenhum acordo comercial de Demurrage cadastrado para este cliente.</Empty>}
+          ) : <Empty>Nenhum acordo de Demurrage cadastrado para este Cliente.</Empty>}
+          {!isAdmin ? <p className="app-customer-muted">Cadastrar e editar acordos é do Administrativo.</p> : null}
         </QueryBody>
       </Section>
 

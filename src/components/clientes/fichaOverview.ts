@@ -183,7 +183,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
       tone: 'warning',
       title: `${plural(input.runningDemurrage, 'container com Demurrage correndo', 'containers com Demurrage correndo')}`,
       detail: 'Descarregados, sem devolução e fora do free time.',
-      actions: [{ label: 'Abrir em Demurrage', to: `/demurrage?busca=${encodeURIComponent(input.customerName)}` }],
+      actions: [{ label: 'Abrir em Demurrage', to: `/demurrage?lente=atraso&busca=${encodeURIComponent(input.customerName)}` }],
     })
   }
 
