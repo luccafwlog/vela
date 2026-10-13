@@ -53,10 +53,14 @@ as sete seções e oito colunas dos módulos. As rotas de `AppInterno` e
 `RASTREABILIDADE.md`; o gate também rejeita caminhos listados nesses mapas que
 já não resolvem no roteador. Normaliza query strings de abas e parâmetros de
 rota; entradas explicitamente marcadas como “sem rota própria” são notas de
-fallback, não rotas ativas. Documentos em `archive/` ficam fora do gate.
+fallback, não rotas ativas. Pela ADR 0081, também confere que a linha
+`Status:` de cada ADR concorda com o índice, que ADR estendida ou supersedida
+abre com a faixa "Situação atual" e que documento com data no nome só fica
+fora de `docs/archive/` quando é plano ou spec vivo. Documentos em `archive/`
+ficam fora do gate.
 Requer `npm ci --legacy-peer-deps`.
-Testes do gate: `node scripts/check-docs.test.mjs` e
-`node scripts/lib/docs-routes.test.mjs`.
+Testes do gate: `node scripts/check-docs.test.mjs`,
+`node scripts/lib/docs-routes.test.mjs` e `node scripts/lib/docs-adr.test.mjs`.
 
 **Quando usar:** depois de mexer em textos, rotas, ADRs ou playbooks (o próprio
 projeto pede isso no `AGENTS.md`).

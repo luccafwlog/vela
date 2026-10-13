@@ -7,6 +7,13 @@ import {
   extractDocRoutes,
   extractDocumentedRoutes,
 } from './lib/docs-routes.mjs'
+import {
+  adrFileStatus,
+  adrNeedsBanner,
+  hasSituationBanner,
+  isDatedLivingDocument,
+  parseAdrIndex,
+} from './lib/docs-adr.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 // 'archive': snapshots históricos não são verdade atual (AGENTS.md); seus
@@ -89,10 +96,34 @@ if (fs.existsSync(adrIndexPath)) {
     .filter((name) => /^\d{4}-.+\.md$/i.test(name))
     .sort()
 
+  const indexedStatuses = parseAdrIndex(adrIndex)
   for (const adrFile of adrFiles) {
     if (!adrIndex.includes(adrFile)) {
       addError('docs/adr/README.md', `ADR is not indexed: ${adrFile}`)
     }
+    // ADR 0081: a linha Status da ADR concorda com o índice e toda ADR
+    // estendida ou supersedida abre com a faixa "Situação atual".
+    const adrPath = `docs/adr/${adrFile}`
+    const adrContent = fs.readFileSync(path.join(adrDirectory, adrFile), 'utf8')
+    const status = adrFileStatus(adrContent)
+    if (!status) {
+      addError(adrPath, 'ADR has no recognizable "Status:" line')
+      continue
+    }
+    const indexed = indexedStatuses.get(adrFile.slice(0, 4))
+    if (indexed !== undefined && indexed !== status) {
+      addError(adrPath, `ADR status "${status}" differs from the index ("${indexed}")`)
+    }
+    if (adrNeedsBanner(status) && !hasSituationBanner(adrContent)) {
+      addError(adrPath, `ADR with status "${status}" needs a "> **Situação atual (AAAA-MM-DD).**" banner`)
+    }
+  }
+}
+
+for (const file of markdownFiles) {
+  const relativePath = relative(file)
+  if (isDatedLivingDocument(relativePath)) {
+    addError(relativePath, 'dated document must live in docs/archive/ (only live plans and specs keep dates outside it)')
   }
 }
 
@@ -106,6 +137,7 @@ const moduleDocuments = [
   'docs/modules/faturamento.md',
   'docs/modules/demurrage.md',
   'docs/modules/reconciliacao-pix.md',
+  'docs/modules/desbloqueio-ce.md',
   'docs/modules/portal-cliente.md',
   'docs/modules/operacao-suporte.md',
 ]
