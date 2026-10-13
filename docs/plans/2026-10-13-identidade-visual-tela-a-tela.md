@@ -84,14 +84,14 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     `pod_schedule_snapshot` (cópia interna da situação das escalas, que
     repete o "CE atualizado" do mesmo instante) sai, e campo da viagem sem
     rótulo em `TIMELINE_VOYAGE_FIELD_LABELS` (`src/services/voyageSummaries.ts`)
-    nunca mostra o nome técnico nem o valor bruto. Em aberto: a recusa da
-    próxima ação vale só para a Viagem ou também para a ficha do B/L (já
-    entregue com `NextAction`) e a ficha do Cliente?
+    nunca mostra o nome técnico nem o valor bruto. A ficha do B/L mantém a sua.
   - **Ficha do Cliente:** sem faixa de próxima ação, como na Viagem; a
     pendência fica no bloco do assunto (Portal sem conta no bloco Portal, com
     o motivo e os dois caminhos como botões). Na Atividade recente, só o
-    identificador é link, sem sublinhado. Em aberto: com mais de uma
-    pendência, cada uma no bloco do seu assunto?
+    identificador é link, sem sublinhado. Com mais de uma pendência, cada
+    uma fica no bloco do seu assunto (Portal no bloco Portal, Demurrage no
+    bloco Saldo pendente). A ficha do B/L mantém a faixa de próxima ação
+    (`NextAction`); a recusa vale só para a Viagem e o Cliente.
   - **Taxas Locais:** "Aguardando envio automático" e fatura cancelada em
     cinza?
   - **Faturas do Portal:** o que escrever no lugar do vencimento, que a taxa
