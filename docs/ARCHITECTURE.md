@@ -425,15 +425,22 @@ Invoices são componentes React preparados para impressão. Cabeçalho, título,
 cliente e rodapé compartilhados vivem em
 `src/components/shared/InvoiceDocumentKit.tsx`; a paleta e os estilos de tabela
 (navy `#1A2744` no cabeçalho, zebra clara, barra de total âmbar `#F59E0B`,
-faixa clara de agrupamento) vivem em `src/components/shared/invoiceFormat.ts`;
-regras de impressão vivem em `src/index.css`. A geração do arquivo é feita pelo
-diálogo de impressão do navegador via `window.print()`.
+faixa clara de agrupamento) vivem em `src/components/shared/invoiceFormat.ts`.
+Os estilos são inline porque o detalhe do Vela imprime por
+`src/lib/printDocument.ts`, que clona o documento numa janela sem o CSS do app;
+Portal, ADR e relatório por Cliente
+usam `window.print()` com as regras `@media print` de `src/index.css`, que
+deixam no papel só o modal com o documento. As duas folhas são A4 com margem
+vertical na página e "Página N de M" no rodapé. A geração do arquivo é feita
+pelo diálogo de impressão do navegador.
 
 A fatura de taxas locais é o modelo visual dos documentos imprimíveis: a
 fatura/recibo de Demurrage e o impresso do Agency Departure Report
 (`src/components/voyages/AgencyReportDocument.tsx`) consomem os mesmos tokens —
 Arial 13px sobre branco, mesmos cabeçalhos, barras e rodapé. Documento novo
-reusa o kit em vez de criar CSS próprio.
+reusa o kit em vez de criar CSS próprio. A identidade visual dos documentos
+(barras âmbar, cabeçalho azul-marinho, título centralizado com filete) é
+decisão do responsável de 2026-10-13 e não muda sem nova decisão.
 
 ## Programação de navios
 

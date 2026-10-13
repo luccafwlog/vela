@@ -598,7 +598,7 @@ export function AgencyReportDocument({
         docNumber={`ADR · ${header.port ?? "—"}${header.terminalCode ? ` · ${header.terminalCode}` : ''}`}
         numberPrefix=""
       />
-      <InvoiceDocTitle uppercase>Agency Departure Report</InvoiceDocTitle>
+      <InvoiceDocTitle>Agency Departure Report</InvoiceDocTitle>
       {/* Fatos da escala no bloco de metadados da fatura (labelCell/cell),
           dois pares por linha para caber o mesmo conteúdo do antigo grid. */}
       <table

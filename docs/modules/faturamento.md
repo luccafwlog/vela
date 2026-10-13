@@ -332,9 +332,18 @@ filtra, ordena, pagina, exporta e abre o detalhe para estorno.
 
 `src/components/billing/InvoiceDocumentLocal.tsx` usa
 `src/components/shared/InvoiceDocumentKit.tsx` e
-`src/components/shared/invoiceFormat.ts`. `InvoiceDetailModal` abre uma área de
-impressão e chama `window.print()`; o nome sugerido é calculado por
-`buildInvoiceFileBaseName`. Não existe geração de PDF por biblioteca.
+`src/components/shared/invoiceFormat.ts`. `InvoiceDetailModal` mostra o
+documento no próprio diálogo e imprime por `printDocumentElement`
+(`src/lib/printDocument.ts`); o Portal usa `window.print()`. O nome sugerido é
+calculado por `buildInvoiceFileBaseName`. Não existe geração de PDF por
+biblioteca.
+
+Desde a etapa 13 da revisão visual (2026-10-13), sem mudar o visual: valores
+em R$ não quebram linha, a folha tem margem e "Página N de M" em todas as
+páginas, e o recibo da individual coberta diz "Recebido pela consolidada
+… (atribuído a estes B/Ls)" e "Valor líquido atribuído", em vez de "Valor
+recebido". A nota interna da emissão pelo CE ("Sistema — CE Mercante") não é
+impressa; Pix só em fatura pagável e nunca no recibo.
 
 ## Catálogo de ações
 
@@ -358,7 +367,7 @@ impressão e chama `window.print()`; o nome sugerido é calculado por
 | Detalhe · Resolver alerta com justificativa | Fatura desatualizada tratada; admin; motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo vazio e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts` |
 | Detalhe · cancelar invoice | Admin; invoice sem pagamentos | `handleCancelInvoice` | `useCancelInvoice` → `cancelInvoice` | RPC protegida `cancel_invoice` (executa como `SECURITY DEFINER` após validar sessão ativa e papel admin) → invoice, batch, B/Ls e auditoria; implementação mais recente também preserva regras de Granito | Invalida invoices, detalhe, billing-ready, B/Ls e clientes | Pagamentos bloqueiam cancelamento; tabelas internas não são expostas diretamente; falha cria alerta/evento best-effort | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts`, `supabase/migrations_archive/064_fix_granite_invoice_cancel_reissue.sql`, `supabase/migrations_archive/142_secure_cancel_invoice_wrapper.sql` |
 | Detalhe · confirmar devolução | Refund pendente; Financeiro/Administrativo; comprovante, favorecido e data | `handleSettleRefund` com conferência | `useSettleInvoiceRefund` → `settleInvoiceRefund` | RPC `confirm_invoice_refund` (136), com evidência/auditoria | Invalidação financeira comum, inclusive Portal e Demurrage | Sem permissão, evidência ou lastro é rejeitado; repetição idêntica é idempotente | **Código:** `src/services/billingLedger.ts` · **Teste local:** `invoicePostBillingSafety.local-pg.test.ts` · **Migration 136:** [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md) |
-| Detalhe · imprimir invoice | Detalhe carregado | `handlePrintInvoice` | Abre `InvoiceDocumentLocal`; `window.print()` | Sem persistência; documento usa snapshot/detalhe e `pix_payload` | Sem invalidação | Sem detalhe, ação não abre; falha de impressão é do navegador | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/components/billing/InvoiceDocumentLocal.tsx`, `src/index.css` · **Teste:** `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx` |
+| Detalhe · imprimir fatura ou recibo | Detalhe carregado; recibo para paga, coberta ou cancelada com pagamento | **Imprimir fatura** / **Imprimir recibo** no detalhe | Mostra `InvoiceDocumentLocal` no diálogo; **Imprimir** chama `printDocumentElement` (`src/lib/printDocument.ts`) | Sem persistência; documento usa o snapshot da emissão, `financial_summary` e `pix_payload` | Sem invalidação | Popup bloqueado cai em `window.print()` da página; falha de impressão é do navegador | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/components/billing/InvoiceDocumentLocal.tsx`, `src/lib/printDocument.ts`, `src/index.css` · **Teste:** `InvoiceDetailPrint.test.tsx`, `InvoiceDocumentLocal.behavior.test.tsx`, `InvoicePrintCssContract.test.ts`, `src/lib/__tests__/printDocument.test.ts` |
 | Histórico de reconciliação · filtrar/exportar/abrir detalhe | Superfície `/reconciliacao` | `ReconciliationHistoryTable` | `listReconciliationHistory`, `exportReconciliationHistoryExcel` | Leituras de invoices/payments/links e Demurrage; export XLSX local | Query `['reconciliation-history', filters]` | Erros de leitura aparecem na tabela; export reaplica filtros | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/components/billing/__tests__/ReconciliationHistoryTable.behavior.test.tsx` |
 
 ## Estado e dados

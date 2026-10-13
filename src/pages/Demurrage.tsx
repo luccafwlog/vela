@@ -28,6 +28,7 @@ import { InvoiceDocument, type DemurrageInvoiceDocumentDetail } from '../compone
 import { PaymentModal, type PaymentTarget } from '../components/demurrage/PaymentModal'
 import { PtaxModal } from '../components/demurrage/PtaxModal'
 import { useFinancialRefunds } from '../hooks/useFinancialRefunds'
+import { useDemurrageComplementOf } from '../hooks/useDemurrageComplementOf'
 import { useAuth } from '../hooks/useAuth'
 import { afterDatasContainerAlteradas, afterFaturaDemurrageAlterada } from '../services/cacheEffects'
 import { listDemurrageContainers, updateContainerDates, type DemurrageContainerRow } from '../services/demurrage/demurrageContainers'
@@ -399,6 +400,7 @@ export function Demurrage() {
   }
 
   const documentDetail = documentQuery.data
+  const complementOf = useDemurrageComplementOf(documentDetail?.invoice)
   const panelId = 'demurrage-panel'
 
   return (
@@ -610,7 +612,7 @@ export function Demurrage() {
           ) : null}
           {documentDetail ? (
             <div className="invoice-print-content">
-              <InvoiceDocument detail={{ ...documentDetail.invoice, items: documentDetail.items, refund_summary: receiptRefunds.data } satisfies DemurrageInvoiceDocumentDetail} type={document.type} />
+              <InvoiceDocument detail={{ ...documentDetail.invoice, items: documentDetail.items, refund_summary: receiptRefunds.data, complement_of: complementOf } satisfies DemurrageInvoiceDocumentDetail} type={document.type} />
             </div>
           ) : null}
         </Modal>

@@ -92,9 +92,9 @@ export const dataTable: React.CSSProperties = { width: '100%', borderCollapse: '
 export const dataHeadRow: React.CSSProperties = { background: DOC_NAVY, color: 'white' }
 export const dataHeadCell: React.CSSProperties = { padding: '9px 7px', textAlign: 'left', fontWeight: 600 }
 export const dataCell: React.CSSProperties = { padding: '8px 7px', textAlign: 'left', fontWeight: 400 }
-export const dataNumberCell: React.CSSProperties = { ...dataCell, textAlign: 'right' }
+export const dataNumberCell: React.CSSProperties = { ...dataCell, textAlign: 'right', whiteSpace: 'nowrap' }
 export const dataTotalRow: React.CSSProperties = { background: DOC_ACCENT, fontWeight: 700 }
-export const dataTotalCell: React.CSSProperties = { padding: '9px 12px', textAlign: 'right', fontWeight: 700 }
+export const dataTotalCell: React.CSSProperties = { padding: '9px 12px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }
 
 export function zebraRow(index: number): React.CSSProperties {
   return { background: index % 2 === 0 ? DOC_ZEBRA : 'white', borderBottom: `1px solid ${DOC_ROW_RULE}` }

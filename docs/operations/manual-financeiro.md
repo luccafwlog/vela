@@ -129,6 +129,7 @@ O documento original continua em R$ 600. O recibo distingue recebido, abatido, d
 | Recibo local de fatura corrigida/restituída | Conferir bruto recebido, abatimento, devolvido, pendente e líquido. Pendência ainda não reduz o líquido recebido |
 | Recibo de individual Coberta | Usar data e valores atribuídos aos B/Ls do documento; referência identifica a consolidada que recebeu |
 | Recibo de Demurrage | Aguardar consulta das restituições antes de imprimir; conferir bruto, pendente, devolvido e líquido |
+| Fatura já paga, cancelada ou coberta impressa de novo | O documento não traz QR Pix; para comprovar pagamento, envie o recibo. Invoice de Demurrage complementar diz de qual Invoice completa e que cobra só as caixas ainda não cobradas |
 | Documento cancelado após devolução | Recibo registra o histórico do recebimento/devolução; não apresenta dinheiro devolvido como valor líquido retido |
 | Baixa cancelada depois de emitir recibo | Registrar no atendimento que o recibo anterior ficou obsoleto; emitir documentação correta após conferir o caso |
 

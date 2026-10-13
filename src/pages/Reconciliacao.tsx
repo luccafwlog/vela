@@ -20,6 +20,7 @@ import { DemurragePaymentReversalModal } from '../components/demurrage/Demurrage
 import { InvoiceDocument as DemurrageInvoiceDoc, type DemurrageInvoiceDocumentDetail } from '../components/demurrage/InvoiceDocument'
 import { useAuth } from '../hooks/useAuth'
 import { useFinancialRefunds } from '../hooks/useFinancialRefunds'
+import { useDemurrageComplementOf } from '../hooks/useDemurrageComplementOf'
 import { extractErrorText } from '../lib/errors'
 import { printDocumentElement } from '../lib/printDocument'
 import { afterFaturaDemurrageAlterada } from '../services/cacheEffects'
@@ -120,6 +121,7 @@ function ReconciliacaoContent() {
     enabled: document != null,
   })
   const documentDetail = documentQuery.data
+  const complementOf = useDemurrageComplementOf(documentDetail?.invoice)
   const documentTitle = document?.type === 'receipt' ? 'Recibo de Demurrage' : 'Fatura de Demurrage'
   const refundsPending = document?.type === 'receipt' && !receiptRefunds.data
 
@@ -221,7 +223,7 @@ function ReconciliacaoContent() {
           {documentDetail ? (
             <div className="invoice-print-content">
               <DemurrageInvoiceDoc
-                detail={{ ...documentDetail.invoice, items: documentDetail.items, refund_summary: receiptRefunds.data } satisfies DemurrageInvoiceDocumentDetail}
+                detail={{ ...documentDetail.invoice, items: documentDetail.items, refund_summary: receiptRefunds.data, complement_of: complementOf } satisfies DemurrageInvoiceDocumentDetail}
                 type={document.type}
               />
             </div>
