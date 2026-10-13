@@ -14819,11 +14819,17 @@ tr[data-inactive] .app-rates-item__value {
   line-height: 20px;
 }
 
+/* Identificador que abre o registro (regra 9): só a cor diferente; o
+   sublinhado aparece ao passar o mouse ou com o foco do teclado. */
 .app-identity a {
-  color: #ffffff;
-  text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.5);
+  color: #a9cdf7;
+  text-decoration: none;
   text-underline-offset: 3px;
+}
+
+.app-identity a:hover,
+.app-identity a:focus-visible {
+  text-decoration: underline;
 }
 
 .app-identity__actions {

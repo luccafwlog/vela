@@ -32,7 +32,7 @@ porque os assuntos não estavam separados e o que importa não se destacava.
 | 6 | **Tabela padrão** | Tabela com a classe `app-table--padrao`: títulos dos grupos, cabeçalhos e células centralizados, números inclusive. Texto longo que pode passar do limite da coluna (nome do Cliente ou do consignatário, descrição) fica à esquerda com `.app-table__text`, para o começo do valor aparecer; o que não cabe vira "…". Colunas do mesmo grupo ficam sob uma faixa própria (`th.app-table__group`) com o título centralizado e um traço embaixo; não há linha vertical entre colunas. O grupo que decide vem primeiro. |
 | 7 | **Estrutura azul-marinho, fundo neutro** | Barra, cabeçalho de tabela, faixa de identidade e aba ativa em azul-marinho; fundo cinza liso, sem textura. No Vela, dourado só no marcador e nas contagens da navegação. |
 | 8 | **Uma família de letra** | DM Sans em tudo; IBM Plex Mono para códigos que confundem O com 0 (container, CE, lacre, TXID, código Pix). Syne só no nome "Vela". |
-| 9 | **Ação tem cara de botão** | Tudo o que faz algo, ou leva a resolver algo, é `Button`, com borda ou preenchimento; pode ter cor, mas nunca é só texto colorido. Texto sublinhado fica para o identificador que abre o próprio registro (número do B/L, nome do Cliente, navio) e para o caminho de navegação (breadcrumb). |
+| 9 | **Ação tem cara de botão** | Tudo o que faz algo, ou leva a resolver algo, é `Button`, com borda ou preenchimento; pode ter cor, mas nunca é só texto colorido. O identificador que abre o próprio registro (número do B/L, nome do Cliente, navio) e o caminho de navegação (breadcrumb) são texto na cor de link, sem sublinhado; o sublinhado aparece só ao passar o mouse ou com o foco do teclado. |
 
 ## Peças comuns
 

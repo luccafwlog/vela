@@ -93,3 +93,13 @@ esquerda, para o começo do valor aparecer. Os grupos de colunas são marcados
 pelo título centralizado com um traço embaixo, sem linha vertical entre
 colunas. A regra 6 em [identidade-visual.md](../identidade-visual.md) foi
 reescrita; as tabelas passam ao padrão tela a tela.
+
+## Nota de 2026-10-13: identificador sem sublinhado
+
+O responsável não quer números e nomes sublinhados só por abrirem o próprio
+registro. Na regra 9, o identificador (número do B/L, nome do Cliente, navio)
+e o caminho de navegação ficam só na cor de link, sem sublinhado; o
+sublinhado aparece ao passar o mouse ou com o foco do teclado. A faixa de
+identidade foi ajustada; as famílias de página que ainda sublinham links em
+repouso (`app-invoices__number`, `app-dem-link`, `app-pix-link` e outras)
+mudam quando a tela dona migrar.
