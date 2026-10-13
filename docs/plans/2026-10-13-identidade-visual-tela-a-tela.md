@@ -31,12 +31,25 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     "Revisão pendente" sob o número do B/L; B/L sem Cliente mostra, na coluna
     Cliente, o nome declarado no manifesto em cinza e "Sem cliente vinculado"
     (regra 5; "falta vincular" foi recusado por sugerir Cliente já cadastrado).
-    O cartão passa a "Taxas a calcular" (taxa não calculada ou com cálculo
-    travado). Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
-    Faturamento, Taxas locais e Perfil de carga em "Mais filtros". Em aberto:
-    renomear a etiqueta "Revisão" (`review_required`) da coluna Taxas locais
-    para "Cálculo travado". Ao implementar, a regra 3 passa a dizer
-    que os cartões aparecem quando a tela precisa deles.
+    A coluna Taxas locais mostra só dois estados: **Pendente** (qualquer
+    impeditivo à emissão da fatura de Taxas Locais ao Cliente; o motivo se
+    trata na Revisão manual) e **Emitida** (a fatura foi emitida). Os
+    estados técnicos do cálculo (não calculado, revisão, calculado, pronto
+    para faturar) não aparecem na lista; o cartão volta a "Taxas pendentes"
+    e conta os Pendentes. Em aberto: como aparece o B/L isento, que nunca
+    terá fatura. Filtros sempre abertos: Busca, Viagem, POL e POD; Revisão,
+    Faturamento, Taxas locais e Perfil de carga em "Mais filtros". Ao
+    implementar, a regra 3 passa a dizer que os cartões aparecem quando a
+    tela precisa deles.
+  - **Regra de negócio, fora da mudança visual** (achado de 2026-10-13, por
+    leitura do código): o cálculo das Taxas Locais roda sozinho e não depende
+    do Cliente. Um B/L só fica "não calculado" se o cálculo falhar na
+    importação e a nova tentativa também falhar, ou se a tabela encontrada
+    não tiver cobrança que se aplique a ele; nesse segundo caso o resultado
+    é zero cobranças sem aviso, e o bloqueio da fatura diz "Nenhuma tabela",
+    o que está errado. Os B/Ls de teste COSU6401234505, 509 e 510 estão
+    "não calculado" só porque `scripts/design-audit/seed_audit.sql` os cria
+    assim.
   - **Ficha da Viagem:** qual é a próxima ação da viagem (proposta: Manifestos
     Mercante a informar; alternativa: escala sem ETA) e qual vem primeiro
     quando houver mais de uma? Manter por ora o texto técnico do evento
