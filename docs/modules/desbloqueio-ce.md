@@ -128,9 +128,9 @@ As ações `sent` e `confirm` foram removidas; confirmações externas antigas p
 como histórico do desk.
 
 Comandos CE do mesmo Cliente se serializam pela trava `FOR NO KEY UPDATE` na linha do
-Cliente (`220`; antes `FOR UPDATE`, que entrava em deadlock com o estorno de baixa,
+Cliente (`220`; antes `FOR UPDATE`, que entrava em deadlock com o cancelamento de baixa,
 cujo aviso no Portal pede `FOR KEY SHARE` no Cliente). Envio e exportação travam os
-recebíveis do B/L e revalidam a liquidação depois de esperar uma baixa ou estorno em
+recebíveis do B/L e revalidam a liquidação depois de esperar uma baixa ou um cancelamento de baixa em
 curso: B/L que perdeu a liquidação é recusado. Fatura consolidada parcialmente paga
 libera só o B/L cujo recebível foi liquidado, nunca pelo status da fatura.
 

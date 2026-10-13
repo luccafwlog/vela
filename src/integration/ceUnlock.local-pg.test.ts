@@ -47,10 +47,10 @@ function reviewScenario(query: string) {
     ${query}
     ROLLBACK;`)
 }
-// Emitir fatura e estornar baixa exigem conta do Portal pronta (gate de faturamento).
+// Emitir fatura e cancelar baixa exigem conta do Portal pronta (gate de faturamento).
 const portalReady = `UPDATE public.customer_portal_accounts SET contact_email='ce-a@example.test',portal_email='ce-a@example.test',login_cnpj='00000000557001',
   provisioning_decision='aprovado_para_provisionar',recovery_email='ce-a@example.test',recovery_email_source='informado_manualmente',recovery_email_status='ok' WHERE customer_id=998557;`
-// Fixture do estorno concorrente: B/L com fatura individual aberta, sem baixa.
+// Fixture do cancelamento de baixa concorrente: B/L com fatura individual aberta, sem baixa.
 const reversalBl = 'CE557-REV'
 const reversalId = 998863
 const dropReversalFixture = `SET session_replication_role=replica;
@@ -580,7 +580,7 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       'CE557-CONS1:true:true,CE557-CONS2:true:true',
     ])
   })
-  it('envio do pedido aguarda estorno concorrente da baixa e recusa o B/L que perdeu a liquidação', async () => {
+  it('envio do pedido aguarda cancelamento concorrente da baixa e recusa o B/L que perdeu a liquidação', async () => {
     sql(`SET session_replication_role=replica;
       INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('${reversalBl}',998557,998557,'123456789018503');
       INSERT INTO public.bl_receivables(id,bl_id,customer_id,source,original_amount_brl,settled_amount_brl,balance_brl,status,voyage_id) VALUES(${reversalId},'${reversalBl}',998557,'local_charges',100,0,100,'open',998557);
@@ -590,13 +590,13 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       ${portalReady}
       SET session_replication_role=origin;`)
     try {
-      // Baixa e estorno pelos comandos reais do financeiro, não por alteração direta do recebível.
+      // Baixa e cancelamento da baixa pelos comandos reais do financeiro, não por alteração direta do recebível.
       const payment = JSON.parse(sql(`SELECT public.register_ledger_invoice_payment(${reversalId},100,'ted',now(),NULL,'manual','Baixa do teste CE',NULL);`, admin))
       const draft = command('draft', { bl_ids: [reversalBl], request_key: crypto.randomUUID() }, client)
       sql(`INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by) VALUES
         (998557,'${draft.id}','termo','request','uploaded','rev-term.pdf','reversal/term-${draft.id}',10,'hash','${client}'),
         (998557,'${draft.id}','procuracao','request','uploaded','rev-proc.pdf','reversal/proc-${draft.id}',10,'hash','${client}');`)
-      const worker = await heldTransaction(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}'; SELECT public.reverse_invoice_payment(${payment.payment_id},'Estorno concorrente ao envio',NULL); SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
+      const worker = await heldTransaction(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}'; SELECT public.reverse_invoice_payment(${payment.payment_id},'Cancelamento de baixa concorrente ao envio',NULL); SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
       try { expect(() => command('submit', { request_id: draft.id, expected_version: draft.version, request_key: crypto.randomUUID() }, client)).toThrow(`B/L ${reversalBl} perdeu elegibilidade`) }
       finally { await worker.done }
       expect(sql(`SELECT state FROM public.ce_unlock_requests WHERE id='${draft.id}';`)).toBe('draft')

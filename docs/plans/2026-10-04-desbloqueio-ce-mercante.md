@@ -35,9 +35,9 @@ fluxo completo com clientes A/B. As demais pendências `[ ]` sem
 **[bloqueia ativação]** podem ser aceitas como dívida registrada no aceite.
 
 **Estado conferido em 2026-10-13:** demonstradas no Postgres local as matrizes
-de fatura consolidada parcialmente paga e de estorno de baixa concorrente ao
+de fatura consolidada parcialmente paga e de cancelamento de baixa concorrente ao
 envio (Tarefa 2), ambas pelos comandos reais do financeiro. O segundo teste
-achou deadlock entre estorno e envio, corrigido pela migration `220` (trava do
+achou deadlock entre cancelamento de baixa e envio, corrigido pela migration `220` (trava do
 Cliente em `FOR NO KEY UPDATE`); a `220` ainda não está em produção. Das provas
 que protegem dinheiro e dados, resta o acesso de outro CNPJ no serviço real
 (Tarefa 3). Na leitura de produção do mesmo dia, os sites publicados e o backend
@@ -60,7 +60,7 @@ mais `160`–`161` do fluxo revisado de 2026-10-07; `137`–`138` pertencem à
 Central de Informações. Tipos gerados preservados. A `173` (modelo DOCX) e, da
 PR 929, a `177` (unicidade do CE e conciliação ZPT pela chave do CE) e as `181`
 e `195` (alerta de troca de CE com Desbloqueio conferido) também afetam o
-Desbloqueio, assim como a `220` (trava do Cliente sem deadlock com o estorno de baixa).
+Desbloqueio, assim como a `220` (trava do Cliente sem deadlock com o cancelamento de baixa).
 
 Fontes da reconciliação:
 
@@ -114,8 +114,8 @@ Fontes da reconciliação:
   do `setup-local-pg.sh`):** `ceUnlock.local-pg.test.ts` ganhou "fatura
   consolidada parcialmente paga libera só o B/L efetivamente liquidado"
   (`create_local_consolidated_invoice` + `register_ledger_invoice_payment`
-  parcial e depois integral) e "envio do pedido aguarda estorno concorrente da
-  baixa e recusa o B/L que perdeu a liquidação" (`reverse_invoice_payment` em
+  parcial e depois integral) e "envio do pedido aguarda cancelamento concorrente
+  da baixa e recusa o B/L que perdeu a liquidação" (`reverse_invoice_payment` em
   transação aberta enquanto o cliente envia). Sem a `220`, o segundo falhou em
   três de três rodadas com `deadlock detected`; com ela, a suíte passou (33
   testes, duas rodadas) e as 80 suítes `local-pg` do CI passaram (655 testes).
@@ -250,7 +250,7 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [ ] Completar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível e obrigação de COD.
 - [x] Demonstrar reversão financeira concorrente à exportação: a exportação espera a transação e recusa o requisito perdido. **Teste:** `ceUnlock.local-pg.test.ts` (2026-10-07, no CI), com a reversão simulada no recebível (ver "Fontes").
 - [x] Demonstrar cancelamento de baixa concorrente ao envio do pedido, pelo comando real `reverse_invoice_payment`. **Teste/Código:** `ceUnlock.local-pg.test.ts` e migration `220`, que corrigiu o deadlock achado pelo teste (2026-10-13, ver "Fontes"). Publicar a `220` em produção antes da ativação.
-- [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e o estorno de baixa concorrente à exportação pelo comando real (o teste da exportação altera o recebível diretamente).
+- [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e o cancelamento de baixa concorrente à exportação pelo comando real (o teste da exportação altera o recebível diretamente).
 - [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
 - [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
 
@@ -384,7 +384,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Conferir histórico remoto e publicar migrations CE `139`–`149` e `160`–`161` e as cinco funções. **Remoto:** leitura de produção em 2026-10-10 (ver "Fontes").
 - [x] Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. **Remoto:** em 2026-10-13 os sites, as migrations, as funções do banco e as Edge Functions do Desbloqueio correspondiam ao commit `c4a984f` da `main`, com CI verde (ver "Fontes"). Conferência de código, não de uso: o fluxo na tela é o item A/B abaixo. Refazer se um merge mudar só um dos lados. A Vercel ficou só como rollback manual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
-- [ ] **[bloqueia ativação]** Conferir a migration `220` (trava do Cliente sem deadlock com o estorno de baixa) aplicada em produção depois do merge.
+- [ ] **[bloqueia ativação]** Conferir a migration `220` (trava do Cliente sem deadlock com o cancelamento de baixa) aplicada em produção depois do merge.
 - [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes"). Em 2026-10-13 o job e a função rodavam sem erro, mas nunca houve documento elegível; falta ver um documento de teste elegível ser removido do Storage e marcado com `purged_at`.
 - [x] Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md). **Código/Remoto:** PR 929; migrations `174`–`217` em produção em 2026-10-12 (ver "Fontes").
 - [ ] **[bloqueia ativação]** Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial, exportação e confirmação com evidência externa.
