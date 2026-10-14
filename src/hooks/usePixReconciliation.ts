@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '../services/queryKeys'
 import { getItauPixMonitor, listPixReconciliationExceptions } from '../services/reconciliacao'
 
-/** Monitor das cobranças Pix Itaú (`itau_pix_monitor`, só Administrativo), relido a cada minuto. */
+/** Monitor das cobranças Pix Itaú (`itau_pix_monitor`, leitura de todos), relido a cada minuto. */
 export function useItauPixMonitor() {
   return useQuery({
     queryKey: queryKeys.reconciliation.itauPixMonitor(),

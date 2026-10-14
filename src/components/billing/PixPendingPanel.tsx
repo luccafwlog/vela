@@ -6,6 +6,7 @@ import { Field, Textarea } from '../ui/Input'
 import { ImportNotice } from '../shared/ImportParts'
 import { afterPendenciaPixAlterada, afterPixConciliado } from '../../services/cacheEffects'
 import { useItauPixMonitor, usePixExceptions } from '../../hooks/usePixReconciliation'
+import { useAuth } from '../../hooks/useAuth'
 import { extractErrorText } from '../../lib/errors'
 import { formatBRL, formatCnpjCpf } from '../../lib/utils'
 import {
@@ -110,6 +111,9 @@ function ReceiptsSection({ monitor }: { monitor: ItauPixMonitor | undefined }) {
   const noteRef = useRef<HTMLTextAreaElement>(null)
   const triggerRefs = useRef(new Map<string, HTMLButtonElement>())
   const receipts = monitor?.receipts ?? []
+  // Ler é de todos; tratar é do Financeiro e do Administrativo (ADR 0085, D5; migration 247).
+  const { can } = useAuth()
+  const canReconcile = can('settle_financial_adjustments')
 
   const formFor = form?.endToEndId ?? null
   const returnFocus = useRef<string | null>(null)
@@ -190,7 +194,7 @@ function ReceiptsSection({ monitor }: { monitor: ItauPixMonitor | undefined }) {
                       </Button>
                     </div>
                   </div>
-                ) : (
+                ) : canReconcile ? (
                   <div className="app-pix-row__side">
                     <Button
                       ref={(node) => { if (node) triggerRefs.current.set(receipt.endToEndId, node); else triggerRefs.current.delete(receipt.endToEndId) }}
@@ -200,7 +204,7 @@ function ReceiptsSection({ monitor }: { monitor: ItauPixMonitor | undefined }) {
                       Marcar como tratado…
                     </Button>
                   </div>
-                )}
+                ) : null}
               </li>
             )
           })}
@@ -263,6 +267,8 @@ type ExceptionFeedback = { id: number; tone: 'danger' | 'success'; text: string 
 
 function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof usePixExceptions>; onOpenExtract: () => void }) {
   const queryClient = useQueryClient()
+  const { can } = useAuth()
+  const canReconcile = can('settle_financial_adjustments')
   const [openId, setOpenId] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<ExceptionFeedback | null>(null)
   // Exceções com baixa gravada e encerramento recusado. A fatura já não está
@@ -410,7 +416,7 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
                     <p className={rowFeedback.tone === 'danger' ? 'app-pix-row__error' : 'app-pix-done'} role={rowFeedback.tone === 'danger' ? 'alert' : 'status'}>{rowFeedback.text}</p>
                   ) : null}
                 </div>
-                {pendingClose ? (
+                {pendingClose && canReconcile ? (
                   <div className="app-pix-row__side">
                     <Button
                       variant="secondary"
@@ -424,15 +430,17 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
                   </div>
                 ) : (
                   <div className="app-pix-row__side">
-                    <Button
-                      variant="secondary"
-                      loading={busy && retryMutation.isPending}
-                      loadingLabel="Conferindo…"
-                      disabled={busy}
-                      onClick={() => retryMutation.mutate(exception)}
-                    >
-                      Tentar de novo
-                    </Button>
+                    {canReconcile ? (
+                      <Button
+                        variant="secondary"
+                        loading={busy && retryMutation.isPending}
+                        loadingLabel="Conferindo…"
+                        disabled={busy}
+                        onClick={() => retryMutation.mutate(exception)}
+                      >
+                        Tentar de novo
+                      </Button>
+                    ) : null}
                     <Button
                       variant="ghost"
                       aria-expanded={open}
@@ -465,16 +473,18 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
                               <span className="app-pix-muted">{candidate.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais'}</span>
                               <span className="app-pix-amount">{formatBRL(candidate.amount)}</span>
                               <span className={sameAmount ? 'app-pix-muted' : 'app-pix-warning'}>{sameAmount ? 'mesmo valor do Pix' : `Pix de ${formatBRL(exception.amount)}`}</span>
-                              <Button
-                                variant="secondary"
-                                className="app-btn--sm"
-                                loading={linking}
-                                loadingLabel="Baixando…"
-                                disabled={busy}
-                                onClick={() => linkMutation.mutate({ exception, candidate })}
-                              >
-                                Baixar nesta fatura
-                              </Button>
+                              {canReconcile ? (
+                                <Button
+                                  variant="secondary"
+                                  className="app-btn--sm"
+                                  loading={linking}
+                                  loadingLabel="Baixando…"
+                                  disabled={busy}
+                                  onClick={() => linkMutation.mutate({ exception, candidate })}
+                                >
+                                  Baixar nesta fatura
+                                </Button>
+                              ) : null}
                             </li>
                           )
                         })}

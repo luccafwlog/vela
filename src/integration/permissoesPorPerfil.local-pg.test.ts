@@ -198,6 +198,15 @@ function migration231Applied(): boolean {
   }
 }
 
+function migration247Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('is_financeiro_user()' IN prosrc) > 0 FROM pg_proc WHERE proname = 'confirm_unified_pix_matches';`) === 't'
+  } catch {
+    return false
+  }
+}
+
 function migration246Applied(): boolean {
   if (!enabled) return false
   try {
@@ -208,8 +217,8 @@ function migration246Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied(),
-  'migrations 231 a 246 (escrita só pelas RPCs, autor conferido e emissão por qualquer Departamento)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied(),
+  'migrations 231 a 247 (escrita só pelas RPCs, autor conferido, emissão e financeiro por perfil)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -447,6 +456,53 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       const result = runAs(profile, call)
       expect(result.error, `${profile}: ${call}`).not.toMatch(/sem permiss|Credenciais invalidas|Sem permissão/i)
     }
+  })
+
+  // P5 — baixa, Restituição, desconto e Conciliação PIX (ADR 0085, base, D2, D4, D5; migration 247).
+  const PERMISSION_DENIED = /sem permiss|Credenciais invalidas|Somente o Administrativo/i
+  const FINANCE = new Set<Profile>(['administrativo', 'financeiro'])
+  const P5_SETTLE = [
+    `SELECT public.register_verified_invoice_payment(-1, 10, 'pix', now(), NULL, NULL, 'P5 baixa')`,
+    `SELECT public.register_invoice_payment(-1, 10, 'pix', now(), NULL, NULL)`,
+    `SELECT public.register_ledger_invoice_payment(-1, 10, 'pix', now(), NULL, 'manual', NULL, NULL, gen_random_uuid())`,
+    `SELECT public.link_pix_reconciliation_candidate(-1, 'local', -1, NULL)`,
+    `SELECT public.resolve_pix_reconciliation_exception(-1, 'P5-TXID', NULL, NULL, 'Encerrada no teste P5')`,
+    `SELECT public.upsert_pix_reconciliation_exceptions('p5-extrato', '[]'::jsonb)`,
+    `SELECT public.itau_pix_mark_receipt_handled('P5-E2E-NAO-EXISTE', 'Tratado no teste P5 por perfil')`,
+    `SELECT public.reconcile_invoice_payment_by_txid('P5-TXID-NAO-EXISTE', 1, now())`,
+    `SELECT public.confirm_unified_pix_matches('[]'::jsonb)`,
+  ]
+  const P5_READ = [
+    `SELECT public.list_pix_reconciliation_exceptions(NULL)`,
+    `SELECT public.list_pix_reconciliation_candidates(-1)`,
+    `SELECT public.list_local_pix_candidates(ARRAY['P5-TXID'])`,
+    `SELECT public.list_pix_txid_candidates(ARRAY['P5-TXID'])`,
+    `SELECT public.itau_pix_monitor()`,
+  ]
+  const P5_ANY = [
+    `SELECT public.request_financial_refund('manual', -1, 10, 'Justificativa da restituição P5', 'correction', gen_random_uuid())`,
+    `SELECT public.cancel_financial_refund_authorization('manual', -1, 'Justificativa do cancelamento P5')`,
+    `SELECT public.apply_demurrage_discount(gen_random_uuid(), -1, 'percent', 10, NULL, 'Desconto P5 por perfil', NULL)`,
+  ]
+
+  it.each(ALL_PROFILES)('P5: baixa manual e conciliar PIX só para Financeiro e Administrativo (%s)', (profile) => {
+    for (const call of P5_SETTLE) {
+      const result = runAs(profile, call)
+      if (FINANCE.has(profile)) expect(result.error, `${profile}: ${call}`).not.toMatch(PERMISSION_DENIED)
+      else expect(result.error, `${profile}: ${call}`).toMatch(PERMISSION_DENIED)
+    }
+  })
+
+  it.each(ALL_PROFILES)('P5: %s lê a Conciliação, autoriza restituição e aplica desconto', (profile) => {
+    for (const call of [...P5_READ, ...P5_ANY]) {
+      expect(runAs(profile, call).error, `${profile}: ${call}`).not.toMatch(PERMISSION_DENIED)
+    }
+  })
+
+  it('P5: Pix não conciliado, Fatura desatualizada e Restituição pendente avisam o Financeiro', () => {
+    expect(psql(`SELECT string_agg(type, ',' ORDER BY type) FROM public.alert_type_catalog
+      WHERE type IN ('pix_unreconciled', 'fatura_desatualizada', 'restituicao_pendente') AND 'financeiro' = ANY(audience_departments)
+        AND 'administrativo' = ANY(audience_departments);`)).toBe('fatura_desatualizada,pix_unreconciled,restituicao_pendente')
   })
 
   it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {

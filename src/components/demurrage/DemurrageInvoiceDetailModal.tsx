@@ -28,7 +28,7 @@ import type { DemurrageInvoiceItem } from '../../types/database'
 export type DemurrageDetailInvoice = DemurrageInvoiceListItem & DemurrageInvoiceRow
 
 export type DemurrageDetailPermissions = {
-  /** Baixa manual e desconto: Financeiro ou Administrativo (`is_financeiro_user`). */
+  /** Baixa manual: Financeiro ou Administrativo (`is_financeiro_user`). O desconto é de qualquer Departamento (migration 247). */
   canSettle: boolean
   /** Cancelar Invoice e cancelar baixa: Administrativo (`is_admin`). */
   canAdmin: boolean
@@ -165,7 +165,7 @@ function DetailBody({
   const itemsTotal = items.reduce((sum, item) => sum + Number(item.subtotal_usd ?? 0), 0)
   const hasDispute = Boolean(invoice.dispute_subject || invoice.dispute_reason || invoice.dispute_notes)
   const restrictions = [
-    issued && !permissions.canSettle ? 'Registrar pagamento e desconto: Financeiro ou Administrativo.' : null,
+    issued && !permissions.canSettle ? 'Registrar pagamento: Financeiro ou Administrativo.' : null,
     (issued || paid) && !permissions.canAdmin ? (issued ? 'Cancelar a Invoice: Administrativo.' : 'Cancelar a baixa: Administrativo.') : null,
   ].filter(Boolean)
 
@@ -227,7 +227,7 @@ function DetailBody({
         {issued && permissions.canSettle ? (
           <Button onClick={() => onRegisterPayment(invoice)}><CircleDollarSign size={16} aria-hidden="true" />Registrar pagamento</Button>
         ) : null}
-        {issued && permissions.canSettle ? (
+        {issued ? (
           <Button variant="secondary" onClick={() => onDiscount(invoice)}><Percent size={16} aria-hidden="true" />{Number(invoice.discount_value ?? 0) > 0 ? 'Alterar desconto' : 'Aplicar desconto'}</Button>
         ) : null}
         {invoice.status !== 'cancelled' ? (

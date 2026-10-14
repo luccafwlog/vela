@@ -7,6 +7,7 @@ import { NoValue } from '../ui/NoValue'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice } from '../shared/ImportParts'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
+import { useAuth } from '../../hooks/useAuth'
 import { afterPendenciaPixAlterada, afterPixConciliado } from '../../services/cacheEffects'
 import { parsePixExtractFile } from '../../services/demurrage/demurrageKpis'
 import { readSpreadsheetNotices } from '../../services/importCore'
@@ -48,6 +49,8 @@ const sourceLabel = (source: 'local' | 'demurrage' | 'unmatched') => (source ===
  * confirmar o lote (tudo ou nada) e ver o resultado que o banco devolveu.
  */
 export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPending: () => void; onOpenInvoice: OpenInvoice }) {
+  const { can } = useAuth()
+  const canReconcile = can('settle_financial_adjustments')
   const queryClient = useQueryClient()
   const [file, setFile] = useState<File | null>(null)
   const [read, setRead] = useState<ReadResult | null>(null)
@@ -100,6 +103,23 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
   }
 
   const busy = readMutation.isPending || confirmMutation.isPending
+
+  // Ler o extrato já grava as exceções e confirmar baixa: conciliar é do
+  // Financeiro e do Administrativo (ADR 0085, D5; migration 247).
+  if (!canReconcile) {
+    return (
+      <div className="app-pix-panel">
+        <section className="app-pix-section" aria-labelledby="pix-extract-title">
+          <div className="app-pix-section__head">
+            <h2 id="pix-extract-title" className="app-pix-section__title">Extrato Pix do Itaú</h2>
+          </div>
+          <ImportNotice tone="info" role="status" title="Conciliar extrato é do Financeiro e do Administrativo">
+            <p>Você acompanha as pendências e o histórico de baixas; a leitura do extrato registra exceções e baixa faturas.</p>
+          </ImportNotice>
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div className="app-pix-panel">

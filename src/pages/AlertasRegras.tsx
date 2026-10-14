@@ -24,6 +24,7 @@ const DEPARTMENTS: Array<{ value: AlertRuleDepartmentFilter; label: string }> = 
   { value: 'documentacao', label: 'Documentação' },
   { value: 'equipamentos', label: 'Equipamentos' },
   { value: 'operacoes', label: 'Operações' },
+  { value: 'financeiro', label: 'Financeiro' },
   { value: 'administrativo', label: 'Administrativo' },
 ]
 

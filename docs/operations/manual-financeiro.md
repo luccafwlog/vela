@@ -10,18 +10,18 @@ Quem pode cada ação é decidido na [matriz de permissões](seguranca.md#modelo
 |---|---|---|
 | Conferir Cliente/CNPJ, CE, carga e pendências | Ficha do B/L / Revisão | Documentação autorizada |
 | Consultar documentos, saldo e recebimentos | Taxas Locais → detalhe da fatura | Equipe com leitura autorizada |
-| Acompanhar a baixa automática do Pix Itaú e tratar Pix sem baixa | Conciliação → aba Pendências | Ver: todos; tratar: Financeiro ou Administrativo (hoje ver e tratar, só Administrativo) |
-| Registrar pagamento manual local ou conciliar PIX pelo extrato (plano B) | Detalhe / Conciliação → Conciliar extrato | Financeiro ou Administrativo (hoje só Administrativo) |
+| Acompanhar a baixa automática do Pix Itaú e tratar Pix sem baixa | Conciliação → aba Pendências | Ver: todos; tratar: Financeiro ou Administrativo |
+| Registrar pagamento manual local ou conciliar PIX pelo extrato (plano B) | Detalhe / Conciliação → Conciliar extrato | Financeiro ou Administrativo |
 | Emitir avulsa | Taxas Locais → Gerar fatura avulsa | Qualquer Departamento |
 | Emitir fatura fora do automático (ficha do B/L, Validação, consolidada) e Gerar Invoice de Demurrage | Ficha do B/L / Taxas Locais / Demurrage | Qualquer Departamento |
 | Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente, Resolver fatura desatualizada | Taxas Locais / detalhe da fatura | Qualquer Departamento |
-| Autorizar restituição excepcional de avulsa/Demurrage, ou cancelar a autorização pendente | Detalhe → Restituição excepcional | Qualquer Departamento (hoje só Administrativo) |
+| Autorizar restituição excepcional de avulsa/Demurrage, ou cancelar a autorização pendente | Detalhe → Restituição excepcional | Qualquer Departamento |
 | Confirmar devolução já realizada no banco | Detalhe → Confirmar devolução | Financeiro ou Administrativo |
 | Preparar cancelamento financeiro de B/L com pagamento | Detalhe → Ajustes pela correção do B/L | Administrativo |
 | Liquidar Ajuste de COD | Taxas Locais → Ajustes de COD → Aplicar abatimento, Registrar restituição ou Vincular e concluir (confirmar em Liquidar ajuste) | Financeiro ou Administrativo |
 | Cancelar baixa, fatura ou B/L; reativar B/L | Detalhe / Conciliação / ficha do B/L | Administrativo |
 | Registrar pagamento de Demurrage | Demurrage | Financeiro ou Administrativo |
-| Aplicar desconto de Demurrage | Demurrage | Qualquer Departamento (hoje Financeiro ou Administrativo) |
+| Aplicar desconto de Demurrage | Demurrage | Qualquer Departamento |
 | Consultar e pagar documentos próprios | Portal Fwlog | Cliente autenticado |
 
 ## 2. Regras essenciais
@@ -121,7 +121,7 @@ Papéis, condições e falhas de cada ação estão no [catálogo de ações do 
 | Reativar B/L cancelado por engano | Administrativo usa Reativar e confere operação/faturamento | Faturas canceladas não são reativadas junto |
 | Apagar CE para desfazer faturamento | Não usar; corrigir o documento pelo fluxo autorizado | Com fatura emitida, apagar CE é bloqueado |
 | Restituição automática pendente | Financeiro confere origem/valor/Cliente original, devolve no banco e guarda comprovante. Em Confirmar devolução, informa referência, favorecido e data; confere e confirma | Devolução confirmada, auditada e refletida no líquido; botão não transfere dinheiro |
-| Exceção de avulsa/Demurrage | Administrativo usa Restituição excepcional: valor, finalidade e motivo. Financeiro devolve e confirma | Valor limitado ao recebido ainda disponível, descontadas autorizações/devoluções anteriores |
+| Exceção de avulsa/Demurrage | Qualquer Departamento autoriza a Restituição excepcional: valor, finalidade e motivo. Financeiro devolve e confirma | Valor limitado ao recebido ainda disponível, descontadas autorizações/devoluções anteriores |
 | Cancelamento integral de avulsa/Demurrage com pagamento | Autorizar finalidade Cancelamento com devolução integral e devolver todo recebido disponível | Fatura cancelada após confirmação integral; recebimento e valores históricos preservados |
 | Autorização excepcional errada, dinheiro ainda não devolvido | Administrativo usa Cancelar autorização e justifica; nova devolução exige nova autorização | Valor reservado liberado; histórico/motivo preservados. Ajuste automático de B/L segue sua origem e não é apagado por essa ação |
 | Devolução confirmada por engano ou para conta errada | Abrir atendimento com Administrativo/Financeiro e suporte; preservar os dois comprovantes | Confirmação não pode ser apagada/reescrita. Exige apuração e regularização assistida, sem fabricar baixa falsa |

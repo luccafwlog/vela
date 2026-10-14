@@ -129,16 +129,16 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   pix_transaction: 'Transação PIX',
 }
 
-export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'administrativo'
+export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
 export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'demurrage_invoice' | 'exchange_rate_reference'
 
 export const FINANCIAL_ALERT_EVENTS = {
-  fatura_desatualizada: { audience: ['administrativo'], unit: 'invoice' },
-  restituicao_pendente: { audience: ['administrativo'], unit: 'invoice' },
+  fatura_desatualizada: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
+  restituicao_pendente: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
   billing_calculation_blocked: { audience: ['documentacao'], unit: 'bl' },
   billing_auto_issue_failed: { audience: ['documentacao'], unit: 'bl' },
   demurrage_ptax_recalc_failed: { audience: ['documentacao'], unit: 'exchange_rate_reference' },
-  pix_unreconciled: { audience: ['administrativo', 'documentacao', 'equipamentos'], unit: 'pix_transaction' },
+  pix_unreconciled: { audience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'], unit: 'pix_transaction' },
   portal_dispute_opened: { audience: ['equipamentos'], unit: 'demurrage_invoice' },
 } as const satisfies Record<string, { audience: readonly AlertAudience[]; unit: AlertEventUnit }>
 

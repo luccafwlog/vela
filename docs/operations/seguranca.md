@@ -155,13 +155,13 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Emitir fatura fora do automático: ficha do B/L, Validação, consolidada | ✔ | ✔ | ✔ | ✔ | ✔ | `mark_bl(s)_ready_and_create_invoice`, `create_invoice_from_bls*`, `create_local_consolidated_invoice` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
 | Corrigir fatura emitida: Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente, Resolver fatura desatualizada | ✔ | ✔ | ✔ | ✔ | ✔ | `retry_pending_consolidated_reissue`, `retry_invoice_basis_changes`, `resolve_stale_invoice` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
 | Emitir fatura avulsa, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `create_manual_invoice` | ADR 0083, item 9 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
-| Registrar pagamento (baixa manual) | ✔ | ✔ | — | — | — | `register_verified_invoice_payment`, `register_invoice_payment`, `register_ledger_invoice_payment` | ADR 0085, base e D4 | correção pendente: só Administrativo (P5). A escrita direta em `payments` saiu (migration `233`) |
+| Registrar pagamento (baixa manual) | ✔ | ✔ | — | — | — | `register_verified_invoice_payment`, `register_invoice_payment`, `register_ledger_invoice_payment` | ADR 0085, base e D4 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5). A escrita direta em `payments` saiu (migration `233`). |
 | Cancelar baixa, com motivo | ✔ | — | — | — | — | `reverse_invoice_payment` (`is_admin`) | ADR 0071, item 13 | vigente |
 | Cancelar fatura, com motivo | ✔ | — | — | — | — | `cancel_invoice`, `obsolete_consolidated_invoice` (`is_admin`) | ADR 0085, base e D1; ADR 0071, item 13 | vigente: a escrita direta em `invoices` saiu (migration `233`, **Teste** local) |
 | Alterar fatura, item, pagamento ou recebível fora das RPCs | — | — | — | — | — | Sem grant de INSERT, UPDATE ou DELETE para `authenticated` em `invoices`, `invoice_items`, `payments`, `ledger_settlements`, `bl_receivables`, `invoice_counters`, `invoice_bls`, `invoice_granite_bls`, `invoice_receivable_links`, `invoice_lifecycle_events` e `billing_batches` (migration `233`) | ADR 0077; ADR 0085, falha 5 | vigente (**Teste**, Postgres local) |
-| Autorizar restituição excepcional (avulsa e Demurrage) e cancelar a autorização pendente | ✔ | ✔ | ✔ | ✔ | ✔ | `request_financial_refund`, `cancel_financial_refund_authorization` | ADR 0085, D2 | correção pendente: só Administrativo (P5) |
+| Autorizar restituição excepcional (avulsa e Demurrage) e cancelar a autorização pendente | ✔ | ✔ | ✔ | ✔ | ✔ | `request_financial_refund`, `cancel_financial_refund_authorization` | ADR 0085, D2 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
 | Registrar a Restituição: confirmar a devolução com comprovante, favorecido e data | ✔ | ✔ | — | — | — | `confirm_invoice_refund`, `confirm_demurrage_refund` (`is_financeiro_user`) | ADR 0085, base e D2; ADR 0077 | vigente |
-| Receber os alertas "Pix não conciliado", "Restituição pendente" e "Fatura desatualizada" | ✔ | ✔ | — | — | — | Audiência em `alert_type_catalog` (migrations `078`, `124` e `128`) | ADR 0085, D18 | correção pendente: o Financeiro não recebe nenhum (P5); o Pix não conciliado também vai à Documentação e a Equipamentos, que continuam |
+| Receber os alertas "Pix não conciliado", "Restituição pendente" e "Fatura desatualizada" | ✔ | ✔ | — | — | — | Audiência em `alert_type_catalog` (migrations `078`, `124` e `128`) | ADR 0085, D18 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5). O Pix não conciliado também vai à Documentação e a Equipamentos. |
 | Preparar cancelamento financeiro de B/L em fatura paga | ✔ | — | — | — | — | `prepare_bl_financial_cancellation` (`is_admin`) | ADR 0077, exceções controladas | vigente |
 | Liquidar Ajuste de COD (vincular, abatimento, restituição) | ✔ | ✔ | — | — | — | `settle_cod_adjustment` (`is_financeiro_user`) | ADR 0051, decisão 3 | vigente |
 
@@ -171,7 +171,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 |---|---|---|---|---|---|---|---|---|
 | Gerar Invoice de Demurrage e complementar | ✔ | ✔ | ✔ | ✔ | ✔ | `issue_demurrage_invoice_for_bl` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
 | Registrar pagamento de Invoice de Demurrage | ✔ | ✔ | — | — | — | `register_demurrage_payment` (`is_financeiro_user`) | ADR 0085, base e D4 | vigente |
-| Aplicar ou alterar desconto | ✔ | ✔ | ✔ | ✔ | ✔ | `apply_demurrage_discount` | ADR 0085, D4 | correção pendente: só Financeiro e Administrativo (P5) |
+| Aplicar ou alterar desconto | ✔ | ✔ | ✔ | ✔ | ✔ | `apply_demurrage_discount` | ADR 0085, D4 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
 | Cancelar Invoice e cancelar baixa de Demurrage | ✔ | — | — | — | — | `cancel_demurrage_invoice`, `reverse_demurrage_payment` (`is_admin`) | ADR 0085, base; ADR 0071, item 13 | vigente |
 | Alterar itens de Invoice emitida (dias, diária, subtotal) | — | — | — | — | — | Só as RPCs de emissão e recálculo | ADR 0077; ADR 0085 | vigente: escrita direta em `demurrage_invoice_items` revogada (migration `231`, **Teste** local) |
 | Informar PTAX | ✔ | ✔ | — | — | ✔ | `recalculate_demurrage_invoices_manual` (migration `110`) | Decisão do dono de 2026-09-29; ADR 0085 | vigente |
@@ -188,8 +188,8 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
-| Ver a fila, as exceções e o monitor Itaú | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs `list_*` da conciliação e `itau_pix_monitor` | ADR 0044; ADR 0085, D5 | correção pendente: tela e RPCs só do Administrativo (P5) |
-| Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú | ✔ | ✔ | — | — | — | `link_pix_reconciliation_candidate`, `confirm_unified_pix_matches`, `upsert`/`resolve_pix_reconciliation_exception(s)`, `reconcile_invoice_payment_by_txid`, `itau_pix_mark_receipt_handled` | ADR 0085, D5 | correção pendente: só Administrativo, salvo o ramo de Demurrage de `confirm_unified_pix_matches`, que já aceita o Financeiro (P5) |
+| Ver a fila, as exceções e o monitor Itaú | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs `list_*` da conciliação e `itau_pix_monitor` | ADR 0044; ADR 0085, D5 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
+| Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú | ✔ | ✔ | — | — | — | `link_pix_reconciliation_candidate`, `confirm_unified_pix_matches`, `upsert`/`resolve_pix_reconciliation_exception(s)`, `reconcile_invoice_payment_by_txid`, `itau_pix_mark_receipt_handled` | ADR 0085, D5 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
 
 ### Clientes, Comunicação e Portal
 
@@ -393,10 +393,10 @@ mesmas checagens de `auth.uid()`/`is_admin()` das baixas manuais continuam
 valendo. Conta inativa ou ausente faz o Pix ir para análise, sem baixa. Pix
 do sistema de terceiro e dados do pagador não são gravados.
 
-`itau_pix_monitor` (leitura) e `itau_pix_mark_receipt_handled` (encerrar Pix em
-análise com motivo) exigem hoje Admin ativo dentro da função (pela
-[matriz](#conciliação-pix), a leitura é de todos e o tratamento do Financeiro
-e do Administrativo; correção pendente P5); as tabelas Itaú
+`itau_pix_monitor` (leitura) aceita qualquer usuário interno ativo e
+`itau_pix_mark_receipt_handled` (encerrar Pix em análise com motivo), o
+Financeiro e o Administrativo, conferidos dentro da função (migration `247`;
+[matriz](#conciliação-pix)); as tabelas Itaú
 continuam sem acesso direto para `authenticated`.
 
 A evidência externa de confirmação permanece restrita ao desk também no

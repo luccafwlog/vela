@@ -160,7 +160,7 @@ em [Contratos Supabase](#contratos-supabase).
 
 | Rota / superfície | Ação | Origem | Hook / serviço | RPC / tabela / integração | Efeito e cache | Evidência | Módulo |
 |---|---|---|---|---|---|---|---|
-| `/reconciliacao?tab=extrato` | Importar o extrato, guardar as exceções, conferir o lote e confirmar (hoje Administrativo; leitura para todos e confirmação do Financeiro e do Administrativo pelo P5) | `src/pages/Reconciliacao.tsx`, `PixExtractPanel.tsx`, `pixReconciliationPresentation.ts`, `ImportFilePicker`/`ImportNotice` | `reconciliacao.ts`, `pix.ts`, `importCore.ts` (`readSpreadsheetNotices`), `afterPixConciliado` | RPCs `upsert_pix_reconciliation_exceptions`, `list_pix_txid_candidates`, `confirm_unified_pix_matches` | A leitura não baixa nada; o lote é tudo ou nada e a recusa fica na tela; o resultado aponta para Pendências | **Código**; **Teste:** `Reconciliacao.behavior.test.tsx`, `pixReconciliationPresentation.test.ts` | [Conciliação PIX](modules/reconciliacao-pix.md#matching-e-confirmação-pelo-extrato) |
+| `/reconciliacao?tab=extrato` | Importar o extrato, guardar as exceções, conferir o lote e confirmar (leitura de todos; ler o extrato e confirmar, Financeiro e Administrativo, migration `247`) | `src/pages/Reconciliacao.tsx`, `PixExtractPanel.tsx`, `pixReconciliationPresentation.ts`, `ImportFilePicker`/`ImportNotice` | `reconciliacao.ts`, `pix.ts`, `importCore.ts` (`readSpreadsheetNotices`), `afterPixConciliado` | RPCs `upsert_pix_reconciliation_exceptions`, `list_pix_txid_candidates`, `confirm_unified_pix_matches` | A leitura não baixa nada; o lote é tudo ou nada e a recusa fica na tela; o resultado aponta para Pendências | **Código**; **Teste:** `Reconciliacao.behavior.test.tsx`, `pixReconciliationPresentation.test.ts` | [Conciliação PIX](modules/reconciliacao-pix.md#matching-e-confirmação-pelo-extrato) |
 | `/reconciliacao` (aba Pendências) | Monitorar as cobranças Pix Itaú, tratar Pix recebido sem baixa e resolver exceções do extrato | `PixPendingPanel.tsx` | `usePixReconciliation.ts` (`useItauPixMonitor`, `usePixExceptions`), `reconciliacao.ts` | RPCs `itau_pix_monitor`, `itau_pix_mark_receipt_handled`, `list_pix_reconciliation_exceptions`, `list_pix_reconciliation_candidates`, `link_pix_reconciliation_candidate`, `resolve_pix_reconciliation_exception`; tabela `pix_reconciliation_exceptions` | Atualiza a cada minuto; **Tentar de novo** e **Escolher fatura** dizem na linha até onde chegaram; a baixa usa `afterPixConciliado` e a marcação de tratado usa `afterPendenciaPixAlterada` | **Código**; **Teste:** `Reconciliacao.behavior.test.tsx`, `reconciliacao.test.ts`; **Teste local-pg:** `itauPixCharges.local-pg.test.ts` | [Conciliação PIX](modules/reconciliacao-pix.md#monitoramento-das-cobranças-itaú) |
 | `/reconciliacao?tab=historico` | Consultar o histórico de baixas, exportar e cancelar baixa | `ReconciliationHistoryTable.tsx`, `reconciliacaoState.ts`; detalhe em `InvoiceDetailModal` ou `DemurrageInvoiceDetailModal` e `DemurragePaymentReversalModal` | `reconciliacao.ts` (`listReconciliationHistory`, `exportReconciliationHistoryExcel`) | RPCs `reverse_invoice_payment` e `reverse_demurrage_payment`, com justificativa | Erro de consulta não vira lista vazia; cancelar a baixa de Demurrage reemite a Invoice suspensa e é recusado com restituição ativa | **Código**; **Teste:** `ReconciliationHistoryTable.behavior.test.tsx`, `reconciliacaoState.test.ts` | [Conciliação PIX](modules/reconciliacao-pix.md#cancelar-baixa) |
 
@@ -425,7 +425,7 @@ Regra: [Faturamento](modules/faturamento.md).
 
 | Contrato | Chamador | Definição vigente | Execução | Acesso conferido | Efeito e observação |
 |---|---|---|---|---|---|
-| `cancel_financial_refund_authorization` | `financialRefunds.ts` | `136` | DEFINER · `authenticated` | Administrativo | Correção pendente (P5): qualquer Departamento, com motivo. |
+| `cancel_financial_refund_authorization` | `financialRefunds.ts` | `136`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `cancel_invoice` | `billing.ts` | `126` | DEFINER · `authenticated`, `service_role` | Administrativo ativo ou `service_role` (consumidor de efeitos) | Cancela invoice sem pagamento, com justificativa (`126`). `p_actor` conferido com a sessão (`241`). |
 | `confirm_demurrage_refund` | `financialRefunds.ts` | `136` | DEFINER · `authenticated` | Financeiro ou Administrativo | Idem para Demurrage (`136`). |
 | `confirm_invoice_refund` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | Financeiro ou Administrativo | Confirma devolução com referência bancária, favorecido e data (`136`); chamada por `settleInvoiceRefund`. |
@@ -444,11 +444,11 @@ Regra: [Faturamento](modules/faturamento.md).
 | `mark_bl_ready_and_create_invoice` | `billing.ts` | `002`, `246` | INVOKER · `authenticated` | Usuário interno ativo (P4, `246`) | **Emitir fatura** da ficha e automação da Revisão; marca pronto e cria invoice + ledger atomicamente. |
 | `mark_bls_ready_and_create_invoice` | `billing.ts` | `002`, `246` | INVOKER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
 | `prepare_bl_financial_cancellation` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | Administrativo | Cancela a cobrança de um B/L de fatura paga ou parcialmente paga, com justificativa detalhada (painel de correção do detalhe da fatura). |
-| `reconcile_invoice_payment_by_txid` | `billingLedger.ts` | `130` | DEFINER · `authenticated` | Administrativo ativo | Versão de cobrança, cadeia de reemissão e excedente como restituição (`130`). Correção pendente (P5): Financeiro e Administrativo. |
-| `register_invoice_payment` | `billing.ts` | `002`, `232` | DEFINER · `authenticated` | Administrativo ativo | Sem chamador na tela; a conciliação por TXID da avulsa a chama. `p_actor` conferido com a sessão (`241`). Correção pendente (P5). |
-| `register_ledger_invoice_payment` | `billingLedger.ts` | `070` | DEFINER · `authenticated`; DEFINER · `authenticated`, `service_role` | Administrativo ativo | Baixa sem referência bancária pelo ledger. `p_actor` conferido com a sessão (`241`). Correção pendente (P5): Financeiro e Administrativo. |
-| `register_verified_invoice_payment` | `billing.ts`; `billingLedger.ts` | `136` | DEFINER · `authenticated` | Administrativo | Baixa com referência bancária (`136`). Correção pendente (P5): Financeiro e Administrativo. |
-| `request_financial_refund` | `financialRefunds.ts` | `136` | DEFINER · `authenticated` | Administrativo | Restituição excepcional autorizada (`136`). Correção pendente (P5): qualquer Departamento autoriza. |
+| `reconcile_invoice_payment_by_txid` | `billingLedger.ts` | `130`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | Versão de cobrança, cadeia de reemissão e excedente como restituição (`130`). |
+| `register_invoice_payment` | `billing.ts` | `002`, `232`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | Sem chamador na tela; a conciliação por TXID da avulsa a chama. `p_actor` conferido com a sessão (`241`). |
+| `register_ledger_invoice_payment` | `billingLedger.ts` | `070`, `247` | DEFINER · `authenticated`; DEFINER · `authenticated`, `service_role` | Financeiro ou Administrativo ativo (P5, `247`) | Baixa sem referência bancária pelo ledger. `p_actor` conferido com a sessão (`241`). |
+| `register_verified_invoice_payment` | `billing.ts`; `billingLedger.ts` | `136`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | Baixa com referência bancária (`136`). |
+| `request_financial_refund` | `financialRefunds.ts` | `136`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | Restituição excepcional autorizada (`136`). |
 | `resolve_stale_invoice` | `billingLedger.ts` | `124`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
 | `retry_invoice_basis_changes` | `billingLedger.ts` | `136`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
 | `retry_pending_consolidated_reissue` | `billing.ts` | `128`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
@@ -462,7 +462,7 @@ Regra: [Demurrage](modules/demurrage.md).
 |---|---|---|---|---|---|
 | `add_demurrage_dispute_attachment` | `demurrage/demurrageDisputes.ts`; Edge `portal-dispute-attachment` | `106` | DEFINER · `authenticated`, `service_role` | Equipamentos ou Administrativo na própria mensagem; ou Cliente da sessão | — |
 | `add_demurrage_dispute_message` | `demurrage/demurrageDisputes.ts` | `081` | DEFINER · `authenticated` | Equipamentos ou Administrativo | Responde com `next_responder = equipamentos`; o Alerta segue de Equipamentos (`081`). |
-| `apply_demurrage_discount` | `demurrage/demurrageInvoices.ts` | `012` | DEFINER · `authenticated`, `service_role` | Financeiro ou Administrativo ou `service_role` | Correção pendente (P5): qualquer Departamento. |
+| `apply_demurrage_discount` | `demurrage/demurrageInvoices.ts` | `012`, `247` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P5, `247`) ou `service_role` | — |
 | `cancel_demurrage_invoice` | `demurrage/demurrageInvoices.ts` | `012` | DEFINER · `authenticated`, `service_role` | Administrativo ou `service_role` | — |
 | `issue_demurrage_invoice_for_bl` | `demurrage/demurrageInvoices.ts` | `214`, `246` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P4, `246`) ou `service_role` | Emissão da Invoice de Demurrage do B/L (`214`). |
 | `list_demurrage_disputes_internal` | `demurrage/demurrageDisputes.ts` | `081` | DEFINER · `authenticated` | Equipamentos ou Administrativo | Correção pendente (P12): leitura para todos. |
@@ -482,18 +482,18 @@ Regra: [Conciliação PIX](modules/reconciliacao-pix.md).
 
 | Contrato | Chamador | Definição vigente | Execução | Acesso conferido | Efeito e observação |
 |---|---|---|---|---|---|
-| `confirm_unified_pix_matches` | `reconciliacao.ts` | `002` | INVOKER · `authenticated` | RLS e guardas das funções que chama (`INVOKER`) | Lote tudo ou nada: local e Demurrage numa transação. Ganha guarda própria de Financeiro e Administrativo (P5). |
-| `itau_pix_mark_receipt_handled` | `reconciliacao.ts` | `154` | DEFINER · `authenticated` | Administrativo ativo | Encerra Pix em análise com motivo e fecha `pix_unreconciled`. Correção pendente (P5): Financeiro e Administrativo. |
-| `itau_pix_monitor` | `reconciliacao.ts` | `154` | DEFINER · `authenticated` | Administrativo ativo | Correção pendente (P5): leitura para todos. |
-| `link_pix_reconciliation_candidate` | `reconciliacao.ts` | `002` | DEFINER · `authenticated` | Administrativo ativo | Correção pendente (P5): Financeiro e Administrativo. |
-| `list_local_pix_candidates` | Sem chamador desde a `242` (o matching usa `list_pix_txid_candidates`) | `130` | DEFINER · `authenticated` | Administrativo ativo | — |
-| `list_pix_txid_candidates` | `reconciliacao.ts` | `242` | DEFINER · `authenticated` | Administrativo ativo | Resolve o TXID nas faturas abertas, inclusive avulsa e Invoice de Demurrage (`_pix_txid_open_candidates`). Correção pendente (P5): leitura para todos. |
-| `list_pix_reconciliation_candidates` | `reconciliacao.ts` | `097` | DEFINER · `authenticated` | Administrativo ativo | Correção pendente (P5): leitura para todos. |
-| `list_pix_reconciliation_exceptions` | `reconciliacao.ts` | `002` | DEFINER · `authenticated` | Administrativo ativo | Correção pendente (P5): leitura para todos. |
-| `resolve_pix_reconciliation_exception` | `reconciliacao.ts` | `002` | DEFINER · `authenticated` | Administrativo ativo | Correção pendente (P5): Financeiro e Administrativo. |
+| `confirm_unified_pix_matches` | `reconciliacao.ts` | `002`, `247` | INVOKER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) (guarda própria; `INVOKER`) | Lote tudo ou nada: local e Demurrage numa transação. Guarda própria desde a `247`. |
+| `itau_pix_mark_receipt_handled` | `reconciliacao.ts` | `154`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | Encerra Pix em análise com motivo e fecha `pix_unreconciled`. |
+| `itau_pix_monitor` | `reconciliacao.ts` | `154`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
+| `link_pix_reconciliation_candidate` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |
+| `list_local_pix_candidates` | Sem chamador desde a `242` (o matching usa `list_pix_txid_candidates`) | `130`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
+| `list_pix_txid_candidates` | `reconciliacao.ts` | `242`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | Resolve o TXID nas faturas abertas, inclusive avulsa e Invoice de Demurrage (`_pix_txid_open_candidates`). |
+| `list_pix_reconciliation_candidates` | `reconciliacao.ts` | `097`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
+| `list_pix_reconciliation_exceptions` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
+| `resolve_pix_reconciliation_exception` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |
 | `reverse_demurrage_payment` | `reconciliacao.ts` | `002` | DEFINER · `authenticated` | Administrativo ativo | Reabre a Invoice; os gatilhos da `191` reemitem a Invoice suspensa e a `136` recusa com restituição ativa. `p_actor` conferido com a sessão (`241`). |
 | `reverse_invoice_payment` | `reconciliacao.ts` | `136` | DEFINER · `authenticated` | Administrativo; ator = sessão | Cancela excedente automático pendente e recalcula a avulsa (`136`); a exclusão da baixa fica em `audit_logs` pelo gatilho `audit_payments`. |
-| `upsert_pix_reconciliation_exceptions` | `reconciliacao.ts` | `002` | DEFINER · `authenticated` | Administrativo ativo | Correção pendente (P5): Financeiro e Administrativo. |
+| `upsert_pix_reconciliation_exceptions` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |
 
 #### Alertas e notificações internas
 

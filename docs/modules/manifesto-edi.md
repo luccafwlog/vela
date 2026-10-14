@@ -667,8 +667,7 @@ CE não é cancelado: é excluído (ADR 0071).
   fatura viva, ou Invoice de Demurrage em aberto, inclusive a do grupo que
   cobra caixa deste B/L (`bl_open_financial_reasons`, migration `191`): antes,
   o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo
-  registra a baixa (na fatura local, hoje só o Administrativo; item P5 do
-  plano) ou a Restituição ([matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento),
+  registra a baixa ou a Restituição ([matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento),
   [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D1). Recebível sem
   fatura e o cálculo que o gerou são anulados no cancelamento, com registro no
   Histórico (migration `179`; ADR 0078, item 12).

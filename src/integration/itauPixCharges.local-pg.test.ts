@@ -391,7 +391,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
   })
 
   // ---- Fase 5 (migration 154): monitoramento na Conciliação PIX ----
-  it('Admin lê o monitoramento com cancelamento pendente; outro perfil não', () => {
+  it('qualquer perfil lê o monitoramento com cancelamento pendente; perfil inativo não', () => {
     setProvider('itau')
     const id = manualInvoice('ITAU153-MON', 0.06)
     activate(`invoice_id = ${id}`, '000201ITAU153')
@@ -401,11 +401,14 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     }
     expect(monitor.provider).toBe('itau')
     expect(monitor.charges).toContainEqual(expect.objectContaining({ doc_number: 'ITAU153-MON', status: 'pending_cancel' }))
+    // Ler a Conciliação é de todos (ADR 0085, D5; migration 247).
     psql(`UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${userId}'`)
     try {
+      expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/pending_cancel/)
+      psql(`UPDATE public.user_profiles SET active = false WHERE id = '${userId}'`)
       expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/Sem permissao/)
     } finally {
-      psql(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${userId}'`)
+      psql(`UPDATE public.user_profiles SET role = 'administrativo', active = true WHERE id = '${userId}'`)
     }
   })
 

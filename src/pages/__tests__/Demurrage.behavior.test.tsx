@@ -457,7 +457,9 @@ describe('Demurrage page behaviours', () => {
     const detail = await openIssuedDetail(user)
     expect(within(detail).queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
     expect(within(detail).queryByRole('button', { name: 'Cancelar Invoice…' })).toBeNull()
-    expect(within(detail).getByText(/Registrar pagamento e desconto: Financeiro ou Administrativo\./)).toBeTruthy()
+    expect(within(detail).getByText(/Registrar pagamento: Financeiro ou Administrativo\./)).toBeTruthy()
+    // Desconto é de qualquer Departamento (ADR 0085, D4; migration 247).
+    expect(within(detail).getByRole('button', { name: /Aplicar desconto|Alterar desconto/ })).toBeTruthy()
   })
 
   it('explica a Invoice tirada da Régua por datas alteradas com desconto ou disputa', async () => {
