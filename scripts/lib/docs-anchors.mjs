@@ -1,7 +1,9 @@
 // Âncoras de seção no estilo do GitHub: o gate confere que `arquivo.md#secao`
 // aponta para um título (ou `<a id>`) que existe no destino.
 
-const fencePattern = /^[ \t]*(```|~~~)[\s\S]*?^[ \t]*\1/gm
+// A cerca fecha com uma sequência do mesmo caractere de tamanho igual ou maior
+// (CommonMark): ```` envolve um exemplo com ``` dentro.
+const fencePattern = /^[ \t]*((`|~)\2{2,})[^\n]*\n[\s\S]*?^[ \t]*\1\2*[ \t]*$/gm
 
 export function stripCodeFences(markdown) {
   return markdown.replace(fencePattern, '')

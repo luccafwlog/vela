@@ -23,6 +23,8 @@ assert.deepEqual([...anchors].sort(), ['line-up', 'módulo', 'notas', 'notas-1']
 const commented = headingAnchors('## Visível\n<!--\n## Escondido\n-->\n```html\n<!-- não abre comentário\n```\n## Depois\n')
 assert.deepEqual([...commented].sort(), ['depois', 'visível'])
 assert.equal(stripNonRendered('a <!-- b --> c'), 'a  c')
+const nested = headingAnchors('````md\n```\n## Exemplo\n```\n## Também exemplo\n````\n## Real\n')
+assert.deepEqual([...nested], ['real'])
 const collided = headingAnchors('## Foo\n## Foo-1\n## Foo\n## Foo\n')
 assert.deepEqual([...collided].sort(), ['foo', 'foo-1', 'foo-2', 'foo-3'])
 assert.equal(stripCodeFences('a\n```\n## x\n```\nb').includes('## x'), false)
