@@ -44,7 +44,7 @@ flowchart LR
 | Upstash | database `vela-rate-limit` (`sa-east-1`) | — |
 | Sentry | organização com projetos `vela` e `portal` | — |
 | PostHog | região **EU** (`eu.posthog.com`) | — |
-| Better Stack | Uptime: 2 monitores e 4 heartbeats (+1 do backup, a criar) | Free (avisa a equipe inteira) |
+| Better Stack | Uptime: 2 monitores e 5 heartbeats (um deles do backup) | Free (avisa a equipe inteira) |
 | Computador do backup | usuário Windows `Lucca`, pasta `C:\Users\Lucca\Downloads\Vela` | — |
 
 Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-responsabilidade).
@@ -579,8 +579,9 @@ Variáveis: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`
 - **Heartbeats** (tabela dos [jobs](#jobs-agendados-pg_cron)): a rotina chama a
   URL a cada execução e acrescenta `/fail` quando falha. Heartbeat **Down** logo
   após cadastrar quase sempre é nome de secret errado.
-- **Heartbeat do backup** `backup-r2-diario` (a criar pelo dono): período de
-  1 dia, tolerância de 6 horas; a URL fica na variável do usuário
+- **Heartbeat do backup** `backup-r2-diario` (criado pelo dono em 2026-10-14,
+  **Pending** até a primeira chamada): período de 1 dia, tolerância de 6 horas,
+  aviso por e-mail; a URL fica na variável do usuário
   `BETTERSTACK_HEARTBEAT_BACKUP_URL` do computador do [backup](#backup)
   ([roteiro](backup-r2.md#heartbeat-do-backup)).
 - Sem escalation policy: no plano grátis o aviso vai à equipe inteira (e-mail do
@@ -602,7 +603,8 @@ para eles vale o backup do próprio Supabase.
   iniciar em `C:\Users\Lucca\Downloads\Vela`. Se o computador estiver desligado,
   roda quando ligar. **Computador parado = sem backup.** O heartbeat do
   backup no Better Stack avisa quando o dia passa sem backup
-  ([roteiro](backup-r2.md#heartbeat-do-backup); a criar pelo dono).
+  ([roteiro](backup-r2.md#heartbeat-do-backup); heartbeat criado em 2026-10-14,
+  falta a variável no computador).
 - **Programas:** Node 24, PostgreSQL 17 (só as ferramentas de linha de comando)
   e AWS CLI v2.
 - **Retenção:** regra "Expire backups after 90 days" no bucket.
