@@ -38,7 +38,9 @@ function inForce(validFrom: string | null | undefined) {
 }
 
 export function DemurrageRates() {
-  const { isAdmin } = useAuth()
+  // Criar e editar é de qualquer Departamento; ativar, desativar e excluir, do Administrativo (ADR 0085, D6; ADR 0073, item 4).
+  const { isAdmin, effectiveRole } = useAuth()
+  const canEdit = effectiveRole != null
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
@@ -162,8 +164,8 @@ export function DemurrageRates() {
       <Link className="app-fin-link app-dem-back" to="/demurrage"><ArrowLeft size={14} aria-hidden="true" />Demurrage</Link>
       <PageHeader
         title="Tarifas de Demurrage"
-        description={`Ordem de aplicação em cada container: condição do B/L, depois o acordo do Cliente vigente na data de descarga, depois a tabela padrão.${isAdmin ? '' : ' Só o Administrativo cadastra e altera tarifas e acordos.'}`}
-        action={isAdmin && tab === 'padrao' ? (
+        description={`Ordem de aplicação em cada container: condição do B/L, depois o acordo do Cliente vigente na data de descarga, depois a tabela padrão.${isAdmin ? '' : ' Ativar, desativar e excluir tarifas e acordos é do Administrativo.'}`}
+        action={canEdit && tab === 'padrao' ? (
           <Button onClick={() => openRate(null)}>
             <Plus size={16} aria-hidden="true" />
             Nova tarifa
@@ -177,7 +179,7 @@ export function DemurrageRates() {
 
       <div id="dem-rates-panel" role="tabpanel" aria-labelledby={`dem-rates-tab-${tab}`}>
         {tab === 'acordos' ? (
-          <CustomerDemurrageAgreementsTab canEdit={isAdmin} />
+          <CustomerDemurrageAgreementsTab canEdit={canEdit} canManage={isAdmin} />
         ) : (
           <QueryStateGate
             isLoading={ratesQuery.isLoading}
@@ -202,7 +204,7 @@ export function DemurrageRates() {
                         <th scope="col">P2</th>
                         <th scope="col">Vigência</th>
                         <th scope="col">Situação</th>
-                        {isAdmin ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
+                        {canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                       </tr>
                     </thead>
                     <tbody>
@@ -229,14 +231,14 @@ export function DemurrageRates() {
                           </td>
                           <td className="tabular-nums">{rateVigencia(rate)}</td>
                           <td><Badge tone={rate.active ? 'success' : 'neutral'}>{rate.active ? 'Ativa' : 'Inativa'}</Badge></td>
-                          {isAdmin ? (
+                          {canEdit ? (
                             <td className="app-dem-row-action">
                               <div className="app-dem-row-buttons">
                                 <Button variant="ghost" className="app-btn--sm" onClick={() => openRate(rate)} aria-label={`Editar tarifa ${rate.container_type}`}>
                                   <Pencil size={14} aria-hidden="true" />
                                   Editar
                                 </Button>
-                                <ActionMenu
+                                {isAdmin ? <ActionMenu
                                   label={`Mais ações da tarifa ${rate.container_type}`}
                                   triggerClassName="app-table__icon-button app-table__icon-button--sm"
                                   trigger={<MoreVertical size={16} aria-hidden="true" />}
@@ -247,7 +249,7 @@ export function DemurrageRates() {
                                       ? { key: 'delete', label: 'Excluir tarifa (já em vigor: desative)', disabled: true }
                                       : { key: 'delete', label: 'Excluir tarifa', danger: true, disabled: deleteMutation.isPending && deleteMutation.variables?.id === rate.id, onSelect: () => void handleDelete(rate) },
                                   ]}
-                                />
+                                /> : null}
                               </div>
                             </td>
                           ) : null}

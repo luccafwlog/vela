@@ -6,6 +6,7 @@ import { Field, Input, Textarea } from '../ui/Input'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useSaveCustomerDemurrageAgreement } from '../../hooks/useCustomerDemurrageAgreements'
+import { useAuth } from '../../hooks/useAuth'
 import { listOverrideCustomers } from '../../services/charges/chargeRateService'
 import { classifyDbError } from '../../lib/errors'
 import { saoPauloTodayIso } from '../../lib/dates'
@@ -28,6 +29,8 @@ function CustomerDemurrageAgreementForm({
   const { showToast } = useToast()
   const confirm = useConfirm()
   const saveMutation = useSaveCustomerDemurrageAgreement()
+  // Ativar e desativar acordo é só do Administrativo (gatilho guard_tariff_active_change, migration 091).
+  const { isAdmin } = useAuth()
 
   const fixedCustomer = initialAgreement
     ? { id: initialAgreement.customer_id, name: initialAgreement.customer?.name ?? `Cliente #${initialAgreement.customer_id}`, cnpj_cpf: initialAgreement.customer?.cnpj_cpf ?? '' }
@@ -151,10 +154,12 @@ function CustomerDemurrageAgreementForm({
           <Input type="date" value={validTo} min={validFrom || undefined} onChange={(e) => { setValidTo(e.target.value); clearError('validTo') }} />
         </Field>
       </div>
-      <label className="app-dem-check">
-        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-        <span>Acordo ativo</span>
-      </label>
+      {isAdmin ? (
+        <label className="app-dem-check">
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+          <span>Acordo ativo</span>
+        </label>
+      ) : null}
       <Field label="Observações">
         <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex.: condição do contrato anual 2026." />
       </Field>

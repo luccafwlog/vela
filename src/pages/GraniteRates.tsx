@@ -25,7 +25,9 @@ const EMPTY_FORM: Omit<GraniteRate, 'id' | 'created_at'> = {
 
 export function GraniteRates() {
   const queryClient = useQueryClient()
-  const { isAdmin } = useAuth()
+  // Criar e editar é de qualquer Departamento; ativar, desativar e excluir, do Administrativo (ADR 0085, D6; ADR 0073, item 4).
+  const { isAdmin, effectiveRole } = useAuth()
+  const canEdit = effectiveRole != null
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
@@ -150,7 +152,7 @@ export function GraniteRates() {
         title="Tabela de Taxas — Granito"
         description="Taxas aplicadas ao peso real dos B/Ls de granito."
         action={
-          isAdmin ? (
+          canEdit ? (
             <Button onClick={openNew}>
               <Plus size={16} />
               Nova taxa
@@ -173,7 +175,7 @@ export function GraniteRates() {
                 <th scope="col" className="px-4 py-3">Moeda</th>
                 <th scope="col" className="px-4 py-3">Vigência</th>
                 <th scope="col" className="px-4 py-3">Status</th>
-                {isAdmin ? <th scope="col" className="px-4 py-3">Ações</th> : null}
+                {canEdit ? <th scope="col" className="px-4 py-3">Ações</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#30363d]">
@@ -220,10 +222,10 @@ export function GraniteRates() {
                       </span>
                     )}
                   </td>
-                  {isAdmin ? (
+                  {canEdit ? (
                     <td className="px-4 py-3">
                       <button type="button" className="app-table__action mr-2" onClick={() => openEdit(rate)} aria-label={`Editar taxa ${rate.description}`}>Editar</button>
-                      <Button
+                      {isAdmin ? <Button
                         variant="danger"
                         className="app-btn--sm"
                         onClick={() => handleDelete(rate.id)}
@@ -231,7 +233,7 @@ export function GraniteRates() {
                         aria-label={`Excluir taxa ${rate.description}`}
                       >
                         Excluir
-                      </Button>
+                      </Button> : null}
                     </td>
                   ) : null}
                 </tr>
@@ -298,15 +300,17 @@ export function GraniteRates() {
             </Field>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="rate-active"
-              checked={form.active}
-              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-            />
-            <label htmlFor="rate-active" className="text-sm text-slate-300">Taxa ativa</label>
-          </div>
+          {isAdmin ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="rate-active"
+                checked={form.active}
+                onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+              />
+              <label htmlFor="rate-active" className="text-sm text-slate-300">Taxa ativa</label>
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Voltar</Button>

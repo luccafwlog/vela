@@ -227,6 +227,15 @@ function migration253Applied(): boolean {
   }
 }
 
+function migration254Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT count(*) FROM pg_policies WHERE policyname = 'demurrage_rates_update_active_global';`) === '1'
+  } catch {
+    return false
+  }
+}
+
 function migration250Applied(): boolean {
   if (!enabled) return false
   try {
@@ -255,8 +264,8 @@ function migration246Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied() && migration253Applied(),
-  'migrations 231 a 253 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied() && migration253Applied() && migration254Applied(),
+  'migrations 231 a 254 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -608,6 +617,29 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       const result = runAs(profile, `SELECT public.internal_save_portal_information('${kind}', '{}'::jsonb)`)
       expect(result.ok, `${profile}: ${kind}`).toBe(false)
       expect(result.error, `${profile}: ${kind}`).not.toMatch(/Sem permissão para alterar/)
+    }
+  })
+
+  // P9 — tarifa e acordo de Demurrage por qualquer Departamento; ativar, desativar e excluir só o Administrativo
+  // (ADR 0085, D6; ADR 0073, item 4; migration 254).
+  it.each(ALL_PROFILES)('P9: %s cria e edita tarifa e acordo de Demurrage pela API; a troca de ativa é do Administrativo', (profile) => {
+    const note = `p9-${profile}`
+    try {
+      const rate = runAs(profile, `INSERT INTO public.demurrage_rates (container_type, free_days, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from, notes)
+        VALUES ('P9X', 7, 8, 14, 10, 15, 20, '2099-01-01', '${note}') RETURNING id`)
+      expect(rate.error).toBe('')
+      const agreement = runAs(profile, `INSERT INTO public.customer_demurrage_agreements (customer_id, free_days, valid_from, notes)
+        VALUES (${CUSTOMER_ID}, 10, '2099-01-01', '${note}') RETURNING id`)
+      expect(agreement.error).toBe('')
+      for (const table of ['demurrage_rates', 'customer_demurrage_agreements']) {
+        expect(runAs(profile, `UPDATE public.${table} SET free_days = 9 WHERE notes = '${note}'`).error).toBe('')
+        const toggle = runAs(profile, `UPDATE public.${table} SET active = false WHERE notes = '${note}'`)
+        if (profile === 'administrativo') expect(toggle.error).toBe('')
+        else expect(toggle.error).toMatch(/Somente o Administrativo desativa/)
+        expectDenied(profile, `DELETE FROM public.${table} WHERE notes = '${note}'`)
+      }
+    } finally {
+      psql(`DELETE FROM public.customer_demurrage_agreements WHERE notes = '${note}'; DELETE FROM public.demurrage_rates WHERE notes = '${note}';`)
     }
   })
 

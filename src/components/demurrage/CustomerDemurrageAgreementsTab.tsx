@@ -45,7 +45,7 @@ function vigencia(agreement: CustomerDemurrageAgreementListItem) {
   return agreementPeriodText(agreement)
 }
 
-export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }) {
+export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit: boolean; canManage: boolean }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
@@ -146,7 +146,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
           <Pencil size={14} aria-hidden="true" />
           Editar
         </Button>
-        <ActionMenu
+        {canManage ? <ActionMenu
           label={`Mais ações do acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`}
           triggerClassName="app-table__icon-button app-table__icon-button--sm"
           trigger={<MoreVertical size={16} aria-hidden="true" />}
@@ -157,7 +157,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
               ? { key: 'delete', label: 'Excluir acordo (já em vigor: desative)', disabled: true }
               : { key: 'delete', label: 'Excluir acordo', danger: true, onSelect: () => void handleDelete(item) },
           ]}
-        />
+        /> : null}
       </div>
     )
   }

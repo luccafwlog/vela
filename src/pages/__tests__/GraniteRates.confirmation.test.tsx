@@ -30,7 +30,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({ isAdmin: true, profile: { role: 'administrativo' } }),
+  useAuth: () => ({ isAdmin: true, effectiveRole: 'administrativo', profile: { role: 'administrativo' } }),
 }))
 
 vi.mock('../../components/ui/Toast', () => ({

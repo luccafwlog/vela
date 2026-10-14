@@ -41,7 +41,7 @@ const agreementSvc = vi.hoisted(() => ({
   toggleCustomerDemurrageAgreementActive: vi.fn(() => Promise.resolve()),
 }))
 
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true, effectiveRole: 'administrativo' }) }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(() => Promise.resolve(true)), useConfirmWithReason: () => vi.fn(() => Promise.resolve('motivo')) }))
 vi.mock('../../services/demurrage/demurrageRates', () => svc)
