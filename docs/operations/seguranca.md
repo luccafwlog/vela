@@ -311,7 +311,7 @@ sem decompor no navegador o fator comercial da cotação.
 - **`portal-dispute-attachment`** — recebe uploads multipart de clientes do Portal com `verify_jwt = false` no gateway para garantir a passagem de requisições de preflight CORS (`OPTIONS`), validando o token JWT da sessão explicitamente no início da função via `authClient.auth.getUser()`. Valida tipo/tamanho do arquivo (máx 10 MB) e magic bytes em memória (PDF, JPG, PNG, TXT), confirma autoria da mensagem (`author_type = 'cliente'` e `author_id = auth.uid()`), grava no storage via `service_role` no caminho `<customer_id>/disputes/<dispute_id>/<message_id>/...` e invoca a RPC `add_demurrage_dispute_attachment` com o cliente autenticado do usuário para registro de metadados, verificação física do objeto no storage e verificação de quota (100 MB em disputas abertas) e limite diário (20 uploads/24h por cliente). Em caso de falha no registro de metadados, remove imediatamente o objeto órfão do storage. Anexos do Portal só são aceitos em Disputes abertas (`add_demurrage_dispute_attachment` e `portal_check_dispute_attachment_eligibility`, migration `075`), para que nenhum upload fique fora da quota. No fluxo interno de Demurrage, a remoção imediata do órfão usa a policy `demurrage_dispute_objects_delete`, que permite ao usuário interno ativo apagar pelo Storage API apenas o objeto que ele mesmo enviou e que ainda não tem metadado; anexo registrado é imutável. A RPC `list_orphaned_dispute_attachments(p_older_than)` (somente `service_role`, somente leitura) lista órfãos por idade; a remoção dos caminhos listados deve ser feita pelo Storage API, porque apagar linhas de `storage.objects` por SQL não remove o arquivo físico. Clientes do Portal não possuem permissão de escrita direta no bucket `demurrage-disputes` (policy `demurrage_dispute_objects_insert` restrita a Equipamentos/Administrativo, autoria da sessão e caminho de mensagem em Dispute aberta, migration `106`). A RPC `portal_check_dispute_attachment_eligibility` permite pré-validação de cota e rate limit no front-end antes da inserção da mensagem na conversa.
 - **`send-customer-communication`** — valida sessão interna, perfil ativo,
   natureza, contato, preferência e supressões antes de registrar a tentativa;
-  a chave global desligada registra simulação e não chama o Resend.
+  a chave global desligada registra simulação e não chama o provedor de e-mail.
 - **`demurrage-dunning`** — aceita somente o bearer de
   `DEMURRAGE_DUNNING_SECRET` em comparação *timing-safe*, usa `service_role`
   apenas no servidor e reivindica cada cobrança antes de renderizar/enviar,
@@ -322,7 +322,7 @@ sem decompor no navegador o fator comercial da cotação.
 Gerados em `_headers` pelo staging do Cloudflare Pages:
 
 - `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy`
-- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog. O browser não chama Resend diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).
+- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog. O browser não chama o provedor de e-mail (MillionSend) diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).
 
 ## Outras defesas
 
@@ -330,7 +330,7 @@ Gerados em `_headers` pelo staging do Cloudflare Pages:
 - **Injeção em filtros PostgREST:** input de usuário em `.or()/.ilike()` é escapado por `escapeFilterTerm` / `sanitizeLikeTerm` (`src/lib/utils.ts`) e termos que ficam vazios após o escape não geram cláusula. A fronteira cobre as buscas de clientes (lista, lookup e export), faturamento, Granito e bookings de Vazios.
 - **Injeção de fórmula em planilhas:** `src/lib/spreadsheetSafe.ts` é o sanitizador canônico. `src/services/exports.ts`, `src/lib/csv.ts` e `src/services/reconciliacao.ts` o reutilizam antes de gerar XLSX/CSV.
 - **Higienização de artefatos de build:** `scripts/clean-build-artifacts.mjs` remove `.map` e `.vite` ao final de cada build (`cleanProductionArtifacts`) e executa varredura recursiva estrita pós-build (`assertNoForbiddenArtifacts`), falhando fechado (`process.exit(1)`) se qualquer mapa de código-fonte ou diretório de cache vazar no diretório final de distribuição.
-- **Segredos de servidor** ficam **apenas** em env vars de Edge Functions, nunca no bundle do cliente. No Portal, `service_role` e a chave da Resend nunca vão ao navegador nem a logs ou auditoria, e o frontend não os usa para contornar RLS e permissões.
+- **Segredos de servidor** ficam **apenas** em env vars de Edge Functions, nunca no bundle do cliente. No Portal, `service_role` e a chave do provedor de e-mail (`RESEND_API_KEY`) nunca vão ao navegador nem a logs ou auditoria, e o frontend não os usa para contornar RLS e permissões.
 
 ### Read model do Console
 

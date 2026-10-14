@@ -29,7 +29,7 @@ flowchart LR
     Portal["Sessão do Portal<br/>Supabase Auth isolada"]
     Database[("Supabase PostgreSQL<br/>RLS + RPCs + pg_cron")]
     Functions["Edge Functions<br/>Deno"]
-    Resend["Resend"]
+    Resend["MillionSend<br/>e-mail"]
     BCB["Banco Central / PTAX"]
     Itau["Itaú<br/>Pix Recebimentos"]
     Upstash["Upstash<br/>trava de tentativas"]
@@ -92,7 +92,7 @@ GitHub Actions; ela não participa do bundle Vite nem do projeto de produção.
 Três mecanismos server-side tiram do navegador o que precisa sobreviver a
 falhas ([ADR 0065](adr/0065-inbox-efeitos-e-autoridade-financeira.md)):
 
-- **Inbox de eventos de e-mail** (migration `022`): o webhook do Resend só
+- **Inbox de eventos de e-mail** (migration `022`): o webhook do provedor de e-mail só
   valida e grava o evento em `portal_email_events`; o
   `portal-email-events-runner` resolve a tentativa, aplica as supressões e
   executa os efeitos ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).
@@ -751,7 +751,7 @@ integração na arquitetura.
 
 - **Supabase:** PostgreSQL com RLS e RPCs, Auth das duas sessões, Storage, Edge
   Functions, `pg_cron`/`pg_net` e Vault para os segredos dos jobs.
-- **Resend:** envio de todo e-mail, do Portal e de Comunicados, e eventos de
+- **MillionSend** (API compatível com a Resend, que usou até 2026-10-14): envio de todo e-mail, do Portal e de Comunicados, e eventos de
   entrega por webhook ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).
 - **Banco Central (PTAX):** a Edge Function `recalc-demurrage-ptax` busca a PTAX
   para o Recálculo Diário de Demurrage; o navegador também consulta o BCB para
@@ -799,7 +799,7 @@ registrada como `falha_permanente`. A origem da API vem do secret opcional
 `RESEND_BASE_URL` (padrão `https://api.resend.com`), o que permite trocar por
 um provedor compatível sem mudar código. O envio real usa `PORTAL_FROM_EMAIL` e
 `PORTAL_REPLY_TO`; domínio próprio verificado continua sendo condição para o
-envio real ([Serviços externos § Resend](operations/servicos-externos.md#resend-envio)).
+envio real ([Serviços externos § MillionSend](operations/servicos-externos.md#millionsend-envio)).
 
 Os eventos de entrega chegam pelo `portal-email-webhook`, que valida a
 assinatura (`RESEND_WEBHOOK_SECRET`), deduplica e grava o evento em

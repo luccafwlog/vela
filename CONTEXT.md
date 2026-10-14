@@ -1214,14 +1214,14 @@ nem email, e só o seu hash é guardado.
 → Regra: [Portal do Cliente § Identidade, convite e recuperação](docs/modules/portal-cliente.md#identidade-convite-e-recuperação)
 
 **Segredos privilegiados do Portal**
-`service_role` do Supabase e a chave da Resend: existem só nas Edge Functions,
+`service_role` do Supabase e a chave do provedor de e-mail: existem só nas Edge Functions,
 nunca no navegador, em logs ou em auditoria.
 → Regra: [Segurança § Outras defesas](docs/operations/seguranca.md#outras-defesas)
 
 **Remetente transacional do Portal**
 Identidade "de" e endereço de resposta dos emails de convite, reenvio,
 recuperação e troca de email, com a marca Fwlog.
-→ Regra: [Serviços externos § Resend (envio)](docs/operations/servicos-externos.md#resend-envio)
+→ Regra: [Serviços externos § MillionSend (envio)](docs/operations/servicos-externos.md#millionsend-envio)
 
 **Email de Convite do Portal**
 Mensagem que leva o link de ativação, identifica a empresa e o CNPJ mascarado
@@ -1261,7 +1261,7 @@ Modelo de cada email do Portal, com versão HTML e texto puro equivalente.
 → Regra: [Portal do Cliente § Email transacional](docs/modules/portal-cliente.md#email-transacional)
 
 **Webhook de entrega do Portal**
-Aviso do Resend sobre entrega, bounce ou complaint, aceito só com assinatura
+Aviso do provedor de e-mail (MillionSend) sobre entrega, bounce ou complaint, aceito só com assinatura
 válida. Receber o webhook não significa que o histórico já foi atualizado: o
 evento é processado depois.
 → Regra: [Portal do Cliente § Email transacional](docs/modules/portal-cliente.md#email-transacional)
