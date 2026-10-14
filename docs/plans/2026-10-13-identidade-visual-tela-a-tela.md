@@ -195,7 +195,9 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     só no filtro e no detalhe). Aba Demurrage (proposta de 2026-10-14,
     seção 5b): bloco "Faturas de Demurrage"; ROE vigente numa linha no topo
     (sai a coluna "Atualizado em"); colunas Fatura, B/L, Emissão, Navio /
-    Viagem, Total US$, Total R$, Situação e Disputar quando cabe; Total R$
+    Viagem, Total US$, Total R$ e Situação; "Disputar" sai da lista e vai
+    para o fim do detalhe da fatura, discreto ("Discorda de algum valor?
+    Abrir disputa"; decisão de 2026-10-14); Total R$
     em âmbar quando a pagar; Situação em texto (Em disputa e Vencida em
     âmbar, Paga com ✓); filtros abertos; dólar como "US$". Nada no lugar do
     vencimento (a taxa local não tem vencimento, ADR 0055); botão "Copiar
