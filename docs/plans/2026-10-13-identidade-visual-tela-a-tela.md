@@ -174,7 +174,13 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     cálculo e o total no título, a tabela de cobrança e as linhas (Taxa,
     Base, Qtd., Unitário, Total). B/L "Pronto para emitir" (tudo certo e a fatura não saiu
     sozinha) entra na fila normal com o botão Emitir; hoje só aparece com
-    "Incluir resolvidos" (decisão de 2026-10-14).
+    "Incluir resolvidos" (decisão de 2026-10-14). Exportar vira uma planilha
+    só, uma linha por B/L (sai a "Conferência do escopo"): colunas fixas
+    (B/L, Cliente, CNPJ, Navio / Viagem, Trecho, Modo de carga, Motivo,
+    Detalhe do motivo, Último cálculo, Subtotal) e uma coluna por taxa com
+    o total da taxa no B/L; taxa em US$ com coluna própria "(US$)".
+    Respeita a seleção (sem seleção, o filtro); botão com a contagem;
+    nomes em português, sem campos de sistema (decisão de 2026-10-14).
   - **Defeito achado, fora da mudança visual** (2026-10-14, código e banco
     local): `getBillingBlock` (`src/components/billing/validacaoPipeline.ts`)
     e `canIssueSingleInvoice` (`ValidacaoOperationsTable.tsx`) só tratam
