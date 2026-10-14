@@ -157,6 +157,21 @@ divergência em "Notas e divergências" do módulo até a correção.
 | B24 (D7-04) | O markup 1,065 está escrito em cinco pontos (navegador, Edge Function e três funções do banco). | ADR 0014 (ponto canônico único) |
 | B25 (D9-22) | `portal_provisioning_backfill` voltou ao catálogo depois de removida. | Remoção na migration arquivada `203` |
 
+### Itens levantados na aplicação das faixas das ADRs
+
+Os agentes que escreveram as faixas "Situação atual" conferiram cada ADR no
+código e encontraram mais seis pontos. Eles não passaram pelo verificador
+independente; a evidência está na faixa de cada ADR.
+
+| Id | Tipo | Caso | Recomendação |
+|---|---|---|---|
+| A25 (ADR 0002) | decisão | A reconsolidação self-service no Portal não avisa os operadores internos (o alerta saiu na migration arquivada `327`, sem ADR), e a RPC confere só que a consolidada é do Cliente, não quem a emitiu. | Decidir se o alerta interno volta e se a reconsolidação deve recusar consolidada emitida por outra parte. |
+| B26 (ADR 0018) | defeito | As importações de B/L e de CE Mercante abertas na página da viagem, e o Embarque de Vazios aberto por ela, travam a viagem, contra a decisão 2 (viagem pré-semeada e editável). | Tratar como defeito. |
+| B27 (ADR 0053) | defeito | `resolve_billing_alert` deixa qualquer usuário interno ativo fechar `billing_auto_issue_failed` e `billing_calculation_blocked`; a conferência da origem é feita só no navegador. | Tratar como defeito: recomputar a origem no servidor. |
+| B28 (ADR 0061) | defeito | O diálogo "Vincular cliente ao grupo" da Revisão diz "sem alterar contatos", mas `save_bl_review` captura o e-mail do manifesto quando a fila de conciliação fecha. | Corrigir o texto do diálogo ou a captura, conforme a ADR 0064 (captura protegida). |
+| B29 (ADR 0014) | defeito | `demurrage_invoices.due_date` existe e a ficha do Cliente conta Invoice de Demurrage vencida, contra "Demurrage não vence". | Tratar como defeito. |
+| C1 | registro | Decisões já tomadas e em produção sem ADR: integração Pix dinâmica com o Itaú (migrations `151`–`154`, `219`), Automatic branching do Supabase desligado em 2026-10-07 e environments de Preview sem restrição de branch (recusa de 2026-10-06). | Registrar numa ADR nova de consolidação, sem mudar comportamento. |
+
 Decisão de organização tomada na revisão, sem pergunta ao dono (D9-19): o
 console `/clientes/portal` e a ativação do convite pertencem a
 `docs/modules/portal-cliente.md`; `clientes.md` mantém o atalho com link.
