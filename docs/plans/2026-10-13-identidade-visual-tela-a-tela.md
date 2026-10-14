@@ -165,8 +165,9 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     (Recalcular, Vincular na Revisão, Cadastrar CE, Abrir Cliente, Emitir);
     saem Cálculo, Vínculo do Cliente e Modo de carga (vira filtro). Linha
     aberta com Trecho, CE, Cliente e CNPJ, Último cálculo e Conferência do
-    cálculo. Pergunta em aberto: "Pronto para emitir" na fila normal ou só
-    com "Incluir resolvidos".
+    cálculo. B/L "Pronto para emitir" (tudo certo e a fatura não saiu
+    sozinha) entra na fila normal com o botão Emitir; hoje só aparece com
+    "Incluir resolvidos" (decisão de 2026-10-14).
   - **Defeito achado, fora da mudança visual** (2026-10-14, código e banco
     local): `getBillingBlock` (`src/components/billing/validacaoPipeline.ts`)
     e `canIssueSingleInvoice` (`ValidacaoOperationsTable.tsx`) só tratam
