@@ -138,6 +138,7 @@ da migration.
 | B24 | Migration `264`: `_demurrage_roe_markup()` é o ponto canônico; `_demurrage_roe_from_ptax` e o novo `_demurrage_ptax_from_roe` derivam dele; `apply_demurrage_discount` e `confirm_unified_pix_matches` trocam `current_roe / 1.065` pela função; `save_exchange_rate_reference_v2` aceita `p_roe` nulo e calcula o ROE. A Edge `recalc-demurrage-ptax` manda só a PTAX e lê o ROE gravado; a constante do navegador fica como cópia de prévia, conferida por teste | **Teste local-pg:** `exchangeRateIntegrity.local-pg.test.ts` (B24: nenhuma outra função tem 1,065; ROE calculado da PTAX); **Teste:** `demurrageRoeMarkup.test.ts`. A Edge nova só vale em produção depois de publicada |
 | B25 | Migration `265`: `DROP FUNCTION portal_provisioning_backfill(text)`; sem chamador no código nem em outra função | **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B25) |
 | P10 | Migration `266`: `DROP FUNCTION add_agency_report_occurrence`; saem `addOccurrence` (`agencyDepartureReport.ts`) e os testes que só a exercitavam. A tabela `agency_departure_report_occurrences` fica para os ADRs antigos | **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (P10); `npm run rpc:check` sem a RPC |
+| B28 | `/revisao`: a consequência do diálogo "Vincular cliente ao grupo" deixa de dizer "sem alterar contatos" e avisa que o e-mail do manifesto de cada B/L entra como contato do Cliente (captura protegida, ADR 0064). Banner e índice da ADR 0061 atualizados | Texto do diálogo; sem teste novo (mudança só de texto) |
 
 ## Operação (fora do código)
 

@@ -387,7 +387,8 @@ export function Revisao() {
         summary: `${plural(targets.length, 'registro', 'registros')} · ${group.displayName}`,
         items: targets.map((item) => `${item.source === 'granite' ? 'Granito ' + item.bl_number : 'B/L ' + item.id}`),
       },
-      consequence: 'Atualiza os vínculos de cliente sem alterar contatos. Para B/Ls, se essa for a última pendência e os gates estiverem liberados, a fatura poderá ser emitida automaticamente.',
+      // B28 (ADR 0083, item 26; ADR 0064, item 6): o vínculo captura o e-mail do manifesto como contato.
+      consequence: 'Atualiza os vínculos de cliente. O e-mail do manifesto de cada B/L entra como contato do Cliente quando o CNPJ do documento é o dele (endereço já cadastrado não é duplicado nem reativado). Para B/Ls, se essa for a última pendência e os gates estiverem liberados, a fatura poderá ser emitida automaticamente.',
       reversibility: 'O vínculo pode ser corrigido pela Revisão antes da emissão. Faturas emitidas seguem o cancelamento restrito ao perfil Administrativo quando não houver pagamento.',
     })
     if (!confirmed) return
