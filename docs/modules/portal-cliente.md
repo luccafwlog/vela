@@ -460,9 +460,12 @@ containers selecionáveis. Agentes por porto mantém os demais portos. Taxas
 Locais não exibe o badge “Aplicação manual” nem o texto “Inclui SOC”; as
 regras de cobrança permanecem nos cadastros oficiais.
 
-Na Operação, o botão “Depósitos de devolução” aparece no nível do B/L, direcionando
-à seção de devolução com o porto de descarga (POD) já selecionado (**Código:**
-`src/components/portal/information/InformationLinks.tsx`). A administração de
+Na Operação, o botão “Depósitos de devolução” aparece no nível do B/L (detalhe
+expandido e cartão mobile) e no cartão mobile de container, direcionando à
+seção de devolução com o porto de descarga (POD) já selecionado; no topo da
+página ele abre a seção sem POD (**Código:**
+`src/components/portal/information/InformationLinks.tsx`,
+`src/pages/PortalOperacao.tsx`). A administração de
 Depots não exibe o card explicativo com a lista de portos do cadastro.
 
 O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
@@ -474,10 +477,13 @@ mutações conferem o papel no banco, além da interface. Alterações geram aud
 Na aba interna Tracking, o endereço aparece apenas no link “Abrir tracking”;
 a URL completa fica no editor do armador.
 Links externos admitem apenas HTTP/HTTPS sem credenciais. Na seção Tracking do
-Portal, escolhido um B/L da operação, os botões **Copiar número do B/L** e
-**Abrir tracking do armador** copiam o número e abrem o site do armador; a cópia
-é um botão com nome, não o ícone de copiar dos identificadores (**Código:**
-`src/components/portal/information/TrackingSection.tsx`).
+Portal, escolhido um B/L da operação, o botão **Copiar número do B/L** copia o
+número e, quando o armador do B/L tem tracking cadastrado, o botão **Abrir
+tracking do armador** abre o site dele; sem cadastro, aparece "Tracking não
+cadastrado para este armador.". A cópia é um botão com nome, não o ícone de
+copiar dos identificadores (**Código:**
+`src/components/portal/information/TrackingSection.tsx`; **Teste:**
+`src/components/portal/information/__tests__/InformationSections.test.tsx`).
 
 **Devolução:** regra fluida por porto de descarga atendido. Não há escolha de
 depósito por container ou subplanilha. Os containers de um porto de descarga

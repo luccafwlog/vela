@@ -14,7 +14,7 @@ Edição atualizada em 2026-10-14. Os procedimentos valem para o ambiente public
 | Autorizar restituição excepcional de avulsa/Demurrage | Detalhe → Restituição excepcional | Administrativo |
 | Confirmar devolução já realizada no banco | Detalhe → Confirmar devolução | Financeiro ou Administrativo |
 | Preparar cancelamento financeiro de B/L com pagamento | Detalhe → Ajustes pela correção do B/L | Administrativo |
-| Liquidar Ajuste de COD | Taxas Locais → Ajustes de COD → Liquidar ajuste | Financeiro ou Administrativo |
+| Liquidar Ajuste de COD | Taxas Locais → Ajustes de COD → Aplicar abatimento, Registrar restituição ou Vincular e concluir (confirmar em Liquidar ajuste) | Financeiro ou Administrativo |
 | Cancelar baixa, fatura ou B/L; reativar B/L | Detalhe / Conciliação / ficha do B/L | Administrativo |
 | Operar pagamento/desconto de Demurrage | Demurrage | Financeiro ou Administrativo, conforme a ação |
 | Consultar e pagar documentos próprios | Portal Fwlog | Cliente autenticado |

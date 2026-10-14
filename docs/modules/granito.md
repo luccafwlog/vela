@@ -77,7 +77,8 @@ operação:
 ### `/granito/taxas`
 
 [`src/pages/GraniteRates.tsx`](../../src/pages/GraniteRates.tsx) lista descrição,
-tipo (`per_kg`, `per_ton`, `per_bl`, `fixed`), valor unitário, moeda, vigência
+tipo ("Por kg", "Por tonelada", "Por B/L (fixo)" ou "Fixo global"; no banco,
+`per_kg`, `per_ton`, `per_bl` e `fixed`), valor unitário, moeda, vigência
 (datas "… a …", "desde …" ou "até …") e estado ativo de `granite_rates`. O
 Administrativo cria (**Nova taxa**), edita (**Editar** na linha),
 ativa/desativa (clicando no estado **Ativa**/**Inativa**) e exclui (**Excluir**

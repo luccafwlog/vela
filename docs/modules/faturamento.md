@@ -118,15 +118,13 @@ centrais, sempre nesta ordem, são:
   `Coberta`, `Cancelada` ou `Obsoleta`, com `Individual`/`Consolidada` quando
   houver vínculo.
 
-Os dois trilhos ficam em blocos lado a lado. O cabeçalho do bloco Documental
-conta só as pendências dos quatro cards centrais ("Sem pendências" quando não
-há). A próxima ação fica numa faixa própria, logo abaixo da identidade do B/L:
-aponta para o primeiro card central pendente ou bloqueado e tem o botão que
-leva aonde se resolve (por exemplo, **Resolver na Revisão** ou **Ir para
-Faturamento**); sem pendência documental, a faixa não aparece. **Código:**
-`src/components/bl/BlRailsPipeline.tsx` e `pickNextAction` em
-`src/services/blRails.ts`. Demurrage é um indicador auxiliar opcional e
-não bloqueia a fatura comum. A fatura do detalhe é lida tanto de
+O bloco Documental conta só as pendências dos quatro cards centrais, e a
+próxima ação aponta para o primeiro card central pendente ou bloqueado
+(**Código:** `summarizeDocumentalRail` e `pickNextAction` em
+`src/services/blRails.ts`); a faixa da próxima ação e os blocos dos trilhos
+na ficha estão em [Manifestos e EDI](manifesto-edi.md#blsblid). Demurrage é
+um indicador auxiliar opcional e não bloqueia a fatura comum. A fatura do
+detalhe é lida tanto de
 `invoice_bls` quanto de `invoice_receivable_links`, permitindo identificar uma
 consolidada mesmo quando o B/L não tem vínculo individual. Não há vencimento ou
 estado `Vencida` nesse trilho: essa regra não existe para taxas locais.

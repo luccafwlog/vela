@@ -175,7 +175,7 @@ mesmo quando a API é chamada diretamente. Setores e permissões:
 3. Recarregue o deep link e confirme a mesma viagem.
 4. Abra um ID inexistente e confirme "Viagem não encontrada", sem redirect.
 5. Edite as escalas (ETA/ATA, atracações, Número de Escala) e o Nº de
-   Manifesto Mercante de uma rota (**Informar Nº** em Rotas e Manifestos).
+   Manifesto Mercante de uma rota (botão **Informar** da rota, em Rotas e Manifestos).
 6. Confira os KPIs (inclusive **Manifestos Mercante**), as abas e a linha do
    tempo.
 7. Valide filtros e viewport estreita.

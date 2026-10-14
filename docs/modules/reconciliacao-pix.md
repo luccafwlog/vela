@@ -130,8 +130,9 @@ A conferência mostra uma faixa de resumo (prontas para baixa e o total do lote,
 quantas ficam como exceção, linhas lidas) e duas listas (tabela no desktop,
 linhas abaixo de 640 px):
 
-- **Prontas para baixa**: linha, pago em, valor do Pix, TXID, fatura e
-  origem, Cliente e CNPJ (com o ícone de copiar). Uma Invoice de Demurrage
+- **Prontas para baixa**: na tabela, linha, pago em, valor do Pix, TXID,
+  fatura e origem, Cliente e CNPJ (com o ícone de copiar); abaixo de 640 px,
+  valor, pago em, fatura, origem, Cliente e TXID. Uma Invoice de Demurrage
   paga com a cotação anterior diz que a janela das duas PTAX foi aceita.
 - **Ficam como exceção pendente**: Ambígua ou Sem documento, com o motivo e o
   documento indicado; já estão salvas em Pendências.

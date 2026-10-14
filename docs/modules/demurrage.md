@@ -162,9 +162,13 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   mostrado é o prazo (B/L > acordo > tabela, `demurrageFreeTimeDays`), não o dia
   corrido; o USD da caixa já cobrada é o recalculado hoje, e o cobrado é o da
   Invoice.
-- A barra de KPIs combina contagem de containers em atraso (lida de
-  `demurrage_status = 'overdue'`, gravado pelo banco), total USD da lista
-  filtrada e total BRL aguardando pagamento.
+- Os cartões do topo mostram **Containers em atraso** (contagem lida de
+  `demurrage_status = 'overdue'`, gravado pelo banco), **Aguardando
+  pagamento (BRL hoje)** e, só para Equipamentos e Administrativo,
+  **Disputas aguardando resposta**; nenhum cartão traz USD. O resumo da aba
+  Containers traz, para a lista filtrada, containers, B/Ls e os totais em
+  USD "correndo até hoje" e "a faturar (previsto)". **Código:**
+  `src/pages/Demurrage.tsx`, `src/components/demurrage/DemurrageContainersTab.tsx`.
 - `Importar datas` abre
   [`src/components/shared/ContainerDatesImportModal.tsx`](../../src/components/shared/ContainerDatesImportModal.tsx):
   parseia planilha, mostra preview e erros, exibe progresso/cancelamento da
