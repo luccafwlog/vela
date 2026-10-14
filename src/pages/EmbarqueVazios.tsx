@@ -38,6 +38,7 @@ import {
 } from "../services/depots";
 import { supabase } from "../services/supabase";
 import { listVoyageRoutePorts } from "../services/operationalLists";
+import { listVoyageEscalaSchedulesByVoyageIds } from "../services/voyageRouteSchedules";
 import { normalizePortCode } from "../services/portCode";
 import {
   armazenagemPorDepotCondicao,
@@ -100,17 +101,24 @@ function countByField<T>(rows: T[], keyOf: (row: T) => string): Array<{ label: s
     .sort((a, b) => b.count - a.count);
 }
 
-// ponytail: escala do Embarque de Vazios montada aqui unindo POD e POL dos
-// B/Ls da viagem à mão (duas fontes unidas manualmente, sem projeção comum).
-// Teto: não enxerga escala planejada sem B/L ainda lançado. Upgrade: trocar
-// pela projeção unificada de escalas quando
-// docs/plans/2026-07-31-escala-unificada-pol-pod.md for entregue.
+// B10 (ADR 0035): o Porto de embarque é escolhido entre as escalas da viagem
+// (a mesma projeção da aba Escalas), inclusive escala planejada sem B/L —
+// viagem só de embarque de vazios não tem B/L. Os portos dos B/Ls entram como
+// complemento, para escala de B/L ainda não materializada na projeção.
 async function fetchVoyageEscalaPorts(voyageId: number): Promise<string[]> {
+  const [escalas, blPorts] = await Promise.all([
+    listVoyageEscalaSchedulesByVoyageIds([voyageId]),
+    listVoyageRoutePorts(voyageId),
+  ]);
   const ports = new Set<string>();
-  for (const raw of await listVoyageRoutePorts(voyageId)) {
+  const add = (raw: string | null | undefined) => {
     const code = normalizePortCode(raw);
     if (code && code.startsWith("BR")) ports.add(code);
+  };
+  for (const escala of escalas.get(voyageId) ?? []) {
+    if (!escala.deleted && !escala.omitted) add(escala.port);
   }
+  for (const raw of blPorts) add(raw);
   return [...ports].sort();
 }
 
@@ -601,7 +609,7 @@ export function EmbarqueVazios() {
             label="Porto de embarque"
             error={
               voyageId && !voyagePorts.isLoading && voyagePortOptions.length === 0
-                ? "Nenhuma escala encontrada — importe os B/Ls da viagem antes de criar o Embarque."
+                ? "Nenhuma escala brasileira na viagem — cadastre a escala na aba Escalas da viagem antes de criar o Embarque."
                 : undefined
             }
           >

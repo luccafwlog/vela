@@ -22,10 +22,13 @@ const mocks = vi.hoisted(() => ({
   upsertVaziosExportOperation: vi.fn(() => Promise.resolve({ id: "operation-new" })),
 }));
 
+const queryFns = new Map<string, (() => unknown) | undefined>();
+const escalaMocks = vi.hoisted(() => ({ listEscalas: vi.fn(), listBlPorts: vi.fn() }));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, getQueryData: mocks.getQueryData, setQueryData: mocks.setQueryData }),
-  useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
+  useQuery: ({ queryKey, queryFn }: { queryKey: unknown[]; queryFn?: () => unknown }) => {
     const key = queryKey[0];
+    queryFns.set(String(key), queryFn);
     const data = key === "vazios-export-operations"
       ? [{
           id: "operation-1",
@@ -74,6 +77,8 @@ vi.mock("../../components/shared/VoyageCombobox", () => ({
   ),
 }));
 vi.mock("../../services/supabase", () => ({ supabase: {} }));
+vi.mock("../../services/voyageRouteSchedules", () => ({ listVoyageEscalaSchedulesByVoyageIds: escalaMocks.listEscalas }));
+vi.mock("../../services/operationalLists", () => ({ listVoyageRoutePorts: escalaMocks.listBlPorts }));
 vi.mock("../../services/depots", () => ({
   listDepots: vi.fn(),
   listDepotServices: vi.fn(),
@@ -349,6 +354,20 @@ describe("EmbarqueVazios", () => {
         embarkPort: "BRVIX",
       }),
     );
+  });
+
+  it("B10: viagem só de embarque de vazios, sem B/L, oferece as escalas da viagem", async () => {
+    escalaMocks.listEscalas.mockResolvedValue(new Map([[179, [
+      { port: "BRVIX", deleted: false, omitted: false },
+      { port: "BRSSZ", deleted: true, omitted: false },
+      { port: "BRRIG", deleted: false, omitted: true },
+      { port: "CNSHA", deleted: false, omitted: false },
+    ]]]));
+    escalaMocks.listBlPorts.mockResolvedValue([]);
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: /Selecionar viagem/i }));
+    await screen.findByLabelText("Porto de embarque");
+    await expect(Promise.resolve(queryFns.get("embarque-vazios-voyage-ports")?.())).resolves.toEqual(["BRVIX"]);
   });
 
   describe("Importar planilha de Unidades Embarcadas com linhas ocultas", () => {
