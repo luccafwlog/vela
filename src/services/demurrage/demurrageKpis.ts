@@ -5,14 +5,11 @@ import { assertUploadFile } from '../../lib/fileGuard'
 import type { PixTransaction } from '../../types/database'
 import { readSheet } from '../importCore'
 import { invoiceNetUsd } from './demurragePresentation'
-import { saoPauloTodayIso } from '../../lib/dates'
-
-import { DEMURRAGE_ROE_MARKUP, persistExchangeRateReference } from './demurrageRoe'
 
 // A cotação (PTAX/ROE) mora em ./demurrageRoe: o cabeçalho de todas as telas
 // a consulta, e este módulo traz o leitor de planilha junto. Reexportada aqui
 // para os chamadores de sempre.
-export { DEMURRAGE_ROE_MARKUP, fetchROE, persistExchangeRateReference, type FetchROEResult } from './demurrageRoe'
+export { DEMURRAGE_ROE_MARKUP, fetchROE, type FetchROEResult } from './demurrageRoe'
 
 export type CustomerDemurrageSummary = {
   customer_id: number
@@ -114,17 +111,12 @@ export async function fetchLatestRecalcDate(): Promise<string | null> {
 
 /**
  * Recálculo manual disparado pelo operador quando o BCB está fora ou o job falhou.
- * Informa a PTAX (cotação de venda, sem markup); o markup é aplicado no banco.
+ * Informa a PTAX (cotação de venda, sem markup); o markup é aplicado no banco,
+ * que também grava a referência cambial (`recalculate_demurrage_invoices`).
  */
 export async function recalculateInvoicesManual(ptax: number): Promise<{ updated: number }> {
   const { data, error } = await supabase.rpc('recalculate_demurrage_invoices_manual', { p_ptax: ptax })
   if (error) throw error
-  await persistExchangeRateReference({
-    ptax,
-    roe: parseFloat((ptax * DEMURRAGE_ROE_MARKUP).toFixed(4)),
-    effectiveDate: saoPauloTodayIso(),
-    source: 'manual',
-  })
   const updated = Number((data as { updated?: number } | null)?.updated ?? 0)
   return { updated }
 }

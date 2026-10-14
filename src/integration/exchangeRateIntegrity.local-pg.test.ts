@@ -113,6 +113,10 @@ describeLocal('S09 — procedencia e integridade de ROE/PTAX', () => {
     expect(result).toMatchObject({ source: 'manual', ptax: null })
     expect(() => authenticatedPsql(`UPDATE public.exchange_rate_reference SET roe = 9 WHERE id = 1;`)).toThrow()
     expect(() => authenticatedPsql(`INSERT INTO public.exchange_rate_reference_history(source, roe, effective_date) VALUES ('manual', 5.5, '2026-09-07');`)).toThrow()
+    // A14 (migration 236): a gravação pela RPC também saiu da API; só o job do
+    // BCB (service_role) e o Informar PTAX, como dono, gravam.
+    expect(() => authenticatedPsql(`SELECT public.save_exchange_rate_reference_v2(NULL::numeric, 9.0, '2026-09-07', 'manual', '2026-09-07');`)).toThrow(/permission denied/)
+    expect(() => authenticatedPsql(`SELECT public.save_exchange_rate_reference(5.0, 5.325, '2026-09-07');`)).toThrow(/permission denied/)
   })
 
   it('mantém a falha da PTAX na fila até uma execução completa recuperar o job', () => {
