@@ -14,6 +14,7 @@ type TextKey = Exclude<keyof Filters, 'page' | 'pageSize' | 'status' | 'invoiceT
 
 /** Parâmetro de cada filtro de texto; `customer` e `bl` já eram usados por outras telas. */
 export const FATURAS_TEXT_PARAMS: Record<TextKey, string> = {
+  query: 'busca',
   blSearch: 'bl',
   search: 'fatura',
   customerId: 'customer',

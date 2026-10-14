@@ -83,6 +83,16 @@ describe('BillingPortalReleaseCard', () => {
     expect(grant).not.toHaveBeenCalled()
   })
 
+  it('sem liberação e com o Portal não pronto, o dado principal é "Não concedida" em âmbar', () => {
+    render(<BillingPortalReleaseCard customerId={9} portalReady={false} />)
+    expect(screen.getByText('Não concedida').className).toContain('app-lead__value--warning')
+  })
+
+  it('com o Portal pronto, a falta de liberação não fica em âmbar', () => {
+    render(<BillingPortalReleaseCard customerId={9} portalReady />)
+    expect(screen.getByText('Não necessária').className).not.toContain('--warning')
+  })
+
   it('a Documentação vê a situação, mas não concede', () => {
     auth.effectiveRole = 'documentacao'
     render(<BillingPortalReleaseCard customerId={9} portalReady={false} />)
@@ -93,7 +103,7 @@ describe('BillingPortalReleaseCard', () => {
   it('mostra a liberação vencida como vencida e permite renovar', () => {
     state.release = { ...baseRelease, review_at: past }
     render(<BillingPortalReleaseCard customerId={9} portalReady={false} />)
-    expect(screen.getByText('Vencida')).toBeTruthy()
+    expect(screen.getByText(/^Vencida em /).className).toContain('app-lead__value--warning')
     openGrantForm()
     expect(screen.getByRole('button', { name: 'Liberar faturamento' })).toBeTruthy()
   })
@@ -101,7 +111,7 @@ describe('BillingPortalReleaseCard', () => {
   it('com a liberação vigente, oferece só a revogação', () => {
     state.release = baseRelease
     render(<BillingPortalReleaseCard customerId={9} portalReady={false} />)
-    expect(screen.getByText('Vigente')).toBeTruthy()
+    expect(screen.getByText(/^Vigente até /).className).not.toContain('--warning')
     expect(screen.getByRole('button', { name: 'Revogar liberação' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Conceder/ })).toBeNull()
   })

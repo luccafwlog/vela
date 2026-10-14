@@ -170,3 +170,16 @@ export async function reactivateCustomerContact(
   )
   return internalSaveCustomerContactConfiguration(customerId, updated, justification)
 }
+
+/**
+ * Caixa sem destinatário recebe o contato principal, gravado pelo sistema
+ * (migration 223): o servidor calcula as caixas e registra o evento com
+ * origem "sistema". Devolve as caixas completadas (vazio quando nada mudou).
+ */
+export async function fillEmptyContactBoxes(customerId: number): Promise<string[]> {
+  // ponytail: RPC só da migration 223; cast local até database.ts ser regenerado.
+  const { data, error } = await supabase.rpc('internal_fill_empty_contact_boxes' as never, { p_customer_id: customerId } as never)
+  if (error) throw error
+  const filled = (data as { filled?: unknown } | null)?.filled
+  return Array.isArray(filled) ? filled.map(String) : []
+}

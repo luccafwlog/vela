@@ -16,7 +16,8 @@ import { Button } from '../components/ui/Button'
 import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
 import { PageHeader } from '../components/ui/Card'
-import { SummaryStrip } from '../components/ui/SummaryStrip'
+import { Block } from '../components/ui/Block'
+import { StatusText } from '../components/ui/StatusText'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { useInvoices } from '../hooks/useBilling'
@@ -75,7 +76,6 @@ export function TaxasLocais() {
     return {
       openCount: open.length,
       openBalance: open.reduce((sum, row) => sum + Number(row.balance_brl ?? 0), 0),
-      partialCount: invoices.filter((row) => row.status === 'partially_paid').length,
     }
   }, [invoices])
 
@@ -196,45 +196,52 @@ export function TaxasLocais() {
           <ValidacaoTab key={`validacao-${validacaoBl}`} userId={user?.id ?? null} initialBlockCode={validacaoInitialBlockCode} initialBlSearch={validacaoBl} />
         ) : (
           <>
-            <InvoiceFiltersBar
-              filters={filters}
-              filterResetKey={filterResetKey}
-              customerInitialValue={customerFilterLabel}
-              activeFilterCount={activeFilterCount}
-              onClear={clearFilters}
-              onSelectCustomer={selectCustomer}
-              updateFilter={updateFilter}
-            />
-            <InvoicesTable
-              invoices={invoices}
-              isLoading={isLoading}
-              error={error}
-              onRetry={() => void invoicesQuery.refetch?.()}
-              totalCount={totalCount}
-              summary={!isLoading && !error ? (
-                <SummaryStrip
-                  label="Resumo das faturas"
-                  items={[
-                    { label: totalCount === 1 ? 'fatura no recorte' : 'faturas no recorte', value: String(totalCount) },
-                    { label: 'em aberto nesta página', value: `${pageSummary.openCount} · ${formatBRL(pageSummary.openBalance)}`, tone: pageSummary.openCount ? 'warning' : 'default' },
-                    ...(pageSummary.partialCount ? [{ label: 'parcialmente pagas nesta página', value: String(pageSummary.partialCount) }] : []),
-                  ]}
+            <Block
+              title="Faturas"
+              headingLevel={2}
+              flush
+              aside={(
+                <>
+                  {!isLoading && !error ? (
+                    <span>
+                      {totalCount === 1 ? '1 fatura' : `${totalCount.toLocaleString('pt-BR')} faturas`}
+                      {pageSummary.openBalance > 0 ? (
+                        <> · <StatusText tone="warning">{formatBRL(pageSummary.openBalance)} em aberto{totalPages > 1 ? ' nesta página' : ''}</StatusText></>
+                      ) : null}
+                    </span>
+                  ) : null}
+                  <Button variant="secondary" className="app-btn--sm" loading={exporting} loadingLabel="Exportando…" disabled={!isLoading && totalCount === 0} onClick={() => void handleExport()}>
+                    <Download size={14} aria-hidden="true" />Exportar
+                  </Button>
+                </>
+              )}
+            >
+              <div className="app-block__body">
+                <InvoiceFiltersBar
+                  filters={filters}
+                  filterResetKey={filterResetKey}
+                  customerInitialValue={customerFilterLabel}
+                  activeFilterCount={activeFilterCount}
+                  onClear={clearFilters}
+                  onSelectCustomer={selectCustomer}
+                  updateFilter={updateFilter}
                 />
-              ) : null}
-              actions={
-                <Button variant="secondary" loading={exporting} loadingLabel="Exportando…" disabled={!isLoading && totalCount === 0} onClick={() => void handleExport()}>
-                  <Download size={16} />Exportar faturas
-                </Button>
-              }
-              emptyState={emptyState}
-              emptyAction={activeFilterCount > 0 ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button> : undefined}
-              page={filters.page}
-              pageSize={filters.pageSize}
-              totalPages={totalPages}
-              onPageChange={(page) => setSearchParams(withFaturasFilter(searchParams, 'page', page))}
-              onSelectInvoice={openInvoice}
-              showCommunication
-            />
+              </div>
+              <InvoicesTable
+                invoices={invoices}
+                isLoading={isLoading}
+                error={error}
+                onRetry={() => void invoicesQuery.refetch?.()}
+                totalCount={totalCount}
+                emptyState={emptyState}
+                emptyAction={activeFilterCount > 0 ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button> : undefined}
+                page={filters.page}
+                pageSize={filters.pageSize}
+                totalPages={totalPages}
+                onPageChange={(page) => setSearchParams(withFaturasFilter(searchParams, 'page', page))}
+                onSelectInvoice={openInvoice}
+              />
+            </Block>
           </>
         )}
       </div>

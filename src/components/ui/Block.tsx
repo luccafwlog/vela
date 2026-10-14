@@ -40,7 +40,8 @@ export function Block({
 
 /**
  * Dado principal de um bloco (regra 2): maior e em negrito. `tone` só quando
- * o dado pede ação (regra 5); o texto continua dizendo o estado.
+ * o dado pede ação (regra 5); o texto continua dizendo o estado. `muted`
+ * para o estado que não pede nada nem está em vigor ("Sem condição VIP").
  */
 export function LeadValue({
   children,
@@ -50,7 +51,7 @@ export function LeadValue({
 }: {
   children: ReactNode
   detail?: ReactNode
-  tone?: 'default' | 'warning' | 'danger'
+  tone?: 'default' | 'warning' | 'danger' | 'muted'
   className?: string
 }) {
   return (
@@ -71,9 +72,9 @@ export function FactList({ children, columns = 2, className }: { children: React
   return <dl className={cn('app-facts', `app-facts--${columns}`, className)}>{children}</dl>
 }
 
-export function Fact({ label, children, detail }: { label: ReactNode; children: ReactNode; detail?: ReactNode }) {
+export function Fact({ label, children, detail, className }: { label: ReactNode; children: ReactNode; detail?: ReactNode; className?: string }) {
   return (
-    <div className="app-facts__item">
+    <div className={cn('app-facts__item', className)}>
       <dt className="app-facts__label">{label}</dt>
       <dd className="app-facts__value">
         {children}

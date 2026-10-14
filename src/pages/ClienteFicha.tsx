@@ -10,6 +10,7 @@ import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { CopyValue } from '../components/ui/CopyValue'
 import { NoValue } from '../components/ui/NoValue'
+import { IdentityBand } from '../components/ui/IdentityBand'
 import { useCustomerDetail } from '../hooks/useCustomers'
 import { buildCustomerBillingUrl } from '../lib/customerTableViewModel'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -17,7 +18,9 @@ import { formatCnpjCpf, formatCountLabel, formatDate } from '../lib/utils'
 import { FichaTabBar, fichaPanelId, fichaTabId, resolveFichaTab, type FichaTabId } from '../components/clientes/FichaTabs'
 import { CadastroContatosTab } from '../components/clientes/CadastroContatosTab'
 import { VisaoGeralTab } from '../components/clientes/VisaoGeralTab'
-import { OperacionalTab } from '../components/clientes/OperacionalTab'
+import { BlsTab } from '../components/clientes/BlsTab'
+import { ConteineresTab } from '../components/clientes/ConteineresTab'
+import { CeUnlockRequestsBlock } from '../components/clientes/CeUnlockRequestsBlock'
 import { FinanceiroTab } from '../components/clientes/FinanceiroTab'
 import { HistoricoTab } from '../components/clientes/HistoricoTab'
 import { clientesListHref } from './clientesListState'
@@ -83,9 +86,10 @@ export function ClienteFicha() {
   }
 
   const { deactivated_at: deactivatedAt, deactivation_reason: deactivationReason } = data as typeof data & Deactivation
-  const primary = data.customer_contacts?.find((contact) => contact.is_primary && !contact.deactivated_at && contact.email?.trim())
   const place = [data.city, data.state].filter(Boolean).join('/')
   const blCount = data.bls?.length ?? 0
+  // E-mail do contato principal ativo, o mesmo do bloco Contato principal da Visão geral.
+  const primaryEmail = data.customer_contacts?.find((contact) => contact.is_primary && !contact.deactivated_at && Boolean(contact.email?.trim()))?.email ?? null
 
   const menu: ActionMenuItem[] = [
     { key: 'faturas', label: 'Ver faturas em Taxas Locais', icon: <ReceiptText size={14} aria-hidden="true" />, to: buildCustomerBillingUrl(data) },
@@ -96,32 +100,27 @@ export function ClienteFicha() {
   return (
     <>
       <Breadcrumb items={[{ label: 'Clientes', to: listHref }, { label: data.name }]} />
-      <header className="app-customer-head">
-        <div className="app-customer-head__copy">
-          <p className="app-customer-head__eyebrow">
-            <span>Cliente</span>
-            <span aria-hidden="true">·</span>
-            <span>CNPJ <span className="tabular-nums">{data.cnpj_cpf ? <CopyValue value={formatCnpjCpf(data.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span></span>
-            {deactivatedAt ? <Badge tone="neutral">Desativado</Badge> : null}
-          </p>
-          <h1 className="app-customer-head__title">{data.name}</h1>
-          <p className="app-customer-head__context">
-            {data.trade_name ? <span>{data.trade_name}</span> : null}
-            {place ? <span>{place}</span> : null}
-            {primary ? <span>{primary.email}</span> : <span className="app-customer-head__missing">Sem contato principal com e-mail</span>}
-            <span>{formatCountLabel(blCount, 'B/L vinculado', 'B/Ls vinculados')}</span>
-          </p>
-        </div>
-        <div className="app-customer-head__actions">
+      <IdentityBand
+        kind="Cliente"
+        title={data.name}
+        titleAside={deactivatedAt ? <Badge tone="neutral">Desativado</Badge> : null}
+        facts={[
+          { label: 'CNPJ', value: data.cnpj_cpf ? <span className="tabular-nums"><CopyValue value={formatCnpjCpf(data.cnpj_cpf)} label="CNPJ/CPF" /></span> : <NoValue label="Sem CNPJ/CPF" /> },
+          ...(data.trade_name ? [{ label: 'Nome fantasia', value: data.trade_name }] : []),
+          ...(place ? [{ label: 'Cidade', value: place }] : []),
+          { label: 'E-mail', value: primaryEmail ?? <NoValue label="Sem e-mail do contato principal" /> },
+          { label: 'B/Ls vinculados', value: blCount.toLocaleString('pt-BR') },
+        ]}
+        actions={(
           <ActionMenu
             label="Mais ações do Cliente"
             menuId="customer-header-menu"
-            triggerClassName="app-btn app-btn--secondary app-customer-head__more"
+            triggerClassName="app-btn app-btn--ghost"
             trigger={<><MoreHorizontal size={16} aria-hidden="true" />Mais ações</>}
             items={menu}
           />
-        </div>
-      </header>
+        )}
+      />
 
       {deactivatedAt ? (
         <div className="app-customer-banner" role="status">
@@ -134,15 +133,21 @@ export function ClienteFicha() {
         active={activeTab}
         onSelect={selectTab}
         canReadCeUnlock={canReadCeUnlock}
-        counts={{ operacional: { value: blCount, label: formatCountLabel(blCount, 'B/L vinculado', 'B/Ls vinculados') } }}
+        counts={{ bls: { value: blCount, label: formatCountLabel(blCount, 'B/L vinculado', 'B/Ls vinculados') } }}
       />
       <div id={fichaPanelId(activeTab)} role="tabpanel" aria-labelledby={fichaTabId(activeTab)} className="app-customer-panel">
         {activeTab === 'visao-geral' ? <VisaoGeralTab data={data} onNavigateTab={selectTab} /> : null}
         {activeTab === 'cadastro' ? <CadastroContatosTab data={data} cnpj={cnpj!} /> : null}
-        {activeTab === 'operacional' ? <OperacionalTab data={data} /> : null}
+        {activeTab === 'bls' ? <BlsTab data={data} /> : null}
+        {activeTab === 'conteineres' ? <ConteineresTab data={data} /> : null}
         {activeTab === 'financeiro' ? <FinanceiroTab data={data} /> : null}
         {activeTab === 'historico' ? <HistoricoTab data={data} /> : null}
-        {activeTab === 'desbloqueio-ce' ? <Card><CeUnlockVipCoveragePanel customerId={data.id} manage={can('ce_unlock_manage')} /></Card> : null}
+        {activeTab === 'desbloqueio-ce' ? (
+          <div className="grid gap-4">
+            <CeUnlockRequestsBlock customerId={data.id} manage={can('ce_unlock_manage')} />
+            <CeUnlockVipCoveragePanel customerId={data.id} manage={can('ce_unlock_manage')} />
+          </div>
+        ) : null}
       </div>
     </>
   )

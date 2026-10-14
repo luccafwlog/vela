@@ -1,19 +1,30 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ValidacaoControls } from '../ValidacaoControls'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 afterEach(cleanup)
 function renderControls(overrides: Partial<React.ComponentProps<typeof ValidacaoControls>> = {}) {
-  const callbacks = { onUpdateFilter: vi.fn(), onRunBatchOperation: vi.fn(), onExport: vi.fn(), onExportConference: vi.fn() }
-  render(<QueryClientProvider client={new QueryClient()}><ValidacaoControls filters={{ search: '', cargoMode: '', pod: '', voyageId: '', blockCode: '', includeResolved: false }} blockedCount={0} truncated={false} selectedCount={0} operationsLoading={false} calculatePending={false} exporting={false} exportingConference={false} {...callbacks} {...overrides} /></QueryClientProvider>)
-  return callbacks
+  const onUpdateFilter = vi.fn()
+  render(<QueryClientProvider client={new QueryClient()}><ValidacaoControls filters={{ search: '', cargoMode: '', pod: '', voyageId: '', blockCode: '', includeResolved: false }} truncated={false} onUpdateFilter={onUpdateFilter} {...overrides} /></QueryClientProvider>)
+  return onUpdateFilter
 }
 
 describe('ValidacaoControls', () => {
-  it('desabilita recalculo sem seleção', () => { renderControls(); expect((screen.getByRole('button', { name: /Recalcular/ }) as HTMLButtonElement).disabled).toBe(true) })
-  it('mostra contador e aviso no teto', () => { renderControls({ blockedCount: 100, truncated: true, selectedCount: 3 }); expect(screen.getByText('100 B/Ls aguardando emissão · 3 selecionados')).toBeTruthy(); expect(screen.getByText(/Limite de 1200/)).toBeTruthy() })
-  it('executa recalculo quando há seleção', async () => { const user = userEvent.setup(); const callbacks = renderControls({ blockedCount: 2, selectedCount: 1 }); await user.click(screen.getByRole('button', { name: /Recalcular/ })); expect(callbacks.onRunBatchOperation).toHaveBeenCalledWith('recalculate') })
+  it('Busca, Motivo e Navio / Viagem abertos; Modo de carga, POD e resolvidos em Mais filtros', () => {
+    renderControls()
+    expect(screen.getByLabelText('Buscar B/L ou Cliente')).toBeTruthy()
+    expect(screen.getByLabelText('Motivo')).toBeTruthy()
+    expect(screen.queryByLabelText('Modo de carga')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Mais filtros/ }))
+    expect(screen.getByLabelText('Modo de carga')).toBeTruthy()
+    expect(screen.getByLabelText('POD')).toBeTruthy()
+  })
+  it('avisa quando o teto de 1200 B/Ls foi atingido', () => { renderControls({ truncated: true }); expect(screen.getByText(/Limite de 1200/)).toBeTruthy() })
+  it('trocar o motivo atualiza o filtro', () => {
+    const onUpdateFilter = renderControls()
+    fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'pronto' } })
+    expect(onUpdateFilter).toHaveBeenCalledWith('blockCode', 'pronto')
+  })
 })

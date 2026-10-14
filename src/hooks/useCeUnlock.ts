@@ -4,6 +4,7 @@ import {
   getCeUnlockRequest,
   listCeUnlockBls,
   listCeUnlockReviewQueue,
+  listCustomerCeUnlockRequests,
 } from "../services/ceUnlockService";
 import { queryKeys } from "../services/queryKeys";
 import { afterCeUnlockChanged } from "../services/cacheEffects";
@@ -34,6 +35,12 @@ export function useCeUnlockReviewQueue(page: number, enabled = true) {
     queryFn: () => listCeUnlockReviewQueue(page),
     enabled,
     refetchOnWindowFocus: "always",
+  });
+}
+export function useCustomerCeUnlockRequests(customerId: number, blSearch: string, page: number) {
+  return useQuery({
+    queryKey: [...queryKeys.ceUnlock.all(), "customer-requests", customerId, blSearch.trim(), page] as const,
+    queryFn: () => listCustomerCeUnlockRequests(customerId, blSearch, page),
   });
 }
 export function useCeUnlockRequest(id: string | null) {

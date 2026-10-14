@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../services/billing', () => ({
@@ -35,6 +36,8 @@ describe('InvoiceFiltersBar com o filtro na URL', () => {
     vi.useFakeTimers()
     const updateFilter = vi.fn()
     const { rerender } = render(bar(base, updateFilter))
+    // B/L e fatura em separado ficam em "Mais filtros" (a busca aberta é única).
+    fireEvent.click(screen.getByRole('button', { name: /Mais filtros/ }))
     const input = screen.getByRole('combobox', { name: 'B/L' })
     input.focus()
     fireEvent.change(input, { target: { value: 'BL-9 ' } })
@@ -45,5 +48,43 @@ describe('InvoiceFiltersBar com o filtro na URL', () => {
 
     expect(screen.getByRole('combobox', { name: 'B/L' })).toBe(input)
     expect(document.activeElement).toBe(input)
+  })
+
+  it('Limpar filtros não traz de volta a busca antiga que ainda estava na pausa', async () => {
+    vi.useFakeTimers()
+    const updateFilter = vi.fn()
+    const { rerender } = render(bar({ ...base, query: 'FAT-18' }, updateFilter))
+
+    rerender(bar(base, updateFilter))
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+
+    expect(updateFilter).not.toHaveBeenCalledWith('query', 'FAT-18')
+    expect((screen.getByLabelText('Buscar fatura ou B/L') as HTMLInputElement).value).toBe('')
+  })
+
+  it('a busca única por fatura ou B/L fica aberta e chega à URL depois da pausa', async () => {
+    vi.useFakeTimers()
+    const updateFilter = vi.fn()
+    render(bar(base, updateFilter))
+    fireEvent.change(screen.getByLabelText('Buscar fatura ou B/L'), { target: { value: 'COSU64' } })
+    expect(updateFilter).not.toHaveBeenCalledWith('query', 'COSU64')
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(updateFilter).toHaveBeenCalledWith('query', 'COSU64')
+    vi.useRealTimers()
+  })
+
+  it('publica a busca na URL fora da renderização (sem aviso de atualizar outro componente)', async () => {
+    vi.useFakeTimers()
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function Page() {
+      const [filters, setFilters] = useState(base)
+      return bar(filters, ((key: keyof Filters, value: unknown) => setFilters((current) => ({ ...current, [key]: value }))) as never)
+    }
+    render(<Page />)
+    fireEvent.change(screen.getByLabelText('Buscar fatura ou B/L'), { target: { value: 'COSU64' } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/Cannot update a component/)
+    expect((screen.getByLabelText('Buscar fatura ou B/L') as HTMLInputElement).value).toBe('COSU64')
+    errors.mockRestore()
   })
 })

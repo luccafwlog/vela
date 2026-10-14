@@ -1,4 +1,5 @@
 import { Badge } from '../ui/Badge'
+import { StatusText, type StatusTextTone } from '../ui/StatusText'
 import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import type { DemurrageInvoice } from '../../types/database'
 
@@ -12,17 +13,21 @@ export function DemurrageStatusBadge({ status }: { status: string | null }) {
   return <Badge tone="success">No free time</Badge>
 }
 
-const INVOICE_TONES: Record<string, 'success' | 'neutral' | 'warning' | 'info'> = {
-  paid: 'success',
-  cancelled: 'neutral',
-  draft: 'warning',
-  issued: 'info',
+const INVOICE_TONES: Record<string, StatusTextTone> = {
+  paid: 'paid',
+  cancelled: 'muted',
+  overdue: 'warning',
 }
 
+/**
+ * Situação da fatura de Demurrage em texto (regra 5, tabela limpa de
+ * 2026-10-14): Pago com o ✓ verde, Vencido em âmbar, Cancelado em cinza. O
+ * vocabulário continua o de Demurrage ("Faturado", "Pago").
+ */
 export function InvoiceStatusBadge({ status }: { status: DemurrageInvoice['status'] }) {
   return (
-    <Badge tone={INVOICE_TONES[status ?? ''] ?? 'info'}>
+    <StatusText tone={INVOICE_TONES[status ?? ''] ?? 'default'}>
       {statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, status, 'Faturado')}
-    </Badge>
+    </StatusText>
   )
 }

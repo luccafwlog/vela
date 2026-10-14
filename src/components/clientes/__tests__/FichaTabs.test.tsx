@@ -9,7 +9,7 @@ describe('FichaTabBar', () => {
     render(<FichaTabBar active="visao-geral" onSelect={onSelect} />)
 
     expect(screen.getByRole('tablist', { name: 'Seções da ficha do Cliente' })).toBeTruthy()
-    expect(screen.getAllByRole('tab')).toHaveLength(6)
+    expect(screen.getAllByRole('tab')).toHaveLength(7)
 
     const geralTab = screen.getByRole('tab', { name: 'Visão geral' })
     expect(geralTab.getAttribute('aria-selected')).toBe('true')
@@ -25,5 +25,13 @@ describe('FichaTabBar', () => {
     expect(resolveFichaTab('desbloqueio-ce', false)).toBe('visao-geral')
     expect(resolveFichaTab('desbloqueio-ce', true)).toBe('desbloqueio-ce')
     expect(resolveFichaTab('inexistente', true)).toBe('visao-geral')
+  })
+})
+
+describe('nomes das abas da ficha do Cliente', () => {
+  it('"Operacional" virou BLs, com Contêineres entre BLs e Financeiro; link antigo abre BLs', async () => {
+    const { FICHA_TABS, resolveFichaTab } = await import('../fichaTabConfig')
+    expect(FICHA_TABS.map((tab) => tab.label)).toEqual(['Visão geral', 'Cadastro e contatos', 'BLs', 'Contêineres', 'Financeiro', 'Histórico', 'Desbloqueio de CE e VIP'])
+    expect(resolveFichaTab('operacional')).toBe('bls')
   })
 })
