@@ -10,7 +10,7 @@
   o dono fixou a base (escrita global com rastro, mais cancelar fatura, baixa manual e registro da
   Restituição como exceções) e a lista fechada de exceções; a matriz ação × perfil passou a ter dono
   único em [Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil). Só documentação: o
-  código entrou como itens P no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
+  código entrou como itens P no [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
   numa fila única com as correções da ADR 0083, que passa a ter 43 itens; à frente, depois do B1,
   ficam as falhas de escrita direta pela API confirmadas no Postgres local (itens P2, P3 e P15 do
   plano; P1 junto com o A7, depois do A21). A revisão da PR acrescentou a falha 5 (escrita direta
@@ -39,7 +39,7 @@
   módulos passam a descrever a regra decidida, com "correção pendente" onde o código ainda
   diverge; o termo é Restituição e a regra é "Administrativo ativo mínimo"; o desenho de piloto
   e GO LIVE do Portal de julho foi arquivado. Nenhum código mudou: as correções estão no
-  [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (31 itens de
+  [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (31 itens de
   código e 2 operações do dono), e o plano da revisão geral foi arquivado.
 - **Revisão geral da documentação (2026-10-14, [ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md),
   [relatório](archive/audits/2026-10-13-revisao-geral-documentacao.md)):** cada fato passa a ter

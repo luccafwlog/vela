@@ -1,7 +1,7 @@
 # 0083 — Decisões da revisão geral da documentação
 
 Status: aceito — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelo
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+[plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
 (migrations `230` a `266`; a tabela "Execução" do plano liga cada item à sua
 prova). Migration nova só vale em produção depois de publicada.
 

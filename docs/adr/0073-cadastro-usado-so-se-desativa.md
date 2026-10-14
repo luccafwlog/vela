@@ -1,6 +1,6 @@
 # 0073 — Cadastro de referência usado só se desativa
 
-> **Situação atual (2026-10-14).** A decisão vale. Pela [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md) (item D1), no item 6 "o Financeiro quita ou cancela antes" passa a ser: a baixa é do Financeiro ou do Administrativo, e o cancelamento da fatura só do Administrativo. O item 8 (Local, terminal, depot e serviço) foi implementado na migration `263` (item B15 do [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
+> **Situação atual (2026-10-14).** A decisão vale. Pela [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md) (item D1), no item 6 "o Financeiro quita ou cancela antes" passa a ser: a baixa é do Financeiro ou do Administrativo, e o cancelamento da fatura só do Administrativo. O item 8 (Local, terminal, depot e serviço) foi implementado na migration `263` (item B15 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 > Regra vigente em [Taxas Locais](../modules/taxas-locais.md), seção "Persistência e ownership", e em [Segurança](../operations/seguranca.md), seção "Modelo de permissões por perfil".
 
 Status: supersedida parcialmente — 2026-09-24. Implementado em 2026-09-25, e o item 8 na migration `263` (2026-10-14); item 6 alterado pela ADR 0085 em 2026-10-14.

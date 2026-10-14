@@ -96,7 +96,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
   permissão.
 - **Hoje:** "vigente" quando o banco já cumpre a regra inteira; "correção
   pendente" diz o que o banco faz hoje e aponta, pelo código, o item do
-  [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+  [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
   (P*n* para a ADR 0085; A*n* e B*n* para a ADR 0083). Os códigos P do plano
   não são as faixas P1 e P2 da Demurrage.
 - **Evidência:** leitura estática da definição mais recente de cada objeto

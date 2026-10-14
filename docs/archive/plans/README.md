@@ -1,6 +1,6 @@
 # Planos históricos (archive)
 
-- [2026-10-13 — Revisão geral da documentação](2026-10-13-revisao-geral-documentacao.md) — encerrado em 2026-10-14: varredura, aplicação e gate concluídos, e o dono respondeu as decisões pendentes no mesmo dia. Decisões nas ADRs [0083](../../adr/0083-decisoes-da-revisao-geral-da-documentacao.md) e [0084](../../adr/0084-registro-de-decisoes-ja-em-producao.md); correções de código no [plano vivo](../../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md); relatório em [2026-10-13-revisao-geral-documentacao.md](../audits/2026-10-13-revisao-geral-documentacao.md).
+- [2026-10-13 — Revisão geral da documentação](2026-10-13-revisao-geral-documentacao.md) — encerrado em 2026-10-14: varredura, aplicação e gate concluídos, e o dono respondeu as decisões pendentes no mesmo dia. Decisões nas ADRs [0083](../../adr/0083-decisoes-da-revisao-geral-da-documentacao.md) e [0084](../../adr/0084-registro-de-decisoes-ja-em-producao.md); correções de código no [plano vivo](2026-10-14-correcoes-decididas-na-revisao-geral.md); relatório em [2026-10-13-revisao-geral-documentacao.md](../audits/2026-10-13-revisao-geral-documentacao.md).
 
 - [2026-10-07 — Revisão visual e UX: pacote de prompts](2026-10-07-revisao-visual-ux-prompts.md) — encerrado e arquivado em 2026-10-13 depois da etapa 12: o contrato visual da etapa 00 foi substituído pela identidade visual única ([ADR 0081](../../adr/0081-identidade-visual-unica.md)), e as etapas 13 a 23 deram lugar ao [plano de migração tela a tela](../../plans/2026-10-13-identidade-visual-tela-a-tela.md).
 

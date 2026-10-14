@@ -48,7 +48,7 @@ banco, até a exportação; B não leu, alterou nem baixou nada de A pelo servi�
 real. Falta a conciliação com um "Exportar Tela" real da ZPT (Tarefa 6).
 A revisão geral da documentação do mesmo dia reabriu o alerta de troca de CE
 com Desbloqueio conferido, que o código não abria (B1 do
-[plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico). A
+[plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico). A
 correção é a migration `230`, provada no Postgres local; falta publicá-la em produção.
 
 **Estado conferido em 2026-10-14:** a rodada do expurgo das 06:00 UTC executou o
@@ -245,7 +245,7 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    de um B/L conciliado como *Desbloqueio conferido* passa a abrir
    `ce_trocado_com_desbloqueio` e a avisar na prévia, lendo a conciliação em
    `ce_unlock_zpt_status` (defeito B1 do
-   [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md),
+   [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
    [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
    Provado no Postgres local pelo teste B1 de
    `ceImportacaoContrato.local-pg.test.ts`; falta a publicação.
@@ -291,7 +291,7 @@ apresentação; timestamps persistidos continuam UTC.
 - [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
 - [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
 - [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
-- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); continuam pendentes os aceites deste item. A matriz de papéis foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11): leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação; a correção para Equipamentos é o item P12 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); continuam pendentes os aceites deste item. A matriz de papéis foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11): leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação; a correção para Equipamentos é o item P12 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 - [ ] **[bloqueia ativação]** Homologar a amostra XLSX e os indicadores Sim/Não com responsável/ZPT; revisar spec/plano no aceite.
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
@@ -442,7 +442,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
 - [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Superado** pela revisão de 2026-10-07: as ações `sent` e `confirm` saíram; exportar registra o envio e a conciliação com o "Exportar Tela" da ZPT marca *Desbloqueio conferido* ou *Divergente* ([módulo vivo](../modules/desbloqueio-ce.md)). Confirmações antigas ficam como histórico do desk.
 - [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número. **Código/Remoto:** migration `177` (PR 929), em produção em 2026-10-12.
-- [ ] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: a definição da `195` lia a confirmação manual retirada na `160`, não o status da conciliação. Corrigido na migration `230` (B1 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md)), provado no Postgres local pelo teste B1; falta publicar em produção (item 8 do caminho crítico).
+- [ ] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: a definição da `195` lia a confirmação manual retirada na `160`, não o status da conciliação. Corrigido na migration `230` (B1 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)), provado no Postgres local pelo teste B1; falta publicar em produção (item 8 do caminho crítico).
 - [x] Demonstrar baixa cancelada concorrente à criação da exportação. **Teste:** "exportação aguarda reversão financeira concorrente…" em `ceUnlock.local-pg.test.ts` (ver "Fontes").
 - [ ] Demonstrar bloqueio por cada requisito (hoje há teste de pagamento e de termo anual revogado), snapshot imutável e retry do mesmo lote.
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.

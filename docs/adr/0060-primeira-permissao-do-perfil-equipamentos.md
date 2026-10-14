@@ -1,6 +1,6 @@
 # ADR 0060 — Perfil Equipamentos ganha sua primeira permissão
 
-> **Situação atual (2026-10-14).** A permissão `customer_communications` vale para disparar Comunicados e editar contatos e caixas. Pela [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md) (item D19), não vale mais que ela governe o acesso ao módulo inteiro: qualquer Departamento abre `/clientes/comunicacao` para consultar o histórico. Implementado na migration `250` (item P12 do [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
+> **Situação atual (2026-10-14).** A permissão `customer_communications` vale para disparar Comunicados e editar contatos e caixas. Pela [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md) (item D19), não vale mais que ela governe o acesso ao módulo inteiro: qualquer Departamento abre `/clientes/comunicacao` para consultar o histórico. Implementado na migration `250` (item P12 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 > Regra vigente em [Segurança](../operations/seguranca.md), seção "Modelo de permissões por perfil".
 
 Status: supersedida parcialmente — 2026-08-27; o acesso de leitura ao módulo mudou pela ADR 0085 em 2026-10-14

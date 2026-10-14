@@ -30,7 +30,7 @@ leitura do caminho.
   chama (`_impl`, `_core`, `_legacy_…`). Elas não provam o projeto remoto.
 - Quando o código ainda diverge de uma regra decidida, a linha descreve o que
   o código faz hoje e cita a correção pendente no
-  [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (decisões na
+  [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (decisões na
   [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md) e na
   [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md), cuja matriz de quem faz o quê está em
   [Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil)). Em 2026-10-14 as linhas
