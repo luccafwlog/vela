@@ -139,11 +139,13 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     - **Desbloqueio de CE e VIP:** novo bloco Solicitações de desbloqueio
       (protocolo, B/Ls, situação, termo, procuração, prazo, aberta em,
       Analisar), com busca por B/L e paginação, antes da Condição VIP.
-  - **Taxas Locais · Faturas** (aprovada em 2026-10-14): "Aguardando envio
+  - **Taxas Locais · Faturas** (decisões de 2026-10-14; tela ainda não
+    aprovada, e a aba Validação ainda não tem proposta): "Aguardando envio
     automático" em texto cinza (o envio é do sistema; falha de envio e
     prontidão bloqueada continuam com cor) e fatura cancelada em cinza, não
     em vermelho.
-  - **Faturas do Portal** (aprovada em 2026-10-14): nada no lugar do
+  - **Faturas do Portal** (decisões de 2026-10-14; tela ainda não
+    aprovada): nada no lugar do
     vencimento (a taxa local não tem vencimento, ADR 0055); botão "Copiar
     código Pix" (ação nova) no bloco Pagamento.
   - **Defeito achado, fora da mudança visual** (2026-10-14, por leitura do
