@@ -1,7 +1,7 @@
 # ADR 0053 — Alerta fecha pela origem; dispensa temporária exige revisão
 
 > **Situação atual (2026-10-13).** Decisão vigente; implementação parcial. Divergência entre código e decisão, registrada como decisão pendente: `resolve_billing_alert` deixa qualquer usuário interno ativo fechar `billing_auto_issue_failed` e `billing_calculation_blocked` sem que o servidor recompute a origem (a conferência é feita no navegador), contra a guarda server-side pedida abaixo.
-> Regra vigente em [Arquitetura](../ARCHITECTURE.md), seção "Alertas e notificações internas".
+> Regra vigente em [Operação e Suporte § Alertas e Notificações Internas](../modules/operacao-suporte.md#alertas-e-notificações-internas).
 
 Status: aceito — 2026-08-17
 
