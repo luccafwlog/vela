@@ -170,6 +170,7 @@ independente; a evidência está na faixa de cada ADR.
 | B27 (ADR 0053) | defeito | `resolve_billing_alert` deixa qualquer usuário interno ativo fechar `billing_auto_issue_failed` e `billing_calculation_blocked`; a conferência da origem é feita só no navegador. | Tratar como defeito: recomputar a origem no servidor. |
 | B28 (ADR 0061) | defeito | O diálogo "Vincular cliente ao grupo" da Revisão diz "sem alterar contatos", mas `save_bl_review` captura o e-mail do manifesto quando a fila de conciliação fecha. | Corrigir o texto do diálogo ou a captura, conforme a ADR 0064 (captura protegida). |
 | B29 (ADR 0014) | defeito | `demurrage_invoices.due_date` existe e a ficha do Cliente conta Invoice de Demurrage vencida, contra "Demurrage não vence". | Tratar como defeito. |
+| B30 (glossário) | defeito | O banco entrega ao Portal o free time e o valor por período de cada container de Demurrage, mas o detalhe da Invoice no Portal mostra só datas, dias e USD; o glossário prometia o detalhamento ao Cliente. | Decidir se o Portal passa a mostrar o detalhamento ou se a promessa sai. |
 | C1 | registro | Decisões já tomadas e em produção sem ADR: integração Pix dinâmica com o Itaú (migrations `151`–`154`, `219`), Automatic branching do Supabase desligado em 2026-10-07 e environments de Preview sem restrição de branch (recusa de 2026-10-06). | Registrar numa ADR nova de consolidação, sem mudar comportamento. |
 
 Decisão de organização tomada na revisão, sem pergunta ao dono (D9-19): o
