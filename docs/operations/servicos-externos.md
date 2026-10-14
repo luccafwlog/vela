@@ -257,9 +257,11 @@ As 24 funções do repositório estão publicadas e `ACTIVE` em produção:
 `portal-invite-send`, `portal-login`, `portal-password-recovery`,
 `portal-password-reset`, `portal-recovery-email-change`,
 `recalc-demurrage-ptax` e `send-customer-communication`. Também continua
-publicada `notify-invoice-issued` (v68, de 2026-09-01), que a
-[ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou apagar e que
-não tem código no repositório nem chamador no código. **Runtime:** listagem somente de leitura das
+publicada, na v68 de 2026-09-01, a Edge Function antiga de aviso de fatura
+emitida que a [ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou
+apagar (o nome está na ADR); ela não tem código no repositório nem chamador no
+código, e apagá-la é decisão pendente B32 do
+[plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md). **Runtime:** listagem somente de leitura das
 Edge Functions do projeto em 2026-10-14; `itau-pix` estava na v20, publicada em
 2026-10-13 às 17:47 UTC, e o código baixado trata `{"action":"process_charges"}`,
 o disparo da migration `219` (seção [Itaú](#itaú--api-pix-recebimentos)).
