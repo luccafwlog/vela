@@ -200,6 +200,15 @@ function migration231Applied(): boolean {
   }
 }
 
+function migration251Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('is_admin' IN prosrc) = 0 FROM pg_proc WHERE proname = 'revert_voyage_omission';`) === 't'
+  } catch {
+    return false
+  }
+}
+
 function migration250Applied(): boolean {
   if (!enabled) return false
   try {
@@ -228,8 +237,8 @@ function migration246Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied(),
-  'migrations 231 a 250 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied(),
+  'migrations 231 a 251 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -546,6 +555,25 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   it('P12: gerir o Desbloqueio de CE e responder Disputas seguem restritos', () => {
     expect(runAs('operacoes', `SELECT public.ce_unlock_read('exports', '{}'::jsonb)`).error).toMatch(/Acesso negado ao desbloqueio/)
     expect(runAs('equipamentos', `SELECT public.ce_unlock_read('exports', '{}'::jsonb)`).error).toMatch(/Acesso negado ao desbloqueio/)
+  })
+
+  // P6 — reabrir o ADR e reverter omissão por qualquer Departamento, com motivo (ADR 0085, D8 e D9; migration 251).
+  it.each(ALL_PROFILES)('P6: %s reabre o ADR e reverte omissão; sem motivo é recusado', (profile) => {
+    const user = PROFILES[profile]
+    const calls = [
+      `SELECT public.reopen_agency_departure_report(${VOYAGE_ID}, 'SSZ', 'motivo')`,
+      `SELECT public.reopen_agency_departure_report_by_report_id(gen_random_uuid(), ${VOYAGE_ID}, 'SSZ', 'motivo')`,
+      `SELECT public.revert_voyage_omission(-1, 'motivo', '${user}')`,
+    ]
+    for (const call of calls) {
+      const result = runAs(profile, call)
+      expect(result.ok, `${profile}: ${call}`).toBe(false)
+      expect(result.error, `${profile}: ${call}`).not.toMatch(/sem permiss|Somente/i)
+    }
+    expect(runAs(profile, `SELECT public.reopen_agency_departure_report(${VOYAGE_ID}, 'SSZ', '  ')`).error).toMatch(/exige justificativa/)
+    expect(runAs(profile, `SELECT public.revert_voyage_omission(-1, '', '${user}')`).error).toMatch(/exige justificativa/)
+    expect(runAs(profile, `SELECT public.revert_voyage_omission(-1, 'motivo', '${PROFILES.administrativo === user ? PROFILES.financeiro : PROFILES.administrativo}')`).error)
+      .toMatch(/proprio usuario/)
   })
 
   it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {

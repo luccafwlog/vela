@@ -756,8 +756,8 @@ it('no estado fechado renderiza o documento e oculta controles/seções editáve
   expect(screen.getByRole('article', { name: 'Agency Departure Report fechado' })).toBeTruthy()
 })
 
-it('exibe Reabrir do ADR somente para administradores e exige justificativa não vazia', () => {
-  useAuthMock.mockReturnValue({ effectiveRole: 'administrativo', isAdmin: true })
+it('exibe Reabrir do ADR a qualquer Departamento e exige justificativa não vazia', () => {
+  useAuthMock.mockReturnValue({ effectiveRole: 'financeiro', isAdmin: false })
   useAgencyReportOwnMock.mockReturnValue({
     data: {
       status: 'closed',
@@ -779,7 +779,7 @@ it('exibe Reabrir do ADR somente para administradores e exige justificativa não
   expect(reopenMutateMock).toHaveBeenCalledWith({ voyageId: 7, port: 'BRVIX', justification: 'Correção necessária' }, expect.any(Object))
 })
 
-it('não exibe Reabrir do ADR para usuário não administrador', () => {
+it('não exibe Reabrir do ADR na leitura somente consulta', () => {
   useAuthMock.mockReturnValue({ effectiveRole: 'operacoes', isAdmin: false })
   useAgencyReportOwnMock.mockReturnValue({
     data: {
@@ -789,7 +789,7 @@ it('não exibe Reabrir do ADR para usuário não administrador', () => {
     },
   })
 
-  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} readOnly />)
   expect(screen.queryByRole('button', { name: 'Reabrir' })).toBeNull()
 })
 

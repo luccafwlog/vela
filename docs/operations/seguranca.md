@@ -126,8 +126,8 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Cancelar e reativar Viagem e B/L, com motivo | ✔ | — | — | — | — | `cancel_voyage`, `reactivate_voyage`, `cancel_bl`, `reactivate_bl` (`is_admin`) e gatilhos das migrations `066` e `089` | ADR 0071, itens 8 e 9 | vigente |
 | Excluir viagem, escala (inclusive de exportação), atracação, B/L e container, com motivo e Trava | ✔ | — | — | — | — | `delete_records`, `delete_escala` (migrations `088` e `235`: escala com B/L recusada); sem DELETE direto pela API (`235`) | ADR 0046; ADR 0071; ADR 0083, item 7 | vigente (**Teste** local) |
 | Excluir taxa manual do B/L | ✔ | — | — | — | — | `delete_manual_bl_charge` (`is_admin`) | ADR 0071, item 11 | vigente: escrita direta em `charge_calculations` revogada (migration `231`, **Teste** local) |
-| Reverter omissão de escala, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `revert_voyage_omission` | ADR 0085, D9 | correção pendente: só Administrativo (P6) |
-| Reabrir ADR de Saída fechado, com motivo no Histórico | ✔ | ✔ | ✔ | ✔ | ✔ | `reopen_agency_departure_report*` | ADR 0085, D8 | correção pendente: só Administrativo; a justificativa já é obrigatória e vai para o rastro (P6) |
+| Reverter omissão de escala, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `revert_voyage_omission` | ADR 0085, D9 | migration `251` |
+| Reabrir ADR de Saída fechado, com motivo no Histórico | ✔ | ✔ | ✔ | ✔ | ✔ | `reopen_agency_departure_report*` | ADR 0085, D8 | migration `251`; a justificativa é obrigatória e vai para o rastro |
 | Assinar e observar seção do ADR de Saída | ✔ | — | dono | dono | dono | `set_agency_report_*signoff*`, `set_agency_report_section_observation*`; terminal legado `set_agency_report_terminal` (Ope e Adm) | ADR 0046; ADR 0085, D13 | vigente |
 
 ### Manifesto, importações e cadastros
