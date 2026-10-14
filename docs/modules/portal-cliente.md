@@ -95,7 +95,7 @@ encerram com `portal_finish_password_reset`. Durante o reset, a troca do email
 
 ### `/portal`
 
-`src/pages/PortalDashboard.tsx` deriva quatro KPIs das listas de invoices locais, invoices de demurrage e B/Ls operacionais. Cada card navega para billing/operação com aba e filtro na query string. Abaixo ficam o cartão da Central de Informações (**Consultar informações**) e a seção Chegadas e Saídas, em que `ShipScheduleWidget` lê a projeção de viagens publicada por `portal_ship_schedule`. O Painel não tem bloco de alertas: as pendências do Portal são da equipe interna.
+`src/pages/PortalDashboard.tsx` deriva quatro KPIs das listas de invoices locais, invoices de demurrage e B/Ls operacionais. Cada card navega para billing/operação com aba e filtro na query string. Abaixo ficam o cartão da Central de Informações (botão **Consultar informações**) e a seção Chegadas e Saídas, em que `ShipScheduleWidget` lê a projeção de viagens publicada por `portal_ship_schedule`. O Painel não tem bloco de alertas: as pendências do Portal são da equipe interna.
 
 ### `/portal/billing`
 
@@ -122,8 +122,8 @@ Falhas de envio e Contas ativas, cada um com a contagem; há também busca por
 razão social ou CNPJ. A ordem segue a prioridade: alerta crítico, fatura
 aberta, processo ativo e atividade recente. Clicar na linha expande, na própria
 tabela, o painel **Revisão do Portal**; o filtro e o Cliente aberto ficam na URL
-(`?filtro=`, `?cliente={id}`), e um Cliente fora do filtro atual aparece com
-**Voltar para a fila**. O cabeçalho tem **Informações do Portal** (leva a
+(`?filtro=`, `?cliente={id}`), e um Cliente fora do filtro atual aparece com o
+botão **Voltar para a fila**. O cabeçalho tem **Informações do Portal** (leva a
 `/clientes/informacoes`) e **Exportar XLSX** (exporta as linhas do filtro e da
 busca atuais). As ações estão no [catálogo](#provisionamento-e-ativação-do-convite).
 
@@ -442,7 +442,7 @@ escopada por Cliente. Nenhuma escrita recebe invólucro de inspeção.
 ### Central de Informações
 
 O Vela é a fonte oficial das informações do Portal. O Portal oferece `/portal/informacoes` e seis seções: `taxas`, `devolucao`,
-`demurrage`, `agentes`, `atendimento` (aba **Contato**) e `tracking`. Há atalhos em Operação,
+`demurrage`, `agentes`, `atendimento` (aba **Contato**) e `tracking`. Há botões de atalho em Operação,
 Faturas e no painel; o Modo Inspeção usa a mesma interface e RPCs de leitura
 com guarda do cliente. Componentes, tokens, navegação e tipografia existentes
 foram preservados.
@@ -460,8 +460,9 @@ containers selecionáveis. Agentes por porto mantém os demais portos. Taxas
 Locais não exibe o badge “Aplicação manual” nem o texto “Inclui SOC”; as
 regras de cobrança permanecem nos cadastros oficiais.
 
-Na Operação, o link “Depósitos de devolução” aparece no nível do B/L, direcionando
-à seção de devolução com o porto de descarga (POD) já selecionado. A administração de
+Na Operação, o botão “Depósitos de devolução” aparece no nível do B/L, direcionando
+à seção de devolução com o porto de descarga (POD) já selecionado (**Código:**
+`src/components/portal/information/InformationLinks.tsx`). A administração de
 Depots não exibe o card explicativo com a lista de portos do cadastro.
 
 O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
@@ -472,8 +473,11 @@ contatos, tracking e observações. O acesso usa `is_active_read_user()` e as
 mutações conferem o papel no banco, além da interface. Alterações geram auditoria.
 Na aba interna Tracking, o endereço aparece apenas no link “Abrir tracking”;
 a URL completa fica no editor do armador.
-Links externos admitem apenas HTTP/HTTPS sem credenciais; o tracking permite
-copiar o B/L e abrir o armador.
+Links externos admitem apenas HTTP/HTTPS sem credenciais. Na seção Tracking do
+Portal, escolhido um B/L da operação, os botões **Copiar número do B/L** e
+**Abrir tracking do armador** copiam o número e abrem o site do armador; a cópia
+é um botão com nome, não o ícone de copiar dos identificadores (**Código:**
+`src/components/portal/information/TrackingSection.tsx`).
 
 **Devolução:** regra fluida por porto de descarga atendido. Não há escolha de
 depósito por container ou subplanilha. Os containers de um porto de descarga

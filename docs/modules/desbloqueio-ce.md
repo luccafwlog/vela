@@ -22,10 +22,12 @@ Manifesto Mercante é regra de
 ## Anatomia das telas
 
 - Portal (`/portal/desbloqueio-ce`): abas Nova solicitação, Minhas solicitações e Documentos anuais (só VIP).
-  Nova solicitação lista os quatro requisitos (com o modelo do termo para baixar) e uma
-  tabela de BLs. Abaixo dos requisitos fica o memorando de liberação de documentos
+  Nova solicitação lista os quatro requisitos (no termo, o botão **Baixar modelo do termo de
+  devolução**, quando há modelo publicado e o Cliente não é VIP) e uma tabela de BLs.
+  Abaixo dos requisitos fica o botão **Baixar memorando de liberação de documentos**
   (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar
-  documentos na agência; não é requisito nem entra no pedido. Selecionar e continuar
+  documentos na agência; não é requisito nem entra no pedido (**Código:**
+  `src/pages/PortalDesbloqueioCe.tsx`). Selecionar e continuar
   cria o rascunho sem confirmação, pois o cliente pode cancelá-lo. A solicitação abre em modal: próximo passo do estado, prazo, documentos
   (anexar/substituir com o motivo da recusa à vista), requisitos por BL e histórico.
   O cliente cancela enquanto o pedido está em rascunho ou com correção solicitada.

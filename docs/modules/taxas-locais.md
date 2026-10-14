@@ -41,7 +41,8 @@ cálculo: a confirmação é o CE Mercante (ADR 0077, decisão 7).
 ### Aba Tabelas em `/taxas-locais/tabelas`
 
 Revisada na etapa 09 da revisão visual (2026-10-09). A página
-(`src/pages/TaxasLocaisTabelas.tsx`) guarda o recorte na URL: `?tab=`
+(`src/pages/TaxasLocaisTabelas.tsx`), aberta pelo botão **Tabelas e
+condições** do cabeçalho de `/taxas-locais`, guarda o recorte na URL: `?tab=`
 (`tabelas` ou `overrides`, nome mantido pelos links existentes), `?modo=`,
 `?pod=` (POD normalizado), `?lente=` (Tabelas) e `?vigencia=`/`?cliente=`
 (Condições de Cliente). As abas usam `TabList`.
@@ -66,8 +67,9 @@ de grafias diferentes do mesmo POD (BRVIX × BRVIT):
 - a linha da tabela tem uma ação visível (Editar) e o menu ⋮ (Adicionar item;
   Desativar/Reativar só para o Administrativo). Os itens abrem dentro da
   tabela, com valor, moeda e unidade (`por B/L`, `por container`,
-  `por tonelada`), "Automático"/"Só manual" e perfil; abaixo de 640 px viram
-  cartões;
+  `por tonelada`), "Automático"/"Só manual" e perfil; cada item tem o botão
+  **Editar** e, para o Administrativo, o menu ⋮ (Desativar/Reativar item,
+  Excluir item); abaixo de 640 px viram cartões;
 - `src/components/taxasLocais/chargePresentation.ts` traduz o cadastro no que
   o motor faz (`resolve_bl_local_charge_items`, migrations `129` e `171`): THD por
   container com perfil "Todos" vai para revisão; perfil em item que não é THD
@@ -97,7 +99,8 @@ aceita "1.420,50"; cada erro indica o campo).
 - busca de Cliente por nome ou CNPJ (enviada à URL depois de uma pausa na
   digitação), filtros por modo de carga e POD e lente pela vigência de hoje
   (Vigentes hoje, Futuras, Encerradas ou desativadas);
-- lista com Cliente, item e tabela de origem, vigência ("Vigente hoje",
+- lista com Cliente (CNPJ com o ícone de copiar), item e tabela de origem,
+  vigência ("Vigente hoje",
   "Começa em", "Encerrada em", "Desativada"), valor negociado com unidade,
   valor da tabela e diferença. "Vigente hoje" é a leitura de hoje: o motor
   escolhe a condição pela data de referência do B/L (ETA da escala do POD);
@@ -108,14 +111,16 @@ aceita "1.420,50"; cada erro indica o campo).
   `useOverrideCustomers`), valor da tabela ao lado do negociado, regra de
   vigência e conflito de sobreposição mostrado no modal. Na edição, Cliente e
   item ficam fixos;
-- desativar, reativar e excluir pelo menu ⋮ do Administrativo, com
-  confirmação; estados de carregamento, erro e vazio.
+- o botão **Editar** na linha; desativar, reativar e excluir pelo menu ⋮ do
+  Administrativo, com confirmação; estados de carregamento, erro e vazio.
 
 ### Superfícies operacionais fora da rota
 
 - `src/components/bl/BlCobrancasTab.tsx`, em `/bls/:blId`, lista linhas,
-  calcula/recalcula um B/L, mantém cobranças manuais e oferece **Emitir fatura**
-  ao Administrativo. A promoção a `ready_for_billing` só acontece dentro da
+  calcula/recalcula um B/L, mantém cobranças manuais (botões **Editar** e, só
+  para o Administrativo, **Excluir** na linha manual, enquanto o B/L não está
+  faturado) e oferece **Emitir fatura** ao Administrativo. Com fatura ativa, o
+  botão **Abrir no Faturamento** abre o detalhe dela em `/taxas-locais`. A promoção a `ready_for_billing` só acontece dentro da
   emissão (`mark_bl_ready_and_create_invoice`); não há ação de revisar nem de
   liberar o B/L.
 - `src/pages/Revisao.tsx` e
@@ -162,10 +167,10 @@ aceita "1.420,50"; cada erro indica o campo).
 | `/taxas-locais` · calcular/recalcular selecionados | Seleção não vazia; IDs locais separados de Granito | `ValidacaoTab.runBatchOperation` | `useBatchCalculateLocalCharges` → `calculateLocalChargesBatch`; Granito chama `calculateGraniteBlCharges` | RPC `calculate_bl_local_charges_batch` em chunks de até 100, com fallback sequencial por chunk; persistência própria para Granito | Invalida `charges.operations()`/`pendencies()`, B/Ls, `bls.detail('')` e viagens; a tela também invalida invoices e resumo de B/Ls | Lote continua após erro e toast reporta contagem e descrição do primeiro erro. B/Ls já faturados são retirados da seleção antes de chamar a RPC e reportados à parte ("X recalculado(s), Y ignorado(s) — já faturados"), em vez de contarem como erro (`isBlLockedForRecalc`/`isBlFinanciallyLocked`) | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/validacaoPipeline.ts`, `src/lib/chargeStatus.ts`, `src/hooks/useLocalCharges.ts` · **Teste:** `src/components/billing/__tests__/validacaoFunnel.test.ts`, `src/services/charges/__tests__/chargeOperationsService.test.ts` |
 | `/taxas-locais` (Validação) · exportar planilha de conferência | Filtro/seleção com ao menos um B/L com linha calculada | `ValidacaoControls` → `ValidacaoTab.handleExportConference` | `buildLocalChargeConferenceRows` → planilha XLSX via `exportLocalChargeConferenceWorkbook` (menu **Exportar** → **Conferência do escopo (XLSX)**) | `SELECT` em `bls`, `charge_calculations` (join `charge_table_items`) e `bl_containers` para os B/Ls do escopo | Nenhuma (leitura, download local) | Toast informa quando não há B/Ls/linhas no escopo; erro de query cai em toast genérico. **Etapa 5 do plano de faturamento** (docs/archive/plans/2026-08-06-faturamento-ajuste-completo.md): conferência do cálculo provisório por B/L e por item, com origem do preço (tabela padrão vs Condição de Cliente) e marcação de container compartilhado (`share_count`). **Gap conhecido:** o plano também pede o mesmo botão na tela de Viagem; `/viagens/:voyageId` não tem hoje uma aba financeira onde encaixar isso sem uma mudança de UI maior, então essa parte não foi entregue. | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/ValidacaoControls.tsx`, `src/services/charges/chargeOperationsService.ts`, `src/services/exports.ts` · **Teste:** `src/services/__tests__/localChargeConference.test.ts` |
 | B/L · adicionar cobrança manual | Item elegível, quantidade válida e B/L não faturado conforme RPC | `BlCobrancasTab` → `ManualChargeFormFields` | `useAddManualBlCharge` → `addManualBlCharge` | RPC `add_manual_bl_charge` → `charge_calculations` e auditoria | Invalida linhas/detalhe/lista do B/L, pendências e viagens | RPC/validação bloqueia item ou estado inválido | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/charges/chargeOperationsService.ts` · **Teste:** `src/services/__tests__/localCharges.test.ts`, `src/components/billing/__tests__/ManualChargeFormFields.test.tsx` |
-| B/L · editar cobrança manual | Linha manual existente e B/L elegível | `BlCobrancasTab` | `useUpdateManualBlCharge` → `updateManualBlCharge` | RPC `update_manual_bl_charge` | Invalida linhas/detalhe/lista do B/L e pendências | RPC rejeita linha automática, ausente ou invoice protegida | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/hooks/useLocalCharges.ts`, `supabase/migrations_archive/108_guard_manual_charges_and_clear_pix_on_reversal.sql` |
-| B/L · excluir cobrança manual | Linha manual existente e confirmação da tela | `BlCobrancasTab` | `useDeleteManualBlCharge` → `deleteManualBlCharge` | RPC `delete_manual_bl_charge` | Mesmas invalidações da edição | RPC rejeita linha automática, ausente ou invoice protegida | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/charges/chargeOperationsService.ts`, `supabase/migrations_archive/108_guard_manual_charges_and_clear_pix_on_reversal.sql` |
+| B/L · editar cobrança manual | Linha manual existente e B/L elegível | `BlCobrancasTab` (botão **Editar** na linha manual) | `useUpdateManualBlCharge` → `updateManualBlCharge` | RPC `update_manual_bl_charge` | Invalida linhas/detalhe/lista do B/L e pendências | RPC rejeita linha automática, ausente ou invoice protegida | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/hooks/useLocalCharges.ts`, `supabase/migrations_archive/108_guard_manual_charges_and_clear_pix_on_reversal.sql` |
+| B/L · excluir cobrança manual | Linha manual existente e confirmação da tela | `BlCobrancasTab` (botão **Excluir** na linha manual, só para o Administrativo) | `useDeleteManualBlCharge` → `deleteManualBlCharge` | RPC `delete_manual_bl_charge` | Mesmas invalidações da edição | RPC rejeita linha automática, ausente ou invoice protegida | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/charges/chargeOperationsService.ts`, `supabase/migrations_archive/108_guard_manual_charges_and_clear_pix_on_reversal.sql` |
 | ~~B/L ou lote · marcar revisado~~ | — | — | — | Removido em 2026-10-01 (ADR 0077, migration `127`): a confirmação do cálculo é o CE Mercante; linha `review_required` se resolve corrigindo o B/L e recalculando. A RPC `mark_bl_charges_reviewed` não tem `EXECUTE` para a API; a ação em lote já não existia na Validação. | — | — | **Teste local-pg:** `invoiceReissue.local-pg.test.ts` |
-| B/L · Emitir fatura (manual) | Administrativo; B/L com Cliente, CE Mercante, cálculo feito, sem linha `review_required` e ainda não faturado | `BlCobrancasTab` (botão **Emitir fatura**, com confirmação) e Validação (**Emitir fatura** por linha) | `markBlReadyAndCreateInvoice` / `createInvoiceFromBls` | RPC `mark_bl_ready_and_create_invoice` (promove com `mark_bl_ready_for_billing` e emite na mesma transação) | Invalida faturas, detalhe e lista de B/Ls, operações e fila de revisão | Banco aplica CE, Portal, Cliente e gate de revisão. O caminho normal é automático; o manual cobre Reemissão pendente com trava resolvida e falha da emissão automática. “Pronto para faturar” foi removido em 2026-10-01 (ADR 0077). | **Código:** `src/components/bl/BlCobrancasTab.tsx` · **Teste:** `src/components/bl/__tests__/BlCobrancasTab.behavior.test.tsx` |
+| B/L · Emitir fatura (manual) | Administrativo; B/L com Cliente, CE Mercante, cálculo feito, sem linha `review_required` e ainda não faturado | `BlCobrancasTab` (botão **Emitir fatura**, com confirmação) e Validação (**Emitir** por linha) | `markBlReadyAndCreateInvoice` / `createInvoiceFromBls` | RPC `mark_bl_ready_and_create_invoice` (promove com `mark_bl_ready_for_billing` e emite na mesma transação) | Invalida faturas, detalhe e lista de B/Ls, operações e fila de revisão | Banco aplica CE, Portal, Cliente e gate de revisão. O caminho normal é automático; o manual cobre Reemissão pendente com trava resolvida e falha da emissão automática. “Pronto para faturar” foi removido em 2026-10-01 (ADR 0077). | **Código:** `src/components/bl/BlCobrancasTab.tsx` · **Teste:** `src/components/bl/__tests__/BlCobrancasTab.behavior.test.tsx` |
 | `/taxas-locais` · acompanhar e reenviar comunicado financeiro | Invoice local do cliente; prontidão completa para envio inicial ou comunicado anterior para reenvio | `InvoiceCommunicationStatusCell` | `useCustomerVoyageCommunicationStatus` → `fetchCustomerVoyageCommunicationStatus`; reenvio confirmado → `dispatchCeMercanteTaxasCommunication({ forceRetry: true })` | `customer_local_charges_communication_readiness()`; trilha `customer_communications`/tentativas | Mostra “Enviado automaticamente”, “Reenviado manualmente” ou motivo de bloqueio; invalida status após reenvio | Falha de leitura mostra status indisponível; confirmação pode ser cancelada; contato/supressão/chave global bloqueia ou simula | **Código:** `src/components/billing/InvoiceCommunicationStatusCell.tsx`, `src/services/customerFinanceCommunications.ts`, `supabase/migrations_archive/376_customer_local_charges_communication_readiness.sql` · **Teste:** `src/services/__tests__/customerFinanceCommunications.test.ts`, `src/components/billing/__tests__/InvoiceCommunicationStatusCell.test.tsx` |
 | `/taxas-locais` · apontar a conciliação para a Revisão | B/L com conciliação pendente | `ValidacaoOperationsTable` (expansão) | Nenhuma mutação: a tela exibe cliente do manifesto, CNPJ, sugestão e detecção inline no bloco "Detalhes", sem caixa separada | O callout do bloqueio concentra o único link `/revisao?bl=` — a decisão é da Revisão (ADR 0061) | — | Sem item na fila, a expansão exibe a mensagem inline no bloco "Detalhes" | **Código:** `src/components/billing/ValidacaoOperationsTable.tsx`; **Teste:** `src/components/billing/__tests__/ValidacaoOperationsTable.test.tsx` |
 

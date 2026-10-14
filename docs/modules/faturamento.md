@@ -118,8 +118,14 @@ centrais, sempre nesta ordem, são:
   `Coberta`, `Cancelada` ou `Obsoleta`, com `Individual`/`Consolidada` quando
   houver vínculo.
 
-O cabeçalho mostra apenas pendências dos quatro cards centrais e a próxima ação
-aponta para o primeiro bloqueio. Demurrage é um indicador auxiliar opcional e
+Os dois trilhos ficam em blocos lado a lado. O cabeçalho do bloco Documental
+conta só as pendências dos quatro cards centrais ("Sem pendências" quando não
+há). A próxima ação fica numa faixa própria, logo abaixo da identidade do B/L:
+aponta para o primeiro card central pendente ou bloqueado e tem o botão que
+leva aonde se resolve (por exemplo, **Resolver na Revisão** ou **Ir para
+Faturamento**); sem pendência documental, a faixa não aparece. **Código:**
+`src/components/bl/BlRailsPipeline.tsx` e `pickNextAction` em
+`src/services/blRails.ts`. Demurrage é um indicador auxiliar opcional e
 não bloqueia a fatura comum. A fatura do detalhe é lida tanto de
 `invoice_bls` quanto de `invoice_receivable_links`, permitindo identificar uma
 consolidada mesmo quando o B/L não tem vínculo individual. Não há vencimento ou
@@ -158,7 +164,9 @@ chegada. A lista usa:
   navio/viagem, POD, tipo, situação (Em aberto, Paga ou coberta, Cancelada ou
   obsoleta), emissão, pagamento e tamanho de página;
 - `src/components/billing/InvoicesTable.tsx`: o número da fatura abre o
-  detalhe; Cliente com CNPJ mascarado; B/Ls diretos ou de receivables; a coluna
+  detalhe; Cliente com o CNPJ/CPF formatado e o ícone de copiar; B/Ls diretos
+  ou de receivables (até dois, e "+N" para o resto), cada número levando à
+  ficha do B/L e com o ícone de copiar; a coluna
   Valores mostra primeiro o que decide (saldo em aberto ou total pago; coberta e
   cancelada não aparecem como dívida, `describeInvoiceRowAmount`); situação exata
   da fatura (Parcialmente paga, Coberta, Obsoleta); cartões abaixo de 640 px;
@@ -204,7 +212,12 @@ do container compartilhado.
   lê a fila de `cod_adjustments` com status `pending` e só monta o painel quando
   há ao menos uma pendência. Uma resposta bem-sucedida sem pendências omite o
   painel inteiro; carregamento e erro continuam visíveis para não esconder uma
-  consulta inconclusiva. A regra está em [Ajuste de COD](#ajuste-de-cod).
+  consulta inconclusiva. A tabela traz B/L (link para a ficha, com o ícone de
+  copiar), Ação, Anterior, Destino, Diferença e Operação: nos ramos de
+  documento, o botão **Abrir faturas** (aba Faturas filtrada pelo B/L), o
+  número interno e **Vincular e concluir**; nos demais, **Aplicar abatimento**
+  ou **Registrar restituição**, todos com a confirmação **Liquidar ajuste**.
+  A regra está em [Ajuste de COD](#ajuste-de-cod).
 - **Bloqueio por Portal não provisionado (ADR 0054, ADR 0070, issue 638):** o
   gate de emissão e de revisão é `customer_billing_access_ready` (definição
   vigente na migration `084`): Portal pronto pelo critério do faturamento
@@ -235,12 +248,14 @@ do container compartilhado.
   “Por que não fatura?”; estados finais (`pronto`, `faturado`, `isento`) e
   Granito ficam neutros como “Situação da fatura”/“Escopo da operação”. O mesmo
   motivo deixa de repetir na coluna Motivo enquanto a linha está expandida. A
-  expansão mostra ainda cliente vinculado com CNPJ formatado, CE Mercante,
-  subtotal (BRL e USD quando houver), e o último evento auditado com o campo
-  humanizado e data/hora (`describeLastEvent`); a conciliação pendente mantém os
-  dados do manifesto, CNPJ, sugestão e detecção dentro do bloco "Detalhes", sem
-  montar uma segunda caixa. O callout do bloqueio concentra o único link para
-  onde se resolve: cliente para `/revisao?bl=<id>` — a
+  expansão mostra ainda cliente vinculado com CNPJ formatado e CE Mercante (os
+  dois com o ícone de copiar), subtotal (BRL e USD quando houver), e o último
+  evento auditado com o campo humanizado e data/hora (`describeLastEvent`); a
+  conciliação pendente mantém os dados do manifesto, CNPJ (também com o ícone
+  de copiar), sugestão e detecção dentro do bloco "Detalhes", sem montar uma
+  segunda caixa. Na linha, o número do B/L leva à ficha (Granito, a
+  `/granito`) e tem o ícone de copiar. O callout do bloqueio concentra o único
+  link para onde se resolve: cliente para `/revisao?bl=<id>` — a
   Revisão lê `bl` junto de `cliente`/`busca`/`q`, filtrando a fila e abrindo o
   grupo daquele B/L (ADR 0061) —, CE
   Mercante para a ficha do B/L e portal para a ficha do cliente — este último
@@ -298,15 +313,16 @@ isolada em `src/components/billing/consolidatedInvoiceSelection.ts`.
 Conciliação, com `enablePaymentReversal`) é uma superfície única com seções por
 filete:
 
-- cabeçalho com situação exata, tipo, emissão, número interno, Cliente com CNPJ,
-  navio/viagem e, na avulsa, a descrição da cobrança;
+- cabeçalho com situação exata, tipo, emissão, número interno, Cliente com CNPJ
+  (com o ícone de copiar), navio/viagem e, na avulsa, a descrição da cobrança;
 - faixa de valores que separa total emitido, recebido, abatido pela correção do
   B/L, devolvido, a devolver e saldo (ou "Coberta pela consolidada X" /
   "Não cobrado"), lida de `financial_summary`
   (`src/components/billing/invoiceDetailPresentation.ts`); sem vencimento;
 - vínculo com a fatura substituída ou sucessora, Reemissão pendente e motivo de encerramento sem reemissão;
 - Fatura desatualizada e histórico dos ajustes que a correção do B/L fez em fatura com pagamento (abatimento e restituição);
-- B/Ls, itens (breakdown reconstruído de consolidadas) e pagamentos; cada
+- B/Ls (número com link para a ficha e o ícone de copiar), itens (breakdown
+  reconstruído de consolidadas) e pagamentos; cada
   pagamento tem "Cancelar baixa…" para o Administrativo, que abre o formulário
   na própria seção com a baixa escolhida, justificativa e conferência de
   valor/data; na Conciliação o formulário já abre na baixa selecionada;

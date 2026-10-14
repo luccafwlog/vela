@@ -131,8 +131,8 @@ quantas ficam como exceção, linhas lidas) e duas listas (tabela no desktop,
 linhas abaixo de 640 px):
 
 - **Prontas para baixa**: linha, pago em, valor do Pix, TXID, fatura e
-  origem, Cliente e CNPJ. Uma Invoice de Demurrage paga com a cotação anterior
-  diz que a janela das duas PTAX foi aceita.
+  origem, Cliente e CNPJ (com o ícone de copiar). Uma Invoice de Demurrage
+  paga com a cotação anterior diz que a janela das duas PTAX foi aceita.
 - **Ficam como exceção pendente**: Ambígua ou Sem documento, com o motivo e o
   documento indicado; já estão salvas em Pendências.
 
@@ -168,6 +168,7 @@ baixas**) combina:
   cancelada na última página) vai para a última existente;
 - situação gravada (Paga, Parcialmente paga com recebido e saldo, Coberta pela
   consolidada) e o valor do B/L com o total da fatura quando difere;
+- ícone de copiar no número do B/L e, na tabela, no CNPJ do Cliente;
 - "Exibindo 1–N de M" no topo e no rodapé; erro de consulta com Tentar
   novamente, sem lista vazia nem "Nenhum registro"; vazio com e sem filtro
   distintos; cartões abaixo de 640 px;

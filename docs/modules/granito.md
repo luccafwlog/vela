@@ -54,8 +54,10 @@ operação:
 
 - lê `?voyage=` como viagem inicial;
 - filtra por texto, viagem, porto de descarga e tamanho da página;
-- lista `granite_bls` com booking, shipper/CNPJ, navio/viagem, peso real, CBM,
-  fase, `charge_status` e ação `Calcular taxas`;
+- lista `granite_bls` com B/L, booking, shipper/CNPJ, navio/viagem, peso real
+  (kg e t), CBM, fase, `charge_status` e as ações **Calcular taxas** e **Ver
+  resultado**; o número do B/L e o CNPJ trazem o ícone de copiar
+  ([identidade visual, regra 9](../identidade-visual.md#as-nove-regras));
 - o modal COSCO exige viagem e arquivo `.xls/.xlsx`, mostra B/Ls válidos, peso
   total, erros de parser e reconciliação `matched|suggested_name|missing_cnpj|not_found`
   (sugestão por nome, como na Revisão; vínculo só por documento); peso
@@ -75,9 +77,11 @@ operação:
 ### `/granito/taxas`
 
 [`src/pages/GraniteRates.tsx`](../../src/pages/GraniteRates.tsx) lista descrição,
-tipo (`per_kg`, `per_ton`, `per_bl`, `fixed`), valor unitário, moeda, vigência e
-estado ativo de `granite_rates`. O Administrativo cria, edita, ativa/desativa e
-exclui (com motivo; tarifa já usada num cálculo só se desativa).
+tipo (`per_kg`, `per_ton`, `per_bl`, `fixed`), valor unitário, moeda, vigência
+(datas "… a …", "desde …" ou "até …") e estado ativo de `granite_rates`. O
+Administrativo cria (**Nova taxa**), edita (**Editar** na linha),
+ativa/desativa (clicando no estado **Ativa**/**Inativa**) e exclui (**Excluir**
+na linha, com motivo; tarifa já usada num cálculo só se desativa).
 
 ### Entrada por `/viagens/:voyageId`
 
@@ -121,7 +125,7 @@ altera.
 | `/granito/taxas` · listar | Usuário interno ativo | Query da página | `listGraniteRates` | SELECT em `granite_rates` | Query `['granite-rates']` | Erro mostra `InlineError` | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts) |
 | `/granito/taxas` · criar/editar | A tela mostra a ação só ao Administrativo; descrição e tipo; valor presente | `handleSave` | `upsertGraniteRate` | UPSERT em `granite_rates` | Invalida `['granite-rates']` | Erro do banco mostra toast; a tela não valida vigência cruzada; a policy permite INSERT/UPDATE a qualquer usuário ativo (migration `002`) | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts) |
 | `/granito/taxas` · ativar/desativar | Administrativo (tela e banco) | `handleToggleActive` | `upsertGraniteRate` com `active` invertido | UPSERT em `granite_rates`; o gatilho `guard_tariff_active_change` recusa a troca de `active` por quem não é Administrativo (migration `091`; ADR 0073) | Invalida `['granite-rates']` | Erro mostra toast | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), `supabase/migrations/091_tarifa_usada_so_se_desativa.sql` |
-| `/granito/taxas` · excluir | Administrativo; motivo obrigatório na confirmação | `handleDelete` | `deleteGraniteRate` → `deleteOneById` | RPC `delete_catalog_row` (migration `096`), com o motivo no Histórico; DELETE direto pela API não existe mais; tarifa já usada em `granite_bl_charges` é recusada ("desative em vez de excluir", `guard_used_tariff_delete`, migration `091`) | Invalida `['granite-rates']` | Não-Administrativo, motivo ausente ou tarifa usada são recusados; erro mostra toast | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts), `supabase/migrations/096_motivo_na_exclusao_de_cadastros.sql` |
+| `/granito/taxas` · excluir | Administrativo; motivo obrigatório na confirmação | Botão **Excluir** da linha → `handleDelete` | `deleteGraniteRate` → `deleteOneById` | RPC `delete_catalog_row` (migration `096`), com o motivo no Histórico; DELETE direto pela API não existe mais; tarifa já usada em `granite_bl_charges` é recusada ("desative em vez de excluir", `guard_used_tariff_delete`, migration `091`) | Invalida `['granite-rates']` | Não-Administrativo, motivo ausente ou tarifa usada são recusados; erro mostra toast | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts), `supabase/migrations/096_motivo_na_exclusao_de_cadastros.sql` |
 | `/taxas-locais` · consultar histórico financeiro | Invoice histórica vinculada a Granito | `InvoicesTable` → `InvoiceDetailModal` | Leitura das superfícies genéricas de invoices | Sem nova promoção de B/L ou emissão de Granito | Mantém o histórico consultável | Regras de cancelamento seguem o documento histórico e suas permissões | **Código:** [`InvoiceDetailModal.tsx`](../../src/components/billing/InvoiceDetailModal.tsx), [`billing.ts`](../../src/services/billing.ts) |
 
 ## Estado e dados
