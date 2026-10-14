@@ -3,7 +3,7 @@
 - **Data:** 2026-07-20
 - **Commit base:** `fca90b7`
 - **Método:** app real bootada contra stack local (Postgres 16 + `scripts/design-audit/bootstrap.sql` + 216 migrations + seeds sintéticos + dados sintéticos adicionais para os módulos novos + `sb-shim.cjs`), navegada via Playwright em 1440×900 (desktop) e 390×844 (mobile). Screenshots em [`assets/`](../design-audit/assets/). Login `auditor@local.test` (admin).
-- **Escopo:** revisão focada nas implementações entradas depois da auditoria de 2026-07-17 ([arquivada](../archive/audits/design-audit-2026-07-17.md)): **aba ADR** no detalhe da viagem (agregação, sign-offs, ocorrências, fechamento com snapshot e impressão), **Ficha BL** (rails + hub de abas), **Ficha do Cliente** (hub de abas), **VAZIOS EXP** (edição inline de dados ADR e operação da escala), **Vazios Importação** (natureza cama/cover plate), **Veículos** (local de desova), **alertas pós-ATD** e **papel Equipamentos**.
+- **Escopo:** revisão focada nas implementações entradas depois da auditoria de 2026-07-17 ([arquivada](design-audit-2026-07-17.md)): **aba ADR** no detalhe da viagem (agregação, sign-offs, ocorrências, fechamento com snapshot e impressão), **Ficha BL** (rails + hub de abas), **Ficha do Cliente** (hub de abas), **VAZIOS EXP** (edição inline de dados ADR e operação da escala), **Vazios Importação** (natureza cama/cover plate), **Veículos** (local de desova), **alertas pós-ATD** e **papel Equipamentos**.
 
 Artefatos de ambiente que **não** são bugs do produto: Google Fonts e API PTAX
 do BCB bloqueados pelo proxy de egress, websockets realtime falham contra o

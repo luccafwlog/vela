@@ -173,7 +173,7 @@ runtime remoto ainda requer secrets e domínio verificado.
 A revisão inicial de 2026-10-04 e a decisão de negócio de 2026-10-06 simplificam o fluxo:
 a indicação específica por container e planilha foi removida antes de ir para produção,
 mantendo a devolução orientada por porto e os depósitos publicados do Vela.
-Evidências e achados: [revisão extensa](archive/reports/2026-10-04-revisao-portal-informacoes.md).
+Evidências e achados: [revisão extensa](2026-10-04-revisao-portal-informacoes.md).
 
 ## Selos de runtime citados no índice até 2026-10-13
 

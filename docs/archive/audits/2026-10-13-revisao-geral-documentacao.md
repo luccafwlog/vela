@@ -120,6 +120,17 @@ Os dois foram corrigidos.
   - a conferência do BR Code de 2026-09-10;
   - as duas auditorias de `docs/design-audit/`, com 71 imagens.
 
+### Integração com a `main`
+
+Durante a revisão, a `main` publicou a identidade visual única
+([ADR 0081](../../adr/0081-identidade-visual-unica.md)). A ADR de governança,
+ainda não publicada, passou a ser a 0082. O merge manteve as duas mudanças: a
+identidade visual entrou na tabela de donos, no índice documental e no índice
+de ADRs, e a ADR 0066 registra a extensão. A passada única da identidade mudou
+rótulos, menus, blocos e ações em mais de cem arquivos de tela. Um segundo
+workflow atualizou os módulos a essas telas, com um verificador por domínio, e
+os 16 pontos que ele apontou foram corrigidos e conferidos no código.
+
 ### Gate documental
 
 O `npm run docs:check` passou a recusar:
@@ -158,6 +169,8 @@ Registrados no plano, sem correção nesta revisão. Os de maior impacto:
 - Estado remoto: só a listagem das Edge Functions. O resto vem de registros
   datados.
 - Diagramas Mermaid: conferidos pela sintaxe, sem renderização.
+- Telas: os rótulos e as ações citados nos módulos foram conferidos no código
+  depois do merge com a `main`, não na tela em execução.
 - Seções "Celular e toque" e "Densidade e primitivas visuais" da
   `ARCHITECTURE.md`: não foram reconferidas.
 - O gate não verifica correção semântica. A coerência entre módulos foi
