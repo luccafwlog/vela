@@ -55,7 +55,7 @@ depois o que o usuário vê errado, por último o que é só texto.
 | Item | O que fazer | Quem |
 |---|---|---|
 | B32 | Apagar em produção a Edge Function antiga de aviso de fatura emitida (o nome está na [ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md)); depois conferir a listagem e atualizar [Serviços externos](../operations/servicos-externos.md). | Dono, no painel ou na CLI do Supabase (o acesso do Claude não apaga Edge Functions) |
-| A6 | Heartbeat do backup diário no Better Stack agora; executor sempre ligado antes de revogar o "Data status". | Dono, com o roteiro em [Backup R2](../operations/backup-r2.md) |
+| A6 | Heartbeat do backup diário no Better Stack agora; executor sempre ligado antes de revogar o "Data status". O script já avisa o heartbeat quando `BETTERSTACK_HEARTBEAT_BACKUP_URL` existe. | Dono: criar o heartbeat e a variável, com o [roteiro](../operations/backup-r2.md#heartbeat-do-backup) |
 
 ## Só documentação (já aplicado com a ADR 0083)
 

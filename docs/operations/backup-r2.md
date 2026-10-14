@@ -75,6 +75,7 @@ secret store do runner. Os nomes esperados são:
 | `R2_ACCESS_KEY_ID` | Access Key do token R2 | secret store |
 | `R2_SECRET_ACCESS_KEY` | Secret Access Key do token R2 | secret store |
 | `SUPABASE_PROJECT_REF` | referência não secreta do projeto | configuração não secreta do runner |
+| `BETTERSTACK_HEARTBEAT_BACKUP_URL` | opcional; URL do heartbeat do backup no Better Stack | variável do usuário no runner; não imprimir |
 
 Depois de carregar os valores, repita o dry-run e só então execute:
 
@@ -101,6 +102,27 @@ Para validar um artefato já baixado, sem restaurar nada:
 $env:BACKUP_ENCRYPTION_KEY_HEX = '<64_HEX_CHARS_FROM_PASSWORD_MANAGER>'
 npm run backup:r2 -- --verify C:\caminho\<arquivo>.dump.enc
 ```
+
+## Heartbeat do backup
+
+Com `BETTERSTACK_HEARTBEAT_BACKUP_URL` definida, cada `--execute` avisa o Better
+Stack no fim: a URL quando o backup sobe ao R2, a URL com `/fail` quando falha
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 6).
+Se a tarefa não roda (computador desligado, tarefa desabilitada), o aviso não
+chega e o heartbeat fica **Down** depois do prazo. Dry-run e `--verify` não
+avisam. Uma falha ao avisar não muda o resultado do backup e não imprime a URL.
+
+Para ligar:
+
+1. No Better Stack, em `Uptime > Heartbeats > Create heartbeat`, crie
+   `backup-r2-diario` com período de 1 dia e tolerância de 6 horas (a tarefa
+   roda às 09:00 ou quando o computador liga). Copie a URL.
+2. No computador da tarefa, crie a variável do usuário
+   `BETTERSTACK_HEARTBEAT_BACKUP_URL` com essa URL, como as outras variáveis do
+   backup, e atualize a cópia local do repositório para a versão com o
+   heartbeat.
+3. Rode a tarefa `Backup Diario Vela R2` à mão uma vez e confira o heartbeat
+   **Up** no Better Stack.
 
 ## Montar o backup em outro ambiente
 
