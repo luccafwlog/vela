@@ -292,8 +292,8 @@ apresentação; timestamps persistidos continuam UTC.
 - [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
 - [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
 - [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
-- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); continuam pendentes os aceites deste item. A matriz de papéis foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11): leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação; a correção para Equipamentos é o item P12 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md).
-- [ ] **[bloqueia ativação]** Homologar a amostra XLSX e os indicadores Sim/Não com responsável/ZPT; revisar spec/plano no aceite.
+- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); continuam pendentes os aceites deste item. A matriz de papéis saiu deste aceite: foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11) — leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação —, e a correção para Equipamentos é o item P12 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- A homologação da amostra XLSX e dos indicadores Sim/Não com responsável/ZPT é o item único **[bloqueia ativação]** de homologação da Tarefa 6; revisar spec/plano no aceite.
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
 
@@ -412,7 +412,7 @@ aplicam matriz da spec tanto em UI quanto em servidor.
 - [x] Integrar cache financeiro/carga, refetch no foco e limpeza do cache privado no logout do Portal. **Código/Teste:** efeitos de cache e teste de atualização financeira CE.
 - [x] Disponibilizar testes de B/L sem pedido, dívida, ações restritas para Financeiro/Operações e remoção de seleção inelegível. **Teste:** página interna e componentes; passaram nos checks focados desta sessão.
 - [x] Integrar gestão na `main`; execução local original de navegação/gates registrada no relatório.
-- [ ] Completar matriz de filtros Sem solicitação, exclusão sem CE, paginação e pedidos mistos, incluindo projeção de anexos sensíveis por papel (pela ADR 0085, D16, os documentos ficam abertos a todo Departamento; a projeção por papel deixa de existir com o item P12 do plano de correções).
+- [ ] Completar matriz de filtros Sem solicitação, exclusão sem CE, paginação e pedidos mistos. A projeção de anexos sensíveis por papel saiu desta matriz: pela ADR 0085, D16, os documentos ficam abertos a todo Departamento, e a projeção por papel deixa de existir com o item P12 do plano de correções.
 - [ ] Demonstrar aplicação anual e invalidação de ficha/fila/Portal entre CNPJs; validar atualização observável entre as duas SPAs, não apenas invalidação no mesmo cache.
 
 ## Tarefa 6 — Exportação ZPT e confirmação de desbloqueio
@@ -449,7 +449,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.
 - [ ] Reconciliar o requisito inicial de estado explícito de falha recuperável: a geração pode ser repetida sobre o lote preservado, mas isso não comprova um estado persistido de falha do arquivo.
 - [ ] Resolver/aceitar a limitação registrada de hash do lote sem preenchimento; diferenciar do hash de PDF já implementado.
-- [ ] **[bloqueia ativação]** Homologar a amostra com responsável/ZPT no ambiente autorizado e registrar aceite externo, incluindo o arquivo "Exportar Tela" lido pela conciliação. Código e amostra já estão integrados; não falta um commit separado de exportação.
+- [ ] **[bloqueia ativação]** Homologar a amostra XLSX (`zpt-5-v2`) e os indicadores Sim/Não com responsável/ZPT no ambiente autorizado e registrar aceite externo, incluindo o arquivo "Exportar Tela" lido pela conciliação. Código e amostra já estão integrados; não falta um commit separado de exportação.
 
 ## Tarefa 7 — Validação completa, documentação e entrega
 
