@@ -145,8 +145,9 @@ cria de forma idempotente a linha inicial de Clientes sem
 Documentação, Financeiro e Equipamentos recebem os dados completos; Operações
 recebe a situação resumida e os booleanos `has_open_invoice`/`has_active_process`,
 sem Email de Recuperação, origem, status de entrega nem candidatos, e o painel
-não lhe mostra ações (ver a decisão pendente D9-04 em
-[Notas e divergências](#notas-e-divergências)). Somente Administrativo e
+não lhe mostra ações. Pela ADR 0045, Operações vê os campos completos, como os
+demais perfis leitores ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18): correção
+pendente em [Notas e divergências](#notas-e-divergências). Somente Administrativo e
 Documentação executam ações; **Alterar CNPJ auditado** e a Liberação de
 faturamento sem Portal são só do Administrativo. O Histórico
 (`portal_list_provisioning_events`, de 1 a 50 eventos) é recusado a Operações
@@ -313,7 +314,10 @@ O resumo diário (`portal-daily-digest`, 08:00 de Brasília) vai por email aos
 usuários ativos de Administrativo e Documentação quando houve, nas últimas 24
 horas, falha ou supressão de email, atividade de provisionamento, ou quando há
 Ativação pendente; sem nada disso, não sai. Não há email imediato de alerta
-crítico (ver a decisão pendente D9-05 em [Notas e divergências](#notas-e-divergências)).
+crítico. A exceção crítica de fatura (abertura e fechamento) também entra no
+resumo, junto com o sino e `/alertas` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19);
+hoje o resumo não a inclui: correção pendente em
+[Notas e divergências](#notas-e-divergências).
 
 #### Gate de faturamento e Dispute
 
@@ -749,17 +753,17 @@ Há testes focados de componente para `PortalLogin` (`src/pages/__tests__/Portal
 - **Teste de contrato SQL — ações críticas do Portal.** Na definição vigente da migration `109`, `portal_create_consolidation` e `portal_obsolete_consolidation` gravam `portal_notifications` (o desfazimento também grava `invoice_lifecycle_events`), e a abertura de disputa (`portal_open_demurrage_dispute` → `portal_add_dispute_message`) grava a mensagem, `portal_notifications` e o alerta `portal_dispute_opened`. `portal_update_profile`, na definição vigente da migration `008`, não grava trilha server-side; criar auditoria para essa ação exige decisão e migration próprias.
 - **Código — mensagem do Turnstile inalcançável no login.** `usePortalAuth.signIn` troca qualquer erro do `portal-login` por `Error('CNPJ ou senha inválidos.')` sem status; por isso os ramos `TURNSTILE_REJECTED` e `P0429` de `PortalLogin` nunca disparam e a recusa do Turnstile aparece como credencial inválida. A recuperação trata o `403` corretamente. Defeito a tratar em tarefa separada.
 - **Código — literal morto.** `portal_refresh_general_pendencies` (job a cada 15 minutos) ainda filtra pelo valor removido `provisionamento_nao_necessario`; não tem efeito, porque o CHECK de `provisioning_decision` não aceita esse valor.
-- **Decisão pendente (D9-04):** a ADR 0045 decidiu que Operações vê no console os mesmos campos completos dos demais perfis leitores; desde o Bloco #521 (migration arquivada `325`) o read model volta a esconder dela Email de Recuperação, origem, entrega e candidatos. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D9-05):** a regra registrada no glossário previa email imediato a Documentação e Administrativo em alerta crítico do Portal e alerta ao Administrativo em abuso de login recorrente; o envio imediato não existe desde a remoção da Edge Function de aviso de fatura emitida ([ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md)), o aviso chega só pelo sino e por `/alertas` — o resumo das 08:00 não cobre a exceção crítica de fatura, nem a abertura nem o fechamento, porque `portal-daily-digest` conta apenas falhas e supressões de email, atividade de provisionamento e Ativação pendente e não lê `alerts` (**Código:** `supabase/functions/portal-daily-digest/index.ts`) —, e `portal_abuso_login` só avisa a Documentação. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D9-20):** a ADR 0013 recusa senha própria em tabela, mas as RPCs legadas `upsert_customer_portal_account` e `set_customer_portal_account_active`, sem chamador no código, continuam executáveis pelo Administrativo, e a policy `cpa_admin_all` permite as mesmas escritas direto em `customer_portal_accounts` — inclusive reativar uma conta Suspensa fora da máquina de estados; o job `cleanup-portal-sessions` ainda limpa a tabela legada `customer_portal_sessions`. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D9-22):** a remoção do pré-voo e do backfill foi decidida (migration arquivada `203`), mas `portal_provisioning_backfill` voltou ao catálogo (migration arquivada `293`, mantida no dump `002`), sem grant a `authenticated`. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+- **Correção pendente (A18):** vale a ADR 0045: Operações vê no console os mesmos campos completos dos demais perfis leitores, porque a leitura interna é global (ADR 0044). Desde o Bloco #521 (migration arquivada `325`) o read model esconde dela Email de Recuperação, origem, entrega e candidatos. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18).
+- **Correção pendente (A19):** a exceção crítica de fatura entra no resumo das 08:00 (abertura e fechamento), além do sino e de `/alertas`; o e-mail imediato não volta ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19). Hoje `portal-daily-digest` conta apenas falhas e supressões de email, atividade de provisionamento e Ativação pendente e não lê `alerts` (**Código:** `supabase/functions/portal-daily-digest/index.ts`), e `portal_abuso_login` só avisa a Documentação. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Correção pendente (A21):** o caminho legado de contas do Portal sai: as RPCs `upsert_customer_portal_account` e `set_customer_portal_account_active`, o job `cleanup-portal-sessions`, a tabela `customer_portal_sessions` e a escrita direta permitida pela policy `cpa_admin_all` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 21; a ADR 0013 recusa senha própria em tabela). Hoje as RPCs, sem chamador no código, continuam executáveis pelo Administrativo, e a policy permite as mesmas escritas direto em `customer_portal_accounts` — inclusive reativar uma conta Suspensa fora da máquina de estados. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Correção pendente (B25):** a remoção do pré-voo e do backfill foi decidida (migration arquivada `203`), mas `portal_provisioning_backfill` voltou ao catálogo (migration arquivada `293`, mantida no dump `002`), sem grant a `authenticated`; a função sai do catálogo. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
 - `portal_list_disputes()` é consumida por `portalListDisputes` (`src/services/portalBilling.ts` via `usePortalDisputes`) e tem par de inspeção `portal_inspect_list_disputes` desde `013_portal_disputes_inspection.sql`.
 - [ADR 0001](../adr/0001-portal-login-supabase-auth.md) continua válida para Supabase Auth e fim do token legado, mas foi parcialmente superada pela [ADR 0013](../adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md) quanto aos identificadores aceitos.
 
 O backfill inicial já cumpriu sua finalidade (ver [Console](#console-clientesportal)).
 A antiga funcionalidade administrativa foi retirada do menu, das rotas, do
 frontend e dos tipos; a migration arquivada `203` revogou e removeu as RPCs
-temporárias de pré-voo e backfill (o backfill voltou depois; ver D9-22 acima).
+temporárias de pré-voo e backfill (o backfill voltou depois; ver B25 acima).
 As migrations históricas permanecem preservadas e o mecanismo interno vigente
 de criação/reparo de registros ausentes continua. Não existem ações em lote de
 provisionamento.
@@ -777,91 +781,9 @@ O módulo de [Desbloqueio de CE](desbloqueio-ce.md) introduz pedidos no Portal
 (`/portal/desbloqueio-ce`), gestão em Importação e condição VIP/documentos
 anuais na ficha do Cliente. Regras e estado de publicação ficam no módulo dono.
 
-### Piloto e abertura do Portal (procedimento não executado — decisão pendente D9-11)
+### Piloto e abertura do Portal
 
-**Decisão pendente (D9-11):** o desenho de piloto e GO LIVE abaixo, de julho
-de 2026, nunca foi executado e não tem plano vivo; falta o dono decidir se ele
-continua valendo quando o Portal abrir a clientes reais. Registrada no
-[plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md). Até a
-decisão, o texto preserva o procedimento registrado; não é regra vigente. Saiu
-do glossário na revisão de 2026-10-13.
-
-- **Sequência de GO LIVE:** deploy sem disparos reais; pré-voo e reconciliação
-  dos Clientes existentes; configuração e verificação de domínio, Resend e
-  webhooks; ativação de alertas e suporte; piloto; aprovação final do
-  Administrativo; abertura geral. Convites reais só depois das quatro
-  primeiras etapas técnicas e operacionais.
-- **Checklist de prontidão (antes do primeiro convite real):** o
-  Administrativo aprova domínio/DNS verificado, Resend e webhooks
-  configurados, backfill concluído, console e alertas operacionais, lista de
-  clientes aprovada e canal de suporte monitorado.
-- **Governança:** o Administrativo tem a aprovação final para iniciar e
-  encerrar o piloto; a Documentação executa o provisionamento cotidiano dos
-  clientes selecionados.
-- **Lista de clientes-piloto:** cerca de dez clientes representativos,
-  preparada pela Documentação e aprovada pelo Administrativo; prioriza
-  atividade real, email validável e diversidade de casos. Cliente sem email
-  não recebe disparo real e fica só na fila operacional.
-- **Atendimento:** a Documentação é o primeiro nível e acompanha convites,
-  ativações, expirações e pendências; o Administrativo trata exceções,
-  incidentes de segurança e decisões de encerramento do piloto.
-- **Métricas (acompanhamento diário):** clientes selecionados, convites
-  enviados e entregues, ativações, expirações, bounces, tempo até ativação e
-  pendências de atendimento.
-- **Janela:** sem prazo fixo; o piloto fica aberto, com acompanhamento diário,
-  até cumprir o critério de saída, e não há abertura geral enquanto houver
-  cliente pendente.
-- **Critério de saída:** cada cliente selecionado Ativo ou com a exceção
-  formal "Provisionamento não necessário no momento", sem incidente crítico
-  pendente e com autorização final do Administrativo para avançar.
-- **Gates de teste do piloto** (qualquer falha bloqueia a aprovação):
-  - *replay de token:* tentar reutilizar token consumido, expirado,
-    invalidado por reenvio ou inválido; o segundo uso falha sem revelar
-    informação;
-  - *anti-enumeração e abuso:* resposta genérica para CNPJ inexistente ou
-    senha incorreta; bloqueio por 15 minutos após cinco falhas em 15 minutos;
-    recuperação sem confirmar a existência da conta; alerta ao Administrativo
-    em abuso recorrente;
-  - *recuperação assistida e troca de email:* senha atual, confirmação do novo
-    endereço, email antigo mantido até a confirmação, validação manual com
-    justificativa e auditoria quando a equipe intervém, operador sem acesso à
-    senha final; falha deixa o cadastro inalterado e chamada não autorizada é
-    negada;
-  - *logs e auditoria:* logs de aplicação, navegador, rede e auditoria não
-    expõem senha, token bruto, `service_role`, chave da Resend nem email
-    completo;
-  - *assinatura e replay de webhook:* assinatura inválida e timestamp fora da
-    janela são rejeitados; repetição válida pode receber sucesso como no-op (ou
-    ficar pendente de processamento), sem duplicar efeitos de entrega, bounce
-    ou complaint;
-  - *isolamento por CNPJ:* tentar acessar e alterar, por chamadas diretas à
-    API, dados de outro Cliente/CNPJ; RLS, RPCs e Edge Functions devem negar,
-    porque ocultar a ação na interface não basta.
-- **Evidência de testes:** registro dos testes automatizados e manuais
-  executados antes do piloto, com data, versão, ambiente e resultado; o piloto
-  só começa sem falha crítica pendente.
-- **Gate de upgrade:** antes da abertura geral, o Administrativo revisa
-  métricas do piloto, cotas, necessidade de backups e previsão de emails e
-  decide formalmente se o ambiente migra para Supabase Pro e/ou Resend Pro.
-- **Rollback escalonado:** em incidente operacional, novos convites são
-  pausados sem apagar histórico; em incidente de segurança, as sessões são
-  revogadas e as contas afetadas podem ser suspensas. A retomada depende de
-  decisão do Administrativo.
-- **Abertura geral gradual:** a aprovação do GO LIVE não dispara convites em
-  massa; cada Cliente fica em Aguardando análise até a revisão individual da
-  Documentação ou do Administrativo, que escolhe o Email de Recuperação e
-  envia o convite.
-- **Monitoramento pós-abertura:** a Documentação acompanha fila e métricas
-  diariamente; os alertas críticos continuam imediatos para o Administrativo,
-  que pode pausar convites ou executar o rollback escalonado.
-
-Estado registrado em outros documentos (não resolve a decisão): o backfill
-rodou em produção em 2026-07-14 e o teste de isolamento por CNPJ contra
-produção foi registrado depois da correção das guardas
-([Console](#console-clientesportal)); o domínio `portalfwlog.com.br` está
-verificado no Resend desde 2026-09-24, com webhook configurado e um convite
-real entregue na caixa de entrada
-([serviços externos](../operations/servicos-externos.md#resend-envio)). O
-desenho cita passos que já não existem: o pré-voo (removido com o backfill),
-a exceção "Provisionamento não necessário no momento" (retirada pelo
-Bloco #521) e o email imediato de alerta crítico (decisão pendente D9-05).
+O desenho de piloto e GO LIVE de julho de 2026, nunca executado, foi arquivado
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 20) e está preservado no
+[relatório histórico](../archive/reports/2026-10-14-desenho-piloto-go-live-portal-julho.md);
+a abertura do Portal terá formato novo, a definir.

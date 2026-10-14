@@ -1,7 +1,7 @@
 # 2026-10-13 — Notas retiradas da rastreabilidade
 
 > **Registro histórico.** Trechos retirados de `docs/RASTREABILIDADE.md` na
-> [revisão geral da documentação de 2026-10-13](../../plans/2026-10-13-revisao-geral-documentacao.md)
+> [revisão geral da documentação de 2026-10-13](../plans/2026-10-13-revisao-geral-documentacao.md)
 > (achado R-19), preservados como estavam no documento vivo naquela data. Eles
 > narram entregas e verificações datadas; não descrevem o estado atual. Os
 > números de migration seguem a convenção da época: sem qualificação, e em boa

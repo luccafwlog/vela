@@ -1,8 +1,8 @@
 # 0035 — Escala unificada (POL+POD) como âncora do ADR, B/L como fonte da descarga e relatório que lista só o operado
 
-> **Situação atual (2026-10-13).** Permanecem a escala (viagem, porto brasileiro), o transbordo no ADR do porto de descarga, o B/L contando os cheios e o relatório sem zeros.
+> **Situação atual (2026-10-14).** Permanecem a escala (viagem, porto brasileiro), o transbordo no ADR do porto de descarga, o B/L contando os cheios e o relatório sem zeros.
 > Não valem mais: um ADR por escala (é um por terminal, [spec arquivada de múltiplos terminais](../archive/specs/2026-08-18-escala-multiplos-terminais-design.md)); a precedência POD/POL nas datas e ETB, ATB, ETD e ATD como datas da escala (são da Atracação, notas de 2026-08-03 e 2026-08-24 abaixo); Carga carregada sob Documentação (é de Equipamentos).
-> No IMO/OOG, o perfil corrigido à mão vence o Baplie ([ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 21); o terminal do B/L segue a [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md). Decisões pendentes: o ADR de cada terminal conta a carga da escala inteira, sem a exceção de terminal do B/L,
+> No IMO/OOG, o perfil corrigido à mão vence o Baplie ([ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 21); o terminal do B/L segue a [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md). Defeitos com correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26): o ADR de cada terminal conta a carga da escala inteira, sem a exceção de terminal do B/L,
 > e o porto do Embarque de Vazios só oferece os portos dos B/Ls, não as escalas da viagem. As migrations `214`, `224` e `254` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
 > Regra vigente: [Viagens](../modules/viagens.md), regras de escala, Atracação e Agency Departure Report.
 

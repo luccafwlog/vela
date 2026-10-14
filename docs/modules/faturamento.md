@@ -15,8 +15,9 @@ cancelamentos e restituições. Demurrage tem operação própria em `/demurrage
 Para taxas locais, o saldo canônico é o ledger por recebível; a tabela
 `invoices` continua sendo o documento emitido.
 
-Desde a migration `097`, o Financeiro também pode emitir Fatura Avulsa pelo
-botão **Gerar fatura avulsa** nesta rota. O operador escolhe o Cliente e o Tipo de cobrança (controle segmentado Item da tabela / Outra). Item da tabela exige B/L e traz item, quantidade e valor resolvidos no servidor; Outra permite nome, quantidade e valor livres em R$. A descrição da cobrança aparece na fatura impressa e no Portal. Em Outra, B/L e
+Qualquer usuário interno ativo emite Fatura Avulsa pelo botão **Gerar fatura
+avulsa** nesta rota (ADR 0083, item 9; hoje a RPC aceita só o Administrativo,
+correção pendente em [Notas e divergências](#notas-e-divergências)). O operador escolhe o Cliente e o Tipo de cobrança (controle segmentado Item da tabela / Outra). Item da tabela exige B/L e traz item, quantidade e valor resolvidos no servidor; Outra permite nome, quantidade e valor livres em R$. A descrição da cobrança aparece na fatura impressa e no Portal. Em Outra, B/L e
 Viagem são opcionais; um B/L informado precisa pertencer ao Cliente e ser
 compatível com a Viagem. A RPC `create_manual_invoice` grava uma invoice
 `manual` e seu item em transação, sem exigir CE Mercante ou gate local
@@ -27,8 +28,10 @@ para a decisão completa.
 - `/taxas-locais` é a rota interna definida em `src/AppInterno.tsx` e composta por
   `src/pages/TaxasLocais.tsx`; `/faturamento` apenas preserva links legados.
 - As RPCs de baixa manual local exigem Administrativo ativo. Avulsa e
-  liquidação de restituição também aceitam Financeiro (quem emite avulsa é
-  decisão pendente; ver [Notas e divergências](#notas-e-divergências)). As
+  liquidação de restituição também aceitam Financeiro. Fatura avulsa pode ser
+  emitida por qualquer usuário interno ativo, com motivo e rastro
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 9); hoje a RPC aceita só o
+  Administrativo (correção pendente; ver [Notas e divergências](#notas-e-divergências)). As
   capacidades atuais estão em `src/hooks/useAuth.tsx`; não há
   `faturamento_edit` nesse contrato.
 - [Taxas Locais](taxas-locais.md) é dona do cálculo e do estado
@@ -643,7 +646,9 @@ do COD (justificativa obrigatória, `set_bl_cod`) é regra de
   (lido do documento efetivamente emitido, nunca da tabela atual do POD antigo),
   o valor no destino novo (linhas em USD pelo ROE vigente), a diferença, o pago
   e o saldo em aberto. São três ramos:
-  1. **sem pagamento:** **Cancelar e reemitir** a fatura;
+  1. **sem pagamento:** a [correção após emissão](#correção-após-emissão-adr-0077)
+     reemite a fatura sozinha; o ajuste registra o fato e se liquida com a
+     fatura sucessora;
   2. **com pagamento e valor maior:** **Fatura complementar** — a diferença é
      cobrada por Fatura Avulsa;
   3. **com pagamento e valor menor:** a diferença **abate primeiro o saldo em
@@ -652,22 +657,23 @@ do COD (justificativa obrigatória, `set_bl_cod`) é regra de
      diferença vira restituição direto. Devolver a diferença cheia restituiria o
      que nunca entrou.
 
-Pela ADR 0051, o COD apura e registra a diferença; a emissão do documento e a
-liberação da restituição são atos do Financeiro, nunca automáticos. O ajuste
-fica pendente no painel **Ajustes de COD** (acima das abas de Taxas Locais) até
-o Financeiro ou o Administrativo usar **Liquidar ajuste**: nos ramos de
-documento, informando o número interno da fatura emitida; nos de abatimento e
-restituição, aplicando-os.
+A reemissão automática da ADR 0077 vale também para o COD
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 11, que supersede parcialmente a ADR 0051):
+o Ajuste de COD registra o fato e é liquidado com a fatura sucessora, sem
+"Cancelar e reemitir". O ajuste que ainda pede ato fica no painel **Ajustes de
+COD** (acima das abas de Taxas Locais) até o Financeiro ou o Administrativo usar
+**Liquidar ajuste**: na Fatura complementar, informando o número interno da
+avulsa emitida; nos de abatimento e restituição, aplicando-os.
 
 **Código (interação com a correção automática):** desde as migrations `128` e
 `130`, a mudança de POD do COD também dispara a
 [correção após emissão](#correção-após-emissão-adr-0077). Sem pagamento, a
-fatura é reemitida sozinha e o ajuste **Cancelar e reemitir** continua pendente
-até alguém vincular a sucessora; com pagamento e valor menor, o abatimento e a
-restituição são feitos pela correção e o ajuste é marcado liquidado, vinculado
-a ela; com pagamento e valor maior, abre Fatura desatualizada e o ajuste
-**Fatura complementar** pede a avulsa. Qual regra vale para COD é decisão
-pendente (ver [Notas e divergências](#notas-e-divergências)).
+fatura é reemitida sozinha, mas o painel ainda mostra o ajuste **Cancelar e
+reemitir** pendente até alguém vincular a sucessora (correção pendente; ver
+[Notas e divergências](#notas-e-divergências)); com pagamento e valor menor, o
+abatimento e a restituição são feitos pela correção e o ajuste é marcado
+liquidado, vinculado a ela; com pagamento e valor maior, abre Fatura
+desatualizada e o ajuste **Fatura complementar** pede a avulsa.
 **Código:** `apply_cod_financial_effect` e `settle_cod_adjustment` (`130`, sobre
 os corpos da `002`), `src/components/billing/CodAdjustmentsPanel.tsx`.
 
@@ -855,10 +861,10 @@ Evidência de **Runtime**:
   pago, cuja fatura também está congelada, não recebe a comparação. Não há
   decisão registrada que justifique a diferença (possível defeito, a confirmar
   com o dono).
-- **Decisão pendente (D6-06):** a RPC `create_manual_invoice` aceita só o Administrativo, mas a ADR 0075, este módulo, o manual e o glossário dizem que o Financeiro emite Fatura Avulsa (o perfil Financeiro vê o botão e recebe `42501`). Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D6-08):** o Item da tabela da avulsa e o lançamento manual ainda excluem tabela com vigência vencida ou futura e escolhem a Condição de Cliente pela data do upload, contra a ADR 0040 que o motor segue. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D6-09):** no COD de B/L faturado, a correção automática da ADR 0077 reemite ou abate sozinha, enquanto a ADR 0051 manda o Financeiro executar o documento, e o painel ainda pede vincular a sucessora. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D0-22):** a devolução ao Cliente aparece como "Restituição" nas telas e na ADR 0077, mas o glossário a chama de "Estorno" e usa "estorno" também para Cancelar baixa. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+- **Correção pendente (A9):** qualquer usuário interno ativo emite Fatura Avulsa, com motivo e rastro, e o botão aparece para todos os setores ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 9, que supersede parcialmente a ADR 0075 quanto a quem emite). Hoje a RPC `create_manual_invoice` aceita só o Administrativo (o perfil Financeiro vê o botão e recebe `42501`). Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Correção pendente (A10):** o Item da tabela da avulsa e o lançamento manual escolhem a tabela e a Condição de Cliente pela mesma regra do cálculo automático (ADR 0040; [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10). Hoje ainda excluem tabela com vigência vencida ou futura e escolhem a Condição de Cliente pela data do upload. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md); regra em [Taxas Locais](taxas-locais.md#notas-e-divergências).
+- **Correção pendente (A11):** no COD de B/L faturado, vale a correção automática da ADR 0077 e o Ajuste de COD se liquida com a sucessora ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 11); hoje o painel ainda pede "Cancelar e reemitir" e vincular a sucessora. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Restituição (A1):** a devolução ao Cliente se chama Restituição, como nas telas e na ADR 0077; "estorno" é sinônimo a evitar, e Cancelar baixa é outra ação ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1).
 
 ### Cobrança dinâmica Itaú — migration 151
 

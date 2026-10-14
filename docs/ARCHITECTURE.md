@@ -1,6 +1,6 @@
 # Arquitetura do Vela e do Portal Fwlog
 
-Revisado em 2026-10-14, na [revisão geral da documentação](plans/2026-10-13-revisao-geral-documentacao.md):
+Revisado em 2026-10-14, na [revisão geral da documentação](archive/plans/2026-10-13-revisao-geral-documentacao.md):
 a visão geral, a hospedagem, as integrações, os Comunicados, os alertas, as
 fronteiras de autenticação, as camadas, o fluxo operacional e financeiro, o
 modelo de dados, a projeção de escalas, a segurança, as Edge Functions e o mapa
@@ -200,7 +200,8 @@ identidade pública de terminal é `voyage::porto::depots.code` (o UUID fica só
 no metadata). Os dois alertas de faturamento que o navegador abre e fecha por
 RPC estão em
 [Operação e suporte § Notas e divergências](modules/operacao-suporte.md#notas-e-divergências)
-(item B27 do [plano da revisão](plans/2026-10-13-revisao-geral-documentacao.md)).
+(B27: a origem passa a ser recomputada no servidor, correção pendente no
+[plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 
 ## Fronteiras de autenticação
 
@@ -619,9 +620,9 @@ Consumidores principais:
   `report_id`/terminal; o modal da escala atribui frentes, datas e terminais.
   Quando a escala não tem ADR com terminal (frentes `TBC` ou sem frente), a aba
   cai no caminho legado por `(voyage_id, port)`, que hoje cria, assina e fecha
-  um ADR sem terminal; se esse caminho deve continuar criando ADR novo é a
-  decisão pendente B6 (D2-03) do
-  [plano da revisão](plans/2026-10-13-revisao-geral-documentacao.md).
+  um ADR sem terminal, contra as ADRs 0035 e 0068; a escala sem terminal deixa
+  de cair no ADR legado (B6, correção pendente no
+  [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 - A RPC transacional `save_voyage_escala_terminal_state_v2` recebe a Escala, as
   frentes e as Atracações no mesmo save; os audit rows de ETA/ATA, CE, vínculo e
   número de escala entram na mesma transação. A expectativa de vazios faz
@@ -964,9 +965,9 @@ da ficha do Cliente. Tela e ações em
 [Portal do Cliente § Console `/clientes/portal`](modules/portal-cliente.md#console-clientesportal).
 A RPC entrega os campos completos a Administrativo, Documentação, Financeiro e
 Equipamentos e mascara para Operações o Email de Recuperação, os candidatos e o
-status de entrega; se Operações deve ver tudo, como decidiu a
-[ADR 0045](adr/0045-inspecao-do-portal.md), é a decisão pendente A18 (D9-04) do
-[plano da revisão](plans/2026-10-13-revisao-geral-documentacao.md).
+status de entrega. Vale a [ADR 0045](adr/0045-inspecao-do-portal.md):
+Operações vê os campos completos ([ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18); a retirada do
+mascaramento é correção pendente no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 
 ## Fontes relacionadas
 

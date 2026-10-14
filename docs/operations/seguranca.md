@@ -89,28 +89,22 @@ assinaturas do ADR de Saída continuam com o Departamento dono.
 | Resposta e reabertura de disputa de Demurrage | Equipamentos e Administrativo | [Demurrage](../modules/demurrage.md) |
 | Conciliação PIX (tela e RPCs de baixa, exceção e monitor) | Administrativo | [Conciliação PIX](../modules/reconciliacao-pix.md) |
 | Emitir fatura local e Invoice de Demurrage; baixa manual local, cancelar baixa, cancelar fatura, preparar cancelamento financeiro e autorizar restituição excepcional | Administrativo | [Faturamento](../modules/faturamento.md), [Demurrage](../modules/demurrage.md) |
-| Fatura Avulsa (`create_manual_invoice`) | A RPC aceita só o Administrativo; quem deve emitir é decisão pendente (D6-06) | [Faturamento](../modules/faturamento.md) |
+| Fatura Avulsa (`create_manual_invoice`) | Qualquer usuário interno ativo, com motivo e rastro ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 9); hoje a RPC aceita só o Administrativo: correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) | [Faturamento](../modules/faturamento.md) |
 | Cancelar e reativar Viagem e B/L; reverter omissão de escala; reabrir ADR de Saída fechado | Administrativo | [Viagens](../modules/viagens.md) |
 | Desativar e reativar Cliente | Administrativo | [Clientes](../modules/clientes.md) |
 | Desativar e reativar tarifa (tabela, item, condição de Cliente, tarifa e acordo de Demurrage, tarifa de Granito) | Administrativo | [Taxas Locais](../modules/taxas-locais.md) |
 | Exclusão operacional protegida (`delete_records`) e Excluir escala (`delete_escala`), inclusive a de exportação | Administrativo, com motivo, respeitando a Trava de exclusão ([ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md)); a migration `088` desfez a abertura da `080` e devolveu a policy de DELETE de `voyage_export_schedules` a `is_admin()` | [Regras de negócio](regras-de-negocio.md#hard-delete-controlado), [Viagens](../modules/viagens.md) |
 | Excluir veículos, com motivo (`delete_vehicles_with_reason`, migration `184`) | Qualquer Departamento ativo | [Manifesto/EDI](../modules/manifesto-edi.md) |
-| Excluir unidade manual e linha de serviço de vazios | Qualquer Departamento ativo; a ADR 0071 (item 4) prevê a trava pelo ADR de Saída fechado, que o banco ainda não impõe (decisão pendente D0-09) | [Manifesto/EDI](../modules/manifesto-edi.md) |
+| Excluir unidade manual e linha de serviço de vazios | Qualquer Departamento ativo; a ADR 0071 (item 4) prevê a trava pelo ADR de Saída fechado, que o banco ainda não impõe: correção pendente (B14) no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) | [Manifesto/EDI](../modules/manifesto-edi.md) |
 | Remover o CE Mercante do B/L | Qualquer Departamento ativo, com motivo | [Manifesto/EDI](../modules/manifesto-edi.md) |
 | Importações de arquivo | Qualquer Departamento ativo, com o rastro no Histórico ([ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)) | [Manifesto/EDI](../modules/manifesto-edi.md) |
 
-### Administrativo ativo mínimo (decisão pendente D0-06/D9-06)
+### Administrativo ativo mínimo
 
-O glossário registrava que o sistema deve manter pelo menos um Administrador
-ativo — sem desativar nem rebaixar o último — e que mudar setor ou situação de
-um usuário exige confirmação, motivo e auditoria. O código não garante essa
-regra: em `/admin/usuarios`, a troca de setor e a desativação pedem
-confirmação e ficam em `audit_logs`, mas sem motivo; nenhuma camada impede que
-o único Administrativo troque o próprio setor nem que o último seja desativado
-por outro (a Edge Function `admin-users` só recusa desativar o próprio
-acesso). O papel Administrador não existe mais; se a regra for mantida, vale
-para o Administrativo. Decisão pendente registrada no
-[plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md) (A2).
+Regra decidida: o banco recusa rebaixar de setor ou desativar o último
+Administrativo ativo
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 2). A regra e a correção pendente estão em
+[Operação e suporte § Administrativo ativo mínimo](../modules/operacao-suporte.md#administrativo-ativo-mínimo).
 
 ## Duas fronteiras de autenticação
 

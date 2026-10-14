@@ -341,8 +341,8 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
 - **Porto de embarque** é escolhido entre os portos brasileiros do POL e do POD
   dos B/Ls da Viagem (`fetchVoyageEscalaPorts`, normalizados por
   `normalizePortCode`); sem nenhum, o campo diz "Nenhuma escala encontrada —
-  importe os B/Ls da viagem antes de criar o Embarque" (ver a decisão pendente
-  D2-30 em [Notas e divergências](#notas-e-divergências)).
+  importe os B/Ls da viagem antes de criar o Embarque" (correção pendente B10 em
+  [Notas e divergências](#notas-e-divergências)).
 - **Unidade Embarcada.** Container vazio efetivamente embarcado na escala, com
   número, tipo, local de origem (sempre presente e ativo: um Depot ou um
   Terminal Portuário do Cadastro de Terminais), condição (**vazio** ou
@@ -400,8 +400,8 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   e o valor efetivo fica na linha (`valor_sugerido` guarda a sugestão). O valor
   do serviço já é o efetivo, inclusive para overtime ou majoração: a linha não
   aceita percentual (`vetoPercentual`), e o total é `quantidade × valor
-  unitário` (`totalLinha`, `src/services/vaziosCusto.ts`; ver a decisão
-  pendente D2-31 sobre a coluna Total da tela).
+  unitário` (`totalLinha`, `src/services/vaziosCusto.ts`; ver a correção
+  pendente B11 sobre a coluna Total da tela).
 - **Armazenagem.** Dias cobráveis de uma unidade de Depot = `(saída − entrada
   + 1) − free time`, nunca negativo: o +1 conta o dia de entrada e o de saída,
   e o free time é o do depot para a condição da unidade (vazio ou material). A
@@ -412,8 +412,8 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   sem linha: **Lançar** preenche serviço, quantidade calculada e valor do
   catálogo num clique (o usuário ainda lança); sem serviço de armazenagem
   daquela condição no depot, a tela não oferece o atalho e mostra
-  **Cadastrar**, que leva ao Cadastro de Terminais (ver a decisão pendente
-  D2-32).
+  **Cadastrar**, que leva ao Cadastro de Terminais (ver a correção pendente
+  B12).
 - **Observação** da linha é editável na tela e aparece no ADR. Excluir linha
   pede motivo (`delete_catalog_row`, qualquer usuário ativo; migration `096`).
 - **No ADR**, a seção **Embarque de vazios** (Equipamentos) mostra
@@ -756,7 +756,7 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   ([ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md)). Troca com
   Comunicado já enviado abre `comunicado_ce_reenvio_pendente` (pendência de
   reenvio ao Cliente); troca com Desbloqueio conferido abre
-  `ce_trocado_com_desbloqueio` (ver a decisão pendente D4-01 em
+  `ce_trocado_com_desbloqueio` (correção pendente B1 em
   [Notas e divergências](#notas-e-divergências)). O alerta nasce na porta
   única, uma vez por troca, também em Corrigir ou Remover pela ficha. O
   Desbloqueio de CE é do módulo [Desbloqueio de CE](desbloqueio-ce.md).
@@ -986,37 +986,37 @@ bloqueadas no preview; nenhum veículo é criado com valores zero artificiais.
 - **Código — mensagens dos Vazios de Importação:** as recusas da RPC ainda
   falam em "porto de origem", mas a regra executada é um Nº por rota POL → POD
   (migration `192`).
-- **Decisão pendente (D2-30):** o Porto de embarque do Embarque de Vazios só
+- **Correção pendente (B10):** o Porto de embarque do Embarque de Vazios só
   oferece os portos dos B/Ls da Viagem, então Viagem só de embarque de vazios,
   sem B/L, não consegue criar o Embarque, enquanto a ADR 0035 manda escolher
-  entre as escalas da Viagem. Registrada no
-  [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D2-31):** a coluna Total das Linhas de Serviço multiplica
+  entre as escalas da Viagem. Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Correção pendente (B11):** a coluna Total das Linhas de Serviço multiplica
   pelo percentual legado gravado na linha, enquanto o total do Embarque e o ADR
-  usam `quantidade × valor unitário` (ADR 0033). Registrada no
-  [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D2-32):** o atalho de armazenagem pendente só reconhece
+  usam `quantidade × valor unitário` (ADR 0033). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Correção pendente (B12):** o atalho de armazenagem pendente só reconhece
   serviço de armazenagem cadastrado com a mesma condição; o serviço sem
   condição, que o valor sugerido trata como genérico (ADR 0033), aparece como
   "sem serviço de armazenagem cadastrado" (o banco também exige a condição do
-  serviço na linha de armazenagem). Registrada no
-  [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D3-22):** num B/L misto faturado, a prévia do B/L de
+  serviço na linha de armazenagem). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Correção pendente (B21):** num B/L misto faturado, a prévia do B/L de
   container pede a confirmação de faturamento quando muda o peso dos
   contêineres, como se fosse peso de carga solta; o servidor aplica esse peso
-  sem trava, como prevê a ADR 0017. Registrada no
-  [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D3-23):** a planilha-modelo de CE Mercante
+  sem trava, como prevê a ADR 0017. Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Correção pendente (B22):** a planilha-modelo de CE Mercante
   (`public/templates/ce-mercante-modelo.csv` e `.xlsx`) traz exemplos de CE com
-  9 dígitos, que a importação recusa (15 dígitos, ADR 0078). Registrada no
-  [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D4-01):** trocar ou remover o CE de B/L conciliado como
+  9 dígitos, que a importação recusa (15 dígitos, ADR 0078). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Correção pendente (B1):** trocar ou remover o CE de B/L conciliado como
   Desbloqueio conferido não abre `ce_trocado_com_desbloqueio` nem avisa na
   prévia, porque o código procura a confirmação manual retirada na migration
   `160`, e não o status conciliado com a ZPT (a ADR 0078 manda abrir o
-  alerta). Registrada no
-  [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
-- **Decisão pendente (D4-20):** o campo "Nº do manifesto" do modal Editar ETD +
+  alerta). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Correção pendente (B23):** o campo "Nº do manifesto" do modal Editar ETD +
   ATD e Nº de Manifesto Mercante mostra o exemplo "Ex.: 25BR00481" (9
-  caracteres, o do Nº Escala), contra a regra de 13 caracteres. Registrada no
-  [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+  caracteres, o do Nº Escala), contra a regra de 13 caracteres. Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).

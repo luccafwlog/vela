@@ -1,7 +1,7 @@
 # 0082 — Governança da documentação: um dono por fato e ADR como registro histórico
 
 Status: aceito — 2026-10-13 (decisões do dono). Aplicada pela
-[revisão geral da documentação](../plans/2026-10-13-revisao-geral-documentacao.md),
+[revisão geral da documentação](../archive/plans/2026-10-13-revisao-geral-documentacao.md),
 concluída em 2026-10-14 ([relatório](../archive/audits/2026-10-13-revisao-geral-documentacao.md)).
 Numerada 0082 porque a 0081 foi publicada na `main` durante a revisão.
 

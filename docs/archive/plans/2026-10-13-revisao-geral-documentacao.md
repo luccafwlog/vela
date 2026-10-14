@@ -1,10 +1,12 @@
 # 2026-10-13 — Revisão geral da documentação
 
+> **Nota editorial (2026-10-14).** Plano encerrado e arquivado: o dono respondeu todas as decisões pendentes em 2026-10-14, registradas na [ADR 0083](../../../adr/0083-decisoes-da-revisao-geral-da-documentacao.md) (lotes A e B) e na [ADR 0084](../../../adr/0084-registro-de-decisoes-ja-em-producao.md) (C1). As correções de código seguem no [plano de correções](../../../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md). O texto abaixo é o registro das decisões como estavam pendentes.
+
 Plano vivo da revisão aprovada pelo dono em 2026-10-13. As regras do trabalho
-estão na [ADR 0082](../adr/0082-governanca-documental-dono-unico-e-adr-historica.md)
-e em [CONVENCOES.md](../CONVENCOES.md). A varredura e a aplicação terminaram em
+estão na [ADR 0082](../../adr/0082-governanca-documental-dono-unico-e-adr-historica.md)
+e em [CONVENCOES.md](../../CONVENCOES.md). A varredura e a aplicação terminaram em
 2026-10-14; o que foi feito está no
-[relatório final](../archive/audits/2026-10-13-revisao-geral-documentacao.md).
+[relatório final](../audits/2026-10-13-revisao-geral-documentacao.md).
 Este arquivo continua vivo como registro das decisões pendentes: vai para
 `docs/archive/plans/` quando a última for respondida e virar ADR.
 
@@ -47,12 +49,12 @@ ativas e `src/`.
 A auditoria cobriu 12 domínios (D0 a D11) e 3 escopos transversais
 (RASTREABILIDADE, ARCHITECTURE e índices): 304 achados (a), 42 duplicações,
 49 (b), 4 (c) e 1 refutado. A contagem por escopo está no
-[relatório final](../archive/audits/2026-10-13-revisao-geral-documentacao.md#achados).
+[relatório final](../audits/2026-10-13-revisao-geral-documentacao.md#achados).
 
 ## Correções aplicadas — tipo (a)
 
 Registradas por domínio no commit correspondente; resumo no
-[relatório final](../archive/audits/2026-10-13-revisao-geral-documentacao.md#o-que-mudou).
+[relatório final](../audits/2026-10-13-revisao-geral-documentacao.md#o-que-mudou).
 
 ## Decisões pendentes — tipos (b) e (c)
 
@@ -180,7 +182,7 @@ cada ADR ou no documento citado.
 | B29 (ADR 0014) | defeito | `demurrage_invoices.due_date` existe e a ficha do Cliente conta Invoice de Demurrage vencida, contra "Demurrage não vence". | Tratar como defeito. |
 | B30 (glossário) | defeito | O banco entrega ao Portal o free time e o valor por período de cada container de Demurrage, mas o detalhe da Invoice no Portal mostra só datas, dias e USD; o glossário prometia o detalhamento ao Cliente. | Decidir se o Portal passa a mostrar o detalhamento ou se a promessa sai. |
 | B31 (ADR 0072) | defeito | Salvar do Local e do serviço em `/embarquevazios/depots` grava sem o diálogo de antes e depois (achado na aplicação de `regras-de-negocio.md`). | Tratar como defeito. |
-| B32 (ADR 0058) | defeito | A Edge Function de aviso de fatura emitida que a [ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou apagar (o nome está na ADR) segue publicada e ativa em produção (v68, de 2026-09-01), sem código no repositório (Runtime, listagem só leitura em 2026-10-14; ver [Serviços externos](../operations/servicos-externos.md)). | Apagar em produção é mutação: fica com o dono. |
+| B32 (ADR 0058) | defeito | A Edge Function de aviso de fatura emitida que a [ADR 0058](../../adr/0058-canal-de-comunicado-ao-cliente.md) mandou apagar (o nome está na ADR) segue publicada e ativa em produção (v68, de 2026-09-01), sem código no repositório (Runtime, listagem só leitura em 2026-10-14; ver [Serviços externos](../../operations/servicos-externos.md)). | Apagar em produção é mutação: fica com o dono. |
 | C1 | registro | Decisões já tomadas e em produção sem ADR: integração Pix dinâmica com o Itaú (migrations `151`–`154`, `219`), Automatic branching do Supabase desligado em 2026-10-07 e environments de Preview sem restrição de branch (recusa de 2026-10-06). | Registrar numa ADR nova de consolidação, sem mudar comportamento. |
 
 Decisão de organização tomada na revisão, sem pergunta ao dono (D9-19): o

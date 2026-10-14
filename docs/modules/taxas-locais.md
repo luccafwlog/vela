@@ -283,8 +283,9 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   (`valid_from DESC, id DESC`) e a tela avisa que a outra não está sendo
   aplicada; período vencido ou futuro em tabela ativa vira aviso, nunca
   exclusão. Desativar é a única forma de tirar uma tabela do cálculo. O
-  lançamento manual e o Item da tabela da avulsa ainda filtram a vigência
-  (decisão pendente; ver [Notas e divergências](#notas-e-divergências)).
+  lançamento manual e o Item da tabela da avulsa seguem a mesma regra
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10); hoje ainda filtram a vigência
+  (correção pendente; ver [Notas e divergências](#notas-e-divergências)).
 - **B/L misto** consome as tabelas container e carga solta por
   `resolve_bl_local_charge_table_ids` (`056`). A taxa com
   `application_basis = 'bl'` (documental) incide só do lado container; falta
@@ -321,8 +322,9 @@ de uma data operacional nunca impeça o cálculo (ADR 0040). A data **não**
 escolhe a tabela (escopo e tabela ativa, sem data). Não é a ATA (o CE é
 cadastrado dias antes da atracação, então a fatura já existe quando a ATA
 chega) nem a data de importação do B/L, que é fato administrativo. O
-lançamento manual e o Item da tabela da avulsa ainda usam a data do upload do
-lote (decisão pendente; ver Notas).
+lançamento manual e o Item da tabela da avulsa seguem a mesma regra (ADR 0083,
+item 10); hoje ainda usam a data do upload do lote (correção pendente; ver
+Notas).
 
 ### Movimento e Isenção de Taxas Locais
 
@@ -522,7 +524,7 @@ Comando focado:
   agrupa as tabelas pela mesma lista exata de aliases da função do banco
   (SANTOS/SSZ → BRSSZ, BRVIT/VITORIA/VIX → BRVIX…), sem "contém"; o rótulo do
   escopo mostra o código canônico do banco.
-- **Decisão pendente (D6-08):** o lançamento manual (`add_manual_bl_charge`, `list_manual_charge_items_for_bl`) e o Item da tabela da avulsa (`quote_manual_invoice_charge`) excluem tabela ativa com vigência vencida ou futura e escolhem a Condição de Cliente pela data do upload do lote, enquanto o motor segue a ADR 0040 (tabela ativa sem data; Condição pela Data de Referência). Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+- **Correção pendente (A10):** o lançamento manual (`add_manual_bl_charge`, `list_manual_charge_items_for_bl`) e o Item da tabela da avulsa (`quote_manual_invoice_charge`) escolhem a tabela e a Condição de Cliente pela regra do cálculo automático (ADR 0040: tabela ativa sem data; Condição pela Data de Referência), conforme a [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10. Hoje excluem tabela ativa com vigência vencida ou futura e escolhem a Condição de Cliente pela data do upload do lote. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 - `pricing_rule_versions` não participa deste caminho atual; cálculo e
   transições registram evidência principalmente em `audit_logs`.
 

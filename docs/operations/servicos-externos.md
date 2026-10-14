@@ -260,8 +260,10 @@ As 24 funções do repositório estão publicadas e `ACTIVE` em produção:
 publicada, na v68 de 2026-09-01, a Edge Function antiga de aviso de fatura
 emitida que a [ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou
 apagar (o nome está na ADR); ela não tem código no repositório nem chamador no
-código, e apagá-la é decisão pendente B32 do
-[plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md). **Runtime:** listagem somente de leitura das
+código. O dono autorizou apagá-la em 2026-10-14
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26); a remoção é operação do dono, no
+painel ou na CLI do Supabase (o acesso do Claude não apaga Edge Functions), e
+está pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (B32). **Runtime:** listagem somente de leitura das
 Edge Functions do projeto em 2026-10-14; `itau-pix` estava na v20, publicada em
 2026-10-13 às 17:47 UTC, e o código baixado trata `{"action":"process_charges"}`,
 o disparo da migration `219` (seção [Itaú](#itaú--api-pix-recebimentos)).

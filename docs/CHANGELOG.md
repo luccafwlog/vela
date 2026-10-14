@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Decisões da revisão geral respondidas (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
+  [ADR 0084](adr/0084-registro-de-decisoes-ja-em-producao.md)):** o dono respondeu as 25 decisões
+  de negócio, aprovou os defeitos do lote B e pediu o registro das decisões já em produção. Os
+  módulos passam a descrever a regra decidida, com "correção pendente" onde o código ainda
+  diverge; o termo é Restituição e a regra é "Administrativo ativo mínimo"; o desenho de piloto
+  e GO LIVE do Portal de julho foi arquivado. Nenhum código mudou: as correções estão no
+  [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (31 itens de
+  código e 2 operações do dono), e o plano da revisão geral foi arquivado.
 - **Revisão geral da documentação (2026-10-14, [ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md),
   [relatório](archive/audits/2026-10-13-revisao-geral-documentacao.md)):** cada fato passa a ter
   um documento dono. O `CONTEXT.md` vira só glossário (de 2.376 para 1.584 linhas), e prazos,
@@ -16,7 +24,7 @@
   datados foram para o arquivo histórico. O `docs:check` passa a recusar status de ADR diferente
   do índice, ADR supersedida sem faixa, documento datado fora do arquivo e link para seção
   inexistente. Ficaram com o dono 25 decisões de negócio, 32 defeitos em que o código desobedece
-  uma decisão registrada e 1 registro, no [plano vivo](plans/2026-10-13-revisao-geral-documentacao.md).
+  uma decisão registrada e 1 registro, no [plano vivo](archive/plans/2026-10-13-revisao-geral-documentacao.md).
 - **Passada única da identidade visual (2026-10-13, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md#passada-única-2026-10-13)):**
   o que vale igual em qualquer tela foi aplicado de uma vez no Vela e no Portal: toda tabela segue
   a tabela padrão (centralizada, com nome, descrição e observação à esquerda); a tabela dentro de

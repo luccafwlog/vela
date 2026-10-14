@@ -5,7 +5,7 @@ Relatório da revisão geral feita de 2026-10-13 a 2026-10-14 no branch
 [ADR 0082](../../adr/0082-governanca-documental-dono-unico-e-adr-historica.md).
 É registro histórico: descreve o que foi conferido e mudado nestas datas. As
 decisões que ficaram com o dono continuam no
-[plano vivo da revisão](../../plans/2026-10-13-revisao-geral-documentacao.md)
+[plano vivo da revisão](../plans/2026-10-13-revisao-geral-documentacao.md)
 até serem respondidas.
 
 ## Resultado em uma frase

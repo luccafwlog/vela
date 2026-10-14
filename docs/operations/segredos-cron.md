@@ -78,11 +78,12 @@ dentro da transação de quem usa a tela, acionadas por gatilho:
 
 As duas disparam no máximo uma vez por transação, não devolvem o valor lido,
 não são executáveis por `PUBLIC`, `anon` nem `authenticated` e, sem o par no
-cofre, não fazem nada. Ainda assim, o segredo passa a ser lido e enfileirado no
-`pg_net` a partir da importação ou da emissão feita pelo usuário, e não só pelo
-`pg_cron` como prevê a [ADR 0063](../adr/0063-configuracao-de-jobs-cron-no-vault.md);
-essa diferença é a decisão pendente A5 do
-[plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+cofre, não fazem nada. São a exceção decidida à
+[ADR 0063](../adr/0063-configuracao-de-jobs-cron-no-vault.md), que reservava a
+leitura do cofre ao `pg_cron`: as pontes `218` e `219` podem ler o segredo a
+partir da importação ou da emissão feita pelo usuário, e a exposição aceita é
+que a chamada com o segredo passa pela fila do `pg_net`
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 5).
 
 O schema `ops` não concede `USAGE` a `PUBLIC`, `anon` nem `authenticated`, e não
 está entre os schemas expostos pela Data API — a função não é um endpoint REST.

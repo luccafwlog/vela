@@ -1,11 +1,11 @@
 # 0015 — Demurrage: conciliação por txid + janela das duas PTAX na data do pagamento
 
-> **Situação atual (2026-10-13).** Continuam valendo a janela das duas PTAX na data do pagamento, a tolerância de R$ 0,01 e a quitação só integral.
+> **Situação atual (2026-10-14).** Continuam valendo a janela das duas PTAX na data do pagamento, a tolerância de R$ 0,01 e a quitação só integral.
 > Desde 2026-10-07 a produção usa a cobrança PIX dinâmica do Itaú (migrations `151` a `154` e `219`): cada Invoice de Demurrage tem cobrança com TXID próprio (`VELA…`), atualizada a cada PTAX e baixada sozinha pela mesma janela. O QR estático e o `txid = doc_number` ficam para o provedor `static`, e a conciliação por extrato é plano B.
-> Nenhuma ADR registra a integração Itaú; o registro é decisão pendente.
+> A integração Itaú está registrada na [ADR 0084](./0084-registro-de-decisoes-ja-em-producao.md) (item 1). Não vale mais a baixa automática por CNPJ na janela das duas PTAX para Pix de Demurrage sem TXID legível: ele vira exceção para conferência, como o código já faz ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 17).
 > Regra vigente em [Reconciliação PIX](../modules/reconciliacao-pix.md), seção "Fluxos e invariantes".
 
-Status: aceito — 2026-06-24
+Status: supersedida parcialmente — 2026-06-24
 
 ## Contexto
 

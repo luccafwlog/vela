@@ -173,14 +173,16 @@ rótulo de um botão corresponde ao efeito que ele produz.
   [Faturamento § Pagamento, saldo e restituição](../modules/faturamento.md#pagamento-saldo-e-restituição),
   [Demurrage § Baixa, cancelamento da baixa e restituição](../modules/demurrage.md#baixa-cancelamento-da-baixa-e-restituição)).
 
-**Decisão pendente (A1):** o vocabulário de 2026-09-24 chama a devolução ao
-Cliente de "Estorno", mas as telas, o módulo Faturamento e a ADR 0077 usam
-"Restituição". Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+Devolver ao Cliente o que ele pagou a maior é **Restituição**, como as telas,
+o módulo Faturamento e a ADR 0077 dizem; "estorno" é sinônimo a evitar, e
+Cancelar baixa é outra ação ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1, que
+substitui o "Estorno" do vocabulário de 2026-09-24).
 
 Divergências de rótulo que ainda existem na interface (**Código**): usuário
 interno em `/admin/usuarios` (`src/pages/Admin.tsx`) e acordo de Demurrage
 (`CustomerDemurrageAgreementsTab.tsx`) dizem **Ativar** em vez de **Reativar**
-(B13); o aviso do serviço do Local diz "Serviço inativado." (B15); e textos de
+(B13, correção pendente); o aviso do serviço do Local diz "Serviço inativado."
+(B15, correção pendente); e textos de
 tela usam "estorno" no sentido de Cancelar baixa — a reversibilidade de
 `ValidacaoTab.tsx`, `ConsolidatedInvoiceModal.tsx` e
 `PortalConsolidatedModal.tsx` diz que pagamentos seguem o "fluxo de estorno", e
@@ -215,12 +217,16 @@ não confundir com a ação Cancelar.
 "Motivo (obrigatório)") e `useConfirmWithReason`. Implementação concluída em
 2026-10-05 (nota de encerramento da ADR 0072), com as lacunas B13, B14 e B15
 abaixo; fora delas, **Salvar** do Local e do serviço em
-`/embarquevazios/depots` grava sem diálogo (`src/pages/DepotCadastro.tsx`).
+`/embarquevazios/depots` grava sem diálogo de antes e depois
+(`src/pages/DepotCadastro.tsx`; B31, correção pendente no
+[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 
-**Decisão pendente (B13):** Reativar tarifa (tabela e item de Taxas Locais,
-Condição de Cliente, tarifa e acordo de Demurrage, tarifa de Granito) e
-reativar usuário interno não pedem motivo, e as telas de usuário e de acordo de
-Demurrage dizem "Ativar". Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+**Correção pendente (B13):** pela regra acima, Reativar tarifa (tabela e item
+de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage, tarifa de
+Granito) e reativar usuário interno pedem motivo e dizem "Reativar"; hoje não
+pedem motivo, e as telas de usuário e de acordo de Demurrage dizem "Ativar".
+Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
 
 ### Hard delete controlado
 
@@ -289,6 +295,11 @@ excluíveis. Também travam o que referenciam (`bl_delete_lock_reasons` e
 - na viagem, também o Granito com CE ou faturado e o Comunicado ao Cliente
   ancorado na viagem.
 
+Escala com B/L, com ou sem CE, também não se exclui: primeiro saem os B/Ls,
+depois a escala ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 7, que supersede
+parcialmente a ADR 0071 quanto à escala). A tela já recusa; o banco ainda
+aceita: correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+
 Antes da trava, excluir cabe ao Administrativo, com motivo
 ([Hard delete controlado](#hard-delete-controlado)); depois, o caminho é
 corrigir, substituir, reemitir ou cancelar — B/L com CE se cancela
@@ -303,11 +314,12 @@ substituiu o item 5 da ADR 0071).
 terminal, e reabrir o ADR solta a trava (ADR 0071, item 4); antes dela,
 qualquer usuário ativo exclui unidade manual e linha de serviço de vazios.
 
-**Decisão pendente (B14):** o banco não impõe a trava dos vazios — unidade
-manual e linha de serviço do Embarque de Vazios são excluídas por qualquer
-usuário ativo mesmo com o ADR de Saída fechado, e **Excluir unidade** não pede
-motivo; só a exclusão de viagem, escala e atracação considera o ADR fechado.
-Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+**Correção pendente (B14):** o banco ainda não impõe a trava dos vazios —
+unidade manual e linha de serviço do Embarque de Vazios são excluídas por
+qualquer usuário ativo mesmo com o ADR de Saída fechado, e **Excluir unidade**
+não pede motivo; só a exclusão de viagem, escala e atracação considera o ADR
+fechado. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
 
 ### Cadastro usado
 
@@ -340,10 +352,10 @@ continua no histórico e nos documentos que o referenciam.
 Implementada em 2026-09-25 para tarifas e Clientes (migrations `087`, `088`,
 `091` e `092`); o item 8, de Local e serviço, não está implementado:
 
-**Decisão pendente (B15):** desativar e reativar Local, terminal e serviço do
-Local é feito por qualquer usuário ativo, sem diálogo de confirmação nem
-motivo, e o aviso diz "Serviço inativado.". Registrada no
-[plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+**Correção pendente (B15):** desativar e reativar Local, terminal e serviço do
+Local ainda é feito por qualquer usuário ativo, sem diálogo de confirmação nem
+motivo, e o aviso diz "Serviço inativado.". Correção pendente no
+[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
 
 ### Guarda e recuperação
 
@@ -371,15 +383,19 @@ implementada (migrations `093` e `094`; backup encerrado em 2026-10-05).
   ([Backup lógico em R2](backup-r2.md#estado-operacional-conferido-em-2026-10-05));
   a de uma exclusão pontual é a cópia do registro na auditoria.
 
-**Decisão pendente (A3):** o banco ainda permite ao Administrativo apagar um
-perfil interno por chamada direta à API (policy de DELETE em `user_profiles`);
-a tela `/admin/usuarios` só desativa. Quando o DELETE passa, o Log de Ações
-mostra o id em vez do nome do autor. Registrada no
-[plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+**Perfil interno não se exclui, nem pela API** ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
+item 3): o banco revoga a exclusão de perfil interno, como a migration `086`
+fez com documento fiscal. **Correção pendente:** hoje o banco ainda permite ao
+Administrativo apagar um perfil interno por chamada direta à API (policy de
+DELETE em `user_profiles`); a tela `/admin/usuarios` só desativa. Quando o
+DELETE passa, o Log de Ações mostra o id em vez do nome do autor. Correção
+pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 
-**Decisão pendente (A2):** nada impede rebaixar ou desativar o último
-Administrativo ativo ([Segurança § Administrativo ativo mínimo](seguranca.md#administrativo-ativo-mínimo-decisão-pendente-d0-06d9-06)).
-Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+Pela regra decidida, o banco recusa rebaixar ou desativar o último
+Administrativo ativo; a regra e
+a correção pendente estão em
+[Operação e Suporte § Administrativo ativo mínimo](../modules/operacao-suporte.md#administrativo-ativo-mínimo)
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 2).
 
 ## Importações
 

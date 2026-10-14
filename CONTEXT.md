@@ -110,11 +110,10 @@ escala, transbordo.
 Parar de ver um aviso; nada muda no dado. Só existe em Alertas e Notificações.
 → Regra: [Operação e Suporte § Leitura, dispensa e Eco de Tratamento](docs/modules/operacao-suporte.md#leitura-dispensa-e-eco-de-tratamento)
 
-**Estorno**
-Termo em decisão. O vocabulário de 2026-09-24 chama de Estorno a devolução ao
-Cliente de valor que ele pagou a maior; as telas e o módulo Faturamento chamam
-esse ato de Restituição. Qual dos dois é o canônico é a decisão pendente A1 do
-[plano da revisão](docs/plans/2026-10-13-revisao-geral-documentacao.md).
+**Restituição**
+Devolução ao Cliente de valor que ele pagou a maior, com registro próprio
+([ADR 0083](docs/adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1).
+- **Evitar:** "estorno" (sinônimo antigo, do vocabulário de 2026-09-24)
 - **Distinto de:** Cancelar baixa, que desfaz uma baixa lançada por engano e
   não devolve dinheiro.
 → Regra: [Faturamento § Pagamento, saldo e restituição](docs/modules/faturamento.md#pagamento-saldo-e-restituição);
@@ -1300,11 +1299,11 @@ Identidade do Supabase Auth com perfil interno ativo e papel reconhecido. Uma
 identidade Auth sem perfil ativo não tem acesso interno.
 → Regra: [Segurança § Roles internas](docs/operations/seguranca.md#roles-internas)
 
-**Administrador ativo mínimo**
-Regra registrada de manter sempre ao menos um usuário Administrativo ativo
-(o papel Administrador hoje se chama Administrativo), com motivo nas trocas de
-setor e situação. Está em decisão pendente.
-→ Regra: [Segurança § Administrativo ativo mínimo](docs/operations/seguranca.md#administrativo-ativo-mínimo-decisão-pendente-d0-06d9-06)
+**Administrativo ativo mínimo**
+Regra de manter sempre ao menos um usuário Administrativo ativo: o último não
+se rebaixa de setor nem se desativa (correção pendente).
+- **Evitar:** "Administrador ativo mínimo" (o papel Administrador não existe mais)
+→ Regra: [Operação e Suporte § Administrativo ativo mínimo](docs/modules/operacao-suporte.md#administrativo-ativo-mínimo)
 
 **Dupla proteção RBAC**
 A interface esconde ou mostra ações conforme a permissão, mas quem autoriza é

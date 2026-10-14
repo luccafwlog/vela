@@ -1,9 +1,9 @@
 # ADR 0053 — Alerta fecha pela origem; dispensa temporária exige revisão
 
-> **Situação atual (2026-10-13).** Decisão vigente; implementação parcial. Divergência entre código e decisão, registrada como decisão pendente: `resolve_billing_alert` deixa qualquer usuário interno ativo fechar `billing_auto_issue_failed` e `billing_calculation_blocked` sem que o servidor recompute a origem (a conferência é feita no navegador), contra a guarda server-side pedida abaixo.
+> **Situação atual (2026-10-14).** Decisão vigente, supersedida parcialmente pela [ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md) (item 23): o Alerta continua fechando pela origem quando há fato verificável, mas não vale mais que a dispensa temporária seja a única ação manual, porque os tipos de conferência sem fato de origem, como `portal_abuso_login`, ganham "Resolver com justificativa", com motivo obrigatório e registro no histórico. Implementação parcial, com correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md): `resolve_billing_alert` deixa qualquer usuário interno ativo fechar `billing_auto_issue_failed` e `billing_calculation_blocked` sem que o servidor recompute a origem (a conferência é feita no navegador), contra a guarda server-side pedida abaixo ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26), e "Resolver com justificativa" ainda não existe.
 > Regra vigente em [Operação e Suporte § Alertas e Notificações Internas](../modules/operacao-suporte.md#alertas-e-notificações-internas).
 
-Status: aceito — 2026-08-17
+Status: supersedida parcialmente — 2026-08-17
 
 ## Contexto
 
