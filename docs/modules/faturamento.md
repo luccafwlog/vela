@@ -697,14 +697,16 @@ avulsa emitida; nos de abatimento e restituição, aplicando-os.
 **Código (interação com a correção automática):** desde as migrations `128` e
 `130`, a mudança de POD do COD também dispara a
 [correção após emissão](#correção-após-emissão-adr-0077). Sem pagamento, a
-fatura é reemitida sozinha, mas o painel ainda mostra o ajuste **Cancelar e
-reemitir** pendente até alguém vincular a sucessora (correção pendente; ver
-[Notas e divergências](#notas-e-divergências)); com pagamento e valor menor, o
+fatura é reemitida sozinha e o ajuste (ação `cancel_and_reissue`, mostrada
+como **Reemissão automática**) se liquida quando o B/L ganha a fatura
+sucessora, com ela como documento resultante (migration `249`); se a
+reemissão travar, o painel só aponta o B/L, sem pedir número; com pagamento e valor menor, o
 abatimento e a restituição são feitos pela correção e o ajuste é marcado
 liquidado, vinculado a ela; com pagamento e valor maior, abre Fatura
 desatualizada e o ajuste **Fatura complementar** pede a avulsa.
 **Código:** `apply_cod_financial_effect` e `settle_cod_adjustment` (`130`, sobre
-os corpos da `002`), `src/components/billing/CodAdjustmentsPanel.tsx`.
+os corpos da `002`; `249`), gatilho `settle_cod_reissue_on_invoice_bl` (`249`),
+`src/components/billing/CodAdjustmentsPanel.tsx`.
 
 ### Pagamento, saldo e restituição
 
@@ -894,7 +896,7 @@ Evidência de **Runtime**:
 - **Baixa do Financeiro e Restituição de todos (ADR 0085, D2 e D4; P5).** Desde a migration `247`, Financeiro e Administrativo registram a baixa manual, e qualquer Departamento autoriza ou cancela a restituição excepcional, com a justificativa que as RPCs exigem; os alertas Fatura desatualizada e Restituição pendente avisam também o Financeiro. Cancelar fatura e cancelar baixa seguem do Administrativo (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`).
 - **Emissão por qualquer Departamento (A9 e P4).** Desde a migration `246`, todo usuário interno ativo emite a Fatura Avulsa, a fatura fora do automático (ficha do B/L, Validação, consolidada) e a Invoice de Demurrage, e usa Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente e Resolver fatura desatualizada; os botões aparecem para todos os setores. A emissão é só em nome próprio (`p_actor` conferido, migration `241`) e grava o rastro de sempre. Preparar cancelamento financeiro, cancelar fatura e cancelar baixa seguem do Administrativo (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`).
 - **Correção pendente (A10):** o Item da tabela da avulsa e o lançamento manual escolhem a tabela e a Condição de Cliente pela mesma regra do cálculo automático (ADR 0040; [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10). Hoje ainda excluem tabela com vigência vencida ou futura e escolhem a Condição de Cliente pela data do upload. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md); regra em [Taxas Locais](taxas-locais.md#notas-e-divergências).
-- **Correção pendente (A11):** no COD de B/L faturado, vale a correção automática da ADR 0077 e o Ajuste de COD se liquida com a sucessora ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 11); hoje o painel ainda pede "Cancelar e reemitir" e vincular a sucessora. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **COD segue a ADR 0077 (A11).** No COD de B/L faturado sem pagamento, a correção automática reemite a fatura e, desde a migration `249`, o Ajuste de COD se liquida com a sucessora; o painel deixou de pedir "Cancelar e reemitir" e o número da fatura (**Teste**, Postgres local, `invoicePostBillingSafety.local-pg.test.ts`).
 - **Restituição (A1):** a devolução ao Cliente se chama Restituição, como nas telas e na ADR 0077; "estorno" é sinônimo a evitar, e Cancelar baixa é outra ação ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1).
 
 ### Cobrança dinâmica Itaú — migration 151

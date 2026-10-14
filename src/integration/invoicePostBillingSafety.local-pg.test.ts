@@ -498,6 +498,20 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
 
   });
 
+  it('COD sem pagamento: a correção reemite e o Ajuste de COD se liquida com a sucessora, sem Cancelar e reemitir (A11)',()=>{
+    const inv=issueByCe(bl.vehicleB,'839000000000008');
+    psql(`INSERT INTO public.voyage_omissions(id,voyage_id,omitted_pod,discharge_pod,omitted_by) VALUES (99283988,${voyageId},'R839POD','R839DST','${actorId}')`);
+    psql(`INSERT INTO public.bl_transshipments(bl_id,omission_id,disposition) VALUES ('${bl.vehicleB}',99283988,'transshipment')`);
+    const result=asAdmin(`UPDATE public.charge_tables SET pod='R839DST' WHERE id=${chargeTableId}; UPDATE public.charge_table_items SET value_brl=0,unit_value_brl=0 WHERE id=${dropOffItem}; SELECT public.set_bl_cod('${bl.vehicleB}',99283988,'Destino corrigido por COD','${actorId}'::uuid)`);
+    expect(result.status,result.stderr).toBe(0);
+    expect(psql(`SELECT status FROM public.invoices WHERE id=${inv}`)).toBe('cancelled');
+    const successor=psql(`SELECT ib.invoice_id FROM public.invoice_bls ib JOIN public.invoices i ON i.id=ib.invoice_id
+      WHERE ib.bl_id='${bl.vehicleB}' AND i.status<>'cancelled' AND i.id<>${inv} ORDER BY i.id DESC LIMIT 1`);
+    expect(successor).not.toBe('');
+    expect(psql(`SELECT action||':'||status||':'||coalesce(resulting_document_id::text,'')||':'||coalesce(resulting_document_type,'') FROM public.cod_adjustments WHERE bl_id='${bl.vehicleB}'`))
+      .toBe(`cancel_and_reissue:settled:${successor}:invoice`);
+  });
+
   it('recibo preserva bruto, devolução pendente e líquido após confirmação bancária', () => {
     const inv = issueByCe(bl.full, '839000000000028')
     adminJson(`SELECT public.register_ledger_invoice_payment(${inv},600)`)
