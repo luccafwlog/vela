@@ -4,6 +4,7 @@ import { saoPauloTodayIso } from '../../lib/dates'
 import { calculateDemurrage, demurrageFreeTimeDays } from './demurrageRates'
 import { parseImportNumber } from '../../lib/importNumber'
 import { demurrageBoxKey } from './demurrageBoxKey'
+import { discountFromValue, invoiceNetUsd, type DiscountPreview } from './demurrageNetUsd'
 import type { DemurrageBilledInvoiceRef, DemurrageBillingGroup, DemurrageContainerRow } from './demurrageContainers'
 
 export function fmtUSD(value: number | null | undefined) {
@@ -250,14 +251,6 @@ export function earlierLiveInvoices<T extends Pick<DemurrageInvoice, 'id' | 'sta
 
 const LIVE_INVOICE_STATUSES = new Set(['issued', 'overdue', 'paid'])
 
-export type DiscountPreview = { totalUsd: number; discountUsd: number; netUsd: number; exceedsTotal?: boolean }
-
-/** Arredonda em centavos meio para cima, como `round(numeric, 2)` do Postgres. */
-function roundCents(value: number): number {
-  // O epsilon corrige o binário (217,505 vira 217,50499…); fica muito abaixo de um centavo.
-  return Math.sign(value) * Math.round(Math.abs(value) * 100 + 1e-7) / 100
-}
-
 /** Número digitado em pt-BR ("1.000", "12,5"), o mesmo leitor do formulário. */
 function parseTypedNumber(raw: string | number | null | undefined): number | null {
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null
@@ -267,27 +260,14 @@ function parseTypedNumber(raw: string | number | null | undefined): number | nul
 
 /**
  * Prévia do desconto com a regra de `apply_demurrage_discount` (migration
- * 012): em USD, antes da conversão (ADR 0014); o valor é arredondado em
- * centavos, o percentual vira `round(total × % / 100, 2)` e o líquido é
- * total − desconto. Valor fixo acima do total a RPC recusa: `exceedsTotal`.
+ * 012), a partir do valor digitado; a regra numérica está em `demurrageNetUsd`.
  */
 export function discountPreview(totalUsd: number, mode: string | null | undefined, rawValue: string | number | null | undefined): DiscountPreview | null {
-  const parsed = parseTypedNumber(rawValue)
-  if (parsed == null || parsed <= 0) return null
-  const value = roundCents(parsed)
-  if (mode === 'percent') {
-    const discountUsd = roundCents(totalUsd * Math.min(100, value) / 100)
-    return { totalUsd, discountUsd, netUsd: roundCents(totalUsd - discountUsd) }
-  }
-  if (value > totalUsd) return { totalUsd, discountUsd: value, netUsd: 0, exceedsTotal: true }
-  return { totalUsd, discountUsd: value, netUsd: roundCents(totalUsd - value) }
+  return discountFromValue(totalUsd, mode, parseTypedNumber(rawValue))
 }
 
-/** USD a cobrar: `total_usd` é o total dos itens; o desconto sai antes da conversão. */
-export function invoiceNetUsd(invoice: { total_usd: number | null | undefined; discount_mode?: string | null; discount_value?: number | null }): DiscountPreview {
-  return discountPreview(invoice.total_usd ?? 0, invoice.discount_mode, invoice.discount_value)
-    ?? { totalUsd: invoice.total_usd ?? 0, discountUsd: 0, netUsd: invoice.total_usd ?? 0 }
-}
+export { invoiceNetUsd }
+export type { DiscountPreview }
 
 export type AgreementSituation = 'vigente' | 'futuro' | 'encerrado' | 'inativo'
 

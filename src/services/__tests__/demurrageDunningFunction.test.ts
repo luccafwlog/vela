@@ -57,4 +57,13 @@ describe('Edge Function demurrage-dunning', () => {
     // simulado segue registrado; grupo unitário preserva o caminho por fatura.
     expect(source).toContain('group.length === 1')
   })
+  it('A13: o e-mail informa o USD líquido do desconto, coerente com o BRL e a tela', () => {
+    expect(source).toContain("import { invoiceNetUsd } from '../_shared/demurrageNetUsd.ts'")
+    expect(source).toContain('total_usd, discount_mode, discount_value, current_total_brl')
+    expect(source).toContain('totalUsd: netUsd,')
+    expect(source).toContain('totalUsd: netUsdOf(first),')
+    expect(source).toContain('USD ${line.netUsd.toFixed(2)}')
+    expect(source).not.toContain('line.candidate.total_usd')
+    expect(source).not.toContain('totalUsd: candidate.total_usd')
+  })
 })
