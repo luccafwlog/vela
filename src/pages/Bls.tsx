@@ -118,7 +118,9 @@ export function Bls() {
   const [deleting, setDeleting] = useState(false)
   // Exclusão recusada pelas dependências: o motivo fica na lista, não só no toast.
   const [deleteBlocked, setDeleteBlocked] = useState<Array<{ id: string; reasons: string[] }> | null>(null)
-  const narrow = useNarrowViewport()
+  // Oito colunas não cabem abaixo de 1024 px sem esconder Carga, CE e Taxas
+  // locais atrás da rolagem; ali a lista vira cartões.
+  const narrow = useNarrowViewport('(max-width: 1023px)')
 
   // Filtros, lente e página vivem na URL: voltar da ficha, recarregar ou
   // compartilhar o endereço reabre a mesma lista.

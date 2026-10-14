@@ -157,7 +157,7 @@ chegada. A lista usa:
   zero) e Situação em texto (`InvoiceSituation`: Emitida, Parcialmente paga,
   ✓ Paga, Coberta, Cancelada em cinza com a linha inteira); sem coluna de
   Comunicado, sem CNPJ nem POD na linha (ficam no detalhe e no filtro); cartões
-  abaixo de 640 px;
+  abaixo de 1024 px, para Saldo e Situação não ficarem atrás da rolagem;
 - bloco Faturas com o total do recorte e o saldo em aberto na faixa do título
   ("nesta página" quando há mais de uma página) e Exportar com os filtros;
 - loading, erro com Tentar novamente (sem lista vazia falsa) e vazio derivados

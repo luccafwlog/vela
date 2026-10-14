@@ -150,13 +150,13 @@ describe('ValidacaoOperationsTable', () => {
     expect(screen.getAllByRole('button', { name: 'Emitir' })).toHaveLength(2)
   })
 
-  it('B/L sem cliente: motivo em âmbar na faixa e só Trecho, CE Mercante, Cliente e CNPJ', () => {
+  it('B/L sem cliente: motivo em âmbar na faixa e só Navio / Viagem, Trecho, CE Mercante, Cliente e CNPJ', () => {
     renderTable({
       rows: [{ ...row, customer: null, customer_reconciliation_status: 'pending' }],
       expandedBlId: 'BL-001',
     })
     expect(screen.getByText(/^Sem cliente vinculado: /).closest('div')!.className).toContain('app-warning-bg')
-    expect(screen.getAllByRole('term').map((term) => term.textContent)).toEqual(['Trecho', 'CE Mercante', 'Cliente', 'CNPJ'])
+    expect(screen.getAllByRole('term').map((term) => term.textContent)).toEqual(['Navio / Viagem', 'Trecho', 'CE Mercante', 'Cliente', 'CNPJ'])
   })
 
   it('mostra o nome e o CNPJ do manifesto quando o B/L não tem Cliente', () => {

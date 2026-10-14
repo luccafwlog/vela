@@ -252,13 +252,14 @@ export function VoyageVisaoTab({
           <thead>
             <tr>
               <th scope="col" className="app-table__text-head">Porto</th>
-              <th scope="col" className="app-table__text-head">Opera</th>
+              {/* Abaixo de 1024 px, Opera, ATA e Vinculada saem da linha (ficam no Editar). */}
+              <th scope="col" className="app-table__text-head hidden lg:table-cell">Opera</th>
               <th scope="col">ETA</th>
-              <th scope="col">ATA</th>
+              <th scope="col" className="hidden lg:table-cell">ATA</th>
               <th scope="col">ATD</th>
               <th scope="col">CE Mercante</th>
               <th scope="col">Nº Escala</th>
-              <th scope="col">Vinculada</th>
+              <th scope="col" className="hidden lg:table-cell">Vinculada</th>
               <th scope="col"><span className="sr-only">Ações</span></th>
             </tr>
           </thead>
@@ -295,13 +296,13 @@ export function VoyageVisaoTab({
                         </span>
                         {row.divergences.length ? <EscalaDivergenceWarning divergences={row.divergences} /> : null}
                       </td>
-                      <td className="app-table__text">{escalaOperationText(row) ?? <NoValue label="Sem operação declarada" />}</td>
+                      <td className="app-table__text hidden lg:table-cell">{escalaOperationText(row) ?? <NoValue label="Sem operação declarada" />}</td>
                       <td className="tabular-nums">{row.eta ? formatDate(row.eta) : <NoValue label="Sem ETA" />}</td>
-                      <td className="tabular-nums">{row.ata ? formatDate(row.ata) : <NoValue label="Sem ATA" />}</td>
+                      <td className="tabular-nums hidden lg:table-cell">{row.ata ? formatDate(row.ata) : <NoValue label="Sem ATA" />}</td>
                       <td className="tabular-nums">{row.atd ? formatDate(row.atd) : <NoValue label="Sem ATD" />}</td>
                       <td><StatusText tone={row.ceStatus === 'approved' ? 'default' : 'warning'}>{renderCeStatusLabel(row.ceStatus)}</StatusText></td>
                       <td>{row.escalaNumber ? renderEscalaNumber(row.escalaNumber) : <NoValue label="Sem Nº Escala" />}</td>
-                      <td>{row.linked ? 'Sim' : 'Não'}</td>
+                      <td className="hidden lg:table-cell">{row.linked ? 'Sim' : 'Não'}</td>
                       <td>
                         {canEditVoyages ? (
                           <Button

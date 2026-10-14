@@ -68,8 +68,9 @@ export function ValidacaoOperationsTable({
               </th>
               <th scope="col"><span className="sr-only">Abrir detalhes</span></th>
               <th scope="col">B/L</th>
-              <th scope="col" className="app-table__text-head">Cliente</th>
-              <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+              {/* Abaixo de 1024 px, Cliente e Navio / Viagem saem da linha e ficam na expansão. */}
+              <th scope="col" className="app-table__text-head hidden lg:table-cell">Cliente</th>
+              <th scope="col" className="app-table__text-head hidden lg:table-cell">Navio / Viagem</th>
               <th scope="col">Motivo</th>
               <th scope="col">Subtotal</th>
               <th scope="col"><span className="sr-only">Ação</span></th>
@@ -119,10 +120,10 @@ export function ValidacaoOperationsTable({
                         <Link className="app-invoices__bl" to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${encodeURIComponent(row.id)}`}>{row.id}</Link>
                       </CopyValue>
                     </td>
-                    <td className="app-table__text" title={row.customer?.name ?? undefined}>
+                    <td className="app-table__text hidden lg:table-cell" title={row.customer?.name ?? undefined}>
                       {row.customer?.name ?? (queueItem?.manifest_customer_name ? <StatusText tone="muted">{queueItem.manifest_customer_name}</StatusText> : <NoValue label="Sem Cliente" />)}
                     </td>
-                    <td className="app-table__text" title={voyage || undefined}>{voyage || <NoValue label="Sem navio e viagem" />}</td>
+                    <td className="app-table__text hidden lg:table-cell" title={voyage || undefined}>{voyage || <NoValue label="Sem navio e viagem" />}</td>
                     <td className="whitespace-nowrap" title={block.detail}>{block.label}</td>
                     <td className="whitespace-nowrap tabular-nums">{formatBRL(row.totals.total_brl)}</td>
                     <td className="whitespace-nowrap"><ResolveAction row={row} code={block.code} onIssue={onIssueSingleInvoice} onRecalculate={onRecalculateRow} /></td>
@@ -137,6 +138,7 @@ export function ValidacaoOperationsTable({
                               <ResolveAction row={row} code={block.code} onIssue={onIssueSingleInvoice} onRecalculate={onRecalculateRow} />
                             </div>
                             <FactList>
+                              <Fact label="Navio / Viagem">{voyage || <NoValue label="Sem navio e viagem" />}</Fact>
                               <Fact label="Trecho">{formatPortDisplayName(row.pol)} → {formatPortDisplayName(row.pod)}</Fact>
                               <Fact label="CE Mercante">{row.ce_mercante?.trim() ? <CopyValue value={row.ce_mercante} label="CE Mercante" /> : <NoValue label="CE Mercante não informado" />}</Fact>
                               <Fact label="Cliente" detail={!row.customer?.id && queueItem?.manifest_customer_name ? 'Nome no manifesto; sem Cliente vinculado' : null}>

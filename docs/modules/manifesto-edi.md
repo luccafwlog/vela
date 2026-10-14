@@ -111,7 +111,7 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
   pendentes (âmbar quando maior que zero) e Isentos. Só os dois últimos
   filtram a lista ao toque. Busca, Viagem, POL e POD ficam abertos; Revisão,
   Faturamento, Taxas locais e Perfil de carga ficam em "Mais filtros". Abaixo
-  de 640 px a lista vira cartões.
+  de 1024 px a lista vira cartões.
 - A coluna Taxas locais mostra três estados (`localChargesListState`,
   `src/lib/chargeStatus.ts`, espelho de `bl_local_charges_state`, migration
   `222`): **Pendente** (qualquer impeditivo à emissão da fatura ao Cliente),

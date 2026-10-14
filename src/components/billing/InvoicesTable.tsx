@@ -38,7 +38,7 @@ type InvoicesTableProps = {
  * 2026-10-14): uma linha de título e oito colunas — Fatura, B/L, Emissão,
  * Cliente, Navio / Viagem, Total, Saldo e Situação —, nada escrito embaixo do
  * valor. O número abre o detalhe; consolidada leva o ícone de pilha; saldo
- * maior que zero em âmbar; cancelada inteira em cinza. Abaixo de 640 px vira
+ * maior que zero em âmbar; cancelada inteira em cinza. Abaixo de 1024 px vira
  * cartões.
  */
 export function InvoicesTable({
@@ -55,7 +55,9 @@ export function InvoicesTable({
   onPageChange,
   onSelectInvoice,
 }: InvoicesTableProps) {
-  const narrow = useNarrowViewport()
+  // Oito colunas não cabem abaixo de 1024 px sem esconder Saldo e Situação
+  // atrás da rolagem; ali a lista vira cartões.
+  const narrow = useNarrowViewport('(max-width: 1023px)')
   const columns = 8
   const failed = Boolean(error)
 

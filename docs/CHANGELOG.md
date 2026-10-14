@@ -4,6 +4,18 @@
 
 ## 2026-10
 
+- **Lote 1 da identidade visual (2026-10-14, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
+  Lista de BLs, ficha da Viagem, ficha do Cliente (com a aba nova Contêineres), Taxas Locais ·
+  Faturas e Validação e Faturas do Portal em tabela limpa: uma linha de título, nada embaixo do
+  valor, situação em texto, âmbar só no que pede ação, Paga com ✓ e consolidada com o ícone de
+  pilha em toda tela que as mostra. Faturas ganham busca única por fatura ou B/L; a Validação tira
+  o B/L já faturado da fila, mostra "Pronto para emitir" na fila padrão e exporta uma planilha só,
+  com uma coluna por taxa e a coluna Contêiner compartilhado. No Portal, o detalhe abre pelo
+  número da fatura, com o Pagamento primeiro e Copiar código Pix, e a disputa de Demurrage passa
+  para o fim do detalhe. Correções: caixa de Comunicado sem destinatário recebe o contato principal
+  (migration `223`), estado de Taxas locais da lista de BLs pelo financeiro (`222`), solicitações
+  de Desbloqueio de CE na ficha do Cliente (`224`) e o Saldo pendente do Modo Inspeção igual ao
+  que o Cliente vê (`225`).
 - **Carregamento inicial do Vela menor (2026-10-14):** o sino de notificações e a cotação do
   cabeçalho deixaram de carregar o relatório de saída da agência e o leitor de planilha de
   Demurrage em toda tela; os rótulos do relatório (`agencyReportLabels.ts`) e a cotação
