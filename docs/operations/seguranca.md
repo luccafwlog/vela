@@ -143,7 +143,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Excluir cadastro sem uso, com motivo | ✔ | — | — | — | — | `delete_catalog_row` (migration `096`), que ainda não aceita navio, armador, porto nem tabela de Taxas Locais | ADR 0046; ADR 0073 | vigente: sem DELETE direto pela API (migration `235`, **Teste** local); navio, armador, porto e tabela de Taxas Locais não têm exclusão |
 | Desativar e reativar Local, terminal e serviço | ✔ | — | — | — | — | — | ADR 0073, item 8 | correção pendente: qualquer perfil, pela tela e pela API (B15) |
 | Registrar Ocorrência do ADR (legado) | — | — | — | — | — | `add_agency_report_occurrence`, sem tela (aceita Operações, Documentação, Equipamentos e Administrativo) | ADR 0030; ADR 0085 (funções sem tela) | correção pendente: a função segue no banco (P10) |
-| Publicar na Central de Informações do Portal | ✔ | ✔ | ✔ | ✔ | ✔ | `internal_save_portal_information` | ADR 0085, D7 | correção pendente: só Administrativo; Equipamentos só depots (P8) |
+| Publicar na Central de Informações do Portal | ✔ | ✔ | ✔ | ✔ | ✔ | `internal_save_portal_information` | ADR 0085, D7 | migration `253` |
 
 ### Taxas Locais e Faturamento
 

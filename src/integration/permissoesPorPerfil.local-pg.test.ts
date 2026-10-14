@@ -218,6 +218,15 @@ function migration252Applied(): boolean {
   }
 }
 
+function migration253Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('_portal_actor_role' IN prosrc) = 0 FROM pg_proc WHERE proname = 'internal_save_portal_information';`) === 't'
+  } catch {
+    return false
+  }
+}
+
 function migration250Applied(): boolean {
   if (!enabled) return false
   try {
@@ -246,8 +255,8 @@ function migration246Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied(),
-  'migrations 231 a 252 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied() && migration253Applied(),
+  'migrations 231 a 253 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -590,6 +599,16 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     // O efeito inexistente é recusado pelo efeito, não pelo perfil.
     expect(runAs(profile, `SELECT public.retry_import_effect(-1, 'motivo')`).error).toMatch(/nao encontrado/)
     expect(runAs(profile, `SELECT public.retry_import_effect(-1, ' ')`).error).toMatch(/Justificativa obrigatoria/)
+  })
+
+  // P8 — Central de Informações do Portal por qualquer Departamento (ADR 0085, D7; migration 253).
+  it.each(ALL_PROFILES)('P8: %s grava na Central de Informações, em todos os tipos', (profile) => {
+    for (const kind of ['depot', 'agent', 'contact', 'carrier']) {
+      // Dados vazios são recusados pela validação do tipo, não pelo perfil.
+      const result = runAs(profile, `SELECT public.internal_save_portal_information('${kind}', '{}'::jsonb)`)
+      expect(result.ok, `${profile}: ${kind}`).toBe(false)
+      expect(result.error, `${profile}: ${kind}`).not.toMatch(/Sem permissão para alterar/)
+    }
   })
 
   it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {

@@ -45,18 +45,17 @@ describe('Administração de informações do Portal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Contato' }))
     expect(screen.queryByRole('button', { name: 'Adicionar contato' })).toBeNull()
   })
-  it('Equipamentos edita informações do depot cadastrado, mas somente consulta agentes', () => {
+  it('Equipamentos edita o depot e também mantém agentes (P8)', () => {
     render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
     expect(screen.getByRole('button', { name: 'Editar Depot Vela' })).toBeTruthy()
     expect(screen.getByText('Não publicado')).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Abrir cadastro de depots' })).toBeNull()
     expect(screen.queryByText(/Portos disponíveis:/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Agentes' }))
-    expect(screen.queryByRole('button', { name: 'Editar Agente' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Adicionar agente' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Adicionar agente' })).toBeTruthy()
   })
-  it('Administrativo mantém agentes e atendimento', () => {
-    mocks.role = 'administrativo'; mocks.isAdmin = true
+  it('Financeiro mantém agentes e atendimento (P8)', () => {
+    mocks.role = 'financeiro'
     render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: 'Agentes' }))
     expect(screen.getByRole('button', { name: 'Adicionar agente' })).toBeTruthy()

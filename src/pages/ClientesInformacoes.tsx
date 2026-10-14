@@ -32,12 +32,12 @@ function rowsFor(catalog: PortalInformation, section: Section): Record<string, u
 
 export function ClientesInformacoes() {
   const catalog = useInternalPortalInformation()
-  const { profile, isAdmin } = useAuth()
+  const { profile } = useAuth()
   const [section, setSection] = useState<Section>('depots')
   const [editing, setEditing] = useState<Record<string, unknown> | null>(null)
   const [creatingContact, setCreatingContact] = useState(false)
   const [saved, setSaved] = useState(false)
-  const canEdit = profile?.active === true && (isAdmin || (section === 'depots' && profile.role === 'equipamentos'))
+  const canEdit = profile?.active === true
   const missingSubjects = contactSubjects.filter(subject => !catalog.data?.contacts.some(contact => contact.key === subject.value))
   const editorFields = section === 'contacts' ? fields.contacts.map(field => field.key === 'key' ? { ...field, label: 'Assunto', readOnly: !creatingContact, options: creatingContact ? missingSubjects : contactSubjects } : field) : fields[section]
   const rows = catalog.data ? rowsFor(catalog.data, section) : []

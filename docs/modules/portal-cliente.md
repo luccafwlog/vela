@@ -481,12 +481,9 @@ na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas
 oficiais, além da edição das observações. Pela
 [matriz de permissões](../operations/seguranca.md#manifesto-importações-e-cadastros)
 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D7), qualquer
-Departamento publica na Central. Hoje Equipamentos e Administrativo editam
-a publicação e instruções dos depots existentes, e somente o Administrativo altera agentes,
-contatos, tracking e observações (correção pendente, item P8 do
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
-O acesso usa `is_active_read_user()` e as
-mutações conferem o papel no banco, além da interface. Alterações geram auditoria.
+Departamento publica na Central: depots, agentes, contatos, tracking e
+observações (migration `253`). O acesso usa `is_active_read_user()` e a
+gravação exige usuário interno ativo no banco, além da interface. Alterações geram auditoria.
 Na aba interna Tracking, o endereço aparece apenas no link “Abrir tracking”;
 a URL completa fica no editor do armador.
 Links externos admitem apenas HTTP/HTTPS sem credenciais. Na seção Tracking do

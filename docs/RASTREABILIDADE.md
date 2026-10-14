@@ -545,7 +545,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | Contrato | Chamador | Definição vigente | Execução | Acesso conferido | Efeito e observação |
 |---|---|---|---|---|---|
 | `internal_get_portal_information` | `portalInformation.ts` | `137` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `internal_save_portal_information` | `portalInformation.ts` | `137` | DEFINER · `authenticated` | Administrativo; locais também Equipamentos | Correção pendente (P8): qualquer Departamento. |
+| `internal_save_portal_information` | `portalInformation.ts` | `137`, `253` | DEFINER · `authenticated` | Usuário interno ativo, em todos os tipos (P8, `253`) | Grava o rastro em `audit_logs`. |
 | `portal_add_dispute_message` | `portalBilling.ts` | `109` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_admin_change_cnpj` | `hooks/usePortalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo | — |
 | `portal_cancel_invite` | `hooks/usePortalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo ou Documentação | — |
