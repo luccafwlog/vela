@@ -137,6 +137,13 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
     expect(fn('portal-daily-digest')).toContain(".is('customers.deactivated_at', null)")
   })
 
+  it('resumo das 08:00 conta a exceção crítica de fatura aberta e fechada (ADR 0083, item 19)', () => {
+    const source = fn('portal-daily-digest')
+    expect(source).toContain(".eq('item_type', 'portal_excecao_critica_fatura').gte('created_at', since)")
+    expect(source).toContain(".eq('item_type', 'portal_excecao_critica_fatura').eq('status', 'resolved').gte('resolved_at', since)")
+    expect(source).toContain('Object.values(counts).every((count) => count === 0)')
+  })
+
   it('troca de e-mail de recuperação exige conta ativa e tem cota diária', () => {
     const source = fn('portal-recovery-email-change')
     expect(source).toContain("account.account_situation !== 'ativo'")

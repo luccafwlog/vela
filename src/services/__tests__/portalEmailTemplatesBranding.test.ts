@@ -85,17 +85,19 @@ describe('Identidade visual dos emails do Portal', () => {
       emailChangeConfirmTemplate({ companyName: 'ACME', confirmUrl: 'https://x', portalUrl, supportEmail }),
       emailChangeAlertTemplate({ portalUrl, supportEmail }),
       emailChangeAssistedAlertTemplate({ portalUrl, supportEmail }),
-      dailyDigestTemplate({ date: '2026-01-01', failures: 0, activity: 0, pending: 0, portalUrl, supportEmail }),
+      dailyDigestTemplate({ date: '2026-01-01', failures: 0, activity: 0, pending: 0, criticalOpened: 0, criticalClosed: 0, portalUrl, supportEmail }),
     ]) {
       expect(html).toContain(`mailto:${supportEmail}`)
     }
   })
 
-  it('resumo diário lista as três contagens e não tem quadro de identidade', () => {
-    const { html, text } = dailyDigestTemplate({ date: '2026-07-15', failures: 2, activity: 14, pending: 5, portalUrl, supportEmail })
+  it('resumo diário lista as contagens, inclusive a exceção crítica de fatura, e não tem quadro de identidade', () => {
+    const { html, text } = dailyDigestTemplate({ date: '2026-07-15', failures: 2, activity: 14, pending: 5, criticalOpened: 3, criticalClosed: 1, portalUrl, supportEmail })
     expect(html).toContain('Falhas/supressões: 2')
     expect(html).toContain('Atividade de provisionamento: 14')
     expect(html).toContain('Ativação pendente: 5')
+    expect(text).toContain('Exceção crítica de fatura aberta: 3')
+    expect(text).toContain('Exceção crítica de fatura fechada: 1')
     expect(html).not.toContain('CNPJ')
     expect(text).toContain('Resumo do Portal — 2026-07-15')
   })

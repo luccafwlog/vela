@@ -314,12 +314,11 @@ consulta no sistema sem estar na audiência.
 
 O resumo diário (`portal-daily-digest`, 08:00 de Brasília) vai por email aos
 usuários ativos de Administrativo e Documentação quando houve, nas últimas 24
-horas, falha ou supressão de email, atividade de provisionamento, ou quando há
-Ativação pendente; sem nada disso, não sai. Não há email imediato de alerta
-crítico. A exceção crítica de fatura (abertura e fechamento) também entra no
-resumo, junto com o sino e `/alertas` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19);
-hoje o resumo não a inclui: correção pendente em
-[Notas e divergências](#notas-e-divergências).
+horas, falha ou supressão de email, atividade de provisionamento, abertura ou
+fechamento de exceção crítica de fatura (`portal_excecao_critica_fatura`), ou
+quando há Ativação pendente; sem nada disso, não sai. Não há email imediato de
+alerta crítico: a exceção crítica chega pelo resumo, pelo sino e por `/alertas`
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19).
 
 #### Gate de faturamento e Dispute
 
@@ -767,7 +766,7 @@ Há testes focados de componente para `PortalLogin` (`src/pages/__tests__/Portal
 - **Código — literal morto.** `portal_refresh_general_pendencies` (job a cada 15 minutos) ainda filtra pelo valor removido `provisionamento_nao_necessario`; não tem efeito, porque o CHECK de `provisioning_decision` não aceita esse valor.
 - **Correção pendente (ADR 0085, item D12):** Operações vê o Histórico do console de provisionamento, como o resto do console; hoje `portal_list_provisioning_events` recusa esse perfil e a seção aparece vazia ou com erro (`PortalReviewPanel.tsx` inclui Operações em `canReadEvents`). Correção no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (P12).
 - **Correção pendente (A18):** vale a ADR 0045: Operações vê no console os mesmos campos completos dos demais perfis leitores, porque a leitura interna é global (ADR 0044). Desde o Bloco #521 (migration arquivada `325`) o read model esconde dela Email de Recuperação, origem, entrega e candidatos. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18).
-- **Correção pendente (A19):** a exceção crítica de fatura entra no resumo das 08:00 (abertura e fechamento), além do sino e de `/alertas`; o e-mail imediato não volta ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19). Hoje `portal-daily-digest` conta apenas falhas e supressões de email, atividade de provisionamento e Ativação pendente e não lê `alerts` (**Código:** `supabase/functions/portal-daily-digest/index.ts`), e `portal_abuso_login` só avisa a Documentação. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Exceção crítica de fatura no resumo (A19).** O `portal-daily-digest` conta as exceções críticas de fatura abertas e fechadas nas últimas 24 horas; o e-mail imediato não volta ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19). Prova: **Teste de contrato** (`edgeFunctionsRun2.test.ts`, `portalEmailTemplatesBranding.test.ts`); o envio real não foi executado.
 - **Caminho legado de contas removido (A21).** As RPCs `upsert_customer_portal_account` e `set_customer_portal_account_active` (senha própria em tabela, que a ADR 0013 recusa), o job `cleanup-portal-sessions` e a tabela `customer_portal_sessions` saíram na migration `234` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 21). A policy `cpa_admin_all` deu lugar a `cpa_admin_select`, só de leitura: nenhum perfil escreve direto em `customer_portal_accounts`, e a conta só muda pelas Edge Functions e pelas RPCs `portal_*` da máquina de estados (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`).
 - **Correção pendente (B25):** a remoção do pré-voo e do backfill foi decidida (migration arquivada `203`), mas `portal_provisioning_backfill` voltou ao catálogo (migration arquivada `293`, mantida no dump `002`), sem grant a `authenticated`; a função sai do catálogo. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
 - `portal_list_disputes()` é consumida por `portalListDisputes` (`src/services/portalBilling.ts` via `usePortalDisputes`) e tem par de inspeção `portal_inspect_list_disputes` desde `013_portal_disputes_inspection.sql`.
