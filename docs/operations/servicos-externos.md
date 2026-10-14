@@ -268,9 +268,14 @@ Antes da remoção, nenhum job do `pg_cron` nem função do banco a chamava.
 2026-10-13 às 17:47 UTC, e o código baixado trata `{"action":"process_charges"}`,
 o disparo da migration `219` (seção [Itaú](#itaú--api-pix-recebimentos)).
 
-Publicação manual: `supabase functions deploy <nome> --project-ref fgmkhbzhaeebrsizwccx`.
-Um merge **não** publica Functions. Para conferir, baixe o código publicado com
-`supabase functions download` e compare com o `main`.
+Publicação: a Supabase GitHub Integration publica as Functions alteradas no
+merge em `main`. Observado em 2026-10-10 (funções do Desbloqueio de CE) e em
+2026-10-14 (`portal-password-recovery` atualizada minutos após o merge da PR
+951); a configuração da integração que faz isso não foi conferida. Depois de
+cada merge, confira em Supabase → Edge Functions a data de atualização das
+funções alteradas, ou baixe o código publicado com `supabase functions download`
+e compare com o `main`. Se alguma não foi publicada:
+`supabase functions deploy <nome> --project-ref fgmkhbzhaeebrsizwccx`.
 
 Para publicar a proteção de recuperação da PR 841, aplique as migrations `131`
 e `132` antes de publicar `portal-password-reset` e
@@ -722,10 +727,9 @@ são da Central de Informações do Portal, não do Desbloqueio. Frontend Vela/P
 (run 176, commit `eb0eadb`) terminou com sucesso; isso prova a publicação, não a
 compatibilidade com o backend, que segue pendente no plano. Em mudanças futuras, publicar na ordem
 migrations → Edge Functions → frontend e validar em Preview antes de produção. A publicação
-das funções é manual (ver [Edge Functions](#edge-functions)). Em 2026-10-10 versões novas de
-`portal-ce-unlock-document` e `ce-unlock-document-download` já estavam ativas minutos após
-o merge, publicadas por um mecanismo não identificado; não conte com isso: confira o código
-publicado após cada merge. As funções são `portal-ce-unlock-document`,
+das funções segue [Edge Functions](#edge-functions): a integração do GitHub publica no merge
+(em 2026-10-10, `portal-ce-unlock-document` e `ce-unlock-document-download` já estavam
+ativas minutos após o merge); confira o código publicado após cada merge. As funções são `portal-ce-unlock-document`,
 `ce-unlock-document-download`, `ce-unlock-export`, `ce-unlock-cleanup` e
 `ce-unlock-notify-email`. As três primeiras autenticam a sessão com `auth.getUser()`; `verify_jwt=false`
 permite CORS e não dispensa autenticação na função. O bucket privado
