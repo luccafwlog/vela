@@ -114,8 +114,8 @@ Regras e peças: [identidade visual](../identidade-visual.md).
       sem fatura ativa vira linha "Sem fatura ativa". Busca por B/L,
       Situação e período de emissão; 20 por página; Taxas Locais e
       Demurrage num seletor do mesmo bloco. Pagamentos em tabela com a
-      mesma busca e paginação. Pergunta em aberto: a consolidada aparece
-      inteira quando um dos B/Ls bate com a busca.
+      mesma busca e paginação. Na busca por B/L, a consolidada aparece
+      inteira quando um dos B/Ls dela bate (confirmado em 2026-10-14).
     - **Histórico:** coluna "Por" (nome; "Sistema"; "—" quando o registro
       não guarda autor), filtro por assunto, coluna Assunto, sem texto
       técnico.
