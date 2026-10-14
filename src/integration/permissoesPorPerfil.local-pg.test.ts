@@ -209,6 +209,15 @@ function migration251Applied(): boolean {
   }
 }
 
+function migration252Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('equipamentos' IN prosrc) > 0 FROM pg_proc WHERE proname = 'retry_import_effect';`) === 't'
+  } catch {
+    return false
+  }
+}
+
 function migration250Applied(): boolean {
   if (!enabled) return false
   try {
@@ -237,8 +246,8 @@ function migration246Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied(),
-  'migrations 231 a 251 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied(),
+  'migrations 231 a 252 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -574,6 +583,13 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     expect(runAs(profile, `SELECT public.revert_voyage_omission(-1, '', '${user}')`).error).toMatch(/exige justificativa/)
     expect(runAs(profile, `SELECT public.revert_voyage_omission(-1, 'motivo', '${PROFILES.administrativo === user ? PROFILES.financeiro : PROFILES.administrativo}')`).error)
       .toMatch(/proprio usuario/)
+  })
+
+  // P7 — reprocessar efeito de importação por qualquer Departamento (ADR 0085, D10; migration 252).
+  it.each(ALL_PROFILES)('P7: %s reprocessa efeito de importação; sem justificativa é recusado', (profile) => {
+    // O efeito inexistente é recusado pelo efeito, não pelo perfil.
+    expect(runAs(profile, `SELECT public.retry_import_effect(-1, 'motivo')`).error).toMatch(/nao encontrado/)
+    expect(runAs(profile, `SELECT public.retry_import_effect(-1, ' ')`).error).toMatch(/Justificativa obrigatoria/)
   })
 
   it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {

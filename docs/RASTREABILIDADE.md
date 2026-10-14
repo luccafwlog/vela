@@ -361,7 +361,7 @@ Regra: [Manifestos e EDI](modules/manifesto-edi.md).
 | `remove_bl_ce_mercante` | `blCeMercante.ts` | `209` | DEFINER · `authenticated`, `service_role` | usuário interno ativo | Recusa com fatura viva, inclusive consolidada ligada pelo recebível. Grava por `_set_bl_ce_mercante` (`195`). |
 | `replace_vazios_from_baplie_transactional` | `vaziosImportacaoImport.ts` | `187` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | — |
 | `resolve_baplie_divergence` | `baplieReconciliation.ts` | `194` | DEFINER · `authenticated` | usuário interno ativo | "Vale o B/L": registra só a resolução daquele par de valores (`194`). |
-| `retry_import_effect` | `importEffects.ts` | `106` | DEFINER · `authenticated`, `service_role` | Administrativo, Financeiro, Operações ou Documentação; ou `service_role` | Correção pendente (P7): também Equipamentos. |
+| `retry_import_effect` | `importEffects.ts` | `106`, `252` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo de qualquer Departamento (P7, `252`); ou `service_role` | Justificativa obrigatória. |
 | `save_bl_review` | `hooks/useBlEditForm.ts`; `review.ts` | `177` | DEFINER · `authenticated` | usuário interno ativo | Lock otimista (`PT409`), recomputa o gate e audita; ao vincular Cliente, captura o e-mail do manifesto como contato financeiro. |
 | `set_bl_container_ownership` | `vaziosNatureza.ts` | `205` | DEFINER · `authenticated`, `service_role` | usuário interno ativo; ator = sessão | — |
 | `set_bl_container_profile` | `vaziosNatureza.ts` | `205` | DEFINER · `authenticated`, `service_role` | usuário interno ativo; ator = sessão | Correção manual do perfil IMO/OOG na aba Carga, com motivo. |
