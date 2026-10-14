@@ -32,6 +32,7 @@ const CATALOG_MIGRATIONS = [
   '179_faturas_demurrage_datas_comunicado.sql',
   '181_ce_importacao_contrato.sql',
   '204_emissao_ce_tabela_faltando_e_nada_a_faturar.sql',
+  '243_nob_regra_unica_e_produtora_sem_aborto.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

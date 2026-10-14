@@ -26,6 +26,9 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain("from('customer_communication_suppressions')")
     expect(source).toContain("reason', 'bounce_permanente'")
     expect(source).toContain("admin.rpc('create_customer_communication_atomic'")
+    // NOB: a regra de quem entra na Atracação é a do banco (migration 243).
+    expect(source).toContain("admin.rpc('bl_belongs_to_atracacao'")
+    expect(source).not.toContain(".from('voyage_escala_operation_fronts')")
     expect(source).toContain("admin.from('customer_communication_attempts').insert")
     expect(source).toContain("admin.rpc('customer_local_charges_communication_payload'")
     expect(source).toContain("admin.rpc('customer_local_charges_communication_dispatch_ready'")

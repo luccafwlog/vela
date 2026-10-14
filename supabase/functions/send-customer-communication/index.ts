@@ -523,17 +523,16 @@ async function handler(req: Request): Promise<Response> {
         if (!terminalName) return json(422, { error: 'O terminal da Atracação está sem sigla cadastrada.' }, origin)
         canonicalTerminalName = terminalName
         milestoneAt = row.terminal_atb
+        // Regra única do NOB (ADR 0068, item 7; migration 243): a mesma da
+        // produtora automática e da RPC — exceção de terminal do B/L vence a
+        // frente, e o B/L misto precisa das duas frentes no terminal.
         for (const bl of validBls) {
-          const { data: front, error: frontError } = await admin
-            .from('voyage_escala_operation_fronts')
-            .select('id')
-            .eq('voyage_id', bl.voyage_id)
-            .eq('port', (bl.pod ?? '').trim().toUpperCase())
-            .eq('terminal_id', row.terminal_id)
-            .eq('sentido', 'importacao')
-            .eq('modalidade', bl.cargo_mode === 'carga_solta' ? 'carga_solta' : bl.cargo_mode === 'veiculo' || bl.cargo_mode === 'veiculos' ? 'veiculo' : 'carga_cheia')
-            .maybeSingle()
-          if (frontError || !front) return json(422, { error: 'Um B/L não pertence à Frente de Operação desta Atracação.' }, origin)
+          const { data: belongs, error: belongsError } = await admin.rpc('bl_belongs_to_atracacao', {
+            p_bl_id: bl.id,
+            p_atracacao_id: body.anchor_atracacao_id!,
+          })
+          if (belongsError) console.error('customer communication NOB rule failed', belongsError)
+          if (belongsError || belongs !== true) return json(422, { error: 'Um B/L não pertence à Frente de Operação desta Atracação.' }, origin)
         }
       }
       if (!first?.customer?.name || !first.voyage?.voyage_number || !first.voyage.vessel?.name || !milestoneAt) {

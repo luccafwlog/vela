@@ -343,3 +343,27 @@ describe('NOB: nome do terminal que vai ao cliente', () => {
     expect(row.terminalName).toBeNull()
   })
 })
+
+describe('NOB: regra única de quem entra na Atracação (B3, migration 243)', () => {
+  const T1 = 'd0000000-0000-4000-8000-0000000000a1'
+  const T2 = 'd0000000-0000-4000-8000-0000000000a2'
+  const schedules = new Map([[7, [{
+    port: 'BRSSZ', eta: '2026-09-01T12:00:00Z', ata: null, omitted: false, deleted: false,
+    atracacoes: [{ stateId: 'state-1', terminalId: T1, terminalCode: 'T1', atb: '2026-09-02T08:00:00Z' }],
+  }]]])
+  const key = (terminal: string, modalidade: string) => `7::BRSSZ::${terminal}::${modalidade}`
+  const nob = (row: Partial<CustomerCommunicationBlCandidate>, fronts: string[]) =>
+    expandCandidatesForKind([candidate({ terminalId: null, terminalName: null, terminalStateId: null, ...row })], schedules as never,
+      'aviso_atracacao_nob', new Set(fronts)).map((item) => item.id)
+
+  it('o B/L misto só entra com as frentes de carga cheia e de carga solta no terminal', () => {
+    expect(nob({ id: 'MIX', cargoMode: 'misto' }, [key(T1, 'carga_solta'), key(T2, 'carga_cheia')])).toEqual([])
+    expect(nob({ id: 'MIX', cargoMode: 'misto' }, [key(T1, 'carga_solta'), key(T1, 'carga_cheia')])).toEqual(['MIX'])
+  })
+
+  it('a exceção de terminal do B/L vence a frente', () => {
+    expect(nob({ id: 'EXC', terminalOverrideId: T1 }, [key(T2, 'carga_cheia')])).toEqual(['EXC'])
+    expect(nob({ id: 'EXC', terminalOverrideId: T2 }, [key(T1, 'carga_cheia')])).toEqual([])
+  })
+})
+

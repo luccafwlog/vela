@@ -36,6 +36,7 @@ export type ActiveAlertType =
   | 'portal_email_suprimido'
   | 'portal_abuso_login'
   | 'cliente_contato_bounced_sem_alternativa'
+  | 'nob_sem_destinatario'
   | 'comunicado_noa_pendente'
   | 'comunicado_nor_pendente'
   | 'comunicado_nob_pendente'
@@ -89,6 +90,7 @@ export const TYPE_LABELS: Record<string, string> = {
   comunicado_noa_pendente: 'Comunicado NOA pendente',
   comunicado_nor_pendente: 'Comunicado NOR pendente',
   comunicado_nob_pendente: 'Comunicado NOB pendente',
+  nob_sem_destinatario: 'NOB sem destinatário',
   agency_report_department_pending: 'ADR — departamento pendente',
   agency_report_deadline_missed: 'ADR — prazo vencido',
   review_customer_unlinked: 'Revisão de B/L — cliente não vinculado',
@@ -333,7 +335,7 @@ export function alertEntityLink(alert: {
   if (effectiveType === 'review_granite_customer_unlinked') {
     return '/granito'
   }
-  if (effectiveType === 'cliente_contato_bounced_sem_alternativa' && alert.entity_type === 'customer') {
+  if ((effectiveType === 'cliente_contato_bounced_sem_alternativa' || effectiveType === 'nob_sem_destinatario') && alert.entity_type === 'customer') {
     const customerCnpj = alert.metadata?.customer_cnpj
     if (typeof customerCnpj === 'string' && customerCnpj.trim()) {
       return `/clientes/${encodeURIComponent(customerCnpj.trim())}?tab=cadastro`
@@ -399,7 +401,7 @@ export function alertEntityLinkLabel(alert: {
     || effectiveType === 'comunicado_nor_pendente'
     || effectiveType === 'comunicado_nob_pendente'
   ) return 'Abrir Comunicados'
-  if (effectiveType === 'cliente_contato_bounced_sem_alternativa') return 'Abrir Cliente'
+  if (effectiveType === 'cliente_contato_bounced_sem_alternativa' || effectiveType === 'nob_sem_destinatario') return 'Abrir Cliente'
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
     return 'Taxas Locais'

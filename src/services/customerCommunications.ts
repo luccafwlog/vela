@@ -285,6 +285,8 @@ export type CustomerCommunicationBlCandidate = {
   pod: string
   pol: string
   cargoMode: string
+  /** Exceção de terminal do B/L (`bls.terminal_id`, ADR 0068): vence a frente no NOB. */
+  terminalOverrideId?: string | null
   eta: string | null
   ata: string | null
   terminalId: string | null
@@ -621,6 +623,7 @@ type RawCommunicationBlRow = {
   pod: string | null
   pol: string | null
   cargo_mode: string
+  terminal_id?: string | null
   customer: { id: number; name: string; cnpj_cpf: string } | null
   voyage: { id: number; voyage_number: string; eta: string | null; ata: string | null; vessel: { name: string } | null } | null
 }
@@ -639,6 +642,7 @@ function toBaseCandidate(row: RawCommunicationBlRow): CustomerCommunicationBlCan
     pod: row.pod,
     pol: row.pol ?? '',
     cargoMode: row.cargo_mode,
+    terminalOverrideId: row.terminal_id ?? null,
     eta: row.voyage.eta,
     ata: row.voyage.ata,
     terminalId: null,
@@ -715,12 +719,20 @@ export function expandCandidatesForKind(
         // NOB is anchored by the state row UUID, never by the terminal UUID.
         // A missing state identity is not safe to turn into a dispatch.
         if (!atracacao.terminalId || !atracacao.stateId || !atracacao.atb) continue
-        // A Atracação só comunica a carga da Frente de Operação que ela hospeda:
-        // quem descarregou no berço vizinho não entra neste NOB.
+        // Regra única do NOB (ADR 0068, item 7), espelho de
+        // `bl_belongs_to_atracacao` (migration 243): a exceção de terminal do
+        // B/L vence a frente; sem ela, o B/L entra pela Frente de Operação da
+        // sua modalidade naquele terminal, e o misto precisa das duas. Quem
+        // descarregou no berço vizinho não entra neste NOB.
         const terminalId = atracacao.terminalId
-        if (assignedFrontKeys && !operationFrontKindsForCargoMode(row.cargoMode).some((kind) =>
-          assignedFrontKeys.has(operationFrontKey(row.voyageId, row.pod ?? '', terminalId, kind)),
-        )) continue
+        if (row.terminalOverrideId) {
+          if (row.terminalOverrideId !== terminalId) continue
+        } else if (assignedFrontKeys) {
+          const kinds = operationFrontKindsForCargoMode(row.cargoMode)
+          if (kinds.length === 0 || !kinds.every((kind) =>
+            assignedFrontKeys.has(operationFrontKey(row.voyageId, row.pod ?? '', terminalId, kind)),
+          )) continue
+        }
         expanded.push({
           ...row,
           terminalId: atracacao.terminalId,
@@ -752,7 +764,7 @@ async function fetchCommunicationBlRows(): Promise<RawCommunicationBlRow[]> {
   for (let from = 0; ; from += 500) {
     const { data, error } = await supabase
       .from('bls')
-      .select('id, voyage_id, customer_id, pod, pol, cargo_mode, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, ata, vessel:vessels(name))')
+      .select('id, voyage_id, customer_id, pod, pol, cargo_mode, terminal_id, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, ata, vessel:vessels(name))')
       .order('id', { ascending: true })
       .range(from, from + 499)
       .overrideTypes<RawCommunicationBlRow[], { merge: false }>()
