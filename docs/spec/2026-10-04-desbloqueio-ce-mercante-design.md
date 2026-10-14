@@ -148,11 +148,15 @@ com motivo, exportar aptos e confirmar desbloqueio com evidência externa.
 Ação em lote mostra elegíveis e bloqueados; nunca aprova implicitamente um B/L
 fora da seleção. Toda escrita segue o diálogo de confirmação do projeto.
 
-Permissões propostas: Administrativo e Documentação consultam documentos e
-executam análise, entrega, exportação e confirmação. Financeiro e Operações
-consultam resumo/requisitos, sem download de procuração ou escrita. Equipamentos
-sem acesso nesta fase. Espelhar a matriz no banco e em `useAuth`, incluindo
-o alias legado `operator = documentacao`. Matriz sujeita à validação operacional.
+Permissões decididas em 2026-10-14
+([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11; regra
+vigente na [matriz de Segurança](../operations/seguranca.md#desbloqueio-de-ce)):
+Administrativo e Documentação consultam documentos e executam análise, entrega,
+exportação e confirmação. Financeiro, Operações e Equipamentos consultam
+resumo/requisitos, sem download de procuração ou escrita. A proposta original
+deixava Equipamentos sem acesso; o código ainda recusa esse perfil (correção
+pendente). Espelhar a matriz no banco e em `useAuth`, incluindo o alias legado
+`operator = documentacao`.
 Modo Inspeção do Portal oferece as mesmas leituras autorizadas, somente leitura.
 
 ## Requisitos e estados
