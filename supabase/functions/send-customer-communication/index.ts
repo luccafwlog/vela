@@ -465,8 +465,10 @@ async function handler(req: Request): Promise<Response> {
     : isFixedOperationalAudience
       ? 'caixa'
       : body.audience_mode ?? 'todos'
+  // Modelos de público fixo vão pela tabela customer_communication_box_kinds
+  // (caixa nula): o CE e Taxas alcança Documentação/Operação e Financeiro (A22).
   const effectiveBoxCode = isFixedOperationalAudience
-    ? 'documentacao_operacao'
+    ? null
     : effectiveAudienceMode === 'caixa'
       ? body.recipient_box_code ?? null
       : null

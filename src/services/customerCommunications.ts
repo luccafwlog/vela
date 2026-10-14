@@ -17,6 +17,8 @@ import {
   type CustomerCommunicationRecipient,
   resolveCustomerCommunicationRecipientsByBoxes,
   buildRecipientSnapshot,
+  fetchCommunicationBoxKinds,
+  type CommunicationBoxKind,
 } from './customerCommunicationBoxes'
 
 export const CUSTOMER_COMMUNICATION_NATURES: readonly CustomerCommunicationNature[] = [
@@ -509,6 +511,7 @@ export function buildCustomerCommunicationConference(input: {
   contactsByCustomer: ReadonlyMap<number, readonly CustomerContact[]>
   preferences?: readonly Preference[]
   boxLinks?: readonly CustomerContactBoxLink[]
+  boxKinds?: readonly CommunicationBoxKind[]
   communicationSuppressions?: readonly EmailSuppressionRow[]
   portalSuppressions?: readonly EmailSuppressionRow[]
   history?: readonly CustomerCommunicationHistoryMatch[]
@@ -544,6 +547,7 @@ export function buildCustomerCommunicationConference(input: {
       const boxResult = resolveCustomerCommunicationRecipientsByBoxes({
         contacts: customerContacts,
         boxLinks: input.boxLinks,
+        boxKinds: input.boxKinds,
         kind: input.kind,
         audience: input.audience,
         communicationSuppressions: input.communicationSuppressions,
@@ -866,7 +870,10 @@ export async function fetchCustomerCommunicationConference(input: {
     }
   }
   const customerIds = [...new Set(filtered.map((row) => row.customerId))]
-  const { contactsByCustomer, boxLinks } = await fetchCommunicationContacts(customerIds)
+  const [{ contactsByCustomer, boxLinks }, boxKinds] = await Promise.all([
+    fetchCommunicationContacts(customerIds),
+    fetchCommunicationBoxKinds(input.kind),
+  ])
   // (ponytail: supressoes filtradas por e-mail em vez de full-scan — a tabela
   // estoura max_rows=1000 e truncava; o last-mile filtrado na edge evita envio
   // errado, mas a conferencia mentia. Upgrade seria RPC com filtro server-side.)
@@ -902,6 +909,7 @@ export async function fetchCustomerCommunicationConference(input: {
     candidates: filtered,
     contactsByCustomer,
     boxLinks,
+    boxKinds,
     portalSuppressions: portalSuppressions ?? [],
     communicationSuppressions: communicationSuppressions ?? [],
     history,

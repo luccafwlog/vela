@@ -1,5 +1,6 @@
 import type { DemurrageInvoice } from '../types/database'
 import {
+  fetchCommunicationBoxKinds,
   resolveCustomerCommunicationRecipientsByBoxes,
   type CustomerContactBoxLink,
 } from './customerCommunicationBoxes'
@@ -127,12 +128,14 @@ export async function fetchDemurrageDunningStatuses(
   const invoiceIds = [...new Set(invoices.map((invoice) => invoice.id))]
   if (!invoiceIds.length) return new Map()
   const customerIds = [...new Set(invoices.map((invoice) => invoice.customer_id))]
-  const [claimsResult, contactsResult, settingsResult] = await Promise.all([
+  const [claimsResult, contactsResult, settingsResult, boxKinds] = await Promise.all([
     supabase.rpc('list_demurrage_dunning_claim_statuses', { p_invoice_ids: invoiceIds })
       .overrideTypes<DunningClaimStatusRow[], { merge: false }>(),
     supabase.from('customer_contacts').select('id, customer_id, email, deactivated_at').in('customer_id', customerIds),
     supabase.from('app_settings').select('demurrage_dunning_interval_days').eq('id', 1).maybeSingle(),
+    fetchCommunicationBoxKinds('cobranca_demurrage'),
   ])
+  const dunningBoxCodes = [...new Set(boxKinds.map((row) => row.box_code))]
   if (claimsResult.error) throw claimsResult.error
   if (contactsResult.error) throw contactsResult.error
 
@@ -144,7 +147,7 @@ export async function fetchDemurrageDunningStatuses(
   }))]
   const [boxLinksResult, communicationSuppressionsResult, portalSuppressionsResult] = await Promise.all([
     contactIds.length
-      ? supabase.from('customer_contact_box_links').select('contact_id, box_code').in('contact_id', contactIds).in('box_code', ['financeiro', 'demurrage'])
+      ? supabase.from('customer_contact_box_links').select('contact_id, box_code').in('contact_id', contactIds).in('box_code', dunningBoxCodes)
       : Promise.resolve({ data: [], error: null }),
     contactEmails.length
       ? supabase.from('customer_communication_suppressions').select('email, reason').in('email', contactEmails)
@@ -168,6 +171,7 @@ export async function fetchDemurrageDunningStatuses(
     const customerContacts = contacts.filter((contact) => contact.customer_id === customerId)
     const resolved = resolveCustomerCommunicationRecipientsByBoxes({
       kind: 'cobranca_demurrage',
+      boxKinds,
       contacts: customerContacts.map((contact) => ({
         id: contact.id,
         name: null,

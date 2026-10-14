@@ -16,6 +16,7 @@ import {
 } from './customerCommunicationDispatches'
 import { type EmailSuppressionRow } from './customerCommunications'
 import {
+  fetchCommunicationBoxKinds,
   resolveCustomerCommunicationRecipientsByBoxes,
   type CustomerContactBoxLink,
 } from './customerCommunicationBoxes'
@@ -301,10 +302,14 @@ export async function dispatchCeMercanteTaxasCommunication(
   }
   const invoiceBls = await fetchInvoiceBls(bls.map((bl) => bl.id))
   const templateInput = buildCeMercanteInput(bls, invoiceBls)
-  const contacts = await fetchContacts(customerId)
+  const [contacts, boxKinds] = await Promise.all([
+    fetchContacts(customerId),
+    fetchCommunicationBoxKinds('ce_mercante_taxas'),
+  ])
   const recipients = resolveCustomerCommunicationRecipientsByBoxes({
     contacts: contacts.contacts,
     boxLinks: contacts.boxLinks,
+    boxKinds,
     kind: 'ce_mercante_taxas',
     communicationSuppressions: contacts.communicationSuppressions,
     portalSuppressions: contacts.portalSuppressions,

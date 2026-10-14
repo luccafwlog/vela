@@ -22,6 +22,8 @@ describe('Edge Function send-customer-communication', () => {
   it('confere contato, preferência, bounce/complaint e grava a operação pelo RPC atômico', () => {
     expect(source).toContain("from('customer_contacts')")
     expect(source).toContain("admin.rpc('customer_communication_recipient_allowed'")
+    // A22: o público fixo é roteado pelo modelo; nenhuma caixa é forçada.
+    expect(source).not.toMatch(/isFixedOperationalAudience\s*\?\s*'documentacao_operacao'/)
     expect(source).not.toContain("customer_contact_preferences")
     expect(source).toContain("from('customer_communication_suppressions')")
     expect(source).toContain("reason', 'bounce_permanente'")
