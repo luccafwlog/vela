@@ -544,10 +544,10 @@ parcialmente a autoridade de cálculo da
   [Régua de Cobrança](#régua-de-cobrança).
 - **Quem vê o quê:** o detalhe interno mostra itens, desconto, USD a cobrar,
   ROE e BRL. O Portal recebe de cada item o free time e os dias e diárias de
-  P1/P2 (`portal_get_demurrage_invoice_detail`), mas o detalhe do Portal
-  mostra por container só datas, dias e USD; o recibo impresso da Invoice paga
-  mostra dias e diárias de P1/P2 (ver
-  [Notas e divergências](#notas-e-divergências)).
+  P1/P2 (`portal_get_demurrage_invoice_detail`); o detalhe do Portal mostra
+  por container datas, dias, free time, dias cobrados, o valor de cada período
+  (1º e 2º, com dias × diária) e o USD; o recibo impresso mostra free time e
+  dias e diárias de P1/P2 (B30; ADR 0083, item 26).
 
 ### Grupo de Demurrage e cobrança por caixa
 
@@ -849,7 +849,7 @@ está em [Estado e dados](#estado-e-dados).
 
 - **Demurrage não vence na ficha do Cliente (B29):** a coluna `demurrage_invoices.due_date` segue no banco, mas a ficha do Cliente não conta nem mostra Invoice de Demurrage vencida: sai o aviso "faturas de Demurrage vencidas" da Visão geral, a coluna Vencimento e a situação Vencida da aba Financeiro, e o "vencida" da aba Conteineres; o estado legado `overdue` aparece como em aberto e segue no saldo (ADR 0014; [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26). **Teste:** `fichaOverview.test.ts`, `FinanceiroTab.test.tsx` (B29).
 
-- **Correção pendente (B30):** o detalhe da Invoice de Demurrage no Portal mostra o free time e o valor por período de cada container ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26). O Portal recebe esses campos (`portal_get_demurrage_invoice_detail`), e desde o lote 1 da identidade (2026-10-14) o detalhe mostra por container datas, dias, free time, dias cobrados e USD, mas não o valor de cada período (P1/P2); o recibo impresso da Invoice paga mostra dias e diárias de P1/P2 sem o free time. **Código:** [`PortalDemurrageDetailModal.tsx`](../../src/components/portal/PortalDemurrageDetailModal.tsx) e [`InvoiceDocument.tsx`](../../src/components/demurrage/InvoiceDocument.tsx). Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Valor por período no Portal e free time no recibo (B30):** o detalhe da Invoice de Demurrage no Portal mostra, por container, o free time e o valor de cada período (1º e 2º, com dias × diária), e o recibo impresso ganha a coluna Free time ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26). **Código:** [`PortalDemurrageDetailModal.tsx`](../../src/components/portal/PortalDemurrageDetailModal.tsx) e [`InvoiceDocument.tsx`](../../src/components/demurrage/InvoiceDocument.tsx); **Teste:** `PortalDemurrageDetailModal.test.tsx`, `InvoiceDocument.behavior.test.tsx` (B30).
 
 - **Correções implementadas — Código/Teste local.** O detalhe ganhou autorização de restituição excepcional pelo Administrativo e confirmação pelo Financeiro, com comprovante, favorecido e data. Cancelamento integral preserva recebimento/câmbio e cancela após devolver; o recibo mostra bruto, devolvido, pendente e líquido. A migration 136 foi incluída após autorização explícita; ver [decisões implementadas](../archive/specs/2026-10-04-controles-financeiros-design.md) e [manual](../operations/manual-financeiro.md). A janela cambial e o contrato de quitação de Demurrage continuam específicos desse domínio.
 

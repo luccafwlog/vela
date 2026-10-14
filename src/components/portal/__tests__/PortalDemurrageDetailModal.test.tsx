@@ -70,6 +70,21 @@ describe('PortalDemurrageDetailModal', () => {
     expect(screen.getByRole('status').textContent).toContain('QR Code Pix em preparação')
   })
 
+  it('B30: mostra o valor de cada período (P1/P2) do container', () => {
+    const detail = makeDetail()
+    detail.items = [{
+      id: 9, invoice_id: 1, container_id: 1, container_number: 'TCLU1234567', container_type: '40HC',
+      discharge_date: '2026-09-01', return_date: '2026-09-30', total_days: 30, free_days: 21,
+      days_p1: 5, rate_p1_usd: 50, days_p2: 4, rate_p2_usd: 75.5, subtotal_usd: 552, subtotal_brl: null, created_at: '2026-09-20',
+    }] as PortalDemurrageInvoiceDetail['items']
+    renderModal(detail)
+    expect(screen.getByRole('columnheader', { name: '1º período' })).toBeTruthy()
+    expect(screen.getByText('US$ 250,00')).toBeTruthy()
+    expect(screen.getByText('5 dias × US$ 50,00')).toBeTruthy()
+    expect(screen.getByText('US$ 302,00')).toBeTruthy()
+    expect(screen.getByText('4 dias × US$ 75,50')).toBeTruthy()
+  })
+
   it('oferece a disputa no fim do detalhe enquanto a fatura está em aberto', () => {
     const handlers = renderModal(makeDetail())
     expect(screen.getByText(/Discorda de algum valor\?/)).toBeTruthy()
