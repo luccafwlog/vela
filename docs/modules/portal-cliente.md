@@ -376,8 +376,9 @@ Remetente, endereço de resposta e domínio verificado estão em
 Conteúdo das mensagens (`supabase/functions/_shared/portalEmailTemplates.ts`):
 cada uma tem versão HTML e texto puro equivalente, com a marca Fwlog, e
 nenhuma leva senha ou dado financeiro. O conteúdo não inclui pixel de abertura
-nem link de rastreamento de clique; a configuração de rastreamento do domínio
-no Resend não foi conferida (**Suspeita**). O token opaco fica só no link e não é reproduzido em logs nem em
+nem link de rastreamento de clique; no provedor atual
+(MillionSend), o rastreamento de cliques e de aberturas de `portalfwlog.com.br`
+aparecia desligado na configuração do domínio em 2026-10-14 (print do painel). O token opaco fica só no link e não é reproduzido em logs nem em
 auditoria.
 
 - **Convite:** identifica a empresa e o CNPJ mascarado, informa a validade de

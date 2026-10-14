@@ -288,7 +288,7 @@ está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 |---|---|---|
 | Plataforma (automáticos) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS`, `SUPABASE_PUBLISHABLE_KEYS`, `SUPABASE_SECRET_KEYS` | Supabase |
 | Portal | `PORTAL_URL`, `PORTAL_TECH_EMAIL_DOMAIN`, `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, `PORTAL_PASSWORD_PEPPER` | — |
-| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (opcional), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | MillionSend (API compatível com a Resend) |
+| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (obrigatório com a MillionSend), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | MillionSend (API compatível com a Resend) |
 | Anti-robô | `TURNSTILE_SECRET_KEY` (e opcional `TURNSTILE_ALLOWED_HOSTNAMES`) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `ITAU_PIX_ADMIN_SECRET` (par com o Vault quando o job está habilitado; lista do cofre em [segredos-cron.md](segredos-cron.md)) | — |
@@ -507,10 +507,14 @@ mesmos.
   recebimento é do ImprovMX.
 - **Virada conferida em 2026-10-14:** "Esqueci minha senha" no Portal chegou,
   apareceu como entregue na MillionSend e o webhook marcou 100% de sucesso.
-- **Volta para a Resend (enquanto a conta existir):** restaurar no Supabase os
-  valores anteriores de `RESEND_API_KEY` e `RESEND_WEBHOOK_SECRET`, apagar
-  `RESEND_BASE_URL` e recriar na Cloudflare o `CNAME send` da Resend (o nome
-  `send` hoje é da MillionSend).
+- **Volta para a Resend (enquanto a conta existir), nesta ordem:**
+  1. Na Cloudflare, apagar o `MX send` e o `TXT send` da MillionSend e recriar o
+     `CNAME send` da Resend (valor em resend.com → Domains, DNS only). O CNAME não
+     convive com outros registros do mesmo nome.
+  2. Esperar o domínio voltar a **Verified** na Resend.
+  3. No Supabase, restaurar os valores anteriores de `RESEND_API_KEY` e
+     `RESEND_WEBHOOK_SECRET` e apagar `RESEND_BASE_URL`.
+  4. Testar com "Esqueci minha senha" no Portal.
 - **Resend (anterior):** conta mantida sem uso até a troca estar firme; então
   apagar a chave `vela-supabase` e o webhook na Resend e os registros `rsend` e
   `resend._domainkey` na Cloudflare, e atualizar esta seção.

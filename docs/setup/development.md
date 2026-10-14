@@ -68,8 +68,9 @@ do manual de serviços externos. Para o Portal funcionar, o mínimo é
 `PORTAL_PASSWORD_PEPPER` (antes de publicar as funções de login e senha),
 `PORTAL_LOGIN_DUMMY_AUTH_USER_ID` (UUID de uma identidade técnica confirmada,
 sem vínculo em `customer_portal_accounts`, que equaliza o custo do login com
-CNPJ inexistente), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e `RESEND_API_KEY`;
-a MillionSend envia convites, recuperação de senha, resumo diário, Comunicados e
+CNPJ inexistente), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `RESEND_API_KEY` (chave `ms_…`) e
+`RESEND_BASE_URL` = `https://api.millionsend.com` (sem ele o envio vai para a
+Resend e a chave da MillionSend é recusada); a MillionSend envia convites, recuperação de senha, resumo diário, Comunicados e
 Cobrança de Demurrage.
 
 ## 6. Rodar

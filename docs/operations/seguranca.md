@@ -207,7 +207,7 @@ sem decompor no navegador o fator comercial da cotação.
 Gerados em `_headers` pelo staging do Cloudflare Pages:
 
 - `X-Frame-Options: DENY` · `X-Content-Type-Options: nosniff` · `Referrer-Policy`
-- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog. O browser não chama Resend diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).
+- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog. O browser não chama o provedor de e-mail (MillionSend) diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).
 
 ## Outras defesas
 
@@ -215,7 +215,7 @@ Gerados em `_headers` pelo staging do Cloudflare Pages:
 - **Injeção em filtros PostgREST:** input de usuário em `.or()/.ilike()` é escapado por `escapeFilterTerm` / `sanitizeLikeTerm` (`src/lib/utils.ts`) e termos que ficam vazios após o escape não geram cláusula. A fronteira cobre as buscas de clientes (lista, lookup e export), faturamento, Granito e bookings de Vazios.
 - **Injeção de fórmula em planilhas:** `src/lib/spreadsheetSafe.ts` é o sanitizador canônico. `src/services/exports.ts`, `src/lib/csv.ts` e `src/services/reconciliacao.ts` o reutilizam antes de gerar XLSX/CSV.
 - **Higienização de artefatos de build:** `scripts/clean-build-artifacts.mjs` remove `.map` e `.vite` ao final de cada build (`cleanProductionArtifacts`) e executa varredura recursiva estrita pós-build (`assertNoForbiddenArtifacts`), falhando fechado (`process.exit(1)`) se qualquer mapa de código-fonte ou diretório de cache vazar no diretório final de distribuição.
-- **Segredos de servidor** ficam **apenas** em env vars de Edge Functions, nunca no bundle do cliente. No Portal, `service_role` e a chave da Resend nunca vão ao navegador nem a logs ou auditoria, e o frontend não os usa para contornar RLS e permissões.
+- **Segredos de servidor** ficam **apenas** em env vars de Edge Functions, nunca no bundle do cliente. No Portal, `service_role` e a chave do provedor de e-mail (`RESEND_API_KEY`) nunca vão ao navegador nem a logs ou auditoria, e o frontend não os usa para contornar RLS e permissões.
 
 ### Read model do Console
 
