@@ -54,7 +54,10 @@ respondidas pelo dono em lote; a resposta vira ADR nova.
 - Diagramas em **Mermaid**.
 - Caminhos de código em crases são referências literais; para navegação clicável, use links Markdown relativos.
 - Links internos relativos ao arquivo que contém o link, inclusive após mover
-  documentos. Confira também as âncoras de seção; o gate não as valida.
+  documentos. Âncoras de seção seguem o slug do GitHub (minúsculas, acentos
+  mantidos, pontuação removida, espaço vira hífen); renomear um título quebra
+  os links para ele, e o gate acusa. Use `<a id="...">` para fixar uma âncora
+  que precisa sobreviver a mudanças de título.
 - Blocos de comando devem indicar o shell e o diretório de execução quando
   não for a raiz. Separe exemplos de Bash e PowerShell quando a sintaxe diferir.
   Informe pré-requisitos, alvo e efeitos de comandos que escrevem dados.
@@ -188,13 +191,14 @@ Antes de concluir uma alteração documental:
 4. Execute `npm run docs:check` e `git diff --check`.
 
 O [gate documental](../scripts/check-docs.mjs) verifica existência dos destinos
-de links relativos fora do arquivo histórico, índices obrigatórios, cobertura
+de links relativos fora do arquivo histórico, âncoras de seção dos links para
+Markdown, índices obrigatórios, cobertura
 do índice de ADRs, concordância entre a linha `Status:` de cada ADR e o
 índice, faixa "Situação atual" nas ADRs estendidas ou supersedidas, documentos
 datados fora do arquivo histórico, formato dos módulos e presença das rotas
 extraídas dos dois roteadores na arquitetura e na rastreabilidade. Também rejeita `CLAUDE.md` na
 raiz e algumas afirmações obsoletas conhecidas.
 
-Ele não verifica âncoras, URLs externas, caminhos apenas em crases, correção
+Ele não verifica URLs externas, caminhos apenas em crases, correção
 semântica, execução dos comandos, autorização real ou rollout remoto.
 Uma checagem verde não substitui essa revisão.

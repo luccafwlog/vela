@@ -14,6 +14,7 @@ import {
   isDatedLivingDocument,
   parseAdrIndex,
 } from './lib/docs-adr.mjs'
+import { anchorExists, headingAnchors } from './lib/docs-anchors.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 // 'archive': snapshots históricos não são verdade atual (AGENTS.md); seus
@@ -43,6 +44,26 @@ function addError(file, message) {
 
 const markdownFiles = walk(root).filter((file) => /\.mdx?$/i.test(file))
 const markdownLinkPattern = /\[[^\]]+\]\(([^)]+)\)/g
+const anchorCache = new Map()
+
+function anchorsOf(absolutePath) {
+  if (!anchorCache.has(absolutePath)) {
+    anchorCache.set(absolutePath, headingAnchors(fs.readFileSync(absolutePath, 'utf8')))
+  }
+  return anchorCache.get(absolutePath)
+}
+
+// Âncora de um link para Markdown: `#secao` no próprio arquivo ou
+// `arquivo.md#secao`. Destinos que não são Markdown (ex.: `#L10`) ficam de fora.
+function checkAnchor(file, target, resolved) {
+  const hashIndex = target.indexOf('#')
+  if (hashIndex === -1) return
+  const fragment = target.slice(hashIndex + 1)
+  if (!fragment || !/\.mdx?$/i.test(resolved) || !fs.statSync(resolved).isFile()) return
+  if (!anchorExists(anchorsOf(resolved), fragment)) {
+    addError(relative(file), `link points to a missing section anchor: ${target}`)
+  }
+}
 
 for (const file of markdownFiles) {
   const content = fs.readFileSync(file, 'utf8')
@@ -51,10 +72,13 @@ for (const file of markdownFiles) {
     let target = match[1].trim()
     if (target.startsWith('<') && target.endsWith('>')) target = target.slice(1, -1)
     target = target.replace(/\s+["'][^"']*["']$/, '')
-    if (/^(?:https?:|mailto:|#)/i.test(target)) continue
+    if (/^(?:https?:|mailto:)/i.test(target)) continue
 
     const pathPart = target.split('#')[0]
-    if (!pathPart) continue
+    if (!pathPart) {
+      checkAnchor(file, target, file)
+      continue
+    }
 
     let decoded
     try {
@@ -72,7 +96,9 @@ for (const file of markdownFiles) {
     const resolved = path.resolve(path.dirname(file), decoded)
     if (!fs.existsSync(resolved)) {
       addError(relative(file), `broken relative link: ${target}`)
+      continue
     }
+    checkAnchor(file, target, resolved)
   }
 }
 
