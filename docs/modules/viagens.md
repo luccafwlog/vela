@@ -296,7 +296,7 @@ testes locais e migrations.
 
 ## Notas e divergências
 
-- **Correção pendente (ADR 0085, itens D8 e D9):** pela [matriz de permissões](../operations/seguranca.md#viagens-e-adr-de-saída), qualquer Departamento reabre o ADR de Saída fechado, com motivo no Histórico, e reverte a omissão de escala, com motivo. Hoje `reopen_agency_departure_report*` e `revert_voyage_omission` aceitam só o Administrativo. Também hoje o Administrativo apaga pela API, sem motivo e sem a Trava, a escala de exportação que **Excluir escala** recusa (**Teste**, Postgres local, 2026-10-14). Correção no [plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md) (P1 e P6).
+- **Correção pendente (ADR 0085, itens D8 e D9):** pela [matriz de permissões](../operations/seguranca.md#viagens-e-adr-de-saída), qualquer Departamento reabre o ADR de Saída fechado, com motivo no Histórico, e reverte a omissão de escala, com motivo. Hoje `reopen_agency_departure_report*` e `revert_voyage_omission` aceitam só o Administrativo. Também hoje o Administrativo apaga pela API, sem motivo e sem a Trava, a escala de exportação que **Excluir escala** recusa (**Teste**, Postgres local, 2026-10-14). Correção no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (P1 e P6).
 
 Viagens canceladas são seladas no banco: o RPC de cancelamento grava status e
 auditoria na mesma transação, mutações operacionais posteriores são recusadas e

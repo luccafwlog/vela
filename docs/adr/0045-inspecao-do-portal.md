@@ -1,7 +1,7 @@
 # 0045 — Inspeção do Portal por núcleo compartilhado e invólucro interno
 
 > **Situação atual (2026-10-14).** A Inspeção do Portal vale como decidida e está implementada, salvo o histórico de eventos para Operações (abaixo). A [ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md) (item 18) confirma esta decisão: Operações vê o console completo, porque a leitura interna é global. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md): o console de provisionamento ainda mascara para Operações os campos que esta ADR mandou abrir (`portal_list_provisioning_console` com `v_full_access` sem `operacoes`, migration `103`; a regressão veio da migration arquivada `325`).
-> Pela [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md) (item D12), não vale mais que o histórico de eventos (`portal_list_provisioning_events`) fique fora do alcance de Operações: Operações vê o Histórico, como o resto do console. Correção pendente no [plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md).
+> Pela [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md) (item D12), não vale mais que o histórico de eventos (`portal_list_provisioning_events`) fique fora do alcance de Operações: Operações vê o Histórico, como o resto do console. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 > Regra vigente em [Portal do Cliente](../modules/portal-cliente.md), seção "Inspeção do Portal", e em [Segurança](../operations/seguranca.md), seção "Modelo de permissões por perfil".
 
 Status: supersedida parcialmente — 2026-08-13; o histórico para Operações mudou pela ADR 0085 em 2026-10-14

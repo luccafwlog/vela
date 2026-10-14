@@ -59,7 +59,7 @@ legado `operator` vale como Documentação); os demais só consultam
 ([matriz de permissões](../operations/seguranca.md#desbloqueio-de-ce),
 [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11). Hoje
 Equipamentos ainda não consulta: correção pendente no item P12 do
-[plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md). Os comandos internos
+[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md). Os comandos internos
 passam por `ce_unlock_command` e os do Portal por `portal_ce_unlock_command`,
 ambos em `ce_unlock_private.command`, com chave idempotente (`request_key`) e
 versão esperada. Toda escrita do módulo chama `afterCeUnlockChanged`, que

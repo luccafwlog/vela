@@ -1,8 +1,9 @@
 # 0085 — Modelo de permissões por perfil
 
 Status: aceito — 2026-10-14 (decisões do dono). Implementação pendente: a
-correção de código de cada item está no
-[plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md).
+correção de código está nos itens P1 a P14 do
+[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
+na mesma fila das correções da ADR 0083.
 
 Fixa a regra de partida das permissões dos cinco Departamentos internos
 (Administrativo, Financeiro, Operações, Documentação e Equipamentos) e a lista
@@ -181,7 +182,8 @@ dono:
 - Uma restrição nova por perfil exige ADR. Sem ela, o revisor a trata como
   defeito.
 - A correção de código é grande e toca RPCs, policies, gatilhos e telas;
-  fica no [plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md),
-  com teste de RLS por perfil para cada falha de segurança.
+  fica nos itens P do [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
+  na mesma fila por impacto das correções da ADR 0083, com teste de RLS por
+  perfil para cada falha de segurança.
 - A tela continua a esconder o que o perfil não pode fazer, e o banco
   continua sendo a fronteira.

@@ -122,7 +122,7 @@ aceita "1.420,50"; cada erro indica o campo).
   faturado) e oferece **Emitir fatura** ao Administrativo (pela
   [matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento),
   qualquer Departamento emite; correção pendente, item P4 do
-  [plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md)). Com fatura ativa, o
+  [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)). Com fatura ativa, o
   botão **Abrir no Faturamento** abre o detalhe dela em `/taxas-locais`. A promoção a `ready_for_billing` só acontece dentro da
   emissão (`mark_bl_ready_and_create_invoice`); não há ação de revisar nem de
   liberar o B/L.

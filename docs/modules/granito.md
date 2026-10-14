@@ -27,7 +27,7 @@ seguem graváveis por usuário ativo pela API, que é a regra: pela
 Departamento cria e edita a taxa; ativar, desativar e excluir são do
 Administrativo. A tela ainda esconde **Nova taxa** e **Editar** dos demais
 (correção pendente, item P9 do
-[plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md)).
+[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 
 O ownership é separado:
 
