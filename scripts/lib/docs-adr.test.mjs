@@ -33,7 +33,16 @@ const index = parseAdrIndex([
   '|---|---|',
   '| [0009](./0009-c.md) | não é linha do índice |',
 ].join('\n'))
-assert.deepEqual([...index.entries()], [['0001-a.md', 'supersedida parcialmente'], ['0003-b.md', 'aceito']])
+assert.deepEqual([...index.statuses.entries()], [['0001-a.md', 'supersedida parcialmente'], ['0003-b.md', 'aceito']])
+assert.deepEqual(index.duplicates, [])
+const repeated = parseAdrIndex([
+  '| ADR | Decisão | Status |',
+  '|---|---|---|',
+  '| [0001](./0001-a.md) | A | aceito |',
+  '| [0001](./0001-a.md) | A de novo | supersedida parcialmente |',
+].join('\n'))
+assert.deepEqual([...repeated.statuses.entries()], [['0001-a.md', 'aceito']])
+assert.deepEqual(repeated.duplicates, ['0001-a.md'])
 
 assert.equal(isDatedLivingDocument('docs/skills/skill-audit-2026-09-18.md'), true)
 assert.equal(isDatedLivingDocument('docs/research/2026-09-10-br-code-pix-estatico.md'), true)
@@ -42,4 +51,4 @@ assert.equal(isDatedLivingDocument('docs/spec/2026-10-04-desbloqueio-ce-mercante
 assert.equal(isDatedLivingDocument('docs/archive/audits/2026-09-19-overhaul-documental.md'), false)
 assert.equal(isDatedLivingDocument('docs/modules/viagens.md'), false)
 
-console.log('docs-adr: status line, banner below the title, index column lookup and dated-document placement checks passed.')
+console.log('docs-adr: status line, banner below the title, index column lookup with duplicate rows and dated-document placement checks passed.')

@@ -15,7 +15,7 @@ import {
   isDatedLivingDocument,
   parseAdrIndex,
 } from './lib/docs-adr.mjs'
-import { anchorExists, headingAnchors } from './lib/docs-anchors.mjs'
+import { anchorExists, headingAnchors, stripNonRendered } from './lib/docs-anchors.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 // 'archive': snapshots históricos não são verdade atual (AGENTS.md); seus
@@ -68,7 +68,8 @@ function checkAnchor(file, target, resolved) {
 
 for (const file of markdownFiles) {
   const content = fs.readFileSync(file, 'utf8')
-  const prose = content.replace(/```[\s\S]*?```/g, '')
+  // Link comentado ou dentro de bloco de código não é renderizado: não conta.
+  const prose = stripNonRendered(content)
   for (const match of prose.matchAll(markdownLinkPattern)) {
     let target = match[1].trim()
     if (target.startsWith('<') && target.endsWith('>')) target = target.slice(1, -1)
@@ -123,7 +124,10 @@ if (fs.existsSync(adrIndexPath)) {
     .filter((name) => /^\d{4}-.+\.md$/i.test(name))
     .sort()
 
-  const indexedStatuses = parseAdrIndex(adrIndex)
+  const { statuses: indexedStatuses, duplicates: duplicatedRows } = parseAdrIndex(adrIndex)
+  for (const file of duplicatedRows) {
+    addError('docs/adr/README.md', `ADR has more than one row in the index table: ${file}`)
+  }
   const filesByNumber = new Map()
   for (const adrFile of adrFiles) {
     const number = adrFile.slice(0, 4)

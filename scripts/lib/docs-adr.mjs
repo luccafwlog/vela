@@ -46,12 +46,14 @@ function splitRow(line) {
   return line.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map((cell) => cell.trim())
 }
 
-// Devolve Map<"0001-titulo.md", status> a partir da tabela do índice, pela
+// Devolve { statuses: Map<"0001-titulo.md", status>, duplicates: [arquivo] }
+// a partir da tabela do índice, pela
 // chave do arquivo linkado na primeira coluna: duas ADRs com o mesmo número
 // não dividem uma linha. A coluna é achada pelo cabeçalho "Status", para o
 // índice poder ganhar colunas sem quebrar o gate.
 export function parseAdrIndex(markdown) {
   const statuses = new Map()
+  const duplicates = []
   let statusColumn = -1
   for (const line of markdown.split('\n')) {
     if (!line.startsWith('|')) {
@@ -65,9 +67,13 @@ export function parseAdrIndex(markdown) {
     }
     if (statusColumn < 0) continue
     const link = cells[0].match(/\]\((?:\.\/)?(\d{4}-[^)\s]+\.md)\)/)
-    if (link) statuses.set(link[1], (cells[statusColumn] ?? '').toLowerCase())
+    if (!link) continue
+    // Duas linhas para a mesma ADR mostrariam dois status; a segunda não
+    // pode sobrescrever a primeira em silêncio.
+    if (statuses.has(link[1])) duplicates.push(link[1])
+    else statuses.set(link[1], (cells[statusColumn] ?? '').toLowerCase())
   }
-  return statuses
+  return { statuses, duplicates }
 }
 
 export function isDatedLivingDocument(relativePath) {

@@ -135,8 +135,8 @@ os 16 pontos que ele apontou foram corrigidos e conferidos no código.
 
 O `npm run docs:check` passou a recusar:
 
-- ADR com número repetido, sem linha na tabela do índice, ou com a linha
-  `Status:` diferente dela;
+- ADR com número repetido, sem linha ou com linha repetida na tabela do
+  índice, ou com a linha `Status:` diferente dela;
 - ADR estendida ou supersedida sem a faixa "Situação atual";
 - documento com data no nome fora de `docs/archive/`, salvo plano ou spec
   vivos;
@@ -144,7 +144,7 @@ O `npm run docs:check` passou a recusar:
   âncora no estilo do GitHub.
 
 Os helpers têm testes de asserts no CI (`scripts/lib/docs-adr.test.mjs` e
-`scripts/lib/docs-anchors.test.mjs`), e o fixture do gate tem dezenove
+`scripts/lib/docs-anchors.test.mjs`), e o fixture do gate tem vinte
 cenários de rejeição. Quando as três primeiras regras entraram, acusaram 57
 erros; no fim da revisão, com a regra de âncoras também ligada, o gate passa
 sem erros.
