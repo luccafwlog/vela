@@ -1005,10 +1005,10 @@ bloqueadas no preview; nenhum veículo é criado com valores zero artificiais.
   as omitidas), com os portos dos B/Ls como complemento; Viagem só de embarque
   de vazios, sem B/L, cria o Embarque (ADR 0035). **Teste:**
   `EmbarqueVazios.flow.test.tsx` (B10).
-- **Correção pendente (B11):** a coluna Total das Linhas de Serviço multiplica
-  pelo percentual legado gravado na linha, enquanto o total do Embarque e o ADR
-  usam `quantidade × valor unitário` (ADR 0033). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Corrigido (B11):** a coluna Total das Linhas de Serviço é
+  `quantidade × valor unitário`, como o total do Embarque e o ADR (ADR 0033);
+  o percentual legado gravado na linha não entra. **Teste:**
+  `EmbarqueVazios.flow.test.tsx` (B11).
 - **Correção pendente (B12):** o atalho de armazenagem pendente só reconhece
   serviço de armazenagem cadastrado com a mesma condição; o serviço sem
   condição, que o valor sugerido trata como genérico (ADR 0033), aparece como

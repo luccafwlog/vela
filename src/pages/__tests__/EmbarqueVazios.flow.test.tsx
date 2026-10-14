@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -354,6 +354,18 @@ describe("EmbarqueVazios", () => {
         embarkPort: "BRVIX",
       }),
     );
+  });
+
+  it("B11: o Total da Linha de Serviço é quantidade × valor unitário, sem o percentual legado", async () => {
+    mocks.operationData = {
+      linhas: [{ id: "line-legacy", local_id: "depot-1", condition: null, quantidade: "4", valor_unitario: "25", percentual: "50", quantidade_manual: true, service: { name: "Handling", natureza: "geral" } }],
+    };
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    await selectOperation();
+    fireEvent.click(screen.getByRole("button", { name: /Serviços/i }));
+    const row = (await screen.findAllByText("Handling")).map((node) => node.closest("tr")).find(Boolean) as HTMLElement;
+    expect(within(row).getByText("R$ 100,00")).toBeTruthy();
+    expect(within(row).queryByText("R$ 50,00")).toBeNull();
   });
 
   it("B10: viagem só de embarque de vazios, sem B/L, oferece as escalas da viagem", async () => {

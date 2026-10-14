@@ -1198,13 +1198,8 @@ export function EmbarqueVazios() {
                             </td>
                             <td>{formatBRL(Number(item.valor_unitario))}</td>
                             <td>
-                              {formatBRL(
-                                calculated *
-                                  Number(item.valor_unitario) *
-                                  (item.percentual == null
-                                    ? 1
-                                    : Number(item.percentual) / 100),
-                              )}
+                              {/* B11 (ADR 0033): quantidade × valor unitário, como o total do Embarque e o ADR; o percentual legado não entra. */}
+                              {formatBRL(calculated * Number(item.valor_unitario))}
                             </td>
                             <td className="min-w-64 whitespace-normal">
                               {editingServiceObservation === item.id ? (
