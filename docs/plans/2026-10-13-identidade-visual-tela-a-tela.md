@@ -95,6 +95,33 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     uma fica no bloco do seu assunto (Portal no bloco Portal, Demurrage no
     bloco Saldo pendente). A ficha do B/L mantém a faixa de próxima ação
     (`NextAction`); a recusa vale só para a Viagem e o Cliente.
+    Demais abas (decisões de 2026-10-14, proposta revisada na mesma página,
+    seção 3b, aguardando aprovação aba por aba):
+    - **Cadastro e contatos:** blocos Dados cadastrais (CNPJ só leitura,
+      com copiar), Quem recebe os Comunicados (tabela das caixas),
+      Contatos, Acesso ao Portal e o novo **Alterações do cadastro** (o que
+      mudou, de, para, por quem, quando e justificativa, a partir de
+      `audit_logs` e `customer_contact_change_events`). **Regra de negócio
+      nova:** caixa sem destinatário recebe o contato principal gravado pelo
+      sistema, sem pedir para salvar, registrado como "Feito pelo sistema";
+      o aviso âmbar ao abrir a aba sai.
+    - **BLs** (hoje "Operacional"): a aba muda de nome; colunas da lista de
+      BLs aprovada (B/L, Navio / Viagem, Trecho, Carga, CE Mercante, Taxas
+      locais com Pendente/Emitida/Isenta); saem Revisão, Faturamento e
+      Criado em.
+    - **Financeiro:** Faturas e Recebíveis viram um bloco só, uma linha por
+      fatura com os B/Ls; o saldo por B/L abre na linha (▸); B/L com saldo
+      sem fatura ativa vira linha "Sem fatura ativa". Busca por B/L,
+      Situação e período de emissão; 20 por página; Taxas Locais e
+      Demurrage num seletor do mesmo bloco. Pagamentos em tabela com a
+      mesma busca e paginação. Pergunta em aberto: a consolidada aparece
+      inteira quando um dos B/Ls bate com a busca.
+    - **Histórico:** coluna "Por" (nome; "Sistema"; "—" quando o registro
+      não guarda autor), filtro por assunto, coluna Assunto, sem texto
+      técnico.
+    - **Desbloqueio de CE e VIP:** novo bloco Solicitações de desbloqueio
+      (protocolo, B/Ls, situação, termo, procuração, prazo, aberta em,
+      Analisar), com busca por B/L e paginação, antes da Condição VIP.
   - **Taxas Locais:** "Aguardando envio automático" e fatura cancelada em
     cinza?
   - **Faturas do Portal:** o que escrever no lugar do vencimento, que a taxa
