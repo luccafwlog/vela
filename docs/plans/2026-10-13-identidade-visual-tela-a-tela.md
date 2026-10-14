@@ -187,8 +187,11 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     `partially_paid` volta à fila como "Cálculo incompleto" e oferece
     Emitir. Correção: usar `isBlFinanciallyLocked`
     (`src/lib/chargeStatus.ts`), como o resto do sistema.
-  - **Faturas do Portal** (decisões de 2026-10-14; tela ainda não
-    aprovada): nada no lugar do
+  - **Faturas do Portal** (decisões de 2026-10-14; proposta revisada na
+    versão limpa, aguardando aprovação): tabela no padrão de Taxas Locais ·
+    Faturas (Fatura, B/L, Emissão, Navio / Viagem, Total, Saldo, Situação,
+    Detalhes; uma linha de título; saldo em âmbar; "Paga" com ✓; sem texto
+    embaixo da célula; POD só no filtro e no detalhe); nada no lugar do
     vencimento (a taxa local não tem vencimento, ADR 0055); botão "Copiar
     código Pix" (ação nova) no bloco Pagamento.
   - **Defeito achado, fora da mudança visual** (2026-10-14, por leitura do
