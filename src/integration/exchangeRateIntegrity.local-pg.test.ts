@@ -99,6 +99,15 @@ describeLocal('S09 — procedencia e integridade de ROE/PTAX', () => {
     expect(localPsql(`SELECT source || ':' || ptax::text || ':' || roe::text FROM public.exchange_rate_reference WHERE id = 1;`)).toBe('bcb_live:5.1234:5.4564')
   })
 
+  // B24 (ADR 0014; migration 264): o markup mora num ponto só; a PTAX sozinha basta para gravar a referência.
+  it('B24 — markup num ponto só no banco; a referência calcula o ROE da PTAX', () => {
+    expect(localPsql(`SELECT string_agg(proname, ',' ORDER BY proname) FROM pg_proc
+      WHERE prosrc ~ '1\\.065' AND pronamespace = 'public'::regnamespace;`)).toBe('_demurrage_roe_markup')
+    const saved = JSON.parse(localPsql(`SELECT public.save_exchange_rate_reference_v2(5.1234, NULL::numeric, '${quoteDate}', 'bcb_live', '${quoteDate}');`)) as { roe: number }
+    expect(saved.roe).toBe(5.4564)
+    expect(localPsql(`SELECT public._demurrage_ptax_from_roe(5.4564)::text;`)).toBe('5.1234')
+  })
+
   it('rejeita PTAX ausente ou ROE divergente em origem automatica', () => {
     expect(() => localPsql(`SELECT public.save_exchange_rate_reference_v2(NULL::numeric, 5.4564, '${quoteDate}', 'bcb_live', '${quoteDate}');`)).toThrow()
     expect(() => localPsql(`SELECT public.save_exchange_rate_reference_v2(5.1234, 5.4, '${quoteDate}', 'cached', '${quoteDate}');`)).toThrow()

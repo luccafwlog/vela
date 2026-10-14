@@ -5,8 +5,11 @@ import { supabase } from '../supabase'
 import { reportBestEffortFailure } from '../../lib/telemetry'
 import type { RoeSource } from '../../types/database'
 
-// Spread fixo do armador aplicado sobre a PTAX (ADR 0014). Ponto canônico no
-// frontend; o backend replica a mesma constante na RPC de recálculo.
+// Spread fixo do armador aplicado sobre a PTAX (ADR 0014). O ponto canônico é
+// `_demurrage_roe_markup()` no banco (migration 264, B24): a referência
+// cambial, o desconto e a Conciliação PIX derivam dele, e a Edge do BCB lê o
+// ROE gravado. Esta cópia só serve à prévia na tela; `demurrageRoeMarkup.test.ts`
+// confere que ela é igual à do banco.
 export const DEMURRAGE_ROE_MARKUP = 1.065
 
 const ROE_CACHE_KEY = 'demurrage_roe_cache'
