@@ -714,12 +714,16 @@ data, o último envio ou a pausa.
 
 - **Quando cobra:** o job `demurrage-dunning` roda de hora em hora (no minuto 7
   desde a migration `165`, fora da rajada dos minutos cheios). O primeiro envio
-  usa `first_billed_at` e cada tentativa seguinte soma o intervalo configurado
+  usa `first_billed_at` e cada tentativa seguinte vence o intervalo configurado
   em `app_settings.demurrage_dunning_interval_days` (padrão de 7 dias, de 1 a
-  365), sem teto. Cada tentativa é numerada, e o número distingue uma cobrança
+  365) depois do dia do último envio, em São Paulo, sem teto. Depois de uma
+  pausa (Disputa aberta, por exemplo), sai uma cobrança e as seguintes seguem o
+  intervalo normal, sem recuperar as "atrasadas" ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
+  item 15). Cada tentativa é numerada, e o número distingue uma cobrança
   da anterior sobre a mesma Invoice. A seleção vigente é
-  `claim_demurrage_dunning_candidates` (migration `179`; antes, migrations
-  `010`, `011` e `041` e migrations arquivadas `378` e `379`).
+  `claim_demurrage_dunning_candidates` (migration `256`; antes, migrations
+  `179`, `010`, `011` e `041` e migrations arquivadas `378` e `379`). A coluna
+  Régua calcula a próxima data pela mesma âncora (`getDemurrageDunningDisplay`).
 - **Quem é cobrado:** Invoice emitida, sem `paid_at`, sem Disputa aberta, sem
   `dunning_suspended_reason` e de Cliente com ao menos um contato ativo, de
   e-mail válido, ligado à caixa Demurrage ou Financeiro e não suprimido (bounce
@@ -885,7 +889,7 @@ está em [Estado e dados](#estado-e-dados).
 - **Excedente de Invoice paga é tratado à mão (A12):** quando a correção de datas reduz uma Invoice de Demurrage já paga, o sistema não abate nem cria a restituição sozinho: a Invoice sai da Régua, o Alerta abre e a Restituição é autorizada (qualquer Departamento pela [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md); migration `247`) e registrada pelo Financeiro ou pelo Administrativo. Vale enquanto Demurrage não tiver saldo nem pagamento parcial ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 12, que supersede parcialmente o item 19 da ADR 0078).
 - **E-mail da Régua com o USD líquido (A13):** o e-mail da Régua informa como "Valor da cobrança" (e na lista agrupada) o USD líquido do desconto, coerente com o BRL informativo e a tela ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 13). A Edge Function `demurrage-dunning` lê `discount_mode` e `discount_value` e usa `invoiceNetUsd` (`src/services/demurrage/demurrageNetUsd.ts`, a regra de `apply_demurrage_discount` compartilhada com a tela). **Teste:** `demurrageNetUsd.test.ts`; **Teste de contrato:** `demurrageDunningFunction.test.ts` (A13). A Edge Function nova só vale em produção depois de publicada.
 - **Referência cambial só pelo job e pelo Informar PTAX (A14).** Só o job do BCB (`recalc-demurrage-ptax`, `service_role`) e o Informar PTAX (`recalculate_demurrage_invoices`, como dono) gravam `exchange_rate_reference`, que a emissão usa, como manda a ADR 0065 (decisão 4) e a decisão do dono na migration `110` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 14). Desde a migration `236`, `authenticated` não executa `save_exchange_rate_reference(_v2)` e o cabeçalho deixou de gravar a PTAX lida no navegador ou o cache local (**Teste local-pg:** `exchangeRateIntegrity.local-pg.test.ts`).
-- **Correção pendente (A15):** depois de uma pausa (por exemplo, Disputa aberta por 30 dias), a Régua retoma ancorada no último envio: sai uma cobrança e as seguintes seguem o intervalo normal ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 15). Hoje envia as cobranças "atrasadas" em rodadas horárias seguidas, porque o calendário fica preso a `first_billed_at`. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Régua retoma pelo último envio (A15, migration `256`):** depois de uma pausa (por exemplo, Disputa aberta por 30 dias), sai uma cobrança e as seguintes seguem o intervalo a partir do último envio ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 15); antes, o calendário preso a `first_billed_at` mandava as "atrasadas" em rodadas horárias seguidas. **Teste local-pg:** `communicationEligibility.local-pg.test.ts` (A15, falha sem a migration); **Teste:** `demurrageDunning.test.ts` (A15).
 - **Plano B pelo extrato acha a Invoice de Demurrage (A16):** o plano B pelo extrato em `/reconciliacao` acha a Invoice de Demurrage aberta pelo TXID da cobrança, e **Escolher fatura…** a lista ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 16; migration `242`, `_pix_txid_open_candidates`). **Teste local-pg:** `planoBExtratoPix.local-pg.test.ts`.
 - **Pix de Demurrage sem TXID vira exceção (A17):** Pix de Demurrage sem TXID legível vira exceção para decisão humana; a baixa automática por CNPJ e pela janela das duas PTAX, prevista na ADR 0015, foi abandonada ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 17).
 - **Correção pendente (B24):** o markup 1,065 está escrito em pelo menos cinco pontos (constante `DEMURRAGE_ROE_MARKUP` no navegador, `_demurrage_roe_from_ptax` e os inversos `current_roe/1,065` de `apply_demurrage_discount` e `confirm_unified_pix_matches` no banco, e a Edge Function `recalc-demurrage-ptax`), contra o ponto canônico único da ADR 0014. Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).

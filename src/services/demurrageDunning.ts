@@ -91,13 +91,15 @@ export function getDemurrageDunningDisplay(
     : demurrageDunningPauseReason(invoice, input.hasValidContact ?? true)
   const firstBilledAt = parseDate(invoice.first_billed_at)
   const intervalDays = Math.max(1, Math.trunc(input.intervalDays ?? 7))
-  const nextDate = firstBilledAt && !pauseReason
-    ? addDays(firstBilledAt, attemptCount * intervalDays)
-    : null
   const nextAttemptNumber = attemptCount + 1
   const lastAttemptAt = input.lastAttemptAt ?? attempts
     .slice()
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]?.createdAt ?? null
+  // A15 (migration 256): a 1ª vence na emissão; as seguintes, um intervalo depois do último envio.
+  const lastAttempt = attemptCount > 0 ? parseDate(lastAttemptAt) : null
+  const nextDate = firstBilledAt && !pauseReason
+    ? (lastAttempt ? addDays(lastAttempt, intervalDays) : addDays(firstBilledAt, attemptCount * intervalDays))
+    : null
 
   let statusLabel = `${nextAttemptNumber}ª cobrança`
   if (pauseReason === 'liquidada') statusLabel = 'Régua encerrada: liquidada'

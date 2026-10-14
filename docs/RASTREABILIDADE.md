@@ -618,7 +618,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `ce_unlock_email_pending` | Edge `ce-unlock-notify-email` | `160` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_expire_drafts` | Edge `ce-unlock-cleanup` | `141` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_refresh_open` | Edge `ce-unlock-notify-email` | `161` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
-| `claim_demurrage_dunning_candidates` | Edge `demurrage-dunning` | `179` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Pula Invoice com Disputa aberta, sem contato válido ou suspensa por datas alteradas (`179`). |
+| `claim_demurrage_dunning_candidates` | Edge `demurrage-dunning` | `179`, `256` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Pula Invoice com Disputa aberta, sem contato válido ou suspensa por datas alteradas (`179`); a tentativa seguinte vence um intervalo depois do último envio (A15, `256`). |
 | `claim_portal_email_events` | Edge `portal-email-events-runner` | `022` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `complete_portal_email_event` | Edge `_shared/portalEmailEventProcessor.ts`; Edge `portal-email-events-runner` | `022` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `create_customer_communication_atomic` | Edge `demurrage-dunning`; Edge `send-customer-communication` | `070`, `243` | DEFINER · `service_role` | `service_role` (conferido no corpo) | No NOB, confere cada B/L pela regra única `bl_belongs_to_atracacao` (`243`). |
