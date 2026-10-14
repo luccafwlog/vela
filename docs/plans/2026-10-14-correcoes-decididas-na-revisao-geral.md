@@ -54,7 +54,7 @@ depois o que o usuário vê errado, por último o que é só texto.
 
 | Item | O que fazer | Quem |
 |---|---|---|
-| A6 | Heartbeat do backup diário no Better Stack agora; executor sempre ligado antes de revogar o "Data status". O script já avisa o heartbeat quando `BETTERSTACK_HEARTBEAT_BACKUP_URL` existe. | Dono: heartbeat `backup-r2-diario` criado em 2026-10-14; falta a variável no computador da tarefa e a primeira execução, com o [roteiro](../operations/backup-r2.md#heartbeat-do-backup) |
+| A6 | Heartbeat do backup diário no Better Stack agora; executor sempre ligado antes de revogar o "Data status". O script já avisa o heartbeat quando `BETTERSTACK_HEARTBEAT_BACKUP_URL` existe. | Dono: heartbeat `backup-r2-diario` ligado e **Up** em 2026-10-14 ([Serviços externos](../operations/servicos-externos.md#backup)); falta o executor sempre ligado, antes de revogar o "Data status" |
 
 B32 (apagar a Edge Function antiga de aviso de fatura emitida) foi feito pelo
 dono em 2026-10-14; a listagem de produção conferida depois não a tem
