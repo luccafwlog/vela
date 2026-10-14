@@ -9,6 +9,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const rates = [
   { id: 1, container_type: '20GP', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 100, p2_day_from: 31, p2_usd: 150, valid_from: null, valid_to: null, active: true, notes: null },
   { id: 2, container_type: '45HC', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 110, p2_day_from: 31, p2_usd: 160, valid_from: '2099-01-01', valid_to: null, active: true, notes: null },
+  { id: 3, container_type: '40RF', free_days: 21, p1_day_from: 22, p1_day_to: 30, p1_usd: 120, p2_day_from: 31, p2_usd: 170, valid_from: null, valid_to: null, active: false, notes: null },
 ]
 
 const agreements = [
@@ -105,7 +106,17 @@ it('US-053: ativa/desativa a tarifa pelo menu da linha', async () => {
   await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 20GP' }))
   await user.click(screen.getByRole('menuitem', { name: 'Desativar tarifa' }))
 
-  await waitFor(() => expect(svc.toggleDemurrageRateActive).toHaveBeenCalledWith(1, false))
+  await waitFor(() => expect(svc.toggleDemurrageRateActive).toHaveBeenCalledWith(1, false, ''))
+})
+
+it('B13: reativar a tarifa pede motivo e diz Reativar', async () => {
+  const user = userEvent.setup()
+  renderPage()
+
+  await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 40RF' }))
+  await user.click(screen.getByRole('menuitem', { name: 'Reativar tarifa' }))
+
+  await waitFor(() => expect(svc.toggleDemurrageRateActive).toHaveBeenCalledWith(3, true, 'motivo'))
 })
 
 it('US-054: exclui a tarifa que ainda não entrou em vigor', async () => {

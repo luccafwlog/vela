@@ -72,3 +72,26 @@ export async function deleteOneById(
   if ((error as { code?: string }).code === 'P0002') return { error: new Error(NOTHING_DELETED_MESSAGE) }
   return { error }
 }
+
+export type CatalogReactivateTable =
+  | 'charge_tables'
+  | 'charge_table_items'
+  | 'customer_rate_overrides'
+  | 'demurrage_rates'
+  | 'customer_demurrage_agreements'
+  | 'granite_rates'
+  | 'user_profiles'
+
+/**
+ * B13 (ADR 0072; ADR 0073, item 4): reativa um cadastro pela RPC
+ * `reactivate_catalog_row` (migration 261), do Administrativo, com o motivo
+ * obrigatório gravado na auditoria. Desativar continua pela escrita direta.
+ */
+export async function reactivateCatalogRow(table: CatalogReactivateTable, id: string | number, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('reactivate_catalog_row' as never, {
+    p_table: table,
+    p_id: String(id),
+    p_reason: reason,
+  } as never)
+  if (error) throw error
+}

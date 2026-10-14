@@ -236,6 +236,15 @@ function migration254Applied(): boolean {
   }
 }
 
+function migration261Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT count(*) FROM pg_proc WHERE proname = 'reactivate_catalog_row';`) === '1'
+  } catch {
+    return false
+  }
+}
+
 function migration250Applied(): boolean {
   if (!enabled) return false
   try {
@@ -264,8 +273,8 @@ function migration246Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied() && migration253Applied() && migration254Applied(),
-  'migrations 231 a 254 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied() && migration253Applied() && migration254Applied() && migration261Applied(),
+  'migrations 231 a 261 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -640,6 +649,27 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       }
     } finally {
       psql(`DELETE FROM public.customer_demurrage_agreements WHERE notes = '${note}'; DELETE FROM public.demurrage_rates WHERE notes = '${note}';`)
+    }
+  })
+
+  // B13 — reativar cadastro pede motivo, gravado no rastro; segue do Administrativo (ADR 0072; ADR 0073, item 4; migration 261).
+  it.each(ALL_PROFILES)('B13: %s reativa tarifa só como Administrativo e com motivo', (profile) => {
+    const note = `b13-${profile}`
+    const id = psql(`INSERT INTO public.demurrage_rates (container_type, free_days, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from, notes, active)
+      VALUES ('B13X', 7, 8, 14, 10, 15, 20, '2099-01-01', '${note}', false) RETURNING id;`)
+    try {
+      const call = (reason: string) => runAs(profile, `SELECT public.reactivate_catalog_row('demurrage_rates', '${id}', '${reason}')`)
+      if (profile !== 'administrativo') {
+        expect(call('motivo').error).toMatch(/Somente o Administrativo reativa/)
+        return
+      }
+      expect(call(' ').error).toMatch(/Informe o motivo/)
+      expect(call('cliente voltou a operar').error).toBe('')
+      expect(psql(`SELECT active FROM public.demurrage_rates WHERE id = ${id};`)).toBe('t')
+      expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_type = 'demurrage_rates' AND entity_id = '${id}' AND field_name = 'reativado';`))
+        .toBe('cliente voltou a operar')
+    } finally {
+      psql(`DELETE FROM public.audit_logs WHERE entity_type = 'demurrage_rates' AND entity_id = '${id}'; DELETE FROM public.demurrage_rates WHERE id = ${id};`)
     }
   })
 

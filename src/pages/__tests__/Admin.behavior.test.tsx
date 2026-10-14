@@ -38,7 +38,7 @@ vi.mock('@tanstack/react-query', () => ({
   }),
 }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
-vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (options: unknown) => ((await mocks.confirm(options)) ? 'motivo' : null) }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
 vi.mock('../../services/adminUsers', async (importActual) => {
   const actual = await importActual<typeof import('../../services/adminUsers')>()

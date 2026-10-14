@@ -178,11 +178,8 @@ o módulo Faturamento e a ADR 0077 dizem; "estorno" é sinônimo a evitar, e
 Cancelar baixa é outra ação ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1, que
 substitui o "Estorno" do vocabulário de 2026-09-24).
 
-Divergências de rótulo que ainda existem na interface (**Código**): usuário
-interno em `/admin/usuarios` (`src/pages/Admin.tsx`) e acordo de Demurrage
-(`CustomerDemurrageAgreementsTab.tsx`) dizem **Ativar** em vez de **Reativar**
-(B13, correção pendente); o aviso do serviço do Local diz "Serviço inativado."
-(B15, correção pendente); e textos de
+Divergências de rótulo que ainda existem na interface (**Código**): o aviso do
+serviço do Local diz "Serviço inativado." (B15, correção pendente); e textos de
 tela usam "estorno" no sentido de Cancelar baixa — a reversibilidade de
 `ValidacaoTab.tsx`, `ConsolidatedInvoiceModal.tsx` e
 `PortalConsolidatedModal.tsx` diz que pagamentos seguem o "fluxo de estorno", e
@@ -215,18 +212,19 @@ não confundir com a ação Cancelar.
 
 **Código:** `src/components/ui/ConfirmDialog.tsx` (Voltar por padrão, campo
 "Motivo (obrigatório)") e `useConfirmWithReason`. Implementação concluída em
-2026-10-05 (nota de encerramento da ADR 0072), com as lacunas B13, B14 e B15
-abaixo; fora delas, **Salvar** do Local e do serviço em
+2026-10-05 (nota de encerramento da ADR 0072), com as lacunas B14 e B15
+abaixo (a B13 foi corrigida na migration `261`); fora delas, **Salvar** do Local e do serviço em
 `/embarquevazios/depots` grava sem diálogo de antes e depois
 (`src/pages/DepotCadastro.tsx`; B31, correção pendente no
 [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 
-**Correção pendente (B13):** pela regra acima, Reativar tarifa (tabela e item
-de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage, tarifa de
-Granito) e reativar usuário interno pedem motivo e dizem "Reativar"; hoje não
-pedem motivo, e as telas de usuário e de acordo de Demurrage dizem "Ativar".
-Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
-([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+**Reativar pede motivo (B13, migration `261`).** Reativar tarifa (tabela e
+item de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage, taxa
+de Granito) e reativar usuário interno dizem "Reativar" e pedem motivo; a
+reativação passa pela RPC `reactivate_catalog_row`, do Administrativo, que
+grava o motivo em `audit_logs` (linha `reativado`). Desativar segue sem motivo.
+**Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B13, os cinco
+perfis); **Teste:** `DemurrageRates.behavior.test.tsx` (B13).
 
 ### Hard delete controlado
 

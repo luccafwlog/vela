@@ -11,6 +11,7 @@ import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { listGraniteRates, upsertGraniteRate, deleteGraniteRate } from '../services/graniteCharges'
+import { reactivateCatalogRow } from '../services/deleteRecords'
 import type { GraniteRate } from '../types/database'
 
 const EMPTY_FORM: Omit<GraniteRate, 'id' | 'created_at'> = {
@@ -116,22 +117,25 @@ export function GraniteRates() {
 
   async function handleToggleActive(rate: GraniteRate) {
     const nextActive = !rate.active
-    const confirmed = await confirm({
+    // B13: reativar pede motivo (ADR 0072), gravado pela RPC reactivate_catalog_row (migration 261).
+    const confirmOptions = {
       title: nextActive ? 'Reativar taxa de Granito' : 'Desativar taxa de Granito',
       message: nextActive
         ? `Reativar a taxa "${rate.description}"?`
         : `Desativar a taxa "${rate.description}"?`,
       confirmLabel: nextActive ? 'Reativar' : 'Desativar',
-      tone: nextActive ? 'primary' : 'danger',
+      tone: nextActive ? ('primary' as const) : ('danger' as const),
       consequence: nextActive
         ? 'A taxa volta a entrar nos cálculos de novos B/Ls de granito.'
         : 'A taxa não será aplicada a novos cálculos; faturamentos antigos permanecem inalterados.',
       reversibility: nextActive ? 'Desative novamente se necessário.' : 'Reative a taxa quando precisar.',
-    })
-    if (!confirmed) return
+    }
+    const reason = nextActive ? await confirmWithReason(confirmOptions) : (await confirm(confirmOptions)) ? '' : null
+    if (reason === null) return
 
     try {
-      await upsertGraniteRate({ ...rate, active: nextActive })
+      if (nextActive) await reactivateCatalogRow('granite_rates', rate.id, reason)
+      else await upsertGraniteRate({ ...rate, active: nextActive })
       await queryClient.invalidateQueries({ queryKey: ['granite-rates'] })
       showToast(nextActive ? 'Taxa reativada.' : 'Taxa desativada.', 'success')
     } catch (err) {

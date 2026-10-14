@@ -135,11 +135,14 @@ export async function deleteCustomerDemurrageAgreement(id: number, reason: strin
   if (error) throw error
 }
 
-export async function toggleCustomerDemurrageAgreementActive(id: number, active: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('customer_demurrage_agreements')
-    .update({ active })
-    .eq('id', id)
+export async function toggleCustomerDemurrageAgreementActive(id: number, active: boolean, reason?: string): Promise<void> {
+  // B13: reativar pede motivo e passa pela RPC do Administrativo (migration 261).
+  const { error } = active
+    ? await supabase.rpc('reactivate_catalog_row' as never, { p_table: 'customer_demurrage_agreements', p_id: String(id), p_reason: reason ?? '' } as never)
+    : await supabase
+      .from('customer_demurrage_agreements')
+      .update({ active })
+      .eq('id', id)
   if (error) {
     const msg = error.message || ''
     if (msg.includes('customer_demurrage_agreements_no_overlap') || msg.includes('23P01')) {
