@@ -149,12 +149,14 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     Emissão, Cliente, B/L, Navio / Viagem, Situação, Total, Saldo). Saldo
     maior que zero em âmbar; Situação em texto (Emitida e Parcialmente paga
     normais, Cancelada em cinza com a linha inteira, Paga com ícone ✓
-    verde antes da palavra). Etiqueta "Consolidada"; fatura com vários
+    verde antes da palavra). fatura com vários
     B/Ls mostra o primeiro e "+n". Saem da linha o CNPJ e o POD (filtro e
     detalhe da fatura) e a coluna **Comunicado de CE** (o Comunicado de CE
     e Taxas é por Cliente e Viagem, não por fatura, e já está em Clientes ›
     Comunicação; a falha de envio segue como alerta). Busca única por
-    fatura ou B/L; resumo do recorte na faixa do título. Pergunta em
+    fatura ou B/L; resumo do recorte na faixa do título. Consolidada
+    marcada por um ícone pequeno de pilha ao lado do número ("Consolidada"
+    ao passar o mouse), não por selo. Pergunta em
     aberto: o ícone ✓ de paga vale nas outras telas (ex.: Demurrage da aba
     Contêineres).
   - **Faturas do Portal** (decisões de 2026-10-14; tela ainda não
