@@ -158,8 +158,7 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     marcada por um ícone pequeno de pilha ao lado do número ("Consolidada"
     ao passar o mouse), não por selo. O ícone ✓ de
     paga vale em todas as telas que mostram "paga" (decisão de 2026-10-14).
-  - **Taxas Locais · Validação** (proposta de 2026-10-14, seção 4b,
-    aguardando aprovação): versão limpa com seleção, seta de abrir e seis
+  - **Taxas Locais · Validação** (aprovada em 2026-10-14, seção 4b): versão limpa com seleção, seta de abrir e seis
     colunas (B/L, Cliente, Navio / Viagem, Motivo, Subtotal, ação). Motivo
     uma vez, em texto; uma ação por linha, a que resolve o motivo
     (Recalcular, Vincular na Revisão, Cadastrar CE, Abrir Cliente, Emitir);
