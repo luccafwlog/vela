@@ -10,9 +10,14 @@ pessoa vê nas páginas, botões, colunas, filtros, campos, modais e estados. S�
 depois acrescente o detalhe de implementação quando ele ajudar a decidir,
 validar ou manter o trabalho.
 
-O glossário canônico é `CONTEXT.md`. As páginas em `docs/modules/`, a
-`docs/ARCHITECTURE.md` e os rótulos reais da interface complementam o glossário
-quando a explicação depender de uma tela específica.
+O glossário canônico é o [`CONTEXT.md`](../../CONTEXT.md): termos, estados e
+a distinção entre conceitos próximos. A regra vigente de cada tela fica no
+módulo em [`docs/modules/`](../README.md) e, quando atravessa módulos, em
+[`docs/operations/regras-de-negocio.md`](../operations/regras-de-negocio.md).
+A [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) e os rótulos reais da interface
+complementam o glossário quando a explicação depender de uma tela específica.
+Este documento é o dono do contrato de comunicação; o `CONTEXT.md` só aponta
+para ele.
 
 ## Formato recomendado
 

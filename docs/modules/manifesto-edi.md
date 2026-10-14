@@ -38,7 +38,7 @@ deste módulo passam pelo leitor comum — célula tipada, datas pelo parser ún
 `src/lib/importDate.ts`, números por `parseImportNumber`, linhas e abas ocultas
 ignoradas com aviso e duas colunas que casam o mesmo campo bloqueadas. A regra
 completa vale para todas as importações e fica em
-[Regras de negócio](../operations/regras-de-negocio.md). Aplicações próprias
+[Regras de negócio § Leitura de planilhas](../operations/regras-de-negocio.md#leitura-de-planilhas). Aplicações próprias
 deste módulo: o Laden on Board do B/L é lido com o dia certo também em pasta
 gravada no sistema de datas 1904; o Embarque de Vazios pede confirmação antes
 de gravar quando há linhas ou abas ocultas, porque as unidades delas sairiam do
@@ -53,7 +53,7 @@ Os modais de importação seguem o percurso comum de
 confirmação → resultado), com os erros de linha normalizados em `ImportIssue`
 (lista completa, exportável em CSV sem o payload bruto), leitura cancelável e
 limite de 10 MB do `assertUploadSize`; o contrato comum das prévias está em
-[Regras de negócio](../operations/regras-de-negocio.md). Neste módulo, as
+[Regras de negócio § Leitura de planilhas](../operations/regras-de-negocio.md#leitura-de-planilhas). Neste módulo, as
 superfícies customizadas de Baplie, Granito, Veículos, Datas, CE Mercante e
 B/Ls usam o mesmo hook de leitura cancelável e exibem o arquivo atual, o
 progresso e o botão de cancelamento; uma resposta tardia não publica prévia. A
@@ -140,7 +140,7 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
   Vazios, Embarque de Vazios, datas de container) grava no Histórico o
   contexto da importação como justificativa das linhas que cria, altera ou
   exclui. O formato do contexto e as regras do rastro valem para todas as
-  importações e ficam em [Regras de negócio](../operations/regras-de-negocio.md).
+  importações e ficam em [Regras de negócio § Rastro das importações](../operations/regras-de-negocio.md#rastro-das-importações).
 - **Veículos (migration `184`, ADR 0078 itens 8 e 23):** a planilha casa o
   B/L pelo número exato da Viagem (sem buscar B/L "parecido"); chassi já em
   outra Viagem ativa recusa a linha (B/L ou Viagem cancelados não contam); tipos
