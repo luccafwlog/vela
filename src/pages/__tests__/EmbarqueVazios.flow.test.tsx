@@ -275,7 +275,7 @@ describe("EmbarqueVazios", () => {
     expect(mocks.deleteManualVaziosBooking).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Excluir unidade MSCU7654321" }));
-    await waitFor(() => expect(mocks.deleteManualVaziosBooking).toHaveBeenCalledWith("u1"));
+    await waitFor(() => expect(mocks.deleteManualVaziosBooking).toHaveBeenCalledWith("u1", "motivo"));
     expect(mocks.confirm).toHaveBeenLastCalledWith(expect.objectContaining({ confirmLabel: "Excluir", consequence: expect.any(String) }));
   });
 

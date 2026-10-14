@@ -37,6 +37,7 @@ function cleanup() {
   psql(`
     SET session_replication_role = replica;
     DELETE FROM public.vazios_bookings WHERE voyage_id = ${voyageId};
+    DELETE FROM public.agency_departure_reports WHERE voyage_id = ${voyageId};
     DELETE FROM public.vazios_manifests WHERE voyage_id = ${voyageId};
     DELETE FROM public.vazios_export_service_lines WHERE operation_id IN (SELECT id FROM public.vazios_export_operations WHERE voyage_id = ${voyageId});
     DELETE FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};
@@ -193,5 +194,31 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
        WHERE o.voyage_id = ${voyageId} AND s.name = '${serviceName}' AND s.depot_id = (SELECT id FROM public.depots WHERE code = '${depotCode}');`], { encoding: 'utf8' })
     expect(insertLine('B12 armazenagem generica', 'vazio').stderr).toBe('')
     expect(insertLine('B12 armazenagem material', 'vazio').stderr).toMatch(/Armazenagem exige depot/)
+  })
+
+  // B14 (ADR 0071, item 4; migration 262): os vazios travam com o ADR de Saída fechado; Excluir unidade pede motivo.
+  it('B14 — unidade manual e linha de serviço não saem com o ADR de Saída fechado; reabrir solta', () => {
+    psql(`INSERT INTO public.vazios_export_operations (voyage_id, embark_port) SELECT ${voyageId}, 'BRVIX'
+      WHERE NOT EXISTS (SELECT 1 FROM public.vazios_export_operations WHERE voyage_id = ${voyageId});`)
+    const operation = psql(`SELECT id FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};`)
+    const depot = psql(`SELECT id FROM public.depots WHERE code = '${depotCode}';`)
+    const created = asUser(`SELECT public.create_manual_vazios_booking('${operation}', ${voyageId}, '${userId}', 'AZCU2349991', '40HC', '${depot}', 'vazio', '2026-09-01', '2026-09-02', '2026-09-02');`)
+    expect(created.stderr).toBe('')
+    const booking = psql(`SELECT id FROM public.vazios_bookings WHERE voyage_id = ${voyageId} AND container_number = 'AZCU2349991';`)
+    psql(`INSERT INTO public.depot_services (depot_id, name, natureza, condition, rate_brl)
+      SELECT id, 'B14 handling', 'geral', NULL, 5 FROM public.depots WHERE code = '${depotCode}';
+      INSERT INTO public.vazios_export_service_lines (operation_id, service_id, local_id, quantidade, valor_unitario)
+      SELECT '${operation}', s.id, s.depot_id, 1, 5 FROM public.depot_services s WHERE s.name = 'B14 handling';
+      INSERT INTO public.agency_departure_reports (voyage_id, port, status) VALUES (${voyageId}, 'BRVIX', 'closed');`)
+    const line = psql(`SELECT l.id FROM public.vazios_export_service_lines l JOIN public.depot_services s ON s.id = l.service_id WHERE s.name = 'B14 handling';`)
+
+    expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', ' ')`).stderr).toMatch(/Informe o motivo/)
+    expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', 'lancada por engano')`).stderr).toMatch(/ADR de Saida fechado/)
+    expect(asUser(`SELECT public.delete_catalog_row('vazios_export_service_lines', '${line}', 'custo errado')`).stderr).toMatch(/ADR de Saida fechado/)
+
+    psql(`UPDATE public.agency_departure_reports SET status = 'open' WHERE voyage_id = ${voyageId} AND port = 'BRVIX';`)
+    expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', 'lancada por engano')`).stderr).toBe('')
+    expect(asUser(`SELECT public.delete_catalog_row('vazios_export_service_lines', '${line}', 'custo errado')`).stderr).toBe('')
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_type = 'vazios_bookings' AND field_name = 'excluido' AND old_value LIKE '%AZCU2349991%' ORDER BY id DESC LIMIT 1;`)).toBe('lancada por engano')
   })
 })

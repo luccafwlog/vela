@@ -212,8 +212,8 @@ não confundir com a ação Cancelar.
 
 **Código:** `src/components/ui/ConfirmDialog.tsx` (Voltar por padrão, campo
 "Motivo (obrigatório)") e `useConfirmWithReason`. Implementação concluída em
-2026-10-05 (nota de encerramento da ADR 0072), com as lacunas B14 e B15
-abaixo (a B13 foi corrigida na migration `261`); fora delas, **Salvar** do Local e do serviço em
+2026-10-05 (nota de encerramento da ADR 0072), com a lacuna B15 abaixo (a B13
+e a B14 foram corrigidas nas migrations `261` e `262`); fora delas, **Salvar** do Local e do serviço em
 `/embarquevazios/depots` grava sem diálogo de antes e depois
 (`src/pages/DepotCadastro.tsx`; B31, correção pendente no
 [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
@@ -298,8 +298,8 @@ excluíveis. Também travam o que referenciam (`bl_delete_lock_reasons` e
 
 Escala com B/L, com ou sem CE, também não se exclui: primeiro saem os B/Ls,
 depois a escala ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 7, que supersede
-parcialmente a ADR 0071 quanto à escala). A tela já recusa; o banco ainda
-aceita: correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+parcialmente a ADR 0071 quanto à escala). A tela e o banco recusam (`delete_escala`,
+migration `235`).
 
 Antes da trava, excluir cabe ao Administrativo, com motivo
 ([Hard delete controlado](#hard-delete-controlado)); depois, o caminho é
@@ -315,12 +315,13 @@ substituiu o item 5 da ADR 0071).
 terminal, e reabrir o ADR solta a trava (ADR 0071, item 4); antes dela,
 qualquer usuário ativo exclui unidade manual e linha de serviço de vazios.
 
-**Correção pendente (B14):** o banco ainda não impõe a trava dos vazios —
-unidade manual e linha de serviço do Embarque de Vazios são excluídas por
-qualquer usuário ativo mesmo com o ADR de Saída fechado, e **Excluir unidade**
-não pede motivo; só a exclusão de viagem, escala e atracação considera o ADR
-fechado. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
-([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+**Trava dos vazios no banco (B14, migration `262`):** com o ADR de Saída
+fechado da escala (o do terminal que tem a frente de exportação de vazio, ou o
+ADR legado por porto), o banco recusa excluir unidade manual
+(`delete_manual_vazios_booking`) e linha de serviço (`delete_catalog_row`) do
+Embarque de Vazios; reabrir o ADR solta. **Excluir unidade** pede motivo,
+gravado no rastro. **Teste local-pg:** `vaziosReimportacao.local-pg.test.ts`
+(B14).
 
 ### Cadastro usado
 

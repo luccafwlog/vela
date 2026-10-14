@@ -137,7 +137,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Importar arquivos (B/L, CE, Baplie, veículos, Vazios, Granito, datas, Base de Clientes, programação) | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de importação com `is_active_user()` | ADR 0078, item 10; ADR 0085, D15 | vigente; Baplie sem container recusado no banco (migration `237`, **Teste** local) |
 | Reprocessar efeito de importação, com justificativa | ✔ | ✔ | ✔ | ✔ | ✔ | `retry_import_effect` | ADR 0085, D10 | migration `252` |
 | Excluir ou mover veículo, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `delete_vehicles_with_reason` (migration `184`), `move_vehicles_to_bl` (migration `202`) | ADR 0078, item 23 | vigente |
-| Excluir unidade manual e linha de serviço de vazios antes do ADR de Saída fechado | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de Vazios e `delete_catalog_row` | ADR 0071, item 4 | correção pendente: a trava pelo ADR fechado não existe (B14) |
+| Excluir unidade manual e linha de serviço de vazios antes do ADR de Saída fechado | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de Vazios e `delete_catalog_row` | ADR 0071, item 4 | migration `262` (B14): o banco recusa com o ADR de Saída fechado; Excluir unidade pede motivo |
 | Remover o CE Mercante do B/L sem fatura viva, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `remove_bl_ce_mercante` | ADR 0078, item 5 | vigente |
 | Criar e editar navio, armador, porto, Local e serviço | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()` | ADR 0046 | vigente |
 | Excluir cadastro sem uso, com motivo | ✔ | — | — | — | — | `delete_catalog_row` (migration `096`), que ainda não aceita navio, armador, porto nem tabela de Taxas Locais | ADR 0046; ADR 0073 | vigente: sem DELETE direto pela API (migration `235`, **Teste** local); navio, armador, porto e tabela de Taxas Locais não têm exclusão |

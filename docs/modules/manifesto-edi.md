@@ -389,8 +389,10 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
 - **Incluir, editar e excluir unidade** à mão usa RPCs atômicas
   (`create_manual_vazios_booking`, `update_manual_vazios_booking`,
   `delete_manual_vazios_booking`) com as mesmas regras de local e datas e
-  mensagem de validação segura; a exclusão pede confirmação, sem motivo, e não
-  deixa manifesto órfão.
+  mensagem de validação segura; a exclusão pede confirmação com motivo, gravado
+  no rastro, é recusada com o ADR de Saída fechado da escala (reabrir o ADR
+  solta a trava; B14, migration `262`) e não deixa manifesto órfão. A exclusão
+  de Linha de Serviço (`delete_catalog_row`) segue a mesma trava.
 - **Linha de Serviço.** Declaração de um serviço efetivamente performado:
   **Local**, **Natureza**, **Serviço** (do catálogo daquele local),
   **Quantidade** e **Valor unitário**; o serviço de transporte leva a rota (o

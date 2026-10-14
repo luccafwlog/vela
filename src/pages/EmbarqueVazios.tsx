@@ -876,18 +876,19 @@ export function EmbarqueVazios() {
                             disabled={!canEdit}
                             aria-label={`Excluir unidade ${item.container_number}`}
                             onClick={async () => {
-                              const confirmed = await confirm({
+                              // B14: Excluir pede motivo (ADR 0072); o banco recusa com o ADR de Saída fechado.
+                              const reason = await confirmWithReason({
                                 title: "Excluir unidade",
                                 message: `Excluir a unidade ${item.container_number} deste embarque?`,
                                 consequence:
-                                  "A unidade sai do embarque, da contagem de vazios e do ADR de Saída desta escala.",
+                                  "A unidade sai do embarque, da contagem de vazios e do ADR de Saída desta escala. Com o ADR de Saída fechado, o banco recusa: reabra o ADR antes.",
                                 reversibility: "Inclua a unidade de novo se precisar.",
                                 confirmLabel: "Excluir",
                                 tone: "danger",
                               });
-                              if (!confirmed) return;
+                              if (reason === null) return;
                               void notify(async () => {
-                                await deleteManualVaziosBooking(item.id);
+                                await deleteManualVaziosBooking(item.id, reason);
                                 clearUnit();
                                 await refreshOperationData();
                               }, "Unidade excluída.");
