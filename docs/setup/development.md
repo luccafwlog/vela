@@ -29,8 +29,10 @@ VITE_SUPABASE_ANON_KEY=<anon key>
 ```
 
 Em `main`, o Cloudflare Pages usa as credenciais públicas de produção. Nos
-Previews, o workflow usa as variáveis da branch Supabase automática
-correspondente à PR; não cadastre um valor global fixo para Preview. Como todo
+Previews, o workflow usa as credenciais públicas da branch Supabase de Preview
+vinculada à PR, criada à mão no painel (o Automatic branching está desligado;
+ver [deploy.md](deploy.md#workflows)); não cadastre um valor global fixo para
+Preview. Como todo
 `VITE_*` chega ao bundle do navegador, não coloque segredos server-side nelas.
 
 Sem `VITE_SUPABASE_*` a aplicação loga erro e o cliente Supabase fica vazio. As demais variáveis (`SUPABASE_*`) são usadas apenas nos [testes de integração](testing.md).
@@ -54,20 +56,21 @@ INSERT INTO public.user_profiles (id, role, active)
 VALUES ('<auth-user-uuid>', 'administrativo', true);
 ```
 
-Roles disponíveis: `administrativo` · `financeiro` · `operacoes` · `documentacao` (ver [Admin Usuários](../modules/operacao-suporte.md#admin-usuários) e [Segurança](../operations/seguranca.md)).
+Os setores aceitos no `role` e o que cada um pode estão em
+[Segurança § Roles internas](../operations/seguranca.md#roles-internas); a tela
+que os gerencia é a [Administração](../modules/operacao-suporte.md#admin).
 
 ## 5. Edge Functions (opcional no dev local)
 
-Variáveis necessárias nas Edge Functions do Supabase:
-
-| Variável | Descrição |
-|---|---|
-| `RESEND_API_KEY` | Chave Resend (envio de email de invoice) |
-| `FROM_EMAIL` | Remetente (ex: `Transhipping <noreply@…>`) |
-| `PORTAL_URL` | URL base do portal do cliente |
-| `APP_URL` | URL do app usada pelas Edge Functions do Portal |
-| `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` | Opcional; URLs HTTPS exatas de Preview, separadas por vírgula, para CORS sem wildcard |
-| `PORTAL_LOGIN_DUMMY_AUTH_USER_ID` | UUID de identidade técnica confirmada, sem vínculo em `customer_portal_accounts`, usada para equalizar o custo de logins com CNPJ inexistente |
+Os nomes dos segredos das Edge Functions têm um único dono: a tabela
+[Secrets das Edge Functions](../operations/servicos-externos.md#secrets-das-edge-functions)
+do manual de serviços externos. Para o Portal funcionar, o mínimo é
+`PORTAL_PASSWORD_PEPPER` (antes de publicar as funções de login e senha),
+`PORTAL_LOGIN_DUMMY_AUTH_USER_ID` (UUID de uma identidade técnica confirmada,
+sem vínculo em `customer_portal_accounts`, que equaliza o custo do login com
+CNPJ inexistente), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e `RESEND_API_KEY`;
+o Resend envia convites, recuperação de senha, resumo diário, Comunicados e
+Cobrança de Demurrage.
 
 ## 6. Rodar
 

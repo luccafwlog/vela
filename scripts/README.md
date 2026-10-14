@@ -187,7 +187,8 @@ Antigravity ficam fora desse ownership.
 **Quando usar:** revise primeiro com `--dry-run`; aplique depois do `git pull`.
 O hook do Claude e o antigo instalador continuam funcionando como wrappers.
 Na primeira instalação limpa, use `skills:reset`: ele cria um backup dos stores
-pessoais, valida a árvore das skills e instala somente as 14 skills ativas.
+pessoais, valida a árvore das skills e instala somente as skills ativas (o
+catálogo é o de [`skills/README.md`](../skills/README.md)).
 Depois disso, `skills:sync` mantém as cópias atualizadas de forma incremental.
 O ledger histórico contém as 37 remoções aprovadas e serve para auditoria e
 migrações antigas; ele não substitui o reset total.
@@ -299,11 +300,13 @@ termina com erro de propósito — serve como portão antes da migração real.
 
 ## 10. Backup lógico cifrado para R2 (`backup:r2`)
 
-**O que faz:** em modo padrão, apenas ensaia um backup semanal do schema
-`public`. Com `--execute`, lê a conexão PostgreSQL do ambiente, gera `pg_dump`
+**O que faz:** em modo padrão, apenas ensaia o backup do schema `public`. Com
+`--execute`, lê a conexão PostgreSQL do ambiente, gera `pg_dump`
 custom, cifra localmente com AES-256-GCM, valida com `pg_restore --list` e envia
 o arquivo e um manifesto sem segredos para um bucket R2 privado. Não cria
-recursos Cloudflare, não apaga objetos e não restaura banco.
+recursos Cloudflare, não apaga objetos e não restaura banco. Em produção, o
+backup diário roda numa tarefa agendada fora do GitHub, descrita no
+[manual de serviços externos](../docs/operations/servicos-externos.md#backup).
 
 ```powershell
 npm run backup:r2 -- --dry-run --environment staging --project-ref <PROJECT_REF>
@@ -316,7 +319,7 @@ Dashboard estão em [`docs/operations/backup-r2.md`](../docs/operations/backup-r
 ## 11. Usuário admin da Preview (`provision-preview-admin`)
 
 **O que faz:** cria ou atualiza o usuário `qa-admin@example.test` usando a Auth
-Admin API e garante o perfil interno `admin` na branch Supabase indicada pelas
+Admin API e garante o perfil interno `administrativo` na branch Supabase indicada pelas
 variáveis `SUPABASE_URL` e `SUPABASE_SECRET_KEY` (ou a chave legada
 `SUPABASE_SERVICE_ROLE_KEY`).
 
@@ -342,7 +345,8 @@ restante do fixture sem expor ou substituir a credencial silenciosamente.
 > `branches get`: o nome de uma branch Supabase criada à mão não aceita `/`.
 > `resolve-supabase-branch.mjs` lê `supabase branches list -o json` e devolve o
 > id da branch cujo `git_branch` ("Sync with Git branch") é a branch da PR, ou
-> cujo nome é igual a ela (Automatic Branching).
+> cujo nome é igual a ela (branch criada pelo Automatic Branching, hoje
+> desligado).
 
 ---
 
@@ -394,7 +398,7 @@ e não deve ser substituída pelo dump.
 | `setup-local-pg` | Banco descartável para testar migrations (macOS/Linux) |
 | `perf/measure-page-load` | Medir a leveza/velocidade das telas |
 | `build-behavioral-spec` | Gerar a planilha Excel da especificação |
-| `skills:report` | Inventariar as 14 skills nos stores pessoais |
+| `skills:report` | Inventariar as skills nos stores pessoais |
 | `skills:usage` | Medir sinais observáveis de uso por aplicativo |
 | `skills:reset` | Simular ou reconstruir os stores pessoais com backup |
 | `skills:sync` | Sincronizar skills Vela com ownership e dry-run |

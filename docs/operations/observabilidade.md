@@ -34,13 +34,16 @@ jobs remotos.
 
 ### Monitores HTTP iniciais
 
-Quando houver monitores ativos no Better Stack, os HTTP checks públicos e sem
-autenticação esperados são:
+Os HTTP checks públicos e sem autenticação são:
 
-| Monitor | URL | Sucesso mínimo | Cadência |
-|---|---|---|---|
-| Vela interno | `https://vela.app.br/` | HTTP 200 e resposta HTML | 5 min |
-| Portal login | `https://portalfwlog.com.br/portal/login` | HTTP 200 e resposta HTML | 5 min |
+| Monitor | URL | Sucesso mínimo |
+|---|---|---|
+| Vela interno | `https://vela.app.br/` | HTTP 200 e resposta HTML |
+| Portal login | `https://portalfwlog.com.br/portal/login` | HTTP 200 e resposta HTML |
+
+A cadência e o estado dos monitores cadastrados ficam no
+[manual de serviços externos](servicos-externos.md#better-stack-site-no-ar-e-rotinas),
+dono da configuração remota.
 
 Esses checks provam apenas que o shell público está servido. Não substituem o
 teste autenticado de login, faturamento ou `portal_ship_schedule` proposto na
@@ -62,7 +65,10 @@ ao bundle nem commitadas no Git:
 
 O ping de sucesso ocorre estritamente após a conclusão bem-sucedida do job. Se a
 URL não estiver configurada no Supabase, a função executa normalmente e ignora o
-ping. O monitor no painel do Better Stack deve alertar pela ausência de ping além
+ping. Só esses quatro runners enviam heartbeat: `itau-pix` (job
+`itau-pix-queue`) e `import-effects-runner` não enviam; para a fila de efeitos,
+a parada é avisada pelo Alerta `import_effects_queue_stalled`. O monitor no
+painel do Better Stack deve alertar pela ausência de ping além
 da janela acordada (ex.: 70 min para job horário).
 
 **Estado atual:** a instrumentação repository-side dos 4 runners principais está
@@ -79,10 +85,9 @@ O código agora aceita DSNs públicos distintos por entrada do build:
 | `vela-internal` | `src/main.tsx` / `index.html` | `VITE_SENTRY_DSN_INTERNAL` | `internal` |
 | `vela-portal` | `src/portal-main.tsx` / `portal.html` | `VITE_SENTRY_DSN_PORTAL` | `portal` |
 
-`VITE_SENTRY_ENVIRONMENT` deve ser `production` no deploy de produção e
-`preview` no Preview. O valor padrão compatível é `production`; portanto, não
-se deve habilitar uma regra de alerta baseada nesse ambiente em Previews até a
-variável `preview` estar configurada e verificada no environment dos builds Pages.
+`VITE_SENTRY_ENVIRONMENT` é `production` no workflow de produção do Pages e
+`preview` no workflow de Preview (`cloudflare-pages-preview.yml`), que a define
+no passo de build. Sem a variável, o padrão é `production`.
 
 Os DSNs separados estão configurados nos builds de produção do Pages. A resolução
 mantém o DSN legado como fallback se uma variável por superfície estiver ausente.
@@ -94,7 +99,8 @@ superfície. O Portal também aplica `area=portal` depois de hidratar a sessão.
 ### Erros das Edge Functions
 
 `supabase/functions/_shared/telemetry.ts` usa o SDK oficial `@sentry/deno`
-(`npm:@sentry/deno@10.73.0`) somente quando uma função falha com exceção não
+(versão fixada em `supabase/functions/deno.json`) somente quando uma função
+falha com exceção não
 tratada ou resposta 5xx. O wrapper é aplicado a `portal-invite-send`,
 `send-customer-communication`, `portal-email-webhook`, `demurrage-dunning` e
 seis runners. Captura apenas classe genérica de erro e tags operacionais
@@ -125,16 +131,11 @@ instrumentada disponível exige um segredo operacional e não havia ambiente de
 teste controlado nesta sessão. Para concluir a conferência, observar um erro
 real em ambiente controlado ou usar uma rota de teste sem efeitos de negócio.
 
-## Fora do escopo e blockers
+## Pendências
 
-- A conta Better Stack existe, mas o painel autenticado mostrou zero monitores
-  e nenhuma status page em 2026-09-22. Sentry já tem projetos; esta tarefa não
-  cria integrações de canal.
-- Não foram gerados API keys, heartbeat URLs, DNS records ou alertas.
-- Não foram alterados PostHog ou R2. `.github/dependabot.yml` agora também
-  acompanha as dependências Deno declaradas no manifesto das Edge Functions.
-- A separação dos projetos está configurada. Falta observar um evento real de
-  Edge Function chegando ao Sentry; a instrumentação Edge depende do runtime e
-  não deve ser provocada por falha em fluxo de negócio de produção.
-- Heartbeats de `pg_cron` dependem de uma implementação posterior nos runners
-  e da confirmação das cadências reais no ambiente remoto.
+- Falta observar um evento real de Edge Function chegando ao Sentry (ver
+  [Evidência de runtime pendente](#evidência-de-runtime-pendente)); a
+  instrumentação Edge depende do runtime e não deve ser provocada por falha em
+  fluxo de negócio de produção.
+- `.github/dependabot.yml` acompanha também as dependências Deno declaradas no
+  manifesto das Edge Functions.

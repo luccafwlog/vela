@@ -19,8 +19,10 @@ jobs:
       github.event.pull_request.head.repo.id == github.event.repository.id &&
       vars.CLOUDFLARE_PAGES_ACCESS_CONFIGURED == 'true'
     runs-on: ubuntu-latest
-    # Environment com deployment branch = main (auditoria run-2, #14): o token
-    # só existe para jobs que rodam a partir de main.
+    # Environment sem restrição de branch: o dono recusou restringi-lo a main
+    # em 2026-10-06 (auditoria run-2, #14; risco aceito). O código confiável
+    # vem da branch padrão (pull_request_target e checkout dela), não do
+    # environment.
     environment: cloudflare-pages
     steps:
       - name: Checkout trusted cleanup script
