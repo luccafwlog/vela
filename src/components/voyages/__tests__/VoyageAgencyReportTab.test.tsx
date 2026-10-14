@@ -1448,3 +1448,17 @@ it('B2: a Carga descarregada do ADR terminalizado é só a dos B/Ls do terminal,
   expect(snapshot.sections.cargaDescarregada.rows).toEqual({ '40HC': { carga_geral: 1 } })
   expect(snapshot.sections.cargaSolta).toMatchObject({ bls: 1, weightTon: 10 })
 })
+
+it('B7: a seção Veículos fica no painel de Equipamentos, que conta e mostra as três seções', () => {
+  useAgencyReportOwnMock.mockReturnValue({ data: { status: 'open', terminal: 'TVV', signoffs: [], departmentSignoffs: [], occurrences: [], actor_names: {} } })
+  useAgencyReportDerivedMock.mockReturnValue({
+    data: { containers: [], vehicles: [], vaziosImp: [], granite: [], vaziosExp: [], storage: {}, operation: {}, schedule: {} },
+    isLoading: false,
+    error: null,
+  })
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+  const panelOf = (title: string) => screen.getByRole('heading', { name: title }).closest('div.app-panel') as HTMLElement
+  expect(within(panelOf('Documentação')).queryByText('Veículos')).toBeNull()
+  expect(within(panelOf('Equipamentos')).getByText('Veículos')).toBeTruthy()
+  expect(within(panelOf('Equipamentos')).getByText('0/3 seções')).toBeTruthy()
+})
