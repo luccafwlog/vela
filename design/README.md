@@ -29,11 +29,11 @@ páginas e carrega as notas do canvas.
 
 ## Sistema de design
 
-Os valores foram extraídos de `src/index.css`, não aproximados: papel
-`#f4f1ea`, superfície `#ffffff`, borda `#cdc8bc`, navy `#152238`, ouro
-`#d4882e`, azul de ação `#1d4d88`; raio 8px, altura de controle 44px; Syne no
-display, DM Sans no corpo, IBM Plex Mono nos números. Ao alterar um artboard,
-puxe o valor do CSS de novo em vez de copiar daqui.
+Os tokens (cores, raio, altura de controle e fontes) vivem em `src/index.css`,
+que é a fonte única: eles mudaram depois destes artboards e podem mudar de novo,
+inclusive por densidade (o Vela com mouse usa controles mais baixos). Ao alterar
+um artboard, leia o valor no CSS na hora, em vez de copiá-lo de um artboard ou
+deste arquivo.
 
 ## Regerar e republicar
 

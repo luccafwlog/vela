@@ -8,8 +8,10 @@ com abas que já existem, mudando hierarquia e densidade. As direções
 descartadas não ficam versionadas: o registro da decisão vive na história do
 git e no pull request.
 
-O trabalho segue aba por aba. A primeira fechada é a **Visão geral**, no
-recorte da tabela de Planejamento por escala e do bloco de Atracações.
+Este canvas é o registro do redesenho de agosto de 2026, entregue em sete
+blocos (PRs #588 e #591–#599; ver o [CHANGELOG](../../docs/CHANGELOG.md)); não
+há trabalho em andamento nele. A página mudou de novo depois, na revisão visual
+de outubro de 2026: a tela vigente é a do código, não a destes artboards.
 
 Cada aba tem um par antes/depois lendo os mesmos dados. O ADR tem um terceiro
 artboard, `AdrEstados`, com as hipóteses que o fluxo cheio não mostra — os
@@ -104,11 +106,12 @@ canvas.json`), republicando no mesmo Artifact.
 
 > **`seed-canvas.mjs` não está neste repositório.** Ele pertence ao skill
 > `design` e só existe na máquina de quem tem esse skill instalado — não há como
-> republicar o canvas a partir de um clone limpo. O que **é** reproduzível aqui,
-> e é o que o CI e a revisão conferem, são os artefatos versionados: `node
-> build.mjs && node canvas.mjs` regenera os `.dc.html`, o `heights.json` e o
-> `canvas.json` de forma determinística, byte a byte. A semeadura é o último
-> passo, manual, e só quem for republicar precisa dele.
+> republicar o canvas a partir de um clone limpo. O que **é** reproduzível aqui
+> são os artefatos versionados: `node build.mjs && node canvas.mjs` regenera os
+> `.dc.html`, o `heights.json` e o `canvas.json` de forma determinística, byte a
+> byte. Nenhum passo do CI roda esses scripts nem confere os `.dc.html`; a
+> conferência fica com quem revisa. A semeadura é o último passo, manual, e só
+> quem for republicar precisa dele.
 >
 > Consequência prática: quem alterar um `.mjs` **precisa commitar os `.dc.html`,
 > o `heights.json` e o `canvas.json` regerados junto** — quem revisa não

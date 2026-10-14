@@ -425,7 +425,10 @@ cancelamento de baixa de Demurrage.
   CRC-16). Esse builder não é usado na emissão; o QR estático real é montado no
   banco por `build_transshipping_pix_payload` (ver a integração local abaixo).
 - `src/lib/__tests__/pixDecoder.test.ts`: decoder independente do BR Code
-  estático, com o vetor oficial do Manual Pix e CRC adulterado.
+  estático, com o vetor oficial do Manual Pix e CRC adulterado. A conferência
+  normativa dos campos (Manual de Padrões para Iniciação do Pix 2.10.0 e Manual
+  BR Code 2.0.1) está no
+  [relatório histórico de 2026-09-10](../archive/reports/2026-09-10-br-code-pix-estatico.md).
 - `src/pages/__tests__/Reconciliacao.behavior.test.tsx`: monitor Itaú em
   Brasília e consulta parada, Pix tratado com motivo e foco, leitura com
   exceções salvas, linhas ocultas, lote recusado, resultado parcial honesto,

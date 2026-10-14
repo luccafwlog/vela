@@ -7,8 +7,9 @@ Windows do playbook em `scripts/design-audit/` (que assume Linux/Docker).
 ## Uso
 
 ```powershell
-# Primeira vez (ou para resetar os dados): cria o banco, aplica as 204
-# migrations, faz o seed. Instala o stub pg_cron (pede UAC uma vez).
+# Primeira vez (ou para resetar os dados): cria o banco, aplica todas as
+# migrations de supabase/migrations/, faz o seed. Instala o stub pg_cron
+# (pede UAC uma vez).
 powershell -ExecutionPolicy Bypass -File scripts\design-audit\win\local-stack.ps1 -Rebuild
 
 # Nas próximas vezes: só religa o shim (o banco já existe, o serviço

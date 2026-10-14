@@ -6,9 +6,17 @@
 
 - [2026-10-08 — Correção das pendências da auditoria das etapas 00–05](2026-10-08-correcao-pendencias-auditoria-etapas-00-05.md) — R0 a R6 concluídos (PR 903 na `main`), ficha da viagem restaurada com melhorias, N1 e N2 decididos; viagem cancelada fora do Line-Up.
 
+- [2026-10-07 — Desbloqueio de CE: revisão do fluxo](2026-10-07-desbloqueio-ce-revisao-fluxo.md) — executado localmente e arquivado em 2026-10-07; publicação (migrations `160`–`161`) e agenda do e-mail conferidas em produção em 2026-10-10 no plano vivo do [Desbloqueio de CE](../../plans/2026-10-04-desbloqueio-ce-mercante.md), que guarda a homologação da planilha com a ZPT.
+
+- [2026-10-06 — Integração Itaú Pix](2026-10-06-integracao-itau-pix.md) — concluído e arquivado em 2026-10-08: QR dinâmico e baixa automática pela consulta de 1 minuto em produção para todos os tipos de fatura; webhook (Fase 6, opcional) não executado. Evidência no [relatório de execução](../reports/2026-10-07-integracao-itau-pix-execucao.md).
+
 - [2026-10-05 — Integração das PRs 845, 846 e 847](2026-10-05-integracao-prs-845-846-847.md) — correções entregues; evidências e Preview no relatório de execução.
 
-- [2026-10-04 — Central de Informações do Portal](2026-10-04-portal-informacoes.md) — implementação e validação locais; produção não publicada.
+- [2026-10-04 — Central de Informações do Portal](2026-10-04-portal-informacoes.md) — implementação e validação locais em 2026-10-04; o código entrou na `main` com a integração das PRs 845–847 (migrations `137` e `138`) e estava nos sites publicados na leitura de produção de 2026-10-13 (registrada no [plano do Desbloqueio de CE](../../plans/2026-10-04-desbloqueio-ce-mercante.md)). Regra vigente no [módulo do Portal](../../modules/portal-cliente.md#central-de-informações).
+
+- [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — fases 1 a 6 (ADRs 0071–0074) mergeadas em 2026-09-25, com as migrations `086`–`095` conferidas em produção no mesmo dia e a `096` mergeada junto; backup restaurado e verificação por papel em produção em 2026-10-05; arquivado com as pendências registradas no próprio plano.
+
+- [2026-09-24 — Configuração dos serviços externos e migração para Cloudflare](2026-09-24-configuracao-servicos-e-migracao-cloudflare.md) — concluído em 2026-09-28; operação vigente no [manual dos serviços externos](../../operations/servicos-externos.md).
 
 Planos concluídos, encerrados ou superados, consolidados aqui em 2026-07-18
 (antes divididos entre `docs/archive/plans/` e

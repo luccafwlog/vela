@@ -41,7 +41,9 @@ uma autorização silenciosa:
 
 1. decisões explícitas do usuário na sessão atual;
 2. objetivo e requisitos atuais, incluindo pedido, plano, spec ou issue;
-3. CONTEXT.md e glossário do sistema;
+3. doc do módulo em `docs/modules/` (regra vigente) e
+   `docs/operations/regras-de-negocio.md` (regra que atravessa módulos), com
+   CONTEXT.md como vocabulário;
 4. ADRs e documentação ativa, verificando se ainda estão vigentes;
 5. comportamento observado no produto e no código;
 6. documentos históricos, comentários e decisões antigas já superadas.

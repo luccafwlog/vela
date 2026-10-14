@@ -187,5 +187,8 @@ Mattpocock skills: see https://github.com/mattpocock/skills for licensing terms.
 Superpowers skills: see original source for licensing terms.
 Cloudflare skills: see `skills/security-audit/LICENSE.txt` (MIT License, Cloudflare, Inc.).
 Frontend Design: see `frontend-design/LICENSE.txt`.
-The removed vendored skills remain documented in the dated audit report under
-`docs/skills/` for traceability; they are not part of the active catalog.
+The removed vendored skills remain documented in the
+[dated audit report of 2026-09-18](../docs/archive/audits/2026-09-18-auditoria-skills.md)
+for traceability; they are not part of the active catalog. That report and its
+inventories are historical snapshots; the current inventory comes from
+`npm run skills:report`.

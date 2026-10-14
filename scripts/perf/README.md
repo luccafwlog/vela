@@ -1,4 +1,11 @@
-# Medição de inicialização autenticada
+# Medições de desempenho
+
+Ferramentas de medição desta pasta. O orçamento de carga das rotas
+(`measure-page-load.mjs`) está documentado em
+[Testes › Orçamento de carga das rotas](../../docs/setup/testing.md#orçamento-de-carga-das-rotas-performance),
+dono do comando.
+
+## Inicialização autenticada
 
 O harness `measure-authenticated-startup.mjs` mede o caminho frio de `/login`
 até o primeiro heading do `/painel`. Ele cria um contexto novo por rodada,
