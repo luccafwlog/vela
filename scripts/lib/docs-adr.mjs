@@ -16,8 +16,13 @@ export function adrFileStatus(content) {
   return match ? match[1].toLowerCase() : null
 }
 
+// A faixa abre a ADR: é a primeira linha não vazia depois do título, para o
+// leitor ver o que mudou antes do contexto original (CONVENCOES.md).
 export function hasSituationBanner(content) {
-  return /^> \*\*Situação atual \(\d{4}-\d{2}-\d{2}\)\.\*\*/m.test(content)
+  const lines = content.split(/\r?\n/)
+  const title = lines.findIndex((line) => /^# /.test(line))
+  const opening = lines.slice(title + 1).find((line) => line.trim() !== '')
+  return /^> \*\*Situação atual \(\d{4}-\d{2}-\d{2}\)\.\*\*/.test(opening ?? '')
 }
 
 export function adrNeedsBanner(status) {

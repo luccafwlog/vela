@@ -10,6 +10,8 @@ assert.equal(adrFileStatus('# 0012 — X\n\nO Status: aceito foi discutido.\n'),
 
 assert.equal(hasSituationBanner('# X\n\n> **Situação atual (2026-10-13).** A regra vigente está no módulo.\n'), true)
 assert.equal(hasSituationBanner('# X\n\n> **Nota editorial — 2026-09-23.** Algo mudou.\n'), false)
+assert.equal(hasSituationBanner('# X\n\nStatus: estendida\n\n> **Situação atual (2026-10-13).** Tarde demais.\n'), false)
+assert.equal(hasSituationBanner('# X\n\n## Contexto\n\n> **Situação atual (2026-10-13).** Citada no corpo.\n'), false)
 assert.equal(adrNeedsBanner('aceito'), false)
 assert.equal(adrNeedsBanner('estendida'), true)
 assert.equal(adrNeedsBanner('supersedida parcialmente'), true)
@@ -33,4 +35,4 @@ assert.equal(isDatedLivingDocument('docs/spec/2026-10-04-desbloqueio-ce-mercante
 assert.equal(isDatedLivingDocument('docs/archive/audits/2026-09-19-overhaul-documental.md'), false)
 assert.equal(isDatedLivingDocument('docs/modules/viagens.md'), false)
 
-console.log('docs-adr: status line, banner, index column lookup and dated-document placement checks passed.')
+console.log('docs-adr: status line, banner below the title, index column lookup and dated-document placement checks passed.')
