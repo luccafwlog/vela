@@ -518,21 +518,6 @@ export function filterDepartmentReopeningEvents(
   return events.filter((event) => event.department === department && event.new_value === 'false')
 }
 
-export async function addOccurrence(input: {
-  voyageId: number
-  port: string
-  body: string
-  section?: AgencyReportSection
-}) {
-  const { error } = await supabase.rpc('add_agency_report_occurrence', {
-    p_voyage_id: input.voyageId,
-    p_port: input.port,
-    p_body: input.body,
-    p_section: input.section,
-  })
-  if (error) throw error
-}
-
 export async function setTerminal(input: { voyageId: number; port: string; terminal: string }) {
   const { error } = await supabase.rpc('set_agency_report_terminal', {
     p_voyage_id: input.voyageId,

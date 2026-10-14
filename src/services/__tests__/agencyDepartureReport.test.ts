@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   AGENCY_REPORT_SECTIONS,
-  addOccurrence,
   buildContainerTypeMatrix,
   groupEmptyEmbarkBookings,
   groupVehiclesByBrand,
@@ -766,34 +765,6 @@ describe('setSignoff', () => {
       p_port: 'BRVIX',
       p_section: 'datas',
       p_state: 'confirmed',
-    })
-  })
-})
-
-describe('addOccurrence', () => {
-  it('chama a RPC com a tag de seção opcional', async () => {
-    rpcMock.mockResolvedValue({ error: null })
-
-    await addOccurrence({ voyageId: 7, port: 'BRVIX', body: 'Atracação concluída.', section: 'vazios_embarcados' })
-
-    expect(rpcMock).toHaveBeenCalledWith('add_agency_report_occurrence', {
-      p_voyage_id: 7,
-      p_port: 'BRVIX',
-      p_body: 'Atracação concluída.',
-      p_section: 'vazios_embarcados',
-    })
-  })
-
-  it('omite a seção quando não informada', async () => {
-    rpcMock.mockResolvedValue({ error: null })
-
-    await addOccurrence({ voyageId: 7, port: 'BRVIX', body: 'Sem tag.' })
-
-    expect(rpcMock).toHaveBeenCalledWith('add_agency_report_occurrence', {
-      p_voyage_id: 7,
-      p_port: 'BRVIX',
-      p_body: 'Sem tag.',
-      p_section: undefined,
     })
   })
 })

@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../services/agencyDepartureReport', () => ({
-  addOccurrence: vi.fn(),
   closeReport: mocks.closeReport,
   getAgencyReportDerivedData: vi.fn(),
   getAgencyReportOwnData: vi.fn(),
