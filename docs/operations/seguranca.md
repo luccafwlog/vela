@@ -93,8 +93,8 @@ assinaturas do ADR de Saída continuam com o Departamento dono.
 | Cancelar e reativar Viagem e B/L; reverter omissão de escala; reabrir ADR de Saída fechado | Administrativo | [Viagens](../modules/viagens.md) |
 | Desativar e reativar Cliente | Administrativo | [Clientes](../modules/clientes.md) |
 | Desativar e reativar tarifa (tabela, item, condição de Cliente, tarifa e acordo de Demurrage, tarifa de Granito) | Administrativo | [Taxas Locais](../modules/taxas-locais.md) |
-| Exclusão operacional protegida (`delete_records`) | Administrativo, respeitando a Trava de exclusão ([ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md); migration `088`) | [Regras de negócio](regras-de-negocio.md#hard-delete-controlado) |
-| Excluir escala de exportação sem vínculo (migration `080`) e veículos, com motivo (migration `184`) | Qualquer Departamento ativo | [Viagens](../modules/viagens.md), [Manifesto/EDI](../modules/manifesto-edi.md) |
+| Exclusão operacional protegida (`delete_records`) e Excluir escala (`delete_escala`), inclusive a de exportação | Administrativo, com motivo, respeitando a Trava de exclusão ([ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md)); a migration `088` desfez a abertura da `080` e devolveu a policy de DELETE de `voyage_export_schedules` a `is_admin()` | [Regras de negócio](regras-de-negocio.md#hard-delete-controlado), [Viagens](../modules/viagens.md) |
+| Excluir veículos, com motivo (`delete_vehicles_with_reason`, migration `184`) | Qualquer Departamento ativo | [Manifesto/EDI](../modules/manifesto-edi.md) |
 | Excluir unidade manual e linha de serviço de vazios | Qualquer Departamento ativo; a ADR 0071 (item 4) prevê a trava pelo ADR de Saída fechado, que o banco ainda não impõe (decisão pendente D0-09) | [Manifesto/EDI](../modules/manifesto-edi.md) |
 | Remover o CE Mercante do B/L | Qualquer Departamento ativo, com motivo | [Manifesto/EDI](../modules/manifesto-edi.md) |
 | Importações de arquivo | Qualquer Departamento ativo, com o rastro no Histórico ([ADR 0078](../adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)) | [Manifesto/EDI](../modules/manifesto-edi.md) |
