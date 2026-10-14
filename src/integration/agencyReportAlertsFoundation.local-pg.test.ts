@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -122,5 +122,18 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
     `)
     expect(psql(`SELECT (signed_at IS NULL)::text FROM public.agency_departure_report_department_signoffs WHERE report_id='${reportId}' AND department='operacoes';`)).toBe('true')
     expect(psql(`SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE a.entity_id='${entityId}' AND i.department='operacoes' AND i.status='active' AND i.item_type IN ('agency_report_department_pending', 'agency_report_deadline_missed');`)).toBe('2')
+  })
+
+  // B5 (ADR 0029; migration 257): no ADR terminalizado, o banco recusa o sign-off departamental com seção Pendente.
+  it('B5 — sign-off departamental recusa seção Pendente pela API', () => {
+    const asUser = (userId: string, sql: string) => spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${userId}'; SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql}; COMMIT;`], { encoding: 'utf8' })
+    // O teste anterior deixou 'datas' (Operações) Pendente; as seções da Documentação estão resolvidas.
+    const pending = asUser(opsId, `SELECT public.set_agency_report_department_signoff_by_report_id('${reportId}', ${voyageId}, 'BRSSZ', 'operacoes', true)`)
+    expect(pending.status).not.toBe(0)
+    expect(pending.stderr).toMatch(/secoes pendentes/)
+    expect(psql(`SELECT count(*) FROM public.agency_departure_report_department_signoffs WHERE report_id='${reportId}' AND department='operacoes' AND signed_at IS NOT NULL;`)).toBe('0')
+    const resolved = asUser(docsId, `SELECT public.set_agency_report_department_signoff_by_report_id('${reportId}', ${voyageId}, 'BRSSZ', 'documentacao', true)`)
+    expect(resolved.stderr).toBe('')
   })
 })
