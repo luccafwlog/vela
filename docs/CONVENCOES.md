@@ -13,6 +13,7 @@ Cada fato tem um único documento dono ([ADR 0082](adr/0082-governanca-documenta
 | Termo, entidade, estado e distinção entre conceitos próximos | [CONTEXT.md](../CONTEXT.md) (glossário) |
 | Regra vigente de um domínio, telas e ações | Módulo correspondente no [índice documental](README.md) |
 | Regra que atravessa módulos | [regras-de-negocio.md](operations/regras-de-negocio.md) |
+| Quem pode cada ação (perfil × ação) | [Segurança § Modelo de permissões por perfil](operations/seguranca.md#modelo-de-permissões-por-perfil) |
 | Procedimento do usuário do Financeiro | [Manual financeiro](operations/manual-financeiro.md) |
 | Aparência, regras visuais e peças comuns de tela | [identidade-visual.md](identidade-visual.md) |
 | Camadas, integrações, modelo de dados e mapa de rotas | [ARCHITECTURE.md](ARCHITECTURE.md) |

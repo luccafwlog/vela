@@ -673,12 +673,13 @@ A regra e os procedimentos estão em [Segurança](operations/seguranca.md); aqui
 fica o desenho:
 
 - RLS protege tabelas expostas;
-- leitura interna global exige perfil ativo; a escrita usa as permissões e RPCs
-  atuais, sem assumir que todo papel pode toda mutação
+- leitura interna global exige perfil ativo; a escrita é de todo Departamento
+  ativo, com rastro, salvo as exceções da lista fechada
   ([ADR 0044](adr/0044-leitura-interna-global-departamento-restringe-escrita.md),
-  [ADR 0046](adr/0046-escrita-interna-global-com-rastro-obrigatorio.md));
-  administração, provisionamento, configurações e exclusões mantêm restrições
-  específicas;
+  [ADR 0046](adr/0046-escrita-interna-global-com-rastro-obrigatorio.md),
+  [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)); quem faz o quê
+  está na [matriz de Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil),
+  com o que o código ainda não cumpre marcado como correção pendente;
 - helpers como `is_active_user()`, `is_active_read_user()` e `is_admin()`
   sustentam policies; leitura de dado interno usa `is_active_read_user()`. Hoje
   `is_active_user()` tem o mesmo corpo (migration `002`: qualquer perfil interno
@@ -975,8 +976,9 @@ da ficha do Cliente. Tela e ações em
 A RPC entrega os campos completos a Administrativo, Documentação, Financeiro e
 Equipamentos e mascara para Operações o Email de Recuperação, os candidatos e o
 status de entrega. Vale a [ADR 0045](adr/0045-inspecao-do-portal.md):
-Operações vê os campos completos ([ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18); a retirada do
-mascaramento é correção pendente no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+Operações vê os campos completos ([ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18) e o Histórico
+([ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md), item D12); a retirada do
+mascaramento e a abertura do Histórico são correção pendente no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 
 ## Fontes relacionadas
 

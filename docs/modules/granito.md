@@ -14,14 +14,21 @@ As rotas são internas e ficam sob `ProtectedRoute` em
 inclusive Equipamentos, importa a planilha COSCO e calcula as taxas de Granito
 (ADR 0078, item 10). As tabelas operacionais (`granite_manifests`,
 `granite_bls`, `granite_bl_charges`) aceitam leitura, inserção e edição de
-usuário ativo e exclusão só do Administrativo (policies da migration `002`).
+usuário ativo e exclusão só do Administrativo (policies da migration `002`;
+hoje por DELETE direto, sem motivo, correção pendente no item P1 do plano).
 Nas tarifas (`granite_rates`), a tela mostra criar, editar, ativar/desativar e
 excluir só ao Administrativo; no banco, ativar ou desativar é só do
 Administrativo (gatilho `guard_tariff_active_change`, migration `091`), excluir
 é do Administrativo, com motivo, por `delete_catalog_row` (migration `096`), e
 tarifa já usada num cálculo não se exclui — só se desativa
 (`guard_used_tariff_delete`, `091`; ADR 0073). Os demais campos da tarifa
-seguem graváveis por usuário ativo pela API.
+seguem graváveis por usuário ativo pela API, que é a regra: pela
+[matriz de permissões](../operations/seguranca.md#demurrage-e-granito)
+([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D6), qualquer
+Departamento cria e edita a taxa; ativar, desativar e excluir são do
+Administrativo. A tela ainda esconde **Nova taxa** e **Editar** dos demais
+(correção pendente, item P9 do
+[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 
 O ownership é separado:
 
@@ -79,10 +86,11 @@ operação:
 [`src/pages/GraniteRates.tsx`](../../src/pages/GraniteRates.tsx) lista descrição,
 tipo ("Por kg", "Por tonelada", "Por B/L (fixo)" ou "Fixo global"; no banco,
 `per_kg`, `per_ton`, `per_bl` e `fixed`), valor unitário, moeda, vigência
-(datas "… a …", "desde …" ou "até …") e estado ativo de `granite_rates`. O
-Administrativo cria (**Nova taxa**), edita (**Editar** na linha),
-ativa/desativa (clicando no estado **Ativa**/**Inativa**) e exclui (**Excluir**
-na linha, com motivo; tarifa já usada num cálculo só se desativa).
+(datas "… a …", "desde …" ou "até …") e estado ativo de `granite_rates`. Hoje
+a tela oferece só ao Administrativo criar (**Nova taxa**), editar (**Editar**
+na linha), ativar/desativar (clicando no estado **Ativa**/**Inativa**) e
+excluir (**Excluir** na linha, com motivo; tarifa já usada num cálculo só se
+desativa). Criar e editar passam a todos pelo item P9 do plano.
 
 ### Entrada por `/viagens/:voyageId`
 

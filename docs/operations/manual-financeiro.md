@@ -4,19 +4,24 @@ Edição atualizada em 2026-10-14. Os procedimentos valem para o ambiente public
 
 ## 1. Quem faz e onde
 
+Quem pode cada ação é decidido na [matriz de permissões](seguranca.md#modelo-de-permissões-por-perfil) ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md)). A coluna abaixo resume a regra; "hoje" diz quem o sistema aceita enquanto a correção está pendente, e os procedimentos das seções seguintes descrevem o que o sistema aceita hoje.
+
 | Ação | Onde | Responsável |
 |---|---|---|
 | Conferir Cliente/CNPJ, CE, carga e pendências | Ficha do B/L / Revisão | Documentação autorizada |
 | Consultar documentos, saldo e recebimentos | Taxas Locais → detalhe da fatura | Equipe com leitura autorizada |
-| Acompanhar a baixa automática do Pix Itaú e tratar Pix sem baixa | Conciliação → aba Pendências | Administrativo |
-| Registrar pagamento manual local ou conciliar PIX pelo extrato (plano B) | Detalhe / Conciliação → Conciliar extrato | Administrativo |
-| Emitir avulsa | Taxas Locais → Gerar fatura avulsa | Financeiro ou Administrativo |
-| Autorizar restituição excepcional de avulsa/Demurrage | Detalhe → Restituição excepcional | Administrativo |
+| Acompanhar a baixa automática do Pix Itaú e tratar Pix sem baixa | Conciliação → aba Pendências | Ver: todos; tratar: Financeiro ou Administrativo (hoje ver e tratar, só Administrativo) |
+| Registrar pagamento manual local ou conciliar PIX pelo extrato (plano B) | Detalhe / Conciliação → Conciliar extrato | Financeiro ou Administrativo (hoje só Administrativo) |
+| Emitir avulsa | Taxas Locais → Gerar fatura avulsa | Qualquer Departamento (hoje só Administrativo) |
+| Emitir fatura fora do automático (ficha do B/L, Validação, consolidada) e Gerar Invoice de Demurrage | Ficha do B/L / Taxas Locais / Demurrage | Qualquer Departamento (hoje só Administrativo) |
+| Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente, Resolver fatura desatualizada | Taxas Locais / detalhe da fatura | Qualquer Departamento (hoje só Administrativo) |
+| Autorizar restituição excepcional de avulsa/Demurrage, ou cancelar a autorização pendente | Detalhe → Restituição excepcional | Qualquer Departamento (hoje só Administrativo) |
 | Confirmar devolução já realizada no banco | Detalhe → Confirmar devolução | Financeiro ou Administrativo |
 | Preparar cancelamento financeiro de B/L com pagamento | Detalhe → Ajustes pela correção do B/L | Administrativo |
 | Liquidar Ajuste de COD | Taxas Locais → Ajustes de COD → Aplicar abatimento, Registrar restituição ou Vincular e concluir (confirmar em Liquidar ajuste) | Financeiro ou Administrativo |
 | Cancelar baixa, fatura ou B/L; reativar B/L | Detalhe / Conciliação / ficha do B/L | Administrativo |
-| Operar pagamento/desconto de Demurrage | Demurrage | Financeiro ou Administrativo, conforme a ação |
+| Registrar pagamento de Demurrage | Demurrage | Financeiro ou Administrativo |
+| Aplicar desconto de Demurrage | Demurrage | Qualquer Departamento (hoje Financeiro ou Administrativo) |
 | Consultar e pagar documentos próprios | Portal Fwlog | Cliente autenticado |
 
 ## 2. Regras essenciais

@@ -56,8 +56,9 @@ INSERT INTO public.user_profiles (id, role, active)
 VALUES ('<auth-user-uuid>', 'administrativo', true);
 ```
 
-Os setores aceitos no `role` e o que cada um pode estão em
-[Segurança § Roles internas](../operations/seguranca.md#roles-internas); a tela
+Os setores aceitos no `role` estão em
+[Segurança § Roles internas](../operations/seguranca.md#roles-internas), e o que cada um pode, na
+[matriz de permissões](../operations/seguranca.md#modelo-de-permissões-por-perfil); a tela
 que os gerencia é a [Administração](../modules/operacao-suporte.md#admin).
 
 ## 5. Edge Functions (opcional no dev local)

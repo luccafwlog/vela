@@ -475,7 +475,7 @@ mais usada.
 Ato explícito que encerra o ADR depois dos três Sign-offs Departamentais e
 congela o snapshot que o Financeiro consulta; mudanças posteriores na origem
 não alteram o relatório fechado. O Financeiro não tem ato próprio de aprovação:
-o fechamento é o marco. Reabrir é ato do Administrativo, com justificativa.
+o fechamento é o marco. Reabrir pede justificativa.
 → Regra: [Viagens § Fechamento, reabertura e impressão](docs/modules/viagens.md#fechamento-reabertura-e-impressão)
 
 **Linha do Tempo do ADR**
@@ -985,7 +985,7 @@ data de descarga de cada container; o que o acordo não define vem da Tarifa.
 → Regra: [Demurrage § Acordo de Demurrage do Cliente](docs/modules/demurrage.md#acordo-de-demurrage-do-cliente)
 
 **Conciliação PIX**
-Tela do Administrativo que acompanha a baixa automática dos Pix cobrados pelo
+Tela que acompanha a baixa automática dos Pix cobrados pelo
 Itaú, trata o que ficou sem baixa (aba Pendências), mostra o Histórico de
 baixas e, como plano B, baixa faturas a partir do extrato bancário. O extrato
 liga o Pix à fatura só pelo TXID; o valor confirma a fatura encontrada, não a
@@ -1287,7 +1287,7 @@ significa acesso irrestrito.
 **Escrita interna global**
 Regra de que todo Departamento ativo escreve dado interno, com rastro
 obrigatório; as exceções são operações com Departamentos autorizados próprios.
-→ Regra: [Segurança § Escrita interna global e exceções](docs/operations/seguranca.md#escrita-interna-global-e-exceções)
+→ Regra: [Segurança § Modelo de permissões por perfil](docs/operations/seguranca.md#modelo-de-permissões-por-perfil)
 
 **Rastro obrigatório**
 Registro, em toda escrita, do autor e do Departamento no instante do evento;
@@ -1518,7 +1518,7 @@ B/L corrigido. Distinto da Reemissão pendente: a fatura paga não é reemitida.
 
 **Restituição pendente**
 Alerta de dinheiro recebido a devolver ao Cliente, aberto quando a redução
-supera o saldo em aberto. Fecha quando o Financeiro confirma a devolução.
+supera o saldo em aberto. Fecha quando a devolução é registrada.
 → Regra: [Faturamento § Correção após emissão](docs/modules/faturamento.md#correção-após-emissão-adr-0077)
 
 ## Desbloqueio de CE e condição VIP

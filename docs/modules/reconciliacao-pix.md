@@ -1,6 +1,6 @@
 # Reconciliação PIX
 
-> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/reconciliacao` (Administrativo/Admin; abas `?tab=` Pendências, `extrato` e `historico`); `/demurrage/reconciliacao` redireciona para esta rota
+> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/reconciliacao` (hoje só Administrativo; a regra é a [matriz de permissões](../operations/seguranca.md#conciliação-pix); abas `?tab=` Pendências, `extrato` e `historico`); `/demurrage/reconciliacao` redireciona para esta rota
 
 ## Propósito e escopo
 
@@ -50,8 +50,12 @@ entrou no banco), **baixa confirmada** (a RPC gravou o pagamento na fatura) e
 **exceção pendente** (um Pix sem baixa segura, salvo até alguém tratar). Cada
 uma tem a sua aba; a aba fica na URL (`?tab=`) e as abas já abertas continuam
 montadas, então a leitura do extrato e o recorte do histórico não se perdem ao
-trocar de aba. Quem não é do Administrativo vê "Acesso restrito" com o motivo e
-"Voltar para o Painel"; as RPCs continuam exigindo o Administrativo.
+trocar de aba. Pela [matriz de permissões](../operations/seguranca.md#conciliação-pix)
+([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D5), todos
+leem a tela e Financeiro e Administrativo conciliam; cancelar baixa segue só
+do Administrativo. Hoje quem não é do Administrativo vê "Acesso restrito" com o
+motivo e "Voltar para o Painel", e as RPCs exigem o Administrativo (correção
+pendente, em [Notas e divergências](#notas-e-divergências)).
 
 ### Monitoramento das cobranças Itaú
 
@@ -194,7 +198,7 @@ baixas**) combina:
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| `/reconciliacao?tab=extrato` · escolher a planilha | Perfil Administrativo/Admin e arquivo `.xlsx`/`.xls` dentro do limite | `ImportFilePicker` (clique ou arraste) → `chooseFile` em `PixExtractPanel` | `readMutation`: `parsePixExtractFile` e `readSpreadsheetNotices` em paralelo, depois `matchUnifiedPixTransactions` e `persistUnresolvedPixMatches`; linhas e abas ocultas ficam fora da leitura e o aviso aparece na conferência, antes de Confirmar | RPC `upsert_pix_reconciliation_exceptions` (definição vigente na migration `002`; origem na migration arquivada `328`): linhas sem baixa segura ficam salvas por importação/linha e abrem `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Nova leitura limpa a anterior e o resultado; com exceção gravada, `afterPendenciaPixAlterada` (exceções, monitor Itaú e Alerta) | Perfil não autorizado vê “Acesso restrito”; arquivo grande, formato, cabeçalho inválido ou extrato sem transação aparece na aba com “Nada foi baixado” | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` · **Runtime local** (etapa 12) |
+| `/reconciliacao?tab=extrato` · escolher a planilha | Perfil Administrativo (hoje; ver a matriz) e arquivo `.xlsx`/`.xls` dentro do limite | `ImportFilePicker` (clique ou arraste) → `chooseFile` em `PixExtractPanel` | `readMutation`: `parsePixExtractFile` e `readSpreadsheetNotices` em paralelo, depois `matchUnifiedPixTransactions` e `persistUnresolvedPixMatches`; linhas e abas ocultas ficam fora da leitura e o aviso aparece na conferência, antes de Confirmar | RPC `upsert_pix_reconciliation_exceptions` (definição vigente na migration `002`; origem na migration arquivada `328`): linhas sem baixa segura ficam salvas por importação/linha e abrem `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Nova leitura limpa a anterior e o resultado; com exceção gravada, `afterPendenciaPixAlterada` (exceções, monitor Itaú e Alerta) | Perfil não autorizado vê “Acesso restrito”; arquivo grande, formato, cabeçalho inválido ou extrato sem transação aparece na aba com “Nada foi baixado” | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` · **Runtime local** (etapa 12) |
 | Parser · extrair linhas bancárias | Cabeçalho `identificador` e coluna `valor pago` | `parsePixExtractFile` | `assertUploadFile` (tamanho e extensão) → `parsePixExtract` → `readSheet` de `importCore` (carrega `@e965/xlsx` sob demanda) | Nenhuma persistência | Retorna `{txid, cnpj, date, amount, lineNumber}`; preserva TXID vazio, ignora valor não positivo e recusa coluna repetida no cabeçalho | Cabeçalho/valor ausente ou coluna repetida lança erro; data inválida vira string vazia e falhará na confirmação | **Código:** `src/services/demurrage/demurrageKpis.ts` |
 | Matching · carregar documentos locais e Demurrage | Transações parseadas | `matchUnifiedPixTransactions` | Três leituras paralelas (faturas locais pagáveis, Invoices de Demurrage emitidas e `list_local_pix_candidates` para os TXIDs do extrato), depois o histórico de recálculo das Invoices de Demurrage; normalização alfanumérica maiúscula | `SELECT invoices`, `SELECT demurrage_invoices`, RPC `list_local_pix_candidates` (migration `130`) e `SELECT demurrage_invoice_history` | Sem cache React Query; monta mapa único de TXID para os dois domínios | Erro de qualquer leitura aborta o matching | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L. A confirmação aceita a avulsa, mas o matching do extrato não a acha aberta: ela só casa por `invoices.pix_txid`, vazio até a baixa ([limite do plano B](#propósito-e-escopo)) | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` (migration `130`), que sem versão de cobrança cai no caminho da migration `097` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | Avulsa aberta vira “Sem documento” no extrato; TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migrations `097` e `130`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
@@ -492,6 +496,8 @@ Estes testes verificam texto de migrations, não um banco aplicado:
   emitida à mão (correção pendente A16).
 
 ## Notas e divergências
+
+- **Correção pendente (ADR 0085, item D5):** leitura da Conciliação PIX para todos os Departamentos e conciliação (vincular, confirmar, tratar exceção, marcar recebimento Itaú) para Financeiro e Administrativo. Hoje a página e as RPCs aceitam só o Administrativo, exceto o ramo de Demurrage de `confirm_unified_pix_matches`, que não tem guarda própria e delega a `confirm_demurrage_pix_matches`, que já aceita o Financeiro. Correção no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (item P5).
 
 - **Correções implementadas — Código/Teste local.** A baixa escolhida no detalhe pode ser antiga, com confirmação de valor/data/ID. Registro manual exige referência bancária (pode se repetir quando um PIX paga mais de uma cobrança) e tentativa estável; a conciliação PIX mantém TXID próprio. Excedente pendente de uma baixa falsa pode acompanhar sua reversão; devolução confirmada ou ajuste que depende da baixa permanece protegido. Banco implementado na migration 136: [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md).
 
