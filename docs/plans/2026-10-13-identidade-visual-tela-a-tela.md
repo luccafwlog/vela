@@ -164,8 +164,13 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     uma vez, em texto; uma ação por linha, a que resolve o motivo
     (Recalcular, Vincular na Revisão, Cadastrar CE, Abrir Cliente, Emitir);
     saem Cálculo, Vínculo do Cliente e Modo de carga (vira filtro). Linha
-    aberta com Trecho, CE, Cliente e CNPJ, Último cálculo e Conferência do
-    cálculo. B/L "Pronto para emitir" (tudo certo e a fatura não saiu
+    aberta refeita em 2026-10-14 (a primeira versão perdeu o que a de hoje
+    tem): dois quadros lado a lado. "Situação do B/L" com a explicação do
+    motivo numa faixa âmbar (verde quando pronto) e o botão que resolve, e
+    os dados alinhados à esquerda (Trecho, CE e CNPJ com copiar, Cliente,
+    Subtotal, Linhas de taxa, Último cálculo, Última revisão, Último
+    evento); "Conferência do cálculo" com o total, a tabela de cobrança e
+    as linhas (Taxa, Base, Qtd., Unitário, Total). B/L "Pronto para emitir" (tudo certo e a fatura não saiu
     sozinha) entra na fila normal com o botão Emitir; hoje só aparece com
     "Incluir resolvidos" (decisão de 2026-10-14).
   - **Defeito achado, fora da mudança visual** (2026-10-14, código e banco
