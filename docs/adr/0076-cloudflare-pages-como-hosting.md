@@ -1,6 +1,11 @@
 # ADR 0076 — Cloudflare Pages como hosting do Vela e do Portal
 
-- **Status:** aceito; execução registrada no plano de migração Cloudflare
+> **Situação atual (2026-10-13).** A decisão vale e está implementada: os workflows `cloudflare-pages-*` publicam as duas SPAs, os headers saem de `scripts/cloudflare-pages-stage.mjs` e não há `vercel.json` no repositório.
+> Não vale mais a premissa das Consequências e da relação com a ADR 0056 de que a integração Supabase cria a branch de banco de cada PR: por decisão do dono de 2026-10-07, ainda sem ADR, o Automatic branching fica desligado, e a branch de Preview só existe quando é criada à mão e vinculada à branch da PR.
+> Regra vigente em [Deploy](../setup/deploy.md) e em [Serviços externos](../operations/servicos-externos.md), seções "Hospedagem do front-end" e "Supabase".
+
+Status: aceito; execução registrada no plano de migração Cloudflare
+
 - **Data:** 2026-09-28
 - **Decide:** hospedar produção e previews das duas SPAs em Cloudflare Pages, publicados por GitHub Actions.
 

@@ -1,10 +1,14 @@
 # ADR 0058 — Canal de Comunicado ao Cliente, separado do email transacional do Portal
 
+> **Situação atual (2026-10-14).** A decisão vale inteira e foi estendida: a chave global de envio está na [ADR 0059](./0059-chave-global-de-envio-desligada-por-padrao.md); os destinatários são os Emails de Contato vinculados às Caixas de Comunicação ([ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md)); os eventos de entrega entram em inbox durável ([ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md)). A `notify-invoice-issued` saiu do repositório e foi apagada de produção pelo dono em 2026-10-14 ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26; [Serviços externos](../operations/servicos-externos.md#edge-functions)). A Régua de Cobrança citada em Consequências não tem teto: cobra a cada intervalo, configurável só pelo Administrativo, até a quitação ou o cancelamento (decisão C10 do [plano arquivado](../archive/plans/2026-08-27-comunicacao-email-clientes.md), sem ADR).
+> A migration `178` citada abaixo é da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [Clientes § Comunicados ao Cliente](../modules/clientes.md#comunicados-ao-cliente) e, para a Régua, em [Demurrage § Régua de cobrança](../modules/demurrage.md#régua-de-cobrança); desenho técnico em [Arquitetura](../ARCHITECTURE.md#comunicados-ao-cliente-e-caixas-de-comunicação).
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Canal separado permanece; destinatários usam Caixas de Comunicação e eventos de entrega entram em inbox durável. notify-invoice-issued não existe mais na árvore de Edge Functions.
 > Rastreabilidade: [ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md), [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 022](../../supabase/migrations/022_email_inbox_and_dispatch_state.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
-Status: supersedida parcialmente — 2026-08-27
+Status: estendida — 2026-08-27
 
 ## Contexto
 

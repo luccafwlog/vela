@@ -1,5 +1,10 @@
 # ADR 0022: Omissao de Escala, Transbordo e COD como Registro Operacional
 
+> **Situação atual (2026-10-13).** Omissão, transbordo e COD continuam registro operacional, e omissão continua distinta de exclusão.
+> Não valem mais: tirar o POD omitido da `portal_ship_schedule` (ele aparece como `OMIT`, [ADR 0052](./0052-escala-omitida-visivel-na-programacao.md)) e o COD sem efeito financeiro (reprecifica a Taxa Local no destino final e pode gerar Ajuste de COD, [ADR 0051](./0051-cod-reprecifica-no-destino-final.md)); CE Mercante e Demurrage seguem manuais.
+> Mudar o POD por reimportação ou pela ficha é correção, não COD, e B/L importado depois da omissão entra como afetado, com disposição Transbordo ([ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 15).
+> Regra vigente: [Viagens](../modules/viagens.md), invariantes de omissão e ações de COD.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** COD reprecifica Taxa Local; escala omitida continua visível como OMIT. COD também limpa manifesto_mercante_id e exceção de terminal, preservando ce_mercante.
 > Rastreabilidade: [ADR 0051](./0051-cod-reprecifica-no-destino-final.md), [ADR 0052](./0052-escala-omitida-visivel-na-programacao.md); [migration ativa 060](../../supabase/migrations/060_pr698_claude_review_followup.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

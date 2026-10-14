@@ -1,6 +1,6 @@
 # Chegadas e Saídas
 
-> **Status:** ativo · **Atualizado:** 2026-10-08 · **Rota interna:** `/chegadas-saidas` · **Consumidor:** widget do Dashboard do Portal
+> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rota interna:** `/chegadas-saidas` · **Consumidor:** widget do Dashboard do Portal
 
 ## Propósito e escopo
 
@@ -16,7 +16,9 @@ Fontes principais: `src/pages/ChegadasSaidas.tsx`,
 `src/pages/chegadasSaidasForm.ts`, `src/services/voyageFromSchedule.ts`,
 `src/services/portalScheduleVoyages.ts`, `src/services/portalScheduleLanes.ts`,
 `src/services/portalScheduleBulkImport.ts`,
-`src/components/portal/ShipScheduleWidget.tsx` e migrations `172`/`173`.
+`src/components/portal/ShipScheduleWidget.tsx` e a RPC `portal_ship_schedule`
+(definição vigente na migration `002`; a coluna `show_on_portal` e a RPC
+nasceram nas migrations arquivadas `172`/`173`).
 
 ## Anatomia das telas
 
@@ -99,7 +101,8 @@ tamanho do arquivo.
 `['portal-schedule-voyages']`. Widget e quadro interno compartilham as regras de célula de
 `src/components/portal/shipScheduleCells.ts` e a apresentação de
 `ShipScheduleWidget.tsx`: data efetiva (ATD no POL, ATA no POD) com `✓` e o verde
-de concluído — o mesmo verde do ATD do POL descrito no `CONTEXT.md` —, previsão
+de concluído — o mesmo verde do ATD do POL descrito em
+[Viagens](viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota) —, previsão
 sem marca, previsão já passada sem data efetiva como "a confirmar", `OMIT` e `X`
 distintos, cada estado também em texto para leitor de tela. Colunas agrupadas em
 Saída na origem (ETD) e Chegada no Brasil (ETA); abaixo de 640 px o widget vira
@@ -117,7 +120,7 @@ lanes e ordena pela menor ETA de POD.
 |---|---|---|---|---|---|---|---|
 | Carregar publicados | Sessão interna | Montagem de `/chegadas-saidas` | `useQuery(['portal-schedule-voyages'])` | RPC `portal_ship_schedule` projetada em linhas | Preenche tabela por ETA | Erro de leitura da RPC exibido na página | **Código**, **Teste** |
 | Adicionar/anexar viagem | Usuário interno ativo; navio, VOY e ao menos um POD com data | Modal | `buildScheduleLanes` + `createOrAttachVoyageFromSchedule` | `voyages.show_on_portal`, `audit_logs` POL/POD | Invalida `['portal-schedule-voyages']` e `['voyages']` | Campos obrigatórios, identidade divergente ou falha ao persistir | **Código**, **Teste** |
-| Editar publicação | Usuário interno ativo; viagem já visível | Botão Editar/modal | Pré-preenche datas projetadas e salva pelo mesmo serviço | Atualiza somente ETD/ETA informados | Last write wins em ETD/ETA digitados | Conflitos de identidade e erro do serviço | **Código**, **Teste** |
+| Editar publicação | Usuário interno ativo; viagem já visível | Botão **Editar** na linha do navio → modal “Editar programação · navio / viagem” | Pré-preenche datas projetadas e salva pelo mesmo serviço | Atualiza somente ETD/ETA informados | Last write wins em ETD/ETA digitados | Conflitos de identidade e erro do serviço | **Código:** `src/pages/ChegadasSaidas.tsx`; **Teste:** `src/pages/__tests__/ChegadasSaidas.behavior.test.tsx` |
 | Importar planilha | Usuário interno ativo; arquivo `.xlsx/.xls/.csv` | `SpreadsheetUpload`: área de arquivo comum (`ImportFilePicker`), “Conferir prévia” e “Gravar programação”; escolher o arquivo ou conferir não grava | `parseScheduleRows` + `planScheduleSheet` (prévia) + `applyScheduleSheetPlan` → `apply_schedule_sheet_atomic` (migrations `188`, `193`, `199`, `201`, `202`, `209`, `213` e `217`) | Mesma persistência do modal, numa transação; publica a Viagem oculta | Prévia por viagem; resumo após gravar; `afterViagemAlterada` | Erro de linha aparece na prévia e a linha fica de fora; falha na gravação não grava nada | **Código**, **Teste**, **Integração em PostgreSQL local:** `programacaoPlanilha.local-pg.test.ts` |
 | Consultar no Portal | Sessão do Portal | `ShipScheduleWidget` | `usePortalScheduleVoyages` | RPC `portal_ship_schedule` | Cache `['portal-schedule-voyages']` | Erro de RPC e estados vazio/loading no widget | **Código**, **Teste**, **Teste de contrato SQL** |
 
@@ -133,6 +136,13 @@ lanes e ordena pela menor ETA de POD.
 
 ## Fluxos e invariantes
 
+### Programação no Portal
+
+- A Programação de Navios é a visão voltada ao cliente, distinta do Line-Up
+  (TV), que é o painel operacional interno ([Operação e suporte](operacao-suporte.md#line-up)).
+  Não tem cadastro próprio (ADR 0021): é a projeção das viagens com
+  `show_on_portal = true`, com as suas Escalas brasileiras — inclusive as que
+  só embarcam.
 - A lista de portos-vitrine é única em `PORTAL_SCHEDULE_LANES`.
 - `show_on_portal` controla visibilidade; viagens manuais começam ocultas.
 - Viagens `completed` não aparecem na RPC do Portal.
@@ -142,6 +152,18 @@ lanes e ordena pela menor ETA de POD.
 - Chegadas e Saídas nunca grava ATA/ATD/RTW/CE/linked.
 - A ordenação do quadro é automática pela menor ETA; não há setas manuais nem
   arquivamento em `ended_vessels` no fluxo atual.
+- O ATD do POL (regra em [Viagens](viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota))
+  ocupa a célula de ETD daquele porto, com `✓` e o verde de concluído, sem
+  transformar ATD em ETD: o quadro não tem coluna própria de ATD.
+
+### Saída da Programação
+
+- A linha da viagem sai da Programação, no Vela e no Portal, quando a viagem
+  recebe o último ATD e passa a Concluída; não há ação manual para isso.
+- Antes do último ATD, a viagem só sai por **Excluir** ou **Cancelar viagem**
+  em `/viagens`, com a confirmação e os avisos dessas ações. "Remover do
+  Portal" e "Encerrar navio" não existem mais ([ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md),
+  item 12; `archive_vessel_schedule` foi removida na migration `087`).
 
 ## Testes e validação
 
@@ -162,8 +184,9 @@ lanes e ordena pela menor ETA de POD.
   ambientes antigos podem tê-las, mas não são usadas pelo fluxo atual.
 - A leitura das duas era `USING (true)` para qualquer `authenticated` — o que
   incluía o cliente do Portal, contornando o portão `voyages.show_on_portal`.
-  A migration `257` passou a exigir `is_active_read_user()` e removeu o serviço
+  A migration arquivada `257` passou a exigir `is_active_read_user()` e removeu o serviço
   e o hook mortos que as liam pela sessão do Portal. Ver
   `docs/archive/audits/security-audit-portal-2026-08-05.md`.
-- A migration `314_ship_schedule_shows_omitted.sql` mantém a projeção do Portal
-  alinhada à programação interna e deve acompanhar o deploy do código.
+- A migration arquivada `314_ship_schedule_shows_omitted.sql` passou a devolver
+  a escala omitida na projeção do Portal, alinhada à programação interna; a
+  definição vigente de `portal_ship_schedule` está na migration `002`.

@@ -1,5 +1,10 @@
 # 0007 — Ledger local e ciclo de vida de invoices
 
+> **Situação atual (2026-10-14).** O ledger local continua sendo a fonte de saldo das Taxas Locais, com emissão e baixa em RPCs transacionais.
+> Não vale mais `invoices` como documento de Granito: o Granito não emite mais fatura ([ADR 0042](./0042-ce-mercante-confirma-calculo-em-todos-os-modos.md), nota de 2026-09-23). Estendem a decisão a [ADR 0055](./0055-taxa-local-sem-vencimento-praticado.md) (a fatura local não vence), a [ADR 0075](./0075-fatura-avulsa-flexivel.md) (Fatura Avulsa fora do ledger) e a [ADR 0077](./0077-fatura-emitida-nao-muda-de-valor.md) (correção depois da emissão).
+> Com a cobrança PIX dinâmica do Itaú, em produção desde 2026-10-07 (migration `151`, registrada na [ADR 0084](./0084-registro-de-decisoes-ja-em-producao.md), item 1), o payload PIX só é gravado quando a cobrança fica ativa.
+> Regra vigente em [Regras de negócio](../operations/regras-de-negocio.md), seção "Ledger local e ciclo de vida", e em [Faturamento](../modules/faturamento.md), seção "Estado e dados".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Ledger permanece; due_date e overdue foram retirados do ciclo das invoices locais.
 > Rastreabilidade: [ADR 0055](./0055-taxa-local-sem-vencimento-praticado.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

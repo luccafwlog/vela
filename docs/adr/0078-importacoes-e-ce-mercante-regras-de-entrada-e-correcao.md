@@ -1,10 +1,16 @@
 # 0078 — Importações e CE Mercante: regras de entrada, correção e efeitos
 
+> **Situação atual (2026-10-14).** Implementada (migrations `174` a `217`, em produção desde 2026-10-12, com o `import-effects-runner` do item 18 ligado).
+> A [ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md) supersede parcialmente o item 19 (Invoice de Demurrage com desconto ou disputa fica suspensa, não é reemitida sozinha), o item 21 (a referência de "outro operador" no Baplie são os containers dos B/Ls ativos da Viagem) e o item 25 (planilha de Granito sem B/L em comum é manifesto novo). A [ADR 0080](./0080-decisoes-da-revisao-final-da-pr-929.md) refina o item 20 (cobrança por caixa, com Invoice complementar para o B/L que chega depois) e o item 7 ("Informar Nº" não troca nem limpa Manifesto com B/L), que a nota de 2026-10-12 abaixo e o texto da 0080 chamam de "item 6" por engano.
+> Pela [ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md) (item 12), não vale mais a restituição automática do item 19: quando a correção reduz uma Invoice de Demurrage já paga, o sistema suspende e alerta, e o Financeiro lança a Restituição, enquanto Demurrage não tiver saldo nem pagamento parcial.
+> Defeitos com correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26): a planilha-modelo de CE Mercante traz exemplos de 9 dígitos, que a importação recusa (item 2), e o campo "Nº do manifesto" da Rota sugere um exemplo de 9 caracteres (item 7).
+> Regra vigente nos módulos [Manifestos & EDI](../modules/manifesto-edi.md), [Viagens](../modules/viagens.md), [Demurrage](../modules/demurrage.md), [Faturamento](../modules/faturamento.md) e [Granito](../modules/granito.md).
+
 > **Nota editorial — 2026-10-11 · supersedida parcialmente.** A [ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md) refina o item 19 (Invoice de Demurrage com desconto ou disputa não é reemitida sozinha), o item 21 (a referência de "outro operador" no Baplie são os containers dos B/Ls da Viagem) e o item 25 (planilha de Granito sem B/L em comum é manifesto novo; a reimportação fica nos manifestos que ela toca).
 >
 > **Nota editorial — 2026-10-12.** A [ADR 0080](./0080-decisoes-da-revisao-final-da-pr-929.md) refina o item 20 (a Invoice de Demurrage do grupo é cobrada por caixa: caixa já cobrada nunca é cobrada de novo e a do B/L que chega depois sai em Invoice complementar) e o item 6 ("Informar Nº" não troca nem limpa o Manifesto que já tem B/L).
 
-Status: aceito — 2026-10-09 (decisões do dono). Implementado pelo
+Status: supersedida parcialmente — 2026-10-09 (decisões do dono). Implementado pelo
 [plano de correção das importações](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)
 (concluído e arquivado em 2026-10-12), em produção desde o merge da PR 929 em
 2026-10-12, com o `import-effects-runner` do item 18 ligado (ver "Evidência").

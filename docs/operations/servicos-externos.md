@@ -44,7 +44,7 @@ flowchart LR
 | Upstash | database `vela-rate-limit` (`sa-east-1`) | — |
 | Sentry | organização com projetos `vela` e `portal` | — |
 | PostHog | região **EU** (`eu.posthog.com`) | — |
-| Better Stack | Uptime: 2 monitores e 4 heartbeats | Free (avisa a equipe inteira) |
+| Better Stack | Uptime: 2 monitores e 5 heartbeats (um deles do backup) | Free (avisa a equipe inteira) |
 | Computador do backup | usuário Windows `Lucca`, pasta `C:\Users\Lucca\Downloads\Vela` | — |
 
 Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-responsabilidade).
@@ -144,19 +144,17 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   merge no `main`, ligado pela variável `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`.
 - **Previews:** `.github/workflows/cloudflare-pages-preview.yml` publica
   `pr-<n>.vela-internal.pages.dev` e `pr-<n>.vela-portal.pages.dev` contra o banco
-  da branch de preview do Supabase; `cloudflare-pages-preview-cleanup.yml` apaga
-  ao fechar a PR. Só publica com `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`.
+  da branch de preview do Supabase; `cloudflare-pages-preview-cleanup.yml` apaga,
+  ao fechar a PR, os deployments antigos de `pr-<n>`, e o mais recente continua
+  no alias da PR, atrás do Access ([deploy.md](../setup/deploy.md#workflows)).
+  Só publica com `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`.
 - **Cabeçalhos de segurança (CSP):** gerados por
   `scripts/cloudflare-pages-stage.mjs`; mudam junto com os workflows e o staging do Pages
   ([deploy.md](../setup/deploy.md#headers-rotas-e-cors)).
-- **Pages Function `functions/assets/[[path]].ts`:** os dois projetos (`wrangler
-  pages deploy` compila `functions/` do diretório de trabalho do workflow, que é a
-  checkout confiável) recebem uma Function em `/assets/*`: arquivo inexistente →
-  `404` com `Cache-Control: no-store`; asset real → `immutable` definido pela
-  Function (`_headers` não vale para respostas de Functions). Cada requisição de
-  `/assets/*` conta na cota de invocações de Functions do plano. O workflow de
-  produção confere o 404 sem cache após publicar (incidente de 2026-10-07: HTML do
-  fallback SPA cacheado como chunk JS, app em branco).
+- **Pages Function `functions/assets/[[path]].ts`:** os dois projetos a recebem
+  em `/assets/*`; cada requisição de `/assets/*` conta na cota de invocações de
+  Functions do plano. O que ela responde e como é conferida estão em
+  [deploy.md](../setup/deploy.md#headers-rotas-e-cors).
 - **Token:** secret `CLOUDFLARE_PAGES_API_TOKEN` nos environments GitHub
   `cloudflare-pages` e `cloudflare-production`. O valor é o User API Token
   `GitHub Actions — Vela e Portal Fwlog Pages` (Cloudflare Pages: Edit, uma
@@ -249,14 +247,25 @@ estava sem branches persistentes ou de Preview na conferência de 2026-10-08;
 
 ### Edge Functions
 
-`admin-users`, `alerts-detector`, `customer-communication-auto-runner`,
-`demurrage-dunning`, `import-effects-runner`, `portal-account-suspend`,
-`portal-daily-digest`, `portal-dispute-attachment`, `portal-email-events-runner`,
-`portal-email-webhook`, `portal-invite-activate`, `portal-invite-send`,
-`portal-login`, `portal-password-recovery`, `portal-password-reset`,
-`portal-recovery-email-change`, `recalc-demurrage-ptax`,
-`send-customer-communication`. Ainda não publicada: `itau-pix` (seção
-[Itaú](#itaú--api-pix-recebimentos)).
+As 24 funções do repositório estão publicadas e `ACTIVE` em produção:
+`admin-users`, `alerts-detector`, `ce-unlock-cleanup`,
+`ce-unlock-document-download`, `ce-unlock-export`, `ce-unlock-notify-email`,
+`customer-communication-auto-runner`, `demurrage-dunning`,
+`import-effects-runner`, `itau-pix`, `portal-account-suspend`,
+`portal-ce-unlock-document`, `portal-daily-digest`, `portal-dispute-attachment`,
+`portal-email-events-runner`, `portal-email-webhook`, `portal-invite-activate`,
+`portal-invite-send`, `portal-login`, `portal-password-recovery`,
+`portal-password-reset`, `portal-recovery-email-change`,
+`recalc-demurrage-ptax` e `send-customer-communication`. A Edge Function
+antiga de aviso de fatura emitida, que a
+[ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou apagar (o nome
+está na ADR), foi apagada pelo dono no painel em 2026-10-14
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+Antes da remoção, nenhum job do `pg_cron` nem função do banco a chamava.
+**Runtime:** listagem somente de leitura das Edge Functions do projeto em
+2026-10-14, antes e depois da remoção (24 funções depois, sem a antiga); `itau-pix` estava na v20, publicada em
+2026-10-13 às 17:47 UTC, e o código baixado trata `{"action":"process_charges"}`,
+o disparo da migration `219` (seção [Itaú](#itaú--api-pix-recebimentos)).
 
 Publicação manual: `supabase functions deploy <nome> --project-ref fgmkhbzhaeebrsizwccx`.
 Um merge **não** publica Functions. Para conferir, baixe o código publicado com
@@ -276,7 +285,8 @@ está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 | E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | Resend |
 | Anti-robô | `TURNSTILE_SECRET_KEY` (e opcional `TURNSTILE_ALLOWED_HOSTNAMES`) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
-| Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET` (par com o Vault quando o job está habilitado) | — |
+| Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `ITAU_PIX_ADMIN_SECRET` (par com o Vault quando o job está habilitado; lista do cofre em [segredos-cron.md](segredos-cron.md)) | — |
+| Itaú | `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` (e opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL`, `ITAU_AUTH_HEADER`) | Itaú (seção [Itaú](#itaú--api-pix-recebimentos)) |
 | Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (4), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
 
@@ -323,9 +333,9 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
 | `portal-email-events-runner` | a cada minuto | processa eventos da Resend (entrega, bounce, reclamação), suprime endereços e abre Alertas | — |
-| `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú (um runner por vez, até 60 cobranças por execução, para no primeiro 429 ou na primeira cobrança sem resposta) e baixa automática | `itau-pix` |
+| `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente (respeita a chave global) | — |
-| `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s | `import-effects-runner` |
+| `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
 | `customer-communication-auto-runner` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `165`) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global) | `customer-communication-auto-runner` |
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos e abre Alerta de reenvio | — |
@@ -555,8 +565,9 @@ Mais: [sentry-configuracao.md](sentry-configuracao.md), [observabilidade.md](obs
 
 ### PostHog (eventos de produto)
 
-Região **EU**. Só o Portal envia eventos (`invoice_viewed`, `invoice_paid`,
-`dispute_opened`, na tela de faturas), sem URL, CNPJ ou e-mail; captura
+Região **EU**. Só o Portal envia eventos: `invoice_viewed`, na tela de faturas
+(fatura local e Demurrage); `invoice_paid` e `dispute_opened` estão declarados
+em `src/lib/featureFlags.ts`, mas não são enviados. Sem URL, CNPJ ou e-mail; captura
 automática, gravação de sessão e cookies desligados (`src/lib/featureFlags.ts`).
 No Pages, o Vela também carrega a chave, mas não envia eventos.
 Variáveis: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`.
@@ -568,6 +579,11 @@ Variáveis: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`
 - **Heartbeats** (tabela dos [jobs](#jobs-agendados-pg_cron)): a rotina chama a
   URL a cada execução e acrescenta `/fail` quando falha. Heartbeat **Down** logo
   após cadastrar quase sempre é nome de secret errado.
+- **Heartbeat do backup** `backup-r2-diario` (criado pelo dono em 2026-10-14;
+  **Up** desde a execução manual da tarefa no mesmo dia): período de 1 dia,
+  tolerância de 6 horas, aviso por e-mail; a URL fica na variável do usuário
+  `BETTERSTACK_HEARTBEAT_BACKUP_URL` do computador do [backup](#backup)
+  ([roteiro](backup-r2.md#heartbeat-do-backup)).
 - Sem escalation policy: no plano grátis o aviso vai à equipe inteira (e-mail do
   responsável).
 
@@ -585,7 +601,9 @@ para eles vale o backup do próprio Supabase.
   `C:\Windows\System32\cmd.exe`, argumentos
   `/c node scripts\backup-r2.mjs --execute --allow-production --environment production --project-ref fgmkhbzhaeebrsizwccx`,
   iniciar em `C:\Users\Lucca\Downloads\Vela`. Se o computador estiver desligado,
-  roda quando ligar. **Computador parado = sem backup.**
+  roda quando ligar. **Computador parado = sem backup.** O heartbeat do
+  backup no Better Stack avisa quando o dia passa sem backup
+  ([roteiro](backup-r2.md#heartbeat-do-backup); ligado em 2026-10-14).
 - **Programas:** Node 24, PostgreSQL 17 (só as ferramentas de linha de comando)
   e AWS CLI v2.
 - **Retenção:** regra "Expire backups after 90 days" no bucket.
@@ -602,8 +620,14 @@ para eles vale o backup do próprio Supabase.
   12:00:01 UTC em 2026-10-06, 2026-10-07 e 2026-10-08 (12,9 MB), horário da
   tarefa agendada; sem arquivos de 2026-10-01 a 2026-10-04 (computador
   provavelmente desligado). `LastTaskResult` não consultado nesse dia.
+- **Conferência local — 2026-10-14:** a cópia local estava na branch antiga
+  `codex/itau-pix-fuso-producao`, já apagada no GitHub, e o `git pull` não a
+  atualizava; o dono passou a pasta para a `main` atualizada, criou a variável
+  `BETTERSTACK_HEARTBEAT_BACKUP_URL` e executou a tarefa à mão; o heartbeat
+  ficou **Up**. A pasta da tarefa deve ficar na `main`: `git pull` numa branch
+  apagada não traz correções novas do script.
 - **Mudar de computador:** instalar os programas, recriar as 7 variáveis do
-  usuário (roteiro, Etapa 6) e a tarefa agendada.
+  usuário (roteiro, Etapa 6), mais `BETTERSTACK_HEARTBEAT_BACKUP_URL`, e a tarefa agendada.
 
 ---
 
@@ -676,8 +700,9 @@ Ao entregar a operação para outra pessoa:
 
 ## Desbloqueio de CE Mercante
 
-**Publicado em produção** (conferido em 2026-10-10): migrations `137`–`149`, `160`, `161`
-e `173` e as cinco funções. Frontend Vela/Portal: o workflow *Cloudflare Pages Production*
+**Publicado em produção** (conferido em 2026-10-10): migrations `139`–`149`, `160`, `161`
+e `173` e as cinco funções. As migrations `137` e `138`, publicadas no mesmo bloco,
+são da Central de Informações do Portal, não do Desbloqueio. Frontend Vela/Portal: o workflow *Cloudflare Pages Production*
 (run 176, commit `eb0eadb`) terminou com sucesso; isso prova a publicação, não a
 compatibilidade com o backend, que segue pendente no plano. Em mudanças futuras, publicar na ordem
 migrations → Edge Functions → frontend e validar em Preview antes de produção. A publicação
@@ -737,7 +762,10 @@ gerenciado. Não há alteração de nomes de segredos ou do agendamento de expur
 
 ## Itaú — API Pix Recebimentos
 
-**Provedor Itaú ativado; prova de baixa nas faturas pendente.** Conta 0870/37293-5
+**Provedor Itaú ativo; baixa automática comprovada em produção em 07 e 08/10 para
+avulsa, individual, consolidada e Demurrage**, com recibos conferidos pelo dono
+no Portal ([relatório de execução](../archive/reports/2026-10-07-integracao-itau-pix-execucao.md)).
+Conta 0870/37293-5
 (TRANSHIPPING AGENCIAMENTO MARITIMO LTDA, CNPJ 06.352.972/0001-21),
 protocolo IT-000245617 com a Implantação Técnica do Itaú
 (`implantacao_cash_varejo@itau-unibanco.com.br`; responder sempre no mesmo
@@ -762,14 +790,20 @@ pelo dono (declarada em 08/10, destino escolhido iCloud Drive).
 O item `ITAU_ONBOARDING_PRIVATE_KEY` do Vault não tem uso
 (o Itaú não pediu chave pública); removido pelo dono e ausência conferida em 07/10.
 
-A função `itau-pix` (Fase 1, diagnóstico e prova de centavos) existe no
-código e **está publicada** (v8 ACTIVE com a correção de fuso e as travas de horário, conferida em 08/10). Ela exige `ITAU_PIX_ADMIN_SECRET`
+A função `itau-pix` é a rotina das cobranças das faturas: chamada pelo job
+`itau-pix-queue` (corpo vazio), cuida dos prazos, da fila de cobranças (cria,
+altera e cancela a COB de cada fatura) e da consulta de recebimentos para a
+baixa automática; chamada com `{"action":"process_charges"}` pelo disparo da
+migration `219`, processa só a fila. Está publicada (v20 em 2026-10-13, ver
+[Edge Functions](#edge-functions); a v8 de 08/10 trouxe a correção de fuso e as
+travas de horário). Ela exige `ITAU_PIX_ADMIN_SECRET`
 (bearer próprio, ≥ 32 caracteres aleatórios, nunca `service_role`). Os
 overrides opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL` e
 `ITAU_AUTH_HEADER` só existem para ajustar host e header se o Itaú divergir
-do guia. Ela cria cobranças de teste de até R$ 1,00 com TXID `VELAT…` e só
-altera ou cancela essas; consulta qualquer TXID `VELA`, então nunca toca
-cobranças do sistema de terceiro nem muda a cobrança de uma fatura.
+do guia. As ações de diagnóstico da Fase 1 continuam restritas: criam
+cobranças de teste de até R$ 1,00 com TXID `VELAT…` e só alteram ou cancelam
+essas; consultam qualquer TXID `VELA`, então nunca tocam cobranças do sistema
+de terceiro nem mudam a cobrança de uma fatura.
 
 **Sandbox (só testes, desde 2026-10-06).** Aplicação de sandbox criada pelo
 dono no [Itaú for Developers](https://devportal.itau.com.br), na conta dele.
@@ -806,7 +840,7 @@ na v6: janela vazia encerra pela lista vazia e total zero apesar de 100 páginas
 informadas. Cron confirmado com HTTP 200 e checkpoint até o horário atual,
 sem baixas durante a conferência em `static`. Virada autorizada em 07/10:
 `pix_provider='itau'`, única fatura individual aberta com COB ATIVA e QR
-confirmado no banco e gravado na fatura. Baixa/recibo individual ainda não validados. Diagnóstico de 07/10 confirmou desvio de fuso no Itaú: a janela
+confirmado no banco e gravado na fatura. Diagnóstico de 07/10 confirmou desvio de fuso no Itaú: a janela
 20:00–20:10 UTC não encontrou o Pix pago; a equivalente 17:00–17:10 com
 `-03:00` encontrou. O banco também devolve criação/recebimento em Brasília
 com sufixo `Z` indevido. Correção local envia consultas com `-03:00` e
@@ -828,8 +862,10 @@ sem intervenção manual, com histórico de pagamento, PTAX 4,9935 e ROE
 5,3181 congelados; dono confirmou recibo Demurrage no Portal. Criação e
 expiração das duas COBs anteriores à v7 corrigidas com autorização em 07/10,
 sem mudar valores, status ou pagamentos. Individual de teste INV-2026-0006
-emitida por R$ 0,20; pagamento pendente. Timeout do pg_net de 5 s sem
-alteração; evidências no plano. Chave de onboarding sem uso
+(R$ 0,20) paga às 20:38:28 UTC de 07/10 e baixada pelo cron em cerca de 33 s,
+com recibo conferido pelo dono no Portal; em 08/10 a consolidada INV-2026-0009
+foi baixada pela v8 em 23 s, e as individuais que ela quitou ficaram como
+"Coberta". Evidências no relatório de execução. Chave de onboarding sem uso
 removida e ausência conferida.
 
 Na virada, todas as faturas já abertas passam para a cobrança Itaú (decisão

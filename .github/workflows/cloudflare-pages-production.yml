@@ -3,7 +3,8 @@ name: Cloudflare Pages Production
 # Publica os dois sites no ambiente de produção do Cloudflare Pages depois que o
 # CI de um push em `main` termina verde. Fica desligado até a variável de
 # repositório CLOUDFLARE_PAGES_PRODUCTION_ENABLED ser `true` (roteiro
-# docs/plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md, etapa 8).
+# docs/archive/plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md,
+# etapa 8).
 # Só roda código da própria `main`; nenhum código de PR chega a este workflow.
 on:
   workflow_run:

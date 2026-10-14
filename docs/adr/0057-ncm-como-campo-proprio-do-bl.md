@@ -1,5 +1,8 @@
 # 0057 — NCM deixa de ser derivado da descrição e vira campo próprio do B/L
 
+> **Situação atual (2026-10-13).** Decisão vigente e implementada, reafirmada pela [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 17 (o NCM do documento vence quando declarado). As migrations `358` e `359` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [Manifestos & EDI](../modules/manifesto-edi.md), seção "Fluxos e invariantes".
+
 Status: aceito — 2026-08-28
 
 ## Contexto

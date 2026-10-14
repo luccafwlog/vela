@@ -1,5 +1,11 @@
 # 0034 — Notificação Interna é conceito separado do Alerta: o sino entrega, `/alertas` trata
 
+> **Situação atual (2026-10-14).** Permanecem Alerta e Notificação Interna como conceitos separados, a cópia congelada, a audiência declarada por tipo, a leitura pessoal que não altera o Alerta e `/alertas` como central.
+> Não valem mais o estado `reconhecido`, o reconhecer e o fechamento manual: o Alerta fecha pela origem, e a ação manual é a dispensa temporária com motivo e data de revisão ([ADR 0053](./0053-ciclo-de-vida-alerta-dispensa-temporaria.md)).
+> As migrations `001`, `010`, `116` e `225` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Pela [ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md) (item 24), a audiência não é mais só a declarada no catálogo: é o catálogo mais o setor do item, como `/alertas/regras` já mostra.
+> Regra vigente: [Operação e Suporte](../modules/operacao-suporte.md), alertas e notificações.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Ler notificação não fecha alerta; encerramento é pela origem, com dispensa temporária justificada no lugar de acknowledge/fechamento manual.
 > Rastreabilidade: [ADR 0053](./0053-ciclo-de-vida-alerta-dispensa-temporaria.md); [migration ativa 029](../../supabase/migrations/029_alert_item_upsert_idempotence.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

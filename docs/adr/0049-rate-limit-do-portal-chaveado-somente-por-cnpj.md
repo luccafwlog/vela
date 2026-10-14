@@ -1,5 +1,9 @@
 # 0049 — Rate limit do Portal chaveado somente pelo CNPJ
 
+> **Situação atual (2026-10-13).** Decisão vigente: o balde por CNPJ (5 erros em 15 minutos) decide sempre. A camada opcional do Upstash Redis, por par IP+CNPJ, só acrescenta bloqueio e nunca libera o que o balde travou; com os limiares padrão, ela não bloqueia antes do balde.
+> As migrations `040` e `183` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [Segurança](../operations/seguranca.md), seção "Rate limiting", e em [Rate limit do Portal](../operations/portal-rate-limit.md).
+
 Status: aceito — 2026-08-14
 
 > **Alcance.** O que esta ADR descreve como vigente é a chave do rate limit e o

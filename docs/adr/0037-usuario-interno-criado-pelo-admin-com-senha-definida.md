@@ -1,6 +1,11 @@
 # 0037 — Usuário interno é criado pelo administrador com senha definida, sem convite
 
-- Status: aceito
+> **Situação atual (2026-10-13).** Decisão vigente e implementada pela Edge Function `admin-users` (criar, trocar e-mail ou senha, desativar). "Administrador" é hoje o perfil Administrativo: o papel `admin` saiu e usuário interno não se exclui ([ADR 0074](./0074-usuarios-retencao-e-backup-diario.md)).
+> Esta decisão supersede parcialmente a [ADR 0019](./0019-politica-de-senha-e-signup-fechado.md) quanto ao usuário interno criado pelo dashboard. A "ADR 0018" citada abaixo para o convite do Portal é engano (a 0018 trata da busca de viagem);
+> o convite está em [Portal do Cliente](../modules/portal-cliente.md), Provisionamento operacional. A migration `223` citada abaixo é da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente: [Operação e Suporte](../modules/operacao-suporte.md), tela `/admin`; política de senha em [Segurança](../operations/seguranca.md).
+
+Status: aceito
 - Data: 2026-08-05
 
 ## Contexto

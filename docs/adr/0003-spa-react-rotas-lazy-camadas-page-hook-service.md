@@ -1,6 +1,9 @@
 # 0003 — SPA React com rotas lazy e camadas page/hook/service
 
-Status: aceito — 2026-06-09
+> **Situação atual (2026-10-13).** A decisão vale inteira; ADRs posteriores a estenderam sem revogar nada. A [ADR 0066](./0066-transicao-marca-vela.md) criou as duas entradas, Vela em `src/AppInterno.tsx` e Portal Fwlog em `src/AppPortal.tsx`, que o texto abaixo já menciona (`src/App.tsx` só reexporta a entrada interna); a [ADR 0018](./0018-selecao-viagem-busca-preditiva-combobox.md) e a [ADR 0034](./0034-notificacao-interna-separada-do-alerta-sino-entrega-alertas-trata.md) aplicam as camadas a controles compartilhados.
+> Regra vigente em [Arquitetura](../ARCHITECTURE.md), seção "Camadas do frontend", e em [WORKFLOW.md](../../WORKFLOW.md), seção "8. Rotas e páginas".
+
+Status: estendida — 2026-06-09
 
 ## Contexto
 

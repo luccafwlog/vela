@@ -387,12 +387,49 @@ async function verifyOnly(args) {
   console.log(`OK — pg_restore --list validou o backup cifrado: ${path.resolve(args.verifyPath)}`)
 }
 
+// Heartbeat do Better Stack: a execução avisa o resultado, e a ausência de aviso
+// (computador desligado, tarefa parada) vira alerta pelo prazo do heartbeat.
+// A URL fica só no ambiente do processo e nunca é impressa.
+function heartbeatUrl(base, ok) {
+  if (!base) return null
+  let url
+  try {
+    url = new URL(base)
+  } catch {
+    throw new Error('BETTERSTACK_HEARTBEAT_BACKUP_URL nao e uma URL valida.')
+  }
+  if (url.protocol !== 'https:') throw new Error('BETTERSTACK_HEARTBEAT_BACKUP_URL deve usar https.')
+  if (!ok) url.pathname = `${url.pathname.replace(/\/+$/, '')}/fail`
+  return url.href
+}
+
+// O aviso nunca muda o resultado do backup: se o Better Stack não responder,
+// a falta de sinal já abre o alerta do lado de lá.
+async function pingHeartbeat(ok, fetchImpl = globalThis.fetch) {
+  const url = heartbeatUrl(process.env.BETTERSTACK_HEARTBEAT_BACKUP_URL, ok)
+  if (!url) return 'skipped'
+  try {
+    const response = await fetchImpl(url, { method: 'GET', signal: AbortSignal.timeout(10_000) })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    return 'sent'
+  } catch (error) {
+    console.error(`backup-r2: heartbeat nao enviado (${error.message}).`)
+    return 'failed'
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv)
   if (args.help) return printHelp()
   if (args.mode === 'dry-run') return console.log(JSON.stringify(planFor(args), null, 2))
   if (args.mode === 'verify') return verifyOnly(args)
-  return executeBackup(args)
+  try {
+    await executeBackup(args)
+  } catch (error) {
+    await pingHeartbeat(false)
+    throw error
+  }
+  await pingHeartbeat(true)
 }
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
@@ -403,4 +440,4 @@ if (isMain) {
   })
 }
 
-export { buildObjectNames, consumeArchive, parseArgs, parseDatabaseUrl, parseEncryptionKey, planFor }
+export { buildObjectNames, consumeArchive, heartbeatUrl, parseArgs, parseDatabaseUrl, parseEncryptionKey, pingHeartbeat, planFor }

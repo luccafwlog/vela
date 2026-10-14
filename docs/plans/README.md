@@ -10,61 +10,18 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
+- [2026-10-14 — Correções decididas na revisão geral](2026-10-14-correcoes-decididas-na-revisao-geral.md) — correções de código das decisões do dono de 2026-10-14 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md)): 31 itens de código por ordem de impacto (segurança e dados primeiro; o primeiro é o alerta de troca de CE com Desbloqueio conferido, B1), mais uma operação do dono fora do código (A6, heartbeat e executor do backup diário; B32, apagar a Edge Function antiga de aviso de fatura emitida, foi feita em 2026-10-14).
+
 - [2026-10-13 — Identidade visual: migração tela a tela](2026-10-13-identidade-visual-tela-a-tela.md) — base da [identidade visual única](../identidade-visual.md) entregue em 2026-10-13 ([ADR 0081](../adr/0081-identidade-visual-unica.md)): tokens, tema FWLOG do Portal, peças comuns e `npm run design:check`; 21 telas a migrar, cada uma aprovada pelo responsável com captura de hoje, proposta e lista do que muda; ficha do B/L, passada única e lote 1 (lista de BLs, ficha da Viagem, ficha do Cliente, Taxas Locais · Faturas e Validação, Portal · Faturas) entregues; próximo: lote 2, a confirmar.
 
-- [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante.md) — checklist reconciliado em 2026-10-07 e conferido em 2026-10-10, 2026-10-12, 2026-10-13 e 2026-10-14: backend publicado em produção, com a migration `220`; modelo oficial em DOCX cadastrado em 2026-10-10; matrizes de pagamento e de acesso entre CNPJs, compatibilidade dos frontends e fluxo A/B até a exportação comprovados; a ativação depende dos aceites (operacional/jurídico e homologação ZPT, que fecha a conciliação) e da remoção de um PDF real pelo expurgo, cujo ciclo já foi comprovado com objeto sem bytes; Portal, gestão em Importação, documentos anuais VIP até 31/12 por CNPJ e planilha ZPT com cinco colunas; detalhes documentais/operacionais a homologar.
+- [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante.md) — backend publicado em produção (conferido em 2026-10-10); Portal, gestão em Importação, documentos anuais VIP até 31/12 por CNPJ e planilha ZPT com cinco colunas (`zpt-5-v2`). Matrizes de pagamento, acesso entre CNPJs, compatibilidade dos frontends e fluxo A/B até a exportação feitos em 2026-10-13. Migration `220` em produção (conferido em 2026-10-14). A ativação depende do aceite operacional e jurídico, da homologação ZPT (planilha `zpt-5-v2` e conciliação com o "Exportar Tela" real), da remoção de um PDF real pelo expurgo (o ciclo já foi comprovado com objeto sem bytes) e da correção do alerta de troca de CE com Desbloqueio conferido (B1, item 1 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md)); caminho crítico no plano.
 
-O plano [2026-10-07 — Revisão visual e UX: pacote de prompts](../archive/plans/2026-10-07-revisao-visual-ux-prompts.md) foi encerrado e arquivado em 2026-10-13 depois da etapa 12: o contrato visual da etapa 00 foi substituído pela identidade visual única (ADR 0081), e as etapas 13 a 23 deram lugar à migração tela a tela.
-O plano [2026-10-09 — Correção das importações e do CE Mercante](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md) foi concluído e arquivado em 2026-10-12: PR 929 integrada, migrations `174` a `217` em produção depois do diagnóstico da Etapa 0 e `import-effects-runner` ligado.
-O plano [2026-09-28 — Remediação da auditoria de segurança run-2](../archive/plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md) foi concluído e arquivado em 2026-10-09: credenciais antigas e deploy key removidas, URL Configuration do Auth corrigida, troca de e-mail com PKCE, importação com e-mail novo e recusa de upload do Financeiro observadas em produção, segredos de cron rotacionados e backup diário confirmado.
-O plano [2026-10-08 — Correção das pendências da auditoria das etapas 00–05](../archive/plans/2026-10-08-correcao-pendencias-auditoria-etapas-00-05.md) foi concluído e arquivado em 2026-10-08: correções integradas pela PR 903, decisões N1 (wordmark não conta) e N2 (viagem cancelada sai do Line-Up na TV e no Painel) aplicadas.
-O plano [2026-09-06 — Remediação das auditorias #654–#660](../archive/plans/2026-09-06-plano-remediacao-auditorias-654-660.md) foi concluído e arquivado em 2026-09-29 após validação de todas as provas de runtime em produção e otimização do TV refresh.
-O plano [2026-10-07 — Desbloqueio de CE: revisão do fluxo](../archive/plans/2026-10-07-desbloqueio-ce-revisao-fluxo.md) foi executado localmente e arquivado (publicação, agenda do e-mail e aceite da planilha pela ZPT pendentes).
-O plano [2026-09-23 — Alinhamento entre apresentação, documentação e código](../archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md) foi concluído e arquivado.
-O plano [2026-09-23 — Issue 710: consolidação serviço a serviço](../archive/plans/2026-09-23-issue-710-consolidacao-service-a-service.md) foi concluído e arquivado.
-O plano [2026-09-17 — Unificação de B/Ls, carga mista e Manifesto Mercante](../archive/plans/2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md) foi concluído e arquivado.
-O plano [2026-09-20 — Remediação das auditorias marítimas (PR 706)](../archive/plans/2026-09-20-remediacao-auditorias-maritimas.md) foi concluído e arquivado.
-O plano [2026-09-20 — Remediação da fronteira de segurança do Portal](../archive/plans/2026-09-20-remediacao-fronteira-seguranca-portal.md) foi concluído e arquivado.
-O plano [2026-09-20 — Remediação de clientes, revisão e comunicação](../archive/plans/2026-09-20-remediacao-clientes-revisao-comunicacao.md) foi concluído e arquivado.
-O plano [2026-09-12 — Transição de marca: Transhipping Desk → Vela](../archive/plans/2026-09-12-plano-transicao-marca-vela.md) foi concluído e arquivado (PR #688).
-O plano [2026-09-03 — Issue 609: contatos e caixas de comunicação](../archive/plans/2026-09-03-issue-609-contatos-caixas-comunicacao.md) foi concluído e arquivado.
-
-## Atualização do ciclo de vida — 2026-09-29
-
-O plano [2026-09-06 — Remediação das auditorias #654–#660](../archive/plans/2026-09-06-plano-remediacao-auditorias-654-660.md)
-foi concluído em 2026-09-29 com a validação em produção de todas as etapas
-de runtime (Pix estático em PSP real, convite Resend pós-PR #802, paridade de
-faturas no Portal, ingestão de arquivos e acessibilidade por teclado) e a
-otimização do TV display refresh.
-
-## Atualização do ciclo de vida — 2026-09-25
-
-Por confirmação do responsável pelo Vela, os planos de governança das skills,
-da revisão sistemática multiagente e da auditoria do Portal/F12 foram
-concluídos e movidos para [`../archive/plans/`](../archive/plans/). O plano
-Cloudflare permanece vivo.
-
-## Revisão do ciclo de vida — 2026-09-19
-
-Naquela revisão, os planos #654–#660, da revisão sistemática e de governança
-das skills ainda continuavam vivos: o primeiro exigia prova de runtime; o
-segundo mantinha C4/D4/D6 abertos; e o terceiro mantinha a validação no
-Alienware e o encerramento pendentes. Nenhum foi arquivado apenas por ter
-grande parte implementada.
-
-As notas de execução intermediária de agosto/setembro foram preservadas no
-[registro histórico](../archive/reports/2026-09-18-notas-historicas-indice-planos.md).
+Planos concluídos, encerrados ou superados ficam no [índice dos planos arquivados](../archive/plans/README.md). As notas de estado que este índice acumulou até 2026-10-13 estão no [registro histórico](../archive/reports/2026-10-14-estado-planos-vivos-ate-2026-10-13.md); as anteriores, no [registro de 2026-09-18](../archive/reports/2026-09-18-notas-historicas-indice-planos.md).
 
 ## Ao concluir um plano
 
 1. `git mv docs/plans/<plano>.md docs/archive/plans/`
-2. Remover a linha da tabela acima.
+2. Remover a linha da lista acima e acrescentar o plano, com estado e motivo, ao [índice dos planos arquivados](../archive/plans/README.md).
 3. Se a spec originária estiver em `docs/spec/`, movê-la para `docs/archive/specs/`.
 4. Registrar a entrega no [`../CHANGELOG.md`](../CHANGELOG.md).
 5. Rodar `npm run docs:check`.
-
-O plano [2026-10-02 — Correção dos achados da PR 839](../archive/plans/2026-10-02-correcao-achados-pr-839.md) foi encerrado com implementação e validação local concluídas; publicação e CI ficam registrados na PR.
-
-A Central de Informações aprovada em 2026-10-04 foi implementada e validada
-localmente: [registro arquivado](../archive/plans/2026-10-04-portal-informacoes.md).
-Publicação remota não realizada.

@@ -1,6 +1,11 @@
 # 0025 — B/L como fonte documental única da carga de container e do ATD do POL
 
-Status: aceito — 2026-07-16
+> **Situação atual (2026-10-13).** Decisão vigente e implementada: o B/L é a fonte documental da carga de container, e o menor Laden on Board da Viagem e POL vira o ATD do POL, calculado no banco na importação; o importador de Manifesto CNTR já saiu.
+> Estendida pela [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md) (o B/L também conta os cheios no ADR; o ATD do POL é registro documental e não vira ATD da Escala nem da Atracação, nota de 2026-08-24, item 3)
+> e pela [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 17 (Laden on Board ilegível ou vazio não altera a data gravada).
+> Regra vigente: [Manifestos & EDI](../modules/manifesto-edi.md), seção de `/bls`.
+
+Status: estendida — 2026-07-16
 
 ## Contexto
 

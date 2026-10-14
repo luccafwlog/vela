@@ -5,7 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createCipheriv, createDecipheriv } from 'node:crypto'
 import { Readable, Writable } from 'node:stream'
-import { buildObjectNames, consumeArchive, parseDatabaseUrl, parseEncryptionKey, planFor } from './backup-r2.mjs'
+import { buildObjectNames, consumeArchive, heartbeatUrl, parseDatabaseUrl, parseEncryptionKey, pingHeartbeat, planFor } from './backup-r2.mjs'
 
 const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'backup-r2.mjs')
 
@@ -80,6 +80,36 @@ test('catálogo fecha cedo sem EPIPE, mas dados posteriores ainda exigem autenti
   const corrupted = Buffer.from(encrypted)
   corrupted[corrupted.length - 1] ^= 1
   await assert.rejects(verify(corrupted), /authenticate|authentication/i)
+})
+
+test('heartbeat avisa sucesso na URL e falha em /fail, sem mudar o resultado do backup', async () => {
+  const base = 'https://uptime.betterstack.com/api/v1/heartbeat/abc123'
+  assert.equal(heartbeatUrl(base, true), base)
+  assert.equal(heartbeatUrl(base, false), `${base}/fail`)
+  assert.equal(heartbeatUrl(`${base}/`, false), `${base}/fail`)
+  assert.equal(heartbeatUrl(undefined, true), null)
+  assert.throws(() => heartbeatUrl('http://uptime.betterstack.com/x', true), /https/)
+
+  const previous = process.env.BETTERSTACK_HEARTBEAT_BACKUP_URL
+  const originalError = console.error
+  const logged = []
+  console.error = (line) => logged.push(line)
+  try {
+    delete process.env.BETTERSTACK_HEARTBEAT_BACKUP_URL
+    assert.equal(await pingHeartbeat(true, () => assert.fail('sem URL nao chama')), 'skipped')
+
+    process.env.BETTERSTACK_HEARTBEAT_BACKUP_URL = base
+    const called = []
+    assert.equal(await pingHeartbeat(false, async (url) => { called.push(url); return { ok: true } }), 'sent')
+    assert.deepEqual(called, [`${base}/fail`])
+    assert.equal(await pingHeartbeat(true, async () => { throw new Error('rede fora') }), 'failed')
+    assert.equal(await pingHeartbeat(true, async () => ({ ok: false, status: 404 })), 'failed')
+    assert.doesNotMatch(logged.join('\n'), /abc123/)
+  } finally {
+    console.error = originalError
+    if (previous === undefined) delete process.env.BETTERSTACK_HEARTBEAT_BACKUP_URL
+    else process.env.BETTERSTACK_HEARTBEAT_BACKUP_URL = previous
+  }
 })
 
 console.log('OK — backup-r2: contratos de segurança e dry-run conferidos')

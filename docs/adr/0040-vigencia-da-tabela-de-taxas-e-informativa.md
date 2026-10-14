@@ -1,6 +1,11 @@
 # 0040 — A vigência da Tabela de Taxas Locais é informativa, não trava do cálculo
 
-Status: aceito — 2026-08-07
+> **Situação atual (2026-10-13).** Decisão vigente e implementada: a tabela é resolvida por escopo e `active`, a vigência só desempata e avisa na tela, e a ETA só ancora a Condição de Cliente (definição atual de `resolve_local_charge_table_id` na migration `002`).
+> Estendida pela [ADR 0069](./0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md) (função única que devolve duas tabelas ao B/L misto); a [ADR 0073](./0073-cadastro-usado-so-se-desativa.md) acrescenta que tabela usada só se desativa, pelo Administrativo.
+> As migrations `019`, `092`, `123`, `266`, `267`, `270` e `275` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente: [Taxas Locais](../modules/taxas-locais.md).
+
+Status: estendida — 2026-08-07
 
 ## Contexto
 

@@ -29,8 +29,9 @@ Para que as notificações por e-mail e canais de alerta reflitam a identidade d
 
 ### A. Separar os projetos do Vela e do Portal
 
-O alvo repository-side é um projeto para a aplicação interna (`vela-interno`)
-e outro para o Portal (`portal`), ambos na mesma organização. A seleção ocorre
+O alvo repository-side é um projeto para a aplicação interna (`vela`, que
+também recebe os erros das Edge Functions) e outro para o Portal (`portal`),
+ambos na organização `fwlog`. A seleção ocorre
 no build por `VITE_SENTRY_DSN_INTERNAL` e `VITE_SENTRY_DSN_PORTAL`; não copie um
 DSN de um projeto para o outro. O procedimento de configuração e a evidência
 necessária estão em [`observabilidade.md`](observabilidade.md) e dependem de

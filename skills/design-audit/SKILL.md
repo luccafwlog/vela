@@ -39,8 +39,10 @@ ativos contra produção ou serviços de terceiros.
 
 ## Decisões e sentido do sistema
 
-Considere CONTEXT.md, a sessão atual, os planos e as ADRs vigentes para
-entender o fluxo esperado. Uma ADR antiga ou um rótulo histórico não deve ser
+Considere a sessão atual, o doc do módulo em `docs/modules/` (regra vigente da
+tela), `docs/operations/regras-de-negocio.md` (regra que atravessa módulos), os
+planos e as ADRs vigentes (o porquê) para entender o fluxo esperado; use
+CONTEXT.md como vocabulário. Uma ADR antiga ou um rótulo histórico não deve ser
 tratado como regra atual sem verificar seu status.
 
 Se o comportamento visível da tela contrariar uma decisão anterior e não ficar
@@ -111,10 +113,12 @@ Não declare melhoria sem comparação verificável.
 
 ## Relatório e entrega
 
-Quando solicitado, escreva ou atualize `docs/design-audit/README.md` com data,
-commit/base, método, evidências, tabela de correções, achados P0–P3, resumo por
-dimensão, cinco maiores problemas de conversão e cinco quick wins. Use links
-relativos para screenshots.
+Quando solicitado, grave o relatório num arquivo novo
+`docs/archive/audits/AAAA-MM-DD-auditoria-design-<tema>.md` (auditoria datada
+nasce histórica; não atualize um relatório antigo), com data, commit/base,
+método, evidências, tabela de correções, achados P0–P3, resumo por dimensão,
+cinco maiores problemas de conversão e cinco quick wins. Grave os screenshots em
+`docs/archive/design-audit/assets/` e use links relativos para eles.
 
 Escrever esse relatório é a entrega documental da auditoria; não crie ADR,
 altere CONTEXT.md, mude semântica ou implemente correções sem autorização

@@ -1,5 +1,10 @@
 # 0014 — Demurrage: recálculo diário substitui ROE congelado na emissão
 
+> **Situação atual (2026-10-14).** Continuam valendo o USD fixado na Invoice, o BRL recalculado pela PTAX até o pagamento, o markup 1,065 e o congelamento no pagamento; o job da PTAX foi agendado em 2026-10-07.
+> Mudou a emissão: uma Invoice por grupo de B/Ls do mesmo Cliente que dividem container, emitida quando todos voltam, com cada caixa cobrada uma vez e Invoice complementar para a caixa nova ([ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 20; [ADR 0080](./0080-decisoes-da-revisao-final-da-pr-929.md)); data corrigida cancela e reemite a Invoice sem pagamento, e a com desconto ou disputa fica suspensa ([ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 19; [ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md)). O banco é a autoridade do cálculo e do snapshot ([ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md)).
+> Invoice de Demurrage não vence, como diz o "não há `due_date`" abaixo; `demurrage_invoices.due_date` existe e a ficha do Cliente conta Invoice de Demurrage vencida, defeito com correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+> Regra vigente em [Demurrage](../modules/demurrage.md), seção "Fluxos e invariantes", e em [Regras de negócio](../operations/regras-de-negocio.md), seção "Câmbio (ROE / PTAX)".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Princípio de câmbio permanece; cálculo autoritativo e snapshots são server-side. A existência da Edge Function não prova ativação remota do job PTAX.
 > Rastreabilidade: [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 028](../../supabase/migrations/028_demurrage_roe_integrity.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

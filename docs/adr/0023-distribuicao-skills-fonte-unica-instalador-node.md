@@ -1,6 +1,6 @@
 # ADR 0023 — Distribuição de skills: fonte única e instalador Node
 
-- Status: aceito
+Status: aceito
 - Data: 2026-07-10
 - Relação: estende a 0010 (validação, testes e gates) no que toca ao
   provisionamento de ferramentas de sessão.

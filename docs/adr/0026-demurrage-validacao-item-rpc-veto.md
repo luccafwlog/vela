@@ -1,6 +1,11 @@
 # 0026 — Validação por item na RPC de emissão de Demurrage (autoridade de veto)
 
-Status: aceito — 2026-07-17
+> **Situação atual (2026-10-13).** A autoridade de cálculo desta decisão foi supersedida pela [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md): o banco calcula a Invoice de Demurrage (datas, tarifas, acordo e overrides) em `issue_demurrage_invoice_for_bl` e grava foto append-only;
+> o navegador não envia itens nem total, e `calculateDemurrage` serve só à previsão na tela. Resta daqui a validação por item em `create_demurrage_invoice_with_items`, hoje restrita ao `service_role` e sem chamador.
+> A migration `204` citada abaixo é da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente: [Demurrage](../modules/demurrage.md), emissão da Invoice de Demurrage.
+
+Status: supersedida parcialmente — 2026-07-17
 
 ## Contexto
 

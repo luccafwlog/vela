@@ -1,5 +1,9 @@
 # 0042 — CE Mercante confirma o cálculo em todos os modos
 
+> **Situação atual (2026-10-13).** O CE Mercante continua obrigatório para faturar container, carga solta e misto, e Embarque de Vazios segue fora. Para o Granito as decisões 1, 3 e 4 não valem mais: ele é apoio operacional, não emite invoice nem recebível, e o CE de Granito não dispara cálculo nem emissão automáticos (decisão do dono de 2026-09-23, mantida pela [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 8).
+> A unicidade da decisão 2 foi refinada pela ADR 0078, item 3: um CE só pode estar em um B/L não cancelado, somando carga e Granito, por gatilho no banco; B/L cancelado libera o CE.
+> Regra vigente em [Faturamento](../modules/faturamento.md), seção "Propósito e escopo", e em [Granito](../modules/granito.md).
+
 > **Nota editorial — 2026-09-23 · supersedida parcialmente.** As decisões 3 e 4
 > não valem mais para o Granito: ele é apoio operacional, calcula taxas para
 > conferência e não emite invoice nem recebível. A Validação o classifica como

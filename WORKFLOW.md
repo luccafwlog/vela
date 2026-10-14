@@ -293,26 +293,25 @@ delas há fallback para URLs de produção. Em validação isolada, configure o
 destino correto antes de gerar links de comunicação. `.env.example` é a
 referência de nomes, não um conjunto de credenciais utilizáveis.
 
-Edge Functions de Portal usam `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`,
-`PORTAL_REPLY_TO`, `RESEND_WEBHOOK_SECRET`, `NOTIFY_WEBHOOK_SECRET` e
-`PORTAL_DIGEST_SECRET` somente em secrets do Supabase. O job `pg_cron` do
-resumo diário é sempre agendado, e encontra a base da API e o segredo no
-Supabase Vault, sob os nomes `SUPABASE_URL` e `PORTAL_DIGEST_SECRET` — os
-mesmos dos Edge Function Secrets, que rotacionam em par com o cofre (ADR 0063
-e [`docs/operations/segredos-cron.md`](./docs/operations/segredos-cron.md)).
-Com o cofre vazio o job fica inerte e registra `WARNING`, em vez de disparar.
-Webhooks e cron têm
+Os segredos das Edge Functions (e-mail, Portal, anti-robô, trava de
+tentativas, jobs, Itaú e monitoramento) ficam somente em Supabase → Edge
+Functions → Secrets; a lista de nomes tem um único dono, o
+[manual de serviços externos](./docs/operations/servicos-externos.md#secrets-das-edge-functions).
+Os jobs `pg_cron` encontram a base da API e o segredo no Supabase Vault, sob os
+mesmos nomes dos Edge Function Secrets, que rotacionam em par com o cofre (ADR
+0063 e [`docs/operations/segredos-cron.md`](./docs/operations/segredos-cron.md),
+que lista as entradas do cofre). Com o cofre vazio o job fica inerte e registra
+`WARNING`, em vez de disparar. Webhooks e cron têm
 `verify_jwt = false` em `supabase/config.toml` e validam seus próprios segredos.
 O modo dry-run deve ser confirmado no caminho de envio que será exercitado;
 não presuma que remover uma chave simula todas as Edge Functions. O domínio do
 remetente precisa estar verificado antes de qualquer envio real.
 
-Os consumidores desses fluxos usam `PORTAL_EMAIL_EVENTS_CRON_SECRET`,
-`IMPORT_EFFECTS_CRON_SECRET` e `RECALC_CRON_SECRET`, sempre em par entre o
-secret da Edge Function e o Supabase Vault. `import-effects-runner` também exige
-`IMPORT_EFFECTS_RUNNER_ENABLED=true`; sem essa variável o endpoint responde
-paused e não faz claim. O job de PTAX só pode ser ativado depois da validação
-externa descrita em `docs/operations/segredos-cron.md`.
+`import-effects-runner` também exige `IMPORT_EFFECTS_RUNNER_ENABLED=true`; sem
+essa variável o endpoint responde `503 paused` e não faz claim. Em banco novo,
+o job de PTAX (`recalc-demurrage-ptax`) não existe até ser agendado à mão,
+depois de validar segredo, Edge e gateway, conforme
+[`segredos-cron.md`](./docs/operations/segredos-cron.md#agendar-o-recálculo-de-ptax).
 
 ### Execução
 
@@ -328,10 +327,15 @@ design; não faz parte do deploy e não equivale ao backend real.
 
 ## 5. Migrations Supabase
 
-O diretório usa um único esquema: prefixo sequencial numerado de três dígitos
-(`001_…` em diante). Migrations que nasceram com timestamp UTC foram
-renumeradas uma única vez para esse padrão (ver ADR 0016); o timestamp original
-fica preservado como comentário no cabeçalho de cada arquivo afetado.
+A cadeia ativa (`supabase/migrations/`) usa prefixo sequencial de três dígitos
+e recomeçou em `001_…` com a consolidação da
+[ADR 0062](./docs/adr/0062-consolidacao-migrations-schema-1-0.md).
+`supabase/migrations_archive/` guarda a cadeia anterior (`001`–`384`), cujos
+números se repetem com outro conteúdo: em documento vivo, número sem
+qualificação é da cadeia ativa, e o da cadeia anterior é citado como
+"migration arquivada `NNN`" ([CONVENCOES.md](./docs/CONVENCOES.md#histórico-vs-arquivo)).
+A renumeração de timestamps UTC da ADR 0016 aconteceu na cadeia arquivada; é lá
+que os cabeçalhos guardam o timestamp original.
 
 Não renomeie arquivos já aplicados para “organizar” a pasta. O nome participa do
 histórico remoto; a renumeração de ADR 0016 foi uma padronização pontual,
@@ -340,11 +344,20 @@ validada por replay completo das migrations e só segura em banco descartável
 
 ### Aplicação no remoto
 
-O fluxo esperado usa **Automatic branching** da integração GitHub do Supabase.
-Confirme sua configuração e os checks da PR no ambiente alvo; o checkout não
-comprova que a integração remota está habilitada. Para PRs elegíveis, as
-migrations em `supabase/migrations/` são executadas pelo branch action antes do
-Preview ser usado. O workflow Cloudflare Pages usa as credenciais públicas do Supabase Preview da mesma branch e publica os dois sites protegidos.
+O **Automatic branching** da integração GitHub do Supabase está **desligado**
+por decisão do dono de 2026-10-07 (estado conferido no
+[manual de serviços externos](./docs/operations/servicos-externos.md#supabase)):
+abrir uma PR não cria branch Supabase nem o check `Supabase Preview`. Para
+validar a PR num banco de Preview, crie uma branch pontual no painel e preencha
+"Sync with Git branch" com a branch da PR ([deploy.md](./docs/setup/deploy.md#workflows));
+ela tem custo por hora, depende de autorização e é removida depois do teste.
+Com a branch vinculada, a integração aplica nela as migrations de
+`supabase/migrations/`, e o workflow Cloudflare Pages Preview publica os dois
+sites protegidos com as credenciais públicas dessa branch. Sem ela, a prova
+das migrations da PR é o job `migration-replay` do CI (seção 12), e os
+workflows Cloudflare Pages Preview e Provision Preview Admin esperam o check
+`Supabase Preview` por 36 tentativas de 10 s (cerca de 6 min) e terminam com
+falha. O checkout não comprova a configuração remota: confira-a no painel.
 
 No merge ou push em `main`, quando habilitada, a opção **Deploy to production** aplica as migrations
 pendentes no projeto Supabase de produção (`fgmkhbzhaeebrsizwccx`). Não aplique
@@ -444,12 +457,14 @@ tipados existentes. O arquivo é protegido: siga a autorização exigida em
 
 ### Aplicação
 
-O CI da SPA e o Cloudflare Pages não aplicam migrations. O branch action do Supabase aplica
-as migrations no Preview automático correspondente à PR; depois do merge, a
-integração GitHub do Supabase aplica as pendentes em produção. Confirme o check
-do Supabase Preview antes do merge e, em caso de falha, compare o histórico
-remoto com os arquivos locais antes de reexecutar. Após DDL, verifique advisors
-e o contrato usado pela aplicação.
+O CI da SPA e o Cloudflare Pages não aplicam migrations. Quando existe a
+branch Supabase de Preview vinculada à PR, a integração aplica nela as
+migrations da PR; confirme o check `Supabase Preview` antes do merge e, em caso
+de falha, compare o histórico remoto com os arquivos locais antes de
+reexecutar. Sem essa branch, o gate de migration da PR é o `migration-replay`.
+Depois do merge, a integração GitHub do Supabase (Deploy to production) aplica
+as pendentes em produção. Após DDL, verifique advisors e o contrato usado pela
+aplicação.
 
 As migrations `022`–`026` e `031`–`037` implementam os fluxos de:
 inbox/dispatch de email, autoridade e snapshot de Demurrage, alerta persistente
@@ -464,8 +479,9 @@ validação local controlada usa os testes `emailInbox.local-pg.test.ts`,
 `demurrageAuthority.local-pg.test.ts`, `exchangeRateIntegrity.local-pg.test.ts` e
 `importEffects.local-pg.test.ts`.
 
-Nunca execute um reset amplo para “testar” uma migration. O reset operacional
-atual está suspenso em
+Nunca execute a limpeza ampla para “testar” uma migration. A limpeza de dados
+de teste (`supabase/scripts/limpar_dados_teste.sql`) só vale enquanto a
+afirmação "Data status" do `AGENTS.md` estiver vigente; o procedimento está em
 [`docs/operations/reset-ambiente.md`](./docs/operations/reset-ambiente.md).
 
 ## 6. Acesso a dados e React Query
@@ -730,7 +746,9 @@ URL PostgreSQL e os segredos R2 somente do ambiente do processo, cifra o
 `pg_restore --list`. Consulte o [runbook do backup R2](./docs/operations/backup-r2.md)
 para pré-requisitos, variáveis, proteção adicional de produção e os passos que
 dependem do Supabase/Cloudflare Dashboard. Não existe workflow GitHub para este
-backup nesta etapa, e nenhum restore destrutivo faz parte dos checks locais.
+backup: a execução diária de produção roda numa tarefa agendada fora do GitHub,
+descrita no [manual de serviços externos](./docs/operations/servicos-externos.md#backup).
+Nenhum restore destrutivo faz parte dos checks locais.
 
 ## 12. CI e deploy
 
@@ -742,20 +760,25 @@ pushes para `main`, mais o agregador. As etapas Node usam a versão 24 e
 requer PostgreSQL 16:
 
 1. `quality` — verificação documental e autotestes, lint, self-check do gerador
-   de squash, declaração de migration destrutiva e autotestes desse checker;
-   inclui o contrato de upload CE em Deno 2.9.6, com HTTP simulado e
-   dependências remotas verificadas por `deno.lock` (`--frozen`); o lock da
-   raiz cobre só esses imports remotos (`--no-config` e
+   de squash, declaração de migration destrutiva e autotestes desse checker,
+   lista das suítes local-pg (`npm run localpg:check`) e contratos de staging e
+   de provisionamento do Cloudflare Pages (`npm run cloudflare:stage:test` e
+   `npm run cloudflare:provision:test`); inclui o contrato de upload CE em Deno
+   2.9.6, com HTTP simulado e dependências remotas verificadas por `deno.lock`
+   (`--frozen`); o lock da raiz cobre só esses imports remotos (`--no-config` e
    `DENO_NO_PACKAGE_JSON=1`), então atualizações npm não o invalidam;
-2. `build` — build (`tsc` + `vite`) e orçamento de bundle;
+2. `build` — build (`tsc` + `vite`) com staging dos dois sites Pages
+   (`npm run cloudflare:build:sites`, que exige `VITE_SUPABASE_URL` para o
+   `connect-src` da CSP) e orçamento de bundle;
 3. `test` — suíte Vitest dividida em 3 shards (`--shard=N/3`);
 4. `security-audit` — autotestes do analisador e replay estático de autorização
    (`verificar_guardas.py`), distinguindo tabelas de schemas diferentes;
 5. `migration-replay` — aplica as migrations do zero num PostgreSQL 16
    descartável (`setup-local-pg.sh --reset`) e trava invariantes em banco real
    (`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), roda as
-   suítes locais serializadas, confere o catálogo de RPCs e aplica/verifica
-   `supabase/seed.sql`; é o job dedicado à execução real de SQL;
+   suítes locais serializadas nas duas ordens e a bateria financeira por
+   último, confere o catálogo de RPCs e aplica/verifica `supabase/seed.sql`; é
+   o job dedicado à execução real de SQL;
 6. `checks` — gate agregador que só fica verde quando os cinco terminam verdes.
 
 `checks` é o nome estável para a proteção de branch: a quantidade de shards
@@ -764,8 +787,10 @@ cancelados (`concurrency` + `cancel-in-progress`), então só o commit mais
 recente do PR ocupa runners.
 
 Após um CI verde, `.github/workflows/provision-preview-admin.yml` executa no
-contexto confiável da branch padrão, aguarda o check `Supabase Preview`, obtém
-as credenciais da branch efêmera e roda `scripts/provision-preview-admin.mjs`.
+contexto confiável da branch padrão, aguarda o check `Supabase Preview` (que
+só existe com a branch de Preview vinculada à PR; sem ela, o workflow termina
+com falha por tempo esgotado, seção 5), obtém as credenciais da branch e roda
+`scripts/provision-preview-admin.mjs`.
 Esse script cria ou atualiza `qa-admin@example.test` pela Auth Admin API e
 garante seu `user_profiles.role = 'administrativo'`. O password fica exclusivamente no
 secret `PREVIEW_ADMIN_PASSWORD`; o workflow também exige os secrets
@@ -777,7 +802,12 @@ na integração, não inferida da existência da PR.
 
 ### Push em main
 
-GitHub Actions publica previews no Cloudflare Pages para PRs e produção após CI verde em `main`. O environment `cloudflare-production` fornece as variáveis públicas do build. O login com o usuário fixo só deve ser tentado depois que `Provision Preview Admin` estiver verde.
+GitHub Actions publica no Cloudflare Pages a produção após CI verde em `main` e
+os previews das PRs que têm branch Supabase de Preview vinculada. O environment
+`cloudflare-production` fornece as variáveis públicas do build. O login com o
+usuário fixo só deve ser tentado depois que `Provision Preview Admin` estiver
+verde.
+
 ### Edge Functions e banco
 
 O deploy do Cloudflare Pages não publica Edge Functions nem aplica migrations. Coordene

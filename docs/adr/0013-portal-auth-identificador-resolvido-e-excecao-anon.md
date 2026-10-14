@@ -1,5 +1,9 @@
 # 0013 — Portal via Supabase Auth com identificador resolvido antes do login
 
+> **Situação atual (2026-10-13).** Continuam valendo o Supabase Auth como único mecanismo de sessão do Portal, as RPCs de dados escopadas por `auth.uid()`, a recusa da senha em tabela com sessão por token e a exigência de ADR para nova função pré-autenticação.
+> Não valem mais o login por CPF ou email nem a resolução do identificador no navegador: o CNPJ é o único identificador, como registra a [ADR 0049](./0049-rate-limit-do-portal-chaveado-somente-por-cnpj.md) (nenhuma ADR decidiu a retirada de CPF e email), e a Edge Function `portal-login` autentica no servidor. A exceção `anon` de `portal_resolve_login` foi encerrada pela [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md), e a função ficou sem chamador; a [ADR 0048](./0048-confirmacao-de-email-do-portal-em-rota-publica.md) estende a decisão ao que autentica cada passo das rotas públicas.
+> Regra vigente em [Portal do Cliente](../modules/portal-cliente.md), seção "Propósito e escopo", e em [Segurança](../operations/seguranca.md), seção "Duas fronteiras de autenticação".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** CNPJ e senha entram pela Edge Function portal-login. portal_resolve_login é server-only; a allowlist anon e os identificadores descritos originalmente não são o contrato de frontend atual.
 > Rastreabilidade: [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md), [ADR 0048](./0048-confirmacao-de-email-do-portal-em-rota-publica.md), [ADR 0049](./0049-rate-limit-do-portal-chaveado-somente-por-cnpj.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

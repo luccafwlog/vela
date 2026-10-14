@@ -1,10 +1,15 @@
 # 0004 — Supabase RLS e RPCs como fronteira de segurança
 
+> **Situação atual (2026-10-13).** Continua valendo a fronteira de segurança no banco: RLS em todas as tabelas e RPCs `SECURITY DEFINER` com `search_path` fixo.
+> Não valem mais a leitura interna por `is_active_user()`, hoje `is_active_read_user()`, que inclui Equipamentos ([ADR 0044](./0044-leitura-interna-global-departamento-restringe-escrita.md)); o `is_admin()` como regra das escritas financeiras, porque a escrita interna é de todo Departamento ativo, com rastro, salvo as exceções da [ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md); e o `anon` nas funções do Portal, porque a única função pré-autenticação é `portal_ship_schedule()` e o default de `public` é fechado ([ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md)).
+> `is_admin()` significa Administrativo desde a [ADR 0074](./0074-usuarios-retencao-e-backup-diario.md); a [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md) pôs no banco a autoridade do cálculo financeiro; as Edge Functions citadas abaixo não existem mais.
+> Regra vigente em [Segurança](../operations/seguranca.md), seção "RLS-first".
+
 > **Nota editorial — 2026-09-18 · estendida.** Leitura interna global, escrita com rastro, grants fechados por padrão e núcleos financeiros server-side refinam as permissões originais. Os exemplos de Edge Functions removidas são históricos.
 > Rastreabilidade: [ADR 0044](./0044-leitura-interna-global-departamento-restringe-escrita.md), [ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md), [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md), [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 023](../../supabase/migrations/023_demurrage_calculation_snapshot.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
-Status: estendida — 2026-06-09
+Status: supersedida parcialmente — 2026-06-09
 
 ## Contexto
 

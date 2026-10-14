@@ -1,8 +1,10 @@
 # ADR 0043 — Vínculo de cliente somente por documento
 
-## Status
+> **Situação atual (2026-10-13).** Vale o vínculo automático só por documento exato; nome continua sendo sugestão confirmada por pessoa na fila de revisão. Não vale mais a menção a CPF nem a normalização "para dígitos": não existe Cliente pessoa física e CPF é recusado ([ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 17), e o CNPJ canônico tem 14 caracteres alfanuméricos (migration arquivada `293`).
+> As migrations `284`–`287` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [Clientes](../modules/clientes.md), seção "Reconciliação de cliente em B/L e Granito".
 
-Aceito e implementado nas migrations `284`–`287`.
+Status: supersedida parcialmente — 2026-08-11 (original: aceito e implementado nas migrations `284`–`287`)
 
 ## Decisão
 

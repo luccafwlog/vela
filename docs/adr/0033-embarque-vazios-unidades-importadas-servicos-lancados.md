@@ -1,6 +1,12 @@
 # 0033 — Embarque de Vazios: unidades importadas e serviços lançados à mão substituem o cálculo por container
 
-Status: aceito — 2026-07-28
+> **Situação atual (2026-10-14).** Permanecem o Embarque de Vazios por escala, com unidades importadas e linhas de serviço lançadas à mão, as três naturezas, o valor sugerido e a importação tudo ou nada.
+> Não valem mais: a reimportação como substituição total e a "perda aceita" das unidades manuais (atualiza por container e preserva as incluídas à mão, [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 25, migration `187`), o terminal do ADR em texto livre
+> (o ADR por terminal aponta o Cadastro de Terminais, [spec arquivada de múltiplos terminais](../archive/specs/2026-08-18-escala-multiplos-terminais-design.md)) e a edição restrita a Administrativo e Equipamentos ([ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md)).
+> Defeito com correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26): o atalho de armazenagem não reconhece o serviço de armazenagem cadastrado sem condição, que o valor sugerido trata como genérico.
+> Regra vigente: [Manifestos & EDI](../modules/manifesto-edi.md), seção de `/embarquevazios`.
+
+Status: supersedida parcialmente — 2026-07-28
 
 > **Nota editorial — 2026-09-19.** A fórmula de armazenagem escrita na
 > decisão original (`saída − entrada − free time`) estava incompleta: o dia

@@ -1,12 +1,15 @@
 # Desbloqueio de CE Mercante — Issue 557
 
-Estado: execução autorizada; implementado no checkout, validação local em andamento
-e publicação pendente. Data: 2026-10-04.
+Estado: implementada e publicada em produção; homologação com a ZPT e ativação
+pendentes. Data: 2026-10-04.
 
-> **Atualização de estado (2026-10-10):** publicado em produção (backend e Cloudflare
-> Pages) e modelo do termo em DOCX cadastrado; compatibilidade frontend/backend,
-> homologação e ativação seguem pendentes. Evidências em "Fontes" do
+> **Atualização de estado (2026-10-13):** publicado em produção (backend e Cloudflare
+> Pages), modelo do termo em DOCX cadastrado em 2026-10-10 e compatibilidade
+> frontend/backend conferida em 2026-10-13; homologação e ativação seguem pendentes.
+> O layout da planilha, o envio à ZPT e a conclusão vigentes estão no
+> [módulo](../modules/desbloqueio-ce.md), dono da regra. Evidências em "Fontes" do
 > [plano](../plans/2026-10-04-desbloqueio-ce-mercante.md).
+
 Fonte: [Issue 557](https://github.com/luccafwlog/vela/issues/557), lida com seus
 critérios complementares de 07/09/2026; não há comentários na issue.
 Plano derivado: [implementação](../plans/2026-10-04-desbloqueio-ce-mercante.md).
@@ -163,6 +166,12 @@ Modo Inspeção do Portal oferece as mesmas leituras autorizadas, somente leitur
 | Aptidão | derivada dos quatro requisitos atuais e do CE vigente |
 | ZPT | não exportado, exportado aguardando confirmação, desbloqueio confirmado |
 
+> **Superado pela revisão de 2026-10-07:** o eixo ZPT vigente vem da exportação e da
+> conciliação com o "Exportar Tela" (exportado, *Desbloqueio conferido* ou
+> *Divergente*), e a solicitação conclui quando a documentação está validada, não
+> com o desbloqueio. Ver [Envio e conciliação](../modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt)
+> e [Conclusão](../modules/desbloqueio-ce.md#conclusão) no módulo.
+
 Pedido: rascunho, enviado, em análise, correção solicitada, cancelado ou concluído.
 Concluído exige todos os seus B/Ls com desbloqueio confirmado. Pedidos mistos
 preservam o andamento individual; exibir contadores em vez de um selo global apto.
@@ -233,6 +242,13 @@ uploads sem metadados. Proposta: anexos de pedidos enviados e eventos por 5 anos
 a confirmar com responsável documental antes da publicação.
 
 ## Exportação e confirmação
+
+> **Superado pela revisão de 2026-10-07:** o layout vigente é `zpt-5-v2`, com os
+> cabeçalhos do "Exportar Tela" da ZPT; exportar registra o envio, e a conciliação
+> com o "Exportar Tela" marca *Desbloqueio conferido* ou *Divergente*. Não há
+> registro de envio separado nem confirmação de desbloqueio por B/L. Regra vigente
+> no [módulo](../modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt); o texto
+> abaixo é o desenho original.
 
 Layout funcional confirmado pelo usuário: planilha simples, uma linha por B/L,
 com exatamente estas cinco colunas e nesta ordem:

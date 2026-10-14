@@ -1,5 +1,11 @@
 # 0017 — B/L como fonte de ingestão e correção; autoridade compartilhada com o manifesto
 
+> **Situação atual (2026-10-14).** Continuam valendo o arquivo de B/L criando e corrigindo o B/L com prévia do diff e rastro, a reimportação como Troca de Consignatário com aceite e Frete & Despesas fora das Taxas Locais.
+> Não valem mais: o manifesto como autoridade inicial ou co-primária, porque o B/L é a fonte documental única da carga de container e o gerador de EDI saiu ([ADR 0025](./0025-bl-fonte-documental-unica-container-atd-pol.md)); a correção sem efeito na cobrança, porque a importação calcula ([ADR 0038](./0038-taxa-local-valor-congelado-ancorado-na-escala.md)) e a fatura emitida é reemitida ou ajustada, inclusive na troca de Cliente ([ADR 0077](./0077-fatura-emitida-nao-muda-de-valor.md)); e o NCM só na descrição ([ADR 0057](./0057-ncm-como-campo-proprio-do-bl.md)). A [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) estende o contrato à carga solta.
+> No B/L misto, o peso dos contêineres não é peso de faturamento; a prévia ainda pede confirmação de faturamento para ele, que o servidor grava sem trava, defeito com correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+> As migrations `162`, `163`, `165`, `205`, `325` e `357` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [Manifestos & EDI](../modules/manifesto-edi.md), seção "Fluxos e invariantes", e em [Faturamento](../modules/faturamento.md), seção "Fluxos e invariantes".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** B/L é fonte documental única de container; cálculo provisório pós-import e NCM persistido refinam a decisão. Proteções financeiras e correções auditadas continuam.
 > Rastreabilidade: [ADR 0025](./0025-bl-fonte-documental-unica-container-atd-pol.md), [ADR 0038](./0038-taxa-local-valor-congelado-ancorado-na-escala.md), [ADR 0057](./0057-ncm-como-campo-proprio-do-bl.md); [migration ativa 060](../../supabase/migrations/060_pr698_claude_review_followup.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

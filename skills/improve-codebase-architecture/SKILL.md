@@ -40,7 +40,8 @@ issues, configuração global, commit ou deploy.
 Antes de escanear:
 
 1. confirme a área, módulo, página ou dor que o usuário quer investigar;
-2. leia CONTEXT.md e as ADRs ativas relacionadas;
+2. leia o doc do módulo em `docs/modules/` (regra vigente), as ADRs ativas
+   relacionadas (o porquê) e use CONTEXT.md como vocabulário;
 3. examine o histórico recente para localizar áreas que mudam repetidamente,
    sem tratar frequência de commit como prova de defeito;
 4. defina o conjunto de arquivos que sustenta cada candidato.

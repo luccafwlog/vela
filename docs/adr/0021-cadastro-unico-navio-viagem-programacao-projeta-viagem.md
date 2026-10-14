@@ -1,6 +1,11 @@
 # 0021 — Cadastro único de navio/viagem: Programação de Navios projeta a Viagem
 
-Status: aceito — 2026-07-09 · **implementado** (Chegadas e Saídas cria/anexa a Viagem; ver [modules/chegadas-saidas.md](../modules/chegadas-saidas.md))
+> **Situação atual (2026-10-13).** Valem o cadastro único em Chegadas e Saídas e a Programação de Navios projetando a Viagem.
+> Não valem mais: tirar a viagem do quadro desligando a flag ("Remover do Portal" saiu pela [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md), item 12; ela sai pelo último ATD ou por Excluir/Cancelar em `/viagens`); os campos de POL/ETD na tela Viagens (o modal da Viagem não edita datas, [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md), nota de 2026-08-24, item 4);
+> e, na nota de 2026-07-09 abaixo, a retirada da escala sem âncora por "não escala" para qualquer usuário: só retira quando quem salva é o Administrativo e o porto não está sob a Trava de exclusão; para os demais, a escala fica sem data (migration `090`).
+> Regra vigente: [Chegadas e Saídas](../modules/chegadas-saidas.md), rota interna `/chegadas-saidas`.
+
+Status: supersedida parcialmente — 2026-07-09 · **implementado** (Chegadas e Saídas cria/anexa a Viagem; ver [modules/chegadas-saidas.md](../modules/chegadas-saidas.md))
 
 ## Contexto
 

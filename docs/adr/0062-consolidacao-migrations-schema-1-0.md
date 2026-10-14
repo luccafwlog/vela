@@ -1,5 +1,11 @@
 # ADR 0062 — Consolidação de Migrações: Schema Inicial v1.0 e Arquivo Morto
 
+> **Situação atual (2026-10-13).** O squash, o arquivo morto e a camada fora do dump valem; a cadeia ativa vai hoje de `001` a `221`, com as lacunas `014` e `114`.
+> Não valem mais: a configuração dos jobs `pg_cron` por `app.settings.*` nas migrations `003` e `005`, substituída pelo Vault e por `ops.dispatch_edge_job` ([ADR 0063](./0063-configuracao-de-jobs-cron-no-vault.md), migration `007`); o item 3 na forma original, porque o harness responde a união do diretório ativo com o arquivo morto (nota de 2026-09-03); e as contagens de jobs da nota nº 3.
+> Implementação parcial: falta a etapa 4 (item 6); o mock de `fs` continua em `src/test/setup.ts` e os `*Migration.test.ts` são hoje 221.
+> Regra vigente em [WORKFLOW.md](../../WORKFLOW.md), seção "5. Migrations Supabase"; a forma de citar migration arquivada, em [Convenções](../CONVENCOES.md), seção "Histórico vs arquivo".
+> As migrations `047`, `267` e `366` citadas abaixo sem qualificação são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação desta ADR; `001_schema.sql`, `384_…`, a lacuna `283` e as arquivadas `097` e `297` também pertencem a ela.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Squash e arquivo histórico permanecem; URL/segredos dos jobs usam Vault e ops.dispatch_edge_job, substituindo configuração por app.settings.*.
 > Rastreabilidade: [ADR 0063](./0063-configuracao-de-jobs-cron-no-vault.md); [migration ativa 007](../../supabase/migrations/007_cron_secrets_no_vault.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

@@ -24,7 +24,8 @@ pergunte em português do Brasil antes de escrever o primeiro documento.
 - Use o modo **sem persistência** quando a conversa deve apenas esclarecer ou
   testar o raciocínio.
 - Use o modo **persistência confirmada** quando o usuário pedir que as decisões
-  sobrevivam à sessão em `CONTEXT.md`, ADR, plano, spec ou issue.
+  sobrevivam à sessão em `CONTEXT.md`, doc do módulo, ADR, plano, spec ou
+  issue.
 - Use `wayfinder` quando a iniciativa ainda é grande, nebulosa e depende de um
   mapa de decisões e tickets entre sessões.
 - Use `writing-plans` quando as decisões estão fechadas e falta produzir um
@@ -75,9 +76,13 @@ decisões continuam sendo do usuário.
 
 Depois que o usuário confirmar uma decisão, classifique-a antes de editar:
 
-- **`CONTEXT.md`:** termo de domínio, definição ou regra de negócio canônica;
-- **ADR nova ou nota editorial:** decisão arquitetural, de segurança, dados ou
-  contrato durável que afeta trabalhos futuros;
+- **`CONTEXT.md`:** termo de domínio e definição curta (vocabulário, sem regra);
+- **doc do módulo em `docs/modules/`:** regra vigente do domínio;
+- **`docs/operations/regras-de-negocio.md`:** regra que atravessa módulos;
+- **`docs/operations/manual-financeiro.md`:** procedimento do Financeiro;
+- **ADR nova ou nota editorial:** por que decidimos uma decisão nova de negócio,
+  arquitetura, segurança, dados ou contrato durável que afeta trabalhos futuros
+  (a regra resultante fica no módulo);
 - **plano, spec ou issue:** escolha específica desta tarefa, detalhe de
   implementação, aceite ou pendência;
 - **nenhum documento:** preferência temporária, hipótese rejeitada, decisão não
