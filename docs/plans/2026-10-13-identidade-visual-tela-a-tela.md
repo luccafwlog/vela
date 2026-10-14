@@ -143,8 +143,7 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     - **Desbloqueio de CE e VIP:** novo bloco Solicitações de desbloqueio
       (protocolo, B/Ls, situação, termo, procuração, prazo, aberta em,
       Analisar), com busca por B/L e paginação, antes da Condição VIP.
-  - **Taxas Locais · Faturas** (decisões de 2026-10-14; tela ainda não
-    aprovada, e a aba Validação ainda não tem proposta): versão limpa, uma
+  - **Taxas Locais · Faturas** (aprovada em 2026-10-14): versão limpa, uma
     linha de título e oito colunas sem texto embaixo da célula, nesta
     ordem: Fatura, B/L, Emissão, Cliente, Navio / Viagem, Total, Saldo e
     Situação. Saldo
@@ -159,6 +158,22 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     marcada por um ícone pequeno de pilha ao lado do número ("Consolidada"
     ao passar o mouse), não por selo. O ícone ✓ de
     paga vale em todas as telas que mostram "paga" (decisão de 2026-10-14).
+  - **Taxas Locais · Validação** (proposta de 2026-10-14, seção 4b,
+    aguardando aprovação): versão limpa com seleção, seta de abrir e seis
+    colunas (B/L, Cliente, Navio / Viagem, Motivo, Subtotal, ação). Motivo
+    uma vez, em texto; uma ação por linha, a que resolve o motivo
+    (Recalcular, Vincular na Revisão, Cadastrar CE, Abrir Cliente, Emitir);
+    saem Cálculo, Vínculo do Cliente e Modo de carga (vira filtro). Linha
+    aberta com Trecho, CE, Cliente e CNPJ, Último cálculo e Conferência do
+    cálculo. Pergunta em aberto: "Pronto para emitir" na fila normal ou só
+    com "Incluir resolvidos".
+  - **Defeito achado, fora da mudança visual** (2026-10-14, código e banco
+    local): `getBillingBlock` (`src/components/billing/validacaoPipeline.ts`)
+    e `canIssueSingleInvoice` (`ValidacaoOperationsTable.tsx`) só tratam
+    `financial_status = 'invoiced'` como faturado; B/L `paid` ou
+    `partially_paid` volta à fila como "Cálculo incompleto" e oferece
+    Emitir. Correção: usar `isBlFinanciallyLocked`
+    (`src/lib/chargeStatus.ts`), como o resto do sistema.
   - **Faturas do Portal** (decisões de 2026-10-14; tela ainda não
     aprovada): nada no lugar do
     vencimento (a taxa local não tem vencimento, ADR 0055); botão "Copiar
