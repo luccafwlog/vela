@@ -5,7 +5,7 @@
 > Pela [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md), não valem mais: o "Administrativo usa **Emitir fatura**" do item 3 e o "(Administrativo, com confirmação)" de **Emitir fatura** no item 7 (qualquer Departamento emite, item D3); a autorização do Administrativo na restituição excepcional das "Exceções controladas" (qualquer Departamento autoriza, item D2); e a confirmação da restituição pelo Administrativo no item 4 e pelo Financeiro nas "Exceções controladas", que passa a ser do Financeiro ou do Administrativo (item D2). O cancelamento financeiro segue só do Administrativo. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 > Regra vigente em [Faturamento](../modules/faturamento.md), seção "Correção após emissão (ADR 0077)", no [Manual financeiro](../operations/manual-financeiro.md), seções 5 e 6, e em [Segurança](../operations/seguranca.md), seção "Modelo de permissões por perfil".
 
-Status: supersedida parcialmente — 2026-10-01, revisado em 2026-10-02 (decisões do dono); quem emite e quem autoriza a Restituição mudou pela ADR 0085 em 2026-10-14.
+Status: supersedida parcialmente — 2026-10-01, revisado em 2026-10-02 (decisões do dono); quem emite e quem autoriza e confirma a Restituição mudou pela ADR 0085 em 2026-10-14.
 Implementação local nas migrations `122` a `130`; deploy remoto não verificado.
 
 ## Contexto

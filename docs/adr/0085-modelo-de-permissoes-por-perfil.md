@@ -9,6 +9,8 @@ Fixa a regra de partida das permissões dos cinco Departamentos internos
 (Administrativo, Financeiro, Operações, Documentação e Equipamentos) e a lista
 fechada das exceções. Supersede parcialmente as ADRs
 [0045](./0045-inspecao-do-portal.md) (Histórico do console para Operações),
+[0060](./0060-primeira-permissao-do-perfil-equipamentos.md) (consulta aos
+Comunicados, item D19),
 [0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md) (lista de
 exceções), [0071](./0071-ce-mercante-como-trava-de-exclusao.md) (item 9, quem
 cancela a fatura), [0073](./0073-cadastro-usado-so-se-desativa.md) (item 6,
@@ -95,7 +97,7 @@ corrige a favor da base.
 | Preparar cancelamento financeiro de B/L em fatura paga | Administrativo | É um cancelamento parcial de fatura paga | ADR 0077, exceções controladas |
 | Cancelar e reativar Viagem e B/L | Administrativo, com motivo | Não registrado na origem, que exige motivo e rastro | ADR 0071, itens 8 e 9 |
 | Desativar e reativar Cliente, tarifa, Local, terminal e serviço | Administrativo | Não registrado na origem | ADR 0073, itens 4, 5 e 8 |
-| Comunicados e edição de contatos e caixas | Administrativo, Documentação e Equipamentos | O Comunicado é redação operacional dirigida ao Cliente; o Financeiro fica fora por decisão | ADR 0060; nota de 2026-09-18 da ADR 0046 |
+| Enviar Comunicados e editar contatos e caixas (a consulta é de todos, item D19) | Administrativo, Documentação e Equipamentos | O Comunicado é redação operacional dirigida ao Cliente; o Financeiro fica fora por decisão | ADR 0060; nota de 2026-09-18 da ADR 0046 |
 | Ligar a chave global de envio | Administrativo | Envio real em massa a Clientes é irreversível; a permissão de Comunicados sozinha deixaria três perfis ligá-lo | ADR 0059 |
 | Conceder e revogar a Liberação de faturamento sem Portal | Administrativo | A Liberação é a decisão registrada que dispensa a trava do Portal | ADR 0070 |
 | Responder, reabrir e anexar na Dispute de Demurrage | Equipamentos e Administrativo | Equipamentos é dono da disputa; o Administrativo responde como cobertura | Migration `081` (decisão R13 de 2026-09-23) |
@@ -161,6 +163,11 @@ corrige a favor da base.
   recebe nenhum dos três: os dois últimos vão só ao Administrativo, e o Pix não
   conciliado vai ao Administrativo, à Documentação e a Equipamentos
   (migration `078`), que continuam recebendo.
+- **D19. Comunicados:** qualquer Departamento abre a tela de Comunicados
+  (`/clientes/comunicacao`) para consultar o histórico. Enviar e editar
+  contatos e caixas seguem de Administrativo, Documentação e Equipamentos.
+  Hoje a rota recusa o Financeiro e Operações, embora o banco deixe todos
+  lerem.
 
 ### Falhas de segurança corrigidas a favor da regra
 
@@ -183,13 +190,22 @@ dono:
    exportação que "Excluir escala" recusa pela Trava, e navio, armador, porto
    e tabela sem uso, tudo sem motivo; o mesmo vale para as demais tabelas com
    policy de DELETE do Administrativo (Baplie, Granito, Vazios, importações).
-   A exclusão passa a existir só pela RPC.
+   A exclusão passa a existir só pela RPC. A lista vem das policies, não dos
+   grants do banco local: em produção as tabelas cujo grant nenhuma migration
+   define nem revoga herdam o privilégio padrão da plataforma (migration
+   `166`), e as policies do Administrativo nelas (`alerts`, `billing_runs`,
+   `pricing_rule_versions` e outras) podem estar abertas (**Suspeita**: a ACL
+   de produção não foi lida).
 5. **Escrita direta do Administrativo no dinheiro.** O Administrativo lançava
    pagamento sem referência bancária (`payments`), dava a fatura como paga ou
    cancelada sem motivo (`invoices`), mudava o valor do item de fatura emitida
    (`invoice_items`) e quitava o recebível (`bl_receivables`), tudo pela API e
-   fora das RPCs com motivo; as policies cobrem também `ledger_settlements`,
-   `invoice_bls`, `invoice_receivable_links` e `invoice_lifecycle_events`. Só as RPCs passam a escrever essas tabelas.
+   fora das RPCs com motivo, e reescrevia a numeração das faturas
+   (`invoice_counters`) e apagava o histórico da fatura
+   (`invoice_lifecycle_events`). As policies de escrita do Administrativo
+   cobrem também `ledger_settlements`, `invoice_bls`, `invoice_granite_bls`,
+   `invoice_receivable_links` e `billing_batches`. Só as RPCs passam a
+   escrever essas tabelas.
 
 ## Alternativas rejeitadas
 

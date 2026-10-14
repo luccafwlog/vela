@@ -235,8 +235,11 @@ Excluir apaga o registro do banco; não há soft delete generalizado
 que segue como origem — critério, papel e auditoria são os da
 [ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md)). A exclusão é do
 Administrativo, com motivo, enquanto o registro não estiver travado
-([Trava de exclusão](#trava-de-exclusão)), e passa sempre por uma RPC que
-confere a trava no banco:
+([Trava de exclusão](#trava-de-exclusão)), e deve passar sempre por uma RPC
+que confere a trava no banco. Hoje o Administrativo ainda apaga pela API, sem
+motivo nem Trava, as tabelas com policy de DELETE `is_admin()` (correção
+pendente, item P1 do plano; ver a
+[matriz](seguranca.md#modelo-de-permissões-por-perfil)). As RPCs:
 
 - **Viagem, B/L, container e Cliente:** `delete_records` (migration `087`,
   definição vigente na `088`). Cada item sai por inteiro, com os filhos, ou

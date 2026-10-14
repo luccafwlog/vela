@@ -11,10 +11,10 @@
   Restituição como exceções) e a lista fechada de exceções; a matriz ação × perfil passou a ter dono
   único em [Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil). Só documentação: o
   código entrou como itens P no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
-  numa fila única com as correções da ADR 0083, que passa a ter 43 itens; logo depois do B1 vêm
-  quatro das falhas de escrita direta pela API confirmadas no Postgres local (P2, P3, P15 e,
-  junto com o A7, P1). A revisão da PR acrescentou a falha 5 (escrita direta do Administrativo em
-  faturas e pagamentos) e as decisões D16 a D18.
+  numa fila única com as correções da ADR 0083, que passa a ter 43 itens; à frente, depois do B1,
+  ficam as falhas de escrita direta pela API confirmadas no Postgres local (itens P2, P3 e P15 do
+  plano; P1 junto com o A7, depois do A21). A revisão da PR acrescentou a falha 5 (escrita direta
+  do Administrativo em faturas, pagamentos e numeração, item P15) e as decisões D16 a D19.
 - **Documentos impressos (2026-10-14, PR 939, tela 20 do [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
   visual das faturas, recibos e ADR mantido; a folha A4 ganha margem em todas as páginas e
   "Página N de M"; Invoice de Demurrage paga ou cancelada não mostra mais o Pix; a complementar diz

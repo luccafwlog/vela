@@ -152,7 +152,7 @@ Permissões decididas em 2026-10-14
 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16; regra
 vigente na [matriz de Segurança](../operations/seguranca.md#desbloqueio-de-ce)):
 Administrativo e Documentação executam análise, entrega, exportação e
-confirmação. Todos os Departamentos consultam pedidos, requisitos e documentos,
+conciliação. Todos os Departamentos consultam pedidos, requisitos e documentos,
 sem escrita. A proposta original deixava Equipamentos sem acesso e os demais
 sem os documentos; o código ainda faz isso (correção pendente, item P12 do
 plano de correções). Espelhar a matriz no banco e em `useAuth`, incluindo o alias legado

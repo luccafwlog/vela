@@ -497,7 +497,7 @@ Estes testes verificam texto de migrations, não um banco aplicado:
 
 ## Notas e divergências
 
-- **Correção pendente (ADR 0085, item D5):** leitura da Conciliação PIX para todos os Departamentos e conciliação (vincular, confirmar, tratar exceção, marcar recebimento Itaú) para Financeiro e Administrativo. Hoje a página e as RPCs aceitam só o Administrativo, exceto o ramo de Demurrage de `confirm_unified_pix_matches`, que não tem guarda própria e delega a `confirm_demurrage_pix_matches`, que já aceita o Financeiro. Correção no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (P5).
+- **Correção pendente (ADR 0085, item D5):** leitura da Conciliação PIX para todos os Departamentos e conciliação (vincular, confirmar, tratar exceção, marcar recebimento Itaú) para Financeiro e Administrativo. Hoje a página e as RPCs aceitam só o Administrativo, exceto o ramo de Demurrage de `confirm_unified_pix_matches`, que não tem guarda própria e delega a `confirm_demurrage_pix_matches`, que já aceita o Financeiro. Correção no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (item P5).
 
 - **Correções implementadas — Código/Teste local.** A baixa escolhida no detalhe pode ser antiga, com confirmação de valor/data/ID. Registro manual exige referência bancária (pode se repetir quando um PIX paga mais de uma cobrança) e tentativa estável; a conciliação PIX mantém TXID próprio. Excedente pendente de uma baixa falsa pode acompanhar sua reversão; devolução confirmada ou ajuste que depende da baixa permanece protegido. Banco implementado na migration 136: [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md).
 

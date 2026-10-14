@@ -8,7 +8,7 @@
 
 - **RLS ativo em todas as tabelas.** Acesso segmentado por role via helpers `is_admin()`, `is_active_user()`, `current_user_role()` (ADR 0004).
 - **Dados financeiros:** leitura interna usa `is_active_read_user()`; a escrita segue o [modelo de permissões por perfil](#modelo-de-permissões-por-perfil). Não presumir restrição universal a admin.
-- A lógica financeira sensível (criar invoice, numerar, consolidar, PIX) roda em **RPCs `SECURITY DEFINER`** transacionais — o cliente não escreve direto nessas tabelas.
+- A lógica financeira sensível (criar invoice, numerar, consolidar, PIX) roda em **RPCs `SECURITY DEFINER`** transacionais. Hoje o Administrativo ainda escreve direto nas tabelas de fatura e pagamento, e `register_invoice_payment` e `mark_bl(s)_ready_and_create_invoice` são `SECURITY INVOKER` (correção pendente, P3 e P15 na [matriz](#modelo-de-permissões-por-perfil)).
 - **Default-deny em funções** (ADR 0011, reforçada pela ADR 0047): desde a migration arquivada `297` — hoje nas migrations `001` e `006`, com a varredura de `PUBLIC`/`anon` da `003` —, o `ALTER DEFAULT PRIVILEGES` de `public` **revoga** `EXECUTE` de `PUBLIC`, `anon` e `authenticated`. Função nova nasce fechada e o acesso é concedido caso a caso na própria migration (`GRANT EXECUTE ON FUNCTION public.<fn>(<args>) TO authenticated;`) — esquecer quebra fechado, com erro de permissão em teste, em vez de abrir em silêncio. Antes disso o default do Supabase concedia `EXECUTE` a `anon`/`authenticated` em toda função criada, o que gerou as correções das migrations arquivadas `078`, `088`, `093`, `152` e `257` e deixou 51 funções executáveis por `anon` até a arquivada `297` varrê-las. `PUBLIC` faz parte da revogação por necessidade: sem ela, `anon` e `authenticated` herdariam o EXECUTE do default embutido do PostgreSQL. Atenção ao recriar função: `CREATE OR REPLACE` preserva o ACL, mas `DROP FUNCTION` + `CREATE` exige o `GRANT` de volta.
 - **Exceção pré-autenticação:** há **uma** viva — `portal_ship_schedule()`, vitrine pública da programação de navios e único `GRANT` a `anon` na cadeia ativa. A exceção `anon` da ADR 0013 (`portal_resolve_login`) foi encerrada pela migration arquivada `182`, quando o login passou a ser resolvido pela Edge Function `portal-login` com `service_role`, que lê `customer_portal_accounts` diretamente; `portal_resolve_login` ficou no catálogo sem grant e sem chamador.
 - **Helpers de revisão privilegiados:** `compute_bl_review_pendencies` lê `customer_portal_accounts`, relação administrativa protegida por RLS. Por isso roda como `SECURITY DEFINER` com `search_path` fixo e sem `EXECUTE` direto para `PUBLIC`, `anon` ou `authenticated`; somente RPCs/triggers autorizados o invocam.
@@ -57,8 +57,10 @@ tarifação (`is_active_read_user()`;
 [ADR 0044](../adr/0044-leitura-interna-global-departamento-restringe-escrita.md)).
 A única exceção é a área `/admin` inteira — Usuários, logs, métricas e todas as
 abas —, só do Administrativo, inclusive para leitura; o item Admin do menu só
-aparece para ele. As telas que ainda restringem a leitura sem decisão estão
-marcadas como correção pendente na [matriz](#modelo-de-permissões-por-perfil).
+aparece para ele. As telas que ainda restringem a leitura sem decisão
+(Desbloqueio de CE, documentos do pedido, fila de Disputas, Histórico do
+console do Portal e Comunicados) estão marcadas como correção pendente na
+[matriz](#modelo-de-permissões-por-perfil).
 
 A matriz do frontend está em `roleHasPermission` (`src/hooks/useAuth.tsx`) e
 nos gates de cada tela; a autorização real fica nas policies, nas RPCs e nas
@@ -138,7 +140,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Excluir unidade manual e linha de serviço de vazios antes do ADR de Saída fechado | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de Vazios e `delete_catalog_row` | ADR 0071, item 4 | correção pendente: a trava pelo ADR fechado não existe (B14) |
 | Remover o CE Mercante do B/L sem fatura viva, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `remove_bl_ce_mercante` | ADR 0078, item 5 | vigente |
 | Criar e editar navio, armador, porto, Local e serviço | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()` | ADR 0046 | vigente |
-| Excluir cadastro sem uso, com motivo | ✔ | — | — | — | — | `delete_catalog_row` (migration `096`) | ADR 0046; ADR 0073 | correção pendente: o Administrativo apaga navio, armador, porto e tabela sem uso pela API, sem motivo, e o mesmo vale para cerca de 30 tabelas com policy de DELETE `is_admin()` (Baplie, Granito, Vazios, importações, programação; P1) |
+| Excluir cadastro sem uso, com motivo | ✔ | — | — | — | — | `delete_catalog_row` (migration `096`), que ainda não aceita navio, armador, porto nem tabela de Taxas Locais | ADR 0046; ADR 0073 | correção pendente: o Administrativo apaga navio, armador, porto e tabela sem uso pela API, sem motivo, e o mesmo vale para cerca de 30 tabelas com policy de DELETE `is_admin()` (Baplie, Granito, Vazios, importações, programação; P1) |
 | Desativar e reativar Local, terminal e serviço | ✔ | — | — | — | — | — | ADR 0073, item 8 | correção pendente: qualquer perfil, pela tela e pela API (B15) |
 | Registrar Ocorrência do ADR (legado) | — | — | — | — | — | `add_agency_report_occurrence`, sem tela (aceita Operações, Documentação, Equipamentos e Administrativo) | ADR 0030; ADR 0085 (funções sem tela) | correção pendente: a função segue no banco (P10) |
 | Publicar na Central de Informações do Portal | ✔ | ✔ | ✔ | ✔ | ✔ | `internal_save_portal_information` | ADR 0085, D7 | correção pendente: só Administrativo; Equipamentos só depots (P8) |
@@ -148,7 +150,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Criar e editar tabela, item e Condição de Cliente; lançar taxa manual | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `add_manual_bl_charge` | ADR 0046; decisão R6 de 2026-09-23 | vigente |
-| Desativar, reativar e excluir tarifa | ✔ | — | — | — | — | Gatilho `guard_tariff_active_change` (migration `091`); a exclusão é por DELETE direto com policy `is_admin()` | ADR 0073, item 4 | correção pendente na exclusão: sem RPC, sem motivo (P1) |
+| Desativar, reativar e excluir tarifa | ✔ | — | — | — | — | Gatilho `guard_tariff_active_change` (migration `091`); item e Condição de Cliente saem por `delete_catalog_row`, com motivo (migration `096`); a tabela (`charge_tables`) sai por DELETE direto com policy `is_admin()` | ADR 0073, item 4 | correção pendente na exclusão da tabela: sem RPC, sem motivo (P1) |
 | Alterar valores do cálculo do B/L e a situação financeira do B/L | — | — | — | — | — | Só as RPCs de cálculo e faturamento | ADR 0077; ADR 0085 | correção pendente: qualquer perfil escreve `charge_calculations` e `bls.financial_status` pela API (P2, P3) |
 | Emitir fatura fora do automático: ficha do B/L, Validação, consolidada | ✔ | ✔ | ✔ | ✔ | ✔ | `mark_bl(s)_ready_and_create_invoice`, `create_invoice_from_bls*`, `create_local_consolidated_invoice` | ADR 0085, D3 | correção pendente: só Administrativo (P4) |
 | Corrigir fatura emitida: Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente, Resolver fatura desatualizada | ✔ | ✔ | ✔ | ✔ | ✔ | `retry_pending_consolidated_reissue`, `retry_invoice_basis_changes`, `resolve_stale_invoice` | ADR 0085, D3 | correção pendente: só Administrativo (P4) |
@@ -156,7 +158,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Registrar pagamento (baixa manual) | ✔ | ✔ | — | — | — | `register_verified_invoice_payment`, `register_invoice_payment`, `register_ledger_invoice_payment` | ADR 0085, base e D4 | correção pendente: só Administrativo (P5); o Administrativo também lança pagamento direto em `payments` pela API, sem referência bancária (P15) |
 | Cancelar baixa, com motivo | ✔ | — | — | — | — | `reverse_invoice_payment` (`is_admin`) | ADR 0071, item 13 | vigente |
 | Cancelar fatura, com motivo | ✔ | — | — | — | — | `cancel_invoice`, `obsolete_consolidated_invoice` (`is_admin`) | ADR 0085, base e D1; ADR 0071, item 13 | correção pendente: o Administrativo também cancela por escrita direta em `invoices` pela API, sem motivo (P15) |
-| Alterar fatura, item, pagamento ou recebível fora das RPCs | — | — | — | — | — | Policies `is_admin()` de escrita em `invoices`, `invoice_items`, `payments`, `ledger_settlements`, `bl_receivables`, `invoice_bls`, `invoice_receivable_links` e `invoice_lifecycle_events` (migration `002`) | ADR 0077; ADR 0085, falha 5 | correção pendente: o Administrativo escreve direto, inclusive no total e no item de fatura emitida e no cancelamento sem motivo (**Teste**, Postgres local; P15) |
+| Alterar fatura, item, pagamento ou recebível fora das RPCs | — | — | — | — | — | Policies `is_admin()` de escrita em `invoices`, `invoice_items`, `payments`, `ledger_settlements`, `bl_receivables`, `invoice_counters`, `invoice_bls`, `invoice_granite_bls`, `invoice_receivable_links`, `invoice_lifecycle_events` e `billing_batches` (migration `002`) | ADR 0077; ADR 0085, falha 5 | correção pendente: o Administrativo escreve direto, inclusive no total e no item de fatura emitida, no cancelamento sem motivo, na numeração e no histórico da fatura (**Teste**, Postgres local; P15) |
 | Autorizar restituição excepcional (avulsa e Demurrage) e cancelar a autorização pendente | ✔ | ✔ | ✔ | ✔ | ✔ | `request_financial_refund`, `cancel_financial_refund_authorization` | ADR 0085, D2 | correção pendente: só Administrativo (P5) |
 | Registrar a Restituição: confirmar a devolução com comprovante, favorecido e data | ✔ | ✔ | — | — | — | `confirm_invoice_refund`, `confirm_demurrage_refund` (`is_financeiro_user`) | ADR 0085, base e D2; ADR 0077 | vigente |
 | Receber os alertas "Pix não conciliado", "Restituição pendente" e "Fatura desatualizada" | ✔ | ✔ | — | — | — | Audiência em `alert_type_catalog` (migrations `078`, `124` e `128`) | ADR 0085, D18 | correção pendente: o Financeiro não recebe nenhum (P5); o Pix não conciliado também vai à Documentação e a Equipamentos, que continuam |
@@ -178,7 +180,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Criar e editar taxa de Granito | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()` em `granite_rates` | ADR 0085, D6 | correção pendente na tela: botões só para o Administrativo (P9) |
 | Desativar, reativar e excluir tarifa de Demurrage e de Granito | ✔ | — | — | — | — | Gatilho da migration `091`; `delete_catalog_row` | ADR 0073, item 4 | vigente |
 | Responder, reabrir e anexar na Dispute | ✔ | — | — | — | ✔ | `add_demurrage_dispute_message`, `reopen_demurrage_dispute` (migration `081`); anexo e storage (migration `106`) | Migration `081` (decisão R13); ADR 0085 | vigente |
-| Ver a fila de Disputas e a conversa | ✔ | ✔ | ✔ | ✔ | ✔ | `list_demurrage_disputes_internal` (migration `081`) | ADR 0044; ADR 0085, D17 | correção pendente: só Equipamentos e Administrativo (P12) |
+| Ver a fila de Disputas e a conversa | ✔ | ✔ | ✔ | ✔ | ✔ | `list_demurrage_disputes_internal` (migration `081`); as tabelas `demurrage_disputes*` já têm leitura `is_active_user()` | ADR 0044; ADR 0085, D17 | correção pendente: a RPC e a aba recusam quem não é Equipamentos ou Administrativo (P12) |
 | Editar os dados da disputa (assunto, motivo, notas) e o vencimento | ✔ | ✔ | ✔ | ✔ | ✔ | Grant de coluna em `demurrage_invoices` (migration `012`, reduzido pelas `028` e `106`): `due_date`, `dispute_subject`, `dispute_reason`, `dispute_notes`, `notes` | ADR 0046 | vigente |
 | Mudar o intervalo da Régua de Cobrança | ✔ | — | — | — | — | `set_demurrage_dunning_interval_days` | Spec arquivada de 2026-08-27; ADR 0085 | vigente |
 
@@ -196,6 +198,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Criar e editar Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `create_customer_with_contacts`, `update_customer_with_audit` | ADR 0046 | vigente |
 | Desativar e reativar Cliente | ✔ | — | — | — | — | `deactivate_customer`, `reactivate_customer` (`is_admin`) e gatilho da migration `092` | ADR 0073, item 5 | vigente |
 | Editar contatos e Caixas de Comunicação | ✔ | — | — | ✔ | ✔ | `internal_save_customer_contact_configuration` (migration `008`), `internal_fill_empty_contact_boxes` | ADR 0060; ADR 0046, nota de 2026-09-18 | correção pendente: Financeiro e Operações escrevem `customer_contacts` pela API (P3) |
+| Consultar o histórico de Comunicados (`/clientes/comunicacao`) | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` de `customer_communications` e `customer_communication_bls`; a rota exige `customer_communications` (`src/AppInterno.tsx`) | ADR 0044; ADR 0085, D19 | correção pendente: a rota recusa o Financeiro e Operações (P12) |
 | Disparar Comunicado e salvar modelo | ✔ | — | — | ✔ | ✔ | Edge `send-customer-communication`; `save_customer_communication_saved_template` | ADR 0060 | vigente |
 | Ligar e desligar a chave global de envio | ✔ | — | — | — | — | `set_communications_enabled` | ADR 0059 | vigente |
 | Provisionar o Portal: convite, conta, Email de Recuperação, endereço bloqueado, reabrir análise | ✔ | — | — | ✔ | — | Edges `portal-invite-send` e `portal-account-suspend`; RPCs `portal_*` (migration `002`) | ADR 0046 | vigente |
@@ -208,7 +211,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Ver pedidos, situação e solicitações do Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_private.actor()` (migration `139`) | ADR 0085, D11 | correção pendente: Equipamentos recusado (P12) |
-| Abrir e baixar documentos do pedido (procuração, termo, anexos) | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_document_access` com `ce_unlock_private.actor(true)` (migration `140`); Edge `ce-unlock-document-download` | ADR 0085, D16 | correção pendente: só Administrativo e Documentação (P12) |
+| Abrir e baixar documentos do pedido (procuração, termo, anexos) | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_document_access` com `ce_unlock_private.actor(true)` (migration `143`); Edge `ce-unlock-document-download` | ADR 0085, D16 | correção pendente: só Administrativo e Documentação (P12) |
 | Gerir pedidos, documentos, exportação para a ZPT e conciliação | ✔ | — | — | ✔ | — | `ce_unlock_private.actor(true)` | ADR 0085, D11 | vigente |
 
 ### Administrativo ativo mínimo

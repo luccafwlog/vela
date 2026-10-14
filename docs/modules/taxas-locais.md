@@ -18,8 +18,10 @@ cálculo: a confirmação é o CE Mercante (ADR 0077, decisão 7).
   condições negociadas a todo usuário interno ativo (ADR 0046, confirmado em
   2026-09-23). As policies de `charge_tables`, `charge_table_items` e
   `customer_rate_overrides` exigem `is_active_user()` para gravar e reservam a
-  exclusão ao Administrativo, hoje por DELETE direto sem motivo (a exclusão
-  passa a ser só por RPC, item P1 do plano); o gatilho `audit_row_changes` registra cada
+  exclusão ao Administrativo. Item e Condição de Cliente saem por
+  `delete_catalog_row`, com motivo (migration `096`); a tabela
+  (`charge_tables`) ainda sai por DELETE direto sem motivo (a exclusão passa a
+  ser só por RPC, item P1 do plano); o gatilho `audit_row_changes` registra cada
   alteração com autor.
 - `src/services/charges/chargeTableService.ts` e
   `src/services/charges/chargeRateService.ts` são donos do CRUD de configuração.
