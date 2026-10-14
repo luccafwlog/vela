@@ -282,7 +282,7 @@ está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 |---|---|---|
 | Plataforma (automáticos) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS`, `SUPABASE_PUBLISHABLE_KEYS`, `SUPABASE_SECRET_KEYS` | Supabase |
 | Portal | `PORTAL_URL`, `PORTAL_TECH_EMAIL_DOMAIN`, `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, `PORTAL_PASSWORD_PEPPER` | — |
-| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | Resend |
+| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (opcional), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | Resend |
 | Anti-robô | `TURNSTILE_SECRET_KEY` (e opcional `TURNSTILE_ALLOWED_HOSTNAMES`) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `ITAU_PIX_ADMIN_SECRET` (par com o Vault quando o job está habilitado; lista do cofre em [segredos-cron.md](segredos-cron.md)) | — |
@@ -493,6 +493,28 @@ Demurrage, sempre pelas Edge Functions (o navegador nunca chama o Resend).
   e-mails de login do Auth saem pelo serviço do próprio Supabase). Para trocar a
   chave: crie a nova, troque o secret, teste com "Esqueci minha senha" no Portal
   e só então apague a antiga.
+- **Endereço da API:** o secret opcional `RESEND_BASE_URL` define a origem da
+  API de envio (`supabase/functions/_shared/email.ts`); sem ele, o envio vai para
+  `https://api.resend.com`. Hoje ele não está cadastrado.
+- **Troca para a MillionSend (em preparação desde 2026-10-14):** a MillionSend
+  aceita as mesmas chamadas da Resend, então a troca não muda código. A conta é
+  montada à mão, sem a ferramenta de migração e sem chave Full access:
+  1. Em **Domains** da MillionSend, cadastrar `portalfwlog.com.br` e
+     `transhippingdesk.com.br` e criar na Cloudflare os registros que ela mostrar
+     (DNS only), sem apagar os da Resend. A MillionSend usa DKIM próprio.
+  2. Em **Webhooks**, apontar para o mesmo endereço de `portal-email-webhook`
+     cadastrado na Resend, só com `email.delivered`, `email.bounced` e
+     `email.complained`. O segredo de assinatura gerado lá substitui
+     `RESEND_WEBHOOK_SECRET` na virada.
+  3. Criar uma chave **Sending access** restrita a `portalfwlog.com.br`.
+  4. Com os dois domínios **Verified**, trocar no Supabase `RESEND_API_KEY`
+     (chave `ms_…`) e `RESEND_WEBHOOK_SECRET`, cadastrar
+     `RESEND_BASE_URL` = `https://api.millionsend.com` e testar com "Esqueci
+     minha senha" no Portal: a mensagem deve chegar, aparecer como
+     **Delivered** na MillionSend e gerar evento em `portal_email_events`.
+  5. Para voltar: restaurar a chave e o segredo da Resend e apagar
+     `RESEND_BASE_URL`. A conta Resend fica intacta até a troca estar firme;
+     ao concluir, atualizar esta seção.
 - **Microsoft 365 da Fwlog (`fwlog.com.br`):** em 2026-09-28, o responsável
   confirmou que o problema de entrega de e-mails do Portal foi solucionado. O
   histórico anterior de mensagens marcadas **Delivered** no Resend sem entrega
