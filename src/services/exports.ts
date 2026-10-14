@@ -574,3 +574,35 @@ function makeTimestamp() {
   ]
   return parts.join('')
 }
+
+/** Aba Contêineres da ficha do Cliente: a lista filtrada, em português, sem campos de sistema. */
+export async function exportCustomerContainersWorkbook(customerName: string, rows: Array<{ row: import('./demurrage/demurrageContainers').DemurrageContainerRow; view: import('./demurrage/customerContainers').CustomerContainerView }>) {
+  const XLSX = await import('@e965/xlsx')
+  const demurrageText = (view: import('./demurrage/customerContainers').CustomerContainerView) => {
+    const d = view.demurrage
+    if (d.kind === 'soc') return 'Não se aplica (SOC)'
+    if (d.kind === 'running') return 'Em curso'
+    if (d.kind === 'to_bill') return 'A faturar'
+    if (d.kind === 'invoice') return `${d.invoice.doc_number} (${statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, d.invoice.status)})`
+    if (d.kind === 'error') return 'Sem tarifa para calcular'
+    return ''
+  }
+  const exportRows = rows.map(({ row, view }) => ({
+    'Contêiner': row.container_number ?? '',
+    'B/L': row.bl_id ?? '',
+    'Navio / Viagem': row.bl?.voyage ? `${row.bl.voyage.vessel?.name ?? ''} / ${row.bl.voyage.voyage_number ?? ''}` : '',
+    Tipo: row.type ?? '',
+    'COC/SOC': containerOwnershipLabel(row.ownership),
+    Descarga: row.discharge_date ? formatDate(row.discharge_date) : '',
+    'Devolução': row.return_date ? formatDate(row.return_date) : '',
+    Dias: view.days ?? '',
+    'Free time (dias)': view.freeTimeDays ?? '',
+    'Origem do free time': view.freeTimeSourceLabel ?? '',
+    'Demurrage (US$)': view.demurrage.kind === 'running' || view.demurrage.kind === 'to_bill' ? view.demurrage.usd : '',
+    Demurrage: demurrageText(view),
+  }))
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Contêineres')
+  const slug = customerName.normalize('NFD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40)
+  XLSX.writeFile(workbook, `conteineres-${slug || 'cliente'}-${makeTimestamp()}.xlsx`)
+}

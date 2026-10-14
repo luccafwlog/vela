@@ -9,7 +9,7 @@ import { MetricCard } from '../components/ui/MetricCard'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
-import { StatusText } from '../components/ui/StatusText'
+import { LocalChargesStatus } from '../components/bl/LocalChargesStatus'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { CeMercanteImportModal } from '../components/shared/CeMercanteImportModal'
 import { BlImportModal } from '../components/shared/BlImportModal'
@@ -38,7 +38,6 @@ import { LOCAL_CHARGES_FILTER_OPTIONS, blsSearchFromFilters, filtersFromBlsSearc
 import { describeEmptyState } from '../lib/operationalState'
 import { formatPortDisplayName } from '../lib/voyageFormat'
 import { afterCargaAlterada } from '../services/cacheEffects'
-import { LOCAL_CHARGES_LIST_STATE_LABELS, localChargesListState } from '../lib/chargeStatus'
 import type { BLListItem } from '../types/database'
 import { userFacingErrorMessage } from '../lib/errors'
 
@@ -61,20 +60,6 @@ const EMPTY_FILTERS = {
   financialStatus: '',
   chargeStatus: '',
   cargoProfile: '',
-}
-
-function isCancelled(bl: BLListItem) {
-  return Boolean((bl as { cancelled_at?: string | null }).cancelled_at)
-}
-
-/** Taxas Locais em três estados (Pendente, Emitida, Isenta); B/L cancelado diz só isso. */
-function LocalChargesCell({ bl }: { bl: BLListItem }) {
-  if (isCancelled(bl)) return <StatusText tone="muted">B/L cancelado</StatusText>
-  const state = localChargesListState(bl.charge_status, bl.financial_status)
-  const label = LOCAL_CHARGES_LIST_STATE_LABELS[state]
-  if (state === 'pending') return <StatusText tone="warning">{label}</StatusText>
-  if (state === 'exempt') return <StatusText tone="muted">{label}</StatusText>
-  return <StatusText>{label}</StatusText>
 }
 
 function CustomerCell({ bl }: { bl: BLListItem }) {
@@ -493,7 +478,7 @@ export function Bls() {
                       <span className="app-bl-code">{bl.ce_mercante ? <CopyValue value={bl.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</span>
                     </span>
                     <span className="app-bl-card__status">
-                      Taxas locais: <LocalChargesCell bl={bl} />
+                      Taxas locais: <LocalChargesStatus bl={bl as BLListItem & { cancelled_at?: string | null }} />
                     </span>
                   </div>
                 </li>
@@ -554,7 +539,7 @@ export function Bls() {
                             <CargoCell bl={bl} expanded={isExpanded} onToggle={() => setExpandedBlId(isExpanded ? null : bl.id)} />
                           </td>
                           <td className="app-bl-code whitespace-nowrap">{bl.ce_mercante ? <CopyValue value={bl.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</td>
-                          <td><LocalChargesCell bl={bl} /></td>
+                          <td><LocalChargesStatus bl={bl as BLListItem & { cancelled_at?: string | null }} /></td>
                         </tr>
                         {isExpanded ? <BlRowDetail bl={bl} colSpan={blColumnCount} /> : null}
                       </Fragment>

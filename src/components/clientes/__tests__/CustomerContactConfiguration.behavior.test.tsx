@@ -6,11 +6,13 @@ import { CustomerContactConfiguration } from '../CustomerContactConfiguration'
 
 const fetchConfig = vi.hoisted(() => vi.fn())
 const saveConfig = vi.hoisted(() => vi.fn())
+const fillBoxes = vi.hoisted(() => vi.fn())
 const confirmOk = vi.hoisted(() => vi.fn(async () => true))
 
 vi.mock('../../../services/customerContactConfiguration', () => ({
   fetchCustomerContactConfiguration: fetchConfig,
   internalSaveCustomerContactConfiguration: saveConfig,
+  fillEmptyContactBoxes: fillBoxes,
 }))
 
 vi.mock('../../ui/Toast', () => ({
@@ -48,6 +50,8 @@ describe('CustomerContactConfiguration (behavior)', () => {
   beforeEach(() => {
     fetchConfig.mockReset()
     saveConfig.mockReset()
+    fillBoxes.mockReset()
+    fillBoxes.mockRejectedValue(new Error('sem RPC'))
     saveConfig.mockResolvedValue({ boxes: BOXES, contacts: [] })
   })
 
@@ -197,7 +201,7 @@ describe('CustomerContactConfiguration (behavior)', () => {
     expect((screen.getByRole('button', { name: 'Salvar contatos' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('caixa reposta no principal ao carregar é explicada como correção a salvar, sem Descartar', async () => {
+  it('se o sistema não conseguir gravar, a caixa reposta no principal é explicada como correção a salvar, sem Descartar', async () => {
     const user = userEvent.setup()
     // O único contato do Financeiro teve o endereço bloqueado: a caixa volta ao principal.
     fetchConfig.mockResolvedValue({ boxes: BOXES, contacts: [
@@ -213,5 +217,32 @@ describe('CustomerContactConfiguration (behavior)', () => {
     expect(saveConfig).toHaveBeenCalledWith(10, expect.arrayContaining([
       expect.objectContaining({ id: 1, boxCodes: expect.arrayContaining(['financeiro']) }),
     ]), '')
+  })
+
+  it('caixa sem destinatário: o sistema grava o principal ao abrir, sem pedir para salvar', async () => {
+    const before = { boxes: BOXES, contacts: [
+      primaryContact({ box_codes: ['documentacao_operacao', 'demurrage'] }),
+      primaryContact({ id: 2, is_primary: false, email: 'fin@cliente.com', box_codes: ['financeiro'], suppression_reason: 'suprimido_bounce' }),
+    ] }
+    const after = { boxes: BOXES, contacts: [primaryContact(), before.contacts[1]] }
+    fetchConfig.mockResolvedValueOnce(before).mockResolvedValueOnce(after)
+    fillBoxes.mockReset()
+    fillBoxes.mockResolvedValue(['financeiro'])
+    const onSystemFilled = vi.fn()
+    render(<CustomerContactConfiguration customerId={10} canEdit onSystemFilled={onSystemFilled} />)
+    await screen.findByDisplayValue('principal@cliente.com')
+
+    expect(fillBoxes).toHaveBeenCalledWith(10)
+    expect(onSystemFilled).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/O contato principal foi incluído nas caixas/)).toBeNull()
+    expect((screen.getByRole('button', { name: 'Salvar contatos' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(saveConfig).not.toHaveBeenCalled()
+  })
+
+  it('sem caixa a completar, não chama o sistema', async () => {
+    fetchConfig.mockResolvedValueOnce({ boxes: BOXES, contacts: [primaryContact()] })
+    render(<CustomerContactConfiguration customerId={10} canEdit />)
+    await screen.findByDisplayValue('principal@cliente.com')
+    expect(fillBoxes).not.toHaveBeenCalled()
   })
 })

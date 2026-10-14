@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { FichaInvoiceRow } from '../customerFicha'
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({ mockFrom: vi.fn(), mockRpc: vi.fn() }))
 vi.mock('../supabase', () => ({ supabase: { from: mockFrom, rpc: mockRpc } }))
 
-const { buildConsolidatedBalance, buildCustomerTimeline, fetchCustomerPendingReconciliation, fetchCustomerReceivables } = await import('../customerFicha')
+const { buildConsolidatedBalance, buildCustomerTimeline, fetchCustomerPendingReconciliation, fetchCustomerReceivables, buildCustomerInvoiceLines, filterCustomerInvoiceLines } = await import('../customerFicha')
 
 describe('buildConsolidatedBalance', () => {
   it('soma local emitido não pago (emitida e parcial) + demurrage não pago', () => {
@@ -38,6 +39,29 @@ describe('buildCustomerTimeline', () => {
     expect(events[0].at).toBe('2026-07-06T10:00:00Z')
     expect(events.find((event) => event.kind === 'local_invoice_issued')?.link).toBe('/taxas-locais?customer=101&invoice=4')
     expect(events.find((event) => event.kind === 'local_payment')?.link).toBe('/taxas-locais?customer=101&invoice=4')
+  })
+
+  it('dá assunto a cada evento e o autor por nome ou "Sistema", nunca o id', () => {
+    const events = buildCustomerTimeline({
+      auditLogs: [
+        { id: 1, field_name: 'name', old_value: 'A', new_value: 'B', changed_at: '2026-07-02T10:00:00Z', justification: null, changed_by: 'user-1' },
+        { id: 2, field_name: 'zip', old_value: null, new_value: '1', changed_at: '2026-07-01T10:00:00Z', justification: null, changed_by: 'user-sem-nome' },
+      ],
+      portalEvents: [{ id: 3, new_decision: 'authorized', new_situation: null, reason: null, created_at: '2026-07-03T10:00:00Z', actor_id: null, actor_type: 'system' }],
+      contacts: [],
+      localInvoices: [],
+      payments: [{ id: 9, amount_brl: 100, paid_at: '2026-07-06T10:00:00Z', registered_by_name: 'Bruno', invoice: { id: 4, invoice_number: 'INV-1' } }],
+      demurrageInvoices: [],
+      bls: [{ id: 'BL1', created_at: '2026-06-30T10:00:00Z' }],
+      actorNames: new Map([['user-1', 'Ana Ribeiro']]),
+    })
+    expect(events.map((event) => [event.subject, event.actor])).toEqual([
+      ['Pagamentos', 'Bruno'],
+      ['Portal', 'Sistema'],
+      ['Cadastro', 'Ana Ribeiro'],
+      ['Cadastro', 'Usuário interno'],
+      ['B/Ls', null],
+    ])
   })
 
   it('ordena pela data real mesmo com formatos diferentes e traduz o campo auditado', () => {
@@ -207,5 +231,37 @@ describe('fetchCustomerReceivables — le via RPC para distinguir vazio de restr
     const result = await fetchCustomerReceivables(101)
 
     expect(result).toEqual({ rows: [], denied: true })
+  })
+})
+
+describe('Faturas e Recebíveis num bloco só (aba Financeiro)', () => {
+  const invoice = (id: number, status: string, blIds: string[], extra: Partial<FichaInvoiceRow> = {}): FichaInvoiceRow => ({
+    id, invoice_number: `FAT-${id}`, issued_at: '2026-10-01T10:00:00Z', total_brl: 100, balance_brl: 100, status, invoice_type: blIds.length > 1 ? 'consolidated' : 'single', bl_ids: blIds, ...extra,
+  })
+  const receivable = (id: number, blId: string, balance: number) => ({ id, bl_id: blId, original_amount_brl: 100, settled_amount_brl: 100 - balance, balance_brl: balance, status: balance > 0 ? 'open' : 'settled' })
+
+  it('uma linha por fatura com o saldo por B/L; saldo sem fatura viva vira "Sem fatura ativa"', () => {
+    const lines = buildCustomerInvoiceLines(
+      [invoice(1, 'issued', ['BL-A', 'BL-B']), invoice(2, 'cancelled', ['BL-C'])],
+      [receivable(10, 'BL-A', 60), receivable(11, 'BL-B', 40), receivable(12, 'BL-C', 80), receivable(13, 'BL-D', 0)],
+    )
+    expect(lines.map((line) => (line.kind === 'invoice' ? `FAT-${line.invoice.id}:${line.receivables.map((row) => row.bl_id).join('+')}` : `sem:${line.blId}`))).toEqual([
+      'FAT-1:BL-A+BL-B',
+      'FAT-2:BL-C',
+      // A fatura de BL-C foi cancelada e o saldo continua: não some.
+      'sem:BL-C',
+    ])
+  })
+
+  it('a busca por B/L traz a consolidada inteira e filtra situação e período', () => {
+    const lines = buildCustomerInvoiceLines(
+      [invoice(1, 'issued', ['BL-A', 'BL-B']), invoice(2, 'paid', ['BL-C'], { issued_at: '2026-08-01T10:00:00Z' })],
+      [],
+    )
+    const byBl = filterCustomerInvoiceLines(lines, { search: 'bl-b', situation: '', from: '', to: '' })
+    expect(byBl).toHaveLength(1)
+    expect(byBl[0].kind === 'invoice' && byBl[0].invoice.bl_ids).toEqual(['BL-A', 'BL-B'])
+    expect(filterCustomerInvoiceLines(lines, { search: '', situation: 'paid', from: '', to: '' }).map((line) => line.kind === 'invoice' && line.invoice.id)).toEqual([2])
+    expect(filterCustomerInvoiceLines(lines, { search: '', situation: '', from: '2026-09-01', to: '' }).map((line) => line.kind === 'invoice' && line.invoice.id)).toEqual([1])
   })
 })

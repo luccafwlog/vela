@@ -5,7 +5,8 @@ import { ArrowRight } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
-import { Card } from '../ui/Card'
+import { Block } from '../ui/Block'
+import { CadastroChangesBlock } from './CadastroChangesBlock'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Field, Input, Textarea } from '../ui/Input'
 import { useToast } from '../ui/Toast'
@@ -118,6 +119,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
       await queryClient.invalidateQueries({ queryKey: ['customer-detail', cnpj] })
       await queryClient.invalidateQueries({ queryKey: ['customers'] })
       await queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.timeline(data.id) })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.cadastroChanges(data.id) })
       setJustification('')
       showToast(changed ? 'Cadastro do cliente atualizado.' : 'Nenhuma alteração detectada.', changed ? 'success' : 'info')
     } catch (cause) {
@@ -131,7 +133,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
 
   return (
     <div className="app-customer-stack">
-      <Card className="app-customer-sheet">
+      <Block title="Dados cadastrais" headingLevel={2} aside="Toda alteração pede justificativa e fica nas Alterações do cadastro">
         <form
           className="app-customer-form"
           noValidate
@@ -140,12 +142,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
             if (dirty) void saveCustomer()
           }}
         >
-          <div className="app-customer-section-head">
-            <div>
-              <h2 className="app-customer-section-title">Dados cadastrais</h2>
-              <p className="app-customer-muted">Saem nas faturas emitidas depois da alteração. Toda alteração pede justificativa e fica no Histórico.</p>
-            </div>
-          </div>
+          <p className="app-customer-muted">Saem nas faturas emitidas depois da alteração.</p>
           <dl className="app-customer-facts app-customer-facts--inline">
             <div>
               <dt>CNPJ</dt>
@@ -200,9 +197,9 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
             </div>
           ) : errors.submit ? <p className="app-customer-error" role="alert">{errors.submit}</p> : null}
         </form>
-      </Card>
+      </Block>
 
-      <Card className="app-customer-sheet">
+      <div>
         <CustomerContactConfiguration
           customerId={data.id}
           canEdit={canEditContacts}
@@ -212,11 +209,19 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
             // "Sem e-mail de contato" da lista depende dos contatos.
             void queryClient.invalidateQueries({ queryKey: ['customers-summary'] })
             void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.timeline(data.id) })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.cadastroChanges(data.id) })
+          }}
+          onSystemFilled={() => {
+            void queryClient.invalidateQueries({ queryKey: ['customer-detail', cnpj] })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.timeline(data.id) })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.cadastroChanges(data.id) })
           }}
         />
-      </Card>
+      </div>
 
       <PortalAccessSection customerId={data.id} />
+
+      <CadastroChangesBlock customerId={data.id} />
     </div>
   )
 }
@@ -232,25 +237,25 @@ function PortalAccessSection({ customerId }: { customerId: number }) {
   const panelId = `portal-panel-${customerId}`
 
   return (
-    <Card className="app-customer-sheet">
-      <div className="app-customer-section-head">
-        <div>
-          <h2 className="app-customer-section-title">Acesso ao Portal</h2>
-          <p className="app-customer-muted">
-            O Email de Recuperação recebe só o convite e a recuperação de senha; não recebe Comunicados nem faturas.
-          </p>
-        </div>
-        <div className="app-customer-section-links">
+    <Block
+      title="Acesso ao Portal"
+      headingLevel={2}
+      aside={(
+        <>
           {portalRow ? (
-            <Button variant="secondary" aria-expanded={portalOpen} aria-controls={panelId} onClick={() => setPortalOpen((value) => !value)}>
+            <Button variant="secondary" className="app-btn--sm" aria-expanded={portalOpen} aria-controls={panelId} onClick={() => setPortalOpen((value) => !value)}>
               {portalOpen ? 'Fechar gestão' : 'Gerenciar aqui'}
             </Button>
           ) : null}
           <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${customerId}`}>
             Abrir no Provisionamento do Portal <ArrowRight size={14} aria-hidden="true" />
           </Link>
-        </div>
-      </div>
+        </>
+      )}
+    >
+      <p className="app-customer-muted">
+        O Email de Recuperação recebe só o convite e a recuperação de senha; não recebe Comunicados nem faturas.
+      </p>
 
       {isLoading ? <p className="app-customer-muted" role="status">Carregando a situação do Portal…</p> : null}
       {isError ? (
@@ -290,6 +295,6 @@ function PortalAccessSection({ customerId }: { customerId: number }) {
           <PortalReviewPanel row={portalRow} variant="embedded" onSaved={() => void queryClient.invalidateQueries({ queryKey: ['portal-provisioning', 'customer', customerId] })} />
         </div>
       ) : null}
-    </Card>
+    </Block>
   )
 }

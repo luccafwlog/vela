@@ -132,6 +132,10 @@ export const queryKeys = {
     runningDemurrage: (customerId: number) => ['customer-ficha', 'running-demurrage', customerId] as const,
     demurrageAgreements: (customerId: number) => ['customer-ficha', 'demurrage-agreements', customerId] as const,
     timeline: (customerId: number) => ['customer-ficha', 'timeline', customerId] as const,
+    bls: (customerId: number) => ['customer-ficha', 'bls', customerId] as const,
+    invoices: (customerId: number) => ['customer-ficha', 'invoices', customerId] as const,
+    cadastroChanges: (customerId: number) => ['customer-ficha', 'cadastro-changes', customerId] as const,
+    containers: (customerId: number) => ['customer-ficha', 'containers', customerId] as const,
     billingPortalRelease: (customerId: number) => ['customer-ficha', 'billing-portal-release', customerId] as const,
   },
   customerCommunications: {

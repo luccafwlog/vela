@@ -9191,7 +9191,6 @@ a.app-step-rail__link:focus-visible {
 
 @media (max-width: 639px) {
 
-
   .app-bl-toolbar {
     padding: 10px 12px;
   }
@@ -10636,8 +10635,7 @@ td.app-cargo-num {
   text-decoration: underline;
 }
 
-.app-customer-link:focus-visible,
-.app-customer-text-link:focus-visible {
+.app-customer-link:focus-visible {
   outline: 2px solid var(--app-focus-ring);
   outline-offset: 2px;
   border-radius: 4px;
@@ -10647,26 +10645,6 @@ td.app-cargo-num {
   font-family: var(--app-font-mono);
   font-size: var(--app-size-table);
   font-variant-numeric: tabular-nums;
-}
-
-.app-customer-text-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--app-link);
-  font: inherit;
-  font-size: var(--app-size-table);
-  font-weight: 600;
-  line-height: 18px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.app-customer-text-link:hover {
-  text-decoration: underline;
 }
 
 .app-customer-muted {
@@ -10738,7 +10716,6 @@ td.app-cargo-num {
 }
 
 .app-customer-stack,
-.app-customer-overview,
 .app-customer-panel,
 .app-customer-skeleton {
   display: grid;
@@ -10918,75 +10895,6 @@ td.app-cargo-num {
   font-size: var(--app-size-table);
 }
 
-/* ── Ficha: cabeçalho e abas ────────────────────────────────────────────── */
-.app-customer-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 24px;
-  margin-bottom: 16px;
-}
-
-.app-customer-head__copy {
-  display: grid;
-  flex: 1 1 360px;
-  min-width: 0;
-  gap: 2px;
-}
-
-.app-customer-head__eyebrow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-/* Nome longo no título: DM Sans 24/600, nunca Syne. */
-.app-customer-head__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-family: var(--app-font-body);
-  font-size: var(--app-size-page);
-  font-weight: 600;
-  line-height: 32px;
-  overflow-wrap: anywhere;
-}
-
-.app-customer-head__context {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 0;
-  margin: 2px 0 0;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-customer-head__context > span {
-  overflow-wrap: anywhere;
-}
-
-.app-customer-head__context > * + *::before {
-  content: '·';
-  margin: 0 8px;
-  color: var(--app-muted);
-}
-
-.app-customer-head__missing {
-  color: var(--app-warning-fg);
-}
-
-.app-customer-head__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .app-customer-banner {
   display: grid;
   gap: 2px;
@@ -11046,24 +10954,6 @@ td.app-cargo-num {
   gap: 0;
 }
 
-.app-customer-sheet__columns {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 16px 32px;
-}
-
-.app-customer-sheet__section {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-}
-
-.app-customer-sheet__aside {
-  border-left: 1px solid var(--app-border);
-  padding-left: 32px;
-}
-
 .app-customer-section-head {
   display: flex;
   flex-wrap: wrap;
@@ -11076,10 +10966,6 @@ td.app-cargo-num {
   display: grid;
   gap: 2px;
   min-width: 0;
-}
-
-.app-customer-section-head--padded {
-  padding: 14px 16px 12px;
 }
 
 .app-customer-section-links {
@@ -11104,19 +10990,6 @@ td.app-cargo-num {
 .app-customer-section-title--sub {
   font-size: var(--app-size-body);
   line-height: 20px;
-}
-
-.app-customer-section-title--ruled {
-  margin-top: 8px;
-  border-top: 1px solid var(--app-border);
-  padding-top: 16px;
-}
-
-.app-customer-section-count {
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
 }
 
 .app-customer-subsections {
@@ -11193,122 +11066,6 @@ td.app-cargo-num {
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* Fatos em linhas com filete: rótulo à esquerda, valor à direita. */
-.app-customer-facts--rows {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-}
-
-.app-customer-facts--rows > div {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 12px;
-  border-top: 1px solid var(--app-border);
-  padding: 8px 0;
-}
-
-.app-customer-facts--rows > div:first-child {
-  border-top: 0;
-}
-
-.app-customer-facts--rows dt {
-  font-size: var(--app-size-table);
-}
-
-.app-customer-facts--rows dd {
-  justify-items: end;
-  text-align: right;
-}
-
-.app-customer-balance {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-panel);
-  font-weight: 600;
-  line-height: 28px;
-  font-variant-numeric: tabular-nums;
-}
-
-.app-customer-clear {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--app-success-fg);
-  font-size: var(--app-size-table);
-  font-weight: 500;
-}
-
-/* ── Visão geral: pendências ────────────────────────────────────────────── */
-.app-customer-pendencies {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-customer-pendency {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr);
-  gap: 10px;
-  border-top: 1px solid var(--app-border);
-  padding: 10px 0;
-}
-
-.app-customer-pendency:first-child {
-  border-top: 0;
-  padding-top: 2px;
-}
-
-.app-customer-pendency__dot {
-  width: 10px;
-  height: 10px;
-  margin-top: 4px;
-  border-radius: 999px;
-  background: var(--app-info-fg);
-}
-
-.app-customer-pendency--warning .app-customer-pendency__dot {
-  background: var(--app-gold-strong);
-}
-
-/* Urgente também muda de forma, não só de cor. */
-.app-customer-pendency--danger .app-customer-pendency__dot {
-  border-radius: 2px;
-  background: var(--app-red);
-}
-
-.app-customer-pendency__body {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.app-customer-pendency__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-body);
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.app-customer-pendency--danger .app-customer-pendency__title {
-  color: var(--app-danger-fg);
-}
-
-.app-customer-pendency__detail {
-  margin: 0;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-customer-pendency__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-}
-
 /* ── Linhas simples (acordos, overrides, reconciliação) ─────────────────── */
 .app-customer-rows {
   display: grid;
@@ -11349,73 +11106,6 @@ td.app-cargo-num {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-/* ── Tabelas secundárias da ficha ───────────────────────────────────────── */
-.app-customer-subtable {
-  width: 100%;
-  min-width: 560px;
-}
-
-.app-customer-subtable__money,
-.app-customer-subtable th.app-customer-subtable__money {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.app-customer-subtable__date {
-  white-space: nowrap;
-}
-
-.app-customer-subtable__wrap {
-  overflow-wrap: anywhere;
-}
-
-.app-customer-subtable__strong {
-  color: var(--app-text-strong);
-  font-weight: 600;
-}
-
-/* ── Histórico ──────────────────────────────────────────────────────────── */
-.app-customer-timeline {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-customer-timeline__item {
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 12px;
-  border-top: 1px solid var(--app-border-soft);
-  padding: 8px 0;
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-customer-timeline__item:first-child {
-  border-top: 0;
-}
-
-.app-customer-timeline__date {
-  color: var(--app-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.app-customer-timeline__body {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  color: var(--app-text-strong);
-}
-
-.app-customer-timeline__meta {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-  overflow-wrap: anywhere;
 }
 
 /* ── Formulários: cadastro, novo cliente, contatos ──────────────────────── */
@@ -11724,28 +11414,11 @@ td.app-cargo-num {
 }
 
 @media (pointer: coarse) {
-  .app-customer-text-link,
-  .app-customer-contact__primary,
+    .app-customer-contact__primary,
   .app-customer-box {
     min-height: 44px;
   }
 
-  .app-customer-text-link {
-    align-items: center;
-  }
-}
-
-@media (max-width: 1100px) {
-  .app-customer-sheet__columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .app-customer-sheet__aside {
-    border-top: 1px solid var(--app-border);
-    border-left: 0;
-    padding-top: 16px;
-    padding-left: 0;
-  }
 }
 
 @media (max-width: 900px) {
@@ -11779,7 +11452,6 @@ td.app-cargo-num {
   }
 
   .app-customer-toolbar,
-  .app-customer-section-head--padded,
   .app-customer-card {
     padding-inline: 12px;
   }
@@ -11794,10 +11466,6 @@ td.app-cargo-num {
     grid-column: auto;
   }
 
-  .app-customer-timeline__item {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2px;
-  }
 
   .app-customer-savebar__actions > * {
     flex: 1 1 auto;
@@ -14574,7 +14242,6 @@ tr[data-inactive] .app-rates-item__value {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  white-space: nowrap;
 }
 
 .app-status-text--warning {

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import { Plus } from 'lucide-react'
+import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { InlineError } from '../ui/Card'
 import { Badge } from '../ui/Badge'
@@ -12,6 +13,7 @@ import {
 } from '../../services/customerCommunicationBoxes'
 import {
   fetchCustomerContactConfiguration,
+  fillEmptyContactBoxes,
   internalSaveCustomerContactConfiguration,
   type PortalContactDraft,
 } from '../../services/customerContactConfiguration'
@@ -44,10 +46,13 @@ export function CustomerContactConfiguration({
   customerId,
   canEdit = true,
   onSaved,
+  onSystemFilled,
 }: {
   customerId: number
   canEdit?: boolean
   onSaved?: () => void
+  /** O sistema gravou o principal em caixas sem destinatário ao abrir. */
+  onSystemFilled?: () => void
 }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
@@ -64,13 +69,19 @@ export function CustomerContactConfiguration({
   // volta a ele; a diferença para o gravado é uma correção que pede salvar.
   const [loadedSnapshot, setLoadedSnapshot] = useState('[]')
 
+  // Em ref: um callback novo a cada render não pode recarregar os contatos.
+  const onSystemFilledRef = useRef(onSystemFilled)
+  useEffect(() => {
+    onSystemFilledRef.current = onSystemFilled
+  })
+
   const loadConfig = useCallback(async () => {
     setLoading(true)
     setErrorMsg('')
     setLoadError('')
     try {
-      const data = await fetchCustomerContactConfiguration(customerId)
-      const loadedDrafts: PortalContactDraft[] = data.contacts.map((c) => ({
+      let data = await fetchCustomerContactConfiguration(customerId)
+      const toDrafts = (config: typeof data): PortalContactDraft[] => config.contacts.map((c) => ({
         id: c.id,
         name: c.name,
         email: c.email,
@@ -82,6 +93,21 @@ export function CustomerContactConfiguration({
         suppressionReason: c.suppression_reason,
         sendable: c.sendable,
       }))
+      let loadedDrafts = toDrafts(data)
+      // Caixa sem destinatário: o sistema grava o principal nela, sem pedir
+      // para salvar (decisão de 2026-10-14); o Histórico mostra "Sistema".
+      if (canEdit && snapshotOf(normalizePrimaryContactBoxes(loadedDrafts)) !== snapshotOf(loadedDrafts)) {
+        try {
+          const filled = await fillEmptyContactBoxes(customerId)
+          if (filled.length) {
+            data = await fetchCustomerContactConfiguration(customerId)
+            loadedDrafts = toDrafts(data)
+            onSystemFilledRef.current?.()
+          }
+        } catch {
+          // Sem gravar, a tela mostra o principal nas caixas e pede para salvar, como antes.
+        }
+      }
       const shownDrafts = canEdit ? normalizePrimaryContactBoxes(loadedDrafts) : loadedDrafts
       setSavedSnapshot(snapshotOf(loadedDrafts))
       setLoadedSnapshot(snapshotOf(shownDrafts))
@@ -281,19 +307,18 @@ export function CustomerContactConfiguration({
   }
 
   return (
+    <Block
+      title="Contatos e Caixas de Comunicação"
+      headingLevel={2}
+      aside={canEdit ? (
+        <Button type="button" variant="secondary" className="app-btn--sm" onClick={handleAddContact}>
+          <Plus size={16} aria-hidden="true" />
+          Adicionar contato
+        </Button>
+      ) : null}
+    >
     <div className="app-customer-contacts">
-      <div className="app-customer-section-head">
-        <div>
-          <h2 className="app-customer-section-title">Contatos e Caixas de Comunicação</h2>
-          <p className="app-customer-muted">Quem recebe os Comunicados. Cada caixa precisa de pelo menos um contato ativo com e-mail; sem substituto, o principal recebe.</p>
-        </div>
-        {canEdit && (
-          <Button type="button" variant="secondary" onClick={handleAddContact}>
-            <Plus size={16} aria-hidden="true" />
-            Adicionar contato
-          </Button>
-        )}
-      </div>
+      <p className="app-customer-muted">Quem recebe os Comunicados. Cada caixa precisa de pelo menos um contato ativo com e-mail; sem substituto, o principal recebe.</p>
 
       {/* Quem recebe cada caixa, como a conferência de Comunicados mostra. */}
       <dl className="app-customer-coverage" aria-label="Destinatários por caixa">
@@ -451,5 +476,6 @@ export function CustomerContactConfiguration({
         )}
       </form>
     </div>
+    </Block>
   )
 }
