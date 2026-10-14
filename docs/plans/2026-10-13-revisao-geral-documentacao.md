@@ -171,6 +171,8 @@ independente; a evidência está na faixa de cada ADR.
 | B28 (ADR 0061) | defeito | O diálogo "Vincular cliente ao grupo" da Revisão diz "sem alterar contatos", mas `save_bl_review` captura o e-mail do manifesto quando a fila de conciliação fecha. | Corrigir o texto do diálogo ou a captura, conforme a ADR 0064 (captura protegida). |
 | B29 (ADR 0014) | defeito | `demurrage_invoices.due_date` existe e a ficha do Cliente conta Invoice de Demurrage vencida, contra "Demurrage não vence". | Tratar como defeito. |
 | B30 (glossário) | defeito | O banco entrega ao Portal o free time e o valor por período de cada container de Demurrage, mas o detalhe da Invoice no Portal mostra só datas, dias e USD; o glossário prometia o detalhamento ao Cliente. | Decidir se o Portal passa a mostrar o detalhamento ou se a promessa sai. |
+| B31 (ADR 0072) | defeito | Salvar do Local e do serviço em `/embarquevazios/depots` grava sem o diálogo de antes e depois (achado na aplicação de `regras-de-negocio.md`). | Tratar como defeito. |
+| B32 (ADR 0058) | defeito | A Edge Function `notify-invoice-issued`, que a ADR 0058 mandou apagar, segue publicada e ativa em produção (v68, de 2026-09-01), sem código no repositório (Runtime, listagem só leitura em 2026-10-14; ver [Serviços externos](../operations/servicos-externos.md)). | Apagar em produção é mutação: fica com o dono. |
 | C1 | registro | Decisões já tomadas e em produção sem ADR: integração Pix dinâmica com o Itaú (migrations `151`–`154`, `219`), Automatic branching do Supabase desligado em 2026-10-07 e environments de Preview sem restrição de branch (recusa de 2026-10-06). | Registrar numa ADR nova de consolidação, sem mudar comportamento. |
 
 Decisão de organização tomada na revisão, sem pergunta ao dono (D9-19): o
