@@ -154,6 +154,15 @@ function migration235Applied(): boolean {
   }
 }
 
+function migration241Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('is_admin' IN prosrc) = 0 FROM pg_proc WHERE proname = '_assert_actor_is_caller';`) === 't'
+  } catch {
+    return false
+  }
+}
+
 function migration233Applied(): boolean {
   if (!enabled) return false
   try {
@@ -184,7 +193,7 @@ function migration231Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied(),
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied(),
   'migrations 231 a 235 (escrita de cobrança, contatos, situação financeira, faturas e exclusão só pelas RPCs)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
@@ -372,6 +381,34 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       expect(result.error).toMatch(/O Baplie não tem nenhum container/)
     }
     expect(psql(`SELECT string_agg(container_number, ',') FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe('PCCU8500001')
+  })
+
+  // P11 — o autor é quem está logado (ADR 0085, regra base 2; migration 241).
+  it('P11: nem o Administrativo assina escrita em nome de outro usuário', () => {
+    const other = PROFILES.financeiro
+    const calls = [
+      `SELECT public.add_manual_bl_charge('${BL}', ${ITEM_MANUAL}, 1, 'Autor forjado P85', '${other}')`,
+      `SELECT public.calculate_bl_local_charges('${BL}', '${other}', true)`,
+      `SELECT public.cancel_invoice(${INVOICE_ID}, 'Autor forjado P85', '${other}')`,
+      `SELECT public.register_ledger_invoice_payment(${INVOICE_ID}, 10, 'pix', now(), NULL, 'manual', 'Autor forjado P85', '${other}', gen_random_uuid())`,
+      `SELECT public.create_local_consolidated_invoice(${CUSTOMER_ID}, ARRAY[${RECEIVABLE_ID}]::bigint[], 'Autor forjado P85', '${other}')`,
+      `SELECT public.mark_bl_ready_and_create_invoice('${BL}', ${CUSTOMER_ID}, 'Autor forjado P85', '${other}')`,
+      `SELECT public.reverse_demurrage_payment(${DEM_INVOICE_ID}, 'Autor forjado P85', '${other}')`,
+    ]
+    for (const sql of calls) {
+      const result = runAs('administrativo', sql)
+      expect(result.ok, sql).toBe(false)
+      expect(result.error, sql).toMatch(/Autor informado difere do usuário da sessão/)
+    }
+    expect(psql(`SELECT status FROM public.invoices WHERE id = ${INVOICE_ID};`)).toBe('issued')
+    // O próprio usuário (ou nenhum autor) segue para a regra da RPC.
+    const own = runAs('administrativo', `SELECT public.add_manual_bl_charge('${BL}', ${ITEM_MANUAL}, 1, 'Autor certo P85', '${PROFILES.administrativo}')`)
+    expect(own.error).not.toMatch(/Autor informado difere/)
+    psql(`SET session_replication_role = replica; DELETE FROM public.charge_calculations WHERE bl_id = '${BL}' AND notes = 'Autor certo P85'; SET session_replication_role = origin;`)
+  })
+
+  it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {
+    expect(psql(`SET request.jwt.claim.role = 'service_role'; SELECT public._assert_actor_is_caller('${PROFILES.financeiro}'); SELECT 'ok';`)).toBe('ok')
   })
 })
 

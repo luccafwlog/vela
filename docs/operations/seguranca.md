@@ -115,7 +115,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha | ✔ | — | — | — | — | Edge `admin-users` (`is_admin`); policy de `user_profiles` e gatilho `prevent_user_profile_privilege_escalation` | ADR 0046 | vigente |
 | Desativar ou rebaixar o último Administrativo ativo | — | — | — | — | — | Gatilho `guard_last_active_administrativo` (migration `239`) | ADR 0083, item 2 | vigente (**Teste** local) |
 | Excluir perfil interno | — | — | — | — | — | Sem DELETE em `user_profiles` para `authenticated` (migration `240`) | ADR 0083, item 3 | vigente (**Teste** local) |
-| Registrar escrita em nome de outro usuário | — | — | — | — | — | — | ADR 0085, regra base 2 | correção pendente: o Administrativo informa outro autor em quatro RPCs com `_assert_actor_is_caller` (migration `106`) e nas de faturamento que gravam `COALESCE(p_actor, auth.uid())` sem conferir, como `create_invoice_from_bls*`, `create_local_consolidated_invoice`, `register_invoice_payment`, `register_ledger_invoice_payment`, `cancel_invoice`, `obsolete_consolidated_invoice` e `reverse_demurrage_payment` (**Teste**, Postgres local; P11) |
+| Registrar escrita em nome de outro usuário | — | — | — | — | — | `_assert_actor_is_caller` sem exceção para o Administrativo, chamado no início de toda RPC `SECURITY DEFINER` com `p_actor` executável por `authenticated` (migration `241`); sem usuário na sessão (`service_role`), o autor informado vale | ADR 0085, regra base 2 | vigente (**Teste** local) |
 
 ### Viagens e ADR de Saída
 

@@ -20,12 +20,12 @@ recebimentos falhar, ou quando a cobrança Itaú estiver desligada e as faturas
 voltarem ao QR estático. Ela recebe a planilha bancária, extrai transações,
 casa TXIDs com documentos locais ou de Demurrage, separa resultados seguros de
 ambiguidades e confirma o lote. Não é a rotina de baixa; achados que só afetam
-esse caminho têm prioridade de contingência. Limites conhecidos do plano B:
-a fatura avulsa paga pelo QR estático não é achada pelo extrato (o TXID dela é
-o número da fatura, que o matching não usa como chave, embora
-`reconcile_invoice_payment_by_txid` aceite) e vira "Sem documento"; e uma
-fatura local sem versão de cobrança pode aparecer pronta e ter o lote recusado
-(`no_match`).
+esse caminho têm prioridade de contingência. Desde a migration `242`, o TXID
+é resolvido no servidor (`_pix_txid_open_candidates`) também para a Invoice de
+Demurrage e a fatura avulsa abertas, pelo número do documento (TXID do QR
+estático) ou pela cobrança Itaú ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
+item 16). Limite conhecido do plano B: uma fatura local sem versão de cobrança
+pode aparecer pronta e ter o lote recusado (`no_match`).
 
 - A rota interna está em `src/AppInterno.tsx` e a composição em
   `src/pages/Reconciliacao.tsx` (abas e detalhes); as abas são
@@ -200,8 +200,8 @@ baixas**) combina:
 |---|---|---|---|---|---|---|---|
 | `/reconciliacao?tab=extrato` · escolher a planilha | Perfil Administrativo (hoje; ver a matriz) e arquivo `.xlsx`/`.xls` dentro do limite | `ImportFilePicker` (clique ou arraste) → `chooseFile` em `PixExtractPanel` | `readMutation`: `parsePixExtractFile` e `readSpreadsheetNotices` em paralelo, depois `matchUnifiedPixTransactions` e `persistUnresolvedPixMatches`; linhas e abas ocultas ficam fora da leitura e o aviso aparece na conferência, antes de Confirmar | RPC `upsert_pix_reconciliation_exceptions` (definição vigente na migration `002`; origem na migration arquivada `328`): linhas sem baixa segura ficam salvas por importação/linha e abrem `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Nova leitura limpa a anterior e o resultado; com exceção gravada, `afterPendenciaPixAlterada` (exceções, monitor Itaú e Alerta) | Perfil não autorizado vê “Acesso restrito”; arquivo grande, formato, cabeçalho inválido ou extrato sem transação aparece na aba com “Nada foi baixado” | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` · **Runtime local** (etapa 12) |
 | Parser · extrair linhas bancárias | Cabeçalho `identificador` e coluna `valor pago` | `parsePixExtractFile` | `assertUploadFile` (tamanho e extensão) → `parsePixExtract` → `readSheet` de `importCore` (carrega `@e965/xlsx` sob demanda) | Nenhuma persistência | Retorna `{txid, cnpj, date, amount, lineNumber}`; preserva TXID vazio, ignora valor não positivo e recusa coluna repetida no cabeçalho | Cabeçalho/valor ausente ou coluna repetida lança erro; data inválida vira string vazia e falhará na confirmação | **Código:** `src/services/demurrage/demurrageKpis.ts` |
-| Matching · carregar documentos locais e Demurrage | Transações parseadas | `matchUnifiedPixTransactions` | Três leituras paralelas (faturas locais pagáveis, Invoices de Demurrage emitidas e `list_local_pix_candidates` para os TXIDs do extrato), depois o histórico de recálculo das Invoices de Demurrage; normalização alfanumérica maiúscula | `SELECT invoices`, `SELECT demurrage_invoices`, RPC `list_local_pix_candidates` (migration `130`) e `SELECT demurrage_invoice_history` | Sem cache React Query; monta mapa único de TXID para os dois domínios | Erro de qualquer leitura aborta o matching | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
-| Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L. A confirmação aceita a avulsa, mas o matching do extrato não a acha aberta: ela só casa por `invoices.pix_txid`, vazio até a baixa ([limite do plano B](#propósito-e-escopo)) | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` (migration `130`), que sem versão de cobrança cai no caminho da migration `097` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | Avulsa aberta vira “Sem documento” no extrato; TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migrations `097` e `130`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
+| Matching · carregar documentos locais e Demurrage | Transações parseadas | `matchUnifiedPixTransactions` | `list_pix_txid_candidates` resolve no servidor cada TXID do extrato nas faturas abertas (`_pix_txid_open_candidates`: versão de cobrança local, TXID gravado, avulsa e Invoice de Demurrage pelo número do documento, que é o TXID do QR estático, ou pela cobrança Itaú), depois o histórico de recálculo das Invoices de Demurrage candidatas; normalização alfanumérica maiúscula | RPC `list_pix_txid_candidates` (migration `242`) e `SELECT demurrage_invoice_history` | Sem cache React Query; monta mapa único de TXID para os dois domínios | Erro de qualquer leitura aborta o matching | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
+| Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L. O matching acha a avulsa aberta pelo número (QR estático) ou pela cobrança Itaú (migration `242`) | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` (migration `130`), que sem versão de cobrança cai no caminho da migration `097` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | Avulsa aberta vira “Sem documento” no extrato; TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migrations `097` e `130`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
 | Matching · classificar sem match | TXID sem candidato aberto | Loop de `matchUnifiedPixTransactions` | `txidMap.get(key)` retorna vazio | Exceção salva na leitura (linha acima) | Linha `source = unmatched` (“Sem documento”, “Nenhum documento aberto usa este TXID.”) na lista **Ficam como exceção pendente** e na contagem; nunca entra na confirmação | Nenhum documento é alterado; a linha é tratada em Pendências | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
 | Matching · classificar ambiguidade de documento/TXID | Mais de um documento com TXID normalizado ou TXID repetido no extrato | Mesmo loop | `entries.length > 1` ou `seenTxids` | Exceção salva na leitura | `ambiguous = true`, motivo e `candidateCount`; a linha vai para **Ficam como exceção pendente** (“Ambígua”) | A escolha da fatura não é feita na conferência: é feita em Pendências (**Escolher fatura…**) | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | Matching · classificar divergência de valor | Diferença absoluta maior que `0,01` ou valor esperado não numérico | Mesmo loop | Compara transação com saldo local ou `current_total_brl` | Sem persistência | Marca como ambíguo; local e Demurrage recebem motivos distintos | Não existe pagamento parcial por PIX neste fluxo | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
@@ -233,9 +233,9 @@ baixas**) combina:
 
 | Domínio | Leitura para matching | Escrita de confirmação | TXID persistido |
 |---|---|---|---|
-| Local com ledger | `list_local_pix_candidates` resolve `local_pix_charge_versions` e sucessoras compatíveis; valor esperado = valor fixo daquela cobrança | `reconcile_invoice_payment_by_txid` delega a `register_ledger_invoice_payment` | `invoices.pix_txid` e uma linha de `ledger_settlements.pix_txid` |
-| Invoice avulsa | `invoices.invoice_type='manual'` em estado pagável, lida junto com as locais; valor esperado = saldo da invoice. Só casa por `invoices.pix_txid`, gravado na baixa, então a avulsa aberta não é achada pelo extrato | `reconcile_invoice_payment_by_txid` chama pagamento genérico `register_invoice_payment` | `invoices.pix_txid` e `payments`; sem settlement por recebível |
-| Demurrage | `demurrage_invoices.status = issued`; valor esperado = `current_total_brl` | Update em lote por `confirm_demurrage_pix_matches` | `demurrage_invoices.pix_txid` |
+| Local com ledger | `_pix_txid_open_candidates` resolve `local_pix_charge_versions` e sucessoras compatíveis; valor esperado = valor fixo daquela cobrança | `reconcile_invoice_payment_by_txid` delega a `register_ledger_invoice_payment` | `invoices.pix_txid` e uma linha de `ledger_settlements.pix_txid` |
+| Invoice avulsa | `invoices.invoice_type='manual'` em estado pagável, lida junto com as locais; valor esperado = saldo da invoice. Casa pelo número da avulsa (TXID do QR estático), pela cobrança Itaú (`itau_pix_charges.txid`) ou pelo `invoices.pix_txid` gravado (migration `242`) | `reconcile_invoice_payment_by_txid` chama pagamento genérico `register_invoice_payment` | `invoices.pix_txid` e `payments`; sem settlement por recebível |
+| Demurrage | `demurrage_invoices.status` emitida; casa pelo número do documento (TXID do QR estático), pela cobrança Itaú ou pelo `pix_txid` gravado (migration `242`); valor esperado = `current_total_brl`, com a janela das duas PTAX | Update em lote por `confirm_demurrage_pix_matches` | `demurrage_invoices.pix_txid` |
 
 O gatilho `trg_keep_single_pix_txid_settlement_row` (definição vigente na
 migration `002`; origem na migration arquivada `075`) mantém o TXID somente na
@@ -395,7 +395,7 @@ cobranças por chamada.
 A apresentação Pix acompanha o saldo pagável, enquanto total e itens da fatura
 permanecem históricos. Cada nova apresentação usa outro TXID; `invoices.pix_txid`
 continua registrando o TXID recebido. `local_pix_charge_versions` conserva valor,
-payload e fatura de origem. A prévia usa `list_local_pix_candidates`; a baixa
+payload e fatura de origem. A prévia usa `list_pix_txid_candidates`; a baixa
 revalida a mesma resolução em `reconcile_invoice_payment_by_txid`, com lock e
 controle de repetição. Não há fallback por Cliente, CNPJ ou semelhança de valor.
 
@@ -418,9 +418,9 @@ cancelamento de baixa de Demurrage.
 
 - `src/services/__tests__/reconciliacao.test.ts`: TXID-only, colisão entre
   domínios, repetição no extrato, divergência de valor, confirmação unificada,
-  data obrigatória e lote Demurrage. O lote Demurrage parte de uma Invoice
-  emitida já com `pix_txid`, estado que a emissão não grava (correção pendente
-  A16 em [Notas e divergências](#notas-e-divergências)).
+  data obrigatória e lote Demurrage. A resolução do TXID (Invoice de Demurrage e
+  avulsa pelo QR estático ou Itaú) é do servidor e tem teste local-pg
+  (`planoBExtratoPix.local-pg.test.ts`).
 - `src/services/__tests__/itauPix.test.ts`: cliente Itaú (token, criação da
   COB, resposta perdida vira incerteza sem repetir a escrita), fila (blocos de
   5, orçamento de 20 s, teto de 60, parada no 429 e no Itaú sem resposta, vez
@@ -493,7 +493,8 @@ Estes testes verificam texto de migrations, não um banco aplicado:
   cobranças das individuais que cobriu.
 - **Runtime local (etapa 12 da revisão visual):** leitura, recusa `no_match` e
   baixa de Demurrage pelo extrato, esta só depois de gravar o TXID na Invoice
-  emitida à mão (correção pendente A16).
+  emitida à mão (antes da migration `242`, que passou a achar a Invoice pelo
+  número do documento e pela cobrança Itaú).
 
 ## Notas e divergências
 
@@ -522,5 +523,4 @@ Estes testes verificam texto de migrations, não um banco aplicado:
   sincronização entre documento e ledger.
 - **Filtro “Único BL” alinhado.** O valor visual `single` é normalizado para
   `individual` antes da comparação.
-- **Correção pendente (A16):** o plano B pelo extrato acha a Invoice de Demurrage aberta (QR estático ou Itaú) e a fatura avulsa pelo TXID da cobrança, e **Escolher fatura…** lista essas faturas ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 16). Hoje elas viram "Sem documento", porque o matching só acha individual e consolidada com versão de cobrança, e **Escolher fatura…** compara só o TXID gravado na baixa e não lista fatura aberta. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 - **Pix de Demurrage sem TXID vira exceção (A17):** Pix de Demurrage sem TXID legível no extrato cria exceção pendente para decisão humana, como dizem este módulo e o manual; a baixa por CNPJ e pela janela das duas PTAX, prevista na ADR 0015, foi abandonada ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 17, que supersede parcialmente a ADR 0015).

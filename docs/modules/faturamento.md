@@ -737,8 +737,8 @@ flowchart TD
   `invoices`, sem ledger); na baixa automática Itaú, o mesmo RPC com o
   `endToEndId` como referência (`153`); e, na conciliação PIX por extrato, o
   caminho legado de `reconcile_invoice_payment_by_txid` (`097`), que ainda chama
-  `register_invoice_payment` — mas o matcher do extrato não localiza avulsa
-  aberta (limite registrado em [Reconciliação PIX](reconciliacao-pix.md)). Seu
+  `register_invoice_payment`, que acha a avulsa pelo número ou pela cobrança
+  Itaú ([Reconciliação PIX](reconciliacao-pix.md), migration `242`). Seu
   B/L/Viagem direto é apenas contexto; pagamento e cancelamento não alteram
   status financeiro ou saldo do B/L nem criam settlement local.
 - No ledger, `bl_receivables.balance_brl` é a fonte da verdade. Totais e status
