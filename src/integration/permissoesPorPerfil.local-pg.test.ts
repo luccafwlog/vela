@@ -245,6 +245,15 @@ function migration261Applied(): boolean {
   }
 }
 
+function migration263Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT count(*) FROM pg_trigger WHERE tgname = 'trg_guard_catalog_active_change';`) === '2'
+  } catch {
+    return false
+  }
+}
+
 function migration250Applied(): boolean {
   if (!enabled) return false
   try {
@@ -273,8 +282,8 @@ function migration246Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied() && migration253Applied() && migration254Applied() && migration261Applied(),
-  'migrations 231 a 261 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied() && migration253Applied() && migration254Applied() && migration261Applied() && migration263Applied(),
+  'migrations 231 a 263 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -670,6 +679,35 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
         .toBe('cliente voltou a operar')
     } finally {
       psql(`DELETE FROM public.audit_logs WHERE entity_type = 'demurrage_rates' AND entity_id = '${id}'; DELETE FROM public.demurrage_rates WHERE id = ${id};`)
+    }
+  })
+
+  // B15 — desativar e reativar Local e serviço do Local são do Administrativo; reativar pede motivo (ADR 0073, item 8; migration 263).
+  it.each(ALL_PROFILES)('B15: %s só desativa e reativa Local e serviço como Administrativo', (profile) => {
+    const code = `B15${profile.slice(0, 3).toUpperCase()}`
+    const depotId = psql(`INSERT INTO public.depots (code, name, active, tipo) VALUES ('${code}', 'B15 ${profile}', true, 'depot') RETURNING id;`)
+    const serviceId = psql(`INSERT INTO public.depot_services (depot_id, name, natureza, rate_brl) VALUES ('${depotId}', 'B15 geral', 'geral', 1) RETURNING id;`)
+    try {
+      for (const [table, id] of [['depots', depotId], ['depot_services', serviceId]]) {
+        const off = runAs(profile, `UPDATE public.${table} SET active = false WHERE id = '${id}'`)
+        if (profile !== 'administrativo') {
+          expect(off.error, `${profile}: ${table}`).toMatch(/Somente o Administrativo desativa ou reativa/)
+          expect(runAs(profile, `SELECT public.reactivate_catalog_row('${table}', '${id}', 'motivo')`).error).toMatch(/Somente o Administrativo reativa/)
+          continue
+        }
+        expect(off.error).toBe('')
+        expect(runAs(profile, `UPDATE public.${table} SET active = true WHERE id = '${id}'`).error).toBe('')
+        psql(`UPDATE public.${table} SET active = false WHERE id = '${id}';`)
+        expect(runAs(profile, `SELECT public.reactivate_catalog_row('${table}', '${id}', 'voltou a operar')`).error).toBe('')
+        expect(psql(`SELECT active FROM public.${table} WHERE id = '${id}';`)).toBe('t')
+      }
+      // Fora do Administrativo, editar os demais campos segue liberado.
+      expect(runAs(profile, `UPDATE public.depots SET name = 'B15 editado' WHERE id = '${depotId}'`).error).toBe('')
+    } finally {
+      psql(`SET session_replication_role = replica;
+        DELETE FROM public.audit_logs WHERE entity_id IN ('${depotId}', '${serviceId}');
+        DELETE FROM public.depot_services WHERE id = '${serviceId}'; DELETE FROM public.depots WHERE id = '${depotId}';
+        SET session_replication_role = origin;`)
     }
   })
 

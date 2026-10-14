@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Edit3, Plus, Power, Trash2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
-import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { reactivateCatalogRow } from '../services/deleteRecords'
 import { Field, Input, Select } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
@@ -49,8 +50,11 @@ function conditionLabel(condition: string) {
 export function DepotCadastro() {
   const { profile, user, isAdmin } = useAuth()
   const canEdit = Boolean(profile || user)
-  // Excluir e do Administrativo no banco; os demais editam, mas nao veem Excluir.
+  // Excluir, desativar e reativar sao do Administrativo no banco (ADR 0073,
+  // item 8; migration 263); os demais editam, mas nao veem essas acoes.
   const canDelete = isAdmin
+  const canToggleActive = isAdmin
+  const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const { showToast } = useToast()
   const depots = useDepots()
@@ -146,11 +150,42 @@ export function DepotCadastro() {
     }, 'Serviço salvo.')
   }
 
-  async function toggleService(service: DepotService) {
+  // B15 (ADR 0073, item 8): desativar com diálogo; reativar com motivo, pela
+  // RPC reactivate_catalog_row (migrations 261 e 263). Só o Administrativo.
+  async function askToggle(kind: 'local' | 'serviço', name: string, active: boolean): Promise<string | null> {
+    const options = {
+      title: `${active ? 'Desativar' : 'Reativar'} ${kind}`,
+      message: `${active ? 'Desativar' : 'Reativar'} ${kind === 'local' ? 'o local' : 'o serviço'} ${name}?`,
+      confirmLabel: active ? 'Desativar' : 'Reativar',
+      tone: active ? ('danger' as const) : ('primary' as const),
+      consequence: active
+        ? 'Deixa de aparecer para novos lançamentos de vazios; o que já foi lançado não muda.'
+        : 'Volta a aparecer para novos lançamentos de vazios.',
+      reversibility: active ? 'O Administrativo pode reativar, com motivo.' : 'O Administrativo pode desativar de novo.',
+    }
+    if (!active) return confirmWithReason(options)
+    return (await confirm(options)) ? '' : null
+  }
+
+  async function toggleDepot() {
+    if (!selected) return
+    const reason = await askToggle('local', selected.code, selected.active)
+    if (reason === null) return
     await run(async () => {
-      await upsertDepotService({ ...service, active: !service.active })
+      if (selected.active) await upsertDepot({ ...depotForm, active: false, id: selected.id })
+      else await reactivateCatalogRow('depots', selected.id, reason)
+      await depots.refetch()
+    }, selected.active ? 'Local desativado.' : 'Local reativado.')
+  }
+
+  async function toggleService(service: DepotService) {
+    const reason = await askToggle('serviço', service.name, service.active)
+    if (reason === null) return
+    await run(async () => {
+      if (service.active) await upsertDepotService({ ...service, active: false })
+      else await reactivateCatalogRow('depot_services', service.id, reason)
       await services.refetch()
-    }, service.active ? 'Serviço inativado.' : 'Serviço ativado.')
+    }, service.active ? 'Serviço desativado.' : 'Serviço reativado.')
   }
 
   async function removeService(service: DepotService) {
@@ -291,20 +326,19 @@ export function DepotCadastro() {
                 </>
               ) : null}
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={depotForm.active}
-                disabled={!canEdit}
-                onChange={(e) => setDepotForm((f) => ({ ...f, active: e.target.checked }))}
-              />{' '}
-              Ativo
-            </label>
+            {selected && !newDepot ? (
+              <p className="text-sm text-[var(--app-muted)]">{selected.active ? 'Local ativo.' : 'Local desativado: não aparece para novos lançamentos.'}</p>
+            ) : null}
             {canEdit ? (
               <span className="flex gap-2">
                 <Button onClick={() => void saveDepot()} disabled={!canSaveDepot}>
                   Salvar local
                 </Button>
+                {selected && !newDepot && canToggleActive ? (
+                  <Button variant="ghost" onClick={() => void toggleDepot()}>
+                    <Power size={14} /> {selected.active ? 'Desativar local' : 'Reativar local'}
+                  </Button>
+                ) : null}
                 {selected && canDelete ? (
                   <Button variant="ghost" onClick={() => void removeDepot()}>
                     <Trash2 size={14} /> Excluir
@@ -404,8 +438,10 @@ export function DepotCadastro() {
                         <Button variant="ghost" onClick={() => editService(service)}>
                           <Edit3 size={14} /> Editar
                         </Button>
-                        <Button variant="ghost" onClick={() => void toggleService(service)}>
-                          <Power size={14} /> {service.active ? 'Desativar' : 'Reativar'}</Button>
+                        {canToggleActive ? (
+                          <Button variant="ghost" onClick={() => void toggleService(service)}>
+                            <Power size={14} /> {service.active ? 'Desativar' : 'Reativar'}</Button>
+                        ) : null}
                         {canDelete ? (
                           <Button variant="ghost" onClick={() => void removeService(service)}>
                             <Trash2 size={14} /> Excluir

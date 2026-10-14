@@ -178,8 +178,7 @@ o módulo Faturamento e a ADR 0077 dizem; "estorno" é sinônimo a evitar, e
 Cancelar baixa é outra ação ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1, que
 substitui o "Estorno" do vocabulário de 2026-09-24).
 
-Divergências de rótulo que ainda existem na interface (**Código**): o aviso do
-serviço do Local diz "Serviço inativado." (B15, correção pendente); e textos de
+Divergências de rótulo que ainda existem na interface (**Código**): textos de
 tela usam "estorno" no sentido de Cancelar baixa — a reversibilidade de
 `ValidacaoTab.tsx`, `ConsolidatedInvoiceModal.tsx` e
 `PortalConsolidatedModal.tsx` diz que pagamentos seguem o "fluxo de estorno", e
@@ -212,8 +211,8 @@ não confundir com a ação Cancelar.
 
 **Código:** `src/components/ui/ConfirmDialog.tsx` (Voltar por padrão, campo
 "Motivo (obrigatório)") e `useConfirmWithReason`. Implementação concluída em
-2026-10-05 (nota de encerramento da ADR 0072), com a lacuna B15 abaixo (a B13
-e a B14 foram corrigidas nas migrations `261` e `262`); fora delas, **Salvar** do Local e do serviço em
+2026-10-05 (nota de encerramento da ADR 0072); as lacunas B13, B14 e B15 foram
+corrigidas nas migrations `261`, `262` e `263`; fora delas, **Salvar** do Local e do serviço em
 `/embarquevazios/depots` grava sem diálogo de antes e depois
 (`src/pages/DepotCadastro.tsx`; B31, correção pendente no
 [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
@@ -352,12 +351,13 @@ continua no histórico e nos documentos que o referenciam.
   desativar e reativar também são do Administrativo, com diálogo.
 
 Implementada em 2026-09-25 para tarifas e Clientes (migrations `087`, `088`,
-`091` e `092`); o item 8, de Local e serviço, não está implementado:
-
-**Correção pendente (B15):** desativar e reativar Local, terminal e serviço do
-Local ainda é feito por qualquer usuário ativo, sem diálogo de confirmação nem
-motivo, e o aviso diz "Serviço inativado.". Correção pendente no
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+`091` e `092`) e, para Local e serviço (item 8), na migration `263` (B15): o
+gatilho `guard_catalog_active_change` recusa a troca de `active` fora do
+Administrativo; em `/embarquevazios/depots`, **Desativar local**/**Reativar
+local** e **Desativar**/**Reativar** do serviço aparecem só ao Administrativo,
+com diálogo, e reativar pede motivo (`reactivate_catalog_row`). **Teste
+local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B15); **Teste:**
+`DepotCadastro.behavior.test.tsx` (B15).
 
 ### Guarda e recuperação
 

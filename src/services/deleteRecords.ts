@@ -81,6 +81,8 @@ export type CatalogReactivateTable =
   | 'customer_demurrage_agreements'
   | 'granite_rates'
   | 'user_profiles'
+  | 'depots'
+  | 'depot_services'
 
 /**
  * B13 (ADR 0072; ADR 0073, item 4): reativa um cadastro pela RPC
