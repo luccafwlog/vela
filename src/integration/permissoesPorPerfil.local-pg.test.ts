@@ -730,6 +730,55 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     }
   })
 
+  // P14 (ADR 0085, Consequências): percorre as linhas de exceção da matriz de Segurança
+  // (docs/operations/seguranca.md#modelo-de-permissões-por-perfil) que não têm caso próprio acima.
+  // Cada chamada usa registro inexistente ou valor inválido: quem tem o perfil passa da checagem
+  // e cai na validação do registro; quem não tem é recusado com 42501 (privilégio).
+  const ADM: Profile[] = ['administrativo']
+  const FIN: Profile[] = ['administrativo', 'financeiro']
+  const MATRIX_EXCEPTIONS: Array<{ row: string; allowed: Profile[]; call: string }> = [
+    { row: 'Cancelar viagem', allowed: ADM, call: `public.cancel_voyage(-1, 'motivo', '{actor}')` },
+    { row: 'Reativar viagem', allowed: ADM, call: `public.reactivate_voyage(-1, 'motivo')` },
+    { row: 'Cancelar B/L', allowed: ADM, call: `public.cancel_bl('P14-INEXISTENTE', 'motivo', false)` },
+    { row: 'Reativar B/L', allowed: ADM, call: `public.reactivate_bl('P14-INEXISTENTE', 'motivo')` },
+    { row: 'Excluir taxa manual do B/L', allowed: ADM, call: `public.delete_manual_bl_charge(-1, '{actor}')` },
+    { row: 'Excluir viagem com Trava', allowed: ADM, call: `public.delete_records('voyages', ARRAY['-1'], true, 'motivo')` },
+    { row: 'Excluir escala', allowed: ADM, call: `public.delete_escala(-1, 'BRZZZ', true, 'motivo')` },
+    { row: 'Cancelar baixa', allowed: ADM, call: `public.reverse_invoice_payment(-1, 'motivo', '{actor}')` },
+    { row: 'Cancelar fatura', allowed: ADM, call: `public.cancel_invoice(-1, 'motivo', '{actor}')` },
+    { row: 'Cancelar fatura consolidada', allowed: ADM, call: `public.obsolete_consolidated_invoice(-1, 'motivo', '{actor}')` },
+    { row: 'Preparar cancelamento financeiro de B/L', allowed: ADM, call: `public.prepare_bl_financial_cancellation(-1, 'P14-INEXISTENTE', 'motivo')` },
+    { row: 'Cancelar Invoice de Demurrage', allowed: ADM, call: `public.cancel_demurrage_invoice('{actor}', -1, 'motivo')` },
+    { row: 'Cancelar baixa de Demurrage', allowed: ADM, call: `public.reverse_demurrage_payment(-1, 'motivo', '{actor}')` },
+    { row: 'Intervalo da Régua', allowed: ADM, call: `public.set_demurrage_dunning_interval_days(0)` },
+    { row: 'Desativar Cliente', allowed: ADM, call: `public.deactivate_customer(-1, 'motivo', true)` },
+    { row: 'Reativar Cliente', allowed: ADM, call: `public.reactivate_customer(-1, 'motivo')` },
+    { row: 'Trocar o CNPJ do Portal', allowed: ADM, call: `public.portal_admin_change_cnpj(-1, '00000000000000', 'motivo')` },
+    { row: 'Conceder Liberação de faturamento', allowed: ADM, call: `public.grant_customer_billing_portal_release(-1, 'motivo', now() + interval '1 day')` },
+    { row: 'Revogar Liberação de faturamento', allowed: ADM, call: `public.revoke_customer_billing_portal_release(-1, 'motivo')` },
+    { row: 'Registrar a Restituição (fatura)', allowed: FIN, call: `public.confirm_invoice_refund(-1, 'comprovante', 'favorecido', now())` },
+    { row: 'Registrar a Restituição (Demurrage)', allowed: FIN, call: `public.confirm_demurrage_refund(-1, 'comprovante', 'favorecido', now())` },
+    { row: 'Liquidar Ajuste de COD', allowed: FIN, call: `public.settle_cod_adjustment(-1, '{actor}', NULL, 'motivo')` },
+    { row: 'Baixa de Invoice de Demurrage', allowed: FIN, call: `public.register_demurrage_payment('{actor}', -1, current_date, 'motivo', 1, 1)` },
+    { row: 'Informar PTAX', allowed: ['administrativo', 'financeiro', 'equipamentos'], call: `public.recalculate_demurrage_invoices_manual(0)` },
+    { row: 'Responder Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.add_demurrage_dispute_message(-1, 'mensagem', 'invalido')` },
+    { row: 'Reabrir Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.reopen_demurrage_dispute(-1, 'motivo')` },
+  ]
+
+  function sqlstateAs(profile: Profile, call: string): string {
+    const body = call.replaceAll('{actor}', PROFILES[profile])
+    const result = runAs(profile, `DO $p14$ BEGIN PERFORM ${body}; RAISE NOTICE 'P14:OK'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'P14:%', SQLSTATE; END $p14$`)
+    return result.error.match(/P14:([0-9A-Z]+)/)?.[1] ?? `sem-resultado: ${result.error}`
+  }
+
+  it.each(MATRIX_EXCEPTIONS)('P14: $row — só $allowed passa da checagem de perfil', ({ allowed, call }) => {
+    for (const profile of ALL_PROFILES) {
+      const state = sqlstateAs(profile, call)
+      if (allowed.includes(profile)) expect(state, `${profile}: ${call}`).not.toBe('42501')
+      else expect(state, `${profile}: ${call}`).toBe('42501')
+    }
+  })
+
   it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {
     expect(psql(`SET request.jwt.claim.role = 'service_role'; SELECT public._assert_actor_is_caller('${PROFILES.financeiro}'); SELECT 'ok';`)).toBe('ok')
   })

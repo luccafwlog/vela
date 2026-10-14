@@ -139,6 +139,7 @@ da migration.
 | B25 | Migration `265`: `DROP FUNCTION portal_provisioning_backfill(text)`; sem chamador no código nem em outra função | **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B25) |
 | P10 | Migration `266`: `DROP FUNCTION add_agency_report_occurrence`; saem `addOccurrence` (`agencyDepartureReport.ts`) e os testes que só a exercitavam. A tabela `agency_departure_report_occurrences` fica para os ADRs antigos | **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (P10); `npm run rpc:check` sem a RPC |
 | B28 | `/revisao`: a consequência do diálogo "Vincular cliente ao grupo" deixa de dizer "sem alterar contatos" e avisa que o e-mail do manifesto de cada B/L entra como contato do Cliente (captura protegida, ADR 0064). Banner e índice da ADR 0061 atualizados | Texto do diálogo; sem teste novo (mudança só de texto) |
+| P14 | `PROFILE_SCOPES` (`src/services/adminUsers.ts`) reescrito com as exceções da ADR 0085 que valem para cada perfil. A suíte `permissoesPorPerfil.local-pg.test.ts` (já em `scripts/local-pg-suites.txt`) ganhou `MATRIX_EXCEPTIONS`: 26 linhas de exceção da matriz de Segurança sem caso próprio (cancelar e reativar Viagem e B/L, excluir com Trava, cancelar fatura e baixa, Liberação, Régua, Cliente, CNPJ do Portal, Restituição, Ajuste de COD, baixa de Demurrage, PTAX, Disputa), cada uma executada como os cinco perfis | **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (137 casos, os cinco perfis) |
 
 ## Operação (fora do código)
 

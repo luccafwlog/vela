@@ -105,6 +105,13 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
   API foram executadas no Postgres 16 local, como o perfil citado
   (**Teste**, não produção). O inventário completo está no
   [relatório de 2026-10-14](../archive/reports/2026-10-14-modelo-de-permissoes-por-perfil.md).
+- **Bateria por perfil:** `src/integration/permissoesPorPerfil.local-pg.test.ts`
+  (em `scripts/local-pg-suites.txt`) executa as ações da matriz como cada um
+  dos cinco perfis no Postgres local, inclusive a escrita direta pela API nas
+  tabelas de P1, P2, P3 e P15; as exceções sem caso próprio passam pela tabela
+  `MATRIX_EXCEPTIONS` (P14), que confere a recusa por `42501` fora dos perfis
+  da linha. O texto de cada perfil em `/admin/usuarios` (`PROFILE_SCOPES`,
+  `src/services/adminUsers.ts`) resume as exceções desta matriz.
 
 ### Leitura, administração e rastro
 
