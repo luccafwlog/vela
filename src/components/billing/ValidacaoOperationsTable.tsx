@@ -1,21 +1,19 @@
 import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckSquare, ChevronDown, ChevronUp, Square } from 'lucide-react'
-import { Badge } from '../ui/Badge'
+import { ArrowRight, CheckSquare, ChevronDown, ChevronRight, Square } from 'lucide-react'
+import { Block, Fact, FactList } from '../ui/Block'
+import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
-import { Card, EmptyState, InlineError } from '../ui/Card'
+import { EmptyState, InlineError } from '../ui/Card'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { useBlLocalChargeLines } from '../../hooks/useLocalCharges'
-import { formatBRL, formatCnpjCpf, formatDateTime, formatUSD } from '../../lib/utils'
+import { formatBRL, formatCnpjCpf } from '../../lib/utils'
 import { formatPortDisplayName } from '../../lib/voyageFormat'
-import { isChargeReady } from '../../lib/chargeStatus'
 import { isCustomerReconciliationResolved } from '../../services/customerReconciliation'
 import type { LocalChargeOperationalRow } from '../../services/charges/chargeOperationsService'
 import { ConferenciaCalculo } from './ConferenciaCalculo.tsx'
 import { getBillingBlock, isBlLockedForRecalc } from './validacaoPipeline'
-import { calloutTitle, calloutTone, describeLastEvent } from './validacaoDetalhes'
-import { cargoModeLabel } from '../../lib/cargoMode'
 
 type ReconciliationQueueItem = {
   id: number
@@ -54,41 +52,38 @@ export function ValidacaoOperationsTable({
   onIssueSingleInvoice: (row: LocalChargeOperationalRow) => void
   onRecalculateRow?: (row: LocalChargeOperationalRow) => void
 }) {
+  const columns = 8
   return (
-    <Card className="overflow-hidden p-0">
+    <>
       {hasError ? <InlineError message="Falha ao carregar operação de taxas locais." /> : null}
       <div className="app-table-scroll">
-        <table className="app-table app-table--compact min-w-[1100px] text-sm whitespace-nowrap">
+        <table className="app-table app-table--compact">
           <caption className="sr-only">B/Ls da operação de taxas locais</caption>
           <thead>
             <tr>
-              <th scope="col" className="px-4 py-3">
+              <th scope="col">
                 <button className="app-table__icon-button" type="button" onClick={onToggleAllRows} title="Selecionar todos" aria-label="Selecionar todos os B/Ls">
                   {areAllRowsSelected ? <CheckSquare size={14} /> : <Square size={14} />}
                 </button>
               </th>
-              <th scope="col" className="px-4 py-3">B/L</th>
-              <th scope="col" className="px-4 py-3">Motivo</th>
-              <th scope="col" className="px-4 py-3">Modo de carga</th>
-              <th scope="col" className="px-4 py-3">Navio/Viagem</th>
-              <th scope="col" className="px-4 py-3">Cálculo</th>
-              <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
-              <th scope="col" className="px-4 py-3">Vínculo do Cliente</th>
-              <th scope="col" className="px-4 py-3">Subtotal</th>
-              <th scope="col" className="px-4 py-3"><span className="sr-only">Ações</span></th>
+              <th scope="col"><span className="sr-only">Abrir detalhes</span></th>
+              <th scope="col">B/L</th>
+              <th scope="col" className="app-table__text-head">Cliente</th>
+              <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+              <th scope="col">Motivo</th>
+              <th scope="col">Subtotal</th>
+              <th scope="col"><span className="sr-only">Ação</span></th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={10}>
-                  Carregando operação…
-                </td>
+                <td colSpan={columns}>Carregando operação…</td>
               </tr>
             ) : null}
             {!isLoading && rows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="p-0">
+                <td colSpan={columns} className="p-0">
                   {hasError ? <span className="sr-only">Sem dados: a consulta falhou.</span> : <EmptyState title="Nenhum B/L encontrado." description="Ajuste os filtros de viagem, POD ou motivo." />}
                 </td>
               </tr>
@@ -98,167 +93,63 @@ export function ValidacaoOperationsTable({
               const reconciliationPending = !isCustomerReconciliationResolved(row.customer_reconciliation_status)
               const queueItem = reconciliationPending ? (reconciliationQueue.find((q) => q.bl_id === row.id) ?? null) : null
               const block = getBillingBlock(row)
-              const canIssueSingleInvoice = row.cargo_mode !== 'granito' && isChargeReady(row.charge_status) && row.financial_status !== 'invoiced' && Boolean(row.customer?.id)
+              const voyage = [row.voyage?.vessel?.name, row.voyage?.voyage_number].filter(Boolean).join(' / ')
               return (
                 <Fragment key={row.id}>
-                  <tr className={isExpanded ? 'bg-[var(--app-surface-muted)]' : undefined}>
-                    <td className="px-4 py-3">
-                      <button
-                        className="app-table__icon-button"
-                        type="button"
-                        onClick={() => onToggleRow(row.id)}
-                        title="Selecionar B/L"
-                        aria-label={`Selecionar B/L ${row.id}`}
-                      >
+                  <tr>
+                    <td>
+                      <button className="app-table__icon-button" type="button" onClick={() => onToggleRow(row.id)} title="Selecionar B/L" aria-label={`Selecionar B/L ${row.id}`}>
                         {selectedRowIds.includes(row.id) ? <CheckSquare size={14} /> : <Square size={14} />}
                       </button>
                     </td>
-                    <td className="px-4 py-3 font-semibold">
+                    <td>
+                      <button
+                        className="app-table__icon-button"
+                        type="button"
+                        onClick={() => onToggleExpandedRow(row.id)}
+                        aria-label={`${isExpanded ? 'Recolher' : 'Expandir'} detalhes do B/L ${row.id}`}
+                        aria-expanded={isExpanded}
+                        aria-controls={`validacao-${row.id}`}
+                      >
+                        {isExpanded ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+                      </button>
+                    </td>
+                    <td className="whitespace-nowrap">
                       <CopyValue value={row.id} label="número do B/L">
-                        <Link
-                          className="app-invoices__bl"
-                          to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${encodeURIComponent(row.id)}`}
-                        >
-                          {row.id}
-                        </Link>
+                        <Link className="app-invoices__bl" to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${encodeURIComponent(row.id)}`}>{row.id}</Link>
                       </CopyValue>
                     </td>
-                    <td className="px-4 py-3"><div className="max-w-[360px] whitespace-normal"><Badge tone={blockTone(block.code)}>{block.label}</Badge>{isExpanded ? null : <div className="mt-1 text-xs text-[var(--app-muted)]">{block.detail}</div>}</div></td>
-                    <td className="px-4 py-3">{cargoModeLabel(row.cargo_mode)}</td>
-                    <td className="px-4 py-3">{row.voyage?.vessel?.name ?? <NoValue label="Sem navio" />} / {row.voyage?.voyage_number ?? <NoValue label="Sem viagem" />}</td>
-                    <td className="px-4 py-3">{renderChargeStatus(row.charge_status, row.financial_status, row.cargo_mode)}</td>
-                    <td className="px-4 py-3"><span className="app-table__truncate app-table__truncate--lg" title={row.customer?.name ?? undefined}>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</span></td>
-                    <td className="px-4 py-3">{renderReconciliationStatus(row.customer_reconciliation_status)}</td>
-                    <td className="px-4 py-3 tabular-nums">{formatBRL(row.totals.total_brl)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" onClick={() => onRecalculateRow?.(row)} disabled={isBlLockedForRecalc(row.financial_status)} title={isBlLockedForRecalc(row.financial_status) ? 'B/L já faturado ou financeiramente bloqueado.' : undefined}>
-                          Recalcular
-                        </Button>
-                        {canIssueSingleInvoice ? (
-                          <Button variant="secondary" onClick={() => onIssueSingleInvoice(row)}>
-                            Emitir
-                          </Button>
-                        ) : null}
-                        <button
-                          className="app-table__icon-button"
-                          type="button"
-                          onClick={() => onToggleExpandedRow(row.id)}
-                          title={isExpanded ? 'Recolher detalhes' : 'Expandir detalhes'}
-                          aria-label={isExpanded ? 'Recolher detalhes' : 'Expandir detalhes'}
-                          aria-expanded={isExpanded}
-                        >
-                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </button>
-                      </div>
+                    <td className="app-table__text" title={row.customer?.name ?? undefined}>
+                      {row.customer?.name ?? (queueItem?.manifest_customer_name ? <StatusText tone="muted">{queueItem.manifest_customer_name}</StatusText> : <NoValue label="Sem Cliente" />)}
                     </td>
+                    <td className="app-table__text" title={voyage || undefined}>{voyage || <NoValue label="Sem navio e viagem" />}</td>
+                    <td className="whitespace-nowrap" title={block.detail}>{block.label}</td>
+                    <td className="whitespace-nowrap tabular-nums">{formatBRL(row.totals.total_brl)}</td>
+                    <td className="whitespace-nowrap"><ResolveAction row={row} code={block.code} onIssue={onIssueSingleInvoice} onRecalculate={onRecalculateRow} /></td>
                   </tr>
                   {isExpanded ? (
-                    <tr key={`${row.id}-detail`} className="bg-[var(--app-surface-muted)]">
-                      <td colSpan={10} className="px-6 py-4">
-                        <div className="grid gap-4 xl:grid-cols-2">
-                          <div className="grid gap-3">
-                            {block.detail ? (
-                              <div className={`rounded-lg border px-3 py-2 text-sm ${calloutTone(block.code).body}`}>
-                                <div className={`text-xs font-semibold ${calloutTone(block.code).title}`}>{calloutTitle(block.code)}</div>
-                                <div className="mt-0.5">{block.detail}</div>
-                              </div>
-                            ) : null}
-                            <BlockResolutionLink blId={row.id} code={block.code} customerCnpj={row.customer?.cnpj_cpf ?? null} />
-                            <div className="app-metric-tile__label">Detalhes</div>
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                              <div>
-                                <div className="text-[var(--app-muted)]">Trecho</div>
-                                <div className="text-[var(--app-text-strong)]">{formatPortDisplayName(row.pol)} → {formatPortDisplayName(row.pod)}</div>
-                              </div>
-                              <div>
-                                <div className="text-[var(--app-muted)]">CE Mercante</div>
-                                <div className="text-[var(--app-text-strong)]">{row.ce_mercante?.trim() ? <CopyValue value={row.ce_mercante} label="CE Mercante" /> : 'Não informado'}</div>
-                              </div>
-                              <div className="col-span-2">
-                                <div className="text-[var(--app-muted)]">Cliente vinculado</div>
-                                <div className="whitespace-normal text-[var(--app-text-strong)]">
-                                  {row.customer?.id ? (
-                                    <>
-                                      {row.customer.name ?? 'Sem nome cadastrado'}
-                                      {row.customer.cnpj_cpf ? <> · <CopyValue value={formatCnpjCpf(row.customer.cnpj_cpf)} label="CNPJ/CPF" /></> : null}
-                                    </>
-                                  ) : 'Nenhum cliente vinculado a este B/L.'}
-                                </div>
-                              </div>
-                              {reconciliationPending && queueItem ? (
-                                <>
-                                  <div>
-                                    <div className="text-[var(--app-muted)]">Cliente no manifesto</div>
-                                    <div className="whitespace-normal text-[var(--app-text-strong)]">{queueItem.manifest_customer_name ?? 'Não informado no manifesto'}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-[var(--app-muted)]">CNPJ</div>
-                                    <div className="text-[var(--app-text-strong)]">{queueItem.cnpj_cpf ? <CopyValue value={formatCnpjCpf(queueItem.cnpj_cpf)} label="CNPJ" /> : 'Não informado no manifesto'}</div>
-                                  </div>
-                                  <div>
-                                    <div className="text-[var(--app-muted)]">Cliente sugerido</div>
-                                    <div className="whitespace-normal text-[var(--app-text-strong)]">
-                                      {queueItem.customer_id
-                                        ? (queueItem.current_customer_name ?? 'Cliente sem nome cadastrado')
-                                        : 'Nenhum cliente sugerido — cadastre o cliente na Revisão.'}
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <div className="text-[var(--app-muted)]">Detecção</div>
-                                    <div>{renderDetectionType(queueItem.detection_type)}</div>
-                                  </div>
-                                </>
-                              ) : reconciliationPending ? (
-                                <div className="col-span-2 text-sm text-[var(--app-muted)]">
-                                  Nenhum item de conciliação encontrado na fila para este B/L.
-                                </div>
-                              ) : null}
-                              <div>
-                                <div className="text-[var(--app-muted)]">Subtotal</div>
-                                <div className="text-[var(--app-text-strong)]">
-                                  {formatBRL(row.totals.total_brl)}
-                                  {Number(row.totals.total_usd ?? 0) !== 0 ? (
-                                    <span className="ml-2 text-xs text-[var(--app-muted)]">{formatUSD(row.totals.total_usd)}</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-[var(--app-muted)]">Linhas</div>
-                                <div className="text-[var(--app-text-strong)]">
-                                  {Number(row.totals.line_count).toLocaleString('pt-BR')}
-                                  {row.totals.review_required_count > 0 ? (
-                                    <span className="ml-2 text-xs text-[var(--app-warning-fg)]">em revisão: {row.totals.review_required_count}</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-[var(--app-muted)]">Último cálculo</div>
-                                <div className="text-[var(--app-text-strong)]">{formatDateTime(row.charges_calculated_at)}</div>
-                              </div>
-                              <div>
-                                <div className="text-[var(--app-muted)]">Última revisão</div>
-                                <div className="text-[var(--app-text-strong)]">{formatDateTime(row.charges_reviewed_at)}</div>
-                              </div>
-                              <div className="col-span-2">
-                                <div className="text-[var(--app-muted)]">Último evento</div>
-                                <div className="whitespace-normal text-[var(--app-text-strong)]">{describeLastEvent(row.trail)}</div>
-                              </div>
+                    <tr id={`validacao-${row.id}`} data-row-detail>
+                      <td colSpan={columns}>
+                        <div className="grid items-start gap-4 xl:grid-cols-2">
+                          <Block title="Situação do B/L" headingLevel={4}>
+                            <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 ${block.code === 'pronto' ? 'border-[var(--app-success-border)] bg-[var(--app-success-bg)] text-[var(--app-success-fg)]' : CALM_CODES.has(block.code) ? 'border-[var(--app-border)] bg-[var(--app-surface)]' : 'border-[var(--app-warning-border)] bg-[var(--app-warning-bg)] text-[var(--app-warning-fg)]'}`}>
+                              <p className="font-semibold">{bandText(block)}</p>
+                              <ResolveAction row={row} code={block.code} onIssue={onIssueSingleInvoice} onRecalculate={onRecalculateRow} />
                             </div>
-                            {row.charge_status === 'review_required' ? (
-                              <ReviewRequiredReasons blId={row.id} holdReason={row.billing_hold_reason} />
-                            ) : null}
-                            <div className="mt-1">
-                              <Link
-                                className="app-table__action"
-                                to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${row.id}`}
-                              >
-                                Abrir B/L →
-                              </Link>
-                            </div>
-                          </div>
+                            <FactList>
+                              <Fact label="Trecho">{formatPortDisplayName(row.pol)} → {formatPortDisplayName(row.pod)}</Fact>
+                              <Fact label="CE Mercante">{row.ce_mercante?.trim() ? <CopyValue value={row.ce_mercante} label="CE Mercante" /> : <NoValue label="CE Mercante não informado" />}</Fact>
+                              <Fact label="Cliente" detail={!row.customer?.id && queueItem?.manifest_customer_name ? 'Nome no manifesto; sem Cliente vinculado' : null}>
+                                {row.customer?.name ?? queueItem?.manifest_customer_name ?? <NoValue label="Sem Cliente vinculado" />}
+                              </Fact>
+                              <Fact label="CNPJ">
+                                {(row.customer?.cnpj_cpf ?? queueItem?.cnpj_cpf) ? <CopyValue value={formatCnpjCpf((row.customer?.cnpj_cpf ?? queueItem?.cnpj_cpf)!)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ" />}
+                              </Fact>
+                            </FactList>
+                            {row.charge_status === 'review_required' ? <ReviewRequiredReasons blId={row.id} holdReason={row.billing_hold_reason} /> : null}
+                          </Block>
                           {row.cargo_mode === 'granito' ? null : (
-                            <ConferenciaCalculo blId={row.id} financialStatus={row.financial_status} />
+                            <ConferenciaCalculo blId={row.id} financialStatus={row.financial_status} calculatedAt={row.charges_calculated_at} />
                           )}
                         </div>
                       </td>
@@ -270,47 +161,55 @@ export function ValidacaoOperationsTable({
           </tbody>
         </table>
       </div>
-    </Card>
+    </>
   )
 }
 
-// Cada bloqueio tem uma tela onde se resolve. Sem o link, a fila diz o que falta
-// e deixa o operador procurar: cliente e CE ficam no B/L e na Revisao, portal
-// mora no cadastro do cliente.
-function BlockResolutionLink({ blId, code, customerCnpj }: { blId: string; code: string; customerCnpj: string | null }) {
+/** Estados que não pedem ação: a faixa fica neutra, sem âmbar. */
+const CALM_CODES = new Set(['faturado', 'isento', 'operacao_granito'])
+
+/** "Sem linhas de taxa: …" já diz o motivo; os outros levam o rótulo antes do detalhe. */
+function bandText(block: { code: string; label: string; detail: string }) {
+  if (!block.detail) return block.label
+  if (/^[^:]{3,40}: /.test(block.detail)) return block.detail
+  return `${block.label}: ${block.detail.replace(/^./, (first) => first.toLowerCase())}`
+}
+
+/**
+ * Uma ação por linha, a que resolve o motivo: Recalcular, Vincular na Revisão,
+ * Cadastrar CE, Abrir Cliente ou Emitir (lote 1 da identidade).
+ */
+function ResolveAction({
+  row,
+  code,
+  onIssue,
+  onRecalculate,
+}: {
+  row: LocalChargeOperationalRow
+  code: string
+  onIssue: (row: LocalChargeOperationalRow) => void
+  onRecalculate?: (row: LocalChargeOperationalRow) => void
+}) {
+  if (code === 'pronto' && row.customer?.id && !isBlLockedForRecalc(row.financial_status)) {
+    return <Button className="app-btn--sm" onClick={() => onIssue(row)}>Emitir</Button>
+  }
   if (code === 'sem_cliente') {
-    return (
-      <Link className="app-table__action" to={`/revisao?bl=${encodeURIComponent(blId)}`}>
-        Vincular cliente na Revisão →
-      </Link>
-    )
+    return <Link className="app-btn app-btn--secondary app-btn--sm" to={`/revisao?bl=${encodeURIComponent(row.id)}`}>Vincular na Revisão <ArrowRight size={14} aria-hidden="true" /></Link>
   }
   if (code === 'aguardando_ce') {
-    return (
-      <Link className="app-table__action" to={`/bls/${encodeURIComponent(blId)}`}>
-        Cadastrar CE Mercante na ficha do B/L →
-      </Link>
-    )
+    return <Link className="app-btn app-btn--secondary app-btn--sm" to={`/bls/${encodeURIComponent(row.id)}`}>Cadastrar CE <ArrowRight size={14} aria-hidden="true" /></Link>
   }
   if (code === 'portal_nao_provisionado') {
-    // O link aparece para todo perfil: conhecer o bloqueio nao e o mesmo que
-    // poder resolve-lo, e a tela de destino aplica a propria permissao.
-    if (!customerCnpj) return null
-    return (
-      <Link className="app-table__action" to={`/clientes/${encodeURIComponent(customerCnpj)}`}>
-        Provisionar portal na ficha do cliente →
-      </Link>
-    )
+    // Conhecer o bloqueio não é o mesmo que poder resolvê-lo: a ficha aplica a própria permissão.
+    if (!row.customer?.cnpj_cpf) return null
+    return <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/${encodeURIComponent(row.customer.cnpj_cpf)}`}>Abrir Cliente <ArrowRight size={14} aria-hidden="true" /></Link>
+  }
+  if ((code === 'calculo_incompleto' || code === 'operacao_granito') && !isBlLockedForRecalc(row.financial_status)) {
+    return <Button variant="secondary" className="app-btn--sm" onClick={() => onRecalculate?.(row)}>Recalcular</Button>
   }
   return null
 }
 
-function blockTone(code: string) {
-  if (code === 'aguardando_ce') return 'slate' as const
-  if (code === 'sem_cliente' || code === 'portal_nao_provisionado') return 'yellow' as const
-  if (code === 'calculo_incompleto') return 'red' as const
-  return 'blue' as const
-}
 
 function ReviewRequiredReasons({ blId, holdReason }: { blId: string; holdReason: string | null }) {
   const { data, isLoading } = useBlLocalChargeLines(blId)
@@ -345,30 +244,5 @@ function ReviewRequiredReasons({ blId, holdReason }: { blId: string; holdReason:
   )
 }
 
-function renderChargeStatus(status: string | null, financialStatus?: string | null, cargoMode?: string | null) {
-  if (cargoMode === 'granito') {
-    if (financialStatus === 'invoiced') return <Badge tone="slate">Registro histórico</Badge>
-    if (status === 'calculated' || status === 'ready_for_billing') return <Badge tone="green">Quantidades calculadas</Badge>
-    return <Badge tone="slate">Quantidades pendentes</Badge>
-  }
-  if (financialStatus === 'invoiced') return <Badge tone="blue">Faturado</Badge>
-  if (status === 'review_required') return <Badge tone="yellow">Revisão</Badge>
-  if (status === 'ready_for_billing') return <Badge tone="green">Pronto</Badge>
-  if (status === 'exempt') return <Badge tone="slate">Isento</Badge>
-  return <Badge tone="slate">Pendente</Badge>
-}
 
-function renderReconciliationStatus(status: string | null) {
-  if (status === 'reconciled') return <Badge tone="green">Reconciliado</Badge>
-  if (status === 'matched_document') return <Badge tone="blue">Match CNPJ</Badge>
-  if (status === 'matched_name') return <Badge tone="yellow">Sugestão por nome</Badge>
-  if (status === 'rejected') return <Badge tone="red">Rejeitado</Badge>
-  return <Badge tone="yellow">Pendente</Badge>
-}
 
-function renderDetectionType(type: string | null) {
-  if (type === 'document') return <Badge tone="blue">Documento</Badge>
-  if (type === 'name') return <Badge tone="yellow">Nome</Badge>
-  if (type === 'manual') return <Badge tone="green">Manual</Badge>
-  return <Badge tone="red">Ausente</Badge>
-}

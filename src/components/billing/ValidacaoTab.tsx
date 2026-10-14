@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { Download, RefreshCw } from 'lucide-react'
+import { Block } from '../ui/Block'
+import { Button } from '../ui/Button'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useBatchCalculateLocalCharges, useCustomerReconciliationQueue, useLocalChargeOperations } from '../../hooks/useLocalCharges'
@@ -20,7 +23,6 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
   const [opsFilters, setOpsFilters] = useState<OpsFilters>({ search: initialBlSearch ?? '', cargoMode: '', pod: '', voyageId: '', blockCode: initialBlockCode ?? '', includeResolved: false })
   const [selectedOpsRows, setSelectedOpsRows] = useState<string[]>([])
   const [exportingOps, setExportingOps] = useState(false)
-  const [exportingConference, setExportingConference] = useState(false)
   const { data: operationsResult, isLoading: operationsLoading, error: operationsError } = useLocalChargeOperations({ search: opsFilters.search, cargoMode: opsFilters.cargoMode, pod: opsFilters.pod, voyageId: opsFilters.voyageId ? Number(opsFilters.voyageId) : null, includeResolved: opsFilters.includeResolved, limit: 1200 })
   const operationsRows = useMemo(() => operationsResult?.rows ?? [], [operationsResult])
   const batchCalculateMutation = useBatchCalculateLocalCharges()
@@ -29,7 +31,8 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
   const displayedRows = useMemo(() => {
     return (operationsRows ?? []).filter((row) => {
       const block = getBillingBlock(row)
-      if (!opsFilters.includeResolved && (block.code === 'faturado' || block.code === 'isento' || block.code === 'pronto')) return false
+      // "Pronto para emitir" fica na fila normal com o botão Emitir (decisão de 2026-10-14).
+      if (!opsFilters.includeResolved && (block.code === 'faturado' || block.code === 'isento')) return false
       return !opsFilters.blockCode || block.code === opsFilters.blockCode
     })
   }, [operationsRows, opsFilters.blockCode, opsFilters.includeResolved])
@@ -37,7 +40,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
   const areAllOpsRowsSelected = displayedRows.length > 0 && displayedRows.every((row) => selectedRows.has(row.id))
 
   function updateOpsFilter<K extends keyof OpsFilters>(field: K, value: OpsFilters[K]) {
-    setOpsFilters((current) => ({ ...current, [field]: value, ...(field === 'blockCode' && (value === 'faturado' || value === 'isento' || value === 'pronto') ? { includeResolved: true } : {}) }))
+    setOpsFilters((current) => ({ ...current, [field]: value, ...(field === 'blockCode' && (value === 'faturado' || value === 'isento') ? { includeResolved: true } : {}) }))
     setSelectedOpsRows([])
   }
   function toggleOpsRow(blId: string) { setSelectedOpsRows((current) => current.includes(blId) ? current.filter((id) => id !== blId) : [...current, blId]) }
@@ -88,22 +91,23 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
     }
   }
 
-  async function handleExportOperations() {
-    if (!displayedRows.length) return showToast('Não há dados para exportar com os filtros atuais.', 'info')
+  // Uma planilha só (decisão de 2026-10-14): uma linha por B/L, uma coluna por
+  // taxa; respeita a seleção e, sem seleção, o filtro.
+  async function handleExport() {
+    const scope = selectedOpsRows.length ? displayedRows.filter((row) => selectedRows.has(row.id)) : displayedRows
+    if (!scope.length) return showToast('Não há B/Ls para exportar com o filtro ou a seleção atual.', 'info')
     setExportingOps(true)
-    try { const { exportLocalChargeOperationsWorkbook } = await import('../../services/exports'); await exportLocalChargeOperationsWorkbook(displayedRows); showToast(`Exportação concluída com ${displayedRows.length} B/L(s).`, 'success') } catch { showToast('Falha ao exportar operação de taxas locais.', 'error') } finally { setExportingOps(false) }
-  }
-  async function handleExportConference() {
-    const scope = selectedOpsRows.length ? selectedOpsRows : displayedRows.map((row) => row.id)
-    if (!scope.length) return showToast('Não há B/Ls para exportar com o filtro/seleção atual.', 'info')
-    setExportingConference(true)
     try {
-      const { buildLocalChargeConferenceRows } = await import('../../services/charges/chargeOperationsService')
-      const { exportLocalChargeConferenceWorkbook } = await import('../../services/exports')
-      const rows = await buildLocalChargeConferenceRows(scope)
-      await exportLocalChargeConferenceWorkbook(rows, selectedOpsRows.length ? `${scope.length} B/L(s) selecionado(s)` : `${scope.length} B/L(s) filtrado(s)`)
-      showToast(`Planilha de conferência exportada com ${rows.length} linha(s).`, 'success')
-    } catch { showToast('Falha ao exportar planilha de conferência.', 'error') } finally { setExportingConference(false) }
+      const { fetchChargeTotalsByBl } = await import('../../services/charges/chargeOperationsService')
+      const { exportValidacaoWorkbook } = await import('../../services/exports')
+      const totals = await fetchChargeTotalsByBl(scope.map((row) => row.id))
+      await exportValidacaoWorkbook(scope.map((row) => ({ row, block: getBillingBlock(row) })), totals)
+      showToast(`Exportação concluída com ${scope.length} B/L(s).`, 'success')
+    } catch {
+      showToast('Falha ao exportar a Validação.', 'error')
+    } finally {
+      setExportingOps(false)
+    }
   }
   async function handleIssueSingleInvoice(row: LocalChargeOperationalRow) {
     if (row.cargo_mode === 'granito') return showToast('Granito é apoio operacional; cobrança não está disponível neste fluxo.', 'info')
@@ -124,8 +128,28 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
   }
   async function handleRecalculateRow(row: LocalChargeOperationalRow) { await runBatchOperation('recalculate', [row.id]) }
 
-  return <>
-    <ValidacaoControls filters={opsFilters} blockedCount={displayedRows.length} truncated={Boolean(operationsResult?.truncated)} selectedCount={selectedOpsRows.length} operationsLoading={operationsLoading} calculatePending={batchCalculateMutation.isPending} exporting={exportingOps} exportingConference={exportingConference} onUpdateFilter={updateOpsFilter} onRunBatchOperation={(action) => void runBatchOperation(action)} onExport={() => void handleExportOperations()} onExportConference={() => void handleExportConference()} />
-    <ValidacaoOperationsTable rows={displayedRows} isLoading={operationsLoading} hasError={Boolean(operationsError)} selectedRowIds={selectedOpsRows} areAllRowsSelected={areAllOpsRowsSelected} expandedBlId={expandedBlId} reconciliationQueue={reconciliationQueue ?? []} onToggleAllRows={toggleAllOpsRows} onToggleRow={toggleOpsRow} onToggleExpandedRow={(id) => setExpandedBlId((current) => current === id ? null : id)} onIssueSingleInvoice={(row) => void handleIssueSingleInvoice(row)} onRecalculateRow={(row) => void handleRecalculateRow(row)} />
-  </>
+  const exportCount = selectedOpsRows.length || displayedRows.length
+  return (
+    <Block
+      title="Validação"
+      headingLevel={2}
+      flush
+      aside={(
+        <>
+          <span aria-live="polite">{operationsLoading ? 'Carregando…' : `${displayedRows.length} B/L${displayedRows.length === 1 ? '' : 's'} ${opsFilters.includeResolved ? 'no recorte' : 'aguardando emissão'} · ${selectedOpsRows.length} selecionado${selectedOpsRows.length === 1 ? '' : 's'}`}</span>
+          <Button variant="secondary" className="app-btn--sm" onClick={() => void runBatchOperation('recalculate')} loading={batchCalculateMutation.isPending} disabled={!selectedOpsRows.length}>
+            <RefreshCw size={14} aria-hidden="true" />Recalcular selecionados
+          </Button>
+          <Button variant="secondary" className="app-btn--sm" loading={exportingOps} loadingLabel="Exportando…" disabled={!exportCount} onClick={() => void handleExport()}>
+            <Download size={14} aria-hidden="true" />Exportar ({exportCount})
+          </Button>
+        </>
+      )}
+    >
+      <div className="app-block__body">
+        <ValidacaoControls filters={opsFilters} truncated={Boolean(operationsResult?.truncated)} onUpdateFilter={updateOpsFilter} />
+      </div>
+      <ValidacaoOperationsTable rows={displayedRows} isLoading={operationsLoading} hasError={Boolean(operationsError)} selectedRowIds={selectedOpsRows} areAllRowsSelected={areAllOpsRowsSelected} expandedBlId={expandedBlId} reconciliationQueue={reconciliationQueue ?? []} onToggleAllRows={toggleAllOpsRows} onToggleRow={toggleOpsRow} onToggleExpandedRow={(id) => setExpandedBlId((current) => current === id ? null : id)} onIssueSingleInvoice={(row) => void handleIssueSingleInvoice(row)} onRecalculateRow={(row) => void handleRecalculateRow(row)} />
+    </Block>
+  )
 }

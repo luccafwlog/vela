@@ -252,7 +252,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
                       const receivables = line.kind === 'invoice' ? line.receivables : [line.receivable]
                       return (
                         <Fragment key={key}>
-                          <tr className={cancelled ? 'app-status-text--muted' : undefined}>
+                          <tr className={cancelled ? 'app-table__row--muted' : undefined}>
                             <td>
                               {receivables.length ? (
                                 <button

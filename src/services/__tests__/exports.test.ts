@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { customerExportEmails, exportCustomerBaseWorkbook, exportInvoicesWorkbook, exportLocalChargeConferenceWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import { customerExportEmails, exportCustomerBaseWorkbook, exportInvoicesWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
 import type { InvoiceListRow } from '../billing'
 import type { PortalInvoiceSummary } from '../portalBilling'
 import type { VaziosImportacaoContainerListItem } from '../../types/database'
@@ -71,16 +71,6 @@ describe('exportVaziosImportacaoWorkbook', () => {
   })
 })
 
-describe('exportLocalChargeConferenceWorkbook', () => {
-  it('preserva o escopo e exporta as colunas da conferência em xlsx', async () => {
-    await exportLocalChargeConferenceWorkbook([{
-      bl_id: 'BL-1', customer_name: 'Cliente', pod: 'BRSSA', charge_name: 'THD', application_basis: 'bl', quantity: 1,
-      unit_value_brl: 10, total_value_brl: 10, price_origin: 'Tabela padrão', shared_containers: '',
-    }], '1 B/L selecionado')
-    expect(jsonToSheet).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ Escopo: '1 B/L selecionado' }), expect.objectContaining({ 'B/L': 'BL-1' })]))
-    expect(writeFile).toHaveBeenCalledWith(expect.anything(), expect.stringMatching(/^conferencia-taxas-locais-\d+\.xlsx$/))
-  })
-})
 
 describe('exportInvoicesWorkbook', () => {
   it('exporta fatura avulsa sem B/L como tipo próprio', async () => {
@@ -152,5 +142,26 @@ describe('exportCustomerBaseWorkbook', () => {
     jsonToSheet.mockClear()
     await exportCustomerBaseWorkbook([{ id: 1, cnpj_cpf: '12345678000195', name: 'ACME', customer_contacts: contacts }] as never)
     expect(jsonToSheet.mock.calls[0][0][0]).toMatchObject({ CNPJ: '12345678000195', Email: 'fin@acme.com; ops@acme.com' })
+  })
+})
+
+describe('exportação da Validação (planilha única)', () => {
+  it('uma linha por B/L, colunas fixas em português e uma coluna por taxa; US$ em coluna própria', async () => {
+    const { buildValidacaoSheetRows } = await import('../exports')
+    const row = {
+      id: 'BL-1', cargo_mode: 'container', pol: 'CNSHA', pod: 'BRSSZ', charges_calculated_at: '2026-10-13T10:00:00Z',
+      customer: { id: 1, name: 'Cliente', cnpj_cpf: '1' }, voyage: { id: 1, voyage_number: '088E', vessel: { name: 'ARIES' } },
+      totals: { total_brl: 2870, total_usd: 0, line_count: 3, review_required_count: 0 },
+    } as never
+    const totals = new Map([
+      ['BL-1', new Map([
+        ['THC', { brl: 2000, usd: 0, currency: 'BRL' }],
+        ['Lacre', { brl: 350, usd: 0, currency: 'BRL' }],
+        ['BL Fee', { brl: 0, usd: 60, currency: 'USD' }],
+      ])],
+    ])
+    const [sheet] = buildValidacaoSheetRows([{ row, block: { label: 'Pronto para emitir', detail: 'Tudo certo.' } }], { totals, sharedContainers: new Map([['BL-1', 'CSNU1 (2 B/Ls)']]) })
+    expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Contêiner compartilhado', 'Lacre', 'THC', 'BL Fee (US$)'])
+    expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Contêiner compartilhado': 'CSNU1 (2 B/Ls)' })
   })
 })

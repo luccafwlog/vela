@@ -133,7 +133,7 @@ carga.
 `src/pages/TaxasLocais.tsx` abre por padrão a aba **Faturas**. Desde a etapa 10
 da revisão visual (2026-10-09), a URL é a fonte do recorte
 (`src/pages/faturasListState.ts`): `tab=validacao` (ou o antigo `pendencias`),
-`invoice`, `customer`/`customerName`, `bl`, `fatura`, `viagem`, `pod`, `tipo`,
+`invoice`, `busca` (fatura ou B/L), `customer`/`customerName`, `bl`, `fatura`, `viagem`, `pod`, `tipo`,
 `situacao`, `emissaoDe`/`emissaoAte`, `pagamentoDe`/`pagamentoAte`, `page` e
 `pageSize`; links antigos com `tab=invoices` continuam valendo. Data fora do
 formato AAAA-MM-DD é ignorada e página além do total recua para a última.
@@ -146,16 +146,20 @@ Validação abre filtrada só pelo alerta "Ver na Validação" ou por um link. O
 endereço antigo `tab=validacao&bl=` (ou `tab=pendencias&bl=`) é convertido na
 chegada. A lista usa:
 
-- `src/components/billing/InvoiceFiltersBar.tsx` para B/L, fatura, Cliente,
-  navio/viagem, POD, tipo, situação (Em aberto, Paga ou coberta, Cancelada ou
-  obsoleta), emissão, pagamento e tamanho de página;
-- `src/components/billing/InvoicesTable.tsx`: o número da fatura abre o
-  detalhe; Cliente com CNPJ mascarado; B/Ls diretos ou de receivables; a coluna
-  Valores mostra primeiro o que decide (saldo em aberto ou total pago; coberta e
-  cancelada não aparecem como dívida, `describeInvoiceRowAmount`); situação exata
-  da fatura (Parcialmente paga, Coberta, Obsoleta); cartões abaixo de 640 px;
-- faixa de resumo com o total do recorte e o saldo em aberto **da página
-  carregada** (rotulado assim) e exportação completa dos filtros;
+- `src/components/billing/InvoiceFiltersBar.tsx`: busca única por fatura ou
+  B/L (`busca`; a fatura entra se o número dela ou de qualquer B/L dela bate),
+  Cliente, Situação (Em aberto, Paga ou coberta, Cancelada ou obsoleta) e
+  Navio / Viagem abertos; B/L, fatura, POD, tipo, emissão, pagamento e tamanho
+  de página em "Mais filtros" (lote 1 da identidade, 2026-10-14);
+- `src/components/billing/InvoicesTable.tsx`, em tabela limpa: Fatura (o
+  número abre o detalhe; consolidada com o ícone de pilha), B/L (o primeiro e
+  "+n"), Emissão, Cliente, Navio / Viagem, Total, Saldo (âmbar quando maior que
+  zero) e Situação em texto (`InvoiceSituation`: Emitida, Parcialmente paga,
+  ✓ Paga, Coberta, Cancelada em cinza com a linha inteira); sem coluna de
+  Comunicado, sem CNPJ nem POD na linha (ficam no detalhe e no filtro); cartões
+  abaixo de 640 px;
+- bloco Faturas com o total do recorte e o saldo em aberto na faixa do título
+  ("nesta página" quando há mais de uma página) e Exportar com os filtros;
 - loading, erro com Tentar novamente (sem lista vazia falsa) e vazio derivados
   de `useInvoices`.
 
@@ -181,10 +185,31 @@ do container compartilhado.
 ### Validação
 
 - `src/components/billing/ValidacaoTab.tsx` orquestra consultas, mutações,
-  invalidações e estado da fila operacional de taxas locais e Granito.
-  `src/components/billing/ValidacaoControls.tsx` contém filtros, pipeline e
-  ações em lote; `src/components/billing/ValidacaoOperationsTable.tsx` renderiza
-  seleção, detalhes, conciliação e emissão individual.
+  invalidações e estado da fila operacional de taxas locais e Granito, num
+  bloco "Validação" com a contagem, **Recalcular selecionados** e **Exportar
+  (n)** na faixa do título. `src/components/billing/ValidacaoControls.tsx`
+  contém os filtros (Busca, Motivo e Navio / Viagem abertos; Modo de carga, POD
+  e "Incluir faturados e isentos" em "Mais filtros");
+  `src/components/billing/ValidacaoOperationsTable.tsx` renderiza a tabela limpa
+  (lote 1 da identidade, 2026-10-14): seleção, seta de abrir e as colunas B/L,
+  Cliente, Navio / Viagem, Motivo (em texto, uma vez), Subtotal e **uma ação por
+  linha, a que resolve o motivo** (Recalcular, Vincular na Revisão, Cadastrar
+  CE, Abrir Cliente ou Emitir). Cálculo, Vínculo do Cliente e Modo de carga
+  saíram da linha.
+- **Fila (2026-10-14):** B/L faturado, **parcialmente pago ou pago** sai da fila
+  (`getBillingBlock` usa `isBlFinanciallyLocked`; antes só `invoiced` contava e o
+  B/L pago voltava como "Cálculo incompleto" oferecendo Emitir). B/L **Pronto
+  para emitir** (tudo certo e a fatura não saiu sozinha) fica na fila normal com
+  o botão Emitir; antes só aparecia com "Incluir resolvidos". Sem linhas de taxa,
+  o motivo se chama "Cálculo sem linhas".
+- **Exportar:** uma planilha só (`exportValidacaoWorkbook`), uma linha por B/L,
+  com B/L, Cliente, CNPJ, Navio / Viagem, Trecho, Modo de carga, Motivo, Detalhe
+  do motivo, Último cálculo, Subtotal, Contêiner compartilhado (ADR 0038: B/L com
+  taxa rateada por contêiner lista os contêineres que divide, "CSNU1 (2 B/Ls)") e
+  uma coluna por taxa com o total dela no B/L (`fetchChargeTotalsByBl`); taxa em
+  US$ tem coluna própria "(US$)". Respeita
+  a seleção e, sem seleção, o filtro. A "Visão filtrada" e a "Conferência do
+  escopo" saíram.
 - **Ajustes de COD (ADR 0051):** `src/components/billing/CodAdjustmentsPanel.tsx`
   lê a fila de `cod_adjustments` com status `pending` e só monta o painel quando
   há ao menos uma pendência. Uma resposta bem-sucedida sem pendências omite o
@@ -212,31 +237,26 @@ do container compartilhado.
   código `portal_nao_provisionado`, atrás de cliente, cálculo e CE Mercante na
   precedência, porque é o único bloqueio que se resolve no cadastro do cliente e
   não no B/L. Ele só responde pelo B/L quando é a **única** pendência aberta.
-- **Detalhe expandido da linha (issue 583):** o destaque no topo da expansão usa
-  o código do bloqueio (`getBillingBlock`) para escolher título e tom
-  (`src/components/billing/validacaoDetalhes.ts`): só quem impede a emissão
-  (`sem_cliente`, `calculo_incompleto`, `aguardando_ce`) aparece em âmbar como
-  “Por que não fatura?”; estados finais (`pronto`, `faturado`, `isento`) e
-  Granito ficam neutros como “Situação da fatura”/“Escopo da operação”. O mesmo
-  motivo deixa de repetir na coluna Motivo enquanto a linha está expandida. A
-  expansão mostra ainda cliente vinculado com CNPJ formatado, CE Mercante,
-  subtotal (BRL e USD quando houver), e o último evento auditado com o campo
-  humanizado e data/hora (`describeLastEvent`); a conciliação pendente mantém os
-  dados do manifesto, CNPJ, sugestão e detecção dentro do bloco "Detalhes", sem
-  montar uma segunda caixa. O callout do bloqueio concentra o único link para
-  onde se resolve: cliente para `/revisao?bl=<id>` — a
-  Revisão lê `bl` junto de `cliente`/`busca`/`q`, filtrando a fila e abrindo o
-  grupo daquele B/L (ADR 0061) —, CE
-  Mercante para a ficha do B/L e portal para a ficha do cliente — este último
-  visível a todos os perfis, já que conhecer o bloqueio não exige a permissão
-  `portal_provisioning` que a tela de destino aplica.
+- **Linha aberta (lote 1 da identidade, 2026-10-14):** dois blocos lado a lado.
+  **Situação do B/L** traz o motivo numa faixa âmbar (verde quando pronto;
+  neutra para faturado, isento e Granito) com o botão que o resolve — cliente
+  em `/revisao?bl=<id>` (a Revisão lê `bl` junto de `cliente`/`busca`/`q`,
+  filtrando a fila e abrindo o grupo daquele B/L, ADR 0061), CE Mercante na
+  ficha do B/L, portal na ficha do Cliente (visível a todos os perfis; a tela de
+  destino aplica a permissão) — e só Trecho, CE Mercante, Cliente e CNPJ (sem
+  Cliente, o nome e o CNPJ do manifesto, da fila de conciliação). Subtotal,
+  Linhas de taxa, Última revisão e Último evento saíram por repetirem a linha ou
+  a conferência. As pendências de revisão das taxas continuam embaixo quando o
+  cálculo está em revisão. **Conferência do cálculo** traz a data do cálculo e o
+  total no título.
 - **Conferência de cálculo na expansão (issue 583):** a expansão do B/L mostra
   como se chegou ao valor, não só qual é. `list_bl_local_charge_lines` passou a
   devolver `charge_table_name`, `charge_table_pod` e `application_basis`
   (migration `369`, `DROP`+`CREATE` porque o `RETURNS TABLE` muda de forma):
   `charge_tables` e `charge_table_items` são admin-only sob RLS, então sem essas
   colunas a tela não teria como nomear a tabela usada. `ConferenciaCalculo`
-  agrupa as linhas por origem (`src/components/billing/conferenciaCalculo.ts`):
+  (um `Block` com a tabela Taxa, Base, Qtd., Unitário e Total em cabeçalho
+  claro) agrupa as linhas por origem (`src/components/billing/conferenciaCalculo.ts`):
   um grupo por tabela de cobrança, com o porto de descarga no subtítulo — é o
   POD que escolhe a tabela, Vitória cobra pela de Vitória e Salvador pela de
   Salvador —, mais os grupos **Lançamentos manuais** e **Sem tabela vinculada**,

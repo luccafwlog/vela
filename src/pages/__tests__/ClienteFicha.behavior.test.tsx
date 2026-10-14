@@ -39,6 +39,10 @@ vi.mock('../../hooks/useCustomerFicha', () => ({
   useCustomerPayments: () => ({ data: { rows: [], denied: false } }),
   useCustomerRateOverrides: () => ({ data: [] }),
   useCustomerManualChargeBls: () => ({ data: [] }),
+  useCustomerBls: () => ({ data: [] }),
+  useCustomerContainers: () => ({ data: [] }),
+  useCustomerInvoices: () => ({ data: { rows: [], denied: false } }),
+  useCustomerCadastroChanges: () => ({ data: [] }),
 }))
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'admin-1' }, isAdmin: true, can: mocks.can }),
@@ -127,8 +131,8 @@ describe('ClienteFicha user behaviours', () => {
 
     expect(screen.getByRole('heading', { name: 'Saldo pendente' })).toBeTruthy()
     expect(screen.getByText(/B\/L vinculado por nome, aguardando confirmação/)).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: /Ver os B\/Ls na aba Operacional/ }))
-    expect(screen.getByRole('tab', { name: /^Operacional/ }).getAttribute('aria-selected')).toBe('true')
+    await user.click(screen.getByRole('button', { name: /Ver os B\/Ls na aba BLs/ }))
+    expect(screen.getByRole('tab', { name: /^BLs/ }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('renders CustomerContactConfiguration and invalidates customer detail on save', async () => {

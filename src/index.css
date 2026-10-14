@@ -11466,7 +11466,6 @@ td.app-cargo-num {
     grid-column: auto;
   }
 
-
   .app-customer-savebar__actions > * {
     flex: 1 1 auto;
   }
@@ -12732,19 +12731,6 @@ tr[data-inactive] .app-rates-item__value {
   margin: 0;
 }
 
-.app-invoices__table {
-  width: 100%;
-  min-width: 1080px;
-}
-
-.app-invoices__table--comm {
-  min-width: 1240px;
-}
-
-.app-invoices__table td {
-  vertical-align: top;
-}
-
 .app-invoices__number {
   border: 0;
   background: none;
@@ -12810,15 +12796,6 @@ tr[data-inactive] .app-rates-item__value {
   white-space: nowrap;
 }
 
-.app-invoices__amount--warning {
-  color: var(--app-warning-fg);
-}
-
-.app-invoices__amount--muted {
-  color: var(--app-muted);
-  font-weight: 500;
-}
-
 .app-invoice-cards {
   display: grid;
 }
@@ -12860,49 +12837,7 @@ tr[data-inactive] .app-rates-item__value {
   display: inline;
 }
 
-/* Comunicado de CE Mercante na linha da fatura. */
-.app-invoice-comm {
-  display: grid;
-  gap: 4px;
-  max-width: 240px;
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-invoice-comm__item {
-  display: grid;
-  gap: 2px;
-}
-
-.app-invoice-comm__voyage {
-  color: var(--app-muted);
-  font-weight: 600;
-}
-
-.app-invoice-comm__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-}
-
-.app-invoice-comm__link {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--app-link);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.app-invoice-comm--muted { color: var(--app-muted); }
-.app-invoice-comm--success { color: var(--app-success-fg); }
-.app-invoice-comm--warning { color: var(--app-warning-fg); }
-.app-invoice-comm--danger { color: var(--app-danger-fg); }
-
 @media (pointer: coarse) {
-  .app-invoice-comm__link,
   .app-fin-alerts__link {
     min-height: 44px;
   }
@@ -14256,6 +14191,13 @@ tr[data-inactive] .app-rates-item__value {
 .app-status-text__icon {
   flex: none;
   color: var(--app-success-fg);
+}
+
+/* Linha encerrada sem efeito (fatura cancelada): inteira em cinza, link inclusive. */
+.app-shell table.app-table tr.app-table__row--muted td,
+.app-shell table.app-table tr.app-table__row--muted a,
+.app-shell table.app-table tr.app-table__row--muted button {
+  color: var(--app-muted);
 }
 
 .app-consolidated-mark {

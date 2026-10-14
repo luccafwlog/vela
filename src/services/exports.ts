@@ -2,8 +2,7 @@ import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '
 import { containerOwnershipLabel } from '../lib/containerOwnership'
 import type { BLListItem, ContainerListItem, CustomerListItem, VehicleListItem, VaziosImportacaoContainerListItem } from '../types/database'
 import type { BaplieContainer } from '../types/database'
-import type { LocalChargeConferenceRow, LocalChargeOperationalRow } from './charges/chargeOperationsService'
-import { downloadCsv } from '../lib/csv'
+import type { LocalChargeOperationalRow } from './charges/chargeOperationsService'
 import type {
   CustomerReportRow,
   FinancialReportRow,
@@ -219,77 +218,6 @@ export async function exportInvoicesWorkbook(rows: InvoiceListRow[]) {
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, invoiceRows), 'Faturas')
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, blRows), 'BLs')
   XLSX.writeFile(workbook, `faturas-${makeTimestamp()}.xlsx`)
-}
-
-export async function exportLocalChargeOperationsWorkbook(rows: LocalChargeOperationalRow[]) {
-  const XLSX = await import('@e965/xlsx')
-  const exportRows = rows.map((row) => ({
-    BL: row.id,
-    Modalidade: cargoModeLabel(row.cargo_mode),
-    Navio: row.voyage?.vessel?.name ?? '',
-    Viagem: row.voyage?.voyage_number ?? '',
-    POL: row.pol ?? '',
-    POD: row.pod ?? '',
-    Cliente: row.customer?.name ?? '',
-    CNPJ: row.customer?.cnpj_cpf ?? '',
-    StatusTaxas: row.charge_status ?? '',
-    Linhas: row.totals.line_count,
-    LinhasRevisao: row.totals.review_required_count,
-    SubtotalBRL: Number(row.totals.total_brl ?? 0),
-    SubtotalUSD: Number(row.totals.total_usd ?? 0),
-    CalculadoEm: row.charges_calculated_at ?? '',
-    RevisadoEm: row.charges_reviewed_at ?? '',
-    Isencao: row.charge_exemption_reason ?? '',
-    UltimoEventoEm: row.trail.last_event_at ?? '',
-    UltimoEventoPor: row.trail.last_event_by ?? '',
-    UltimoEvento: row.trail.last_event_field ?? '',
-    UltimaMensagem: row.trail.last_event_message ?? '',
-  }))
-
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'TaxasLocais')
-  XLSX.writeFile(workbook, `taxas-locais-${makeTimestamp()}.xlsx`)
-}
-
-// Etapa 5 do plano de faturamento: planilha de conferência do cálculo
-// provisório (docs/plans/2026-08-06-faturamento-ajuste-completo.md). CSV, não
-// XLSX — é o consumidor de downloadCsv (src/lib/csv.ts), que existia sem uso.
-  export async function exportLocalChargeConferenceWorkbook(rows: LocalChargeConferenceRow[], scopeLabel: string) {
-    const XLSX = await import('@e965/xlsx')
-    const exportRows = rows.map((row) => ({
-      'B/L': row.bl_id,
-      Cliente: row.customer_name,
-      POD: row.pod,
-      Item: row.charge_name,
-      'Base de Aplicação': row.application_basis ?? '',
-      Quantidade: row.quantity,
-      'Valor Unitário BRL': row.unit_value_brl == null ? '' : row.unit_value_brl,
-      'Valor Total BRL': row.total_value_brl,
-      'Origem do Preço': row.price_origin,
-      'Container Compartilhado': row.shared_containers,
-    }))
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, [{ Escopo: scopeLabel }, ...exportRows]), 'Conferência')
-    XLSX.writeFile(workbook, `conferencia-taxas-locais-${makeTimestamp()}.xlsx`)
-  }
-
-  export function exportLocalChargeConferenceCsv(rows: LocalChargeConferenceRow[], scopeLabel: string) {
-  const extractedAt = new Date().toLocaleString('pt-BR')
-  const headers = ['B/L', 'Cliente', 'POD', 'Item', 'Base de Aplicação', 'Quantidade', 'Valor Unitário BRL', 'Valor Total BRL', 'Origem do Preço', 'Container Compartilhado']
-  const noteRow = [`Conferência de cálculo provisório — extraída em ${extractedAt} — escopo: ${scopeLabel}. O valor final sai no CE.`, '', '', '', '', '', '', '', '', '']
-  const dataRows = rows.map((row) => [
-    row.bl_id,
-    row.customer_name,
-    row.pod,
-    row.charge_name,
-    row.application_basis ?? '',
-    String(row.quantity),
-    row.unit_value_brl == null ? '' : row.unit_value_brl.toFixed(2),
-    row.total_value_brl.toFixed(2),
-    row.price_origin,
-    row.shared_containers,
-  ])
-  downloadCsv(`conferencia-taxas-locais-${makeTimestamp()}.csv`, headers, [noteRow, ...dataRows])
 }
 
 export async function exportOperationalReportWorkbook(rows: OperationalReportRow[]) {
@@ -605,4 +533,52 @@ export async function exportCustomerContainersWorkbook(customerName: string, row
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Contêineres')
   const slug = customerName.normalize('NFD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40)
   XLSX.writeFile(workbook, `conteineres-${slug || 'cliente'}-${makeTimestamp()}.xlsx`)
+}
+
+/**
+ * Exportação da Validação (decisão de 2026-10-14): uma planilha, uma linha por
+ * B/L, colunas fixas em português e uma coluna por taxa com o total da taxa no
+ * B/L; taxa em US$ ganha coluna própria "(US$)".
+ */
+export function buildValidacaoSheetRows(
+  rows: Array<{ row: LocalChargeOperationalRow; block: { label: string; detail: string } }>,
+  { totals, sharedContainers }: import('./charges/chargeOperationsService').ValidacaoExportData,
+) {
+  const brlCharges = new Set<string>()
+  const usdCharges = new Set<string>()
+  for (const byCharge of totals.values()) {
+    for (const [name, value] of byCharge) (value.currency === 'USD' ? usdCharges : brlCharges).add(name)
+  }
+  const sorted = (set: Set<string>) => [...set].sort((left, right) => left.localeCompare(right, 'pt-BR'))
+  return rows.map(({ row, block }) => {
+    const byCharge = totals.get(row.id)
+    const charges: Record<string, number | string> = {}
+    for (const name of sorted(brlCharges)) charges[name] = byCharge?.get(name) ? Number(byCharge.get(name)!.brl.toFixed(2)) : ''
+    for (const name of sorted(usdCharges)) charges[`${name} (US$)`] = byCharge?.get(name) ? Number(byCharge.get(name)!.usd.toFixed(2)) : ''
+    return {
+      'B/L': row.id,
+      Cliente: row.customer?.name ?? '',
+      CNPJ: row.customer?.cnpj_cpf ?? '',
+      'Navio / Viagem': [row.voyage?.vessel?.name, row.voyage?.voyage_number].filter(Boolean).join(' / '),
+      Trecho: `${row.pol ?? ''} → ${row.pod ?? ''}`,
+      'Modo de carga': cargoModeLabel(row.cargo_mode),
+      Motivo: block.label,
+      'Detalhe do motivo': block.detail,
+      'Último cálculo': row.charges_calculated_at ? formatDate(row.charges_calculated_at) : '',
+      Subtotal: Number(Number(row.totals.total_brl ?? 0).toFixed(2)),
+      // ADR 0038: o rateio por contêiner tem contraparte em outro B/L da Viagem.
+      'Contêiner compartilhado': sharedContainers.get(row.id) ?? '',
+      ...charges,
+    }
+  })
+}
+
+export async function exportValidacaoWorkbook(
+  rows: Array<{ row: LocalChargeOperationalRow; block: { label: string; detail: string } }>,
+  totals: import('./charges/chargeOperationsService').ValidacaoExportData,
+) {
+  const XLSX = await import('@e965/xlsx')
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, buildValidacaoSheetRows(rows, totals)), 'Validação')
+  XLSX.writeFile(workbook, `validacao-taxas-locais-${makeTimestamp()}.xlsx`)
 }

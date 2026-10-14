@@ -46,13 +46,11 @@ vi.mock('../../../services/billing', () => ({ createInvoiceFromBls: mocks.issue 
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../ValidacaoControls', () => ({
-  ValidacaoControls: ({ onUpdateFilter, onRunBatchOperation }: {
+  ValidacaoControls: ({ onUpdateFilter }: {
     onUpdateFilter: (field: string, value: unknown) => void
-    onRunBatchOperation: (action: 'recalculate') => void
   }) => (
     <div>
       <button type="button" onClick={() => onUpdateFilter('includeResolved', true)}>Incluir resolvidos</button>
-      <button type="button" onClick={() => onRunBatchOperation('recalculate')}>Recalcular seleção</button>
     </div>
   ),
 }))
@@ -93,7 +91,7 @@ describe('ValidacaoTab — confirmação de gravações financeiras', () => {
     await user.click(screen.getByRole('button', { name: 'Incluir resolvidos' }))
     await user.click(screen.getByRole('button', { name: 'Selecionar BL-LOCAL-77' }))
     await user.click(screen.getByRole('button', { name: 'Selecionar BL-ISSUED' }))
-    await user.click(screen.getByRole('button', { name: 'Recalcular seleção' }))
+    await user.click(screen.getByRole('button', { name: 'Recalcular selecionados' }))
 
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
     const options = mocks.confirm.mock.calls[0][0]
@@ -115,5 +113,13 @@ describe('ValidacaoTab — confirmação de gravações financeiras', () => {
       blIds: ['BL-LOCAL-77'], customerId: 9, issueNow: true, actorId: 'user-1',
     }))
     expect(mocks.confirm.mock.calls[0][0].reversibility).toContain('não pode ser apagada')
+  })
+
+  it('"Pronto para emitir" aparece na fila normal, sem "Incluir resolvidos"; o B/L pago não', () => {
+    mocks.rows = [row, { ...row, id: 'BL-PAGO', financial_status: 'paid' }]
+    renderTab()
+    expect(screen.getByRole('button', { name: 'Selecionar BL-LOCAL-77' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Selecionar BL-PAGO' })).toBeNull()
+    expect(screen.getByText('1 B/L aguardando emissão · 0 selecionados')).toBeTruthy()
   })
 })

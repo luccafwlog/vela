@@ -1,9 +1,5 @@
 {
   "tsx": {
-    "src/components/billing/ConferenciaCalculo.tsx": {
-      "caixa-alta": 1,
-      "cor-tailwind": 7
-    },
     "src/components/billing/InvoiceDocumentLocal.tsx": {
       "hex": 7,
       "tamanho-solto": 11,
@@ -195,8 +191,8 @@
       "app-import": 117,
       "app-inline": 1,
       "app-input": 17,
-      "app-invoice": 71,
-      "app-invoices": 24,
+      "app-invoice": 61,
+      "app-invoices": 19,
       "app-kpi": 14,
       "app-lineup": 71,
       "app-main": 5,
@@ -215,7 +211,7 @@
       "app-section": 3,
       "app-segmented": 12,
       "app-select": 3,
-      "app-shell": 29,
+      "app-shell": 30,
       "app-signoff": 12,
       "app-skeleton": 6,
       "app-skip": 2,
@@ -227,7 +223,7 @@
       "app-summary": 7,
       "app-surface": 9,
       "app-tab": 9,
-      "app-table": 92,
+      "app-table": 93,
       "app-tablist": 2,
       "app-textarea": 2,
       "app-toast": 14,
