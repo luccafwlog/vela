@@ -28,3 +28,24 @@ export function summarizeChargeStatuses(rows: Array<{ charge_status?: string | n
     exempt: rows.filter((row) => isChargeExempt(row.charge_status)).length,
   }
 }
+
+export type LocalChargesListState = 'pending' | 'issued' | 'exempt'
+
+/**
+ * Taxas Locais do B/L em três estados para lista (lista de BLs, aba BLs da
+ * ficha do Cliente): Pendente é qualquer impeditivo à emissão da fatura ao
+ * Cliente, Emitida é fatura emitida e Isenta é o B/L que nunca terá essa
+ * fatura. Espelho de `public.bl_local_charges_state` (migration 222), que
+ * conta e filtra os mesmos estados no banco.
+ */
+export function localChargesListState(chargeStatus: string | null | undefined, financialStatus: string | null | undefined): LocalChargesListState {
+  if (isChargeExempt(chargeStatus?.trim().toLowerCase())) return 'exempt'
+  if (isBlFinanciallyLocked(financialStatus)) return 'issued'
+  return 'pending'
+}
+
+export const LOCAL_CHARGES_LIST_STATE_LABELS: Record<LocalChargesListState, string> = {
+  pending: 'Pendente',
+  issued: 'Emitida',
+  exempt: 'Isenta',
+}

@@ -8568,8 +8568,7 @@ a.app-step-rail__link:focus-visible {
   text-decoration: underline;
 }
 
-.app-bl-link:focus-visible,
-.app-bl-text-button:focus-visible {
+.app-bl-link:focus-visible {
   outline: 2px solid var(--app-focus-ring);
   outline-offset: 2px;
   border-radius: 4px;
@@ -8592,20 +8591,6 @@ a.app-step-rail__link:focus-visible {
 .app-bl-tone--warning { color: var(--app-warning-fg); }
 .app-bl-tone--danger { color: var(--app-danger-fg); }
 
-.app-bl-text-button {
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--app-link);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.app-bl-text-button:hover {
-  text-decoration: underline;
-}
-
 .app-bl-error {
   margin: 0;
   color: var(--app-danger-fg);
@@ -8613,18 +8598,6 @@ a.app-step-rail__link:focus-visible {
 }
 
 /* ── Lista /bls ─────────────────────────────────────────────────────────── */
-.app-bl-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  max-width: 720px;
-  margin-bottom: 16px;
-}
-
-.app-bl-metrics .app-metric-tile {
-  padding: 10px 14px;
-}
-
 .app-bl-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -8731,14 +8704,7 @@ a.app-step-rail__link:focus-visible {
 .app-bl-cell__sub--muted { color: var(--app-muted); }
 .app-bl-cell__sub--warning { color: var(--app-warning-fg); font-weight: 500; }
 
-.app-bl-row-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 /* A densidade (36 px com mouse, 44 px no toque) vem do `.app-table__icon-button`. */
-.app-bl-row-actions .app-table__icon-button,
 .app-bl-card .app-table__icon-button {
   border-radius: var(--app-radius-control);
   box-shadow: none;
@@ -9224,13 +9190,9 @@ a.app-step-rail__link:focus-visible {
 }
 
 @media (max-width: 639px) {
-  .app-bl-metrics {
-    gap: 8px;
-  }
+  
 
-  .app-bl-metrics .app-metric-tile {
-    padding: 8px 10px;
-  }
+  
 
   .app-bl-toolbar {
     padding: 10px 12px;
@@ -14932,6 +14894,65 @@ tr[data-inactive] .app-rates-item__value {
 
 .app-no-value {
   color: var(--app-muted-soft);
+}
+
+/* Situação em texto (regra 5, tabela limpa): sem selo; âmbar só no que pede
+   ação, cinza no que encerrou sem efeito, ✓ verde antes de "Paga". */
+.app-status-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.app-status-text--warning {
+  color: var(--app-warning-fg);
+  font-weight: 600;
+}
+
+.app-status-text--muted {
+  color: var(--app-muted);
+}
+
+.app-status-text__icon {
+  flex: none;
+  color: var(--app-success-fg);
+}
+
+.app-consolidated-mark {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+  color: var(--app-muted);
+}
+
+/* Fila de cartões de total ou de filtro (MetricCard) no topo de uma lista. */
+.app-metric-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.app-metric-row .app-metric-tile {
+  align-content: start;
+  padding: 10px 14px;
+}
+
+.app-metric-tile__unit {
+  color: var(--app-muted);
+  font-size: var(--app-size-body);
+  font-weight: 600;
+}
+
+.app-metric-tile__detail {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-metric-tile--warning .app-metric-tile__value {
+  color: var(--app-warning-fg);
 }
 
 /* Tabela padrão (regra 6, decisão de 2026-10-13), em toda .app-table desde a

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { isChargeExempt, isChargePending, isChargeReady, summarizeChargeStatuses } from '../chargeStatus'
+import fs from 'node:fs'
+import { isChargeExempt, isChargePending, isChargeReady, localChargesListState, summarizeChargeStatuses } from '../chargeStatus'
 
 describe('chargeStatus', () => {
   it('agrupa pendente / pronto / isento', () => {
@@ -19,5 +20,23 @@ describe('chargeStatus', () => {
       const hits = [isChargePending(status), isChargeReady(status), isChargeExempt(status)].filter(Boolean)
       expect(hits.length).toBeLessThanOrEqual(1)
     }
+  })
+
+  it('Taxas Locais da lista: Isenta vence, fatura emitida ou paga é Emitida, o resto é Pendente', () => {
+    expect(localChargesListState('exempt', 'pending')).toBe('exempt')
+    expect(localChargesListState('ready_for_billing', 'invoiced')).toBe('issued')
+    expect(localChargesListState('review_required', 'partially_paid')).toBe('issued')
+    expect(localChargesListState('ready_for_billing', 'paid')).toBe('issued')
+    // Calculado ou pronto sem fatura ainda impede a emissão: é Pendente.
+    expect(localChargesListState('calculated', 'pending')).toBe('pending')
+    expect(localChargesListState('ready_for_billing', 'cancelled')).toBe('pending')
+    expect(localChargesListState(null, null)).toBe('pending')
+  })
+
+  it('o espelho SQL (migration 222) usa os mesmos estados financeiros', () => {
+    const sql = fs.readFileSync(new URL('../../../supabase/migrations/222_estado_taxas_locais_lista_bls.sql', import.meta.url), 'utf8')
+    expect(sql).toContain("WHEN lower(btrim(coalesce(p_charge_status, ''))) = 'exempt' THEN 'exempt'")
+    expect(sql).toContain("IN ('invoiced', 'partially_paid', 'paid') THEN 'issued'")
+    expect(sql).toContain("'chargePending', count(*) FILTER (WHERE public.bl_local_charges_state(charge_status, financial_status) = 'pending')")
   })
 })
