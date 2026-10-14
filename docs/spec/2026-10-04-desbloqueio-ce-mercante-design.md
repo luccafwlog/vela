@@ -1,7 +1,7 @@
 # Desbloqueio de CE Mercante — Issue 557
 
-Estado: implementada e publicada em produção; homologação com a ZPT e ativação
-pendentes. Data: 2026-10-04.
+Estado: implementada e publicada em produção; planilha homologada com a ZPT em
+2026-10-14; conciliação com "Exportar Tela" real e ativação pendentes. Data: 2026-10-04.
 
 > **Atualização de estado (2026-10-13):** publicado em produção (backend e Cloudflare
 > Pages), modelo do termo em DOCX cadastrado em 2026-10-10 e compatibilidade
