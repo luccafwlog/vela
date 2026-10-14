@@ -256,15 +256,14 @@ As 24 funções do repositório estão publicadas e `ACTIVE` em produção:
 `portal-email-events-runner`, `portal-email-webhook`, `portal-invite-activate`,
 `portal-invite-send`, `portal-login`, `portal-password-recovery`,
 `portal-password-reset`, `portal-recovery-email-change`,
-`recalc-demurrage-ptax` e `send-customer-communication`. Também continua
-publicada, na v68 de 2026-09-01, a Edge Function antiga de aviso de fatura
-emitida que a [ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou
-apagar (o nome está na ADR); ela não tem código no repositório nem chamador no
-código. O dono autorizou apagá-la em 2026-10-14
-([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26); a remoção é operação do dono, no
-painel ou na CLI do Supabase (o acesso do Claude não apaga Edge Functions), e
-está pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (B32). **Runtime:** listagem somente de leitura das
-Edge Functions do projeto em 2026-10-14; `itau-pix` estava na v20, publicada em
+`recalc-demurrage-ptax` e `send-customer-communication`. A Edge Function
+antiga de aviso de fatura emitida, que a
+[ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou apagar (o nome
+está na ADR), foi apagada pelo dono no painel em 2026-10-14
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+Antes da remoção, nenhum job do `pg_cron` nem função do banco a chamava.
+**Runtime:** listagem somente de leitura das Edge Functions do projeto em
+2026-10-14, antes e depois da remoção (24 funções depois, sem a antiga); `itau-pix` estava na v20, publicada em
 2026-10-13 às 17:47 UTC, e o código baixado trata `{"action":"process_charges"}`,
 o disparo da migration `219` (seção [Itaú](#itaú--api-pix-recebimentos)).
 

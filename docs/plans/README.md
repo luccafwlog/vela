@@ -10,7 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
-- [2026-10-14 — Correções decididas na revisão geral](2026-10-14-correcoes-decididas-na-revisao-geral.md) — correções de código das decisões do dono de 2026-10-14 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md)): 31 itens de código por ordem de impacto (segurança e dados primeiro; o primeiro é o alerta de troca de CE com Desbloqueio conferido, B1), mais duas operações do dono fora do código (B32, apagar a Edge Function antiga de aviso de fatura emitida; A6, heartbeat e executor do backup diário).
+- [2026-10-14 — Correções decididas na revisão geral](2026-10-14-correcoes-decididas-na-revisao-geral.md) — correções de código das decisões do dono de 2026-10-14 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md)): 31 itens de código por ordem de impacto (segurança e dados primeiro; o primeiro é o alerta de troca de CE com Desbloqueio conferido, B1), mais uma operação do dono fora do código (A6, heartbeat e executor do backup diário; B32, apagar a Edge Function antiga de aviso de fatura emitida, foi feita em 2026-10-14).
 
 - [2026-10-13 — Identidade visual: migração tela a tela](2026-10-13-identidade-visual-tela-a-tela.md) — base da [identidade visual única](../identidade-visual.md) entregue em 2026-10-13 ([ADR 0081](../adr/0081-identidade-visual-unica.md)): tokens, tema FWLOG do Portal, peças comuns e `npm run design:check`; 21 telas a migrar, cada uma aprovada pelo responsável com captura de hoje, proposta e lista do que muda; ficha do B/L e passada única entregues; próximo: lote 1 (lista de BLs e ficha da Viagem aprovadas, demais telas em aprovação).
 

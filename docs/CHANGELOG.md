@@ -6,6 +6,9 @@
 
 ## 2026-10
 
+- **Edge Function antiga de aviso de fatura emitida apagada (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26):**
+  o dono a apagou no painel do Supabase, como a ADR 0058 mandava; a listagem de produção
+  conferida depois não a tem ([serviços externos](operations/servicos-externos.md#edge-functions)).
 - **`docs:check` lê Markdown com parser (2026-10-14):** links e âncoras passam a vir de um parser
   CommonMark com GFM (`mdast-util-from-markdown`) e do `github-slugger`, o mesmo algoritmo de
   âncora do GitHub, no lugar das expressões regulares. Código inline, ênfase em título, links em
