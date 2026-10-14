@@ -245,9 +245,9 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
                   <ol className="app-dem-messages" aria-label={`Conversa da Disputa ${dispute.doc_number}`}>
                     {!showAll ? (
                       <li className="app-dem-messages__more">
-                        <button type="button" className="app-dem-link" onClick={() => setExpanded((current) => ({ ...current, [dispute.id]: true }))}>
+                        <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setExpanded((current) => ({ ...current, [dispute.id]: true }))}>
                           Ver {messages.length - 3} {messages.length - 3 === 1 ? 'mensagem anterior' : 'mensagens anteriores'}
-                        </button>
+                        </Button>
                       </li>
                     ) : null}
                     {shown.map((message) => (

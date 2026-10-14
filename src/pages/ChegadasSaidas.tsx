@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Pencil, Plus, Upload } from 'lucide-react'
+import { Download, Plus, Upload } from 'lucide-react'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -146,20 +146,22 @@ function SchedulePlanPreview({ plan, applying, onApply, onCancel }: {
         {errors.length ? ` · ${errors.length} com erro (não entram)` : ''}
       </p>
       <div className="app-table-scroll max-h-72">
-        <table className="app-table app-table--compact w-full text-left">
+        <table className="app-table app-table--compact w-full">
           <caption className="sr-only">O que a planilha grava, por viagem</caption>
-          <thead><tr><th scope="col">Viagem</th><th scope="col">O que acontece</th></tr></thead>
+          <thead><tr><th scope="col">Viagem</th><th scope="col" className="app-table__text-head">O que acontece</th></tr></thead>
           <tbody>
             {plan.rows.map((row) => (
               <tr key={row.label}>
                 <td className="whitespace-nowrap">{row.label}</td>
                 <td>
+                  <div className="text-left">
                   {row.error ? <span className="text-[var(--app-danger-fg)]">{row.error}</span>
                     : row.createsVoyage ? `Cria a viagem e grava ${row.changes.filter((change) => change.field_name === 'eta' || change.field_name === 'etd').length} data(s)`
                       : row.publishes ? ['Publica no Portal', dateText(row)].filter(Boolean).join('; ')
                         : row.changes.length ? dateText(row) || 'Atualiza a escala'
                           : <span className="text-[var(--app-muted)]">Sem mudança</span>}
                   {!row.error && row.ignoredImo ? <span className="block text-[var(--app-muted)]">IMO “{row.ignoredImo}” ignorado (não tem 7 dígitos): viagem procurada pelo nome do navio.</span> : null}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -495,7 +497,7 @@ export function ChegadasSaidas() {
               <caption className="sr-only">Programação de chegadas e saídas</caption>
               <thead>
                 <tr>
-                  <th scope="col" rowSpan={2} className="text-left">Navio</th>
+                  <th scope="col" rowSpan={2} className="app-table__text-head">Navio</th>
                   <th scope="col" rowSpan={2} className="text-center">Viagem</th>
                   <th scope="colgroup" colSpan={POL_LANES.length} className="text-center app-schedule__group">Saída na origem (ETD)</th>
                   <th scope="colgroup" colSpan={POD_LANES.length} className="text-center app-schedule__group">Chegada no Brasil (ETA)</th>
@@ -510,7 +512,7 @@ export function ChegadasSaidas() {
               <tbody>
                 {vessels.map((vessel) => (
                   <tr key={vessel.voyageId}>
-                    <th scope="row" className="text-left font-semibold"><VesselLink voyage={vessel} /></th>
+                    <th scope="row" className="app-table__text font-semibold"><VesselLink voyage={vessel} /></th>
                     <td className="text-center">{vessel.voyage}</td>
                     {PORTAL_SCHEDULE_LANES.map((lane) => (
                       <td key={lane.label} className="text-center"><ScheduleDate voyage={vessel} lane={lane} /></td>
@@ -519,13 +521,12 @@ export function ChegadasSaidas() {
                       <td className="text-center">
                         <Button
                           type="button"
-                          variant="ghost"
-                          className="app-table__icon-button"
+                          variant="secondary"
+                          className="app-btn--sm"
                           aria-label={`Editar programação de ${vessel.vesselName} / ${vessel.voyage}`}
-                          title="Editar"
                           onClick={() => openEdit(vessel)}
                         >
-                          <Pencil size={15} />
+                          Editar
                         </Button>
                       </td>
                     ) : null}

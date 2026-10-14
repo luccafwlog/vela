@@ -5,7 +5,8 @@ const css = fs.readFileSync('src/index.css', 'utf8')
 
 describe('contrato visual compartilhado', () => {
   it('define tokens usados por links e estados de hover nos dois temas', () => {
-    expect(css.match(/--app-link:/g)).toHaveLength(3)
+    // current, light, dark, a marca FWLOG do Portal e o Portal sobre o escuro
+    expect(css.match(/--app-link:/g)).toHaveLength(5)
     expect(css.match(/--app-surface-hover:/g)).toHaveLength(3)
   })
 
@@ -52,8 +53,9 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-input\s*\{[^}]*background:\s*var\(--app-surface-strong\)/s)
     for (const role of ['success', 'warning', 'danger', 'info', 'neutral']) {
       for (const part of ['fg', 'bg', 'border']) {
-        // current, light e dark
-        expect(css.match(new RegExp(`--app-${role}-${part}:`, 'g'))).toHaveLength(3)
+        // current, light e dark; o Portal (claro e sobre o escuro) redeclara só o que deriva da marca FWLOG
+        const declarations = css.match(new RegExp(`--app-${role}-${part}:`, 'g')) ?? []
+        expect(declarations.length - (role === 'info' && part === 'fg' ? 2 : 0)).toBe(3)
       }
     }
     expect(css).toMatch(/\.app-badge--green\s*\{[^}]*color:\s*var\(--app-success-fg\)/s)
@@ -106,12 +108,12 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-empty-state__action\s*\{[^}]*display:\s*inline-flex/s)
   })
 
-  it('shell da etapa 02: faixa de 28px, barra única e dourado só na navegação ativa', () => {
+  it('shell da etapa 02: faixa de 28px, barra única e marcador da navegação ativa por token', () => {
     expect(css).toMatch(/\.app-market-strip__content\s*\{[^}]*min-height:\s*28px/s)
     // O aviso operacional cede por último; o câmbio encolhe antes.
     expect(css).toMatch(/\.app-market-strip__center\s*\{[^}]*flex:\s*0 1 auto[^}]*overflow:\s*hidden/s)
     expect(css).not.toMatch(/\.app-nav-bar\s*\{/)
-    expect(css).toMatch(/\.app-nav-link\.active\s*\{[^}]*box-shadow:\s*inset 0 -3px 0 var\(--app-gold\)/s)
+    expect(css).toMatch(/\.app-nav-link\.active\s*\{[^}]*box-shadow:\s*inset 0 -3px 0 var\(--app-nav-active\)/s)
     expect(css).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.app-nav-scroll--open\s*\{[^}]*position:\s*absolute[^}]*top:\s*100%/s)
   })
 
@@ -123,5 +125,42 @@ describe('contrato visual compartilhado', () => {
       const sizes = [...block.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]))
       expect(sizes.filter((size) => size < 12)).toEqual([])
     }
+  })
+
+  it('identidade (ADR 0081): fundo liso, Syne só no nome Vela e Portal com a marca FWLOG', () => {
+    expect(css.match(/--app-dot-pattern:\s*none/g)).toHaveLength(3)
+    expect(css.match(/--app-font-display:\s*"DM Sans"/g)?.length).toBeGreaterThanOrEqual(2)
+    const brandUsers = [...css.matchAll(/^\.([\w-]+)\s*\{[^}]*font-family:\s*var\(--app-font-brand\)/gms)].map((match) => match[1])
+    expect(brandUsers.sort()).toEqual(['app-auth__logo-name', 'app-header__wordmark', 'app-lineup-display-brand__name'])
+    // A marca do Portal vale na raiz da entrada do Portal (login, ativação,
+    // avisos e modais fora do shell), não só no shell autenticado.
+    expect(fs.readFileSync('portal.html', 'utf8')).toMatch(/<html[^>]*data-app="portal"/)
+    expect(css).toMatch(/:root\[data-app='portal'\],\s*\.app-shell--portal\s*\{[^}]*--app-blue-btn:\s*#1d67b3/s)
+    expect(css).toMatch(/\.app-shell--portal\s*\{[^}]*--app-navy:\s*#0d2b5e[^}]*--app-nav-active:\s*#5aaaf0[^}]*--app-thead-bg:\s*#0d2b5e/s)
+    expect(css).toMatch(/\.page-header__title\s*\{[^}]*font-size:\s*var\(--app-size-title\)/s)
+  })
+
+  it('identidade (ADR 0081): bloco com faixa de título e botão ghost com borda', () => {
+    expect(css).toMatch(/\.app-block__header\s*\{[^}]*background:\s*var\(--app-strip\)/s)
+    expect(css).toMatch(/\.app-block__title\s*\{[^}]*color:\s*var\(--app-strip-text\)/s)
+    expect(css).toMatch(/\.app-btn--ghost\s*\{[^}]*border-color:\s*var\(--app-border\)/s)
+    expect(css).toMatch(/\.app-identity\s*\{[^}]*background:\s*var\(--app-navy\)/s)
+    // Tabela padrão (nota de 2026-10-13 na ADR 0081): tudo centralizado, texto
+    // longo à esquerda, grupo com traço sob o título e sem linha vertical.
+    // Desde a passada única vale para toda .app-table, sem modificador.
+    expect(css).toMatch(/table\.app-table th,\s*\.app-shell table\.app-table td\s*\{[^}]*text-align:\s*center/s)
+    expect(css).toMatch(/table\.app-table \.app-table__text\s*\{[^}]*text-align:\s*left[^}]*text-overflow:\s*ellipsis/s)
+    expect(css).not.toMatch(/app-table--padrao/)
+    // Revisão da PR 940: texto corrido quebra linha; pilha de selo ou número
+    // segue centralizada; célula de linha inteira (colspan) fica à esquerda.
+    expect(css).toMatch(/\.app-table__text--wrap\s*\{[^}]*white-space:\s*pre-line/s)
+    expect(css).toMatch(/> \.app-table__cell-stack:not\(\.app-table__cell-stack--center\)\)/)
+    expect(css).toMatch(/td\[colspan\]:not\(\[class~='text-center'\]\)\s*\{[^}]*text-align:\s*left/s)
+    // Tema escuro: a aba ativa tem traço visível e a faixa de identidade, borda.
+    expect(css).toMatch(/\[data-visual-theme='dark'\] \.app-tab\[aria-selected='true'\]\s*\{[^}]*box-shadow:\s*inset 0 -3px 0 var\(--app-link\)/s)
+    // Tabela dentro de tabela: cabeçalho claro pela faixa dos blocos.
+    expect(css).toMatch(/table\.app-table--nested\s*\{[^}]*--app-thead-bg:\s*var\(--app-strip\)/s)
+    expect(css).toMatch(/th\.app-table__group > span\s*\{[^}]*border-bottom:\s*2px solid/s)
+    expect(css).not.toMatch(/app-table__divider/)
   })
 })

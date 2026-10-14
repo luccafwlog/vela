@@ -15,6 +15,7 @@ import {
 import { afterManifestoImportado } from '../../services/cacheEffects'
 import { Badge, type SemanticBadgeTone } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { NoValue } from '../ui/NoValue'
 import { Modal } from '../ui/Modal'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
@@ -503,7 +504,7 @@ function BlImportPreview({
           fight the outer sticky actions bar, breaking scrolling and clipping
           rows behind the buttons. */}
       <div className="app-table-scroll rounded-[var(--app-radius)] border border-[var(--app-border)]">
-        <table className="app-table app-table--compact min-w-[880px] text-left">
+        <table className="app-table app-table--compact min-w-[880px]">
           <thead>
             <tr>
               <th scope="col">B/L</th>
@@ -511,8 +512,8 @@ function BlImportPreview({
               <th scope="col">Viagem</th>
               <th scope="col">POL → POD</th>
               <th scope="col">Laden on Board</th>
-              <th scope="col">Diferenças</th>
-              <th scope="col">Bloqueios e faturamento</th>
+              <th scope="col" className="app-table__text-head">Diferenças</th>
+              <th scope="col" className="app-table__text-head">Bloqueios e faturamento</th>
             </tr>
           </thead>
           <tbody>
@@ -522,15 +523,15 @@ function BlImportPreview({
                 <td>
                   <StatusPill status={row.status} />
                 </td>
-                <td>{row.voyageNumber ?? '—'}</td>
-                <td>{row.pol || row.pod ? `${row.pol ?? '—'} → ${row.pod ?? '—'}` : '—'}</td>
-                <td className="tabular-nums">{row.ladenOnBoard ?? '—'}</td>
+                <td>{row.voyageNumber ?? <NoValue label="Sem viagem" />}</td>
+                <td>{row.pol || row.pod ? `${row.pol ?? '—'} → ${row.pod ?? '—'}` : <NoValue label="Sem trecho" />}</td>
+                <td className="tabular-nums">{row.ladenOnBoard ?? <NoValue label="Sem Laden on Board" />}</td>
                 <td>
                   <DiffList row={row} />
                 </td>
                 <td>
                   {row.blockedReasons.length || row.billingImpacts.length || row.warnings?.length || row.removedContainers?.length ? (
-                    <ul className="grid gap-1">
+                    <ul className="app-table__cell-stack grid gap-1">
                       {row.blockedReasons.map((reason) => (
                         <li key={reason} className="app-import-tone--danger">{reason}</li>
                       ))}
@@ -558,7 +559,7 @@ function BlImportPreview({
                       ) : null}
                     </ul>
                   ) : (
-                    <span className="app-import-tone--muted">—</span>
+                    <NoValue label="Sem bloqueios" />
                   )}
                 </td>
               </tr>
@@ -594,15 +595,15 @@ function CustomerChangeCard({ blNumber, change }: { blNumber: string; change: Bl
 
 function DiffList({ row }: { row: BlFreightImportRow }) {
   if (!row.diffs.length) {
-    return <span className="app-import-tone--muted">—</span>
+    return <NoValue label="Sem diferenças" />
   }
 
   return (
-    <ul className="grid gap-1">
+    <ul className="app-table__cell-stack grid gap-1">
       {row.diffs.map((diff) => (
         <li key={`${row.blNumber}-${diff.field}`} className={diff.billingImpact ? 'app-import-tone--warning' : undefined}>
           <span className="font-semibold">{diff.label}</span>:{' '}
-          <span className="app-import-diff__old">{formatDiffValue(diff.from)}</span>{' → '}<span>{formatDiffValue(diff.to)}</span>
+          <span className="app-import-diff__old">{formatDiffValue(diff.from, 'Vazio antes')}</span>{' → '}<span>{formatDiffValue(diff.to, 'Vazio depois')}</span>
           {diff.billingImpact ? <span> (faturamento)</span> : null}
         </li>
       ))}
@@ -629,7 +630,7 @@ function StatusPill({ status }: { status: BlFreightImportRow['status'] }) {
   return <Badge tone={tone}>{labels[status]}</Badge>
 }
 
-function formatDiffValue(value: string | number | null) {
-  if (value === null || value === '') return '—'
+function formatDiffValue(value: string | number | null, emptyLabel: string) {
+  if (value === null || value === '') return <NoValue label={emptyLabel} />
   return String(value)
 }

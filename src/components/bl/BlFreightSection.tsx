@@ -1,4 +1,5 @@
 import { Card } from '../ui/Card'
+import { NoValue } from '../ui/NoValue'
 
 export type BlFreightLine = {
   bl_id: string
@@ -33,8 +34,8 @@ export function BlFreightSection({ freightLines }: { freightLines: BlFreightLine
               <thead>
                 <tr>
                   <th scope="col" className="w-12">Nº</th>
-                  <th scope="col">Descrição</th>
-                  <th scope="col" className="text-right">Valor</th>
+                  <th scope="col" className="app-table__text-head">Descrição</th>
+                  <th scope="col">Valor</th>
                   <th scope="col">Pagamento</th>
                 </tr>
               </thead>
@@ -42,9 +43,9 @@ export function BlFreightSection({ freightLines }: { freightLines: BlFreightLine
                 {sorted.map((line) => (
                   <tr key={line.seq}>
                     <td className="tabular-nums text-[var(--app-muted)]">{line.seq}</td>
-                    <td>{line.description}</td>
-                    <td className="text-right tabular-nums">{money(line.currency, line.amount)}</td>
-                    <td>{line.payment ?? '—'}</td>
+                    <td className="app-table__text" title={line.description}>{line.description}</td>
+                    <td className="tabular-nums">{line.amount == null ? <NoValue label="Sem valor" /> : money(line.currency, line.amount)}</td>
+                    <td>{line.payment ?? <NoValue label="Sem forma de pagamento" />}</td>
                   </tr>
                 ))}
               </tbody>

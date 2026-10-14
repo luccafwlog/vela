@@ -196,7 +196,7 @@ export function DemurrageRates() {
                     <caption className="sr-only">Tabela padrão de tarifas de Demurrage</caption>
                     <thead>
                       <tr>
-                        <th scope="col">Tipo de container</th>
+                        <th scope="col" className="app-table__text-head">Tipo de container</th>
                         <th scope="col" className="app-dem-num">Free time</th>
                         <th scope="col">P1</th>
                         <th scope="col">P2</th>
@@ -216,13 +216,13 @@ export function DemurrageRates() {
                           </td>
                           <td className="app-dem-num">{rate.free_days} dias</td>
                           <td>
-                            <div className="app-table__cell-stack">
+                            <div className="app-table__cell-stack app-table__cell-stack--center">
                               <span className="tabular-nums">{formatUSD(rate.p1_usd ?? 0)}/dia</span>
                               <span className="app-dem-meta">dias {rate.p1_day_from} a {rate.p1_day_to}</span>
                             </div>
                           </td>
                           <td>
-                            <div className="app-table__cell-stack">
+                            <div className="app-table__cell-stack app-table__cell-stack--center">
                               <span className="tabular-nums">{formatUSD(rate.p2_usd ?? 0)}/dia</span>
                               <span className="app-dem-meta">a partir do dia {rate.p2_day_from}</span>
                             </div>

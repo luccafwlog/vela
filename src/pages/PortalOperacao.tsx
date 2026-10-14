@@ -8,6 +8,8 @@ import { InformationLinks } from '../components/portal/information/InformationLi
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
+import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { TabButton } from '../components/ui/TabButton'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
@@ -207,13 +209,13 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
       ) : (
         <>
           <div className="hidden app-table-scroll md:block">
-            <table className="app-table app-table--compact min-w-[1040px] text-left text-sm">
+            <table className="app-table app-table--compact min-w-[1040px] text-sm">
               <caption className="sr-only">B/Ls da operação do cliente</caption>
               <thead>
                 <tr>
                   <th scope="col" className="px-4 py-3">B/L</th>
                   <th scope="col" className="px-4 py-3">CE Mercante</th>
-                  <th scope="col" className="px-4 py-3">Navio</th>
+                  <th scope="col" className="app-table__text-head px-4 py-3">Navio</th>
                   <th scope="col" className="px-4 py-3">Viagem</th>
                   <th scope="col" className="px-4 py-3">POL</th>
                   <th scope="col" className="px-4 py-3">POD</th>
@@ -231,12 +233,12 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                   return (
                     <Fragment key={row.bl_id}>
                       <tr className={`cursor-pointer ${isOpen ? 'bg-[var(--app-surface-hover)]' : ''}`} onClick={() => setOpenBl(isOpen ? null : row.bl_id)}>
-                        <td className="px-4 py-3 font-semibold">{row.bl_id}{row.cancelled_at ? <> <Badge tone="red">Cancelado</Badge></> : null}</td>
-                        <td className="px-4 py-3">{row.ce_mercante ? <Badge tone="blue">CE {row.ce_mercante}</Badge> : <Badge>Sem CE</Badge>}</td>
-                        <td className="px-4 py-3">{row.vessel_name ?? '-'}</td>
-                        <td className="px-4 py-3">{row.voyage_number ?? '-'}</td>
-                        <td className="px-4 py-3">{row.pol ?? '-'}</td>
-                        <td className="px-4 py-3">{row.pod ?? '-'}</td>
+                        <td className="px-4 py-3 font-semibold"><CopyValue value={row.bl_id} label="número do B/L" />{row.cancelled_at ? <> <Badge tone="red">Cancelado</Badge></> : null}</td>
+                        <td className="px-4 py-3">{row.ce_mercante ? <CopyValue value={row.ce_mercante} label="CE Mercante"><Badge tone="blue">CE {row.ce_mercante}</Badge></CopyValue> : <Badge>Sem CE</Badge>}</td>
+                        <td className="app-table__text px-4 py-3" title={row.vessel_name ?? undefined}>{row.vessel_name ?? <NoValue label="Sem navio" />}</td>
+                        <td className="px-4 py-3">{row.voyage_number ?? <NoValue label="Sem viagem" />}</td>
+                        <td className="px-4 py-3">{row.pol ?? <NoValue label="Sem POL" />}</td>
+                        <td className="px-4 py-3">{row.pod ?? <NoValue label="Sem POD" />}</td>
                         <td className="px-4 py-3">
                           {row.cargo_mode === 'misto' || ((row.bb_weight_ton ?? 0) > 0 && row.container_count > 0) ? (
                             <span className="font-medium">{row.container_count} CNTR + {row.bb_weight_ton ?? 0}t</span>
@@ -278,9 +280,9 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
                     {row.ce_mercante ? <Badge tone="blue">CE</Badge> : <Badge>Sem CE</Badge>}
                   </div>
                   <div className="mt-2 text-sm text-[var(--app-muted)]">
-                    {[row.vessel_name, row.voyage_number].filter(Boolean).join(' / ') || '-'}
+                    {[row.vessel_name, row.voyage_number].filter(Boolean).join(' / ') || <NoValue label="Sem navio/viagem" />}
                   </div>
-                  <div className="mt-1 text-sm text-[var(--app-muted)]">{row.pol ?? '-'} - {row.pod ?? '-'}</div>
+                  <div className="mt-1 text-sm text-[var(--app-muted)]">{row.pol ?? <NoValue label="Sem POL" />} - {row.pod ?? <NoValue label="Sem POD" />}</div>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                     <span>Containers {row.container_count}</span>
                     <span>Sem dev. {noReturn}</span>
@@ -383,7 +385,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
       ) : (
         <>
           <div className="hidden app-table-scroll md:block">
-            <table className="app-table app-table--compact min-w-[1200px] text-left text-sm">
+            <table className="app-table app-table--compact min-w-[1200px] text-sm">
               <caption className="sr-only">Containers da operação do cliente</caption>
               <thead>
                 <tr>
@@ -391,7 +393,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
                   <th scope="col" className="px-4 py-3">Tipo</th>
                   <th scope="col" className="px-4 py-3">B/L</th>
                   <th scope="col" className="px-4 py-3">CE Mercante</th>
-                  <th scope="col" className="px-4 py-3">Navio</th>
+                  <th scope="col" className="app-table__text-head px-4 py-3">Navio</th>
                   <th scope="col" className="px-4 py-3">Viagem</th>
                   <th scope="col" className="px-4 py-3">POL</th>
                   <th scope="col" className="px-4 py-3">POD</th>
@@ -406,19 +408,19 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
               <tbody>
                 {paginated.map((c) => (
                   <tr key={`${c.bl_id}-${c.id}`}>
-                    <td className="px-4 py-3 font-semibold">{c.container_number}</td>
-                    <td className="px-4 py-3">{c.type ?? '-'}</td>
-                    <td className="px-4 py-3">{c.bl_id}</td>
-                    <td className="px-4 py-3">{c.ce_mercante ?? '-'}</td>
-                    <td className="px-4 py-3">{c.vessel_name ?? '-'}</td>
-                    <td className="px-4 py-3">{c.voyage_number ?? '-'}</td>
-                    <td className="px-4 py-3">{c.pol ?? '-'}</td>
-                    <td className="px-4 py-3">{c.pod ?? '-'}</td>
-                    <td className="px-4 py-3">{formatDate(c.discharge_date)}</td>
+                    <td className="px-4 py-3 font-semibold"><CopyValue value={c.container_number} label="número do contêiner" /></td>
+                    <td className="px-4 py-3">{c.type ?? <NoValue label="Sem tipo" />}</td>
+                    <td className="px-4 py-3"><CopyValue value={c.bl_id} label="número do B/L" /></td>
+                    <td className="px-4 py-3">{c.ce_mercante ? <CopyValue value={c.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</td>
+                    <td className="app-table__text px-4 py-3" title={c.vessel_name ?? undefined}>{c.vessel_name ?? <NoValue label="Sem navio" />}</td>
+                    <td className="px-4 py-3">{c.voyage_number ?? <NoValue label="Sem viagem" />}</td>
+                    <td className="px-4 py-3">{c.pol ?? <NoValue label="Sem POL" />}</td>
+                    <td className="px-4 py-3">{c.pod ?? <NoValue label="Sem POD" />}</td>
+                    <td className="px-4 py-3">{c.discharge_date ? formatDate(c.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
                     <td className="px-4 py-3">{c.return_date ? formatDate(c.return_date) : 'Pendente'}</td>
-                    <td className="px-4 py-3">{formatNumber(c.usage_days)}</td>
-                    <td className="px-4 py-3">{formatNumber(c.free_time_days)}</td>
-                    <td className="px-4 py-3">{formatNumber(c.demurrage_days)}</td>
+                    <td className="px-4 py-3">{formatNumber(c.usage_days, 'Sem dias de uso')}</td>
+                    <td className="px-4 py-3">{formatNumber(c.free_time_days, 'Sem free time')}</td>
+                    <td className="px-4 py-3">{formatNumber(c.demurrage_days, 'Sem dias em demurrage')}</td>
                     <td className="px-4 py-3">{renderStatus(c.status)}</td>
                   </tr>
                 ))}
@@ -432,18 +434,18 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
                 className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 text-left"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold">Container {c.container_number}</span>
+                  <span className="font-semibold">Container <CopyValue value={c.container_number} label="número do contêiner" /></span>
                   {renderStatus(c.status)}
                 </div>
-                <div className="mt-2 text-sm text-[var(--app-muted)]">B/L {c.bl_id}</div>
+                <div className="mt-2 text-sm text-[var(--app-muted)]">B/L <CopyValue value={c.bl_id} label="número do B/L" /></div>
                 <div className="mt-1 text-sm text-[var(--app-muted)]">
-                  {[c.vessel_name, c.voyage_number].filter(Boolean).join(' / ') || '-'}
+                  {[c.vessel_name, c.voyage_number].filter(Boolean).join(' / ') || <NoValue label="Sem navio/viagem" />}
                 </div>
-                <div className="mt-1 text-sm text-[var(--app-muted)]">{c.pol ?? '-'} - {c.pod ?? '-'}</div>
+                <div className="mt-1 text-sm text-[var(--app-muted)]">{c.pol ?? <NoValue label="Sem POL" />} - {c.pod ?? <NoValue label="Sem POD" />}</div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <span>Uso {formatNumber(c.usage_days)}</span>
-                  <span>Free {formatNumber(c.free_time_days)}</span>
-                  <span>Dem. {formatNumber(c.demurrage_days)}</span>
+                  <span>Uso {formatNumber(c.usage_days, 'Sem dias de uso')}</span>
+                  <span>Free {formatNumber(c.free_time_days, 'Sem free time')}</span>
+                  <span>Dem. {formatNumber(c.demurrage_days, 'Sem dias em demurrage')}</span>
                 </div>
                 <div className="mt-3"><InformationLinks sections={['devolucao', 'tracking']} bl={c.bl_id} pod={c.pod} /></div>
               </div>
@@ -488,12 +490,12 @@ function ContainerDetails({ row }: { row: PortalOperationBL }) {
           <div className="mt-2 flex flex-wrap gap-6 text-sm">
             <div>
               <span className="text-xs text-[var(--app-muted)]">Peso Total: </span>
-              <span className="font-semibold">{row.bb_weight_ton != null ? `${row.bb_weight_ton} ton` : '—'}</span>
+              <span className="font-semibold">{row.bb_weight_ton != null ? `${row.bb_weight_ton} ton` : <NoValue label="Sem peso total" />}</span>
             </div>
             <div>
               <span className="text-xs text-[var(--app-muted)]">Packages: </span>
               <span className="font-semibold">
-                {row.bb_packages_qty != null ? `${row.bb_packages_qty} package(s)` : '—'}
+                {row.bb_packages_qty != null ? `${row.bb_packages_qty} package(s)` : <NoValue label="Sem packages" />}
               </span>
             </div>
           </div>
@@ -502,7 +504,7 @@ function ContainerDetails({ row }: { row: PortalOperationBL }) {
       {row.containers.length === 0 ? (
         <div className="px-5 pb-5 text-sm text-[var(--app-muted)]">Nenhum container vinculado a este B/L.</div>
       ) : <div className="app-table-scroll">
-      <table aria-label={`Containers do BL ${row.bl_id}`} className="app-table app-table--compact min-w-[860px] text-left text-sm">
+      <table aria-label={`Containers do BL ${row.bl_id}`} className="app-table app-table--compact min-w-[860px] text-sm">
         <thead>
           <tr>
             <th scope="col" className="px-4 py-3">Container</th>
@@ -518,13 +520,13 @@ function ContainerDetails({ row }: { row: PortalOperationBL }) {
         <tbody>
           {row.containers.map((container) => (
             <tr key={container.id}>
-              <td className="px-4 py-3 font-semibold">{container.container_number}</td>
-              <td className="px-4 py-3">{container.type ?? '-'}</td>
-              <td className="px-4 py-3">{formatDate(container.discharge_date)}</td>
+              <td className="px-4 py-3 font-semibold"><CopyValue value={container.container_number} label="número do contêiner" /></td>
+              <td className="px-4 py-3">{container.type ?? <NoValue label="Sem tipo" />}</td>
+              <td className="px-4 py-3">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
               <td className="px-4 py-3">{container.return_date ? formatDate(container.return_date) : 'Pendente'}</td>
-              <td className="px-4 py-3">{formatNumber(container.usage_days)}</td>
-              <td className="px-4 py-3">{formatNumber(container.free_time_days)}</td>
-              <td className="px-4 py-3">{formatNumber(container.demurrage_days)}</td>
+              <td className="px-4 py-3">{formatNumber(container.usage_days, 'Sem dias de uso')}</td>
+              <td className="px-4 py-3">{formatNumber(container.free_time_days, 'Sem free time')}</td>
+              <td className="px-4 py-3">{formatNumber(container.demurrage_days, 'Sem dias em demurrage')}</td>
               <td className="px-4 py-3">{renderStatus(container.status)}</td>
             </tr>
           ))}
@@ -536,7 +538,7 @@ function ContainerDetails({ row }: { row: PortalOperationBL }) {
 }
 
 function PortalTransshipmentCard({ transshipment }: { transshipment: NonNullable<PortalOperationBL['transshipment']> }) {
-  const value = (text: string | null) => text || '—'
+  const value = (text: string | null, label = 'Sem informação') => text || <NoValue label={label} />
 
   if (transshipment.disposition === 'cod') {
     return (
@@ -559,15 +561,15 @@ function PortalTransshipmentCard({ transshipment }: { transshipment: NonNullable
           ['ETD', transshipment.onward_etd ? formatDate(transshipment.onward_etd) : null],
           ['ETA', transshipment.onward_eta ? formatDate(transshipment.onward_eta) : null],
         ].map(([label, text]) => (
-          <div key={label}><dt className="text-xs text-[var(--app-muted)]">{label}</dt><dd>{value(text)}</dd></div>
+          <div key={label}><dt className="text-xs text-[var(--app-muted)]">{label}</dt><dd>{value(text, `Sem ${label}`)}</dd></div>
         ))}
       </dl>
     </section>
   )
 }
 
-function formatNumber(value: number | null) {
-  return value == null ? '-' : String(value)
+function formatNumber(value: number | null, emptyLabel: string) {
+  return value == null ? <NoValue label={emptyLabel} /> : String(value)
 }
 
 function renderStatus(status: PortalOperationContainerStatus) {

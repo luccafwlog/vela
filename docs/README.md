@@ -8,6 +8,7 @@
 |---|---|
 | Entender o sistema de cima | [ARCHITECTURE.md](ARCHITECTURE.md) + [CONTEXT.md](../CONTEXT.md) |
 | Rastrear uma tela, botão, hook, serviço ou RPC | [RASTREABILIDADE.md](RASTREABILIDADE.md) |
+| Fazer ou mudar uma tela (aparência, blocos, botões, cores) | [identidade-visual.md](identidade-visual.md) |
 | Mexer num módulo específico | [modules/](#módulos) abaixo |
 | Rodar localmente | [setup/development.md](setup/development.md) |
 | Fazer deploy | [setup/deploy.md](setup/deploy.md) |
@@ -54,6 +55,7 @@ O fluxo canônico detalhado está em [ARCHITECTURE.md](ARCHITECTURE.md#fluxo-ope
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — stack, camadas, modelo de dados, mapa de rotas.
 - [CONTEXT.md](../CONTEXT.md) — termos de domínio (B/L, Baplie, CE Mercante, demurrage…).
+- [identidade-visual.md](identidade-visual.md) — as nove regras de aparência, cores, letra e peças comuns do Vela e do Portal Fwlog.
 - [ROADMAP.md](ROADMAP.md) — estado atual, backlog e riscos.
 - [CHANGELOG.md](CHANGELOG.md) — histórico de entregas relevantes.
 - [adr/](adr/) — decisões arquiteturais numeradas.

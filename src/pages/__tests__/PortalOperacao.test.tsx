@@ -265,9 +265,9 @@ describe('PortalOperacao (BLs e Containers)', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Containers' }))
     // Containers de todos os B/Ls aparecem sem precisar abrir o B/L
-    expect(screen.getByText('ABCD1234567')).toBeTruthy()
-    expect(screen.getByText('EFGH1234567')).toBeTruthy()
-    expect(screen.getByText('IJKL1234567')).toBeTruthy()
+    expect(screen.getAllByText('ABCD1234567').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('EFGH1234567').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('IJKL1234567').length).toBeGreaterThan(0)
   })
 
   it('renderiza cards mobile nas abas BLs e Containers', async () => {
@@ -284,8 +284,8 @@ describe('PortalOperacao (BLs e Containers)', () => {
   it('abre a aba Containers filtrada por demurrage via query param', () => {
     renderOperacao('/portal/operacao?tab=containers&devolucao=em_demurrage')
     // Apenas EFGH (em demurrage, sem devolucao) deve aparecer
-    expect(screen.getByText('EFGH1234567')).toBeTruthy()
-    expect(screen.queryByText('ABCD1234567')).toBeNull()
+    expect(screen.getAllByText('EFGH1234567').length).toBeGreaterThan(0)
+    expect(screen.queryAllByText('ABCD1234567')).toHaveLength(0)
     expect(screen.queryByText('IJKL1234567')).toBeNull()
   })
 

@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
+import { NoValue } from '../components/ui/NoValue'
 import { EmptyState, PageHeader } from '../components/ui/Card'
 import { SummaryStrip } from '../components/ui/SummaryStrip'
 import { WorkspaceNav } from '../components/ui/WorkspaceNav'
@@ -159,9 +160,9 @@ export function Clientes() {
   const pageOutOfRange = Boolean(data && data.totalCount > 0 && filters.page >= totalPages)
   if (pageOutOfRange) setFilters((current) => ({ ...current, page: Math.max(0, totalPages - 1) }))
 
-  // O resumo é uma consulta própria: falha ou carregamento vira "—", nunca zero.
+  // O resumo é uma consulta própria: falha ou carregamento vira o traço discreto, nunca zero.
   const metric = (value: number | undefined, format: (n: number) => string = String) =>
-    summary && value !== undefined ? format(value) : '—'
+    summary && value !== undefined ? format(value) : <NoValue label="Resumo indisponível" />
 
   async function handleCreateCustomer() {
     const validation = customerCreateSchema.safeParse({
@@ -489,7 +490,7 @@ export function Clientes() {
   )
 
   const summaryItems = summaryQuery.isError
-    ? [{ label: 'resumo indisponível', value: '—' }]
+    ? [{ label: 'resumo indisponível', value: <NoValue label="Resumo indisponível" /> }]
     : [
         { label: summary?.totalCustomers === 1 ? 'cliente' : 'clientes', value: metric(summary?.totalCustomers) },
         { label: 'B/Ls vinculados', value: metric(summary?.totalBls) },

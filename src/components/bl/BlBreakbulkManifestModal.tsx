@@ -6,6 +6,7 @@ import { VoyageCombobox } from '../shared/VoyageCombobox'
 import { TruncationNote } from '../shared/TruncationNote'
 import { Field, Select } from '../ui/Input'
 import { SummaryStrip } from '../ui/SummaryStrip'
+import { NoValue } from '../ui/NoValue'
 import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import {
@@ -158,6 +159,7 @@ const sum = (manifest: ParsedBreakbulkManifest, pick: (bl: ParsedBreakbulkManife
 
 function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
   const numeric = ['Máquinas', 'Packages', 'Total de packages', 'Peso (t)', 'CBM (m³)']
+  const textColumns = ['Shipper', 'Consignee', 'Notify']
   return (
     <section className="app-import-section" aria-label="Prévia do manifesto">
       <div className="app-import-section__head">
@@ -174,11 +176,11 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
         />
       </div>
       <div className="app-table-scroll max-h-72">
-        <table className="app-table app-table--compact min-w-[1100px] text-left whitespace-nowrap">
+        <table className="app-table app-table--compact min-w-[1100px] whitespace-nowrap">
           <thead>
             <tr>
               {['B/L', ...numeric, 'Shipper', 'Consignee', 'Notify'].map((label) => (
-                <th key={label} scope="col" className={numeric.includes(label) ? 'text-right' : undefined}>{label}</th>
+                <th key={label} scope="col" className={textColumns.includes(label) ? 'app-table__text-head' : undefined}>{label}</th>
               ))}
             </tr>
           </thead>
@@ -186,14 +188,14 @@ function BreakbulkPreview({ manifest }: { manifest: ParsedBreakbulkManifest }) {
             {manifest.bls.slice(0, 25).map((bl) => (
               <tr key={bl.bl_id}>
                 <td className="font-medium text-[var(--app-text-strong)]">{bl.bl_id}</td>
-                <td className="text-right tabular-nums">{formatBBNumber(bl.bb_machine_qty)}</td>
-                <td className="text-right tabular-nums">{formatBBNumber(bl.bb_packages_qty)}</td>
-                <td className="text-right tabular-nums">{formatBBNumber(bl.bb_packages_total)}</td>
-                <td className="text-right tabular-nums">{formatBBNumber(bl.bb_weight_ton)}</td>
-                <td className="text-right tabular-nums">{formatBBNumber(bl.bb_cbm)}</td>
-                <td>{bl.shipper ?? '—'}</td>
-                <td>{bl.consignee ?? '—'}</td>
-                <td>{bl.notify_party ?? '—'}</td>
+                <td className="tabular-nums">{bl.bb_machine_qty == null ? <NoValue label="Sem máquinas" /> : formatBBNumber(bl.bb_machine_qty)}</td>
+                <td className="tabular-nums">{bl.bb_packages_qty == null ? <NoValue label="Sem packages" /> : formatBBNumber(bl.bb_packages_qty)}</td>
+                <td className="tabular-nums">{bl.bb_packages_total == null ? <NoValue label="Sem total de packages" /> : formatBBNumber(bl.bb_packages_total)}</td>
+                <td className="tabular-nums">{bl.bb_weight_ton == null ? <NoValue label="Sem peso" /> : formatBBNumber(bl.bb_weight_ton)}</td>
+                <td className="tabular-nums">{bl.bb_cbm == null ? <NoValue label="Sem CBM" /> : formatBBNumber(bl.bb_cbm)}</td>
+                <td className="app-table__text" title={bl.shipper ?? undefined}>{bl.shipper ?? <NoValue label="Sem shipper" />}</td>
+                <td className="app-table__text" title={bl.consignee ?? undefined}>{bl.consignee ?? <NoValue label="Sem consignee" />}</td>
+                <td className="app-table__text" title={bl.notify_party ?? undefined}>{bl.notify_party ?? <NoValue label="Sem notify" />}</td>
               </tr>
             ))}
           </tbody>

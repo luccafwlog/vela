@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { NoValue } from '../ui/NoValue'
 import { Card } from '../ui/Card'
 import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvisioning'
 import { useBillingPortalRelease } from '../../hooks/useBillingPortalRelease'
@@ -123,9 +124,9 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
               <div><dt>Taxas Locais</dt><dd className="app-customer-money">{money(balance.localBrl)}</dd></div>
               <div><dt>Demurrage</dt><dd className="app-customer-money">{money(balance.demurrageBrl)}</dd></div>
             </dl>
-            <button type="button" className="app-customer-text-link" onClick={() => onNavigateTab('financeiro')}>
+            <Button variant="secondary" className="app-btn--sm" onClick={() => onNavigateTab('financeiro')}>
               Faturas e recebíveis na aba Financeiro <ArrowRight size={14} aria-hidden="true" />
-            </button>
+            </Button>
 
             <h2 className="app-customer-section-title app-customer-section-title--ruled">Situação</h2>
             <dl className="app-customer-facts app-customer-facts--rows">
@@ -148,14 +149,14 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
               ) : null}
               <div>
                 <dt>Contato principal</dt>
-                <dd>{primaryContact ? <><span>{primaryContact.name ?? '—'}</span><span className="app-customer-facts__sub">{primaryContact.email}</span></> : <span className="app-customer-note app-customer-note--warning">Sem e-mail</span>}</dd>
+                <dd>{primaryContact ? <><span>{primaryContact.name ?? <NoValue label="Contato sem nome" />}</span><span className="app-customer-facts__sub">{primaryContact.email}</span></> : <span className="app-customer-note app-customer-note--warning">Sem e-mail</span>}</dd>
               </div>
               <div>
                 <dt>B/Ls vinculados</dt>
                 <dd>
-                  <button type="button" className="app-customer-text-link" onClick={() => onNavigateTab('operacional')}>
+                  <Button variant="secondary" className="app-btn--sm" onClick={() => onNavigateTab('operacional')}>
                     {formatCountLabel(data.bls?.length ?? 0, 'B/L', 'B/Ls')} <ArrowRight size={14} aria-hidden="true" />
-                  </button>
+                  </Button>
                 </dd>
               </div>
             </dl>
@@ -166,9 +167,9 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
       <Card className="app-customer-sheet">
         <div className="app-customer-section-head">
           <h2 className="app-customer-section-title">Atividade recente</h2>
-          <button type="button" className="app-customer-text-link" onClick={() => onNavigateTab('historico')}>
+          <Button variant="secondary" className="app-btn--sm" onClick={() => onNavigateTab('historico')}>
             Histórico completo <ArrowRight size={14} aria-hidden="true" />
-          </button>
+          </Button>
         </div>
         {timelineQuery.isLoading ? <p className="app-customer-muted" role="status">Carregando atividade…</p>
           : timelineQuery.isError ? (
@@ -221,11 +222,11 @@ function PendencyList({ items, onNavigateTab }: { items: OverviewItem[]; onNavig
 
 function PendencyAction({ action, onNavigateTab }: { action: OverviewAction; onNavigateTab: (tab: FichaTabId) => void }) {
   if ('to' in action) {
-    return <Link className="app-customer-text-link" to={action.to}>{action.label} <ArrowRight size={14} aria-hidden="true" /></Link>
+    return <Link className="app-btn app-btn--secondary app-btn--sm" to={action.to}>{action.label} <ArrowRight size={14} aria-hidden="true" /></Link>
   }
   return (
-    <button type="button" className="app-customer-text-link" onClick={() => onNavigateTab(action.tab)}>
+    <Button variant="secondary" className="app-btn--sm" onClick={() => onNavigateTab(action.tab)}>
       {action.label} <ArrowRight size={14} aria-hidden="true" />
-    </button>
+    </Button>
   )
 }

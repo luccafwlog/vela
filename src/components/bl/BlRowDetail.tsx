@@ -1,4 +1,7 @@
+import type { ReactNode } from 'react'
 import { Badge } from '../ui/Badge'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { formatDate } from '../../lib/utils'
 import { isBreakbulkCargoMode, isContainerCargoMode } from '../../lib/cargoMode'
 import type { BLListItem } from '../../types/database'
@@ -33,14 +36,14 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
                   rows={containers.map((container, index) => ({
                     key: String(container.id ?? container.container_number ?? index),
                     cells: [
-                      <span className="app-bl-code text-[var(--app-text-strong)]">{container.container_number || '—'}</span>,
-                      container.type ?? '—',
-                      container.seal_number ?? '—',
-                      formatOptionalNumber(container.tare_weight_kg),
-                      formatOptionalNumber(container.gross_weight_kg),
-                      formatOptionalNumber(container.cbm),
+                      <span className="app-bl-code text-[var(--app-text-strong)]">{container.container_number ? <CopyValue value={container.container_number} label="número do contêiner" /> : <NoValue label="Sem número do contêiner" />}</span>,
+                      container.type ?? <NoValue label="Sem tipo" />,
+                      container.seal_number ?? <NoValue label="Sem lacre" />,
+                      formatOptionalNumber(container.tare_weight_kg, 'Sem tara'),
+                      formatOptionalNumber(container.gross_weight_kg, 'Sem peso bruto'),
+                      formatOptionalNumber(container.cbm, 'Sem CBM'),
                       <ProfileCell isImo={Boolean(container.is_imo)} isOog={Boolean(container.is_oog)} imoClass={container.imo_class} />,
-                      container.discharge_date ? formatDate(container.discharge_date) : '—',
+                      container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />,
                     ],
                   }))}
                 />
@@ -59,11 +62,11 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
                 rows={[{
                   key: 'resumo',
                   cells: [
-                    formatOptionalNumber(bl.bb_machine_qty),
-                    formatOptionalNumber(bl.bb_packages_qty),
-                    formatOptionalNumber(bl.bb_packages_total ?? bl.bb_packages_qty),
-                    formatOptionalNumber(bl.bb_weight_ton),
-                    formatOptionalNumber(bl.bb_cbm),
+                    formatOptionalNumber(bl.bb_machine_qty, 'Sem quantidade de máquinas'),
+                    formatOptionalNumber(bl.bb_packages_qty, 'Sem packages'),
+                    formatOptionalNumber(bl.bb_packages_total ?? bl.bb_packages_qty, 'Sem total de packages'),
+                    formatOptionalNumber(bl.bb_weight_ton, 'Sem peso'),
+                    formatOptionalNumber(bl.bb_cbm, 'Sem CBM'),
                   ],
                 }]}
               />
@@ -71,15 +74,16 @@ export function BlRowDetail({ bl, colSpan }: { bl: BLListItem; colSpan: number }
                 <DetailTable
                   headers={['Descrição', 'Packages', 'Unidade', 'Peso (kg)', 'CBM (m³)', 'Marcas']}
                   numeric={[1, 3, 4]}
+                  text={[0, 5]}
                   rows={items.map((item, index) => ({
                     key: String(item.id ?? `${item.item_description}-${index}`),
                     cells: [
-                      <span className="font-medium text-[var(--app-text-strong)]">{item.item_description || '—'}</span>,
-                      formatOptionalNumber(item.package_qty),
-                      item.package_unit ?? '—',
-                      formatOptionalNumber(item.gross_weight_kg),
-                      formatOptionalNumber(item.cbm),
-                      item.marks ?? '—',
+                      <span className="font-medium text-[var(--app-text-strong)]" title={item.item_description || undefined}>{item.item_description || <NoValue label="Sem descrição" />}</span>,
+                      formatOptionalNumber(item.package_qty, 'Sem packages'),
+                      item.package_unit ?? <NoValue label="Sem unidade" />,
+                      formatOptionalNumber(item.gross_weight_kg, 'Sem peso'),
+                      formatOptionalNumber(item.cbm, 'Sem CBM'),
+                      item.marks ?? <NoValue label="Sem marcas" />,
                     ],
                   }))}
                 />
@@ -117,20 +121,24 @@ function DetailTable({
   headers,
   rows,
   numeric = [],
+  text = [],
 }: {
   headers: string[]
-  rows: Array<{ key: string; cells: React.ReactNode[] }>
-  /** Índices das colunas numéricas: alinhadas à direita, com algarismos tabulares. */
+  rows: Array<{ key: string; cells: ReactNode[] }>
+  /** Índices das colunas numéricas: algarismos tabulares (centralizadas pela tabela padrão). */
   numeric?: number[]
+  /** Índices das colunas de texto longo (descrição, marcas): à esquerda, com reticências. */
+  text?: number[]
 }) {
-  const align = (index: number) => (numeric.includes(index) ? 'text-right tabular-nums' : undefined)
+  const cellClass = (index: number) => (numeric.includes(index) ? 'tabular-nums' : text.includes(index) ? 'app-table__text' : undefined)
+  const headClass = (index: number) => (text.includes(index) ? 'app-table__text-head' : undefined)
   return (
     <>
-      <table className="app-table app-table--compact app-table--dense hidden w-full text-left sm:table">
+      <table className="app-table app-table--compact app-table--dense hidden w-full sm:table">
         <thead>
           <tr>
             {headers.map((header, index) => (
-              <th key={header} scope="col" className={align(index)}>
+              <th key={header} scope="col" className={headClass(index)}>
                 {header}
               </th>
             ))}
@@ -140,7 +148,7 @@ function DetailTable({
           {rows.map((row) => (
             <tr key={row.key}>
               {row.cells.map((cell, index) => (
-                <td key={headers[index]} className={align(index)}>{cell}</td>
+                <td key={headers[index]} className={cellClass(index)} title={text.includes(index) && typeof cell === 'string' ? cell : undefined}>{cell}</td>
               ))}
             </tr>
           ))}
@@ -163,8 +171,8 @@ function DetailTable({
   )
 }
 
-function formatOptionalNumber(value: number | string | null | undefined) {
-  if (value === null || value === undefined || value === '') return '—'
+function formatOptionalNumber(value: number | string | null | undefined, emptyLabel: string): ReactNode {
+  if (value === null || value === undefined || value === '') return <NoValue label={emptyLabel} />
   const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) : '—'
+  return Number.isFinite(numeric) ? numeric.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) : <NoValue label={emptyLabel} />
 }

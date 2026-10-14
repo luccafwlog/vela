@@ -9,6 +9,7 @@ import { formatBRL } from '../../lib/utils'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Card, InlineError } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 
@@ -98,7 +99,7 @@ export function CodAdjustmentsPanel() {
       ) : null}
       {rows.length > 0 ? (
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[980px] text-left text-sm">
+          <table className="app-table app-table--compact min-w-[980px] text-sm">
             <caption className="sr-only">Pendências de ajuste COD</caption>
             <thead>
               <tr>
@@ -116,12 +117,14 @@ export function CodAdjustmentsPanel() {
                 return (
                   <tr key={row.id}>
                     <td className="px-4 py-3 font-semibold text-[var(--app-blue-btn)]">
-                      <Link
-                        className="hover:underline"
-                        to={`/bls/${encodeURIComponent(row.bl_id)}`}
-                      >
-                        {row.bl_id}
-                      </Link>
+                      <CopyValue value={row.bl_id} label="número do B/L">
+                        <Link
+                          className="hover:underline"
+                          to={`/bls/${encodeURIComponent(row.bl_id)}`}
+                        >
+                          {row.bl_id}
+                        </Link>
+                      </CopyValue>
                     </td>
                     <td className="px-4 py-3">
                       <Badge tone={isManualDocument ? 'slate' : 'yellow'}>{actionLabel(row.action)}</Badge>
@@ -129,13 +132,13 @@ export function CodAdjustmentsPanel() {
                     </td>
                     <td className="px-4 py-3">{formatBRL(row.original_value_brl)}</td>
                     <td className="px-4 py-3">{formatBRL(row.new_destination_value_brl)}</td>
-                    <td className={`px-4 py-3 text-right tabular-nums ${row.difference_brl < 0 ? 'text-[var(--app-success-fg)]' : 'text-[var(--app-warning-fg)]'}`}>{formatBRL(row.difference_brl)}</td>
+                    <td className={`px-4 py-3 tabular-nums ${row.difference_brl < 0 ? 'text-[var(--app-success-fg)]' : 'text-[var(--app-warning-fg)]'}`}>{formatBRL(row.difference_brl)}</td>
                     <td className="px-4 py-3">
                       {isManualDocument ? (
                         <div className="flex max-w-[390px] flex-wrap items-center gap-2 text-xs text-[var(--app-muted)]">
                           <AlertTriangle size={15} className="shrink-0 text-[var(--app-warning-fg)]" />
                           <span>Emita a fatura (avulsa, se for complemento) e informe o número interno dela.</span>
-                          <Link className="text-[var(--app-blue-btn)] hover:underline" to={`/taxas-locais?tab=invoices&bl=${encodeURIComponent(row.bl_id)}`}>Abrir faturas</Link>
+                          <Link className="app-btn app-btn--secondary app-btn--sm" to={`/taxas-locais?tab=invoices&bl=${encodeURIComponent(row.bl_id)}`}>Abrir faturas</Link>
                           <input
                             aria-label={`Número interno da fatura do ajuste ${row.id}`}
                             className="app-input w-28"

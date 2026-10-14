@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../../services/cacheEffects'
 import { Upload } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { NoValue } from '../ui/NoValue'
 import { Field, Input, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { SummaryStrip } from '../ui/SummaryStrip'
@@ -388,7 +389,7 @@ function PreviewTable({
 }) {
   return (
     <div className="app-table-scroll app-import-table">
-      <table className="app-table app-table--compact w-full text-left">
+      <table className="app-table app-table--compact w-full">
         <thead>
           <tr>
             <th scope="col" className="app-import-num">{refLabel}</th>
@@ -461,7 +462,7 @@ function ServerPreviewSection({
         />
       </div>
       <div className="app-table-scroll app-import-table">
-        <table className="app-table app-table--compact w-full text-left">
+        <table className="app-table app-table--compact w-full">
           <caption className="sr-only">B/Ls antes e depois da importação</caption>
           <thead>
             <tr>
@@ -476,10 +477,10 @@ function ServerPreviewSection({
               <tr key={`${row.row}-${row.bl_id}`}>
                 <td className="app-import-code font-semibold text-[var(--app-text-strong)]">{row.bl_id}</td>
                 <td className="app-import-code">
-                  {row.status === 'change' ? `${row.current_ce} → ${row.new_ce}` : row.new_ce ?? '—'}
+                  {row.status === 'change' ? `${row.current_ce} → ${row.new_ce}` : row.new_ce ?? <NoValue label="Sem CE Mercante" />}
                 </td>
                 <td className="app-import-code">
-                  {row.manifesto_change ? `${row.current_manifesto} → ${row.target_manifesto}` : row.target_manifesto ?? '—'}
+                  {row.manifesto_change ? `${row.current_manifesto} → ${row.target_manifesto}` : row.target_manifesto ?? <NoValue label="Sem Manifesto Mercante" />}
                 </td>
                 <td>
                   {STATUS_LABEL[row.status] ?? row.status}

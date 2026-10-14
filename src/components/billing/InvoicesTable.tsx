@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { EmptyState } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { SkeletonTable } from '../ui/Skeleton'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
@@ -90,7 +92,7 @@ export function InvoicesTable({
             <thead>
               <tr>
                 <th scope="col">Fatura</th>
-                <th scope="col">Cliente</th>
+                <th scope="col" className="app-table__text-head">Cliente</th>
                 <th scope="col">B/Ls</th>
                 <th scope="col">Navio / Viagem · POD</th>
                 <th scope="col">Emissão</th>
@@ -113,11 +115,11 @@ export function InvoicesTable({
                       <InvoiceNumberButton invoice={invoice} onSelect={onSelectInvoice} />
                       <span className="app-invoices__meta">{typeText(invoice, bls)}</span>
                     </td>
-                    <td><CustomerCell invoice={invoice} /></td>
+                    <td className="app-table__text app-table__text--wrap"><CustomerCell invoice={invoice} /></td>
                     <td><BlLinks bls={bls} manual={invoice.invoice_type === 'manual'} /></td>
                     <td>
-                      <span className="app-invoices__clamp">{formatVesselVoyage(bls, invoice)}</span>
-                      <span className="app-invoices__meta">POD {formatPodList(bls, invoice)}</span>
+                      <span className="app-invoices__clamp">{formatVesselVoyage(bls, invoice) ?? <NoValue label="Sem navio e viagem" />}</span>
+                      <span className="app-invoices__meta">POD {formatPodList(bls, invoice) ?? <NoValue label="Sem POD" />}</span>
                     </td>
                     <td className="app-invoices__date">
                       {formatDate(invoice.issued_at)}
@@ -161,7 +163,7 @@ function CustomerCell({ invoice }: { invoice: InvoiceListRow }) {
   return (
     <>
       <span className="app-invoices__clamp app-invoices__customer">{invoice.customer.name}</span>
-      <span className="app-invoices__meta">{formatCnpjCpf(invoice.customer.cnpj_cpf)}</span>
+      <span className="app-invoices__meta">{invoice.customer.cnpj_cpf ? <CopyValue value={formatCnpjCpf(invoice.customer.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span>
     </>
   )
 }
@@ -200,14 +202,14 @@ function BlLinks({ bls, manual }: { bls: InvoiceListBl[]; manual: boolean }) {
   return (
     <span className="app-invoices__bls">
       {visible.map((bl) => (
-        <Link key={bl.bl_id} className="app-invoices__bl" to={`/bls/${encodeURIComponent(bl.bl_id)}`}>{bl.bl_id}</Link>
+        <CopyValue key={bl.bl_id} value={bl.bl_id} label="número do B/L"><Link className="app-invoices__bl" to={`/bls/${encodeURIComponent(bl.bl_id)}`}>{bl.bl_id}</Link></CopyValue>
       ))}
       {remaining > 0 ? <span className="app-invoices__meta">+{remaining}</span> : null}
     </span>
   )
 }
 
-function formatVesselVoyage(bls: InvoiceListBl[], invoice?: InvoiceListRow) {
+function formatVesselVoyage(bls: InvoiceListBl[], invoice?: InvoiceListRow): string | null {
   const labels = Array.from(
     new Set(
       bls
@@ -220,15 +222,15 @@ function formatVesselVoyage(bls: InvoiceListBl[], invoice?: InvoiceListRow) {
     const directLabel = [voyage?.vessel?.name, voyage?.voyage_number].filter(Boolean).join(' · ')
     if (directLabel) return directLabel
   }
-  if (labels.length === 0) return '—'
+  if (labels.length === 0) return null
   if (labels.length === 1) return labels[0]
   return `${labels[0]} +${labels.length - 1}`
 }
 
-function formatPodList(bls: InvoiceListBl[], invoice?: InvoiceListRow) {
+function formatPodList(bls: InvoiceListBl[], invoice?: InvoiceListRow): string | null {
   const pods = Array.from(new Set(bls.map((bl) => bl.pod).filter((pod): pod is string => Boolean(pod))))
   if (pods.length === 0 && invoice?.bl?.pod) return invoice.bl.pod
-  if (pods.length === 0) return '—'
+  if (pods.length === 0) return null
   if (pods.length === 1) return pods[0]
   return `${pods[0]} +${pods.length - 1}`
 }

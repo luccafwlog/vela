@@ -3,6 +3,7 @@ import { AlertTriangle, BookOpen, ExternalLink, FilterX, History, Search } from 
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
+import { NoValue } from '../components/ui/NoValue'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { useToast } from '../components/ui/Toast'
 import { formatDate } from '../lib/utils'
@@ -353,8 +354,8 @@ export function Alertas() {
                 <th scope="col" className="px-4 py-3">Severidade</th>
                 <th scope="col" className="px-4 py-3">Tipo</th>
                 <th scope="col" className="px-4 py-3">Responsável</th>
-                <th scope="col" className="px-4 py-3">Mensagem</th>
-                <th scope="col" className="px-4 py-3">Entidade</th>
+                <th scope="col" className="app-table__text-head px-4 py-3">Mensagem</th>
+                <th scope="col" className="app-table__text-head px-4 py-3">Entidade</th>
                 <th scope="col" className="px-4 py-3">Criação</th>
                 <th scope="col" className="px-4 py-3">Status / Ação</th>
               </tr>
@@ -525,11 +526,11 @@ function AlertRow({
         {alert.department ? (
           <span>{AGENCY_REPORT_DEPARTMENT_LABELS[alert.department] ?? alert.department}</span>
         ) : (
-          <span className="text-[var(--app-muted-soft)]">—</span>
+          <NoValue label="Sem responsável" />
         )}
       </td>
-      <td className="max-w-sm px-4 py-3 text-[var(--app-text)]">{alert.message}</td>
-      <td className="px-4 py-3 text-[var(--app-muted)]">
+      <td className="app-table__text app-table__text--wrap px-4 py-3 text-[var(--app-text)]">{alert.message}</td>
+      <td className="app-table__text px-4 py-3 text-[var(--app-muted)]">
         {entityFormatted ? (
           <span className="text-xs">{entityFormatted}</span>
         ) : alert.entity_type ? (
@@ -538,7 +539,7 @@ function AlertRow({
             {alert.entity_id ? ` ${alert.entity_id}` : ''}
           </span>
         ) : (
-          <span className="text-[var(--app-muted)]">—</span>
+          <NoValue label="Sem entidade" />
         )}
       </td>
       <td className="whitespace-nowrap px-4 py-3 text-[var(--app-muted)]">{formatDate(alert.created_at)}</td>

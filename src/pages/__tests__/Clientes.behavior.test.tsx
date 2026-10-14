@@ -339,7 +339,7 @@ describe('Clientes page behaviours', () => {
     expect(mocks.deleteCustomers).not.toHaveBeenCalled()
   })
 
-  it('delegates table sorting and row menu copy actions through the page state', async () => {
+  it('delegates table sorting through the page state and copies the CNPJ from the row', async () => {
     const user = userEvent.setup()
     const writeText = vi.spyOn(navigator.clipboard, 'writeText')
     renderPage()
@@ -354,10 +354,12 @@ describe('Clientes page behaviours', () => {
       sortDirection: 'desc',
     }))
 
-    await user.click(screen.getByRole('button', { name: 'Mais ações para Cliente Teste' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Copiar CNPJ' }))
+    await user.click(screen.getByRole('button', { name: 'Copiar CNPJ/CPF 12.345.678/0001-95' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('12.345.678/0001-95'))
-    expect(screen.queryByRole('menu')).toBeNull()
+
+    // O CNPJ exibido tem o ícone de copiar; o menu não repete a ação.
+    await user.click(screen.getByRole('button', { name: 'Mais ações para Cliente Teste' }))
+    expect(screen.queryByRole('menuitem', { name: 'Copiar CNPJ' })).toBeNull()
   })
 
   it('supports arrow navigation and restores focus when the customer actions menu closes with Escape', async () => {

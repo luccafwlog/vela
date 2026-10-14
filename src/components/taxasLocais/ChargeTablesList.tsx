@@ -217,9 +217,10 @@ function ItemActions({ item, ...props }: ItemsProps & { item: ChargeItem }) {
   const menu = itemMenu(item, props)
   return (
     <div className="app-rates-item__actions">
-      <button type="button" className="app-table__icon-button" onClick={() => props.onEditItem(props.table, item)} aria-label={`Editar item ${item.name}`} title="Editar item">
+      <Button variant="secondary" className="app-btn--sm" onClick={() => props.onEditItem(props.table, item)} aria-label={`Editar item ${item.name}`}>
         <Pencil size={14} aria-hidden="true" />
-      </button>
+        Editar
+      </Button>
       {menu.length ? (
         <ActionMenu
           label={`Mais ações do item ${item.name}`}
@@ -271,27 +272,27 @@ function ChargeItemsTable(props: ItemsProps) {
   }
   return (
     <div className="app-table-scroll">
-      <table className="app-table app-table--compact app-rates-item-table text-left">
+      <table className="app-table app-table--compact app-rates-item-table">
         <caption className="sr-only">Itens da tabela {table.name}</caption>
         <thead>
           <tr>
-            <th scope="col">Item</th>
+            <th scope="col" className="app-table__text-head">Item</th>
             <th scope="col">Entra no cálculo</th>
             <th scope="col">Perfil</th>
-            <th scope="col" className="text-right">Valor unitário</th>
+            <th scope="col">Valor unitário</th>
             {props.canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
           </tr>
         </thead>
         <tbody>
           {table.charge_table_items.map((item) => (
             <tr key={item.id} data-inactive={item.active === false || undefined}>
-              <td>
+              <td className="app-table__text">
                 <div className="app-rates-item__name">{item.name}</div>
                 <ItemFlags item={item} />
               </td>
               <td>{item.manual_only ? 'Só manual' : 'Automático'}</td>
               <td>{cargoProfileLabel(item.cargo_profile)}</td>
-              <td className="text-right">
+              <td>
                 <span className="app-rates-num app-rates-item__value">{formatRate(item.currency, itemUnitValue(item))}</span>
                 <span className="app-rates-unit">{basisUnit(item.application_basis)}</span>
               </td>

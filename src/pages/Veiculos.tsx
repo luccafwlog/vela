@@ -2,8 +2,10 @@ import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../services/cacheEffects'
-import { Download, MapPin, Trash2, Upload } from 'lucide-react'
+import { Download, MapPin, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
@@ -120,7 +122,7 @@ function UnpackingLocationField({
 
 /** Container com veículos de mais de um B/L: cada veículo diz o seu, além da lista no cabeçalho. */
 function VehicleBlLink({ blId }: { blId: string }) {
-  return <span className="app-cargo-cell__sub">B/L <Link className="app-cargo-link app-cargo-id" to={`/bls/${blId}`}>{blId}</Link></span>
+  return <span className="app-cargo-cell__sub">B/L <CopyValue value={blId} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${blId}`}>{blId}</Link></CopyValue></span>
 }
 
 export function Veiculos() {
@@ -374,16 +376,15 @@ export function Veiculos() {
 
   function deleteButton(row: { id: number; chassis: string }) {
     return (
-      <button
-        type="button"
+      <Button
+        variant="danger"
+        className="app-btn--sm"
         onClick={() => runDelete([row.id], `Excluir o veículo ${row.chassis}?`)}
         disabled={deleting}
-        className="app-table__icon-button app-cargo-danger-icon"
-        title="Excluir veículo"
         aria-label={`Excluir veículo ${row.chassis}`}
       >
-        <Trash2 size={15} aria-hidden="true" />
-      </button>
+        Excluir
+      </Button>
     )
   }
 
@@ -394,7 +395,7 @@ export function Veiculos() {
         <span className="app-cargo-group__id">
           {container ? (
             <>
-              <span className="app-cargo-code app-cargo-id">{container.container_number}</span>
+              <span className="app-cargo-code app-cargo-id"><CopyValue value={container.container_number} label="número do contêiner" /></span>
               <span className="app-cargo-cell__sub">
                 {[container.type, container.seal_number ? `Lacre ${container.seal_number}` : null, plural(group.vehicles.length, 'veículo nesta página', 'veículos nesta página')].filter(Boolean).join(' · ')}
               </span>
@@ -402,7 +403,7 @@ export function Veiculos() {
           ) : <span className="app-cargo-id">Sem container</span>}
         </span>
         <span className="app-cargo-group__bls">
-          {group.blIds.map((blId) => <Link key={blId} className="app-cargo-link app-cargo-id" to={`/bls/${blId}`}>{blId}</Link>)}
+          {group.blIds.map((blId) => <CopyValue key={blId} value={blId} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${blId}`}>{blId}</Link></CopyValue>)}
         </span>
       </span>
     )
@@ -560,7 +561,7 @@ export function Veiculos() {
                               onChange={() => selection.toggle(row.id)}
                             />
                           ) : null}
-                          <span className="app-cargo-cell__stack">
+                          <span className="app-cargo-cell__stack app-table__cell-stack">
                             <span className="app-cargo-code">{row.chassis}</span>
                             <span className="app-cargo-cell__sub">{[row.brand, row.model].filter(Boolean).join(' ')} · {formatKg(row.weight_kg)} · {formatCbm(row.cbm)}</span>
                             {group.blIds.length > 1 && row.bl?.id ? <VehicleBlLink blId={row.bl.id} /> : null}
@@ -612,7 +613,7 @@ export function Veiculos() {
                         ) : null}
                         <th scope="rowgroup" colSpan={5} className="app-cargo-group__cell">{groupHead(group)}</th>
                         <td colSpan={canDeleteVehicles ? 2 : 1}>
-                          {group.container ? desovaFieldFor(group.container) : <span className="app-cargo-cell__muted">—</span>}
+                          {group.container ? desovaFieldFor(group.container) : <NoValue label="Sem local de desova" />}
                         </td>
                       </tr>
                       {group.vehicles.map((row) => (
@@ -629,15 +630,15 @@ export function Veiculos() {
                               </td>
                             ) : null}
                             <td>
-                              <span className="app-cargo-cell__stack">
+                              <span className="app-cargo-cell__stack app-table__cell-stack">
                                 <span className="app-cargo-code">{row.chassis}</span>
                                 {group.blIds.length > 1 && row.bl?.id ? <VehicleBlLink blId={row.bl.id} /> : null}
                               </span>
                             </td>
-                            <td>{row.brand ?? '—'}</td>
-                            <td>{row.model ?? '—'}</td>
-                            <td className="app-cargo-num">{formatKg(row.weight_kg)}</td>
-                            <td className="app-cargo-num">{formatCbm(row.cbm)}</td>
+                            <td>{row.brand ?? <NoValue label="Sem marca" />}</td>
+                            <td>{row.model ?? <NoValue label="Sem modelo" />}</td>
+                            <td className="app-cargo-num">{row.weight_kg == null ? <NoValue label="Sem peso" /> : formatKg(row.weight_kg)}</td>
+                            <td className="app-cargo-num">{row.cbm == null ? <NoValue label="Sem cubagem" /> : formatCbm(row.cbm)}</td>
                             <td aria-hidden="true" />
                             {canDeleteVehicles ? <td>{deleteButton(row)}</td> : null}
                           </tr>
@@ -841,7 +842,7 @@ function VehicleImportModal({ initialVoyageId, onClose }: { initialVoyageId: str
                               <td className="app-cargo-code">{row.chassis}</td>
                               <td>{[row.brand, row.model].filter(Boolean).join(' ')}</td>
                               <td><span className="app-cargo-code">{row.container_number}</span> <span className="app-cargo-cell__sub">{row.container_type}</span></td>
-                              <td>{row.seal_number || '—'}</td>
+                              <td>{row.seal_number || <NoValue label="Sem lacre" />}</td>
                               <td className="app-cargo-code">{row.bl_id}</td>
                             </tr>
                           ))}

@@ -1,12 +1,15 @@
+import { formatCnpjCpf } from '../lib/utils'
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Building2, CheckCircle2, Eye, History, Info, Mail, Paperclip, Pencil, Send, Users } from 'lucide-react'
 import { Badge, type BadgeTone } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
+import { CopyValue } from '../components/ui/CopyValue'
 import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Modal } from '../components/ui/Modal'
+import { NoValue } from '../components/ui/NoValue'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useAppSettings, useSetCommunicationsEnabled } from '../hooks/useAppSettings'
 import { useAuth } from '../hooks/useAuth'
@@ -634,7 +637,7 @@ export function ClientesComunicacao() {
           </div>
           {coverageQuery.isLoading ? <div className="mt-5 text-sm text-[var(--app-muted)]">Carregando cobertura...</div> : null}
           {coverageQuery.isError ? <div className="mt-5"><InlineError message="Não foi possível carregar a cobertura." /></div> : null}
-          <div className="mt-5 app-table-scroll rounded-xl border border-[var(--app-border)]"><table className="app-table text-sm"><caption className="sr-only">Cobertura de comunicados por viagem</caption><thead><tr><th scope="col" className="p-3 text-center">Viagem</th><th scope="col" className="p-3 text-center">Clientes</th><th scope="col" className="p-3 text-center">CE / Taxas</th><th scope="col" className="p-3 text-center">NOA</th><th scope="col" className="p-3 text-center">NOR</th><th scope="col" className="p-3 text-center">NOB</th></tr></thead><tbody>{(coverageQuery.data ?? []).map((row) => <tr key={row.voyageId}><td className="p-3 text-center font-medium">{row.vesselName} · {row.voyageNumber}</td><td className="p-3 text-center">{row.customers}</td><td className="p-3 text-center"><Badge tone={row.finance.pending ? 'yellow' : 'green'}>{row.finance.sent}/{row.finance.ready} enviados · {row.finance.pending} pendentes</Badge></td><td className="p-3 text-center"><Badge tone={row.noa.sent >= row.noa.total ? 'green' : 'yellow'}>{row.noa.sent}/{row.noa.total}</Badge></td><td className="p-3 text-center"><Badge tone={row.nor.sent >= row.nor.total ? 'green' : 'yellow'}>{row.nor.sent}/{row.nor.total}</Badge></td><td className="p-3 text-center"><Badge tone={row.nob.sent >= row.nob.total ? 'green' : 'yellow'}>{row.nob.sent}/{row.nob.total}</Badge></td></tr>)}{!coverageQuery.data?.length ? <tr><td colSpan={6} className="p-8 text-center text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}</tbody></table></div>
+          <div className="mt-5 app-table-scroll rounded-xl border border-[var(--app-border)]"><table className="app-table text-sm"><caption className="sr-only">Cobertura de comunicados por viagem</caption><thead><tr><th scope="col" className="p-3 app-table__text-head">Viagem</th><th scope="col" className="p-3">Clientes</th><th scope="col" className="p-3">CE / Taxas</th><th scope="col" className="p-3">NOA</th><th scope="col" className="p-3">NOR</th><th scope="col" className="p-3">NOB</th></tr></thead><tbody>{(coverageQuery.data ?? []).map((row) => <tr key={row.voyageId}><td className="p-3 app-table__text font-medium" title={`${row.vesselName} · ${row.voyageNumber}`}>{row.vesselName} · {row.voyageNumber}</td><td className="p-3">{row.customers}</td><td className="p-3"><Badge tone={row.finance.pending ? 'yellow' : 'green'}>{row.finance.sent}/{row.finance.ready} enviados · {row.finance.pending} pendentes</Badge></td><td className="p-3"><Badge tone={row.noa.sent >= row.noa.total ? 'green' : 'yellow'}>{row.noa.sent}/{row.noa.total}</Badge></td><td className="p-3"><Badge tone={row.nor.sent >= row.nor.total ? 'green' : 'yellow'}>{row.nor.sent}/{row.nor.total}</Badge></td><td className="p-3"><Badge tone={row.nob.sent >= row.nob.total ? 'green' : 'yellow'}>{row.nob.sent}/{row.nob.total}</Badge></td></tr>)}{!coverageQuery.data?.length ? <tr><td colSpan={6} className="p-8 text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}</tbody></table></div>
         </Card>
       ) : tab === 'disparo' ? (
         <div className="space-y-5">
@@ -687,10 +690,10 @@ export function ClientesComunicacao() {
                         <thead>
                           <tr>
                             <th scope="col" className="w-12 p-3"><span className="sr-only">Selecionar</span></th>
-                            <th scope="col" className="p-3 text-left">Cliente</th>
-                            <th scope="col" className="w-20 p-3 text-left">B/Ls</th>
-                            <th scope="col" className="p-3 text-left">Destinatários</th>
-                            <th scope="col" className="w-44 p-3 text-left">Situação</th>
+                            <th scope="col" className="p-3 app-table__text-head">Cliente</th>
+                            <th scope="col" className="w-20 p-3">B/Ls</th>
+                            <th scope="col" className="p-3 app-table__text-head">Destinatários</th>
+                            <th scope="col" className="w-44 p-3">Situação</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1002,10 +1005,10 @@ export function ClientesComunicacao() {
 
               <div className="p-5">
                 <div className="grid grid-cols-2 gap-2.5">
-                  <MetricCard label="Clientes" value={showConference ? conference.totalCustomers : '—'} />
-                  <MetricCard label="E-mails elegíveis" value={showConference ? conference.totalEligibleEmails : '—'} />
-                  <MetricCard label="Excluídos" value={showConference ? conference.totalExcludedEmails : '—'} />
-                  <MetricCard label="Selecionados" value={showConference ? selectedRows.length : '—'} tone={showConference ? 'primary' : 'secondary'} />
+                  <MetricCard label="Clientes" value={showConference ? conference.totalCustomers : <NoValue label="Sem conferência" />} />
+                  <MetricCard label="E-mails elegíveis" value={showConference ? conference.totalEligibleEmails : <NoValue label="Sem conferência" />} />
+                  <MetricCard label="Excluídos" value={showConference ? conference.totalExcludedEmails : <NoValue label="Sem conferência" />} />
+                  <MetricCard label="Selecionados" value={showConference ? selectedRows.length : <NoValue label="Sem conferência" />} tone={showConference ? 'primary' : 'secondary'} />
                 </div>
                 {!showConference ? (
                   <p className="mt-3 text-xs leading-relaxed text-[var(--app-muted)]">
@@ -1209,7 +1212,7 @@ export function ClientesComunicacao() {
             </div>
             <div className="text-[var(--app-text)]">
               <span className="font-semibold text-[var(--app-muted)]">Assunto: </span>
-              <span className="font-medium text-[var(--app-text-strong)]">{activePreview?.subject ?? '—'}</span>
+              <span className="font-medium text-[var(--app-text-strong)]">{activePreview?.subject ?? <NoValue label="Sem assunto" />}</span>
             </div>
           </div>
 
@@ -1351,9 +1354,13 @@ function ConferenceRow({
         />
       </td>
       <td className="p-3 align-top">
-        <div className="font-semibold text-[var(--app-text-strong)]">{row.customerName}</div>
-        <div className="mt-0.5 font-mono text-[11px] text-[var(--app-muted)]">{row.customerCnpj || 'CNPJ não informado'}</div>
-        {row.terminalName ? <div className="mt-1"><Badge tone="blue">{row.terminalName}</Badge></div> : null}
+        <div className="app-table__cell-stack">
+          <div className="font-semibold text-[var(--app-text-strong)]">{row.customerName}</div>
+          <div className="mt-0.5 font-mono text-[11px] text-[var(--app-muted)]">
+            {row.customerCnpj ? <CopyValue value={formatCnpjCpf(row.customerCnpj)} label="CNPJ/CPF" /> : 'CNPJ não informado'}
+          </div>
+          {row.terminalName ? <div className="mt-1"><Badge tone="blue">{row.terminalName}</Badge></div> : null}
+        </div>
       </td>
       <td className="p-3 align-top">
         {/* Comunicado institucional não vincula B/L: `bls` vem vazio e `sourceBls`
@@ -1369,43 +1376,41 @@ function ConferenceRow({
         )}
       </td>
       <td className="p-3 align-top">
-        {row.eligibleRecipients.length ? (
-          <div className="flex flex-wrap gap-1.5">
-            {row.eligibleRecipients.map((contact) => {
-              const boxCodes = (contact as { matchedBoxCodes?: string[]; boxCodes?: string[] }).matchedBoxCodes ?? (contact as { boxCodes?: string[] }).boxCodes
-              return (
-                <span key={contact.id} className="inline-flex items-center gap-1 rounded border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-1.5 py-0.5 text-[11px] text-[var(--app-text)]">
-                  {contact.email}
-                  {boxCodes?.length ? (
-                    <span className="text-[10px] text-[var(--app-muted)]">
-                      {boxCodes.map((code) => (code === 'documentacao_operacao' ? 'D&O' : code === 'financeiro' ? 'Fin' : 'Dem')).join(', ')}
-                    </span>
-                  ) : null}
-                </span>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="text-[var(--app-red)]">Nenhum contato elegível neste recorte.</div>
-        )}
-        {row.excludedRecipients.length ? (
-          <div className="mt-1.5 text-[11px] text-[var(--app-gold-strong)]">
-            {row.excludedRecipients.length} excluído(s) · {row.excludedRecipients.map((item) => excludedReasonLabel(item.reason)).join(', ')}
-          </div>
-        ) : null}
+        <div className="app-table__cell-stack">
+          {row.eligibleRecipients.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {row.eligibleRecipients.map((contact) => {
+                const boxCodes = (contact as { matchedBoxCodes?: string[]; boxCodes?: string[] }).matchedBoxCodes ?? (contact as { boxCodes?: string[] }).boxCodes
+                return (
+                  <span key={contact.id} className="inline-flex items-center gap-1 rounded border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-1.5 py-0.5 text-[11px] text-[var(--app-text)]">
+                    {contact.email}
+                    {boxCodes?.length ? (
+                      <span className="text-[10px] text-[var(--app-muted)]">
+                        {boxCodes.map((code) => (code === 'documentacao_operacao' ? 'D&O' : code === 'financeiro' ? 'Fin' : 'Dem')).join(', ')}
+                      </span>
+                    ) : null}
+                  </span>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="text-[var(--app-red)]">Nenhum contato elegível neste recorte.</div>
+          )}
+          {row.excludedRecipients.length ? (
+            <div className="mt-1.5 text-[11px] text-[var(--app-gold-strong)]">
+              {row.excludedRecipients.length} excluído(s) · {row.excludedRecipients.map((item) => excludedReasonLabel(item.reason)).join(', ')}
+            </div>
+          ) : null}
+        </div>
       </td>
       <td className="p-3 align-top">
         <div className="flex flex-wrap items-center gap-1.5">
           {row.blocked ? <Badge tone="red">Bloqueado</Badge> : selected ? <Badge tone="green">Elegível</Badge> : <Badge tone="slate">Desmarcado</Badge>}
           {resendLabel ? <Badge tone="yellow">{resendLabel}</Badge> : null}
         </div>
-        <button
-          type="button"
-          onClick={onPreview}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--app-blue)] shadow-xs hover:bg-[var(--app-surface-hover)]"
-        >
-          <Eye size={13} /> Ver e-mail
-        </button>
+        <Button type="button" variant="secondary" className="app-btn--sm mt-2" onClick={onPreview}>
+          <Eye size={13} aria-hidden="true" /> Ver e-mail
+        </Button>
       </td>
     </tr>
   )
