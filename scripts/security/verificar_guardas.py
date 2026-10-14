@@ -67,6 +67,10 @@ GUARDAS = [
     'is_active_read_user', 'is_admin(', 'is_active_user', 'current_portal_customer_id',
     '_portal_actor_role', 'portal_current_role', 'current_user_role', '_portal_inspect_guard',
     'is_financeiro_user', 'has_department', 'is_equipamentos', '42501', '28000',
+    # Gate do Desbloqueio de CE (139): exige usuário ativo e departamento
+    # permitido e levanta 42501; vive fora de `public`, onde a busca recursiva
+    # abaixo não chega.
+    'ce_unlock_private.actor(',
 ]
 
 EXCECOES = {
