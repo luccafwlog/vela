@@ -43,7 +43,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-push-gate.sh",
-            "timeout": 1800
+            "timeout": 3600
           }
         ]
       }

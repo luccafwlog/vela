@@ -357,7 +357,7 @@ ela tem custo por hora, depende de autorização e é removida depois do teste.
 Com a branch vinculada, a integração aplica nela as migrations de
 `supabase/migrations/`, e o workflow Cloudflare Pages Preview publica os dois
 sites protegidos com as credenciais públicas dessa branch. Sem ela, a prova
-das migrations da PR é o job `migration-replay` do CI (seção 12), e os
+das migrations da PR é o replay local do gate do Claude Code (seção 11), e os
 workflows Cloudflare Pages Preview e Provision Preview Admin esperam o check
 `Supabase Preview` por 36 tentativas de 10 s (cerca de 6 min) e terminam com
 falha. O checkout não comprova a configuração remota: confira-a no painel.
@@ -407,7 +407,7 @@ O replay executa SQL real, mas usa shims de Auth, Vault, cron, HTTP e Storage.
 Não comprova login, envio de email, disparo de cron nem criptografia do Vault.
 Não use segredos reais nesses shims. O script imprime uma URL local; não exporta
 variáveis para o shell chamador. O seed operacional `supabase/seed.sql` é uma
-etapa separada, validada no CI. Nunca aponte testes de migration para produção.
+etapa separada, no fim do replay local. Nunca aponte testes de migration para produção.
 
 ### Nome de arquivo novo
 
@@ -464,7 +464,8 @@ O CI da SPA e o Cloudflare Pages não aplicam migrations. Quando existe a
 branch Supabase de Preview vinculada à PR, a integração aplica nela as
 migrations da PR; confirme o check `Supabase Preview` antes do merge e, em caso
 de falha, compare o histórico remoto com os arquivos locais antes de
-reexecutar. Sem essa branch, o gate de migration da PR é o `migration-replay`.
+reexecutar. Sem essa branch, o gate de migration da PR é o replay local
+(`scripts/replay-local-pg.sh`, seção 11).
 Depois do merge, a integração GitHub do Supabase (Deploy to production) aplica
 as pendentes em produção. Após DDL, verifique advisors e o contrato usado pela
 aplicação.
@@ -668,7 +669,21 @@ comando se um passo falhar. Diff só de Markdown ou `docs/` roda
 `python3 -B scripts/security/verificar_guardas.py --ci`), os mesmos comandos do
 job `gate`. `CLAUDE_SKIP_LOCAL_GATE=1` pula o hook só quando a pessoa pede.
 Aparência também pede `npm run design:check` e `npm run a11y:contrast`, como
-no CI. O replay de migrations num Postgres real não faz parte do hook.
+no CI.
+
+Quando o diff mexe em `supabase/`, `src/integration/` ou nos scripts do
+replay, o mesmo hook executa `scripts/replay-local-pg.sh` e bloqueia o
+comando se o replay falhar. Esse script exige PostgreSQL 16 local
+(`scripts/setup-local-pg.sh`): cluster `16/main` com `sudo -n` no
+Debian/Ubuntu, ou Homebrew `postgresql@16` / `PG_BIN` no macOS. Não usa a
+CLI do Supabase. Docker não entra nesse caminho — um contêiner publicado na
+porta 5432 não é o cluster que o script administra, e a ausência do Docker
+não muda o pré-requisito. Sem PostgreSQL 16 o script recusa e explica como
+instalar. O replay aplica as migrations do zero, trava invariantes
+(`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), roda as
+suítes locais nas duas ordens e a bateria financeira por último, confere o
+catálogo de RPCs e aplica `supabase/seed.sql`. O timeout do hook é 60
+minutos por causa dessa etapa.
 
 ### Isolamento entre arquivos de teste
 
@@ -711,18 +726,19 @@ Para reproduzir o gate completo, use `npm run test:local-pg`, que roda em
 série as suítes de [`scripts/local-pg-suites.txt`](scripts/local-pg-suites.txt)
 na ordem da lista; `npm run test:local-pg -- --reverse` roda de trás para
 frente. O Vitest reordena os arquivos por conta própria (falhos e lentos
-primeiro); o script passa a ordem ao sequenciador do `vite.config.ts`. O CI
-roda as duas ordens, cada uma num banco recém-replicado
-(`setup-local-pg.sh --reset` antes da invertida), o que prova que nenhuma suíte
-depende do que a anterior fez nem é quebrada por ela. As suítes
-compartilham banco e precisam rodar em série; cada uma deve
-usar seu próprio namespace de IDs e documentos nas fixtures e apagar o que
-cria, inclusive versões de regra de tarifa e contas de Portal do próprio Cliente:
-a bateria financeira roda num passo próprio, por último, e falha com resíduo
-global. Toda suíte nova entra em `scripts/local-pg-suites.txt`;
+primeiro); o script passa a ordem ao sequenciador do `vite.config.ts`. O
+replay local (`scripts/replay-local-pg.sh`) roda as duas ordens, cada uma
+num banco recém-replicado (`setup-local-pg.sh --reset` antes da invertida),
+o que prova que nenhuma suíte depende do que a anterior fez nem é quebrada
+por ela. As suítes compartilham banco e precisam rodar em série; cada uma
+deve usar seu próprio namespace de IDs e documentos nas fixtures e apagar o
+que cria, inclusive versões de regra de tarifa e contas de Portal do próprio
+Cliente: a bateria financeira roda num passo próprio, por último, e falha
+com resíduo global. Toda suíte nova entra em `scripts/local-pg-suites.txt`;
 `npm run localpg:check` falha quando um `*.local-pg.test.ts` fica fora dela
-(e dos passos do CI), quando há suíte repetida ou quando o CI deixa de rodar
-uma das duas ordens. Sonda de pré-requisito usa
+(e dos passos de `scripts/replay-local-pg.sh`), quando há suíte repetida,
+quando o replay deixa de rodar uma das duas ordens ou quando o hook deixa
+de chamar o script. Sonda de pré-requisito usa
 `describeWithProbe` (`src/integration/localTestData.ts`): com
 `LOCAL_PG_INTEGRATION=1`, sonda falsa falha o teste em vez de pular a suíte.
 
@@ -772,12 +788,13 @@ Nenhum restore destrutivo faz parte dos checks locais.
 (`opened`, `synchronize`, `reopened`, `ready_for_review`). PR em rascunho não
 ocupa runner; marcar como pronta dispara o workflow. Não há CI em push para
 `main`. As etapas Node usam a versão 24 e `npm ci --legacy-peer-deps`; o
-replay de guardas usa Python e o replay de banco requer PostgreSQL 16.
+replay de guardas usa Python. O replay de banco não roda no GitHub: fica no
+gate local da seção 11 e exige PostgreSQL 16 na máquina de quem desenvolve.
 
 1. `changes` — compara o diff da PR com a base e classifica os caminhos
    (`scripts/ci-path-filter.mjs`). Markdown e `docs/` não pedem o gate de
-   código. `supabase/`, `src/integration/` e os scripts do replay pedem
-   `migration-replay`.
+   código. A classificação de migration sai no log; quem age sobre ela é o
+   hook local, não um job daqui.
 2. `gate` — um único job, só quando o diff não é só documentação: verificação
    documental e autotestes, lint, identidade visual, contrato de upload CE em
    Deno 2.9.6 (dependências remotas em `deno.lock` com `--frozen`, `--no-config`
@@ -787,15 +804,10 @@ replay de guardas usa Python e o replay de banco requer PostgreSQL 16.
    (`verificar_guardas.py --ci`), build com staging dos dois sites
    (`npm run cloudflare:build:sites`, que exige `VITE_SUPABASE_URL` para o
    `connect-src` da CSP), orçamento de bundle e `npm test` sem shard.
-3. `migration-replay` — só quando o diff mexe nos caminhos do item 1. Aplica as
-   migrations do zero num PostgreSQL 16 descartável
-   (`setup-local-pg.sh --reset`), trava invariantes
-   (`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), roda as
-   suítes locais nas duas ordens e a bateria financeira por último, confere o
-   catálogo de RPCs e aplica `supabase/seed.sql`. Job pulado não gasta minuto.
-4. `checks` — agregador da proteção de branch. Fica verde quando `changes`
-   passou e `gate` e `migration-replay` passaram ou foram pulados. Não roda se
-   o workflow foi cancelado por um push mais novo.
+3. `checks` — agregador da proteção de branch. Fica verde quando `changes`
+   passou e `gate` passou ou foi pulado (PR só de documentação). Não há job
+   de replay para tratar como pulado. Não roda se o workflow foi cancelado
+   por um push mais novo.
 
 Runs antigos do mesmo ref são cancelados (`concurrency` +
 `cancel-in-progress`), então só o commit mais recente do PR ocupa runners.

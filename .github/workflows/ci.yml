@@ -1,9 +1,9 @@
 name: CI
 
-# Gate barato no GitHub. Lint, build, testes e guardas rodam na máquina de quem
-# desenvolve (CLAUDE.md); aqui fica uma passagem única por PR pronta, mais o
-# replay de migrations só quando o diff mexe em supabase/SQL.
-# Push em main não repete o CI: o deploy de produção escuta o próprio push.
+# Gate barato no GitHub. Lint, build, testes, guardas e o replay de migrations
+# rodam na máquina de quem desenvolve (CLAUDE.md). Aqui fica uma passagem única
+# por PR pronta. Push em main não repete o CI: o deploy de produção escuta o
+# próprio push.
 
 permissions:
   contents: read
@@ -25,17 +25,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # O filtro fica num job próprio para o replay poder ser *skipped* (0 min)
-  # quando o diff não tem migration. paths-ignore no workflow inteiro não
-  # serviria: o check exigido `checks` deixaria de ser reportado em PR só de
-  # docs e a proteção de branch ficaria pendente.
+  # O filtro fica num job próprio para um PR só de docs pular o gate sem
+  # deixar de reportar `checks`. paths-ignore no workflow inteiro omitiria
+  # esse check e a proteção de branch ficaria pendente. A classificação
+  # `migrations` sai no log do passo; o replay correspondente é local.
   changes:
     name: Paths filter
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
-      migrations: ${{ steps.filter.outputs.migrations }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -113,7 +112,7 @@ jobs:
         run: npm run migrations:check
 
       - name: Local-pg suites listed in CI
-        # Toda suíte `*.local-pg.test.ts` precisa estar no job migration-replay.
+        # Toda suíte `*.local-pg.test.ts` precisa estar no replay local.
         run: npm run localpg:check
 
       - name: Destructive migration check self-test
@@ -149,123 +148,14 @@ jobs:
       - name: Test
         run: npm test
 
-  # Aplica de verdade as migrations num Postgres 16 descartável. Docs, lint,
-  # build, vitest e o replay estático leem o texto das migrations sem executar:
-  # nenhum deles pegaria um apply que aborta (classe do bloqueante da PR 651,
-  # pg_trgm fora de public) nem seeds que faltam. O Supabase Preview tampouco
-  # serve de evidência, porque só aplica arquivos novos e 001–004 reaproveitam
-  # prefixos já registrados.
-  migration-replay:
-    name: Migration replay (Postgres real)
-    needs: changes
-    if: needs.changes.outputs.migrations == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Ensure PostgreSQL 16 cluster
-        run: |
-          pg_lsclusters || true
-          if ! pg_lsclusters 2>/dev/null | grep -q '^16'; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq postgresql-16
-          fi
-
-      - name: Replay consolidated migrations from scratch
-        run: sudo scripts/setup-local-pg.sh --reset
-
-      - name: Assert replayed schema invariants
-        # stdin (-) em vez de -f caminho: o usuário postgres do SO não tem
-        # travessia no diretório do checkout (Permission denied com -f).
-        # Mesmo padrão de scripts/setup-local-pg.sh:118 (< "$f").
-        run: sudo -u postgres psql -d vela_test -v ON_ERROR_STOP=1 -q -f - < scripts/check-squash-replay.sql
-
-      - name: Assert comunicados routing and NOB behaviour
-        run: sudo -u postgres psql -d vela_test -v ON_ERROR_STOP=1 -q -f - < scripts/check-comunicados-caixas-nob.sql
-
-      - uses: actions/setup-node@v7.1.0
-        with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Run SQL contract suites against the replayed database
-        # Sem esta etapa os suites *.local-pg.test.ts eram `describe.skip` (a
-        # variável nunca era definida) e todo contrato SQL desta remediação
-        # ficava provado só na máquina de quem executou.
-        #
-        # --no-file-parallelism é obrigatório: os suites compartilham um único
-        # banco e, em paralelo, um derruba a fixture do outro. Fixtures novas
-        # devem usar ids e `customers.cnpj_cpf` do próprio namespace da suíte,
-        # porque o CNPJ é UNIQUE e a limpeza remove por id.
-        #
-        # A lista é explícita (scripts/local-pg-suites.txt), não
-        # `src/integration/`, porque estas suítes compartilham um único banco e
-        # precisam de execução serializada. O Vitest reordenaria os arquivos
-        # (falhos e lentos primeiro); `npm run test:local-pg` os roda na ordem
-        # da lista com o sequenciador do vite.config.ts. A bateria financeira
-        # roda depois, sozinha, porque altera temporariamente o snapshot global
-        # de PTAX e confere que nenhuma suíte deixou tarifa ou cálculo residual
-        # (ordem explícita, Etapa 12 do plano de correção das importações).
-        # `npm run localpg:check` falha quando surge um `*.local-pg.test.ts`
-        # fora da lista e dos passos deste job.
-        #
-        # Sonda de pré-requisito com LOCAL_PG_INTEGRATION=1 falha o teste
-        # (`describeWithProbe` em src/integration/localTestData.ts), em vez de
-        # pular a suíte em silêncio.
-        env:
-          LOCAL_PG_INTEGRATION: '1'
-          LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
-        run: npm run test:local-pg
-
-      - name: Replay the database again before the reverse pass
-        # Banco limpo para a passada invertida: no banco da passada natural, a
-        # suíte que depende sem querer do que outra deixou (A antes de B)
-        # encontraria esse estado também na ordem invertida e passaria.
-        run: sudo scripts/setup-local-pg.sh --reset
-
-      - name: Run the SQL contract suites in reverse order
-        # Falha aqui e não na passada natural indica dependência de ordem
-        # entre suítes (aceite da Etapa 12 do plano de correção das importações).
-        env:
-          LOCAL_PG_INTEGRATION: '1'
-          LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
-        run: npm run test:local-pg -- --reverse
-
-      - name: Run the financial battery after the other suites
-        env:
-          LOCAL_PG_INTEGRATION: '1'
-          LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
-        run: npx vitest run src/integration/financialBattery.local-pg.test.ts
-
-      - name: Verify the executed RPC catalog
-        # `npm run rpc:check` existia no package.json sem nenhum gate a executá-lo.
-        env:
-          LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
-        run: npm run rpc:check
-
-      - name: Apply seed on the replayed database
-        # Supabase branches e `db reset` aplicam seed.sql automaticamente; sem
-        # este passo, o caminho banco-novo+seed só era provado nos Previews,
-        # nunca no gate da PR. Roda DEPOIS das asserções (elas são pré-seed).
-        # O próprio seed.sql já aborta se tarifas (3/24/12) ou depots (9/4/50)
-        # estiverem incompletos (B1 da revisão final: sem seed, 0/0/0).
-        run: sudo -u postgres psql -d vela_test -v ON_ERROR_STOP=1 -q -f - < supabase/seed.sql
-
-      - name: Log post-seed tariff counts
-        # Evidência B1: bootstrap exige migrations + seed; migrations sozinhas
-        # sobem sem tarifas. Só loga — a trava real está nas asserções do seed.
-        run: sudo -u postgres psql -d vela_test -v ON_ERROR_STOP=1 -q -c "SELECT (SELECT count(*) FROM public.charge_tables) AS charge_tables, (SELECT count(*) FROM public.charge_table_items) AS charge_table_items, (SELECT count(*) FROM public.demurrage_rates) AS demurrage_rates;"
-
   # Gate único exigido pela proteção de branch. `skipped` no gate (PR só de
-  # docs) e no migration-replay (diff sem supabase/SQL) conta como passou.
+  # docs) conta como passou. O replay de migrations não é job daqui: roda no
+  # gate local e, se faltasse, este agregador não teria como exigi-lo.
   # Cancelamento por concurrency não dispara este job: o run novo é quem reporta.
   checks:
     name: checks
     runs-on: ubuntu-latest
-    needs: [changes, gate, migration-replay]
+    needs: [changes, gate]
     if: ${{ !cancelled() && github.event.pull_request.draft == false }}
     steps:
       - name: Verify required jobs
@@ -273,10 +163,7 @@ jobs:
           set -euo pipefail
           changes="${{ needs.changes.result }}"
           gate="${{ needs.gate.result }}"
-          replay="${{ needs.migration-replay.result }}"
           echo "changes: $changes"
           echo "gate:    $gate"
-          echo "migration-replay: $replay"
           [ "$changes" = "success" ]
           case "$gate" in success|skipped) ;; *) exit 1 ;; esac
-          case "$replay" in success|skipped) ;; *) exit 1 ;; esac

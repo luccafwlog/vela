@@ -15,7 +15,7 @@ O staging publica o `index.html` correspondente a cada projeto e copia somente s
 
 | Workflow | Gatilho | Resultado |
 |---|---|---|
-| `.github/workflows/ci.yml` | PR pronta contra `main` (rascunho não roda) | Um job de lint, build, testes e guardas; replay de migrations só se o diff mexe em supabase/SQL. Não roda de novo no push em `main`. |
+| `.github/workflows/ci.yml` | PR pronta contra `main` (rascunho não roda) | Um job de lint, build, testes e guardas. O replay de migrations ficou no gate local. Não roda de novo no push em `main`. |
 | `.github/workflows/cloudflare-pages-preview.yml` | Etiqueta `preview` na PR, ou execução manual a partir de `main` | Aguarda o check Supabase Preview da branch vinculada à PR e publica os dois previews privados; sem essa branch, termina com falha depois de cerca de 6 min de espera. |
 | `.github/workflows/cloudflare-pages-preview-cleanup.yml` | PR interna fechada | Remove deployments antigos de preview da branch; a Cloudflare mantém o deployment mais recente. |
 | `.github/workflows/cloudflare-pages-production.yml` | Push em `main` ou execução manual | Publica as duas pastas na produção quando `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`. |

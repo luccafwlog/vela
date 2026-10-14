@@ -14,6 +14,7 @@ assert.deepEqual(classifyPaths(['src/pages/Home.tsx']), { code: true, migrations
 assert.deepEqual(classifyPaths(['supabase/migrations/220_example.sql']), { code: true, migrations: true })
 assert.deepEqual(classifyPaths(['src/integration/foo.local-pg.test.ts']), { code: true, migrations: true })
 assert.deepEqual(classifyPaths(['scripts/setup-local-pg.sh', 'AGENTS.md']), { code: true, migrations: true })
+assert.deepEqual(classifyPaths(['scripts/replay-local-pg.sh']), { code: true, migrations: true })
 assert.deepEqual(classifyPaths(['.github/workflows/ci.yml']), { code: true, migrations: false })
 
 const cli = spawnSync(process.execPath, [script], { input: 'docs/a.md\nsrc/App.tsx\n', encoding: 'utf8' })

@@ -74,6 +74,14 @@ marcado com `ponytail:` em `src/test/setup.ts`, e a cobertura do artefato ativo
 segue nos gates citados no item 3 mais o `migration-replay` do CI
 (`scripts/check-squash-replay.sql`, replay real em PostgreSQL descartável).
 
+## Nota editorial — 2026-10-14 (não reescreve a decisão acima)
+
+O replay real em PostgreSQL descartável saiu do CI. Quem altera `supabase/`
+ou as suítes locais roda `scripts/replay-local-pg.sh` no gate local do
+Claude Code, antes de commit e push. O agregador `checks` do GitHub não
+espera mais esse job. O procedimento está em
+[WORKFLOW.md](../../WORKFLOW.md#11-testes-e-validação).
+
 ## Nota editorial — 2026-09-03, nº 2 (não reescreve a decisão acima)
 
 O item 1 da decisão diz "chaves estrangeiras com comportamento `ON DELETE`

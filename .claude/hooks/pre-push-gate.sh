@@ -1,6 +1,7 @@
 #!/bin/bash
 # Antes de git commit ou git push, roda o gate local. Bloqueia o comando (exit 2)
 # se algum passo falhar. Diff só de Markdown/docs roda o gate documental.
+# Diff que mexe em supabase/ ou nas suítes local-pg também roda o replay.
 # Pular só com pedido explícito: CLAUDE_SKIP_LOCAL_GATE=1.
 set -euo pipefail
 
@@ -95,8 +96,10 @@ if git rev-parse --verify --quiet origin/main >/dev/null; then
   )"
   class="$(printf '%s\n' "$files" | node scripts/ci-path-filter.mjs)"
   code="$(printf '%s\n' "$class" | awk -F= '/^code=/{print $2}')"
+  migrations="$(printf '%s\n' "$class" | awk -F= '/^migrations=/{print $2}')"
 else
   code=true
+  migrations=true
 fi
 
 run_step() {
@@ -116,6 +119,12 @@ else
   run_step npm run build
   run_step python3 -B -m unittest discover -s scripts/security -p 'test_*.py'
   run_step python3 -B scripts/security/verificar_guardas.py --ci
+fi
+
+# Replay só quando o diff mexe em supabase/, suítes local-pg ou nos scripts
+# desse replay. Sem PostgreSQL 16 o script explica o pré-requisito e falha.
+if [[ "$migrations" == "true" ]]; then
+  run_step scripts/replay-local-pg.sh
 fi
 
 tree=""

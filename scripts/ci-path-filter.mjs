@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Classifica um diff (um caminho por linha no stdin) para o CI barato.
 // `code=false` pula lint/build/test: só Markdown ou docs/.
-// `migrations=true` liga o job migration-replay.
+// `migrations=true` liga o replay local (scripts/replay-local-pg.sh).
 // Saída estável para $GITHUB_OUTPUT: duas linhas code= e migrations=.
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
@@ -14,6 +14,7 @@ const MIGRATION_FILES = new Set([
   'scripts/run-local-pg-suites.mjs',
   'scripts/local-pg-suites.mjs',
   'scripts/check-rpc-catalog.mjs',
+  'scripts/replay-local-pg.sh',
 ])
 
 export function classifyPaths(files) {
