@@ -1053,7 +1053,7 @@ function buildScheduleTimeline(
         kind: 'escala-date',
         at,
         title: `${TIMELINE_SCHEDULE_DATE_LABELS[row.field_name]} ${changed ? 'alterado' : 'registrado'} · ${port}`,
-        detail: appendActor(changed ? `${formatDate(oldValue)} -> ${formatDate(value)}` : formatDate(value), row),
+        detail: appendActor(changed ? `${formatDate(oldValue)} → ${formatDate(value)}` : formatDate(value), row),
       })
     } else if (row.field_name === 'escala_number' && value) {
       events.push({
@@ -1144,7 +1144,7 @@ function buildAuditTimeline(
         kind: 'ce-master',
         at,
         title: oldValue ? 'Nº de Manifesto Mercante alterado' : 'Nº de Manifesto Mercante definido',
-        detail: appendActor(oldValue ? `${oldValue} -> ${value}` : value, row),
+        detail: appendActor(oldValue ? `${oldValue} → ${value}` : value, row),
       })
       continue
     }
@@ -1222,6 +1222,14 @@ function buildAuditTimeline(
   return events
 }
 
+const RESOLUTION_FIELD_LABELS: Record<string, string> = {
+  is_imo: 'IMO',
+  imo_class: 'Classe IMO',
+  un_number: 'Número ONU',
+  ownership: 'COC/SOC',
+  profile: 'Perfil de carga',
+}
+
 function buildResolutionTimeline(resolutions: VoyageTimelineInput['resolutions']): VoyageTimelineEvent[] {
   return (resolutions ?? []).flatMap((resolution, index) => {
     if (!resolution.resolved_at) return []
@@ -1230,7 +1238,9 @@ function buildResolutionTimeline(resolutions: VoyageTimelineInput['resolutions']
       kind: 'divergence-resolved' as const,
       at: resolution.resolved_at,
       title: 'Divergência conciliada',
-      detail: resolution.field_name ? `Campo ${resolution.field_name}` : 'Baplie -> Manifesto',
+      // Nunca o nome técnico do campo (lote 1 da identidade): campo sem nome
+      // traduzido cai na frase genérica.
+      detail: (resolution.field_name && RESOLUTION_FIELD_LABELS[resolution.field_name]) ?? 'Baplie → Manifesto',
     }]
   })
 }

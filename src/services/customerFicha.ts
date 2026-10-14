@@ -30,6 +30,7 @@ export type FichaBlRow = Pick<BLListItem,
   | 'bb_weight_ton' | 'bb_packages_total' | 'bb_packages_qty' | 'bb_machine_qty' | 'bb_cbm'
 > & {
   cancelled_at?: string | null
+  consignee?: string | null
   voyage: { id: number; voyage_number: string | null; vessel: { name: string | null } | null } | null
   bl_containers: Array<{ id: number; container_number: string | null }> | null
   bl_breakbulk_items: Array<{ id: number }> | null
@@ -37,12 +38,23 @@ export type FichaBlRow = Pick<BLListItem,
 
 // ponytail: busca todos os B/Ls do Cliente em lotes de 1.000 e pagina na
 // tela; com milhares de B/Ls por Cliente, trocar por paginação no banco.
+/**
+ * Nome do manifesto que vale mostrar sob o B/L (aba BLs, lote 1): só quando
+ * difere do nome do Cliente, comparando sem acento, pontuação nem caixa.
+ */
+export function differingConsignee(consignee: string | null | undefined, customerName: string): string | null {
+  const name = consignee?.trim()
+  if (!name) return null
+  const plain = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^0-9A-Za-z]+/g, ' ').trim().toUpperCase()
+  return plain(name) === plain(customerName) ? null : name
+}
+
 export async function fetchCustomerBls(customerId: number): Promise<FichaBlRow[]> {
   const rows: FichaBlRow[] = []
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from('bls')
-      .select('id, cargo_mode, pol, pod, ce_mercante, charge_status, financial_status, created_at, cancelled_at, bb_weight_ton, bb_packages_total, bb_packages_qty, bb_machine_qty, bb_cbm, voyage:voyages(id, voyage_number, vessel:vessels(name)), bl_containers(id, container_number), bl_breakbulk_items(id)')
+      .select('id, consignee, cargo_mode, pol, pod, ce_mercante, charge_status, financial_status, created_at, cancelled_at, bb_weight_ton, bb_packages_total, bb_packages_qty, bb_machine_qty, bb_cbm, voyage:voyages(id, voyage_number, vessel:vessels(name)), bl_containers(id, container_number), bl_breakbulk_items(id)')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: false })
       .range(from, from + 999)
@@ -291,10 +303,13 @@ export function buildCustomerTimeline(sources: TimelineSources): CustomerTimelin
     }
   })
 
+  // Motivo escrito pelo sistema é texto técnico ("Reparo automático da fila do
+  // Portal durante a leitura."): o Histórico mostra só o autor "Sistema"
+  // (lote 1 da identidade). O motivo de uma pessoa é justificativa e fica.
   const actorName = (id: string | null | undefined) => (id ? sources.actorNames?.get(id) ?? UNKNOWN_ACTOR : null)
   const events: Array<Omit<CustomerTimelineEvent, 'subject' | 'actor'> & { actor?: string | null }> = [
     ...sources.auditLogs.filter((row) => row.changed_at).map((row) => ({ kind: 'cadastro_audit' as const, sourceId: String(row.id), at: row.changed_at!, ...auditEventText(row), link: null, actorId: row.changed_by ? (sources.actorNames?.get(row.changed_by) ?? row.changed_by) : null, actor: actorName(row.changed_by) })),
-    ...sources.portalEvents.map((row) => ({ kind: 'portal_event' as const, sourceId: String(row.id), at: row.created_at, label: `Portal: ${row.new_decision ? provisioningDecisionLabel(row.new_decision) : row.new_situation ? accountSituationLabel(row.new_situation) : 'evento'}`, detail: row.reason, link: null, actor: row.actor_type === 'system' ? 'Sistema' : actorName(row.actor_id) })),
+    ...sources.portalEvents.map((row) => ({ kind: 'portal_event' as const, sourceId: String(row.id), at: row.created_at, label: `Portal: ${row.new_decision ? provisioningDecisionLabel(row.new_decision) : row.new_situation ? accountSituationLabel(row.new_situation) : 'evento'}`, detail: row.actor_type === 'system' ? null : row.reason, link: null, actor: row.actor_type === 'system' ? 'Sistema' : actorName(row.actor_id) })),
     ...sources.contacts.filter((row) => row.created_at).map((row) => ({ kind: 'contact_created' as const, sourceId: String(row.id), at: row.created_at!, label: `Contato criado: ${row.name ?? '—'}`, detail: null, link: null })),
     ...contactEvents,
     ...sources.localInvoices.filter((row) => row.issued_at).map((row) => ({ kind: 'local_invoice_issued' as const, sourceId: String(row.id), at: row.issued_at!, label: `Fatura emitida: ${row.invoice_number ?? `INV-${row.id}`}`, detail: null, link: `/taxas-locais?${sources.customerId ? `customer=${sources.customerId}&` : ''}invoice=${row.id}` })),

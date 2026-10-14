@@ -101,7 +101,8 @@ export function getBillingBlock(row: {
     const noLines = row.totals.line_count === 0 && row.totals.review_required_count === 0 && !(row.review_status === 'pending_review' && !portalOnly)
     return {
       code: 'calculo_incompleto',
-      label: noLines ? 'Cálculo sem linhas' : 'Cálculo incompleto',
+      // Nomes da proposta aprovada (lote 1): o motivo diz o que falta.
+      label: noLines ? 'Cálculo sem linhas' : row.totals.review_required_count > 0 || row.review_status === 'pending_review' ? 'Taxa em revisão' : 'Cálculo incompleto',
       detail: row.billing_hold_reason ?? (reasons.length ? `Revisão pendente: ${reasons.join(', ')}` : row.totals.review_required_count > 0 ? 'Há linhas de taxa com revisão pendente.' : 'Sem linhas de taxa: o cálculo não encontrou cobrança que se aplique.'),
     }
   }
@@ -116,7 +117,7 @@ export function getBillingBlock(row: {
   if (portalOnly) {
     return {
       code: 'portal_nao_provisionado',
-      label: 'Portal não provisionado',
+      label: 'Conta do Portal não ativa',
       detail: 'Cliente sem acesso provisionado ao portal: a fatura não pode ser disponibilizada a quem deve pagá-la.',
     }
   }

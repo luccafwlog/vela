@@ -16,6 +16,13 @@
   (migration `223`), estado de Taxas locais da lista de BLs pelo financeiro, sem B/L cancelado em Pendente (`222`, `226`), solicitações
   de Desbloqueio de CE na ficha do Cliente (`224`, `227`) e o Saldo pendente do Modo Inspeção igual ao
   que o Cliente vê (`225`).
+  Passe completo contra a página aprovada (mesmo dia): a primeira entrega tinha deixado de fora
+  itens aprovados, agora feitos — Condição VIP e cobertura dos Documentos anuais ("Coberto até" ou
+  "Falta"), "Não concedida" na Liberação e "Sem conta" no Acesso ao Portal como dado principal,
+  e-mail na faixa do Cliente, "Quem recebe os Comunicados" em tabela própria, nome do manifesto
+  sob o B/L, Vencimento e Disputa na Demurrage do Financeiro, solicitações em andamento primeiro
+  (`228`), motivos "Taxa em revisão" e "Conta do Portal não ativa" e a data da falha da emissão
+  automática na Validação, trecho no detalhe de Demurrage do Portal e ✓ de Paga no detalhe interno.
 - **Carregamento inicial do Vela menor (2026-10-14):** o sino de notificações e a cotação do
   cabeçalho deixaram de carregar o relatório de saída da agência e o leitor de planilha de
   Demurrage em toda tela; os rótulos do relatório (`agencyReportLabels.ts`) e a cotação

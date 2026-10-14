@@ -11204,48 +11204,6 @@ td.app-cargo-num {
   gap: 12px;
 }
 
-.app-customer-coverage {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-}
-
-.app-customer-coverage__box {
-  display: grid;
-  align-content: start;
-  gap: 4px;
-  min-width: 0;
-  padding: 10px 12px;
-  font-size: var(--app-size-table);
-}
-
-.app-customer-coverage__box + .app-customer-coverage__box {
-  border-left: 1px solid var(--app-border);
-}
-
-.app-customer-coverage__box dt {
-  display: grid;
-  gap: 2px;
-  margin-bottom: 4px;
-}
-
-.app-customer-coverage__label {
-  color: var(--app-text-strong);
-  font-weight: 600;
-}
-
-.app-customer-coverage__desc {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-customer-coverage__box dd {
-  margin: 0;
-}
-
 .app-customer-coverage__email {
   display: flex;
   align-items: baseline;
@@ -11426,7 +11384,6 @@ td.app-cargo-num {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .app-customer-coverage,
   .app-customer-boxes__grid,
   .app-customer-subsections {
     grid-template-columns: minmax(0, 1fr);
@@ -11434,11 +11391,6 @@ td.app-cargo-num {
 
   .app-customer-contact__fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .app-customer-coverage__box + .app-customer-coverage__box {
-    border-top: 1px solid var(--app-border);
-    border-left: 0;
   }
 
   .app-customer-form__grid--three {
@@ -13968,6 +13920,10 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-danger-fg);
 }
 
+.app-lead__value--muted {
+  color: var(--app-muted);
+}
+
 .app-lead__detail {
   margin: 0;
   color: var(--app-muted);
@@ -13989,6 +13945,13 @@ tr[data-inactive] .app-rates-item__value {
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+
+/* Dado que repete uma coluna escondida abaixo de 1024 px (`hidden lg:table-cell`). */
+@media (min-width: 1024px) {
+  .app-facts__item--narrow-only {
+    display: none;
+  }
 }
 
 .app-facts__label {

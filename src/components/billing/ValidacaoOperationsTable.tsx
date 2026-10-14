@@ -9,6 +9,7 @@ import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { useBlLocalChargeLines } from '../../hooks/useLocalCharges'
 import { formatBRL, formatCnpjCpf } from '../../lib/utils'
+import { bandText, CALM_CODES, type ReasonEvent } from './validacaoBand'
 import { formatPortDisplayName } from '../../lib/voyageFormat'
 import { isCustomerReconciliationResolved } from '../../services/customerReconciliation'
 import type { LocalChargeOperationalRow } from '../../services/charges/chargeOperationsService'
@@ -33,6 +34,7 @@ export function ValidacaoOperationsTable({
   areAllRowsSelected,
   expandedBlId,
   reconciliationQueue,
+  reasonEvents,
   onToggleAllRows,
   onToggleRow,
   onToggleExpandedRow,
@@ -46,6 +48,8 @@ export function ValidacaoOperationsTable({
   areAllRowsSelected: boolean
   expandedBlId: string | null
   reconciliationQueue: ReconciliationQueueItem[]
+  /** Fato do histórico que explica o motivo, por B/L (ex.: falha da emissão automática). */
+  reasonEvents?: ReadonlyMap<string, ReasonEvent>
   onToggleAllRows: () => void
   onToggleRow: (blId: string) => void
   onToggleExpandedRow: (blId: string) => void
@@ -134,11 +138,12 @@ export function ValidacaoOperationsTable({
                         <div className="grid items-start gap-4 xl:grid-cols-2">
                           <Block title="Situação do B/L" headingLevel={4}>
                             <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2 ${block.code === 'pronto' ? 'border-[var(--app-success-border)] bg-[var(--app-success-bg)] text-[var(--app-success-fg)]' : CALM_CODES.has(block.code) ? 'border-[var(--app-border)] bg-[var(--app-surface)]' : 'border-[var(--app-warning-border)] bg-[var(--app-warning-bg)] text-[var(--app-warning-fg)]'}`}>
-                              <p className="font-semibold">{bandText(block)}</p>
+                              <p className="font-semibold">{bandText(block, reasonEvents?.get(row.id))}</p>
                               <ResolveAction row={row} code={block.code} onIssue={onIssueSingleInvoice} onRecalculate={onRecalculateRow} />
                             </div>
                             <FactList>
-                              <Fact label="Navio / Viagem">{voyage || <NoValue label="Sem navio e viagem" />}</Fact>
+                              {/* Só abaixo de 1024 px, onde a coluna Navio / Viagem some da tabela. */}
+                              <Fact label="Navio / Viagem" className="app-facts__item--narrow-only">{voyage || <NoValue label="Sem navio e viagem" />}</Fact>
                               <Fact label="Trecho">{formatPortDisplayName(row.pol)} → {formatPortDisplayName(row.pod)}</Fact>
                               <Fact label="CE Mercante">{row.ce_mercante?.trim() ? <CopyValue value={row.ce_mercante} label="CE Mercante" /> : <NoValue label="CE Mercante não informado" />}</Fact>
                               <Fact label="Cliente" detail={!row.customer?.id && queueItem?.manifest_customer_name ? 'Nome no manifesto; sem Cliente vinculado' : null}>
@@ -165,16 +170,6 @@ export function ValidacaoOperationsTable({
       </div>
     </>
   )
-}
-
-/** Estados que não pedem ação: a faixa fica neutra, sem âmbar. */
-const CALM_CODES = new Set(['faturado', 'isento', 'operacao_granito'])
-
-/** "Sem linhas de taxa: …" já diz o motivo; os outros levam o rótulo antes do detalhe. */
-function bandText(block: { code: string; label: string; detail: string }) {
-  if (!block.detail) return block.label
-  if (/^[^:]{3,40}: /.test(block.detail)) return block.detail
-  return `${block.label}: ${block.detail.replace(/^./, (first) => first.toLowerCase())}`
 }
 
 /**

@@ -201,14 +201,22 @@ do container compartilhado.
   B/L pago voltava como "Cálculo incompleto" oferecendo Emitir). B/L **Pronto
   para emitir** (tudo certo e a fatura não saiu sozinha) fica na fila normal com
   o botão Emitir; antes só aparecia com "Incluir resolvidos". Sem linhas de taxa,
-  o motivo se chama "Cálculo sem linhas".
+  o motivo se chama "Cálculo sem linhas"; com taxa em revisão, "Taxa em revisão";
+  a retenção pelo Portal, "Conta do Portal não ativa" (código
+  `portal_nao_provisionado`). Quando há Alerta aberto do B/L que explica o
+  motivo, a faixa da linha aberta traz a data: "A emissão automática falhou em
+  dd/mm/aaaa." (`billing_auto_issue_failed`) ou "Cálculo bloqueado desde
+  dd/mm/aaaa." (`billing_calculation_blocked`), lidos da mesma consulta dos
+  avisos financeiros (`src/components/billing/validacaoBand.ts`). O título
+  resume "N B/Ls aguardando emissão" e só cita a seleção quando há B/L marcado.
 - **Exportar:** uma planilha só (`exportValidacaoWorkbook`), uma linha por B/L,
   com B/L, Cliente, CNPJ, Navio / Viagem, Trecho, Modo de carga, Motivo, Detalhe
   do motivo, Último cálculo, Subtotal, Contêiner compartilhado (ADR 0038: B/L com
   taxa rateada por contêiner lista os contêineres que divide, "CSNU1 (2 B/Ls)") e
   uma coluna por taxa com o total dela no B/L (`fetchChargeTotalsByBl`); taxa em
   US$ tem coluna própria "(US$)". Respeita
-  a seleção e, sem seleção, o filtro. A "Visão filtrada" e a "Conferência do
+  a seleção e, sem seleção, o filtro; o botão diz quantos ("Exportar 7 B/Ls") e o
+  arquivo se chama `validacao-taxas-locais-AAAA-MM-DD.xlsx`. A "Visão filtrada" e a "Conferência do
   escopo" saíram.
 - **Ajustes de COD (ADR 0051):** `src/components/billing/CodAdjustmentsPanel.tsx`
   lê a fila de `cod_adjustments` com status `pending` e só monta o painel quando

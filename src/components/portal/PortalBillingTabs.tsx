@@ -336,6 +336,7 @@ function FiltersControls({ filters, onFilters, vesselOptions, pods }: { filters:
 function renderBlList(bls: string[] | null | undefined, copy: boolean): ReactNode {
   if (!bls || bls.length === 0) return <NoValue label="Sem B/L" />
   if (bls.length === 1 && copy) return <CopyValue value={bls[0]} label="número do B/L" />
-  if (bls.length <= 2) return bls.join(', ')
-  return `${bls.slice(0, 2).join(', ')} +${bls.length - 2}`
+  // Como em Taxas Locais · Faturas: o primeiro B/L e "+N", com todos ao passar o mouse.
+  if (bls.length === 1) return bls[0]
+  return <span title={bls.join(', ')}>{bls[0]} +{bls.length - 1}</span>
 }

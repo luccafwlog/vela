@@ -15,6 +15,7 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
 }))
 
 import { ValidacaoOperationsTable } from '../ValidacaoOperationsTable'
+import { bandText } from '../validacaoBand'
 import type { LocalChargeOperationalRow } from '../../../services/charges/chargeOperationsService'
 
 afterEach(() => {
@@ -223,7 +224,7 @@ describe('links de resolução da pendência', () => {
       }],
       expandedBlId: 'BL-001',
     })
-    expect(screen.getByText('Portal não provisionado')).toBeTruthy()
+    expect(screen.getByText('Conta do Portal não ativa')).toBeTruthy()
     const link = screen.getAllByRole('link', { name: /Abrir Cliente/ })[0]
     expect(link.getAttribute('href')).toBe('/clientes/11222333000144')
   })
@@ -239,7 +240,7 @@ describe('links de resolução da pendência', () => {
       }],
       expandedBlId: 'BL-001',
     })
-    expect(screen.getByText('Portal não provisionado')).toBeTruthy()
+    expect(screen.getByText('Conta do Portal não ativa')).toBeTruthy()
     expect(screen.queryByRole('link', { name: /Abrir Cliente/ })).toBeNull()
   })
 })
@@ -351,3 +352,17 @@ describe('conferência de cálculo na expansão', () => {
   })
 })
 
+
+describe('faixa da situação com a data do histórico', () => {
+  const block = { code: 'calculo_incompleto', label: 'Taxa em revisão', detail: 'Há linhas de taxa com revisão pendente.' }
+  it('põe a data da falha da emissão automática na faixa', () => {
+    expect(bandText({ code: 'pronto', label: 'Pronto para emitir', detail: 'Tudo certo' }, { kind: 'auto_issue_failed', at: '2026-10-12T15:00:00Z' }))
+      .toBe('A emissão automática falhou em 12/10/2026. Pronto para emitir: tudo certo')
+  })
+  it('sem fato no histórico, a faixa fica só com o motivo', () => {
+    expect(bandText(block)).toBe('Taxa em revisão: há linhas de taxa com revisão pendente.')
+  })
+  it('B/L já faturado não ganha data de falha antiga', () => {
+    expect(bandText({ code: 'faturado', label: 'Faturado', detail: 'Fatura já emitida.' }, { kind: 'auto_issue_failed', at: '2026-10-12T15:00:00Z' })).toBe('Faturado: fatura já emitida.')
+  })
+})

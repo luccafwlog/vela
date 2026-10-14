@@ -75,7 +75,7 @@ export function PortalDemurrageDetailModal({
               </p>
             ) : null}
 
-            <Block title="Contêineres" aside={`B/L ${invoice.bl_id} · ${containerCount}`} headingLevel={3} flush>
+            <Block title="Contêineres" aside={[`B/L ${invoice.bl_id}`, invoice.pol || invoice.pod ? `${invoice.pol ?? '—'} → ${invoice.pod ?? '—'}` : null, containerCount].filter(Boolean).join(' · ')} headingLevel={3} flush>
               <div className="app-table-scroll">
                 <table className="app-table app-table--compact text-sm">
                   <caption className="sr-only">Containers e valores da invoice de demurrage</caption>

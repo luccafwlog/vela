@@ -79,7 +79,7 @@ export function buildCadastroChanges(audit: AuditRow[], events: ContactEventRow[
     const justification = typeof summary.justification === 'string' && summary.justification.trim()
       ? summary.justification.trim()
       : summary.action === 'customer_created' ? 'Cadastro inicial' : null
-    const by = event.actor_id ? actor(event.actor_id) : event.source === 'interno' || event.source === 'portal' ? null : 'Sistema'
+    const by = event.actor_id ? actor(event.actor_id) : event.source === 'interno' || event.source === 'portal' ? null : 'Feito pelo sistema'
     diffContactSnapshots(event.before_snapshot, event.after_snapshot).forEach((change, index) => {
       rows.push({ id: `contact-${event.id}-${index}`, at: event.created_at, ...change, by: by ?? (event.source === 'portal' ? 'Cliente pelo Portal' : null), justification })
     })

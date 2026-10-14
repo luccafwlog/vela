@@ -21,7 +21,7 @@ import {
 } from '../../hooks/useLocalCharges'
 import { formatBRL, formatUSD, normalizeText } from '../../lib/utils'
 import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
-import { ConsolidatedMark } from '../ui/StatusText'
+import { ConsolidatedMark, StatusText } from '../ui/StatusText'
 import { InvoiceSituation } from '../billing/InvoiceSituation'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 import { classifyDbError } from '../../lib/errors'
@@ -272,7 +272,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         <div className="app-bl-section-head__title-group">
           <h2 id="bl-taxas" className="app-bl-section-title">Taxas Locais</h2>
           {chargesLocked
-            ? <Badge tone="success">{statusLabel(FINANCIAL_STATUS_LABELS, bl.financial_status ?? 'invoiced')}</Badge>
+            ? <StatusText tone={bl.financial_status === 'paid' ? 'paid' : 'default'}>{statusLabel(FINANCIAL_STATUS_LABELS, bl.financial_status ?? 'invoiced')}</StatusText>
             : <Badge tone={resolveChargeStatusTone(bl.charge_status)}>{resolveChargeStatusLabel(bl.charge_status)}</Badge>}
           {bl.charge_exemption_reason ? <span className="app-bl-facts__sub">Isenção: {bl.charge_exemption_reason}</span> : null}
         </div>

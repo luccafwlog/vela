@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, RefreshCw } from 'lucide-react'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
@@ -12,6 +12,8 @@ import { runGraniteBatch } from '../../services/graniteBillingWorkflow'
 import { getBillingBlock, isBlLockedForRecalc } from './validacaoPipeline'
 import { ValidacaoControls } from './ValidacaoControls'
 import { ValidacaoOperationsTable } from './ValidacaoOperationsTable'
+import type { ReasonEvent } from './validacaoBand'
+import { getEffectiveAlertType, listFinancialAlerts } from '../../services/alerts'
 import type { LocalChargeOperationalRow } from '../../services/charges/chargeOperationsService'
 import type { BillingBlockCode, BatchOperation, OpsFilters } from './validacaoTypes'
 
@@ -129,6 +131,25 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
   }
   async function handleRecalculateRow(row: LocalChargeOperationalRow) { await runBatchOperation('recalculate', [row.id]) }
 
+  // Mesma consulta dos avisos acima das abas (cache compartilhado): o Alerta
+  // aberto do B/L dá a data do fato que explica o motivo.
+  const financialAlertsQuery = useQuery({ queryKey: queryKeys.alerts.financial(), queryFn: listFinancialAlerts, staleTime: 60_000 })
+  const reasonEvents = useMemo(() => {
+    const map = new Map<string, ReasonEvent>()
+    for (const alert of financialAlertsQuery.data ?? []) {
+      const type = getEffectiveAlertType(alert)
+      if (alert.entity_type !== 'bl' || !alert.entity_id || !alert.created_at) continue
+      const kind = type === 'billing_auto_issue_failed' ? 'auto_issue_failed' : type === 'billing_calculation_blocked' ? 'calculation_blocked' : null
+      if (!kind) continue
+      const current = map.get(alert.entity_id)
+      // A falha de emissão explica mais que o bloqueio de cálculo; entre iguais, a mais antiga.
+      if (!current || (kind === 'auto_issue_failed' && current.kind !== kind) || (kind === current.kind && alert.created_at < current.at)) {
+        map.set(alert.entity_id, { kind, at: alert.created_at })
+      }
+    }
+    return map
+  }, [financialAlertsQuery.data])
+
   const exportCount = selectedOpsRows.length || displayedRows.length
   return (
     <Block
@@ -137,12 +158,12 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
       flush
       aside={(
         <>
-          <span aria-live="polite">{operationsLoading ? 'Carregando…' : `${displayedRows.length} B/L${displayedRows.length === 1 ? '' : 's'} ${opsFilters.includeResolved ? 'no recorte' : 'aguardando emissão'} · ${selectedOpsRows.length} selecionado${selectedOpsRows.length === 1 ? '' : 's'}`}</span>
+          <span aria-live="polite">{operationsLoading ? 'Carregando…' : `${displayedRows.length} B/L${displayedRows.length === 1 ? '' : 's'} ${opsFilters.includeResolved ? 'no recorte' : 'aguardando emissão'}${selectedOpsRows.length ? ` · ${selectedOpsRows.length} selecionado${selectedOpsRows.length === 1 ? '' : 's'}` : ''}`}</span>
           <Button variant="secondary" className="app-btn--sm" onClick={() => void runBatchOperation('recalculate')} loading={batchCalculateMutation.isPending} disabled={!selectedOpsRows.length}>
             <RefreshCw size={14} aria-hidden="true" />Recalcular selecionados
           </Button>
           <Button variant="secondary" className="app-btn--sm" loading={exportingOps} loadingLabel="Exportando…" disabled={!exportCount} onClick={() => void handleExport()}>
-            <Download size={14} aria-hidden="true" />Exportar ({exportCount})
+            <Download size={14} aria-hidden="true" />Exportar {exportCount} B/L{exportCount === 1 ? '' : 's'}
           </Button>
         </>
       )}
@@ -150,7 +171,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
       <div className="app-block__body">
         <ValidacaoControls filters={opsFilters} truncated={Boolean(operationsResult?.truncated)} onUpdateFilter={updateOpsFilter} />
       </div>
-      <ValidacaoOperationsTable rows={displayedRows} isLoading={operationsLoading} hasError={Boolean(operationsError)} selectedRowIds={selectedOpsRows} areAllRowsSelected={areAllOpsRowsSelected} expandedBlId={expandedBlId} reconciliationQueue={reconciliationQueue ?? []} onToggleAllRows={toggleAllOpsRows} onToggleRow={toggleOpsRow} onToggleExpandedRow={(id) => setExpandedBlId((current) => current === id ? null : id)} onIssueSingleInvoice={(row) => void handleIssueSingleInvoice(row)} onRecalculateRow={(row) => void handleRecalculateRow(row)} />
+      <ValidacaoOperationsTable rows={displayedRows} isLoading={operationsLoading} hasError={Boolean(operationsError)} selectedRowIds={selectedOpsRows} areAllRowsSelected={areAllOpsRowsSelected} expandedBlId={expandedBlId} reconciliationQueue={reconciliationQueue ?? []} reasonEvents={reasonEvents} onToggleAllRows={toggleAllOpsRows} onToggleRow={toggleOpsRow} onToggleExpandedRow={(id) => setExpandedBlId((current) => current === id ? null : id)} onIssueSingleInvoice={(row) => void handleIssueSingleInvoice(row)} onRecalculateRow={(row) => void handleRecalculateRow(row)} />
     </Block>
   )
 }

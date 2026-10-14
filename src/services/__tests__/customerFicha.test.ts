@@ -4,7 +4,7 @@ import type { FichaInvoiceRow } from '../customerFicha'
 const { mockFrom, mockRpc } = vi.hoisted(() => ({ mockFrom: vi.fn(), mockRpc: vi.fn() }))
 vi.mock('../supabase', () => ({ supabase: { from: mockFrom, rpc: mockRpc } }))
 
-const { buildConsolidatedBalance, buildCustomerTimeline, fetchCustomerPendingReconciliation, fetchCustomerReceivables, buildCustomerInvoiceLines, filterCustomerInvoiceLines } = await import('../customerFicha')
+const { buildConsolidatedBalance, buildCustomerTimeline, differingConsignee, fetchCustomerPendingReconciliation, fetchCustomerReceivables, buildCustomerInvoiceLines, filterCustomerInvoiceLines } = await import('../customerFicha')
 
 describe('buildConsolidatedBalance', () => {
   it('soma local emitido não pago (emitida e parcial) + demurrage não pago', () => {
@@ -47,7 +47,7 @@ describe('buildCustomerTimeline', () => {
         { id: 1, field_name: 'name', old_value: 'A', new_value: 'B', changed_at: '2026-07-02T10:00:00Z', justification: null, changed_by: 'user-1' },
         { id: 2, field_name: 'zip', old_value: null, new_value: '1', changed_at: '2026-07-01T10:00:00Z', justification: null, changed_by: 'user-sem-nome' },
       ],
-      portalEvents: [{ id: 3, new_decision: 'authorized', new_situation: null, reason: null, created_at: '2026-07-03T10:00:00Z', actor_id: null, actor_type: 'system' }],
+      portalEvents: [{ id: 3, new_decision: 'authorized', new_situation: null, reason: 'Reparo automático da fila do Portal durante a leitura.', created_at: '2026-07-03T10:00:00Z', actor_id: null, actor_type: 'system' }],
       contacts: [],
       localInvoices: [],
       payments: [{ id: 9, amount_brl: 100, paid_at: '2026-07-06T10:00:00Z', registered_by_name: 'Bruno', invoice: { id: 4, invoice_number: 'INV-1' } }],
@@ -62,6 +62,8 @@ describe('buildCustomerTimeline', () => {
       ['Cadastro', 'Usuário interno'],
       ['B/Ls', null],
     ])
+    // Motivo técnico do sistema não aparece no Histórico.
+    expect(events.find((event) => event.subject === 'Portal')?.detail).toBeNull()
   })
 
   it('ordena pela data real mesmo com formatos diferentes e traduz o campo auditado', () => {
@@ -264,5 +266,13 @@ describe('Faturas e Recebíveis num bloco só (aba Financeiro)', () => {
     expect(byBl[0].kind === 'invoice' && byBl[0].invoice.bl_ids).toEqual(['BL-A', 'BL-B'])
     expect(filterCustomerInvoiceLines(lines, { search: '', situation: 'paid', from: '', to: '' }).map((line) => line.kind === 'invoice' && line.invoice.id)).toEqual([2])
     expect(filterCustomerInvoiceLines(lines, { search: '', situation: '', from: '2026-09-01', to: '' }).map((line) => line.kind === 'invoice' && line.invoice.id)).toEqual([1])
+  })
+})
+
+describe('differingConsignee', () => {
+  it('mostra o nome do manifesto só quando difere do nome do Cliente', () => {
+    expect(differingConsignee('Comércio Alfa Ltda.', 'COMERCIO ALFA LTDA')).toBeNull()
+    expect(differingConsignee('ALFA IMPORTS', 'Comércio Alfa Ltda')).toBe('ALFA IMPORTS')
+    expect(differingConsignee(null, 'Comércio Alfa Ltda')).toBeNull()
   })
 })

@@ -126,7 +126,7 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
 
         <Block title="Portal" aside={portalRetained ? <StatusText tone="warning">Faturas retidas</StatusText> : null}>
           <LeadValue tone={portalRetained ? 'warning' : 'default'} detail="Conta de Portal">{portalSituation}</LeadValue>
-          {portalRow && !portalLooksReadyForBilling(portalRow, recoveryEmailVisible) ? (
+          {portalQuery.isSuccess && (!portalRow || !portalLooksReadyForBilling(portalRow, recoveryEmailVisible)) ? (
             <FactList columns={1}>
               <Fact label="Liberação sem Portal">
                 {releaseQuery.isLoading ? 'Carregando…'
@@ -139,7 +139,7 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
             </FactList>
           ) : null}
           {/* Conta não ativa: o dado principal já diz a situação; fica o motivo e os caminhos. */}
-          <Pendencies items={portalItems} onNavigateTab={onNavigateTab} hideTitle={Boolean(portalRow) && hasPortalPendency(portalRow!)} />
+          <Pendencies items={portalItems} onNavigateTab={onNavigateTab} hideTitle={portalRow ? hasPortalPendency(portalRow) : portalQuery.isSuccess} />
         </Block>
 
         <Block title="Contato principal">

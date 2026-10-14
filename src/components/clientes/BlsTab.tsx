@@ -13,6 +13,7 @@ import { formatCountLabel } from '../../lib/utils'
 import type { BLListItem } from '../../types/database'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
 import { revisaoHref } from './fichaOverview'
+import { differingConsignee } from '../../services/customerFicha'
 
 type Data = NonNullable<ReturnType<typeof useCustomerDetail>['data']>
 
@@ -99,10 +100,12 @@ export function BlsTab({ data }: { data: Data }) {
                 <tbody>
                   {shown.map((bl) => {
                     const voyage = bl.voyage ? `${bl.voyage.vessel?.name ?? 'Navio'} / ${bl.voyage.voyage_number ?? '—'}` : null
+                    const consignee = differingConsignee(bl.consignee, data.name)
                     return (
                       <tr key={bl.id}>
                         <td className="whitespace-nowrap">
                           <CopyValue value={bl.id} label="número do B/L"><Link className="app-customer-link app-customer-code" to={`/bls/${bl.id}`}>{bl.id}</Link></CopyValue>
+                          {consignee ? <span className="app-facts__detail block" title="Nome no manifesto">{consignee}</span> : null}
                         </td>
                         <td className="app-table__text">
                           {voyage ? <Link className="app-customer-link" to={`/viagens/${bl.voyage!.id}`} title={voyage}>{voyage}</Link> : <NoValue label="Sem viagem" />}

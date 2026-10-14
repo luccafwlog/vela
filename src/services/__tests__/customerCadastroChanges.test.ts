@@ -25,7 +25,7 @@ describe('Alterações do cadastro do Cliente', () => {
       new Map([['u1', 'Ana Ribeiro']]),
     )
     expect(rows.map((row) => [row.what, row.to, row.by, row.justification])).toEqual([
-      ['Caixas do contato Mariana', 'Demurrage', 'Sistema', 'Caixa sem destinatário'],
+      ['Caixas do contato Mariana', 'Demurrage', 'Feito pelo sistema', 'Caixa sem destinatário'],
       ['Nome fantasia', 'Atlântico Imports', 'Ana Ribeiro', 'Cadastro inicial'],
     ])
   })

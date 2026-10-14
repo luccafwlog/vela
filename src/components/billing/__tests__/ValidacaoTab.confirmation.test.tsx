@@ -41,6 +41,7 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
   useCustomerReconciliationQueue: () => ({ data: [] }),
   useLocalChargeOperations: () => ({ data: { rows: mocks.rows, truncated: false }, isLoading: false, error: null }),
 }))
+vi.mock('../../../services/alerts', () => ({ listFinancialAlerts: vi.fn().mockResolvedValue([]), getEffectiveAlertType: (alert: { alert_type: string }) => alert.alert_type }))
 vi.mock('../../../services/graniteBillingWorkflow', () => ({ runGraniteBatch: vi.fn() }))
 vi.mock('../../../services/billing', () => ({ markBlReadyAndCreateInvoice: mocks.issue }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
@@ -121,6 +122,6 @@ describe('ValidacaoTab — confirmação de gravações financeiras', () => {
     renderTab()
     expect(screen.getByRole('button', { name: 'Selecionar BL-LOCAL-77' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Selecionar BL-PAGO' })).toBeNull()
-    expect(screen.getByText('1 B/L aguardando emissão · 0 selecionados')).toBeTruthy()
+    expect(screen.getByText('1 B/L aguardando emissão')).toBeTruthy()
   })
 })

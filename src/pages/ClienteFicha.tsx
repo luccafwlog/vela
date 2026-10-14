@@ -88,6 +88,8 @@ export function ClienteFicha() {
   const { deactivated_at: deactivatedAt, deactivation_reason: deactivationReason } = data as typeof data & Deactivation
   const place = [data.city, data.state].filter(Boolean).join('/')
   const blCount = data.bls?.length ?? 0
+  // E-mail do contato principal ativo, o mesmo do bloco Contato principal da Visão geral.
+  const primaryEmail = data.customer_contacts?.find((contact) => contact.is_primary && !contact.deactivated_at && Boolean(contact.email?.trim()))?.email ?? null
 
   const menu: ActionMenuItem[] = [
     { key: 'faturas', label: 'Ver faturas em Taxas Locais', icon: <ReceiptText size={14} aria-hidden="true" />, to: buildCustomerBillingUrl(data) },
@@ -106,6 +108,7 @@ export function ClienteFicha() {
           { label: 'CNPJ', value: data.cnpj_cpf ? <span className="tabular-nums"><CopyValue value={formatCnpjCpf(data.cnpj_cpf)} label="CNPJ/CPF" /></span> : <NoValue label="Sem CNPJ/CPF" /> },
           ...(data.trade_name ? [{ label: 'Nome fantasia', value: data.trade_name }] : []),
           ...(place ? [{ label: 'Cidade', value: place }] : []),
+          { label: 'E-mail', value: primaryEmail ?? <NoValue label="Sem e-mail do contato principal" /> },
           { label: 'B/Ls vinculados', value: blCount.toLocaleString('pt-BR') },
         ]}
         actions={(
@@ -142,7 +145,7 @@ export function ClienteFicha() {
         {activeTab === 'desbloqueio-ce' ? (
           <div className="grid gap-4">
             <CeUnlockRequestsBlock customerId={data.id} manage={can('ce_unlock_manage')} />
-            <Card><CeUnlockVipCoveragePanel customerId={data.id} manage={can('ce_unlock_manage')} /></Card>
+            <CeUnlockVipCoveragePanel customerId={data.id} manage={can('ce_unlock_manage')} />
           </div>
         ) : null}
       </div>

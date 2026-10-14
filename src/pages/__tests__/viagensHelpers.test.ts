@@ -557,7 +557,7 @@ describe('buildVoyageTimeline', () => {
     expect(events.map((event) => event.kind)).toEqual(['pod-added', 'restow', 'ce-status', 'escala-date', 'escala-date'])
     expect(events.find((event) => event.title.includes('ETD'))?.title).toBe('ETD registrado · CNSHA')
     expect(events.find((event) => event.title.includes('ATA'))?.title).toBe('ATA alterado · BRVIX')
-    expect(events.find((event) => event.title.includes('ATA'))?.detail).toBe('11/06/2026 -> 12/06/2026 · por user-2')
+    expect(events.find((event) => event.title.includes('ATA'))?.detail).toBe('11/06/2026 → 12/06/2026 · por user-2')
     expect(events.find((event) => event.kind === 'ce-status')?.detail).toBe('Recebido → Aprovado')
     expect(events.find((event) => event.kind === 'restow')?.detail).toBe('RTW 3')
   })
@@ -617,7 +617,7 @@ describe('buildVoyageTimeline', () => {
 
     expect(events.map((event) => event.kind)).toEqual(['ce-master', 'voyage-data'])
     expect(events[0].title).toBe('Nº de Manifesto Mercante alterado')
-    expect(events[0].detail).toBe('CE000 -> CE999')
+    expect(events[0].detail).toBe('CE000 → CE999')
     expect(events[1].title).toBe('Dados da viagem alterados')
     expect(events[1].detail).toBe('Nº da viagem: 001E → 002E · por user-1')
   })

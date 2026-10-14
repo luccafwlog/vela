@@ -5,7 +5,7 @@ import { ArrowRight } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
-import { Block } from '../ui/Block'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { CadastroChangesBlock } from './CadastroChangesBlock'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Field, Input, Textarea } from '../ui/Input'
@@ -14,7 +14,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useCustomerDetail } from '../../hooks/useCustomers'
 import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvisioning'
 import { PortalReviewPanel } from '../portal/PortalReviewPanel'
-import { accountSituationLabel, deliveryStatusLabel, hasBrokenRecoveryEmail, recoveryEmailSourceLabel } from '../../lib/portalProvisioningViewModel'
+import { accountSituationLabel, deliveryStatusLabel, hasBrokenRecoveryEmail, hasPortalPendency, recoveryEmailSourceLabel } from '../../lib/portalProvisioningViewModel'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { formatCnpjCpf, formatDate } from '../../lib/utils'
 import { updateCustomerWithAudit } from '../../services/customers'
@@ -199,7 +199,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
         </form>
       </Block>
 
-      <div>
+      <>
         <CustomerContactConfiguration
           customerId={data.id}
           canEdit={canEditContacts}
@@ -217,7 +217,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
             void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.cadastroChanges(data.id) })
           }}
         />
-      </div>
+      </>
 
       <PortalAccessSection customerId={data.id} />
 
@@ -264,22 +264,27 @@ function PortalAccessSection({ customerId }: { customerId: number }) {
           <Button variant="secondary" className="app-btn--sm" onClick={() => void refetch()}>Tentar novamente</Button>
         </div>
       ) : null}
+      {!isLoading && !isError ? (
+        <LeadValue tone={!portalRow || hasPortalPendency(portalRow) ? 'warning' : 'default'} detail="Conta de Portal">
+          {portalRow ? accountSituationLabel(portalRow.account_situation) : 'Sem conta'}
+        </LeadValue>
+      ) : null}
       {!isLoading && !isError && !portalRow ? (
         <p className="app-customer-muted">Este Cliente ainda não está na fila do Portal. A fila é criada no cadastro; abra o Provisionamento para conferir.</p>
       ) : null}
 
       {portalRow && !portalOpen ? (
         <>
-          <dl className="app-customer-facts">
-            <div><dt>Situação da conta</dt><dd>{accountSituationLabel(portalRow.account_situation)}</dd></div>
-            <div>
-              <dt>Email de Recuperação</dt>
-              <dd className="app-customer-facts__break">{portalRow.recovery_email ?? 'Não informado'}</dd>
-              {portalRow.recovery_email ? <dd className="app-customer-facts__sub">{recoveryEmailSourceLabel(portalRow.recovery_email_source)}</dd> : null}
-            </div>
-            <div><dt>Entrega do último envio</dt><dd>{deliveryStatusLabel(portalRow.latestDeliveryStatus)}</dd></div>
-            <div><dt>Último evento</dt><dd className="tabular-nums">{portalRow.lastActivityAt ? formatDate(portalRow.lastActivityAt) : 'Nenhum'}</dd></div>
-          </dl>
+          <FactList columns={3}>
+            <Fact
+              label="Email de Recuperação"
+              detail={portalRow.recovery_email ? recoveryEmailSourceLabel(portalRow.recovery_email_source) : null}
+            >
+              <span className="app-customer-facts__break">{portalRow.recovery_email ?? <NoValue label="Sem Email de Recuperação" />}</span>
+            </Fact>
+            <Fact label="Entrega do último envio">{portalRow.latestDeliveryStatus ? deliveryStatusLabel(portalRow.latestDeliveryStatus) : <NoValue label="Nenhum envio" />}</Fact>
+            <Fact label="Último evento"><span className="tabular-nums">{portalRow.lastActivityAt ? formatDate(portalRow.lastActivityAt) : <NoValue label="Nenhum evento" />}</span></Fact>
+          </FactList>
           {portalRow.hasCriticalAlert || hasBrokenRecoveryEmail(portalRow) || portalRow.sharedEmailCount > 0 ? (
             <ul className="app-customer-warnings">
               {portalRow.hasCriticalAlert ? <li>Há um alerta crítico do Portal aberto para este Cliente.</li> : null}

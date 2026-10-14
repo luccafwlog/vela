@@ -101,17 +101,19 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
 
   const portalKnown = track('Portal', input.portal)
   const releaseKnown = track('Liberação de faturamento', input.releaseUntil)
-  if (portalKnown && input.portal) {
-    const portal = input.portal
-    if (!portalLooksReadyForBilling(portal, input.recoveryEmailVisible)) {
+  if (portalKnown) {
+    // Sem linha na fila do Portal (`false`) é o mesmo que "sem conta": o gate
+    // de faturamento fica fechado do mesmo jeito.
+    const portal = input.portal || null
+    if (!portal || !portalLooksReadyForBilling(portal, input.recoveryEmailVisible)) {
       // Conta não ativa, ou ativa sem Email de Recuperação utilizável: nos
       // dois casos o gate fica fechado e a fatura, retida.
-      const accountActive = !hasPortalPendency(portal)
-      const cause = accountActive
+      const accountActive = portal ? !hasPortalPendency(portal) : false
+      const cause = portal && accountActive
         ? (hasBrokenRecoveryEmail(portal) ? 'Email de Recuperação com falha' : 'Conta de Portal sem Email de Recuperação')
         : null
-      const situation = accountSituationLabel(portal.account_situation).toLowerCase()
-      const critical = portal.hasCriticalAlert
+      const situation = portal ? accountSituationLabel(portal.account_situation).toLowerCase() : 'sem conta'
+      const critical = portal?.hasCriticalAlert ?? false
       if (releaseKnown && input.releaseUntil) {
         items.push({
           key: 'portal',
@@ -133,7 +135,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
           actions: [provisioningLink, { label: 'Liberação na aba Financeiro', tab: 'financeiro' }],
         })
       }
-    } else if (portal.hasCriticalAlert) {
+    } else if (portal?.hasCriticalAlert) {
       items.push({
         key: 'portal',
         block: 'portal',

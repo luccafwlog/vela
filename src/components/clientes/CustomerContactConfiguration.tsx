@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import { Plus } from 'lucide-react'
 import { Block } from '../ui/Block'
+import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
 import { InlineError } from '../ui/Card'
 import { Badge } from '../ui/Badge'
@@ -291,13 +292,13 @@ export function CustomerContactConfiguration({
   }
 
   if (loading) {
-    return <p className="app-customer-muted" role="status">Carregando contatos e Caixas de Comunicação…</p>
+    return <p className="app-customer-muted" role="status">Carregando contatos e quem recebe os Comunicados…</p>
   }
 
   if (loadError) {
     return (
       <div className="app-customer-stack-tight">
-        <h2 className="app-customer-section-title">Contatos e Caixas de Comunicação</h2>
+        <h2 className="app-customer-section-title">Contatos</h2>
         <div className="app-customer-notice app-customer-notice--danger" role="alert">
           <span>Não foi possível carregar os contatos: {loadError}</span>
           <Button variant="secondary" className="app-btn--sm" onClick={() => void loadConfig()}>Tentar novamente</Button>
@@ -307,8 +308,50 @@ export function CustomerContactConfiguration({
   }
 
   return (
+    <>
+    <Block title="Quem recebe os Comunicados" headingLevel={2} flush>
+      <p className="app-customer-muted app-block__body">Cada caixa precisa de pelo menos um contato ativo com e-mail; sem substituto, o principal recebe.</p>
+      <div className="app-table-scroll">
+        <table className="app-table app-table--compact">
+          <caption className="sr-only">Destinatários por caixa</caption>
+          <thead>
+            <tr>
+              <th scope="col">Caixa</th>
+              <th scope="col">O que recebe</th>
+              <th scope="col">Quem recebe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
+              const linkedContacts = drafts.filter(
+                (d) => d.active && d.email && d.boxCodes.includes(box.code),
+              )
+              return (
+                <tr key={box.code}>
+                  <th scope="row" className="whitespace-nowrap font-semibold">{box.label}</th>
+                  <td className="app-table__text">{box.description}</td>
+                  <td className="app-table__text">
+                    {linkedContacts.length === 0 ? (
+                      <StatusText tone="warning">Nenhum contato com e-mail</StatusText>
+                    ) : (
+                      linkedContacts.map((c, i) => (
+                        <span key={i} className="app-customer-coverage__email">
+                          <span className="app-customer-cell__truncate" title={c.email ?? undefined}>{c.email}</span>
+                          {c.isPrimary ? <span className="app-customer-coverage__tag">principal</span> : null}
+                        </span>
+                      ))
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Block>
+
     <Block
-      title="Contatos e Caixas de Comunicação"
+      title="Contatos"
       headingLevel={2}
       aside={canEdit ? (
         <Button type="button" variant="secondary" className="app-btn--sm" onClick={handleAddContact}>
@@ -318,35 +361,6 @@ export function CustomerContactConfiguration({
       ) : null}
     >
     <div className="app-customer-contacts">
-      <p className="app-customer-muted">Quem recebe os Comunicados. Cada caixa precisa de pelo menos um contato ativo com e-mail; sem substituto, o principal recebe.</p>
-
-      {/* Quem recebe cada caixa, como a conferência de Comunicados mostra. */}
-      <dl className="app-customer-coverage" aria-label="Destinatários por caixa">
-        {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
-          const linkedContacts = drafts.filter(
-            (d) => d.active && d.email && d.boxCodes.includes(box.code),
-          )
-          return (
-            <div key={box.code} className="app-customer-coverage__box" data-empty={linkedContacts.length === 0 ? 'true' : undefined}>
-              <dt>
-                <span className="app-customer-coverage__label">{box.label}</span>
-                <span className="app-customer-coverage__desc">{box.description}</span>
-              </dt>
-              {linkedContacts.length === 0 ? (
-                <dd className="app-customer-note app-customer-note--warning">Nenhum contato com e-mail</dd>
-              ) : (
-                linkedContacts.map((c, i) => (
-                  <dd key={i} className="app-customer-coverage__email">
-                    <span className="app-customer-cell__truncate" title={c.email ?? undefined}>{c.email}</span>
-                    {c.isPrimary ? <span className="app-customer-coverage__tag">principal</span> : null}
-                  </dd>
-                ))
-              )}
-            </div>
-          )
-        })}
-      </dl>
-
       {!canEdit && (
         <p className="app-customer-notice">
           Somente leitura: seu perfil não possui permissão para editar os contatos do cliente (Documentação, Equipamentos e Administrativo editam).
@@ -440,7 +454,7 @@ export function CustomerContactConfiguration({
                           checked={checked}
                           onChange={() => handleToggleBox(index, box.code)}
                         />
-                        {/* O que cada caixa recebe está no quadro de destinatários acima. */}
+                        {/* O que cada caixa recebe está no bloco Quem recebe os Comunicados. */}
                         <span className="app-customer-box__label">{box.label}</span>
                       </label>
                     )
@@ -477,5 +491,6 @@ export function CustomerContactConfiguration({
       </form>
     </div>
     </Block>
+    </>
   )
 }

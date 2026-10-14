@@ -72,13 +72,21 @@ function customerSearchTerm(data: { name: string; cnpj_cpf?: string | null }): s
 
 const PAGE_SIZE = 20
 
-function demurrageSituation(row: { status: string | null; dispute_open?: boolean | null; dispute_status?: string | null }) {
-  if (row.dispute_open || row.dispute_status === 'aberto') return <StatusText tone="warning">Em disputa</StatusText>
+// Demurrage na ficha (lote 1): a disputa tem coluna própria, então a
+// situação fala só da fatura.
+function demurrageSituation(row: { status: string | null }) {
   if (row.status === 'overdue') return <StatusText tone="warning">Vencida</StatusText>
   if (row.status === 'paid') return <StatusText tone="paid">Paga</StatusText>
   if (row.status === 'cancelled') return <StatusText tone="muted">Cancelada</StatusText>
   if (row.status === 'draft') return <StatusText tone="muted">Rascunho</StatusText>
   return <StatusText>Emitida</StatusText>
+}
+
+function demurrageDispute(row: { dispute_open?: boolean | null; dispute_status?: string | null }) {
+  if (row.dispute_open || row.dispute_status === 'aberto') return <StatusText tone="warning">Aberta</StatusText>
+  if (row.dispute_status === 'resolvido') return 'Resolvida'
+  if (row.dispute_status === 'cancelado') return <StatusText tone="muted">Cancelada</StatusText>
+  return <NoValue label="Sem disputa" />
 }
 
 function money(value: number | null | undefined, balance = false) {
@@ -104,7 +112,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
   const overrides = useCustomerRateOverrides(data.id)
   const manual = useCustomerManualChargeBls(data.id)
   const agreements = useCustomerDemurrageAgreements({ customerId: data.id })
-  const { data: portalRow } = usePortalProvisioningForCustomer(data.id)
+  const { data: portalRow, isSuccess: portalLoaded } = usePortalProvisioningForCustomer(data.id)
   // Acordo de Demurrage: só o Administrativo grava (policy admin_gerencia_customer_demurrage_agreements).
   const { isAdmin } = useAuth()
 
@@ -139,12 +147,14 @@ export function FinanceiroTab({ data }: { data: Data }) {
   const totalPages = Math.max(1, Math.ceil(shownCount / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const pageSlice = <T,>(rows: T[]) => rows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
-  const openLocalBrl = lines.reduce((sum, line) => {
+  // Resumo da faixa do título = o recorte filtrado (proposta: "total do recorte").
+  const openLocalBrl = localLines.reduce((sum, line) => {
     if (line.kind === 'no_invoice') return sum + Number(line.receivable.balance_brl ?? 0)
     const status = line.invoice.status ?? 'issued'
     return status === 'issued' || status === 'partially_paid' || status === 'overdue' ? sum + Number(line.invoice.balance_brl ?? 0) : sum
   }, 0)
   const invoiceCount = (inv.data?.rows ?? []).length
+  const openDemurrageUsd = demurrageRows.reduce((sum, row) => (row.status === 'issued' || row.status === 'overdue' ? sum + Number(row.total_usd ?? 0) : sum), 0)
 
   const payments = (pay.data?.rows ?? []).filter((row) => {
     if (!term) return true
@@ -172,7 +182,8 @@ export function FinanceiroTab({ data }: { data: Data }) {
 
   return (
     <div className="grid gap-4">
-      <BillingPortalReleaseCard customerId={data.id} portalReady={portalRow ? isPortalReadyForBilling(portalRow) : undefined} />
+      {/* Sem linha na fila do Portal = sem conta: o Portal não está pronto. */}
+      <BillingPortalReleaseCard customerId={data.id} portalReady={portalRow ? isPortalReadyForBilling(portalRow) : portalLoaded ? false : undefined} />
 
       <Block
         title="Faturas"
@@ -182,8 +193,14 @@ export function FinanceiroTab({ data }: { data: Data }) {
           <>
             {kind === 'local' && !restricted(inv.data?.denied) && inv.data ? (
               <span>
-                {formatCountLabel(invoiceCount, 'fatura', 'faturas')}
+                {formatCountLabel(localLines.length, 'fatura', 'faturas')}
                 {openLocalBrl > 0 ? <> · <StatusText tone="warning">{formatBRL(openLocalBrl)} em aberto</StatusText></> : null}
+              </span>
+            ) : null}
+            {kind === 'demurrage' && !restricted(dem.data?.denied) && dem.data ? (
+              <span>
+                {formatCountLabel(demurrageRows.length, 'fatura', 'faturas')}
+                {openDemurrageUsd > 0 ? <> · <StatusText tone="warning">{formatUSD(openDemurrageUsd)} em aberto</StatusText></> : null}
               </span>
             ) : null}
             {kind === 'local'
@@ -212,8 +229,8 @@ export function FinanceiroTab({ data }: { data: Data }) {
               <Select value={filter.situation} onChange={(event) => updateFilter({ situation: event.target.value as FichaInvoiceFilter['situation'] })}>
                 <option value="">Todas</option>
                 <option value="open">Em aberto</option>
-                <option value="paid">Paga</option>
-                <option value="cancelled">Cancelada</option>
+                <option value="paid">Pagas</option>
+                <option value="cancelled">Canceladas</option>
                 {kind === 'local' ? <option value="no_invoice">Sem fatura ativa</option> : null}
               </Select>
             </Field>
@@ -320,16 +337,17 @@ export function FinanceiroTab({ data }: { data: Data }) {
               <div className="app-table-scroll">
                 <table className="app-table app-table--compact">
                   <caption className="sr-only">Faturas de Demurrage do Cliente</caption>
-                  <thead><tr><th scope="col">Fatura</th><th scope="col">B/L</th><th scope="col">Emissão</th><th scope="col">Situação</th><th scope="col">Total US$</th><th scope="col">Total R$</th></tr></thead>
+                  <thead><tr><th scope="col">Fatura</th><th scope="col">B/L</th><th scope="col">Vencimento</th><th scope="col">Total US$</th><th scope="col">Total R$</th><th scope="col">Situação</th><th scope="col">Disputa</th></tr></thead>
                   <tbody>
                     {pageSlice(demurrageRows).map((row) => (
                       <tr key={row.id}>
                         <td className="whitespace-nowrap"><Link className="app-customer-link app-customer-code" to={demurrageInvoiceHref(row.id)} title={row.dispute_subject ?? undefined}>{row.doc_number}</Link></td>
                         <td className="whitespace-nowrap"><CopyValue value={row.bl_id} label="número do B/L"><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></CopyValue></td>
-                        <td className="whitespace-nowrap tabular-nums">{row.billed_at ? formatDate(row.billed_at) : <NoValue label="Sem emissão" />}</td>
-                        <td className="whitespace-nowrap">{demurrageSituation(row)}</td>
+                        <td className="whitespace-nowrap tabular-nums">{row.due_date ? formatDate(row.due_date) : <NoValue label="Sem vencimento" />}</td>
                         <td className="whitespace-nowrap tabular-nums">{formatUSD(row.total_usd)}</td>
                         <td className="whitespace-nowrap tabular-nums">{row.current_total_brl == null ? <NoValue label="Sem valor atual em R$" /> : money(row.current_total_brl, row.status === 'issued' || row.status === 'overdue')}</td>
+                        <td className="whitespace-nowrap">{demurrageSituation(row)}</td>
+                        <td className="whitespace-nowrap">{demurrageDispute(row)}</td>
                       </tr>
                     ))}
                   </tbody>

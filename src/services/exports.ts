@@ -580,5 +580,5 @@ export async function exportValidacaoWorkbook(
   const XLSX = await import('@e965/xlsx')
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, buildValidacaoSheetRows(rows, totals)), 'Validação')
-  XLSX.writeFile(workbook, `validacao-taxas-locais-${makeTimestamp()}.xlsx`)
+  XLSX.writeFile(workbook, `validacao-taxas-locais-${new Date().toLocaleDateString('en-CA')}.xlsx`)
 }
