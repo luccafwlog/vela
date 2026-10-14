@@ -70,6 +70,12 @@ function cleanup() {
     SET session_replication_role = replica;
     DELETE FROM public.audit_logs WHERE entity_id IN ('${BL}', '${DEM_INVOICE_ID}', '${DEM_DRAFT_ID}', '${DEM_ITEM_ID}')
       OR changed_by IN (${Object.values(PROFILES).map((id) => `'${id}'`).join(', ')});
+    CREATE TEMP TABLE p85_invoices AS SELECT id FROM public.invoices WHERE id = ${INVOICE_ID} OR customer_id = ${CUSTOMER_ID};
+    DELETE FROM public.itau_pix_charges WHERE invoice_id IN (SELECT id FROM p85_invoices);
+    DELETE FROM public.audit_logs WHERE entity_id IN (SELECT id::text FROM p85_invoices);
+    DELETE FROM public.invoice_lifecycle_events WHERE invoice_id IN (SELECT id FROM p85_invoices);
+    DELETE FROM public.invoice_items WHERE invoice_id IN (SELECT id FROM p85_invoices);
+    DELETE FROM public.invoices WHERE id IN (SELECT id FROM p85_invoices) AND id <> ${INVOICE_ID};
     DELETE FROM public.payments WHERE invoice_id = ${INVOICE_ID};
     DELETE FROM public.invoice_lifecycle_events WHERE invoice_id = ${INVOICE_ID};
     DELETE FROM public.invoice_receivable_links WHERE invoice_id = ${INVOICE_ID};
@@ -192,9 +198,18 @@ function migration231Applied(): boolean {
   }
 }
 
+function migration246Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('is_admin()' IN prosrc) = 0 FROM pg_proc WHERE oid = 'public.resolve_stale_invoice(bigint,text)'::regprocedure;`) === 't'
+  } catch {
+    return false
+  }
+}
+
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied(),
-  'migrations 231 a 235 (escrita de cobrança, contatos, situação financeira, faturas e exclusão só pelas RPCs)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied(),
+  'migrations 231 a 246 (escrita só pelas RPCs, autor conferido e emissão por qualquer Departamento)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -405,6 +420,33 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     const own = runAs('administrativo', `SELECT public.add_manual_bl_charge('${BL}', ${ITEM_MANUAL}, 1, 'Autor certo P85', '${PROFILES.administrativo}')`)
     expect(own.error).not.toMatch(/Autor informado difere/)
     psql(`SET session_replication_role = replica; DELETE FROM public.charge_calculations WHERE bl_id = '${BL}' AND notes = 'Autor certo P85'; SET session_replication_role = origin;`)
+  })
+
+  // A9 + P4 — emissão por qualquer Departamento (ADR 0083, item 9; ADR 0085, D3; migration 246).
+  it.each(ALL_PROFILES)('A9: %s emite fatura avulsa em nome próprio, com rastro', (profile) => {
+    const result = runAs(profile, `SELECT public.create_manual_invoice(${CUSTOMER_ID}, 'Avulsa P4 ${profile}', 1, 10, NULL, NULL, NULL, '${PROFILES[profile]}')`)
+    expect(result.error).toBe('')
+    const invoiceId = (JSON.parse(result.output) as { invoice_id: number }).invoice_id
+    expect(psql(`SELECT invoice_type || ':' || total_brl FROM public.invoices WHERE id = ${invoiceId};`)).toBe('manual:10.00')
+    expect(psql(`SELECT count(*) FROM public.invoice_lifecycle_events WHERE invoice_id = ${invoiceId};`)).not.toBe('0')
+  })
+
+  it.each(ALL_PROFILES)('P4: %s passa da guarda de perfil em todas as RPCs de emissão e correção', (profile) => {
+    // Entradas inexistentes: a recusa vem da regra de negócio, nunca do perfil.
+    const calls = [
+      `SELECT public.mark_bl_ready_and_create_invoice('P85-NAO-EXISTE')`,
+      `SELECT public.mark_bls_ready_and_create_invoice(ARRAY['P85-NAO-EXISTE'], ${CUSTOMER_ID})`,
+      `SELECT public.create_invoice_from_bls_with_ledger(ARRAY['P85-NAO-EXISTE'], ${CUSTOMER_ID})`,
+      `SELECT public.create_local_consolidated_invoice(${CUSTOMER_ID}, ARRAY[-1]::bigint[])`,
+      `SELECT public.issue_demurrage_invoice_for_bl('P85-NAO-EXISTE', 'P85-DEM-X')`,
+      `SELECT public.retry_pending_consolidated_reissue(-1)`,
+      `SELECT public.retry_invoice_basis_changes('P85-NAO-EXISTE')`,
+      `SELECT public.resolve_stale_invoice(-1, 'Conferida P4')`,
+    ]
+    for (const call of calls) {
+      const result = runAs(profile, call)
+      expect(result.error, `${profile}: ${call}`).not.toMatch(/sem permiss|Credenciais invalidas|Sem permissão/i)
+    }
   })
 
   it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {

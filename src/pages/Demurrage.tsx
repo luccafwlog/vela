@@ -102,7 +102,7 @@ export function Demurrage() {
   const { tab, search, lens } = state
 
   // Permissões das RPCs, para a tela não oferecer o que o banco recusa.
-  const canIssue = effectiveRole === 'administrativo' // issue_demurrage_invoice_for_bl (is_admin)
+  const canIssue = effectiveRole != null // issue_demurrage_invoice_for_bl: qualquer Departamento (ADR 0085, D3; migration 246)
   const canAdmin = effectiveRole === 'administrativo' // cancel_demurrage_invoice, reverse_demurrage_payment
   const canSettle = effectiveRole === 'financeiro' || effectiveRole === 'administrativo' // register_demurrage_payment, apply_demurrage_discount
   const canInformPtax = canSettle || effectiveRole === 'equipamentos' // migration 110

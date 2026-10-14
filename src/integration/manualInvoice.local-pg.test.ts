@@ -151,7 +151,8 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
     const before = Number(psql(`SELECT count(*) FROM public.invoices WHERE customer_id = ${customerA} AND invoice_type = 'manual';`))
     expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'BL de outro cliente', 1, 10, NULL, '${blB}', NULL, '${adminId}'::uuid);`))).toMatch(/não pertence|nao pertence/i)
     expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'Viagem incoerente', 1, 10, NULL, '${blA}', ${voyageB}, '${adminId}'::uuid);`))).toMatch(/não pertence|nao pertence/i)
-    expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'Sem permissão', 1, 10, NULL, NULL, NULL, '${operatorId}'::uuid);`, 'authenticated', operatorId))).toMatch(/permissao|permissão/i)
+    // Qualquer usuário interno ativo emite a avulsa (A9, migration 246), mas só em nome próprio.
+    expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'Autor forjado', 1, 10, NULL, NULL, NULL, '${adminId}'::uuid);`, 'authenticated', operatorId))).toMatch(/Autor informado difere/i)
     expect(Number(psql(`SELECT count(*) FROM public.invoices WHERE customer_id = ${customerA} AND invoice_type = 'manual';`))).toBe(before)
   })
 

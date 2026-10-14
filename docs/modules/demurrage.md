@@ -519,7 +519,7 @@ recálculo diário não há `draft`, `overdue` nem vencimento (ADR 0014). Só é
 emitida quando todos os containers não-SOC do grupo de B/Ls foram devolvidos;
 com container ainda fora os dias continuam correndo, e a aba `Containers` só
 monitora. Sai pelo botão **Gerar Invoice** ou **Gerar complementar**
-(hoje Administrativo; qualquer Departamento pelo item P4 do plano) ou pela planilha de datas, que enfileira `demurrage_billing`
+(qualquer Departamento, migration `246`) ou pela planilha de datas, que enfileira `demurrage_billing`
 para o `import-effects-runner`. O cálculo é do banco
 (`_calculate_demurrage_invoice_authoritative`, migration `191`): o navegador
 não envia itens nem valores, e `calculateDemurrage` só faz a previsão da aba

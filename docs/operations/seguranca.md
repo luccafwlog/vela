@@ -152,9 +152,9 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Criar e editar tabela, item e Condição de Cliente; lançar taxa manual | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `add_manual_bl_charge` | ADR 0046; decisão R6 de 2026-09-23 | vigente |
 | Desativar, reativar e excluir tarifa | ✔ | — | — | — | — | Gatilho `guard_tariff_active_change` (migration `091`); item e Condição de Cliente saem por `delete_catalog_row`, com motivo (migration `096`); a tabela (`charge_tables`) não tem exclusão desde a migration `235` | ADR 0073, item 4 | vigente |
 | Alterar valores do cálculo do B/L e a situação financeira do B/L | — | — | — | — | — | Só as RPCs de cálculo e faturamento | ADR 0077; ADR 0085 | vigente: `charge_calculations` sem escrita direta (migration `231`) e `bls.financial_status` recusado na escrita pela API pelo gatilho `guard_bl_financial_status_port` (migration `232`) (**Teste** local) |
-| Emitir fatura fora do automático: ficha do B/L, Validação, consolidada | ✔ | ✔ | ✔ | ✔ | ✔ | `mark_bl(s)_ready_and_create_invoice`, `create_invoice_from_bls*`, `create_local_consolidated_invoice` | ADR 0085, D3 | correção pendente: só Administrativo (P4) |
-| Corrigir fatura emitida: Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente, Resolver fatura desatualizada | ✔ | ✔ | ✔ | ✔ | ✔ | `retry_pending_consolidated_reissue`, `retry_invoice_basis_changes`, `resolve_stale_invoice` | ADR 0085, D3 | correção pendente: só Administrativo (P4) |
-| Emitir fatura avulsa, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `create_manual_invoice` | ADR 0083, item 9 | correção pendente: só Administrativo (A9 + P4) |
+| Emitir fatura fora do automático: ficha do B/L, Validação, consolidada | ✔ | ✔ | ✔ | ✔ | ✔ | `mark_bl(s)_ready_and_create_invoice`, `create_invoice_from_bls*`, `create_local_consolidated_invoice` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
+| Corrigir fatura emitida: Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente, Resolver fatura desatualizada | ✔ | ✔ | ✔ | ✔ | ✔ | `retry_pending_consolidated_reissue`, `retry_invoice_basis_changes`, `resolve_stale_invoice` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
+| Emitir fatura avulsa, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `create_manual_invoice` | ADR 0083, item 9 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
 | Registrar pagamento (baixa manual) | ✔ | ✔ | — | — | — | `register_verified_invoice_payment`, `register_invoice_payment`, `register_ledger_invoice_payment` | ADR 0085, base e D4 | correção pendente: só Administrativo (P5). A escrita direta em `payments` saiu (migration `233`) |
 | Cancelar baixa, com motivo | ✔ | — | — | — | — | `reverse_invoice_payment` (`is_admin`) | ADR 0071, item 13 | vigente |
 | Cancelar fatura, com motivo | ✔ | — | — | — | — | `cancel_invoice`, `obsolete_consolidated_invoice` (`is_admin`) | ADR 0085, base e D1; ADR 0071, item 13 | vigente: a escrita direta em `invoices` saiu (migration `233`, **Teste** local) |
@@ -169,7 +169,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
-| Gerar Invoice de Demurrage e complementar | ✔ | ✔ | ✔ | ✔ | ✔ | `issue_demurrage_invoice_for_bl` | ADR 0085, D3 | correção pendente: só Administrativo (P4) |
+| Gerar Invoice de Demurrage e complementar | ✔ | ✔ | ✔ | ✔ | ✔ | `issue_demurrage_invoice_for_bl` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
 | Registrar pagamento de Invoice de Demurrage | ✔ | ✔ | — | — | — | `register_demurrage_payment` (`is_financeiro_user`) | ADR 0085, base e D4 | vigente |
 | Aplicar ou alterar desconto | ✔ | ✔ | ✔ | ✔ | ✔ | `apply_demurrage_discount` | ADR 0085, D4 | correção pendente: só Financeiro e Administrativo (P5) |
 | Cancelar Invoice e cancelar baixa de Demurrage | ✔ | — | — | — | — | `cancel_demurrage_invoice`, `reverse_demurrage_payment` (`is_admin`) | ADR 0085, base; ADR 0071, item 13 | vigente |

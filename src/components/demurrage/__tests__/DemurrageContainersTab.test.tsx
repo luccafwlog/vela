@@ -115,7 +115,7 @@ describe('DemurrageContainersTab', () => {
     renderTab([row('BL-002', 2, { returned: true })], { canIssue: false })
     expect(screen.queryByRole('button', { name: /Gerar/ })).toBeNull()
     expect(screen.getByText('Pronto para faturar')).toBeTruthy()
-    expect(screen.getByText('Gerar Invoice é do Administrativo.')).toBeTruthy()
+    expect(screen.getByText('Gerar Invoice exige um perfil interno ativo.')).toBeTruthy()
   })
 
   it('a emissão em andamento fica no botão do B/L e trava só as outras emissões e as datas dele', () => {

@@ -90,12 +90,11 @@ describe('cobranças do B/L', () => {
     expect(mocks.markBlReadyAndCreateInvoice).not.toHaveBeenCalled()
   })
 
-  it('só o Administrativo vê Emitir fatura, e só com CE Mercante', () => {
+  it('qualquer Departamento vê Emitir fatura (ADR 0085, D3), e só com CE Mercante', () => {
     mocks.isAdmin = false
     render(<BlCobrancasSection bl={bl} />)
-    expect(screen.queryByRole('button', { name: 'Emitir fatura' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Emitir fatura' })).toBeTruthy()
     cleanup()
-    mocks.isAdmin = true
     render(<BlCobrancasSection bl={{ ...(bl as object), ce_mercante: null } as never} />)
     expect(screen.queryByRole('button', { name: 'Emitir fatura' })).toBeNull()
   })

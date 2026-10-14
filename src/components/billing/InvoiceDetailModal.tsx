@@ -406,7 +406,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                 </div>
               ) : null}
 
-              <StaleInvoiceResolutionPanel key={`stale-${invoiceId}`} invoiceId={Number(invoiceId)} hasPayment={Number(detailInvoice.total_paid_brl ?? 0) > 0} canResolve={isAdmin} />
+              <StaleInvoiceResolutionPanel key={`stale-${invoiceId}`} invoiceId={Number(invoiceId)} hasPayment={Number(detailInvoice.total_paid_brl ?? 0) > 0} />
 
               {detail.bls.length > 0 ? (
                 <section className="app-invoice-detail__section" aria-labelledby="invoice-detail-bls">
