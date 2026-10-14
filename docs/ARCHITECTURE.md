@@ -794,7 +794,9 @@ tentativas e supressões do Portal. Ambos preservam idempotência e novas
 tentativas de falhas transitórias. A simulação (`simulate: true`) só acontece no
 canal de Comunicados, inclusive a Régua de Cobrança, com a chave global de envio
 desligada; sem `RESEND_API_KEY`, o envio real falha e a tentativa fica
-registrada como `falha_permanente`. O envio real usa `PORTAL_FROM_EMAIL` e
+registrada como `falha_permanente`. A origem da API vem do secret opcional
+`RESEND_BASE_URL` (padrão `https://api.resend.com`), o que permite trocar por
+um provedor compatível sem mudar código. O envio real usa `PORTAL_FROM_EMAIL` e
 `PORTAL_REPLY_TO`; domínio próprio verificado continua sendo condição para o
 envio real ([Serviços externos § Resend](operations/servicos-externos.md#resend-envio)).
 

@@ -34,6 +34,8 @@ export type SendEmailInput = {
   attachments?: readonly EmailAttachment[]
   idempotencyKey: string
   resendApiKey?: string | null
+  /** Origem da API compatível com a Resend; sem valor, usa o secret `RESEND_BASE_URL` ou a Resend. */
+  apiBaseUrl?: string | null
   /** Somente produtores com chave de envio desligada podem pedir simulação. */
   simulate?: boolean
   from?: string | null
@@ -43,6 +45,15 @@ export type SendEmailInput = {
   recordAttempt: (input: { kind: string; to: string; idempotencyKey: string }) => Promise<EmailAttemptRecord>
   updateAttempt: (attemptId: string | number, update: EmailAttemptUpdate) => Promise<void>
   fetchImpl?: typeof fetch
+}
+
+const DEFAULT_API_BASE_URL = 'https://api.resend.com'
+
+// A MillionSend aceita as mesmas chamadas da Resend: trocar de provedor é
+// trocar `RESEND_BASE_URL` e `RESEND_API_KEY`, sem mudar o código.
+export function emailApiBaseUrl(configured?: string | null): string {
+  const value = (configured ?? (globalThis as { Deno?: { env: { get(name: string): string | undefined } } }).Deno?.env.get('RESEND_BASE_URL'))?.trim()
+  return value ? value.replace(/\/+$/, '') : DEFAULT_API_BASE_URL
 }
 
 const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504])
@@ -108,6 +119,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
   if (attempt.existing && ['falha_permanente', 'bounce', 'complaint'].includes(attempt.status)) return { ok: false }
 
   const fetchImpl = input.fetchImpl ?? fetch
+  const emailsUrl = `${emailApiBaseUrl(input.apiBaseUrl)}/emails`
   const body = JSON.stringify({
     from: input.from,
     to: [input.to],
@@ -132,7 +144,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
   // em vez de 409; gravar um nonce por tentativa se isso passar a importar.
   const providerIdempotencyKey = `${attempt.idempotencyKey ?? input.idempotencyKey}:${(await sha256Hex(body)).slice(0, 32)}`
   for (let index = 0; index < 3; index += 1) {
-    const response = await fetchImpl('https://api.resend.com/emails', {
+    const response = await fetchImpl(emailsUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${input.resendApiKey}`,

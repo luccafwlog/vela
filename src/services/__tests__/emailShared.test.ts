@@ -158,6 +158,25 @@ describe('sendEmail', () => {
 		}))
 	})
 
+  it('envia para o provedor configurado em RESEND_BASE_URL e volta para a Resend sem o secret', async () => {
+    const urlOf = async () => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'provider-1' }), { status: 200 }))
+      await sendEmail({ ...baseInput, fetchImpl: fetchMock })
+      return fetchMock.mock.calls[0][0]
+    }
+    expect(await urlOf()).toBe('https://api.resend.com/emails')
+
+    const secrets: Record<string, string> = { RESEND_BASE_URL: ' https://api.millionsend.com/ ' }
+    vi.stubGlobal('Deno', { env: { get: (name: string) => secrets[name] } })
+    try {
+      expect(await urlOf()).toBe('https://api.millionsend.com/emails')
+      secrets.RESEND_BASE_URL = ''
+      expect(await urlOf()).toBe('https://api.resend.com/emails')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('separa na Resend envios diferentes que herdaram a mesma chave local e mantém a do mesmo envio', async () => {
     const keyOf = async (html: string) => {
       const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'provider-1' }), { status: 200 }))
