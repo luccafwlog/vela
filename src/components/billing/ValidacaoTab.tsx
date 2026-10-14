@@ -7,7 +7,7 @@ import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useBatchCalculateLocalCharges, useCustomerReconciliationQueue, useLocalChargeOperations } from '../../hooks/useLocalCharges'
 import { queryKeys } from '../../services/queryKeys'
-import { createInvoiceFromBls } from '../../services/billing'
+import { markBlReadyAndCreateInvoice } from '../../services/billing'
 import { runGraniteBatch } from '../../services/graniteBillingWorkflow'
 import { getBillingBlock, isBlLockedForRecalc } from './validacaoPipeline'
 import { ValidacaoControls } from './ValidacaoControls'
@@ -124,7 +124,8 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
       reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o cancelamento é restrito ao perfil Administrativo; pagamentos seguem o fluxo próprio de estorno.',
     })
     if (!confirmed) return
-    try { await createInvoiceFromBls({ blIds: [row.id], customerId: row.customer.id, issueNow: true, actorId: userId }); await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }), queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() }), queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }), queryClient.invalidateQueries({ queryKey: queryKeys.bls.summary() })]); showToast(`Fatura emitida para ${row.id}.`, 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Falha ao emitir fatura individual.', 'error') }
+    // "Pronto para emitir" inclui B/L calculado ou revisado: a RPC marca pronto e emite numa transação, como a ficha do B/L.
+    try { await markBlReadyAndCreateInvoice({ blId: row.id, customerId: row.customer.id, actorId: userId }); await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }), queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all() }), queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }), queryClient.invalidateQueries({ queryKey: queryKeys.bls.summary() })]); showToast(`Fatura emitida para ${row.id}.`, 'success') } catch (error) { showToast(error instanceof Error ? error.message : 'Falha ao emitir fatura individual.', 'error') }
   }
   async function handleRecalculateRow(row: LocalChargeOperationalRow) { await runBatchOperation('recalculate', [row.id]) }
 

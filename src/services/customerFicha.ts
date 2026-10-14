@@ -96,7 +96,9 @@ export function buildCustomerInvoiceLines(invoices: FichaInvoiceRow[], receivabl
   const lines: FichaInvoiceLine[] = invoices.map((invoice) => ({
     kind: 'invoice' as const,
     invoice,
-    receivables: invoice.bl_ids.flatMap((blId) => receivablesByBl.get(blId) ?? []),
+    // Fatura cancelada não leva o recebível vivo do B/L: ele aparece na fatura
+    // que o cobre ou em "Sem fatura ativa", nunca duas vezes.
+    receivables: DEAD_INVOICE_STATUSES.has(invoice.status ?? '') ? [] : invoice.bl_ids.flatMap((blId) => receivablesByBl.get(blId) ?? []),
   }))
   for (const row of receivables) {
     if (Number(row.balance_brl) > 0 && row.status !== 'cancelled' && !coveredBls.has(row.bl_id)) lines.push({ kind: 'no_invoice', blId: row.bl_id, receivable: row })

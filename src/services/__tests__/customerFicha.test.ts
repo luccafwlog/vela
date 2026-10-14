@@ -247,8 +247,9 @@ describe('Faturas e Recebíveis num bloco só (aba Financeiro)', () => {
     )
     expect(lines.map((line) => (line.kind === 'invoice' ? `FAT-${line.invoice.id}:${line.receivables.map((row) => row.bl_id).join('+')}` : `sem:${line.blId}`))).toEqual([
       'FAT-1:BL-A+BL-B',
-      'FAT-2:BL-C',
-      // A fatura de BL-C foi cancelada e o saldo continua: não some.
+      // A fatura cancelada não leva o recebível vivo: o saldo aparece uma vez só,
+      'FAT-2:',
+      // em "Sem fatura ativa", porque a fatura de BL-C foi cancelada e o saldo continua.
       'sem:BL-C',
     ])
   })

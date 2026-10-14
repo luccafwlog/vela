@@ -42,7 +42,7 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
   useLocalChargeOperations: () => ({ data: { rows: mocks.rows, truncated: false }, isLoading: false, error: null }),
 }))
 vi.mock('../../../services/graniteBillingWorkflow', () => ({ runGraniteBatch: vi.fn() }))
-vi.mock('../../../services/billing', () => ({ createInvoiceFromBls: mocks.issue }))
+vi.mock('../../../services/billing', () => ({ markBlReadyAndCreateInvoice: mocks.issue }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../ValidacaoControls', () => ({
@@ -110,7 +110,8 @@ describe('ValidacaoTab — confirmação de gravações financeiras', () => {
     await user.click(screen.getByRole('button', { name: 'Emitir teste' }))
 
     await waitFor(() => expect(mocks.issue).toHaveBeenCalledWith({
-      blIds: ['BL-LOCAL-77'], customerId: 9, issueNow: true, actorId: 'user-1',
+      // Marca pronto e emite numa transação: B/L calculado ou revisado também emite.
+      blId: 'BL-LOCAL-77', customerId: 9, actorId: 'user-1',
     }))
     expect(mocks.confirm.mock.calls[0][0].reversibility).toContain('não pode ser apagada')
   })
