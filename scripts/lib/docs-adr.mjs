@@ -4,8 +4,10 @@
 
 export const ADR_STATUSES = ['aceito', 'estendida', 'supersedida parcialmente', 'substituída', 'obsoleta']
 
+// A linha pode abrir com o status ou trazê-lo depois de outro campo separado
+// por "·" (ex.: "**Data:** 2026-10-13 · **Status:** aceito").
 const statusPattern = new RegExp(
-  `^\\**Status:?\\**:?\\s*\\**\\s*(${ADR_STATUSES.join('|')})\\b`,
+  `^(?:[^\\n]*·\\s*)?\\**Status:?\\**:?\\s*\\**\\s*(${ADR_STATUSES.join('|')})\\b`,
   'im',
 )
 

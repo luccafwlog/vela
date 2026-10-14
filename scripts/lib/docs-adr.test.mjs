@@ -4,7 +4,9 @@ import { adrFileStatus, adrNeedsBanner, hasSituationBanner, isDatedLivingDocumen
 assert.equal(adrFileStatus('# 0001 — X\n\nStatus: supersedida parcialmente — 2026-06-03\n'), 'supersedida parcialmente')
 assert.equal(adrFileStatus('# 0050 — X\n\n**Status:** aceito\n'), 'aceito')
 assert.equal(adrFileStatus('# 0044 — X\n\nStatus: substituída pela ADR 0046 — 2026-08-13\n'), 'substituída')
+assert.equal(adrFileStatus('# 0081 — X\n\n**Data:** 2026-10-13 · **Status:** aceito\n'), 'aceito')
 assert.equal(adrFileStatus('# 0011 — X\n\nDecidido em junho.\n'), null)
+assert.equal(adrFileStatus('# 0012 — X\n\nO Status: aceito foi discutido.\n'), null)
 
 assert.equal(hasSituationBanner('# X\n\n> **Situação atual (2026-10-13).** A regra vigente está no módulo.\n'), true)
 assert.equal(hasSituationBanner('# X\n\n> **Nota editorial — 2026-09-23.** Algo mudou.\n'), false)
