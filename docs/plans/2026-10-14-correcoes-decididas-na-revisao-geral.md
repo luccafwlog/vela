@@ -78,6 +78,16 @@ frente porque bloqueia a ativação do Desbloqueio de CE.
 | 42 | P14 | **Texto do perfil e bateria por perfil.** Atualizar `PROFILE_SCOPES` (`src/services/adminUsers.ts`), que ainda descreve só as três exceções da ADR 0046. Criar uma suíte `local-pg` que percorre a matriz de Segurança e, para cada linha, executa a ação como cada perfil e confere permitido ou recusado, inclusive a escrita direta pela API nas tabelas de P1, P2, P3 e P15. Registrar a suíte em `scripts/local-pg-suites.txt`. | ADR 0085, Consequências; relatório do modelo de permissões, seção 3.1 |
 | 43 | A4 | `.claude/hooks/protect-files.sh` bloqueia só migrations existentes. | ADR 0083, item 4 |
 
+## Execução
+
+Itens entregues no repositório, com a prova local. Migration nova só vale em
+produção depois de publicada; até lá a regra entregue no módulo cita o número
+da migration.
+
+| Item | Entrega | Prova |
+|---|---|---|
+| B1 | Migration `230`: `_bl_ce_unlock_conferred` lê a conciliação ZPT `unlocked` do CE anterior (ou a confirmação manual legada); a porta única abre o alerta e a prévia avisa | **Teste local-pg:** `ceImportacaoContrato.local-pg.test.ts` (B1) |
+
 ## Operação (fora do código)
 
 | Item | O que fazer | Quem |

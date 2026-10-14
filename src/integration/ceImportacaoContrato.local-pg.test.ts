@@ -125,6 +125,7 @@ function cleanup() {
     DELETE FROM public.internal_notifications WHERE alert_id IN (SELECT id FROM a228_alerts);
     DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM a228_alerts);
     DELETE FROM public.alerts WHERE id IN (SELECT id FROM a228_alerts);
+    DELETE FROM public.ce_unlock_zpt_status WHERE bl_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.ce_unlock_request_bls WHERE bl_id IN (SELECT id FROM a228_bls) OR request_id = '${unlockRequestId}';
     DELETE FROM public.ce_unlock_requests WHERE id = '${unlockRequestId}';
     DELETE FROM public.granite_bls WHERE id = '${graniteBlId}' OR manifest_id = '${graniteManifestId}';
@@ -551,6 +552,28 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(psql(`SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'ce_trocado_com_desbloqueio' AND a.entity_id = 'A228-U2';`)).toBe('1')
     expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-U2')).toMatch(/992280000000053 -> 992280000000054/)
+  })
+
+  it('B1: B/L conciliado como desbloqueado na ZPT abre o alerta na troca e avisa na prévia (migration 230)', () => {
+    // Fluxo vigente (migration 160): o Desbloqueio conferido é a conciliação
+    // com a ZPT, sem a confirmação manual antiga.
+    insertBl('A228-Q1', { container: 'ADCU2280091', withCustomer: false, ce: '992280000000081' })
+    psql(`INSERT INTO public.ce_unlock_zpt_status (bl_id, ce_mercante, status, zpt_status, reconciled_by)
+      VALUES ('A228-Q1', '992280000000081', 'unlocked', 'Desbloqueado', '${actorId}');`)
+    const rows: Rows = [{ row: 2, bl_id: 'A228-Q1', ce: '992280000000082' }]
+    const preview = json<{ rows: Array<{ status: string; unlock_confirmed: boolean }> }>(
+      `SELECT public.preview_ce_mercante_rows(${jsonLiteral(rows)}, 'A228H00000006', ${voyageId});`)
+    expect(preview.rows[0]).toMatchObject({ status: 'change', unlock_confirmed: true })
+
+    expect(asAdmin(`SELECT public.correct_bl_ce_mercante('A228-Q1', '992280000000082', 'CE digitado errado (A228)', '992280000000081');`).error).toBeNull()
+    expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-Q1')).toMatch(/992280000000081 -> 992280000000082/)
+
+    // Conciliação divergente ou de outro CE não é Desbloqueio conferido.
+    insertBl('A228-Q2', { container: 'ADCU2280092', withCustomer: false, ce: '992280000000083' })
+    psql(`INSERT INTO public.ce_unlock_zpt_status (bl_id, ce_mercante, status, zpt_status, reconciled_by)
+      VALUES ('A228-Q2', '992280000000083', 'divergent', 'Pendente', '${actorId}');`)
+    expect(asAdmin(`SELECT public.correct_bl_ce_mercante('A228-Q2', '992280000000084', 'CE digitado errado (A228)', '992280000000083');`).error).toBeNull()
+    expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-Q2')).toBe('')
   })
 
   it('K10: mesmo CE em outro formato é normalização — sem troca, efeito nem alerta de Desbloqueio', () => {

@@ -47,8 +47,9 @@ produção com os Clientes 1 (A) e 2 (B), operado pelo responsável e conferido 
 banco, até a exportação; B não leu, alterou nem baixou nada de A pelo serviço
 real. Falta a conciliação com um "Exportar Tela" real da ZPT (Tarefa 6).
 A revisão geral da documentação do mesmo dia reabriu o alerta de troca de CE
-com Desbloqueio conferido, que o código não abre (correção pendente B1
-do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico).
+com Desbloqueio conferido, que o código não abria (B1 do
+[plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico). A
+correção é a migration `230`, provada no Postgres local; falta publicá-la em produção.
 
 **Estado conferido em 2026-10-14:** a rodada do expurgo das 06:00 UTC executou o
 ciclo completo sobre o documento de teste: rascunho cancelado, documento
@@ -240,16 +241,14 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    com um PDF real enviado pelo Portal num rascunho de teste tornado elegível
    (por exemplo, com mais de 7 dias), conferindo depois que o objeto deixou de
    existir e não pode mais ser baixado.
-8. Corrigir o alerta de troca de CE com Desbloqueio conferido (Tarefa 6):
-   trocar ou remover o CE de um B/L conciliado como *Desbloqueio conferido* não
-   abre `ce_trocado_com_desbloqueio` nem avisa na prévia, porque
-   `_set_bl_ce_mercante` e `_analyze_ce_mercante_rows` (migration `195`) procuram a
-   confirmação manual retirada na `160`, e não o status da conciliação em
-   `ce_unlock_zpt_status`. Defeito B1, aprovado pelo dono em 2026-10-14
-   ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26)
-   e primeiro item do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md):
-   corrigir o código e refazer o teste K2 de
-   `ceImportacaoContrato.local-pg.test.ts` a partir de `ce_unlock_reconcile`.
+8. Publicar em produção a migration `230` (Tarefa 6): trocar ou remover o CE
+   de um B/L conciliado como *Desbloqueio conferido* passa a abrir
+   `ce_trocado_com_desbloqueio` e a avisar na prévia, lendo a conciliação em
+   `ce_unlock_zpt_status` (defeito B1 do
+   [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md),
+   [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+   Provado no Postgres local pelo teste B1 de
+   `ceImportacaoContrato.local-pg.test.ts`; falta a publicação.
 
 ## Foco da revisão
 
@@ -443,7 +442,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
 - [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Superado** pela revisão de 2026-10-07: as ações `sent` e `confirm` saíram; exportar registra o envio e a conciliação com o "Exportar Tela" da ZPT marca *Desbloqueio conferido* ou *Divergente* ([módulo vivo](../modules/desbloqueio-ce.md)). Confirmações antigas ficam como histórico do desk.
 - [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número. **Código/Remoto:** migration `177` (PR 929), em produção em 2026-10-12.
-- [ ] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: as migrations `181` e `195` estão em produção desde 2026-10-12, mas a definição vigente (`195`) lê a confirmação manual retirada na `160`, que o fluxo vigente não grava, e não o status da conciliação; o teste K2 passa porque monta esse estado à força. Correção pendente B1 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico.
+- [ ] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: a definição da `195` lia a confirmação manual retirada na `160`, não o status da conciliação. Corrigido na migration `230` (B1 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md)), provado no Postgres local pelo teste B1; falta publicar em produção (item 8 do caminho crítico).
 - [x] Demonstrar baixa cancelada concorrente à criação da exportação. **Teste:** "exportação aguarda reversão financeira concorrente…" em `ceUnlock.local-pg.test.ts` (ver "Fontes").
 - [ ] Demonstrar bloqueio por cada requisito (hoje há teste de pagamento e de termo anual revogado), snapshot imutável e retry do mesmo lote.
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.

@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; ativação pendente de homologação com a ZPT, aceite operacional, migration `220` em produção, prova do expurgo e da correção B1 do plano de correções ([Notas e divergências](#notas-e-divergências)) · **Atualizado:** 2026-10-14 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; ativação pendente de homologação com a ZPT, aceite operacional, migration `220` em produção, prova do expurgo e a migration `230` (alerta de troca de CE com Desbloqueio conferido) em produção · **Atualizado:** 2026-10-14 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -203,8 +203,11 @@ Cancelamento de B/L e correção do CE também exigem nova conferência: o item 
 pedido guarda o CE da solicitação, e o B/L com CE diferente aparece com o motivo
 "CE alterado: reconferência necessária" até o desk usar **Reconferir CE**. Trocar o CE de um B/L com
 *Desbloqueio conferido*, pela planilha ou pela ficha, abre o alerta
-`ce_trocado_com_desbloqueio` (`181`, `195`); hoje o código não cumpre essa regra
-(correção pendente B1 em [Notas e divergências](#notas-e-divergências)). As
+`ce_trocado_com_desbloqueio`, e a prévia da planilha avisa "Desbloqueio já
+conferido". Conferido é a conciliação com a ZPT `unlocked` do CE anterior
+(`ce_unlock_zpt_status`, pela chave `ce_mercante_key`) ou a confirmação manual
+legada (`_bl_ce_unlock_conferred`, migration `230`; antes dela o código só lia a
+confirmação manual retirada na `160`). As
 portas de troca do CE e o alerta de reenvio do Comunicado são regra de
 [CE Mercante](manifesto-edi.md#ce-mercante).
 
@@ -268,9 +271,10 @@ que não comprovam o gateway Supabase nem o envio real de e-mail.
   com motivo e reenvio, entrega parcial, conclusão e exportação; a sessão de B
   não leu, alterou nem baixou nada de A (403/400). Detalhes nas "Fontes da
   reconciliação" do [plano](../plans/2026-10-04-desbloqueio-ce-mercante.md).
-- O teste K2 de `src/integration/ceImportacaoContrato.local-pg.test.ts`, que
-  cobre o alerta de troca de CE com Desbloqueio conferido, monta à força uma
-  confirmação que o fluxo vigente não produz; não comprova o caso real (ver B1).
+- O alerta de troca de CE com Desbloqueio conferido tem dois testes em
+  `src/integration/ceImportacaoContrato.local-pg.test.ts`: K2, pela confirmação
+  manual legada, e B1, pela conciliação ZPT `unlocked` do fluxo vigente
+  (alerta na ficha, aviso na prévia; conciliação divergente não alerta).
 
 **Não comprovado:** aceite da planilha `zpt-5-v2` pela aba "Planilha desbloqueio" da ZPT
 (sem modelo oficial de importação; o primeiro upload real é o teste), conciliação com um
@@ -286,13 +290,6 @@ Evidência da execução original e limitações estão no
 
 ## Notas e divergências
 
-- **Correção pendente (B1):** trocar ou remover o CE de um B/L conciliado como
-  *Desbloqueio conferido* não abre `ce_trocado_com_desbloqueio` nem avisa
-  "Desbloqueio já conferido" na prévia, porque `_set_bl_ce_mercante` e a prévia
-  (`195`) procuram a confirmação manual retirada na `160`, não o status da
-  conciliação (`ce_unlock_zpt_status`), e a coluna ZPT some da linha sem aviso;
-  bloqueia a ativação. Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
 - A fila calcula os requisitos dos candidatos antes de paginar; custo O(n),
   indicado como `ponytail` no serviço. Avaliar read model indexado com aumento
   do volume operacional.
