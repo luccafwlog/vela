@@ -1025,11 +1025,10 @@ bloqueadas no preview; nenhum veículo é criado com valores zero artificiais.
   contêineres, como se fosse peso de carga solta; o servidor aplica esse peso
   sem trava, como prevê a ADR 0017. Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
   ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
-- **Correção pendente (B22):** a planilha-modelo de CE Mercante
-  (`public/templates/ce-mercante-modelo.csv` e `.xlsx`) traz exemplos de CE com
-  9 dígitos, que a importação recusa (15 dígitos, ADR 0078). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
-- **Correção pendente (B23):** o campo "Nº do manifesto" do modal Editar ETD +
-  ATD e Nº de Manifesto Mercante mostra o exemplo "Ex.: 25BR00481" (9
-  caracteres, o do Nº Escala), contra a regra de 13 caracteres. Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Corrigido (B22):** a planilha-modelo de CE Mercante
+  (`public/templates/ce-mercante-modelo.csv` e `.xlsx`) traz CE de 15 dígitos
+  e importa limpa pelo parser (ADR 0078). **Teste:**
+  `ceMercanteTemplate.test.ts`.
+- **Corrigido (B23):** o campo "Nº do manifesto" do modal Editar ETD + ATD e
+  Nº de Manifesto Mercante mostra o exemplo "Ex.: 1226501860578", de 13
+  caracteres, como a regra.
