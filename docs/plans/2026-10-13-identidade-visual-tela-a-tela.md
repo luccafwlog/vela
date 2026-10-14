@@ -88,7 +88,8 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     repete o "CE atualizado" do mesmo instante) sai, e campo da viagem sem
     rótulo em `TIMELINE_VOYAGE_FIELD_LABELS` (`src/services/voyageSummaries.ts`)
     nunca mostra o nome técnico nem o valor bruto. A ficha do B/L mantém a sua.
-  - **Ficha do Cliente:** sem faixa de próxima ação, como na Viagem; a
+  - **Ficha do Cliente** (aprovada em 2026-10-14, Visão geral e as cinco
+    demais abas): sem faixa de próxima ação, como na Viagem; a
     pendência fica no bloco do assunto (Portal sem conta no bloco Portal, com
     o motivo e os dois caminhos como botões). Na Atividade recente, só o
     identificador é link, sem sublinhado. Com mais de uma pendência, cada
@@ -96,7 +97,7 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     bloco Saldo pendente). A ficha do B/L mantém a faixa de próxima ação
     (`NextAction`); a recusa vale só para a Viagem e o Cliente.
     Demais abas (decisões de 2026-10-14, proposta revisada na mesma página,
-    seção 3b, aguardando aprovação aba por aba):
+    seção 3b, aprovada em 2026-10-14):
     - **Cadastro e contatos:** blocos Dados cadastrais (CNPJ só leitura,
       com copiar), Quem recebe os Comunicados (tabela das caixas),
       Contatos, Acesso ao Portal e o novo **Alterações do cadastro** (o que
@@ -203,7 +204,7 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 | 2 | Lista de BLs | `/bls` | Cartões que filtram, faixa de resumo, linha com duas ações | Aprovada em 2026-10-13 (lote 1), aguardando implementação |
 | 3 | Ficha da Viagem e Viagens | `/viagens`, `/viagens/:voyageId` | Ficha restaurada em 2026-10-08 com faixa azul-marinho; conferir contra as regras | Ficha aprovada em 2026-10-13 (lote 1), aguardando implementação |
 | 4 | Chegadas e Saídas e programação do Portal | `/chegadas-saidas`, Painel do Portal | "X" em toda célula, grupos ETD/ETA sem separação. Decidir: Chegada no Brasil antes da Saída; esconder porto sem data; previsão de saída já passada em cinza | Pendente |
-| 5 | Ficha do Cliente e Clientes | `/clientes`, `/clientes/:cnpj` | `.app-customer-*` é a maior família de CSS de página | Proposta da ficha no lote 1, aguardando resposta |
+| 5 | Ficha do Cliente e Clientes | `/clientes`, `/clientes/:cnpj` | `.app-customer-*` é a maior família de CSS de página | Ficha aprovada em 2026-10-14 (Visão geral e cinco abas); a implementar |
 | 6 | Revisão | `/revisao` | `review-link-button` como ação em texto (regra 9) | Pendente |
 | 7 | Taxas Locais e detalhe da fatura | `/taxas-locais`, `/taxas-locais/tabelas` | `app-invoice-comm__link`, `app-fin-alerts__link` | Proposta da lista de Faturas no lote 1, aguardando resposta |
 | 8 | Demurrage | `/demurrage`, `/demurrage/taxas` | `app-dem-link` (número da Invoice é identificador; conferir as ações) | Pendente |
