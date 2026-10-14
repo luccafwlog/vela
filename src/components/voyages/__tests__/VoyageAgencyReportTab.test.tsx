@@ -1394,3 +1394,14 @@ it('observação longa sem quebras de linha exibe o botão para expandir', () =>
   fireEvent.click(within(datasSection).getByRole('button', { name: 'Ver observação completa' }))
   expect(within(datasSection).getByRole('button', { name: 'Recolher observação' })).toBeTruthy()
 })
+
+it('B6: escala com frentes TBC e sem ADR de terminal não abre o ADR legado', () => {
+  useAgencyReportTerminalStateMock.mockReturnValue({
+    data: { agencyReports: [], fronts: [{ sentido: 'importacao', modalidade: 'carga_cheia', terminalId: null }] },
+    isLoading: false,
+    error: null,
+  })
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+  expect(screen.getByRole('status').textContent).toMatch(/Nenhum terminal atribuído às frentes desta escala/)
+  expect(screen.queryByRole('button', { name: 'Fechar ADR' })).toBeNull()
+})

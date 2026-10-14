@@ -416,6 +416,13 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
     return <div className="app-panel app-panel--padded text-sm text-[var(--app-muted)]">Carregando frentes, terminais e ADRs da escala…</div>
   }
 
+  // B6 (migration 259): escala com frente de operação é do modelo terminalizado.
+  // Sem terminal atribuído (frentes TBC) e sem ADR já existente, não há ADR a
+  // abrir — o caminho legado por porto não é oferecido.
+  if ((terminalState.fronts ?? []).length > 0 && terminalReports.length === 0) {
+    return <div className="app-panel app-panel--padded text-sm text-[var(--app-muted)]" role="status">Nenhum terminal atribuído às frentes desta escala (TBC). Atribua o terminal na edição da escala para abrir o ADR do terminal.</div>
+  }
+
   // Dados operacionais continuam sendo consultados por escala, mas um ADR
   // terminalizado precisa mostrar somente as frentes atribuídas ao terminal
   // selecionado. Sem este recorte, dois terminais da mesma escala imprimem o
