@@ -119,7 +119,7 @@ migrations ativas e documentos; o que diz "Suspeita" não foi executado.
 | Id | Caso | Opções | Recomendação |
 |---|---|---|---|
 | A22 (D10-04) | Cliente com o financeiro@ só na caixa Financeiro: a produtora inclui a caixa no Comunicado de CE e Taxas, a Edge Function recusa e o runner repete a cada 15 minutos. | Edge aceita as duas caixas (ADR 0064) · CE e Taxas é só de Documentação e Operação | Aceitar as duas caixas, como a ADR 0064 e o módulo dizem. |
-| A23 (D10-15) | O CE de um B/L com Comunicado já enviado é trocado e abre "Reenviar Comunicado de CE e Taxas"; depois do reenvio o alerta não fecha, porque não existe ação de resolver. | Fechar pela origem quando houver fato verificável · Ação "Resolver com justificativa" (exceção à ADR 0053) · Virar Notificação Interna | Fechar pela origem e decidir em ADR a resolução com justificativa para os tipos de conferência. |
+| A23 (D10-15) | O CE de um B/L com Comunicado já enviado é trocado e abre "Reenviar Comunicado de CE e Taxas"; depois do reenvio o alerta não fecha, porque não existe ação de resolver. O mesmo vale para `portal_abuso_login`, que nenhum produtor fecha. | Fechar pela origem quando houver fato verificável · Ação "Resolver com justificativa" (exceção à ADR 0053) · Virar Notificação Interna | Fechar pela origem e decidir em ADR a resolução com justificativa para os tipos de conferência. |
 | A24 (D10-17) | O ADR abre itens para Operações, Equipamentos e Documentação; Operações é avisado sem estar na audiência do catálogo. | Aceitar a união (catálogo + setor do item) · Voltar à ADR 0034 (só catálogo) | Aceitar a união, que é o que `/alertas/regras` ensina. |
 
 ### Lote B — defeitos contra decisão registrada
