@@ -56,7 +56,8 @@ respondidas pelo dono em lote; a resposta vira ADR nova.
 - Caminhos de código em crases são referências literais; para navegação clicável, use links Markdown relativos.
 - Links internos relativos ao arquivo que contém o link, inclusive após mover
   documentos. Âncoras de seção seguem o slug do GitHub (minúsculas, acentos
-  mantidos, pontuação removida, espaço vira hífen); renomear um título quebra
+  mantidos, pontuação removida, espaço vira hífen), e o fragmento do link é
+  comparado com o slug exatamente, inclusive maiúsculas; renomear um título quebra
   os links para ele, e o gate acusa. Use `<a id="...">` para fixar uma âncora
   que precisa sobreviver a mudanças de título.
 - Blocos de comando devem indicar o shell e o diretório de execução quando
@@ -194,7 +195,7 @@ Antes de concluir uma alteração documental:
 O [gate documental](../scripts/check-docs.mjs) verifica existência dos destinos
 de links relativos fora do arquivo histórico, âncoras de seção dos links para
 Markdown, índices obrigatórios, cobertura
-do índice de ADRs (cada ADR com linha na tabela), concordância entre a linha
+do índice de ADRs (cada ADR com número único e linha na tabela), concordância entre a linha
 `Status:` de cada ADR e o índice, faixa "Situação atual" logo abaixo do título nas ADRs estendidas ou supersedidas, documentos
 datados fora do arquivo histórico, formato dos módulos e presença das rotas
 extraídas dos dois roteadores na arquitetura e na rastreabilidade. Também rejeita `CLAUDE.md` na

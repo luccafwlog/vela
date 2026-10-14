@@ -51,5 +51,6 @@ export function anchorExists(anchors, fragment) {
   } catch {
     return false
   }
-  return anchors.has(decoded) || anchors.has(decoded.toLowerCase())
+  // O navegador compara o fragmento com o id exatamente; `#Notas` não leva a `notas`.
+  return anchors.has(decoded)
 }

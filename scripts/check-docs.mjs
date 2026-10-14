@@ -123,6 +123,14 @@ if (fs.existsSync(adrIndexPath)) {
     .sort()
 
   const indexedStatuses = parseAdrIndex(adrIndex)
+  const filesByNumber = new Map()
+  for (const adrFile of adrFiles) {
+    const number = adrFile.slice(0, 4)
+    filesByNumber.set(number, [...(filesByNumber.get(number) ?? []), adrFile])
+  }
+  for (const [number, files] of filesByNumber) {
+    if (files.length > 1) addError('docs/adr/README.md', `ADR number ${number} is used by more than one file: ${files.join(', ')}`)
+  }
   for (const adrFile of adrFiles) {
     if (!adrIndex.includes(adrFile)) {
       addError('docs/adr/README.md', `ADR is not indexed: ${adrFile}`)
@@ -136,7 +144,7 @@ if (fs.existsSync(adrIndexPath)) {
       addError(adrPath, 'ADR has no recognizable "Status:" line')
       continue
     }
-    const indexed = indexedStatuses.get(adrFile.slice(0, 4))
+    const indexed = indexedStatuses.get(adrFile)
     if (indexed === undefined) {
       // Citar o arquivo no texto do README não basta: a ADR precisa de linha
       // na tabela, que é onde o status é comparado.

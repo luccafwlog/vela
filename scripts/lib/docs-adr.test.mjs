@@ -26,7 +26,7 @@ const index = parseAdrIndex([
   '|---|---|',
   '| [0009](./0009-c.md) | não é linha do índice |',
 ].join('\n'))
-assert.deepEqual([...index.entries()], [['0001', 'supersedida parcialmente'], ['0003', 'aceito']])
+assert.deepEqual([...index.entries()], [['0001-a.md', 'supersedida parcialmente'], ['0003-b.md', 'aceito']])
 
 assert.equal(isDatedLivingDocument('docs/skills/skill-audit-2026-09-18.md'), true)
 assert.equal(isDatedLivingDocument('docs/research/2026-09-10-br-code-pix-estatico.md'), true)

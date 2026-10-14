@@ -33,8 +33,10 @@ function splitRow(line) {
   return line.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map((cell) => cell.trim())
 }
 
-// Devolve Map<"0001", status> a partir da tabela do índice. A coluna é achada
-// pelo cabeçalho "Status", para o índice poder ganhar colunas sem quebrar o gate.
+// Devolve Map<"0001-titulo.md", status> a partir da tabela do índice, pela
+// chave do arquivo linkado na primeira coluna: duas ADRs com o mesmo número
+// não dividem uma linha. A coluna é achada pelo cabeçalho "Status", para o
+// índice poder ganhar colunas sem quebrar o gate.
 export function parseAdrIndex(markdown) {
   const statuses = new Map()
   let statusColumn = -1
@@ -49,8 +51,8 @@ export function parseAdrIndex(markdown) {
       continue
     }
     if (statusColumn < 0) continue
-    const number = cells[0].match(/\[(\d{4})\]/)
-    if (number) statuses.set(number[1], (cells[statusColumn] ?? '').toLowerCase())
+    const link = cells[0].match(/\]\((?:\.\/)?(\d{4}-[^)\s]+\.md)\)/)
+    if (link) statuses.set(link[1], (cells[statusColumn] ?? '').toLowerCase())
   }
   return statuses
 }

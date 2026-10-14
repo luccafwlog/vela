@@ -26,7 +26,7 @@ assert.equal(stripCodeFences('a\n```\n## x\n```\nb').includes('## x'), false)
 
 assert.equal(anchorExists(anchors, 'notas-1'), true)
 assert.equal(anchorExists(anchors, 'm%C3%B3dulo'), true)
-assert.equal(anchorExists(anchors, 'Notas'), true)
+assert.equal(anchorExists(anchors, 'Notas'), false)
 assert.equal(anchorExists(anchors, 'dentro-do-bloco'), false)
 assert.equal(anchorExists(anchors, '%E0%A4%A'), false)
 

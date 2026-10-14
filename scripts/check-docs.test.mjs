@@ -66,6 +66,12 @@ try {
   assert.match(run().stderr, /ADR is not indexed/)
   write('docs/adr/README.md', 'Ver [Decision](0001-example.md).\n')
   assert.match(run().stderr, /ADR has no row in the index table: 0001-example\.md/)
+  write('docs/adr/README.md', `${adrIndexWith('aceito')}\nVer também [Outra](0001-other.md).\n`)
+  write('docs/adr/0001-other.md', '# Outra\n\nStatus: aceito — 2026-01-01\n')
+  const duplicated = run().stderr
+  assert.match(duplicated, /ADR number 0001 is used by more than one file: 0001-example\.md, 0001-other\.md/)
+  assert.match(duplicated, /ADR has no row in the index table: 0001-other\.md/)
+  fs.unlinkSync(path.join(fixture, 'docs/adr/0001-other.md'))
   write('docs/adr/README.md', adrIndexWith('aceito'))
   write('docs/adr/README.md', adrIndexWith('supersedida parcialmente'))
   assert.match(run().stderr, /ADR status "aceito" differs from the index \("supersedida parcialmente"\)/)
@@ -104,7 +110,7 @@ try {
   assert.doesNotMatch(dynamic.stderr, /at checkDocs|file:\/\//)
   write('src/AppInterno.tsx', '<Routes><Route index /><Route path="/inspect/:id/*"><Route path="billing" /></Route></Routes>')
   assert.equal(run().status, 0)
-  console.log('check-docs: positive fixture and seventeen rejection scenarios passed.')
+  console.log('check-docs: positive fixture and eighteen rejection scenarios passed.')
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true })
 }

@@ -55,7 +55,7 @@ as sete seções e oito colunas dos módulos. As rotas de `AppInterno` e
 já não resolvem no roteador. Normaliza query strings de abas e parâmetros de
 rota; entradas explicitamente marcadas como “sem rota própria” são notas de
 fallback, não rotas ativas. Pela ADR 0082, também confere que cada ADR tem
-linha na tabela do índice, que a linha `Status:` dela concorda com essa linha,
+número único e linha na tabela do índice, que a linha `Status:` dela concorda com essa linha,
 que ADR estendida ou supersedida
 abre com a faixa "Situação atual" e que documento com data no nome só fica
 fora de `docs/archive/` quando é plano ou spec vivo. Documentos em `archive/`
