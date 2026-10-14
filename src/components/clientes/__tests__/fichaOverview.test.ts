@@ -11,7 +11,7 @@ const clean: OverviewInput = {
   blsInReview: 0,
   hasPrimaryEmail: true,
   pendingReconciliation: 0,
-  demurrage: { overdue: 0, disputes: 0 },
+  demurrage: { disputes: 0 },
   runningDemurrage: 0,
 }
 
@@ -75,11 +75,13 @@ describe('buildFichaOverview', () => {
       ...clean,
       blsInReview: 2,
       hasPrimaryEmail: false,
-      demurrage: { overdue: 1, disputes: 0 },
+      demurrage: { disputes: 1 },
       runningDemurrage: 3,
     })
-    expect(items.map((item) => item.key)).toEqual(['vencidas', 'revisao', 'correndo', 'contato'])
-    expect(items[1]).toMatchObject({ title: '2 B/Ls em revisão', actions: [{ label: 'Abrir na Revisão', to: '/revisao?busca=12345678000195' }] })
+    // Demurrage não vence (ADR 0014; B29): a ficha não conta "faturas de Demurrage vencidas".
+    expect(items.map((item) => item.key)).toEqual(['revisao', 'disputas', 'correndo', 'contato'])
+    expect(items.some((item) => /vencida/.test(item.title))).toBe(false)
+    expect(items[0]).toMatchObject({ title: '2 B/Ls em revisão', actions: [{ label: 'Abrir na Revisão', to: '/revisao?busca=12345678000195' }] })
     expect(items[2].actions[0]).toEqual({ label: 'Abrir em Demurrage', to: '/demurrage?lente=atraso&busca=Atl%C3%A2ntico%20%26%20Cia' })
     expect(items[3].detail).toMatch(/Não impede o faturamento/)
   })

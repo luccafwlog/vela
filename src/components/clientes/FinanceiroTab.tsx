@@ -74,9 +74,9 @@ function customerSearchTerm(data: { name: string; cnpj_cpf?: string | null }): s
 const PAGE_SIZE = 20
 
 // Demurrage na ficha (lote 1): a disputa tem coluna própria, então a
-// situação fala só da fatura.
+// situação fala só da fatura. Demurrage não vence (ADR 0014; B29): o estado
+// legado `overdue` aparece como em aberto.
 function demurrageSituation(row: { status: string | null }) {
-  if (row.status === 'overdue') return <StatusText tone="warning">Vencida</StatusText>
   if (row.status === 'paid') return <StatusText tone="paid">Paga</StatusText>
   if (row.status === 'cancelled') return <StatusText tone="muted">Cancelada</StatusText>
   if (row.status === 'draft') return <StatusText tone="muted">Rascunho</StatusText>
@@ -339,13 +339,12 @@ export function FinanceiroTab({ data }: { data: Data }) {
               <div className="app-table-scroll">
                 <table className="app-table app-table--compact">
                   <caption className="sr-only">Faturas de Demurrage do Cliente</caption>
-                  <thead><tr><th scope="col">Fatura</th><th scope="col">B/L</th><th scope="col">Vencimento</th><th scope="col">Total US$</th><th scope="col">Total R$</th><th scope="col">Situação</th><th scope="col">Disputa</th></tr></thead>
+                  <thead><tr><th scope="col">Fatura</th><th scope="col">B/L</th><th scope="col">Total US$</th><th scope="col">Total R$</th><th scope="col">Situação</th><th scope="col">Disputa</th></tr></thead>
                   <tbody>
                     {pageSlice(demurrageRows).map((row) => (
                       <tr key={row.id}>
                         <td className="whitespace-nowrap"><Link className="app-customer-link app-customer-code" to={demurrageInvoiceHref(row.id)} title={row.dispute_subject ?? undefined}>{row.doc_number}</Link></td>
                         <td className="whitespace-nowrap"><CopyValue value={row.bl_id} label="número do B/L"><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></CopyValue></td>
-                        <td className="whitespace-nowrap tabular-nums">{row.due_date ? formatDate(row.due_date) : <NoValue label="Sem vencimento" />}</td>
                         <td className="whitespace-nowrap tabular-nums">{formatUSD(row.total_usd)}</td>
                         <td className="whitespace-nowrap tabular-nums">{row.current_total_brl == null ? <NoValue label="Sem valor atual em R$" /> : money(row.current_total_brl, row.status === 'issued' || row.status === 'overdue')}</td>
                         <td className="whitespace-nowrap">{demurrageSituation(row)}</td>

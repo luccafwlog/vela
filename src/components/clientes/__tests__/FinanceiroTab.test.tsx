@@ -99,6 +99,16 @@ describe('FinanceiroTab — estados de carregamento e erro', () => {
     expect(screen.getByRole('button', { name: 'Editar acordo de 28 dias' })).toBeTruthy()
   })
 
+  it('B29: Invoice de Demurrage não vence — sem coluna Vencimento nem situação Vencida', () => {
+    mocks.demurrage = { data: { rows: [{ id: 78, doc_number: 'DEM-078', bl_id: 'BL-9', billed_at: '2026-07-01', due_date: '2026-07-10', status: 'overdue', total_usd: 100, current_total_brl: 550 }], denied: false }, isLoading: false, isError: false }
+    render(<MemoryRouter><FinanceiroTab data={baseData} /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('radio', { name: /Demurrage/ }))
+    expect(screen.getByRole('link', { name: 'DEM-078' })).toBeTruthy()
+    expect(screen.queryByRole('columnheader', { name: 'Vencimento' })).toBeNull()
+    expect(screen.queryByText('Vencida')).toBeNull()
+    expect(screen.getByText('Emitida')).toBeTruthy()
+  })
+
   it('abre a Invoice de Demurrage direto no detalhe de /demurrage', () => {
     mocks.demurrage = { data: { rows: [{ id: 77, doc_number: 'DEM-077', bl_id: 'BL-9', billed_at: '2026-07-01', status: 'issued', total_usd: 100, current_total_brl: 550 }], denied: false }, isLoading: false, isError: false }
     render(<MemoryRouter><FinanceiroTab data={baseData} /></MemoryRouter>)
