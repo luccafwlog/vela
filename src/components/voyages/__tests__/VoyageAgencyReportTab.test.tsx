@@ -41,6 +41,7 @@ vi.mock('../../../hooks/useAgencyReport', () => ({
   useAgencyReportTerminalState: useAgencyReportTerminalStateMock,
   useAgencyReportSignoffEvents: useAgencyReportSignoffEventsMock,
   useAgencyReportDepartmentSignoffEvents: useAgencyReportDepartmentSignoffEventsMock,
+  useAgencyReportAtdRegisteredAt: () => ({ data: null }),
   useSetAgencyReportSignoff: () => ({ mutate: signoffMutateMock, isPending: false }),
   useSetAgencyReportDepartmentSignoff: () => ({ mutate: departmentSignoffMutateMock, isPending: false }),
   useSetAgencyReportSectionObservation: () => ({ mutate: observationMutateMock }),

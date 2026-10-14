@@ -9,6 +9,7 @@ import { DepartmentSignoffControl } from './DepartmentSignoffControl'
 import { AgencyReportTimeline } from './AgencyReportTimeline'
 import {
   useAgencyReportDepartmentSignoffEvents,
+  useAgencyReportAtdRegisteredAt,
   useAgencyReportDerived,
   useAgencyReportOwn,
   useAgencyReportTerminalState,
@@ -374,6 +375,10 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const { data: ownData } = useAgencyReportOwn(voyageId, port, resolvedReportId)
   const { data: signoffEvents } = useAgencyReportSignoffEvents(voyageId, port, resolvedReportId)
   const { data: departmentSignoffEvents } = useAgencyReportDepartmentSignoffEvents(voyageId, port, resolvedReportId)
+  // B8: momento do registro do ATD da Atracação do terminal selecionado (mesma escolha de `selectedAtracacao`, abaixo).
+  const atdTerminalId = selectedTerminalReport?.terminalId ?? null
+  const atdForTimeline = atdTerminalId ? data?.terminalSchedules?.find((entry) => entry.terminalId === atdTerminalId)?.atd ?? null : null
+  const { data: terminalAtdRegisteredAt } = useAgencyReportAtdRegisteredAt(voyageId, port, atdTerminalId, atdForTimeline)
   const { effectiveRole, isAdmin } = useAuth()
   const canEditOperations = !readOnly && (isAdmin || effectiveRole === 'operacoes')
   const signoffMutation = useSetAgencyReportSignoff(resolvedReportId)
@@ -612,7 +617,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       // cumprimento/atraso históricos sem reconsultar audit_logs. Não são
       // impressos (AgencyReportDocument.tsx mostra só datas de assinatura).
       unifiedAtd: terminalAtd,
-      atdRegisteredAt: null,
+      atdRegisteredAt: terminalAtdRegisteredAt ?? null,
       atdSource: terminalAtd ? ('terminal' as const) : null,
       deadlineDate,
     },
@@ -721,7 +726,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
           <AgencyReportTimeline
             atd={closedSnapshot.header?.unifiedAtd ?? terminalAtd}
             atdSource={closedSnapshot.header?.atdSource ?? (terminalAtd ? ('terminal' as const) : null)}
-            atdRegisteredAt={closedSnapshot.header?.atdRegisteredAt ?? null}
+            atdRegisteredAt={closedSnapshot.header?.atdRegisteredAt ?? terminalAtdRegisteredAt ?? null}
             deadline={closedSnapshot.header?.deadlineDate ?? deadlineDate}
             omitted={isOmittedEscala}
             now={new Date()}
@@ -931,7 +936,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
           <AgencyReportTimeline
             atd={terminalAtd}
             atdSource={terminalAtd ? ('terminal' as const) : null}
-            atdRegisteredAt={null}
+            atdRegisteredAt={terminalAtdRegisteredAt ?? null}
             deadline={deadlineDate}
             omitted={isOmittedEscala}
             now={new Date()}

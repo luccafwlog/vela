@@ -118,6 +118,7 @@ da migration.
 | B29 | Ficha do Cliente: sai o aviso "faturas de Demurrage vencidas" da Visão geral (`fichaOverview`), a coluna Vencimento e a situação Vencida da aba Financeiro e o "vencida" da aba Conteineres; o estado legado `overdue` aparece como em aberto e segue no saldo. Sem mudança de banco | **Teste:** `fichaOverview.test.ts`, `FinanceiroTab.test.tsx` (B29) |
 | B30 | `PortalDemurrageDetailModal` ganha as colunas 1º período e 2º período (valor `round(dias × diária, 2)` e "N dias × diária"); o recibo impresso (`InvoiceDocument`) ganha a coluna Free time. Sem mudança de banco: o detalhe do Portal já recebia os campos | **Teste:** `PortalDemurrageDetailModal.test.tsx`, `InvoiceDocument.behavior.test.tsx` (B30); `design:check` e `a11y:contrast` sem violação nova |
 | B5 | Migration `257`: `set_agency_report_department_signoff_by_report_id` recusa assinar com seção do departamento Pendente (`23514`), a mesma conferência do caminho legado | **Teste local-pg:** `agencyReportAlertsFoundation.local-pg.test.ts` (B5, falha sem a migration) |
+| B8 | `fetchTerminalAtdRegisteredAt` (`agencyDepartureReport.ts`) acha em `audit_logs` (`terminal_dates`) a gravação que trouxe o ATD vigente da Atracação; `useAgencyReportAtdRegisteredAt` alimenta a Linha do Tempo do ADR aberto e o snapshot do fechamento, que antes recebiam `null`. Sem mudança de banco | **Teste:** `agencyReportAtdRegisteredAt.test.ts` (gravação que trouxe o ATD, correção posterior, sem rastro) |
 
 ## Operação (fora do código)
 

@@ -464,6 +464,48 @@ export async function listDepartmentSignoffEventsByReportId(reportId: string) {
   }))
 }
 
+type TerminalDatesAuditRow = { new_value: string | null; old_value: string | null; changed_at: string }
+
+function parseTerminalDates(value: string | null): { terminal_id?: string | null; terminal_atd?: string | null } | null {
+  if (!value) return null
+  try {
+    return JSON.parse(value) as { terminal_id?: string | null; terminal_atd?: string | null }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * B8: momento em que o ATD vigente da Atracação foi registrado — a linha mais
+ * recente de `terminal_dates` (save_voyage_escala_terminal_state) daquele
+ * terminal que gravou esse ATD diferente do anterior. Sem linha, `null`.
+ */
+export function atdRegisteredAtFromAudit(rows: readonly TerminalDatesAuditRow[], terminalId: string, atd: string): string | null {
+  // terminal_atd é timestamptz: compara o instante, não o texto (o PostgREST e o jsonb formatam igual, mas não é garantido).
+  const target = Date.parse(atd)
+  const sameAtd = (value: string | null | undefined) => Boolean(value) && (Date.parse(String(value)) === target || String(value) === atd)
+  const sorted = [...rows].sort((left, right) => right.changed_at.localeCompare(left.changed_at))
+  for (const row of sorted) {
+    const next = parseTerminalDates(row.new_value)
+    if (next?.terminal_id !== terminalId || !sameAtd(next.terminal_atd)) continue
+    const previous = parseTerminalDates(row.old_value)
+    if (!sameAtd(previous?.terminal_atd)) return row.changed_at
+  }
+  return null
+}
+
+export async function fetchTerminalAtdRegisteredAt(voyageId: number, port: string, terminalId: string, atd: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('audit_logs')
+    .select('new_value, old_value, changed_at')
+    .eq('entity_type', 'voyage_pod_schedule')
+    .eq('entity_id', buildVoyagePodEntityId(voyageId, port))
+    .eq('field_name', 'terminal_dates')
+    .order('changed_at', { ascending: false })
+  if (error) throw error
+  return atdRegisteredAtFromAudit((data ?? []) as TerminalDatesAuditRow[], terminalId, atd)
+}
+
 // Regra única de "o que conta como reabertura" (new_value='false', ver
 // comentário acima) — usada tanto pela Linha do Tempo do ADR
 // (AgencyReportTimeline.tsx) quanto pelo congelamento no snapshot de
