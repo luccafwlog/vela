@@ -135,10 +135,11 @@ Regras e peças: [identidade visual](../identidade-visual.md).
       Demurrage), uma linha de título, sem texto embaixo da célula; Dias em
       âmbar quando passa do free time; origem do free time e "Não se aplica
       (SOC)" ao passar o mouse; etiqueta SOC ao lado do tipo. Coluna
-      Demurrage (opção A, 2026-10-14): selo curto e, ao lado, o valor ou a
-      fatura: "Em curso" e "A faturar" em âmbar com o valor, "Faturada"
-      (azul) e "Paga" (verde) com o número da fatura como link; vazio sem
-      cobrança.
+      Demurrage (2026-10-14; o selo colorido da opção A foi recusado por
+      chamativo): o valor ou o número da fatura, seguido da situação em
+      texto cinza: "US$ 1.540,00 em curso" e "US$ 600,00 a faturar" com o
+      valor em âmbar; "DEM-2026-0007 em aberto" e "DEM-2026-0004 paga" com
+      a fatura como link; vazio sem cobrança.
     - **Desbloqueio de CE e VIP:** novo bloco Solicitações de desbloqueio
       (protocolo, B/Ls, situação, termo, procuração, prazo, aberta em,
       Analisar), com busca por B/L e paginação, antes da Condição VIP.
