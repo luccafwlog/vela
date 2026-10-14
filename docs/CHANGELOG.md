@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Modelo de permissões por perfil (2026-10-14, [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)):**
+  o dono fixou a base (escrita global com rastro, mais cancelar fatura, baixa manual e registro da
+  Restituição como exceções) e a lista fechada de exceções; a matriz ação × perfil passou a ter dono
+  único em [Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil). Só documentação: o
+  código segue no [plano do modelo de permissões](plans/2026-10-14-modelo-de-permissoes-por-perfil.md),
+  começando pelas falhas de escrita direta pela API confirmadas no Postgres local.
 - **Edge Function antiga de aviso de fatura emitida apagada (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26):**
   o dono a apagou no painel do Supabase, como a ADR 0058 mandava; a listagem de produção
   conferida depois não a tem ([serviços externos](operations/servicos-externos.md#edge-functions)).

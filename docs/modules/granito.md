@@ -21,7 +21,13 @@ Administrativo (gatilho `guard_tariff_active_change`, migration `091`), excluir
 é do Administrativo, com motivo, por `delete_catalog_row` (migration `096`), e
 tarifa já usada num cálculo não se exclui — só se desativa
 (`guard_used_tariff_delete`, `091`; ADR 0073). Os demais campos da tarifa
-seguem graváveis por usuário ativo pela API.
+seguem graváveis por usuário ativo pela API, que é a regra: pela
+[matriz de permissões](../operations/seguranca.md#demurrage-e-granito)
+([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D6), qualquer
+Departamento cria e edita a taxa; ativar, desativar e excluir são do
+Administrativo. A tela ainda esconde **Nova taxa** e **Editar** dos demais
+(correção pendente, item P9 do
+[plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md)).
 
 O ownership é separado:
 

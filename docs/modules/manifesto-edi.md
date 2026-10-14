@@ -664,8 +664,10 @@ CE não é cancelado: é excluído (ADR 0071).
 - Cancelar é recusado enquanto houver fatura de Taxas Locais em aberto
   (rascunho, emitida ou parcialmente paga), recebível com baixa ou ligado a
   fatura viva, ou Invoice de Demurrage em aberto, inclusive a do grupo que
-  cobra caixa deste B/L (`bl_open_financial_reasons`, migration `191`): o
-  Financeiro cancela a fatura ou registra a restituição antes. Recebível sem
+  cobra caixa deste B/L (`bl_open_financial_reasons`, migration `191`): antes,
+  o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo
+  registra a baixa ou a Restituição ([matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento),
+  [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D1). Recebível sem
   fatura e o cálculo que o gerou são anulados no cancelamento, com registro no
   Histórico (migration `179`; ADR 0078, item 12).
 - Cancelado, o B/L fica somente leitura (editar é recusado) e sai do

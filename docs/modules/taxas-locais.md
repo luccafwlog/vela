@@ -119,7 +119,10 @@ aceita "1.420,50"; cada erro indica o campo).
 - `src/components/bl/BlCobrancasTab.tsx`, em `/bls/:blId`, lista linhas,
   calcula/recalcula um B/L, mantém cobranças manuais (botões **Editar** e, só
   para o Administrativo, **Excluir** na linha manual, enquanto o B/L não está
-  faturado) e oferece **Emitir fatura** ao Administrativo. Com fatura ativa, o
+  faturado) e oferece **Emitir fatura** ao Administrativo (pela
+  [matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento),
+  qualquer Departamento emite; correção pendente, item P4 do
+  [plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md)). Com fatura ativa, o
   botão **Abrir no Faturamento** abre o detalhe dela em `/taxas-locais`. A promoção a `ready_for_billing` só acontece dentro da
   emissão (`mark_bl_ready_and_create_invoice`); não há ação de revisar nem de
   liberar o B/L.

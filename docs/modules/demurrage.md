@@ -110,7 +110,9 @@ gravação, e a recusa do banco fica no próprio diálogo (cancelar Invoice e
 cancelar baixa inclusive); depois de gravar, o detalhe é relido antes de
 voltar.
 
-A tela oferece cada ação só ao perfil que a RPC aceita e diz o motivo aos
+Quem pode cada ação está na [matriz de permissões](../operations/seguranca.md#demurrage-e-granito)
+([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md)). Hoje a tela
+oferece cada ação só ao perfil que a RPC aceita e diz o motivo aos
 demais: gerar Invoice, cancelar Invoice e cancelar baixa são do Administrativo
 (`is_admin`); registrar pagamento e desconto, do Financeiro e do Administrativo
 (`is_financeiro_user`); Informar PTAX, também de Equipamentos (migration `110`);
@@ -684,7 +686,7 @@ mudam ([Datas alteradas depois da emissão](#datas-alteradas-depois-da-emissão)
   (`DemurragePaymentReversalModal`).
 - **Restituição excepcional:** devolve dinheiro de Invoice paga. O
   Administrativo autoriza no detalhe (`request_financial_refund`, até o valor
-  recebido menos o já reservado), o Financeiro confirma a devolução com
+  recebido menos o já reservado), o Financeiro ou o Administrativo confirma a devolução com
   comprovante, favorecido e data (`confirm_demurrage_refund`), e o
   Administrativo pode cancelar a autorização ainda não devolvida
   (`cancel_financial_refund_authorization`). Procedimento no
@@ -869,7 +871,8 @@ está em [Estado e dados](#estado-e-dados).
   chamador na tela. As datas da edição do container e da aba do B/L passam pela
   mesma `set_container_dates`, que grava `audit_logs` `container_dates`
   (migration `179`).
-- **Excedente de Invoice paga é tratado à mão (A12):** quando a correção de datas reduz uma Invoice de Demurrage já paga, o sistema não abate nem cria a restituição sozinho: a Invoice sai da Régua, o Alerta abre e o Financeiro lança a Restituição. Vale enquanto Demurrage não tiver saldo nem pagamento parcial ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 12, que supersede parcialmente o item 19 da ADR 0078).
+- **Correção pendente (ADR 0085):** pela [matriz de permissões](../operations/seguranca.md#demurrage-e-granito), qualquer Departamento gera Invoice e complementar, aplica desconto, cria e edita tarifa e acordo de Demurrage e autoriza ou cancela a restituição excepcional; registrar pagamento e a devolução segue do Financeiro e do Administrativo, e cancelar Invoice e baixa, só do Administrativo. Hoje gerar Invoice, autorizar restituição, tarifa e acordo aceitam só o Administrativo, e o desconto, Financeiro e Administrativo. Também hoje qualquer perfil ativo altera pela API os itens de uma Invoice emitida ou paga (`demurrage_invoice_items`), e o Portal mostra os valores alterados com o total intacto (**Teste**, Postgres local, 2026-10-14). Correção no [plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md) (P2, P4, P5 e P9).
+- **Excedente de Invoice paga é tratado à mão (A12):** quando a correção de datas reduz uma Invoice de Demurrage já paga, o sistema não abate nem cria a restituição sozinho: a Invoice sai da Régua, o Alerta abre e a Restituição é autorizada (qualquer Departamento pela [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md); hoje o Administrativo) e registrada pelo Financeiro ou pelo Administrativo. Vale enquanto Demurrage não tiver saldo nem pagamento parcial ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 12, que supersede parcialmente o item 19 da ADR 0078).
 - **Correção pendente (A13):** o e-mail da Régua mostra o USD líquido, coerente com o BRL informativo e a tela ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 13); hoje informa como "Valor da cobrança" o USD dos itens sem o desconto. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 - **Correção pendente (A14):** só o job do BCB e o Informar PTAX gravam a referência cambial (`exchange_rate_reference`) que a emissão usa, como manda a ADR 0065 (decisão 4) e a decisão do dono na migration `110` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 14). Hoje qualquer usuário interno ativo a grava: o cabeçalho a regrava com a PTAX lida pelo navegador ou com o cache local, e `save_exchange_rate_reference(_v2)` aceita ROE manual de qualquer Departamento. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 - **Correção pendente (A15):** depois de uma pausa (por exemplo, Disputa aberta por 30 dias), a Régua retoma ancorada no último envio: sai uma cobrança e as seguintes seguem o intervalo normal ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 15). Hoje envia as cobranças "atrasadas" em rodadas horárias seguidas, porque o calendário fica preso a `first_billed_at`. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).

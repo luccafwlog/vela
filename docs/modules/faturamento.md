@@ -27,13 +27,12 @@ para a decisão completa.
 
 - `/taxas-locais` é a rota interna definida em `src/AppInterno.tsx` e composta por
   `src/pages/TaxasLocais.tsx`; `/faturamento` apenas preserva links legados.
-- As RPCs de baixa manual local exigem Administrativo ativo. Avulsa e
-  liquidação de restituição também aceitam Financeiro. Fatura avulsa pode ser
-  emitida por qualquer usuário interno ativo, com motivo e rastro
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 9); hoje a RPC aceita só o
-  Administrativo (correção pendente; ver [Notas e divergências](#notas-e-divergências)). As
-  capacidades atuais estão em `src/hooks/useAuth.tsx`; não há
-  `faturamento_edit` nesse contrato.
+- Quem emite, dá baixa, cancela, autoriza e registra a Restituição está na
+  [matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento)
+  ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md)). Este módulo
+  descreve o que o sistema aceita hoje; as diferenças estão em
+  [Notas e divergências](#notas-e-divergências). As capacidades da tela estão
+  em `src/hooks/useAuth.tsx`; não há `faturamento_edit` nesse contrato.
 - [Taxas Locais](taxas-locais.md) é dona do cálculo e do estado
   `ready_for_billing`.
 - Para B/Ls de container, carga solta e misto, emissão automática de taxas
@@ -880,6 +879,7 @@ Evidência de **Runtime**:
   pago, cuja fatura também está congelada, não recebe a comparação. Não há
   decisão registrada que justifique a diferença (possível defeito, a confirmar
   com o dono).
+- **Correção pendente (ADR 0085):** pela [matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento), qualquer Departamento emite fatura fora do automático (ficha do B/L, Validação, consolidada), usa Tentar reemitir, Tentar aplicar correção e Resolver fatura desatualizada, e autoriza ou cancela a restituição excepcional; Financeiro e Administrativo registram a baixa manual. Hoje essas RPCs aceitam só o Administrativo, e a Validação e a consolidada mostram o botão a todos e o banco recusa. Cancelar fatura e baixa e preparar cancelamento financeiro seguem só do Administrativo. Correção no [plano do modelo de permissões](../plans/2026-10-14-modelo-de-permissoes-por-perfil.md) (P4 e P5).
 - **Correção pendente (A9):** qualquer usuário interno ativo emite Fatura Avulsa, com motivo e rastro, e o botão aparece para todos os setores ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 9, que supersede parcialmente a ADR 0075 quanto a quem emite). Hoje a RPC `create_manual_invoice` aceita só o Administrativo (o perfil Financeiro vê o botão e recebe `42501`). Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 - **Correção pendente (A10):** o Item da tabela da avulsa e o lançamento manual escolhem a tabela e a Condição de Cliente pela mesma regra do cálculo automático (ADR 0040; [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10). Hoje ainda excluem tabela com vigência vencida ou futura e escolhem a Condição de Cliente pela data do upload. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md); regra em [Taxas Locais](taxas-locais.md#notas-e-divergências).
 - **Correção pendente (A11):** no COD de B/L faturado, vale a correção automática da ADR 0077 e o Ajuste de COD se liquida com a sucessora ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 11); hoje o painel ainda pede "Cancelar e reemitir" e vincular a sucessora. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
