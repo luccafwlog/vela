@@ -451,10 +451,12 @@ trocá-lo não muda as linhas já lançadas.
 
 ### Contato do manifesto na importação
 
-O e-mail do consignatário que vem no documento do B/L é capturado como contato
-**financeiro** do cliente na própria importação, pela mesma função única que a
-Revisão e o Aprovar da Validação usam (`capture_manifest_financial_contact`,
-migration arquivada `370`). A captura acontece em
+O e-mail do consignatário que vem no documento do B/L é incorporado ao cadastro
+do Cliente na própria importação, pela mesma função única que a Revisão e o
+Aprovar da Validação usam (`capture_manifest_financial_contact`, migration
+arquivada `370`). Em que caixas e como principal ou adicional ele entra é regra
+de [E-mail capturado do B/L](clientes.md#e-mail-capturado-do-bl): o nome da
+função é histórico, e o contato não vai para a caixa Financeiro. A captura acontece em
 `apply_bl_review_gate_after_import` (migration arquivada `371`; definição atual
 na migration `194`), que é o pós-processamento comum aos dois caminhos de
 importação vivos — o de documento do B/L e o de carga solta.
