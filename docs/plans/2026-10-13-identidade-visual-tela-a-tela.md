@@ -134,8 +134,11 @@ Regras e peças: [identidade visual](../identidade-visual.md).
       (Contêiner, B/L, Tipo, Descarga, Devolução, Dias, Free time,
       Demurrage), uma linha de título, sem texto embaixo da célula; Dias em
       âmbar quando passa do free time; origem do free time e "Não se aplica
-      (SOC)" ao passar o mouse; Demurrage vazio, valor em âmbar (em curso)
-      ou número da fatura (faturada); etiqueta SOC ao lado do tipo.
+      (SOC)" ao passar o mouse; etiqueta SOC ao lado do tipo. Coluna
+      Demurrage (opção A, 2026-10-14): selo curto e, ao lado, o valor ou a
+      fatura: "Em curso" e "A faturar" em âmbar com o valor, "Faturada"
+      (azul) e "Paga" (verde) com o número da fatura como link; vazio sem
+      cobrança.
     - **Desbloqueio de CE e VIP:** novo bloco Solicitações de desbloqueio
       (protocolo, B/Ls, situação, termo, procuração, prazo, aberta em,
       Analisar), com busca por B/L e paginação, antes da Condição VIP.
