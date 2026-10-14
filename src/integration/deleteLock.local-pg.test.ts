@@ -171,7 +171,8 @@ describeLocal('088 — trava de exclusão pelo CE Mercante', () => {
 
   it('escala com B/L com CE fica travada; a de outro porto sai', () => {
     const locked = as(ADMIN_ID, `SELECT public.delete_escala(${V_LOCKED}, 'brssz', false, 'erro');`)
-    expect(locked.json).toMatchObject({ deleted: false, reasons: ['B/L com CE Mercante'] })
+    // Desde a 235 a escala com B/L também trava pelo vínculo, com ou sem CE (A7).
+    expect(locked.json).toMatchObject({ deleted: false, reasons: ['B/L vinculado à escala', 'B/L com CE Mercante'] })
 
     const previewFree = as(ADMIN_ID, `SELECT public.delete_escala(${V_LOCKED}, 'BRVIX', true);`)
     expect(previewFree.json).toMatchObject({ deleted: false, deletable: true, scope: { export_schedules: 1 } })
