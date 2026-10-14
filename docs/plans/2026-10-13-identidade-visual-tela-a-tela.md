@@ -128,18 +128,33 @@ Regras e peças: [identidade visual](../identidade-visual.md).
       B/L; dentro do free time) e Demurrage (situação, valor, fatura).
       Mesmos dados e cálculo da tela Demurrage, só agrupados por Cliente.
       Busca por contêiner ou B/L, filtro de situação, período de descarga,
-      20 por página. SOC entra na lista com "Não se aplica"; botão
-      Exportar com a planilha da lista filtrada.
+      20 por página. SOC entra na lista; botão Exportar com a planilha da
+      lista filtrada. Versão limpa pedida em 2026-10-14 (a primeira foi
+      recusada por excesso de texto, quebras e cortes): oito colunas
+      (Contêiner, B/L, Tipo, Descarga, Devolução, Dias, Free time,
+      Demurrage), uma linha de título, sem texto embaixo da célula; Dias em
+      âmbar quando passa do free time; origem do free time e "Não se aplica
+      (SOC)" ao passar o mouse; Demurrage vazio, valor em âmbar (em curso)
+      ou número da fatura (faturada); etiqueta SOC ao lado do tipo.
     - **Desbloqueio de CE e VIP:** novo bloco Solicitações de desbloqueio
       (protocolo, B/Ls, situação, termo, procuração, prazo, aberta em,
       Analisar), com busca por B/L e paginação, antes da Condição VIP.
-  - **Taxas Locais:** "Aguardando envio automático" e fatura cancelada em
-    cinza?
-  - **Faturas do Portal:** o que escrever no lugar do vencimento, que a taxa
-    local não tem (ADR 0055)? Botão "Copiar código Pix" (ação nova)? O cartão
-    Saldo pendente mostra R$ 0,00 com a FAT-2026-0018 em aberto: conferir se é
-    a retenção pela Conta de Portal não ativa ou defeito (regra de dado, à
-    parte).
+  - **Taxas Locais · Faturas** (aprovada em 2026-10-14): "Aguardando envio
+    automático" em texto cinza (o envio é do sistema; falha de envio e
+    prontidão bloqueada continuam com cor) e fatura cancelada em cinza, não
+    em vermelho.
+  - **Faturas do Portal** (aprovada em 2026-10-14): nada no lugar do
+    vencimento (a taxa local não tem vencimento, ADR 0055); botão "Copiar
+    código Pix" (ação nova) no bloco Pagamento.
+  - **Defeito achado, fora da mudança visual** (2026-10-14, por leitura do
+    código e do banco local): no Modo Inspeção o cartão Saldo pendente lê
+    `customers.pending_balance` (RPC `portal_open_inspection`, migration
+    `002`), coluna que nenhuma rotina atualiza; o Cliente de teste tem
+    R$ 0,00 ali e R$ 3.005,00 em `bl_receivables` abertos. O Portal do
+    próprio Cliente calcula certo (`portal_get_session_overview_v2`,
+    migration `105`: recebíveis abertos + Demurrage emitida + avulsas em
+    aberto). Correção proposta: uma migration nova em que a inspeção usa o
+    mesmo cálculo.
 
 ## Passada única (2026-10-13)
 
