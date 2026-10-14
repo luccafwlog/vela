@@ -30,7 +30,7 @@ conforme a [ADR 0008](../adr/0008-demurrage-integrado-sem-unificar-persistencia.
 Este módulo é o dono das regras de Demurrage: datas e status do container,
 tarifa e acordo, emissão e cobrança por caixa, Recálculo Diário, baixa, Régua
 de Cobrança e Disputa
-([ADR 0081](../adr/0081-governanca-documental-dono-unico-e-adr-historica.md)).
+([ADR 0082](../adr/0082-governanca-documental-dono-unico-e-adr-historica.md)).
 O [glossário](../../CONTEXT.md) define os termos e aponta para cá; o ROE e o
 markup comuns a Taxas Locais e Demurrage ficam em
 [Regras de negócio](../operations/regras-de-negocio.md#câmbio-roe--ptax).

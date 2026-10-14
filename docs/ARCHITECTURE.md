@@ -12,7 +12,7 @@ jobs e segredos) tem registro próprio em
 
 Este é o mapa canônico da arquitetura atual: camadas, integrações, modelo de
 dados, fluxo de alto nível e mapa de rotas
-([ADR 0081](adr/0081-governanca-documental-dono-unico-e-adr-historica.md)).
+([ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md)).
 Regras de negócio vivem nos módulos listados no [índice documental](README.md)
 e, quando atravessam módulos, em [Regras de negócio](operations/regras-de-negocio.md);
 termos vivem em [`CONTEXT.md`](../CONTEXT.md); decisões e supersessões, no

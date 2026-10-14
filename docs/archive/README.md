@@ -38,6 +38,6 @@ O estado em que cada plano ou spec foi arquivado fica no
 - Spec com plano concluído → `specs/` (movida de `docs/spec/`).
 - Auditoria/review nova → nasce direto em `audits/` (screenshots de auditoria de design em `design-audit/assets/`).
 - Relatório de execução, inventário, pesquisa ou registro de estado com data → nasce direto em `reports/`.
-- Documento datado encontrado fora de `docs/archive/` (salvo plano ou spec vivos) → `git mv` para `audits/` ou `reports/`, com a data no início do nome ([ADR 0081](../adr/0081-governanca-documental-dono-unico-e-adr-historica.md), item 7).
+- Documento datado encontrado fora de `docs/archive/` (salvo plano ou spec vivos) → `git mv` para `audits/` ou `reports/`, com a data no início do nome ([ADR 0082](../adr/0082-governanca-documental-dono-unico-e-adr-historica.md), item 7).
 
 Regra completa em [`../CONVENCOES.md`](../CONVENCOES.md#ciclo-de-vida-de-planos-e-specs).

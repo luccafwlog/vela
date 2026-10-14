@@ -2,7 +2,7 @@
 
 Relatório da revisão geral feita de 2026-10-13 a 2026-10-14 no branch
 `claude/stoic-ride-76sf0b`, a pedido do dono, sob a
-[ADR 0081](../../adr/0081-governanca-documental-dono-unico-e-adr-historica.md).
+[ADR 0082](../../adr/0082-governanca-documental-dono-unico-e-adr-historica.md).
 É registro histórico: descreve o que foi conferido e mudado nestas datas. As
 decisões que ficaram com o dono continuam no
 [plano vivo da revisão](../../plans/2026-10-13-revisao-geral-documentacao.md)
@@ -21,7 +21,7 @@ produção.
 
 | Etapa | O que foi feito |
 |---|---|
-| Regras do trabalho | ADR 0081, `CONVENCOES.md` (dono por tipo de informação; classificação (a)/(b)/(c)) e plano vivo |
+| Regras do trabalho | ADR 0082, `CONVENCOES.md` (dono por tipo de informação; classificação (a)/(b)/(c)) e plano vivo |
 | Auditoria | 15 escopos: 12 domínios (D0 transversal a D11 infraestrutura) e 3 transversais (RASTREABILIDADE, ARCHITECTURE e índices). Cada documento foi confrontado com a cadeia de ADRs, as migrations ativas e `src/` |
 | Verificação | Cada achado passou por um verificador independente, com as lentes de código e de decisão, que confirmou, ajustou ou refutou |
 | Aplicação | Um agente por dono de arquivo, sem dois agentes no mesmo arquivo; commits por domínio |

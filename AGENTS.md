@@ -98,7 +98,7 @@ DNS, secret name, webhook, scheduled job, hosting, e-mail routing) also updates
 change; record names and locations of secrets, never their values. Read `docs/README.md` before broad
 documentation or architecture changes.
 
-Each fact has one owner document ([ADR 0081](docs/adr/0081-governanca-documental-dono-unico-e-adr-historica.md)):
+Each fact has one owner document ([ADR 0082](docs/adr/0082-governanca-documental-dono-unico-e-adr-historica.md)):
 write the rule in the owning module and link to it elsewhere. A superseded or
 extended ADR keeps its original text and gains a "Situação atual" banner;
 ADRs are never moved or renumbered. In living docs, an unqualified migration

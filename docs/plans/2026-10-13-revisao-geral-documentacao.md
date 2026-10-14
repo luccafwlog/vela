@@ -1,7 +1,7 @@
 # 2026-10-13 — Revisão geral da documentação
 
 Plano vivo da revisão aprovada pelo dono em 2026-10-13. As regras do trabalho
-estão na [ADR 0081](../adr/0081-governanca-documental-dono-unico-e-adr-historica.md)
+estão na [ADR 0082](../adr/0082-governanca-documental-dono-unico-e-adr-historica.md)
 e em [CONVENCOES.md](../CONVENCOES.md). Este arquivo também é o registro de
 achados e de decisões pendentes enquanto a revisão durar; ao terminar, vai
 para `docs/archive/plans/` e o relatório final nasce em `docs/archive/audits/`.
@@ -15,7 +15,7 @@ e as ADRs antigas são lidas como histórico sem confundir com a regra vigente.
 
 | Fase | Entrega | Estado |
 |---|---|---|
-| 0 | ADR 0081, `CONVENCOES.md` e este plano | concluída |
+| 0 | ADR 0082, `CONVENCOES.md` e este plano | concluída |
 | 1 | Inventário de temas × documentos | em andamento |
 | 2 | Varredura por domínio: corrige (a), registra (b) e (c), leva as regras do `CONTEXT.md` para os módulos | pendente |
 | 3 | Rodadas de decisão com o dono, em lote por domínio | pendente |

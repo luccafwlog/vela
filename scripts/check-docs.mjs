@@ -127,7 +127,7 @@ if (fs.existsSync(adrIndexPath)) {
     if (!adrIndex.includes(adrFile)) {
       addError('docs/adr/README.md', `ADR is not indexed: ${adrFile}`)
     }
-    // ADR 0081: a linha Status da ADR concorda com o índice e toda ADR
+    // ADR 0082: a linha Status da ADR concorda com o índice e toda ADR
     // estendida ou supersedida abre com a faixa "Situação atual".
     const adrPath = `docs/adr/${adrFile}`
     const adrContent = fs.readFileSync(path.join(adrDirectory, adrFile), 'utf8')

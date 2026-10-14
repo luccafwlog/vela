@@ -6,7 +6,7 @@ As instruções de trabalho dos agentes permanecem em [AGENTS.md](../AGENTS.md).
 
 ## Responsabilidade de cada documento
 
-Cada fato tem um único documento dono ([ADR 0081](adr/0081-governanca-documental-dono-unico-e-adr-historica.md)):
+Cada fato tem um único documento dono ([ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md)):
 
 | Informação | Fonte canônica |
 |---|---|

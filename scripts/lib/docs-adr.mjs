@@ -1,4 +1,4 @@
-// Regras estruturais da ADR 0081: status da ADR concorda com o índice, ADR
+// Regras estruturais da ADR 0082: status da ADR concorda com o índice, ADR
 // estendida/supersedida tem faixa "Situação atual" e documento datado vive no
 // arquivo histórico (ou é plano/spec vivo).
 

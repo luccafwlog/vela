@@ -4,7 +4,7 @@
 conferidos contra `docs/`, e rotas da tabela de módulos conferidas contra os
 roteadores. Diretrizes canônicas em [AGENTS.md](../AGENTS.md). Cada fato tem um
 único documento dono ([tabela de donos](CONVENCOES.md#responsabilidade-de-cada-documento),
-[ADR 0081](adr/0081-governanca-documental-dono-unico-e-adr-historica.md)).
+[ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md)).
 
 ## Por onde começar
 

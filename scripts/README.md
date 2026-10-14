@@ -54,7 +54,7 @@ as sete seções e oito colunas dos módulos. As rotas de `AppInterno` e
 `RASTREABILIDADE.md`; o gate também rejeita caminhos listados nesses mapas que
 já não resolvem no roteador. Normaliza query strings de abas e parâmetros de
 rota; entradas explicitamente marcadas como “sem rota própria” são notas de
-fallback, não rotas ativas. Pela ADR 0081, também confere que a linha
+fallback, não rotas ativas. Pela ADR 0082, também confere que a linha
 `Status:` de cada ADR concorda com o índice, que ADR estendida ou supersedida
 abre com a faixa "Situação atual" e que documento com data no nome só fica
 fora de `docs/archive/` quando é plano ou spec vivo. Documentos em `archive/`

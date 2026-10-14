@@ -1,7 +1,7 @@
 # Contexto do Sistema
 
 Glossário de domínio do Vela e do Portal Fwlog
-([ADR 0081](docs/adr/0081-governanca-documental-dono-unico-e-adr-historica.md)).
+([ADR 0082](docs/adr/0082-governanca-documental-dono-unico-e-adr-historica.md)).
 Cada verbete traz o termo, uma definição curta, a distinção que evita confusão
 com conceitos próximos e o link para a regra. A regra vigente — prazos, ramos,
 exceções, efeitos e estado de implementação — fica no módulo dono, listado no

@@ -1,6 +1,6 @@
 # Regras de negócio
 
-> Regras **não óbvias** que atravessam módulos ([ADR 0081](../adr/0081-governanca-documental-dono-unico-e-adr-historica.md)). A regra de um só domínio fica no doc do módulo ([índice documental](../README.md)); termos e distinções, no [glossário](../../CONTEXT.md); o motivo de cada decisão, na ADR citada. Número de migration sem qualificação é da cadeia ativa (`supabase/migrations/`); o da cadeia anterior à consolidação é escrito "migration arquivada `NNN`".
+> Regras **não óbvias** que atravessam módulos ([ADR 0082](../adr/0082-governanca-documental-dono-unico-e-adr-historica.md)). A regra de um só domínio fica no doc do módulo ([índice documental](../README.md)); termos e distinções, no [glossário](../../CONTEXT.md); o motivo de cada decisão, na ADR citada. Número de migration sem qualificação é da cadeia ativa (`supabase/migrations/`); o da cadeia anterior à consolidação é escrito "migration arquivada `NNN`".
 
 ---
 

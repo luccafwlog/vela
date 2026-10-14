@@ -7,7 +7,7 @@ consulta ao catálogo de um Postgres local com essas migrations aplicadas
 
 Este documento liga cada rota e ação da interface ao componente, hook, serviço,
 RPC ou tabela que a executa, e à evidência que sustenta esse caminho
-([ADR 0081](adr/0081-governanca-documental-dono-unico-e-adr-historica.md)). A
+([ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md)). A
 regra de negócio fica no módulo dono, linkado em cada linha; o motivo de cada
 decisão fica na ADR. Quando uma linha menciona uma regra, é só para orientar a
 leitura do caminho.
