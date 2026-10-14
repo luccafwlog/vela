@@ -145,8 +145,9 @@ Regras e peças: [identidade visual](../identidade-visual.md).
       Analisar), com busca por B/L e paginação, antes da Condição VIP.
   - **Taxas Locais · Faturas** (decisões de 2026-10-14; tela ainda não
     aprovada, e a aba Validação ainda não tem proposta): versão limpa, uma
-    linha de título e oito colunas sem texto embaixo da célula (Fatura,
-    Emissão, Cliente, B/L, Navio / Viagem, Situação, Total, Saldo). Saldo
+    linha de título e oito colunas sem texto embaixo da célula, nesta
+    ordem: Fatura, B/L, Emissão, Cliente, Navio / Viagem, Total, Saldo e
+    Situação. Saldo
     maior que zero em âmbar; Situação em texto (Emitida e Parcialmente paga
     normais, Cancelada em cinza com a linha inteira, Paga com ícone ✓
     verde antes da palavra). fatura com vários
@@ -156,9 +157,8 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     Comunicação; a falha de envio segue como alerta). Busca única por
     fatura ou B/L; resumo do recorte na faixa do título. Consolidada
     marcada por um ícone pequeno de pilha ao lado do número ("Consolidada"
-    ao passar o mouse), não por selo. Pergunta em
-    aberto: o ícone ✓ de paga vale nas outras telas (ex.: Demurrage da aba
-    Contêineres).
+    ao passar o mouse), não por selo. O ícone ✓ de
+    paga vale em todas as telas que mostram "paga" (decisão de 2026-10-14).
   - **Faturas do Portal** (decisões de 2026-10-14; tela ainda não
     aprovada): nada no lugar do
     vencimento (a taxa local não tem vencimento, ADR 0055); botão "Copiar
