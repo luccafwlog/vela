@@ -2,9 +2,11 @@
 
 Plano vivo da revisão aprovada pelo dono em 2026-10-13. As regras do trabalho
 estão na [ADR 0082](../adr/0082-governanca-documental-dono-unico-e-adr-historica.md)
-e em [CONVENCOES.md](../CONVENCOES.md). Este arquivo também é o registro de
-achados e de decisões pendentes enquanto a revisão durar; ao terminar, vai
-para `docs/archive/plans/` e o relatório final nasce em `docs/archive/audits/`.
+e em [CONVENCOES.md](../CONVENCOES.md). A varredura e a aplicação terminaram em
+2026-10-14; o que foi feito está no
+[relatório final](../archive/audits/2026-10-13-revisao-geral-documentacao.md).
+Este arquivo continua vivo como registro das decisões pendentes: vai para
+`docs/archive/plans/` quando a última for respondida e virar ADR.
 
 ## Objetivo
 
@@ -16,10 +18,10 @@ e as ADRs antigas são lidas como histórico sem confundir com a regra vigente.
 | Fase | Entrega | Estado |
 |---|---|---|
 | 0 | ADR 0082, `CONVENCOES.md` e este plano | concluída |
-| 1 | Inventário de temas × documentos | em andamento |
-| 2 | Varredura por domínio: corrige (a), registra (b) e (c), leva as regras do `CONTEXT.md` para os módulos | pendente |
-| 3 | Rodadas de decisão com o dono, em lote por domínio | pendente |
-| 4 | Faixas e índice de ADRs, documentos datados para o arquivo, ampliação do `docs:check`, relatório final | pendente |
+| 1 | Inventário de temas × documentos | concluída em 2026-10-13: auditoria de 400 achados em 15 escopos |
+| 2 | Varredura por domínio: corrige (a), registra (b) e (c), leva as regras do `CONTEXT.md` para os módulos | concluída em 2026-10-14 |
+| 3 | Rodadas de decisão com o dono, em lote por domínio | em andamento: lotes A, B e C abaixo aguardam o dono |
+| 4 | Faixas e índice de ADRs, documentos datados para o arquivo, ampliação do `docs:check`, relatório final | concluída em 2026-10-14 |
 
 ## Domínios da varredura
 
@@ -30,23 +32,27 @@ ativas e `src/`.
 
 | # | Domínio | Documentos principais | Estado |
 |---|---|---|---|
-| 1 | Viagens e Operação | `viagens.md`, `chegadas-saidas.md`, `operacao-suporte.md` (ADR operacional, Line-Up) | pendente |
-| 2 | B/L, EDI, Baplie, Granito e vazios | `manifesto-edi.md`, `granito.md` | pendente |
-| 3 | CE Mercante e Desbloqueio de CE | `desbloqueio-ce.md`, plano e spec de desbloqueio | pendente |
-| 4 | Clientes, Taxas Locais e Faturamento | `clientes.md`, `taxas-locais.md`, `faturamento.md`, `manual-financeiro.md` | pendente |
-| 5 | Demurrage | `demurrage.md` | pendente |
-| 6 | Conciliação PIX | `reconciliacao-pix.md` | pendente |
-| 7 | Portal, autenticação e segurança | `portal-cliente.md`, `seguranca.md`, `portal-rate-limit.md` | pendente |
-| 8 | Alertas, notificações e comunicação | `operacao-suporte.md` (alertas), comunicação com o cliente | pendente |
-| 9 | Infraestrutura e processo | `WORKFLOW.md`, `setup/`, `servicos-externos.md`, `segredos-cron.md`, `backup-r2.md`, `observabilidade.md`, `AGENTS.md`, `README.md` | pendente |
+| 1 | Viagens e Operação | `viagens.md`, `chegadas-saidas.md`, `operacao-suporte.md` (ADR operacional, Line-Up) | aplicado em 2026-10-14 |
+| 2 | B/L, EDI, Baplie, Granito e vazios | `manifesto-edi.md`, `granito.md` | aplicado em 2026-10-14 |
+| 3 | CE Mercante e Desbloqueio de CE | `desbloqueio-ce.md`, plano e spec de desbloqueio | aplicado em 2026-10-14 |
+| 4 | Clientes, Taxas Locais e Faturamento | `clientes.md`, `taxas-locais.md`, `faturamento.md`, `manual-financeiro.md` | aplicado em 2026-10-14 |
+| 5 | Demurrage | `demurrage.md` | aplicado em 2026-10-14 |
+| 6 | Conciliação PIX | `reconciliacao-pix.md` | aplicado em 2026-10-14 |
+| 7 | Portal, autenticação e segurança | `portal-cliente.md`, `seguranca.md`, `portal-rate-limit.md` | aplicado em 2026-10-14 |
+| 8 | Alertas, notificações e comunicação | `operacao-suporte.md` (alertas), comunicação com o cliente | aplicado em 2026-10-14 |
+| 9 | Infraestrutura e processo | `WORKFLOW.md`, `setup/`, `servicos-externos.md`, `segredos-cron.md`, `backup-r2.md`, `observabilidade.md`, `AGENTS.md`, `README.md` | aplicado em 2026-10-14 |
 
 ## Inventário (Fase 1)
 
-Preenchido na Fase 1.
+A auditoria cobriu 12 domínios (D0 a D11) e 3 escopos transversais
+(RASTREABILIDADE, ARCHITECTURE e índices): 304 achados (a), 42 duplicações,
+49 (b), 4 (c) e 1 refutado. A contagem por escopo está no
+[relatório final](../archive/audits/2026-10-13-revisao-geral-documentacao.md#achados).
 
 ## Correções aplicadas — tipo (a)
 
-Registradas por domínio no commit correspondente; resumo no relatório final.
+Registradas por domínio no commit correspondente; resumo no
+[relatório final](../archive/audits/2026-10-13-revisao-geral-documentacao.md#o-que-mudou).
 
 ## Decisões pendentes — tipos (b) e (c)
 
@@ -58,7 +64,8 @@ cada um conferido por um verificador independente nas lentes de código e de
 decisão) deixou 53 itens para o dono. Unidos os repetidos, são 50: 24
 decisões de negócio (lote A), 25 defeitos em que o código desobedece uma
 decisão já registrada (lote B) e uma decisão de organização documental tomada
-na própria revisão (D9-19, no fim desta seção). A evidência é leitura estática de código,
+na própria revisão (D9-19, no fim desta seção). A aplicação acrescentou A25,
+B26 a B32 e C1: no total, 25 decisões de negócio, 32 defeitos e 1 registro. A evidência é leitura estática de código,
 migrations ativas e documentos; o que diz "Suspeita" não foi executado.
 
 ### Lote A — decisões de negócio
@@ -159,9 +166,10 @@ divergência em "Notas e divergências" do módulo até a correção.
 
 ### Itens levantados na aplicação das faixas das ADRs
 
-Os agentes que escreveram as faixas "Situação atual" conferiram cada ADR no
-código e encontraram mais seis pontos. Eles não passaram pelo verificador
-independente; a evidência está na faixa de cada ADR.
+Os agentes que escreveram as faixas "Situação atual" e os que aplicaram a
+revisão nos documentos conferiram o código e encontraram mais nove pontos.
+Eles não passaram pelo verificador independente; a evidência está na faixa de
+cada ADR ou no documento citado.
 
 | Id | Tipo | Caso | Recomendação |
 |---|---|---|---|

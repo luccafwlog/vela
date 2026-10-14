@@ -6,6 +6,17 @@
 
 ## 2026-10
 
+- **Revisão geral da documentação (2026-10-14, [ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md),
+  [relatório](archive/audits/2026-10-13-revisao-geral-documentacao.md)):** cada fato passa a ter
+  um documento dono. O `CONTEXT.md` vira só glossário (de 2.376 para 1.584 linhas), e prazos,
+  ramos, exceções e efeitos vão para os módulos e para `regras-de-negocio.md`; 66 ADRs ganham a
+  faixa "Situação atual" com a regra vigente, e o índice ganha Status, Implementação e Regra
+  vigente em. A auditoria de 400 achados corrigiu 304 trechos defasados e 42 duplicações em
+  módulos, ARCHITECTURE, RASTREABILIDADE, WORKFLOW, operações, índices e skills; documentos
+  datados foram para o arquivo histórico. O `docs:check` passa a recusar status de ADR diferente
+  do índice, ADR supersedida sem faixa, documento datado fora do arquivo e link para seção
+  inexistente. Ficaram com o dono 25 decisões de negócio, 32 defeitos em que o código desobedece
+  uma decisão registrada e 1 registro, no [plano vivo](plans/2026-10-13-revisao-geral-documentacao.md).
 - **Passada única da identidade visual (2026-10-13, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md#passada-única-2026-10-13)):**
   o que vale igual em qualquer tela foi aplicado de uma vez no Vela e no Portal: toda tabela segue
   a tabela padrão (centralizada, com nome, descrição e observação à esquerda); a tabela dentro de

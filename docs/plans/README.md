@@ -10,7 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
-- [2026-10-13 — Revisão geral da documentação](2026-10-13-revisao-geral-documentacao.md) — aplica a [ADR 0082](../adr/0082-governanca-documental-dono-unico-e-adr-historica.md): dono único por fato, `CONTEXT.md` como glossário, faixa "Situação atual" nas ADRs e varredura por domínio com registro de decisões pendentes; Fase 0 concluída em 2026-10-13.
+- [2026-10-13 — Revisão geral da documentação](2026-10-13-revisao-geral-documentacao.md) — aplica a [ADR 0082](../adr/0082-governanca-documental-dono-unico-e-adr-historica.md): dono único por fato, `CONTEXT.md` como glossário, faixa "Situação atual" nas ADRs e varredura por domínio com registro de decisões pendentes. Varredura, aplicação e gate concluídos em 2026-10-14 ([relatório](../archive/audits/2026-10-13-revisao-geral-documentacao.md)); vivo até o dono responder as decisões pendentes (25 de negócio, 32 defeitos e 1 registro).
 
 - [2026-10-13 — Identidade visual: migração tela a tela](2026-10-13-identidade-visual-tela-a-tela.md) — base da [identidade visual única](../identidade-visual.md) entregue em 2026-10-13 ([ADR 0081](../adr/0081-identidade-visual-unica.md)): tokens, tema FWLOG do Portal, peças comuns e `npm run design:check`; 21 telas a migrar, cada uma aprovada pelo responsável com captura de hoje, proposta e lista do que muda; ficha do B/L e passada única entregues; próximo: lote 1 (lista de BLs e ficha da Viagem aprovadas, demais telas em aprovação).
 

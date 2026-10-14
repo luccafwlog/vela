@@ -1,7 +1,9 @@
 # 0082 — Governança da documentação: um dono por fato e ADR como registro histórico
 
 Status: aceito — 2026-10-13 (decisões do dono). Aplicada pela
-[revisão geral da documentação](../plans/2026-10-13-revisao-geral-documentacao.md).
+[revisão geral da documentação](../plans/2026-10-13-revisao-geral-documentacao.md),
+concluída em 2026-10-14 ([relatório](../archive/audits/2026-10-13-revisao-geral-documentacao.md)).
+Numerada 0082 porque a 0081 foi publicada na `main` durante a revisão.
 
 Refina a seção "Histórico vs arquivo" e a tabela "Responsabilidade de cada
 documento" de [CONVENCOES.md](../CONVENCOES.md). Não altera nenhuma regra de
@@ -47,6 +49,7 @@ A leitura da estrutura mostrou quatro problemas:
    | Regra que atravessa módulos | `docs/operations/regras-de-negocio.md` |
    | Procedimento do usuário do Financeiro | `docs/operations/manual-financeiro.md` |
    | Caminho da tela até hook, serviço, RPC e tabela | `docs/RASTREABILIDADE.md` |
+   | Aparência, regras visuais e peças comuns de tela | `docs/identidade-visual.md` ([ADR 0081](./0081-identidade-visual-unica.md)) |
    | Camadas, integrações, modelo de dados e mapa de rotas | `docs/ARCHITECTURE.md` |
    | Comandos, ambiente, testes, migrations e deploy | `WORKFLOW.md` e `docs/setup/` |
    | Por que decidimos e o que rejeitamos | ADR |
@@ -99,8 +102,9 @@ A leitura da estrutura mostrou quatro problemas:
 
 8. **O gate documental protege a estrutura.** `npm run docs:check` passa a
    verificar a concordância entre o status de cada ADR e o índice, a presença
-   da faixa nas ADRs supersedidas e a ausência de documento datado fora de
-   `docs/archive/`, `docs/plans/` e `docs/spec/`.
+   da faixa nas ADRs supersedidas, a ausência de documento datado fora de
+   `docs/archive/`, `docs/plans/` e `docs/spec/` e as âncoras de seção dos
+   links entre documentos.
 
 ## Alternativas rejeitadas
 
