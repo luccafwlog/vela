@@ -144,7 +144,7 @@ O `npm run docs:check` passou a recusar:
   âncora no estilo do GitHub.
 
 Os helpers têm testes de asserts no CI (`scripts/lib/docs-adr.test.mjs` e
-`scripts/lib/docs-anchors.test.mjs`), e o fixture do gate tem dezoito
+`scripts/lib/docs-anchors.test.mjs`), e o fixture do gate tem dezenove
 cenários de rejeição. Quando as três primeiras regras entraram, acusaram 57
 erros; no fim da revisão, com a regra de âncoras também ligada, o gate passa
 sem erros.

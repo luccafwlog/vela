@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { adrFileStatus, adrNeedsBanner, hasSituationBanner, isDatedLivingDocument, parseAdrIndex } from './docs-adr.mjs'
+import { adrFileStatus, adrHeader, adrNeedsBanner, hasSituationBanner, isDatedLivingDocument, parseAdrIndex } from './docs-adr.mjs'
 
 assert.equal(adrFileStatus('# 0001 — X\n\nStatus: supersedida parcialmente — 2026-06-03\n'), 'supersedida parcialmente')
 assert.equal(adrFileStatus('# 0050 — X\n\n**Status:** aceito\n'), 'aceito')
@@ -7,11 +7,16 @@ assert.equal(adrFileStatus('# 0044 — X\n\nStatus: substituída pela ADR 0046 �
 assert.equal(adrFileStatus('# 0081 — X\n\n**Data:** 2026-10-13 · **Status:** aceito\n'), 'aceito')
 assert.equal(adrFileStatus('# 0011 — X\n\nDecidido em junho.\n'), null)
 assert.equal(adrFileStatus('# 0012 — X\n\nO Status: aceito foi discutido.\n'), null)
+assert.equal(adrFileStatus('# 0013 — X\n\n```md\nStatus: aceito\n```\n'), null)
+assert.equal(adrFileStatus('# 0014 — X\n\n## Contexto\n\nStatus: aceito\n'), null)
+assert.equal(adrFileStatus('Status: aceito\n'), null)
+assert.equal(adrHeader('Sem título\n'), null)
 
 assert.equal(hasSituationBanner('# X\n\n> **Situação atual (2026-10-13).** A regra vigente está no módulo.\n'), true)
 assert.equal(hasSituationBanner('# X\n\n> **Nota editorial — 2026-09-23.** Algo mudou.\n'), false)
 assert.equal(hasSituationBanner('# X\n\nStatus: estendida\n\n> **Situação atual (2026-10-13).** Tarde demais.\n'), false)
 assert.equal(hasSituationBanner('# X\n\n## Contexto\n\n> **Situação atual (2026-10-13).** Citada no corpo.\n'), false)
+assert.equal(hasSituationBanner('> **Situação atual (2026-10-13).** Sem título acima.\n'), false)
 assert.equal(adrNeedsBanner('aceito'), false)
 assert.equal(adrNeedsBanner('estendida'), true)
 assert.equal(adrNeedsBanner('supersedida parcialmente'), true)

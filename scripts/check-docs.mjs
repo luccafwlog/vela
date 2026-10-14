@@ -9,6 +9,7 @@ import {
 } from './lib/docs-routes.mjs'
 import {
   adrFileStatus,
+  adrHeader,
   adrNeedsBanner,
   hasSituationBanner,
   isDatedLivingDocument,
@@ -139,6 +140,10 @@ if (fs.existsSync(adrIndexPath)) {
     // estendida ou supersedida abre com a faixa "Situação atual".
     const adrPath = `docs/adr/${adrFile}`
     const adrContent = fs.readFileSync(path.join(adrDirectory, adrFile), 'utf8')
+    if (adrHeader(adrContent) === null) {
+      addError(adrPath, 'ADR has no "# " title line')
+      continue
+    }
     const status = adrFileStatus(adrContent)
     if (!status) {
       addError(adrPath, 'ADR has no recognizable "Status:" line')

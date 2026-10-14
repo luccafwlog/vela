@@ -81,6 +81,8 @@ try {
   assert.equal(run().status, 0)
   write('docs/adr/0001-example.md', '# Decision\n\nDecidido.\n')
   assert.match(run().stderr, /no recognizable "Status:" line/)
+  write('docs/adr/0001-example.md', '> **Situação atual (2026-10-13).** Sem título.\n\nStatus: aceito — 2026-01-01\n')
+  assert.match(run().stderr, /ADR has no "# " title line/)
   write('docs/adr/0001-example.md', '# Decision\n\nStatus: aceito — 2026-01-01\n')
   write('docs/adr/README.md', adrIndexWith('aceito'))
   write('docs/skills/inventory-2026-09-18.md', '# Inventory\n')
@@ -110,7 +112,7 @@ try {
   assert.doesNotMatch(dynamic.stderr, /at checkDocs|file:\/\//)
   write('src/AppInterno.tsx', '<Routes><Route index /><Route path="/inspect/:id/*"><Route path="billing" /></Route></Routes>')
   assert.equal(run().status, 0)
-  console.log('check-docs: positive fixture and eighteen rejection scenarios passed.')
+  console.log('check-docs: positive fixture and nineteen rejection scenarios passed.')
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true })
 }

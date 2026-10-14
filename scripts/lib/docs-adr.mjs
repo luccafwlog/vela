@@ -2,6 +2,8 @@
 // estendida/supersedida tem faixa "Situação atual" e documento datado vive no
 // arquivo histórico (ou é plano/spec vivo).
 
+import { stripCodeFences } from './docs-anchors.mjs'
+
 export const ADR_STATUSES = ['aceito', 'estendida', 'supersedida parcialmente', 'substituída', 'obsoleta']
 
 // A linha pode abrir com o status ou trazê-lo depois de outro campo separado
@@ -11,17 +13,27 @@ const statusPattern = new RegExp(
   'im',
 )
 
+// Cabeçalho da ADR: as linhas entre o título `# ` e a primeira seção `## `,
+// fora de blocos de código. Status e faixa só valem ali; um exemplo no corpo
+// ou num bloco de código não conta. Sem título, não há cabeçalho (null).
+export function adrHeader(content) {
+  const lines = stripCodeFences(content).split(/\r?\n/)
+  const title = lines.findIndex((line) => /^# /.test(line))
+  if (title < 0) return null
+  const firstSection = lines.findIndex((line, index) => index > title && /^## /.test(line))
+  return lines.slice(title + 1, firstSection < 0 ? undefined : firstSection)
+}
+
 export function adrFileStatus(content) {
-  const match = content.match(statusPattern)
+  const header = adrHeader(content)
+  const match = header?.join('\n').match(statusPattern)
   return match ? match[1].toLowerCase() : null
 }
 
 // A faixa abre a ADR: é a primeira linha não vazia depois do título, para o
 // leitor ver o que mudou antes do contexto original (CONVENCOES.md).
 export function hasSituationBanner(content) {
-  const lines = content.split(/\r?\n/)
-  const title = lines.findIndex((line) => /^# /.test(line))
-  const opening = lines.slice(title + 1).find((line) => line.trim() !== '')
+  const opening = adrHeader(content)?.find((line) => line.trim() !== '')
   return /^> \*\*Situação atual \(\d{4}-\d{2}-\d{2}\)\.\*\*/.test(opening ?? '')
 }
 

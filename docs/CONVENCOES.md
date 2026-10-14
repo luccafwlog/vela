@@ -142,9 +142,10 @@ de uma chamada com conclusão de um efeito assíncrono.
   ADRs nunca são movidas para o arquivo histórico nem renumeradas.
 - Toda ADR estendida ou supersedida começa, logo abaixo do título, por uma
   faixa `> **Situação atual (AAAA-MM-DD).**` que diz o que não vale mais,
-  quais ADRs a alteraram e onde está a regra vigente. A linha `Status:` da
-  ADR concorda com o índice. Estado de implementação é registrado à parte do
-  status da decisão.
+  quais ADRs a alteraram e onde está a regra vigente. A linha `Status:` fica
+  no cabeçalho da ADR, entre o título e a primeira seção `##` (fora de bloco
+  de código), e concorda com o índice. Estado de implementação é registrado à
+  parte do status da decisão.
 - Em documento vivo, número de migration sem qualificação é da cadeia ativa
   (`supabase/migrations/`). Número da cadeia anterior à consolidação
   ([ADR 0062](adr/0062-consolidacao-migrations-schema-1-0.md)) é escrito
