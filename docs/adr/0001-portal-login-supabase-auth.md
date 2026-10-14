@@ -1,5 +1,9 @@
 # 0001 — Login do Portal do Cliente via Supabase Auth (email + senha)
 
+> **Situação atual (2026-10-13).** Continuam valendo o Supabase Auth como único mecanismo de sessão do Portal e o fim do token legado.
+> Não valem mais o login por email + senha feito no navegador nem a Edge Function `provision-portal-user`: o cliente informa CNPJ e senha à Edge Function `portal-login`, que resolve a identidade no servidor, sem acesso `anon` ([ADR 0013](./0013-portal-auth-identificador-resolvido-e-excecao-anon.md), [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md)), e a conta nasce por convite de uso único.
+> Regra vigente em [Portal do Cliente](../modules/portal-cliente.md), seção "Propósito e escopo", e em [Segurança](../operations/seguranca.md), seção "Duas fronteiras de autenticação".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Login atual pede CNPJ e senha; portal-login resolve a identidade no servidor. Não restaurar email-only nem acesso anon ao resolver.
 > Rastreabilidade: [ADR 0013](./0013-portal-auth-identificador-resolvido-e-excecao-anon.md), [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

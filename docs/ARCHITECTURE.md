@@ -1,114 +1,85 @@
 # Arquitetura do Vela e do Portal Fwlog
 
-Verificado contra o código, a configuração e as migrations em 2026-09-07.
+Revisado em 2026-10-14, na [revisão geral da documentação](archive/plans/2026-10-13-revisao-geral-documentacao.md):
+a visão geral, a hospedagem, as integrações, os Comunicados, os alertas, as
+fronteiras de autenticação, as camadas, o fluxo operacional e financeiro, o
+modelo de dados, a projeção de escalas, a segurança, as Edge Functions e o mapa
+de rotas foram reconferidos contra o código e a cadeia ativa de migrations. As
+seções "Celular e toque" e "Densidade e primitivas visuais" vêm da verificação
+de 2026-09-07 e não foram reconferidas. Estado remoto (publicação de funções,
+jobs e segredos) tem registro próprio em
+[Serviços externos](operations/servicos-externos.md).
 
-Este é o mapa canônico da arquitetura atual. Termos de negócio vivem em
-[`CONTEXT.md`](../CONTEXT.md); decisões e supersessões vivem no
-[índice de ADRs](./adr/README.md).
+Este é o mapa canônico da arquitetura atual: camadas, integrações, modelo de
+dados, fluxo de alto nível e mapa de rotas
+([ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md)).
+Regras de negócio vivem nos módulos listados no [índice documental](README.md)
+e, quando atravessam módulos, em [Regras de negócio](operations/regras-de-negocio.md);
+termos vivem em [`CONTEXT.md`](../CONTEXT.md); decisões e supersessões, no
+[índice de ADRs](./adr/README.md). Aqui uma regra aparece em uma frase, com o
+link para o documento dono.
 
 ## Visão geral
 
 ```mermaid
 flowchart LR
+    Pages["Cloudflare Pages"]
     Browser["Navegador<br/>Vela + Portal Fwlog"]
     Internal["Sessão interna<br/>Supabase Auth"]
     Portal["Sessão do Portal<br/>Supabase Auth isolada"]
-    Database[("Supabase PostgreSQL<br/>RLS + RPCs")]
+    Database[("Supabase PostgreSQL<br/>RLS + RPCs + pg_cron")]
     Functions["Edge Functions<br/>Deno"]
     Resend["Resend"]
     BCB["Banco Central / PTAX"]
+    Itau["Itaú<br/>Pix Recebimentos"]
+    Upstash["Upstash<br/>trava de tentativas"]
+    Turnstile["Cloudflare Turnstile"]
     Sentry["Sentry"]
-    Pages["Cloudflare Pages"]
+    PostHog["PostHog"]
+    BetterStack["Better Stack<br/>heartbeats"]
+    R2["Cloudflare R2<br/>backup"]
 
+    Pages --> Browser
     Browser --> Internal
     Browser --> Portal
     Internal --> Database
     Portal --> Database
     Browser --> Functions
+    Database -->|pg_cron e pg_net| Functions
     Functions --> Database
     Functions --> Resend
+    Resend -->|webhook de entrega| Functions
     Functions --> BCB
+    Browser --> BCB
+    Functions --> Itau
+    Functions --> Upstash
+    Browser --> Turnstile
+    Functions --> Turnstile
     Browser --> Sentry
-    Pages --> Browser
+    Functions --> Sentry
+    Browser --> PostHog
+    Functions --> BetterStack
+    Database -.->|backup diário por script externo| R2
 ```
 
-O frontend entrega duas SPAs estáticas, com entradas e roteadores separados. A segurança real não depende do roteador: tabelas,
-views e funções do Supabase aplicam escopo e autorização por RLS, grants e
-validações dentro das RPCs.
+O frontend entrega duas SPAs estáticas, com entradas e roteadores separados. A
+segurança real não depende do roteador: tabelas, views e funções do Supabase
+aplicam escopo e autorização por RLS, grants e validações dentro das RPCs.
 
-### Estado da remediação #654–#660
+### Hospedagem e publicação
 
-As migrations `022`–`026` adicionam inbox durável para eventos de email,
-consumidores server-only de efeitos pós-commit e snapshots append-only para o
-cálculo autoritativo de Demurrage. O webhook só recebe/persiste; runners fazem
-claim, retry e transições com service role. O runner de efeitos é agendado, mas
-permanece fail-closed até `IMPORT_EFFECTS_RUNNER_ENABLED=true`; o recálculo PTAX
-continua nominalmente inativo até validação de Preview, gateway e Vault. Esta é
-uma integração parcial do plano, não uma declaração de rollout remoto.
-
-### Comunicados ao Cliente e Caixas de Comunicação
-
-A migration `372_comunicados_fundacao.sql` criou a trilha de Comunicados sem
-histórico retroativo: `customer_communications`, seus vínculos B/L e tentativas,
-e as supressões específicas do canal. As âncoras do comunicado são snapshots
-e não têm FK para escala, atracação ou invoice. A chave global vive no
-singleton `app_settings`, nasce desligada e só é alterada pela RPC
-`set_communications_enabled(boolean)`, que exige o perfil Administrativo e
-registra a mudança em `audit_logs`. A linha singleton `id=1` é obrigatória para
-as leituras da aplicação; a migration `044_restore_app_settings_singleton.sql`
-reconverge o banco quando houver drift e não sobrescreve valores já existentes.
-
-A migration `008_portal_contact_boxes.sql` (ADR 0064) substituiu o modelo
-legado de quatro naturezas operacionais pelas **Caixas de Comunicação**
-(`customer_communication_boxes`, `customer_communication_box_kinds`,
-`customer_contact_box_links`):
-- `documentacao_operacao`: CE e Taxas, NOA, NOR e NOB;
-- `financeiro`: CE e Taxas e Cobranças de Demurrage;
-- `demurrage`: Cobranças de Demurrage e futuros comunicados de Demurrage.
-
-O salvamento de contatos é atômico via `_apply_customer_contact_configuration`
-(com `FOR UPDATE` pessimista do cliente), garantindo exatamente um contato
-principal ativo, unicidade de e-mail e desativação lógica (`deactivated_at`).
-A edição das caixas na Ficha do Cliente exige a permissão
-`customer_communications` no frontend (`CadastroContatosTab`) e no banco
-(`internal_save_customer_contact_configuration` valida o papel
-administrativo/documentação/equipamentos); demais papéis recebem fallback
-somente leitura. Toda alteração gera registro append-only em `customer_contact_change_events`
-(com `action_id`, `source`, snapshots e diff estruturado). Capturas automáticas
-por B/L passam por `ensure_customer_contact_email` sem sobrescrever dados
-cadastrais, e caixas esvaziadas por bounce permanente ou desativação são
-reparadas por `repair_customer_contact_box_fallbacks`.
-
-A rota interna `/clientes/comunicacao`, protegida por `customer_communications`,
-faz a conferência por público/caixa (`audience`), valida snapshots de destinatários
-no pré-disparo e registra simulações; a Edge Function `send-customer-communication`
-só chama o Resend quando a chave global estiver ligada.
-
-`portal-email-webhook` resolve o `provider_message_id` tanto em
-`portal_email_attempts` quanto em `customer_communication_attempts` e aponta
-`portal_email_events` para uma única trilha. Complaint do canal novo fica local;
-bounce permanente entra em `portal_suppressed_emails` e pode acionar a cascata
-de notificação ao contato alternativo ou o alerta
-`cliente_contato_bounced_sem_alternativa`. A notificação da cascata usa uma
-natureza própria e não reabre a própria cascata quando sofre bounce.
-
-Comunicados financeiros não usam o evento genérico de emissão como gatilho:
-`customer_local_charges_communication_readiness()` calcula, por cliente e
-viagem, se todos os B/Ls ativos têm CE Mercante, revisão limpa e situação
-financeira concluída. Depois do vínculo do CE, a automação de faturamento
-disponibiliza a invoice no Portal e dispara em background o resumo
-`ce_mercante_taxas` quando a prontidão está completa. A tabela de Taxas Locais
-exibe o bloqueio, o último envio e o reenvio assistido sem quebrar a
-idempotência da trilha.
-
-`cobranca_demurrage` é produzido pela Edge Function `demurrage-dunning` em
-cadência horária. A régua ancora o primeiro envio em `first_billed_at`, usa o
-intervalo de `app_settings`, não tem teto de tentativas e pausa durante disputa
-aberta, bounce sem contato alternativo ou ausência de contato válido. O valor
-em USD permanece o da cobrança; o BRL exibido no comunicado leva ROE e data de
-referência e informa que será recalculado no pagamento.
-
-O Cloudflare Pages hospeda duas aplicações estáticas produzidas pelo mesmo build Vite: `vela-internal` publica `index.html` em `https://vela.app.br`, e `vela-portal` publica `portal.html` em `https://portalfwlog.com.br`. GitHub Actions publica previews por PR; o workflow usa as credenciais da branch Supabase correspondente. `main` publica ambos os sites com as credenciais de produção. O Portal continua sendo Fwlog, enquanto Vela identifica somente a superfície interna. O hosting Firebase não faz mais parte da arquitetura.
+O Cloudflare Pages hospeda as duas aplicações estáticas produzidas pelo mesmo
+build Vite ([ADR 0076](adr/0076-cloudflare-pages-como-hosting.md)):
+`vela-internal` publica `index.html` em `https://vela.app.br`, e `vela-portal`
+publica `portal.html` em `https://portalfwlog.com.br`. O GitHub Actions publica
+`main` nos dois sites, com as credenciais de produção, e as previews de cada PR,
+com as credenciais da branch Supabase de Preview. A Pages Function
+`functions/assets/[[path]].ts` responde `404` sem cache a asset inexistente. A
+Vercel ficou só como rollback manual, sem publicação automática, e o Firebase
+não faz mais parte da arquitetura. O Portal continua sendo Fwlog; Vela
+identifica somente a superfície interna. Workflows, variáveis e headers estão
+em [Deploy](setup/deploy.md); projetos e contas, em
+[Serviços externos § Hospedagem do front-end](operations/servicos-externos.md#hospedagem-do-front-end).
 
 Depois de um CI verde, o workflow confiável
 `.github/workflows/provision-preview-admin.yml` aguarda o check da branch
@@ -116,64 +87,121 @@ Supabase e provisiona `qa-admin@example.test` pela Auth Admin API da própria
 Preview, com perfil interno `administrativo`. A senha existe somente como secret do
 GitHub Actions; ela não participa do bundle Vite nem do projeto de produção.
 
+### Inbox de eventos, efeitos pós-commit e cálculo de Demurrage
+
+Três mecanismos server-side tiram do navegador o que precisa sobreviver a
+falhas ([ADR 0065](adr/0065-inbox-efeitos-e-autoridade-financeira.md)):
+
+- **Inbox de eventos de e-mail** (migration `022`): o webhook do Resend só
+  valida e grava o evento em `portal_email_events`; o
+  `portal-email-events-runner` resolve a tentativa, aplica as supressões e
+  executa os efeitos ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).
+- **Fila de efeitos pós-commit das importações** (`import_pending_effects`,
+  migrations `015`, `017`, `025` e `031`): a importação grava o efeito
+  (faturamento local, marcações físicas) na mesma transação, e o
+  `import-effects-runner` o consome com lease, nova tentativa e bloqueio
+  investigável, com alerta persistente (migration `026`). Desde a migration
+  `218`, a própria transação dispara o runner, e o job de 1 minuto é a rede de
+  segurança.
+- **Cálculo autoritativo de Demurrage** (migration `023`): a emissão recebe só a
+  identidade dos containers; tarifas, acordos, datas, câmbio e total são
+  resolvidos no banco e gravados em `demurrage_calculation_snapshots`
+  (append-only). A falha do recálculo PTAX abre um alerta global persistente
+  (migration `024`).
+
+O estado de cada job — o `import-effects-runner` ligado em produção desde
+2026-10-12 e o `recalc-demurrage-ptax` agendado desde 2026-10-07 — fica em
+[Serviços externos § Jobs agendados](operations/servicos-externos.md#jobs-agendados-pg_cron).
+
+### Comunicados ao Cliente e Caixas de Comunicação
+
+Comunicado é o canal de e-mail da Transhipping para os Emails de Contato do
+Cliente, separado do e-mail transacional do Portal
+([ADR 0058](adr/0058-canal-de-comunicado-ao-cliente.md)). A regra vigente está
+em [Clientes § Comunicados ao Cliente](modules/clientes.md#comunicados-ao-cliente);
+aqui fica o desenho:
+
+- **Trilha.** `customer_communications`, seus vínculos com B/Ls
+  (`customer_communication_bls`), tentativas (`customer_communication_attempts`),
+  anexos e as supressões próprias do canal (`customer_communication_suppressions`),
+  todas na migration `001`; a trilha nasceu na migration arquivada `372`, sem
+  histórico retroativo. As âncoras (viagem, porto, Atracação, invoice) são
+  snapshots, sem FK.
+- **Caixas de Comunicação** (migration `008`,
+  [ADR 0064](adr/0064-caixas-de-comunicacao-e-auditoria-de-contatos.md)):
+  `customer_communication_boxes`, o mapa caixa → modelo
+  `customer_communication_box_kinds` e os vínculos `customer_contact_box_links`.
+  A gravação dos contatos passa por `_apply_customer_contact_configuration`, com
+  trava do Cliente, no Vela e no Perfil do Portal, e toda alteração grava
+  `customer_contact_change_events` (append-only). Regra em
+  [Clientes § Contatos e Caixas de Comunicação](modules/clientes.md#contatos-e-caixas-de-comunicação).
+- **Envio.** O Disparo manual de `/clientes/comunicacao` (sessão interna) e a
+  régua automática (segredo de automação) saem pela Edge Function
+  `send-customer-communication`. Ela reconfere no servidor o Cliente, os B/Ls e
+  as âncoras, a natureza do modelo e cada destinatário por
+  `customer_communication_recipient_allowed` — contato ativo, vínculo à caixa
+  exigida pelo modelo e supressões —, grava o Comunicado e a tentativa
+  atomicamente e envia ou registra a simulação.
+- **Automação.** O `customer-communication-auto-runner` avalia NOA, NOR, NOB e
+  CE e Taxas com claims recuperáveis (`customer_communication_automation_claims`);
+  a condição do CE e Taxas é a
+  [Prontidão de Comunicação de Taxas](modules/clientes.md#prontidão-de-comunicação-de-taxas)
+  (`customer_local_charges_communication_readiness`).
+- **Régua de Cobrança.** A Cobrança de Demurrage (`cobranca_demurrage`) é
+  produzida e enviada pela Edge Function `demurrage-dunning`, em job horário,
+  com o mesmo helper de e-mail e a mesma trilha. Cadência, pausas (inclusive a
+  Invoice suspensa por datas alteradas, `dunning_suspended_reason`, migration
+  `179`) e conteúdo são regra de
+  [Demurrage § Régua de Cobrança](modules/demurrage.md#régua-de-cobrança).
+- **Chave global.** `app_settings.communications_enabled`, alterada só pela RPC
+  `set_communications_enabled(boolean)`, que exige o Administrativo e grava em
+  `audit_logs`. O que ela silencia está em
+  [Regras de negócio § Chave de envio e supressão de e-mail](operations/regras-de-negocio.md#chave-de-envio-e-supressão-de-e-mail).
+
+A linha singleton `id=1` de `app_settings` é obrigatória para as leituras da
+aplicação. Ela foi restaurada pelas migrations `044`, `104` e `155` (as duas
+últimas porque sumiu de produção por ação externa) e, desde a migration `156`,
+o banco recusa apagá-la, inclusive em cascata, salvo desabilitar o gatilho de
+propósito.
+
 ### Alertas e notificações internas
 
-Alertas internos têm um agregado histórico em `alerts` e uma projeção de
-pendências em `alert_items`. O catálogo `alert_type_catalog` concentra tipo,
-severidade, departamento, audiência e destino. `alert_item_events` e
-`alert_item_dismissals` preservam o histórico; a dispensa é temporária e exige
-motivo, autor e revisão futura. Não há acknowledge nem fechamento manual para
-itens novos: os produtores resolvem a origem por RPC.
+Alertas internos têm um agregado por entidade em `alerts` e uma projeção de
+pendências em `alert_items`, um item por tipo e setor. O catálogo
+`alert_type_catalog` declara gravidade, setor, audiência, destino e se o tipo
+está ativo; `alert_item_events` e `alert_item_dismissals` guardam o histórico.
+`internal_notifications` é o fan-out por usuário e evento
+(`fanout_alert_item_for_department`), com RLS que limita a leitura ao
+destinatário e só permite marcar `read_at`; a entrega que não encontra
+destinatário fica em `alert_notification_failures`. A fila `/alertas` lê
+`list_alert_queue_page`, de 100 em 100, inclusive as linhas legadas de `alerts`
+sem item; a fila e o sino resolvem o rótulo da
+entidade numa consulta em lote separada (`fetchAlertEntityLabels`) e caem no id
+quando a tradução não volta. Ciclo de vida, dispensa, audiência e fallback
+crítico ao Administrativo são regra de
+[Operação e suporte § Alertas e Notificações Internas](modules/operacao-suporte.md#alertas-e-notificações-internas).
 
-`internal_notifications` é fan-out por usuário e evento, com RLS que limita a
-leitura ao destinatário e permite somente marcar `read_at`. A notificação guarda
-a mesma chave surrogate de `alert_items` (`entity_type` + `entity_id`); tanto a
-fila de `/alertas` quanto o sino resolvem o rótulo humano por uma consulta em
-lote separada (`fetchAlertEntityLabels`) e caem no id quando a tradução não
-volta. Alertas críticos
-sem audiência ativa tentam Administrativo/Admin e registram a falha em
-`alert_notification_failures` quando o fallback também não encontra ninguém.
-A audiência efetiva é a união de `alert_type_catalog.audience_departments` com
-o departamento gravado no item pelo produtor — no ADR, um item por departamento
-(Operações, Documentação e Equipamentos); cada notificação preserva o
-`recipient_department` real. Um tipo sem produtor ativo é marcado
-`active = false` no catálogo: `invoice_payment_invalid` e
-`invoice_cancel_blocked` saíram do roteamento na migration `327` e foram
-desativados na `347`; um tipo inativo não é listado em `/alertas/regras` —
-`ALERT_RULES` documenta somente os tipos vivos, para a tela não prometer um
-alerta que nunca chega. `TYPE_LABELS` mantém o rótulo dos tipos aposentados
-porque itens históricos continuam legíveis na fila. O destino de itens ativos é derivado
-por `alertEntityLink`, sem uma segunda cópia em PL/pgSQL. A identidade pública
-de terminal é `voyage::porto::depots.code`; UUID fica somente no metadata.
-A leitura das notificações usa `is_active_read_user()`, portanto inclui o papel
-`equipamentos`, que é audiência válida de Dispute e PIX. Linhas antigas de
-`alerts` continuam na fila pela RPC `list_alert_queue` até que seus produtores
-sejam migrados; a projeção mantém limite global de 200 linhas. Enquanto isso,
-o bridge acompanha inserts, fechamentos e reaberturas de carriers concretos:
-fecha o item correspondente e emite nova ocorrência/notificação quando a mesma
-pendência retorna. O backfill não dispara notificações históricas no deploy.
-Transições autoritativas resolvem pagamento/cancelamento de invoice,
-convite e falha de envio do Portal, email de recuperação saudável e Dispute de
-Demurrage; a emissão automática resolve sua falha anterior ao concluir com
-sucesso. Abuso investigável de login continua dependendo da análise do bloco
-Portal, como definido na spec #521.
-
-Os detectores server-side são executados pela Edge Function
-`alerts-detector`, protegida por `ALERTS_DETECTOR_SECRET`, a cada 15 minutos
-por `pg_cron` + `pg_net`. O browser não dispara detectores nem cria
-notificações internas. Triggers em audit logs, no estado terminalizado e nas
-origens da divergência Baplie/B/L (`baplie_containers`, `bls`, `bl_containers`,
-statement-level, migrations `361`/`362`) também reconciliam a origem imediatamente; o
-cron é a rede de segurança. O job dispara por
+Os produtores rodam no banco. Gatilhos em audit logs, no estado terminalizado
+da escala e nas origens da divergência Baplie/B/L (`baplie_containers`,
+`bl_containers`, statement-level; definição vigente na migration `002`)
+reconciliam a origem na hora. O detector periódico é a Edge Function
+`alerts-detector`, protegida por `ALERTS_DETECTOR_SECRET` e disparada pelo
+`pg_cron` a cada 15 minutos por
 `ops.dispatch_edge_job('alerts-detector', 'ALERTS_DETECTOR_SECRET')`, que lê a
 base da API e o segredo do Supabase Vault; o comando agendado cita nomes, nunca
-valores (ADR 0063). A pendência
-de exportação pós-ATD fica no nível `(viagem, escala)` enquanto os manifests
-não possuírem vínculo de terminal. A agenda é instalada quando as extensões estão
-disponíveis; enquanto `SUPABASE_URL` ou `ALERTS_DETECTOR_SECRET` faltarem no
-cofre, o job continua visível e inerte, registrando `WARNING` a cada execução
-até a configuração ser cadastrada
-([`operations/segredos-cron.md`](operations/segredos-cron.md)).
+valores ([ADR 0063](adr/0063-configuracao-de-jobs-cron-no-vault.md)). Ela roda
+`run_alert_detectors` e remove anexos órfãos de Disputa. Sem o segredo no
+Vault, o job continua visível e inerte, registrando `WARNING` a cada execução
+([segredos e cron](operations/segredos-cron.md)).
+
+O navegador não executa detectores, e as notificações só nascem no banco. O
+destino de cada item é derivado no frontend por `alertEntityLink`, e a
+identidade pública de terminal é `voyage::porto::depots.code` (o UUID fica só
+no metadata). Os dois alertas de faturamento que o navegador abre e fecha por
+RPC estão em
+[Operação e suporte § Notas e divergências](modules/operacao-suporte.md#notas-e-divergências)
+(B27: a origem passa a ser recomputada no servidor, correção pendente no
+[plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 
 ## Fronteiras de autenticação
 
@@ -203,9 +231,11 @@ técnica no servidor e devolve apenas a sessão. `portal_resolve_login(text)` n�
 
 A [ADR 0013](./adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md)
 tratou essa resolução como exceção pré-autenticação para `anon`, limitada por
-tentativas e erro genérico. **Essa exceção não existe mais:** a migration `182`
-revogou `anon` de `portal_resolve_login(text)` quando o login passou a ser
-resolvido pela Edge Function com `service_role`. O wrapper `portalResolveLogin`
+tentativas e erro genérico. **Essa exceção não existe mais:** a migration
+arquivada `182` revogou `anon` de `portal_resolve_login(text)` quando o login
+passou a ser resolvido pela Edge Function com `service_role`, e a
+[ADR 0047](adr/0047-grants-de-funcao-fechados-por-padrao.md) (migration
+arquivada `297`) encerrou formalmente a exceção. O wrapper `portalResolveLogin`
 em `src/services/portalBilling.ts` é código morto, sem chamador de produção. RPCs
 de dados do Portal exigem sessão autenticada e resolvem o cliente por
 `auth.uid()`.
@@ -218,7 +248,7 @@ identifica o usuário interno (`is_active_read_user()`, `is_admin()`,
 condição. Daí a regra: nenhuma policy ou função pode autorizar por "estar
 autenticado". Policy de leitura com `USING (true)` e função `SECURITY DEFINER`
 sem guarda explícita são vazamentos para o Portal — foi essa a causa das
-migrations `192` e `257`.
+migrations arquivadas `192` e `257`.
 
 O `PortalAuthProvider` também assina `supabasePortal.auth.onAuthStateChange`.
 Eventos `SIGNED_OUT` limpam o overview local e removem todos os caches TanStack
@@ -230,9 +260,13 @@ O provisionamento operacional mantém decisão e situação da conta em eixos
 separados em `customer_portal_accounts`. Convites, tentativas/eventos de email,
 supressões e histórico append-only vivem respectivamente em
 `portal_invites`, `portal_email_attempts`, `portal_email_events`,
-`portal_suppressed_emails` e `portal_provisioning_events`. RPCs internos
-autorizam transições, pré-voo/backfill e expiração idempotente; nenhum token ou
-senha em claro é persistido.
+`portal_suppressed_emails` e `portal_provisioning_events`. O registro de Portal
+nasce no cadastro do Cliente (gatilho `trg_portal_create_account_on_customer_insert`)
+e a leitura do console repara contas ausentes (`portal_repair_missing_accounts`).
+RPCs internos autorizam as transições e a expiração idempotente; nenhum token
+ou senha em claro é persistido. O backfill inicial e seu pré-voo foram uma
+operação única de implantação, cujas RPCs saíram do catálogo (migration
+arquivada `203`).
 
 ## Camadas do frontend
 
@@ -259,8 +293,9 @@ rota tem um orçamento de **50 ms** de parse/compile de JS, verificável por
 - `src/pages/`: composição de rotas, estado visual e fluxos de tela;
 - `src/hooks/`: queries e mutations reutilizáveis com TanStack Query;
 - `src/services/`: acesso ao Supabase, parsers, importadores e domínio;
-- `src/services/cacheEffects.ts`: invalidação por eventos de domínio (`afterViagemAlterada`, `afterEscalaAlterada`, `afterRotaAlterada`, `afterBaplieImportado`, `afterBlRevisado`, `afterManifestoImportado`, `afterCargaAlterada`, `afterDatasContainerAlteradas`); o adapter histórico de Baplie encaminha para esse owner. Importações, edições e exclusões atualizam listas, cards, fichas e consumidores derivados, incluindo Revisão, Taxas Locais, ADR e Relatórios. Consultas ativas são refeitas e consultas desmontadas ficam obsoletas para a próxima abertura. O efeito é aguardado pelo fluxo de gravação; não há sincronização entre usuários neste mecanismo;
-- `src/services/importCore.ts`: leitor único de planilhas por `readSheet` (célula tipada, linhas/abas ocultas ignoradas com aviso, cabeçalho duplicado bloqueia) e casamento de cabeçalhos por `HeaderSpec`/`matchHeaders`; datas de importação pelo parser único `src/lib/importDate.ts`, números por `src/lib/importNumber.ts`;
+- `src/services/queryKeys.ts`: famílias de chave do TanStack Query, reutilizadas por hooks e invalidações;
+- `src/services/cacheEffects.ts`: efeitos `after*` por evento de domínio — viagem, escala, rota, Baplie, B/L, manifesto, carga, datas de container, faturamento, Liberação de faturamento sem Portal, Comunicados, Desbloqueio de CE, Demurrage e PIX, entre outros; a lista vigente é o próprio arquivo. O adapter histórico de Baplie encaminha para esse owner. Importações, edições e exclusões atualizam listas, cards, fichas e consumidores derivados, incluindo Revisão, Taxas Locais, ADR e Relatórios. Consultas ativas são refeitas e consultas desmontadas ficam obsoletas para a próxima abertura. O efeito é aguardado pelo fluxo de gravação; não há sincronização entre usuários neste mecanismo;
+- `src/services/importCore.ts`: leitor único de planilhas por `readSheet` (célula tipada, linhas/abas ocultas ignoradas com aviso, cabeçalho repetido renomeado com sufixo e bloqueio só quando duas colunas casam o mesmo campo do importador) e casamento de cabeçalhos por `HeaderSpec`/`matchHeaders`; datas de importação pelo parser único `src/lib/importDate.ts`, números por `src/lib/importNumber.ts`. Regra completa em [Regras de negócio § Leitura de planilhas](operations/regras-de-negocio.md#leitura-de-planilhas);
 - `src/components/ui/`: primitivas visuais;
 - `src/components/shared/`: componentes reutilizados por módulos;
 - `src/lib/`: utilitários puros, datas, status, PIX e telemetria;
@@ -336,9 +371,12 @@ flowchart LR
     Empty["Vazios"]
     Reconcile["Conciliação<br/>Baplie × B/L"]
     Review["Revisão e<br/>cliente"]
-    AgencyReport["Agency Departure Report<br/>por escala brasileira"]
+    CE["CE Mercante<br/>gatilho do cálculo e da emissão"]
+    AgencyReport["Agency Departure Report<br/>por terminal da escala"]
     Charges["Taxas locais"]
     Ledger["Ledger local"]
+    Gate{"Portal pronto ou<br/>Liberação vigente?"}
+    Held["Fatura retida"]
     Invoice["Invoices"]
     Demurrage["Demurrage"]
     Pix["Conciliação PIX"]
@@ -358,9 +396,14 @@ flowchart LR
     Reconcile --> Review
     Manifest --> Review
     Granite --> Review
+    Manifest --> CE
     Review --> Charges
+    CE --> Charges
     Charges --> Ledger
-    Ledger --> Invoice
+    Ledger --> Gate
+    Gate -->|sim| Invoice
+    Gate -->|não| Held
+    Held -->|ativação do Portal ou Liberação| Invoice
     Vehicles --> Demurrage
     Manifest --> Demurrage
     Demurrage --> Pix
@@ -372,10 +415,11 @@ flowchart LR
 ### Importações
 
 - Baplie entra em staging por viagem e pode alimentar Vazios de Importação.
-- O B/L é a entidade unificada de conhecimento de embarque (`cargo_mode IN ('container', 'carga_solta', 'misto')`), acessado pela rota canônica `/bls` (substituindo em definitivo as antigas telas e rotas separadas `/manifestos` e `/carga-solta`). B/Ls com presença simultânea de contêineres e carga solta assumem automaticamente o modo `misto` via trigger no banco (`trg_sync_bl_cargo_mode_statement` (migration `060`)).
+- O B/L é a entidade unificada de conhecimento de embarque (`cargo_mode IN ('container', 'carga_solta', 'misto')`), acessado pela rota canônica `/bls` (substituindo em definitivo as antigas telas e rotas separadas `/manifestos` e `/carga-solta`). B/Ls com presença simultânea de contêineres e carga solta assumem automaticamente o modo `misto` via trigger no banco (`trg_sync_bl_cargo_mode_statement`, migration `060`).
+- Peso e cubagem do B/L são colunas disjuntas por modalidade (`total_weight_kg`/`bb_weight_ton` e `total_cbm`/`bb_cbm`; migrations `061`, `063` e `064`), somadas por `blTotalWeightKg`/`blTotalCbm` (`src/lib/cargoMode.ts`). Regra em [Manifestos & EDI § Modalidade, peso e cubagem do B/L](modules/manifesto-edi.md#modalidade-peso-e-cubagem-do-bl).
 - Arquivos de B/L alimentam os B/Ls e cargas de container; Manifestos BB mantêm seu fluxo próprio. A importação de Manifesto CNTR e a geração local de EDI Mercante foram removidas conforme a ADR 0025.
 - Carga solta tem duas portas de ingestão que convivem: o Manifesto BB (planilha) e o B/L avulso do armador em `.pdf`/`.docx`. As duas terminam na mesma RPC transacional (`import_breakbulk_manifest_transactional`); o B/L avulso é lido no cliente (`blDocumentParser.ts`) e convertido em um manifesto de uma linha.
-- Manifestos aduaneiros são entidades de lançamento oficial na tabela `manifestos_mercante`, extinguindo a antiga nomenclatura "CE Master". A tabela suporta N manifestos por rota da viagem e indicação explícita de contêineres vazios (`is_empty`). Cada B/L aponta para seu manifesto via `bls.manifesto_mercante_id`. Em manobras de COD (Change of Destination), o CE Mercante (`bls.ce_mercante`) é preservado e o vínculo do manifesto é limpo (`NULL`), gerando pendência operacional.
+- O Nº de Manifesto Mercante vive em `manifestos_mercante` (número único, Viagem, par de portos e `natureza` = `carga` ou `vazio`), com vários manifestos por rota; cada B/L aponta para o seu por `bls.manifesto_mercante_id`, e `voyage_route_ce_master` continua como espelho do **Informar** (Nº de Manifesto Mercante) da rota para os leitores antigos — a nomenclatura "CE Master" sobrevive só nesses identificadores. Desde a migration `212` a API só lê o cadastro. Regra em [Manifestos & EDI § Manifesto Mercante](modules/manifesto-edi.md#manifesto-mercante); o efeito do COD sobre o CE e o vínculo do Manifesto está em [Viagens § Omissão de Escala, Transbordo e COD](modules/viagens.md#omissão-de-escala-transbordo-e-cod).
 - Terminal do B/L: `bls.terminal_id` é a exceção auditada; nulo herda de `voyage_escala_operation_fronts` via `resolve_bl_terminal_id`. B/L misto exige convergência das duas frentes ou exceção válida. Terminal não participa da chave tarifária (ADR 0068).
 - Granito mantém tabelas próprias, integradas downstream.
 - Veículos são importados por planilha e vinculados a B/L/container.
@@ -384,43 +428,107 @@ flowchart LR
 
 ### Revisão e auto-faturamento
 
-Revisão resolve pendências operacionais e de cliente. O banco calcula o gate por
-estado real: cliente vinculado, e-mail cadastrado e peso BB quando aplicável. A
-prontidão do Portal **não** integra o gate desde a migration `188`
-(desacoplamento financeiro do Portal): a fatura é emitida mesmo sem conta ativa
-e o caso vira alerta crítico por fatura, não bloqueio. `save_bl_review` é o único autor do
-status e de sua auditoria; importação, promoção para `ready_for_billing` e
-invoice recalculam o mesmo contrato. Ao zerar as pendências, o sistema tenta
-recalcular cobranças e emitir a invoice. A migration `072` faz backfill
-idempotente apenas dos B/Ls pendentes sem linhas e não reabre B/Ls históricos já
-faturados.
+A Revisão resolve as pendências que impedem a emissão. O banco as calcula por
+estado real em `_compute_bl_review_pendencies` (última definição na migration
+`085`): Cliente não vinculado, acesso ao Portal não provisionado e peso da carga
+solta ausente; e-mail de contato não é pendência nem condição de faturamento
+desde a `085`. `save_bl_review` calcula o status no servidor e protege a
+identidade do ator e a concorrência, e gatilhos de Portal, contatos e Liberação
+reavaliam a Revisão no próprio banco
+([Operação e suporte § Gate canônico de revisão](modules/operacao-suporte.md#gate-canônico-de-revisão)).
+
+A gravação do CE Mercante é o gatilho do cálculo e da emissão das Taxas Locais.
+O Portal trava toda emissão — manual, pelo Cliente e automática pelo CE: o gate
+único é `customer_billing_access_ready` (Portal pronto ou Liberação de
+faturamento sem Portal vigente; migrations `083` e `084`). Sem ele, o CE calcula
+e retém a fatura (`held`, com `billing_hold_reason`; última definição de
+`_auto_bill_bl_core` na migration `181`), que é emitida na ativação do Portal
+ou quando o Administrativo concede a Liberação
+([ADR 0070](adr/0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md)).
+A regra completa está em
+[Regras de negócio § Gate de faturamento](operations/regras-de-negocio.md#gate-de-faturamento)
+e em [Faturamento](modules/faturamento.md). A retirada do Portal do gate
+(migration arquivada `188`) e a exceção da automação pelo CE (migration `051`)
+foram revogadas pela `083`.
 
 ### Taxas locais e ledger
 
 Taxas locais geram recebíveis por B/L. `bl_receivables`,
 `invoice_receivable_links`, `ledger_settlements` e eventos de ciclo de vida são
-a fonte de saldo, reemissão e consolidação.
+a fonte de saldo, reemissão e consolidação; `invoices` continua sendo o
+documento emitido
+([Regras de negócio § Ledger local e ciclo de vida](operations/regras-de-negocio.md#ledger-local-e-ciclo-de-vida)).
+Uma fatura emitida não muda de valor
+([ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md)); as estruturas que
+sustentam a emissão e o que vem depois dela são:
 
-A Fatura Avulsa reutiliza o documento `invoices` com `invoice_type = 'manual'`.
-A migration `097_fatura_avulsa.sql` adiciona `invoices.voyage_id` opcional e a
-RPC `create_manual_invoice`, que valida o Cliente e referências opcionais,
-calcula o valor no servidor e grava uma linha em `invoice_items` na mesma
-transação. `bl_id` e `voyage_id` são contexto, não vínculos de recebível: a
-emissão não cria `invoice_bls`, `invoice_receivable_links`, `bl_receivables` ou
-`ledger_settlements`. O pagamento segue o caminho genérico de invoice.
+- `customer_billing_portal_releases`: Liberação de faturamento sem Portal, por Cliente (migration `083`);
+- `invoice_corrections` (migration `124`) e `invoice_basis_pending_changes` (migration `130`): correção após emissão quando a base do B/L muda;
+- `local_pix_charge_versions` (migration `130`): cada apresentação Pix de uma fatura local, com TXID próprio;
+- `invoice_customer_changes` (migration `136`): troca de Cliente da fatura pela regra de CNPJ;
+- `invoice_refunds` (restituições) e `financial_payment_attempts` (migration `136`, idempotência do registro de pagamento);
+- `invoice_document_snapshots` (migration `183`): documento da fatura congelado na emissão ([ADR 0078](adr/0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 13).
 
-O tipo atravessa lista, detalhe, impressão e exportação internos, PIX e
-histórico de reconciliação, além das leituras Portal de lista/detalhe. O Portal
-continua resolvendo o Cliente pela sessão autenticada; a Fatura Avulsa sem B/L
-não precisa do gate de CE usado nas faturas locais. Isso descreve código e
-testes locais; deploy/runtime remoto não foi verificado. Ver ADR 0075 e
-[módulo Faturamento](modules/faturamento.md).
+A regra está em [Faturamento § Correção após emissão (ADR 0077)](modules/faturamento.md#correção-após-emissão-adr-0077),
+[§ Troca de Cliente após emissão](modules/faturamento.md#troca-de-cliente-após-emissão-regra-de-cnpj)
+e [§ Pagamento, saldo e restituição](modules/faturamento.md#pagamento-saldo-e-restituição).
+
+A Fatura Avulsa é uma `invoices` com `invoice_type = 'manual'` (migration `097`;
+última definição de `create_manual_invoice` na `125`): grava a fatura e seus
+itens em `invoice_items`, sem `invoice_bls`, `invoice_receivable_links`,
+`bl_receivables` nem `ledger_settlements`, e o pagamento segue o caminho
+genérico de invoice. Regra em
+[Faturamento § Propósito e escopo](modules/faturamento.md#propósito-e-escopo) e
+[ADR 0075](adr/0075-fatura-avulsa-flexivel.md).
 
 ### Demurrage
 
-Demurrage depende de descarga, devolução, free time e tarifa por equipamento.
-Permanece em tabelas próprias, mas aparece nas mesmas superfícies de faturamento,
-Portal e conciliação.
+Demurrage depende de descarga, devolução, free time e tarifa por equipamento e
+tem persistência própria
+([ADR 0008](adr/0008-demurrage-integrado-sem-unificar-persistencia.md)): datas
+em `bl_containers` (o status `overdue` é gravado por job diário, migration
+`197`), tarifas em `demurrage_rates`, documentos em `demurrage_invoices` e
+`demurrage_invoice_items`, fotos do cálculo em `demurrage_calculation_snapshots`
+(migration `023`), Disputas em `demurrage_disputes` e restituições em
+`demurrage_refunds` (migration `136`). A cobrança é por caixa dentro do grupo de
+Demurrage (migration `214`, [ADR 0080](adr/0080-decisoes-da-revisao-final-da-pr-929.md);
+[Demurrage § Grupo de Demurrage e cobrança por caixa](modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)).
+A operação fica em `/demurrage`; Demurrage aparece também na Conciliação PIX
+(`/reconciliacao`), no Portal (`/portal/billing`), nas fichas do B/L e do
+Cliente e em Relatórios, não em `/taxas-locais`. Regra em
+[Demurrage](modules/demurrage.md).
+
+### PIX
+
+`app_settings.pix_provider` escolhe o autor do QR. Com `static`, o BR Code
+estático fica na fatura e a baixa vem da conciliação por extrato em
+`/reconciliacao`. Com `itau`, os gatilhos de emissão abrem cobranças em
+`itau_pix_charges` (migration `151`), a Edge Function `itau-pix` as registra na
+API do Itaú e a baixa automática grava em `itau_pix_receipts` (migration `152`);
+`business_holidays` sustenta os prazos (migration `153`). Regra em
+[Conciliação PIX § Cobrança dinâmica Itaú — migration 151](modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151)
+e [Regras de negócio § Conciliação PIX](operations/regras-de-negocio.md#conciliação-pix).
+
+### Desbloqueio de CE Mercante
+
+O Desbloqueio de CE tem tabelas próprias `ce_unlock_*` (pedidos e seus B/Ls,
+documentos, Clientes VIP, entregas físicas, eventos, exportações, situação na
+ZPT e fila de avisos), o schema `ce_unlock_private` para helpers e projeções do
+Portal, o bucket privado `ce-unlock-documents` e Edge Functions próprias para
+upload pelo Portal, download, exportação para a ZPT, expurgo e avisos. O
+navegador não acessa as tabelas diretamente: tudo passa por RPCs com escopo no
+servidor. A troca com a ZPT é por planilha ([Integrações externas](#integrações-externas)).
+Regra em [Desbloqueio de CE](modules/desbloqueio-ce.md); tabelas, migrations e
+funções em [§ Estado e dados](modules/desbloqueio-ce.md#estado-e-dados).
+
+### Armazenamento de arquivos
+
+O Supabase Storage tem três buckets privados: `demurrage-disputes` (anexos da
+Disputa de Demurrage; o Portal envia pela Edge Function
+`portal-dispute-attachment`, e o `alerts-detector` remove anexos órfãos),
+`customer-communications` (anexos de Comunicados), ambos criados pela migration
+`003`, e `ce-unlock-documents` (documentos do Desbloqueio de CE, migration
+`139`).
 
 ### Documentos imprimíveis
 
@@ -430,7 +538,10 @@ cliente e rodapé compartilhados vivem em
 (navy `#1A2744` no cabeçalho, zebra clara, barra de total âmbar `#F59E0B`,
 faixa clara de agrupamento) vivem em `src/components/shared/invoiceFormat.ts`;
 regras de impressão vivem em `src/index.css`. A geração do arquivo é feita pelo
-diálogo de impressão do navegador via `window.print()`.
+diálogo de impressão do navegador via `window.print()`. A fatura emitida mostra
+o Cliente, a Viagem e o endereço congelados em `invoice_document_snapshots`,
+que o detalhe e o Portal sobrepõem aos dados vivos
+([Faturamento § Documento da fatura congelado](modules/faturamento.md#documento-da-fatura-congelado-adr-0078-item-13)).
 
 A fatura de taxas locais é o modelo visual dos documentos imprimíveis: a
 fatura/recibo de Demurrage e o impresso do Agency Departure Report
@@ -446,14 +557,15 @@ widget não lê mais `vessel_schedules`; ele chama a RPC allowlisted
 `portal_ship_schedule`, que projeta viagens ativas e visíveis sobre a constante
 única de portos-vitrine. As tabelas legadas `vessel_schedules` e
 `ended_vessels` permanecem no histórico de schema, mas não são fonte do fluxo
-atual.
+atual. Regra em [Chegadas e Saídas](modules/chegadas-saidas.md).
 
-A migration `257` fechou a leitura dessas duas tabelas: eram as únicas policies
-de `SELECT` com `USING (true)` do schema e, como o cliente do Portal autentica
-no mesmo role `authenticated` do usuário interno, davam a ele leitura integral —
-contornando o portão `voyages.show_on_portal`. Agora exigem
-`is_active_read_user()`. O serviço e o hook que liam `vessel_schedules` pela
-sessão do Portal eram código morto e foram removidos na mesma mudança.
+A migration arquivada `257` fechou a leitura dessas duas tabelas: eram as
+únicas policies de `SELECT` com `USING (true)` do schema e, como o cliente do
+Portal autentica no mesmo role `authenticated` do usuário interno, davam a ele
+leitura integral — contornando o portão `voyages.show_on_portal`. Hoje a leitura
+exige `is_active_read_user()` (definição vigente na migration `002`). O serviço
+e o hook que liam `vessel_schedules` pela sessão do Portal eram código morto e
+foram removidos na mesma mudança.
 
 ## Projeção de escalas
 
@@ -468,29 +580,33 @@ granito, containers e movimentos. ETA/ATA são próprias da Escala; ETB, ATB,
 ETD, ATD e Restow pertencem às Atracações de
 `voyage_escala_terminal_state`. O ATD da Escala é somente uma projeção derivada,
 preenchida quando todas as Atracações têm ATD. A ordenação compartilhada usa
-`COALESCE(ATB, ETB)` e o código do terminal.
+`COALESCE(ATB, ETB)` e o código do terminal. Regra em
+[Viagens § Escala, Atracação e datas](modules/viagens.md#escala-atracação-e-datas).
 
-A migration `306_escala_multiplos_terminais.sql`, estendida pela `341`, mantém
-o registro terminalizado e `voyage_escala_operation_fronts`; a
-`342_atracacao_alertas.sql` atualiza status, alertas de datas e o relógio do ADR.
-`src/services/escalaTerminalAllocation.ts` é o domínio de leitura/mutação,
-usando a RPC transacional e a revisão da escala. `voyage_pod_schedule` continua
-como portador histórico/auditável da Escala, enquanto
-`voyage_pol_schedule` permanece documental do POL; ETD/ATD do POL não são
-fundidos de volta à Escala.
+O registro terminalizado (`voyage_escala_terminal_state`) e as frentes
+(`voyage_escala_operation_fronts`) estão nas migrations `001` e `002`, e o
+salvamento transacional `save_voyage_escala_terminal_state_v2` tem a última
+definição na migration `049`; o desenho nasceu nas migrations arquivadas `306`,
+`341` e `342`. `src/services/escalaTerminalAllocation.ts` é o domínio de
+leitura/mutação, usando a RPC transacional e a revisão da escala.
+`voyage_pod_schedule` continua como portador histórico/auditável da Escala,
+enquanto `voyage_pol_schedule` permanece documental do POL; ETD/ATD do POL não
+são fundidos de volta à Escala.
 
-O ADR segue o mesmo contrato transversal desde a migration `323`: cada
-combinação `(agency_departure_report, voyage::port[::terminal])` tem dois itens
-independentes — `agency_report_department_pending` (normal) e
-`agency_report_deadline_missed` (crítico) — um por Operações, Documentação e
-Equipamentos. O terminalizado lê `terminal_atd` de
-`voyage_escala_terminal_state`; o legado conserva `voyage::port`. A
-reconciliação server-side é acionada pelos audit logs de escala, pelas mudanças
-de sign-off e pelo cron de 15 minutos. Reabrir uma seção invalida
-atomicamente o sign-off departamental dono e reabre apenas as condições
-correspondentes. `Alertas.tsx` e futuras notificações usam o mesmo deep-link
+O Agency Departure Report tem um relatório por terminal da Escala, identificado
+por `(viagem, porto, terminal)` e materializado por `report_id`; o legado por
+`(viagem, porto)` continua legível, e não se deve impor unicidade só por
+`(viagem, porto)` ao modelo atual. `agencyDepartureReport.ts` resolve a carga a
+partir das fontes operacionais compartilhadas e `voyage_escala_terminal_state`
+fornece ATB/ATD/Restow; sign-offs, observações e snapshots são do relatório, e
+o fechamento não reescreve a carga de origem. Os alertas do ADR são
+reconciliados no banco (`reconcile_agency_report_alerts`, definição vigente na
+migration `002`) pela auditoria da escala, pelos sign-offs e pelo detector
+periódico; `Alertas.tsx` e as notificações usam o deep-link
 `/viagens/:voyageId?tab=adr&escala=...`, com `terminal` e `report` quando
-disponíveis; o browser não executa detectores.
+disponíveis. Regra do ADR em
+[Viagens § Agency Departure Report (ADR)](modules/viagens.md#agency-departure-report-adr);
+fila e catálogo em [Operação e suporte § `/alertas`](modules/operacao-suporte.md#alertas).
 
 Consumidores principais:
 
@@ -500,14 +616,13 @@ Consumidores principais:
 - Line-Up: `src/services/lineup.ts` deriva o snapshot da mesma projeção,
   preservando importação e exportação quando o porto é misto; o terminal é uma
   coluna da linha e `TBC` é apenas apresentação.
-- ADR: `VoyageAgencyReportTab` seleciona ADR novo por `report_id`/terminal e
-  mantém o caminho legado por `(voyage_id, port)`; o modal da escala atribui
-  frentes, datas e terminais.
-- ADR e alertas: a aba ADR segue ancorada em `(voyage_id, port)` para legado,
-  enquanto ADRs novos usam `(voyage_id, port, terminal_id)`; a fila usa um
-  agregado por ADR terminalizado, dois itens independentes por departamento,
-  o `terminal_atd` da Atracação como ATD autoritativo e reconciliação imediata
-  mais cron de 15 minutos.
+- ADR: `VoyageAgencyReportTab` seleciona o ADR terminalizado por
+  `report_id`/terminal; o modal da escala atribui frentes, datas e terminais.
+  Quando a escala não tem ADR com terminal (frentes `TBC` ou sem frente), a aba
+  cai no caminho legado por `(voyage_id, port)`, que hoje cria, assina e fecha
+  um ADR sem terminal, contra as ADRs 0035 e 0068; a escala sem terminal deixa
+  de cair no ADR legado (B6, correção pendente no
+  [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
 - A RPC transacional `save_voyage_escala_terminal_state_v2` recebe a Escala, as
   frentes e as Atracações no mesmo save; os audit rows de ETA/ATA, CE, vínculo e
   número de escala entram na mesma transação. A expectativa de vazios faz
@@ -527,138 +642,199 @@ Consumidores principais:
 
 ### Migrations
 
-A cadeia ativa está em `supabase/migrations/`: `001` consolida o schema,
-`002` funções/policies/triggers, e `003` em diante aplicam os refinamentos.
-A sequência atual chega a `072`, com a lacuna histórica `014` preservada
-(71 arquivos). O histórico anterior à consolidação fica em
-`supabase/migrations_archive/`, conforme ADR 0062. Referências antigas como
-208–214 (fundação do ADR), 249–251 (snapshot/escala) e 291/295 (permissões)
-identificam essa origem arquivada, não arquivos a reaplicar.
+A cadeia ativa está em `supabase/migrations/`: `001` consolida o schema, `002`
+funções, policies e triggers, e `003` em diante aplicam os refinamentos; as
+lacunas `014` e `114` não se preenchem. O histórico anterior à consolidação
+fica em `supabase/migrations_archive/`
+([ADR 0062](adr/0062-consolidacao-migrations-schema-1-0.md)). Como os números se
+repetem nas duas cadeias, um número sem qualificação neste documento é da
+cadeia ativa, e o da anterior é escrito "migration arquivada `NNN`": as
+migrations arquivadas `208`–`214` (fundação do ADR), `249`–`251` (snapshot e
+escala) e `291`/`295` (permissões), por exemplo, são origem histórica, não
+arquivos a reaplicar. Procedimento, nomes e aplicação estão em
+[WORKFLOW.md § 5. Migrations Supabase](../WORKFLOW.md#5-migrations-supabase).
 
 A fonte vigente de cada função é sua última definição por assinatura na cadeia
-ativa. A existência de uma migration no checkout não prova aplicação remota.
-O inventário de declarações e contratos está na
-[auditoria documental](archive/audits/2026-09-19-overhaul-documental.md).
-
-O Agency Departure Report usa fontes operacionais compartilhadas e um relatório
-por terminal da escala: `agencyDepartureReport.ts` resolve a carga e
-`voyage_escala_terminal_state` fornece ATB/ATD/Restow. O legado por porto pode
-continuar presente; não se deve impor unicidade só por `(viagem, porto)` ao
-modelo atual. Sign-offs, observações e snapshots são próprios do relatório;
-seu fechamento não reescreve a carga de origem.
-
-Leitura interna global exige perfil ativo; escrita usa as permissões/RPCs
-atuais, sem assumir que todo papel pode toda mutação. Administração,
-provisionamento, configurações e exclusões mantêm restrições específicas.
-
-As migrations `053`–`058` introduzem o modelo de domínio unificado de B/Ls e manifestos aduaneiros:
-`053` cria a tabela `manifestos_mercante` por rota da viagem com suporte a N manifestos e vazios;
-`054` institui `cargo_mode = 'misto'` e trigger de sincronização automática entre contêineres e carga solta;
-`055` implementa herança das Frentes de Operação e exceção em `bls.terminal_id`;
-`056` reformula a resolução tarifária (`calculate_bl_local_charges` e `recalculate_bl_charges`) para buscar tabelas de contêiner e de carga solta para o mesmo B/L;
-`057` ajusta o tratamento de COD desvinculando o manifesto (`manifesto_mercante_id = NULL`) e mantendo o CE Mercante;
-e `058` atualiza `operational_list_voyage_summaries` para que B/Ls mistos componham tanto contagens de contêineres quanto de carga solta da escala sem duplicar B/Ls únicos.
-
-As migrations `059`–`063` refinam esses contratos: triggers de modalidade
-por statement; COD limpa a exceção de terminal; recebível manual sincroniza
-uma vez por B/L; os pesos container (`total_weight_kg`) e carga solta
-(`bb_weight_ton`) são disjuntos e aditivos. `062` restringe exclusão de
-Manifesto Mercante a admin e consolida a produtora automática de Comunicados;
-`063` limita a métrica BB ao peso de carga solta, sem somar container.
-`064` separa a cubagem em `total_cbm` (contêiner) e `bb_cbm` (carga solta),
-e inclui máquinas/cubagem BB nos sinais de modalidade. `blTotalCbm` soma os
-componentes; import e revisão preservam o componente da outra modalidade.
-`072` desacopla `sync_local_charge_receivable` da exigência de cliente vinculado
-(retornando NULL se `customer_id IS NULL`), permitindo cálculo tarifário de B/Ls novos;
-recalcula B/Ls pendentes ao aprovar ou relinkar o cliente, sincronizando o recebível;
-adiciona a RPC `calculate_bl_local_charges_batch` limitada a 100 IDs por chamada;
-dispara o cálculo inicial na própria importação via `import_bl_freight_with_metadata`,
-informa falhas ao operador e mantém `provisional_charges` apenas como recuperação.
+ativa. A existência de uma migration no checkout não prova aplicação remota. O
+relato das mudanças de contrato está nas ADRs e no [CHANGELOG](CHANGELOG.md); a
+[auditoria documental de 2026-09-19](archive/audits/2026-09-19-overhaul-documental.md)
+registra o inventário de declarações e contratos daquela data.
 
 ### Segurança
 
+A regra e os procedimentos estão em [Segurança](operations/seguranca.md); aqui
+fica o desenho:
+
 - RLS protege tabelas expostas;
+- leitura interna global exige perfil ativo; a escrita usa as permissões e RPCs
+  atuais, sem assumir que todo papel pode toda mutação
+  ([ADR 0044](adr/0044-leitura-interna-global-departamento-restringe-escrita.md),
+  [ADR 0046](adr/0046-escrita-interna-global-com-rastro-obrigatorio.md));
+  administração, provisionamento, configurações e exclusões mantêm restrições
+  específicas;
 - helpers como `is_active_user()`, `is_active_read_user()` e `is_admin()`
-  sustentam policies — leitura de dado interno usa `is_active_read_user()`
-  (inclui Equipamentos), nunca `is_active_user()` (211);
+  sustentam policies; leitura de dado interno usa `is_active_read_user()`. Hoje
+  `is_active_user()` tem o mesmo corpo (migration `002`: qualquer perfil interno
+  ativo, inclusive Equipamentos), e a distinção da migration arquivada `211`
+  foi desfeita; `is_admin()` é o Administrativo
+  ([ADR 0074](adr/0074-usuarios-retencao-e-backup-diario.md));
 - operações financeiras e destrutivas usam RPCs ou policies restritas;
 - funções privilegiadas têm `search_path` controlado e grants explícitos;
-- `anon` segue default-deny **por construção**: desde a migration `297`, o
-  `ALTER DEFAULT PRIVILEGES` de `public` revoga `EXECUTE` de `PUBLIC`, `anon` e
-  `authenticated`, então função nova nasce fechada e o acesso é concedido caso a
-  caso na própria migration (ADR 0047). Há **uma** exceção pré-autenticação viva:
-  `portal_ship_schedule()`, cuja programação de navios é vitrine pública por
-  decisão — nenhum campo de cliente, fatura, B/L, container ou contato pode entrar
-  nela sem revisar esta exceção. A exceção `anon` da ADR 0013
-  (`portal_resolve_login`) foi encerrada pela migration `182`;
+- `anon` segue default-deny **por construção**: o `ALTER DEFAULT PRIVILEGES` de
+  `public` (migrations `001` e `006`; origem na migration arquivada `297`)
+  revoga `EXECUTE` de `PUBLIC`, `anon` e `authenticated`, então função nova
+  nasce fechada e o acesso é concedido caso a caso na própria migration
+  ([ADR 0047](adr/0047-grants-de-funcao-fechados-por-padrao.md)). Há **uma**
+  exceção pré-autenticação viva: `portal_ship_schedule()`, cuja programação de
+  navios é vitrine pública por decisão — nenhum campo de cliente, fatura, B/L,
+  container ou contato pode entrar nela sem revisar esta exceção. A exceção
+  `anon` da ADR 0013 (`portal_resolve_login`) foi encerrada pela migration
+  arquivada `182`;
+- a emissão segue a trava do Portal, sem exceção para a automação pelo CE
+  ([Revisão e auto-faturamento](#revisão-e-auto-faturamento)); a liberação
+  documental para leitura no Portal é outro gate
+  ([Regras de negócio § Gate de CE Mercante no Portal](operations/regras-de-negocio.md#gate-de-ce-mercante-no-portal));
 - Edge Functions com service role validam chamador, origem ou segredo.
 
 ### Edge Functions
 
-- `portal-login`: resolve CNPJ para a identidade técnica e devolve a sessão;
-- `portal-invite-send` e `portal-invite-activate`: enviam o convite de uso
-  único e criam a identidade técnica Auth somente na ativação;
-- `portal-password-recovery` e `portal-password-reset`: recuperação de senha
-  por link de uso único;
-- `portal-recovery-email-change`: troca do email de recuperação com
-  confirmação;
-- `portal-account-suspend`: suspensão/reativação de conta do Portal;
-- `portal-email-webhook`: eventos de entrega do Resend para Portal e
-  Comunicados, supressões por canal e cascata de bounce permanente;
-- `send-customer-communication`: confere contato, natureza, preferências e
-  supressões; grava o Comunicado e a tentativa atomicamente e envia ou registra
-  simulação;
-- `demurrage-dunning`: acionada pelo cron com segredo próprio, reivindica as
-  cobranças vencidas sem colisão, respeita disputas, contatos e supressões e
-  delega o envio ao canal compartilhado de Comunicados;
-- `customer-communication-auto-runner`: acionada pelo cron a cada 15 minutos
-  com segredo server-side, avalia marcos de NOA e NOR, identifica cobranças
-  CE Mercante prontas, reivindica alvos via claims transacionais recuperáveis e
-  despacha os avisos operacionais e financeiros;
-- `portal-daily-digest`: resumo diário interno;
-- `portal-email-events-runner`: consome a inbox de eventos do provedor com
-  retries e ordenação server-side;
-- `import-effects-runner`: consome efeitos pós-commit com lease e bloqueio
-  investigável; ligado em produção desde 2026-10-12, disparado pela própria
-  importação e por job de 1 minuto, trabalhando por orçamento de tempo
-  (migration `218`);
-- `recalc-demurrage-ptax`: recálculo diário do BRL das invoices de demurrage,
-  com alerta persistente em falha e job nominal inativo até validação externa;
+As Edge Functions (Deno, `supabase/functions/`) são a camada server-side que
+fala com serviços externos ou precisa de `service_role`. Nenhuma confia no
+navegador: cada uma confere o chamador no próprio código, por um destes
+padrões.
 
-O Portal participa dos gates manuais de emissão e da emissão pelo cliente
-(ADR 0054, `047`). A migration `051` abre uma exceção interna controlada para
-automação pela transição do CE Mercante: emitir não depende do provisionamento
-nesse contexto. A liberação documental para leitura no Portal permanece
-separada. Não generalizar a exceção para chamadas do navegador.
+- **Sem sessão, com proteção própria:** login, ativação do convite,
+  recuperação e redefinição de senha do Portal (`portal-login`,
+  `portal-invite-activate`, `portal-password-recovery`, `portal-password-reset`)
+  resolvem a identidade no servidor e usam token de uso único, Turnstile e
+  trava de tentativas por CNPJ
+  ([Portal do Cliente § Identidade, convite e recuperação](modules/portal-cliente.md#identidade-convite-e-recuperação)).
+- **Sessão do Portal:** troca do Email de Recuperação, anexos da Disputa de
+  Demurrage e documentos do Desbloqueio de CE, sempre no escopo do Cliente da
+  sessão.
+- **Sessão interna com papel conferido no servidor:** usuários internos
+  (`admin-users`, só `is_admin()`), convite e suspensão de conta do Portal
+  (Administrativo ou Documentação), Disparo manual de Comunicados
+  (`send-customer-communication`) e download e exportação do Desbloqueio de CE.
+- **Webhook assinado:** `portal-email-webhook` só valida a assinatura e grava o
+  evento ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).
+- **Segredo de job:** as rotinas disparadas pelo `pg_cron`, em geral por
+  `ops.dispatch_edge_job`, que lê a base da API e o segredo no Vault
+  ([ADR 0063](adr/0063-configuracao-de-jobs-cron-no-vault.md)): os runners de
+  efeitos de importação e de eventos de e-mail, o detector de alertas, a régua
+  automática de Comunicados (NOA, NOR, NOB e CE e Taxas, que envia pela
+  `send-customer-communication` com o segredo de automação), a Régua de
+  Cobrança (`demurrage-dunning`), o resumo diário interno, o recálculo PTAX, o
+  expurgo e os avisos do Desbloqueio de CE e a fila do Itaú (`itau-pix`, também
+  disparada pela transação que deixa cobrança pendente, migration `219`).
+
+A lista completa, com segredos, jobs, horários e a versão publicada de cada
+função, está em
+[Serviços externos § Edge Functions](operations/servicos-externos.md#edge-functions)
+e [§ Jobs agendados](operations/servicos-externos.md#jobs-agendados-pg_cron); o
+contrato de chamada a partir de cada tela, em
+[RASTREABILIDADE.md](RASTREABILIDADE.md).
 
 ## Integrações externas
 
-- **Resend:** email transacional do Portal e fundação do canal de Comunicados
-  passam por `supabase/functions/_shared/email.ts`; o envio global de
-  Comunicados continua desligado em `app_settings` até decisão operacional;
-  comunicados financeiros também passam por essa chave e pela trilha de
-  idempotência/supressão;
-- **Banco Central:** cotação PTAX;
-- **Sentry:** erros do frontend em produção;
-- **Cloudflare Pages:** distribuição dos dois SPAs e Preview/Production Deployments;
-- **PIX:** provedor escolhido em `app_settings.pix_provider`. `static`: BR Code estático persistido, QR renderizado e conciliação por extrato. `itau` (ativo em produção desde 2026-10-07): COB dinâmica pela API Pix Recebimentos do Itaú (mTLS) na Edge `itau-pix`, fila `itau_pix_charges` (processada segundos depois da emissão por disparo da transação, migration `219`, com um runner por vez, blocos de 5 em até 20 s e no máximo 60 cobranças por execução) e baixa por consulta `GET /pix` a cada minuto (job `itau-pix-queue`); ver [plano da integração](archive/plans/2026-10-06-integracao-itau-pix.md). Webhook do Itaú segue opcional e não implementado.
+Contas, segredos, jobs e o que quebra se cada serviço parar estão em
+[Serviços externos](operations/servicos-externos.md); aqui fica o papel de cada
+integração na arquitetura.
 
-### Telemetria do Portal
+- **Supabase:** PostgreSQL com RLS e RPCs, Auth das duas sessões, Storage, Edge
+  Functions, `pg_cron`/`pg_net` e Vault para os segredos dos jobs.
+- **Resend:** envio de todo e-mail, do Portal e de Comunicados, e eventos de
+  entrega por webhook ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).
+- **Banco Central (PTAX):** a Edge Function `recalc-demurrage-ptax` busca a PTAX
+  para o Recálculo Diário de Demurrage; o navegador também consulta o BCB para
+  o ROE exibido no Vela (`fetchROE`, em `src/services/demurrage/demurrageKpis.ts`),
+  por isso `olinda.bcb.gov.br` está no `connect-src` da CSP. ROE e markup são
+  regra de [Regras de negócio § Câmbio (ROE / PTAX)](operations/regras-de-negocio.md#câmbio-roe--ptax).
+- **Itaú (API Pix Recebimentos):** com `app_settings.pix_provider = 'itau'`
+  (valor em produção desde 2026-10-07), a Edge Function `itau-pix` registra a
+  COB dinâmica por mTLS e baixa pela consulta `GET /pix`; a fila de cobranças é
+  disparada pela transação que deixa cobrança pendente (migration `219`) e pelo
+  job de 1 minuto. O webhook do Itaú não foi implementado. Comportamento da fila
+  em [Conciliação PIX § Cobrança dinâmica Itaú — migration 151](modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151);
+  versão publicada e credenciais em
+  [Serviços externos § Itaú](operations/servicos-externos.md#itaú--api-pix-recebimentos).
+- **ZPT:** sem API. O Desbloqueio de CE exporta a planilha `zpt-5-v2` e concilia
+  lendo o "Exportar Tela" da ZPT
+  ([Desbloqueio de CE § Envio e conciliação com a ZPT](modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt)).
+- **Sentry:** erros do frontend, nas duas SPAs, e das Edge Functions
+  ([Telemetria](#telemetria)).
+- **PostHog:** iniciado nas duas SPAs; só o Portal envia evento
+  ([Telemetria](#telemetria)).
+- **Cloudflare Pages:** distribuição dos dois SPAs, Preview e produção, mais a
+  Pages Function de `/assets/*` ([Hospedagem e publicação](#hospedagem-e-publicação)).
+- **Cloudflare Turnstile:** desafio anti-robô no login e na recuperação de
+  senha do Portal (`src/components/security/TurnstileChallenge.tsx`, conferido
+  no servidor por `supabase/functions/_shared/turnstile.ts`).
+- **Upstash:** segunda trava de tentativas do Portal, que só acrescenta
+  bloqueio (`supabase/functions/_shared/rateLimit.ts`;
+  [Rate limit do Portal](operations/portal-rate-limit.md)).
+- **Better Stack:** monitores de site no ar e heartbeats das rotinas agendadas
+  (`supabase/functions/_shared/betterStackHeartbeat.ts`).
+- **Cloudflare R2:** destino do backup lógico cifrado diário
+  (`scripts/backup-r2.mjs`), rodado fora do runtime da aplicação
+  ([Backup no R2](operations/backup-r2.md)).
 
-Erros globais de queries e mutations TanStack Query são reportados ao Sentry via
-`reportCaughtException`, com `context=TanStack Query` e a `queryKey` ou
-`mutationKey` serializada em `extra`. O `PortalAuthProvider` define
-`Sentry.setUser({ id: customer_id })` e a tag `area=portal` quando o overview do
-cliente é carregado; no logout ou `SIGNED_OUT`, limpa o usuário com
-`Sentry.setUser(null)`. O projeto mantém `dataCollection` com PII desabilitado e não envia
-email, nome, documento ou contato do cliente como identidade Sentry.
+### E-mail transacional e Comunicados
+
+Os e-mails do Portal e os Comunicados passam pela mecânica comum de
+`supabase/functions/_shared/email.ts`; `portalEmail.ts` adapta essa mecânica às
+tentativas e supressões do Portal. Ambos preservam idempotência e novas
+tentativas de falhas transitórias. A simulação (`simulate: true`) só acontece no
+canal de Comunicados, inclusive a Régua de Cobrança, com a chave global de envio
+desligada; sem `RESEND_API_KEY`, o envio real falha e a tentativa fica
+registrada como `falha_permanente`. O envio real usa `PORTAL_FROM_EMAIL` e
+`PORTAL_REPLY_TO`; domínio próprio verificado continua sendo condição para o
+envio real ([Serviços externos § Resend](operations/servicos-externos.md#resend-envio)).
+
+Os eventos de entrega chegam pelo `portal-email-webhook`, que valida a
+assinatura (`RESEND_WEBHOOK_SECRET`), deduplica e grava o evento em
+`portal_email_events` como pendente: a resposta só significa persistência
+durável. O `portal-email-events-runner` (job de 1 minuto, migration `107`)
+processa a inbox: resolve o `provider_message_id` em `portal_email_attempts` ou
+`customer_communication_attempts`, aplica a supressão
+(`process_portal_email_event`, última definição na migration `109`), repara as
+Caixas de Comunicação afetadas e executa o Tratamento de Bounce em Cascata.
+Complaint suprime o endereço só no canal de origem; bounce permanente vale nos
+dois canais
+([Regras de negócio § Chave de envio e supressão de e-mail](operations/regras-de-negocio.md#chave-de-envio-e-supressão-de-e-mail)).
+O aviso da cascata ao Cliente é um e-mail do Portal (tipo
+`contato_bounced_notificacao`), não uma Natureza de Comunicado, e só sai com a
+chave de envio ligada; sem contato alternativo, abre o alerta
+`cliente_contato_bounced_sem_alternativa`. Regra em
+[Clientes § Tratamento de Bounce em Cascata](modules/clientes.md#tratamento-de-bounce-em-cascata).
+
+### Telemetria
+
+As duas SPAs reportam erros ao Sentry só em produção (`src/lib/telemetry.ts`),
+cada uma com o seu DSN (`VITE_SENTRY_DSN_INTERNAL` e `VITE_SENTRY_DSN_PORTAL`) e
+com `dataCollection` sem dados do usuário, cookies, cabeçalhos, corpos nem
+query string. Erros globais de queries e mutations TanStack Query são
+reportados por `reportCaughtException`, com o contexto `TanStack Query` (no
+Portal, `TanStack Query Portal`) e a `queryKey` ou `mutationKey` serializada em
+`extra`. A sessão interna identifica o usuário pelo id do perfil e pela tag
+`user_role`. O `PortalAuthProvider` mantém `Sentry.setUser(null)` e marca
+`area=portal`: nenhum identificador do Cliente vai ao Sentry, nem email, nome,
+documento ou contato. As Edge Functions instrumentadas reportam por
+`supabase/functions/_shared/telemetry.ts`, com `sendDefaultPii: false`.
+Configuração e alertas em [Observabilidade](operations/observabilidade.md) e
+[Configuração do Sentry](operations/sentry-configuracao.md).
+
+O PostHog é iniciado nas duas SPAs quando `VITE_POSTHOG_KEY` existe
+(`src/lib/featureFlags.ts`); hoje só o Portal envia evento, `invoice_viewed`,
+com a superfície e o tipo da fatura.
 
 Domínios usados pelo navegador precisam permanecer compatíveis com a CSP gerada
-em `_headers` pelo staging do Cloudflare Pages.
+em `_headers` pelo staging do Cloudflare Pages (`scripts/cloudflare-pages-stage.mjs`).
 
 ## Mapa de rotas
 
-Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices → /demurrage`, `/demurrage/reconciliacao → /reconciliacao`.
+Todas as rotas de `src/AppInterno.tsx` e `src/AppPortal.tsx` aparecem nas
+tabelas abaixo; o gate documental confere essa cobertura.
 
 ### Públicas e autenticação
 
@@ -678,25 +854,22 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/portal` | Dashboard do cliente |
 | `/portal/billing` | Faturas de taxas locais/avulsas e demurrage |
 | `/portal/operacao` | B/Ls e containers |
-| `/portal/perfil` | Contatos e perfil |
 | `/portal/desbloqueio-ce` | Solicitar CE e consultar documentos anuais VIP |
-| `/clientes/portal/inspecao/:customerId/desbloqueio-ce` | Inspeção de CE somente leitura |
+| `/portal/informacoes` | Central de Informações, com seis seções |
+| `/portal/informacoes/:section` | Seção da Central: Taxas Locais, Devolução, Demurrage, Agentes, Atendimento e Tracking |
+| `/portal/perfil` | Contatos e perfil |
 
 ### Aplicação interna
 
 | Rota | Destino |
 |---|---|
-| `/` | Índice interno; redireciona para `/painel` |
 | `/painel` | Dashboard operacional |
 | `/viagens` | Lista e seleção de viagens |
-| `/viagens/:voyageId` | Detalhe master-detail deep-linkável, incluindo a aba ADR por escala brasileira |
+| `/viagens/:voyageId` | Detalhe master-detail deep-linkável, incluindo a aba ADR, com um relatório por terminal da Escala |
 | `/baplie` | Importação e conciliação Baplie |
 | `/bls` | Painel unificado de B/Ls (contêiner, carga solta e misto); importação documental e CE Mercante |
 | `/bls/:blId` | Detalhe do B/L |
 | `/desbloqueio-ce` | Importação: pedidos de CE, documentos, entrega física e ZPT |
-| `/carga-solta` | Redirect legado para `/bls` |
-| `/carga-solta/:blId` | Redirect legado para `/bls/:blId` |
-| `/manifestos` | Redirect legado para `/bls` |
 | `/containers` | Containers |
 | `/veiculos` | Veículos RoRo |
 | `/vazios-importacao` | Vazios de importação |
@@ -706,20 +879,20 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/granito/taxas` | Tarifas de Granito |
 | `/revisao` | Revisão operacional |
 | `/clientes` | Clientes |
+| `/clientes/informacoes` | Cadastros internos e publicação da Central de Informações |
 | `/clientes/portal` | Console interno de provisionamento sob `ProtectedRoute` |
 | `/clientes/comunicacao` | Conferência, simulação/envio e histórico de Comunicados ao Cliente |
 | `/clientes/:cnpj` | Ficha do cliente (hub em abas via `?tab=`) |
 | `/clientes/portal/inspecao/:customerId/*` | Inspeção interna somente leitura do Portal, fora do `AppLayout`, sob `ProtectedRoute` |
-| `/clientes/portal/inspecao/:customerId` | Visão geral do Portal em Modo Inspeção |
+| `/clientes/portal/inspecao/:customerId` | Visão geral do Portal em Modo Inspeção (monta `PortalDashboard`) |
 | `/clientes/portal/inspecao/:customerId/billing` | Faturas do Cliente em Modo Inspeção |
 | `/clientes/portal/inspecao/:customerId/operacao` | BLs e containers do Cliente em Modo Inspeção |
+| `/clientes/portal/inspecao/:customerId/desbloqueio-ce` | Desbloqueio de CE do Cliente em Modo Inspeção, somente leitura |
 | `/clientes/portal/inspecao/:customerId/perfil` | Perfil do Cliente em Modo Inspeção |
-| `billing` | Subrota de faturas dentro da Inspeção do Portal |
-| `operacao` | Subrota operacional dentro da Inspeção do Portal |
-| `perfil` | Subrota de perfil dentro da Inspeção do Portal |
+| `/clientes/portal/inspecao/:customerId/informacoes` | Central de Informações no escopo de inspeção |
+| `/clientes/portal/inspecao/:customerId/informacoes/:section` | Seção da Central no escopo de inspeção |
 | `/taxas-locais` | Validação, invoices de Taxas Locais/Avulsas e ledger local |
 | `/taxas-locais/tabelas` | Cadastro de tabelas e overrides de Taxas Locais |
-| `/faturamento` | Redirect legado para `/taxas-locais`, preservando a query string; `tab=demurrage` vai para `/demurrage` |
 | `/demurrage` | Operação e invoices de demurrage |
 | `/demurrage/taxas` | Tarifas de demurrage |
 | `/reconciliacao` | Conciliação PIX |
@@ -733,26 +906,6 @@ Redirecionamentos ativos: `/vazios → /embarquevazios`, `/demurrage/invoices �
 | `/admin/:tab` | Uma sub-rota por aba (`usuarios`, `falhas`, `logs`, `metricas`, `prazo-adr`): o endereço é compartilhável e sobrevive ao refresh. Aba inexistente responde "Página não encontrada" em vez de cair na aba padrão |
 | `/perfil` | Perfil do usuário interno: nome, e-mail e troca da própria senha |
 
-### Fallbacks
-
-| Rota | Destino |
-|---|---|
-| `*` | Interno: tela de rota não encontrada; Portal: redireciona para `/portal` |
-
-`/revisao` trabalha visualmente por grupo de cliente, embora o gate canônico
-continue sendo calculado por B/L. O onboarding do grupo usa uma RPC transacional
-para resolver/criar cliente, contato e vínculos; CNPJs conflitantes ficam
-segregados e evidências brutas do consignatário/carga permanecem disponíveis.
-O convite do Portal é opcional, enviado para o mesmo e-mail informado após o
-commit, e seu ciclo de vida continua pertencendo ao Console de Provisionamento.
-
-`/clientes/portal/inspecao/:customerId/*` é uma rota interna protegida, no nível
-de `/line-up-tv/display`, fora do `AppLayout` para não aninhar dois shells. Ela
-renderiza o mesmo `PortalLayout` do cliente real em modo inspeção, com faixa
-persistente, `PortalScope`, base path próprio e bloqueio de escritas. O Portal
-tem dois hosts (cliente e inspeção) e dois modos (client e inspect), mas uma
-única composição visual e um núcleo de leitura compartilhado.
-
 ### Redirecionamentos de compatibilidade
 
 | Rota | Redireciona para |
@@ -760,10 +913,21 @@ tem dois hosts (cliente e inspeção) e dois modos (client e inspect), mas uma
 | `/vazios` | `/embarquevazios` |
 | `/demurrage/invoices` | `/demurrage` |
 | `/demurrage/reconciliacao` | `/reconciliacao` |
+| `/carga-solta` | `/bls` |
+| `/carga-solta/:blId` | `/bls/:blId` |
+| `/manifestos` | `/bls` |
+| `/faturamento` | `/taxas-locais`, preservando a query string; com `tab=demurrage`, `/demurrage` |
+| `/taxas-locais?tab=tabelas` (também `tab=overrides`) | `/taxas-locais/tabelas`, preservando a query string |
+| `/taxas-locais?tab=demurrage` | `/demurrage`, sem o `tab` |
 
-A rota índice interna `/` redireciona para `/painel`. O catch-all interno `*`
-mostra `NaoEncontrado` sob `ProtectedRoute`; no Portal, `*` redireciona para
-`/portal`, onde o guard exige sessão.
+### Índice e fallback
+
+| Rota | Superfície / origem | Contrato | Evidência |
+|---|---|---|---|
+| `/` | Índice de `AppInterno`, sob `ProtectedRoute` | `Navigate` para `/painel`; sem hook/service/persistência própria | **Código:** `src/AppInterno.tsx` |
+| `*` | `AppInterno` e `AppPortal` | Interno mostra `NaoEncontrado` sob `ProtectedRoute`; Portal redireciona para `/portal`, onde o guard exige sessão | **Código:** os dois roteadores |
+
+### Guards, inspeção e telas compartilhadas
 
 As rotas internas exigem sessão e perfil; `/admin` e `/admin/:tab` exigem
 `adminOnly`. `/clientes/comunicacao` exige `customer_communications` e
@@ -773,18 +937,37 @@ As rotas autenticadas do Portal, inclusive a Central de Informações, usam `Por
 `PortalScopeProvider` e `PortalLayout`. A inspeção é interna e somente leitura.
 Esses guards são UX; grants, RLS e RPCs continuam sendo a autorização real.
 
-Emails transacionais passam pela mecânica comum de
-`supabase/functions/_shared/email.ts`; `portalEmail.ts` adapta essa mecânica às
-tentativas e supressões do Portal. Ambos preservam idempotência, retries de
-falhas transitórias e dry-run sem `RESEND_API_KEY`. `portal-email-webhook` usa
-`RESEND_WEBHOOK_SECRET`, enquanto o envio real usa `PORTAL_FROM_EMAIL` e
-`PORTAL_REPLY_TO`; domínio próprio verificado continua sendo gate para envio
-real. Complaint de Comunicado não suprime o Portal, mas bounce permanente é
-compartilhado.
+`/clientes/portal/inspecao/:customerId/*` é uma rota interna protegida, no nível
+de `/line-up-tv/display`, fora do `AppLayout` para não aninhar dois shells. Ela
+renderiza o mesmo `PortalLayout` do cliente real em modo inspeção, com faixa
+persistente, `PortalScope`, base path próprio e bloqueio de escritas. O Portal
+tem dois hosts (cliente e inspeção) e dois modos (client e inspect), mas uma
+única composição visual e um núcleo de leitura compartilhado
+([Portal do Cliente § Inspeção do Portal](modules/portal-cliente.md#inspeção-do-portal)).
 
-### Console de provisionamento pré-piloto
+`/revisao` trabalha visualmente por grupo de cliente, embora o gate canônico
+continue sendo calculado por B/L; o onboarding do grupo e o convite opcional do
+Portal estão em [Operação e suporte § `/revisao`](modules/operacao-suporte.md#revisao).
 
-`/clientes/portal` é uma fila dedicada, alimentada por `portal_list_provisioning_console` (migrations `196`, `197` e `198`) e com gestão inline reutilizada na ficha de Cliente. A RPC projeta dados completos para Administrativo, Documentação, Financeiro e Equipamentos; Operações recebe situação resumida e os booleanos `has_open_invoice`/`has_active_process`. Equipamentos consulta o histórico sem disparar o self-heal gravável.
+A Central de Informações (`/portal/informacoes`, a mesma central na inspeção e
+o cadastro interno `/clientes/informacoes`) usa `src/services/portalInformation.ts`
+e `src/hooks/usePortalInformation.ts`, com as migrations `137` e `138`; os
+preços vêm das tabelas vigentes do Vela. Regra, inclusive a orientação de
+devolução por porto, em
+[Portal do Cliente § Central de Informações](modules/portal-cliente.md#central-de-informações).
+
+### Console de provisionamento do Portal
+
+`/clientes/portal` é a fila dedicada de análise, convites e situações do
+Portal, alimentada por `portal_list_provisioning_console` (última definição na
+migration `103`), com a gestão inline reutilizada na seção **Acesso ao Portal**
+da ficha do Cliente. Tela e ações em
+[Portal do Cliente § Console `/clientes/portal`](modules/portal-cliente.md#console-clientesportal).
+A RPC entrega os campos completos a Administrativo, Documentação, Financeiro e
+Equipamentos e mascara para Operações o Email de Recuperação, os candidatos e o
+status de entrega. Vale a [ADR 0045](adr/0045-inspecao-do-portal.md):
+Operações vê os campos completos ([ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18); a retirada do
+mascaramento é correção pendente no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 
 ## Fontes relacionadas
 
@@ -792,37 +975,5 @@ compartilhado.
 - [`WORKFLOW.md`](../WORKFLOW.md): execução, desenvolvimento, testes e deploy;
 - [`docs/ROADMAP.md`](./ROADMAP.md): baseline, evolução e riscos;
 - [`docs/operations/validacao.md`](./operations/validacao.md): provas funcionais e técnicas;
+- [`docs/operations/servicos-externos.md`](./operations/servicos-externos.md): contas, segredos, jobs e Edge Functions publicadas;
 - [`docs/adr/README.md`](./adr/README.md): decisões arquiteturais.
-
-### Entradas índice e fallback
-
-| Rota | Superfície / origem | Contrato | Evidência |
-|---|---|---|---|
-| `/` | Índice de `AppInterno`, sob `ProtectedRoute` | `Navigate` para `/painel`; sem hook/service/persistência própria | **Código:** `src/AppInterno.tsx` |
-| `*` | `AppInterno` e `AppPortal` | Interno mostra `NaoEncontrado` sob sessão; Portal redireciona para `/portal` | **Código:** os dois roteadores |
-
-O índice da inspeção `/clientes/portal/inspecao/:customerId` monta
-`PortalDashboard`, compartilhando os hooks e RPCs de leitura da inspeção.
-
-
-### Central de Informações — rotas (2026-10-04)
-
-| Rota | Tela / fonte |
-|---|---|
-| `/portal/informacoes` | PortalInformation: central com seis seções |
-| `/portal/informacoes/:section` | Taxas Locais, Devolução, Demurrage, Agentes, Atendimento e Tracking |
-| `/clientes/portal/inspecao/:customerId/informacoes` | Mesma central no escopo somente leitura de inspeção |
-| `/clientes/portal/inspecao/:customerId/informacoes/:section` | Seções no escopo de inspeção |
-| `/clientes/informacoes` | ClientesInformacoes: cadastros internos e publicação |
-
-Serviço `portalInformation.ts`, hooks `usePortalInformation.ts` e migrations
-`137_portal_information.sql` e `138_portal_information_review_fixes.sql`; preços vêm das tabelas vigentes do Vela.
-Orientação de devolução é fluida por porto de descarga atendido: os containers descarregados
-em um porto podem ser devolvidos em qualquer depósito disponível publicado do porto.
-Testes: `portalInformation.local-pg.test.ts`, `portalInformation.test.ts`,
-`InformationSections.test.tsx` e `ClientesInformacoes.test.tsx`.
-
-A revisão inicial de 2026-10-04 e a decisão de negócio de 2026-10-06 simplificam o fluxo:
-a indicação específica por container e planilha foi removida antes de ir para produção,
-mantendo a devolução orientada por porto e os depósitos publicados do Vela.
-Evidências e achados: [revisão extensa](archive/reports/2026-10-04-revisao-portal-informacoes.md).

@@ -1,8 +1,12 @@
 # ADR 0065 — Inbox durável, efeitos pós-commit e autoridade financeira server-side
 
+> **Situação atual (2026-10-13).** A decisão vale. A [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) (item 18) e a [ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md) (decisão 3) a estenderam com a regra de ligação: depois da simulação e da aprovação do acumulado, o `import-effects-runner` fica sempre ligado.
+> Não vale mais o estado descrito abaixo como atual: o runner está ligado em produção desde 2026-10-12 (a chave `IMPORT_EFFECTS_RUNNER_ENABLED` continua sendo o desligamento), roda a cada minuto e também é disparado pela importação, um runner por vez (migration `218`); o `recalc-demurrage-ptax` roda de segunda a sexta desde 2026-10-07; e os consumidores de Granito e de veículos existem desde a migration `031`.
+> Regra vigente em [Serviços externos](../operations/servicos-externos.md), seção "Jobs agendados (`pg_cron`)" e roteiro para ligar o `import-effects-runner`.
+
 > **Implementação conferida em 2026-09-18 (Código):** 031 implementa consumidores adicionais; 027/028/030 refinam moeda, ROE e snapshots. Rollout remoto continua exigindo evidência própria.
 
-Status: aceito — 2026-09-07
+Status: estendida — 2026-09-07
 
 ## Contexto
 

@@ -6,23 +6,42 @@ As instruções de trabalho dos agentes permanecem em [AGENTS.md](../AGENTS.md).
 
 ## Responsabilidade de cada documento
 
+Cada fato tem um único documento dono ([ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md)):
+
 | Informação | Fonte canônica |
 |---|---|
-| Significado de uma entidade, estado ou regra de negócio | [CONTEXT.md](../CONTEXT.md) |
-| Camadas, integrações e mapa de rotas | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Instalação, comandos, testes, migrations e deploy | [WORKFLOW.md](../WORKFLOW.md) |
-| Comportamento de telas e ações de um domínio | Módulo correspondente no [índice documental](README.md) |
+| Termo, entidade, estado e distinção entre conceitos próximos | [CONTEXT.md](../CONTEXT.md) (glossário) |
+| Regra vigente de um domínio, telas e ações | Módulo correspondente no [índice documental](README.md) |
+| Regra que atravessa módulos | [regras-de-negocio.md](operations/regras-de-negocio.md) |
+| Procedimento do usuário do Financeiro | [Manual financeiro](operations/manual-financeiro.md) |
 | Aparência, regras visuais e peças comuns de tela | [identidade-visual.md](identidade-visual.md) |
+| Camadas, integrações, modelo de dados e mapa de rotas | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Instalação, comandos, testes, migrations e deploy | [WORKFLOW.md](../WORKFLOW.md) e [setup/](setup/development.md) |
 | Caminho da ação até código, banco e evidências | [RASTREABILIDADE.md](RASTREABILIDADE.md) |
 | Motivo de uma decisão e suas alternativas | ADR numerada e [índice de ADRs](adr/README.md) |
 | Trabalho ainda pretendido | Plano ou spec vivos |
 | O que foi observado em uma data/execução | Auditoria ou relatório no arquivo histórico |
 
 Mantenha a explicação completa no documento dono e use links nos demais.
+O glossário define o termo em poucas linhas e aponta para o módulo; prazos,
+ramos, exceções, efeitos e estado de implementação ficam no módulo.
 Não duplique listas de versões, contagens ou procedimentos que passam a exigir
 manutenção em vários lugares. Código e configuração demonstram o comportamento
 implementado; uma spec demonstra intenção. Quando divergem, registre a diferença
 sem transformar um bug em regra de negócio nem declarar a intenção entregue.
+
+### Divergência entre documento e código
+
+Classifique antes de corrigir:
+
+| Tipo | Situação | O que fazer |
+|---|---|---|
+| (a) | Documento defasado; código coerente com a decisão | Corrigir o documento |
+| (b) | Código diverge da decisão registrada | Não reescrever o documento para coincidir com o código; registrar como decisão pendente e, se for defeito, abrir tarefa separada |
+| (c) | Documentos se contradizem e o código não resolve | Registrar como decisão pendente |
+
+Decisões pendentes levam caso prático, opções e recomendação, e são
+respondidas pelo dono em lote; a resposta vira ADR nova.
 
 ## Formato e estilo
 
@@ -36,7 +55,11 @@ sem transformar um bug em regra de negócio nem declarar a intenção entregue.
 - Diagramas em **Mermaid**.
 - Caminhos de código em crases são referências literais; para navegação clicável, use links Markdown relativos.
 - Links internos relativos ao arquivo que contém o link, inclusive após mover
-  documentos. Confira também as âncoras de seção; o gate não as valida.
+  documentos. Âncoras de seção seguem o slug do GitHub (minúsculas, acentos
+  mantidos, pontuação removida, espaço vira hífen), e o fragmento do link é
+  comparado com o slug exatamente, inclusive maiúsculas; renomear um título quebra
+  os links para ele, e o gate acusa. Use `<a id="...">` para fixar uma âncora
+  que precisa sobreviver a mudanças de título.
 - Blocos de comando devem indicar o shell e o diretório de execução quando
   não for a raiz. Separe exemplos de Bash e PowerShell quando a sintaxe diferir.
   Informe pré-requisitos, alvo e efeitos de comandos que escrevem dados.
@@ -116,6 +139,20 @@ de uma chamada com conclusão de um efeito assíncrono.
   nova ADR e/ou nota editorial datada, com escopo e referência à decisão que
   estende ou supersede a anterior. Atualize o índice; extensão não é sinônimo
   de supersessão. Não reescreva o relato original para apagar sua evolução.
+  ADRs nunca são movidas para o arquivo histórico nem renumeradas.
+- Toda ADR estendida ou supersedida começa, logo abaixo do título, por uma
+  faixa `> **Situação atual (AAAA-MM-DD).**` que diz o que não vale mais,
+  quais ADRs a alteraram e onde está a regra vigente. A linha `Status:` fica
+  no cabeçalho da ADR, entre o título e a primeira seção `##` (fora de bloco
+  de código), e concorda com o índice. Estado de implementação é registrado à
+  parte do status da decisão.
+- Em documento vivo, número de migration sem qualificação é da cadeia ativa
+  (`supabase/migrations/`). Número da cadeia anterior à consolidação
+  ([ADR 0062](adr/0062-consolidacao-migrations-schema-1-0.md)) é escrito
+  "migration arquivada `NNN`", porque os números se repetem nas duas cadeias.
+- Documento com data no nome (auditoria, inventário, relatório, pesquisa) é
+  histórico desde o nascimento e fica em `docs/archive/`, salvo plano ou spec
+  vivos.
 - `docs/archive/` contém registros históricos. Preserve suas conclusões e
   evidências originais; correções posteriores devem ser identificadas como
   notas editoriais, nunca apresentadas como observações da data original.
@@ -157,11 +194,14 @@ Antes de concluir uma alteração documental:
 4. Execute `npm run docs:check` e `git diff --check`.
 
 O [gate documental](../scripts/check-docs.mjs) verifica existência dos destinos
-de links relativos fora do arquivo histórico, índices obrigatórios, cobertura
-do índice de ADRs, formato dos módulos e presença das rotas extraídas dos dois
-roteadores na arquitetura e na rastreabilidade. Também rejeita `CLAUDE.md` na
+de links relativos fora do arquivo histórico, âncoras de seção dos links para
+Markdown, índices obrigatórios, cobertura
+do índice de ADRs (cada ADR com número único e linha na tabela), concordância entre a linha
+`Status:` de cada ADR e o índice, faixa "Situação atual" logo abaixo do título nas ADRs estendidas ou supersedidas, documentos
+datados fora do arquivo histórico, formato dos módulos e presença das rotas
+extraídas dos dois roteadores na arquitetura e na rastreabilidade. Também rejeita `CLAUDE.md` na
 raiz e algumas afirmações obsoletas conhecidas.
 
-Ele não verifica âncoras, URLs externas, caminhos apenas em crases, correção
+Ele não verifica URLs externas, caminhos apenas em crases, correção
 semântica, execução dos comandos, autorização real ou rollout remoto.
 Uma checagem verde não substitui essa revisão.

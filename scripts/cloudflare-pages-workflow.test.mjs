@@ -53,7 +53,7 @@ test('Supabase access token is scoped only to steps that invoke the Supabase CLI
 
 const readWorkflow = (name) => readFile(new URL(`../.github/workflows/${name}`, import.meta.url), 'utf8')
 
-test('jobs com token declaram o environment restrito a main (auditoria run-2, #14)', async () => {
+test('jobs com token declaram o environment, e o build não (auditoria run-2, #14)', async () => {
   assert.match(jobBlock('prepare'), /environment: supabase-branches/)
   assert.match(jobBlock('publish'), /environment: cloudflare-pages/)
   assert.doesNotMatch(jobBlock('build'), /environment:|secrets\./)

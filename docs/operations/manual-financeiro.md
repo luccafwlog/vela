@@ -1,6 +1,6 @@
 # Manual de faturamento, pagamentos e correções
 
-Edição atualizada em 2026-10-04, após as correções locais e a inclusão autorizada da migration 136. **Esta edição não comprova implantação.** Use os novos procedimentos no ambiente publicado somente depois da aplicação conjunta de banco e telas. A integração bancária real não foi exercitada.
+Edição atualizada em 2026-10-14. Os procedimentos valem para o ambiente publicado: as correções e controles financeiros (migrations `122`–`136`) estão em produção, e a cobrança Pix do Itaú com baixa automática está ativa desde 2026-10-07 (evidência em [Faturamento § Notas e divergências](../modules/faturamento.md#notas-e-divergências)). Este manual diz o que o usuário faz; as regras estão nos módulos [Faturamento](../modules/faturamento.md), [Reconciliação PIX](../modules/reconciliacao-pix.md) e [Demurrage](../modules/demurrage.md).
 
 ## 1. Quem faz e onde
 
@@ -8,11 +8,13 @@ Edição atualizada em 2026-10-04, após as correções locais e a inclusão aut
 |---|---|---|
 | Conferir Cliente/CNPJ, CE, carga e pendências | Ficha do B/L / Revisão | Documentação autorizada |
 | Consultar documentos, saldo e recebimentos | Taxas Locais → detalhe da fatura | Equipe com leitura autorizada |
-| Registrar pagamento manual local ou conciliar PIX local | Detalhe / Conciliação PIX | Administrativo |
+| Acompanhar a baixa automática do Pix Itaú e tratar Pix sem baixa | Conciliação → aba Pendências | Administrativo |
+| Registrar pagamento manual local ou conciliar PIX pelo extrato (plano B) | Detalhe / Conciliação → Conciliar extrato | Administrativo |
 | Emitir avulsa | Taxas Locais → Gerar fatura avulsa | Financeiro ou Administrativo |
 | Autorizar restituição excepcional de avulsa/Demurrage | Detalhe → Restituição excepcional | Administrativo |
 | Confirmar devolução já realizada no banco | Detalhe → Confirmar devolução | Financeiro ou Administrativo |
 | Preparar cancelamento financeiro de B/L com pagamento | Detalhe → Ajustes pela correção do B/L | Administrativo |
+| Liquidar Ajuste de COD | Taxas Locais → Ajustes de COD → Aplicar abatimento, Registrar restituição ou Vincular e concluir (confirmar em Liquidar ajuste) | Financeiro ou Administrativo |
 | Cancelar baixa, fatura ou B/L; reativar B/L | Detalhe / Conciliação / ficha do B/L | Administrativo |
 | Operar pagamento/desconto de Demurrage | Demurrage | Financeiro ou Administrativo, conforme a ação |
 | Consultar e pagar documentos próprios | Portal Fwlog | Cliente autenticado |
@@ -21,7 +23,7 @@ Edição atualizada em 2026-10-04, após as correções locais e a inclusão aut
 
 - **Fatura é cobrança; baixa registra recebimento; recibo documenta o recebimento.** Confira o banco antes de registrar. Comprovante enviado pelo Cliente precisa de conferência.
 - **Cancelar baixa** corrige um lançamento falso ou atribuído incorretamente. **Restituir** devolve dinheiro realmente recebido. Não use uma ação para substituir a outra.
-- Total e itens emitidos ficam preservados. Confira o **saldo atual**, os ajustes e as restituições; o total original pode ser diferente do valor líquido recebido.
+- Total e itens emitidos ficam preservados ([regra](../modules/faturamento.md#correção-após-emissão-adr-0077)). Confira o **saldo atual**, os ajustes e as restituições; o total original pode ser diferente do valor líquido recebido.
 - Individual e consolidada podem representar os mesmos recebíveis. **Não some as duas como dívidas independentes.** Coberta significa quitação pela consolidada; Obsoleta indica que a consolidada perdeu validade por quitação individual.
 - Cancelar uma fatura não cancela o B/L. Cancelar o B/L não executa transferência bancária. Excluir não substitui cancelamento.
 - Um QR retirado da tela pode ter sido copiado antes. Confira PIX recebido em cobrança antiga antes de encerrar o caso.
@@ -33,7 +35,7 @@ Edição atualizada em 2026-10-04, após as correções locais e a inclusão aut
 1. Confira Cliente/CNPJ, viagem, carga, CE, cálculo e pendências do B/L.
 2. Verifique a emissão individual. Consolide somente recebíveis elegíveis do Cliente correto. Leia a retenção quando a emissão não ocorrer.
 3. Disponibilize a cobrança válida, com saldo e QR atuais.
-4. Após conferir o recebimento no banco, concilie o PIX ou registre manualmente **valor, método, data e referência bancária**. Quando um PIX paga mais de uma cobrança, repita a mesma referência em cada baixa; o sistema não barra referência repetida, então confira o histórico antes de lançar.
+4. Pix pago pela cobrança do Itaú dá baixa sozinho em até alguns minutos: no detalhe da fatura, a coluna **Registrado por** mostra a conta da baixa automática ("API Itaú"). Na aba **Pendências** da Conciliação (destino do alerta de Pix sem baixa), trate só o que ficou sem baixa (seção 4). Recebimento fora da cobrança Itaú (TED, Pix sem a cobrança): após conferir no banco, registre manualmente **valor, método, data e referência bancária**. Quando um PIX paga mais de uma cobrança, repita a mesma referência em cada baixa; o sistema não barra referência repetida, então confira o histórico antes de lançar.
 5. Confirme a baixa e reabra o detalhe: confira pagamento, saldo, B/Ls, individuais cobertas e restituições.
 6. Emita o recibo quando houver quitação. Para documento restituído ou cancelado, o recibo serve como histórico do recebido e devolvido; confira o líquido.
 
@@ -43,18 +45,21 @@ Edição atualizada em 2026-10-04, após as correções locais e a inclusão aut
 |---|---|---|
 | Sem CE ou Cliente/CNPJ não reconciliado | Corrigir na ficha/Revisão. Não usar avulsa para contornar emissão das taxas locais | Vínculo correto e emissão liberada ou retenção identificada |
 | Cálculo, condição do Cliente ou câmbio bloqueia emissão | Corrigir a causa indicada. Não usar câmbio estimado para encaixar pagamento | Cálculo elegível e conversão válida |
-| Portal não pronto | Regularizar o Portal; se cabível, Administrativo concede a Liberação | Gate aberto e fatura emitida |
+| Portal não pronto | Regularizar o Portal; se cabível, Administrativo concede a Liberação ([regra do gate](regras-de-negocio.md#gate-de-faturamento)) | Gate aberto e fatura emitida |
 | CE existe e a fatura não saiu | Resolver a retenção; Administrativo usa Emitir fatura na ficha quando cabível | Uma cobrança válida, sem emissão duplicada |
 | Reemissão pendente | Corrigir a causa e tentar reemitir pela ação disponível | Sucessora vinculada ou encerramento justificado |
 | Serviço adicional eventual | Gerar avulsa para Cliente correto, com descrição/contexto exigidos | Cobrança adicional rastreável |
 | Emissão em lote falhou | Consultar os documentos efetivamente emitidos antes de repetir | Repetir apenas as pendências |
-| PIX com TXID e valor compatíveis | Importar, revisar e confirmar na Conciliação PIX | Uma baixa para a transação e saldo atualizado |
+| Pix pago pela cobrança Itaú | Nada a lançar: a baixa é automática. Conferir no detalhe da fatura (Registrado por: API Itaú) | Uma baixa para a transação e saldo atualizado |
+| Aba Pendências avisa que a consulta de recebimentos do Itaú não está avançando, ou a cobrança Itaú está desligada | Usar o plano B: importar o extrato em **Conciliar extrato**, revisar e confirmar. Avisar o suporte da consulta parada | Pix pagos depois do horário indicado baixados uma única vez |
+| **Pix recebidos sem baixa** (valor diferente, fatura cancelada a restituir, TXID sem fatura) | Conferir o Pix no banco e a fatura. Se a fatura for paga por outro caminho (baixa pelo extrato ou pagamento verificado), o Pix sai da lista sozinho. Nos demais casos, resolver a causa (baixar, restituir ao Cliente) e usar **Marcar como tratado…** com o motivo (mínimo de 5 caracteres) | Pix fora da lista, com motivo registrado; alerta fechado |
+| **Cobranças aguardando o Itaú** (QR Code em preparação, alteração ou cancelamento sem confirmação do banco) | Não repetir a operação: a fila tenta de novo sozinha e consulta o banco antes de repetir uma resposta incerta. Se persistir, acionar o suporte | Cobrança confirmada pelo banco e QR disponível |
 | TED/recebimento fora do extrato | Administrativo registra no detalhe, com a referência do banco | Valor verdadeiro e uma baixa no histórico |
 | Pagamento parcial | Registrar só o recebido e cobrar o saldo restante | Saldo positivo; não presumir quitação |
 | Sobrou R$ 0,01 | Regularizar o centavo pelo procedimento financeiro aplicável | Saldo efetivamente zerado |
 | Recebimento manual local acima do saldo | Registrar o valor integral recebido; conferir o aviso e a restituição automática do excedente | Bruto correto, saldo zero e excedente Pendente |
 | PIX divergente do valor da cobrança | Conferir QR/versão, extrato e documento; tratar a exceção | Associação autoritativa válida; não forçar candidata |
-| TXID ausente, ambíguo ou sem candidata | Usar Pendências PIX; escolher candidata somente quando segura. Sem candidata segura, investigar com banco/Cliente | Destinação documentada, sem associação por mera semelhança de valor/CNPJ |
+| TXID ausente, ambíguo ou sem candidata no extrato | Na aba Pendências, em **Exceções do extrato**, usar **Tentar de novo** ou **Escolher fatura…** → **Baixar nesta fatura** somente quando a fatura for segura. Se a baixa entrou e só a exceção ficou aberta, usar **Encerrar exceção** (não repetir a baixa). Sem fatura segura, investigar com banco/Cliente | Destinação documentada, sem associação por mera semelhança de valor/CNPJ |
 | Mesma linha/TXID reapareceu | Conferir o histórico antes de confirmar novamente | Uma única baixa |
 | Baixa manual parece repetida | Conferir extrato e referência. Mesmo valor/método/data pode representar duas transações distintas | Cada baixa corresponde a um recebimento real; a mesma referência só se repete quando um PIX pagou mais de uma cobrança |
 | Timeout ou resposta perdida ao registrar | Conferir o histórico; se necessário, usar Tentar novamente, mantendo a tentativa congelada. Para corrigir dados após conferir, use Encerrar tentativa após conferir | Mesma chave/conteúdo; uma baixa. Referência já registrada exige conferir o lançamento existente |
@@ -66,6 +71,8 @@ Edição atualizada em 2026-10-04, após as correções locais e a inclusão aut
 | Banco bloqueou cancelamento de baixa | Conferir correções/restituições que dependem do recebimento | Preservar lastro; não apagar restituição para contornar a trava |
 
 ## 5. Alterações de B/L, valores e CNPJ
+
+Regras: [correção após emissão](../modules/faturamento.md#correção-após-emissão-adr-0077) e [troca de Cliente](../modules/faturamento.md#troca-de-cliente-após-emissão-regra-de-cnpj).
 
 | Situação | O que fazer | Como o sistema trata |
 |---|---|---|
@@ -96,6 +103,8 @@ O documento original continua em R$ 600. O recibo distingue recebido, abatido, d
 
 ## 6. Cancelamento e restituição
 
+Papéis, condições e falhas de cada ação estão no [catálogo de ações do Faturamento](../modules/faturamento.md#catálogo-de-ações).
+
 | Situação | Procedimento | Resultado esperado |
 |---|---|---|
 | Baixa falsa gerou excedente automático ainda não devolvido | Administrativo confere que não houve recebimento nem devolução e cancela a baixa selecionada | Excedente pendente acompanha a reversão, com auditoria. Devolução já confirmada não pode ser retirada |
@@ -115,6 +124,8 @@ O documento original continua em R$ 600. O recibo distingue recebido, abatido, d
 
 ## 7. Demurrage e recibos
 
+Regras de Invoice de Demurrage, datas e Régua de Cobrança: [Demurrage](../modules/demurrage.md).
+
 | Situação | Procedimento |
 |---|---|
 | Pagar Demurrage | Conferir data e valor elegível no histórico. Registrar no fluxo de Demurrage/conciliação autorizado; quitação congela valor/data/câmbio |
@@ -123,7 +134,7 @@ O documento original continua em R$ 600. O recibo distingue recebido, abatido, d
 | Desconto antes de pagar | Aplicar pelo fluxo de desconto, com justificativa/aprovação; desconto em USD antes da conversão. Desconto integral elimina QR de valor positivo |
 | Ajuste/devolução depois de pagar | Usar Restituição excepcional no detalhe, com autorização do Administrativo e confirmação pelo Financeiro; não desfazer recebimento verdadeiro |
 | Disputa aberta | Tratar a disputa. Régua de cobrança pausa; recálculo cambial pode continuar |
-| Datas do container mudam depois de a Invoice ser paga | A data pode ser corrigida (edição do container com motivo ou planilha de datas). A Invoice paga não muda: sai da Régua e o alerta crítico **Datas mudaram em Invoice de Demurrage emitida** abre para o Administrativo. Conferir a diferença no detalhe. Valor menor: Restituição excepcional (Administrativo autoriza, Financeiro devolve e confirma). Valor maior: avulsa da diferença. Resolver o alerta à mão depois. Se a baixa for estornada com as datas ainda diferentes, a Invoice é cancelada e reemitida pelo cálculo novo |
+| Datas do container mudam depois de a Invoice ser paga | A data pode ser corrigida (edição do container com motivo ou planilha de datas). A Invoice paga não muda: sai da Régua e o alerta crítico **Datas mudaram em Invoice de Demurrage emitida** abre para o Administrativo. Conferir a diferença no detalhe. Valor menor: Restituição excepcional (Administrativo autoriza, Financeiro devolve e confirma). Valor maior: avulsa da diferença. Resolver o alerta à mão depois. Se a baixa for cancelada (**Cancelar baixa**) com as datas ainda diferentes, a Invoice é cancelada e reemitida pelo cálculo novo |
 | Datas do container mudam em Invoice com desconto ou disputa aberta | A Invoice não é reemitida sozinha (ADR 0079): sai da Régua e o mesmo alerta abre. Cancelar, gerar de novo pelo B/L e refazer o desconto ou responder a disputa. Se as datas voltarem às faturadas, a suspensão sai sozinha |
 | Baixa de Demurrage falsa | Administrativo cancela pelo histórico, com motivo. Restituição que depende da baixa impede a retirada do lastro |
 | Recibo local de fatura corrigida/restituída | Conferir bruto recebido, abatimento, devolvido, pendente e líquido. Pendência ainda não reduz o líquido recebido |
@@ -145,7 +156,7 @@ Referências: [Faturamento](../modules/faturamento.md), [Conciliação PIX](../m
 
 ### Saldo da nova cobrança após troca de CNPJ
 
-O recebível original é arquivado como `void`, com pagamentos/settlements
-preservados. A nova cobrança começa sem reaproveitar os recebimentos devolvidos
-do Cliente anterior. Isso vale também se o B/L voltar ao mesmo CNPJ em uma
-correção posterior. A baixa da nova fatura financia seu próprio recebível.
+A nova cobrança começa do zero: o recebimento devolvido ao Cliente anterior não
+quita a nova fatura, mesmo se o B/L voltar ao mesmo CNPJ. Confira no detalhe
+da nova fatura que o saldo é o valor cheio. Regra em
+[Faturamento § Troca de Cliente após emissão](../modules/faturamento.md#troca-de-cliente-após-emissão-regra-de-cnpj).

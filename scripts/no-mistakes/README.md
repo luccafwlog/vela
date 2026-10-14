@@ -1,5 +1,11 @@
 # no-mistakes gate
 
+> **Integração removida em 2026-09-18 por decisão do dono.** O gate não é
+> instalado nem executado em nenhuma sessão: o `SessionStart` hook só sincroniza
+> as skills, e a skill `/no-mistakes` saiu do catálogo. Os arquivos desta pasta
+> ficam apenas como histórico; o texto abaixo descreve a integração como era
+> antes da remoção. Registro: [auditoria das skills de 2026-09-18](../../docs/archive/audits/2026-09-18-auditoria-skills.md).
+
 [`no-mistakes`](https://github.com/kunchenguid/no-mistakes) is a local git gate:
 push to the `no-mistakes` remote instead of `origin` and it runs an AI-driven
 validation pipeline (review → test → docs → lint → push → PR → CI) in a

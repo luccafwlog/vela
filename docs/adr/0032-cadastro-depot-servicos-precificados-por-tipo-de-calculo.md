@@ -1,5 +1,10 @@
 # 0032 — Cadastro de Depot: serviços precificados por tipo de cálculo substituem tarifas estruturadas
 
+> **Situação atual (2026-10-13).** Ficam do original a lista única de serviços sob cada local e as telas `/embarquevazios/depots` e `/granito/taxas` fora do menu, abertas por botão.
+> Não valem mais o tipo de cálculo, a vigência, o overtime percentual com incidência por serviço e as quantidades por operação: o serviço tem natureza e valor sugerido, e a linha é lançada à mão ([ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md)).
+> Qualquer Departamento ativo edita o cadastro ([ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md)); excluir local ou serviço continua com o Administrativo.
+> Regra vigente: [Manifestos & EDI](../modules/manifesto-edi.md), Embarque de Vazios e Cadastro de Terminais.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Serviços manuais e valores sugeridos substituem tipos de cálculo e quantidades automáticas; cadastro de terminais permanece.
 > Rastreabilidade: [ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

@@ -1,9 +1,42 @@
 # Changelog
 
 > Histórico curado de entregas relevantes. Sintetizado dos planos de execução (arquivados em [archive/](archive/README.md)) e do histórico git. Não substitui o `git log`.
+>
+> Números de migration: a partir da consolidação de 2026-09-02 ([ADR 0062](adr/0062-consolidacao-migrations-schema-1-0.md)), número sem qualificação é da cadeia ativa (`supabase/migrations/`). As entradas anteriores a essa data (seções 2026-08 e mais antigas) citam a cadeia arquivada (`supabase/migrations_archive/`), cujos números se repetem na ativa com outro conteúdo.
 
 ## 2026-10
 
+- **Edge Function antiga de aviso de fatura emitida apagada (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26):**
+  o dono a apagou no painel do Supabase, como a ADR 0058 mandava; a listagem de produção
+  conferida depois não a tem ([serviços externos](operations/servicos-externos.md#edge-functions)).
+- **`docs:check` lê Markdown com parser (2026-10-14):** links e âncoras passam a vir de um parser
+  CommonMark com GFM (`mdast-util-from-markdown`) e do `github-slugger`, o mesmo algoritmo de
+  âncora do GitHub, no lugar das expressões regulares. Código inline, ênfase em título, links em
+  tabela e links de referência passam a ter o tratamento da página renderizada.
+- **Heartbeat do backup diário (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 6):**
+  com `BETTERSTACK_HEARTBEAT_BACKUP_URL` definida, `scripts/backup-r2.mjs --execute` avisa o
+  Better Stack no fim (sucesso ou `/fail`), e o dia sem backup vira alerta pelo prazo do
+  heartbeat. O heartbeat `backup-r2-diario` foi criado pelo dono no mesmo dia; falta a variável no
+  computador da tarefa ([roteiro](operations/backup-r2.md#heartbeat-do-backup)).
+- **Decisões da revisão geral respondidas (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
+  [ADR 0084](adr/0084-registro-de-decisoes-ja-em-producao.md)):** o dono respondeu as 25 decisões
+  de negócio, aprovou os defeitos do lote B e pediu o registro das decisões já em produção. Os
+  módulos passam a descrever a regra decidida, com "correção pendente" onde o código ainda
+  diverge; o termo é Restituição e a regra é "Administrativo ativo mínimo"; o desenho de piloto
+  e GO LIVE do Portal de julho foi arquivado. Nenhum código mudou: as correções estão no
+  [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (31 itens de
+  código e 2 operações do dono), e o plano da revisão geral foi arquivado.
+- **Revisão geral da documentação (2026-10-14, [ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md),
+  [relatório](archive/audits/2026-10-13-revisao-geral-documentacao.md)):** cada fato passa a ter
+  um documento dono. O `CONTEXT.md` vira só glossário (de 2.376 para 1.584 linhas), e prazos,
+  ramos, exceções e efeitos vão para os módulos e para `regras-de-negocio.md`; 66 ADRs ganham a
+  faixa "Situação atual" com a regra vigente, e o índice ganha Status, Implementação e Regra
+  vigente em. A auditoria de 400 achados corrigiu 304 trechos defasados e 42 duplicações em
+  módulos, ARCHITECTURE, RASTREABILIDADE, WORKFLOW, operações, índices e skills; documentos
+  datados foram para o arquivo histórico. O `docs:check` passa a recusar status de ADR diferente
+  do índice, ADR supersedida sem faixa, documento datado fora do arquivo e link para seção
+  inexistente. Ficaram com o dono 25 decisões de negócio, 32 defeitos em que o código desobedece
+  uma decisão registrada e 1 registro, no [plano vivo](archive/plans/2026-10-13-revisao-geral-documentacao.md).
 - **Lote 1 da identidade visual (2026-10-14, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
   Lista de BLs, ficha da Viagem, ficha do Cliente (com a aba nova Contêineres), Taxas Locais ·
   Faturas e Validação e Faturas do Portal em tabela limpa: uma linha de título, nada embaixo do
@@ -367,6 +400,37 @@
   PKCE no `WORKFLOW.md` foi corrigido: o link confirma a troca em qualquer navegador, mas
   só entrega sessão no de origem. [Plano](archive/plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md).
 
+- **Liberação de faturamento e Alertas de revisão (2026-10-09, migrations `167`–`170`, PRs 919–922):**
+  conceder, revogar ou deixar vencer a Liberação de faturamento sem Portal reavalia na hora a
+  Revisão dos B/Ls não faturados do Cliente (o vencimento por job diário), como a ativação do
+  Portal já fazia; B/L cancelado deixa de abrir ou inflar os Alertas de revisão do Cliente; e as
+  reavaliações em lote reconciliam o Alerta uma vez, no fim, com a contagem final na notificação.
+
+- **Condição de Cliente na moeda do item (2026-10-09, migrations `171`–`172`, PR 923):** a Condição
+  de Cliente em item de taxa em dólar passa a valer no cálculo automático das Taxas Locais (antes
+  saía o valor da tabela marcado como condição aplicada); item com Condição ativa não troca de
+  moeda, e os B/Ls afetados são recalculados.
+
+- **Cada planilha de CE Mercante é um manifesto (2026-10-08, migration `164`, PR 910):** o
+  operador informa o número do manifesto do lote antes de importar, e os CEs e o vínculo com o
+  Manifesto Mercante são gravados na mesma transação; antes, com rota divergente, o CE ficava
+  gravado sem o manifesto.
+
+- **Integração Itaú Pix em produção (2026-10-07):** cobrança Pix dinâmica Itaú por fatura (QR
+  dinâmico) e baixa automática pela consulta de 1 minuto, para fatura avulsa, individual,
+  consolidada e Invoice de Demurrage; o extrato fica como plano B (migrations `151`–`154`, PR 870,
+  aplicadas em produção em 2026-10-07). O webhook, opcional, não foi feito. Encerrado em 2026-10-08
+  com recibos conferidos pelo dono no Portal. [Plano arquivado](archive/plans/2026-10-06-integracao-itau-pix.md)
+  · [relatório de execução](archive/reports/2026-10-07-integracao-itau-pix-execucao.md) ·
+  [módulo](modules/reconciliacao-pix.md).
+
+- **Configuração do sistema protegida e limpeza dos dados de teste (2026-10-07):** a linha única
+  de `app_settings`, apagada de produção duas vezes por ação externa ao repositório, foi restaurada
+  (migrations `104`, em 2026-09-28, e `155`) e passou a não poder ser apagada, nem em cascata
+  (`156`). A limpeza ampla dos dados de teste passou a ser `supabase/scripts/limpar_dados_teste.sql`,
+  provada em banco descartável e válida só enquanto vigorar o "Data status" do `AGENTS.md`
+  ([procedimento](operations/reset-ambiente.md)).
+
 - **Desbloqueio de CE — revisão do fluxo (2026-10-07, implementação local):** a ZPT desbloqueia
   sozinha com os quatro requisitos, então o Vela virou o controle dela. Abas **Solicitações**
   (termo de devolução e procuração validados por pedido, recusa com motivo) e **Controle ZPT**
@@ -383,21 +447,37 @@
   [Módulo](modules/desbloqueio-ce.md). Publicação, agenda do e-mail e aceite da planilha pela
   ZPT pendentes.
 
+- **BLs e CEs da escala automáticos (2026-10-05, migrations `134` e `135`, PR 852):** o estado
+  documental de BLs e CEs de cada escala passa a ser derivado dos fatos ao fim da transação; a
+  marcação manual vale até o próximo estado diferente. A `135` corrige o salvar da escala, que pedia
+  justificativa sem alteração, e o payload do Comunicado de taxas locais, que nunca era montado.
+  [Revisão da PR 852](archive/reports/2026-10-05-pr-852-review.md).
+
+- **Integração das PRs 845, 846 e 847 (2026-10-05;
+  [plano arquivado](archive/plans/2026-10-05-integracao-prs-845-846-847.md)):** escala documental
+  `134`–`135` (main), financeiras `136`, Informações `137`–`138` e CE `139`–`149`, com versões
+  únicas; a `149` só lê `invoice_customer_changes` em tempo de execução. Na integração, Informações
+  e CE foram renumeradas em +2, e as entradas de 2026-10-04 e 2026-10-05 abaixo já citam os números
+  finais. Menu, rotas e Modo Inspeção preservam ambos os módulos. Pagamento CE exige
+  recebível vigente do Cliente atual e bloqueia troca de CNPJ não concluída;
+  restituição normal de excedente mantém a regra do valor corrigido. As ações
+  financeiras atualizam consultas CE no mesmo cache. Publicação remota pendente.
+
 - **Correções da PR 847 (2026-10-05):** CE aceita liquidação do valor corrigido;
   referência externa permanece privada também no histórico; tentativas de upload
   não substituem PDFs registrados e são compensadas em falhas de armazenamento.
-  Migration corretiva `146`, regressões SQL/Deno e checks de Inspeção/segurança
+  Migration corretiva `148`, regressões SQL/Deno e checks de Inspeção/segurança
   atualizados. Publicação remota do backend continua pendente.
 
 - **Desbloqueio de CE Mercante (2026-10-04, implementação local):** página em
   Importação e no Portal, solicitações de BLs pagos, análise de termo/procuração
   e entrega original. VIP por CNPJ com documentos anuais até 31/12. Lotes XLSX
   ZPT de cinco colunas, envio e confirmação por BL separados, anexos privados e
-  expurgo agendado inicialmente desativado (migrations `137`–`144`). Ver
+  expurgo agendado inicialmente desativado (migrations `139`–`146`). Ver
   [módulo](modules/desbloqueio-ce.md); publicação e aceite externo pendentes.
 
 - **Revisão extensa da Central de Informações (2026-10-04, local):** migration
-  `136` corrige indicação por identidade física, valida POD/SOC compartilhados,
+  `138` corrige indicação por identidade física, valida POD/SOC compartilhados,
   leitura de justificativa tardia e integração com exclusão de viagem. Resolver
   comum elimina diferenças por aliases de tarifas sem mudar faturas existentes.
   Corrigidos sobrescrita de assuntos, seleção indisponível, filtros ocultos,
@@ -409,7 +489,7 @@
   seções com taxas oficiais do Vela, depots, Demurrage, agentes, atendimento e
   tracking; mesmos componentes e identidade visual. Cadastros internos por
   papel e indicação opcional de devolução por unidade física compartilhada,
-  com auditoria e retirada justificada. Migrations `135` e `136`, isolamento por cliente
+  com auditoria e retirada justificada. Migrations `137` e `138`, isolamento por cliente
   e CE, sem planilhas, tabelas de exportação ou Detention. Free time segue
   B/L → acordo → tarifa geral, sem fallback fixo. Validação PostgreSQL 16 e
   testes locais; publicação em produção não realizada.
@@ -443,6 +523,11 @@
   e rateio verifica vizinhos nas viagens de origem e destino. Itaú bancário segue
   futuro, com seus contratos locais documentados.
   [ADR 0077](adr/0077-fatura-emitida-nao-muda-de-valor.md); rollout remoto não verificado.
+
+- **Vazios de Importação com Nº de manifesto (2026-10-01, migration `117`):** a importação por
+  planilha grava o Nº do Manifesto Mercante de cada rota na mesma transação dos containers; antes,
+  uma falha na segunda gravação deixava o manifesto órfão e travava a nova tentativa com o mesmo
+  número.
 
 - **SOC/COC do container (2026-10-01):** migration `121`. O container passa a ser SOC (do
   cliente) ou COC (do armador), lido do B/L e do Baplie (EQD 8077). O B/L é soberano; o
@@ -495,6 +580,11 @@
   e 025 nunca criaram (`to_regproc` com assinatura devolve NULL); sem eles os
   eventos de entrega e bounce ficavam parados em `pending`.
 
+- **Cloudflare Pages como hosting (2026-09-28):** Vela e Portal Fwlog passam a ser publicados no
+  Cloudflare Pages por GitHub Actions (Preview por PR e Production a cada merge na `main`), e a
+  dependência operacional da Vercel sai do repositório. [ADR 0076](adr/0076-cloudflare-pages-como-hosting.md)
+  · [Plano arquivado](archive/plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md).
+
 - **Fatura avulsa flexível (2026-09-27):** operador do Financeiro pode emitir
   contra um Cliente com nome e descrição de item livres, quantidade e valor;
   B/L e Viagem são opcionais. A invoice compartilha número, PIX, pagamento,
@@ -527,6 +617,27 @@
   fundo dos modais e o diálogo de dispensa de Alertas abria atrás do cabeçalho.
   [Relatório](archive/audits/2026-09-26-auditoria-mobile.md).
 
+- **Política de exclusão de dados (2026-09-25, migrations `086`–`096`, ADRs 0071–0074):** o CE
+  Mercante trava a exclusão; excluir mostra a prévia do que sai junto e pede motivo; B/L e viagem
+  passam a ser cancelados e reativados; cliente e tarifa usados só se desativam; documento fiscal e
+  auditoria não se apagam pela API; toda escrita confirma com a consequência; o papel `admin` sai e
+  entra a rotina diária de guarda (o backup lógico diário da ADR 0074 passou a rodar em 2026-10-06,
+  [backup](operations/backup-r2.md)). Migrations `086`–`095` conferidas em
+  produção no mesmo dia. [Plano arquivado](archive/plans/2026-09-24-politica-de-exclusao.md) ·
+  [regras](operations/regras-de-negocio.md#ações-sobre-registros).
+
+- **Encerramento da governança das skills (2026-09-25):** a fonte versionada,
+  o inventário, o reset e o sincronizador das skills foram concluídos; a
+  validação do Alienware foi confirmada pelo responsável. [Plano arquivado](archive/plans/2026-09-18-governanca-limpeza-evolucao-skills.md).
+
+- **Encerramento da remediação da revisão sistemática (2026-09-25):** as
+  correções de acessibilidade, documentos/faturas, segurança, banco e
+  performance foram encerradas conforme confirmação do responsável. [Plano arquivado](archive/plans/2026-09-12-plano-implementacao-auditoria-sistematica.md).
+
+- **Encerramento da remediação do Portal e da superfície F12 (2026-09-25):**
+  as Fases 0–5 foram encerradas, incluindo a validação de runtime em staging
+  confirmada pelo responsável. [Plano arquivado](archive/plans/2026-09-22-plano-remediacao-auditoria-portal-f12.md).
+
 - **Alinhamento entre apresentação, documentação e código (2026-09-23):**
   a apresentação foi revisada contra a documentação e o código, e as divergências viraram um questionário com o
   dono. Documentação corrigida onde o código estava certo (PR #719); abas da Viagem na URL, atalhos da viagem e CE
@@ -551,18 +662,6 @@
   operando em bypass quando as chaves não estão presentes no ambiente. Métrica agregada e
   anônima de faturamento (`invoice_viewed`) no PostHog EU adicionada em `PortalBilling`.
   [Plano arquivado](archive/plans/2026-09-23-issue-710-consolidacao-service-a-service.md).
-
-- **Encerramento da governança das skills (2026-09-25):** a fonte versionada,
-  o inventário, o reset e o sincronizador das skills foram concluídos; a
-  validação do Alienware foi confirmada pelo responsável. [Plano arquivado](archive/plans/2026-09-18-governanca-limpeza-evolucao-skills.md).
-
-- **Encerramento da remediação da revisão sistemática (2026-09-25):** as
-  correções de acessibilidade, documentos/faturas, segurança, banco e
-  performance foram encerradas conforme confirmação do responsável. [Plano arquivado](archive/plans/2026-09-12-plano-implementacao-auditoria-sistematica.md).
-
-- **Encerramento da remediação do Portal e da superfície F12 (2026-09-25):**
-  as Fases 0–5 foram encerradas, incluindo a validação de runtime em staging
-  confirmada pelo responsável. [Plano arquivado](archive/plans/2026-09-22-plano-remediacao-auditoria-portal-f12.md).
 
 - **Remediação de segurança da auditoria do Portal e superfície F12 (2026-09-22):**
   Logout passa a falhar fechado com timeout de segurança (5s) e purga local síncrona e forçada de tokens (`removeLocalSessionFallback`), isolando estritamente o `storageKey` de cada aplicação (Portal x Vela interna) sem derrubar sessões alheias no mesmo domínio e exibindo alerta contextual no login, derivado do estado vivo do provider, caso a revogação remota falhe por instabilidade de rede (`signOutError`). Uploads de anexos em disputas de demurrage têm escrita direta no Storage revogada para clientes do Portal (`demurrage_dispute_objects_insert` restrita a `is_active_user()`), com pré-checagem de elegibilidade antes da criação da mensagem (`portal_check_dispute_attachment_eligibility`), orquestração pela Edge Function `portal-dispute-attachment` (`verify_jwt = false` para preflight CORS com validação de sessão interna), validação de assinatura/magic bytes (PDF, PNG, JPEG, TXT) e tamanho (máx 10 MB), cota agregada no banco restrita a disputas abertas com lock transacional consultivo (`pg_advisory_xact_lock`), limite diário de uploads por cliente, delegação à RPC `add_demurrage_dispute_attachment`, reenvio de anexo retido e limpeza imediata de arquivos órfãos tanto no Portal quanto no fluxo interno de Demurrage (migration `074`). A migration `075` restringe anexos do Portal a Disputes abertas (fechando o desvio da quota por Disputes resolvidas), cria a policy DELETE que torna efetiva a limpeza do fluxo interno e troca a rotina de expurgo por SQL pela listagem somente leitura `list_orphaned_dispute_attachments`, com remoção pelo Storage API. Recuperação de senha desacopla processamento para segundo plano via `EdgeRuntime.waitUntil` em melhor esforço (best-effort), retornando 200 imediatamente após checagem de rate limit e eliminando canal lateral temporal. O build de produção remove recursivamente e falha fechado na detecção de artefatos proibidos (`.map` ou `.vite`), e dependências foram atualizadas (0 vulnerabilidades em `npm audit`).
@@ -632,6 +731,11 @@
   dos índices preservadas em relatórios históricos; os três planos pendentes
   permanecem vivos. O gate valida rotas por AST e estrutura dos módulos.
   [Inventário e evidências](archive/audits/2026-09-19-overhaul-documental.md).
+- **Unificação de B/Ls, carga mista e Manifesto Mercante (2026-09-18, PRs 698 e 703, migrations
+  `053`–`064`):** rota única `/bls` para container, carga solta e mistos; Manifesto Mercante como
+  entidade própria por par de portos; fatura de taxas locais em blocos adaptativos.
+  [Plano arquivado](archive/plans/2026-09-17-unificacao-bls-carga-mista-e-manifesto-mercante.md) ·
+  [auditoria da PR 698](archive/audits/2026-09-18-auditoria-pr698-carga-mista.md).
 - **QA adversarial — correções pós-caos:** o primeiro e-mail da importação de
   clientes passa a ser principal (com reparo determinístico dos clientes
   legados sem principal), o resumo da ficha não promove contatos adicionais,
@@ -680,12 +784,15 @@
   cadastrais. Fallback e reparo de caixas esvaziadas por bounce ou desativação (`repair_customer_contact_box_fallbacks`).
   Atualização das interfaces na Ficha do Cliente, Portal do Cliente, conferência e disparo de comunicados, régua de
   Demurrage e webhook do Resend. Migration `008`.
-- **Bloco 3 — Comunicação financeira com clientes:** readiness por cliente/viagem
+- **Comunicados — automação server-side (início de 2026-09, antes da consolidação):** motor
+  server-side de elegibilidade, runner protegido por segredo, painel de cobertura de viagens e
+  filtros de origem/status no histórico (migration arquivada `381`).
+- **Bloco 3 — Comunicação financeira com clientes (2026-09-01):** readiness por cliente/viagem
   para CE Mercante e Taxas Locais, disparo automático após a prontidão, reenvio
   assistido com histórico e resumo sem PIX/anexo; Régua de Cobrança de Demurrage
   semanal, sem teto, ancorada em `first_billed_at`, com pausas por disputa ou
   falta de contato válido. A coluna financeira de Taxas Locais e a coluna da
-  Régua em Demurrage expõem os estados operacionais. Migrations `376`–`383`;
+  Régua em Demurrage expõem os estados operacionais. Migrations arquivadas `376`–`383`;
   a antiga integração de invoice emitida foi removida, o runner automático recebeu
   lease transacional e tratamento resiliente de simulação/bounces, e a exceção de Portal
   passou a ter audiência explícita para Documentação e Administrativo.
@@ -840,6 +947,10 @@
   mutações de escala têm reconciliação imediata, a Conciliação PIX é
   administrativa-only, Disputes só aparecem para Equipamentos e falhas
   best-effort passam pela telemetria compartilhada (`338_alerts_review_hardening.sql`).
+  Na mesma rodada pós-revisão: carriers legados de Dispute consolidados em um único agregado;
+  RPCs genéricas e detectores protegidos contra execução pelo browser; ciclo de vida de Dispute,
+  rate limit, notificações do Portal e anexos corrigidos; roteamento compartilhado, paginação e
+  rastreabilidade atualizados; planos/specs concluídos arquivados conforme `docs/CONVENCOES.md`.
 - **PR de Integração Transversal — Épico de Alertas e Operação (#519, Blocos 520–524):**
   Unifica as implementações dos 5 blocos operacionais em uma sequência linear de migrações (`323` a `332`):
   - **Bloco 1 (#520 — B/L e Revisão Manual):** Ciclo de vida e reconciliação de pendências de B/L e Granito (`324_review_bl_alerts_lifecycle.sql`), painel de contexto de revisão e bloqueio de faturamento de B/L pendente.
@@ -1118,6 +1229,9 @@
   isso a trava só mudaria de lugar. Migrations `274` e `275`. *(ADR 0040;
   supersede parcialmente a decisão 3 da ADR 0038)*
 - **Prazo de Conclusão do ADR — linha do tempo e medição por departamento:** a aba ADR ganha uma Linha do Tempo (ATD da escala unificada, POD canônico com fallback do POL, e o momento do seu registro; o Prazo de Conclusão — 3 dias úteis, segunda a sexta, feriados contam, dia do ATD nunca conta — calculado por uma função pura compartilhada entre tela, alerta e agregado; as 3 assinaturas departamentais com data/hora/assinante e reaberturas com justificativa; Fechamento sem prazo próprio). Sem ATD ou em escala omitida, a linha do tempo fica sem cor — nunca vencida por omissão. Novo alerta `agency_report_deadline_missed` (migration `261`), um por departamento vencido sem assinatura vigente, independente do alerta de pendência pós-ATD existente e fechado junto com o Fechamento; vigência própria não retroage a ADRs anteriores à feature. No fechamento, os marcos são congelados dentro das chaves já existentes de `closed_snapshot` (nenhuma chave de topo nova); o impresso mostra só as datas de assinatura e as reaberturas — nunca o veredito de prazo, cor ou contagem de dias, que ficam só nas telas. Agregado de calibração por (viagem, porto) em `/admin/usuarios` (aba "Prazo do ADR"), somando cumprimento **por departamento**, nunca por pessoa, para o prazo de 3 dias poder ser ajustado com dado real. *(plano arquivado `2026-08-06-adr-prazo-conclusao-linha-do-tempo`; ADR 0039)*
+- **ADR 0039 consolidada para a `main` (2026-08-07):** a implementação do ADR 0039, as correções
+  da revisão da PR 503 e a documentação da rota `/perfil` saem numa única entrega.
+  *(plano arquivado `2026-08-07-adr-0039-correcoes-pr503`)*
 - **Faturamento: ADR 0038 completa e consolidação de `/faturamento`:** taxa
   local vira valor congelado ancorado na escala do POD, nas 13 etapas do
   plano. Fatura consolidada congela `invoice_items` na consolidação, não só a
@@ -1160,7 +1274,7 @@
 
 - **ADR sign-off departamental:** aba do ADR reorganizada em 5 faixas na ordem do ciclo da escala (Escala → Importação → Operação de pátio → Exportação → Registro), com barra-resumo dos 3 departamentos no topo; sign-off passou a ser um ato por departamento (não por seção), habilitado só com todas as seções do departamento resolvidas, com reabertura auditada (`set_agency_report_department_signoff`, migration `223`); fechamento exige 3/3 departamentos, não 7/7 seções (migration `224`); alertas de pendência pós-ATD migraram de seção para departamento (migration `225`); Operação de pátio virou a 8ª seção, sob Equipamentos, separada de Embarque de vazios (migration `222`); ocorrências passaram a aceitar os 3 departamentos e tag opcional de seção (migration `226`); números-heróis, IMO destacado à parte e correções de cópia ("Veículos", "Descarga de importação"). Documento impresso (`AgencyReportDocument`) fica temporariamente desalinhado, redesenho em fase seguinte. *(plano arquivado `2026-07-21-adr-signoff-departamental-ciclo`; ADR 0029)*
 - **ADR pós-implementação:** correções da revisão pós-merge do Agency Departure Report — carga solta derivada dos campos BB dos B/Ls e presente no snapshot; documento fechado/impresso reescrito fiel ao modelo real (matrizes como tabelas, granito, local de desova, OS/embarque direto/depots, autor do fechamento); chip de sign-off `carga_carregada` movido para Granito e carga solta sob `carga_descarregada`; reabertura do ADR passou a exigir `is_admin()` no servidor (migration `218`); `close_agency_departure_report` valida a forma do snapshot; fechamento/reabertura invalidam caches de alertas. Migrations `211`–`216` (e `217`–`221`) confirmadas aplicadas no remoto. *(plano arquivado `2026-07-20-adr-correcoes-pos-implementacao`; ADR 0027/0028)*
-- **Pós-auditoria UX 2026-07-20:** saldo pendente da Ficha do Cliente passou a somar invoices vencidas e parcialmente pagas, não só emitidas (alinhado ao glossário); alertas pós-ATD do ADR ganharam mensagem legível com backfill (migration `219`); sign-offs e ocorrências do ADR mostram autor via RPC dedicada (`get_agency_report_actor_names`, migration `220`); nova página `/embarquevazios/taxas` para tarifas de reorganização; card "Operação da escala" sempre visível com seletor embutido; ação em massa de local de desova em `/veiculos`; aba Faturamento da Ficha BL com estado único "Faturado" quando já emitida fatura. *(auditoria `docs/design-audit/README.md`; plano `2026-07-20-ux-pendencias-pos-auditoria`)*
+- **Pós-auditoria UX 2026-07-20:** saldo pendente da Ficha do Cliente passou a somar invoices vencidas e parcialmente pagas, não só emitidas (alinhado ao glossário); alertas pós-ATD do ADR ganharam mensagem legível com backfill (migration `219`); sign-offs e ocorrências do ADR mostram autor via RPC dedicada (`get_agency_report_actor_names`, migration `220`); nova página `/embarquevazios/taxas` para tarifas de reorganização; card "Operação da escala" sempre visível com seletor embutido; ação em massa de local de desova em `/veiculos`; aba Faturamento da Ficha BL com estado único "Faturado" quando já emitida fatura. *([auditoria](archive/audits/2026-07-20-auditoria-design-novas-implementacoes.md); plano `2026-07-20-ux-pendencias-pos-auditoria`)*
 - **Pós-auditoria PRs #405/#406:** RBAC de COD/transbordo e de escrita de clientes/contatos passou a ser reforçado no banco (`can_edit_voyages()`/`can_edit_customers()`, migration `215`), não só escondido na UI; leitura de recebíveis do cliente migrou para RPC dedicada (`get_customer_receivables`, migration `216`) para não confundir "sem recebível" com "sem permissão"; corrigido overload duplicado de `omit_voyage_escala`; timeline da ficha do cliente passou a incluir pagamentos locais e a ser invalidada por mutação de contato; abas Visão Geral/Financeiro/Histórico da ficha e o card de status Baplie do B/L Cockpit distinguem carregando/erro/vazio; agregados (saldo, pendências) paginam até esgotar em vez de truncar. *(auditoria `docs/archive/audits/2026-07-19-pos-merge-audit-pr405-406.md`)*
 - **Ficha do Cliente:** `/clientes/:cnpj` foi reestruturada como hub em cinco abas, com saldo pendente consolidado, demurrage, recebíveis, pagamentos, tarifas, histórico, pendências e deep link para Overrides de Taxas Locais; campos comerciais mortos foram removidos do código e do banco pela migration `207_drop_customer_commercial_fields.sql`.
 - **B/L Cockpit 360°:** ficha `/manifestos/:blId` ganhou Visão Geral padrão, trilhos operacional/financeiro com próxima ação, réplica documental com Frete & Despesas, operação de Transbordo/COD no B/L, visibilidade do Portal e divergências Baplie; migrations `205` e `206` são forward-only. *(plano/spec `2026-07-18-bl-cockpit-360`)*
@@ -1198,33 +1312,3 @@
 - Alertas de vencimento do dashboard por dias de calendário.
 
 > Planos e specs completos em [archive/plans/](archive/plans/) e [archive/specs/](archive/specs/).
-## 2026-08-07
-
-- Consolida a implementação do ADR 0039, as correções da revisão da PR 503 e
-  a documentação da rota `/perfil` em uma única entrega pronta para `main`.
-# Próxima entrega
-
-- adiciona harness autenticado frio/quente e checkpoints sanitizados de startup;
-- impede cache de uma hora no shell `/` do Firebase Hosting;
-- mantém a investigação de Auth, banco e waterfalls pendente até haver baseline
-  autenticado e acesso administrativo ao Supabase.
-# PR #576 — correções pós-revisão da integração de Alertas
-
-- carriers legados de Dispute consolidados em um único agregado;
-- RPCs genéricas e detectores protegidos contra execução pelo browser;
-- ciclo de vida de Dispute, rate limit, notificações do Portal e anexos corrigidos;
-- roteamento compartilhado, paginação e rastreabilidade atualizados;
-- planos/specs concluídos arquivados conforme `docs/CONVENCOES.md`.
-# Próxima versão
-
-- Comunicados: motor server-side de elegibilidade, runner protegido por segredo, painel de cobertura de viagens e filtros de origem/status no histórico.
-
-
-## Integração das PRs 845, 846 e 847 — 2026-10-05
-
-Escala documental 134 (main), Informações 135–136, CE 137–147 e financeiras 148,
-com versões únicas; a 147 só lê `invoice_customer_changes` em tempo de execução.
-Menu, rotas e Modo Inspeção preservam ambos os módulos. Pagamento CE exige
-recebível vigente do Cliente atual e bloqueia troca de CNPJ não concluída;
-restituição normal de excedente mantém a regra do valor corrigido. As ações
-financeiras atualizam consultas CE no mesmo cache. Publicação remota pendente.

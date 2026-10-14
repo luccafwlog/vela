@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante — plano de implementação
 
-> **Para execução por agentes:** usar `superpowers:executing-plans` para executar as tarefas e seus checks. Etapas em checkbox registram avanço; este documento não autoriza publicação.
+> **Para execução por agentes:** usar a skill `executing-plans` do repositório para executar as tarefas e seus checks. Etapas em checkbox registram avanço; este documento não autoriza publicação.
 
 **Objetivo:** introduzir a solicitação no Portal e a página Importação → Desbloqueio de CE no Vela, com quatro requisitos por B/L e exportação assistida para ZPT.
 
@@ -46,6 +46,9 @@ em produção para a rodada de 14/10. No mesmo dia, o fluxo A/B foi executado em
 produção com os Clientes 1 (A) e 2 (B), operado pelo responsável e conferido no
 banco, até a exportação; B não leu, alterou nem baixou nada de A pelo serviço
 real. Falta a conciliação com um "Exportar Tela" real da ZPT (Tarefa 6).
+A revisão geral da documentação do mesmo dia reabriu o alerta de troca de CE
+com Desbloqueio conferido, que o código não abre (correção pendente B1, item 1
+do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico).
 
 **Estado conferido em 2026-10-14:** a rodada do expurgo das 06:00 UTC executou o
 ciclo completo sobre o documento de teste: rascunho cancelado, documento
@@ -97,8 +100,8 @@ Fontes da reconciliação:
   prova só o disparo HTTP do pg_cron, não o resultado da função. Nessa leitura,
   nenhum documento `type='model'` estava cadastrado. Dados: 1 pedido e 1 exportação de teste;
   uma procuração de teste aprovada era um PDF sem relação com o assunto, o que
-  confirma que a análise humana é a única conferência de conteúdo. Deploy dos
-  frontends na Vercel não conferido.
+  confirma que a análise humana é a única conferência de conteúdo. Publicação
+  dos frontends (Cloudflare Pages) não conferida nessa leitura.
 - **Remoto (2026-10-10, leitura posterior, após o merge da PR 927):**
   `schema_migrations` contém `173`; `ce_unlock_prepare_upload` e
   `ce_unlock_finish_upload` aceitam o modelo DOCX; `portal-ce-unlock-document` (v13) e
@@ -201,7 +204,7 @@ Fontes da reconciliação:
 - Documentos comuns compartilhados dentro do pedido; documentos anuais VIP entre pedidos do mesmo CNPJ, somente aprovados/vigentes. Alterações versionadas.
 - VIP não dispensa pagamento nem entrega física, e selo VIP sem cobertura não dispensa anexos/documentação.
 - Documentos VIP válidos até 31/12 do ano correspondente, inclusive, em America/Sao_Paulo; sem renovação automática em janeiro.
-- Planilha ZPT: somente BL, Termo, Procuração, Entrega de BL, Pagamento das taxas; VIP usa os mesmos quatro indicadores.
+- Planilha ZPT: somente BL, Termo, Procuração, Entrega de BL, Pagamento das taxas; VIP usa os mesmos quatro indicadores. **Superado** pela revisão de 2026-10-07: o layout vigente é `zpt-5-v2`, com os cabeçalhos do "Exportar Tela" da ZPT, descrito no [módulo](../modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt), dono da regra.
 - Preservar sessões interna/Portal, inspeção somente leitura e autorização no banco.
 - Migrations novas seguem `WORKFLOW.md` §5; escolher o próximo NNN na execução.
 - Não editar migrations existentes nem `src/types/database.ts` sem autorização explícita exigida pelo guard; usar tipos de domínio próprios para os contratos novos.
@@ -237,6 +240,16 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    com um PDF real enviado pelo Portal num rascunho de teste tornado elegível
    (por exemplo, com mais de 7 dias), conferindo depois que o objeto deixou de
    existir e não pode mais ser baixado.
+8. Corrigir o alerta de troca de CE com Desbloqueio conferido (Tarefa 6):
+   trocar ou remover o CE de um B/L conciliado como *Desbloqueio conferido* não
+   abre `ce_trocado_com_desbloqueio` nem avisa na prévia, porque
+   `_set_bl_ce_mercante` e `_analyze_ce_mercante_rows` (migration `195`) procuram a
+   confirmação manual retirada na `160`, e não o status da conciliação em
+   `ce_unlock_zpt_status`. Defeito B1, aprovado pelo dono em 2026-10-14
+   ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26)
+   e primeiro item do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md):
+   corrigir o código e refazer o teste K2 de
+   `ceImportacaoContrato.local-pg.test.ts` a partir de `ce_unlock_reconcile`.
 
 ## Foco da revisão
 
@@ -408,6 +421,13 @@ aplicam matriz da spec tanto em UI quanto em servidor.
 Entrega de BL, Pagamento das taxas. Adotar XLSX e Sim/Não como proposta técnica,
 validando um exemplo antes do aceite. Não criar coluna CE/VIP nem exigir API ZPT.
 
+> **Superado pela revisão de 2026-10-07:** o layout vigente é `zpt-5-v2`, com os
+> cabeçalhos do "Exportar Tela" da ZPT (`zpt-5-v1` fica só para lotes antigos).
+> Exportar registra o envio, e a conciliação com o "Exportar Tela" marca
+> *Desbloqueio conferido* ou *Divergente*; o registro de envio separado e a
+> confirmação de desbloqueio por B/L (interfaces abaixo) saíram. Regra vigente no
+> [módulo](../modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt).
+
 **Arquivos:** nova migration para lotes/confirmar envio/confirmar desbloqueio;
 criar `supabase/functions/ce-unlock-export/index.ts`,
 `src/services/ceUnlockZptLayout.ts` (descrição tipada do layout homologado),
@@ -422,7 +442,8 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Implementar layout em `ceUnlockRules.ts` e teste de cinco colunas, ordem, B/L textual e sanitização. **Teste:** `ceUnlockRules.test.ts`, aprovado nesta sessão; amostra gerada/reaberta no runtime local histórico, sem homologação externa.
 - [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
 - [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Superado** pela revisão de 2026-10-07: as ações `sent` e `confirm` saíram; exportar registra o envio e a conciliação com o "Exportar Tela" da ZPT marca *Desbloqueio conferido* ou *Divergente* ([módulo vivo](../modules/desbloqueio-ce.md)). Confirmações antigas ficam como histórico do desk.
-- [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número; troca de CE com Desbloqueio conferido abre alerta. **Código/Remoto:** migrations `177`, `181` e `195` (PR 929), em produção em 2026-10-12.
+- [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número. **Código/Remoto:** migration `177` (PR 929), em produção em 2026-10-12.
+- [ ] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: as migrations `181` e `195` estão em produção desde 2026-10-12, mas a definição vigente (`195`) lê a confirmação manual retirada na `160`, que o fluxo vigente não grava, e não o status da conciliação; o teste K2 passa porque monta esse estado à força. Correção pendente B1, item 1 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico.
 - [x] Demonstrar baixa cancelada concorrente à criação da exportação. **Teste:** "exportação aguarda reversão financeira concorrente…" em `ceUnlock.local-pg.test.ts` (ver "Fontes").
 - [ ] Demonstrar bloqueio por cada requisito (hoje há teste de pagamento e de termo anual revogado), snapshot imutável e retry do mesmo lote.
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.

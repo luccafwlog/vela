@@ -33,6 +33,8 @@ jobs:
       - name: Documentation
         run: |
           node scripts/lib/docs-routes.test.mjs
+          node scripts/lib/docs-adr.test.mjs
+          node scripts/lib/docs-anchors.test.mjs
           node scripts/check-docs.test.mjs
           npm run docs:check
 

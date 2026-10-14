@@ -1,7 +1,6 @@
 # ADR 0050 — Financeiro segregado por processo faturável
 
-**Status:** aceito
-**Data:** 2026-08-18
+Status: aceito — 2026-08-18
 
 ## Contexto
 

@@ -1,6 +1,6 @@
 # Reconciliação PIX
 
-> **Status:** ativo · **Atualizado:** 2026-10-13 · **Rotas:** `/reconciliacao` (Administrativo/Admin; abas `?tab=` Pendências, `extrato` e `historico`); `/demurrage/reconciliacao` redireciona para esta rota
+> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/reconciliacao` (Administrativo/Admin; abas `?tab=` Pendências, `extrato` e `historico`); `/demurrage/reconciliacao` redireciona para esta rota
 
 ## Propósito e escopo
 
@@ -11,7 +11,8 @@ A baixa de rotina é automática pela API do Itaú: a cobrança Pix de cada fatu
 é emitida no banco e o recebimento é consultado a cada minuto e baixado sem
 intervenção (job `itau-pix-queue`, migrations 151–154 e 219). A Conciliação
 acompanha essa baixa (aba Pendências), mostra o histórico de baixas e permite
-cancelar uma baixa.
+cancelar uma baixa. O Pix recebido que não deu baixa sozinho aparece em
+**Pix recebidos sem baixa** e espera uma decisão humana.
 
 A conciliação pelo extrato (aba Conciliar extrato) é **plano B**, decidido pelo
 responsável em 2026-10-13: fica para quando a API do Itaú ou a consulta de
@@ -34,7 +35,7 @@ fatura local sem versão de cobrança pode aparecer pronta e ter o lote recusado
   `src/pages/reconciliacaoState.ts`.
 - `src/services/demurrage/demurrageKpis.ts` é o dono do parser da planilha.
 - `src/services/reconciliacao.ts` é o dono do matching, confirmação, histórico,
-  exportação e chamadas de estorno.
+  exportação e das chamadas de Cancelar baixa.
 - Taxas locais são liquidadas pelo ledger descrito em
   [Faturamento](faturamento.md); Demurrage é atualizado em persistência própria.
 - O gate visual usa `isAdmin` em `src/pages/Reconciliacao.tsx`;
@@ -113,12 +114,15 @@ linhas e abas ocultas do próprio seletor. A leitura mostra o andamento e diz
 que nada é baixado nesta fase; as linhas sem baixa segura já ficam salvas como
 exceção. Falha de leitura fica na tela ("Nada foi baixado"), não em toast.
 
-`parsePixExtractFile` valida tamanho antes de `arrayBuffer()`. O parser procura
-a linha que contém a coluna `identificador`, exige `valor pago`, tenta localizar
-CPF/CNPJ e `pago em`, preserva TXID vazio para revisão, ignora valor não positivo e normaliza a data
-para `YYYY-MM-DD`. Linhas ocultas da aba lida ficam de fora; quando há, a
-conferência diz que parte do extrato ficou de fora e que só as linhas visíveis
-entram na conciliação (`readSpreadsheetNotices.firstSheetHiddenRows`).
+`parsePixExtractFile` valida tamanho e extensão antes de `arrayBuffer()`. O
+parser procura a linha que contém a coluna `identificador`, exige `valor pago`,
+tenta localizar CPF/CNPJ e `pago em`, recusa o cabeçalho com uma dessas colunas
+repetida (ADR 0078, item 22), preserva TXID vazio para revisão, ignora valor não
+positivo e normaliza a data para `YYYY-MM-DD`. Extrato sem nenhuma transação
+para na leitura ("Nenhuma transação Pix encontrada no extrato"). Linhas ocultas
+da aba lida ficam de fora; quando há, a conferência diz que parte do extrato
+ficou de fora e que só as linhas visíveis entram na conciliação
+(`readSpreadsheetNotices.firstSheetHiddenRows`).
 
 ### Revisão do resultado
 
@@ -126,9 +130,10 @@ A conferência mostra uma faixa de resumo (prontas para baixa e o total do lote,
 quantas ficam como exceção, linhas lidas) e duas listas (tabela no desktop,
 linhas abaixo de 640 px):
 
-- **Prontas para baixa**: linha, pago em, valor do Pix, TXID, fatura e
-  origem, Cliente e CNPJ. Uma Invoice de Demurrage paga com a cotação anterior
-  diz que a janela das duas PTAX foi aceita.
+- **Prontas para baixa**: na tabela, linha, pago em, valor do Pix, TXID,
+  fatura e origem, Cliente e CNPJ (com o ícone de copiar); abaixo de 640 px,
+  valor, pago em, fatura, origem, Cliente e TXID. Uma Invoice de Demurrage
+  paga com a cotação anterior diz que a janela das duas PTAX foi aceita.
 - **Ficam como exceção pendente**: Ambígua ou Sem documento, com o motivo e o
   documento indicado; já estão salvas em Pendências.
 
@@ -164,6 +169,7 @@ baixas**) combina:
   cancelada na última página) vai para a última existente;
 - situação gravada (Paga, Parcialmente paga com recebido e saldo, Coberta pela
   consolidada) e o valor do B/L com o total da fatura quando difere;
+- ícone de copiar no número do B/L e, na tabela, no CNPJ do Cliente;
 - "Exibindo 1–N de M" no topo e no rodapé; erro de consulta com Tentar
   novamente, sem lista vazia nem "Nenhum registro"; vazio com e sem filtro
   distintos; cartões abaixo de 640 px;
@@ -188,23 +194,23 @@ baixas**) combina:
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| `/reconciliacao` · selecionar/upload de planilha | Perfil Administrativo/Admin e arquivo `.xlsx`/`.xls` dentro do limite | Dropzone/input → `processFile` | `matchMutation` chama `parsePixExtractFile` e persiste exceções via `upsert_pix_reconciliation_exceptions`; linhas e abas ocultas ficam fora da leitura e o aviso (`readSpreadsheetWarnings`) aparece no resultado, antes de Confirmar | Linhas sem match seguro ficam persistidas por importação/linha e geram `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Nova leitura limpa a anterior e o resultado; com exceção gravada, invalida exceções e alertas | Perfil não autorizado vê “Acesso restrito”; arquivo grande, formato ou cabeçalho inválido aparece na aba com “Nada foi baixado” | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts`, `supabase/migrations_archive/328_pix_unreconciled_persistence.sql` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` · **Runtime local** (etapa 12) |
-| Parser · extrair linhas bancárias | Cabeçalho `identificador` e coluna `valor pago` | `parsePixExtractFile` | `assertUploadSize` → `parsePixExtract` → import dinâmico de `@e965/xlsx` | Nenhuma persistência | Retorna `{txid, cnpj, date, amount}`; ignora TXID vazio/valor não positivo | Cabeçalho/valor ausente lança erro; data inválida vira string vazia e falhará na confirmação | **Código:** `src/services/demurrage/demurrageKpis.ts` |
-| Matching · carregar documentos locais e Demurrage | Transações parseadas | `matchUnifiedPixTransactions` | Duas queries paralelas; normalização alfanumérica maiúscula | `SELECT invoices` locais pagáveis e `SELECT demurrage_invoices` emitidas | Sem cache React Query; monta mapa único de TXID para os dois domínios | Erro de qualquer query aborta o matching | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
-| Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migration `097`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
-| Matching · classificar sem match | TXID sem candidato aberto | Loop de `matchUnifiedPixTransactions` | `txidMap.get(key)` retorna vazio | Sem persistência | Retorna linha `source = unmatched`, painel dedicado e contagem; nunca entra na confirmação | Nenhum documento é alterado | **Código:** `src/services/reconciliacao.ts`, `src/pages/Reconciliacao.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
-| Matching · classificar ambiguidade de documento/TXID | Mais de um documento com TXID normalizado ou TXID repetido no extrato | Mesmo loop | `entries.length > 1` ou `seenTxids` | Sem persistência | `ambiguous = true`, motivo e `candidateCount`; UI move para painel ignorado | Não há seleção manual de candidato nesta tela | **Código:** `src/services/reconciliacao.ts`, `src/pages/Reconciliacao.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
+| `/reconciliacao?tab=extrato` · escolher a planilha | Perfil Administrativo/Admin e arquivo `.xlsx`/`.xls` dentro do limite | `ImportFilePicker` (clique ou arraste) → `chooseFile` em `PixExtractPanel` | `readMutation`: `parsePixExtractFile` e `readSpreadsheetNotices` em paralelo, depois `matchUnifiedPixTransactions` e `persistUnresolvedPixMatches`; linhas e abas ocultas ficam fora da leitura e o aviso aparece na conferência, antes de Confirmar | RPC `upsert_pix_reconciliation_exceptions` (definição vigente na migration `002`; origem na migration arquivada `328`): linhas sem baixa segura ficam salvas por importação/linha e abrem `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Nova leitura limpa a anterior e o resultado; com exceção gravada, `afterPendenciaPixAlterada` (exceções, monitor Itaú e Alerta) | Perfil não autorizado vê “Acesso restrito”; arquivo grande, formato, cabeçalho inválido ou extrato sem transação aparece na aba com “Nada foi baixado” | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` · **Runtime local** (etapa 12) |
+| Parser · extrair linhas bancárias | Cabeçalho `identificador` e coluna `valor pago` | `parsePixExtractFile` | `assertUploadFile` (tamanho e extensão) → `parsePixExtract` → `readSheet` de `importCore` (carrega `@e965/xlsx` sob demanda) | Nenhuma persistência | Retorna `{txid, cnpj, date, amount, lineNumber}`; preserva TXID vazio, ignora valor não positivo e recusa coluna repetida no cabeçalho | Cabeçalho/valor ausente ou coluna repetida lança erro; data inválida vira string vazia e falhará na confirmação | **Código:** `src/services/demurrage/demurrageKpis.ts` |
+| Matching · carregar documentos locais e Demurrage | Transações parseadas | `matchUnifiedPixTransactions` | Três leituras paralelas (faturas locais pagáveis, Invoices de Demurrage emitidas e `list_local_pix_candidates` para os TXIDs do extrato), depois o histórico de recálculo das Invoices de Demurrage; normalização alfanumérica maiúscula | `SELECT invoices`, `SELECT demurrage_invoices`, RPC `list_local_pix_candidates` (migration `130`) e `SELECT demurrage_invoice_history` | Sem cache React Query; monta mapa único de TXID para os dois domínios | Erro de qualquer leitura aborta o matching | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
+| Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L. A confirmação aceita a avulsa, mas o matching do extrato não a acha aberta: ela só casa por `invoices.pix_txid`, vazio até a baixa ([limite do plano B](#propósito-e-escopo)) | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` (migration `130`), que sem versão de cobrança cai no caminho da migration `097` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | Avulsa aberta vira “Sem documento” no extrato; TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migrations `097` e `130`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
+| Matching · classificar sem match | TXID sem candidato aberto | Loop de `matchUnifiedPixTransactions` | `txidMap.get(key)` retorna vazio | Exceção salva na leitura (linha acima) | Linha `source = unmatched` (“Sem documento”, “Nenhum documento aberto usa este TXID.”) na lista **Ficam como exceção pendente** e na contagem; nunca entra na confirmação | Nenhum documento é alterado; a linha é tratada em Pendências | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
+| Matching · classificar ambiguidade de documento/TXID | Mais de um documento com TXID normalizado ou TXID repetido no extrato | Mesmo loop | `entries.length > 1` ou `seenTxids` | Exceção salva na leitura | `ambiguous = true`, motivo e `candidateCount`; a linha vai para **Ficam como exceção pendente** (“Ambígua”) | A escolha da fatura não é feita na conferência: é feita em Pendências (**Escolher fatura…**) | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | Matching · classificar divergência de valor | Diferença absoluta maior que `0,01` ou valor esperado não numérico | Mesmo loop | Compara transação com saldo local ou `current_total_brl` | Sem persistência | Marca como ambíguo; local e Demurrage recebem motivos distintos | Não existe pagamento parcial por PIX neste fluxo | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
-| `/reconciliacao` · confirmar somente não ambíguos | Ao menos um match seguro; data parseada | `confirmMutation` | Filtra `!ambiguous`; `confirmUnifiedPixReconciliation` refiltra e monta JSON | RPC `confirm_unified_pix_matches` | Em sucesso `afterPixConciliado` (`cacheEffects.ts`): famílias da base de faturamento (ledger, faturas, B/Ls, Cliente, Portal), da Invoice de Demurrage, histórico, exceções, monitor Itaú e alertas | Data vazia falha antes da RPC; erro do lote fica na conferência (“Nenhuma baixa foi gravada”) | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `Reconciliacao.behavior.test.tsx`, `cacheEffects.test.ts` · **Runtime local** (etapa 12: recusa `no_match` e baixa de Demurrage) |
-| RPC unificada · conciliar item local | `source = local`, data presente, TXID casa uma invoice pagável e valor quita saldo | `confirm_unified_pix_matches` | `reconcile_invoice_payment_by_txid` → `register_ledger_invoice_payment` | `payments`, `ledger_settlements`, `bl_receivables`, links, invoice, B/Ls e eventos | Item `{source: local, status: ok}`; transação inteira aborta se um item falhar | Sem match, ambíguo no domínio local, já conciliado ou valor inexato gera falha do lote | **Código:** `supabase/migrations_archive/103_confirm_unified_pix_matches.sql`, `supabase/migrations_archive/111_pix_exact_and_manual_overpayment_refunds.sql` |
-| RPC unificada · conciliar item Demurrage | `source = demurrage`, invoice existente e valor na janela das duas PTAX (`event_date <= pagamento`, tol. `0,01`) | Mesma RPC | Valida pela janela (`get_demurrage_recent_values`, ADR 0015), congela o valor casado e acumula lote para `confirm_demurrage_pix_matches` | `UPDATE demurrage_invoices`: `paid`, `paid_at`, `pix_txid`, `conciliated_by_extract`, `current_total_brl` casado + foto `source='payment'` no histórico | Item `{source: demurrage, status: ok}` | Documento ausente, valor fora da janela ou contagem atualizada diferente aborta o lote | **Código:** `supabase/migrations_archive/158_demurrage_pix_window_conciliation.sql` |
+| `/reconciliacao` · confirmar somente não ambíguos | Ao menos um match seguro; data parseada | `confirmMutation` | Filtra `!ambiguous`; `confirmUnifiedPixReconciliation` refiltra e monta JSON | RPC `confirm_unified_pix_matches` | Em sucesso `afterPixConciliado` (`cacheEffects.ts`): famílias da base de faturamento (ledger, faturas, B/Ls, Cliente, Portal), da Invoice de Demurrage, histórico, exceções, monitor Itaú e alertas | Data vazia falha antes da RPC; erro do lote fica na conferência (“Nenhuma baixa foi gravada”) | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `Reconciliacao.behavior.test.tsx`, `cacheEffects.test.ts` · **Runtime local** (etapa 12: recusa `no_match`; a baixa de Demurrage só passou depois de gravar o TXID na Invoice emitida à mão, ver a correção pendente A16 em [Notas e divergências](#notas-e-divergências)) |
+| RPC unificada · conciliar item local | `source = local`, data presente, TXID resolve uma única cobrança local pagável e o valor é exatamente o dessa cobrança | `confirm_unified_pix_matches` | `reconcile_invoice_payment_by_txid` → `register_ledger_invoice_payment` | `payments`, `ledger_settlements`, `bl_receivables`, links, invoice, B/Ls e eventos | Item `{source: local, status: ok}`; transação inteira aborta se um item falhar | Sem match, ambíguo no domínio local, já conciliado ou valor inexato gera falha do lote | **Código:** `confirm_unified_pix_matches` na migration `002` e `reconcile_invoice_payment_by_txid` na migration `130` (definições vigentes; origem nas migrations arquivadas `103` e `111`) |
+| RPC unificada · conciliar item Demurrage | `source = demurrage`, invoice existente e valor na janela das duas PTAX (`event_date <= pagamento`, tol. `0,01`) | Mesma RPC | Valida pela janela (`get_demurrage_recent_values`, ADR 0015), congela o valor casado e acumula lote para `confirm_demurrage_pix_matches` → `register_demurrage_payment` | `UPDATE demurrage_invoices`: `paid`, `paid_at`, `pix_txid`, `conciliated_by_extract`, `current_total_brl` casado + foto `source='payment'` no histórico | Item `{source: demurrage, status: ok}` | Documento ausente, valor fora da janela ou contagem atualizada diferente aborta o lote | **Código:** migrations `002` (`confirm_unified_pix_matches`), `012` (`confirm_demurrage_pix_matches`) e `027` (`register_demurrage_payment`); origem da janela na migration arquivada `158` |
 | Resultado · exibir retorno por fonte/item | Confirmação concluída | `confirmMutation.onSuccess` | `describeConfirmation` completa cada item devolvido com o que foi enviado | Sem nova persistência | Lista só os itens devolvidos, conta os enviados que não voltaram e aponta as exceções para Pendências | Shape sem itens vira array vazio e a tela diz que nenhuma baixa voltou | **Código:** `src/components/billing/PixExtractPanel.tsx`, `pixReconciliationPresentation.ts` · **Teste:** `pixReconciliationPresentation.test.ts` |
 | Histórico · listar/filtrar/ordenar/paginar | Sessão interna | `ReconciliationHistoryTable`; estado na URL por `reconciliacaoState.ts` | `useQuery` → `listReconciliationHistory` | Pagina completamente os dois domínios em lotes de 1000; filtros/ordenação/paginação no cliente | Query `['reconciliation-history', filters]`, `staleTime` 15 s; data e `paymentId` vêm da mesma baixa mais recente | Erro de qualquer domínio falha a tabela inteira, com Tentar novamente e sem lista vazia | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliationHistoryPagination.test.ts`, `src/services/__tests__/reconciliationInvoiceType.test.ts` |
 | Histórico · exportar | Filtros atuais e ao menos um registro | Botão “Exportar planilha” | `exportReconciliationHistoryExcel` consulta com página única ampla e carrega `@e965/xlsx` | Arquivo local `conciliacao-<timestamp>.xlsx` | Sem invalidação; neutraliza prefixos de fórmula em strings | Falha exibe toast dedicado e encerra o estado de processamento | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts` |
 | Histórico · abrir detalhe local | Linha local; invoice/payment IDs disponíveis | `onSelectLocalInvoice` | `InvoiceDetailModal` → `useInvoiceDetail`/`useInvoiceRefunds` | Leituras do faturamento | Queries de detalhe/refund | `paymentId = null` permite detalhe, mas não cancelamento da baixa | **Código:** `src/pages/Reconciliacao.tsx`, `src/components/billing/ReconciliationHistoryTable.tsx` |
 | Histórico · abrir detalhe Demurrage | Linha Demurrage | `onSelectDemurrageInvoice` | `DemurrageInvoiceDetailModal` (etapa 11) | Leitura de invoice, itens, outras Invoices do B/L e restituições | Query `['demurrage-invoice-detail', id]`, a mesma de `/demurrage` | Erro mostra falha no modal com Tentar novamente | **Código:** `src/pages/Reconciliacao.tsx`, `src/components/demurrage/DemurrageInvoiceDetailModal.tsx` |
-| Detalhe local · cancelar baixa | Admin, `paymentId` e justificativa | `InvoiceDetailModal.handleReversePayment` | `reverseLocalPaymentAndInvalidate` → `reverseLocalInvoicePayment` | RPC `reverse_invoice_payment` restaura ledger/links/status, limpa PIX e exclui `payments` | Invalida ledger, invoices, B/Ls, cliente, detalhe, refunds, alertas e histórico antes de fechar | RPC exige admin/justificativa e rejeita payment/invoice ausente | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/hooks/useBillingLedger.ts`, `src/services/reconciliacao.ts` · **Teste:** `src/hooks/__tests__/billingLedgerInvalidation.test.ts` |
-| Detalhe Demurrage · cancelar baixa | Admin, invoice paga e justificativa | `reversalMutation` | `DemurragePaymentReversalModal` → `reverseDemurragePayment` | RPC `reverse_demurrage_payment` volta status a `issued`, limpa data/TXID e audita | `afterFaturaDemurrageAlterada`; relê o detalhe e volta a ele | UI e RPC exigem justificativa; recusa fica no formulário (“A baixa continua registrada”) | **Código:** `src/pages/Reconciliacao.tsx`, `src/services/reconciliacao.ts`, `supabase/migrations_archive/113_require_justification_on_payment_reversal.sql` · **Teste:** `Reconciliacao.behavior.test.tsx` |
+| Detalhe local · cancelar baixa | Admin, `paymentId` e justificativa | `InvoiceDetailModal.handleReversePayment` | `reverseLocalPaymentAndInvalidate` → `reverseLocalInvoicePayment` | RPC `reverse_invoice_payment` restaura ledger/links/status, limpa PIX e exclui `payments`; cancela junto o excedente automático ainda pendente dessa baixa ([Cancelar baixa](#cancelar-baixa)) | Invalida ledger, invoices, B/Ls, cliente, detalhe, refunds, alertas e histórico antes de fechar | RPC exige admin/justificativa e rejeita payment/invoice ausente; recusa a baixa que financia restituição (“Esta baixa financia restituição…”) | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/hooks/useBillingLedger.ts`, `src/services/reconciliacao.ts`, migrations `136` (`reverse_invoice_payment`) e `130` (`guard_payment_reversal_after_correction`) · **Teste:** `src/hooks/__tests__/billingLedgerInvalidation.test.ts` |
+| Detalhe Demurrage · cancelar baixa | Admin, invoice paga e justificativa | `reversalMutation` | `DemurragePaymentReversalModal` → `reverseDemurragePayment` | RPC `reverse_demurrage_payment` volta status a `issued`, limpa data, TXID e `conciliated_by_extract` e audita; Invoice suspensa por datas alteradas é cancelada e reemitida pelo cálculo atual, ou segue suspensa ([Cancelar baixa](#cancelar-baixa)) | `afterFaturaDemurrageAlterada`; relê o detalhe e volta a ele | UI e RPC exigem justificativa; com restituição de Demurrage não cancelada o banco recusa; recusa fica no formulário (“A baixa continua registrada”) | **Código:** `src/pages/Reconciliacao.tsx`, `src/services/reconciliacao.ts`, migrations `002` (`reverse_demurrage_payment`), `191` (`trg_reconcile_demurrage_after_payment_reversal`) e `136` (`guard_demurrage_payment_after_refund`) · **Teste:** `Reconciliacao.behavior.test.tsx` |
 
 ## Estado e dados
 
@@ -224,13 +230,14 @@ baixas**) combina:
 | Domínio | Leitura para matching | Escrita de confirmação | TXID persistido |
 |---|---|---|---|
 | Local com ledger | `list_local_pix_candidates` resolve `local_pix_charge_versions` e sucessoras compatíveis; valor esperado = valor fixo daquela cobrança | `reconcile_invoice_payment_by_txid` delega a `register_ledger_invoice_payment` | `invoices.pix_txid` e uma linha de `ledger_settlements.pix_txid` |
-| Invoice avulsa | `invoices.invoice_type='manual'` em estado pagável; valor esperado = saldo da invoice | `reconcile_invoice_payment_by_txid` chama pagamento genérico `register_invoice_payment` | `invoices.pix_txid` e `payments`; sem settlement por recebível |
+| Invoice avulsa | `invoices.invoice_type='manual'` em estado pagável, lida junto com as locais; valor esperado = saldo da invoice. Só casa por `invoices.pix_txid`, gravado na baixa, então a avulsa aberta não é achada pelo extrato | `reconcile_invoice_payment_by_txid` chama pagamento genérico `register_invoice_payment` | `invoices.pix_txid` e `payments`; sem settlement por recebível |
 | Demurrage | `demurrage_invoices.status = issued`; valor esperado = `current_total_brl` | Update em lote por `confirm_demurrage_pix_matches` | `demurrage_invoices.pix_txid` |
 
-`supabase/migrations_archive/075_ledger_pix_txid_single_settlement_row.sql`
-usa trigger para manter o TXID somente na primeira linha de settlement de um
-pagamento PIX com vários receivables. O documento local também guarda
-`conciliated_by_extract`; Demurrage possui flag equivalente.
+O gatilho `trg_keep_single_pix_txid_settlement_row` (definição vigente na
+migration `002`; origem na migration arquivada `075`) mantém o TXID somente na
+primeira linha de settlement de um pagamento PIX com vários receivables. O
+documento local também guarda `conciliated_by_extract`; Demurrage possui flag
+equivalente.
 
 ### Histórico
 
@@ -241,19 +248,21 @@ filtros/ordenação/paginação em memória.
 
 ## Fluxos e invariantes
 
+### Matching e confirmação pelo extrato
+
 ```mermaid
 flowchart TD
-    Upload["Upload workbook"] --> Parse["parsePixExtractFile"]
+    Upload["Escolher planilha"] --> Parse["parsePixExtractFile"]
     Parse --> Match["matchUnifiedPixTransactions"]
     Match --> Missing{"TXID tem candidato?"}
-    Missing -->|não| Omitted["Sem candidata / pendência persistida"]
+    Missing -->|não| Omitted["Sem documento<br/>exceção pendente salva"]
     Missing -->|sim| Amb{"Documento único, TXID não repetido<br/>e valor compatível?"}
-    Amb -->|não| Review["Ambíguo / ignorado"]
+    Amb -->|não| Review["Ambígua<br/>exceção pendente salva"]
     Amb -->|sim| Submit["confirm_unified_pix_matches"]
     Submit --> Source{"source"}
     Source -->|local| Ledger["reconcile_invoice_payment_by_txid<br/>→ ledger"]
     Source -->|demurrage| Direct["confirm_demurrage_pix_matches<br/>→ register_demurrage_payment"]
-    Ledger --> History["Histórico / detalhe / estorno"]
+    Ledger --> History["Histórico / detalhe / Cancelar baixa"]
     Direct --> History
 ```
 
@@ -275,73 +284,38 @@ flowchart TD
 - Invoice local ledger cria `payments` e settlements por recebível. Fatura
   avulsa cria `payments` pelo ramo genérico e não afeta B/L/ledger. Demurrage não cria
   `payments` nem ledger; marca diretamente o documento como pago.
-- Cancelar baixa local remove o payment e restaura saldos/links, mas a migration
-  `130` bloqueia a ação quando retirar lastro de restituição. Não equivale a
-  devolver dinheiro. Cancelar baixa de Demurrage reabre o documento e audita.
 
-## Testes e validação
+### Cancelar baixa
 
-O lote comportamental de 2026-06-23 executou os serviços, contratos SQL,
-componentes e a página completa. A página foi exercitada com upload, separação
-entre seguros/ambíguos/sem candidato, confirmação, resultado, detalhes e
-estorno de Demurrage.
+Cancelar baixa desfaz uma baixa lançada por engano; não devolve dinheiro ao
+Cliente. A devolução é a restituição, tratada em
+[Faturamento](faturamento.md#pagamento-saldo-e-restituição) e em
+[Demurrage](demurrage.md). Só o Administrativo cancela, sempre com
+justificativa, na tela e no banco.
 
-### Testes de comportamento estático
-
-- `src/services/__tests__/reconciliacao.test.ts`: TXID-only, colisão entre
-  domínios, repetição no extrato, divergência de valor, confirmação unificada,
-  data obrigatória e lote Demurrage.
-- `src/lib/__tests__/pix.test.ts`: payload BRCode, sanitização/limite de TXID e
-  CRC-16.
-- `src/pages/__tests__/Reconciliacao.behavior.test.tsx`: monitor Itaú em
-  Brasília e consulta parada, Pix tratado com motivo e foco, leitura com
-  exceções salvas, linhas ocultas, lote recusado, resultado parcial honesto,
-  exceção por Tentar de novo e Escolher fatura (com falha depois da baixa),
-  detalhes, cancelamento de baixa de Demurrage, aba na URL e acesso restrito.
-- `src/components/billing/__tests__/pixReconciliationPresentation.test.ts` e
-  `src/pages/__tests__/reconciliacaoState.test.ts`: leituras puras e estado na URL.
-- `src/components/billing/__tests__/ReconciliationHistoryTable.behavior.test.tsx`:
-  filtros na URL, ordenação, situação gravada, exportação, erro sem lista
-  vazia, vazio com e sem filtro, detalhe pelo número e falha de exportação.
-- `src/services/__tests__/reconciliationHistoryPagination.test.ts`: paginação
-  integral antes dos filtros.
-
-### Teste de contrato SQL
-
-Estes testes verificam texto de migrations, não um banco aplicado:
-
-- `src/services/__tests__/ledgerPixPayloadMigration.test.ts`
-- `src/services/__tests__/ledgerPixSettlementTxidMigration.test.ts`
-- `src/services/__tests__/reversalBlsFinancialStatusMigration.test.ts`
-- `src/services/__tests__/reversalJustificationMigration.test.ts`
-
-## Notas e divergências
-
-- **Correções implementadas — Código/Teste local.** A baixa escolhida no detalhe pode ser antiga, com confirmação de valor/data/ID. Registro manual exige referência bancária (pode se repetir quando um PIX paga mais de uma cobrança) e tentativa estável; a conciliação PIX mantém TXID próprio. Excedente pendente de uma baixa falsa pode acompanhar sua reversão; devolução confirmada ou ajuste que depende da baixa permanece protegido. Banco implementado na migration 136: [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md).
-
-- **Pendências PIX são persistidas — Código.** `persistUnresolvedPixMatches`
-  conserva linhas sem candidata e ambíguas por importação/linha, inclusive sem
-  TXID. O Administrativo usa Tentar conciliar ou Escolher candidata; a resolução
-  exige prova de baixa autoritativa. Essas linhas não entram automaticamente no
-  lote seguro.
-- **Suspeita sem prova de falha/exploit — ambiguidade é parcialmente
-  client-side.** A RPC unificada não recebe a classificação do frontend. Uma
-  chamada direta ainda revalida o match local e os valores, mas não demonstra
-  a mesma política de ambiguidade cruzada para um item Demurrage.
-- **Suspeita sem prova de falha/exploit — mesmo TXID nos dois domínios.** A UI
-  bloqueia a colisão porque `txidMap` agrega local e Demurrage. No banco, a
-  unicidade de `ledger_settlements` cobre somente o ledger local e
-  `demurrage_invoices` é separado; não foi executado um cenário que tentasse
-  aplicar a mesma transação aos dois domínios.
-- **TXID é denormalizado.** Local mantém `invoices.pix_txid` e
-  `ledger_settlements.pix_txid`; Demurrage mantém seu próprio campo. O trigger
-  reduz duplicação entre settlements, mas não elimina a necessidade de
-  sincronização entre documento e ledger.
-- **Estorno de Demurrage limpa a origem do pagamento.** A migration
-  `131_clear_demurrage_extract_flag_on_reversal.sql` redefine
-  `conciliated_by_extract = false`.
-- **Filtro “Único BL” alinhado.** O valor visual `single` é normalizado para
-  `individual` antes da comparação.
+- **Fatura local** (`reverse_invoice_payment`, definição vigente na migration
+  `136`): remove o pagamento e restaura saldos, links e estados
+  `covered`/`obsolete`. O excedente automático ainda pendente que nasceu dessa
+  baixa é cancelado junto; restituição confirmada, de correção ou de COD fica
+  protegida. O banco recusa quando, sem essa baixa, as restituições não
+  canceladas passariam do valor recebido ("Esta baixa financia restituição…",
+  `guard_payment_reversal_after_correction`, migration `130`). Na avulsa, saldo
+  e status são recalculados pelo total emitido menos as baixas restantes.
+- **Invoice de Demurrage** (`reverse_demurrage_payment`, definição vigente na
+  migration `002`): volta a Invoice a `issued`, limpa `paid_at`, `pix_txid` e
+  `conciliated_by_extract` (a limpeza da origem do pagamento veio da migration
+  arquivada `131`) e grava a justificativa em `audit_logs`.
+- **Invoice de Demurrage suspensa por datas alteradas depois do pagamento:** com
+  as datas ainda diferentes das faturadas, ela é cancelada e reemitida pelo
+  cálculo atual (ou só cancelada, se o valor novo for zero; com desconto ou
+  disputa aberta, segue suspensa); com as datas de volta às faturadas, a
+  suspensão sai (`trg_reconcile_demurrage_after_payment_reversal`, migration
+  `191`; ADR 0079, decisão 2). `DemurragePaymentReversalModal` avisa antes
+  (`reversalDatesNotice`). A regra das datas alteradas está em
+  [Demurrage](demurrage.md).
+- **Invoice de Demurrage com restituição não cancelada:** o banco recusa o
+  cancelamento ("Recebimento financia restituição: preserve a baixa e o valor
+  congelado.", `guard_demurrage_payment_after_refund`, migration `136`).
 
 ### Cobrança dinâmica Itaú — migration 151
 
@@ -353,32 +327,43 @@ e avulsas em `populate_local_invoice_pix_payload`, Demurrage em
 `itau_pix_charges`, com no máximo uma aberta por fatura e TXID `VELA…`. A
 função `itau-pix` processa a fila (`itau_pix_claim`/`itau_pix_record`) e grava
 o copia e cola em `pix_payload`; até lá Vela e Portal mostram "QR em
-preparação". Faturas locais ativas também entram em
-`local_pix_charge_versions`, então a conciliação por extrato continua
-resolvendo o TXID. A avulsa não entra nessa tabela (migration 152).
+preparação". Faturas individual e consolidada com cobrança ativa também entram
+em `local_pix_charge_versions`, então a conciliação por extrato continua
+resolvendo o TXID delas. A avulsa não entra nessa tabela (`itau_pix_record`,
+migrations `152` e `153`).
 
 **Baixa automática (migration 152):** a função consulta `GET /pix` e chama
 `itau_pix_settle` para cada Pix com TXID `VELA…`, que baixa pelos mesmos
 donos desta página (`reconcile_invoice_payment_by_txid`, pagamento verificado
 da avulsa e `register_demurrage_payment`), com o `endToEndId` como referência
-bancária e chave de idempotência (`itau_pix_receipts`). Qualquer recusa (valor
-diferente, fatura não pagável, sem usuário de baixa em
-`app_settings.itau_pix_settlement_actor`) abre o Alerta `pix_unreconciled`
-para o Administrativo, sem baixa. Detalhes no
+bancária e chave de idempotência (`itau_pix_receipts`). Fatura de Taxas Locais
+ou avulsa exige o valor exato da cobrança; a Invoice de Demurrage aceita o Pix
+de uma revisão anterior pela janela das duas PTAX (migration `153`). As baixas
+de faturas de Taxas Locais e avulsas são gravadas em nome da conta designada em
+`app_settings.itau_pix_settlement_actor`, que aparece em **Registrado por** nos
+Pagamentos registrados do detalhe da fatura (migration `221`). Qualquer recusa
+(valor diferente, fatura não pagável, TXID do Vela sem cobrança, fatura de
+Taxas Locais ou avulsa sem usuário de baixa configurado) grava o Pix em análise e abre o Alerta
+`pix_unreconciled` para o Administrativo, sem baixa; o Pix aparece em **Pix
+recebidos sem baixa**. Erro passageiro do banco não manda o Pix para análise: a
+consulta seguinte tenta de novo. Detalhes no
 [plano](../archive/plans/2026-10-06-integracao-itau-pix.md).
 
-**Consulta e horários (Edge `itau-pix` v8).** O job `itau-pix-queue` chama a
+**Consulta e horários (Edge `itau-pix`).** O job `itau-pix-queue` chama a
 função a cada minuto: manutenção de prazos (`itau_pix_maintain`), fila de
 cobranças e consulta de recebimentos desde o checkpoint (`itau_pix_checkpoint`),
 com 10 min de sobreposição e janelas de até 6 h para recuperar atraso. O Itaú
 de produção só encontra a janela pedida em `-03:00` e devolve horários de
 Brasília com `Z` indevido; o cliente envia a janela em Brasília e grava tudo em
-UTC. Duas travas param a consulta sem baixa nem avanço do checkpoint se o banco
-passar a mandar UTC verdadeiro: horário mais de 5 min no futuro e horário do
-recebimento a mais de 1 h do minuto UTC do `endToEndId`. O erro aparece no
-monitoramento acima; a correção é remover a troca de `Z` em
-`supabase/functions/_shared/itauPix.ts`. Operação e segredos no
+UTC. Se o banco passar a mandar UTC verdadeiro, travas de horário param a
+consulta sem baixa nem avanço do checkpoint; na aba Pendências isso aparece,
+depois de 15 min, como o aviso **A consulta de recebimentos do Itaú não está
+avançando**. Sintomas, travas, correção, segredos e a versão publicada da
+função estão no
 [manual de serviços externos](../operations/servicos-externos.md#itaú--api-pix-recebimentos).
+Um merge não publica a função: o disparo `process_charges` da migration `219`
+(abaixo) só tem efeito numa versão publicada que trate essa ação, ramo que
+entrou no código em 2026-10-13.
 
 **Fila completa e disparo imediato (migration 219, 2026-10-13).** Até a
 `219`, `itau_pix_claim` só reservava `pending_create` e `pending_cancel`: a
@@ -401,11 +386,6 @@ renovada pedia nova alteração ao Itaú a cada minuto. Antes, o QR saía em 6 a
 56 s (mediana 25 s, 11 cobranças de 07–08/10), só pelo job de 1 minuto, 20
 cobranças por chamada.
 
-**Runtime em produção (07 e 08/10):** avulsas, individual, consolidada e
-Demurrage de teste pagas por QR Itaú foram baixadas pelo cron entre 23 e 58 s
-depois do pagamento; a consolidada (v8) cancelou no ciclo seguinte as
-cobranças das individuais que cobriu.
-
 ### Cobranças locais após correção — migration 130
 
 A apresentação Pix acompanha o saldo pagável, enquanto total e itens da fatura
@@ -423,5 +403,118 @@ alterada ou documento já quitado, o extrato conserva uma exceção para revisã
 não inventa uma baixa em outro documento. Repetição de TXID já liquidado é
 recusada. Esse histórico não cancela um QR estático no PSP.
 
-Cobertura executável: `invoicePostBillingSafety.local-pg.test.ts` e os testes
-comportamentais de reconciliação, documento e salvar B/L.
+## Testes e validação
+
+O lote comportamental de 2026-06-23 executou os serviços, contratos SQL,
+componentes e a página completa. A página foi exercitada com upload, separação
+entre seguros/ambíguos/sem candidato, confirmação, resultado, detalhes e
+cancelamento de baixa de Demurrage.
+
+### Testes de comportamento estático
+
+- `src/services/__tests__/reconciliacao.test.ts`: TXID-only, colisão entre
+  domínios, repetição no extrato, divergência de valor, confirmação unificada,
+  data obrigatória e lote Demurrage. O lote Demurrage parte de uma Invoice
+  emitida já com `pix_txid`, estado que a emissão não grava (correção pendente
+  A16 em [Notas e divergências](#notas-e-divergências)).
+- `src/services/__tests__/itauPix.test.ts`: cliente Itaú (token, criação da
+  COB, resposta perdida vira incerteza sem repetir a escrita), fila (blocos de
+  5, orçamento de 20 s, teto de 60, parada no 429 e no Itaú sem resposta, vez
+  do runner) e consulta de recebimentos (janela em Brasília, travas de fuso,
+  janelas de 6 h, checkpoint que não avança com falha).
+- `src/lib/__tests__/pix.test.ts`: `normalizePixTxid`, usado pelo matching, e o
+  builder TypeScript do BR Code (`src/lib/pix.ts`: sanitização/limite de TXID e
+  CRC-16). Esse builder não é usado na emissão; o QR estático real é montado no
+  banco por `build_transshipping_pix_payload` (ver a integração local abaixo).
+- `src/lib/__tests__/pixDecoder.test.ts`: decoder independente do BR Code
+  estático, com o vetor oficial do Manual Pix e CRC adulterado. A conferência
+  normativa dos campos (Manual de Padrões para Iniciação do Pix 2.10.0 e Manual
+  BR Code 2.0.1) está no
+  [relatório histórico de 2026-09-10](../archive/reports/2026-09-10-br-code-pix-estatico.md).
+- `src/pages/__tests__/Reconciliacao.behavior.test.tsx`: monitor Itaú em
+  Brasília e consulta parada, Pix tratado com motivo e foco, leitura com
+  exceções salvas, linhas ocultas, lote recusado, resultado parcial honesto,
+  exceção por Tentar de novo e Escolher fatura (com falha depois da baixa),
+  detalhes, cancelamento de baixa de Demurrage, aba na URL e acesso restrito.
+- `src/components/billing/__tests__/pixReconciliationPresentation.test.ts` e
+  `src/pages/__tests__/reconciliacaoState.test.ts`: leituras puras e estado na URL.
+- `src/components/billing/__tests__/ReconciliationHistoryTable.behavior.test.tsx`:
+  filtros na URL, ordenação, situação gravada, exportação, erro sem lista
+  vazia, vazio com e sem filtro, detalhe pelo número e falha de exportação.
+- `src/services/__tests__/reconciliationHistoryPagination.test.ts`: paginação
+  integral antes dos filtros.
+
+### Teste local-pg
+
+Executam SQL num PostgreSQL local descartável e só rodam com
+`LOCAL_PG_INTEGRATION=1` ([WORKFLOW.md §11](../../WORKFLOW.md#11-testes-e-validação));
+sem isso ficam em `skip`.
+
+- `src/integration/itauPixCharges.local-pg.test.ts`: provedor estático ×
+  Itaú e virada, fila e publicação do copia e cola, saldo novo que troca a
+  cobrança, Demurrage e PTAX, baixa automática de avulsa e Demurrage
+  (idempotente pelo `endToEndId`), Pix em análise sem usuário de baixa ou com
+  TXID desconhecido, prazos (14h30 do próximo dia útil, calendário de feriados, renovação),
+  monitoramento e **Marcar como tratado…**, e o disparo da fila na emissão.
+- `src/integration/pixBrCode.local-pg.test.ts`: o builder SQL do QR estático
+  passa pelo decoder independente (`src/lib/pixDecoder.ts`) e respeita os
+  limites do BR Code.
+- `src/integration/manualInvoice.local-pg.test.ts`: confirmação da avulsa
+  (catálogo de ações).
+- `src/integration/invoicePostBillingSafety.local-pg.test.ts`, com os testes
+  comportamentais de reconciliação, documento e salvar B/L: baixa automática
+  Itaú da individual uma única vez pelo `endToEndId`, confirmações concorrentes
+  do mesmo Pix, lote com uma linha inválida desfeito inteiro, cobrança histórica
+  com restituição, QR antigo na sucessora, recusa do cancelamento da baixa que
+  sustenta restituição e restituição de Demurrage que preserva a baixa.
+
+### Teste de contrato SQL
+
+Estes testes verificam texto de migrations, não um banco aplicado:
+
+- `src/services/__tests__/pixBrCodeMigration.test.ts`: builder SQL do QR
+  estático (migration `034`).
+- `src/services/__tests__/ledgerPixPayloadMigration.test.ts`,
+  `ledgerPixSettlementTxidMigration.test.ts`,
+  `reversalBlsFinancialStatusMigration.test.ts` e
+  `reversalJustificationMigration.test.ts`: leem as migrations arquivadas
+  `074`, `075`, `118` e `113` (pelo fallback de `src/test/setup.ts`), então
+  provam o texto da origem, não a definição vigente.
+
+### Runtime
+
+- **Runtime em produção (07 e 08/10):** avulsas, individual, consolidada e
+  Demurrage de teste pagas por QR Itaú foram baixadas pelo cron entre 23 e 58 s
+  depois do pagamento; a consolidada (v8) cancelou no ciclo seguinte as
+  cobranças das individuais que cobriu.
+- **Runtime local (etapa 12 da revisão visual):** leitura, recusa `no_match` e
+  baixa de Demurrage pelo extrato, esta só depois de gravar o TXID na Invoice
+  emitida à mão (correção pendente A16).
+
+## Notas e divergências
+
+- **Correções implementadas — Código/Teste local.** A baixa escolhida no detalhe pode ser antiga, com confirmação de valor/data/ID. Registro manual exige referência bancária (pode se repetir quando um PIX paga mais de uma cobrança) e tentativa estável; a conciliação PIX mantém TXID próprio. Excedente pendente de uma baixa falsa pode acompanhar sua reversão; devolução confirmada ou ajuste que depende da baixa permanece protegido. Banco implementado na migration 136: [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md).
+
+- **Pendências PIX são persistidas — Código.** `persistUnresolvedPixMatches`
+  conserva linhas sem candidata e ambíguas por importação/linha, inclusive sem
+  TXID. O Administrativo as trata em Pendências com **Tentar de novo**,
+  **Escolher fatura…** e **Baixar nesta fatura** (ou **Encerrar exceção**, quando
+  a baixa já existe); a resolução exige prova de baixa autoritativa. Essas
+  linhas não entram automaticamente no lote seguro.
+- **Suspeita sem prova de falha/exploit — ambiguidade é parcialmente
+  client-side.** A RPC unificada não recebe a classificação do frontend. Uma
+  chamada direta ainda revalida o match local e os valores, mas não demonstra
+  a mesma política de ambiguidade cruzada para um item Demurrage.
+- **Suspeita sem prova de falha/exploit — mesmo TXID nos dois domínios.** A UI
+  bloqueia a colisão porque `txidMap` agrega local e Demurrage. No banco, a
+  unicidade de `ledger_settlements` cobre somente o ledger local e
+  `demurrage_invoices` é separado; não foi executado um cenário que tentasse
+  aplicar a mesma transação aos dois domínios.
+- **TXID é denormalizado.** Local mantém `invoices.pix_txid` e
+  `ledger_settlements.pix_txid`; Demurrage mantém seu próprio campo. O trigger
+  reduz duplicação entre settlements, mas não elimina a necessidade de
+  sincronização entre documento e ledger.
+- **Filtro “Único BL” alinhado.** O valor visual `single` é normalizado para
+  `individual` antes da comparação.
+- **Correção pendente (A16):** o plano B pelo extrato acha a Invoice de Demurrage aberta (QR estático ou Itaú) e a fatura avulsa pelo TXID da cobrança, e **Escolher fatura…** lista essas faturas ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 16). Hoje elas viram "Sem documento", porque o matching só acha individual e consolidada com versão de cobrança, e **Escolher fatura…** compara só o TXID gravado na baixa e não lista fatura aberta. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Pix de Demurrage sem TXID vira exceção (A17):** Pix de Demurrage sem TXID legível no extrato cria exceção pendente para decisão humana, como dizem este módulo e o manual; a baixa por CNPJ e pela janela das duas PTAX, prevista na ADR 0015, foi abandonada ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 17, que supersede parcialmente a ADR 0015).

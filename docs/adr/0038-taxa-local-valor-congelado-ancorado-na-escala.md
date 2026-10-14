@@ -1,5 +1,11 @@
 # 0038 — Taxa Local é valor congelado na emissão, ancorado na escala do POD
 
+> **Situação atual (2026-10-13).** Permanecem o CE como fato gerador, o congelamento na emissão, as duas fases (provisório no import, confirmação no CE), Condições de Cliente sem sobreposição, USD convertido na emissão e o motor que para e sinaliza.
+> Não valem mais: "COD não altera a taxa" ([ADR 0051](./0051-cod-reprecifica-no-destino-final.md)); a ETA como âncora da tabela ([ADR 0040](./0040-vigencia-da-tabela-de-taxas-e-informativa.md)); a correção por cancelar e reemitir à mão (nasce do B/L e é automática: sem pagamento reemite; com pagamento abate o saldo, restitui ou cobra em avulsa,
+> [ADR 0077](./0077-fatura-emitida-nao-muda-de-valor.md)); e o bloqueio do container IMO e OOG, que paga THD × 2,5 (mesma ADR, item 7). O B/L misto resolve duas tabelas ([ADR 0069](./0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md)).
+> As migrations `025`, `108`, `129` e `261`–`269` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062. A `129` ativa é outra (THD de IMO e OOG).
+> Regra vigente: [Taxas Locais](../modules/taxas-locais.md).
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Vigência da tabela é informativa; COD reprecifica no destino final; B/L misto resolve duas tabelas. Congelamento na emissão permanece.
 > Rastreabilidade: [ADR 0040](./0040-vigencia-da-tabela-de-taxas-e-informativa.md), [ADR 0051](./0051-cod-reprecifica-no-destino-final.md), [ADR 0069](./0069-resolucao-de-tabela-de-taxas-e-funcao-unica-compartilhada.md); [migration ativa 062](../../supabase/migrations/062_pr698_audit_remediations.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

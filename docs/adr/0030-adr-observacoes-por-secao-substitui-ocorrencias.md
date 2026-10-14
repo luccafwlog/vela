@@ -1,5 +1,9 @@
 # 0030 — Observações por seção substituem Ocorrências; reabertura não reseta seções/assinaturas
 
+> **Situação atual (2026-10-13).** Permanecem a Observação por seção (edição livre do dono, sem justificativa nem histórico) e a reabertura que só destrava a edição, sem apagar resoluções nem assinaturas.
+> Não valem mais a Observação como campo sempre aberto em toda seção (só aparece com texto; sem texto, o dono vê "Adicionar observação" e edita em modal) e as sete seções (são seis): [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md), conforme a nota de 2026-08-04 abaixo.
+> Regra vigente: [Viagens](../modules/viagens.md), regras do Agency Departure Report.
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Observação continua por seção; edição/exibição é sob demanda. Reabrir não apaga assinaturas alheias.
 > Rastreabilidade: [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

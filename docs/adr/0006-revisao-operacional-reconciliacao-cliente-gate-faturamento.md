@@ -1,5 +1,10 @@
 # 0006 — Revisão operacional e reconciliação de cliente como gate de faturamento
 
+> **Situação atual (2026-10-13).** A Revisão continua sendo o gate antes do faturamento, com as pendências calculadas no banco, e a conciliação de cliente acontece só nela ([ADR 0061](./0061-conciliacao-de-cliente-com-casa-unica-na-revisao.md)), com vínculo automático só por documento ([ADR 0043](./0043-vinculo-de-cliente-somente-por-documento.md)).
+> Não valem mais: a Validação em `/faturamento`, hoje fila de bloqueios em `/taxas-locais` ([ADR 0050](./0050-financeiro-segregado-por-processo-faturavel.md), [ADR 0041](./0041-validacao-fila-de-bloqueios-ce-como-confirmacao.md)); os atos manuais de marcar revisado e pronto para faturar ([ADR 0077](./0077-fatura-emitida-nao-muda-de-valor.md), item 7) e o Granito faturável ([ADR 0042](./0042-ce-mercante-confirma-calculo-em-todos-os-modos.md)); o e-mail do cliente como trava, retirado pela migration `085`; o Portal provisionado com senha gerada, hoje por convite de uso único; e a exceção da `051` ao Portal na emissão pelo CE, retirada pela [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md): sem Portal ativo nem Liberação por Cliente, nenhuma emissão sai ([ADR 0054](./0054-portal-como-gate-de-faturamento.md)).
+> A migration `188` citada abaixo é da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [Regras de negócio](../operations/regras-de-negocio.md), seção "Gate de faturamento", e em [Operação e Suporte](../modules/operacao-suporte.md), seção "Fluxos e invariantes".
+
 > **Nota editorial — 2026-09-23.** A exceção interna da `051` foi retirada pela [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md) (migration `083`): o Portal trava toda emissão, inclusive a automática pelo CE, e a saída sem Portal é a Liberação de faturamento sem Portal, por Cliente, concedida pelo Administrativo.
 >
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Revisão resolve pendências e vínculo de cliente; Validação está em Taxas Locais. CE confirma/emite com a exceção server-side da 051 ao gate de Portal.

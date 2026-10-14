@@ -1,14 +1,26 @@
 # Planos históricos (archive)
 
+- [2026-10-13 — Revisão geral da documentação](2026-10-13-revisao-geral-documentacao.md) — encerrado em 2026-10-14: varredura, aplicação e gate concluídos, e o dono respondeu as decisões pendentes no mesmo dia. Decisões nas ADRs [0083](../../adr/0083-decisoes-da-revisao-geral-da-documentacao.md) e [0084](../../adr/0084-registro-de-decisoes-ja-em-producao.md); correções de código no [plano vivo](../../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md); relatório em [2026-10-13-revisao-geral-documentacao.md](../audits/2026-10-13-revisao-geral-documentacao.md).
+
+- [2026-10-07 — Revisão visual e UX: pacote de prompts](2026-10-07-revisao-visual-ux-prompts.md) — encerrado e arquivado em 2026-10-13 depois da etapa 12: o contrato visual da etapa 00 foi substituído pela identidade visual única ([ADR 0081](../../adr/0081-identidade-visual-unica.md)), e as etapas 13 a 23 deram lugar ao [plano de migração tela a tela](../../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+
 - [2026-10-09 — Correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md) — concluído em 2026-10-12: Etapas 0 a 14 na PR 929, migrations `174` a `217` em produção e `import-effects-runner` ligado (acelerado pela `218`); ensaio em Preview dispensado pelo dono.
 
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — concluído em 2026-10-09: fases 1–5 e reforços D4 = b; evidências de produção em "Encerramento em 2026-10-08/09"; riscos aceitos registrados.
 
 - [2026-10-08 — Correção das pendências da auditoria das etapas 00–05](2026-10-08-correcao-pendencias-auditoria-etapas-00-05.md) — R0 a R6 concluídos (PR 903 na `main`), ficha da viagem restaurada com melhorias, N1 e N2 decididos; viagem cancelada fora do Line-Up.
 
+- [2026-10-07 — Desbloqueio de CE: revisão do fluxo](2026-10-07-desbloqueio-ce-revisao-fluxo.md) — executado localmente e arquivado em 2026-10-07; publicação (migrations `160`–`161`) e agenda do e-mail conferidas em produção em 2026-10-10 no plano vivo do [Desbloqueio de CE](../../plans/2026-10-04-desbloqueio-ce-mercante.md), que guarda a homologação da planilha com a ZPT.
+
+- [2026-10-06 — Integração Itaú Pix](2026-10-06-integracao-itau-pix.md) — concluído e arquivado em 2026-10-08: QR dinâmico e baixa automática pela consulta de 1 minuto em produção para todos os tipos de fatura; webhook (Fase 6, opcional) não executado. Evidência no [relatório de execução](../reports/2026-10-07-integracao-itau-pix-execucao.md).
+
 - [2026-10-05 — Integração das PRs 845, 846 e 847](2026-10-05-integracao-prs-845-846-847.md) — correções entregues; evidências e Preview no relatório de execução.
 
-- [2026-10-04 — Central de Informações do Portal](2026-10-04-portal-informacoes.md) — implementação e validação locais; produção não publicada.
+- [2026-10-04 — Central de Informações do Portal](2026-10-04-portal-informacoes.md) — implementação e validação locais em 2026-10-04; o código entrou na `main` com a integração das PRs 845–847 (migrations `137` e `138`) e estava nos sites publicados na leitura de produção de 2026-10-13 (registrada no [plano do Desbloqueio de CE](../../plans/2026-10-04-desbloqueio-ce-mercante.md)). Regra vigente no [módulo do Portal](../../modules/portal-cliente.md#central-de-informações).
+
+- [2026-09-24 — Política de exclusão de dados](2026-09-24-politica-de-exclusao.md) — fases 1 a 6 (ADRs 0071–0074) mergeadas em 2026-09-25, com as migrations `086`–`095` conferidas em produção no mesmo dia e a `096` mergeada junto; backup restaurado e verificação por papel em produção em 2026-10-05; arquivado com as pendências registradas no próprio plano.
+
+- [2026-09-24 — Configuração dos serviços externos e migração para Cloudflare](2026-09-24-configuracao-servicos-e-migracao-cloudflare.md) — concluído em 2026-09-28; operação vigente no [manual dos serviços externos](../../operations/servicos-externos.md).
 
 Planos concluídos, encerrados ou superados, consolidados aqui em 2026-07-18
 (antes divididos entre `docs/archive/plans/` e

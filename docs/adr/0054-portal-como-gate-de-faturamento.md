@@ -1,5 +1,9 @@
 # ADR 0054 — Portal ativo e acesso do cliente como gate de faturamento
 
+> **Situação atual (2026-10-13).** Vale a decisão original: a fatura só sai quando o Cliente consegue vê-la, com o critério completo de prontidão (conta ativa e vinculada, Email de Recuperação válido e não suprimido). Não vale mais a exceção interna da `051` descrita na nota de 2026-09-18: a [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md) fez o Portal travar toda emissão, inclusive a do CE, e criou a Liberação de faturamento sem Portal, por Cliente, concedida pelo Administrativo, que também abre o gate. Os dois pontos dados abaixo como pendentes (critério de prontidão e precedência na Validação) estão implementados.
+> As migrations `188` e `337` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [Regras de negócio](../operations/regras-de-negocio.md), seção "Gate de faturamento".
+
 > **Nota editorial — 2026-09-23.** A exceção interna da `051` foi retirada pela [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md) (migration `083`): o Portal trava toda emissão, inclusive a automática pelo CE, e a saída sem Portal é a Liberação de faturamento sem Portal, por Cliente, concedida pelo Administrativo.
 >
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** A 047 mantém a prontidão do Portal na emissão manual; a 051 introduz contexto interno controlado que emite pela transição CE sem provisionamento. Não é dispensa pública do gate.

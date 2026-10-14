@@ -1,5 +1,10 @@
 # 0005 — Pipeline de importação por viagem, staging e reconciliação
 
+> **Situação atual (2026-10-13).** Continuam valendo a viagem como eixo, os parsers por fonte, o Baplie como staging físico que não sobrescreve dado comercial e o limite de tamanho antes da leitura.
+> Não valem mais o Manifesto CNTR como entrada, porque o arquivo de B/L é a fonte documental única da carga de container e a conciliação física é Baplie × B/L ([ADR 0025](./0025-bl-fonte-documental-unica-container-atd-pol.md)); o Granito no faturamento, porque é apoio operacional sem fatura ([ADR 0042](./0042-ce-mercante-confirma-calculo-em-todos-os-modos.md), nota de 2026-09-23); e os vazios de exportação por bookings, hoje Embarque de Vazios da escala ([ADR 0031](./0031-vazios-exp-grao-container-cadastro-depot-tarifas.md), [ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md)).
+> A [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md) fixa as regras de entrada e correção de cada importação. As ADRs 0038, 0064 e 0065 da nota abaixo tratam de cálculo, contatos e efeitos, que este texto não descreve.
+> Regra vigente em [Manifestos & EDI](../modules/manifesto-edi.md), seção "Propósito e escopo", e em [Regras de negócio](../operations/regras-de-negocio.md), seção "Conciliação Baplie ↔ B/L".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Manifesto CNTR deixou de ser a entrada documental; cálculo provisório e efeitos recuperáveis substituem a descrição original de billing no import. Contatos usam caixas.
 > Rastreabilidade: [ADR 0025](./0025-bl-fonte-documental-unica-container-atd-pol.md), [ADR 0038](./0038-taxa-local-valor-congelado-ancorado-na-escala.md), [ADR 0064](./0064-caixas-de-comunicacao-e-auditoria-de-contatos.md), [ADR 0065](./0065-inbox-efeitos-e-autoridade-financeira.md); [migration ativa 031](../../supabase/migrations/031_import_effect_consumers.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.

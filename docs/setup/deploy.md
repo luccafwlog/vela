@@ -16,11 +16,11 @@ O staging publica o `index.html` correspondente a cada projeto e copia somente s
 | Workflow | Gatilho | Resultado |
 |---|---|---|
 | `.github/workflows/ci.yml` | PR e push em `main` | Documentação, lint, build, testes, tamanho de bundle, contratos do Pages e replay de migrations. |
-| `.github/workflows/cloudflare-pages-preview.yml` | CI verde de PR interna | Aguarda o Supabase Preview e publica os dois previews privados. |
+| `.github/workflows/cloudflare-pages-preview.yml` | CI verde de PR interna | Aguarda o check Supabase Preview da branch vinculada à PR e publica os dois previews privados; sem essa branch, termina com falha depois de cerca de 6 min de espera. |
 | `.github/workflows/cloudflare-pages-preview-cleanup.yml` | PR interna fechada | Remove deployments antigos de preview da branch; a Cloudflare mantém o deployment mais recente. |
 | `.github/workflows/cloudflare-pages-production.yml` | CI verde de push em `main` ou execução manual | Publica as duas pastas na produção quando `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`. |
 | `.github/workflows/cloudflare-pages-provision.yml` | execução manual | Cria projetos Pages ausentes; não publica nem altera DNS. |
-| Supabase GitHub Integration | PR/merge em `main` | Cria branch de banco para preview e aplica migrations no ciclo configurado. Com o Automatic Branching desligado, crie a branch à mão no painel e preencha "Sync with Git branch" com a branch da PR; os workflows de preview acham a branch por esse vínculo, porque o nome da branch Supabase não aceita `/`. Crie-a antes do push que deve gerar o preview, ou envie um commit depois. |
+| Supabase GitHub Integration | Push na branch vinculada; merge em `main` | O Automatic Branching está desligado (decisão do dono de 2026-10-07; estado em [serviços externos](../operations/servicos-externos.md#supabase)). Para ter Preview, crie a branch à mão no painel e preencha "Sync with Git branch" com a branch da PR; a integração aplica nela as migrations da PR, e os workflows de preview acham a branch por esse vínculo, porque o nome da branch Supabase não aceita `/`. Crie-a antes do push que deve gerar o preview, ou envie um commit depois, e remova-a após o teste (custo por hora). No merge em `main`, aplica as migrations pendentes em produção. |
 
 A produção usa o environment GitHub `cloudflare-production`, com variáveis públicas `VITE_*`; o token Cloudflare fica em `CLOUDFLARE_PAGES_API_TOKEN`. O workflow de produção só executa código de `main`. O workflow de preview separa o build do código da PR da etapa confiável que usa o token de publicação. Não coloque segredos server-side em variáveis `VITE_*`.
 
@@ -58,10 +58,10 @@ As Edge Functions usam a allowlist em `supabase/functions/_shared/cors.ts`: dom�
 
 A publicação do frontend não publica Edge Functions. Publique mudanças de Functions pelo fluxo do Supabase e verifique o código remoto quando necessário (`supabase functions download`). Segredos operacionais ficam em Supabase → Edge Functions → Secrets e, para jobs `pg_cron`, também no Vault conforme [segredos-cron.md](../operations/segredos-cron.md).
 
-Migrations devem ser aplicadas em ordem e antes do código que dependa delas. O CI faz replay em PostgreSQL descartável; a integração do Supabase aplica as migrations da branch de preview e o deploy de produção segue a integração configurada para `main`. Migrations aplicadas não devem ser reescritas: reconcilie divergências em migration nova. Consulte também o procedimento de [squash e deploy](../operations/squash-schema-v1-deploy.md).
+Migrations devem ser aplicadas em ordem e antes do código que dependa delas. O CI faz replay em PostgreSQL descartável; a integração do Supabase aplica as migrations na branch de Preview vinculada à PR, quando ela existe, e o deploy de produção segue a integração configurada para `main`. Migrations aplicadas não devem ser reescritas: reconcilie divergências em migration nova. Consulte também o procedimento de [squash e deploy](../operations/squash-schema-v1-deploy.md).
 
 O deploy não envia e-mails diretamente: Resend e demais provedores são chamados pelas Edge Functions. `portal-login` exige `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`; jobs de Comunicados e Demurrage usam os secrets e valores do Vault descritos no [manual de serviços externos](../operations/servicos-externos.md).
 
 ## Volta operacional
 
-Os projetos Vercel `vela` e `fwlog-portal` permanecem sem conexão Git e sem os domínios de produção. Para voltar a servi-los, reconecte o projeto necessário, restaure sua configuração de build, associe o domínio e altere o DNS do Pages conforme a foto operacional em [servicos-externos.md](../operations/servicos-externos.md#cloudflare-dns). Não use Vercel como destino de rotina nem remova o domínio do Pages antes de confirmar o cutover.
+A volta para a Vercel (rollback manual) é configuração de conta e DNS: o estado dos projetos e o passo a passo estão em [serviços externos](../operations/servicos-externos.md#vercel-rollback-manual-sem-publicação-automática).

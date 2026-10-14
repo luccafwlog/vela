@@ -36,9 +36,10 @@ por nome:
 | `DEMURRAGE_DUNNING_SECRET` | `demurrage-dunning` | `DEMURRAGE_DUNNING_SECRET` |
 | `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET` | `customer-communication-auto-runner` | `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET` |
 | `PORTAL_EMAIL_EVENTS_CRON_SECRET` | `portal-email-events-runner` | `PORTAL_EMAIL_EVENTS_CRON_SECRET` |
-| `IMPORT_EFFECTS_CRON_SECRET` | `import-effects-runner` | `IMPORT_EFFECTS_CRON_SECRET` |
+| `IMPORT_EFFECTS_CRON_SECRET` | `import-effects-runner` e o disparo pela importação (`ops.kick_import_effects_runner`, migration `218`) | `IMPORT_EFFECTS_CRON_SECRET` |
 | `RECALC_CRON_SECRET` | `recalc-demurrage-ptax` | `RECALC_CRON_SECRET` |
 | `ITAU_PIX_ADMIN_SECRET` | `itau-pix-queue` e o disparo da fila (`ops.kick_itau_pix_runner`, migration `219`) | `ITAU_PIX_ADMIN_SECRET` |
+| `CE_UNLOCK_CLEANUP_SECRET` | `ce-unlock-cleanup` e `ce-unlock-notify-email` | `CE_UNLOCK_CLEANUP_SECRET` |
 
 Os nomes são iguais aos dos Edge Function Secrets de propósito: o par
 banco/Function é o contrato, e rotacionar um sem o outro derruba o job.
@@ -49,7 +50,7 @@ confidencialidade.
 
 ## Quem lê
 
-Só `ops.dispatch_edge_job(text, text, text, text)`:
+Os jobs leem o cofre por `ops.dispatch_edge_job(text, text, text, text)`:
 
 ```sql
 SELECT ops.dispatch_edge_job('alerts-detector', 'ALERTS_DETECTOR_SECRET');
@@ -57,10 +58,32 @@ SELECT ops.dispatch_edge_job('alerts-detector', 'ALERTS_DETECTOR_SECRET');
 
 O comando do job cita **nomes**; nenhum valor aparece em `cron.job.command`.
 
-A função é `SECURITY INVOKER` de propósito: ela não empresta privilégio a
-ninguém. Quem não alcança `vault.decrypted_secrets` por direito próprio
-continua sem alcançar. O `pg_cron` executa o job como `postgres`, que já tem o
-`SELECT` concedido pela plataforma.
+O dispatcher é `SECURITY INVOKER` de propósito: ele próprio não empresta
+privilégio a ninguém. Chamado pelo `pg_cron`, roda como `postgres`, que já tem
+o `SELECT` concedido pela plataforma.
+
+Além dos jobs, duas funções `SECURITY DEFINER` (donas `postgres`) leem o cofre
+dentro da transação de quem usa a tela, acionadas por gatilho:
+
+- `ops.kick_import_effects_runner()` (migration `218`), chamada pelo gatilho
+  `AFTER INSERT` em `import_pending_effects` quando a instrução grava efeito
+  `pending` ou `retry_wait` (a importação de planilha): confere no cofre se
+  `SUPABASE_URL` e `IMPORT_EFFECTS_CRON_SECRET` existem e chama o dispatcher,
+  que então roda com o privilégio do dono;
+- `ops.kick_itau_pix_runner()` (migration `219`), chamada pelos gatilhos
+  `AFTER INSERT` e `AFTER UPDATE` em `itau_pix_charges` quando a instrução
+  deixa cobrança pendente já vencida (a emissão ou mudança de uma fatura): lê
+  `SUPABASE_URL` e `ITAU_PIX_ADMIN_SECRET` e monta o próprio `net.http_post`
+  com `{"action":"process_charges"}`, sem passar pelo dispatcher.
+
+As duas disparam no máximo uma vez por transação, não devolvem o valor lido,
+não são executáveis por `PUBLIC`, `anon` nem `authenticated` e, sem o par no
+cofre, não fazem nada. São a exceção decidida à
+[ADR 0063](../adr/0063-configuracao-de-jobs-cron-no-vault.md), que reservava a
+leitura do cofre ao `pg_cron`: as pontes `218` e `219` podem ler o segredo a
+partir da importação ou da emissão feita pelo usuário, e a exposição aceita é
+que a chamada com o segredo passa pela fila do `pg_net`
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 5).
 
 O schema `ops` não concede `USAGE` a `PUBLIC`, `anon` nem `authenticated`, e não
 está entre os schemas expostos pela Data API — a função não é um endpoint REST.
@@ -183,10 +206,11 @@ WHERE command ~ $re$Bearer ' \|\| '[^']$re$
 ```
 
 **Os jobs HTTP passam pelo dispatcher** — deve retornar `ok = true` em todas as
-linhas. `recalc-demurrage-ptax` e `itau-pix-queue` **não são criados pelas
-migrations** (ver "Agendar o recálculo de PTAX" abaixo e o roteiro de ativação do
+linhas. `recalc-demurrage-ptax`, `itau-pix-queue`, `ce-unlock-cleanup` e
+`ce-unlock-notify-email` **não são criados pelas migrations** (ver as seções de
+agendamento abaixo e o roteiro de ativação do
 [plano Itaú](../archive/plans/2026-10-06-integracao-itau-pix.md)), então em um banco
-recém-provisionado a consulta devolve seis linhas; oito depois que os dois forem
+recém-provisionado a consulta devolve seis linhas; dez depois que os quatro forem
 agendados manualmente, como em produção desde 07/10:
 
 ```sql
@@ -196,7 +220,8 @@ FROM cron.job
 WHERE jobname IN ('portal-daily-digest', 'alerts-foundation-detectors',
                   'demurrage-dunning', 'customer-communication-auto-runner',
                   'portal-email-events-runner', 'import-effects-runner',
-                  'recalc-demurrage-ptax', 'itau-pix-queue')
+                  'recalc-demurrage-ptax', 'itau-pix-queue',
+                  'ce-unlock-cleanup', 'ce-unlock-notify-email')
 ORDER BY jobname;
 ```
 
@@ -272,14 +297,15 @@ SELECT cron.schedule(
 Remover: `SELECT cron.unschedule('ce-unlock-notify-email');`. Sem o job, os avisos do sino
 continuam funcionando e as linhas de e-mail ficam pendentes em `ce_unlock_email_outbox`.
 
-**O cofre tem as nove entradas** — deve retornar `9`:
+**O cofre tem as dez entradas** — deve retornar `10`:
 
 ```sql
 SELECT count(*) FROM vault.secrets
 WHERE name IN ('SUPABASE_URL', 'PORTAL_DIGEST_SECRET', 'ALERTS_DETECTOR_SECRET',
                'DEMURRAGE_DUNNING_SECRET', 'CUSTOMER_COMMUNICATION_AUTOMATION_SECRET',
                'PORTAL_EMAIL_EVENTS_CRON_SECRET', 'IMPORT_EFFECTS_CRON_SECRET',
-               'RECALC_CRON_SECRET', 'ITAU_PIX_ADMIN_SECRET');
+               'RECALC_CRON_SECRET', 'ITAU_PIX_ADMIN_SECRET',
+               'CE_UNLOCK_CLEANUP_SECRET');
 ```
 
 **O cofre está fechado para o cliente** — as quatro colunas devem ser `false`:
@@ -313,16 +339,17 @@ LIMIT 8;
 ## Provisionar um banco novo
 
 Um banco criado só por migrations nasce com o cofre vazio. Depois de aplicar as
-migrations, cadastre as nove entradas uma única vez:
+migrations, cadastre as dez entradas uma única vez:
 
 ```sql
 SELECT vault.create_secret('https://<ref>.supabase.co', 'SUPABASE_URL',
   'Base da API do projeto.');
 SELECT vault.create_secret('<valor>', 'PORTAL_DIGEST_SECRET',
   'Espelha o Edge Function Secret de mesmo nome.');
--- idem para ALERTS_DETECTOR_SECRET, DEMURRAGE_DUNNING_SECRET e
+-- idem para ALERTS_DETECTOR_SECRET, DEMURRAGE_DUNNING_SECRET,
 -- CUSTOMER_COMMUNICATION_AUTOMATION_SECRET, PORTAL_EMAIL_EVENTS_CRON_SECRET,
--- IMPORT_EFFECTS_CRON_SECRET, RECALC_CRON_SECRET e ITAU_PIX_ADMIN_SECRET.
+-- IMPORT_EFFECTS_CRON_SECRET, RECALC_CRON_SECRET, ITAU_PIX_ADMIN_SECRET e
+-- CE_UNLOCK_CLEANUP_SECRET.
 ```
 
 Até lá, os jobs ficam agendados e inertes, com `WARNING` no log a cada execução.
@@ -331,8 +358,8 @@ Mesmo com o Vault preenchido, `import-effects-runner` exige
 job, a migration `218` dispara o runner a cada transação que grava efeito
 pendente, por `ops.kick_import_effects_runner()`; sem o par no Vault esse
 disparo não acontece e não gera `WARNING`. Só um runner trabalha por vez
-(`ops.import_effects_runner_lease`); o job de PTAX permanece inativo até a
-liberação operacional após validação de Preview e gateway.
+(`ops.import_effects_runner_lease`). Em banco novo, o job de PTAX não existe
+até ser agendado (seção [Agendar o recálculo de PTAX](#agendar-o-recálculo-de-ptax)).
 
 ## Risco residual
 
@@ -350,7 +377,10 @@ de subsegundos — o worker do `pg_net` consome e apaga a linha da fila — e
 `net._http_response` guarda resposta, não o cabeçalho enviado.
 
 Isso vale para **qualquer** chamada HTTP autenticada saída do banco: existia
-antes desta mudança e não foi introduzido por ela. Confirme em
+antes desta mudança e não foi introduzido por ela. Desde as migrations `218` e
+`219`, a chamada com o segredo também entra na fila a cada importação que grava
+efeito e a cada cobrança Pix que fica pendente, não só a cada ciclo do
+`pg_cron` (ver [Quem lê](#quem-lê)). Confirme em
 **Data API settings** que `net` não está exposto.
 
 **Suspeita:** não há como fechar esse privilégio com a role do projeto.

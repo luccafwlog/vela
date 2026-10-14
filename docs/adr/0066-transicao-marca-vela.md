@@ -1,6 +1,11 @@
 # ADR 0066 — Transição de marca e separação das superfícies de entrega
 
-**Data:** 2026-09-12 · **Status:** aceito
+> **Situação atual (2026-10-13).** As três identidades (Vela no interno, Fwlog no Portal, Transhipping no jurídico e no financeiro) e as duas entradas Vite continuam valendo.
+> Não valem mais o item 5 e as consequências sobre os dois projetos Vercel e seus Previews: pela [ADR 0076](./0076-cloudflare-pages-como-hosting.md), Vela e Portal são publicados no Cloudflare Pages (`vela-internal` e `vela-portal`) por GitHub Actions, e os projetos Vercel ficam sem conexão Git, só como opção de rollback manual; a relação com a ADR 0010 "quanto à publicação pela Vercel" também ficou superada.
+> A [ADR 0081](./0081-identidade-visual-unica.md) estende a separação de marcas com a identidade visual única do Vela e do Portal Fwlog; as regras de aparência estão em [identidade-visual.md](../identidade-visual.md).
+> Regra vigente em [Deploy](../setup/deploy.md), seções "Builds e artefatos" e "Workflows", e em [Serviços externos](../operations/servicos-externos.md), seção "Hospedagem do front-end".
+
+Status: supersedida parcialmente — 2026-09-12
 
 ## Contexto
 

@@ -1,5 +1,9 @@
 # 0041 — Validação como fila de bloqueios; CE Mercante como confirmação
 
+> **Situação atual (2026-10-13).** Valem a fila de bloqueios e o CE Mercante como confirmação do cálculo. A Validação fica em `/taxas-locais` ([ADR 0050](./0050-financeiro-segregado-por-processo-faturavel.md)) e ganhou o motivo "Portal não provisionado" ([ADR 0054](./0054-portal-como-gate-de-faturamento.md), [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md)); Granito é só apoio operacional e não emite, então a decisão 4 perdeu o "caminho de Granito".
+> A conciliação de cliente saiu da Validação para a Revisão ([ADR 0061](./0061-conciliacao-de-cliente-com-casa-unica-na-revisao.md)). A emissão pelo CE é do servidor, em lotes ([ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)); só a falha técnica abre `billing_auto_issue_failed`, e tabela de cobrança faltando ou "Nada a faturar" são espera ([ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md)).
+> Regra vigente em [Faturamento](../modules/faturamento.md), seção "Validação".
+
 > **Nota editorial — 2026-10-10.** A decisão 3 vale pela emissão do CE no servidor: `emit_ce_mercante_billing` (migration `181`) abre `billing_auto_issue_failed` por B/L quando a emissão falha. O caminho de navegador `maybeAutoBillAfterCeMercante`, único que abria esse alerta e sem chamador, foi removido na Etapa 12 do [plano de correção das importações](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md).
 
 > **Nota editorial — 2026-09-23.** A exceção interna da `051` foi retirada pela [ADR 0070](./0070-portal-trava-toda-emissao-e-liberacao-por-cliente.md) (migration `083`): o Portal trava toda emissão, inclusive a automática pelo CE, e a saída sem Portal é a Liberação de faturamento sem Portal, por Cliente, concedida pelo Administrativo.

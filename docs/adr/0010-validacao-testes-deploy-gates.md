@@ -1,10 +1,15 @@
 # 0010 — Validação, testes e gates de deploy
 
+> **Situação atual (2026-10-13).** Continuam valendo os testes, o lint, o build e a validação manual registrada, ampliados com `docs:check`, `migrations:check` e o replay das migrations no CI.
+> Não vale mais a publicação pela integração GitHub/Vercel: o GitHub Actions publica as duas SPAs no Cloudflare Pages depois do CI, e a Vercel fica só para rollback manual ([ADR 0076](./0076-cloudflare-pages-como-hosting.md); a [ADR 0066](./0066-transicao-marca-vela.md) já tinha trocado o Firebase Hosting pela Vercel).
+> As migrations são aplicadas no merge pela integração GitHub do Supabase ([ADR 0056](./0056-branching-automatico-supabase-vercel.md)); o Automatic branching por PR foi desligado pelo dono em 2026-10-07, ainda sem ADR, e a branch de Preview do banco é criada à mão. A [ADR 0016](./0016-migrations-nomenclatura-numerada-sequencial.md), a [ADR 0023](./0023-distribuicao-skills-fonte-unica-instalador-node.md) e a [ADR 0062](./0062-consolidacao-migrations-schema-1-0.md) também estendem esta decisão.
+> Regra vigente em [WORKFLOW.md](../../WORKFLOW.md), seções "11. Testes e validação" e "12. CI e deploy", e em [Deploy](../setup/deploy.md).
+
 > **Nota editorial — 2026-09-18 · estendida.** Os gates originais permanecem; a entrega passou a cobrir duas SPAs. O CI valida/reproduz migrations em banco descartável; a aplicação remota é da integração de branching Supabase, conforme WORKFLOW.
 > Rastreabilidade: [ADR 0056](./0056-branching-automatico-supabase-vercel.md), [ADR 0066](./0066-transicao-marca-vela.md); [migration ativa 003](../../supabase/migrations/003_pos_squash_objetos_fora_do_dump.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
-Status: estendida — 2026-06-09
+Status: supersedida parcialmente — 2026-06-09
 
 ## Contexto
 

@@ -1,10 +1,13 @@
 # Backup lógico cifrado em Cloudflare R2 — M10 R2
 
-Este procedimento implementa somente o lado local/repositorio do plano M10 da
-Issue 710. O comando gera um dump lógico diário do schema `public`, cifra o
-arquivo antes de qualquer upload e envia o resultado para um bucket R2 privado.
-Ele não cria recursos Cloudflare, não habilita PITR, não agenda produção e não
-executa restore.
+O script `scripts/backup-r2.mjs` (plano M10 da Issue 710) gera um dump lógico
+do schema `public`, cifra o arquivo antes de qualquer upload e envia o
+resultado para um bucket R2 privado. Em produção ele roda diariamente numa
+tarefa agendada desde 2026-09-24; onde roda, bucket, retenção e token estão no
+[manual de serviços externos](servicos-externos.md#backup), e a restauração foi
+testada em 2026-10-05 ([estado operacional](#estado-operacional-conferido-em-2026-10-05)).
+O script em si não cria recursos Cloudflare, não habilita PITR, não se agenda e
+não executa restore.
 
 ## Contrato de segurança
 
@@ -21,7 +24,7 @@ executa restore.
   bucket, alteração de ACL ou exclusão de objeto no repositório.
 - `--environment production` é bloqueado, a menos que o operador forneça
   simultaneamente `--allow-production` e `BACKUP_ALLOW_PRODUCTION=YES` após a
-  aprovação operacional. Essa combinação não foi usada nesta entrega.
+  aprovação operacional. É a combinação usada pela tarefa diária de produção.
 
 O dump é deliberadamente limitado ao schema `public`, que contém as entidades
 de negócio do Vela. Schemas gerenciados pelo Supabase, usuários do Auth e bytes
@@ -72,6 +75,7 @@ secret store do runner. Os nomes esperados são:
 | `R2_ACCESS_KEY_ID` | Access Key do token R2 | secret store |
 | `R2_SECRET_ACCESS_KEY` | Secret Access Key do token R2 | secret store |
 | `SUPABASE_PROJECT_REF` | referência não secreta do projeto | configuração não secreta do runner |
+| `BETTERSTACK_HEARTBEAT_BACKUP_URL` | opcional; URL do heartbeat do backup no Better Stack | variável do usuário no runner; não imprimir |
 
 Depois de carregar os valores, repita o dry-run e só então execute:
 
@@ -99,15 +103,37 @@ $env:BACKUP_ENCRYPTION_KEY_HEX = '<64_HEX_CHARS_FROM_PASSWORD_MANAGER>'
 npm run backup:r2 -- --verify C:\caminho\<arquivo>.dump.enc
 ```
 
-## Passos remotos ainda necessários
+## Heartbeat do backup
 
-Estes passos exigem uma conta autenticada e não foram executados por esta
-mudança:
+Com `BETTERSTACK_HEARTBEAT_BACKUP_URL` definida, cada `--execute` avisa o Better
+Stack no fim: a URL quando o backup sobe ao R2, a URL com `/fail` quando falha
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 6).
+Se a tarefa não roda (computador desligado, tarefa desabilitada), o aviso não
+chega e o heartbeat fica **Down** depois do prazo. Dry-run e `--verify` não
+avisam. Uma falha ao avisar não muda o resultado do backup e não imprime a URL.
+
+Para ligar:
+
+1. No Better Stack, em `Uptime > Heartbeats > Create heartbeat`, crie
+   `backup-r2-diario` com período de 1 dia e tolerância de 6 horas (a tarefa
+   roda às 09:00 ou quando o computador liga). Copie a URL.
+2. No computador da tarefa, crie a variável do usuário
+   `BETTERSTACK_HEARTBEAT_BACKUP_URL` com essa URL, como as outras variáveis do
+   backup, e atualize a cópia local do repositório para a versão com o
+   heartbeat.
+3. Rode a tarefa `Backup Diario Vela R2` à mão uma vez e confira o heartbeat
+   **Up** no Better Stack.
+
+## Montar o backup em outro ambiente
+
+Passos usados para montar o backup de produção (estado atual no
+[manual de serviços externos](servicos-externos.md#backup)) e para repeti-lo em
+outro projeto ou computador. Exigem conta autenticada:
 
 1. No Supabase Dashboard, abra o projeto `fgmkhbzhaeebrsizwccx`, entre em
    `Database > Backups` e confirme a cobertura de backup diário e o custo/limite
    do plano atual. A ADR 0074 decidiu não contratar PITR; este procedimento
-   não o habilita. Não use a tela de restore neste rollout.
+   não o habilita. Não use a tela de restore para testar a montagem.
 2. Em `Connect`, obtenha a string de conexão adequada para o runner (Session
    pooler por padrão; conexão direta se a rede tiver IPv4/add-on). Injete-a no
    ambiente do processo, sem colá-la em arquivo, log, issue ou comando salvo.
@@ -130,7 +156,7 @@ mudança:
 7. Para o ensaio trimestral de restore, crie/selecionе uma branch ou projeto
    Supabase descartável no Dashboard, baixe um dump cifrado, valide-o com
    `--verify` e só depois siga o runbook de restore da Supabase. O restore é
-   destrutivo no alvo escolhido e está fora desta entrega; não o execute em
+   destrutivo no alvo escolhido e não é feito pelo script; não o execute em
    produção.
 
 Os rótulos do Dashboard podem mudar. A validação remota deve registrar o

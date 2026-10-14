@@ -64,7 +64,7 @@ pesada como `@e965/xlsx` deve usar `await import(...)` lazy, não import estáti
 
 ## Critério de "verde" antes de PR
 
-Antes de um PR, `npm run docs:check`, `npm run lint`, `npm test`, `npm run build` e `npm run size-limit` devem passar. O workflow `ci.yml` executa documentação + lint, build + orçamento de bundle e a suíte de testes em três shards; o job `checks` agrega esses resultados — ver [deploy.md](deploy.md).
+O gate local, escolhido pelo impacto da mudança, está em [WORKFLOW.md § 11](../../WORKFLOW.md#11-testes-e-validação); os jobs do `ci.yml` e o agregador `checks`, em [WORKFLOW.md § 12](../../WORKFLOW.md#12-ci-e-deploy).
 
 ## Validação manual
 

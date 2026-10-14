@@ -239,20 +239,19 @@ Após o deploy ou reparo, execute as seguintes validações:
   ```sql
   SELECT jobname, schedule, active FROM cron.job ORDER BY jobname;
   ```
-  Desde a `007` são **8 jobs garantidos** em qualquer ambiente:
-  `alerts-foundation-detectors`, `cleanup-portal-sessions`,
-  `cleanup-provision-rate-limit`, `customer-communication-auto-runner`,
-  `demurrage-dunning`, `portal-daily-digest`,
-  `portal-mark-expired-invites` e `portal-refresh-general-pendencies`.
-  O `portal-daily-digest` deixou de ser condicional: os quatro jobs HTTP
-  passam por `ops.dispatch_edge_job(...)` e leem a configuração do Supabase
-  Vault, não mais de `app.settings.*` — GUCs que a role `postgres` não tem
-  privilégio para definir (ADR 0063). Com o cofre vazio, os quatro ficam
-  agendados e inertes, registrando `WARNING`; cadastre as cinco entradas por
-  [`segredos-cron.md`](./segredos-cron.md).
-- [ ] **Nenhum segredo no texto dos jobs:** as duas consultas de verificação de
-  [`segredos-cron.md`](./segredos-cron.md) devem retornar, respectivamente,
-  zero linhas e quatro linhas com `ok = true`.
+  Compare com a [tabela de jobs do manual de serviços externos](./servicos-externos.md#jobs-agendados-pg_cron),
+  que diz quais jobs as migrations criam e quais são agendados à mão; a lista
+  cresceu depois do squash. Desde a `007`, os jobs HTTP passam por
+  `ops.dispatch_edge_job(...)` e leem a configuração do Supabase Vault, não
+  mais de `app.settings.*` — GUCs que a role `postgres` não tem privilégio para
+  definir (ADR 0063). Com o cofre vazio, eles ficam agendados e inertes,
+  registrando `WARNING`; cadastre as entradas listadas em
+  [Provisionar um banco novo](./segredos-cron.md#provisionar-um-banco-novo).
+  No deploy de 2026-09-02 eram oito jobs garantidos, quatro deles HTTP, e
+  cinco entradas no cofre.
+- [ ] **Nenhum segredo no texto dos jobs:** rode as consultas da
+  [Verificação](./segredos-cron.md#verificação) de `segredos-cron.md` e compare
+  cada uma com o resultado que a própria seção descreve.
 - [ ] **Buckets de Storage:**
   ```sql
   SELECT id, public, file_size_limit FROM storage.buckets WHERE id IN ('demurrage-disputes', 'customer-communications');

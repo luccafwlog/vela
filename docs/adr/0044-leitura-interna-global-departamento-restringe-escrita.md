@@ -1,10 +1,14 @@
 # 0044 — Leitura interna é global; departamento restringe escrita
 
+> **Situação atual (2026-10-13).** Vale a leitura interna global: todo perfil interno ativo lê dado operacional e financeiro por `is_active_read_user()`. Não valem mais a restrição de escrita por Departamento e os helpers `can_edit_*`: a [ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md) liberou a escrita a todo Departamento ativo, com rastro. A "Nota para novas policies" também caducou: desde a migration arquivada `295`, `is_active_user()` e `is_active_read_user()` têm o mesmo corpo e incluem Equipamentos.
+> As migrations `010`, `014`, `020`, `066`, `111`, `211` e `291` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> Regra vigente em [Segurança](../operations/seguranca.md), seção "RLS-first".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Leitura global permanece; a restrição geral de escrita por departamento foi substituída por escrita interna com rastro e exceções explícitas.
 > Rastreabilidade: [ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md); [migration ativa 002](../../supabase/migrations/002_business_logic_and_security.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
-Status: substituída pela ADR 0046 — 2026-08-13
+Status: supersedida parcialmente pela ADR 0046 — 2026-08-13
 
 ## Contexto
 

@@ -1,10 +1,15 @@
 # ADR 0011 — Revogação total de `anon` em funções SECURITY DEFINER (default-deny)
 
+> **Situação atual (2026-10-13).** Continuam valendo a revogação de `anon` nas funções `SECURITY DEFINER` e a regra de revogar no mesmo arquivo que cria a função.
+> Não vale mais a allowlist `anon` vazia: a exceção `portal_resolve_login` da [ADR 0013](./0013-portal-auth-identificador-resolvido-e-excecao-anon.md) foi encerrada pela [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md), a única função pré-autenticação é `portal_ship_schedule()` e o default de `public` revoga `EXECUTE` de `PUBLIC`, `anon` e `authenticated`, de modo que a regra de processo deixou de ser a única defesa.
+> As migrations com timestamp citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062: `20260530102907` é a `078`, `20260603130350` é a `084` e `20260608192000` é a `088`; a revogação abrangente descrita é a `093` (`20260609225321`), e não há `20260609210000` no arquivo.
+> Regra vigente em [Segurança](../operations/seguranca.md), seção "RLS-first".
+
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** A exceção intermediária portal_resolve_login foi encerrada. A exceção pública vigente é portal_ship_schedule; defaults de função estão fechados.
 > Rastreabilidade: [ADR 0013](./0013-portal-auth-identificador-resolvido-e-excecao-anon.md), [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md); [migration ativa 003](../../supabase/migrations/003_pos_squash_objetos_fora_do_dump.sql).
 > O texto original abaixo preserva o contexto da decisão; este cabeçalho delimita sua aplicação atual.
 
-**Data:** 2026-06-09 · **Status:** supersedida parcialmente
+Status: supersedida parcialmente — 2026-06-09
 
 Supersedida parcialmente pela ADR 0013: `portal_resolve_login(text)` é a exceção
 pré-autenticação explícita e limitada para `anon`.

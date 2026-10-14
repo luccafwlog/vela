@@ -7,6 +7,15 @@ import {
   extractDocRoutes,
   extractDocumentedRoutes,
 } from './lib/docs-routes.mjs'
+import {
+  adrFileStatus,
+  adrHeader,
+  adrNeedsBanner,
+  hasSituationBanner,
+  isDatedLivingDocument,
+  parseAdrIndex,
+} from './lib/docs-adr.mjs'
+import { anchorExists, headingAnchors, markdownLinks } from './lib/docs-anchors.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 // 'archive': snapshots históricos não são verdade atual (AGENTS.md); seus
@@ -35,19 +44,38 @@ function addError(file, message) {
 }
 
 const markdownFiles = walk(root).filter((file) => /\.mdx?$/i.test(file))
-const markdownLinkPattern = /\[[^\]]+\]\(([^)]+)\)/g
+const anchorCache = new Map()
+
+function anchorsOf(absolutePath) {
+  if (!anchorCache.has(absolutePath)) {
+    anchorCache.set(absolutePath, headingAnchors(fs.readFileSync(absolutePath, 'utf8')))
+  }
+  return anchorCache.get(absolutePath)
+}
+
+// Âncora de um link para Markdown: `#secao` no próprio arquivo ou
+// `arquivo.md#secao`. Destinos que não são Markdown (ex.: `#L10`) ficam de fora.
+function checkAnchor(file, target, resolved) {
+  const hashIndex = target.indexOf('#')
+  if (hashIndex === -1) return
+  const fragment = target.slice(hashIndex + 1)
+  if (!fragment || !/\.mdx?$/i.test(resolved) || !fs.statSync(resolved).isFile()) return
+  if (!anchorExists(anchorsOf(resolved), fragment)) {
+    addError(relative(file), `link points to a missing section anchor: ${target}`)
+  }
+}
 
 for (const file of markdownFiles) {
   const content = fs.readFileSync(file, 'utf8')
-  const prose = content.replace(/```[\s\S]*?```/g, '')
-  for (const match of prose.matchAll(markdownLinkPattern)) {
-    let target = match[1].trim()
-    if (target.startsWith('<') && target.endsWith('>')) target = target.slice(1, -1)
-    target = target.replace(/\s+["'][^"']*["']$/, '')
-    if (/^(?:https?:|mailto:|#)/i.test(target)) continue
+  // Só links renderizados: em código ou comentário não contam.
+  for (const target of markdownLinks(content)) {
+    if (!target || /^(?:https?:|mailto:)/i.test(target)) continue
 
     const pathPart = target.split('#')[0]
-    if (!pathPart) continue
+    if (!pathPart) {
+      checkAnchor(file, target, file)
+      continue
+    }
 
     let decoded
     try {
@@ -65,7 +93,9 @@ for (const file of markdownFiles) {
     const resolved = path.resolve(path.dirname(file), decoded)
     if (!fs.existsSync(resolved)) {
       addError(relative(file), `broken relative link: ${target}`)
+      continue
     }
+    checkAnchor(file, target, resolved)
   }
 }
 
@@ -89,10 +119,53 @@ if (fs.existsSync(adrIndexPath)) {
     .filter((name) => /^\d{4}-.+\.md$/i.test(name))
     .sort()
 
+  const { statuses: indexedStatuses, duplicates: duplicatedRows } = parseAdrIndex(adrIndex)
+  for (const file of duplicatedRows) {
+    addError('docs/adr/README.md', `ADR has more than one row in the index table: ${file}`)
+  }
+  const filesByNumber = new Map()
+  for (const adrFile of adrFiles) {
+    const number = adrFile.slice(0, 4)
+    filesByNumber.set(number, [...(filesByNumber.get(number) ?? []), adrFile])
+  }
+  for (const [number, files] of filesByNumber) {
+    if (files.length > 1) addError('docs/adr/README.md', `ADR number ${number} is used by more than one file: ${files.join(', ')}`)
+  }
   for (const adrFile of adrFiles) {
     if (!adrIndex.includes(adrFile)) {
       addError('docs/adr/README.md', `ADR is not indexed: ${adrFile}`)
     }
+    // ADR 0082: a linha Status da ADR concorda com o índice e toda ADR
+    // estendida ou supersedida abre com a faixa "Situação atual".
+    const adrPath = `docs/adr/${adrFile}`
+    const adrContent = fs.readFileSync(path.join(adrDirectory, adrFile), 'utf8')
+    if (adrHeader(adrContent) === null) {
+      addError(adrPath, 'ADR has no "# " title line')
+      continue
+    }
+    const status = adrFileStatus(adrContent)
+    if (!status) {
+      addError(adrPath, 'ADR has no recognizable "Status:" line')
+      continue
+    }
+    const indexed = indexedStatuses.get(adrFile)
+    if (indexed === undefined) {
+      // Citar o arquivo no texto do README não basta: a ADR precisa de linha
+      // na tabela, que é onde o status é comparado.
+      if (adrIndex.includes(adrFile)) addError('docs/adr/README.md', `ADR has no row in the index table: ${adrFile}`)
+    } else if (indexed !== status) {
+      addError(adrPath, `ADR status "${status}" differs from the index ("${indexed}")`)
+    }
+    if (adrNeedsBanner(status) && !hasSituationBanner(adrContent)) {
+      addError(adrPath, `ADR with status "${status}" needs a "> **Situação atual (AAAA-MM-DD).**" banner`)
+    }
+  }
+}
+
+for (const file of markdownFiles) {
+  const relativePath = relative(file)
+  if (isDatedLivingDocument(relativePath)) {
+    addError(relativePath, 'dated document must live in docs/archive/ (only live plans and specs keep dates outside it)')
   }
 }
 
@@ -106,6 +179,7 @@ const moduleDocuments = [
   'docs/modules/faturamento.md',
   'docs/modules/demurrage.md',
   'docs/modules/reconciliacao-pix.md',
+  'docs/modules/desbloqueio-ce.md',
   'docs/modules/portal-cliente.md',
   'docs/modules/operacao-suporte.md',
 ]

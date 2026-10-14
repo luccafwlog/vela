@@ -1,6 +1,11 @@
 # ADR 0024: Cancelamento de Viagem é Estado Retido; Exclusão é Hard Delete
 
-Status: aceito
+> **Situação atual (2026-10-13).** O cancelamento continua estado retido que a agenda não reverte, e viagem cancelada não se exclui.
+> Não valem mais: a exclusão só de viagem sem nenhum vínculo (a viagem sem trava do CE Mercante sai em cascata, com prévia e motivo, e a cancelada por engano é reativada pelo Administrativo — [ADR 0071](./0071-ce-mercante-como-trava-de-exclusao.md)) e as canceladas no Line-Up do Painel:
+> pela decisão do dono N2, de 2026-10-08 ([plano arquivado](../archive/plans/2026-10-08-correcao-pendencias-auditoria-etapas-00-05.md), sem ADR), a viagem cancelada sai do Line-Up do Painel e da TV, sem filtro próprio; só o rail de Viagens mantém "Canceladas".
+> Regra vigente: [Viagens](../modules/viagens.md) (exclusão, cancelamento e reativação) e [Operação e Suporte](../modules/operacao-suporte.md) (Line-Up).
+
+Status: supersedida parcialmente
 
 Data: 2026-07-10
 

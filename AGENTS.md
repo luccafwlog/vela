@@ -24,7 +24,8 @@ database schema, consult the corresponding source below.
 
 | Task | Read first |
 | --- | --- |
-| Business rule or terminology | [CONTEXT.md](CONTEXT.md), then the affected module from [docs/README.md](docs/README.md) |
+| Terminology | [CONTEXT.md](CONTEXT.md) (glossary only) |
+| Business rule | The affected module from [docs/README.md](docs/README.md); cross-module rules in [regras-de-negocio.md](docs/operations/regras-de-negocio.md); the "why" in the linked ADR |
 | Screen, route or user action | [RASTREABILIDADE.md](docs/RASTREABILIDADE.md), then the linked implementation and module |
 | Appearance, layout or UI component | [Visual identity](docs/identidade-visual.md): nine rules, shared pieces and the screen-by-screen approval in its plan |
 | Shared code, imports or architecture | Relevant sections of [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ADR index](docs/adr/README.md) |
@@ -97,6 +98,13 @@ DNS, secret name, webhook, scheduled job, hosting, e-mail routing) also updates
 [the external services manual](docs/operations/servicos-externos.md) in the same
 change; record names and locations of secrets, never their values. Read `docs/README.md` before broad
 documentation or architecture changes.
+
+Each fact has one owner document ([ADR 0082](docs/adr/0082-governanca-documental-dono-unico-e-adr-historica.md)):
+write the rule in the owning module and link to it elsewhere. A superseded or
+extended ADR keeps its original text and gains a "Situação atual" banner;
+ADRs are never moved or renumbered. In living docs, an unqualified migration
+number belongs to the active chain; cite pre-squash numbers as "migration
+arquivada `NNN`".
 
 Plan/spec lifecycle (full rule in `docs/CONVENCOES.md`, "Ciclo de vida de
 planos e specs"):
