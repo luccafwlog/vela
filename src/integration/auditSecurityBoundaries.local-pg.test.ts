@@ -222,14 +222,11 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
 
     psql(`UPDATE public.customer_portal_accounts SET recovery_email = 's01-rec@example.test'
       WHERE customer_id = ${CUSTOMER_ID};`)
-    const now = Math.floor(Date.now() / 1000)
-    const issued = portalCall(
-      STAFF_SUB,
-      now,
-      `INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, status, pix_payload)
-       VALUES (619702, 'S01-INV-702', ${CUSTOMER_ID}, '${BL_ID}', 50.00, 'issued', 'S01-FIXTURE');`,
-    )
-    expect(issued.status).toBe(0)
+    // A emissão grava a fatura como dono (RPC SECURITY DEFINER); desde a
+    // migration 233 o `authenticated` não insere em `invoices` pela API.
+    expect(() => psql(`BEGIN; SELECT set_config('request.jwt.claim.sub', '${STAFF_SUB}', true);
+      INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, status, pix_payload)
+      VALUES (619702, 'S01-INV-702', ${CUSTOMER_ID}, '${BL_ID}', 50.00, 'issued', 'S01-FIXTURE'); COMMIT;`)).not.toThrow()
     expect(
       psql(`SELECT i.status FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
         WHERE i.item_type = 'portal_excecao_critica_fatura' AND a.entity_id = '${BL_ID}'
