@@ -394,9 +394,8 @@ DELETE em `user_profiles`); a tela `/admin/usuarios` só desativa. Quando o
 DELETE passa, o Log de Ações mostra o id em vez do nome do autor. Correção
 pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 
-Pela regra decidida, o banco recusa rebaixar ou desativar o último
-Administrativo ativo; a regra e
-a correção pendente estão em
+O banco recusa rebaixar ou desativar o último Administrativo ativo
+(migration `239`); a regra está em
 [Operação e Suporte § Administrativo ativo mínimo](../modules/operacao-suporte.md#administrativo-ativo-mínimo)
 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 2).
 

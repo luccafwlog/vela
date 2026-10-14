@@ -1301,7 +1301,7 @@ identidade Auth sem perfil ativo não tem acesso interno.
 
 **Administrativo ativo mínimo**
 Regra de manter sempre ao menos um usuário Administrativo ativo: o último não
-se rebaixa de setor nem se desativa (correção pendente).
+se rebaixa de setor nem se desativa.
 - **Evitar:** "Administrador ativo mínimo" (o papel Administrador não existe mais)
 → Regra: [Operação e Suporte § Administrativo ativo mínimo](docs/modules/operacao-suporte.md#administrativo-ativo-mínimo)
 

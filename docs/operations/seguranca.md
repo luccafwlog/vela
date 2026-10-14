@@ -113,8 +113,8 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ler dado operacional e financeiro | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` | ADR 0044 | vigente |
 | `/admin`: usuários, logs e métricas | ✔ | — | — | — | — | Usuários: `admin_list_users` (`is_admin`). Logs e métricas: só a navegação (rota `adminOnly`); os dados por trás, como `audit_logs`, têm leitura global (ADR 0044) | ADR 0046 | vigente |
 | Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha | ✔ | — | — | — | — | Edge `admin-users` (`is_admin`); policy de `user_profiles` e gatilho `prevent_user_profile_privilege_escalation` | ADR 0046 | vigente |
-| Desativar ou rebaixar o último Administrativo ativo | — | — | — | — | — | — | ADR 0083, item 2 | correção pendente: nada impede (A2) |
-| Excluir perfil interno | — | — | — | — | — | — | ADR 0083, item 3 | correção pendente: o Administrativo exclui pela API (`user_profiles_admin_delete`, A3) |
+| Desativar ou rebaixar o último Administrativo ativo | — | — | — | — | — | Gatilho `guard_last_active_administrativo` (migration `239`) | ADR 0083, item 2 | vigente (**Teste** local) |
+| Excluir perfil interno | — | — | — | — | — | Sem DELETE em `user_profiles` para `authenticated` (migration `240`) | ADR 0083, item 3 | vigente (**Teste** local) |
 | Registrar escrita em nome de outro usuário | — | — | — | — | — | — | ADR 0085, regra base 2 | correção pendente: o Administrativo informa outro autor em quatro RPCs com `_assert_actor_is_caller` (migration `106`) e nas de faturamento que gravam `COALESCE(p_actor, auth.uid())` sem conferir, como `create_invoice_from_bls*`, `create_local_consolidated_invoice`, `register_invoice_payment`, `register_ledger_invoice_payment`, `cancel_invoice`, `obsolete_consolidated_invoice` e `reverse_demurrage_payment` (**Teste**, Postgres local; P11) |
 
 ### Viagens e ADR de Saída
@@ -216,9 +216,8 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 
 ### Administrativo ativo mínimo
 
-Regra decidida: o banco recusa rebaixar de setor ou desativar o último
-Administrativo ativo
-([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 2). A regra e a correção pendente estão em
+O banco recusa rebaixar de setor ou desativar o último Administrativo ativo
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 2; migration `239`). A regra está em
 [Operação e suporte § Administrativo ativo mínimo](../modules/operacao-suporte.md#administrativo-ativo-mínimo).
 
 ## Duas fronteiras de autenticação
