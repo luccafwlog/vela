@@ -1,6 +1,6 @@
 # Granito
 
-> **Status:** ativo · **Atualizado:** 2026-09-28 · **Rotas:** `/granito`, `/granito/taxas`
+> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/granito`, `/granito/taxas`
 
 ## Propósito e escopo
 
@@ -10,11 +10,18 @@ clientes, persiste manifesto e B/Ls próprios e calcula snapshots quantitativos
 por peso/B/L. O módulo não promove B/Ls a uma etapa financeira nem emite invoices.
 
 As rotas são internas e ficam sob `ProtectedRoute` em
-[`src/AppInterno.tsx`](../../src/AppInterno.tsx). A UI de tarifas reserva mutações para admin;
-as tabelas operacionais aceitam leitura/inserção/update de usuário ativo e
-DELETE de admin após
-[`supabase/migrations_archive/042_rls_module_hardening.sql`](../../supabase/migrations_archive/042_rls_module_hardening.sql).
-A emissão usa RPC administrativa.
+[`src/AppInterno.tsx`](../../src/AppInterno.tsx). Qualquer Departamento ativo,
+inclusive Equipamentos, importa a planilha COSCO e calcula as taxas de Granito
+(ADR 0078, item 10). As tabelas operacionais (`granite_manifests`,
+`granite_bls`, `granite_bl_charges`) aceitam leitura, inserção e edição de
+usuário ativo e exclusão só do Administrativo (policies da migration `002`).
+Nas tarifas (`granite_rates`), a tela mostra criar, editar, ativar/desativar e
+excluir só ao Administrativo; no banco, ativar ou desativar é só do
+Administrativo (gatilho `guard_tariff_active_change`, migration `091`), excluir
+é do Administrativo, com motivo, por `delete_catalog_row` (migration `096`), e
+tarifa já usada num cálculo não se exclui — só se desativa
+(`guard_used_tariff_delete`, `091`; ADR 0073). Os demais campos da tarifa
+seguem graváveis por usuário ativo pela API.
 
 O ownership é separado:
 
@@ -50,7 +57,8 @@ operação:
 - lista `granite_bls` com booking, shipper/CNPJ, navio/viagem, peso real, CBM,
   fase, `charge_status` e ação `Calcular taxas`;
 - o modal COSCO exige viagem e arquivo `.xls/.xlsx`, mostra B/Ls válidos, peso
-  total, erros de parser e reconciliação `matched|missing_cnpj|not_found`; peso
+  total, erros de parser e reconciliação `matched|suggested_name|missing_cnpj|not_found`
+  (sugestão por nome, como na Revisão; vínculo só por documento); peso
   e quantidades usam o valor numérico nativo do Excel quando a célula o traz,
   ou a gramática pt-BR para texto, sem expoente/texto residual; datas de
   prontidão nativas e textuais precisam ser calendários válidos, e POL/POD são
@@ -68,8 +76,8 @@ operação:
 
 [`src/pages/GraniteRates.tsx`](../../src/pages/GraniteRates.tsx) lista descrição,
 tipo (`per_kg`, `per_ton`, `per_bl`, `fixed`), valor unitário, moeda, vigência e
-estado ativo de `granite_rates`. Admin pode criar, editar, ativar/desativar e
-excluir.
+estado ativo de `granite_rates`. O Administrativo cria, edita, ativa/desativa e
+exclui (com motivo; tarifa já usada num cálculo só se desativa).
 
 ### Entrada por `/viagens/:voyageId`
 
@@ -84,8 +92,9 @@ altera.
 
 ### Superfícies downstream
 
-- `/revisao` agrega `granite_bls.client_id IS NULL`; vincular cliente chama
-  `saveGraniteBlReview`, audita e orienta refazer o cálculo em `/granito`.
+- `/revisao` agrega `granite_bls.client_id IS NULL`; vincular cliente chama a
+  RPC `save_granite_bl_review` (vínculo e auditoria na mesma transação) e orienta
+  refazer o cálculo em `/granito`.
 - `/taxas-locais` → `Validação` agrega B/Ls de Granito como apoio operacional e
   oferece somente recálculo quantitativo. CE Mercante e invoices não são gates
   nem ações do fluxo atual de Granito.
@@ -96,23 +105,23 @@ altera.
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| `/granito` · abrir import e selecionar viagem | Sessão interna exceto papel Equipamentos; viagem existente para confirmar | `Granite`; estado `uploadOpen`, `voyageId`; `VoyageCombobox` | A seleção só prepara os argumentos do parser/importador | Leitura de viagens pelo hook compartilhado | Estado local; após sucesso invalida `['granite-bls']` e `['voyages']` | Sem viagem, arquivo ou usuário o botão permanece desabilitado | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`VoyageCombobox.tsx`](../../src/components/shared/VoyageCombobox.tsx) |
-| `/viagens/:voyageId` · importar Granito | Viagem e usuário já definidos; papel diferente de Equipamentos; arquivo com B/Ls válidos | `VoyageImportActions`; `FileImportModal` | `parseGraniteManifestFile` → `importGraniteManifest` | `granite_manifests`, `granite_bls` | Invalida `['voyages']` e `['granite-manifests']` | Erro de parse por arquivo; falha de persistência interrompe o lote | **Código:** [`VoyageImportActions.tsx`](../../src/components/shared/VoyageImportActions.tsx), [`FileImportModal.tsx`](../../src/components/shared/FileImportModal.tsx) |
-| Parsear planilha COSCO | Arquivo dentro do limite; primeira aba não vazia | `handleFile` ou parser do modal genérico | `assertUploadSize` → `readFirstSheetRows` → `createHeaderMapper`; exige B/L único e `real_weight_kg > 0` | Carrega clientes para reconciliação, sem escrita | Retorna `ParsedGraniteManifest` com `bls` e `rowErrors` | B/L ausente/duplicado, peso ausente/zero, data de prontidão impossível ou POL/POD não reconhecido viram erro de linha; planilha vazia lança erro; a confirmação fica bloqueada por padrão e só aceita linhas válidas com `allowRowErrors` explícito | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts), [`importCore.ts`](../../src/services/importCore.ts), [`importValidation.ts`](../../src/services/importValidation.ts) · **Teste:** [`graniteParse.test.ts`](../../src/services/__tests__/graniteParse.test.ts), `graniteImportAtomic.test.ts` |
+| `/granito` · abrir import e selecionar viagem | Usuário interno ativo, de qualquer Departamento (ADR 0078, item 10); viagem existente para confirmar | `Granite`; estado `uploadOpen`, `voyageId`; `VoyageCombobox` | A seleção só prepara os argumentos do parser/importador | Leitura de viagens pelo hook compartilhado | Estado local; após sucesso invalida `['granite-bls']` e `['voyages']` | Sem viagem, arquivo ou usuário o botão permanece desabilitado | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`VoyageCombobox.tsx`](../../src/components/shared/VoyageCombobox.tsx) |
+| `/viagens/:voyageId` · importar Granito | Viagem e usuário já definidos; usuário interno ativo, de qualquer Departamento; arquivo com B/Ls válidos | `VoyageImportActions`; `FileImportModal` | `parseGraniteManifestFile` → `importGraniteManifest` | `granite_manifests`, `granite_bls` | Invalida `['voyages']` e `['granite-manifests']` | Erro de parse por arquivo; falha de persistência interrompe o lote | **Código:** [`VoyageImportActions.tsx`](../../src/components/shared/VoyageImportActions.tsx), [`FileImportModal.tsx`](../../src/components/shared/FileImportModal.tsx) |
+| Parsear planilha COSCO | Arquivo `.xls`/`.xlsx` dentro do limite; primeira aba visível com o cabeçalho COSCO | `handleFile` ou parser do modal genérico | `assertUploadFile` → `readSheet` (leitor comum: primeira aba visível, cabeçalho localizado, linhas e abas ocultas ignoradas com aviso) → `matchHeaders`/`createHeaderMapper`; exige B/L único e `real_weight_kg > 0` | Carrega clientes para reconciliação, sem escrita | Retorna `ParsedGraniteManifest` com `bls` e `rowErrors` | B/L ausente/duplicado, peso ausente/zero, data de prontidão impossível ou POL/POD não reconhecido viram erro de linha; planilha vazia lança erro; a confirmação fica bloqueada por padrão e só aceita linhas válidas com `allowRowErrors` explícito | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts), [`importCore.ts`](../../src/services/importCore.ts), [`importValidation.ts`](../../src/services/importValidation.ts) · **Teste:** [`graniteParse.test.ts`](../../src/services/__tests__/graniteParse.test.ts), `graniteImportAtomic.test.ts` |
 | Preview · reconciliar cliente/CNPJ | Manifesto parseado; CNPJ do shipper opcional | `handleCnpjOverride`; tabela de preview | `loadCustomerMaps` + `findMatchedCustomer`; normaliza documento com `onlyDigits` | SELECT na base de clientes | Atualiza apenas o manifesto em memória para `matched` | Input inline aparece apenas para `missing_cnpj`; CNPJ curto não dispara busca; `not_found` permanece pendente | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`customerReconciliation.ts`](../../src/services/customerReconciliation.ts) |
-| Preview · aceitar ou rejeitar pendentes | B/L sem cliente resolvido | Confirmação dos modais; argumento `allowPending` do service | `importGraniteManifest` filtra `allowPending \|\| clientId !== null` | INSERT/UPSERT em `granite_bls` | Com `true`, mantém B/L sem `client_id`; com `false`, exclui a linha da persistência | `allowPending` continua sem seletor e aceita pendentes por default; o checkbox de erros usa `allowRowErrors` e não muda a reconciliação de cliente | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts), [`Granite.tsx`](../../src/pages/Granite.tsx), [`VoyageImportActions.tsx`](../../src/components/shared/VoyageImportActions.tsx) |
+| Preview · aceitar ou rejeitar pendentes | B/L sem cliente resolvido | Confirmação dos modais; argumento `allowPending` do service | `importGraniteManifest` filtra `allowPending \|\| clientId !== null \|\| suggestedClientId !== null` | INSERT/UPSERT em `granite_bls` | Com `true`, mantém B/L sem `client_id`; com `false`, exclui a linha da persistência | `allowPending` continua sem seletor e aceita pendentes por default; o checkbox de erros usa `allowRowErrors` e não muda a reconciliação de cliente | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts), [`Granite.tsx`](../../src/pages/Granite.tsx), [`VoyageImportActions.tsx`](../../src/components/shared/VoyageImportActions.tsx) |
 | Confirmar importação | Viagem existente; usuário; ao menos um B/L válido | `Granite.handleImport` ou importer de `VoyageImportActions` | `importGraniteManifest` valida a viagem, soma peso, lê os B/Ls já gravados na Viagem com o manifesto de cada um (`graniteImportScope`): sem B/L enviado em comum, o arquivo é manifesto novo e não pergunta nada; com B/L em comum, pede confirmação para tirar os B/Ls dos manifestos tocados que não estão no arquivo (em linha nenhuma, nem nas com erro) | `import_granite_manifest_transactional` (migrations `186`, `192` e `206`, uma transação): arquivo sem B/L em comum com a Viagem (inclusive a primeira importação) cria manifesto novo (`new_manifest`); com B/L em comum, reimporta só os manifestos que ele toca: atualiza por número do B/L preservando CE, Cliente e status de cobrança, inclui os novos no mais recente deles e tira os ausentes deles só com confirmação, com Histórico; o ausente com Invoice nunca sai: fica e volta em `kept_missing_invoiced_bl_numbers`; os outros manifestos da Viagem não são tocados (ADR 0079, decisão 7) | Fecha/reset modal; invalida listas relacionadas; informa manifesto novo na Viagem, novos, atualizados, retirados, mantidos (inclusive "N com Invoice mantido(s)") e `pendingCount` | Viagem ausente, B/L repetido no arquivo ou erro de escrita recusa tudo; o erro do servidor aparece com a mensagem de negócio | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts) · **Teste:** `graniteImportAtomic.test.ts`; **Integração em PostgreSQL local:** `granitoReimportacao.local-pg.test.ts` |
 | `/granito` · filtrar/listar/paginar | Sessão interna | Query `['granite-bls', filters]` | `listGraniteBls` monta filtros e, para viagem, resolve manifest IDs antes | SELECT em `granite_bls`, `granite_manifests`, `voyages`, `vessels`, `customers` | Paginação local por `range`; troca de filtro volta à página 1 | Erro mostra `InlineError`; viagem sem manifest retorna lista vazia | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts) |
-| `/granito` · importar CE Mercante | Usuário interno; planilha com BL e CE válidos (sem Nº de Manifesto Mercante) | `CeMercanteImportModal` com `target='granite'` | `parseCeMercanteFile` → resolução `bl_number → granite_bls.id` na viagem → `importCeMercanteRows` | `apply_ce_mercante_rows_atomic` (`p_target='granite'`) chama `apply_granite_ce_mercante_update`, que audita e atualiza `granite_bls.ce_mercante`; não dispara faturamento de Granito | Invalida B/Ls e operações inclusive em resultado parcial; um CE só pode estar em um B/L não cancelado, somando B/Ls de carga e de Granito (gatilho `guard_ce_mercante_unique`, migration `177`): CE já usado num B/L de carga é recusado, e a prévia da planilha de CE dos B/Ls de carga acusa o CE que já está num B/L de Granito (migration `195`) | B/L inexistente ou ambíguo aparece por linha; falhas ficam restritas ao lote de importação | **Código:** [`CeMercanteImportModal.tsx`](../../src/components/shared/CeMercanteImportModal.tsx), [`ceMercanteImport.ts`](../../src/services/ceMercanteImport.ts) · **Teste:** `ceMercanteImport.test.ts` |
-| `/granito` · calcular taxas | Papel diferente de Equipamentos; B/L existente; peso real disponível | `handleCalculateCharges` | `calculateGraniteBlCharges` chama RPC server-side, que trava o B/L, valida tarifa vigente/valor e só então substitui o snapshot | DELETE/INSERT em `granite_bl_charges`; UPDATE de `granite_bls.charge_status` | Invalida `['granite-bls']` e `['voyages']`; “Ver resultado” reabre os efeitos persistidos | Sem rates falha fechado antes do DELETE e preserva snapshot anterior; peso/tarifa inválidos bloqueiam | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts), `supabase/migrations/031_import_effect_consumers.sql` |
+| `/granito` · importar CE Mercante | Usuário interno; planilha com BL e CE válidos (sem Nº de Manifesto Mercante) | `CeMercanteImportModal` com `target='granite'` | `parseCeMercanteFile` → resolução `bl_number → granite_bls.id` na viagem → `importCeMercanteRows` | `apply_ce_mercante_rows_atomic` (`p_target='granite'`) chama `apply_granite_ce_mercante_update`, que audita e atualiza `granite_bls.ce_mercante` com a regra do B/L (15 dígitos; vazio não apaga) e não é executável pela API (migration `212`); não dispara faturamento de Granito | Invalida B/Ls e operações; um CE só pode estar em um B/L não cancelado, somando B/Ls de carga e de Granito (gatilho `guard_ce_mercante_unique`, migration `177`): CE já usado num B/L de carga é recusado, e a prévia da planilha de CE dos B/Ls de carga acusa o CE que já está num B/L de Granito (migration `195`) | B/L inexistente ou ambíguo aparece por linha; erro em qualquer linha recusa a planilha inteira e nada é gravado (migration `212`) | **Código:** [`CeMercanteImportModal.tsx`](../../src/components/shared/CeMercanteImportModal.tsx), [`ceMercanteImport.ts`](../../src/services/ceMercanteImport.ts) · **Teste:** `ceMercanteImport.test.ts` |
+| `/granito` · calcular taxas | Usuário interno ativo, de qualquer Departamento; B/L existente; peso real disponível | `handleCalculateCharges` | `calculateGraniteBlCharges` chama RPC server-side, que trava o B/L, valida tarifa vigente/valor e só então substitui o snapshot | DELETE/INSERT em `granite_bl_charges`; UPDATE de `granite_bls.charge_status` | Invalida `['granite-bls']` e `['voyages']`; “Ver resultado” reabre os efeitos persistidos | Sem rates falha fechado antes do DELETE e preserva snapshot anterior; peso/tarifa inválidos bloqueiam | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts), `supabase/migrations/031_import_effect_consumers.sql` |
 | `/granito` · recalcular quantidades | B/L existente; rates ativas/vigentes; peso real disponível | `handleCalculateCharges` ou lote da Validação | `calculateGraniteBlCharges` substitui o snapshot quantitativo pela RPC autoritativa | `granite_bl_charges`; UPDATE de `granite_bls.charge_status='calculated'` | Invalida `['granite-bls']`, operações e `['voyages']`; resultado reabrível no painel | Sem rates falha fechado sem esvaziar o snapshot anterior | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`src/services/graniteCharges.ts`](../../src/services/graniteCharges.ts), `supabase/migrations/031_import_effect_consumers.sql` · **Teste:** `graniteBillingWorkflow.test.ts` |
 | `/taxas-locais` · emitir manualmente | Não aplicável a Granito | `ValidacaoTab` | Granito não possui caminho de emissão | Nenhuma escrita financeira nova | Mantém visualização operacional e registros históricos | A linha não oferece botão “Emitir” | **Teste:** `ValidacaoOperationsTable.test.tsx`, `validacaoFunnel.test.ts` |
 | `/taxas-locais` · consultar invoice histórica | Vínculo financeiro histórico retornado pela lista genérica | `InvoicesTable` → `InvoiceDetailModal` | `useInvoiceDetail` → `listInvoiceDetails`/RPC `list_invoice_details` | Leitura de `invoices`, `invoice_items`, `payments` e vínculos históricos | Acesso somente leitura ao documento histórico | Não existe link direto em `/granito`; a consulta parte da lista genérica | **Código:** [`TaxasLocais.tsx`](../../src/pages/TaxasLocais.tsx), [`InvoicesTable.tsx`](../../src/components/billing/InvoicesTable.tsx), [`billing.ts`](../../src/services/billing.ts) |
-| `/revisao` · vincular cliente pendente | `granite_bls.client_id IS NULL`; cliente selecionado | `Revisao`; `saveGraniteBlReview` | UPDATE direto seguido de tentativa de auditoria | `granite_bls.client_id`; INSERT em `audit_logs` | Invalida revisão, Granite e operação de taxas; solicita recálculo | Falha do UPDATE lança; o retorno da auditoria não é inspecionado e pode falhar silenciosamente | **Código:** [`useReview.ts`](../../src/hooks/useReview.ts), [`review.ts`](../../src/services/review.ts), [`Revisao.tsx`](../../src/pages/Revisao.tsx) |
+| `/revisao` · vincular cliente pendente | `granite_bls.client_id IS NULL`; cliente selecionado | `Revisao` e `ReviewDrawer`; `saveGraniteBlReview` | `saveGraniteBlReview` → RPC `save_granite_bl_review`, que trava o B/L, grava o vínculo e a auditoria na mesma transação e limpa a sugestão | `granite_bls.client_id`; INSERT em `audit_logs` | Invalida revisão, Granite e operação de taxas; solicita recálculo | O erro da RPC aparece e nada é gravado | **Código:** [`useReview.ts`](../../src/hooks/useReview.ts), [`review.ts`](../../src/services/review.ts), [`Revisao.tsx`](../../src/pages/Revisao.tsx); migration `002` |
 | `/granito/taxas` · listar | Usuário interno ativo | Query da página | `listGraniteRates` | SELECT em `granite_rates` | Query `['granite-rates']` | Erro mostra `InlineError` | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts) |
-| `/granito/taxas` · criar/editar | A UI exige admin; descrição e tipo; valor presente | `handleSave` | `upsertGraniteRate` | UPSERT em `granite_rates` | Invalida `['granite-rates']` | Erro do banco mostra toast; UI não valida vigência cruzada; a policy atual permite INSERT/UPDATE a qualquer usuário ativo | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts), [`042_rls_module_hardening.sql`](../../supabase/migrations_archive/042_rls_module_hardening.sql) |
-| `/granito/taxas` · ativar/desativar | A UI exige admin | `handleToggleActive` | `upsertGraniteRate` com `active` invertido | UPSERT em `granite_rates` | Invalida `['granite-rates']` | Erro mostra toast; a policy de UPDATE aceita usuário ativo | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`042_rls_module_hardening.sql`](../../supabase/migrations_archive/042_rls_module_hardening.sql) |
-| `/granito/taxas` · excluir | Admin; confirmação aceita | `handleDelete` | `deleteGraniteRate` | DELETE em `granite_rates`; snapshots mantêm `rate_id` nulo por `ON DELETE SET NULL` | Invalida `['granite-rates']` | Policy bloqueia não-admin; erro mostra toast | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`034_granite_module.sql`](../../supabase/migrations_archive/034_granite_module.sql) |
+| `/granito/taxas` · criar/editar | A tela mostra a ação só ao Administrativo; descrição e tipo; valor presente | `handleSave` | `upsertGraniteRate` | UPSERT em `granite_rates` | Invalida `['granite-rates']` | Erro do banco mostra toast; a tela não valida vigência cruzada; a policy permite INSERT/UPDATE a qualquer usuário ativo (migration `002`) | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts) |
+| `/granito/taxas` · ativar/desativar | Administrativo (tela e banco) | `handleToggleActive` | `upsertGraniteRate` com `active` invertido | UPSERT em `granite_rates`; o gatilho `guard_tariff_active_change` recusa a troca de `active` por quem não é Administrativo (migration `091`; ADR 0073) | Invalida `['granite-rates']` | Erro mostra toast | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), `supabase/migrations/091_tarifa_usada_so_se_desativa.sql` |
+| `/granito/taxas` · excluir | Administrativo; motivo obrigatório na confirmação | `handleDelete` | `deleteGraniteRate` → `deleteOneById` | RPC `delete_catalog_row` (migration `096`), com o motivo no Histórico; DELETE direto pela API não existe mais; tarifa já usada em `granite_bl_charges` é recusada ("desative em vez de excluir", `guard_used_tariff_delete`, migration `091`) | Invalida `['granite-rates']` | Não-Administrativo, motivo ausente ou tarifa usada são recusados; erro mostra toast | **Código:** [`GraniteRates.tsx`](../../src/pages/GraniteRates.tsx), [`graniteCharges.ts`](../../src/services/graniteCharges.ts), `supabase/migrations/096_motivo_na_exclusao_de_cadastros.sql` |
 | `/taxas-locais` · consultar histórico financeiro | Invoice histórica vinculada a Granito | `InvoicesTable` → `InvoiceDetailModal` | Leitura das superfícies genéricas de invoices | Sem nova promoção de B/L ou emissão de Granito | Mantém o histórico consultável | Regras de cancelamento seguem o documento histórico e suas permissões | **Código:** [`InvoiceDetailModal.tsx`](../../src/components/billing/InvoiceDetailModal.tsx), [`billing.ts`](../../src/services/billing.ts) |
 
 ## Estado e dados
@@ -127,8 +136,9 @@ altera.
   Não possui FK ou identidade compartilhada com `bls`.
 - **`granite_rates`:** regras ativas por tipo de cobrança, moeda e vigência.
 - **`granite_bl_charges`:** snapshot recalculável. Copia descrição,
-  `charge_type`, `unit_value`, quantidade, subtotal e moeda; alterar/excluir a
-  rate não reprecifica automaticamente snapshots existentes.
+  `charge_type`, `unit_value`, quantidade, subtotal e moeda; alterar ou
+  desativar a tarifa não reprecifica automaticamente snapshots existentes, e a
+  tarifa usada por um snapshot não pode ser excluída (migration `091`).
 - **`invoice_granite_bls`:** vínculo invoice ↔ `granite_bls`, com subtotal por
   B/L. O trigger
   `prevent_duplicate_active_invoice_granite_bl_link` impede duas invoices
@@ -169,12 +179,24 @@ flowchart LR
     Quantities --> History["vínculos financeiros históricos<br/>somente leitura"]
 ```
 
-- O parser considera a primeira aba e exige B/L e peso real positivo. B/L
-  duplicado na mesma planilha é rejeitado; o banco reforça unicidade por
+- O parser lê a primeira aba visível pelo leitor comum (`readSheet`): linhas e
+  abas ocultas são ignoradas com aviso, e um B/L que só está nelas conta como
+  fora do arquivo na confirmação de saída. Exige B/L e peso real positivo; B/L
+  duplicado na mesma planilha é rejeitado, e o banco reforça unicidade por
   `(manifest_id, bl_number)`.
-- Reimportar a planilha da mesma Viagem não duplica B/Ls: atualiza pelo número,
-  preservando CE e Cliente (ADR 0078, item 25; migration `186`). O CE de Granito
-  continua sem cálculo automático: o cálculo é feito pela Validação.
+- **Reimportação e manifesto novo** (ADR 0078, item 25; ADR 0079, decisão 7;
+  migrations `186`, `192`, `196`, `198` e `206`). Planilha sem nenhum B/L em
+  comum com os já gravados na Viagem é outro manifesto: duas planilhas COSCO
+  legítimas convivem, e nada é perguntado sobre os outros manifestos. Com B/L
+  em comum, a planilha reimporta só os manifestos que ela toca: atualiza os
+  B/Ls pelo número, preservando CE, Cliente e status de cobrança, inclui os
+  novos no mais recente desses manifestos e só tira os B/Ls ausentes do arquivo
+  (em linha nenhuma, nem nas com erro) depois de confirmação, com Histórico; o
+  B/L ausente com Invoice nunca sai. Os totais de todos os manifestos da Viagem
+  são refeitos a partir dos B/Ls (`196`), e a sugestão de Cliente por nome
+  entra na detecção de mudança (`198`).
+- O CE de Granito não calcula nem emite: o cálculo do Granito é feito pela
+  Validação.
 - Pendência de cliente pode ser persistida e permanece visível para
   reconciliação; ela não abre uma etapa financeira de Granito.
 - O cálculo substitui o snapshot anterior somente depois de validar as tarifas:
