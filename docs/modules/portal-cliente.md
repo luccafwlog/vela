@@ -234,7 +234,7 @@ Uma tentativa com status `aceito` mas sem esse identificador aparece como
 do provedor, e não prova que a mensagem saiu. Sem `RESEND_API_KEY`, a tentativa
 fica como falha permanente e o convite não é apresentado como enviado. A
 confirmação na interface significa que o provedor aceitou a mensagem; a entrega
-à caixa do destinatário depende dos eventos posteriores do Resend.
+à caixa do destinatário depende dos eventos posteriores do provedor de e-mail.
 
 `portal_repair_missing_accounts()` (migration arquivada `198`; definição vigente
 no dump `002`) é uma função interna: cria apenas a linha inicial da fila para
@@ -353,10 +353,11 @@ lê a migration arquivada `325`.
 
 `_shared/portalEmail.ts` registra cada tentativa por chave idempotente, não
 envia para endereços suprimidos e repete somente respostas transitórias do
-Resend (máximo de três tentativas). A chave enviada à Resend é a chave local
-seguida de um hash do conteúdo: a Resend guarda chaves por 24h e recusa com 409
-a mesma chave com outro conteúdo, o que acontecia quando ids sequenciais se
-repetiam após um reset do banco. A falha grava o motivo da Resend em
+provedor (máximo de três tentativas). A chave enviada ao provedor é a chave
+local seguida de um hash do conteúdo: a API (MillionSend, compatível com a
+Resend) guarda chaves por 24h e recusa com 409 a mesma chave com outro
+conteúdo, o que acontecia quando ids sequenciais se repetiam após um reset do
+banco. A falha grava o motivo do provedor em
 `last_error` (ex.: `HTTP 409 invalid_idempotent_request`).
 `portal-email-webhook` valida assinatura Svix, janela de cinco minutos e
 deduplicação por evento: grava o evento numa inbox durável
@@ -367,10 +368,10 @@ histórico já foi atualizado: `portal-email-events-runner` (job a cada minuto,
 migration `107`) aplica os eventos às tentativas. `portal-daily-digest`
 consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e
-`RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave de Resend
+`RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave do provedor
 a tentativa é gravada como `falha_permanente` e nenhum email é enviado.
 Remetente, endereço de resposta e domínio verificado estão em
-[serviços externos](../operations/servicos-externos.md#resend-envio).
+[serviços externos](../operations/servicos-externos.md#millionsend-envio).
 
 Conteúdo das mensagens (`supabase/functions/_shared/portalEmailTemplates.ts`):
 cada uma tem versão HTML e texto puro equivalente, com a marca Fwlog, e

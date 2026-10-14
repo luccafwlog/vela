@@ -69,7 +69,7 @@ do manual de serviços externos. Para o Portal funcionar, o mínimo é
 `PORTAL_LOGIN_DUMMY_AUTH_USER_ID` (UUID de uma identidade técnica confirmada,
 sem vínculo em `customer_portal_accounts`, que equaliza o custo do login com
 CNPJ inexistente), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e `RESEND_API_KEY`;
-o Resend envia convites, recuperação de senha, resumo diário, Comunicados e
+a MillionSend envia convites, recuperação de senha, resumo diário, Comunicados e
 Cobrança de Demurrage.
 
 ## 6. Rodar

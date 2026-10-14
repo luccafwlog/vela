@@ -47,7 +47,7 @@ O frontend é composto por duas SPAs React/TypeScript carregadas sob demanda a p
 - **Frontend:** React 19, TypeScript, Vite, React Router, TanStack Query, Tailwind CSS e Zod.
 - **Dados e segurança:** PostgreSQL no Supabase, RLS, grants e RPCs auditadas. A autorização real está no banco; proteção de rota e visibilidade de controles são apenas UX.
 - **Sessões:** aplicação interna e Portal usam clientes Supabase separados, podendo coexistir no mesmo navegador.
-- **Integrações:** Resend para email transacional do Portal e Comunicados ao Cliente, Banco Central para PTAX e Sentry para observabilidade.
+- **Integrações:** MillionSend (API compatível com a Resend) para email transacional do Portal e Comunicados ao Cliente, Banco Central para PTAX e Sentry para observabilidade.
 - **PIX:** cobrança dinâmica pela API Pix do Itaú (provedor `itau`, ativo em produção desde 2026-10-07), com baixa automática por consulta a cada minuto; BR Code estático e conciliação por extrato seguem disponíveis. Operação em `docs/operations/servicos-externos.md`.
 - **Entrega:** GitHub Actions valida pull requests e publica previews e produção no Cloudflare Pages. Migrations e Edge Functions têm ciclo de deploy próprio no Supabase.
 

@@ -19,7 +19,7 @@ flowchart LR
     C["Cliente<br/>portalfwlog.com.br"] --> DNS
     DNS --> HOST["Cloudflare Pages"]
     HOST --> SB["Supabase<br/>banco · Auth · Edge Functions · cron"]
-    SB --> RS["Resend<br/>envio de e-mail"]
+    SB --> RS["MillionSend<br/>envio de e-mail"]
     SB --> UP["Upstash<br/>trava de tentativas"]
     SB --> BS["Better Stack<br/>heartbeats"]
     SB --> SE["Sentry<br/>erros"]
@@ -39,7 +39,7 @@ flowchart LR
 | Cloudflare | `luccafwlog@gmail.com`; conta `b9f47a26b8f708444419dac863a54cd4`; time Zero Trust `icy-term-9505` | Free / Zero Trust Free |
 | Vercel (rollback manual) | time `luccafwlogs-projects`; projetos `vela` e `fwlog-portal`, Git desconectado | Hobby |
 | Registro.br | titular dos domínios `vela.app.br`, `portalfwlog.com.br`, `transhippingdesk.com.br` | — |
-| Resend | conta que envia por `transhippingdesk.com.br` e `portalfwlog.com.br` | — |
+| MillionSend | conta `FWLOG` que envia por `portalfwlog.com.br` (Resend: conta anterior, sem uso desde 2026-10-14) | — |
 | ImprovMX | domínios `transhippingdesk.com.br` e `portalfwlog.com.br` | — |
 | Upstash | database `vela-rate-limit` (`sa-east-1`) | — |
 | Sentry | organização com projetos `vela` e `portal` | — |
@@ -97,8 +97,9 @@ próprio Registro.br.
 | `portalfwlog.com.br` | `CNAME @` | `vela-portal.pages.dev` (nuvem laranja) | site no Cloudflare Pages |
 | | `MX @` | `mx1.improvmx.com` (10), `mx2.improvmx.com` (20) | receber e-mail (ImprovMX) |
 | | `TXT @` | `v=spf1 include:spf.improvmx.com ~all` | SPF do domínio raiz |
-| | `TXT resend._domainkey` | chave pública DKIM mostrada pelo Resend | assinatura do envio |
-| | `CNAME send`, `CNAME rsend` | alvos `*.forge.rmta.net` mostrados pelo Resend (nuvem cinza) | SPF/retorno do envio (Resend) |
+| | `TXT millionsend._domainkey` | chave pública DKIM mostrada pela MillionSend | assinatura do envio |
+| | `MX send` (10), `TXT send` | `feedback-smtp.sa-east-1.amazonses.com` e `v=spf1 include:amazonses.com ~all` | SPF/retorno do envio (MillionSend) |
+| | `TXT resend._domainkey`, `CNAME rsend` | sobras da Resend, sem uso | apagar quando a Resend for encerrada |
 | | `TXT _dmarc` | `v=DMARC1; p=none; rua=mailto:suporte@portalfwlog.com.br; fo=1` | política e relatórios DMARC |
 | | `A www` | `192.0.2.1` (nuvem laranja) | endereço fictício; só existe para a Redirect Rule do `www` |
 
@@ -114,7 +115,7 @@ Regras:
 
 - O `CNAME @` de cada domínio é criado e mantido pelo **Custom domain** do
   projeto Pages. Não o edite à mão; para trocar, remova o domínio no projeto.
-- Registros do Resend ficam **DNS only** (nuvem cinza). O `CNAME @` do Pages e o
+- Registros de e-mail (MillionSend e sobras da Resend) ficam **DNS only** (nuvem cinza). O `CNAME @` do Pages e o
   `A www` ficam com proxy.
 - **Volta para a Vercel:** apague o `CNAME @` e crie
   `A @ 216.198.79.1` com nuvem **cinza** (proxy na frente da Vercel quebra o
@@ -282,7 +283,7 @@ está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 |---|---|---|
 | Plataforma (automáticos) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS`, `SUPABASE_PUBLISHABLE_KEYS`, `SUPABASE_SECRET_KEYS` | Supabase |
 | Portal | `PORTAL_URL`, `PORTAL_TECH_EMAIL_DOMAIN`, `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, `PORTAL_PASSWORD_PEPPER` | — |
-| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (opcional), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | Resend |
+| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (opcional), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | MillionSend (API compatível com a Resend) |
 | Anti-robô | `TURNSTILE_SECRET_KEY` (e opcional `TURNSTILE_ALLOWED_HOSTNAMES`) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `ITAU_PIX_ADMIN_SECRET` (par com o Vault quando o job está habilitado; lista do cofre em [segredos-cron.md](segredos-cron.md)) | — |
@@ -332,7 +333,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
-| `portal-email-events-runner` | a cada minuto | processa eventos da Resend (entrega, bounce, reclamação), suprime endereços e abre Alertas | — |
+| `portal-email-events-runner` | a cada minuto | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas | — |
 | `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente (respeita a chave global) | — |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
@@ -461,10 +462,13 @@ Rotação de segredo de job: sempre o **par** Edge Function Secret + Vault
 
 ## E-mail
 
-### Resend (envio)
+### MillionSend (envio)
 
 Envia convites, recuperação de senha, digest diário, Comunicados e cobrança de
-Demurrage, sempre pelas Edge Functions (o navegador nunca chama o Resend).
+Demurrage, sempre pelas Edge Functions (o navegador nunca chama o provedor).
+Substituiu a Resend em 2026-10-14; a MillionSend aceita as mesmas chamadas da
+API da Resend, por isso o código e os nomes dos secrets (`RESEND_*`) seguiram os
+mesmos.
 
 | Uso | Remetente | Resposta vai para |
 |---|---|---|
@@ -472,49 +476,39 @@ Demurrage, sempre pelas Edge Functions (o navegador nunca chama o Resend).
 | Comunicados | `PORTAL_FROM_EMAIL` | `COMMUNICATIONS_REPLY_TO` = `importacao@fwlog.com.br` |
 | Cobrança de Demurrage (régua automática) | `PORTAL_FROM_EMAIL` | `DEMURRAGE_REPLY_TO` = `eqp@fwlog.com.br` |
 
-- **Domínios:** `portalfwlog.com.br` (**Verified**, região São Paulo; é o
-  remetente desde 2026-09-24) e `transhippingdesk.com.br` (verificado, legado;
-  serve de reserva se o envio pelo domínio novo falhar).
+- **Conta:** organização `FWLOG` em `app.millionsend.com` (nuvem).
+- **Domínio:** `portalfwlog.com.br` (**Verificado**, região São Paulo,
+  `sa-east-1`). `transhippingdesk.com.br` não foi cadastrado: não há domínio de
+  reserva no provedor atual. Não troque o remetente para um domínio que não
+  esteja verificado na MillionSend: os e-mails param de sair.
 - **Secrets atuais:** `PORTAL_FROM_EMAIL` = `Portal Fwlog <no-reply@portalfwlog.com.br>`;
-  `PORTAL_REPLY_TO` e `PORTAL_SUPPORT_EMAIL` = `suporte@portalfwlog.com.br`.
-  Conferido em 2026-09-24 por "Esqueci minha senha" no Portal: o e-mail saiu
-  com esse remetente e esse endereço de resposta; um convite real do Portal chegou
-  na caixa de entrada, fora do spam. Não troque o remetente para
-  um domínio que não esteja **Verified** no Resend: os e-mails param de sair.
-- **Webhook:** o Resend avisa entregas, bounces e reclamações em
-  `portal-email-webhook`, assinado com `RESEND_WEBHOOK_SECRET`. Bounces e
-  reclamações alimentam as listas de supressão.
-- **Receiving** do Resend fica **desligado**: o recebimento é do ImprovMX.
-- **Chave de API:** uma só, `vela-supabase` (**Sending access**, restrita a
-  `portalfwlog.com.br`), guardada apenas no secret `RESEND_API_KEY` do Supabase.
-  Criada em 2026-09-25 no lugar de `transhippingdesk-portal` (Full access) e da
-  `Vercel Integration` (sem uso), ambas apagadas. Nada mais usa o Resend: o GitHub
-  não tem secret dele e o **Custom SMTP** do Auth do Supabase está desligado (os
-  e-mails de login do Auth saem pelo serviço do próprio Supabase). Para trocar a
-  chave: crie a nova, troque o secret, teste com "Esqueci minha senha" no Portal
-  e só então apague a antiga.
-- **Endereço da API:** o secret opcional `RESEND_BASE_URL` define a origem da
-  API de envio (`supabase/functions/_shared/email.ts`); sem ele, o envio vai para
-  `https://api.resend.com`. Hoje ele não está cadastrado.
-- **Troca para a MillionSend (em preparação desde 2026-10-14):** a MillionSend
-  aceita as mesmas chamadas da Resend, então a troca não muda código. A conta é
-  montada à mão, sem a ferramenta de migração e sem chave Full access:
-  1. Em **Domains** da MillionSend, cadastrar `portalfwlog.com.br` e
-     `transhippingdesk.com.br` e criar na Cloudflare os registros que ela mostrar
-     (DNS only), sem apagar os da Resend. A MillionSend usa DKIM próprio.
-  2. Em **Webhooks**, apontar para o mesmo endereço de `portal-email-webhook`
-     cadastrado na Resend, só com `email.delivered`, `email.bounced` e
-     `email.complained`. O segredo de assinatura gerado lá substitui
-     `RESEND_WEBHOOK_SECRET` na virada.
-  3. Criar uma chave **Sending access** restrita a `portalfwlog.com.br`.
-  4. Com os dois domínios **Verified**, trocar no Supabase `RESEND_API_KEY`
-     (chave `ms_…`) e `RESEND_WEBHOOK_SECRET`, cadastrar
-     `RESEND_BASE_URL` = `https://api.millionsend.com` e testar com "Esqueci
-     minha senha" no Portal: a mensagem deve chegar, aparecer como
-     **Delivered** na MillionSend e gerar evento em `portal_email_events`.
-  5. Para voltar: restaurar a chave e o segredo da Resend e apagar
-     `RESEND_BASE_URL`. A conta Resend fica intacta até a troca estar firme;
-     ao concluir, atualizar esta seção.
+  `PORTAL_REPLY_TO` e `PORTAL_SUPPORT_EMAIL` = `suporte@portalfwlog.com.br`;
+  `RESEND_BASE_URL` = `https://api.millionsend.com`. Sem `RESEND_BASE_URL`, o
+  código (`supabase/functions/_shared/email.ts`) volta a chamar
+  `https://api.resend.com`.
+- **Chave de API:** uma só, `vela-supabase` (**Apenas envio**), guardada apenas
+  no secret `RESEND_API_KEY` do Supabase. Nada mais usa a chave: o GitHub não tem
+  secret dela e o **Custom SMTP** do Auth do Supabase está desligado (os e-mails
+  de login do Auth saem pelo serviço do próprio Supabase). Para trocar a chave:
+  crie a nova, troque o secret, teste com "Esqueci minha senha" no Portal e só
+  então apague a antiga.
+- **Webhook:** a MillionSend avisa entregas, bounces e reclamações em
+  `portal-email-webhook` (eventos **E-mail entregue**, **E-mail devolvido** e
+  **Marcado como spam**), assinado com o segredo guardado em
+  `RESEND_WEBHOOK_SECRET`. Bounces e reclamações alimentam as listas de
+  supressão. Outros eventos não devem ser marcados: o webhook grava qualquer
+  evento recebido na fila de processamento.
+- **Recebimento** e **Caixas de entrada** da MillionSend não são usados: o
+  recebimento é do ImprovMX.
+- **Virada conferida em 2026-10-14:** "Esqueci minha senha" no Portal chegou,
+  apareceu como entregue na MillionSend e o webhook marcou 100% de sucesso.
+- **Volta para a Resend (enquanto a conta existir):** restaurar no Supabase os
+  valores anteriores de `RESEND_API_KEY` e `RESEND_WEBHOOK_SECRET`, apagar
+  `RESEND_BASE_URL` e recriar na Cloudflare o `CNAME send` da Resend (o nome
+  `send` hoje é da MillionSend).
+- **Resend (anterior):** conta mantida sem uso até a troca estar firme; então
+  apagar a chave `vela-supabase` e o webhook na Resend e os registros `rsend` e
+  `resend._domainkey` na Cloudflare, e atualizar esta seção.
 - **Microsoft 365 da Fwlog (`fwlog.com.br`):** em 2026-09-28, o responsável
   confirmou que o problema de entrega de e-mails do Portal foi solucionado. O
   histórico anterior de mensagens marcadas **Delivered** no Resend sem entrega
@@ -750,11 +744,11 @@ externa automática. Exportar registra o envio no Vela; a conciliação importa 
 "Exportar Tela" da ZPT.
 
 A função `ce-unlock-notify-email` envia a fila de avisos ao cliente (recusa de documento e
-documentação validada) pela Resend, para a caixa Documentação e Operação. Usa o mesmo
+documentação validada) pela MillionSend, para a caixa Documentação e Operação. Usa o mesmo
 segredo `CE_UNLOCK_CLEANUP_SECRET` e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`;
 Antes de enviar, reavalia a conclusão das solicitações abertas (`ce_unlock_refresh_open`);
 sem a chave ou o remetente responde 503 e deixa a fila intacta. Cada envio registra tentativa
-em `portal_email_attempts` (kind `ce_unlock_notificacao`), associada pelo webhook da Resend. Respeita a chave global
+em `portal_email_attempts` (kind `ce_unlock_notificacao`), associada pelo webhook de e-mail. Respeita a chave global
 de Comunicados (desligada: descarta com motivo), supressão e bounce. Job `ce-unlock-notify-email`
 agendado em produção em 2026-10-07 (`*/5 * * * *`, jobid 23); `CE_UNLOCK_CLEANUP_SECRET` está no
 cofre (`vault.secrets`) e nas secrets das Edge Functions. Ver [segredos e cron](segredos-cron.md).

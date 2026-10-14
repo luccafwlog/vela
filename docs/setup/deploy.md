@@ -60,7 +60,7 @@ A publicação do frontend não publica Edge Functions; quem as publica é a Sup
 
 Migrations devem ser aplicadas em ordem e antes do código que dependa delas. O CI faz replay em PostgreSQL descartável; a integração do Supabase aplica as migrations na branch de Preview vinculada à PR, quando ela existe, e o deploy de produção segue a integração configurada para `main`. Migrations aplicadas não devem ser reescritas: reconcilie divergências em migration nova. Consulte também o procedimento de [squash e deploy](../operations/squash-schema-v1-deploy.md).
 
-O deploy não envia e-mails diretamente: Resend e demais provedores são chamados pelas Edge Functions. `portal-login` exige `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`; jobs de Comunicados e Demurrage usam os secrets e valores do Vault descritos no [manual de serviços externos](../operations/servicos-externos.md).
+O deploy não envia e-mails diretamente: o provedor de e-mail (MillionSend) e demais provedores são chamados pelas Edge Functions. `portal-login` exige `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`; jobs de Comunicados e Demurrage usam os secrets e valores do Vault descritos no [manual de serviços externos](../operations/servicos-externos.md).
 
 ## Volta operacional
 
