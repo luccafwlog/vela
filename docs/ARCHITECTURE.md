@@ -72,8 +72,9 @@ O Cloudflare Pages hospeda as duas aplicações estáticas produzidas pelo mesmo
 build Vite ([ADR 0076](adr/0076-cloudflare-pages-como-hosting.md)):
 `vela-internal` publica `index.html` em `https://vela.app.br`, e `vela-portal`
 publica `portal.html` em `https://portalfwlog.com.br`. O GitHub Actions publica
-`main` nos dois sites, com as credenciais de produção, e as previews de cada PR,
-com as credenciais da branch Supabase de Preview. A Pages Function
+`main` nos dois sites a cada push nessa branch, com as credenciais de produção.
+A preview de uma PR só sai quando alguém coloca a etiqueta `preview` ou dispara
+o workflow a partir de `main`, com as credenciais da branch Supabase de Preview. A Pages Function
 `functions/assets/[[path]].ts` responde `404` sem cache a asset inexistente. A
 Vercel ficou só como rollback manual, sem publicação automática, e o Firebase
 não faz mais parte da arquitetura. O Portal continua sendo Fwlog; Vela
@@ -81,7 +82,7 @@ identifica somente a superfície interna. Workflows, variáveis e headers estão
 em [Deploy](setup/deploy.md); projetos e contas, em
 [Serviços externos § Hospedagem do front-end](operations/servicos-externos.md#hospedagem-do-front-end).
 
-Depois de um CI verde, o workflow confiável
+No mesmo pedido de preview, o workflow confiável
 `.github/workflows/provision-preview-admin.yml` aguarda o check da branch
 Supabase e provisiona `qa-admin@example.test` pela Auth Admin API da própria
 Preview, com perfil interno `administrativo`. A senha existe somente como secret do

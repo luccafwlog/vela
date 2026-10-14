@@ -44,6 +44,7 @@ try {
     .replace(/from '([a-z][^'./]*)'/g, (_match, name) => `from '${import.meta.resolve(name)}'`)
   write('scripts/lib/docs-anchors.mjs', anchorsHelper)
   write('AGENTS.md', '# Agent rules\n')
+  write('CLAUDE.md', '@AGENTS.md\n')
   write('docs/README.md', '# Docs\n')
   write('docs/adr/0001-example.md', '# Decision\n\nStatus: aceito — 2026-01-01\n')
   write('docs/adr/README.md', adrIndexWith('aceito'))
@@ -111,8 +112,10 @@ try {
   assert.match(run().stderr, /AGENTS.md: required/)
   write('AGENTS.md', '# Agent rules\n')
   write('CLAUDE.md', '# Legacy\n')
-  assert.match(run().stderr, /legacy root file still exists/)
+  assert.match(run().stderr, /must import @AGENTS.md/)
   fs.unlinkSync(path.join(fixture, 'CLAUDE.md'))
+  assert.match(run().stderr, /local gate entry is missing/)
+  write('CLAUDE.md', '@AGENTS.md\n')
   write('src/AppInterno.tsx', '<Routes><Route path={DYNAMIC_ROUTE} /></Routes>')
   const dynamic = run()
   assert.notEqual(dynamic.status, 0)
@@ -120,7 +123,7 @@ try {
   assert.doesNotMatch(dynamic.stderr, /at checkDocs|file:\/\//)
   write('src/AppInterno.tsx', '<Routes><Route index /><Route path="/inspect/:id/*"><Route path="billing" /></Route></Routes>')
   assert.equal(run().status, 0)
-  console.log('check-docs: positive fixture and twenty rejection scenarios passed.')
+  console.log('check-docs: positive fixture and twenty-one rejection scenarios passed.')
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true })
 }

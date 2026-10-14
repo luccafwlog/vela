@@ -1,5 +1,7 @@
 # 0084 — Registro de decisões já em produção: Itaú Pix, branching manual e environments de Preview
 
+> **Situação atual (2026-10-14).** Os três itens continuam. No item 3, o código que usa segredo segue vindo da branch padrão, com checkout dela. O gatilho da Preview e do admin de teste deixou de ser `workflow_run` depois do CI: é a etiqueta `preview` (`pull_request_target`) ou `workflow_dispatch` em `main`. A produção publica no push em `main`, sem repetir o CI. Procedimento em [WORKFLOW.md](../../WORKFLOW.md#12-ci-e-deploy).
+
 Status: aceito — 2026-10-14 (registro pedido pelo dono, item C1 da
 [revisão geral](../archive/plans/2026-10-13-revisao-geral-documentacao.md)).
 Implementado: as três decisões já estavam em produção quando foram registradas.

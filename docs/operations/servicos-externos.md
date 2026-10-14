@@ -142,12 +142,15 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
 - **Upload direto**, sem integração Git. Não configure build pelo painel: o
   `npm run build` com `dist` publicaria o app interno no lugar do Portal.
 - **Produção:** `.github/workflows/cloudflare-pages-production.yml`, a cada
-  merge no `main`, ligado pela variável `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`.
+  push no `main`, ligado pela variável `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`.
+  O CI não roda de novo nesse push.
 - **Previews:** `.github/workflows/cloudflare-pages-preview.yml` publica
   `pr-<n>.vela-internal.pages.dev` e `pr-<n>.vela-portal.pages.dev` contra o banco
-  da branch de preview do Supabase; `cloudflare-pages-preview-cleanup.yml` apaga,
-  ao fechar a PR, os deployments antigos de `pr-<n>`, e o mais recente continua
-  no alias da PR, atrás do Access ([deploy.md](../setup/deploy.md#workflows)).
+  da branch de preview do Supabase quando a PR recebe a etiqueta `preview` ou
+  alguém dispara o workflow a partir de `main`. Não publica a cada push.
+  `cloudflare-pages-preview-cleanup.yml` apaga, ao fechar a PR, os deployments
+  antigos de `pr-<n>`, e o mais recente continua no alias da PR, atrás do
+  Access ([deploy.md](../setup/deploy.md#workflows)).
   Só publica com `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`.
 - **Cabeçalhos de segurança (CSP):** gerados por
   `scripts/cloudflare-pages-stage.mjs`; mudam junto com os workflows e o staging do Pages
@@ -658,8 +661,11 @@ para eles vale o backup do próprio Supabase.
 
 ## GitHub
 
-- **Workflows:** `ci.yml` (testes, build, migrations), `cloudflare-pages-*.yml`
-  (Pages), `provision-preview-admin.yml` (usuário admin na branch de preview).
+- **Workflows:** `ci.yml` (testes, build e migrations na PR, sem repetir no
+  merge), `cloudflare-pages-production.yml` (push em `main`),
+  `cloudflare-pages-preview.yml` e `provision-preview-admin.yml` (etiqueta
+  `preview` ou disparo manual), `cloudflare-pages-preview-cleanup.yml` (PR
+  fechada).
 - **Repository secrets:** só `SUPABASE_PROJECT_REF` (Preview),
   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Em 2026-10-08
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,

@@ -200,8 +200,8 @@ Markdown, índices obrigatórios, cobertura
 do índice de ADRs (cada ADR com número único e linha na tabela), concordância entre a linha
 `Status:` de cada ADR e o índice, faixa "Situação atual" logo abaixo do título nas ADRs estendidas ou supersedidas, documentos
 datados fora do arquivo histórico, formato dos módulos e presença das rotas
-extraídas dos dois roteadores na arquitetura e na rastreabilidade. Também rejeita `CLAUDE.md` na
-raiz e algumas afirmações obsoletas conhecidas.
+extraídas dos dois roteadores na arquitetura e na rastreabilidade. Também exige que
+`CLAUDE.md` na raiz importe `@AGENTS.md` e rejeita algumas afirmações obsoletas conhecidas.
 
 Ele não verifica URLs externas, caminhos apenas em crases, correção
 semântica, execução dos comandos, autorização real ou rollout remoto.

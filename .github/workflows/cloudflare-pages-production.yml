@@ -1,16 +1,15 @@
 name: Cloudflare Pages Production
 
-# Publica os dois sites no ambiente de produção do Cloudflare Pages depois que o
-# CI de um push em `main` termina verde. Fica desligado até a variável de
-# repositório CLOUDFLARE_PAGES_PRODUCTION_ENABLED ser `true` (roteiro
-# docs/archive/plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md,
+# Publica os dois sites no ambiente de produção do Cloudflare Pages a cada push
+# em `main` (o CI não roda de novo depois do merge). Fica desligado até a
+# variável de repositório CLOUDFLARE_PAGES_PRODUCTION_ENABLED ser `true`
+# (roteiro docs/archive/plans/2026-09-24-configuracao-servicos-e-migracao-cloudflare.md,
 # etapa 8).
 # Só roda código da própria `main`; nenhum código de PR chega a este workflow.
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -24,9 +23,7 @@ jobs:
   publish:
     if: >-
       vars.CLOUDFLARE_PAGES_PRODUCTION_ENABLED == 'true' &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.conclusion == 'success'))
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: cloudflare-production
     permissions:
@@ -35,7 +32,7 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Set up Node.js
@@ -69,13 +66,13 @@ jobs:
           VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
           VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
-          VITE_APP_COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          VITE_APP_COMMIT_SHA: ${{ github.sha }}
 
       - name: Publish Vela and Portal to production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           : "${CLOUDFLARE_API_TOKEN:?Configure o secret CLOUDFLARE_PAGES_API_TOKEN}"

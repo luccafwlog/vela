@@ -1,7 +1,8 @@
 # AGENTS.md
 
 Canonical instructions for work in Vela and Portal Fwlog. Keep shared agent
-rules here; do not recreate a root `CLAUDE.md`. Tool setup belongs in
+rules here. `CLAUDE.md` only adds the local gate that runs before commit and
+push, and it must import this file. Tool setup belongs in
 [WORKFLOW.md](WORKFLOW.md#claude-code-e-agentsmd).
 
 ## Start with the affected behavior

@@ -74,6 +74,23 @@ test('actions dos workflows com token fixadas por SHA', async () => {
   }
 })
 
+test('preview e produção não dependem de CI via workflow_run', async () => {
+  assert.match(workflow, /pull_request_target:/)
+  assert.match(workflow, /types: \[labeled\]/)
+  assert.match(workflow, /github\.event\.label\.name == 'preview'/)
+  assert.match(workflow, /workflow_dispatch:/)
+  assert.doesNotMatch(workflow, /workflow_run:/)
+  assert.match(jobBlock('prepare'), /github\.event\.repository\.default_branch/)
+  assert.match(jobBlock('build'), /needs\.prepare\.outputs\.pr_head_sha/)
+  const production = await readWorkflow('cloudflare-pages-production.yml')
+  const admin = await readWorkflow('provision-preview-admin.yml')
+  assert.match(production, /push:\n {4}branches:\n {6}- main/)
+  assert.doesNotMatch(production, /workflow_run:/)
+  assert.match(admin, /pull_request_target:/)
+  assert.match(admin, /github\.event\.label\.name == 'preview'/)
+  assert.doesNotMatch(admin, /workflow_run:/)
+})
+
 test('publish recusa Pages Functions vindas do build da PR', () => {
   const publish = jobBlock('publish')
   assert.match(publish, /_worker\.js/)
