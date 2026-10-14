@@ -410,13 +410,13 @@ Regra: [Taxas locais](modules/taxas-locais.md).
 
 | Contrato | Chamador | Definição vigente | Execução | Acesso conferido | Efeito e observação |
 |---|---|---|---|---|---|
-| `add_manual_bl_charge` | `charges/chargeOperationsService.ts` | `106` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Recusa B/L faturado. Ator = sessão para todos os perfis (`241`). |
+| `add_manual_bl_charge` | `charges/chargeOperationsService.ts` | `106`, `248` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Recusa B/L faturado. Ator = sessão para todos os perfis (`241`). |
 | `calculate_bl_local_charges` | `charges/chargeOperationsService.ts` | `106` | DEFINER · `authenticated`, `service_role` | usuário interno ativo; ator = sessão | Recusa recálculo de B/L faturado; a regra de cálculo é do módulo Taxas Locais. Ator = sessão para todos os perfis (`241`). |
 | `calculate_bl_local_charges_batch` | `charges/chargeOperationsService.ts` | `072` | DEFINER · `authenticated`, `service_role` | usuário interno ativo; ator = sessão | Até 100 B/Ls por chamada. |
 | `delete_manual_bl_charge` | `charges/chargeOperationsService.ts` | `088` | DEFINER · `authenticated` | Administrativo ativo | Só linha manual; recusa B/L faturado. |
 | `list_bl_local_charge_lines` | `charges/chargeOperationsService.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `list_manual_charge_items_for_bl` | `charges/chargeOperationsService.ts` | `091` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `quote_manual_invoice_charge` | `charges/chargeOperationsService.ts` | `123` | DEFINER · `authenticated` | usuário interno ativo | — |
+| `list_manual_charge_items_for_bl` | `charges/chargeOperationsService.ts` | `091`, `248` | DEFINER · `authenticated` | usuário interno ativo | Tabela ativa sem data e Condição pela Data de Referência do automático (`248`). |
+| `quote_manual_invoice_charge` | `charges/chargeOperationsService.ts` | `123`, `248` | DEFINER · `authenticated` | usuário interno ativo | Condição pela Data de Referência do automático (`248`). |
 | `update_manual_bl_charge` | `charges/chargeOperationsService.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | Só linha manual; recusa B/L faturado. |
 
 #### Faturamento, ledger e devoluções

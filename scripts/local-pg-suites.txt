@@ -92,3 +92,4 @@ src/integration/planoBExtratoPix.local-pg.test.ts
 src/integration/nobRegraUnica.local-pg.test.ts
 src/integration/comunicadosCaixasPorModelo.local-pg.test.ts
 src/integration/alertasDeContatoFecham.local-pg.test.ts
+src/integration/caminhoManualVigencia.local-pg.test.ts
