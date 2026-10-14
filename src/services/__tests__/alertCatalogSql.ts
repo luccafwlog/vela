@@ -16,6 +16,7 @@ export type SqlAlertCatalogEntry = {
 // Lista de migrations que semeiam o catálogo de alertas. Se novas migrations
 // adicionarem tipos de alertas no futuro, registre o arquivo aqui.
 const CATALOG_MIGRATIONS = [
+  '008_portal_contact_boxes.sql',
   '317_alerts_foundation_catalog.sql',
   '325_clientes_portal_disputes_alerts.sql',
   '372_comunicados_fundacao.sql',
@@ -52,7 +53,8 @@ const CATALOG_UPDATE_MIGRATIONS = [
 
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
 
-const ENTRY_PATTERN = /\(\s*'([a-z0-9_]+)',\s*'(critical|normal)',\s*'([a-z_]+)',\s*ARRAY\[([^\]]*)\],\s*'([^']+)'\s*\)/g
+// A coluna `active` opcional (`, true`) aparece nas linhas da migration 008.
+const ENTRY_PATTERN = /\(\s*'([a-z0-9_]+)',\s*'(critical|normal)',\s*'([a-z_]+)',\s*ARRAY\[([^\]]*)\],\s*'([^']+)'(?:,\s*true)?\s*\)/g
 const DEACTIVATION_PATTERN = /SET\s+active\s*=\s*false\s+WHERE\s+type\s+(?:IN\s*\(([^)]*)\)|=\s*('[a-z0-9_]+'))/i
 const AUDIENCE_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+audience_departments\s*=\s*ARRAY\[([^\]]*)\][^;]*?WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
 

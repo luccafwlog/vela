@@ -37,6 +37,8 @@ export type ActiveAlertType =
   | 'portal_abuso_login'
   | 'cliente_contato_bounced_sem_alternativa'
   | 'nob_sem_destinatario'
+  | 'caixa_sem_destinatario'
+  | 'cliente_sem_contato_principal'
   | 'comunicado_noa_pendente'
   | 'comunicado_nor_pendente'
   | 'comunicado_nob_pendente'
@@ -91,6 +93,8 @@ export const TYPE_LABELS: Record<string, string> = {
   comunicado_nor_pendente: 'Comunicado NOR pendente',
   comunicado_nob_pendente: 'Comunicado NOB pendente',
   nob_sem_destinatario: 'NOB sem destinatário',
+  caixa_sem_destinatario: 'Caixa de comunicação sem destinatário',
+  cliente_sem_contato_principal: 'Cliente sem contato principal',
   agency_report_department_pending: 'ADR — departamento pendente',
   agency_report_deadline_missed: 'ADR — prazo vencido',
   review_customer_unlinked: 'Revisão de B/L — cliente não vinculado',
@@ -150,6 +154,14 @@ export const FINANCIAL_ALERT_TYPES = [
 export type FinancialAlertType = typeof FINANCIAL_ALERT_TYPES[number]
 
 import { AGENCY_REPORT_DEPARTMENT_LABELS, agencyReportSectionLabel } from './agencyReportLabels'
+
+/** Alertas de contato do Cliente: o tratamento é na aba Cadastro e contatos. */
+const CUSTOMER_CONTACT_ALERT_TYPES: ReadonlySet<string> = new Set([
+  'cliente_contato_bounced_sem_alternativa',
+  'nob_sem_destinatario',
+  'caixa_sem_destinatario',
+  'cliente_sem_contato_principal',
+])
 
 function isTerminalCode(value: string | undefined): boolean {
   return Boolean(value && /^[A-Z0-9][A-Z0-9._-]*$/.test(value))
@@ -335,7 +347,7 @@ export function alertEntityLink(alert: {
   if (effectiveType === 'review_granite_customer_unlinked') {
     return '/granito'
   }
-  if ((effectiveType === 'cliente_contato_bounced_sem_alternativa' || effectiveType === 'nob_sem_destinatario') && alert.entity_type === 'customer') {
+  if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType) && alert.entity_type === 'customer') {
     const customerCnpj = alert.metadata?.customer_cnpj
     if (typeof customerCnpj === 'string' && customerCnpj.trim()) {
       return `/clientes/${encodeURIComponent(customerCnpj.trim())}?tab=cadastro`
@@ -401,7 +413,7 @@ export function alertEntityLinkLabel(alert: {
     || effectiveType === 'comunicado_nor_pendente'
     || effectiveType === 'comunicado_nob_pendente'
   ) return 'Abrir Comunicados'
-  if (effectiveType === 'cliente_contato_bounced_sem_alternativa' || effectiveType === 'nob_sem_destinatario') return 'Abrir Cliente'
+  if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType)) return 'Abrir Cliente'
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
     return 'Taxas Locais'
