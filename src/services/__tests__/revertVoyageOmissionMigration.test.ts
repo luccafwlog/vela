@@ -70,6 +70,8 @@ const rpcSignatures = [
 ]
 
 const cleanupSql = `
+  SET session_replication_role = replica;
+  DELETE FROM public.alert_item_events WHERE actor_id = '${adminId}';
   DELETE FROM public.portal_notifications WHERE bl_id = '${blId}';
   DELETE FROM public.audit_logs WHERE entity_id IN ('${voyageId}::BRVIX', '${voyageId}', '${blId}') OR changed_by = '${adminId}';
   DELETE FROM public.cod_adjustments WHERE bl_id = '${blId}';
@@ -87,6 +89,7 @@ const cleanupSql = `
   DELETE FROM auth.users WHERE id = '${adminId}';
   DELETE FROM public.depots WHERE id = '${depotId}';
   DELETE FROM public.ports WHERE id = ${portId};
+  SET session_replication_role = origin;
 `
 
 describe('contrato da reversão de omissão de escala', () => {
@@ -167,7 +170,7 @@ describeLocal('reversão de omissão em replay local do Postgres', () => {
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'task309-admin@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${adminId}', 'Task 309 Admin', 'admin', true);
+      VALUES ('${adminId}', 'Task 309 Admin', 'administrativo', true);
       INSERT INTO public.ports (id, name, locode, country)
       VALUES (${portId}, 'Porto Task 309', 'BRVIX', 'Brasil');
       INSERT INTO public.depots (id, code, name, active, tipo, port_id)
@@ -270,6 +273,20 @@ describeLocal('reversão de omissão em replay local do Postgres', () => {
         || ':' || md5(COALESCE((SELECT string_agg(format('%s|%s|%s|%s|%s|%s|%s', id, voyage_id, port, terminal, status, terminal_id, terminal_port_id), ',' ORDER BY id) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId}), ''));
     `)
     expect(invariantAfter).toBe(invariantBefore)
+
+    // A8 (ADR 0083, item 8; migration 255): a revertida fica no histórico e o POD pode ser omitido de novo;
+    // a unicidade vale só entre as não revertidas.
+    const again = callAsAuthenticated(
+      adminId,
+      `SELECT public.omit_voyage_escala(${voyageId}, 'BRVIX', 'BRSSA', 'nova omissao', '${adminId}')`,
+    )
+    expect(again.status, again.stderr).toBe(0)
+    expect(psql(`SELECT count(*) || ':' || count(*) FILTER (WHERE reverted_at IS NULL) FROM public.voyage_omissions WHERE voyage_id = ${voyageId} AND omitted_pod = 'BRVIX'`)).toBe('2:1')
+    const duplicateAgain = callAsAuthenticated(
+      adminId,
+      `SELECT public.omit_voyage_escala(${voyageId}, 'BRVIX', 'BRSSA', 'duplicata', '${adminId}')`,
+    )
+    expect(`${duplicateAgain.stdout}\n${duplicateAgain.stderr}`).toMatch(/ja foi omitida/i)
 
     expect(compact(getFunctionDefinition('public.revert_voyage_omission(bigint,text,uuid)')))
       .toMatch(/where o\.id = p_omission_id for update of o/)
