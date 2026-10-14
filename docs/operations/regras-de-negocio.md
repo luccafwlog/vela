@@ -58,7 +58,7 @@ Portal enquanto o Portal não fica pronto (ADR 0070; migrations `083` a `085`,
   recusa os demais papéis. O card "Liberação de faturamento sem Portal" fica na
   ficha do Cliente (aba Financeiro) e na revisão do Cliente no console
   `/clientes/portal` ([Portal do Cliente § Provisionamento e ativação do convite](../modules/portal-cliente.md#provisionamento-e-ativação-do-convite));
-  os outros Departamentos só consultam, e hoje Operações não vê o card no console (correção pendente A18 e P12 do plano).
+  os outros Departamentos só consultam, inclusive Operações no console (migration `250`).
   O Portal não enxerga a Liberação.
 - **Condições.** Justificativa (mínimo de 3 caracteres) e data de revisão
   futura de até 30 dias, contados em dias de Brasília; a tabela tem um teto de

@@ -151,14 +151,16 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
           endereco para onde a recuperacao seria enviada. Sem este aviso, o unico
           sinal era um alerta na fila, e a recuperacao respondia "enviamos" em
           silencio -- correto contra enumeracao, e mudo para o operador. */}
-      {!isOperations && hasBrokenRecoveryEmail(row) ? (
+      {hasBrokenRecoveryEmail(row) ? (
         <p className="mt-4 rounded-lg border border-red-400/40 bg-red-950/20 p-3 text-sm text-red-100">
           O Email de Recuperação deste Cliente {row.recoveryEmailSuppressed ? 'está na lista de bloqueio de envio' : 'apresentou falha permanente'}. A conta continua funcionando com a senha,
           mas a recuperação de senha não chega. Informe outro endereço ou libere o atual quando o Cliente confirmar que a caixa voltou.
         </p>
       ) : null}
 
-      {!isOperations ? <section className="mt-6 grid gap-3">
+      {/* Operações lê Email de Recuperação, origem, entrega e candidatos; as ações
+          de provisionamento seguem de quem provisiona (ADR 0045; migration 250). */}
+      <section className="mt-6 grid gap-3">
         <h3 className="font-semibold">Candidatos de email</h3>
         {row.candidates.length ? row.candidates.map((candidate) => (
           <button key={`${candidate.email}-${candidate.purpose}`} type="button" className="rounded-lg border border-[var(--app-border)] px-3 py-2 text-left hover:border-cyan-400" onClick={() => setEmail(candidate.email)}>
@@ -166,9 +168,15 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
             <div className="text-xs text-[var(--app-muted)]">{contactPurposeLabel(candidate.purpose)} · {candidate.origin}</div>
           </button>
         )) : <p className="text-sm text-[var(--app-muted)]">Nenhum contato com email disponível.</p>}
-      </section> : null}
+      </section>
 
-      {!isOperations && row.sharedEmailCount > 0 ? <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-950/20 p-3 text-sm text-amber-100">Este email também aparece em {row.sharedEmailCount} outro(s) CNPJ(s). A análise manual continua obrigatória.</p> : null}
+      {row.sharedEmailCount > 0 ? <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-950/20 p-3 text-sm text-amber-100">Este email também aparece em {row.sharedEmailCount} outro(s) CNPJ(s). A análise manual continua obrigatória.</p> : null}
+      {isOperations ? (
+        <p className="mt-5 text-sm">
+          <span className="font-semibold">Email de Recuperação:</span> {row.recovery_email ?? 'não informado'}
+          {row.recovery_email_source ? ` · ${row.recovery_email_source === 'candidato' ? 'escolhido entre os candidatos' : 'informado manualmente'}` : ''}
+        </p>
+      ) : null}
       {!isOperations ? <div className="mt-5 grid gap-3">
         <Field label="Email de Recuperação"><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></Field>
         {email && !hasValidRecoveryEmail ? <p className="text-xs text-red-200">Informe um email válido.</p> : null}
@@ -204,9 +212,9 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
         </div>
       </details> : null}
 
-      {!isOperations ? <section className="mt-6 border-t border-[var(--app-border)] pt-5">
+      <section className="mt-6 border-t border-[var(--app-border)] pt-5">
         <BillingPortalReleaseCard customerId={row.customer_id} portalReady={isPortalReadyForBilling(row)} variant="embedded" />
-      </section> : null}
+      </section>
 
       {canReadEvents ? <section className="mt-6 border-t border-[var(--app-border)] pt-5">
         <h3 className="font-semibold">Histórico</h3>

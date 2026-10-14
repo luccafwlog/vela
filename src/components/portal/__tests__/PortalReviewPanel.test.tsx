@@ -5,7 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import type { QueueRow } from '../../../services/portalProvisioning'
 
-vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true, can: () => true }) }))
+const authState = vi.hoisted(() => ({ role: 'administrativo' as string }))
+vi.mock('../../../hooks/useAuth', () => ({
+  useAuth: () => ({ isAdmin: authState.role === 'administrativo', can: () => authState.role !== 'operacoes', effectiveRole: authState.role }),
+}))
 vi.mock('../../../services/supabase', () => ({ supabase: { functions: { invoke: vi.fn() }, rpc: vi.fn() } }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
@@ -19,6 +22,19 @@ const row: QueueRow = {
 }
 
 describe('PortalReviewPanel', () => {
+  it('Operações lê Email de Recuperação, origem e candidatos, sem ações (ADR 0045; A18)', () => {
+    authState.role = 'operacoes'
+    try {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={{ ...row, account_situation: 'ativo', recovery_email: 'financeiro@example.com', recovery_email_source: 'candidato' }} /></MemoryRouter></QueryClientProvider>)
+      expect(screen.getByText(/financeiro@example\.com · escolhido entre os candidatos/)).toBeTruthy()
+      expect(screen.getByText('Candidatos de email')).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Trocar Email de Recuperação' })).toBeNull()
+    } finally {
+      authState.role = 'administrativo'
+    }
+  })
+
   it('mostra candidato e mantém convite desabilitado sem email selecionado', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={{ ...row, candidates: [] }} /></MemoryRouter></QueryClientProvider>)

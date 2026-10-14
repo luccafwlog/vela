@@ -138,11 +138,12 @@ vi.mock('../../hooks/useBls', () => ({
   useVoyageOptions: () => ({ data: [{ id: 1, voyage_number: '123', vessel: { name: 'COSCO SHIPPING XING WANG' } }] }),
 }))
 
+const authState = vi.hoisted(() => ({ canSend: true }))
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
-    effectiveRole: 'administrativo',
-    isAdmin: true,
-    can: () => true,
+    effectiveRole: authState.canSend ? 'administrativo' : 'financeiro',
+    isAdmin: authState.canSend,
+    can: () => authState.canSend,
   }),
 }))
 
@@ -190,6 +191,19 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     mockAppSettings = { communications_enabled: false }
     mockAppSettingsLoading = false
     mockAppSettingsError = null
+    authState.canSend = true
+  })
+
+  it('quem não envia consulta cobertura e histórico, sem a aba Disparo (ADR 0085, D19)', () => {
+    authState.canSend = false
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByRole('button', { name: /Disparo/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Histórico/ })).toBeTruthy()
+    expect(screen.getByText('Painel de cobertura')).toBeTruthy()
   })
 
   it('exibe o banner permanente de simulação quando communications_enabled é false', () => {

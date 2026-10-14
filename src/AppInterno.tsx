@@ -154,9 +154,7 @@ export default function AppInterno() {
             <Route path="/clientes" element={withSuspense(<Clientes />)} />
             <Route path="/clientes/informacoes" element={withSuspense(<ClientesInformacoes />)} />
             <Route path="/clientes/portal" element={withSuspense(<ClientesPortal />)} />
-            <Route element={<ProtectedRoute permission="customer_communications" />}>
-              <Route path="/clientes/comunicacao" element={withSuspense(<ClientesComunicacao />)} />
-            </Route>
+            <Route path="/clientes/comunicacao" element={withSuspense(<ClientesComunicacao />)} />
             <Route path="/clientes/:cnpj" element={withSuspense(<ClienteFicha />)} />
             <Route path="/taxas-locais/tabelas" element={withSuspense(<TaxasLocaisTabelas />)} />
             <Route path="/taxas-locais" element={<TaxasLocaisRoute />} />

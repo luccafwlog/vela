@@ -93,6 +93,8 @@ function cleanup() {
     DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${TABLE_ID} OR charge_item_id IN (${ITEM_THC}, ${ITEM_MANUAL});
     DELETE FROM public.charge_table_items WHERE charge_table_id = ${TABLE_ID};
     DELETE FROM public.charge_tables WHERE id = ${TABLE_ID};
+    DELETE FROM public.portal_provisioning_events WHERE customer_id = ${CUSTOMER_ID};
+    DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_contact_box_links WHERE contact_id IN (SELECT id FROM public.customer_contacts WHERE customer_id = ${CUSTOMER_ID});
     DELETE FROM public.customer_contact_change_events WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_contacts WHERE customer_id = ${CUSTOMER_ID};
@@ -198,6 +200,15 @@ function migration231Applied(): boolean {
   }
 }
 
+function migration250Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT position('equipamentos' IN prosrc) > 0 FROM pg_proc WHERE proname = 'actor' AND pronamespace = 'ce_unlock_private'::regnamespace;`) === 't'
+  } catch {
+    return false
+  }
+}
+
 function migration247Applied(): boolean {
   if (!enabled) return false
   try {
@@ -217,8 +228,8 @@ function migration246Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied(),
-  'migrations 231 a 247 (escrita só pelas RPCs, autor conferido, emissão e financeiro por perfil)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied(),
+  'migrations 231 a 250 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -503,6 +514,38 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     expect(psql(`SELECT string_agg(type, ',' ORDER BY type) FROM public.alert_type_catalog
       WHERE type IN ('pix_unreconciled', 'fatura_desatualizada', 'restituicao_pendente') AND 'financeiro' = ANY(audience_departments)
         AND 'administrativo' = ANY(audience_departments);`)).toBe('fatura_desatualizada,pix_unreconciled,restituicao_pendente')
+  })
+
+  // A18 + P12 — leitura global nas telas restantes (ADR 0085, D11, D12, D16, D17; migration 250).
+  it.each(ALL_PROFILES)('P12: %s lê o Desbloqueio de CE com os documentos, as Disputas e o histórico do Portal', (profile) => {
+    const reads = [
+      `SELECT public.ce_unlock_read('model', '{}'::jsonb)`,
+      `SELECT public.list_demurrage_disputes_internal(NULL)`,
+      `SELECT public.portal_list_provisioning_events(${CUSTOMER_ID}, 10)`,
+    ]
+    for (const call of reads) {
+      expect(runAs(profile, call).error, `${profile}: ${call}`).toBe('')
+    }
+    // O documento inexistente é recusado pelo documento, não pelo perfil.
+    const document = runAs(profile, `SELECT public.ce_unlock_document_access(gen_random_uuid())`)
+    expect(document.error).toMatch(/Documento não autorizado/)
+    expect(document.error).not.toMatch(/Acesso negado ao desbloqueio/)
+  })
+
+  it.each(ALL_PROFILES)('A18: o console do Portal mostra Email de Recuperação e origem a %s', (profile) => {
+    psql(`SET session_replication_role = replica;
+      INSERT INTO public.customer_portal_accounts (customer_id, recovery_email, recovery_email_source)
+      VALUES (${CUSTOMER_ID}, 'recuperacao-p85@example.test', 'informado_manualmente')
+      ON CONFLICT (customer_id) DO UPDATE SET recovery_email = EXCLUDED.recovery_email, recovery_email_source = EXCLUDED.recovery_email_source;
+      SET session_replication_role = origin;`)
+    const result = runAs(profile, `SELECT row->>'recovery_email' || ':' || (row->>'recovery_email_source') FROM public.portal_list_provisioning_console(${CUSTOMER_ID}) AS row`)
+    expect(result.error).toBe('')
+    expect(result.output).toBe('recuperacao-p85@example.test:informado_manualmente')
+  })
+
+  it('P12: gerir o Desbloqueio de CE e responder Disputas seguem restritos', () => {
+    expect(runAs('operacoes', `SELECT public.ce_unlock_read('exports', '{}'::jsonb)`).error).toMatch(/Acesso negado ao desbloqueio/)
+    expect(runAs('equipamentos', `SELECT public.ce_unlock_read('exports', '{}'::jsonb)`).error).toMatch(/Acesso negado ao desbloqueio/)
   })
 
   it('P11: sem usuário na sessão (job com service_role) o autor informado vale', () => {

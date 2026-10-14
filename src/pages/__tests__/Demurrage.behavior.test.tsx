@@ -523,10 +523,9 @@ describe('Demurrage page behaviours', () => {
     expect(document.getElementById('dispute-5')?.className).toContain('app-dem-dispute--focused')
   })
 
-  it('perfil sem a conversa de Disputas não vê a aba', () => {
+  it('qualquer Departamento abre a aba Disputas para ler (ADR 0085, D12)', () => {
     mocks.role = 'financeiro'
     renderPage(['/demurrage?tab=disputas'])
-    expect(screen.queryByRole('tab', { name: /Disputas/ })).toBeNull()
-    expect(screen.getByRole('tab', { name: 'Containers' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: /Disputas/ }).getAttribute('aria-selected')).toBe('true')
   })
 })

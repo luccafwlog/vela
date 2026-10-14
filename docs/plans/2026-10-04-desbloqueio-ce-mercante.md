@@ -411,7 +411,7 @@ aplicam matriz da spec tanto em UI quanto em servidor.
 - [x] Integrar cache financeiro/carga, refetch no foco e limpeza do cache privado no logout do Portal. **Código/Teste:** efeitos de cache e teste de atualização financeira CE.
 - [x] Disponibilizar testes de B/L sem pedido, dívida, ações restritas para Financeiro/Operações e remoção de seleção inelegível. **Teste:** página interna e componentes; passaram nos checks focados desta sessão.
 - [x] Integrar gestão na `main`; execução local original de navegação/gates registrada no relatório.
-- [ ] Completar matriz de filtros Sem solicitação, exclusão sem CE, paginação e pedidos mistos, incluindo projeção de anexos sensíveis por papel (pela ADR 0085, D16, os documentos ficam abertos a todo Departamento; a projeção por papel deixa de existir com o item P12 do plano de correções).
+- [ ] Completar matriz de filtros Sem solicitação, exclusão sem CE, paginação e pedidos mistos, incluindo projeção de anexos sensíveis por papel (pela ADR 0085, D16, os documentos ficam abertos a todo Departamento; a projeção por papel deixou de existir na migration `250`, salvo a referência externa da confirmação, que segue do desk).
 - [ ] Demonstrar aplicação anual e invalidação de ficha/fila/Portal entre CNPJs; validar atualização observável entre as duas SPAs, não apenas invalidação no mesmo cache.
 
 ## Tarefa 6 — Exportação ZPT e confirmação de desbloqueio

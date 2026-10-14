@@ -88,7 +88,7 @@ lente) e
 `?dispute=<id>` (abre a aba Disputas com a conversa em foco; é o destino do
 alerta "Disputa aberta no Portal"). As superfícies são `DemurrageContainersTab`,
 `DemurrageInvoicesTab`, `DemurrageCustomersTab` e `DemurrageDisputeConversation`
-(aba Disputas, hoje só para Equipamentos e Administrativo; leitura para todos pelo item P12 do plano); o detalhe da Invoice é
+(aba Disputas: leitura para todos; responder, reabrir e anexar, Equipamentos e Administrativo; migration `250`); o detalhe da Invoice é
 `DemurrageInvoiceDetailModal`, e cada ação aberta nele (pagamento, desconto,
 dados da disputa, documento, cancelar baixa) toma o lugar do diálogo e volta
 para ele ao terminar. O cabeçalho tem os botões **Tarifas e acordos** (leva a
@@ -166,7 +166,7 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   Invoice.
 - Os cartões do topo mostram **Containers em atraso** (contagem lida de
   `demurrage_status = 'overdue'`, gravado pelo banco), **Aguardando
-  pagamento (BRL hoje)** e, hoje só para Equipamentos e Administrativo (item P12 do plano),
+  pagamento (BRL hoje)** e, para Equipamentos e Administrativo, que respondem,
   **Disputas aguardando resposta**; nenhum cartão traz USD. O resumo da aba
   Containers traz, para a lista filtrada, containers, B/Ls e os totais em
   USD "correndo até hoje" e "a faturar (previsto)". **Código:**

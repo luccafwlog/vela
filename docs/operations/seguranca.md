@@ -180,7 +180,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Criar e editar taxa de Granito | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()` em `granite_rates` | ADR 0085, D6 | correção pendente na tela: botões só para o Administrativo (P9) |
 | Desativar, reativar e excluir tarifa de Demurrage e de Granito | ✔ | — | — | — | — | Gatilho da migration `091`; `delete_catalog_row` | ADR 0073, item 4 | vigente |
 | Responder, reabrir e anexar na Dispute | ✔ | — | — | — | ✔ | `add_demurrage_dispute_message`, `reopen_demurrage_dispute` (migration `081`); anexo e storage (migration `106`) | Migration `081` (decisão R13); ADR 0085 | vigente |
-| Ver a fila de Disputas e a conversa | ✔ | ✔ | ✔ | ✔ | ✔ | `list_demurrage_disputes_internal` (migration `081`); as tabelas `demurrage_disputes*` já têm leitura `is_active_user()` | ADR 0044; ADR 0085, D17 | correção pendente: a RPC e a aba recusam quem não é Equipamentos ou Administrativo (P12) |
+| Ver a fila de Disputas e a conversa | ✔ | ✔ | ✔ | ✔ | ✔ | `list_demurrage_disputes_internal` (migration `081`); as tabelas `demurrage_disputes*` já têm leitura `is_active_user()` | ADR 0044; ADR 0085, D17 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
 | Editar os dados da disputa (assunto, motivo, notas) e o vencimento | ✔ | ✔ | ✔ | ✔ | ✔ | Grant de coluna em `demurrage_invoices` (migration `012`, reduzido pelas `028` e `106`): `due_date`, `dispute_subject`, `dispute_reason`, `dispute_notes`, `notes` | ADR 0046 | vigente |
 | Mudar o intervalo da Régua de Cobrança | ✔ | — | — | — | — | `set_demurrage_dunning_interval_days` | Spec arquivada de 2026-08-27; ADR 0085 | vigente |
 
@@ -198,20 +198,20 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Criar e editar Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `create_customer_with_contacts`, `update_customer_with_audit` | ADR 0046 | vigente |
 | Desativar e reativar Cliente | ✔ | — | — | — | — | `deactivate_customer`, `reactivate_customer` (`is_admin`) e gatilho da migration `092` | ADR 0073, item 5 | vigente |
 | Editar contatos e Caixas de Comunicação | ✔ | — | — | ✔ | ✔ | `internal_save_customer_contact_configuration` (migration `008`), `internal_fill_empty_contact_boxes` | ADR 0060; ADR 0046, nota de 2026-09-18 | vigente: sem escrita direta em `customer_contacts` (migration `232`, **Teste** local) |
-| Consultar o histórico de Comunicados (`/clientes/comunicacao`) | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` de `customer_communications` e `customer_communication_bls`; a rota exige `customer_communications` (`src/AppInterno.tsx`) | ADR 0044; ADR 0085, D19 | correção pendente: a rota recusa o Financeiro e Operações (P12) |
+| Consultar o histórico de Comunicados (`/clientes/comunicacao`) | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` de `customer_communications` e `customer_communication_bls`; a rota abre a todos; o Disparo exige `customer_communications` (`src/AppInterno.tsx`) | ADR 0044; ADR 0085, D19 | vigente: a rota abre a todos e a aba Disparo fica com quem envia (**Teste:** `ClientesComunicacao.test.tsx`) |
 | Disparar Comunicado e salvar modelo | ✔ | — | — | ✔ | ✔ | Edge `send-customer-communication`; `save_customer_communication_saved_template` | ADR 0060 | vigente |
 | Ligar e desligar a chave global de envio | ✔ | — | — | — | — | `set_communications_enabled` | ADR 0059 | vigente |
 | Provisionar o Portal: convite, conta, Email de Recuperação, endereço bloqueado, reabrir análise | ✔ | — | — | ✔ | — | Edges `portal-invite-send` e `portal-account-suspend`; RPCs `portal_*` (migration `002`) | ADR 0046 | vigente |
 | Trocar o CNPJ do Portal | ✔ | — | — | — | — | `portal_admin_change_cnpj` | Plano arquivado de 2026-08-13; ADR 0085 | vigente |
 | Conceder e revogar a Liberação de faturamento sem Portal | ✔ | — | — | — | — | `grant_`/`revoke_customer_billing_portal_release` | ADR 0070 | vigente |
-| Ler o console de provisionamento completo e o Histórico | ✔ | ✔ | ✔ | ✔ | ✔ | `portal_list_provisioning_console`, `portal_list_provisioning_events` | ADR 0045; ADR 0083, item 18; ADR 0085, D12 | correção pendente: mascara campos e recusa o Histórico para Operações (A18 + P12) |
+| Ler o console de provisionamento completo e o Histórico | ✔ | ✔ | ✔ | ✔ | ✔ | `portal_list_provisioning_console`, `portal_list_provisioning_events` | ADR 0045; ADR 0083, item 18; ADR 0085, D12 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
 
 ### Desbloqueio de CE
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
-| Ver pedidos, situação e solicitações do Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_private.actor()` (migration `139`) | ADR 0085, D11 | correção pendente: Equipamentos recusado (P12) |
-| Abrir e baixar documentos do pedido (procuração, termo, anexos) | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_document_access` com `ce_unlock_private.actor(true)` (migration `143`); Edge `ce-unlock-document-download` | ADR 0085, D16 | correção pendente: só Administrativo e Documentação (P12) |
+| Ver pedidos, situação e solicitações do Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_private.actor()` (migration `139`) | ADR 0085, D11 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
+| Abrir e baixar documentos do pedido (procuração, termo, anexos) | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_document_access` com `ce_unlock_private.actor()` (migration `250`); Edge `ce-unlock-document-download` | ADR 0085, D16 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
 | Gerir pedidos, documentos, exportação para a ZPT e conciliação | ✔ | — | — | ✔ | — | `ce_unlock_private.actor(true)` | ADR 0085, D11 | vigente |
 
 ### Administrativo ativo mínimo

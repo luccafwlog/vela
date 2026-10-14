@@ -205,7 +205,10 @@ export function ClientesComunicacao() {
   // recebem o público imposto por `getCustomerCommunicationAudienceRule`.
   const [freeAudience, setFreeAudience] = useState<CustomerCommunicationAudience>({ mode: 'todos' })
   const { data: settings, isLoading: settingsLoading, error: settingsError, refetch: refetchSettings } = useAppSettings()
-  const { effectiveRole, isAdmin } = useAuth()
+  const { effectiveRole, isAdmin, can } = useAuth()
+  // Consultar cobertura e histórico é de todos; enviar é de Administrativo,
+  // Documentação e Equipamentos (ADR 0085, D19).
+  const canSend = can('customer_communications')
   const confirm = useConfirm()
   const canToggleCommunications = effectiveRole === 'administrativo' || isAdmin
   const setCommunicationsMutation = useSetCommunicationsEnabled()
@@ -232,7 +235,7 @@ export function ClientesComunicacao() {
   const saveTemplateMutation = useSaveCustomerCommunicationSavedTemplate()
   const dispatchMutation = useDispatchCustomerCommunication()
   const conference = conferenceQuery.data
-  const tab: CommunicationTab = searchParams.get('tab') === 'historico' ? 'historico' : searchParams.get('tab') === 'disparo' ? 'disparo' : 'cobertura'
+  const tab: CommunicationTab = searchParams.get('tab') === 'historico' ? 'historico' : searchParams.get('tab') === 'disparo' && canSend ? 'disparo' : 'cobertura'
 
   const defaultSelectedKeys = useMemo(
     () => new Set((conference?.rows ?? []).filter((row) => row.selected).map((row) => row.key)),
@@ -609,13 +612,15 @@ export function ClientesComunicacao() {
         <button type="button" className={`app-tab ${tab === 'cobertura' ? 'app-tab--active' : ''}`} onClick={() => selectTab('cobertura')}>
           <CheckCircle2 size={15} className="mr-2 inline" /> Cobertura de viagens
         </button>
-        <button
-          type="button"
-          className={`app-tab ${tab === 'disparo' ? 'app-tab--active' : ''}`}
-          onClick={() => selectTab('disparo')}
-        >
-          <Mail size={15} className="mr-2 inline" /> Disparo
-        </button>
+        {canSend ? (
+          <button
+            type="button"
+            className={`app-tab ${tab === 'disparo' ? 'app-tab--active' : ''}`}
+            onClick={() => selectTab('disparo')}
+          >
+            <Mail size={15} className="mr-2 inline" /> Disparo
+          </button>
+        ) : null}
         <button
           type="button"
           className={`app-tab ${tab === 'historico' ? 'app-tab--active' : ''}`}
