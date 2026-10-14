@@ -94,7 +94,7 @@ Evidência das linhas abaixo: **Código**, salvo onde diz **Teste**.
 
 Documentos defasados nessas linhas (a): o texto `PROFILE_SCOPES`
 (`src/services/adminUsers.ts:66-72`), mostrado em `/admin/usuarios`, ainda
-lista só as três exceções da ADR 0046 (plano, P13); a tabela de exceções de
+lista só as três exceções da ADR 0046 (plano, P14); a tabela de exceções de
 `seguranca.md` não citava várias destas linhas (corrigido pela matriz).
 
 ### 3.2 Acidentais, sem decisão (ii), e decisões já tomadas com correção pendente
@@ -210,15 +210,24 @@ recomendação. Onde o dono contrariou a recomendação, está marcado.
     `blCancel`, `customerDeactivate`, `deleteRecords`) não foram rodados nesta
     data.
 
-## 6. Observações fora do escopo, para decisão futura
+## 6. Observações levadas ao dono depois da entrega
+
+As duas primeiras foram respondidas pelo dono no mesmo dia (ADR 0085, itens
+D14 e D15).
 
 - Qualquer Departamento ativo pode marcar `tem_exportacao = false` na escala
-  de exportação travada pelo CE (a tela grava a tabela direto). Editar a
-  escala é de todos pela base; falta decidir se desmarcar a exportação de uma
-  escala travada equivale a excluí-la. **Teste** (verificador, caso 3).
+  de exportação travada pelo CE (**Teste**, verificador, caso 3: a escala não
+  tinha Granito nem Vazios). Resposta do dono: a marcação serve à exibição no
+  painel; com Granito ou Vazios registrados não se desmarca. Nova execução no
+  Postgres local, como Operações: com Granito importado no porto, recusado
+  (`P0003`, `guard_export_schedule_removal`, migration `066`); com Embarque de
+  Vazios aberto sem unidade, também recusado; sem nenhum dos dois, aceito.
+  Perguntado sobre o Embarque sem unidade, o dono manteve a recusa. Regra já
+  vigente; sem correção.
 - `import_baplie_staging_transactional` com lista vazia apaga o Baplie da
-  viagem, com rastro "Baplie substituído". Reimportar é de todos (ADR 0071,
-  item 4); falta decidir se lista vazia deve ser recusada. **Teste**.
+  viagem, com rastro "Baplie substituído" (**Teste**). A tela não importa sem
+  container (`canImportPreview`, **Código**). Resposta do dono: recusar.
+  Correção no item P13 do plano.
 - Viagem, B/L e Cliente podem ser inseridos já cancelados ou desativados por
   INSERT direto. Impacto não avaliado. **Código**.
 - RPCs de manutenção sem tela restritas ao Administrativo (`backfill_*`,

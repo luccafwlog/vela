@@ -132,6 +132,12 @@ corrige a favor da base.
   console (ADR 0083, item 18).
 - **D13. ADR de Saída:** o Departamento dono assina; o Administrativo cobre
   qualquer seção.
+- **D14. Desmarcar a exportação de uma escala:** qualquer Departamento, porque a
+  marcação serve à exibição no painel; é recusado quando o porto já tem Granito
+  importado ou Embarque de Vazios aberto, mesmo sem unidade. O gatilho da
+  migration `066` já faz isso. A Trava do CE não entra nesta regra.
+- **D15. Baplie sem container é recusado.** Hoje a tela não importa, mas o
+  banco aceita a lista vazia pela API e apaga o Baplie da viagem.
 
 ### Falhas de segurança corrigidas a favor da regra
 

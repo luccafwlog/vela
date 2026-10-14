@@ -10,7 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
-- [2026-10-14 — Modelo de permissões por perfil](2026-10-14-modelo-de-permissoes-por-perfil.md) — correções de código das decisões do dono de 2026-10-14 sobre quem faz o quê ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md)): 13 itens, P1 a P3 primeiro (falhas de segurança confirmadas por execução: exclusão direta pelo Administrativo, valores de cobrança, contatos e situação financeira do B/L), depois emissão, baixa, Restituição, Conciliação PIX, Viagens, tarifas, leitura e a bateria de testes por perfil.
+- [2026-10-14 — Modelo de permissões por perfil](2026-10-14-modelo-de-permissoes-por-perfil.md) — correções de código das decisões do dono de 2026-10-14 sobre quem faz o quê ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md)): 14 itens, P1 a P3 primeiro (falhas de segurança confirmadas por execução: exclusão direta pelo Administrativo, valores de cobrança, contatos e situação financeira do B/L), depois emissão, baixa, Restituição, Conciliação PIX, Viagens, tarifas, leitura, Baplie sem container e a bateria de testes por perfil.
 
 - [2026-10-14 — Correções decididas na revisão geral](2026-10-14-correcoes-decididas-na-revisao-geral.md) — correções de código das decisões do dono de 2026-10-14 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md)): 31 itens de código por ordem de impacto (segurança e dados primeiro; o primeiro é o alerta de troca de CE com Desbloqueio conferido, B1), mais uma operação do dono fora do código (A6, heartbeat e executor do backup diário; B32, apagar a Edge Function antiga de aviso de fatura emitida, foi feita em 2026-10-14).
 

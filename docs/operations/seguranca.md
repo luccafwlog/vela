@@ -118,6 +118,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Criar e editar viagem, escala, programação e exportação; omitir escala; fechar ADR de Saída | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; RPCs com `is_active_user()` | ADR 0046 | vigente |
+| Desmarcar a exportação de uma escala | ✔ | ✔ | ✔ | ✔ | ✔ | Gatilho `guard_export_schedule_removal` (migration `066`): recusa quando o porto tem Granito importado ou Embarque de Vazios aberto | ADR 0085, D14 | vigente (**Teste**, Postgres local, 2026-10-14) |
 | Cancelar e reativar Viagem e B/L, com motivo | ✔ | — | — | — | — | `cancel_voyage`, `reactivate_voyage`, `cancel_bl`, `reactivate_bl` (`is_admin`) e gatilhos das migrations `066` e `089` | ADR 0071, itens 8 e 9 | vigente |
 | Excluir viagem, escala (inclusive de exportação), atracação, B/L e container, com motivo e Trava | ✔ | — | — | — | — | `delete_records`, `delete_escala` (migration `088`) | ADR 0046; ADR 0071; ADR 0083, item 7 | correção pendente: o Administrativo apaga pela API a escala de exportação travada, sem motivo (P1); `delete_escala` aceita escala com B/L (item 17) |
 | Excluir taxa manual do B/L | ✔ | — | — | — | — | `delete_manual_bl_charge` (`is_admin`) | ADR 0071, item 11 | correção pendente: qualquer perfil zera a taxa por escrita direta em `charge_calculations` (P2) |
@@ -129,7 +130,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
-| Importar arquivos (BL, CE, Baplie, veículos, Vazios, Granito, datas, Base de Clientes, programação) | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de importação com `is_active_user()` | ADR 0078, item 10 | vigente |
+| Importar arquivos (BL, CE, Baplie, veículos, Vazios, Granito, datas, Base de Clientes, programação) | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de importação com `is_active_user()` | ADR 0078, item 10 | vigente; Baplie sem container deve ser recusado (ADR 0085, D15), e o banco ainda o aceita pela API (P13) |
 | Reprocessar efeito de importação, com justificativa | ✔ | ✔ | ✔ | ✔ | ✔ | `retry_import_effect` | ADR 0085, D10 | correção pendente: Equipamentos recusado (P7) |
 | Excluir ou mover veículo, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `delete_vehicles_with_reason`, `move_vehicles_to_bl` (migration `184`) | ADR 0078, item 23 | vigente |
 | Excluir unidade manual e linha de serviço de vazios antes do ADR de Saída fechado | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de Vazios e `delete_catalog_row` | ADR 0071, item 4 | correção pendente: a trava pelo ADR fechado não existe (B14, item 25) |
