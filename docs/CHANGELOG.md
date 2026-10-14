@@ -16,8 +16,8 @@
 - **Heartbeat do backup diário (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 6):**
   com `BETTERSTACK_HEARTBEAT_BACKUP_URL` definida, `scripts/backup-r2.mjs --execute` avisa o
   Better Stack no fim (sucesso ou `/fail`), e o dia sem backup vira alerta pelo prazo do
-  heartbeat. O heartbeat `backup-r2-diario` foi criado pelo dono no mesmo dia; falta a variável no
-  computador da tarefa ([roteiro](operations/backup-r2.md#heartbeat-do-backup)).
+  heartbeat. O heartbeat `backup-r2-diario` foi criado e ligado pelo dono no mesmo dia, e ficou **Up**
+  depois da primeira execução ([roteiro](operations/backup-r2.md#heartbeat-do-backup)).
 - **Decisões da revisão geral respondidas (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
   [ADR 0084](adr/0084-registro-de-decisoes-ja-em-producao.md)):** o dono respondeu as 25 decisões
   de negócio, aprovou os defeitos do lote B e pediu o registro das decisões já em produção. Os

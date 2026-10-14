@@ -579,9 +579,9 @@ Variáveis: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`
 - **Heartbeats** (tabela dos [jobs](#jobs-agendados-pg_cron)): a rotina chama a
   URL a cada execução e acrescenta `/fail` quando falha. Heartbeat **Down** logo
   após cadastrar quase sempre é nome de secret errado.
-- **Heartbeat do backup** `backup-r2-diario` (criado pelo dono em 2026-10-14,
-  **Pending** até a primeira chamada): período de 1 dia, tolerância de 6 horas,
-  aviso por e-mail; a URL fica na variável do usuário
+- **Heartbeat do backup** `backup-r2-diario` (criado pelo dono em 2026-10-14;
+  **Up** desde a execução manual da tarefa no mesmo dia): período de 1 dia,
+  tolerância de 6 horas, aviso por e-mail; a URL fica na variável do usuário
   `BETTERSTACK_HEARTBEAT_BACKUP_URL` do computador do [backup](#backup)
   ([roteiro](backup-r2.md#heartbeat-do-backup)).
 - Sem escalation policy: no plano grátis o aviso vai à equipe inteira (e-mail do
@@ -603,8 +603,7 @@ para eles vale o backup do próprio Supabase.
   iniciar em `C:\Users\Lucca\Downloads\Vela`. Se o computador estiver desligado,
   roda quando ligar. **Computador parado = sem backup.** O heartbeat do
   backup no Better Stack avisa quando o dia passa sem backup
-  ([roteiro](backup-r2.md#heartbeat-do-backup); heartbeat criado em 2026-10-14,
-  falta a variável no computador).
+  ([roteiro](backup-r2.md#heartbeat-do-backup); ligado em 2026-10-14).
 - **Programas:** Node 24, PostgreSQL 17 (só as ferramentas de linha de comando)
   e AWS CLI v2.
 - **Retenção:** regra "Expire backups after 90 days" no bucket.
@@ -621,6 +620,12 @@ para eles vale o backup do próprio Supabase.
   12:00:01 UTC em 2026-10-06, 2026-10-07 e 2026-10-08 (12,9 MB), horário da
   tarefa agendada; sem arquivos de 2026-10-01 a 2026-10-04 (computador
   provavelmente desligado). `LastTaskResult` não consultado nesse dia.
+- **Conferência local — 2026-10-14:** a cópia local estava na branch antiga
+  `codex/itau-pix-fuso-producao`, já apagada no GitHub, e o `git pull` não a
+  atualizava; o dono passou a pasta para a `main` atualizada, criou a variável
+  `BETTERSTACK_HEARTBEAT_BACKUP_URL` e executou a tarefa à mão; o heartbeat
+  ficou **Up**. A pasta da tarefa deve ficar na `main`: `git pull` numa branch
+  apagada não traz correções novas do script.
 - **Mudar de computador:** instalar os programas, recriar as 7 variáveis do
   usuário (roteiro, Etapa 6), mais `BETTERSTACK_HEARTBEAT_BACKUP_URL`, e a tarefa agendada.
 
