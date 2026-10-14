@@ -11,6 +11,8 @@ export function stripCodeFences(markdown) {
 // troca cada espaço por hífen. Letras acentuadas, dígitos, `_` e `-` ficam.
 // ponytail: a formatação inline é retirada por expressão regular; um título com
 // ênfase em `_..._` mantém os sublinhados e pode divergir do slug renderizado.
+// Melhoria: ler os títulos com um parser CommonMark (remark) e gerar o slug com
+// `github-slugger`, quando aparecer o primeiro falso positivo ou negativo.
 export function githubSlug(heading) {
   const text = heading
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -21,15 +23,22 @@ export function githubSlug(heading) {
   return text.replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, '').replace(/ /g, '-')
 }
 
+// Como o github-slugger: o sufixo -N pula qualquer slug já emitido, inclusive
+// o de um título que já termina em "-1" (Foo, Foo-1, Foo → foo, foo-1, foo-2).
 export function headingAnchors(markdown) {
   const anchors = new Set()
-  const seen = new Map()
+  const occurrences = new Map()
   const prose = stripCodeFences(markdown)
   for (const match of prose.matchAll(/^#{1,6}[ \t]+(.*?)[ \t]*#*[ \t]*$/gm)) {
-    const slug = githubSlug(match[1])
-    const count = seen.get(slug) ?? 0
-    seen.set(slug, count + 1)
-    anchors.add(count === 0 ? slug : `${slug}-${count}`)
+    const base = githubSlug(match[1])
+    let slug = base
+    while (occurrences.has(slug)) {
+      const next = occurrences.get(base) + 1
+      occurrences.set(base, next)
+      slug = `${base}-${next}`
+    }
+    occurrences.set(slug, 0)
+    anchors.add(slug)
   }
   for (const match of prose.matchAll(/<a\s+(?:id|name)="([^"]+)"/g)) anchors.add(match[1])
   return anchors

@@ -20,6 +20,8 @@ const anchors = headingAnchors([
   '  ~~~',
 ].join('\n'))
 assert.deepEqual([...anchors].sort(), ['line-up', 'módulo', 'notas', 'notas-1'])
+const collided = headingAnchors('## Foo\n## Foo-1\n## Foo\n## Foo\n')
+assert.deepEqual([...collided].sort(), ['foo', 'foo-1', 'foo-2', 'foo-3'])
 assert.equal(stripCodeFences('a\n```\n## x\n```\nb').includes('## x'), false)
 
 assert.equal(anchorExists(anchors, 'notas-1'), true)
@@ -28,4 +30,4 @@ assert.equal(anchorExists(anchors, 'Notas'), true)
 assert.equal(anchorExists(anchors, 'dentro-do-bloco'), false)
 assert.equal(anchorExists(anchors, '%E0%A4%A'), false)
 
-console.log('docs-anchors: GitHub slug, duplicate suffix, code fence and explicit anchor checks passed.')
+console.log('docs-anchors: GitHub slug, duplicate suffix with collisions, code fence and explicit anchor checks passed.')

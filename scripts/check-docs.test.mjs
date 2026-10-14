@@ -31,6 +31,7 @@ const traceabilityFor = (mappedRoutes) => [
   '| `/legacy` | Não há rota nem página dedicada; usa o catch-all |',
   '**Código** **Teste** **Runtime** **Suspeita**',
 ].join('\n')
+const adrIndexWith = (status) => `| ADR | Decisão | Status |\n|---|---|---|\n| [0001](0001-example.md) | Decision | ${status} |\n`
 try {
   write('scripts/check-docs.mjs', fs.readFileSync(path.join(root, 'scripts/check-docs.mjs')))
   const routeHelper = fs.readFileSync(path.join(root, 'scripts/lib/docs-routes.mjs'), 'utf8')
@@ -41,7 +42,7 @@ try {
   write('AGENTS.md', '# Agent rules\n')
   write('docs/README.md', '# Docs\n')
   write('docs/adr/0001-example.md', '# Decision\n\nStatus: aceito — 2026-01-01\n')
-  write('docs/adr/README.md', '[Decision](0001-example.md)\n')
+  write('docs/adr/README.md', adrIndexWith('aceito'))
   for (const name of ['viagens', 'manifesto-edi', 'granito', 'chegadas-saidas', 'clientes', 'taxas-locais', 'faturamento', 'demurrage', 'reconciliacao-pix', 'desbloqueio-ce', 'portal-cliente', 'operacao-suporte']) write(`docs/modules/${name}.md`, moduleText)
   write('src/AppInterno.tsx', '<Routes><Route index /><Route path="/inspect/:id/*"><Route path="billing" /></Route></Routes>')
   write('src/AppPortal.tsx', '<Routes><Route path="/portal" /><Route path="*" /></Routes>')
@@ -63,8 +64,9 @@ try {
   write('docs/RASTREABILIDADE.md', traceabilityFor(routes))
   write('docs/adr/README.md', '# Index\n')
   assert.match(run().stderr, /ADR is not indexed/)
-  write('docs/adr/README.md', '[Decision](0001-example.md)\n')
-  const adrIndexWith = (status) => `| ADR | Decisão | Status |\n|---|---|---|\n| [0001](0001-example.md) | Decision | ${status} |\n`
+  write('docs/adr/README.md', 'Ver [Decision](0001-example.md).\n')
+  assert.match(run().stderr, /ADR has no row in the index table: 0001-example\.md/)
+  write('docs/adr/README.md', adrIndexWith('aceito'))
   write('docs/adr/README.md', adrIndexWith('supersedida parcialmente'))
   assert.match(run().stderr, /ADR status "aceito" differs from the index \("supersedida parcialmente"\)/)
   write('docs/adr/0001-example.md', '# Decision\n\nStatus: supersedida parcialmente — 2026-01-01\n')
@@ -74,7 +76,7 @@ try {
   write('docs/adr/0001-example.md', '# Decision\n\nDecidido.\n')
   assert.match(run().stderr, /no recognizable "Status:" line/)
   write('docs/adr/0001-example.md', '# Decision\n\nStatus: aceito — 2026-01-01\n')
-  write('docs/adr/README.md', '[Decision](0001-example.md)\n')
+  write('docs/adr/README.md', adrIndexWith('aceito'))
   write('docs/skills/inventory-2026-09-18.md', '# Inventory\n')
   assert.match(run().stderr, /dated document must live in docs\/archive/)
   fs.unlinkSync(path.join(fixture, 'docs/skills/inventory-2026-09-18.md'))
@@ -102,7 +104,7 @@ try {
   assert.doesNotMatch(dynamic.stderr, /at checkDocs|file:\/\//)
   write('src/AppInterno.tsx', '<Routes><Route index /><Route path="/inspect/:id/*"><Route path="billing" /></Route></Routes>')
   assert.equal(run().status, 0)
-  console.log('check-docs: positive fixture and sixteen rejection scenarios passed.')
+  console.log('check-docs: positive fixture and seventeen rejection scenarios passed.')
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true })
 }

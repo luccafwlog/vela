@@ -194,8 +194,8 @@ Antes de concluir uma alteração documental:
 O [gate documental](../scripts/check-docs.mjs) verifica existência dos destinos
 de links relativos fora do arquivo histórico, âncoras de seção dos links para
 Markdown, índices obrigatórios, cobertura
-do índice de ADRs, concordância entre a linha `Status:` de cada ADR e o
-índice, faixa "Situação atual" nas ADRs estendidas ou supersedidas, documentos
+do índice de ADRs (cada ADR com linha na tabela), concordância entre a linha
+`Status:` de cada ADR e o índice, faixa "Situação atual" nas ADRs estendidas ou supersedidas, documentos
 datados fora do arquivo histórico, formato dos módulos e presença das rotas
 extraídas dos dois roteadores na arquitetura e na rastreabilidade. Também rejeita `CLAUDE.md` na
 raiz e algumas afirmações obsoletas conhecidas.

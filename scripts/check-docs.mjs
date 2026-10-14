@@ -137,7 +137,11 @@ if (fs.existsSync(adrIndexPath)) {
       continue
     }
     const indexed = indexedStatuses.get(adrFile.slice(0, 4))
-    if (indexed !== undefined && indexed !== status) {
+    if (indexed === undefined) {
+      // Citar o arquivo no texto do README não basta: a ADR precisa de linha
+      // na tabela, que é onde o status é comparado.
+      if (adrIndex.includes(adrFile)) addError('docs/adr/README.md', `ADR has no row in the index table: ${adrFile}`)
+    } else if (indexed !== status) {
       addError(adrPath, `ADR status "${status}" differs from the index ("${indexed}")`)
     }
     if (adrNeedsBanner(status) && !hasSituationBanner(adrContent)) {
