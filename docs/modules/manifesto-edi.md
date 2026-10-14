@@ -416,8 +416,8 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   e o valor efetivo fica na linha (`valor_sugerido` guarda a sugestão). O valor
   do serviço já é o efetivo, inclusive para overtime ou majoração: a linha não
   aceita percentual (`vetoPercentual`), e o total é `quantidade × valor
-  unitário` (`totalLinha`, `src/services/vaziosCusto.ts`; ver a correção
-  pendente B11 sobre a coluna Total da tela).
+  unitário` (`totalLinha`, `src/services/vaziosCusto.ts`), também na coluna
+  Total da tela (B11).
 - **Armazenagem.** Dias cobráveis de uma unidade de Depot = `(saída − entrada
   + 1) − free time`, nunca negativo: o +1 conta o dia de entrada e o de saída,
   e o free time é o do depot para a condição da unidade (vazio ou material). A
