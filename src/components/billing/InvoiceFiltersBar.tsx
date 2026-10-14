@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FilterBar } from '../ui/FilterBar'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { formatCnpjCpf } from '../../lib/utils'
@@ -72,10 +72,13 @@ export function InvoiceFiltersBar({
   // Só publica quando a pausa alcançou o campo: logo depois de Limpar filtros
   // (ou de voltar no navegador) o valor atrasado ainda é o texto antigo e
   // reescreveria na URL o filtro que acabou de sair.
-  if (debouncedQuery === queryText && debouncedQuery !== sentQuery) {
-    setSentQuery(debouncedQuery)
-    if (debouncedQuery.trim() !== (filters.query ?? '').trim()) updateFilter('query', debouncedQuery)
-  }
+  if (debouncedQuery === queryText && debouncedQuery !== sentQuery) setSentQuery(debouncedQuery)
+  // A URL pertence à página: a publicação sai num efeito, nunca durante a
+  // renderização (React não aceita atualizar outro componente no render).
+  const currentQuery = filters.query ?? ''
+  useEffect(() => {
+    if (sentQuery.trim() !== currentQuery.trim()) updateFilter('query', sentQuery)
+  }, [sentQuery, currentQuery, updateFilter])
   // Limpar filtros (ou voltar no navegador) muda a URL sem passar pelo campo.
   const [urlQuery, setUrlQuery] = useState(filters.query ?? '')
   if ((filters.query ?? '') !== urlQuery) {

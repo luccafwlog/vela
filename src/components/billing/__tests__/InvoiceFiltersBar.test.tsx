@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../../services/billing', () => ({
@@ -70,5 +71,20 @@ describe('InvoiceFiltersBar com o filtro na URL', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
     expect(updateFilter).toHaveBeenCalledWith('query', 'COSU64')
     vi.useRealTimers()
+  })
+
+  it('publica a busca na URL fora da renderização (sem aviso de atualizar outro componente)', async () => {
+    vi.useFakeTimers()
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function Page() {
+      const [filters, setFilters] = useState(base)
+      return bar(filters, ((key: keyof Filters, value: unknown) => setFilters((current) => ({ ...current, [key]: value }))) as never)
+    }
+    render(<Page />)
+    fireEvent.change(screen.getByLabelText('Buscar fatura ou B/L'), { target: { value: 'COSU64' } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/Cannot update a component/)
+    expect((screen.getByLabelText('Buscar fatura ou B/L') as HTMLInputElement).value).toBe('COSU64')
+    errors.mockRestore()
   })
 })

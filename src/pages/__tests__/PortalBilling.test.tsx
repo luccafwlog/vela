@@ -69,9 +69,9 @@ const demurrageInvoices: PortalDemurrageInvoice[] = [
     status: 'issued',
     pix_payload: null,
     dispute_open: false,
-    discount_type: null,
-    discount_value: null,
-    discount_mode: null,
+    discount_type: 'commercial',
+    discount_value: 10,
+    discount_mode: 'percent',
     bl_id: 'BL-DEM',
     pol: 'CNSHA',
     pod: 'BRVIX',
@@ -293,6 +293,8 @@ describe('PortalBilling', () => {
     await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
     // Uma linha só, no topo do bloco Faturas de Demurrage.
     expect(screen.getByText(/pelo ROE vigente/).textContent).toBe('Total em R$ pelo ROE vigente: R$ 5,4288 · atualizado em 16/07/2026')
+    // O em aberto soma o líquido do desconto (US$ 50 com 10%), como o total em R$.
+    expect(screen.getByText(/^US\$ [0-9.,]+ em aberto$/).textContent).toBe('US$ 45,00 em aberto')
   })
 
   it('nao exibe erro cambial ao cliente quando o ROE vigente esta indisponivel', async () => {

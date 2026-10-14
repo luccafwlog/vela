@@ -19,6 +19,7 @@ import { CustomerDemurrageAgreementModal } from '../demurrage/CustomerDemurrageA
 import { AgreementSituationBadge } from '../demurrage/CustomerDemurrageAgreementsTab'
 import { agreementPeriodText, agreementRatesText } from '../demurrage/demurrageFormRules'
 import { demurrageInvoiceHref } from '../../pages/demurrageListState'
+import { invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
 import { useAuth } from '../../hooks/useAuth'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
 import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvisioning'
@@ -154,7 +155,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
     return status === 'issued' || status === 'partially_paid' || status === 'overdue' ? sum + Number(line.invoice.balance_brl ?? 0) : sum
   }, 0)
   const invoiceCount = (inv.data?.rows ?? []).length
-  const openDemurrageUsd = demurrageRows.reduce((sum, row) => (row.status === 'issued' || row.status === 'overdue' ? sum + Number(row.total_usd ?? 0) : sum), 0)
+  const openDemurrageUsd = demurrageRows.reduce((sum, row) => (row.status === 'issued' || row.status === 'overdue' ? sum + invoiceNetUsd(row).netUsd : sum), 0)
 
   const payments = (pay.data?.rows ?? []).filter((row) => {
     if (!term) return true

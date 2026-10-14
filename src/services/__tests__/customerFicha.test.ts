@@ -256,6 +256,11 @@ describe('Faturas e Recebíveis num bloco só (aba Financeiro)', () => {
     ])
   })
 
+  it('saldo novo de B/L com fatura paga aparece em "Sem fatura ativa"', () => {
+    const lines = buildCustomerInvoiceLines([invoice(1, 'paid', ['BL-A'], { balance_brl: 0 })], [receivable(10, 'BL-A', 30)])
+    expect(lines.map((line) => (line.kind === 'invoice' ? `FAT-${line.invoice.id}` : `sem:${line.blId}`))).toEqual(['FAT-1', 'sem:BL-A'])
+  })
+
   it('a busca por B/L traz a consolidada inteira e filtra situação e período', () => {
     const lines = buildCustomerInvoiceLines(
       [invoice(1, 'issued', ['BL-A', 'BL-B']), invoice(2, 'paid', ['BL-C'], { issued_at: '2026-08-01T10:00:00Z' })],

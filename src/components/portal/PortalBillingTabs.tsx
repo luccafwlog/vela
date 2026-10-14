@@ -12,6 +12,7 @@ import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../../l
 import { formatBRL, formatDate } from '../../lib/utils'
 import { demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/portalInvoiceStatus'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from '../../services/portalBilling'
+import { invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
 
 type Filters = PortalBillingFilters
 const BILLING_PAGE_SIZE = 25
@@ -169,7 +170,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
   // ponytail: o total em aberto soma só a página carregada; com mais de uma
   // página o resumo mostra só a contagem. Somar todas pede um total no RPC.
   const openUsd = totalCount === invoices.length
-    ? invoices.filter(isDemurragePayable).reduce((sum, inv) => sum + Number(inv.total_usd ?? 0), 0)
+    ? invoices.filter(isDemurragePayable).reduce((sum, inv) => sum + invoiceNetUsd(inv).netUsd, 0)
     : null
 
   return (

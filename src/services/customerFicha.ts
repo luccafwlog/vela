@@ -16,7 +16,7 @@ export type FichaLocalInvoiceRow = {
   status: string | null
 }
 
-export type FichaDemurrageInvoiceRow = Pick<DemurrageInvoice, 'id' | 'doc_number' | 'bl_id' | 'due_date' | 'billed_at' | 'paid_at' | 'total_usd' | 'current_total_brl' | 'status' | 'dispute_open' | 'dispute_status' | 'dispute_subject'>
+export type FichaDemurrageInvoiceRow = Pick<DemurrageInvoice, 'id' | 'doc_number' | 'bl_id' | 'due_date' | 'billed_at' | 'paid_at' | 'total_usd' | 'current_total_brl' | 'status' | 'dispute_open' | 'dispute_status' | 'dispute_subject' | 'discount_mode' | 'discount_value'>
 export type FichaReceivableRow = { id: number; bl_id: string; original_amount_brl: number; settled_amount_brl: number; balance_brl: number; status: string }
 export type FichaPaymentRow = { id: number; amount_brl: number; payment_method: string | null; paid_at: string | null; notes: string | null; registered_by_name?: string | null; invoice: { id: number; invoice_number: string | null } | null }
 export type FichaOverrideRow = Pick<CustomerRateOverride, 'id' | 'override_value' | 'valid_from' | 'valid_to' | 'notes'> & { charge_item: { id: number; name: string | null; currency: string | null; charge_table: { id: number; name: string | null; pod: string | null; cargo_mode: string | null } | null } | null }
@@ -90,6 +90,7 @@ export async function fetchCustomerInvoices(customerId: number): Promise<Restric
 }
 
 const DEAD_INVOICE_STATUSES = new Set(['cancelled', 'obsolete'])
+const OPEN_INVOICE_STATUSES = new Set(['draft', 'issued', 'partially_paid', 'overdue'])
 
 export type FichaInvoiceLine =
   | { kind: 'invoice'; invoice: FichaInvoiceRow; receivables: FichaReceivableRow[] }
@@ -104,7 +105,9 @@ export type FichaInvoiceLine =
 export function buildCustomerInvoiceLines(invoices: FichaInvoiceRow[], receivables: FichaReceivableRow[]): FichaInvoiceLine[] {
   const receivablesByBl = new Map<string, FichaReceivableRow[]>()
   for (const row of receivables) receivablesByBl.set(row.bl_id, [...(receivablesByBl.get(row.bl_id) ?? []), row])
-  const coveredBls = new Set(invoices.filter((invoice) => !DEAD_INVOICE_STATUSES.has(invoice.status ?? '')).flatMap((invoice) => invoice.bl_ids))
+  // Só fatura em aberto cobre saldo vivo: B/L com saldo e fatura paga (ex.:
+  // cobrança complementar depois do pagamento) aparece em "Sem fatura ativa".
+  const coveredBls = new Set(invoices.filter((invoice) => OPEN_INVOICE_STATUSES.has(invoice.status ?? 'issued')).flatMap((invoice) => invoice.bl_ids))
   const lines: FichaInvoiceLine[] = invoices.map((invoice) => ({
     kind: 'invoice' as const,
     invoice,
@@ -355,7 +358,7 @@ async function fetchAllRows<T>(
 
 export async function fetchCustomerDemurrageInvoices(customerId: number) {
   const { rows, error } = await fetchAllRows<FichaDemurrageInvoiceRow>((from, to) =>
-    supabase.from('demurrage_invoices').select('id, doc_number, bl_id, due_date, billed_at, paid_at, total_usd, current_total_brl, status, dispute_open, dispute_status, dispute_subject').eq('customer_id', customerId).order('billed_at', { ascending: false }).range(from, to).overrideTypes<FichaDemurrageInvoiceRow[], { merge: false }>(),
+    supabase.from('demurrage_invoices').select('id, doc_number, bl_id, due_date, billed_at, paid_at, total_usd, current_total_brl, status, dispute_open, dispute_status, dispute_subject, discount_mode, discount_value').eq('customer_id', customerId).order('billed_at', { ascending: false }).range(from, to).overrideTypes<FichaDemurrageInvoiceRow[], { merge: false }>(),
   )
   if (error) { if (classifyDbError(error).kind === 'permissao') return { rows: [], denied: true }; throw error }
   return { rows, denied: false }
