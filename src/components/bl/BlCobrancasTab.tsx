@@ -20,7 +20,9 @@ import {
   useUpdateManualBlCharge,
 } from '../../hooks/useLocalCharges'
 import { formatBRL, formatUSD, normalizeText } from '../../lib/utils'
-import { FINANCIAL_STATUS_LABELS, INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
+import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
+import { ConsolidatedMark } from '../ui/StatusText'
+import { InvoiceSituation } from '../billing/InvoiceSituation'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 import { classifyDbError } from '../../lib/errors'
 import { invoiceTypeLabel, markBlReadyAndCreateInvoice, type InvoiceLinkInfo } from '../../services/billing'
@@ -263,8 +265,6 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   const reviewPendingCount = localChargeSummary.lines.filter((line) => line.status === 'review_required').length
   const columnCount = showActionsColumn ? 8 : 7
 
-  const invoiceStatusLabel = activeInvoice ? statusLabel(INVOICE_STATUS_LABELS, activeInvoice.status, 'Situação não informada') : null
-
   return (
     <Card className="app-bl-sheet">
       <section className="app-bl-sheet__section" aria-labelledby="bl-taxas">
@@ -299,8 +299,9 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         <p className="app-bl-invoice-line">
           <span>
             Fatura <strong className="app-bl-code">{activeInvoice.invoice_number ?? `#${activeInvoice.id}`}</strong>
-            {' · '}{invoiceStatusLabel}
-            {activeInvoice.invoice_type ? ` · ${invoiceTypeLabel(activeInvoice.invoice_type)}` : ''}
+            {activeInvoice.invoice_type === 'consolidated' ? <ConsolidatedMark /> : null}
+            {' · '}<InvoiceSituation status={activeInvoice.status} />
+            {activeInvoice.invoice_type && activeInvoice.invoice_type !== 'consolidated' ? ` · ${invoiceTypeLabel(activeInvoice.invoice_type)}` : ''}
             {activeInvoice.total_brl != null ? <> · <span className="tabular-nums">{formatBRL(activeInvoice.total_brl)}</span></> : null}
           </span>
           <Link className="app-btn app-btn--secondary app-btn--sm" to={`/taxas-locais?invoice=${activeInvoice.id}`}>Abrir no Faturamento</Link>

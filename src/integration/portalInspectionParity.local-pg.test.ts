@@ -214,6 +214,25 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
     expect(rowsB.map((r) => r.subject)).not.toContain('assunto A')
   })
 
+  it('Saldo pendente da Inspeção é o mesmo que o Cliente vê (migration 225)', () => {
+    // Numa transação desfeita: o campo antigo do cadastro diz 999, a fatura
+    // avulsa em aberto diz 512,50. As duas sessões têm de mostrar 512,50.
+    const out = psql(`
+      BEGIN;
+      UPDATE public.customers SET pending_balance = 999 WHERE id = ${customerA};
+      INSERT INTO public.invoices (invoice_number, customer_id, invoice_type, total_brl, balance_brl, status)
+      VALUES ('S11-AVULSA-SALDO', ${customerA}, 'manual', 512.5, 512.5, 'issued');
+      SET LOCAL ROLE authenticated;
+      SELECT set_config('request.jwt.claim.sub', '${portalUserA}', true);
+      SELECT 'portal=' || (public.portal_get_session_overview_v2()->>'pending_balance');
+      SELECT set_config('request.jwt.claim.sub', '${inspectorId}', true);
+      SELECT 'inspecao=' || (public.portal_open_inspection(${customerA}, 'ficha')->>'pending_balance');
+      ROLLBACK;
+    `)
+    expect(out).toMatch(/^portal=512\.5/m)
+    expect(out).toMatch(/^inspecao=512\.5/m)
+  })
+
   it('nega ao usuário do Portal as cinco RPCs internas com 42501', () => {
     const disputeId = Number(psql(`SELECT id FROM public.demurrage_disputes WHERE customer_id = ${customerA} ORDER BY id LIMIT 1;`))
     const attempts = [
