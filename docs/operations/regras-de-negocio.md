@@ -386,11 +386,8 @@ implementada (migrations `093` e `094`; backup encerrado em 2026-10-05).
 
 **Perfil interno não se exclui, nem pela API** ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
 item 3): o banco revoga a exclusão de perfil interno, como a migration `086`
-fez com documento fiscal. **Correção pendente:** hoje o banco ainda permite ao
-Administrativo apagar um perfil interno por chamada direta à API (policy de
-DELETE em `user_profiles`); a tela `/admin/usuarios` só desativa. Quando o
-DELETE passa, o Log de Ações mostra o id em vez do nome do autor. Correção
-pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+fez com documento fiscal: desde a migration `240` (A3) não há DELETE em
+`user_profiles` para `authenticated`, e a tela `/admin/usuarios` só desativa.
 
 O banco recusa rebaixar ou desativar o último Administrativo ativo
 (migration `239`); a regra está em

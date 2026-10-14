@@ -1,8 +1,9 @@
 # 0083 — Decisões da revisão geral da documentação
 
-Status: aceito — 2026-10-14 (decisões do dono). Implementação pendente: a
-correção de código de cada item está no
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+Status: aceito — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelo
+[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+(migrations `230` a `266`; a tabela "Execução" do plano liga cada item à sua
+prova). Migration nova só vale em produção depois de publicada.
 
 Responde às decisões pendentes A1–A25 e aos itens B28, B30 e B32 do
 [plano da revisão geral](../archive/plans/2026-10-13-revisao-geral-documentacao.md)

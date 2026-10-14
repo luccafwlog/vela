@@ -144,8 +144,6 @@ demais itens que bloqueiam a ativação.
 | Layout novo de armador pode quebrar parser | Médio | Parsers isolados, limite de upload e fixtures | Fixture real antes de cada novo layout |
 | Login do Portal pode sofrer enumeração/abuso | Médio | Hash por CNPJ, janela de tentativas e erro genérico; Cloudflare Turnstile e rate limit distribuído por IP+CNPJ | Métricas e revisão periódica do limite |
 | Páginas grandes concentram risco de regressão | Médio | Mudanças cirúrgicas e testes focados | Decomposição oportunista com caracterização |
-| Plano B do extrato não acha a Invoice de Demurrage nem a avulsa pelo TXID quando a consulta do Itaú para | Médio | Limite registrado no [módulo](modules/reconciliacao-pix.md) | Decidido ([ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 16); correção pendente no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) |
-| Referência cambial (ROE) usada na emissão de Demurrage é gravável por qualquer usuário interno ativo | Médio | Nenhuma registrada | Decidido ([ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 14); correção pendente no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) |
 
 ## Critério para mover um item
 

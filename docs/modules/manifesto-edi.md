@@ -428,8 +428,8 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   sem linha: **Lançar** preenche serviço, quantidade calculada e valor do
   catálogo num clique (o usuário ainda lança); sem serviço de armazenagem
   daquela condição no depot, a tela não oferece o atalho e mostra
-  **Cadastrar**, que leva ao Cadastro de Terminais (ver a correção pendente
-  B12).
+  **Cadastrar**, que leva ao Cadastro de Terminais; o serviço sem condição
+  vale para as duas (B12, migration `260`).
 - **Observação** da linha é editável na tela e aparece no ADR. Excluir linha
   pede motivo (`delete_catalog_row`, qualquer usuário ativo; migration `096`).
 - **No ADR**, a seção **Embarque de vazios** (Equipamentos) mostra

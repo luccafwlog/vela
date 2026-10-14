@@ -57,10 +57,9 @@ tarifação (`is_active_read_user()`;
 [ADR 0044](../adr/0044-leitura-interna-global-departamento-restringe-escrita.md)).
 A única exceção é a área `/admin` inteira — Usuários, logs, métricas e todas as
 abas —, só do Administrativo, inclusive para leitura; o item Admin do menu só
-aparece para ele. As telas que ainda restringem a leitura sem decisão
-(Desbloqueio de CE, documentos do pedido, fila de Disputas, Histórico do
-console do Portal e Comunicados) estão marcadas como correção pendente na
-[matriz](#modelo-de-permissões-por-perfil).
+aparece para ele. Desbloqueio de CE, documentos do pedido, fila de Disputas,
+Histórico do console do Portal e Comunicados passaram à leitura global na
+migration `250` (P12; [matriz](#modelo-de-permissões-por-perfil)).
 
 A matriz do frontend está em `roleHasPermission` (`src/hooks/useAuth.tsx`) e
 nos gates de cada tela; a autorização real fica nas policies, nas RPCs e nas
@@ -352,9 +351,8 @@ Gerados em `_headers` pelo staging do Cloudflare Pages:
 As migrations do Desbloqueio (`139`–`149`, `160`, `161`, `173` e `220`; as `137`–`138` são da Central de Informações) usam schema privado para implementação e RPCs públicas
 com allowlists e `search_path` fixo. Não há grants de tabela para o navegador.
 Portal resolve CNPJ pela sessão/conta ativa, nunca pelo payload. Administrativo
-e Documentação gerenciam; todos leem, inclusive os documentos. Hoje os demais
-consultam sem PDFs e Equipamentos é recusado (correção pendente:
-[matriz](#desbloqueio-de-ce)). Inspeção
+e Documentação gerenciam; todos leem, inclusive os documentos (migration
+`250`; [matriz](#desbloqueio-de-ce)). Inspeção
 consulta pelo cliente selecionado e recusa comandos de escrita.
 
 `portal-ce-unlock-document` limita o corpo multipart mesmo sem Content-Length,
