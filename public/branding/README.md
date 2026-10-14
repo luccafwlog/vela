@@ -49,6 +49,8 @@ depende da fonte estar instalada em quem abrir.
 
 ## Paleta
 
-Herdada de `src/index.css`, não inventada: navy `#152238`, topbar `#0e1825`,
-ouro `#d4882e`, papel `#f4f1ea`. Na variante escura, `#eef2ff`, `#f59e0b` e
-`#60a5fa`.
+Os papéis das cores estão na [identidade visual](../../docs/identidade-visual.md#cores)
+e os valores em `src/index.css`. Vela: azul-marinho `#152238`, barra `#0e1825`,
+dourado `#d4882e` só na navegação ativa, fundo neutro `#f6f7f9`. Portal Fwlog:
+azul-marinho da logo `#0d2b5e` e azul do globo `#5aaaf0`, sem dourado. Na
+variante escura do Vela, `#eef2ff`, `#f59e0b` e `#60a5fa`.

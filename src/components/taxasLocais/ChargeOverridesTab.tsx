@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Ban, MoreVertical, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Ban, MoreVertical, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { ActionMenu, type ActionMenuItem } from '../ui/ActionMenu'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { EmptyState, InlineError } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
 import { SegmentedControl } from '../ui/SegmentedControl'
@@ -227,9 +229,9 @@ export function ChargeOverridesTab({
     const name = `${row.customer?.name ?? 'Cliente'} · ${row.charge_item ? itemDisplayName(row.charge_item) : 'item'}`
     return (
       <div className="app-rates-item__actions">
-        <button type="button" className="app-table__icon-button" onClick={() => setModal({ row })} aria-label={`Editar condição ${name}`} title="Editar condição">
-          <Pencil size={14} aria-hidden="true" />
-        </button>
+        <Button variant="secondary" className="app-btn--sm" onClick={() => setModal({ row })} aria-label={`Editar condição ${name}`}>
+          Editar
+        </Button>
         {menu.length ? (
           <ActionMenu
             label={`Mais ações da condição ${name}`}
@@ -347,12 +349,12 @@ export function ChargeOverridesTab({
               <li key={row.id} className="app-rates-item-card" data-inactive={period === 'ended' || period === 'disabled' || undefined}>
                 <div className="app-rates-item-card__head">
                   <span>
-                    <strong>{row.customer?.name ?? '—'}</strong>
-                    <span className="app-rates-unit app-rates-code app-rates-block">{formatCnpjCpf(row.customer?.cnpj_cpf ?? '')}</span>
+                    <strong>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</strong>
+                    <span className="app-rates-unit app-rates-code app-rates-block">{row.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(row.customer.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span>
                   </span>
                   {renderActions(row)}
                 </div>
-                <p>{row.charge_item ? itemDisplayName(row.charge_item) : '—'} <span className="app-rates-unit">{scopeLabel(row.charge_item?.charge_table?.cargo_mode, row.charge_item?.charge_table?.pod)}</span></p>
+                <p>{row.charge_item ? itemDisplayName(row.charge_item) : <NoValue label="Sem item de taxa" />} <span className="app-rates-unit">{scopeLabel(row.charge_item?.charge_table?.cargo_mode, row.charge_item?.charge_table?.pod)}</span></p>
                 {renderValues(row)}
                 <p className={`app-rates-period ${PERIOD_CLASS[period]}`}>{periodLabel} · <span className="app-rates-num">{formatPeriod(row.valid_from, row.valid_to)}</span></p>
                 <ChargeNoteList notes={notes} />
@@ -364,26 +366,26 @@ export function ChargeOverridesTab({
 
         {visible.length > 0 && !narrow ? (
           <div className="app-table-scroll">
-            <table className="app-table app-table--compact app-rates-condition-table text-left">
+            <table className="app-table app-table--compact app-rates-condition-table">
               <caption className="sr-only">Condições de Cliente</caption>
               <thead>
                 <tr>
-                  <th scope="col">Cliente</th>
-                  <th scope="col">Item de taxa</th>
+                  <th scope="col" className="app-table__text-head">Cliente</th>
+                  <th scope="col" className="app-table__text-head">Item de taxa</th>
                   <th scope="col">Vigência</th>
-                  <th scope="col" className="text-right">Valor negociado</th>
+                  <th scope="col">Valor negociado</th>
                   {canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                 </tr>
               </thead>
               <tbody>
                 {visible.map(({ row, period, periodLabel, notes }) => (
                   <tr key={row.id} data-inactive={period === 'ended' || period === 'disabled' || undefined}>
-                    <td>
-                      <div className="app-rates-item__name">{row.customer?.name ?? '—'}</div>
-                      <div className="app-rates-unit app-rates-code">{formatCnpjCpf(row.customer?.cnpj_cpf ?? '')}</div>
+                    <td className="app-table__text">
+                      <div className="app-rates-item__name">{row.customer?.name ?? <NoValue label="Sem Cliente" />}</div>
+                      <div className="app-rates-unit app-rates-code">{row.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(row.customer.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</div>
                     </td>
-                    <td>
-                      <div className="app-rates-item__name">{row.charge_item ? itemDisplayName(row.charge_item) : '—'}</div>
+                    <td className="app-table__text">
+                      <div className="app-rates-item__name">{row.charge_item ? itemDisplayName(row.charge_item) : <NoValue label="Sem item de taxa" />}</div>
                       <div className="app-rates-unit">
                         {scopeLabel(row.charge_item?.charge_table?.cargo_mode, row.charge_item?.charge_table?.pod)} · {row.charge_item?.charge_table?.name ?? 'sem tabela'}
                       </div>
@@ -394,7 +396,7 @@ export function ChargeOverridesTab({
                       <div className={`app-rates-period ${PERIOD_CLASS[period]}`}>{periodLabel}</div>
                       <div className="app-rates-unit app-rates-num">{formatPeriod(row.valid_from, row.valid_to)}</div>
                     </td>
-                    <td className="text-right">{renderValues(row)}</td>
+                    <td>{renderValues(row)}</td>
                     {canEdit ? <td className="app-rates-item__actions-cell">{renderActions(row)}</td> : null}
                   </tr>
                 ))}

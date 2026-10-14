@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
@@ -65,10 +67,10 @@ function VaziosImportacaoPreview({
         <div className="rounded-xl border border-[#30363d] bg-[#0d1117] p-3"><div className="text-xs uppercase tracking-wider text-slate-500">Avisos</div><div className="mt-1 text-2xl font-bold text-white">{manifest.rowErrors.length}</div></div>
       </div>
       <div className="app-table-scroll max-h-64 rounded-xl border border-[#30363d]">
-        <table className="app-table app-table--compact min-w-[480px] text-left text-sm whitespace-nowrap">
+        <table className="app-table app-table--compact min-w-[480px] text-sm whitespace-nowrap">
           <caption className="sr-only">Prévia do manifesto de containers vazios</caption>
           <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500"><tr><th scope="col" className="px-3 py-2">Container</th><th scope="col" className="px-3 py-2">Tipo</th><th scope="col" className="px-3 py-2">Tara (kg)</th></tr></thead>
-          <tbody className="divide-y divide-[#30363d]">{manifest.containers.slice(0, 25).map((container, index) => <tr key={`${container.container_number}-${index}`}><td className="px-3 py-2 font-semibold text-white">{container.container_number}</td><td className="px-3 py-2">{container.container_type ?? '-'}</td><td className="px-3 py-2">{container.tare_kg != null ? Number(container.tare_kg).toLocaleString('pt-BR') : '-'}</td></tr>)}</tbody>
+          <tbody className="divide-y divide-[#30363d]">{manifest.containers.slice(0, 25).map((container, index) => <tr key={`${container.container_number}-${index}`}><td className="px-3 py-2 font-semibold text-white">{container.container_number}</td><td className="px-3 py-2">{container.container_type ?? <NoValue label="Sem tipo" />}</td><td className="px-3 py-2">{container.tare_kg != null ? Number(container.tare_kg).toLocaleString('pt-BR') : <NoValue label="Sem tara" />}</td></tr>)}</tbody>
         </table>
       </div>
       <TruncationNote shown={25} total={manifest.containers.length} noun="container" nounPlural="containers" />
@@ -314,14 +316,14 @@ export function VaziosImportacao() {
           <span>
             Todos os {pageContainerIds.length} containers desta página estão selecionados.
           </span>
-          <button
-            type="button"
-            className="font-semibold text-[var(--app-link)] hover:underline disabled:opacity-50"
+          <Button
+            variant="secondary"
+            className="app-btn--sm"
             disabled={selectingAllFiltered}
             onClick={() => void handleSelectAllFiltered()}
           >
             {selectingAllFiltered ? 'Selecionando...' : `Selecionar todos os ${data?.count} containers do filtro`}
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -333,7 +335,7 @@ export function VaziosImportacao() {
         {error ? <InlineError message="Erro ao carregar containers." /> : null}
 
         <div className="app-table-scroll app-table-scroll--sticky">
-          <table className="app-table app-table--compact min-w-[600px] text-left text-sm whitespace-nowrap">
+          <table className="app-table app-table--compact min-w-[600px] text-sm whitespace-nowrap">
             <caption className="sr-only">Containers vazios de importação</caption>
             <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
               <tr>
@@ -352,7 +354,7 @@ export function VaziosImportacao() {
                 <th scope="col" className="px-4 py-3">Tara (kg)</th>
                 <th scope="col" className="px-4 py-3">POD</th>
                 <th scope="col" className="px-4 py-3">Natureza</th>
-                <th scope="col" className="px-4 py-3">Navio / Viagem</th>
+                <th scope="col" className="app-table__text-head px-4 py-3">Navio / Viagem</th>
                 <th scope="col" className="px-4 py-3">Manifesto</th>
                 <th scope="col" className="px-4 py-3">Importado em</th>
               </tr>
@@ -389,10 +391,10 @@ export function VaziosImportacao() {
                         />
                       </td>
                     ) : null}
-                    <td className="px-4 py-3 font-semibold text-[#58a6ff]">{row.container_number}</td>
-                    <td className="px-4 py-3">{row.container_type ?? '-'}</td>
-                    <td className="px-4 py-3">{row.tare_kg != null ? Number(row.tare_kg).toLocaleString('pt-BR') : '-'}</td>
-                    <td className="px-4 py-3">{row.pod ?? '-'}</td>
+                    <td className="px-4 py-3 font-semibold text-[#58a6ff]"><CopyValue value={row.container_number} label="número do contêiner" /></td>
+                    <td className="px-4 py-3">{row.container_type ?? <NoValue label="Sem tipo" />}</td>
+                    <td className="px-4 py-3">{row.tare_kg != null ? Number(row.tare_kg).toLocaleString('pt-BR') : <NoValue label="Sem tara" />}</td>
+                    <td className="px-4 py-3">{row.pod ?? <NoValue label="Sem POD" />}</td>
                     <td className="px-4 py-3">
                       <Select
                         aria-label={`Natureza do container ${row.container_number}`}
@@ -409,10 +411,10 @@ export function VaziosImportacao() {
                         <option value="cover_plate">Cover plate</option>
                       </Select>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="app-table__text px-4 py-3">
                       {row.manifest?.voyage
                         ? `${row.manifest.voyage.vessel?.name ?? '-'} / ${row.manifest.voyage.voyage_number}`
-                        : '-'}
+                        : <NoValue label="Sem navio e viagem" />}
                     </td>
                     <td className="px-4 py-3">{manifestLabel}</td>
                     <td className="px-4 py-3">{formatDate(row.manifest?.imported_at)}</td>

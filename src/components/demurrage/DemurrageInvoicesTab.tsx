@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { FileText } from 'lucide-react'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { Button } from '../ui/Button'
 import { EmptyState } from '../ui/Card'
 import { Input } from '../ui/Input'
@@ -137,8 +139,8 @@ export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, on
                   </div>
                   <p className="app-dem-card__customer">{invoice.customer?.name ?? 'Cliente não identificado'}</p>
                   <p className="app-dem-meta">
-                    B/L <Link className="app-dem-link app-dem-code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link>
-                    {' · '}Emitida em {invoice.billed_at ? formatDate(invoice.billed_at) : '—'}
+                    B/L <CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-dem-link app-dem-code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></CopyValue>
+                    {' · '}Emitida em {invoice.billed_at ? formatDate(invoice.billed_at) : <NoValue label="Sem data de emissão" />}
                   </p>
                   <div className="app-dem-card__foot">
                     <div className="app-table__cell-stack">
@@ -160,7 +162,7 @@ export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, on
                 <thead>
                   <tr>
                     <th scope="col">Invoice</th>
-                    <th scope="col">Cliente</th>
+                    <th scope="col" className="app-table__text-head">Cliente</th>
                     <th scope="col">{tab === 'pagas' ? 'Emissão · pagamento' : 'Emissão'}</th>
                     <th scope="col" className="app-dem-num">USD a cobrar</th>
                     <th scope="col" className="app-dem-num">{tab === 'pagas' ? 'BRL pago' : 'BRL'}</th>
@@ -177,18 +179,18 @@ export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, on
                         <td>
                           <div className="app-table__cell-stack" data-testid="demurrage-invoice-context">
                             <button type="button" className="app-dem-link app-dem-code app-dem-strong" onClick={() => onOpenDetail(invoice.id)}>{invoice.doc_number}</button>
-                            <span className="app-dem-meta">B/L <Link className="app-dem-link app-dem-code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></span>
+                            <span className="app-dem-meta">B/L <CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-dem-link app-dem-code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></CopyValue></span>
                           </div>
                         </td>
                         <td>
                           <div className="app-table__cell-stack">
                             <span className="app-table__truncate app-table__truncate--xl" title={invoice.customer?.name ?? undefined}>{invoice.customer?.name ?? 'Cliente não identificado'}</span>
-                            <span className="app-dem-meta tabular-nums">{invoice.customer?.cnpj_cpf ? formatCnpjCpf(invoice.customer.cnpj_cpf) : '—'}</span>
+                            <span className="app-dem-meta tabular-nums">{invoice.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(invoice.customer.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span>
                           </div>
                         </td>
                         <td className="tabular-nums">
                           <div className="app-table__cell-stack">
-                            <span>{invoice.billed_at ? formatDate(invoice.billed_at) : '—'}</span>
+                            <span>{invoice.billed_at ? formatDate(invoice.billed_at) : <NoValue label="Sem data de emissão" />}</span>
                             {tab === 'pagas' && invoice.paid_at ? <span className="app-dem-meta">Paga em {formatDate(invoice.paid_at)}</span> : null}
                           </div>
                         </td>

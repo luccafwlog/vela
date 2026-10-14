@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { Download, Upload, Plus, Trash2, Pencil } from "lucide-react";
+import { Download, Upload, Plus } from "lucide-react";
 import { Button } from "../components/ui/Button";
+import { CopyValue } from "../components/ui/CopyValue";
+import { NoValue } from "../components/ui/NoValue";
 import { Card, InlineError, PageHeader } from "../components/ui/Card";
 import { Modal } from "../components/ui/Modal";
 import { Field, Input, Select } from "../components/ui/Input";
@@ -812,7 +814,7 @@ export function EmbarqueVazios() {
                 </div>
               ) : null}
               <div className="app-table-scroll">
-                <table className="app-table app-table--compact min-w-[760px] text-left text-sm whitespace-nowrap">
+                <table className="app-table app-table--compact min-w-[760px] text-sm whitespace-nowrap">
                   <caption className="sr-only">Containers vazios da viagem</caption>
                   <thead>
                     <tr>
@@ -829,8 +831,8 @@ export function EmbarqueVazios() {
                   <tbody>
                     {(units.data?.rows ?? []).map((item) => (
                       <tr key={item.id}>
-                        <td>{item.container_number}</td>
-                        <td>{item.container_type ?? "—"}</td>
+                        <td><CopyValue value={item.container_number} label="número do contêiner" /></td>
+                        <td>{item.container_type ?? <NoValue label="Sem tipo" />}</td>
                         <td>
                           {depotRows.find((depot) => depot.id === item.local_id)
                             ?.code ?? item.local_id}
@@ -841,8 +843,10 @@ export function EmbarqueVazios() {
                         <td>{formatDate(item.movement_date)}</td>
                         <td className="flex gap-1">
                           <Button
-                            variant="ghost"
+                            variant="secondary"
+                            className="app-btn--sm"
                             disabled={!canEdit}
+                            aria-label={`Editar unidade ${item.container_number}`}
                             onClick={() =>
                               setUnit({
                                 id: item.id,
@@ -857,10 +861,11 @@ export function EmbarqueVazios() {
                               })
                             }
                           >
-                            <Pencil size={14} />
+                            Editar
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="danger"
+                            className="app-btn--sm"
                             disabled={!canEdit}
                             aria-label={`Excluir unidade ${item.container_number}`}
                             onClick={async () => {
@@ -881,7 +886,7 @@ export function EmbarqueVazios() {
                               }, "Unidade excluída.");
                             }}
                           >
-                            <Trash2 size={14} />
+                            Excluir
                           </Button>
                         </td>
                       </tr>
@@ -1124,18 +1129,18 @@ export function EmbarqueVazios() {
                   </div>
                 </div>
                 <div className="app-table-scroll">
-                  <table className="app-table app-table--compact min-w-[900px] text-left text-sm whitespace-nowrap">
+                  <table className="app-table app-table--compact min-w-[900px] text-sm whitespace-nowrap">
                     <caption className="sr-only">Linhas de serviço do relatório de saída</caption>
                     <thead>
                       <tr>
-                        <th>Serviço</th>
+                        <th className="app-table__text-head">Serviço</th>
                         <th>Local</th>
                         <th>Rota</th>
                         <th>Tipo</th>
                         <th>Quantidade</th>
                         <th>Unitário</th>
                         <th>Total</th>
-                        <th>Observação</th>
+                        <th className="app-table__text-head">Observação</th>
                         <th />
                       </tr>
                     </thead>
@@ -1156,13 +1161,13 @@ export function EmbarqueVazios() {
                         );
                         return (
                           <tr key={item.id}>
-                            <td>
+                            <td className="app-table__text">
                               {(item.service as { name?: string } | null)?.name ??
                                 item.service_id}
                             </td>
                             <td>{depotRows.find((depot) => depot.id === item.local_id)?.code ?? item.local_id}</td>
-                            <td>{depotRows.find((depot) => depot.id === item.destino_id)?.code ?? "—"}</td>
-                            <td>{item.container_type ?? "—"}</td>
+                            <td>{depotRows.find((depot) => depot.id === item.destino_id)?.code ?? <NoValue label="Sem rota" />}</td>
+                            <td>{item.container_type ?? <NoValue label="Sem tipo" />}</td>
                             <td>
                               {calculated}
                               {item.quantidade_manual &&
@@ -1195,7 +1200,7 @@ export function EmbarqueVazios() {
                             </td>
                             <td className="min-w-64 whitespace-normal">
                               {editingServiceObservation === item.id ? (
-                                <div className="grid gap-2">
+                                <div className="grid gap-2 text-left">
                                   <textarea
                                     aria-label={`Observação — ${(item.service as { name?: string } | null)?.name ?? item.service_id}`}
                                     value={serviceObservationDraft}
@@ -1209,17 +1214,18 @@ export function EmbarqueVazios() {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="grid gap-1">
+                                <div className="grid gap-1 text-left">
                                   {item.observation ? <span className="whitespace-pre-line text-sm">{item.observation}</span> : <span className="text-sm text-[var(--app-muted)]">Sem observação</span>}
-                                  <button type="button" className="justify-self-start text-xs font-semibold text-[var(--app-muted)] underline underline-offset-4 hover:text-[var(--app-text)]" onClick={() => { setServiceObservationDraft(item.observation ?? ""); setEditingServiceObservation(item.id); }}>
+                                  <Button variant="secondary" className="app-btn--sm justify-self-start" onClick={() => { setServiceObservationDraft(item.observation ?? ""); setEditingServiceObservation(item.id); }}>
                                     {item.observation ? "Editar observação" : "Adicionar observação"}
-                                  </button>
+                                  </Button>
                                 </div>
                               )}
                             </td>
                             <td>
                               <Button
-                                variant="ghost"
+                                variant="danger"
+                                className="app-btn--sm"
                                 aria-label="Excluir linha de serviço"
                                 onClick={async () => {
                                   const reason = await confirmWithReason({
@@ -1238,7 +1244,7 @@ export function EmbarqueVazios() {
                                   }, "Linha excluída.");
                                 }}
                               >
-                                <Trash2 size={14} />
+                                Excluir
                               </Button>
                             </td>
                           </tr>

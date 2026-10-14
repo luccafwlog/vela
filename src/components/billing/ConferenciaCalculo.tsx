@@ -1,12 +1,13 @@
 import { Badge } from '../ui/Badge'
+import { NoValue } from '../ui/NoValue'
 import { useBlLocalChargeLines, useInvoicedSubtotalForBl } from '../../hooks/useLocalCharges'
 import { formatBRL, formatUSD } from '../../lib/utils'
 import type { LocalChargeLine } from '../../services/charges/chargeOperationsService'
 import { applicationBasisLabel, detectarDivergenciaComFatura, groupChargeLinesByTable, sumChargeLines } from './conferenciaCalculo'
 
-function formatQuantity(value: number | null) {
+function formatQuantity(value: number | null): string | null {
   const amount = Number(value ?? 0)
-  if (!Number.isFinite(amount)) return '-'
+  if (!Number.isFinite(amount)) return null
   return amount.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
 }
 
@@ -130,7 +131,7 @@ export function ConferenciaCalculo({
                             ) : null}
                           </div>
                         </td>
-                        <td className="py-1.5 pr-3 align-top">{formatQuantity(line.quantity)}</td>
+                        <td className="py-1.5 pr-3 align-top">{formatQuantity(line.quantity) ?? <NoValue label="Sem quantidade" />}</td>
                         <td className="py-1.5 pr-3 align-top">{lineUnitValue(line)}</td>
                         <td className="py-1.5 text-right align-top text-[var(--app-text-strong)]">{lineTotalValue(line)}</td>
                       </tr>

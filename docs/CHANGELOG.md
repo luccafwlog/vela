@@ -6,6 +6,42 @@
 
 ## 2026-10
 
+- **Passada única da identidade visual (2026-10-13, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md#passada-única-2026-10-13)):**
+  o que vale igual em qualquer tela foi aplicado de uma vez no Vela e no Portal: toda tabela segue
+  a tabela padrão (centralizada, com nome, descrição e observação à esquerda); a tabela dentro de
+  outra tabela tem cabeçalho claro; número de B/L, fatura, navio e Invoice não fica mais sublinhado
+  em repouso; dado ausente aparece como traço discreto; número do B/L, CE Mercante, CNPJ e número
+  do contêiner ganham o ícone de copiar (peça `CopyValue`), e as ações "Copiar …" que ficaram
+  repetidas saíram dos menus; ação escrita como texto sublinhado ou só ícone virou botão com nome
+  (Editar, Omitir, Excluir, Abrir …). A reorganização de cada tela segue em lotes, descritos no
+  plano. Documentos impressos não mudaram. Na revisão da PR: mensagem do alerta, observação e
+  descrição de item voltam a quebrar linha em vez de virar "…"; a Visão geral do B/L não mostra
+  mais "No free time" em contêiner que ainda não descarregou, e SOC aparece como "Não se aplica";
+  o CNPJ é copiado sempre formatado; o Tracking do Portal mantém o botão "Copiar número do B/L";
+  no tema escuro a aba ativa ganha traço e a faixa de identidade, borda; e
+  `design:check -- --update` passa a recusar número que subiu.
+- **Ficha do B/L na identidade visual (2026-10-13, tela 1 do
+  [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):** a ficha passa a seguir
+  a ordem fixa da identidade: faixa azul-marinho com número, navio, trecho, CE e Cliente; a próxima
+  ação em faixa própria, com "Resolver na Revisão" como botão; os trilhos Operacional e Documental
+  em blocos; e a Visão geral em cinco blocos (Embarque, Documento Mercante, Cliente, Carga e
+  Portal), cada um com o seu dado principal. O bloco Carga mostra "x de y devolvidos" e a tabela
+  dos contêineres com os grupos Devolução e No terminal. "Definir exceção", "Ver na aba Carga" e
+  "Enviar convite do Portal" viraram botões. A aba ativa de todo o sistema passa a azul-marinho
+  preenchido (regra 7). Dados, abas e ações não mudaram; o CSS próprio da ficha caiu de 138 para
+  108 regras. A catraca `design:check` passou a pegar cor `#RGBA` e CSS de página escondido num
+  seletor agrupado com uma peça comum.
+- **Identidade visual única do Vela e do Portal (2026-10-13, [ADR 0081](adr/0081-identidade-visual-unica.md)):**
+  depois da etapa 12 da campanha de revisão visual, o responsável revisou o contrato e escolheu a
+  direção "Marinha" com fundo neutro: azul-marinho estrutura a tela, blocos com título em faixa e
+  nove regras que valem para todas as telas, descritas em [identidade-visual.md](identidade-visual.md).
+  Nesta entrega mudam só fundo (cinza liso, sem pontos), bordas e textos frios, títulos de página
+  em DM Sans (Syne só no nome "Vela"), o Portal com a marca FWLOG (azul da logo e do globo, sem
+  dourado) e o botão `ghost`, que ganhou borda. Peças novas em `src/components/ui/` (`Block`,
+  `LeadValue`, `FactList`, `IdentityBand`, `NextAction`, `NoValue`) e `npm run design:check`, uma
+  catraca no CI sobre cor solta, tamanho fora da escala, caixa alta e CSS de página. A campanha de
+  2026-10-07 foi encerrada e arquivada; as telas migram pelo
+  [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md), com aprovação de cada uma.
 - **Autor da baixa no detalhe da fatura e na Ficha do Cliente (2026-10-13, migration `221`):**
   "Pagamentos registrados" do detalhe da fatura passa a mostrar quem registrou cada baixa e a
   referência bancária (antes só Observação, que ficava "—" quando a referência era o único

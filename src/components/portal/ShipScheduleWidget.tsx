@@ -97,24 +97,24 @@ export function ShipScheduleWidget() {
                 <caption className="sr-only">Programação de navios: saída na origem e chegada no Brasil</caption>
                 <thead>
                   <tr>
-                    <th scope="col" rowSpan={2} className="text-left">Navio</th>
-                    <th scope="col" rowSpan={2} className="text-center">Viagem</th>
-                    <th scope="colgroup" colSpan={POL_LANES.length} className="text-center app-schedule__group">Saída na origem (ETD)</th>
-                    <th scope="colgroup" colSpan={POD_LANES.length} className="text-center app-schedule__group">Chegada no Brasil (ETA)</th>
+                    <th scope="col" rowSpan={2} className="app-table__text-head">Navio</th>
+                    <th scope="col" rowSpan={2}>Viagem</th>
+                    <th scope="colgroup" colSpan={POL_LANES.length} className="app-schedule__group">Saída na origem (ETD)</th>
+                    <th scope="colgroup" colSpan={POD_LANES.length} className="app-schedule__group">Chegada no Brasil (ETA)</th>
                   </tr>
                   <tr>
                     {PORTAL_SCHEDULE_LANES.map((lane) => (
-                      <th key={lane.label} scope="col" className="text-center">{scheduleLaneTitle(lane)}</th>
+                      <th key={lane.label} scope="col">{scheduleLaneTitle(lane)}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {vessels.map((vessel) => (
                     <tr key={vessel.voyageId}>
-                      <th scope="row" className="text-left font-semibold"><VesselLink voyage={vessel} /></th>
-                      <td className="text-center">{vessel.voyage}</td>
+                      <th scope="row" className="app-table__text font-semibold"><VesselLink voyage={vessel} /></th>
+                      <td>{vessel.voyage}</td>
                       {PORTAL_SCHEDULE_LANES.map((lane) => (
-                        <td key={lane.label} className="text-center">
+                        <td key={lane.label}>
                           <ScheduleDate voyage={vessel} lane={lane} />
                         </td>
                       ))}

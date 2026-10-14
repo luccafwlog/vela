@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { EmptyState } from '../ui/Card'
 import { Combobox, type ComboOption } from '../ui/Combobox'
 import { Field, Input } from '../ui/Input'
@@ -207,11 +209,11 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
                             onChange={() => toggle(r.receivable_id)}
                           />
                         </td>
-                        <td className="app-invoice-detail__code">{r.bl_id}</td>
+                        <td className="app-invoice-detail__code"><CopyValue value={r.bl_id} label="número do B/L" /></td>
                         <td>
-                          {[r.vessel_name, r.voyage_number].filter(Boolean).join(' ') || '—'}
+                          {[r.vessel_name, r.voyage_number].filter(Boolean).join(' ') || <NoValue label="Sem navio e viagem" />}
                         </td>
-                        <td>{r.individual_invoice_number ?? '—'}</td>
+                        <td>{r.individual_invoice_number ?? <NoValue label="Sem fatura individual" />}</td>
                         <td className="app-invoice-detail__num">{fmtBRL(r.balance_brl)}</td>
                         <td>
                           {eligible ? (

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ArrowUpDown, Copy, MoreHorizontal, Power, ReceiptText, Trash2 } from 'lucide-react'
 import { ActionMenu, type ActionMenuItem } from '../ui/ActionMenu'
+import { CopyValue } from '../ui/CopyValue'
 import { Badge } from '../ui/Badge'
 import { Card } from '../ui/Card'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
@@ -32,7 +33,7 @@ type RowHandlers = {
 
 /**
  * Lista de Clientes. O nome abre a ficha; a única ação visível é "Mais ações"
- * (⋮), com faturas, cópias e, para o Administrativo, desativar e excluir.
+ * (⋮), com faturas, cópia do e-mail e, para o Administrativo, desativar e excluir.
  * Abaixo de 640 px a página passa `narrow` e cada Cliente vira um cartão.
  */
 export function CustomerTable({
@@ -113,7 +114,7 @@ export function CustomerTable({
         </ul>
       ) : (
         <div className="app-table-scroll app-table-scroll--sticky">
-          <table className="app-table app-table--compact app-customer-table text-left text-sm">
+          <table className="app-table app-table--compact app-customer-table text-sm">
             <caption className="sr-only">Clientes filtrados</caption>
             <thead>
               <tr>
@@ -127,8 +128,8 @@ export function CustomerTable({
                     />
                   </th>
                 ) : null}
-                {sortHeader('name', 'Cliente', 'app-customer-table__name')}
-                <th scope="col" className="app-customer-table__contact">Contato principal</th>
+                {sortHeader('name', 'Cliente', 'app-customer-table__name app-table__text-head')}
+                <th scope="col" className="app-customer-table__contact app-table__text-head">Contato principal</th>
                 {sortHeader('bls', 'B/Ls', 'app-customer-table__bls')}
                 {sortHeader('pendingBalance', 'Saldo pendente', 'app-customer-table__balance')}
                 <th scope="col" className="app-customer-table__actions"><span className="sr-only">Ações</span></th>
@@ -184,7 +185,8 @@ function rowFacts(row: CustomerListItem, portalRow?: QueueRow) {
     charges,
     contacts,
     blCount: row.bls?.length ?? 0,
-    meta: [formatCnpjCpf(row.cnpj_cpf), row.trade_name, place].filter(Boolean) as string[],
+    document: formatCnpjCpf(row.cnpj_cpf),
+    meta: [row.trade_name, place].filter(Boolean) as string[],
     deactivated: isDeactivated(row),
     portalNote: customerPortalNote(portalRow),
   }
@@ -194,7 +196,6 @@ function rowMenuItems(row: CustomerListItem, primaryEmail: string | null, handle
   const deactivated = isDeactivated(row)
   return [
     { key: 'faturas', label: 'Ver faturas em Taxas Locais', icon: <ReceiptText size={14} aria-hidden="true" />, to: buildCustomerBillingUrl(row) },
-    { key: 'cnpj', label: 'Copiar CNPJ', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void handlers.onCopy(formatCnpjCpf(row.cnpj_cpf), 'CNPJ') },
     ...(primaryEmail
       ? [{ key: 'email', label: 'Copiar e-mail', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void handlers.onCopy(primaryEmail, 'E-mail principal') }]
       : []),
@@ -234,9 +235,13 @@ function RowMenu({ row, primaryEmail, handlers }: { row: CustomerListItem; prima
 
 function NameBlock({ row, facts }: { row: CustomerListItem; facts: ReturnType<typeof rowFacts> }) {
   return (
-    <div className="app-customer-cell">
+    <div className="app-customer-cell app-table__cell-stack">
       <Link className="app-customer-link" to={`/clientes/${encodeURIComponent(row.cnpj_cpf)}`}>{row.name}</Link>
-      <span className="app-customer-cell__meta">{facts.meta.join(' · ')}</span>
+      <span className="app-customer-cell__meta">
+        {facts.document ? <CopyValue value={facts.document} label="CNPJ/CPF" /> : null}
+        {facts.document && facts.meta.length > 0 ? ' · ' : null}
+        {facts.meta.join(' · ')}
+      </span>
       {facts.deactivated || facts.portalNote ? (
         <span className="app-customer-cell__flags">
           {facts.deactivated ? <Badge tone="neutral">Desativado</Badge> : null}
@@ -250,7 +255,7 @@ function NameBlock({ row, facts }: { row: CustomerListItem; facts: ReturnType<ty
 function ContactBlock({ contacts }: { contacts: ReturnType<typeof summarizeContactsForDisplay> }) {
   if (!contacts.primaryEmail) {
     return (
-      <div className="app-customer-cell">
+      <div className="app-customer-cell app-table__cell-stack">
         <span className="app-customer-note app-customer-note--warning">Sem e-mail de contato</span>
         {contacts.count > 0 ? <span className="app-customer-cell__meta">{formatCountLabel(contacts.count, 'contato sem e-mail', 'contatos sem e-mail')}</span> : null}
       </div>
@@ -258,7 +263,7 @@ function ContactBlock({ contacts }: { contacts: ReturnType<typeof summarizeConta
   }
   const others = contacts.count - 1
   return (
-    <div className="app-customer-cell">
+    <div className="app-customer-cell app-table__cell-stack">
       <span className="app-customer-cell__truncate" title={contacts.primaryEmail}>{contacts.primaryEmail}</span>
       <span className="app-customer-cell__meta">
         {contacts.isPrimary ? 'Principal' : 'Sem contato principal'}

@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { NoValue } from '../ui/NoValue'
+import { CopyValue } from '../ui/CopyValue'
 import { Card } from '../ui/Card'
 import { useCustomerPendingReconciliation } from '../../hooks/useCustomerFicha'
 import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
@@ -49,12 +51,12 @@ export function OperacionalTab({ data }: { data: Data }) {
           </h2>
           <div className="app-customer-section-links">
             {inReview > 0 ? (
-              <Link className="app-customer-text-link" to={revisaoHref(data.cnpj_cpf)}>
+              <Link className="app-btn app-btn--secondary app-btn--sm" to={revisaoHref(data.cnpj_cpf)}>
                 {formatCountLabel(inReview, 'em revisão', 'em revisão')}: abrir na Revisão <ArrowRight size={14} aria-hidden="true" />
               </Link>
             ) : null}
             {bls.length ? (
-              <Link className="app-customer-text-link" to={`/bls?q=${encodeURIComponent(data.cnpj_cpf)}`}>
+              <Link className="app-btn app-btn--secondary app-btn--sm" to={`/bls?q=${encodeURIComponent(data.cnpj_cpf)}`}>
                 Ver na lista de BLs <ArrowRight size={14} aria-hidden="true" />
               </Link>
             ) : null}
@@ -62,12 +64,12 @@ export function OperacionalTab({ data }: { data: Data }) {
         </div>
         {bls.length ? (
           <div className="app-table-scroll">
-            <table className="app-table app-table--compact app-customer-subtable text-left text-sm">
+            <table className="app-table app-table--compact app-customer-subtable text-sm">
               <caption className="sr-only">B/Ls vinculados ao Cliente</caption>
               <thead>
                 <tr>
                   <th scope="col">B/L</th>
-                  <th scope="col">Consignatário no B/L</th>
+                  <th scope="col" className="app-table__text-head">Consignatário no B/L</th>
                   <th scope="col">Revisão</th>
                   <th scope="col">Faturamento</th>
                   <th scope="col" className="app-customer-subtable__date">Criado em</th>
@@ -76,15 +78,15 @@ export function OperacionalTab({ data }: { data: Data }) {
               <tbody>
                 {bls.map((bl) => (
                   <tr key={bl.id}>
-                    <td><Link className="app-customer-link app-customer-code" to={`/bls/${bl.id}`}>{bl.id}</Link></td>
-                    <td className="app-customer-subtable__wrap">{bl.consignee ?? '—'}</td>
+                    <td><CopyValue value={bl.id} label="número do B/L"><Link className="app-customer-link app-customer-code" to={`/bls/${bl.id}`}>{bl.id}</Link></CopyValue></td>
+                    <td className="app-table__text" title={bl.consignee ?? undefined}>{bl.consignee ?? <NoValue label="Sem consignatário" />}</td>
                     <td>
                       <span className={bl.review_status === 'pending_review' ? 'app-customer-note app-customer-note--warning' : undefined}>
-                        {REVIEW_TEXT[bl.review_status ?? ''] ?? '—'}
+                        {REVIEW_TEXT[bl.review_status ?? ''] ?? <NoValue label="Sem situação de revisão" />}
                       </span>
                     </td>
                     <td>{statusLabel(FINANCIAL_TEXT, bl.financial_status)}</td>
-                    <td className="app-customer-subtable__date tabular-nums">{bl.created_at ? formatDate(bl.created_at) : '—'}</td>
+                    <td className="app-customer-subtable__date tabular-nums">{bl.created_at ? formatDate(bl.created_at) : <NoValue label="Sem data de criação" />}</td>
                   </tr>
                 ))}
               </tbody>

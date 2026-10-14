@@ -1,13 +1,17 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
+import { Block } from '../ui/Block'
+import { NextAction } from '../ui/NextAction'
 import { StepRail } from '../ui/StepRail'
+import { Badge } from '../ui/Badge'
 import type { DocumentalSummary, RailStage } from '../../services/blRails'
 import { nextActionLinkLabel, railStagesToSteps } from './blRailSteps'
 
 /**
- * Situação do B/L: a próxima ação e os dois trilhos (Operacional e
- * Documental) no `StepRail` comum. O trilho é o mapa; a próxima ação é o único
- * aviso da ficha que pede clique, com o destino escrito no link.
+ * Próxima ação e situação do B/L (ADR 0081, regra 3): a próxima ação em faixa
+ * própria, logo abaixo da identidade, e os trilhos Operacional e Documental
+ * em blocos lado a lado. Sem pendência documental não há faixa; o bloco
+ * Documental diz "Sem pendências".
  */
 export function BlRailsPipeline({ operational, documental, documentalSummary, nextAction }: {
   operational: RailStage[]
@@ -16,43 +20,37 @@ export function BlRailsPipeline({ operational, documental, documentalSummary, ne
   nextAction: RailStage | null
 }) {
   const linkLabel = nextActionLinkLabel(nextAction?.href)
+  const operationalAside = operational.find((stage) => stage.key === 'discharge')?.detail
   return (
-    <section className="app-bl-status" aria-label="Situação do B/L">
+    <>
       {nextAction ? (
-        <div className={`app-bl-status__next app-bl-status__next--${nextAction.state === 'blocked' ? 'blocked' : 'pending'}`}>
-          <AlertTriangle size={16} aria-hidden="true" className="shrink-0" />
-          <p className="app-bl-status__next-text">
-            <span className="app-bl-status__next-label">Próxima ação</span>
-            <span>{nextAction.label}: {nextAction.detail}</span>
-          </p>
-          {nextAction.href && linkLabel ? (
-            <Link className="app-bl-status__next-link" to={nextAction.href}>
+        <NextAction
+          tone={nextAction.state === 'blocked' ? 'danger' : 'warning'}
+          action={nextAction.href && linkLabel ? (
+            <Link className="app-btn app-btn--secondary app-btn--sm" to={nextAction.href}>
               {linkLabel}
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
           ) : null}
-        </div>
-      ) : (
-        <div className="app-bl-status__next app-bl-status__next--done" role="status">
-          <CheckCircle2 size={16} aria-hidden="true" className="shrink-0" />
-          <p className="app-bl-status__next-text">Sem pendências documentais.</p>
-        </div>
-      )}
-      {operational.length ? (
-        <div className="app-bl-status__rail">
-          <h2 className="app-bl-status__rail-title">Operacional</h2>
-          <StepRail label="Trilho operacional" steps={railStagesToSteps(operational)} />
-        </div>
+        >
+          {nextAction.label}: {nextAction.detail}
+        </NextAction>
       ) : null}
-      <div className="app-bl-status__rail">
-        <h2 className="app-bl-status__rail-title">
-          Documental
-          <span className="app-bl-status__rail-count" aria-label={`Pendências documentais: ${documentalSummary.label}`}>
-            {documentalSummary.label}
-          </span>
-        </h2>
-        <StepRail label="Trilho documental" steps={railStagesToSteps(documental)} />
-      </div>
-    </section>
+      <section className="grid gap-3 lg:grid-cols-2" aria-label="Situação do B/L">
+        {operational.length ? (
+          <Block title="Operacional" aside={operationalAside}>
+            <StepRail label="Trilho operacional" steps={railStagesToSteps(operational)} />
+          </Block>
+        ) : null}
+        <Block
+          title="Documental"
+          aside={(
+            <Badge tone={documentalSummary.pendingCount ? 'danger' : 'success'}>{documentalSummary.label}</Badge>
+          )}
+        >
+          <StepRail label="Trilho documental" steps={railStagesToSteps(documental)} />
+        </Block>
+      </section>
+    </>
   )
 }

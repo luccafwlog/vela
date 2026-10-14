@@ -1,6 +1,8 @@
 import { Fragment } from 'react'
 import { ChevronDown, ChevronRight, FileText, Printer } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { EmptyState, InlineError } from '../ui/Card'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { QueryStateGate } from '../shared/QueryStateGate'
@@ -73,7 +75,7 @@ export function DemurrageCustomersTab({
                 <caption className="sr-only">Demurrage em aberto por Cliente</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Cliente</th>
+                    <th scope="col" className="app-table__text-head">Cliente</th>
                     <th scope="col" className="app-dem-num">Invoices</th>
                     <th scope="col" className="app-dem-num">USD</th>
                     <th scope="col" className="app-dem-num">BRL hoje</th>
@@ -87,19 +89,21 @@ export function DemurrageCustomersTab({
                       <Fragment key={customer.customer_id}>
                         <tr>
                           <td>
-                            <button
-                              type="button"
-                              className="app-dem-disclosure"
-                              onClick={() => onExpandedCustomerChange(customer.customer_id)}
-                              aria-expanded={isExpanded}
-                              aria-controls={panelId}
-                            >
-                              {isExpanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
-                              <span className="app-table__cell-stack">
-                                <span className="app-dem-strong">{customer.customer_name}</span>
-                                <span className="app-dem-meta tabular-nums">{customer.cnpj_cpf ? formatCnpjCpf(customer.cnpj_cpf) : '—'}</span>
-                              </span>
-                            </button>
+                            <div className="app-table__cell-stack">
+                              <button
+                                type="button"
+                                className="app-dem-disclosure"
+                                onClick={() => onExpandedCustomerChange(customer.customer_id)}
+                                aria-expanded={isExpanded}
+                                aria-controls={panelId}
+                              >
+                                {isExpanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+                                <span className="app-table__cell-stack">
+                                  <span className="app-dem-strong">{customer.customer_name}</span>
+                                  <span className="app-dem-meta tabular-nums">{customer.cnpj_cpf ? formatCnpjCpf(customer.cnpj_cpf) : <NoValue label="Sem CNPJ/CPF" />}</span>
+                                </span>
+                              </button>
+                            </div>
                           </td>
                           <td className="app-dem-num">{customer.invoice_count}</td>
                           <td className="app-dem-num app-dem-amount">{fmtUSD(customer.total_usd)}</td>
@@ -126,8 +130,8 @@ export function DemurrageCustomersTab({
                                     {detail.map((invoice) => (
                                       <tr key={invoice.id}>
                                         <td><button type="button" className="app-dem-link app-dem-code" onClick={() => onOpenInvoice(invoice.id)}>{invoice.doc_number}</button></td>
-                                        <td className="app-dem-code">{invoice.bl_id}</td>
-                                        <td className="tabular-nums">{invoice.billed_at ? formatDate(invoice.billed_at) : '—'}</td>
+                                        <td className="app-dem-code"><CopyValue value={invoice.bl_id} label="número do B/L" /></td>
+                                        <td className="tabular-nums">{invoice.billed_at ? formatDate(invoice.billed_at) : <NoValue label="Sem data de emissão" />}</td>
                                         <td className="app-dem-num">{fmtUSD(invoice.total_usd)}</td>
                                         <td className="app-dem-num">{fmtBRL(invoice.current_total_brl)}</td>
                                       </tr>

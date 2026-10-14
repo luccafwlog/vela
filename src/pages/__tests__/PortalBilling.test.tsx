@@ -243,7 +243,8 @@ describe('PortalBilling', () => {
     expect(screen.getByText('Faturas de taxas locais e avulsas')).toBeTruthy()
     expect(screen.getAllByText(/^Avulsa/)).toHaveLength(2)
     expect(screen.getAllByText('NAVIO MANUAL / 42N')).toHaveLength(2)
-    expect(screen.getAllByText('B/L: —')).toHaveLength(1)
+    // Tabela (desktop) e cartão (mobile) mostram o traço discreto de ausência.
+    expect(screen.getAllByText('Sem B/L')).toHaveLength(2)
   })
 
   it('exibe abas Taxas Locais e Demurrage e oculta o filtro Cliente', async () => {

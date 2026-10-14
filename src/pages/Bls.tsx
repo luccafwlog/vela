@@ -1,8 +1,10 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp, Copy, Download, FileText, MoreVertical, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, FileText, MoreVertical, Trash2, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
@@ -94,7 +96,7 @@ function CustomerCell({ bl }: { bl: BLListItem }) {
   if (name) return <span className="app-bl-cell__truncate" title={name}>{name}</span>
   return (
     <>
-      <span className="app-bl-cell__truncate app-bl-cell__sub--muted" title={bl.consignee ?? undefined}>{bl.consignee ?? '—'}</span>
+      <span className="app-bl-cell__truncate app-bl-cell__sub--muted" title={bl.consignee ?? undefined}>{bl.consignee ?? <NoValue label="Sem consignatário" />}</span>
       <span className="app-bl-cell__sub app-bl-cell__sub--warning">Sem cliente vinculado</span>
     </>
   )
@@ -255,19 +257,8 @@ export function Bls() {
     }
   }
 
-  async function copyBlNumber(targetId: string) {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponível')
-      await navigator.clipboard.writeText(targetId)
-      showToast(`Número do B/L copiado: ${targetId}`, 'success')
-    } catch {
-      showToast('Não foi possível copiar o número do B/L.', 'error')
-    }
-  }
-
   function rowMenuItems(blId: string): ActionMenuItem[] {
     return [
-      { key: 'copy', label: 'Copiar número do B/L', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void copyBlNumber(blId) },
       ...(isAdmin
         ? [{ key: 'delete', label: 'Excluir B/L', icon: <Trash2 size={14} aria-hidden="true" />, danger: true, disabled: deleting, onSelect: () => void runBlDelete([blId]) }]
         : []),
@@ -467,7 +458,7 @@ export function Bls() {
           {summaryQuery.isError ? (
             <p className="app-bl-toolbar__hint" role="alert">
               Resumo indisponível; os totais aparecem como —.{' '}
-              <button type="button" className="app-bl-text-button" onClick={() => void summaryQuery.refetch()}>Tentar novamente</button>
+              <Button variant="secondary" className="app-btn--sm" onClick={() => void summaryQuery.refetch()}>Tentar novamente</Button>
             </p>
           ) : null}
         </div>
@@ -498,7 +489,7 @@ export function Bls() {
                       />
                     ) : null}
                     <div className="app-bl-card__id">
-                      <Link className="app-bl-link app-bl-id" to={`/bls/${bl.id}`}>{bl.id}</Link>
+                      <CopyValue value={bl.id} label="número do B/L"><Link className="app-bl-link app-bl-id" to={`/bls/${bl.id}`}>{bl.id}</Link></CopyValue>
                       <BlStateNote bl={bl} />
                     </div>
                     <ActionMenu
@@ -515,7 +506,7 @@ export function Bls() {
                     <span className="app-bl-cell__sub">
                       <CargoCell bl={bl} />
                       {' · CE '}
-                      <span className="app-bl-code">{bl.ce_mercante ?? '—'}</span>
+                      <span className="app-bl-code">{bl.ce_mercante ? <CopyValue value={bl.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</span>
                     </span>
                     <span className="app-bl-card__status">
                       <ChargeStatusBadge status={bl.charge_status} />
@@ -543,8 +534,8 @@ export function Bls() {
                     ) : null}
                     <th scope="col" className="app-bl-table__id">B/L</th>
                     <th scope="col">CE Mercante</th>
-                    <th scope="col">Navio / Viagem</th>
-                    <th scope="col">Cliente</th>
+                    <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+                    <th scope="col" className="app-table__text-head">Cliente</th>
                     <th scope="col">Trecho</th>
                     <th scope="col">Carga</th>
                     <th scope="col">Taxas locais e fatura</th>
@@ -570,13 +561,13 @@ export function Bls() {
                           ) : null}
                           <td className="app-bl-table__id">
                             <span className="app-bl-cell__stack">
-                              <Link className="app-bl-link app-bl-id" to={`/bls/${bl.id}`}>{bl.id}</Link>
+                              <CopyValue value={bl.id} label="número do B/L"><Link className="app-bl-link app-bl-id" to={`/bls/${bl.id}`}>{bl.id}</Link></CopyValue>
                               <BlStateNote bl={bl} />
                             </span>
                           </td>
-                          <td className="app-bl-code">{bl.ce_mercante ?? <span aria-label="Sem CE Mercante">—</span>}</td>
-                          <td><span className="app-bl-cell__truncate" title={voyageText(bl)}>{voyageText(bl)}</span></td>
-                          <td><span className="app-bl-cell__stack"><CustomerCell bl={bl} /></span></td>
+                          <td className="app-bl-code">{bl.ce_mercante ? <CopyValue value={bl.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</td>
+                          <td className="app-table__text"><span className="app-bl-cell__truncate" title={voyageText(bl)}>{voyageText(bl)}</span></td>
+                          <td className="app-table__text"><span className="app-bl-cell__stack"><CustomerCell bl={bl} /></span></td>
                           <td className="whitespace-nowrap">{routeText(bl)}</td>
                           <td><CargoCell bl={bl} /></td>
                           <td>

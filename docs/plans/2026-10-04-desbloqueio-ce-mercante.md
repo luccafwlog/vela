@@ -38,9 +38,7 @@ fluxo completo com clientes A/B. As demais pendências `[ ]` sem
 de fatura consolidada parcialmente paga e de cancelamento de baixa concorrente ao
 envio (Tarefa 2), ambas pelos comandos reais do financeiro. O segundo teste
 achou deadlock entre cancelamento de baixa e envio, corrigido pela migration `220` (trava do
-Cliente em `FOR NO KEY UPDATE`); a `220` ainda não está em produção. Das provas
-que protegem dinheiro e dados, resta o acesso de outro CNPJ no serviço real
-(Tarefa 3). Na leitura de produção do mesmo dia, os sites publicados e o backend
+Cliente em `FOR NO KEY UPDATE`); a `220` foi aplicada em produção no mesmo dia, após o merge da PR 936. Na leitura de produção do mesmo dia, os sites publicados e o backend
 correspondem ao commit `c4a984f` da `main` (compatibilidade conferida no
 código). O expurgo roda todo dia sem erro, mas nunca teve documento elegível:
 a remoção física continua sem prova; um documento de teste elegível foi criado
@@ -142,6 +140,11 @@ Fontes da reconciliação:
   vazio, nenhum documento com `purged_at`, nenhum rascunho, 4 documentos com
   objeto presente no bucket e nenhum objeto órfão. A remoção física nunca foi
   exercitada em produção. Nenhum dado remoto foi alterado.
+- **Remoto (2026-10-13, após o merge da PR 936):** o log da integração do
+  Supabase registra "Applying migration… 220_ce_unlock_trava_cliente_sem_deadlock.sql"
+  às 14:27:31 UTC; `schema_migrations` contém `220`, e
+  `ce_unlock_private.command` e `ce_unlock_prepare_upload` travam o Cliente com
+  `FOR NO KEY UPDATE`, mantendo `SECURITY DEFINER` e os mesmos grants.
 - **Remoto (2026-10-13, escrita autorizada pelo responsável):** documento de
   teste do expurgo em produção: rascunho `7e57e7e5-0000-4c13-a000-202610130001`
   (Cliente 1, criado com data de 8 dias antes, sem B/L) e termo
@@ -206,8 +209,7 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
 5. ~~Demonstrar as matrizes que protegem dinheiro e dados: fatura consolidada
    parcialmente paga (Tarefa 2), baixa cancelada concorrente ao envio
    (Tarefa 2) e acesso a IDs/caminhos/downloads de outro CNPJ no serviço real
-   (Tarefa 3).~~ Feito em 2026-10-13 (ver "Fontes"); a `220` precisa estar em
-   produção antes da ativação.
+   (Tarefa 3).~~ Feito em 2026-10-13 (ver "Fontes"), com a `220` em produção.
 6. ~~Conferir a compatibilidade dos frontends publicados com o backend atual e
    executar o fluxo completo com clientes A/B no ambiente autorizado
    (Tarefa 7).~~ Feito em 2026-10-13 até a exportação (ver "Fontes"); a
@@ -294,7 +296,7 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [x] Demonstrar fatura consolidada parcialmente paga: só o B/L cujo recebível foi liquidado fica pago; o status da fatura não conta. **Teste:** `ceUnlock.local-pg.test.ts` (2026-10-13, ver "Fontes").
 - [ ] Completar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível e obrigação de COD.
 - [x] Demonstrar reversão financeira concorrente à exportação: a exportação espera a transação e recusa o requisito perdido. **Teste:** `ceUnlock.local-pg.test.ts` (2026-10-07, no CI), com a reversão simulada no recebível (ver "Fontes").
-- [x] Demonstrar cancelamento de baixa concorrente ao envio do pedido, pelo comando real `reverse_invoice_payment`. **Teste/Código:** `ceUnlock.local-pg.test.ts` e migration `220`, que corrigiu o deadlock achado pelo teste (2026-10-13, ver "Fontes"). Publicar a `220` em produção antes da ativação.
+- [x] Demonstrar cancelamento de baixa concorrente ao envio do pedido, pelo comando real `reverse_invoice_payment`. **Teste/Código:** `ceUnlock.local-pg.test.ts` e migration `220`, que corrigiu o deadlock achado pelo teste (2026-10-13, ver "Fontes"). A `220` está em produção desde 2026-10-13 (ver "Fontes").
 - [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e o cancelamento de baixa concorrente à exportação pelo comando real (o teste da exportação altera o recebível diretamente).
 - [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
 - [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
@@ -439,7 +441,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Conferir histórico remoto e publicar migrations CE `139`–`149` e `160`–`161` e as cinco funções. **Remoto:** leitura de produção em 2026-10-10 (ver "Fontes").
 - [x] Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. **Remoto:** em 2026-10-13 os sites, as migrations, as funções do banco e as Edge Functions do Desbloqueio correspondiam ao commit `c4a984f` da `main`, com CI verde (ver "Fontes"). Conferência de código, não de uso: o fluxo na tela é o item A/B abaixo. Refazer se um merge mudar só um dos lados. A Vercel ficou só como rollback manual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
-- [ ] **[bloqueia ativação]** Conferir a migration `220` (trava do Cliente sem deadlock com o cancelamento de baixa) aplicada em produção depois do merge.
+- [x] Conferir a migration `220` (trava do Cliente sem deadlock com o cancelamento de baixa) aplicada em produção depois do merge. **Remoto:** aplicada pela integração do Supabase às 14:27 UTC de 2026-10-13, após o merge da PR 936 (ver "Fontes").
 - [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes"). Em 2026-10-13 o job e a função rodavam sem erro, mas nunca houve documento elegível; falta ver um documento de teste elegível ser removido do Storage e marcado com `purged_at`.
 - [x] Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md). **Código/Remoto:** PR 929; migrations `174`–`217` em produção em 2026-10-12 (ver "Fontes").
 - [x] Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial e exportação. **Runtime:** produção, 2026-10-13 (ver "Fontes"). A confirmação com evidência externa (conciliação com o "Exportar Tela" real) fica no item bloqueante de homologação da Tarefa 6; papel Financeiro e Operações nas telas não foram exercidos.

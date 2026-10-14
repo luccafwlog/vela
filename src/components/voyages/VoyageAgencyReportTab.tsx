@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
+import { NoValue } from '../ui/NoValue'
 import { AgencyReportDocument, buildAgencyReportPrintFilename } from './AgencyReportDocument'
 import { Info, MetricPanel } from '../shared/VoyageSectionCards'
 import { SignoffControl } from './SignoffControl'
@@ -239,9 +240,9 @@ function SectionObservation({
       <span className="text-xs font-semibold text-[var(--app-muted)]">Observação</span>
       <p className={`whitespace-pre-line text-[var(--app-text)] ${expanded ? '' : 'max-h-24 overflow-hidden'}`}>{text}</p>
       {text.split('\n').length > 4 || text.length > 200 ? (
-        <button type="button" className="justify-self-start text-xs font-semibold text-[var(--app-muted)] underline underline-offset-4 hover:text-[var(--app-text)]" onClick={() => setExpanded((value) => !value)}>
+        <Button variant="secondary" className="app-btn--sm justify-self-start" onClick={() => setExpanded((value) => !value)}>
           {expanded ? 'Recolher observação' : 'Ver observação completa'}
-        </button>
+        </Button>
       ) : null}
     </div>
   )
@@ -919,7 +920,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                   {directEmbarkCount ? <MetricPanel title="Embarque direto"><Info label="Unidades sem armazenagem" value={String(directEmbarkCount)} /></MetricPanel> : null}
                   <MetricPanel title="Locais"><Info label="Depots / terminais" value={depots.join(', ') || '—'} /></MetricPanel>
                 </div>
-                <MetricPanel title="Linhas de serviço">{data?.costs?.serviceLines?.length ? <div className="app-table-scroll"><table className="app-table min-w-[1050px] text-left text-sm"><thead><tr><th>Serviço</th><th>Local</th><th>Rota</th><th>Tipo</th><th>Quantidade</th><th>Unitário</th><th>Total</th><th>Observação</th></tr></thead><tbody>{data.costs.serviceLines.map((service) => <tr key={service.id}><td>{service.service?.name ?? '—'}</td><td>{service.local?.name ?? service.local?.code ?? service.local_id}</td><td>{service.destino?.name ?? service.destino?.code ?? '—'}</td><td>{service.container_type ?? '—'}</td><td>{String(service.quantidade)}</td><td>{formatBRL(Number(service.valor_unitario))}</td><td>{formatBRL(Number(service.total))}</td><td className="whitespace-pre-line">{service.observation ?? '—'}</td></tr>)}</tbody></table></div> : <Info label="Registros" value="0" />}</MetricPanel>
+                <MetricPanel title="Linhas de serviço">{data?.costs?.serviceLines?.length ? <div className="app-table-scroll"><table className="app-table min-w-[1050px] text-sm"><thead><tr><th className="app-table__text-head">Serviço</th><th>Local</th><th>Rota</th><th>Tipo</th><th>Quantidade</th><th>Unitário</th><th>Total</th><th className="app-table__text-head">Observação</th></tr></thead><tbody>{data.costs.serviceLines.map((service) => <tr key={service.id}><td className="app-table__text">{service.service?.name ?? <NoValue label="Sem serviço" />}</td><td>{service.local?.name ?? service.local?.code ?? service.local_id}</td><td>{service.destino?.name ?? service.destino?.code ?? <NoValue label="Sem rota" />}</td><td>{service.container_type ?? <NoValue label="Sem tipo" />}</td><td>{String(service.quantidade)}</td><td>{formatBRL(Number(service.valor_unitario))}</td><td>{formatBRL(Number(service.total))}</td><td className="app-table__text app-table__text--wrap">{service.observation ?? <NoValue label="Sem observação" />}</td></tr>)}</tbody></table></div> : <Info label="Registros" value="0" />}</MetricPanel>
                 <MetricPanel title="Totais"><Info label="Total da operação" value={formatBRL(data?.costs?.total ?? 0)} /></MetricPanel>
               </> : <NadaOperado>Nenhum serviço de pátio nesta escala.</NadaOperado>}
             </Subsection>

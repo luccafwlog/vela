@@ -1,5 +1,7 @@
 # Planos históricos (archive)
 
+- [2026-10-07 — Revisão visual e UX: pacote de prompts](2026-10-07-revisao-visual-ux-prompts.md) — encerrado e arquivado em 2026-10-13 depois da etapa 12: o contrato visual da etapa 00 foi substituído pela identidade visual única ([ADR 0081](../../adr/0081-identidade-visual-unica.md)), e as etapas 13 a 23 deram lugar ao [plano de migração tela a tela](../../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+
 - [2026-10-09 — Correção das importações e do CE Mercante](2026-10-09-correcao-importacoes-ce-mercante.md) — concluído em 2026-10-12: Etapas 0 a 14 na PR 929, migrations `174` a `217` em produção e `import-effects-runner` ligado (acelerado pela `218`); ensaio em Preview dispensado pelo dono.
 
 - [2026-09-28 — Remediação da auditoria de segurança run-2](2026-09-28-remediacao-auditoria-seguranca-run-2.md) — concluído em 2026-10-09: fases 1–5 e reforços D4 = b; evidências de produção em "Encerramento em 2026-10-08/09"; riscos aceitos registrados.

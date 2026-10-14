@@ -196,6 +196,11 @@ describe('ClienteFicha user behaviours', () => {
     await user.click(screen.getByRole('button', { name: 'Mais ações do Cliente' }))
     expect(screen.getByRole('menuitem', { name: 'Ver faturas em Taxas Locais' }).getAttribute('href')).toContain('/taxas-locais?tab=invoices&customer=42')
     expect(screen.getByRole('menuitem', { name: 'Ver os B/Ls na lista de BLs' }).getAttribute('href')).toBe('/bls?q=12345678000195')
+    // A cópia do CNPJ saiu do menu e virou o ícone ao lado do número, que copia formatado.
+    expect(screen.queryByRole('menuitem', { name: /Copiar CNPJ/ })).toBeNull()
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Copiar CNPJ/CPF 12.345.678/0001-95' }))
+    expect(await navigator.clipboard.readText()).toBe('12.345.678/0001-95')
   })
 
   it('cliente desativado avisa data, efeito e motivo', () => {

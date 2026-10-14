@@ -9,7 +9,7 @@ export type BlTerminalOverrideOption = {
   portId: number | null
 }
 
-// Terminal de descarga do B/L, como um fato do Embarque. Mostra o terminal em
+// Terminal de descarga do B/L, como um fato do bloco Embarque. Mostra o terminal em
 // uso e a origem (escala ou exceção deste B/L) em texto; o formulário de
 // exceção só abre quando alguém pede para alterar.
 export function BlTerminalOverrideCard({
@@ -54,18 +54,18 @@ export function BlTerminalOverrideCard({
   }
 
   return (
-    <div className="app-bl-facts__item app-bl-facts__wide app-bl-terminal">
-      <dt>Terminal de descarga</dt>
-      <dd>
+    <div className="app-facts__item app-bl-terminal">
+      <dt className="app-facts__label">Terminal de descarga</dt>
+      <dd className="app-facts__value">
           <span className="app-bl-terminal__value">
             <span>{currentLabel ?? (isOverride ? 'Terminal da exceção' : 'Padrão da escala')}</span>
             {canEdit && !editing ? (
-              <button type="button" className="app-bl-text-button" onClick={() => setEditing(true)}>
+              <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setEditing(true)}>
                 {isOverride ? 'Alterar exceção' : 'Definir exceção'}
-              </button>
+              </Button>
             ) : null}
           </span>
-          <span className={isOverride ? 'app-bl-facts__sub app-bl-tone--warning' : 'app-bl-facts__sub'}>
+          <span className={isOverride ? 'app-facts__detail app-bl-tone--warning' : 'app-facts__detail'}>
             {isOverride ? 'Exceção deste B/L, fora da Frente de Operação' : 'Herdado da Frente de Operação do POD'}
           </span>
 

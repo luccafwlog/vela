@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { Card } from '../ui/Card'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Field, Input, Textarea } from '../ui/Input'
@@ -147,7 +149,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
           <dl className="app-customer-facts app-customer-facts--inline">
             <div>
               <dt>CNPJ</dt>
-              <dd className="tabular-nums">{formatCnpjCpf(data.cnpj_cpf)}</dd>
+              <dd className="tabular-nums">{data.cnpj_cpf ? <CopyValue value={formatCnpjCpf(data.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</dd>
               <dd className="app-customer-facts__sub">Alterado só pelo Administrativo, com auditoria, em Acesso ao Portal › Gerenciar aqui.</dd>
             </div>
           </dl>
@@ -244,7 +246,7 @@ function PortalAccessSection({ customerId }: { customerId: number }) {
               {portalOpen ? 'Fechar gestão' : 'Gerenciar aqui'}
             </Button>
           ) : null}
-          <Link className="app-customer-text-link" to={`/clientes/portal?cliente=${customerId}`}>
+          <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${customerId}`}>
             Abrir no Provisionamento do Portal <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </div>

@@ -2,11 +2,14 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Ban, Copy, MoreHorizontal, RotateCcw, Upload } from 'lucide-react'
+import { ArrowLeft, Ban, MoreHorizontal, RotateCcw, Upload } from 'lucide-react'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../lib/containerCounts'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
 import { Breadcrumb } from '../components/ui/Breadcrumb'
+import { IdentityBand } from '../components/ui/IdentityBand'
+import { NoValue } from '../components/ui/NoValue'
+import { CopyValue } from '../components/ui/CopyValue'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { BlImportModal } from '../components/shared/BlImportModal'
 import { BlCargaTab } from '../components/bl/BlCargaTab'
@@ -134,16 +137,6 @@ export function BlDetalhe() {
       showToast('B/L reativado.', 'success')
     } catch (error) {
       showToast(userFacingErrorMessage(error, 'Falha ao reativar o B/L.'), 'error')
-    }
-  }
-  async function copyBlNumber() {
-    if (!bl) return
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponível')
-      await navigator.clipboard.writeText(bl.id)
-      showToast(`Número do B/L copiado: ${bl.id}`, 'success')
-    } catch {
-      showToast('Não foi possível copiar o número do B/L.', 'error')
     }
   }
 
@@ -365,7 +358,6 @@ export function BlDetalhe() {
   }
 
   const headerMenu: ActionMenuItem[] = [
-    { key: 'copy', label: 'Copiar número do B/L', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void copyBlNumber() },
     ...(isAdmin && cancelledAt
       ? [{ key: 'reactivate', label: 'Reativar B/L', icon: <RotateCcw size={14} aria-hidden="true" />, onSelect: () => void handleReactivateBl() }]
       : []),
@@ -383,38 +375,40 @@ export function BlDetalhe() {
           { label: `B/L ${bl.id}` },
         ]}
       />
-      <header className="app-bl-head">
-        <div className="app-bl-head__copy">
-          <p className="app-bl-head__eyebrow">
-            <span>B/L</span>
-            <span aria-hidden="true">·</span>
-            <span>{cargoModeLabel(cargoMode)}</span>
-            {cancelledAt ? <Badge tone="danger">Cancelado</Badge> : null}
-          </p>
-          <h1 className="app-bl-head__title">{bl.id}</h1>
-          <p className="app-bl-head__context">
-            {bl.voyage_id && voyageLabel ? <Link className="app-bl-link" to={`/viagens/${bl.voyage_id}`}>{voyageLabel}</Link> : <span>Sem viagem</span>}
-            <span>{`${bl.pol ?? '—'} → ${bl.pod ?? '—'}`}</span>
-            {bl.ce_mercante ? <span>CE <span className="app-bl-code">{bl.ce_mercante}</span></span> : null}
-            {bl.customer?.name ? <span>{bl.customer.name}</span> : null}
-          </p>
-        </div>
-        <div className="app-bl-head__actions">
-          {hasContainers && canImport && !cancelledAt ? (
-            <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
-              <Upload size={16} aria-hidden="true" />
-              Reimportar B/L
-            </Button>
-          ) : null}
-          <ActionMenu
-            label="Mais ações do B/L"
-            menuId="bl-header-menu"
-            triggerClassName="app-btn app-btn--secondary app-bl-head__more"
-            trigger={<MoreHorizontal size={16} aria-hidden="true" />}
-            items={headerMenu}
-          />
-        </div>
-      </header>
+      <div className="mb-4 grid gap-3">
+      <IdentityBand
+        kind={(
+          <>
+            B/L · <span>{cargoModeLabel(cargoMode)}</span>
+            {cancelledAt ? <> · <Badge tone="danger">Cancelado</Badge></> : null}
+          </>
+        )}
+        title={bl.id}
+        titleCopy={{ value: bl.id, label: 'número do B/L' }}
+        facts={[
+          { label: 'Navio / Viagem', value: bl.voyage_id && voyageLabel ? <Link to={`/viagens/${bl.voyage_id}`}>{voyageLabel}</Link> : <NoValue label="Sem viagem" /> },
+          { label: 'Trecho', value: `${bl.pol ?? '—'} → ${bl.pod ?? '—'}` },
+          { label: 'CE Mercante', value: bl.ce_mercante ? <span className="app-bl-code"><CopyValue value={bl.ce_mercante} label="CE Mercante" /></span> : <NoValue label="CE não informado" /> },
+          { label: 'Cliente', value: bl.customer?.name ?? <NoValue label="Sem cliente vinculado" /> },
+        ]}
+        actions={(
+          <>
+            {hasContainers && canImport && !cancelledAt ? (
+              <Button variant="secondary" onClick={() => setBlFreightOpen(true)}>
+                <Upload size={16} aria-hidden="true" />
+                Reimportar B/L
+              </Button>
+            ) : null}
+            <ActionMenu
+              label="Mais ações do B/L"
+              menuId="bl-header-menu"
+              triggerClassName="app-btn app-btn--secondary"
+              trigger={<MoreHorizontal size={16} aria-hidden="true" />}
+              items={headerMenu}
+            />
+          </>
+        )}
+      />
 
       {cancelBlockedReasons && !cancelledAt ? (
         <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
@@ -437,6 +431,7 @@ export function BlDetalhe() {
       ) : null}
 
       <BlRailsPipeline operational={operational} documental={documental} documentalSummary={documentalSummary} nextAction={pickNextAction(documental)} />
+      </div>
 
       <TabList label="Seções do B/L" className="app-bl-tabs">
         {BL_TABS.map((tab) => (

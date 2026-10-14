@@ -12,6 +12,7 @@ roteadores. Diretrizes canônicas em [AGENTS.md](../AGENTS.md). Cada fato tem um
 |---|---|
 | Entender o sistema de cima | [ARCHITECTURE.md](ARCHITECTURE.md) + [CONTEXT.md](../CONTEXT.md) (glossário) |
 | Rastrear uma tela, botão, hook, serviço ou RPC | [RASTREABILIDADE.md](RASTREABILIDADE.md) |
+| Fazer ou mudar uma tela (aparência, blocos, botões, cores) | [identidade-visual.md](identidade-visual.md) |
 | Mexer num módulo específico | [modules/](#módulos) abaixo |
 | Rodar localmente | [setup/development.md](setup/development.md) |
 | Fazer deploy | [setup/deploy.md](setup/deploy.md) |
@@ -65,6 +66,7 @@ as rotas de cadastro, de Comunicados, do console e da Inspeção do Portal, é o
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — stack, camadas, modelo de dados, mapa de rotas.
 - [CONTEXT.md](../CONTEXT.md) — glossário: termos de domínio, estados e a distinção entre conceitos próximos (B/L, Baplie, CE Mercante, demurrage…); a regra vigente fica no módulo.
+- [identidade-visual.md](identidade-visual.md) — as nove regras de aparência, cores, letra e peças comuns do Vela e do Portal Fwlog.
 - [ROADMAP.md](ROADMAP.md) — estado atual, backlog e riscos.
 - [CHANGELOG.md](CHANGELOG.md) — histórico de entregas relevantes.
 - [adr/](adr/README.md) — decisões numeradas (o porquê); o índice diz o status e onde está a regra vigente.

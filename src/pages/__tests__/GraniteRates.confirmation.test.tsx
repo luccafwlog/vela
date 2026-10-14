@@ -75,7 +75,7 @@ describe('GraniteRates - confirmação com diff antes/depois (ADR 0072)', () => 
       expect(screen.getByText('Taxa de Escaneamento')).toBeTruthy()
     })
 
-    const editBtn = screen.getByRole('button', { name: 'Editar' })
+    const editBtn = screen.getByRole('button', { name: /^Editar taxa / })
     await user.click(editBtn)
 
     expect(screen.getByText('Editar taxa')).toBeTruthy()
@@ -113,7 +113,7 @@ describe('GraniteRates - confirmação com diff antes/depois (ADR 0072)', () => 
       expect(screen.getByText('Taxa de Escaneamento')).toBeTruthy()
     })
 
-    const editBtn = screen.getByRole('button', { name: 'Editar' })
+    const editBtn = screen.getByRole('button', { name: /^Editar taxa / })
     await user.click(editBtn)
 
     const inputDesc = screen.getByPlaceholderText('Ex: Taxa de agenciamento')
