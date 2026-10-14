@@ -46,7 +46,8 @@ bash scripts/sync-git.sh
 ## 2. Conferir a documentação (`check-docs`)
 
 **O que faz:** varre a documentação do projeto procurando problemas — como links
-que apontam para arquivos que não existem mais. Também exige `AGENTS.md`,
+que apontam para arquivos que não existem mais ou para seções (`arquivo.md#secao`)
+cujo título mudou; a âncora segue o slug do GitHub. Também exige `AGENTS.md`,
 indexa ADRs, extrai rotas JSX por AST (incluindo índices e subrotas) e valida
 as sete seções e oito colunas dos módulos. As rotas de `AppInterno` e
 `AppPortal` precisam aparecer nas tabelas de `ARCHITECTURE.md` e
@@ -60,7 +61,8 @@ fora de `docs/archive/` quando é plano ou spec vivo. Documentos em `archive/`
 ficam fora do gate.
 Requer `npm ci --legacy-peer-deps`.
 Testes do gate: `node scripts/check-docs.test.mjs`,
-`node scripts/lib/docs-routes.test.mjs` e `node scripts/lib/docs-adr.test.mjs`.
+`node scripts/lib/docs-routes.test.mjs`, `node scripts/lib/docs-adr.test.mjs` e
+`node scripts/lib/docs-anchors.test.mjs`.
 
 **Quando usar:** depois de mexer em textos, rotas, ADRs ou playbooks (o próprio
 projeto pede isso no `AGENTS.md`).
