@@ -38,7 +38,9 @@ function cleanup() {
     SET session_replication_role = replica;
     DELETE FROM public.vazios_bookings WHERE voyage_id = ${voyageId};
     DELETE FROM public.vazios_manifests WHERE voyage_id = ${voyageId};
+    DELETE FROM public.vazios_export_service_lines WHERE operation_id IN (SELECT id FROM public.vazios_export_operations WHERE voyage_id = ${voyageId});
     DELETE FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};
+    DELETE FROM public.depot_services WHERE depot_id IN (SELECT id FROM public.depots WHERE code = '${depotCode}');
     DELETE FROM public.vazios_importacao_containers WHERE manifest_id IN (SELECT id FROM public.vazios_importacao_manifests WHERE voyage_id = ${voyageId});
     DELETE FROM public.vazios_importacao_manifests WHERE voyage_id = ${voyageId};
     DELETE FROM public.voyage_route_ce_master WHERE voyage_id = ${voyageId};
@@ -175,5 +177,21 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
     const result = importRoute('AZCU2340031', 'BRVIX', '1226a2340.9999')
     expect(result.stderr).toMatch(/já foi cadastrado/)
     expect(result.stderr).not.toMatch(/duplicate key/)
+  })
+
+  // B12 (ADR 0033; migration 260): serviço de armazenagem sem condição é genérico e serve à linha de qualquer condição.
+  it('B12 — linha de armazenagem aceita serviço sem condição; serviço de outra condição segue recusado', () => {
+    psql(`INSERT INTO public.vazios_export_operations (voyage_id, embark_port) SELECT ${voyageId}, 'BRVIX'
+      WHERE NOT EXISTS (SELECT 1 FROM public.vazios_export_operations WHERE voyage_id = ${voyageId});
+      INSERT INTO public.depot_services (depot_id, name, natureza, condition, rate_brl)
+      SELECT id, 'B12 armazenagem generica', 'armazenagem', NULL, 10 FROM public.depots WHERE code = '${depotCode}';
+      INSERT INTO public.depot_services (depot_id, name, natureza, condition, rate_brl)
+      SELECT id, 'B12 armazenagem material', 'armazenagem', 'material', 12 FROM public.depots WHERE code = '${depotCode}';`)
+    const insertLine = (serviceName: string, condition: string) => spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `INSERT INTO public.vazios_export_service_lines (operation_id, service_id, local_id, condition, quantidade, valor_unitario)
+       SELECT o.id, s.id, s.depot_id, '${condition}', 3, 10 FROM public.vazios_export_operations o, public.depot_services s
+       WHERE o.voyage_id = ${voyageId} AND s.name = '${serviceName}' AND s.depot_id = (SELECT id FROM public.depots WHERE code = '${depotCode}');`], { encoding: 'utf8' })
+    expect(insertLine('B12 armazenagem generica', 'vazio').stderr).toBe('')
+    expect(insertLine('B12 armazenagem material', 'vazio').stderr).toMatch(/Armazenagem exige depot/)
   })
 })

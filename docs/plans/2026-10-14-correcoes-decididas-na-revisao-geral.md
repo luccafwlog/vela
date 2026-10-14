@@ -125,6 +125,7 @@ da migration.
 | B7 | A seção Veículos sai do painel de Documentação e entra no de Equipamentos (`VoyageAgencyReportTab`), na ordem das seções; o contador "N/3 seções" passa a bater com o que aparece | **Teste:** `VoyageAgencyReportTab.test.tsx` (B7) |
 | B10 | `/embarquevazios`: o Porto de embarque lê as escalas da Viagem (`listVoyageEscalaSchedulesByVoyageIds`, sem excluídas e omitidas) e complementa com os portos dos B/Ls; sem escala, a mensagem manda cadastrar a escala. Sem mudança de banco (o banco não restringia o porto) | **Teste:** `EmbarqueVazios.flow.test.tsx` (B10) |
 | B11 | `/embarquevazios`, aba Serviços: a coluna Total da linha passa a `quantidade × valor unitário`, sem o percentual legado, igual a `totalLinha` (total do Embarque e ADR) | **Teste:** `EmbarqueVazios.flow.test.tsx` (B11, falha sem a correção) |
+| B12 | Migration `260`: `validate_vazios_export_service_line` aceita serviço de armazenagem sem condição (genérico) e segue recusando o de outra condição; o atalho "Armazenagem pendente de lançamento" usa o serviço da mesma condição ou, sem ele, o genérico | **Teste local-pg:** `vaziosReimportacao.local-pg.test.ts` (B12, falha sem a migration); **Teste:** `EmbarqueVazios.flow.test.tsx` (B12) |
 
 ## Operação (fora do código)
 

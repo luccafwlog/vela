@@ -307,6 +307,27 @@ describe("EmbarqueVazios", () => {
     })));
   });
 
+  it("B12: reconhece o serviço de armazenagem sem condição e lança a linha com a condição da unidade", async () => {
+    mocks.unitsData = {
+      rows: [{ id: "u1", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-01-01", hand_out_date: "2026-01-05" }],
+      count: 1,
+    };
+    mocks.armazenagemServicesData = [
+      { id: "armaz-generico", depot_id: "depot-1", condition: null, natureza: "armazenagem", rate_brl: 30, active: true, name: "Armazenagem" },
+    ];
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    await selectOperation();
+    fireEvent.click(screen.getByRole("button", { name: /Serviços/i }));
+
+    expect(screen.queryByText(/sem serviço de armazenagem cadastrado/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Lançar$/i }));
+    await waitFor(() => expect(mocks.upsertServiceLine).toHaveBeenCalledWith(expect.objectContaining({
+      service_id: "armaz-generico",
+      condition: "vazio",
+      valor_unitario: 30,
+    })));
+  });
+
   it("aponta quando falta cadastrar o serviço de armazenagem para a condição", async () => {
     mocks.unitsData = {
       rows: [{ id: "u1", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-01-01", hand_out_date: "2026-01-05" }],

@@ -1009,12 +1009,13 @@ bloqueadas no preview; nenhum veículo é criado com valores zero artificiais.
   `quantidade × valor unitário`, como o total do Embarque e o ADR (ADR 0033);
   o percentual legado gravado na linha não entra. **Teste:**
   `EmbarqueVazios.flow.test.tsx` (B11).
-- **Correção pendente (B12):** o atalho de armazenagem pendente só reconhece
-  serviço de armazenagem cadastrado com a mesma condição; o serviço sem
-  condição, que o valor sugerido trata como genérico (ADR 0033), aparece como
-  "sem serviço de armazenagem cadastrado" (o banco também exige a condição do
-  serviço na linha de armazenagem). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Corrigido (B12, migration `260`):** o atalho de armazenagem pendente
+  reconhece o serviço de armazenagem sem condição, que vale como genérico
+  (ADR 0033), quando não há serviço da mesma condição; a linha lançada leva a
+  condição da unidade. No banco, `validate_vazios_export_service_line` aceita
+  serviço sem condição e segue recusando serviço de outra condição. **Teste
+  local-pg:** `vaziosReimportacao.local-pg.test.ts` (B12, falha sem a
+  migration); **Teste:** `EmbarqueVazios.flow.test.tsx` (B12).
 - **Correção pendente (B21):** num B/L misto faturado, a prévia do B/L de
   container pede a confirmação de faturamento quando muda o peso dos
   contêineres, como se fosse peso de carga solta; o servidor aplica esse peso

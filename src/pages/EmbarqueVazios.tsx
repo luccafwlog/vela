@@ -920,11 +920,16 @@ export function EmbarqueVazios() {
                       const depot = depotRows.find(
                         (item) => item.id === need.depot_id,
                       );
-                      const suggestedService = armazenagemServiceRows.find(
-                        (item) =>
-                          item.depot_id === need.depot_id &&
-                          item.condition === need.condition,
-                      );
+                      // B12 (ADR 0033): o serviço da mesma condição vence; sem ele, o serviço sem condição (genérico) serve.
+                      const suggestedService =
+                        armazenagemServiceRows.find(
+                          (item) =>
+                            item.depot_id === need.depot_id &&
+                            item.condition === need.condition,
+                        ) ??
+                        armazenagemServiceRows.find(
+                          (item) => item.depot_id === need.depot_id && item.condition == null,
+                        );
                       return (
                         <li
                           key={`${need.depot_id}:${need.condition}`}
