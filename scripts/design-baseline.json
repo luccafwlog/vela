@@ -81,9 +81,6 @@
       "tamanho-solto": 4,
       "caixa-alta": 1
     },
-    "src/components/voyages/VoyageVisaoTab.tsx": {
-      "hex": 18
-    },
     "src/components/voyages/voyageCardHelpers.tsx": {
       "hex": 1
     },
@@ -177,7 +174,7 @@
       "app-badge": 11,
       "app-bl": 101,
       "app-breadcrumb": 7,
-      "app-btn": 45,
+      "app-btn": 39,
       "app-bulk": 3,
       "app-callout": 2,
       "app-cargo": 98,
@@ -237,7 +234,7 @@
       "app-touch": 1,
       "app-user": 6,
       "app-version": 1,
-      "app-voyage": 106,
+      "app-voyage": 56,
       "app-workspace": 11,
       "billing-demurrage": 4,
       "billing-page": 9,

@@ -12,27 +12,40 @@ export function IdentityBand({
   kind,
   title,
   titleCopy,
+  titleAside,
   facts = [],
   actions,
+  headingLevel = 1,
 }: {
   kind?: ReactNode
   title: ReactNode
   /** Ícone de copiar ao lado do título, fora do `h1` (o nome do título fica só o identificador). */
   titleCopy?: { value: string; label: string }
+  /** Situação ao lado do título (selo da viagem), fora do `h*`. */
+  titleAside?: ReactNode
   facts?: IdentityFact[]
   actions?: ReactNode
+  /** Nível do título; 2 quando a página já tem o seu `h1` (ficha da Viagem dentro de Viagens). */
+  headingLevel?: 1 | 2
 }) {
+  const Heading = `h${headingLevel}` as const
   return (
     <header className="app-identity">
       <div className="app-identity__main">
         {kind ? <p className="app-identity__kind">{kind}</p> : null}
         {titleCopy ? (
           <div className="app-copy">
-            <h1 className="app-identity__title">{title}</h1>
+            <Heading className="app-identity__title">{title}</Heading>
             <CopyButton value={titleCopy.value} label={titleCopy.label} />
+            {titleAside}
+          </div>
+        ) : titleAside ? (
+          <div className="app-identity__title-row">
+            <Heading className="app-identity__title">{title}</Heading>
+            {titleAside}
           </div>
         ) : (
-          <h1 className="app-identity__title">{title}</h1>
+          <Heading className="app-identity__title">{title}</Heading>
         )}
         {facts.length ? (
           <dl className="app-identity__facts">

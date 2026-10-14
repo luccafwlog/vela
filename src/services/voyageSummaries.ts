@@ -5,6 +5,7 @@ import { formatDate } from '../lib/utils'
 import { formatMetric, formatPortDisplayName, normalizePortName, stripFileExtension } from '../lib/voyageFormat'
 import { normalizePortCode } from './portCode'
 import { TIMELINE_ROLE_LABELS } from './voyageTimeline'
+import { VOYAGE_STATUS_LABELS } from '../lib/statusLabels'
 
 export function summarizeContainerTypes(
   containers:
@@ -1068,7 +1069,7 @@ function buildScheduleTimeline(
         kind: 'manifestos-linked',
         at,
         title: `Manifestos vinculados · ${port}`,
-        detail: appendActor('ESCALA = SIM', row),
+        detail: appendActor('Escala vinculada aos Manifestos', row),
       })
     } else if ((row.field_name === 'ces' || row.field_name === 'export_ces') && value) {
       events.push({
@@ -1198,13 +1199,23 @@ function buildAuditTimeline(
     }
 
     if (row.entity_type === 'voyages' || row.entity_type === 'voyage') {
-      const label = TIMELINE_VOYAGE_FIELD_LABELS[row.field_name] ?? row.field_name
+      // Cópia interna da situação das escalas: repete o "CE atualizado" do
+      // mesmo instante e não é fato para a operação (lote 1 da identidade).
+      if (row.field_name === 'pod_schedule_snapshot') continue
+      const label = TIMELINE_VOYAGE_FIELD_LABELS[row.field_name]
+      const show = (raw: string) => (row.field_name === 'status' ? VOYAGE_STATUS_LABELS[raw] ?? raw : raw)
+      // Campo sem rótulo ou que guarda um id nunca mostra nome técnico nem valor bruto.
+      const detail = !label
+        ? 'Dado interno da viagem atualizado'
+        : row.field_name === 'vessel_id'
+          ? (oldValue ? 'Navio trocado' : 'Navio definido')
+          : oldValue ? `${label}: ${show(oldValue)} → ${show(value)}` : `${label}: ${show(value)}`
       events.push({
         id: `audit-voyage-${index}`,
         kind: 'voyage-data',
         at,
         title: oldValue ? 'Dados da viagem alterados' : 'Viagem criada',
-        detail: appendActor(oldValue ? `${label}: ${oldValue} -> ${value}` : `${label}: ${value}`, row),
+        detail: appendActor(detail, row),
       })
     }
   }

@@ -61,8 +61,8 @@ function renderCard(voyage: Partial<Voyage>, routeCeMasters?: Map<string, string
 }
 
 function kpiValue(label: string) {
-  const cell = screen.getByText(label).parentElement
-  return cell?.querySelector('strong')?.textContent
+  // Fato de apoio do bloco: rótulo em <dt>, valor em <dd> (FactList).
+  return screen.getByText(label).closest('.app-facts__item')?.querySelector('dd')?.textContent
 }
 
 describe('KPIs do cabeçalho da viagem', () => {
@@ -153,12 +153,12 @@ describe('KPIs do cabeçalho da viagem', () => {
       ],
     } as unknown as Partial<Voyage>)
 
-    expect(screen.getByText('vazios embarcados').previousElementSibling?.textContent).toBe('2')
+    expect(screen.getByRole('region', { name: 'Exportação' }).querySelector('.app-lead__value')?.textContent).toBe('2 vazios embarcados')
   })
 })
 
 describe('KPI de Importação', () => {
-  it('mostra contêineres e carga solta lado a lado, sem linha de TEU', () => {
+  it('mostra contêineres e carga solta em blocos separados, sem linha de TEU', () => {
     renderCard({
       bls: [
         { id: 'bl-c', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [{ container_number: 'AAAU1000001', type: '40HC', is_imo: true, is_oog: false }] },
@@ -171,13 +171,14 @@ describe('KPI de Importação', () => {
 
     const containers = screen.getByRole('region', { name: 'Contêineres' })
     const breakbulk = screen.getByRole('region', { name: 'Carga solta' })
-    expect(containers.textContent).toContain('2CNTRs distintos')
-    expect(within(containers).getByText('B/Ls').parentElement?.querySelector('strong')?.textContent).toBe('2')
-    expect(within(containers).getByText('IMO / OOG').parentElement?.querySelector('strong')?.textContent).toBe('1 / 1')
-    expect(breakbulk.textContent).toContain('20toneladas')
-    expect(within(breakbulk).getByText('B/Ls carga solta').parentElement?.querySelector('strong')?.textContent).toBe('2')
-    expect(within(breakbulk).getByText('Máquinas / Packages').parentElement?.querySelector('strong')?.textContent).toBe('3 / 10')
-    expect(within(breakbulk).getByText('CBM').parentElement?.querySelector('strong')?.textContent).toBe('30')
+    const fact = (region: HTMLElement, label: string) => within(region).getByText(label).closest('.app-facts__item')?.querySelector('dd')?.textContent
+    expect(containers.querySelector('.app-lead__value')?.textContent).toBe('2 cheios, distintos')
+    expect(fact(containers, 'B/Ls')).toBe('2')
+    expect(fact(containers, 'IMO / OOG')).toBe('1 / 1')
+    expect(breakbulk.querySelector('.app-lead__value')?.textContent).toBe('20 toneladas')
+    expect(fact(breakbulk, 'B/Ls')).toBe('2')
+    expect(fact(breakbulk, 'Máquinas / Packages')).toBe('3 / 10')
+    expect(fact(breakbulk, 'CBM')).toBe('30')
     expect(screen.queryByText('TEU')).toBeNull()
   })
 
@@ -186,7 +187,7 @@ describe('KPI de Importação', () => {
       bls: [{ id: 'bl-c', batch_id: null, cargo_mode: 'container', pol: 'CNSHA', pod: 'BRVIX', ce_mercante: null, bl_containers: [] }],
     } as unknown as Partial<Voyage>)
 
-    expect(screen.getByRole('region', { name: 'Carga solta' }).textContent).toContain('sem carga solta')
+    expect(within(screen.getByRole('region', { name: 'Carga solta' })).getByText('Sem carga solta')).toBeTruthy()
   })
 })
 
