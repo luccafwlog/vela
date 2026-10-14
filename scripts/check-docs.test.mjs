@@ -38,7 +38,11 @@ try {
     .replace("from 'typescript'", `from '${pathToFileURL(path.join(root, 'node_modules/typescript/lib/typescript.js')).href}'`)
   write('scripts/lib/docs-routes.mjs', routeHelper)
   write('scripts/lib/docs-adr.mjs', fs.readFileSync(path.join(root, 'scripts/lib/docs-adr.mjs')))
-  write('scripts/lib/docs-anchors.mjs', fs.readFileSync(path.join(root, 'scripts/lib/docs-anchors.mjs')))
+  // O fixture fica fora do repositório: os pacotes do parser são importados
+  // pelo caminho do node_modules do repositório.
+  const anchorsHelper = fs.readFileSync(path.join(root, 'scripts/lib/docs-anchors.mjs'), 'utf8')
+    .replace(/from '([a-z][^'./]*)'/g, (_match, name) => `from '${import.meta.resolve(name)}'`)
+  write('scripts/lib/docs-anchors.mjs', anchorsHelper)
   write('AGENTS.md', '# Agent rules\n')
   write('docs/README.md', '# Docs\n')
   write('docs/adr/0001-example.md', '# Decision\n\nStatus: aceito — 2026-01-01\n')

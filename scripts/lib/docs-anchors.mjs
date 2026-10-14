@@ -1,55 +1,80 @@
-// Âncoras de seção no estilo do GitHub: o gate confere que `arquivo.md#secao`
-// aponta para um título (ou `<a id>`) que existe no destino.
+// Leitura de Markdown para o gate: o documento é lido por um parser CommonMark
+// com GFM (o mesmo dialeto do GitHub), e as âncoras de seção usam o
+// `github-slugger`, que é o algoritmo do GitHub. Assim, blocos de código,
+// comentários HTML, código inline e ênfase têm o mesmo tratamento da página
+// renderizada, sem expressão regular para cada caso de borda.
+import GithubSlugger from 'github-slugger'
+import { fromMarkdown } from 'mdast-util-from-markdown'
+import { gfmFromMarkdown } from 'mdast-util-gfm'
+import { toString } from 'mdast-util-to-string'
+import { gfm } from 'micromark-extension-gfm'
+import { visit } from 'unist-util-visit'
 
-// A cerca fecha com uma sequência do mesmo caractere de tamanho igual ou maior
-// (CommonMark): ```` envolve um exemplo com ``` dentro.
-const fencePattern = /^[ \t]*((`|~)\2{2,})[^\n]*\n[\s\S]*?^[ \t]*\1\2*[ \t]*$/gm
+// O gate lê o mesmo arquivo para links, âncoras e cabeçalho de ADR: a árvore
+// fica guardada pelo texto, e só é lida de novo se o texto mudar.
+const trees = new Map()
+
+export function parseMarkdown(markdown) {
+  if (!trees.has(markdown)) {
+    trees.set(markdown, fromMarkdown(markdown, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] }))
+  }
+  return trees.get(markdown)
+}
+
+const isComment = (node) => node.type === 'html' && node.value.trimStart().startsWith('<!--')
+
+// Remove do texto os trechos dos nós escolhidos, de trás para a frente para os
+// offsets continuarem válidos.
+function stripNodes(markdown, predicate) {
+  const ranges = []
+  visit(parseMarkdown(markdown), (node) => {
+    if (!predicate(node)) return undefined
+    ranges.push([node.position.start.offset, node.position.end.offset])
+    return 'skip'
+  })
+  let text = markdown
+  for (const [start, end] of ranges.sort((a, b) => b[0] - a[0])) {
+    text = text.slice(0, start) + text.slice(end)
+  }
+  return text
+}
 
 export function stripCodeFences(markdown) {
-  return markdown.replace(fencePattern, '')
+  return stripNodes(markdown, (node) => node.type === 'code')
 }
 
 // O que não aparece na página renderizada: blocos de código e comentários
-// HTML (inclusive de várias linhas). Os blocos saem primeiro, para um `<!--`
-// dentro de exemplo de código não abrir comentário.
+// HTML (inclusive de várias linhas). Um `<!--` dentro de bloco de código é
+// texto do bloco, não abre comentário.
 export function stripNonRendered(markdown) {
-  return stripCodeFences(markdown).replace(/<!--[\s\S]*?-->/g, '')
+  return stripNodes(markdown, (node) => node.type === 'code' || isComment(node))
 }
 
-// Mesmo algoritmo do github-slugger: minúsculas, remove pontuação e símbolos,
-// troca cada espaço por hífen. Letras acentuadas, dígitos, `_` e `-` ficam.
-// ponytail: a formatação inline é retirada por expressão regular; um título com
-// ênfase em `_..._` mantém os sublinhados e pode divergir do slug renderizado.
-// Melhoria: ler os títulos com um parser CommonMark (remark) e gerar o slug com
-// `github-slugger`, quando aparecer o primeiro falso positivo ou negativo.
+// Destinos dos links e imagens renderizados, inclusive os de referência
+// (`[texto][ref]` + `[ref]: destino`). Link em código ou comentário não conta.
+export function markdownLinks(markdown) {
+  const targets = []
+  visit(parseMarkdown(markdown), (node) => {
+    if (node.type === 'link' || node.type === 'image' || node.type === 'definition') targets.push(node.url)
+  })
+  return targets
+}
+
 export function githubSlug(heading) {
-  const text = heading
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/<[^>]+>/g, '')
-    .replace(/`/g, '')
-    .trim()
-    .toLowerCase()
-  return text.replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, '').replace(/ /g, '-')
+  return new GithubSlugger().slug(toString(parseMarkdown(heading), { includeHtml: false }))
 }
 
-// Como o github-slugger: o sufixo -N pula qualquer slug já emitido, inclusive
-// o de um título que já termina em "-1" (Foo, Foo-1, Foo → foo, foo-1, foo-2).
+// Títulos na ordem do documento, com o sufixo -N de repetição do GitHub, e as
+// âncoras explícitas `<a id>`/`<a name>` fora de código e comentários.
 export function headingAnchors(markdown) {
   const anchors = new Set()
-  const occurrences = new Map()
-  const prose = stripNonRendered(markdown)
-  for (const match of prose.matchAll(/^#{1,6}[ \t]+(.*?)[ \t]*#*[ \t]*$/gm)) {
-    const base = githubSlug(match[1])
-    let slug = base
-    while (occurrences.has(slug)) {
-      const next = occurrences.get(base) + 1
-      occurrences.set(base, next)
-      slug = `${base}-${next}`
+  const slugger = new GithubSlugger()
+  visit(parseMarkdown(markdown), (node) => {
+    if (node.type === 'heading') anchors.add(slugger.slug(toString(node, { includeHtml: false })))
+    if (node.type === 'html' && !isComment(node)) {
+      for (const match of node.value.matchAll(/<a\s+(?:id|name)="([^"]+)"/g)) anchors.add(match[1])
     }
-    occurrences.set(slug, 0)
-    anchors.add(slug)
-  }
-  for (const match of prose.matchAll(/<a\s+(?:id|name)="([^"]+)"/g)) anchors.add(match[1])
+  })
   return anchors
 }
 

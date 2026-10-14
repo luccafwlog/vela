@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { anchorExists, githubSlug, headingAnchors, stripCodeFences, stripNonRendered } from './docs-anchors.mjs'
+import { anchorExists, githubSlug, headingAnchors, markdownLinks, stripCodeFences, stripNonRendered } from './docs-anchors.mjs'
 
 assert.equal(githubSlug('Câmbio (ROE / PTAX)'), 'câmbio-roe--ptax')
 assert.equal(githubSlug('Admin / Usuários'), 'admin--usuários')
@@ -29,10 +29,25 @@ const collided = headingAnchors('## Foo\n## Foo-1\n## Foo\n## Foo\n')
 assert.deepEqual([...collided].sort(), ['foo', 'foo-1', 'foo-2', 'foo-3'])
 assert.equal(stripCodeFences('a\n```\n## x\n```\nb').includes('## x'), false)
 
+// Casos que a leitura por expressão regular errava: ênfase com sublinhado,
+// título dentro de lista e link em código inline, tabela ou referência.
+assert.equal(githubSlug('Regra _vigente_ e **nova**'), 'regra-vigente-e-nova')
+assert.deepEqual([...headingAnchors('- item\n\n## Depois da lista\n')], ['depois-da-lista'])
+assert.deepEqual(markdownLinks([
+  'Veja `[x](codigo.md)` e [real](a.md#secao).',
+  '| Coluna |',
+  '|---|',
+  '| [na tabela](b.md) |',
+  '',
+  '[por referência][ref] e <!-- [comentado](c.md) -->',
+  '',
+  '[ref]: <d e.md> "título"',
+].join('\n')), ['a.md#secao', 'b.md', 'd e.md'])
+
 assert.equal(anchorExists(anchors, 'notas-1'), true)
 assert.equal(anchorExists(anchors, 'm%C3%B3dulo'), true)
 assert.equal(anchorExists(anchors, 'Notas'), false)
 assert.equal(anchorExists(anchors, 'dentro-do-bloco'), false)
 assert.equal(anchorExists(anchors, '%E0%A4%A'), false)
 
-console.log('docs-anchors: GitHub slug, duplicate suffix with collisions, code fence, HTML comment and explicit anchor checks passed.')
+console.log('docs-anchors: GitHub slug, rendered links, duplicate suffix with collisions, code fence, HTML comment and explicit anchor checks passed.')

@@ -6,6 +6,10 @@
 
 ## 2026-10
 
+- **`docs:check` lê Markdown com parser (2026-10-14):** links e âncoras passam a vir de um parser
+  CommonMark com GFM (`mdast-util-from-markdown`) e do `github-slugger`, o mesmo algoritmo de
+  âncora do GitHub, no lugar das expressões regulares. Código inline, ênfase em título, links em
+  tabela e links de referência passam a ter o tratamento da página renderizada.
 - **Heartbeat do backup diário (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 6):**
   com `BETTERSTACK_HEARTBEAT_BACKUP_URL` definida, `scripts/backup-r2.mjs --execute` avisa o
   Better Stack no fim (sucesso ou `/fail`), e o dia sem backup vira alerta pelo prazo do
