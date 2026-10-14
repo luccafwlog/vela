@@ -1020,11 +1020,11 @@ bloqueadas no preview; nenhum veículo é criado com valores zero artificiais.
   serviço sem condição e segue recusando serviço de outra condição. **Teste
   local-pg:** `vaziosReimportacao.local-pg.test.ts` (B12, falha sem a
   migration); **Teste:** `EmbarqueVazios.flow.test.tsx` (B12).
-- **Correção pendente (B21):** num B/L misto faturado, a prévia do B/L de
-  container pede a confirmação de faturamento quando muda o peso dos
-  contêineres, como se fosse peso de carga solta; o servidor aplica esse peso
-  sem trava, como prevê a ADR 0017. Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Corrigido (B21):** num B/L misto faturado, a prévia do B/L de container
+  não pede mais a confirmação de faturamento quando muda o peso dos
+  contêineres; só o B/L de carga solta pura tem o peso como variável de
+  faturamento nessa importação, e o servidor aplica o peso dos contêineres sem
+  trava (ADR 0017). **Teste:** `blFreightImport.test.ts` (B21).
 - **Corrigido (B22):** a planilha-modelo de CE Mercante
   (`public/templates/ce-mercante-modelo.csv` e `.xlsx`) traz CE de 15 dígitos
   e importa limpa pelo parser (ADR 0078). **Teste:**
