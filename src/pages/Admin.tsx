@@ -9,6 +9,7 @@ import { NoValue } from '../components/ui/NoValue'
 import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
+import { classifyDbError } from '../lib/errors'
 import { TabButton } from '../components/ui/TabButton'
 import { NaoEncontrado } from './NaoEncontrado'
 import { ADMIN_TABS, DEFAULT_ADMIN_TAB, isAdminTab, type AdminTab } from './adminTabs'
@@ -111,8 +112,10 @@ export function Admin() {
       showToast('Usuário atualizado.', 'success')
       setPendingId(null)
     },
-    onError: () => {
-      showToast('Erro ao atualizar usuário.', 'error')
+    // A recusa do banco explica o motivo (ex.: último Administrativo ativo,
+    // migration 239); classifyDbError preserva a mensagem de negócio.
+    onError: (err: unknown) => {
+      showToast(classifyDbError(err).message, 'error')
       setPendingId(null)
     },
   })
