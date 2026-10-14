@@ -136,6 +136,7 @@ da migration.
 | B21 | `computeBillingImpact` (`blFreightImport.ts`) trata o peso como variável de faturamento só no B/L de carga solta pura; no misto, o peso que a importação de container traz é o dos contêineres e não pede confirmação. Sem mudança de banco | **Teste:** `blFreightImport.test.ts` (B21, falha sem a correção) |
 | B22 + B23 | `public/templates/ce-mercante-modelo.csv` e `.xlsx` com CE de 15 dígitos; o campo "Nº do manifesto" de `PolScheduleModal` mostra "Ex.: 1226501860578" (13 caracteres) | **Teste:** `ceMercanteTemplate.test.ts` (os dois modelos importam limpos; falha com o modelo antigo) |
 | B24 | Migration `264`: `_demurrage_roe_markup()` é o ponto canônico; `_demurrage_roe_from_ptax` e o novo `_demurrage_ptax_from_roe` derivam dele; `apply_demurrage_discount` e `confirm_unified_pix_matches` trocam `current_roe / 1.065` pela função; `save_exchange_rate_reference_v2` aceita `p_roe` nulo e calcula o ROE. A Edge `recalc-demurrage-ptax` manda só a PTAX e lê o ROE gravado; a constante do navegador fica como cópia de prévia, conferida por teste | **Teste local-pg:** `exchangeRateIntegrity.local-pg.test.ts` (B24: nenhuma outra função tem 1,065; ROE calculado da PTAX); **Teste:** `demurrageRoeMarkup.test.ts`. A Edge nova só vale em produção depois de publicada |
+| B25 | Migration `265`: `DROP FUNCTION portal_provisioning_backfill(text)`; sem chamador no código nem em outra função | **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B25) |
 
 ## Operação (fora do código)
 

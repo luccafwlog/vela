@@ -254,6 +254,15 @@ function migration263Applied(): boolean {
   }
 }
 
+function migration265Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT count(*) FROM pg_proc WHERE proname = 'portal_provisioning_backfill';`) === '0'
+  } catch {
+    return false
+  }
+}
+
 function migration250Applied(): boolean {
   if (!enabled) return false
   try {
@@ -282,8 +291,8 @@ function migration246Applied(): boolean {
 }
 
 const describeLocal = describeWithProbe(
-  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied() && migration253Applied() && migration254Applied() && migration261Applied() && migration263Applied(),
-  'migrations 231 a 263 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
+  () => migration231Applied() && migration232Applied() && migration233Applied() && migration235Applied() && migration241Applied() && migration246Applied() && migration247Applied() && migration250Applied() && migration251Applied() && migration252Applied() && migration253Applied() && migration254Applied() && migration261Applied() && migration263Applied() && migration265Applied(),
+  'migrations 231 a 265 (escrita só pelas RPCs, autor conferido, emissão, financeiro e leitura por perfil)')
 
 describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   beforeAll(() => {
@@ -425,6 +434,11 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       expectDenied(profile, `DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID}`)
     }
     expect(psql(`SELECT cmd FROM pg_policies WHERE tablename = 'customer_portal_accounts';`)).toBe('SELECT')
+  })
+
+  // B25 (migration arquivada 203; migration 265): o backfill e o pré-voo do provisionamento do Portal não existem.
+  it('B25: portal_provisioning_backfill e portal_provisioning_preflight saíram do catálogo', () => {
+    expect(psql(`SELECT count(*) FROM pg_proc WHERE proname IN ('portal_provisioning_backfill', 'portal_provisioning_preflight');`)).toBe('0')
   })
 
   // A7 + P1 — escala com B/L não se exclui; exclusão só pela RPC (ADR 0083, item 7; ADR 0085, falha 4).
