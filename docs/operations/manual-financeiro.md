@@ -13,6 +13,8 @@ Quem pode cada ação é decidido na [matriz de permissões](seguranca.md#modelo
 | Acompanhar a baixa automática do Pix Itaú e tratar Pix sem baixa | Conciliação → aba Pendências | Ver: todos; tratar: Financeiro ou Administrativo (hoje ver e tratar, só Administrativo) |
 | Registrar pagamento manual local ou conciliar PIX pelo extrato (plano B) | Detalhe / Conciliação → Conciliar extrato | Financeiro ou Administrativo (hoje só Administrativo) |
 | Emitir avulsa | Taxas Locais → Gerar fatura avulsa | Qualquer Departamento (hoje só Administrativo) |
+| Emitir fatura fora do automático (ficha do B/L, Validação, consolidada) e Gerar Invoice de Demurrage | Ficha do B/L / Taxas Locais / Demurrage | Qualquer Departamento (hoje só Administrativo) |
+| Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente, Resolver fatura desatualizada | Taxas Locais / detalhe da fatura | Qualquer Departamento (hoje só Administrativo) |
 | Autorizar restituição excepcional de avulsa/Demurrage, ou cancelar a autorização pendente | Detalhe → Restituição excepcional | Qualquer Departamento (hoje só Administrativo) |
 | Confirmar devolução já realizada no banco | Detalhe → Confirmar devolução | Financeiro ou Administrativo |
 | Preparar cancelamento financeiro de B/L com pagamento | Detalhe → Ajustes pela correção do B/L | Administrativo |

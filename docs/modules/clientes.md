@@ -172,7 +172,7 @@ As ações do console `/clientes/portal` e do painel **Revisão do Portal** (abe
 | `['customer-lookup', search]` | `useCustomerLookup` | Habilitada com 2+ caracteres; até 25 resultados. |
 | `['portal-provisioning', 'customer', customerId]` | `usePortalProvisioningForCustomer` | Abas Visão geral, Cadastro e contatos e Financeiro; RPC `portal_list_provisioning_console` filtrada pelo Cliente. O que cada perfil lê está em [Portal do Cliente](portal-cliente.md#console-clientesportal). |
 | `['customer-ficha', 'demurrage-invoices', customerId]` | `useCustomerDemurrageInvoices` | Aba Financeiro/Visão Geral; `Restrictable` (`{ rows, denied }`); paginado até esgotar. |
-| `['customer-ficha', 'receivables', customerId]` | `useCustomerReceivables` | Aba Financeiro; lê via RPC `get_customer_receivables` (não a tabela direto — a RLS de `bl_receivables` é `is_admin()`-only e devolveria lista vazia silenciosa para outros perfis); `Restrictable`. |
+| `['customer-ficha', 'receivables', customerId]` | `useCustomerReceivables` | Aba Financeiro; lê via RPC `get_customer_receivables` (não a tabela direto: a RPC é o contrato da aba; a leitura da tabela também é global, por `is_active_read_user()`, migration `002`); `Restrictable`. |
 | `['customer-ficha', 'payments', customerId]` | `useCustomerPayments` | Aba Financeiro; `Restrictable`; paginado até esgotar. |
 | `['customer-ficha', 'rate-overrides', customerId]` | `useCustomerRateOverrides` | Aba Financeiro; paginado até esgotar. |
 | `['customer-ficha', 'manual-charge-bls', customerId]` | `useCustomerManualChargeBls` | Aba Financeiro; paginado até esgotar. |

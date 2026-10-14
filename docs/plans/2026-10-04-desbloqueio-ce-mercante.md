@@ -47,7 +47,7 @@ produção com os Clientes 1 (A) e 2 (B), operado pelo responsável e conferido 
 banco, até a exportação; B não leu, alterou nem baixou nada de A pelo serviço
 real. Falta a conciliação com um "Exportar Tela" real da ZPT (Tarefa 6).
 A revisão geral da documentação do mesmo dia reabriu o alerta de troca de CE
-com Desbloqueio conferido, que o código não abre (correção pendente B1, item 1
+com Desbloqueio conferido, que o código não abre (correção pendente B1
 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico).
 
 **Estado conferido em 2026-10-14:** a rodada do expurgo das 06:00 UTC executou o
@@ -443,7 +443,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
 - [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Superado** pela revisão de 2026-10-07: as ações `sent` e `confirm` saíram; exportar registra o envio e a conciliação com o "Exportar Tela" da ZPT marca *Desbloqueio conferido* ou *Divergente* ([módulo vivo](../modules/desbloqueio-ce.md)). Confirmações antigas ficam como histórico do desk.
 - [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número. **Código/Remoto:** migration `177` (PR 929), em produção em 2026-10-12.
-- [ ] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: as migrations `181` e `195` estão em produção desde 2026-10-12, mas a definição vigente (`195`) lê a confirmação manual retirada na `160`, que o fluxo vigente não grava, e não o status da conciliação; o teste K2 passa porque monta esse estado à força. Correção pendente B1, item 1 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico.
+- [ ] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: as migrations `181` e `195` estão em produção desde 2026-10-12, mas a definição vigente (`195`) lê a confirmação manual retirada na `160`, que o fluxo vigente não grava, e não o status da conciliação; o teste K2 passa porque monta esse estado à força. Correção pendente B1 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico.
 - [x] Demonstrar baixa cancelada concorrente à criação da exportação. **Teste:** "exportação aguarda reversão financeira concorrente…" em `ceUnlock.local-pg.test.ts` (ver "Fontes").
 - [ ] Demonstrar bloqueio por cada requisito (hoje há teste de pagamento e de termo anual revogado), snapshot imutável e retry do mesmo lote.
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.

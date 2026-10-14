@@ -164,7 +164,7 @@ quando relevante e condição para reprodução.
 
 **Esperado:** navegação respeita perfil e o banco não retorna dados proibidos
 mesmo quando a API é chamada diretamente. Setores e permissões:
-[Segurança § Roles internas](seguranca.md#roles-internas).
+[Segurança § Modelo de permissões por perfil](seguranca.md#modelo-de-permissões-por-perfil).
 
 ## 5. Viagens
 

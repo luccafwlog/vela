@@ -4,7 +4,7 @@ Relatório de execução do lote D da revisão. Nasce histórico: registra o que
 lido, executado e decidido nesta data. A regra vigente está na
 [matriz de Segurança](../../operations/seguranca.md#modelo-de-permissões-por-perfil);
 o motivo, na [ADR 0085](../../adr/0085-modelo-de-permissoes-por-perfil.md); as
-correções, nos itens P1 a P14 do [plano de correções](../../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+correções, nos itens P1 a P15 do [plano de correções](../../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 Na mesma data, por decisão do dono, os itens P deixaram de ter plano próprio e
 entraram na fila única por impacto do plano de correções da revisão geral,
 fundidos com os itens A7, A9 e A18, que mexiam nos mesmos pontos.
@@ -58,8 +58,10 @@ O dono escolheu a **união** das duas: escrita global com rastro; exceções da
 base são as três da ADR 0046 mais cancelar fatura e registrar a Restituição.
 Depois de conversa interna, o dono precisou que "registrar a Restituição" e a
 **baixa manual** são do Financeiro e do Administrativo e que, dentro do
-Faturamento, os demais Departamentos fazem todo o resto; fora do Faturamento,
-as exceções aceitas continuam.
+Faturamento, os demais Departamentos fazem todo o resto, salvo as exceções
+aceitas que o dono mandou manter (cancelar baixa, Ajuste de COD, cancelamento
+financeiro, entre outras da ADR 0085); fora do Faturamento, as exceções
+aceitas continuam.
 
 ## 3. Classificação das restrições encontradas
 
@@ -120,8 +122,8 @@ lista só as três exceções da ADR 0046 (plano, P14); a tabela de exceções d
 | Desbloqueio de CE | Leitura sem Equipamentos (`139`); gestão Administrativo e Documentação | (ii) na leitura, matriz só "proposta" na spec; D11 |
 | Histórico do console do Portal | `portal_list_provisioning_events` recusa Operações; tela mostra a seção | (ii) frente à leitura global e ao item 18 da ADR 0083; D12 |
 | Administrativo assina qualquer seção do ADR; terminal legado de Operações e Administrativo | RPCs de sign-off (`002`), `set_agency_report_terminal` (`068`) | (ii); D13, cobertura aceita |
-| Administrativo informa outro autor | `_assert_actor_is_caller` (`106`) em quatro RPCs | (ii), contra o rastro; regra base 2 |
-| `archive_vessel_schedule` | Segue no banco, sem tela | (b): a ADR 0071 (item 12) manda remover |
+| Administrativo informa outro autor | `_assert_actor_is_caller` (`106`) em quatro RPCs; a revisão da PR achou o mesmo nas RPCs de faturamento com `COALESCE(p_actor, auth.uid())` (seção 7) | (ii), contra o rastro; regra base 2 |
+| `archive_vessel_schedule` | Esta linha estava errada: a função saiu na migration `087` (corrigido na seção 7) | — |
 | `add_agency_report_occurrence` | RPC sem tela; recusa Financeiro | Resíduo das Ocorrências (ADR 0030); remoção no plano |
 
 Itens da ADR 0083 com correção pendente que entram na matriz sem voltar como
@@ -138,20 +140,21 @@ API.
 
 Candidatas levantadas por leitura e reexecutadas pelo verificador
 independente. Privilégios testados vêm de grants explícitos das migrations
-`002` e `006`, então produção tem pelo menos esses (mais o default da
-plataforma, cabeçalho da migration `166`). Usuário inativo recebe zero linhas
+`002` e `006`; se elas estiverem aplicadas, produção tem pelo menos esses,
+mais o default da plataforma do cabeçalho da migration `166` (**Suspeita**: a
+ACL remota não foi lida). Usuário inativo recebe zero linhas
 em todas as escritas: a RLS barra inativos.
 
-| # | Caso | Veredito | O que a execução mostrou |
-|---|---|---|---|
-| 1 | `demurrage_invoice_items` por qualquer ativo (policies `002`, grant `006:63`) | **Confirmado (Teste)**; inserir em invoice emitida **refutado** | Operações zerou dias, diária e subtotal de item de Invoice emitida e de paga; passou no COMMIT. O detalhe do Portal mostrou 0,00 no item, com o total da Invoice intacto e o BRL redistribuído. Mover o item (`invoice_id`) para invoice em rascunho ou cancelada passou. Inserir em invoice emitida foi recusado pelo gatilho de conjunto completo. Tudo fica em `audit_logs`. |
-| 2 | `customer_contacts` por Financeiro e Operações (policies `002`) | **Confirmado (Teste)** | Financeiro, recusado pela RPC, trocou por UPDATE direto o e-mail do contato principal; os vínculos de caixa seguem o contato e `customer_communication_recipient_allowed` passou a aceitar o novo endereço. Operações desativou o principal e criou outro, que herdou as três caixas. Nenhum evento em `customer_contact_change_events`. |
-| 3 | DELETE direto pelo Administrativo (policies `is_admin` sem REVOKE) | **Confirmado (Teste)**; nos cadastros, só linhas sem uso | `delete_escala` recusou a escala de exportação travada pelo CE; o DELETE direto apagou a linha, sem motivo. Navio, armador, porto e tabela sem uso também saíram sem motivo; os usados são barrados por chave estrangeira e `guard_used_tariff_delete`. |
-| 4 | `bls.financial_status` por qualquer ativo | **Confirmado (Teste)** para "nunca faturado"; dupla cobrança **refutada** | Operações marcou como `invoiced` um B/L pronto: a emissão passou a recusar ("já faturado"), o automático devolveu `already_invoiced` e o alerta crítico de falha de emissão fechou sozinho. Voltar um B/L faturado para `pending` não fatura de novo (`prevent_duplicate_active_invoice_bl_link`), mas reabre a edição de taxa manual. |
-| 5 | `charge_calculations` por qualquer ativo | **Confirmado (Teste)** antes da emissão; mudar fatura emitida **refutado** | Operações, recusado por `delete_manual_bl_charge`, zerou a taxa manual por UPDATE direto. Mudou o THC para 1,00 e inseriu linha manual de 4.999,00: a emissão pelo Administrativo gerou fatura de 5.000,00 em vez de 1.300,00. Depois da emissão, mudar as linhas não altera fatura, itens, recebível nem Portal. |
-| 6 | `delete_baplie_manifest_for_voyage` por qualquer ativo | **Refutado (Teste)** | A função foi removida pela migration `087` e não existe mais; restam só referências em `src/types/database.ts` e em dois testes de texto. |
+| # | Falha na ADR 0085 | Caso | Veredito | O que a execução mostrou |
+|---|---|---|---|---|
+| 1 | 1 | `demurrage_invoice_items` por qualquer ativo (policies `002`, grant `006:63`) | **Confirmado (Teste)**; inserir em invoice emitida **refutado** | Operações zerou dias, diária e subtotal de item de Invoice emitida e de paga; passou no COMMIT. A leitura do detalhe do Portal devolveu 0,00 no item, com o total da Invoice intacto e o BRL redistribuído. Mover o item (`invoice_id`) para invoice em rascunho ou cancelada passou. Inserir em invoice emitida foi recusado pelo gatilho de conjunto completo. Tudo fica em `audit_logs`. |
+| 2 | 2 | `customer_contacts` por Financeiro e Operações (policies `002`) | **Confirmado (Teste)** | Financeiro, recusado pela RPC, trocou por UPDATE direto o e-mail do contato principal; os vínculos de caixa seguem o contato e `customer_communication_recipient_allowed` passou a aceitar o novo endereço. Operações desativou o principal e criou outro, que herdou as três caixas. Nenhum evento em `customer_contact_change_events`. |
+| 3 | 4 | DELETE direto pelo Administrativo (policies `is_admin` sem REVOKE) | **Confirmado (Teste)**; nos cadastros, só linhas sem uso | `delete_escala` recusou a escala de exportação travada pelo CE; o DELETE direto apagou a linha, sem motivo. Navio, armador, porto e tabela sem uso também saíram sem motivo; os usados são barrados por chave estrangeira e `guard_used_tariff_delete`. |
+| 4 | 3 | `bls.financial_status` por qualquer ativo | **Confirmado (Teste)** para "nunca faturado"; dupla cobrança **refutada** | Operações marcou como `invoiced` um B/L pronto: a emissão passou a recusar ("já faturado"), o automático devolveu `already_invoiced` e o alerta crítico de falha de emissão fechou sozinho. Voltar um B/L faturado para `pending` não fatura de novo (`prevent_duplicate_active_invoice_bl_link`), mas reabre a edição de taxa manual. |
+| 5 | 1 | `charge_calculations` por qualquer ativo | **Confirmado (Teste)** antes da emissão; mudar fatura emitida **refutado** | Operações, recusado por `delete_manual_bl_charge`, zerou a taxa manual por UPDATE direto. Mudou o THC para 1,00 e inseriu linha manual de 4.999,00: a emissão pelo Administrativo gerou fatura de 5.000,00 em vez de 1.300,00. Depois da emissão, mudar as linhas não altera fatura, itens, recebível nem Portal. |
+| 6 | — | `delete_baplie_manifest_for_voyage` por qualquer ativo | **Refutado (Teste)** | A função foi removida pela migration `087` e não existe mais; restam só referências em `src/types/database.ts` e em dois testes de texto. |
 
-O dono aprovou a correção das falhas 1 a 5 (itens P1 a P3 do plano).
+O dono aprovou a correção das falhas 1 a 5 (itens P1 a P3 do plano). A ADR 0085 as agrupa em quatro falhas; a coluna "Falha na ADR 0085" faz a correspondência. A revisão da PR achou a falha 5 da ADR (seção 7).
 
 ### 3.4 Contradições entre documentos (iv)
 
@@ -189,6 +192,9 @@ recomendação. Onde o dono contrariou a recomendação, está marcado.
 | D11 | Desbloqueio de CE: leitura para todos; gestão Administrativo e Documentação |
 | D12 | Histórico do console do Portal: Operações vê |
 | D13 | ADR de Saída: o dono assina; o Administrativo cobre |
+| D14 | Desmarcar a exportação da escala: qualquer Departamento, recusado com Granito ou Embarque de Vazios aberto (seção 6) |
+| D15 | Baplie sem container é recusado (seção 6) |
+| D16–D18 | Documentos do Desbloqueio, fila de Disputas e alertas do dinheiro (seção 7) |
 | Rastro | O autor é sempre quem está logado |
 | Mantidos | Liquidar Ajuste de COD com Financeiro e Administrativo; preparar cancelamento financeiro só com o Administrativo |
 | Falhas | Correção aprovada para as quatro famílias da seção 3.3 |
@@ -200,7 +206,10 @@ recomendação. Onde o dono contrariou a recomendação, está marcado.
   e de coluna, os gatilhos citados, `roleHasPermission`, os gates de tela
   citados e a autorização das Edge Functions chamáveis pela equipe interna.
 - **Executado (Teste, Postgres 16 local, não produção):** as seis candidatas a
-  falha de segurança da seção 3.3, como `authenticated` com o perfil citado.
+  falha de segurança da seção 3.3, como `authenticated` com o perfil citado,
+  e os casos da seção 6 (exportação da escala e Baplie vazio). Foram execuções
+  ad hoc em transações descartadas, não suítes versionadas; a suíte por perfil
+  é o item P14 do plano.
 - **Não verificado:**
   - ACL, policies e gatilhos de produção; se todas as migrations estão
     aplicadas lá. O comportamento de RLS em produção não foi executado.
@@ -235,3 +244,47 @@ D14 e D15).
   INSERT direto. Impacto não avaliado. **Código**.
 - RPCs de manutenção sem tela restritas ao Administrativo (`backfill_*`,
   `cleanup_orphaned_dispute_attachments`): fora da matriz de ações do usuário.
+
+## 7. Revisão da PR (2026-10-14)
+
+Quatro revisores independentes releram a PR luccafwlog/vela#950 contra as
+decisões, o código e os documentos vivos; cada achado foi conferido no
+repositório antes de entrar.
+
+- **Falha 5 nova (Teste, Postgres local):** o Administrativo grava direto pela
+  API em `payments` (pagamento de 600,00 sem referência bancária), `invoices`
+  (fatura dada como paga e depois cancelada, sem motivo nem autor),
+  `invoice_items` (valor de item de fatura emitida trocado para 1,00) e
+  `bl_receivables` (recebível quitado); o Financeiro foi recusado pela RLS. As
+  policies `is_admin()` de escrita cobrem também `ledger_settlements`,
+  `invoice_bls`, `invoice_receivable_links` e `invoice_lifecycle_events`. O
+  dono mandou verificar e corrigir: item P15 do plano.
+- **DELETE direto do Administrativo além das cinco tabelas do P1 (Código e
+  catálogo local):** 29 tabelas têm policy de DELETE `is_admin()` com grant
+  para `authenticated` (Baplie, Granito, Vazios, importações, programação,
+  `charge_calculations`, fatura). Um revisor apagou pela API o Baplie de viagem
+  com CE e uma linha automática de `charge_calculations` de B/L faturado
+  (**Teste**). P1 e P2 passaram a cobrir todas.
+- **Autor em nome de outro (Teste):** além das quatro RPCs com
+  `_assert_actor_is_caller`, as de faturamento gravam `COALESCE(p_actor,
+  auth.uid())` sem conferir; `register_invoice_payment` com `p_actor` do
+  Financeiro gravou o Financeiro como autor. P11 passou a cobri-las, antes do
+  P4 e do P5.
+- **`register_invoice_payment` é `SECURITY INVOKER`:** o gatilho proposto no
+  P3 a quebraria (reproduzido por um revisor) e trocar a guarda no P5 não
+  basta; os dois itens dizem isso.
+- **Correções de fato:** `archive_vessel_schedule` saiu na migration `087`
+  (a linha da seção 3.2 estava errada; P10 ficou só com
+  `add_agency_report_occurrence`); `cancel_invoice_for_reissue` saiu na `128`;
+  reabrir o ADR já exige justificativa; `move_vehicles_to_bl` vigente é a
+  `202`; a exclusão de tarifa é por DELETE direto, não por
+  `delete_catalog_row`.
+- **Decisões novas do dono:** D16, documentos do Desbloqueio de CE abertos a
+  todos; D17, fila de Disputas de Demurrage com leitura para todos; D18,
+  alertas "Pix não conciliado", "Restituição pendente" e "Fatura
+  desatualizada" também ao Financeiro. Correção nos itens P5 e P12.
+- **Documentos:** `RASTREABILIDADE.md`, os módulos de Demurrage, Faturamento,
+  Taxas Locais, Manifesto, Clientes, Desbloqueio e Operação e suporte,
+  `regras-de-negocio.md`, `ARCHITECTURE.md`, `CONVENCOES.md` e as faixas das
+  ADRs 0029, 0030, 0044, 0045, 0071 e 0077 passaram a apontar o item P de
+  cada divergência ou a matriz.

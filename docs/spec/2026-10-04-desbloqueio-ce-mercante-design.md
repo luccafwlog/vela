@@ -149,13 +149,13 @@ Ação em lote mostra elegíveis e bloqueados; nunca aprova implicitamente um B/
 fora da seleção. Toda escrita segue o diálogo de confirmação do projeto.
 
 Permissões decididas em 2026-10-14
-([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11; regra
+([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16; regra
 vigente na [matriz de Segurança](../operations/seguranca.md#desbloqueio-de-ce)):
-Administrativo e Documentação consultam documentos e executam análise, entrega,
-exportação e confirmação. Financeiro, Operações e Equipamentos consultam
-resumo/requisitos, sem download de procuração ou escrita. A proposta original
-deixava Equipamentos sem acesso; o código ainda recusa esse perfil (correção
-pendente). Espelhar a matriz no banco e em `useAuth`, incluindo o alias legado
+Administrativo e Documentação executam análise, entrega, exportação e
+confirmação. Todos os Departamentos consultam pedidos, requisitos e documentos,
+sem escrita. A proposta original deixava Equipamentos sem acesso e os demais
+sem os documentos; o código ainda faz isso (correção pendente, item P12 do
+plano de correções). Espelhar a matriz no banco e em `useAuth`, incluindo o alias legado
 `operator = documentacao`.
 Modo Inspeção do Portal oferece as mesmas leituras autorizadas, somente leitura.
 
@@ -285,7 +285,7 @@ Confirmar desbloqueio por B/L/CE mediante referência/evidência externa e ator.
 
 | Decisão | Proposta / dependência |
 |---|---|
-| Entrega física e papéis | Desk registra após pedido; confirmar com operação |
+| Entrega física | Desk registra após pedido; confirmar com operação (os papéis foram decididos na [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16) |
 | Termo e procuração | Modelo oficial, requisitos de assinatura/validade e retenção; agência fornece |
 | “CS” na issue | Não criar campo CS nem trocar silenciosamente por CE; autor esclarece |
 | Isenção/valor zero | Pagamento ausente não é confirmado; Financeiro define tratamento explícito |

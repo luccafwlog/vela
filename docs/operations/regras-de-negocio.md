@@ -58,7 +58,7 @@ Portal enquanto o Portal não fica pronto (ADR 0070; migrations `083` a `085`,
   recusa os demais papéis. O card "Liberação de faturamento sem Portal" fica na
   ficha do Cliente (aba Financeiro) e na revisão do Cliente no console
   `/clientes/portal` ([Portal do Cliente § Provisionamento e ativação do convite](../modules/portal-cliente.md#provisionamento-e-ativação-do-convite));
-  os outros Departamentos só consultam, e Operações não vê o card no console.
+  os outros Departamentos só consultam, e hoje Operações não vê o card no console (correção pendente A18 e P12 do plano).
   O Portal não enxerga a Liberação.
 - **Condições.** Justificativa (mínimo de 3 caracteres) e data de revisão
   futura de até 30 dias, contados em dias de Brasília; a tabela tem um teto de
@@ -139,7 +139,7 @@ Revogar, Reverter e Dispensar — está no
 [glossário § Ações sobre registros](../../CONTEXT.md#ações-sobre-registros).
 Esta seção diz quem pode, quando se exige motivo, o que trava a exclusão e por
 quanto tempo cada dado fica. A matriz de quem pode cada operação está em
-[Permissões internas](#permissões-internas).
+[Segurança § Modelo de permissões por perfil](seguranca.md#modelo-de-permissões-por-perfil).
 
 ### Vocabulário e rótulos
 
@@ -516,7 +516,7 @@ A chave global de envio (`app_settings.communications_enabled`, desligada por pa
 
 ## Permissões internas
 
-A leitura interna é global e a escrita operacional é liberada a todo Departamento ativo, com rastro; as exceções por Departamento são aplicadas pelo banco e estão em [Segurança § Roles internas](seguranca.md#roles-internas). Rota e botão escondido são navegação, não autorização.
+A leitura interna é global e a escrita operacional é liberada a todo Departamento ativo, com rastro; as exceções por Departamento ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md)) são aplicadas pelo banco e estão na matriz de [Segurança § Modelo de permissões por perfil](seguranca.md#modelo-de-permissões-por-perfil); restrição fora da matriz é defeito. Rota e botão escondido são navegação, não autorização.
 
 ## Escritas best-effort
 
@@ -536,7 +536,7 @@ Fontes executáveis para conferir as distinções mais sujeitas a regressão. N�
 | Liberação vencida devolve os B/Ls do Cliente à Revisão (job diário) | [migration 168](../../supabase/migrations/168_liberacao_vencida_reavalia_revisao.sql) |
 | B/L cancelado fora dos Alertas de revisão do Cliente | [migration 169](../../supabase/migrations/169_alerta_revisao_ignora_bl_cancelado.sql) |
 | Reavaliação da Revisão em lote reconcilia o Alerta do Cliente uma vez | [migration 170](../../supabase/migrations/170_revisao_em_lote_reconcilia_alerta_no_fim.sql) |
-| Permissões por Departamento | Autoridade: `is_admin()`, `is_financeiro_user()`, `is_active_read_user()` e `is_active_user()` na [base consolidada](../../supabase/migrations/002_business_logic_and_security.sql) e as guardas de cada RPC, com a matriz em [Segurança § Roles internas](seguranca.md#roles-internas); navegação: [useAuth.tsx](../../src/hooks/useAuth.tsx) e [rotas internas](../../src/AppInterno.tsx) |
+| Permissões por Departamento | Autoridade: `is_admin()`, `is_financeiro_user()`, `is_active_read_user()` e `is_active_user()` na [base consolidada](../../supabase/migrations/002_business_logic_and_security.sql) e as guardas de cada RPC, com a matriz em [Segurança § Modelo de permissões por perfil](seguranca.md#modelo-de-permissões-por-perfil); navegação: [useAuth.tsx](../../src/hooks/useAuth.tsx) e [rotas internas](../../src/AppInterno.tsx) |
 | Edição interna dos contatos e caixas | [migration 008](../../supabase/migrations/008_portal_contact_boxes.sql) |
 | Calendário do prazo do ADR | [agencyReportDeadline.ts](../../src/services/agencyReportDeadline.ts) |
 | ATD do terminal e prontidão do Portal | Funções `reconcile_agency_report_alerts` e `customer_portal_access_ready` na [base consolidada](../../supabase/migrations/002_business_logic_and_security.sql) |
