@@ -616,6 +616,29 @@ export type AgencyReportDischargeContainer = {
   is_oog: boolean
   is_transshipment: boolean
   category: MatrixCategory
+  /** B2: exceção de terminal e modo de carga de cada B/L que traz o container. */
+  blTerminals?: AgencyReportBlTerminal[]
+}
+
+/** Exceção de terminal (`bls.terminal_id`) e modo de carga de um B/L, para recortar a carga por terminal. */
+export type AgencyReportBlTerminal = { terminal_id: string | null; cargo_mode: string | null }
+
+type FrontForTerminal = { sentido: string; modalidade: string; terminalId: string | null }
+
+/**
+ * B2 (ADR 0068): o B/L pertence ao ADR do terminal com a mesma regra de
+ * `bl_belongs_to_atracacao` — a exceção de terminal do B/L vence a frente;
+ * sem exceção, todas as frentes de importação da modalidade do B/L (as duas
+ * no misto) precisam estar nesse terminal.
+ */
+export function blBelongsToTerminal(bl: AgencyReportBlTerminal, fronts: readonly FrontForTerminal[], terminalId: string): boolean {
+  if (bl.terminal_id) return bl.terminal_id === terminalId
+  const mode = (bl.cargo_mode ?? '').trim().toLowerCase()
+  const modalidades = mode === 'misto' ? ['carga_cheia', 'carga_solta']
+    : mode === 'carga_solta' ? ['carga_solta']
+      : mode === 'veiculo' || mode === 'veiculos' ? ['veiculo']
+        : ['carga_cheia']
+  return modalidades.every((modalidade) => fronts.some((front) => front.sentido === 'importacao' && front.modalidade === modalidade && front.terminalId === terminalId))
 }
 
 /**
@@ -754,6 +777,8 @@ export function summarizeVehiclesByContainerTypeAndModel(
 }
 
 type BreakbulkAgencyReportBl = {
+  cargo_mode?: string | null
+  terminal_id?: string | null
   bb_machine_qty: number | null
   bb_packages_qty: number | null
   bb_weight_ton: number | null
@@ -784,8 +809,8 @@ async function listTransshipmentBlIds(voyageId: number, port: string): Promise<s
   return [...new Set((blTransshipmentsRes.data ?? []).map((row) => row.bl_id))]
 }
 
-const BL_CONTAINERS_SELECT = 'id, container_number, type, is_imo, is_oog, profile_source, bl:bls!inner(voyage_id, pod, transshipments:bl_transshipments(disposition))'
-const BREAKBULK_SELECT = 'cargo_mode, bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'
+const BL_CONTAINERS_SELECT = 'id, container_number, type, is_imo, is_oog, profile_source, bl:bls!inner(voyage_id, pod, cargo_mode, terminal_id, transshipments:bl_transshipments(disposition))'
+const BREAKBULK_SELECT = 'cargo_mode, terminal_id, bb_machine_qty, bb_packages_qty, bb_weight_ton, total_weight_kg, bb_cbm'
 const VEHICLES_SELECT = 'brand, model, bl_id, chassis, container_id, container:bl_containers(container_number, type, unpacking_location)'
 
 const SUPABASE_PAGE_SIZE = 1000
@@ -1083,7 +1108,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     is_imo: boolean | null
     is_oog: boolean | null
     profile_source?: string | null
-    bl: { transshipments: Array<{ disposition: string }> | null } | null
+    bl: { cargo_mode?: string | null; terminal_id?: string | null; transshipments: Array<{ disposition: string }> | null } | null
   }
   // Idem: containers do porto da escala e containers em transbordo (bls.pod
   // apontando para o porto omitido) nunca se sobrepõem.
@@ -1115,6 +1140,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
 
     const key = normalizeContainerNumber(container.container_number)
     const existing = dischargeByContainerNumber.get(key)
+    const blTerminal: AgencyReportBlTerminal = { terminal_id: container.bl?.terminal_id ?? null, cargo_mode: container.bl?.cargo_mode ?? null }
     if (!existing) {
       dischargeByContainerNumber.set(key, {
         container_number: container.container_number,
@@ -1123,9 +1149,11 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
         is_oog: isOog,
         is_transshipment: isTransshipment,
         category,
+        blTerminals: [blTerminal],
       })
       continue
     }
+    existing.blTerminals = [...(existing.blTerminals ?? []), blTerminal]
     existing.is_imo = existing.is_imo || isImo
     existing.is_oog = existing.is_oog || isOog
     existing.is_transshipment = existing.is_transshipment || isTransshipment
@@ -1225,10 +1253,12 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
       // à parte na aba e no impresso (VoyageAgencyReportTab/AgencyReportDocument).
       transshipment: summarizeBreakbulk(transshipmentBreakbulk),
     },
+    // B2: os B/Ls de carga solta, para o ADR terminalizado recortar por terminal.
+    cargaSoltaBls: { finalDestination: breakbulk, transshipment: transshipmentBreakbulk },
   }
 }
 
-function summarizeBreakbulk(breakbulk: BreakbulkAgencyReportBl[]) {
+export function summarizeBreakbulk(breakbulk: readonly BreakbulkAgencyReportBl[]) {
   return {
     bls: breakbulk.length,
     machines: breakbulk.reduce((sum, bl) => sum + Number(bl.bb_machine_qty ?? 0), 0),

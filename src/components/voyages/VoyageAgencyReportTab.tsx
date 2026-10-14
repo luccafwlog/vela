@@ -25,7 +25,10 @@ import {
   AGENCY_REPORT_SECTIONS,
   AGENCY_REPORT_SECTION_ORDER,
   AGENCY_REPORT_DEPARTMENT_LABELS,
+  blBelongsToTerminal,
   buildContainerTypeMatrix,
+  summarizeBreakbulk,
+  type AgencyReportBlTerminal,
   filterDepartmentReopeningEvents,
   groupEmptyEmbarkBookings,
   isTransshipmentContainer,
@@ -427,8 +430,20 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   // terminalizado precisa mostrar somente as frentes atribuídas ao terminal
   // selecionado. Sem este recorte, dois terminais da mesma escala imprimem o
   // mesmo conteúdo e o sign-off deixa de ser auditável.
-  const containers = sectionIsVisible('carga_descarregada') ? (data?.containers ?? []) : []
-  const cargaSolta = sectionIsVisible('carga_descarregada') ? data?.cargaSolta : undefined
+  // B2 (ADR 0068): no ADR terminalizado, a Carga descarregada é só a dos B/Ls
+  // deste terminal — a exceção de terminal do B/L vence a frente.
+  const cargoTerminalId = resolvedReportId ? selectedTerminalReport?.terminalId ?? null : null
+  const belongsHere = (bl: AgencyReportBlTerminal) => !cargoTerminalId || blBelongsToTerminal(bl, terminalState.fronts ?? [], cargoTerminalId)
+  const containers = sectionIsVisible('carga_descarregada')
+    ? (data?.containers ?? []).filter((container) => !cargoTerminalId || (container.blTerminals ?? []).some(belongsHere))
+    : []
+  const cargaSolta = !sectionIsVisible('carga_descarregada') ? undefined
+    : cargoTerminalId && data?.cargaSoltaBls
+      ? {
+          ...summarizeBreakbulk(data.cargaSoltaBls.finalDestination.filter((bl) => belongsHere({ terminal_id: bl.terminal_id ?? null, cargo_mode: bl.cargo_mode ?? null }))),
+          transshipment: summarizeBreakbulk(data.cargaSoltaBls.transshipment.filter((bl) => belongsHere({ terminal_id: bl.terminal_id ?? null, cargo_mode: bl.cargo_mode ?? null }))),
+        }
+      : data?.cargaSolta
   const vaziosImp = sectionIsVisible('vazios_descarregados') ? (data?.vaziosImp ?? []) : []
   const vaziosExp = sectionIsVisible('vazios_embarcados') ? (data?.vaziosExp ?? []) : []
   const vehiclesData = sectionIsVisible('veiculos') ? (data?.vehicles ?? []) : []

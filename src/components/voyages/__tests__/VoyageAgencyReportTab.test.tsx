@@ -1405,3 +1405,46 @@ it('B6: escala com frentes TBC e sem ADR de terminal não abre o ADR legado', ()
   expect(screen.getByRole('status').textContent).toMatch(/Nenhum terminal atribuído às frentes desta escala/)
   expect(screen.queryByRole('button', { name: 'Fechar ADR' })).toBeNull()
 })
+
+it('B2: a Carga descarregada do ADR terminalizado é só a dos B/Ls do terminal, com a exceção de terminal', () => {
+  useAgencyReportTerminalStateMock.mockReturnValue({
+    data: {
+      fronts: [
+        { sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv' },
+        { sentido: 'importacao', modalidade: 'carga_solta', terminalId: 'tvv' },
+      ],
+      agencyReports: [{
+        reportId: 'report-tvv', voyageId: 7, port: 'BRVIX', terminalId: 'tvv', terminalCode: 'TVV', terminal: 'TVV', status: 'open',
+        sections: [{ section: 'carga_descarregada', state: 'operated', fronts: ['carga_cheia', 'carga_solta'], frontKeys: ['importacao:carga_cheia', 'importacao:carga_solta'] }],
+      }],
+    },
+  })
+  useAgencyReportOwnMock.mockReturnValue({ data: { status: 'open', terminal: 'TVV', signoffs: allSectionsSignoffs(), departmentSignoffs: allDepartmentsSigned(), occurrences: [], actor_names: {} } })
+  useAgencyReportDerivedMock.mockReturnValue({
+    data: {
+      containers: [
+        { container_number: 'AAAA1111111', size_type: '40HC', category: 'carga_geral', is_imo: false, is_oog: false, is_transshipment: false, blTerminals: [{ terminal_id: null, cargo_mode: 'container' }] },
+        { container_number: 'BBBB2222222', size_type: '20DV', category: 'carga_geral', is_imo: false, is_oog: false, is_transshipment: false, blTerminals: [{ terminal_id: 'portmac', cargo_mode: 'container' }] },
+      ],
+      cargaSolta: { bls: 2, machines: 0, packages: 0, weightTon: 30, cbm: 0, transshipment: { bls: 0, machines: 0, packages: 0, weightTon: 0, cbm: 0 } },
+      cargaSoltaBls: {
+        finalDestination: [
+          { cargo_mode: 'carga_solta', terminal_id: null, bb_machine_qty: 0, bb_packages_qty: 0, bb_weight_ton: 10, total_weight_kg: null, bb_cbm: 0 },
+          { cargo_mode: 'carga_solta', terminal_id: 'portmac', bb_machine_qty: 0, bb_packages_qty: 0, bb_weight_ton: 20, total_weight_kg: null, bb_cbm: 0 },
+        ],
+        transshipment: [],
+      },
+      vehicles: [], vaziosImp: [], granite: [], vaziosExp: [], storage: {}, operation: {}, schedule: {},
+    },
+    isLoading: false,
+    error: null,
+  })
+
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} reportId="report-tvv" terminalCode="TVV" />)
+  confirmAgencyReportClose()
+
+  const snapshot = closeMutateMock.mock.calls.at(-1)?.[0]?.snapshot
+  // Só o container do B/L que segue a frente do TVV; o da exceção PORTMAC fica no ADR do PORTMAC.
+  expect(snapshot.sections.cargaDescarregada.rows).toEqual({ '40HC': { carga_geral: 1 } })
+  expect(snapshot.sections.cargaSolta).toMatchObject({ bls: 1, weightTon: 10 })
+})
