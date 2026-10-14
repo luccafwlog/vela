@@ -67,14 +67,16 @@ export async function fetchCustomerBls(customerId: number): Promise<FichaBlRow[]
 
 export type FichaInvoiceRow = FichaLocalInvoiceRow & {
   invoice_type: string | null
+  /** Pagamentos registrados; cobertura por consolidada e abatimento não contam. */
+  total_paid_brl?: number | null
   bl_ids: string[]
 }
 
 /** Faturas de Taxas Locais do Cliente com os B/Ls de cada uma (direta, consolidada ou granito). */
 export async function fetchCustomerInvoices(customerId: number): Promise<Restrictable<FichaInvoiceRow>> {
-  const { rows, error } = await fetchAllRows<{ id: number; invoice_number: string | null; issued_at: string | null; total_brl: number | null; balance_brl: number | null; status: string | null; invoice_type: string | null; bl_id: string | null; invoice_bls: Array<{ bl_id: string | null }> | null; invoice_receivable_links: Array<{ bl_id: string | null }> | null }>((from, to) => supabase
+  const { rows, error } = await fetchAllRows<{ id: number; invoice_number: string | null; issued_at: string | null; total_brl: number | null; balance_brl: number | null; total_paid_brl: number | null; status: string | null; invoice_type: string | null; bl_id: string | null; invoice_bls: Array<{ bl_id: string | null }> | null; invoice_receivable_links: Array<{ bl_id: string | null }> | null }>((from, to) => supabase
     .from('invoices')
-    .select('id, invoice_number, issued_at, total_brl, balance_brl, status, invoice_type, bl_id, invoice_bls(bl_id), invoice_receivable_links(bl_id)')
+    .select('id, invoice_number, issued_at, total_brl, balance_brl, total_paid_brl, status, invoice_type, bl_id, invoice_bls(bl_id), invoice_receivable_links(bl_id)')
     .eq('customer_id', customerId)
     .order('issued_at', { ascending: false })
     .range(from, to) as never)
@@ -83,7 +85,7 @@ export async function fetchCustomerInvoices(customerId: number): Promise<Restric
     rows: rows.map((row) => {
       const links = (row.invoice_bls?.length ? row.invoice_bls : row.invoice_receivable_links ?? []).map((link) => String(link.bl_id ?? '').trim()).filter(Boolean)
       const bl_ids = [...new Set(links.length ? links : row.bl_id ? [row.bl_id] : [])]
-      return { id: row.id, invoice_number: row.invoice_number, issued_at: row.issued_at, total_brl: row.total_brl, balance_brl: row.balance_brl, status: row.status, invoice_type: row.invoice_type, bl_ids }
+      return { id: row.id, invoice_number: row.invoice_number, issued_at: row.issued_at, total_brl: row.total_brl, balance_brl: row.balance_brl, total_paid_brl: row.total_paid_brl, status: row.status, invoice_type: row.invoice_type, bl_ids }
     }),
     denied: false,
   }
@@ -111,9 +113,12 @@ export function buildCustomerInvoiceLines(invoices: FichaInvoiceRow[], receivabl
   const lines: FichaInvoiceLine[] = invoices.map((invoice) => ({
     kind: 'invoice' as const,
     invoice,
-    // Fatura cancelada não leva o recebível vivo do B/L: ele aparece na fatura
-    // que o cobre ou em "Sem fatura ativa", nunca duas vezes.
-    receivables: DEAD_INVOICE_STATUSES.has(invoice.status ?? '') ? [] : invoice.bl_ids.flatMap((blId) => receivablesByBl.get(blId) ?? []),
+    // O saldo vivo do B/L aparece uma vez só: na fatura em aberto que o cobre
+    // ou em "Sem fatura ativa". Fatura cancelada não leva recebível; paga ou
+    // coberta leva só o razão já liquidado do B/L.
+    receivables: DEAD_INVOICE_STATUSES.has(invoice.status ?? '')
+      ? []
+      : invoice.bl_ids.flatMap((blId) => receivablesByBl.get(blId) ?? []).filter((row) => OPEN_INVOICE_STATUSES.has(invoice.status ?? 'issued') || Number(row.balance_brl) <= 0),
   }))
   for (const row of receivables) {
     if (Number(row.balance_brl) > 0 && row.status !== 'cancelled' && !coveredBls.has(row.bl_id)) lines.push({ kind: 'no_invoice', blId: row.bl_id, receivable: row })

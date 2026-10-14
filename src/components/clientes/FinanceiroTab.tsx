@@ -299,7 +299,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
                             <td className="whitespace-nowrap tabular-nums">{money(line.kind === 'invoice' ? line.invoice.total_brl : line.receivable.original_amount_brl)}</td>
                             <td className="whitespace-nowrap tabular-nums">
                               {line.kind === 'invoice'
-                                ? money(line.invoice.total_brl == null || line.invoice.balance_brl == null ? null : Number(line.invoice.total_brl) - Number(line.invoice.balance_brl))
+                                ? money(line.invoice.total_paid_brl ?? null)
                                 : money(line.receivable.settled_amount_brl)}
                             </td>
                             <td className="whitespace-nowrap tabular-nums">{money(line.kind === 'invoice' ? (cancelled ? 0 : line.invoice.balance_brl) : line.receivable.balance_brl, !cancelled)}</td>

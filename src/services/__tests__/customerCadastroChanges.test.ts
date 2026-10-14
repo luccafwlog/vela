@@ -29,4 +29,13 @@ describe('Alterações do cadastro do Cliente', () => {
       ['Nome fantasia', 'Atlântico Imports', 'Ana Ribeiro', 'Cadastro inicial'],
     ])
   })
+
+  it('mudança feita pelo Cliente no Portal é do Cliente, mesmo com o usuário de login gravado', () => {
+    const rows = buildCadastroChanges(
+      [],
+      [{ id: 10, source: 'portal', actor_id: 'auth-portal-1', before_snapshot: [{ id: 1, name: 'Mariana', phone: null }], after_snapshot: [{ id: 1, name: 'Mariana', phone: '(13) 3232-1010' }], change_summary: null, created_at: '2026-10-13T15:00:00Z' }],
+      new Map(),
+    )
+    expect(rows.map((row) => row.by)).toEqual(['Cliente pelo Portal'])
+  })
 })

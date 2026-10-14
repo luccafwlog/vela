@@ -114,8 +114,8 @@ Para o detalhe de B/L, o checkout atual é a fonte executável. A spec e os trê
   de 1024 px a lista vira cartões.
 - A coluna Taxas locais mostra três estados (`localChargesListState`,
   `src/lib/chargeStatus.ts`, espelho de `bl_local_charges_state`, migrations
-  `222` e `226`; B/L cancelado diz só "B/L cancelado" e não conta nem filtra
-  como Pendente): **Pendente** (qualquer impeditivo à emissão da fatura ao Cliente),
+  `222`, `226` e `229`; B/L cancelado diz só "B/L cancelado" e não conta nem
+  filtra como Pendente nem como Isenta): **Pendente** (qualquer impeditivo à emissão da fatura ao Cliente),
   **Emitida** (`financial_status` faturado, parcialmente pago ou pago) e
   **Isenta**. O filtro e o cartão usam os mesmos estados (`charge=pending`,
   `issued`, `exempt`); os valores técnicos de `charge_status` continuam
