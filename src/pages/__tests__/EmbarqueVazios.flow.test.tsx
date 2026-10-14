@@ -70,8 +70,8 @@ vi.mock("../../hooks/useAuth", () => ({
 vi.mock("../../components/ui/Toast", () => ({ useToast: () => ({ showToast: mocks.showToast }) }));
 vi.mock("../../components/ui/ConfirmDialog", () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (o: unknown) => ((await mocks.confirm(o)) ? "motivo" : null) }));
 vi.mock("../../components/shared/VoyageCombobox", () => ({
-  VoyageCombobox: ({ onSelect }: { onSelect: (voyageId: number | null) => void }) => (
-    <button type="button" onClick={() => onSelect(179)}>
+  VoyageCombobox: ({ onSelect, disabled, selectedVoyageId }: { onSelect: (voyageId: number | null) => void; disabled?: boolean; selectedVoyageId?: number | null }) => (
+    <button type="button" disabled={disabled} data-voyage={selectedVoyageId ?? ""} onClick={() => onSelect(179)}>
       Selecionar viagem
     </button>
   ),
@@ -387,6 +387,15 @@ describe("EmbarqueVazios", () => {
     const row = (await screen.findAllByText("Handling")).map((node) => node.closest("tr")).find(Boolean) as HTMLElement;
     expect(within(row).getByText("R$ 100,00")).toBeTruthy();
     expect(within(row).queryByText("R$ 50,00")).toBeNull();
+  });
+
+  it("B26: aberto pela viagem, o campo vem semeado e continua editável", () => {
+    render(<MemoryRouter initialEntries={["/embarquevazios?voyage=55"]}><EmbarqueVazios /></MemoryRouter>);
+    const voyageButton = screen.getByRole("button", { name: /Selecionar viagem/i }) as HTMLButtonElement;
+    expect(voyageButton.getAttribute("data-voyage")).toBe("55");
+    expect(voyageButton.disabled).toBe(false);
+    fireEvent.click(voyageButton);
+    expect(voyageButton.getAttribute("data-voyage")).toBe("179");
   });
 
   it("B10: viagem só de embarque de vazios, sem B/L, oferece as escalas da viagem", async () => {

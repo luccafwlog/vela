@@ -15,6 +15,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }) }))
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
+vi.mock('../VoyageCombobox', () => ({
+  VoyageCombobox: ({ selectedVoyageId, onSelect }: { selectedVoyageId: string | null; onSelect: (id: string | null) => void }) => (
+    <div>
+      <span data-testid="voyage">{selectedVoyageId ?? 'nenhuma'}</span>
+      <button type="button" onClick={() => onSelect('8')}>Outra viagem</button>
+      <button type="button" onClick={() => onSelect(null)}>Limpar viagem</button>
+    </div>
+  ),
+}))
 vi.mock('../../../services/ceMercanteImport', () => ({
   parseCeMercanteFile: mocks.parse,
   partitionRowsByVoyage: mocks.partition,
@@ -40,7 +49,7 @@ it('exclui do preview o BL de outra viagem e mostra erro bloqueante', async () =
     rows: [],
     blocked: [{ row: 2, bl_id: 'BL-OUTRA', message: 'B/L BL-OUTRA pertence a outra viagem' }],
   })
-  const { container } = render(<CeMercanteImportModal open lockedVoyageId={7} onClose={vi.fn()} />)
+  const { container } = render(<CeMercanteImportModal open initialVoyageId={7} onClose={vi.fn()} />)
 
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
     target: { files: [new File(['x'], 'ce.xlsx')] },
@@ -358,4 +367,25 @@ it('emissão: tabela faltando aparece em "Aguardando" e B/L zerado em "Nada a fa
   await screen.findByText(/BL001: Aguardando tabela de cobrança: cadastre a tabela do POD BRPEC/)
   expect(screen.getByText('BL002: Nada a faturar: o cálculo do B/L não tem taxa com valor.')).toBeTruthy()
   expect(screen.queryByText('Bloqueados')).toBeNull()
+})
+
+it('B26: a viagem de contexto semeia o campo, que continua editável', async () => {
+  const row = { rowNumber: 2, bl_id: 'BL-8', ce_mercante: '122605051526081' }
+  mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })
+  mocks.partition.mockReset().mockImplementation(async (_rows: unknown[], voyageId: number) => (
+    voyageId === 8 ? { rows: [row], blocked: [] } : { rows: [], blocked: [{ row: 2, bl_id: 'BL-8', message: 'B/L BL-8 pertence a outra viagem' }] }
+  ))
+  const { container } = render(<CeMercanteImportModal open initialVoyageId={7} onClose={vi.fn()} />)
+  expect(screen.getByTestId('voyage').textContent).toBe('7')
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ce.xlsx')] },
+  })
+  await waitFor(() => expect(screen.getByText('Linha 2: B/L BL-8 pertence a outra viagem')).toBeTruthy())
+
+  fireEvent.click(screen.getByRole('button', { name: 'Outra viagem' }))
+  await waitFor(() => expect(mocks.partition).toHaveBeenLastCalledWith([row], 8))
+  await waitFor(() => expect(screen.queryByText('Linha 2: B/L BL-8 pertence a outra viagem')).toBeNull())
+
+  fireEvent.click(screen.getByRole('button', { name: 'Limpar viagem' }))
+  expect(screen.getByTestId('voyage').textContent).toBe('nenhuma')
 })

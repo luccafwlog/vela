@@ -147,9 +147,10 @@ export function EmbarqueVazios() {
   const canEdit = Boolean(profile || user);
   const [searchParams] = useSearchParams();
   const queryVoyageId = Number(searchParams.get("voyage"));
-  const lockedVoyageId = Number.isInteger(queryVoyageId) && queryVoyageId > 0 ? queryVoyageId : null;
-  const voyageLocked = lockedVoyageId !== null;
-  const [voyageId, setVoyageId] = useState<number | null>(() => lockedVoyageId);
+  // B26 (ADR 0018, decisão 2): aberto pela viagem, o campo vem semeado com ela e continua editável.
+  const contextVoyageId = Number.isInteger(queryVoyageId) && queryVoyageId > 0 ? queryVoyageId : null;
+  const fromVoyageContext = contextVoyageId !== null;
+  const [voyageId, setVoyageId] = useState<number | null>(() => contextVoyageId);
   const [port, setPort] = useState("");
   const [selectedOperation, setSelectedOperation] = useState<{
     id: string;
@@ -246,7 +247,7 @@ export function EmbarqueVazios() {
   );
   const operationRows: OperationRow[] = (Array.isArray(operations.data)
     ? operations.data
-    : []).filter((item) => !voyageLocked || item.voyage_id === voyageId);
+    : []).filter((item) => !fromVoyageContext || item.voyage_id === voyageId);
   const operationOptions: ComboOption[] = operationRows.map((item) => ({
     value: item.id,
     label: operationLabel(item),
@@ -598,9 +599,7 @@ export function EmbarqueVazios() {
           <VoyageCombobox
             required
             selectedVoyageId={voyageId}
-            disabled={voyageLocked}
             onSelect={(id) => {
-              if (voyageLocked) return;
               setVoyageId(id);
               setPort("");
             }}

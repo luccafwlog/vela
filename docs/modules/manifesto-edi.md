@@ -17,9 +17,10 @@ snapshot da viagem acompanhe o status registrado na auditoria.
 
 Pipeline de ingestão e revisão operacional do Vela. O módulo recebe planilhas e EDI/EDIFACT, limita o arquivo, faz parse e preview no cliente, persiste em tabelas de domínio e expõe as superfícies de B/L, containers, veículos, Baplie e vazios. A viagem é o eixo operacional; o arquivo de B/L é a fonte documental da carga de container e alimenta Frete & Despesas do BL e o ATD do POL; o Baplie é a fonte física de staging e conciliação. Conforme a ADR 0025, a importação de Manifesto CNTR e a geração local de EDI Mercante foram removidas.
 
-Quando o importador de CE Mercante é iniciado no contexto de uma viagem, seu
-escopo fica travado nessa viagem: o preview deve identificar e bloquear linhas
-referentes a B/Ls de outra viagem. Os importadores contextuais de CE Mercante,
+Quando o importador de CE Mercante é iniciado no contexto de uma viagem, o
+campo Viagem vem semeado com ela e continua editável (ADR 0018, decisão 2;
+B26): o preview identifica e bloqueia linhas referentes a B/Ls de outra
+viagem que a escolhida; limpar o campo importa o arquivo inteiro. Os importadores contextuais de CE Mercante,
 Manifesto BB e Veículos oferecem planilhas-modelo no próprio modal.
 
 A fronteira de upload separa o tipo pelo conteúdo antes de escolher o parser:
@@ -347,7 +348,7 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   (busca) e, no Embarque aberto, as abas **Unidades Embarcadas** e
   **Serviços** (com o total do Embarque no rótulo). O link **Cadastro de
   Terminais** leva a `/embarquevazios/depots`. Vindo da Viagem
-  (`?voyage=<id>`), a Viagem fica travada; `/vazios` é apenas redirect de
+  (`?voyage=<id>`), a Viagem vem semeada e continua editável (B26); `/vazios` é apenas redirect de
   compatibilidade para esta rota.
 - **Porto de embarque** é escolhido entre as escalas brasileiras da Viagem
   (a projeção da aba Escalas, sem excluídas e omitidas), complementadas pelos
@@ -705,8 +706,8 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   operador informa antes o Nº de Manifesto Mercante, obrigatório, e todos os
   B/Ls da planilha precisam ser da mesma Viagem e rota (POL → POD); as regras do
   número estão em [Manifesto Mercante](#manifesto-mercante). Iniciado numa
-  Viagem, o importador fica travado nela e a prévia bloqueia linhas de B/Ls de
-  outra Viagem. Os B/Ls precisam existir antes (B/L não nasce com CE pela API).
+  Viagem, o importador vem semeado com ela, editável (B26), e a prévia bloqueia
+  linhas de B/Ls de outra Viagem que a escolhida. Os B/Ls precisam existir antes (B/L não nasce com CE pela API).
   O CE tem 15 dígitos; linha sem CE é erro com o número da linha e bloqueia a
   planilha; B/L cancelado é ignorado com aviso. A gravação é tudo ou nada:
   linha sem CE, CE repetido ou em outro B/L ativo, número de outra Viagem, rota

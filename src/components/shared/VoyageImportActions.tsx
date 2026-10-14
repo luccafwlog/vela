@@ -369,11 +369,11 @@ export function VoyageImportActions({
       ) : null}
 
       {activeType === 'ceMercante' ? (
-        <CeMercanteImportModal open lockedVoyageId={voyageId} onClose={() => setActiveType(null)} />
+        <CeMercanteImportModal open initialVoyageId={voyageId} onClose={() => setActiveType(null)} />
       ) : null}
 
       {activeType === 'ceMercanteGranite' ? (
-        <CeMercanteImportModal open target="granite" lockedVoyageId={voyageId} onClose={() => setActiveType(null)} />
+        <CeMercanteImportModal open target="granite" initialVoyageId={voyageId} onClose={() => setActiveType(null)} />
       ) : null}
     </>
   )

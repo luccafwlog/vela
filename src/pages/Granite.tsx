@@ -502,7 +502,7 @@ export function Granite() {
       <CeMercanteImportModal
         open={ceMercanteOpen && canWrite}
         target="granite"
-        lockedVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
+        initialVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
         onClose={() => setCeMercanteOpen(false)}
       />
     </>

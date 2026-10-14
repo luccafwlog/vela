@@ -56,7 +56,8 @@ export function BlDocumentImportModal({
   const { data: voyages } = useVoyageOptions()
   const [selectedVoyageId, setSelectedVoyageId] = useState(voyageId == null ? '' : String(voyageId))
   const [approval, setApproval] = useState<BreakbulkApproval>(NO_BREAKBULK_APPROVAL)
-  const lockedVoyage = voyageId != null
+  // B26 (ADR 0018, decisão 2): a viagem de contexto semeia o campo, que continua editável.
+  const contextVoyage = voyageId != null
 
   const selectedVoyage = useMemo(
     () => (voyages ?? []).find((voyage) => String(voyage.id) === selectedVoyageId) ?? null,
@@ -73,7 +74,7 @@ export function BlDocumentImportModal({
   )
 
   function close() {
-    setSelectedVoyageId(lockedVoyage ? String(voyageId) : '')
+    setSelectedVoyageId(contextVoyage ? String(voyageId) : '')
     setApproval(NO_BREAKBULK_APPROVAL)
     onClose()
   }
@@ -94,7 +95,6 @@ export function BlDocumentImportModal({
           label="Viagem de destino"
           initialValue={voyageLabel}
           selectedVoyageId={selectedVoyageId}
-          disabled={lockedVoyage}
           onSelect={(id) => setSelectedVoyageId(id == null ? '' : String(id))}
         />
       }

@@ -76,7 +76,7 @@ vi.mock('../../../services/vehicleImport', () => ({
   importVehicleRows: mocks.importVehicleRows,
 }))
 vi.mock('../CeMercanteImportModal', () => ({
-  CeMercanteImportModal: ({ lockedVoyageId, target }: { lockedVoyageId?: number; target?: string }) => <div>CE travado: {lockedVoyageId} · {target ?? 'bls'}</div>,
+  CeMercanteImportModal: ({ initialVoyageId, target }: { initialVoyageId?: number; target?: string }) => <div>CE semeado: {initialVoyageId} · {target ?? 'bls'}</div>,
 }))
 
 import { VoyageImportActions } from '../VoyageImportActions'
@@ -238,7 +238,7 @@ it('bloqueia staging quando a prévia do Baplie contém issue bloqueante', async
   expect(mocks.reimportBaplie).not.toHaveBeenCalled()
 })
 
-it('ordena as importacoes e abre CE Mercante travado na viagem', () => {
+it('ordena as importacoes e abre CE Mercante semeado com a viagem (B26)', () => {
   render(
     <VoyageImportActions
       voyageId={7}
@@ -252,7 +252,7 @@ it('ordena as importacoes e abre CE Mercante travado na viagem', () => {
     'Baplie EDI', 'B/L container', 'B/L carga solta', 'CE Mercante', 'Manifesto BB', 'Veículos', 'Vazios IMP',
   ])
   fireEvent.click(screen.getByRole('button', { name: /CE Mercante/ }))
-  expect(screen.getByText('CE travado: 7 · bls')).toBeTruthy()
+  expect(screen.getByText('CE semeado: 7 · bls')).toBeTruthy()
 })
 
 it('separa a barra por família sem criar separador dentro dos B/Ls', () => {
@@ -268,7 +268,7 @@ it('separa a barra por família sem criar separador dentro dos B/Ls', () => {
   expect(container.querySelectorAll('span[aria-hidden="true"]')).toHaveLength(2)
 })
 
-it('leva Vazios Exp ao Embarque com a viagem travada', () => {
+it('leva Vazios Exp ao Embarque semeado com a viagem', () => {
   render(
     <VoyageImportActions
       voyageId={7}
@@ -282,7 +282,7 @@ it('leva Vazios Exp ao Embarque com a viagem travada', () => {
   expect(mocks.navigate).toHaveBeenCalledWith('/embarquevazios?voyage=7')
 })
 
-it('abre CE Mercante do Granito com o alvo correto e a viagem travada', () => {
+it('abre CE Mercante do Granito com o alvo correto e semeado com a viagem (B26)', () => {
   render(
     <VoyageImportActions
       voyageId={7}
@@ -293,7 +293,7 @@ it('abre CE Mercante do Granito com o alvo correto e a viagem travada', () => {
   )
 
   fireEvent.click(screen.getByRole('button', { name: 'CE Mercante (Granito)' }))
-  expect(screen.getByText('CE travado: 7 · granite')).toBeTruthy()
+  expect(screen.getByText('CE semeado: 7 · granite')).toBeTruthy()
 })
 
 it('mantém a escrita aberta também para Equipamentos', () => {

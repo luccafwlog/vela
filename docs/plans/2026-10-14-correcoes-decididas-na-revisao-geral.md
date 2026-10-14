@@ -126,6 +126,7 @@ da migration.
 | B10 | `/embarquevazios`: o Porto de embarque lê as escalas da Viagem (`listVoyageEscalaSchedulesByVoyageIds`, sem excluídas e omitidas) e complementa com os portos dos B/Ls; sem escala, a mensagem manda cadastrar a escala. Sem mudança de banco (o banco não restringia o porto) | **Teste:** `EmbarqueVazios.flow.test.tsx` (B10) |
 | B11 | `/embarquevazios`, aba Serviços: a coluna Total da linha passa a `quantidade × valor unitário`, sem o percentual legado, igual a `totalLinha` (total do Embarque e ADR) | **Teste:** `EmbarqueVazios.flow.test.tsx` (B11, falha sem a correção) |
 | B12 | Migration `260`: `validate_vazios_export_service_line` aceita serviço de armazenagem sem condição (genérico) e segue recusando o de outra condição; o atalho "Armazenagem pendente de lançamento" usa o serviço da mesma condição ou, sem ele, o genérico | **Teste local-pg:** `vaziosReimportacao.local-pg.test.ts` (B12, falha sem a migration); **Teste:** `EmbarqueVazios.flow.test.tsx` (B12) |
+| B26 | `CeMercanteImportModal` troca `lockedVoyageId` por `initialVoyageId`: a viagem de contexto (página da viagem, filtro de `/bls` e `/granito`) semeia um `VoyageCombobox` editável e limpável, e a prévia recorta as linhas pela viagem escolhida; `BlDocumentImportModal` deixa de desabilitar o campo; `/embarquevazios?voyage=` semeia a viagem sem travar. ADR 0018 (banner e índice) passa a implementada | **Teste:** `CeMercanteImportModal.test.tsx` (B26), `EmbarqueVazios.flow.test.tsx` (B26), `VoyageImportActions.behavior.test.tsx` |
 
 ## Operação (fora do código)
 
