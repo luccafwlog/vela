@@ -69,7 +69,10 @@ export function InvoiceFiltersBar({
   const [queryText, setQueryText] = useState(filters.query ?? '')
   const debouncedQuery = useDebouncedValue(queryText)
   const [sentQuery, setSentQuery] = useState(filters.query ?? '')
-  if (debouncedQuery !== sentQuery) {
+  // Só publica quando a pausa alcançou o campo: logo depois de Limpar filtros
+  // (ou de voltar no navegador) o valor atrasado ainda é o texto antigo e
+  // reescreveria na URL o filtro que acabou de sair.
+  if (debouncedQuery === queryText && debouncedQuery !== sentQuery) {
     setSentQuery(debouncedQuery)
     if (debouncedQuery.trim() !== (filters.query ?? '').trim()) updateFilter('query', debouncedQuery)
   }

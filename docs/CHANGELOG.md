@@ -13,7 +13,7 @@
   com uma coluna por taxa e a coluna Contêiner compartilhado. No Portal, o detalhe abre pelo
   número da fatura, com o Pagamento primeiro e Copiar código Pix, e a disputa de Demurrage passa
   para o fim do detalhe. Correções: caixa de Comunicado sem destinatário recebe o contato principal
-  (migration `223`), estado de Taxas locais da lista de BLs pelo financeiro (`222`), solicitações
+  (migration `223`), estado de Taxas locais da lista de BLs pelo financeiro, sem B/L cancelado em Pendente (`222`, `226`), solicitações
   de Desbloqueio de CE na ficha do Cliente (`224`) e o Saldo pendente do Modo Inspeção igual ao
   que o Cliente vê (`225`).
 - **Carregamento inicial do Vela menor (2026-10-14):** o sino de notificações e a cotação do

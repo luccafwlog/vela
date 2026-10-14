@@ -50,7 +50,9 @@ export function PortalDemurrageDetailModal({
           const invoice = detail.invoice
           const situation = demurrageSituation(invoice)
           const payable = isDemurragePayable(invoice)
-          const showPix = Boolean(invoice.pix_payload) || (['issued', 'overdue'].includes(invoice.status) && Number(invoice.current_total_brl) > 0)
+          // O código Pix guardado continua na fatura depois do pagamento (Pix
+          // estático): só aparece enquanto a fatura pede pagamento.
+          const showPix = payable && (Boolean(invoice.pix_payload) || (['issued', 'overdue'].includes(invoice.status) && Number(invoice.current_total_brl) > 0))
           const containerCount = detail.items.length === 1 ? '1 contêiner' : `${detail.items.length} contêineres`
           return (
             <>

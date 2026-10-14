@@ -49,6 +49,18 @@ describe('InvoiceFiltersBar com o filtro na URL', () => {
     expect(document.activeElement).toBe(input)
   })
 
+  it('Limpar filtros não traz de volta a busca antiga que ainda estava na pausa', async () => {
+    vi.useFakeTimers()
+    const updateFilter = vi.fn()
+    const { rerender } = render(bar({ ...base, query: 'FAT-18' }, updateFilter))
+
+    rerender(bar(base, updateFilter))
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+
+    expect(updateFilter).not.toHaveBeenCalledWith('query', 'FAT-18')
+    expect((screen.getByLabelText('Buscar fatura ou B/L') as HTMLInputElement).value).toBe('')
+  })
+
   it('a busca única por fatura ou B/L fica aberta e chega à URL depois da pausa', async () => {
     vi.useFakeTimers()
     const updateFilter = vi.fn()

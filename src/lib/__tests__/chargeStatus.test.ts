@@ -33,10 +33,16 @@ describe('chargeStatus', () => {
     expect(localChargesListState(null, null)).toBe('pending')
   })
 
-  it('o espelho SQL (migration 222) usa os mesmos estados financeiros', () => {
-    const sql = fs.readFileSync(new URL('../../../supabase/migrations/222_estado_taxas_locais_lista_bls.sql', import.meta.url), 'utf8')
+  it('B/L cancelado não é Pendente nem Emitida (migration 226)', () => {
+    expect(localChargesListState('ready_for_billing', 'pending', '2026-10-01T00:00:00Z')).toBe('cancelled')
+    expect(localChargesListState('calculated', 'invoiced', '2026-10-01T00:00:00Z')).toBe('cancelled')
+  })
+
+  it('o espelho SQL (migration 226) usa os mesmos estados', () => {
+    const sql = fs.readFileSync(new URL('../../../supabase/migrations/226_taxas_pendentes_sem_bl_cancelado.sql', import.meta.url), 'utf8')
+    expect(sql).toContain("WHEN p_cancelled_at IS NOT NULL THEN 'cancelled'")
     expect(sql).toContain("WHEN lower(btrim(coalesce(p_charge_status, ''))) = 'exempt' THEN 'exempt'")
     expect(sql).toContain("IN ('invoiced', 'partially_paid', 'paid') THEN 'issued'")
-    expect(sql).toContain("'chargePending', count(*) FILTER (WHERE public.bl_local_charges_state(charge_status, financial_status) = 'pending')")
+    expect(sql).toContain("'chargePending', count(*) FILTER (WHERE public.bl_local_charges_state(charge_status, financial_status, cancelled_at) = 'pending')")
   })
 })

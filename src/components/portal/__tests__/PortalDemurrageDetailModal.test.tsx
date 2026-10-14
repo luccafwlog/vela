@@ -87,8 +87,10 @@ describe('PortalDemurrageDetailModal', () => {
     expect(handlers.onShowDispute).toHaveBeenCalled()
   })
 
-  it('fatura paga não oferece disputa e mostra Paga', () => {
-    renderModal(makeDetail({ status: 'paid' }))
+  it('fatura paga não oferece disputa nem o Pix guardado, e mostra Paga', () => {
+    renderModal(makeDetail({ status: 'paid', pix_payload: '00020126PIXANTIGO' }))
+    expect(screen.queryByText('Pagamento via PIX')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Copiar código Pix/ })).toBeNull()
     expect(screen.getByText('Paga')).toBeTruthy()
     expect(screen.queryByText(/Discorda de algum valor/)).toBeNull()
     expect(screen.getByText('ROE aplicado')).toBeTruthy()

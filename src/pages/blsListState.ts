@@ -27,7 +27,7 @@ export const CHARGE_STATUS_FILTER_OPTIONS = (
   ['not_calculated', 'calculated', 'review_required', 'reviewed', 'ready_for_billing', 'exempt'] as const
 ).map((value) => ({ value, label: resolveChargeStatusLabel(value) }))
 
-/** Filtro "Taxas locais" da lista: os três estados da coluna (migration 222). */
+/** Filtro "Taxas locais" da lista: os três estados da coluna (migration 222); cancelado fica fora. */
 export const LOCAL_CHARGES_FILTER_OPTIONS = (['pending', 'issued', 'exempt'] as const).map((value) => ({
   value,
   label: LOCAL_CHARGES_LIST_STATE_LABELS[value],
