@@ -4,6 +4,11 @@
 
 ## 2026-10
 
+- **Carregamento inicial do Vela menor (2026-10-14):** o sino de notificações e a cotação do
+  cabeçalho deixaram de carregar o relatório de saída da agência e o leitor de planilha de
+  Demurrage em toda tela; os rótulos do relatório (`agencyReportLabels.ts`) e a cotação
+  (`demurrageRoe.ts`) viraram módulos próprios. O JavaScript inicial do Vela caiu de 249,51 para
+  225,72 KiB (limite de 250 KiB); o Portal não mudou.
 - **Passada única da identidade visual (2026-10-13, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md#passada-única-2026-10-13)):**
   o que vale igual em qualquer tela foi aplicado de uma vez no Vela e no Portal: toda tabela segue
   a tabela padrão (centralizada, com nome, descrição e observação à esquerda); a tabela dentro de
