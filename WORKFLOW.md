@@ -140,7 +140,7 @@ em documentação.
 
 - Supabase PostgreSQL, Auth, RLS e RPCs;
 - Edge Functions Deno;
-- Resend para email;
+- MillionSend para email (API compatível com a Resend);
 - Cloudflare Pages para hosting dos dois builds estáticos (Vela interno e Portal Fwlog),
   cada um em seu projeto, com Preview Deployments em PRs e Production
   Deployments no `main`;

@@ -1,7 +1,8 @@
 # 0030 — Observações por seção substituem Ocorrências; reabertura não reseta seções/assinaturas
 
-> **Situação atual (2026-10-13).** Permanecem a Observação por seção (edição livre do dono, sem justificativa nem histórico) e a reabertura que só destrava a edição, sem apagar resoluções nem assinaturas.
+> **Situação atual (2026-10-14).** Permanecem a Observação por seção (edição livre do dono, sem justificativa nem histórico) e a reabertura que só destrava a edição, sem apagar resoluções nem assinaturas.
 > Não valem mais a Observação como campo sempre aberto em toda seção (só aparece com texto; sem texto, o dono vê "Adicionar observação" e edita em modal) e as sete seções (são seis): [ADR 0036](./0036-adr-embarque-vazios-secao-unica-escala-fora-das-fases.md), conforme a nota de 2026-08-04 abaixo.
+> Pela [ADR 0085](./0085-modelo-de-permissoes-por-perfil.md) (item D13, 2026-10-14), a regra de que "só o dono de uma seção pode alterá-la" (RBAC inalterado) se lê com a cobertura do Administrativo, que já estava no código: o Departamento dono resolve, observa e assina, e o Administrativo pode fazer o mesmo em qualquer seção; o rastro mostra quem foi.
 > Regra vigente: [Viagens](../modules/viagens.md), regras do Agency Departure Report.
 
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** Observação continua por seção; edição/exibição é sob demanda. Reabrir não apaga assinaturas alheias.

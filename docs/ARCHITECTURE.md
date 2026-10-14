@@ -29,7 +29,7 @@ flowchart LR
     Portal["Sessão do Portal<br/>Supabase Auth isolada"]
     Database[("Supabase PostgreSQL<br/>RLS + RPCs + pg_cron")]
     Functions["Edge Functions<br/>Deno"]
-    Resend["Resend"]
+    Resend["MillionSend<br/>e-mail"]
     BCB["Banco Central / PTAX"]
     Itau["Itaú<br/>Pix Recebimentos"]
     Upstash["Upstash<br/>trava de tentativas"]
@@ -92,7 +92,7 @@ GitHub Actions; ela não participa do bundle Vite nem do projeto de produção.
 Três mecanismos server-side tiram do navegador o que precisa sobreviver a
 falhas ([ADR 0065](adr/0065-inbox-efeitos-e-autoridade-financeira.md)):
 
-- **Inbox de eventos de e-mail** (migration `022`): o webhook do Resend só
+- **Inbox de eventos de e-mail** (migration `022`): o webhook do provedor de e-mail só
   valida e grava o evento em `portal_email_events`; o
   `portal-email-events-runner` resolve a tentativa, aplica as supressões e
   executa os efeitos ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).
@@ -673,12 +673,13 @@ A regra e os procedimentos estão em [Segurança](operations/seguranca.md); aqui
 fica o desenho:
 
 - RLS protege tabelas expostas;
-- leitura interna global exige perfil ativo; a escrita usa as permissões e RPCs
-  atuais, sem assumir que todo papel pode toda mutação
+- leitura interna global exige perfil ativo; a escrita é de todo Departamento
+  ativo, com rastro, salvo as exceções da lista fechada
   ([ADR 0044](adr/0044-leitura-interna-global-departamento-restringe-escrita.md),
-  [ADR 0046](adr/0046-escrita-interna-global-com-rastro-obrigatorio.md));
-  administração, provisionamento, configurações e exclusões mantêm restrições
-  específicas;
+  [ADR 0046](adr/0046-escrita-interna-global-com-rastro-obrigatorio.md),
+  [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)); quem faz o quê
+  está na [matriz de Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil),
+  com o que o código ainda não cumpre marcado como correção pendente;
 - helpers como `is_active_user()`, `is_active_read_user()` e `is_admin()`
   sustentam policies; leitura de dado interno usa `is_active_read_user()`. Hoje
   `is_active_user()` tem o mesmo corpo (migration `002`: qualquer perfil interno
@@ -750,7 +751,7 @@ integração na arquitetura.
 
 - **Supabase:** PostgreSQL com RLS e RPCs, Auth das duas sessões, Storage, Edge
   Functions, `pg_cron`/`pg_net` e Vault para os segredos dos jobs.
-- **Resend:** envio de todo e-mail, do Portal e de Comunicados, e eventos de
+- **MillionSend** (API compatível com a Resend, que usou até 2026-10-14): envio de todo e-mail, do Portal e de Comunicados, e eventos de
   entrega por webhook ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).
 - **Banco Central (PTAX):** a Edge Function `recalc-demurrage-ptax` busca a PTAX
   para o Recálculo Diário de Demurrage; o navegador também consulta o BCB para
@@ -798,7 +799,7 @@ registrada como `falha_permanente`. A origem da API vem do secret opcional
 `RESEND_BASE_URL` (padrão `https://api.resend.com`), o que permite trocar por
 um provedor compatível sem mudar código. O envio real usa `PORTAL_FROM_EMAIL` e
 `PORTAL_REPLY_TO`; domínio próprio verificado continua sendo condição para o
-envio real ([Serviços externos § Resend](operations/servicos-externos.md#resend-envio)).
+envio real ([Serviços externos § MillionSend](operations/servicos-externos.md#millionsend-envio)).
 
 Os eventos de entrega chegam pelo `portal-email-webhook`, que valida a
 assinatura (`RESEND_WEBHOOK_SECRET`), deduplica e grava o evento em
@@ -975,8 +976,9 @@ da ficha do Cliente. Tela e ações em
 A RPC entrega os campos completos a Administrativo, Documentação, Financeiro e
 Equipamentos e mascara para Operações o Email de Recuperação, os candidatos e o
 status de entrega. Vale a [ADR 0045](adr/0045-inspecao-do-portal.md):
-Operações vê os campos completos ([ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18); a retirada do
-mascaramento é correção pendente no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+Operações vê os campos completos ([ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18) e o Histórico
+([ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md), item D12); a retirada do
+mascaramento e a abertura do Histórico são correção pendente no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 
 ## Fontes relacionadas
 

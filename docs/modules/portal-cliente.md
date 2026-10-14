@@ -149,9 +149,11 @@ não lhe mostra ações. Pela ADR 0045, Operações vê os campos completos, com
 demais perfis leitores ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18): correção
 pendente em [Notas e divergências](#notas-e-divergências). Somente Administrativo e
 Documentação executam ações; **Alterar CNPJ auditado** e a Liberação de
-faturamento sem Portal são só do Administrativo. O Histórico
-(`portal_list_provisioning_events`, de 1 a 50 eventos) é recusado a Operações
-pelo banco.
+faturamento sem Portal são só do Administrativo ([matriz de permissões](../operations/seguranca.md#clientes-comunicação-e-portal)). O Histórico
+(`portal_list_provisioning_events`, de 1 a 50 eventos) hoje é recusado a
+Operações pelo banco, e a tela mostra a seção; pela
+[ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md) (item D12),
+Operações também o vê (correção pendente).
 
 O registro interno de Portal possui dois eixos independentes: `provisioning_decision`
 (`aguardando_analise` ou `aprovado_para_provisionar`) e `account_situation` (`sem_conta`, convite,
@@ -234,7 +236,7 @@ Uma tentativa com status `aceito` mas sem esse identificador aparece como
 do provedor, e não prova que a mensagem saiu. Sem `RESEND_API_KEY`, a tentativa
 fica como falha permanente e o convite não é apresentado como enviado. A
 confirmação na interface significa que o provedor aceitou a mensagem; a entrega
-à caixa do destinatário depende dos eventos posteriores do Resend.
+à caixa do destinatário depende dos eventos posteriores do provedor de e-mail.
 
 `portal_repair_missing_accounts()` (migration arquivada `198`; definição vigente
 no dump `002`) é uma função interna: cria apenas a linha inicial da fila para
@@ -353,10 +355,11 @@ lê a migration arquivada `325`.
 
 `_shared/portalEmail.ts` registra cada tentativa por chave idempotente, não
 envia para endereços suprimidos e repete somente respostas transitórias do
-Resend (máximo de três tentativas). A chave enviada à Resend é a chave local
-seguida de um hash do conteúdo: a Resend guarda chaves por 24h e recusa com 409
-a mesma chave com outro conteúdo, o que acontecia quando ids sequenciais se
-repetiam após um reset do banco. A falha grava o motivo da Resend em
+provedor (máximo de três tentativas). A chave enviada ao provedor é a chave
+local seguida de um hash do conteúdo: a API (MillionSend, compatível com a
+Resend) guarda chaves por 24h e recusa com 409 a mesma chave com outro
+conteúdo, o que acontecia quando ids sequenciais se repetiam após um reset do
+banco. A falha grava o motivo do provedor em
 `last_error` (ex.: `HTTP 409 invalid_idempotent_request`).
 `portal-email-webhook` valida assinatura Svix, janela de cinco minutos e
 deduplicação por evento: grava o evento numa inbox durável
@@ -367,16 +370,17 @@ histórico já foi atualizado: `portal-email-events-runner` (job a cada minuto,
 migration `107`) aplica os eventos às tentativas. `portal-daily-digest`
 consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e
-`RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave de Resend
+`RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave do provedor
 a tentativa é gravada como `falha_permanente` e nenhum email é enviado.
 Remetente, endereço de resposta e domínio verificado estão em
-[serviços externos](../operations/servicos-externos.md#resend-envio).
+[serviços externos](../operations/servicos-externos.md#millionsend-envio).
 
 Conteúdo das mensagens (`supabase/functions/_shared/portalEmailTemplates.ts`):
 cada uma tem versão HTML e texto puro equivalente, com a marca Fwlog, e
 nenhuma leva senha ou dado financeiro. O conteúdo não inclui pixel de abertura
-nem link de rastreamento de clique; a configuração de rastreamento do domínio
-no Resend não foi conferida (**Suspeita**). O token opaco fica só no link e não é reproduzido em logs nem em
+nem link de rastreamento de clique; no provedor atual
+(MillionSend), o rastreamento de cliques e de aberturas de `portalfwlog.com.br`
+aparecia desligado na configuração do domínio em 2026-10-14 (print do painel). O token opaco fica só no link e não é reproduzido em logs nem em
 auditoria.
 
 - **Convite:** identifica a empresa e o CNPJ mascarado, informa a validade de
@@ -477,9 +481,14 @@ Depots não exibe o card explicativo com a lista de portos do cadastro.
 
 O botão **Informações do Portal** fica em `/clientes/portal`, sem item próprio
 na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas
-oficiais, além da edição das observações. Equipamentos e Administrativo editam
-a publicação e instruções dos depots existentes. Somente Administrativo altera agentes,
-contatos, tracking e observações. O acesso usa `is_active_read_user()` e as
+oficiais, além da edição das observações. Pela
+[matriz de permissões](../operations/seguranca.md#manifesto-importações-e-cadastros)
+([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D7), qualquer
+Departamento publica na Central. Hoje Equipamentos e Administrativo editam
+a publicação e instruções dos depots existentes, e somente o Administrativo altera agentes,
+contatos, tracking e observações (correção pendente, item P8 do
+[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
+O acesso usa `is_active_read_user()` e as
 mutações conferem o papel no banco, além da interface. Alterações geram auditoria.
 Na aba interna Tracking, o endereço aparece apenas no link “Abrir tracking”;
 a URL completa fica no editor do armador.
@@ -756,6 +765,7 @@ Há testes focados de componente para `PortalLogin` (`src/pages/__tests__/Portal
 - **Teste de contrato SQL — ações críticas do Portal.** Na definição vigente da migration `109`, `portal_create_consolidation` e `portal_obsolete_consolidation` gravam `portal_notifications` (o desfazimento também grava `invoice_lifecycle_events`), e a abertura de disputa (`portal_open_demurrage_dispute` → `portal_add_dispute_message`) grava a mensagem, `portal_notifications` e o alerta `portal_dispute_opened`. `portal_update_profile`, na definição vigente da migration `008`, não grava trilha server-side; criar auditoria para essa ação exige decisão e migration próprias.
 - **Código — mensagem do Turnstile inalcançável no login.** `usePortalAuth.signIn` troca qualquer erro do `portal-login` por `Error('CNPJ ou senha inválidos.')` sem status; por isso os ramos `TURNSTILE_REJECTED` e `P0429` de `PortalLogin` nunca disparam e a recusa do Turnstile aparece como credencial inválida. A recuperação trata o `403` corretamente. Defeito a tratar em tarefa separada.
 - **Código — literal morto.** `portal_refresh_general_pendencies` (job a cada 15 minutos) ainda filtra pelo valor removido `provisionamento_nao_necessario`; não tem efeito, porque o CHECK de `provisioning_decision` não aceita esse valor.
+- **Correção pendente (ADR 0085, item D12):** Operações vê o Histórico do console de provisionamento, como o resto do console; hoje `portal_list_provisioning_events` recusa esse perfil e a seção aparece vazia ou com erro (`PortalReviewPanel.tsx` inclui Operações em `canReadEvents`). Correção no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (P12).
 - **Correção pendente (A18):** vale a ADR 0045: Operações vê no console os mesmos campos completos dos demais perfis leitores, porque a leitura interna é global (ADR 0044). Desde o Bloco #521 (migration arquivada `325`) o read model esconde dela Email de Recuperação, origem, entrega e candidatos. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18).
 - **Correção pendente (A19):** a exceção crítica de fatura entra no resumo das 08:00 (abertura e fechamento), além do sino e de `/alertas`; o e-mail imediato não volta ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19). Hoje `portal-daily-digest` conta apenas falhas e supressões de email, atividade de provisionamento e Ativação pendente e não lê `alerts` (**Código:** `supabase/functions/portal-daily-digest/index.ts`), e `portal_abuso_login` só avisa a Documentação. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 - **Correção pendente (A21):** o caminho legado de contas do Portal sai: as RPCs `upsert_customer_portal_account` e `set_customer_portal_account_active`, o job `cleanup-portal-sessions`, a tabela `customer_portal_sessions` e a escrita direta permitida pela policy `cpa_admin_all` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 21; a ADR 0013 recusa senha própria em tabela). Hoje as RPCs, sem chamador no código, continuam executáveis pelo Administrativo, e a policy permite as mesmas escritas direto em `customer_portal_accounts` — inclusive reativar uma conta Suspensa fora da máquina de estados. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).

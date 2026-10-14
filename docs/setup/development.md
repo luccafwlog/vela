@@ -56,8 +56,9 @@ INSERT INTO public.user_profiles (id, role, active)
 VALUES ('<auth-user-uuid>', 'administrativo', true);
 ```
 
-Os setores aceitos no `role` e o que cada um pode estão em
-[Segurança § Roles internas](../operations/seguranca.md#roles-internas); a tela
+Os setores aceitos no `role` estão em
+[Segurança § Roles internas](../operations/seguranca.md#roles-internas), e o que cada um pode, na
+[matriz de permissões](../operations/seguranca.md#modelo-de-permissões-por-perfil); a tela
 que os gerencia é a [Administração](../modules/operacao-suporte.md#admin).
 
 ## 5. Edge Functions (opcional no dev local)
@@ -68,8 +69,9 @@ do manual de serviços externos. Para o Portal funcionar, o mínimo é
 `PORTAL_PASSWORD_PEPPER` (antes de publicar as funções de login e senha),
 `PORTAL_LOGIN_DUMMY_AUTH_USER_ID` (UUID de uma identidade técnica confirmada,
 sem vínculo em `customer_portal_accounts`, que equaliza o custo do login com
-CNPJ inexistente), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e `RESEND_API_KEY`;
-o Resend envia convites, recuperação de senha, resumo diário, Comunicados e
+CNPJ inexistente), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `RESEND_API_KEY` (chave `ms_…`) e
+`RESEND_BASE_URL` = `https://api.millionsend.com` (sem ele o envio vai para a
+Resend e a chave da MillionSend é recusada); a MillionSend envia convites, recuperação de senha, resumo diário, Comunicados e
 Cobrança de Demurrage.
 
 ## 6. Rodar

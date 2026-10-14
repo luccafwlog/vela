@@ -48,7 +48,7 @@ Para o gate completo, use `npm run test:local-pg`
 Esse roteiro comprova contratos e invariantes no banco local, inclusive
 permissões negativas, snapshots, alertas e leases. Não comprova a branch
 Supabase de Preview, grants do Postgres gerenciado, Vault preenchido,
-`pg_cron`/`pg_net` executando, publicação das Edge Functions, Resend ou BCB
+`pg_cron`/`pg_net` executando, publicação das Edge Functions, provedor de e-mail (MillionSend) ou BCB
 reais; esses pontos exigem a validação controlada das seções seguintes.
 
 Para Demurrage, a evidência mínima do contrato é emitir por IDs de B/L e
@@ -164,7 +164,7 @@ quando relevante e condição para reprodução.
 
 **Esperado:** navegação respeita perfil e o banco não retorna dados proibidos
 mesmo quando a API é chamada diretamente. Setores e permissões:
-[Segurança § Roles internas](seguranca.md#roles-internas).
+[Segurança § Modelo de permissões por perfil](seguranca.md#modelo-de-permissões-por-perfil).
 
 ## 5. Viagens
 
@@ -545,7 +545,7 @@ Regras em [Clientes § Comunicados ao Cliente](../modules/clientes.md#comunicado
 [Régua automática de Comunicados](../modules/clientes.md#régua-automática-de-comunicados)
 e [Demurrage § Régua de Cobrança](../modules/demurrage.md#régua-de-cobrança).
 Valide com a chave de envio desligada (modo de simulação), que registra o
-Comunicado como `simulado` sem chamar o Resend
+Comunicado como `simulado` sem chamar o provedor de e-mail
 ([Chave de envio](../modules/clientes.md#chave-de-envio-de-comunicados)):
 
 1. em `/clientes/comunicacao`, monte um disparo manual por carga (NOA, NOR,

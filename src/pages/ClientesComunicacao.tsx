@@ -547,7 +547,7 @@ export function ClientesComunicacao() {
             </div>
             <div>
               <div className="text-sm font-bold text-[var(--app-text-strong)]">Canal de envio real ativo</div>
-              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está ligada. E-mails reais são disparados aos contatos elegíveis via Resend.</p>
+              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está ligada. E-mails reais são disparados aos contatos elegíveis.</p>
             </div>
           </div>
           {canToggleCommunications ? (
@@ -579,7 +579,7 @@ export function ClientesComunicacao() {
             </div>
             <div>
               <div className="text-sm font-bold text-[var(--app-text-strong)]">Modo de simulação permanente</div>
-              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está desligada. Os comunicados serão registrados como simulados e nenhum e-mail será enviado ao Resend.</p>
+              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está desligada. Os comunicados serão registrados como simulados e nenhum e-mail será enviado.</p>
             </div>
           </div>
           {canToggleCommunications ? (
@@ -591,7 +591,7 @@ export function ClientesComunicacao() {
                 void (async () => {
                   const confirmed = await confirm({
                     title: 'Ativar envio real',
-                    message: 'Confirma a ativação da chave global de envio? Os próximos disparos de comunicados e cobranças enviarão e-mails reais aos clientes via Resend.',
+                    message: 'Confirma a ativação da chave global de envio? Os próximos disparos de comunicados e cobranças enviarão e-mails reais aos clientes.',
                     confirmLabel: 'Ativar envio real',
                     tone: 'danger',
                   })
