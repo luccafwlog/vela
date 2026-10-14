@@ -92,7 +92,7 @@ GitHub Actions; ela não participa do bundle Vite nem do projeto de produção.
 Três mecanismos server-side tiram do navegador o que precisa sobreviver a
 falhas ([ADR 0065](adr/0065-inbox-efeitos-e-autoridade-financeira.md)):
 
-- **Inbox de eventos de e-mail** (migration `022`): o webhook do Resend só
+- **Inbox de eventos de e-mail** (migration `022`): o webhook do provedor de e-mail só
   valida e grava o evento em `portal_email_events`; o
   `portal-email-events-runner` resolve a tentativa, aplica as supressões e
   executa os efeitos ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).

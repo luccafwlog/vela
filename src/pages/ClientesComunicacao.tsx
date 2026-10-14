@@ -579,7 +579,7 @@ export function ClientesComunicacao() {
             </div>
             <div>
               <div className="text-sm font-bold text-[var(--app-text-strong)]">Modo de simulação permanente</div>
-              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está desligada. Os comunicados serão registrados como simulados e nenhum e-mail será enviado ao Resend.</p>
+              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está desligada. Os comunicados serão registrados como simulados e nenhum e-mail será enviado à MillionSend.</p>
             </div>
           </div>
           {canToggleCommunications ? (
