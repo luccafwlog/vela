@@ -63,7 +63,6 @@ function cleanup() {
     DELETE FROM public.portal_provisioning_events WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
     DELETE FROM public.portal_notifications WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
     DELETE FROM public.portal_inspection_events WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
-    DELETE FROM public.customer_portal_sessions WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
     DELETE FROM public.customer_portal_accounts WHERE customer_id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
     DELETE FROM public.customers WHERE id IN (${CUSTOMER_FREE}, ${CUSTOMER_BILLED});
     DELETE FROM public.voyages WHERE id = ${VOYAGE_ID};

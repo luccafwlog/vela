@@ -21,9 +21,6 @@ function requireFixture(fixture) {
   const portalInvoices = (fixture.invoices ?? []).filter((invoice) => invoice.usedBy !== 'financial')
   if (portalInvoices.length < 4) throw new Error('fixture catalog requires four invoices not consumed by financial scenarios')
   requireIds(fixture, 'invoices')
-  if (!process.env.QA_PORTAL_FIXTURE_PASSWORD || process.env.QA_PORTAL_FIXTURE_PASSWORD.length < 8) {
-    throw new Error('QA_PORTAL_FIXTURE_PASSWORD is required and is never persisted by this script')
-  }
 }
 
 function paymentId(result) {
@@ -56,15 +53,9 @@ export async function createPortalScenarios(client, fixture) {
   for (const invoice of invoices) balances.push(await openBalance(client, invoice))
 
   const accounts = []
-  for (const state of accountStates) {
-    const existing = accountByCustomer.get(state.customerId)
-    await rpc(client, 'upsert_customer_portal_account', {
-      p_customer_id: state.customerId, p_password: process.env.QA_PORTAL_FIXTURE_PASSWORD,
-      p_contact_email: existing?.contact_email ?? `portal-${state.customerId}@example.invalid`,
-      p_active: state.active, p_actor: fixture.userId, p_login_cnpj: existing?.login_cnpj ?? null,
-    })
-    accounts.push(state)
-  }
+  // Só registra o estado das contas: a conta nasce pelo provisionamento (Edge
+  // Functions); a RPC legada com senha própria saiu na migration 234.
+  for (const state of accountStates) accounts.push(state)
 
   const event = await rpc(client, 'portal_return_to_analysis', {
     p_customer_id: fixture.customers[1].id, p_reason: `${FIXTURE_PREFIX} synthetic portal review`,

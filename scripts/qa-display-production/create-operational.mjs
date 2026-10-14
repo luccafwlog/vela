@@ -205,12 +205,11 @@ export async function createOperationalFixture(client, userId) {
     if (receivables.error) throw receivables.error
     catalog.receivables = (receivables.data ?? []).map((row) => ({ id: row.id, created: false }))
   }
-  catalog.portalAccounts = []
-  for (const customerId of [1, 2, 3, 4]) {
-    const account = await client.rpc('upsert_customer_portal_account', { p_customer_id: customerId, p_password: `QAD26-Portal-${customerId}-Only!`, p_contact_email: `portal-${customerId}@example.invalid`, p_active: true, p_actor: userId })
-    if (account.error) throw account.error
-    catalog.portalAccounts.push({ customerId, account: account.data, created: Boolean(account.data?.created) })
-  }
+  // A conta do Portal nasce só pelo provisionamento (Edge Functions); a RPC
+  // legada de conta com senha própria saiu na migration 234 (ADR 0083, item 21).
+  const accounts = await client.from('customer_portal_accounts').select('id,customer_id').in('customer_id', [1, 2, 3, 4])
+  if (accounts.error) throw accounts.error
+  catalog.portalAccounts = (accounts.data ?? []).map((account) => ({ customerId: account.customer_id, account: { id: account.id }, created: false }))
   return catalog
 }
 
