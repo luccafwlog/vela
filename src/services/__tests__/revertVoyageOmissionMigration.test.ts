@@ -81,6 +81,8 @@ const cleanupSql = `
   DELETE FROM public.voyage_escala_terminal_state WHERE id = '${terminalStateId}';
   DELETE FROM public.voyage_escala_revision_state WHERE voyage_id = ${voyageId};
   DELETE FROM public.agency_departure_reports WHERE id = '${reportId}';
+  DELETE FROM public.charge_calculations WHERE bl_id = '${blId}';
+  DELETE FROM public.pricing_rule_versions WHERE customer_id = ${customerId};
   DELETE FROM public.bls WHERE id = '${blId}';
   DELETE FROM public.voyages WHERE id = ${voyageId};
   DELETE FROM public.vessels WHERE id = ${vesselId};
@@ -89,6 +91,9 @@ const cleanupSql = `
   DELETE FROM auth.users WHERE id = '${adminId}';
   DELETE FROM public.depots WHERE id = '${depotId}';
   DELETE FROM public.ports WHERE id = ${portId};
+  DELETE FROM public.portal_provisioning_events WHERE customer_id = ${customerId};
+  DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
+  DELETE FROM public.customers WHERE id = ${customerId};
   SET session_replication_role = origin;
 `
 
