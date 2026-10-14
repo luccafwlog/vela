@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '../ui/Button'
-import { Card, InlineError } from '../ui/Card'
-import { Badge } from '../ui/Badge'
+import { InlineError } from '../ui/Card'
+import { Block, LeadValue } from '../ui/Block'
 import { Field, Input, Textarea } from '../ui/Input'
 import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
@@ -10,12 +10,6 @@ import { useBillingPortalRelease, useGrantBillingPortalRelease, useRevokeBilling
 import { billingPortalReleaseState } from '../../services/billingPortalRelease'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { formatDate } from '../../lib/utils'
-
-const STATE_BADGE = {
-  vigente: { tone: 'success', label: 'Vigente' },
-  vencida: { tone: 'warning', label: 'Vencida' },
-  revogada: { tone: 'neutral', label: 'Revogada' },
-} as const
 
 // Teto da migration 084 (decisão de 2026-09-24); o banco recusa além disso.
 const MAX_REVIEW_DAYS = 30
@@ -130,26 +124,38 @@ export function BillingPortalReleaseCard({ customerId, portalReady, variant = 'c
       ? `Faturas saem sem esperar o Portal até ${formatDate(release!.review_at)}. Depois, voltam a ficar retidas até o Portal ficar pronto.`
       : 'Sem Portal pronto, a fatura fica retida quando o CE Mercante é registrado. A liberação emite as retidas, com as taxas calculadas no registro do CE.'
 
-  const content = (
-    <section className="app-customer-release" aria-labelledby={`${formId}-title`}>
-      <div className="app-customer-section-head">
-        <h3 id={`${formId}-title`} className="app-customer-section-title app-customer-section-title--sub">
-          Liberação de faturamento sem Portal
-          {state ? <Badge tone={STATE_BADGE[state].tone}>{STATE_BADGE[state].label}</Badge> : null}
-        </h3>
-        <div className="app-customer-section-links">
-          {canManage && state === 'vigente' ? (
-            <Button variant="danger" onClick={() => void handleRevoke()} loading={revoke.isPending} loadingLabel="Revogando…" disabled={busy}>
-              Revogar liberação
-            </Button>
-          ) : null}
-          {canGrant && !formOpen ? (
-            <Button variant="secondary" onClick={() => setFormOpen(true)}>
-              {state ? 'Conceder nova liberação' : 'Conceder liberação'}
-            </Button>
-          ) : null}
-        </div>
-      </div>
+  // Dado principal (lote 1 da identidade, 2026-10-14): em âmbar enquanto o
+  // gate está fechado, isto é, enquanto a fatura fica retida — a mesma regra
+  // de "Faturas retidas" no bloco Portal da Visão geral.
+  const retained = portalReady === false && state !== 'vigente'
+  const leadText = state === 'vigente'
+    ? `Vigente até ${formatDate(release!.review_at)}`
+    : state === 'vencida'
+      ? `Vencida em ${formatDate(release!.review_at)}`
+      : state === 'revogada'
+        ? 'Revogada'
+        : portalReady ? 'Não necessária' : 'Não concedida'
+
+  const actions = (
+    <>
+      {canManage && state === 'vigente' ? (
+        <Button variant="danger" className={variant === 'card' ? 'app-btn--sm' : undefined} onClick={() => void handleRevoke()} loading={revoke.isPending} loadingLabel="Revogando…" disabled={busy}>
+          Revogar liberação
+        </Button>
+      ) : null}
+      {canGrant && !formOpen ? (
+        <Button variant="secondary" className={variant === 'card' ? 'app-btn--sm' : undefined} onClick={() => setFormOpen(true)}>
+          {state ? 'Conceder nova liberação' : 'Conceder liberação'}
+        </Button>
+      ) : null}
+    </>
+  )
+
+  const body = (
+    <>
+      {!isLoading && !isError ? (
+        <LeadValue tone={retained ? 'warning' : 'default'}>{leadText}</LeadValue>
+      ) : null}
       <p className="app-customer-muted">{statusText}</p>
       {isLoading ? <p className="app-customer-muted" role="status">Carregando a liberação…</p> : null}
       {isError ? (
@@ -196,8 +202,22 @@ export function BillingPortalReleaseCard({ customerId, portalReady, variant = 'c
         <p className="app-customer-muted">A liberação é concedida pelo Administrativo.</p>
       ) : null}
       {errors.submit ? <InlineError message={errors.submit} /> : null}
-    </section>
+    </>
   )
 
-  return variant === 'card' ? <Card className="app-customer-sheet">{content}</Card> : content
+  // Ficha do Cliente: bloco da identidade, com as ações na faixa do título.
+  if (variant === 'card') {
+    return <Block title="Liberação de faturamento sem Portal" headingLevel={2} aside={actions}>{body}</Block>
+  }
+  return (
+    <section className="app-customer-release" aria-labelledby={`${formId}-title`}>
+      <div className="app-customer-section-head">
+        <h3 id={`${formId}-title`} className="app-customer-section-title app-customer-section-title--sub">
+          Liberação de faturamento sem Portal
+        </h3>
+        <div className="app-customer-section-links">{actions}</div>
+      </div>
+      {body}
+    </section>
+  )
 }

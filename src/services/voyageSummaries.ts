@@ -5,6 +5,7 @@ import { formatDate } from '../lib/utils'
 import { formatMetric, formatPortDisplayName, normalizePortName, stripFileExtension } from '../lib/voyageFormat'
 import { normalizePortCode } from './portCode'
 import { TIMELINE_ROLE_LABELS } from './voyageTimeline'
+import { VOYAGE_STATUS_LABELS } from '../lib/statusLabels'
 
 export function summarizeContainerTypes(
   containers:
@@ -1052,7 +1053,7 @@ function buildScheduleTimeline(
         kind: 'escala-date',
         at,
         title: `${TIMELINE_SCHEDULE_DATE_LABELS[row.field_name]} ${changed ? 'alterado' : 'registrado'} · ${port}`,
-        detail: appendActor(changed ? `${formatDate(oldValue)} -> ${formatDate(value)}` : formatDate(value), row),
+        detail: appendActor(changed ? `${formatDate(oldValue)} → ${formatDate(value)}` : formatDate(value), row),
       })
     } else if (row.field_name === 'escala_number' && value) {
       events.push({
@@ -1068,7 +1069,7 @@ function buildScheduleTimeline(
         kind: 'manifestos-linked',
         at,
         title: `Manifestos vinculados · ${port}`,
-        detail: appendActor('ESCALA = SIM', row),
+        detail: appendActor('Escala vinculada aos Manifestos', row),
       })
     } else if ((row.field_name === 'ces' || row.field_name === 'export_ces') && value) {
       events.push({
@@ -1143,7 +1144,7 @@ function buildAuditTimeline(
         kind: 'ce-master',
         at,
         title: oldValue ? 'Nº de Manifesto Mercante alterado' : 'Nº de Manifesto Mercante definido',
-        detail: appendActor(oldValue ? `${oldValue} -> ${value}` : value, row),
+        detail: appendActor(oldValue ? `${oldValue} → ${value}` : value, row),
       })
       continue
     }
@@ -1198,17 +1199,35 @@ function buildAuditTimeline(
     }
 
     if (row.entity_type === 'voyages' || row.entity_type === 'voyage') {
-      const label = TIMELINE_VOYAGE_FIELD_LABELS[row.field_name] ?? row.field_name
+      // Cópia interna da situação das escalas: repete o "CE atualizado" do
+      // mesmo instante e não é fato para a operação (lote 1 da identidade).
+      if (row.field_name === 'pod_schedule_snapshot') continue
+      const label = TIMELINE_VOYAGE_FIELD_LABELS[row.field_name]
+      const show = (raw: string) => (row.field_name === 'status' ? VOYAGE_STATUS_LABELS[raw] ?? raw : raw)
+      // Campo sem rótulo ou que guarda um id nunca mostra nome técnico nem valor bruto.
+      const detail = !label
+        ? 'Dado interno da viagem atualizado'
+        : row.field_name === 'vessel_id'
+          ? (oldValue ? 'Navio trocado' : 'Navio definido')
+          : oldValue ? `${label}: ${show(oldValue)} → ${show(value)}` : `${label}: ${show(value)}`
       events.push({
         id: `audit-voyage-${index}`,
         kind: 'voyage-data',
         at,
         title: oldValue ? 'Dados da viagem alterados' : 'Viagem criada',
-        detail: appendActor(oldValue ? `${label}: ${oldValue} -> ${value}` : `${label}: ${value}`, row),
+        detail: appendActor(detail, row),
       })
     }
   }
   return events
+}
+
+const RESOLUTION_FIELD_LABELS: Record<string, string> = {
+  is_imo: 'IMO',
+  imo_class: 'Classe IMO',
+  un_number: 'Número ONU',
+  ownership: 'COC/SOC',
+  profile: 'Perfil de carga',
 }
 
 function buildResolutionTimeline(resolutions: VoyageTimelineInput['resolutions']): VoyageTimelineEvent[] {
@@ -1219,7 +1238,9 @@ function buildResolutionTimeline(resolutions: VoyageTimelineInput['resolutions']
       kind: 'divergence-resolved' as const,
       at: resolution.resolved_at,
       title: 'Divergência conciliada',
-      detail: resolution.field_name ? `Campo ${resolution.field_name}` : 'Baplie -> Manifesto',
+      // Nunca o nome técnico do campo (lote 1 da identidade): campo sem nome
+      // traduzido cai na frase genérica.
+      detail: (resolution.field_name && RESOLUTION_FIELD_LABELS[resolution.field_name]) ?? 'Baplie → Manifesto',
     }]
   })
 }

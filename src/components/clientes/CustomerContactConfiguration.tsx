@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import { Plus } from 'lucide-react'
+import { Block } from '../ui/Block'
+import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
 import { InlineError } from '../ui/Card'
 import { Badge } from '../ui/Badge'
@@ -12,6 +14,7 @@ import {
 } from '../../services/customerCommunicationBoxes'
 import {
   fetchCustomerContactConfiguration,
+  fillEmptyContactBoxes,
   internalSaveCustomerContactConfiguration,
   type PortalContactDraft,
 } from '../../services/customerContactConfiguration'
@@ -44,10 +47,13 @@ export function CustomerContactConfiguration({
   customerId,
   canEdit = true,
   onSaved,
+  onSystemFilled,
 }: {
   customerId: number
   canEdit?: boolean
   onSaved?: () => void
+  /** O sistema gravou o principal em caixas sem destinatário ao abrir. */
+  onSystemFilled?: () => void
 }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
@@ -64,13 +70,19 @@ export function CustomerContactConfiguration({
   // volta a ele; a diferença para o gravado é uma correção que pede salvar.
   const [loadedSnapshot, setLoadedSnapshot] = useState('[]')
 
+  // Em ref: um callback novo a cada render não pode recarregar os contatos.
+  const onSystemFilledRef = useRef(onSystemFilled)
+  useEffect(() => {
+    onSystemFilledRef.current = onSystemFilled
+  })
+
   const loadConfig = useCallback(async () => {
     setLoading(true)
     setErrorMsg('')
     setLoadError('')
     try {
-      const data = await fetchCustomerContactConfiguration(customerId)
-      const loadedDrafts: PortalContactDraft[] = data.contacts.map((c) => ({
+      let data = await fetchCustomerContactConfiguration(customerId)
+      const toDrafts = (config: typeof data): PortalContactDraft[] => config.contacts.map((c) => ({
         id: c.id,
         name: c.name,
         email: c.email,
@@ -82,6 +94,21 @@ export function CustomerContactConfiguration({
         suppressionReason: c.suppression_reason,
         sendable: c.sendable,
       }))
+      let loadedDrafts = toDrafts(data)
+      // Caixa sem destinatário: o sistema grava o principal nela, sem pedir
+      // para salvar (decisão de 2026-10-14); o Histórico mostra "Sistema".
+      if (canEdit && snapshotOf(normalizePrimaryContactBoxes(loadedDrafts)) !== snapshotOf(loadedDrafts)) {
+        try {
+          const filled = await fillEmptyContactBoxes(customerId)
+          if (filled.length) {
+            data = await fetchCustomerContactConfiguration(customerId)
+            loadedDrafts = toDrafts(data)
+            onSystemFilledRef.current?.()
+          }
+        } catch {
+          // Sem gravar, a tela mostra o principal nas caixas e pede para salvar, como antes.
+        }
+      }
       const shownDrafts = canEdit ? normalizePrimaryContactBoxes(loadedDrafts) : loadedDrafts
       setSavedSnapshot(snapshotOf(loadedDrafts))
       setLoadedSnapshot(snapshotOf(shownDrafts))
@@ -265,13 +292,13 @@ export function CustomerContactConfiguration({
   }
 
   if (loading) {
-    return <p className="app-customer-muted" role="status">Carregando contatos e Caixas de Comunicação…</p>
+    return <p className="app-customer-muted" role="status">Carregando contatos e quem recebe os Comunicados…</p>
   }
 
   if (loadError) {
     return (
       <div className="app-customer-stack-tight">
-        <h2 className="app-customer-section-title">Contatos e Caixas de Comunicação</h2>
+        <h2 className="app-customer-section-title">Contatos</h2>
         <div className="app-customer-notice app-customer-notice--danger" role="alert">
           <span>Não foi possível carregar os contatos: {loadError}</span>
           <Button variant="secondary" className="app-btn--sm" onClick={() => void loadConfig()}>Tentar novamente</Button>
@@ -281,47 +308,59 @@ export function CustomerContactConfiguration({
   }
 
   return (
-    <div className="app-customer-contacts">
-      <div className="app-customer-section-head">
-        <div>
-          <h2 className="app-customer-section-title">Contatos e Caixas de Comunicação</h2>
-          <p className="app-customer-muted">Quem recebe os Comunicados. Cada caixa precisa de pelo menos um contato ativo com e-mail; sem substituto, o principal recebe.</p>
-        </div>
-        {canEdit && (
-          <Button type="button" variant="secondary" onClick={handleAddContact}>
-            <Plus size={16} aria-hidden="true" />
-            Adicionar contato
-          </Button>
-        )}
+    <>
+    <Block title="Quem recebe os Comunicados" headingLevel={2} flush>
+      <p className="app-customer-muted app-block__body">Cada caixa precisa de pelo menos um contato ativo com e-mail; sem substituto, o principal recebe.</p>
+      <div className="app-table-scroll">
+        <table className="app-table app-table--compact">
+          <caption className="sr-only">Destinatários por caixa</caption>
+          <thead>
+            <tr>
+              <th scope="col">Caixa</th>
+              <th scope="col">O que recebe</th>
+              <th scope="col">Quem recebe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
+              const linkedContacts = drafts.filter(
+                (d) => d.active && d.email && d.boxCodes.includes(box.code),
+              )
+              return (
+                <tr key={box.code}>
+                  <th scope="row" className="whitespace-nowrap font-semibold">{box.label}</th>
+                  <td className="app-table__text">{box.description}</td>
+                  <td className="app-table__text">
+                    {linkedContacts.length === 0 ? (
+                      <StatusText tone="warning">Nenhum contato com e-mail</StatusText>
+                    ) : (
+                      linkedContacts.map((c, i) => (
+                        <span key={i} className="app-customer-coverage__email">
+                          <span className="app-customer-cell__truncate" title={c.email ?? undefined}>{c.email}</span>
+                          {c.isPrimary ? <span className="app-customer-coverage__tag">principal</span> : null}
+                        </span>
+                      ))
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
+    </Block>
 
-      {/* Quem recebe cada caixa, como a conferência de Comunicados mostra. */}
-      <dl className="app-customer-coverage" aria-label="Destinatários por caixa">
-        {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
-          const linkedContacts = drafts.filter(
-            (d) => d.active && d.email && d.boxCodes.includes(box.code),
-          )
-          return (
-            <div key={box.code} className="app-customer-coverage__box" data-empty={linkedContacts.length === 0 ? 'true' : undefined}>
-              <dt>
-                <span className="app-customer-coverage__label">{box.label}</span>
-                <span className="app-customer-coverage__desc">{box.description}</span>
-              </dt>
-              {linkedContacts.length === 0 ? (
-                <dd className="app-customer-note app-customer-note--warning">Nenhum contato com e-mail</dd>
-              ) : (
-                linkedContacts.map((c, i) => (
-                  <dd key={i} className="app-customer-coverage__email">
-                    <span className="app-customer-cell__truncate" title={c.email ?? undefined}>{c.email}</span>
-                    {c.isPrimary ? <span className="app-customer-coverage__tag">principal</span> : null}
-                  </dd>
-                ))
-              )}
-            </div>
-          )
-        })}
-      </dl>
-
+    <Block
+      title="Contatos"
+      headingLevel={2}
+      aside={canEdit ? (
+        <Button type="button" variant="secondary" className="app-btn--sm" onClick={handleAddContact}>
+          <Plus size={16} aria-hidden="true" />
+          Adicionar contato
+        </Button>
+      ) : null}
+    >
+    <div className="app-customer-contacts">
       {!canEdit && (
         <p className="app-customer-notice">
           Somente leitura: seu perfil não possui permissão para editar os contatos do cliente (Documentação, Equipamentos e Administrativo editam).
@@ -415,7 +454,7 @@ export function CustomerContactConfiguration({
                           checked={checked}
                           onChange={() => handleToggleBox(index, box.code)}
                         />
-                        {/* O que cada caixa recebe está no quadro de destinatários acima. */}
+                        {/* O que cada caixa recebe está no bloco Quem recebe os Comunicados. */}
                         <span className="app-customer-box__label">{box.label}</span>
                       </label>
                     )
@@ -451,5 +490,7 @@ export function CustomerContactConfiguration({
         )}
       </form>
     </div>
+    </Block>
+    </>
   )
 }

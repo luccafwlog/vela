@@ -199,9 +199,7 @@ export function PortalDesbloqueioCe() {
       )}
 
       {tab === "annual" && (
-        <Card>
-          <CeUnlockVipCoveragePanel scope={flow.scope} />
-        </Card>
+        <CeUnlockVipCoveragePanel scope={flow.scope} />
       )}
 
       {tab === "new" && (

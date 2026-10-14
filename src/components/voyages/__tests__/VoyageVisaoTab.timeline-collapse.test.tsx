@@ -93,7 +93,7 @@ it('não mostra atracação TBC completamente vazia no planejamento', () => {
   expect(screen.queryByText('Atracações')).toBeNull()
 })
 
-it('marca a escala omitida com OMIT no planejamento interno', () => {
+it('marca a escala omitida no planejamento interno', () => {
   render(
     <VoyageVisaoTab
       voyage={{ id: 7, status: 'planning', bls: [], granite_manifests: [], vazios_manifests: [] } as never}
@@ -130,7 +130,7 @@ it('marca a escala omitida com OMIT no planejamento interno', () => {
     />,
   )
 
-  expect(screen.getByText('OMIT')).toBeTruthy()
+  expect(screen.getByText('Omitida')).toBeTruthy()
 })
 
 it('recolhe e expande o painel próprio de atracações sem perder os dados da escala', async () => {
@@ -172,6 +172,9 @@ it('recolhe e expande o painel próprio de atracações sem perder os dados da e
     />,
   )
 
+  // As atracações começam fechadas; a seta antes do porto abre.
+  expect(screen.queryByRole('table', { name: 'Atracações de BRSSZ' })).toBeNull()
+  await user.click(screen.getByRole('button', { name: 'Expandir atracações de BRSSZ' }))
   expect(screen.getByRole('table', { name: 'Atracações de BRSSZ' })).toBeTruthy()
   await user.click(screen.getByRole('button', { name: 'Adicionar atracação na escala BRSSZ' }))
   expect(onEditEscala).toHaveBeenLastCalledWith(expect.objectContaining({ port: 'BRSSZ', focusTerminalId: null }))

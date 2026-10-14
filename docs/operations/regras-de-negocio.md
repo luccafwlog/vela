@@ -26,7 +26,7 @@ criado e Email de Recuperação válido, entregável e fora da lista de bloqueio
 ou quando há [Liberação de faturamento sem Portal](#liberação-de-faturamento-sem-portal)
 vigente. Para Cliente sem gate aberto, o CE calcula e **retém** a fatura no B/L
 (`billing_hold_reason = 'Acesso ao portal nao provisionado'`), sem tratar isso
-como falha; a Validação mostra *Portal não provisionado*. A ativação do Portal e
+como falha; a Validação mostra *Conta do Portal não ativa*. A ativação do Portal e
 a concessão da Liberação reprocessam o Cliente e emitem as retidas pelo mesmo
 caminho da transição do CE, com o cálculo gravado no registro do CE, sem
 recalcular pela tabela vigente; o USD converte pelo ROE do dia da emissão

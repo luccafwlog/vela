@@ -44,6 +44,13 @@ export const listCeUnlockBls = (filters: CeUnlockFilters, page: number) =>
   ceUnlockRead<CeUnlockPage<CeUnlockItem>>("bls", { filters, page });
 export const listCeUnlockReviewQueue = (page: number) =>
   ceUnlockRead<CeUnlockPage<CeUnlockReviewRow>>("review_queue", { page });
+/** Solicitações de um Cliente, em todos os estados (migration 224), para a ficha do Cliente. */
+export const listCustomerCeUnlockRequests = (customerId: number, blSearch: string, page: number) =>
+  internalRpc<CeUnlockPage<CeUnlockReviewRow>>("ce_unlock_customer_requests", {
+    p_customer_id: customerId,
+    p_bl_search: blSearch.trim() || null,
+    p_page: page,
+  });
 export const ceUnlockReconcile = (rows: unknown[]) =>
   internalRpc<CeUnlockReconcileSummary>("ce_unlock_reconcile", { p_rows: rows });
 export const getCeUnlockRequest = (id: string) =>

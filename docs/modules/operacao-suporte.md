@@ -37,7 +37,8 @@ Fontes de linguagem e arquitetura: `CONTEXT.md`, `docs/ARCHITECTURE.md`, `docs/a
 
 `src/components/layout/ProtectedRoute.tsx` trata loading, ausência de sessão e falta de perfil ativo (com Sair). Sem a permissão da rota ou sem `isAdmin` em `/admin`, mostra "Acesso restrito" com o departamento e o caminho de volta ao Painel, em vez de redirecionar em silêncio; a autorização real continua nas policies e RPCs. `src/components/layout/AppLayout.tsx` monta badges com `useOperationalCounts`, mostra o menu Admin somente quando `isAdmin` e concentra no menu da conta o departamento, Meu perfil, Sair (navega para `/login`) e a versão da build (`AppVersionBadge`, clique copia o commit). Abaixo de 1100 px a navegação abre pelo botão Menu. `src/components/layout/HeaderInfoBar.tsx` é a faixa de avisos de até 28 px: demurrages vencidos à esquerda (o [Indicador Operacional](#indicador-operacional) do cabeçalho) e câmbio à direita (oculto abaixo de 768 px). O sino (`src/components/layout/InternalNotificationBell.tsx`) entrega as Notificações Internas; a regra está em [Alertas e Notificações Internas](#alertas-e-notificações-internas).
 
-`HeaderInfoBar` usa `useRoeHeaderRate`, que delega a `fetchROE`, para exibir PTAX
+`HeaderInfoBar` usa `useRoeHeaderRate`, que delega a `fetchROE` (módulo leve
+`demurrageRoe.ts`, para o cabeçalho não carregar os indicadores de Demurrage), para exibir PTAX
 Venda, a fórmula `PTAX × 1,065 = ROE`, o valor calculado, a data efetiva da
 cotação e uma ação de atualização. O header é informativo, não permite entrada
 manual e compartilha a referência cambial e o cache canônicos do recálculo de

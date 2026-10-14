@@ -8,6 +8,7 @@ import { InvoiceCorrectionPanel } from './InvoiceCorrectionPanel'
 import { InvoiceDocumentLocal } from './InvoiceDocumentLocal'
 import { describeInvoiceAmounts, invoiceStatusTag, paymentMethodLabel } from './invoiceDetailPresentation'
 import { Badge } from '../ui/Badge'
+import { StatusText } from '../ui/StatusText'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { Button } from '../ui/Button'
@@ -366,7 +367,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
               <header className="app-invoice-detail__head">
                 <div className="app-invoice-detail__identity">
                   <p className="app-invoice-detail__tags">
-                    <Badge tone={status.tone}>{status.label}</Badge>
+                    <StatusText tone={status.tone}>{status.label}</StatusText>
                     <span>{invoiceTypeLabel(detailInvoice.invoice_type)}</span>
                     <span>Emitida em {formatDate(detailInvoice.issued_at)}</span>
                     <span>Nº interno {detailInvoice.id}</span>

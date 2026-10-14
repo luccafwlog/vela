@@ -1,5 +1,3 @@
-import { Badge } from '../components/ui/Badge'
-
 export const OPEN_INVOICE_STATUSES = ['issued', 'partially_paid', 'draft'] as const
 export const CLOSED_DEMURRAGE_STATUSES = ['paid', 'covered', 'cancelled', 'obsolete'] as const
 
@@ -11,23 +9,6 @@ export const STATUS_GROUPS = {
 
 export type PortalStatusFilter = '' | keyof typeof STATUS_GROUPS
 
-export function renderDemurrageBadge(status: string | null) {
-  if (status === 'paid') return <Badge tone="green">Pago</Badge>
-  if (status === 'overdue') return <Badge tone="red">Vencida</Badge>
-  return <Badge tone="blue">Emitida</Badge>
-}
-
-// Coberta fica no filtro "Pagas", mas não é Paga: quem recebeu foi a consolidada.
-export function renderInvoiceBadge(status: string | null) {
-  if (status === 'paid') return <Badge tone="green">Pago</Badge>
-  if (status === 'covered') return <Badge tone="slate">Coberta</Badge>
-  if (status === 'partially_paid') return <Badge tone="blue">Parcial</Badge>
-  if (status === 'cancelled') return <Badge tone="slate">Cancelada</Badge>
-  if (status === 'obsolete') return <Badge tone="slate">Obsoleta</Badge>
-  if (status === 'draft') return <Badge tone="yellow">Draft</Badge>
-  return <Badge tone="blue">Emitida</Badge>
-}
-
 export function portalInvoiceStatusLabel(status: string | null) {
   if (status === 'partially_paid') return 'Parcial'
   if (status === 'cancelled') return 'Cancelada'
@@ -36,4 +17,29 @@ export function portalInvoiceStatusLabel(status: string | null) {
   if (status === 'paid') return 'Paga'
   if (status === 'draft') return 'Draft'
   return 'Emitida'
+}
+
+type DemurrageSituationInput = { status: string | null; dispute_open?: boolean | null }
+
+/** Fatura de Demurrage que ainda pede pagamento: nem paga, nem coberta, nem cancelada. */
+export function isDemurragePayable(invoice: DemurrageSituationInput) {
+  return !(CLOSED_DEMURRAGE_STATUSES as readonly string[]).includes(invoice.status ?? '')
+}
+
+/**
+ * Situação da fatura de Demurrage no Portal em texto (regra 5): Em disputa e
+ * Vencida em âmbar (pedem ação), Paga com o ✓, Cancelada em cinza. A disputa
+ * aberta é a situação, sem selo ao lado.
+ */
+export function demurrageSituation(invoice: DemurrageSituationInput): { label: string; tone: 'default' | 'warning' | 'paid' | 'muted' } {
+  if (invoice.status === 'paid' || invoice.status === 'covered') return { label: 'Paga', tone: 'paid' }
+  if (invoice.status === 'cancelled' || invoice.status === 'obsolete') return { label: 'Cancelada', tone: 'muted' }
+  if (invoice.dispute_open) return { label: 'Em disputa', tone: 'warning' }
+  if (invoice.status === 'overdue') return { label: 'Vencida', tone: 'warning' }
+  return { label: 'Emitida', tone: 'default' }
+}
+
+/** Dólar escrito "US$ 180,00". */
+export function formatUsd(value: number | null | undefined) {
+  return `US$ ${Number(value ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }

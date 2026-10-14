@@ -148,7 +148,7 @@ carga.
 `src/pages/TaxasLocais.tsx` abre por padrão a aba **Faturas**. Desde a etapa 10
 da revisão visual (2026-10-09), a URL é a fonte do recorte
 (`src/pages/faturasListState.ts`): `tab=validacao` (ou o antigo `pendencias`),
-`invoice`, `customer`/`customerName`, `bl`, `fatura`, `viagem`, `pod`, `tipo`,
+`invoice`, `busca` (fatura ou B/L), `customer`/`customerName`, `bl`, `fatura`, `viagem`, `pod`, `tipo`,
 `situacao`, `emissaoDe`/`emissaoAte`, `pagamentoDe`/`pagamentoAte`, `page` e
 `pageSize`; links antigos com `tab=invoices` continuam valendo. Data fora do
 formato AAAA-MM-DD é ignorada e página além do total recua para a última.
@@ -161,18 +161,20 @@ Validação abre filtrada só pelo alerta "Ver na Validação" ou por um link. O
 endereço antigo `tab=validacao&bl=` (ou `tab=pendencias&bl=`) é convertido na
 chegada. A lista usa:
 
-- `src/components/billing/InvoiceFiltersBar.tsx` para B/L, fatura, Cliente,
-  navio/viagem, POD, tipo, situação (Em aberto, Paga ou coberta, Cancelada ou
-  obsoleta), emissão, pagamento e tamanho de página;
-- `src/components/billing/InvoicesTable.tsx`: o número da fatura abre o
-  detalhe; Cliente com o CNPJ/CPF formatado e o ícone de copiar; B/Ls diretos
-  ou de receivables (até dois, e "+N" para o resto), cada número levando à
-  ficha do B/L e com o ícone de copiar; a coluna
-  Valores mostra primeiro o que decide (saldo em aberto ou total pago; coberta e
-  cancelada não aparecem como dívida, `describeInvoiceRowAmount`); situação exata
-  da fatura (Parcialmente paga, Coberta, Obsoleta); cartões abaixo de 640 px;
-- faixa de resumo com o total do recorte e o saldo em aberto **da página
-  carregada** (rotulado assim) e exportação completa dos filtros;
+- `src/components/billing/InvoiceFiltersBar.tsx`: busca única por fatura ou
+  B/L (`busca`; a fatura entra se o número dela ou de qualquer B/L dela bate),
+  Cliente, Situação (Em aberto, Paga ou coberta, Cancelada ou obsoleta) e
+  Navio / Viagem abertos; B/L, fatura, POD, tipo, emissão, pagamento e tamanho
+  de página em "Mais filtros" (lote 1 da identidade, 2026-10-14);
+- `src/components/billing/InvoicesTable.tsx`, em tabela limpa: Fatura (o
+  número abre o detalhe; consolidada com o ícone de pilha), B/L (o primeiro e
+  "+n"), Emissão, Cliente, Navio / Viagem, Total, Saldo (âmbar quando maior que
+  zero) e Situação em texto (`InvoiceSituation`: Emitida, Parcialmente paga,
+  ✓ Paga, Coberta, Cancelada em cinza com a linha inteira); sem coluna de
+  Comunicado, sem CNPJ nem POD na linha (ficam no detalhe e no filtro); cartões
+  abaixo de 1024 px, para Saldo e Situação não ficarem atrás da rolagem;
+- bloco Faturas com o total do recorte e o saldo em aberto na faixa do título
+  ("nesta página" quando há mais de uma página) e Exportar com os filtros;
 - loading, erro com Tentar novamente (sem lista vazia falsa) e vazio derivados
   de `useInvoices`.
 
@@ -198,17 +200,39 @@ do container compartilhado.
 ### Validação
 
 - `src/components/billing/ValidacaoTab.tsx` orquestra consultas, mutações,
-  invalidações e estado da fila operacional de taxas locais e Granito. A
-  Validação é uma fila filtrável pelo **Motivo** de bloqueio (ver
-  [Motivo de bloqueio de faturamento](#motivo-de-bloqueio-de-faturamento)), sem
-  funil nem métricas: `src/components/billing/ValidacaoControls.tsx` contém os
-  filtros Busca, Modo de carga, Viagem, POD, Motivo e Incluir resolvidos, o
-  botão **Recalcular selecionados** e o menu **Exportar** (Visão filtrada e
-  Conferência do escopo, ambos em XLSX);
-  `src/components/billing/ValidacaoOperationsTable.tsx` renderiza seleção,
-  detalhes, conciliação e o botão **Emitir** por linha. Não há promoção nem
-  emissão em lote. O link antigo `?tab=pendencias` abre a Validação filtrada
-  por Cálculo incompleto (`src/pages/TaxasLocais.tsx`).
+  invalidações e estado da fila operacional de taxas locais e Granito, num
+  bloco "Validação" com a contagem, **Recalcular selecionados** e **Exportar
+  (n)** na faixa do título. `src/components/billing/ValidacaoControls.tsx`
+  contém os filtros (Busca, Motivo — ver [Motivo de bloqueio de faturamento](#motivo-de-bloqueio-de-faturamento) — e Navio / Viagem abertos; Modo de carga, POD
+  e "Incluir faturados e isentos" em "Mais filtros");
+  `src/components/billing/ValidacaoOperationsTable.tsx` renderiza a tabela limpa
+  (lote 1 da identidade, 2026-10-14): seleção, seta de abrir e as colunas B/L,
+  Cliente, Navio / Viagem, Motivo (em texto, uma vez), Subtotal e **uma ação por
+  linha, a que resolve o motivo** (Recalcular, Vincular na Revisão, Cadastrar
+  CE, Abrir Cliente ou Emitir). Cálculo, Vínculo do Cliente e Modo de carga
+  saíram da linha.
+- **Fila (2026-10-14):** B/L faturado, **parcialmente pago ou pago** sai da fila
+  (`getBillingBlock` usa `isBlFinanciallyLocked`; antes só `invoiced` contava e o
+  B/L pago voltava como "Cálculo incompleto" oferecendo Emitir). B/L **Pronto
+  para emitir** (tudo certo e a fatura não saiu sozinha) fica na fila normal com
+  o botão Emitir; antes só aparecia com "Incluir resolvidos". Sem linhas de taxa,
+  o motivo se chama "Cálculo sem linhas"; com taxa em revisão, "Taxa em revisão";
+  a retenção pelo Portal, "Conta do Portal não ativa" (código
+  `portal_nao_provisionado`). Quando há Alerta aberto do B/L que explica o
+  motivo, a faixa da linha aberta traz a data: "A emissão automática falhou em
+  dd/mm/aaaa." (`billing_auto_issue_failed`) ou "Cálculo bloqueado desde
+  dd/mm/aaaa." (`billing_calculation_blocked`), lidos da mesma consulta dos
+  avisos financeiros (`src/components/billing/validacaoBand.ts`). O título
+  resume "N B/Ls aguardando emissão" e só cita a seleção quando há B/L marcado.
+- **Exportar:** uma planilha só (`exportValidacaoWorkbook`), uma linha por B/L,
+  com B/L, Cliente, CNPJ, Navio / Viagem, Trecho, Modo de carga, Motivo, Detalhe
+  do motivo, Último cálculo, Subtotal, Contêiner compartilhado (ADR 0038: B/L com
+  taxa rateada por contêiner lista os contêineres que divide, "CSNU1 (2 B/Ls)") e
+  uma coluna por taxa com o total dela no B/L (`fetchChargeTotalsByBl`); taxa em
+  US$ tem coluna própria "(US$)". Respeita
+  a seleção e, sem seleção, o filtro; o botão diz quantos ("Exportar 7 B/Ls") e o
+  arquivo se chama `validacao-taxas-locais-AAAA-MM-DD.xlsx`. A "Visão filtrada" e a "Conferência do
+  escopo" saíram.
 - **Ajustes de COD (ADR 0051):** `src/components/billing/CodAdjustmentsPanel.tsx`
   lê a fila de `cod_adjustments` com status `pending` e só monta o painel quando
   há ao menos uma pendência. Uma resposta bem-sucedida sem pendências omite o
@@ -242,33 +266,26 @@ do container compartilhado.
   código `portal_nao_provisionado`, atrás de cliente, cálculo e CE Mercante na
   precedência, porque é o único bloqueio que se resolve no cadastro do cliente e
   não no B/L. Ele só responde pelo B/L quando é a **única** pendência aberta.
-- **Detalhe expandido da linha (issue 583):** o destaque no topo da expansão usa
-  o código do bloqueio (`getBillingBlock`) para escolher título e tom
-  (`src/components/billing/validacaoDetalhes.ts`): só quem impede a emissão
-  (`sem_cliente`, `calculo_incompleto`, `aguardando_ce`) aparece em âmbar como
-  “Por que não fatura?”; estados finais (`pronto`, `faturado`, `isento`) e
-  Granito ficam neutros como “Situação da fatura”/“Escopo da operação”. O mesmo
-  motivo deixa de repetir na coluna Motivo enquanto a linha está expandida. A
-  expansão mostra ainda cliente vinculado com CNPJ formatado e CE Mercante (os
-  dois com o ícone de copiar), subtotal (BRL e USD quando houver), e o último
-  evento auditado com o campo humanizado e data/hora (`describeLastEvent`); a
-  conciliação pendente mantém os dados do manifesto, CNPJ (também com o ícone
-  de copiar), sugestão e detecção dentro do bloco "Detalhes", sem montar uma
-  segunda caixa. Na linha, o número do B/L leva à ficha (Granito, a
-  `/granito`) e tem o ícone de copiar. O callout do bloqueio concentra o único
-  link para onde se resolve: cliente para `/revisao?bl=<id>` — a
-  Revisão lê `bl` junto de `cliente`/`busca`/`q`, filtrando a fila e abrindo o
-  grupo daquele B/L (ADR 0061) —, CE
-  Mercante para a ficha do B/L e portal para a ficha do cliente — este último
-  visível a todos os perfis, já que conhecer o bloqueio não exige a permissão
-  `portal_provisioning` que a tela de destino aplica.
+- **Linha aberta (lote 1 da identidade, 2026-10-14):** dois blocos lado a lado.
+  **Situação do B/L** traz o motivo numa faixa âmbar (verde quando pronto;
+  neutra para faturado, isento e Granito) com o botão que o resolve — cliente
+  em `/revisao?bl=<id>` (a Revisão lê `bl` junto de `cliente`/`busca`/`q`,
+  filtrando a fila e abrindo o grupo daquele B/L, ADR 0061), CE Mercante na
+  ficha do B/L, portal na ficha do Cliente (visível a todos os perfis; a tela de
+  destino aplica a permissão) — e só Trecho, CE Mercante, Cliente e CNPJ (sem
+  Cliente, o nome e o CNPJ do manifesto, da fila de conciliação). Subtotal,
+  Linhas de taxa, Última revisão e Último evento saíram por repetirem a linha ou
+  a conferência. As pendências de revisão das taxas continuam embaixo quando o
+  cálculo está em revisão. **Conferência do cálculo** traz a data do cálculo e o
+  total no título.
 - **Conferência de cálculo na expansão (issue 583):** a expansão do B/L mostra
   como se chegou ao valor, não só qual é. `list_bl_local_charge_lines` passou a
   devolver `charge_table_name`, `charge_table_pod` e `application_basis`
   (migration arquivada `369`, `DROP`+`CREATE` porque o `RETURNS TABLE` muda de forma):
   `charge_tables` e `charge_table_items` são admin-only sob RLS, então sem essas
   colunas a tela não teria como nomear a tabela usada. `ConferenciaCalculo`
-  agrupa as linhas por origem (`src/components/billing/conferenciaCalculo.ts`):
+  (um `Block` com a tabela Taxa, Base, Qtd., Unitário e Total em cabeçalho
+  claro) agrupa as linhas por origem (`src/components/billing/conferenciaCalculo.ts`):
   um grupo por tabela de cobrança, com o porto de descarga no subtítulo — é o
   POD que escolhe a tabela, Vitória cobra pela de Vitória e Salvador pela de
   Salvador —, mais os grupos **Lançamentos manuais** e **Sem tabela vinculada**,
@@ -389,7 +406,7 @@ blocos. **Código:** `src/components/billing/InvoiceDocumentLocal.tsx`.
 | Detalhe · carregar breakdown consolidado | Invoice sem itens diretos e com `invoice_receivable_links` | `listInvoiceDetails` após RPC base | Lê links/snapshots; RPC `get_consolidated_invoice_item_breakdown`; valida com Zod | `invoice_receivable_links`, `voyages`, leitura protegida de `charge_calculations` | Reusa `invoice-detail`; usa linha agregada por B/L se breakdown não reconciliar com subtotal | Erro/shape inválido do breakdown é best-effort e cai no agregado | **Código:** `src/services/billing.ts`, `supabase/migrations_archive/086_consolidated_invoice_item_breakdown.sql`, `supabase/migrations_archive/090_restrict_consolidated_invoice_breakdown.sql` |
 | Validação · recalcular selecionados | Seleção não vazia | `ValidacaoTab.runBatchOperation('recalculate')` | Hooks de Taxas Locais; Granito usa `runGraniteBatch` canônico | Uma operação por B/L | Invalida operações, invoices, B/Ls e resumo após o lote | Resultado parcial agrega erros sem interromper os demais B/Ls | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/hooks/useLocalCharges.ts`, `src/services/graniteBillingWorkflow.ts` · **Teste:** `src/services/__tests__/localCharges.test.ts`, `src/services/__tests__/graniteBillingWorkflow.test.ts` |
 | Validação · apoio operacional de Granito | Não aplicável a Granito; a fila oferece apenas recálculo | `runBatchOperation('recalculate')` | `runGraniteBatch` chama exclusivamente `calculateGraniteBlCharges` | Snapshot quantitativo operacional | Invalida operações, B/Ls e resumo | Falhas são isoladas por B/L; nenhum estado financeiro é promovido | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/services/graniteBillingWorkflow.ts` · **Teste:** `src/services/__tests__/graniteBillingWorkflow.test.ts` |
-| Validação · **Emitir** (individual, por linha) | B/L local com `charge_status = ready_for_billing`, não faturado e com cliente — só nesse estado a linha mostra **Emitir** | `handleIssueSingleInvoice` | `createInvoiceFromBls`; Granito é somente apoio operacional e não oferece emissão | RPC local para B/Ls financeiros; nenhum caminho financeiro novo para Granito | Invalida operações, invoices, B/Ls e resumo após emissão local | RPC revalida estado, cliente e vínculos; Granito não exibe o botão “Emitir” | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/ValidacaoOperationsTable.tsx` · **Teste:** `src/components/billing/__tests__/ValidacaoOperationsTable.test.tsx` |
+| Validação · emitir invoice individual | B/L "Pronto para emitir" (calculado, revisado ou pronto), não faturado e com cliente | `handleIssueSingleInvoice` | `markBlReadyAndCreateInvoice` (RPC `mark_bl_ready_and_create_invoice`: marca pronto e emite na mesma transação, como a ficha do B/L); Granito é somente apoio operacional e não oferece emissão | RPC local para B/Ls financeiros; nenhum caminho financeiro novo para Granito | Invalida operações, invoices, B/Ls e resumo após emissão local | RPC revalida estado, cliente e vínculos; Granito não exibe o botão “Emitir” | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/ValidacaoOperationsTable.tsx` · **Teste:** `ValidacaoOperationsTable.test.tsx`, `ValidacaoTab.confirmation.test.tsx` |
 | B/L · Emitir fatura (marca pronto e emite atomicamente) | Um B/L com cliente reconciliado, taxas elegíveis e CE Mercante | `BlCobrancasTab` (botão **Emitir fatura**, Administrativo, com confirmação), `reviewBillingAutomation` | `markBlReadyAndCreateInvoice` | RPC `mark_bl_ready_and_create_invoice` chama promoção + criação ledger na mesma transação; `047_bl_documental_gates.sql` reforça CE na prontidão e emissão | Chamadores invalidam seus domínios após sucesso | Qualquer falha aborta promoção e emissão juntas | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/reviewBillingAutomation.ts`, `supabase/migrations_archive/102_mark_ready_and_invoice_atomic.sql`, `supabase/migrations/047_bl_documental_gates.sql` |
 | Modal consolidada · listar elegíveis | Cliente selecionado; filtros opcionais | `ConsolidatedInvoiceModal` | `useConsolidatableReceivables` → `listConsolidatableReceivables` | RPC `list_consolidatable_receivables` lê ledger e links | Query `queryKeys.billingLedger.consolidatableReceivables(filters)` | Sem cliente não consulta; rows pagas/sem saldo/em consolidada aberta ficam desabilitadas | **Código:** `src/components/billing/ConsolidatedInvoiceModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/components/billing/__tests__/ConsolidatedInvoiceSelection.test.ts` |
 | Modal consolidada · emitir | Cliente, ao menos um receivable elegível e CE Mercante em cada B/L selecionado | `ConsolidatedInvoiceModal.submit` | `useCreateConsolidatedInvoice` → `createConsolidatedInvoice` | RPC `create_local_consolidated_invoice` cria invoice, links, evento e auditoria; `047_bl_documental_gates.sql` guarda links e transição para emissão | Invalidação ledger comum: ledger, invoices, B/Ls, clientes, detalhes, refunds, alertas e contagem | RPC trava receivables e rejeita cliente divergente, saldo inválido, consolidada aberta ou B/L sem CE | **Código:** `src/services/billingLedger.ts`, `supabase/migrations_archive/067_local_billing_ledger_phase2.sql`, `supabase/migrations/047_bl_documental_gates.sql` · **Teste:** `src/services/__tests__/billingLedger.test.ts`, `src/services/__tests__/blDocumentalGatesMigration.test.ts` |
@@ -463,10 +480,12 @@ menores e específicas descritas no catálogo.
 
 Na Validação, a coluna e o filtro **Motivo** dizem por que um B/L ainda não
 virou fatura. São quatro motivos de bloqueio, e nenhum é um status marcado por
-alguém: **Sem cliente vinculado**, **Cálculo incompleto**, **Aguardando CE
-Mercante** e **Portal não provisionado**. **Pronto para emitir**, **Faturado** e
-**Isento** são situações resolvidas, fora da fila padrão (aparecem com
-**Incluir resolvidos**); Granito aparece como **Apoio operacional**. A
+alguém: **Sem cliente vinculado**, **Cálculo incompleto** (na linha, "Cálculo
+sem linhas" ou "Taxa em revisão" quando é o caso), **Aguardando CE Mercante** e
+**Conta do Portal não ativa** (código `portal_nao_provisionado`). **Pronto para
+emitir** fica na fila padrão com o botão Emitir; **Faturado** e **Isento** são
+situações resolvidas, fora da fila padrão (aparecem com **Incluir faturados e
+isentos**); Granito aparece como **Apoio operacional**. A
 confirmação do cálculo é o cadastro do CE Mercante: não existe ato separado de
 aprovação nem de marcação como pronto (ADR 0041; ADR 0077, decisão 7).
 

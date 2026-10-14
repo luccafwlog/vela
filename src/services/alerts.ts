@@ -147,7 +147,7 @@ export const FINANCIAL_ALERT_TYPES = [
 
 export type FinancialAlertType = typeof FINANCIAL_ALERT_TYPES[number]
 
-import { AGENCY_REPORT_DEPARTMENT_LABELS, agencyReportSectionLabel } from './agencyDepartureReport'
+import { AGENCY_REPORT_DEPARTMENT_LABELS, agencyReportSectionLabel } from './agencyReportLabels'
 
 function isTerminalCode(value: string | undefined): boolean {
   return Boolean(value && /^[A-Z0-9][A-Z0-9._-]*$/.test(value))

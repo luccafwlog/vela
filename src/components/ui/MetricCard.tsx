@@ -8,22 +8,27 @@ export function MetricCard({
   label,
   value,
   tone = 'secondary',
+  detail,
   onSelect,
   selected = false,
 }: {
   label: string
   /** Número ou texto; para ausência, `<NoValue />`. */
   value: ReactNode
-  tone?: 'primary' | 'secondary'
+  /** `warning` só quando o número pede ação e é maior que zero (regra 5). */
+  tone?: 'primary' | 'secondary' | 'warning'
+  /** Linha curta de apoio sob o valor. */
+  detail?: ReactNode
   onSelect?: () => void
   /** Filtro do card aplicado no momento. */
   selected?: boolean
 }) {
-  const className = `app-metric-tile ${tone === 'primary' ? 'app-metric-tile--primary' : ''}`
+  const className = `app-metric-tile ${tone === 'secondary' ? '' : `app-metric-tile--${tone}`}`
   const content = (
     <>
       <span className="app-metric-tile__label">{label}</span>
       <span className="app-metric-tile__value">{value}</span>
+      {detail ? <span className="app-metric-tile__detail">{detail}</span> : null}
     </>
   )
   if (onSelect) {

@@ -15,7 +15,7 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
 }))
 
 import { ValidacaoOperationsTable } from '../ValidacaoOperationsTable'
-import { calloutTitle, describeLastEvent } from '../validacaoDetalhes'
+import { bandText } from '../validacaoBand'
 import type { LocalChargeOperationalRow } from '../../../services/charges/chargeOperationsService'
 
 afterEach(() => {
@@ -91,11 +91,12 @@ describe('ValidacaoOperationsTable', () => {
 
   it('delega a emissão individual com a linha selecionada', async () => {
     const user = userEvent.setup()
-    const { onIssueSingleInvoice } = renderTable()
+    // Emitir é a ação da linha quando o B/L está pronto (tudo certo, com CE).
+    const { onIssueSingleInvoice } = renderTable({ rows: [{ ...row, ce_mercante: '122605051526081' }] })
 
     await user.click(screen.getByRole('button', { name: 'Emitir' }))
 
-    expect(onIssueSingleInvoice).toHaveBeenCalledWith(row)
+    expect(onIssueSingleInvoice).toHaveBeenCalledWith({ ...row, ce_mercante: '122605051526081' })
   })
 
   it('delega a seleção e a expansão do B/L', async () => {
@@ -103,7 +104,7 @@ describe('ValidacaoOperationsTable', () => {
     const { onToggleRow, onToggleExpandedRow } = renderTable()
 
     await user.click(screen.getByRole('button', { name: 'Selecionar B/L BL-001' }))
-    await user.click(screen.getByRole('button', { name: 'Expandir detalhes' }))
+    await user.click(screen.getByRole('button', { name: 'Expandir detalhes do B/L BL-001' }))
 
     expect(onToggleRow).toHaveBeenCalledWith('BL-001')
     expect(onToggleExpandedRow).toHaveBeenCalledWith('BL-001')
@@ -129,41 +130,39 @@ describe('ValidacaoOperationsTable', () => {
     expect(screen.queryByRole('button', { name: 'Aprovar' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Rejeitar' })).toBeNull()
     // os dados da conciliacao continuam a vista, que e o que a fila precisa mostrar
-    expect(screen.getByText('Cliente manifesto')).toBeTruthy()
-    expect(screen.getByText('ACME LOGISTICA LTDA')).toBeTruthy()
-    const links = screen.getAllByRole('link', { name: /Vincular cliente na Revisão/ })
-    expect(links).toHaveLength(1)
+    // Cliente vinculado aparece; a ação da linha (e da faixa) leva à Revisão no B/L certo.
+    expect(screen.getAllByText('Cliente').length).toBeGreaterThan(0)
+    const links = screen.getAllByRole('link', { name: /Vincular na Revisão/ })
+    expect(links).toHaveLength(2)
     for (const link of links) {
       expect(link.getAttribute('href')).toBe('/revisao?bl=BL-001')
     }
     expect(screen.queryByText('Conciliação pendente')).toBeNull()
   })
 
-  it('não repete o motivo na coluna quando a linha está expandida e rotula estados finais sem alarme', () => {
+  it('pronto para emitir fica na faixa verde da Situação do B/L, com Emitir', () => {
     renderTable({
       rows: [{ ...row, ce_mercante: '122605051526081' }],
       expandedBlId: 'BL-001',
     })
-
-    // O detalhe aparece uma única vez (no destaque da expansão), não também na coluna Motivo.
-    expect(screen.getAllByText('Pronto para emissão individual.')).toHaveLength(1)
-    expect(screen.getByText('Situação da fatura')).toBeTruthy()
-    expect(screen.queryByText('Por que não fatura?')).toBeNull()
+    expect(screen.getByText('Situação do B/L')).toBeTruthy()
+    const band = screen.getByText(/^Pronto para emitir: tudo certo/)
+    expect(band.closest('div')!.className).toContain('app-success-bg')
+    expect(screen.getAllByRole('button', { name: 'Emitir' })).toHaveLength(2)
   })
 
-  it('mantém o destaque de bloqueio para B/L sem cliente vinculado', () => {
+  it('B/L sem cliente: motivo em âmbar na faixa e só Navio / Viagem, Trecho, CE Mercante, Cliente e CNPJ', () => {
     renderTable({
       rows: [{ ...row, customer: null, customer_reconciliation_status: 'pending' }],
       expandedBlId: 'BL-001',
     })
-
-    expect(screen.getByText('Por que não fatura?')).toBeTruthy()
-    expect(screen.getByText('Nenhum cliente vinculado a este B/L.')).toBeTruthy()
+    expect(screen.getByText(/^Sem cliente vinculado: /).closest('div')!.className).toContain('app-warning-bg')
+    expect(screen.getAllByRole('term').map((term) => term.textContent)).toEqual(['Navio / Viagem', 'Trecho', 'CE Mercante', 'Cliente', 'CNPJ'])
   })
 
-  it('explica a conciliação sem cliente sugerido e formata o CNPJ do manifesto', () => {
+  it('mostra o nome e o CNPJ do manifesto quando o B/L não tem Cliente', () => {
     renderTable({
-      rows: [{ ...row, customer_reconciliation_status: 'pending' }],
+      rows: [{ ...row, customer: null, customer_reconciliation_status: 'pending' }],
       expandedBlId: 'BL-001',
       reconciliationQueue: [{
         id: 42,
@@ -177,8 +176,15 @@ describe('ValidacaoOperationsTable', () => {
     })
 
     expect(screen.getByText('07.415.554/0009-56')).toBeTruthy()
-    expect(screen.getByText('Nenhum cliente sugerido — cadastre o cliente na Revisão.')).toBeTruthy()
+    expect(screen.getAllByText('AC COMERCIAL IMPORTADORA E EXPORTADORA LTDA').length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Aprovar' })).toBeNull()
+  })
+
+  it('B/L pago não volta à fila como cálculo incompleto nem oferece Emitir', () => {
+    renderTable({ rows: [{ ...row, financial_status: 'paid', totals: { ...row.totals, line_count: 0, total_brl: 0 } }] })
+    expect(screen.getByText('Faturado')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Emitir' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Recalcular' })).toBeNull()
   })
 })
 
@@ -197,13 +203,13 @@ describe('links de resolução da pendência', () => {
 
   it('aponta o cliente não vinculado para a Revisão, no B/L certo', () => {
     renderTable({ rows: [{ ...row, customer: null, customer_reconciliation_status: 'pending' }], expandedBlId: 'BL-001' })
-    const link = screen.getByRole('link', { name: /Vincular cliente na Revisão/ })
+    const link = screen.getAllByRole('link', { name: /Vincular na Revisão/ })[0]
     expect(link.getAttribute('href')).toBe('/revisao?bl=BL-001')
   })
 
   it('aponta o CE Mercante para a ficha do B/L', () => {
     renderTable({ rows: [{ ...row, ce_mercante: null }], expandedBlId: 'BL-001' })
-    const link = screen.getByRole('link', { name: /Cadastrar CE Mercante/ })
+    const link = screen.getAllByRole('link', { name: /Cadastrar CE/ })[0]
     expect(link.getAttribute('href')).toBe('/bls/BL-001')
   })
 
@@ -218,8 +224,8 @@ describe('links de resolução da pendência', () => {
       }],
       expandedBlId: 'BL-001',
     })
-    expect(screen.getByText('Portal não provisionado')).toBeTruthy()
-    const link = screen.getByRole('link', { name: /Provisionar portal/ })
+    expect(screen.getByText('Conta do Portal não ativa')).toBeTruthy()
+    const link = screen.getAllByRole('link', { name: /Abrir Cliente/ })[0]
     expect(link.getAttribute('href')).toBe('/clientes/11222333000144')
   })
 
@@ -234,8 +240,8 @@ describe('links de resolução da pendência', () => {
       }],
       expandedBlId: 'BL-001',
     })
-    expect(screen.getByText('Portal não provisionado')).toBeTruthy()
-    expect(screen.queryByRole('link', { name: /Provisionar portal/ })).toBeNull()
+    expect(screen.getByText('Conta do Portal não ativa')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Abrir Cliente/ })).toBeNull()
   })
 })
 
@@ -270,9 +276,9 @@ describe('conferência de cálculo na expansão', () => {
     chargeLinesState.data = [chargeLine]
     renderTable({ expandedBlId: 'BL-001' })
 
-    expect(screen.getByText('Conferência de cálculo')).toBeTruthy()
+    expect(screen.getByText('Conferência do cálculo')).toBeTruthy()
     expect(screen.getByText('Taxas Locais — Salvador')).toBeTruthy()
-    expect(screen.getByText('Descarga em SALVADOR')).toBeTruthy()
+    expect(screen.getByText(/Descarga em SALVADOR/)).toBeTruthy()
     expect(screen.getByText('THC')).toBeTruthy()
     expect(screen.getByText('por container')).toBeTruthy()
   })
@@ -346,24 +352,17 @@ describe('conferência de cálculo na expansão', () => {
   })
 })
 
-describe('detalhes da expansão', () => {
-  it('rotula o último evento pelo campo auditado com data e hora', () => {
-    expect(describeLastEvent({ last_event_at: '2026-08-31T14:05:00Z', last_event_field: 'ncm_codes' }))
-      .toContain('Códigos NCM')
-    expect(describeLastEvent({ last_event_at: '2026-08-31T14:05:00Z', last_event_field: 'ncm_codes' }))
-      .toMatch(/31\/08\/2026/)
-    // Campo fora do mapa continua legível em vez de virar "-".
-    expect(describeLastEvent({ last_event_at: '2026-08-31T14:05:00Z', last_event_field: 'terminal_dates' }))
-      .toContain('terminal dates')
-    expect(describeLastEvent({ last_event_at: null, last_event_field: null })).toBe('Nenhum evento registrado.')
-  })
 
-  it('usa o título de bloqueio apenas para códigos que impedem a emissão', () => {
-    expect(calloutTitle('sem_cliente')).toBe('Por que não fatura?')
-    expect(calloutTitle('calculo_incompleto')).toBe('Por que não fatura?')
-    expect(calloutTitle('aguardando_ce')).toBe('Por que não fatura?')
-    expect(calloutTitle('pronto')).toBe('Situação da fatura')
-    expect(calloutTitle('faturado')).toBe('Situação da fatura')
-    expect(calloutTitle('operacao_granito')).toBe('Escopo da operação')
+describe('faixa da situação com a data do histórico', () => {
+  const block = { code: 'calculo_incompleto', label: 'Taxa em revisão', detail: 'Há linhas de taxa com revisão pendente.' }
+  it('põe a data da falha da emissão automática na faixa', () => {
+    expect(bandText({ code: 'pronto', label: 'Pronto para emitir', detail: 'Tudo certo' }, { kind: 'auto_issue_failed', at: '2026-10-12T15:00:00Z' }))
+      .toBe('A emissão automática falhou em 12/10/2026. Pronto para emitir: tudo certo')
+  })
+  it('sem fato no histórico, a faixa fica só com o motivo', () => {
+    expect(bandText(block)).toBe('Taxa em revisão: há linhas de taxa com revisão pendente.')
+  })
+  it('B/L já faturado não ganha data de falha antiga', () => {
+    expect(bandText({ code: 'faturado', label: 'Faturado', detail: 'Fatura já emitida.' }, { kind: 'auto_issue_failed', at: '2026-10-12T15:00:00Z' })).toBe('Faturado: fatura já emitida.')
   })
 })

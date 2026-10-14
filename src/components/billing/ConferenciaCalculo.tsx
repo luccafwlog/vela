@@ -1,7 +1,9 @@
-import { Badge } from '../ui/Badge'
+import { Block } from '../ui/Block'
+import { StatusText } from '../ui/StatusText'
 import { NoValue } from '../ui/NoValue'
 import { useBlLocalChargeLines, useInvoicedSubtotalForBl } from '../../hooks/useLocalCharges'
-import { formatBRL, formatUSD } from '../../lib/utils'
+import { formatBRL, formatDateTime, formatUSD } from '../../lib/utils'
+import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 import type { LocalChargeLine } from '../../services/charges/chargeOperationsService'
 import { applicationBasisLabel, detectarDivergenciaComFatura, groupChargeLinesByTable, sumChargeLines } from './conferenciaCalculo'
 
@@ -29,12 +31,12 @@ function lineTotalValue(line: LocalChargeLine) {
 // em cinza. Só mistura as duas moedas quando ambas têm valor de fato.
 function renderTotal(totalBrl: number, totalUsd: number) {
   if (totalBrl === 0 && totalUsd !== 0) {
-    return <span className="text-[var(--app-text-strong)]">{formatUSD(totalUsd)}</span>
+    return <span>{formatUSD(totalUsd)}</span>
   }
   return (
-    <span className="text-[var(--app-text-strong)]">
+    <span>
       {formatBRL(totalBrl)}
-      {totalUsd !== 0 ? <span className="ml-2 text-xs text-[var(--app-muted)]">{formatUSD(totalUsd)}</span> : null}
+      {totalUsd !== 0 ? <> · {formatUSD(totalUsd)}</> : null}
     </span>
   )
 }
@@ -47,102 +49,92 @@ function renderTotal(totalBrl: number, totalUsd: number) {
 export function ConferenciaCalculo({
   blId,
   financialStatus,
+  calculatedAt,
 }: {
   blId: string
   financialStatus: string | null
+  calculatedAt?: string | null
 }) {
   const { data, isLoading, isError } = useBlLocalChargeLines(blId)
   const lines = data ?? []
   const groups = groupChargeLinesByTable(lines)
   const total = sumChargeLines(lines)
-  const invoiced = financialStatus === 'invoiced'
+  const invoiced = isBlFinanciallyLocked(financialStatus)
   const { data: faturado } = useInvoicedSubtotalForBl(blId, invoiced)
   const divergencia = invoiced && lines.length > 0 ? detectarDivergenciaComFatura(total, faturado ?? null) : null
 
   return (
-    <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
-      <div className="mb-1 flex items-baseline justify-between gap-3">
-        <div className="app-metric-tile__label">Conferência de cálculo</div>
-        {lines.length > 0 ? <div className="text-sm font-medium">{renderTotal(total.totalBrl, total.totalUsd)}</div> : null}
-      </div>
-      <div className="mb-3 text-xs text-[var(--app-muted)]">
-        {invoiced
-          ? 'Linhas que compuseram a fatura emitida.'
-          : 'Linhas calculadas para este B/L, pela tabela de cobrança de cada origem.'}
-      </div>
-
+    <Block
+      title="Conferência do cálculo"
+      headingLevel={4}
+      flush
+      aside={(
+        <span>
+          {calculatedAt ? `calculado em ${formatDateTime(calculatedAt)}` : 'sem cálculo registrado'}
+          {lines.length > 0 ? <> · {renderTotal(total.totalBrl, total.totalUsd)}</> : null}
+        </span>
+      )}
+    >
+      {invoiced && lines.length > 0 ? <p className="app-block__body app-facts__detail">Linhas que compuseram a fatura emitida.</p> : null}
       {divergencia ? (
-        <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
-          <div className="font-medium text-amber-800">O total calculado não bate com o que a fatura registrou.</div>
-          <div className="mt-1 text-amber-700">
-            Cálculo {renderTotal(divergencia.calculado.totalBrl, divergencia.calculado.totalUsd)} · fatura{' '}
-            {renderTotal(divergencia.faturado.totalBrl, divergencia.faturado.totalUsd ?? 0)}. Em fatura consolidada, o
-            detalhamento por item é congelado como uma linha agregada quando a soma não fecha com o saldo do B/L — o
-            que vale para o cliente é o valor da fatura.
-          </div>
-        </div>
+        <p className="app-block__body" role="status">
+          <StatusText tone="warning">O total calculado não bate com o que a fatura registrou.</StatusText>{' '}
+          Cálculo {renderTotal(divergencia.calculado.totalBrl, divergencia.calculado.totalUsd)} · fatura{' '}
+          {renderTotal(divergencia.faturado.totalBrl, divergencia.faturado.totalUsd ?? 0)}. Em fatura consolidada, o
+          detalhamento por item é congelado como uma linha agregada quando a soma não fecha com o saldo do B/L; o
+          que vale para o Cliente é o valor da fatura.
+        </p>
       ) : null}
 
       {isLoading ? (
-        <div className="text-sm text-[var(--app-muted)]">Carregando linhas de cálculo...</div>
+        <p className="app-block__body app-facts__detail" role="status">Carregando linhas de cálculo…</p>
       ) : isError ? (
-        <div className="text-sm text-red-600">Falha ao carregar as linhas de cálculo deste B/L.</div>
+        <p className="app-block__body" role="alert"><StatusText tone="warning">Falha ao carregar as linhas de cálculo deste B/L.</StatusText></p>
       ) : lines.length === 0 ? (
-        <div className="text-sm text-[var(--app-muted)]">
-          Nenhuma linha de taxa calculada para este B/L. Recalcule as taxas para conferir o valor.
-        </div>
+        <p className="app-block__body app-facts__detail">
+          Nenhuma linha de taxa calculada para este B/L. Recalcule para conferir o valor.
+        </p>
       ) : (
-        <div className="grid gap-4">
-          {groups.map((group) => (
-            <div key={group.key}>
-              <div className="mb-1 flex items-baseline justify-between gap-3">
-                <div className="whitespace-normal text-sm font-medium text-[var(--app-text-strong)]">
-                  {group.title}
-                  {group.kind === 'sem_tabela' ? (
-                    <Badge tone="red" className="ml-2">
-                      Anomalia
-                    </Badge>
-                  ) : null}
-                </div>
-                <div className="text-sm">{renderTotal(group.totalBrl, group.totalUsd)}</div>
-              </div>
-              {group.subtitle ? <div className="mb-2 text-xs text-[var(--app-muted)]">{group.subtitle}</div> : null}
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="text-xs uppercase tracking-wide text-[var(--app-muted)]">
-                    <th scope="col" className="py-1 pr-3 font-medium">Item</th>
-                    <th scope="col" className="py-1 pr-3 font-medium">Qtd.</th>
-                    <th scope="col" className="py-1 pr-3 font-medium">Unitário</th>
-                    <th scope="col" className="py-1 text-right font-medium">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.lines.map((line) => {
-                    const basis = applicationBasisLabel(line.application_basis)
-                    return (
-                      <tr key={line.id} className="border-t border-[var(--app-border)]">
-                        <td className="py-1.5 pr-3">
-                          <div className="whitespace-normal text-[var(--app-text-strong)]">{line.charge_name}</div>
-                          <div className="whitespace-normal text-xs text-[var(--app-muted)]">
-                            {basis ? <span>{basis}</span> : null}
-                            {line.override_applied ? <span className="ml-2 text-amber-600">tarifa negociada</span> : null}
-                            {line.status === 'review_required' ? (
-                              <span className="ml-2 text-amber-600">{line.review_reason ?? 'em revisão'}</span>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td className="py-1.5 pr-3 align-top">{formatQuantity(line.quantity) ?? <NoValue label="Sem quantidade" />}</td>
-                        <td className="py-1.5 pr-3 align-top">{lineUnitValue(line)}</td>
-                        <td className="py-1.5 text-right align-top text-[var(--app-text-strong)]">{lineTotalValue(line)}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+        groups.map((group) => (
+          <div key={group.key}>
+            <div className="app-block__body flex items-baseline justify-between gap-3">
+              <span>
+                <strong>{group.title}</strong>
+                {group.kind === 'sem_tabela' ? <> <StatusText tone="warning">Anomalia</StatusText></> : null}
+                {group.subtitle ? <span className="app-facts__detail"> · {group.subtitle}</span> : null}
+              </span>
+              <strong>{renderTotal(group.totalBrl, group.totalUsd)}</strong>
             </div>
-          ))}
-        </div>
+            <table className="app-table app-table--dense app-table--nested w-full">
+              <caption className="sr-only">{`Linhas de ${group.title}`}</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="app-table__text-head">Taxa</th>
+                  <th scope="col" className="app-table__text-head">Base</th>
+                  <th scope="col">Qtd.</th>
+                  <th scope="col">Unitário</th>
+                  <th scope="col">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.lines.map((line) => (
+                  <tr key={line.id}>
+                    <td className="app-table__text app-table__text--wrap">
+                      {line.charge_name}
+                      {line.override_applied ? <> <StatusText tone="muted">tarifa negociada</StatusText></> : null}
+                      {line.status === 'review_required' ? <> <StatusText tone="warning">{line.review_reason ?? 'em revisão'}</StatusText></> : null}
+                    </td>
+                    <td className="app-table__text">{applicationBasisLabel(line.application_basis) ?? <NoValue label="Sem base" />}</td>
+                    <td className="tabular-nums">{formatQuantity(line.quantity) ?? <NoValue label="Sem quantidade" />}</td>
+                    <td className="whitespace-nowrap tabular-nums">{lineUnitValue(line)}</td>
+                    <td className="whitespace-nowrap tabular-nums">{lineTotalValue(line)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))
       )}
-    </div>
+    </Block>
   )
 }

@@ -3,13 +3,13 @@ import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
-import { MetricCard } from '../ui/MetricCard'
+import { Block } from '../ui/Block'
+import { InvoiceSituation } from '../billing/InvoiceSituation'
 import { Modal } from '../ui/Modal'
-import { portalInvoiceStatusLabel } from '../../lib/portalInvoiceStatus'
 import { formatBRL, stripBlPrefix } from '../../lib/utils'
 import { invoiceTypeLabel } from '../../services/billing'
 import type { PortalInvoiceDetail } from '../../services/portalBilling'
-import { PortalPixPaymentBlock } from './PortalPixPaymentBlock'
+import { PortalPaymentBlock } from './PortalPixPaymentBlock'
 
 type PortalInvoiceDetailModalProps = {
   open: boolean
@@ -43,7 +43,12 @@ export function PortalInvoiceDetailModal({
   const invoice = detail?.invoice
   const isManual = invoice?.invoice_type === 'manual'
   const voyageLabel = [invoice?.vessel_name, invoice?.voyage_number].filter(Boolean).join(' / ')
-  const hasItemBls = Boolean(detail?.bls.length || detail?.items.some((item) => item.bl_id))
+  const blCount = new Set([...(detail?.bls ?? []).map((row) => row.bl_id), ...(detail?.items ?? []).map((item) => item.bl_id).filter(Boolean)]).size
+  // A coluna B/L dos itens e dos contêineres só aparece com mais de um B/L na fatura.
+  const multipleBls = blCount > 1
+  const hasItemBls = multipleBls
+  const payable = ['issued', 'partially_paid', 'overdue'].includes(invoice?.status ?? 'issued')
+  const showPix = payable && Boolean(invoice?.pix_payload || Number(invoice?.balance_brl ?? invoice?.total_brl) > 0)
 
   return (
     <Modal open={open} onClose={onClose} title={`Fatura ${invoice?.invoice_number ?? invoiceId ?? ''}`}>
@@ -82,31 +87,33 @@ export function PortalInvoiceDetailModal({
                 ) : null}
               </Card>
             ) : null}
-            <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-              <MetricCard label="Status" value={portalInvoiceStatusLabel(invoice.status)} />
-              <MetricCard label="Tipo" value={invoiceTypeLabel(invoice.invoice_type)} />
-              <MetricCard label="Total" value={formatBRL(invoice.total_brl)} />
-              <MetricCard label="Pago" value={formatBRL(invoice.total_paid_brl)} />
-              <MetricCard label="Saldo" value={formatBRL(invoice.balance_brl)} />
-              {!isManual || (detail?.bls?.length ?? 0) > 0 ? (
-                <MetricCard label="B/Ls" value={String(detail?.bls.length ?? 0)} />
-              ) : null}
-            </div>
+            <PortalPaymentBlock
+              situation={<InvoiceSituation status={invoice.status} />}
+              amountLabel="Saldo a pagar"
+              amount={formatBRL(invoice.balance_brl)}
+              amountTone={payable && Number(invoice.balance_brl ?? 0) > 0 ? 'warning' : 'default'}
+              facts={[
+                { label: 'Total', value: formatBRL(invoice.total_brl) },
+                { label: 'Pago', value: formatBRL(invoice.total_paid_brl) },
+                ...(payable ? [{ label: 'Como pagar', value: 'Pix' }] : []),
+              ]}
+              pix={showPix ? invoice.pix_payload : undefined}
+            />
 
             {detail?.corrections?.length ? <Card>
               <h3 className="font-semibold">Ajustes por correção</h3>
               <p>O total e os itens originais da fatura foram preservados. O saldo a pagar considera os abatimentos abaixo.</p>
               {detail.corrections.map((correction, index) => <p key={index}>B/L {correction.bl_id}: redução de {formatBRL(correction.amount_brl)}, com {formatBRL(correction.offset_brl)} abatidos do saldo e {formatBRL(correction.refund_brl)} registrados para restituição.</p>)}
             </Card> : null}
-            {detail?.bls.length ? <DetailSection title="B/Ls" subtitle="Conhecimentos de embarque desta fatura">
-              <table className="app-table app-table--compact min-w-[620px] text-sm">
+            {detail?.bls.length ? <DetailSection title="B/Ls" aside={`${invoiceTypeLabel(invoice.invoice_type)} · ${detail.bls.length === 1 ? '1 B/L' : `${detail.bls.length} B/Ls`}`}>
+              <table className="app-table app-table--compact text-sm">
                 <caption className="sr-only">B/Ls incluídos na invoice</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="px-3 py-2">B/L</th>
                     <th scope="col" className="app-table__text-head px-3 py-2">Navio/Viagem</th>
                     <th scope="col" className="px-3 py-2">Trecho</th>
-                    <th scope="col" className="px-3 py-2">Subtotal BRL</th>
+                    <th scope="col" className="px-3 py-2">Subtotal</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -114,7 +121,7 @@ export function PortalInvoiceDetailModal({
                     <tr key={row.id}>
                       <td className="px-3 py-2 font-semibold"><CopyValue value={row.bl_id} label="número do B/L" /></td>
                       <td className="app-table__text px-3 py-2">{[row.vessel_name, row.voyage_number].filter(Boolean).join(' / ') || <NoValue label="Sem navio/viagem" />}</td>
-                      <td className="px-3 py-2">{row.pol ?? <NoValue label="Sem POL" />} - {row.pod ?? <NoValue label="Sem POD" />}</td>
+                      <td className="whitespace-nowrap px-3 py-2">{row.pol ?? <NoValue label="Sem POL" />} → {row.pod ?? <NoValue label="Sem POD" />}</td>
                       <td className="px-3 py-2">{formatBRL(row.subtotal_brl)}</td>
                     </tr>
                   ))}
@@ -123,9 +130,8 @@ export function PortalInvoiceDetailModal({
             </DetailSection> : null}
 
             {isManual && (invoice.notes || voyageLabel) ? (
-              <Card>
-                <h3 className="text-sm font-semibold">Contexto da cobrança</h3>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Block title="Contexto da cobrança" headingLevel={3}>
+                <div className="grid gap-3 sm:grid-cols-2">
                   {invoice.notes ? (
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--app-muted)]">Descrição</div>
@@ -139,17 +145,17 @@ export function PortalInvoiceDetailModal({
                     </div>
                   ) : null}
                 </div>
-              </Card>
+              </Block>
             ) : null}
 
             {(detail?.items?.length ?? 0) > 0 ? (
-              <DetailSection title="Itens cobrados" subtitle="Taxas, quantidades e valores">
-                <table className="app-table app-table--compact min-w-[680px] text-sm">
+              <DetailSection title="Itens cobrados" aside={detail!.items.length === 1 ? '1 item' : `${detail!.items.length} itens`}>
+                <table className="app-table app-table--compact text-sm">
                   <thead>
                     <tr>
                       <th scope="col" className="app-table__text-head px-3 py-2">Descrição</th>
                       {hasItemBls ? <th scope="col" className="px-3 py-2">B/L</th> : null}
-                      <th scope="col" className="px-3 py-2">Qtd</th>
+                      <th scope="col" className="px-3 py-2">Qtd.</th>
                       <th scope="col" className="px-3 py-2">Valor unit.</th>
                       <th scope="col" className="px-3 py-2">Total</th>
                     </tr>
@@ -164,19 +170,26 @@ export function PortalInvoiceDetailModal({
                         <td className="px-3 py-2 font-semibold">{formatBRL(item.total_value_brl)}</td>
                       </tr>
                     ))}
+                    <tr>
+                      <td className="app-table__text px-3 py-2 font-semibold">Total</td>
+                      {hasItemBls ? <td /> : null}
+                      <td />
+                      <td />
+                      <td className="px-3 py-2 font-semibold">{formatBRL(invoice.total_brl)}</td>
+                    </tr>
                   </tbody>
                 </table>
               </DetailSection>
             ) : null}
 
             {(detail?.containers?.length ?? 0) > 0 ? (
-              <DetailSection title="Containers" subtitle="Equipamentos vinculados aos B/Ls">
-                <table className="app-table app-table--compact min-w-[620px] text-sm">
+              <DetailSection title="Contêineres" aside={detail!.containers.length === 1 ? '1 contêiner' : `${detail!.containers.length} contêineres`}>
+                <table className="app-table app-table--compact text-sm">
                   <thead>
                     <tr>
-                      <th scope="col" className="px-3 py-2">Container</th>
+                      <th scope="col" className="px-3 py-2">Contêiner</th>
                       <th scope="col" className="px-3 py-2">Tipo</th>
-                      <th scope="col" className="px-3 py-2">B/L</th>
+                      {multipleBls ? <th scope="col" className="px-3 py-2">B/L</th> : null}
                       <th scope="col" className="px-3 py-2">Lacre</th>
                       <th scope="col" className="px-3 py-2">Peso bruto (kg)</th>
                     </tr>
@@ -186,7 +199,7 @@ export function PortalInvoiceDetailModal({
                       <tr key={cont.id}>
                         <td className="px-3 py-2 font-semibold"><CopyValue value={cont.container_number} label="número do contêiner" /></td>
                         <td className="px-3 py-2">{cont.type ?? <NoValue label="Sem tipo" />}</td>
-                        <td className="px-3 py-2">{cont.bl_id ? <CopyValue value={cont.bl_id} label="número do B/L" /> : <NoValue label="Sem B/L" />}</td>
+                        {multipleBls ? <td className="px-3 py-2">{cont.bl_id ? <CopyValue value={cont.bl_id} label="número do B/L" /> : <NoValue label="Sem B/L" />}</td> : null}
                         <td className="px-3 py-2">{cont.seal_number ?? <NoValue label="Sem lacre" />}</td>
                         <td className="px-3 py-2">{cont.gross_weight_kg != null ? cont.gross_weight_kg.toLocaleString('pt-BR') : <NoValue label="Sem peso bruto" />}</td>
                       </tr>
@@ -196,7 +209,6 @@ export function PortalInvoiceDetailModal({
               </DetailSection>
             ) : null}
 
-            {['issued', 'partially_paid', 'overdue'].includes(invoice.status ?? 'issued') && (invoice.pix_payload || Number(invoice.balance_brl ?? invoice.total_brl) > 0) ? <PortalPixPaymentBlock pixPayload={invoice.pix_payload} /> : null}
           </>
         ) : null}
       </div>
@@ -204,14 +216,10 @@ export function PortalInvoiceDetailModal({
   )
 }
 
-function DetailSection({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function DetailSection({ title, aside, children }: { title: string; aside?: string; children: React.ReactNode }) {
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="border-b border-[var(--app-border)] px-4 py-3">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {subtitle ? <p className="mt-0.5 text-xs text-[var(--app-muted)]">{subtitle}</p> : null}
-      </div>
+    <Block title={title} aside={aside} headingLevel={3} flush>
       <div className="app-table-scroll">{children}</div>
-    </Card>
+    </Block>
   )
 }

@@ -50,6 +50,15 @@ A revisão geral da documentação do mesmo dia reabriu o alerta de troca de CE
 com Desbloqueio conferido, que o código não abre (correção pendente B1, item 1
 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico).
 
+**Estado conferido em 2026-10-14:** a rodada do expurgo das 06:00 UTC executou o
+ciclo completo sobre o documento de teste: rascunho cancelado, documento
+revogado com `purged_at` e objeto removido pela Storage API (ver "Fontes"). O
+objeto de teste não tinha bytes, então a remoção física de um PDF real segue
+sem prova e o item do expurgo continua **[bloqueia ativação]**. Os outros
+itens bloqueantes que restam são os aceites: operacional/jurídico (Tarefa 1) e
+homologação com a ZPT da planilha e do "Exportar Tela", que também fecha a
+conciliação (Tarefas 1 e 6).
+
 **Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
 fonte indicada; `[ ]` registra trabalho ou evidência ainda necessários. Um teste
 existente não equivale a execução recente, e código integrado não comprova deploy.
@@ -154,6 +163,18 @@ Fontes da reconciliação:
   passou a devolvê-lo. A rodada das 06:00 UTC de 14/10 deve cancelar o
   rascunho, revogar o documento, remover o objeto e gravar `purged_at`; prova o
   ciclo do expurgo, não a remoção de bytes de um PDF real.
+- **Remoto (2026-10-14, leitura somente SELECT, logs e cron de produção):** job
+  `ce-unlock-cleanup` disparou às 06:00:00 UTC (`succeeded`) e a função
+  respondeu HTTP 200 às 06:00:08. O rascunho de teste ficou `cancelled` com
+  evento `expire_draft` ("Rascunho abandonado há mais de sete dias"); o termo
+  de teste ficou `revoked`, com `cleanup_claimed_at` 06:00:07 e `purged_at`
+  06:00:08; o objeto `1/teste-expurgo-2026-10-13.pdf` saiu de
+  `storage.objects`, e o log do Storage registra
+  `ObjectRemoved:Delete` às 06:00:08. Os 9 objetos dos documentos ativos
+  (modelo, pedidos de 07/10 e o fluxo A/B) permaneceram;
+  `ce_unlock_cleanup_candidates()` voltou vazio. Limite: o objeto de teste não
+  tinha bytes, então a exclusão no armazenamento físico de um PDF real segue sem
+  observação direta.
 - **Runtime (2026-10-13, produção, operação do responsável no Chrome e
   conferência SQL a cada etapa):** Cliente 2 (B) teve a conta do Portal ativada
   e a fatura INV-2026-0014 emitida automaticamente; antes da baixa, o B/L
@@ -214,10 +235,11 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    executar o fluxo completo com clientes A/B no ambiente autorizado
    (Tarefa 7).~~ Feito em 2026-10-13 até a exportação (ver "Fontes"); a
    conciliação com evidência externa fica no item 4.
-7. Validar o resultado do expurgo no Storage real (Tarefa 7). O documento de
-   teste elegível foi criado em produção em 2026-10-13, com autorização do
-   responsável (ver "Fontes"); falta conferir que a rodada de 14/10 cancelou o
-   rascunho, removeu o objeto e gravou `purged_at`.
+7. Validar o resultado do expurgo no Storage real (Tarefa 7). Em 2026-10-14 o
+   ciclo foi comprovado com um objeto sem bytes (ver "Fontes"); falta repetir
+   com um PDF real enviado pelo Portal num rascunho de teste tornado elegível
+   (por exemplo, com mais de 7 dias), conferindo depois que o objeto deixou de
+   existir e não pode mais ser baixado.
 8. Corrigir o alerta de troca de CE com Desbloqueio conferido (Tarefa 6):
    trocar ou remover o CE de um B/L conciliado como *Desbloqueio conferido* não
    abre `ce_trocado_com_desbloqueio` nem avisa na prévia, porque
@@ -338,7 +360,7 @@ RPCs internas `set_ce_unlock_vip`, `review_ce_unlock_vip_document`,
 - [ ] Completar matriz anual: termo vigente/procuração vencida, pedido atravessando vencimento e renovação aplicada a múltiplos itens sem alterar snapshots antigos. Limites 31/12–01/01 e ano inválido já têm teste unitário.
 - [ ] Demonstrar retry sem eventos duplicados e preservação de documentos enviados/anuais no expurgo, incluindo anuais sem pedido e quotas VIP.
 - [x] Publicar a função e o job de expurgo. **Remoto:** `ce-unlock-cleanup` ativo e agendado diariamente em 2026-10-10.
-- [ ] Homologar retenção e validar remoção física e retry no Storage real; o disparo do job não prova o resultado.
+- [ ] Homologar retenção e validar retry no Storage real. A remoção pela Storage API foi observada em produção em 2026-10-14 (ver "Fontes"); falta a falha física com nova tentativa e a decisão de retenção.
 
 ## Tarefa 4 — Portal: selecionar, solicitar e acompanhar
 
@@ -443,7 +465,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Conferir que os frontends publicados no Cloudflare Pages são compatíveis com o backend atual. **Remoto:** em 2026-10-13 os sites, as migrations, as funções do banco e as Edge Functions do Desbloqueio correspondiam ao commit `c4a984f` da `main`, com CI verde (ver "Fontes"). Conferência de código, não de uso: o fluxo na tela é o item A/B abaixo. Refazer se um merge mudar só um dos lados. A Vercel ficou só como rollback manual.
 - [x] Configurar agendamento de expurgo e de aviso por e-mail. **Remoto:** jobs ativos em 2026-10-10.
 - [x] Conferir a migration `220` (trava do Cliente sem deadlock com o cancelamento de baixa) aplicada em produção depois do merge. **Remoto:** aplicada pela integração do Supabase às 14:27 UTC de 2026-10-13, após o merge da PR 936 (ver "Fontes").
-- [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes"). Em 2026-10-13 o job e a função rodavam sem erro, mas nunca houve documento elegível; falta ver um documento de teste elegível ser removido do Storage e marcado com `purged_at`.
+- [ ] **[bloqueia ativação]** Validar o resultado do expurgo antes da ativação operacional. O modelo oficial em DOCX já está cadastrado (2026-10-10; ver "Fontes"). **Remoto:** em 2026-10-14 a rodada das 06:00 UTC cancelou o rascunho de teste, revogou o documento, gravou `purged_at` e removeu o objeto pela Storage API, preservando os documentos ativos (ver "Fontes"). O objeto de teste foi inserido por SQL, sem bytes: falta repetir com um PDF real enviado pelo Portal e confirmar que o arquivo deixou de existir.
 - [x] Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md). **Código/Remoto:** PR 929; migrations `174`–`217` em produção em 2026-10-12 (ver "Fontes").
 - [x] Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial e exportação. **Runtime:** produção, 2026-10-13 (ver "Fontes"). A confirmação com evidência externa (conciliação com o "Exportar Tela" real) fica no item bloqueante de homologação da Tarefa 6; papel Financeiro e Operações nas telas não foram exercidos.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
@@ -472,6 +494,10 @@ autorização do responsável, foi criado em produção o documento de teste do
 expurgo, e o fluxo A/B foi executado em produção pelo responsável, com
 conferência no banco a cada etapa; esses são os únicos dados remotos criados ou
 alterados nesta atualização.
+
+Atualização em 2026-10-14: leitura somente SELECT, logs e cron de produção
+depois da rodada do expurgo das 06:00 UTC, que removeu o documento de teste.
+Nenhum dado remoto foi alterado nesta atualização.
 
 Atualização em 2026-10-12, após o merge da PR 929: leitura (somente SELECT) do
 banco de produção e conferência estática da suíte SQL do Desbloqueio. Fechou os

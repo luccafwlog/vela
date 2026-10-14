@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ fetchROE: vi.fn() }))
 
-vi.mock('../../services/demurrage/demurrageKpis', () => ({ fetchROE: mocks.fetchROE }))
+vi.mock('../../services/demurrage/demurrageRoe', () => ({ fetchROE: mocks.fetchROE }))
 
 import { useRoeHeaderRate } from '../useRoeHeaderRate'
 

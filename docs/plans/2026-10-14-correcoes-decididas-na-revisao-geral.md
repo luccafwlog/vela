@@ -39,7 +39,7 @@ depois o que o usuário vê errado, por último o que é só texto.
 | 19 | A13 | E-mail da Régua de Cobrança mostra o USD líquido. | ADR 0083, item 13 |
 | 20 | A15 | Régua retoma após disputa ancorada no último envio. | ADR 0083, item 15 |
 | 21 | B29 | Invoice de Demurrage não vence: a ficha do Cliente deixa de contar Demurrage vencida. | ADR 0014 |
-| 22 | B30 | Detalhe da Invoice de Demurrage no Portal mostra free time e valor por período de cada container. | ADR 0083, item 26 |
+| 22 | B30 | Detalhe da Invoice de Demurrage no Portal mostra o valor por período (P1/P2) de cada container; o free time já aparece desde o lote 1 da identidade. O recibo impresso ganha o free time. | ADR 0083, item 26 |
 | 23 | B2, B5, B6, B8, B9 | ADR operacional: carga por terminal e exceção de terminal do B/L; sign-off recusa seção Pendente na RPC; escala sem terminal não cai no ADR legado; Linha do Tempo mostra o ATD; prazo em dia útil local. | ADR 0029, 0035, 0036, 0039, 0068 |
 | 24 | B7, B10, B11, B12, B26 | Vazios e viagem: seção Veículos fora do painel de Documentação; Embarque de Vazios em viagem só de embarque; Total do Embarque sem percentual legado; atalho de armazenagem reconhece serviço sem condição; importações e Embarque abertos pela viagem não a travam. | ADR 0018, 0033, 0035 |
 | 25 | B13, B14, B15, B31 | Ações sobre registros: reativar tarifa e usuário pedem motivo e dizem "Reativar"; trava de Vazios pelo ADR de Saída e motivo em Excluir unidade; Local, terminal e serviço do depot com diálogo, papel e motivo; Salvar do depot mostra antes e depois. | ADR 0071, 0072, 0073 |

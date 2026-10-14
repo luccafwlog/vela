@@ -311,3 +311,13 @@ disparava recálculo, e o resultado dependia de o B/L ser tocado depois ou não.
 O restante desta ADR permanece íntegro — em especial a decisão 2 (congelamento
 na emissão e recusa de recálculo para B/L faturado), que é justamente o que
 define os três ramos do ajuste financeiro na 0051.
+
+## Nota editorial — 2026-10-14 · planilha de conferência
+
+A conferência por item virou a planilha única da Validação
+(`exportValidacaoWorkbook`, lote 1 da [identidade visual](../identidade-visual.md)):
+uma linha por B/L com uma coluna por taxa e a coluna **Contêiner compartilhado**
+("CSNU1 (2 B/Ls)") para o B/L com taxa rateada por contêiner. A exigência acima
+de identificar o rateio com contraparte continua atendida; a origem do preço por
+item (tabela padrão ou Condição do Cliente) saiu da planilha e continua na
+Conferência do cálculo da expansão do B/L.

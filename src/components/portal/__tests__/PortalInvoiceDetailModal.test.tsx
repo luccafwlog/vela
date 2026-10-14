@@ -69,7 +69,9 @@ describe('PortalInvoiceDetailModal', () => {
       />,
     )
 
-    expect(screen.getAllByText('Avulsa').length).toBeGreaterThan(0)
+    // O pagamento vem primeiro: saldo a pagar em destaque e o Pix ao lado.
+    expect(screen.getAllByRole('heading', { level: 3 })[0].textContent).toBe('Pagamento')
+    expect(screen.getByText('Saldo a pagar')).toBeTruthy()
     expect(screen.getByText('Descrição complementar da cobrança')).toBeTruthy()
     expect(screen.getByText('Serviço extraordinário')).toBeTruthy()
     expect(screen.getByText(/NAVIO MANUAL.*42N/)).toBeTruthy()

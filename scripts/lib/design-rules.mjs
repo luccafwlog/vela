@@ -42,7 +42,10 @@ export function cssFamily(className) {
 
 // Peças comuns da identidade, pelo nome exato do bloco (antes de "__" e
 // "--"). A família delas pode crescer sem atualizar a linha de base.
-const SHARED_BLOCKS = new Set(['app-block', 'app-lead', 'app-facts', 'app-identity', 'app-next-action', 'app-no-value', 'app-copy'])
+const SHARED_BLOCKS = new Set([
+  'app-block', 'app-lead', 'app-facts', 'app-identity', 'app-next-action', 'app-no-value', 'app-copy',
+  'app-status-text', 'app-consolidated-mark', 'app-metric-tile', 'app-metric-row',
+])
 export const SHARED_FAMILIES = new Set([...SHARED_BLOCKS].map(cssFamily))
 
 /**

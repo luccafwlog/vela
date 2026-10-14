@@ -317,7 +317,8 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
   operacional. `demurrage_invoice_items` copia datas, dias, free time, tarifas
   e subtotal no momento de criação da invoice (ver
   [Emissão da Invoice de Demurrage](#emissão-da-invoice-de-demurrage)).
-- **ROE e referência cambial:** `fetchROE` consulta a PTAX dos últimos dez dias,
+- **ROE e referência cambial:** `fetchROE` (`src/services/demurrage/demurrageRoe.ts`,
+  reexportado por `demurrageKpis.ts`) consulta a PTAX dos últimos dez dias,
   aplica o markup canônico `DEMURRAGE_ROE_MARKUP` (`1,065`, ADR 0014) e usa
   primeiro a referência persistida em `exchange_rate_reference` e depois
   `localStorage['demurrage_roe_cache']` como fallback. A referência do banco
@@ -832,7 +833,7 @@ está em [Estado e dados](#estado-e-dados).
 
 - **Correção pendente (B29):** a coluna `demurrage_invoices.due_date` existe e a ficha do Cliente conta Invoice de Demurrage como vencida (`overdue` no saldo), contra "Demurrage não vence" (ADR 0014). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
 
-- **Correção pendente (B30):** o detalhe da Invoice de Demurrage no Portal mostra o free time e o valor por período de cada container ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26). O Portal recebe esses campos (`portal_get_demurrage_invoice_detail`), mas o detalhe mostra por container só datas, dias e USD, e o recibo impresso da Invoice paga mostra dias e diárias de P1/P2 sem o free time. **Código:** [`PortalDemurrageDetailModal.tsx`](../../src/components/portal/PortalDemurrageDetailModal.tsx) e [`InvoiceDocument.tsx`](../../src/components/demurrage/InvoiceDocument.tsx). Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Correção pendente (B30):** o detalhe da Invoice de Demurrage no Portal mostra o free time e o valor por período de cada container ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26). O Portal recebe esses campos (`portal_get_demurrage_invoice_detail`), e desde o lote 1 da identidade (2026-10-14) o detalhe mostra por container datas, dias, free time, dias cobrados e USD, mas não o valor de cada período (P1/P2); o recibo impresso da Invoice paga mostra dias e diárias de P1/P2 sem o free time. **Código:** [`PortalDemurrageDetailModal.tsx`](../../src/components/portal/PortalDemurrageDetailModal.tsx) e [`InvoiceDocument.tsx`](../../src/components/demurrage/InvoiceDocument.tsx). Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 
 - **Correções implementadas — Código/Teste local.** O detalhe ganhou autorização de restituição excepcional pelo Administrativo e confirmação pelo Financeiro, com comprovante, favorecido e data. Cancelamento integral preserva recebimento/câmbio e cancela após devolver; o recibo mostra bruto, devolvido, pendente e líquido. A migration 136 foi incluída após autorização explícita; ver [decisões implementadas](../archive/specs/2026-10-04-controles-financeiros-design.md) e [manual](../operations/manual-financeiro.md). A janela cambial e o contrato de quitação de Demurrage continuam específicos desse domínio.
 
