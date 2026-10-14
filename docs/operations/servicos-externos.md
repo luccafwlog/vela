@@ -347,7 +347,6 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos e abre Alerta de reenvio | — |
 | `portal-refresh-general-pendencies` | a cada 15 min | Alerta para Cliente com B/L ativo sem Portal ativo ou sem e-mail de recuperação | — |
 | `demurrage-dunning` | de hora em hora, no minuto 7 (`7 * * * *`, migration `165`) | Régua de Cobrança de Demurrage (respeita a chave global) | `demurrage-dunning` |
-| `cleanup-portal-sessions` | 03:00 | apaga sessões do Portal expiradas há mais de 1 dia | — |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
@@ -356,6 +355,10 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
+
+O job `cleanup-portal-sessions` (03:00, sessões do token antigo do Portal) foi
+desagendado pela migration `234`, junto com a tabela que limpava (ADR 0083,
+item 21).
 
 Até a migration `165`, nos minutos :00/:15/:30/:45 `net._http_response`
 registrava chamadas sem resposta (`Timeout of 5000 ms`, em geral gastos em DNS)

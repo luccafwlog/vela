@@ -14,8 +14,8 @@ As rotas são internas e ficam sob `ProtectedRoute` em
 inclusive Equipamentos, importa a planilha COSCO e calcula as taxas de Granito
 (ADR 0078, item 10). As tabelas operacionais (`granite_manifests`,
 `granite_bls`, `granite_bl_charges`) aceitam leitura, inserção e edição de
-usuário ativo e exclusão só do Administrativo (policies da migration `002`;
-hoje por DELETE direto, sem motivo, correção pendente no item P1 do plano).
+usuário ativo; a exclusão é só pelas RPCs com motivo e Trava (`delete_records`
+e a reimportação): o DELETE direto saiu na migration `235`.
 Nas tarifas (`granite_rates`), a tela mostra criar, editar, ativar/desativar e
 excluir só ao Administrativo; no banco, ativar ou desativar é só do
 Administrativo (gatilho `guard_tariff_active_change`, migration `091`), excluir
