@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Telas mais rápidas com histórico grande (2026-10-14, migrations `230`–`232`,
+  [relatório](archive/reports/2026-10-14-desempenho-telas-com-volume.md)):** com dois anos de
+  volume sintético, B/Ls abria em mais de 30 s e passou a 1,8 s, Contêineres foi de 23,5 s a 3,3 s,
+  Viagens de 14,9 s a ~4 s, e a abertura fria de 4,4 s a 2,5 s. As policies avaliam o helper de RLS
+  uma vez por consulta. A página de contêineres monta JSON só das linhas exibidas, e os filtros vêm
+  de uma RPC. B/Ls e Contêineres pré-carregam a página seguinte. O Line Up deixou de pedir o marco
+  de alteração por B/L, e as fontes e os relatórios ficaram mais leves. A Viagens deixou de perder
+  as datas de POL por URL longa (HTTP 431). `npm run perf:screens` refaz a medição.
 - **Documentos impressos (2026-10-14, PR 939, tela 20 do [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
   visual das faturas, recibos e ADR mantido; a folha A4 ganha margem em todas as páginas e
   "Página N de M"; Invoice de Demurrage paga ou cancelada não mostra mais o Pix; a complementar diz

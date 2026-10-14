@@ -2,7 +2,7 @@ import { normalizePortCode } from './portCode'
 import { supabase } from './supabase'
 import { fetchExportSchedulesByVoyageIds } from './voyageExportSchedules'
 import type { VoyageExportSchedule, VoyageExportSchedulesByPort } from './voyageExportSchedules'
-import { chunkArray } from '../lib/utils'
+import { mapChunks } from '../lib/utils'
 
 const POL_ENTITY_TYPE = 'voyage_pol_schedule'
 const POD_ENTITY_TYPE = 'voyage_pod_schedule'
@@ -157,17 +157,8 @@ export function buildVoyagePodEntityId(voyageId: number, pod: string | null | un
 export async function listVoyagePolSchedules(entityIds: string[]) {
   if (!entityIds.length) return new Map<string, VoyagePolSchedule>()
 
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select('entity_id, field_name, new_value, changed_at')
-    .eq('entity_type', POL_ENTITY_TYPE)
-    .in('entity_id', entityIds)
-    .order('changed_at', { ascending: false })
-    .range(0, Math.max(999, entityIds.length * 5))
-
-  if (error) throw error
-
-  return hydratePolSchedules(data ?? [])
+  const data = await listScheduleAuditRowsByEntityIds(POL_ENTITY_TYPE, entityIds, 5)
+  return hydratePolSchedules(data)
 }
 
 /**
@@ -178,17 +169,8 @@ export async function listVoyagePolSchedules(entityIds: string[]) {
 export async function listVoyagePodSchedules(entityIds: string[], options: { includeDeleted?: boolean } = {}) {
   if (!entityIds.length) return new Map<string, VoyagePodSchedule>()
 
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select('entity_id, field_name, new_value, changed_at')
-    .eq('entity_type', POD_ENTITY_TYPE)
-    .in('entity_id', entityIds)
-    .order('changed_at', { ascending: false })
-    .range(0, Math.max(999, entityIds.length * 20))
-
-  if (error) throw error
-
-  return hydratePodSchedules(data ?? [], options)
+  const data = await listScheduleAuditRowsByEntityIds(POD_ENTITY_TYPE, entityIds, 20)
+  return hydratePodSchedules(data, options)
 }
 
 export async function listVoyagePodSchedulesByVoyageIds(voyageIds: number[]) {
@@ -251,30 +233,30 @@ export async function listVoyageTerminalScaleStatesByVoyageIds(
     in: (column: string, values: number[]) => TerminalStateQuery
     then: Promise<{ data: unknown; error: unknown | null }>['then']
   }
-  for (const voyageChunk of chunkArray(voyageIds, 25)) {
+  const rows = await mapChunks(voyageIds, 25, async (voyageChunk) => {
     const { data, error } = await (supabase.from as unknown as (table: string) => TerminalStateQuery)('voyage_escala_terminal_state')
       .select('id, voyage_id, port, terminal_id, terminal_etb, terminal_atb, terminal_etd, terminal_atd, terminal_rtw, revision')
       .in('voyage_id', voyageChunk)
     if (error) throw error
-
-    for (const row of (data ?? []) as Array<Record<string, unknown>>) {
-      if (typeof row.voyage_id !== 'number' || typeof row.port !== 'string') continue
-      const states = result.get(row.voyage_id) ?? []
-      states.push({
-        voyageId: row.voyage_id,
-        port: row.port,
-        stateId: typeof row.id === 'string' ? row.id : null,
-        terminalId: typeof row.terminal_id === 'string' ? row.terminal_id : null,
-        terminalCode: null, // preenchido por hydrateTerminalCodes abaixo.
-        terminalEtb: typeof row.terminal_etb === 'string' ? row.terminal_etb : null,
-        terminalAtb: typeof row.terminal_atb === 'string' ? row.terminal_atb : null,
-        terminalEtd: typeof row.terminal_etd === 'string' ? row.terminal_etd : null,
-        terminalAtd: typeof row.terminal_atd === 'string' ? row.terminal_atd : null,
-        terminalRtw: row.terminal_rtw == null ? null : Number(row.terminal_rtw),
-        revision: typeof row.revision === 'number' ? row.revision : 0,
-      })
-      result.set(row.voyage_id, states)
-    }
+    return (data ?? []) as Array<Record<string, unknown>>
+  })
+  for (const row of rows) {
+    if (typeof row.voyage_id !== 'number' || typeof row.port !== 'string') continue
+    const states = result.get(row.voyage_id) ?? []
+    states.push({
+      voyageId: row.voyage_id,
+      port: row.port,
+      stateId: typeof row.id === 'string' ? row.id : null,
+      terminalId: typeof row.terminal_id === 'string' ? row.terminal_id : null,
+      terminalCode: null, // preenchido por hydrateTerminalCodes abaixo.
+      terminalEtb: typeof row.terminal_etb === 'string' ? row.terminal_etb : null,
+      terminalAtb: typeof row.terminal_atb === 'string' ? row.terminal_atb : null,
+      terminalEtd: typeof row.terminal_etd === 'string' ? row.terminal_etd : null,
+      terminalAtd: typeof row.terminal_atd === 'string' ? row.terminal_atd : null,
+      terminalRtw: row.terminal_rtw == null ? null : Number(row.terminal_rtw),
+      revision: typeof row.revision === 'number' ? row.revision : 0,
+    })
+    result.set(row.voyage_id, states)
   }
   // O codigo do terminal e o rotulo da Atracacao (planejamento, ADR) e o
   // criterio de desempate da ordem derivada; sem ele toda Atracacao com
@@ -314,16 +296,17 @@ async function hydrateTerminalCodes(
     then: Promise<{ data: unknown; error: unknown | null }>['then']
   }
   const codeById = new Map<string, string>()
-  for (const chunk of chunkArray(terminalIds, 100)) {
+  const depotRows = await mapChunks(terminalIds, 100, async (chunk) => {
     const { data, error } = await (supabase.from as unknown as (table: string) => DepotCodeQuery)('depots')
       .select('id, code')
       .in('id', chunk)
     if (error) throw error
-    for (const row of (data ?? []) as Array<Record<string, unknown>>) {
-      const id = row.id == null ? '' : String(row.id)
-      const code = typeof row.code === 'string' ? row.code.trim() : ''
-      if (id && code) codeById.set(id, code)
-    }
+    return (data ?? []) as Array<Record<string, unknown>>
+  })
+  for (const row of depotRows) {
+    const id = row.id == null ? '' : String(row.id)
+    const code = typeof row.code === 'string' ? row.code.trim() : ''
+    if (id && code) codeById.set(id, code)
   }
 
   applyTerminalCodes(statesByVoyage, codeById)
@@ -784,20 +767,21 @@ export async function listVoyageRouteCeMasters(voyageIds: number[]) {
   const result = new Map<string, string>()
   if (!voyageIds.length) return result
 
-  for (const voyageChunk of chunkArray(voyageIds, 25)) {
+  const rows = await mapChunks(voyageIds, 25, async (voyageChunk) => {
     const { data, error } = await supabase
       .from('voyage_route_ce_master')
       .select('voyage_id, pol, pod, ce_master, cargo_mode')
       .in('voyage_id', voyageChunk)
 
     if (error) throw error
+    return (data ?? []) as Array<{ voyage_id: number; pol: string; pod: string; ce_master: string | null; cargo_mode?: string | null }>
+  })
 
-    for (const row of (data ?? []) as Array<{ voyage_id: number; pol: string; pod: string; ce_master: string | null; cargo_mode?: string | null }>) {
-      const ce = normalizeTextValue(row.ce_master)
-      if (!ce) continue
-      const mode = typeof row.cargo_mode === 'string' ? row.cargo_mode : 'container'
-      result.set(buildVoyageRouteCeMasterKey(row.voyage_id, row.pol, row.pod, mode), ce)
-    }
+  for (const row of rows) {
+    const ce = normalizeTextValue(row.ce_master)
+    if (!ce) continue
+    const mode = typeof row.cargo_mode === 'string' ? row.cargo_mode : 'container'
+    result.set(buildVoyageRouteCeMasterKey(row.voyage_id, row.pol, row.pod, mode), ce)
   }
 
   return result
@@ -937,38 +921,60 @@ function groupSchedulesByVoyage<T extends { voyageId: number }>(schedules: Map<s
   return grouped
 }
 
-async function listScheduleAuditRowsByVoyageIds(entityType: string, voyageIds: number[]) {
-  if (!voyageIds.length) return []
-  const rows: Array<{
-    entity_id: string
-    field_name: string
-    new_value: string | null
-    changed_at: string | null
-  }> = []
-
-  let from = 0
-  while (true) {
-    const query = supabase
+// Lotes de ids: a lista inteira numa URL só passava do limite do servidor com
+// ~200 viagens (HTTP 431) e a Viagens ficava sem as datas de POL, em retry.
+// Cada lote mantém a ordem por data, então o mais recente de cada campo segue
+// sendo a primeira linha da sua entidade.
+async function listScheduleAuditRowsByEntityIds(entityType: string, entityIds: string[], rowsPerEntity: number) {
+  return mapChunks(entityIds, 50, async (chunk) => {
+    const { data, error } = await supabase
       .from('audit_logs')
       .select('entity_id, field_name, new_value, changed_at')
       .eq('entity_type', entityType)
-    const filteredQuery = typeof (query as { or?: unknown }).or === 'function'
-      ? (query as typeof query & { or: (filter: string) => typeof query }).or(voyageIds.map((voyageId) => `entity_id.like.${voyageId}::%`).join(','))
-      : query
-    const { data, error } = await filteredQuery
+      .in('entity_id', chunk)
       .order('changed_at', { ascending: false })
-      .range(from, from + 999)
-
+      .range(0, Math.max(999, chunk.length * rowsPerEntity))
     if (error) throw error
+    return data ?? []
+  })
+}
 
-    const batch = data ?? []
-    rows.push(...batch)
+async function listScheduleAuditRowsByVoyageIds(entityType: string, voyageIds: number[]) {
+  if (!voyageIds.length) return []
 
-    if (batch.length < 1000) break
-    from += 1000
-  }
+  // Um `like` por viagem na URL: em lotes, pela mesma razão do limite acima.
+  return mapChunks(voyageIds, 50, async (voyageChunk) => {
+    const rows: Array<{
+      entity_id: string
+      field_name: string
+      new_value: string | null
+      changed_at: string | null
+    }> = []
 
-  return rows
+    let from = 0
+    while (true) {
+      const query = supabase
+        .from('audit_logs')
+        .select('entity_id, field_name, new_value, changed_at')
+        .eq('entity_type', entityType)
+      const filteredQuery = typeof (query as { or?: unknown }).or === 'function'
+        ? (query as typeof query & { or: (filter: string) => typeof query }).or(voyageChunk.map((voyageId) => `entity_id.like.${voyageId}::%`).join(','))
+        : query
+      const { data, error } = await filteredQuery
+        .order('changed_at', { ascending: false })
+        .range(from, from + 999)
+
+      if (error) throw error
+
+      const batch = data ?? []
+      rows.push(...batch)
+
+      if (batch.length < 1000) break
+      from += 1000
+    }
+
+    return rows
+  })
 }
 
 function hydratePolSchedules(

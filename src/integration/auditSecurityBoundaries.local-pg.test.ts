@@ -236,4 +236,14 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
         ORDER BY i.id DESC LIMIT 1;`),
     ).toBe('resolved')
   })
+
+  // Migration 230: helper chamado sem `(select ...)` roda uma vez por linha e
+  // fez a lista de B/Ls levar 72 s com 12 mil B/Ls. Policy nova que voltar à
+  // forma nua quebra este teste.
+  it('policies avaliam o helper de acesso uma vez por consulta, não por linha', () => {
+    expect(
+      psql(`SELECT count(*) FROM pg_policies WHERE schemaname = 'public'
+        AND (qual ~ '^(public\\.)?[a-z_]+\\(\\)$' OR with_check ~ '^(public\\.)?[a-z_]+\\(\\)$');`),
+    ).toBe('0')
+  })
 })

@@ -26,6 +26,40 @@ O comando grava `artifacts/perf/authenticated-startup.json`, que não deve ser
 versionado. O relatório falha com código diferente de zero quando o p95 supera
 2 segundos. Nunca inclua credenciais, tokens, cookies ou headers no relatório.
 
+## Telas com volume (abertura, páginas antigas e rolagem)
+
+`npm run perf:screens` (`measure-screens.mjs`) mede no navegador, com rede
+emulada (80 ms de latência, 20 Mbps) e CPU 2× mais lenta:
+
+- abertura fria autenticada até o Painel ficar pronto;
+- abertura de cada tela por navegação interna;
+- clique em "Próxima" ou "Carregar mais", que traz o conteúdo mais antigo;
+- rolagem da lista (p95 do quadro, % de quadros acima de 34 ms) e tamanho do DOM.
+
+"Pronto" quer dizer três condições por 600 ms: nenhuma requisição ao Supabase
+em voo, nenhum `aria-busy` e nenhum "Carregando" no `<main>`. O relatório dá a
+mediana das rodadas. Uma tela que não fica pronta em 30 s sai como `null`.
+
+O harness só aceita o stack local (`scripts/design-audit/win/README.md`) com um
+build de produção servido por `vite preview`. Tempos contra o emulador não são
+tempos de produção, mas a comparação antes/depois no mesmo stack vale. Para o
+volume de dois anos de operação, carregue `seed-volume.sql` no banco descartável
+(12 mil B/Ls, 28 mil contêineres, 14 mil veículos). Sentry, PostHog e BCB ficam
+bloqueados durante a medição.
+
+```powershell
+$env:VITE_SUPABASE_URL = 'http://localhost:4173/sb-proxy'
+$env:VITE_SUPABASE_ANON_KEY = 'local-audit-anon-key'
+npx vite build; npx vite preview --port 4173
+$env:PERF_BASE_URL = 'http://localhost:4173'
+$env:PERF_USER_EMAIL = 'auditor@local.test'; $env:PERF_USER_PASSWORD = 'audit-local'
+$env:PERF_BROWSER_EXECUTABLE_PATH = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+npm run perf:screens
+```
+
+`PERF_SCREENS=bls,containers` limita as telas e `PERF_ROUNDS` muda o número de
+rodadas (padrão 5). O relatório vai para `artifacts/perf/screens.json`.
+
 ## Read-model operacional
 
 `npm run perf:operational-read-model` compara a RPC resumida de viagens com a

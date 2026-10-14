@@ -34,6 +34,7 @@
     "size-limit": "node scripts/check-size-limit.mjs",
     "preview": "vite preview",
     "perf:authenticated-startup": "node scripts/perf/measure-authenticated-startup.mjs",
+    "perf:screens": "node scripts/perf/measure-screens.mjs",
     "perf:operational-read-model": "node scripts/perf/measure-operational-read-model.mjs",
     "a11y:contrast": "node scripts/check-theme-contrast.mjs",
     "design:check": "node scripts/check-design.mjs",

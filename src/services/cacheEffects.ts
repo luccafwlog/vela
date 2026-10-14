@@ -22,7 +22,7 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   queryKeys.ceUnlock.all(),
   queryKeys.portalInformation.all(), ['portal-operation-bls'],
   queryKeys.bls.all(), queryKeys.bls.summary(), queryKeys.bls.detail(), queryKeys.bls.cockpit(), queryKeys.portal.blStatus(),
-  ['containers'], ['container-type-options'], queryKeys.bls.portOptions(),
+  ['containers'], queryKeys.bls.portOptions(),
   queryKeys.vehicles.all(), ['vehicle-stats'], ['voyage-vehicle-stats'],
   queryKeys.voyages.all(), queryKeys.voyages.detail(), ['voyage-billing-status'],
   // O contexto do Baplie lista os containers dos B/Ls da Viagem (ADR 0079, decisão 6).

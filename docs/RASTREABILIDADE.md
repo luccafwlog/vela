@@ -349,7 +349,8 @@ Regra: [Manifestos e EDI](modules/manifesto-edi.md).
 | `move_vehicles_to_bl` | `vehicles.ts` | `202` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `operational_list_bl_summary` | `operationalLists.ts` | `064` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | — |
 | `operational_list_bls` | `operationalLists.ts` | `064` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/bls` e o export; `operational_list_bl_summary` dá os totais. |
-| `operational_list_containers` | `operationalLists.ts` | `059` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/containers`. |
+| `operational_list_containers` | `operationalLists.ts` | `059`, `231` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/containers`. |
+| `operational_list_filter_options` | `operationalLists.ts` | `232` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | POL, POD e tipos de contêiner distintos dos filtros de `/bls` e `/containers`. |
 | `preflight_depots_terminal_port_mapping` | `depots.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `preview_baplie_physical_flags` | `baplieImport.ts` | `182` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `preview_ce_mercante_rows` | `ceMercanteImport.ts` | `181` | DEFINER · `authenticated` | usuário interno ativo | — |

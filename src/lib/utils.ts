@@ -204,6 +204,15 @@ export function chunkArray<T>(values: T[], chunkSize: number) {
   return chunks
 }
 
+/**
+ * Lê os lotes em paralelo e junta o resultado na ordem dos lotes. O laço
+ * `for ... await` somava uma ida e volta ao banco por lote (200 viagens em
+ * lotes de 25 = 8 esperas em série antes da tela abrir).
+ */
+export async function mapChunks<T, R>(values: T[], chunkSize: number, readChunk: (chunk: T[]) => Promise<R[]>) {
+  return (await Promise.all(chunkArray(values, chunkSize).map(readChunk))).flat()
+}
+
 // Remove o prefixo redundante "BL <id> - " da descricao de um item de fatura,
 // usado tanto no PDF quanto no detalhe da invoice (o B/L ja aparece em coluna propria).
 export function stripBlPrefix(description: string | null | undefined, blId: string | null | undefined): string {

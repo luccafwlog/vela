@@ -32,22 +32,21 @@ async function run() {
   });
   let cssText = cssBuffer.toString('utf-8');
 
-  const urlRegex = /url\((https:\/\/[^)]+\.woff2)\)/g;
-  let match;
-  let counter = 0;
+  // Fontes variáveis: o Google devolve a mesma URL para todos os pesos. Um
+  // arquivo local por URL faz o navegador baixar cada subset uma vez só, em vez
+  // de uma vez por peso (DM Sans latin era baixada 3x).
+  const fontUrls = [...new Set([...cssText.matchAll(/url\((https:\/\/[^)]+\.woff2)\)/g)].map((match) => match[1]))];
 
   console.log('Downloading fonts...');
-  while ((match = urlRegex.exec(cssText)) !== null) {
-    const fontUrl = match[1];
-    counter++;
-    const filename = `font-${counter}.woff2`;
+  for (const [index, fontUrl] of fontUrls.entries()) {
+    const filename = `font-${index + 1}.woff2`;
     const fontPath = path.join(fontsDir, filename);
-    
+
     console.log(`Downloading ${fontUrl} to ${filename}`);
     const fontBuffer = await fetchUrl(fontUrl);
     fs.writeFileSync(fontPath, fontBuffer);
-    
-    cssText = cssText.replace(fontUrl, `/fonts/${filename}`);
+
+    cssText = cssText.replaceAll(fontUrl, `/fonts/${filename}`);
   }
 
   const cssPath = path.resolve('src', 'fonts.css');

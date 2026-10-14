@@ -26,6 +26,7 @@ import { useVoyages } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { UNPACKING_LOCATION_NONE, useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
 import { deleteVehicles } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
@@ -180,7 +181,11 @@ export function Veiculos() {
   }, [voyageRows, escalaSchedulesByVoyage, voyageVehicleStats])
 
   const voyageId = selectedVoyageId ? Number(selectedVoyageId) : null
-  const { data, isLoading, error } = useVehicles(voyageId, filters)
+  // Chassi e lacre vão ao servidor: só depois da pausa na digitação.
+  const debouncedSearch = useDebouncedValue(filters.search)
+  const debouncedSeal = useDebouncedValue(filters.seal)
+  const queryFilters = useMemo(() => ({ ...filters, search: debouncedSearch, seal: debouncedSeal }), [filters, debouncedSearch, debouncedSeal])
+  const { data, isLoading, error } = useVehicles(voyageId, queryFilters)
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / filters.pageSize))
   const groups = useMemo(() => groupVehiclesByContainer(data?.rows ?? []), [data?.rows])
 
