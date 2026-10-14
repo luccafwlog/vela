@@ -16,7 +16,16 @@ Regras e peças: [identidade visual](../identidade-visual.md).
 - **Passada única em 2026-10-13** (ver a seção própria): tabela padrão,
   identificador sem sublinhado, vazio discreto, copiar identificador e ação
   como botão em todas as telas. Os lotes seguem só para a organização.
-- **Próximo:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
+- **Lote 1 aprovado em 2026-10-14** (as cinco telas e as abas da ficha do
+  Cliente); implementação na ordem Lista de BLs, ficha da Viagem, ficha do
+  Cliente, Taxas Locais (Faturas e Validação) e Portal · Faturas, com os
+  defeitos anotados abaixo. A tabela limpa (uma linha de título, sem texto
+  sob a célula, sem quebra nem "…", situação em texto) virou regra 5 e 6 em
+  [identidade-visual.md](../identidade-visual.md) e entra nas demais telas
+  pelos lotes. Mudanças do lote 1 que valem fora dele: ✓ de "Paga" e ícone de
+  "Consolidada" em toda tela que os mostra, e "Abrir disputa" no detalhe da
+  fatura de Demurrage do Portal (tela do lote 4).
+- **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
   republicada na conta do responsável e atualizada com as decisões abaixo) e
@@ -187,8 +196,7 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     `partially_paid` volta à fila como "Cálculo incompleto" e oferece
     Emitir. Correção: usar `isBlFinanciallyLocked`
     (`src/lib/chargeStatus.ts`), como o resto do sistema.
-  - **Faturas do Portal** (decisões de 2026-10-14; proposta revisada na
-    versão limpa, aguardando aprovação): tabela no padrão de Taxas Locais ·
+  - **Faturas do Portal** (aprovada em 2026-10-14, versão limpa): tabela no padrão de Taxas Locais ·
     Faturas (Fatura, B/L, Emissão, Navio / Viagem, Total, Saldo, Situação;
     o número da fatura abre o detalhe e o botão Detalhes sai; uma linha de
     título; saldo em âmbar; "Paga" com ✓; sem texto embaixo da célula; POD
@@ -244,7 +252,7 @@ lotes tratam só da organização de cada tela.
 
 | Lote | Telas (ordem da tabela "Telas") | Estado |
 |---|---|---|
-| 1 | Lista de BLs (2), ficha da Viagem (3), ficha do Cliente (5, com as seis abas), Taxas Locais · Faturas (7), Portal · Faturas (10) | Em aprovação: BLs e Viagem aprovadas; Cliente com a Visão geral decidida e as outras cinco abas por propor; Taxas Locais e Portal · Faturas por discutir |
+| 1 | Lista de BLs (2), ficha da Viagem (3), ficha do Cliente (5, com as seis abas), Taxas Locais · Faturas (7), Portal · Faturas (10) | Aprovado em 2026-10-14 (todas as telas e as abas da ficha do Cliente); em implementação na branch `claude/determined-bardeen-kvwaxt` |
 | 2 | Operação do dia a dia: Revisão (6), Chegadas e Saídas e programação do Portal (4), Demurrage (8), Containers, Veículos e Baplie (14); listas de Viagens e de Clientes | Proposto em 2026-10-13, a confirmar |
 | 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Proposto, a confirmar |
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12) | Proposto, a confirmar |
@@ -287,10 +295,10 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 | 4 | Chegadas e Saídas e programação do Portal | `/chegadas-saidas`, Painel do Portal | "X" em toda célula, grupos ETD/ETA sem separação. Decidir: Chegada no Brasil antes da Saída; esconder porto sem data; previsão de saída já passada em cinza | Pendente |
 | 5 | Ficha do Cliente e Clientes | `/clientes`, `/clientes/:cnpj` | `.app-customer-*` é a maior família de CSS de página | Ficha aprovada em 2026-10-14 (Visão geral, cinco abas e a aba nova Contêineres); a implementar |
 | 6 | Revisão | `/revisao` | `review-link-button` como ação em texto (regra 9) | Pendente |
-| 7 | Taxas Locais e detalhe da fatura | `/taxas-locais`, `/taxas-locais/tabelas` | `app-invoice-comm__link`, `app-fin-alerts__link` | Proposta da lista de Faturas no lote 1, aguardando resposta |
+| 7 | Taxas Locais e detalhe da fatura | `/taxas-locais`, `/taxas-locais/tabelas` | `app-invoice-comm__link`, `app-fin-alerts__link` | Faturas e Validação aprovadas em 2026-10-14 (lote 1), a implementar; detalhe da fatura e tabelas no lote 3 |
 | 8 | Demurrage | `/demurrage`, `/demurrage/taxas` | `app-dem-link` (número da Invoice é identificador; conferir as ações) | Pendente |
 | 9 | Conciliação PIX | `/reconciliacao` | `app-pix-link` | Pendente |
-| 10 | Portal: Faturas, PIX, consolidada e disputa | `/portal/billing` e inspeção | Pix abaixo dos itens no detalhe; saldo pendente diverge entre telas (regra de dado, à parte) | Proposta de Faturas no lote 1, aguardando resposta |
+| 10 | Portal: Faturas, PIX, consolidada e disputa | `/portal/billing` e inspeção | Pix abaixo dos itens no detalhe; saldo pendente diverge entre telas (regra de dado, à parte) | Faturas (Taxas Locais e Demurrage, com a disputa no detalhe da fatura de Demurrage) aprovadas em 2026-10-14 (lote 1), a implementar; Pix e consolidada no lote 4 |
 | 11 | Portal: B/Ls e Containers | `/portal/operacao` e inspeção | | Pendente |
 | 12 | Portal: Painel, Central de Informações, Desbloqueio de CE, Perfil | `/portal`, `/portal/informacoes`, `/portal/desbloqueio-ce`, `/portal/perfil` | | Pendente |
 | 13 | Painel, Alertas | `/painel`, `/alertas`, `/alertas/regras` | | Pendente |

@@ -129,3 +129,15 @@ reorganização de cada tela (faixa de identidade, blocos, dado principal,
 colunas) continua passando pela aprovação, em lotes, conforme o
 [plano tela a tela](../plans/2026-10-13-identidade-visual-tela-a-tela.md).
 Documentos impressos ficam fora: seguem só as regras de impressão.
+
+## Nota de 2026-10-14: tabela limpa e situação em texto
+
+Nas tabelas do lote 1 (contêineres e faturas da ficha do Cliente, Faturas e
+Validação de Taxas Locais, Faturas do Portal), o responsável recusou tabela
+com duas linhas de título, texto embaixo do valor, quebra de linha, corte com
+"…" e selo colorido de situação ("suja", "espalhafatoso"). As regras 5 e 6
+passam a pedir tabela limpa: uma linha de título, o que não cabe sai da tabela
+e vai para o detalhe, situação em texto com âmbar só no que pede ação, "Paga"
+com o ícone ✓ verde e "Consolidada" como ícone pequeno. Não é aplicada de uma
+vez como a passada única, porque cada tela exige escolher quais colunas saem:
+entra em cada tela quando o lote dela for aprovado.
