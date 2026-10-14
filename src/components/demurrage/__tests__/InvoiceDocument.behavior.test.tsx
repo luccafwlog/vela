@@ -43,8 +43,8 @@ it('US-048: imprime o recibo de quitacao quando type=receipt', () => {
   expect(screen.getByText(/PAGO EM: 25\/06\/2026/)).toBeTruthy()
 })
 
-it('US-048: exibe QR Pix e codigo copia e cola na fatura', () => {
-  render(<InvoiceDocument detail={detail} type="invoice" />)
+it('US-048: exibe QR Pix e codigo copia e cola na fatura em aberto', () => {
+  render(<InvoiceDocument detail={{ ...detail, paid_at: null, status: 'issued' }} type="invoice" />)
 
   expect(screen.getByText('PAGAMENTO VIA PIX')).toBeTruthy()
   expect(screen.getByText(detail.pix_payload!)).toBeTruthy()
@@ -76,4 +76,38 @@ it('QR em preparação só para fatura emitida ou vencida sem cobrança; rascunh
     expect(screen.queryByTestId('pix-preparing')).toBeNull()
     cleanup()
   }
+})
+
+// Regressão (etapa 13): a Invoice paga ou cancelada aberta como fatura mostrava
+// o QR e o "Valor da fatura", convidando a pagar de novo.
+it('fatura paga ou cancelada não oferece Pix', () => {
+  for (const closed of [{ ...detail, status: 'paid' }, { ...detail, paid_at: null, status: 'cancelled' }]) {
+    render(<InvoiceDocument detail={closed} type="invoice" />)
+    expect(screen.queryByText('PAGAMENTO VIA PIX')).toBeNull()
+    expect(screen.queryByText(detail.pix_payload!)).toBeNull()
+    expect(screen.queryByTestId('pix-preparing')).toBeNull()
+    cleanup()
+  }
+})
+
+it('Invoice complementar diz qual Invoice completa e que não cobra de novo as caixas já cobradas', () => {
+  render(<InvoiceDocument detail={{ ...detail, complement_of: ['DEM-2026-0000'] }} type="invoice" />)
+  const notice = screen.getByTestId('demurrage-complement-notice').textContent ?? ''
+  expect(notice).toContain('Invoice complementar de DEM-2026-0000')
+  expect(notice).toContain('os containers já cobrados não entram de novo')
+  cleanup()
+  render(<InvoiceDocument detail={detail} type="invoice" />)
+  expect(screen.queryByTestId('demurrage-complement-notice')).toBeNull()
+})
+
+it('cabeçalho da tabela não repete chave React (USD/Dia aparece duas vezes)', () => {
+  const errors: unknown[] = []
+  const original = console.error
+  console.error = (...args: unknown[]) => { errors.push(args) }
+  try {
+    render(<InvoiceDocument detail={detail} type="invoice" />)
+  } finally {
+    console.error = original
+  }
+  expect(errors).toEqual([])
 })

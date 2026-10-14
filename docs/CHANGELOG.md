@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Documentos impressos (2026-10-14, PR 939, tela 20 do [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
+  visual das faturas, recibos e ADR mantido; a folha A4 ganha margem em todas as páginas e
+  "Página N de M"; Invoice de Demurrage paga ou cancelada não mostra mais o Pix; a complementar diz
+  de qual Invoice completa; o recibo da individual coberta diz que o valor entrou pela consolidada;
+  imprimir com um documento aberto leva ao papel só o documento (sem a ficha da Viagem nem a faixa
+  do Modo Inspeção).
 - **Edge Function antiga de aviso de fatura emitida apagada (2026-10-14, [ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26):**
   o dono a apagou no painel do Supabase, como a ADR 0058 mandava; a listagem de produção
   conferida depois não a tem ([serviços externos](operations/servicos-externos.md#edge-functions)).

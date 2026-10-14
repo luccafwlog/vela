@@ -20,6 +20,7 @@ import { DemurragePaymentReversalModal } from '../components/demurrage/Demurrage
 import { InvoiceDocument as DemurrageInvoiceDoc, type DemurrageInvoiceDocumentDetail } from '../components/demurrage/InvoiceDocument'
 import { useAuth } from '../hooks/useAuth'
 import { useFinancialRefunds } from '../hooks/useFinancialRefunds'
+import { useDemurrageComplementOf } from '../hooks/useDemurrageComplementOf'
 import { extractErrorText } from '../lib/errors'
 import { printDocumentElement } from '../lib/printDocument'
 import { afterFaturaDemurrageAlterada } from '../services/cacheEffects'
@@ -120,12 +121,15 @@ function ReconciliacaoContent() {
     enabled: document != null,
   })
   const documentDetail = documentQuery.data
+  const complement = useDemurrageComplementOf(documentDetail?.invoice)
   const documentTitle = document?.type === 'receipt' ? 'Recibo de Demurrage' : 'Fatura de Demurrage'
   const refundsPending = document?.type === 'receipt' && !receiptRefunds.data
+  // A complementar não pode sair do papel sem dizer que é complementar.
+  const complementBlocked = complement.pending || complement.failed
 
   function printDemurrageDocument() {
     const content = window.document.querySelector<HTMLElement>('.invoice-print-content')
-    if (content && !refundsPending) printDocumentElement(content, documentTitle)
+    if (content && !refundsPending && !complementBlocked) printDocumentElement(content, documentTitle)
   }
 
   const panelId = 'reconciliacao-panel'
@@ -211,17 +215,20 @@ function ReconciliacaoContent() {
           title={`${documentTitle}${documentDetail ? ` ${documentDetail.invoice.doc_number}` : ''}`}
         >
           <div className="app-dem-document-toolbar">
-            <Button variant="secondary" disabled={!documentDetail || refundsPending} onClick={printDemurrageDocument}>Imprimir</Button>
+            <Button variant="secondary" disabled={!documentDetail || refundsPending || complementBlocked} onClick={printDemurrageDocument}>Imprimir</Button>
           </div>
           {documentQuery.error ? <p className="app-dem-form__error" role="alert">Não foi possível carregar o documento: {extractErrorText(documentQuery.error)}</p> : null}
           {!documentDetail && !documentQuery.error ? <p className="app-dem-meta" role="status">Carregando o documento…</p> : null}
+          {documentDetail && complementBlocked ? (
+            <p role="status" className="app-dem-meta">{complement.failed ? 'Falha ao conferir as outras Invoices deste B/L. Recarregue antes de imprimir.' : 'Conferindo as outras Invoices deste B/L…'}</p>
+          ) : null}
           {documentDetail && refundsPending ? (
             <p role="status" className="app-dem-meta">{receiptRefunds.error ? 'Falha ao consultar restituições. Recarregue antes de emitir o recibo.' : 'Consultando restituições…'}</p>
           ) : null}
           {documentDetail ? (
             <div className="invoice-print-content">
               <DemurrageInvoiceDoc
-                detail={{ ...documentDetail.invoice, items: documentDetail.items, refund_summary: receiptRefunds.data } satisfies DemurrageInvoiceDocumentDetail}
+                detail={{ ...documentDetail.invoice, items: documentDetail.items, refund_summary: receiptRefunds.data, complement_of: complement.complementOf } satisfies DemurrageInvoiceDocumentDetail}
                 type={document.type}
               />
             </div>

@@ -6755,9 +6755,18 @@ button.app-metric-tile[aria-pressed='true'] {
 }
 
 @media print {
+  /* Margem vertical na página (repete em todas) e numeração no rodapé; a
+     margem lateral fica no documento. Mesma folha de lib/printDocument.ts. */
   @page {
     size: A4;
-    margin: 0;
+    margin: 10mm 0 12mm;
+
+    @bottom-right {
+      content: "Página " counter(page) " de " counter(pages);
+      font: 9pt Arial, Helvetica, sans-serif;
+      color: #4b5563;
+      margin-right: 8mm;
+    }
   }
 
   /* Hide header, nav and all page content except the print modal */
@@ -6832,12 +6841,41 @@ button.app-metric-tile[aria-pressed='true'] {
     display: block !important;
   }
 
+  /* Papel branco: sem o fundo pontilhado nem a cor de superfície do app. */
+  html,
+  body,
+  .app-shell,
+  .app-main {
+    background: #fff !important;
+  }
+
+  .app-main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* A folha não herda a altura mínima da tela: sem isto, shell (100vh) mais a
+     faixa do Modo Inspeção davam uma página final em branco. */
+  .app-shell {
+    min-height: 0 !important;
+  }
+
+  /* Com um documento aberto no modal, só ele vai para o papel. O primeiro
+     seletor tira o que fica fora do shell (a faixa do Modo Inspeção); o
+     segundo, o que fica dentro da página: o modal pode estar fundo na árvore
+     (ADR na aba da Viagem), e esconder só os filhos diretos de .app-main
+     levava a ficha da Viagem inteira para o papel antes do documento. */
+  body:has(.app-modal-backdrop :is(.invoice-print-content, .agency-report-print-content, .customer-report-print-content)) #root > *:not(:has(.app-modal-backdrop)),
+  body:has(.app-modal-backdrop :is(.invoice-print-content, .agency-report-print-content, .customer-report-print-content)) .app-main *:not(:has(.app-modal-backdrop)):not(.app-modal-backdrop):not(.app-modal-backdrop *) {
+    display: none !important;
+  }
+
   .invoice-print-content,
   .agency-report-print-content,
   .customer-report-print-content {
     max-width: 198mm !important;
     margin: 0 auto !important;
-    padding: 8mm 8mm !important;
+    padding: 0 8mm !important;
     background: white !important;
     box-sizing: border-box !important;
     print-color-adjust: exact !important;
