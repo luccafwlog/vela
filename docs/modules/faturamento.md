@@ -380,9 +380,18 @@ filtra, ordena, pagina, exporta e abre o detalhe para cancelamento de baixa.
 
 `src/components/billing/InvoiceDocumentLocal.tsx` usa
 `src/components/shared/InvoiceDocumentKit.tsx` e
-`src/components/shared/invoiceFormat.ts`. `InvoiceDetailModal` abre uma área de
-impressão e chama `window.print()`; o nome sugerido é calculado por
-`buildInvoiceFileBaseName`. Não existe geração de PDF por biblioteca.
+`src/components/shared/invoiceFormat.ts`. `InvoiceDetailModal` mostra o
+documento no próprio diálogo e imprime por `printDocumentElement`
+(`src/lib/printDocument.ts`); o Portal usa `window.print()`. O nome sugerido é
+calculado por `buildInvoiceFileBaseName`. Não existe geração de PDF por
+biblioteca.
+
+Desde a PR 939 (documentos impressos, tela 20 da identidade), sem mudar o visual: valores
+em R$ não quebram linha, a folha tem margem e "Página N de M" em todas as
+páginas, e o recibo da individual coberta diz "Recebido pela consolidada
+… (atribuído a estes B/Ls)" e "Valor líquido atribuído", em vez de "Valor
+recebido". A nota interna da emissão pelo CE ("Sistema — CE Mercante") não é
+impressa; Pix só em fatura pagável e nunca no recibo.
 
 A fatura de Taxas Locais é **modular** (Fatura Adaptativa Modular): os itens
 são agrupados em até três blocos, cada um com subtotal — **1. Carga
@@ -419,7 +428,7 @@ blocos. **Código:** `src/components/billing/InvoiceDocumentLocal.tsx`.
 | Detalhe · **Cancelar autorização** de restituição excepcional | Administrativo; restituição excepcional (`request_id` preenchido) ainda pendente; motivo de ao menos 10 caracteres | `FinancialRefundsPanel` (botão na linha da restituição) | `useCancelFinancialRefundAuthorization` → `cancelFinancialRefundAuthorization` | RPC `cancel_financial_refund_authorization` (`136`) → restituição `cancelled`, motivo registrado | `afterBlInvoiceBasisAlterada` | Restituição gerada pela correção do B/L não é cancelável por esta ação; nova devolução exige nova autorização | **Código:** `src/hooks/useFinancialRefunds.ts`, `supabase/migrations/136_controles_financeiros.sql` |
 | Detalhe · Ajustes pela correção do B/L · **Preparar cancelamento financeiro** | Administrativo; B/L de fatura paga ou parcialmente paga, com cobrança vigente e sem troca de Cliente em andamento; motivo de ao menos 10 caracteres | `InvoiceCorrectionPanel` | `usePrepareBlFinancialCancellation` → `prepareBlFinancialCancellation` | RPC `prepare_bl_financial_cancellation` (`136`): abate o saldo da cobrança do B/L e separa o recebido para restituição; demais B/Ls da consolidada preservados | Invalidação ledger comum | Não cancela o B/L: depois de devolver e confirmar, o Administrativo cancela o B/L na ficha. Outros papéis recebem `42501` | **Código:** `src/components/billing/InvoiceCorrectionPanel.tsx`, `src/hooks/useBillingLedger.ts`, `supabase/migrations/136_controles_financeiros.sql` |
 | Taxas Locais · Ajustes de COD · **Liquidar ajuste** | Financeiro ou Administrativo (`settle_financial_adjustments`); ajuste `pending`. Em Cancelar e reemitir, Fatura complementar e Revisão manual de cobrança, o número interno de uma fatura ativa do B/L, ainda não vinculada a outro ajuste | `CodAdjustmentsPanel` | `useSettleCodAdjustment` → `settleCodAdjustment` | RPC `settle_cod_adjustment` (`130` sobre o corpo da `002`): aplica abatimento/restituição ou vincula o documento e marca o ajuste liquidado, com auditoria | Invalidação ledger comum | Ajuste já tratado pela correção automática do B/L é recusado (`22023`); documento de outro B/L ou já vinculado é recusado | **Código:** `src/components/billing/CodAdjustmentsPanel.tsx`, `src/services/billingLedger.ts`, `supabase/migrations/130_correcao_faturamento_pix_e_cod.sql` |
-| Detalhe · imprimir invoice | Detalhe carregado | `handlePrintInvoice` | Abre `InvoiceDocumentLocal`; `window.print()` | Sem persistência; documento usa snapshot/detalhe e `pix_payload` | Sem invalidação | Sem detalhe, ação não abre; falha de impressão é do navegador | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/components/billing/InvoiceDocumentLocal.tsx`, `src/index.css` · **Teste:** `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx` |
+| Detalhe · imprimir fatura ou recibo | Detalhe carregado; recibo para paga, coberta ou cancelada com pagamento | **Imprimir fatura** / **Imprimir recibo** no detalhe | Mostra `InvoiceDocumentLocal` no diálogo; **Imprimir** chama `printDocumentElement` (`src/lib/printDocument.ts`) | Sem persistência; documento usa o snapshot da emissão, `financial_summary` e `pix_payload` | Sem invalidação | Popup bloqueado cai em `window.print()` da página; falha de impressão é do navegador | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/components/billing/InvoiceDocumentLocal.tsx`, `src/lib/printDocument.ts`, `src/index.css` · **Teste:** `InvoiceDetailPrint.test.tsx`, `InvoiceDocumentLocal.behavior.test.tsx`, `InvoicePrintCssContract.test.ts`, `src/lib/__tests__/printDocument.test.ts` |
 | Histórico de reconciliação · filtrar/exportar/abrir detalhe | Superfície `/reconciliacao` | `ReconciliationHistoryTable` | `listReconciliationHistory`, `exportReconciliationHistoryExcel` | Leituras de invoices/payments/links e Demurrage; export XLSX local | Query `['reconciliation-history', filters]` | Erros de leitura aparecem na tabela; export reaplica filtros | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/components/billing/__tests__/ReconciliationHistoryTable.behavior.test.tsx` |
 
 ## Estado e dados

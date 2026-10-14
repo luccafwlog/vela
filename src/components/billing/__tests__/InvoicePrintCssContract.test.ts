@@ -36,4 +36,21 @@ describe('contrato CSS de impressão de invoice', () => {
     expect(tsx).toContain('className="invoice-document__group-bar"')
     expect(tsx).toContain("wordBreak: 'break-all'")
   })
+
+  it('folha A4 com margem em toda página e numeração, igual na página e na janela de impressão', () => {
+    // Antes a margem era padding do documento e @page tinha margem zero: a
+    // página 2 começava colada na borda do papel.
+    const css = fs.readFileSync('src/index.css', 'utf8')
+    const popup = fs.readFileSync('src/lib/printDocument.ts', 'utf8')
+    expect(css).toMatch(/@page\s*\{\s*size: A4;\s*margin: 10mm 0 12mm;/)
+    expect(css).toContain('content: "Página " counter(page) " de " counter(pages);')
+    expect(popup).toContain('@page{size:A4;margin:10mm 0 12mm;')
+    expect(popup).toContain('counter(pages)')
+  })
+
+  it('papel branco: o fundo pontilhado do app não vai para a impressão', () => {
+    const css = fs.readFileSync('src/index.css', 'utf8')
+    const print = css.slice(css.indexOf('@media print {'))
+    expect(print).toMatch(/html,\s*body,\s*\.app-shell,\s*\.app-main\s*\{\s*background: #fff !important;/)
+  })
 })

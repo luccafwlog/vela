@@ -685,3 +685,13 @@ it("não inventa bloco de destino em snapshot fechado antes da separação", () 
 
   expect(screen.queryByRole("table", { name: "Destino dos containers descarregados" })).toBeNull();
 });
+
+// Auditoria de 2026-10-08 (etapa 13): título do ADR sem caixa alta.
+it("imprime o título Agency Departure Report sem caixa alta", () => {
+  render(
+    <AgencyReportDocument
+      snapshot={{ header: { carrierName: "Armador teste", voyageLabel: "NAVIO TESTE / 01E", port: "BRVIX", schedule: {} }, sections: {} }}
+    />,
+  );
+  expect(screen.getByText("Agency Departure Report").style.textTransform).toBe("");
+});

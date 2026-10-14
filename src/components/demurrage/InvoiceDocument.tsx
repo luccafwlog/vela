@@ -1,7 +1,7 @@
 import type { FinancialRefundSummary } from '../../services/financialRefunds'
 import { QRCodeSVG } from 'qrcode.react'
 import { COMPANY } from '../../config/company'
-import { cell, documentRoot, fmtBRL, fmtCNPJ, labelCell } from '../shared/invoiceFormat'
+import { cell, DOC_BORDER, DOC_NAVY, DOC_SUBTOTAL, documentRoot, fmtBRL, fmtCNPJ, labelCell } from '../shared/invoiceFormat'
 import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle, PixPreparingNotice } from '../shared/InvoiceDocumentKit'
 
 export type DemurrageInvoiceDocumentItem = {
@@ -32,6 +32,12 @@ export type DemurrageInvoiceDocumentDetail = {
   paid_at: string | null
   status?: string | null
   pix_payload: string | null
+  /**
+   * Invoices vivas anteriores do mesmo B/L (ADR 0080, decisão 1): quando há,
+   * esta é a complementar e cobra só as caixas ainda não cobradas. Quem abre o
+   * documento informa; sem a informação, nada é dito.
+   */
+  complement_of?: string[] | null
   items: DemurrageInvoiceDocumentItem[]
   customer?: {
     name: string
@@ -81,6 +87,10 @@ export function InvoiceDocument({ detail, type }: Props) {
     ? Math.max(0, rawTotalBRL - totalBRL)
     : null
   const hasDiscount = (invoice.discount_value ?? 0) > 0
+  // Pix só na Invoice que ainda se paga: a paga ou cancelada aberta como
+  // fatura mostrava o QR e o "Valor da fatura", convidando a pagar de novo.
+  const payable = isInvoice && !invoice.paid_at && ['issued', 'overdue'].includes(invoice.status ?? 'issued')
+  const complementOf = invoice.complement_of?.filter(Boolean) ?? []
 
   return (
     <div style={documentRoot}>
@@ -106,23 +116,29 @@ export function InvoiceDocument({ detail, type }: Props) {
         </tbody>
       </table>
 
+      {complementOf.length ? (
+        <div data-testid="demurrage-complement-notice" style={{ border: `1px solid ${DOC_BORDER}`, borderLeft: `4px solid ${DOC_NAVY}`, background: DOC_SUBTOTAL, padding: '8px 12px', marginBottom: 12, fontSize: 12, lineHeight: 1.5 }}>
+          <strong>Invoice complementar de {complementOf.join(', ')}.</strong> Cobra só os containers abaixo, que ainda não tinham sido cobrados neste B/L; os containers já cobrados não entram de novo.
+        </div>
+      ) : null}
+
       {roe != null && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}><div style={{ background: '#F59E0B', padding: '5px 18px', display: 'flex', justifyContent: 'space-between', gap: 60, minWidth: 125, fontWeight: 700, borderRadius: 2, fontSize: 13 }}><span>ROE</span><span>{roe.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</span></div></div>}
 
       <table style={{ width: '100%', borderCollapse: 'collapse', margin: '16px 0 0', fontSize: '12px' }}>
         <thead><tr style={{ background: '#1A2744', color: 'white' }}>
-          {['CONTAINER', 'TIPO', 'DIAS 1º PER.', 'USD/Dia', 'DIAS 2º PER.', 'USD/Dia', 'DESCARGA', 'RETORNO', 'LÍQUIDO'].map((header) => <th scope="col" key={header} style={{ padding: '9px 7px', textAlign: header === 'CONTAINER' ? 'left' : 'center', fontWeight: 600 }}>{header}</th>)}
+          {['CONTAINER', 'TIPO', 'DIAS 1º PER.', 'USD/Dia', 'DIAS 2º PER.', 'USD/Dia', 'DESCARGA', 'RETORNO', 'LÍQUIDO'].map((header, index) => <th scope="col" key={`${index}-${header}`} style={{ padding: '9px 7px', textAlign: header === 'CONTAINER' ? 'left' : 'center', fontWeight: 600 }}>{header}</th>)}
         </tr></thead>
         <tbody>
           {itemsWithBRL.map((item, idx) => (
             <tr key={item.id} style={{ background: idx % 2 === 0 ? '#f9fafb' : 'white', borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '8px 7px', fontWeight: 600 }}>{item.container_number}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.container_type}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p1}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p1_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p2}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p2_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.discharge_date)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.return_date)}</td><td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600 }}>{item.subtotal_brl == null ? '—' : fmtBRL(item.subtotal_brl)}</td>
+              <td style={{ padding: '8px 7px', fontWeight: 600 }}>{item.container_number}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.container_type}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p1}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p1_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p2}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p2_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.discharge_date)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.return_date)}</td><td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.subtotal_brl == null ? '—' : fmtBRL(item.subtotal_brl)}</td>
             </tr>
           ))}
           {hasDiscount && <>
-            <tr style={{ background: '#f0f4fa' }}><td colSpan={8} style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600 }}>Subtotal:</td><td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600 }}>{rawTotalBRL == null ? '—' : fmtBRL(rawTotalBRL)}</td></tr>
-            <tr style={{ background: '#f0fdf4' }}><td colSpan={8} style={{ padding: '7px 12px', textAlign: 'right' }}>Desconto {invoice.discount_mode === 'percent' ? `(${invoice.discount_value}%)` : 'fixo'}{invoice.discount_type ? ` — ${invoice.discount_type}` : ''}:</td><td style={{ padding: '7px 12px', textAlign: 'right', color: '#166534' }}>{discountBRL == null ? '—' : `- ${fmtBRL(discountBRL)}`}</td></tr>
+            <tr style={{ background: '#f0f4fa' }}><td colSpan={8} style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600 }}>Subtotal:</td><td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{rawTotalBRL == null ? '—' : fmtBRL(rawTotalBRL)}</td></tr>
+            <tr style={{ background: '#f0fdf4' }}><td colSpan={8} style={{ padding: '7px 12px', textAlign: 'right' }}>Desconto {invoice.discount_mode === 'percent' ? `(${invoice.discount_value}%)` : 'fixo'}{invoice.discount_type ? ` — ${invoice.discount_type}` : ''}:</td><td style={{ padding: '7px 12px', textAlign: 'right', color: '#166534', whiteSpace: 'nowrap' }}>{discountBRL == null ? '—' : `- ${fmtBRL(discountBRL)}`}</td></tr>
           </>}
-          <tr style={{ background: '#F59E0B' }}><td colSpan={8} style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700 }}>TOTAL:</td><td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700 }}>{totalBRL == null ? '—' : fmtBRL(totalBRL)}</td></tr>
+          <tr style={{ background: '#F59E0B' }}><td colSpan={8} style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700 }}>TOTAL:</td><td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>{totalBRL == null ? '—' : fmtBRL(totalBRL)}</td></tr>
           {!isInvoice && invoice.refund_summary ? <>
             <tr><td colSpan={8} style={cell}>Valor recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl)}</td></tr>
             <tr><td colSpan={8} style={cell}>Devolvido ao Cliente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
@@ -135,9 +151,8 @@ export function InvoiceDocument({ detail, type }: Props) {
       </table>
 
       {/* ── PIX section ── */}
-      {isInvoice && !invoice.pix_payload && !invoice.paid_at && ['issued', 'overdue'].includes(invoice.status ?? 'issued')
-        && Number(invoice.current_total_brl) > 0 && <PixPreparingNotice />}
-      {isInvoice && invoice.pix_payload && (
+      {payable && !invoice.pix_payload && Number(invoice.current_total_brl) > 0 && <PixPreparingNotice />}
+      {payable && invoice.pix_payload && (
         <div style={{ display: 'flex', gap: 18, marginTop: 20, paddingTop: 16, borderTop: '1px solid #e5e7eb', alignItems: 'flex-start' }}>
           <div style={{ flexShrink: 0 }}>
             <QRCodeSVG aria-label="QR Code Pix" value={invoice.pix_payload} size={90} level="M" />

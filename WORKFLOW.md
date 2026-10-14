@@ -616,8 +616,14 @@ O sistema usa documentos React preparados para impressão:
 - `src/components/shared/invoiceFormat.ts`;
 - regras `@media print` em `src/index.css`.
 
-A ação chama `window.print()`. O usuário escolhe impressora ou “Salvar como PDF”
-no navegador.
+Há dois caminhos de impressão. O detalhe interno (Taxas Locais, Demurrage e
+Conciliação) usa `printDocumentElement` em `src/lib/printDocument.ts`, que abre
+uma janela só com o documento e chama `print()`; por isso os documentos usam
+estilos inline. Portal,
+ADR e relatório por Cliente chamam `window.print()` com as regras `@media print`
+de `src/index.css`, que deixam no papel só o modal com o documento. As duas
+folhas são A4 com margem vertical na página e "Página N de M" no rodapé; mude
+as duas juntas. O usuário escolhe impressora ou “Salvar como PDF” no navegador.
 
 Não adicione biblioteca de PDF sem requisito explícito que o diálogo de
 impressão não consiga atender; preserve o fluxo de impressão descrito acima.

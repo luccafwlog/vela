@@ -53,9 +53,12 @@ it('recibo mostra devolução confirmada, pendente e valor líquido sem confundi
   render(<InvoiceDocumentLocal detail={covered} type="receipt" />)
   expect(screen.getByText('Devolvido ao Cliente:')).toBeTruthy()
   expect(screen.getByText('Restituição pendente:')).toBeTruthy()
-  expect(screen.getByText('Valor líquido recebido:')).toBeTruthy()
+  // Coberta: o dinheiro entrou na consolidada; não é "Valor recebido" nesta fatura.
+  expect(screen.queryByText('Valor recebido:')).toBeNull()
+  expect(screen.getByText('Recebido pela consolidada CON-21 (atribuído a estes B/Ls):')).toBeTruthy()
+  expect(screen.getByText('Valor líquido atribuído a estes B/Ls:')).toBeTruthy()
   expect(screen.getByText('R$ 550,00')).toBeTruthy()
-  expect(screen.getByText(/CON-21/)).toBeTruthy()
+  expect(screen.getByText(/Quitação pela fatura consolidada CON-21/)).toBeTruthy()
   expect(screen.getByText('Pago em 04/10/2026')).toBeTruthy()
 })
 
@@ -280,4 +283,20 @@ it('fatura pagável sem cobrança confirmada mostra QR em preparação; paga nã
   const paid = { ...(detail as { invoice: object }), invoice: { ...(detail as { invoice: object }).invoice, pix_payload: null } } as never
   render(<InvoiceDocumentLocal detail={paid} type="invoice" />)
   expect(screen.queryByTestId('pix-preparing')).toBeNull()
+})
+
+it('não imprime a nota interna da emissão pelo CE e imprime o endereço congelado', () => {
+  const ceIssued = { ...(detail as { invoice: object }), invoice: { ...(detail as { invoice: object }).invoice, status: 'issued', balance_brl: 100, total_paid_brl: 0,
+    customer_address: 'Rua da Emissão, 10, Vitória - ES', notes: 'Sistema — CE Mercante: fatura automática após o registro do CE.' } } as never
+  render(<InvoiceDocumentLocal detail={ceIssued} />)
+  expect(screen.getByText(/Rua da Emissão, 10, Vitória - ES/)).toBeTruthy()
+  expect(screen.queryByText(/Sistema — CE Mercante/)).toBeNull()
+})
+
+it('valores em R$ não quebram em duas linhas', () => {
+  render(<InvoiceDocumentLocal detail={detail} />)
+  const line = screen.getByText('Taxa manual').closest('tr') as HTMLElement
+  const cells = [...line.querySelectorAll('td')] as HTMLElement[]
+  expect(cells.at(-1)?.style.whiteSpace).toBe('nowrap')
+  expect(cells.at(-2)?.style.whiteSpace).toBe('nowrap')
 })

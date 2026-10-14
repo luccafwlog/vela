@@ -140,8 +140,8 @@ function renderCategoryBlock(
               {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
             </td>
             <td style={{ padding: '8px 7px', textAlign: 'center' }}>{invoiceQuantity(item)}</td>
-            <td style={{ padding: '8px 7px', textAlign: 'right' }}>{fmtBRL(item.unit_value_brl)}</td>
-            <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600 }}>{fmtBRL(item.total_value_brl)}</td>
+            <td style={{ padding: '8px 7px', textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtBRL(item.unit_value_brl)}</td>
+            <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtBRL(item.total_value_brl)}</td>
           </tr>
         )
       })}
@@ -149,7 +149,7 @@ function renderCategoryBlock(
         <td colSpan={3} style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
           {subtotalLabel}
         </td>
-        <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
+        <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY, whiteSpace: 'nowrap' }}>
           {fmtBRL(subtotal)}
         </td>
       </tr>
@@ -162,6 +162,9 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
   if (!invoice) return null
 
   const isManual = invoice.invoice_type === 'manual'
+  const isCovered = invoice.status === 'covered'
+  const coveredBy = detail.financial_summary?.covered_by_invoice_number ?? null
+  const valueCell: React.CSSProperties = { ...cell, whiteSpace: 'nowrap' }
   const isConsolidated = bls.length >= 2
   const paymentDate = detail.financial_summary?.paid_at ?? [...(detail.payments ?? [])]
     .map((payment) => payment.paid_at)
@@ -274,8 +277,8 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                       {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
                     </td>
                     <td style={{ padding: '8px 7px', textAlign: 'center' }}>{invoiceQuantity(item)}</td>
-                    <td style={{ padding: '8px 7px', textAlign: 'right' }}>{fmtBRL(item.unit_value_brl)}</td>
-                    <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600 }}>{fmtBRL(item.total_value_brl)}</td>
+                    <td style={{ padding: '8px 7px', textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtBRL(item.unit_value_brl)}</td>
+                    <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtBRL(item.total_value_brl)}</td>
                   </tr>
                 )
               })
@@ -306,7 +309,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                       <td colSpan={3} style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
                         Subtotal {blId}:
                       </td>
-                      <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY, whiteSpace: 'nowrap' }}>
                         {fmtBRL(subtotal)}
                       </td>
                     </tr>
@@ -340,11 +343,13 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
             <td style={dataTotalCell}>{fmtBRL(invoice.total_brl)}</td>
           </tr>
           {type === 'receipt' ? <>
-            <tr><td colSpan={3} style={cell}>Valor recebido:</td><td style={cell}>{fmtBRL(detail.financial_summary?.gross_received_brl ?? invoice.total_paid_brl ?? 0)}</td></tr>
-            <tr><td colSpan={3} style={cell}>Abatido do saldo:</td><td style={cell}>{fmtBRL(detail.financial_summary?.offset_brl ?? Math.max(Number(invoice.total_brl ?? 0) - Number(invoice.total_paid_brl ?? 0) - Number(invoice.balance_brl ?? 0), 0))}</td></tr>
-            <tr><td colSpan={3} style={cell}>Devolvido ao Cliente:</td><td style={cell}>{fmtBRL(detail.financial_summary?.refunded_brl ?? 0)}</td></tr>
-            <tr><td colSpan={3} style={cell}>Restituição pendente:</td><td style={cell}>{fmtBRL(detail.financial_summary?.pending_refund_brl ?? 0)}</td></tr>
-            <tr style={dataTotalRow}><td colSpan={3} style={dataTotalCell}>Valor líquido recebido:</td><td style={dataTotalCell}>{fmtBRL(detail.financial_summary?.net_received_brl ?? invoice.total_paid_brl ?? 0)}</td></tr>
+            {/* Individual coberta: o dinheiro entrou na consolidada e foi
+                atribuído aos B/Ls deste documento; não foi pago nesta fatura. */}
+            <tr><td colSpan={3} style={cell}>{isCovered ? `Recebido pela consolidada${coveredBy ? ` ${coveredBy}` : ''} (atribuído a estes B/Ls):` : 'Valor recebido:'}</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.gross_received_brl ?? invoice.total_paid_brl ?? 0)}</td></tr>
+            <tr><td colSpan={3} style={cell}>Abatido do saldo:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.offset_brl ?? Math.max(Number(invoice.total_brl ?? 0) - Number(invoice.total_paid_brl ?? 0) - Number(invoice.balance_brl ?? 0), 0))}</td></tr>
+            <tr><td colSpan={3} style={cell}>Devolvido ao Cliente:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.refunded_brl ?? 0)}</td></tr>
+            <tr><td colSpan={3} style={cell}>Restituição pendente:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.pending_refund_brl ?? 0)}</td></tr>
+            <tr style={dataTotalRow}><td colSpan={3} style={dataTotalCell}>{isCovered ? 'Valor líquido atribuído a estes B/Ls:' : 'Valor líquido recebido:'}</td><td style={dataTotalCell}>{fmtBRL(detail.financial_summary?.net_received_brl ?? invoice.total_paid_brl ?? 0)}</td></tr>
             {detail.financial_summary?.covered_by_invoice_number ? <tr><td colSpan={4} style={cell}>Quitação pela fatura consolidada {detail.financial_summary.covered_by_invoice_number}. Valores atribuídos aos B/Ls deste documento.</td></tr> : null}
           </> : null}
           {type === 'receipt' && paymentDate ? (
