@@ -1,14 +1,16 @@
 # Portal do Cliente
 
-> **Rota interna:** `/clientes/portal/inspecao/:customerId/*` (Modo Inspeção)
+> **Rotas internas:** `/clientes/portal` (Provisionamento do Portal) e `/clientes/portal/inspecao/:customerId/*` (Modo Inspeção)
 
-> **Status:** ativo · **Atualizado:** 2026-10-04 · **Rotas:** `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/perfil`, `/portal/informacoes`, `/portal/informacoes/:section`
+> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce`, `/portal/informacoes`, `/portal/informacoes/:section`, `/portal/perfil`
 
 ## Propósito e escopo
 
 O Portal é a superfície externa para autenticação, consulta financeira e operacional, consolidação de recebíveis, disputas de demurrage, notificações e atualização limitada de perfil. Não existe cadastro público nem sessão alternativa por token próprio: CNPJ e senha são os **dados visíveis de entrada**; a Edge Function `portal-login` resolve a identidade técnica no servidor e o Supabase Auth continua sendo o único **mecanismo de autenticação e sessão**.
 
-São públicas as cinco rotas de login, recuperação, redefinição, ativação e confirmação de email. `/portal`, `/portal/billing`, `/portal/operacao` e `/portal/perfil` ficam sob `PortalProtectedRoute` e `PortalLayout` em `src/AppPortal.tsx`. O navegador usa `supabasePortal`, com `storageKey: 'td-portal-auth'` e `detectSessionInUrl:false`, separado da sessão interna (`src/services/supabase.ts`).
+São públicas as cinco rotas de login, recuperação, redefinição, ativação e confirmação de email (`/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`). As sete rotas do Portal autenticado — `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce` (regra em [Desbloqueio de CE](desbloqueio-ce.md)), `/portal/informacoes`, `/portal/informacoes/:section` e `/portal/perfil` — ficam sob `PortalProtectedRoute` › `PortalScopeProvider` › `PortalLayout` em `src/AppPortal.tsx`; qualquer outro caminho volta para `/portal`. O navegador usa `supabasePortal`, com `storageKey: 'td-portal-auth'` e `detectSessionInUrl:false`, separado da sessão interna (`src/services/supabase.ts`).
+
+Este módulo também é dono do lado interno do Portal: o console **Provisionamento do Portal** (`/clientes/portal`), o painel **Revisão do Portal**, a ativação do convite e o Modo Inspeção. A ficha do Cliente ([Clientes](clientes.md)) mantém a seção **Acesso ao Portal** com o resumo e o atalho **Gerenciar aqui**, que abre o mesmo painel.
 
 A interface e seus filtros não autorizam dados. RPCs de Portal resolvem o cliente pela identidade autenticada; RLS, grants e validações server-side continuam sendo a fronteira real, conforme [ADR 0004](../adr/0004-supabase-rls-rpc-fronteira-seguranca.md) e [ADR 0013](../adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md).
 
@@ -18,10 +20,18 @@ A interface e seus filtros não autorizam dados. RPCs de Portal resolvem o clien
 
 `src/pages/PortalLogin.tsx` aceita CNPJ e senha. Se a sessão já foi hidratada, redireciona para `/portal`; durante submit chama `usePortalAuth.signIn`, que invoca `portal-login` e converte falhas em mensagem genérica de credenciais. Antes de chamar o servidor, a tela reprova CNPJ com menos de 14 caracteres (`isCompleteCnpjLogin`, `src/lib/portalCnpjLogin.ts`) com mensagem própria de digitação — o formato se confere offline, então avisar não revela nada sobre a base, e a tentativa não consome o rate limit de login.
 
+Quando o ambiente tem a Site Key (`VITE_TURNSTILE_SITE_KEY`), a tela mostra o desafio do Cloudflare Turnstile (ação `portal_login`) e só envia depois dele; sem token, avisa "Complete a verificação de segurança antes de continuar.". O servidor confere o token antes de qualquer outra verificação e recusa com HTTP `403` o token ausente ou inválido; sem `TURNSTILE_SECRET_KEY`, só o stack local passa (**Código:** `supabase/functions/portal-login/index.ts`, `supabase/functions/_shared/turnstile.ts`). Configuração e ordem de publicação em [serviços externos](../operations/servicos-externos.md#cloudflare-turnstile). Toda recusa devolvida pelo `portal-login` — credencial, bloqueio, Turnstile — e a falha de rede nessa chamada chegam à tela como a mesma mensagem genérica, porque `signIn` descarta o status da resposta (ver [Notas e divergências](#notas-e-divergências)).
+
+### `/portal/ativar`
+
+`src/pages/PortalAtivacao.tsx` lê o `token` do link do convite, tira-o da barra de endereços e pede à Edge Function `portal-invite-activate` (`action: 'inspect'`) o nome da empresa e o CNPJ mascarado, que preserva os dois primeiros caracteres, a filial e os dígitos verificadores (ex.: `12.***.***/0001-90`). Abrir o link não consome o convite. **Ativar acesso** envia a senha (`action: 'activate'`); o convite só é consumido quando a ativação conclui. Concluída, a tela mostra **Acesso ativado** e o botão **Ir para o login**: não há entrada automática na sessão do Portal. Convite inválido, usado ou vencido mostra "Link inválido ou expirado. Solicite um novo convite à empresa." e explica que o convite vale 48 horas, é de uso único e que um reenvio invalida os anteriores.
+
 ### `/portal/esqueci-senha`
 
 `src/pages/PortalForgotPassword.tsx` envia o CNPJ para a Edge Function
-`portal-password-recovery`. A resposta é `{ accepted: true }` para todo caso
+`portal-password-recovery`, com o mesmo desafio Turnstile do login (ação
+`portal_recovery`); a recusa do desafio (HTTP `403`) mostra "A verificação de
+segurança expirou ou não foi validada. Faça-a novamente.". A resposta é `{ accepted: true }` para todo caso
 elegível (com conta ou sem, ativa ou não, email enviado ou não) e
 `{ accepted: false, rate_limited: true }` apenas quando o rate limit por CNPJ
 bloqueia; a tela mostra a mesma mensagem de sucesso nos dois primeiros casos e
@@ -85,7 +95,7 @@ encerram com `portal_finish_password_reset`. Durante o reset, a troca do email
 
 ### `/portal`
 
-`src/pages/PortalDashboard.tsx` deriva quatro KPIs das listas de invoices locais, invoices de demurrage e B/Ls operacionais. Cada card navega para billing/operação com aba e filtro na query string. `ShipScheduleWidget` lê a projeção de viagens publicada por `portal_ship_schedule`.
+`src/pages/PortalDashboard.tsx` deriva quatro KPIs das listas de invoices locais, invoices de demurrage e B/Ls operacionais. Cada card navega para billing/operação com aba e filtro na query string. Abaixo ficam o cartão da Central de Informações (**Consultar informações**) e a seção Chegadas e Saídas, em que `ShipScheduleWidget` lê a projeção de viagens publicada por `portal_ship_schedule`. O Painel não tem bloco de alertas: as pendências do Portal são da equipe interna.
 
 ### `/portal/billing`
 
@@ -101,18 +111,69 @@ encerram com `portal_finish_password_reset`. Durante o reset, a troca do email
 
 ### Provisionamento operacional
 
-#### Gate UX pré-piloto
+#### Console `/clientes/portal`
 
-O console interno usa `/clientes/portal`, filtro Todos, expansão inline acessível, deep links por cliente e exportação XLSX. A leitura usa o read model protegido pelas migrations `196`, `197` e `198`; antes da projeção, a migration `198` repara de forma idempotente Clientes sem `customer_portal_accounts` e registra evento de sistema. Financeiro consulta tudo, Operações recebe a situação resumida e os booleanos `has_open_invoice`/`has_active_process`, e somente Administrativo/Documentação executam ações.
+A página **Provisionamento do Portal** (Clientes › Provisionamento do Portal),
+aberta pelo cabeçalho de Clientes, é a fila de análise, convites e situações do
+Portal. A tabela mostra Cliente, Situação, Decisão, Email de Recuperação,
+Alertas e Próxima ação. Os filtros são Todos, Pendências críticas, Aguardando
+análise (filtro inicial), Sem email, Ativação pendente, Convites expirados,
+Falhas de envio e Contas ativas, cada um com a contagem; há também busca por
+razão social ou CNPJ. A ordem segue a prioridade: alerta crítico, fatura
+aberta, processo ativo e atividade recente. Clicar na linha expande, na própria
+tabela, o painel **Revisão do Portal**; o filtro e o Cliente aberto ficam na URL
+(`?filtro=`, `?cliente={id}`), e um Cliente fora do filtro atual aparece com
+**Voltar para a fila**. O cabeçalho tem **Informações do Portal** (leva a
+`/clientes/informacoes`) e **Exportar XLSX** (exporta as linhas do filtro e da
+busca atuais). As ações estão no [catálogo](#provisionamento-e-ativação-do-convite).
+
+O painel mostra Situação, Decisão, Email atual, Origem, Entrega e a saúde do
+Email de Recuperação; os candidatos de email com finalidade e origem (clicar
+num candidato preenche o campo, sem gravar nada); o aviso "Este email também
+aparece em N outro(s) CNPJ(s). A análise manual continua obrigatória."; os
+botões de convite e troca; **Ações administrativas**; o cartão da Liberação de
+faturamento sem Portal; o **Histórico** (até 10 eventos); **Ver como o cliente
+vê** ou **Ver o que o cliente veria** (Modo Inspeção, em nova aba quando aberto
+pelo console) e **Abrir ficha completa →**. A seção **Acesso ao Portal** da
+ficha abre o mesmo painel por **Gerenciar aqui**.
+
+A leitura usa `portal_list_provisioning_console` (definição vigente na
+migration `103`; o read model nasceu nas migrations arquivadas `196`–`198`).
+Antes de projetar a fila, a RPC chama `portal_repair_missing_accounts()`, que
+cria de forma idempotente a linha inicial de Clientes sem
+`customer_portal_accounts` e grava evento de sistema. Administrativo,
+Documentação, Financeiro e Equipamentos recebem os dados completos; Operações
+recebe a situação resumida e os booleanos `has_open_invoice`/`has_active_process`,
+sem Email de Recuperação, origem, status de entrega nem candidatos, e o painel
+não lhe mostra ações (ver a decisão pendente D9-04 em
+[Notas e divergências](#notas-e-divergências)). Somente Administrativo e
+Documentação executam ações; **Alterar CNPJ auditado** e a Liberação de
+faturamento sem Portal são só do Administrativo. O Histórico
+(`portal_list_provisioning_events`, de 1 a 50 eventos) é recusado a Operações
+pelo banco.
 
 O registro interno de Portal possui dois eixos independentes: `provisioning_decision`
 (`aguardando_analise` ou `aprovado_para_provisionar`) e `account_situation` (`sem_conta`, convite,
 falha, `ativo` ou `suspenso`). `recovery_email` é um contato operacional separado
 da identidade técnica do Supabase Auth e pode ser compartilhado entre CNPJs após
-análise humana.
+análise humana. Na tela, a decisão aparece como **Aguardando análise** ou
+**Provisionamento autorizado**, e a situação como Sem conta, Ativação pendente,
+Convite expirado, Falha no envio, Ativa ou Suspensa. Enviar o convite muda a
+decisão para Provisionamento autorizado, mas não conclui o provisionamento: ele só termina quando a conta
+fica Ativa, depois de a pessoa autorizada definir a senha. Ativação pendente,
+Convite expirado ou Falha no envio coexistem com Provisionamento autorizado, e
+**Reabrir análise** devolve a decisão a Aguardando análise sem mudar a situação
+da conta. Um Cliente tem no máximo um registro de Portal e, portanto, no máximo
+uma conta ativa.
+
+A decisão tem só esses dois valores. A exceção "Provisionamento não necessário
+no momento" foi retirada pelo Bloco #521 (agosto de 2026, migration arquivada
+`325`); `portal_set_exception` continua no catálogo apenas como função que
+recusa ("A decisão de provisionamento não necessário foi removida; use
+Aguardando análise."), sem grant a `authenticated`.
 
 A saúde do Email de Recuperação é um **terceiro eixo**, em coluna própria
-(`recovery_email_status`, migration `299`): `ok`, `bounce_permanente` ou
+(`recovery_email_status`, migration arquivada `299`): `ok`, `bounce_permanente` ou
 `complaint`. Ela não rebaixa `account_situation` porque os dois fatos são
 independentes — a conta continua `ativo` e o cliente continua entrando com a
 senha; o que quebrou é o endereço para onde a recuperação seria enviada. O
@@ -122,7 +183,7 @@ vez de "Conta ativa". `account_situation` só é rebaixado para `falha_no_envio`
 quando a conta ainda está em `convite_pendente`, como antes.
 
 `portal_release_suppressed_email(customer_id, email, justificativa)` (migration
-`302`) é a **saída** da lista de bloqueio: restrita a Administrativo e
+arquivada `302`; definição vigente no dump `002`) é a **saída** da lista de bloqueio: restrita a Administrativo e
 Documentação, exige justificativa não vazia, remove o endereço de
 `portal_suppressed_emails`, zera o sinal das contas que o usavam e grava quem
 liberou e por quê em `portal_provisioning_events`. Sem ela, o operador que
@@ -145,7 +206,7 @@ colunas, como na guarda de propriedade: quem tem o endereço só em
 `pending_recovery_email` é justamente quem o bloqueio impedia de concluir a
 confirmação.
 
-`credentials_revoked_at` (migration `301`) guarda o instante da última
+`credentials_revoked_at` (migration arquivada `301`) guarda o instante da última
 revogação de credencial, gravado por `portal_revoke_sessions`.
 `current_portal_customer_id()` — o ponto único onde toda leitura do Portal
 resolve o cliente — recusa token cujo `iat` seja anterior a esse marco, com
@@ -159,10 +220,12 @@ emitido concorrentemente com a senha antiga sobreviver ao reset.
 
 `portal_invites` armazena somente hash de token; `portal_email_attempts`,
 `portal_email_events` e `portal_suppressed_emails` registram entrega e supressão;
-`portal_provisioning_events` é histórico append-only. As transições passam por
-`portal_set_exception`, `portal_return_to_analysis`, o pré-voo/backfill e o job
-`portal_mark_expired_invites`. A leitura do serviço também converte convite
-vencido em `convite_expirado` quando o job periódico está atrasado.
+`portal_provisioning_events` é histórico append-only. As transições passam pelo
+envio do convite (`portal-invite-send`), pela ativação (`portal-invite-activate`),
+por `portal_cancel_invite`, `portal_return_to_analysis`, pela suspensão e
+reativação (`portal-account-suspend`) e pelo job `portal_mark_expired_invites`.
+A leitura do serviço também converte convite vencido em `convite_expirado`
+quando o job periódico está atrasado.
 
 Na fila de provisionamento, `Aceito pelo provedor` exige `provider_message_id`.
 Uma tentativa com status `aceito` mas sem esse identificador aparece como
@@ -172,23 +235,26 @@ fica como falha permanente e o convite não é apresentado como enviado. A
 confirmação na interface significa que o provedor aceitou a mensagem; a entrega
 à caixa do destinatário depende dos eventos posteriores do Resend.
 
-`portal_repair_missing_accounts()` é uma função interna da migration `198`:
-cria apenas a linha inicial da fila para Clientes sem registro, sem Auth, convite,
-Email de Recuperação ou email transacional. A função não possui execução direta
-para `PUBLIC`, `anon` ou `authenticated`; o read model protegido a chama antes de
-retornar a fila.
+`portal_repair_missing_accounts()` (migration arquivada `198`; definição vigente
+no dump `002`) é uma função interna: cria apenas a linha inicial da fila para
+Clientes sem registro, sem Auth, convite, Email de Recuperação ou email
+transacional. A função não possui execução direta para `PUBLIC`, `anon` ou
+`authenticated`; o read model protegido a chama antes de retornar a fila.
 
-Ao inserir qualquer Cliente em `public.customers`, a migration `193` cria
-automaticamente seu registro em `customer_portal_accounts` com
+Ao inserir qualquer Cliente em `public.customers`, o trigger
+`trg_portal_create_account_on_customer_insert` (migration arquivada `193`;
+definição vigente no dump `002`) cria automaticamente seu registro em
+`customer_portal_accounts` com
 `active=false`, `provisioning_decision='aguardando_analise'`,
 `account_situation='sem_conta'` e `login_cnpj` normalizado. A operação é
-idempotente, registra evento de sistema e também repara Clientes existentes que
-estavam sem registro. Isso coloca o Cliente na fila administrativa imediatamente;
+idempotente e registra evento de sistema. Isso coloca o Cliente na fila administrativa imediatamente;
 não cria usuário Auth, senha, convite, email de recuperação ou email transacional.
 Processo/B/L pode alterar prioridade e pendências operacionais, mas não é
-pré-requisito para a existência da linha na fila.
+pré-requisito para a existência da linha na fila. Nenhum convite sai
+automaticamente nem em lote: Documentação ou Administrativo revisa o Cliente,
+escolhe ou informa o Email de Recuperação e envia o convite individualmente.
 
-Autorização das RPCs de provisionamento (migration `192`): o EXECUTE default do
+Autorização das RPCs de provisionamento (migration arquivada `192`): o EXECUTE default do
 `PUBLIC` foi revogado e as guardas passaram a ser NULL-safe
 (`v_role IS DISTINCT FROM 'administrativo'` / `v_role IS NULL OR v_role NOT IN (...)`).
 Antes, `REVOKE ... FROM anon` deixava o EXECUTE do `PUBLIC` e a comparação com
@@ -197,23 +263,62 @@ role NULL falhava em aberto, permitindo que `anon` ou um cliente do Portal
 teste de isolamento por CNPJ contra produção confirmou negação em todas as
 camadas após a correção.
 
-**Estado operacional (produção, 2026-07-14):** backfill executado — 309 registros
-de Portal em `aguardando_analise`/`sem_conta`, sem identidade Auth, com evento de
-auditoria por cliente. A migration `193` mantém essa fila sincronizada para
-novos Clientes e reparou eventuais registros ausentes. A Edge Function legada
-`provision-portal-user` (senha
-definida pelo operador) foi aposentada; o fluxo vigente é convite de uso único.
+**Estado operacional (produção, 2026-07-14):** backfill inicial executado uma
+única vez — 309 registros de Portal em `aguardando_analise`/`sem_conta`, sem
+escolher email, criar conta ou identidade Auth nem disparar mensagem, com
+evento de auditoria por cliente. Desde então o registro
+nasce pelo trigger de inserção do Cliente e é reparado na leitura do console; o
+backfill e o pré-voo não fazem parte da operação vigente. A Edge Function
+legada `provision-portal-user` (senha definida pelo operador) foi aposentada; o
+fluxo vigente é convite de uso único.
 
 No recorte RBAC do provisionamento, `administrativo` mantém todas as ações,
-`documentacao` pode operar Clientes e Portal, `financeiro` permanece somente
-leitura nesta frente e `operacoes` não recebe ações de Portal. As telas
+`documentacao` pode operar Clientes e Portal, `financeiro` e `equipamentos`
+consultam e `operacoes` não recebe ações de Portal. As telas
 `ClienteFicha`, `Clientes` e `Revisao` usam `can()` para esse recorte; as demais
 ocorrências legadas de `isAdmin` pertencem à auditoria RBAC global futura.
 
+#### Alertas internos do Portal
+
+As pendências do Portal aparecem para a equipe interna no console, na central
+`/alertas` e no sino de Notificação Interna, nunca para o Cliente. Pelo catálogo
+de alertas, todas têm Documentação como responsável: `portal_pendencia_geral`,
+`portal_convite_expirado`, `portal_falha_envio`, `portal_email_suprimido`,
+`portal_reprocessamento_falhou` e `portal_abuso_login` avisam só Documentação;
+`portal_excecao_critica_fatura` e `review_portal_not_ready` avisam também o
+Administrativo. Operações não recebe pendências do Portal, e o Financeiro
+consulta no sistema sem estar na audiência.
+
+- **Pendência geral de prontidão:** Cliente com processo ativo (B/L não
+  cancelado) cujo Portal não está pronto — conta ativa com usuário técnico e
+  Email de Recuperação válido, sem bounce/complaint e fora da lista de
+  bloqueio. Independe do estado de qualquer fatura. O reconciliador
+  (`reconcile_client_portal_alerts`, chamado também após a ativação) abre e
+  fecha a pendência; ela se encerra quando o Portal fica pronto ou o Cliente
+  deixa de ter processo ativo. O job `portal-refresh-general-pendencies` (a
+  cada 15 minutos) também a recalcula.
+- **Convite expirado:** prazo de 48 horas vencido sem ativação; o alerta vai à
+  Documentação e o novo envio é manual (**Reenviar convite**).
+- **Falha no envio:** após três tentativas transitórias sem sucesso, ou falha
+  permanente, a situação vira Falha no envio, abre `portal_falha_envio` e exige
+  **Revisar email e reenviar**.
+- **Email suprimido:** bounce permanente ou complaint põe o endereço na lista
+  de bloqueio; ele não recebe novos envios até a equipe informar outro
+  endereço ou liberar o atual, o histórico é preservado e todos os Clientes que
+  usam aquele Email de Recuperação recebem o alerta.
+- **Abuso de login:** tentativa bloqueada pelo rate limit abre
+  `portal_abuso_login` para o Cliente do CNPJ, quando existe conta.
+
+O resumo diário (`portal-daily-digest`, 08:00 de Brasília) vai por email aos
+usuários ativos de Administrativo e Documentação quando houve, nas últimas 24
+horas, falha ou supressão de email, atividade de provisionamento, ou quando há
+Ativação pendente; sem nada disso, não sai. Não há email imediato de alerta
+crítico (ver a decisão pendente D9-05 em [Notas e divergências](#notas-e-divergências)).
+
 #### Gate de faturamento e Dispute
 
-A migration 324 consolida a pendência do Portal por Cliente e o bloqueio
-final de emissão por B/L: a invoice só pode ficar issued quando a conta está
+O Bloco #521 (migration arquivada `325`) consolidou a pendência do Portal por
+Cliente e o bloqueio final de emissão por B/L (`portal_billing_gate`): a invoice só pode ficar issued quando a conta está
 ativa, o acesso Auth está presente e o e-mail de recuperação é válido,
 entregável e não suprimido, ou quando o Administrativo concedeu a Liberação de
 faturamento sem Portal para o Cliente (ADR 0070, migration 083). O gate vale
@@ -224,6 +329,8 @@ transição do CE, reaproveitando o cálculo feito no registro do CE (migration
 085); bloqueios funcionais e falhas técnicas permanecem projetados no B/L. A
 Liberação não depende de contato com e-mail: sem Portal, a fatura é entregue
 por um usuário interno. A Liberação aparece no painel do Cliente no Console do Portal.
+A regra que atravessa módulos está em
+[Regras de negócio](../operations/regras-de-negocio.md#gate-de-faturamento).
 
 Disputes de Demurrage são conversas append-only em demurrage_disputes e
 demurrage_dispute_messages, com anexos privados por mensagem em Storage, RLS e
@@ -232,9 +339,11 @@ e solicitar reabertura; do lado interno, Equipamentos é o dono do caso e o
 Administrativo responde e reabre como cobertura (migration 081), com a mensagem
 gravando quem respondeu (`author_type` `equipamentos` ou `administrativo`). As rotas
 /portal/billing e /demurrage projetam a mesma conversa e a pendência interna só
-é mantida quando a próxima ação é de Equipamentos. **Código:** migration 324 e
+é mantida quando a próxima ação é de Equipamentos. **Código:** migration arquivada
+`325` (redefinições vigentes no dump `002` e nas migrations `081` e `109`) e
 os componentes PortalDisputeConversation e DemurrageDisputeConversation.
-**Teste de contrato SQL:** src/services/__tests__/block521Migration.test.ts.
+**Teste de contrato SQL histórico:** `src/services/__tests__/block521Migration.test.ts`
+lê a migration arquivada `325`.
 
 #### Email transacional
 
@@ -246,12 +355,37 @@ a mesma chave com outro conteúdo, o que acontecia quando ids sequenciais se
 repetiam após um reset do banco. A falha grava o motivo da Resend em
 `last_error` (ex.: `HTTP 409 invalid_idempotent_request`).
 `portal-email-webhook` valida assinatura Svix, janela de cinco minutos e
-deduplicação por evento; `portal-email-events-runner` (job a cada minuto,
+deduplicação por evento: grava o evento numa inbox durável
+(`portal_email_events`, chave do evento do provedor) e responde; uma repetição
+já processada é no-op e uma ainda pendente continua na fila, sem duplicar
+efeitos de entrega, bounce ou complaint. Receber o webhook não significa que o
+histórico já foi atualizado: `portal-email-events-runner` (job a cada minuto,
 migration `107`) aplica os eventos às tentativas. `portal-daily-digest`
 consolida atividade às 08:00 de Brasília. As variáveis
 `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO` e
 `RESEND_WEBHOOK_SECRET` ficam apenas nas Edge Functions; sem a chave de Resend
 a tentativa é gravada como `falha_permanente` e nenhum email é enviado.
+Remetente, endereço de resposta e domínio verificado estão em
+[serviços externos](../operations/servicos-externos.md#resend-envio).
+
+Conteúdo das mensagens (`supabase/functions/_shared/portalEmailTemplates.ts`):
+cada uma tem versão HTML e texto puro equivalente, com a marca Fwlog, e
+nenhuma leva senha ou dado financeiro. O conteúdo não inclui pixel de abertura
+nem link de rastreamento de clique; a configuração de rastreamento do domínio
+no Resend não foi conferida (**Suspeita**). O token opaco fica só no link e não é reproduzido em logs nem em
+auditoria.
+
+- **Convite:** identifica a empresa e o CNPJ mascarado, informa a validade de
+  48 horas e o uso único, e orienta a criar a própria senha ou, se o
+  destinatário não for a pessoa autorizada, ignorar o email e avisar a Fwlog.
+- **Reenvio:** traz um novo link, avisa que os anteriores deixaram de
+  funcionar e reinicia a validade de 48 horas, sem expor motivo interno,
+  operador ou histórico de tentativas.
+- **Recuperação de senha:** link de uso único válido por 1 hora, com empresa e
+  CNPJ mascarado; concluir a troca encerra as sessões anteriores.
+- **Troca do Email de Recuperação:** o endereço novo recebe o link de
+  confirmação (uso único, 48 horas) e o anterior recebe um aviso; na troca
+  assistida, o aviso ao anterior diz que ele deixou de valer.
 
 A troca assistida do Email de Recuperação (Vela, `/clientes/portal`) passa por
 `portal-recovery-email-change` com `action: 'assisted'`: a RPC
@@ -265,8 +399,9 @@ aviso não desfaz a troca; a tela informa o operador.
 do Portal de um Cliente. O acesso usa `is_active_read_user()` e registra a
 abertura em `portal_inspection_events`; não usa login como cliente nem altera a
 sessão de Portal. O botão é compartilhado por `PortalReviewPanel` no console
-de provisionamento e na Ficha do Cliente. O console também é descobrível por
-Equipamentos, que consulta o histórico sem disparar o self-heal gravável.
+de provisionamento e na Ficha do Cliente. A abertura é auditada uma vez pela
+ferramenta, não a cada chamada de leitura. O console também é aberto por
+Equipamentos, que consulta a fila e o histórico.
 
 O `PortalLayout` é o mesmo no Portal real e na inspeção. Um `PortalScope` injeta
 modo, `customerId`, overview e `basePath`; nav, cards, abas e links do sino usam
@@ -276,13 +411,13 @@ conta não ativa.
 B/L cancelado depois de liberado continua listado em BLs e Containers, com o selo **Cancelado** (`cancelled_at` vindo de `_portal_list_operation_bls_core`, migration `089`; ADR 0071).
 
 
-##### Catálogo de ações
+##### Ações do Modo Inspeção
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
 | `/clientes/portal/inspecao/:customerId/*` — abrir | Usuário interno ativo e Cliente conhecido | `PortalReviewPanel` | `portal_open_inspection` → `PortalScope` → `PortalLayout` | `portal_inspection_events` append-only; overview sem `last_login_at` | Deduplicação de abertura; caches por Cliente no namespace `portal-*` | Gate `42501`, Cliente inválido ou overview indisponível | **Código:** ADR 0045; **Teste de contrato SQL:** guard, grants e abertura |
 | Inspeção — consultar Portal | Escopo em modo `inspect` | Páginas e hooks do Portal | `callPortalRpc` escolhe `supabase` + `portal_inspect_*` | Somente leitura pelos núcleos compartilhados | Chaves incluem `customerId`; `basePath` preserva sub-rotas | Falha da superfície correspondente | **Código:** plano da PR 529; **Teste de contrato SQL:** paridade estrutural |
-| Inspeção — navegar ou sair | Escopo em modo `inspect` | `PortalLayout`, dashboard e `NotificationBell` | Helper de `portalPath`; saída retorna à origem | Nenhuma; sino não marca leitura | Links não escapam para `/portal/*` | Destino inválido permanece no shell protegido | **Código:** ADR 0045; **Teste:** contenção da navegação |
+| Inspeção — navegar ou **Sair da inspeção** | Escopo em modo `inspect` | `PortalLayout`, dashboard e `NotificationBell` | Helper de `portalPath`; **Sair da inspeção** sempre volta ao console `/clientes/portal`, mesmo quando a inspeção foi aberta pela ficha (`?origem` só alimenta a auditoria) | Nenhuma; sino não marca leitura | Links não escapam para `/portal/*` | Destino inválido permanece no shell protegido | **Código:** ADR 0045; **Teste:** contenção da navegação |
 | Inspeção — ação do cliente | Escopo em modo `inspect` | Disputa, perfil, consolidação e sino | UI desabilita; `callPortalRpc` recusa escrita | Nenhuma RPC de escrita de inspeção | Leitura e navegação continuam disponíveis | Tooltip de ação indisponível em Modo Inspeção | **Código:** ADR 0045; **Teste:** bloqueio de escrita |
 
 ##### Arquitetura núcleo + invólucro
@@ -304,9 +439,9 @@ cliente/inspeção deriva do mapa literal `src/services/portalRpcContracts.ts`
 escopada por Cliente. Nenhuma escrita recebe invólucro de inspeção.
 
 
-### Central de Informações (implementação local, 2026-10-04)
+### Central de Informações
 
-O Portal oferece `/informacoes` e seis seções: `taxas`, `devolucao`,
+O Vela é a fonte oficial das informações do Portal. O Portal oferece `/portal/informacoes` e seis seções: `taxas`, `devolucao`,
 `demurrage`, `agentes`, `atendimento` (aba **Contato**) e `tracking`. Há atalhos em Operação,
 Faturas e no painel; o Modo Inspeção usa a mesma interface e RPCs de leitura
 com guarda do cliente. Componentes, tokens, navegação e tipografia existentes
@@ -344,7 +479,10 @@ copiar o B/L e abrir o armador.
 depósito por container ou subplanilha. Os containers de um porto de descarga
 podem ser devolvidos em qualquer depósito disponível publicado daquele porto.
 A seção de Devolução apresenta os depósitos ativos e publicados agrupados por
-porto ou filtrados pelo POD informado. Informações de endereço, horários,
+porto ou filtrados pelo POD informado. Container SOC não tem devolução (status
+`soc` em Operação). Não existe indicação específica de depósito por container:
+ela foi descontinuada por decisão de negócio antes da produção (nota de
+2026-10-06 no [plano arquivado](../archive/plans/2026-10-04-portal-informacoes.md)). Informações de endereço, horários,
 instruções, restrições e link de agendamento são mantidas pelo Vela. As novas
 tabelas não concedem escrita direta ao cliente.
 
@@ -357,8 +495,8 @@ Atendimento mantém a identidade de cada assunto; só admite criar assuntos
 suportados ainda ausentes. O editor valida portos de agentes e depots publicados.
 O banco também valida host, IPv4/IPv6 e porta dos links de agendamento,
 tracking e WhatsApp, além do esquema HTTP(S).
-A seleção de devolução é renovada quando disponibilidade/POD mudam, sem perder
-a justificativa durante uma atualização idêntica.
+A lista de depósitos de devolução é renovada quando a disponibilidade ou o POD
+mudam.
 
 Ao trocar POD, filtros contextuais de B/L e container são limpos; o filtro de
 B/L também possui retirada explícita. Tracking selecionado usa o cadastro
@@ -373,7 +511,13 @@ Evidência local: testes de serviço/URL, comportamento das seções, permissõe
 internas e modal; `portalInformation.local-pg.test.ts` executa as RPCs em
 PostgreSQL 16 com isolamento, auditoria, unidades compartilhadas, SOC e
 precedência de free time. Capturas com dados fictícios ficam em
-`artifacts/portal-informacoes/implementation/`. Não houve implantação em produção.
+`artifacts/portal-informacoes/implementation/`. A Central está na `main` desde a
+integração da PR 845 (2026-10-05/06), com as migrations `137` e `138`; a
+conferência remota de 2026-10-13 registrada no
+[plano do Desbloqueio de CE](../plans/2026-10-04-desbloqueio-ce-mercante.md)
+encontrou produção com as migrations até `219`, as funções iguais ao replay da
+`main` e os sites no commit `c4a984f` (**Runtime** remoto de outra sessão, não
+reconferido aqui). O uso real pelo Cliente em produção não foi conferido.
 
 
 ## Catálogo de ações
@@ -382,10 +526,10 @@ precedência de free time. Capturas com dados fictícios ficam em
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| `/portal/login` — autenticar por CNPJ | CNPJ canônico de 14 posições e senha preenchidos; pontuação colada é removida imediatamente e letras são preservadas em maiúsculas; comprimento < 14 para na tela (`isCompleteCnpjLogin`) | `PortalLogin` → `usePortalAuth.signIn` | Edge Function `portal-login` → Auth técnico → `setSession` | `customer_portal_accounts.login_cnpj`; rate limit hash em `portal_login_attempts` | O navegador recebe somente tokens de sessão | CNPJ desconhecido, conta inativa, senha errada e bloqueio usam a mesma mensagem, que avisa a todos da suspensão de 15 minutos após várias tentativas e aponta "Esqueci minha senha" (`PORTAL_LOGIN_REJECTED_MESSAGE`); no caminho bloqueado a consulta à conta e o alerta `portal_abuso_login` rodam em `EdgeRuntime.waitUntil`, então o 401 sai sem trabalho a mais; CNPJ incompleto tem mensagem de digitação, decidida sem consultar o servidor | **Teste:** `src/hooks/__tests__/usePortalAuth.test.tsx`, `src/pages/__tests__/PortalLogin.test.tsx`, `src/lib/__tests__/cnpj.test.ts` |
-| Inicialização — hidratar sessão e overview | Aplicação montada; sessão Portal persistida opcional | `PortalAuthProvider` | `getSession()` → `fetchOverview()`; listener `onAuthStateChange` reidrata em `SIGNED_IN`/`TOKEN_REFRESHED` quando necessário | Supabase Auth; RPC `portal_get_session_overview_v2`; UPDATE de `last_login_at` | Define `overview`, `isAuthenticated=Boolean(overview)` e identidade Sentry `{ id: customer_id }` com tag `area=portal` | Sessão sem Conta de Portal ativa gera `28000` e limpa overview; outras falhas não são exibidas | **Teste:** `src/hooks/__tests__/usePortalAuth.test.tsx` |
+| `/portal/login` — autenticar por CNPJ | CNPJ canônico de 14 posições e senha preenchidos; pontuação colada é removida imediatamente e letras são preservadas em maiúsculas; comprimento < 14 para na tela (`isCompleteCnpjLogin`); token Turnstile (ação `portal_login`) quando o ambiente tem a Site Key | `PortalLogin` → `usePortalAuth.signIn` | Edge Function `portal-login`: confere o Turnstile, normaliza o CNPJ, consulta o rate limit, lê `customer_portal_accounts` por `login_cnpj` com `service_role` (sem RPC de resolução) → Auth técnico → `setSession` | `customer_portal_accounts.login_cnpj`; rate limit hash em `portal_login_attempts` | O navegador recebe somente tokens de sessão | CNPJ desconhecido, conta inativa, senha errada e bloqueio recebem o mesmo HTTP `401` genérico; o Turnstile recusado recebe `403`. A tela mostra para todos — inclusive o `403` e a falha de rede na chamada ao `portal-login`, porque `signIn` descarta o status — a mesma mensagem, que avisa da suspensão de 15 minutos após várias tentativas e aponta "Esqueci minha senha" (`PORTAL_LOGIN_REJECTED_MESSAGE`); no caminho bloqueado a consulta à conta e o alerta `portal_abuso_login` rodam em `EdgeRuntime.waitUntil`, então o 401 sai sem trabalho a mais; CNPJ incompleto tem mensagem de digitação, decidida sem consultar o servidor | **Teste:** `src/hooks/__tests__/usePortalAuth.test.tsx`, `src/pages/__tests__/PortalLogin.test.tsx`, `src/lib/__tests__/cnpj.test.ts` |
+| Inicialização — hidratar sessão e overview | Aplicação montada; sessão Portal persistida opcional | `PortalAuthProvider` | `getSession()` → `fetchOverview()`; listener `onAuthStateChange` reidrata em `SIGNED_IN`/`TOKEN_REFRESHED` quando necessário | Supabase Auth; RPC `portal_get_session_overview_v2`; UPDATE de `last_login_at` | Define `overview` e `isAuthenticated=Boolean(overview)`; no Sentry, mantém o usuário nulo e marca só a tag `area=portal` | Sessão sem Conta de Portal ativa gera `28000` e limpa overview; outras falhas não são exibidas | **Teste:** `src/hooks/__tests__/usePortalAuth.test.tsx` |
 | Layout — sair | Sessão/overview presente | Botão “Sair” em `PortalLayout` ou evento `SIGNED_OUT` do Supabase Auth | Limpa overview e caches `portal-*` antes de `signOutSupabaseClient`; chamadas concorrentes compartilham uma Promise; `isSigningOut` previne duplo clique | Supabase Auth `signOut` (com fallback de remoção local fail-closed se revogação global falhar) | Guard passa a considerar a sessão não autenticada e queries do Portal são removidas; usuário sai localmente mesmo com erro de rede | Se a revogação remota falhar, a sessão local é removida e o erro é exposto como aviso sem bloquear a saída | **Teste:** `src/hooks/__tests__/usePortalAuth.test.tsx`; `src/services/__tests__/supabaseAuth.test.ts` |
-| `/portal/esqueci-senha` — solicitar recuperação | CNPJ de 14 posições numéricas ou alfanuméricas; pontuação colada é removida imediatamente; comprimento < 14 para na tela (`isCompleteCnpjLogin`) | `PortalForgotPassword.handleSubmit` | Edge Function `portal-password-recovery`; rate limit em `portal_recovery_check_rate_limit`/`_register_failure`; trabalho de busca, supressão, convite e envio roda em segundo plano via `EdgeRuntime.waitUntil` | `customer_portal_accounts.login_cnpj`; `portal_invites` (purpose `recuperacao`); email via `sendPortalEmail` | `{ accepted: true }` sai imediatamente após rate limit, eliminando canal lateral temporal (TTFB uniforme); `{ accepted: false, rate_limited: true }` no rate limit | Resposta não enumera conta (achado 3.2 e PAF-04); confirmação afirma o envio sem condicionar a existência de conta; rate limit mostra "tente mais tarde"; teto de envio de um email por hora por conta (validade do convite) | **Código:** `src/pages/PortalForgotPassword.tsx`, `supabase/functions/portal-password-recovery/index.ts`, [ADR 0049](../adr/0049-rate-limit-do-portal-chaveado-somente-por-cnpj.md); **Teste:** `src/pages/__tests__/PortalRecovery.behavior.test.tsx`, `src/services/__tests__/portalEdgeFunctionsOrder.test.ts` |
+| `/portal/esqueci-senha` — solicitar recuperação | CNPJ de 14 posições numéricas ou alfanuméricas; pontuação colada é removida imediatamente; comprimento < 14 para na tela (`isCompleteCnpjLogin`); token Turnstile (ação `portal_recovery`) quando o ambiente tem a Site Key | `PortalForgotPassword.handleSubmit` | Edge Function `portal-password-recovery` confere o Turnstile antes de tudo; rate limit em `portal_recovery_check_rate_limit`/`_register_failure`; trabalho de busca, supressão, convite e envio roda em segundo plano via `EdgeRuntime.waitUntil` | `customer_portal_accounts.login_cnpj`; `portal_invites` (purpose `recuperacao`); email via `sendPortalEmail` | `{ accepted: true }` sai imediatamente após rate limit, eliminando canal lateral temporal (TTFB uniforme); `{ accepted: false, rate_limited: true }` no rate limit | Turnstile recusado devolve `403` e a tela pede para refazer a verificação; resposta não enumera conta (achado 3.2 e PAF-04); confirmação afirma o envio sem condicionar a existência de conta; rate limit mostra "tente mais tarde"; teto de envio de um email por hora por conta (validade do convite) | **Código:** `src/pages/PortalForgotPassword.tsx`, `supabase/functions/portal-password-recovery/index.ts`, [ADR 0049](../adr/0049-rate-limit-do-portal-chaveado-somente-por-cnpj.md); **Teste:** `src/pages/__tests__/PortalRecovery.behavior.test.tsx`, `src/services/__tests__/portalEdgeFunctionsOrder.test.ts` |
 | `/portal/confirmar-email` — confirmar novo Email de Recuperação | Token de convite `confirmacao_email` válido na query string (`token` ou `confirm_email`); sem sessão | `PortalConfirmarEmail` | Edge Function `portal-recovery-email-change` (`action: 'confirm'`) valida hash/expiração/status, **lê a conta antes** de consumir o convite e só consome quando há `pending_recovery_email` | `portal_confirm_recovery_email` (lock da conta, consumo condicional, aplicação do email, cancelamento dos links antigos e revogação transacionais) | Rota pública; token removido da URL após leitura; encerra as sessões do Portal | Token ausente/expirado/inválido devolve 410 com mensagem única; pedido já resolvido por outro caminho devolve **409** com mensagem própria ("este pedido de troca já foi resolvido") e **não** queima o convite; autorização da troca ficou no `action: 'request'` | **Teste:** `src/pages/__tests__/PortalConfirmarEmail.test.tsx`, `src/services/__tests__/portalInvites.test.ts` |
 | `/portal/perfil` — pedir troca do Email de Recuperação | Sessão do Portal ativa **e** senha atual; email novo válido e fora da lista de bloqueio | `PortalProfile.handleRecoveryEmailChange` | Edge Function `portal-recovery-email-change` (`action: 'request'`) consulta `portal_login_check_rate_limit` **antes** de `signInWithPassword`, registra falha/sucesso no contador do login e encerra a sessão de verificação | `portal_invites` (purpose `confirmacao_email`); `customer_portal_accounts.pending_recovery_email`; `portal_login_attempts` | Email de confirmação para o endereço novo e alerta para o anterior; o endereço atual segue valendo até a confirmação | Bloqueio devolve **429** com mensagem própria; a tela avisa que errar a senha aqui consome as tentativas do login do Portal (mesmo balde, ADR 0049). Falha no envio do link devolve **502**: o convite é cancelado, `pending_recovery_email` é limpo, o endereço antigo não recebe alerta e a tela diz que nenhuma troca foi iniciada | **Código:** `src/pages/PortalProfile.tsx`, `supabase/functions/portal-recovery-email-change/index.ts`; **Teste:** `src/services/__tests__/portalLoginRateLimit.test.ts`, `src/services/__tests__/portalEdgeFunctionsOrder.test.ts`, `src/pages/__tests__/PortalProfile.test.tsx` |
 | `/portal/recuperar-senha` — atualizar senha | Token de convite de recuperação válido na query string; senha 8+; confirmação igual | `PortalResetPassword.handleSubmit` | Edge Function `portal-password-reset` chama `portal_begin_password_reset` para validar hash/expiração/status/destinatário sob lock, depois Auth Admin `updateUserById` e `portal_finish_password_reset` | `portal_invites` (consumo condicional); `revokePortalSessions` | Remove `token` da URL após leitura (achado 3.3); encerra sessões do Portal e navega para `/portal/login` | Token ausente/expirado/inválido mostra mensagem única; validação local de senha | **Teste:** `src/pages/__tests__/PortalRecovery.behavior.test.tsx` |
@@ -395,7 +539,7 @@ precedência de free time. Capturas com dados fictícios ficam em
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| `/portal` — carregar KPIs e abrir destinos | Sessão autenticada | `PortalDashboard` | `usePortalInvoices`, `usePortalDemurrageInvoices`, `usePortalOperationBls`; cálculos em `useMemo` | RPCs `portal_list_invoices`, `portal_list_demurrage_invoices`, `portal_list_operation_bls` | Usa caches `portal-invoices`, `portal-demurrage-invoices`, `portal-operation-bls`; cards navegam com filtros | Tela só agrega loadings; falhas individuais dependem dos hooks e não têm erro dedicado no dashboard | **Teste:** `src/pages/__tests__/PortalDashboard.test.tsx` |
+| `/portal` — carregar KPIs e abrir destinos | Sessão autenticada | `PortalDashboard` | `usePortalInvoices`, `usePortalDemurrageInvoices`, `usePortalOperationBls`; cálculos em `useMemo` | RPCs `portal_list_invoices`, `portal_list_demurrage_invoices`, `portal_list_operation_bls` | Usa caches `portal-invoices`, `portal-demurrage-invoices`, `portal-operation-bls`; cards navegam com filtros | Falha financeira ou operacional mostra `InlineError` próprio ("Falha ao carregar indicadores financeiros…" / "…operacionais…") no lugar dos cards | **Teste:** `src/pages/__tests__/PortalDashboard.test.tsx` |
 | `/portal` — cronograma projetado de viagens | Sessão do Portal; RPC allowlisted | `ShipScheduleWidget` | `usePortalScheduleVoyages` chama `portal_ship_schedule`, que projeta viagens ativas com `show_on_portal=true`; POD deletado é ocultado e POD omitido volta com `omitted=true`, renderizado como `OMIT` | RPC `portal_ship_schedule`; dados de `voyages` e `audit_logs`; sem acesso direto a `voyage_omissions`/`bl_transshipments` | Query `['portal-schedule-voyages']`, invalidada pelas mutações de omissão/reversão | Falha de RPC aparece como falha do cronograma; `OMIT` é distinto de `X` e não é data | **Código:** `src/components/portal/ShipScheduleWidget.tsx`, `src/services/portalScheduleVoyages.ts`; **Teste de contrato SQL:** `portalShipScheduleOmitted.test.ts` |
 
 ### Billing, consolidação e disputa
@@ -408,8 +552,8 @@ precedência de free time. Capturas com dados fictícios ficam em
 | `/portal/billing` — listar/filtrar/detalhar demurrage | Sessão autenticada | `DemurrageTab` e `PortalDemurrageDetailModal` | `usePortalDemurrageInvoicesPage`/`usePortalDemurrageInvoiceDetail`; filtros server-side e página de 25 | RPCs `portal_list_demurrage_invoices_page` e `portal_get_demurrage_invoice_detail`; lê `demurrage_invoices/items` e B/L | Queries `portal-demurrage-invoices-page` e `portal-demurrage-invoice-detail`; wrappers de Inspeção preservam `customerId` | A lista final aceita somente `issued`, `overdue`, `paid`; detalhe negado gera `P0002`; filtros sem resultado são distintos de falha de RPC | **Código:** `src/pages/PortalBilling.tsx`, `src/services/portalBilling.ts`; **Teste:** `src/pages/__tests__/PortalBilling.test.tsx`, `src/integration/portalInspectionParity.local-pg.test.ts` |
 | `/portal/billing` — exportar resultado | Aba ativa; filtros atuais | `handleExport` | Busca todas as páginas server-side com `portalList*ForExport`, depois chama `exportPortalLocalInvoicesWorkbook` ou `exportPortalDemurrageWorkbook` | Download XLSX local com `@e965/xlsx` | Exporta todos os resultados que correspondem aos filtros; leitura sob demanda não altera cache das abas | Falha mostra toast e preserva a tela | **Teste:** `src/pages/__tests__/PortalBilling.test.tsx`; **Código:** `src/services/portalBilling.ts`, `src/services/exports.ts` |
 | `/portal/billing` — carregar recebíveis consolidáveis | Sessão autenticada | Métrica e `PortalConsolidatedModal` | `usePortalConsolidatableReceivables`; `isReceivableSelectable` | RPC `portal_list_consolidatable_receivables`; `bl_receivables`, links e invoices | Query `['portal-consolidatable-receivables']`; status `eligible`, `paid`, `no_balance`, `open_consolidated` | Itens inelegíveis ficam desabilitados; falha de query não tem erro dedicado no modal | **Teste de contrato SQL:** `src/services/__tests__/portalCeMercanteGateMigration.test.ts`; **Código:** `src/components/portal/PortalConsolidatedModal.tsx` |
-| `/portal/billing` — criar consolidada | Ao menos um recebível selecionado e elegível; posse do cliente; CE em todos os B/Ls; rate limit | `PortalConsolidatedModal.submit` | `usePortalCreateConsolidation` → `portalCreateConsolidation` → core transacional | RPC `portal_create_consolidation`; core `create_local_consolidated_invoice_core`; INSERT `alerts` e `portal_notifications` | Invalida recebíveis e invoices; `refreshOverview`; abre detalhe retornado | 3 tentativas/10 min, outro cliente, sem CE, inelegibilidade/core ou transporte | **Teste de contrato SQL:** `src/services/__tests__/portalCreateConsolidationJsonbMigration.test.ts`, `src/services/__tests__/portalCeMercanteGateMigration.test.ts`; **Código:** componente/hook |
-| `/portal/billing` — desfazer consolidada | Invoice `consolidated`, status `issued/partially_paid/overdue`, sem pagamentos; confirmação; rate limit | Detalhe local, `handleObsolete` | `usePortalObsoleteConsolidation` → `portalObsoleteConsolidation` | RPC `portal_obsolete_consolidation`; UPDATE invoice e links; INSERT lifecycle, alerta e notificação | Invalida recebíveis/invoices; `refreshOverview`; fecha detalhe | 3 tentativas/15 min, invoice alheia/não consolidada/paga/cancelada/obsoleta ou com pagamento | **Código:** `src/pages/PortalBilling.tsx`, `supabase/migrations_archive/119_portal_fixes_post_pr227.sql`; **Runtime não executado** |
+| `/portal/billing` — criar consolidada | Ao menos um recebível selecionado e elegível; posse do cliente; CE em todos os B/Ls; rate limit | `PortalConsolidatedModal.submit` | `usePortalCreateConsolidation` → `portalCreateConsolidation` → core transacional | RPC `portal_create_consolidation` (definição vigente na migration `109`); core `create_local_consolidated_invoice_core`; INSERT `portal_notifications` | Invalida recebíveis e invoices; `refreshOverview`; abre detalhe retornado | 3 tentativas/10 min, outro cliente, sem CE, inelegibilidade/core ou transporte | **Teste de contrato SQL:** `src/services/__tests__/portalCreateConsolidationJsonbMigration.test.ts`, `src/services/__tests__/portalCeMercanteGateMigration.test.ts`; **Código:** componente/hook |
+| `/portal/billing` — desfazer consolidada | Invoice `consolidated`, status `issued/partially_paid/overdue`, sem pagamentos; confirmação; rate limit | Detalhe local, `handleObsolete` | `usePortalObsoleteConsolidation` → `portalObsoleteConsolidation` | RPC `portal_obsolete_consolidation` (definição vigente na migration `109`); UPDATE invoice e links; INSERT lifecycle e notificação | Invalida recebíveis/invoices; `refreshOverview`; fecha detalhe | 3 tentativas/15 min, invoice alheia/não consolidada/paga/cancelada/obsoleta, com pagamento ou com PIX da fatura em conciliação | **Código:** `src/pages/PortalBilling.tsx`, migration `109`; **Runtime não executado** |
 | `/portal/billing` — abrir disputa de demurrage | Invoice não paga/cancelada e sem disputa na UI; motivo não vazio; rate limit | `DisputeModal` → `usePortalOpenDispute` | `portalOpenDemurrageDispute` | RPC `portal_open_demurrage_dispute`; UPDATE `demurrage_invoices`; INSERT `portal_notifications` e `alerts` | Invalida `['portal-demurrage-invoices']`; notificação aparece no polling/refetch próprio | 3 tentativas/30 min, motivo vazio, invoice alheia/inexistente ou disputa já aberta | **Código:** `src/components/portal/DisputeModal.tsx`, `src/hooks/usePortalDisputes.ts`; **Runtime não executado** |
 | `/portal/billing` — anexar documento em disputa | Sessão Portal autenticada; mensagem de disputa pertencente ao cliente (`author_type='cliente'`); arquivo <= 10 MB (PDF, PNG, JPEG, TXT); cota <= 100 MB; limite diário <= 20 uploads | `portalUploadDisputeAttachment`, `portalCheckDisputeAttachmentEligibility` | Pré-validação via RPC `portal_check_dispute_attachment_eligibility`; Edge Function `portal-dispute-attachment` (valida sessão, arquivo, magic bytes, cota, taxa e mensagem); upload via `service_role` em `demurrage-disputes`; RPC `add_demurrage_dispute_attachment` vincula anexo | Storage bucket `demurrage-disputes`; `demurrage_dispute_attachments`; `demurrage_dispute_messages` | Atualiza lista de anexos da mensagem na disputa | Cota excedida, limite diário atingido, extensão inválida, arquivo corrompido, mensagem inexistente ou de outro cliente | **Código:** `supabase/functions/portal-dispute-attachment/index.ts`, `supabase/migrations/074_portal_dispute_attachments_security.sql`; **Teste:** `src/services/__tests__/portalDisputeAttachmentsService.test.ts`, `src/services/__tests__/portalDisputeAttachmentsSecurityMigration.test.ts`, `src/components/portal/__tests__/PortalDisputeConversation.test.tsx` |
 
@@ -427,17 +571,42 @@ precedência de free time. Capturas com dados fictícios ficam em
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| Layout — contar/listar notificações | Overview autenticado; lista habilitada ao abrir sino | `NotificationBell` | `usePortalUnreadCount` e `usePortalNotifications(open)` | RPCs `portal_notification_unread_count`, `portal_list_notifications(20)`; tabela `portal_notifications` | Queries `portal-unread-count` e `portal-notifications`; polling de 30 s | Loading/vazio no popover; erros não têm UI dedicada | **Código:** `src/components/portal/NotificationBell.tsx`, `src/hooks/usePortalNotifications.ts` |
+| Layout — contar/listar notificações | Overview autenticado; lista habilitada ao abrir sino | `NotificationBell` | `usePortalUnreadCount` e `usePortalNotifications(open)` | RPCs `portal_notification_unread_count`, `portal_list_notifications(20)`; tabela `portal_notifications` | Queries `portal-unread-count` e `portal-notifications`; polling de 30 s | Loading/vazio no popover; falha da lista mostra estado de erro com **Tentar novamente** | **Código:** `src/components/portal/NotificationBell.tsx`, `src/hooks/usePortalNotifications.ts`; **Teste:** `src/components/portal/__tests__/NotificationBell.test.tsx`, `NotificationBell.behavior.test.tsx` |
+| Layout — abrir notificação | Notificação com `link` em `/portal/*` | Clique na linha do sino | Se não lida, pede confirmação e marca como lida; depois navega para o `link`; no Modo Inspeção o caminho é reescrito para o `basePath` e nada é marcado | `portal_notifications.read_at` quando marca | Fecha o painel | Falha ao marcar avisa e ainda abre o conteúdo | **Código:** `src/components/portal/NotificationBell.tsx` |
 | Layout — marcar uma/todas como lidas | Notificação do cliente ou contagem > 0 | Clique na linha ou ação “Marcar todas” | `usePortalMarkRead`/`usePortalMarkAllRead` | RPCs atualizam `portal_notifications.read_at` escopado ao cliente | Invalida lista e contador | Falha ao marcar uma notificação avisa e abre o conteúdo; “Marcar todas” mostra “Marcando…” e explica falha ou lista alterada no próprio painel, com “Atualizar lista” | **Código:** hooks e `supabase/migrations_archive/116_portal_fase2_notifications_disputes_profile.sql` |
-| `/portal/perfil` — carregar perfil | Sessão autenticada | `PortalProfile.useEffect` | `portalGetProfile` | RPC `portal_get_profile`; lê conta, cliente e primeiro contato `faturamento` | Preenche estado local; fallback do email vem do overview | Erro é silenciosamente ignorado e pode deixar formulário vazio | **Código:** `src/pages/PortalProfile.tsx`, `src/services/portalBilling.ts` |
-| `/portal/perfil` — atualizar contato/endereço | Sessão autenticada; formulário submetido | `PortalProfile.handleSubmit` | `portalUpdateProfile` → `refreshOverview` | RPC `portal_update_profile`; UPDATE `customer_portal_accounts.contact_email`, campos de endereço em `customers` e telefone do contato `faturamento` (cria se ausente) | Atualiza overview; não há query de perfil em cache | Erro do RPC aparece inline; campos vazios de endereço não apagam valor existente | **Código:** `src/pages/PortalProfile.tsx`, `supabase/migrations_archive/119_portal_fixes_post_pr227.sql` |
+| `/portal/perfil` — carregar perfil | Sessão autenticada | `PortalProfile` | `usePortalProfile` → `portalGetProfile` | RPC `portal_get_profile`; lê conta, cliente e primeiro contato `faturamento` | Query `['portal-profile', mode, customerId]` | Falha mostra `InlineError` ("Falha ao carregar perfil. Tente novamente em instantes.") e o botão de salvar fica desativado | **Código:** `src/pages/PortalProfile.tsx`, `src/hooks/usePortalProfile.ts`; **Teste:** `src/pages/__tests__/PortalProfile.test.tsx` |
+| `/portal/perfil` — **Salvar alterações** (Dados cadastrais) | Sessão autenticada; endereço, cidade, UF ou CEP alterados; confirmação "Confirmar alterações do perfil" | `PortalProfileForm.handleSubmit` | `usePortalProfile.updateProfile` → `portalUpdateProfile` | RPC `portal_update_profile` (definição vigente na migration `008`): a tela envia só endereço, cidade, UF e CEP; a RPC também aceita email de contato e telefone do contato `faturamento` | Invalida `portal-profile` e chama `refreshOverview` | Sem alteração mostra "Nenhuma alteração detectada."; erro da RPC aparece inline; campo vazio de endereço não apaga o valor gravado | **Código:** `src/pages/PortalProfile.tsx`, `supabase/migrations/008_portal_contact_boxes.sql` |
+| `/portal/perfil` — **Salvar contatos** (Contatos e recebimento) | Sessão autenticada; contatos alterados; confirmação "Confirmar contatos e recebimento" | `PortalContactConfiguration` | `usePortalContactConfiguration` → `portalSaveContactConfiguration` | RPCs `portal_get_contact_configuration`/`portal_save_contact_configuration` (migration `008`), que gravam contatos e vínculos às caixas com auditoria em `customer_contact_change_events` | Invalida `portal-contact-configuration` e `portal-profile`; não envia mensagem | Erro mostra "Falha ao salvar contatos."; no Modo Inspeção a gravação fica indisponível | **Código:** `src/components/portal/PortalContactConfiguration.tsx`, `src/services/portalContactConfiguration.ts`; **Teste:** `src/components/portal/__tests__/PortalContactConfiguration.test.tsx` |
+
+### Provisionamento e ativação do convite
+
+Ações internas do console `/clientes/portal` e do painel **Revisão do Portal**
+(também aberto pela ficha do Cliente) e a ativação pública pelo Cliente.
+Ações de Administrativo e Documentação, salvo indicação; justificativa
+obrigatória onde indicado.
+
+| Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
+|---|---|---|---|---|---|---|---|
+| `/clientes/portal` — carregar, filtrar e buscar | Usuário interno ativo de Administrativo, Documentação, Financeiro, Operações ou Equipamentos | `ClientesPortal` | `usePortalProvisioning` → `listPortalProvisioningQueue` → RPC `portal_list_provisioning_console`; filtro e busca locais | Leitura; o reparo `portal_repair_missing_accounts` cria linhas ausentes com evento de sistema | Query `['portal-provisioning']`; `?filtro=` e `?cliente=` na URL | Papel fora da lista recebe `42501`; erro mostra "Erro ao carregar a fila do Portal." | **Código:** `src/pages/ClientesPortal.tsx`, migration `103`; **Teste:** `src/pages/__tests__/ClientesPortal.behavior.test.tsx` |
+| `/clientes/portal` — **Exportar XLSX** | Fila carregada | Botão do cabeçalho | `exportPortalProvisioningWorkbook(rows)` | Download XLSX local | Exporta as linhas do filtro e da busca atuais | — | **Código:** `src/pages/ClientesPortal.tsx`, `src/services/exports.ts` |
+| Revisão do Portal — **Enviar convite**, **Reenviar convite** ou **Revisar email e reenviar** | Situação Sem conta, Ativação pendente, Convite expirado ou Falha no envio; Email de Recuperação válido, fora da lista de bloqueio; Cliente não desativado; confirmação "Autorizar email de recuperação" | `PortalReviewPanel.sendInvite` | `useSendPortalInvite` → Edge Function `portal-invite-send`, que confere o papel (`portal_current_role`) | Convite pendente anterior vira `invalidado_por_reenvio`; novo `portal_invites` (hash, 48 horas); email de convite ou reenvio; `customer_portal_accounts` recebe o Email de Recuperação, a origem (candidato ou informado manualmente), `recovery_email_status='ok'`, decisão Provisionamento autorizado e situação Ativação pendente ou Falha no envio; evento em `portal_provisioning_events` | Invalida `portal-provisioning` e `customer-detail`; toast "Convite aceito pelo provedor de email."; falha de envio abre `portal_falha_envio` | `403` sem papel; `422` email inválido ou suprimido; `409` Cliente desativado ou conta já ativa ("Conta ativa usa recuperação de senha."); falha de envio mostra "O envio do email falhou…"; falha da auditoria devolve `500` | **Código:** `supabase/functions/portal-invite-send/index.ts`, `src/components/portal/PortalReviewPanel.tsx`; **Teste:** `src/components/portal/__tests__/PortalReviewPanel.test.tsx` |
+| Revisão do Portal — **Revogar convite** | Ativação pendente; justificativa; confirmação "Revogar convite do Portal" | `PortalReviewPanel.cancelInvite` | `useCancelPortalInvite` → RPC `portal_cancel_invite` | Convite `cancelado` com o motivo; conta volta a Sem conta e Aguardando análise; evento | Invalida `portal-provisioning` e `customer-detail` | `42501`; "Justificativa é obrigatória."; "Não há convite pendente para cancelar." | **Código:** `src/hooks/usePortalProvisioning.ts`, dump `002` |
+| Revisão do Portal — **Trocar Email de Recuperação** (troca assistida) | Conta Ativa; email válido fora da lista de bloqueio; justificativa | `PortalReviewPanel.assistedEmailChange` | `useAssistedEmailChange` → Edge Function `portal-recovery-email-change` (`action: 'assisted'`) → RPC `portal_assisted_email_change` com o JWT do operador | Novo endereço (origem informado manualmente, status `ok`), pedido pendente limpo, links de confirmação e recuperação pendentes invalidados, sessões revogadas, evento | Aviso ao endereço anterior; toast diz se o aviso saiu | Email inválido, suprimido ou sem justificativa é recusado; falha do aviso não desfaz a troca | **Código:** `src/services/portalProvisioning.ts`, `supabase/functions/portal-recovery-email-change/index.ts` |
+| Revisão do Portal › Ações administrativas — **Suspender conta** | Conta Ativa (a função aceita qualquer situação exceto Sem conta e Suspensa); justificativa | `PortalReviewPanel.changeAccount` | `useSuspendPortalAccount` → Edge Function `portal-account-suspend` (`suspend`) | Revoga sessões; situação Suspensa e `active=false`; mantém a decisão e o usuário técnico; evento; cancela convites e links pendentes | Toast "Situação da conta atualizada." | `403` sem papel; `409` situação incompatível ou alterada no meio; falha da auditoria desfaz a suspensão | **Código:** `supabase/functions/portal-account-suspend/index.ts` |
+| Revisão do Portal › Ações administrativas — **Reativar conta** | Conta Suspensa; justificativa | `PortalReviewPanel.changeAccount` | Edge Function `portal-account-suspend` (`reactivate`) | Revoga sessões; volta a Sem conta e Aguardando análise; zera `auth_user_id` e bane o usuário técnico antigo; evento | O Cliente volta à fila para um novo convite | `409` se não estiver Suspensa; falha no banimento devolve `500` com a conta já reaberta | **Código:** `supabase/functions/portal-account-suspend/index.ts` |
+| Revisão do Portal › Ações administrativas — **Liberar endereço bloqueado** | Email de Recuperação na lista de bloqueio; justificativa; confirmação "Liberar endereço bloqueado" | `PortalReviewPanel.releaseSuppressedEmail` | `useReleaseSuppressedEmail` → RPC `portal_release_suppressed_email` | Remove o endereço de `portal_suppressed_emails`, volta o status a `ok` nas contas que o usam e grava evento em cada Cliente afetado | Toast "Endereço liberado da lista de bloqueio." | Endereço de outro Cliente ou fora da lista é recusado | **Código:** dump `002`; ver [Console](#console-clientesportal) |
+| Revisão do Portal › Ações administrativas — **Reabrir análise** | Decisão diferente de Aguardando análise; justificativa | `PortalReviewPanel.reopenAnalysis` | `useReturnToAnalysis` → RPC `portal_return_to_analysis` | Decisão volta a Aguardando análise sem mudar a situação da conta; evento | Toast "Decisão do Portal atualizada." | `42501` sem papel | **Código:** dump `002` |
+| Revisão do Portal — **Alterar CNPJ auditado** | Somente Administrativo; CNPJ válido e diferente do atual; justificativa | `PortalReviewPanel.adminCnpjChange` | `useAdminChangeCnpj` → RPC `portal_admin_change_cnpj` | `customers.cnpj_cpf` e `customer_portal_accounts.login_cnpj`; evento | Toast "CNPJ alterado de forma auditada."; o Cliente passa a entrar com o CNPJ novo | "CNPJ inválido."; "Justificativa é obrigatória."; `42501` para outro papel | **Código:** dump `002` |
+| Revisão do Portal — **Conceder liberação** (**Liberar faturamento**) / **Revogar liberação** | Somente Administrativo; Portal não pronto; justificativa (3+ caracteres) e data de revisão futura de até 30 dias; confirmação "Liberar e emitir" | `BillingPortalReleaseCard` | `useGrantBillingPortalRelease`/`useRevokeBillingPortalRelease` → RPCs `grant_customer_billing_portal_release`/`revoke_customer_billing_portal_release` | `customer_billing_portal_releases`; reprocessa as faturas retidas do Cliente | Mostra quantas faturas saíram e o que segue retido; regra em [Regras de negócio](../operations/regras-de-negocio.md#gate-de-faturamento) | Outro papel é recusado pelo banco | **Código:** `src/components/clientes/BillingPortalReleaseCard.tsx`, migrations `083` e `085` |
+| `/portal/ativar` — conferir convite | Token na URL | `PortalAtivacao` | Edge Function `portal-invite-activate` (`action: 'inspect'`) | Somente leitura; não consome o convite | Token removido da URL; mostra Empresa e CNPJ mascarado | Convite inexistente, usado ou vencido devolve `410` e "Link inválido ou expirado. Solicite um novo convite à empresa." | **Teste:** `src/pages/__tests__/PortalAtivacao.test.tsx` |
+| `/portal/ativar` — **Ativar acesso** | Convite pendente e válido; conta em Ativação pendente, Convite expirado ou Falha no envio e sem usuário técnico; senha da política (8+ com maiúscula, minúscula e dígito) e confirmação igual | `PortalAtivacao.submit` | Edge Function `portal-invite-activate` (`action: 'activate'`): rate limit de ativação, consumo condicional do convite, criação do usuário técnico com senha derivada (pepper), ativação da conta, evento | `portal_invites` consumido; usuário do Supabase Auth; `customer_portal_accounts` com `auth_user_id`, `active=true` e situação Ativa; `portal_provisioning_events` | Reprocessa o faturamento retido do Cliente e reconcilia os alertas do Portal; tela **Acesso ativado** com **Ir para o login**, sem sessão automática | `410` convite inválido; `429` rate limit; `422` senha fora da política; falha ao criar usuário ou gravar a conta desfaz consumo e usuário (`500`); a tela mostra "Não foi possível ativar o acesso. Solicite um novo convite." para qualquer recusa; falha do reprocessamento não desfaz a ativação | **Código:** `supabase/functions/portal-invite-activate/index.ts`; **Teste:** `src/pages/__tests__/PortalAtivacao.test.tsx` |
 
 ## Estado e dados
 
 | Query/estado | Fonte | Invalidação ou atualização |
 |---|---|---|
 | `overview` no `PortalAuthProvider` | `portal_get_session_overview_v2` | Login, hidratação, `refreshOverview`, `SIGNED_IN`/`TOKEN_REFRESHED`; limpo antes do logout, em `SIGNED_OUT` ou por erro de sessão. |
-| Sentry `user`/tag do Portal | `overview.customer_id` | Setado quando o overview carrega; limpo no logout/`SIGNED_OUT`; sem PII além do id numérico. |
+| Sentry no Portal | `setPortalTelemetryUser` em `usePortalAuth` | Usuário sempre nulo (no login, na hidratação e no logout) e só a tag `area=portal`; nenhum identificador do Cliente vai ao Sentry desde a Issue #710 (2026-09-23). |
 | `['portal-invoices-page', mode, customerId, filters, page]` | `portal_list_invoices_page` | Criação/desfazimento de consolidada invalidam as raízes `portal-invoices` e `portal-invoices-page`; mudança de filtro/página cria uma leitura limitada. |
 | `['portal-invoice-detail', id]` | `portal_invoice_details` | Não é invalidada explicitamente; o modal fecha após desfazer. |
 | Faturas avulsas na lista/detalhe | Núcleos paginado e de detalhe do Portal, resolvidos pela sessão autenticada | Reusam queries existentes; o Portal não envia `customer_id` para definir seu escopo |
@@ -449,7 +618,7 @@ precedência de free time. Capturas com dados fictícios ficam em
 | `['portal-notifications']`, `['portal-unread-count']` | RPCs de notificação | Polling 30 s e invalidação após marcar lida. |
 | Filtros, seleção e modais | Estado local de cada página | Não persistem, salvo `tab` e parte do filtro de operação na query string. |
 
-Persistência principal: `customer_portal_accounts`, `portal_login_resolution_attempts`, `portal_rate_limits`, `portal_notifications`, `customers`, `customer_contacts`, `invoices`, `invoice_bls`, `invoice_receivable_links`, `bl_receivables`, `payments`, `demurrage_invoices`, `demurrage_invoice_items`, `bls`, `bl_containers`, `voyages` (projeção da programação), `alerts` e `invoice_lifecycle_events`.
+Persistência principal: `customer_portal_accounts`, `portal_login_attempts` (tentativas de login, recuperação e ativação por hash do CNPJ), `portal_rate_limits` (balde das ações self-service: consolidação, desfazimento e disputa), `portal_notifications`, `customers`, `customer_contacts`, `invoices`, `invoice_bls`, `invoice_receivable_links`, `bl_receivables`, `payments`, `demurrage_invoices`, `demurrage_invoice_items`, `bls`, `bl_containers`, `voyages` (projeção da programação), `alerts` e `invoice_lifecycle_events`.
 
 A falta de Portal ou Email de Recuperação bloqueia a emissão, manual ou
 automática, até o Portal ficar pronto ou até a Liberação de faturamento sem
@@ -457,8 +626,9 @@ Portal (ADR 0070). Ela gera `portal_pendencia_geral` para Documentação e o
 Alerta `review_portal_not_ready` (Documentação trata, Administrativo avisado).
 Uma fatura emitida sem Portal e sem Liberação, como as anteriores à migration
 083, abre `portal_excecao_critica_fatura` vinculada à fatura. A exceção é fechada
-quando a fatura é paga, coberta, cancelada ou obsoleta; a pendência geral só é
-fechada por conta ativa ou exceção formal.
+quando a fatura é paga, coberta, cancelada ou obsoleta; a pendência geral fecha
+quando o Portal fica pronto ou o Cliente deixa de ter processo ativo (ver
+[Alertas internos do Portal](#alertas-internos-do-portal)).
 
 ## Fluxos e invariantes
 
@@ -466,6 +636,38 @@ fechada por conta ativa ou exceção formal.
 
 A correção do B/L em fatura com pagamento mantém o total original e o dinheiro recebido, mas atualiza o saldo a pagar. O detalhe exibe Ajustes por correção com abatimento e restituição por B/L, por leitura escopada ao Cliente. Avulsas com item de tabela aparecem para o Cliente do B/L. Faturas canceladas permanecem acessíveis ao Cliente, mas a lista sem filtro mostra só as em vigor; as canceladas e desfeitas aparecem pelo filtro **Cancelada** (migration `128`). Ver [ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md).
 
+### Identidade, convite e recuperação
+
+- **Identificador de login:** somente o CNPJ da empresa, com ou sem máscara,
+  numérico ou alfanumérico. CPF e email não são aceitos como login e caem na
+  mesma recusa genérica.
+- **Email Técnico do Portal:** identidade interna aleatória
+  (`p-<uuid>@<PORTAL_TECH_EMAIL_DOMAIN>`), criada na ativação e usada só para
+  ligar o CNPJ ao Supabase Auth. Não é informada ao Cliente, não recebe
+  mensagens e não é aceita como login.
+- **Email de Recuperação:** endereço que recebe convites e links de
+  recuperação, separado da identidade de login; pode ser compartilhado por mais
+  de um CNPJ. Trocá-lo pelo Perfil exige sessão e senha atual, e o endereço
+  atual vale até a confirmação no novo; a troca assistida por Documentação ou
+  Administrativo exige justificativa. As duas encerram as sessões existentes,
+  como a troca de senha.
+- **Email candidato:** endereço de contato ativo do Cliente sugerido no painel,
+  com a finalidade cadastrada e a origem. É só sugestão: nunca é escolhido nem
+  grava o Email de Recuperação sozinho, e contatos não sincronizam com ele.
+- **Convite do Portal:** link de uso único que vale 48 horas e não ativa a
+  conta antes da definição da senha. Abrir o link só mostra a tela de
+  ativação; o token é consumido quando a ativação conclui. Um reenvio invalida
+  os links anteriores.
+- **Token de convite e de recuperação:** valor aleatório e opaco de 32 bytes,
+  sem CNPJ nem email; só o hash SHA-256 é persistido. A validação confere
+  finalidade, vencimento e uso anterior antes do consumo atômico (o `UPDATE`
+  só consome convite ainda pendente e não vencido).
+- **Recuperação de senha:** link de uso único válido por 1 hora, enviado só a
+  conta Ativa com Email de Recuperação fora da lista de bloqueio; um link vivo
+  é reaproveitado em vez de reenviado, o que limita a um email por hora por
+  conta. Concluir a troca de senha encerra as sessões anteriores.
+
+### Login e escopo da sessão
 
 ```mermaid
 sequenceDiagram
@@ -488,12 +690,12 @@ sequenceDiagram
 ```
 
 - **Identificador ≠ mecanismo:** a Edge Function traduz o CNPJ para a identidade técnica sem expor o email. A senha e a sessão são sempre verificadas pelo Supabase Auth.
-- **Erros genéricos:** resolver desconhecido/vazio usa `28000` sem revelar existência; a UI de login esconde todos os erros exceto `P0429`. Recuperação também responde de forma não enumerável.
+- **Erros genéricos:** a Edge Function `portal-login` devolve o mesmo HTTP `401` genérico para CNPJ desconhecido ou malformado, conta inativa, senha errada e bloqueio por rate limit; só a recusa do Turnstile tem status próprio (`403`). Nenhum `P0429` chega à tela de login. A recuperação também responde de forma não enumerável. O resolver legado `portal_resolve_login` não tem chamador nem grant.
 - **Escopo por identidade:** `current_portal_customer_id()` exige `auth.uid()`, localiza `customer_portal_accounts.auth_user_id`, exige `active=true` e, desde a migration `092`, recusa cliente desativado ("Acesso ao Portal encerrado: cliente desativado"). Cada RPC de dados usa esse customer ID; filtros React nunca autorizam.
-- **O role não separa cliente de interno:** ambos autenticam como `authenticated`. Quem separa é o perfil — `user_profiles` (`is_active_read_user()`, `is_admin()`, `_portal_actor_role()`) para o interno, `customer_portal_accounts` para o cliente. Nenhuma policy ou função pode autorizar por "estar autenticado": policy de leitura com `USING (true)` e função `SECURITY DEFINER` sem guarda são vazamentos para o Portal. Como o projeto concede `EXECUTE` a `anon` e `authenticated` por `ALTER DEFAULT PRIVILEGES`, toda função nova precisa de `REVOKE` explícito. Origem: migrations `192` e `257`, auditoria em `docs/archive/audits/security-audit-portal-2026-08-05.md`.
+- **O role não separa cliente de interno:** ambos autenticam como `authenticated`. Quem separa é o perfil — `user_profiles` (`is_active_read_user()`, `is_admin()`, `_portal_actor_role()`) para o interno, `customer_portal_accounts` para o cliente. Nenhuma policy ou função pode autorizar por "estar autenticado": policy de leitura com `USING (true)` e função `SECURITY DEFINER` sem guarda são vazamentos para o Portal. Função nova nasce fechada ([ADR 0047](../adr/0047-grants-de-funcao-fechados-por-padrao.md)) e o `EXECUTE` é concedido caso a caso; como o cliente do Portal também é `authenticated`, todo grant a `authenticated` exige guarda no corpo. Regra e histórico em [Segurança](../operations/seguranca.md#rls-first); auditoria de origem em `docs/archive/audits/security-audit-portal-2026-08-05.md`.
 - **Sessões isoladas:** `supabase` e `supabasePortal` têm storages distintos. Logout do Portal não deve derrubar o usuário interno.
 - **Ciclo de sessão do Portal:** `PortalAuthProvider` escuta `onAuthStateChange`; `SIGNED_OUT` limpa overview e remove queries `portal-*`, enquanto `SIGNED_IN`/`TOKEN_REFRESHED` reidratam o overview quando ele não está carregado.
-- **Telemetria mínima:** queries e mutations globais reportam erro ao Sentry com `queryKey`/`mutationKey`; o Portal marca `area=portal` e usa apenas `customer_id` como identificador.
+- **Telemetria mínima:** queries e mutations globais reportam erro ao Sentry com `queryKey`/`mutationKey`; o Portal marca só a tag `area=portal` e mantém o usuário do Sentry nulo, sem identificador do Cliente.
 - **CE Mercante:** `bl_has_portal_release` exige `trim(coalesce(ce_mercante,'')) <> ''`. O gate vale para visibilidade e ações self-service no Portal; não define elegibilidade de cálculo/emissão no sistema interno.
 - **Consolidação:** somente recebíveis do cliente e liberados por CE entram; o core decide elegibilidade financeira. Criação tem limite 3/10 min; desfazimento 3/15 min e exige consolidada aberta sem pagamento.
 - **Disputa:** limite 3/30 min; atualiza a invoice de demurrage com prefixo `[Portal]`, cria confirmação em `portal_notifications` e alerta interno. O trigger `notify_dispute_responded` notifica quando o status muda para `resolvido`.
@@ -511,7 +713,7 @@ Os testes foram lidos, mas não executados nesta frente. “Teste de contrato SQ
 
 | Evidência | Tipo | O que sustenta | Limite |
 |---|---|---|---|
-| `src/hooks/__tests__/usePortalAuth.test.tsx` | **Teste** de hook | Normalização do erro do resolver e preservação de `P0429` | Não cobre login bem-sucedido, hidratação, overview ou recovery. |
+| `src/hooks/__tests__/usePortalAuth.test.tsx` | **Teste** de hook | Falha de login e bloqueio por rate limit viram a mesma mensagem genérica; limpeza de sessão e cache em `SIGNED_OUT` e no logout; logout fail-closed | Não cobre login bem-sucedido, hidratação, overview ou recovery. |
 | `src/services/__tests__/supabaseAuth.test.ts` | **Teste** unitário | Deduplicação de logout e tratamento do lock | Não usa Auth real. |
 | `src/components/layout/__tests__/PortalLayout.test.tsx` | **Teste** de componente | Links de navegação do layout | Notificações são mockadas; não cobre guard/logout. |
 | `src/pages/__tests__/PortalDashboard.test.tsx` | **Teste** de componente | Quatro KPIs derivados e links com filtros | Cronograma/Realtime são mockados. |
@@ -519,7 +721,7 @@ Os testes foram lidos, mas não executados nesta frente. “Teste de contrato SQ
 | `src/pages/__tests__/PortalOperacao.test.tsx` | **Teste** de componente | Abas, filtros, flatten e query param de demurrage | RPC/export são mockados. |
 | `src/services/__tests__/portalOperation.test.ts` | **Teste** unitário | Normalização, chamada ao cliente Portal e propagação de erro | Não executa SQL. |
 | `src/lib/__tests__/portalOperationViews.test.ts` | **Teste** unitário | Contagens e filtros de devolução/demurrage | Usa fixtures estáticas. |
-| `src/services/__tests__/portalResolveLoginHardeningMigration.test.ts` | **Teste de contrato SQL** | Hash, rate limit, erro genérico e grant pré-auth do resolver | Não confirma migration aplicada nem resistência real a abuso. |
+| `src/services/__tests__/portalResolveLoginHardeningMigration.test.ts` | **Teste de contrato SQL** histórico | Hash, rate limit, erro genérico e grant pré-auth do resolver legado `portal_resolve_login`, na migration arquivada `122` | O login vigente não usa o resolver; não confirma migration aplicada nem resistência real a abuso. |
 | `src/services/__tests__/portalCeMercanteGateMigration.test.ts` | **Teste de contrato SQL** | Helper de CE e presença do gate em operação, billing, consolidação e demurrage | Não prova dados, grants efetivos ou execução remota. |
 | `src/services/__tests__/portalCreateConsolidationJsonbMigration.test.ts` | **Teste de contrato SQL** | Uso correto do retorno JSONB do core e rate limit | Não cria invoice real. |
 | `src/services/__tests__/portalInvoiceConsolidatedBreakdownMigration.test.ts` | **Teste de contrato SQL** | Breakdown por B/L e fallback reconciliado | É contrato de uma migration redefinida depois pelo gate de CE. |
@@ -528,27 +730,29 @@ Os testes foram lidos, mas não executados nesta frente. “Teste de contrato SQ
 | `src/services/__tests__/portalDisputeAttachmentsService.test.ts` | **Teste** unitário | Validações no cliente (readonly, tamanho, tipos permitidos) e envio multipart | Mock de fetch para a Edge Function. |
 | `src/services/__tests__/portalEdgeFunctionsOrder.test.ts` | **Teste** estático | Ordem lexical das verificações em Edge Functions (rate limit antes de busca) | Garante invariante no código-fonte Deno. |
 
-Não há teste focado para `PortalLogin`, `PortalProtectedRoute`, `PortalConsolidatedModal`, `DisputeModal`, `NotificationBell` ou `PortalProfile`; nessas ações a evidência atual é **Código**. `PortalForgotPassword`, `PortalResetPassword` e `PortalAtivacao` têm cobertura de comportamento em `src/pages/__tests__/PortalRecovery.behavior.test.tsx` e `src/pages/__tests__/PortalAtivacao.test.tsx`.
+Há testes focados de componente para `PortalLogin` (`src/pages/__tests__/PortalLogin.test.tsx`), `PortalProtectedRoute` (`src/components/layout/__tests__/PortalProtectedRoute.test.tsx`), `PortalConsolidatedModal` (`PortalConsolidatedModal.confirmation.test.tsx`), `DisputeModal`, `NotificationBell` (`NotificationBell.test.tsx` e `NotificationBell.behavior.test.tsx`) e `PortalProfile` (`src/pages/__tests__/PortalProfile.test.tsx`); os de `src/components/portal/__tests__/` mockam as RPCs. `PortalForgotPassword`, `PortalResetPassword` e `PortalAtivacao` têm cobertura de comportamento em `src/pages/__tests__/PortalRecovery.behavior.test.tsx` e `src/pages/__tests__/PortalAtivacao.test.tsx`; o console tem `ClientesPortal.behavior.test.tsx` e `PortalReviewPanel.test.tsx`. Esses testes foram localizados, não executados nesta revisão.
 
 **Runtime não executado.** Cenários necessários: login real por CNPJ, com e sem máscara, e senha; identificador desconhecido com erro genérico e rate limit; coexistência/logout das sessões interna e Portal; reload protegido; recovery completo e tokens expirados; KPIs e Realtime do cronograma; listas/detalhes/export/print local e demurrage; invisibilidade por CE ausente sem afetar o interno; consolidação e desfazimento com/sem pagamento, alertas e lifecycle; estados operacionais em datas controladas; abertura/resolução de disputa; triggers de invoice/demurrage; leitura individual/todas das notificações; perfil com atualização/criação única do contato `faturamento` e tentativa de alterar campos não permitidos.
 
 ## Notas e divergências
 
-- **Suspeita — grants `anon` precisam de auditoria pelo estado final.** Migrations antigas concederam `anon`; `114_portal_fase1_indexes_and_cleanup.sql` revogou parte delas, mas `supabase/migrations_archive/123_portal_ce_mercante_gate.sql` redefiniu e voltou a conceder `authenticated, anon` a RPCs de leitura. Essas funções ainda chamam `current_portal_customer_id()`, que rejeita `auth.uid()` nulo, portanto o grant isolado não autoriza dados. Mesmo assim, o resultado aplicado deve ser verificado pelo Plano 07 contra a política default-deny da ADR 0013.
-- **Teste de contrato SQL — ações críticas do Portal.** `portal_create_consolidation` grava `alerts` e `portal_notifications` em `supabase/migrations_archive/123_portal_ce_mercante_gate.sql`; `portal_open_demurrage_dispute` grava `portal_notifications` e `alerts` em `supabase/migrations_archive/117_portal_fase3_rate_limiting.sql`. `portal_update_profile`, na definição vigente de `supabase/migrations_archive/119_portal_fixes_post_pr227.sql`, não grava trilha server-side; criar auditoria para essa ação exige decisão/migration fora deste plano.
-- **Código — links de notificação não navegam.** `portal_list_notifications` retorna `link`, mas `NotificationBell` apenas marca a linha como lida.
-- **Código — falha de perfil é silenciosa na carga.** `PortalProfile` ignora erro de `portal_get_profile`, podendo exibir campos vazios como se fossem dados reais.
-- **Código — falha do cronograma vira vazio.** `listVesselSchedules` registra no console e retorna `[]`, sem distinguir indisponibilidade de ausência de navios.
+- **Teste de contrato SQL — ações críticas do Portal.** Na definição vigente da migration `109`, `portal_create_consolidation` e `portal_obsolete_consolidation` gravam `portal_notifications` (o desfazimento também grava `invoice_lifecycle_events`), e a abertura de disputa (`portal_open_demurrage_dispute` → `portal_add_dispute_message`) grava a mensagem, `portal_notifications` e o alerta `portal_dispute_opened`. `portal_update_profile`, na definição vigente da migration `008`, não grava trilha server-side; criar auditoria para essa ação exige decisão e migration próprias.
+- **Código — mensagem do Turnstile inalcançável no login.** `usePortalAuth.signIn` troca qualquer erro do `portal-login` por `Error('CNPJ ou senha inválidos.')` sem status; por isso os ramos `TURNSTILE_REJECTED` e `P0429` de `PortalLogin` nunca disparam e a recusa do Turnstile aparece como credencial inválida. A recuperação trata o `403` corretamente. Defeito a tratar em tarefa separada.
+- **Código — literal morto.** `portal_refresh_general_pendencies` (job a cada 15 minutos) ainda filtra pelo valor removido `provisionamento_nao_necessario`; não tem efeito, porque o CHECK de `provisioning_decision` não aceita esse valor.
+- **Decisão pendente (D9-04):** a ADR 0045 decidiu que Operações vê no console os mesmos campos completos dos demais perfis leitores; desde o Bloco #521 (migration arquivada `325`) o read model volta a esconder dela Email de Recuperação, origem, entrega e candidatos. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+- **Decisão pendente (D9-05):** a regra registrada no glossário previa email imediato a Documentação e Administrativo em alerta crítico do Portal e alerta ao Administrativo em abuso de login recorrente; o envio imediato não existe desde a remoção de `notify-invoice-issued`, o aviso chega pelo sino, por `/alertas` e pelo resumo das 08:00, e `portal_abuso_login` só avisa a Documentação. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+- **Decisão pendente (D9-20):** a ADR 0013 recusa senha própria em tabela, mas as RPCs legadas `upsert_customer_portal_account` e `set_customer_portal_account_active`, sem chamador no código, continuam executáveis pelo Administrativo, e a policy `cpa_admin_all` permite as mesmas escritas direto em `customer_portal_accounts` — inclusive reativar uma conta Suspensa fora da máquina de estados; o job `cleanup-portal-sessions` ainda limpa a tabela legada `customer_portal_sessions`. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
+- **Decisão pendente (D9-22):** a remoção do pré-voo e do backfill foi decidida (migration arquivada `203`), mas `portal_provisioning_backfill` voltou ao catálogo (migration arquivada `293`, mantida no dump `002`), sem grant a `authenticated`. Registrada no [plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md).
 - `portal_list_disputes()` é consumida por `portalListDisputes` (`src/services/portalBilling.ts` via `usePortalDisputes`) e tem par de inspeção `portal_inspect_list_disputes` desde `013_portal_disputes_inspection.sql`.
 - [ADR 0001](../adr/0001-portal-login-supabase-auth.md) continua válida para Supabase Auth e fim do token legado, mas foi parcialmente superada pela [ADR 0013](../adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md) quanto aos identificadores aceitos.
-A operação interna do Portal está disponível em `/clientes/portal`, com fila
-inicial em “Aguardando análise”, prioridade visual, candidatos de email e
-painel individual. O backfill inicial já cumpriu sua finalidade. A antiga
-funcionalidade administrativa foi retirada do menu, das rotas, do frontend e
-dos tipos; a migration `201` revoga e remove as RPCs temporárias de pré-voo e
-backfill. As migrations históricas permanecem preservadas e o mecanismo interno
-vigente de criação/reparo de registros ausentes continua.
-Não existem ações em lote de provisionamento.
+
+O backfill inicial já cumpriu sua finalidade (ver [Console](#console-clientesportal)).
+A antiga funcionalidade administrativa foi retirada do menu, das rotas, do
+frontend e dos tipos; a migration arquivada `203` revogou e removeu as RPCs
+temporárias de pré-voo e backfill (o backfill voltou depois; ver D9-22 acima).
+As migrations históricas permanecem preservadas e o mecanismo interno vigente
+de criação/reparo de registros ausentes continua. Não existem ações em lote de
+provisionamento.
 
 O Portal não replica o header cambial interno. Somente na aba
 `Faturas → Demurrage`, acima da listagem, apresenta o ROE vigente e sua data de
@@ -559,6 +763,95 @@ mostrando o ROE efetivamente aplicado e preserva o valor congelado após pagamen
 
 ### Desbloqueio de CE Mercante — 2026-10-04
 
-O módulo de [Desbloqueio de CE](desbloqueio-ce.md) introduz pedidos no Portal,
-gestão em Importação e condição VIP/documentos anuais na ficha do Cliente.
-Implementado no checkout; publicação ainda não executada.
+O módulo de [Desbloqueio de CE](desbloqueio-ce.md) introduz pedidos no Portal
+(`/portal/desbloqueio-ce`), gestão em Importação e condição VIP/documentos
+anuais na ficha do Cliente. Regras e estado de publicação ficam no módulo dono.
+
+### Piloto e abertura do Portal (procedimento não executado — decisão pendente D9-11)
+
+**Decisão pendente (D9-11):** o desenho de piloto e GO LIVE abaixo, de julho
+de 2026, nunca foi executado e não tem plano vivo; falta o dono decidir se ele
+continua valendo quando o Portal abrir a clientes reais. Registrada no
+[plano da revisão](../plans/2026-10-13-revisao-geral-documentacao.md). Até a
+decisão, o texto preserva o procedimento registrado; não é regra vigente. Saiu
+do glossário na revisão de 2026-10-13.
+
+- **Sequência de GO LIVE:** deploy sem disparos reais; pré-voo e reconciliação
+  dos Clientes existentes; configuração e verificação de domínio, Resend e
+  webhooks; ativação de alertas e suporte; piloto; aprovação final do
+  Administrativo; abertura geral. Convites reais só depois das quatro
+  primeiras etapas técnicas e operacionais.
+- **Checklist de prontidão (antes do primeiro convite real):** o
+  Administrativo aprova domínio/DNS verificado, Resend e webhooks
+  configurados, backfill concluído, console e alertas operacionais, lista de
+  clientes aprovada e canal de suporte monitorado.
+- **Governança:** o Administrativo tem a aprovação final para iniciar e
+  encerrar o piloto; a Documentação executa o provisionamento cotidiano dos
+  clientes selecionados.
+- **Lista de clientes-piloto:** cerca de dez clientes representativos,
+  preparada pela Documentação e aprovada pelo Administrativo; prioriza
+  atividade real, email validável e diversidade de casos. Cliente sem email
+  não recebe disparo real e fica só na fila operacional.
+- **Atendimento:** a Documentação é o primeiro nível e acompanha convites,
+  ativações, expirações e pendências; o Administrativo trata exceções,
+  incidentes de segurança e decisões de encerramento do piloto.
+- **Métricas (acompanhamento diário):** clientes selecionados, convites
+  enviados e entregues, ativações, expirações, bounces, tempo até ativação e
+  pendências de atendimento.
+- **Janela:** sem prazo fixo; o piloto fica aberto, com acompanhamento diário,
+  até cumprir o critério de saída, e não há abertura geral enquanto houver
+  cliente pendente.
+- **Critério de saída:** cada cliente selecionado Ativo ou com a exceção
+  formal "Provisionamento não necessário no momento", sem incidente crítico
+  pendente e com autorização final do Administrativo para avançar.
+- **Gates de teste do piloto** (qualquer falha bloqueia a aprovação):
+  - *replay de token:* tentar reutilizar token consumido, expirado,
+    invalidado por reenvio ou inválido; o segundo uso falha sem revelar
+    informação;
+  - *anti-enumeração e abuso:* resposta genérica para CNPJ inexistente ou
+    senha incorreta; bloqueio por 15 minutos após cinco falhas em 15 minutos;
+    recuperação sem confirmar a existência da conta; alerta ao Administrativo
+    em abuso recorrente;
+  - *recuperação assistida e troca de email:* senha atual, confirmação do novo
+    endereço, email antigo mantido até a confirmação, validação manual com
+    justificativa e auditoria quando a equipe intervém, operador sem acesso à
+    senha final; falha deixa o cadastro inalterado e chamada não autorizada é
+    negada;
+  - *logs e auditoria:* logs de aplicação, navegador, rede e auditoria não
+    expõem senha, token bruto, `service_role`, chave da Resend nem email
+    completo;
+  - *assinatura e replay de webhook:* assinatura inválida e timestamp fora da
+    janela são rejeitados; repetição válida pode receber sucesso como no-op (ou
+    ficar pendente de processamento), sem duplicar efeitos de entrega, bounce
+    ou complaint;
+  - *isolamento por CNPJ:* tentar acessar e alterar, por chamadas diretas à
+    API, dados de outro Cliente/CNPJ; RLS, RPCs e Edge Functions devem negar,
+    porque ocultar a ação na interface não basta.
+- **Evidência de testes:** registro dos testes automatizados e manuais
+  executados antes do piloto, com data, versão, ambiente e resultado; o piloto
+  só começa sem falha crítica pendente.
+- **Gate de upgrade:** antes da abertura geral, o Administrativo revisa
+  métricas do piloto, cotas, necessidade de backups e previsão de emails e
+  decide formalmente se o ambiente migra para Supabase Pro e/ou Resend Pro.
+- **Rollback escalonado:** em incidente operacional, novos convites são
+  pausados sem apagar histórico; em incidente de segurança, as sessões são
+  revogadas e as contas afetadas podem ser suspensas. A retomada depende de
+  decisão do Administrativo.
+- **Abertura geral gradual:** a aprovação do GO LIVE não dispara convites em
+  massa; cada Cliente fica em Aguardando análise até a revisão individual da
+  Documentação ou do Administrativo, que escolhe o Email de Recuperação e
+  envia o convite.
+- **Monitoramento pós-abertura:** a Documentação acompanha fila e métricas
+  diariamente; os alertas críticos continuam imediatos para o Administrativo,
+  que pode pausar convites ou executar o rollback escalonado.
+
+Estado registrado em outros documentos (não resolve a decisão): o backfill
+rodou em produção em 2026-07-14 e o teste de isolamento por CNPJ contra
+produção foi registrado depois da correção das guardas
+([Console](#console-clientesportal)); o domínio `portalfwlog.com.br` está
+verificado no Resend desde 2026-09-24, com webhook configurado e um convite
+real entregue na caixa de entrada
+([serviços externos](../operations/servicos-externos.md#resend-envio)). O
+desenho cita passos que já não existem: o pré-voo (removido com o backfill),
+a exceção "Provisionamento não necessário no momento" (retirada pelo
+Bloco #521) e o email imediato de alerta crítico (decisão pendente D9-05).
