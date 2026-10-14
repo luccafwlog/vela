@@ -212,10 +212,9 @@ não confundir com a ação Cancelar.
 **Código:** `src/components/ui/ConfirmDialog.tsx` (Voltar por padrão, campo
 "Motivo (obrigatório)") e `useConfirmWithReason`. Implementação concluída em
 2026-10-05 (nota de encerramento da ADR 0072); as lacunas B13, B14 e B15 foram
-corrigidas nas migrations `261`, `262` e `263`; fora delas, **Salvar** do Local e do serviço em
-`/embarquevazios/depots` grava sem diálogo de antes e depois
-(`src/pages/DepotCadastro.tsx`; B31, correção pendente no
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
+corrigidas nas migrations `261`, `262` e `263`, e **Salvar** do Local e do
+serviço em `/embarquevazios/depots` mostra antes e depois (B31,
+`src/pages/DepotCadastro.tsx`; **Teste:** `DepotCadastro.behavior.test.tsx`).
 
 **Reativar pede motivo (B13, migration `261`).** Reativar tarifa (tabela e
 item de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage, taxa

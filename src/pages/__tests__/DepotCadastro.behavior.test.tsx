@@ -49,11 +49,11 @@ describe('Cadastro de Depot', () => {
   })
   beforeEach(() => { cleanup(); for (const fn of Object.values(mocks)) (fn as { mockClear: () => void }).mockClear() })
   it('apresenta o novo modelo de Terminais e catálogo sugerido', () => { renderPage(); expect(screen.getByRole('heading', { name: 'Cadastro de Terminais' })).toBeTruthy(); expect(screen.getByText(/valores sugeridos/i)).toBeTruthy() })
-  it('editar um serviço e salvar atualiza (não duplica)', async () => { renderPage(); fireEvent.click(await screen.findByRole('button', { name: /editar/i })); fireEvent.click(screen.getByRole('button', { name: /salvar serviço/i })); await waitFor(() => expect(mocks.upsertDepotService).toHaveBeenCalled()); expect((mocks.upsertDepotService.mock.calls as unknown as Array<[Record<string, unknown>]>)[0][0]).toMatchObject({ id: 's1', depot_id: 'd1' }) })
+  it('editar um serviço e salvar atualiza (não duplica)', async () => { renderPage(); fireEvent.click(await screen.findByRole('button', { name: /editar/i })); fireEvent.change(screen.getByLabelText('Serviço'), { target: { value: 'Transporte TVV' } }); fireEvent.click(screen.getByRole('button', { name: /salvar serviço/i })); await waitFor(() => expect(mocks.upsertDepotService).toHaveBeenCalled()); expect((mocks.upsertDepotService.mock.calls as unknown as Array<[Record<string, unknown>]>)[0][0]).toMatchObject({ id: 's1', depot_id: 'd1' }) })
   it('carrega o formulário do local selecionado por padrão', async () => { renderPage(); await waitFor(() => expect((screen.getAllByLabelText('Código')[0] as HTMLInputElement).value).toBe('VBR')); expect((screen.getByLabelText('Free time vazio') as HTMLInputElement).value).toBe('3'); expect((screen.getByLabelText('Free time material') as HTMLInputElement).value).toBe('2') })
   it('pede confirmação antes de excluir um local', async () => { renderPage(); fireEvent.click(await screen.findByRole('button', { name: /excluir/i })); await waitFor(() => expect(mocks.confirm).toHaveBeenCalled()); expect(mocks.deleteDepot).toHaveBeenCalledWith('d1', 'motivo') })
   it('não exclui quando a confirmação é negada', async () => { mocks.confirm.mockResolvedValueOnce(false); renderPage(); fireEvent.click(await screen.findByRole('button', { name: /excluir/i })); await waitFor(() => expect(mocks.confirm).toHaveBeenCalled()); expect(mocks.deleteDepot).not.toHaveBeenCalled() })
-  it('mostra toast de erro quando o salvamento falha', async () => { mocks.upsertDepot.mockRejectedValueOnce(new Error('sem permissão')); renderPage(); fireEvent.click(await screen.findByRole('button', { name: /salvar local/i })); await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('sem permissão', 'error')) })
+  it('mostra toast de erro quando o salvamento falha', async () => { mocks.upsertDepot.mockRejectedValueOnce(new Error('sem permissão')); renderPage(); await waitFor(() => expect((screen.getAllByLabelText('Código')[0] as HTMLInputElement).value).toBe('VBR')); fireEvent.change(screen.getAllByLabelText('Nome')[0], { target: { value: 'Vila Velha 2' } }); fireEvent.click(await screen.findByRole('button', { name: /salvar local/i })); await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('sem permissão', 'error')) })
   it('exige porto brasileiro para salvar terminal portuário', async () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /novo local/i }))
@@ -81,5 +81,29 @@ describe('Cadastro de Depot', () => {
     await screen.findByText(/destino: TVV/i)
     expect(screen.queryByRole('button', { name: /^Desativar$/ })).toBeNull()
     auth.isAdmin = true
+  })
+  it('B31: Salvar do Local e do serviço mostra antes e depois; sem mudança, não grava', async () => {
+    mocks.confirm.mockClear()
+    renderPage()
+    await waitFor(() => expect((screen.getAllByLabelText('Código')[0] as HTMLInputElement).value).toBe('VBR'))
+    fireEvent.click(screen.getByRole('button', { name: /salvar local/i }))
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Nenhuma alteração para salvar.', 'info'))
+    expect(mocks.upsertDepot).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Free time vazio'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: /salvar local/i }))
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Salvar local',
+      changes: [{ field: 'Free time vazio (dias)', before: '3', after: '5' }],
+    })))
+    await waitFor(() => expect(mocks.upsertDepot).toHaveBeenCalled())
+
+    fireEvent.click(await screen.findByRole('button', { name: /editar/i }))
+    fireEvent.change(screen.getByLabelText('Valor sugerido'), { target: { value: '120' } })
+    fireEvent.click(screen.getByRole('button', { name: /salvar serviço/i }))
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Salvar serviço',
+      changes: [{ field: 'Valor sugerido (R$)', before: '100', after: '120' }],
+    })))
   })
 })

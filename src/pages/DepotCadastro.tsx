@@ -116,7 +116,40 @@ export function DepotCadastro() {
     setServiceForm(emptyServiceForm)
   }
 
+  // B31 (ADR 0072): Salvar mostra cada campo com o valor anterior e o novo; cadastrar mostra o resumo.
+  const tipoLabel = (tipo: string) => (tipo === 'terminal_portuario' ? 'Terminal portuário' : 'Depot')
+  const portLabel = (portId: number | null | undefined) => (ports.data ?? []).find((port) => port.id === portId)?.locode ?? (portId ? String(portId) : '')
+  const depotCodeOf = (id: string | null | undefined) => (depots.data ?? []).find((depot) => depot.id === id)?.code ?? id ?? ''
+  const natureLabel = (natureza: string) => ({ geral: 'Geral', armazenagem: 'Armazenagem', transporte: 'Transporte' } as Record<string, string>)[natureza] ?? natureza
+
+  async function confirmSave(kind: 'local' | 'serviço', name: string, changes: Array<{ field: string; before: string; after: string }> | null) {
+    if (changes && changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return false
+    }
+    return confirm({
+      title: changes ? `Salvar ${kind}` : `Cadastrar ${kind}`,
+      message: changes ? `Salvar as alterações ${kind === 'local' ? 'do local' : 'do serviço'} ${name}?` : `Cadastrar ${kind === 'local' ? 'o local' : 'o serviço'} ${name}?`,
+      confirmLabel: changes ? 'Salvar alterações' : 'Cadastrar',
+      changes: changes ?? undefined,
+      consequence: kind === 'local'
+        ? 'Vale para os próximos lançamentos de vazios; free time e tipo mudam a armazenagem calculada de agora em diante.'
+        : 'O valor sugerido vale para as próximas Linhas de Serviço; linhas já lançadas não mudam.',
+      reversibility: 'Pode ser editado de novo no cadastro.',
+    })
+  }
+
   async function saveDepot() {
+    const original = newDepot ? null : selected
+    const changes = original ? [
+      { field: 'Código', before: original.code, after: depotForm.code },
+      { field: 'Nome', before: original.name ?? '', after: depotForm.name },
+      { field: 'Tipo', before: tipoLabel(original.tipo), after: tipoLabel(depotForm.tipo) },
+      { field: 'Porto', before: portLabel('port_id' in original && typeof original.port_id === 'number' ? original.port_id : null), after: portLabel(depotForm.port_id) },
+      { field: 'Free time vazio (dias)', before: String(original.free_time_vazio_days), after: String(depotForm.free_time_vazio_days) },
+      { field: 'Free time com material (dias)', before: String(original.free_time_material_days), after: String(depotForm.free_time_material_days) },
+    ].filter((change) => change.before !== change.after) : null
+    if (!(await confirmSave('local', depotForm.code, changes))) return
     await run(async () => {
       await upsertDepot({ ...depotForm, id: newDepot ? undefined : selected?.id })
       await depots.refetch()
@@ -137,6 +170,15 @@ export function DepotCadastro() {
 
   async function saveService() {
     if (!selected) return
+    const original = serviceForm.id ? (services.data ?? []).find((item) => item.id === serviceForm.id) ?? null : null
+    const changes = original ? [
+      { field: 'Serviço', before: original.name, after: serviceForm.name },
+      { field: 'Natureza', before: natureLabel(original.natureza), after: natureLabel(serviceForm.natureza) },
+      { field: 'Condição', before: original.condition ? conditionLabel(original.condition) : '', after: serviceForm.natureza === 'armazenagem' && serviceForm.condition ? conditionLabel(serviceForm.condition) : '' },
+      { field: 'Destino da rota', before: depotCodeOf(original.route_destino_id), after: serviceForm.natureza === 'transporte' ? depotCodeOf(serviceForm.route_destino_id || null) : '' },
+      { field: 'Valor sugerido (R$)', before: String(Number(original.rate_brl)), after: String(Number(serviceForm.rate_brl)) },
+    ].filter((change) => change.before !== change.after) : null
+    if (!(await confirmSave('serviço', serviceForm.name, changes))) return
     await run(async () => {
       await upsertDepotService({
         ...serviceForm,
