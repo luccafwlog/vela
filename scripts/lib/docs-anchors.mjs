@@ -7,6 +7,13 @@ export function stripCodeFences(markdown) {
   return markdown.replace(fencePattern, '')
 }
 
+// O que não aparece na página renderizada: blocos de código e comentários
+// HTML (inclusive de várias linhas). Os blocos saem primeiro, para um `<!--`
+// dentro de exemplo de código não abrir comentário.
+export function stripNonRendered(markdown) {
+  return stripCodeFences(markdown).replace(/<!--[\s\S]*?-->/g, '')
+}
+
 // Mesmo algoritmo do github-slugger: minúsculas, remove pontuação e símbolos,
 // troca cada espaço por hífen. Letras acentuadas, dígitos, `_` e `-` ficam.
 // ponytail: a formatação inline é retirada por expressão regular; um título com
@@ -28,7 +35,7 @@ export function githubSlug(heading) {
 export function headingAnchors(markdown) {
   const anchors = new Set()
   const occurrences = new Map()
-  const prose = stripCodeFences(markdown)
+  const prose = stripNonRendered(markdown)
   for (const match of prose.matchAll(/^#{1,6}[ \t]+(.*?)[ \t]*#*[ \t]*$/gm)) {
     const base = githubSlug(match[1])
     let slug = base

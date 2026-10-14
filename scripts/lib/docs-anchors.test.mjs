@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { anchorExists, githubSlug, headingAnchors, stripCodeFences } from './docs-anchors.mjs'
+import { anchorExists, githubSlug, headingAnchors, stripCodeFences, stripNonRendered } from './docs-anchors.mjs'
 
 assert.equal(githubSlug('Câmbio (ROE / PTAX)'), 'câmbio-roe--ptax')
 assert.equal(githubSlug('Admin / Usuários'), 'admin--usuários')
@@ -20,6 +20,9 @@ const anchors = headingAnchors([
   '  ~~~',
 ].join('\n'))
 assert.deepEqual([...anchors].sort(), ['line-up', 'módulo', 'notas', 'notas-1'])
+const commented = headingAnchors('## Visível\n<!--\n## Escondido\n-->\n```html\n<!-- não abre comentário\n```\n## Depois\n')
+assert.deepEqual([...commented].sort(), ['depois', 'visível'])
+assert.equal(stripNonRendered('a <!-- b --> c'), 'a  c')
 const collided = headingAnchors('## Foo\n## Foo-1\n## Foo\n## Foo\n')
 assert.deepEqual([...collided].sort(), ['foo', 'foo-1', 'foo-2', 'foo-3'])
 assert.equal(stripCodeFences('a\n```\n## x\n```\nb').includes('## x'), false)
@@ -30,4 +33,4 @@ assert.equal(anchorExists(anchors, 'Notas'), false)
 assert.equal(anchorExists(anchors, 'dentro-do-bloco'), false)
 assert.equal(anchorExists(anchors, '%E0%A4%A'), false)
 
-console.log('docs-anchors: GitHub slug, duplicate suffix with collisions, code fence and explicit anchor checks passed.')
+console.log('docs-anchors: GitHub slug, duplicate suffix with collisions, code fence, HTML comment and explicit anchor checks passed.')

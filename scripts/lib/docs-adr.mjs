@@ -2,7 +2,7 @@
 // estendida/supersedida tem faixa "Situação atual" e documento datado vive no
 // arquivo histórico (ou é plano/spec vivo).
 
-import { stripCodeFences } from './docs-anchors.mjs'
+import { stripNonRendered } from './docs-anchors.mjs'
 
 export const ADR_STATUSES = ['aceito', 'estendida', 'supersedida parcialmente', 'substituída', 'obsoleta']
 
@@ -14,10 +14,11 @@ const statusPattern = new RegExp(
 )
 
 // Cabeçalho da ADR: as linhas entre o título `# ` e a primeira seção `## `,
-// fora de blocos de código. Status e faixa só valem ali; um exemplo no corpo
-// ou num bloco de código não conta. Sem título, não há cabeçalho (null).
+// fora de blocos de código e de comentários HTML. Status e faixa só valem ali;
+// um exemplo no corpo, num bloco de código ou comentado não conta. Sem título,
+// não há cabeçalho (null).
 export function adrHeader(content) {
-  const lines = stripCodeFences(content).split(/\r?\n/)
+  const lines = stripNonRendered(content).split(/\r?\n/)
   const title = lines.findIndex((line) => /^# /.test(line))
   if (title < 0) return null
   const firstSection = lines.findIndex((line, index) => index > title && /^## /.test(line))

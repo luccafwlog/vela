@@ -10,6 +10,8 @@ assert.equal(adrFileStatus('# 0012 — X\n\nO Status: aceito foi discutido.\n'),
 assert.equal(adrFileStatus('# 0013 — X\n\n```md\nStatus: aceito\n```\n'), null)
 assert.equal(adrFileStatus('# 0014 — X\n\n## Contexto\n\nStatus: aceito\n'), null)
 assert.equal(adrFileStatus('Status: aceito\n'), null)
+assert.equal(adrFileStatus('# 0015 — X\n\n<!--\nStatus: aceito\n-->\n'), null)
+assert.equal(hasSituationBanner('# X\n\n<!-- rascunho -->\n> **Situação atual (2026-10-13).** Depois do comentário.\n'), true)
 assert.equal(adrHeader('Sem título\n'), null)
 
 assert.equal(hasSituationBanner('# X\n\n> **Situação atual (2026-10-13).** A regra vigente está no módulo.\n'), true)
