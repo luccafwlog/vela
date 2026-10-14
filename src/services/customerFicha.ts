@@ -406,12 +406,12 @@ export async function fetchCustomerManualChargeBls(customerId: number) {
   return Array.from(counts, ([bl_id, manual_count]) => ({ bl_id, manual_count }))
 }
 
-// matched_document e resolvido automaticamente por CNPJ/CPF exato
-// (isCustomerReconciliationResolved) — filtra pelo mesmo predicado canonico
-// para nao listar como pendente um vinculo que ja fechou sozinho.
+// B16: a sugestão por nome grava `suggested_customer_id` com `customer_id`
+// nulo (resolveCustomerLink); é por ela que a ficha do Cliente sugerido acha
+// os B/Ls. matched_document é resolvido sozinho (isCustomerReconciliationResolved).
 export async function fetchCustomerPendingReconciliation(customerId: number) {
   const { rows, error } = await fetchAllRows<FichaPendingReconciliationRow>((from, to) =>
-    supabase.from('bls').select('id, consignee, customer_reconciliation_status').eq('customer_id', customerId).in('customer_reconciliation_status', ['matched_document', 'matched_name']).order('created_at', { ascending: false }).range(from, to).overrideTypes<FichaPendingReconciliationRow[], { merge: false }>(),
+    supabase.from('bls').select('id, consignee, customer_reconciliation_status').eq('suggested_customer_id', customerId).eq('customer_reconciliation_status', 'matched_name').order('created_at', { ascending: false }).range(from, to).overrideTypes<FichaPendingReconciliationRow[], { merge: false }>(),
   )
   if (error) throw error
   return rows.filter((row) => !isCustomerReconciliationResolved(row.customer_reconciliation_status))

@@ -14,6 +14,8 @@ export type ReviewQueueItem = (BL & {
   cargo_description?: string | null
   manifest_customer_email?: string | null
   customer?: ReviewCustomer | null
+  /** B16: Cliente sugerido por nome na importação (`bls.suggested_customer_id`). */
+  suggested_customer?: ReviewCustomer | null
   voyage?: (Pick<Voyage, 'id' | 'voyage_number'> & {
     vessel?: (Pick<Vessel, 'id' | 'name'> & {
       carrier?: Pick<Carrier, 'id' | 'name'> | null
@@ -78,6 +80,7 @@ export function useReviewQueue() {
           .select(
             `*,
             customer:customers!bls_customer_id_fkey(id, cnpj_cpf, name, customer_contacts(email)),
+            suggested_customer:customers!bls_suggested_customer_id_fkey(id, cnpj_cpf, name),
             voyage:voyages(id, voyage_number, vessel:vessels(id, name, carrier:carriers(id, name))),
             bl_containers(id, container_number, is_imo, is_oog)`,
           )

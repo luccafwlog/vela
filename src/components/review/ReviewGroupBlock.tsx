@@ -259,7 +259,7 @@ export function ReviewGroupBlock({
                               <li className="review-items__reason">Pendente de revisão, sem motivo registrado</li>
                             ) : null}
                           </ul>
-                          {item.source === 'granite' && item.suggested_customer?.name ? (
+                          {item.suggested_customer?.name ? (
                             <p className="review-items__suggestion">
                               Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpjCpf(item.suggested_customer.cnpj_cpf)}). Confirme o CNPJ antes de vincular.
                             </p>

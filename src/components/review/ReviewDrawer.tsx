@@ -364,7 +364,8 @@ export function ReviewDrawer({
             <section className="review-drawer__section" aria-label="Cliente">
               <h3 className="review-section-title">Cliente</h3>
               {!isGranite ? <p className="review-drawer__note">Vale só para este B/L. Use quando as evidências divergem ou para trocar o cliente vinculado.</p> : null}
-              {item.source === 'granite' && item.suggested_customer?.name ? (
+              {/* B16: a sugestão por nome aparece para B/L e Granito. */}
+              {item.suggested_customer?.name ? (
                 <div className="review-drawer__suggestion">
                   <p>
                     Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpj(item.suggested_customer.cnpj_cpf)}). Confira o CNPJ antes de vincular.

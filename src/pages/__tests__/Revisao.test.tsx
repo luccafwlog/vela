@@ -360,6 +360,19 @@ describe('Revisao', () => {
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BLX'], customerId: 7, email: 'novo@cliente.com', changedBy: 'user-1' })))
   })
 
+  it('B16: exibe a sugestão por nome do B/L, como a do Granito', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{ ...makeBl('BLSUG1', 'Sugerido Ltda'), suggested_customer_id: 42, suggested_customer: { id: 42, name: 'Cliente Sugerido', cnpj_cpf: '11222333000181' } }],
+      isLoading: false, error: null,
+    } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Sugerido Ltda/ }))
+    expect(screen.getAllByText(/Sugestão por nome/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Cliente Sugerido').length).toBeGreaterThan(0)
+  })
+
   it('exibe sugestao de Granito sem trata-la como vinculo automatico', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
