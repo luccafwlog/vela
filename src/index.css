@@ -6860,15 +6860,12 @@ button.app-metric-tile[aria-pressed='true'] {
     min-height: 0 !important;
   }
 
-  /* Com um documento aberto no modal, só ele vai para o papel: some também o
-     que fica fora do shell, como a faixa do Modo Inspeção. */
-  body:has(.app-modal-backdrop :is(.invoice-print-content, .agency-report-print-content, .customer-report-print-content)) #root > *:not(:has(.app-modal-backdrop)) {
-    display: none !important;
-  }
-
-  /* O mesmo dentro da página: o modal pode estar fundo na árvore (ADR na aba
-     da Viagem), e esconder só os filhos diretos de .app-main levava a ficha
-     da Viagem inteira para o papel antes do documento. */
+  /* Com um documento aberto no modal, só ele vai para o papel. O primeiro
+     seletor tira o que fica fora do shell (a faixa do Modo Inspeção); o
+     segundo, o que fica dentro da página: o modal pode estar fundo na árvore
+     (ADR na aba da Viagem), e esconder só os filhos diretos de .app-main
+     levava a ficha da Viagem inteira para o papel antes do documento. */
+  body:has(.app-modal-backdrop :is(.invoice-print-content, .agency-report-print-content, .customer-report-print-content)) #root > *:not(:has(.app-modal-backdrop)),
   body:has(.app-modal-backdrop :is(.invoice-print-content, .agency-report-print-content, .customer-report-print-content)) .app-main *:not(:has(.app-modal-backdrop)):not(.app-modal-backdrop):not(.app-modal-backdrop *) {
     display: none !important;
   }

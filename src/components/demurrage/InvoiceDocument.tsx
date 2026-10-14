@@ -1,7 +1,7 @@
 import type { FinancialRefundSummary } from '../../services/financialRefunds'
 import { QRCodeSVG } from 'qrcode.react'
 import { COMPANY } from '../../config/company'
-import { cell, documentRoot, fmtBRL, fmtCNPJ, labelCell } from '../shared/invoiceFormat'
+import { cell, DOC_BORDER, DOC_NAVY, DOC_SUBTOTAL, documentRoot, fmtBRL, fmtCNPJ, labelCell } from '../shared/invoiceFormat'
 import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle, PixPreparingNotice } from '../shared/InvoiceDocumentKit'
 
 export type DemurrageInvoiceDocumentItem = {
@@ -117,7 +117,7 @@ export function InvoiceDocument({ detail, type }: Props) {
       </table>
 
       {complementOf.length ? (
-        <div data-testid="demurrage-complement-notice" style={{ border: '1px solid #e5e7eb', borderLeft: '4px solid #1A2744', background: '#f0f4fa', padding: '8px 12px', marginBottom: 12, fontSize: 12, lineHeight: 1.5 }}>
+        <div data-testid="demurrage-complement-notice" style={{ border: `1px solid ${DOC_BORDER}`, borderLeft: `4px solid ${DOC_NAVY}`, background: DOC_SUBTOTAL, padding: '8px 12px', marginBottom: 12, fontSize: 12, lineHeight: 1.5 }}>
           <strong>Invoice complementar de {complementOf.join(', ')}.</strong> Cobra só os containers abaixo, que ainda não tinham sido cobrados neste B/L; os containers já cobrados não entram de novo.
         </div>
       ) : null}

@@ -366,7 +366,7 @@ documento no próprio diálogo e imprime por `printDocumentElement`
 calculado por `buildInvoiceFileBaseName`. Não existe geração de PDF por
 biblioteca.
 
-Desde a etapa 13 da revisão visual (2026-10-13), sem mudar o visual: valores
+Desde a PR 939 (documentos impressos, tela 20 da identidade), sem mudar o visual: valores
 em R$ não quebram linha, a folha tem margem e "Página N de M" em todas as
 páginas, e o recibo da individual coberta diz "Recebido pela consolidada
 … (atribuído a estes B/Ls)" e "Valor líquido atribuído", em vez de "Valor

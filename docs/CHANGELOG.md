@@ -4,6 +4,12 @@
 
 ## 2026-10
 
+- **Documentos impressos (2026-10-14, PR 939, tela 20 do [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
+  visual das faturas, recibos e ADR mantido; a folha A4 ganha margem em todas as páginas e
+  "Página N de M"; Invoice de Demurrage paga ou cancelada não mostra mais o Pix; a complementar diz
+  de qual Invoice completa; o recibo da individual coberta diz que o valor entrou pela consolidada;
+  imprimir com um documento aberto leva ao papel só o documento (sem a ficha da Viagem nem a faixa
+  do Modo Inspeção).
 - **Lote 1 da identidade visual (2026-10-14, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
   Lista de BLs, ficha da Viagem, ficha do Cliente (com a aba nova Contêineres), Taxas Locais ·
   Faturas e Validação e Faturas do Portal em tabela limpa: uma linha de título, nada embaixo do
