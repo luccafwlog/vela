@@ -87,3 +87,4 @@ src/integration/pixBrCode.local-pg.test.ts
 src/integration/voyageHardDeleteGuard.local-pg.test.ts
 src/integration/paymentRegistrarNames.local-pg.test.ts
 src/integration/permissoesPorPerfil.local-pg.test.ts
+src/integration/alertasFechamPelaOrigem.local-pg.test.ts

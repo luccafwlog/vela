@@ -483,6 +483,30 @@ export async function dismissAlertItem(
   if (error) throw error
 }
 
+/**
+ * Tipos de conferência sem fato de origem: fecham com "Resolver com
+ * justificativa" (ADR 0083, item 23). Espelha
+ * `_alert_types_resolved_with_justification()` (migration 238); os demais
+ * fecham sozinhos quando a origem é corrigida.
+ */
+export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
+  'portal_abuso_login',
+  'bl_vehicles_changed_on_reimport',
+  'ce_trocado_com_desbloqueio',
+]
+
+export function canResolveWithJustification(type: string | null | undefined): boolean {
+  return Boolean(type && ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION.includes(type))
+}
+
+export async function resolveAlertItemWithJustification(itemId: number, reason: string): Promise<void> {
+  const { error } = await alertsRpc.rpc('resolve_alert_item_with_justification', {
+    p_item_id: itemId,
+    p_reason: reason,
+  })
+  if (error) throw error
+}
+
 export async function invalidateAllAlertQueries(queryClient: QueryClient): Promise<void> {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all() }),

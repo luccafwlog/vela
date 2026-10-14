@@ -200,8 +200,7 @@ identidade pública de terminal é `voyage::porto::depots.code` (o UUID fica só
 no metadata). Os dois alertas de faturamento que o navegador abre e fecha por
 RPC estão em
 [Operação e suporte § Notas e divergências](modules/operacao-suporte.md#notas-e-divergências)
-(B27: a origem passa a ser recomputada no servidor, correção pendente no
-[plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
+(o fechamento recomputa a origem no servidor desde a migration `238`).
 
 ## Fronteiras de autenticação
 

@@ -66,6 +66,8 @@ export const ALERT_RULE_DEPARTMENT_LABELS: Record<AlertRuleDepartment, string> =
 
 const temporaryDismissal = 'Pode ser dispensado temporariamente na fila, com motivo obrigatório e data futura de revisão. A dispensa não corrige a origem nem libera um bloqueio.'
 const derivedResolution = 'O alerta é fechado automaticamente quando a origem é corrigida e a reconciliação confirma que a pendência deixou de existir.'
+// Conferência sem fato de origem (ADR 0083, item 23; migration 238).
+const justifiedResolution = 'Depois de conferir, use Resolver na fila: a justificativa é obrigatória e fica no histórico do alerta com o seu nome.'
 
 // Ordem canônica dos departamentos do ADR no detector SQL
 // (`reconcile_agency_report_alerts`, migrations 323/342).
@@ -294,7 +296,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Conferir o Desbloqueio de CE com o CE novo e refazer o que dependia do CE anterior.',
     destination: '/desbloqueio-ce',
     destinationLabel: 'Abrir o Desbloqueio de CE',
-    afterResolution: 'Registre a conferência ao resolver o alerta.',
+    afterResolution: 'Fecha sozinho quando a conciliação com a ZPT confere o Desbloqueio do CE atual. Se o CE foi removido ou a conferência foi feita fora da conciliação, use Resolver na fila: a justificativa é obrigatória e fica no histórico do alerta com o seu nome.',
     dismissal: temporaryDismissal,
   },
   {
@@ -310,7 +312,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Conferir na ficha do B/L os veículos que entraram e saíram e o local de desova; a cobrança segue a ADR 0077.',
     destination: '/bls',
     destinationLabel: 'Abrir o B/L',
-    afterResolution: 'Registre a conferência ao resolver o alerta.',
+    afterResolution: justifiedResolution,
     dismissal: temporaryDismissal,
   },
   {
@@ -326,7 +328,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Reenviar o Comunicado de CE e Taxas ao Cliente com o CE atual.',
     destination: '/bls',
     destinationLabel: 'Abrir o B/L',
-    afterResolution: 'Registre o reenvio ao resolver o alerta.',
+    afterResolution: 'Fecha sozinho quando o Comunicado de CE e Taxas é enviado de novo ao Cliente, depois da troca do CE.',
     dismissal: temporaryDismissal,
   },
   {
@@ -439,7 +441,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Investigue as evidências, proteja a conta e registre a tratativa de segurança.',
     destination: '/clientes/portal',
     destinationLabel: 'Abrir Clientes e Portal',
-    afterResolution: derivedResolution,
+    afterResolution: justifiedResolution,
     dismissal: temporaryDismissal,
   },
   {

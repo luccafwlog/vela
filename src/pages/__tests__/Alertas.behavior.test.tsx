@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
@@ -9,22 +9,25 @@ const ack = { id: 2, status: 'open', severity: 'normal', type: 'invoice_overdue'
 const portalInvoice = { id: 3, status: 'open', severity: 'critical', type: 'portal_excecao_critica_fatura', message: 'Portal sem email para fatura', entity_type: 'invoice', entity_id: '456', created_at: '2026-06-18T00:00:00Z' }
 const adrLegacy = { id: 4, status: 'open', severity: 'normal', type: 'agency_report_department_pending', message: 'ADR legado', entity_type: 'agency_departure_report', entity_id: '10::BRVIX::documentacao', created_at: '2026-06-17T00:00:00Z' }
 const adrTerminalized = { id: 5, status: 'open', severity: 'normal', type: 'agency_report_department_pending', message: 'ADR terminalizado', entity_type: 'agency_departure_report', entity_id: '10::BRVIX::TVV::documentacao', created_at: '2026-06-16T00:00:00Z' }
+const ceChanged = { id: 7, item_id: 107, status: 'open', severity: 'critical', type: 'ce_trocado_com_desbloqueio', message: 'CE trocado depois do Desbloqueio', entity_type: 'bl', entity_id: 'BL-CE-1', created_at: '2026-06-14T00:00:00Z' }
 const reviewCustomer = { id: 6, item_id: 106, status: 'open', severity: 'critical', type: 'review_customer_unlinked', message: 'Cliente VALE: 5 B/Ls pendentes de vínculo com cliente', entity_type: 'customer', entity_id: 'VALE', created_at: '2026-06-15T00:00:00Z' }
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
     const filter = queryKey[1] as string
     const data = filter === 'active'
-      ? [open, portalInvoice, adrLegacy, adrTerminalized, reviewCustomer]
+      ? [open, portalInvoice, adrLegacy, adrTerminalized, reviewCustomer, ceChanged]
       : filter === 'dismissed'
         ? [ack]
-        : [open, portalInvoice, adrLegacy, adrTerminalized, reviewCustomer, ack]
+        : [open, portalInvoice, adrLegacy, adrTerminalized, reviewCustomer, ceChanged, ack]
     return { data, isLoading: false, error: null }
   },
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
+const confirmWithReason = vi.hoisted(() => vi.fn())
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirmWithReason: () => confirmWithReason }))
 vi.mock('../../services/alerts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/alerts')>()
   return {
@@ -227,3 +230,20 @@ it('oferece link direto de ação para a tela de revisão /revisao?cliente=... p
   expect(reviewLink.getAttribute('href')).toBe('/revisao?cliente=VALE')
   expect(reviewLink.className).toContain('app-btn--secondary')
 })
+
+it('A23: "Resolver" com justificativa só aparece nos alertas de conferência sem fato de origem', async () => {
+  confirmWithReason.mockResolvedValue(null)
+  renderAlertas()
+
+  const ceRow = screen.getByText('CE trocado depois do Desbloqueio').closest('tr') as HTMLElement
+  const containerRow = screen.getByText('Container vencendo').closest('tr') as HTMLElement
+  expect(within(ceRow).getByRole('button', { name: 'Resolver' })).toBeTruthy()
+  expect(within(containerRow).queryByRole('button', { name: 'Resolver' })).toBeNull()
+
+  fireEvent.click(within(ceRow).getByRole('button', { name: 'Resolver' }))
+  await waitFor(() => expect(confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
+    title: 'Resolver com justificativa',
+    confirmLabel: 'Resolver',
+  })))
+})
+

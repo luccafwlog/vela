@@ -6,10 +6,12 @@ import { Button } from '../components/ui/Button'
 import { NoValue } from '../components/ui/NoValue'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { useToast } from '../components/ui/Toast'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { formatDate } from '../lib/utils'
 import {
   alertEntityLink,
   alertEntityLinkLabel,
+  canResolveWithJustification,
   dismissAlertItem,
   fetchAlertEntityLabels,
   formatAlertEntity,
@@ -17,6 +19,7 @@ import {
   getEffectiveAlertType,
   invalidateAllAlertQueries,
   listAlerts,
+  resolveAlertItemWithJustification,
   ENTITY_TYPE_LABELS,
   type AlertEntityLabels,
   type AlertQueueRow,
@@ -101,6 +104,7 @@ export function Alertas() {
 
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  const confirmWithReason = useConfirmWithReason()
 
   const activeDepartment = departmentFilter === 'all' ? undefined : departmentFilter
 
@@ -199,6 +203,33 @@ export function Alertas() {
     setDismissReason('')
     setReviewBy(getDefaultReviewDateString())
     setDismissTarget(alert)
+  }
+
+  // Conferência sem fato de origem (ADR 0083, item 23): resolve de vez, com
+  // motivo no histórico do alerta; os demais fecham sozinhos pela origem.
+  const resolveMutation = useMutation({
+    mutationFn: ({ itemId, reason }: { itemId: number; reason: string }) => resolveAlertItemWithJustification(itemId, reason),
+    onSuccess: async () => {
+      showToast('Alerta resolvido com justificativa.', 'success')
+      await invalidateAllAlertQueries(queryClient)
+    },
+    onError: (err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Falha ao resolver o alerta.', 'error')
+    },
+  })
+
+  async function requestResolution(alert: AlertQueueRow) {
+    if (!alert.item_id) return
+    const reason = await confirmWithReason({
+      title: 'Resolver com justificativa',
+      message: `Resolver o alerta "${getAlertTypeLabel(getEffectiveAlertType(alert))}"?`,
+      consequence: 'O alerta sai da fila ativa como resolvido. A justificativa e o seu nome ficam no histórico do alerta.',
+      reversibility: 'Se a situação voltar a acontecer, o sistema abre o alerta de novo.',
+      reasonLabel: 'Justificativa (o que foi conferido)',
+      confirmLabel: 'Resolver',
+    })
+    if (reason === null) return
+    resolveMutation.mutate({ itemId: alert.item_id, reason })
   }
 
   function handleDepartmentChange(newDept: string) {
@@ -382,8 +413,9 @@ export function Alertas() {
                   key={`${alert.id}:${alert.item_id ?? getEffectiveAlertType(alert)}`}
                   alert={alert}
                   entityLabels={entityLabels}
-                  isMutating={dismissMutation.isPending}
+                  isMutating={dismissMutation.isPending || resolveMutation.isPending}
                   onDismiss={() => requestDismissal(alert)}
+                  onResolve={() => void requestResolution(alert)}
                 />
               ))}
             </tbody>
@@ -490,11 +522,13 @@ function AlertRow({
   entityLabels,
   isMutating,
   onDismiss,
+  onResolve,
 }: {
   alert: AlertQueueRow
   entityLabels?: AlertEntityLabels
   isMutating: boolean
   onDismiss: () => void
+  onResolve: () => void
 }) {
   const isDismissed = Boolean(alert.dismissed_until && new Date(alert.dismissed_until) > new Date())
   const effectiveType = getEffectiveAlertType(alert)
@@ -575,9 +609,16 @@ function AlertRow({
               ) : null}
             </div>
           ) : alert.item_id ? (
-            <Button variant="secondary" onClick={onDismiss} disabled={isMutating}>
-              Dispensar
-            </Button>
+            <>
+              {canResolveWithJustification(effectiveType) ? (
+                <Button variant="secondary" onClick={onResolve} disabled={isMutating}>
+                  Resolver
+                </Button>
+              ) : null}
+              <Button variant="secondary" onClick={onDismiss} disabled={isMutating}>
+                Dispensar
+              </Button>
+            </>
           ) : null}
         </div>
       </td>
