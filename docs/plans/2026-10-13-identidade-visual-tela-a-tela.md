@@ -144,10 +144,19 @@ Regras e peças: [identidade visual](../identidade-visual.md).
       (protocolo, B/Ls, situação, termo, procuração, prazo, aberta em,
       Analisar), com busca por B/L e paginação, antes da Condição VIP.
   - **Taxas Locais · Faturas** (decisões de 2026-10-14; tela ainda não
-    aprovada, e a aba Validação ainda não tem proposta): "Aguardando envio
-    automático" em texto cinza (o envio é do sistema; falha de envio e
-    prontidão bloqueada continuam com cor) e fatura cancelada em cinza, não
-    em vermelho.
+    aprovada, e a aba Validação ainda não tem proposta): versão limpa, uma
+    linha de título e oito colunas sem texto embaixo da célula (Fatura,
+    Emissão, Cliente, B/L, Navio / Viagem, Situação, Total, Saldo). Saldo
+    maior que zero em âmbar; Situação em texto (Emitida e Parcialmente paga
+    normais, Cancelada em cinza com a linha inteira, Paga com ícone ✓
+    verde antes da palavra). Etiqueta "Consolidada"; fatura com vários
+    B/Ls mostra o primeiro e "+n". Saem da linha o CNPJ e o POD (filtro e
+    detalhe da fatura) e a coluna **Comunicado de CE** (o Comunicado de CE
+    e Taxas é por Cliente e Viagem, não por fatura, e já está em Clientes ›
+    Comunicação; a falha de envio segue como alerta). Busca única por
+    fatura ou B/L; resumo do recorte na faixa do título. Pergunta em
+    aberto: o ícone ✓ de paga vale nas outras telas (ex.: Demurrage da aba
+    Contêineres).
   - **Faturas do Portal** (decisões de 2026-10-14; tela ainda não
     aprovada): nada no lugar do
     vencimento (a taxa local não tem vencimento, ADR 0055); botão "Copiar
