@@ -120,16 +120,16 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     - **Histórico:** coluna "Por" (nome; "Sistema"; "—" quando o registro
       não guarda autor), filtro por assunto, coluna Assunto, sem texto
       técnico.
-    - **Contêineres** (aba nova pedida em 2026-10-14, entre BLs e
-      Financeiro; proposta na seção 3b.6, aguardando aprovação): uma linha
+    - **Contêineres** (aba nova pedida e aprovada em 2026-10-14, entre BLs
+      e Financeiro; seção 3b.6): uma linha
       por contêiner dos B/Ls do Cliente, com grupos Contêiner (número e
       B/L, tipo, COC/SOC), Datas (descarga, devolução, dias de uso até a
       devolução ou até hoje), Free time (dias e origem: tabela, acordo ou
       B/L; dentro do free time) e Demurrage (situação, valor, fatura).
       Mesmos dados e cálculo da tela Demurrage, só agrupados por Cliente.
       Busca por contêiner ou B/L, filtro de situação, período de descarga,
-      20 por página. Perguntas em aberto: posição e nome da aba, SOC na
-      lista ("Não se aplica") e botão Exportar.
+      20 por página. SOC entra na lista com "Não se aplica"; botão
+      Exportar com a planilha da lista filtrada.
     - **Desbloqueio de CE e VIP:** novo bloco Solicitações de desbloqueio
       (protocolo, B/Ls, situação, termo, procuração, prazo, aberta em,
       Analisar), com busca por B/L e paginação, antes da Condição VIP.
@@ -214,7 +214,7 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 | 2 | Lista de BLs | `/bls` | Cartões que filtram, faixa de resumo, linha com duas ações | Aprovada em 2026-10-13 (lote 1), aguardando implementação |
 | 3 | Ficha da Viagem e Viagens | `/viagens`, `/viagens/:voyageId` | Ficha restaurada em 2026-10-08 com faixa azul-marinho; conferir contra as regras | Ficha aprovada em 2026-10-13 (lote 1), aguardando implementação |
 | 4 | Chegadas e Saídas e programação do Portal | `/chegadas-saidas`, Painel do Portal | "X" em toda célula, grupos ETD/ETA sem separação. Decidir: Chegada no Brasil antes da Saída; esconder porto sem data; previsão de saída já passada em cinza | Pendente |
-| 5 | Ficha do Cliente e Clientes | `/clientes`, `/clientes/:cnpj` | `.app-customer-*` é a maior família de CSS de página | Ficha aprovada em 2026-10-14 (Visão geral e cinco abas); aba Contêineres nova em aprovação; a implementar |
+| 5 | Ficha do Cliente e Clientes | `/clientes`, `/clientes/:cnpj` | `.app-customer-*` é a maior família de CSS de página | Ficha aprovada em 2026-10-14 (Visão geral, cinco abas e a aba nova Contêineres); a implementar |
 | 6 | Revisão | `/revisao` | `review-link-button` como ação em texto (regra 9) | Pendente |
 | 7 | Taxas Locais e detalhe da fatura | `/taxas-locais`, `/taxas-locais/tabelas` | `app-invoice-comm__link`, `app-fin-alerts__link` | Proposta da lista de Faturas no lote 1, aguardando resposta |
 | 8 | Demurrage | `/demurrage`, `/demurrage/taxas` | `app-dem-link` (número da Invoice é identificador; conferir as ações) | Pendente |
