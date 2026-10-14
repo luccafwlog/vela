@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, ChevronDown } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { InlineCustomerPicker, InlineFieldEditor } from '../shared/ReviewInlineEditors'
 import type { ReviewCustomer, ReviewQueueItem } from '../../hooks/useReview'
 import { formatCnpjCpf } from '../../lib/utils'
@@ -123,22 +125,22 @@ export function ReviewGroupBlock({
             <p className="review-next__detail">{nextAction.detail}</p>
             {nextAction.kind === 'portal' && summary.linkedCustomer ? (
               <div className="review-next__links">
-                <Link className="review-link" to={`/clientes/portal?cliente=${summary.linkedCustomer.id}`}>
+                <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${summary.linkedCustomer.id}`}>
                   Abrir no Provisionamento do Portal <ArrowRight size={14} aria-hidden="true" />
                 </Link>
-                <Link className="review-link" to={`/clientes/${encodeURIComponent(summary.linkedCustomer.cnpj_cpf)}?tab=financeiro`}>
+                <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/${encodeURIComponent(summary.linkedCustomer.cnpj_cpf)}?tab=financeiro`}>
                   Liberação na ficha do Cliente <ArrowRight size={14} aria-hidden="true" />
                 </Link>
               </div>
             ) : linked?.customer && nextAction.kind !== 'portal' ? (
               <div className="review-next__links">
-                <Link className="review-link" to={`/clientes/${encodeURIComponent(linked.customer.cnpj_cpf)}`}>
+                <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/${encodeURIComponent(linked.customer.cnpj_cpf)}`}>
                   Ficha de {linked.customer.name} <ArrowRight size={14} aria-hidden="true" />
                 </Link>
               </div>
             ) : nextAction.kind === 'granite' ? (
               <div className="review-next__links">
-                <Link className="review-link" to="/granito">Abrir Granito <ArrowRight size={14} aria-hidden="true" /></Link>
+                <Link className="app-btn app-btn--secondary app-btn--sm" to="/granito">Abrir Granito <ArrowRight size={14} aria-hidden="true" /></Link>
               </div>
             ) : null}
           </div>
@@ -170,14 +172,15 @@ export function ReviewGroupBlock({
                   />
                   {quickLinkAvailable ? (
                     <div className="review-quick-link">
-                      <button
+                      <Button
                         type="button"
-                        className="review-link-button"
+                        variant="secondary"
+                        className="app-btn--sm"
                         aria-expanded={quickLinkOpen}
                         onClick={() => setQuickLinkOpen((open) => !open)}
                       >
                         {quickLinkOpen ? 'Fechar o vínculo direto' : 'Vincular cliente cadastrado sem informar e-mail'}
-                      </button>
+                      </Button>
                       {quickLinkOpen ? (
                         <div className="review-quick-link__body">
                           <p className="review-quick-link__hint">
@@ -214,7 +217,7 @@ export function ReviewGroupBlock({
               <thead>
                 <tr>
                   <th scope="col">B/L</th>
-                  <th scope="col">Pendências</th>
+                  <th scope="col" className="app-table__text-head">Pendências</th>
                   <th scope="col">Navio / viagem</th>
                   <th scope="col"><span className="sr-only">Ação</span></th>
                 </tr>
@@ -229,54 +232,56 @@ export function ReviewGroupBlock({
                     <tr key={item.id}>
                       <td data-label="B/L">
                         {item.source === 'bl' ? (
-                          <Link className="review-items__id" to={`/bls/${encodeURIComponent(item.id)}`}>{item.id}</Link>
+                          <CopyValue value={item.id} label="número do B/L"><Link className="review-items__id" to={`/bls/${encodeURIComponent(item.id)}`}>{item.id}</Link></CopyValue>
                         ) : (
-                          <span className="review-items__id">{item.bl_number}</span>
+                          <CopyValue value={item.bl_number} label="número do B/L"><span className="review-items__id">{item.bl_number}</span></CopyValue>
                         )}
                         <span className="review-items__sub">{item.source === 'granite' ? 'Granito' : getReviewCargoTypeLabel(item)}</span>
                       </td>
                       <td data-label="Pendências">
-                        <ul className="review-items__reasons">
-                          {handledByGroup.map((cause) => (
-                            <li key={cause} className="review-items__reason review-items__reason--group">
-                              {REVIEW_CAUSE_LABELS[cause]} <span className="review-items__where">— no grupo</span>
-                            </li>
-                          ))}
-                          {rowReasons.filter((reason) => !(item.source === 'granite' && /\(granito\)/i.test(reason))).map((reason) => (
-                            <li key={reason} className="review-items__reason">{reviewReasonLabel(reason)}</li>
-                          ))}
-                          {item.source === 'granite' && needsCustomerLink(item) ? (
-                            <li className="review-items__reason">Granito sem cliente vinculado</li>
+                        <div className="app-table__cell-stack">
+                          <ul className="review-items__reasons">
+                            {handledByGroup.map((cause) => (
+                              <li key={cause} className="review-items__reason review-items__reason--group">
+                                {REVIEW_CAUSE_LABELS[cause]} <span className="review-items__where">— no grupo</span>
+                              </li>
+                            ))}
+                            {rowReasons.filter((reason) => !(item.source === 'granite' && /\(granito\)/i.test(reason))).map((reason) => (
+                              <li key={reason} className="review-items__reason">{reviewReasonLabel(reason)}</li>
+                            ))}
+                            {item.source === 'granite' && needsCustomerLink(item) ? (
+                              <li className="review-items__reason">Granito sem cliente vinculado</li>
+                            ) : null}
+                            {item.source === 'bl' && needsWeightFix(item) && !rowReasons.some((reason) => /peso bb|weight ton/i.test(reason)) ? (
+                              <li className="review-items__reason">Peso da carga solta ausente</li>
+                            ) : null}
+                            {causes.length === 1 && causes[0] === 'outros' && !rowReasons.length ? (
+                              <li className="review-items__reason">Pendente de revisão, sem motivo registrado</li>
+                            ) : null}
+                          </ul>
+                          {item.source === 'granite' && item.suggested_customer?.name ? (
+                            <p className="review-items__suggestion">
+                              Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpjCpf(item.suggested_customer.cnpj_cpf)}). Confirme o CNPJ antes de vincular.
+                            </p>
                           ) : null}
-                          {item.source === 'bl' && needsWeightFix(item) && !rowReasons.some((reason) => /peso bb|weight ton/i.test(reason)) ? (
-                            <li className="review-items__reason">Peso da carga solta ausente</li>
+                          {item.source === 'bl' && needsWeightFix(item) ? (
+                            <InlineFieldEditor
+                              key={`${item.id}:${item.updated_at ?? ''}`}
+                              type="decimal"
+                              label={`Peso da carga solta do B/L ${item.id}, em toneladas`}
+                              placeholder="Peso (t)"
+                              initial={item.bb_weight_ton != null ? String(item.bb_weight_ton) : ''}
+                              saving={savingInlineId === item.id}
+                              validate={validateWeightTon}
+                              onSave={(value) => onInlineWeight(item, value)}
+                            />
                           ) : null}
-                          {causes.length === 1 && causes[0] === 'outros' && !rowReasons.length ? (
-                            <li className="review-items__reason">Pendente de revisão, sem motivo registrado</li>
-                          ) : null}
-                        </ul>
-                        {item.source === 'granite' && item.suggested_customer?.name ? (
-                          <p className="review-items__suggestion">
-                            Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpjCpf(item.suggested_customer.cnpj_cpf)}). Confirme o CNPJ antes de vincular.
-                          </p>
-                        ) : null}
-                        {item.source === 'bl' && needsWeightFix(item) ? (
-                          <InlineFieldEditor
-                            key={`${item.id}:${item.updated_at ?? ''}`}
-                            type="decimal"
-                            label={`Peso da carga solta do B/L ${item.id}, em toneladas`}
-                            placeholder="Peso (t)"
-                            initial={item.bb_weight_ton != null ? String(item.bb_weight_ton) : ''}
-                            saving={savingInlineId === item.id}
-                            validate={validateWeightTon}
-                            onSave={(value) => onInlineWeight(item, value)}
-                          />
-                        ) : null}
+                        </div>
                       </td>
                       <td data-label="Navio / viagem" className="review-items__voyage">
                         {item.voyage?.vessel?.name || item.voyage?.voyage_number
                           ? `${item.voyage?.vessel?.name ?? '—'} / ${item.voyage?.voyage_number ?? '—'}`
-                          : <span aria-label="Sem viagem informada">—</span>}
+                          : <NoValue label="Sem viagem informada" />}
                       </td>
                       <td className="review-items__action">
                         <Button

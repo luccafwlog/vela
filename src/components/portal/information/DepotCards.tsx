@@ -13,7 +13,7 @@ export function DepotCards({ depots }: { depots: PortalDepot[] }) {
         {depot.emails.length > 0 && <div><dt className="font-medium">Email</dt><dd className="break-words">{depot.emails.join(' / ')}</dd></div>}
         {depot.phones.length > 0 && <div><dt className="font-medium">Telefone</dt><dd>{depot.phones.join(' / ')}</dd></div>}
       </dl>
-      {scheduling && <a className="mt-4 inline-block text-sm font-medium text-[var(--app-link)] underline" href={scheduling} target="_blank" rel="noopener noreferrer">Abrir agendamento</a>}
+      {scheduling && <a className="app-btn app-btn--secondary app-btn--sm mt-4" href={scheduling} target="_blank" rel="noopener noreferrer">Abrir agendamento</a>}
     </Card>
   })}</div>
 }

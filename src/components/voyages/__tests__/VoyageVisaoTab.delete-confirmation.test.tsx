@@ -33,6 +33,7 @@ afterEach(() => {
 it('pede confirmação uma vez por escala antes de excluir o planejamento', async () => {
   confirm.mockResolvedValue(null)
   deleteEscala.mockResolvedValue({ deleted: false, reasons: [], dry_run: true })
+  const onEditEscala = vi.fn()
   const user = userEvent.setup()
   render(
     <VoyageVisaoTab
@@ -46,14 +47,17 @@ it('pede confirmação uma vez por escala antes de excluir o planejamento', asyn
       exportSchedules={[{ id: 9, pol: 'BRVIX', eta: null, etb: null, linked: false } as never]}
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
-      onEditEscala={vi.fn()}
+      onEditEscala={onEditEscala}
       onOmitPod={vi.fn()}
     />,
   )
 
-  // Uma escala, uma ação de excluir — inclusive na escala que só exporta.
-  await user.click(screen.getByRole('button', { name: 'Excluir escala BRSSZ' }))
-  await user.click(screen.getByRole('button', { name: 'Excluir escala BRVIX' }))
+  // A linha só tem Editar; Excluir vive dentro da edição — inclusive na escala que só exporta.
+  expect(screen.queryByRole('button', { name: /^Excluir escala/ })).toBeNull()
+  for (const port of ['BRSSZ', 'BRVIX']) {
+    await user.click(screen.getByRole('button', { name: `Editar planejamento da escala ${port}` }))
+    await onEditEscala.mock.lastCall![0].rowActions.remove()
+  }
 
   expect(confirm).toHaveBeenCalledTimes(2)
   // Só a prévia (dryRun) foi pedida; nada foi excluído.
@@ -63,6 +67,7 @@ it('pede confirmação uma vez por escala antes de excluir o planejamento', asyn
 
 it('escala travada pelo CE não abre confirmação e não é excluída', async () => {
   deleteEscala.mockResolvedValue({ deleted: false, reasons: ['B/L com CE Mercante'], dry_run: true })
+  const onEditEscala = vi.fn()
   const user = userEvent.setup()
   render(
     <VoyageVisaoTab
@@ -75,12 +80,13 @@ it('escala travada pelo CE não abre confirmação e não é excluída', async (
       exportSchedules={[]}
       divergenceCount={0}
       ceCoverage={{ filled: 0, total: 0 }}
-      onEditEscala={vi.fn()}
+      onEditEscala={onEditEscala}
       onOmitPod={vi.fn()}
     />,
   )
 
-  await user.click(screen.getByRole('button', { name: 'Excluir escala BRSSZ' }))
+  await user.click(screen.getByRole('button', { name: 'Editar planejamento da escala BRSSZ' }))
+  await onEditEscala.mock.lastCall![0].rowActions.remove()
 
   expect(confirm).not.toHaveBeenCalled()
   expect(deleteEscala).toHaveBeenCalledTimes(1)
@@ -124,10 +130,9 @@ it('renderiza uma escala mista em uma linha com marcadores de importação e exp
   )
 
   const table = screen.getByRole('table')
-  expect(within(table).getAllByRole('row')).toHaveLength(3)
+  expect(within(table).getAllByRole('row')).toHaveLength(2)
   expect(within(table).getByText('BRVIX')).toBeTruthy()
-  expect(within(table).getByText('Importação')).toBeTruthy()
-  expect(within(table).getByText('Exportação')).toBeTruthy()
+  expect(within(table).getByText('Importação · Exportação')).toBeTruthy()
   // "Opera" diz sentido, não modalidade: granito não é uma terceira operação.
   expect(within(table).queryByText('Granito')).toBeNull()
   expect(within(table).queryByText('12 CNTRS')).toBeNull()
@@ -216,10 +221,10 @@ it('renderiza viagem só de exportação em uma linha sem marcador de importaç�
   )
 
   const table = screen.getByRole('table')
-  expect(within(table).getAllByRole('row')).toHaveLength(3)
+  expect(within(table).getAllByRole('row')).toHaveLength(2)
   expect(within(table).getByText('BRSSZ')).toBeTruthy()
   expect(within(table).getByText('Exportação')).toBeTruthy()
-  expect(within(table).queryByText('Importação')).toBeNull()
+  expect(within(table).queryByText(/Importação/)).toBeNull()
 })
 
 it('trava a retirada da exportação apenas na escala que tem carga, não na viagem inteira', async () => {

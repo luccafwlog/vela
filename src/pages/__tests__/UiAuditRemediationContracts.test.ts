@@ -5,8 +5,8 @@ describe('contratos das telas remediadas', () => {
   it('usa Fatura, skeletons equivalentes e ações contextuais nos vazios', () => {
     const bls = fs.readFileSync('src/pages/Bls.tsx', 'utf8')
     const containers = fs.readFileSync('src/pages/Containers.tsx', 'utf8')
-    // Etapa 05: taxas e fatura dividem a coluna, sem cabeçalho cortado.
-    expect(bls).toContain('>Taxas locais e fatura</th>')
+    // Lote 1 da identidade: a coluna mostra só a situação das Taxas locais; a fatura sai da lista.
+    expect(bls).toContain('>Taxas locais</th>')
     expect(bls).toContain('cols={blColumnCount}')
     expect(bls).toContain("const blSkeletonTemplate = `${isAdmin ? '40px ' : ''}")
     expect(bls).toContain('columnTemplate={blSkeletonTemplate}')
@@ -18,9 +18,9 @@ describe('contratos das telas remediadas', () => {
     expect(containers).toContain('action={')
   })
 
-  it('mantém 44px na área de acionamento do expansor de atracações', () => {
+  it('mantém a área de acionamento do expansor de atracações na densidade da tabela (44px no toque)', () => {
     const source = fs.readFileSync('src/components/voyages/VoyageVisaoTab.tsx', 'utf8')
-    expect(source).toContain('min-h-11 min-w-11')
+    expect(source).toContain('className="app-table__icon-button"')
     expect(source).not.toContain('h-5 w-5')
   })
 

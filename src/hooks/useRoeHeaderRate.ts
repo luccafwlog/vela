@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchROE } from '../services/demurrage/demurrageKpis'
+import { fetchROE } from '../services/demurrage/demurrageRoe'
 
 const QUERY_KEY = ['header-roe-reference'] as const
 

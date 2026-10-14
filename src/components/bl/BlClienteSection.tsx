@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Search, X } from 'lucide-react'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { Field, Input } from '../ui/Input'
 import { ReviewCustomerOnboarding, type ReviewCustomerOnboardingInput } from '../review/ReviewCustomerOnboarding'
 import { BlPortalCard, type BlPortalStatus } from './BlPortalCard'
@@ -35,14 +38,22 @@ const RECONCILIATION: Record<string, { label: string; tone: 'default' | 'success
 
 type Candidate = { id: number; name: string; cnpj_cpf: string | null }
 
-// Vínculo do B/L com o cliente. Um só fluxo: a sugestão do manifesto e a busca
-// no cadastro ficam no mesmo bloco, e o vínculo vive na Visão Geral porque
-// afeta Portal, comunicação e faturamento, não só a fatura.
-export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryPortalStatus }: {
+export type BlClienteLayout = (parts: { cliente: ReactNode; portal: ReactNode; wide: boolean }) => ReactNode
+
+const stackedLayout: BlClienteLayout = ({ cliente, portal }) => <>{cliente}{portal}</>
+
+// Vínculo do B/L com o cliente e o que o Cliente vê no Portal, em dois blocos
+// (ADR 0081). Um só fluxo de vínculo: a sugestão do manifesto e a busca no
+// cadastro ficam no bloco Cliente, que vive na Visão Geral porque o vínculo
+// afeta Portal, comunicação e faturamento. Os dois blocos dividem o estado do
+// convite; `layout` deixa a Visão geral pôr cada um na sua linha, e `wide`
+// pede a largura toda para o cadastro ou a busca.
+export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryPortalStatus, layout = stackedLayout }: {
   bl: BLDetail
   portalStatus?: BlPortalStatus
   portalStatusError?: boolean
   onRetryPortalStatus?: () => void
+  layout?: BlClienteLayout
 }) {
   const queryClient = useQueryClient()
   const { user } = useAuth()
@@ -242,42 +253,39 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
     }
   }
 
-  return (
-    <section className="app-bl-sheet__section app-bl-sheet__section--ruled app-bl-client" aria-label="Cliente e Portal">
-      <div className="min-w-0">
-        {/* O cadastro da Revisão traz o próprio título; sem ele, a seção se apresenta. */}
-        {showOnboarding ? null : (
-          <div className="app-bl-section-head">
-            <h2 className="app-bl-section-title">Cliente</h2>
-            {linked ? <span className={`app-bl-section-head__status app-bl-tone--${reconciliation.tone}`}>{reconciliation.label}</span> : null}
-          </div>
-        )}
-
+  const cliente = (
+    <Block
+      title="Cliente"
+      aside={linked && !showOnboarding ? <span className={`app-bl-tone--${reconciliation.tone}`}>{reconciliation.label}</span> : null}
+    >
           {linked ? (
             <div className="grid gap-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  {linked.cnpj_cpf ? (
-                    <Link className="app-bl-link font-medium" to={`/clientes/${encodeURIComponent(linked.cnpj_cpf)}`}>
-                      {linked.name}
-                    </Link>
-                  ) : <span className="font-medium text-[var(--app-text-strong)]">{linked.name}</span>}
-                  <div className="app-bl-code app-bl-facts__sub">{formatCnpjCpf(linked.cnpj_cpf)}</div>
-                  <div className="app-bl-facts__sub">Saldo em aberto do Cliente: <span className="tabular-nums">{formatBRL(linked.pending_balance ?? 0)}</span></div>
-                </div>
+              <LeadValue detail={<span className="app-bl-code">{linked.cnpj_cpf ? <CopyValue value={formatCnpjCpf(linked.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span>}>
+                {linked.cnpj_cpf ? (
+                  <Link className="app-bl-link" to={`/clientes/${encodeURIComponent(linked.cnpj_cpf)}`}>
+                    {linked.name}
+                  </Link>
+                ) : linked.name}
+              </LeadValue>
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <FactList columns={1}>
+                  <Fact label="Saldo em aberto do Cliente"><span className="tabular-nums">{formatBRL(linked.pending_balance ?? 0)}</span></Fact>
+                </FactList>
                 {!picking ? (
-                  <div className="flex gap-2">
-                    <Button type="button" variant="secondary" onClick={() => setPicking(true)} disabled={saving}>Trocar</Button>
-                    <Button type="button" variant="ghost" onClick={() => void link(null)} loading={saving}>Desvincular</Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setPicking(true)} disabled={saving}>Trocar</Button>
+                    <Button type="button" variant="ghost" className="app-btn--sm" onClick={() => void link(null)} loading={saving}>Desvincular</Button>
                   </div>
                 ) : null}
               </div>
               {manifestDiverges ? (
                 <p className="app-bl-notice app-bl-notice--warning">
-                  O manifesto declara outro cliente: {manifestName ?? '—'} ({formatCnpjCpf(manifestDocument)}).
+                  O manifesto declara outro cliente: {manifestName ?? <NoValue label="Sem nome no manifesto" />} ({formatCnpjCpf(manifestDocument)}).
                 </p>
               ) : null}
             </div>
+          ) : !showOnboarding ? (
+            <LeadValue tone="danger">Sem cliente vinculado</LeadValue>
           ) : null}
 
           {showOnboarding ? (
@@ -295,13 +303,13 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
               onSubmit={(input) => void completeCustomer(input)}
             />
           ) : showPicker ? (
-            <div className={linked ? 'mt-4 grid gap-3 border-t border-[var(--app-border)] pt-4' : 'grid gap-3'}>
+            <div className={linked ? 'grid gap-3 border-t border-[var(--app-border-soft)] pt-3' : 'grid gap-3'}>
               {!linked && manifestName && manifestDocument ? (
                 <div className="app-bl-suggestion">
                   <div className="min-w-0">
-                    <div className="app-bl-facts__sub">Declarado no manifesto</div>
+                    <div className="app-facts__label">Declarado no manifesto</div>
                     <div className="font-medium text-[var(--app-text-strong)]">{manifestName}</div>
-                    <div className="app-bl-code app-bl-facts__sub">{formatCnpjCpf(manifestDocument)}</div>
+                    <div className="app-bl-code app-facts__detail"><CopyValue value={manifestDocument ? formatCnpjCpf(manifestDocument) : null} label="CNPJ/CPF" /></div>
                   </div>
                   <Button type="button" onClick={() => void linkManifestCustomer()} loading={saving}>Vincular este cliente</Button>
                 </div>
@@ -322,7 +330,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
                     <li key={option.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-[var(--app-surface-muted)]">
                       <div className="min-w-0">
                         <div className="truncate font-medium text-[var(--app-text-strong)]">{option.name}</div>
-                        <div className="app-bl-code app-bl-facts__sub">{formatCnpjCpf(option.cnpj_cpf)}</div>
+                        <div className="app-bl-code app-facts__detail">{formatCnpjCpf(option.cnpj_cpf)}</div>
                       </div>
                       <Button
                         type="button"
@@ -350,41 +358,53 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
             </div>
           ) : null}
           {linked && bl.review_status === 'pending_review' && !picking ? (
-            <Button type="button" variant="secondary" className="mt-3" disabled={saving} onClick={() => setCompleting(!completing)}>
-              {completing ? 'Voltar' : 'Completar cadastro e convidar'}
-            </Button>
-          ) : null}
-        </div>
-      <div className="app-bl-client__portal">
-          {portalStatus ? (
-            <BlPortalCard status={portalStatus} embedded />
-          ) : portalStatusError ? (
-            // Falha de consulta não pode ficar parecendo "verificando" para sempre.
-            <div className="app-inline-error" role="alert">
-              <span>Não foi possível verificar a situação no Portal.</span>
-              {onRetryPortalStatus ? <Button variant="secondary" className="app-btn--sm" onClick={onRetryPortalStatus}>Tentar novamente</Button> : null}
-            </div>
-          ) : (
-            <p className="app-bl-facts__sub" role="status">Verificando situação do Portal…</p>
-          )}
-          {failedInvite ? (
-            <div role="status" className="grid gap-2">
-              <p className="app-bl-notice app-bl-notice--warning">Cadastro concluído. O convite para {failedInvite.email} não foi iniciado; tente de novo.</p>
-              <Button type="button" variant="secondary" loading={saving} onClick={() => void invite(failedInvite.customerId, failedInvite.email)}>Tentar convite novamente</Button>
-            </div>
-          ) : linked && portalStatus?.visibility.reasons.some((reason) => reason.includes('Conta do Portal')) && !showOnboarding && !inviteOpen ? (
-            <Button type="button" variant="secondary" disabled={saving} onClick={() => { setInviteOpen(true); setInviteEmail(customerEmail) }}>Enviar convite do Portal</Button>
-          ) : null}
-          {inviteOpen && linked ? (
-            <div className="grid gap-3">
-              <Field label="E-mail do convite"><Input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} /></Field>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="ghost" disabled={saving} onClick={() => setInviteOpen(false)}>Voltar</Button>
-                <Button type="button" loading={saving} loadingLabel="Enviando…" onClick={() => void invite(linked.id, inviteEmail)}>Enviar convite</Button>
-              </div>
+            <div>
+              <Button type="button" variant="secondary" disabled={saving} onClick={() => setCompleting(!completing)}>
+                {completing ? 'Voltar' : 'Completar cadastro e convidar'}
+              </Button>
             </div>
           ) : null}
-      </div>
-    </section>
+    </Block>
   )
+
+  const portalActions = (
+    <>
+      {failedInvite ? (
+        <div role="status" className="grid gap-2">
+          <p className="app-bl-notice app-bl-notice--warning">Cadastro concluído. O convite para {failedInvite.email} não foi iniciado; tente de novo.</p>
+          <div><Button type="button" variant="secondary" loading={saving} onClick={() => void invite(failedInvite.customerId, failedInvite.email)}>Tentar convite novamente</Button></div>
+        </div>
+      ) : linked && portalStatus?.visibility.reasons.some((reason) => reason.includes('Conta do Portal')) && !showOnboarding && !inviteOpen ? (
+        <div><Button type="button" disabled={saving} onClick={() => { setInviteOpen(true); setInviteEmail(customerEmail) }}>Enviar convite do Portal</Button></div>
+      ) : null}
+      {inviteOpen && linked ? (
+        <div className="grid gap-3">
+          <Field label="E-mail do convite"><Input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} /></Field>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="ghost" disabled={saving} onClick={() => setInviteOpen(false)}>Voltar</Button>
+            <Button type="button" loading={saving} loadingLabel="Enviando…" onClick={() => void invite(linked.id, inviteEmail)}>Enviar convite</Button>
+          </div>
+        </div>
+      ) : null}
+    </>
+  )
+
+  const portal = portalStatus ? (
+    <BlPortalCard status={portalStatus}>{portalActions}</BlPortalCard>
+  ) : (
+    <Block title="Portal">
+      {portalStatusError ? (
+        // Falha de consulta não pode ficar parecendo "verificando" para sempre.
+        <div className="app-inline-error" role="alert">
+          <span>Não foi possível verificar a situação no Portal.</span>
+          {onRetryPortalStatus ? <Button variant="secondary" className="app-btn--sm" onClick={onRetryPortalStatus}>Tentar novamente</Button> : null}
+        </div>
+      ) : (
+        <p className="app-facts__detail" role="status">Verificando situação do Portal…</p>
+      )}
+      {portalActions}
+    </Block>
+  )
+
+  return layout({ cliente, portal, wide: showOnboarding || showPicker })
 }

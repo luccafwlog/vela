@@ -12,8 +12,12 @@ export type OverviewAction =
   | { label: string; to: string }
   | { label: string; tab: FichaTabId }
 
+/** Bloco da Visão geral onde a pendência aparece (regra 5: no bloco do assunto). */
+export type OverviewBlock = 'portal' | 'saldo' | 'contato' | 'bls'
+
 export type OverviewItem = {
   key: string
+  block: OverviewBlock
   tone: OverviewTone
   title: string
   detail?: string
@@ -97,20 +101,23 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
 
   const portalKnown = track('Portal', input.portal)
   const releaseKnown = track('Liberação de faturamento', input.releaseUntil)
-  if (portalKnown && input.portal) {
-    const portal = input.portal
-    if (!portalLooksReadyForBilling(portal, input.recoveryEmailVisible)) {
+  if (portalKnown) {
+    // Sem linha na fila do Portal (`false`) é o mesmo que "sem conta": o gate
+    // de faturamento fica fechado do mesmo jeito.
+    const portal = input.portal || null
+    if (!portal || !portalLooksReadyForBilling(portal, input.recoveryEmailVisible)) {
       // Conta não ativa, ou ativa sem Email de Recuperação utilizável: nos
       // dois casos o gate fica fechado e a fatura, retida.
-      const accountActive = !hasPortalPendency(portal)
-      const cause = accountActive
+      const accountActive = portal ? !hasPortalPendency(portal) : false
+      const cause = portal && accountActive
         ? (hasBrokenRecoveryEmail(portal) ? 'Email de Recuperação com falha' : 'Conta de Portal sem Email de Recuperação')
         : null
-      const situation = accountSituationLabel(portal.account_situation).toLowerCase()
-      const critical = portal.hasCriticalAlert
+      const situation = portal ? accountSituationLabel(portal.account_situation).toLowerCase() : 'sem conta'
+      const critical = portal?.hasCriticalAlert ?? false
       if (releaseKnown && input.releaseUntil) {
         items.push({
           key: 'portal',
+          block: 'portal',
           tone: 'info',
           title: `${cause ?? `Portal não ativo (${situation})`}; faturamento liberado sem Portal até ${formatDate(input.releaseUntil)}`,
           detail: 'Faturas saem sem esperar o Portal até a data de revisão; depois, voltam a ficar retidas.',
@@ -119,6 +126,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
       } else {
         items.push({
           key: 'portal',
+          block: 'portal',
           tone: critical ? 'danger' : 'warning',
           title: cause ?? (critical ? `Pendência crítica de Portal (${situation})` : `Portal não provisionado (${situation})`),
           detail: accountActive
@@ -127,9 +135,10 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
           actions: [provisioningLink, { label: 'Liberação na aba Financeiro', tab: 'financeiro' }],
         })
       }
-    } else if (portal.hasCriticalAlert) {
+    } else if (portal?.hasCriticalAlert) {
       items.push({
         key: 'portal',
+        block: 'portal',
         tone: 'danger',
         title: 'Alerta crítico aberto',
         detail: 'Há alerta crítico aberto para o Cliente ou um dos seus B/Ls.',
@@ -141,6 +150,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
   if (input.blsInReview > 0) {
     items.push({
       key: 'revisao',
+      block: 'bls',
       tone: 'warning',
       title: `${plural(input.blsInReview, 'B/L', 'B/Ls')} em revisão`,
       detail: 'Não são faturados enquanto a revisão estiver aberta.',
@@ -151,10 +161,11 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
   if (track('Reconciliação de cliente', input.pendingReconciliation) && input.pendingReconciliation > 0) {
     items.push({
       key: 'reconciliacao',
+      block: 'bls',
       tone: 'warning',
       title: `${plural(input.pendingReconciliation, 'B/L vinculado por nome', 'B/Ls vinculados por nome')}, aguardando confirmação`,
       detail: 'Confirme ou corrija o Cliente na seção Cliente de cada B/L.',
-      actions: [{ label: 'Ver os B/Ls na aba Operacional', tab: 'operacional' }],
+      actions: [{ label: 'Ver os B/Ls na aba BLs', tab: 'bls' }],
     })
   }
 
@@ -162,6 +173,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
     if (input.demurrage.overdue > 0) {
       items.push({
         key: 'vencidas',
+        block: 'saldo',
         tone: 'danger',
         title: `${plural(input.demurrage.overdue, 'fatura de Demurrage vencida', 'faturas de Demurrage vencidas')}`,
         actions: [{ label: 'Ver na aba Financeiro', tab: 'financeiro' }],
@@ -170,6 +182,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
     if (input.demurrage.disputes > 0) {
       items.push({
         key: 'disputas',
+        block: 'saldo',
         tone: 'warning',
         title: `${plural(input.demurrage.disputes, 'disputa de Demurrage aberta', 'disputas de Demurrage abertas')}`,
         actions: [{ label: 'Ver na aba Financeiro', tab: 'financeiro' }],
@@ -180,6 +193,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
   if (track('Demurrage correndo', input.runningDemurrage) && input.runningDemurrage > 0) {
     items.push({
       key: 'correndo',
+      block: 'saldo',
       tone: 'warning',
       title: `${plural(input.runningDemurrage, 'container com Demurrage correndo', 'containers com Demurrage correndo')}`,
       detail: 'Descarregados, sem devolução e fora do free time.',
@@ -190,6 +204,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
   if (!input.hasPrimaryEmail) {
     items.push({
       key: 'contato',
+      block: 'contato',
       tone: 'warning',
       title: 'Sem contato principal com e-mail',
       detail: 'Os Comunicados não chegam ao Cliente. Não impede o faturamento.',

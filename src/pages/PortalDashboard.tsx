@@ -97,7 +97,7 @@ export function PortalDashboard() {
       <Card className="mt-6">
         <h2 className="text-base font-semibold">Central de Informações</h2>
         <p className="my-2 text-sm text-[var(--app-muted)]">Taxas Locais, depots de devolução, Demurrage, agentes, atendimento e tracking.</p>
-        <Link to={portalPath(scope, '/informacoes')} className="text-sm text-[var(--app-link)] underline">Consultar informações</Link>
+        <Link to={portalPath(scope, '/informacoes')} className="app-btn app-btn--secondary app-btn--sm">Consultar informações</Link>
       </Card>
 
       <section className="mt-8">

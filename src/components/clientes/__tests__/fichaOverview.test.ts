@@ -31,6 +31,12 @@ describe('buildFichaOverview', () => {
     ])
   })
 
+  it('Cliente sem linha na fila do Portal tem a mesma pendência de "sem conta"', () => {
+    const { items } = buildFichaOverview({ ...clean, portal: false as OverviewInput['portal'] })
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({ key: 'portal', tone: 'warning', title: 'Portal não provisionado (sem conta)' })
+  })
+
   it('com a Liberação vigente o Portal vira informação com a data de revisão', () => {
     const { items } = buildFichaOverview({
       ...clean,

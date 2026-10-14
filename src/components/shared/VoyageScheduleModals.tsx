@@ -123,6 +123,11 @@ export type EscalaModalData = {
   terminalScale?: EscalaModalTerminalScale | null
   /** `undefined` keeps the normal modal focus; `null` focuses the terminal section. */
   focusTerminalId?: string | null
+  /**
+   * Omitir e Excluir ficam dentro da edição da escala (lote 1 da identidade,
+   * 2026-10-13): a linha do planejamento só tem Editar.
+   */
+  rowActions?: { omit?: () => void; remove?: () => void }
 }
 
 // Modais apresentacionais de escala e de manifesto; a persistência fica no
@@ -1263,6 +1268,16 @@ export function EscalaModal({
           ) : null}
 
           <div className="app-modal__actions app-escala-actions">
+            {!isNew && escala.rowActions?.omit ? (
+              <Button variant="secondary" type="button" disabled={saving} onClick={() => { onClose(); escala.rowActions?.omit?.() }}>
+                Omitir escala
+              </Button>
+            ) : null}
+            {!isNew && escala.rowActions?.remove ? (
+              <Button variant="danger" type="button" disabled={saving} onClick={() => { onClose(); escala.rowActions?.remove?.() }}>
+                Excluir escala
+              </Button>
+            ) : null}
             <Button variant="secondary" type="button" onClick={onClose}>
               Voltar
             </Button>

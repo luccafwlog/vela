@@ -5,6 +5,8 @@ import { Save } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { Field, Input } from '../ui/Input'
 import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
@@ -17,7 +19,7 @@ import { updateContainerReturnDate } from '../../services/demurrage/demurrageCon
 import { queryKeys } from '../../services/queryKeys'
 import { formatDate, formatUSD } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
-import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
+import { InvoiceStatusBadge } from '../demurrage/DemurrageBadges'
 import { demurrageInvoiceHref } from '../../pages/demurrageListState'
 import type { BLDetail } from '../../types/database'
 
@@ -229,7 +231,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
       <section className="app-bl-sheet__section" aria-labelledby="bl-demurrage">
       <div className="app-bl-section-head">
         <h2 id="bl-demurrage" className="app-bl-section-title">Demurrage</h2>
-        <Link className="app-bl-link app-bl-section-head__link" to={`/demurrage?busca=${encodeURIComponent(bl.id)}`}>Abrir em Demurrage</Link>
+        <Link className="app-btn app-btn--secondary app-btn--sm app-bl-section-head__link" to={`/demurrage?busca=${encodeURIComponent(bl.id)}`}>Abrir em Demurrage</Link>
       </div>
 
       {invoices?.length ? (
@@ -237,7 +239,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
           {invoices.map((invoice) => (
             <li key={invoice.id}>
               <Link className="app-bl-link app-bl-code" to={demurrageInvoiceHref(invoice.id)}>{invoice.doc_number ?? `#${invoice.id}`}</Link>
-              <span>{statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, invoice.status, 'Situação não informada')}</span>
+              <InvoiceStatusBadge status={invoice.status} />
               {invoice.total_usd != null ? <span className="tabular-nums">{formatUSD(invoice.total_usd)}</span> : null}
             </li>
           ))}
@@ -301,8 +303,8 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                 }
                 return (
                   <tr key={container.id}>
-                    <td className="app-bl-code text-[var(--app-text-strong)]">{container.container_number}</td>
-                    <td>{container.discharge_date ? formatDate(container.discharge_date) : <span className="text-[var(--app-muted)]">—</span>}</td>
+                    <td className="app-bl-code text-[var(--app-text-strong)]"><CopyValue value={container.container_number} label="número do contêiner" /></td>
+                    <td>{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
                     <td>
                       <div className="flex items-center gap-2">
                         <Input
@@ -339,7 +341,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                           </span>
                         )
                       ) : (
-                        <span className="app-bl-facts__missing" title="Sem descarga ou devolução informada">—</span>
+                        <span title="Sem descarga ou devolução informada"><NoValue label="Sem descarga ou devolução informada" /></span>
                       )}
                     </td>
                   </tr>

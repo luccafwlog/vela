@@ -569,7 +569,17 @@ Guard de rota não substitui autorização no banco.
 
 ## 9. Componentes e interface
 
-- reutilize componentes de `src/components/ui/`;
+A aparência segue a [identidade visual](docs/identidade-visual.md)
+([ADR 0081](docs/adr/0081-identidade-visual-unica.md)): nove regras, peças
+comuns e aprovação tela a tela da organização. Em resumo:
+
+- componha as peças de `src/components/ui/` (`Block`, `LeadValue`,
+  `FactList`, `IdentityBand`, `NextAction`, `NoValue`, `Button` e as demais);
+- não crie CSS próprio de página nem cor, tamanho de letra ou caixa alta fora
+  dos tokens; `npm run design:check` recusa o que cresce além da linha de base
+  `scripts/design-baseline.json`, e `npm run design:check -- --update` trava o
+  ganho depois de migrar uma tela (recusa número que subiu; aumento
+  intencional usa `--allow-increase` e é justificado na PR);
 - use tokens CSS de `src/index.css`;
 - mantenha lógica de domínio fora de primitivas visuais;
 - preserve estados de loading, vazio, erro e feedback de mutation;
@@ -622,6 +632,10 @@ npm test
 npm run build
 ```
 
+Mudança de aparência, CSS ou componente visual roda também
+`npm run design:check` e `npm run a11y:contrast` (os dois estão no job
+"Docs + Lint" do CI).
+
 Execute testes focados durante a implementação. Após corrigir falhas, repita os
 checks afetados; resultados de código e ambiente inalterados continuam válidos.
 Os gates do CI permanecem obrigatórios conforme a seção 12.
@@ -663,13 +677,22 @@ Há dois caminhos distintos:
 
 Para Postgres local, depois do replay, execute as suítes relevantes com
 `npx vitest run --no-file-parallelism <arquivos.local-pg.test.ts>`.
-Use a lista explícita de `.github/workflows/ci.yml` para reproduzir o gate
-completo; ela inclui `ceUnlock.local-pg.test.ts` e a paridade de Inspeção. As suítes compartilham banco e precisam rodar em série; cada uma deve
+Para reproduzir o gate completo, use `npm run test:local-pg`, que roda em
+série as suítes de [`scripts/local-pg-suites.txt`](scripts/local-pg-suites.txt)
+na ordem da lista; `npm run test:local-pg -- --reverse` roda de trás para
+frente. O Vitest reordena os arquivos por conta própria (falhos e lentos
+primeiro); o script passa a ordem ao sequenciador do `vite.config.ts`. O CI
+roda as duas ordens, cada uma num banco recém-replicado
+(`setup-local-pg.sh --reset` antes da invertida), o que prova que nenhuma suíte
+depende do que a anterior fez nem é quebrada por ela. As suítes
+compartilham banco e precisam rodar em série; cada uma deve
 usar seu próprio namespace de IDs e documentos nas fixtures e apagar o que
 cria, inclusive versões de regra de tarifa e contas de Portal do próprio Cliente:
 a bateria financeira roda num passo próprio, por último, e falha com resíduo
-global. Toda suíte nova entra na lista do CI; `npm run localpg:check` falha
-quando um `*.local-pg.test.ts` fica fora dela. Sonda de pré-requisito usa
+global. Toda suíte nova entra em `scripts/local-pg-suites.txt`;
+`npm run localpg:check` falha quando um `*.local-pg.test.ts` fica fora dela
+(e dos passos do CI), quando há suíte repetida ou quando o CI deixa de rodar
+uma das duas ordens. Sonda de pré-requisito usa
 `describeWithProbe` (`src/integration/localTestData.ts`): com
 `LOCAL_PG_INTEGRATION=1`, sonda falsa falha o teste em vez de pular a suíte.
 
@@ -721,7 +744,9 @@ requer PostgreSQL 16:
 1. `quality` — verificação documental e autotestes, lint, self-check do gerador
    de squash, declaração de migration destrutiva e autotestes desse checker;
    inclui o contrato de upload CE em Deno 2.9.6, com HTTP simulado e
-   dependências remotas verificadas por `deno.lock` (`--frozen`);
+   dependências remotas verificadas por `deno.lock` (`--frozen`); o lock da
+   raiz cobre só esses imports remotos (`--no-config` e
+   `DENO_NO_PACKAGE_JSON=1`), então atualizações npm não o invalidam;
 2. `build` — build (`tsc` + `vite`) e orçamento de bundle;
 3. `test` — suíte Vitest dividida em 3 shards (`--shard=N/3`);
 4. `security-audit` — autotestes do analisador e replay estático de autorização

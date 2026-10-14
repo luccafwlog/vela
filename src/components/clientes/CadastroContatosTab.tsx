@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
+import { CadastroChangesBlock } from './CadastroChangesBlock'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Field, Input, Textarea } from '../ui/Input'
 import { useToast } from '../ui/Toast'
@@ -11,7 +14,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useCustomerDetail } from '../../hooks/useCustomers'
 import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvisioning'
 import { PortalReviewPanel } from '../portal/PortalReviewPanel'
-import { accountSituationLabel, deliveryStatusLabel, hasBrokenRecoveryEmail, recoveryEmailSourceLabel } from '../../lib/portalProvisioningViewModel'
+import { accountSituationLabel, deliveryStatusLabel, hasBrokenRecoveryEmail, hasPortalPendency, recoveryEmailSourceLabel } from '../../lib/portalProvisioningViewModel'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { formatCnpjCpf, formatDate } from '../../lib/utils'
 import { updateCustomerWithAudit } from '../../services/customers'
@@ -116,6 +119,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
       await queryClient.invalidateQueries({ queryKey: ['customer-detail', cnpj] })
       await queryClient.invalidateQueries({ queryKey: ['customers'] })
       await queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.timeline(data.id) })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.cadastroChanges(data.id) })
       setJustification('')
       showToast(changed ? 'Cadastro do cliente atualizado.' : 'Nenhuma alteração detectada.', changed ? 'success' : 'info')
     } catch (cause) {
@@ -129,7 +133,7 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
 
   return (
     <div className="app-customer-stack">
-      <Card className="app-customer-sheet">
+      <Block title="Dados cadastrais" headingLevel={2} aside="Toda alteração pede justificativa e fica nas Alterações do cadastro">
         <form
           className="app-customer-form"
           noValidate
@@ -138,16 +142,11 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
             if (dirty) void saveCustomer()
           }}
         >
-          <div className="app-customer-section-head">
-            <div>
-              <h2 className="app-customer-section-title">Dados cadastrais</h2>
-              <p className="app-customer-muted">Saem nas faturas emitidas depois da alteração. Toda alteração pede justificativa e fica no Histórico.</p>
-            </div>
-          </div>
+          <p className="app-customer-muted">Saem nas faturas emitidas depois da alteração.</p>
           <dl className="app-customer-facts app-customer-facts--inline">
             <div>
               <dt>CNPJ</dt>
-              <dd className="tabular-nums">{formatCnpjCpf(data.cnpj_cpf)}</dd>
+              <dd className="tabular-nums">{data.cnpj_cpf ? <CopyValue value={formatCnpjCpf(data.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</dd>
               <dd className="app-customer-facts__sub">Alterado só pelo Administrativo, com auditoria, em Acesso ao Portal › Gerenciar aqui.</dd>
             </div>
           </dl>
@@ -198,9 +197,9 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
             </div>
           ) : errors.submit ? <p className="app-customer-error" role="alert">{errors.submit}</p> : null}
         </form>
-      </Card>
+      </Block>
 
-      <Card className="app-customer-sheet">
+      <>
         <CustomerContactConfiguration
           customerId={data.id}
           canEdit={canEditContacts}
@@ -210,11 +209,19 @@ export function CadastroContatosTab({ data, cnpj }: { data: Data; cnpj: string }
             // "Sem e-mail de contato" da lista depende dos contatos.
             void queryClient.invalidateQueries({ queryKey: ['customers-summary'] })
             void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.timeline(data.id) })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.cadastroChanges(data.id) })
+          }}
+          onSystemFilled={() => {
+            void queryClient.invalidateQueries({ queryKey: ['customer-detail', cnpj] })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.timeline(data.id) })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.customerFicha.cadastroChanges(data.id) })
           }}
         />
-      </Card>
+      </>
 
       <PortalAccessSection customerId={data.id} />
+
+      <CadastroChangesBlock customerId={data.id} />
     </div>
   )
 }
@@ -230,25 +237,25 @@ function PortalAccessSection({ customerId }: { customerId: number }) {
   const panelId = `portal-panel-${customerId}`
 
   return (
-    <Card className="app-customer-sheet">
-      <div className="app-customer-section-head">
-        <div>
-          <h2 className="app-customer-section-title">Acesso ao Portal</h2>
-          <p className="app-customer-muted">
-            O Email de Recuperação recebe só o convite e a recuperação de senha; não recebe Comunicados nem faturas.
-          </p>
-        </div>
-        <div className="app-customer-section-links">
+    <Block
+      title="Acesso ao Portal"
+      headingLevel={2}
+      aside={(
+        <>
           {portalRow ? (
-            <Button variant="secondary" aria-expanded={portalOpen} aria-controls={panelId} onClick={() => setPortalOpen((value) => !value)}>
+            <Button variant="secondary" className="app-btn--sm" aria-expanded={portalOpen} aria-controls={panelId} onClick={() => setPortalOpen((value) => !value)}>
               {portalOpen ? 'Fechar gestão' : 'Gerenciar aqui'}
             </Button>
           ) : null}
-          <Link className="app-customer-text-link" to={`/clientes/portal?cliente=${customerId}`}>
+          <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${customerId}`}>
             Abrir no Provisionamento do Portal <ArrowRight size={14} aria-hidden="true" />
           </Link>
-        </div>
-      </div>
+        </>
+      )}
+    >
+      <p className="app-customer-muted">
+        O Email de Recuperação recebe só o convite e a recuperação de senha; não recebe Comunicados nem faturas.
+      </p>
 
       {isLoading ? <p className="app-customer-muted" role="status">Carregando a situação do Portal…</p> : null}
       {isError ? (
@@ -257,22 +264,27 @@ function PortalAccessSection({ customerId }: { customerId: number }) {
           <Button variant="secondary" className="app-btn--sm" onClick={() => void refetch()}>Tentar novamente</Button>
         </div>
       ) : null}
+      {!isLoading && !isError ? (
+        <LeadValue tone={!portalRow || hasPortalPendency(portalRow) ? 'warning' : 'default'} detail="Conta de Portal">
+          {portalRow ? accountSituationLabel(portalRow.account_situation) : 'Sem conta'}
+        </LeadValue>
+      ) : null}
       {!isLoading && !isError && !portalRow ? (
         <p className="app-customer-muted">Este Cliente ainda não está na fila do Portal. A fila é criada no cadastro; abra o Provisionamento para conferir.</p>
       ) : null}
 
       {portalRow && !portalOpen ? (
         <>
-          <dl className="app-customer-facts">
-            <div><dt>Situação da conta</dt><dd>{accountSituationLabel(portalRow.account_situation)}</dd></div>
-            <div>
-              <dt>Email de Recuperação</dt>
-              <dd className="app-customer-facts__break">{portalRow.recovery_email ?? 'Não informado'}</dd>
-              {portalRow.recovery_email ? <dd className="app-customer-facts__sub">{recoveryEmailSourceLabel(portalRow.recovery_email_source)}</dd> : null}
-            </div>
-            <div><dt>Entrega do último envio</dt><dd>{deliveryStatusLabel(portalRow.latestDeliveryStatus)}</dd></div>
-            <div><dt>Último evento</dt><dd className="tabular-nums">{portalRow.lastActivityAt ? formatDate(portalRow.lastActivityAt) : 'Nenhum'}</dd></div>
-          </dl>
+          <FactList columns={3}>
+            <Fact
+              label="Email de Recuperação"
+              detail={portalRow.recovery_email ? recoveryEmailSourceLabel(portalRow.recovery_email_source) : null}
+            >
+              <span className="app-customer-facts__break">{portalRow.recovery_email ?? <NoValue label="Sem Email de Recuperação" />}</span>
+            </Fact>
+            <Fact label="Entrega do último envio">{portalRow.latestDeliveryStatus ? deliveryStatusLabel(portalRow.latestDeliveryStatus) : <NoValue label="Nenhum envio" />}</Fact>
+            <Fact label="Último evento"><span className="tabular-nums">{portalRow.lastActivityAt ? formatDate(portalRow.lastActivityAt) : <NoValue label="Nenhum evento" />}</span></Fact>
+          </FactList>
           {portalRow.hasCriticalAlert || hasBrokenRecoveryEmail(portalRow) || portalRow.sharedEmailCount > 0 ? (
             <ul className="app-customer-warnings">
               {portalRow.hasCriticalAlert ? <li>Há um alerta crítico do Portal aberto para este Cliente.</li> : null}
@@ -288,6 +300,6 @@ function PortalAccessSection({ customerId }: { customerId: number }) {
           <PortalReviewPanel row={portalRow} variant="embedded" onSaved={() => void queryClient.invalidateQueries({ queryKey: ['portal-provisioning', 'customer', customerId] })} />
         </div>
       ) : null}
-    </Card>
+    </Block>
   )
 }

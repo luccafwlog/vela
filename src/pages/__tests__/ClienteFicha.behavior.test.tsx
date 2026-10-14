@@ -39,6 +39,10 @@ vi.mock('../../hooks/useCustomerFicha', () => ({
   useCustomerPayments: () => ({ data: { rows: [], denied: false } }),
   useCustomerRateOverrides: () => ({ data: [] }),
   useCustomerManualChargeBls: () => ({ data: [] }),
+  useCustomerBls: () => ({ data: [] }),
+  useCustomerContainers: () => ({ data: [] }),
+  useCustomerInvoices: () => ({ data: { rows: [], denied: false } }),
+  useCustomerCadastroChanges: () => ({ data: [] }),
 }))
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'admin-1' }, isAdmin: true, can: mocks.can }),
@@ -127,8 +131,8 @@ describe('ClienteFicha user behaviours', () => {
 
     expect(screen.getByRole('heading', { name: 'Saldo pendente' })).toBeTruthy()
     expect(screen.getByText(/B\/L vinculado por nome, aguardando confirmação/)).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: /Ver os B\/Ls na aba Operacional/ }))
-    expect(screen.getByRole('tab', { name: /^Operacional/ }).getAttribute('aria-selected')).toBe('true')
+    await user.click(screen.getByRole('button', { name: /Ver os B\/Ls na aba BLs/ }))
+    expect(screen.getByRole('tab', { name: /^BLs/ }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('renders CustomerContactConfiguration and invalidates customer detail on save', async () => {
@@ -196,6 +200,11 @@ describe('ClienteFicha user behaviours', () => {
     await user.click(screen.getByRole('button', { name: 'Mais ações do Cliente' }))
     expect(screen.getByRole('menuitem', { name: 'Ver faturas em Taxas Locais' }).getAttribute('href')).toContain('/taxas-locais?tab=invoices&customer=42')
     expect(screen.getByRole('menuitem', { name: 'Ver os B/Ls na lista de BLs' }).getAttribute('href')).toBe('/bls?q=12345678000195')
+    // A cópia do CNPJ saiu do menu e virou o ícone ao lado do número, que copia formatado.
+    expect(screen.queryByRole('menuitem', { name: /Copiar CNPJ/ })).toBeNull()
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Copiar CNPJ/CPF 12.345.678/0001-95' }))
+    expect(await navigator.clipboard.readText()).toBe('12.345.678/0001-95')
   })
 
   it('cliente desativado avisa data, efeito e motivo', () => {

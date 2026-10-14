@@ -235,13 +235,6 @@ export function PortalBilling() {
       ) : (
         <>
           <PortalDisputeConversation disputes={disputes ?? []} />
-          {currentRoe ? (
-            <div className="mb-4 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-sm font-semibold text-[var(--app-text-strong)]">
-              ROE vigente: R$ {currentRoe.roe.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
-              {' · atualizado em '}
-              {new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(currentRoe.updatedAt))}
-            </div>
-          ) : null}
           <DemurrageTab
             invoices={demurrageInvoices}
             totalCount={demurrageInvoiceCount}
@@ -254,7 +247,7 @@ export function PortalBilling() {
             vesselOptions={demurrageInvoicesQuery.data?.vesselOptions ?? []}
             pods={demurrageInvoicesQuery.data?.pods ?? []}
             onOpenDetail={setSelectedDemurrageId}
-            onDispute={(id, doc) => { setDisputeInvoiceId(id); setDisputeDocNumber(doc) }}
+            roe={currentRoe}
           />
         </>
       )}
@@ -312,8 +305,15 @@ export function PortalBilling() {
         invoiceId={selectedDemurrageId}
         detail={demurrageDetailQuery.data}
         loading={demurrageDetailQuery.isLoading}
+        dispute={(disputes ?? []).find((item) => item.demurrage_invoice_id === selectedDemurrageId && item.state === 'aberta') ?? null}
         onClose={() => setSelectedDemurrageId(null)}
         onPrint={() => setDemurragePrintOpen(true)}
+        onDispute={(id: number, doc: string) => { setSelectedDemurrageId(null); setDisputeInvoiceId(id); setDisputeDocNumber(doc) }}
+        onShowDispute={() => {
+          setSelectedDemurrageId(null)
+          // A conversa da disputa fica no topo da aba Demurrage.
+          requestAnimationFrame(() => document.getElementById('portal-disputas')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+        }}
       />
       {demurragePrintOpen && demurrageDetailQuery.data?.invoice ? (
         <Modal open onClose={() => setDemurragePrintOpen(false)} title={`Recibo ${demurrageDetailQuery.data.invoice.doc_number}`}>

@@ -1,18 +1,20 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, CheckCircle2 } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
+import { NoValue } from '../ui/NoValue'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
+import { StatusText } from '../ui/StatusText'
 import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvisioning'
 import { useBillingPortalRelease } from '../../hooks/useBillingPortalRelease'
 import { useAuth } from '../../hooks/useAuth'
-import { accountSituationLabel } from '../../lib/portalProvisioningViewModel'
+import { accountSituationLabel, hasPortalPendency } from '../../lib/portalProvisioningViewModel'
 import { useCustomerDemurrageInvoices, useCustomerPendingReconciliation, useCustomerRunningDemurrage, useCustomerTimeline } from '../../hooks/useCustomerFicha'
 import { billingPortalReleaseState } from '../../services/billingPortalRelease'
 import { buildConsolidatedBalance } from '../../services/customerFicha'
 import { formatBRL, formatCountLabel, formatDate } from '../../lib/utils'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
 import type { FichaTabId } from './FichaTabs'
-import { buildFichaOverview, portalLooksReadyForBilling, RECOVERY_EMAIL_READER_ROLES, type OverviewAction, type OverviewItem } from './fichaOverview'
+import { buildFichaOverview, portalLooksReadyForBilling, RECOVERY_EMAIL_READER_ROLES, type OverviewAction, type OverviewBlock, type OverviewItem } from './fichaOverview'
 
 type Data = NonNullable<ReturnType<typeof useCustomerDetail>['data']>
 type VisaoGeralTabProps = { data: Data; onNavigateTab: (tab: FichaTabId) => void }
@@ -71,8 +73,6 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
     runningDemurrage: sourceOf(runningQuery, (rows) => (rows ?? []).length) as number | null | undefined,
   })
 
-  // Liberação vigente é informação, não pendência: fica na lista, fora da contagem.
-  const openCount = overview.items.filter((item) => item.tone !== 'info').length
 
   function retryFailed() {
     if (portalQuery.isError) void portalQuery.refetch()
@@ -90,142 +90,152 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
         ? 'Erro ao carregar'
         : formatBRL(value))
 
+  const itemsOf = (block: OverviewBlock) => overview.items.filter((item) => item.block === block)
+  const portalItems = itemsOf('portal')
+  const blItems = itemsOf('bls')
+  const portalRetained = portalItems.some((item) => item.tone !== 'info')
+  const portalSituation = portalQuery.isLoading ? 'Carregando…' : portalQuery.isError ? 'Erro ao carregar' : portalRow ? accountSituationLabel(portalRow.account_situation) : 'Sem conta'
+  const recent = (timelineQuery.data ?? []).slice(0, 5)
+
   return (
-    <div className="app-customer-overview">
-      <Card className="app-customer-sheet">
-        <div className="app-customer-sheet__columns">
-          <section className="app-customer-sheet__section" aria-labelledby="ficha-pendencias">
-            <div className="app-customer-section-head">
-              <h2 id="ficha-pendencias" className="app-customer-section-title">
-                Pendências
-                {openCount ? <span className="app-customer-section-count">{openCount}</span> : null}
-              </h2>
-            </div>
-            <PendencyList items={overview.items} onNavigateTab={onNavigateTab} />
-            {overview.loading.length ? (
-              <p className="app-customer-muted" role="status">Verificando: {overview.loading.join(', ')}…</p>
-            ) : null}
-            {overview.failed.length ? (
-              <div className="app-customer-notice app-customer-notice--danger" role="alert">
-                <span>Não foi possível verificar: {overview.failed.join(', ')}. A lista acima pode estar incompleta.</span>
-                <Button variant="secondary" className="app-btn--sm" onClick={retryFailed}>Tentar novamente</Button>
-              </div>
-            ) : null}
-            {!overview.items.length && !overview.loading.length && !overview.failed.length ? (
-              <p className="app-customer-clear"><CheckCircle2 size={16} aria-hidden="true" />Nenhuma pendência aberta.</p>
-            ) : null}
-          </section>
+    <div className="grid gap-4">
+      {overview.loading.length ? (
+        <p className="app-facts__detail" role="status">Verificando: {overview.loading.join(', ')}…</p>
+      ) : null}
+      {overview.failed.length ? (
+        <div className="app-customer-notice app-customer-notice--danger" role="alert">
+          <span>Não foi possível verificar: {overview.failed.join(', ')}. As pendências abaixo podem estar incompletas.</span>
+          <Button variant="secondary" className="app-btn--sm" onClick={retryFailed}>Tentar novamente</Button>
+        </div>
+      ) : null}
 
-          <section className="app-customer-sheet__section app-customer-sheet__aside" aria-labelledby="ficha-saldo">
-            <h2 id="ficha-saldo" className="app-customer-section-title">Saldo pendente</h2>
-            <p className="app-customer-balance">{money(balance.totalBrl)}</p>
-            <dl className="app-customer-facts app-customer-facts--rows">
-              <div><dt>Taxas Locais</dt><dd className="app-customer-money">{money(balance.localBrl)}</dd></div>
-              <div><dt>Demurrage</dt><dd className="app-customer-money">{money(balance.demurrageBrl)}</dd></div>
-            </dl>
-            <button type="button" className="app-customer-text-link" onClick={() => onNavigateTab('financeiro')}>
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <Block title="Saldo pendente">
+          <LeadValue>{money(balance.totalBrl)}</LeadValue>
+          <FactList>
+            <Fact label="Taxas Locais">{money(balance.localBrl)}</Fact>
+            <Fact label="Demurrage">{money(balance.demurrageBrl)}</Fact>
+          </FactList>
+          <Pendencies items={itemsOf('saldo')} onNavigateTab={onNavigateTab} />
+          <div>
+            <Button variant="secondary" className="app-btn--sm" onClick={() => onNavigateTab('financeiro')}>
               Faturas e recebíveis na aba Financeiro <ArrowRight size={14} aria-hidden="true" />
-            </button>
+            </Button>
+          </div>
+        </Block>
 
-            <h2 className="app-customer-section-title app-customer-section-title--ruled">Situação</h2>
-            <dl className="app-customer-facts app-customer-facts--rows">
-              <div>
-                <dt>Conta de Portal</dt>
-                <dd>{portalQuery.isLoading ? 'Carregando…' : portalQuery.isError ? 'Erro ao carregar' : portalRow ? accountSituationLabel(portalRow.account_situation) : 'Sem registro'}</dd>
-              </div>
-              {portalRow && !portalLooksReadyForBilling(portalRow, recoveryEmailVisible) ? (
-                <div>
-                  <dt>Liberação sem Portal</dt>
-                  <dd>
-                    {releaseQuery.isLoading ? 'Carregando…'
-                      : releaseQuery.isError ? 'Erro ao carregar'
-                      : releaseState === 'vigente' ? `Vigente até ${formatDate(release!.review_at)}`
-                      : releaseState === 'vencida' ? `Vencida em ${formatDate(release!.review_at)}`
-                      : releaseState === 'revogada' ? 'Revogada'
-                      : 'Não concedida'}
-                  </dd>
-                </div>
-              ) : null}
-              <div>
-                <dt>Contato principal</dt>
-                <dd>{primaryContact ? <><span>{primaryContact.name ?? '—'}</span><span className="app-customer-facts__sub">{primaryContact.email}</span></> : <span className="app-customer-note app-customer-note--warning">Sem e-mail</span>}</dd>
-              </div>
-              <div>
-                <dt>B/Ls vinculados</dt>
-                <dd>
-                  <button type="button" className="app-customer-text-link" onClick={() => onNavigateTab('operacional')}>
-                    {formatCountLabel(data.bls?.length ?? 0, 'B/L', 'B/Ls')} <ArrowRight size={14} aria-hidden="true" />
-                  </button>
-                </dd>
-              </div>
-            </dl>
-          </section>
-        </div>
-      </Card>
+        <Block title="Portal" aside={portalRetained ? <StatusText tone="warning">Faturas retidas</StatusText> : null}>
+          <LeadValue tone={portalRetained ? 'warning' : 'default'} detail="Conta de Portal">{portalSituation}</LeadValue>
+          {portalQuery.isSuccess && (!portalRow || !portalLooksReadyForBilling(portalRow, recoveryEmailVisible)) ? (
+            <FactList columns={1}>
+              <Fact label="Liberação sem Portal">
+                {releaseQuery.isLoading ? 'Carregando…'
+                  : releaseQuery.isError ? 'Erro ao carregar'
+                  : releaseState === 'vigente' ? `Vigente até ${formatDate(release!.review_at)}`
+                  : releaseState === 'vencida' ? `Vencida em ${formatDate(release!.review_at)}`
+                  : releaseState === 'revogada' ? 'Revogada'
+                  : 'Não concedida'}
+              </Fact>
+            </FactList>
+          ) : null}
+          {/* Conta não ativa: o dado principal já diz a situação; fica o motivo e os caminhos. */}
+          <Pendencies items={portalItems} onNavigateTab={onNavigateTab} hideTitle={portalRow ? hasPortalPendency(portalRow) : portalQuery.isSuccess} />
+        </Block>
 
-      <Card className="app-customer-sheet">
-        <div className="app-customer-section-head">
-          <h2 className="app-customer-section-title">Atividade recente</h2>
-          <button type="button" className="app-customer-text-link" onClick={() => onNavigateTab('historico')}>
+        <Block title="Contato principal">
+          {primaryContact ? (
+            <LeadValue detail={primaryContact.email}>{primaryContact.name ?? <NoValue label="Contato sem nome" />}</LeadValue>
+          ) : (
+            <LeadValue tone="warning">Sem e-mail</LeadValue>
+          )}
+          <Pendencies items={itemsOf('contato')} onNavigateTab={onNavigateTab} />
+        </Block>
+
+        {blItems.length ? (
+          <Block title="B/Ls">
+            <LeadValue detail="vinculados">{formatCountLabel(data.bls?.length ?? 0, 'B/L', 'B/Ls')}</LeadValue>
+            <Pendencies items={blItems} onNavigateTab={onNavigateTab} />
+          </Block>
+        ) : null}
+      </div>
+
+      <Block
+        title="Atividade recente"
+        flush
+        aside={(
+          <Button variant="secondary" className="app-btn--sm" onClick={() => onNavigateTab('historico')}>
             Histórico completo <ArrowRight size={14} aria-hidden="true" />
-          </button>
-        </div>
-        {timelineQuery.isLoading ? <p className="app-customer-muted" role="status">Carregando atividade…</p>
+          </Button>
+        )}
+      >
+        {timelineQuery.isLoading ? <p className="app-block__body app-facts__detail" role="status">Carregando atividade…</p>
           : timelineQuery.isError ? (
-            <div className="app-customer-notice app-customer-notice--danger" role="alert">
+            <div className="app-block__body app-customer-notice app-customer-notice--danger" role="alert">
               <span>Não foi possível carregar a atividade.</span>
               <Button variant="secondary" className="app-btn--sm" onClick={() => void timelineQuery.refetch()}>Tentar novamente</Button>
             </div>
           )
-          : (timelineQuery.data ?? []).length === 0 ? <p className="app-customer-muted">Sem eventos registrados.</p>
+          : recent.length === 0 ? <p className="app-block__body app-facts__detail">Sem eventos registrados.</p>
           : (
-            <ol className="app-customer-timeline app-customer-timeline--compact">
-              {timelineQuery.data!.slice(0, 5).map((event) => (
-                <li key={`${event.kind}-${event.sourceId}`} className="app-customer-timeline__item">
-                  <time className="app-customer-timeline__date" dateTime={event.at}>{formatDate(event.at)}</time>
-                  <span className="app-customer-timeline__body">
-                    {event.link ? <Link className="app-customer-link" to={event.link}>{event.label}</Link> : <span>{event.label}</span>}
-                    {event.actorId ? <span className="app-customer-timeline__meta">por {event.actorId}</span> : null}
-                  </span>
-                </li>
-              ))}
-            </ol>
+            <div className="app-table-scroll">
+              <table className="app-table app-table--compact">
+                <caption className="sr-only">Atividade recente do Cliente</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Quando</th>
+                    <th scope="col" className="app-table__text-head">O que aconteceu</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map((event) => (
+                    <tr key={`${event.kind}-${event.sourceId}`}>
+                      <td className="whitespace-nowrap tabular-nums"><time dateTime={event.at}>{formatDate(event.at)}</time></td>
+                      <td className="app-table__text"><TimelineLabel label={event.label} link={event.link} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-      </Card>
+      </Block>
     </div>
   )
 }
 
-function PendencyList({ items, onNavigateTab }: { items: OverviewItem[]; onNavigateTab: (tab: FichaTabId) => void }) {
+/** "B/L vinculado: COSU6401234501": só o identificador é link, sem sublinhado. */
+export function TimelineLabel({ label, link }: { label: string; link: string | null }) {
+  if (!link) return <>{label}</>
+  const cut = label.lastIndexOf(': ')
+  if (cut < 0) return <Link className="app-customer-link" to={link}>{label}</Link>
+  return <>{label.slice(0, cut + 2)}<Link className="app-customer-link" to={link}>{label.slice(cut + 2)}</Link></>
+}
+
+function Pendencies({ items, onNavigateTab, hideTitle = false }: { items: OverviewItem[]; onNavigateTab: (tab: FichaTabId) => void; hideTitle?: boolean }) {
   if (!items.length) return null
   return (
-    <ul className="app-customer-pendencies">
+    <ul className="grid gap-3">
       {items.map((item) => (
-        <li key={item.key} className={`app-customer-pendency app-customer-pendency--${item.tone}`}>
-          <span className="app-customer-pendency__dot" aria-hidden="true" />
-          <div className="app-customer-pendency__body">
-            <p className="app-customer-pendency__title">
-              <span className="sr-only">{item.tone === 'danger' ? 'Urgente: ' : item.tone === 'warning' ? 'Atenção: ' : 'Informação: '}</span>
-              {item.title}
-            </p>
-            {item.detail ? <p className="app-customer-pendency__detail">{item.detail}</p> : null}
-            <div className="app-customer-pendency__actions">
-              {item.actions.map((action) => <PendencyAction key={action.label} action={action} onNavigateTab={onNavigateTab} />)}
-            </div>
+        <li key={item.key} className="grid gap-2">
+          <p className={hideTitle && item.tone !== 'info' ? 'sr-only' : undefined}>
+            <span className="sr-only">{item.tone === 'danger' ? 'Urgente: ' : item.tone === 'warning' ? 'Atenção: ' : 'Informação: '}</span>
+            <StatusText tone={item.tone === 'info' ? 'default' : 'warning'}>{item.title}</StatusText>
+          </p>
+          {item.detail ? <p className="app-facts__detail">{item.detail}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            {item.actions.map((action) => <PendencyAction key={action.label} action={action} onNavigateTab={onNavigateTab} />)}
           </div>
         </li>
       ))}
     </ul>
   )
 }
-
 function PendencyAction({ action, onNavigateTab }: { action: OverviewAction; onNavigateTab: (tab: FichaTabId) => void }) {
   if ('to' in action) {
-    return <Link className="app-customer-text-link" to={action.to}>{action.label} <ArrowRight size={14} aria-hidden="true" /></Link>
+    return <Link className="app-btn app-btn--secondary app-btn--sm" to={action.to}>{action.label} <ArrowRight size={14} aria-hidden="true" /></Link>
   }
   return (
-    <button type="button" className="app-customer-text-link" onClick={() => onNavigateTab(action.tab)}>
+    <Button variant="secondary" className="app-btn--sm" onClick={() => onNavigateTab(action.tab)}>
       {action.label} <ArrowRight size={14} aria-hidden="true" />
-    </button>
+    </Button>
   )
 }

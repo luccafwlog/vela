@@ -3,6 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
+import { Button } from '../components/ui/Button'
+import { CopyValue } from '../components/ui/CopyValue'
+import { NoValue } from '../components/ui/NoValue'
 import { Input } from '../components/ui/Input'
 import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { usePortalProvisioning } from '../hooks/usePortalProvisioning'
@@ -114,20 +117,20 @@ export function ClientesPortal() {
           onChange={(event) => setSearch(event.target.value)}
         />
       </div>
-      {selected && !rows.some((row) => row.customer_id === selected.customer_id) ? <div className="mb-3 flex items-center justify-between rounded-lg border border-cyan-400/30 bg-cyan-400/5 px-3 py-2 text-sm">Cliente selecionado fora do filtro atual.<button type="button" className="text-cyan-300 underline" onClick={returnToQueue}>Voltar para a fila</button></div> : null}
+      {selected && !rows.some((row) => row.customer_id === selected.customer_id) ? <div className="mb-3 flex items-center justify-between rounded-lg border border-cyan-400/30 bg-cyan-400/5 px-3 py-2 text-sm">Cliente selecionado fora do filtro atual.<Button type="button" variant="secondary" className="app-btn--sm" onClick={returnToQueue}>Voltar para a fila</Button></div> : null}
       {error ? <InlineError message="Erro ao carregar a fila do Portal." /> : null}
       <Card className="overflow-hidden p-0">
-        <div className="app-table-scroll"><table className="app-table app-table--compact min-w-[900px] text-left text-sm"><caption className="sr-only">Fila de acesso ao Portal por cliente</caption><thead><tr><th>Cliente</th><th>Situação</th><th>Decisão</th><th>Email de Recuperação</th><th>Alertas</th><th>Próxima ação</th></tr></thead><tbody>
-          {isLoading ? <tr><td colSpan={6} className="px-4 py-8 text-center">Carregando fila...</td></tr> : null}
-          {!isLoading && !visibleRows.length ? <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--app-muted)]">Nenhum cliente neste filtro.</td></tr> : null}
+        <div className="app-table-scroll"><table className="app-table app-table--compact min-w-[900px] text-sm"><caption className="sr-only">Fila de acesso ao Portal por cliente</caption><thead><tr><th className="app-table__text-head">Cliente</th><th>Situação</th><th>Decisão</th><th className="app-table__text-head">Email de Recuperação</th><th>Alertas</th><th>Próxima ação</th></tr></thead><tbody>
+          {isLoading ? <tr><td colSpan={6} className="px-4 py-8">Carregando fila...</td></tr> : null}
+          {!isLoading && !visibleRows.length ? <tr><td colSpan={6} className="px-4 py-8 text-[var(--app-muted)]">Nenhum cliente neste filtro.</td></tr> : null}
           {visibleRows.map((row) => {
             const expanded = selectedCustomerId === row.customer_id
             return <Fragment key={row.customer_id}>
               <tr className={expanded ? 'bg-cyan-400/10' : 'cursor-pointer'} onClick={() => toggleRow(row)}>
-                <td className="px-4 py-3"><button ref={(element) => { if (element) rowRefs.current.set(row.customer_id, element); else rowRefs.current.delete(row.customer_id) }} type="button" className="text-left" aria-expanded={expanded} onClick={(event) => { event.stopPropagation(); toggleRow(row) }}><div className="font-medium">{row.customer_name}</div><div className="font-mono text-xs text-[var(--app-muted)]">{formatCnpjCpf(row.cnpj_cpf)}</div></button></td>
+                <td className="px-4 py-3"><div className="app-table__cell-stack"><button ref={(element) => { if (element) rowRefs.current.set(row.customer_id, element); else rowRefs.current.delete(row.customer_id) }} type="button" className="text-left" aria-expanded={expanded} onClick={(event) => { event.stopPropagation(); toggleRow(row) }}><span className="font-medium">{row.customer_name}</span></button><div className="font-mono text-xs text-[var(--app-muted)]"><CopyValue value={row.cnpj_cpf ? formatCnpjCpf(row.cnpj_cpf) : null} label="CNPJ/CPF" /></div></div></td>
                 <td className="px-4 py-3"><Badge tone={row.account_situation === 'ativo' ? 'green' : row.account_situation === 'falha_no_envio' ? 'red' : 'yellow'}>{accountSituationLabel(row.account_situation)}</Badge></td>
-                <td className="px-4 py-3">{provisioningDecisionLabel(row.provisioning_decision)}</td><td className="px-4 py-3">{row.recovery_email ?? (row.candidates[0]?.email ?? 'Sem email')}</td>
-                <td className="px-4 py-3">{row.hasCriticalAlert ? 'Crítico' : '—'}</td><td className="px-4 py-3">{getPortalNextAction(row)}</td>
+                <td className="px-4 py-3">{provisioningDecisionLabel(row.provisioning_decision)}</td><td className="px-4 py-3 app-table__text" title={row.recovery_email ?? row.candidates[0]?.email ?? undefined}>{row.recovery_email ?? (row.candidates[0]?.email ?? 'Sem email')}</td>
+                <td className="px-4 py-3">{row.hasCriticalAlert ? 'Crítico' : <NoValue label="Sem alerta crítico" />}</td><td className="px-4 py-3">{getPortalNextAction(row)}</td>
               </tr>
               {expanded ? <tr><td colSpan={6} className="bg-[var(--app-surface-muted)] p-4"><PortalReviewPanel row={row} variant="inline" onClose={closeRow} onSaved={() => void refetch()} /></td></tr> : null}
             </Fragment>

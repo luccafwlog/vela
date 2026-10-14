@@ -1,9 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { NoValue } from '../ui/NoValue'
 import { Card } from '../ui/Card'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -19,7 +20,9 @@ import {
   useUpdateManualBlCharge,
 } from '../../hooks/useLocalCharges'
 import { formatBRL, formatUSD, normalizeText } from '../../lib/utils'
-import { FINANCIAL_STATUS_LABELS, INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
+import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
+import { ConsolidatedMark, StatusText } from '../ui/StatusText'
+import { InvoiceSituation } from '../billing/InvoiceSituation'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
 import { classifyDbError } from '../../lib/errors'
 import { invoiceTypeLabel, markBlReadyAndCreateInvoice, type InvoiceLinkInfo } from '../../services/billing'
@@ -262,8 +265,6 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   const reviewPendingCount = localChargeSummary.lines.filter((line) => line.status === 'review_required').length
   const columnCount = showActionsColumn ? 8 : 7
 
-  const invoiceStatusLabel = activeInvoice ? statusLabel(INVOICE_STATUS_LABELS, activeInvoice.status, 'Situação não informada') : null
-
   return (
     <Card className="app-bl-sheet">
       <section className="app-bl-sheet__section" aria-labelledby="bl-taxas">
@@ -271,7 +272,7 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         <div className="app-bl-section-head__title-group">
           <h2 id="bl-taxas" className="app-bl-section-title">Taxas Locais</h2>
           {chargesLocked
-            ? <Badge tone="success">{statusLabel(FINANCIAL_STATUS_LABELS, bl.financial_status ?? 'invoiced')}</Badge>
+            ? <StatusText tone={bl.financial_status === 'paid' ? 'paid' : 'default'}>{statusLabel(FINANCIAL_STATUS_LABELS, bl.financial_status ?? 'invoiced')}</StatusText>
             : <Badge tone={resolveChargeStatusTone(bl.charge_status)}>{resolveChargeStatusLabel(bl.charge_status)}</Badge>}
           {bl.charge_exemption_reason ? <span className="app-bl-facts__sub">Isenção: {bl.charge_exemption_reason}</span> : null}
         </div>
@@ -298,11 +299,12 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         <p className="app-bl-invoice-line">
           <span>
             Fatura <strong className="app-bl-code">{activeInvoice.invoice_number ?? `#${activeInvoice.id}`}</strong>
-            {' · '}{invoiceStatusLabel}
-            {activeInvoice.invoice_type ? ` · ${invoiceTypeLabel(activeInvoice.invoice_type)}` : ''}
+            {activeInvoice.invoice_type === 'consolidated' ? <ConsolidatedMark /> : null}
+            {' · '}<InvoiceSituation status={activeInvoice.status} />
+            {activeInvoice.invoice_type && activeInvoice.invoice_type !== 'consolidated' ? ` · ${invoiceTypeLabel(activeInvoice.invoice_type)}` : ''}
             {activeInvoice.total_brl != null ? <> · <span className="tabular-nums">{formatBRL(activeInvoice.total_brl)}</span></> : null}
           </span>
-          <Link className="app-bl-link" to={`/taxas-locais?invoice=${activeInvoice.id}`}>Abrir no Faturamento</Link>
+          <Link className="app-btn app-btn--secondary app-btn--sm" to={`/taxas-locais?invoice=${activeInvoice.id}`}>Abrir no Faturamento</Link>
         </p>
       ) : null}
 
@@ -336,13 +338,13 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
         <table className="app-table app-table--compact app-bl-subtable min-w-[820px]">
           <thead>
             <tr>
-              <th scope="col">Taxa</th>
+              <th scope="col" className="app-table__text-head">Taxa</th>
               <th scope="col">Origem</th>
               <th scope="col">Status</th>
-              <th scope="col" className="text-right">Qtd.</th>
-              <th scope="col" className="text-right">Unitário</th>
-              <th scope="col" className="text-right">Total</th>
-              <th scope="col">Observação</th>
+              <th scope="col">Qtd.</th>
+              <th scope="col">Unitário</th>
+              <th scope="col">Total</th>
+              <th scope="col" className="app-table__text-head">Observação</th>
               {showActionsColumn ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
             </tr>
           </thead>
@@ -355,50 +357,50 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
               <tr>
                 <td colSpan={columnCount}>
                   <span className="app-bl-error" role="alert">Não foi possível carregar as taxas deste B/L.</span>{' '}
-                  <button type="button" className="app-bl-text-button" onClick={() => void refetchLocalChargeLines()}>Tentar novamente</button>
+                  <Button variant="secondary" className="app-btn--sm" onClick={() => void refetchLocalChargeLines()}>Tentar novamente</Button>
                 </td>
               </tr>
             ) : localChargeSummary.lines.length ? (
               localChargeSummary.lines.map((line) => (
                 <tr key={line.id}>
-                  <td className="font-medium text-[var(--app-text-strong)]">{line.charge_name}</td>
+                  <td className="app-table__text font-medium text-[var(--app-text-strong)]" title={line.charge_name ?? undefined}>{line.charge_name}</td>
                   <td>{line.source === 'manual' ? 'Manual' : 'Automática'}</td>
                   <td>
                     <Badge tone={resolveChargeLineStatusTone(line.status)}>{resolveChargeLineStatusLabel(line.status)}</Badge>
                   </td>
-                  <td className="text-right tabular-nums">{formatNumber(line.quantity)}</td>
-                  <td className="text-right tabular-nums">
+                  <td className="tabular-nums">{formatNumber(line.quantity)}</td>
+                  <td className="tabular-nums">
                     {line.currency === 'USD' ? formatUSD(line.unit_value_usd ?? 0) : formatBRL(line.unit_value_brl ?? 0)}
                   </td>
-                  <td className="text-right font-medium tabular-nums">
+                  <td className="font-medium tabular-nums">
                     {line.currency === 'USD' ? formatUSD(line.total_value_usd ?? 0) : formatBRL(line.total_value_brl ?? 0)}
                   </td>
-                  <td className="text-[var(--app-muted)]">{line.review_reason ?? line.notes ?? '—'}</td>
+                  <td className="app-table__text text-[var(--app-muted)]" title={line.review_reason ?? line.notes ?? undefined}>{line.review_reason ?? line.notes ?? <NoValue label="Sem observação" />}</td>
                   {showActionsColumn ? (
                     <td>
                       {line.source === 'manual' ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            className="app-table__icon-button"
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            variant="secondary"
+                            className="app-btn--sm"
                             type="button"
                             onClick={() => handleEditManualCharge(line.id)}
-                            title="Editar cobrança manual"
                             aria-label="Editar cobrança manual"
                           >
-                            <Pencil size={14} aria-hidden="true" />
-                          </button>
+                            Editar
+                          </Button>
                           {isAdmin ? (
                             // Excluir taxa manual é do Administrativo (migration 088; ADR 0071).
-                            <button
-                              className="app-table__icon-button app-table__icon-button--danger"
+                            <Button
+                              variant="danger"
+                              className="app-btn--sm"
                               type="button"
                               onClick={() => handleDeleteManualCharge(line.id)}
-                              title="Excluir cobrança manual"
                               aria-label="Excluir cobrança manual"
                               disabled={deleteManualChargeMutation.isPending}
                             >
-                              <Trash2 size={14} aria-hidden="true" />
-                            </button>
+                              Excluir
+                            </Button>
                           ) : null}
                         </div>
                       ) : null}

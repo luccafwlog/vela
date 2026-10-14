@@ -156,7 +156,7 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
   }
 
   return (
-    <Card className="mb-4">
+    <div id="portal-disputas" className="scroll-mt-4"><Card className="mb-4">
       <div className="mb-4 flex items-center gap-2">
         <MessageSquare size={18} />
         <div>
@@ -216,6 +216,6 @@ export function PortalDisputeConversation({ disputes }: { disputes: PortalDisput
           </article>
         ))}
       </div>
-    </Card>
+    </Card></div>
   )
 }

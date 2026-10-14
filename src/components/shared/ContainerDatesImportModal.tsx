@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterDatasContainerAlteradas } from '../../services/cacheEffects'
 import { Button } from '../ui/Button'
+import { NoValue } from '../ui/NoValue'
 import { Modal } from '../ui/Modal'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
@@ -127,21 +128,21 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
 
             {report?.errors.length ? (
               <div className="app-table-scroll app-import-table">
-                <table className="app-table app-table--compact w-full text-left">
+                <table className="app-table app-table--compact w-full">
                   <caption className="sr-only">Linhas recusadas ao gravar</caption>
                   <thead>
                     <tr>
                       <th scope="col">B/L</th>
                       <th scope="col">Container</th>
-                      <th scope="col">Motivo da recusa</th>
+                      <th scope="col" className="app-table__text-head">Motivo da recusa</th>
                     </tr>
                   </thead>
                   <tbody>
                     {report.errors.map((row) => (
                       <tr key={`${row.bl_id}-${row.container_number}`}>
                         <td className="app-import-code">{row.bl_id}</td>
-                        <td className="app-import-code">{row.container_number || '—'}</td>
-                        <td className="app-import-tone--danger">{row.message}</td>
+                        <td className="app-import-code">{row.container_number || <NoValue label="Sem número do contêiner" />}</td>
+                        <td className="app-table__text app-import-tone--danger" title={row.message}>{row.message}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -152,7 +153,7 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
             {report ? null : (
               <>
                 <div className="app-table-scroll app-import-table">
-                  <table className="app-table app-table--compact w-full text-left">
+                  <table className="app-table app-table--compact w-full">
                     <caption className="sr-only">Prévia das datas lidas</caption>
                     <thead>
                       <tr>

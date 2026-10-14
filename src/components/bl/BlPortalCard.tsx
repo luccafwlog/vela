@@ -1,5 +1,5 @@
-import { CheckCircle2, EyeOff } from 'lucide-react'
-import { Card } from '../ui/Card'
+import type { ReactNode } from 'react'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import type { BlPortalNotification, BlPortalVisibility } from '../../services/blPortalStatus'
 
 export type BlPortalStatus = {
@@ -9,54 +9,46 @@ export type BlPortalStatus = {
 }
 
 /**
- * O que o Cliente vê deste B/L no Portal: se aparece, por que não aparece,
- * avisos enviados e disputas abertas. Estado em texto com ícone, não só cor.
+ * Bloco Portal da ficha do B/L (ADR 0081): o dado principal diz se o Cliente
+ * vê o B/L; o motivo, os avisos e as disputas são apoio. "Nenhum" e "Nenhuma"
+ * são zero conhecido e ficam escritos. `children` recebe as ações (convite).
  */
-export function BlPortalCard({ status, embedded = false }: { status: BlPortalStatus; embedded?: boolean }) {
+export function BlPortalCard({ status, children }: { status: BlPortalStatus; children?: ReactNode }) {
   const visible = status.visibility.visible
-  const body = (
-    <div className="app-bl-portal">
-      <div className="app-bl-section-head">
-        <h2 className="app-bl-section-title">Portal</h2>
-      </div>
-      <p className={`app-bl-portal__state app-bl-tone--${visible ? 'success' : 'warning'}`}>
-        {visible ? <CheckCircle2 size={16} aria-hidden="true" /> : <EyeOff size={16} aria-hidden="true" />}
+  const reasons = status.visibility.reasons
+  return (
+    <Block title="Portal">
+      <LeadValue tone={visible ? 'default' : 'danger'} detail={reasons.length === 1 ? reasons[0] : null}>
         {visible ? 'Visível no Portal' : 'Não visível no Portal'}
-      </p>
-      {status.visibility.reasons.length ? (
+      </LeadValue>
+      {reasons.length > 1 ? (
         <ul className="app-bl-portal__reasons" aria-label="Por que não aparece">
-          {status.visibility.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+          {reasons.map((reason) => <li key={reason}>{reason}</li>)}
         </ul>
       ) : null}
-      <dl className="app-bl-facts">
-        <div className="app-bl-facts__item">
-          <dt>Avisos ao Cliente</dt>
-          <dd>
-            {status.notifications.length ? (
-              <ul className="app-bl-portal__list">
-                {status.notifications.map((notification) => (
-                  <li key={notification.id}>
-                    {notification.title} <span className="app-bl-facts__sub">· {notification.read_at ? 'lida' : 'não lida'}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : <span className="app-bl-facts__missing">Nenhum</span>}
-          </dd>
-        </div>
-        <div className="app-bl-facts__item">
-          <dt>Disputas abertas</dt>
-          <dd>
-            {status.openDisputes.length ? (
-              <ul className="app-bl-portal__list">
-                {status.openDisputes.map((dispute) => (
-                  <li key={dispute.id}>{dispute.doc_number ?? `#${dispute.id}`} <span className="app-bl-facts__sub">· {dispute.dispute_status ?? 'aberta'}</span></li>
-                ))}
-              </ul>
-            ) : <span className="app-bl-facts__missing">Nenhuma</span>}
-          </dd>
-        </div>
-      </dl>
-    </div>
+      <FactList>
+        <Fact label="Avisos ao Cliente">
+          {status.notifications.length ? (
+            <ul className="app-bl-portal__list">
+              {status.notifications.map((notification) => (
+                <li key={notification.id}>
+                  {notification.title} <span className="app-facts__detail">{notification.read_at ? 'lida' : 'não lida'}</span>
+                </li>
+              ))}
+            </ul>
+          ) : 'Nenhum'}
+        </Fact>
+        <Fact label="Disputas abertas">
+          {status.openDisputes.length ? (
+            <ul className="app-bl-portal__list">
+              {status.openDisputes.map((dispute) => (
+                <li key={dispute.id}>{dispute.doc_number ?? `#${dispute.id}`} <span className="app-facts__detail">{dispute.dispute_status ?? 'aberta'}</span></li>
+              ))}
+            </ul>
+          ) : 'Nenhuma'}
+        </Fact>
+      </FactList>
+      {children}
+    </Block>
   )
-  return embedded ? body : <Card>{body}</Card>
 }

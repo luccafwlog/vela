@@ -1,7 +1,8 @@
 # 0079 — Decisões pendentes da revisão da PR 929
 
-Status: aceito — 2026-10-11 (decisões do dono). Implementação local nas
-migrations `203` a `206` e no frontend; deploy remoto não verificado.
+Status: aceito — 2026-10-11 (decisões do dono). Implementado nas migrations
+`203` a `206` e no frontend, em produção desde o merge da PR 929 em 2026-10-12
+(ver "Evidência").
 
 Supersede parcialmente a
 [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md)
@@ -86,5 +87,12 @@ Testes de contrato no PostgreSQL 16 local com replay das migrations
 (`auditoriaFaturasDemurrageComunicado`, `ceImportacaoContrato`,
 `containerProfile`, `granitoReimportacao`) e testes de unidade do Baplie, do
 Granito, do estorno de Demurrage e da importação de CE. Cada teste novo falhou
-antes da mudança e passou depois. Nada foi verificado em navegador nem em
-Supabase real.
+antes da mudança e passou depois. Até a decisão, nada foi verificado em
+navegador nem em Supabase real.
+
+**Deploy (conferido em 2026-10-13, em leitura):** o registro de migrations do
+projeto Supabase de produção lista `203` a `206`, dentro da cadeia `174`–`219`; a
+aplicação está registrada em
+[servicos-externos.md](../operations/servicos-externos.md) ("Execução
+(2026-10-12, produção)"). O registro prova que as migrations foram aplicadas,
+não o comportamento em produção nem o fluxo em navegador.

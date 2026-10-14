@@ -581,13 +581,13 @@ export function Revisao() {
                 {causeFilter && searchText.trim() ? ' · ' : null}
                 {searchText.trim() ? `Busca: “${searchText.trim()}”` : null}
               </span>
-              <button type="button" className="review-link-button" onClick={clearFilters}>Limpar filtros</button>
+              <Button variant="secondary" className="app-btn--sm" onClick={clearFilters}>Limpar filtros</Button>
             </div>
           ) : null}
           {causeCounts.outros > 0 && causeFilter !== 'outros' ? (
-            <button type="button" className="review-link-button review-toolbar__other" onClick={() => setCauseFilter('outros')}>
+            <Button variant="secondary" className="app-btn--sm review-toolbar__other" onClick={() => setCauseFilter('outros')}>
               {plural(causeCounts.outros, 'registro com outra pendência', 'registros com outras pendências')}
-            </button>
+            </Button>
           ) : null}
         </div>
 

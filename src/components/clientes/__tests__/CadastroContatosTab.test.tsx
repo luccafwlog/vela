@@ -29,6 +29,7 @@ vi.mock('../../ui/ConfirmDialog', () => ({
 vi.mock('../../../services/customers', () => ({
   updateCustomerWithAudit: mocks.updateCustomerWithAudit,
 }))
+vi.mock('../CadastroChangesBlock', () => ({ CadastroChangesBlock: () => null }))
 vi.mock('../CustomerContactConfiguration', () => ({
   CustomerContactConfiguration: ({ customerId, onSaved }: { customerId: number; onSaved?: () => void }) => {
     mocks.lastOnSaved = onSaved ?? null

@@ -5,6 +5,8 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Download } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { EmptyState } from '../ui/Card'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { SkeletonTable } from '../ui/Skeleton'
 import { FilterBar } from '../ui/FilterBar'
 import { Field, Input, Select } from '../ui/Input'
@@ -56,9 +58,9 @@ function docTypeLabel(row: ReconciliationHistoryRow) {
   return row.source === 'demurrage' ? 'Demurrage' : `Taxas Locais · ${invoiceTypeLabel(row.invoiceType)}`
 }
 
-function shipLine(row: ReconciliationHistoryRow) {
+function shipLine(row: ReconciliationHistoryRow): string | null {
   const ship = [row.vesselName, row.voyageNumber].filter(Boolean).join(' · ')
-  return [ship || null, row.pod].filter(Boolean).join(' · ') || '—'
+  return [ship || null, row.pod].filter(Boolean).join(' · ') || null
 }
 
 /**
@@ -249,10 +251,10 @@ export function ReconciliationHistoryTable({
                   <span className="app-invoices__amount">{formatBRL(row.blAmount)}</span>
                   {amountLines(row).map((line) => <span key={line} className="app-invoices__meta">{line}</span>)}
                 </p>
-                <p className="app-invoices__meta">{docTypeLabel(row)} · pago em {row.paidAt ? formatDate(row.paidAt) : '—'}</p>
-                <p className="app-invoices__customer">{row.customerName || '—'}</p>
+                <p className="app-invoices__meta">{docTypeLabel(row)} · pago em {row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</p>
+                <p className="app-invoices__customer">{row.customerName || <NoValue label="Sem Cliente" />}</p>
                 <p className="app-invoices__meta">
-                  {row.blId === '-' ? 'Sem B/L' : <span className="app-pix-code">{row.blId}</span>} · {shipLine(row)}
+                  {row.blId === '-' ? 'Sem B/L' : <CopyValue value={row.blId} label="número do B/L"><span className="app-pix-code">{row.blId}</span></CopyValue>} · {shipLine(row) ?? <NoValue label="Sem navio, viagem e POD" />}
                 </p>
               </article>
             )
@@ -266,7 +268,7 @@ export function ReconciliationHistoryTable({
               <tr>
                 {sortHeader('docNumber', 'Fatura')}
                 {sortHeader('blId', 'B/L')}
-                {sortHeader('customerName', 'Cliente')}
+                {sortHeader('customerName', 'Cliente', 'app-table__text-head')}
                 <th scope="col">Navio / Viagem · POD</th>
                 {sortHeader('paidAt', 'Pago em')}
                 <th scope="col">Situação</th>
@@ -286,13 +288,13 @@ export function ReconciliationHistoryTable({
                       <button type="button" className="app-invoices__number" onClick={() => open(row)}>{row.docNumber}</button>
                       <span className="app-invoices__meta">{docTypeLabel(row)}</span>
                     </td>
-                    <td>{row.blId === '-' ? <span className="app-pix-muted">Sem B/L</span> : <span className="app-pix-code">{row.blId}</span>}</td>
-                    <td>
-                      <span className="app-invoices__customer app-invoices__clamp" title={row.customerName}>{row.customerName || '—'}</span>
-                      {row.customerCnpj ? <span className="app-invoices__meta tabular-nums">{formatCnpjCpf(row.customerCnpj)}</span> : null}
+                    <td>{row.blId === '-' ? <span className="app-pix-muted">Sem B/L</span> : <CopyValue value={row.blId} label="número do B/L"><span className="app-pix-code">{row.blId}</span></CopyValue>}</td>
+                    <td className="app-table__text">
+                      <span className="app-invoices__customer app-invoices__clamp" title={row.customerName}>{row.customerName || <NoValue label="Sem Cliente" />}</span>
+                      {row.customerCnpj ? <span className="app-invoices__meta tabular-nums"><CopyValue value={formatCnpjCpf(row.customerCnpj)} label="CNPJ/CPF" /></span> : null}
                     </td>
-                    <td><span className="app-invoices__clamp">{shipLine(row)}</span></td>
-                    <td className="app-invoices__date tabular-nums">{row.paidAt ? formatDate(row.paidAt) : '—'}</td>
+                    <td><span className="app-invoices__clamp">{shipLine(row) ?? <NoValue label="Sem navio, viagem e POD" />}</span></td>
+                    <td className="app-invoices__date tabular-nums">{row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</td>
                     <td><Badge tone={status.tone}>{status.label}</Badge></td>
                     <td className="app-invoices__num">
                       <span className="app-invoices__amount">{formatBRL(row.blAmount)}</span>

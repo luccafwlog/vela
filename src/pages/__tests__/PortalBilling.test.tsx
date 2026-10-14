@@ -69,9 +69,9 @@ const demurrageInvoices: PortalDemurrageInvoice[] = [
     status: 'issued',
     pix_payload: null,
     dispute_open: false,
-    discount_type: null,
-    discount_value: null,
-    discount_mode: null,
+    discount_type: 'commercial',
+    discount_value: 10,
+    discount_mode: 'percent',
     bl_id: 'BL-DEM',
     pol: 'CNSHA',
     pod: 'BRVIX',
@@ -232,7 +232,7 @@ const consolidatedDetail = {
 async function openConsolidatedDetail(user: ReturnType<typeof userEvent.setup>) {
   mocks.detail = consolidatedDetail
   renderBilling()
-  await user.click(screen.getAllByRole('button', { name: 'Detalhes' })[0])
+  await user.click(screen.getAllByRole('button', { name: /^Abrir fatura/ })[0])
   return screen.getByRole('button', { name: /Refazer consolidada/ })
 }
 
@@ -241,9 +241,9 @@ describe('PortalBilling', () => {
     renderBilling()
 
     expect(screen.getByText('Faturas de taxas locais e avulsas')).toBeTruthy()
-    expect(screen.getAllByText(/^Avulsa/)).toHaveLength(2)
     expect(screen.getAllByText('NAVIO MANUAL / 42N')).toHaveLength(2)
-    expect(screen.getAllByText('B/L: —')).toHaveLength(1)
+    // Tabela (desktop) e cartão (mobile) mostram o traço discreto de ausência.
+    expect(screen.getAllByText('Sem B/L')).toHaveLength(2)
   })
 
   it('exibe abas Taxas Locais e Demurrage e oculta o filtro Cliente', async () => {
@@ -261,7 +261,7 @@ describe('PortalBilling', () => {
     const user = userEvent.setup()
     renderBilling()
 
-    await user.click(screen.getByRole('button', { name: /Filtros/i }))
+    // Filtros abertos (lote 1): o campo B/L já está à vista.
     await user.type(screen.getByLabelText('B/L'), 'BL-EXPORTADO')
     await user.click(screen.getByRole('button', { name: /Exportar Excel/i }))
 
@@ -289,9 +289,12 @@ describe('PortalBilling', () => {
     const user = userEvent.setup()
     renderBilling()
 
-    expect(screen.queryByText('ROE vigente: R$ 5,4288 · atualizado em 16/07/2026')).toBeNull()
+    expect(screen.queryByText(/pelo ROE vigente/)).toBeNull()
     await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
-    expect(screen.getByText('ROE vigente: R$ 5,4288 · atualizado em 16/07/2026')).toBeTruthy()
+    // Uma linha só, no topo do bloco Faturas de Demurrage.
+    expect(screen.getByText(/pelo ROE vigente/).textContent).toBe('Total em R$ pelo ROE vigente: R$ 5,4288 · atualizado em 16/07/2026')
+    // O em aberto soma o líquido do desconto (US$ 50 com 10%), como o total em R$.
+    expect(screen.getByText(/^US\$ [0-9.,]+ em aberto$/).textContent).toBe('US$ 45,00 em aberto')
   })
 
   it('nao exibe erro cambial ao cliente quando o ROE vigente esta indisponivel', async () => {

@@ -24,7 +24,6 @@ vi.mock('../../hooks/useBls', () => ({
   useVoyageOptions: () => ({ data: [] }),
   fetchAllBls: vi.fn(),
 }))
-vi.mock('../../hooks/useBilling', () => ({ useInvoiceLinks: () => ({ data: {} }) }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: true, user: { id: 'user-1' }, profile: { id: 'user-1' } }) }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: showToastMock }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
@@ -33,7 +32,9 @@ vi.mock('../../components/shared/BlImportModal', () => ({ BlImportModal: () => n
 vi.mock('../../components/shared/FileImportModal', () => ({ FileImportModal: () => null }))
 vi.mock('../../components/shared/BlDocumentImportModal', () => ({ BlDocumentImportModal: () => null }))
 vi.mock('../../components/shared/BulkActionsBar', () => ({
-  BulkActionsBar: ({ count }: { count: number }) => <div>Selecionados: {count}</div>,
+  BulkActionsBar: ({ count, onDelete }: { count: number; onDelete: () => void }) => (
+    <div>Selecionados: {count}<button type="button" onClick={onDelete}>Excluir selecionados</button></div>
+  ),
 }))
 
 describe('Página Bls (unificada)', () => {
@@ -128,13 +129,14 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    // Três cards decisórios que filtram; os volumes vão para a faixa de resumo.
-    expect(screen.getByRole('button', { name: /Pendentes de revisão/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Prontos para faturar/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Sem faturamento/ })).toBeTruthy()
-    const strip = screen.getByLabelText('Resumo do recorte')
-    expect(strip.textContent).toContain('B/Ls3')
-    expect(strip.textContent).toContain('de carga solta50 t')
+    // Seis cartões de total do recorte; só Taxas pendentes e Isentos filtram.
+    const totals = within(screen.getByRole('group', { name: 'Totais do recorte' }))
+    expect(totals.getByText('B/Ls').parentElement?.textContent).toContain('3')
+    expect(totals.getByText('Carga solta').parentElement?.textContent).toContain('50,0 t')
+    expect(totals.getByRole('button', { name: /Taxas pendentes/ })).toBeTruthy()
+    expect(totals.getByRole('button', { name: /Isentos/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Pendentes de revisão/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Prontos para faturar/ })).toBeNull()
   })
 
   it('renderiza os badges de modalidade corretos (contêiner, carga solta e misto)', () => {
@@ -193,12 +195,12 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    const card = screen.getByRole('button', { name: /Pendentes de revisão/ })
+    const card = screen.getByRole('button', { name: /Taxas pendentes/ })
     fireEvent.click(card)
-    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ reviewStatus: 'pending_review', page: 1 }))
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ chargeStatus: 'pending', page: 1 }))
     expect(card.getAttribute('aria-pressed')).toBe('true')
     fireEvent.click(card)
-    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ reviewStatus: '' }))
+    await waitFor(() => expect(useBlsMock.mock.calls.at(-1)?.[0]).toMatchObject({ chargeStatus: '' }))
   })
 
   it('alterna a lente de modalidade [Todos, Contêiner, Carga solta, Misto]', async () => {
@@ -244,55 +246,6 @@ describe('Página Bls (unificada)', () => {
     })
   })
 
-  it('remove os listeners globais do menu de ações ao desmontar', () => {
-    const removeSpy = vi.spyOn(window, 'removeEventListener')
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const { unmount } = render(
-      <QueryClientProvider client={client}>
-        <MemoryRouter>
-          <Bls />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' }))
-    removeSpy.mockClear()
-    unmount()
-
-    const removed = removeSpy.mock.calls.map(([type]) => type)
-    expect(removed).toEqual(expect.arrayContaining(['scroll', 'resize', 'keydown', 'mousedown']))
-    removeSpy.mockRestore()
-  })
-
-  it('abre o menu pelo primeiro item, navega com as setas e devolve o foco ao acionador', () => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(
-      <QueryClientProvider client={client}>
-        <MemoryRouter>
-          <Bls />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    )
-
-    const trigger = screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' })
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
-
-    const copyItem = screen.getByRole('menuitem', { name: 'Copiar número do B/L' })
-    const deleteItem = screen.getByRole('menuitem', { name: 'Excluir B/L' })
-    expect(document.activeElement).toBe(copyItem)
-    // "Abrir detalhes" saiu: o número do B/L já é o link para a ficha.
-    expect(screen.queryByRole('menuitem', { name: 'Abrir detalhes' })).toBeNull()
-
-    fireEvent.keyDown(copyItem, { key: 'ArrowDown' })
-    expect(document.activeElement).toBe(deleteItem)
-    fireEvent.keyDown(deleteItem, { key: 'ArrowDown' })
-    expect(document.activeElement).toBe(copyItem)
-    fireEvent.keyDown(copyItem, { key: 'ArrowUp' })
-    expect(document.activeElement).toBe(deleteItem)
-    fireEvent.keyDown(deleteItem, { key: 'Escape' })
-    expect(document.activeElement).toBe(trigger)
-  })
-
   it('mostra erro quando não consegue copiar o número do B/L', async () => {
     const writeText = vi.fn().mockRejectedValue(new Error('permissão negada'))
     const previousClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
@@ -308,11 +261,11 @@ describe('Página Bls (unificada)', () => {
         </QueryClientProvider>,
       )
 
-      fireEvent.click(screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Copiar número do B/L' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Copiar número do B/L BL-CNTR' }))
 
-      await waitFor(() => expect(showToastMock).toHaveBeenCalledWith('Não foi possível copiar o número do B/L.', 'error'))
-      expect(showToastMock).not.toHaveBeenCalledWith(expect.stringContaining('copiado'), 'success')
+      expect(writeText).toHaveBeenCalledWith('BL-CNTR')
+      expect(await screen.findByText('Não foi possível copiar o número do B/L')).toBeTruthy()
+      expect(screen.queryByText('número do B/L copiado')).toBeNull()
     } finally {
       if (previousClipboard) Object.defineProperty(navigator, 'clipboard', previousClipboard)
       else Reflect.deleteProperty(navigator, 'clipboard')
@@ -320,7 +273,7 @@ describe('Página Bls (unificada)', () => {
   })
 
 
-  it('abre o menu de ações ao clicar nos três pontinhos; a ficha abre pelo número', () => {
+  it('a linha não tem menu nem coluna de ações; a ficha abre pelo número', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
@@ -330,12 +283,40 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    const trigger = screen.getByRole('button', { name: 'Ações para B/L BL-CNTR' })
-    fireEvent.click(trigger)
-
-    expect(screen.getByRole('menuitem', { name: 'Copiar número do B/L' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Excluir B/L' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Ações para B\/L/ })).toBeNull()
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent).slice(1)).toEqual([
+      'B/L', 'Cliente', 'Navio', 'Viagem', 'Trecho', 'Carga', 'CE Mercante', 'Taxas locais',
+    ])
     expect(screen.getByRole('link', { name: 'BL-CNTR' }).getAttribute('href')).toBe('/bls/BL-CNTR')
+  })
+
+  it('Taxas locais mostra só Pendente, Emitida ou Isenta', () => {
+    useBlsMock.mockImplementation(() => ({
+      data: {
+        rows: [
+          { id: 'BL-A', cargo_mode: 'container', charge_status: 'calculated', financial_status: 'pending', bl_containers: [] },
+          { id: 'BL-B', cargo_mode: 'container', charge_status: 'ready_for_billing', financial_status: 'paid', bl_containers: [] },
+          { id: 'BL-C', cargo_mode: 'container', charge_status: 'exempt', financial_status: 'pending', bl_containers: [] },
+        ],
+        count: 3,
+      },
+      isLoading: false,
+      error: null,
+    }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Bls />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    const stateOf = (id: string) => screen.getByRole('link', { name: id }).closest('tr')!.lastElementChild!.textContent
+    expect(stateOf('BL-A')).toBe('Pendente')
+    expect(stateOf('BL-B')).toBe('Emitida')
+    expect(stateOf('BL-C')).toBe('Isenta')
+    expect(screen.queryByText('Calculado')).toBeNull()
   })
 
   it('aplica o POL recebido na URL junto com viagem e POD', () => {
@@ -356,7 +337,7 @@ describe('Página Bls (unificada)', () => {
     })
   })
 
-  it('exibe estritamente o peso de carga solta na faixa de resumo, ignorando peso de contêiner', () => {
+  it('mostra estritamente o peso de carga solta no cartão, ignorando peso de contêiner', () => {
     useBlSummaryMock.mockReturnValue({
       data: {
         totalBls: 2,
@@ -381,10 +362,12 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    // A faixa mostra 0 t de carga solta (breakbulkWeightTon), não 85 t (totalWeightTon)
-    const strip = screen.getByLabelText('Resumo do recorte')
-    expect(strip.textContent).toContain('de carga solta0 t')
-    expect(strip.textContent).not.toContain('85 t')
+    // O cartão mostra 0 t de carga solta (breakbulkWeightTon), não 85 t (totalWeightTon);
+    // aparece mesmo zerado.
+    const totals = within(screen.getByRole('group', { name: 'Totais do recorte' }))
+    const card = totals.getByText('Carga solta').parentElement!
+    expect(card.textContent).toContain('0,0 t')
+    expect(card.textContent).not.toContain('85')
   })
 
   it('expande a linha e mostra contêiner e carga solta do B/L misto, sem nova consulta', async () => {
@@ -406,7 +389,9 @@ describe('Página Bls (unificada)', () => {
 
     await waitFor(() => expect(screen.getAllByText('SEAL-3').length).toBeGreaterThan(0))
     // Um B/L misto satisfaz os dois predicados: as duas seções aparecem.
-    expect(screen.getAllByText('Contêineres (1)').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Contêineres').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/1 contêiner · 1 COC · 24\.000 kg · 67,0 m³ · 0 de 1 devolvidos/).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: 'Abrir na ficha do B/L' })[0].getAttribute('href')).toBe('/bls/BL-MISTO')
     expect(screen.getAllByText('Carga solta').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Bobina').length).toBeGreaterThan(0)
     // Tara é capturada e persistida desde sempre, e não era exibida em lugar nenhum.
@@ -471,14 +456,14 @@ describe('Página Bls (unificada)', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-CNTR' }))
-    await waitFor(() => expect(screen.getAllByText('Contêineres (2)').length).toBeGreaterThan(0))
+    await waitFor(() => expect(within(document.getElementById('bl-detail-BL-CNTR')!).getAllByText('Contêineres').length).toBeGreaterThan(0))
     expect(within(document.getElementById('bl-detail-BL-CNTR')!).queryByText('Carga solta')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Expandir carga do B/L BL-BB' }))
     await waitFor(() => expect(document.getElementById('bl-detail-BL-BB')).toBeTruthy())
     const detail = within(document.getElementById('bl-detail-BL-BB')!)
     expect(detail.getByText('Carga solta')).toBeTruthy()
-    expect(detail.queryByText(/^Contêineres \(/)).toBeNull()
+    expect(detail.queryByText('Contêineres')).toBeNull()
   })
 
   it('renderiza os KPIs de carga solta que a RPC já devolvia', () => {
@@ -492,10 +477,10 @@ describe('Página Bls (unificada)', () => {
     )
 
     // totalMachines, totalPackages e totalCbm eram buscados e descartados.
-    const strip = within(screen.getByLabelText('Resumo do recorte'))
-    expect(strip.getByText('máquinas')).toBeTruthy()
-    expect(strip.getByText('packages')).toBeTruthy()
-    expect(strip.getByText('no total')).toBeTruthy()
+    const totals = within(screen.getByRole('group', { name: 'Totais do recorte' }))
+    expect(totals.getByText('Carga solta').parentElement?.textContent).toContain('máquinas')
+    expect(totals.getByText('Carga solta').parentElement?.textContent).toContain('packages')
+    expect(totals.getByText('Volume')).toBeTruthy()
   })
 
   it('exclusão bloqueada explica o motivo na lista, não só no toast, e não abre a confirmação', async () => {
@@ -512,8 +497,9 @@ describe('Página Bls (unificada)', () => {
       </QueryClientProvider>,
     )
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Ações para B/L BL-CNTR' })[0])
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Excluir B/L' }))
+    // Excluir fica só na seleção em lote.
+    fireEvent.click(screen.getByLabelText('Selecionar B/L BL-CNTR'))
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir selecionados' }))
 
     const notice = await screen.findByRole('alert')
     expect(notice.textContent).toMatch(/Este B\/L não pode ser excluído/)

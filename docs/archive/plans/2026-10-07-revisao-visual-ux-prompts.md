@@ -1,5 +1,7 @@
 # Revisão visual e UX do Vela e Portal — pacote de prompts
 
+> **Encerrado em 2026-10-13 ([ADR 0081](../../adr/0081-identidade-visual-unica.md)).** Depois da etapa 12, o responsável revisou o contrato e a identidade do sistema. O "Contrato visual" da etapa 00 e as notas de 2026-10-08 foram substituídos pela [identidade visual única](../../identidade-visual.md) (direção A com fundo neutro, nove regras, Portal com a marca FWLOG). As etapas 13 a 23 não serão executadas como prompts; o trabalho restante segue o [plano de migração tela a tela](../../plans/2026-10-13-identidade-visual-tela-a-tela.md). Os registros abaixo são históricos e não foram reescritos; links relativos podem refletir o caminho anterior em `docs/plans/`.
+
 Data: 2026-10-07. Base inspecionada: `main`, commit `0160605a`, checkout inicialmente sem diff.
 Estado: etapas 00, 01 e 02 concluídas em 2026-10-07, 03, 04, 05 e 06 em 2026-10-08, 07, 08, 09 e 10 em 2026-10-09 11 em 2026-10-12 (revisada em 2026-10-13), 12 e 13 em 2026-10-13 (direção visual, inventário, tokens, primitivas, shells, acesso, Viagens, importações, B/Ls, carga física, Revisão, Clientes, Tabelas de Taxas Locais, faturamento interno, Demurrage, Conciliação PIX e documentos imprimíveis registrados abaixo); próxima: etapa 14. Revisado em 2026-10-12 depois do merge da PR 929 (nota editorial abaixo).
 

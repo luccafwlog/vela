@@ -14,6 +14,10 @@ describe('billing blocks', () => {
   it('prioriza causa estrutural sobre hold livre', () => expect(getBillingBlock({ ...base, customer: null, billing_hold_reason: 'texto livre' }).code).toBe('sem_cliente'))
   it('prioriza hold de cálculo sobre Aguardando CE', () => expect(getBillingBlock({ ...base, ce_mercante: null, billing_hold_reason: 'review:no_table' }).code).toBe('calculo_incompleto'))
   it('mantem o detalhe na API legada', () => expect(getBillingBlockReason({ ...base, review_status: 'pending_review', notes: 'Pendencias de importacao: Portal' })).toContain('Revis'))
+  it('nomeia o motivo pelo que falta: taxa em revisão ou cálculo sem linhas', () => {
+    expect(getBillingBlock({ ...base, totals: { total_brl: 100, line_count: 2, review_required_count: 1 } }).label).toBe('Taxa em revisão')
+    expect(getBillingBlock({ ...base, totals: { total_brl: 0, line_count: 0, review_required_count: 0 } }).label).toBe('Cálculo sem linhas')
+  })
   it('separa faturado e isento', () => { expect(getBillingBlock({ ...base, financial_status: 'invoiced' }).code).toBe('faturado'); expect(getBillingBlock({ ...base, charge_status: 'exempt' }).code).toBe('isento') })
 })
 
@@ -29,7 +33,7 @@ describe('bloqueio por portal não provisionado', () => {
   it('nomeia o motivo quando o portal é a única pendência', () => {
     const block = getBillingBlock({ ...withCe, review_status: 'pending_review', notes: portalNotes })
     expect(block.code).toBe('portal_nao_provisionado')
-    expect(block.label).toBe('Portal não provisionado')
+    expect(block.label).toBe('Conta do Portal não ativa')
   })
 
   it('não trata como problema de cálculo: totais e linhas seguem íntegros', () => {

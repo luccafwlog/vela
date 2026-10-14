@@ -1,7 +1,9 @@
 import { Fragment, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, FileText, Pencil } from 'lucide-react'
+import { Clock, FileText } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { EmptyState } from '../ui/Card'
 import { Input } from '../ui/Input'
 import { SegmentedControl } from '../ui/SegmentedControl'
@@ -394,7 +396,7 @@ function BlHeader({
   return (
     <div className="app-dem-group__row">
       <div className="app-dem-group__identity">
-        <Link to={`/bls/${encodeURIComponent(blId)}?tab=faturamento`} className="app-dem-link app-dem-code app-dem-group__bl">{blId}</Link>
+        <CopyValue value={blId} label="número do B/L"><Link to={`/bls/${encodeURIComponent(blId)}?tab=faturamento`} className="app-dem-link app-dem-code app-dem-group__bl">{blId}</Link></CopyValue>
         <span className="app-dem-group__customer">{customerName}</span>
         {voyage ? <span className="app-dem-group__meta">{voyage}</span> : null}
         <InvoiceRefs state={state} onOpenInvoice={onOpenInvoice} />
@@ -428,7 +430,7 @@ function situationNote(container: DemurrageContainerRow) {
 
 function UsdCell({ container, calc }: { container: DemurrageContainerRow; calc: Calc }) {
   if (calc.error) return <span className="app-dem-error-text">{calc.error}</span>
-  if (!calc.calc) return <span aria-label="Sem descarga">—</span>
+  if (!calc.calc) return <NoValue label="Sem descarga" />
   const billed = container.billed_in?.[0]
   return (
     <>
@@ -442,7 +444,7 @@ function SituationCell({ container, onOpenInvoice }: { container: DemurrageConta
   const note = situationNote(container)
   const billed = container.billed_in ?? []
   return (
-    <div className="app-table__cell-stack">
+    <div className="app-table__cell-stack app-table__cell-stack--center">
       <DemurrageStatusBadge status={container.demurrage_status} />
       {note ? <span className="app-dem-meta">{note}</span> : null}
       {billed.length ? (
@@ -476,32 +478,32 @@ function ContainerRow({
   const result = calc.calc
   return (
     <tr>
-      <td className="app-dem-code app-dem-strong">{container.container_number}</td>
-      <td>{container.type ?? '—'}</td>
-      <td className="tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : '—'}</td>
+      <td className="app-dem-code app-dem-strong"><CopyValue value={container.container_number} label="número do contêiner" /></td>
+      <td>{container.type ?? <NoValue label="Sem tipo" />}</td>
+      <td className="tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
       <td className="tabular-nums">{container.return_date ? formatDate(container.return_date) : <span className="app-dem-meta">Não devolvido</span>}</td>
       <td>
         {result ? (
-          <div className="app-table__cell-stack">
+          <div className="app-table__cell-stack app-table__cell-stack--center">
             <span className="tabular-nums">{containerFreeTimeDays(container) ?? result.free_days} dias</span>
             <span className="app-dem-meta">{FREE_TIME_SOURCE_LABELS[freeTimeSource(container)]}</span>
           </div>
-        ) : '—'}
+        ) : <NoValue label="Sem free time calculado" />}
       </td>
-      <td className="tabular-nums">{result ? `${result.days_p1} d · ${result.days_p2} d` : '—'}</td>
+      <td className="tabular-nums">{result ? `${result.days_p1} d · ${result.days_p2} d` : <NoValue label="Sem dias calculados" />}</td>
       <td><SituationCell container={container} onOpenInvoice={onOpenInvoice} /></td>
-      <td className="app-dem-num"><div className="app-table__cell-stack"><UsdCell container={container} calc={calc} /></div></td>
+      <td className="app-dem-num"><div className="app-table__cell-stack app-table__cell-stack--center"><UsdCell container={container} calc={calc} /></div></td>
       <td className="app-dem-row-action">
-        <button
+        <Button
           type="button"
-          className="app-table__icon-button app-table__icon-button--sm"
+          variant="secondary"
+          className="app-btn--sm"
           aria-label={`Editar datas de ${container.container_number}`}
-          title="Editar datas"
           disabled={disabled}
           onClick={() => onEdit(container)}
         >
-          <Pencil size={15} aria-hidden="true" />
-        </button>
+          Editar datas
+        </Button>
       </td>
     </tr>
   )
@@ -551,20 +553,21 @@ function BlCard({
           return (
             <li key={container.id} className="app-dem-card__item">
               <div className="app-dem-card__head">
-                <span className="app-dem-code app-dem-strong">{container.container_number}</span>
-                <span className="app-dem-meta">{container.type ?? ''}</span>
-                <button
+                <span className="app-dem-code app-dem-strong"><CopyValue value={container.container_number} label="número do contêiner" /></span>
+                <span className="app-dem-meta">{container.type ?? <NoValue label="Sem tipo" />}</span>
+                <Button
                   type="button"
-                  className="app-table__icon-button app-table__icon-button--sm"
+                  variant="secondary"
+                  className="app-btn--sm"
                   aria-label={`Editar datas de ${container.container_number}`}
                   disabled={generatingBl === blId}
                   onClick={() => onEditContainer(container)}
                 >
-                  <Pencil size={15} aria-hidden="true" />
-                </button>
+                  Editar datas
+                </Button>
               </div>
               <p className="app-dem-meta">
-                Descarga {container.discharge_date ? formatDate(container.discharge_date) : '—'} · Devolução {container.return_date ? formatDate(container.return_date) : 'pendente'}
+                Descarga {container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />} · Devolução {container.return_date ? formatDate(container.return_date) : 'pendente'}
                 {calc.calc ? ` · Free time ${containerFreeTimeDays(container) ?? calc.calc.free_days} dias (${FREE_TIME_SOURCE_LABELS[freeTimeSource(container)]})` : ''}
               </p>
               <div className="app-dem-card__foot">

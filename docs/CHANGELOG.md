@@ -4,6 +4,90 @@
 
 ## 2026-10
 
+- **Lote 1 da identidade visual (2026-10-14, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
+  Lista de BLs, ficha da Viagem, ficha do Cliente (com a aba nova Contêineres), Taxas Locais ·
+  Faturas e Validação e Faturas do Portal em tabela limpa: uma linha de título, nada embaixo do
+  valor, situação em texto, âmbar só no que pede ação, Paga com ✓ e consolidada com o ícone de
+  pilha em toda tela que as mostra. Faturas ganham busca única por fatura ou B/L; a Validação tira
+  o B/L já faturado da fila, mostra "Pronto para emitir" na fila padrão e exporta uma planilha só,
+  com uma coluna por taxa e a coluna Contêiner compartilhado. No Portal, o detalhe abre pelo
+  número da fatura, com o Pagamento primeiro e Copiar código Pix, e a disputa de Demurrage passa
+  para o fim do detalhe. Correções: caixa de Comunicado sem destinatário recebe o contato principal
+  (migration `223`), estado de Taxas locais da lista de BLs pelo financeiro, sem B/L cancelado em Pendente (`222`, `226`), solicitações
+  de Desbloqueio de CE na ficha do Cliente (`224`, `227`) e o Saldo pendente do Modo Inspeção igual ao
+  que o Cliente vê (`225`).
+  Passe completo contra a página aprovada (mesmo dia): a primeira entrega tinha deixado de fora
+  itens aprovados, agora feitos — Condição VIP e cobertura dos Documentos anuais ("Coberto até" ou
+  "Falta"), "Não concedida" na Liberação e "Sem conta" no Acesso ao Portal como dado principal,
+  e-mail na faixa do Cliente, "Quem recebe os Comunicados" em tabela própria, nome do manifesto
+  sob o B/L, Vencimento e Disputa na Demurrage do Financeiro, solicitações em andamento primeiro
+  (`228`), motivos "Taxa em revisão" e "Conta do Portal não ativa" e a data da falha da emissão
+  automática na Validação, trecho no detalhe de Demurrage do Portal e ✓ de Paga no detalhe interno.
+- **Carregamento inicial do Vela menor (2026-10-14):** o sino de notificações e a cotação do
+  cabeçalho deixaram de carregar o relatório de saída da agência e o leitor de planilha de
+  Demurrage em toda tela; os rótulos do relatório (`agencyReportLabels.ts`) e a cotação
+  (`demurrageRoe.ts`) viraram módulos próprios. O JavaScript inicial do Vela caiu de 249,51 para
+  225,72 KiB (limite de 250 KiB); o Portal não mudou.
+- **Passada única da identidade visual (2026-10-13, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md#passada-única-2026-10-13)):**
+  o que vale igual em qualquer tela foi aplicado de uma vez no Vela e no Portal: toda tabela segue
+  a tabela padrão (centralizada, com nome, descrição e observação à esquerda); a tabela dentro de
+  outra tabela tem cabeçalho claro; número de B/L, fatura, navio e Invoice não fica mais sublinhado
+  em repouso; dado ausente aparece como traço discreto; número do B/L, CE Mercante, CNPJ e número
+  do contêiner ganham o ícone de copiar (peça `CopyValue`), e as ações "Copiar …" que ficaram
+  repetidas saíram dos menus; ação escrita como texto sublinhado ou só ícone virou botão com nome
+  (Editar, Omitir, Excluir, Abrir …). A reorganização de cada tela segue em lotes, descritos no
+  plano. Documentos impressos não mudaram. Na revisão da PR: mensagem do alerta, observação e
+  descrição de item voltam a quebrar linha em vez de virar "…"; a Visão geral do B/L não mostra
+  mais "No free time" em contêiner que ainda não descarregou, e SOC aparece como "Não se aplica";
+  o CNPJ é copiado sempre formatado; o Tracking do Portal mantém o botão "Copiar número do B/L";
+  no tema escuro a aba ativa ganha traço e a faixa de identidade, borda; e
+  `design:check -- --update` passa a recusar número que subiu.
+- **Ficha do B/L na identidade visual (2026-10-13, tela 1 do
+  [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):** a ficha passa a seguir
+  a ordem fixa da identidade: faixa azul-marinho com número, navio, trecho, CE e Cliente; a próxima
+  ação em faixa própria, com "Resolver na Revisão" como botão; os trilhos Operacional e Documental
+  em blocos; e a Visão geral em cinco blocos (Embarque, Documento Mercante, Cliente, Carga e
+  Portal), cada um com o seu dado principal. O bloco Carga mostra "x de y devolvidos" e a tabela
+  dos contêineres com os grupos Devolução e No terminal. "Definir exceção", "Ver na aba Carga" e
+  "Enviar convite do Portal" viraram botões. A aba ativa de todo o sistema passa a azul-marinho
+  preenchido (regra 7). Dados, abas e ações não mudaram; o CSS próprio da ficha caiu de 138 para
+  108 regras. A catraca `design:check` passou a pegar cor `#RGBA` e CSS de página escondido num
+  seletor agrupado com uma peça comum.
+- **Identidade visual única do Vela e do Portal (2026-10-13, [ADR 0081](adr/0081-identidade-visual-unica.md)):**
+  depois da etapa 12 da campanha de revisão visual, o responsável revisou o contrato e escolheu a
+  direção "Marinha" com fundo neutro: azul-marinho estrutura a tela, blocos com título em faixa e
+  nove regras que valem para todas as telas, descritas em [identidade-visual.md](identidade-visual.md).
+  Nesta entrega mudam só fundo (cinza liso, sem pontos), bordas e textos frios, títulos de página
+  em DM Sans (Syne só no nome "Vela"), o Portal com a marca FWLOG (azul da logo e do globo, sem
+  dourado) e o botão `ghost`, que ganhou borda. Peças novas em `src/components/ui/` (`Block`,
+  `LeadValue`, `FactList`, `IdentityBand`, `NextAction`, `NoValue`) e `npm run design:check`, uma
+  catraca no CI sobre cor solta, tamanho fora da escala, caixa alta e CSS de página. A campanha de
+  2026-10-07 foi encerrada e arquivada; as telas migram pelo
+  [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md), com aprovação de cada uma.
+- **Autor da baixa no detalhe da fatura e na Ficha do Cliente (2026-10-13, migration `221`):**
+  "Pagamentos registrados" do detalhe da fatura passa a mostrar quem registrou cada baixa e a
+  referência bancária (antes só Observação, que ficava "—" quando a referência era o único
+  dado, como na baixa Pix da INV-2026-0014). A tabela de pagamentos da Ficha do Cliente ganha a
+  mesma coluna "Registrado por". O nome vem de `list_payment_registrar_names`, que devolve só o
+  autor das baixas pedidas a quem pode ler pagamentos. Quem cancelou uma baixa continua fora da
+  tela: o cancelamento apaga a baixa e o registro de auditoria não diz qual baixa foi.
+- **Desbloqueio de CE: cancelamento de baixa durante o envio sem deadlock (2026-10-13, migration `220`):**
+  um teste novo achou que o cancelamento de baixa feito pelo Financeiro enquanto o cliente envia o pedido
+  terminava em `deadlock detected`, desfazendo uma das duas operações (às vezes o cancelamento). A trava do
+  Cliente nos comandos CE passou a `FOR NO KEY UPDATE`: o envio espera o cancelamento e recusa o B/L que
+  perdeu a liquidação. Um segundo teste comprova que a fatura consolidada parcialmente paga libera só
+  o B/L efetivamente liquidado. Ambos usam os comandos reais do financeiro, em
+  `ceUnlock.local-pg.test.ts`.
+- **Suítes `local-pg` em ordem explícita e invertida no CI (2026-10-13):** o Vitest reordenava
+  os arquivos (falhos e lentos primeiro, depois por tamanho) e ignorava a ordem da lista do
+  workflow, então a "ordem explícita" da Etapa 12 do
+  [plano de correção das importações](archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md)
+  não valia. A lista passou para `scripts/local-pg-suites.txt`; `npm run test:local-pg` a roda em
+  série com um sequenciador que respeita a ordem, e o CI roda a lista na ordem natural e, depois de
+  um novo replay do banco, de trás para frente (aceite da Etapa 12 que estava sem evidência). `npm run
+  localpg:check` também acusa suíte repetida e CI sem uma das duas ordens. As ADRs 0078, 0079 e
+  0080 deixam de dizer "implementação pendente" ou "deploy não verificado": o registro de
+  migrations de produção lista `174`–`219`.
 - **Pix Itaú: fila completa e QR em segundos (2026-10-13, migration `219`):** a reserva da fila
   passa a pegar a alteração de cobrança (PTAX da Demurrage, renovação das Taxas Locais) e a
   conferência de vencimento, que até aqui nunca chegavam ao Itaú: a cobrança ficava com o valor

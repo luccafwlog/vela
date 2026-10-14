@@ -426,7 +426,8 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
 - **Datas:** `bl_containers.discharge_date` e `return_date` são a fonte
   operacional. `demurrage_invoice_items` copia datas, dias, tarifas e subtotal
   no momento de criação da invoice.
-- **ROE e recálculo diário:** `fetchROE` consulta a PTAX dos últimos dez dias,
+- **ROE e recálculo diário:** `fetchROE` (`src/services/demurrage/demurrageRoe.ts`,
+  reexportado por `demurrageKpis.ts`) consulta a PTAX dos últimos dez dias,
   aplica o markup canônico `DEMURRAGE_ROE_MARKUP` (`1,065`, ADR 0014) e usa
   primeiro a referência persistida em `exchange_rate_reference` e depois
   `localStorage['demurrage_roe_cache']` como fallback. A referência do banco

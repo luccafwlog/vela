@@ -1,7 +1,9 @@
+import { formatDate } from '../lib/utils'
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { NoValue } from '../components/ui/NoValue'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { Field, Input, Select } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
@@ -161,11 +163,11 @@ export function GraniteRates() {
         {error ? <InlineError message="Erro ao carregar taxas." /> : null}
 
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[800px] text-left text-sm whitespace-nowrap">
+          <table className="app-table app-table--compact min-w-[800px] text-sm whitespace-nowrap">
             <caption className="sr-only">Tabela de tarifas de granito</caption>
             <thead className="bg-[#0d1117] text-xs uppercase tracking-wider text-slate-500">
               <tr>
-                <th scope="col" className="px-4 py-3">Descrição</th>
+                <th scope="col" className="app-table__text-head px-4 py-3">Descrição</th>
                 <th scope="col" className="px-4 py-3">Tipo</th>
                 <th scope="col" className="px-4 py-3">Valor Unitário</th>
                 <th scope="col" className="px-4 py-3">Moeda</th>
@@ -189,14 +191,20 @@ export function GraniteRates() {
               ) : null}
               {(rates ?? []).map((rate) => (
                 <tr key={rate.id} className="hover:bg-[#21262d]/60">
-                  <td className="px-4 py-3 font-semibold text-white">{rate.description}</td>
+                  <td className="app-table__text px-4 py-3 font-semibold text-white" title={rate.description ?? undefined}>{rate.description}</td>
                   <td className="px-4 py-3">{chargeTypeLabel[rate.charge_type]}</td>
                   <td className="px-4 py-3">
                     {Number(rate.unit_value).toLocaleString('pt-BR', { minimumFractionDigits: 4 })}
                   </td>
                   <td className="px-4 py-3">{rate.currency}</td>
                   <td className="px-4 py-3 text-slate-400">
-                    {rate.valid_from ?? '—'} {rate.valid_from || rate.valid_to ? 'a' : ''} {rate.valid_to ?? ''}
+                    {rate.valid_from && rate.valid_to
+                      ? `${formatDate(rate.valid_from)} a ${formatDate(rate.valid_to)}`
+                      : rate.valid_from
+                        ? `desde ${formatDate(rate.valid_from)}`
+                        : rate.valid_to
+                          ? `até ${formatDate(rate.valid_to)}`
+                          : <NoValue label="Sem vigência" />}
                   </td>
                   <td className="px-4 py-3">
                     {isAdmin ? (
@@ -214,15 +222,16 @@ export function GraniteRates() {
                   </td>
                   {isAdmin ? (
                     <td className="px-4 py-3">
-                      <button className="app-table__action mr-2" onClick={() => openEdit(rate)}>Editar</button>
-                      <button
-                        className="text-red-400 hover:text-red-300 text-xs disabled:opacity-40"
+                      <button type="button" className="app-table__action mr-2" onClick={() => openEdit(rate)} aria-label={`Editar taxa ${rate.description}`}>Editar</button>
+                      <Button
+                        variant="danger"
+                        className="app-btn--sm"
                         onClick={() => handleDelete(rate.id)}
                         disabled={deletingId === rate.id}
-                        aria-label="Excluir taxa"
+                        aria-label={`Excluir taxa ${rate.description}`}
                       >
-                        <Trash2 size={14} />
-                      </button>
+                        Excluir
+                      </Button>
                     </td>
                   ) : null}
                 </tr>

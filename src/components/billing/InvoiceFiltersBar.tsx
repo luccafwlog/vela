@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FilterBar } from '../ui/FilterBar'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { formatCnpjCpf } from '../../lib/utils'
 import { Field, Input, Select } from '../ui/Input'
 import { Combobox, type ComboOption } from '../ui/Combobox'
@@ -16,6 +17,9 @@ import { INVOICE_STATUS_FILTER_OPTIONS } from '../../pages/faturamentoInvoiceSta
 import type { Filters } from './invoiceFilters'
 
 const pageSizes = [20, 50, 100]
+
+// Filtros de "Mais filtros": os campos separados de B/L e de fatura continuam para os links antigos.
+const MORE_KEYS: Array<keyof Filters> = ['blSearch', 'search', 'pod', 'invoiceType', 'dateFrom', 'dateTo', 'paidFrom', 'paidTo']
 
 type InvoiceFiltersBarProps = {
   filters: Filters
@@ -61,29 +65,36 @@ export function InvoiceFiltersBar({
   const invoice = useUrlFieldRevision(filters.search)
   const voyage = useUrlFieldRevision(filters.voyageSearch)
   const pod = useUrlFieldRevision(filters.pod)
+  // Busca, Cliente, Situação e Navio / Viagem ficam abertos; o resto vai para "Mais filtros".
+  const [queryText, setQueryText] = useState(filters.query ?? '')
+  const debouncedQuery = useDebouncedValue(queryText)
+  const [sentQuery, setSentQuery] = useState(filters.query ?? '')
+  // Só publica quando a pausa alcançou o campo: logo depois de Limpar filtros
+  // (ou de voltar no navegador) o valor atrasado ainda é o texto antigo e
+  // reescreveria na URL o filtro que acabou de sair.
+  if (debouncedQuery === queryText && debouncedQuery !== sentQuery) setSentQuery(debouncedQuery)
+  // A URL pertence à página: a publicação sai num efeito, nunca durante a
+  // renderização (React não aceita atualizar outro componente no render).
+  const currentQuery = filters.query ?? ''
+  useEffect(() => {
+    if (sentQuery.trim() !== currentQuery.trim()) updateFilter('query', sentQuery)
+  }, [sentQuery, currentQuery, updateFilter])
+  // Limpar filtros (ou voltar no navegador) muda a URL sem passar pelo campo.
+  const [urlQuery, setUrlQuery] = useState(filters.query ?? '')
+  if ((filters.query ?? '') !== urlQuery) {
+    setUrlQuery(filters.query ?? '')
+    if ((filters.query ?? '').trim() !== queryText.trim()) {
+      setQueryText(filters.query ?? '')
+      setSentQuery(filters.query ?? '')
+    }
+  }
+  const moreCount = MORE_KEYS.filter((key) => String(filters[key] ?? '').trim() !== '').length
   return (
-    <FilterBar activeCount={activeFilterCount} onClear={onClear}>
+    <>
       <div className="app-filter-grid">
-        <Combobox
-          key={`bl-${filterResetKey}-${bl.revision}`}
-          label="B/L"
-          placeholder="Número do B/L"
-          initialValue={filters.blSearch}
-          onInputChange={bl.track}
-          onValueChange={(value) => updateFilter('blSearch', value)}
-          fetchOptions={async (q) => (await listBlSuggestions(q)).map((id): ComboOption => ({ value: id, label: id }))}
-          onSelectOption={(option) => { bl.track(option.value); updateFilter('blSearch', option.value) }}
-        />
-        <Combobox
-          key={`inv-${filterResetKey}-${invoice.revision}`}
-          label="Fatura"
-          placeholder="Número da fatura"
-          initialValue={filters.search}
-          onInputChange={invoice.track}
-          onValueChange={(value) => updateFilter('search', value)}
-          fetchOptions={async (q) => (await listInvoiceNumberSuggestions(q)).map((n): ComboOption => ({ value: n, label: n }))}
-          onSelectOption={(option) => { invoice.track(option.value); updateFilter('search', option.value) }}
-        />
+        <Field label="Buscar fatura ou B/L">
+          <Input placeholder="Ex.: FAT-2026-0018" value={queryText} onChange={(event) => setQueryText(event.target.value)} />
+        </Field>
         <Combobox
           key={`cli-${filterResetKey}-${customerInitialValue}`}
           label="Cliente"
@@ -95,6 +106,7 @@ export function InvoiceFiltersBar({
           }
           onSelectOption={(option) => onSelectCustomer(option.value, option.label)}
         />
+        <Field label="Situação"><Select value={filters.status} onChange={(event) => updateFilter('status', event.target.value as InvoiceStatusFilter)}><option value="">Todas</option>{INVOICE_STATUS_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
         <Combobox
           key={`voy-${filterResetKey}-${voyage.revision}`}
           label="Navio / Viagem"
@@ -104,23 +116,47 @@ export function InvoiceFiltersBar({
           fetchOptions={async (q) => (await listVoyageSuggestions(q)).map((v): ComboOption => ({ value: v.voyageNumber, label: v.label }))}
           onSelectOption={(option) => { voyage.track(option.value); updateFilter('voyageSearch', option.value) }}
         />
-        <Combobox
-          key={`pod-${filterResetKey}-${pod.revision}`}
-          label="POD"
-          initialValue={filters.pod}
-          onInputChange={pod.track}
-          onValueChange={(value) => updateFilter('pod', value)}
-          fetchOptions={async (q) => (await listPodSuggestions(q)).map((p): ComboOption => ({ value: p, label: p }))}
-          onSelectOption={(option) => { pod.track(option.value); updateFilter('pod', option.value) }}
-        />
-        <Field label="Tipo"><Select value={filters.invoiceType} onChange={(event) => updateFilter('invoiceType', event.target.value as InvoiceTypeFilter)}><option value="">Todos</option><option value="single">Única BL</option><option value="consolidated">Consolidada</option><option value="manual">Avulsa</option></Select></Field>
-        <Field label="Situação"><Select value={filters.status} onChange={(event) => updateFilter('status', event.target.value as InvoiceStatusFilter)}><option value="">Todos</option>{INVOICE_STATUS_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select></Field>
-        <Field label="Itens por página"><Select value={filters.pageSize} onChange={(event) => updateFilter('pageSize', Number(event.target.value))}>{pageSizes.map((size) => <option key={size} value={size}>{size}/pág.</option>)}</Select></Field>
-        <Field label="Emissão de"><Input type="date" value={filters.dateFrom} onChange={(event) => updateFilter('dateFrom', event.target.value)} /></Field>
-        <Field label="Emissão até"><Input type="date" value={filters.dateTo} onChange={(event) => updateFilter('dateTo', event.target.value)} /></Field>
-        <Field label="Pagamento de"><Input type="date" value={filters.paidFrom} onChange={(event) => updateFilter('paidFrom', event.target.value)} /></Field>
-        <Field label="Pagamento até"><Input type="date" value={filters.paidTo} onChange={(event) => updateFilter('paidTo', event.target.value)} /></Field>
+        {activeFilterCount > moreCount ? <div className="self-end"><button type="button" className="app-btn app-btn--ghost" onClick={onClear}>Limpar filtros</button></div> : null}
       </div>
-    </FilterBar>
+      <FilterBar title="Mais filtros" activeCount={moreCount} onClear={onClear}>
+        <div className="app-filter-grid">
+          <Combobox
+            key={`bl-${filterResetKey}-${bl.revision}`}
+            label="B/L"
+            placeholder="Número do B/L"
+            initialValue={filters.blSearch}
+            onInputChange={bl.track}
+            onValueChange={(value) => updateFilter('blSearch', value)}
+            fetchOptions={async (q) => (await listBlSuggestions(q)).map((id): ComboOption => ({ value: id, label: id }))}
+            onSelectOption={(option) => { bl.track(option.value); updateFilter('blSearch', option.value) }}
+          />
+          <Combobox
+            key={`inv-${filterResetKey}-${invoice.revision}`}
+            label="Fatura"
+            placeholder="Número da fatura"
+            initialValue={filters.search}
+            onInputChange={invoice.track}
+            onValueChange={(value) => updateFilter('search', value)}
+            fetchOptions={async (q) => (await listInvoiceNumberSuggestions(q)).map((n): ComboOption => ({ value: n, label: n }))}
+            onSelectOption={(option) => { invoice.track(option.value); updateFilter('search', option.value) }}
+          />
+          <Combobox
+            key={`pod-${filterResetKey}-${pod.revision}`}
+            label="POD"
+            initialValue={filters.pod}
+            onInputChange={pod.track}
+            onValueChange={(value) => updateFilter('pod', value)}
+            fetchOptions={async (q) => (await listPodSuggestions(q)).map((p): ComboOption => ({ value: p, label: p }))}
+            onSelectOption={(option) => { pod.track(option.value); updateFilter('pod', option.value) }}
+          />
+          <Field label="Tipo"><Select value={filters.invoiceType} onChange={(event) => updateFilter('invoiceType', event.target.value as InvoiceTypeFilter)}><option value="">Todos</option><option value="single">Única BL</option><option value="consolidated">Consolidada</option><option value="manual">Avulsa</option></Select></Field>
+          <Field label="Emissão de"><Input type="date" value={filters.dateFrom} onChange={(event) => updateFilter('dateFrom', event.target.value)} /></Field>
+          <Field label="Emissão até"><Input type="date" value={filters.dateTo} onChange={(event) => updateFilter('dateTo', event.target.value)} /></Field>
+          <Field label="Pagamento de"><Input type="date" value={filters.paidFrom} onChange={(event) => updateFilter('paidFrom', event.target.value)} /></Field>
+          <Field label="Pagamento até"><Input type="date" value={filters.paidTo} onChange={(event) => updateFilter('paidTo', event.target.value)} /></Field>
+          <Field label="Itens por página"><Select value={filters.pageSize} onChange={(event) => updateFilter('pageSize', Number(event.target.value))}>{pageSizes.map((size) => <option key={size} value={size}>{size}/pág.</option>)}</Select></Field>
+        </div>
+      </FilterBar>
+    </>
   )
 }

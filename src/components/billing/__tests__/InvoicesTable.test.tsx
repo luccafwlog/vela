@@ -35,7 +35,7 @@ const baseInvoice: InvoiceListRow = {
 }
 
 describe('InvoicesTable', () => {
-  it('oferece ação no vazio e alinha a coluna financeira à direita', () => {
+  it('oferece ação no vazio e mostra as oito colunas da versão limpa', () => {
     render(
       <MemoryRouter>
         <InvoicesTable invoices={[]} isLoading={false} error={null} totalCount={0} emptyState={{ title: 'Nenhuma fatura' }} emptyAction={<button>Limpar filtros</button>} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
@@ -49,7 +49,8 @@ describe('InvoicesTable', () => {
         <InvoicesTable invoices={[baseInvoice]} isLoading={false} error={null} totalCount={1} emptyState={{ title: 'Nenhuma fatura' }} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('columnheader', { name: 'Valores' }).className).toContain('app-invoices__num')
+    // Tabela limpa: uma linha de título, oito colunas, Situação no fim.
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Fatura', 'B/L', 'Emissão', 'Cliente', 'Navio / Viagem', 'Total', 'Saldo', 'Situação'])
   })
 
   it('aponta o número do BL para a ficha do B/L', () => {
@@ -74,7 +75,7 @@ describe('InvoicesTable', () => {
     expect(link.getAttribute('href')).toBe('/bls/BL-INV-001')
   })
 
-  it('aponta múltiplos BLs para suas respectivas fichas de B/L', () => {
+  it('consolidada mostra o primeiro B/L, "+n" e o ícone de pilha', () => {
     const consolidatedInvoice: InvoiceListRow = {
       ...baseInvoice,
       id: 2,
@@ -103,9 +104,11 @@ describe('InvoicesTable', () => {
       </MemoryRouter>,
     )
 
+    // O primeiro B/L e "+n"; consolidada marcada pelo ícone, não por selo.
     expect(screen.getByRole('link', { name: 'BL-A' }).getAttribute('href')).toBe('/bls/BL-A')
-    expect(screen.getByRole('link', { name: 'BL-B' }).getAttribute('href')).toBe('/bls/BL-B')
-    expect(screen.getByText('+1')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'BL-B' })).toBeNull()
+    expect(screen.getByText('+2').getAttribute('title')).toBe('BL-A, BL-B, BL-C')
+    expect(screen.getByRole('img', { name: 'Consolidada' })).toBeTruthy()
   })
 
   it('mostra fatura avulsa sem B/L e usa navio/viagem do contexto direto', () => {
@@ -139,11 +142,10 @@ describe('InvoicesTable', () => {
 
     expect(screen.getByText('Sem B/L')).toBeTruthy()
     expect(screen.queryByText('0 B/Ls')).toBeNull()
-    expect(screen.getByText('Avulsa')).toBeTruthy()
-    expect(screen.getByText('Navio Manual · 42N')).toBeTruthy()
+    expect(screen.getByText('Navio Manual / 42N')).toBeTruthy()
   })
 
-  it('o número abre o detalhe, o CNPJ sai com máscara e a parcial mostra o saldo e o recebido', () => {
+  it('o número abre o detalhe; a parcial mostra o saldo em âmbar, sem CNPJ nem texto embaixo', () => {
     const onSelectInvoice = vi.fn()
     render(
       <MemoryRouter>
@@ -152,9 +154,12 @@ describe('InvoicesTable', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Abrir fatura FAT-001' }))
     expect(onSelectInvoice).toHaveBeenCalledWith(1)
-    expect(screen.getByText('12.345.678/0001-99')).toBeTruthy()
+    // CNPJ sai da linha (fica no detalhe); nada escrito embaixo do valor.
+    expect(screen.queryByText('12.345.678/0001-99')).toBeNull()
     expect(screen.getByText('Parcialmente paga')).toBeTruthy()
-    expect(screen.getByText(/em aberto de R\$\s1\.500,00/)).toBeTruthy()
+    const row = screen.getByRole('button', { name: 'Abrir fatura FAT-001' }).closest('tr')!
+    expect(row.textContent).not.toContain('em aberto de')
+    expect(row.querySelector('.app-status-text--warning')?.textContent).toMatch(/R\$\s1\.000,00/)
     expect(screen.queryByRole('button', { name: 'Detalhes' })).toBeNull()
   })
 
@@ -169,5 +174,16 @@ describe('InvoicesTable', () => {
     expect(screen.queryByText('Nenhuma fatura')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
     expect(onRetry).toHaveBeenCalled()
+  })
+
+  it('cancelada fica inteira em cinza e paga leva o ✓ antes da palavra', () => {
+    render(
+      <MemoryRouter>
+        <InvoicesTable invoices={[{ ...baseInvoice, id: 7, invoice_number: 'FAT-007', status: 'cancelled' }, { ...baseInvoice, id: 8, invoice_number: 'FAT-008', status: 'paid', balance_brl: 0 }]} isLoading={false} error={null} totalCount={2} emptyState={{ title: 'Nenhuma fatura' }} page={1} totalPages={1} onPageChange={vi.fn()} onSelectInvoice={vi.fn()} />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('button', { name: 'Abrir fatura FAT-007' }).closest('tr')!.className).toContain('app-table__row--muted')
+    const paid = screen.getByRole('button', { name: 'Abrir fatura FAT-008' }).closest('tr')!
+    expect(paid.querySelector('.app-status-text--paid svg')).toBeTruthy()
   })
 })

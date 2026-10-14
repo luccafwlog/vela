@@ -557,7 +557,7 @@ describe('buildVoyageTimeline', () => {
     expect(events.map((event) => event.kind)).toEqual(['pod-added', 'restow', 'ce-status', 'escala-date', 'escala-date'])
     expect(events.find((event) => event.title.includes('ETD'))?.title).toBe('ETD registrado · CNSHA')
     expect(events.find((event) => event.title.includes('ATA'))?.title).toBe('ATA alterado · BRVIX')
-    expect(events.find((event) => event.title.includes('ATA'))?.detail).toBe('11/06/2026 -> 12/06/2026 · por user-2')
+    expect(events.find((event) => event.title.includes('ATA'))?.detail).toBe('11/06/2026 → 12/06/2026 · por user-2')
     expect(events.find((event) => event.kind === 'ce-status')?.detail).toBe('Recebido → Aprovado')
     expect(events.find((event) => event.kind === 'restow')?.detail).toBe('RTW 3')
   })
@@ -617,9 +617,25 @@ describe('buildVoyageTimeline', () => {
 
     expect(events.map((event) => event.kind)).toEqual(['ce-master', 'voyage-data'])
     expect(events[0].title).toBe('Nº de Manifesto Mercante alterado')
-    expect(events[0].detail).toBe('CE000 -> CE999')
+    expect(events[0].detail).toBe('CE000 → CE999')
     expect(events[1].title).toBe('Dados da viagem alterados')
-    expect(events[1].detail).toBe('Nº da viagem: 001E -> 002E · por user-1')
+    expect(events[1].detail).toBe('Nº da viagem: 001E → 002E · por user-1')
+  })
+
+  it('não mostra texto técnico de dados da viagem: snapshot sai e campo sem rótulo não expõe nome nem valor', () => {
+    const events = buildVoyageTimeline({
+      auditEvents: [
+        { entity_type: 'voyages', entity_id: '7', field_name: 'pod_schedule_snapshot', old_value: '{}', new_value: '{"BRVIX":{"ces":"approved"}}', changed_at: '2026-06-11T10:00:00Z' },
+        { entity_type: 'voyages', entity_id: '7', field_name: 'pol_id', old_value: '3', new_value: '5', changed_at: '2026-06-12T10:00:00Z' },
+        { entity_type: 'voyages', entity_id: '7', field_name: 'status', old_value: 'active', new_value: 'cancelled', changed_at: '2026-06-13T10:00:00Z' },
+      ],
+    })
+
+    expect(events).toHaveLength(2)
+    const details = events.map((event) => event.detail).join(' | ')
+    expect(details).not.toMatch(/snapshot|pol_id|\{/)
+    expect(details).toContain('Dado interno da viagem atualizado')
+    expect(details).not.toContain('active')
   })
 
   it('resolve o autor pelo nome e não exibe UUID cru', () => {

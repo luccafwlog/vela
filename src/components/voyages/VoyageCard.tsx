@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Ban, Box, Package, Pencil, Trash2 } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Badge } from '../ui/Badge'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
+import { IdentityBand } from '../ui/IdentityBand'
+import { NoValue } from '../ui/NoValue'
+import { StatusText } from '../ui/StatusText'
 import { useAuth } from '../../hooks/useAuth'
 import { useVoyageReconciliation } from '../../hooks/useVoyageReconciliation'
 import { useClosedAgencyReportPorts } from '../../hooks/useAgencyReport'
@@ -24,7 +28,6 @@ import {
   splitVoyageBls,
   summarizeBreakbulk,
   voyageCeCoverage,
-  type BreakbulkSummary,
 } from '../../services/voyageSummaries'
 import { formatMetric, normalizePortName } from '../../lib/voyageFormat'
 import { normalizePortCode } from '../../services/portCode'
@@ -57,104 +60,14 @@ export type {
 
 export type VoyageTabKey = 'visao' | 'importacao' | 'exportacao' | 'manifestos' | 'adr'
 
-function DirectionKpiTile({
-  direction,
-  primary,
-  metrics,
-}: {
-  direction: string
-  primary: { value: string; unit?: string; color?: string; variant?: 'number' | 'text' }
-  metrics: Array<{ label: string; value: string }>
-}) {
-  return (
-    <div className="app-voyage-kpi-tile">
-      <h3 className="app-voyage-kpi-tile__label">{direction}</h3>
-      <div className="app-voyage-kpi-tile__primary">
-        <span
-          className={`app-voyage-kpi-tile__value${primary.variant === 'text' ? ' app-voyage-kpi-tile__value--text' : ''}`}
-          style={{ color: primary.color }}
-          title={primary.value}
-        >
-          {primary.value}
-        </span>
-        {primary.unit ? <span className="app-voyage-kpi-tile__unit">{primary.unit}</span> : null}
-      </div>
-      <div className="app-voyage-kpi-tile__support">
-        {/* ponytail: teto visual de quatro apoios por tile; upgrade: tornar o
-            conjunto expansível quando surgirem métricas que precisem de detalhe. */}
-        {metrics.slice(0, 4).map((metric) => (
-          <div key={`${direction}-${metric.label}`} className="app-voyage-kpi-tile__metric">
-            <span>{metric.label}</span>
-            <strong>{metric.value}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+/** "20DC (14) | 40HC (10)" → "20DC 14, 40HC 10". */
+function formatContainerTypes(types: string) {
+  return types.split(' | ').filter(Boolean).map((entry) => entry.replace(/\s*\((\d+)\)$/, ' $1')).join(', ')
 }
 
-/**
- * Importação é o foco da operação: o tile ocupa duas colunas e separa a carga
- * em contêineres e carga solta, para a carga solta nunca sumir do cabeçalho.
- */
-function ImportKpiTile({
-  totalBls,
-  containerBlCount,
-  containers,
-  imo,
-  oog,
-  vehicles,
-  breakbulk,
-}: {
-  totalBls: number
-  containerBlCount: number
-  containers: number
-  imo: number
-  oog: number
-  vehicles: number
-  breakbulk: BreakbulkSummary
-}) {
-  const hasBreakbulk = breakbulk.bls > 0
-  return (
-    <div className="app-voyage-kpi-tile app-voyage-kpi-tile--import">
-      <div className="app-voyage-kpi-tile__head">
-        <h3 className="app-voyage-kpi-tile__label">Importação</h3>
-        <div className="app-voyage-kpi-tile__primary">
-          <span className="app-voyage-kpi-tile__value">{formatMetric(totalBls)}</span>
-          <span className="app-voyage-kpi-tile__unit">B/Ls</span>
-        </div>
-      </div>
-      <div className="app-voyage-kpi-split">
-        <section className="app-voyage-kpi-split__panel" aria-label="Contêineres">
-          <div className="app-voyage-kpi-split__title"><Box size={14} aria-hidden="true" />Contêineres</div>
-          <div className="app-voyage-kpi-split__lead">
-            <span>{formatMetric(containers)}</span>
-            <small>CNTRs distintos</small>
-          </div>
-          <div className="app-voyage-kpi-tile__support">
-            <div className="app-voyage-kpi-tile__metric"><span>B/Ls</span><strong>{formatMetric(containerBlCount)}</strong></div>
-            <div className="app-voyage-kpi-tile__metric"><span>IMO / OOG</span><strong>{`${imo} / ${oog}`}</strong></div>
-            <div className="app-voyage-kpi-tile__metric"><span>Veículos</span><strong>{formatMetric(vehicles)}</strong></div>
-          </div>
-        </section>
-        <section
-          className={`app-voyage-kpi-split__panel${hasBreakbulk ? '' : ' app-voyage-kpi-split__panel--empty'}`}
-          aria-label="Carga solta"
-        >
-          <div className="app-voyage-kpi-split__title"><Package size={14} aria-hidden="true" />Carga solta</div>
-          <div className="app-voyage-kpi-split__lead">
-            <span>{hasBreakbulk ? formatMetric(Math.round(breakbulk.weightTon * 100) / 100) : '—'}</span>
-            <small>{hasBreakbulk ? 'toneladas' : 'sem carga solta'}</small>
-          </div>
-          <div className="app-voyage-kpi-tile__support">
-            <div className="app-voyage-kpi-tile__metric"><span>B/Ls carga solta</span><strong>{formatMetric(breakbulk.bls)}</strong></div>
-            <div className="app-voyage-kpi-tile__metric"><span>Máquinas / Packages</span><strong>{`${formatMetric(breakbulk.machines)} / ${formatMetric(breakbulk.packages)}`}</strong></div>
-            <div className="app-voyage-kpi-tile__metric"><span>CBM</span><strong>{formatMetric(Math.round(breakbulk.cbm * 100) / 100)}</strong></div>
-          </div>
-        </section>
-      </div>
-    </div>
-  )
+function routeText(leg: { originPorts: string[]; destinationPorts: string[] } | null | undefined) {
+  if (!leg) return null
+  return `${leg.originPorts.join(', ') || 'Origem a definir'} → ${leg.destinationPorts.join(', ') || 'Destino a definir'}`
 }
 
 const DEFAULT_VEHICLE_STATS: VoyageVehicleStat = {
@@ -382,130 +295,113 @@ export function VoyageCard({
 
   return (
     <Card className="app-voyage-ficha p-0">
-      {/* Faixa de identidade azul-marinho e lisa, como o cabeçalho de modal:
-          navio, estado, rotas e ações da viagem numa só barra. */}
-      <header className="app-voyage-hero">
-        <div className="app-voyage-hero__identity">
-          <div className="app-voyage-hero__carrier">
-            {voyage.vessel?.carrier?.name ?? 'Armador não informado'}
-          </div>
-          <div className="app-voyage-hero__title-row">
-            <h2 className="app-voyage-hero__title">
-              {voyage.vessel?.name ?? 'Navio'} / {voyage.voyage_number}
-            </h2>
+      <IdentityBand
+        headingLevel={2}
+        kind={`Viagem · ${voyage.vessel?.carrier?.name ?? 'Armador não informado'}`}
+        title={`${voyage.vessel?.name ?? 'Navio'} / ${voyage.voyage_number}`}
+        titleAside={(
+          <>
             <Badge tone={VOYAGE_STATUS_BADGE_TONE[voyage.status ?? 'active'] ?? 'blue'}>
               {statusLabel(VOYAGE_STATUS_LABELS, voyage.status ?? 'active')}
             </Badge>
             {billingClosed ? (
-              <Badge tone="success" title="Todos os B/Ls desta viagem estão quitados ou isentos.">
-                Faturamento encerrado
-              </Badge>
+              <Badge tone="success" title="Todos os B/Ls desta viagem estão quitados ou isentos.">Faturamento encerrado</Badge>
             ) : null}
-          </div>
-          {importLeg || exportLeg ? (
-            <div className="app-voyage-hero__routes">
-              {importLeg ? (
-                <VoyageRouteLeg
-                  keyPrefix={`${voyage.id}-imp`}
-                  kind="importacao"
-                  originPorts={importLeg.originPorts}
-                  destinationPorts={importLeg.destinationPorts}
-                />
-              ) : null}
-              {exportLeg ? (
-                <VoyageRouteLeg
-                  keyPrefix={`${voyage.id}-exp`}
-                  kind="exportacao"
-                  originPorts={exportLeg.originPorts}
-                  destinationPorts={exportLeg.destinationPorts}
-                />
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-
-        {canReactivateVoyage || canEditVoyages || canDeleteVoyage ? (
-          <div className="app-voyage-hero__actions">
+          </>
+        )}
+        facts={[
+          ...(importLeg ? [{ label: 'Importação', value: routeText(importLeg) }] : []),
+          ...(exportLeg ? [{ label: 'Exportação', value: routeText(exportLeg) }] : []),
+          { label: 'B/Ls de importação', value: formatMetric(totalBls) },
+        ]}
+        actions={canReactivateVoyage || canEditVoyages || canDeleteVoyage ? (
+          <>
             {canReactivateVoyage ? (
-              <Button variant="ghost" className="app-voyage-hero__action" onClick={() => onReactivateVoyage?.(voyage.id)}>
-                Reativar viagem
-              </Button>
+              <Button variant="ghost" onClick={() => onReactivateVoyage?.(voyage.id)}>Reativar viagem</Button>
             ) : null}
-            {canEditVoyages ? (
-              <Button variant="ghost" className="app-voyage-hero__action" onClick={() => onEditVoyage(voyage.id)}>
-                <Pencil size={15} aria-hidden="true" />
-                Editar
-              </Button>
-            ) : null}
+            {canEditVoyages ? <Button variant="ghost" onClick={() => onEditVoyage(voyage.id)}>Editar</Button> : null}
             {canEditVoyages && isAdmin ? (
-              <Button
-                variant="ghost"
-                className="app-voyage-hero__action app-voyage-hero__action--danger"
-                onClick={() => onCancelVoyage(voyage.id)}
-              >
-                <Ban size={15} aria-hidden="true" />
-                Cancelar viagem
-              </Button>
+              <Button variant="danger" onClick={() => onCancelVoyage(voyage.id)}>Cancelar viagem</Button>
             ) : null}
             {canDeleteVoyage ? (
               // Excluir viagem é do Administrativo: delete_records('voyage')
               // exige is_admin() e respeita a trava do CE (ADR 0071).
-              <Button
-                variant="ghost"
-                className="app-voyage-hero__action app-voyage-hero__action--danger app-voyage-hero__action--icon"
-                onClick={() => onDeleteVoyage(voyage.id)}
-                aria-label="Excluir viagem"
-                title="Excluir viagem"
-              >
-                <Trash2 size={15} aria-hidden="true" />
-              </Button>
+              <Button variant="danger" onClick={() => onDeleteVoyage(voyage.id)}>Excluir</Button>
             ) : null}
-          </div>
+          </>
         ) : null}
-      </header>
+      />
 
       <div className="app-voyage-ficha__body">
         <section className="app-voyage-kpi-grid" aria-label="Indicadores da viagem">
-          <ImportKpiTile
-            totalBls={totalBls}
-            containerBlCount={containerBls.length}
-            containers={totalContainers}
-            imo={totalImoContainers}
-            oog={totalOogContainers}
-            vehicles={totalImportVehicles}
-            breakbulk={breakbulkSummary}
-          />
-          <DirectionKpiTile
-            direction="Exportação"
-            primary={{ value: String(totalExportContainers), unit: 'vazios embarcados' }}
-            metrics={[
-              { label: 'Granito · B/Ls', value: String(totalGraniteBls) },
-              { label: 'Granito · ton', value: formatMetric(totalGraniteWeightTon) },
-              { label: 'Embarques de vazios', value: String(totalVaziosManifests) },
-            ]}
-          />
-          <DirectionKpiTile
-            direction="Próxima escala"
-            primary={{
-              value: proximaEscala?.pod ?? '—',
-              unit: proximaEscala ? `ETA ${formatDate(proximaEscala.eta)}` : undefined,
-              variant: 'text',
-            }}
-            metrics={[
-              { label: 'Planejadas', value: String(plannedPodCount) },
-              { label: 'Atracação', value: proximaEscala?.etb ? `ETB ${formatDate(proximaEscala.etb)}` : 'TBC' },
-              { label: 'Status', value: proximaEscala && isEtaOverdue(proximaEscala.eta) ? 'ETA vencido' : 'Pendente' },
-            ]}
-          />
-          <DirectionKpiTile
-            direction="Conciliação"
-            primary={{ value: reconciliationMeta.label, color: reconciliationMeta.color, variant: 'text' }}
-            metrics={[
-              { label: 'CE Mercante', value: `${ceCoverage.filled}/${ceCoverage.total}` },
-              { label: 'Manifestos Mercante', value: pendingManifestCount > 0 ? `${manifestNumberCount} · ${pendingManifestCount} a informar` : String(manifestNumberCount) },
-              { label: 'Divergências EDI × B/Ls', value: String(divergenceCount) },
-            ]}
-          />
+          <Block title="Contêineres" aside="Importação" headingLevel={3}>
+            <LeadValue>
+              {formatMetric(totalContainers)} <span className="app-lead__unit">cheios, distintos</span>
+            </LeadValue>
+            <FactList columns={1}>
+              {vaziosImpStats.distinctContainers > 0 ? (
+                <Fact label="Vazios a descarregar" detail={vaziosImpStats.containerTypes ? formatContainerTypes(vaziosImpStats.containerTypes) : null}>
+                  {formatMetric(vaziosImpStats.distinctContainers)}
+                </Fact>
+              ) : null}
+              <Fact label="B/Ls">{formatMetric(containerBls.length)}</Fact>
+              <Fact label="IMO / OOG">{`${totalImoContainers} / ${totalOogContainers}`}</Fact>
+              <Fact label="Veículos">{formatMetric(totalImportVehicles)}</Fact>
+            </FactList>
+          </Block>
+          <Block title="Carga solta" aside="Importação" headingLevel={3}>
+            <LeadValue>
+              {breakbulkSummary.bls > 0 ? (
+                <>{formatMetric(Math.round(breakbulkSummary.weightTon * 100) / 100)} <span className="app-lead__unit">toneladas</span></>
+              ) : (
+                <NoValue label="Sem carga solta" />
+              )}
+            </LeadValue>
+            <FactList columns={1}>
+              <Fact label="B/Ls">{formatMetric(breakbulkSummary.bls)}</Fact>
+              <Fact label="Máquinas / Packages">{`${formatMetric(breakbulkSummary.machines)} / ${formatMetric(breakbulkSummary.packages)}`}</Fact>
+              <Fact label="CBM">{formatMetric(Math.round(breakbulkSummary.cbm * 100) / 100)}</Fact>
+            </FactList>
+          </Block>
+          <Block title="Exportação" headingLevel={3}>
+            <LeadValue>
+              {formatMetric(totalExportContainers)} <span className="app-lead__unit">vazios embarcados</span>
+            </LeadValue>
+            <FactList columns={1}>
+              <Fact label="Granito · B/Ls">{formatMetric(totalGraniteBls)}</Fact>
+              <Fact label="Granito · ton">{formatMetric(totalGraniteWeightTon)}</Fact>
+              <Fact label="Embarques de vazios">{formatMetric(totalVaziosManifests)}</Fact>
+            </FactList>
+          </Block>
+          <Block title="Próxima escala" headingLevel={3}>
+            <LeadValue
+              tone={proximaEscala && isEtaOverdue(proximaEscala.eta) ? 'warning' : 'default'}
+              detail={proximaEscala ? `ETA ${formatDate(proximaEscala.eta)}${isEtaOverdue(proximaEscala.eta) ? ' · vencido' : ''}` : 'Nenhuma escala com ETA a cumprir'}
+            >
+              {proximaEscala?.pod ?? <NoValue label="Sem próxima escala" />}
+            </LeadValue>
+            <FactList columns={1}>
+              <Fact label="Planejadas">{formatMetric(plannedPodCount)}</Fact>
+              <Fact label="Atracação">{proximaEscala?.etb ? `ETB ${formatDate(proximaEscala.etb)}` : <NoValue label="Sem atracação prevista" />}</Fact>
+              <Fact label="Status">
+                {proximaEscala ? (isEtaOverdue(proximaEscala.eta) ? 'ETA vencido' : 'Pendente') : <NoValue label="Sem escala a cumprir" />}
+              </Fact>
+            </FactList>
+          </Block>
+          <Block title="Conciliação" headingLevel={3}>
+            <LeadValue tone={reconciliationState === 'divergente' ? 'danger' : reconciliationState === 'conciliado' ? 'default' : 'warning'}>
+              {reconciliationMeta.label}
+            </LeadValue>
+            <FactList columns={1}>
+              <Fact label="CE Mercante">{`${ceCoverage.filled}/${ceCoverage.total}`}</Fact>
+              <Fact label="Manifestos Mercante">
+                {pendingManifestCount > 0 ? (
+                  <StatusText tone="warning">{`${manifestNumberCount} · ${pendingManifestCount} a informar`}</StatusText>
+                ) : formatMetric(manifestNumberCount)}
+              </Fact>
+              <Fact label="Divergências EDI × B/Ls">{formatMetric(divergenceCount)}</Fact>
+            </FactList>
+          </Block>
         </section>
 
         {/* Abas trocam a vista; atalhos (link com seta) levam a outra página. */}
@@ -529,17 +425,17 @@ export function VoyageCard({
                 <ArrowRight size={14} aria-hidden="true" />
               </Link>
             ) : (
-              <Link to={`/baplie?voyage=${voyage.id}`} className="app-voyage-shortcut">
+              <Link to={`/baplie?voyage=${voyage.id}`} className="app-btn app-btn--secondary app-btn--sm">
                 Baplie EDI
                 <ArrowRight size={14} aria-hidden="true" />
               </Link>
             )}
-            <Link to={`/bls?voyage=${voyage.id}`} className="app-voyage-shortcut">
+            <Link to={`/bls?voyage=${voyage.id}`} className="app-btn app-btn--secondary app-btn--sm">
               B/Ls da viagem
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
             {totalGraniteBls > 0 ? (
-              <Link to={`/granito?voyage=${voyage.id}`} className="app-voyage-shortcut">
+              <Link to={`/granito?voyage=${voyage.id}`} className="app-btn app-btn--secondary app-btn--sm">
                 Granito
                 <ArrowRight size={14} aria-hidden="true" />
               </Link>
@@ -617,48 +513,5 @@ export function VoyageCard({
         />
       ) : null}
     </Card>
-  )
-}
-
-function VoyageRouteLeg({
-  keyPrefix,
-  kind,
-  originPorts,
-  destinationPorts,
-}: {
-  keyPrefix: string
-  kind: 'importacao' | 'exportacao'
-  originPorts: string[]
-  destinationPorts: string[]
-}) {
-  return (
-    <div className="app-voyage-hero__route">
-      <Badge tone={kind === 'importacao' ? 'blue' : 'green'} className="flex-none">
-        {kind === 'importacao' ? 'Importação' : 'Exportação'}
-      </Badge>
-      <div className="app-voyage-hero__ports">
-        {originPorts.length ? (
-          originPorts.map((port) => (
-            <span key={`${keyPrefix}-origin-${port}`} className="app-voyage-hero__port">
-              {port}
-            </span>
-          ))
-        ) : (
-          <span className="app-voyage-hero__port app-voyage-hero__port--pending">Origem a definir</span>
-        )}
-      </div>
-      <ArrowRight size={16} className="app-voyage-hero__arrow" aria-hidden="true" />
-      <div className="app-voyage-hero__ports">
-        {destinationPorts.length ? (
-          destinationPorts.map((port) => (
-            <span key={`${keyPrefix}-destination-${port}`} className="app-voyage-hero__port">
-              {port}
-            </span>
-          ))
-        ) : (
-          <span className="app-voyage-hero__port app-voyage-hero__port--pending">Destino a definir</span>
-        )}
-      </div>
-    </div>
   )
 }

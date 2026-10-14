@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { NoValue } from '../components/ui/NoValue'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Mail, Upload } from 'lucide-react'
@@ -410,7 +411,7 @@ export function Demurrage() {
         title="Demurrage"
         action={
           <>
-            <Link className="app-fin-link" to="/demurrage/taxas">Tarifas e acordos<ArrowRight size={14} aria-hidden="true" /></Link>
+            <Link className="app-btn app-btn--secondary" to="/demurrage/taxas">Tarifas e acordos<ArrowRight size={14} aria-hidden="true" /></Link>
             <Button variant="secondary" onClick={() => setDunningModalOpen(true)}><Mail size={15} aria-hidden="true" />Régua de cobrança</Button>
             {canInformPtax ? <Button variant="secondary" onClick={() => { setPtaxError(null); setPtaxModalOpen(true) }}>Informar PTAX</Button> : null}
             <Button onClick={() => setImportOpen(true)}><Upload size={15} aria-hidden="true" />Importar datas</Button>
@@ -428,21 +429,21 @@ export function Demurrage() {
       <div className="app-dem-metrics">
         <MetricCard
           label="Containers em atraso"
-          value={kpisQuery.error ? '—' : kpis ? String(kpis.overdueContainers) : '…'}
+          value={kpisQuery.error ? <NoValue label="Não carregado" /> : kpis ? String(kpis.overdueContainers) : '…'}
           tone={kpis && kpis.overdueContainers > 0 ? 'primary' : 'secondary'}
           selected={activeTab === 'containers' && lens === 'atraso'}
           onSelect={() => updateParams((params) => withDemurrageParam(withDemurrageTab(params, 'containers'), 'lente', 'atraso'))}
         />
         <MetricCard
           label="Aguardando pagamento (BRL hoje)"
-          value={kpisQuery.error ? '—' : kpis ? fmtBRL(kpis.issuedInvoicesTotalBrl) : '…'}
+          value={kpisQuery.error ? <NoValue label="Não carregado" /> : kpis ? fmtBRL(kpis.issuedInvoicesTotalBrl) : '…'}
           selected={activeTab === 'emitidas'}
           onSelect={() => selectTab('emitidas')}
         />
         {canAnswerDispute ? (
           <MetricCard
             label="Disputas aguardando resposta"
-            value={disputesQuery.error ? '—' : disputesQuery.data ? String(disputesWaiting) : '…'}
+            value={disputesQuery.error ? <NoValue label="Não carregado" /> : disputesQuery.data ? String(disputesWaiting) : '…'}
             tone={disputesWaiting > 0 ? 'primary' : 'secondary'}
             selected={activeTab === 'disputas'}
             onSelect={() => selectTab('disputas')}

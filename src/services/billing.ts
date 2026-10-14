@@ -23,6 +23,8 @@ const INVOICE_EXPORT_PAGE_SIZE = 1000
 export type InvoiceTypeFilter = '' | 'single' | 'consolidated' | 'manual'
 
 export type InvoiceFilters = {
+  /** Número da fatura ou do B/L: uma fatura entra se qualquer um bate. */
+  query?: string
   search: string
   customerId: string
   status: InvoiceStatusFilter
@@ -113,7 +115,16 @@ export type InvoiceDetail = {
     }
   >
   items: InvoiceItem[]
-  payments: InvoicePayment[]
+  payments: InvoicePaymentWithRegistrar[]
+}
+
+// `registered_by_name` vem de list_payment_registrar_names (migration 221):
+// null quando a baixa não tem autor gravado ou o nome não pôde ser resolvido.
+// ponytail: `bank_reference` (migration 136) falta em database.ts, que é
+// protegido; sai daqui quando os tipos forem regenerados.
+export type InvoicePaymentWithRegistrar = InvoicePayment & {
+  bank_reference?: string | null
+  registered_by_name?: string | null
 }
 
 export type InvoiceLinkInfo = {
@@ -324,6 +335,24 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
     return { rows: [], count: 0 }
   }
 
+  // Busca única: B/L (direto, consolidada ou avulsa) ou número da fatura.
+  const anyTerm = sanitizeLikeTerm(normalizeText(filters.query ?? '').toUpperCase())
+  let anyIds: number[] | null = null
+  if (anyTerm) {
+    const [individual, consolidated, manual] = await Promise.all([
+      supabase.from('invoice_bls').select('invoice_id').ilike('bl_id', `%${anyTerm}%`).limit(5000),
+      supabase.from('invoice_receivable_links').select('invoice_id').ilike('bl_id', `%${anyTerm}%`).limit(5000),
+      supabase.from('invoices').select('id').ilike('bl_id', `%${anyTerm}%`).limit(5000),
+    ])
+    if (individual.error) throw individual.error
+    if (consolidated.error) throw consolidated.error
+    if (manual.error) throw manual.error
+    anyIds = [...new Set([
+      ...[...(individual.data ?? []), ...(consolidated.data ?? [])].map((row) => Number(row.invoice_id)),
+      ...(manual.data ?? []).map((row) => Number(row.id)),
+    ].filter((id) => Number.isInteger(id)))]
+  }
+
   let query = supabase
     .from('invoices')
     .select(INVOICE_LIST_SELECT, { count: 'exact' })
@@ -334,6 +363,13 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
     if (term) {
       query = query.or(`invoice_number.ilike.%${term}%`)
     }
+  }
+
+  if (anyTerm) {
+    const term = escapeFilterTerm(filters.query ?? '')
+    query = anyIds && anyIds.length
+      ? query.or(`invoice_number.ilike.%${term}%,id.in.(${anyIds.join(',')})`)
+      : query.ilike('invoice_number', `%${term}%`)
   }
 
   if (filters.customerId) {
@@ -895,6 +931,29 @@ async function hydrateManualInvoiceVoyage(result: InvoiceDetail): Promise<void> 
   result.invoice.vessel_name = result.invoice.vessel_name ?? vessel?.name ?? null
 }
 
+// Nome de quem registrou cada baixa. O navegador não lê user_profiles; a RPC
+// devolve só o nome, para as baixas pedidas. Best-effort: sem o resolver (ex.:
+// migration 221 ainda não aplicada) as baixas continuam listadas, sem autor.
+export async function fetchPaymentRegistrarNames(paymentIds: number[]): Promise<Map<number, string>> {
+  const names = new Map<number, string>()
+  if (paymentIds.length === 0) return names
+  // ponytail: RPC só da migration 221; cast local até database.ts ser regenerado.
+  const { data, error } = await supabase.rpc('list_payment_registrar_names' as never, { p_payment_ids: paymentIds } as never)
+  if (error) {
+    reportBestEffortFailure('list_payment_registrar_names', error, { count: paymentIds.length })
+    return names
+  }
+  for (const row of (data ?? []) as Array<{ payment_id: number; registered_by_name: string | null }>) {
+    if (row.registered_by_name) names.set(Number(row.payment_id), row.registered_by_name)
+  }
+  return names
+}
+
+async function hydratePaymentRegistrars(result: InvoiceDetail): Promise<void> {
+  const names = await fetchPaymentRegistrarNames(result.payments.map((payment) => payment.id))
+  result.payments = result.payments.map((payment) => ({ ...payment, registered_by_name: names.get(payment.id) ?? null }))
+}
+
 export async function listInvoiceDetails(invoiceId: number) {
   const { data, error } = await supabase.rpc('list_invoice_details', {
     p_invoice_id: invoiceId,
@@ -906,6 +965,7 @@ export async function listInvoiceDetails(invoiceId: number) {
   await hydrateGraniteInvoiceBls(result, invoiceId)
   await hydrateConsolidatedInvoiceDetails(result, invoiceId)
   await hydrateManualInvoiceVoyage(result)
+  await hydratePaymentRegistrars(result)
 
   return result
 }

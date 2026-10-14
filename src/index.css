@@ -6,25 +6,25 @@
 :root[data-visual-theme='current'] {
   color-scheme: light;
   --app-header-height: 56px;
-  --app-bg: #f4f1ea;
-  --app-dot-pattern: radial-gradient(circle, rgba(168, 160, 145, 0.38) 1px, transparent 1px);
-  --app-bg-elevated: #ece9e1;
+  --app-bg: #f6f7f9;
+  --app-dot-pattern: none;
+  --app-bg-elevated: #eef1f5;
   --app-surface: #ffffff;
   --app-surface-strong: #ffffff;
-  --app-surface-muted: #f3f0e9;
-  --app-surface-hover: #f1eee7;
-  --app-panel: #ede9df;
-  --app-panel-strong: #e2ddd2;
-  --app-border: #bdb7aa;
-  --app-border-strong: #a39c8e;
+  --app-surface-muted: #f1f4f8;
+  --app-surface-hover: #eef2f6;
+  --app-panel: #eceff4;
+  --app-panel-strong: #e1e6ee;
+  --app-border: #c3cad5;
+  --app-border-strong: #9aa4b2;
   /* Filete entre blocos de uma mesma superfície (decorativo; controles usam --app-border-strong). */
-  --app-border-soft: #d9d4ca;
+  --app-border-soft: #e2e6ec;
   --app-border-focus: rgba(37, 99, 168, 0.22);
   --app-focus-ring: #1d4d88;
-  --app-text: #1c1915;
-  --app-text-strong: #0e0c0a;
-  --app-muted: #4d483e;
-  --app-muted-soft: #5f5a50;
+  --app-text: #121822;
+  --app-text-strong: #0b1018;
+  --app-muted: #4f5868;
+  --app-muted-soft: #5d6676;
   --app-navy: #152238;
   --app-navy-2: #1e3050;
   --app-topbar: #0e1825;
@@ -54,6 +54,7 @@
   --app-size-body: 14px;
   --app-size-section: 16px;
   --app-size-panel: 20px;
+  --app-size-title: 22px;
   --app-size-page: 24px;
   --app-size-hero: 32px;
   /* Aliases semânticos: cor de estado só por estes pares (texto, fundo, borda). */
@@ -70,23 +71,29 @@
   --app-info-bg: var(--app-blue-soft);
   --app-info-border: #bfd3ee;
   --app-neutral-fg: var(--app-muted);
-  --app-neutral-bg: #f1efe9;
-  --app-neutral-border: #dcd7cc;
+  --app-neutral-bg: #eef1f5;
+  --app-neutral-border: #d5dbe3;
   --app-thead-border: var(--app-navy);
-  /* Cabeçalho de tabela claro; azul-marinho só no Line Up e na TV. */
   /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
   --app-thead-bg: var(--app-navy);
   --app-thead-text: #ffffff;
-  --app-font-display: "Syne", "DM Sans", sans-serif;
+  --app-font-display: "DM Sans", "Segoe UI", sans-serif;
   --app-font-body: "DM Sans", "Segoe UI", sans-serif;
   --app-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* Identidade visual (ADR 0081): faixa de título dos blocos, aba e navegação ativas e marca. */
+  --app-strip: #eef2f7;
+  --app-strip-text: var(--app-navy);
+  --app-nav-active: var(--app-gold);
+  --app-nav-active-text: var(--app-navy);
+  --app-font-brand: "Syne", "DM Sans", sans-serif;
   font-family: var(--app-font-body);
 }
 
 :root[data-visual-theme='dark'] {
   color-scheme: dark;
   --app-bg: #091220;
-  --app-dot-pattern: radial-gradient(circle, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  --app-dot-pattern: none;
   --app-bg-elevated: #0e1728;
   --app-surface: rgba(16, 26, 45, 0.92);
   --app-surface-strong: #101a2d;
@@ -141,30 +148,34 @@
   /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
   --app-thead-bg: var(--app-navy);
   --app-thead-text: #ffffff;
+  --app-strip: #16243d;
+  --app-strip-text: #dbe5f5;
+  --app-nav-active: var(--app-gold);
+  --app-nav-active-text: var(--app-navy);
 }
 
 :root[data-visual-theme='light'] {
   color-scheme: light;
   --app-header-height: 56px;
-  --app-bg: #f4f1ea;
-  --app-dot-pattern: radial-gradient(circle, rgba(168, 160, 145, 0.38) 1px, transparent 1px);
-  --app-bg-elevated: #ece9e1;
+  --app-bg: #f6f7f9;
+  --app-dot-pattern: none;
+  --app-bg-elevated: #eef1f5;
   --app-surface: #ffffff;
   --app-surface-strong: #ffffff;
-  --app-surface-muted: #f3f0e9;
-  --app-surface-hover: #f1eee7;
-  --app-panel: #ede9df;
-  --app-panel-strong: #e2ddd2;
-  --app-border: #bdb7aa;
-  --app-border-strong: #a39c8e;
+  --app-surface-muted: #f1f4f8;
+  --app-surface-hover: #eef2f6;
+  --app-panel: #eceff4;
+  --app-panel-strong: #e1e6ee;
+  --app-border: #c3cad5;
+  --app-border-strong: #9aa4b2;
   /* Filete entre blocos de uma mesma superfície (decorativo; controles usam --app-border-strong). */
-  --app-border-soft: #d9d4ca;
+  --app-border-soft: #e2e6ec;
   --app-border-focus: rgba(37, 99, 168, 0.22);
   --app-focus-ring: #1d4d88;
-  --app-text: #1c1915;
-  --app-text-strong: #0e0c0a;
-  --app-muted: #4d483e;
-  --app-muted-soft: #5f5a50;
+  --app-text: #121822;
+  --app-text-strong: #0b1018;
+  --app-muted: #4f5868;
+  --app-muted-soft: #5d6676;
   --app-navy: #152238;
   --app-navy-2: #1e3050;
   --app-topbar: #0e1825;
@@ -194,6 +205,7 @@
   --app-size-body: 14px;
   --app-size-section: 16px;
   --app-size-panel: 20px;
+  --app-size-title: 22px;
   --app-size-page: 24px;
   --app-size-hero: 32px;
   /* Aliases semânticos: cor de estado só por estes pares (texto, fundo, borda). */
@@ -210,16 +222,22 @@
   --app-info-bg: var(--app-blue-soft);
   --app-info-border: #bfd3ee;
   --app-neutral-fg: var(--app-muted);
-  --app-neutral-bg: #f1efe9;
-  --app-neutral-border: #dcd7cc;
+  --app-neutral-bg: #eef1f5;
+  --app-neutral-border: #d5dbe3;
   --app-thead-border: var(--app-navy);
-  /* Cabeçalho de tabela claro; azul-marinho só no Line Up e na TV. */
   /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
   --app-thead-bg: var(--app-navy);
   --app-thead-text: #ffffff;
-  --app-font-display: "Syne", "DM Sans", sans-serif;
+  --app-font-display: "DM Sans", "Segoe UI", sans-serif;
   --app-font-body: "DM Sans", "Segoe UI", sans-serif;
   --app-font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* Identidade visual (ADR 0081): faixa de título dos blocos, aba e navegação ativas e marca. */
+  --app-strip: #eef2f7;
+  --app-strip-text: var(--app-navy);
+  --app-nav-active: var(--app-gold);
+  --app-nav-active-text: var(--app-navy);
+  --app-font-brand: "Syne", "DM Sans", sans-serif;
   font-family: var(--app-font-body);
 }
 
@@ -235,11 +253,43 @@
   }
 }
 
+/* Na raiz do Portal (portal.html) também, para as telas públicas (login,
+   ativação, recuperação de senha), os avisos e os modais que ficam fora do
+   shell autenticado. */
+:root[data-app='portal'],
 .app-shell--portal {
   --app-control-h: 44px;
   --app-control-h-sm: 44px;
   --app-row-h: 52px;
   --app-cell-py: 14px;
+  /* Marca FWLOG (ADR 0081): azul-marinho da logo, azul do globo na navegação
+     ativa e no botão principal; sem dourado e sem Syne. Tokens derivados de
+     --app-navy são redeclarados aqui porque var() resolve no :root. */
+  --app-navy: #0d2b5e;
+  --app-navy-2: #163a74;
+  --app-topbar: #0d2b5e;
+  --app-blue-btn: #1d67b3;
+  --app-link: #1a5aa0;
+  --app-nav-active: #5aaaf0;
+  --app-nav-active-text: #0d2b5e;
+  --app-thead-bg: #0d2b5e;
+  --app-thead-border: #0d2b5e;
+  --app-strip: #edf3fa;
+  --app-strip-text: #0d2b5e;
+  --app-info-fg: #1d67b3;
+  --app-focus-ring: #1d67b3;
+}
+
+/* Portal sobre o tema escuro (Modo Inspeção com o Vela no escuro): a marca
+   FWLOG fica na barra e no cabeçalho de tabela; o texto sobre a superfície
+   escura volta aos tokens do tema escuro, para manter o contraste. */
+:root[data-visual-theme='dark'] .app-shell--portal,
+:root[data-visual-theme='dark'][data-app='portal'] {
+  --app-link: #93c5fd;
+  --app-info-fg: #bfdbfe;
+  --app-focus-ring: #60a5fa;
+  --app-strip: #16243d;
+  --app-strip-text: #dbe5f5;
 }
 
 /* Degraus que o Tailwind não tem por padrão. Os demais: 12 = text-xs,
@@ -486,7 +536,7 @@ textarea {
 
 .app-header__wordmark {
   color: #ffffff;
-  font-family: var(--app-font-display);
+  font-family: var(--app-font-brand);
   font-size: 18px;
   font-weight: 700;
   line-height: 1;
@@ -777,7 +827,7 @@ textarea {
 
 .app-nav-link.active {
   color: #ffffff;
-  box-shadow: inset 0 -3px 0 var(--app-gold);
+  box-shadow: inset 0 -3px 0 var(--app-nav-active);
 }
 
 .app-nav-badge {
@@ -788,8 +838,8 @@ textarea {
   height: 18px;
   border-radius: 999px;
   padding: 0 6px;
-  background: var(--app-gold);
-  color: var(--app-navy);
+  background: var(--app-nav-active);
+  color: var(--app-nav-active-text);
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
@@ -800,7 +850,7 @@ textarea {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--app-gold);
+  background: var(--app-nav-active);
 }
 
 .app-nav-dropdown {
@@ -864,7 +914,7 @@ textarea {
   background: var(--app-surface-muted);
   color: var(--app-text-strong);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--app-gold);
+  box-shadow: inset 3px 0 0 var(--app-nav-active);
 }
 
 .app-nav-dropdown__item .app-nav-badge,
@@ -2048,21 +2098,23 @@ span.review-items__id {
   gap: 0;
 }
 
-/* Título da página: Syne 24/32 no Vela; 32/40 no Portal (contrato da etapa 00). */
+/* Título da página (ADR 0081): DM Sans 22/28 no Vela; 24/32 no Portal, na cor
+   da marca FWLOG. Syne fica só no nome "Vela". */
 .page-header__title {
   margin: 0;
   color: var(--app-text-strong);
   font-family: var(--app-font-display);
-  font-size: var(--app-size-page);
+  font-size: var(--app-size-title);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 32px;
+  letter-spacing: -0.01em;
+  line-height: 28px;
   text-wrap: balance;
 }
 
 .app-shell--portal .page-header__title {
-  font-size: var(--app-size-hero);
-  line-height: 40px;
+  color: var(--app-navy);
+  font-size: var(--app-size-page);
+  line-height: 32px;
 }
 
 .page-header__description {
@@ -2733,16 +2785,26 @@ button.app-metric-tile[aria-pressed='true'] {
   border-color: var(--app-red);
 }
 
+/* Regra 9 da identidade (ADR 0081): ação tem cara de botão. O ghost é o botão
+   mais discreto, mas continua com borda; só o fechar do modal e os ícones da
+   barra ficam sem borda. */
 .app-btn--ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--app-muted);
+  background: var(--app-surface);
+  border-color: var(--app-border);
+  color: var(--app-text);
   box-shadow: none;
 }
 
 .app-btn--ghost:hover:not(:disabled) {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--app-text);
+  background: var(--app-surface-hover);
+  border-color: var(--app-border-strong);
+  color: var(--app-text-strong);
+}
+
+.app-btn--ghost.app-modal__close,
+.app-header .app-btn--ghost {
+  background: transparent;
+  border-color: transparent;
 }
 
 /* Aba: padrão único sublinhado (etapa 01). Troca a vista da mesma página;
@@ -2790,15 +2852,26 @@ button.app-metric-tile[aria-pressed='true'] {
   outline-offset: -2px;
 }
 
+/* Aba ativa em azul-marinho preenchido (ADR 0081, regra 7). */
 .app-tab--active,
 .app-tab[aria-selected='true'] {
-  border-bottom-color: var(--app-link);
-  color: var(--app-text-strong);
+  border-bottom-color: var(--app-navy);
+  background: var(--app-navy);
+  color: #ffffff;
   font-weight: 600;
 }
 
-.app-tab--active:hover {
-  color: var(--app-text-strong);
+.app-tab--active:hover,
+.app-tab[aria-selected='true']:hover {
+  background: var(--app-navy);
+  color: #ffffff;
+}
+
+/* No tema escuro o azul-marinho quase some no fundo: a aba ativa ganha o
+   traço na cor de link (3:1 ou mais contra a superfície). */
+:root[data-visual-theme='dark'] .app-tab--active,
+:root[data-visual-theme='dark'] .app-tab[aria-selected='true'] {
+  box-shadow: inset 0 -3px 0 var(--app-link);
 }
 
 @media (pointer: fine) {
@@ -4741,7 +4814,7 @@ button.app-metric-tile[aria-pressed='true'] {
 
 .app-auth__logo-name {
   color: #ffffff;
-  font-family: var(--app-font-display);
+  font-family: var(--app-font-brand);
   font-size: 32px;
   font-weight: 700;
   line-height: 40px;
@@ -6408,7 +6481,7 @@ button.app-metric-tile[aria-pressed='true'] {
 
   .app-nav-link.active {
     background: rgba(255, 255, 255, 0.1);
-    box-shadow: inset 3px 0 0 var(--app-gold);
+    box-shadow: inset 3px 0 0 var(--app-nav-active);
   }
 
   .app-nav-dropdown {
@@ -6536,8 +6609,8 @@ button.app-metric-tile[aria-pressed='true'] {
   }
 
   .app-shell--portal .page-header__title {
-    font-size: var(--app-size-hero);
-    line-height: 40px;
+    font-size: var(--app-size-page);
+    line-height: 32px;
   }
 }
 
@@ -7165,8 +7238,8 @@ button.app-metric-tile[aria-pressed='true'] {
 }
 
 .app-tab--active .app-tab__count {
-  background: var(--app-info-bg);
-  color: var(--app-info-fg);
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 .app-segmented {
@@ -7586,7 +7659,7 @@ a.app-step-rail__link:focus-visible {
   align-items: center;
   gap: 4px;
   color: var(--app-link);
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 3px;
 }
 
@@ -8536,9 +8609,7 @@ a.app-step-rail__link:focus-visible {
   text-decoration: underline;
 }
 
-.app-bl-link:focus-visible,
-.app-bl-text-button:focus-visible,
-.app-bl-status__next-link:focus-visible {
+.app-bl-link:focus-visible {
   outline: 2px solid var(--app-focus-ring);
   outline-offset: 2px;
   border-radius: 4px;
@@ -8561,20 +8632,6 @@ a.app-step-rail__link:focus-visible {
 .app-bl-tone--warning { color: var(--app-warning-fg); }
 .app-bl-tone--danger { color: var(--app-danger-fg); }
 
-.app-bl-text-button {
-  border: 0;
-  padding: 0;
-  background: none;
-  color: var(--app-link);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.app-bl-text-button:hover {
-  text-decoration: underline;
-}
-
 .app-bl-error {
   margin: 0;
   color: var(--app-danger-fg);
@@ -8582,18 +8639,6 @@ a.app-step-rail__link:focus-visible {
 }
 
 /* ── Lista /bls ─────────────────────────────────────────────────────────── */
-.app-bl-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  max-width: 720px;
-  margin-bottom: 16px;
-}
-
-.app-bl-metrics .app-metric-tile {
-  padding: 10px 14px;
-}
-
 .app-bl-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -8700,14 +8745,7 @@ a.app-step-rail__link:focus-visible {
 .app-bl-cell__sub--muted { color: var(--app-muted); }
 .app-bl-cell__sub--warning { color: var(--app-warning-fg); font-weight: 500; }
 
-.app-bl-row-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 /* A densidade (36 px com mouse, 44 px no toque) vem do `.app-table__icon-button`. */
-.app-bl-row-actions .app-table__icon-button,
 .app-bl-card .app-table__icon-button {
   border-radius: var(--app-radius-control);
   box-shadow: none;
@@ -8779,76 +8817,13 @@ a.app-step-rail__link:focus-visible {
   margin-top: 4px;
 }
 
-/* ── Ficha: cabeçalho, situação e abas ──────────────────────────────────── */
-.app-bl-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 24px;
-  margin-bottom: 16px;
-}
-
-.app-bl-head__copy {
-  display: grid;
-  flex: 1 1 360px;
-  min-width: 0;
-  gap: 2px;
-}
-
-.app-bl-head__eyebrow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
+/* ── Ficha: avisos e abas (identidade, próxima ação e trilhos usam as peças comuns) */
 
 /* Identificador longo no título: DM Sans 24/600, nunca Syne. */
-.app-bl-head__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-family: var(--app-font-body);
-  font-size: var(--app-size-page);
-  font-weight: 600;
-  line-height: 32px;
-  overflow-wrap: anywhere;
-}
-
-.app-bl-head__context {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 0;
-  margin: 2px 0 0;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-bl-head__context > * + *::before {
-  content: '·';
-  margin: 0 8px;
-  color: var(--app-muted);
-}
-
-.app-bl-head__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.app-bl-head__more {
-  padding-inline: 10px;
-}
 
 .app-bl-cancelled {
   display: grid;
   gap: 2px;
-  margin-bottom: 16px;
   border: 1px solid var(--app-danger-border);
   border-radius: var(--app-radius);
   background: var(--app-danger-bg);
@@ -8865,99 +8840,11 @@ a.app-step-rail__link:focus-visible {
   color: var(--app-muted);
 }
 
-.app-bl-status {
-  display: grid;
-  gap: 16px;
-  margin-bottom: 16px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  padding: 14px 16px 16px;
-}
-
-.app-bl-status__next {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  border-radius: var(--app-radius-control);
-  padding: 8px 12px;
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-bl-status__next--pending {
-  border: 1px solid var(--app-warning-border);
-  background: var(--app-warning-bg);
-  color: var(--app-warning-fg);
-}
-
-.app-bl-status__next--blocked {
-  border: 1px solid var(--app-danger-border);
-  background: var(--app-danger-bg);
-  color: var(--app-danger-fg);
-}
-
-.app-bl-status__next--done {
-  border: 1px solid var(--app-success-border);
-  background: var(--app-success-bg);
-  color: var(--app-success-fg);
-}
-
-.app-bl-status__next-text {
-  display: flex;
-  flex: 1 1 260px;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-  margin: 0;
-  color: var(--app-text-strong);
-}
-
-.app-bl-status__next-label {
-  font-weight: 600;
-}
-
-.app-bl-status__next-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--app-link);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.app-bl-status__next-link:hover {
-  text-decoration: underline;
-}
-
-.app-bl-status__rail {
-  display: grid;
-  gap: 8px;
-}
-
-.app-bl-status__rail-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-table);
-  font-weight: 600;
-  line-height: 18px;
-}
-
-.app-bl-status__rail-count {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  font-weight: 500;
-}
-
 .app-bl-tabs {
   margin-bottom: 16px;
 }
 
 .app-bl-panel,
-.app-bl-overview,
 .app-bl-skeleton {
   display: grid;
   gap: 16px;
@@ -8995,12 +8882,6 @@ a.app-step-rail__link:focus-visible {
   gap: 0;
 }
 
-.app-bl-sheet__columns {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 16px 32px;
-}
-
 .app-bl-sheet__section {
   display: grid;
   align-content: start;
@@ -9034,11 +8915,6 @@ a.app-step-rail__link:focus-visible {
   align-items: center;
   gap: 4px;
   font-size: var(--app-size-table);
-}
-
-.app-bl-section-head__status {
-  font-size: var(--app-size-table);
-  font-weight: 500;
 }
 
 .app-bl-section-title {
@@ -9080,10 +8956,6 @@ a.app-step-rail__link:focus-visible {
   min-width: 0;
 }
 
-.app-bl-facts__wide {
-  grid-column: 1 / -1;
-}
-
 .app-bl-facts__item dt {
   color: var(--app-muted);
   font-size: var(--app-size-caption);
@@ -9097,14 +8969,6 @@ a.app-step-rail__link:focus-visible {
   color: var(--app-text-strong);
   font-weight: 500;
   overflow-wrap: anywhere;
-}
-
-.app-bl-facts__item dd.app-bl-facts__hint,
-.app-bl-facts__hint {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  font-weight: 400;
-  line-height: 16px;
 }
 
 .app-bl-facts__sub {
@@ -9217,19 +9081,6 @@ a.app-step-rail__link:focus-visible {
 }
 
 /* Cliente e Portal lado a lado. */
-.app-bl-client {
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 16px 32px;
-}
-
-.app-bl-client__portal {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-  border-left: 1px solid var(--app-border);
-  padding-left: 24px;
-}
 
 .app-bl-suggestion {
   display: flex;
@@ -9241,20 +9092,6 @@ a.app-step-rail__link:focus-visible {
   border-radius: var(--app-radius-control);
   background: var(--app-surface-muted);
   padding: 8px 12px;
-}
-
-.app-bl-portal {
-  display: grid;
-  gap: 10px;
-}
-
-.app-bl-portal__state {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: var(--app-size-table);
-  font-weight: 600;
 }
 
 .app-bl-portal__reasons {
@@ -9393,28 +9230,7 @@ a.app-step-rail__link:focus-visible {
   }
 }
 
-@media (max-width: 1023px) {
-  .app-bl-sheet__columns,
-  .app-bl-client {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .app-bl-client__portal {
-    border-left: 0;
-    border-top: 1px solid var(--app-border);
-    padding-left: 0;
-    padding-top: 16px;
-  }
-}
-
 @media (max-width: 639px) {
-  .app-bl-metrics {
-    gap: 8px;
-  }
-
-  .app-bl-metrics .app-metric-tile {
-    padding: 8px 10px;
-  }
 
   .app-bl-toolbar {
     padding: 10px 12px;
@@ -9581,7 +9397,7 @@ a.app-step-rail__link:focus-visible {
 
 .app-lineup-display-brand__name {
   color: #152238;
-  font-family: var(--app-font-display);
+  font-family: var(--app-font-brand);
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.04em;
@@ -10027,173 +9843,8 @@ a.app-step-rail__link:focus-visible {
   .app-voyage-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-@media (min-width: 640px) {
-  .app-voyage-kpi-tile--import { grid-column: 1 / -1; }
-}
-
 @media (min-width: 1100px) {
-  .app-voyage-kpi-grid { grid-template-columns: minmax(0, 2.1fr) repeat(3, minmax(0, 1fr)); }
-}
-
-@media (min-width: 1100px) {
-  .app-voyage-kpi-tile--import { grid-column: auto; }
-}
-
-.app-voyage-kpi-tile {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 12px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface-muted);
-  padding: 14px 16px;
-}
-
-.app-voyage-kpi-tile__label {
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-  font-weight: 600;
-  line-height: 18px;
-}
-
-.app-voyage-kpi-tile--import {
-  background: color-mix(in srgb, var(--app-blue) 5%, var(--app-surface-muted));
-}
-
-.app-voyage-kpi-tile__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-}
-
-.app-voyage-kpi-split {
-  display: grid;
-  flex: 1 1 auto;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.app-voyage-kpi-split__panel {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 8px;
-  border-radius: var(--app-radius-control);
-  background: var(--app-surface);
-  padding: 10px 12px;
-}
-
-.app-voyage-kpi-split__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--app-text);
-  font-size: var(--app-size-caption);
-  font-weight: 600;
-}
-
-.app-voyage-kpi-split__title svg { color: var(--app-blue); }
-
-.app-voyage-kpi-split__lead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 6px;
-}
-
-.app-voyage-kpi-split__lead span {
-  color: var(--app-text-strong);
-  font-size: var(--app-size-panel);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.app-voyage-kpi-split__lead small {
-  color: var(--app-muted-soft);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.app-voyage-kpi-split__panel--empty .app-voyage-kpi-split__lead span,
-.app-voyage-kpi-split__panel--empty .app-voyage-kpi-tile__metric strong {
-  color: var(--app-muted-soft);
-}
-
-.app-voyage-kpi-split__panel .app-voyage-kpi-tile__metric strong { color: var(--app-text); }
-
-@media (max-width: 420px) {
-  .app-voyage-kpi-split { grid-template-columns: minmax(0, 1fr); }
-}
-
-.app-voyage-kpi-tile__primary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 6px;
-  min-width: 0;
-}
-
-.app-voyage-kpi-tile__value {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-page);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.app-voyage-kpi-tile__value--text {
-  font-size: var(--app-size-section);
-  letter-spacing: 0;
-  line-height: 1.2;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.app-voyage-kpi-tile__unit {
-  color: var(--app-muted-soft);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.app-voyage-kpi-tile__support {
-  display: grid;
-  gap: 4px;
-  border-top: 1px solid var(--app-border);
-  padding-top: 9px;
-}
-
-.app-voyage-kpi-tile__metric {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  color: var(--app-muted-soft);
-  font-size: 12px;
-}
-
-.app-voyage-kpi-tile__metric span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.app-voyage-kpi-tile__metric strong {
-  flex: none;
-  color: var(--app-text);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  .app-voyage-kpi-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 .app-voyage-metric-panel {
@@ -10298,20 +9949,6 @@ a.app-step-rail__link:focus-visible {
   background: var(--app-surface);
 }
 
-.app-voyage-atracacoes-table thead th {
-  background: var(--app-panel-strong);
-  color: var(--app-muted);
-}
-
-/* Botão-ícone da tabela da ficha: só a geometria. Cor e contorno vêm da
-   variante (secundário ou destrutivo), como nos demais botões. */
-.app-voyage-icon-btn {
-  width: var(--app-control-h);
-  min-width: var(--app-control-h);
-  min-height: var(--app-control-h);
-  padding: 0;
-}
-
 /*  Ficha da viagem — revisão sobre a versão restaurada (2026-10-08).
     Mesma composição de antes (identidade, indicadores, abas), com três
     ajustes: faixa de identidade azul-marinho lisa, filetes internos suaves e
@@ -10331,142 +9968,6 @@ a.app-step-rail__link:focus-visible {
   padding: 20px 22px 22px;
 }
 
-.app-voyage-hero {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px 24px;
-  padding: 18px 22px 20px;
-  background: var(--app-navy);
-  color: #ffffff;
-}
-
-:root[data-visual-theme='dark'] .app-voyage-hero {
-  border-bottom: 1px solid var(--app-border);
-  background: var(--app-navy-2);
-}
-
-.app-voyage-hero__identity {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.app-voyage-hero__carrier {
-  color: rgba(255, 255, 255, 0.74);
-  font-size: var(--app-size-caption);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: 16px;
-  text-transform: uppercase;
-}
-
-.app-voyage-hero__title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-
-.app-voyage-hero__title {
-  margin: 0;
-  min-width: 0;
-  color: #ffffff;
-  font-size: var(--app-size-page);
-  font-weight: 700;
-  line-height: 32px;
-  overflow-wrap: anywhere;
-}
-
-.app-voyage-hero__routes {
-  display: grid;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.app-voyage-hero__route {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  font-size: var(--app-size-table);
-}
-
-.app-voyage-hero__ports {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.app-voyage-hero__port {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  padding: 3px 10px;
-  font-size: var(--app-size-caption);
-  font-weight: 600;
-  line-height: 16px;
-  white-space: nowrap;
-}
-
-.app-voyage-hero__port--pending {
-  border-style: dashed;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.74);
-  font-weight: 500;
-}
-
-.app-voyage-hero__arrow {
-  flex: none;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.app-voyage-hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.app-voyage-hero__action.app-btn {
-  border-color: rgba(255, 255, 255, 0.34);
-  background: transparent;
-  color: #ffffff;
-}
-
-.app-voyage-hero__action.app-btn:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-}
-
-.app-voyage-hero__action.app-btn:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 2px;
-}
-
-.app-voyage-hero__action--danger.app-btn {
-  border-color: rgba(254, 202, 202, 0.42);
-  color: #fecaca;
-}
-
-.app-voyage-hero__action--danger.app-btn:hover:not(:disabled) {
-  border-color: rgba(254, 202, 202, 0.7);
-  background: rgba(248, 113, 113, 0.2);
-  color: #ffffff;
-}
-
-.app-voyage-hero__action--icon.app-btn {
-  width: var(--app-control-h);
-  min-width: var(--app-control-h);
-  padding: 0;
-}
-
 /* Conteúdo das abas nunca alarga a ficha: tabelas largas rolam dentro do
    próprio quadro (.app-table-scroll), não empurram a página. */
 .app-voyage-ficha__body > [role='tabpanel'] {
@@ -10478,8 +9979,6 @@ a.app-step-rail__link:focus-visible {
 }
 
 @media (max-width: 639px) {
-  .app-voyage-hero { padding: 16px; }
-  .app-voyage-hero__title { font-size: var(--app-size-panel); line-height: 28px; }
   .app-voyage-ficha__body { padding: 16px; }
 }
 
@@ -10505,24 +10004,6 @@ a.app-step-rail__link:focus-visible {
   align-items: center;
   gap: 4px 16px;
   padding-bottom: 6px;
-}
-
-.app-voyage-shortcut {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 4px;
-  color: var(--app-link);
-  font-size: var(--app-size-table);
-  font-weight: 500;
-  text-decoration: underline;
-  text-decoration-color: transparent;
-  text-underline-offset: 3px;
-}
-
-.app-voyage-shortcut:hover,
-.app-voyage-shortcut:focus-visible {
-  text-decoration-color: currentColor;
 }
 
 /* Rota em Rotas e Manifestos: link com área de clique de controle. */
@@ -10552,10 +10033,6 @@ a.app-step-rail__link:focus-visible {
   border-color: var(--app-warning-fg);
   background: var(--app-warning-bg);
   color: var(--app-warning-fg);
-}
-
-@media (pointer: coarse) {
-  .app-voyage-shortcut { min-height: 44px; }
 }
 
 /* Bloco de seção dentro das abas: levemente escurecido, filete suave, sem sombra. */
@@ -11199,8 +10676,7 @@ td.app-cargo-num {
   text-decoration: underline;
 }
 
-.app-customer-link:focus-visible,
-.app-customer-text-link:focus-visible {
+.app-customer-link:focus-visible {
   outline: 2px solid var(--app-focus-ring);
   outline-offset: 2px;
   border-radius: 4px;
@@ -11210,26 +10686,6 @@ td.app-cargo-num {
   font-family: var(--app-font-mono);
   font-size: var(--app-size-table);
   font-variant-numeric: tabular-nums;
-}
-
-.app-customer-text-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--app-link);
-  font: inherit;
-  font-size: var(--app-size-table);
-  font-weight: 600;
-  line-height: 18px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.app-customer-text-link:hover {
-  text-decoration: underline;
 }
 
 .app-customer-muted {
@@ -11301,7 +10757,6 @@ td.app-cargo-num {
 }
 
 .app-customer-stack,
-.app-customer-overview,
 .app-customer-panel,
 .app-customer-skeleton {
   display: grid;
@@ -11481,75 +10936,6 @@ td.app-cargo-num {
   font-size: var(--app-size-table);
 }
 
-/* ── Ficha: cabeçalho e abas ────────────────────────────────────────────── */
-.app-customer-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 24px;
-  margin-bottom: 16px;
-}
-
-.app-customer-head__copy {
-  display: grid;
-  flex: 1 1 360px;
-  min-width: 0;
-  gap: 2px;
-}
-
-.app-customer-head__eyebrow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-/* Nome longo no título: DM Sans 24/600, nunca Syne. */
-.app-customer-head__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-family: var(--app-font-body);
-  font-size: var(--app-size-page);
-  font-weight: 600;
-  line-height: 32px;
-  overflow-wrap: anywhere;
-}
-
-.app-customer-head__context {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 0;
-  margin: 2px 0 0;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-customer-head__context > span {
-  overflow-wrap: anywhere;
-}
-
-.app-customer-head__context > * + *::before {
-  content: '·';
-  margin: 0 8px;
-  color: var(--app-muted);
-}
-
-.app-customer-head__missing {
-  color: var(--app-warning-fg);
-}
-
-.app-customer-head__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .app-customer-banner {
   display: grid;
   gap: 2px;
@@ -11609,24 +10995,6 @@ td.app-cargo-num {
   gap: 0;
 }
 
-.app-customer-sheet__columns {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 16px 32px;
-}
-
-.app-customer-sheet__section {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-}
-
-.app-customer-sheet__aside {
-  border-left: 1px solid var(--app-border);
-  padding-left: 32px;
-}
-
 .app-customer-section-head {
   display: flex;
   flex-wrap: wrap;
@@ -11639,10 +11007,6 @@ td.app-cargo-num {
   display: grid;
   gap: 2px;
   min-width: 0;
-}
-
-.app-customer-section-head--padded {
-  padding: 14px 16px 12px;
 }
 
 .app-customer-section-links {
@@ -11667,19 +11031,6 @@ td.app-cargo-num {
 .app-customer-section-title--sub {
   font-size: var(--app-size-body);
   line-height: 20px;
-}
-
-.app-customer-section-title--ruled {
-  margin-top: 8px;
-  border-top: 1px solid var(--app-border);
-  padding-top: 16px;
-}
-
-.app-customer-section-count {
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
 }
 
 .app-customer-subsections {
@@ -11756,122 +11107,6 @@ td.app-cargo-num {
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* Fatos em linhas com filete: rótulo à esquerda, valor à direita. */
-.app-customer-facts--rows {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-}
-
-.app-customer-facts--rows > div {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 12px;
-  border-top: 1px solid var(--app-border);
-  padding: 8px 0;
-}
-
-.app-customer-facts--rows > div:first-child {
-  border-top: 0;
-}
-
-.app-customer-facts--rows dt {
-  font-size: var(--app-size-table);
-}
-
-.app-customer-facts--rows dd {
-  justify-items: end;
-  text-align: right;
-}
-
-.app-customer-balance {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-panel);
-  font-weight: 600;
-  line-height: 28px;
-  font-variant-numeric: tabular-nums;
-}
-
-.app-customer-clear {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--app-success-fg);
-  font-size: var(--app-size-table);
-  font-weight: 500;
-}
-
-/* ── Visão geral: pendências ────────────────────────────────────────────── */
-.app-customer-pendencies {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-customer-pendency {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr);
-  gap: 10px;
-  border-top: 1px solid var(--app-border);
-  padding: 10px 0;
-}
-
-.app-customer-pendency:first-child {
-  border-top: 0;
-  padding-top: 2px;
-}
-
-.app-customer-pendency__dot {
-  width: 10px;
-  height: 10px;
-  margin-top: 4px;
-  border-radius: 999px;
-  background: var(--app-info-fg);
-}
-
-.app-customer-pendency--warning .app-customer-pendency__dot {
-  background: var(--app-gold-strong);
-}
-
-/* Urgente também muda de forma, não só de cor. */
-.app-customer-pendency--danger .app-customer-pendency__dot {
-  border-radius: 2px;
-  background: var(--app-red);
-}
-
-.app-customer-pendency__body {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.app-customer-pendency__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-body);
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.app-customer-pendency--danger .app-customer-pendency__title {
-  color: var(--app-danger-fg);
-}
-
-.app-customer-pendency__detail {
-  margin: 0;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-customer-pendency__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-}
-
 /* ── Linhas simples (acordos, overrides, reconciliação) ─────────────────── */
 .app-customer-rows {
   display: grid;
@@ -11912,73 +11147,6 @@ td.app-cargo-num {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-/* ── Tabelas secundárias da ficha ───────────────────────────────────────── */
-.app-customer-subtable {
-  width: 100%;
-  min-width: 560px;
-}
-
-.app-customer-subtable__money,
-.app-customer-subtable th.app-customer-subtable__money {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.app-customer-subtable__date {
-  white-space: nowrap;
-}
-
-.app-customer-subtable__wrap {
-  overflow-wrap: anywhere;
-}
-
-.app-customer-subtable__strong {
-  color: var(--app-text-strong);
-  font-weight: 600;
-}
-
-/* ── Histórico ──────────────────────────────────────────────────────────── */
-.app-customer-timeline {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-customer-timeline__item {
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 12px;
-  border-top: 1px solid var(--app-border-soft);
-  padding: 8px 0;
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-customer-timeline__item:first-child {
-  border-top: 0;
-}
-
-.app-customer-timeline__date {
-  color: var(--app-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.app-customer-timeline__body {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  color: var(--app-text-strong);
-}
-
-.app-customer-timeline__meta {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-  overflow-wrap: anywhere;
 }
 
 /* ── Formulários: cadastro, novo cliente, contatos ──────────────────────── */
@@ -12075,48 +11243,6 @@ td.app-cargo-num {
 .app-customer-contacts__form {
   display: grid;
   gap: 12px;
-}
-
-.app-customer-coverage {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-}
-
-.app-customer-coverage__box {
-  display: grid;
-  align-content: start;
-  gap: 4px;
-  min-width: 0;
-  padding: 10px 12px;
-  font-size: var(--app-size-table);
-}
-
-.app-customer-coverage__box + .app-customer-coverage__box {
-  border-left: 1px solid var(--app-border);
-}
-
-.app-customer-coverage__box dt {
-  display: grid;
-  gap: 2px;
-  margin-bottom: 4px;
-}
-
-.app-customer-coverage__label {
-  color: var(--app-text-strong);
-  font-weight: 600;
-}
-
-.app-customer-coverage__desc {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-customer-coverage__box dd {
-  margin: 0;
 }
 
 .app-customer-coverage__email {
@@ -12287,28 +11413,11 @@ td.app-cargo-num {
 }
 
 @media (pointer: coarse) {
-  .app-customer-text-link,
-  .app-customer-contact__primary,
+    .app-customer-contact__primary,
   .app-customer-box {
     min-height: 44px;
   }
 
-  .app-customer-text-link {
-    align-items: center;
-  }
-}
-
-@media (max-width: 1100px) {
-  .app-customer-sheet__columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .app-customer-sheet__aside {
-    border-top: 1px solid var(--app-border);
-    border-left: 0;
-    padding-top: 16px;
-    padding-left: 0;
-  }
 }
 
 @media (max-width: 900px) {
@@ -12316,7 +11425,6 @@ td.app-cargo-num {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .app-customer-coverage,
   .app-customer-boxes__grid,
   .app-customer-subsections {
     grid-template-columns: minmax(0, 1fr);
@@ -12324,11 +11432,6 @@ td.app-cargo-num {
 
   .app-customer-contact__fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .app-customer-coverage__box + .app-customer-coverage__box {
-    border-top: 1px solid var(--app-border);
-    border-left: 0;
   }
 
   .app-customer-form__grid--three {
@@ -12342,7 +11445,6 @@ td.app-cargo-num {
   }
 
   .app-customer-toolbar,
-  .app-customer-section-head--padded,
   .app-customer-card {
     padding-inline: 12px;
   }
@@ -12355,11 +11457,6 @@ td.app-cargo-num {
 
   .app-customer-form__span2 {
     grid-column: auto;
-  }
-
-  .app-customer-timeline__item {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2px;
   }
 
   .app-customer-savebar__actions > * {
@@ -13207,7 +12304,7 @@ tr[data-inactive] .app-rates-item__value {
 
 .app-invoice-detail__link {
   color: var(--app-link);
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
 }
 
@@ -13501,7 +12598,7 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-link);
   font-size: var(--app-size-body);
   font-weight: 500;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
 }
 
@@ -13573,7 +12670,7 @@ tr[data-inactive] .app-rates-item__value {
   font: inherit;
   font-size: var(--app-size-table);
   font-weight: 500;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
   cursor: pointer;
   white-space: nowrap;
@@ -13627,19 +12724,6 @@ tr[data-inactive] .app-rates-item__value {
   margin: 0;
 }
 
-.app-invoices__table {
-  width: 100%;
-  min-width: 1080px;
-}
-
-.app-invoices__table--comm {
-  min-width: 1240px;
-}
-
-.app-invoices__table td {
-  vertical-align: top;
-}
-
 .app-invoices__number {
   border: 0;
   background: none;
@@ -13648,7 +12732,7 @@ tr[data-inactive] .app-rates-item__value {
   font: inherit;
   font-weight: 600;
   text-align: left;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
   cursor: pointer;
   white-space: nowrap;
@@ -13685,7 +12769,7 @@ tr[data-inactive] .app-rates-item__value {
 .app-invoices__bl {
   color: var(--app-link);
   font-family: var(--app-font-mono);
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
 }
 
@@ -13703,15 +12787,6 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-text-strong);
   font-weight: 600;
   white-space: nowrap;
-}
-
-.app-invoices__amount--warning {
-  color: var(--app-warning-fg);
-}
-
-.app-invoices__amount--muted {
-  color: var(--app-muted);
-  font-weight: 500;
 }
 
 .app-invoice-cards {
@@ -13755,49 +12830,7 @@ tr[data-inactive] .app-rates-item__value {
   display: inline;
 }
 
-/* Comunicado de CE Mercante na linha da fatura. */
-.app-invoice-comm {
-  display: grid;
-  gap: 4px;
-  max-width: 240px;
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-invoice-comm__item {
-  display: grid;
-  gap: 2px;
-}
-
-.app-invoice-comm__voyage {
-  color: var(--app-muted);
-  font-weight: 600;
-}
-
-.app-invoice-comm__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-}
-
-.app-invoice-comm__link {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--app-link);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.app-invoice-comm--muted { color: var(--app-muted); }
-.app-invoice-comm--success { color: var(--app-success-fg); }
-.app-invoice-comm--warning { color: var(--app-warning-fg); }
-.app-invoice-comm--danger { color: var(--app-danger-fg); }
-
 @media (pointer: coarse) {
-  .app-invoice-comm__link,
   .app-fin-alerts__link {
     min-height: 44px;
   }
@@ -13918,7 +12951,7 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-link);
   font: inherit;
   text-align: left;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
   cursor: pointer;
 }
@@ -14696,13 +13729,14 @@ tr[data-inactive] .app-rates-item__value {
   padding: 0;
   color: var(--app-link);
   font: inherit;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 2px;
   cursor: pointer;
 }
 
 .app-pix-link.app-pix-doc {
   color: var(--app-link);
+  text-decoration: none;
 }
 
 .app-pix-empty {
@@ -14840,5 +13874,555 @@ tr[data-inactive] .app-rates-item__value {
   .app-pix-candidate .app-btn {
     margin-left: 0;
     width: 100%;
+  }
+}
+
+/* ===========================================================================
+   Identidade visual (ADR 0081, docs/identidade-visual.md)
+   ---------------------------------------------------------------------------
+   Peças comuns das nove regras: bloco com título em faixa, dado principal,
+   pares rótulo/valor, faixa de identidade da ficha, próxima ação, ausência de
+   dado e grupos de colunas. Telas novas compõem estas peças; não criam CSS
+   próprio de página (npm run design:check).
+   =========================================================================== */
+.app-block {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+}
+
+.app-block__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--app-border-soft);
+  background: var(--app-strip);
+}
+
+.app-block__title {
+  margin: 0;
+  color: var(--app-strip-text);
+  font-size: var(--app-size-body);
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.app-block__aside {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--app-muted);
+  font-size: var(--app-size-table);
+}
+
+.app-block__body {
+  display: grid;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+
+.app-block__flush {
+  min-width: 0;
+}
+
+.app-lead {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-lead__value {
+  margin: 0;
+  color: var(--app-text-strong);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+
+.app-lead__unit {
+  color: var(--app-muted);
+  font-size: var(--app-size-body);
+  font-weight: 400;
+}
+
+.app-lead__value--warning {
+  color: var(--app-warning-fg);
+}
+
+.app-lead__value--danger {
+  color: var(--app-danger-fg);
+}
+
+.app-lead__value--muted {
+  color: var(--app-muted);
+}
+
+.app-lead__detail {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-facts {
+  display: grid;
+  gap: 10px 20px;
+  margin: 0;
+}
+
+.app-facts--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.app-facts--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.app-facts--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.app-facts__item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Dado que repete uma coluna escondida abaixo de 1024 px (`hidden lg:table-cell`). */
+@media (min-width: 1024px) {
+  .app-facts__item--narrow-only {
+    display: none;
+  }
+}
+
+.app-facts__label {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-facts__value {
+  margin: 0;
+  color: var(--app-text);
+  font-size: var(--app-size-body);
+  font-weight: 500;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.app-facts__detail {
+  display: block;
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.app-identity {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  padding: 16px 20px;
+  border-radius: var(--app-radius);
+  background: var(--app-navy);
+  color: #ffffff;
+}
+
+/* Mesma razão no tema escuro: a faixa de identidade ganha borda. */
+:root[data-visual-theme='dark'] .app-identity {
+  border: 1px solid var(--app-border-strong);
+}
+
+.app-identity__main {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.app-identity__kind {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: var(--app-size-caption);
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.app-identity__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-identity__title {
+  margin: 2px 0 10px;
+  color: #ffffff;
+  font-size: var(--app-size-page);
+  font-weight: 700;
+  line-height: 30px;
+  overflow-wrap: anywhere;
+}
+
+.app-identity__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0;
+}
+
+.app-identity__fact {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-identity__fact dt {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-identity__fact dd {
+  margin: 0;
+  font-size: var(--app-size-body);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+/* Identificador que abre o registro (regra 9): só a cor diferente; o
+   sublinhado aparece ao passar o mouse ou com o foco do teclado. */
+.app-identity a {
+  color: #a9cdf7;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.app-identity a:hover,
+.app-identity a:focus-visible {
+  text-decoration: underline;
+}
+
+.app-identity__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.app-identity .app-btn--secondary,
+.app-identity .app-btn--ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+}
+
+.app-identity .app-btn--secondary:hover:not(:disabled),
+.app-identity .app-btn--ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+.app-next-action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  border: 1px solid var(--app-danger-border);
+  border-left-width: 4px;
+  border-radius: var(--app-radius);
+  background: var(--app-danger-bg);
+}
+
+.app-next-action__label {
+  color: var(--app-danger-fg);
+  font-size: var(--app-size-body);
+  font-weight: 700;
+}
+
+.app-next-action__text {
+  flex: 1 1 280px;
+  margin: 0;
+  color: var(--app-text);
+  font-size: var(--app-size-body);
+  line-height: 20px;
+}
+
+.app-next-action__action {
+  margin-left: auto;
+}
+
+.app-next-action--warning {
+  border-color: var(--app-warning-border);
+  background: var(--app-warning-bg);
+}
+
+.app-next-action--warning .app-next-action__label {
+  color: var(--app-warning-fg);
+}
+
+.app-next-action--info {
+  border-color: var(--app-info-border);
+  background: var(--app-info-bg);
+}
+
+.app-next-action--info .app-next-action__label {
+  color: var(--app-info-fg);
+}
+
+.app-no-value {
+  color: var(--app-muted-soft);
+}
+
+/* Situação em texto (regra 5, tabela limpa): sem selo; âmbar só no que pede
+   ação, cinza no que encerrou sem efeito, ✓ verde antes de "Paga". */
+.app-status-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-status-text--warning {
+  color: var(--app-warning-fg);
+  font-weight: 600;
+}
+
+.app-status-text--muted {
+  color: var(--app-muted);
+}
+
+.app-status-text__icon {
+  flex: none;
+  color: var(--app-success-fg);
+}
+
+/* Linha encerrada sem efeito (fatura cancelada): inteira em cinza, link inclusive. */
+.app-shell table.app-table tr.app-table__row--muted td,
+.app-shell table.app-table tr.app-table__row--muted a,
+.app-shell table.app-table tr.app-table__row--muted button {
+  color: var(--app-muted);
+}
+
+.app-consolidated-mark {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+  color: var(--app-muted);
+}
+
+/* Fila de cartões de total ou de filtro (MetricCard) no topo de uma lista. */
+.app-metric-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.app-metric-row .app-metric-tile {
+  align-content: start;
+  padding: 10px 14px;
+}
+
+.app-metric-tile__unit {
+  color: var(--app-muted);
+  font-size: var(--app-size-body);
+  font-weight: 600;
+}
+
+.app-metric-tile__detail {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  line-height: 16px;
+}
+
+.app-metric-tile--warning .app-metric-tile__value {
+  color: var(--app-warning-fg);
+}
+
+/* Tabela padrão (regra 6, decisão de 2026-10-13), em toda .app-table desde a
+   passada única: títulos dos grupos,
+   cabeçalhos e células centralizados; texto longo que pode passar do limite
+   da coluna (nome do Cliente, descrição) fica à esquerda, para o começo do
+   valor aparecer. Grupos de colunas: título centralizado com traço embaixo,
+   sem linha vertical entre as colunas. */
+.app-shell table.app-table th,
+.app-shell table.app-table td {
+  text-align: center;
+}
+
+.app-shell table.app-table .app-table__text {
+  max-width: 280px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Linhas empilhadas dentro da célula (nome e e-mail, navio e viagem) cortam
+   cada uma com "…", em vez de sumirem na borda da coluna. */
+.app-shell table.app-table .app-table__text:not(.app-table__text--wrap) > :is(div, p) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Texto corrido que é o próprio conteúdo da linha e não aparece inteiro em
+   outro lugar (mensagem do alerta, observação, descrição do item na fatura):
+   à esquerda, quebrando linha, sem "…" (revisão da PR 940). */
+.app-shell table.app-table .app-table__text--wrap {
+  max-width: 420px;
+  min-width: 160px;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: pre-line;
+}
+
+/* Célula que ocupa a linha inteira (linha aberta, aviso, carregando) não é
+   coluna de dado: o conteúdo segue à esquerda, como antes da tabela padrão.
+   Quem quiser centralizar mantém o text-center. */
+.app-shell table.app-table td[colspan]:not([class~='text-center']) {
+  text-align: left;
+}
+
+/* Texto que já se declara longo (truncado ou empilhado) fica à esquerda sem
+   marcação extra. */
+.app-shell table.app-table :is(th, td):has(> .app-table__truncate, > .app-table__cell-stack:not(.app-table__cell-stack--center)),
+.app-shell table.app-table th.app-table__text-head {
+  text-align: left;
+}
+
+/* Pilha de selo ou número (situação, free time, valor) não é texto longo:
+   segue centralizada, como o título da coluna. Fora da tabela não muda nada. */
+.app-shell table.app-table .app-table__cell-stack--center {
+  justify-items: center;
+}
+
+/* Tabela dentro de tabela (linha aberta, atracações): cabeçalho claro, para
+   não competir com o azul-marinho da tabela de fora (decisão de 2026-10-13). */
+.app-shell :is(tr[data-row-detail], .app-table) table,
+.app-shell table.app-table--nested {
+  --app-thead-bg: var(--app-strip);
+  --app-thead-text: var(--app-strip-text);
+  --app-thead-border: var(--app-border);
+}
+
+.app-shell :is(tr[data-row-detail], .app-table) table thead th,
+.app-shell table.app-table--nested thead th {
+  background: var(--app-thead-bg);
+}
+
+.app-shell table thead th.app-table__group {
+  background: var(--app-navy-2);
+  font-size: var(--app-size-caption);
+  padding-top: 6px;
+  padding-bottom: 0;
+  text-align: center;
+}
+
+.app-shell table thead th.app-table__group > span {
+  display: block;
+  margin-inline: 8px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid color-mix(in srgb, #ffffff 35%, var(--app-navy-2));
+}
+
+@media (max-width: 639px) {
+  .app-facts--3,
+  .app-facts--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-identity {
+    padding: 14px 16px;
+  }
+
+  .app-identity__actions {
+    margin-left: 0;
+  }
+}
+
+/* Regra 9 (decisão de 2026-10-13): identificador que abre o registro (B/L,
+   fatura, navio, Invoice) fica só na cor de link; sublinha ao passar o mouse
+   ou receber o foco. Link no meio de uma frase continua sublinhado. */
+/* ponytail: lista de exclusão por nome de classe. Link com cara de botão,
+   cartão, chip ou item de navegação não sublinha; um link novo desse tipo
+   com classe fora desta lista sublinha ao passar o mouse. A saída é uma
+   classe comum de identificador, se a lista crescer. */
+.app-shell main a:not(.app-btn, [role], [class*='card'], [class*='nav'], [class*='action'], [class*='rounded'], [class*='border']):is(:hover, :focus-visible) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Copiar identificador (CopyValue): o ícone aparece ao passar o mouse na
+   linha ou no valor, ou com o foco; em tela de toque fica sempre visível. */
+.app-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.app-copy__button {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--app-muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.app-copy:hover .app-copy__button,
+tr:hover .app-copy__button,
+.app-copy__button:focus-visible,
+.app-copy__button[data-state='copied'],
+.app-copy__button[data-state='failed'] {
+  opacity: 1;
+}
+
+.app-copy__button:hover {
+  background: var(--app-panel-strong);
+  color: var(--app-text);
+}
+
+.app-copy__button[data-state='copied'] {
+  color: var(--app-success-fg);
+}
+
+.app-copy__button[data-state='failed'] {
+  color: var(--app-danger-fg);
+}
+
+.app-identity .app-copy__button {
+  color: #a9cdf7;
+}
+
+.app-identity .app-copy__button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+@media (hover: none) {
+  .app-copy__button {
+    opacity: 1;
+  }
+}
+
+/* Toque: área de 44 px sem mudar a altura da linha. */
+@media (pointer: coarse) {
+  .app-copy__button {
+    position: relative;
+  }
+
+  .app-copy__button::after {
+    content: '';
+    position: absolute;
+    inset: -11px;
   }
 }

@@ -6,6 +6,7 @@
 import { INVOICE_STATUS_LABELS } from '../../lib/statusLabels'
 import { formatBRL } from '../../lib/utils'
 import type { InvoiceDetail } from '../../services/billing'
+import type { StatusTextTone } from '../ui/StatusText'
 
 export type InvoiceAmountLine = {
   key: 'total' | 'received' | 'offset' | 'refunded' | 'pending_refund' | 'balance'
@@ -16,23 +17,22 @@ export type InvoiceAmountLine = {
   tone?: 'default' | 'warning' | 'success' | 'muted'
 }
 
-export type InvoiceStatusTag = { label: string; tone: 'info' | 'success' | 'warning' | 'danger' | 'neutral' }
+// Situação em texto (regra 5, tabela limpa): Paga e Coberta com o ✓ verde,
+// cancelada e obsoleta em cinza, o resto em tinta normal.
+export type InvoiceStatusTag = { label: string; tone: StatusTextTone }
 
 const STATUS_TONES: Record<string, InvoiceStatusTag['tone']> = {
-  draft: 'neutral',
-  issued: 'info',
-  partially_paid: 'warning',
-  paid: 'success',
-  covered: 'success',
-  obsolete: 'neutral',
-  cancelled: 'danger',
+  paid: 'paid',
+  covered: 'paid',
+  obsolete: 'muted',
+  cancelled: 'muted',
 }
 
 /** Situação exata da fatura (não o grupo do filtro): "Parcialmente paga" não vira "Emitida". */
 export function invoiceStatusTag(status: string | null | undefined): InvoiceStatusTag {
   // `overdue` é legado: taxa local não vence (ADR 0055) e o banco trata como aberta.
   const key = !status || status === 'overdue' ? 'issued' : status
-  return { label: INVOICE_STATUS_LABELS[key] ?? 'Situação não informada', tone: STATUS_TONES[key] ?? 'neutral' }
+  return { label: INVOICE_STATUS_LABELS[key] ?? 'Situação não informada', tone: STATUS_TONES[key] ?? 'default' }
 }
 
 type Refund = { amount_brl: number; status: 'pending' | 'settled' | 'cancelled' }

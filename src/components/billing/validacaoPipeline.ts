@@ -13,7 +13,7 @@ export function isPendingBillingReview(row: {
 }) {
   return (
     isCustomerReconciliationResolved(row.customer_reconciliation_status) &&
-    row.financial_status !== 'invoiced' &&
+    !isBlFinanciallyLocked(row.financial_status) &&
     row.charge_status !== 'ready_for_billing' &&
     row.charge_status !== 'exempt'
   )
@@ -77,7 +77,9 @@ export function getBillingBlock(row: {
       detail: 'Granito fornece conferência de quantidades e não participa da emissão de invoices.',
     }
   }
-  if (row.financial_status === 'invoiced') return { code: 'faturado', label: 'Faturado', detail: 'Fatura já emitida.' }
+  // Faturado, parcialmente pago ou pago: a fatura já saiu (antes só `invoiced`
+  // contava, e B/L pago voltava à fila oferecendo Emitir; lote 1 da identidade).
+  if (isBlFinanciallyLocked(row.financial_status)) return { code: 'faturado', label: 'Faturado', detail: 'Fatura já emitida.' }
   if (row.charge_status === 'exempt') return { code: 'isento', label: 'Isento', detail: row.charge_exemption_reason ?? 'B/L isento de taxas locais.' }
   if (!row.customer?.id || !isCustomerReconciliationResolved(row.customer_reconciliation_status)) {
     return {
@@ -96,10 +98,12 @@ export function getBillingBlock(row: {
     Number(row.totals.total_brl ?? 0) <= 0
   if (hasCalculationIssue) {
     const reasons = extractReviewReasons(row.notes)
+    const noLines = row.totals.line_count === 0 && row.totals.review_required_count === 0 && !(row.review_status === 'pending_review' && !portalOnly)
     return {
       code: 'calculo_incompleto',
-      label: 'Cálculo incompleto',
-      detail: row.billing_hold_reason ?? (reasons.length ? `Revisão pendente: ${reasons.join(', ')}` : row.totals.review_required_count > 0 ? 'Há linhas de taxa com revisão pendente.' : 'Sem linhas de taxa calculadas.'),
+      // Nomes da proposta aprovada (lote 1): o motivo diz o que falta.
+      label: noLines ? 'Cálculo sem linhas' : row.totals.review_required_count > 0 || row.review_status === 'pending_review' ? 'Taxa em revisão' : 'Cálculo incompleto',
+      detail: row.billing_hold_reason ?? (reasons.length ? `Revisão pendente: ${reasons.join(', ')}` : row.totals.review_required_count > 0 ? 'Há linhas de taxa com revisão pendente.' : 'Sem linhas de taxa: o cálculo não encontrou cobrança que se aplique.'),
     }
   }
   if (row.billing_hold_reason && !portalOnly) {
@@ -113,11 +117,11 @@ export function getBillingBlock(row: {
   if (portalOnly) {
     return {
       code: 'portal_nao_provisionado',
-      label: 'Portal não provisionado',
+      label: 'Conta do Portal não ativa',
       detail: 'Cliente sem acesso provisionado ao portal: a fatura não pode ser disponibilizada a quem deve pagá-la.',
     }
   }
-  return { code: 'pronto', label: 'Pronto para emitir', detail: 'Pronto para emissão individual.' }
+  return { code: 'pronto', label: 'Pronto para emitir', detail: 'Tudo certo, e a fatura ainda não saiu sozinha: emita aqui.' }
 }
 
 /* legacy callers use the detail-only API */
@@ -136,7 +140,7 @@ export function getLegacyBillingBlockReason(row: {
   totals: { total_brl: number; line_count: number; review_required_count: number }
 }) {
   if (row.cargo_mode === 'granito') return 'Granito e apoio operacional; nao participa da emissao de invoices.'
-  if (row.financial_status === 'invoiced') return 'Fatura ja emitida.'
+  if (isBlFinanciallyLocked(row.financial_status)) return 'Fatura ja emitida.'
   if (row.billing_hold_reason) return row.billing_hold_reason
   if (!row.customer?.id) return 'Cliente nao vinculado.'
   if (!isCustomerReconciliationResolved(row.customer_reconciliation_status)) {
