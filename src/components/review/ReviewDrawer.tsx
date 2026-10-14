@@ -9,6 +9,7 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { InlineCustomerPicker } from '../shared/ReviewInlineEditors'
 import { useAuth } from '../../hooks/useAuth'
 import type { ReviewCustomer, ReviewQueueItem } from '../../hooks/useReview'
+import { isDeactivatedCustomerSuggestion } from '../../services/customerReconciliation'
 import { canonicalizeValidCnpj, formatCnpj } from '../../lib/cnpj'
 import { isBreakbulkCargoMode, isContainerCargoMode } from '../../lib/cargoMode'
 import { logOperationalEvent } from '../../services/operationalEvents'
@@ -367,9 +368,15 @@ export function ReviewDrawer({
               {/* B16: a sugestão por nome aparece para B/L e Granito. */}
               {item.suggested_customer?.name ? (
                 <div className="review-drawer__suggestion">
-                  <p>
-                    Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpj(item.suggested_customer.cnpj_cpf)}). Confira o CNPJ antes de vincular.
-                  </p>
+                  {isDeactivatedCustomerSuggestion(item) ? (
+                    <p>
+                      Cliente desativado com este CNPJ: <strong>{item.suggested_customer.name}</strong> ({formatCnpj(item.suggested_customer.cnpj_cpf)}). Reative o cliente ou escolha outro.
+                    </p>
+                  ) : (
+                    <p>
+                      Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpj(item.suggested_customer.cnpj_cpf)}). Confira o CNPJ antes de vincular.
+                    </p>
+                  )}
                   {selectedCustomerId !== item.suggested_customer.id ? (
                     <button type="button" className="review-link-button" onClick={() => setSelectedCustomer(item.suggested_customer!)}>Usar a sugestão</button>
                   ) : null}

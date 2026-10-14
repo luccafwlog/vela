@@ -7,6 +7,7 @@ import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { InlineCustomerPicker, InlineFieldEditor } from '../shared/ReviewInlineEditors'
 import type { ReviewCustomer, ReviewQueueItem } from '../../hooks/useReview'
+import { isDeactivatedCustomerSuggestion } from '../../services/customerReconciliation'
 import { formatCnpjCpf } from '../../lib/utils'
 import {
   getGroupLinkedItem,
@@ -261,7 +262,9 @@ export function ReviewGroupBlock({
                           </ul>
                           {item.suggested_customer?.name ? (
                             <p className="review-items__suggestion">
-                              Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpjCpf(item.suggested_customer.cnpj_cpf)}). Confirme o CNPJ antes de vincular.
+                              {isDeactivatedCustomerSuggestion(item)
+                                ? <>Cliente desativado com este CNPJ: <strong>{item.suggested_customer.name}</strong> ({formatCnpjCpf(item.suggested_customer.cnpj_cpf)}). Reative o cliente ou escolha outro.</>
+                                : <>Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpjCpf(item.suggested_customer.cnpj_cpf)}). Confirme o CNPJ antes de vincular.</>}
                             </p>
                           ) : null}
                           {item.source === 'bl' && needsWeightFix(item) ? (

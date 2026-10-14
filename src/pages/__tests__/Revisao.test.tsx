@@ -373,6 +373,23 @@ describe('Revisao', () => {
     expect(screen.getAllByText('Cliente Sugerido').length).toBeGreaterThan(0)
   })
 
+  it('B17: B/L com CNPJ de Cliente desativado mostra o motivo, não "Sugestão por nome"', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{
+        ...makeBl('BLINAT', 'Inativo Ltda'), suggested_customer_id: 7,
+        customer_reconciliation_notes: 'Cliente desativado: reative o cliente ou escolha outro.',
+        suggested_customer: { id: 7, name: 'Cliente Inativo', cnpj_cpf: '11222333000181' },
+      }],
+      isLoading: false, error: null,
+    } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Inativo Ltda/ }))
+    expect(screen.getAllByText(/Cliente desativado com este CNPJ/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Sugestão por nome/)).toBeNull()
+  })
+
   it('exibe sugestao de Granito sem trata-la como vinculo automatico', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
