@@ -70,7 +70,7 @@ export function splitIsoDateTime(value?: string | null): { date: string; time: s
 
   // Valor com fuso (timestamptz, ex. atracação) é um instante: exibe a hora de
   // Brasília. Sem fuso, é a hora de parede digitada e fica como está.
-  if (/(Z|[+-]\d{2}:?\d{2})$/.test(trimmed) && /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) {
+  if (/(Z|[+-]\d{2}(:?\d{2})?)$/.test(trimmed) && /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) {
     const instant = new Date(trimmed.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'))
     if (!Number.isNaN(instant.getTime())) {
       const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {

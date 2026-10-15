@@ -23,6 +23,7 @@ describe('atracação no fuso de Brasília', () => {
   it('exibe o instante do banco na hora de Brasília', () => {
     expect(splitIsoDateTime('2026-10-16T21:40:00+00:00')).toEqual({ date: '2026-10-16', time: '18:40' })
     expect(splitIsoDateTime('2026-10-17T01:30:00Z')).toEqual({ date: '2026-10-16', time: '22:30' })
+    expect(splitIsoDateTime('2026-10-09 03:00:00+00')).toEqual({ date: '2026-10-09', time: '00:00' })
     expect(splitIsoDateTime('2026-10-16T18:40:00')).toEqual({ date: '2026-10-16', time: '18:40' })
   })
 })
