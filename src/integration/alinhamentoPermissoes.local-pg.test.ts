@@ -388,6 +388,16 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
   function clean() {
     psql(`
       SET session_replication_role = replica;
+      -- 288: o CE de B/L sem Cliente calcula pela tabela semeada; a versão de
+      -- preço criada só por estes B/Ls sai junto com os cálculos.
+      CREATE TEMP TABLE bl082_versions AS
+        SELECT DISTINCT pricing_rule_version_id AS id FROM public.charge_calculations
+        WHERE bl_id IN ('${BL_A}', '${BL_B}', '${BL_C}') AND pricing_rule_version_id IS NOT NULL;
+      DELETE FROM public.charge_calculations WHERE bl_id IN ('${BL_A}', '${BL_B}', '${BL_C}');
+      DELETE FROM public.pricing_rule_versions AS p
+      WHERE p.id IN (SELECT id FROM bl082_versions)
+        AND NOT EXISTS (SELECT 1 FROM public.charge_calculations AS c WHERE c.pricing_rule_version_id = p.id)
+        AND NOT EXISTS (SELECT 1 FROM public.invoice_items AS i WHERE i.pricing_rule_version_id = p.id);
       DELETE FROM public.bls WHERE id IN ('${BL_A}', '${BL_B}', '${BL_C}');
       DELETE FROM public.audit_logs WHERE (entity_type = 'bl' AND entity_id IN ('${BL_A}', '${BL_B}', '${BL_C}'))
         OR (entity_type IN ('voyage', 'voyages') AND entity_id = '7823');

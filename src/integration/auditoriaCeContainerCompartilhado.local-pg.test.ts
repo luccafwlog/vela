@@ -643,4 +643,36 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     expect(billingState(['A203-Q2']).bls['A203-Q2'].financial_status).toBe('invoiced')
     expect(containerLinesOf('A203-Q2')).toEqual([{ quantity: 0.5, total_brl: containerFee / 2 }])
   })
+
+  // --- Migration 288: CE de B/L sem Cliente -----------------------------------
+  // Caso CSC4541060950G (2026-10-09): o B/L foi calculado na importação antes de
+  // o irmão existir (container inteiro) e recebeu o CE sem Cliente. O faturamento
+  // para por falta de Cliente; o CE ainda assim confirma o cálculo com o rateio.
+  // `importCeSheet` grava fora da emissão em lotes (sem `p_defer_billing`): exercita
+  // o gatilho da 288, não o caminho da tela de B/Ls, que já recalculava (181).
+  it('CE de B/L sem Cliente recalcula o rateio do container compartilhado', () => {
+    localPsql(`
+      INSERT INTO public.bls (
+        id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status,
+        customer_reconciliation_status, review_status, consignee
+      ) VALUES ('A203-N1', ${voyage.clientesDiferentes}, NULL, '${pol}', '${pod}', 'container', 'pending',
+        'not_calculated', 'missing_customer', 'ok', 'A203 CONSIGNATARIO SEM CADASTRO');
+      INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES ('A203-N1', 'ADCU2030101', '40HC');
+      SELECT public.calculate_bl_local_charges('A203-N1', '${actorId}'::uuid, true);
+    `)
+    const containerCalc = () => localPsql(`
+      SELECT quantity::numeric(12,3) || '|' || total_value_brl
+      FROM public.charge_calculations WHERE bl_id = 'A203-N1' AND charge_item_id = ${containerItemId};
+    `)
+    expect(containerCalc()).toBe(`1.000|${containerFee.toFixed(2)}`)
+
+    // O irmão entra depois (outro lote da importação) e o N1 não é recalculado.
+    insertBls([{ id: 'A203-N2', voyageId: voyage.clientesDiferentes, customerId: alfa.id, container: 'ADCU2030101' }])
+    expect(containerCalc()).toBe(`1.000|${containerFee.toFixed(2)}`)
+
+    expect(importCeSheet('A203MAN000010', voyage.clientesDiferentes, [{ blId: 'A203-N1', ce: '203001000000101' }]))
+      .toMatchObject({ ok: true })
+    expect(billingState(['A203-N1']).bls['A203-N1']).toMatchObject({ ce_mercante: '203001000000101', financial_status: 'pending' })
+    expect(containerCalc()).toBe(`0.500|${(containerFee / 2).toFixed(2)}`)
+  })
 })
