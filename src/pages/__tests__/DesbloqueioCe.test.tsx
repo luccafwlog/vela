@@ -59,9 +59,9 @@ it('Controle ZPT mostra BL sem pedido com os quatro requisitos e impede seleçã
   for (const label of ['T. de Devolução', 'Procuração', 'Financeiro']) expect(screen.queryByRole('checkbox', { name: new RegExp(`^${label}`) })).toBeNull()
   expect(screen.getByLabelText('BL de Entrega: BL-557').hasAttribute('disabled')).toBe(false)
 })
-it('filtro padrão é "Aptos — não exportados"', () => {
+it('filtro padrão é "Todas as situações"', () => {
   mount()
-  expect(state.filters.at(-1)).toMatchObject({ situation: 'ready_not_exported' })
+  expect(state.filters.at(-1)).toMatchObject({ situation: '' })
 })
 it('marcar BL de Entrega registra a entrega; desmarcar pede motivo', async () => {
   const view = mount()

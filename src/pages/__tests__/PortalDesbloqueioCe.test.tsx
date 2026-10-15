@@ -185,7 +185,7 @@ it("BL com solicitação em andamento não fala em desbloqueio confirmado", () =
 it("rascunho sem anexos diz quais documentos faltam para enviar", () => {
   fixtures.draft = true;
   mount();
-  expect(screen.getByText("Envie termo de devolução e procuração para continuar.")).toBeTruthy();
+  expect(screen.getByText("Anexe termo de devolução e procuração para continuar.")).toBeTruthy();
 });
 it("oferece o memorando de retirada a clientes comuns e VIP, apontando para um arquivo publicado", async () => {
   const { existsSync } = await import("node:fs");
