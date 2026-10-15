@@ -520,8 +520,13 @@ Nenhum dado remoto foi alterado nesta atualização.
 
 Atualização em 2026-10-15: leitura somente SELECT, logs e resposta HTTP do job
 depois da rodada do expurgo das 06:00 UTC, que removeu o PDF real do rascunho
-de teste CE-E3CADF0B0202. A única escrita remota do teste foi o recuo de
-`created_at` desse rascunho em 2026-10-14, autorizado pelo responsável.
+de teste CE-E3CADF0B0202. Escritas remotas do teste, todas em 2026-10-14 e
+depois da leitura daquele dia: o responsável criou o rascunho e enviou o PDF
+pelo Portal (pedido, reserva do B/L, documento, objeto no Storage e eventos
+`draft`/`upload_termo`), e o `created_at` do rascunho foi recuado 8 dias por
+SQL, com autorização do responsável; essa foi a única escrita direta por SQL.
+Na rodada de 2026-10-15, o próprio expurgo cancelou o rascunho, liberou o B/L,
+revogou o documento e removeu o objeto.
 
 Atualização em 2026-10-12, após o merge da PR 929: leitura (somente SELECT) do
 banco de produção e conferência estática da suíte SQL do Desbloqueio. Fechou os
