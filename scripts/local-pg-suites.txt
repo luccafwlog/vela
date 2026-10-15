@@ -15,6 +15,7 @@ src/integration/auditSecurityBoundaries.local-pg.test.ts
 src/integration/communicationEligibility.local-pg.test.ts
 src/integration/customerCommunicationCatalog.local-pg.test.ts
 src/integration/ceUnlock.local-pg.test.ts
+src/integration/ceUnlockVip.local-pg.test.ts
 src/integration/demurrageAuthority.local-pg.test.ts
 src/integration/demurrageMoney.local-pg.test.ts
 src/integration/emailInbox.local-pg.test.ts
