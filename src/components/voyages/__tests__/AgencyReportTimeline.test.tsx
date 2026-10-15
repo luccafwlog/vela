@@ -127,4 +127,26 @@ describe('buildAdrHistoryRows', () => {
     // Prazo 16/10 21:40Z; assinou 17/10.
     expect(rows[4]).toMatchObject({ by: 'u3', deadline: 'overdue' })
   })
+
+  it('ADR fechado antes da regra de 72 h segue a data congelada no Fechamento', () => {
+    // ATD sexta 02/10 18:00 (Brasília); prazo congelado 07/10 (3 dias úteis).
+    // Documentação assinou terça 06/10 14:00: depois de ATD + 72 h, mas no prazo de então.
+    const input = {
+      atd: '2026-10-02T21:00:00Z',
+      frozenDeadlineDate: '2026-10-07',
+      omitted: false,
+      departmentSignoffs: [
+        { id: 'ds-1', department: 'documentacao', signed_by: 'u1', signed_at: '2026-10-06T17:00:00Z' } as never,
+      ],
+      departmentEvents: [],
+      actorNames: {},
+    }
+    const panel = buildDepartmentTimelineRows({ ...input, now: '2026-10-20T12:00:00Z' })
+    expect(panel.find((row) => row.department === 'documentacao')!.state).toBe('on-time')
+    const history = buildAdrHistoryRows({ ...input, atdSource: 'terminal', atdRegisteredAt: null, closedAt: null, closedByName: null })
+    expect(history.find((row) => row.label === 'Assinatura · Documentação')!.deadline).toBe('on-time')
+    // Sem a data congelada, a regra nova o daria como atrasado.
+    expect(buildDepartmentTimelineRows({ ...input, frozenDeadlineDate: null, now: '2026-10-20T12:00:00Z' })
+      .find((row) => row.department === 'documentacao')!.state).toBe('overdue')
+  })
 })

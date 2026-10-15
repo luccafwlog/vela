@@ -1000,8 +1000,10 @@ export function EscalaModal({
       return
     }
     // O ETA da planilha de Chegadas e Saídas vem só com a data e continua
-    // aceito; a hora passa a ser exigida quando o ETA é digitado ou alterado.
-    if (etaDate && !etaTime.trim() && etaDate !== splitIsoDateTime(escala.eta).date) {
+    // aceito; a hora passa a ser exigida quando o ETA é digitado ou alterado,
+    // e não pode ser apagada de um ETA que já a tinha.
+    const savedEta = splitIsoDateTime(escala.eta)
+    if (etaDate && !etaTime.trim() && (etaDate !== savedEta.date || savedEta.time)) {
       setTerminalError('A hora do ETA é obrigatória ao informar ou alterar a data.')
       return
     }

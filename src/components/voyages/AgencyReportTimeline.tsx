@@ -36,6 +36,7 @@ export type DepartmentTimelineRow = {
  */
 export function buildDepartmentTimelineRows({
   atd,
+  frozenDeadlineDate = null,
   omitted,
   now,
   departmentSignoffs,
@@ -43,6 +44,8 @@ export function buildDepartmentTimelineRows({
   actorNames,
 }: {
   atd: string | null
+  /** ADR fechado antes da regra de 72 h: a data congelada no Fechamento (YYYY-MM-DD). */
+  frozenDeadlineDate?: string | null
   omitted: boolean
   now: string | Date
   departmentSignoffs: AgencyReportDepartmentSignoff[]
@@ -54,7 +57,7 @@ export function buildDepartmentTimelineRows({
   return DEPARTMENT_ORDER.map((department) => {
     const signoff = signoffByDepartment.get(department)
     const signedAt = signoff?.signed_at ?? null
-    const state = deriveAgencyReportDeadlineState({ atd, omitted, signedAt, now })
+    const state = deriveAgencyReportDeadlineState({ atd, omitted, signedAt, now, frozenDeadlineDate })
 
     const reopenings = filterDepartmentReopeningEvents(departmentEvents, department)
       .map((event): DepartmentTimelineReopening => ({
@@ -97,6 +100,7 @@ const ATD_SOURCE_LABELS: Record<'pod' | 'pol' | 'terminal', string> = {
  */
 export function buildAdrHistoryRows({
   atd,
+  frozenDeadlineDate = null,
   atdSource,
   atdRegisteredAt,
   omitted,
@@ -107,6 +111,8 @@ export function buildAdrHistoryRows({
   closedByName,
 }: {
   atd: string | null
+  /** ADR fechado antes da regra de 72 h: a data congelada no Fechamento (YYYY-MM-DD). */
+  frozenDeadlineDate?: string | null
   atdSource: 'pod' | 'pol' | 'terminal' | null
   atdRegisteredAt: string | null
   omitted: boolean
@@ -139,7 +145,7 @@ export function buildAdrHistoryRows({
       label: `${reopening ? 'Reabertura' : 'Assinatura'} · ${label}`,
       at: event.changed_at,
       by: nameOf(event.changed_by),
-      deadline: reopening ? null : deriveAgencyReportDeadlineState({ atd, omitted, signedAt: event.changed_at, now: event.changed_at }),
+      deadline: reopening ? null : deriveAgencyReportDeadlineState({ atd, omitted, signedAt: event.changed_at, now: event.changed_at, frozenDeadlineDate }),
       detail: reopening ? event.justification : null,
     })
   }
@@ -152,7 +158,7 @@ export function buildAdrHistoryRows({
       label: `Assinatura · ${AGENCY_REPORT_DEPARTMENT_LABELS[signoff.department]}`,
       at: signoff.signed_at,
       by: nameOf(signoff.signed_by),
-      deadline: deriveAgencyReportDeadlineState({ atd, omitted, signedAt: signoff.signed_at, now: signoff.signed_at }),
+      deadline: deriveAgencyReportDeadlineState({ atd, omitted, signedAt: signoff.signed_at, now: signoff.signed_at, frozenDeadlineDate }),
       detail: null,
     })
   }
@@ -194,8 +200,11 @@ export function AgencyReportTimeline({
   closedAt: string | null
   closedByName: string | null
 }) {
-  const departmentRows = buildDepartmentTimelineRows({ atd, omitted, now, departmentSignoffs, departmentEvents, actorNames })
-  const history = buildAdrHistoryRows({ atd, atdSource, atdRegisteredAt, omitted, departmentSignoffs, departmentEvents, actorNames, closedAt, closedByName })
+  // Só a data (YYYY-MM-DD) é prazo congelado da regra de dias úteis: os
+  // vereditos seguem o prazo que valia no Fechamento, como em /admin/prazo-adr.
+  const frozenDeadlineDate = deadline && /^\d{4}-\d{2}-\d{2}$/.test(deadline) ? deadline : null
+  const departmentRows = buildDepartmentTimelineRows({ atd, frozenDeadlineDate, omitted, now, departmentSignoffs, departmentEvents, actorNames })
+  const history = buildAdrHistoryRows({ atd, frozenDeadlineDate, atdSource, atdRegisteredAt, omitted, departmentSignoffs, departmentEvents, actorNames, closedAt, closedByName })
   const signedCount = departmentRows.filter((row) => row.signedAt).length
   const deadlineText = deadline ? formatInstant(deadline) : null
 

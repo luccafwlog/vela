@@ -761,6 +761,17 @@ describe('EscalaModal', () => {
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ eta: '2026-03-11T10:00:00' }))
   })
 
+  it('não deixa apagar só a hora de um ETA que já tinha hora', async () => {
+    const user = userEvent.setup()
+    const onSaved = vi.fn().mockResolvedValue(undefined)
+    renderEscala({ ...escalaBase, eta: '2026-03-10T08:00:00' }, onSaved)
+
+    await user.clear(screen.getByLabelText('ETA Hora'))
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('hora do ETA é obrigatória')
+  })
+
   it('exige hora em ETB, ETD e ATD do terminal', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala(terminalEscala())
