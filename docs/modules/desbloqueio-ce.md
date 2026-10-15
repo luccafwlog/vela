@@ -204,8 +204,10 @@ pedido guarda o CE da solicitação, e o B/L com CE diferente aparece com o moti
 `ce_trocado_com_desbloqueio`, e a prévia da planilha avisa "Desbloqueio já
 conferido". Conferido é a conciliação com a ZPT `unlocked` do CE anterior
 (`ce_unlock_zpt_status`, pela chave `ce_mercante_key`) ou a confirmação manual
-legada (`_bl_ce_unlock_conferred`, migration `230`; antes dela o código só lia a
-confirmação manual retirada na `160`). As
+legada do mesmo CE (`_bl_ce_unlock_conferred`, migration `230`; antes dela o
+código só lia a confirmação manual retirada na `160`). Desde a migration `277`,
+a confirmação legada também só vale para o CE que confirmou: depois de uma
+troca, a troca seguinte do CE que nunca foi desbloqueado não abre o alerta. As
 portas de troca do CE e o alerta de reenvio do Comunicado são regra de
 [CE Mercante](manifesto-edi.md#ce-mercante).
 

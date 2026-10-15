@@ -12,9 +12,9 @@
   pelas RPCs; autor é quem está logado; emissão por qualquer Departamento; baixa
   e Conciliação PIX do Financeiro; leitura global; alertas fechando pela origem;
   ADR de Saída, Vazios e importações). A revisão da PR acrescentou as migrations
-  `267` a `276`. Decisões do dono na revisão: motivo interno obrigatório na
+  `267` a `277`. Decisões do dono na revisão: motivo interno obrigatório na
   fatura avulsa, regra M14 do e-mail do manifesto também na Revisão e viagem
-  limpável na importação de CE Mercante. Publicar na ordem migrations → Edge
+  limpável na importação de CE Mercante e confirmação legada do Desbloqueio de CE presa ao CE confirmado. Publicar na ordem migrations → Edge
   Functions → frontend ([Serviços externos](operations/servicos-externos.md#edge-functions)).
 
 - **Modelo de permissões por perfil (2026-10-14, [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)):**

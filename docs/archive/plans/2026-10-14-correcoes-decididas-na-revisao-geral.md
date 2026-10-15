@@ -1,11 +1,11 @@
 # 2026-10-14 — Correções decididas na revisão geral e no modelo de permissões
 
 > **Encerrado em 2026-10-15 (PR 954).** Registro histórico. A revisão da PR
-> corrigiu defeitos da execução nas migrations `267` a `276` (Portal salva
+> corrigiu defeitos da execução nas migrations `267` a `277` (Portal salva
 > contatos, guarda do Baplie, conciliação PIX da Demurrage e da avulsa, Granito
 > sem Cliente desativado, M14 na Revisão, motivo da avulsa, ADR legado com
 > frente derivada, Vazios travados pelo ADR fechado, reaplicar correção só com
-> pendência e Ajuste de COD com rastro). As regras vigentes estão nos módulos.
+> pendência, Ajuste de COD com rastro e confirmação legada do Desbloqueio presa ao CE). As regras vigentes estão nos módulos.
 
 Plano vivo das correções de código decididas pelo dono em 2026-10-14: as da
 revisão geral ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md);

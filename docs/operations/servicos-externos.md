@@ -283,7 +283,7 @@ e `132` antes de publicar `portal-password-reset` e
 está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 
 Para publicar as correções da PR 954 (plano de correções da revisão geral),
-as migrations `230` a `270` vão para o banco **antes** das Edge Functions e do
+as migrations `230` a `277` vão para o banco **antes** das Edge Functions e do
 frontend, porque duas funções dependem delas:
 
 | Função | Depende de | Se for publicada antes |

@@ -1,6 +1,6 @@
 # Planos históricos (archive)
 
-- [2026-10-14 — Correções decididas na revisão geral e no modelo de permissões](2026-10-14-correcoes-decididas-na-revisao-geral.md) — concluído em 2026-10-15 na PR 954: os 43 itens A, B e P (migrations `230` a `266`) e as correções da revisão da PR (migrations `267` a `276`); publicar segue a ordem de [Serviços externos](../../operations/servicos-externos.md#edge-functions).
+- [2026-10-14 — Correções decididas na revisão geral e no modelo de permissões](2026-10-14-correcoes-decididas-na-revisao-geral.md) — concluído em 2026-10-15 na PR 954: os 43 itens A, B e P (migrations `230` a `266`) e as correções da revisão da PR (migrations `267` a `277`); publicar segue a ordem de [Serviços externos](../../operations/servicos-externos.md#edge-functions).
 
 - [2026-10-13 — Revisão geral da documentação](2026-10-13-revisao-geral-documentacao.md) — encerrado em 2026-10-14: varredura, aplicação e gate concluídos, e o dono respondeu as decisões pendentes no mesmo dia. Decisões nas ADRs [0083](../../adr/0083-decisoes-da-revisao-geral-da-documentacao.md) e [0084](../../adr/0084-registro-de-decisoes-ja-em-producao.md); correções de código no [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); relatório em [2026-10-13-revisao-geral-documentacao.md](../audits/2026-10-13-revisao-geral-documentacao.md).
 
