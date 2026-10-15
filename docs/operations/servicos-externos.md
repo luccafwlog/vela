@@ -202,10 +202,10 @@ produção `fgmkhbzhaeebrsizwccx`. O projeto GitHub é `luccafwlog/vela`.
 A produção do Cloudflare Pages espera o check que a integração publica no
 commit da `main` antes de publicar
 ([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)); a `main` precisa
-continuar vinculada à produção em Branching → Configuration (vínculo a
-conferir no painel pelo dono; nos merges `b42427c7` e `2763f99b` o check veio
-verde, no `1aa7aaf7` veio pulado com "not associated with any Supabase
-Branch"). Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
+continuar vinculada à produção em Branching → Configuration (vínculo
+conferido no painel pelo dono em 2026-10-15; o check veio verde nos merges
+`b42427c7`, `2763f99b` e `cb7ef2de`, e pulado no `1aa7aaf7` com "not
+associated with any Supabase Branch"). Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
 abrir uma PR não cria por si só uma branch Supabase nem garante o check
 "Supabase Preview". A integração permite criar uma branch pontual e vinculá-la
 a uma branch GitHub. O painel informa custo de US$ 0,01344 por hora enquanto a
