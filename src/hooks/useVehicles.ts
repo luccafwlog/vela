@@ -1,12 +1,30 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { supabase } from '../services/supabase'
-import { chunkArray, sanitizeLikeTerm } from '../lib/utils'
+import { queryKeys } from '../services/queryKeys'
+import { sanitizeLikeTerm } from '../lib/utils'
 import type { BLContainer, VehicleListItem } from '../types/database'
-import { normalizePortCode } from '../services/portCode'
+import { fetchVoyageVehicleStats } from '../services/voyageVehicleStats'
 
 type VehicleListItemWithUnpackingLocation = Omit<VehicleListItem, 'container'> & {
   container?: Pick<BLContainer, 'id' | 'container_number' | 'type' | 'seal_number' | 'unpacking_location'> | null
+}
+
+/**
+ * Aplica no cache da lista de veículos o local de desova já gravado, antes da
+ * releitura. O cache guarda as linhas cruas da viagem (página e filtros locais
+ * saem do `select` de `useVehicles`), então quem escreve nele precisa passar
+ * por aqui, não pelo formato que a tela recebe.
+ */
+export function cacheUnpackingLocation(queryClient: QueryClient, containerIds: readonly number[], value: string | null) {
+  const ids = new Set(containerIds)
+  queryClient.setQueriesData<VehicleListItemWithUnpackingLocation[]>({ queryKey: queryKeys.vehicles.all() }, (cached) => (
+    Array.isArray(cached)
+      ? cached.map((row) => row.container && ids.has(row.container.id)
+        ? { ...row, container: { ...row.container, unpacking_location: value } }
+        : row)
+      : cached
+  ))
 }
 
 /** Filtro de desova que pede os containers ainda sem local. */
@@ -43,25 +61,7 @@ export type VehiclePageFilters = {
   pageSize: number
 }
 
-export type VoyageVehicleStat = {
-  totalVehicles: number
-  distinctContainerCount: number
-  containerNumbers: string[]
-  brandSummary: string
-  vehicleByContainerTypeSummary: string
-  byPod: Record<string, {
-    totalVehicles: number
-    distinctContainerCount: number
-    brandSummary: string
-    vehicleByContainerTypeSummary: string
-  }>
-  unassigned?: {
-    totalVehicles: number
-    distinctContainerCount: number
-    brandSummary: string
-    vehicleByContainerTypeSummary: string
-  }
-}
+export type { VoyageVehicleStat } from '../services/voyageVehicleStats'
 
 export function useVehicleOptions() {
   return useQuery({
@@ -101,9 +101,17 @@ export function useVehicleOptions() {
 }
 
 export function useVehicles(voyageId: number | null, filters: VehiclePageFilters) {
+  // A leitura traz todos os veículos da viagem que passam nos filtros do
+  // servidor. Página e filtros de container, B/L e local de desova são
+  // recortados do cache em `select`: trocar de página ou digitar nesses campos
+  // não refaz a leitura (antes cada "Próxima" rebaixava a viagem inteira).
+  const { search, brand, model, containerType, seal } = filters
+  const serverFilters = { search, brand, model, containerType, seal }
   const listQuery = useQuery({
-    queryKey: ['vehicles', voyageId, filters],
+    queryKey: ['vehicles', voyageId, serverFilters],
     enabled: Boolean(voyageId),
+    // Mantém as linhas na troca de filtro; outra viagem começa do esqueleto.
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === voyageId ? previous : undefined),
     queryFn: async () => {
       let q = supabase
         .from('vehicles')
@@ -113,34 +121,31 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
           container:bl_containers!inner(id, container_number, type, seal_number, unpacking_location),
           bl:bls(id, voyage_id, voyage:voyages(id, voyage_number, vessel:vessels(id, name)))
         `,
-          { count: 'exact' },
         )
         .eq('voyage_id', voyageId!)
         .order('created_at', { ascending: false })
 
-      if (filters.search) {
-        const term = sanitizeLikeTerm(filters.search)
+      if (search) {
+        const term = sanitizeLikeTerm(search)
         if (term) q = q.ilike('chassis', `%${term}%`)
       }
-      if (filters.brand) {
-        const term = sanitizeLikeTerm(filters.brand)
+      if (brand) {
+        const term = sanitizeLikeTerm(brand)
         if (term) q = q.ilike('brand', `%${term}%`)
       }
-      if (filters.model) {
-        const term = sanitizeLikeTerm(filters.model)
+      if (model) {
+        const term = sanitizeLikeTerm(model)
         if (term) q = q.ilike('model', `%${term}%`)
       }
-      if (filters.containerType) {
-        const term = sanitizeLikeTerm(filters.containerType)
+      if (containerType) {
+        const term = sanitizeLikeTerm(containerType)
         if (term) q = q.ilike('container.type', `%${term}%`)
       }
-      if (filters.seal) {
-        const term = sanitizeLikeTerm(filters.seal)
+      if (seal) {
+        const term = sanitizeLikeTerm(seal)
         if (term) q = q.ilike('container.seal_number', `%${term}%`)
       }
 
-      // PostgREST não aplica ilike em colunas de joins aninhados; esses filtros
-      // rodam na página carregada.
       const allData: unknown[] = []
       for (let from = 0; ; from += 1000) {
         const { data, error } = await q.range(from, from + 999)
@@ -148,9 +153,12 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
         allData.push(...(data ?? []))
         if (!data || data.length < 1000) break
       }
-
-      let rows = allData as VehicleListItemWithUnpackingLocation[]
-
+      return allData as VehicleListItemWithUnpackingLocation[]
+    },
+    // PostgREST não aplica ilike em colunas de joins aninhados; esses filtros
+    // rodam sobre as linhas já carregadas.
+    select: (allRows) => {
+      let rows = allRows
       if (filters.container) {
         const term = filters.container.toLowerCase()
         rows = rows.filter((r) => (r.container?.container_number ?? '').toLowerCase().includes(term))
@@ -166,12 +174,11 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
         rows = rows.filter((r) => (r.container?.unpacking_location ?? '').toLowerCase().includes(term))
       }
 
-      const allIds = rows.map((row) => row.id)
       const rangeFrom = (filters.page - 1) * filters.pageSize
       return {
         rows: rows.slice(rangeFrom, rangeFrom + filters.pageSize),
         count: rows.length,
-        allIds,
+        allIds: rows.map((row) => row.id),
         containerIdByVehicleId: Object.fromEntries(rows.map((row) => [row.id, row.container?.id ?? null])),
       }
     },
@@ -257,6 +264,8 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
 
   return {
     isLoading: listQuery.isLoading || statsQuery.isLoading,
+    // Filtro do servidor trocado: as linhas ainda são do recorte anterior.
+    isPlaceholderData: listQuery.isPlaceholderData,
     error: listQuery.error ?? statsQuery.error,
     data: {
       rows: listQuery.data?.rows ?? [],
@@ -275,147 +284,8 @@ export function useVoyageVehicleStats(voyageIds: number[]) {
   )
 
   return useQuery({
-    queryKey: ['voyage-vehicle-stats', normalizedVoyageIds],
+    queryKey: queryKeys.vehicles.stats(normalizedVoyageIds),
     enabled: normalizedVoyageIds.length > 0,
-    queryFn: async () => {
-      const batchSize = 1000
-      const byVoyageId: Record<number, VoyageVehicleStat> = {}
-      const working = new Map<
-        number,
-        {
-          totalVehicles: number
-          containers: Set<string>
-          brands: Map<string, number>
-          vehicleByContainerType: Map<string, number>
-          byPod: Map<string, { totalVehicles: number; containers: Set<string>; brands: Map<string, number>; vehicleByContainerType: Map<string, number> }>
-          unassigned: { totalVehicles: number; containers: Set<string>; brands: Map<string, number>; vehicleByContainerType: Map<string, number> }
-        }
-      >()
-
-      for (const voyageChunk of chunkArray(normalizedVoyageIds, 200)) {
-        let from = 0
-
-        while (true) {
-          const { data, error } = await supabase
-            .from('vehicles')
-            .select('id, voyage_id, brand, container:bl_containers(container_number, type), bl:bls!inner(pod)')
-            .in('voyage_id', voyageChunk)
-            .order('id', { ascending: true })
-            .range(from, from + batchSize - 1)
-
-          if (error) throw error
-
-          const rows = (data ?? []) as Array<{
-            id: number
-            voyage_id: number
-            brand: string | null
-            container?: { container_number?: string | null; type?: string | null } | null
-            bl?: { pod?: string | null } | null
-          }>
-
-          if (!rows.length) break
-
-          for (const row of rows) {
-            const current =
-              working.get(row.voyage_id) ??
-              {
-                totalVehicles: 0,
-                containers: new Set<string>(),
-                brands: new Map<string, number>(),
-                vehicleByContainerType: new Map<string, number>(),
-                byPod: new Map(),
-                unassigned: {
-                  totalVehicles: 0,
-                  containers: new Set<string>(),
-                  brands: new Map<string, number>(),
-                  vehicleByContainerType: new Map<string, number>(),
-                },
-              }
-
-            current.totalVehicles += 1
-
-            const brand = String(row.brand ?? '').trim() || 'Nao informado'
-            current.brands.set(brand, (current.brands.get(brand) ?? 0) + 1)
-
-            const containerType = String(row.container?.type ?? '').trim() || 'Nao informado'
-            current.vehicleByContainerType.set(
-              containerType,
-              (current.vehicleByContainerType.get(containerType) ?? 0) + 1,
-            )
-
-            const containerNumber = String(row.container?.container_number ?? '').trim().toUpperCase()
-            if (containerNumber) {
-              current.containers.add(containerNumber)
-            }
-
-            const pod = normalizePortCode(row.bl?.pod)
-            if (pod) {
-              const podEntry = current.byPod.get(pod) ?? {
-                totalVehicles: 0,
-                containers: new Set<string>(),
-                brands: new Map<string, number>(),
-                vehicleByContainerType: new Map<string, number>(),
-              }
-              podEntry.totalVehicles += 1
-              podEntry.brands.set(brand, (podEntry.brands.get(brand) ?? 0) + 1)
-              podEntry.vehicleByContainerType.set(containerType, (podEntry.vehicleByContainerType.get(containerType) ?? 0) + 1)
-              if (containerNumber) podEntry.containers.add(containerNumber)
-              current.byPod.set(pod, podEntry)
-            } else {
-              current.unassigned.totalVehicles += 1
-              current.unassigned.brands.set(brand, (current.unassigned.brands.get(brand) ?? 0) + 1)
-              current.unassigned.vehicleByContainerType.set(containerType, (current.unassigned.vehicleByContainerType.get(containerType) ?? 0) + 1)
-              if (containerNumber) current.unassigned.containers.add(containerNumber)
-            }
-
-            working.set(row.voyage_id, current)
-          }
-
-          if (rows.length < batchSize) break
-          from += batchSize
-        }
-      }
-
-      for (const voyageId of normalizedVoyageIds) {
-        const current = working.get(voyageId)
-        const byPod = Object.fromEntries(
-          Array.from(current?.byPod.entries() ?? []).map(([pod, podEntry]) => [pod, {
-            totalVehicles: podEntry.totalVehicles,
-            distinctContainerCount: podEntry.containers.size,
-            brandSummary: summarizeCounts(podEntry.brands),
-            vehicleByContainerTypeSummary: summarizeCounts(podEntry.vehicleByContainerType),
-          }]),
-        )
-
-        const unassigned = current && current.unassigned.totalVehicles > 0 ? {
-          totalVehicles: current.unassigned.totalVehicles,
-          distinctContainerCount: current.unassigned.containers.size,
-          brandSummary: summarizeCounts(current.unassigned.brands),
-          vehicleByContainerTypeSummary: summarizeCounts(current.unassigned.vehicleByContainerType),
-        } : undefined
-
-        byVoyageId[voyageId] = {
-          totalVehicles: current?.totalVehicles ?? 0,
-          distinctContainerCount: current?.containers.size ?? 0,
-          containerNumbers: current ? Array.from(current.containers).sort((left, right) => left.localeCompare(right, 'pt-BR')) : [],
-          brandSummary: summarizeCounts(current?.brands),
-          vehicleByContainerTypeSummary: summarizeCounts(current?.vehicleByContainerType),
-          byPod,
-          unassigned,
-        }
-      }
-
-      return { byVoyageId }
-    },
+    queryFn: () => fetchVoyageVehicleStats(normalizedVoyageIds),
   })
-}
-
-function summarizeCounts(source?: Map<string, number>) {
-  if (!source || source.size === 0) return '-'
-
-  return Array.from(source.entries())
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], 'pt-BR'))
-    .slice(0, 6)
-    .map(([label, count]) => `${label}: ${count}`)
-    .join(' | ')
 }

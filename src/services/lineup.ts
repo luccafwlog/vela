@@ -7,7 +7,7 @@ import {
 } from './voyageRouteSchedules'
 import type { ExportCeStatus } from './voyageExportSchedules'
 import { supabase } from './supabase'
-import { chunkArray, isDateOnly } from '../lib/utils'
+import { chunkArray, isDateOnly, mapChunks } from '../lib/utils'
 import { normalizePortCode } from './portCode'
 import { listDepots } from './depots'
 
@@ -333,7 +333,6 @@ export async function fetchLineUpSnapshot(
     depots.flatMap((depot) => depot.id && depot.code ? [[String(depot.id), depot.code.trim()]] as const : []),
   )
 
-  const blIds = bls.map((bl) => bl.id)
   // Os containers necessários para a projeção já vêm no mesmo read-model dos
   // B/Ls. Isso elimina a segunda fase `bl_ids -> bl_containers` a cada refresh
   // do Line Up, sem carregar frete ou outros detalhes que a tabela não usa.
@@ -512,7 +511,7 @@ export async function fetchLineUpSnapshot(
 
   const scheduleEntityIds = Array.from(escalaSchedulesByVoyage.values())
     .flatMap((schedules) => schedules.map((schedule) => schedule.entityId))
-  const lastChangedAt = await fetchLastLineUpChangeAt(voyageIds, blIds, scheduleEntityIds)
+  const lastChangedAt = await fetchLastLineUpChangeAt(voyageIds, scheduleEntityIds)
 
   return {
     rows: sortedRows,
@@ -531,24 +530,25 @@ async function fetchTerminalFrontsByVoyageIds(voyageIds: number[]) {
   const result = new Map<number, LineUpTerminalFront[]>()
   if (!voyageIds.length) return result
 
-  for (const voyageChunk of chunkArray(voyageIds, 25)) {
+  const rows = await mapChunks(voyageIds, 25, async (voyageChunk) => {
     const { data, error } = await (supabase.from as unknown as (table: string) => TerminalFrontQuery)('voyage_escala_operation_fronts')
       .select('voyage_id, port, sentido, terminal_id')
       .in('voyage_id', voyageChunk)
     if (error) throw error
+    return (data ?? []) as Array<Record<string, unknown>>
+  })
 
-    for (const row of (data ?? []) as Array<Record<string, unknown>>) {
-      if (typeof row.voyage_id !== 'number' || typeof row.port !== 'string') continue
-      if (row.sentido !== 'importacao' && row.sentido !== 'exportacao') continue
-      const fronts = result.get(row.voyage_id) ?? []
-      fronts.push({
-        voyageId: row.voyage_id,
-        port: row.port,
-        sentido: row.sentido,
-        terminalId: typeof row.terminal_id === 'string' ? row.terminal_id : null,
-      })
-      result.set(row.voyage_id, fronts)
-    }
+  for (const row of rows) {
+    if (typeof row.voyage_id !== 'number' || typeof row.port !== 'string') continue
+    if (row.sentido !== 'importacao' && row.sentido !== 'exportacao') continue
+    const fronts = result.get(row.voyage_id) ?? []
+    fronts.push({
+      voyageId: row.voyage_id,
+      port: row.port,
+      sentido: row.sentido,
+      terminalId: typeof row.terminal_id === 'string' ? row.terminal_id : null,
+    })
+    result.set(row.voyage_id, fronts)
   }
   return result
 }
@@ -586,9 +586,8 @@ async function fetchVoyages(limit: number) {
 }
 
 async function fetchBlsByVoyageIds(voyageIds: number[]) {
-  const rows: LineUpBlRow[] = []
-
-  for (const voyageChunk of chunkArray(voyageIds, 25)) {
+  return mapChunks(voyageIds, 25, async (voyageChunk) => {
+    const rows: LineUpBlRow[] = []
     let from = 0
     while (true) {
       const { data, error } = await supabase
@@ -606,15 +605,13 @@ async function fetchBlsByVoyageIds(voyageIds: number[]) {
       if (batch.length < 1000) break
       from += 1000
     }
-  }
-
-  return rows
+    return rows
+  })
 }
 
 async function fetchVehiclesByVoyageIds(voyageIds: number[]) {
-  const rows: LineUpVehicleRow[] = []
-
-  for (const voyageChunk of chunkArray(voyageIds, 25)) {
+  return mapChunks(voyageIds, 25, async (voyageChunk) => {
+    const rows: LineUpVehicleRow[] = []
     let from = 0
     while (true) {
       const { data, error } = await supabase
@@ -632,20 +629,20 @@ async function fetchVehiclesByVoyageIds(voyageIds: number[]) {
       if (batch.length < 1000) break
       from += 1000
     }
-  }
-
-  return rows
+    return rows
+  })
 }
 
 async function fetchVaziosImportacaoMtyByVoyageIds(voyageIds: number[]) {
   const countByVoyage = new Map<number, number>()
   if (!voyageIds.length) return countByVoyage
 
-  for (const voyageChunk of chunkArray(voyageIds, 50)) {
-    // A relação inner já restringe os containers ao conjunto de viagens. A
-    // versão anterior lia manifestos, criava chunks de ids e então fazia uma
-    // segunda cascata de páginas; em um refresh isso virava um waterfall
-    // proporcional ao número de manifestos.
+  // A relação inner já restringe os containers ao conjunto de viagens. A
+  // versão anterior lia manifestos, criava chunks de ids e então fazia uma
+  // segunda cascata de páginas; em um refresh isso virava um waterfall
+  // proporcional ao número de manifestos.
+  const containers = await mapChunks(voyageIds, 50, async (voyageChunk) => {
+    const rows: Array<{ manifest: { voyage_id: number | null } | null }> = []
     let from = 0
     while (true) {
       const { data: containerRows, error: containerError } = await supabase
@@ -657,24 +654,29 @@ async function fetchVaziosImportacaoMtyByVoyageIds(voyageIds: number[]) {
       if (containerError) throw containerError
       const batch = containerRows ?? []
       if (!batch.length) break
-      for (const container of batch) {
-        const voyageId = container.manifest?.voyage_id
-        if (voyageId == null) continue
-        countByVoyage.set(voyageId, (countByVoyage.get(voyageId) ?? 0) + 1)
-      }
+      rows.push(...batch)
       if (batch.length < 1000) break
       from += 1000
     }
+    return rows
+  })
+  for (const container of containers) {
+    const voyageId = container.manifest?.voyage_id
+    if (voyageId == null) continue
+    countByVoyage.set(voyageId, (countByVoyage.get(voyageId) ?? 0) + 1)
   }
 
   return countByVoyage
 }
 
-async function fetchLastLineUpChangeAt(voyageIds: number[], blIds: string[], scheduleEntityIds: string[]) {
+// O marco é o mais recente entre as viagens do snapshot. B/Ls e contêineres
+// filtram pela viagem (uma leitura por tabela); filtrar pelos ids dos B/Ls
+// exigia uma leitura a cada 100 B/Ls — 72 requisições para 60 viagens.
+async function fetchLastLineUpChangeAt(voyageIds: number[], scheduleEntityIds: string[]) {
   const [voyageLatest, blLatest, containerLatest, vehicleLatest, scheduleLatest, statusLatest] = await Promise.all([
     fetchLatestTimestampForIds('voyages', 'id', voyageIds, 'created_at'),
-    fetchLatestTimestampForIds('bls', 'id', blIds, 'updated_at'),
-    fetchLatestTimestampForIds('bl_containers', 'bl_id', blIds, 'created_at'),
+    fetchLatestTimestampForIds('bls', 'voyage_id', voyageIds, 'updated_at'),
+    fetchLatestTimestampForIds('bl_containers', 'bl.voyage_id', voyageIds, 'created_at', 'created_at, bl:bls!inner(voyage_id)'),
     fetchLatestTimestampForIds('vehicles', 'voyage_id', voyageIds, 'created_at'),
     scheduleEntityIds.length
       ? fetchLatestTimestamp(
@@ -698,12 +700,12 @@ async function fetchLastLineUpChangeAt(voyageIds: number[], blIds: string[], sch
     .sort((left, right) => new Date(right!).getTime() - new Date(left!).getTime())[0] ?? null
 }
 
-async function fetchLatestTimestampForIds(table: string, column: string, ids: number[] | string[], field: string) {
+async function fetchLatestTimestampForIds(table: string, column: string, ids: number[] | string[], field: string, columns = field) {
   const values = await Promise.all(chunkArray<number | string>(ids, 100).map((idChunk) => fetchLatestTimestamp(
     (supabase.from as unknown as (tableName: string) => {
       select: (columns: string) => { in: (name: string, ids: Array<number | string>) => { order: (fieldName: string, options: { ascending: boolean }) => { limit: (limit: number) => PromiseLike<{ data: Array<Record<string, unknown>> | null; error: { message: string } | null }> } } }
     }
-    )(table).select(field).in(column, idChunk).order(field, { ascending: false }).limit(1),
+    )(table).select(columns).in(column, idChunk).order(field, { ascending: false }).limit(1),
     field,
   )))
   return values.filter(Boolean).sort((left, right) => new Date(right!).getTime() - new Date(left!).getTime())[0] ?? null

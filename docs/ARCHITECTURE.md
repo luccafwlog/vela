@@ -303,8 +303,11 @@ rota tem um orçamento de **50 ms** de parse/compile de JS, verificável por
 
 ### Celular e toque
 
-O Vela e o Portal usam o mesmo shell responsivo. Abaixo de 1100px o botão
-**Menu** fica no cabeçalho e abre a navegação por cima da página
+O Vela e o Portal usam o mesmo shell responsivo. No Vela, acima de 1100px, a
+pessoa escolhe no menu da conta se o menu fica no topo ou numa lateral fixa,
+recolhida ou expansível (`useNavPosition`, guardado no navegador; regras em
+[Identidade visual § Menu do Vela](identidade-visual.md#menu-do-vela)). Abaixo de 1100px o botão
+**Menu** fica no cabeçalho em qualquer posição e abre a navegação por cima da página
 (`useMobileNav`, em `src/components/layout/`: trava a rolagem, Escape fecha o
 grupo aberto e depois o menu, e o menu fecha sozinho quando a tela passa de
 1100px, para não deixar a página travada ao girar o tablet). As regras transversais vivem na seção

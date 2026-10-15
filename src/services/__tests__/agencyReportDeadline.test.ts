@@ -50,7 +50,7 @@ describe('hoursSinceAtd', () => {
 
 describe('alerta de prazo no banco', () => {
   it('compara o instante de agora com ATD + 72 horas, nos dois caminhos', () => {
-    const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations/284_prazo_do_adr_em_72_horas.sql'), 'utf8')
+    const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations/289_prazo_do_adr_em_72_horas.sql'), 'utf8')
     expect(sql).toMatch(/interval '72 hours'/)
     expect(sql.match(/v_deadline_at < now\(\)/g)).toHaveLength(2)
   })

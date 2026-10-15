@@ -1,5 +1,7 @@
 # Planos históricos (archive)
 
+- [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante.md) — concluído em 2026-10-15 (PRs 954, 956 e 961): aceite na [ADR 0087](../../adr/0087-desbloqueio-ce-aceite-operacional.md), migrations `279` a `282` em produção e observação com o responsável; itens de observação restantes encerrados pelo responsável como não pertinentes. Regra vigente no [módulo](../../modules/desbloqueio-ce.md).
+
 - [2026-10-14 — Correções decididas na revisão geral e no modelo de permissões](2026-10-14-correcoes-decididas-na-revisao-geral.md) — concluído em 2026-10-15 na PR 954: os 43 itens A, B e P (migrations `230` a `266`) e as correções da revisão da PR (migrations `267` a `278`); publicar segue a ordem de [Serviços externos](../../operations/servicos-externos.md#edge-functions).
 
 - [2026-10-15 — Compactação do CI](2026-10-15-compactacao-do-ci.md) — concluído em 2026-10-15 (PR luccafwlog/vela#953, [ADR 0086](../../adr/0086-ci-confere-na-medida-da-mudanca.md)): CI de PR de ~11 min para ~2 min, merge à produção de ~13 min para ~2 min, suítes SQL com conexão reaproveitada e ordem invertida semanal. Aceites e medições no próprio plano.

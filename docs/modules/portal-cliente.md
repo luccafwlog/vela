@@ -534,7 +534,7 @@ precedência de free time. Capturas com dados fictícios ficam em
 `artifacts/portal-informacoes/implementation/`. A Central está na `main` desde a
 integração da PR 845 (2026-10-05/06), com as migrations `137` e `138`; a
 conferência remota de 2026-10-13 registrada no
-[plano do Desbloqueio de CE](../plans/2026-10-04-desbloqueio-ce-mercante.md)
+[plano do Desbloqueio de CE](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md)
 encontrou produção com as migrations até `219`, as funções iguais ao replay da
 `main` e os sites no commit `c4a984f` (**Runtime** remoto de outra sessão, não
 reconferido aqui). O uso real pelo Cliente em produção não foi conferido.

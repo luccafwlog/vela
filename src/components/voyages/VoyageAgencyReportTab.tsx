@@ -624,7 +624,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const terminalAtd = selectedAtracacao?.atd ?? null
   const terminalAtb = selectedAtracacao?.atb ?? null
   const terminalRtw = selectedAtracacao?.rtw ?? null
-  // Prazo: ATD + 72 horas (284). `deadlineDate` é o dia de Brasília do prazo, para o relatório de SLA e a impressão.
+  // Prazo: ATD + 72 horas (289). `deadlineDate` é o dia de Brasília do prazo, para o relatório de SLA e a impressão.
   const deadlineAt = terminalAtd ? calculateAgencyReportDeadlineAt(terminalAtd) : null
   const deadlineDate = deadlineAt ? toDateOnly(deadlineAt) : null
 

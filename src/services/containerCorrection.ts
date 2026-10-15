@@ -99,7 +99,7 @@ export function planContainerCorrection(before: ContainerCorrectionValues, after
   return plan
 }
 
-/** Lacre, peso bruto e CBM (migration 283): sempre corrigíveis, para todo o Part Lot. */
+/** Lacre, peso bruto e CBM (migration 288): sempre corrigíveis, para todo o Part Lot. */
 export async function correctContainerData(input: {
   containerId: number
   seal: string | null

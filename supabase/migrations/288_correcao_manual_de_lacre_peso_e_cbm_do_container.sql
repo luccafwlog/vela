@@ -1,4 +1,4 @@
--- 283 — Correção manual de lacre, peso bruto e CBM do container pela ficha
+-- 288 — Correção manual de lacre, peso bruto e CBM do container pela ficha
 -- do B/L (identidade visual, lote 1, aba Carga; decisões do responsável de
 -- 2026-10-15).
 --

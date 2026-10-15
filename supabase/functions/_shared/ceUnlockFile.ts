@@ -81,3 +81,13 @@ export async function readCeMultipart(req: Request): Promise<FormData> {
     headers: { "content-type": req.headers.get("content-type") ?? "" },
   }).formData();
 }
+/**
+ * Opção `download` da URL assinada: só o modelo do termo (DOCX) baixa com o nome
+ * enviado; PDF anexado abre na aba nova, como o desk e o cliente esperam.
+ */
+export function ceSignedUrlDownload(
+  source: unknown,
+  fileName: string | null | undefined,
+): string | boolean | undefined {
+  return source === "model" ? fileName || true : undefined;
+}

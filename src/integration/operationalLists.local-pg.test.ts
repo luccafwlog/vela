@@ -18,13 +18,17 @@ function psql(sql: string) {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
 }
 
-function callAsAuthenticated(sql: string) {
+function callAs(userId: string, sql: string) {
   const result = spawnPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
-    `BEGIN; SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${actorId}', true); ${sql} COMMIT;`,
+    `BEGIN; SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${userId}', true); ${sql} COMMIT;`,
   ], { encoding: 'utf8' })
   if (result.status !== 0) throw new Error(`${result.stdout}\n${result.stderr}`)
   return result.stdout.trim()
+}
+
+function callAsAuthenticated(sql: string) {
+  return callAs(actorId, sql)
 }
 
 function lastJson(output: string) {
@@ -82,6 +86,31 @@ describeLocal('S12 — leituras operacionais paginadas', () => {
       DELETE FROM auth.users WHERE id = '${actorId}';
       SET session_replication_role = origin;
     `)
+  })
+
+  // Migration 285: SECURITY INVOKER, então vale a RLS de quem chama.
+  it('opções de filtro trazem POL, POD e tipos distintos para o usuário interno e nada para quem não tem perfil', () => {
+    const options = JSON.parse(lastJson(callAsAuthenticated('SELECT public.operational_list_filter_options();'))) as { pols: string[]; pods: string[]; containerTypes: string[] }
+    expect(options.pols).toContain('CNSHA')
+    expect(options.pods).toEqual(expect.arrayContaining(['BRVIX', 'BRSSZ']))
+    expect(options.containerTypes).toEqual(expect.arrayContaining(['20GP', '40HC']))
+    expect(new Set(options.pols).size).toBe(options.pols.length)
+
+    const stranger = JSON.parse(lastJson(callAs('00000000-0000-0000-0000-0000000202ff', 'SELECT public.operational_list_filter_options();')))
+    expect(stranger).toEqual({ pols: [], pods: [], containerTypes: [] })
+  })
+
+  // Migration 287: contagens agrupadas no banco, com a RLS de quem chama.
+  it('indicadores de veículos agrupam por viagem, POD, marca e tipo e nada saem para quem não tem perfil', () => {
+    const call = `SELECT public.operational_voyage_vehicle_stats(ARRAY[${voyageId}, -1]::bigint[]);`
+    const stats = JSON.parse(lastJson(callAsAuthenticated(call)))
+    expect(stats).toEqual({
+      groups: [[voyageId, 'BRVIX', 'Make', '40HC', 1]],
+      containers: [[voyageId, 'BRVIX', 'MSCU0000002']],
+    })
+
+    const stranger = JSON.parse(lastJson(callAs('00000000-0000-0000-0000-0000000202ff', call)))
+    expect(stranger).toEqual({ groups: [], containers: [] })
   })
 
   it('pagina sem perder o total e conserva filtros de perfil/status', () => {

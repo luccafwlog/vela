@@ -151,6 +151,8 @@ export function CeUnlockDocumentUploader({
   onUploaded,
   model = false,
   current,
+  onPendingChange,
+  resetKey = 0,
 }: {
   source: "request" | "vip_annual" | "model";
   requestId?: string;
@@ -159,7 +161,15 @@ export function CeUnlockDocumentUploader({
   onUploaded: () => Promise<unknown> | void;
   model?: boolean;
   current?: CeUnlockDocument[];
+  /**
+   * Anexo adiado: o arquivo escolhido fica com a tela e só sobe quando ela confirma
+   * (no Portal, ao clicar em Solicitar desbloqueio); sem botão de envio por documento.
+   */
+  onPendingChange?: (type: CeDocumentType, file: File | undefined) => void;
+  /** Muda quando a tela envia os anexos adiados: os campos de arquivo voltam vazios. */
+  resetKey?: number;
 }) {
+  const deferred = !!onPendingChange;
   const [files, setFiles] = useState<Partial<Record<CeDocumentType, File>>>({});
   const [inputKeys, setInputKeys] = useState<Partial<Record<CeDocumentType, number>>>({});
   const [busy, setBusy] = useState<CeDocumentType | null>(null);
@@ -214,14 +224,18 @@ export function CeUnlockDocumentUploader({
               <div className="flex flex-wrap items-center gap-2">
                 <Input
                   id={`${fieldId}-${type}`}
-                  key={inputKeys[type] ?? 0}
+                  key={`${resetKey}-${inputKeys[type] ?? 0}`}
                   type="file"
                   accept={type === "model" ? DOCX_ACCEPT : "application/pdf,.pdf"}
                   className="min-w-0 flex-1"
                   disabled={!!busy}
-                  onChange={(e) => setFiles((prev) => ({ ...prev, [type]: e.target.files?.[0] }))}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (deferred) onPendingChange(type, file);
+                    else setFiles((prev) => ({ ...prev, [type]: file }));
+                  }}
                 />
-                <Button
+                {!deferred && <Button
                   variant="secondary"
                   disabled={!!busy || !files[type]}
                   loading={busy === type}
@@ -230,9 +244,12 @@ export function CeUnlockDocumentUploader({
                 >
                   <Upload size={14} aria-hidden="true" />
                   {`Enviar ${type === "model" ? "modelo" : type === "termo" ? "termo de devolução" : "procuração"}`}
-                </Button>
+                </Button>}
               </div>
-              <span className="app-field__hint">{type === "model" ? "DOCX de até 10 MiB" : "PDF de até 10 MiB"}</span>
+              <span className="app-field__hint">
+                {type === "model" ? "DOCX de até 10 MiB" : "PDF de até 10 MiB"}
+                {deferred ? " · enviado ao solicitar o desbloqueio" : ""}
+              </span>
             </div>
           </div>
         );

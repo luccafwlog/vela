@@ -1,5 +1,7 @@
 # Specs arquivadas
 
+- [2026-10-04 — Desbloqueio de CE Mercante (Issue 557)](2026-10-04-desbloqueio-ce-mercante-design.md) — implementada e em produção; arquivada com o [plano](../plans/2026-10-04-desbloqueio-ce-mercante.md) em 2026-10-15. Regra vigente no [módulo do Desbloqueio de CE](../../modules/desbloqueio-ce.md).
+
 - [2026-10-04 — Central de Informações do Portal](2026-10-04-portal-informacoes.md) — implementação e validação locais em 2026-10-04; depois integrada à `main` com as PRs 845–847 e publicada com os sites. Regra vigente no [módulo do Portal](../../modules/portal-cliente.md#central-de-informações).
 
 Este diretório contém especificações funcionais e design docs cuja implementação foi concluída ou que foram sucedidas por novas versões da documentação viva:

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
-import { CE_DOCX_MIME, readCeMultipart, validateCePdf, validateCeUpload } from "../../../supabase/functions/_shared/ceUnlockFile";
+import { CE_DOCX_MIME, ceSignedUrlDownload, readCeMultipart, validateCePdf, validateCeUpload } from "../../../supabase/functions/_shared/ceUnlockFile";
 it("aceita somente PDF real, não vazio e até 10 MiB", () => {
   expect(() =>
     validateCePdf(
@@ -48,4 +48,11 @@ it("modelo do desk é DOCX real; termo, procuração e anuais continuam só PDF"
     expect(validateCeUpload(source, "termo.pdf", "application/pdf", pdf)).toBe("application/pdf");
     expect(() => validateCeUpload(source, "termo.docx", CE_DOCX_MIME, docx)).toThrow("PDF");
   }
+});
+
+it("só o modelo DOCX baixa; PDF anexado abre na aba nova", () => {
+  expect(ceSignedUrlDownload("model", "Termo.docx")).toBe("Termo.docx");
+  expect(ceSignedUrlDownload("model", null)).toBe(true);
+  expect(ceSignedUrlDownload("request", "termo.pdf")).toBeUndefined();
+  expect(ceSignedUrlDownload("vip_annual", "anual.pdf")).toBeUndefined();
 });

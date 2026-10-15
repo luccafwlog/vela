@@ -617,6 +617,60 @@ textarea {
   outline-offset: -2px;
 }
 
+/* Posição do menu: a única forma de trocar entre a barra no topo e as três
+   laterais (useNavPosition). */
+.app-header__user-section {
+  display: grid;
+  margin: 6px 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--app-border);
+}
+
+.app-header__user-section-title {
+  padding: 4px 10px 6px;
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.app-header__user-option {
+  display: grid;
+  line-height: 18px;
+}
+
+.app-header__user-option-hint {
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.app-header__user-dropdown button[aria-pressed='true'] {
+  color: var(--app-text-strong);
+  font-weight: 600;
+}
+
+.app-header__user-dropdown button[aria-pressed='true'] .app-header__user-option-hint {
+  font-weight: 400;
+}
+
+.app-header__user-option-check {
+  margin-left: auto;
+  color: var(--app-link);
+}
+
+.app-header__user-note {
+  margin: 4px 10px 2px;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.app-header__user-dropdown .app-header__user-signout {
+  border-top: 1px solid var(--app-border);
+  border-radius: 0;
+}
+
 /* Versão da build no rodapé do menu da conta; o clique copia o commit. */
 .app-header__user-dropdown .app-version-badge {
   margin-top: 6px;
@@ -842,16 +896,12 @@ textarea {
   box-shadow: inset 3px 0 0 var(--app-nav-active);
 }
 
-.app-nav-dropdown__item .app-nav-badge,
-.app-nav-dropdown__item .app-nav-alert-dot {
-  margin-left: auto;
-}
 
 /* Entre 1101 e 1399 px a barra perde os ícones da navegação; até 1279 px
    perde também o nome da conta (que segue como nome acessível). Medido com
    os nove itens do Vela e o Admin visível. */
 @media (min-width: 1101px) and (max-width: 1399px) {
-  .app-nav-link > svg:first-child {
+  .app-header .app-nav-link > svg:first-child {
     display: none;
   }
 }
@@ -861,7 +911,7 @@ textarea {
     gap: 16px;
   }
 
-  .app-header__user-menu .app-user-pill__name,
+  .app-header .app-header__user-menu .app-user-pill__name,
   .app-header__actions .app-user-pill .app-user-pill__name {
     position: absolute;
     width: 1px;
@@ -876,6 +926,349 @@ textarea {
   max-width: 1800px;
   margin: 0 auto;
   padding: 34px 28px 52px;
+}
+
+/* ─── Barra lateral ────────────────────────────────────────────────────────
+   Posição do menu escolhida no menu da conta (useNavPosition), só acima de
+   1100 px: abaixo, toda posição usa o botão Menu do cabeçalho. Fixa: 240 px.
+   Recolhida: 64 px, o nome aparece ao passar o mouse e o grupo abre ao lado.
+   Expansível: 64 px que abre por cima da página ao passar o mouse ou com o
+   foco do teclado. A contagem vem logo depois do nome; só a seta do grupo vai
+   para a direita. Sem cabeçalho fixo, a altura dele é zero para os recuos
+   (barra de seleção, tabela com cabeçalho fixo). */
+.app-shell--sidebar {
+  --app-header-height: 0px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.app-shell__column {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Acima da faixa de avisos (250), para a expansível abrir por cima dela, e
+   abaixo do fundo de modal (300). */
+.app-sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 260;
+  flex: 0 0 auto;
+  width: 240px;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.app-sidebar--collapsed,
+.app-sidebar--expandable {
+  width: 64px;
+}
+
+.app-sidebar__panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--app-navy);
+  color: #ffffff;
+}
+
+.app-sidebar__brand {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-sidebar__nav {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.app-sidebar__footer {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-sidebar .app-nav-link {
+  position: relative;
+  width: 100%;
+  min-height: 40px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: var(--app-radius-control);
+}
+
+.app-sidebar .app-nav-link.active {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 3px 0 0 var(--app-nav-active);
+}
+
+.app-sidebar .app-nav-dropdown {
+  display: block;
+}
+
+.app-sidebar .app-nav-dropdown__chevron {
+  margin-left: auto;
+}
+
+/* Grupo como lista (fixa e expansível): aberto não é "ativo"; o marcador
+   fica no item da tela atual. */
+.app-sidebar:not(.app-sidebar--collapsed) .app-nav-dropdown:not(.active) > .app-nav-link.active,
+.app-sidebar:not(.app-sidebar--collapsed) .app-nav-dropdown.active.open > .app-nav-link.active {
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-sidebar:not(.app-sidebar--collapsed) .app-nav-dropdown.active > .app-nav-link {
+  color: #ffffff;
+}
+
+.app-sidebar:not(.app-sidebar--collapsed) .app-nav-dropdown__menu {
+  position: static;
+  gap: 2px;
+  min-width: 0;
+  margin: 2px 0 6px 20px;
+  padding: 0 0 0 10px;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-sidebar:not(.app-sidebar--collapsed) .app-nav-dropdown__item {
+  min-height: 36px;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 13px;
+}
+
+.app-sidebar:not(.app-sidebar--collapsed) .app-nav-dropdown__item > svg:first-child {
+  display: none;
+}
+
+.app-sidebar:not(.app-sidebar--collapsed) .app-nav-dropdown__item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+
+.app-sidebar:not(.app-sidebar--collapsed) .app-nav-dropdown__item.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* Conta no rodapé: nome e Departamento; o menu abre para a direita. */
+.app-sidebar .app-header__user-menu {
+  width: 100%;
+  min-height: 48px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0 12px;
+  text-align: left;
+}
+
+.app-user-pill__text {
+  display: grid;
+  min-width: 0;
+}
+
+.app-user-pill__meta {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-sidebar .app-header__user-chevron {
+  margin-left: auto;
+}
+
+.app-sidebar .app-header__user-dropdown,
+.app-sidebar .app-notifications {
+  top: auto;
+  right: auto;
+  bottom: 0;
+  left: calc(100% + 8px);
+}
+
+.app-sidebar .app-notifications {
+  max-height: min(560px, calc(100dvh - 24px));
+}
+
+/* Recolhida: só os ícones, centralizados; o nome segue como nome acessível. */
+.app-sidebar--collapsed .app-sidebar__brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.app-sidebar--collapsed .app-header__wordmark,
+.app-sidebar--collapsed .app-nav-dropdown__chevron,
+.app-sidebar--collapsed .app-header__user-chevron {
+  display: none;
+}
+
+.app-sidebar--collapsed .app-sidebar__nav,
+.app-sidebar--collapsed .app-sidebar__footer {
+  align-items: center;
+  padding-right: 0;
+  padding-left: 0;
+  overflow: visible;
+}
+
+.app-sidebar--collapsed .app-nav-link,
+.app-sidebar--collapsed .app-header__user-menu {
+  width: 44px;
+  justify-content: center;
+  padding: 0;
+}
+
+.app-sidebar--collapsed .app-nav-link__label,
+.app-sidebar--collapsed .app-user-pill__text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.app-sidebar--collapsed .app-nav-dropdown {
+  position: relative;
+}
+
+.app-sidebar--collapsed .app-nav-dropdown__menu {
+  top: 0;
+  left: calc(100% + 12px);
+  border-radius: var(--app-radius);
+}
+
+.app-sidebar--collapsed [data-label]:is(:hover, :focus-visible)::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 12px);
+  z-index: 10;
+  padding: 4px 8px;
+  border-radius: var(--app-radius-control);
+  background: var(--app-topbar);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateY(-50%);
+  box-shadow: var(--app-shadow-strong);
+}
+
+.app-sidebar--collapsed [aria-expanded='true']::after {
+  content: none;
+}
+
+.app-sidebar--collapsed .app-nav-link .app-nav-badge {
+  position: absolute;
+  top: 0;
+  right: -8px;
+  height: 20px;
+  min-width: 20px;
+  padding: 0 4px;
+  border: 2px solid var(--app-navy);
+}
+
+.app-sidebar--collapsed .app-nav-link .app-nav-alert-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+/* Expansível: o painel tem 240 px de conteúdo recortado em 64 px e abre por
+   cima da página. Espera 0,15 s para não abrir quando o mouse só passa pela
+   borda; fica aberto enquanto o menu da conta ou o sino estiverem abertos. */
+.app-sidebar--expandable .app-sidebar__panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 64px;
+  overflow: hidden;
+  transition: width 0.15s ease, box-shadow 0.15s ease;
+}
+
+.app-sidebar--expandable .app-sidebar__panel > * {
+  flex-shrink: 0;
+  width: 240px;
+}
+
+.app-sidebar--expandable .app-sidebar__nav {
+  flex-shrink: 1;
+}
+
+.app-sidebar--expandable .app-sidebar__panel:is(:hover, :has(:focus-visible), :has(.app-header__user-dropdown, .app-notifications)) {
+  width: 240px;
+  box-shadow: 0 12px 32px rgba(10, 17, 29, 0.32);
+  transition-delay: 0.15s;
+}
+
+.app-sidebar--expandable .app-sidebar__panel:has(.app-header__user-dropdown, .app-notifications) {
+  overflow: visible;
+  transition-delay: 0s;
+}
+
+.app-sidebar--expandable :is(.app-nav-link__label, .app-user-pill__text, .app-header__wordmark, .app-nav-dropdown__chevron, .app-header__user-chevron) {
+  transition: opacity 0.12s ease;
+}
+
+.app-sidebar--expandable .app-sidebar__panel:not(:hover, :has(:focus-visible), :has(.app-header__user-dropdown, .app-notifications)) :is(.app-nav-link__label, .app-user-pill__text, .app-header__wordmark, .app-nav-dropdown__chevron, .app-header__user-chevron) {
+  opacity: 0;
+}
+
+.app-sidebar--expandable .app-sidebar__panel:not(:hover, :has(:focus-visible), :has(.app-header__user-dropdown, .app-notifications)) .app-nav-dropdown__menu {
+  display: none;
+}
+
+.app-sidebar--expandable .app-sidebar__panel:not(:hover, :has(:focus-visible), :has(.app-header__user-dropdown, .app-notifications)) .app-nav-dropdown.active > .app-nav-link.active {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 3px 0 0 var(--app-nav-active);
+}
+
+.app-sidebar--expandable .app-sidebar__panel:not(:hover, :has(:focus-visible), :has(.app-header__user-dropdown, .app-notifications)) .app-nav-link .app-nav-badge {
+  position: absolute;
+  top: 0;
+  left: 24px;
+  height: 20px;
+  min-width: 20px;
+  padding: 0 4px;
+  border: 2px solid var(--app-navy);
+}
+
+@media (pointer: coarse) {
+  .app-sidebar .app-nav-link {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar--expandable .app-sidebar__panel,
+  .app-sidebar--expandable :is(.app-nav-link__label, .app-user-pill__text, .app-header__wordmark, .app-nav-dropdown__chevron, .app-header__user-chevron) {
+    transition: none;
+  }
 }
 
 /* Revisão (etapa 07): fila de triagem por cliente. Uma superfície por grupo,
@@ -6396,20 +6789,10 @@ button.app-metric-tile[aria-pressed='true'] {
     display: block;
   }
 
-  /* Rótulo à esquerda, contagem e seta à direita — igual para link direto e
-     grupo. */
-  .app-nav-link .app-nav-badge,
-  .app-nav-link .app-nav-alert-dot {
-    margin-left: auto;
-  }
-
+  /* A contagem vem logo depois do nome; só a seta do grupo vai para a
+     direita. */
   .app-nav-dropdown__chevron {
     margin-left: auto;
-  }
-
-  .app-nav-badge ~ .app-nav-dropdown__chevron,
-  .app-nav-alert-dot ~ .app-nav-dropdown__chevron {
-    margin-left: 0;
   }
 
   .app-nav-dropdown__menu {
@@ -6679,6 +7062,7 @@ button.app-metric-tile[aria-pressed='true'] {
 
   /* Hide header, nav and all page content except the print modal */
   .app-header,
+  .app-sidebar,
   .app-market-strip,
   .app-nav-bar,
   .app-nav-mobile-bar,

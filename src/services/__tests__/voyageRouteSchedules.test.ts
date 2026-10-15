@@ -589,6 +589,62 @@ it('hidrata o ATD mais recente ao listar schedules de POL', async () => {
   })
 })
 
+it('lê a agenda de POL de muitas viagens em lotes que cabem na URL', async () => {
+  // Com ~200 viagens a lista inteira passava do limite do servidor (HTTP 431).
+  const entityIds = Array.from({ length: 120 }, (_, index) => `${index + 1}::CNSHA`)
+  const chunks: string[][] = []
+  fromMock.mockImplementation(() => ({
+    select: () => ({
+      eq: () => ({
+        in: (_column: string, ids: string[]) => {
+          chunks.push(ids)
+          return {
+            order: () => ({
+              range: async () => ({
+                data: ids.map((id) => ({ entity_id: id, field_name: 'etd', new_value: '2026-07-08', changed_at: '2026-07-08T12:00:00Z' })),
+                error: null,
+              }),
+            }),
+          }
+        },
+      }),
+    }),
+  }))
+
+  const schedules = await listVoyagePolSchedules(entityIds)
+
+  expect(Math.max(...chunks.map((ids) => ids.length))).toBeLessThanOrEqual(50)
+  expect(chunks.flat()).toEqual(entityIds)
+  expect(schedules.size).toBe(120)
+  expect(schedules.get('120::CNSHA')?.etd).toBe('2026-07-08')
+})
+
+it('lote com mais de 1.000 linhas de auditoria lê a página seguinte e não perde o trecho com menos edições', async () => {
+  // 1.000 edições recentes do trecho 1 enchem a primeira página; a data do trecho 2 só vem na segunda.
+  const busy = Array.from({ length: 1000 }, (_, index) => ({ entity_id: '1::BRSSZ', field_name: 'eta', new_value: '2026-08-01', changed_at: `2026-08-01T00:00:${String(index % 60).padStart(2, '0')}Z` }))
+  const quiet = [{ entity_id: '2::BRSSZ', field_name: 'eta', new_value: '2026-07-01', changed_at: '2026-07-01T00:00:00Z' }]
+  const ranges: number[] = []
+  fromMock.mockImplementation(() => ({
+    select: () => ({
+      eq: () => ({
+        in: () => ({
+          order: () => ({
+            range: async (from: number) => {
+              ranges.push(from)
+              return { data: from === 0 ? busy : quiet, error: null }
+            },
+          }),
+        }),
+      }),
+    }),
+  }))
+
+  const schedules = await listVoyagePodSchedules(['1::BRSSZ', '2::BRSSZ'])
+
+  expect(ranges).toEqual([0, 1000])
+  expect(schedules.get('2::BRSSZ')?.eta).toBe('2026-07-01')
+})
+
 it('grava audit row de ATD por POL sem quebrar callers antigos', async () => {
   const insertMock = vi.fn(async () => ({ error: null }))
   const auditLogs = {

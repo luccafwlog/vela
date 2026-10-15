@@ -109,6 +109,30 @@ shell `.app-shell--portal`: login, ativação, recuperação de senha, avisos e
 modais fora do shell também recebem a marca.
 Toque (ponteiro grosso) mantém 44 px de alvo nos dois produtos.
 
+## Menu do Vela
+
+A estrutura do shell interno (`src/components/layout/AppLayout.tsx`, CSS
+`.app-header`, `.app-nav-*` e `.app-sidebar` em `src/index.css`), decidida pelo
+responsável em 2026-10-15 a partir de uma simulação aprovada:
+
+- **Posição do menu:** muda só no menu da conta, na seção "Posição do menu", sem
+  outro botão na tela. São quatro opções: **No topo** (padrão, a barra única de
+  hoje), **Lateral fixa** (240 px, sempre aberta), **Lateral recolhida** (64 px,
+  só os ícones; o nome aparece ao passar o mouse e o grupo abre ao lado) e
+  **Lateral expansível** (64 px que abre por cima da página ao passar o mouse,
+  depois de 0,15 s, ou com o foco do teclado). A escolha fica guardada no
+  navegador (`useNavPosition`, chave `vela_nav_position`), como o tema visual.
+- **Na lateral:** a faixa de avisos fica no alto da página, ao lado do menu; o
+  sino e a conta (nome e Departamento) ficam no rodapé e abrem para a direita.
+  Na fixa e na expansível os grupos (Importação, Exportação, Financeiro) abrem
+  como lista no próprio menu, e o grupo da tela atual já vem aberto.
+- **Abaixo de 1100 px** toda posição usa o botão Menu do cabeçalho, como antes.
+- **Contagem da navegação** (Alertas, Revisão, Taxas Locais e a soma no grupo):
+  sempre logo depois do nome, no topo, na lateral, nos grupos e no Menu do
+  celular; só a seta do grupo fica na ponta direita. Na lateral recolhida e na
+  expansível fechada, a contagem fica no canto do ícone.
+- O Portal Fwlog não tem essa escolha: segue com a barra no topo.
+
 ## Superfícies especiais
 
 - **TV do Line-Up:** quadro próprio que imita o quadro físico (decisão do responsável de 2026-10-08), fora das peças comuns; segue as regras 4, 5 e 8.

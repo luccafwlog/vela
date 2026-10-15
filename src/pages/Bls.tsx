@@ -40,6 +40,7 @@ import { formatPortDisplayName } from '../lib/voyageFormat'
 import { afterCargaAlterada } from '../services/cacheEffects'
 import type { BLListItem } from '../types/database'
 import { userFacingErrorMessage } from '../lib/errors'
+import { STALE_PAGE_CLASS } from '../lib/pagination'
 
 type CargoLens = NonNullable<BlFilters['cargoMode']>
 
@@ -155,7 +156,10 @@ export function Bls() {
     setExpandedBlId(null)
   }
 
-  const { data, isLoading, error, fetchStatus, refetch } = useBls(queryFilters)
+  const { data, isLoading, isPlaceholderData, error, fetchStatus, refetch } = useBls(queryFilters)
+  // Filtro trocado: as linhas na tela ainda são do recorte anterior até a
+  // resposta chegar. Ficam esmaecidas e sem seleção.
+  const stale = isPlaceholderData
   const summaryQuery = useBlSummary(queryFilters)
   const summary = summaryQuery.data
   const { data: portOptions } = usePortOptions()
@@ -449,12 +453,12 @@ export function Bls() {
           errorMessage="Não foi possível carregar os B/Ls."
           onRetry={() => void refetch()}
         >
-          {isLoading || pageOutOfRange ? (
+          {isLoading || pageOutOfRange || (stale && data?.rows.length === 0) ? (
             <SkeletonTable rows={8} cols={blColumnCount} columnTemplate={blSkeletonTemplate} label="Carregando B/Ls" />
           ) : data?.rows.length === 0 ? (
             <EmptyState title={emptyState.title} description={emptyState.description} action={emptyAction} />
           ) : narrow ? (
-            <ul className="app-bl-cards" aria-label="B/Ls">
+            <ul className={`app-bl-cards${stale ? ` ${STALE_PAGE_CLASS}` : ''}`} aria-label="B/Ls" aria-busy={stale || undefined}>
               {data?.rows.map((bl) => (
                 <li key={bl.id} className="app-bl-card" data-bl-card>
                   <div className="app-bl-card__head">
@@ -464,6 +468,7 @@ export function Bls() {
                         className="app-bl-card__check"
                         aria-label={`Selecionar B/L ${bl.id}`}
                         checked={selection.isSelected(bl.id)}
+                        disabled={stale}
                         onChange={() => selection.toggle(bl.id)}
                       />
                     ) : null}
@@ -487,7 +492,7 @@ export function Bls() {
               ))}
             </ul>
           ) : (
-            <div className="app-table-scroll app-table-scroll--sticky">
+            <div className={`app-table-scroll app-table-scroll--sticky${stale ? ` ${STALE_PAGE_CLASS}` : ''}`} aria-busy={stale || undefined}>
               <table className={`app-table app-bl-table${isAdmin ? ' app-bl-table--selectable' : ''}`}>
                 <caption className="sr-only">B/Ls do recorte atual</caption>
                 <thead>
@@ -498,6 +503,7 @@ export function Bls() {
                           type="checkbox"
                           aria-label="Selecionar todos os B/Ls da página"
                           checked={allPageSelected}
+                          disabled={stale}
                           onChange={() => selection.toggleMany(pageBlIds)}
                         />
                       </th>
@@ -524,6 +530,7 @@ export function Bls() {
                                 type="checkbox"
                                 aria-label={`Selecionar B/L ${bl.id}`}
                                 checked={selection.isSelected(bl.id)}
+                                disabled={stale}
                                 onChange={() => selection.toggle(bl.id)}
                               />
                             </td>

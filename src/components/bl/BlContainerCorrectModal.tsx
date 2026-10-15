@@ -21,7 +21,7 @@ type Container = NonNullable<BLDetail['bl_containers']>[number]
  * container numa justificativa só. Perfil e COC/SOC recalculam as Taxas
  * Locais e ficam travados com o B/L faturado (a correção sai pela
  * reimportação ou pelo Baplie, ADR 0077); lacre, peso bruto, CBM e datas
- * corrigem sempre (decisão de 2026-10-15; migration 283).
+ * corrigem sempre (decisão de 2026-10-15; migration 288).
  */
 export function BlContainerCorrectModal({
   bl,

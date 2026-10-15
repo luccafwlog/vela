@@ -156,7 +156,7 @@ it("correção completa: com a nova versão do documento recusado, a solicitaç�
   const view = mount("/portal/desbloqueio-ce?pedido=req-1");
   const resend = await screen.findByRole("button", { name: "Reenviar solicitação" });
   expect(resend.hasAttribute("disabled")).toBe(true);
-  expect(screen.getByText("Envie termo de devolução para continuar.")).toBeTruthy();
+  expect(screen.getByText("Anexe termo de devolução para continuar.")).toBeTruthy();
   expect(screen.getByText("Motivo: Assinatura ilegível")).toBeTruthy();
   view.unmount();
 
@@ -211,4 +211,51 @@ it("pedido aberto em inspeção não oferece envio, cancelamento nem upload", as
   expect(screen.queryByRole("button", { name: "Solicitar desbloqueio" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Cancelar solicitação" })).toBeNull();
   expect(screen.queryByLabelText(/Termo de devolução assinado/)).toBeNull();
+});
+
+it("anexar não envia: Solicitar desbloqueio sobe termo e procuração e envia com a versão relida", async () => {
+  const pdf = (name: string) => new File(["%PDF-1.7"], name, { type: "application/pdf" });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({ documents: [] }));
+  svc.uploadCeUnlockDocument.mockResolvedValue({});
+  svc.portalCeUnlockCommand.mockResolvedValue({ id: "req-1" });
+  mount("/portal/desbloqueio-ce?pedido=req-1");
+  const send = await screen.findByRole("button", { name: "Solicitar desbloqueio" });
+  expect(send.hasAttribute("disabled")).toBe(true);
+  expect(screen.queryByRole("button", { name: /Enviar termo|Enviar procuração/ })).toBeNull();
+
+  await userEvent.upload(screen.getByLabelText(/Termo de devolução assinado/), pdf("termo.pdf"));
+  expect(screen.getByText("Anexe procuração para continuar.")).toBeTruthy();
+  await userEvent.upload(screen.getByLabelText("Procuração (PDF)"), pdf("proc.pdf"));
+  expect(svc.uploadCeUnlockDocument).not.toHaveBeenCalled();
+
+  // Depois dos anexos o pedido relido tem versão nova; o envio usa essa versão.
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({ version: 5 }));
+  await waitFor(() => expect(send.hasAttribute("disabled")).toBe(false));
+  await userEvent.click(send);
+  await waitFor(() => expect(commandCalls("submit")).toHaveLength(1));
+  expect(svc.uploadCeUnlockDocument.mock.calls.map((c) => [c[0], c[1].name])).toEqual([
+    [{ source: "request", request_id: "req-1", type: "termo" }, "termo.pdf"],
+    [{ source: "request", request_id: "req-1", type: "procuracao" }, "proc.pdf"],
+  ]);
+  expect(commandCalls("submit")[0][2]).toMatchObject({ request_id: "req-1", expected_version: 5 });
+});
+
+it("anexo recusado no envio mostra o motivo e não envia a solicitação", async () => {
+  const file = new File(["PK"], "termo.pdf", { type: "application/pdf" });
+  svc.getPortalCeUnlockRequest.mockResolvedValue(request({ documents: [doc({ id: "p1", type: "procuracao", file_name: "proc.pdf" })] }));
+  svc.uploadCeUnlockDocument.mockRejectedValue(new Error("O arquivo não é um PDF."));
+  mount("/portal/desbloqueio-ce?pedido=req-1");
+  await userEvent.upload(await screen.findByLabelText(/Termo de devolução assinado/), file);
+  await userEvent.click(screen.getByRole("button", { name: "Solicitar desbloqueio" }));
+  expect(await screen.findByText("O arquivo não é um PDF.")).toBeTruthy();
+  expect(commandCalls("submit")).toHaveLength(0);
+  // O anexo recusado precisa ser escolhido de novo.
+  expect(screen.getByText("Anexe termo de devolução para continuar.")).toBeTruthy();
+});
+
+it("B/L isento aparece como Isento, não como taxas pagas", async () => {
+  svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl({ paid_exempt: true })], total: 1 });
+  mount();
+  expect(await screen.findByText("Isento")).toBeTruthy();
+  expect(screen.queryByText("Pagas")).toBeNull();
 });

@@ -14,6 +14,7 @@ const mockSummary = [
 ]
 
 vi.mock('@tanstack/react-query', () => ({
+  keepPreviousData: (previous: unknown) => previous,
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
     const key = queryKey[0] as string
     if (key === 'lineup-tv-v3') {

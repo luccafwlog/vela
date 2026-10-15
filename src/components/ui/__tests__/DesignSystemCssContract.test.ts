@@ -117,9 +117,11 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.app-nav-scroll--open\s*\{[^}]*position:\s*absolute[^}]*top:\s*100%/s)
   })
 
-  it('shell da etapa 02: nenhum texto abaixo de 12px na faixa, na navegação e nos sinos', () => {
-    const shellBlock = css.slice(css.indexOf('/* ─── Shell (etapa 02)'), css.indexOf('.app-main {'))
-    const notificationBlock = css.slice(css.indexOf('.app-notifications {'), css.indexOf('.app-notifications__pager'))
+  it('shell da etapa 02: nenhum texto abaixo de 12px na faixa, na navegação, na barra lateral e nos sinos', () => {
+    const shellBlock = css.slice(css.indexOf('/* ─── Shell (etapa 02)'), css.indexOf('/* Revisão (etapa 07)'))
+    expect(shellBlock).toContain('.app-sidebar__nav')
+    // Início de linha: a barra lateral também cita .app-notifications.
+    const notificationBlock = css.slice(css.indexOf('\n.app-notifications {'), css.indexOf('.app-notifications__pager'))
     for (const block of [shellBlock, notificationBlock]) {
       expect(block.length).toBeGreaterThan(0)
       const sizes = [...block.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]))

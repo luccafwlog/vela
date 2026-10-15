@@ -20,3 +20,11 @@ export function describePageRange({
   const end = Math.min(displayPage * pageSize, totalCount)
   return `Exibindo ${start.toLocaleString('pt-BR')}–${end.toLocaleString('pt-BR')} de ${totalCount.toLocaleString('pt-BR')}`
 }
+
+/**
+ * Lista paginada com o filtro já trocado e a resposta a caminho: as linhas
+ * ainda são do recorte anterior. Esmaece só depois de 150 ms, para a página
+ * pré-carregada não piscar, e volta na hora quando as linhas novas chegam
+ * (a transição sai junto com a classe).
+ */
+export const STALE_PAGE_CLASS = 'opacity-55 transition-opacity duration-150 delay-150 motion-reduce:transition-none'
