@@ -6,14 +6,16 @@
 
 ## 2026-10
 
-- **Telas mais rápidas com histórico grande (2026-10-14, migrations `283`–`285`,
+- **Telas mais rápidas com histórico grande (2026-10-15, migrations `283`–`287`,
   [relatório](archive/reports/2026-10-14-desempenho-telas-com-volume.md)):** com dois anos de
   volume sintético, B/Ls abria em mais de 30 s e passou a 1,8 s, Contêineres foi de 23,5 s a 3,3 s,
   Viagens de 14,9 s a ~4 s, e a abertura fria de 4,4 s a 2,5 s. As policies avaliam o helper de RLS
-  uma vez por consulta. A página de contêineres monta JSON só das linhas exibidas, e os filtros vêm
-  de uma RPC. B/Ls e Contêineres pré-carregam a página seguinte; ao trocar um filtro, as linhas do
-  recorte anterior ficam esmaecidas, sem seleção e sem totais até a resposta chegar (Veículos,
-  nos filtros que vão ao servidor, faz o mesmo). O Line Up deixou de pedir o marco
+  uma vez por consulta, também dentro de expressão composta (`283`, `286`). A página de contêineres
+  monta JSON só das linhas exibidas (`284`), os filtros vêm de uma RPC (`285`) e os indicadores de
+  veículos da faixa de Viagens e Veículos chegam agrupados do banco (`287`: 252 kB numa chamada, no
+  lugar de 1,8 MB em páginas de 1.000). B/Ls e Contêineres pré-carregam a página seguinte; ao trocar
+  um filtro, as linhas do recorte anterior ficam esmaecidas, sem seleção e sem totais até a resposta
+  chegar (Veículos, nos filtros que vão ao servidor, faz o mesmo). O Line Up deixou de pedir o marco
   de alteração por B/L, e as fontes e os relatórios ficaram mais leves. A Viagens deixou de perder
   as datas de POL por URL longa (HTTP 431). `npm run perf:screens` refaz a medição.
 

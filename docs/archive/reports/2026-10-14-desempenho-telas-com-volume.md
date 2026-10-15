@@ -5,7 +5,11 @@
 > `npm run perf:screens` ([scripts/perf/README.md](../../../scripts/perf/README.md)).
 >
 > **Nota editorial (2026-10-15):** no merge com a `main`, as migrations `230`,
-> `231` e `232` citadas abaixo passaram a `283`, `284` e `285`.
+> `231` e `232` citadas abaixo passaram a `283`, `284` e `285`. A mesma PR
+> acrescentou a `286` (helper nu dentro de expressão composta, 32 policies) e a
+> `287` (indicadores de veículos agrupados no banco, item "Viagens" de "O que
+> não mudou": 1,8 MB → 252 kB e uma chamada; RPC em ~50 ms com RLS, Postgres 16
+> local, 14 mil veículos), medidas no banco, não no navegador.
 
 ## Como foi medido
 

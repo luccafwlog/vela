@@ -100,6 +100,19 @@ describeLocal('S12 — leituras operacionais paginadas', () => {
     expect(stranger).toEqual({ pols: [], pods: [], containerTypes: [] })
   })
 
+  // Migration 287: contagens agrupadas no banco, com a RLS de quem chama.
+  it('indicadores de veículos agrupam por viagem, POD, marca e tipo e nada saem para quem não tem perfil', () => {
+    const call = `SELECT public.operational_voyage_vehicle_stats(ARRAY[${voyageId}, -1]::bigint[]);`
+    const stats = JSON.parse(lastJson(callAsAuthenticated(call)))
+    expect(stats).toEqual({
+      groups: [[voyageId, 'BRVIX', 'Make', '40HC', 1]],
+      containers: [[voyageId, 'BRVIX', 'MSCU0000002']],
+    })
+
+    const stranger = JSON.parse(lastJson(callAs('00000000-0000-0000-0000-0000000202ff', call)))
+    expect(stranger).toEqual({ groups: [], containers: [] })
+  })
+
   it('pagina sem perder o total e conserva filtros de perfil/status', () => {
     const page = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bls(1, 2, NULL, ${voyageId}, NULL, NULL, NULL, NULL, NULL, NULL, NULL);`))) as { rows: Array<{ id: string }>; count: number }
     expect(page.count).toBe(3)

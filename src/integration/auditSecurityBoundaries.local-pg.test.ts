@@ -232,13 +232,30 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
     ).toBe('resolved')
   })
 
-  // Migration 283: helper chamado sem `(select ...)` roda uma vez por linha e
-  // fez a lista de B/Ls levar 72 s com 12 mil B/Ls. Policy nova que voltar à
-  // forma nua quebra este teste.
+  // Migrations 283 e 286: helper sem argumentos chamado sem `(select ...)` roda
+  // uma vez por linha e fez a lista de B/Ls levar 72 s com 12 mil B/Ls. Vale
+  // para a expressão inteira e para chamada dentro de expressão composta.
+  // Policy nova que voltar à forma nua quebra este teste com o nome dela.
+  const barePolicyHelpers = `
+    SELECT coalesce(string_agg(DISTINCT pol.tablename || '.' || pol.policyname || ': ' || m[2] || '()', ', '), '')
+    FROM pg_policies pol
+    CROSS JOIN LATERAL (VALUES (pol.qual), (pol.with_check)) AS e(expr)
+    CROSS JOIN LATERAL regexp_matches(e.expr, '(?<![.[:alnum:]_])(?<!SELECT )(?:(public|auth)\\.)?([a-z_]+)\\(\\)', 'g') AS m
+    JOIN pg_proc p ON p.proname = m[2] AND p.pronargs = 0 AND p.provolatile <> 'v' AND NOT p.proretset
+    JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = coalesce(m[1], 'public')
+    WHERE pol.schemaname = 'public';`
+
   it('policies avaliam o helper de acesso uma vez por consulta, não por linha', () => {
-    expect(
-      psql(`SELECT count(*) FROM pg_policies WHERE schemaname = 'public'
-        AND (qual ~ '^(public\\.)?[a-z_]+\\(\\)$' OR with_check ~ '^(public\\.)?[a-z_]+\\(\\)$');`),
-    ).toBe('0')
+    expect(psql(barePolicyHelpers)).toBe('')
+  })
+
+  it('a checagem de helper nu acusa chamada dentro de expressão composta', () => {
+    const output = psql(`BEGIN;
+      CREATE POLICY s01_helper_nu ON public.bls FOR SELECT TO authenticated
+        USING (id IS NOT NULL AND (select public.is_admin()) OR public.is_active_read_user());
+      ${barePolicyHelpers}
+      ROLLBACK;`)
+    expect(output).toContain('bls.s01_helper_nu: is_active_read_user()')
+    expect(output).not.toContain('is_admin()')
   })
 })

@@ -2,9 +2,9 @@ import { useMemo } from 'react'
 import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { supabase } from '../services/supabase'
 import { queryKeys } from '../services/queryKeys'
-import { mapChunks, sanitizeLikeTerm } from '../lib/utils'
+import { sanitizeLikeTerm } from '../lib/utils'
 import type { BLContainer, VehicleListItem } from '../types/database'
-import { normalizePortCode } from '../services/portCode'
+import { fetchVoyageVehicleStats } from '../services/voyageVehicleStats'
 
 type VehicleListItemWithUnpackingLocation = Omit<VehicleListItem, 'container'> & {
   container?: Pick<BLContainer, 'id' | 'container_number' | 'type' | 'seal_number' | 'unpacking_location'> | null
@@ -61,25 +61,7 @@ export type VehiclePageFilters = {
   pageSize: number
 }
 
-export type VoyageVehicleStat = {
-  totalVehicles: number
-  distinctContainerCount: number
-  containerNumbers: string[]
-  brandSummary: string
-  vehicleByContainerTypeSummary: string
-  byPod: Record<string, {
-    totalVehicles: number
-    distinctContainerCount: number
-    brandSummary: string
-    vehicleByContainerTypeSummary: string
-  }>
-  unassigned?: {
-    totalVehicles: number
-    distinctContainerCount: number
-    brandSummary: string
-    vehicleByContainerTypeSummary: string
-  }
-}
+export type { VoyageVehicleStat } from '../services/voyageVehicleStats'
 
 export function useVehicleOptions() {
   return useQuery({
@@ -302,151 +284,8 @@ export function useVoyageVehicleStats(voyageIds: number[]) {
   )
 
   return useQuery({
-    queryKey: ['voyage-vehicle-stats', normalizedVoyageIds],
+    queryKey: queryKeys.vehicles.stats(normalizedVoyageIds),
     enabled: normalizedVoyageIds.length > 0,
-    queryFn: async () => {
-      const batchSize = 1000
-      const byVoyageId: Record<number, VoyageVehicleStat> = {}
-      const working = new Map<
-        number,
-        {
-          totalVehicles: number
-          containers: Set<string>
-          brands: Map<string, number>
-          vehicleByContainerType: Map<string, number>
-          byPod: Map<string, { totalVehicles: number; containers: Set<string>; brands: Map<string, number>; vehicleByContainerType: Map<string, number> }>
-          unassigned: { totalVehicles: number; containers: Set<string>; brands: Map<string, number>; vehicleByContainerType: Map<string, number> }
-        }
-      >()
-
-      type VehicleStatRow = {
-        id: number
-        voyage_id: number
-        brand: string | null
-        container?: { container_number?: string | null; type?: string | null } | null
-        bl?: { pod?: string | null } | null
-      }
-      const readPage = async (voyageChunk: number[], from: number, withCount = false) => {
-        const { data, error, count } = await supabase
-          .from('vehicles')
-          .select('id, voyage_id, brand, container:bl_containers(container_number, type), bl:bls!inner(pod)', withCount ? { count: 'exact' } : undefined)
-          .in('voyage_id', voyageChunk)
-          .order('id', { ascending: true })
-          .range(from, from + batchSize - 1)
-        if (error) throw error
-        return { rows: (data ?? []) as VehicleStatRow[], count: count ?? 0 }
-      }
-      // O total da primeira página dá as demais, lidas juntas em vez de uma
-      // após a outra (14 mil veículos eram 15 esperas em série).
-      const allRows = await mapChunks(normalizedVoyageIds, 200, async (voyageChunk) => {
-        const first = await readPage(voyageChunk, 0, true)
-        const pageCount = Math.ceil(first.count / batchSize)
-        const pages = [first, ...await Promise.all(
-          Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) => readPage(voyageChunk, (index + 1) * batchSize)),
-        )]
-        // Veículo gravado depois da contagem: segue lendo até a página curta.
-        for (let from = pageCount * batchSize; pages[pages.length - 1].rows.length === batchSize; from += batchSize) {
-          pages.push(await readPage(voyageChunk, from))
-        }
-        return pages.flatMap((page) => page.rows)
-      })
-
-      for (const row of allRows) {
-        const current =
-          working.get(row.voyage_id) ??
-          {
-            totalVehicles: 0,
-            containers: new Set<string>(),
-            brands: new Map<string, number>(),
-            vehicleByContainerType: new Map<string, number>(),
-            byPod: new Map(),
-            unassigned: {
-              totalVehicles: 0,
-              containers: new Set<string>(),
-              brands: new Map<string, number>(),
-              vehicleByContainerType: new Map<string, number>(),
-            },
-          }
-
-        current.totalVehicles += 1
-
-        const brand = String(row.brand ?? '').trim() || 'Nao informado'
-        current.brands.set(brand, (current.brands.get(brand) ?? 0) + 1)
-
-        const containerType = String(row.container?.type ?? '').trim() || 'Nao informado'
-        current.vehicleByContainerType.set(
-          containerType,
-          (current.vehicleByContainerType.get(containerType) ?? 0) + 1,
-        )
-
-        const containerNumber = String(row.container?.container_number ?? '').trim().toUpperCase()
-        if (containerNumber) {
-          current.containers.add(containerNumber)
-        }
-
-        const pod = normalizePortCode(row.bl?.pod)
-        if (pod) {
-          const podEntry = current.byPod.get(pod) ?? {
-            totalVehicles: 0,
-            containers: new Set<string>(),
-            brands: new Map<string, number>(),
-            vehicleByContainerType: new Map<string, number>(),
-          }
-          podEntry.totalVehicles += 1
-          podEntry.brands.set(brand, (podEntry.brands.get(brand) ?? 0) + 1)
-          podEntry.vehicleByContainerType.set(containerType, (podEntry.vehicleByContainerType.get(containerType) ?? 0) + 1)
-          if (containerNumber) podEntry.containers.add(containerNumber)
-          current.byPod.set(pod, podEntry)
-        } else {
-          current.unassigned.totalVehicles += 1
-          current.unassigned.brands.set(brand, (current.unassigned.brands.get(brand) ?? 0) + 1)
-          current.unassigned.vehicleByContainerType.set(containerType, (current.unassigned.vehicleByContainerType.get(containerType) ?? 0) + 1)
-          if (containerNumber) current.unassigned.containers.add(containerNumber)
-        }
-
-        working.set(row.voyage_id, current)
-      }
-
-      for (const voyageId of normalizedVoyageIds) {
-        const current = working.get(voyageId)
-        const byPod = Object.fromEntries(
-          Array.from(current?.byPod.entries() ?? []).map(([pod, podEntry]) => [pod, {
-            totalVehicles: podEntry.totalVehicles,
-            distinctContainerCount: podEntry.containers.size,
-            brandSummary: summarizeCounts(podEntry.brands),
-            vehicleByContainerTypeSummary: summarizeCounts(podEntry.vehicleByContainerType),
-          }]),
-        )
-
-        const unassigned = current && current.unassigned.totalVehicles > 0 ? {
-          totalVehicles: current.unassigned.totalVehicles,
-          distinctContainerCount: current.unassigned.containers.size,
-          brandSummary: summarizeCounts(current.unassigned.brands),
-          vehicleByContainerTypeSummary: summarizeCounts(current.unassigned.vehicleByContainerType),
-        } : undefined
-
-        byVoyageId[voyageId] = {
-          totalVehicles: current?.totalVehicles ?? 0,
-          distinctContainerCount: current?.containers.size ?? 0,
-          containerNumbers: current ? Array.from(current.containers).sort((left, right) => left.localeCompare(right, 'pt-BR')) : [],
-          brandSummary: summarizeCounts(current?.brands),
-          vehicleByContainerTypeSummary: summarizeCounts(current?.vehicleByContainerType),
-          byPod,
-          unassigned,
-        }
-      }
-
-      return { byVoyageId }
-    },
+    queryFn: () => fetchVoyageVehicleStats(normalizedVoyageIds),
   })
-}
-
-function summarizeCounts(source?: Map<string, number>) {
-  if (!source || source.size === 0) return '-'
-
-  return Array.from(source.entries())
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], 'pt-BR'))
-    .slice(0, 6)
-    .map(([label, count]) => `${label}: ${count}`)
-    .join(' | ')
 }
