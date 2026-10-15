@@ -1,6 +1,6 @@
 # Manifestos & EDI
 
-> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
+> **Status:** ativo · **Atualizado:** 2026-10-15 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
 
 ## Propósito e escopo
 
@@ -770,8 +770,8 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   ([ADR 0077](../adr/0077-fatura-emitida-nao-muda-de-valor.md)). Troca com
   Comunicado já enviado abre `comunicado_ce_reenvio_pendente` (pendência de
   reenvio ao Cliente); troca com Desbloqueio conferido abre
-  `ce_trocado_com_desbloqueio` (correção pendente B1 em
-  [Notas e divergências](#notas-e-divergências)). O alerta nasce na porta
+  `ce_trocado_com_desbloqueio` (conferido = desbloqueado pela conciliação
+  ZPT para o CE anterior; migration `232`, correção B1). O alerta nasce na porta
   única, uma vez por troca, também em Corrigir ou Remover pela ficha. O
   Desbloqueio de CE é do módulo [Desbloqueio de CE](desbloqueio-ce.md).
 - **Outras portas.** A importação de B/L de container não traz CE. O Manifesto
@@ -1023,12 +1023,6 @@ bloqueadas no preview; nenhum veículo é criado com valores zero artificiais.
 - **Correção pendente (B22):** a planilha-modelo de CE Mercante
   (`public/templates/ce-mercante-modelo.csv` e `.xlsx`) traz exemplos de CE com
   9 dígitos, que a importação recusa (15 dígitos, ADR 0078). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
-- **Correção pendente (B1):** trocar ou remover o CE de B/L conciliado como
-  Desbloqueio conferido não abre `ce_trocado_com_desbloqueio` nem avisa na
-  prévia, porque o código procura a confirmação manual retirada na migration
-  `160`, e não o status conciliado com a ZPT (a ADR 0078 manda abrir o
-  alerta). Entra no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) a favor da decisão registrada
   ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
 - **Correção pendente (B23):** o campo "Nº do manifesto" do modal Editar ETD +
   ATD e Nº de Manifesto Mercante mostra o exemplo "Ex.: 25BR00481" (9
