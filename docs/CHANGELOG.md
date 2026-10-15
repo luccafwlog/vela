@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Menu do Vela no topo ou na lateral (2026-10-15):** o menu da conta ganhou a
+  seção "Posição do menu", com quatro opções: no topo (padrão), lateral fixa,
+  lateral recolhida (só ícones) e lateral expansível (abre ao passar o mouse).
+  A escolha fica guardada no navegador; abaixo de 1100 px vale o botão Menu de
+  sempre. As contagens da navegação passaram a ficar logo depois do nome também
+  nos grupos e no Menu do celular. Regras em
+  [Identidade visual § Menu do Vela](identidade-visual.md#menu-do-vela).
+
 - **Telas mais rápidas com histórico grande (2026-10-15, migrations `283`–`287`,
   [relatório](archive/reports/2026-10-14-desempenho-telas-com-volume.md)):** com dois anos de
   volume sintético, B/Ls abria em mais de 30 s e passou a 1,8 s, Contêineres foi de 23,5 s a 3,3 s,
