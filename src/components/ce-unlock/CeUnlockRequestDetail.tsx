@@ -135,7 +135,7 @@ export function CeUnlockRequestDetail({
               <h4 className="app-panel__title">Versões anteriores</h4>
               <p className="app-panel__meta">Somente consulta; a análise vale para a versão atual.</p>
             </div>
-            <CeUnlockDocumentList documents={previousDocuments} />
+            <CeUnlockDocumentList documents={previousDocuments} showSentAt />
           </section>
         )}
       </div>

@@ -12,7 +12,7 @@ import {
 import { annualDocumentValid } from "../../services/ceUnlockRules";
 import type { PortalScope } from "../../services/portalScope";
 import type { CeDocumentType, CeUnlockDocument } from "../../types/ceUnlock";
-import { ceDocumentName, ceStateLabel, ceStateTone } from "../../lib/ceUnlockLabels";
+import { ceDateTime, ceDocumentName, ceStateLabel, ceStateTone } from "../../lib/ceUnlockLabels";
 
 type Decision = "approved" | "changes_requested" | "revoked";
 
@@ -23,12 +23,14 @@ function DocumentRow({
   doc,
   scope,
   title,
+  showSentAt,
   onError,
   children,
 }: {
   doc: CeUnlockDocument;
   scope?: PortalScope;
   title?: string;
+  showSentAt?: boolean;
   onError: (message: string) => void;
   children?: ReactNode;
 }) {
@@ -47,6 +49,7 @@ function DocumentRow({
           <p className="truncate text-xs text-[var(--app-muted)]" title={doc.file_name}>
             {doc.file_name}
             {doc.valid_until ? ` · Vigência ${brDate(doc.valid_from)} a ${brDate(doc.valid_until)}` : ""}
+            {showSentAt ? ` · Enviado em ${ceDateTime(doc.created_at)}` : ""}
           </p>
           {doc.reason && doc.status !== "approved" ? (
             <p className="text-xs font-semibold text-[var(--app-red)]">Motivo: {doc.reason}</p>
@@ -81,6 +84,7 @@ export function CeUnlockDocumentList({
   scope,
   onReview,
   canReview,
+  showSentAt,
   emptyText = "Nenhum documento apresentado.",
 }: {
   documents: CeUnlockDocument[];
@@ -88,6 +92,8 @@ export function CeUnlockDocumentList({
   onReview?: (doc: CeUnlockDocument, decision: Decision) => void;
   /** Esconde decisões que não fazem sentido agora (ex.: aprovar o que já está aprovado). */
   canReview?: (doc: CeUnlockDocument, decision: Decision) => boolean;
+  /** Mostra quando cada versão foi enviada (versões anteriores do pedido). */
+  showSentAt?: boolean;
   emptyText?: string;
 }) {
   const allowed = (d: CeUnlockDocument, decision: Decision) => !canReview || canReview(d, decision);
@@ -98,7 +104,7 @@ export function CeUnlockDocumentList({
       {error && <InlineError message={error} />}
       {visible.length === 0 && <p className="text-sm text-[var(--app-muted)]">{emptyText}</p>}
       {visible.map((d) => (
-        <DocumentRow key={d.id} doc={d} scope={scope} onError={setError}>
+        <DocumentRow key={d.id} doc={d} scope={scope} showSentAt={showSentAt} onError={setError}>
           {onReview && d.status !== "revoked" && (
             <>
               {allowed(d, "approved") && (

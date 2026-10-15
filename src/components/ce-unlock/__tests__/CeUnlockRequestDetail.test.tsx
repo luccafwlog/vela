@@ -94,9 +94,9 @@ it("análise interna mostra a versão atual de cada documento e as anteriores pa
   expect(screen.getByText("termo-v2.pdf")).toBeTruthy();
   expect(screen.getByText("procuracao.pdf")).toBeTruthy();
   const previous = screen.getByRole("region", { name: "Versões anteriores dos documentos" });
-  expect(within(previous).getByText("termo-v1.pdf")).toBeTruthy();
   expect(within(previous).getByText("Correção solicitada")).toBeTruthy();
   expect(within(previous).getByText("Motivo: Assinatura ilegível")).toBeTruthy();
+  expect(within(previous).getByText(/termo-v1\.pdf · Enviado em 10\/10\/2026/)).toBeTruthy();
   // A versão recusada abre o PDF, mas não ganha botões de análise.
   expect(within(previous).queryByRole("button", { name: /Aprovar|Recusar/ })).toBeNull();
   await userEvent.click(within(previous).getByRole("button", { name: "Abrir documento" }));
