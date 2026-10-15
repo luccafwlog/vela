@@ -3,7 +3,9 @@
 --
 -- - Anexos de solicitação (`source = 'request'`): expurgados 30 dias após o
 --   encerramento da solicitação (concluída ou cancelada, pelo último evento
---   `complete` ou `cancel`). Solicitação em andamento mantém os PDFs: sem isso,
+--   `complete` ou `cancel`); concluída só depois de todos os B/Ls ativos
+--   exportados, porque a aprovação dos documentos continua valendo para
+--   exportar. Solicitação em andamento mantém os PDFs: sem isso,
 --   um pedido em análise havia 30 dias perdia os documentos e travava, porque o
 --   desk não recusa documento reivindicado e o cliente só reenvia em correção
 --   (decisão do responsável de 2026-10-15, nota na ADR 0087).
@@ -28,7 +30,8 @@ CREATE OR REPLACE FUNCTION public.ce_unlock_cleanup_candidates()
 AS $function$
  SELECT coalesce(jsonb_agg(jsonb_build_object('id',d.id,'storage_path',d.storage_path)),'[]') FROM public.ce_unlock_documents d LEFT JOIN public.ce_unlock_requests r ON r.id=d.request_id
  WHERE d.purged_at IS NULL AND (d.cleanup_claimed_at IS NOT NULL OR (d.status='uploading' AND d.created_at<now()-interval '1 day') OR (r.state='draft' AND r.created_at<now()-interval '7 days')
- OR (d.source='request' AND r.state IN('completed','cancelled')
+ OR (d.source='request' AND (r.state='cancelled' OR (r.state='completed'
+ AND NOT EXISTS(SELECT 1 FROM public.ce_unlock_request_bls u WHERE u.request_id=r.id AND u.active AND u.exported_at IS NULL)))
  AND (SELECT max(e.created_at) FROM public.ce_unlock_events e WHERE e.request_id=d.request_id AND e.action IN('complete','cancel'))<now()-interval '30 days')
  OR (d.source='vip_annual' AND d.status<>'uploaded' AND NOT ce_unlock_private.valid_doc(d.id)
  AND EXISTS(SELECT 1 FROM public.ce_unlock_documents n WHERE n.source='vip_annual' AND n.status='approved' AND n.purged_at IS NULL

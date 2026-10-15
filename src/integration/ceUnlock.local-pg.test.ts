@@ -430,6 +430,9 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       INSERT INTO public.ce_unlock_events(customer_id,request_id,action,actor_id,created_at) VALUES(998557,'${reviewRequest}','complete','${client}',now()-interval '29 days');
       ${ids(docs)}
       UPDATE public.ce_unlock_events SET created_at=now()-interval '31 days' WHERE request_id='${reviewRequest}' AND action='complete';
+      UPDATE public.ce_unlock_request_bls SET active=true,exported_at=NULL WHERE request_id='${reviewRequest}';
+      ${ids(docs)}
+      UPDATE public.ce_unlock_request_bls SET exported_at=now() WHERE request_id='${reviewRequest}';
       ${ids(docs)}
       INSERT INTO public.ce_unlock_documents(id,customer_id,type,source,status,storage_path,file_name,size_bytes,uploaded_by,coverage_year,valid_from,valid_until,created_at) VALUES
         ('${oldVip}',998557,'termo','vip_annual','approved','vip/old','old.pdf',10,'${client}',2020,'2020-01-01','2020-12-31',now()-interval '6 years');
@@ -444,7 +447,8 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       '#', // 29 dias após o envio: ficam
       '#', // 31 dias após o envio, ainda em análise: ficam (o pedido não trava)
       '#', // concluído há 29 dias: ficam
-      '#00000000-0000-0000-0000-000000557848,00000000-0000-0000-0000-000000557849', // concluído há 31 dias: saem
+      '#', // concluído há 31 dias, mas com B/L ainda não exportado: ficam (aprovação ainda vale)
+      '#00000000-0000-0000-0000-000000557848,00000000-0000-0000-0000-000000557849', // concluído há 31 dias e exportado: saem
       '#', // anual vencido, sem substituto aprovado: fica
       '#', // renovação ainda em análise não substitui
       `#${oldVip}`, // novo anual aprovado: só então o vencido sai

@@ -252,7 +252,8 @@ Expurgo usa Storage API, preservando metadados e histórico
 
 - upload abandonado após 1 dia e rascunho após 7 dias;
 - anexos de solicitação 30 dias após o encerramento (concluída ou cancelada,
-  pelo último evento `complete` ou `cancel`); solicitação em andamento mantém
+  pelo último evento `complete` ou `cancel`; concluída só com todos os B/Ls
+  exportados); solicitação em andamento mantém
   os PDFs (decisão de 2026-10-15, nota na ADR 0087);
 - Termo Anual VIP só quando, além de fora da vigência, há documento anual
   aprovado mais novo do mesmo Cliente e tipo; renovação em análise não substitui;
