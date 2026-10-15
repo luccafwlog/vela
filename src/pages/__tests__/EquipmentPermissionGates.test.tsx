@@ -61,8 +61,9 @@ vi.mock('../../hooks/useAuth', () => ({
     profile: mocks.profile,
   }),
 }))
-vi.mock('../../hooks/useVehicles', () => ({
-  UNPACKING_LOCATION_NONE: '__none__',
+vi.mock('../../hooks/useVehicles', async (importOriginal) => ({
+  // Mantém os helpers reais (cacheUnpackingLocation grava pelo queryClient simulado).
+  ...await importOriginal<typeof import('../../hooks/useVehicles')>(),
   useVehicleOptions: () => ({ data: { voyages: [{ id: 7, voyage_number: '14N', vessel: { name: 'GREEN SANTOS' } }] } }),
   useVoyageVehicleStats: () => ({ data: { byVoyageId: {} } }),
   useVehicles: () => ({

@@ -11,7 +11,8 @@
   volume sintético, B/Ls abria em mais de 30 s e passou a 1,8 s, Contêineres foi de 23,5 s a 3,3 s,
   Viagens de 14,9 s a ~4 s, e a abertura fria de 4,4 s a 2,5 s. As policies avaliam o helper de RLS
   uma vez por consulta. A página de contêineres monta JSON só das linhas exibidas, e os filtros vêm
-  de uma RPC. B/Ls e Contêineres pré-carregam a página seguinte. O Line Up deixou de pedir o marco
+  de uma RPC. B/Ls e Contêineres pré-carregam a página seguinte; ao trocar um filtro, as linhas do
+  recorte anterior ficam esmaecidas, sem seleção e sem totais até a resposta chegar. O Line Up deixou de pedir o marco
   de alteração por B/L, e as fontes e os relatórios ficaram mais leves. A Viagens deixou de perder
   as datas de POL por URL longa (HTTP 431). `npm run perf:screens` refaz a medição.
 - **Modelo de permissões por perfil (2026-10-14, [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)):**

@@ -1,12 +1,30 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { supabase } from '../services/supabase'
+import { queryKeys } from '../services/queryKeys'
 import { mapChunks, sanitizeLikeTerm } from '../lib/utils'
 import type { BLContainer, VehicleListItem } from '../types/database'
 import { normalizePortCode } from '../services/portCode'
 
 type VehicleListItemWithUnpackingLocation = Omit<VehicleListItem, 'container'> & {
   container?: Pick<BLContainer, 'id' | 'container_number' | 'type' | 'seal_number' | 'unpacking_location'> | null
+}
+
+/**
+ * Aplica no cache da lista de veículos o local de desova já gravado, antes da
+ * releitura. O cache guarda as linhas cruas da viagem (página e filtros locais
+ * saem do `select` de `useVehicles`), então quem escreve nele precisa passar
+ * por aqui, não pelo formato que a tela recebe.
+ */
+export function cacheUnpackingLocation(queryClient: QueryClient, containerIds: readonly number[], value: string | null) {
+  const ids = new Set(containerIds)
+  queryClient.setQueriesData<VehicleListItemWithUnpackingLocation[]>({ queryKey: queryKeys.vehicles.all() }, (cached) => (
+    Array.isArray(cached)
+      ? cached.map((row) => row.container && ids.has(row.container.id)
+        ? { ...row, container: { ...row.container, unpacking_location: value } }
+        : row)
+      : cached
+  ))
 }
 
 /** Filtro de desova que pede os containers ainda sem local. */

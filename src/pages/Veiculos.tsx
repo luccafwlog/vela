@@ -27,7 +27,7 @@ import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import { UNPACKING_LOCATION_NONE, useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
+import { UNPACKING_LOCATION_NONE, cacheUnpackingLocation, useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
 import { deleteVehicles } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
@@ -217,17 +217,6 @@ export function Veiculos() {
     }
   }
 
-  function cacheSavedUnpackingLocations(containerIds: readonly number[], value: string | null) {
-    const ids = new Set(containerIds)
-    // Atualiza só consultas existentes com a escrita confirmada, antes da releitura.
-    queryClient.setQueriesData<typeof data>({ queryKey: ['vehicles'] }, (cached) => cached && ({
-      ...cached,
-      rows: cached.rows.map((row) => row.container && ids.has(row.container.id)
-        ? { ...row, container: { ...row.container, unpacking_location: value } }
-        : row),
-    }))
-  }
-
   async function handleUnpackingLocationSave(containerId: number, value: string, currentValue: string | null) {
     const unpackingLocation = value.trim() || null
     if (unpackingLocation === currentValue || savingRef.current.has(containerId)) return
@@ -241,7 +230,7 @@ export function Veiculos() {
     })
     try {
       await setContainerUnpackingLocation(containerId, unpackingLocation)
-      cacheSavedUnpackingLocations([containerId], unpackingLocation)
+      cacheUnpackingLocation(queryClient, [containerId], unpackingLocation)
       await afterCargaAlterada(queryClient)
       setUnpackingLocations((current) => {
         const next = { ...current }
@@ -287,7 +276,7 @@ export function Veiculos() {
     try {
       await Promise.all(containerIds.map(async (containerId) => {
         await setContainerUnpackingLocation(containerId, value)
-        cacheSavedUnpackingLocations([containerId], value)
+        cacheUnpackingLocation(queryClient, [containerId], value)
       }))
       await afterCargaAlterada(queryClient)
       setUnpackingLocations((current) => {
