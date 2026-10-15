@@ -1290,7 +1290,8 @@ export function summarizeBreakbulk(bls: VoyageBl[] | null | undefined): Breakbul
 
 export type PodImportSummary = {
   pod: string
-  containers: { distinct: number; imo: number; oog: number; soc: number; coc: number; types: string }
+  /** `bls`: B/Ls de contêiner (ou mistos) que descarregam na escala. */
+  containers: { bls: number; distinct: number; imo: number; oog: number; soc: number; coc: number; types: string }
   generalCargo: { distinct: number; imo: number; oog: number }
   vehicles: { distinctContainers: number }
   breakbulk: BreakbulkSummary
@@ -1317,9 +1318,8 @@ export function summarizeImportByPod(
   ).sort((left, right) => left.localeCompare(right, 'pt-BR'))
 
   return pods.map((pod) => {
-    const flat = containerBls
-      .filter((bl) => canonicalPort(bl.pod) === pod)
-      .flatMap((bl) => bl.bl_containers ?? [])
+    const podContainerBls = containerBls.filter((bl) => canonicalPort(bl.pod) === pod)
+    const flat = podContainerBls.flatMap((bl) => bl.bl_containers ?? [])
     const isVehicle = (container: { container_number?: string | null }) =>
       vehicleSet.has(String(container.container_number ?? '').trim().toUpperCase())
     const general = flat.filter((container) => !isVehicle(container))
@@ -1329,6 +1329,7 @@ export function summarizeImportByPod(
     return {
       pod,
       containers: {
+        bls: podContainerBls.length,
         distinct: countDistinctContainerNumbers(flat),
         imo: countDistinctContainerNumbersBy(flat, (container) => Boolean(container.is_imo)),
         oog: countDistinctContainerNumbersBy(flat, (container) => Boolean(container.is_oog)),
