@@ -109,10 +109,8 @@ describe('authoritative Demurrage invoice creation', () => {
     mocks.rpc.mockResolvedValueOnce({ data: { status: 'issued', invoice_id: 321, anchor_bl_id: 'BL-1' }, error: null })
     const invoiceId = await createInvoiceForBL('BL-1')
 
-    expect(mocks.rpc).toHaveBeenCalledWith('issue_demurrage_invoice_for_bl', {
-      p_bl_id: 'BL-1',
-      p_doc_number: expect.stringMatching(/^DEM-\d{4}-/),
-    })
+    // O número fica com o banco (migration 278): `DEM-<instante>-<B/L>`.
+    expect(mocks.rpc).toHaveBeenCalledWith('issue_demurrage_invoice_for_bl', { p_bl_id: 'BL-1' })
     expect(mocks.from).not.toHaveBeenCalled()
     expect(mocks.calculate).not.toHaveBeenCalled()
     expect(mocks.fetchROE).not.toHaveBeenCalled()
@@ -126,6 +124,14 @@ describe('authoritative Demurrage invoice creation', () => {
     })
 
     await expect(createInvoiceForBL('BL-1')).rejects.toThrow('Já existe fatura de Demurrage emitida ou paga para este B/L. Cancele a fatura atual antes de reemitir.')
+  })
+
+  it('TXID repetido (278): pede para emitir de novo, sem mandar cancelar a Invoice', async () => {
+    mocks.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code: '23505', message: 'duplicate key value violates unique constraint "demurrage_invoices_pix_txid_unique"' },
+    })
+    await expect(createInvoiceForBL('BL-1')).rejects.toThrow('O número da Invoice coincidiu com o de outra. Emita de novo.')
   })
 
   it('caixa já cobrada (214): mostra a recusa do banco, que nomeia o container', async () => {

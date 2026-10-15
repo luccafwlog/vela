@@ -33,19 +33,6 @@ export function applyDemurrageUsdDiscount(
   return discounted
 }
 
-function genDemurrageDocnum(blId: string): string {
-  const year = new Date().getFullYear()
-  const ts = Date.now().toString(36).slice(-4).toUpperCase()
-  const s = String(blId || '').toUpperCase()
-  let hash = 0
-  for (let i = 0; i < s.length; i++) {
-    hash = ((hash << 5) - hash) + s.charCodeAt(i)
-    hash |= 0
-  }
-  const suffix = (Math.abs(hash) % 1000).toString().padStart(3, '0')
-  return `DEM-${year}-${ts}${suffix}`
-}
-
 type IssueDemurrageResult = {
   status: 'issued' | 'existing' | 'waiting_return' | 'no_overstay' | 'no_containers'
   invoice_id?: number
@@ -59,14 +46,20 @@ type IssueDemurrageResult = {
 // paga fica fora, e a nova sai numa Invoice complementar (ADR 0080).
 async function issueDemurrageInvoiceForBl(blId: string): Promise<IssueDemurrageResult> {
   const { data, error } = await supabase.rpc('issue_demurrage_invoice_for_bl' as never, {
+    // Sem número: o banco gera `DEM-<instante>-<B/L>` (migration 278), cujo
+    // TXID leva o instante inteiro nos 25 caracteres do QR.
     p_bl_id: blId,
-    p_doc_number: genDemurrageDocnum(blId),
   } as never)
   if (error) {
     // 23505 (migration 214): a caixa já está numa Invoice emitida ou paga da
     // mesma Viagem e Cliente; a mensagem do banco nomeia o container.
     if ((error as { code?: string }).code === '23505') {
       const message = (error as { message?: string }).message?.trim() ?? ''
+      // 23505 do índice da 278: o TXID repetiu o de outra Invoice; emitir de
+      // novo gera outro instante, sem cancelar nada.
+      if (message.includes('demurrage_invoices_pix_txid_unique')) {
+        throw new Error('O número da Invoice coincidiu com o de outra. Emita de novo.')
+      }
       throw new Error(message.startsWith('Já existe fatura de Demurrage')
         ? message
         : 'Já existe fatura de Demurrage emitida ou paga para este B/L. Cancele a fatura atual antes de reemitir.')

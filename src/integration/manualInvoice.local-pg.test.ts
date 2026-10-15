@@ -172,6 +172,7 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
       .toBe('Motivo interno de teste')
     // O Cliente vê a descrição, não o motivo.
     expect(psql(`SELECT count(*) FROM public.invoice_items WHERE invoice_id = ${issued.invoice_id} AND COALESCE(description, '') LIKE '%Motivo interno%';`)).toBe('0')
+    expect(psql(`SELECT count(*) FROM public.invoices WHERE id = ${issued.invoice_id} AND COALESCE(notes, '') LIKE '%Motivo interno%';`)).toBe('0')
   })
 
   it('cancela sem alterar o status financeiro do BL e reconcilia pelo pagamento genérico', () => {

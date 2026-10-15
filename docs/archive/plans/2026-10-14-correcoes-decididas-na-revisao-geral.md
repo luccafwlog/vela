@@ -8,14 +8,14 @@
 > pendência, Ajuste de COD com rastro e confirmação legada do Desbloqueio presa ao CE). As regras vigentes estão nos módulos.
 
 Plano vivo das correções de código decididas pelo dono em 2026-10-14: as da
-revisão geral ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md);
+revisão geral ([ADR 0083](../../adr/0083-decisoes-da-revisao-geral-da-documentacao.md);
 itens A e B) e as do modelo de permissões por perfil
-([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md); itens P). Os
+([ADR 0085](../../adr/0085-modelo-de-permissoes-por-perfil.md); itens P). Os
 casos práticos e a evidência estão no
-[plano arquivado da revisão](../archive/plans/2026-10-13-revisao-geral-documentacao.md)
-e no [relatório do modelo de permissões](../archive/reports/2026-10-14-modelo-de-permissoes-por-perfil.md);
+[plano arquivado da revisão](2026-10-13-revisao-geral-documentacao.md)
+e no [relatório do modelo de permissões](../reports/2026-10-14-modelo-de-permissoes-por-perfil.md);
 a regra de quem faz o quê está na
-[matriz de Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil).
+[matriz de Segurança](../../operations/seguranca.md#modelo-de-permissões-por-perfil).
 Cada item é uma mudança separada: código, teste de regressão e a troca de
 "correção pendente" pela regra entregue no módulo dono, na matriz de Segurança
 quando o item aparece nela e no manual financeiro quando a coluna Responsável
@@ -153,17 +153,17 @@ da migration.
 
 | Item | O que fazer | Quem |
 |---|---|---|
-| A6 | Heartbeat do backup diário no Better Stack agora; executor sempre ligado antes de revogar o "Data status". O script já avisa o heartbeat quando `BETTERSTACK_HEARTBEAT_BACKUP_URL` existe. | Dono: heartbeat `backup-r2-diario` ligado e **Up** em 2026-10-14 ([Serviços externos](../operations/servicos-externos.md#backup)); falta o executor sempre ligado, antes de revogar o "Data status" |
+| A6 | Heartbeat do backup diário no Better Stack agora; executor sempre ligado antes de revogar o "Data status". O script já avisa o heartbeat quando `BETTERSTACK_HEARTBEAT_BACKUP_URL` existe. | Dono: heartbeat `backup-r2-diario` ligado e **Up** em 2026-10-14 ([Serviços externos](../../operations/servicos-externos.md#backup)); falta o executor sempre ligado, antes de revogar o "Data status" |
 
 B32 (apagar a Edge Function antiga de aviso de fatura emitida) foi feito pelo
 dono em 2026-10-14; a listagem de produção conferida depois não a tem
-([Serviços externos](../operations/servicos-externos.md#edge-functions)).
+([Serviços externos](../../operations/servicos-externos.md#edge-functions)).
 
 ## Só documentação (já aplicado com as ADRs 0083 e 0085)
 
 A1 (Restituição), A5 (exceção ao cofre), A12 (excedente à mão), A17 (exceção
 sem TXID), A20 (desenho de GO LIVE arquivado), A24 (audiência), A25
-(reconsolidação) e C1 ([ADR 0084](../adr/0084-registro-de-decisoes-ja-em-producao.md)). Da ADR 0085: D1 (cancelar fatura, só Administrativo), D13 (cobertura do Administrativo no ADR de Saída) e D14 (desmarcar exportação da escala), que confirmam o comportamento atual.
+(reconsolidação) e C1 ([ADR 0084](../../adr/0084-registro-de-decisoes-ja-em-producao.md)). Da ADR 0085: D1 (cancelar fatura, só Administrativo), D13 (cobertura do Administrativo no ADR de Saída) e D14 (desmarcar exportação da escala), que confirmam o comportamento atual.
 
 ## Fim
 
