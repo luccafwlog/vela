@@ -4,7 +4,7 @@ import { afterAll } from 'vitest'
 
 /**
  * `psql` das suítes `local-pg` com uma conexão reaproveitada (Lote 2 do plano
- * docs/plans/2026-10-15-compactacao-do-ci.md). Cada chamada abria um processo
+ * docs/archive/plans/2026-10-15-compactacao-do-ci.md). Cada chamada abria um processo
  * `psql` e uma conexão nova: 4.042 por passada, ~45 ms cada.
  *
  * `execPsql` e `spawnPsql` recebem os mesmos argumentos e opções que

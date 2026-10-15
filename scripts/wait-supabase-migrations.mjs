@@ -1,6 +1,6 @@
 // Espera a integração do Supabase aplicar as migrations do commit antes de a
 // produção publicar o código que as usa (D1 do plano de compactação do CI,
-// docs/plans/2026-10-15-compactacao-do-ci.md, item 1.2). O CI não roda mais
+// docs/archive/plans/2026-10-15-compactacao-do-ci.md, item 1.2). O CI não roda mais
 // depois do merge; este passo substitui a espera que o `workflow_run` fazia.
 //
 // Uso no workflow: GITHUB_TOKEN, GITHUB_REPOSITORY, COMMIT_SHA e BEFORE_SHA.

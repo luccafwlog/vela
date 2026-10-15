@@ -1,5 +1,5 @@
 // Worker do helper `localPsql.ts`: guarda uma conexão `pg` por banco e imita a
-// saída do `psql -At` (Lote 2 do plano docs/plans/2026-10-15-compactacao-do-ci.md).
+// saída do `psql -At` (Lote 2 do plano docs/archive/plans/2026-10-15-compactacao-do-ci.md).
 // Roda fora do Vite, por isso é JavaScript puro. Cada pedido chega pela porta,
 // a resposta volta pela mesma porta e o slot compartilhado acorda a thread de
 // teste, que espera de forma síncrona (Atomics.wait).

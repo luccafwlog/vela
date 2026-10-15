@@ -1,5 +1,5 @@
 // Decide se a PR roda as suítes SQL (`*.local-pg.test.ts`) e a bateria
-// financeira (item 1.3 do plano docs/plans/2026-10-15-compactacao-do-ci.md,
+// financeira (item 1.3 do plano docs/archive/plans/2026-10-15-compactacao-do-ci.md,
 // ADR 0086). Lê `git diff --name-only` no stdin e escreve `suites=true|false`
 // no stdout (para $GITHUB_OUTPUT); a razão vai para o stderr (log do passo).
 //
