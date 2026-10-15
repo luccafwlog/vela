@@ -11,6 +11,9 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 
 
 const actorId = '00000000-0000-0000-0000-000000839001'
+// Outro Administrativo ativo: os casos que trocam o setor de `actorId` não
+// esbarram no "Administrativo ativo mínimo" (migration 239) num banco recém-replicado.
+const spareAdminId = '00000000-0000-0000-0000-000000839002'
 const customerId = 99283901
 const otherCustomerId = 99283909
 const carrierId = 99283902
@@ -160,8 +163,8 @@ function cleanup() {
     DELETE FROM public.customer_portal_accounts WHERE customer_id IN (${customerId}, ${otherCustomerId});
     DELETE FROM public.customers WHERE id IN (${customerId}, ${otherCustomerId});
     DELETE FROM public.audit_logs WHERE changed_by = '${actorId}';
-    DELETE FROM public.user_profiles WHERE id = '${actorId}';
-    DELETE FROM auth.users WHERE id = '${actorId}';
+    DELETE FROM public.user_profiles WHERE id IN ('${actorId}', '${spareAdminId}');
+    DELETE FROM auth.users WHERE id IN ('${actorId}', '${spareAdminId}');
     SET session_replication_role = origin;
   `)
 }
@@ -171,8 +174,9 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     cleanup()
     const customers = [[customerId, 128001], [otherCustomerId, 128009]] as const
     psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'basis-128@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'Administrativo 128', 'administrativo', true)
+      INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'basis-128@example.test'), ('${spareAdminId}', 'basis-128-reserva@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'Administrativo 128', 'administrativo', true),
+        ('${spareAdminId}', 'Administrativo 128 reserva', 'administrativo', true)
         ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true;
       ${customers.map(([id, ns]) => `
         INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${id}, '${syntheticCnpj(ns)}', 'Cliente ${ns}');

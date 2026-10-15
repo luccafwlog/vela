@@ -30,8 +30,13 @@ const ALL_PROFILES = Object.keys(PROFILES) as Profile[]
 
 /** Executa como `authenticated` com o usuário do perfil; tudo numa transação. */
 function runAs(profile: Profile, sql: string): { ok: boolean; output: string; error: string } {
+  return runAsUser(PROFILES[profile], sql)
+}
+
+/** Como `runAs`, para um usuário que não é perfil interno (Portal, sem cadastro). */
+function runAsUser(userId: string, sql: string): { ok: boolean; output: string; error: string } {
   const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
-    `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${PROFILES[profile]}';
+    `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${userId}';
      SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql}; COMMIT;`], { encoding: 'utf8' })
   return { ok: result.status === 0, output: (result.stdout ?? '').trim(), error: (result.stderr ?? '').trim() }
 }
@@ -488,6 +493,14 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       expect(result.ok).toBe(false)
       expect(result.error).toMatch(/O Baplie não tem nenhum container/)
     }
+    expect(psql(`SELECT string_agg(container_number, ',') FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe('PCCU8500001')
+  })
+
+  it('P13: quem não é usuário interno ativo é recusado por permissão antes da lista (268)', () => {
+    // Usuário autenticado sem perfil interno (como o do Portal): 42501, não a mensagem do Baplie.
+    const result = runAsUser('85850000-0000-4000-8000-0000000000ff', `SELECT public.import_baplie_staging_transactional(${VOYAGE_ID}, '[]'::jsonb)`)
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(/Sem permissão para importar o Baplie/)
     expect(psql(`SELECT string_agg(container_number, ',') FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe('PCCU8500001')
   })
 

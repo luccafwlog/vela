@@ -83,9 +83,12 @@ BEGIN
   -- exclusão passa por delete_catalog_row). A 106 removeu mais 3 (267 -> 264):
   -- DELETE direto de customers/customer_contacts e a política morta de
   -- app_settings. A 109 removeu mais 3 (264 -> 261): leitura direta do Portal
-  -- em mensagens/anexos de Dispute e o DELETE direto de voyages.
-  IF v_policies < 261 THEN
-    RAISE EXCEPTION 'Policies RLS em public: % (piso 261).', v_policies;
+  -- em mensagens/anexos de Dispute e o DELETE direto de voyages. As 231-240
+  -- e a 254 (escrita só pelas RPCs, ADR 0085) tiraram 76 policies de escrita
+  -- e puseram 5 (cpa_admin_select e as 4 de tarifa e acordo de Demurrage):
+  -- o piso real era 270, e 270 - 72 = 198. Nenhuma policy de leitura saiu.
+  IF v_policies < 198 THEN
+    RAISE EXCEPTION 'Policies RLS em public: % (piso 198).', v_policies;
   END IF;
   -- A 008 aposentou trg_seed_customer_contact_preferences (144 -> 143 triggers).
   SELECT COUNT(*) INTO v_triggers FROM pg_trigger t
@@ -135,13 +138,27 @@ BEGIN
   END LOOP;
 
   FOREACH v_table IN ARRAY ARRAY[
-    'baplie_containers', 'billing_batches',
-    'customer_demurrage_agreements', 'demurrage_invoice_items',
+    'baplie_containers',
+    'customer_demurrage_agreements',
     'demurrage_rates', 'vazios_export_operations',
     'voyage_export_schedules', 'voyage_route_ce_master'
   ] LOOP
     IF NOT has_table_privilege('authenticated', format('public.%I', v_table), 'INSERT,UPDATE,DELETE') THEN
       RAISE EXCEPTION 'authenticated sem mutacao em public.%', v_table;
+    END IF;
+  END LOOP;
+
+  -- Fronteira oposta (ADR 0085; itens P2, P3 e P15, migrations 231-233):
+  -- valores de cobrança, faturas, pagamentos e recebíveis só mudam pelas RPCs.
+  -- `billing_batches` e `demurrage_invoice_items` saíram da lista acima.
+  FOREACH v_table IN ARRAY ARRAY[
+    'demurrage_invoice_items', 'charge_calculations', 'invoices', 'invoice_items',
+    'payments', 'ledger_settlements', 'bl_receivables', 'invoice_counters',
+    'invoice_bls', 'invoice_granite_bls', 'invoice_receivable_links',
+    'invoice_lifecycle_events', 'billing_batches'
+  ] LOOP
+    IF has_table_privilege('authenticated', format('public.%I', v_table), 'INSERT,UPDATE') THEN
+      RAISE EXCEPTION 'authenticated voltou a escrever direto em public.% (só pelas RPCs).', v_table;
     END IF;
   END LOOP;
 

@@ -5,10 +5,13 @@ import { describeWithProbe, syntheticCnpj } from './localTestData'
 // Item B19 do plano docs/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md
 // (migration 245): caixa_sem_destinatario e cliente_sem_contato_principal,
 // abertos pelo banco, fecham pela origem quando a Documentação salva os contatos.
+// Migration 267 (revisão da PR 954): o Portal também salva e fecha os alertas
+// do próprio Cliente, e o salvamento fecha nob_sem_destinatario.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
 const DOCS_USER = '24524500-0000-4000-8000-000000000001'
+const PORTAL_USER = '24524500-0000-4000-8000-000000000002'
 const CUSTOMER_ID = 99245001
 const CONTACT_ID = 99245011
 const SUPPRESSED = 'suprimido-b245@example.test'
@@ -25,6 +28,20 @@ function asDocumentacao(sql: string): { output: string; error: string } {
     `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${DOCS_USER}';
      SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql}; COMMIT;`], { encoding: 'utf8' })
   return { output: (result.stdout ?? '').trim(), error: (result.stderr ?? '').trim() }
+}
+
+function asPortal(sql: string): { output: string; error: string } {
+  const claims = JSON.stringify({ sub: PORTAL_USER, role: 'authenticated', iat: Math.floor(Date.now() / 1000) })
+  const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${PORTAL_USER}';
+     SET LOCAL request.jwt.claim.role = 'authenticated'; SELECT set_config('request.jwt.claims', '${claims}', true);
+     ${sql}; COMMIT;`], { encoding: 'utf8' })
+  return { output: (result.stdout ?? '').trim(), error: (result.stderr ?? '').trim() }
+}
+
+function savePortal(email: string, boxes: string[] = []) {
+  const contacts = `'[{"id": ${CONTACT_ID}, "name": "Contato B245", "email": "${email}", "is_primary": true, "active": true, "box_codes": ${JSON.stringify(boxes)}}]'::jsonb`
+  return asPortal(`SELECT public.portal_save_contact_configuration(${contacts})`)
 }
 
 function save(email: string) {
@@ -50,9 +67,10 @@ function cleanup() {
     DELETE FROM public.customer_contacts WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_communication_suppressions WHERE email = '${SUPPRESSED}';
     DELETE FROM public.audit_logs WHERE changed_by = '${DOCS_USER}';
+    DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customers WHERE id = ${CUSTOMER_ID};
     DELETE FROM public.user_profiles WHERE id = '${DOCS_USER}';
-    DELETE FROM auth.users WHERE id = '${DOCS_USER}';
+    DELETE FROM auth.users WHERE id IN ('${DOCS_USER}', '${PORTAL_USER}');
     SET session_replication_role = origin;
   `)
 }
@@ -73,7 +91,8 @@ describeLocal('245 — alertas de contato fecham pela origem (B19)', () => {
   beforeAll(() => {
     cleanup()
     psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${DOCS_USER}', 'docs-b245-user@example.test');
+      INSERT INTO auth.users (id, email) VALUES ('${DOCS_USER}', 'docs-b245-user@example.test'),
+        ('${PORTAL_USER}', 'portal-b245-user@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${DOCS_USER}', 'Documentação B245', 'documentacao', true);
       SET session_replication_role = replica;
       INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${CUSTOMER_ID}, 'CLIENTE B245', '${syntheticCnpj(245001)}');
@@ -81,6 +100,8 @@ describeLocal('245 — alertas de contato fecham pela origem (B19)', () => {
       INSERT INTO public.customer_contacts (id, customer_id, name, email, is_primary, deactivated_at)
       VALUES (${CONTACT_ID}, ${CUSTOMER_ID}, 'Contato B245', '${VALID}', false, now());
       INSERT INTO public.customer_communication_suppressions (email, reason) VALUES ('${SUPPRESSED}', 'complaint');
+      INSERT INTO public.customer_portal_accounts (customer_id, auth_user_id, active, account_situation)
+      VALUES (${CUSTOMER_ID}, '${PORTAL_USER}', true, 'ativo');
       SET session_replication_role = origin;
     `)
   })
@@ -102,5 +123,28 @@ describeLocal('245 — alertas de contato fecham pela origem (B19)', () => {
 
     expect(save(VALID).error).toBe('')
     expect(itemStatus('caixa_sem_destinatario')).toBe('resolved')
+  })
+
+  it('o Portal salva os contatos do próprio Cliente e fecha os alertas pela origem (267)', () => {
+    // Antes da 267, o fechamento da 245 recusava todo salvamento pelo Portal
+    // com "Sem permissão.", mesmo sem alerta aberto.
+    const suppressed = savePortal(SUPPRESSED)
+    expect(suppressed.error).toBe('')
+    expect(itemStatus('caixa_sem_destinatario')).toBe('active')
+
+    const valid = savePortal(VALID)
+    expect(valid.error).toBe('')
+    expect(itemStatus('caixa_sem_destinatario')).toBe('resolved')
+  })
+
+  it('nob_sem_destinatario fecha quando a caixa Documentação/Operação ganha destinatário elegível (267)', () => {
+    psql(`SET request.jwt.claim.role = 'service_role';
+      SELECT public.upsert_alert_item('nob_sem_destinatario', 'customer', '${CUSTOMER_ID}',
+        'Cliente B245 sem contato para o NOB.', 'nob_automacao', '{}'::jsonb, '/clientes');`)
+    expect(itemStatus('nob_sem_destinatario')).toBe('active')
+
+    const saved = savePortal(VALID, ['documentacao_operacao', 'financeiro', 'demurrage'])
+    expect(saved.error).toBe('')
+    expect(itemStatus('nob_sem_destinatario')).toBe('resolved')
   })
 })
