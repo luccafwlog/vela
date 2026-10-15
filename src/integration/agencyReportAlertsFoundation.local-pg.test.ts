@@ -34,6 +34,7 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
       DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE a.entity_id='${entityId}');
       DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id='${entityId}');
       DELETE FROM public.alerts WHERE entity_id = '${entityId}';
+      DELETE FROM public.alert_item_events WHERE actor_id IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
       DELETE FROM public.agency_departure_reports WHERE id = '${reportId}' OR (voyage_id = ${voyageId} AND port IN ('BRVIX', 'BRPNG', 'BRITJ'));
       DELETE FROM public.bls WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
@@ -80,6 +81,7 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
       DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE a.entity_id='${entityId}');
       DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id='${entityId}');
       DELETE FROM public.alerts WHERE entity_id = '${entityId}';
+      DELETE FROM public.alert_item_events WHERE actor_id IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
       DELETE FROM public.agency_departure_reports WHERE id = '${reportId}' OR (voyage_id = ${voyageId} AND port IN ('BRVIX', 'BRPNG', 'BRITJ'));
       DELETE FROM public.bls WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
