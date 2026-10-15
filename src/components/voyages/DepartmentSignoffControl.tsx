@@ -54,9 +54,7 @@ export function DepartmentSignoffControl({
           </span>
         </div>
       ) : null}
-      {compact && attribution ? <span className="text-xs text-[var(--app-muted-soft)]">{attribution}</span> : null}
       {!compact && attribution ? <span className="text-xs text-[var(--app-muted)]">{attribution}</span> : null}
-      {compact ? <span className={`app-badge ${signed ? 'app-badge--green' : 'app-badge--yellow'}`}>{signed ? 'Assinado' : 'Aguardando assinatura'}</span> : null}
       {canSignoff ? (
         <Button
           variant={signed ? 'danger' : 'primary'}
@@ -65,7 +63,8 @@ export function DepartmentSignoffControl({
           title={!signed && sectionsPending ? 'Resolva todas as seções do departamento (ou marque "Nada a declarar") para assinar.' : undefined}
           onClick={openAction}
         >
-          {signed ? 'Reabrir' : 'Assinar'}
+          {/* Compacto vive na faixa do bloco do departamento, que já diz a situação e quem assinou. */}
+          {compact ? `${signed ? 'Reabrir' : 'Assinar'} ${label}` : signed ? 'Reabrir' : 'Assinar'}
         </Button>
       ) : null}
 

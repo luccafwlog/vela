@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { StatusText } from '../ui/StatusText'
 import { History } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
@@ -109,9 +110,7 @@ export function SignoffControl({
         compact ? (
           <div ref={compactContainerRef} className="relative flex items-center gap-2">
             {/* O selo só mostra o estado; "Alterar" é o único caminho para o menu. */}
-            <span className={`app-badge ${state === 'confirmed' ? 'app-badge--green' : state === 'nothing_to_declare' ? 'app-badge--yellow' : 'app-badge--slate'}`}>
-              {signoffLabels[state]}
-            </span>
+            <StatusText tone={state === 'pending' ? 'warning' : 'default'}>{signoffLabels[state]}</StatusText>
             <button
               type="button"
               className="app-btn app-btn--secondary app-btn--sm"
@@ -155,7 +154,7 @@ export function SignoffControl({
           </div>
         )
       ) : (
-        <span className="app-badge app-badge--slate">{signoffLabels[state]}</span>
+        <StatusText tone={state === 'pending' ? 'warning' : 'default'}>{signoffLabels[state]}</StatusText>
       )}
 
       <SignoffActionModal
