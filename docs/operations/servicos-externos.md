@@ -674,8 +674,8 @@ para eles vale o backup do próprio Supabase.
 - **Etiqueta `preview`:** dispara a preview e o usuário admin de uma PR; a
   limpeza ao fechar só roda em PR com essa etiqueta (existe no repositório).
 - **Ruleset da `main` ("auto-merge claude"):** impede apagar a branch e
-  force-push, exige PR com 1 aprovação e o check `checks` do GitHub Actions
-  verde, sem exigir branch atualizada (conferido pela API em 2026-10-15).
+  force-push, exige PR (sem aprovação obrigatória, decisão do dono em
+  2026-10-15) e o check `checks` do GitHub Actions verde, sem exigir branch atualizada (conferido pela API em 2026-10-15).
 - **Repository secrets:** só `SUPABASE_PROJECT_REF` (Preview),
   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Em 2026-10-08
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,
