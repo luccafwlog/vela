@@ -617,7 +617,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
   })
 
   it('fatura avulsa devolve até o recebido e cancela sem apagar o pagamento', () => {
-    const invoice=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa excepcional',1,600,'Teste de restituição')`).invoice_id
+    const invoice=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa excepcional',1,600,'Teste de restituição', p_reason => 'Motivo interno de teste')`).invoice_id
     const payment=adminJson<{payment_id:number}>(`SELECT public.register_verified_invoice_payment(${invoice},200,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839060','AVULSA-BANCO-60')`)
     expect(asAdmin(`SELECT public.request_financial_refund('manual',${invoice},201,'Cancelamento por cobrança indevida','cancel','00000000-0000-0000-0000-000000839061')`).status).toBe(1)
     const refund=adminJson<{refund_id:number}>(`SELECT public.request_financial_refund('manual',${invoice},200,'Cancelamento por cobrança indevida','cancel','00000000-0000-0000-0000-000000839062')`).refund_id
@@ -693,7 +693,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
   })
 
   it('excedente de avulsa registra bruto integral e cria restituição do que ultrapassa o saldo', () => {
-    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa avulsa com excedente',1,100,'Teste de excedente')`).invoice_id
+    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa avulsa com excedente',1,100,'Teste de excedente', p_reason => 'Motivo interno de teste')`).invoice_id
     expect(adminJson(`SELECT public.register_verified_invoice_payment(${inv},125,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839070','AVULSA-EXCEDENTE-70')`)).toMatchObject({refund_due_brl:25})
     expect(psql(`SELECT total_paid_brl||'|'||balance_brl FROM public.invoices WHERE id=${inv}`)).toBe('125.00|0.00')
     expect(psql(`SELECT amount_brl FROM public.invoice_refunds WHERE invoice_id=${inv}`)).toBe('25.00')
@@ -701,7 +701,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
   })
 
   it('baixa falsa com excedente ainda não devolvido cancela excesso pendente e reabre avulsa', () => {
-    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa avulsa',1,100,'Teste de baixa falsa')`).invoice_id
+    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa avulsa',1,100,'Teste de baixa falsa', p_reason => 'Motivo interno de teste')`).invoice_id
     const payment=adminJson<{payment_id:number}>(`SELECT public.register_verified_invoice_payment(${inv},125,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839071','AVULSA-ERRO-71')`).payment_id
     expect(psql(`SELECT status FROM public.invoice_refunds WHERE invoice_id=${inv}`)).toBe('pending')
     adminJson(`SELECT public.reverse_invoice_payment(${payment},'Comprovante falso, não houve recebimento')`)
@@ -721,7 +721,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
   })
 
   it('CNPJ de B/L com avulsa recebida exige devolver antes e preserva o cadastro enquanto pendente', () => {
-    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Serviço do B/L',1,100,'Serviço adicional','${bl.full}')`).invoice_id
+    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Serviço do B/L',1,100,'Serviço adicional','${bl.full}', p_reason => 'Motivo interno de teste')`).invoice_id
     adminJson(`SELECT public.register_verified_invoice_payment(${inv},100,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839072','CNPJ-AVULSA-72')`)
     expect(asAdmin(`UPDATE public.bls SET customer_id=${otherCustomerId} WHERE id='${bl.full}'`).status).toBe(1)
     expect(psql(`SELECT customer_id FROM public.bls WHERE id='${bl.full}'`)).toBe(String(customerId))

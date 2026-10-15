@@ -253,7 +253,7 @@ Os Emails de Contato são os canais de Comunicado do Cliente; o roteamento é fe
 
 O e-mail do consignatário que vem no documento do B/L é incorporado ao cadastro do Cliente pela importação, pela Revisão e pelo gate da importação (`capture_manifest_financial_contact` → `ensure_customer_contact_email`, definição vigente na migration `106`; [ADR 0064](../adr/0064-caixas-de-comunicacao-e-auditoria-de-contatos.md), item 6):
 
-- só entra no Cliente cujo CNPJ é o do documento, comparado com as letras do CNPJ alfanumérico (`normalize_document_text`, migration `194`); na Troca de Consignatário aceita, vai para o Cliente novo, nunca para o antigo;
+- só entra no Cliente cujo CNPJ é o do documento, comparado com as letras do CNPJ alfanumérico (`normalize_document_text`, migration `194`); na Troca de Consignatário aceita, vai para o Cliente novo, nunca para o antigo. Na Revisão (vínculo de um B/L ou "Vincular cliente ao grupo", por `save_bl_review`) vale a mesma regra desde a migration `271`: vincular o B/L a um Cliente de outro CNPJ faz o vínculo e não leva o e-mail;
 - endereço novo nasce ativo, com origem `bl_automatico`: vira principal, com as três caixas, quando o Cliente não tem principal ativo; senão entra como adicional, só na caixa Documentação e Operação (gatilho `seed_customer_contact_box_links`);
 - endereço já cadastrado, ativo ou desativado, não é duplicado, reativado nem tem as caixas alteradas; se está desativado e o Cliente não tem principal ativo, abre o alerta `cliente_sem_contato_principal`. Quem reativa contato desativado é a [Base de Clientes](#importação-da-base-de-clientes);
 - a captura aparece no Histórico da ficha (evento `bl_contact_captured`, origem `bl_automatico`).

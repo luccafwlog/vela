@@ -120,8 +120,15 @@ async function selectCustomer(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: /Escolher AC COMERCIAL/ }))
 }
 
+async function fillReason(user: ReturnType<typeof userEvent.setup>) {
+  const field = screen.getByLabelText(/^Motivo \(interno\)/)
+  await user.clear(field)
+  await user.type(field, 'Serviço extra pedido pelo Cliente')
+}
+
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
   await selectCustomer(user)
+  await fillReason(user)
   await user.type(screen.getByLabelText(/^Nome do item/), 'Taxa especial')
   await user.clear(screen.getByLabelText(/^Quantidade/))
   await user.type(screen.getByLabelText(/^Quantidade/), '2')
@@ -179,6 +186,7 @@ describe('ManualInvoiceModal', () => {
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledWith({
       customerId: 1,
       itemName: 'Taxa especial',
+      reason: 'Serviço extra pedido pelo Cliente',
       quantity: 2,
       unitValueBrl: 10.5,
     }))
@@ -197,12 +205,26 @@ describe('ManualInvoiceModal', () => {
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledWith({
       customerId: 1,
       itemName: 'Taxa especial',
+      reason: 'Serviço extra pedido pelo Cliente',
       description: 'Cobrança extraordinária',
       quantity: 2,
       unitValueBrl: 10.5,
       blId: 'BL-1',
       voyageId: 42,
     }))
+  })
+
+  it('exige o motivo interno antes da confirmação (272)', async () => {
+    const user = userEvent.setup()
+    openModal()
+    await fillRequiredFields(user)
+    await user.clear(screen.getByLabelText(/^Motivo \(interno\)/))
+
+    await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
+
+    expect(screen.getAllByRole('alert').map((node) => node.textContent).join(' ')).toContain('Informe o motivo da fatura avulsa.')
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.mutateAsync).not.toHaveBeenCalled()
   })
 
   it('não emite quando a confirmação é recusada', async () => {
@@ -243,6 +265,7 @@ it('item de tabela exige B/L e congela preço/quantidade sem edição', async ()
   await user.selectOptions(screen.getByLabelText(/^Item da tabela/), '5')
   expect(screen.getByText(/1 × R\$\s600,00/)).toBeTruthy()
   expect(screen.getByText('Total a emitir').nextElementSibling?.textContent?.replace(/\s/g, ' ')).toBe('R$ 600,00')
+  await fillReason(user)
   await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
   expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ chargeItemId: 5, blId: 'BL-1', unitValueBrl: 600, voyageId: 42 }))
 })
@@ -305,6 +328,7 @@ it('trocar o B/L do item da tabela não emite com a Viagem do B/L anterior', asy
   await user.type(screen.getByLabelText('B/L'), 'X')
   await user.click(screen.getByRole('button', { name: 'BL-1' }))
   await user.selectOptions(screen.getByLabelText(/^Item da tabela/), '5')
+  await fillReason(user)
   await user.click(screen.getByRole('button', { name: 'Emitir fatura avulsa' }))
 
   await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalled())

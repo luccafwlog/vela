@@ -530,7 +530,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
 
   // A9 + P4 — emissão por qualquer Departamento (ADR 0083, item 9; ADR 0085, D3; migration 246).
   it.each(ALL_PROFILES)('A9: %s emite fatura avulsa em nome próprio, com rastro', (profile) => {
-    const result = runAs(profile, `SELECT public.create_manual_invoice(${CUSTOMER_ID}, 'Avulsa P4 ${profile}', 1, 10, NULL, NULL, NULL, '${PROFILES[profile]}')`)
+    const result = runAs(profile, `SELECT public.create_manual_invoice(${CUSTOMER_ID}, 'Avulsa P4 ${profile}', 1, 10, NULL, NULL, NULL, '${PROFILES[profile]}', p_reason => 'Motivo interno de teste')`)
     expect(result.error).toBe('')
     const invoiceId = (JSON.parse(result.output) as { invoice_id: number }).invoice_id
     expect(psql(`SELECT invoice_type || ':' || total_brl FROM public.invoices WHERE id = ${invoiceId};`)).toBe('manual:10.00')

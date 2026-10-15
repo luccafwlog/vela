@@ -196,7 +196,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
   it('emissão real de avulsa pela RPC não deixa escapar o QR estático', () => {
     setProvider('itau')
     const result = JSON.parse(psql(`SET request.jwt.claim.sub = '${userId}';
-      SELECT public.create_manual_invoice(${customerId}, 'Teste Itau', 1, 0.01, NULL, NULL, NULL, '${userId}'::uuid)`)) as { invoice_id: number }
+      SELECT public.create_manual_invoice(${customerId}, 'Teste Itau', 1, 0.01, NULL, NULL, NULL, '${userId}'::uuid, p_reason => 'Motivo interno de teste')`)) as { invoice_id: number }
     expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${result.invoice_id}`)).toBe('NULL')
     expect(charges(`invoice_id = ${result.invoice_id}`).map((c) => [c.amount, c.status])).toEqual([['0.01', 'pending_create']])
   })

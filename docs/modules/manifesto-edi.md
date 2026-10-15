@@ -232,7 +232,8 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
 - **Faturamento:** `BlFaturamentoTab` compõe `BlCobrancasSection` (status, fatura ativa com número, situação, tipo, total e **Abrir no Faturamento**, faixa de totais, motivo visível quando a emissão está bloqueada, tabela de taxas com erro distinto de vazio e cobrança manual sob demanda, por **Adicionar cobrança manual**, com **Editar** na linha manual e **Excluir** só para o Administrativo) e `BlDemurrageSection` (só quando o B/L tem container: faturas de Demurrage do B/L, condições próprias e devolução por container com a Demurrage prevista, e **Abrir em Demurrage**). O vínculo de cliente fica no bloco Cliente da Visão geral.
   - Vincular o cliente produz o efeito completo da conciliação (ADR 0061, migration arquivada `370`): além de fechar a fila,
     o e-mail do manifesto é capturado como contato **financeiro** do cliente — normalizado e sem duplicar contato
-    já cadastrado — e `approved_by` registra o revisor que resolveu. É a mesma regra usada pelo Aprovar da
+    já cadastrado, e só quando o CNPJ do manifesto é o do cliente (regra M14, migration `271`) — e `approved_by`
+    registra o revisor que resolveu. É a mesma regra usada pelo Aprovar da
     Validação, agora em função única (`capture_manifest_financial_contact`).
   - Taxas locais podem ser calculadas, receber linhas manuais, ser revisadas e avançar para faturamento.
   - Demurrage reúne free time, P1/P2, descarga/devolução e cálculo por container; as regras canônicas continuam em [Demurrage](demurrage.md).

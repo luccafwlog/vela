@@ -53,7 +53,7 @@ Quem pode cada ação é decidido na [matriz de permissões](seguranca.md#modelo
 | Portal não pronto | Regularizar o Portal; se cabível, Administrativo concede a Liberação ([regra do gate](regras-de-negocio.md#gate-de-faturamento)) | Gate aberto e fatura emitida |
 | CE existe e a fatura não saiu | Resolver a retenção; Administrativo usa Emitir fatura na ficha quando cabível | Uma cobrança válida, sem emissão duplicada |
 | Reemissão pendente | Corrigir a causa e tentar reemitir pela ação disponível | Sucessora vinculada ou encerramento justificado |
-| Serviço adicional eventual | Gerar avulsa para Cliente correto, com descrição/contexto exigidos | Cobrança adicional rastreável |
+| Serviço adicional eventual | Gerar avulsa para Cliente correto, com o motivo interno (obrigatório; o Cliente não vê) e a descrição que o Cliente vai ler | Cobrança adicional rastreável |
 | Emissão em lote falhou | Consultar os documentos efetivamente emitidos antes de repetir | Repetir apenas as pendências |
 | Pix pago pela cobrança Itaú | Nada a lançar: a baixa é automática. Conferir no detalhe da fatura (Registrado por: API Itaú) | Uma baixa para a transação e saldo atualizado |
 | Aba Pendências avisa que a consulta de recebimentos do Itaú não está avançando, ou a cobrança Itaú está desligada | Usar o plano B: importar o extrato em **Conciliar extrato**, revisar e confirmar. Avisar o suporte da consulta parada | Pix pagos depois do horário indicado baixados uma única vez |
