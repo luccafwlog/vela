@@ -28,6 +28,14 @@ describe('matriz RBAC de exceções', () => {
       for (const permission of NAVIGATION) expect(roleHasPermission(role, permission)).toBe(false)
     }
   })
+  it('todos os Departamentos leem o Desbloqueio de CE e os documentos; gerir é de Administrativo e Documentação (ADR 0085, D11)', () => {
+    for (const role of ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'] as const) {
+      expect(roleHasPermission(role, 'ce_unlock_read')).toBe(true)
+      expect(roleHasPermission(role, 'ce_unlock_documents')).toBe(true)
+    }
+    expect(roleHasPermission('equipamentos', 'ce_unlock_manage')).toBe(false)
+    expect(roleHasPermission('documentacao', 'ce_unlock_manage')).toBe(true)
+  })
   it('mapeia os papéis legados', () => {
     // O papel `admin` saiu da lista aceita (migration 093); nao herda mais permissao.
     expect(roleHasPermission('admin' as never, 'manage_users')).toBe(false)

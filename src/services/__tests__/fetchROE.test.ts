@@ -51,13 +51,8 @@ describe('fetchROE', () => {
     expect(result.ptax).toBe(5)
     expect(result.roe).toBe(5.325)
     expect(result.effectiveDate).toBe('2026-07-16')
-    expect(rpc).toHaveBeenCalledWith('save_exchange_rate_reference_v2', {
-      p_ptax: 5,
-      p_roe: 5.325,
-      p_effective_date: '2026-07-16',
-      p_source: 'bcb_live',
-      p_quote_date: '2026-07-16',
-    })
+    // O cabeçalho só lê: a referência é gravada no servidor (migration 236).
+    expect(rpc).not.toHaveBeenCalled()
     expect(reportBestEffortFailure).not.toHaveBeenCalled()
   })
 
@@ -132,13 +127,7 @@ describe('fetchROE', () => {
 
     expect(result).toEqual({ roe: 5.32, ptax: 4.9953, effectiveDate: '2026-06-19', offline: true, cachedAt: '2026-06-20T00:00:00.000Z', source: 'cached' })
     expect(reportBestEffortFailure).not.toHaveBeenCalled()
-    expect(rpc).toHaveBeenCalledWith('save_exchange_rate_reference_v2', {
-      p_ptax: 4.9953,
-      p_roe: 5.32,
-      p_effective_date: '2026-06-19',
-      p_source: 'cached',
-      p_quote_date: '2026-06-19',
-    })
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('ignora cache legado sem PTAX e data efetiva', async () => {

@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // Migration 121: SOC/COC. O B/L é soberano, o Baplie preenche o que o B/L não
@@ -22,11 +22,11 @@ const pod = 'BRSOC'
 const [socByBl, socByBaplie, conflict, unknown] = ['SOCU1200001', 'SOCU1200002', 'SOCU1200003', 'SOCU1200004']
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
 }
 
 function asAuthenticated(sql: string): { ok: boolean; output: string } {
-  const result = spawnSync('psql', [
+  const result = spawnPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${actorId}'; ${sql} COMMIT;`,
   ], { encoding: 'utf8' })
@@ -171,7 +171,7 @@ describeLocal('SOC/COC — B/L soberano, taxas e Demurrage', () => {
 
   it('container SOC não entra em fatura de Demurrage', () => {
     const id = containerId(socByBl)
-    const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+    const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
       BEGIN;
       INSERT INTO public.demurrage_invoices (id, doc_number, bl_id, customer_id, status) VALUES (1200099, 'DEM-SOC-120', '${blId}', ${customerId}, 'draft');
       INSERT INTO public.demurrage_invoice_items (

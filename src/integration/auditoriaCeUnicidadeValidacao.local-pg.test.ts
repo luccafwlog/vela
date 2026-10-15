@@ -55,7 +55,7 @@
 // saem pela limpeza do B/L. Nenhum Cliente é criado; a limpeza (antes e depois)
 // ainda remove, pelo namespace, contatos, conta de Portal e eventos do Portal,
 // além de lotes, efeitos, alertas, auditoria e o estado da conciliação ZPT.
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { parseCeMercanteBuffer } from '../services/ceMercanteImport'
 import { jsonToBuffer } from '../services/__tests__/testWorkbook'
@@ -120,14 +120,14 @@ const containerBls: Array<{ id: string; container: string }> = [
 ]
 
 function localPsql(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function asOperator(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
@@ -321,8 +321,6 @@ const cleanupSql = `
   WHERE customer_id IN (SELECT id FROM a206_customers) OR account_id IN (SELECT id FROM a206_accounts);
   DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM a206_accounts);
   DELETE FROM public.portal_invites WHERE account_id IN (SELECT id FROM a206_accounts);
-  DELETE FROM public.customer_portal_sessions
-  WHERE account_id IN (SELECT id FROM a206_accounts) OR customer_id IN (SELECT id FROM a206_customers);
   DELETE FROM public.portal_inspection_events WHERE customer_id IN (SELECT id FROM a206_customers);
   DELETE FROM public.portal_rate_limits WHERE customer_id IN (SELECT id FROM a206_customers);
   DELETE FROM public.customer_portal_accounts WHERE id IN (SELECT id FROM a206_accounts);

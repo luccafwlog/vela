@@ -18,7 +18,8 @@
 // paralelo e coordenam pela fila de locks (`pg_stat_activity`), sem depender
 // de tempo fixo. A limpeza roda com `session_replication_role = replica`,
 // porque a Viagem Cancelada recusa mudança nas linhas dela.
-import { execFileSync, spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
@@ -69,12 +70,12 @@ const containers = {
 }
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function run(sql: string) {
-  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
 }
 
 type Session = { status: number | null; stdout: string; stderr: string }

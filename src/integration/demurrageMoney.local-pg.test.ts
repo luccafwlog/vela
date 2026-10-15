@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -17,14 +17,14 @@ const paymentRequestId = '00000000-0000-0000-0000-000000012699'
 const customerCnpj = syntheticCnpj(82260)
 
 function localPsql(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()
 }
 
 function asAuthenticated(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated'; SET LOCAL request.jwt.claim.sub = '${actorId}'; ${sql} COMMIT;`,
   ], { encoding: 'utf8' }).trim()

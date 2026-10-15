@@ -28,6 +28,8 @@ const agreement = {
   customer: { id: 9, name: 'Cliente Sul', cnpj_cpf: '11222333000181' },
 }
 
+const authMock = vi.hoisted(() => ({ isAdmin: true }))
+vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => authMock }))
 vi.mock('../../../hooks/useCustomerDemurrageAgreements', () => ({
   useSaveCustomerDemurrageAgreement: () => ({ mutateAsync: mocks.save, isPending: false }),
   useCustomerDemurrageAgreements: () => ({ data: [agreement], isLoading: false, error: null }),
@@ -51,11 +53,23 @@ beforeEach(() => {
   mocks.toggle.mockReset()
   mocks.remove.mockReset()
   mocks.showToast.mockReset()
+  authMock.isAdmin = true
 })
 
 afterEach(cleanup)
 
 describe('Acordos de Demurrage — confirmação', () => {
+  it('fora do Administrativo edita o acordo sem o controle de ativo e sem o menu de ativar e excluir (P9)', () => {
+    authMock.isAdmin = false
+    render(<CustomerDemurrageAgreementModal open onClose={vi.fn()} initialAgreement={agreement} />)
+    expect(screen.getByLabelText('Free Time (dias) *')).toBeTruthy()
+    expect(screen.queryByText('Acordo ativo')).toBeNull()
+    cleanup()
+    render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit canManage={false} /></MemoryRouter>)
+    expect(screen.getAllByRole('button', { name: /Editar acordo de/ }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: /Mais ações/ })).toBeNull()
+  })
+
   it('mostra o diff de edição e não salva quando a pessoa volta', async () => {
     const user = userEvent.setup()
     render(<CustomerDemurrageAgreementModal open onClose={vi.fn()} initialAgreement={agreement} />)
@@ -83,9 +97,21 @@ describe('Acordos de Demurrage — confirmação', () => {
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ id: 12, customer_id: 9, free_days: 25 })))
   })
 
+  it('B13: Administrativo edita acordo inativo sem o controle de ativo e sem enviar active', async () => {
+    mocks.confirm.mockResolvedValue(true)
+    const user = userEvent.setup()
+    render(<CustomerDemurrageAgreementModal open onClose={vi.fn()} initialAgreement={{ ...agreement, active: false }} />)
+    expect(screen.queryByText('Acordo ativo')).toBeNull()
+    await user.clear(screen.getByLabelText('Free Time (dias) *'))
+    await user.type(screen.getByLabelText('Free Time (dias) *'), '25')
+    await user.click(screen.getByRole('button', { name: 'Salvar Alterações' }))
+    await waitFor(() => expect(mocks.save).toHaveBeenCalled())
+    expect(mocks.save.mock.calls[0][0]).not.toHaveProperty('active')
+  })
+
   it('confirma a ativação antes de gravar o status', async () => {
     const user = userEvent.setup()
-    render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit /></MemoryRouter>)
+    render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit canManage /></MemoryRouter>)
     await user.click(screen.getByRole('button', { name: 'Mais ações do acordo de Cliente Sul' }))
     await user.click(screen.getByRole('menuitem', { name: 'Desativar acordo' }))
 
@@ -97,7 +123,7 @@ describe('Acordos de Demurrage — confirmação', () => {
 
 describe('Acordos de Demurrage — lista e formulário', () => {
   it('abre filtrada pelo Cliente que veio da ficha (?cliente=)', () => {
-    render(<MemoryRouter initialEntries={['/demurrage/taxas?tab=acordos&cliente=Norte']}><CustomerDemurrageAgreementsTab canEdit /></MemoryRouter>)
+    render(<MemoryRouter initialEntries={['/demurrage/taxas?tab=acordos&cliente=Norte']}><CustomerDemurrageAgreementsTab canEdit canManage /></MemoryRouter>)
     expect(screen.getByText('Nenhum acordo nesta busca')).toBeTruthy()
   })
 
@@ -106,7 +132,7 @@ describe('Acordos de Demurrage — lista e formulário', () => {
     try {
       // 31/12 às 22h em Brasília já é 01/01 em UTC: o acordo ainda está vigente.
       vi.setSystemTime(new Date('2027-01-01T01:00:00Z'))
-      render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit={false} /></MemoryRouter>)
+      render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit={false} canManage={false} /></MemoryRouter>)
       expect(screen.getByText('Vigente')).toBeTruthy()
       expect(screen.getByText('P1 US$ 50,00/dia · P2 US$ 70,00/dia')).toBeTruthy()
       expect(screen.queryByRole('button', { name: /Mais ações/ })).toBeNull()

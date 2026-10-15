@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -35,7 +35,7 @@ const customerCnpj = syntheticCnpj(83101)
 const HOLD = 'Acesso ao portal nao provisionado'
 
 function psql(sql: string, role: 'service_role' | 'authenticated' = 'service_role', sub = adminId): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = '${role}'; SET request.jwt.claim.sub = '${sub}'; ${sql}`,
   ], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
@@ -43,7 +43,7 @@ function psql(sql: string, role: 'service_role' | 'authenticated' = 'service_rol
 
 // Executa como o papel `authenticated` real do banco: RLS e grants valem.
 function asUser(sql: string, sub: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${sub}'; ${sql}`,
   ], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
@@ -61,7 +61,7 @@ function sqlError(run: () => unknown): string {
 // `apply_ce_mercante_update` saiu da API (migration 195): o CE da fixture é
 // gravado pelo papel `service_role` real, com o Administrativo como ator.
 function setCe(blId: string, ce: string): void {
-  execFileSync('psql', [
+  execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET ROLE service_role; SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${adminId}'; SELECT public.apply_ce_mercante_update('${blId}', '${ce}', '${adminId}'::uuid);`,
   ], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
@@ -300,7 +300,7 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
     expect(reviewState(reviewBlId)).toEqual({ review_status: 'reviewed', notes: null })
 
     // O job diário roda sem JWT, como o pg_cron.
-    const result = JSON.parse(execFileSync('psql', [
+    const result = JSON.parse(execPsql([
       '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
       '-c', 'SELECT public.reevaluate_expired_billing_releases();',
     ], { encoding: 'utf8' }).trim()) as { customers: number; bls: number }

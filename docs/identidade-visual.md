@@ -129,7 +129,7 @@ Toque (ponteiro grosso) mantém 44 px de alvo nos dois produtos.
 
 ## Verificação automática
 
-`npm run design:check` (no CI, job "Docs + Lint") compara o código com a linha
+`npm run design:check` (no CI, job `quality`) compara o código com a linha
 de base `scripts/design-baseline.json` e falha quando:
 
 - um arquivo TSX ganha cor escrita direto (`#152238`, `#fff8`, `rgb(…)`,

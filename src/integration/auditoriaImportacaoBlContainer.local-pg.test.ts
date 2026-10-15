@@ -39,7 +39,7 @@
 // depois) remove também faturas, recebíveis, Demurrage, efeitos, alertas,
 // auditoria, notificações, contatos e a conta de Portal criada pelo gatilho de
 // inserção de Cliente.
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ParsedBLDocument } from '../services/blParser'
 import {
@@ -110,12 +110,12 @@ function psqlArgs(sql: string, role: boolean): string[] {
 
 /** Superusuário com o ator na sessão (fixture, inspeção e limpeza). */
 function localPsql(sql: string): string {
-  return execFileSync('psql', psqlArgs(sql, false), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  return execPsql(psqlArgs(sql, false), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 /** Papel `authenticated`, como o PostgREST executa a chamada do navegador. */
 function asOperator(sql: string): string {
-  return execFileSync('psql', psqlArgs(sql, true), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  return execPsql(psqlArgs(sql, true), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function tryAsOperator(sql: string): { output: string | null; error: BridgeError | null } {
@@ -558,8 +558,6 @@ const cleanupSql = `
   WHERE customer_id IN (SELECT id FROM a202_customers) OR account_id IN (SELECT id FROM a202_accounts);
   DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM a202_accounts);
   DELETE FROM public.portal_invites WHERE account_id IN (SELECT id FROM a202_accounts);
-  DELETE FROM public.customer_portal_sessions
-  WHERE account_id IN (SELECT id FROM a202_accounts) OR customer_id IN (SELECT id FROM a202_customers);
   DELETE FROM public.portal_inspection_events WHERE customer_id IN (SELECT id FROM a202_customers);
   DELETE FROM public.portal_rate_limits WHERE customer_id IN (SELECT id FROM a202_customers);
   DELETE FROM public.customer_portal_accounts WHERE id IN (SELECT id FROM a202_accounts);

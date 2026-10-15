@@ -214,7 +214,7 @@ export function PolScheduleModal({
             </Field>
             <div className="sm:col-span-2">
               <Field label="Nº do manifesto">
-                <Input value={ceMaster} onChange={(event) => setCeMaster(event.target.value)} placeholder="Ex.: 25BR00481" />
+                <Input value={ceMaster} onChange={(event) => setCeMaster(event.target.value)} placeholder="Ex.: 1226501860578" />
               </Field>
             </div>
           </div>

@@ -1,10 +1,12 @@
-# Suítes `*.local-pg.test.ts` do job migration-replay do CI, na ordem de execução.
+# Suítes `*.local-pg.test.ts` do job db do CI, na ordem de execução.
 # Rodam em série num banco só (`npm run test:local-pg`); o CI as roda nesta ordem
-# e, depois de um novo replay do banco, de trás para frente (`-- --reverse`), o
-# que prova que nenhuma depende do que a anterior fez nem é quebrada por ela.
+# e o workflow semanal local-pg-order.yml, depois de um novo replay do banco, de
+# trás para frente (`-- --reverse`), o que prova que nenhuma depende do que a
+# anterior fez nem é quebrada por ela.
 # A bateria financeira (`financialBattery.local-pg.test.ts`) fica fora: roda
 # sozinha, por último, num passo próprio do CI. `npm run localpg:check` falha
 # quando surge suíte fora desta lista e do CI.
+src/integration/localPsql.local-pg.test.ts
 src/integration/appSettingsSingleton.local-pg.test.ts
 src/integration/alinhamentoPermissoes.local-pg.test.ts
 src/integration/auditoriaRun2.local-pg.test.ts
@@ -13,6 +15,8 @@ src/integration/auditSecurityBoundaries.local-pg.test.ts
 src/integration/communicationEligibility.local-pg.test.ts
 src/integration/customerCommunicationCatalog.local-pg.test.ts
 src/integration/ceUnlock.local-pg.test.ts
+src/integration/ceUnlockMatriz.local-pg.test.ts
+src/integration/ceUnlockVip.local-pg.test.ts
 src/integration/demurrageAuthority.local-pg.test.ts
 src/integration/demurrageMoney.local-pg.test.ts
 src/integration/emailInbox.local-pg.test.ts
@@ -86,3 +90,12 @@ src/integration/customerCommunicationReadinessGuards.local-pg.test.ts
 src/integration/pixBrCode.local-pg.test.ts
 src/integration/voyageHardDeleteGuard.local-pg.test.ts
 src/integration/paymentRegistrarNames.local-pg.test.ts
+src/integration/permissoesPorPerfil.local-pg.test.ts
+src/integration/alertasFechamPelaOrigem.local-pg.test.ts
+src/integration/planoBExtratoPix.local-pg.test.ts
+src/integration/nobRegraUnica.local-pg.test.ts
+src/integration/comunicadosCaixasPorModelo.local-pg.test.ts
+src/integration/alertasDeContatoFecham.local-pg.test.ts
+src/integration/revisaoCapturaContato.local-pg.test.ts
+src/integration/caminhoManualVigencia.local-pg.test.ts
+src/integration/omissaoRevertidaReomitir.local-pg.test.ts

@@ -58,7 +58,7 @@ Portal enquanto o Portal não fica pronto (ADR 0070; migrations `083` a `085`,
   recusa os demais papéis. O card "Liberação de faturamento sem Portal" fica na
   ficha do Cliente (aba Financeiro) e na revisão do Cliente no console
   `/clientes/portal` ([Portal do Cliente § Provisionamento e ativação do convite](../modules/portal-cliente.md#provisionamento-e-ativação-do-convite));
-  os outros Departamentos só consultam, e hoje Operações não vê o card no console (correção pendente A18 e P12 do plano).
+  os outros Departamentos só consultam, inclusive Operações no console (migration `250`).
   O Portal não enxerga a Liberação.
 - **Condições.** Justificativa (mínimo de 3 caracteres) e data de revisão
   futura de até 30 dias, contados em dias de Brasília; a tabela tem um teto de
@@ -178,11 +178,7 @@ o módulo Faturamento e a ADR 0077 dizem; "estorno" é sinônimo a evitar, e
 Cancelar baixa é outra ação ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 1, que
 substitui o "Estorno" do vocabulário de 2026-09-24).
 
-Divergências de rótulo que ainda existem na interface (**Código**): usuário
-interno em `/admin/usuarios` (`src/pages/Admin.tsx`) e acordo de Demurrage
-(`CustomerDemurrageAgreementsTab.tsx`) dizem **Ativar** em vez de **Reativar**
-(B13, correção pendente); o aviso do serviço do Local diz "Serviço inativado."
-(B15, correção pendente); e textos de
+Divergências de rótulo que ainda existem na interface (**Código**): textos de
 tela usam "estorno" no sentido de Cancelar baixa — a reversibilidade de
 `ValidacaoTab.tsx`, `ConsolidatedInvoiceModal.tsx` e
 `PortalConsolidatedModal.tsx` diz que pagamentos seguem o "fluxo de estorno", e
@@ -215,18 +211,18 @@ não confundir com a ação Cancelar.
 
 **Código:** `src/components/ui/ConfirmDialog.tsx` (Voltar por padrão, campo
 "Motivo (obrigatório)") e `useConfirmWithReason`. Implementação concluída em
-2026-10-05 (nota de encerramento da ADR 0072), com as lacunas B13, B14 e B15
-abaixo; fora delas, **Salvar** do Local e do serviço em
-`/embarquevazios/depots` grava sem diálogo de antes e depois
-(`src/pages/DepotCadastro.tsx`; B31, correção pendente no
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
+2026-10-05 (nota de encerramento da ADR 0072); as lacunas B13, B14 e B15 foram
+corrigidas nas migrations `261`, `262` e `263`, e **Salvar** do Local e do
+serviço em `/embarquevazios/depots` mostra antes e depois (B31,
+`src/pages/DepotCadastro.tsx`; **Teste:** `DepotCadastro.behavior.test.tsx`).
 
-**Correção pendente (B13):** pela regra acima, Reativar tarifa (tabela e item
-de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage, tarifa de
-Granito) e reativar usuário interno pedem motivo e dizem "Reativar"; hoje não
-pedem motivo, e as telas de usuário e de acordo de Demurrage dizem "Ativar".
-Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
-([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+**Reativar pede motivo (B13, migration `261`).** Reativar tarifa (tabela e
+item de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage, taxa
+de Granito) e reativar usuário interno dizem "Reativar" e pedem motivo; a
+reativação passa pela RPC `reactivate_catalog_row`, do Administrativo, que
+grava o motivo em `audit_logs` (linha `reativado`). Desativar segue sem motivo.
+**Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B13, os cinco
+perfis); **Teste:** `DemurrageRates.behavior.test.tsx` (B13).
 
 ### Hard delete controlado
 
@@ -236,9 +232,8 @@ que segue como origem — critério, papel e auditoria são os da
 [ADR 0071](../adr/0071-ce-mercante-como-trava-de-exclusao.md)). A exclusão é do
 Administrativo, com motivo, enquanto o registro não estiver travado
 ([Trava de exclusão](#trava-de-exclusão)), e deve passar sempre por uma RPC
-que confere a trava no banco. Hoje o Administrativo ainda apaga pela API, sem
-motivo nem Trava, as tabelas com policy de DELETE `is_admin()` (correção
-pendente, item P1 do plano; ver a
+que confere a trava no banco; desde a migration `235` (P1) não há DELETE
+direto pela API nessas tabelas (ver a
 [matriz](seguranca.md#modelo-de-permissões-por-perfil)). As RPCs:
 
 - **Viagem, B/L, container e Cliente:** `delete_records` (migration `087`,
@@ -300,8 +295,8 @@ excluíveis. Também travam o que referenciam (`bl_delete_lock_reasons` e
 
 Escala com B/L, com ou sem CE, também não se exclui: primeiro saem os B/Ls,
 depois a escala ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 7, que supersede
-parcialmente a ADR 0071 quanto à escala). A tela já recusa; o banco ainda
-aceita: correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+parcialmente a ADR 0071 quanto à escala). A tela e o banco recusam (`delete_escala`,
+migration `235`).
 
 Antes da trava, excluir cabe ao Administrativo, com motivo
 ([Hard delete controlado](#hard-delete-controlado)); depois, o caminho é
@@ -317,12 +312,13 @@ substituiu o item 5 da ADR 0071).
 terminal, e reabrir o ADR solta a trava (ADR 0071, item 4); antes dela,
 qualquer usuário ativo exclui unidade manual e linha de serviço de vazios.
 
-**Correção pendente (B14):** o banco ainda não impõe a trava dos vazios —
-unidade manual e linha de serviço do Embarque de Vazios são excluídas por
-qualquer usuário ativo mesmo com o ADR de Saída fechado, e **Excluir unidade**
-não pede motivo; só a exclusão de viagem, escala e atracação considera o ADR
-fechado. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
-([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+**Trava dos vazios no banco (B14, migration `262`):** com o ADR de Saída
+fechado da escala (o do terminal que tem a frente de exportação de vazio, ou o
+ADR legado por porto), o banco recusa excluir unidade manual
+(`delete_manual_vazios_booking`) e linha de serviço (`delete_catalog_row`) do
+Embarque de Vazios; reabrir o ADR solta. **Excluir unidade** pede motivo,
+gravado no rastro. **Teste local-pg:** `vaziosReimportacao.local-pg.test.ts`
+(B14).
 
 ### Cadastro usado
 
@@ -353,12 +349,13 @@ continua no histórico e nos documentos que o referenciam.
   desativar e reativar também são do Administrativo, com diálogo.
 
 Implementada em 2026-09-25 para tarifas e Clientes (migrations `087`, `088`,
-`091` e `092`); o item 8, de Local e serviço, não está implementado:
-
-**Correção pendente (B15):** desativar e reativar Local, terminal e serviço do
-Local ainda é feito por qualquer usuário ativo, sem diálogo de confirmação nem
-motivo, e o aviso diz "Serviço inativado.". Correção pendente no
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+`091` e `092`) e, para Local e serviço (item 8), na migration `263` (B15): o
+gatilho `guard_catalog_active_change` recusa a troca de `active` fora do
+Administrativo; em `/embarquevazios/depots`, **Desativar local**/**Reativar
+local** e **Desativar**/**Reativar** do serviço aparecem só ao Administrativo,
+com diálogo, e reativar pede motivo (`reactivate_catalog_row`). **Teste
+local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B15); **Teste:**
+`DepotCadastro.behavior.test.tsx` (B15).
 
 ### Guarda e recuperação
 
@@ -388,15 +385,11 @@ implementada (migrations `093` e `094`; backup encerrado em 2026-10-05).
 
 **Perfil interno não se exclui, nem pela API** ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
 item 3): o banco revoga a exclusão de perfil interno, como a migration `086`
-fez com documento fiscal. **Correção pendente:** hoje o banco ainda permite ao
-Administrativo apagar um perfil interno por chamada direta à API (policy de
-DELETE em `user_profiles`); a tela `/admin/usuarios` só desativa. Quando o
-DELETE passa, o Log de Ações mostra o id em vez do nome do autor. Correção
-pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+fez com documento fiscal: desde a migration `240` (A3) não há DELETE em
+`user_profiles` para `authenticated`, e a tela `/admin/usuarios` só desativa.
 
-Pela regra decidida, o banco recusa rebaixar ou desativar o último
-Administrativo ativo; a regra e
-a correção pendente estão em
+O banco recusa rebaixar ou desativar o último Administrativo ativo
+(migration `239`); a regra está em
 [Operação e Suporte § Administrativo ativo mínimo](../modules/operacao-suporte.md#administrativo-ativo-mínimo)
 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 2).
 

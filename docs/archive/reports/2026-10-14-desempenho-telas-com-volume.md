@@ -3,6 +3,9 @@
 > **Relatório histórico.** Medições locais de 2026-10-14, na branch
 > `perf/startup-screens-scroll`. Para o estado atual, meça de novo com
 > `npm run perf:screens` ([scripts/perf/README.md](../../../scripts/perf/README.md)).
+>
+> **Nota editorial (2026-10-15):** no merge com a `main`, as migrations `230`,
+> `231` e `232` citadas abaixo passaram a `283`, `284` e `285`.
 
 ## Como foi medido
 

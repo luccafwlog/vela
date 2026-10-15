@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -28,21 +28,12 @@ describe('migration 218 — RBAC da reabertura do Agency Departure Report', () =
     expect(closeBody).not.toContain('public.is_admin()')
   })
 
-  it('nenhuma migration posterior a 218 redefine reopen_agency_departure_report sem exigir is_admin()', () => {
-    const laterMigrations = readdirSync(migrationsDir)
-      .filter((name) => /^\d+_.*\.sql$/.test(name) && Number(name.split('_')[0]) > 218)
-      .sort()
-
-    const redefinitions = laterMigrations
-      .map((name) => ({ name, sql: readFileSync(resolve(migrationsDir, name), 'utf8') }))
-      .filter(({ sql }) => /CREATE OR REPLACE FUNCTION public\.reopen_agency_departure_report/i.test(sql))
-
-    expect(redefinitions.length).toBeGreaterThan(0)
-
-    for (const { name, sql } of redefinitions) {
-      const body = sql.match(/CREATE OR REPLACE FUNCTION public\.reopen_agency_departure_report[\s\S]*?\$function\$;/i)?.[0] ?? ''
-      expect(body, `${name} deve manter o guard de admin em reopen_agency_departure_report`)
-        .toMatch(/auth\.uid\(\) IS NULL OR NOT public\.is_active_user\(\) OR NOT public\.is_admin\(\)/)
-    }
+  it('a última redefinição (migration 251, P6) abre a reabertura a qualquer usuário interno ativo, com justificativa', () => {
+    // A cadeia ativa recomeçou a numeração após o squash; a 251 é a redefinição vigente.
+    const last = { sql: readFileSync(resolve(migrationsDir, '251_viagens_reabrir_e_reverter_por_qualquer_departamento.sql'), 'utf8') }
+    const body = last?.sql.match(/CREATE OR REPLACE FUNCTION public\.reopen_agency_departure_report\([\s\S]*?\$function\$;/i)?.[0] ?? ''
+    expect(body).toMatch(/auth\.uid\(\) IS NULL OR NOT public\.is_active_user\(\)/)
+    expect(body).not.toContain('is_admin')
+    expect(body).toContain('Reabertura exige justificativa.')
   })
 })

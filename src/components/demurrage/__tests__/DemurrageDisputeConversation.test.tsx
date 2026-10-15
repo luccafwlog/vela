@@ -84,10 +84,11 @@ describe('DemurrageDisputeConversation', () => {
     expect(screen.getByRole('button', { name: /Reabrir Disputa/ })).toBeTruthy()
   })
 
-  it('oculta a conversa para departamentos fora de Equipamentos e Administrativo', () => {
+  it('mostra a conversa a qualquer Departamento, sem responder, reabrir ou anexar (ADR 0085, D12)', async () => {
     authState.role = 'documentacao'
-    const { container } = render(<DemurrageDisputeConversation />)
-    expect(container.firstChild).toBeNull()
+    renderConversation()
+    expect(await screen.findByText('Responder, reabrir e anexar são de Equipamentos e do Administrativo.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Enviar/ })).toBeNull()
   })
 
   it('mostra a conversa ao Administrativo, que responde como cobertura (migration 081)', () => {

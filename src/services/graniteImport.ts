@@ -3,7 +3,7 @@ import { userFacingErrorMessage } from '../lib/errors'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
-import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink } from './customerReconciliation'
+import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, withoutDeactivatedCustomer } from './customerReconciliation'
 import { createHeaderMapper, createRowErrorCollector, matchHeaders, readSheet, type HeaderSpec, type RowError } from './importCore'
 import { IsoDateSchema, LocodeSchema } from './importValidation'
 import { resolvePortCode } from './portCode'
@@ -161,7 +161,7 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
 
     if (cnpjCanonical || shipperName) {
       const match = findMatchedCustomer({ cnpjCpf: cnpjRaw, consignee: shipperName ?? '' }, customerMaps)
-      const link = resolveCustomerLink(match)
+      const link = resolveCustomerLink(withoutDeactivatedCustomer(match))
       clientId = link.customerId
       suggestedClientId = link.suggestedCustomerId
       reconciliationStatus = link.status === 'matched_document'

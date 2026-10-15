@@ -143,22 +143,24 @@ export function ChargeTablesTab({
     const nextActive = table.active !== true
     const scope = scopeLabel(table.cargo_mode, table.pod)
     const reading = readings.get(table.id)
-    const confirmed = await confirm({
+    // B13: reativar pede motivo (ADR 0072), gravado pela RPC reactivate_catalog_row (migration 261).
+    const confirmOptions = {
       title: nextActive ? 'Reativar tabela de taxas' : 'Desativar tabela de taxas',
       message: `${nextActive ? 'Reativar' : 'Desativar'} a tabela "${table.name}" (${scope})?`,
       confirmLabel: nextActive ? 'Reativar tabela' : 'Desativar tabela',
-      tone: nextActive ? 'primary' : 'danger',
+      tone: nextActive ? ('primary' as const) : ('danger' as const),
       consequence: nextActive
         ? `Volta a disputar o cálculo de ${scope}: vale se tiver a vigência inicial mais recente entre as ativas.`
         : reading?.state.kind === 'applied'
           ? `Sai do cálculo de ${scope}. Cálculos novos usam a próxima tabela ativa do escopo, ou ficam pendentes se não houver. Faturas emitidas não mudam.`
           : 'Sai da lista de tabelas ativas. Ela já não era a aplicada, então o cálculo não muda.',
       reversibility: nextActive ? 'Pode ser desativada de novo.' : 'Pode ser reativada pelo Administrativo.',
-    })
-    if (!confirmed) return
+    }
+    const reason = nextActive ? await confirmWithReason(confirmOptions) : (await confirm(confirmOptions)) ? '' : null
+    if (reason === null) return
     setBusyTableId(table.id)
     try {
-      await setTableActive.mutateAsync({ id: table.id, active: nextActive })
+      await setTableActive.mutateAsync({ id: table.id, active: nextActive, reason })
       showToast(nextActive ? 'Tabela reativada.' : 'Tabela desativada.', 'success')
     } catch (failure) {
       showToast(userFacingErrorMessage(failure, 'Não foi possível alterar a situação da tabela.'), 'error')
@@ -169,7 +171,8 @@ export function ChargeTablesTab({
 
   async function handleToggleItemActive(item: ChargeItem) {
     const nextActive = item.active === false
-    const confirmed = await confirm({
+    // B13: reativar pede motivo (ADR 0072), gravado pela RPC reactivate_catalog_row (migration 261).
+    const confirmOptions = {
       title: nextActive ? 'Reativar item de taxa' : 'Desativar item de taxa',
       message: `${nextActive ? 'Reativar' : 'Desativar'} o item "${item.name}"?`,
       consequence: nextActive
@@ -177,12 +180,13 @@ export function ChargeTablesTab({
         : 'O item deixa de entrar em cálculos novos; cálculos e faturas antigos continuam mostrando de onde veio o valor.',
       reversibility: nextActive ? 'Pode ser desativado de novo.' : 'Pode ser reativado pelo Administrativo.',
       confirmLabel: nextActive ? 'Reativar item' : 'Desativar item',
-      tone: nextActive ? 'primary' : 'danger',
-    })
-    if (!confirmed) return
+      tone: nextActive ? ('primary' as const) : ('danger' as const),
+    }
+    const reason = nextActive ? await confirmWithReason(confirmOptions) : (await confirm(confirmOptions)) ? '' : null
+    if (reason === null) return
     setBusyItemId(item.id)
     try {
-      await setItemActive.mutateAsync({ id: item.id, active: nextActive })
+      await setItemActive.mutateAsync({ id: item.id, active: nextActive, reason })
       showToast(nextActive ? 'Item reativado.' : 'Item desativado.', 'success')
     } catch (failure) {
       showToast(userFacingErrorMessage(failure, 'Não foi possível alterar o item.'), 'error')

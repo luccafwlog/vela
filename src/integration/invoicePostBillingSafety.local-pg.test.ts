@@ -1,5 +1,6 @@
-import { execFile, execFileSync, spawnSync } from 'node:child_process'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { execFile } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
+import { afterAll, beforeEach, expect, it } from 'vitest'
 import { syntheticCnpj, describeWithProbe } from './localTestData'
 
 // Migration 128 (ADR 0077, decisões de 2026-10-02): toda correção do B/L —
@@ -11,6 +12,9 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 
 
 const actorId = '00000000-0000-0000-0000-000000839001'
+// Outro Administrativo ativo: os casos que trocam o setor de `actorId` não
+// esbarram no "Administrativo ativo mínimo" (migration 239) num banco recém-replicado.
+const spareAdminId = '00000000-0000-0000-0000-000000839002'
 const customerId = 99283901
 const otherCustomerId = 99283909
 const carrierId = 99283902
@@ -36,7 +40,7 @@ const bl = {
 const allBls = Object.values(bl)
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`], { encoding: 'utf8' }).trim()
 }
 
@@ -52,7 +56,7 @@ function migrationApplied() {
 const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied')
 
 function asAdmin(sql: string) {
-  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
     BEGIN;
     SET LOCAL ROLE authenticated;
     SET LOCAL request.jwt.claim.role = 'authenticated';
@@ -66,7 +70,7 @@ function asAdmin(sql: string) {
 // gravado como manutenção server-side, com o operador como ator; o gatilho do
 // CE emite como antes.
 function asService(sql: string) {
-  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
     BEGIN;
     SET LOCAL ROLE service_role;
     SET LOCAL request.jwt.claim.role = 'service_role';
@@ -160,8 +164,8 @@ function cleanup() {
     DELETE FROM public.customer_portal_accounts WHERE customer_id IN (${customerId}, ${otherCustomerId});
     DELETE FROM public.customers WHERE id IN (${customerId}, ${otherCustomerId});
     DELETE FROM public.audit_logs WHERE changed_by = '${actorId}';
-    DELETE FROM public.user_profiles WHERE id = '${actorId}';
-    DELETE FROM auth.users WHERE id = '${actorId}';
+    DELETE FROM public.user_profiles WHERE id IN ('${actorId}', '${spareAdminId}');
+    DELETE FROM auth.users WHERE id IN ('${actorId}', '${spareAdminId}');
     SET session_replication_role = origin;
   `)
 }
@@ -171,8 +175,9 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     cleanup()
     const customers = [[customerId, 128001], [otherCustomerId, 128009]] as const
     psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'basis-128@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'Administrativo 128', 'administrativo', true)
+      INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'basis-128@example.test'), ('${spareAdminId}', 'basis-128-reserva@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'Administrativo 128', 'administrativo', true),
+        ('${spareAdminId}', 'Administrativo 128 reserva', 'administrativo', true)
         ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true;
       ${customers.map(([id, ns]) => `
         INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${id}, '${syntheticCnpj(ns)}', 'Cliente ${ns}');
@@ -196,7 +201,8 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     `)
   })
 
-  afterEach(cleanup)
+  // O beforeEach já limpa antes de cada teste; basta limpar uma vez no fim.
+  afterAll(cleanup)
 
   it('152 — Pix Itaú baixa a individual pelo endToEndId uma única vez e diverge para análise', () => {
     if (psql(`SELECT to_regproc('public.itau_pix_settle') IS NOT NULL`) !== 't') return
@@ -498,6 +504,27 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
 
   });
 
+  it('COD sem pagamento: a correção reemite e o Ajuste de COD se liquida com a sucessora, sem Cancelar e reemitir (A11)',()=>{
+    const inv=issueByCe(bl.vehicleB,'839000000000008');
+    psql(`INSERT INTO public.voyage_omissions(id,voyage_id,omitted_pod,discharge_pod,omitted_by) VALUES (99283988,${voyageId},'R839POD','R839DST','${actorId}')`);
+    psql(`INSERT INTO public.bl_transshipments(bl_id,omission_id,disposition) VALUES ('${bl.vehicleB}',99283988,'transshipment')`);
+    const result=asAdmin(`UPDATE public.charge_tables SET pod='R839DST' WHERE id=${chargeTableId}; UPDATE public.charge_table_items SET value_brl=0,unit_value_brl=0 WHERE id=${dropOffItem}; SELECT public.set_bl_cod('${bl.vehicleB}',99283988,'Destino corrigido por COD','${actorId}'::uuid)`);
+    expect(result.status,result.stderr).toBe(0);
+    expect(psql(`SELECT status FROM public.invoices WHERE id=${inv}`)).toBe('cancelled');
+    const successor=psql(`SELECT ib.invoice_id FROM public.invoice_bls ib JOIN public.invoices i ON i.id=ib.invoice_id
+      WHERE ib.bl_id='${bl.vehicleB}' AND i.status<>'cancelled' AND i.id<>${inv} ORDER BY i.id DESC LIMIT 1`);
+    expect(successor).not.toBe('');
+    expect(psql(`SELECT action||':'||status||':'||coalesce(resulting_document_id::text,'')||':'||coalesce(resulting_document_type,'') FROM public.cod_adjustments WHERE bl_id='${bl.vehicleB}'`))
+      .toBe(`cancel_and_reissue:settled:${successor}:invoice`);
+    // 276: a liquidação automática deixa rastro, e cancelar a sucessora devolve o ajuste a pendente.
+    const adjustment=psql(`SELECT id FROM public.cod_adjustments WHERE bl_id='${bl.vehicleB}'`);
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_type='cod_adjustment' AND entity_id='${adjustment}' AND new_value='settled'`))
+      .toMatch(new RegExp(`sucessora ${successor}`));
+    expect(asAdmin(`SELECT public.cancel_invoice(${successor},'Sucessora cancelada no teste 276','${actorId}'::uuid)`).stderr).toBe('');
+    expect(psql(`SELECT status||':'||coalesce(resulting_document_id::text,'') FROM public.cod_adjustments WHERE id=${adjustment}`)).toBe('pending:');
+    expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_type='cod_adjustment' AND entity_id='${adjustment}' AND old_value='settled' AND new_value='pending'`)).toBe('1');
+  });
+
   it('recibo preserva bruto, devolução pendente e líquido após confirmação bancária', () => {
     const inv = issueByCe(bl.full, '839000000000028')
     adminJson(`SELECT public.register_ledger_invoice_payment(${inv},600)`)
@@ -532,6 +559,16 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     expect(psql(`SELECT source FROM public.bl_receivables WHERE id=${oldReceivable}`)).toBe(`local_charges_archived:${oldReceivable}`)
     adminJson(`SELECT public.retry_invoice_basis_changes('${bl.full}')`)
     expect(psql(`SELECT count(*) FROM public.invoices WHERE customer_id=${otherCustomerId}`)).toBe('1')
+  })
+
+  it('sem correção pendente, "Tentar aplicar correção" não toca na fatura emitida (275)', () => {
+    const invoice = issueByCe(bl.full, '839000000000031')
+    expect(psql(`SELECT count(*) FROM public.invoice_basis_pending_changes WHERE bl_id='${bl.full}'`)).toBe('0')
+    // A tabela muda depois da emissão; sem pendência registrada, a RPC não reprecifica.
+    psql(`UPDATE public.charge_table_items SET value_brl = value_brl + 50, unit_value_brl = unit_value_brl + 50 WHERE charge_table_id=${chargeTableId}`)
+    expect(adminJson(`SELECT public.retry_invoice_basis_changes('${bl.full}')`)).toMatchObject({ status: 'nothing_pending' })
+    expect(psql(`SELECT status FROM public.invoices WHERE id=${invoice}`)).toBe('issued')
+    expect(psql(`SELECT count(*) FROM public.invoices WHERE id <> ${invoice} AND customer_id=${customerId} AND status <> 'cancelled'`)).toBe('0')
   })
 
   it('mesma referência bancária financia duas baixas; replay de baixa cancelada é recusado', () => {
@@ -599,7 +636,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
   })
 
   it('fatura avulsa devolve até o recebido e cancela sem apagar o pagamento', () => {
-    const invoice=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa excepcional',1,600,'Teste de restituição')`).invoice_id
+    const invoice=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa excepcional',1,600,'Teste de restituição', p_reason => 'Motivo interno de teste')`).invoice_id
     const payment=adminJson<{payment_id:number}>(`SELECT public.register_verified_invoice_payment(${invoice},200,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839060','AVULSA-BANCO-60')`)
     expect(asAdmin(`SELECT public.request_financial_refund('manual',${invoice},201,'Cancelamento por cobrança indevida','cancel','00000000-0000-0000-0000-000000839061')`).status).toBe(1)
     const refund=adminJson<{refund_id:number}>(`SELECT public.request_financial_refund('manual',${invoice},200,'Cancelamento por cobrança indevida','cancel','00000000-0000-0000-0000-000000839062')`).refund_id
@@ -675,7 +712,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
   })
 
   it('excedente de avulsa registra bruto integral e cria restituição do que ultrapassa o saldo', () => {
-    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa avulsa com excedente',1,100,'Teste de excedente')`).invoice_id
+    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa avulsa com excedente',1,100,'Teste de excedente', p_reason => 'Motivo interno de teste')`).invoice_id
     expect(adminJson(`SELECT public.register_verified_invoice_payment(${inv},125,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839070','AVULSA-EXCEDENTE-70')`)).toMatchObject({refund_due_brl:25})
     expect(psql(`SELECT total_paid_brl||'|'||balance_brl FROM public.invoices WHERE id=${inv}`)).toBe('125.00|0.00')
     expect(psql(`SELECT amount_brl FROM public.invoice_refunds WHERE invoice_id=${inv}`)).toBe('25.00')
@@ -683,7 +720,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
   })
 
   it('baixa falsa com excedente ainda não devolvido cancela excesso pendente e reabre avulsa', () => {
-    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa avulsa',1,100,'Teste de baixa falsa')`).invoice_id
+    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Taxa avulsa',1,100,'Teste de baixa falsa', p_reason => 'Motivo interno de teste')`).invoice_id
     const payment=adminJson<{payment_id:number}>(`SELECT public.register_verified_invoice_payment(${inv},125,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839071','AVULSA-ERRO-71')`).payment_id
     expect(psql(`SELECT status FROM public.invoice_refunds WHERE invoice_id=${inv}`)).toBe('pending')
     adminJson(`SELECT public.reverse_invoice_payment(${payment},'Comprovante falso, não houve recebimento')`)
@@ -703,7 +740,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
   })
 
   it('CNPJ de B/L com avulsa recebida exige devolver antes e preserva o cadastro enquanto pendente', () => {
-    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Serviço do B/L',1,100,'Serviço adicional','${bl.full}')`).invoice_id
+    const inv=adminJson<{invoice_id:number}>(`SELECT public.create_manual_invoice(${customerId},'Serviço do B/L',1,100,'Serviço adicional','${bl.full}', p_reason => 'Motivo interno de teste')`).invoice_id
     adminJson(`SELECT public.register_verified_invoice_payment(${inv},100,'ted','2026-10-01T12:00:00Z',NULL,'00000000-0000-0000-0000-000000839072','CNPJ-AVULSA-72')`)
     expect(asAdmin(`UPDATE public.bls SET customer_id=${otherCustomerId} WHERE id='${bl.full}'`).status).toBe(1)
     expect(psql(`SELECT customer_id FROM public.bls WHERE id='${bl.full}'`)).toBe(String(customerId))

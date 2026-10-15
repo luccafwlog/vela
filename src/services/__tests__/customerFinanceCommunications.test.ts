@@ -13,6 +13,7 @@ import {
   dispatchCeMercanteTaxasCommunication,
   fetchCustomerVoyageCommunicationStatus,
 } from '../customerFinanceCommunications'
+import { communicationBoxKindsFromMigrations } from './communicationBoxKindsSql'
 
 function queryResult(data: unknown, error: unknown = null) {
   const chain: Record<string, unknown> = {}
@@ -67,6 +68,9 @@ function configureQueries(
     }])
     if (table === 'customer_contact_box_links') return queryResult(options.boxLinks ?? [{ contact_id: 1, box_code: 'documentacao_operacao' }])
     if (table === 'customer_communication_suppressions' || table === 'portal_suppressed_emails') return queryResult([])
+    if (table === 'customer_communication_box_kinds') return queryResult(
+      communicationBoxKindsFromMigrations().filter((row) => row.kind === 'ce_mercante_taxas'),
+    )
     throw new Error(`tabela inesperada: ${table}`)
   })
 }

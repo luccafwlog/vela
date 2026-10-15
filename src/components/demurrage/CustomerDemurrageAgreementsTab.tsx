@@ -45,7 +45,7 @@ function vigencia(agreement: CustomerDemurrageAgreementListItem) {
   return agreementPeriodText(agreement)
 }
 
-export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }) {
+export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit: boolean; canManage: boolean }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
@@ -115,10 +115,11 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
   async function handleToggleActive(agreement: CustomerDemurrageAgreementListItem) {
     const nextActive = !agreement.active
     const customerName = agreement.customer?.name ?? `Cliente #${agreement.customer_id}`
-    const confirmed = await confirm({
-      title: `${nextActive ? 'Ativar' : 'Desativar'} acordo de Demurrage`,
-      message: `${nextActive ? 'Ativar' : 'Desativar'} o acordo de Demurrage de ${customerName}?`,
-      confirmLabel: nextActive ? 'Ativar acordo' : 'Desativar acordo',
+    // B13: reativar pede motivo (ADR 0072), gravado pela RPC reactivate_catalog_row (migration 261).
+    const confirmOptions = {
+      title: `${nextActive ? 'Reativar' : 'Desativar'} acordo de Demurrage`,
+      message: `${nextActive ? 'Reativar' : 'Desativar'} o acordo de Demurrage de ${customerName}?`,
+      confirmLabel: nextActive ? 'Reativar acordo' : 'Desativar acordo',
       affected: {
         summary: `${customerName} · ${agreement.free_days} dias de Free Time · ${vigencia(agreement)}`,
       },
@@ -127,12 +128,13 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
         ? 'Os cálculos passam a considerar este acordo quando a data de descarga estiver dentro da vigência.'
         : 'Os cálculos deixam de considerar este acordo e usam as regras padrão aplicáveis ao cliente.',
       reversibility: 'O status pode ser alternado novamente; invoices já emitidas mantêm seu ciclo financeiro e histórico.',
-    })
-    if (!confirmed) return
+    }
+    const reason = nextActive ? await confirmWithReason(confirmOptions) : (await confirm(confirmOptions)) ? '' : null
+    if (reason === null) return
     toggleMutation.mutate(
-      { id: agreement.id, active: nextActive, customerId: agreement.customer_id },
+      { id: agreement.id, active: nextActive, reason, customerId: agreement.customer_id },
       {
-        onSuccess: () => showToast(nextActive ? 'Acordo ativado.' : 'Acordo desativado.', 'success'),
+        onSuccess: () => showToast(nextActive ? 'Acordo reativado.' : 'Acordo desativado.', 'success'),
         onError: (err) => showToast(`Falha ao alterar o status: ${classifyDbError(err).message}`, 'error'),
       },
     )
@@ -146,18 +148,18 @@ export function CustomerDemurrageAgreementsTab({ canEdit }: { canEdit: boolean }
           <Pencil size={14} aria-hidden="true" />
           Editar
         </Button>
-        <ActionMenu
+        {canManage ? <ActionMenu
           label={`Mais ações do acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`}
           triggerClassName="app-table__icon-button app-table__icon-button--sm"
           trigger={<MoreVertical size={16} aria-hidden="true" />}
           items={[
-            { key: 'toggle', label: item.active ? 'Desativar acordo' : 'Ativar acordo', onSelect: () => void handleToggleActive(item) },
+            { key: 'toggle', label: item.active ? 'Desativar acordo' : 'Reativar acordo', onSelect: () => void handleToggleActive(item) },
             // O banco só apaga acordo que ainda não entrou em vigor (guard_used_tariff_delete, migration 091).
             !item.valid_from || item.valid_from.slice(0, 10) <= todayIso()
               ? { key: 'delete', label: 'Excluir acordo (já em vigor: desative)', disabled: true }
               : { key: 'delete', label: 'Excluir acordo', danger: true, onSelect: () => void handleDelete(item) },
           ]}
-        />
+        /> : null}
       </div>
     )
   }

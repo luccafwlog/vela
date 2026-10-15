@@ -137,6 +137,15 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
     expect(fn('portal-daily-digest')).toContain(".is('customers.deactivated_at', null)")
   })
 
+  it('resumo das 08:00 conta a exceção crítica de fatura aberta e fechada (ADR 0083, item 19)', () => {
+    const source = fn('portal-daily-digest')
+    // Pelos eventos do item, para a reabertura (mesma linha, mesmo created_at) contar de novo.
+    expect(source).toContain(".from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'opened').gte('created_at', since)")
+    expect(source).toContain(".from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'resolved').gte('created_at', since)")
+    expect(source).not.toContain(".from('alert_items').select('id').eq('item_type', 'portal_excecao_critica_fatura')")
+    expect(source).toContain('Object.values(counts).every((count) => count === 0)')
+  })
+
   it('troca de e-mail de recuperação exige conta ativa e tem cota diária', () => {
     const source = fn('portal-recovery-email-change')
     expect(source).toContain("account.account_situation !== 'ativo'")

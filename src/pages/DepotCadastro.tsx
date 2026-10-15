@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Edit3, Plus, Power, Trash2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
-import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { reactivateCatalogRow } from '../services/deleteRecords'
 import { Field, Input, Select } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
@@ -49,8 +50,11 @@ function conditionLabel(condition: string) {
 export function DepotCadastro() {
   const { profile, user, isAdmin } = useAuth()
   const canEdit = Boolean(profile || user)
-  // Excluir e do Administrativo no banco; os demais editam, mas nao veem Excluir.
+  // Excluir, desativar e reativar sao do Administrativo no banco (ADR 0073,
+  // item 8; migration 263); os demais editam, mas nao veem essas acoes.
   const canDelete = isAdmin
+  const canToggleActive = isAdmin
+  const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const { showToast } = useToast()
   const depots = useDepots()
@@ -112,7 +116,40 @@ export function DepotCadastro() {
     setServiceForm(emptyServiceForm)
   }
 
+  // B31 (ADR 0072): Salvar mostra cada campo com o valor anterior e o novo; cadastrar mostra o resumo.
+  const tipoLabel = (tipo: string) => (tipo === 'terminal_portuario' ? 'Terminal portuário' : 'Depot')
+  const portLabel = (portId: number | null | undefined) => (ports.data ?? []).find((port) => port.id === portId)?.locode ?? (portId ? String(portId) : '')
+  const depotCodeOf = (id: string | null | undefined) => (depots.data ?? []).find((depot) => depot.id === id)?.code ?? id ?? ''
+  const natureLabel = (natureza: string) => ({ geral: 'Geral', armazenagem: 'Armazenagem', transporte: 'Transporte' } as Record<string, string>)[natureza] ?? natureza
+
+  async function confirmSave(kind: 'local' | 'serviço', name: string, changes: Array<{ field: string; before: string; after: string }> | null) {
+    if (changes && changes.length === 0) {
+      showToast('Nenhuma alteração para salvar.', 'info')
+      return false
+    }
+    return confirm({
+      title: changes ? `Salvar ${kind}` : `Cadastrar ${kind}`,
+      message: changes ? `Salvar as alterações ${kind === 'local' ? 'do local' : 'do serviço'} ${name}?` : `Cadastrar ${kind === 'local' ? 'o local' : 'o serviço'} ${name}?`,
+      confirmLabel: changes ? 'Salvar alterações' : 'Cadastrar',
+      changes: changes ?? undefined,
+      consequence: kind === 'local'
+        ? 'Vale para os próximos lançamentos de vazios; free time e tipo mudam a armazenagem calculada de agora em diante.'
+        : 'O valor sugerido vale para as próximas Linhas de Serviço; linhas já lançadas não mudam.',
+      reversibility: 'Pode ser editado de novo no cadastro.',
+    })
+  }
+
   async function saveDepot() {
+    const original = newDepot ? null : selected
+    const changes = original ? [
+      { field: 'Código', before: original.code, after: depotForm.code },
+      { field: 'Nome', before: original.name ?? '', after: depotForm.name },
+      { field: 'Tipo', before: tipoLabel(original.tipo), after: tipoLabel(depotForm.tipo) },
+      { field: 'Porto', before: portLabel('port_id' in original && typeof original.port_id === 'number' ? original.port_id : null), after: portLabel(depotForm.port_id) },
+      { field: 'Free time vazio (dias)', before: String(original.free_time_vazio_days), after: String(depotForm.free_time_vazio_days) },
+      { field: 'Free time com material (dias)', before: String(original.free_time_material_days), after: String(depotForm.free_time_material_days) },
+    ].filter((change) => change.before !== change.after) : null
+    if (!(await confirmSave('local', depotForm.code, changes))) return
     await run(async () => {
       await upsertDepot({ ...depotForm, id: newDepot ? undefined : selected?.id })
       await depots.refetch()
@@ -133,9 +170,20 @@ export function DepotCadastro() {
 
   async function saveService() {
     if (!selected) return
+    const original = serviceForm.id ? (services.data ?? []).find((item) => item.id === serviceForm.id) ?? null : null
+    const changes = original ? [
+      { field: 'Serviço', before: original.name, after: serviceForm.name },
+      { field: 'Natureza', before: natureLabel(original.natureza), after: natureLabel(serviceForm.natureza) },
+      { field: 'Condição', before: original.condition ? conditionLabel(original.condition) : '', after: serviceForm.natureza === 'armazenagem' && serviceForm.condition ? conditionLabel(serviceForm.condition) : '' },
+      { field: 'Destino da rota', before: depotCodeOf(original.route_destino_id), after: serviceForm.natureza === 'transporte' ? depotCodeOf(serviceForm.route_destino_id || null) : '' },
+      { field: 'Valor sugerido (R$)', before: String(Number(original.rate_brl)), after: String(Number(serviceForm.rate_brl)) },
+    ].filter((change) => change.before !== change.after) : null
+    if (!(await confirmSave('serviço', serviceForm.name, changes))) return
     await run(async () => {
       await upsertDepotService({
         ...serviceForm,
+        // B31: `active` vem do registro atual, não do momento em que se clicou Editar.
+        active: original?.active ?? serviceForm.active,
         depot_id: selected.id,
         container_type: null,
         route_destino_id: serviceForm.natureza === 'transporte' ? serviceForm.route_destino_id || null : null,
@@ -146,11 +194,54 @@ export function DepotCadastro() {
     }, 'Serviço salvo.')
   }
 
-  async function toggleService(service: DepotService) {
+  // B15 (ADR 0073, item 8): desativar com diálogo; reativar com motivo, pela
+  // RPC reactivate_catalog_row (migrations 261 e 263). Só o Administrativo.
+  async function askToggle(kind: 'local' | 'serviço', name: string, active: boolean): Promise<string | null> {
+    const options = {
+      title: `${active ? 'Desativar' : 'Reativar'} ${kind}`,
+      message: `${active ? 'Desativar' : 'Reativar'} ${kind === 'local' ? 'o local' : 'o serviço'} ${name}?`,
+      confirmLabel: active ? 'Desativar' : 'Reativar',
+      tone: active ? ('danger' as const) : ('primary' as const),
+      consequence: active
+        ? 'Deixa de aparecer para novos lançamentos de vazios; o que já foi lançado não muda.'
+        : 'Volta a aparecer para novos lançamentos de vazios.',
+      reversibility: active ? 'O Administrativo pode reativar, com motivo.' : 'O Administrativo pode desativar de novo.',
+    }
+    if (!active) return confirmWithReason(options)
+    return (await confirm(options)) ? '' : null
+  }
+
+  async function toggleDepot() {
+    if (!selected) return
+    const reason = await askToggle('local', selected.code, selected.active)
+    if (reason === null) return
     await run(async () => {
-      await upsertDepotService({ ...service, active: !service.active })
+      // B15: desativa a partir do registro salvo; edições não salvas do formulário não vão junto.
+      if (selected.active) {
+        await upsertDepot({
+          code: selected.code,
+          name: selected.name ?? '',
+          tipo: selected.tipo as 'depot' | 'terminal_portuario',
+          port_id: 'port_id' in selected && typeof selected.port_id === 'number' ? selected.port_id : null,
+          free_time_vazio_days: selected.free_time_vazio_days,
+          free_time_material_days: selected.free_time_material_days,
+          active: false,
+          id: selected.id,
+        })
+      }
+      else await reactivateCatalogRow('depots', selected.id, reason)
+      await depots.refetch()
+    }, selected.active ? 'Local desativado.' : 'Local reativado.')
+  }
+
+  async function toggleService(service: DepotService) {
+    const reason = await askToggle('serviço', service.name, service.active)
+    if (reason === null) return
+    await run(async () => {
+      if (service.active) await upsertDepotService({ ...service, active: false })
+      else await reactivateCatalogRow('depot_services', service.id, reason)
       await services.refetch()
-    }, service.active ? 'Serviço inativado.' : 'Serviço ativado.')
+    }, service.active ? 'Serviço desativado.' : 'Serviço reativado.')
   }
 
   async function removeService(service: DepotService) {
@@ -291,20 +382,19 @@ export function DepotCadastro() {
                 </>
               ) : null}
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={depotForm.active}
-                disabled={!canEdit}
-                onChange={(e) => setDepotForm((f) => ({ ...f, active: e.target.checked }))}
-              />{' '}
-              Ativo
-            </label>
+            {selected && !newDepot ? (
+              <p className="text-sm text-[var(--app-muted)]">{selected.active ? 'Local ativo.' : 'Local desativado: não aparece para novos lançamentos.'}</p>
+            ) : null}
             {canEdit ? (
               <span className="flex gap-2">
                 <Button onClick={() => void saveDepot()} disabled={!canSaveDepot}>
                   Salvar local
                 </Button>
+                {selected && !newDepot && canToggleActive ? (
+                  <Button variant="ghost" onClick={() => void toggleDepot()}>
+                    <Power size={14} /> {selected.active ? 'Desativar local' : 'Reativar local'}
+                  </Button>
+                ) : null}
                 {selected && canDelete ? (
                   <Button variant="ghost" onClick={() => void removeDepot()}>
                     <Trash2 size={14} /> Excluir
@@ -404,8 +494,10 @@ export function DepotCadastro() {
                         <Button variant="ghost" onClick={() => editService(service)}>
                           <Edit3 size={14} /> Editar
                         </Button>
-                        <Button variant="ghost" onClick={() => void toggleService(service)}>
-                          <Power size={14} /> {service.active ? 'Desativar' : 'Reativar'}</Button>
+                        {canToggleActive ? (
+                          <Button variant="ghost" onClick={() => void toggleService(service)}>
+                            <Power size={14} /> {service.active ? 'Desativar' : 'Reativar'}</Button>
+                        ) : null}
                         {canDelete ? (
                           <Button variant="ghost" onClick={() => void removeService(service)}>
                             <Trash2 size={14} /> Excluir

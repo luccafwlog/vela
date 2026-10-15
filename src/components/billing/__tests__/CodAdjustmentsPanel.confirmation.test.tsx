@@ -28,6 +28,23 @@ const rows = [{
   resulting_document_id: null,
   resulting_document_type: null,
   created_at: '2026-09-28T12:00:00Z',
+}, {
+  id: 18,
+  bl_id: 'BL-COD-18',
+  omission_id: 4,
+  original_value_brl: 100,
+  new_destination_value_brl: 70,
+  difference_brl: -30,
+  paid_amount_brl: 0,
+  outstanding_balance_brl: 100,
+  offset_amount_brl: 0,
+  refund_amount_brl: 0,
+  action: 'cancel_and_reissue',
+  status: 'pending',
+  manual_review_required: true,
+  resulting_document_id: null,
+  resulting_document_type: null,
+  created_at: '2026-09-28T12:00:00Z',
 }]
 
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ can: () => true }) }))
@@ -80,5 +97,13 @@ describe('CodAdjustmentsPanel — confirmação de liquidação', () => {
     await user.click(screen.getByRole('button', { name: 'Registrar restituição' }))
 
     await waitFor(() => expect(mocks.settle).toHaveBeenCalledWith(17))
+  })
+
+  it('COD sem pagamento não pede Cancelar e reemitir nem o número da sucessora (A11)', () => {
+    renderPanel()
+    expect(screen.getByText('Reemissão automática')).toBeTruthy()
+    expect(screen.queryByText(/Cancelar e reemitir/)).toBeNull()
+    expect(screen.queryByLabelText('Número interno da fatura do ajuste 18')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Abrir B/L' }).getAttribute('href')).toBe('/bls/BL-COD-18')
   })
 })

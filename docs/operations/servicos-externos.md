@@ -199,7 +199,13 @@ Para retomar a Vercel, restaure a configuração de build do Vite, reconecte o G
 
 Banco PostgreSQL, Auth, Storage, Edge Functions e jobs agendados. Projeto de
 produção `fgmkhbzhaeebrsizwccx`. O projeto GitHub é `luccafwlog/vela`.
-Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
+A produção do Cloudflare Pages espera o check que a integração publica no
+commit da `main` antes de publicar
+([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)); a `main` precisa
+continuar vinculada à produção em Branching → Configuration (vínculo
+conferido no painel pelo dono em 2026-10-15; o check veio verde nos merges
+`b42427c7`, `2763f99b` e `cb7ef2de`, e pulado no `1aa7aaf7` com "not
+associated with any Supabase Branch"). Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
 abrir uma PR não cria por si só uma branch Supabase nem garante o check
 "Supabase Preview". A integração permite criar uma branch pontual e vinculá-la
 a uma branch GitHub. O painel informa custo de US$ 0,01344 por hora enquanto a
@@ -209,7 +215,8 @@ não copiam dados de produção por padrão.
 Para uma Preview pontual sem ligar Automatic branching: em Supabase → projeto
 Vela → Branching → Create branch, informe o nome da branch de Preview e a mesma
 branch GitHub da PR em "Sync with Git branch". A integração publica commits
-nessa branch. Manter a PR aberta até o check Supabase Preview e o workflow
+nessa branch. Depois, ponha a etiqueta `preview` na PR para disparar os
+workflows de preview. Manter a PR aberta até o check Supabase Preview e o workflow
 Cloudflare Pages Preview concluírem; remover a branch após os testes para
 encerrar o custo. Conferir a criação e a exclusão no painel. A página Branching
 estava sem branches persistentes ou de Preview na conferência de 2026-10-08;
@@ -269,7 +276,14 @@ Antes da remoção, nenhum job do `pg_cron` nem função do banco a chamava.
 o disparo da migration `219` (seção [Itaú](#itaú--api-pix-recebimentos)).
 
 Publicação: a Supabase GitHub Integration publica as Functions alteradas no
-merge em `main`. Observado em 2026-10-10 (funções do Desbloqueio de CE) e em
+merge em `main`, desde que a função esteja declarada em
+[`supabase/config.toml`](../../supabase/config.toml) (`[functions.<nome>]`, com
+o `verify_jwt` dela). `admin-users` não estava declarada e ficou na versão de
+2026-09-30, publicada à mão, apesar de mudar nas PRs 901 e 954; foi publicada
+pelo conector do Supabase em 2026-10-15 (versão 44, código do `main`) e
+declarada no `config.toml` na mesma data. O teste
+`edgeTelemetryConfiguration.test.ts` recusa função do repositório sem
+declaração. Observado em 2026-10-10 (funções do Desbloqueio de CE) e em
 2026-10-14 (`portal-password-recovery` atualizada minutos após o merge da PR
 951); a configuração da integração que faz isso não foi conferida. Depois de
 cada merge, confira em Supabase → Edge Functions a data de atualização das
@@ -281,6 +295,37 @@ Para publicar a proteção de recuperação da PR 841, aplique as migrations `13
 e `132` antes de publicar `portal-password-reset` e
 `portal-recovery-email-change`. O procedimento de triagem de reset interrompido
 está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
+
+As correções da PR 954 (plano de correções da revisão geral) foram a produção
+pelo caminho automático no merge de 2026-10-15 (13:42 UTC): a integração do
+Supabase aplicou as migrations `230` a `278` e publicou as Edge Functions
+alteradas, e o frontend só é publicado depois do check do Supabase no commit
+([Deploy](../setup/deploy.md)). **Runtime** (leitura do projeto pelo conector
+do Supabase em 2026-10-15, 13:43 UTC): as migrations `230` a `278` constam
+aplicadas; `bl_belongs_to_atracacao`, `_demurrage_roe_markup`,
+`_demurrage_ptax_from_roe` e `reactivate_catalog_row` existem; o índice
+`demurrage_invoices_pix_txid_unique` existe; `create_manual_invoice` tem
+`p_reason`; `recalc-demurrage-ptax`, `send-customer-communication`,
+`portal-daily-digest` e `demurrage-dunning` foram republicadas às 13:43 UTC.
+`admin-users` não foi (ver o parágrafo de Publicação acima) e foi publicada
+à mão às 13:49 UTC; respondeu 204 ao preflight e 403 sem sessão. Falta
+conferir a execução seguinte do job da PTAX (item 3 abaixo). Duas funções
+dependem de migration nova:
+
+| Função | Depende de | Se ficasse no ar sem a migration |
+|---|---|---|
+| `recalc-demurrage-ptax` | migration `264` (`save_exchange_rate_reference_v2` aceita ROE nulo) | O job da PTAX das 14h falha com `reference_failed` e as Invoices de Demurrage ficam sem o BRL do dia |
+| `send-customer-communication` | migration `243` (`bl_belongs_to_atracacao`) | Todo NOB manual devolve 422 ("Um B/L não pertence à Frente de Operação") |
+
+`admin-users`, `portal-daily-digest` e `demurrage-dunning` também mudaram, sem
+depender de migration nova. A ordem entre migrations e Functions dentro da
+integração não foi conferida (ver acima); se a aplicação das migrations falhar
+no merge, as duas funções da tabela ficam no ar sem o que precisam. Depois do
+merge, confira:
+
+1. `SELECT proname FROM pg_proc WHERE proname IN ('bl_belongs_to_atracacao', '_demurrage_roe_markup', 'reactivate_catalog_row');` devolve as três.
+2. Em Supabase → Edge Functions, `recalc-demurrage-ptax` e `send-customer-communication` com a data do merge.
+3. A execução seguinte do job da PTAX grava a referência do dia (sem alerta de falha da PTAX).
 
 ### Secrets das Edge Functions
 
@@ -347,15 +392,18 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos e abre Alerta de reenvio | — |
 | `portal-refresh-general-pendencies` | a cada 15 min | Alerta para Cliente com B/L ativo sem Portal ativo ou sem e-mail de recuperação | — |
 | `demurrage-dunning` | de hora em hora, no minuto 7 (`7 * * * *`, migration `165`) | Régua de Cobrança de Demurrage (respeita a chave global) | `demurrage-dunning` |
-| `cleanup-portal-sessions` | 03:00 | apaga sessões do Portal expiradas há mais de 1 dia | — |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
 | `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação e tira do atraso o de B/L ou Viagem Cancelados (SQL puro; migration `200`) | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
-| `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação | `portal-daily-digest` |
+| `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação (inclui a exceção crítica de fatura) | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
+
+O job `cleanup-portal-sessions` (03:00, sessões do token antigo do Portal) foi
+desagendado pela migration `234`, junto com a tabela que limpava (ADR 0083,
+item 21).
 
 Até a migration `165`, nos minutos :00/:15/:30/:45 `net._http_response`
 registrava chamadas sem resposta (`Timeout of 5000 ms`, em geral gastos em DNS)
@@ -658,8 +706,17 @@ para eles vale o backup do próprio Supabase.
 
 ## GitHub
 
-- **Workflows:** `ci.yml` (testes, build, migrations), `cloudflare-pages-*.yml`
-  (Pages), `provision-preview-admin.yml` (usuário admin na branch de preview).
+- **Workflows:** `ci.yml` (testes, build, migrations; só em PR),
+  `local-pg-order.yml` (agendado: segunda, 09:17 UTC; suítes SQL nas duas
+  ordens), `cloudflare-pages-*.yml` (Pages; produção no push em `main`,
+  esperando o check do Supabase; previews pela etiqueta `preview`),
+  `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
+  etiqueta). Regra em [ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md).
+- **Etiqueta `preview`:** dispara a preview e o usuário admin de uma PR; a
+  limpeza ao fechar só roda em PR com essa etiqueta (existe no repositório).
+- **Ruleset da `main` ("auto-merge claude"):** impede apagar a branch e
+  force-push, exige PR (sem aprovação obrigatória, decisão do dono em
+  2026-10-15) e o check `checks` do GitHub Actions verde, sem exigir branch atualizada (conferido pela API em 2026-10-15).
 - **Repository secrets:** só `SUPABASE_PROJECT_REF` (Preview),
   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Em 2026-10-08
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,
@@ -681,11 +738,11 @@ para eles vale o backup do próprio Supabase.
   workflows atuais. O dono recusou restringir os environments de Preview à
   branch `main` em 2026-10-06; manter essa decisão registrada.
 
-  O repositório é privado; a API de rulesets informa que é necessário GitHub
-  Pro ou tornar o repositório público. Não alterar o plano nem a visibilidade
-  como atalho. A migração dos secrets para os environments foi concluída em
-  2026-10-08; a proteção de workflows (ruleset) fica a cargo do dono, fora do
-  plano run-2.
+  A migração dos secrets para os environments foi concluída em 2026-10-08.
+  Em 2026-10-08 a API de rulesets respondia que o repositório privado exigia
+  GitHub Pro; em 2026-10-15 o ruleset "auto-merge claude" já estava ativo e
+  passou a exigir o `checks` (estado vigente no item "Ruleset da `main`"
+  acima).
 
   O provisionamento passou a consultar cada projeto Pages pelo nome e foi
   validado no run `37631613061`; Preview, limpeza, admin da Preview e produção

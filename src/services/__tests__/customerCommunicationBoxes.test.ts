@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
   CUSTOMER_COMMUNICATION_BOXES,
-  CUSTOMER_COMMUNICATION_BOX_KINDS,
-  resolveCustomerCommunicationRecipientsByBoxes,
+  getBoxesForKind,
+  resolveCustomerCommunicationRecipientsByBoxes as resolveByBoxes,
   buildRecipientSnapshot,
   type CustomerContactBoxLink,
 } from '../customerCommunicationBoxes'
 import { groupDemurrageDunningByCustomerCycle } from '../customerCommunications'
 import type { CustomerContact } from '../../types/database'
+import { communicationBoxKindsFromMigrations } from './communicationBoxKindsSql'
+
+const boxKinds = communicationBoxKindsFromMigrations()
+const resolveCustomerCommunicationRecipientsByBoxes = (input: Parameters<typeof resolveByBoxes>[0]) =>
+  resolveByBoxes({ boxKinds, ...input })
 
 describe('customerCommunicationBoxes — catálogo e resolvedor determinístico', () => {
   const baseContact = (id: number, email: string, isPrimary = false): CustomerContact => ({
@@ -31,11 +36,20 @@ describe('customerCommunicationBoxes — catálogo e resolvedor determinístico'
       'financeiro',
       'demurrage',
     ])
-    expect(CUSTOMER_COMMUNICATION_BOX_KINDS.documentacao_operacao).toContain('ce_mercante_taxas')
-    expect(CUSTOMER_COMMUNICATION_BOX_KINDS.documentacao_operacao).toContain('aviso_chegada_noa')
-    expect(CUSTOMER_COMMUNICATION_BOX_KINDS.financeiro).toContain('ce_mercante_taxas')
-    expect(CUSTOMER_COMMUNICATION_BOX_KINDS.financeiro).toContain('cobranca_demurrage')
-    expect(CUSTOMER_COMMUNICATION_BOX_KINDS.demurrage).toContain('cobranca_demurrage')
+    // O mapa caixa → modelo vem do banco (B18): a semente da migration 116.
+    expect(getBoxesForKind('ce_mercante_taxas', boxKinds)).toEqual(['documentacao_operacao', 'financeiro'])
+    expect(getBoxesForKind('aviso_chegada_noa', boxKinds)).toEqual(['documentacao_operacao'])
+    expect(getBoxesForKind('cobranca_demurrage', boxKinds)).toEqual(['financeiro', 'demurrage'])
+  })
+
+  it('sem as linhas do banco, nenhum modelo tem caixa e o envio fica bloqueado', () => {
+    const res = resolveByBoxes({
+      contacts: [baseContact(1, 'operacao@cliente.com', true)],
+      boxLinks: [{ contact_id: 1, box_code: 'documentacao_operacao' }],
+      kind: 'ce_mercante_taxas',
+    })
+    expect(res.eligible).toEqual([])
+    expect(res.blocked).toBe(true)
   })
 
   it('CE mercante alcança contato de Documentação e contato de Financeiro, cada endereço uma vez', () => {

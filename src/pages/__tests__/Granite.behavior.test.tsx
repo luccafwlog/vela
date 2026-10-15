@@ -42,6 +42,7 @@ vi.mock('../../services/customerReconciliation', () => ({
     : match?.matchType === 'name'
       ? { customerId: null, suggestedCustomerId: match.customer?.id ?? null, status: 'matched_name', notes: '' }
       : { customerId: null, suggestedCustomerId: null, status: 'missing_customer', notes: '' },
+  withoutDeactivatedCustomer: <T,>(match: T) => match,
 }))
 
 import { Granite } from '../Granite'

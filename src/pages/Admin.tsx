@@ -8,7 +8,9 @@ import { Badge } from '../components/ui/Badge'
 import { NoValue } from '../components/ui/NoValue'
 import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/Toast'
-import { useConfirm } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { classifyDbError } from '../lib/errors'
+import { reactivateCatalogRow } from '../services/deleteRecords'
 import { TabButton } from '../components/ui/TabButton'
 import { NaoEncontrado } from './NaoEncontrado'
 import { ADMIN_TABS, DEFAULT_ADMIN_TAB, isAdminTab, type AdminTab } from './adminTabs'
@@ -54,6 +56,7 @@ export function Admin() {
   const unknownTab = tabParam !== undefined && !isAdminTab(tabParam)
   const { showToast } = useToast()
   const confirm = useConfirm()
+  const confirmWithReason = useConfirmWithReason()
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [novoAberto, setNovoAberto] = useState(false)
@@ -103,6 +106,16 @@ export function Admin() {
   const { data: slaRows, isLoading: slaLoading, error: slaError } = useAgencyReportSla(slaRange, tab === 'prazo-adr')
   const slaSummary = summarizeAgencyReportSlaByDepartment(slaRows ?? [])
 
+  const reactivateMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => reactivateCatalogRow('user_profiles', id, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      showToast('Usuário reativado.', 'success')
+      setPendingId(null)
+    },
+    onError: (err: Error) => { showToast(classifyDbError(err).message, 'error'); setPendingId(null) },
+  })
+
   const mutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof updateUserProfile>[1] }) =>
       updateUserProfile(id, updates),
@@ -111,8 +124,10 @@ export function Admin() {
       showToast('Usuário atualizado.', 'success')
       setPendingId(null)
     },
-    onError: () => {
-      showToast('Erro ao atualizar usuário.', 'error')
+    // A recusa do banco explica o motivo (ex.: último Administrativo ativo,
+    // migration 239); classifyDbError preserva a mensagem de negócio.
+    onError: (err: unknown) => {
+      showToast(classifyDbError(err).message, 'error')
       setPendingId(null)
     },
   })
@@ -151,27 +166,29 @@ export function Admin() {
   async function handleToggleActive(id: string, current: boolean) {
     const targetUser = users.find((u) => u.id === id)
     const userName = targetUser?.full_name ?? 'este usuário'
-    const confirmed = await confirm({
-      title: current ? 'Desativar usuário' : 'Ativar usuário',
+    // B13: reativar pede motivo (ADR 0072), gravado pela RPC reactivate_catalog_row (migration 261).
+    const confirmOptions = {
+      title: current ? 'Desativar usuário' : 'Reativar usuário',
       message: current
         ? 'Desativar este usuário revoga o acesso e encerra a sessão dele imediatamente. Confirmar?'
         : 'Reativar este usuário restaura o acesso dele ao sistema. Confirmar?',
-      confirmLabel: current ? 'Desativar' : 'Ativar',
-      tone: current ? 'danger' : 'primary',
+      confirmLabel: current ? 'Desativar' : 'Reativar',
+      tone: current ? ('danger' as const) : ('primary' as const),
       consequence: current
         ? `O acesso de ${userName} será revogado e sua sessão no sistema será encerrada imediatamente.`
         : `O acesso de ${userName} será reativado e o usuário poderá fazer login novamente.`,
       reversibility: current
         ? 'O usuário pode ser reativado a qualquer momento no painel administrativo.'
         : 'O usuário pode ser desativado novamente caso necessário.',
-    })
-    if (!confirmed) return
+    }
+    const reason = current ? ((await confirm(confirmOptions)) ? '' : null) : await confirmWithReason(confirmOptions)
+    if (reason === null) return
     setPendingId(id)
     if (current) {
       deactivateMutation.mutate(id)
       return
     }
-    mutation.mutate({ id, updates: { active: true } })
+    reactivateMutation.mutate({ id, reason })
   }
 
   async function handleSetProfile(user: AdminUserRow, role: UserProfileRole) {
@@ -318,7 +335,7 @@ export function Admin() {
                               onClick={() => void handleToggleActive(u.id, u.active)}
                               className="app-table__action text-xs disabled:opacity-40"
                             >
-                              {u.active ? 'Desativar' : 'Ativar'}
+                              {u.active ? 'Desativar' : 'Reativar'}
                             </button>
                           </div>
                         </td>

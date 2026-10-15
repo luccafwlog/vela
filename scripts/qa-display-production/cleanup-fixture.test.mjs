@@ -19,6 +19,14 @@ test('dry-run returns dependency order without deleting anything', async () => {
   assert.deepEqual(calls, [])
 })
 
+test('destructive mode refuses before any delete: the API no longer deletes fixture tables (ADR 0085)', async () => {
+  const { cleanupFixture } = await import('./cleanup-fixture.mjs')
+  const calls = []
+  const catalog = { ...base(), customers: [{ id: 'QAD26-CUSTOMER-1', created: true }] }
+  await assert.rejects(() => cleanupFixture({ from: (...args) => { calls.push(args); return {} } }, catalog, { dryRun: false }), /reset-ambiente/)
+  assert.deepEqual(calls, [])
+})
+
 test('accepts only textual synthetic ids or non-text ids explicitly present in the loaded catalog', async () => {
   const { isSyntheticId } = await import('./cleanup-fixture.mjs')
   assert.equal(isSyntheticId('QAD26-BL-001'), true)

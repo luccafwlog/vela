@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -15,11 +15,11 @@ const containerIds = [992205, 992206]
 const vehicleId = 992207
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
 }
 
 function callAs(userId: string, sql: string) {
-  const result = spawnSync('psql', [
+  const result = spawnPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `BEGIN; SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${userId}', true); ${sql} COMMIT;`,
   ], { encoding: 'utf8' })
@@ -88,7 +88,7 @@ describeLocal('S12 — leituras operacionais paginadas', () => {
     `)
   })
 
-  // Migration 232: SECURITY INVOKER, então vale a RLS de quem chama.
+  // Migration 285: SECURITY INVOKER, então vale a RLS de quem chama.
   it('opções de filtro trazem POL, POD e tipos distintos para o usuário interno e nada para quem não tem perfil', () => {
     const options = JSON.parse(lastJson(callAsAuthenticated('SELECT public.operational_list_filter_options();'))) as { pols: string[]; pods: string[]; containerTypes: string[] }
     expect(options.pols).toContain('CNSHA')

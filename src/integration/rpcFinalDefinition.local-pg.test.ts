@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import fs from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -12,7 +12,7 @@ const migration309 = fs.readFileSync(path.join(migrationsDir, '309_revert_voyage
 const migration316 = fs.readFileSync(path.join(migrationsDir, '316_drop_dead_bl_transshipment_columns.sql'), 'utf8').toLowerCase()
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
 }
 
 function getFunctionDefinition(signature: string) {

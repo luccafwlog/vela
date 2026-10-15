@@ -5,6 +5,19 @@ import { supabase } from './supabase'
 export type CustomerMatchRecord = {
   id: number
   name: string
+  /** B17: Cliente desativado só casa por documento, e vira sugestão com o motivo. */
+  deactivated?: boolean
+}
+
+export const DEACTIVATED_CUSTOMER_NOTE = 'Cliente desativado: reative o cliente ou escolha outro.'
+
+/**
+ * B17 (ADR 0073, item 6): B/L com o CNPJ de um Cliente desativado chega à
+ * Revisão como sugestão com a nota do motivo (importação ou gatilho
+ * `guard_bl_link_to_deactivated_customer`, que grava o mesmo texto).
+ */
+export function isDeactivatedCustomerSuggestion(item: { source: string; customer_reconciliation_notes?: string | null }): boolean {
+  return item.source === 'bl' && (item.customer_reconciliation_notes ?? '').startsWith('Cliente desativado')
 }
 
 export type CustomerMaps = {
@@ -69,22 +82,26 @@ export async function loadCustomerMaps() {
     const to = from + pageSize - 1
     const { data, error } = await supabase
       .from('customers')
-      .select('id, cnpj_cpf, name')
-      // Cliente desativado nao e sugerido na reconciliacao (ADR 0073; migration 092).
-      .is('deactivated_at' as never, null as never)
+      .select('id, cnpj_cpf, name, deactivated_at')
       .order('id', { ascending: true })
       .range(from, to)
 
     if (error) throw error
 
     const batch = data ?? []
-    for (const customer of batch) {
-      const record: CustomerMatchRecord = { id: customer.id, name: customer.name }
+    // ponytail: `deactivated_at` (migration 092) falta nos tipos gerados (database.ts é protegido).
+    for (const customer of batch as unknown as Array<{ id: number; cnpj_cpf: string | null; name: string; deactivated_at?: string | null }>) {
+      const deactivated = Boolean(customer.deactivated_at)
+      const record: CustomerMatchRecord = { id: customer.id, name: customer.name, ...(deactivated ? { deactivated: true } : {}) }
 
       const document = canonicalizeDocument(customer.cnpj_cpf)
-      if (document) {
+      // Ativo vence desativado no mesmo documento.
+      if (document && (!deactivated || !customersByDocument.has(document))) {
         customersByDocument.set(document, record)
       }
+      // B17 (ADR 0073, item 6): desativado não é candidato por nome; pelo
+      // documento, entra para a Revisão mostrar o motivo e a sugestão.
+      if (deactivated) continue
 
       const normalizedName = normalizeText(customer.name)
       if (normalizedName && !customersByName.has(normalizedName)) {
@@ -173,7 +190,25 @@ export type CustomerLink = {
   notes: string
 }
 
+/**
+ * Granito não tem a sugestão de Cliente desativado (B17 vale para o B/L, com o
+ * gatilho `guard_bl_link_to_deactivated_customer`): o CNPJ de Cliente
+ * desativado fica sem vínculo e sem sugestão, como antes do B17 (migration 270).
+ */
+export function withoutDeactivatedCustomer(match: CustomerMatchResult | null): CustomerMatchResult | null {
+  return match?.customer.deactivated ? null : match
+}
+
 export function resolveCustomerLink(match: CustomerMatchResult | null): CustomerLink {
+  if (match?.matchType === 'document' && match.customer.deactivated) {
+    return {
+      customerId: null,
+      suggestedCustomerId: match.customer.id,
+      status: 'matched_name',
+      notes: DEACTIVATED_CUSTOMER_NOTE,
+    }
+  }
+
   if (match?.matchType === 'document') {
     return {
       customerId: match.customer.id,

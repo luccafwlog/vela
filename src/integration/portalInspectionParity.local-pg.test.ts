@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   PORTAL_READ_INSPECT_MAP,
@@ -25,15 +25,13 @@ const customerACnpj = syntheticCnpj(11301)
 const customerBCnpj = syntheticCnpj(11302)
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }
 
 function callAs(userId: string, sql: string) {
-  return spawnSync(
-    'psql',
-    [
+  return spawnPsql([
       '-X',
       '-v',
       'ON_ERROR_STOP=1',
@@ -48,9 +46,7 @@ function callAs(userId: string, sql: string) {
 }
 
 function callAsRollback(userId: string, sql: string) {
-  return spawnSync(
-    'psql',
-    [
+  return spawnPsql([
       '-X',
       '-v',
       'ON_ERROR_STOP=1',
@@ -236,7 +232,7 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
   it('nega ao usuário do Portal as cinco RPCs internas com 42501', () => {
     const disputeId = Number(psql(`SELECT id FROM public.demurrage_disputes WHERE customer_id = ${customerA} ORDER BY id LIMIT 1;`))
     const attempts = [
-      { sql: 'SELECT public.list_demurrage_disputes_internal(NULL);', message: 'Apenas Equipamentos ou Administrativo pode consultar a fila' },
+      { sql: 'SELECT public.list_demurrage_disputes_internal(NULL);', message: 'Usuário interno ativo obrigatório para consultar as Disputes' },
       { sql: `SELECT public.add_demurrage_dispute_message(${disputeId}, 'intrusão', 'cliente');`, message: 'Apenas Equipamentos ou Administrativo pode responder' },
       { sql: `SELECT public.reopen_demurrage_dispute(${disputeId}, 'intrusão');`, message: 'Apenas Equipamentos ou Administrativo pode reabrir' },
       { sql: "SELECT public.save_customer_communication_saved_template('intrusão', 'x', 'x');", message: 'Sem permissão para salvar modelos' },

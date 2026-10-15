@@ -20,8 +20,8 @@ cálculo: a confirmação é o CE Mercante (ADR 0077, decisão 7).
   `customer_rate_overrides` exigem `is_active_user()` para gravar e reservam a
   exclusão ao Administrativo. Item e Condição de Cliente saem por
   `delete_catalog_row`, com motivo (migration `096`); a tabela
-  (`charge_tables`) ainda sai por DELETE direto sem motivo (a exclusão passa a
-  ser só por RPC, item P1 do plano); o gatilho `audit_row_changes` registra cada
+  (`charge_tables`) não tem exclusão: o DELETE direto saiu na migration `235`
+  (ADR 0085, falha 4); o gatilho `audit_row_changes` registra cada
   alteração com autor.
 - `src/services/charges/chargeTableService.ts` e
   `src/services/charges/chargeRateService.ts` são donos do CRUD de configuração.
@@ -122,10 +122,9 @@ aceita "1.420,50"; cada erro indica o campo).
 - `src/components/bl/BlCobrancasTab.tsx`, em `/bls/:blId`, lista linhas,
   calcula/recalcula um B/L, mantém cobranças manuais (botões **Editar** e, só
   para o Administrativo, **Excluir** na linha manual, enquanto o B/L não está
-  faturado) e oferece **Emitir fatura** ao Administrativo (pela
-  [matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento),
-  qualquer Departamento emite; correção pendente, item P4 do
-  [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)). Com fatura ativa, o
+  faturado) e oferece **Emitir fatura** a qualquer Departamento
+  ([matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento);
+  migration `246`). Com fatura ativa, o
   botão **Abrir no Faturamento** abre o detalhe dela em `/taxas-locais`. A promoção a `ready_for_billing` só acontece dentro da
   emissão (`mark_bl_ready_and_create_invoice`); não há ação de revisar nem de
   liberar o B/L.
@@ -179,7 +178,7 @@ aceita "1.420,50"; cada erro indica o campo).
 | B/L · editar cobrança manual | Linha manual existente e B/L elegível | `BlCobrancasTab` (botão **Editar** na linha manual) | `useUpdateManualBlCharge` → `updateManualBlCharge` | RPC `update_manual_bl_charge` | Invalida linhas/detalhe/lista do B/L e pendências | RPC rejeita linha automática, ausente ou invoice protegida | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/hooks/useLocalCharges.ts`, `supabase/migrations_archive/108_guard_manual_charges_and_clear_pix_on_reversal.sql` |
 | B/L · excluir cobrança manual | Linha manual existente e confirmação da tela | `BlCobrancasTab` (botão **Excluir** na linha manual, só para o Administrativo) | `useDeleteManualBlCharge` → `deleteManualBlCharge` | RPC `delete_manual_bl_charge` | Mesmas invalidações da edição | RPC rejeita linha automática, ausente ou invoice protegida | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/charges/chargeOperationsService.ts`, `supabase/migrations_archive/108_guard_manual_charges_and_clear_pix_on_reversal.sql` |
 | ~~B/L ou lote · marcar revisado~~ | — | — | — | Removido em 2026-10-01 (ADR 0077, migration `127`): a confirmação do cálculo é o CE Mercante; linha `review_required` se resolve corrigindo o B/L e recalculando. A RPC `mark_bl_charges_reviewed` não tem `EXECUTE` para a API; a ação em lote já não existia na Validação. | — | — | **Teste local-pg:** `invoiceReissue.local-pg.test.ts` |
-| B/L · Emitir fatura (manual) | Hoje Administrativo (qualquer Departamento pelo item P4 do plano); B/L com Cliente, CE Mercante, cálculo feito, sem linha `review_required` e ainda não faturado | `BlCobrancasTab` (botão **Emitir fatura**, com confirmação) e Validação (**Emitir** por linha) | `markBlReadyAndCreateInvoice` / `createInvoiceFromBls` | RPC `mark_bl_ready_and_create_invoice` (promove com `mark_bl_ready_for_billing` e emite na mesma transação) | Invalida faturas, detalhe e lista de B/Ls, operações e fila de revisão | Banco aplica CE, Portal, Cliente e gate de revisão. O caminho normal é automático; o manual cobre Reemissão pendente com trava resolvida e falha da emissão automática. “Pronto para faturar” foi removido em 2026-10-01 (ADR 0077). | **Código:** `src/components/bl/BlCobrancasTab.tsx` · **Teste:** `src/components/bl/__tests__/BlCobrancasTab.behavior.test.tsx` |
+| B/L · Emitir fatura (manual) | Qualquer Departamento (migration `246`); B/L com Cliente, CE Mercante, cálculo feito, sem linha `review_required` e ainda não faturado | `BlCobrancasTab` (botão **Emitir fatura**, com confirmação) e Validação (**Emitir** por linha) | `markBlReadyAndCreateInvoice` / `createInvoiceFromBls` | RPC `mark_bl_ready_and_create_invoice` (promove com `mark_bl_ready_for_billing` e emite na mesma transação) | Invalida faturas, detalhe e lista de B/Ls, operações e fila de revisão | Banco aplica CE, Portal, Cliente e gate de revisão. O caminho normal é automático; o manual cobre Reemissão pendente com trava resolvida e falha da emissão automática. “Pronto para faturar” foi removido em 2026-10-01 (ADR 0077). | **Código:** `src/components/bl/BlCobrancasTab.tsx` · **Teste:** `src/components/bl/__tests__/BlCobrancasTab.behavior.test.tsx` |
 | `/taxas-locais` · acompanhar e reenviar comunicado financeiro | Invoice local do cliente; prontidão completa para envio inicial ou comunicado anterior para reenvio | `InvoiceCommunicationStatusCell` | `useCustomerVoyageCommunicationStatus` → `fetchCustomerVoyageCommunicationStatus`; reenvio confirmado → `dispatchCeMercanteTaxasCommunication({ forceRetry: true })` | `customer_local_charges_communication_readiness()`; trilha `customer_communications`/tentativas | Mostra “Enviado automaticamente”, “Reenviado manualmente” ou motivo de bloqueio; invalida status após reenvio | Falha de leitura mostra status indisponível; confirmação pode ser cancelada; contato/supressão/chave global bloqueia ou simula | **Código:** `src/components/billing/InvoiceCommunicationStatusCell.tsx`, `src/services/customerFinanceCommunications.ts`, `supabase/migrations_archive/376_customer_local_charges_communication_readiness.sql` · **Teste:** `src/services/__tests__/customerFinanceCommunications.test.ts`, `src/components/billing/__tests__/InvoiceCommunicationStatusCell.test.tsx` |
 | `/taxas-locais` · apontar a conciliação para a Revisão | B/L com conciliação pendente | `ValidacaoOperationsTable` (expansão) | Nenhuma mutação: a tela exibe cliente do manifesto, CNPJ, sugestão e detecção inline no bloco "Detalhes", sem caixa separada | O callout do bloqueio concentra o único link `/revisao?bl=` — a decisão é da Revisão (ADR 0061) | — | Sem item na fila, a expansão exibe a mensagem inline no bloco "Detalhes" | **Código:** `src/components/billing/ValidacaoOperationsTable.tsx`; **Teste:** `src/components/billing/__tests__/ValidacaoOperationsTable.test.tsx` |
 
@@ -293,8 +292,7 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   aplicada; período vencido ou futuro em tabela ativa vira aviso, nunca
   exclusão. Desativar é a única forma de tirar uma tabela do cálculo. O
   lançamento manual e o Item da tabela da avulsa seguem a mesma regra
-  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10); hoje ainda filtram a vigência
-  (correção pendente; ver [Notas e divergências](#notas-e-divergências)).
+  ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10; migration `248`).
 - **B/L misto** consome as tabelas container e carga solta por
   `resolve_bl_local_charge_table_ids` (`056`). A taxa com
   `application_basis = 'bl'` (documental) incide só do lado container; falta
@@ -332,8 +330,8 @@ escolhe a tabela (escopo e tabela ativa, sem data). Não é a ATA (o CE é
 cadastrado dias antes da atracação, então a fatura já existe quando a ATA
 chega) nem a data de importação do B/L, que é fato administrativo. O
 lançamento manual e o Item da tabela da avulsa seguem a mesma regra (ADR 0083,
-item 10); hoje ainda usam a data do upload do lote (correção pendente; ver
-Notas).
+item 10): desde a migration `248` os três leem a data de uma função única,
+`bl_local_charge_reference_date`.
 
 ### Movimento e Isenção de Taxas Locais
 
@@ -533,7 +531,7 @@ Comando focado:
   agrupa as tabelas pela mesma lista exata de aliases da função do banco
   (SANTOS/SSZ → BRSSZ, BRVIT/VITORIA/VIX → BRVIX…), sem "contém"; o rótulo do
   escopo mostra o código canônico do banco.
-- **Correção pendente (A10):** o lançamento manual (`add_manual_bl_charge`, `list_manual_charge_items_for_bl`) e o Item da tabela da avulsa (`quote_manual_invoice_charge`) escolhem a tabela e a Condição de Cliente pela regra do cálculo automático (ADR 0040: tabela ativa sem data; Condição pela Data de Referência), conforme a [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 10. Hoje excluem tabela ativa com vigência vencida ou futura e escolhem a Condição de Cliente pela data do upload do lote. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- **Caminho manual com a regra do automático (A10).** Desde a migration `248`, o lançamento manual (`add_manual_bl_charge`, `list_manual_charge_items_for_bl`) e o Item da tabela da avulsa (`quote_manual_invoice_charge`) escolhem a tabela ativa sem filtrar a vigência e a Condição de Cliente pela Data de Referência (`bl_local_charge_reference_date`, a mesma função do cálculo automático). Antes excluíam tabela ativa com vigência vencida ou futura e usavam a data do upload do lote (**Teste**, Postgres local, `caminhoManualVigencia.local-pg.test.ts`).
 - `pricing_rule_versions` não participa deste caminho atual; cálculo e
   transições registram evidência principalmente em `audit_logs`.
 

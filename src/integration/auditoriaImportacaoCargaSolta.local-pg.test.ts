@@ -22,7 +22,7 @@
 // 'A201-*', usuário ...0201001. A limpeza (antes e depois) remove também
 // faturas, recebíveis, efeitos, alertas, auditoria, notificações e a conta de
 // Portal criada pelo gatilho de inserção de Cliente.
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -45,14 +45,14 @@ const pol = 'A201O'
 const pod = 'A201P'
 
 function localPsql(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()
 }
 
 function asOperator(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
@@ -316,8 +316,6 @@ const cleanupSql = `
   WHERE customer_id IN (SELECT id FROM a201_customers) OR account_id IN (SELECT id FROM a201_accounts);
   DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM a201_accounts);
   DELETE FROM public.portal_invites WHERE account_id IN (SELECT id FROM a201_accounts);
-  DELETE FROM public.customer_portal_sessions
-  WHERE account_id IN (SELECT id FROM a201_accounts) OR customer_id IN (SELECT id FROM a201_customers);
   DELETE FROM public.portal_inspection_events WHERE customer_id IN (SELECT id FROM a201_customers);
   DELETE FROM public.portal_rate_limits WHERE customer_id IN (SELECT id FROM a201_customers);
   DELETE FROM public.customer_portal_accounts WHERE id IN (SELECT id FROM a201_accounts);

@@ -151,6 +151,8 @@ export type ManualInvoiceInput = {
   customerId: number
   itemName: string
   description?: string | null
+  /** Motivo interno da avulsa (migration 272); fica no rastro, não no Portal. */
+  reason: string
   quantity: number
   unitValueBrl: number
   blId?: string | null
@@ -1001,6 +1003,7 @@ export async function createManualInvoice(input: ManualInvoiceInput): Promise<Ma
     p_item_name: parsed.itemName,
     p_quantity: parsed.quantity,
     p_unit_value_brl: parsed.unitValueBrl,
+    p_reason: parsed.reason,
     ...(parsed.description == null ? {} : { p_description: parsed.description }),
     ...(parsed.blId == null ? {} : { p_bl_id: parsed.blId }),
     ...(parsed.voyageId == null ? {} : { p_voyage_id: parsed.voyageId }),

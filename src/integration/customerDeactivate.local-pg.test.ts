@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
@@ -10,7 +10,7 @@ const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }
@@ -36,7 +36,7 @@ const VESSEL_ID = 9200004
 const VOYAGE_ID = 9200005
 
 function as(userId: string, sql: string) {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
     BEGIN;
     SELECT set_config('request.jwt.claims', '{"sub":"${userId}","role":"authenticated"}', true);
     SET LOCAL ROLE authenticated;
@@ -55,6 +55,8 @@ function cleanup() {
     DELETE FROM public.audit_logs WHERE changed_by IN ('${ADMIN_ID}', '${OPS_ID}');
     DELETE FROM public.invoices WHERE customer_id IN (${CUSTOMERS});
     DELETE FROM public.bls WHERE voyage_id = ${VOYAGE_ID};
+    DELETE FROM public.granite_bls WHERE manifest_id IN (SELECT id FROM public.granite_manifests WHERE voyage_id = ${VOYAGE_ID});
+    DELETE FROM public.granite_manifests WHERE voyage_id = ${VOYAGE_ID};
     DELETE FROM public.portal_provisioning_events WHERE customer_id IN (${CUSTOMERS});
     DELETE FROM public.customer_portal_accounts WHERE customer_id IN (${CUSTOMERS});
     DELETE FROM public.customers WHERE id IN (${CUSTOMERS});
@@ -120,6 +122,16 @@ describeLocal('092 — cliente desativado', () => {
 
     expect(() => psql(`INSERT INTO public.bls (id, voyage_id, customer_id, customer_reconciliation_status)
       VALUES ('BL092MAN', ${VOYAGE_ID}, ${CUSTOMER_FREE}, 'reconciled');`)).toThrow(/desativado: reative antes de vincular/)
+  })
+
+  it('B/L de Granito não se vincula a Cliente desativado (270)', () => {
+    const manifestId = psql(`INSERT INTO public.granite_manifests (vessel_voyage, voyage_id) VALUES ('V092 Granito', ${VOYAGE_ID}) RETURNING id;`)
+    expect(() => psql(`INSERT INTO public.granite_bls (manifest_id, bl_number, client_id)
+      VALUES ('${manifestId}', 'GR092MAN', ${CUSTOMER_FREE});`)).toThrow(/desativado: reative antes de vincular/)
+    // Sem Cliente entra; o vínculo depois também é recusado.
+    psql(`INSERT INTO public.granite_bls (manifest_id, bl_number) VALUES ('${manifestId}', 'GR092SEM');`)
+    expect(() => psql(`UPDATE public.granite_bls SET client_id = ${CUSTOMER_FREE} WHERE bl_number = 'GR092SEM' AND manifest_id = '${manifestId}';`))
+      .toThrow(/desativado: reative antes de vincular/)
   })
 
   it('Reativar devolve o cliente, com auditoria', () => {

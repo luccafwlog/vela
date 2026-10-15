@@ -6,7 +6,7 @@
 
 ## 2026-10
 
-- **Telas mais rápidas com histórico grande (2026-10-14, migrations `230`–`232`,
+- **Telas mais rápidas com histórico grande (2026-10-14, migrations `283`–`285`,
   [relatório](archive/reports/2026-10-14-desempenho-telas-com-volume.md)):** com dois anos de
   volume sintético, B/Ls abria em mais de 30 s e passou a 1,8 s, Contêineres foi de 23,5 s a 3,3 s,
   Viagens de 14,9 s a ~4 s, e a abertura fria de 4,4 s a 2,5 s. As policies avaliam o helper de RLS
@@ -16,11 +16,31 @@
   nos filtros que vão ao servidor, faz o mesmo). O Line Up deixou de pedir o marco
   de alteração por B/L, e as fontes e os relatórios ficaram mais leves. A Viagens deixou de perder
   as datas de POL por URL longa (HTTP 431). `npm run perf:screens` refaz a medição.
+
+- **Correções da revisão geral e do modelo de permissões (2026-10-15, PR 954):**
+  os 43 itens do [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+  (migrations `230` a `266`: escrita de cobrança, fatura, pagamento e contatos só
+  pelas RPCs; autor é quem está logado; emissão por qualquer Departamento; baixa
+  e Conciliação PIX do Financeiro; leitura global; alertas fechando pela origem;
+  ADR de Saída, Vazios e importações). A revisão da PR acrescentou as migrations
+  `267` a `278`. Decisões do dono na revisão: motivo interno obrigatório na
+  fatura avulsa, regra M14 do e-mail do manifesto também na Revisão e viagem
+  limpável na importação de CE Mercante e confirmação legada do Desbloqueio de CE presa ao CE confirmado. Publicar na ordem migrations → Edge
+  Functions → frontend ([Serviços externos](operations/servicos-externos.md#edge-functions)).
+
+- **CI na medida da mudança (2026-10-15, [ADR 0086](adr/0086-ci-confere-na-medida-da-mudanca.md), PR luccafwlog/vela#953):**
+  o CI roda só em PR, em quatro jobs (`quality`, `test` em 2 shards, `db`, `checks`); replay,
+  invariantes, catálogo de RPCs e seed em toda PR, e as suítes SQL só quando o diff toca o banco
+  (`scripts/ci-db-paths.mjs`). A ordem invertida passou ao workflow semanal `local-pg-order.yml`. O
+  merge não repete o CI: a produção publica no push em `main` depois do check do Supabase no commit
+  (`scripts/wait-supabase-migrations.mjs`). Previews só pela etiqueta `preview`. As suítes SQL usam
+  uma conexão por arquivo (`src/integration/localPsql.ts`): a passada caiu de 274 s para 94 s no
+  contêiner. Aceites conferidos no GitHub no mesmo dia ([plano arquivado](archive/plans/2026-10-15-compactacao-do-ci.md)).
 - **Modelo de permissões por perfil (2026-10-14, [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)):**
   o dono fixou a base (escrita global com rastro, mais cancelar fatura, baixa manual e registro da
   Restituição como exceções) e a lista fechada de exceções; a matriz ação × perfil passou a ter dono
   único em [Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil). Só documentação: o
-  código entrou como itens P no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
+  código entrou como itens P no [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
   numa fila única com as correções da ADR 0083, que passa a ter 43 itens; à frente, depois do B1,
   ficam as falhas de escrita direta pela API confirmadas no Postgres local (itens P2, P3 e P15 do
   plano; P1 junto com o A7, depois do A21). A revisão da PR acrescentou a falha 5 (escrita direta
@@ -49,7 +69,7 @@
   módulos passam a descrever a regra decidida, com "correção pendente" onde o código ainda
   diverge; o termo é Restituição e a regra é "Administrativo ativo mínimo"; o desenho de piloto
   e GO LIVE do Portal de julho foi arquivado. Nenhum código mudou: as correções estão no
-  [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (31 itens de
+  [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (31 itens de
   código e 2 operações do dono), e o plano da revisão geral foi arquivado.
 - **Revisão geral da documentação (2026-10-14, [ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md),
   [relatório](archive/audits/2026-10-13-revisao-geral-documentacao.md)):** cada fato passa a ter

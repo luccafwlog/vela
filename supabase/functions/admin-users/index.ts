@@ -169,6 +169,9 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
       .from('user_profiles')
       .update({ active: false })
       .eq('id', userId)
+    // 22023: recusa de negócio com a explicação pronta (último Administrativo
+    // ativo, migration 239); o resto segue genérico.
+    if (profileError?.code === '22023') return json(422, { error: profileError.message }, origin)
     if (profileError) return json(500, { error: 'Não foi possível desativar o usuário.' }, origin)
 
     // O flag sozinho não derruba a sessão: o refresh token seguiria válido.

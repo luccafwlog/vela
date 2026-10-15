@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { CeUnlockRequestDetail } from '../CeUnlockRequestDetail'
-import type { CeUnlockRequest } from '../../../types/ceUnlock'
+import type { CeUnlockDocument, CeUnlockRequest } from '../../../types/ceUnlock'
 
 vi.mock('../../ui/ConfirmDialog', () => ({
   useConfirm: () => async () => true,
   useConfirmWithReason: () => async () => 'Assinatura ausente na última página',
 }))
 vi.mock('../../../services/ceUnlockService', () => ({
-  downloadCeUnlockDocument: vi.fn(), uploadCeUnlockDocument: vi.fn(),
+  downloadCeUnlockDocument: vi.fn(async () => {}), uploadCeUnlockDocument: vi.fn(),
 }))
 afterEach(cleanup)
 
@@ -73,3 +73,57 @@ it('somente leitura (Financeiro/Operações) não vê ações de análise nem ca
   render(<CeUnlockRequestDetail request={base()} manage={false} onAction={async () => {}} busy={false} />)
   expect(screen.queryByRole('button', { name: /Aprovar|Recusar|Cancelar pedido/ })).toBeNull()
 })
+
+const versionDoc = (over: Partial<CeUnlockDocument>): CeUnlockDocument => ({
+  id: "d", version: 1, customer_id: 1, request_id: "req-1", type: "termo", source: "request", status: "uploaded",
+  file_name: "termo.pdf", size_bytes: 10, valid_from: null, valid_until: null, coverage_year: null, reason: null,
+  created_at: "2026-10-10T13:00:00Z", ...over,
+});
+const versionRequest = (documents: CeUnlockDocument[], source: CeUnlockRequest["source"] = "request"): CeUnlockRequest => ({
+  id: "req-1", protocol: "CE-1", state: "in_review", version: 2, source, items: [], documents, events: [],
+});
+const versionDocs = [
+  versionDoc({ id: "t2", file_name: "termo-v2.pdf", created_at: "2026-10-11T13:00:00Z" }),
+  versionDoc({ id: "t1", file_name: "termo-v1.pdf", status: "changes_requested", reason: "Assinatura ilegível" }),
+  versionDoc({ id: "p1", type: "procuracao", file_name: "procuracao.pdf", status: "approved" }),
+];
+
+it("análise interna mostra a versão atual de cada documento e as anteriores para consulta, abríveis e sem análise", async () => {
+  const { downloadCeUnlockDocument } = await import("../../../services/ceUnlockService");
+  render(<CeUnlockRequestDetail request={versionRequest(versionDocs)} manage busy={false} onAction={vi.fn()} />);
+  expect(screen.getByText("termo-v2.pdf")).toBeTruthy();
+  expect(screen.getByText("procuracao.pdf")).toBeTruthy();
+  const previous = screen.getByRole("region", { name: "Versões anteriores dos documentos" });
+  expect(within(previous).getByText("Correção solicitada")).toBeTruthy();
+  expect(within(previous).getByText("Motivo: Assinatura ilegível")).toBeTruthy();
+  expect(within(previous).getByText(/termo-v1\.pdf · Enviado em 10\/10\/2026/)).toBeTruthy();
+  // A versão recusada abre o PDF, mas não ganha botões de análise.
+  expect(within(previous).queryByRole("button", { name: /Aprovar|Recusar/ })).toBeNull();
+  await userEvent.click(within(previous).getByRole("button", { name: "Abrir documento" }));
+  expect(downloadCeUnlockDocument).toHaveBeenCalledWith("t1", undefined);
+});
+
+it("versão anterior já expurgada avisa que o arquivo saiu, em vez de oferecer abrir", () => {
+  const purged = [versionDocs[0], { ...versionDocs[1], purged: true }, versionDocs[2]];
+  render(<CeUnlockRequestDetail request={versionRequest(purged)} manage busy={false} onAction={vi.fn()} />);
+  const previous = screen.getByRole("region", { name: "Versões anteriores dos documentos" });
+  expect(within(previous).getByText("Arquivo removido pela regra de retenção")).toBeTruthy();
+  expect(within(previous).queryByRole("button", { name: "Abrir documento" })).toBeNull();
+});
+
+it("versão reivindicada pelo expurgo, ainda não removida, não se diz removida nem oferece abrir", () => {
+  const pending = [versionDocs[0], { ...versionDocs[1], cleanup_pending: true }, versionDocs[2]];
+  render(<CeUnlockRequestDetail request={versionRequest(pending)} manage busy={false} onAction={vi.fn()} />);
+  const previous = screen.getByRole("region", { name: "Versões anteriores dos documentos" });
+  expect(within(previous).getByText("Arquivo em remoção pela regra de retenção")).toBeTruthy();
+  expect(within(previous).queryByText("Arquivo removido pela regra de retenção")).toBeNull();
+  expect(within(previous).queryByRole("button", { name: "Abrir documento" })).toBeNull();
+});
+
+it("sem substituições, ou em pedido VIP, não mostra versões anteriores", () => {
+  render(<CeUnlockRequestDetail request={versionRequest([versionDocs[0], versionDocs[2]])} manage busy={false} onAction={vi.fn()} />);
+  expect(screen.queryByText("Versões anteriores")).toBeNull();
+  cleanup();
+  render(<CeUnlockRequestDetail request={versionRequest(versionDocs, "vip_annual")} manage busy={false} onAction={vi.fn()} />);
+  expect(screen.queryByText("Versões anteriores")).toBeNull();
+});

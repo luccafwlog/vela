@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 import type { PortalInformation } from '../services/portalInformation'
@@ -25,10 +25,10 @@ const noRate = 9134006
 const ids = [admin, equipment, inactive, portal, operations]
 function quote(value: unknown) { return `'${JSON.stringify(value).replaceAll("'", "''")}'::jsonb` }
 function sql(statement: string) {
-  return execFileSync('psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-d', databaseUrl, '-c', statement], { encoding: 'utf8' }).trim()
+  return execPsql(['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-d', databaseUrl, '-c', statement], { encoding: 'utf8' }).trim()
 }
 function as(user: string, statement: string, rollback = false) {
-  return spawnSync('psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-d', databaseUrl, '-c',
+  return spawnPsql(['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-d', databaseUrl, '-c',
     `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${user}'; ${statement} ${rollback ? 'ROLLBACK' : 'COMMIT'};`], { encoding: 'utf8' })
 }
 function call<T>(user: string, statement: string): T {
@@ -114,28 +114,30 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
     ['revoked credentials with malformed iat', `UPDATE public.customer_portal_accounts SET credentials_revoked_at=now() WHERE customer_id=${customer}; SET LOCAL request.jwt.claims='{"iat":"invalid"}';`, portal],
   ])('rejects information reads with %s', (_name, prepare, actor) => {
     for (const statement of ['SELECT public.portal_get_information();']) {
-      const result = spawnSync('psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-d', databaseUrl, '-c',
+      const result = spawnPsql(['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-d', databaseUrl, '-c',
         `BEGIN; SET LOCAL session_replication_role=replica; ${prepare} SET LOCAL session_replication_role=origin; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${actor}'; ${statement} ROLLBACK;`], { encoding: 'utf8' })
       expect(result.status).not.toBe(0)
       expect(result.stderr).toContain('28000')
     }
   })
 
-  it('active admin/equipment maintain depots; customer/inactive/operations cannot', () => {
-    save(admin, 'depot', metadata(depotA)); save(equipment, 'depot', metadata(depotB))
-    for (const user of [portal, inactive, operations]) {
+  // P8 (ADR 0085, D7; migration 253): qualquer Departamento ativo mantém a Central de Informações.
+  it('any active department maintains depots; customer/inactive cannot', () => {
+    save(admin, 'depot', metadata(depotA)); save(equipment, 'depot', metadata(depotB)); save(operations, 'depot', metadata(depotB))
+    for (const user of [portal, inactive]) {
       for (const statement of [`SELECT public.internal_save_portal_information('depot',${quote(metadata(depotA))});`]) {
         const result = as(user, statement, true); expect(result.status).not.toBe(0); expect(result.stderr).toContain('42501')
       }
     }
   })
-  it('agents/contacts/tracking are admin-only and reject unsafe external URLs', () => {
+  it('agents/contacts/tracking accept any active department and reject unsafe external URLs', () => {
     const examples = [ ['agent', { name: 'Info134 agent', ports: ['BRVIX'], emails: ['agent@example.test'], active: true }],
       ['contact', { key: 'containers', title: 'Info134 contact', emails: ['contact@example.test'], active: true }],
       ['carrier', { carrier_id: voyage, tracking_url: 'https://example.test/tracking' }] ] as const
     for (const [kind, data] of examples) {
       save(admin, kind, data, kind === 'contact')
-      for (const user of [equipment, portal, inactive]) { const result = as(user, `SELECT public.internal_save_portal_information('${kind}',${quote(data)});`, true); expect(result.status).not.toBe(0); expect(result.stderr).toContain('42501') }
+      save(equipment, kind, data, kind === 'contact'); save(operations, kind, data, kind === 'contact')
+      for (const user of [portal, inactive]) { const result = as(user, `SELECT public.internal_save_portal_information('${kind}',${quote(data)});`, true); expect(result.status).not.toBe(0); expect(result.stderr).toContain('42501') }
     }
     for (const url of ['javascript:alert(1)', 'https://user:password@example.test/', 'https:///', 'https://:443', 'https://example.test:abc', 'https://example.test:65536', 'https://999.999.999.999/', 'https://256.1.2/', 'https://9999999999/']) {
       expect(as(admin, `SELECT public.internal_save_portal_information('carrier',${quote({carrier_id: voyage, tracking_url: url})});`, true).status).not.toBe(0)

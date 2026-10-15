@@ -226,51 +226,22 @@ export async function resolvePixReconciliationException(
 }
 
 export async function matchUnifiedPixTransactions(transactions: PixTransaction[]): Promise<UnifiedPixMatch[]> {
-  type LocalInv = {
-    id: number
-    invoice_number: string | null
-    total_brl: number | null
-    balance_brl: number | null
-    pix_txid: string | null
-    customer: { name: string; cnpj_cpf: string } | null
-  }
-  type DemurrageInv = {
-    id: number
-    doc_number: string
-    current_total_brl: number | null
-    pix_txid: string | null
-    customer: { name: string; cnpj_cpf: string } | null
-  }
-
-  const [localRes, demurrageRes, chargesRes] = await Promise.all([
-    supabase
-      .from('invoices')
-      .select('id, invoice_number, total_brl, balance_brl, status, pix_txid, customer:customers(id, name, cnpj_cpf)')
-      .in('status', ['issued', 'partially_paid', 'overdue'])
-      .in('invoice_type', ['individual', 'consolidated', 'manual'])
-      .overrideTypes<LocalInv[], { merge: false }>(),
-    supabase
-      .from('demurrage_invoices')
-      .select('id, doc_number, current_total_brl, status, pix_txid, customer:customers(id, name, cnpj_cpf)')
-      .eq('status', 'issued')
-      .overrideTypes<DemurrageInv[], { merge: false }>(),
-    supabase.rpc('list_local_pix_candidates' as never, { p_txids: [...new Set(transactions.map((tx) => tx.txid))] } as never),
-  ])
-
-  if (chargesRes.error) throw chargesRes.error
-  const charges = z.array(z.object({
-    txid: z.string(), id: z.number(), invoice_number: z.string().nullable(), amount_brl: z.number(),
-    customer: z.object({ name: z.string(), cnpj_cpf: z.string().nullable() }),
-  })).parse(chargesRes.data)
-  if (localRes.error) throw localRes.error
-  if (demurrageRes.error) throw demurrageRes.error
-
-  const localInvoices = localRes.data ?? []
-  const demurrageInvoices = demurrageRes.data ?? []
+  // O servidor resolve cada TXID nas faturas abertas: versão de cobrança local,
+  // TXID gravado, avulsa e Invoice de Demurrage pelo número (QR estático) ou
+  // pela cobrança Itaú (`list_pix_txid_candidates`, migration 242).
+  const candidatesRes = await supabase.rpc('list_pix_txid_candidates' as never, {
+    p_txids: [...new Set(transactions.map((tx) => tx.txid).filter((txid) => normTxid(txid)))],
+  } as never)
+  if (candidatesRes.error) throw candidatesRes.error
+  const candidates = z.array(z.object({
+    txid: z.string(), source: z.enum(['local', 'demurrage']), id: z.number(), doc_number: z.string().nullable(),
+    amount_brl: z.coerce.number(),
+    customer: z.object({ name: z.string().nullable(), cnpj_cpf: z.string().nullable() }),
+  })).parse(candidatesRes.data ?? [])
 
   // Janela das duas PTAX (ADR 0015): para validar pagamentos feitos com um QR de
   // um dia anterior, carregamos o histórico de recálculo das faturas candidatas.
-  const demurrageIds = demurrageInvoices.map((i) => i.id)
+  const demurrageIds = [...new Set(candidates.filter((c) => c.source === 'demurrage').map((c) => c.id))]
   const historyByInvoice = new Map<number, Array<{ event_date: string; total_brl: number }>>()
   if (demurrageIds.length) {
     const { data: histRows, error: histErr } = await supabase
@@ -306,42 +277,19 @@ export async function matchUnifiedPixTransactions(transactions: PixTransaction[]
   }
 
   const txidMap = new Map<string, InvEntry[]>()
-
-  for (const inv of localInvoices) {
-    const docNum = inv.invoice_number ?? String(inv.id)
-    const entry: InvEntry = {
-      source: 'local',
-      id: inv.id,
-      docNumber: docNum,
-      customerName: inv.customer?.name ?? '',
-      customerCnpj: canonicalizeDocument(inv.customer?.cnpj_cpf ?? ''),
-      amount: inv.balance_brl ?? inv.total_brl ?? 0,
-    }
-    // O TXID normalizado é a identidade primária do PIX. O número da invoice
-    // permanece apenas como rótulo; nunca deve ser usado como chave de match.
-    const key = normTxid(inv.pix_txid ?? '')
-    if (key && !charges.some((charge) => normTxid(charge.txid) === key)) txidMap.set(key, [...(txidMap.get(key) ?? []), entry])
-  }
-  for (const charge of charges) {
-    const key = normTxid(charge.txid)
+  for (const candidate of candidates) {
+    // O TXID normalizado é a identidade primária do PIX. O número do documento
+    // permanece apenas como rótulo.
+    const key = normTxid(candidate.txid)
+    if (!key) continue
     txidMap.set(key, [...(txidMap.get(key) ?? []), {
-      source: 'local', id: charge.id, docNumber: charge.invoice_number ?? String(charge.id),
-      customerName: charge.customer.name, customerCnpj: canonicalizeDocument(charge.customer.cnpj_cpf ?? ''),
-      amount: charge.amount_brl,
+      source: candidate.source,
+      id: candidate.id,
+      docNumber: candidate.doc_number ?? String(candidate.id),
+      customerName: candidate.customer.name ?? '',
+      customerCnpj: canonicalizeDocument(candidate.customer.cnpj_cpf ?? ''),
+      amount: candidate.amount_brl,
     }])
-  }
-
-  for (const inv of demurrageInvoices) {
-    const entry: InvEntry = {
-      source: 'demurrage',
-      id: inv.id,
-      docNumber: inv.doc_number,
-      customerName: inv.customer?.name ?? '',
-      customerCnpj: canonicalizeDocument(inv.customer?.cnpj_cpf ?? ''),
-      amount: inv.current_total_brl ?? 0,
-    }
-    const key = normTxid(inv.pix_txid ?? '')
-    if (key) txidMap.set(key, [...(txidMap.get(key) ?? []), entry])
   }
 
   const matches: UnifiedPixMatch[] = []

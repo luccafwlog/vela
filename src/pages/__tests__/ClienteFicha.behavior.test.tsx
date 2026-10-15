@@ -10,8 +10,6 @@ const mocks = vi.hoisted(() => ({
   showToast: vi.fn(),
   confirm: vi.fn(),
   invalidateQueries: vi.fn(),
-  upsertContact: vi.fn(),
-  deleteContact: vi.fn(),
   can: vi.fn(() => true),
 }))
 
@@ -66,8 +64,6 @@ vi.mock('../../components/clientes/CustomerContactConfiguration', () => ({
   ),
 }))
 vi.mock('../../services/customers', () => ({
-  upsertCustomerContact: mocks.upsertContact,
-  deleteCustomerContact: mocks.deleteContact,
   updateCustomerWithAudit: vi.fn(),
 }))
 
@@ -108,8 +104,6 @@ describe('ClienteFicha user behaviours', () => {
     vi.clearAllMocks()
     mocks.detail = { data: customer, isLoading: false, error: null }
     mocks.confirm.mockResolvedValue(true)
-    mocks.upsertContact.mockResolvedValue({ id: 7 })
-    mocks.deleteContact.mockResolvedValue(undefined)
     mocks.can.mockReturnValue(true)
   })
 

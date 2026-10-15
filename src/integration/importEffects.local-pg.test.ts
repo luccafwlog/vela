@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -20,14 +20,14 @@ const graniteBlId = '00000000-0000-0000-0000-000000017202'
 const graniteRateId = '00000000-0000-0000-0000-000000017203'
 
 function localPsql(sql: string, entityPrefix = 'S05-OUTBOX-%'): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; SET import_effects.entity_prefix = '${entityPrefix}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()
 }
 
 function authenticatedPsql(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated'; SET LOCAL request.jwt.claim.sub = '${actorId}'; ${sql} COMMIT;`,
   ], { encoding: 'utf8' }).trim()

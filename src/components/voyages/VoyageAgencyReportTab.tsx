@@ -9,6 +9,7 @@ import { DepartmentSignoffControl } from './DepartmentSignoffControl'
 import { AgencyReportTimeline } from './AgencyReportTimeline'
 import {
   useAgencyReportDepartmentSignoffEvents,
+  useAgencyReportAtdRegisteredAt,
   useAgencyReportDerived,
   useAgencyReportOwn,
   useAgencyReportTerminalState,
@@ -24,7 +25,10 @@ import {
   AGENCY_REPORT_SECTIONS,
   AGENCY_REPORT_SECTION_ORDER,
   AGENCY_REPORT_DEPARTMENT_LABELS,
+  blBelongsToTerminal,
   buildContainerTypeMatrix,
+  summarizeBreakbulk,
+  type AgencyReportBlTerminal,
   filterDepartmentReopeningEvents,
   groupEmptyEmbarkBookings,
   isTransshipmentContainer,
@@ -64,6 +68,21 @@ const OPERATION_FRONT_LABELS: Record<string, string> = {
   'importacao:vazio': 'Vazios IMP',
   'exportacao:granito': 'Granito',
   'exportacao:vazio': 'Vazios EXP',
+}
+
+// B8: ADR fechado antes do campo atdRegisteredAt no snapshot. O registro ao vivo
+// só vale se o ATD vigente for o mesmo congelado; ATD corrigido depois não mostra "registrado em".
+function closedAtdRegisteredAt(
+  header: { unifiedAtd?: string | null; atdRegisteredAt?: string | null } | null | undefined,
+  liveAtd: string | null,
+  liveRegisteredAt: string | null,
+): string | null {
+  if (header?.atdRegisteredAt) return header.atdRegisteredAt
+  const frozenAtd = header?.unifiedAtd ?? null
+  if (frozenAtd == null) return liveRegisteredAt
+  if (liveAtd == null) return null
+  const sameAtd = frozenAtd === liveAtd || (Date.parse(frozenAtd) === Date.parse(liveAtd) && !Number.isNaN(Date.parse(liveAtd)))
+  return sameAtd ? liveRegisteredAt : null
 }
 
 function operationFrontLabel(front: string) {
@@ -374,6 +393,10 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const { data: ownData } = useAgencyReportOwn(voyageId, port, resolvedReportId)
   const { data: signoffEvents } = useAgencyReportSignoffEvents(voyageId, port, resolvedReportId)
   const { data: departmentSignoffEvents } = useAgencyReportDepartmentSignoffEvents(voyageId, port, resolvedReportId)
+  // B8: momento do registro do ATD da Atracação do terminal selecionado (mesma escolha de `selectedAtracacao`, abaixo).
+  const atdTerminalId = selectedTerminalReport?.terminalId ?? null
+  const atdForTimeline = atdTerminalId ? data?.terminalSchedules?.find((entry) => entry.terminalId === atdTerminalId)?.atd ?? null : null
+  const { data: terminalAtdRegisteredAt } = useAgencyReportAtdRegisteredAt(voyageId, port, atdTerminalId, atdForTimeline)
   const { effectiveRole, isAdmin } = useAuth()
   const canEditOperations = !readOnly && (isAdmin || effectiveRole === 'operacoes')
   const signoffMutation = useSetAgencyReportSignoff(resolvedReportId)
@@ -403,20 +426,67 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
     return <div className="app-panel app-panel--padded text-sm text-[var(--app-muted)]">Nenhuma escala ativa para compor o ADR.</div>
   }
 
+  // O seletor de escalas fica visível, senão uma escala TBC ou com erro de carga prende a aba.
+  const escalaSelector = (
+    <div className="flex flex-wrap gap-2" aria-label="Selecionar escala ADR">
+      {pods.map(({ pod, omitted }) => (
+        <Button key={pod} variant={port === pod ? 'primary' : 'secondary'} aria-pressed={port === pod} onClick={() => setPort(pod)} className="app-btn--sm">
+          {pod}
+          {omitted ? (
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${port === pod ? 'bg-white/20 text-white' : 'bg-[var(--app-surface-muted)] text-[var(--app-muted)]'}`}
+              title="Escala omitida — o navio não atracou neste porto; ADR mantido apenas como registro fechado."
+            >
+              Omitida
+            </span>
+          ) : null}
+        </Button>
+      ))}
+    </div>
+  )
   if (terminalStateError) {
-    return <div className="app-panel app-panel--padded text-sm text-[var(--app-red)]">Não foi possível carregar frentes, terminais e ADRs da escala. Nenhuma ação foi habilitada.</div>
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+        {escalaSelector}
+        <div className="app-panel app-panel--padded text-sm text-[var(--app-red)]">Não foi possível carregar frentes, terminais e ADRs da escala. Nenhuma ação foi habilitada.</div>
+      </div>
+    )
   }
 
   if (isTerminalStateLoading || !terminalState) {
     return <div className="app-panel app-panel--padded text-sm text-[var(--app-muted)]">Carregando frentes, terminais e ADRs da escala…</div>
   }
 
+  // B6 (migration 259): escala com frente de operação é do modelo terminalizado.
+  // Sem terminal atribuído (frentes TBC) e sem ADR já existente, não há ADR a
+  // abrir — o caminho legado por porto não é oferecido.
+  if ((terminalState.fronts ?? []).length > 0 && terminalReports.length === 0) {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+        {escalaSelector}
+        <div className="app-panel app-panel--padded text-sm text-[var(--app-muted)]" role="status">Nenhum terminal atribuído às frentes desta escala (TBC). Atribua o terminal na edição da escala para abrir o ADR do terminal.</div>
+      </div>
+    )
+  }
+
   // Dados operacionais continuam sendo consultados por escala, mas um ADR
   // terminalizado precisa mostrar somente as frentes atribuídas ao terminal
   // selecionado. Sem este recorte, dois terminais da mesma escala imprimem o
   // mesmo conteúdo e o sign-off deixa de ser auditável.
-  const containers = sectionIsVisible('carga_descarregada') ? (data?.containers ?? []) : []
-  const cargaSolta = sectionIsVisible('carga_descarregada') ? data?.cargaSolta : undefined
+  // B2 (ADR 0068): no ADR terminalizado, a Carga descarregada é só a dos B/Ls
+  // deste terminal — a exceção de terminal do B/L vence a frente.
+  const cargoTerminalId = resolvedReportId ? selectedTerminalReport?.terminalId ?? null : null
+  const belongsHere = (bl: AgencyReportBlTerminal) => !cargoTerminalId || blBelongsToTerminal(bl, terminalState.fronts ?? [], cargoTerminalId)
+  const containers = sectionIsVisible('carga_descarregada')
+    ? (data?.containers ?? []).filter((container) => !cargoTerminalId || (container.blTerminals ?? []).some(belongsHere))
+    : []
+  const cargaSolta = !sectionIsVisible('carga_descarregada') ? undefined
+    : cargoTerminalId && data?.cargaSoltaBls
+      ? {
+          ...summarizeBreakbulk(data.cargaSoltaBls.finalDestination.filter((bl) => belongsHere({ terminal_id: bl.terminal_id ?? null, cargo_mode: bl.cargo_mode ?? null }))),
+          transshipment: summarizeBreakbulk(data.cargaSoltaBls.transshipment.filter((bl) => belongsHere({ terminal_id: bl.terminal_id ?? null, cargo_mode: bl.cargo_mode ?? null }))),
+        }
+      : data?.cargaSolta
   const vaziosImp = sectionIsVisible('vazios_descarregados') ? (data?.vaziosImp ?? []) : []
   const vaziosExp = sectionIsVisible('vazios_embarcados') ? (data?.vaziosExp ?? []) : []
   const vehiclesData = sectionIsVisible('veiculos') ? (data?.vehicles ?? []) : []
@@ -612,7 +682,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       // cumprimento/atraso históricos sem reconsultar audit_logs. Não são
       // impressos (AgencyReportDocument.tsx mostra só datas de assinatura).
       unifiedAtd: terminalAtd,
-      atdRegisteredAt: null,
+      atdRegisteredAt: terminalAtdRegisteredAt ?? null,
       atdSource: terminalAtd ? ('terminal' as const) : null,
       deadlineDate,
     },
@@ -674,21 +744,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-      <div className="flex flex-wrap gap-2" aria-label="Selecionar escala ADR">
-        {pods.map(({ pod, omitted }) => (
-          <Button key={pod} variant={port === pod ? 'primary' : 'secondary'} aria-pressed={port === pod} onClick={() => setPort(pod)} className="app-btn--sm">
-            {pod}
-            {omitted ? (
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${port === pod ? 'bg-white/20 text-white' : 'bg-[var(--app-surface-muted)] text-[var(--app-muted)]'}`}
-                title="Escala omitida — o navio não atracou neste porto; ADR mantido apenas como registro fechado."
-              >
-                Omitida
-              </span>
-            ) : null}
-          </Button>
-        ))}
-      </div>
+      {escalaSelector}
 
       {terminalizedReports.length ? (
         <div className="app-panel app-panel--padded grid gap-2" aria-label="Selecionar ADR por terminal">
@@ -717,11 +773,11 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       {error ? <div className="app-panel app-panel--padded text-sm text-[var(--app-red)]">Não foi possível carregar os dados do ADR.</div> : null}
       {!isLoading && !error ? <>
         {isClosed ? <>
-          <div className="app-panel app-panel--padded flex flex-wrap items-center justify-between gap-3" role="status"><span>Fechado em {formatDate(ownData?.closed_at)} por {ownData?.closed_by_name ?? ownData?.closed_by ?? '—'}</span><div className="flex gap-2"><Button variant="secondary" onClick={() => setPrintOpen(true)}>Imprimir</Button>{isAdmin && !readOnly ? <Button variant="danger" onClick={() => setReopenOpen(true)}>Reabrir</Button> : null}</div></div>
+          <div className="app-panel app-panel--padded flex flex-wrap items-center justify-between gap-3" role="status"><span>Fechado em {formatDate(ownData?.closed_at)} por {ownData?.closed_by_name ?? ownData?.closed_by ?? '—'}</span><div className="flex gap-2"><Button variant="secondary" onClick={() => setPrintOpen(true)}>Imprimir</Button>{!readOnly ? <Button variant="danger" onClick={() => setReopenOpen(true)}>Reabrir</Button> : null}</div></div>
           <AgencyReportTimeline
             atd={closedSnapshot.header?.unifiedAtd ?? terminalAtd}
             atdSource={closedSnapshot.header?.atdSource ?? (terminalAtd ? ('terminal' as const) : null)}
-            atdRegisteredAt={closedSnapshot.header?.atdRegisteredAt ?? null}
+            atdRegisteredAt={closedAtdRegisteredAt(closedSnapshot.header, terminalAtd, terminalAtdRegisteredAt ?? null)}
             deadline={closedSnapshot.header?.deadlineDate ?? deadlineDate}
             omitted={isOmittedEscala}
             now={new Date()}
@@ -847,7 +903,12 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
               </DivergenceWarning>
             ) : null}
           </ReportSection>
+            </div>
+          </div>
 
+          <div className="app-panel grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><h2 className="app-voyage-section-card__title">Equipamentos</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('equipamentos').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('equipamentos').length} seções</span><span className="flex gap-1">{sectionsOf('equipamentos').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div><DepartmentSignoffControl department="equipamentos" label="Equipamentos" signed={isDepartmentSigned('equipamentos')} attribution={departmentAttribution('equipamentos')} canSignoff={canSignDepartment('equipamentos')} sectionsPending={departmentSectionsPending('equipamentos')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
+            <div className="grid gap-3">
           <ReportSection
             title="Veículos"
             section="veiculos" state={sectionState('veiculos')} attribution={sectionAttribution('veiculos')} canSignoff={canSignoff('veiculos')} events={eventsBySection('veiculos')} actorNames={actorNames} isPending={signoffMutation.isPending} onSignoff={updateSignoff}
@@ -866,12 +927,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
               </div>
             </> : <NadaOperado />}
           </ReportSection>
-            </div>
-          </div>
 
-          <div className="app-panel grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><h2 className="app-voyage-section-card__title">Equipamentos</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('equipamentos').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('equipamentos').length} seções</span><span className="flex gap-1">{sectionsOf('equipamentos').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div><DepartmentSignoffControl department="equipamentos" label="Equipamentos" signed={isDepartmentSigned('equipamentos')} attribution={departmentAttribution('equipamentos')} canSignoff={canSignDepartment('equipamentos')} sectionsPending={departmentSectionsPending('equipamentos')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
-            <div className="grid gap-3">
           <ReportSection
             title="Carga carregada"
             section="carga_carregada" state={sectionState('carga_carregada')} attribution={sectionAttribution('carga_carregada')} canSignoff={canSignoff('carga_carregada')} events={eventsBySection('carga_carregada')} actorNames={actorNames} isPending={signoffMutation.isPending} onSignoff={updateSignoff}
@@ -931,7 +987,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
           <AgencyReportTimeline
             atd={terminalAtd}
             atdSource={terminalAtd ? ('terminal' as const) : null}
-            atdRegisteredAt={null}
+            atdRegisteredAt={terminalAtdRegisteredAt ?? null}
             deadline={deadlineDate}
             omitted={isOmittedEscala}
             now={new Date()}

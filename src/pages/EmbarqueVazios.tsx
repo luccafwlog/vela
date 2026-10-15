@@ -38,6 +38,7 @@ import {
 } from "../services/depots";
 import { supabase } from "../services/supabase";
 import { listVoyageRoutePorts } from "../services/operationalLists";
+import { listVoyageEscalaSchedulesByVoyageIds } from "../services/voyageRouteSchedules";
 import { normalizePortCode } from "../services/portCode";
 import {
   armazenagemPorDepotCondicao,
@@ -100,16 +101,33 @@ function countByField<T>(rows: T[], keyOf: (row: T) => string): Array<{ label: s
     .sort((a, b) => b.count - a.count);
 }
 
-// ponytail: escala do Embarque de Vazios montada aqui unindo POD e POL dos
-// B/Ls da viagem à mão (duas fontes unidas manualmente, sem projeção comum).
-// Teto: não enxerga escala planejada sem B/L ainda lançado. Upgrade: trocar
-// pela projeção unificada de escalas quando
-// docs/plans/2026-07-31-escala-unificada-pol-pod.md for entregue.
+// B10 (ADR 0035): o Porto de embarque é escolhido entre as escalas da viagem
+// (a mesma projeção da aba Escalas), inclusive escala planejada sem B/L —
+// viagem só de embarque de vazios não tem B/L. Os portos dos B/Ls entram como
+// complemento, para escala de B/L ainda não materializada na projeção.
 async function fetchVoyageEscalaPorts(voyageId: number): Promise<string[]> {
+  const [escalas, blPorts] = await Promise.all([
+    listVoyageEscalaSchedulesByVoyageIds([voyageId]),
+    listVoyageRoutePorts(voyageId),
+  ]);
   const ports = new Set<string>();
-  for (const raw of await listVoyageRoutePorts(voyageId)) {
+  const add = (raw: string | null | undefined) => {
     const code = normalizePortCode(raw);
     if (code && code.startsWith("BR")) ports.add(code);
+  };
+  // Porto só de escala omitida/excluída não volta pelos portos dos B/Ls.
+  const removed = new Set<string>();
+  for (const escala of escalas.get(voyageId) ?? []) {
+    if (!escala.deleted && !escala.omitted) add(escala.port);
+    else {
+      const code = normalizePortCode(escala.port);
+      if (code) removed.add(code);
+    }
+  }
+  for (const raw of blPorts) {
+    const code = normalizePortCode(raw);
+    if (code && removed.has(code) && !ports.has(code)) continue;
+    add(raw);
   }
   return [...ports].sort();
 }
@@ -139,9 +157,10 @@ export function EmbarqueVazios() {
   const canEdit = Boolean(profile || user);
   const [searchParams] = useSearchParams();
   const queryVoyageId = Number(searchParams.get("voyage"));
-  const lockedVoyageId = Number.isInteger(queryVoyageId) && queryVoyageId > 0 ? queryVoyageId : null;
-  const voyageLocked = lockedVoyageId !== null;
-  const [voyageId, setVoyageId] = useState<number | null>(() => lockedVoyageId);
+  // B26 (ADR 0018, decisão 2): aberto pela viagem, o campo vem semeado com ela e continua editável.
+  const contextVoyageId = Number.isInteger(queryVoyageId) && queryVoyageId > 0 ? queryVoyageId : null;
+  const fromVoyageContext = contextVoyageId !== null;
+  const [voyageId, setVoyageId] = useState<number | null>(() => contextVoyageId);
   const [port, setPort] = useState("");
   const [selectedOperation, setSelectedOperation] = useState<{
     id: string;
@@ -238,7 +257,7 @@ export function EmbarqueVazios() {
   );
   const operationRows: OperationRow[] = (Array.isArray(operations.data)
     ? operations.data
-    : []).filter((item) => !voyageLocked || item.voyage_id === voyageId);
+    : []).filter((item) => !fromVoyageContext || item.voyage_id === voyageId);
   const operationOptions: ComboOption[] = operationRows.map((item) => ({
     value: item.id,
     label: operationLabel(item),
@@ -491,6 +510,9 @@ export function EmbarqueVazios() {
       if (selectedService.natureza === "transporte" && !selectedService.route_destino_id) {
         throw new Error("Serviço de transporte sem destino cadastrado.");
       }
+      if (selectedService.natureza === "armazenagem" && !selectedService.condition && !line.condition) {
+        throw new Error("Escolha a condição da linha de armazenagem.");
+      }
       await persistServiceLine({
         serviceId: selectedService.id,
         service: selectedService,
@@ -504,9 +526,10 @@ export function EmbarqueVazios() {
           selectedService.natureza === "armazenagem"
             ? null
             : line.containerType || null,
+        // B12 (ADR 0033): o serviço genérico leva a condição escolhida na linha.
         condition:
           selectedService.natureza === "armazenagem"
-            ? selectedService.condition ?? null
+            ? selectedService.condition ?? (line.condition || null)
             : null,
         quantidade: line.quantidade,
         valorUnitario: line.valor,
@@ -545,6 +568,25 @@ export function EmbarqueVazios() {
         quantidadeManual: false,
       });
     }, "Linha de armazenagem lançada.");
+  }
+  function chooseCondition(condition: string) {
+    const suggestion =
+      selectedService && local && condition
+        ? valorSugerido({
+            local,
+            servico: selectedService,
+            tipo: line.containerType,
+            rota: "",
+            condicao: condition,
+            catalogo: serviceRows,
+          })
+        : null;
+    setLine((current) => ({
+      ...current,
+      condition,
+      valor: suggestion ?? current.valor,
+      valorSugerido: suggestion,
+    }));
   }
   function chooseService(serviceId: string) {
     const service = serviceRows.find((item) => item.id === serviceId);
@@ -590,9 +632,7 @@ export function EmbarqueVazios() {
           <VoyageCombobox
             required
             selectedVoyageId={voyageId}
-            disabled={voyageLocked}
             onSelect={(id) => {
-              if (voyageLocked) return;
               setVoyageId(id);
               setPort("");
             }}
@@ -601,7 +641,7 @@ export function EmbarqueVazios() {
             label="Porto de embarque"
             error={
               voyageId && !voyagePorts.isLoading && voyagePortOptions.length === 0
-                ? "Nenhuma escala encontrada — importe os B/Ls da viagem antes de criar o Embarque."
+                ? "Nenhuma escala brasileira na viagem — cadastre a escala na aba Escalas da viagem antes de criar o Embarque."
                 : undefined
             }
           >
@@ -869,18 +909,19 @@ export function EmbarqueVazios() {
                             disabled={!canEdit}
                             aria-label={`Excluir unidade ${item.container_number}`}
                             onClick={async () => {
-                              const confirmed = await confirm({
+                              // B14: Excluir pede motivo (ADR 0072); o banco recusa com o ADR de Saída fechado.
+                              const reason = await confirmWithReason({
                                 title: "Excluir unidade",
                                 message: `Excluir a unidade ${item.container_number} deste embarque?`,
                                 consequence:
-                                  "A unidade sai do embarque, da contagem de vazios e do ADR de Saída desta escala.",
+                                  "A unidade sai do embarque, da contagem de vazios e do ADR de Saída desta escala. Com o ADR de Saída fechado, o banco recusa: reabra o ADR antes.",
                                 reversibility: "Inclua a unidade de novo se precisar.",
                                 confirmLabel: "Excluir",
                                 tone: "danger",
                               });
-                              if (!confirmed) return;
+                              if (reason === null) return;
                               void notify(async () => {
-                                await deleteManualVaziosBooking(item.id);
+                                await deleteManualVaziosBooking(item.id, reason);
                                 clearUnit();
                                 await refreshOperationData();
                               }, "Unidade excluída.");
@@ -912,11 +953,16 @@ export function EmbarqueVazios() {
                       const depot = depotRows.find(
                         (item) => item.id === need.depot_id,
                       );
-                      const suggestedService = armazenagemServiceRows.find(
-                        (item) =>
-                          item.depot_id === need.depot_id &&
-                          item.condition === need.condition,
-                      );
+                      // B12 (ADR 0033): o serviço da mesma condição vence; sem ele, o serviço sem condição (genérico) serve.
+                      const suggestedService =
+                        armazenagemServiceRows.find(
+                          (item) =>
+                            item.depot_id === need.depot_id &&
+                            item.condition === need.condition,
+                        ) ??
+                        armazenagemServiceRows.find(
+                          (item) => item.depot_id === need.depot_id && item.condition == null,
+                        );
                       return (
                         <li
                           key={`${need.depot_id}:${need.condition}`}
@@ -1048,6 +1094,18 @@ export function EmbarqueVazios() {
                         <option value={selectedService.condition}>
                           {selectedService.condition === "material" ? "EMPTY W/ MATERIAL" : "EMPTY"}
                         </option>
+                      </Select>
+                    </Field>
+                  ) : selectedService?.natureza === "armazenagem" ? (
+                    // B12 (ADR 0033): serviço sem condição vale para as duas; a linha escolhe.
+                    <Field label="Condição">
+                      <Select
+                        value={line.condition}
+                        onChange={(event) => chooseCondition(event.target.value)}
+                      >
+                        <option value="">Selecione</option>
+                        <option value="vazio">EMPTY</option>
+                        <option value="material">EMPTY W/ MATERIAL</option>
                       </Select>
                     </Field>
                   ) : null}
@@ -1190,13 +1248,8 @@ export function EmbarqueVazios() {
                             </td>
                             <td>{formatBRL(Number(item.valor_unitario))}</td>
                             <td>
-                              {formatBRL(
-                                calculated *
-                                  Number(item.valor_unitario) *
-                                  (item.percentual == null
-                                    ? 1
-                                    : Number(item.percentual) / 100),
-                              )}
+                              {/* B11 (ADR 0033): quantidade × valor unitário, como o total do Embarque e o ADR; o percentual legado não entra. */}
+                              {formatBRL(calculated * Number(item.valor_unitario))}
                             </td>
                             <td className="min-w-64 whitespace-normal">
                               {editingServiceObservation === item.id ? (

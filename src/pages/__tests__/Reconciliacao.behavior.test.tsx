@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   sheetWarnings: vi.fn(),
   navigate: vi.fn(),
 }))
-const authState = vi.hoisted(() => ({ isAdmin: true }))
+const authState = vi.hoisted(() => ({ isAdmin: true, role: 'administrativo' }))
 
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
@@ -58,7 +58,11 @@ vi.mock('../../services/demurrage/demurrageInvoices', () => ({
   getInvoiceDetail: mocks.getDemurrageDetail,
 }))
 vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({ isAdmin: authState.isAdmin }),
+  useAuth: () => ({
+    isAdmin: authState.isAdmin,
+    effectiveRole: authState.role,
+    can: (permission: string) => permission === 'settle_financial_adjustments' && ['administrativo', 'financeiro'].includes(authState.role),
+  }),
 }))
 vi.mock('../../hooks/useFinancialRefunds', () => ({
   useFinancialRefunds: () => ({ data: { pending: 0, settled: 0 }, error: null }),
@@ -171,6 +175,7 @@ describe('Conciliação PIX', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authState.isAdmin = true
+    authState.role = 'administrativo'
     mocks.parse.mockResolvedValue([transaction])
     mocks.match.mockResolvedValue([safeMatch, ambiguousMatch, unmatchedMatch])
     mocks.sheetNotices.mockResolvedValue({ warnings: [], firstSheetHiddenRows: 0 })
@@ -475,12 +480,24 @@ describe('Conciliação PIX', () => {
     expect(mocks.parse).toHaveBeenCalledTimes(1)
   })
 
-  it('bloqueia a página para quem não é do Administrativo, com o motivo e a saída', () => {
+  it('qualquer Departamento lê a Conciliação; conciliar o extrato é do Financeiro e do Administrativo (ADR 0085, D5)', async () => {
     authState.isAdmin = false
+    authState.role = 'operacoes'
+    const user = userEvent.setup()
     renderPage()
-    expect(screen.getByText('Acesso restrito')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Voltar para o Painel' })).toBeTruthy()
-    expect(screen.queryByRole('tab')).toBeNull()
-    expect(mocks.itauMonitor).not.toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: /Pendências/ })).toBeTruthy()
+    await waitFor(() => expect(mocks.itauMonitor).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: 'Marcar como tratado…' })).toBeNull()
+    await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
+    expect(screen.getByText('Conciliar extrato é do Financeiro e do Administrativo')).toBeTruthy()
+  })
+
+  it('o Financeiro concilia', async () => {
+    authState.isAdmin = false
+    authState.role = 'financeiro'
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
+    expect(screen.queryByText('Conciliar extrato é do Financeiro e do Administrativo')).toBeNull()
   })
 })

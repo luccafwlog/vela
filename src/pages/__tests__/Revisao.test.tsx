@@ -360,6 +360,38 @@ describe('Revisao', () => {
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BLX'], customerId: 7, email: 'novo@cliente.com', changedBy: 'user-1' })))
   })
 
+  it('B16: exibe a sugestão por nome do B/L, como a do Granito', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{ ...makeBl('BLSUG1', 'Sugerido Ltda'), suggested_customer_id: 42, suggested_customer: { id: 42, name: 'Cliente Sugerido', cnpj_cpf: '11222333000181' } }],
+      isLoading: false, error: null,
+    } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Sugerido Ltda/ }))
+    expect(screen.getAllByText(/Sugestão por nome/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Cliente Sugerido').length).toBeGreaterThan(0)
+  })
+
+  it('B17: B/L com CNPJ de Cliente desativado mostra o motivo, não "Sugestão por nome"', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{
+        ...makeBl('BLINAT', 'Inativo Ltda'), suggested_customer_id: 7,
+        customer_reconciliation_notes: 'Cliente desativado: reative o cliente ou escolha outro.',
+        suggested_customer: { id: 7, name: 'Cliente Inativo', cnpj_cpf: '11222333000181' },
+      }],
+      isLoading: false, error: null,
+    } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Inativo Ltda/ }))
+    expect(screen.getAllByText(/Cliente desativado com este CNPJ/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Sugestão por nome/)).toBeNull()
+    // O banco recusa o vínculo a Cliente desativado: a tela não oferece a ação.
+    expect(screen.queryByRole('button', { name: 'Usar a sugestão' })).toBeNull()
+  })
+
   it('exibe sugestao de Granito sem trata-la como vinculo automatico', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({

@@ -2,7 +2,7 @@ import { supabase } from '../supabase'
 import { buildDemurrageRateUpsertPayload, type DemurrageRateUpsertInput } from './demurrageRateUpsertPayload'
 import { reportBestEffortFailure } from '../../lib/telemetry'
 import type { DemurrageCalcResult, DemurrageRate } from '../../types/database'
-import { deleteOneById } from '../deleteRecords'
+import { deleteOneById, reactivateCatalogRow } from '../deleteRecords'
 
 export type RateGroup = {
   aliases: string[]
@@ -188,9 +188,13 @@ export async function deleteDemurrageRate(id: number, reason: string) {
   invalidateDemurrageRatesCache()
 }
 
-export async function toggleDemurrageRateActive(id: number, active: boolean) {
-  const { error } = await supabase.from('demurrage_rates').update({ active }).eq('id', id)
-  if (error) throw error
+export async function toggleDemurrageRateActive(id: number, active: boolean, reason?: string) {
+  // B13: reativar pede motivo e passa pela RPC do Administrativo (migration 261).
+  if (active) await reactivateCatalogRow('demurrage_rates', id, reason ?? '')
+  else {
+    const { error } = await supabase.from('demurrage_rates').update({ active }).eq('id', id)
+    if (error) throw error
+  }
   invalidateDemurrageRatesCache()
 }
 

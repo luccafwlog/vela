@@ -107,13 +107,14 @@ export async function uploadCeUnlockDocument(
     throw new Error("Ação indisponível em Modo Inspeção.");
   // O modelo do desk é DOCX (o cliente preenche); todo anexo do cliente é PDF. A função revalida o conteúdo.
   const model = context.source === "model";
+  if (file.size > 10485760)
+    throw new Error(model ? "Use o modelo em DOCX de até 10 MiB." : "O arquivo passa de 10 MiB. Envie um PDF menor.");
   if (
     !file.name.toLowerCase().endsWith(model ? ".docx" : ".pdf") ||
     (!model && file.type !== "application/pdf") ||
-    file.size <= 0 ||
-    file.size > 10485760
+    file.size <= 0
   )
-    throw new Error(model ? "Use o modelo em DOCX de até 10 MiB." : "Use PDF de até 10 MiB.");
+    throw new Error(model ? "Use o modelo em DOCX de até 10 MiB." : "O arquivo não é um PDF. Salve o documento como PDF antes de anexar.");
   const form = new FormData();
   form.set("file", file);
   form.set("context", JSON.stringify(context));

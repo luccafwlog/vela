@@ -12,11 +12,13 @@
 //   em vez de devolver a Invoice do outro grupo como 'existing';
 // - a caixa que saiu do grupo é reemitida pelo âncora do B/L que a tem;
 // - caixa que a reemissão não cobra (virou SOC) deixa o Alerta dizendo qual.
+// Migration 278 (revisão da PR 954): o número gerado põe o instante antes do
+// B/L, e o TXID do QR (25 caracteres) é único entre as Invoices.
 //
 // Namespace exclusivo: ids 99214xxx, B/Ls 'R214-*', containers 'RQCU214xxxx',
 // usuário ...000000214001. A limpeza roda com `session_replication_role =
 // replica`, porque B/L cancelado e Invoice paga recusam mudança.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
@@ -34,6 +36,7 @@ const voyage = {
   bridge: 99214013,
   regroup: 99214014,
   lost: 99214015,
+  txid: 99214016,
 }
 const voyageIds = Object.values(voyage).join(', ')
 const bl = {
@@ -50,6 +53,8 @@ const bl = {
   regroupB: 'R214-GB',
   lostA: 'R214-OA',
   lostB: 'R214-OB',
+  // B/L longo: o corte do TXID em 25 caracteres levava a hora do número antigo.
+  txid: 'R214-TXID-B-L-MUITO-LONGO',
 }
 const blList = Object.values(bl).map((id) => `'${id}'`).join(', ')
 const box = {
@@ -64,17 +69,18 @@ const box = {
   regroupOwn: 'RQCU2140042',
   lostShared: 'RQCU2140051',
   lostGone: 'RQCU2140052',
+  txid: 'RQCU2140061',
 }
 const discharge = '2026-07-01'
 const returned = '2026-09-20'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function run(sql: string) {
-  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
 }
 
 function asAdmin(sql: string) {
@@ -215,7 +221,8 @@ describeLocal('Demurrage cobrada uma vez por caixa (migration 214)', () => {
         (${voyage.late}, ${vesselId}, 'R214C', 'active'),
         (${voyage.bridge}, ${vesselId}, 'R214D', 'active'),
         (${voyage.regroup}, ${vesselId}, 'R214E', 'active'),
-        (${voyage.lost}, ${vesselId}, 'R214F', 'active');
+        (${voyage.lost}, ${vesselId}, 'R214F', 'active'),
+        (${voyage.txid}, ${vesselId}, 'R214G', 'active');
     `)
     insertBls([
       [bl.splitA, voyage.split], [bl.splitB, voyage.split],
@@ -224,6 +231,7 @@ describeLocal('Demurrage cobrada uma vez por caixa (migration 214)', () => {
       [bl.bridgeA, voyage.bridge], [bl.bridgeC, voyage.bridge],
       [bl.regroupA, voyage.regroup], [bl.regroupB, voyage.regroup],
       [bl.lostA, voyage.lost], [bl.lostB, voyage.lost],
+      [bl.txid, voyage.txid],
     ])
     insertBoxes([
       [bl.splitA, box.splitShared], [bl.splitB, box.splitShared], [bl.splitB, box.splitOwn],
@@ -232,6 +240,7 @@ describeLocal('Demurrage cobrada uma vez por caixa (migration 214)', () => {
       [bl.bridgeA, box.bridgeX], [bl.bridgeC, box.bridgeZ],
       [bl.regroupA, box.regroupShared], [bl.regroupB, box.regroupShared], [bl.regroupB, box.regroupOwn],
       [bl.lostA, box.lostShared], [bl.lostB, box.lostShared], [bl.lostB, box.lostGone],
+      [bl.txid, box.txid],
     ])
   })
 
@@ -370,5 +379,25 @@ describeLocal('Demurrage cobrada uma vez por caixa (migration 214)', () => {
     expect(psql(`SELECT i.status || '|' || i.message FROM public.alert_items AS i JOIN public.alerts AS a ON a.id = i.alert_id
       WHERE i.item_type = 'demurrage_invoice_dates_changed' AND a.entity_type = 'demurrage_invoice' AND a.entity_id = '${invoiceId}'
       ORDER BY i.id DESC LIMIT 1`)).toMatch(new RegExp(`^active\\|.*não cobrou o\\(s\\) container\\(s\\) ${box.lostGone}`))
+  })
+
+  it('278 — o número gerado põe o instante antes do B/L, e o TXID do QR não se repete', () => {
+    const issued = JSON.parse(psql(`SET vela.demurrage_internal = 'on';
+      SELECT public.issue_demurrage_invoice_for_bl('${bl.txid}')`)) as IssueResult
+    expect(issued.status).toBe('issued')
+    const invoiceId = Number(issued.invoice_id)
+    const doc = psql(`SELECT doc_number FROM public.demurrage_invoices WHERE id = ${invoiceId}`)
+    expect(doc).toMatch(new RegExp(`^DEM-\\d{17}-${bl.txid}$`))
+    // Os 25 caracteres do TXID levam o instante inteiro (DEM + 17 dígitos).
+    expect(psql(`SELECT left(regexp_replace('${doc}', '[^A-Za-z0-9]', '', 'g'), 25)`)).toMatch(/^DEM\d{17}/)
+
+    // Outra Invoice com número que dá o mesmo TXID é recusada, mesmo informado à mão.
+    const clash = run(`
+      SET session_replication_role = replica;
+      CREATE TEMP TABLE r278 AS SELECT * FROM public.demurrage_invoices WHERE id = ${invoiceId};
+      UPDATE r278 SET id = nextval(pg_get_serial_sequence('public.demurrage_invoices', 'id')), doc_number = '${doc}-2';
+      INSERT INTO public.demurrage_invoices SELECT * FROM r278;`)
+    expect(clash.status).not.toBe(0)
+    expect(clash.stderr).toMatch(/demurrage_invoices_pix_txid_unique/)
   })
 })

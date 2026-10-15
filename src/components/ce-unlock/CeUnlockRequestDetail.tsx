@@ -86,6 +86,10 @@ export function CeUnlockRequestDetail({
         (other) => other.type === d.type && other.status !== "uploading" && other.created_at > d.created_at,
       ),
   );
+  // Versões substituídas continuam persistidas e auditáveis (request_json devolve todas); a análise usa só a atual.
+  const previousDocuments = request.documents
+    .filter((d) => d.source === "request" && d.status !== "uploading" && !latestDocuments.includes(d))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
   const approvedFor = (type: string) => request.items.every((i) => (type === "termo" ? i.termo : i.procuracao));
   const canReview = (d: CeUnlockDocument, decision: Decision) =>
     decision === "approved" ? !approvedFor(d.type) : decision === "changes_requested" && d.status !== "changes_requested";
@@ -125,6 +129,15 @@ export function CeUnlockRequestDetail({
               : undefined
           }
         />
+        {manage && !vip && previousDocuments.length > 0 && (
+          <section aria-label="Versões anteriores dos documentos" className="space-y-2">
+            <div>
+              <h4 className="app-panel__title">Versões anteriores</h4>
+              <p className="app-panel__meta">Somente consulta; a análise vale para a versão atual.</p>
+            </div>
+            <CeUnlockDocumentList documents={previousDocuments} showSentAt />
+          </section>
+        )}
       </div>
 
       <div className="space-y-3">

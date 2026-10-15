@@ -43,8 +43,11 @@ export function roleHasPermission(role: UserProfileRole | undefined, permission:
   // Papel legado: operator = documentacao. O papel `admin` foi migrado para
   // administrativo e saiu da lista de papeis aceitos (migration 093).
   const effectiveRole: UserProfileRole = role === 'operator' ? 'documentacao' : role
-  if (permission === 'ce_unlock_read') return ['administrativo', 'documentacao', 'financeiro', 'operacoes'].includes(effectiveRole)
-  if (permission === 'ce_unlock_manage' || permission === 'ce_unlock_documents') return ['administrativo', 'documentacao'].includes(effectiveRole)
+  // Ler o Desbloqueio de CE e abrir os documentos do pedido é de todos os
+  // Departamentos; gerir o pedido segue de Administrativo e Documentação
+  // (ADR 0085, D11; migration 250).
+  if (permission === 'ce_unlock_read' || permission === 'ce_unlock_documents') return ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole)
+  if (permission === 'ce_unlock_manage') return ['administrativo', 'documentacao'].includes(effectiveRole)
 
   switch (effectiveRole) {
     case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'customer_communications'

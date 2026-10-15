@@ -1,7 +1,8 @@
 # 0018 — Seleção de viagem padronizada em busca preditiva (Combobox)
 
-> **Situação atual (2026-10-14).** A decisão continua valendo: toda seleção de viagem usa o `VoyageCombobox`, obrigatório nas importações e limpável nos filtros.
-> Implementação parcial: as importações de B/L e de CE Mercante abertas na página da viagem, e o Embarque de Vazios aberto por ela, travam a viagem, contra a decisão 2 (viagem pré-semeada e editável); é defeito, com correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+> **Situação atual (2026-10-15).** A decisão continua valendo: toda seleção de viagem usa o `VoyageCombobox`, obrigatório nas importações da decisão 3 (Baplie, Veículos, Vazios, B/L) e limpável nos filtros.
+> A importação de CE Mercante não está na lista da decisão 3: nela a viagem é um recorte do arquivo, não uma declaração, e o campo é limpável (decisão do dono de 2026-10-15, na revisão da PR 954). O lote já fica preso a uma viagem e rota pelo Manifesto Mercante: o banco recusa a planilha com B/Ls de mais de uma viagem ou rota (migration `181`). Com a viagem escolhida, a tela importa só as linhas dela; sem viagem, a planilha entra inteira, como em `/bls` sem filtro.
+> Implementada: desde o item B26 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26), as importações de B/L e de CE Mercante abertas na página da viagem, e o Embarque de Vazios aberto por ela, vêm semeados com a viagem e continuam editáveis (decisão 2).
 > Regra vigente em [Viagens](../modules/viagens.md), seções "Anatomia das telas" e "Catálogo de ações".
 
 Status: aceito — 2026-07-01

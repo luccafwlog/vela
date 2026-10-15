@@ -13,7 +13,7 @@ export async function listGraniteRates(): Promise<GraniteRate[]> {
 }
 
 export async function upsertGraniteRate(
-  rate: Omit<GraniteRate, 'id' | 'created_at'> & { id?: string },
+  rate: Omit<GraniteRate, 'id' | 'created_at' | 'active'> & { id?: string; active?: boolean },
 ): Promise<GraniteRate> {
   const { data, error } = await supabase
     .from('granite_rates')

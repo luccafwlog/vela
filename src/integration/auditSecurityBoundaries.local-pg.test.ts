@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // S01 — fronteiras de segurança das RPCs auditadas (#659.2, #660.1/3).
@@ -18,7 +18,7 @@ const OTHER_SUB = 'cccccccc-0000-4000-8000-000000000703'
 const LOGIN_SENTINEL = '2026-01-01T00:00:00Z'
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }
@@ -28,9 +28,7 @@ function runAs(role: 'authenticated' | 'anon', sub: string | null, claims: strin
     `SET LOCAL ROLE ${role};` +
     (sub === null ? '' : `SELECT set_config('request.jwt.claim.sub', '${sub}', true);`) +
     (claims === null ? '' : `SELECT set_config('request.jwt.claims', '${claims}', true);`)
-  return spawnSync(
-    'psql',
-    ['-X', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-At', '-d', databaseUrl,
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-At', '-d', databaseUrl,
       '-c', `BEGIN; ${settings} ${sql} COMMIT;`],
     { encoding: 'utf8' },
   )
@@ -100,7 +98,7 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
       `DELETE FROM public.vessels WHERE id = ${CUSTOMER_ID};`,
       `DELETE FROM public.carriers WHERE id = ${CUSTOMER_ID};`,
     ]) {
-      spawnSync('psql', ['-X', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
+      spawnPsql(['-X', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
     }
   })
 
@@ -222,14 +220,11 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
 
     psql(`UPDATE public.customer_portal_accounts SET recovery_email = 's01-rec@example.test'
       WHERE customer_id = ${CUSTOMER_ID};`)
-    const now = Math.floor(Date.now() / 1000)
-    const issued = portalCall(
-      STAFF_SUB,
-      now,
-      `INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, status, pix_payload)
-       VALUES (619702, 'S01-INV-702', ${CUSTOMER_ID}, '${BL_ID}', 50.00, 'issued', 'S01-FIXTURE');`,
-    )
-    expect(issued.status).toBe(0)
+    // A emissão grava a fatura como dono (RPC SECURITY DEFINER); desde a
+    // migration 233 o `authenticated` não insere em `invoices` pela API.
+    expect(() => psql(`BEGIN; SELECT set_config('request.jwt.claim.sub', '${STAFF_SUB}', true);
+      INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, status, pix_payload)
+      VALUES (619702, 'S01-INV-702', ${CUSTOMER_ID}, '${BL_ID}', 50.00, 'issued', 'S01-FIXTURE'); COMMIT;`)).not.toThrow()
     expect(
       psql(`SELECT i.status FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
         WHERE i.item_type = 'portal_excecao_critica_fatura' AND a.entity_id = '${BL_ID}'
@@ -237,7 +232,7 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
     ).toBe('resolved')
   })
 
-  // Migration 230: helper chamado sem `(select ...)` roda uma vez por linha e
+  // Migration 283: helper chamado sem `(select ...)` roda uma vez por linha e
   // fez a lista de B/Ls levar 72 s com 12 mil B/Ls. Policy nova que voltar à
   // forma nua quebra este teste.
   it('policies avaliam o helper de acesso uma vez por consulta, não por linha', () => {

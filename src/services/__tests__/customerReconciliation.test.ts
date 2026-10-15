@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { canonicalizeName, findMatchedCustomer, resolveCustomerLink, type CustomerMaps } from '../customerReconciliation'
+import { canonicalizeName, findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, withoutDeactivatedCustomer, type CustomerMaps } from '../customerReconciliation'
+import { supabase } from '../supabase'
 
 vi.mock('../supabase', () => ({
   supabase: { from: vi.fn(), rpc: vi.fn() },
@@ -182,5 +183,38 @@ describe('findMatchedCustomer — guarda do fuzzy por token distintivo (R4)', ()
   it('ainda casa fuzzy quando o token distintivo coincide (typo no sufixo)', () => {
     const match = findMatchedCustomer({ cnpjCpf: null, consignee: 'AJ COMERCIO EXTERIOAR' }, maps())
     expect(match).toEqual({ customer: { id: 10, name: 'AJ COMERCIO EXTERIOR LTDA' }, matchType: 'name' })
+  })
+})
+
+// B17 (ADR 0073, item 6): o CNPJ de Cliente desativado vira sugestão com o motivo; pelo nome, desativado não é candidato.
+describe('Cliente desativado na reconciliação (B17)', () => {
+  it('casa pelo documento como sugestão com a nota; não casa pelo nome', async () => {
+    const page = [
+      { id: 7, cnpj_cpf: '11.222.333/0001-81', name: 'CLIENTE INATIVO LTDA', deactivated_at: '2026-09-01T00:00:00Z' },
+      { id: 8, cnpj_cpf: '45.723.174/0001-10', name: 'CLIENTE ATIVO LTDA', deactivated_at: null },
+    ]
+    const builder = { select: vi.fn(() => builder), order: vi.fn(() => builder), range: vi.fn(() => Promise.resolve({ data: page, error: null })) }
+    vi.mocked(supabase.from).mockReturnValue(builder as never)
+    const maps = await loadCustomerMaps()
+
+    const byDocument = findMatchedCustomer({ cnpjCpf: '11222333000181', consignee: 'Qualquer' }, maps)
+    expect(resolveCustomerLink(byDocument)).toEqual({
+      customerId: null,
+      suggestedCustomerId: 7,
+      status: 'matched_name',
+      notes: 'Cliente desativado: reative o cliente ou escolha outro.',
+    })
+    expect(findMatchedCustomer({ cnpjCpf: null, consignee: 'CLIENTE INATIVO LTDA' }, maps)).toBeNull()
+    expect(resolveCustomerLink(findMatchedCustomer({ cnpjCpf: '45723174000110' }, maps)).customerId).toBe(8)
+  })
+
+  it('no Granito, o CNPJ de Cliente desativado fica sem vínculo e sem sugestão (270)', async () => {
+    const page = [{ id: 7, cnpj_cpf: '11.222.333/0001-81', name: 'CLIENTE INATIVO LTDA', deactivated_at: '2026-09-01T00:00:00Z' }]
+    const builder = { select: vi.fn(() => builder), order: vi.fn(() => builder), range: vi.fn(() => Promise.resolve({ data: page, error: null })) }
+    vi.mocked(supabase.from).mockReturnValue(builder as never)
+    const maps = await loadCustomerMaps()
+
+    const link = resolveCustomerLink(withoutDeactivatedCustomer(findMatchedCustomer({ cnpjCpf: '11222333000181', consignee: 'Qualquer' }, maps)))
+    expect(link).toMatchObject({ customerId: null, suggestedCustomerId: null, status: 'missing_customer' })
   })
 })

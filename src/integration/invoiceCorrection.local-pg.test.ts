@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -12,7 +12,7 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 const actorId = '00000000-0000-0000-0000-000000124001'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`], { encoding: 'utf8' }).trim()
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`], { encoding: 'utf8' }).trim()
 }
 
 const describeLocal = enabled ? describe : describe.skip
@@ -27,7 +27,7 @@ const receivableIds = [99212421, 99212422, 99212423, 99212424]
 const customerCnpj = syntheticCnpj(124001)
 
 function asAdmin(sql: string) {
-  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
     BEGIN;
     SET LOCAL ROLE authenticated;
     SET LOCAL request.jwt.claim.role = 'authenticated';
@@ -154,15 +154,15 @@ describeLocal('123/124 — avulsa da tabela, abatimento guiado e restituição p
     const quote = adminJson<{total_brl: number; quantity: number}>(`SELECT public.quote_manual_invoice_charge('${blIds[0]}', 99212451)`)
     expect(quote.total_brl).toBe(600)
     psql(`INSERT INTO public.customer_rate_overrides(customer_id, charge_item_id, override_value, valid_from, active) VALUES (${customerId}, 99212451, 450, '2020-01-01', true);`)
-    const issued = adminJson<{invoice_id: number; total_brl: number}>(`SELECT public.create_manual_invoice(${customerId}, 'Valor adulterado', 9, 1, NULL, '${blIds[0]}', NULL, NULL, 99212451)`)
+    const issued = adminJson<{invoice_id: number; total_brl: number}>(`SELECT public.create_manual_invoice(${customerId}, 'Valor adulterado', 9, 1, NULL, '${blIds[0]}', NULL, NULL, 99212451, p_reason => 'Motivo interno de teste')`)
     expect(issued.total_brl).toBe(450)
     expect(psql(`SELECT charge_item_id || '|' || (snapshot_payload->>'override_id' IS NOT NULL) FROM public.invoice_items WHERE invoice_id = ${issued.invoice_id};`)).toBe('99212451|true')
-    expect(asAdmin(`SELECT public.create_manual_invoice(${customerId}, 'x', 1, 1, NULL, NULL, NULL, NULL, 99212451)`).stderr).toMatch(/B.L obrigatorio/)
-    expect(asAdmin(`SELECT public.create_manual_invoice(${customerId}+1, 'x', 1, 1, NULL, '${blIds[0]}', NULL, NULL, 99212451)`).stderr).toMatch(/nao pertence/)
+    expect(asAdmin(`SELECT public.create_manual_invoice(${customerId}, 'x', 1, 1, NULL, NULL, NULL, NULL, 99212451, p_reason => 'Motivo interno de teste')`).stderr).toMatch(/B.L obrigatorio/)
+    expect(asAdmin(`SELECT public.create_manual_invoice(${customerId}+1, 'x', 1, 1, NULL, '${blIds[0]}', NULL, NULL, 99212451, p_reason => 'Motivo interno de teste')`).stderr).toMatch(/nao pertence/)
     const usd = adminJson<{quantity: number; roe: number; total_brl: number}>(`SELECT public.quote_manual_invoice_charge('${blIds[0]}', 99212452)`)
     expect(usd.quantity).toBe(3)
     expect(usd.total_brl).toBe(Math.round(450 * usd.roe * 100) / 100)
-    const manual = adminJson<{invoice_id: number; total_brl: number}>(`SELECT public.create_manual_invoice(${customerId}, 'x', 1, 1, NULL, '${blIds[0]}', NULL, NULL, 99212452)`)
+    const manual = adminJson<{invoice_id: number; total_brl: number}>(`SELECT public.create_manual_invoice(${customerId}, 'x', 1, 1, NULL, '${blIds[0]}', NULL, NULL, 99212452, p_reason => 'Motivo interno de teste')`)
     expect(manual.total_brl).toBe(usd.total_brl)
     expect(Number(psql(`SELECT snapshot_payload->>'roe' FROM public.invoice_items WHERE invoice_id = ${manual.invoice_id}`))).toBe(usd.roe)
     // O Pix cobra o total da fatura, não o total do INSERT anterior ao snapshot.

@@ -22,8 +22,10 @@ import { useToast } from '../ui/Toast'
  */
 export function FinancialRefundsPanel({ source, invoiceId, variant = 'full' }: { source: RefundSource; invoiceId: number; variant?: 'full' | 'authorization' }) {
   const summary = useFinancialRefunds(source, invoiceId)
-  const { isAdmin, can } = useAuth()
+  const { isAdmin, can, effectiveRole } = useAuth()
   const mayConfirm = typeof can === 'function' ? can('settle_financial_adjustments') : isAdmin
+  // Autorizar e cancelar a autorização: qualquer Departamento (ADR 0085, D2; migration 247).
+  const mayAuthorize = effectiveRole != null
   const queryClient = useQueryClient()
   const confirm = useConfirm()
   const { showToast } = useToast()
@@ -90,7 +92,7 @@ export function FinancialRefundsPanel({ source, invoiceId, variant = 'full' }: {
     {summary.data
       ? <p className="app-invoice-detail__note">Recebido: {formatBRL(summary.data.received_brl)} · Devolvido: {formatBRL(refunded)} · Disponível para autorizar: {formatBRL(available)}.</p>
       : summary.error ? null : <p className="app-invoice-detail__note">Consultando recebimentos e restituições…</p>}
-    {isAdmin && (available > 0 || attempt) ? <div className="app-invoice-detail__form">
+    {mayAuthorize && (available > 0 || attempt) ? <div className="app-invoice-detail__form">
       <Field label="Valor da restituição BRL" required><Input inputMode="decimal" value={amount} disabled={Boolean(attempt)} onChange={(event) => setAmount(event.target.value)} /></Field>
       <Field label="Finalidade da restituição"><Select value={purpose} disabled={Boolean(attempt)} onChange={(event) => setPurpose(event.target.value as typeof purpose)}><option value="correction">Devolução por ajuste</option><option value="cancel">Cancelamento com devolução integral</option></Select></Field>
       <div className="app-invoice-detail__form-wide"><Field label="Justificativa da restituição" required hint="Pelo menos 10 caracteres."><Textarea value={reason} disabled={Boolean(attempt)} onChange={(event) => setReason(event.target.value)} /></Field></div>
@@ -102,7 +104,7 @@ export function FinancialRefundsPanel({ source, invoiceId, variant = 'full' }: {
       {refund.bank_reference ? <p className="app-invoice-detail__note">Comprovante: {refund.bank_reference} · Favorecido: {refund.beneficiary} · {formatDate(refund.settled_at)}</p> : null}
       <div className="app-invoice-detail__inline-actions">
         {source === 'demurrage' && refund.status === 'pending' && mayConfirm ? <Button variant="secondary" onClick={() => { setSelectedRefundId(refund.id); setBankReference(''); setBeneficiary(''); setPaidAt('') }}>Registrar devolução</Button> : null}
-        {refund.status === 'pending' && isAdmin && refund.request_id ? <Button variant="ghost" onClick={() => setCancelId(refund.id)}>Cancelar autorização</Button> : null}
+        {refund.status === 'pending' && mayAuthorize && refund.request_id ? <Button variant="ghost" onClick={() => setCancelId(refund.id)}>Cancelar autorização</Button> : null}
       </div>
     </div>) : null}
     {showList && cancelId !== null ? <div className="app-invoice-detail__form">

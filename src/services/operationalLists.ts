@@ -214,7 +214,7 @@ function distinctSorted(values: unknown, normalize: (value: string) => string = 
     .sort((left, right) => left.localeCompare(right, 'pt-BR'))
 }
 
-/** POL, POD e tipos de contêiner distintos para os selects (migration 232). */
+/** POL, POD e tipos de contêiner distintos para os selects (migration 285). */
 export async function fetchOperationalFilterOptions(): Promise<OperationalFilterOptions> {
   const { data, error } = await supabase.rpc('operational_list_filter_options' as never)
   if (error) throw error

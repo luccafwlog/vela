@@ -1,6 +1,6 @@
 import { supabase } from '../supabase'
 import { escapeFilterTerm, formatDate } from '../../lib/utils'
-import { deleteOneById } from '../deleteRecords'
+import { deleteOneById, reactivateCatalogRow } from '../deleteRecords'
 
 export type LocalChargeOverrideItem = {
   id: number
@@ -315,7 +315,15 @@ function classifyOverrideOverlapError(error: { code?: string; message?: string }
 }
 
 /** Desativa ou reativa um override de cliente (ADR 0073); so o Administrativo. */
-export async function setCustomerRateOverrideActive(id: number, active: boolean) {
+export async function setCustomerRateOverrideActive(id: number, active: boolean, reason?: string) {
+  // B13: reativar pede motivo e passa pela RPC do Administrativo (migration 261).
+  if (active) {
+    try {
+      return await reactivateCatalogRow('customer_rate_overrides', id, reason ?? '')
+    } catch (error) {
+      throw classifyOverrideOverlapError(error as { code?: string; message?: string })
+    }
+  }
   const { data, error } = await supabase.from('customer_rate_overrides').update({ active } as never).eq('id', id).select('id')
   if (error) throw error
   if (!data || data.length === 0) throw new Error('O override não foi alterado: sem permissão ou override inexistente.')

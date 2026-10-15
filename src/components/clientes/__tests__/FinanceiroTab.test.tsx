@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { formatUSD } from '../../../lib/utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   overrides: { data: [] as unknown[], isLoading: false, isError: false },
   manual: { data: [] as unknown[], isLoading: false, isError: false },
   agreements: { data: [] as unknown[], isLoading: false, isError: false },
-  isAdmin: true,
+  role: 'administrativo' as string | null,
 }))
 
 vi.mock('../../../hooks/useCustomerFicha', () => ({
@@ -33,7 +33,7 @@ vi.mock('../../../hooks/usePortalProvisioning', () => ({
   usePortalProvisioningForCustomer: () => ({ data: undefined }),
 }))
 
-vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: mocks.isAdmin }) }))
+vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ effectiveRole: mocks.role }) }))
 
 vi.mock('../BillingPortalReleaseCard', () => ({
   BillingPortalReleaseCard: () => null,
@@ -45,7 +45,7 @@ const baseData = { id: 101, name: 'ACME', invoices: [], invoices_access_denied: 
 
 afterEach(() => {
   cleanup()
-  mocks.isAdmin = true
+  mocks.role = 'administrativo'
   mocks.demurrage = { data: undefined, isLoading: false, isError: false }
   mocks.receivables = { data: undefined, isLoading: false, isError: false }
   mocks.payments = { data: undefined, isLoading: false, isError: false }
@@ -91,12 +91,31 @@ describe('FinanceiroTab — estados de carregamento e erro', () => {
     expect(screen.getByRole('button', { name: 'Editar acordo de 28 dias' })).toBeTruthy()
   })
 
-  it('não oferece cadastrar nem editar acordo a quem a policy recusa', () => {
-    mocks.isAdmin = false
+  it('oferece cadastrar e editar acordo a qualquer Departamento (P9)', () => {
+    mocks.role = 'financeiro'
+    mocks.agreements = { data: [{ id: 5, customer_id: 1, free_days: 28, p1_usd: null, p2_usd: null, valid_from: '2026-01-01', valid_to: null, active: true, notes: null }], isLoading: false, isError: false }
     render(<MemoryRouter><FinanceiroTab data={baseData} /></MemoryRouter>)
-    expect(screen.queryByRole('button', { name: /Novo acordo/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Editar acordo de 28 dias' })).toBeNull()
-    expect(screen.getByText('Cadastrar e editar acordos é do Administrativo.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Novo acordo/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Editar acordo de 28 dias' })).toBeTruthy()
+  })
+
+  it('B29: Invoice de Demurrage não vence — sem coluna Vencimento nem situação Vencida', () => {
+    mocks.demurrage = { data: { rows: [{ id: 78, doc_number: 'DEM-078', bl_id: 'BL-9', billed_at: '2026-07-01', due_date: '2026-07-10', status: 'overdue', total_usd: 100, current_total_brl: 550 }], denied: false }, isLoading: false, isError: false }
+    render(<MemoryRouter><FinanceiroTab data={baseData} /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('radio', { name: /Demurrage/ }))
+    expect(screen.getByRole('link', { name: 'DEM-078' })).toBeTruthy()
+    expect(screen.queryByRole('columnheader', { name: 'Vencimento' })).toBeNull()
+    expect(screen.queryByText('Vencida')).toBeNull()
+    expect(screen.getByText('Emitida')).toBeTruthy()
+  })
+
+  it('B29/A13: a coluna Total US$ mostra o USD líquido do desconto, como /demurrage', () => {
+    mocks.demurrage = { data: { rows: [{ id: 79, doc_number: 'DEM-079', bl_id: 'BL-9', billed_at: '2026-07-01', status: 'issued', total_usd: 1000, discount_mode: 'percent', discount_value: 10, current_total_brl: 4950 }], denied: false }, isLoading: false, isError: false }
+    render(<MemoryRouter><FinanceiroTab data={baseData} /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('radio', { name: /Demurrage/ }))
+    const row = screen.getByRole('link', { name: 'DEM-079' }).closest('tr') as HTMLElement
+    expect(row.textContent).toContain(formatUSD(900))
+    expect(row.textContent).not.toContain(formatUSD(1000))
   })
 
   it('abre a Invoice de Demurrage direto no detalhe de /demurrage', () => {
