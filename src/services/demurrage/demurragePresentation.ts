@@ -57,9 +57,10 @@ function containerBlRates(container: DemurrageContainerListItem) {
 export function effectiveDemurrage(
   container: DemurrageContainerListItem & Pick<DemurrageContainerRow, 'customer_agreement'>,
   customerAgreement: { free_days?: number | null; p1_usd?: number | null; p2_usd?: number | null } | null | undefined = container.customer_agreement,
+  today = saoPauloTodayIso(),
 ) {
   if (!container.discharge_date) return null
-  const end = container.return_date ?? saoPauloTodayIso()
+  const end = container.return_date ?? today
   const bl = containerBlRates(container)
   return calculateDemurrage(
     container.type,
