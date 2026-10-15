@@ -282,6 +282,8 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
 
   return {
     isLoading: listQuery.isLoading || statsQuery.isLoading,
+    // Filtro do servidor trocado: as linhas ainda são do recorte anterior.
+    isPlaceholderData: listQuery.isPlaceholderData,
     error: listQuery.error ?? statsQuery.error,
     data: {
       rows: listQuery.data?.rows ?? [],

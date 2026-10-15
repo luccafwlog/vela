@@ -16,12 +16,22 @@ const mocks = vi.hoisted(() => {
   })
   return { rows, save }
 })
-vi.mock('../../services/supabase', () => {
-  const chain: Record<string, unknown> = {}
-  for (const method of ['select', 'eq', 'order', 'ilike', 'in', 'or']) chain[method] = () => chain
-  chain.range = async () => ({ data: structuredClone(mocks.rows), error: null })
-  return { supabase: { from: () => chain } }
-})
+// Busca por chassi fica pendente até o teste liberar, para ver o recorte anterior na tela.
+const pending = vi.hoisted(() => ({ release: null as (() => void) | null }))
+vi.mock('../../services/supabase', () => ({
+  supabase: {
+    from: () => {
+      let searching = false
+      const chain: Record<string, unknown> = {}
+      for (const method of ['select', 'eq', 'order', 'in', 'or']) chain[method] = () => chain
+      chain.ilike = (column: string) => { if (column === 'chassis') searching = true; return chain }
+      chain.range = () => searching
+        ? new Promise((resolve) => { pending.release = () => resolve({ data: [], error: null }) })
+        : Promise.resolve({ data: structuredClone(mocks.rows), error: null })
+      return chain
+    },
+  },
+}))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, profile: { id: 'user-1' }, isAdmin: false }) }))
 vi.mock('../../components/shared/VoyageCombobox', () => ({ VoyageCombobox: () => <div /> }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
@@ -36,6 +46,7 @@ vi.mock('../../hooks/useVehicles', async (importOriginal) => {
   }
 })
 import { Veiculos } from '../Veiculos'
+import { STALE_PAGE_CLASS } from '../../lib/pagination'
 
 it('local de desova gravado fica no campo e no cache, sem aviso de falha', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
@@ -51,5 +62,25 @@ it('local de desova gravado fica no campo e no cache, sem aviso de falha', async
     expect(input.value).toBe('Terminal B')
     const cached = client.getQueriesData<Array<{ container: { unpacking_location: string | null } }>>({ queryKey: ['vehicles'] })
     expect(cached.flatMap(([, rows]) => rows ?? []).map((row) => row.container.unpacking_location)).toEqual(['Terminal B'])
+  } finally { client.clear() }
+})
+
+it('busca por chassi deixa os veículos anteriores esmaecidos e sem seleção até a resposta', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+  try {
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
+    const row = await screen.findByRole('checkbox', { name: 'Selecionar veículo CHASSI-1' }) as HTMLInputElement
+    const table = screen.getByRole('table').closest('.app-table-scroll') as HTMLElement
+    expect(table.getAttribute('aria-busy')).toBeNull()
+
+    const toggle = screen.queryByRole('button', { name: /Filtros/, expanded: false })
+    if (toggle) fireEvent.click(toggle)
+    fireEvent.change(screen.getByLabelText('Chassi'), { target: { value: 'XYZ' } })
+    await waitFor(() => expect(table.getAttribute('aria-busy')).toBe('true'), { timeout: 2000 })
+    expect(table.className).toContain(STALE_PAGE_CLASS)
+    expect(row.disabled).toBe(true)
+
+    pending.release?.()
+    expect(await screen.findByText('Nenhum veículo neste recorte')).not.toBeNull()
   } finally { client.clear() }
 })
