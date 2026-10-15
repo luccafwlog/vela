@@ -1,7 +1,7 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import type { CeUnlockItem } from "../../types/ceUnlock";
 
-type RequirementItem = Pick<CeUnlockItem, "source" | "termo" | "procuracao" | "paid" | "delivered">;
+type RequirementItem = Pick<CeUnlockItem, "source" | "termo" | "procuracao" | "paid" | "paid_exempt" | "delivered">;
 
 /** Ícone de requisito para células de tabela: verde atendido, cinza pendente. */
 export function CeUnlockRequirementIcon({ ok, label, subject }: { ok: boolean; label: string; subject?: string }) {
@@ -28,7 +28,7 @@ export function CeUnlockRequirements({ item }: { item: RequirementItem }) {
   const rows = [
     { label: "Termo de devolução", ok: item.termo, text: item.termo ? approved : "Pendente" },
     { label: "Procuração", ok: item.procuracao, text: item.procuracao ? approved : "Pendente" },
-    { label: "Taxas locais", ok: item.paid, text: item.paid ? "Pagamento confirmado" : "Pagamento pendente" },
+    { label: "Taxas locais", ok: item.paid, text: item.paid ? (item.paid_exempt ? "Isento" : "Pagamento confirmado") : "Pagamento pendente" },
     { label: "BL original", ok: item.delivered, text: item.delivered ? "Entregue" : "Aguardando entrega" },
   ];
   return (

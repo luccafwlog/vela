@@ -18,3 +18,9 @@ it("cobertura VIP satisfaz documentos e mantém entrega física pendente", () =>
   expect(screen.getByText("Aguardando entrega")).toBeTruthy();
   expect(screen.getByText("Pagamento confirmado")).toBeTruthy();
 });
+
+it("B/L isento diz Isento, não Pagamento confirmado", () => {
+  render(<CeUnlockRequirements item={{ source: "request", termo: false, procuracao: false, paid: true, paid_exempt: true, delivered: false }} />);
+  expect(screen.getByText("Isento")).toBeTruthy();
+  expect(screen.queryByText("Pagamento confirmado")).toBeNull();
+});

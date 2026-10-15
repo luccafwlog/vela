@@ -148,7 +148,7 @@ aptidão quando o valor corrigido já está coberto. Pagamento
 parcial, ausência de liquidação, nova obrigação de COD ou cancelamento de baixa
 impedem aptidão. B/L com Taxas Locais isentas (`charge_status = 'exempt'`) e
 sem recebível vigente não tem o requisito de pagamento: fica apto com termo,
-procuração e entrega, e a planilha ZPT sai "Sim" no pagamento. Fatura avulsa
+procuração e entrega, e a planilha ZPT sai "Sim" no pagamento; a tela mostra "Isento" (`paid_exempt`). Fatura avulsa
 emitida para o B/L e o Cliente atual (`issued`/`partially_paid` com saldo)
 bloqueia com o motivo "Fatura avulsa do B/L em aberto"; rascunho, cancelada e
 paga não bloqueiam. Demurrage não faz parte do requisito
@@ -251,8 +251,9 @@ Expurgo usa Storage API, preservando metadados e histórico
 `ceUnlock.local-pg.test.ts`):
 
 - upload abandonado após 1 dia e rascunho após 7 dias;
-- anexos de solicitação 30 dias após o primeiro envio, em qualquer estado
-  (pedido ainda em análise perde os PDFs e o desk pede reenvio);
+- anexos de solicitação 30 dias após o encerramento (concluída ou cancelada,
+  pelo último evento `complete` ou `cancel`); solicitação em andamento mantém
+  os PDFs (decisão de 2026-10-15, nota na ADR 0087);
 - Termo Anual VIP só quando, além de fora da vigência, há documento anual
   aprovado mais novo do mesmo Cliente e tipo; renovação em análise não substitui;
 - modelos anteriores ao vigente após 5 anos.

@@ -286,7 +286,7 @@ Confirmar desbloqueio por B/L/CE mediante referência/evidência externa e ator.
 | Decisão | Proposta / dependência |
 |---|---|
 | Entrega física | **Decidido** ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)): desk registra antes ou depois do pedido, independente (os papéis foram decididos na [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16) |
-| Termo e procuração | **Decidido** (ADR 0087): assinatura e validade por conferência humana; anexos expurgados 30 dias após o envio, Termo Anual VIP até ser substituído depois do vencimento |
+| Termo e procuração | **Decidido** (ADR 0087): assinatura e validade por conferência humana; anexos expurgados 30 dias após o encerramento da solicitação (nota de 2026-10-15 na ADR), Termo Anual VIP até ser substituído depois do vencimento |
 | “CS” na issue | Não criar campo CS nem trocar silenciosamente por CE; autor esclarece |
 | Isenção/valor zero | **Decidido** (ADR 0087): B/L isento não tem requisito de pagamento |
 | COD e cobertura | **Decidido** (ADR 0087): Taxas Locais e cobranças avulsas do B/L; Demurrage fora |

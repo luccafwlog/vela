@@ -39,6 +39,8 @@ export type CeUnlockItem = {
   termo: boolean;
   procuracao: boolean;
   paid: boolean;
+  /** B/L com Taxas Locais isentas: requisito atendido sem pagamento (migration 279). */
+  paid_exempt?: boolean;
   delivered: boolean;
   can_submit: boolean;
   can_export: boolean;

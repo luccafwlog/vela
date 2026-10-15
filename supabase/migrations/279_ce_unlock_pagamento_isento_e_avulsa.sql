@@ -4,7 +4,8 @@
 -- 1. B/L com Taxas Locais isentas (`bls.charge_status = 'exempt'`) e sem
 --    recebível de Taxas Locais vigente não tem o requisito de pagamento: fica
 --    apto com termo, procuração e entrega do original. Antes saía como não pago,
---    porque o cálculo exigia ao menos um recebível liquidado.
+--    porque o cálculo exigia ao menos um recebível liquidado. A projeção ganha
+--    `paid_exempt`, para a tela dizer "Isento" e não "Pagamento confirmado".
 -- 2. O requisito passa a incluir as faturas avulsas (`invoice_type = 'manual'`)
 --    emitidas para o B/L e o Cliente atual: avulsa `issued`/`partially_paid` com
 --    saldo bloqueia, com o motivo "Fatura avulsa do B/L em aberto". Rascunho,
@@ -32,7 +33,7 @@ CREATE OR REPLACE FUNCTION ce_unlock_private.item(p_bl text, p_request uuid DEFA
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE b public.bls; i public.ce_unlock_request_bls; r public.ce_unlock_requests; zs public.ce_unlock_zpt_status; paid boolean; td boolean; pd boolean; delivered boolean;
- local_paid boolean; manual_open boolean; vip boolean; reasons text[] := '{}'; eligible boolean; confirmed boolean; vs text; sla timestamptz;
+ local_paid boolean; exempt boolean:=false; manual_open boolean; vip boolean; reasons text[] := '{}'; eligible boolean; confirmed boolean; vs text; sla timestamptz;
 BEGIN
  SELECT * INTO b FROM public.bls WHERE id=p_bl;
  SELECT * INTO i FROM public.ce_unlock_request_bls WHERE bl_id=p_bl AND (p_request IS NULL OR request_id=p_request)
@@ -46,7 +47,7 @@ BEGIN
  AND x.source='local_charges' AND x.customer_id=b.customer_id;
  -- ADR 0087, item 2: B/L com Taxas Locais isentas, sem recebível vigente, não tem o requisito.
  IF NOT local_paid AND b.charge_status='exempt' AND NOT EXISTS(SELECT 1 FROM public.bl_receivables x
- WHERE x.bl_id=p_bl AND x.status<>'void' AND x.source='local_charges') THEN local_paid:=true; END IF;
+ WHERE x.bl_id=p_bl AND x.status<>'void' AND x.source='local_charges') THEN local_paid:=true; exempt:=true; END IF;
  -- ADR 0087, item 3: fatura avulsa emitida que referencia o B/L precisa estar quitada. Demurrage não entra.
  manual_open:=EXISTS(SELECT 1 FROM public.invoices n WHERE n.bl_id=p_bl AND n.invoice_type='manual'
  AND n.customer_id=b.customer_id AND n.status IN('issued','partially_paid') AND n.balance_brl>0);
@@ -84,7 +85,7 @@ BEGIN
  'customer_name',(SELECT name FROM public.customers WHERE id=b.customer_id),'cnpj_cpf',(SELECT cnpj_cpf FROM public.customers WHERE id=b.customer_id),
  'voyage_id',b.voyage_id,'voyage_number',(SELECT voyage_number FROM public.voyages WHERE id=b.voyage_id),'vessel_name',vs,'pod',b.pod,
  'request_id',r.id,'requested_at',r.created_at,'protocol',r.protocol,'state',coalesce(r.state,'no_request'),'version',r.version,'source',coalesce(r.source,'request'),
- 'vip',vip,'termo',td,'procuracao',pd,'paid',paid,'delivered',delivered,'confirmed',confirmed,
+ 'vip',vip,'termo',td,'procuracao',pd,'paid',paid,'paid_exempt',exempt,'delivered',delivered,'confirmed',confirmed,
  'delivery_version',coalesce((SELECT version FROM public.ce_unlock_bl_deliveries WHERE bl_id=p_bl),0),
  'can_submit',eligible AND NOT coalesce(i.active,false) AND NOT confirmed,
  'can_export',eligible AND r.customer_id=b.customer_id AND td AND pd AND delivered AND r.state IN('submitted','in_review','changes_requested','completed') AND i.active AND i.ce_at_request=b.ce_mercante AND NOT confirmed,

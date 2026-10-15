@@ -1,5 +1,7 @@
 # 0087 — Aceite operacional e jurídico do Desbloqueio de CE
 
+> **Situação atual (2026-10-15).** O item 5 foi ajustado pelo responsável na revisão da PR 956: os 30 dias contam a partir do encerramento da solicitação (concluída ou cancelada), não do envio. Solicitação em andamento mantém os PDFs, porque um pedido em análise que perdia os documentos ficava travado: o desk não recusa documento já expurgado, e o cliente só reenvia quando há correção solicitada. Regra vigente no [módulo](../modules/desbloqueio-ce.md). Os demais itens continuam valendo.
+
 Status: aceito — 2026-10-14 (decisões do dono). Itens 2 e 3 implementados na
 migration `279` e item 5 na `280` (PR 956), com testes no Postgres local; ver o
 [plano do Desbloqueio de CE](../plans/2026-10-04-desbloqueio-ce-mercante.md).
