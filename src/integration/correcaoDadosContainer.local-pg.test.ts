@@ -53,7 +53,7 @@ function cleanup() {
 
 // Part Lot: o container MSDU2920001 está nos B/Ls A (faturado) e B, cada um com
 // o peso e o CBM da sua parte; o lacre é o mesmo.
-describeLocal('correct_bl_container_data — lacre, peso e CBM no Part Lot (289/292)', () => {
+describeLocal('correct_bl_container_data — lacre no Part Lot, peso e CBM só no B/L (289/292)', () => {
   beforeAll(() => {
     cleanup()
     psql(`
@@ -88,18 +88,20 @@ describeLocal('correct_bl_container_data — lacre, peso e CBM no Part Lot (289/
       .toBe(`Lacre trocado na vistoria (mesmo container do B/L ${blA}, Part Lot)`)
   })
 
-  it('o campo corrigido vale para o Part Lot, também com o B/L faturado', () => {
-    const result = asAuthenticated(`SELECT public.correct_bl_container_data(${containerA}, 'S-200', 8200, 20, 'Peso conferido na balança');`)
+  it('peso bruto e CBM mudam só no B/L corrigido, também com o B/L faturado', () => {
+    const result = asAuthenticated(`SELECT public.correct_bl_container_data(${containerA}, 'S-200', 8200, 21, 'Peso conferido na balança');`)
     expect(result.ok, result.output).toBe(true)
-    expect(container(containerA)).toBe('S-200,8200,20')
-    expect(container(containerB)).toBe('S-200,8200,10')
+    expect(container(containerA)).toBe('S-200,8200,21')
+    expect(container(containerB)).toBe('S-200,4000,10')
+    expect(auditFields(containerA)).toBe('cbm,gross_weight_kg,seal_number')
+    expect(auditFields(containerB)).toBe('seal_number')
   })
 
   it('recusa quando nada mudou no container aberto, mesmo que o Part Lot difira', () => {
-    const result = asAuthenticated(`SELECT public.correct_bl_container_data(${containerA}, 'S-200', 8200, 20, 'Sem mudança');`)
+    const result = asAuthenticated(`SELECT public.correct_bl_container_data(${containerA}, 'S-200', 8200, 21, 'Sem mudança');`)
     expect(result.ok).toBe(false)
     expect(result.output).toContain('Nenhum dado do container mudou')
-    expect(container(containerB)).toBe('S-200,8200,10')
+    expect(container(containerB)).toBe('S-200,4000,10')
   })
 
   it('exige justificativa e recusa B/L cancelado e número negativo', () => {

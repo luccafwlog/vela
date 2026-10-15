@@ -21,7 +21,8 @@ type Container = NonNullable<BLDetail['bl_containers']>[number]
  * container numa justificativa só. Perfil e COC/SOC recalculam as Taxas
  * Locais e ficam travados com o B/L faturado (a correção sai pela
  * reimportação ou pelo Baplie, ADR 0077); lacre, peso bruto, CBM e datas
- * corrigem sempre (decisão de 2026-10-15; migration 289).
+ * corrigem sempre (decisão de 2026-10-15; migration 289). Peso bruto e CBM
+ * mudam só neste B/L; o resto vale para o Part Lot (migration 292).
  */
 export function BlContainerCorrectModal({
   bl,
@@ -63,6 +64,7 @@ export function BlContainerCorrectModal({
     if (!reason) return setError('Informe a justificativa da correção.')
 
     const recalculates = Boolean(plan.profile || plan.ownership)
+    const weightOrCbm = plan.changes.some((change) => change.field.startsWith('Peso bruto') || change.field.startsWith('CBM'))
     const confirmed = await confirm({
       title: `Corrigir container ${container.container_number}`,
       message: `Salvar a correção do container ${container.container_number} no B/L ${bl.id}?`,
@@ -70,6 +72,7 @@ export function BlContainerCorrectModal({
       changes: plan.changes,
       consequence: [
         'Vale também para os outros B/Ls ativos desta Viagem que dividem o container (Part Lot).',
+        weightOrCbm ? 'Peso bruto e CBM mudam só neste B/L: cada B/L do Part Lot tem a sua parte.' : null,
         recalculates ? 'Perfil e COC/SOC recalculam as Taxas Locais.' : null,
         plan.dates ? 'As datas recalculam a Demurrage.' : null,
         'Cada campo fica no histórico com autor e justificativa.',

@@ -1,5 +1,5 @@
--- 292 — A correção de lacre, peso bruto e CBM (migration 289) leva aos outros
--- B/Ls do Part Lot só o campo que a pessoa mudou.
+-- 292 — Na correção de lacre, peso bruto e CBM (migration 289), só o lacre
+-- vale para o Part Lot; peso bruto e CBM ficam no B/L corrigido.
 --
 -- Na 289, a janela Corrigir envia os três valores do container aberto e a RPC
 -- gravava os três em todos os B/Ls ativos da Viagem que dividem o container.
@@ -7,9 +7,11 @@
 -- bruto e CBM com os valores do A, mesmo quando o arquivo do B tinha trazido
 -- outros, e o histórico do B registrava essa troca como correção.
 --
--- Agora o campo só muda nos B/Ls do Part Lot quando muda no container aberto;
--- os demais ficam como estão. "Nenhum dado do container mudou" passa a olhar
--- o container aberto.
+-- Decisão do responsável de 2026-10-15: o lacre é do container físico e vale
+-- para todos os B/Ls ativos da Viagem que o dividem, quando muda no container
+-- aberto; peso bruto e CBM são da parte de cada B/L (cada arquivo traz os
+-- seus) e mudam só no B/L corrigido. "Nenhum dado do container mudou" olha o
+-- container aberto.
 --
 -- Só redefine a função; não reescreve nem apaga linhas.
 -- Rollback: reaplicar a definição da 289.
@@ -84,36 +86,36 @@ BEGIN
     RAISE EXCEPTION 'Nenhum dado do container mudou.' USING ERRCODE = '22023';
   END IF;
 
-  FOR v_target IN SELECT * FROM public.bl_containers WHERE id = ANY(v_ids) ORDER BY id LOOP
-    v_reason := CASE WHEN v_target.bl_id = v_container.bl_id THEN v_justification
-                     ELSE v_justification || ' (mesmo container do B/L ' || v_container.bl_id || ', Part Lot)' END;
+  -- Peso bruto e CBM: só o container aberto.
+  IF v_weight_changed THEN
+    INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification)
+    VALUES ('bl_container', v_container.id::text, 'gross_weight_kg|' || v_container.container_number, v_container.gross_weight_kg::text, p_gross_weight_kg::text, v_actor, now(), v_justification);
+  END IF;
+  IF v_cbm_changed THEN
+    INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification)
+    VALUES ('bl_container', v_container.id::text, 'cbm|' || v_container.container_number, v_container.cbm::text, p_cbm::text, v_actor, now(), v_justification);
+  END IF;
+  IF v_weight_changed OR v_cbm_changed THEN
+    UPDATE public.bl_containers
+    SET gross_weight_kg = p_gross_weight_kg,
+        cbm = p_cbm
+    WHERE id = v_container.id;
+  END IF;
 
-    IF v_seal_changed AND v_target.seal_number IS DISTINCT FROM v_seal THEN
+  -- Lacre: o container físico, em todo o Part Lot.
+  IF v_seal_changed THEN
+    FOR v_target IN SELECT * FROM public.bl_containers WHERE id = ANY(v_ids) ORDER BY id LOOP
+      CONTINUE WHEN v_target.seal_number IS NOT DISTINCT FROM v_seal;
+      v_reason := CASE WHEN v_target.bl_id = v_container.bl_id THEN v_justification
+                       ELSE v_justification || ' (mesmo container do B/L ' || v_container.bl_id || ', Part Lot)' END;
       INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification)
       VALUES ('bl_container', v_target.id::text, 'seal_number|' || v_target.container_number, v_target.seal_number, v_seal, v_actor, now(), v_reason);
-    END IF;
-    IF v_weight_changed AND v_target.gross_weight_kg IS DISTINCT FROM p_gross_weight_kg THEN
-      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification)
-      VALUES ('bl_container', v_target.id::text, 'gross_weight_kg|' || v_target.container_number, v_target.gross_weight_kg::text, p_gross_weight_kg::text, v_actor, now(), v_reason);
-    END IF;
-    IF v_cbm_changed AND v_target.cbm IS DISTINCT FROM p_cbm THEN
-      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, changed_at, justification)
-      VALUES ('bl_container', v_target.id::text, 'cbm|' || v_target.container_number, v_target.cbm::text, p_cbm::text, v_actor, now(), v_reason);
-    END IF;
-
-    UPDATE public.bl_containers
-    SET seal_number = CASE WHEN v_seal_changed THEN v_seal ELSE seal_number END,
-        gross_weight_kg = CASE WHEN v_weight_changed THEN p_gross_weight_kg ELSE gross_weight_kg END,
-        cbm = CASE WHEN v_cbm_changed THEN p_cbm ELSE cbm END
-    WHERE id = v_target.id
-      AND ((v_seal_changed AND seal_number IS DISTINCT FROM v_seal)
-        OR (v_weight_changed AND gross_weight_kg IS DISTINCT FROM p_gross_weight_kg)
-        OR (v_cbm_changed AND cbm IS DISTINCT FROM p_cbm));
-
-    IF v_target.id <> v_container.id THEN
-      v_propagated := v_propagated || jsonb_build_array(jsonb_build_object('bl_id', v_target.bl_id, 'container_id', v_target.id));
-    END IF;
-  END LOOP;
+      UPDATE public.bl_containers SET seal_number = v_seal WHERE id = v_target.id;
+      IF v_target.id <> v_container.id THEN
+        v_propagated := v_propagated || jsonb_build_array(jsonb_build_object('bl_id', v_target.bl_id, 'container_id', v_target.id));
+      END IF;
+    END LOOP;
+  END IF;
 
   RETURN jsonb_build_object(
     'bl_id', v_container.bl_id,

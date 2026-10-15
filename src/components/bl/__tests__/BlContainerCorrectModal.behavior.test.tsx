@@ -9,9 +9,10 @@ const mocks = vi.hoisted(() => ({
   correctContainerData: vi.fn(),
   updateContainerDates: vi.fn(),
   updateContainerReturnDate: vi.fn(),
+  confirm: vi.fn(),
 }))
 
-vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => () => Promise.resolve(true) }))
+vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../../services/vaziosNatureza', async (original) => ({
   ...(await original() as object),
@@ -43,6 +44,15 @@ describe('janela Corrigir do container', () => {
     Object.values(mocks).forEach((mock) => mock.mockReset())
     mocks.setContainerProfile.mockResolvedValue({ invoicedBls: [] })
     mocks.correctContainerData.mockResolvedValue(undefined)
+    mocks.confirm.mockResolvedValue(true)
+  })
+
+  it('avisa que peso bruto e CBM mudam só neste B/L', async () => {
+    renderModal()
+    fireEvent.change(screen.getByLabelText('Peso bruto (kg)'), { target: { value: '48000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar correção' }))
+    await waitFor(() => expect(mocks.correctContainerData).toHaveBeenCalled())
+    expect(mocks.confirm.mock.calls[0][0].consequence).toContain('Peso bruto e CBM mudam só neste B/L')
   })
 
   it('depois de uma falha no meio, Salvar de novo reenvia só o que faltou', async () => {

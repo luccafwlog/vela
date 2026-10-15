@@ -18,7 +18,7 @@
   janela **Corrigir** do container, com a migration `289` (`correct_bl_container_data`):
   lacre, peso bruto e CBM corrigíveis com justificativa, também com B/L faturado, porque
   não entram na base da fatura; a reimportação do B/L volta ao valor do arquivo. No Part
-  Lot, os outros B/Ls recebem só o campo que mudou (migration `292`). Peça
+  Lot, o lacre vale para todos os B/Ls e peso e CBM só para o B/L corrigido (migration `292`). Peça
   comum nova `.app-link` para identificador sem link de família.
 - **Menu do Vela no topo ou na lateral (2026-10-15):** o menu da conta ganhou a
   seção "Posição do menu", com quatro opções: no topo (padrão), lateral fixa,
