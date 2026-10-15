@@ -230,6 +230,8 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(sql(`SELECT active FROM public.ce_unlock_request_bls WHERE request_id='${draft.id}';`)).toBe('f')
     sql(`SELECT public.ce_unlock_cleanup_record('${doc}');`)
     expect(sql(`SELECT purged_at IS NOT NULL FROM public.ce_unlock_documents WHERE id='${doc}';`)).toBe('t')
+    // A projeção avisa a tela que o arquivo saiu (migration 234), em vez de oferecer o download recusado.
+    expect(sql(`SELECT ce_unlock_private.doc_json('${doc}')->>'purged';`)).toBe('true')
   })
   it('pedido com dois BLs conclui quando todos atendem os quatro requisitos; CE divergente é recusado até a reconferência',()=>{
     command('set_vip',{customer_id:998557,enabled:true,reason:'Teste misto VIP',request_key:crypto.randomUUID()})

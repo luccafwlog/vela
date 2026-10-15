@@ -130,18 +130,13 @@ export function CeUnlockRequestDetail({
           }
         />
         {manage && !vip && previousDocuments.length > 0 && (
-          <div className="space-y-1">
-            <h4 className="app-panel__title">Versões anteriores</h4>
-            <ul aria-label="Versões anteriores dos documentos" className="space-y-1 text-xs text-[var(--app-muted)]">
-              {previousDocuments.map((d) => (
-                <li key={d.id}>
-                  <span className="font-semibold text-[var(--app-text)]">{ceDocumentName(d.type)}</span> · {d.file_name} ·{" "}
-                  {ceStateLabel(d.status)} · {ceDateTime(d.created_at)}
-                  {d.reason ? ` · Motivo: ${d.reason}` : ""}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <section aria-label="Versões anteriores dos documentos" className="space-y-2">
+            <div>
+              <h4 className="app-panel__title">Versões anteriores</h4>
+              <p className="app-panel__meta">Somente consulta; a análise vale para a versão atual.</p>
+            </div>
+            <CeUnlockDocumentList documents={previousDocuments} />
+          </section>
         )}
       </div>
 

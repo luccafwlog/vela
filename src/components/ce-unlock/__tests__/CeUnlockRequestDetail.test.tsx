@@ -10,7 +10,7 @@ vi.mock('../../ui/ConfirmDialog', () => ({
   useConfirmWithReason: () => async () => 'Assinatura ausente na última página',
 }))
 vi.mock('../../../services/ceUnlockService', () => ({
-  downloadCeUnlockDocument: vi.fn(), uploadCeUnlockDocument: vi.fn(),
+  downloadCeUnlockDocument: vi.fn(async () => {}), uploadCeUnlockDocument: vi.fn(),
 }))
 afterEach(cleanup)
 
@@ -88,19 +88,27 @@ const versionDocs = [
   versionDoc({ id: "p1", type: "procuracao", file_name: "procuracao.pdf", status: "approved" }),
 ];
 
-it("análise interna mostra só a versão atual de cada documento e lista as versões anteriores com situação, data e motivo", () => {
+it("análise interna mostra a versão atual de cada documento e as anteriores para consulta, abríveis e sem análise", async () => {
+  const { downloadCeUnlockDocument } = await import("../../../services/ceUnlockService");
   render(<CeUnlockRequestDetail request={versionRequest(versionDocs)} manage busy={false} onAction={vi.fn()} />);
   expect(screen.getByText("termo-v2.pdf")).toBeTruthy();
   expect(screen.getByText("procuracao.pdf")).toBeTruthy();
-  const previous = screen.getByRole("list", { name: "Versões anteriores dos documentos" });
-  const items = within(previous).getAllByRole("listitem");
-  expect(items).toHaveLength(1);
-  expect(items[0].textContent).toContain("termo-v1.pdf");
-  expect(items[0].textContent).toContain("Correção solicitada");
-  expect(items[0].textContent).toContain("10/10/2026");
-  expect(items[0].textContent).toContain("Motivo: Assinatura ilegível");
-  // A versão anterior não ganha botões de análise.
-  expect(screen.getAllByRole("button", { name: "Abrir documento" })).toHaveLength(2);
+  const previous = screen.getByRole("region", { name: "Versões anteriores dos documentos" });
+  expect(within(previous).getByText("termo-v1.pdf")).toBeTruthy();
+  expect(within(previous).getByText("Correção solicitada")).toBeTruthy();
+  expect(within(previous).getByText("Motivo: Assinatura ilegível")).toBeTruthy();
+  // A versão recusada abre o PDF, mas não ganha botões de análise.
+  expect(within(previous).queryByRole("button", { name: /Aprovar|Recusar/ })).toBeNull();
+  await userEvent.click(within(previous).getByRole("button", { name: "Abrir documento" }));
+  expect(downloadCeUnlockDocument).toHaveBeenCalledWith("t1", undefined);
+});
+
+it("versão anterior já expurgada avisa que o arquivo saiu, em vez de oferecer abrir", () => {
+  const purged = [versionDocs[0], { ...versionDocs[1], purged: true }, versionDocs[2]];
+  render(<CeUnlockRequestDetail request={versionRequest(purged)} manage busy={false} onAction={vi.fn()} />);
+  const previous = screen.getByRole("region", { name: "Versões anteriores dos documentos" });
+  expect(within(previous).getByText("Arquivo removido pela regra de retenção")).toBeTruthy();
+  expect(within(previous).queryByRole("button", { name: "Abrir documento" })).toBeNull();
 });
 
 it("sem substituições, ou em pedido VIP, não mostra versões anteriores", () => {

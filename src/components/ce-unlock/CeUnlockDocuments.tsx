@@ -54,18 +54,22 @@ function DocumentRow({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="ghost"
-          className="app-btn--sm"
-          onClick={() =>
-            void downloadCeUnlockDocument(doc.id, scope).catch((e) =>
-              onError(e instanceof Error ? e.message : "Falha ao abrir documento"),
-            )
-          }
-        >
-          <ExternalLink size={14} aria-hidden="true" />
-          Abrir documento
-        </Button>
+        {doc.purged ? (
+          <span className="text-xs text-[var(--app-muted)]">Arquivo removido pela regra de retenção</span>
+        ) : (
+          <Button
+            variant="ghost"
+            className="app-btn--sm"
+            onClick={() =>
+              void downloadCeUnlockDocument(doc.id, scope).catch((e) =>
+                onError(e instanceof Error ? e.message : "Falha ao abrir documento"),
+              )
+            }
+          >
+            <ExternalLink size={14} aria-hidden="true" />
+            Abrir documento
+          </Button>
+        )}
         {children}
       </div>
     </div>
