@@ -40,11 +40,14 @@ it('recupera pendência do B/L sem pedir valor manual', () => {
   expect(screen.queryByRole('textbox')).toBeNull()
 })
 
-it('mostra a pendência sem mutation para leitura sem Administrativo', () => {
+it('qualquer Departamento tenta aplicar a correção (ADR 0085, D3)', () => {
   mocks.corrections = []
   mocks.pending = ['BL-RECOVERY']
   mocks.isAdmin = false
   render(<InvoiceCorrectionPanel invoiceId={9} />)
   expect(screen.getByText(/BL-RECOVERY/)).toBeTruthy()
-  expect(screen.queryByRole('button')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar aplicar correção' }))
+  expect(mocks.retry).toHaveBeenCalledWith('BL-RECOVERY')
+  // Preparar cancelamento financeiro segue do Administrativo.
+  expect(screen.queryByRole('button', { name: 'Preparar cancelamento financeiro' })).toBeNull()
 })

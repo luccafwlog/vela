@@ -578,7 +578,7 @@ export function Bls() {
         <CeMercanteImportModal
           open={ceMercanteOpen}
           onClose={() => setCeMercanteOpen(false)}
-          lockedVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
+          initialVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
         />
       ) : null}
 

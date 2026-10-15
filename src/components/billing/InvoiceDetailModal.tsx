@@ -56,8 +56,9 @@ type InvoiceDetailModalProps = {
  * e pela Conciliação. Uma superfície com seções separadas por filete; a
  * impressão troca o conteúdo do mesmo modal (sem modal sobre modal) e as
  * confirmações de devolução e de cancelamento de baixa abrem dentro da seção.
- * As ações que o banco restringe ao Administrativo (baixa, cancelamento da
- * fatura e da baixa) aparecem só para ele; os demais leem o motivo.
+ * As ações que o banco restringe por perfil aparecem só para quem pode: baixa
+ * para Financeiro e Administrativo; cancelamento da fatura e da baixa só para o
+ * Administrativo (matriz de permissões; migration 247). Os demais leem o motivo.
  */
 export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, paymentId }: InvoiceDetailModalProps) {
   const { user, isAdmin, can } = useAuth()
@@ -119,6 +120,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const refundsQuery = useInvoiceRefunds(invoiceId)
   const refunds = refundsQuery.data ?? []
   const settleRefundMutation = useSettleInvoiceRefund()
+  // Financeiro e Administrativo: devolução confirmada e baixa manual (ADR 0085, D4).
   const canSettleRefund = typeof can === 'function' ? can('settle_financial_adjustments') : isAdmin
   const detail = detailQuery.data ?? null
   const detailInvoice = detail?.invoice ?? null
@@ -406,7 +408,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                 </div>
               ) : null}
 
-              <StaleInvoiceResolutionPanel key={`stale-${invoiceId}`} invoiceId={Number(invoiceId)} hasPayment={Number(detailInvoice.total_paid_brl ?? 0) > 0} canResolve={isAdmin} />
+              <StaleInvoiceResolutionPanel key={`stale-${invoiceId}`} invoiceId={Number(invoiceId)} hasPayment={Number(detailInvoice.total_paid_brl ?? 0) > 0} />
 
               {detail.bls.length > 0 ? (
                 <section className="app-invoice-detail__section" aria-labelledby="invoice-detail-bls">
@@ -541,10 +543,10 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                       {refund.notes ? <p className="app-invoice-detail__note">{refund.notes}</p> : null}
                       {refund.bank_reference ? <p className="app-invoice-detail__note">Comprovante {refund.bank_reference} · Favorecido {refund.beneficiary}</p> : null}
                       {refund.status === 'pending' && !canSettleRefund ? <p className="app-invoice-detail__note">Aguardando o Financeiro devolver e confirmar.</p> : null}
-                      {refund.status === 'pending' && (canSettleRefund || (isAdmin && authorizationIds.has(refund.id))) && refundToConfirm !== refund.id && authorizationToCancel !== refund.id ? (
+                      {refund.status === 'pending' && (canSettleRefund || authorizationIds.has(refund.id)) && refundToConfirm !== refund.id && authorizationToCancel !== refund.id ? (
                         <div className="app-invoice-detail__inline-actions">
                           {canSettleRefund ? <Button variant="secondary" onClick={() => { setRefundToConfirm(refund.id); setAuthorizationToCancel(null); setRefundReference(''); setRefundBeneficiary(''); setRefundDate(''); setRefundError('') }}>Confirmar devolução…</Button> : null}
-                          {isAdmin && authorizationIds.has(refund.id) ? <Button variant="ghost" onClick={() => { setAuthorizationToCancel(refund.id); setRefundToConfirm(null); setAuthorizationReason(''); setRefundError('') }}>Cancelar autorização</Button> : null}
+                          {authorizationIds.has(refund.id) ? <Button variant="ghost" onClick={() => { setAuthorizationToCancel(refund.id); setRefundToConfirm(null); setAuthorizationReason(''); setRefundError('') }}>Cancelar autorização</Button> : null}
                         </div>
                       ) : null}
                       {refundToConfirm === refund.id ? (
@@ -585,8 +587,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                   <h3 id="invoice-detail-register" className="app-invoice-detail__heading">Registrar pagamento</h3>
                   {!canRegisterPayment ? (
                     <p className="app-invoice-detail__note">Esta fatura não aceita registro de pagamento no status atual.</p>
-                  ) : !isAdmin ? (
-                    <p className="app-invoice-detail__note">Somente o Administrativo registra recebimentos. Pix com TXID entra pela Conciliação.</p>
+                  ) : !canSettleRefund ? (
+                    <p className="app-invoice-detail__note">Somente o Financeiro e o Administrativo registram recebimentos. Pix com TXID entra pela Conciliação.</p>
                   ) : (
                     <div className="app-invoice-detail__form">
                       <Field label="Valor recebido (R$)" required hint={isLedgerPayable ? 'Aceita valor parcial.' : undefined}>

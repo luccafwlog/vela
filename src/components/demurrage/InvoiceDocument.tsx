@@ -8,6 +8,7 @@ export type DemurrageInvoiceDocumentItem = {
   id: number
   container_number: string
   container_type: string | null
+  free_days?: number | null
   days_p1: number
   rate_p1_usd: number
   days_p2: number
@@ -126,12 +127,12 @@ export function InvoiceDocument({ detail, type }: Props) {
 
       <table style={{ width: '100%', borderCollapse: 'collapse', margin: '16px 0 0', fontSize: '12px' }}>
         <thead><tr style={{ background: '#1A2744', color: 'white' }}>
-          {['CONTAINER', 'TIPO', 'DIAS 1º PER.', 'USD/Dia', 'DIAS 2º PER.', 'USD/Dia', 'DESCARGA', 'RETORNO', 'LÍQUIDO'].map((header, index) => <th scope="col" key={`${index}-${header}`} style={{ padding: '9px 7px', textAlign: header === 'CONTAINER' ? 'left' : 'center', fontWeight: 600 }}>{header}</th>)}
+          {['CONTAINER', 'TIPO', 'FREE TIME', 'DIAS 1º PER.', 'USD/Dia', 'DIAS 2º PER.', 'USD/Dia', 'DESCARGA', 'RETORNO', 'LÍQUIDO'].map((header, index) => <th scope="col" key={`${index}-${header}`} style={{ padding: '9px 7px', textAlign: header === 'CONTAINER' ? 'left' : 'center', fontWeight: 600 }}>{header}</th>)}
         </tr></thead>
         <tbody>
           {itemsWithBRL.map((item, idx) => (
             <tr key={item.id} style={{ background: idx % 2 === 0 ? '#f9fafb' : 'white', borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '8px 7px', fontWeight: 600 }}>{item.container_number}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.container_type}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p1}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p1_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p2}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p2_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.discharge_date)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.return_date)}</td><td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.subtotal_brl == null ? '—' : fmtBRL(item.subtotal_brl)}</td>
+              <td style={{ padding: '8px 7px', fontWeight: 600 }}>{item.container_number}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.container_type}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.free_days ?? '—'}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p1}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p1_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p2}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p2_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.discharge_date)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.return_date)}</td><td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.subtotal_brl == null ? '—' : fmtBRL(item.subtotal_brl)}</td>
             </tr>
           ))}
           {hasDiscount && <>

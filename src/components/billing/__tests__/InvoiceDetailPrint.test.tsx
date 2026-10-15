@@ -263,7 +263,7 @@ it('sem Administrativo, mostra o motivo no lugar dos formulários de baixa e can
   auth.isAdmin = false
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
   expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
-  expect(screen.getByText(/Somente o Administrativo registra recebimentos/)).toBeTruthy()
+  expect(screen.getByText(/Somente o Financeiro e o Administrativo registram recebimentos/)).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Cancelar fatura' })).toBeNull()
   expect(screen.getByText('Somente o Administrativo cancela faturas.')).toBeTruthy()
 })

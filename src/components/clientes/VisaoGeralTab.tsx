@@ -48,7 +48,6 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
   const primaryContact = data.customer_contacts?.find(
     (contact) => contact.is_primary && !contact.deactivated_at && Boolean(contact.email?.trim()),
   )
-  const today = new Date().toISOString().slice(0, 10)
   const portalRow = portalQuery.data ?? null
   const release = releaseQuery.data ?? null
   const releaseState = release ? billingPortalReleaseState(release) : null
@@ -66,10 +65,8 @@ export function VisaoGeralTab({ data, onNavigateTab }: VisaoGeralTabProps) {
     demurrage: financialDenied
       ? false
       : sourceOf(demurrageQuery, (value) => ({
-          // Taxa local não tem vencimento praticado (issue #605): só o Demurrage vence.
-          overdue: (value?.rows ?? []).filter((invoice) => invoice.status === 'overdue' || (invoice.status === 'issued' && invoice.due_date && invoice.due_date < today)).length,
           disputes: (value?.rows ?? []).filter((invoice) => invoice.dispute_open || invoice.dispute_status === 'aberto').length,
-        })) as { overdue: number; disputes: number } | null | undefined,
+        })) as { disputes: number } | null | undefined,
     runningDemurrage: sourceOf(runningQuery, (rows) => (rows ?? []).length) as number | null | undefined,
   })
 

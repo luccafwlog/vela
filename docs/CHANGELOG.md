@@ -6,6 +6,17 @@
 
 ## 2026-10
 
+- **Correções da revisão geral e do modelo de permissões (2026-10-15, PR 954):**
+  os 43 itens do [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+  (migrations `230` a `266`: escrita de cobrança, fatura, pagamento e contatos só
+  pelas RPCs; autor é quem está logado; emissão por qualquer Departamento; baixa
+  e Conciliação PIX do Financeiro; leitura global; alertas fechando pela origem;
+  ADR de Saída, Vazios e importações). A revisão da PR acrescentou as migrations
+  `267` a `278`. Decisões do dono na revisão: motivo interno obrigatório na
+  fatura avulsa, regra M14 do e-mail do manifesto também na Revisão e viagem
+  limpável na importação de CE Mercante e confirmação legada do Desbloqueio de CE presa ao CE confirmado. Publicar na ordem migrations → Edge
+  Functions → frontend ([Serviços externos](operations/servicos-externos.md#edge-functions)).
+
 - **CI na medida da mudança (2026-10-15, [ADR 0086](adr/0086-ci-confere-na-medida-da-mudanca.md), PR luccafwlog/vela#953):**
   o CI roda só em PR, em quatro jobs (`quality`, `test` em 2 shards, `db`, `checks`); replay,
   invariantes, catálogo de RPCs e seed em toda PR, e as suítes SQL só quando o diff toca o banco
@@ -18,7 +29,7 @@
   o dono fixou a base (escrita global com rastro, mais cancelar fatura, baixa manual e registro da
   Restituição como exceções) e a lista fechada de exceções; a matriz ação × perfil passou a ter dono
   único em [Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil). Só documentação: o
-  código entrou como itens P no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
+  código entrou como itens P no [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
   numa fila única com as correções da ADR 0083, que passa a ter 43 itens; à frente, depois do B1,
   ficam as falhas de escrita direta pela API confirmadas no Postgres local (itens P2, P3 e P15 do
   plano; P1 junto com o A7, depois do A21). A revisão da PR acrescentou a falha 5 (escrita direta
@@ -47,7 +58,7 @@
   módulos passam a descrever a regra decidida, com "correção pendente" onde o código ainda
   diverge; o termo é Restituição e a regra é "Administrativo ativo mínimo"; o desenho de piloto
   e GO LIVE do Portal de julho foi arquivado. Nenhum código mudou: as correções estão no
-  [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (31 itens de
+  [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (31 itens de
   código e 2 operações do dono), e o plano da revisão geral foi arquivado.
 - **Revisão geral da documentação (2026-10-14, [ADR 0082](adr/0082-governanca-documental-dono-unico-e-adr-historica.md),
   [relatório](archive/audits/2026-10-13-revisao-geral-documentacao.md)):** cada fato passa a ter

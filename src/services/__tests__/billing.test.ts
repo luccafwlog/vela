@@ -255,6 +255,7 @@ describe('createManualInvoice', () => {
       customerId: 7,
       itemName: ' Taxa especial ',
       description: ' Observacao ',
+      reason: ' Servico extra pedido pelo Cliente ',
       quantity: 2,
       unitValueBrl: 10.5,
       blId: ' bl-1 ',
@@ -267,6 +268,7 @@ describe('createManualInvoice', () => {
       p_item_name: 'Taxa especial',
       p_quantity: 2,
       p_unit_value_brl: 10.5,
+      p_reason: 'Servico extra pedido pelo Cliente',
       p_description: 'Observacao',
       p_bl_id: 'BL-1',
       p_voyage_id: 9,
@@ -291,6 +293,7 @@ describe('createManualInvoice', () => {
       customerId: 7,
       itemName: 'Taxa',
       description: '',
+      reason: 'Ajuste combinado',
       quantity: 1,
       unitValueBrl: 10,
     })).rejects.toThrow('fatura avulsa falhou')
@@ -300,7 +303,15 @@ describe('createManualInvoice', () => {
       p_item_name: 'Taxa',
       p_quantity: 1,
       p_unit_value_brl: 10,
+      p_reason: 'Ajuste combinado',
     })
+  })
+
+  it('recusa sem motivo antes de chamar o banco (272)', async () => {
+    supabaseMocks.rpc.mockClear()
+    await expect(createManualInvoice({ customerId: 7, itemName: 'Taxa', reason: '  ', quantity: 1, unitValueBrl: 10 }))
+      .rejects.toThrow(/Motivo obrigatorio/)
+    expect(supabaseMocks.rpc).not.toHaveBeenCalled()
   })
 })
 

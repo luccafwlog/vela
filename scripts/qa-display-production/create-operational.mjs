@@ -45,17 +45,12 @@ export async function createOperationalFixture(client, userId) {
     let customerCreated = false
     const result = existing.data ?? (await client.rpc('create_customer_with_contacts', {
       p_customer: { cnpj_cpf: cnpj, name, trade_name: tradeName, address: 'QA Synthetic Address', city: 'Vitoria', state: 'ES', zip: '29000000', notes: PREFIX },
-      p_contacts: [{ name: 'Contato QA', email: null, phone: null, purpose: 'geral', is_primary: true }],
+      // O contato nasce com o Cliente: a API não escreve mais em customer_contacts (P3, migration 232).
+      p_contacts: [{ name: 'Contato QA', email: `qa-${cnpj}@example.invalid`, phone: null, purpose: 'faturamento', is_primary: true }],
     })).data
     customerCreated = !existing.data
     if (!result) throw new Error(`customer creation failed: ${cnpj}`)
     const customerId = result.id ?? result
-    const contact = await client.from('customer_contacts').select('id').eq('customer_id', customerId).eq('email', `qa-${customerId}@example.invalid`).maybeSingle()
-    if (contact.error) throw contact.error
-    if (!contact.data) {
-      const contactInsert = await client.from('customer_contacts').insert({ customer_id: customerId, name: 'Contato QA', email: `qa-${customerId}@example.invalid`, purpose: 'faturamento', is_primary: true })
-      if (contactInsert.error) throw contactInsert.error
-    }
     catalog.customers.push({ id: customerId, cnpj, created: customerCreated })
   }
   const carrierId = await getOrCreateCarrier(client)
@@ -205,12 +200,11 @@ export async function createOperationalFixture(client, userId) {
     if (receivables.error) throw receivables.error
     catalog.receivables = (receivables.data ?? []).map((row) => ({ id: row.id, created: false }))
   }
-  catalog.portalAccounts = []
-  for (const customerId of [1, 2, 3, 4]) {
-    const account = await client.rpc('upsert_customer_portal_account', { p_customer_id: customerId, p_password: `QAD26-Portal-${customerId}-Only!`, p_contact_email: `portal-${customerId}@example.invalid`, p_active: true, p_actor: userId })
-    if (account.error) throw account.error
-    catalog.portalAccounts.push({ customerId, account: account.data, created: Boolean(account.data?.created) })
-  }
+  // A conta do Portal nasce só pelo provisionamento (Edge Functions); a RPC
+  // legada de conta com senha própria saiu na migration 234 (ADR 0083, item 21).
+  const accounts = await client.from('customer_portal_accounts').select('id,customer_id').in('customer_id', [1, 2, 3, 4])
+  if (accounts.error) throw accounts.error
+  catalog.portalAccounts = (accounts.data ?? []).map((account) => ({ customerId: account.customer_id, account: { id: account.id }, created: false }))
   return catalog
 }
 

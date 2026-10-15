@@ -24,7 +24,7 @@ type Props = {
 }
 
 type ChargeKind = 'table' | 'other'
-type FieldErrors = Partial<Record<'customer' | 'bl' | 'item' | 'itemName' | 'quantity' | 'unitValue' | 'voyage' | 'form', string>>
+type FieldErrors = Partial<Record<'customer' | 'bl' | 'item' | 'itemName' | 'quantity' | 'unitValue' | 'voyage' | 'reason' | 'form', string>>
 
 const KIND_OPTIONS = [
   { value: 'table' as const, label: 'Item da tabela' },
@@ -38,6 +38,7 @@ const SCHEMA_FIELD: Record<string, { field: keyof FieldErrors; message: string }
   quantity: { field: 'quantity', message: 'Informe uma quantidade maior que zero.' },
   unitValueBrl: { field: 'unitValue', message: 'Informe um valor maior que zero.' },
   voyageId: { field: 'voyage', message: 'Viagem inválida.' },
+  reason: { field: 'reason', message: 'Informe o motivo da fatura avulsa.' },
 }
 
 function typedNumber(value: string) {
@@ -60,6 +61,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
   const [kind, setKind] = useState<ChargeKind>('other')
   const [itemName, setItemName] = useState('')
   const [description, setDescription] = useState('')
+  const [reason, setReason] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [unitValueBrl, setUnitValueBrl] = useState('')
   const [chargeItemId, setChargeItemId] = useState<number | null>(null)
@@ -84,6 +86,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
     setKind('other')
     setItemName('')
     setDescription('')
+    setReason('')
     setQuantity('1')
     setUnitValueBrl('')
     setChargeItemId(null)
@@ -142,6 +145,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
       customerId,
       itemName: quote?.charge_item_name ?? itemName,
       description,
+      reason,
       quantity: quote?.quantity ?? quantity,
       unitValueBrl: quote?.unit_value_brl ?? unitValueBrl,
       blId,
@@ -173,6 +177,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
       ...(tableCharge && chargeItemId != null ? { chargeItemId } : {}),
       customerId: parsed.data.customerId,
       itemName: parsed.data.itemName,
+      reason: parsed.data.reason,
       quantity: parsed.data.quantity,
       unitValueBrl: parsed.data.unitValueBrl,
     }
@@ -327,6 +332,12 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
         <div className="app-manual-invoice__full">
           <Field label="Descrição da cobrança" hint="Aparece na fatura impressa e no Portal do Cliente.">
             <Textarea value={description} rows={3} maxLength={500} onChange={(event) => setDescription(event.target.value)} />
+          </Field>
+        </div>
+
+        <div className="app-manual-invoice__full">
+          <Field label="Motivo (interno)" required error={errors.reason} hint="Por que esta cobrança sai fora da tabela. Fica no histórico da fatura; o Cliente não vê.">
+            <Textarea value={reason} rows={2} maxLength={500} onChange={(event) => { setReason(event.target.value); clearError('reason') }} />
           </Field>
         </div>
 

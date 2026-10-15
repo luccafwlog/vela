@@ -5,8 +5,11 @@ import { supabase } from '../supabase'
 import { reportBestEffortFailure } from '../../lib/telemetry'
 import type { RoeSource } from '../../types/database'
 
-// Spread fixo do armador aplicado sobre a PTAX (ADR 0014). Ponto canônico no
-// frontend; o backend replica a mesma constante na RPC de recálculo.
+// Spread fixo do armador aplicado sobre a PTAX (ADR 0014). O ponto canônico é
+// `_demurrage_roe_markup()` no banco (migration 264, B24): a referência
+// cambial, o desconto e a Conciliação PIX derivam dele, e a Edge do BCB lê o
+// ROE gravado. Esta cópia só serve à prévia na tela; `demurrageRoeMarkup.test.ts`
+// confere que ela é igual à do banco.
 export const DEMURRAGE_ROE_MARKUP = 1.065
 
 const ROE_CACHE_KEY = 'demurrage_roe_cache'
@@ -41,25 +44,6 @@ function saveROECache(roe: number, ptax: number, effectiveDate: string, fetchedA
     localStorage.setItem(ROE_CACHE_KEY, JSON.stringify(payload))
   } catch {
     // localStorage unavailable — ignore
-  }
-}
-
-export async function persistExchangeRateReference(
-  input: { ptax: number | null; roe: number; effectiveDate: string; source: RoeSource },
-  options: { required?: boolean } = {},
-) {
-  try {
-    const { error } = await supabase.rpc('save_exchange_rate_reference_v2', {
-      p_ptax: input.ptax,
-      p_roe: input.roe,
-      p_effective_date: input.effectiveDate,
-      p_source: input.source,
-      p_quote_date: input.effectiveDate,
-    })
-    if (error) throw error
-  } catch (error) {
-    reportBestEffortFailure('exchange rate reference persistence failed', error)
-    if (options.required) throw error
   }
 }
 
@@ -103,7 +87,9 @@ export type FetchROEResult = {
   source: RoeSource
 }
 
-export async function fetchROE(options: { ensurePersistence?: boolean } = {}): Promise<FetchROEResult> {
+// O cabeçalho só lê: a referência cambial usada na emissão é gravada pelo job
+// do BCB e pelo Informar PTAX, no servidor (ADR 0083, item 14; migration 236).
+export async function fetchROE(): Promise<FetchROEResult> {
   const today = new Date()
   const from = new Date(today)
   from.setDate(from.getDate() - 10)
@@ -119,11 +105,6 @@ export async function fetchROE(options: { ensurePersistence?: boolean } = {}): P
     const roe = parseFloat((ptax * DEMURRAGE_ROE_MARKUP).toFixed(4))
     const effectiveDate = String(json.value[0].dataHoraCotacao).slice(0, 10)
     saveROECache(roe, ptax, effectiveDate)
-    // The header is a read-only, best-effort indicator. Do not make every
-    // authenticated page wait for the audit persistence RPC to finish.
-    const persist = persistExchangeRateReference({ ptax, roe, effectiveDate, source: 'bcb_live' }, { required: options.ensurePersistence })
-    if (!options.ensurePersistence) void persist
-    else await persist
     return { roe, ptax, effectiveDate, offline: false, cachedAt: null, source: 'bcb_live' }
   } catch (error) {
     // 1. Tenta recuperar a última cotação registrada no banco pelo backend (recalc-demurrage-ptax)
@@ -143,12 +124,6 @@ export async function fetchROE(options: { ensurePersistence?: boolean } = {}): P
     // 2. Se o banco não respondeu ou não tem cotação, tenta o cache local do navegador
     const cached = loadCachedROE()
     if (cached) {
-      const persist = persistExchangeRateReference(
-        { ptax: cached.ptax, roe: cached.roe, effectiveDate: cached.effectiveDate, source: 'cached' },
-        { required: options.ensurePersistence },
-      )
-      if (!options.ensurePersistence) void persist
-      else await persist
       return { roe: cached.roe, ptax: cached.ptax, effectiveDate: cached.effectiveDate, offline: true, cachedAt: cached.fetchedAt, source: 'cached' }
     }
 

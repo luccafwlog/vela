@@ -17,7 +17,7 @@ function actionLabel(action: string): string {
   if (action === 'offset_open_balance') return 'Abater saldo aberto'
   if (action === 'refund_overpayment') return 'Restituição por excedente'
   if (action === 'complementary_invoice') return 'Fatura complementar'
-  if (action === 'cancel_and_reissue') return 'Cancelar e reemitir'
+  if (action === 'cancel_and_reissue') return 'Reemissão automática'
   return 'Revisão manual de cobrança'
 }
 
@@ -41,7 +41,7 @@ export function CodAdjustmentsPanel() {
     try {
       const row = rows.find((candidate) => candidate.id === id)
       if (!row) return
-      const isManualDocument = row?.action === 'complementary_invoice' || row?.action === 'cancel_and_reissue' || row?.action === 'manual_charge_review'
+      const isManualDocument = row?.action === 'complementary_invoice' || row?.action === 'manual_charge_review'
       const documentId = isManualDocument ? Number(documentIds[id]) : null
       if (isManualDocument && (documentId == null || !Number.isInteger(documentId) || documentId <= 0)) {
         showToast('Informe o ID da invoice emitida para concluir este ajuste.', 'error')
@@ -113,7 +113,10 @@ export function CodAdjustmentsPanel() {
             </thead>
             <tbody>
               {rows.map((row) => {
-                const isManualDocument = row.action === 'complementary_invoice' || row.action === 'cancel_and_reissue' || row.action === 'manual_charge_review'
+                const isManualDocument = row.action === 'complementary_invoice' || row.action === 'manual_charge_review'
+                // Sem pagamento, a correção reemite a fatura e o ajuste se liquida com a
+                // sucessora (ADR 0083, item 11; migration 249): não há ato no painel.
+                const awaitingReissue = row.action === 'cancel_and_reissue'
                 return (
                   <tr key={row.id}>
                     <td className="px-4 py-3 font-semibold text-[var(--app-blue-btn)]">
@@ -127,14 +130,19 @@ export function CodAdjustmentsPanel() {
                       </CopyValue>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={isManualDocument ? 'slate' : 'yellow'}>{actionLabel(row.action)}</Badge>
+                      <Badge tone={isManualDocument || awaitingReissue ? 'slate' : 'yellow'}>{actionLabel(row.action)}</Badge>
                       {row.manual_review_required ? <div className="mt-1 text-xs text-[var(--app-muted)]">Revisão manual obrigatória</div> : null}
                     </td>
                     <td className="px-4 py-3">{formatBRL(row.original_value_brl)}</td>
                     <td className="px-4 py-3">{formatBRL(row.new_destination_value_brl)}</td>
                     <td className={`px-4 py-3 tabular-nums ${row.difference_brl < 0 ? 'text-[var(--app-success-fg)]' : 'text-[var(--app-warning-fg)]'}`}>{formatBRL(row.difference_brl)}</td>
                     <td className="px-4 py-3">
-                      {isManualDocument ? (
+                      {awaitingReissue ? (
+                        <div className="flex max-w-[390px] flex-wrap items-center gap-2 text-xs text-[var(--app-muted)]">
+                          <span>A fatura é reemitida sozinha e este ajuste se liquida com ela. Se a reemissão travou, resolva o motivo e use Emitir fatura na ficha do B/L.</span>
+                          <Link className="app-btn app-btn--secondary app-btn--sm" to={`/bls/${encodeURIComponent(row.bl_id)}`}>Abrir B/L</Link>
+                        </div>
+                      ) : isManualDocument ? (
                         <div className="flex max-w-[390px] flex-wrap items-center gap-2 text-xs text-[var(--app-muted)]">
                           <AlertTriangle size={15} className="shrink-0 text-[var(--app-warning-fg)]" />
                           <span>Emita a fatura (avulsa, se for complemento) e informe o número interno dela.</span>

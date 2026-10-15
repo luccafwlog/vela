@@ -46,6 +46,28 @@ function installFromMock(input: { localInvoices?: unknown[]; demurrageInvoices?:
 
   mockInvoiceUpdate.mockReturnValue(invoiceUpdateBuilder)
   mockDemurrageUpdate.mockReturnValue({ eq: vi.fn() })
+  // Simula a resolução do servidor (`list_pix_txid_candidates`, migration 242)
+  // pelo TXID gravado nas faturas do cenário.
+  const norm = (value: unknown) => String(value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+  mockRpc.mockImplementation((name: string, args: { p_txids?: string[] }) => {
+    if (name !== 'list_pix_txid_candidates') return Promise.resolve({ data: [], error: null })
+    const rows: unknown[] = []
+    for (const txid of args.p_txids ?? []) {
+      for (const inv of localInvoices as Array<Record<string, unknown>>) {
+        if (norm(inv.pix_txid) && norm(inv.pix_txid) === norm(txid)) {
+          rows.push({ txid, source: 'local', id: inv.id, doc_number: inv.invoice_number ?? null,
+            amount_brl: inv.balance_brl ?? inv.total_brl ?? 0, customer: inv.customer ?? { name: null, cnpj_cpf: null } })
+        }
+      }
+      for (const inv of demurrageInvoices as Array<Record<string, unknown>>) {
+        if (norm(inv.pix_txid) && norm(inv.pix_txid) === norm(txid)) {
+          rows.push({ txid, source: 'demurrage', id: inv.id, doc_number: inv.doc_number ?? null,
+            amount_brl: inv.current_total_brl ?? 0, customer: inv.customer ?? { name: null, cnpj_cpf: null } })
+        }
+      }
+    }
+    return Promise.resolve({ data: rows, error: null })
+  })
   mockFrom.mockImplementation((table: string) => {
     if (table === 'invoices') {
       return {
@@ -555,11 +577,23 @@ describe('versões de cobranças Pix locais', () => {
     installFromMock({})
   })
   it('usa o valor do QR histórico e a sucessora retornada pelo banco', async () => {
-    mockRpc.mockResolvedValue({ data: [{ txid: 'OLDQR', id: 42, invoice_number: 'NEW42', amount_brl: 600,
+    mockRpc.mockResolvedValue({ data: [{ txid: 'OLDQR', source: 'local', id: 42, doc_number: 'NEW42', amount_brl: 600,
       customer: { name: 'Cliente', cnpj_cpf: '12345678000199' } }], error: null })
     const matches = await matchUnifiedPixTransactions([{ txid: 'OLDQR', date: '2026-10-02', amount: 600, cnpj: '12345678000199' }])
     expect(matches[0]).toMatchObject({ source: 'local', invoiceId: 42, amount: 600, ambiguous: false })
-    expect(mockRpc).toHaveBeenCalledWith('list_local_pix_candidates', { p_txids: ['OLDQR'] })
+    expect(mockRpc).toHaveBeenCalledWith('list_pix_txid_candidates', { p_txids: ['OLDQR'] })
+  })
+  it('acha a Invoice de Demurrage e a avulsa que o servidor resolve pelo TXID da cobrança (A16)', async () => {
+    mockRpc.mockResolvedValue({ data: [
+      { txid: 'DEM2026001', source: 'demurrage', id: 7, doc_number: 'DEM-2026-001', amount_brl: 550, customer: { name: 'Cliente', cnpj_cpf: null } },
+      { txid: 'VELAAVULSA1', source: 'local', id: 8, doc_number: 'AV-0001', amount_brl: 120, customer: { name: 'Cliente', cnpj_cpf: null } },
+    ], error: null })
+    const matches = await matchUnifiedPixTransactions([
+      { txid: 'DEM-2026-001', date: '2026-10-02', amount: 550, cnpj: '' },
+      { txid: 'VELAAVULSA1', date: '2026-10-02', amount: 120, cnpj: '' },
+    ])
+    expect(matches[0]).toMatchObject({ source: 'demurrage', invoiceId: 7, ambiguous: false })
+    expect(matches[1]).toMatchObject({ source: 'local', invoiceId: 8, docNumber: 'AV-0001', ambiguous: false })
   })
   it('não oculta falhas da consulta autoritativa', async () => {
     mockRpc.mockResolvedValue({ data: null, error: new Error('Consulta indisponível') })

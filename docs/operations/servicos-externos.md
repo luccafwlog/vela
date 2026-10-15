@@ -289,6 +289,27 @@ e `132` antes de publicar `portal-password-reset` e
 `portal-recovery-email-change`. O procedimento de triagem de reset interrompido
 está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 
+As correções da PR 954 (plano de correções da revisão geral) vão a produção
+pelo caminho automático: no merge em `main`, a integração do Supabase aplica as
+migrations `230` a `278` e publica as Edge Functions alteradas, e o frontend só
+é publicado depois do check do Supabase no commit
+([Deploy](../setup/deploy.md)). Duas funções dependem de migration nova:
+
+| Função | Depende de | Se ficasse no ar sem a migration |
+|---|---|---|
+| `recalc-demurrage-ptax` | migration `264` (`save_exchange_rate_reference_v2` aceita ROE nulo) | O job da PTAX das 14h falha com `reference_failed` e as Invoices de Demurrage ficam sem o BRL do dia |
+| `send-customer-communication` | migration `243` (`bl_belongs_to_atracacao`) | Todo NOB manual devolve 422 ("Um B/L não pertence à Frente de Operação") |
+
+`admin-users`, `portal-daily-digest` e `demurrage-dunning` também mudaram, sem
+depender de migration nova. A ordem entre migrations e Functions dentro da
+integração não foi conferida (ver acima); se a aplicação das migrations falhar
+no merge, as duas funções da tabela ficam no ar sem o que precisam. Depois do
+merge, confira:
+
+1. `SELECT proname FROM pg_proc WHERE proname IN ('bl_belongs_to_atracacao', '_demurrage_roe_markup', 'reactivate_catalog_row');` devolve as três.
+2. Em Supabase → Edge Functions, `recalc-demurrage-ptax` e `send-customer-communication` com a data do merge.
+3. A execução seguinte do job da PTAX grava a referência do dia (sem alerta de falha da PTAX).
+
 ### Secrets das Edge Functions
 
 | Grupo | Nomes | Serviço de origem |
@@ -354,15 +375,18 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos e abre Alerta de reenvio | — |
 | `portal-refresh-general-pendencies` | a cada 15 min | Alerta para Cliente com B/L ativo sem Portal ativo ou sem e-mail de recuperação | — |
 | `demurrage-dunning` | de hora em hora, no minuto 7 (`7 * * * *`, migration `165`) | Régua de Cobrança de Demurrage (respeita a chave global) | `demurrage-dunning` |
-| `cleanup-portal-sessions` | 03:00 | apaga sessões do Portal expiradas há mais de 1 dia | — |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
 | `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação e tira do atraso o de B/L ou Viagem Cancelados (SQL puro; migration `200`) | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
-| `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação | `portal-daily-digest` |
+| `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação (inclui a exceção crítica de fatura) | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
+
+O job `cleanup-portal-sessions` (03:00, sessões do token antigo do Portal) foi
+desagendado pela migration `234`, junto com a tabela que limpava (ADR 0083,
+item 21).
 
 Até a migration `165`, nos minutos :00/:15/:30/:45 `net._http_response`
 registrava chamadas sem resposta (`Timeout of 5000 ms`, em geral gastos em DNS)

@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Lock } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { PageHeader } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
 import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
 import { useToast } from '../components/ui/Toast'
-import { StatusScreen } from '../components/layout/StatusScreen'
 import { InvoiceDetailModal } from '../components/billing/InvoiceDetailModal'
 import { ReconciliationHistoryTable } from '../components/billing/ReconciliationHistoryTable'
 import { PixExtractPanel } from '../components/billing/PixExtractPanel'
@@ -19,6 +17,7 @@ import { DemurrageInvoiceDetailModal } from '../components/demurrage/DemurrageIn
 import { DemurragePaymentReversalModal } from '../components/demurrage/DemurragePaymentReversalModal'
 import { InvoiceDocument as DemurrageInvoiceDoc, type DemurrageInvoiceDocumentDetail } from '../components/demurrage/InvoiceDocument'
 import { useAuth } from '../hooks/useAuth'
+import { canAnswerDemurrageDispute } from '../components/demurrage/demurrageFormRules'
 import { useFinancialRefunds } from '../hooks/useFinancialRefunds'
 import { useDemurrageComplementOf } from '../hooks/useDemurrageComplementOf'
 import { extractErrorText } from '../lib/errors'
@@ -30,24 +29,9 @@ import { reverseDemurragePayment } from '../services/reconciliacao'
 import { demurrageInvoiceHref } from './demurrageListState'
 import { reconciliacaoTabFromSearch, withReconciliacaoTab, type ReconciliacaoTab } from './reconciliacaoState'
 
+// Ler a Conciliação é de todos; tratar e baixar é do Financeiro e do
+// Administrativo, conferido nos painéis e nas RPCs (ADR 0085, D5; migration 247).
 export function Reconciliacao() {
-  const { isAdmin } = useAuth()
-
-  // A guarda é só navegação; as RPCs de baixa, exceção e monitor exigem o
-  // Administrativo no banco.
-  if (!isAdmin) {
-    return (
-      <StatusScreen
-        role="alert"
-        icon={Lock}
-        title="Acesso restrito"
-        actions={<Link to="/painel" className="app-btn app-btn--primary">Voltar para o Painel</Link>}
-      >
-        <p>A Conciliação PIX baixa pagamentos e é exclusiva do departamento Administrativo. Se precisar dela no seu trabalho, fale com o Administrativo.</p>
-      </StatusScreen>
-    )
-  }
-
   return <ReconciliacaoContent />
 }
 
@@ -63,6 +47,7 @@ type OpenedInvoice =
 
 function ReconciliacaoContent() {
   const queryClient = useQueryClient()
+  const { isAdmin, can, effectiveRole } = useAuth()
   const navigate = useNavigate()
   const { showToast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -180,7 +165,7 @@ function ReconciliacaoContent() {
 
       <DemurrageInvoiceDetailModal
         invoiceId={opened?.source === 'demurrage' ? opened.invoiceId : null}
-        permissions={{ canSettle: true, canAdmin: true, canAnswerDispute: true }}
+        permissions={{ canSettle: can('settle_financial_adjustments'), canAdmin: isAdmin, canAnswerDispute: canAnswerDemurrageDispute(effectiveRole) }}
         cancelling={false}
         onClose={() => setOpened(null)}
         onOpenInvoice={(id) => openInvoice('demurrage', id)}

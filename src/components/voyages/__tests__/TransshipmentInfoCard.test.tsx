@@ -75,8 +75,8 @@ describe('TransshipmentInfoCard', () => {
     })))
   })
 
-  it('exibe reversão somente para Admin e exige justificativa com impacto dos B/Ls', async () => {
-    useAuthMock.mockReturnValue({ user: { id: 'admin-1' }, isAdmin: true })
+  it('exibe reversão a qualquer Departamento e exige justificativa com impacto dos B/Ls', async () => {
+    useAuthMock.mockReturnValue({ user: { id: 'admin-1' }, isAdmin: false })
     useVoyageTransshipments.mockReturnValue({
       data: {
         omissions: [{

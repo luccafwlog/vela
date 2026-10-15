@@ -4,6 +4,7 @@ import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { renderDemurrageTemplate } from '../_shared/customerCommunicationTemplates.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttemptRecord } from '../_shared/email.ts'
 import { escapeHtml } from '../_shared/portalEmailTemplates.ts'
+import { invoiceNetUsd } from '../_shared/demurrageNetUsd.ts'
 
 type DunningCandidate = {
   invoice_id: number
@@ -29,6 +30,8 @@ type InvoiceContext = {
   bl_id: string
   doc_number: string
   total_usd: number
+  discount_mode: string | null
+  discount_value: number | null
   current_total_brl: number | null
   current_roe: number | null
   first_billed_at: string | null
@@ -179,7 +182,7 @@ async function loadInvoice(
 ): Promise<InvoiceContext> {
   const { data, error } = await admin
     .from('demurrage_invoices')
-    .select('id, customer_id, bl_id, doc_number, total_usd, current_total_brl, current_roe, first_billed_at, updated_at, status, paid_at, dispute_open, customer:customers(id, name), bl:bls(id, pod, voyage:voyages(id, voyage_number, vessel:vessels(name)))')
+    .select('id, customer_id, bl_id, doc_number, total_usd, discount_mode, discount_value, current_total_brl, current_roe, first_billed_at, updated_at, status, paid_at, dispute_open, customer:customers(id, name), bl:bls(id, pod, voyage:voyages(id, voyage_number, vessel:vessels(name)))')
     .eq('id', invoiceId)
     .single()
   if (error) throw error
@@ -456,6 +459,11 @@ async function sendCandidateGroup(
   for (const candidate of sendable) {
     contexts.set(candidate.invoice_id, await loadInvoice(admin, candidate.invoice_id))
   }
+  // A13 (ADR 0083, item 13): o e-mail mostra o USD líquido, coerente com o BRL informativo e a tela.
+  const netUsdOf = (candidate: DunningCandidate) => {
+    const context = contexts.get(candidate.invoice_id)
+    return context ? invoiceNetUsd(context).netUsd : candidate.total_usd
+  }
   const anchor = contexts.get(first.invoice_id) ?? contexts.get(sendable[0]!.invoice_id)!
   const vesselName = anchor.bl?.voyage?.vessel?.name ?? ''
   const voyageNumber = anchor.bl?.voyage?.voyage_number ?? ''
@@ -464,7 +472,7 @@ async function sendCandidateGroup(
     throw new Error('Dados incompletos para o comunicado de Demurrage.')
   }
   // Valida o template canônico na primeira fatura e lista todas sem consolidar.
-  const firstTotalBrl = Number(first.current_total_brl ?? anchor.current_total_brl ?? (first.total_usd * firstRoe))
+  const firstTotalBrl = Number(first.current_total_brl ?? anchor.current_total_brl ?? (netUsdOf(first) * firstRoe))
   renderDemurrageTemplate({
     customerId: first.customer_id,
     customerName: anchor.customer.name,
@@ -476,7 +484,7 @@ async function sendCandidateGroup(
     portalUrl: portalBillingUrl(),
     demurrage: {
       docNumber: first.doc_number,
-      totalUsd: first.total_usd,
+      totalUsd: netUsdOf(first),
       totalBrl: firstTotalBrl,
       roe: firstRoe,
       roeReferenceDate: first.roe_reference_date || dateOnly(anchor.updated_at || anchor.first_billed_at),
@@ -485,15 +493,16 @@ async function sendCandidateGroup(
   const lines = sendable.map((candidate) => {
     const context = contexts.get(candidate.invoice_id)!
     const roe = Number(candidate.current_roe ?? context.current_roe ?? firstRoe)
-    const totalBrl = Number(candidate.current_total_brl ?? context.current_total_brl ?? (candidate.total_usd * roe))
-    return { candidate, totalBrl, roe }
+    const netUsd = invoiceNetUsd(context).netUsd
+    const totalBrl = Number(candidate.current_total_brl ?? context.current_total_brl ?? (netUsd * roe))
+    return { candidate, totalBrl, roe, netUsd }
   })
-  const totalUsd = lines.reduce((sum, line) => sum + line.candidate.total_usd, 0)
+  const totalUsd = lines.reduce((sum, line) => sum + line.netUsd, 0)
   const subject = sendable.length === 1
     ? `Cobrança de Demurrage — ${sendable[0]!.doc_number} — ${vesselName} / ${voyageNumber}`
     : `Cobrança de Demurrage — ${sendable.length} faturas — ${vesselName} / ${voyageNumber}`
-  const textList = lines.map((line) => `• ${line.candidate.doc_number} (B/L ${line.candidate.bl_id}): USD ${line.candidate.total_usd.toFixed(2)} / BRL ${line.totalBrl.toFixed(2)}`).join('\n')
-  const htmlList = lines.map((line) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${escapeHtml(line.candidate.doc_number)} <span style="color:#6b7280">(${escapeHtml(line.candidate.bl_id)})</span></td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right">USD ${line.candidate.total_usd.toFixed(2)} · BRL ${line.totalBrl.toFixed(2)}</td></tr>`).join('')
+  const textList = lines.map((line) => `• ${line.candidate.doc_number} (B/L ${line.candidate.bl_id}): USD ${line.netUsd.toFixed(2)} / BRL ${line.totalBrl.toFixed(2)}`).join('\n')
+  const htmlList = lines.map((line) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${escapeHtml(line.candidate.doc_number)} <span style="color:#6b7280">(${escapeHtml(line.candidate.bl_id)})</span></td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right">USD ${line.netUsd.toFixed(2)} · BRL ${line.totalBrl.toFixed(2)}</td></tr>`).join('')
   const portalUrl = portalBillingUrl()
   const template = {
     subject,
@@ -593,7 +602,9 @@ async function sendCandidate(
   if (!context.customer?.name || !vesselName || !voyageNumber || currentRoe <= 0) {
     throw new Error('Dados incompletos para o comunicado de Demurrage.')
   }
-  const currentTotalBrl = Number(candidate.current_total_brl ?? context.current_total_brl ?? (candidate.total_usd * currentRoe))
+  // A13 (ADR 0083, item 13): o e-mail mostra o USD líquido, coerente com o BRL informativo e a tela.
+  const netUsd = invoiceNetUsd(context).netUsd
+  const currentTotalBrl = Number(candidate.current_total_brl ?? context.current_total_brl ?? (netUsd * currentRoe))
   const template = renderDemurrageTemplate({
     customerId: candidate.customer_id,
     customerName: context.customer.name,
@@ -605,7 +616,7 @@ async function sendCandidate(
     portalUrl: portalBillingUrl(),
     demurrage: {
       docNumber: candidate.doc_number,
-      totalUsd: candidate.total_usd,
+      totalUsd: netUsd,
       totalBrl: currentTotalBrl,
       roe: currentRoe,
       roeReferenceDate: candidate.roe_reference_date || dateOnly(context.updated_at || context.first_billed_at),

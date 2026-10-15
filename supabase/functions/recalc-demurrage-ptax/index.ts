@@ -11,7 +11,7 @@
 //   NÃO causam falha (retornam a última cotação). "Indisponível" só em erro HTTP/rede
 //   ou período vazio → aborta e loga (o caminho manual em /demurrage cobre esse caso).
 //
-// A PTAX bruta (cotacaoVenda) é passada à RPC; o markup 1,065 é aplicado no banco.
+// A PTAX bruta (cotacaoVenda) é passada às RPCs; o markup 1,065 é aplicado no banco (_demurrage_roe_markup).
 //
 // Configuração no Supabase:
 //   Schedule (cron) → dias úteis ~14h BRT (ex.: "0 17 * * 1-5" em UTC)
@@ -178,11 +178,11 @@ Deno.serve(instrumentEdgeHandler('recalc-demurrage-ptax', async (req: Request) =
   }
 
   const quoteDate = quote.dataHoraCotacao.slice(0, 10) // dataHoraCotacao = "YYYY-MM-DD HH:mm:ss.SSS"
-  const roe = Number((quote.cotacaoVenda * 1.065).toFixed(4))
-
-  const { error: referenceError } = await supabase.rpc('save_exchange_rate_reference_v2', {
+  // B24 (ADR 0014): o ROE sai do ponto canônico do banco (_demurrage_roe_markup);
+  // a Edge manda só a PTAX e lê o ROE gravado na resposta.
+  const { data: reference, error: referenceError } = await supabase.rpc('save_exchange_rate_reference_v2', {
     p_ptax: quote.cotacaoVenda,
-    p_roe: roe,
+    p_roe: null,
     p_effective_date: quoteDate,
     p_source: 'bcb_live',
     p_quote_date: quoteDate,
@@ -221,6 +221,7 @@ Deno.serve(instrumentEdgeHandler('recalc-demurrage-ptax', async (req: Request) =
     })
   }
 
+  const roe = (reference as { roe?: number } | null)?.roe ?? null
   return new Response(JSON.stringify({ ok: true, ptax: quote.cotacaoVenda, roe, quote_date: quoteDate, result: data }), {
     status: 200,
     headers: { 'content-type': 'application/json' },

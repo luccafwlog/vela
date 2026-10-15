@@ -131,10 +131,10 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(sent2.items[0].termo).toBe(true)
     expect(()=>command('export',{bl_ids:['CE557-A'],request_key:crypto.randomUUID()})).toThrow()
   })
-  it('recusa revisão anual com versão desatualizada e downloads por Financeiro',()=>{
+  it('recusa revisão anual com versão desatualizada; o Financeiro abre o documento (ADR 0085, D11)',()=>{
     const id=sql("SELECT id FROM public.ce_unlock_documents WHERE customer_id=998557 AND type='termo' AND source='vip_annual' LIMIT 1;")
     expect(()=>command('review',{document_id:id,decision:'approved',expected_document_version:999,coverage_year:new Date().getFullYear(),valid_from:`${new Date().getFullYear()}-01-01`,valid_until:`${new Date().getFullYear()}-12-31`,request_key:crypto.randomUUID()})).toThrow()
-    expect(error(`SELECT public.ce_unlock_document_access('${id}');`,finance)).toContain('42501')
+    expect(error(`SELECT public.ce_unlock_document_access('${id}');`,finance)).toBe('')
     expect(error('SELECT public.ce_unlock_cleanup_candidates();',client)).toContain('permission denied')
   })
   it('exportar não desbloqueia; baixa cancelada e revogação anual removem aptidão',()=>{

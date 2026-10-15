@@ -193,7 +193,8 @@ export function ConteineresTab({ data }: { data: Data }) {
   )
 }
 
-const INVOICE_STATUS_TEXT: Record<string, string> = { issued: 'em aberto', overdue: 'vencida', paid: 'paga' }
+// Demurrage não vence (ADR 0014; B29): o estado legado `overdue` é em aberto.
+const INVOICE_STATUS_TEXT: Record<string, string> = { issued: 'em aberto', overdue: 'em aberto', paid: 'paga' }
 
 /** "US$ 1.540,00 em curso", "DEM-2026-0007 em aberto", "DEM-2026-0004 ✓ paga"; vazio sem cobrança. */
 function DemurrageCell({ view }: { view: CustomerContainerView }) {
@@ -206,7 +207,7 @@ function DemurrageCell({ view }: { view: CustomerContainerView }) {
     return (
       <>
         <Link className="app-customer-link" to={`/demurrage?tab=faturas&fatura=${d.invoice.id}`}>{d.invoice.doc_number}</Link>{' '}
-        <StatusText tone={d.invoice.status === 'paid' ? 'paid' : d.invoice.status === 'overdue' ? 'warning' : 'muted'}>{status}</StatusText>
+        <StatusText tone={d.invoice.status === 'paid' ? 'paid' : 'muted'}>{status}</StatusText>
       </>
     )
   }

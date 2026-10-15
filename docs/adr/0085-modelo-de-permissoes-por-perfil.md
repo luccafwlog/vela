@@ -1,9 +1,11 @@
 # 0085 — Modelo de permissões por perfil
 
-Status: aceito — 2026-10-14 (decisões do dono). Implementação pendente: a
-correção de código está nos itens P1 a P15 do
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
-na mesma fila das correções da ADR 0083.
+Status: aceito — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelos
+itens P1 a P15 do
+[plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+(migrations `231` a `266`), com a bateria por perfil em
+`src/integration/permissoesPorPerfil.local-pg.test.ts`. Migration nova só vale
+em produção depois de publicada.
 
 Fixa a regra de partida das permissões dos cinco Departamentos internos
 (Administrativo, Financeiro, Operações, Documentação e Equipamentos) e a lista
@@ -228,7 +230,7 @@ dono:
 - Uma restrição nova por perfil exige ADR. Sem ela, o revisor a trata como
   defeito.
 - A correção de código é grande e toca RPCs, policies, gatilhos e telas;
-  fica nos itens P do [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
+  fica nos itens P do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
   na mesma fila por impacto das correções da ADR 0083, com teste de RLS por
   perfil para cada falha de segurança.
 - A tela continua a esconder o que o perfil não pode fazer, e o banco

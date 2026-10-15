@@ -40,11 +40,11 @@ export function InvoiceCorrectionPanel({ invoiceId }: { invoiceId: number }) {
     {customerChanges.map((change) => <div key={change.bl_id} className="app-invoice-detail__refund">
       <p><strong>Troca de CNPJ · B/L {change.bl_id}</strong></p>
       <p>{change.status === 'pending_refund' ? 'Devolva ao Cliente original e confirme com comprovante. A nova cobrança aguarda a devolução.' : change.status === 'reissue_pending' ? 'Devolução concluída; nova emissão pendente. Corrija a pendência cadastral e tente novamente.' : `Troca concluída. Nova fatura: ${change.new_invoice_id ?? 'B/L isento ou cancelado'}.`}</p>
-      {change.status === 'reissue_pending' && isAdmin ? <div className="app-invoice-detail__inline-actions"><Button variant="secondary" onClick={() => retry.mutate(change.bl_id)} loading={retry.isPending}>Tentar emitir para o novo Cliente</Button></div> : null}
+      {change.status === 'reissue_pending' ? <div className="app-invoice-detail__inline-actions"><Button variant="secondary" onClick={() => retry.mutate(change.bl_id)} loading={retry.isPending}>Tentar emitir para o novo Cliente</Button></div> : null}
     </div>)}
     {pending.map((blId) => <div key={blId} className="app-invoice-detail__refund">
       <p>A correção financeira do B/L {blId} não foi concluída. Revise as pendências antes de tentar novamente.</p>
-      {isAdmin ? <div className="app-invoice-detail__inline-actions"><Button variant="secondary" loading={retry.isPending} onClick={() => retry.mutate(blId)}>Tentar aplicar correção</Button></div> : null}
+      <div className="app-invoice-detail__inline-actions"><Button variant="secondary" loading={retry.isPending} onClick={() => retry.mutate(blId)}>Tentar aplicar correção</Button></div>
     </div>)}
     {retry.error ? <p role="alert" className="app-invoice-detail__alert">Não foi possível aplicar a correção. A pendência foi preservada.</p> : null}
     {corrections.map((item) => <div key={item.id} className="app-invoice-detail__refund">

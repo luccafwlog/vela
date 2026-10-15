@@ -87,10 +87,10 @@ describe('Regras de Alertas', () => {
     const schedule = ALERT_RULES.find((rule) => rule.type === 'voyage_schedule_date_pending')!
     const terminal = ALERT_RULES.find((rule) => rule.type === 'voyage_terminal_date_pending')!
 
-    // Migration 078: o Administrativo trata (só ele abre a Conciliação PIX);
+    // Migration 247: Financeiro e Administrativo tratam (conciliar é deles);
     // Documentação e Equipamentos continuam avisados.
-    expect(pix.responsibleDepartments).toEqual(['administrativo'])
-    expect(pix.notifiedDepartments).toEqual(['documentacao', 'equipamentos', 'administrativo'])
+    expect(pix.responsibleDepartments).toEqual(['financeiro', 'administrativo'])
+    expect(pix.notifiedDepartments).toEqual(['documentacao', 'equipamentos', 'financeiro', 'administrativo'])
     expect(schedule.notifiedDepartments).toEqual(['documentacao', 'operacoes'])
     expect(terminal.notifiedDepartments).toEqual(['documentacao', 'operacoes'])
     expect(schedule.responsibleDepartments).toEqual(['operacoes'])
@@ -103,7 +103,7 @@ describe('Regras de Alertas', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('39 regras encontradas')).toBeTruthy()
+    expect(screen.getByText('42 regras encontradas')).toBeTruthy()
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor notificado' }), { target: { value: 'equipamentos' } })
 
     expect(screen.getByText('4 regras encontradas')).toBeTruthy()
@@ -122,7 +122,7 @@ describe('Regras de Alertas', () => {
 
     // Retorna para qualquer setor (sem filtro de setor)
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor notificado' }), { target: { value: 'all' } })
-    expect(screen.getByText('39 regras encontradas')).toBeTruthy()
+    expect(screen.getByText('42 regras encontradas')).toBeTruthy()
   })
 
   it('ignora um deep-link para um tipo aposentado e cai na primeira regra viva', () => {
@@ -134,7 +134,7 @@ describe('Regras de Alertas', () => {
 
     expect(screen.queryByRole('heading', { name: 'Cancelamento bloqueado' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancelamento bloqueado/ })).toBeNull()
-    expect(screen.getByText('39 regras encontradas')).toBeTruthy()
+    expect(screen.getByText('42 regras encontradas')).toBeTruthy()
   })
 
   it('combina filtros no topo e limpa a combinação sem perder a regra selecionada', () => {
@@ -147,14 +147,14 @@ describe('Regras de Alertas', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Domínio' }), { target: { value: 'Portal' } })
     fireEvent.change(screen.getByRole('combobox', { name: 'Gravidade' }), { target: { value: 'critical' } })
 
-    expect(screen.getByText('4 regras encontradas')).toBeTruthy()
+    expect(screen.getByText('6 regras encontradas')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Portal do Cliente — convite expirado/ })).toBeNull()
 
     const clearButton = screen.getByRole('button', { name: 'Limpar filtros' })
     expect((clearButton as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(clearButton)
 
-    expect(screen.getByText('39 regras encontradas')).toBeTruthy()
+    expect(screen.getByText('42 regras encontradas')).toBeTruthy()
     expect((screen.getByRole('combobox', { name: 'Domínio' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('combobox', { name: 'Gravidade' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('button', { name: 'Limpar filtros' }) as HTMLButtonElement).disabled).toBe(true)

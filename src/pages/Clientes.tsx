@@ -65,7 +65,7 @@ export function Clientes() {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
-  const { user, effectiveRole, can, isAdmin } = useAuth()
+  const { user, effectiveRole, isAdmin } = useAuth()
   const narrow = useNarrowViewport()
   // Excluir e desativar exigem o Administrativo no banco; a tela só oferece
   // as ações a quem pode executá-las.
@@ -531,14 +531,12 @@ export function Clientes() {
             count: awaitingPortalAnalysis,
             countLabel: 'Clientes aguardando análise',
           },
-          ...(can('customer_communications')
-            ? [{
-                to: '/clientes/comunicacao',
-                label: 'Comunicação',
-                description: 'Comunicados e histórico de envios.',
-                icon: Mail,
-              } as const]
-            : []),
+          {
+            to: '/clientes/comunicacao',
+            label: 'Comunicação',
+            description: 'Comunicados e histórico de envios.',
+            icon: Mail,
+          },
         ]}
       />
 

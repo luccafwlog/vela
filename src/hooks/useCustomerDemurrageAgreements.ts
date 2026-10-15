@@ -55,8 +55,8 @@ export function useDeleteCustomerDemurrageAgreement() {
 export function useToggleCustomerDemurrageAgreementActive() {
   const invalidate = useInvalidateCustomerAgreements()
   return useMutation({
-    mutationFn: ({ id, active }: { id: number; active: boolean; customerId?: number }) =>
-      toggleCustomerDemurrageAgreementActive(id, active),
+    mutationFn: ({ id, active, reason }: { id: number; active: boolean; reason?: string; customerId?: number }) =>
+      toggleCustomerDemurrageAgreementActive(id, active, reason),
     onSuccess: (_, variables) => invalidate(variables.customerId),
   })
 }

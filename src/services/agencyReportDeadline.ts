@@ -1,3 +1,5 @@
+import { saoPauloTodayIso } from '../lib/dates'
+
 // Regra de prazo do ADR (Agency Departure Report) por departamento.
 //
 // Prazo = ATD + 3 dias uteis (segunda a sexta; sabado e domingo nao contam;
@@ -79,7 +81,11 @@ export function calculateAgencyReportDeadlineDate(atd: string): string | null {
   return `${deadlineYear}-${deadlineMonth}-${deadlineDay}`
 }
 
-/** Extrai a parte YYYY-MM-DD de um timestamp ISO (ou de uma data-only string). */
+/**
+ * Dia local (America/Sao_Paulo) de um instante ISO, ou a própria data-only
+ * string. B9: assinar às 22h de Brasília do último dia ainda é "no prazo" —
+ * em UTC já seria o dia seguinte.
+ */
 export function toDateOnly(value: string): string | null {
   const dateOnlyMatch = value.match(DATE_ONLY_PATTERN)
   if (dateOnlyMatch) return dateOnlyMatch[0]
@@ -87,10 +93,7 @@ export function toDateOnly(value: string): string | null {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return null
 
-  const year = parsed.getUTCFullYear()
-  const month = String(parsed.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(parsed.getUTCDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return saoPauloTodayIso(parsed)
 }
 
 /**

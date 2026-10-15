@@ -14,11 +14,22 @@ if [[ -z "$file_path" ]]; then
   exit 0
 fi
 
+block() {
+  echo "BLOCKED: $file_path is in AGENTS.md protected list (generated/spec/migrations)." >&2
+  echo "If intentional, set CLAUDE_ALLOW_PROTECTED=1 and retry." >&2
+  exit 2
+}
+
 case "$file_path" in
-  */src/types/database.ts|*/src/lib/pix.ts|*/supabase/migrations/*|*/supabase/migrations_archive/*)
-    echo "BLOCKED: $file_path is in AGENTS.md protected list (generated/spec/migrations)." >&2
-    echo "If intentional, set CLAUDE_ALLOW_PROTECTED=1 and retry." >&2
-    exit 2
+  */src/types/database.ts|*/src/lib/pix.ts|src/types/database.ts|src/lib/pix.ts)
+    block
+    ;;
+  # ADR 0083, item 4 (A4): só a migration existente é protegida; criar uma
+  # migration nova é o caminho normal de mudar o banco.
+  */supabase/migrations/*|*/supabase/migrations_archive/*|supabase/migrations/*|supabase/migrations_archive/*)
+    if [[ -e "$file_path" ]]; then
+      block
+    fi
     ;;
 esac
 

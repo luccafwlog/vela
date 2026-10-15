@@ -108,6 +108,8 @@ export const queryKeys = {
     byReportId: (reportId: string) => ['agency-report', 'report', reportId] as const,
     signoffEvents: (voyageId: number, port: string) => ['agency-report-signoff-events', voyageId, port] as const,
     departmentSignoffEvents: (voyageId: number, port: string) => ['agency-report-department-signoff-events', voyageId, port] as const,
+    /** B8: sob ['agency-report', voyageId], coberta por invalidateAgencyReportForVoyage; o ATD na chave refaz a busca quando ele muda. */
+    atdRegisteredAt: (voyageId: number, port: string | null, terminalId: string | null, atd: string | null) => ['agency-report', voyageId, 'atd-registered-at', port, terminalId, atd] as const,
   },
   transshipments: {
     byVoyage: (voyageId: number) => ['transshipments', 'voyage', voyageId] as const,

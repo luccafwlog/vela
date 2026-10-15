@@ -27,6 +27,8 @@ const { useAgencyReportDerivedMock, useAgencyReportOwnMock, useAgencyReportTermi
   useAuthMock: vi.fn(),
 }))
 
+const { atdRegisteredAtMock } = vi.hoisted(() => ({ atdRegisteredAtMock: vi.fn(() => ({ data: null as string | null })) }))
+
 const { signoffMutateMock, departmentSignoffMutateMock, observationMutateMock, useAgencyReportSignoffEventsMock, useAgencyReportDepartmentSignoffEventsMock } = vi.hoisted(() => ({
   signoffMutateMock: vi.fn(),
   departmentSignoffMutateMock: vi.fn(),
@@ -41,6 +43,7 @@ vi.mock('../../../hooks/useAgencyReport', () => ({
   useAgencyReportTerminalState: useAgencyReportTerminalStateMock,
   useAgencyReportSignoffEvents: useAgencyReportSignoffEventsMock,
   useAgencyReportDepartmentSignoffEvents: useAgencyReportDepartmentSignoffEventsMock,
+  useAgencyReportAtdRegisteredAt: atdRegisteredAtMock,
   useSetAgencyReportSignoff: () => ({ mutate: signoffMutateMock, isPending: false }),
   useSetAgencyReportDepartmentSignoff: () => ({ mutate: departmentSignoffMutateMock, isPending: false }),
   useSetAgencyReportSectionObservation: () => ({ mutate: observationMutateMock }),
@@ -756,8 +759,8 @@ it('no estado fechado renderiza o documento e oculta controles/seções editáve
   expect(screen.getByRole('article', { name: 'Agency Departure Report fechado' })).toBeTruthy()
 })
 
-it('exibe Reabrir do ADR somente para administradores e exige justificativa não vazia', () => {
-  useAuthMock.mockReturnValue({ effectiveRole: 'administrativo', isAdmin: true })
+it('exibe Reabrir do ADR a qualquer Departamento e exige justificativa não vazia', () => {
+  useAuthMock.mockReturnValue({ effectiveRole: 'financeiro', isAdmin: false })
   useAgencyReportOwnMock.mockReturnValue({
     data: {
       status: 'closed',
@@ -779,7 +782,7 @@ it('exibe Reabrir do ADR somente para administradores e exige justificativa não
   expect(reopenMutateMock).toHaveBeenCalledWith({ voyageId: 7, port: 'BRVIX', justification: 'Correção necessária' }, expect.any(Object))
 })
 
-it('não exibe Reabrir do ADR para usuário não administrador', () => {
+it('não exibe Reabrir do ADR na leitura somente consulta', () => {
   useAuthMock.mockReturnValue({ effectiveRole: 'operacoes', isAdmin: false })
   useAgencyReportOwnMock.mockReturnValue({
     data: {
@@ -789,7 +792,7 @@ it('não exibe Reabrir do ADR para usuário não administrador', () => {
     },
   })
 
-  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} readOnly />)
   expect(screen.queryByRole('button', { name: 'Reabrir' })).toBeNull()
 })
 
@@ -1392,4 +1395,108 @@ it('observação longa sem quebras de linha exibe o botão para expandir', () =>
   expect(within(datasSection).getByRole('button', { name: 'Ver observação completa' })).toBeTruthy()
   fireEvent.click(within(datasSection).getByRole('button', { name: 'Ver observação completa' }))
   expect(within(datasSection).getByRole('button', { name: 'Recolher observação' })).toBeTruthy()
+})
+
+it('B6: escala com frentes TBC e sem ADR de terminal não abre o ADR legado', () => {
+  useAgencyReportTerminalStateMock.mockReturnValue({
+    data: { agencyReports: [], fronts: [{ sentido: 'importacao', modalidade: 'carga_cheia', terminalId: null }] },
+    isLoading: false,
+    error: null,
+  })
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+  expect(screen.getByRole('status').textContent).toMatch(/Nenhum terminal atribuído às frentes desta escala/)
+  expect(screen.queryByRole('button', { name: 'Fechar ADR' })).toBeNull()
+})
+
+it('B6: a escala TBC mantém o seletor e deixa ir para a próxima escala', () => {
+  useAgencyReportTerminalStateMock.mockImplementation((_voyageId: number, port: string | null) => ({
+    data: port === 'BRVIX'
+      ? { agencyReports: [], fronts: [{ sentido: 'importacao', modalidade: 'carga_cheia', terminalId: null }] }
+      : { agencyReports: [], fronts: [] },
+    isLoading: false,
+    error: null,
+  }))
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }, { pod: 'BRSSZ', omitted: false }]} />)
+  expect(screen.getByRole('status').textContent).toMatch(/Nenhum terminal atribuído às frentes desta escala/)
+  fireEvent.click(screen.getByRole('button', { name: 'BRSSZ' }))
+  expect(useAgencyReportTerminalStateMock).toHaveBeenLastCalledWith(7, 'BRSSZ')
+  expect(screen.queryByText(/Nenhum terminal atribuído às frentes desta escala/)).toBeNull()
+})
+
+it('B2: a Carga descarregada do ADR terminalizado é só a dos B/Ls do terminal, com a exceção de terminal', () => {
+  useAgencyReportTerminalStateMock.mockReturnValue({
+    data: {
+      fronts: [
+        { sentido: 'importacao', modalidade: 'carga_cheia', terminalId: 'tvv' },
+        { sentido: 'importacao', modalidade: 'carga_solta', terminalId: 'tvv' },
+      ],
+      agencyReports: [{
+        reportId: 'report-tvv', voyageId: 7, port: 'BRVIX', terminalId: 'tvv', terminalCode: 'TVV', terminal: 'TVV', status: 'open',
+        sections: [{ section: 'carga_descarregada', state: 'operated', fronts: ['carga_cheia', 'carga_solta'], frontKeys: ['importacao:carga_cheia', 'importacao:carga_solta'] }],
+      }],
+    },
+  })
+  useAgencyReportOwnMock.mockReturnValue({ data: { status: 'open', terminal: 'TVV', signoffs: allSectionsSignoffs(), departmentSignoffs: allDepartmentsSigned(), occurrences: [], actor_names: {} } })
+  useAgencyReportDerivedMock.mockReturnValue({
+    data: {
+      containers: [
+        { container_number: 'AAAA1111111', size_type: '40HC', category: 'carga_geral', is_imo: false, is_oog: false, is_transshipment: false, blTerminals: [{ terminal_id: null, cargo_mode: 'container' }] },
+        { container_number: 'BBBB2222222', size_type: '20DV', category: 'carga_geral', is_imo: false, is_oog: false, is_transshipment: false, blTerminals: [{ terminal_id: 'portmac', cargo_mode: 'container' }] },
+      ],
+      cargaSolta: { bls: 2, machines: 0, packages: 0, weightTon: 30, cbm: 0, transshipment: { bls: 0, machines: 0, packages: 0, weightTon: 0, cbm: 0 } },
+      cargaSoltaBls: {
+        finalDestination: [
+          { cargo_mode: 'carga_solta', terminal_id: null, bb_machine_qty: 0, bb_packages_qty: 0, bb_weight_ton: 10, total_weight_kg: null, bb_cbm: 0 },
+          { cargo_mode: 'carga_solta', terminal_id: 'portmac', bb_machine_qty: 0, bb_packages_qty: 0, bb_weight_ton: 20, total_weight_kg: null, bb_cbm: 0 },
+        ],
+        transshipment: [],
+      },
+      vehicles: [], vaziosImp: [], granite: [], vaziosExp: [], storage: {}, operation: {}, schedule: {},
+    },
+    isLoading: false,
+    error: null,
+  })
+
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} reportId="report-tvv" terminalCode="TVV" />)
+  confirmAgencyReportClose()
+
+  const snapshot = closeMutateMock.mock.calls.at(-1)?.[0]?.snapshot
+  // Só o container do B/L que segue a frente do TVV; o da exceção PORTMAC fica no ADR do PORTMAC.
+  expect(snapshot.sections.cargaDescarregada.rows).toEqual({ '40HC': { carga_geral: 1 } })
+  expect(snapshot.sections.cargaSolta).toMatchObject({ bls: 1, weightTon: 10 })
+})
+
+it('B7: a seção Veículos fica no painel de Equipamentos, que conta e mostra as três seções', () => {
+  useAgencyReportOwnMock.mockReturnValue({ data: { status: 'open', terminal: 'TVV', signoffs: [], departmentSignoffs: [], occurrences: [], actor_names: {} } })
+  useAgencyReportDerivedMock.mockReturnValue({
+    data: { containers: [], vehicles: [], vaziosImp: [], granite: [], vaziosExp: [], storage: {}, operation: {}, schedule: {} },
+    isLoading: false,
+    error: null,
+  })
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+  const panelOf = (title: string) => screen.getByRole('heading', { name: title }).closest('div.app-panel') as HTMLElement
+  expect(within(panelOf('Documentação')).queryByText('Veículos')).toBeNull()
+  expect(within(panelOf('Equipamentos')).getByText('Veículos')).toBeTruthy()
+  expect(within(panelOf('Equipamentos')).getByText('0/3 seções')).toBeTruthy()
+})
+
+it('B8: ADR fechado sem atdRegisteredAt no snapshot não mostra o registro de um ATD corrigido depois', () => {
+  atdRegisteredAtMock.mockReturnValue({ data: '2026-07-25T15:00:00Z' })
+  useAgencyReportOwnMock.mockReturnValue({
+    data: {
+      status: 'closed',
+      closed_at: '2026-07-20T10:00:00Z',
+      closed_by_name: 'Lucca F.',
+      closed_snapshot: { header: { schedule: {}, unifiedAtd: '2026-07-18', atdSource: 'terminal' }, sections: { cargaDescarregada: { rows: {}, totals: {} } }, occurrences: [], signoffs: [] },
+      signoffs: [],
+      departmentSignoffs: [],
+      occurrences: [],
+    },
+  })
+  try {
+    render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+    expect(screen.queryByText(/registrado em/)).toBeNull()
+  } finally {
+    atdRegisteredAtMock.mockReturnValue({ data: null })
+  }
 })

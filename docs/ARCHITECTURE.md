@@ -200,8 +200,7 @@ identidade pública de terminal é `voyage::porto::depots.code` (o UUID fica só
 no metadata). Os dois alertas de faturamento que o navegador abre e fecha por
 RPC estão em
 [Operação e suporte § Notas e divergências](modules/operacao-suporte.md#notas-e-divergências)
-(B27: a origem passa a ser recomputada no servidor, correção pendente no
-[plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
+(o fechamento recomputa a origem no servidor desde a migration `238`).
 
 ## Fronteiras de autenticação
 
@@ -625,11 +624,11 @@ Consumidores principais:
   coluna da linha e `TBC` é apenas apresentação.
 - ADR: `VoyageAgencyReportTab` seleciona o ADR terminalizado por
   `report_id`/terminal; o modal da escala atribui frentes, datas e terminais.
-  Quando a escala não tem ADR com terminal (frentes `TBC` ou sem frente), a aba
-  cai no caminho legado por `(voyage_id, port)`, que hoje cria, assina e fecha
-  um ADR sem terminal, contra as ADRs 0035 e 0068; a escala sem terminal deixa
-  de cair no ADR legado (B6, correção pendente no
-  [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
+  Escala com frente de operação e sem ADR com terminal (frentes `TBC`) não cai
+  no caminho legado: a aba explica que falta atribuir o terminal e
+  `ensure_agency_departure_report` recusa criar o ADR por porto (B6, migration
+  `259`); o caminho legado por `(voyage_id, port)` fica para escala sem frente
+  e para os ADRs legados que já existem.
 - A RPC transacional `save_voyage_escala_terminal_state_v2` recebe a Escala, as
   frentes e as Atracações no mesmo save; os audit rows de ETA/ATA, CE, vínculo e
   número de escala entram na mesma transação. A expectativa de vazios faz
@@ -679,7 +678,7 @@ fica o desenho:
   [ADR 0046](adr/0046-escrita-interna-global-com-rastro-obrigatorio.md),
   [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)); quem faz o quê
   está na [matriz de Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil),
-  com o que o código ainda não cumpre marcado como correção pendente;
+  e cada linha diz a migration que a cumpre;
 - helpers como `is_active_user()`, `is_active_read_user()` e `is_admin()`
   sustentam policies; leitura de dado interno usa `is_active_read_user()`. Hoje
   `is_active_user()` tem o mesmo corpo (migration `002`: qualquer perfil interno
@@ -977,8 +976,7 @@ A RPC entrega os campos completos a Administrativo, Documentação, Financeiro e
 Equipamentos e mascara para Operações o Email de Recuperação, os candidatos e o
 status de entrega. Vale a [ADR 0045](adr/0045-inspecao-do-portal.md):
 Operações vê os campos completos ([ADR 0083](adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18) e o Histórico
-([ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md), item D12); a retirada do
-mascaramento e a abertura do Histórico são correção pendente no [plano de correções](plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+([ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md), item D12), desde a migration `250`.
 
 ## Fontes relacionadas
 

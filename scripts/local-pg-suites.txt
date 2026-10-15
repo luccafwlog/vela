@@ -88,3 +88,12 @@ src/integration/customerCommunicationReadinessGuards.local-pg.test.ts
 src/integration/pixBrCode.local-pg.test.ts
 src/integration/voyageHardDeleteGuard.local-pg.test.ts
 src/integration/paymentRegistrarNames.local-pg.test.ts
+src/integration/permissoesPorPerfil.local-pg.test.ts
+src/integration/alertasFechamPelaOrigem.local-pg.test.ts
+src/integration/planoBExtratoPix.local-pg.test.ts
+src/integration/nobRegraUnica.local-pg.test.ts
+src/integration/comunicadosCaixasPorModelo.local-pg.test.ts
+src/integration/alertasDeContatoFecham.local-pg.test.ts
+src/integration/revisaoCapturaContato.local-pg.test.ts
+src/integration/caminhoManualVigencia.local-pg.test.ts
+src/integration/omissaoRevertidaReomitir.local-pg.test.ts

@@ -31,7 +31,7 @@ import { listGraniteBls, calculateGraniteBlCharges } from '../services/graniteCh
 import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
 import { userFacingErrorMessage } from '../lib/errors'
 import { CNPJ_INPUT_MAX_LENGTH, canonicalizeDocument, normalizeCnpj } from '../lib/cnpj'
-import { loadCustomerMaps, findMatchedCustomer, resolveCustomerLink } from '../services/customerReconciliation'
+import { loadCustomerMaps, findMatchedCustomer, resolveCustomerLink, withoutDeactivatedCustomer } from '../services/customerReconciliation'
 import { rowErrorsToImportIssues } from '../services/importValidation'
 import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
 import { ImportReadProgress } from '../components/shared/ImportReadProgress'
@@ -100,7 +100,7 @@ export function Granite() {
     const maps = await loadCustomerMaps()
     const bl = manifest.bls[rowIndex]
     const match = findMatchedCustomer({ cnpjCpf: cnpj, consignee: bl.shipper_name ?? '' }, maps)
-    const link = resolveCustomerLink(match)
+    const link = resolveCustomerLink(withoutDeactivatedCustomer(match))
     if (link.status !== 'missing_customer') {
       updatePreview((currentManifest) => ({
         ...currentManifest,
@@ -113,6 +113,16 @@ export function Granite() {
                 suggestedClientId: link.suggestedCustomerId,
                 reconciliationStatus: link.status === 'matched_document' ? 'matched' as ReconciliationStatus : 'suggested_name' as ReconciliationStatus,
               }
+            : b,
+        ),
+      }))
+    } else {
+      // CNPJ sem Cliente ativo: o vínculo do CNPJ anterior não fica na linha.
+      updatePreview((currentManifest) => ({
+        ...currentManifest,
+        bls: currentManifest.bls.map((b, i) =>
+          i === rowIndex
+            ? { ...b, shipper_cnpj: cnpj, clientId: null, suggestedClientId: null, reconciliationStatus: 'not_found' as ReconciliationStatus }
             : b,
         ),
       }))
@@ -502,7 +512,7 @@ export function Granite() {
       <CeMercanteImportModal
         open={ceMercanteOpen && canWrite}
         target="granite"
-        lockedVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
+        initialVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
         onClose={() => setCeMercanteOpen(false)}
       />
     </>

@@ -1292,7 +1292,10 @@ function computeBillingImpact(
     messages.push(`Veiculos (chassis): ${existingVehicleCount} -> ${payload.vehicles?.length ?? existingVehicleCount}`)
   }
 
-  const isBreakBulk = existing.cargo_mode === 'carga_solta' || existing.cargo_mode === 'misto'
+  // B21 (ADR 0017): no B/L misto, o peso que esta importação traz é o dos
+  // contêineres; o peso faturado da carga solta vem do manifesto de carga
+  // solta. Só o B/L de carga solta pura tem aqui a variável de faturamento.
+  const isBreakBulk = existing.cargo_mode === 'carga_solta'
   const weightChanged = normalizeComparable(existing.total_weight_kg) !== normalizeComparable(payload.total_weight_kg)
   const weight = isBreakBulk && weightChanged
   if (weight) {

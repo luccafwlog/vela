@@ -3,7 +3,7 @@ import { onlyDigits } from '../lib/utils'
 import { supabase } from './supabase'
 import type { DeleteDependencyReport } from './deleteDependencies'
 import { deleteRecords } from './deleteRecords'
-import type { Customer, CustomerContact } from '../types/database'
+import type { Customer } from '../types/database'
 
 type CustomerEditableFields = Pick<
   Customer,
@@ -93,25 +93,6 @@ export async function updateCustomerWithAudit({
   return data === true
 }
 
-export async function upsertCustomerContact(customerId: number, contact: Omit<CustomerContact, 'customer_id' | 'created_at'>) {
-  const payload = {
-    customer_id: customerId,
-    name: contact.name,
-    email: contact.email,
-    phone: contact.phone,
-    purpose: contact.purpose,
-    is_primary: contact.is_primary ?? false,
-  }
-
-  const query = contact.id
-    ? supabase.from('customer_contacts').update(payload).eq('id', contact.id).select('*').single()
-    : supabase.from('customer_contacts').insert(payload).select('*').single()
-
-  const { data, error } = await query
-  if (error || !data) throw error
-  return data as CustomerContact
-}
-
 // Adiciona um e-mail de contato a um cliente existente direto da fila de
 // revisao. Normaliza via ensure_customer_contact_email (lower + trim) e
 // vincula a caixa documentacao_operacao, em vez de inserir direto — insercao
@@ -126,14 +107,6 @@ export async function addCustomerEmail(customerId: number, email: string) {
     p_contact_name: 'Contato faturamento',
     p_purpose: 'faturamento',
   } as never)
-  if (error) throw error
-}
-
-export async function deleteCustomerContact(contactId: number) {
-  const { error } = await supabase
-    .from('customer_contacts')
-    .update({ deactivated_at: new Date().toISOString(), is_primary: false } as never)
-    .eq('id', contactId)
   if (error) throw error
 }
 

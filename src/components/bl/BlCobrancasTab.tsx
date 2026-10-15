@@ -210,8 +210,9 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
   // Portal pronto, correção do B/L). Este botão cobre a emissão que o
   // automático não fez: Reemissão pendente cuja trava foi resolvida ou falha
   // da emissão automática.
+  // Qualquer Departamento emite (ADR 0085, D3; migration 246).
   const canIssue = Boolean(
-    isAdmin && !chargesLocked && bl.customer_id && bl.ce_mercante
+    !chargesLocked && bl.customer_id && bl.ce_mercante
       && bl.charge_status !== 'not_calculated' && bl.charge_status !== 'exempt',
   )
 

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -167,5 +169,22 @@ describe('ATD com componente de hora (Atracação, TIMESTAMPTZ)', () => {
   it('continua recusando data ambígua em formato não-ISO', () => {
     expect(calculateAgencyReportDeadlineDate('08/03/2026')).toBeNull()
     expect(countBusinessDaysBetween('03/08/2026', '2026-08-06')).toBeNull()
+  })
+})
+
+// B9 (ADR 0039; migration 258): o prazo vence ao fim do dia em Brasília, não em UTC.
+describe('B9 — prazo do ADR no dia de Brasília', () => {
+  it('assinar às 22h30 de Brasília do último dia ainda é no prazo', () => {
+    // ATD sexta 2026-10-02 → prazo quarta 2026-10-07; 22:30 BRT = 01:30Z do dia 8.
+    expect(calculateAgencyReportDeadlineDate('2026-10-02')).toBe('2026-10-07')
+    expect(deriveAgencyReportDeadlineState({ atd: '2026-10-02', omitted: false, signedAt: '2026-10-08T01:30:00Z', now: '2026-10-09T12:00:00Z' })).toBe('on-time')
+    expect(deriveAgencyReportDeadlineState({ atd: '2026-10-02', omitted: false, signedAt: null, now: '2026-10-08T02:59:00Z' })).toBe('on-time')
+    expect(deriveAgencyReportDeadlineState({ atd: '2026-10-02', omitted: false, signedAt: null, now: '2026-10-08T03:00:00Z' })).toBe('overdue')
+  })
+
+  it('o alerta compara com o dia de Brasília, nos dois caminhos', () => {
+    const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations/258_prazo_do_adr_no_dia_de_brasilia.sql'), 'utf8')
+    expect(sql.match(/v_deadline < \(now\(\) AT TIME ZONE 'America\/Sao_Paulo'\)::date/g)).toHaveLength(2)
+    expect(sql).not.toMatch(/v_deadline < CURRENT_DATE/)
   })
 })

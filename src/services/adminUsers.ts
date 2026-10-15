@@ -63,10 +63,14 @@ export const PROFILE_LABELS: Record<UserProfileRole, string> = {
 
 export const MANAGED_PROFILES: UserProfileRole[] = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']
 
+// P14 (ADR 0085): leitura global para todos (só /admin é do Administrativo) e
+// escrita global com autor e motivo no rastro; cada texto cita as exceções da
+// lista fechada da ADR 0085 que valem para o perfil. A matriz completa está em
+// docs/operations/seguranca.md#modelo-de-permissões-por-perfil.
 export const PROFILE_SCOPES: Record<string, string> = {
-  administrativo: 'Leitura e escrita globais. Exceções: exclusão operacional e administração de usuários; provisionamento do Portal é compartilhado com Documentação.',
-  financeiro: 'Leitura e escrita globais, com registro obrigatório do autor e departamento. Sign-off do ADR permanece departamental.',
-  operacoes: 'Leitura e escrita globais, com registro obrigatório do autor e departamento. Sign-off do ADR permanece departamental.',
-  documentacao: 'Leitura e escrita globais; provisionamento do Portal é compartilhado com Administrativo. Sign-off do ADR permanece departamental.',
-  equipamentos: 'Leitura e escrita globais, com registro obrigatório do autor e departamento. Sign-off do ADR permanece departamental.',
+  administrativo: 'Leitura e escrita globais, e todas as exceções: usuários e /admin, cancelar fatura, Invoice de Demurrage e baixa, cancelar e reativar Viagem e B/L, desativar e reativar cadastros, trocar o CNPJ do Portal, chave global de envio, Liberação de faturamento e intervalo da Régua; cobre a assinatura do ADR de Saída.',
+  financeiro: 'Leitura e escrita globais, com autor e motivo no rastro. Exceções do perfil: baixa manual, conciliar Pix, registrar a Restituição, liquidar Ajuste de COD e Informar PTAX. Não envia Comunicados nem assina seção do ADR de Saída.',
+  operacoes: 'Leitura e escrita globais, com autor e motivo no rastro. Assina as seções de Operações do ADR de Saída. Não registra baixa nem envia Comunicados.',
+  documentacao: 'Leitura e escrita globais, com autor e motivo no rastro. Exceções do perfil: provisionar o Portal, gerir o Desbloqueio de CE e enviar Comunicados; assina as seções de Documentação do ADR de Saída.',
+  equipamentos: 'Leitura e escrita globais, com autor e motivo no rastro. Exceções do perfil: enviar Comunicados, responder Disputas de Demurrage e Informar PTAX; assina as seções de Equipamentos do ADR de Saída.',
 }

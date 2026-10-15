@@ -167,7 +167,8 @@ export function ChargeOverridesTab({
   async function handleToggleActive(row: LocalChargeOverrideItem) {
     const nextActive = row.active === false
     const who = `${row.customer?.name ?? 'Cliente'} · ${row.charge_item ? itemDisplayName(row.charge_item) : 'item'}`
-    const confirmed = await confirm({
+    // B13: reativar pede motivo (ADR 0072), gravado pela RPC reactivate_catalog_row (migration 261).
+    const confirmOptions = {
       title: nextActive ? 'Reativar condição de Cliente' : 'Desativar condição de Cliente',
       message: `${nextActive ? 'Reativar' : 'Desativar'} a condição ${who}?`,
       consequence: nextActive
@@ -175,12 +176,13 @@ export function ChargeOverridesTab({
         : 'Cálculos novos deste Cliente passam a usar o valor da tabela; cálculos e faturas antigos continuam mostrando a condição aplicada.',
       reversibility: nextActive ? 'Pode ser desativada de novo.' : 'Pode ser reativada pelo Administrativo.',
       confirmLabel: nextActive ? 'Reativar condição' : 'Desativar condição',
-      tone: nextActive ? 'primary' : 'danger',
-    })
-    if (!confirmed) return
+      tone: nextActive ? ('primary' as const) : ('danger' as const),
+    }
+    const reason = nextActive ? await confirmWithReason(confirmOptions) : (await confirm(confirmOptions)) ? '' : null
+    if (reason === null) return
     setBusyId(row.id)
     try {
-      await setOverrideActive.mutateAsync({ id: row.id, active: nextActive })
+      await setOverrideActive.mutateAsync({ id: row.id, active: nextActive, reason })
       showToast(nextActive ? 'Condição reativada.' : 'Condição desativada.', 'success')
     } catch (error) {
       showToast(extractErrorText(error) || 'Não foi possível alterar a condição.', 'error')

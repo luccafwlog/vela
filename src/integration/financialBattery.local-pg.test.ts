@@ -141,8 +141,6 @@ function cleanup(): void {
     WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
     DELETE FROM public.portal_invites
     WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
-    DELETE FROM public.customer_portal_sessions
-    WHERE account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id = ${customerId});
     DELETE FROM public.portal_provisioning_events WHERE customer_id = ${customerId};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
     DELETE FROM public.bls WHERE id = ANY(ARRAY['${allBlIds.join("','")}']::text[]);
