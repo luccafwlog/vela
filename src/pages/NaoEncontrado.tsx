@@ -26,7 +26,7 @@ export function NaoEncontrado() {
       )}
     >
       <p>
-        Nenhuma tela do Vela responde por{' '}
+        Nenhuma tela do Vela atende por{' '}
         <code className="app-status-panel__code">{pathname}</code>.
       </p>
       <p>Se o link estava salvo, a tela pode ter mudado de endereço. Use o menu para chegar até ela.</p>
