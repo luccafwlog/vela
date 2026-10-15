@@ -324,7 +324,7 @@ utilitárias do Tailwind sem `!important`:
 
 ### Densidade e primitivas visuais
 
-Os tokens `--app-*` de `src/index.css` têm três blocos (atual, claro e escuro) e
+Os tokens `--app-*` de `src/index.css` têm dois blocos (atual e claro) e
 são a única fonte de cor, escala tipográfica (`--app-size-*`, de 12 a 32px),
 raio (`--app-radius` 8px, `--app-radius-control` 6px) e densidade. A cor de
 estado usa os aliases `--app-{success,warning,danger,info,neutral}-{fg,bg,border}`,

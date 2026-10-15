@@ -137,7 +137,6 @@ responsável em 2026-10-15 a partir de uma simulação aprovada:
 
 - **TV do Line-Up:** quadro próprio que imita o quadro físico (decisão do responsável de 2026-10-08), fora das peças comuns; segue as regras 4, 5 e 8.
 - **Documentos impressos:** fora das peças comuns, com a identidade própria mantida por decisão do responsável de 2026-10-13: marca Transhipping, barras âmbar de total, cabeçalho de tabela azul-marinho, título centralizado com filete, bloco de dados do Cliente em tabela e bloco Pix (um redesenho em papel branco, tinta preta e azul-marinho foi reprovado). Kit em `src/components/shared/InvoiceDocumentKit.tsx` e `invoiceFormat.ts`; regras de impressão em `src/index.css` (`@media print`) e `src/lib/printDocument.ts`.
-- **Tema escuro do Vela:** mesmos papéis e peças, com os pares escuros dos tokens.
 
 ## Como uma tela muda
 
