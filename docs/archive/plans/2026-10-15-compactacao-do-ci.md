@@ -19,7 +19,7 @@ mesclada em `cb7ef2de`. Aceites no GitHub (Runtime):
 | PR de teste só de tela (luccafwlog/vela#957, fechada sem merge) | `checks` verde em 2 min 16 s; `db` 41 s com "suítes SQL puladas"; `quality` 2 min 07 s; `test` 1 min 42 s e 2 min 06 s (D5: 2 shards) |
 | Merge na `main` | nenhum run de `CI`; `Cloudflare Pages Production` esperou o check do Supabase (48 s, verde) e publicou em 2 min |
 | Disparo manual de `local-pg-order.yml` | verde em 3 min 36 s; cada passada 1 min 21 s (antes ~4 min 27 s) |
-| Vínculo da `main` com a produção no Supabase (D1) | check `Supabase Preview` verde no merge `cb7ef2de` |
+| Vínculo da `main` com a produção no Supabase (D1) | Indício, não prova: check `Supabase Preview` verde no merge `cb7ef2de`. A conferência no painel (Branching → Configuration) fica com o dono, registrada como pendente em [serviços externos](../../operations/servicos-externos.md#supabase) |
 
 Depois dos aceites, em 2026-10-15: o dono tornou o `checks` obrigatório no
 ruleset "auto-merge claude" da `main` (sem exigir branch atualizada, D2;
