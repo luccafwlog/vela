@@ -426,6 +426,21 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       `#${oldVip}`, // novo anual aprovado: só então o vencido sai
     ])
   })
+  it('lote da exportação ZPT nasce com hash do conteúdo e não aceita reescrita; só o registro do envio muda',()=>{
+    const lot='00000000-0000-0000-0000-000000557891'
+    const result=sql(`BEGIN;
+      INSERT INTO public.ce_unlock_exports(id,layout_version,rows,snapshot,created_by) VALUES('${lot}','zpt-5-v2','[{"BL":"CE557-X"}]','[]','${admin}');
+      SELECT hash=encode(sha256(convert_to('zpt-5-v2'||E'\\n'||'[{"BL": "CE557-X"}]','UTF8')),'hex') FROM public.ce_unlock_exports WHERE id='${lot}';
+      UPDATE public.ce_unlock_exports SET sent_at=now(),reference='Enviado (teste)' WHERE id='${lot}';
+      SELECT reference FROM public.ce_unlock_exports WHERE id='${lot}';
+      ROLLBACK;`)
+    expect(result.split('\n')).toEqual(['t','Enviado (teste)'])
+    const rewrite=String((()=>{ try { sql(`BEGIN;
+      INSERT INTO public.ce_unlock_exports(id,layout_version,rows,snapshot,created_by) VALUES('${lot}','zpt-5-v2','[{"BL":"CE557-X"}]','[]','${admin}');
+      UPDATE public.ce_unlock_exports SET rows='[{"BL":"OUTRO"}]' WHERE id='${lot}';
+      ROLLBACK;`); return '' } catch(e) { return (e as {stderr:string}).stderr } })())
+    expect(rewrite).toMatch(/Lote de exportação ZPT é imutável/)
+  })
   it('histórico legado de confirmação externa permanece só no desk',()=>{
     const result=reviewScenario(`
       UPDATE public.ce_unlock_requests SET state='submitted' WHERE id='${reviewRequest}';
