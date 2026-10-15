@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
 import { useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { userFacingErrorMessage } from '../../lib/errors'
@@ -33,6 +35,7 @@ export function BlCeMercanteField({
   const { showToast } = useToast()
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   const next = normalizeCeMercanteInput(draft)
   const canCorrect = CE_MERCANTE_PATTERN.test(next) && next !== (ce ?? '')
@@ -50,6 +53,7 @@ export function BlCeMercanteField({
       await action()
       await refresh()
       setDraft('')
+      setEditing(false)
       showToast(success, 'success')
     } catch (error) {
       showToast(userFacingErrorMessage(error, fallback), 'error')
@@ -88,37 +92,42 @@ export function BlCeMercanteField({
   }
 
   return (
-    <div className="app-field">
-      <span className="app-field__label">CE Mercante</span>
-      <div className="space-y-2">
-        <p className="font-mono text-sm">{ce ?? 'Sem CE'}</p>
-        {/* O primeiro CE entra pela planilha de CE Mercante, que também vincula
-            o Manifesto Mercante: a ficha só corrige ou remove (ADR 0078, itens
-            1 e 2; `correct_bl_ce_mercante` recusa B/L sem CE). */}
-        {disabled || !ce ? null : (
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              aria-label="CE Mercante novo"
-              inputMode="numeric"
-              placeholder="15 dígitos"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              className="max-w-[12rem]"
-            />
-            <Button type="button" variant="secondary" disabled={!canCorrect || busy} onClick={handleCorrect}>
-              Corrigir
-            </Button>
-            {ce ? (
-              <Button type="button" variant="ghost" disabled={busy} onClick={handleRemove}>
-                Remover
-              </Button>
-            ) : null}
-          </div>
-        )}
-      </div>
-      <span className="app-field__hint">
-        {ce ? 'Muda pela importação de CE ou por Corrigir, com motivo.' : 'O CE entra pela importação de CE Mercante, que também vincula o Manifesto.'}
-      </span>
+    <div className="grid content-start gap-2">
+      <span className="app-facts__label">CE Mercante</span>
+      <p className="app-lead__value app-bl-code">{ce ? <CopyValue value={ce} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</p>
+      {/* O primeiro CE entra pela planilha de CE Mercante, que também vincula
+          o Manifesto Mercante: a ficha só corrige ou remove (ADR 0078, itens
+          1 e 2; `correct_bl_ce_mercante` recusa B/L sem CE). O campo do CE
+          novo só abre depois de Corrigir CE (identidade, lote 1). */}
+      {disabled || !ce ? null : editing ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            aria-label="CE Mercante novo"
+            inputMode="numeric"
+            placeholder="15 dígitos"
+            autoFocus
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            className="max-w-[12rem]"
+          />
+          <Button type="button" variant="secondary" disabled={!canCorrect || busy} onClick={handleCorrect}>
+            Corrigir CE
+          </Button>
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => { setEditing(false); setDraft('') }}>
+            Voltar
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="secondary" disabled={busy} onClick={() => setEditing(true)}>
+            Corrigir CE
+          </Button>
+          <Button type="button" variant="ghost" disabled={busy} onClick={handleRemove}>
+            Remover CE
+          </Button>
+        </div>
+      )}
+      {ce ? null : <span className="app-field__hint">O CE entra pela importação de CE Mercante, que também vincula o Manifesto.</span>}
     </div>
   )
 }

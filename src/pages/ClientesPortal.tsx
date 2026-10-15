@@ -101,7 +101,7 @@ export function ClientesPortal() {
               <span>{item.label}</span>
               <span className={`inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
                 preset === item.value
-                  ? 'bg-amber-400 text-slate-900 dark:bg-amber-300 dark:text-slate-950 font-bold'
+                  ? 'bg-amber-400 text-slate-900 font-bold'
                   : 'bg-[var(--app-surface-muted)] text-[var(--app-muted)]'
               }`}>
                 {presetCounts[item.value]}

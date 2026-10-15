@@ -16,7 +16,7 @@ describe('VisualThemeProvider', () => {
   })
 
   it('migra a preferência salva antes da renomeação para a chave Vela', async () => {
-    window.localStorage.setItem('transhipping_visual_theme', 'dark')
+    window.localStorage.setItem('transhipping_visual_theme', 'light')
 
     render(
       <Wrapper>
@@ -24,7 +24,13 @@ describe('VisualThemeProvider', () => {
       </Wrapper>,
     )
 
-    await waitFor(() => expect(document.documentElement.getAttribute('data-visual-theme')).toBe('dark'))
-    expect(window.localStorage.getItem('vela_visual_theme')).toBe('dark')
+    await waitFor(() => expect(document.documentElement.getAttribute('data-visual-theme')).toBe('light'))
+    expect(window.localStorage.getItem('vela_visual_theme')).toBe('light')
+  })
+
+  it('preferência antiga pelo tema escuro, que saiu, volta ao tema atual', async () => {
+    window.localStorage.setItem('vela_visual_theme', 'dark')
+    render(<Wrapper><div /></Wrapper>)
+    await waitFor(() => expect(document.documentElement.getAttribute('data-visual-theme')).toBe('current'))
   })
 })

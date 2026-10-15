@@ -107,10 +107,12 @@ describe('VoyageImportacaoTab', () => {
     )
 
     expect(screen.getAllByText('BRSSZ').length).toBeGreaterThan(0)
-    expect(screen.getByText('2 CNTRs · 1 B/Ls carga solta')).toBeTruthy()
+    // Contêineres e carga solta dizem em quantos B/Ls estão (identidade, lote 1).
+    expect(screen.getByText('2 CNTRs em 1 B/L · 150 t de carga solta em 1 B/L')).toBeTruthy()
+    expect(screen.getByText('distintos em 1 B/L')).toBeTruthy()
     expect(screen.getByText('Sem veículos descarregados nesta escala')).toBeTruthy()
     expect(screen.getByText('150')).toBeTruthy()
-    expect(screen.getByText('ton')).toBeTruthy()
+    expect(screen.getByText('ton em 1 B/L')).toBeTruthy()
     expect(screen.getByText('Vazios IMP')).toBeTruthy()
   })
 
@@ -193,7 +195,8 @@ describe('VoyageImportacaoTab', () => {
     const totalStrip = container.querySelector('.flex.flex-wrap.items-center') as HTMLElement
     expect(totalStrip).toBeTruthy()
     expect(within(totalStrip).getByText('B/Ls')).toBeTruthy()
-    expect(within(totalStrip).getByText('CNTRs distintos')).toBeTruthy()
+    expect(within(totalStrip).getByText(/^CNTRs distintos em \d+ B\/Ls?$/)).toBeTruthy()
+    expect(within(totalStrip).getByText(/^Carga solta em \d+ B\/Ls?$/)).toBeTruthy()
     expect(within(totalStrip).getByText('Veículos')).toBeTruthy()
     expect(within(totalStrip).getByText('80 ton')).toBeTruthy()
   })

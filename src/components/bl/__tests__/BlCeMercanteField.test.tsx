@@ -32,8 +32,10 @@ it('B/L sem CE não oferece Corrigir e aponta a importação de CE Mercante', ()
 it('B/L com CE oferece Corrigir e Remover', () => {
   render(<BlCeMercanteField blId="BL-1" voyageId={7} ce="123456789012345" />)
 
-  expect(screen.getByRole('button', { name: 'Corrigir' })).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Remover' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Corrigir CE' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Remover CE' })).toBeTruthy()
+  // O campo do CE novo só abre depois de Corrigir CE.
+  expect(screen.queryByLabelText('CE Mercante novo')).toBeNull()
 })
 
 // Migration 207 (achado da revisão automática): a correção leva o CE exibido,
@@ -43,8 +45,9 @@ it('Corrigir manda o CE que a ficha exibia', async () => {
   mocks.correct.mockResolvedValue(undefined)
   render(<BlCeMercanteField blId="BL-1" voyageId={7} ce="123456789012345" />)
 
+  fireEvent.click(screen.getByRole('button', { name: 'Corrigir CE' }))
   fireEvent.change(screen.getByLabelText('CE Mercante novo'), { target: { value: '123456789012346' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Corrigir' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Corrigir CE' }))
 
   await waitFor(() => expect(mocks.correct).toHaveBeenCalledWith({
     blId: 'BL-1', ce: '123456789012346', reason: 'CE digitado errado', expectedCe: '123456789012345',
@@ -57,7 +60,7 @@ it('Remover manda o CE que a ficha exibia', async () => {
   mocks.remove.mockResolvedValue(undefined)
   render(<BlCeMercanteField blId="BL-1" voyageId={7} ce="123456789012345" />)
 
-  fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Remover CE' }))
 
   await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith({ blId: 'BL-1', reason: 'CE do B/L errado', expectedCe: '123456789012345' }))
 })
@@ -72,14 +75,15 @@ it('Corrigir recusado por CE antigo recarrega a ficha', async () => {
   mocks.correct.mockRejectedValueOnce({ code: '22023', message: 'O CE Mercante do B/L BL-1 mudou depois que a ficha foi aberta (agora: 123456789012399). Recarregue a ficha e confira antes de corrigir.' })
   render(<BlCeMercanteField blId="BL-1" voyageId={7} ce="123456789012345" />)
 
+  fireEvent.click(screen.getByRole('button', { name: 'Corrigir CE' }))
   fireEvent.change(screen.getByLabelText('CE Mercante novo'), { target: { value: '123456789012346' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Corrigir' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Corrigir CE' }))
   await waitFor(() => expect(afterBlEstadoAlterado).toHaveBeenCalledWith(expect.anything(), { blId: 'BL-1', voyageId: 7 }))
 
   vi.mocked(afterBlEstadoAlterado).mockClear()
   mocks.correct.mockRejectedValueOnce({ code: '22023', message: 'CE Mercante invalido.' })
-  fireEvent.click(screen.getByRole('button', { name: 'Corrigir' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Corrigir CE' }))
   await waitFor(() => expect(mocks.correct).toHaveBeenCalledTimes(2))
-  await waitFor(() => expect((screen.getByRole('button', { name: 'Corrigir' }) as HTMLButtonElement).disabled).toBe(false))
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Corrigir CE' }) as HTMLButtonElement).disabled).toBe(false))
   expect(afterBlEstadoAlterado).not.toHaveBeenCalled()
 })

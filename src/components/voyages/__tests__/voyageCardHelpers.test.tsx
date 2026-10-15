@@ -88,7 +88,7 @@ describe('collectVoyageManifestBatchRows', () => {
       routeKey: 'CNTAC__BRVIX',
       pol: 'CNTAC',
       pod: 'BRVIX',
-      routeLabel: 'TAICANG -> VITORIA',
+      routeLabel: 'TAICANG → VITORIA',
       modeLabel: 'CNTR',
       batchIds: [],
       etd: '2026-07-15',
@@ -218,7 +218,7 @@ describe('formatPolDeparture', () => {
 })
 
 describe('VoyageManifestosTab', () => {
-  it('mantem o titulo ETD e destaca ATD em verde quando conhecido', () => {
+  it('tabela limpa: uma linha de título, rota em códigos e ATD realizado em tinta normal', () => {
     const voyage = {
       id: 14,
       voyage_number: '001',
@@ -243,16 +243,17 @@ describe('VoyageManifestosTab', () => {
     )
 
     expect(html).toContain('>Rota</th>')
-    expect(html).toContain('>CE Mercante · cobertura</th>')
+    expect(html).toContain('>CE Mercante</th>')
     expect(html).toContain('>Nº de manifesto Mercante</th>')
-    expect(html).toContain('Total da viagem')
-    expect(html).toContain('B/Ls vinculados')
-    expect(html).toContain('Nº de manifesto a informar')
-    expect(html).not.toContain('Conciliação:')
+    expect(html).not.toContain('colgroup')
+    expect(html).not.toContain('Total da viagem')
+    expect(html).toContain('1 rota · 1 B/L · CE Mercante 1 de 1')
+    expect(html).toContain('1 manifesto a informar')
+    expect(html).toContain('CNTAC → BRVIX')
+    expect(html).not.toContain('-&gt;')
     expect(html).not.toContain('15/07/2026')
     expect(html).toContain('16/07/2026')
-    expect(html).toContain('style="color:var(--app-green)"')
-    expect(html).toContain('font-medium')
+    expect(html).not.toContain('ETD previsto')
     expect(html).toContain('href="/bls?voyage=14&amp;pol=CNTAC&amp;pod=BRVIX"')
     expect(html).not.toContain('Rota derivada dos B/Ls')
     expect(html).not.toContain('Gerar EDI Mercante')
@@ -287,10 +288,11 @@ describe('VoyageManifestosTab', () => {
       </MemoryRouter>,
     )
 
-    expect(html).toContain('TAICANG →')
-    expect(html).toContain('class="line-through text-[var(--app-muted-soft)]"')
+    expect(html).toContain('CNTAC → <s')
+    expect(html).toContain('title="POD omitido: BRVIX">BRVIX</s> → BRSSZ')
     expect(html).toContain('Omissão')
-    expect(html).toContain('Informar')
+    expect(html).toContain('A informar')
+    expect(html).toContain('Informar manifesto')
     expect(html).not.toContain('manifesto não informado')
     expect(html).not.toContain('Informe o CE Master pelo lápis desta linha')
   })
@@ -320,7 +322,7 @@ describe('VoyageManifestosTab', () => {
       </MemoryRouter>,
     )
 
-    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG -> VITORIA' })
+    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA' })
     fireEvent.click(button)
 
     expect(onEditPol).toHaveBeenCalledTimes(1)
@@ -364,10 +366,10 @@ describe('VoyageManifestosTab', () => {
 
     expect(screen.getByText('VAZIOS')).toBeTruthy()
     expect(screen.getByText('5 cntr')).toBeTruthy()
-    const link = screen.getByRole('link', { name: 'TAICANG -> VITORIA' })
+    const link = screen.getByRole('link', { name: 'TAICANG → VITORIA' })
     expect(link.getAttribute('href')).toBe('/vazios-importacao?voyage=14&pod=BRVIX')
 
-    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG -> VITORIA' })
+    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA' })
     fireEvent.click(button)
 
     expect(onEditPol).toHaveBeenCalledWith({
@@ -432,9 +434,7 @@ describe('VoyageManifestosTab', () => {
     )
 
     expect(screen.getByText('26BR000100')).toBeTruthy()
-    expect(screen.getByText('carga')).toBeTruthy()
     expect(screen.getByText('26BR000200')).toBeTruthy()
-    expect(screen.getByText('vazio')).toBeTruthy()
   })
 })
 

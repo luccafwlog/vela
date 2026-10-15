@@ -286,7 +286,7 @@ it('mantém o Terminal legado somente leitura fora de operações e administraç
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} reportId="legacy-report" />)
 
   expect(screen.queryByLabelText('Terminal')).toBeNull()
-  expect(screen.getByText('TVV')).toBeTruthy()
+  expect(screen.getAllByText('TVV').length).toBeGreaterThan(0)
 })
 
 it('não habilita ADR legado enquanto o estado terminalizado está carregando ou falhou', () => {
@@ -339,10 +339,8 @@ it('exibe a barra-resumo dos 3 departamentos e o sign-off da seção do usuário
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  expect(screen.getByText('0/3 departamentos assinados')).toBeTruthy()
-  expect(screen.getByText('Operações')).toBeTruthy()
-  expect(screen.getByText('Documentação')).toBeTruthy()
-  expect(screen.getByText('Equipamentos')).toBeTruthy()
+  expect(screen.getByText('0 de 3 departamentos assinados', { selector: 'p' })).toBeTruthy()
+  for (const name of ['Operações', 'Documentação', 'Equipamentos']) expect(screen.getByRole('heading', { name, level: 2 })).toBeTruthy()
   expect(screen.getByText(/Confirmado por Ana Ribeiro em 19\/07\/2026/)).toBeTruthy()
 })
 
@@ -360,8 +358,8 @@ it('assina o departamento apenas quando habilitado e chama a RPC com o payload c
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  const equipamentosCard = screen.getByText('Equipamentos').closest('div.app-panel')! as HTMLElement
-  const signButton = within(equipamentosCard).getByRole('button', { name: 'Assinar' })
+  const equipamentosCard = screen.getByRole('heading', { name: 'Equipamentos', level: 2 }).closest('section')! as HTMLElement
+  const signButton = within(equipamentosCard).getByRole('button', { name: 'Assinar Equipamentos' })
   expect((signButton as HTMLButtonElement).disabled).toBe(false)
   fireEvent.click(signButton)
   fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
@@ -384,8 +382,8 @@ it('desabilita assinar o departamento enquanto houver seção pendente', () => {
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  const equipamentosCard = screen.getByText('Equipamentos').closest('div.app-panel')! as HTMLElement
-  const signButton = within(equipamentosCard).getByRole('button', { name: 'Assinar' }) as HTMLButtonElement
+  const equipamentosCard = screen.getByRole('heading', { name: 'Equipamentos', level: 2 }).closest('section')! as HTMLElement
+  const signButton = within(equipamentosCard).getByRole('button', { name: 'Assinar Equipamentos' }) as HTMLButtonElement
   expect(signButton.disabled).toBe(true)
 })
 
@@ -403,8 +401,8 @@ it('reabrir um sign-off departamental exige justificativa', () => {
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  const operacoesCard = screen.getByText('Operações').closest('div.app-panel')! as HTMLElement
-  fireEvent.click(within(operacoesCard).getByRole('button', { name: 'Reabrir' }))
+  const operacoesCard = screen.getByRole('heading', { name: 'Operações', level: 2 }).closest('section')! as HTMLElement
+  fireEvent.click(within(operacoesCard).getByRole('button', { name: 'Reabrir Operações' }))
   const confirm = screen.getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement
   expect(confirm.disabled).toBe(true)
   fireEvent.change(screen.getByLabelText('Justificativa'), { target: { value: 'Correção necessária' } })
@@ -428,7 +426,7 @@ it('fecha o ADR apenas quando os 3 departamentos assinaram e envia o snapshot ex
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  expect(screen.getByText('3/3 departamentos assinados')).toBeTruthy()
+  expect(screen.getByText('3 de 3 departamentos assinados', { selector: 'p' })).toBeTruthy()
   const closeButton = screen.getByRole('button', { name: 'Fechar ADR' })
   expect((closeButton as HTMLButtonElement).disabled).toBe(false)
   fireEvent.click(closeButton)
@@ -516,7 +514,7 @@ it('mantém Fechar ADR desabilitado enquanto faltar algum departamento', () => {
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  expect(screen.getByText('2/3 departamentos assinados')).toBeTruthy()
+  expect(screen.getByText('2 de 3 departamentos assinados', { selector: 'p' })).toBeTruthy()
   const closeButton = screen.getByRole('button', { name: 'Fechar ADR' }) as HTMLButtonElement
   expect(closeButton.disabled).toBe(true)
 })
@@ -538,8 +536,8 @@ it('exibe a carga solta derivada e a congela sob cargaSolta no snapshot', () => 
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  expect(screen.getAllByText('Máquinas')).toHaveLength(2)
-  expect(screen.getByText('3')).toBeTruthy()
+  const cargaSoltaTable = screen.getByRole('table', { name: 'Carga solta' })
+  expect(within(cargaSoltaTable).getByRole('row', { name: 'Destino final 2 6 3 12 20' })).toBeTruthy()
   confirmAgencyReportClose()
   expect(closeMutateMock).toHaveBeenCalledWith(expect.objectContaining({
     snapshot: expect.objectContaining({
@@ -580,7 +578,7 @@ it('agrupa carga solta na seção de carga descarregada e assina granito como ca
 
   expect(dischargeSection).not.toBeNull()
   expect(graniteSection).not.toBeNull()
-  expect(within(dischargeSection!).getByText('Carga solta')).toBeTruthy()
+  expect(within(dischargeSection!).getByRole('table', { name: 'Carga solta' })).toBeTruthy()
   expect(within(dischargeSection!).getByText('Confirmado')).toBeTruthy()
   expect(within(graniteSection!).getByText('Nada a declarar')).toBeTruthy()
   expect(within(graniteSection!).getByText('Nada a declarar')).toBeTruthy()
@@ -602,11 +600,9 @@ it('destaca o IMO separado da contagem geral de containers descarregados', () =>
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
   const dischargeSection = screen.getByRole('heading', { name: 'Carga descarregada' }).closest('section')!
-  const containersCard = within(dischargeSection).getByText('Containers descarregados').closest('div') as HTMLElement
-  expect(within(containersCard).getByText('3')).toBeTruthy()
-  const imoToken = within(dischargeSection).getByText('IMO', { selector: 'span.font-semibold' }).closest('span.app-voyage-token') as HTMLElement
-  expect(within(imoToken).getByText('1')).toBeTruthy()
-  expect(within(dischargeSection).getByText('Por tipo e natureza')).toBeTruthy()
+  expect(within(dischargeSection).getByText(/^3 contêineres · \d+ TEU$/)).toBeTruthy()
+  expect(within(dischargeSection).getByText(/^1 IMO · /)).toBeTruthy()
+  expect(within(dischargeSection).getByRole('table', { name: 'Contêineres por tipo e natureza' })).toBeTruthy()
 })
 
 it('renomeia Container com veículo para Veículos', () => {
@@ -647,7 +643,7 @@ it('Exportação reúne Granito e Embarque de vazios, com pátio como subseção
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  const equipamentosGroup = screen.getByRole('heading', { name: 'Equipamentos', level: 2 }).closest('div.app-panel') as HTMLElement
+  const equipamentosGroup = screen.getByRole('heading', { name: 'Equipamentos', level: 2 }).closest('section') as HTMLElement
   expect(within(equipamentosGroup).getByRole('heading', { name: 'Carga carregada' })).toBeTruthy()
   // Embarque de Vazios é um agregado só (CONTEXT.md): uma seção assinável, com
   // as unidades e os serviços como subseções de conteúdo.
@@ -1005,8 +1001,8 @@ it('sign-off de Operações não é mais bloqueado por Ocorrências (1 seção: 
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  const operacoesCard = screen.getByText('Operações').closest('div.app-panel')! as HTMLElement
-  const signButton = within(operacoesCard).getByRole('button', { name: 'Assinar' }) as HTMLButtonElement
+  const operacoesCard = screen.getByRole('heading', { name: 'Operações', level: 2 }).closest('section')! as HTMLElement
+  const signButton = within(operacoesCard).getByRole('button', { name: 'Assinar Operações' }) as HTMLButtonElement
   expect(signButton.disabled).toBe(false)
 })
 
@@ -1105,9 +1101,8 @@ it('carga solta só em transbordo (sem carga própria) aparece na seção em vez
 
   const dischargeSection = screen.getByRole('heading', { name: 'Carga descarregada' }).closest('section')!
   expect(within(dischargeSection).queryByText('Nada operado nesta escala.')).toBeNull()
-  expect(within(dischargeSection).getByText('Carga solta')).toBeTruthy()
-  expect(within(dischargeSection).getByText('Em transbordo')).toBeTruthy()
-  expect(within(dischargeSection).getAllByText('2').length).toBeGreaterThan(0)
+  const cargaSoltaTable = within(dischargeSection).getByRole('table', { name: 'Carga solta' })
+  expect(within(cargaSoltaTable).getByRole('row', { name: /^Em transbordo 2 / })).toBeTruthy()
 })
 
 it('marca com "em transbordo" o VIN de um veículo que chegou por transbordo (Task 1 do ADR 2026-07-31)', () => {
@@ -1129,7 +1124,8 @@ it('marca com "em transbordo" o VIN de um veículo que chegou por transbordo (Ta
 
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
-  expect(screen.getByText((_, node) => node?.textContent === '2 BLs · 2 VINs · 1 em transbordo · local de desova não informado')).toBeTruthy()
+  const brands = screen.getByRole('table', { name: 'Veículos por marca' })
+  expect(within(brands).getByRole('row', { name: /^BYD 2 2 1/ })).toBeTruthy()
 })
 
 it('combinação inexistente não vira linha na listagem do operado — só o que ocorreu aparece', () => {
@@ -1225,11 +1221,9 @@ it('mostra o total de vazios embarcados por tipo e, lado a lado, uma mini-seçã
 
   const containersEmbarcados = screen.getByRole('heading', { name: 'Containers embarcados', level: 4 }).closest('div')!
   // Total por tipo (soma sem quebra de local): 40HC=3 (2 vazio + 1 material), 20GP=1.
-  const totalPorTipo = within(containersEmbarcados).getByText('Total por tipo').closest('.app-voyage-metric-panel') as HTMLElement
-  expect(within(totalPorTipo).getByText('40HC')).toBeTruthy()
-  expect(within(totalPorTipo).getByText('3')).toBeTruthy()
-  expect(within(totalPorTipo).getByText('20GP')).toBeTruthy()
-  expect(within(totalPorTipo).getByText('1')).toBeTruthy()
+  const totalPorTipo = within(containersEmbarcados).getByRole('table', { name: 'Total por tipo' })
+  expect(within(totalPorTipo).getByRole('row', { name: /^40HC .* 3$/ })).toBeTruthy()
+  expect(within(totalPorTipo).getByRole('row', { name: /^20GP .* 1$/ })).toBeTruthy()
   // Mini-seção por depot/terminal, cada uma com o total por tipo dentro dela.
   expect(within(containersEmbarcados).getByText('VBR')).toBeTruthy()
   expect(within(containersEmbarcados).getByText('TVV')).toBeTruthy()
@@ -1346,9 +1340,9 @@ it('vazio sem natureza classificada no módulo não vira cover plate na listagem
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
 
   const vaziosSection = screen.getByRole('heading', { name: 'Vazios descarregados' }).closest('section')!
-  expect(within(vaziosSection).getByText('40HC · vazio — cama')).toBeTruthy()
-  expect(within(vaziosSection).getByText('20GP · vazio')).toBeTruthy()
-  expect(within(vaziosSection).queryByText('20GP · vazio — cover plate')).toBeNull()
+  expect(within(vaziosSection).getByRole('row', { name: '40HC vazio — cama 1' })).toBeTruthy()
+  expect(within(vaziosSection).getByRole('row', { name: /^20GP vazio \d+$/ })).toBeTruthy()
+  expect(within(vaziosSection).queryByRole('row', { name: /cover plate/ })).toBeNull()
   expect(within(vaziosSection).getByText('1 sem natureza')).toBeTruthy()
   expect(within(vaziosSection).queryByText('Módulo de Vazios de Importação')).toBeNull()
 })
@@ -1474,10 +1468,10 @@ it('B7: a seção Veículos fica no painel de Equipamentos, que conta e mostra a
     error: null,
   })
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
-  const panelOf = (title: string) => screen.getByRole('heading', { name: title }).closest('div.app-panel') as HTMLElement
+  const panelOf = (title: string) => screen.getByRole('heading', { name: title, level: 2 }).closest('section') as HTMLElement
   expect(within(panelOf('Documentação')).queryByText('Veículos')).toBeNull()
   expect(within(panelOf('Equipamentos')).getByText('Veículos')).toBeTruthy()
-  expect(within(panelOf('Equipamentos')).getByText('0/3 seções')).toBeTruthy()
+  expect(within(panelOf('Equipamentos')).getByText(/0 de 3 seções resolvidas/)).toBeTruthy()
 })
 
 it('B8: ADR fechado sem atdRegisteredAt no snapshot não mostra o registro de um ATD corrigido depois', () => {

@@ -27,15 +27,15 @@ export function isDemurragePayable(invoice: DemurrageSituationInput) {
 }
 
 /**
- * Situação da fatura de Demurrage no Portal em texto (regra 5): Em disputa e
- * Vencida em âmbar (pedem ação), Paga com o ✓, Cancelada em cinza. A disputa
- * aberta é a situação, sem selo ao lado.
+ * Situação da fatura de Demurrage no Portal em texto (regra 5): Em disputa em
+ * âmbar (pede ação), Paga com o ✓, Cancelada em cinza. A disputa aberta é a
+ * situação, sem selo ao lado. Demurrage não vence (B29, ADR 0014): o estado
+ * legado `overdue` aparece como Emitida, igual à ficha do Cliente.
  */
 export function demurrageSituation(invoice: DemurrageSituationInput): { label: string; tone: 'default' | 'warning' | 'paid' | 'muted' } {
   if (invoice.status === 'paid' || invoice.status === 'covered') return { label: 'Paga', tone: 'paid' }
   if (invoice.status === 'cancelled' || invoice.status === 'obsolete') return { label: 'Cancelada', tone: 'muted' }
   if (invoice.dispute_open) return { label: 'Em disputa', tone: 'warning' }
-  if (invoice.status === 'overdue') return { label: 'Vencida', tone: 'warning' }
   return { label: 'Emitida', tone: 'default' }
 }
 

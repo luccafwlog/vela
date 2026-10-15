@@ -552,6 +552,7 @@ describe('EscalaModal', () => {
     await user.selectOptions(vazioImport, 't-norte')
     await user.selectOptions(screen.getByLabelText('Terminal da operação Exportação Vazios'), 't-sul')
     await user.type(screen.getByLabelText('ATD T-NORTE'), '2026-03-03')
+    await user.type(screen.getByLabelText('ATD T-NORTE Hora'), '18:40')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
 
     expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
@@ -562,7 +563,7 @@ describe('EscalaModal', () => {
           expect.objectContaining({ sentido: 'exportacao', modalidade: 'vazio', terminalId: 't-sul' }),
         ]),
         terminals: expect.arrayContaining([
-          expect.objectContaining({ terminalId: 't-norte', atd: '2026-03-03' }),
+          expect.objectContaining({ terminalId: 't-norte', atd: '2026-03-03T18:40:00-03:00' }),
           expect.objectContaining({ terminalId: 't-sul', restow: 2 }),
         ]),
       }),
@@ -604,11 +605,13 @@ describe('EscalaModal', () => {
     const onSaved = renderEscala(terminalEscala())
     const atd = screen.getByLabelText('ATD T-NORTE')
     await user.type(atd, '2026-03-01')
+    await user.type(screen.getByLabelText('ATD T-NORTE Hora'), '10:00')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
 
     expect(onSaved).not.toHaveBeenCalled()
     expect(screen.getByRole('alert').textContent).toContain('ATD não pode ser anterior')
     await user.clear(atd)
+    await user.clear(screen.getByLabelText('ATD T-NORTE Hora'))
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
     expect(onSaved).toHaveBeenCalled()
   })
@@ -618,6 +621,7 @@ describe('EscalaModal', () => {
     const onSaved = renderEscala(terminalEscala())
     const atd = screen.getByLabelText('ATD T-SUL')
     await user.type(atd, '2026-03-03')
+    await user.type(screen.getByLabelText('ATD T-SUL Hora'), '10:00')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
 
     expect(onSaved).not.toHaveBeenCalled()
@@ -737,26 +741,44 @@ describe('EscalaModal', () => {
     }))
   })
 
-  it('permite ETA com ou sem hora preenchida', async () => {
+  it('exige hora no ETA digitado e aceita o ETA só com data vindo da planilha', async () => {
     const user = userEvent.setup()
     const onSaved = vi.fn().mockResolvedValue(undefined)
-    renderEscala(escalaBase, onSaved)
+    renderEscala({ ...escalaBase, eta: '2026-03-10' }, onSaved)
 
-    await user.clear(screen.getByLabelText('ETA'))
-    await user.type(screen.getByLabelText('ETA'), '2026-03-10')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
-
-    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
-      eta: '2026-03-10',
-    }))
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ eta: '2026-03-10' }))
 
     onSaved.mockClear()
+    await user.clear(screen.getByLabelText('ETA'))
+    await user.type(screen.getByLabelText('ETA'), '2026-03-11')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('hora do ETA é obrigatória')
+
     await user.type(screen.getByLabelText('ETA Hora'), '10:00')
     await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ eta: '2026-03-11T10:00:00' }))
+  })
 
-    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
-      eta: '2026-03-10T10:00:00',
-    }))
+  it('não deixa apagar só a hora de um ETA que já tinha hora', async () => {
+    const user = userEvent.setup()
+    const onSaved = vi.fn().mockResolvedValue(undefined)
+    renderEscala({ ...escalaBase, eta: '2026-03-10T08:00:00' }, onSaved)
+
+    await user.clear(screen.getByLabelText('ETA Hora'))
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('hora do ETA é obrigatória')
+  })
+
+  it('exige hora em ETB, ETD e ATD do terminal', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala(terminalEscala())
+    await user.type(screen.getByLabelText('ETB T-SUL'), '2026-03-04')
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('hora do ETB é obrigatória')
   })
 
   it('rejeita ATB de terminal com data preenchida e hora vazia', async () => {

@@ -21,6 +21,18 @@ beforeEach(() => {
 })
 
 describe('projectVoyageEscalaSchedules', () => {
+  it('atracação sem agenda do POD ainda forma a escala, com o ATD', () => {
+    const [escala] = projectVoyageEscalaSchedules({
+      terminalStates: [{
+        voyageId: 10, port: 'BRSSZ', stateId: 's1', terminalId: 't1', terminalCode: 'SBSA',
+        terminalEtb: null, terminalAtb: '2026-10-08T03:00:00+00:00', terminalEtd: null,
+        terminalAtd: '2026-10-09T03:00:00+00:00', terminalRtw: 2, revision: 0,
+      }],
+    })
+    expect(escala).toMatchObject({ port: 'BRSSZ', atd: '2026-10-09T03:00:00+00:00' })
+    expect(escala.atracacoes).toHaveLength(1)
+  })
+
   it('projeta escala brasileira com somente linha POD', () => {
     const escalas = projectVoyageEscalaSchedules({
       podSchedules: [{

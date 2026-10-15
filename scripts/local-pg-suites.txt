@@ -99,3 +99,4 @@ src/integration/alertasDeContatoFecham.local-pg.test.ts
 src/integration/revisaoCapturaContato.local-pg.test.ts
 src/integration/caminhoManualVigencia.local-pg.test.ts
 src/integration/omissaoRevertidaReomitir.local-pg.test.ts
+src/integration/correcaoDadosContainer.local-pg.test.ts

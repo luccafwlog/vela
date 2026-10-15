@@ -1,190 +1,57 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-
 import {
-  calculateAgencyReportDeadlineDate,
-  countBusinessDaysBetween,
+  calculateAgencyReportDeadlineAt,
   deriveAgencyReportDeadlineState,
+  hoursSinceAtd,
 } from '../agencyReportDeadline'
 
-describe('calculateAgencyReportDeadlineDate', () => {
-  it('ATD na segunda: prazo vence na quinta (ter, qua, qui)', () => {
-    // 2026-08-03 é segunda-feira.
-    expect(calculateAgencyReportDeadlineDate('2026-08-03')).toBe('2026-08-06')
+// Prazo do ADR: ATD + 72 horas corridas (decisão de 2026-10-15; ADR 0039).
+describe('calculateAgencyReportDeadlineAt', () => {
+  it('soma 72 horas exatas à hora do ATD, com fim de semana contando', () => {
+    // Sexta 18:40 de Brasília → segunda 18:40 de Brasília.
+    expect(calculateAgencyReportDeadlineAt('2026-10-16T18:40:00-03:00')).toBe('2026-10-19T21:40:00.000Z')
   })
-
-  it('ATD na sexta: prazo vence na quarta seguinte (fim de semana nao conta)', () => {
-    // 2026-08-07 é sexta-feira.
-    expect(calculateAgencyReportDeadlineDate('2026-08-07')).toBe('2026-08-12')
+  it('ATD antigo, só com a data, vale como 00:00 de Brasília', () => {
+    expect(calculateAgencyReportDeadlineAt('2026-10-13')).toBe('2026-10-16T03:00:00.000Z')
   })
-
-  it('ATD no sabado: prazo vence na quarta (conta a partir da segunda seguinte)', () => {
-    // 2026-08-08 é sabado.
-    expect(calculateAgencyReportDeadlineDate('2026-08-08')).toBe('2026-08-12')
-  })
-
-  it('retorna null para ATD em formato invalido', () => {
-    expect(calculateAgencyReportDeadlineDate('08/03/2026')).toBeNull()
-    expect(calculateAgencyReportDeadlineDate('not-a-date')).toBeNull()
+  it('retorna null para ATD inválido', () => {
+    expect(calculateAgencyReportDeadlineAt('08/03/2026')).toBeNull()
   })
 })
 
 describe('deriveAgencyReportDeadlineState', () => {
-  it('ATD ausente: sem prazo', () => {
-    expect(
-      deriveAgencyReportDeadlineState({ atd: null, omitted: false, signedAt: null, now: '2026-08-06T12:00:00Z' }),
-    ).toBe('no-deadline')
+  const atd = '2026-10-13T18:40:00-03:00' // prazo: 2026-10-16 18:40 de Brasília = 21:40Z
+  it('ATD ausente ou escala omitida: sem prazo', () => {
+    expect(deriveAgencyReportDeadlineState({ atd: null, omitted: false, signedAt: null, now: '2026-10-20T00:00:00Z' })).toBe('no-deadline')
+    expect(deriveAgencyReportDeadlineState({ atd, omitted: true, signedAt: null, now: '2026-10-20T00:00:00Z' })).toBe('no-deadline')
   })
-
-  it('escala omitida: sem prazo mesmo com ATD presente', () => {
-    expect(
-      deriveAgencyReportDeadlineState({
-        atd: '2026-08-03',
-        omitted: true,
-        signedAt: null,
-        now: '2026-08-06T12:00:00Z',
-      }),
-    ).toBe('no-deadline')
+  it('assinado exatamente no instante do prazo: no prazo; um minuto depois: atrasado', () => {
+    expect(deriveAgencyReportDeadlineState({ atd, omitted: false, signedAt: '2026-10-16T21:40:00Z', now: '2026-10-20T00:00:00Z' })).toBe('on-time')
+    expect(deriveAgencyReportDeadlineState({ atd, omitted: false, signedAt: '2026-10-16T21:41:00Z', now: '2026-10-20T00:00:00Z' })).toBe('overdue')
   })
-
-  it('assinatura anterior ao ATD conta como no prazo assim que o ATD existe', () => {
-    expect(
-      deriveAgencyReportDeadlineState({
-        atd: '2026-08-03',
-        omitted: false,
-        signedAt: '2026-07-30T09:00:00Z',
-        now: '2026-08-06T12:00:00Z',
-      }),
-    ).toBe('on-time')
+  it('sem assinatura, compara com agora', () => {
+    expect(deriveAgencyReportDeadlineState({ atd, omitted: false, signedAt: null, now: '2026-10-16T21:00:00Z' })).toBe('on-time')
+    expect(deriveAgencyReportDeadlineState({ atd, omitted: false, signedAt: null, now: '2026-10-16T22:00:00Z' })).toBe('overdue')
   })
-
-  it('assinado exatamente no dia do prazo: no prazo (limite inclusivo)', () => {
-    // ATD 2026-08-03 (segunda) -> prazo 2026-08-06 (quinta).
-    expect(
-      deriveAgencyReportDeadlineState({
-        atd: '2026-08-03',
-        omitted: false,
-        signedAt: '2026-08-06T23:59:00Z',
-        now: '2026-08-06T23:59:00Z',
-      }),
-    ).toBe('on-time')
-  })
-
-  it('assinado um dia apos o prazo: vencido', () => {
-    expect(
-      deriveAgencyReportDeadlineState({
-        atd: '2026-08-03',
-        omitted: false,
-        signedAt: '2026-08-07T08:00:00Z',
-        now: '2026-08-07T08:00:00Z',
-      }),
-    ).toBe('overdue')
-  })
-
-  it('nao assinado e "agora" ainda dentro do prazo: no prazo', () => {
-    expect(
-      deriveAgencyReportDeadlineState({
-        atd: '2026-08-03',
-        omitted: false,
-        signedAt: null,
-        now: '2026-08-06T10:00:00Z',
-      }),
-    ).toBe('on-time')
-  })
-
-  it('ADR nascido vencido: ATD registrado depois que o prazo ja passou, sem assinatura', () => {
-    expect(
-      deriveAgencyReportDeadlineState({
-        atd: '2026-08-03',
-        omitted: false,
-        signedAt: null,
-        now: '2026-08-10T10:00:00Z',
-      }),
-    ).toBe('overdue')
+  it('ADR fechado antes da regra mantém a data congelada, comparada pelo dia de Brasília', () => {
+    // Prazo congelado (3 dias úteis) 2026-10-07; 22:30 BRT do dia 7 = 01:30Z do dia 8.
+    expect(deriveAgencyReportDeadlineState({ atd: '2026-10-02', omitted: false, signedAt: '2026-10-08T01:30:00Z', now: '2026-10-09T12:00:00Z', frozenDeadlineDate: '2026-10-07' })).toBe('on-time')
+    expect(deriveAgencyReportDeadlineState({ atd: '2026-10-02', omitted: false, signedAt: '2026-10-08T03:00:00Z', now: '2026-10-09T12:00:00Z', frozenDeadlineDate: '2026-10-07' })).toBe('overdue')
   })
 })
 
-describe('countBusinessDaysBetween', () => {
-  it('conta os dias uteis entre segunda e quinta da mesma semana', () => {
-    // 2026-08-03 (seg) -> 2026-08-06 (qui): ter, qua, qui = 3 dias uteis.
-    expect(countBusinessDaysBetween('2026-08-03', '2026-08-06')).toBe(3)
-  })
-
-  it('fim de semana nao conta, mesmo quando o alvo cai num sabado', () => {
-    // 2026-08-03 (seg) -> 2026-08-08 (sab): ter, qua, qui, sex = 4 dias
-    // uteis; sabado (o proprio alvo) e domingo nao contam. Regressao do
-    // bug em que um helper "pula direto para o proximo dia util" faria o
-    // cursor ultrapassar um alvo em fim de semana antes de parar.
-    expect(countBusinessDaysBetween('2026-08-03', '2026-08-08')).toBe(4)
-  })
-
-  it('alvo no mesmo dia da partida: zero dias uteis', () => {
-    expect(countBusinessDaysBetween('2026-08-03', '2026-08-03')).toBe(0)
-  })
-
-  it('alvo anterior a partida: zero dias uteis (curto-circuito)', () => {
-    expect(countBusinessDaysBetween('2026-08-06', '2026-08-03')).toBe(0)
-  })
-
-  it('retorna null para data em formato invalido', () => {
-    expect(countBusinessDaysBetween('03/08/2026', '2026-08-06')).toBeNull()
-    expect(countBusinessDaysBetween('2026-08-03', 'not-a-date')).toBeNull()
+describe('hoursSinceAtd', () => {
+  it('conta horas inteiras do ATD até a assinatura', () => {
+    expect(hoursSinceAtd('2026-10-13T18:40:00-03:00', '2026-10-14T10:32:00-03:00')).toBe(15)
   })
 })
 
-// O ATD do ADR terminalizado nasce da Atracacao (TIMESTAMPTZ, migration 306) e
-// chega com sufixo de hora. Antes disto o prazo simplesmente nao existia: a
-// aba mostrava o ATD e, logo abaixo, "Aguardando a saída do navio."
-describe('ATD com componente de hora (Atracação, TIMESTAMPTZ)', () => {
-  it('calcula o prazo a partir de um ATD ISO com hora', () => {
-    expect(calculateAgencyReportDeadlineDate('2026-08-03T00:00:00+00:00')).toBe('2026-08-06')
-    expect(calculateAgencyReportDeadlineDate('2026-08-03T15:42:00Z')).toBe('2026-08-06')
-    expect(calculateAgencyReportDeadlineDate('2026-08-03 00:00:00+00')).toBe('2026-08-06')
-  })
-
-  it('deriva o estado de prazo com ATD ISO com hora', () => {
-    expect(
-      deriveAgencyReportDeadlineState({
-        atd: '2026-08-03T00:00:00+00:00',
-        omitted: false,
-        signedAt: '2026-08-05T10:00:00Z',
-        now: '2026-08-05T10:00:00Z',
-      }),
-    ).toBe('on-time')
-    expect(
-      deriveAgencyReportDeadlineState({
-        atd: '2026-08-03T00:00:00+00:00',
-        omitted: false,
-        signedAt: '2026-08-10T10:00:00Z',
-        now: '2026-08-10T10:00:00Z',
-      }),
-    ).toBe('overdue')
-  })
-
-  it('conta dias úteis a partir de um ATD ISO com hora', () => {
-    expect(countBusinessDaysBetween('2026-08-03T00:00:00+00:00', '2026-08-06')).toBe(3)
-  })
-
-  it('continua recusando data ambígua em formato não-ISO', () => {
-    expect(calculateAgencyReportDeadlineDate('08/03/2026')).toBeNull()
-    expect(countBusinessDaysBetween('03/08/2026', '2026-08-06')).toBeNull()
-  })
-})
-
-// B9 (ADR 0039; migration 258): o prazo vence ao fim do dia em Brasília, não em UTC.
-describe('B9 — prazo do ADR no dia de Brasília', () => {
-  it('assinar às 22h30 de Brasília do último dia ainda é no prazo', () => {
-    // ATD sexta 2026-10-02 → prazo quarta 2026-10-07; 22:30 BRT = 01:30Z do dia 8.
-    expect(calculateAgencyReportDeadlineDate('2026-10-02')).toBe('2026-10-07')
-    expect(deriveAgencyReportDeadlineState({ atd: '2026-10-02', omitted: false, signedAt: '2026-10-08T01:30:00Z', now: '2026-10-09T12:00:00Z' })).toBe('on-time')
-    expect(deriveAgencyReportDeadlineState({ atd: '2026-10-02', omitted: false, signedAt: null, now: '2026-10-08T02:59:00Z' })).toBe('on-time')
-    expect(deriveAgencyReportDeadlineState({ atd: '2026-10-02', omitted: false, signedAt: null, now: '2026-10-08T03:00:00Z' })).toBe('overdue')
-  })
-
-  it('o alerta compara com o dia de Brasília, nos dois caminhos', () => {
-    const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations/258_prazo_do_adr_no_dia_de_brasilia.sql'), 'utf8')
-    expect(sql.match(/v_deadline < \(now\(\) AT TIME ZONE 'America\/Sao_Paulo'\)::date/g)).toHaveLength(2)
-    expect(sql).not.toMatch(/v_deadline < CURRENT_DATE/)
+describe('alerta de prazo no banco', () => {
+  it('compara o instante de agora com ATD + 72 horas, nos dois caminhos', () => {
+    const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations/290_prazo_do_adr_em_72_horas.sql'), 'utf8')
+    expect(sql).toMatch(/interval '72 hours'/)
+    expect(sql.match(/v_deadline_at < now\(\)/g)).toHaveLength(2)
   })
 })

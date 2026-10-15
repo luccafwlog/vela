@@ -30,6 +30,8 @@ vi.mock('../../../services/blDemurrageConfig', () => ({
 
 vi.mock('../../../services/demurrage/demurrageRates', () => ({
   ensureDemurrageRatesLoaded: () => Promise.resolve(),
+  demurrageFreeTimeDays: () => 10,
+  demurrageRateFor: () => ({ freeUntil: 10, p1: { range: [11, 20], usd: 50 }, p2: { range: [21, 9999], usd: 80 } }),
   calculateDemurrage: () => ({
     status: 'within_free_time',
     total_days: 10,
@@ -96,6 +98,7 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     const user = userEvent.setup()
     renderComponent()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Definir condição do B/L' }))
     const freeTimeInput = screen.getByDisplayValue('10')
     await user.clear(freeTimeInput)
     await user.type(freeTimeInput, '15')
@@ -123,6 +126,7 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
     const user = userEvent.setup()
     renderComponent()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Definir condição do B/L' }))
     const freeTimeInput = screen.getByDisplayValue('10')
     await user.clear(freeTimeInput)
     await user.type(freeTimeInput, '20')

@@ -2,7 +2,7 @@ import type { BlTimelineEvent, BlTimelineFamily } from '../../services/blTimelin
 
 const FAMILY_LABEL: Record<BlTimelineFamily, string> = {
   edicao: 'Edição',
-  container: 'Container',
+  container: 'Contêiner',
   taxas: 'Taxas',
   fatura: 'Fatura',
   sistema: 'Sistema',
@@ -61,6 +61,9 @@ const FIELD_LABELS: Record<string, string> = {
   imo_class: 'Classe IMO',
   un_number: 'Número ONU',
   is_oog: 'OOG',
+  seal_number: 'Lacre',
+  gross_weight_kg: 'Peso bruto (kg)',
+  cbm: 'CBM (m³)',
 }
 
 const VALUE_LABELS_BY_FIELD: Record<string, Record<string, string>> = {
@@ -116,14 +119,21 @@ function normalizeCollectionValue(fieldName: string, value: string): string | nu
   return trimmed
 }
 
+// Valor ausente escrito por extenso ("Notas: vazio → …"), não "-".
+const EMPTY_VALUE = 'vazio'
+
 function formatTimelineValue(fieldName: string, val: string | null | undefined): string {
-  if (val == null || val.trim() === '') return '-'
+  if (val == null || val.trim() === '') return EMPTY_VALUE
   const normalized = normalizeCollectionValue(fieldName, val)
-  if (!normalized) return '-'
-  if (VALUE_LABELS_BY_FIELD[fieldName] && normalized.toLowerCase() === 'null') return '-'
+  if (!normalized) return EMPTY_VALUE
+  if (VALUE_LABELS_BY_FIELD[fieldName] && normalized.toLowerCase() === 'null') return EMPTY_VALUE
   const fieldLabels = VALUE_LABELS_BY_FIELD[fieldName]
   const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized)
   if (isoDate && (fieldName === 'discharge_date' || fieldName === 'return_date')) return `${isoDate[3]}/${isoDate[2]}/${isoDate[1]}`
+  // Peso e CBM chegam como texto do numeric ("47900.000"): mostra no formato da tela.
+  if ((fieldName === 'gross_weight_kg' || fieldName === 'cbm') && Number.isFinite(Number(normalized))) {
+    return Number(normalized).toLocaleString('pt-BR', { maximumFractionDigits: 3 })
+  }
   return fieldLabels?.[normalized.toLowerCase()] ?? normalized
 }
 
@@ -169,10 +179,13 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
     if (new_value && /^INV-/i.test(new_value)) return `Fatura ${new_value}`
     if (new_value === 'issued') return 'Fatura emitida'
     if (new_value === 'paid') return 'Fatura paga'
-    return `Fatura: ${field_name}`
+    if (new_value === 'partially_paid') return 'Fatura parcialmente paga'
+    if (new_value === 'cancelled') return 'Fatura cancelada'
+    // O nome técnico do campo não aparece no Histórico (identidade, lote 1).
+    return 'Fatura alterada'
   }
   if (entity_type === 'charge_calculation') {
-    return `Taxa: ${new_value ?? field_name}`
+    return new_value ? `Taxa: ${new_value}` : 'Taxa alterada'
   }
   if (entity_type === 'bl_container') {
     // bl_timeline (migration 079) envia '<campo>|<container>' para a auditoria
@@ -205,4 +218,26 @@ export function isImportContext(justification: string | null | undefined): boole
 // Auditoria = entrada com justificativa deliberada (ver CONTEXT.md).
 export function isAudited(event: BlTimelineEvent): boolean {
   return Boolean(event.justification && event.justification.trim()) && !isImportContext(event.justification)
+}
+
+// Motivo que o próprio banco escreve quando a pessoa não informa um
+// (`save_bl_review`, migration 271): não explica nada a quem lê.
+const SYSTEM_DEFAULT_REASONS = new Set(['Revisao manual'])
+
+/**
+ * Texto que acompanha o evento na coluna "O que aconteceu": "Motivo: …" para
+ * a justificativa de quem fez, "Origem: …" para o rastro da importação, e
+ * nada para o motivo padrão escrito pelo sistema.
+ */
+export function timelineEventDetail(event: Pick<BlTimelineEvent, 'justification'>): string | null {
+  const text = event.justification?.trim()
+  if (!text || SYSTEM_DEFAULT_REASONS.has(text)) return null
+  return `${isImportContext(text) ? 'Origem' : 'Motivo'}: ${text}`
+}
+
+/** Coluna "Por": nome de quem fez, "Sistema" no rastro automático, ou nada. */
+export function timelineEventActor(event: Pick<BlTimelineEvent, 'family' | 'changed_by' | 'justification'>, actorNames: ReadonlyMap<string, string>): string | null {
+  if (event.changed_by) return actorNames.get(event.changed_by) ?? null
+  if (event.family === 'sistema' || isImportContext(event.justification)) return 'Sistema'
+  return null
 }

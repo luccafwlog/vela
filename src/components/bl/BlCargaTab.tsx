@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
-import { Badge } from '../ui/Badge'
-import { Card } from '../ui/Card'
-import { Field, Input, Select } from '../ui/Input'
-import { SummaryStrip } from '../ui/SummaryStrip'
+import { Link } from 'react-router-dom'
+import { Block, Fact, FactList } from '../ui/Block'
+import { Button } from '../ui/Button'
 import { CopyValue } from '../ui/CopyValue'
+import { Field, Input } from '../ui/Input'
 import { NoValue } from '../ui/NoValue'
+import { StatusText } from '../ui/StatusText'
 import { formatDate, normalizeText } from '../../lib/utils'
-import { CONTAINER_PROFILE_LABELS, containerProfileOf, type ContainerProfile } from '../../services/vaziosNatureza'
 import { formatNumber } from '../../pages/blDetalheHelpers'
-import { ContainerOwnershipBadge } from '../shared/OperationalBadges'
-import { CONTAINER_OWNERSHIP_SOURCE_LABELS, type ContainerOwnership } from '../../lib/containerOwnership'
+import { DemurrageCell, ProfileCell } from './BlCargoCells'
+import { containerSummary, formatOptionalNumber, formatOptionalText, hasBreakbulkData } from './blCargoFormat'
+import { BlContainerCorrectModal } from './BlContainerCorrectModal'
 import type { BLDetail } from '../../types/database'
 
 import type { CargoMode } from '../../pages/blDetalheHelpers'
@@ -30,169 +31,144 @@ export type BreakbulkSummary = {
   cbm: number
 }
 
-// Aba Carga: containers (com data de devolução/demurrage), resumo BB e veículos vinculados.
+type Container = NonNullable<BLDetail['bl_containers']>[number] & { demurrage_status?: string | null }
+
+/**
+ * Aba Carga (identidade, lote 1): Contêineres, Carga solta e Veículos em
+ * blocos, cada um só quando o B/L tem aquele tipo de carga. A tabela de
+ * contêineres tem as colunas da carga aberta na lista de BLs; Corrigir abre a
+ * janela com os dados corrigíveis do container.
+ */
 export function BlCargaTab({
   active,
   bl,
   cargoMode = 'container',
-  isContainerMode,
-  containerSummary,
-  breakbulkSummary,
-  onChangeProfile,
-  onChangeOwnership,
+  canCorrect,
+  chargesLocked,
   ownershipDivergences,
 }: {
-  onChangeProfile?: (containerId: number, profile: ContainerProfile) => void
-  onChangeOwnership?: (containerId: number, ownership: ContainerOwnership) => void
-  /** container_number → SOC/COC que o Baplie declara, quando discorda do B/L */
-  ownershipDivergences?: ReadonlyMap<string, string>
   active: boolean
   bl: BLDetail
   blId?: string
   cargoMode?: CargoMode
-  isContainerMode: boolean
-  containerSummary: ContainerSummary
-  breakbulkSummary: BreakbulkSummary
+  /** B/L não cancelado: oferece Corrigir. */
+  canCorrect: boolean
+  /** B/L faturado: Perfil e COC/SOC travam na janela Corrigir. */
+  chargesLocked: boolean
+  /** container_number → SOC/COC que o Baplie declara, quando discorda do B/L */
+  ownershipDivergences?: ReadonlyMap<string, string>
 }) {
   const [vehicleSearch, setVehicleSearch] = useState('')
+  const [correcting, setCorrecting] = useState<Container | null>(null)
 
-  const showContainers = cargoMode === 'container' || cargoMode === 'misto' || isContainerMode
-  const showBreakbulk = cargoMode === 'carga_solta' || cargoMode === 'misto' || !isContainerMode
+  const containers = (bl.bl_containers ?? []) as Container[]
+  const vehicles = useMemo(() => bl.vehicles ?? [], [bl.vehicles])
+  const items = bl.bl_breakbulk_items ?? []
+  const showBreakbulk = cargoMode === 'carga_solta' || cargoMode === 'misto'
 
   const filteredVehicles = useMemo(() => {
-    if (!showContainers) return []
-
     const term = normalizeText(vehicleSearch)
-    if (!term) return bl.vehicles ?? []
-    return (bl.vehicles ?? []).filter((vehicle) => normalizeText(vehicle.chassis).includes(term))
-  }, [bl.vehicles, showContainers, vehicleSearch])
+    if (!term) return vehicles
+    return vehicles.filter((vehicle) => normalizeText(vehicle.chassis).includes(term))
+  }, [vehicles, vehicleSearch])
 
   if (!active) return null
 
-  const vehicles = bl.vehicles ?? []
+  const divergent = containers.filter((container) => ownershipDivergences?.has(container.container_number))
+  const brands = Object.entries(vehicles.reduce<Record<string, number>>((acc, vehicle) => {
+    const brand = vehicle.brand || 'Sem marca'
+    acc[brand] = (acc[brand] ?? 0) + 1
+    return acc
+  }, {})).map(([brand, count]) => `${brand} ${count}`).join(' · ')
+
+  if (!containers.length && !vehicles.length && !showBreakbulk) {
+    return (
+      <Block title="Carga">
+        <p className="app-facts__detail">Nenhuma carga vinculada a este B/L.</p>
+      </Block>
+    )
+  }
 
   return (
-    <Card className="app-bl-sheet">
-      {showContainers ? (
-        <section className="app-bl-sheet__section" aria-labelledby="bl-containers">
-          <div className="app-bl-section-head">
-            <h2 id="bl-containers" className="app-bl-section-title">Containers vinculados</h2>
-            <SummaryStrip
-              label="Resumo dos containers"
-              items={[
-                { label: containerSummary.distinct === 1 ? 'CNTR' : 'CNTRs', value: containerSummary.distinct },
-                { label: 'IMO', value: containerSummary.imo, tone: containerSummary.imo ? 'warning' : 'default' },
-                { label: 'OOG', value: containerSummary.oog, tone: containerSummary.oog ? 'warning' : 'default' },
-                { label: 'SOC', value: containerSummary.soc },
-                { label: 'COC', value: containerSummary.coc },
-              ]}
-            />
-          </div>
-          {onChangeProfile || onChangeOwnership ? (
-            <p className="app-bl-facts__sub">Perfil e SOC/COC podem ser corrigidos na linha; cada troca pede justificativa e recalcula as taxas locais.</p>
+    <div className="grid gap-5">
+      {containers.length ? (
+        <Block title="Contêineres" flush aside={containerSummary(containers)}>
+          {divergent.length ? (
+            <div className="app-block__body flex flex-wrap items-center gap-3" role="status">
+              <StatusText tone="warning">
+                Baplie diverge do B/L em {divergent.map((container) => `${container.container_number} (Baplie diz ${ownershipDivergences?.get(container.container_number)})`).join(', ')}. Vale o B/L.
+              </StatusText>
+              {bl.voyage_id ? <Link className="app-btn app-btn--secondary app-btn--sm" to={`/baplie?voyage=${bl.voyage_id}`}>Abrir conciliação</Link> : null}
+            </div>
           ) : null}
-
           <div className="app-table-scroll">
-            <table className="app-table app-table--compact app-bl-subtable min-w-[880px]">
+            <table className="app-table app-table--compact">
+              <caption className="sr-only">Contêineres do B/L</caption>
               <thead>
                 <tr>
-                  <th scope="col">Container</th>
-                  <th scope="col">Lacre</th>
+                  <th scope="col">Contêiner</th>
                   <th scope="col">Tipo</th>
+                  <th scope="col">COC/SOC</th>
+                  <th scope="col">Perfil</th>
+                  <th scope="col">Lacre</th>
                   <th scope="col">Tara (kg)</th>
                   <th scope="col">Peso bruto (kg)</th>
                   <th scope="col">CBM (m³)</th>
-                  <th scope="col">Perfil</th>
-                  <th scope="col">SOC/COC</th>
                   <th scope="col">Descarga</th>
+                  <th scope="col">Devolução</th>
+                  <th scope="col">Demurrage</th>
+                  {canCorrect ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                 </tr>
               </thead>
               <tbody>
-                {bl.bl_containers?.length ? (
-                  bl.bl_containers.map((container) => (
-                    <tr key={container.id}>
-                      <td className="app-bl-code text-[var(--app-text-strong)]"><CopyValue value={container.container_number} label="número do contêiner" /></td>
-                      <td className="app-bl-code">{container.seal_number ?? <NoValue label="Sem lacre" />}</td>
-                      <td>{container.type ?? <NoValue label="Sem tipo" />}</td>
-                      <td className="tabular-nums">{container.tare_weight_kg == null ? <NoValue label="Sem tara" /> : formatNumber(container.tare_weight_kg)}</td>
-                      <td className="tabular-nums">{container.gross_weight_kg == null ? <NoValue label="Sem peso bruto" /> : formatNumber(container.gross_weight_kg)}</td>
-                      <td className="tabular-nums">{container.cbm == null ? <NoValue label="Sem CBM" /> : formatNumber(container.cbm)}</td>
+                {containers.map((container) => (
+                  <tr key={container.id}>
+                    <td className="app-bl-code whitespace-nowrap"><CopyValue value={container.container_number} label="número do contêiner" /></td>
+                    <td className="whitespace-nowrap">{container.type ?? <NoValue label="Sem tipo" />}</td>
+                    <td className="whitespace-nowrap">{container.ownership === 'SOC' || container.ownership === 'COC' ? container.ownership : <NoValue label="Sem COC/SOC informado" />}</td>
+                    <td className="whitespace-nowrap"><ProfileCell isImo={Boolean(container.is_imo)} isOog={Boolean(container.is_oog)} imoClass={container.imo_class} unNumber={container.un_number} /></td>
+                    <td className="app-bl-code whitespace-nowrap">{container.seal_number ?? <NoValue label="Sem lacre" />}</td>
+                    <td className="whitespace-nowrap tabular-nums">{formatOptionalNumber(container.tare_weight_kg, 'Sem tara')}</td>
+                    <td className="whitespace-nowrap tabular-nums">{formatOptionalNumber(container.gross_weight_kg, 'Sem peso bruto')}</td>
+                    <td className="whitespace-nowrap tabular-nums">{formatOptionalNumber(container.cbm, 'Sem CBM')}</td>
+                    <td className="whitespace-nowrap tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
+                    <td className="whitespace-nowrap tabular-nums">
+                      {container.return_date ? formatDate(container.return_date) : container.ownership === 'SOC' ? <StatusText tone="muted">Não se aplica</StatusText> : <NoValue label="Sem devolução" />}
+                    </td>
+                    <td className="whitespace-nowrap"><DemurrageCell container={container} /></td>
+                    {canCorrect ? (
                       <td>
-                        {onChangeProfile ? (
-                          <Select
-                            aria-label={`Perfil do container ${container.container_number}`}
-                            value={containerProfileOf(container)}
-                            onChange={(event) => onChangeProfile(container.id, event.target.value as ContainerProfile)}
-                          >
-                            {Object.entries(CONTAINER_PROFILE_LABELS).map(([value, label]) => (
-                              <option key={value} value={value}>{label}</option>
-                            ))}
-                          </Select>
-                        ) : container.is_imo || container.is_oog ? (
-                          <span className="flex gap-1">
-                            {container.is_imo ? <Badge tone="danger">IMO</Badge> : null}
-                            {container.is_oog ? <Badge tone="warning">OOG</Badge> : null}
-                          </span>
-                        ) : (
-                          'Padrão'
-                        )}
+                        <Button variant="secondary" className="app-btn--sm" onClick={() => setCorrecting(container)} aria-label={`Corrigir container ${container.container_number}`}>
+                          Corrigir
+                        </Button>
                       </td>
-                      <td>
-                        <div className="flex flex-wrap items-center gap-1">
-                          {onChangeOwnership ? (
-                            <Select
-                              aria-label={`SOC/COC do container ${container.container_number}`}
-                              value={container.ownership ?? ''}
-                              onChange={(event) => onChangeOwnership(container.id, event.target.value as ContainerOwnership)}
-                            >
-                              {container.ownership ? null : <option value="" disabled>Não informado</option>}
-                              <option value="COC">COC</option>
-                              <option value="SOC">SOC</option>
-                            </Select>
-                          ) : (
-                            <ContainerOwnershipBadge
-                              ownership={container.ownership}
-                              title={container.ownership_source ? `Origem: ${CONTAINER_OWNERSHIP_SOURCE_LABELS[container.ownership_source] ?? container.ownership_source}` : undefined}
-                            />
-                          )}
-                          {ownershipDivergences?.has(container.container_number) ? (
-                            <span className="app-bl-facts__sub app-bl-tone--warning">
-                              Baplie diz {ownershipDivergences.get(container.container_number)}; vale o B/L
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="app-bl-facts__missing" colSpan={9}>Nenhum container vinculado a este B/L.</td>
+                    ) : null}
                   </tr>
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-        </section>
+        </Block>
       ) : null}
 
       {showBreakbulk ? (
-        <section className={`app-bl-sheet__section${showContainers ? ' app-bl-sheet__section--ruled' : ''}`} aria-labelledby="bl-breakbulk">
-          <div className="app-bl-section-head">
-            <h2 id="bl-breakbulk" className="app-bl-section-title">Resumo da carga solta</h2>
-            <SummaryStrip
-              label="Resumo da carga solta"
-              items={[
-                { label: breakbulkSummary.machines === 1 ? 'máquina' : 'máquinas', value: formatNumber(breakbulkSummary.machines) },
-                { label: 'packages', value: formatNumber(breakbulkSummary.packagesTotal) },
-                { label: 't', value: formatNumber(breakbulkSummary.weightTon) },
-                { label: 'm³', value: formatNumber(breakbulkSummary.cbm) },
-              ]}
-            />
-          </div>
-          {bl.bl_breakbulk_items?.length ? (
+        <Block title="Carga solta" flush={items.length > 0}>
+          {hasBreakbulkData(bl) ? (
+            <div className={items.length ? 'app-block__body' : undefined}>
+              <FactList columns={4}>
+                <Fact label="Máquinas">{formatOptionalNumber(bl.bb_machine_qty, 'Sem quantidade de máquinas')}</Fact>
+                <Fact label="Packages" detail={bl.bb_packages_total != null && Number(bl.bb_packages_total) !== Number(bl.bb_packages_qty) ? `${formatOptionalText(bl.bb_packages_total)} no total` : null}>
+                  {formatOptionalNumber(bl.bb_packages_qty, 'Sem packages')}
+                </Fact>
+                <Fact label="Peso">{bl.bb_weight_ton == null ? <NoValue label="Sem peso" /> : `${formatOptionalText(bl.bb_weight_ton)} t`}</Fact>
+                <Fact label="CBM">{bl.bb_cbm == null ? <NoValue label="Sem CBM" /> : `${formatOptionalText(bl.bb_cbm)} m³`}</Fact>
+              </FactList>
+            </div>
+          ) : null}
+          {items.length ? (
             <div className="app-table-scroll">
-              <table className="app-table app-table--compact app-bl-subtable min-w-[640px]">
+              <table className="app-table app-table--compact">
+                <caption className="sr-only">Itens da carga solta</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="app-table__text-head">Descrição</th>
@@ -204,9 +180,9 @@ export function BlCargaTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {bl.bl_breakbulk_items.map((item) => (
+                  {items.map((item) => (
                     <tr key={item.id}>
-                      <td className="app-table__text font-medium text-[var(--app-text-strong)]" title={item.item_description ?? undefined}>{item.item_description}</td>
+                      <td className="app-table__text" title={item.item_description ?? undefined}>{item.item_description || <NoValue label="Sem descrição" />}</td>
                       <td className="tabular-nums">{formatNumber(item.package_qty)}</td>
                       <td>{item.package_unit ?? <NoValue label="Sem unidade" />}</td>
                       <td className="tabular-nums">{formatNumber(item.gross_weight_kg)}</td>
@@ -217,60 +193,61 @@ export function BlCargaTab({
                 </tbody>
               </table>
             </div>
-          ) : (
-            <p className="app-bl-facts__missing">Nenhum item individual vinculado a este B/L; vale o resumo acima.</p>
-          )}
-        </section>
+          ) : null}
+          {!hasBreakbulkData(bl) && !items.length ? (
+            <p className="app-facts__detail">Nenhum dado de carga solta informado no B/L: sem máquinas, packages, peso ou CBM, e sem itens.</p>
+          ) : null}
+        </Block>
       ) : null}
 
-      {showContainers ? (
-        <section className="app-bl-sheet__section app-bl-sheet__section--ruled" aria-labelledby="bl-vehicles">
-          <div className="app-bl-section-head">
-            <h2 id="bl-vehicles" className="app-bl-section-title">Veículos vinculados</h2>
-            {vehicles.length > 8 ? (
+      {vehicles.length ? (
+        <Block title="Veículos" flush aside={`${vehicles.length} ${vehicles.length === 1 ? 'veículo' : 'veículos'} · ${brands}`}>
+          {vehicles.length > 8 ? (
+            <div className="app-block__body">
               <div className="w-full max-w-xs">
                 <Field label="Buscar por chassi">
                   <Input value={vehicleSearch} onChange={(event) => setVehicleSearch(event.target.value)} />
                 </Field>
               </div>
-            ) : null}
-          </div>
-          {vehicles.length === 0 ? (
-            <p className="app-bl-facts__missing">Nenhum veículo vinculado a este B/L.</p>
-          ) : (
-            <div className="app-table-scroll">
-              <table className="app-table app-table--compact app-bl-subtable min-w-[640px] whitespace-nowrap">
-                <thead>
-                  <tr>
-                    <th scope="col">Chassi</th>
-                    <th scope="col">Marca</th>
-                    <th scope="col">Container</th>
-                    <th scope="col">Peso (kg)</th>
-                    <th scope="col">Cubagem (m³)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredVehicles.length ? (
-                    filteredVehicles.map((vehicle) => (
-                      <tr key={vehicle.id}>
-                        <td className="app-bl-code text-[var(--app-text-strong)]">{vehicle.chassis}</td>
-                        <td>{vehicle.brand}</td>
-                        <td className="app-bl-code">{vehicle.container?.container_number ? <CopyValue value={vehicle.container.container_number} label="número do contêiner" /> : <NoValue label="Sem contêiner" />}</td>
-                        <td className="tabular-nums">{formatNumber(vehicle.weight_kg)}</td>
-                        <td className="tabular-nums">{formatNumber(vehicle.cbm)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td className="app-bl-facts__missing" colSpan={5}>Nenhum chassi com esse trecho.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
             </div>
-          )}
-        </section>
+          ) : null}
+          <div className="app-table-scroll">
+            <table className="app-table app-table--compact">
+              <caption className="sr-only">Veículos do B/L</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Chassi</th>
+                  <th scope="col">Marca</th>
+                  <th scope="col">Contêiner</th>
+                  <th scope="col">Peso (kg)</th>
+                  <th scope="col">Cubagem (m³)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredVehicles.length ? (
+                  filteredVehicles.map((vehicle) => (
+                    <tr key={vehicle.id}>
+                      <td className="app-bl-code whitespace-nowrap">{vehicle.chassis}</td>
+                      <td>{vehicle.brand ?? <NoValue label="Sem marca" />}</td>
+                      <td className="app-bl-code whitespace-nowrap">{vehicle.container?.container_number ? <CopyValue value={vehicle.container.container_number} label="número do contêiner" /> : <NoValue label="Sem contêiner" />}</td>
+                      <td className="tabular-nums">{formatNumber(vehicle.weight_kg)}</td>
+                      <td className="tabular-nums">{formatNumber(vehicle.cbm)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="text-[var(--app-muted)]" colSpan={5}>Nenhum chassi com esse trecho.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Block>
       ) : null}
-    </Card>
+
+      {correcting ? (
+        <BlContainerCorrectModal bl={bl} container={correcting} chargesLocked={chargesLocked} onClose={() => setCorrecting(null)} />
+      ) : null}
+    </div>
   )
 }

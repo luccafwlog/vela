@@ -1,4 +1,4 @@
-import { Box, Car, FileText, PackageOpen, ShieldCheck } from 'lucide-react'
+import { Box, Car, FileText, PackageOpen } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { VoyageVehicleStat } from '../../hooks/useVehicles'
 import type { VoyageVaziosImportacaoStat } from '../../hooks/useVaziosImportacaoStats'
@@ -34,17 +34,18 @@ export function VoyageImportacaoTab({ voyage, voyageLabel, vehicleStats, vaziosI
   // Sem SOC/COC no B/L nem no Baplie: tratado como COC, mas contado à parte
   // para a pendência de cadastro ficar visível.
   const unknownOwnership = Math.max(0, distinctContainers - socCount - cocCount)
+  const breakbulkBlCount = splitVoyageBls(voyage.bls).breakbulkBls.length
   const totals = [
     ['B/Ls', formatMetric(voyage.bls?.length ?? 0)],
-    ['CNTRs distintos', formatMetric(distinctContainers)],
+    [`CNTRs distintos em ${formatMetric(containerBls.length)} ${containerBls.length === 1 ? 'B/L' : 'B/Ls'}`, formatMetric(distinctContainers)],
     ['IMO', formatMetric(countDistinctContainerNumbersBy(containers, (container) => Boolean(container.is_imo)))],
     ['OOG', formatMetric(countDistinctContainerNumbersBy(containers, (container) => Boolean(container.is_oog)))],
     ['SOC', formatMetric(socCount)],
     ['COC', formatMetric(cocCount)],
-    ...(unknownOwnership > 0 ? [['SOC/COC não informado', formatMetric(unknownOwnership)]] : []),
+    ...(unknownOwnership > 0 ? [['SOC/COC não informado', formatMetric(unknownOwnership), 'warning']] : []),
     ['Veículos', formatMetric(vehicleStats.totalVehicles)],
-    ['Carga solta', `${formatMetric(totalWeightTon)} ton`],
-  ] as Array<[string, string]>
+    [`Carga solta em ${formatMetric(breakbulkBlCount)} ${breakbulkBlCount === 1 ? 'B/L' : 'B/Ls'}`, `${formatMetric(totalWeightTon)} ton`],
+  ] as Array<[string, string, 'warning'?]>
 
   const hasUnassigned = Boolean(
     (vaziosImpStats.unassigned && (vaziosImpStats.unassigned.distinctContainers > 0 || vaziosImpStats.unassigned.manifestos > 0)) ||
@@ -74,27 +75,27 @@ export function VoyageImportacaoTab({ voyage, voyageLabel, vehicleStats, vaziosI
         </div>
       ) : null}
       {userId ? (
-        <section className="mt-1 grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          <div>
-            <div className="text-xs font-semibold text-[var(--app-muted)]">Importação rápida</div>
-            <div className="mt-1 text-[13px] text-[var(--app-muted)]">Importe arquivos diretamente nesta viagem sem sair da tela.</div>
-          </div>
+        <section className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-4" aria-label="Importação rápida">
+          <h3 className="text-sm font-semibold text-[var(--app-strip-text)]">Importação rápida</h3>
           <VoyageImportActions voyageId={voyage.id} voyageLabel={voyageLabel} userId={userId} types={['baplie', 'blFreight', 'blBreakbulk', 'ceMercante', 'vehicles', 'vaziosImp']} />
-          <div className="flex items-start gap-2 text-xs leading-5 text-[var(--app-muted-soft)]">
-            <ShieldCheck size={13} className="mt-0.5 shrink-0" />
-            <span><b className="text-[var(--app-muted)]">CE Mercante serve os dois modos.</b> O import casa por número de B/L contra a tabela <code>bls</code>, que guarda container e carga solta no mesmo lugar (<code>cargo_mode</code>) — um botão só.</span>
-          </div>
         </section>
       ) : null}
     </div>
   )
 }
 
-function TotalStrip({ totals }: { totals: Array<[string, string]> }) {
+// Opção A da identidade (lote 1, 2026-10-15): total e cabeçalho da escala no
+// azul-marinho da estrutura; os quadros de dentro com título na faixa azulada.
+function TotalStrip({ totals }: { totals: Array<[string, string, 'warning'?]> }) {
   return (
-    <div className="flex flex-wrap items-center gap-y-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-3">
-      <span className="mr-2 shrink-0 text-xs font-semibold text-[var(--app-muted)]">Total da viagem</span>
-      {totals.map(([label, value], index) => <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-border)]' : ''}`}><span className="font-[var(--app-font-mono)] text-base font-semibold text-[var(--app-text-strong)]">{value}</span><span className="text-xs text-[var(--app-muted-soft)]">{label}</span></span>)}
+    <div className="flex flex-wrap items-center gap-y-3 rounded-lg bg-[var(--app-thead-bg)] px-4 py-3 text-[var(--app-thead-text)]">
+      <span className="mr-2 shrink-0 text-xs font-semibold opacity-80">Total da viagem</span>
+      {totals.map(([label, value, tone], index) => (
+        <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-thead-text)]/25' : ''}`}>
+          <span className={`font-[var(--app-font-mono)] text-base font-semibold ${tone === 'warning' ? 'text-[var(--app-gold)]' : ''}`}>{value}</span>
+          <span className={`text-xs ${tone === 'warning' ? 'text-[var(--app-gold)]' : 'opacity-80'}`}>{label}</span>
+        </span>
+      ))}
     </div>
   )
 }
@@ -109,26 +110,31 @@ function PodBlock({ pod, summary, vehicle, vazios }: {
   vehicle: VoyageVehicleStat['byPod'][string] | undefined
   vazios: VoyageVaziosImportacaoStat['byPod'][string] | undefined
 }) {
-  const containers = summary?.containers ?? { distinct: 0, imo: 0, oog: 0, soc: 0, coc: 0, types: '' }
+  const containers = summary?.containers ?? { bls: 0, distinct: 0, imo: 0, oog: 0, soc: 0, coc: 0, types: '' }
   const generalCargo = summary?.generalCargo ?? { distinct: 0, imo: 0, oog: 0 }
   const breakbulk = summary?.breakbulk ?? { bls: 0, machines: 0, packages: 0, weightTon: 0, cbm: 0 }
   const vehicleContainers = summary?.vehicles.distinctContainers ?? vehicle?.distinctContainerCount ?? 0
   const vehicleCount = vehicle?.totalVehicles ?? 0
-  const summaryParts: string[] = [`${containers.distinct} CNTRs`]
-  if (breakbulk.bls > 0) summaryParts.push(`${breakbulk.bls} B/Ls carga solta`)
+  const blsLabel = (count: number) => `${formatMetric(count)} ${count === 1 ? 'B/L' : 'B/Ls'}`
+  const summaryParts: string[] = [`${containers.distinct} CNTRs em ${blsLabel(containers.bls)}`]
+  if (breakbulk.bls > 0) summaryParts.push(`${formatMetric(breakbulk.weightTon)} t de carga solta em ${blsLabel(breakbulk.bls)}`)
   if (vehicleContainers > 0) summaryParts.push(`${vehicleContainers} CNTRs c/ veículos`)
-  const summaryLabel = summaryParts.join(' · ')
 
   return (
-    <div className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2"><span className="inline-flex items-baseline gap-2"><span className="text-base font-bold text-[var(--app-text-strong)]">{pod}</span><span className="text-xs text-[var(--app-muted-soft)]">{formatPortDisplayName(pod)}</span></span><span className="text-xs text-[var(--app-muted)]">{summaryLabel}</span></div>
-      <div className="grid gap-3 xl:grid-cols-2">
-        <Panel title="Containers" icon={<Box size={15} />} lead={containers.distinct} leadUnit="distintos"><MiniStats stats={[['Carga geral', generalCargo.distinct], ['C/ veículos', vehicleContainers], ['IMO', containers.imo], ['OOG', containers.oog], ['SOC', containers.soc], ['COC', containers.coc]]} /><CountPills values={parseCountSummary(containers.types)} /></Panel>
-        {breakbulk.bls ? <Panel title="Carga solta" icon={<FileText size={15} />} lead={breakbulk.weightTon} leadUnit="ton"><MiniStats stats={[['B/Ls', breakbulk.bls], ['Máquinas', breakbulk.machines], ['Packages', breakbulk.packages], ['CBM', breakbulk.cbm]]} /></Panel> : <Panel title="Carga solta" icon={<FileText size={15} />} empty="Sem carga solta nesta escala" />}
+    <section className="overflow-hidden rounded-lg border border-[var(--app-border)]" aria-label={`Escala ${pod}`}>
+      <header className="flex flex-wrap items-baseline justify-between gap-2 bg-[var(--app-thead-bg)] px-4 py-2.5 text-[var(--app-thead-text)]">
+        <span className="inline-flex items-baseline gap-2"><span className="text-base font-bold">{pod}</span><span className="text-xs opacity-80">{formatPortDisplayName(pod)}</span></span>
+        <span className="text-xs opacity-80">{summaryParts.join(' · ')}</span>
+      </header>
+      <div className="grid gap-3 bg-[var(--app-surface-muted)] p-3.5 px-4">
+        <div className="grid gap-3 xl:grid-cols-2">
+          <Panel title="Containers" icon={<Box size={15} />} lead={containers.distinct} leadUnit={`distintos em ${blsLabel(containers.bls)}`}><MiniStats stats={[['B/Ls', containers.bls], ['Carga geral', generalCargo.distinct], ['C/ veículos', vehicleContainers], ['IMO', containers.imo], ['OOG', containers.oog], ['SOC', containers.soc], ['COC', containers.coc]]} /><CountPills values={parseCountSummary(containers.types)} /></Panel>
+          {breakbulk.bls ? <Panel title="Carga solta" icon={<FileText size={15} />} lead={breakbulk.weightTon} leadUnit={`ton em ${blsLabel(breakbulk.bls)}`}><MiniStats stats={[['B/Ls', breakbulk.bls], ['Máquinas', breakbulk.machines], ['Packages', breakbulk.packages], ['CBM', breakbulk.cbm]]} /></Panel> : <Panel title="Carga solta" icon={<FileText size={15} />} empty="Sem carga solta nesta escala" />}
+        </div>
+        {vehicleCount ? <ScaleStrip title="Veículos" icon={<Car size={15} />} lead={vehicleCount} leadUnit="unidades" blocks={[{ label: 'CNTRs', value: vehicleContainers }, { label: 'Marcas', value: <CountPills values={parseCountSummary(vehicle?.brandSummary)} /> }, { label: 'Tipo de container', value: <CountPills values={parseCountSummary(vehicle?.vehicleByContainerTypeSummary)} />, grow: true }]} /> : <EmptyScaleStrip title="Veículos" icon={<Car size={15} />} text="Sem veículos descarregados nesta escala" />}
+        {vazios && (vazios.distinctContainers > 0 || vazios.manifestos > 0) ? <ScaleStrip title="Vazios IMP" icon={<PackageOpen size={15} />} lead={vazios.distinctContainers} leadUnit="containers" blocks={[{ label: 'Manifestos', value: vazios.manifestos }, { label: 'Tipos', value: <CountPills values={vazios.types} />, grow: true }]} /> : <EmptyScaleStrip title="Vazios IMP" icon={<PackageOpen size={15} />} text="Sem vazios de importação nesta escala" />}
       </div>
-      {vehicleCount ? <ScaleStrip title="Veículos" icon={<Car size={15} />} lead={vehicleCount} leadUnit="unidades" blocks={[{ label: 'CNTRs', value: vehicleContainers }, { label: 'Marcas', value: <CountPills values={parseCountSummary(vehicle?.brandSummary)} /> }, { label: 'Tipo de container', value: <CountPills values={parseCountSummary(vehicle?.vehicleByContainerTypeSummary)} />, grow: true }]} /> : <EmptyScaleStrip title="Veículos" icon={<Car size={15} />} text="Sem veículos descarregados nesta escala" />}
-      {vazios && (vazios.distinctContainers > 0 || vazios.manifestos > 0) ? <ScaleStrip title="Vazios IMP" icon={<PackageOpen size={15} />} lead={vazios.distinctContainers} leadUnit="containers" blocks={[{ label: 'Manifestos', value: vazios.manifestos }, { label: 'Tipos', value: <CountPills values={vazios.types} />, grow: true }]} /> : <EmptyScaleStrip title="Vazios IMP" icon={<PackageOpen size={15} />} text="Sem vazios de importação nesta escala" />}
-    </div>
+    </section>
   )
 }
 
@@ -146,14 +152,15 @@ function UnassignedCargoBlock({
   if (vaziosCount > 0) summaryParts.push(`${vaziosCount} vazios`)
 
   return (
-    <div className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+    <section className="overflow-hidden rounded-lg border border-[var(--app-border)]" aria-label="Sem escala atribuída">
+      <header className="flex flex-wrap items-baseline justify-between gap-2 bg-[var(--app-thead-bg)] px-4 py-2.5 text-[var(--app-thead-text)]">
         <span className="inline-flex items-baseline gap-2">
-          <span className="text-base font-bold text-[var(--app-text-strong)]">Sem escala atribuída</span>
-          <span className="text-xs text-[var(--app-muted-soft)]">Cargas de importação sem porto de descarga (POD) definido</span>
+          <span className="text-base font-bold">Sem escala atribuída</span>
+          <span className="text-xs opacity-80">Cargas de importação sem porto de descarga (POD) definido</span>
         </span>
-        <span className="text-xs text-[var(--app-muted)]">{summaryParts.join(' · ')}</span>
-      </div>
+        <span className="text-xs opacity-80">{summaryParts.join(' · ')}</span>
+      </header>
+      <div className="grid gap-3 bg-[var(--app-surface-muted)] p-3.5 px-4">
       {vehicleCount > 0 && vehicle ? (
         <ScaleStrip
           title="Veículos"
@@ -179,7 +186,8 @@ function UnassignedCargoBlock({
           ]}
         />
       ) : null}
-    </div>
+      </div>
+    </section>
   )
 }
 
@@ -191,7 +199,17 @@ function Panel({ title, icon, lead, leadUnit, empty, children }: {
   empty?: string
   children?: ReactNode
 }) {
-  return <div className="flex min-h-[126px] flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5 px-4"><div className="flex items-center justify-between gap-2"><span className={`inline-flex items-center gap-2 text-[13px] font-semibold ${empty ? 'text-[var(--app-muted-soft)]' : 'text-[var(--app-text-strong)]'}`}><span className="text-[var(--app-muted)]">{icon}</span>{title}</span>{empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>}</div>{empty ? <div className="flex min-h-[68px] flex-1 items-center justify-center rounded-md border border-dashed border-[var(--app-border)] px-3.5 text-center text-xs text-[var(--app-muted-soft)]">{empty}</div> : children}</div>
+  return (
+    <div className="flex min-h-[126px] flex-col overflow-hidden rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)]">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--app-border-soft)] bg-[var(--app-strip)] px-4 py-2 text-[var(--app-strip-text)]">
+        <span className="inline-flex items-center gap-2 text-sm font-semibold"><span aria-hidden="true">{icon}</span>{title}</span>
+        {empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted)]">{leadUnit}</span></span>}
+      </div>
+      <div className="flex flex-1 flex-col gap-3 p-3.5 px-4">
+        {empty ? <span className="text-sm text-[var(--app-muted)]">{empty}</span> : children}
+      </div>
+    </div>
+  )
 }
 
 function MiniStats({ stats }: { stats: Array<[string, number]> }) {
@@ -204,11 +222,11 @@ function CountPills({ values }: { values: CountToken[] }) {
 }
 
 function ScaleStrip({ title, icon, lead, leadUnit, blocks }: { title: string; icon: ReactNode; lead: number; leadUnit: string; blocks: Array<{ label: string; value: ReactNode; grow?: boolean }> }) {
-  return <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3.5"><span className="inline-flex shrink-0 items-center gap-2 text-[13px] font-semibold text-[var(--app-text-strong)]"><span className="text-[var(--app-muted)]">{icon}</span>{title}</span><span className="inline-flex shrink-0 items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>{blocks.map((block) => <span key={block.label} className={`flex flex-col gap-1 border-l-2 border-[var(--app-border)] pl-3 ${block.grow ? 'min-w-[180px] flex-1' : ''}`}><span className="flex flex-wrap gap-1.5 text-sm font-semibold text-[var(--app-text-strong)]">{typeof block.value === 'number' ? formatMetric(block.value) : block.value}</span><span className="text-xs text-[var(--app-muted-soft)]">{block.label}</span></span>)}</div>
+  return <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3.5"><span className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-[var(--app-strip-text)]"><span aria-hidden="true">{icon}</span>{title}</span><span className="inline-flex shrink-0 items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>{blocks.map((block) => <span key={block.label} className={`flex flex-col gap-1 border-l-2 border-[var(--app-border)] pl-3 ${block.grow ? 'min-w-[180px] flex-1' : ''}`}><span className="flex flex-wrap gap-1.5 text-sm font-semibold text-[var(--app-text-strong)]">{typeof block.value === 'number' ? formatMetric(block.value) : block.value}</span><span className="text-xs text-[var(--app-muted-soft)]">{block.label}</span></span>)}</div>
 }
 
 function EmptyScaleStrip({ title, icon, text }: { title: string; icon: ReactNode; text: string }) {
-  return <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-[var(--app-muted-soft)]"><span className="inline-flex shrink-0 items-center gap-2 text-[13px] font-semibold"><span>{icon}</span>{title}</span><span className="text-xs">{text}</span></div>
+  return <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3"><span className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-[var(--app-strip-text)]"><span aria-hidden="true">{icon}</span>{title}</span><span className="text-sm text-[var(--app-muted)]">{text}</span></div>
 }
 
 function parseCountSummary(value: string | null | undefined): CountToken[] {

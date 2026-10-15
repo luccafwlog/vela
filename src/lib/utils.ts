@@ -68,6 +68,19 @@ export function splitIsoDateTime(value?: string | null): { date: string; time: s
   const dateOnlyMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})$/)
   if (dateOnlyMatch) return { date: dateOnlyMatch[1], time: '' }
 
+  // Valor com fuso (timestamptz, ex. atracação) é um instante: exibe a hora de
+  // Brasília. Sem fuso, é a hora de parede digitada e fica como está.
+  if (/(Z|[+-]\d{2}(:?\d{2})?)$/.test(trimmed) && /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) {
+    const instant = new Date(trimmed.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'))
+    if (!Number.isNaN(instant.getTime())) {
+      const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      }).formatToParts(instant).map((part) => [part.type, part.value]))
+      return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` }
+    }
+  }
+
   const dateTimeMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2})/)
   if (dateTimeMatch) return { date: dateTimeMatch[1], time: dateTimeMatch[2] }
 
@@ -90,6 +103,14 @@ export function combineIsoDateTime(date: string, time?: string | null): string |
   const cleanTime = (time ?? '').trim()
   if (!cleanTime) return cleanDate
   return `${cleanDate}T${cleanTime}:00`
+}
+
+// Atracação (ETB/ATB/ETD/ATD) é gravada como timestamptz: a hora digitada é de
+// Brasília e precisa levar o fuso, senão o banco a lê como UTC (3 h de erro).
+// ponytail: fuso fixo -03:00; o Brasil não tem horário de verão desde 2019.
+export function combineBrasiliaDateTime(date: string, time?: string | null): string | null {
+  const combined = combineIsoDateTime(date, time)
+  return combined && combined.includes('T') ? `${combined}-03:00` : combined
 }
 
 export function formatDateTimeBR(value?: string | null): string {

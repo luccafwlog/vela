@@ -25,7 +25,7 @@ import {
   type EditableVoyagePodCeStatus,
   type VoyagePodCeStatus,
 } from '../../services/voyageRouteSchedules'
-import { formatDateTimeBR, splitIsoDateTime, combineIsoDateTime } from '../../lib/utils'
+import { formatDateTimeBR, splitIsoDateTime, combineIsoDateTime, combineBrasiliaDateTime } from '../../lib/utils'
 import { normalizePortCode } from '../../services/portCode'
 import { formatPortDisplayName } from '../../lib/voyageFormat'
 import { normalizeDischargePorts } from '../../services/voyageExportSchedules'
@@ -336,8 +336,8 @@ function orderTerminalIds(
   return sortAtracacoes([...ids].map((terminalId) => ({
     terminalId,
     terminalCode: terminalById.get(terminalId)?.code ?? 'TBC',
-    etb: combineIsoDateTime(dates[terminalId]?.etbDate ?? '', dates[terminalId]?.etbTime ?? ''),
-    atb: combineIsoDateTime(dates[terminalId]?.atbDate ?? '', dates[terminalId]?.atbTime ?? ''),
+    etb: combineBrasiliaDateTime(dates[terminalId]?.etbDate ?? '', dates[terminalId]?.etbTime ?? ''),
+    atb: combineBrasiliaDateTime(dates[terminalId]?.atbDate ?? '', dates[terminalId]?.atbTime ?? ''),
   }))).map((terminal) => terminal.terminalId as string)
 }
 
@@ -423,14 +423,19 @@ function buildTerminalPayload({
     const draft = terminalDates[terminalId] ?? emptyTerminalDatesDraft()
     const code = [...terminalScale.activeTerminals, ...terminalScale.historicalTerminals].find((option) => option.id === terminalId)?.code ?? 'TBC'
 
-    const etb = combineIsoDateTime(draft.etbDate, draft.etbTime)
-    const atb = combineIsoDateTime(draft.atbDate, draft.atbTime)
-    const etd = combineIsoDateTime(draft.etdDate, draft.etdTime)
-    const atd = combineIsoDateTime(draft.atdDate, draft.atdTime)
+    const etb = combineBrasiliaDateTime(draft.etbDate, draft.etbTime)
+    const atb = combineBrasiliaDateTime(draft.atbDate, draft.atbTime)
+    const etd = combineBrasiliaDateTime(draft.etdDate, draft.etdTime)
+    const atd = combineBrasiliaDateTime(draft.atdDate, draft.atdTime)
     const restow = draft.restow.trim() ? Number(draft.restow) : null
 
-    if (!validationError && draft.atbDate && !draft.atbTime.trim()) {
-      validationError = `A hora do ATB é obrigatória quando a data estiver preenchida para o terminal ${code}.`
+    for (const [label, date, time] of [
+      ['ETB', draft.etbDate, draft.etbTime], ['ATB', draft.atbDate, draft.atbTime],
+      ['ETD', draft.etdDate, draft.etdTime], ['ATD', draft.atdDate, draft.atdTime],
+    ] as const) {
+      if (!validationError && date && !time.trim()) {
+        validationError = `A hora do ${label} é obrigatória quando a data estiver preenchida para o terminal ${code}.`
+      }
     }
     if (!validationError && atd && (!atb || atd < atb)) {
       validationError = `Informe o ATB antes do ATD do terminal ${code}; o ATD não pode ser anterior ao ATB.`
@@ -445,10 +450,10 @@ function buildTerminalPayload({
   }
   if (fronts.some((front) => !front.terminalId)) {
     const draft = terminalDates.__tbc__ ?? emptyTerminalDatesDraft()
-    const etb = combineIsoDateTime(draft.etbDate, draft.etbTime)
-    const atb = combineIsoDateTime(draft.atbDate, draft.atbTime)
-    const etd = combineIsoDateTime(draft.etdDate, draft.etdTime)
-    const atd = combineIsoDateTime(draft.atdDate, draft.atdTime)
+    const etb = combineBrasiliaDateTime(draft.etbDate, draft.etbTime)
+    const atb = combineBrasiliaDateTime(draft.atbDate, draft.atbTime)
+    const etd = combineBrasiliaDateTime(draft.etdDate, draft.etdTime)
+    const atd = combineBrasiliaDateTime(draft.atdDate, draft.atdTime)
     terminals.push({
       terminalId: null,
       etb,
@@ -992,6 +997,14 @@ export function EscalaModal({
 
     if (ataDate && !ataTime.trim()) {
       setTerminalError('A hora do ATA é obrigatória quando a data estiver preenchida.')
+      return
+    }
+    // O ETA da planilha de Chegadas e Saídas vem só com a data e continua
+    // aceito; a hora passa a ser exigida quando o ETA é digitado ou alterado,
+    // e não pode ser apagada de um ETA que já a tinha.
+    const savedEta = splitIsoDateTime(escala.eta)
+    if (etaDate && !etaTime.trim() && (etaDate !== savedEta.date || savedEta.time)) {
+      setTerminalError('A hora do ETA é obrigatória ao informar ou alterar a data.')
       return
     }
 

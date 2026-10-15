@@ -1,8 +1,9 @@
-import { useMemo, type FormEvent, type ReactNode } from 'react'
+import { useMemo, type FormEvent } from 'react'
 import { Save } from 'lucide-react'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
+import { Block, Fact, FactList } from '../ui/Block'
+import { NoValue } from '../ui/NoValue'
 import { Field, Input, Select, Textarea } from '../ui/Input'
 import { BlCeMercanteField } from './BlCeMercanteField'
 import { BlManifestoField } from './BlManifestoField'
@@ -74,101 +75,102 @@ export function BlOperacionalTab({
     </Field>
   )
 
+  const cancelled = Boolean((bl as BLDetail & { cancelled_at?: string | null }).cancelled_at)
+  const carga = (
+    <>
+      {!isContainerMode ? (
+        <>
+          {number('bb_machine_qty', 'Máquinas')}
+          {number('bb_packages_qty', 'Packages')}
+          {number('bb_packages_total', 'Packages total')}
+          {number('bb_weight_ton', 'Peso (t)')}
+          {number('bb_cbm', 'CBM carga solta (m³)')}
+        </>
+      ) : null}
+      {hasContainers ? (
+        <>
+          {number('total_weight_kg', 'Peso contêiner (kg)')}
+          {number('total_cbm', 'CBM contêiner (m³)')}
+        </>
+      ) : null}
+    </>
+  )
+
   return (
-    <form onSubmit={onSubmit}>
-      <Card className="app-bl-form">
-        <div className="app-bl-section-head mb-4">
-          <h2 className="app-bl-section-title">Dados do B/L</h2>
-          <span className="app-bl-facts__sub">Correção manual com justificativa. Reimportar o arquivo do B/L pode atualizar os dados comerciais.</span>
+    <>
+      {/* CE e Manifesto têm a sua ação e o seu motivo: não entram no Salvar. */}
+      <Block title="Documento Mercante" aside="Cada um se corrige com o seu motivo; não entra no Salvar alterações">
+        <div className="grid gap-5 md:grid-cols-2">
+          <BlCeMercanteField blId={bl.id} voyageId={bl.voyage_id} ce={bl.ce_mercante} disabled={cancelled} />
+          <BlManifestoField
+            blId={bl.id}
+            voyageId={bl.voyage_id}
+            numero={(bl as BLDetail & { manifesto_mercante?: { numero?: string | null } | null }).manifesto_mercante?.numero ?? null}
+            disabled={cancelled}
+          />
         </div>
+      </Block>
 
-        <div className="grid gap-6">
-          <Section title="Partes">
-            <div className="grid gap-4 md:grid-cols-2">
-              {text('shipper', 'Shipper')}
-              <Field
-                label="Consignatário"
-                hint={manifestConsigneeDiverges
-                  ? `O último manifesto declara "${bl.manifest_customer_name}". A reimportação não sobrescreve o consignatário do B/L.`
-                  : undefined}
+      <form onSubmit={onSubmit} className="grid gap-5">
+        <Block title="Partes">
+          <div className="grid gap-4 md:grid-cols-3">
+            {text('shipper', 'Shipper')}
+            <Field
+              label="Consignatário"
+              hint={manifestConsigneeDiverges
+                ? `O último manifesto declara "${bl.manifest_customer_name}". A reimportação não sobrescreve o consignatário do B/L.`
+                : undefined}
+            >
+              <Input value={form.consignee ?? ''} onChange={(event) => onFieldChange('consignee', event.target.value)} />
+            </Field>
+            {text('notify_party', 'Notify Party')}
+          </div>
+          {/* Vêm só do documento importado: dado, não campo editável. */}
+          <FactList columns={4}>
+            <Fact label="Notify 2 · do arquivo">{bl.notify2_block || <NoValue label="Sem Notify 2" />}</Fact>
+            <Fact label="Telefone do consignatário · do arquivo">{bl.consignee_phone || <NoValue label="Sem telefone" />}</Fact>
+          </FactList>
+        </Block>
+
+        <Block title="Rota">
+          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
+            {text('place_of_receipt', 'Place of Receipt')}
+            {text('pol', 'POL')}
+            {text('pod', 'POD')}
+            {text('place_of_delivery', 'Place of Delivery')}
+            {text('movement_from', 'Movement From')}
+            {text('movement_to', 'Movement To')}
+          </div>
+          <p className="app-field__hint">Movement To com LCL ou CFS isenta o veículo da taxa local no destino.</p>
+        </Block>
+
+        <Block title="Emissão e pagamento">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field label="Data de emissão">
+              <Input type="date" value={(form.bl_emission_date ?? '').slice(0, 10)} onChange={(event) => onFieldChange('bl_emission_date', event.target.value)} />
+            </Field>
+            {text('issue_place', 'Local de emissão')}
+            <Field label="Pagamento">
+              <Select
+                value={form.payment_type ?? ''}
+                onChange={(event) => onFieldChange('payment_type', event.target.value as BL['payment_type'])}
               >
-                <Input value={form.consignee ?? ''} onChange={(event) => onFieldChange('consignee', event.target.value)} />
-              </Field>
-              {text('notify_party', 'Notify Party')}
-            </div>
-            {/* Vêm só do documento importado: dado, não campo editável. */}
-            <dl className="app-bl-facts mt-3">
-              <div className="app-bl-facts__item">
-                <dt>Notify 2</dt>
-                <dd>{bl.notify2_block || <span className="app-bl-facts__missing">—</span>}</dd>
-              </div>
-              <div className="app-bl-facts__item">
-                <dt>Telefone do consignatário</dt>
-                <dd>{bl.consignee_phone || <span className="app-bl-facts__missing">—</span>}</dd>
-              </div>
-            </dl>
-          </Section>
+                <option value="">Não informado</option>
+                <option value="PREPAID">PREPAID</option>
+                <option value="COLLECT">COLLECT</option>
+              </Select>
+            </Field>
+          </div>
+        </Block>
 
-          <Section title="Rota">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {text('place_of_receipt', 'Place of Receipt')}
-              {text('pol', 'POL')}
-              {text('pod', 'POD')}
-              {text('place_of_delivery', 'Place of Delivery')}
-              {text('movement_from', 'Movement From')}
-              {text('movement_to', 'Movement To', 'Contendo LCL ou CFS, isenta veículo de taxa local no destino.')}
-            </div>
-          </Section>
-
-          <Section title="Documento">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Data de emissão">
-                <Input type="date" value={(form.bl_emission_date ?? '').slice(0, 10)} onChange={(event) => onFieldChange('bl_emission_date', event.target.value)} />
-              </Field>
-              {text('issue_place', 'Local de emissão')}
-              <BlCeMercanteField blId={bl.id} voyageId={bl.voyage_id} ce={bl.ce_mercante} disabled={Boolean((bl as BLDetail & { cancelled_at?: string | null }).cancelled_at)} />
-              <BlManifestoField
-                blId={bl.id}
-                voyageId={bl.voyage_id}
-                numero={(bl as BLDetail & { manifesto_mercante?: { numero?: string | null } | null }).manifesto_mercante?.numero ?? null}
-                disabled={Boolean((bl as BLDetail & { cancelled_at?: string | null }).cancelled_at)}
-              />
-              <Field label="Pagamento">
-                <Select
-                  value={form.payment_type ?? ''}
-                  onChange={(event) => onFieldChange('payment_type', event.target.value as BL['payment_type'])}
-                >
-                  <option value="">Não informado</option>
-                  <option value="PREPAID">PREPAID</option>
-                  <option value="COLLECT">COLLECT</option>
-                </Select>
-              </Field>
-            </div>
-          </Section>
-
-          <Section title="Carga">
-            {/* Peso e cubagem de contêiner só existem quando há contêiner: desde
-                as migrations 061 e 064 essas colunas medem só a carga
-                conteinerizada; a carga solta tem as suas. No B/L misto os dois
-                conjuntos aparecem e são independentes. */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {!isContainerMode ? (
-                <>
-                  {number('bb_machine_qty', 'Máquinas')}
-                  {number('bb_packages_qty', 'Packages')}
-                  {number('bb_packages_total', 'Packages total')}
-                  {number('bb_weight_ton', 'Peso (t)')}
-                  {number('bb_cbm', 'CBM carga solta (m³)')}
-                </>
-              ) : null}
-              {hasContainers ? (
-                <>
-                  {number('total_weight_kg', 'Peso contêiner (kg)')}
-                  {number('total_cbm', 'CBM contêiner (m³)')}
-                </>
-              ) : null}
-            </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Block title="Carga declarada">
+          {/* Peso e cubagem de contêiner só existem quando há contêiner: desde
+              as migrations 061 e 064 essas colunas medem só a carga
+              conteinerizada; a carga solta tem as suas. No B/L misto os dois
+              conjuntos aparecem e são independentes. */}
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <div className="grid content-start gap-4 sm:grid-cols-2 lg:grid-cols-1">
+              {carga}
               <Field
                 label="NCM"
                 hint="Códigos separados por vírgula. Exigido na manifestação no Mercante e preservado quando o documento reimportado não declara NCM."
@@ -184,34 +186,33 @@ export function BlOperacionalTab({
                   </div>
                 ) : null}
                 {sugestaoAplicavel ? (
-                  <button
-                    type="button"
-                    className="mt-2 text-left text-xs text-[var(--app-link)] hover:underline"
-                    onClick={() => onFieldChange('ncm_codes', ncmSugerido.join(', '))}
-                  >
-                    A descrição declara {ncmSugerido.join(', ')} — usar como NCM do B/L
-                  </button>
+                  <Button type="button" variant="ghost" className="app-btn--sm mt-2" onClick={() => onFieldChange('ncm_codes', ncmSugerido.join(', '))}>
+                    Usar {ncmSugerido.join(', ')}, que a descrição declara, como NCM do B/L
+                  </Button>
                 ) : null}
               </Field>
-              <Field label="Descrição da carga">
-                <Textarea
-                  rows={4}
-                  value={form.cargo_description ?? ''}
-                  onChange={(event) => onFieldChange('cargo_description', event.target.value)}
-                />
-              </Field>
             </div>
-          </Section>
+            {/* No B/L a descrição costuma ser um bloco vertical longo. */}
+            <Field label="Descrição da carga">
+              <Textarea
+                rows={10}
+                value={form.cargo_description ?? ''}
+                onChange={(event) => onFieldChange('cargo_description', event.target.value)}
+              />
+            </Field>
+          </div>
+        </Block>
 
-          <Section title="Notas">
-            <Textarea
-              aria-label="Notas"
-              rows={2}
-              value={form.notes ?? ''}
-              onChange={(event) => onFieldChange('notes', event.target.value)}
-            />
-          </Section>
-        </div>
+        <Block title="Notas">
+          <Textarea
+            aria-label="Notas"
+            rows={2}
+            // Notas é campo de uso raro: duas linhas, sem a altura mínima do textarea comum.
+            style={{ minHeight: 0 }}
+            value={form.notes ?? ''}
+            onChange={(event) => onFieldChange('notes', event.target.value)}
+          />
+        </Block>
 
         <div className={`app-bl-savebar${changes.length ? ' app-bl-savebar--dirty' : ''}`}>
           <Field label="Justificativa da alteração" required hint="Fica no histórico com o autor.">
@@ -222,27 +223,16 @@ export function BlOperacionalTab({
             />
           </Field>
           <div className="flex items-center gap-3">
-            {changes.length ? (
-              <span className="app-bl-facts__sub" aria-live="polite">
-                {changes.length} {changes.length === 1 ? 'campo alterado' : 'campos alterados'}
-              </span>
-            ) : null}
+            <span className="app-facts__detail" aria-live="polite">
+              {changes.length ? `${changes.length} ${changes.length === 1 ? 'campo alterado' : 'campos alterados'}` : 'Nenhuma alteração'}
+            </span>
             <Button loading={saving} loadingLabel="Salvando…" type="submit" disabled={!changes.length}>
               <Save size={16} aria-hidden="true" />
               Salvar alterações
             </Button>
           </div>
         </div>
-      </Card>
-    </form>
-  )
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section>
-      <h3 className="app-bl-subsection-title">{title}</h3>
-      {children}
-    </section>
+      </form>
+    </>
   )
 }

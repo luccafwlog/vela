@@ -1,4 +1,4 @@
-import { Card } from '../ui/Card'
+import { Block } from '../ui/Block'
 import { NoValue } from '../ui/NoValue'
 
 export type BlFreightLine = {
@@ -20,39 +20,34 @@ const money = (currency: string | null, amount: number | null) =>
 export function BlFreightSection({ freightLines }: { freightLines: BlFreightLine[] }) {
   const sorted = [...freightLines].sort((a, b) => a.seq - b.seq)
   return (
-    <Card className="app-bl-sheet">
-      <section className="app-bl-sheet__section" aria-labelledby="bl-frete">
-        <div className="app-bl-section-head">
-          <h2 id="bl-frete" className="app-bl-section-title">Frete e despesas</h2>
-          <span className="app-bl-facts__sub">Declarado pelo armador no B/L. Não é Taxa Local.</span>
-        </div>
-        {sorted.length === 0 ? (
-          <p className="app-bl-facts__missing">Nenhuma linha de frete importada. Use &quot;Reimportar B/L&quot; para carregar o documento.</p>
-        ) : (
-          <div className="app-table-scroll">
-            <table className="app-table app-table--compact app-bl-subtable min-w-[520px]">
-              <thead>
-                <tr>
-                  <th scope="col" className="w-12">Nº</th>
-                  <th scope="col" className="app-table__text-head">Descrição</th>
-                  <th scope="col">Valor</th>
-                  <th scope="col">Pagamento</th>
+    <Block title="Frete e despesas" flush aside="Declarado pelo armador no B/L. Não é Taxa Local.">
+      {sorted.length === 0 ? (
+        <p className="app-block__body app-facts__detail">Nenhuma linha de frete importada. Reimportar B/L, na faixa do alto, carrega o documento.</p>
+      ) : (
+        <div className="app-table-scroll">
+          <table className="app-table app-table--compact">
+            <caption className="sr-only">Frete e despesas</caption>
+            <thead>
+              <tr>
+                <th scope="col">Nº</th>
+                <th scope="col" className="app-table__text-head">Descrição</th>
+                <th scope="col">Valor</th>
+                <th scope="col">Pagamento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((line) => (
+                <tr key={line.seq}>
+                  <td className="tabular-nums">{line.seq}</td>
+                  <td className="app-table__text" title={line.description}>{line.description}</td>
+                  <td className="whitespace-nowrap tabular-nums">{line.amount == null ? <NoValue label="Sem valor" /> : money(line.currency, line.amount)}</td>
+                  <td>{line.payment ?? <NoValue label="Sem forma de pagamento" />}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {sorted.map((line) => (
-                  <tr key={line.seq}>
-                    <td className="tabular-nums text-[var(--app-muted)]">{line.seq}</td>
-                    <td className="app-table__text" title={line.description}>{line.description}</td>
-                    <td className="tabular-nums">{line.amount == null ? <NoValue label="Sem valor" /> : money(line.currency, line.amount)}</td>
-                    <td>{line.payment ?? <NoValue label="Sem forma de pagamento" />}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </Card>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Block>
   )
 }

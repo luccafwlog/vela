@@ -1,6 +1,5 @@
 @import "./fonts.css";
 @import "tailwindcss";
-@custom-variant dark (&:where([data-visual-theme='dark'], [data-visual-theme='dark'] *));
 
 :root,
 :root[data-visual-theme='current'] {
@@ -90,69 +89,6 @@
   font-family: var(--app-font-body);
 }
 
-:root[data-visual-theme='dark'] {
-  color-scheme: dark;
-  --app-bg: #091220;
-  --app-dot-pattern: none;
-  --app-bg-elevated: #0e1728;
-  --app-surface: rgba(16, 26, 45, 0.92);
-  --app-surface-strong: #101a2d;
-  --app-surface-muted: #0d1728;
-  --app-surface-hover: #182741;
-  --app-panel: #132139;
-  --app-panel-strong: #162641;
-  --app-border: #22324d;
-  --app-border-strong: #314569;
-  --app-border-soft: #1c2a44;
-  --app-border-focus: rgba(96, 165, 250, 0.28);
-  --app-focus-ring: #60a5fa;
-  --app-text: #eef2ff;
-  --app-text-strong: #f8fbff;
-  --app-muted: #95a7c0;
-  --app-muted-soft: #8296ad;
-  --app-navy: #111d35;
-  --app-navy-2: #16233f;
-  --app-topbar: #08111b;
-  --app-blue: #60a5fa;
-  --app-blue-btn: #2563eb;
-  --app-link: #93c5fd;
-  --app-blue-soft: rgba(37, 99, 235, 0.18);
-  --app-gold: #f59e0b;
-  --app-gold-strong: #f8c35f;
-  --app-gold-soft: rgba(245, 158, 11, 0.18);
-  --app-green: #4ade80;
-  --app-green-soft: rgba(74, 222, 128, 0.18);
-  --app-red: #f87171;
-  --app-red-soft: rgba(248, 113, 113, 0.16);
-  --app-shadow: 0 1px 3px rgba(2, 6, 23, 0.20), 0 2px 8px rgba(2, 6, 23, 0.16);
-  --app-shadow-strong: 0 4px 12px rgba(2, 6, 23, 0.28), 0 2px 6px rgba(2, 6, 23, 0.20);
-  --app-radius: 8px;
-  --app-header-height: 56px;
-  --app-radius-control: 6px;
-  --app-success-fg: #bbf7d0;
-  --app-success-bg: #123c2a;
-  --app-success-border: #286548;
-  --app-warning-fg: #fde68a;
-  --app-warning-bg: #49320a;
-  --app-warning-border: #765514;
-  --app-danger-fg: #fecaca;
-  --app-danger-bg: #44161b;
-  --app-danger-border: #7f2a33;
-  --app-info-fg: #bfdbfe;
-  --app-info-bg: #1e3a5f;
-  --app-info-border: #315784;
-  --app-neutral-fg: #c3cfdf;
-  --app-neutral-bg: #17243a;
-  --app-neutral-border: #2b3c5a;
-  --app-thead-border: var(--app-navy);
-  /* Cabeçalho de tabela azul-marinho com texto branco (restaurado a pedido em 2026-10-08). */
-  --app-thead-bg: var(--app-navy);
-  --app-thead-text: #ffffff;
-  --app-strip: #16243d;
-  --app-strip-text: #dbe5f5;
-  --app-nav-active: var(--app-gold);
-  --app-nav-active-text: var(--app-navy);
-}
 
 :root[data-visual-theme='light'] {
   color-scheme: light;
@@ -280,17 +216,6 @@
   --app-focus-ring: #1d67b3;
 }
 
-/* Portal sobre o tema escuro (Modo Inspeção com o Vela no escuro): a marca
-   FWLOG fica na barra e no cabeçalho de tabela; o texto sobre a superfície
-   escura volta aos tokens do tema escuro, para manter o contraste. */
-:root[data-visual-theme='dark'] .app-shell--portal,
-:root[data-visual-theme='dark'][data-app='portal'] {
-  --app-link: #93c5fd;
-  --app-info-fg: #bfdbfe;
-  --app-focus-ring: #60a5fa;
-  --app-strip: #16243d;
-  --app-strip-text: #dbe5f5;
-}
 
 /* Degraus que o Tailwind não tem por padrão. Os demais: 12 = text-xs,
    14 = text-sm, 16 = text-base, 20 = text-xl, 24 = text-2xl. */
@@ -3260,12 +3185,6 @@ button.app-metric-tile[aria-pressed='true'] {
   color: #ffffff;
 }
 
-/* No tema escuro o azul-marinho quase some no fundo: a aba ativa ganha o
-   traço na cor de link (3:1 ou mais contra a superfície). */
-:root[data-visual-theme='dark'] .app-tab--active,
-:root[data-visual-theme='dark'] .app-tab[aria-selected='true'] {
-  box-shadow: inset 0 -3px 0 var(--app-link);
-}
 
 @media (pointer: fine) {
   .app-shell--vela .app-tab {
@@ -3730,9 +3649,6 @@ button.app-metric-tile[aria-pressed='true'] {
   color: var(--app-blue-btn);
 }
 
-:root[data-visual-theme='dark'] .app-confirm__lead--primary .app-confirm__lead-icon {
-  color: var(--app-blue);
-}
 
 .app-confirm__lead--danger .app-confirm__lead-icon {
   background: var(--app-red-soft);
@@ -4067,10 +3983,6 @@ button.app-metric-tile[aria-pressed='true'] {
   border-color: color-mix(in srgb, var(--app-red) 88%, #000000);
 }
 
-:root[data-visual-theme='dark'] .app-btn.app-confirm__danger:not(:disabled) {
-  background: #b42336;
-  border-color: #b42336;
-}
 
 @media (max-width: 480px) {
   .app-modal__body.app-confirm__body {
@@ -6485,6 +6397,19 @@ button.app-metric-tile[aria-pressed='true'] {
   font-weight: 700;
 }
 
+/* Identificador que abre o registro (regra 9): cor de link, sublinhado só ao
+   passar o mouse ou com foco. Peça comum para telas que não têm link próprio. */
+.app-link {
+  color: var(--app-link);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-link:hover,
+.app-link:focus-visible {
+  text-decoration: underline;
+}
+
 .app-table tbody td[class*='font-semibold'] {
   color: var(--app-text-strong);
 }
@@ -6777,23 +6702,6 @@ button.app-metric-tile[aria-pressed='true'] {
   border-color: #bfd4ff !important;
 }
 
-:root[data-visual-theme='dark'] .app-shell table tbody tr:hover {
-  background: rgba(148, 163, 184, 0.08);
-}
-
-:root[data-visual-theme='dark'] a[class*='bg-[#21262d]'],
-:root[data-visual-theme='dark'] button[class*='bg-[#21262d]'] {
-  background: #16233f !important;
-  border: 1px solid var(--app-border) !important;
-  color: var(--app-text) !important;
-}
-
-:root[data-visual-theme='dark'] a[class*='bg-[#21262d]']:hover,
-:root[data-visual-theme='dark'] button[class*='bg-[#21262d]']:hover {
-  background: #1b2d4b !important;
-  border-color: var(--app-blue-btn) !important;
-  color: #ffffff !important;
-}
 
 @media (max-width: 1024px) {
   .app-main {
@@ -9257,24 +9165,6 @@ a.app-step-rail__link:focus-visible {
   margin-top: 4px;
 }
 
-/* ── Ficha: superfície única com seções ─────────────────────────────────── */
-.app-bl-sheet {
-  display: grid;
-  gap: 0;
-}
-
-.app-bl-sheet__section {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-}
-
-.app-bl-sheet__section--ruled {
-  margin-top: 16px;
-  border-top: 1px solid var(--app-border);
-  padding-top: 16px;
-}
 
 .app-bl-section-head {
   display: flex;
@@ -9284,12 +9174,6 @@ a.app-step-rail__link:focus-visible {
   gap: 4px 16px;
 }
 
-.app-bl-section-head__title-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
 
 .app-bl-section-head__link {
   display: inline-flex;
@@ -9309,13 +9193,6 @@ a.app-step-rail__link:focus-visible {
   line-height: 24px;
 }
 
-.app-bl-subsection-title {
-  margin: 0 0 8px;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-body);
-  font-weight: 600;
-  line-height: 20px;
-}
 
 .app-bl-facts {
   display: grid;
@@ -9352,12 +9229,6 @@ a.app-step-rail__link:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.app-bl-facts__sub {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  font-weight: 400;
-  line-height: 16px;
-}
 
 .app-bl-facts__missing {
   color: var(--app-muted);
@@ -9394,13 +9265,6 @@ a.app-step-rail__link:focus-visible {
   list-style: disc;
 }
 
-.app-bl-subtable {
-  text-align: left;
-}
-
-.app-bl-subtable td {
-  vertical-align: middle;
-}
 
 /* Terminal de descarga como fato do Embarque. */
 .app-bl-terminal__value {
@@ -9497,35 +9361,18 @@ a.app-step-rail__link:focus-visible {
 .app-bl-savebar {
   display: grid;
   gap: 12px;
-  margin-top: 24px;
-  border-top: 1px solid var(--app-border);
-  padding-top: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  padding: 12px 16px;
 }
 
+/* Com alteração não salva, a faixa gruda no rodapé da janela. */
 .app-bl-savebar--dirty {
   position: sticky;
   bottom: 0;
   z-index: 4;
-  margin-inline: -22px;
-  margin-bottom: -22px;
-  background: var(--app-surface);
-  padding: 12px 22px;
   box-shadow: 0 -8px 16px -12px rgba(15, 23, 42, 0.35);
-}
-
-/* `.app-surface` corta com overflow: hidden, que vira o contêiner de rolagem
-   do sticky e prendia a barra no fim do cartão. `clip` corta sem criar esse
-   contêiner, então a barra gruda no rodapé da janela enquanto há alteração. */
-.app-bl-form.app-surface {
-  overflow: clip;
-}
-
-@media (max-width: 480px) {
-  .app-bl-savebar--dirty {
-    margin-inline: -18px;
-    margin-bottom: -18px;
-    padding-inline: 18px;
-  }
 }
 
 @media (min-width: 768px) {
@@ -9535,81 +9382,6 @@ a.app-step-rail__link:focus-visible {
   }
 }
 
-.app-bl-issue {
-  display: grid;
-  justify-items: end;
-  gap: 4px;
-  max-width: 280px;
-  text-align: right;
-}
-
-.app-bl-invoice-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 16px;
-  margin: 0 0 8px;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-}
-
-.app-bl-invoice-list {
-  display: grid;
-  margin: 0 0 12px;
-  padding: 0;
-  list-style: none;
-  font-size: var(--app-size-table);
-}
-
-.app-bl-invoice-list li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  border-bottom: 1px solid var(--app-border);
-  padding: 6px 0;
-}
-
-.app-bl-history {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-bl-history__item {
-  display: grid;
-  gap: 2px 16px;
-  border-top: 1px solid var(--app-border);
-  padding: 10px 0;
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-bl-history__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-bl-history__title {
-  color: var(--app-text-strong);
-  font-weight: 500;
-}
-
-@media (min-width: 640px) {
-  .app-bl-history__item {
-    grid-template-columns: 11rem minmax(0, 1fr);
-  }
-
-  .app-bl-history__meta {
-    display: grid;
-    gap: 0;
-  }
-}
 
 @media (max-width: 639px) {
 
@@ -9627,10 +9399,6 @@ a.app-step-rail__link:focus-visible {
     padding-inline: 6px;
   }
 
-  .app-bl-issue {
-    justify-items: start;
-    text-align: left;
-  }
 }
 
 /*  Line-Up na TV: quadro anterior à etapa 03, restaurado a pedido em 2026-10-08.  */
@@ -10306,30 +10074,6 @@ a.app-step-rail__link:focus-visible {
   white-space: nowrap;
 }
 
-.app-voyage-table-frame {
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-}
-
-.app-voyage-table-frame .app-table {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.app-voyage-table-frame .app-table thead tr:first-child > th:first-child {
-  border-top-left-radius: var(--app-radius);
-}
-
-.app-voyage-table-frame .app-table thead tr:first-child > th:last-child {
-  border-top-right-radius: var(--app-radius);
-}
-
-.app-voyage-table-frame .app-table tbody td {
-  background: var(--app-surface);
-}
-
 /*  Ficha da viagem — revisão sobre a versão restaurada (2026-10-08).
     Mesma composição de antes (identidade, indicadores, abas), com três
     ajustes: faixa de identidade azul-marinho lisa, filetes internos suaves e
@@ -10385,35 +10129,6 @@ a.app-step-rail__link:focus-visible {
   align-items: center;
   gap: 4px 16px;
   padding-bottom: 6px;
-}
-
-/* Rota em Rotas e Manifestos: link com área de clique de controle. */
-.app-voyage-route-link {
-  display: inline-flex;
-  flex-wrap: wrap;
-  min-height: var(--app-control-h);
-  align-items: center;
-  column-gap: 4px;
-  color: var(--app-link);
-  font-weight: 600;
-}
-
-.app-voyage-route-link:hover {
-  text-decoration: underline;
-}
-
-/* Ação de dado pendente (ex.: Nº de manifesto a informar): botão de verdade,
-   com o tom de atenção do selo que substituiu. */
-.app-voyage-pending-action.app-btn {
-  border-color: var(--app-warning-border);
-  background: var(--app-warning-bg);
-  color: var(--app-warning-fg);
-}
-
-.app-voyage-pending-action.app-btn:hover:not(:disabled) {
-  border-color: var(--app-warning-fg);
-  background: var(--app-warning-bg);
-  color: var(--app-warning-fg);
 }
 
 /* Bloco de seção dentro das abas: levemente escurecido, filete suave, sem sombra. */
@@ -14410,10 +14125,6 @@ tr[data-inactive] .app-rates-item__value {
   color: #ffffff;
 }
 
-/* Mesma razão no tema escuro: a faixa de identidade ganha borda. */
-:root[data-visual-theme='dark'] .app-identity {
-  border: 1px solid var(--app-border-strong);
-}
 
 .app-identity__main {
   flex: 1 1 420px;

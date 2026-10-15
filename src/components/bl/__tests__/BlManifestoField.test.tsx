@@ -34,6 +34,7 @@ it('Mover de Manifesto atualiza a ficha e o Histórico do B/L (bl-timeline)', as
   mocks.move.mockResolvedValue({ numero: '1226B01849909', created: false, moved: 1, unchanged: 0 })
   render(<BlManifestoField blId="BL-1" voyageId={7} numero="1226501860578" />)
 
+  fireEvent.click(screen.getByRole('button', { name: 'Mover para um manifesto' }))
   fireEvent.change(screen.getByLabelText('Mover para o Nº de Manifesto Mercante'), { target: { value: '1226B01849909' } })
   fireEvent.click(screen.getByRole('button', { name: 'Mover' }))
 

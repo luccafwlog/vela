@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
+import { NoValue } from '../ui/NoValue'
 import { useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { userFacingErrorMessage } from '../../lib/errors'
@@ -29,6 +30,7 @@ export function BlManifestoField({
   const move = useMoveBlsToManifestoMercante(voyageId)
   const unlink = useUnlinkBlsFromManifestoMercante(voyageId)
   const [draft, setDraft] = useState('')
+  const [editing, setEditing] = useState(false)
   const target = canonicalManifestoNumero(draft)
   const valid = MANIFESTO_NUMERO_PATTERN.test(target) && target !== numero
   const busy = move.isPending || unlink.isPending
@@ -55,6 +57,7 @@ export function BlManifestoField({
       await move.mutateAsync({ blIds: [blId], numero: target, reason, expected: { [blId]: numero } })
       await refresh()
       setDraft('')
+      setEditing(false)
       showToast(`B/L movido para o Manifesto ${target}.`, 'success')
     } catch (error) {
       showToast(userFacingErrorMessage(error, 'Não foi possível mover o B/L.'), 'error')
@@ -81,26 +84,30 @@ export function BlManifestoField({
   }
 
   return (
-    <div className="app-field">
-      <span className="app-field__label">Manifesto Mercante</span>
-      <div className="space-y-2">
-        <p className="font-mono text-sm">{numero ?? 'Sem Manifesto'}</p>
-        {disabled ? null : (
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              aria-label="Mover para o Nº de Manifesto Mercante"
-              placeholder="13 caracteres"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              className="max-w-[12rem]"
-            />
-            <Button type="button" variant="secondary" disabled={!valid || busy} onClick={() => void handleMove()}>Mover</Button>
-            {numero ? (
-              <Button type="button" variant="ghost" disabled={busy} onClick={() => void handleUnlink()}>Desvincular</Button>
-            ) : null}
-          </div>
-        )}
-      </div>
+    <div className="grid content-start gap-2">
+      <span className="app-facts__label">Manifesto Mercante</span>
+      <p className="app-lead__value app-bl-code">{numero ?? <NoValue label="Sem Manifesto Mercante" />}</p>
+      {disabled ? null : editing ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            aria-label="Mover para o Nº de Manifesto Mercante"
+            placeholder="13 caracteres"
+            autoFocus
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            className="max-w-[12rem]"
+          />
+          <Button type="button" variant="secondary" disabled={!valid || busy} onClick={() => void handleMove()}>Mover</Button>
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => { setEditing(false); setDraft('') }}>Voltar</Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="secondary" disabled={busy} onClick={() => setEditing(true)}>Mover para um manifesto</Button>
+          {numero ? (
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => void handleUnlink()}>Desvincular</Button>
+          ) : null}
+        </div>
+      )}
       <span className="app-field__hint">Mudar o POD ou a Viagem do B/L desvincula o Manifesto.</span>
     </div>
   )

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Box, Mountain, ShieldCheck } from 'lucide-react'
+import { Box, Mountain } from 'lucide-react'
 import { VoyageImportActions } from '../shared/VoyageImportActions'
 import { formatMetric, formatPortDisplayName } from '../../lib/voyageFormat'
 import { summarizeExportByEmbarkPort, type EmbarkPortExportSummary } from '../../services/voyageSummaries'
@@ -33,8 +33,7 @@ export function VoyageExportacaoTab({ voyage, voyageLabel, userId }: {
     ['Vazios embarcados', formatMetric(emptyTotals.units)],
     ['CNTRs distintos', formatMetric(emptyTotals.distinctContainers)],
     ['Depots de origem', formatMetric(emptyTotals.depots)],
-    ['Granito (B/Ls)', formatMetric(graniteTotals.bls)],
-    ['Granito (ton)', `${formatMetric(graniteTotals.weightTon)} ton`],
+    [`Granito em ${formatMetric(graniteTotals.bls)} ${graniteTotals.bls === 1 ? 'B/L' : 'B/Ls'}`, `${formatMetric(graniteTotals.weightTon)} ton`],
   ] as Array<[string, string]>
 
   return (
@@ -52,26 +51,20 @@ export function VoyageExportacaoTab({ voyage, voyageLabel, userId }: {
       )}
 
       {userId ? (
-        <section className="mt-1 grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          <div>
-            <div className="text-xs font-semibold text-[var(--app-muted)]">Ações da exportação</div>
-            <div className="mt-1 text-[13px] text-[var(--app-muted)]">Granito importa por planilha; vazios passam pelo Embarque, onde as unidades e as taxas de serviço vivem juntas.</div>
-          </div>
+        <section className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-4" aria-label="Ações da exportação">
+          <h3 className="text-sm font-semibold text-[var(--app-strip-text)]">Ações da exportação</h3>
           <VoyageImportActions voyageId={voyage.id} voyageLabel={voyageLabel} userId={userId} types={['granite', 'ceMercanteGranite', 'vaziosExp']} />
-          <div className="flex items-start gap-2 text-xs leading-5 text-[var(--app-muted-soft)]">
-            <ShieldCheck size={13} className="mt-0.5 shrink-0" />
-            <span><b className="text-[var(--app-muted)]">Vazios EXP não é upload avulso.</b> O botão leva ao Embarque com a viagem travada; a planilha de unidades continua dentro dele, junto das taxas de serviço. CE Mercante (Granito) é o atalho escopado para o fluxo já existente em <code>/granito</code>.</span>
-          </div>
         </section>
       ) : null}
     </div>
   )
 }
 
+// Opção A da identidade (lote 1, 2026-10-15), igual à aba Importação.
 function TotalStrip({ totals }: { totals: Array<[string, string]> }) {
-  return <div className="flex flex-wrap items-center gap-y-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-3">
-    <span className="mr-2 shrink-0 text-xs font-semibold text-[var(--app-muted)]">Total da viagem</span>
-    {totals.map(([label, value], index) => <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-border)]' : ''}`}><span className="font-[var(--app-font-mono)] text-base font-semibold text-[var(--app-text-strong)]">{value}</span><span className="text-xs text-[var(--app-muted-soft)]">{label}</span></span>)}
+  return <div className="flex flex-wrap items-center gap-y-3 rounded-lg bg-[var(--app-thead-bg)] px-4 py-3 text-[var(--app-thead-text)]">
+    <span className="mr-2 shrink-0 text-xs font-semibold opacity-80">Total da viagem</span>
+    {totals.map(([label, value], index) => <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-thead-text)]/25' : ''}`}><span className="font-[var(--app-font-mono)] text-base font-semibold">{value}</span><span className="text-xs opacity-80">{label}</span></span>)}
   </div>
 }
 
@@ -87,12 +80,12 @@ function EmbarkPortBlock({ summary }: { summary: EmbarkPortExportSummary }) {
   }
   if (summary.granite.bls > 0) summaryParts.push(`${formatMetric(summary.granite.bls)} B/Ls de granito`)
 
-  return <div className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
-    <div className="flex flex-wrap items-baseline justify-between gap-2">
-      <span className="inline-flex items-baseline gap-2"><span className="text-base font-bold text-[var(--app-text-strong)]">{summary.embarkPort}</span><span className="text-xs text-[var(--app-muted-soft)]">{formatPortDisplayName(summary.embarkPort)}</span></span>
-      <span className="text-xs text-[var(--app-muted)]">{summaryParts.join(' · ')}</span>
-    </div>
-    <div className="grid items-start gap-3 xl:grid-cols-2">
+  return <section className="overflow-hidden rounded-lg border border-[var(--app-border)]" aria-label={`Terminal de embarque ${summary.embarkPort}`}>
+    <header className="flex flex-wrap items-baseline justify-between gap-2 bg-[var(--app-thead-bg)] px-4 py-2.5 text-[var(--app-thead-text)]">
+      <span className="inline-flex items-baseline gap-2"><span className="text-base font-bold">{summary.embarkPort}</span><span className="text-xs opacity-80">{formatPortDisplayName(summary.embarkPort)}</span></span>
+      <span className="text-xs opacity-80">{summaryParts.join(' · ')}</span>
+    </header>
+    <div className="grid items-start gap-3 bg-[var(--app-surface-muted)] p-3.5 px-4 xl:grid-cols-2">
       {summary.vazios.units > 0 ? (
         <EmptyPanel summary={summary} />
       ) : (
@@ -100,7 +93,7 @@ function EmbarkPortBlock({ summary }: { summary: EmbarkPortExportSummary }) {
       )}
       {summary.granite.manifests > 0 ? <GranitePanel summary={summary} /> : <EmptyPanel title="Granito" icon={<Mountain size={15} />} empty="Sem granito embarcado neste terminal" />}
     </div>
-  </div>
+  </section>
 }
 
 function EmptyPanel({ summary, title = 'Vazios EXP', icon = <Box size={15} />, empty }: { summary?: EmbarkPortExportSummary; title?: string; icon?: ReactNode; empty?: string }) {
@@ -118,21 +111,21 @@ function EmptyPanel({ summary, title = 'Vazios EXP', icon = <Box size={15} />, e
 
 function GranitePanel({ summary }: { summary: EmbarkPortExportSummary }) {
   const granite = summary.granite
-  return <PanelShell title="Granito" icon={<Mountain size={15} />} lead={granite.weightTon} leadUnit="ton">
-    <MiniStats stats={[["Manifestos", granite.manifests], ["B/Ls", granite.bls], ["Prontos", granite.readyForBilling], ["Faturados", granite.invoiced]]} tones={[null, null, 'green', granite.invoiced ? 'green' : 'muted']} />
+  return <PanelShell title="Granito" icon={<Mountain size={15} />} lead={granite.weightTon} leadUnit={`ton em ${formatMetric(granite.bls)} ${granite.bls === 1 ? 'B/L' : 'B/Ls'}`}>
+    <MiniStats stats={[["Manifestos", granite.manifests], ["B/Ls", granite.bls], ["Prontos", granite.readyForBilling], ["Faturados", granite.invoiced]]} />
   </PanelShell>
 }
 
 function PanelShell({ title, icon, lead, leadUnit, empty, children }: { title: string; icon: ReactNode; lead?: number; leadUnit?: string; empty?: string; children?: ReactNode }) {
   return (
-    <div className="flex min-h-[126px] flex-col gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-3.5 px-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className={`inline-flex items-center gap-2 text-[13px] font-semibold ${empty ? 'text-[var(--app-muted-soft)]' : 'text-[var(--app-text-strong)]'}`}>
-          <span className="text-[var(--app-muted)]">{icon}</span>{title}
-        </span>
-        {empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums text-[var(--app-text-strong)]">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted-soft)]">{leadUnit}</span></span>}
+    <div className="flex min-h-[126px] flex-col overflow-hidden rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)]">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--app-border-soft)] bg-[var(--app-strip)] px-4 py-2 text-[var(--app-strip-text)]">
+        <span className="inline-flex items-center gap-2 text-sm font-semibold"><span aria-hidden="true">{icon}</span>{title}</span>
+        {empty ? null : <span className="inline-flex items-baseline gap-1.5"><span className="text-xl font-bold leading-none tabular-nums">{formatMetric(lead)}</span><span className="text-xs font-semibold text-[var(--app-muted)]">{leadUnit}</span></span>}
       </div>
-      {empty ? <div className="flex min-h-[68px] flex-1 items-center justify-center rounded-md border border-dashed border-[var(--app-border)] px-3.5 text-center text-xs text-[var(--app-muted-soft)]">{empty}</div> : children}
+      <div className="flex flex-1 flex-col gap-3 p-3.5 px-4">
+        {empty ? <span className="text-sm text-[var(--app-muted)]">{empty}</span> : children}
+      </div>
     </div>
   )
 }

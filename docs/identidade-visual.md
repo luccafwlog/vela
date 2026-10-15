@@ -47,6 +47,7 @@ Uma tela compõe estas peças; não cria CSS próprio para elas.
 | `NextAction` | `src/components/ui/NextAction.tsx` | A próxima ação da tela, com motivo e botão (`tone` `danger`, `warning` ou `info`). |
 | `NoValue` | `src/components/ui/NoValue.tsx` | "—" com o significado para leitor de tela. |
 | `CopyValue` | `src/components/ui/CopyValue.tsx` | Identificador com o ícone de copiar ao lado (regra 9): aparece ao passar o mouse na linha ou no valor e com o foco; sempre visível em tela de toque. Fora de um link: envolve o `Link`, nunca fica dentro dele. |
+| `.app-link` | `src/index.css` | Identificador que abre o registro (regra 9) em telas sem link próprio de família: cor de link, sublinhado só ao passar o mouse ou com foco. |
 | `StatusText` e `ConsolidatedMark` | `src/components/ui/StatusText.tsx` | Situação em texto (regra 5): `tone` `warning` (âmbar, pede ação), `muted` (encerrou sem efeito) e `paid` (✓ verde antes de "Paga"); `ConsolidatedMark` é o ícone de pilha da fatura consolidada, com "Consolidada" ao passar o mouse. |
 | `MetricCard` em `.app-metric-row` | `src/components/ui/MetricCard.tsx` | Cartões de total ou de filtro no topo de uma lista, quando a tela aprovada os pede: `detail` para uma linha de apoio, `tone="warning"` só para número que pede ação e é maior que zero, `onSelect` quando o cartão filtra. |
 | Tabela padrão | `table.app-table`, `th.app-table__group > span`, `.app-table__text` (célula) e `.app-table__text-head` (cabeçalho), `app-table--nested`, `tr.app-table__row--muted` (linha encerrada sem efeito, como a fatura cancelada, inteira em cinza) | Alinhamento centralizado, faixa de grupo com traço sob o título, texto longo à esquerda (também quando a célula tem `.app-table__truncate` ou `.app-table__cell-stack`) e cabeçalho claro na tabela interna (regra 6). |
@@ -55,8 +56,9 @@ Uma tela compõe estas peças; não cria CSS próprio para elas.
 
 ## Cores
 
-Os valores vivem em `src/index.css`; esta tabela dá os papéis. O tema escuro
-do Vela redefine os mesmos tokens e passa no `npm run a11y:contrast`.
+Os valores vivem em `src/index.css`; esta tabela dá os papéis. Não há tema
+escuro: foi retirado em 2026-10-15 por decisão do responsável (não tinha
+seletor na tela). Classe `dark:` do Tailwind não deve voltar ao código.
 
 | Papel | Token | Vela (claro) | Portal Fwlog |
 |---|---|---|---|
@@ -105,9 +107,6 @@ O Modo Inspeção usa o shell e as telas do Portal, então mostra a marca FWLOG.
 Os tokens da marca ficam na raiz do `portal.html` (`data-app="portal"`) e no
 shell `.app-shell--portal`: login, ativação, recuperação de senha, avisos e
 modais fora do shell também recebem a marca.
-No Modo Inspeção com o Vela no tema escuro, a marca fica na barra e no
-cabeçalho de tabela e o texto (link, informação, faixa) volta aos tokens do
-escuro; `npm run a11y:contrast` confere esse caso como `portal-dark`.
 Toque (ponteiro grosso) mantém 44 px de alvo nos dois produtos.
 
 ## Menu do Vela
@@ -138,7 +137,6 @@ responsável em 2026-10-15 a partir de uma simulação aprovada:
 
 - **TV do Line-Up:** quadro próprio que imita o quadro físico (decisão do responsável de 2026-10-08), fora das peças comuns; segue as regras 4, 5 e 8.
 - **Documentos impressos:** fora das peças comuns, com a identidade própria mantida por decisão do responsável de 2026-10-13: marca Transhipping, barras âmbar de total, cabeçalho de tabela azul-marinho, título centralizado com filete, bloco de dados do Cliente em tabela e bloco Pix (um redesenho em papel branco, tinta preta e azul-marinho foi reprovado). Kit em `src/components/shared/InvoiceDocumentKit.tsx` e `invoiceFormat.ts`; regras de impressão em `src/index.css` (`@media print`) e `src/lib/printDocument.ts`.
-- **Tema escuro do Vela:** mesmos papéis e peças, com os pares escuros dos tokens.
 
 ## Como uma tela muda
 

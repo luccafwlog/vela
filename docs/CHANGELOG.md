@@ -6,6 +6,20 @@
 
 ## 2026-10
 
+- **Identidade visual, lote 1 encerrado (2026-10-15):** aba ADR da Viagem em blocos, com a
+  linha do tempo em painel e registro; prazo do ADR em 72 horas corridas da hora do ATD
+  (migration `290`); hora obrigatória em ETB, ATB, ETD, ATD, ATA e no ETA digitado, com a
+  atracação gravada no fuso de Brasília (`291`); atracação sem agenda do POD passa a formar
+  a escala; Portal de Demurrage sem "Vencida" e com os períodos numa linha; tema escuro
+  retirado.
+- **Identidade visual, lote 1 · abas restantes da ficha do B/L e Rotas e Manifestos (2026-10-15):**
+  Carga, Detalhes do B/L, Faturamento e Histórico do B/L e Rotas e Manifestos da Viagem
+  no formato aprovado (blocos, tabela limpa, situação em texto). A aba Carga ganhou a
+  janela **Corrigir** do container, com a migration `289` (`correct_bl_container_data`):
+  lacre, peso bruto e CBM corrigíveis com justificativa, também com B/L faturado, porque
+  não entram na base da fatura; a reimportação do B/L volta ao valor do arquivo. No Part
+  Lot, o lacre vale para todos os B/Ls e peso e CBM só para o B/L corrigido (migration `292`). Peça
+  comum nova `.app-link` para identificador sem link de família.
 - **Menu do Vela no topo ou na lateral (2026-10-15):** o menu da conta ganhou a
   seção "Posição do menu", com quatro opções: no topo (padrão), lateral fixa,
   lateral recolhida (só ícones) e lateral expansível (abre ao passar o mouse).

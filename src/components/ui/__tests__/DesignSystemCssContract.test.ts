@@ -5,9 +5,9 @@ const css = fs.readFileSync('src/index.css', 'utf8')
 
 describe('contrato visual compartilhado', () => {
   it('define tokens usados por links e estados de hover nos dois temas', () => {
-    // current, light, dark, a marca FWLOG do Portal e o Portal sobre o escuro
-    expect(css.match(/--app-link:/g)).toHaveLength(5)
-    expect(css.match(/--app-surface-hover:/g)).toHaveLength(3)
+    // current, light e a marca FWLOG do Portal
+    expect(css.match(/--app-link:/g)).toHaveLength(3)
+    expect(css.match(/--app-surface-hover:/g)).toHaveLength(2)
   })
 
   it('mantem controles compartilhados com alvo minimo de 44px', () => {
@@ -49,13 +49,13 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-btn\s*\{[^}]*position:\s*relative/s)
   })
 
-  it('usa superfícies temáticas nos campos e aliases semânticos com par escuro nas tags', () => {
+  it('usa superfícies temáticas nos campos e aliases semânticos nas tags', () => {
     expect(css).toMatch(/\.app-input\s*\{[^}]*background:\s*var\(--app-surface-strong\)/s)
     for (const role of ['success', 'warning', 'danger', 'info', 'neutral']) {
       for (const part of ['fg', 'bg', 'border']) {
-        // current, light e dark; o Portal (claro e sobre o escuro) redeclara só o que deriva da marca FWLOG
+        // current e light; o Portal redeclara só o que deriva da marca FWLOG
         const declarations = css.match(new RegExp(`--app-${role}-${part}:`, 'g')) ?? []
-        expect(declarations.length - (role === 'info' && part === 'fg' ? 2 : 0)).toBe(3)
+        expect(declarations.length - (role === 'info' && part === 'fg' ? 1 : 0)).toBe(2)
       }
     }
     expect(css).toMatch(/\.app-badge--green\s*\{[^}]*color:\s*var\(--app-success-fg\)/s)
@@ -130,7 +130,7 @@ describe('contrato visual compartilhado', () => {
   })
 
   it('identidade (ADR 0081): fundo liso, Syne só no nome Vela e Portal com a marca FWLOG', () => {
-    expect(css.match(/--app-dot-pattern:\s*none/g)).toHaveLength(3)
+    expect(css.match(/--app-dot-pattern:\s*none/g)).toHaveLength(2)
     expect(css.match(/--app-font-display:\s*"DM Sans"/g)?.length).toBeGreaterThanOrEqual(2)
     const brandUsers = [...css.matchAll(/^\.([\w-]+)\s*\{[^}]*font-family:\s*var\(--app-font-brand\)/gms)].map((match) => match[1])
     expect(brandUsers.sort()).toEqual(['app-auth__logo-name', 'app-header__wordmark', 'app-lineup-display-brand__name'])
@@ -158,8 +158,6 @@ describe('contrato visual compartilhado', () => {
     expect(css).toMatch(/\.app-table__text--wrap\s*\{[^}]*white-space:\s*pre-line/s)
     expect(css).toMatch(/> \.app-table__cell-stack:not\(\.app-table__cell-stack--center\)\)/)
     expect(css).toMatch(/td\[colspan\]:not\(\[class~='text-center'\]\)\s*\{[^}]*text-align:\s*left/s)
-    // Tema escuro: a aba ativa tem traço visível e a faixa de identidade, borda.
-    expect(css).toMatch(/\[data-visual-theme='dark'\] \.app-tab\[aria-selected='true'\]\s*\{[^}]*box-shadow:\s*inset 0 -3px 0 var\(--app-link\)/s)
     // Tabela dentro de tabela: cabeçalho claro pela faixa dos blocos.
     expect(css).toMatch(/table\.app-table--nested\s*\{[^}]*--app-thead-bg:\s*var\(--app-strip\)/s)
     expect(css).toMatch(/th\.app-table__group > span\s*\{[^}]*border-bottom:\s*2px solid/s)

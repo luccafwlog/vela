@@ -415,6 +415,15 @@ export function projectVoyageEscalaSchedules({
     mergeEscalaField(escala, 'linked', exportSchedule.linked, 'export', podValues?.linked ?? null)
   }
 
+  // Atracação registrada é escala, mesmo sem ETA/ATA nem linha de POL ou de
+  // exportação: salvar só as datas do terminal não grava agenda do POD, e sem
+  // isto a escala sumia junto com o ATD que conta o prazo do ADR.
+  for (const [key, states] of terminalStatesByKey) {
+    if (escalasByKey.has(key) || deletedEscalaKeys.has(key)) continue
+    const port = normalizeBrazilianPortCode(states[0].port)
+    if (port) ensureEscala(escalasByKey, states[0].voyageId, port)
+  }
+
   for (const escala of escalasByKey.values()) {
     const atracacoes = terminalStatesByKey.get(buildEscalaKey(escala.voyageId, escala.port)) ?? []
     escala.atracacoes = sortAtracacoes(atracacoes.map((state) => ({

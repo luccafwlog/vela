@@ -543,8 +543,8 @@ function AlertRow({
         <span
           className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
             alert.severity === 'critical'
-              ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20'
-              : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
+              ? 'bg-rose-500/10 text-rose-700 border border-rose-500/20'
+              : 'bg-amber-500/10 text-amber-700 border border-amber-500/20'
           }`}
         >
           {alert.severity === 'critical' ? 'Crítico' : 'Normal'}
@@ -552,7 +552,7 @@ function AlertRow({
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
-          <AlertTriangle size={14} className="shrink-0 text-amber-700 dark:text-amber-400" />
+          <AlertTriangle size={14} className="shrink-0 text-amber-700" />
           <span className="text-xs text-[var(--app-text)]">{getAlertTypeLabel(effectiveType)}</span>
         </div>
       </td>
@@ -591,7 +591,7 @@ function AlertRow({
           {isDismissed ? (
             <div className="flex flex-col gap-0.5">
               <span
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700"
                 title={alert.dismissal_reason ?? ''}
               >
                 <History size={12} />

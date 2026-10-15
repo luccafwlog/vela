@@ -57,17 +57,11 @@
     "src/components/voyages/TransshipmentInfoCard.tsx": {
       "cor-tailwind": 1
     },
-    "src/components/voyages/VoyageAgencyReportTab.tsx": {
-      "tamanho-solto": 1
-    },
     "src/components/voyages/VoyageCard.tsx": {
       "hex": 1
     },
     "src/components/voyages/VoyageExportacaoTab.tsx": {
-      "tamanho-solto": 4
-    },
-    "src/components/voyages/VoyageImportacaoTab.tsx": {
-      "tamanho-solto": 4
+      "tamanho-solto": 2
     },
     "src/components/voyages/VoyageRail.tsx": {
       "tamanho-solto": 4,
@@ -85,7 +79,7 @@
     },
     "src/pages/Alertas.tsx": {
       "tamanho-solto": 4,
-      "cor-tailwind": 12
+      "cor-tailwind": 8
     },
     "src/pages/AlertasRegras.tsx": {
       "tamanho-solto": 12,
@@ -95,14 +89,14 @@
     "src/pages/ClientesComunicacao.tsx": {
       "tamanho-solto": 9,
       "caixa-alta": 2,
-      "cor-tailwind": 16
+      "cor-tailwind": 9
     },
     "src/pages/ClientesInformacoes.tsx": {
       "cor-tailwind": 6
     },
     "src/pages/ClientesPortal.tsx": {
       "tamanho-solto": 1,
-      "cor-tailwind": 8
+      "cor-tailwind": 6
     },
     "src/pages/DesbloqueioCe.tsx": {
       "hex": 1
@@ -129,13 +123,13 @@
     "src/pages/Painel.tsx": {
       "tamanho-solto": 5,
       "caixa-alta": 1,
-      "cor-tailwind": 10
+      "cor-tailwind": 8
     },
     "src/pages/PortalDashboard.tsx": {
       "caixa-alta": 1
     },
     "src/pages/PortalDesbloqueioCe.tsx": {
-      "hex": 2
+      "hex": 1
     },
     "src/pages/PortalInspection.tsx": {
       "cor-tailwind": 5
@@ -164,14 +158,14 @@
       "app-alerts": 1,
       "app-auth": 41,
       "app-badge": 11,
-      "app-bl": 101,
+      "app-bl": 80,
       "app-breadcrumb": 7,
-      "app-btn": 39,
+      "app-btn": 36,
       "app-bulk": 3,
       "app-callout": 2,
       "app-cargo": 98,
       "app-combobox": 7,
-      "app-confirm": 55,
+      "app-confirm": 53,
       "app-customer": 130,
       "app-date": 1,
       "app-datetime": 2,
@@ -191,6 +185,7 @@
       "app-invoices": 19,
       "app-kpi": 14,
       "app-lineup": 71,
+      "app-link": 2,
       "app-main": 8,
       "app-manual": 16,
       "app-market": 9,
@@ -207,7 +202,7 @@
       "app-section": 3,
       "app-segmented": 12,
       "app-select": 3,
-      "app-shell": 34,
+      "app-shell": 32,
       "app-sidebar": 45,
       "app-signoff": 12,
       "app-skeleton": 6,
@@ -218,16 +213,16 @@
       "app-status-toggle": 1,
       "app-step": 25,
       "app-summary": 7,
-      "app-surface": 9,
-      "app-tab": 9,
-      "app-table": 93,
+      "app-surface": 8,
+      "app-tab": 8,
+      "app-table": 89,
       "app-tablist": 2,
       "app-textarea": 2,
       "app-toast": 14,
       "app-touch": 1,
       "app-user": 12,
       "app-version": 1,
-      "app-voyage": 56,
+      "app-voyage": 47,
       "app-workspace": 11,
       "billing-demurrage": 4,
       "billing-page": 9,

@@ -68,7 +68,17 @@ describe('mapClosedReportToSlaRow', () => {
     expect(row).not.toBeNull()
     const operacoes = row!.departments.find((d) => d.department === 'operacoes')!
     expect(operacoes.state).toBe('on-time')
-    expect(operacoes.businessDaysElapsed).toBe(2) // 2026-02-02 (seg) -> 2026-02-04 (qua)
+    expect(operacoes.hoursElapsed).toBe(55) // 2026-02-02 00:00 BRT (03:00Z) -> 2026-02-04 10:00Z
+  })
+
+  it('ADR fechado com a regra de 72 h mede pelo instante (deadlineAt)', () => {
+    const row = mapClosedReportToSlaRow(closedReport({
+      closed_snapshot: {
+        header: { unifiedAtd: '2026-02-02T10:00:00-03:00', deadlineDate: '2026-02-05', deadlineAt: '2026-02-05T13:00:00.000Z' },
+        departmentSignoffs: [{ department: 'operacoes', signed_by: 'u', signed_at: '2026-02-05T13:30:00.000Z' }],
+      },
+    }))
+    expect(row!.departments.find((d) => d.department === 'operacoes')!.state).toBe('overdue')
   })
 
   it('mapeia uma linha atrasada (assinatura depois do prazo)', () => {

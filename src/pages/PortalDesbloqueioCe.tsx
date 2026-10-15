@@ -553,7 +553,7 @@ export function PortalDesbloqueioCe() {
                 {allReady && latestStart ? (
                   <p
                     role="status"
-                    className="flex items-start gap-2 rounded-lg bg-[var(--app-green-soft)] p-3 text-sm font-semibold text-[#157a45] dark:text-[#bbf7d0]"
+                    className="flex items-start gap-2 rounded-lg bg-[var(--app-green-soft)] p-3 text-sm font-semibold text-[#157a45]"
                   >
                     <CircleCheck size={18} aria-hidden="true" className="shrink-0" />
                     <span>
