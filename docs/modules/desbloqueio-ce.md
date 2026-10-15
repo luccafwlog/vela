@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; ativação pendente de homologação com a ZPT, aceite operacional, migration `220` em produção, prova do expurgo e da correção B1 do plano de correções ([Notas e divergências](#notas-e-divergências)) · **Atualizado:** 2026-10-14 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; migration `220` em produção desde 2026-10-13 e expurgo de um PDF real comprovado em produção em 2026-10-15; ativação pendente de homologação com a ZPT, aceite operacional e da correção B1 do plano de correções ([Notas e divergências](#notas-e-divergências)) · **Atualizado:** 2026-10-15 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -275,9 +275,12 @@ que não comprovam o gateway Supabase nem o envio real de e-mail.
 **Não comprovado:** aceite da planilha `zpt-5-v2` pela aba "Planilha desbloqueio" da ZPT
 (sem modelo oficial de importação; o primeiro upload real é o teste), conciliação com um
 "Exportar Tela" real, entrega real dos avisos por e-mail (em produção os Comunicados estavam
-desligados e a tentativa ficou `skipped`), a migration `220` em produção e a remoção física
-pelo expurgo em produção (o documento de teste foi criado em 2026-10-13 para a rodada de
-14/10).
+desligados e a tentativa ficou `skipped`) e a falha física no Storage seguida de nova
+tentativa no expurgo. A migration `220` está em produção desde 2026-10-13. O expurgo removeu
+em produção, na rodada de 2026-10-15, um PDF real de 145.648 bytes enviado pelo Portal num
+rascunho de teste tornado elegível: rascunho cancelado, documento com `purged_at`, objeto
+fora do bucket e `ObjectRemoved:Delete` no log do Storage (detalhes nas "Fontes" do
+[plano](../plans/2026-10-04-desbloqueio-ce-mercante.md)).
 
 Evidência da execução original e limitações estão no
 [relatório local](../archive/reports/2026-10-04-desbloqueio-ce-implementacao.md); a revisão de
