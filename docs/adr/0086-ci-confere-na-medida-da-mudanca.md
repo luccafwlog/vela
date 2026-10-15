@@ -1,7 +1,7 @@
 # 0086 — O CI confere na medida do que a PR muda
 
 Status: aceito — 2026-10-15 (decisões do dono D1 e D2 do
-[plano de compactação do CI](../plans/2026-10-15-compactacao-do-ci.md)).
+[plano de compactação do CI](../archive/plans/2026-10-15-compactacao-do-ci.md)).
 Estende a [ADR 0010](./0010-validacao-testes-deploy-gates.md). Regra vigente
 em [WORKFLOW.md](../../WORKFLOW.md), seções "11. Testes e validação" e
 "12. CI e deploy", e em [Deploy](../setup/deploy.md#workflows).

@@ -672,8 +672,10 @@ para eles vale o backup do próprio Supabase.
   `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
   etiqueta). Regra em [ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md).
 - **Etiqueta `preview`:** dispara a preview e o usuário admin de uma PR; a
-  limpeza ao fechar só roda em PR com essa etiqueta. Criar a etiqueta no
-  repositório se ainda não existir.
+  limpeza ao fechar só roda em PR com essa etiqueta (existe no repositório).
+- **Ruleset da `main` ("auto-merge claude"):** impede apagar a branch e
+  force-push, exige PR (sem aprovação obrigatória, decisão do dono em
+  2026-10-15) e o check `checks` do GitHub Actions verde, sem exigir branch atualizada (conferido pela API em 2026-10-15).
 - **Repository secrets:** só `SUPABASE_PROJECT_REF` (Preview),
   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Em 2026-10-08
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,
@@ -695,11 +697,11 @@ para eles vale o backup do próprio Supabase.
   workflows atuais. O dono recusou restringir os environments de Preview à
   branch `main` em 2026-10-06; manter essa decisão registrada.
 
-  O repositório é privado; a API de rulesets informa que é necessário GitHub
-  Pro ou tornar o repositório público. Não alterar o plano nem a visibilidade
-  como atalho. A migração dos secrets para os environments foi concluída em
-  2026-10-08; a proteção de workflows (ruleset) fica a cargo do dono, fora do
-  plano run-2.
+  A migração dos secrets para os environments foi concluída em 2026-10-08.
+  Em 2026-10-08 a API de rulesets respondia que o repositório privado exigia
+  GitHub Pro; em 2026-10-15 o ruleset "auto-merge claude" já estava ativo e
+  passou a exigir o `checks` (estado vigente no item "Ruleset da `main`"
+  acima).
 
   O provisionamento passou a consultar cada projeto Pages pelo nome e foi
   validado no run `37631613061`; Preview, limpeza, admin da Preview e produção
