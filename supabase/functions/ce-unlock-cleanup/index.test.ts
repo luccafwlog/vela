@@ -20,7 +20,7 @@ async function cleanupRun(options: { storageFails: boolean; claimed?: boolean })
   globalThis.fetch = async (input) => {
     const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
     calls.push(path);
-    let value: unknown = null;
+    let value: unknown;
     let status = 200;
     if (path.endsWith("ce_unlock_cleanup_candidates")) value = [{ id: "doc-1", storage_path: "1/doc-1.pdf" }];
     else if (path.endsWith("ce_unlock_cleanup_claim")) value = options.claimed === false ? null : { id: "doc-1", storage_path: "1/doc-1.pdf" };
