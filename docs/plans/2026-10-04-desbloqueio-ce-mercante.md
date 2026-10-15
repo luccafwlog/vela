@@ -50,7 +50,8 @@ A revisão geral da documentação do mesmo dia reabriu o alerta de troca de CE
 com Desbloqueio conferido, que o código não abria (B1 do
 [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico). A
 correção é a migration `230`, completada pela `277` (a confirmação manual legada vale só
-para o CE confirmado), provadas no Postgres local; falta publicá-las em produção.
+para o CE confirmado), provadas no Postgres local e aplicadas em produção em
+2026-10-15 (merge da PR 954).
 
 **Estado conferido em 2026-10-14:** a rodada do expurgo das 06:00 UTC executou o
 ciclo completo sobre o documento de teste: rascunho cancelado, documento
@@ -242,14 +243,16 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    com um PDF real enviado pelo Portal num rascunho de teste tornado elegível
    (por exemplo, com mais de 7 dias), conferindo depois que o objeto deixou de
    existir e não pode mais ser baixado.
-8. Publicar em produção a migration `230` (Tarefa 6): trocar ou remover o CE
+8. ~~Publicar em produção a migration `230` (Tarefa 6): trocar ou remover o CE
    de um B/L conciliado como *Desbloqueio conferido* passa a abrir
    `ce_trocado_com_desbloqueio` e a avisar na prévia, lendo a conciliação em
    `ce_unlock_zpt_status` (defeito B1 do
    [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md),
    [ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
    Provado no Postgres local pelo teste B1 de
-   `ceImportacaoContrato.local-pg.test.ts`; falta a publicação.
+   `ceImportacaoContrato.local-pg.test.ts`.~~ Feito: as migrations `230` e
+   `277` foram aplicadas em produção no merge da PR 954 (conferido em
+   2026-10-15 pela lista de migrations do projeto).
 
 ## Foco da revisão
 
@@ -443,7 +446,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
 - [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Superado** pela revisão de 2026-10-07: as ações `sent` e `confirm` saíram; exportar registra o envio e a conciliação com o "Exportar Tela" da ZPT marca *Desbloqueio conferido* ou *Divergente* ([módulo vivo](../modules/desbloqueio-ce.md)). Confirmações antigas ficam como histórico do desk.
 - [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número. **Código/Remoto:** migration `177` (PR 929), em produção em 2026-10-12.
-- [ ] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: a definição da `195` lia a confirmação manual retirada na `160`, não o status da conciliação. Corrigido nas migrations `230` e `277` (B1 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)), provado no Postgres local pelos testes B1 e 277; falta publicar em produção (item 8 do caminho crítico).
+- [x] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: a definição da `195` lia a confirmação manual retirada na `160`, não o status da conciliação. Corrigido nas migrations `230` e `277` (B1 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)), provado no Postgres local pelos testes B1 e 277; aplicadas em produção em 2026-10-15 (item 8 do caminho crítico; a troca de CE em produção não foi exercitada).
 - [x] Demonstrar baixa cancelada concorrente à criação da exportação. **Teste:** "exportação aguarda reversão financeira concorrente…" em `ceUnlock.local-pg.test.ts` (ver "Fontes").
 - [ ] Demonstrar bloqueio por cada requisito (hoje há teste de pagamento e de termo anual revogado), snapshot imutável e retry do mesmo lote.
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.
