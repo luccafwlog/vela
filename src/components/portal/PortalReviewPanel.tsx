@@ -162,12 +162,17 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
           de provisionamento seguem de quem provisiona (ADR 0045; migration 250). */}
       <section className="mt-6 grid gap-3">
         <h3 className="font-semibold">Candidatos de email</h3>
-        {row.candidates.length ? row.candidates.map((candidate) => (
-          <button key={`${candidate.email}-${candidate.purpose}`} type="button" className="rounded-lg border border-[var(--app-border)] px-3 py-2 text-left hover:border-cyan-400" onClick={() => setEmail(candidate.email)}>
+        {/* Para Operações o candidato é só leitura: o campo que ele preencheria não aparece. */}
+        {row.candidates.length ? row.candidates.map((candidate) => {
+          const content = <>
             <div className="font-medium">{candidate.email}</div>
             <div className="text-xs text-[var(--app-muted)]">{contactPurposeLabel(candidate.purpose)} · {candidate.origin}</div>
-          </button>
-        )) : <p className="text-sm text-[var(--app-muted)]">Nenhum contato com email disponível.</p>}
+          </>
+          const key = `${candidate.email}-${candidate.purpose}`
+          return isOperations
+            ? <div key={key} className="rounded-lg border border-[var(--app-border)] px-3 py-2">{content}</div>
+            : <button key={key} type="button" className="rounded-lg border border-[var(--app-border)] px-3 py-2 text-left hover:border-cyan-400" onClick={() => setEmail(candidate.email)}>{content}</button>
+        }) : <p className="text-sm text-[var(--app-muted)]">Nenhum contato com email disponível.</p>}
       </section>
 
       {row.sharedEmailCount > 0 ? <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-950/20 p-3 text-sm text-amber-100">Este email também aparece em {row.sharedEmailCount} outro(s) CNPJ(s). A análise manual continua obrigatória.</p> : null}

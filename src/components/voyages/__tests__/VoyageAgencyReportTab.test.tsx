@@ -1408,6 +1408,21 @@ it('B6: escala com frentes TBC e sem ADR de terminal não abre o ADR legado', ()
   expect(screen.queryByRole('button', { name: 'Fechar ADR' })).toBeNull()
 })
 
+it('B6: a escala TBC mantém o seletor e deixa ir para a próxima escala', () => {
+  useAgencyReportTerminalStateMock.mockImplementation((_voyageId: number, port: string | null) => ({
+    data: port === 'BRVIX'
+      ? { agencyReports: [], fronts: [{ sentido: 'importacao', modalidade: 'carga_cheia', terminalId: null }] }
+      : { agencyReports: [], fronts: [] },
+    isLoading: false,
+    error: null,
+  }))
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }, { pod: 'BRSSZ', omitted: false }]} />)
+  expect(screen.getByRole('status').textContent).toMatch(/Nenhum terminal atribuído às frentes desta escala/)
+  fireEvent.click(screen.getByRole('button', { name: 'BRSSZ' }))
+  expect(useAgencyReportTerminalStateMock).toHaveBeenLastCalledWith(7, 'BRSSZ')
+  expect(screen.queryByText(/Nenhum terminal atribuído às frentes desta escala/)).toBeNull()
+})
+
 it('B2: a Carga descarregada do ADR terminalizado é só a dos B/Ls do terminal, com a exceção de terminal', () => {
   useAgencyReportTerminalStateMock.mockReturnValue({
     data: {

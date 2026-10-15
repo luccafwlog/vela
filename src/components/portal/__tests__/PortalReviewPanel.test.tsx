@@ -29,6 +29,8 @@ describe('PortalReviewPanel', () => {
       render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={{ ...row, account_situation: 'ativo', recovery_email: 'financeiro@example.com', recovery_email_source: 'candidato' }} /></MemoryRouter></QueryClientProvider>)
       expect(screen.getByText(/financeiro@example\.com · escolhido entre os candidatos/)).toBeTruthy()
       expect(screen.getByText('Candidatos de email')).toBeTruthy()
+      // O candidato é só leitura: sem o campo, um botão não teria efeito.
+      expect(screen.queryByRole('button', { name: /financeiro@example\.com/ })).toBeNull()
       expect(screen.queryByRole('button', { name: 'Trocar Email de Recuperação' })).toBeNull()
     } finally {
       authState.role = 'administrativo'

@@ -426,8 +426,31 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
     return <div className="app-panel app-panel--padded text-sm text-[var(--app-muted)]">Nenhuma escala ativa para compor o ADR.</div>
   }
 
+  // O seletor de escalas fica visível, senão uma escala TBC ou com erro de carga prende a aba.
+  const escalaSelector = (
+    <div className="flex flex-wrap gap-2" aria-label="Selecionar escala ADR">
+      {pods.map(({ pod, omitted }) => (
+        <Button key={pod} variant={port === pod ? 'primary' : 'secondary'} aria-pressed={port === pod} onClick={() => setPort(pod)} className="app-btn--sm">
+          {pod}
+          {omitted ? (
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${port === pod ? 'bg-white/20 text-white' : 'bg-[var(--app-surface-muted)] text-[var(--app-muted)]'}`}
+              title="Escala omitida — o navio não atracou neste porto; ADR mantido apenas como registro fechado."
+            >
+              Omitida
+            </span>
+          ) : null}
+        </Button>
+      ))}
+    </div>
+  )
   if (terminalStateError) {
-    return <div className="app-panel app-panel--padded text-sm text-[var(--app-red)]">Não foi possível carregar frentes, terminais e ADRs da escala. Nenhuma ação foi habilitada.</div>
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+        {escalaSelector}
+        <div className="app-panel app-panel--padded text-sm text-[var(--app-red)]">Não foi possível carregar frentes, terminais e ADRs da escala. Nenhuma ação foi habilitada.</div>
+      </div>
+    )
   }
 
   if (isTerminalStateLoading || !terminalState) {
@@ -438,7 +461,12 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   // Sem terminal atribuído (frentes TBC) e sem ADR já existente, não há ADR a
   // abrir — o caminho legado por porto não é oferecido.
   if ((terminalState.fronts ?? []).length > 0 && terminalReports.length === 0) {
-    return <div className="app-panel app-panel--padded text-sm text-[var(--app-muted)]" role="status">Nenhum terminal atribuído às frentes desta escala (TBC). Atribua o terminal na edição da escala para abrir o ADR do terminal.</div>
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+        {escalaSelector}
+        <div className="app-panel app-panel--padded text-sm text-[var(--app-muted)]" role="status">Nenhum terminal atribuído às frentes desta escala (TBC). Atribua o terminal na edição da escala para abrir o ADR do terminal.</div>
+      </div>
+    )
   }
 
   // Dados operacionais continuam sendo consultados por escala, mas um ADR
@@ -716,21 +744,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-      <div className="flex flex-wrap gap-2" aria-label="Selecionar escala ADR">
-        {pods.map(({ pod, omitted }) => (
-          <Button key={pod} variant={port === pod ? 'primary' : 'secondary'} aria-pressed={port === pod} onClick={() => setPort(pod)} className="app-btn--sm">
-            {pod}
-            {omitted ? (
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${port === pod ? 'bg-white/20 text-white' : 'bg-[var(--app-surface-muted)] text-[var(--app-muted)]'}`}
-                title="Escala omitida — o navio não atracou neste porto; ADR mantido apenas como registro fechado."
-              >
-                Omitida
-              </span>
-            ) : null}
-          </Button>
-        ))}
-      </div>
+      {escalaSelector}
 
       {terminalizedReports.length ? (
         <div className="app-panel app-panel--padded grid gap-2" aria-label="Selecionar ADR por terminal">
