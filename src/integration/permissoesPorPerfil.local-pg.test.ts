@@ -513,7 +513,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     // Usuário autenticado sem perfil interno (como o do Portal): 42501, não a mensagem do Baplie.
     const result = runAsUser('85850000-0000-4000-8000-0000000000ff', `SELECT public.import_baplie_staging_transactional(${VOYAGE_ID}, '[]'::jsonb)`)
     expect(result.ok).toBe(false)
-    expect(result.error).toMatch(/Sem permissão para importar o Baplie/)
+    expect(result.error).toMatch(/sem permissao para importar Baplie/)
     expect(psql(`SELECT string_agg(container_number, ',') FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};`)).toBe('PCCU8500001')
   })
 

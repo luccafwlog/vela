@@ -22,7 +22,7 @@ CREATE OR REPLACE FUNCTION public.import_baplie_staging_transactional(p_voyage_i
 AS $function$
 BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() THEN
-    RAISE EXCEPTION 'Sem permissão para importar o Baplie.' USING ERRCODE = '42501';
+    RAISE EXCEPTION 'Credenciais invalidas ou sem permissao para importar Baplie.' USING ERRCODE = '42501';
   END IF;
   IF jsonb_typeof(COALESCE(p_rows, 'null'::jsonb)) <> 'array' OR jsonb_array_length(p_rows) = 0 THEN
     RAISE EXCEPTION 'O Baplie não tem nenhum container: confira o arquivo antes de importar. O Baplie anterior da viagem foi mantido.'
