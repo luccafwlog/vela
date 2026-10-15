@@ -280,9 +280,22 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    migrations `230` e `277` (PR 954), aplicadas em produção em 2026-10-15.
 9. ~~Implementar as mudanças da ADR 0087.~~ Feito nas migrations `279` e `280`
    (PR 956), com testes no Postgres local.
-10. Depois do merge da PR 956: conferir em produção as migrations `279`–`282`,
+10. ~~Depois do merge da PR 956: conferir em produção as migrations `279`–`282`,
     republicar a Edge Function `portal-ce-unlock-document` (mensagem do PDF) e
-    fazer a observação no serviço real que resta na Tarefa 7.
+    fazer a observação no serviço real que resta na Tarefa 7.~~ Feito em
+    2026-10-15: migrations `279`–`282` em produção (funções conferidas e os 3
+    lotes ZPT com hash); a Edge Function já estava publicada com a mensagem nova,
+    sem republicação manual. Observação com o responsável no Chrome: versões
+    anteriores com data; PDF inválido recusado no Portal com a mensagem nova;
+    fatura avulsa `INV-2026-0015` do B/L de teste `TEST-ITAU-DEM-20261007`
+    bloqueia ("Pendentes" no Portal, financeiro pendente no Vela) e, paga,
+    libera sem recarregar. O B/L foi marcado isento por SQL, com autorização,
+    por não haver isento com CE (a isenção é automática, Taxas Locais).
+    Correções da observação na PR seguinte: PDF abre na aba nova (era baixado),
+    B/L isento aparece "Isento" no Portal (aparecia "Pagas"), anexos sobem ao
+    clicar em **Solicitar desbloqueio** (sem botão por documento) e o Controle
+    ZPT abre em *Todas as situações*. Ficam em aberto os itens não marcados das
+    Tarefas 3, 5 e 7.
 
 ## Foco da revisão
 

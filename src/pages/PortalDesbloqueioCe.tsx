@@ -20,7 +20,8 @@ import { CeUnlockVipCoveragePanel } from "../components/ce-unlock/CeUnlockVipCov
 import { ceDocumentName, ceStateLabel, ceStateTone } from "../lib/ceUnlockLabels";
 import { ceUnlockDeadline, formatCeUnlockDeadline, latestSlaStart } from "../services/ceUnlockSla";
 import { usePortalCeUnlock } from "../hooks/usePortalCeUnlock";
-import { downloadCeUnlockDocument } from "../services/ceUnlockService";
+import { downloadCeUnlockDocument, uploadCeUnlockDocument } from "../services/ceUnlockService";
+import type { CeDocumentType } from "../types/ceUnlock";
 import { portalPath } from "../services/portalScope";
 
 type Tab = "new" | "requests" | "annual";
@@ -58,6 +59,10 @@ export function PortalDesbloqueioCe() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState("");
+  // Termo e procuração escolhidos e ainda não enviados: sobem ao clicar em Solicitar desbloqueio.
+  const [pendingFiles, setPendingFiles] = useState<Partial<Record<CeDocumentType, File>>>({});
+  const [sending, setSending] = useState(false);
+  const [uploadRound, setUploadRound] = useState(0);
   const draftKey = useRef(crypto.randomUUID());
   const submitKey = useRef(crypto.randomUUID());
   const cancelKey = useRef(crypto.randomUUID());
@@ -68,7 +73,8 @@ export function PortalDesbloqueioCe() {
   const vipPending = !!vip?.enabled && (!vip.termo || !vip.procuracao);
   const detail = flow.detail.data;
   // Documento do pedido ainda não apresentado, ou recusado e sem nova versão.
-  const missingDocs = ["termo", "procuracao"].filter((type) => {
+  const missingDocs = (["termo", "procuracao"] as const).filter((type) => {
+    if (pendingFiles[type]) return false;
     const latest = detail?.documents.find((d) => d.type === type && d.source === "request" && d.status !== "uploading");
     return !latest || !["uploaded", "approved"].includes(latest.status);
   });
@@ -92,6 +98,8 @@ export function PortalDesbloqueioCe() {
       return p;
     });
     submitKey.current = crypto.randomUUID();
+    setPendingFiles({});
+    setUploadRound((n) => n + 1);
     setError("");
   };
   function changeTab(next: Tab) {
@@ -134,15 +142,36 @@ export function PortalDesbloqueioCe() {
     )
       return;
     setError("");
+    setSending(true);
     try {
+      // Cada anexo vira nova versão do documento e incrementa a versão do pedido;
+      // o envio usa a versão relida depois deles. Anexo já enviado sai da lista,
+      // então uma nova tentativa só reenvia o que faltou.
+      let version = detail.version;
+      const queued = (["termo", "procuracao"] as const).filter((type) => pendingFiles[type]);
+      for (const type of queued) {
+        await uploadCeUnlockDocument({ source: "request", request_id: detail.id, type }, pendingFiles[type]!, flow.scope);
+        setPendingFiles((prev) => ({ ...prev, [type]: undefined }));
+      }
+      if (queued.length) {
+        setUploadRound((n) => n + 1);
+        await flow.refresh();
+        const fresh = await flow.detail.refetch();
+        version = fresh.data?.version ?? version;
+      }
       await flow.command.mutateAsync({
         action: "submit",
-        payload: { request_id: detail.id, expected_version: detail.version, request_key: submitKey.current },
+        payload: { request_id: detail.id, expected_version: version, request_key: submitKey.current },
       });
       submitKey.current = crypto.randomUUID();
       setTab("requests");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível enviar o pedido");
+      // Anexo recusado (ex.: não é PDF) precisa ser escolhido de novo; o que já subiu aparece acima.
+      setPendingFiles({});
+      setUploadRound((n) => n + 1);
+    } finally {
+      setSending(false);
     }
   }
   async function cancel() {
@@ -386,7 +415,7 @@ export function PortalDesbloqueioCe() {
                           <td className="px-3 py-3">
                             <span className="app-table__cell-stack app-table__cell-stack--center">
                               <span>
-                                <Badge tone={i.paid ? "green" : "yellow"}>{i.paid ? "Pagas" : "Pendentes"}</Badge>
+                                <Badge tone={i.paid ? "green" : "yellow"}>{i.paid ? (i.paid_exempt ? "Isento" : "Pagas") : "Pendentes"}</Badge>
                               </span>
                               {!i.paid && (
                                 <a
@@ -556,6 +585,8 @@ export function PortalDesbloqueioCe() {
                     scope={flow.scope}
                     onUploaded={flow.refresh}
                     current={detail.documents.filter((d) => d.source === "request")}
+                    resetKey={uploadRound}
+                    onPendingChange={(type, file) => setPendingFiles((prev) => ({ ...prev, [type]: file }))}
                   />
                 ) : (
                   <CeUnlockDocumentList documents={detail.documents} scope={flow.scope} />
@@ -629,7 +660,7 @@ export function PortalDesbloqueioCe() {
 
               {editable && (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--app-border)] pt-4">
-                  <Button variant="ghost" disabled={flow.command.isPending} onClick={() => void cancel()}>
+                  <Button variant="ghost" disabled={sending || flow.command.isPending} onClick={() => void cancel()}>
                     Cancelar solicitação
                   </Button>
                   <div className="flex flex-wrap items-center justify-end gap-3">
@@ -638,13 +669,18 @@ export function PortalDesbloqueioCe() {
                         {!documentsReady
                           ? detail.source === "vip_annual"
                             ? "Regularize os documentos anuais VIP para enviar."
-                            : `Envie ${missingDocs.map((t) => ceDocumentName(t).toLowerCase()).join(" e ")} para continuar.`
+                            : `Anexe ${missingDocs.map((t) => ceDocumentName(t).toLowerCase()).join(" e ")} para continuar.`
                           : unpaid
                             ? "Há BL com taxas locais pendentes."
                             : null}
                       </span>
                     )}
-                    <Button disabled={flow.command.isPending || !submitReady} onClick={() => void submit()}>
+                    <Button
+                      disabled={sending || flow.command.isPending || !submitReady}
+                      loading={sending}
+                      loadingLabel="Enviando…"
+                      onClick={() => void submit()}
+                    >
                       {detail.state === "draft" ? "Solicitar desbloqueio" : "Reenviar solicitação"}
                     </Button>
                   </div>
