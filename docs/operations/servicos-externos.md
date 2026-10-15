@@ -697,11 +697,11 @@ para eles vale o backup do próprio Supabase.
   workflows atuais. O dono recusou restringir os environments de Preview à
   branch `main` em 2026-10-06; manter essa decisão registrada.
 
-  O repositório é privado; a API de rulesets informa que é necessário GitHub
-  Pro ou tornar o repositório público. Não alterar o plano nem a visibilidade
-  como atalho. A migração dos secrets para os environments foi concluída em
-  2026-10-08; a proteção de workflows (ruleset) fica a cargo do dono, fora do
-  plano run-2.
+  A migração dos secrets para os environments foi concluída em 2026-10-08.
+  Em 2026-10-08 a API de rulesets respondia que o repositório privado exigia
+  GitHub Pro; em 2026-10-15 o ruleset "auto-merge claude" já estava ativo e
+  passou a exigir o `checks` (estado vigente no item "Ruleset da `main`"
+  acima).
 
   O provisionamento passou a consultar cada projeto Pages pelo nome e foi
   validado no run `37631613061`; Preview, limpeza, admin da Preview e produção

@@ -98,7 +98,7 @@ obrigatórias sempre que a PR mexer no banco ou nelas mesmas.
 - `scripts/check-local-pg-ci.mjs` (exige hoje as duas ordens no `ci.yml`),
   `scripts/local-pg-suites.txt`, `scripts/run-local-pg-suites.mjs`,
   `scripts/setup-local-pg.sh`, `vite.config.ts` (sequenciador).
-- [WORKFLOW.md](../../WORKFLOW.md) §11 e §12, [Deploy](../../setup/deploy.md),
+- [WORKFLOW.md](../../../WORKFLOW.md) §11 e §12, [Deploy](../../setup/deploy.md),
   [Testes](../../setup/testing.md),
   [serviços externos](../../operations/servicos-externos.md),
   [ADR 0010](../../adr/0010-validacao-testes-deploy-gates.md).
