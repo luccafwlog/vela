@@ -10,6 +10,7 @@ import { CopyValue } from '../components/ui/CopyValue'
 import { NoValue } from '../components/ui/NoValue'
 import { Field, Input, Select } from '../components/ui/Input'
 import { SkeletonTable } from '../components/ui/Skeleton'
+import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { InvoiceStatusBadge } from '../components/demurrage/DemurrageBadges'
 import { useToast } from '../components/ui/Toast'
 import { formatBRL, formatCnpjCpf, formatDate, formatUSD } from '../lib/utils'
@@ -35,6 +36,34 @@ import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
 import { blTotalCbm, blTotalWeightKg, cargoModeLabel } from '../lib/cargoMode'
 
 type ReportTab = 'operacional' | 'financeiro' | 'clientes' | 'demurrage'
+
+// ponytail: o relatório chega inteiro (KPIs e exportação usam tudo) e a tabela
+// mostra uma página por vez, recortada no navegador. Com as 1.000 linhas na
+// tela eram ~37 mil nós e meio segundo de thread travada ao abrir a aba.
+function useReportPage<T>(rows: readonly T[] | undefined) {
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+  const [pageRows, setPageRows] = useState(rows)
+  if (pageRows !== rows) {
+    setPageRows(rows)
+    setPage(1)
+  }
+  const totalCount = rows?.length ?? 0
+  return {
+    rows: (rows ?? []).slice((page - 1) * pageSize, page * pageSize),
+    pagination: {
+      page,
+      pageSize,
+      totalCount,
+      totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+      onPageChange: setPage,
+      onPageSizeChange: (size: number) => {
+        setPageSize(size)
+        setPage(1)
+      },
+    },
+  }
+}
 
 export function Relatorios() {
   const [tab, setTab] = useState<ReportTab>('operacional')
@@ -125,6 +154,7 @@ function OperationalReportTab() {
     queryFn: () => fetchOperationalReport(filters),
     staleTime: 30_000,
   })
+  const page = useReportPage(data?.rows)
 
   async function handleExport() {
     setExporting(true)
@@ -250,7 +280,7 @@ function OperationalReportTab() {
                   </td>
                 </tr>
               ) : null}
-              {data?.rows.map((row) => (
+              {page.rows.map((row) => (
                 <tr key={row.id}>
                   <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]"><CopyValue value={row.id} label="número do B/L" /></td>
                   <td className="px-4 py-3 text-[var(--app-text)]">
@@ -277,6 +307,7 @@ function OperationalReportTab() {
             </tbody>
           </table>
         </div>
+        <TableFooterPagination {...page.pagination} />
       </Card>
     </>
   )
@@ -300,6 +331,7 @@ function FinancialReportTab() {
     queryFn: () => fetchFinancialReport(filters),
     staleTime: 30_000,
   })
+  const page = useReportPage(data?.rows)
   const accessDenied = Boolean(data?.accessDenied)
 
   async function handleExport() {
@@ -422,7 +454,7 @@ function FinancialReportTab() {
                       </td>
                     </tr>
                   ) : null}
-                  {data?.rows.map((row) => (
+                  {page.rows.map((row) => (
                     <tr key={row.id}>
                       <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]">{row.invoice_number ?? `INV-${row.id}`}</td>
                       <td className="app-table__text px-4 py-3 text-[var(--app-text)]" title={row.customer?.name ?? undefined}>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
@@ -437,6 +469,7 @@ function FinancialReportTab() {
                 </tbody>
               </table>
             </div>
+            <TableFooterPagination {...page.pagination} />
           </Card>
         </>
       )}
@@ -474,6 +507,7 @@ function CustomerReportTab() {
     queryFn: () => fetchCustomerReport(filters),
     staleTime: 30_000,
   })
+  const page = useReportPage(data?.rows)
 
   async function handleExport() {
     if (!data?.rows.length) {
@@ -578,7 +612,7 @@ function CustomerReportTab() {
                   </td>
                 </tr>
               ) : null}
-              {data?.rows.map((row) => (
+              {page.rows.map((row) => (
                 <tr key={row.customer_id}>
                   <td className="app-table__text px-4 py-3 font-semibold text-[var(--app-text-strong)]" title={row.name ?? undefined}>{row.name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-[var(--app-muted)]">{row.cnpj_cpf ? <CopyValue value={formatCnpjCpf(row.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</td>
@@ -597,6 +631,7 @@ function CustomerReportTab() {
             </tbody>
           </table>
         </div>
+        <TableFooterPagination {...page.pagination} />
       </Card>
     </>
   )
@@ -626,6 +661,7 @@ function DemurrageReportTab() {
   })
 
   const invoices = data ?? []
+  const page = useReportPage(data)
   // Faturas canceladas continuam listadas (o operador precisa vê-las), mas somá-las
   // inflaria os totais. Cada indicador declara no rótulo o recorte que agrega.
   const active = invoices.filter((invoice) => invoice.status !== 'cancelled')
@@ -736,7 +772,7 @@ function DemurrageReportTab() {
                   </td>
                 </tr>
               ) : null}
-              {invoices.map((invoice) => (
+              {page.rows.map((invoice) => (
                 <tr key={invoice.id}>
                   <td className="px-4 py-2 font-mono text-xs text-[var(--app-text-strong)]">{invoice.doc_number}</td>
                   <td className="px-4 py-2 text-[var(--app-blue-btn)]"><CopyValue value={invoice.bl_id} label="número do B/L" /></td>
@@ -751,6 +787,7 @@ function DemurrageReportTab() {
             </tbody>
           </table>
         </div>
+        <TableFooterPagination {...page.pagination} />
       </Card>
     </>
   )

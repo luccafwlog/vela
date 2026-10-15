@@ -30,6 +30,7 @@ import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '
 import { type ContainerFilters, fetchAllContainers, useContainers, usePortOptions, useContainerTypeOptions } from '../hooks/useBls'
 import { userFacingErrorMessage } from '../lib/errors'
 import { formatDate } from '../lib/utils'
+import { STALE_PAGE_CLASS } from '../lib/pagination'
 import type { BLContainer, ContainerListItem } from '../types/database'
 import { CHARGE_STATUS_FILTER_OPTIONS } from './blsListState'
 import {
@@ -159,7 +160,10 @@ export function Containers() {
     search: debouncedSearch,
     page: debouncedSearch === filters.search ? filters.page : 1,
   }), [debouncedSearch, filters])
-  const { data, isLoading, error, fetchStatus, refetch } = useContainers(queryFilters)
+  const { data, isLoading, isPlaceholderData, error, fetchStatus, refetch } = useContainers(queryFilters)
+  // Filtro trocado: as linhas na tela ainda são do recorte anterior até a
+  // resposta chegar. Ficam esmaecidas e sem seleção, e os totais não as contam.
+  const stale = isPlaceholderData
   const { data: portOptions } = usePortOptions()
   const { data: typeOptions } = useContainerTypeOptions()
   const rows = (data?.rows ?? []) as ContainerRow[]
@@ -235,7 +239,7 @@ export function Containers() {
   const containerSkeletonTemplate = `${isAdmin ? '44px ' : ''}1.1fr 1.3fr 1.4fr 0.6fr 0.7fr 0.9fr 0.8fr 0.9fr 0.9fr${isAdmin ? ' 52px' : ''}`
 
   // Erro ou carregamento mostram "—", nunca um zero que o sistema não sabe.
-  const known = data !== undefined && !error
+  const known = data !== undefined && !error && !stale
   const count = (value: number | undefined) => (known ? (value ?? 0).toLocaleString('pt-BR') : '—')
   const summaryItems: SummaryItem[] = [
     { label: 'containers distintos', value: count(data?.distinctCount) },
@@ -383,7 +387,7 @@ export function Containers() {
           errorMessage="Não foi possível carregar os containers."
           onRetry={() => void refetch()}
         >
-          {isLoading ? (
+          {isLoading || (stale && rows.length === 0) ? (
             <SkeletonTable rows={8} cols={containerColumnCount} columnTemplate={containerSkeletonTemplate} label="Carregando containers" />
           ) : rows.length === 0 ? (
             activeFilterCount > 0 ? (
@@ -400,7 +404,7 @@ export function Containers() {
               />
             )
           ) : narrow ? (
-            <ul className="app-cargo-cards" aria-label="Containers">
+            <ul className={`app-cargo-cards${stale ? ` ${STALE_PAGE_CLASS}` : ''}`} aria-label="Containers" aria-busy={stale || undefined}>
               {rows.map((row) => (
                 <li key={row.id} className="app-cargo-card">
                   <div className="app-cargo-card__head">
@@ -410,6 +414,7 @@ export function Containers() {
                         className="app-cargo-card__check"
                         aria-label={`Selecionar container ${row.container_number}`}
                         checked={selection.isSelected(row.id)}
+                        disabled={stale}
                         onChange={() => selection.toggle(row.id)}
                       />
                     ) : null}
@@ -438,7 +443,7 @@ export function Containers() {
               ))}
             </ul>
           ) : (
-            <div className="app-table-scroll app-table-scroll--sticky">
+            <div className={`app-table-scroll app-table-scroll--sticky${stale ? ` ${STALE_PAGE_CLASS}` : ''}`} aria-busy={stale || undefined}>
               <table className={`app-table app-cargo-table${isAdmin ? ' app-cargo-table--selectable' : ''}`}>
                 <caption className="sr-only">Containers do recorte atual</caption>
                 <thead>
@@ -449,6 +454,7 @@ export function Containers() {
                           type="checkbox"
                           aria-label="Selecionar todos os containers da página"
                           checked={allPageSelected}
+                          disabled={stale}
                           onChange={() => selection.toggleMany(pageContainerIds)}
                         />
                       </th>
@@ -474,6 +480,7 @@ export function Containers() {
                             type="checkbox"
                             aria-label={`Selecionar container ${row.container_number}`}
                             checked={selection.isSelected(row.id)}
+                            disabled={stale}
                             onChange={() => selection.toggle(row.id)}
                           />
                         </td>

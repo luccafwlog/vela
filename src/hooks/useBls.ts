@@ -1,12 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
+import { usePagedQuery } from './usePagedQuery'
 import { normalizeText } from '../lib/utils'
 import { queryKeys } from '../services/queryKeys'
 import { supabase } from '../services/supabase'
 import {
+  fetchOperationalFilterOptions,
   getOperationalBlSummary,
   listOperationalBls,
   listOperationalContainers,
   listOperationalVoyageSummaries,
+  type OperationalFilterOptions,
   type OperationalVoyageSummary,
 } from '../services/operationalLists'
 import type { VoyageDetail } from '../services/voyageReadModels'
@@ -98,16 +101,24 @@ export type ContainerFilters = {
 }
 
 export function useBls(filters: BlFilters) {
-  return useQuery({
+  const next = { ...filters, page: filters.page + 1 }
+  return usePagedQuery({
     queryKey: queryKeys.bls.list(filters),
     queryFn: () => listOperationalBls(filters, filters.page, filters.pageSize),
+    nextQueryKey: queryKeys.bls.list(next),
+    nextQueryFn: () => listOperationalBls(next, next.page, next.pageSize),
+    hasNext: (data) => filters.page * filters.pageSize < data.count,
   })
 }
 
 export function useContainers(filters: ContainerFilters) {
-  return useQuery({
+  const next = { ...filters, page: filters.page + 1 }
+  return usePagedQuery({
     queryKey: queryKeys.bls.containers(filters),
     queryFn: () => listOperationalContainers(filters, filters.page, filters.pageSize),
+    nextQueryKey: queryKeys.bls.containers(next),
+    nextQueryFn: () => listOperationalContainers(next, next.page, next.pageSize),
+    hasNext: (data) => filters.page * filters.pageSize < data.count,
   })
 }
 
@@ -259,64 +270,36 @@ export function useVoyageOptions() {
   })
 }
 
-export function usePortOptions() {
+// POL, POD e tipos vêm juntos de uma RPC: antes os selects baixavam todos os
+// B/Ls e contêineres em páginas de 1.000, uma após a outra (13 + 29 com 12 mil
+// B/Ls). Os dois hooks leem a mesma entrada do cache.
+function useOperationalFilterOptions<T>(select: (options: OperationalFilterOptions) => T) {
   return useQuery({
     queryKey: queryKeys.bls.portOptions(),
-    // Port codes are stable — refresh only once every 10 minutes
+    // Códigos de porto e tipos mudam pouco: relê a cada 10 minutos.
     staleTime: 1000 * 60 * 10,
-    queryFn: async () => {
-      const pols = new Set<string>()
-      const pods = new Set<string>()
-      for (let from = 0; ; from += 1000) {
-        const { data, error } = await supabase.from('bls').select('pol, pod').range(from, from + 999)
-        if (error) throw error
-        for (const row of data ?? []) {
-          const pol = String(row.pol ?? '').trim()
-          const pod = String(row.pod ?? '').trim()
-          if (pol) pols.add(pol)
-          if (pod) pods.add(pod)
-        }
-        if (!data || data.length < 1000) break
-      }
-
-      return {
-        pols: Array.from(pols).sort((left, right) => left.localeCompare(right, 'pt-BR')),
-        pods: Array.from(pods).sort((left, right) => left.localeCompare(right, 'pt-BR')),
-      }
-    },
+    queryFn: fetchOperationalFilterOptions,
+    select,
   })
 }
 
-export function useContainerTypeOptions() {
-  return useQuery({
-    queryKey: ['container-type-options'],
-    staleTime: 1000 * 60 * 10,
-    queryFn: async () => {
-      const types = new Set<string>()
-      for (let from = 0; ; from += 1000) {
-        const { data, error } = await supabase.from('bl_containers').select('type').range(from, from + 999)
-        if (error) throw error
-        for (const row of data ?? []) {
-          const t = String(row.type ?? '').trim().toUpperCase()
-          if (t) types.add(t)
-        }
-        if (!data || data.length < 1000) break
-      }
+export function usePortOptions() {
+  return useOperationalFilterOptions(({ pols, pods }) => ({ pols, pods }))
+}
 
-      return Array.from(types).sort((left, right) => left.localeCompare(right, 'pt-BR'))
-    },
-  })
+export function useContainerTypeOptions() {
+  return useOperationalFilterOptions(({ containerTypes }) => containerTypes ?? [])
 }
 
 async function fetchOperationalVoyageSummaries() {
   const pageSize = 100
-  const rows: OperationalVoyageSummary[] = []
-  for (let page = 1; ; page += 1) {
-    const result = await listOperationalVoyageSummaries(page, pageSize)
-    rows.push(...result.rows)
-    if (rows.length >= result.count || result.rows.length < pageSize) break
-  }
-  return rows
+  // A primeira página traz o total; as demais vêm juntas, não uma após a outra.
+  const first = await listOperationalVoyageSummaries(1, pageSize)
+  if (first.rows.length < pageSize || first.rows.length >= first.count) return first.rows
+  const rest = await Promise.all(
+    Array.from({ length: Math.ceil(first.count / pageSize) - 1 }, (_, index) => listOperationalVoyageSummaries(index + 2, pageSize)),
+  )
+  return [first, ...rest].flatMap((page): OperationalVoyageSummary[] => page.rows)
 }
 
 export function useVoyages() {

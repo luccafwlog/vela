@@ -20,6 +20,7 @@ vi.mock('@e965/xlsx', () => ({
   writeFile: writeFileMock,
 }))
 vi.mock('@tanstack/react-query', () => ({
+  keepPreviousData: (previous: unknown) => previous,
   useQuery: ({ queryKey }: { queryKey: string[] }) => {
     if (queryKey[0] === 'dashboard') {
       return {

@@ -6,9 +6,22 @@ vi.mock('../supabase', () => ({ supabase: { from: (table: string) => from(table)
 function builder(result: { data: unknown; error: unknown }) {
   let data = Array.isArray(result.data) ? result.data : result.data
   const chain: Record<string, unknown> = {}
-  for (const method of ['select', 'order', 'or', 'ilike', 'limit', 'not', 'overrideTypes', 'gte', 'lte']) {
+  for (const method of ['select', 'or', 'ilike', 'limit', 'not', 'overrideTypes', 'gte', 'lte']) {
     chain[method] = vi.fn(() => chain)
   }
+  // Ordena como o banco: o marco de alteração lê a primeira linha do
+  // `order(..., { ascending: false }).limit(1)`.
+  chain.order = vi.fn((field: string, options?: { ascending?: boolean }) => {
+    if (Array.isArray(data) && data.some((row) => row && typeof row === 'object' && field in row)) {
+      const sign = options?.ascending === false ? -1 : 1
+      data = [...data].sort((left, right) => {
+        const a = String((left as Record<string, unknown>)[field] ?? '')
+        const b = String((right as Record<string, unknown>)[field] ?? '')
+        return a < b ? -sign : a > b ? sign : 0
+      })
+    }
+    return chain
+  })
   chain.eq = vi.fn((field: string, value: unknown) => {
     if (Array.isArray(data) && data.some((row) => row && typeof row === 'object' && field in row)) {
       data = data.filter((row) => row && typeof row === 'object' && (row as Record<string, unknown>)[field] === value)

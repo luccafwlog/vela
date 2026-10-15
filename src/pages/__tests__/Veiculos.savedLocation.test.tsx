@@ -11,23 +11,28 @@ vi.mock('../../components/shared/VoyageCombobox', () => ({ VoyageCombobox: () =>
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirmWithReason: () => vi.fn() }))
 vi.mock('../../services/vaziosNatureza', () => ({ setContainerUnpackingLocation: mocks.save }))
-vi.mock('../../hooks/useVehicles', async () => {
+vi.mock('../../hooks/useVehicles', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../hooks/useVehicles')>()
   const { useQuery } = await import('@tanstack/react-query')
   return {
-    UNPACKING_LOCATION_NONE: '__none__',
+    ...actual,
     useVehicleOptions: () => ({ data: { voyages: [] } }),
     useVoyageVehicleStats: () => ({ data: { byVoyageId: {} } }),
+    // Mesmo formato do hook real: o cache guarda as linhas cruas da viagem e a
+    // tela recebe o recorte do `select`.
     useVehicles: () => useQuery({
       queryKey: ['vehicles', 7],
-      initialData: {
-        rows: [
-          { id: 11, chassis: 'CHASSI-1', container: { id: 33, container_number: 'CXRU1234567', unpacking_location: 'Terminal A' }, bl: { id: 'BL-1' } },
-          { id: 12, chassis: 'CHASSI-2', container: { id: 44, container_number: 'CXRU7654321', unpacking_location: null }, bl: { id: 'BL-1' } },
-          { id: 13, chassis: 'CHASSI-3', container: { id: 33, container_number: 'CXRU1234567', unpacking_location: 'Terminal A' }, bl: { id: 'BL-2' } },
-        ],
-        count: 3, distinctContainerCount: 1, distinctBlCount: 1, totalWeightKg: 0, totalCbm: 0,
+      initialData: [
+        { id: 11, chassis: 'CHASSI-1', container: { id: 33, container_number: 'CXRU1234567', unpacking_location: 'Terminal A' }, bl: { id: 'BL-1' } },
+        { id: 12, chassis: 'CHASSI-2', container: { id: 44, container_number: 'CXRU7654321', unpacking_location: null }, bl: { id: 'BL-1' } },
+        { id: 13, chassis: 'CHASSI-3', container: { id: 33, container_number: 'CXRU1234567', unpacking_location: 'Terminal A' }, bl: { id: 'BL-2' } },
+      ],
+      select: (rows) => ({
+        rows, count: rows.length, filteredIds: rows.map((row) => row.id),
+        containerIdByVehicleId: Object.fromEntries(rows.map((row) => [row.id, row.container.id])),
+        distinctContainerCount: 1, distinctBlCount: 1, totalWeightKg: 0, totalCbm: 0,
         vehiclesByBrand: [], vehiclesByContainerType: [], containersByContainerType: [],
-      },
+      }),
       queryFn: async () => { throw new Error('Falha na consulta') },
     }),
   }
@@ -44,9 +49,9 @@ it('mantém a desova salva quando a releitura falha e acompanha uma atualizaçã
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith(33, 'Terminal B'))
     await waitFor(() => expect(client.getQueryState(['vehicles', 7])?.status).toBe('error'))
     expect(input.value).toBe('Terminal B')
-    client.setQueriesData<{ rows: Array<{ container: { unpacking_location: string } }> }>({ queryKey: ['vehicles'] }, (cached) => cached && ({
-      ...cached, rows: cached.rows.map((row) => ({ ...row, container: { ...row.container, unpacking_location: 'Terminal C' } })),
-    }))
+    client.setQueriesData<Array<{ container: { unpacking_location: string } }>>({ queryKey: ['vehicles'] }, (cached) => cached?.map((row) => (
+      { ...row, container: { ...row.container, unpacking_location: 'Terminal C' } }
+    )))
     await waitFor(() => expect(input.value).toBe('Terminal C'))
   } finally { client.clear() }
 })

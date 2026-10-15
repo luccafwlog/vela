@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
   ArrowRight,
@@ -16,11 +16,10 @@ import { LineUpTable } from '../components/lineup/LineUpTable'
 import { LineUpFilters } from '../components/lineup/LineUpFilters'
 import { countActiveLineUpFilters, emptyLineUpFilters, filterLineUpRows, type LineUpFilters as LineUpFiltersState } from '../lib/lineupFilters'
 import { fetchLineUpSnapshot } from '../services/lineup'
-import { exportLineUpWorkbook } from '../services/exports'
 import { markStartupStage } from '../lib/telemetry'
 import { getAlertDepartmentSummary, type AlertDepartmentSummary } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
-import { AGENCY_REPORT_DEPARTMENT_LABELS } from '../services/agencyDepartureReport'
+import { AGENCY_REPORT_DEPARTMENT_LABELS } from '../services/agencyReportLabels'
 
 const KNOWN_DEPARTMENTS = ['documentacao', 'equipamentos', 'operacoes'] as const
 
@@ -40,6 +39,8 @@ export function Painel() {
     queryFn: () => fetchLineUpSnapshot(voyageWindow),
     staleTime: 60_000,
     refetchInterval: 90_000,
+    // "Carregar mais viagens" mantém a tabela atual até a janela maior chegar.
+    placeholderData: keepPreviousData,
   })
 
   const { data: departmentSummary, error: departmentSummaryError } = useQuery<AlertDepartmentSummary[]>({
@@ -62,6 +63,8 @@ export function Painel() {
   async function handleExport() {
     setIsExporting(true)
     try {
+      // A planilha (zod, billing) só carrega no clique: fora do chunk da tela inicial.
+      const { exportLineUpWorkbook } = await import('../services/exports')
       await exportLineUpWorkbook(rows)
     } catch {
       showToast('Falha ao exportar o Line Up.', 'error')

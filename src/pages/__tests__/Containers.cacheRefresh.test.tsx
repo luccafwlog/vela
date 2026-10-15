@@ -13,6 +13,7 @@ vi.mock('../../services/operationalLists', () => ({
   }),
   getOperationalBlSummary: async () => ({ totalDistinctContainers: Number(source.exists) }),
   listOperationalVoyageSummaries: async () => ({ rows: [{ id: 24, containerCount: Number(source.exists) }], count: 1 }),
+  fetchOperationalFilterOptions: async () => ({ pols: [], pods: [], containerTypes: [] }),
 }))
 vi.mock('../../services/containers', () => ({
   checkContainerDependencies: async () => ({ deletableIds: [33], blockedIds: [] }),

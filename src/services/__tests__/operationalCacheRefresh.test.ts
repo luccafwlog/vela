@@ -40,7 +40,7 @@ describe('atualização operacional sem reload', () => {
   it('importar B/L atualiza totalizadores, ficha da viagem, filtros e habilitação da conciliação', async () => {
     await expectRefresh((client) => afterManifestoImportado(client, { voyageId: 24 }), [
       ['bl-summary', { pod: 'BRSSZ' }], ['voyage-detail', 24], ['baplie-bls-exist', '24'],
-      ['container-type-options'], ['bl-cockpit', 'BL1'], ['report-operational', {}], ['op-count', 'pending-review'],
+      ['port-options'], ['bl-cockpit', 'BL1'], ['report-operational', {}], ['op-count', 'pending-review'],
     ])
   })
   it('Baplie atualiza cards mesmo sem mudar flags físicas e encontra chaves string da página', async () => {

@@ -26,7 +26,9 @@ import { useVoyages } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
-import { UNPACKING_LOCATION_NONE, useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { STALE_PAGE_CLASS } from '../lib/pagination'
+import { UNPACKING_LOCATION_NONE, cacheUnpackingLocation, useVehicleOptions, useVehicles, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
 import { deleteVehicles } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
@@ -180,7 +182,14 @@ export function Veiculos() {
   }, [voyageRows, escalaSchedulesByVoyage, voyageVehicleStats])
 
   const voyageId = selectedVoyageId ? Number(selectedVoyageId) : null
-  const { data, isLoading, error } = useVehicles(voyageId, filters)
+  // Chassi e lacre vão ao servidor: só depois da pausa na digitação.
+  const debouncedSearch = useDebouncedValue(filters.search)
+  const debouncedSeal = useDebouncedValue(filters.seal)
+  const queryFilters = useMemo(() => ({ ...filters, search: debouncedSearch, seal: debouncedSeal }), [filters, debouncedSearch, debouncedSeal])
+  const { data, isLoading, isPlaceholderData, error } = useVehicles(voyageId, queryFilters)
+  // Chassi, lacre, marca, modelo ou tipo trocados: as linhas na tela ainda são
+  // do recorte anterior até a resposta chegar. Ficam esmaecidas e sem seleção.
+  const stale = isPlaceholderData
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / filters.pageSize))
   const groups = useMemo(() => groupVehiclesByContainer(data?.rows ?? []), [data?.rows])
 
@@ -212,17 +221,6 @@ export function Veiculos() {
     }
   }
 
-  function cacheSavedUnpackingLocations(containerIds: readonly number[], value: string | null) {
-    const ids = new Set(containerIds)
-    // Atualiza só consultas existentes com a escrita confirmada, antes da releitura.
-    queryClient.setQueriesData<typeof data>({ queryKey: ['vehicles'] }, (cached) => cached && ({
-      ...cached,
-      rows: cached.rows.map((row) => row.container && ids.has(row.container.id)
-        ? { ...row, container: { ...row.container, unpacking_location: value } }
-        : row),
-    }))
-  }
-
   async function handleUnpackingLocationSave(containerId: number, value: string, currentValue: string | null) {
     const unpackingLocation = value.trim() || null
     if (unpackingLocation === currentValue || savingRef.current.has(containerId)) return
@@ -236,7 +234,7 @@ export function Veiculos() {
     })
     try {
       await setContainerUnpackingLocation(containerId, unpackingLocation)
-      cacheSavedUnpackingLocations([containerId], unpackingLocation)
+      cacheUnpackingLocation(queryClient, [containerId], unpackingLocation)
       await afterCargaAlterada(queryClient)
       setUnpackingLocations((current) => {
         const next = { ...current }
@@ -282,7 +280,7 @@ export function Veiculos() {
     try {
       await Promise.all(containerIds.map(async (containerId) => {
         await setContainerUnpackingLocation(containerId, value)
-        cacheSavedUnpackingLocations([containerId], value)
+        cacheUnpackingLocation(queryClient, [containerId], value)
       }))
       await afterCargaAlterada(queryClient)
       setUnpackingLocations((current) => {
@@ -528,7 +526,7 @@ export function Veiculos() {
                 Não foi possível carregar os veículos. Os totais aparecem como —.
               </div>
             ) : null}
-            {isLoading ? (
+            {isLoading || (stale && !data?.rows.length) ? (
               <SkeletonTable rows={6} cols={columnCount} columnTemplate={skeletonTemplate} label="Carregando veículos" />
             ) : error && !data?.rows.length ? null : !data?.rows.length ? (
               activeFilterCount > 0 ? (
@@ -545,7 +543,7 @@ export function Veiculos() {
                 />
               )
             ) : narrow ? (
-              <ul className="app-cargo-cards" aria-label="Veículos por container">
+              <ul className={`app-cargo-cards${stale ? ` ${STALE_PAGE_CLASS}` : ''}`} aria-label="Veículos por container" aria-busy={stale || undefined}>
                 {groups.map((group) => (
                   <li key={group.key} className="app-cargo-card">
                     <div className="app-cargo-card__head">{groupHead(group)}</div>
@@ -558,6 +556,7 @@ export function Veiculos() {
                               type="checkbox"
                               aria-label={`Selecionar veículo ${row.chassis}`}
                               checked={selection.isSelected(row.id)}
+                              disabled={stale}
                               onChange={() => selection.toggle(row.id)}
                             />
                           ) : null}
@@ -574,7 +573,7 @@ export function Veiculos() {
                 ))}
               </ul>
             ) : (
-              <div className="app-table-scroll app-table-scroll--sticky">
+              <div className={`app-table-scroll app-table-scroll--sticky${stale ? ` ${STALE_PAGE_CLASS}` : ''}`} aria-busy={stale || undefined}>
                 <table className="app-table app-cargo-table app-cargo-table--grouped">
                   <caption className="sr-only">Veículos da viagem agrupados por container</caption>
                   <thead>
@@ -585,6 +584,7 @@ export function Veiculos() {
                             type="checkbox"
                             aria-label={`Selecionar os ${filteredRowIds.length} veículos do recorte`}
                             checked={allFilteredSelected}
+                            disabled={stale}
                             onChange={() => selection.toggleMany(filteredRowIds)}
                           />
                         </th>
@@ -607,6 +607,7 @@ export function Veiculos() {
                               type="checkbox"
                               aria-label={`Selecionar os veículos do container ${group.container?.container_number ?? 'sem container'}`}
                               checked={group.vehicles.every((row) => selection.isSelected(row.id))}
+                              disabled={stale}
                               onChange={() => selection.toggleMany(group.vehicles.map((row) => row.id))}
                             />
                           </td>
@@ -625,6 +626,7 @@ export function Veiculos() {
                                   type="checkbox"
                                   aria-label={`Selecionar veículo ${row.chassis}`}
                                   checked={selection.isSelected(row.id)}
+                                  disabled={stale}
                                   onChange={() => selection.toggle(row.id)}
                                 />
                               </td>

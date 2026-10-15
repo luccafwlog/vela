@@ -206,6 +206,26 @@ export async function listOperationalBls(
   }
 }
 
+export type OperationalFilterOptions = { pols: string[]; pods: string[]; containerTypes: string[] }
+
+function distinctSorted(values: unknown, normalize: (value: string) => string = (value) => value) {
+  const list = Array.isArray(values) ? values : []
+  return [...new Set(list.map((value) => normalize(String(value ?? '').trim())).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, 'pt-BR'))
+}
+
+/** POL, POD e tipos de contêiner distintos para os selects (migration 285). */
+export async function fetchOperationalFilterOptions(): Promise<OperationalFilterOptions> {
+  const { data, error } = await supabase.rpc('operational_list_filter_options' as never)
+  if (error) throw error
+  const payload = asRecord(data)
+  return {
+    pols: distinctSorted(payload.pols),
+    pods: distinctSorted(payload.pods),
+    containerTypes: distinctSorted(payload.containerTypes, (value) => value.toUpperCase()),
+  }
+}
+
 export async function getOperationalBlSummary(filters: OperationalListFilters): Promise<OperationalBlSummary> {
   const { data, error } = await supabase.rpc('operational_list_bl_summary', baseArgs(filters))
   if (error) throw error
