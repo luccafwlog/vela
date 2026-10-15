@@ -60,8 +60,8 @@ obrigatórias sempre que a PR mexer no banco ou nelas mesmas.
 
 | # | Decisão | Situação |
 | --- | --- | --- |
-| D1 | Como garantir que a produção não publique código antes da migration que ele usa, quando o CI da `main` deixar de existir (achado P1 do Codex nesta PR). **(a)** A publicação espera o check da integração do Supabase no commit do merge, se esse check existir (não verificado); custa 1 a 3 min de espera por publicação. **(b)** Só a regra de `deploy.md`: migration numa PR própria, que entra antes do código que depende dela. Recomendação: (a) se o check existir; senão (b), com a regra repetida no template de PR. | **Aguarda o dono.** Bloqueia só o item 1.2. |
-| D2 | Exigir que a PR esteja atualizada com a `main` antes do merge ("Require branches to be up to date"), já que a `main` não terá CI próprio. Protege de duas PRs verdes que quebram juntas, mas obriga a rodar o CI de novo a cada merge alheio. Recomendação: não exigir agora; reavaliar se acontecer. | **Aguarda o dono.** Não bloqueia. |
+| D1 | Como garantir que a produção não publique código antes da migration que ele usa, quando o CI da `main` deixar de existir (achado P1 do Codex nesta PR). **Decidido pelo dono em 2026-10-15: a publicação espera o check da integração do Supabase no commit do merge.** Regra do item 1.2. | Decidida |
+| D2 | Exigir que a PR esteja atualizada com a `main` antes do merge ("Require branches to be up to date"). **Decidido pelo dono em 2026-10-15: não exigir.** Se duas PRs verdes quebrarem juntas, a PR seguinte fica vermelha e mostra o problema; reavaliar se acontecer. | Decidida |
 | D3 | Cadência da passada invertida: semanal, segunda de manhã, mais disparo manual. | Padrão do plano |
 | D4 | Previews e admin de preview só com a etiqueta `preview` ou disparo manual a partir da `main`. | Padrão do plano |
 | D5 | Número de shards dos testes comuns: o menor que mantenha o job de testes abaixo de ~3 min de parede. | Escolha de execução, medida no item 1.4 |
@@ -94,7 +94,7 @@ atual de `deploy.md`).
 com branch Supabase vinculada → preview publicada como hoje. Sem branch
 vinculada → falha na espera, como hoje.
 
-### 1.2 Sem CI repetido depois do merge (depende de D1)
+### 1.2 Sem CI repetido depois do merge (D1, D2)
 
 **O que muda:** o merge publica o Vela e o Portal em ~2 min, sem os ~11 min
 de CI de novo na `main`.
@@ -105,15 +105,34 @@ de CI de novo na `main`.
 - `cloudflare-pages-production.yml`: de `workflow_run` para `push` na `main`
   mais `workflow_dispatch`, mantendo `CLOUDFLARE_PAGES_PRODUCTION_ENABLED`, o
   environment `cloudflare-production` e `github.ref == 'refs/heads/main'`.
-  Com D1 = (a), um passo antes da publicação espera o check do Supabase no SHA
-  e falha se ele falhar.
+- **Espera pelo Supabase (D1):** antes de publicar, um passo consulta os
+  check runs do app `supabase` no SHA do push. Hoje esse check se chama
+  "Supabase Preview" também na `main`. O job precisa de `checks: read`.
+  - `success` → publica.
+  - `failure`, `cancelled` ou `timed_out` → não publica e falha com a
+    mensagem do check.
+  - `skipped`, ou nenhum check em 10 min → só publica se o push não tiver
+    mudado `supabase/migrations/`. Se tiver mudado, falha pedindo conferência
+    no painel do Supabase e publicação manual (`workflow_dispatch`).
+  - O `workflow_dispatch` publica sem esperar o check: é a saída manual de
+    quem já conferiu.
+
+  Evidência (Runtime, API de check runs, 2026-10-15): o app `supabase`
+  publicou o check nos merges `b42427c7` (PR 929, 45 arquivos em
+  `supabase/`, `success` em ~55 s) e `2763f99b` (`success` em ~30 s). Em
+  `1aa7aaf7`, que mudava `supabase/functions/_shared/email.ts`, o check veio
+  `skipped`, com "This git branch is not associated with any Supabase Branch".
+  Conferir no painel do Supabase o vínculo da `main` com a produção antes do
+  merge deste item e registrar o resultado em
+  [serviços externos](../operations/servicos-externos.md#supabase).
 
 **Aceite:** merge de teste → nenhum run de `CI` na `main`. `Cloudflare Pages
-Production` começa no push e termina em ~2 min (com D1 = (a), mais a espera
-do Supabase).
+Production` começa no push, espera o check do Supabase e termina em ~2 a
+3 min. Teste do passo de espera cobre `success`, `failure`, `skipped` com e
+sem migration no push, e ausência do check.
 
-**Risco:** com D2 = não, duas PRs verdes podem quebrar juntas na `main` sem
-CI que perceba. A PR seguinte fica vermelha e mostra o problema.
+**Risco (D2):** duas PRs verdes podem quebrar juntas na `main` sem CI que
+perceba. A PR seguinte fica vermelha e mostra o problema.
 
 ### 1.3 Suítes SQL só quando a PR mexe no banco
 
