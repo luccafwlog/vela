@@ -3,9 +3,7 @@
 Specs descrevem decisões ainda não executadas. O ciclo de vida é definido em
 [CONVENCOES.md](../CONVENCOES.md#ciclo-de-vida-de-planos-e-specs).
 
-| Spec | Estado |
-|---|---|
-| [Desbloqueio de CE Mercante — Issue 557](2026-10-04-desbloqueio-ce-mercante-design.md) | Publicado em produção em 2026-10-10; VIP anual até 31/12 e cinco colunas ZPT; homologação e ativação pendentes |
+Nenhuma spec viva no momento.
 
 Specs concluídas ficam no [índice das specs arquivadas](../archive/specs/README.md);
 suas regras vigentes estão nos módulos (`docs/modules/`).

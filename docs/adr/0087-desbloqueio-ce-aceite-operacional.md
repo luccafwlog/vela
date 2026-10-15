@@ -4,10 +4,10 @@
 
 Status: aceito — 2026-10-14 (decisões do dono). Itens 2 e 3 implementados na
 migration `279` e item 5 na `280` (PR 956), com testes no Postgres local; ver o
-[plano do Desbloqueio de CE](../plans/2026-10-04-desbloqueio-ce-mercante.md).
+[plano do Desbloqueio de CE](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md).
 
 Fecha o aceite operacional e jurídico que a
-[spec](../spec/2026-10-04-desbloqueio-ce-mercante-design.md) deixava em
+[spec](../archive/specs/2026-10-04-desbloqueio-ce-mercante-design.md) deixava em
 "Decisões necessárias antes da execução dependente". As regras vivem no
 [módulo Desbloqueio de CE](../modules/desbloqueio-ce.md).
 
