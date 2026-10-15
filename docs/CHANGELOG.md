@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Identidade visual, lote 1 encerrado (2026-10-15):** aba ADR da Viagem em blocos, com a
+  linha do tempo em painel e registro; prazo do ADR em 72 horas corridas da hora do ATD
+  (migration `284`); hora obrigatória em ETB, ATB, ETD, ATD, ATA e no ETA digitado, com a
+  atracação gravada no fuso de Brasília (`285`); atracação sem agenda do POD passa a formar
+  a escala; Portal de Demurrage sem "Vencida" e com os períodos numa linha; tema escuro
+  retirado.
 - **Identidade visual, lote 1 · abas restantes da ficha do B/L e Rotas e Manifestos (2026-10-15):**
   Carga, Detalhes do B/L, Faturamento e Histórico do B/L e Rotas e Manifestos da Viagem
   no formato aprovado (blocos, tabela limpa, situação em texto). A aba Carga ganhou a

@@ -21,7 +21,7 @@ export function CeUnlockSla({
   const tone = missed
     ? "text-[var(--app-red)]"
     : !doneAt && state === "today"
-      ? "text-[#a85309] dark:text-[var(--app-gold-strong)]"
+      ? "text-[#a85309]"
       : "text-[var(--app-muted)]";
   return (
     <span data-sla={doneAt ? (missed ? "late" : "met") : state} className="app-table__cell-stack">

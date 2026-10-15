@@ -56,8 +56,9 @@ Uma tela compõe estas peças; não cria CSS próprio para elas.
 
 ## Cores
 
-Os valores vivem em `src/index.css`; esta tabela dá os papéis. O tema escuro
-do Vela redefine os mesmos tokens e passa no `npm run a11y:contrast`.
+Os valores vivem em `src/index.css`; esta tabela dá os papéis. Não há tema
+escuro: foi retirado em 2026-10-15 por decisão do responsável (não tinha
+seletor na tela). Classe `dark:` do Tailwind não deve voltar ao código.
 
 | Papel | Token | Vela (claro) | Portal Fwlog |
 |---|---|---|---|
@@ -106,9 +107,6 @@ O Modo Inspeção usa o shell e as telas do Portal, então mostra a marca FWLOG.
 Os tokens da marca ficam na raiz do `portal.html` (`data-app="portal"`) e no
 shell `.app-shell--portal`: login, ativação, recuperação de senha, avisos e
 modais fora do shell também recebem a marca.
-No Modo Inspeção com o Vela no tema escuro, a marca fica na barra e no
-cabeçalho de tabela e o texto (link, informação, faixa) volta aos tokens do
-escuro; `npm run a11y:contrast` confere esse caso como `portal-dark`.
 Toque (ponteiro grosso) mantém 44 px de alvo nos dois produtos.
 
 ## Superfícies especiais

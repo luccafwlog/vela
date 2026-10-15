@@ -530,7 +530,7 @@ export function ClientesComunicacao() {
       ) : settingsError ? (
         <div role="alert" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-rose-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700">
               <AlertTriangle size={18} />
             </div>
             <div>
@@ -545,7 +545,7 @@ export function ClientesComunicacao() {
       ) : settings?.communications_enabled === true ? (
         <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-emerald-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
               <CheckCircle2 size={18} />
             </div>
             <div>
@@ -577,7 +577,7 @@ export function ClientesComunicacao() {
       ) : (
         <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-amber-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
               <AlertTriangle size={18} />
             </div>
             <div>
@@ -1168,7 +1168,7 @@ export function ClientesComunicacao() {
                 </div>
                 <div className="mt-2 text-sm text-[var(--app-text)]">
                   {item.customer?.cnpj_cpf ? (
-                    <Link to={`/clientes/${encodeURIComponent(item.customer.cnpj_cpf)}`} className="font-medium text-blue-600 hover:underline dark:text-blue-400">
+                    <Link to={`/clientes/${encodeURIComponent(item.customer.cnpj_cpf)}`} className="font-medium text-blue-600 hover:underline">
                       {item.customer.name}
                     </Link>
                   ) : (

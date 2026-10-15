@@ -6,12 +6,10 @@ import { resolve } from 'node:path'
 
 const css = readFileSync(resolve('src/index.css'), 'utf8')
 // "portal" é o tema claro com as redeclarações de `.app-shell--portal` (marca
-// FWLOG, ADR 0081). "portal-dark" é o Portal dentro do Vela no tema escuro
-// (Modo Inspeção): tema escuro, marca FWLOG e as correções de texto do escuro.
-const themes = ['light', 'dark', 'portal', 'portal-dark']
+// FWLOG, ADR 0081). O tema escuro saiu em 2026-10-15.
+const themes = ['light', 'portal']
 const markers = {
   portal: '.app-shell--portal {',
-  'portal-dark': ":root[data-visual-theme='dark'] .app-shell--portal,",
 }
 const minimum = 4.5
 
@@ -39,7 +37,6 @@ function ownTokens(theme) {
 
 function readTokens(theme) {
   if (theme === 'portal') return { ...ownTokens('light'), ...ownTokens('portal') }
-  if (theme === 'portal-dark') return { ...ownTokens('dark'), ...ownTokens('portal'), ...ownTokens('portal-dark') }
   return ownTokens(theme)
 }
 

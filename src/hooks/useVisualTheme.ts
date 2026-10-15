@@ -1,6 +1,8 @@
 import { createContext, createElement, useEffect, useMemo, useState } from 'react'
 
-export type VisualTheme = 'current' | 'dark' | 'light'
+// O tema escuro saiu em 2026-10-15 (decisão do responsável): não tinha seletor
+// na tela. Preferência 'dark' guardada no navegador volta ao tema atual.
+export type VisualTheme = 'current' | 'light'
 
 const storageKey = 'vela_visual_theme'
 const legacyStorageKey = 'transhipping_visual_theme'
@@ -13,7 +15,7 @@ type VisualThemeContextValue = {
 const VisualThemeContext = createContext<VisualThemeContextValue | null>(null)
 
 function isVisualTheme(value: string | null): value is VisualTheme {
-  return value === 'current' || value === 'dark' || value === 'light'
+  return value === 'current' || value === 'light'
 }
 
 export function VisualThemeProvider({ children }: { children: React.ReactNode }) {

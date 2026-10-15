@@ -467,7 +467,7 @@ export function DesbloqueioCe() {
           </p>
           {model.data && <CeUnlockDocumentList documents={[model.data]} />}
           {model.isSuccess && !model.data && (
-            <p className="text-sm font-semibold text-[#a85309] dark:text-[var(--app-gold-strong)]">Nenhum modelo publicado: o Portal informa que o modelo ainda não está disponível.</p>
+            <p className="text-sm font-semibold text-[#a85309]">Nenhum modelo publicado: o Portal informa que o modelo ainda não está disponível.</p>
           )}
           <CeUnlockDocumentUploader source="model" model onUploaded={() => afterCeUnlockChanged(client)} />
         </div>
