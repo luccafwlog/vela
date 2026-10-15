@@ -308,8 +308,11 @@ aplicadas; `bl_belongs_to_atracacao`, `_demurrage_roe_markup`,
 `p_reason`; `recalc-demurrage-ptax`, `send-customer-communication`,
 `portal-daily-digest` e `demurrage-dunning` foram republicadas às 13:43 UTC.
 `admin-users` não foi (ver o parágrafo de Publicação acima) e foi publicada
-à mão às 13:49 UTC; respondeu 204 ao preflight e 403 sem sessão. Falta
-conferir a execução seguinte do job da PTAX (item 3 abaixo). Duas funções
+à mão às 13:49 UTC; respondeu 204 ao preflight e 403 sem sessão. O job
+`recalc-demurrage-ptax` das 17:00 UTC do mesmo dia (item 3 abaixo) terminou com
+sucesso e gravou a referência de 2026-10-15 às 17:00:02 UTC (PTAX 5,0521, ROE
+5,3805 = PTAX × 1,065, fonte `bcb_live`), sem alerta
+`demurrage_ptax_recalc_failed` novo. Duas funções
 dependem de migration nova:
 
 | Função | Depende de | Se ficasse no ar sem a migration |
@@ -325,7 +328,7 @@ merge, confira:
 
 1. `SELECT proname FROM pg_proc WHERE proname IN ('bl_belongs_to_atracacao', '_demurrage_roe_markup', 'reactivate_catalog_row');` devolve as três.
 2. Em Supabase → Edge Functions, `recalc-demurrage-ptax` e `send-customer-communication` com a data do merge.
-3. A execução seguinte do job da PTAX grava a referência do dia (sem alerta de falha da PTAX).
+3. A execução seguinte do job da PTAX grava a referência do dia (sem alerta de falha da PTAX). Conferido em 2026-10-15 (ver acima).
 
 ### Secrets das Edge Functions
 
