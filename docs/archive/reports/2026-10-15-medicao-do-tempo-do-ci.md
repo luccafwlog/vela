@@ -2,7 +2,7 @@
 
 Relatório de medição. Nasce histórico: registra o tempo do CI observado nesta
 data e de onde ele vem. As mudanças decorrentes estão no
-[plano de compactação do CI](../../plans/2026-10-15-compactacao-do-ci.md).
+[plano de compactação do CI](../plans/2026-10-15-compactacao-do-ci.md).
 
 ## 1. Fontes e ambiente
 

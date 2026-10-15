@@ -3,23 +3,27 @@
 Plano vivo para reduzir o tempo de espera do CI e o que ele faz sem
 necessidade, sem tirar nenhuma conferência que proteja o Vela ou o Portal. A
 medição que o motiva está no
-[relatório de 2026-10-15](../archive/reports/2026-10-15-medicao-do-tempo-do-ci.md).
+[relatório de 2026-10-15](../../archive/reports/2026-10-15-medicao-do-tempo-do-ci.md).
 PR principal: luccafwlog/vela#953, que leva este plano e os dois lotes (o dono
 pediu em 2026-10-15 o plano completo na mesma PR).
 
 ## Estado (2026-10-15)
 
-Código dos dois lotes entregue na PR luccafwlog/vela#953 ([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)).
-O plano fica vivo até os aceites que só o GitHub ou o dono comprovam:
+**Concluído e arquivado em 2026-10-15.** Código dos dois lotes na PR
+luccafwlog/vela#953 ([ADR 0086](../../adr/0086-ci-confere-na-medida-da-mudanca.md)),
+mesclada em `cb7ef2de`. Aceites no GitHub (Runtime):
 
-| Pendência | Quem | Como |
-| --- | --- | --- |
-| CI verde da PR com os jobs novos, e tempos de `quality`, `test` (2 shards, D5) e `db` registrados na descrição da PR | Execução | Runs da própria PR |
-| PR de teste que só muda texto de tela: `db` sem suítes, espera ≤ ~3 min | Execução | PR descartável, fechada sem merge |
-| Vínculo da `main` com a produção no painel do Supabase (D1) | Dono | Branching → Configuration; registrar em [serviços externos](../operations/servicos-externos.md#supabase) |
-| Etiqueta `preview` criada no repositório; proteção da `main` exigindo só `checks` | Dono | Configurações do GitHub |
-| Primeiro merge: nenhum run de `CI` na `main`; `Cloudflare Pages Production` espera o check do Supabase e publica em ~2 a 3 min | Execução | Merge desta PR |
-| Disparo manual verde de `local-pg-order.yml` | Execução | Só depois do merge: `workflow_dispatch` exige o arquivo na `main` |
+| Aceite | Resultado |
+| --- | --- |
+| CI da PR principal (mexe no banco: suítes completas) | `checks` verde em 2 min 09 s; `db` 1 min 42 s |
+| PR de teste só de tela (luccafwlog/vela#957, fechada sem merge) | `checks` verde em 2 min 16 s; `db` 41 s com "suítes SQL puladas"; `quality` 2 min 07 s; `test` 1 min 42 s e 2 min 06 s (D5: 2 shards) |
+| Merge na `main` | nenhum run de `CI`; `Cloudflare Pages Production` esperou o check do Supabase (48 s, verde) e publicou em 2 min |
+| Disparo manual de `local-pg-order.yml` | verde em 3 min 36 s; cada passada 1 min 21 s (antes ~4 min 27 s) |
+| Vínculo da `main` com a produção no Supabase (D1) | check `Supabase Preview` verde no merge `cb7ef2de` |
+
+Fica com o dono, fora deste plano: criar a etiqueta `preview` e tornar o
+`checks` obrigatório no ruleset da `main` (hoje o ruleset exige só 1
+aprovação; conferido pela API em 2026-10-15).
 
 Medido no contêiner (Runtime, 4 vCPU, PostgreSQL 16 local), antes e depois do
 Lote 2:
@@ -91,10 +95,10 @@ obrigatórias sempre que a PR mexer no banco ou nelas mesmas.
 - `scripts/check-local-pg-ci.mjs` (exige hoje as duas ordens no `ci.yml`),
   `scripts/local-pg-suites.txt`, `scripts/run-local-pg-suites.mjs`,
   `scripts/setup-local-pg.sh`, `vite.config.ts` (sequenciador).
-- [WORKFLOW.md](../../WORKFLOW.md) §11 e §12, [Deploy](../setup/deploy.md),
-  [Testes](../setup/testing.md),
-  [serviços externos](../operations/servicos-externos.md),
-  [ADR 0010](../adr/0010-validacao-testes-deploy-gates.md).
+- [WORKFLOW.md](../../WORKFLOW.md) §11 e §12, [Deploy](../../setup/deploy.md),
+  [Testes](../../setup/testing.md),
+  [serviços externos](../../operations/servicos-externos.md),
+  [ADR 0010](../../adr/0010-validacao-testes-deploy-gates.md).
 - Proteção de branch da `main`: o único check obrigatório esperado é
   `checks` (WORKFLOW §12). **Conferir nas configurações antes de renomear
   jobs.**
@@ -167,7 +171,7 @@ de CI de novo na `main`.
   `skipped`, com "This git branch is not associated with any Supabase Branch".
   Conferir no painel do Supabase o vínculo da `main` com a produção antes do
   merge deste item e registrar o resultado em
-  [serviços externos](../operations/servicos-externos.md#supabase).
+  [serviços externos](../../operations/servicos-externos.md#supabase).
 
 **Aceite:** merge de teste → nenhum run de `CI` na `main`. `Cloudflare Pages
 Production` começa no push, espera o check do Supabase e termina em ~2 a
@@ -333,4 +337,4 @@ chamada:
 ## Ao concluir
 
 Mover este plano para `docs/archive/plans/`, tirar a linha do
-[índice](README.md), registrar no `CHANGELOG.md` e rodar `npm run docs:check`.
+[índice](../../plans/README.md), registrar no `CHANGELOG.md` e rodar `npm run docs:check`.

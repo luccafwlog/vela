@@ -13,7 +13,7 @@
   merge não repete o CI: a produção publica no push em `main` depois do check do Supabase no commit
   (`scripts/wait-supabase-migrations.mjs`). Previews só pela etiqueta `preview`. As suítes SQL usam
   uma conexão por arquivo (`src/integration/localPsql.ts`): a passada caiu de 274 s para 94 s no
-  contêiner. Aceites no GitHub pendentes no [plano](plans/2026-10-15-compactacao-do-ci.md).
+  contêiner. Aceites conferidos no GitHub no mesmo dia ([plano arquivado](archive/plans/2026-10-15-compactacao-do-ci.md)).
 - **Modelo de permissões por perfil (2026-10-14, [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)):**
   o dono fixou a base (escrita global com rastro, mais cancelar fatura, baixa manual e registro da
   Restituição como exceções) e a lista fechada de exceções; a matriz ação × perfil passou a ter dono
