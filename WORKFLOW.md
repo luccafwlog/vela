@@ -33,26 +33,22 @@ branch para `origin/main`: não é procedimento de atualização cotidiana.
 
 ## Claude Code e `AGENTS.md`
 
-O repositório mantém as regras em `AGENTS.md`. `CLAUDE.md` na raiz é curto de
-propósito: a primeira linha é `@AGENTS.md` (o Claude Code importa o arquivo) e
-o resto é só o gate local antes de commit e push. Não copie regras para lá. O
-gate documental recusa um `CLAUDE.md` sem esse import. Sincronizar ou fazer
-merge entrega os arquivos; não comprova que o Claude Code instalado naquela
-máquina os carregou.
+O repositório mantém suas instruções em `AGENTS.md`, sem um `CLAUDE.md` na
+raiz. Sincronizar ou fazer merge entrega o arquivo; não comprova que o Claude
+Code instalado naquela máquina o carregou.
 
 Para instalações que disponibilizam o mod integrado `agents-md`:
 
 1. Confirme que o mod está disponível e habilitado em `/plugin`. Em `/config`,
    confira a opção **Project instructions**.
-2. Use `claude-md-or-agents-md`. Com `CLAUDE.md` presente, esse modo carrega o
-   `CLAUDE.md` e, por causa do import, também o `AGENTS.md`. `claude-md-and-agents-md`
-   carregaria os dois de novo e duplicaria as regras. Um `.claude/CLAUDE.md` ou
-   `CLAUDE.local.md` no caminho até o diretório de trabalho ainda pode interferir.
-   Inspecione eventuais conflitos antes de alterar esses arquivos.
+2. Use `claude-md-or-agents-md` para carregar `AGENTS.md` na ausência de
+   instruções próprias do projeto, ou `claude-md-and-agents-md` para carregar
+   ambos. No modo fallback, um `CLAUDE.md`, `.claude/CLAUDE.md` ou
+   `CLAUDE.local.md` no caminho até o diretório de trabalho pode impedir o
+   carregamento. Inspecione eventuais conflitos antes de alterar esses arquivos.
 3. Se configurar por arquivo, mescle a entrada abaixo nas configurações do
    usuário (`~/.claude/settings.json`), preservando as demais opções.
-   `.claude/settings.json` do projeto não configura opções desse mod. O hook
-   do gate local está nesse arquivo do projeto, não nas opções do mod.
+   `.claude/settings.json` do projeto não configura opções desse mod.
 
 ```json
 {
@@ -69,8 +65,9 @@ carregamento de `AGENTS.md` no contexto da sessão. JSON válido comprova apenas
 a configuração gravada; `/memory` não é um inventário desses arquivos.
 Se o mod não estiver disponível, ou não houver evidência de carregamento,
 registre essa limitação e investigue suporte/configuração da instalação.
-Não declare a máquina pronta apenas pela presença da opção. Essa verificação é
-por instalação, inclusive quando Windows e WSL coexistirem.
+Não recrie `CLAUDE.md` como fallback automático nem declare a máquina pronta
+apenas pela presença da opção. Essa verificação é por instalação, inclusive
+quando Windows e WSL coexistirem.
 
 Referência: [documentação oficial do mod agents-md](https://github.com/anthropics/claude-code/tree/main/mods/agents-md).
 
@@ -357,7 +354,7 @@ ela tem custo por hora, depende de autorização e é removida depois do teste.
 Com a branch vinculada, a integração aplica nela as migrations de
 `supabase/migrations/`, e o workflow Cloudflare Pages Preview publica os dois
 sites protegidos com as credenciais públicas dessa branch. Sem ela, a prova
-das migrations da PR é o replay local do gate do Claude Code (seção 11), e os
+das migrations da PR é o job `migration-replay` do CI (seção 12), e os
 workflows Cloudflare Pages Preview e Provision Preview Admin esperam o check
 `Supabase Preview` por 36 tentativas de 10 s (cerca de 6 min) e terminam com
 falha. O checkout não comprova a configuração remota: confira-a no painel.
@@ -407,7 +404,7 @@ O replay executa SQL real, mas usa shims de Auth, Vault, cron, HTTP e Storage.
 Não comprova login, envio de email, disparo de cron nem criptografia do Vault.
 Não use segredos reais nesses shims. O script imprime uma URL local; não exporta
 variáveis para o shell chamador. O seed operacional `supabase/seed.sql` é uma
-etapa separada, no fim do replay local. Nunca aponte testes de migration para produção.
+etapa separada, validada no CI. Nunca aponte testes de migration para produção.
 
 ### Nome de arquivo novo
 
@@ -430,7 +427,7 @@ este manual não renova a afirmação sobre dados de produção. Declare a depen
 arquivo, citando o nome da afirmação e o `AGENTS.md`; veja
 `supabase/migrations/061_bl_weight_semantics_and_triggers.sql` como exemplo.
 
-`npm run migrations:check` verifica isso e roda no job `gate` do CI. Ele ignora
+`npm run migrations:check` verifica isso e roda no gate `quality`. Ele ignora
 `UPDATE`/`DELETE` dentro de `CREATE FUNCTION` (código que roda depois, a pedido
 da aplicação) mas não dentro de blocos `DO` (executam durante o deploy), e não
 cobra declaração ausente nas migrations até a 061, inclusive, tratadas como
@@ -464,8 +461,7 @@ O CI da SPA e o Cloudflare Pages não aplicam migrations. Quando existe a
 branch Supabase de Preview vinculada à PR, a integração aplica nela as
 migrations da PR; confirme o check `Supabase Preview` antes do merge e, em caso
 de falha, compare o histórico remoto com os arquivos locais antes de
-reexecutar. Sem essa branch, o gate de migration da PR é o replay local
-(`scripts/replay-local-pg.sh`, seção 11).
+reexecutar. Sem essa branch, o gate de migration da PR é o `migration-replay`.
 Depois do merge, a integração GitHub do Supabase (Deploy to production) aplica
 as pendentes em produção. Após DDL, verifique advisors e o contrato usado pela
 aplicação.
@@ -653,37 +649,12 @@ npm run build
 ```
 
 Mudança de aparência, CSS ou componente visual roda também
-`npm run design:check` e `npm run a11y:contrast` (os dois estão no job `gate`
-do CI).
+`npm run design:check` e `npm run a11y:contrast` (os dois estão no job
+"Docs + Lint" do CI).
 
 Execute testes focados durante a implementação. Após corrigir falhas, repita os
 checks afetados; resultados de código e ambiente inalterados continuam válidos.
 Os gates do CI permanecem obrigatórios conforme a seção 12.
-
-O Claude Code, antes de `git commit` e `git push`, executa o gate de
-[`CLAUDE.md`](CLAUDE.md). O hook `.claude/hooks/pre-push-gate.sh` bloqueia o
-comando se um passo falhar. Diff só de Markdown ou `docs/` roda
-`npm run docs:check` e `git diff --check`. No restante, o hook roda
-`npm run lint`, `npm test`, `npm run build` e o replay estático das guardas
-(`python3 -B -m unittest discover -s scripts/security -p 'test_*.py'` e
-`python3 -B scripts/security/verificar_guardas.py --ci`), os mesmos comandos do
-job `gate`. `CLAUDE_SKIP_LOCAL_GATE=1` pula o hook só quando a pessoa pede.
-Aparência também pede `npm run design:check` e `npm run a11y:contrast`, como
-no CI.
-
-Quando o diff mexe em `supabase/`, `src/integration/` ou nos scripts do
-replay, o mesmo hook executa `scripts/replay-local-pg.sh` e bloqueia o
-comando se o replay falhar. Esse script exige PostgreSQL 16 local
-(`scripts/setup-local-pg.sh`): cluster `16/main` com `sudo -n` no
-Debian/Ubuntu, ou Homebrew `postgresql@16` / `PG_BIN` no macOS. Não usa a
-CLI do Supabase. Docker não entra nesse caminho — um contêiner publicado na
-porta 5432 não é o cluster que o script administra, e a ausência do Docker
-não muda o pré-requisito. Sem PostgreSQL 16 o script recusa e explica como
-instalar. O replay aplica as migrations do zero, trava invariantes
-(`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), roda as
-suítes locais nas duas ordens e a bateria financeira por último, confere o
-catálogo de RPCs e aplica `supabase/seed.sql`. O timeout do hook é 60
-minutos por causa dessa etapa.
 
 ### Isolamento entre arquivos de teste
 
@@ -726,19 +697,18 @@ Para reproduzir o gate completo, use `npm run test:local-pg`, que roda em
 série as suítes de [`scripts/local-pg-suites.txt`](scripts/local-pg-suites.txt)
 na ordem da lista; `npm run test:local-pg -- --reverse` roda de trás para
 frente. O Vitest reordena os arquivos por conta própria (falhos e lentos
-primeiro); o script passa a ordem ao sequenciador do `vite.config.ts`. O
-replay local (`scripts/replay-local-pg.sh`) roda as duas ordens, cada uma
-num banco recém-replicado (`setup-local-pg.sh --reset` antes da invertida),
-o que prova que nenhuma suíte depende do que a anterior fez nem é quebrada
-por ela. As suítes compartilham banco e precisam rodar em série; cada uma
-deve usar seu próprio namespace de IDs e documentos nas fixtures e apagar o
-que cria, inclusive versões de regra de tarifa e contas de Portal do próprio
-Cliente: a bateria financeira roda num passo próprio, por último, e falha
-com resíduo global. Toda suíte nova entra em `scripts/local-pg-suites.txt`;
+primeiro); o script passa a ordem ao sequenciador do `vite.config.ts`. O CI
+roda as duas ordens, cada uma num banco recém-replicado
+(`setup-local-pg.sh --reset` antes da invertida), o que prova que nenhuma suíte
+depende do que a anterior fez nem é quebrada por ela. As suítes
+compartilham banco e precisam rodar em série; cada uma deve
+usar seu próprio namespace de IDs e documentos nas fixtures e apagar o que
+cria, inclusive versões de regra de tarifa e contas de Portal do próprio Cliente:
+a bateria financeira roda num passo próprio, por último, e falha com resíduo
+global. Toda suíte nova entra em `scripts/local-pg-suites.txt`;
 `npm run localpg:check` falha quando um `*.local-pg.test.ts` fica fora dela
-(e dos passos de `scripts/replay-local-pg.sh`), quando há suíte repetida,
-quando o replay deixa de rodar uma das duas ordens ou quando o hook deixa
-de chamar o script. Sonda de pré-requisito usa
+(e dos passos do CI), quando há suíte repetida ou quando o CI deixa de rodar
+uma das duas ordens. Sonda de pré-requisito usa
 `describeWithProbe` (`src/integration/localTestData.ts`): com
 `LOCAL_PG_INTEGRATION=1`, sonda falsa falha o teste em vez de pular a suíte.
 
@@ -784,64 +754,59 @@ Nenhum restore destrutivo faz parte dos checks locais.
 
 ### Pull request
 
-`.github/workflows/ci.yml` roda só em pull request contra `main`
-(`opened`, `synchronize`, `reopened`, `ready_for_review`). PR em rascunho não
-ocupa runner; marcar como pronta dispara o workflow. Não há CI em push para
-`main`. As etapas Node usam a versão 24 e `npm ci --legacy-peer-deps`; o
-replay de guardas usa Python. O replay de banco não roda no GitHub: fica no
-gate local da seção 11 e exige PostgreSQL 16 na máquina de quem desenvolve.
+`.github/workflows/ci.yml` define cinco grupos de validação em pull requests e
+pushes para `main`, mais o agregador. As etapas Node usam a versão 24 e
+`npm ci --legacy-peer-deps`; o replay de guardas usa Python e o replay de banco
+requer PostgreSQL 16:
 
-1. `changes` — compara o diff da PR com a base e classifica os caminhos
-   (`scripts/ci-path-filter.mjs`). Markdown e `docs/` não pedem o gate de
-   código. A classificação de migration sai no log; quem age sobre ela é o
-   hook local, não um job daqui.
-2. `gate` — um único job, só quando o diff não é só documentação: verificação
-   documental e autotestes, lint, identidade visual, contrato de upload CE em
-   Deno 2.9.6 (dependências remotas em `deno.lock` com `--frozen`, `--no-config`
-   e `DENO_NO_PACKAGE_JSON=1`), self-check do gerador de squash, declaração de
-   migration destrutiva, lista das suítes local-pg (`npm run localpg:check`),
-   contratos de staging e provisionamento do Pages, replay estático das guardas
-   (`verificar_guardas.py --ci`), build com staging dos dois sites
+1. `quality` — verificação documental e autotestes, lint, self-check do gerador
+   de squash, declaração de migration destrutiva e autotestes desse checker,
+   lista das suítes local-pg (`npm run localpg:check`) e contratos de staging e
+   de provisionamento do Cloudflare Pages (`npm run cloudflare:stage:test` e
+   `npm run cloudflare:provision:test`); inclui o contrato de upload CE em Deno
+   2.9.6, com HTTP simulado e dependências remotas verificadas por `deno.lock`
+   (`--frozen`); o lock da raiz cobre só esses imports remotos (`--no-config` e
+   `DENO_NO_PACKAGE_JSON=1`), então atualizações npm não o invalidam;
+2. `build` — build (`tsc` + `vite`) com staging dos dois sites Pages
    (`npm run cloudflare:build:sites`, que exige `VITE_SUPABASE_URL` para o
-   `connect-src` da CSP), orçamento de bundle e `npm test` sem shard.
-3. `checks` — agregador da proteção de branch. Fica verde quando `changes`
-   passou e `gate` passou ou foi pulado (PR só de documentação). Não há job
-   de replay para tratar como pulado. Não roda se o workflow foi cancelado
-   por um push mais novo.
+   `connect-src` da CSP) e orçamento de bundle;
+3. `test` — suíte Vitest dividida em 3 shards (`--shard=N/3`);
+4. `security-audit` — autotestes do analisador e replay estático de autorização
+   (`verificar_guardas.py`), distinguindo tabelas de schemas diferentes;
+5. `migration-replay` — aplica as migrations do zero num PostgreSQL 16
+   descartável (`setup-local-pg.sh --reset`) e trava invariantes em banco real
+   (`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), roda as
+   suítes locais serializadas nas duas ordens e a bateria financeira por
+   último, confere o catálogo de RPCs e aplica/verifica `supabase/seed.sql`; é
+   o job dedicado à execução real de SQL;
+6. `checks` — gate agregador que só fica verde quando os cinco terminam verdes.
 
-Runs antigos do mesmo ref são cancelados (`concurrency` +
-`cancel-in-progress`), então só o commit mais recente do PR ocupa runners.
+`checks` é o nome estável para a proteção de branch: a quantidade de shards
+pode mudar sem reconfigurar o repositório. Runs antigos do mesmo ref são
+cancelados (`concurrency` + `cancel-in-progress`), então só o commit mais
+recente do PR ocupa runners.
 
-Preview de Pages e o admin de teste não seguem o CI. Os dois workflows
-(`.github/workflows/cloudflare-pages-preview.yml` e
-`provision-preview-admin.yml`) disparam com a etiqueta `preview` na PR ou com
-`workflow_dispatch` a partir de `main`, informando o número da PR. O gatilho da
-etiqueta é `pull_request_target`: o YAML executado é o da branch padrão, o
-checkout com secrets também, e o único job que compila o SHA da PR não recebe
-token da Cloudflare nem senha de admin. Fork não publica. Tirar e recolocar a
-etiqueta pede de novo; um push sozinho não publica.
-
-`provision-preview-admin.yml` espera o check `Supabase Preview` (só existe com
-a branch de Preview vinculada à PR; sem ela, o workflow termina com falha por
-tempo esgotado, seção 5), obtém as credenciais da branch e roda
+Após um CI verde, `.github/workflows/provision-preview-admin.yml` executa no
+contexto confiável da branch padrão, aguarda o check `Supabase Preview` (que
+só existe com a branch de Preview vinculada à PR; sem ela, o workflow termina
+com falha por tempo esgotado, seção 5), obtém as credenciais da branch e roda
 `scripts/provision-preview-admin.mjs`.
 Esse script cria ou atualiza `qa-admin@example.test` pela Auth Admin API e
 garante seu `user_profiles.role = 'administrativo'`. O password fica exclusivamente no
 secret `PREVIEW_ADMIN_PASSWORD`; o workflow também exige os secrets
 `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`. Não faça checkout do código da
 PR nesse workflow nem coloque credenciais server-side em `VITE_*`.
-A disponibilidade de Preview remoto deve ser conferida na integração, não
-inferida da existência da PR.
+PRs de forks são ignoradas pelo provisionamento porque não podem receber esses
+secrets nesse workflow. A disponibilidade de Preview remoto deve ser conferida
+na integração, não inferida da existência da PR.
 
 ### Push em main
 
-O CI não roda de novo no merge. `.github/workflows/cloudflare-pages-production.yml`
-publica os dois sites a cada push em `main` quando
-`CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`, no environment `cloudflare-production`,
-só com o código desse ref. A proteção de branch continua sendo o check `checks`
-da PR. Fechar a PR ainda dispara a limpeza do alias `pr-<n>`
-(`cloudflare-pages-preview-cleanup.yml`). O login com o usuário fixo só deve
-ser tentado depois que `Provision Preview Admin` estiver verde.
+GitHub Actions publica no Cloudflare Pages a produção após CI verde em `main` e
+os previews das PRs que têm branch Supabase de Preview vinculada. O environment
+`cloudflare-production` fornece as variáveis públicas do build. O login com o
+usuário fixo só deve ser tentado depois que `Provision Preview Admin` estiver
+verde.
 
 ### Edge Functions e banco
 

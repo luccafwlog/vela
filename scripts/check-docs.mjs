@@ -311,11 +311,8 @@ for (const livingFile of livingFiles) {
   }
 }
 
-const claudePath = path.join(root, 'CLAUDE.md')
-if (!fs.existsSync(claudePath)) {
-  addError('CLAUDE.md', 'local gate entry is missing; it must import @AGENTS.md')
-} else if (!fs.readFileSync(claudePath, 'utf8').includes('@AGENTS.md')) {
-  addError('CLAUDE.md', 'must import @AGENTS.md so canonical rules still load')
+if (fs.existsSync(path.join(root, 'CLAUDE.md'))) {
+  addError('AGENTS.md', 'agent guidance must live only in AGENTS.md; legacy root file still exists')
 }
 
 if (errors.length > 0) {

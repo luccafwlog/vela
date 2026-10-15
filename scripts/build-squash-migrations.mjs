@@ -419,7 +419,7 @@ function assertNoForwardFunctionRefs(b001, b002) {
 //
 // Verifica o GERADOR (literais header001/foundationCatalogs002) E os ARTEFATOS
 // comitados (supabase/migrations/001/002): editar o seed à mão no 002 sem
-// passar pelo gerador também falha aqui — não só no replay local.
+// passar pelo gerador também falha aqui — não só no migration-replay.
 function selfCheck() {
   const fail = (msg) => {
     console.error(`self-check FALHOU: ${msg}`)

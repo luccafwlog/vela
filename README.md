@@ -116,9 +116,9 @@ As diretrizes para desenvolvimento assistido por IA estão em [`AGENTS.md`](AGEN
 
 ### Claude Code
 
-O repositório mantém `AGENTS.md` como fonte canônica. `CLAUDE.md` é curto de
-propósito: importa `AGENTS.md` e descreve o gate local que o Claude Code roda
-antes de commit e push. Siga a
+O repositório mantém `AGENTS.md` como fonte canônica, sem `CLAUDE.md` na raiz.
+Cada instalação do Claude Code precisa disponibilizar e habilitar o mod
+`agents-md`, com um modo que carregue esse arquivo. Siga a
 [configuração e verificação de carregamento](WORKFLOW.md#claude-code-e-agentsmd).
 Sincronizar o repositório ou gravar a opção, isoladamente, não comprova que as
 instruções entraram no contexto da sessão.
