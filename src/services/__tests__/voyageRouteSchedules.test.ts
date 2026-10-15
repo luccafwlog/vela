@@ -607,6 +607,32 @@ it('lê a agenda de POL de muitas viagens em lotes que cabem na URL', async () =
   expect(schedules.get('120::CNSHA')?.etd).toBe('2026-07-08')
 })
 
+it('lote com mais de 1.000 linhas de auditoria lê a página seguinte e não perde o trecho com menos edições', async () => {
+  // 1.000 edições recentes do trecho 1 enchem a primeira página; a data do trecho 2 só vem na segunda.
+  const busy = Array.from({ length: 1000 }, (_, index) => ({ entity_id: '1::BRSSZ', field_name: 'eta', new_value: '2026-08-01', changed_at: `2026-08-01T00:00:${String(index % 60).padStart(2, '0')}Z` }))
+  const quiet = [{ entity_id: '2::BRSSZ', field_name: 'eta', new_value: '2026-07-01', changed_at: '2026-07-01T00:00:00Z' }]
+  const ranges: number[] = []
+  fromMock.mockImplementation(() => ({
+    select: () => ({
+      eq: () => ({
+        in: () => ({
+          order: () => ({
+            range: async (from: number) => {
+              ranges.push(from)
+              return { data: from === 0 ? busy : quiet, error: null }
+            },
+          }),
+        }),
+      }),
+    }),
+  }))
+
+  const schedules = await listVoyagePodSchedules(['1::BRSSZ', '2::BRSSZ'])
+
+  expect(ranges).toEqual([0, 1000])
+  expect(schedules.get('2::BRSSZ')?.eta).toBe('2026-07-01')
+})
+
 it('grava audit row de ATD por POL sem quebrar callers antigos', async () => {
   const insertMock = vi.fn(async () => ({ error: null }))
   const auditLogs = {

@@ -44,7 +44,8 @@ O harness só aceita o stack local (`scripts/design-audit/win/README.md`) com um
 build de produção servido por `vite preview`. Tempos contra o emulador não são
 tempos de produção, mas a comparação antes/depois no mesmo stack vale. Para o
 volume de dois anos de operação, carregue `seed-volume.sql` no banco descartável
-(12 mil B/Ls, 28 mil contêineres, 14 mil veículos). Sentry, PostHog e BCB ficam
+(12 mil B/Ls, 28 mil contêineres, 14 mil veículos). O script aborta fora dos bancos
+locais `app` e `vela_test` e quando o volume já foi carregado. Sentry, PostHog e BCB ficam
 bloqueados durante a medição.
 
 ```powershell

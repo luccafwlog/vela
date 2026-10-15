@@ -3,6 +3,14 @@
 -- veículos, 400 clientes, 3 mil alertas, 4 mil faturas, 24 mil linhas de auditoria.
 -- Roda depois do seed do stack local: psql -d app -f scripts/perf/seed-volume.sql
 begin;
+-- Trava: só roda num banco com o seed do stack local (sem B/L real fora dele).
+-- Em qualquer outro banco a transação aborta antes de gravar.
+do $$
+begin
+  if current_database() not in ('app', 'vela_test') or exists (select 1 from public.bls where id like 'PERF%') then
+    raise exception 'seed-volume.sql: só no banco local descartável e uma vez (banco %)', current_database();
+  end if;
+end $$;
 set local session_replication_role = replica;
 
 insert into public.carriers (id, name, scac) values (51,'Perf Line','PRFL') on conflict do nothing;
@@ -56,12 +64,16 @@ select 'PERF' || lpad(n::text, 10, '0'), 1000 + v, 1000 + v,
 from generate_series(1, 200) v, lateral generate_series((v - 1) * 60 + 1, v * 60) n;
 
 -- 2-3 containers per container BL
-insert into public.bl_containers (bl_id, container_number, seal_number, type, gross_weight_kg, cbm, discharge_date, return_date, demurrage_status)
+-- created_at segue o do B/L, com segundos e frações diferentes por contêiner:
+-- a ordem da lista de contêineres (created_at desc, id desc) precisa ser
+-- exercitada, não só o desempate por id.
+insert into public.bl_containers (bl_id, container_number, seal_number, type, gross_weight_kg, cbm, discharge_date, return_date, demurrage_status, created_at)
 select b.id, 'PRFU' || lpad((row_number() over ())::text, 7, '0'), 'SL' || k,
   (array['40HC','20GP','40HC'])[1 + k % 3], 12000 + k * 100, 30 + k,
   (b.created_at + interval '22 days')::date,
   case when v.status = 'completed' then (b.created_at + interval '22 days' + (5 + k % 20) * interval '1 day')::date end,
-  case when v.status = 'completed' then (array['returned','returned','overdue'])[1 + k % 3] else 'within_free_time' end
+  case when v.status = 'completed' then (array['returned','returned','overdue'])[1 + k % 3] else 'within_free_time' end,
+  b.created_at + k * interval '7 seconds' + (hashtext(b.id || k) & 1023) * interval '1 millisecond'
 from public.bls b
 join public.voyages v on v.id = b.voyage_id
 cross join lateral generate_series(1, 2 + (hashtext(b.id) & 1)) k

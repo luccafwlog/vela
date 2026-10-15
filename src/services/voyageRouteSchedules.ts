@@ -157,7 +157,7 @@ export function buildVoyagePodEntityId(voyageId: number, pod: string | null | un
 export async function listVoyagePolSchedules(entityIds: string[]) {
   if (!entityIds.length) return new Map<string, VoyagePolSchedule>()
 
-  const data = await listScheduleAuditRowsByEntityIds(POL_ENTITY_TYPE, entityIds, 5)
+  const data = await listScheduleAuditRowsByEntityIds(POL_ENTITY_TYPE, entityIds)
   return hydratePolSchedules(data)
 }
 
@@ -169,7 +169,7 @@ export async function listVoyagePolSchedules(entityIds: string[]) {
 export async function listVoyagePodSchedules(entityIds: string[], options: { includeDeleted?: boolean } = {}) {
   if (!entityIds.length) return new Map<string, VoyagePodSchedule>()
 
-  const data = await listScheduleAuditRowsByEntityIds(POD_ENTITY_TYPE, entityIds, 20)
+  const data = await listScheduleAuditRowsByEntityIds(POD_ENTITY_TYPE, entityIds)
   return hydratePodSchedules(data, options)
 }
 
@@ -923,19 +923,30 @@ function groupSchedulesByVoyage<T extends { voyageId: number }>(schedules: Map<s
 
 // Lotes de ids: a lista inteira numa URL só passava do limite do servidor com
 // ~200 viagens (HTTP 431) e a Viagens ficava sem as datas de POL, em retry.
-// Cada lote mantém a ordem por data, então o mais recente de cada campo segue
-// sendo a primeira linha da sua entidade.
-async function listScheduleAuditRowsByEntityIds(entityType: string, entityIds: string[], rowsPerEntity: number) {
+// Cada lote lê páginas até a última: o servidor corta cada resposta em 1.000
+// linhas, e um trecho com muitas edições empurraria para fora as linhas dos
+// outros trechos do lote, que ficariam sem datas. A ordem por data mantém o
+// mais recente de cada campo como a primeira linha da sua entidade.
+// ponytail: páginas por OFFSET com ordem só por `changed_at`, como a leitura
+// por viagem abaixo; edições no mesmo instante na fronteira de uma página
+// podem se repetir ou faltar. Ordenar também por `id` resolve.
+async function listScheduleAuditRowsByEntityIds(entityType: string, entityIds: string[]) {
   return mapChunks(entityIds, 50, async (chunk) => {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('entity_id, field_name, new_value, changed_at')
-      .eq('entity_type', entityType)
-      .in('entity_id', chunk)
-      .order('changed_at', { ascending: false })
-      .range(0, Math.max(999, chunk.length * rowsPerEntity))
-    if (error) throw error
-    return data ?? []
+    const rows: Array<{ entity_id: string; field_name: string; new_value: string | null; changed_at: string | null }> = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('entity_id, field_name, new_value, changed_at')
+        .eq('entity_type', entityType)
+        .in('entity_id', chunk)
+        .order('changed_at', { ascending: false })
+        .range(from, from + 999)
+      if (error) throw error
+      const batch = data ?? []
+      rows.push(...batch)
+      if (batch.length < 1000) break
+    }
+    return rows
   })
 }
 
