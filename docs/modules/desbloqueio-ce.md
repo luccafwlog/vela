@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; migration `220` em produção desde 2026-10-13 e expurgo de um PDF real comprovado em produção em 2026-10-15; ativação pendente de homologação com a ZPT, aceite operacional e da correção B1 do plano de correções ([Notas e divergências](#notas-e-divergências)) · **Atualizado:** 2026-10-15 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; migration `220` em produção desde 2026-10-13; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável); aceite operacional e jurídico obtido em 2026-10-14 ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)); expurgo de um PDF real comprovado em produção em 2026-10-15; ativação pendente de conciliação com um "Exportar Tela" real, das mudanças de isenção, avulsas e retenção da ADR 0086 e da correção B1 do plano de correções ([Notas e divergências](#notas-e-divergências)) · **Atualizado:** 2026-10-15 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -129,7 +129,10 @@ Os quatro requisitos são termo de devolução aprovado, procuração aprovada, 
 integralmente liquidadas (Financeiro) e B/L original entregue (BL de Entrega). Selo VIP
 não dispensa documento: exige termo e procuração anuais aprovados/vigentes para o mesmo
 CNPJ. Validade até 31/12 do ano declarado, inclusive em America/Sao_Paulo; não renova
-em janeiro. Pagamento e entrega continuam por B/L, também para VIP. Reserva de upload
+em janeiro. Pagamento e entrega continuam por B/L, também para VIP. A entrega do
+original é independente da solicitação: o desk a registra antes ou depois do pedido.
+Conteúdo, assinatura e validade do termo e da procuração são conferidos só pela
+análise humana do desk ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)). Reserva de upload
 sem PDF registrado não substitui a versão enviada nem consome quota ativa após
 compensação/expurgo. Documento novo em análise não revoga o anterior vigente; renovação
 pode ser aplicada aos pedidos pendentes pelo desk, com histórico.
@@ -143,7 +146,13 @@ não financia o novo Cliente. A nova cobrança precisa de liquidação própria.
 Restituição de excedente por redução normal do mesmo Cliente não bloqueia
 aptidão quando o valor corrigido já está coberto. Pagamento
 parcial, ausência de liquidação, nova obrigação de COD ou cancelamento de baixa
-impedem aptidão. Demurrage/avulsas não fazem parte do requisito local. Correções para menor
+impedem aptidão. Demurrage/avulsas não fazem parte do requisito local.
+**Decidido em 2026-10-14, implementação pendente
+([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)):** B/L com Taxas
+Locais isentas fica sem o requisito de pagamento (apto com termo, procuração e
+entrega), e o requisito passa a incluir as cobranças avulsas do B/L; Demurrage
+continua fora. Hoje o B/L isento não tem recebível de Taxas Locais e fica
+como não pago. Correções para menor
 reduzem o valor exigível: a liquidação cobre o valor original menos a correção,
 com saldo zero e evidência real no ledger. Fatura consolidada parcialmente paga
 libera só o B/L cujo recebível foi liquidado, nunca pelo status da fatura.
@@ -235,6 +244,12 @@ Não excluir anuais só por não terem pedido. Os 5 anos contam da criação do
 documento e só valem para documento sem pedido ou de pedido concluído ou
 cancelado que nenhum pedido aberto ainda use (**Código:**
 `ce_unlock_cleanup_candidates`, migration `143`).
+**Decidido em 2026-10-14, implementação pendente
+([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)):** todos os
+anexos de uma solicitação passam a ser expurgados 30 dias após o envio, e os
+documentos do Termo Anual (VIP) ficam até serem substituídos por um novo termo
+aprovado depois do vencimento. Upload abandonado (1 dia) e rascunho (7 dias)
+não mudam.
 
 ### Robustez de finalização
 

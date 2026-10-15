@@ -55,17 +55,22 @@ ciclo completo sobre o documento de teste: rascunho cancelado, documento
 revogado com `purged_at` e objeto removido pela Storage API (ver "Fontes"). O
 objeto de teste não tinha bytes, então a remoção física de um PDF real segue
 sem prova e o item do expurgo continua **[bloqueia ativação]**. Os outros
-itens bloqueantes que restam são os aceites: operacional/jurídico (Tarefa 1) e
-homologação com a ZPT da planilha e do "Exportar Tela", que também fecha a
-conciliação (Tarefas 1 e 6).
+itens bloqueantes que restam são a conciliação com um "Exportar Tela" real da
+ZPT (Tarefa 6) e as mudanças do aceite operacional/jurídico, obtido no mesmo dia
+([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)): B/L isento sem
+requisito de pagamento e avulsas no requisito (Tarefa 2) e retenção de 30 dias
+(Tarefa 3). No mesmo dia o
+responsável informou que combinou com a ZPT e que o modelo atual de exportação
+(`zpt-5-v2`) está homologado (declaração do responsável, sem documento anexado).
 
 **Estado conferido em 2026-10-15:** a rodada do expurgo das 06:00 UTC removeu um
 PDF real de 145.648 bytes, enviado pelo Portal num rascunho de teste tornado
 elegível: rascunho cancelado e B/L liberado, documento com `purged_at`, objeto
 fora do bucket e registrado como removido no log do Storage (ver "Fontes"). O
-item do expurgo deixa de bloquear a ativação. Continuam bloqueantes os aceites
-(operacional/jurídico e homologação ZPT) e a correção do alerta de troca de CE
-com Desbloqueio conferido (item 8 do caminho crítico).
+item do expurgo deixa de bloquear a ativação. Continuam bloqueantes a
+conciliação com um "Exportar Tela" real da ZPT (item 4 do caminho crítico), as
+mudanças da ADR 0086 (item 9) e a correção do alerta de troca de CE com
+Desbloqueio conferido (item 8).
 
 **Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
 fonte indicada; `[ ]` registra trabalho ou evidência ainda necessários. Um teste
@@ -246,9 +251,10 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
 3. ~~Etapa 8.7 do mesmo plano: troca de CE pela planilha sem prévia reabria o
    Desbloqueio em silêncio (cenários 11 e 13).~~ Feito: PR 929, em produção em
    2026-10-12 (ver "Fontes").
-4. Homologar com o responsável/ZPT a planilha exportada (`zpt-5-v2`) e o
-   arquivo "Exportar Tela" usado na conciliação (Tarefa 6), e obter o aceite
-   operacional, incluindo a análise humana do conteúdo dos documentos (Tarefa 1).
+4. ~~Homologar com o responsável/ZPT a planilha exportada (`zpt-5-v2`).~~ Feito
+   em 2026-10-14, por declaração do responsável. Falta conciliar um arquivo
+   "Exportar Tela" real da ZPT (Tarefa 6). O aceite operacional foi obtido em
+   2026-10-14 ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)).
 5. ~~Demonstrar as matrizes que protegem dinheiro e dados: fatura consolidada
    parcialmente paga (Tarefa 2), baixa cancelada concorrente ao envio
    (Tarefa 2) e acesso a IDs/caminhos/downloads de outro CNPJ no serviço real
@@ -269,6 +275,9 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    e primeiro item do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md):
    corrigir o código e refazer o teste K2 de
    `ceImportacaoContrato.local-pg.test.ts` a partir de `ce_unlock_reconcile`.
+9. Implementar as mudanças da ADR 0086: B/L isento sem requisito de pagamento
+   e cobranças avulsas no requisito (Tarefa 2); expurgo dos anexos 30 dias
+   após o envio e Termo Anual VIP até a substituição (Tarefa 3).
 
 ## Foco da revisão
 
@@ -311,8 +320,8 @@ apresentação; timestamps persistidos continuam UTC.
 - [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
 - [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
 - [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
-- [ ] **[bloqueia ativação]** Obter/reconciliar aceite operacional de entrega, matriz de papéis, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); continuam pendentes os aceites deste item. A matriz de papéis foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11): leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação; a correção para Equipamentos é o item P12 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md).
-- [ ] **[bloqueia ativação]** Homologar a amostra XLSX e os indicadores Sim/Não com responsável/ZPT; revisar spec/plano no aceite.
+- [x] Obter/reconciliar aceite operacional de entrega, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); o aceite foi obtido em 2026-10-14 ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)): entrega independente da solicitação, B/L isento sem requisito de pagamento, avulsas no requisito (sem Demurrage), assinatura e validade por conferência humana e retenção de 30 dias; as mudanças de código estão nas Tarefas 2 e 3. A matriz de papéis saiu deste aceite: foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11) — leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação —, e a correção para Equipamentos é o item P12 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- A homologação da amostra XLSX e dos indicadores Sim/Não com responsável/ZPT é registrada na Tarefa 6 (concluída em 2026-10-14).
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
 
@@ -342,6 +351,8 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e o cancelamento de baixa concorrente à exportação pelo comando real (o teste da exportação altera o recebível diretamente).
 - [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
 - [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
+
+- [ ] **[bloqueia ativação]** B/L com Taxas Locais isentas fica apto sem requisito de pagamento (termo, procuração e entrega), e o requisito passa a incluir as cobranças avulsas do B/L, sem Demurrage ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md), itens 2 e 3). Hoje `ce_unlock_private.item` só lê `bl_receivables` de `local_charges`, e o B/L isento, sem recebível, sai como não pago. Ajustar aptidão, motivos, Portal e coluna de pagamento da planilha, com teste no Postgres local.
 
 ## Tarefa 3 — Documentos e análise interna auditável
 
@@ -380,6 +391,8 @@ RPCs internas `set_ce_unlock_vip`, `review_ce_unlock_vip_document`,
 - [ ] Demonstrar retry sem eventos duplicados e preservação de documentos enviados/anuais no expurgo, incluindo anuais sem pedido e quotas VIP.
 - [x] Publicar a função e o job de expurgo. **Remoto:** `ce-unlock-cleanup` ativo e agendado diariamente em 2026-10-10.
 - [ ] Homologar retenção e validar retry no Storage real. A remoção de um PDF real pela Storage API foi observada em produção em 2026-10-15 (ver "Fontes"); falta a falha física com nova tentativa e a decisão de retenção.
+
+- [ ] **[bloqueia ativação]** Expurgo dos anexos da solicitação 30 dias após o envio e dos documentos do Termo Anual VIP só quando um termo novo aprovado substitui o vencido ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md), item 5), no lugar dos 5 anos de `ce_unlock_cleanup_candidates`; upload abandonado (1 dia) e rascunho (7 dias) não mudam. Teste no Postgres local.
 
 ## Tarefa 4 — Portal: selecionar, solicitar e acompanhar
 
@@ -431,7 +444,7 @@ aplicam matriz da spec tanto em UI quanto em servidor.
 - [x] Integrar cache financeiro/carga, refetch no foco e limpeza do cache privado no logout do Portal. **Código/Teste:** efeitos de cache e teste de atualização financeira CE.
 - [x] Disponibilizar testes de B/L sem pedido, dívida, ações restritas para Financeiro/Operações e remoção de seleção inelegível. **Teste:** página interna e componentes; passaram nos checks focados desta sessão.
 - [x] Integrar gestão na `main`; execução local original de navegação/gates registrada no relatório.
-- [ ] Completar matriz de filtros Sem solicitação, exclusão sem CE, paginação e pedidos mistos, incluindo projeção de anexos sensíveis por papel (pela ADR 0085, D16, os documentos ficam abertos a todo Departamento; a projeção por papel deixa de existir com o item P12 do plano de correções).
+- [ ] Completar matriz de filtros Sem solicitação, exclusão sem CE, paginação e pedidos mistos. A projeção de anexos sensíveis por papel saiu desta matriz: pela ADR 0085, D16, os documentos ficam abertos a todo Departamento, e a projeção por papel deixa de existir com o item P12 do plano de correções.
 - [ ] Demonstrar aplicação anual e invalidação de ficha/fila/Portal entre CNPJs; validar atualização observável entre as duas SPAs, não apenas invalidação no mesmo cache.
 
 ## Tarefa 6 — Exportação ZPT e confirmação de desbloqueio
@@ -468,7 +481,8 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.
 - [ ] Reconciliar o requisito inicial de estado explícito de falha recuperável: a geração pode ser repetida sobre o lote preservado, mas isso não comprova um estado persistido de falha do arquivo.
 - [ ] Resolver/aceitar a limitação registrada de hash do lote sem preenchimento; diferenciar do hash de PDF já implementado.
-- [ ] **[bloqueia ativação]** Homologar a amostra com responsável/ZPT no ambiente autorizado e registrar aceite externo, incluindo o arquivo "Exportar Tela" lido pela conciliação. Código e amostra já estão integrados; não falta um commit separado de exportação.
+- [x] Homologar a amostra XLSX (`zpt-5-v2`) e os indicadores Sim/Não com responsável/ZPT. **Aceite:** o responsável informou em 2026-10-14 que combinou com a ZPT e que o modelo atual de exportação está homologado (declaração, sem documento da ZPT anexado).
+- [ ] **[bloqueia ativação]** Conciliar um arquivo "Exportar Tela" real da ZPT pela conciliação do Vela e conferir *Desbloqueio conferido*/*Divergente* nos B/Ls do lote. Código integrado; falta a evidência externa.
 
 ## Tarefa 7 — Validação completa, documentação e entrega
 
