@@ -35,11 +35,11 @@ type Tab = "solicitacoes" | "controle";
 type Panel = "model" | "zpt" | "exports" | null;
 const PAGE_SIZE = 25;
 const EXPORT_LIMIT = 100;
-// Fila de trabalho do dia: BLs prontos que ainda não foram à ZPT.
-const DEFAULT_FILTERS: CeUnlockFilters = { situation: "ready_not_exported" };
+// A página abre com todos os BLs com CE; "Aptos — não exportados" é a fila de exportação.
+const DEFAULT_FILTERS: CeUnlockFilters = { situation: "" };
 const SITUATIONS: Array<[string, string]> = [
-  ["ready_not_exported", "Aptos — não exportados"],
   ["", "Todas as situações"],
+  ["ready_not_exported", "Aptos — não exportados"],
   ["divergent", "Divergentes na ZPT"],
   ["no_request", "Sem solicitação"],
   ["submitted", "Enviado"],
@@ -353,7 +353,7 @@ export function DesbloqueioCe() {
                         <td colSpan={COLUMNS} className="p-0">
                           <EmptyState
                             icon={SearchX}
-                            title={filters.situation === DEFAULT_FILTERS.situation && activeFilters === 0 ? "Nenhum BL apto aguardando exportação" : "Nenhum BL encontrado para este filtro"}
+                            title={filters.situation === DEFAULT_FILTERS.situation && activeFilters === 0 ? "Nenhum BL com CE Mercante" : "Nenhum BL encontrado para este filtro"}
                             description="BLs com CE aparecem aqui conforme os quatro requisitos são atendidos."
                             action={activeFilters > 0 ? (
                               <Button variant="secondary" onClick={() => { setFilters(DEFAULT_FILTERS); setPage(1); }}>

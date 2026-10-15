@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
 import { withCors } from "../_shared/cors.ts";
+import { ceSignedUrlDownload } from "../_shared/ceUnlockFile.ts";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -30,15 +31,17 @@ if (typeof Deno !== "undefined")
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
-      // Baixa com o nome enviado (ex.: o modelo .docx do desk), não com o caminho interno.
+      // O modelo .docx baixa com o nome enviado; o PDF anexado abre na aba nova.
       const doc = await admin
         .from("ce_unlock_documents")
-        .select("file_name")
+        .select("file_name, source")
         .eq("storage_path", access.data)
         .maybeSingle();
       const link = await admin.storage
         .from("ce-unlock-documents")
-        .createSignedUrl(access.data, 60, { download: doc.data?.file_name || true });
+        .createSignedUrl(access.data, 60, {
+          download: ceSignedUrlDownload(doc.data?.source, doc.data?.file_name),
+        });
       if (link.error) return json({ error: "Documento indisponível" }, 404);
       return json({ url: link.data.signedUrl, expiresIn: 60 });
     }),

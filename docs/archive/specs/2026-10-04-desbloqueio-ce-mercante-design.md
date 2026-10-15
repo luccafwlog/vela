@@ -1,20 +1,22 @@
 # Desbloqueio de CE Mercante — Issue 557
 
+> **Arquivada em 2026-10-15** com o plano: implementada e em produção. Regra vigente no [módulo do Desbloqueio de CE](../../../modules/desbloqueio-ce.md).
+
 Estado: implementada e publicada em produção; planilha homologada com a ZPT em
 2026-10-14; conciliação com "Exportar Tela" real dispensada pelo responsável em
-2026-10-15; estado vigente no [módulo](../modules/desbloqueio-ce.md). Data: 2026-10-04.
+2026-10-15; estado vigente no [módulo](../../modules/desbloqueio-ce.md). Data: 2026-10-04.
 
 > **Atualização de estado (2026-10-13):** publicado em produção (backend e Cloudflare
 > Pages), modelo do termo em DOCX cadastrado em 2026-10-10 e compatibilidade
 > frontend/backend conferida em 2026-10-13; homologação e ativação seguem pendentes.
 > O layout da planilha, o envio à ZPT e a conclusão vigentes estão no
-> [módulo](../modules/desbloqueio-ce.md), dono da regra. Evidências em "Fontes" do
-> [plano](../plans/2026-10-04-desbloqueio-ce-mercante.md).
+> [módulo](../../modules/desbloqueio-ce.md), dono da regra. Evidências em "Fontes" do
+> [plano](../../plans/2026-10-04-desbloqueio-ce-mercante.md).
 
 Fonte: [Issue 557](https://github.com/luccafwlog/vela/issues/557), lida com seus
 critérios complementares de 07/09/2026; não há comentários na issue.
-Plano derivado: [implementação](../plans/2026-10-04-desbloqueio-ce-mercante.md).
-Revisada em 2026-10-07 pela [revisão do fluxo](../archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md),
+Plano derivado: [implementação](../../plans/2026-10-04-desbloqueio-ce-mercante.md).
+Revisada em 2026-10-07 pela [revisão do fluxo](../../archive/specs/2026-10-07-desbloqueio-ce-revisao-fluxo-design.md),
 que prevalece onde divergir.
 
 ## Resultado pretendido
@@ -150,8 +152,8 @@ Ação em lote mostra elegíveis e bloqueados; nunca aprova implicitamente um B/
 fora da seleção. Toda escrita segue o diálogo de confirmação do projeto.
 
 Permissões decididas em 2026-10-14
-([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16; regra
-vigente na [matriz de Segurança](../operations/seguranca.md#desbloqueio-de-ce)):
+([ADR 0085](../../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16; regra
+vigente na [matriz de Segurança](../../operations/seguranca.md#desbloqueio-de-ce)):
 Administrativo e Documentação executam análise, entrega, exportação e
 conciliação. Todos os Departamentos consultam pedidos, requisitos e documentos,
 sem escrita. A proposta original deixava Equipamentos sem acesso e os demais
@@ -173,8 +175,8 @@ Modo Inspeção do Portal oferece as mesmas leituras autorizadas, somente leitur
 > **Superado pela revisão de 2026-10-07:** o eixo ZPT vigente vem da exportação e da
 > conciliação com o "Exportar Tela" (exportado, *Desbloqueio conferido* ou
 > *Divergente*), e a solicitação conclui quando a documentação está validada, não
-> com o desbloqueio. Ver [Envio e conciliação](../modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt)
-> e [Conclusão](../modules/desbloqueio-ce.md#conclusão) no módulo.
+> com o desbloqueio. Ver [Envio e conciliação](../../modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt)
+> e [Conclusão](../../modules/desbloqueio-ce.md#conclusão) no módulo.
 
 Pedido: rascunho, enviado, em análise, correção solicitada, cancelado ou concluído.
 Concluído exige todos os seus B/Ls com desbloqueio confirmado. Pedidos mistos
@@ -251,7 +253,7 @@ a confirmar com responsável documental antes da publicação.
 > cabeçalhos do "Exportar Tela" da ZPT; exportar registra o envio, e a conciliação
 > com o "Exportar Tela" marca *Desbloqueio conferido* ou *Divergente*. Não há
 > registro de envio separado nem confirmação de desbloqueio por B/L. Regra vigente
-> no [módulo](../modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt); o texto
+> no [módulo](../../modules/desbloqueio-ce.md#envio-e-conciliação-com-a-zpt); o texto
 > abaixo é o desenho original.
 
 Layout funcional confirmado pelo usuário: planilha simples, uma linha por B/L,
@@ -285,7 +287,7 @@ Confirmar desbloqueio por B/L/CE mediante referência/evidência externa e ator.
 
 | Decisão | Proposta / dependência |
 |---|---|
-| Entrega física | **Decidido** ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)): desk registra antes ou depois do pedido, independente (os papéis foram decididos na [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16) |
+| Entrega física | **Decidido** ([ADR 0087](../../adr/0087-desbloqueio-ce-aceite-operacional.md)): desk registra antes ou depois do pedido, independente (os papéis foram decididos na [ADR 0085](../../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16) |
 | Termo e procuração | **Decidido** (ADR 0087): assinatura e validade por conferência humana; anexos expurgados 30 dias após o encerramento da solicitação (nota de 2026-10-15 na ADR), Termo Anual VIP até ser substituído depois do vencimento |
 | “CS” na issue | Não criar campo CS nem trocar silenciosamente por CE; autor esclarece |
 | Isenção/valor zero | **Decidido** (ADR 0087): B/L isento não tem requisito de pagamento |
