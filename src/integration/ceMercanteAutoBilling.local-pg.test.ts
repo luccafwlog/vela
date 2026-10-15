@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -29,7 +29,7 @@ function psql(
   role: 'service_role' | 'authenticated' = 'service_role',
   jwtSub = actorId,
 ): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = '${role}'; SET request.jwt.claim.sub = '${jwtSub}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()
@@ -41,14 +41,14 @@ function psqlAsDatabaseRole(
   jwtRole: 'authenticated' | 'service_role' = databaseRole,
   jwtSub = actorId,
 ): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET ROLE ${databaseRole}; SET request.jwt.claim.role = '${jwtRole}'; SET request.jwt.claim.sub = '${jwtSub}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()
 }
 
 function psqlWithoutJwt(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `RESET request.jwt.claim.role; RESET request.jwt.claim.sub; ${sql}`,
   ], { encoding: 'utf8' }).trim()

@@ -15,7 +15,9 @@ concurrency:
 
 jobs:
   cleanup:
+    # Só PR que recebeu a etiqueta `preview` pode ter preview publicada.
     if: >-
+      contains(github.event.pull_request.labels.*.name, 'preview') &&
       github.event.pull_request.head.repo.id == github.event.repository.id &&
       vars.CLOUDFLARE_PAGES_ACCESS_CONFIGURED == 'true'
     runs-on: ubuntu-latest

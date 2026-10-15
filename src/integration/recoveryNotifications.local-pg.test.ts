@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { describe, expect, it } from 'vitest'
 
 const describeLocal = process.env.LOCAL_PG_INTEGRATION === '1' ? describe : describe.skip
@@ -24,7 +24,7 @@ const fixtures = `
 const service = `SET LOCAL ROLE service_role; SET LOCAL request.jwt.claim.role='service_role'; SET LOCAL request.jwt.claim.sub='';`
 const member = `SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role='authenticated'; SET LOCAL request.jwt.claim.sub='${user}';`
 function scenario(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-Atq', '-d', databaseUrl,
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-Atq', '-d', databaseUrl,
     '-c', `BEGIN; ${fixtures} ${sql} ROLLBACK;`], { encoding: 'utf8' }).trim().split(/\r?\n/)
 }
 

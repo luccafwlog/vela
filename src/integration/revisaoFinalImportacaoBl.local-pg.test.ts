@@ -22,7 +22,8 @@
 //
 // Namespace exclusivo: ids 99213xxx, CNPJ syntheticCnpj(213001..213009),
 // B/Ls 'R213-*', portos BRR3P/BRR3Q, usuário ...0213001 e ...0213002.
-import { execFileSync, spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -60,7 +61,7 @@ const fixture = `
  * cenário seleciona voltam num mapa; o resto da saída é ignorado.
  */
 function scenario(sql: string): Record<string, unknown> {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-f', '-'], {
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-f', '-'], {
     input: `BEGIN;\n${fixture}\n${sql}\nROLLBACK;\n`,
     encoding: 'utf8',
   })
@@ -449,7 +450,7 @@ const voyageX = 99213041
 const voyageY = 99213042
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 

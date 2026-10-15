@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
@@ -11,7 +11,7 @@ const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl], {
     input: sql,
     encoding: 'utf8',
   }).trim()
@@ -97,7 +97,7 @@ describeLocal('218 — runner de efeitos disparado pela importação', () => {
   })
 
   it('a vez do runner é só do servidor', () => {
-    const out = execFileSync('psql', ['-X', '-At', '-q', '-d', databaseUrl], {
+    const out = execPsql(['-X', '-At', '-q', '-d', databaseUrl], {
       input: `
         BEGIN;
         SET LOCAL request.jwt.claim.role = 'authenticated';
@@ -126,7 +126,7 @@ describeLocal('218 — runner de efeitos disparado pela importação', () => {
   })
 
   it('sem o segredo no Vault (Preview), não dispara nem avisa', () => {
-    const out = execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl], {
+    const out = execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl], {
       input: `
         BEGIN;
         ${captureHttpPost}

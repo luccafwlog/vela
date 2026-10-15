@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -19,7 +19,7 @@ const requestId = '00000000-0000-0000-0000-000000040499'
 const customerCnpj = syntheticCnpj(40401)
 
 function localPsql(sql: string, actor = actorId): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${actor}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()

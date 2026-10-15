@@ -50,7 +50,8 @@
 // recebíveis, cálculos, veículos, itens de carga solta, lotes, efeitos e
 // tentativas, Alertas (inclusive os de efeito), auditoria, notificações e a
 // conta de Portal criada pelo gatilho de inserção de Cliente.
-import { execFileSync, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -92,21 +93,21 @@ function psqlArgs(sql: string): string[] {
 
 // Fixture e leitura: dono do banco com claims de service_role (sem RLS).
 function localPsql(sql: string): string {
-  return execFileSync('psql', psqlArgs(
+  return execPsql(psqlArgs(
     `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${adminId}'; ${sql}`,
   ), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 // Usuário interno real: papel `authenticated`, RLS e grants valem.
 function asUser(sub: string, sql: string): string {
-  return execFileSync('psql', psqlArgs(
+  return execPsql(psqlArgs(
     `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${sub}'; ${sql}`,
   ), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 // Um ciclo do executor (import-effects-runner/index.ts:46-68), restrito ao prefixo.
 function runWorker(entityPrefix: string, sessionSql = ''): Array<{ id: number; entity: string; kind: string; status: string }> {
-  const output = execFileSync('psql', psqlArgs(`
+  const output = execPsql(psqlArgs(`
     SET ROLE service_role; SET request.jwt.claim.role = 'service_role';
     SET import_effects.entity_prefix = '${entityPrefix}'; ${sessionSql}
     SELECT jsonb_build_object(
@@ -619,7 +620,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
     // Cada ciclo reivindica e o worker some: a lease vence sem conclusão
     // (comentário de claim_import_effects: "Recupera workers que morreram").
     for (let cycle = 0; cycle < 6; cycle += 1) {
-      execFileSync('psql', psqlArgs(`
+      execPsql(psqlArgs(`
         SET ROLE service_role; SET request.jwt.claim.role = 'service_role';
         SET import_effects.entity_prefix = 'A204-L1';
         SELECT count(*) FROM public.claim_import_effects('a204-dead-worker', 10, 300);

@@ -199,7 +199,13 @@ Para retomar a Vercel, restaure a configuração de build do Vite, reconecte o G
 
 Banco PostgreSQL, Auth, Storage, Edge Functions e jobs agendados. Projeto de
 produção `fgmkhbzhaeebrsizwccx`. O projeto GitHub é `luccafwlog/vela`.
-Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
+A produção do Cloudflare Pages espera o check que a integração publica no
+commit da `main` antes de publicar
+([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)); a `main` precisa
+continuar vinculada à produção em Branching → Configuration (vínculo a
+conferir no painel pelo dono; nos merges `b42427c7` e `2763f99b` o check veio
+verde, no `1aa7aaf7` veio pulado com "not associated with any Supabase
+Branch"). Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
 abrir uma PR não cria por si só uma branch Supabase nem garante o check
 "Supabase Preview". A integração permite criar uma branch pontual e vinculá-la
 a uma branch GitHub. O painel informa custo de US$ 0,01344 por hora enquanto a
@@ -209,7 +215,8 @@ não copiam dados de produção por padrão.
 Para uma Preview pontual sem ligar Automatic branching: em Supabase → projeto
 Vela → Branching → Create branch, informe o nome da branch de Preview e a mesma
 branch GitHub da PR em "Sync with Git branch". A integração publica commits
-nessa branch. Manter a PR aberta até o check Supabase Preview e o workflow
+nessa branch. Depois, ponha a etiqueta `preview` na PR para disparar os
+workflows de preview. Manter a PR aberta até o check Supabase Preview e o workflow
 Cloudflare Pages Preview concluírem; remover a branch após os testes para
 encerrar o custo. Conferir a criação e a exclusão no painel. A página Branching
 estava sem branches persistentes ou de Preview na conferência de 2026-10-08;
@@ -658,8 +665,15 @@ para eles vale o backup do próprio Supabase.
 
 ## GitHub
 
-- **Workflows:** `ci.yml` (testes, build, migrations), `cloudflare-pages-*.yml`
-  (Pages), `provision-preview-admin.yml` (usuário admin na branch de preview).
+- **Workflows:** `ci.yml` (testes, build, migrations; só em PR),
+  `local-pg-order.yml` (agendado: segunda, 09:17 UTC; suítes SQL nas duas
+  ordens), `cloudflare-pages-*.yml` (Pages; produção no push em `main`,
+  esperando o check do Supabase; previews pela etiqueta `preview`),
+  `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
+  etiqueta). Regra em [ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md).
+- **Etiqueta `preview`:** dispara a preview e o usuário admin de uma PR; a
+  limpeza ao fechar só roda em PR com essa etiqueta. Criar a etiqueta no
+  repositório se ainda não existir.
 - **Repository secrets:** só `SUPABASE_PROJECT_REF` (Preview),
   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Em 2026-10-08
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,

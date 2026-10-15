@@ -7,7 +7,7 @@
 ```bash
 npm test                    # Vitest (unitários) — rápido, sem rede
 npm run test:integration    # Integração contra Supabase REAL (opt-in)
-npm run test:local-pg       # Suítes local-pg do CI em série (banco local; -- --reverse inverte)
+npm run test:local-pg       # Suítes local-pg do CI em série (banco local; -- --reverse inverte, como o workflow semanal)
 npm run docs:check          # Consistência da documentação
 npm run typecheck           # TypeScript sem emitir bundle
 npm run lint                # ESLint (flat config)

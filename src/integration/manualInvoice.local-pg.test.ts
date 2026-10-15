@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -22,14 +22,14 @@ const customerACnpj = syntheticCnpj(98701)
 const customerBCnpj = syntheticCnpj(98702)
 
 function psql(sql: string, role: 'service_role' | 'authenticated' = 'service_role', sub = adminId): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = '${role}'; SET request.jwt.claim.sub = '${sub}'; ${sql}`,
   ], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
 }
 
 function asUser(sql: string, sub: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${sub}'; ${sql}`,
   ], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()

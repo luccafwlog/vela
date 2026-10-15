@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -36,7 +36,7 @@ const blIds = [
 const invoiceIds = [6920112, 6920113, 6920114, 6920115, 6920116, 6920117, 6920118, 6920119, 6920120, 6920121]
 
 function psql(sql: string, role: 'service_role' | 'authenticated' = 'service_role'): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = '${role}'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()

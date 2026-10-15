@@ -1,5 +1,6 @@
-import { execFile, execFileSync, spawnSync } from 'node:child_process'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { execFile } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
+import { afterAll, beforeEach, expect, it } from 'vitest'
 import { syntheticCnpj, describeWithProbe } from './localTestData'
 
 // Migration 128 (ADR 0077, decisões de 2026-10-02): toda correção do B/L —
@@ -36,7 +37,7 @@ const bl = {
 const allBls = Object.values(bl)
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`], { encoding: 'utf8' }).trim()
 }
 
@@ -52,7 +53,7 @@ function migrationApplied() {
 const describeLocal = describeWithProbe(migrationApplied, 'migrationApplied')
 
 function asAdmin(sql: string) {
-  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
     BEGIN;
     SET LOCAL ROLE authenticated;
     SET LOCAL request.jwt.claim.role = 'authenticated';
@@ -66,7 +67,7 @@ function asAdmin(sql: string) {
 // gravado como manutenção server-side, com o operador como ator; o gatilho do
 // CE emite como antes.
 function asService(sql: string) {
-  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
     BEGIN;
     SET LOCAL ROLE service_role;
     SET LOCAL request.jwt.claim.role = 'service_role';
@@ -196,7 +197,8 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     `)
   })
 
-  afterEach(cleanup)
+  // O beforeEach já limpa antes de cada teste; basta limpar uma vez no fim.
+  afterAll(cleanup)
 
   it('152 — Pix Itaú baixa a individual pelo endToEndId uma única vez e diverge para análise', () => {
     if (psql(`SELECT to_regproc('public.itau_pix_settle') IS NOT NULL`) !== 't') return
