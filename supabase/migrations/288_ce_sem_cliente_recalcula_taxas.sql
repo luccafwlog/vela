@@ -8,12 +8,18 @@
 -- existir (container inteiro em vez de metade). A regra é que o CE confirma o
 -- cálculo (ADR 0042; Taxas Locais, "Fato gerador e fases do cálculo").
 --
+-- A planilha da tela de B/Ls usa a emissão em lotes (`vela.ce_billing_deferred`),
+-- que já recalcula; esta migration cobre os demais caminhos que gravam o
+-- primeiro CE fora desse modo (planilha chamada sem `p_defer_billing`,
+-- manutenção `apply_ce_mercante_update` e qualquer caminho futuro).
+--
 -- Mudança: quando o CE acaba de ser cadastrado e o faturamento automático
 -- para por falta de Cliente, o gatilho recalcula as Taxas Locais, como já faz
 -- no caminho da planilha em lotes. A emissão continua bloqueada até o Cliente;
 -- vincular o Cliente depois recalcula de novo pelo caminho existente. Falha
--- no cálculo não desfaz o CE: fica em `audit_logs`
--- (`local_charges_auto_calc_error`) e o efeito `local_billing` segue como rede.
+-- no cálculo não desfaz o CE e fica em `audit_logs`
+-- (`local_charges_auto_calc_error`); não há nova tentativa automática (o efeito
+-- `local_billing` reaproveita o cálculo gravado) até o vínculo do Cliente.
 --
 -- Só redefine a função do gatilho; não reescreve nem apaga linhas.
 -- Rollback: recriar `trg_auto_bill_bl_after_ce_mercante` como na migration 181.

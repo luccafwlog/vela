@@ -648,6 +648,8 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
   // Caso CSC4541060950G (2026-10-09): o B/L foi calculado na importação antes de
   // o irmão existir (container inteiro) e recebeu o CE sem Cliente. O faturamento
   // para por falta de Cliente; o CE ainda assim confirma o cálculo com o rateio.
+  // `importCeSheet` grava fora da emissão em lotes (sem `p_defer_billing`): exercita
+  // o gatilho da 288, não o caminho da tela de B/Ls, que já recalculava (181).
   it('CE de B/L sem Cliente recalcula o rateio do container compartilhado', () => {
     localPsql(`
       INSERT INTO public.bls (
