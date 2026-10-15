@@ -1,4 +1,4 @@
--- 230: helpers de RLS avaliados uma vez por consulta, não uma vez por linha.
+-- 283: helpers de RLS avaliados uma vez por consulta, não uma vez por linha.
 --
 -- Problema (medição local com volume de ~2 anos: 12 mil B/Ls, 28 mil
 -- contêineres): 187 policies chamam um helper sem argumentos direto no USING

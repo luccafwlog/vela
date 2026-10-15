@@ -1,4 +1,4 @@
--- 232: opções dos filtros de B/Ls e Contêineres numa leitura só.
+-- 285: opções dos filtros de B/Ls e Contêineres numa leitura só.
 --
 -- Problema (medição local com 12 mil B/Ls e 28 mil contêineres): para montar os
 -- selects de POL, POD e tipo de contêiner, o navegador baixava todos os B/Ls e

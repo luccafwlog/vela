@@ -1,4 +1,4 @@
--- 231: a página da lista de contêineres monta o JSON só das linhas exibidas.
+-- 284: a página da lista de contêineres monta o JSON só das linhas exibidas.
 --
 -- Problema (medição local com 28 mil contêineres): `operational_list_containers`
 -- ordenava a página por `row_json->>'created_at'`. Para ordenar, o Postgres
