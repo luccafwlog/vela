@@ -16,7 +16,9 @@ import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Badge } from '../ui/Badge'
 
-export function InternalNotificationBell() {
+// Na barra lateral o sino vira item do menu, com o nome e a contagem depois
+// dele; no cabeçalho é só o ícone com a contagem por cima.
+export function InternalNotificationBell({ variant = 'header' }: { variant?: 'header' | 'sidebar' }) {
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(0)
   const [cursorByPage, setCursorByPage] = useState<Array<InternalNotificationCursor | null>>([null])
@@ -134,7 +136,8 @@ export function InternalNotificationBell() {
       <button
         ref={triggerRef}
         type="button"
-        className="app-header__icon-button"
+        className={variant === 'sidebar' ? 'app-nav-link app-nav-link--button' : 'app-header__icon-button'}
+        data-label={variant === 'sidebar' ? 'Notificações' : undefined}
         aria-label={`Notificações internas${unreadCount ? ` (${unreadCount} não lidas)` : ''}`}
         aria-expanded={open}
         aria-controls="internal-notifications-panel"
@@ -144,9 +147,10 @@ export function InternalNotificationBell() {
           setCursorByPage([null])
         }}
       >
-        <Bell size={18} aria-hidden="true" />
+        <Bell size={variant === 'sidebar' ? 16 : 18} aria-hidden="true" />
+        {variant === 'sidebar' ? <span className="app-nav-link__label">Notificações</span> : null}
         {unreadCount > 0 ? (
-          <span className="app-header__count" aria-hidden="true">
+          <span className={variant === 'sidebar' ? 'app-nav-badge' : 'app-header__count'} aria-hidden="true">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         ) : null}

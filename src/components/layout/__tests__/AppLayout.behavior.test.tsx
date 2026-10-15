@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -41,6 +41,7 @@ function renderLayout() {
 
 describe('AppLayout (navegação visível)', () => {
   beforeEach(() => {
+    window.localStorage.clear()
     vi.stubGlobal('matchMedia', () => ({
       matches: false,
       addEventListener: vi.fn(),
@@ -120,6 +121,65 @@ describe('AppLayout (navegação visível)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Operador de teste/ }))
     expect(screen.getByText('Administrativo')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Sair' })).toBeTruthy()
+  })
+
+  it('troca a posição do menu só pelo menu da conta e guarda a escolha', () => {
+    const { unmount } = renderLayout()
+
+    // Sem escolha salva, o menu fica no topo e não há outro botão de troca.
+    expect(screen.getByRole('banner').contains(screen.getByRole('navigation', { name: 'Navegação principal' }))).toBe(true)
+    expect(screen.queryByRole('button', { name: /lateral/i })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Operador de teste/ }))
+    const group = screen.getByRole('group', { name: 'Posição do menu' })
+    expect(within(group).getByRole('button', { name: /No topo/ }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(within(group).getByRole('button', { name: /Lateral fixa/ }))
+
+    // A barra do topo sai; a navegação e a conta passam para a lateral.
+    expect(screen.queryByRole('banner')).toBeNull()
+    const sidebar = screen.getByRole('complementary', { name: 'Menu do Vela' })
+    expect(sidebar.contains(screen.getByRole('navigation', { name: 'Navegação principal' }))).toBe(true)
+    const account = screen.getByRole('button', { name: /Operador de teste/ })
+    expect(sidebar.contains(account)).toBe(true)
+    expect(document.activeElement).toBe(account)
+    expect(window.localStorage.getItem('vela_nav_position')).toBe('fixed')
+
+    // A escolha volta ao abrir de novo.
+    unmount()
+    renderLayout()
+    expect(screen.getByRole('complementary', { name: 'Menu do Vela' })).toBeTruthy()
+  })
+
+  it('na lateral fixa, o grupo da tela atual vem aberto como lista', () => {
+    window.localStorage.setItem('vela_nav_position', 'fixed')
+    render(
+      <MemoryRouter initialEntries={['/revisao']}>
+        <Routes>
+          <Route path="*" element={<AppLayout />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const importacao = screen.getByRole('button', { name: /Importação/ })
+    expect(importacao.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('link', { name: 'Revisão' }).getAttribute('aria-current')).toBe('page')
+
+    // Navegar dentro da lateral não fecha o grupo.
+    fireEvent.click(screen.getByRole('link', { name: 'BLs' }))
+    expect(importacao.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('abaixo de 1100 px toda posição usa o botão Menu do cabeçalho', () => {
+    window.localStorage.setItem('vela_nav_position', 'collapsed')
+    vi.stubGlobal('matchMedia', () => ({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    renderLayout()
+
+    expect(screen.queryByRole('complementary', { name: 'Menu do Vela' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Menu' }).closest('header')).toBeTruthy()
   })
 
   it('anuncia a contagem do menu por extenso', () => {
