@@ -81,7 +81,9 @@ para a decisão completa.
   ver [Taxa local em dólar](#taxa-local-em-dólar)). Quando o CE
   é gravado fora da planilha, `trg_auto_bill_bl_after_ce_mercante` calcula e
   emite na mesma transação; pela planilha, desde a migration `181`, o gatilho só
-  calcula e a emissão vem pelos lotes de `emit_ce_mercante_billing`. Se houver
+  calcula e a emissão vem pelos lotes de `emit_ce_mercante_billing`. B/L sem
+  Cliente conciliado não emite, mas o gatilho recalcula as taxas mesmo assim
+  (migration `288`). Se houver
   falha operacional, um efeito `local_billing` é enfileirado; com ator válido
   ele é recuperável e, sem `auth.uid()`, fica registrado como
   `actor_source=system` e bloqueado de forma auditável, sem fabricar um
