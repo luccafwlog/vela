@@ -8,7 +8,7 @@
 // Granito com UUID ...0000002270NN. A limpeza roda com
 // `session_replication_role = replica`, porque a Viagem Cancelada recusa
 // qualquer mudança nas linhas dela.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -26,7 +26,7 @@ const blId = 'A227-BL1'
 const container = 'ADCU2270001'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
@@ -35,7 +35,7 @@ function asService(sql: string): string {
 }
 
 function asAdmin(sql: string): { stdout: string; stderr: string } {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${adminId}'; ${sql}`],
   { encoding: 'utf8' })
   return { stdout: run.stdout.trim(), stderr: run.stderr }
@@ -150,7 +150,7 @@ describeLocal('Viagem Cancelada sela a operação e a simulação não grava (mi
   })
 
   it('Comunicado ancorado em Viagem Cancelada é recusado', () => {
-    const attempt = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+    const attempt = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
       SET request.jwt.claim.role = 'service_role';
       INSERT INTO public.customer_communications (customer_id, kind, nature, anchor_voyage_id)
       VALUES (${customerId}, 'ce_taxas', 'carga', ${voyageId});

@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -17,12 +17,12 @@ const paymentWithoutAuthor = 9922102
 const paymentNotRequested = 9922103
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
 }
 
 function namesAs(role: 'authenticated' | 'anon', userId?: string) {
   const claims = userId ? `SELECT set_config('request.jwt.claim.sub', '${userId}', true);` : ''
-  return spawnSync('psql', [
+  return spawnPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-At', '-d', databaseUrl,
     '-c', `BEGIN; SET LOCAL ROLE ${role}; ${claims}
       SELECT payment_id || '|' || registered_by_name

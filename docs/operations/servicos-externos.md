@@ -199,7 +199,13 @@ Para retomar a Vercel, restaure a configuração de build do Vite, reconecte o G
 
 Banco PostgreSQL, Auth, Storage, Edge Functions e jobs agendados. Projeto de
 produção `fgmkhbzhaeebrsizwccx`. O projeto GitHub é `luccafwlog/vela`.
-Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
+A produção do Cloudflare Pages espera o check que a integração publica no
+commit da `main` antes de publicar
+([ADR 0087](../adr/0086-ci-confere-na-medida-da-mudanca.md)); a `main` precisa
+continuar vinculada à produção em Branching → Configuration (vínculo
+conferido no painel pelo dono em 2026-10-15; o check veio verde nos merges
+`b42427c7`, `2763f99b` e `cb7ef2de`, e pulado no `1aa7aaf7` com "not
+associated with any Supabase Branch"). Automatic branching está **desligado** (conferido em 2026-10-07); portanto,
 abrir uma PR não cria por si só uma branch Supabase nem garante o check
 "Supabase Preview". A integração permite criar uma branch pontual e vinculá-la
 a uma branch GitHub. O painel informa custo de US$ 0,01344 por hora enquanto a
@@ -209,7 +215,8 @@ não copiam dados de produção por padrão.
 Para uma Preview pontual sem ligar Automatic branching: em Supabase → projeto
 Vela → Branching → Create branch, informe o nome da branch de Preview e a mesma
 branch GitHub da PR em "Sync with Git branch". A integração publica commits
-nessa branch. Manter a PR aberta até o check Supabase Preview e o workflow
+nessa branch. Depois, ponha a etiqueta `preview` na PR para disparar os
+workflows de preview. Manter a PR aberta até o check Supabase Preview e o workflow
 Cloudflare Pages Preview concluírem; remover a branch após os testes para
 encerrar o custo. Conferir a criação e a exclusão no painel. A página Branching
 estava sem branches persistentes ou de Preview na conferência de 2026-10-08;
@@ -658,8 +665,17 @@ para eles vale o backup do próprio Supabase.
 
 ## GitHub
 
-- **Workflows:** `ci.yml` (testes, build, migrations), `cloudflare-pages-*.yml`
-  (Pages), `provision-preview-admin.yml` (usuário admin na branch de preview).
+- **Workflows:** `ci.yml` (testes, build, migrations; só em PR),
+  `local-pg-order.yml` (agendado: segunda, 09:17 UTC; suítes SQL nas duas
+  ordens), `cloudflare-pages-*.yml` (Pages; produção no push em `main`,
+  esperando o check do Supabase; previews pela etiqueta `preview`),
+  `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
+  etiqueta). Regra em [ADR 0087](../adr/0086-ci-confere-na-medida-da-mudanca.md).
+- **Etiqueta `preview`:** dispara a preview e o usuário admin de uma PR; a
+  limpeza ao fechar só roda em PR com essa etiqueta (existe no repositório).
+- **Ruleset da `main` ("auto-merge claude"):** impede apagar a branch e
+  force-push, exige PR (sem aprovação obrigatória, decisão do dono em
+  2026-10-15) e o check `checks` do GitHub Actions verde, sem exigir branch atualizada (conferido pela API em 2026-10-15).
 - **Repository secrets:** só `SUPABASE_PROJECT_REF` (Preview),
   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Em 2026-10-08
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,
@@ -681,11 +697,11 @@ para eles vale o backup do próprio Supabase.
   workflows atuais. O dono recusou restringir os environments de Preview à
   branch `main` em 2026-10-06; manter essa decisão registrada.
 
-  O repositório é privado; a API de rulesets informa que é necessário GitHub
-  Pro ou tornar o repositório público. Não alterar o plano nem a visibilidade
-  como atalho. A migração dos secrets para os environments foi concluída em
-  2026-10-08; a proteção de workflows (ruleset) fica a cargo do dono, fora do
-  plano run-2.
+  A migração dos secrets para os environments foi concluída em 2026-10-08.
+  Em 2026-10-08 a API de rulesets respondia que o repositório privado exigia
+  GitHub Pro; em 2026-10-15 o ruleset "auto-merge claude" já estava ativo e
+  passou a exigir o `checks` (estado vigente no item "Ruleset da `main`"
+  acima).
 
   O provisionamento passou a consultar cada projeto Pages pelo nome e foi
   validado no run `37631613061`; Preview, limpeza, admin da Preview e produção

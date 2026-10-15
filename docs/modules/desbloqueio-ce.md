@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; migration `220` em produção desde 2026-10-13; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável); aceite operacional e jurídico obtido em 2026-10-14 ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)); expurgo de um PDF real comprovado em produção em 2026-10-15; ativação pendente de conciliação com um "Exportar Tela" real, das mudanças de isenção, avulsas e retenção da ADR 0086 e da correção B1 do plano de correções ([Notas e divergências](#notas-e-divergências)) · **Atualizado:** 2026-10-15 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; migration `220` em produção desde 2026-10-13; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável); aceite operacional e jurídico obtido em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)); expurgo de um PDF real comprovado em produção em 2026-10-15; ativação pendente de conciliação com um "Exportar Tela" real, das mudanças de isenção, avulsas e retenção da ADR 0087 e da correção B1 do plano de correções ([Notas e divergências](#notas-e-divergências)) · **Atualizado:** 2026-10-15 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -132,7 +132,7 @@ CNPJ. Validade até 31/12 do ano declarado, inclusive em America/Sao_Paulo; não
 em janeiro. Pagamento e entrega continuam por B/L, também para VIP. A entrega do
 original é independente da solicitação: o desk a registra antes ou depois do pedido.
 Conteúdo, assinatura e validade do termo e da procuração são conferidos só pela
-análise humana do desk ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)). Reserva de upload
+análise humana do desk ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)). Reserva de upload
 sem PDF registrado não substitui a versão enviada nem consome quota ativa após
 compensação/expurgo. Documento novo em análise não revoga o anterior vigente; renovação
 pode ser aplicada aos pedidos pendentes pelo desk, com histórico.
@@ -148,7 +148,7 @@ aptidão quando o valor corrigido já está coberto. Pagamento
 parcial, ausência de liquidação, nova obrigação de COD ou cancelamento de baixa
 impedem aptidão. Demurrage/avulsas não fazem parte do requisito local.
 **Decidido em 2026-10-14, implementação pendente
-([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)):** B/L com Taxas
+([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)):** B/L com Taxas
 Locais isentas fica sem o requisito de pagamento (apto com termo, procuração e
 entrega), e o requisito passa a incluir as cobranças avulsas do B/L; Demurrage
 continua fora. Hoje o B/L isento não tem recebível de Taxas Locais e fica
@@ -245,7 +245,7 @@ documento e só valem para documento sem pedido ou de pedido concluído ou
 cancelado que nenhum pedido aberto ainda use (**Código:**
 `ce_unlock_cleanup_candidates`, migration `143`).
 **Decidido em 2026-10-14, implementação pendente
-([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)):** todos os
+([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)):** todos os
 anexos de uma solicitação passam a ser expurgados 30 dias após o envio, e os
 documentos do Termo Anual (VIP) ficam até serem substituídos por um novo termo
 aprovado depois do vencimento. Upload abandonado (1 dia) e rascunho (7 dias)

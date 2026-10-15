@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -12,14 +12,14 @@ const ptaxAlertEntityType = 'exchange_rate_reference'
 const ptaxAlertEntityId = 'global'
 
 function localPsql(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()
 }
 
 function authenticatedPsql(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated'; SET LOCAL request.jwt.claim.sub = '${actorId}'; ${sql} COMMIT;`,
   ], { encoding: 'utf8' }).trim()

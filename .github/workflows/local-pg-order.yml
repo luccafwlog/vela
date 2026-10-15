@@ -1,0 +1,63 @@
+name: Local-pg order
+
+# Confere uma vez por semana que as suítes SQL não dependem da ordem (ADR 0086).
+# Saiu do CI de cada PR: lá as suítes rodam só na ordem natural. Aqui o banco é
+# recriado entre as passadas, porque no banco da passada natural a suíte que
+# depende sem querer do que outra deixou (A antes de B) encontraria esse estado
+# também na ordem invertida e passaria. Uma falha chega ao dono como alerta de
+# workflow. Disparo manual para conferir antes da data.
+on:
+  schedule:
+    # Segunda, 09:17 UTC (06:17 em Brasília), fora da hora cheia.
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-pg-order
+  cancel-in-progress: false
+
+jobs:
+  order:
+    name: Local-pg suites, both orders
+    runs-on: ubuntu-latest
+    env:
+      LOCAL_PG_INTEGRATION: '1'
+      LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Ensure PostgreSQL 16 cluster
+        run: |
+          pg_lsclusters || true
+          if ! pg_lsclusters 2>/dev/null | grep -q '^16'; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-16
+          fi
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Replay consolidated migrations from scratch
+        run: sudo scripts/setup-local-pg.sh --reset
+
+      - name: Run the SQL contract suites in natural order
+        run: npm run test:local-pg
+
+      - name: Replay the database again before the reverse pass
+        run: sudo scripts/setup-local-pg.sh --reset
+
+      - name: Run the SQL contract suites in reverse order
+        # Falha aqui e não na passada natural indica dependência de ordem
+        # entre suítes (aceite da Etapa 12 do plano de correção das importações).
+        run: npm run test:local-pg -- --reverse
+
+      - name: Run the financial battery after the other suites
+        run: npx vitest run src/integration/financialBattery.local-pg.test.ts

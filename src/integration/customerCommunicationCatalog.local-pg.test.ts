@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
@@ -10,7 +10,7 @@ const cleanup = readFileSync('supabase/scripts/limpar_dados_teste.sql', 'utf8')
 
 describeLocal('Comunicados — recuperação do catálogo estrutural', () => {
   it('a limpeza operacional preserva o catálogo e a chave de envio', () => {
-    const result = execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+    const result = execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
       BEGIN;
       ${restore}
       CREATE TEMP TABLE before_settings AS SELECT communications_enabled FROM public.app_settings WHERE id=1;
@@ -29,7 +29,7 @@ describeLocal('Comunicados — recuperação do catálogo estrutural', () => {
   })
 
   it('volta a registrar institucional e livre após perda do catálogo, sem ligar envio real', () => {
-    const result = execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+    const result = execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
       BEGIN;
       SET request.jwt.claim.role = 'service_role';
       TRUNCATE public.customer_communication_kinds CASCADE;

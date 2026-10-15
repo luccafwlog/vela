@@ -4,7 +4,7 @@
 // valores, sem lote, arquivo nem linha.
 //
 // Namespace exclusivo: ids 99236xxx, containers 'AZCU236xxxx', usuário ...0000002360NN.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -18,12 +18,12 @@ const voyageId = 99236003
 const cnpj = '99236004000130'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function asUser(sql: string): { stdout: string; stderr: string } {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${userId}'; ${sql}`],
   { encoding: 'utf8' })
   return { stdout: run.stdout.trim(), stderr: run.stderr }

@@ -8,7 +8,8 @@
 // veículo de Viagem Cancelada não sai dela pelo Mover.
 //
 // Namespace exclusivo: ids 99231xxx, B/Ls 'A231-*', usuário ...0000002310NN.
-import { execFileSync, spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -35,12 +36,12 @@ const cCancelledVoyage = 99231015
 const bls = [blA, blB, blOther, blCancelled, blCancelledVoyage]
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function asUser(sql: string): { stdout: string; stderr: string } {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${userId}'; ${sql}`],
   { encoding: 'utf8' })
   return { stdout: run.stdout.trim(), stderr: run.stderr }

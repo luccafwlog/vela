@@ -6,7 +6,7 @@
 // As ações usam as RPCs reais como `authenticated` (Administrativo).
 // Namespace exclusivo: ids 992127xx, B/Ls 'R212-*', usuário ...000000212701,
 // manifestos 'R212*' (13 caracteres), CEs '992127…'.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -28,13 +28,13 @@ const pol = 'R212O'
 const fee = 212
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`],
   { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function asAdmin(sql: string): { output: string; error: string | null } {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`],
   { encoding: 'utf8' })
   const error = run.stderr.split('\n').find((line) => line.startsWith('ERROR:')) ?? null

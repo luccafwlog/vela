@@ -57,7 +57,7 @@ objeto de teste não tinha bytes, então a remoção física de um PDF real segu
 sem prova e o item do expurgo continua **[bloqueia ativação]**. Os outros
 itens bloqueantes que restam são a conciliação com um "Exportar Tela" real da
 ZPT (Tarefa 6) e as mudanças do aceite operacional/jurídico, obtido no mesmo dia
-([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)): B/L isento sem
+([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)): B/L isento sem
 requisito de pagamento e avulsas no requisito (Tarefa 2) e retenção de 30 dias
 (Tarefa 3). No mesmo dia o
 responsável informou que combinou com a ZPT e que o modelo atual de exportação
@@ -69,7 +69,7 @@ elegível: rascunho cancelado e B/L liberado, documento com `purged_at`, objeto
 fora do bucket e registrado como removido no log do Storage (ver "Fontes"). O
 item do expurgo deixa de bloquear a ativação. Continuam bloqueantes a
 conciliação com um "Exportar Tela" real da ZPT (item 4 do caminho crítico), as
-mudanças da ADR 0086 (item 9) e a correção do alerta de troca de CE com
+mudanças da ADR 0087 (item 9) e a correção do alerta de troca de CE com
 Desbloqueio conferido (item 8).
 
 **Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
@@ -254,7 +254,7 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
 4. ~~Homologar com o responsável/ZPT a planilha exportada (`zpt-5-v2`).~~ Feito
    em 2026-10-14, por declaração do responsável. Falta conciliar um arquivo
    "Exportar Tela" real da ZPT (Tarefa 6). O aceite operacional foi obtido em
-   2026-10-14 ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)).
+   2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)).
 5. ~~Demonstrar as matrizes que protegem dinheiro e dados: fatura consolidada
    parcialmente paga (Tarefa 2), baixa cancelada concorrente ao envio
    (Tarefa 2) e acesso a IDs/caminhos/downloads de outro CNPJ no serviço real
@@ -275,7 +275,7 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    e primeiro item do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md):
    corrigir o código e refazer o teste K2 de
    `ceImportacaoContrato.local-pg.test.ts` a partir de `ce_unlock_reconcile`.
-9. Implementar as mudanças da ADR 0086: B/L isento sem requisito de pagamento
+9. Implementar as mudanças da ADR 0087: B/L isento sem requisito de pagamento
    e cobranças avulsas no requisito (Tarefa 2); expurgo dos anexos 30 dias
    após o envio e Termo Anual VIP até a substituição (Tarefa 3).
 
@@ -320,7 +320,7 @@ apresentação; timestamps persistidos continuam UTC.
 - [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
 - [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
 - [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
-- [x] Obter/reconciliar aceite operacional de entrega, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); o aceite foi obtido em 2026-10-14 ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md)): entrega independente da solicitação, B/L isento sem requisito de pagamento, avulsas no requisito (sem Demurrage), assinatura e validade por conferência humana e retenção de 30 dias; as mudanças de código estão nas Tarefas 2 e 3. A matriz de papéis saiu deste aceite: foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11) — leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação —, e a correção para Equipamentos é o item P12 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- [x] Obter/reconciliar aceite operacional de entrega, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); o aceite foi obtido em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)): entrega independente da solicitação, B/L isento sem requisito de pagamento, avulsas no requisito (sem Demurrage), assinatura e validade por conferência humana e retenção de 30 dias; as mudanças de código estão nas Tarefas 2 e 3. A matriz de papéis saiu deste aceite: foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11) — leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação —, e a correção para Equipamentos é o item P12 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md).
 - A homologação da amostra XLSX e dos indicadores Sim/Não com responsável/ZPT é registrada na Tarefa 6 (concluída em 2026-10-14).
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
@@ -352,7 +352,7 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
 - [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
 
-- [ ] **[bloqueia ativação]** B/L com Taxas Locais isentas fica apto sem requisito de pagamento (termo, procuração e entrega), e o requisito passa a incluir as cobranças avulsas do B/L, sem Demurrage ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md), itens 2 e 3). Hoje `ce_unlock_private.item` só lê `bl_receivables` de `local_charges`, e o B/L isento, sem recebível, sai como não pago. Ajustar aptidão, motivos, Portal e coluna de pagamento da planilha, com teste no Postgres local.
+- [ ] **[bloqueia ativação]** B/L com Taxas Locais isentas fica apto sem requisito de pagamento (termo, procuração e entrega), e o requisito passa a incluir as cobranças avulsas do B/L, sem Demurrage ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), itens 2 e 3). Hoje `ce_unlock_private.item` só lê `bl_receivables` de `local_charges`, e o B/L isento, sem recebível, sai como não pago. Ajustar aptidão, motivos, Portal e coluna de pagamento da planilha, com teste no Postgres local.
 
 ## Tarefa 3 — Documentos e análise interna auditável
 
@@ -392,7 +392,7 @@ RPCs internas `set_ce_unlock_vip`, `review_ce_unlock_vip_document`,
 - [x] Publicar a função e o job de expurgo. **Remoto:** `ce-unlock-cleanup` ativo e agendado diariamente em 2026-10-10.
 - [ ] Homologar retenção e validar retry no Storage real. A remoção de um PDF real pela Storage API foi observada em produção em 2026-10-15 (ver "Fontes"); falta a falha física com nova tentativa e a decisão de retenção.
 
-- [ ] **[bloqueia ativação]** Expurgo dos anexos da solicitação 30 dias após o envio e dos documentos do Termo Anual VIP só quando um termo novo aprovado substitui o vencido ([ADR 0086](../adr/0086-desbloqueio-ce-aceite-operacional.md), item 5), no lugar dos 5 anos de `ce_unlock_cleanup_candidates`; upload abandonado (1 dia) e rascunho (7 dias) não mudam. Teste no Postgres local.
+- [ ] **[bloqueia ativação]** Expurgo dos anexos da solicitação 30 dias após o envio e dos documentos do Termo Anual VIP só quando um termo novo aprovado substitui o vencido ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), item 5), no lugar dos 5 anos de `ce_unlock_cleanup_candidates`; upload abandonado (1 dia) e rascunho (7 dias) não mudam. Teste no Postgres local.
 
 ## Tarefa 4 — Portal: selecionar, solicitar e acompanhar
 

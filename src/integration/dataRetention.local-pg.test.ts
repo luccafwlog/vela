@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
@@ -10,7 +10,7 @@ const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }

@@ -354,8 +354,9 @@ ela tem custo por hora, depende de autorização e é removida depois do teste.
 Com a branch vinculada, a integração aplica nela as migrations de
 `supabase/migrations/`, e o workflow Cloudflare Pages Preview publica os dois
 sites protegidos com as credenciais públicas dessa branch. Sem ela, a prova
-das migrations da PR é o job `migration-replay` do CI (seção 12), e os
-workflows Cloudflare Pages Preview e Provision Preview Admin esperam o check
+das migrations da PR é o job `db` do CI (seção 12). Os workflows Cloudflare
+Pages Preview e Provision Preview Admin só rodam com a etiqueta `preview` na PR
+(ou disparo manual a partir da `main`); sem a branch vinculada, esperam o check
 `Supabase Preview` por 36 tentativas de 10 s (cerca de 6 min) e terminam com
 falha. O checkout não comprova a configuração remota: confira-a no painel.
 
@@ -461,7 +462,7 @@ O CI da SPA e o Cloudflare Pages não aplicam migrations. Quando existe a
 branch Supabase de Preview vinculada à PR, a integração aplica nela as
 migrations da PR; confirme o check `Supabase Preview` antes do merge e, em caso
 de falha, compare o histórico remoto com os arquivos locais antes de
-reexecutar. Sem essa branch, o gate de migration da PR é o `migration-replay`.
+reexecutar. Sem essa branch, o gate de migration da PR é o job `db`.
 Depois do merge, a integração GitHub do Supabase (Deploy to production) aplica
 as pendentes em produção. Após DDL, verifique advisors e o contrato usado pela
 aplicação.
@@ -650,7 +651,7 @@ npm run build
 
 Mudança de aparência, CSS ou componente visual roda também
 `npm run design:check` e `npm run a11y:contrast` (os dois estão no job
-"Docs + Lint" do CI).
+`quality` do CI).
 
 Execute testes focados durante a implementação. Após corrigir falhas, repita os
 checks afetados; resultados de código e ambiente inalterados continuam válidos.
@@ -697,20 +698,47 @@ Para reproduzir o gate completo, use `npm run test:local-pg`, que roda em
 série as suítes de [`scripts/local-pg-suites.txt`](scripts/local-pg-suites.txt)
 na ordem da lista; `npm run test:local-pg -- --reverse` roda de trás para
 frente. O Vitest reordena os arquivos por conta própria (falhos e lentos
-primeiro); o script passa a ordem ao sequenciador do `vite.config.ts`. O CI
-roda as duas ordens, cada uma num banco recém-replicado
+primeiro); o script passa a ordem ao sequenciador do `vite.config.ts`. O CI da
+PR roda a ordem natural; o workflow semanal `local-pg-order.yml` (segunda de
+manhã e disparo manual) roda as duas ordens, cada uma num banco recém-replicado
 (`setup-local-pg.sh --reset` antes da invertida), o que prova que nenhuma suíte
-depende do que a anterior fez nem é quebrada por ela. As suítes
+depende do que a anterior fez nem é quebrada por ela ([ADR 0086](docs/adr/0086-ci-confere-na-medida-da-mudanca.md)). As suítes
 compartilham banco e precisam rodar em série; cada uma deve
 usar seu próprio namespace de IDs e documentos nas fixtures e apagar o que
 cria, inclusive versões de regra de tarifa e contas de Portal do próprio Cliente:
 a bateria financeira roda num passo próprio, por último, e falha com resíduo
 global. Toda suíte nova entra em `scripts/local-pg-suites.txt`;
 `npm run localpg:check` falha quando um `*.local-pg.test.ts` fica fora dela
-(e dos passos do CI), quando há suíte repetida ou quando o CI deixa de rodar
-uma das duas ordens. Sonda de pré-requisito usa
+(e dos passos do CI), quando há suíte repetida, quando o CI ou o workflow
+semanal deixa de rodar a sua ordem, ou quando uma suíte chama
+`execFileSync('psql', ...)` ou `spawnSync('psql', ...)`. Sonda de pré-requisito usa
 `describeWithProbe` (`src/integration/localTestData.ts`): com
 `LOCAL_PG_INTEGRATION=1`, sonda falsa falha o teste em vez de pular a suíte.
+
+Suíte nova executa SQL com `execPsql` e `spawnPsql`
+(`src/integration/localPsql.ts`). Eles recebem os mesmos argumentos e opções de
+`execFileSync('psql', ...)` e `spawnSync('psql', ...)` e devolvem o mesmo
+formato, mas usam uma conexão por arquivo de suíte em vez de um processo e uma
+conexão por chamada:
+
+```ts
+import { execPsql } from './localPsql'
+
+function psql(sql: string): string {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
+    encoding: 'utf8',
+  }).trim()
+}
+```
+
+Cada chamada termina com `ROLLBACK` e `DISCARD ALL`, então começa como um
+`psql` novo: sem `SET`/`SET ROLE`, temporárias, locks consultivos nem
+transação aberta. A diferença conhecida: uma variável personalizada que a
+sessão já usou (`request.jwt.claim.sub`, `vela.*`) volta como `''`, não `NULL`,
+em `current_setting(nome, true)`, como numa conexão do PostgREST. O teste
+`src/integration/localPsql.local-pg.test.ts` compara a saída, os erros, os
+avisos e o status com o binário `psql`. Para outra sessão em paralelo (janela
+de concorrência, lock), continue usando `spawn('psql', ...)`.
 
 `npm run rpc:check` requer `psql` e banco já preparado. Configure explicitamente
 `LOCAL_DATABASE_URL` para o alvo descartável; o script também aceita
@@ -754,42 +782,55 @@ Nenhum restore destrutivo faz parte dos checks locais.
 
 ### Pull request
 
-`.github/workflows/ci.yml` define cinco grupos de validação em pull requests e
-pushes para `main`, mais o agregador. As etapas Node usam a versão 24 e
-`npm ci --legacy-peer-deps`; o replay de guardas usa Python e o replay de banco
-requer PostgreSQL 16:
+`.github/workflows/ci.yml` roda só em pull requests (aberta, novo commit,
+reaberta ou saída de rascunho), em três jobs mais o agregador
+([ADR 0086](docs/adr/0086-ci-confere-na-medida-da-mudanca.md)). As etapas Node
+usam a versão 24 e `npm ci --legacy-peer-deps`; o replay de guardas usa Python
+e o de banco requer PostgreSQL 16:
 
-1. `quality` — verificação documental e autotestes, lint, self-check do gerador
-   de squash, declaração de migration destrutiva e autotestes desse checker,
-   lista das suítes local-pg (`npm run localpg:check`) e contratos de staging e
-   de provisionamento do Cloudflare Pages (`npm run cloudflare:stage:test` e
-   `npm run cloudflare:provision:test`); inclui o contrato de upload CE em Deno
-   2.9.6, com HTTP simulado e dependências remotas verificadas por `deno.lock`
-   (`--frozen`); o lock da raiz cobre só esses imports remotos (`--no-config` e
-   `DENO_NO_PACKAGE_JSON=1`), então atualizações npm não o invalidam;
-2. `build` — build (`tsc` + `vite`) com staging dos dois sites Pages
-   (`npm run cloudflare:build:sites`, que exige `VITE_SUPABASE_URL` para o
-   `connect-src` da CSP) e orçamento de bundle;
-3. `test` — suíte Vitest dividida em 3 shards (`--shard=N/3`);
-4. `security-audit` — autotestes do analisador e replay estático de autorização
-   (`verificar_guardas.py`), distinguindo tabelas de schemas diferentes;
-5. `migration-replay` — aplica as migrations do zero num PostgreSQL 16
-   descartável (`setup-local-pg.sh --reset`) e trava invariantes em banco real
-   (`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), roda as
-   suítes locais serializadas nas duas ordens e a bateria financeira por
-   último, confere o catálogo de RPCs e aplica/verifica `supabase/seed.sql`; é
-   o job dedicado à execução real de SQL;
-6. `checks` — gate agregador que só fica verde quando os cinco terminam verdes.
+1. `quality` — verificação documental e autotestes, testes dos scripts do CI
+   (`npm run ci:test`), lint, identidade visual, self-check do gerador de
+   squash, declaração de migration destrutiva e autotestes desse checker, lista
+   das suítes local-pg (`npm run localpg:check`), contratos de staging e de
+   provisionamento do Cloudflare Pages (`npm run cloudflare:stage:test` e
+   `npm run cloudflare:provision:test`), autotestes do analisador e replay
+   estático de autorização (`verificar_guardas.py`), build (`tsc` + `vite`) com
+   staging dos dois sites Pages (`npm run cloudflare:build:sites`, que exige
+   `VITE_SUPABASE_URL` para o `connect-src` da CSP) e orçamento de bundle;
+   inclui o contrato de upload CE em Deno 2.9.6, com HTTP simulado e
+   dependências remotas verificadas por `deno.lock` (`--frozen`); o lock da raiz
+   cobre só esses imports remotos (`--no-config` e `DENO_NO_PACKAGE_JSON=1`),
+   então atualizações npm não o invalidam;
+2. `test` — suíte Vitest dividida em 2 shards (`--shard=N/2`);
+3. `db` — aplica as migrations do zero num PostgreSQL 16 descartável
+   (`setup-local-pg.sh --reset`), trava invariantes em banco real
+   (`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), confere o
+   catálogo de RPCs e aplica/verifica `supabase/seed.sql` em toda PR. As suítes
+   locais serializadas (ordem natural) e a bateria financeira rodam só quando o
+   diff da PR toca o banco: `supabase/`, `src/integration/`, os scripts do
+   replay e das suítes, `vite.config.ts`, `package.json`, `package-lock.json`,
+   o próprio `ci.yml` ou o classificador `scripts/ci-db-paths.mjs`, que escreve
+   a decisão no log do passo. A condição fica nos passos, então o job nunca é
+   pulado;
+4. `checks` — gate agregador que só fica verde quando os três terminam verdes.
 
 `checks` é o nome estável para a proteção de branch: a quantidade de shards
 pode mudar sem reconfigurar o repositório. Runs antigos do mesmo ref são
 cancelados (`concurrency` + `cancel-in-progress`), então só o commit mais
-recente do PR ocupa runners.
+recente do PR ocupa runners. A passada das suítes em ordem invertida roda uma
+vez por semana em `.github/workflows/local-pg-order.yml` (seção 11).
 
-Após um CI verde, `.github/workflows/provision-preview-admin.yml` executa no
-contexto confiável da branch padrão, aguarda o check `Supabase Preview` (que
-só existe com a branch de Preview vinculada à PR; sem ela, o workflow termina
-com falha por tempo esgotado, seção 5), obtém as credenciais da branch e roda
+As previews são sob demanda: `.github/workflows/cloudflare-pages-preview.yml` e
+`.github/workflows/provision-preview-admin.yml` rodam quando a PR recebe a
+etiqueta `preview` (`pull_request_target`, YAML da branch base) ou por disparo
+manual a partir da `main` com o número da PR. Não dependem do CI verde: quem
+põe a etiqueta decide o momento. `cloudflare-pages-preview-cleanup.yml` só roda
+ao fechar PR com essa etiqueta.
+
+`provision-preview-admin.yml` executa no contexto confiável da branch padrão,
+aguarda o check `Supabase Preview` (que só existe com a branch de Preview
+vinculada à PR; sem ela, o workflow termina com falha por tempo esgotado,
+seção 5), obtém as credenciais da branch e roda
 `scripts/provision-preview-admin.mjs`.
 Esse script cria ou atualiza `qa-admin@example.test` pela Auth Admin API e
 garante seu `user_profiles.role = 'administrativo'`. O password fica exclusivamente no
@@ -802,11 +843,15 @@ na integração, não inferida da existência da PR.
 
 ### Push em main
 
-GitHub Actions publica no Cloudflare Pages a produção após CI verde em `main` e
-os previews das PRs que têm branch Supabase de Preview vinculada. O environment
-`cloudflare-production` fornece as variáveis públicas do build. O login com o
-usuário fixo só deve ser tentado depois que `Provision Preview Admin` estiver
-verde.
+O CI não roda de novo depois do merge. `cloudflare-pages-production.yml`
+começa no próprio push em `main` e, antes de publicar, espera o check do app
+`supabase` no commit (`scripts/wait-supabase-migrations.mjs`): verde publica;
+vermelho, cancelado ou estourado recusa; pulado, ou sem check em 10 min, só
+publica se o push não mudar `supabase/migrations/`, e senão pede conferência no
+painel do Supabase e publicação manual (`workflow_dispatch`, que não espera). O
+environment `cloudflare-production` fornece as variáveis públicas do build. O
+login com o usuário fixo numa preview só deve ser tentado depois que
+`Provision Preview Admin` estiver verde.
 
 ### Edge Functions e banco
 

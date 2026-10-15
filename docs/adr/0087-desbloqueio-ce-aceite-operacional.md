@@ -1,4 +1,4 @@
-# 0086 — Aceite operacional e jurídico do Desbloqueio de CE
+# 0087 — Aceite operacional e jurídico do Desbloqueio de CE
 
 Status: aceito — 2026-10-14 (decisões do dono). Implementação pendente: os
 itens 2, 3 e 5 mudam o código e estão no

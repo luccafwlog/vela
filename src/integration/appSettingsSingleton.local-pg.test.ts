@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -9,7 +9,7 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 const read = (file: string) => readFileSync(resolve(process.cwd(), 'supabase/migrations', file), 'utf8')
 
 function localPsql(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', sql,
   ], { encoding: 'utf8' }).trim()
