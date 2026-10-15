@@ -8,9 +8,6 @@
     "src/components/ce-unlock/CeUnlockSla.tsx": {
       "hex": 1
     },
-    "src/components/clientes/VisaoGeralTab.tsx": {
-      "hex": 1
-    },
     "src/components/demurrage/CustomerSummaryReport.tsx": {
       "hex": 3,
       "tamanho-solto": 4
@@ -167,7 +164,7 @@
       "app-alerts": 1,
       "app-auth": 41,
       "app-badge": 11,
-      "app-bl": 101,
+      "app-bl": 95,
       "app-breadcrumb": 7,
       "app-btn": 39,
       "app-bulk": 3,

@@ -9186,47 +9186,6 @@ a.app-step-rail__link:focus-visible {
   padding: 6px 0;
 }
 
-.app-bl-history {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-bl-history__item {
-  display: grid;
-  gap: 2px 16px;
-  border-top: 1px solid var(--app-border);
-  padding: 10px 0;
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-bl-history__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-bl-history__title {
-  color: var(--app-text-strong);
-  font-weight: 500;
-}
-
-@media (min-width: 640px) {
-  .app-bl-history__item {
-    grid-template-columns: 11rem minmax(0, 1fr);
-  }
-
-  .app-bl-history__meta {
-    display: grid;
-    gap: 0;
-  }
-}
-
 @media (max-width: 639px) {
 
   .app-bl-toolbar {
