@@ -35,8 +35,6 @@ import { extractReviewReasons } from '../hooks/useReview'
 import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
 import { listDepots } from '../services/depots'
 import { setBlTerminalOverride } from '../services/blTerminal'
-import { CONTAINER_PROFILE_LABELS, containerProfileLabel, partLotInvoicedNotice, setContainerOwnership, setContainerProfile, type ContainerProfile } from '../services/vaziosNatureza'
-import { containerOwnershipLabel, type ContainerOwnership } from '../lib/containerOwnership'
 import { isBlFinanciallyLocked } from '../lib/chargeStatus'
 import { buildDocumentalRail, buildOperationalRail, pickNextAction, summarizeDocumentalRail } from '../services/blRails'
 import { getBlPortalStatus } from '../services/blPortalStatus'
@@ -171,72 +169,6 @@ export function BlDetalhe() {
       ])
     },
   })
-  const containerProfileMutation = useMutation({
-    mutationFn: (input: { containerId: number; profile: ContainerProfile; justification: string }) => setContainerProfile({ ...input, changedBy: user?.id }),
-    onSuccess: async (result) => {
-      await Promise.all([
-        afterBlEstadoAlterado(queryClient, { blId: bl!.id, voyageId: bl!.voyage_id }),
-        queryClient.invalidateQueries({ queryKey: ['containers'] }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', bl?.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(bl!.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
-      ])
-      showToast(`Perfil do container atualizado e taxas recalculadas.${partLotInvoicedNotice(result.invoicedBls)}`, 'success')
-    },
-    onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao alterar o perfil do container.'), 'error'),
-  })
-  async function handleChangeContainerProfile(containerId: number, profile: ContainerProfile) {
-    const container = bl?.bl_containers?.find((item) => item.id === containerId)
-    if (!container) return
-    const before = containerProfileLabel(container)
-    const after = CONTAINER_PROFILE_LABELS[profile]
-    if (before === after) return
-    const justification = await confirmWithReason({
-      title: 'Alterar perfil do container',
-      message: `Alterar o perfil do container ${container.container_number}?`,
-      changes: [{ field: 'Perfil', before, after }],
-      consequence: 'As taxas locais deste B/L são recalculadas com o novo perfil. Se o container estiver em outro B/L (Part Lot), o perfil muda nele também; B/L já faturado não é recalculado e a fatura segue a correção após emissão. A alteração fica no histórico com autor e justificativa.',
-      reversibility: 'Pode ser revertida escolhendo o perfil anterior, com nova justificativa. Uma reimportação do Baplie volta ao perfil do arquivo.',
-      confirmLabel: 'Alterar e recalcular',
-      reasonLabel: 'Justificativa',
-    })
-    if (justification === null) return
-    containerProfileMutation.mutate({ containerId, profile, justification })
-  }
-  const containerOwnershipMutation = useMutation({
-    mutationFn: (input: { containerId: number; ownership: ContainerOwnership; justification: string }) => setContainerOwnership({ ...input, changedBy: user?.id }),
-    onSuccess: async (result) => {
-      await Promise.all([
-        afterBlEstadoAlterado(queryClient, { blId: bl!.id, voyageId: bl!.voyage_id }),
-        queryClient.invalidateQueries({ queryKey: ['containers'] }),
-        queryClient.invalidateQueries({ queryKey: ['baplie-reconciliation'] }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', bl?.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.localChargeLines(bl!.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.operations() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.charges.pendencies() }),
-      ])
-      showToast(`SOC/COC do container atualizado e taxas recalculadas.${partLotInvoicedNotice(result.invoicedBls)}`, 'success')
-    },
-    onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao alterar SOC/COC do container.'), 'error'),
-  })
-  async function handleChangeContainerOwnership(containerId: number, ownership: ContainerOwnership) {
-    const container = bl?.bl_containers?.find((item) => item.id === containerId)
-    if (!container || container.ownership === ownership) return
-    const justification = await confirmWithReason({
-      title: 'Alterar SOC/COC do container',
-      message: `Marcar o container ${container.container_number} como ${ownership}?`,
-      changes: [{ field: 'SOC/COC', before: containerOwnershipLabel(container.ownership), after: ownership }],
-      consequence: ownership === 'SOC'
-        ? 'As taxas locais deste B/L são recalculadas sem Drop Off e Damage Protection para este container, e ele deixa de esperar devolução e Demurrage. A alteração fica no histórico com autor e justificativa.'
-        : 'As taxas locais deste B/L são recalculadas cobrando Drop Off e Damage Protection deste container, e ele passa a esperar devolução. A alteração fica no histórico com autor e justificativa.',
-      reversibility: 'Pode ser revertida com nova justificativa. Reimportar o B/L volta ao que o B/L declara ou, sem declaração, ao que o Baplie informa.',
-      confirmLabel: 'Alterar e recalcular',
-      reasonLabel: 'Justificativa',
-    })
-    if (justification === null) return
-    containerOwnershipMutation.mutate({ containerId, ownership, justification })
-  }
   const cargoMode = useMemo(() => resolveCargoMode(bl), [bl])
   const isContainerMode = cargoMode === 'container'
   const isMixedMode = cargoMode === 'misto'
@@ -483,11 +415,8 @@ export function BlDetalhe() {
         bl={bl}
         blId={blId}
         cargoMode={cargoMode}
-        isContainerMode={isContainerMode}
-        containerSummary={containerSummary}
-        breakbulkSummary={breakbulkSummary}
-        onChangeProfile={cancelledAt || isBlFinanciallyLocked(bl.financial_status) ? undefined : handleChangeContainerProfile}
-        onChangeOwnership={cancelledAt || isBlFinanciallyLocked(bl.financial_status) ? undefined : handleChangeContainerOwnership}
+        canCorrect={!cancelledAt}
+        chargesLocked={isBlFinanciallyLocked(bl.financial_status)}
         ownershipDivergences={ownershipDivergences}
       />
 

@@ -46,20 +46,6 @@ export function renderLinkedLabel(linked: boolean | null) {
   return linked ? 'Sim' : 'Não'
 }
 
-export function renderCeCoverage(filled: number, total: number) {
-  if (total === 0) return <span className="text-[var(--app-muted-soft)]">-</span>
-  const color = filled >= total ? 'var(--app-green)' : filled > 0 ? 'var(--app-gold-strong)' : 'var(--app-red)'
-  const percentage = Math.min(100, Math.round((filled / total) * 100))
-  return (
-    <span className="inline-flex items-center justify-center gap-1.5" aria-label={`Cobertura CE Mercante: ${filled} de ${total}`}>
-      <span aria-hidden="true" className="h-[5px] w-9 overflow-hidden rounded-full bg-[var(--app-panel-strong)]">
-        <span className="block h-full" style={{ width: `${percentage}%`, backgroundColor: color }} />
-      </span>
-      <span className="font-mono text-xs font-semibold" style={{ color }}>{filled}/{total}</span>
-    </span>
-  )
-}
-
 export type VoyageImportBatch = {
   id: number
   voyage_id: number | null
@@ -149,7 +135,7 @@ export function collectVoyageManifestBatchRows({
       routeKey,
       pol,
       pod,
-      routeLabel: `${formatPortDisplayName(pol)} -> ${formatPortDisplayName(pod)}`,
+      routeLabel: `${formatPortDisplayName(pol)} → ${formatPortDisplayName(pod)}`,
       batchIds: [],
       modes: new Set(),
       etd: polEntity?.etd ?? null,
@@ -216,7 +202,7 @@ export function collectVoyageManifestBatchRows({
       routeKey,
       pol,
       pod,
-      routeLabel: `${formatPortDisplayName(pol)} -> ${formatPortDisplayName(pod)}`,
+      routeLabel: `${formatPortDisplayName(pol)} → ${formatPortDisplayName(pod)}`,
       batchIds: [],
       modes: new Set(['container']),
       etd: polEntity?.etd ?? null,

@@ -261,6 +261,20 @@ function noonMs(dateStr: string): number {
 }
 
 /**
+ * Free time e diárias que valem para o tipo de container (B/L > acordo >
+ * tabela), para mostrar a condição vigente na ficha do B/L.
+ */
+export function demurrageRateFor(
+  containerType: string | null,
+  freeTimeOverride?: number | null,
+  ov1?: number | null,
+  ov2?: number | null,
+  customerAgreement?: CustomerAgreementRates,
+) {
+  return getRate(containerType, freeTimeOverride, ov1, ov2, customerAgreement)
+}
+
+/**
  * Free time que vale para o container (B/L > acordo > tabela). O
  * `free_days` de `calculateDemurrage` é o dia corrido quando a caixa ainda
  * está dentro do free time, não o prazo.

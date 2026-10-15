@@ -2,15 +2,14 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
-import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { NoValue } from '../ui/NoValue'
-import { Card } from '../ui/Card'
-import { SummaryStrip } from '../ui/SummaryStrip'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { ManualChargeFormFields } from '../billing/ManualChargeFormFields'
 import { useAuth } from '../../hooks/useAuth'
+import { chargeTableColumns, isUsualLine } from './chargeTableColumns'
 import {
   useAddManualBlCharge,
   useBlLocalChargeLines,
@@ -19,8 +18,7 @@ import {
   useManualChargeItemsForBl,
   useUpdateManualBlCharge,
 } from '../../hooks/useLocalCharges'
-import { formatBRL, formatUSD, normalizeText } from '../../lib/utils'
-import { FINANCIAL_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
+import { formatBRL, formatCountLabel, formatDateTime, formatUSD, normalizeText } from '../../lib/utils'
 import { ConsolidatedMark, StatusText } from '../ui/StatusText'
 import { InvoiceSituation } from '../billing/InvoiceSituation'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
@@ -29,9 +27,6 @@ import { invoiceTypeLabel, markBlReadyAndCreateInvoice, type InvoiceLinkInfo } f
 import {
   formatNumber,
   resolveChargeLineStatusLabel,
-  resolveChargeLineStatusTone,
-  resolveChargeStatusLabel,
-  resolveChargeStatusTone,
 } from '../../pages/blDetalheHelpers'
 import type { BLDetail } from '../../types/database'
 
@@ -261,25 +256,32 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
     && activeInvoice.total_brl != null
     && Math.abs(localChargeSummary.lines.filter((line) => line.status !== 'exempt').reduce((sum, line) => sum + Number(line.total_value_brl ?? 0), 0) - activeInvoice.total_brl) > 0.01,
   )
-  const hasManualLines = localChargeSummary.lines.some((line) => line.source === 'manual')
-  const showActionsColumn = !chargesLocked && hasManualLines
-  const reviewPendingCount = localChargeSummary.lines.filter((line) => line.status === 'review_required').length
-  const columnCount = showActionsColumn ? 8 : 7
+  const lines = localChargeSummary.lines
+  const { showOrigin, showSituation, showNotes, showActions: showActionsColumn } = chargeTableColumns(lines, chargesLocked)
+  const reviewPendingCount = lines.filter((line) => line.status === 'review_required').length
+  const columnCount = 4 + Number(showOrigin) + Number(showSituation) + Number(showNotes) + Number(showActionsColumn)
+  const totalLabel = (
+    <>
+      {formatBRL(localChargeSummary.totalBrl)}
+      {localChargeSummary.totalUsd ? <> + {formatUSD(localChargeSummary.totalUsd)}</> : null}
+    </>
+  )
 
   return (
-    <Card className="app-bl-sheet">
-      <section className="app-bl-sheet__section" aria-labelledby="bl-taxas">
-      <div className="app-bl-section-head">
-        <div className="app-bl-section-head__title-group">
-          <h2 id="bl-taxas" className="app-bl-section-title">Taxas Locais</h2>
-          {chargesLocked
-            ? <StatusText tone={bl.financial_status === 'paid' ? 'paid' : 'default'}>{statusLabel(FINANCIAL_STATUS_LABELS, bl.financial_status ?? 'invoiced')}</StatusText>
-            : <Badge tone={resolveChargeStatusTone(bl.charge_status)}>{resolveChargeStatusLabel(bl.charge_status)}</Badge>}
-          {bl.charge_exemption_reason ? <span className="app-bl-facts__sub">Isenção: {bl.charge_exemption_reason}</span> : null}
-        </div>
-        {canIssue ? (
-          <div className="app-bl-issue">
+    <Block
+      title="Taxas Locais"
+      flush
+      aside={chargesLocked ? null : (
+        <span className="flex flex-wrap items-center gap-2">
+          {manualFormOpen || manualChargeForm.editingChargeCalculationId ? null : (
+            <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setManualFormOpen(true)}>
+              <Plus size={15} aria-hidden="true" />
+              Adicionar cobrança manual
+            </Button>
+          )}
+          {canIssue ? (
             <Button
+              className="app-btn--sm"
               onClick={handleIssueInvoice}
               loading={issuing}
               loadingLabel="Emitindo…"
@@ -289,63 +291,72 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
             >
               Emitir fatura
             </Button>
-            {localChargeSummary.hasReviewRequired ? (
-              <span id="bl-issue-blocked" className="app-bl-facts__sub app-bl-tone--warning">Corrija e recalcule as linhas em revisão antes de emitir.</span>
-            ) : null}
-          </div>
+          ) : null}
+        </span>
+      )}
+    >
+      <div className="app-block__body">
+        {chargesLocked && activeInvoice?.total_brl != null ? (
+          <LeadValue detail="valor da fatura">{formatBRL(activeInvoice.total_brl)}</LeadValue>
+        ) : (
+          <LeadValue
+            detail={(
+              <>
+                {formatCountLabel(lines.length, 'cobrança', 'cobranças')}
+                {chargesLocked ? null : ' · valores provisórios até a emissão'}
+                {reviewPendingCount ? <> · <StatusText tone="warning"><span id="bl-issue-blocked">{formatCountLabel(reviewPendingCount, 'linha em revisão', 'linhas em revisão')}: corrija e recalcule antes de emitir</span></StatusText></> : null}
+              </>
+            )}
+          >
+            {totalLabel}
+          </LeadValue>
+        )}
+        <FactList columns={4}>
+          <Fact label="Fatura">
+            {activeInvoice ? (
+              <>
+                <Link className="app-link" to={`/taxas-locais?invoice=${activeInvoice.id}`}>{activeInvoice.invoice_number ?? `#${activeInvoice.id}`}</Link>
+                {activeInvoice.invoice_type === 'consolidated' ? <ConsolidatedMark /> : null}
+                {activeInvoice.invoice_type && activeInvoice.invoice_type !== 'consolidated' ? ` · ${invoiceTypeLabel(activeInvoice.invoice_type)}` : ''}
+              </>
+            ) : 'Não emitida'}
+          </Fact>
+          {activeInvoice ? (
+            <Fact label="Situação"><InvoiceSituation status={activeInvoice.status} /></Fact>
+          ) : bl.charges_calculated_at ? (
+            <Fact label="Cálculo">{formatDateTime(bl.charges_calculated_at)}</Fact>
+          ) : null}
+          {bl.charge_exemption_reason ? <Fact label="Isenção">{bl.charge_exemption_reason}</Fact> : null}
+          {bl.charge_status === 'exempt' && !bl.charge_exemption_reason ? <Fact label="Situação"><StatusText tone="muted">Isento</StatusText></Fact> : null}
+        </FactList>
+        {bl.charge_status === 'not_calculated' ? (
+          <Notice tone="warn">
+            <span>As taxas deste B/L ainda não foram calculadas.</span>
+            <Button variant="secondary" onClick={handleCalculateCharges} loading={calculateChargesMutation.isPending} loadingLabel="Calculando…" type="button">
+              Calcular taxas
+            </Button>
+          </Notice>
+        ) : null}
+        {invoiceDiverges ? (
+          <Notice tone="warn">As taxas mudaram depois da emissão: o total atual difere da fatura ativa. A reemissão ou o ajuste é tratado no Faturamento.</Notice>
+        ) : null}
+        {chargesLocked ? (
+          <p className="app-facts__detail">Faturado: as taxas são a base da fatura e não se editam aqui. Correções no B/L reemitem ou ajustam a fatura automaticamente.</p>
         ) : null}
       </div>
 
-      {activeInvoice ? (
-        <p className="app-bl-invoice-line">
-          <span>
-            Fatura <strong className="app-bl-code">{activeInvoice.invoice_number ?? `#${activeInvoice.id}`}</strong>
-            {activeInvoice.invoice_type === 'consolidated' ? <ConsolidatedMark /> : null}
-            {' · '}<InvoiceSituation status={activeInvoice.status} />
-            {activeInvoice.invoice_type && activeInvoice.invoice_type !== 'consolidated' ? ` · ${invoiceTypeLabel(activeInvoice.invoice_type)}` : ''}
-            {activeInvoice.total_brl != null ? <> · <span className="tabular-nums">{formatBRL(activeInvoice.total_brl)}</span></> : null}
-          </span>
-          <Link className="app-btn app-btn--secondary app-btn--sm" to={`/taxas-locais?invoice=${activeInvoice.id}`}>Abrir no Faturamento</Link>
-        </p>
-      ) : null}
-
-      <SummaryStrip
-        label="Totais das taxas locais"
-        className="mb-3"
-        items={[
-          { label: 'em BRL', value: formatBRL(localChargeSummary.totalBrl) },
-          ...(localChargeSummary.totalUsd ? [{ label: 'em USD', value: formatUSD(localChargeSummary.totalUsd) }] : []),
-          { label: localChargeSummary.lines.length === 1 ? 'linha' : 'linhas', value: localChargeSummary.lines.length },
-          { label: 'para revisar', value: reviewPendingCount, tone: reviewPendingCount ? 'warning' : 'default' },
-        ]}
-      />
-
-      {bl.charge_status === 'not_calculated' ? (
-        <Notice tone="warn">
-          <span>As taxas deste B/L ainda não foram calculadas.</span>
-          <Button variant="secondary" onClick={handleCalculateCharges} loading={calculateChargesMutation.isPending} loadingLabel="Calculando…" type="button">
-            Calcular taxas
-          </Button>
-        </Notice>
-      ) : null}
-      {invoiceDiverges ? (
-        <Notice tone="warn">As taxas mudaram depois da emissão: o total atual difere da fatura ativa. A reemissão ou o ajuste é tratado no Faturamento.</Notice>
-      ) : null}
-      {chargesLocked ? (
-        <Notice>Faturado: as taxas são a base da fatura e não se editam aqui. Correções no B/L reemitem ou ajustam a fatura automaticamente.</Notice>
-      ) : null}
-
       <div className="app-table-scroll">
-        <table className="app-table app-table--compact app-bl-subtable min-w-[820px]">
+        <table className="app-table app-table--compact">
+          <caption className="sr-only">Cobranças de Taxas Locais do B/L</caption>
           <thead>
             <tr>
               <th scope="col" className="app-table__text-head">Taxa</th>
-              <th scope="col">Origem</th>
-              <th scope="col">Status</th>
+              {showOrigin ? <th scope="col">Origem</th> : null}
+              {showSituation ? <th scope="col">Situação</th> : null}
               <th scope="col">Qtd.</th>
               <th scope="col">Unitário</th>
               <th scope="col">Total</th>
-              <th scope="col" className="app-table__text-head">Observação</th>
+              {showNotes ? <th scope="col" className="app-table__text-head">Observação</th> : null}
               {showActionsColumn ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
             </tr>
           </thead>
@@ -357,49 +368,43 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
             ) : isLocalChargeLinesError ? (
               <tr>
                 <td colSpan={columnCount}>
-                  <span className="app-bl-error" role="alert">Não foi possível carregar as taxas deste B/L.</span>{' '}
+                  <span role="alert">Não foi possível carregar as taxas deste B/L.</span>{' '}
                   <Button variant="secondary" className="app-btn--sm" onClick={() => void refetchLocalChargeLines()}>Tentar novamente</Button>
                 </td>
               </tr>
-            ) : localChargeSummary.lines.length ? (
-              localChargeSummary.lines.map((line) => (
+            ) : lines.length ? (
+              lines.map((line) => (
                 <tr key={line.id}>
-                  <td className="app-table__text font-medium text-[var(--app-text-strong)]" title={line.charge_name ?? undefined}>{line.charge_name}</td>
-                  <td>{line.source === 'manual' ? 'Manual' : 'Automática'}</td>
-                  <td>
-                    <Badge tone={resolveChargeLineStatusTone(line.status)}>{resolveChargeLineStatusLabel(line.status)}</Badge>
-                  </td>
+                  <td className="app-table__text" title={line.charge_name ?? undefined}>{line.charge_name}</td>
+                  {showOrigin ? <td>{line.source === 'manual' ? 'Manual' : <NoValue label="Automática" />}</td> : null}
+                  {showSituation ? (
+                    <td className="whitespace-nowrap">
+                      {line.status === 'review_required' ? <StatusText tone="warning">Em revisão</StatusText>
+                        : line.status === 'exempt' ? <StatusText tone="muted">Isenta</StatusText>
+                        : isUsualLine(line.status) ? <NoValue label={resolveChargeLineStatusLabel(line.status)} />
+                        : resolveChargeLineStatusLabel(line.status)}
+                    </td>
+                  ) : null}
                   <td className="tabular-nums">{formatNumber(line.quantity)}</td>
-                  <td className="tabular-nums">
+                  <td className="whitespace-nowrap tabular-nums">
                     {line.currency === 'USD' ? formatUSD(line.unit_value_usd ?? 0) : formatBRL(line.unit_value_brl ?? 0)}
                   </td>
-                  <td className="font-medium tabular-nums">
+                  <td className="whitespace-nowrap tabular-nums">
                     {line.currency === 'USD' ? formatUSD(line.total_value_usd ?? 0) : formatBRL(line.total_value_brl ?? 0)}
                   </td>
-                  <td className="app-table__text text-[var(--app-muted)]" title={line.review_reason ?? line.notes ?? undefined}>{line.review_reason ?? line.notes ?? <NoValue label="Sem observação" />}</td>
+                  {showNotes ? (
+                    <td className="app-table__text app-table__text--wrap">{line.review_reason ?? line.notes ?? <NoValue label="Sem observação" />}</td>
+                  ) : null}
                   {showActionsColumn ? (
                     <td>
                       {line.source === 'manual' ? (
                         <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="secondary"
-                            className="app-btn--sm"
-                            type="button"
-                            onClick={() => handleEditManualCharge(line.id)}
-                            aria-label="Editar cobrança manual"
-                          >
+                          <Button variant="secondary" className="app-btn--sm" type="button" onClick={() => handleEditManualCharge(line.id)} aria-label="Editar cobrança manual">
                             Editar
                           </Button>
                           {isAdmin ? (
                             // Excluir taxa manual é do Administrativo (migration 088; ADR 0071).
-                            <Button
-                              variant="danger"
-                              className="app-btn--sm"
-                              type="button"
-                              onClick={() => handleDeleteManualCharge(line.id)}
-                              aria-label="Excluir cobrança manual"
-                              disabled={deleteManualChargeMutation.isPending}
-                            >
+                            <Button variant="danger" className="app-btn--sm" type="button" onClick={() => handleDeleteManualCharge(line.id)} aria-label="Excluir cobrança manual" disabled={deleteManualChargeMutation.isPending}>
                               Excluir
                             </Button>
                           ) : null}
@@ -415,11 +420,20 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
               </tr>
             )}
           </tbody>
+          {lines.length ? (
+            <tfoot>
+              <tr>
+                <td className="app-table__text font-semibold" colSpan={3 + Number(showOrigin) + Number(showSituation)}>Total</td>
+                <td className="whitespace-nowrap font-semibold tabular-nums">{totalLabel}</td>
+                {showNotes || showActionsColumn ? <td colSpan={Number(showNotes) + Number(showActionsColumn)} /> : null}
+              </tr>
+            </tfoot>
+          ) : null}
         </table>
       </div>
 
-      {chargesLocked ? null : manualFormOpen || manualChargeForm.editingChargeCalculationId ? (
-        <div className="mt-4">
+      {chargesLocked || !(manualFormOpen || manualChargeForm.editingChargeCalculationId) ? null : (
+        <div className="app-block__body">
           <ManualChargeFormFields
             form={manualChargeForm}
             items={manualChargeItems ?? []}
@@ -431,23 +445,15 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
             onCancel={() => { handleCancelManualChargeEdit(); setManualFormOpen(false) }}
           />
         </div>
-      ) : (
-        <div className="mt-4">
-          <Button type="button" variant="secondary" onClick={() => setManualFormOpen(true)}>
-            <Plus size={15} aria-hidden="true" />
-            Adicionar cobrança manual
-          </Button>
-        </div>
       )}
-      </section>
-    </Card>
+    </Block>
   )
 }
 
 function Notice({ tone, children }: { tone?: 'warn'; children: ReactNode }) {
   return (
     <div
-      className={`app-bl-notice app-bl-notice--row mb-3 ${tone === 'warn' ? 'app-bl-notice--warning' : ''}`}
+      className={`app-bl-notice app-bl-notice--row ${tone === 'warn' ? 'app-bl-notice--warning' : ''}`}
     >
       {children}
     </div>

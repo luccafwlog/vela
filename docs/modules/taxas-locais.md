@@ -125,7 +125,7 @@ aceita "1.420,50"; cada erro indica o campo).
   faturado) e oferece **Emitir fatura** a qualquer Departamento
   ([matriz de permissões](../operations/seguranca.md#taxas-locais-e-faturamento);
   migration `246`). Com fatura ativa, o
-  botão **Abrir no Faturamento** abre o detalhe dela em `/taxas-locais`. A promoção a `ready_for_billing` só acontece dentro da
+  número da fatura, no bloco Taxas Locais, abre o detalhe dela em `/taxas-locais`. A promoção a `ready_for_billing` só acontece dentro da
   emissão (`mark_bl_ready_and_create_invoice`); não há ação de revisar nem de
   liberar o B/L.
 - `src/pages/Revisao.tsx` e

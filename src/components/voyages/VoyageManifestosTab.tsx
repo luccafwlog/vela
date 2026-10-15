@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Pencil } from 'lucide-react'
 import { ManifestoBlsModal } from './ManifestoBlsModal'
 import { useVoyageTransshipments } from '../../hooks/useTransshipments'
 import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante'
 import { Button } from '../ui/Button'
-import { Badge } from '../ui/Badge'
+import { Block } from '../ui/Block'
+import { StatusText } from '../ui/StatusText'
 import { NoValue } from '../ui/NoValue'
-import { formatDate } from '../../lib/utils'
-import { formatPortDisplayName } from '../../lib/voyageFormat'
+import { formatCountLabel, formatDate } from '../../lib/utils'
 import type { VoyagePolSchedule } from '../../services/voyageRouteSchedules'
-import { collectVoyageManifestBatchRows, countRouteManifestNumbers, formatPolDeparture, manifestosOfRoute, renderCeCoverage, type VoyageImportBatch } from './voyageCardHelpers'
+import { collectVoyageManifestBatchRows, countRouteManifestNumbers, formatPolDeparture, manifestosOfRoute, type VoyageImportBatch } from './voyageCardHelpers'
 import type { EditingPolPayload, Voyage } from './voyageCardTypes'
 
 export function VoyageManifestosTab({
@@ -56,131 +55,77 @@ export function VoyageManifestosTab({
     (row) => (row.blCount > 0 || row.isVazios) && !hasRouteManifest(row),
   ).length
 
+  const pendingCe = ceCoverage.total - ceCoverage.filled
+  const columnCount = 7
+
   return (
     <>
-      <TotalStrip totals={[
-        ['Rotas', String(manifestRows.length)],
-        ['B/Ls vinculados', String(totalBls)],
-        ['CE Mercante', `${ceCoverage.filled}/${ceCoverage.total}`],
-        ['Nº de manifesto a informar', String(pendingManifestCount)],
-      ]} />
-      <SectionLabel label="Rotas da viagem" note="uma linha por par POL / POD" />
-
-      <div className="app-voyage-table-frame">
-          <div className="app-table-scroll">
-            <table className="app-table app-table--compact app-table--dense w-full table-fixed text-sm">
-              <caption className="sr-only">Rotas e manifestos da viagem</caption>
-              <colgroup>
-                <col className="w-[40%]" />
-                <col className="w-[13%]" />
-                <col className="w-[8%]" />
-                <col className="w-[13%]" />
-                <col className="w-[13%]" />
-                <col className="w-[13%]" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th scope="col" rowSpan={2} className="px-3 py-2 text-center">Rota</th>
-                  <th scope="col" rowSpan={2} className="px-3 py-2 text-center">ATD no POL</th>
-                  <th scope="col" rowSpan={2} className="px-3 py-2 text-center">B/Ls</th>
-                  <th scope="colgroup" colSpan={2} className="border-b border-white/15 px-3 py-2 text-center">Mercante</th>
-                  <th scope="col" rowSpan={2} aria-label="Ações" className="px-3 py-2 text-center" />
-                </tr>
-                <tr>
-                  <th scope="col" className="px-3 py-1.5 text-center text-xs text-white/80">CE Mercante · cobertura</th>
-                  <th scope="col" className="px-3 py-1.5 text-center text-xs text-white/80">Nº de manifesto Mercante</th>
-                </tr>
-              </thead>
-              <tbody>
-                {manifestRows.length ? (
-                  manifestRows.map((row) => {
-                    const departure = formatPolDeparture(row.etd, row.atd)
-                    const modeTone = row.modeLabel === 'BB' ? 'yellow' : row.modeLabel === 'VAZIOS' ? 'slate' : row.modeLabel === 'CNTR/BB' ? 'slate' : 'blue'
-                    const routeTargetUrl = row.isVazios
-                      ? `/vazios-importacao?voyage=${voyage.id}&pod=${encodeURIComponent(row.pod)}`
-                      : `/bls?voyage=${voyage.id}&pol=${encodeURIComponent(row.pol)}&pod=${encodeURIComponent(row.pod)}`
-                    return (
+      <Block
+        title="Rotas da viagem"
+        flush
+        aside={(
+          <>
+            {formatCountLabel(manifestRows.length, 'rota', 'rotas')} · {formatCountLabel(totalBls, 'B/L', 'B/Ls')} · CE Mercante {ceCoverage.filled} de {ceCoverage.total}
+            {pendingManifestCount ? <> · <StatusText tone="warning">{formatCountLabel(pendingManifestCount, 'manifesto a informar', 'manifestos a informar')}</StatusText></> : null}
+          </>
+        )}
+      >
+        <div className="app-table-scroll">
+          <table className="app-table app-table--compact">
+            <caption className="sr-only">Rotas e manifestos da viagem{pendingCe > 0 ? `; ${pendingCe} CE Mercante a informar` : ''}</caption>
+            <thead>
+              <tr>
+                <th scope="col" className="app-table__text-head">Rota</th>
+                <th scope="col">Carga</th>
+                <th scope="col">ATD no POL</th>
+                <th scope="col">B/Ls</th>
+                <th scope="col">CE Mercante</th>
+                <th scope="col">Nº de manifesto Mercante</th>
+                <th scope="col"><span className="sr-only">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {manifestRows.length ? (
+                manifestRows.map((row) => {
+                  const departure = formatPolDeparture(row.etd, row.atd)
+                  const routeTargetUrl = row.isVazios
+                    ? `/vazios-importacao?voyage=${voyage.id}&pod=${encodeURIComponent(row.pod)}`
+                    : `/bls?voyage=${voyage.id}&pol=${encodeURIComponent(row.pol)}&pod=${encodeURIComponent(row.pod)}`
+                  const routeManifestos = manifestosOfRow(row)
+                  const manifestPending = !routeManifestos.length && !row.ceMaster && (row.blCount > 0 || row.isVazios)
+                  const editPayload = { voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode }
+                  const cannotEdit = !canEdit || !row.pol || row.pol === '-'
+                  return (
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>
-                      <td className="px-3 py-2 align-middle">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge tone={modeTone} className="px-2 py-0.5 text-xs">{row.modeLabel}</Badge>
-                          <Link
-                            className="app-voyage-route-link"
-                            to={routeTargetUrl}
-                            aria-label={row.routeLabel}
-                          >
-                            {row.omission ? (
-                              <>
-                                <span>{formatPortDisplayName(row.pol)} →</span>
-                                <span className="line-through text-[var(--app-muted-soft)]" title={`POD omitido: ${row.omission.omittedPod}`}>
-                                  {formatPortDisplayName(row.omission.omittedPod)}
-                                </span>
-                                <span>→ {formatPortDisplayName(row.omission.dischargePod)}</span>
-                                <Badge tone="yellow" className="ml-1 px-2 py-0.5 text-xs">Omissão</Badge>
-                              </>
-                            ) : row.routeLabel}
-                          </Link>
-                        </div>
+                      <td className="app-table__text whitespace-nowrap">
+                        <Link className="app-link" to={routeTargetUrl} aria-label={row.routeLabel} title={row.routeLabel}>
+                          {row.omission ? (
+                            <>
+                              {row.pol} → <s className="text-[var(--app-muted)]" title={`POD omitido: ${row.omission.omittedPod}`}>{row.omission.omittedPod}</s> → {row.omission.dischargePod}
+                            </>
+                          ) : `${row.pol} → ${row.pod}`}
+                        </Link>
+                        {row.omission ? <span className="text-[var(--app-muted)]"> · Omissão</span> : null}
                       </td>
-                      <td className={`px-3 py-2 text-center${departure.isActual ? ' font-medium text-[var(--app-blue)]' : ''}`}>
-                        <span className="font-mono text-xs font-semibold tabular-nums">{formatDate(departure.value)}</span>
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <span className="font-mono text-xs font-semibold text-[var(--app-text-strong)]">
-                          {row.isVazios ? `${row.containerCount ?? 0} cntr` : row.blCount}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        {row.isVazios ? (
-                          <NoValue label="Sem CE Mercante em rota de vazios" />
-                        ) : (
-                          renderCeCoverage(row.ceFilled, row.ceTotal)
+                      <td className="whitespace-nowrap">{row.modeLabel}</td>
+                      <td className="whitespace-nowrap tabular-nums">
+                        {!departure.value ? <NoValue label="Sem ATD nem ETD" /> : departure.isActual ? formatDate(departure.value) : (
+                          <span className="text-[var(--app-muted)]" title="ETD previsto">{formatDate(departure.value)}</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-center">
-                        {(() => {
-                          const routeManifestos = manifestosOfRow(row)
-                          if (routeManifestos.length > 0) {
-                            return (
-                              <div className="flex flex-wrap items-center justify-center gap-1.5">
-                                {routeManifestos.map((m) => (
-                                  <span
-                                    key={m.id}
-                                    className="inline-flex items-center gap-1 rounded bg-[var(--app-surface-hover)] px-1.5 py-0.5 font-mono text-xs text-[var(--app-text-strong)]"
-                                    title={`Manifesto Mercante: ${m.numero} (${m.natureza})`}
-                                  >
-                                    <span>{m.numero}</span>
-                                    <Badge tone={m.natureza === 'vazio' ? 'slate' : 'blue'} className="px-1 py-0 text-xs font-sans">
-                                      {m.natureza}
-                                    </Badge>
-                                  </span>
-                                ))}
-                              </div>
-                            )
-                          }
-                          if (row.ceMaster) {
-                            return <span className="font-mono text-xs text-[var(--app-text-strong)]">{row.ceMaster}</span>
-                          }
-                          if (row.blCount > 0 || row.isVazios) {
-                            return (
-                              <button
-                                type="button"
-                                className="app-btn app-btn--sm app-voyage-pending-action"
-                                aria-label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
-                                title="Informar Nº de Manifesto Mercante"
-                                onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
-                                disabled={!canEdit || !row.pol || row.pol === '-'}
-                              >
-                                <Pencil size={14} aria-hidden="true" />
-                                <span>Informar</span>
-                              </button>
-                            )
-                          }
-                          return <NoValue label="Sem Nº de manifesto Mercante" />
-                        })()}
+                      <td className="whitespace-nowrap tabular-nums">{row.isVazios ? `${row.containerCount ?? 0} cntr` : row.blCount}</td>
+                      <td className="whitespace-nowrap tabular-nums">
+                        {row.isVazios || row.ceTotal === 0 ? <NoValue label="Sem CE Mercante nesta rota" /> : row.ceFilled < row.ceTotal
+                          ? <StatusText tone="warning">{row.ceFilled} de {row.ceTotal}</StatusText>
+                          : `${row.ceFilled} de ${row.ceTotal}`}
                       </td>
-                      <td className="px-3 py-2 text-center">
-                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      <td className="whitespace-nowrap tabular-nums">
+                        {routeManifestos.length ? (
+                          routeManifestos.map((m) => <span key={m.id} className="block" title={`Manifesto Mercante: ${m.numero} (${m.natureza})`}>{m.numero}</span>)
+                        ) : row.ceMaster ? row.ceMaster : manifestPending ? <StatusText tone="warning">A informar</StatusText> : <NoValue label="Sem Nº de manifesto Mercante" />}
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
                           {!row.isVazios && row.blCount > 0 ? (
                             <Button
                               variant="secondary"
@@ -193,66 +138,46 @@ export function VoyageManifestosTab({
                               Ver B/Ls
                             </Button>
                           ) : null}
-                          <Button
-                            variant="secondary"
-                            className="app-btn--sm"
-                            aria-label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
-                            title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
-                            onClick={() => onEditPol({ voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode })}
-                            disabled={!canEdit || !row.pol || row.pol === '-'}
-                          >
-                            Editar
-                          </Button>
+                          {manifestPending ? (
+                            <Button
+                              variant="secondary"
+                              className="app-btn--sm"
+                              aria-label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
+                              onClick={() => onEditPol(editPayload)}
+                              disabled={cannotEdit}
+                            >
+                              Informar manifesto
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="secondary"
+                              className="app-btn--sm"
+                              aria-label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
+                              title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
+                              onClick={() => onEditPol(editPayload)}
+                              disabled={cannotEdit}
+                            >
+                              Editar
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
-                    )
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-3 text-[var(--app-muted)]">
-                      Nenhuma rota de B/L identificada nesta viagem.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )
+                })
+              ) : (
+                <tr>
+                  <td colSpan={columnCount} className="text-[var(--app-muted)]">Nenhuma rota de B/L identificada nesta viagem.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
+      </Block>
 
       {blsRoute ? (
         <ManifestoBlsModal open voyageId={voyage.id} route={blsRoute} onClose={() => setBlsRoute(null)} />
       ) : null}
-
-      <div className="flex flex-wrap items-center gap-3 px-0.5 text-xs leading-5 text-[var(--app-muted-soft)]">
-        <span><b className="text-[var(--app-muted)]">CE Mercante</b> é a cobertura por B/L; o <b className="text-[var(--app-muted)]">Nº de manifesto Mercante</b> agrupa a rota. São coisas diferentes.</span>
-        <span className="h-3 w-px bg-[var(--app-border)]" />
-        <span>ATD em escuro é realizado; em cinza, o ETD previsto.</span>
-      </div>
     </>
-  )
-}
-
-function TotalStrip({ totals }: { totals: Array<[string, string]> }) {
-  return (
-    <div className="flex flex-wrap items-center gap-y-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-3">
-      <span className="mr-2 shrink-0 text-xs font-semibold text-[var(--app-muted)]">Total da viagem</span>
-      {totals.map(([label, value], index) => (
-        <span key={label} className={`flex items-baseline gap-1.5 px-4 ${index > 0 ? 'border-l border-[var(--app-border)]' : ''}`}>
-          <span className="font-[var(--app-font-mono)] text-base font-semibold text-[var(--app-text-strong)]">{value}</span>
-          <span className="text-xs text-[var(--app-muted-soft)]">{label}</span>
-        </span>
-      ))}
-    </div>
-  )
-}
-
-function SectionLabel({ label, note }: { label: string; note: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs font-semibold text-[var(--app-muted)]">{label}</span>
-      <span className="h-px flex-1 bg-[var(--app-border)]" />
-      <span className="text-xs text-[var(--app-muted-soft)]">{note}</span>
-    </div>
   )
 }

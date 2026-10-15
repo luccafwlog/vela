@@ -6092,6 +6092,19 @@ button.app-metric-tile[aria-pressed='true'] {
   font-weight: 700;
 }
 
+/* Identificador que abre o registro (regra 9): cor de link, sublinhado só ao
+   passar o mouse ou com foco. Peça comum para telas que não têm link próprio. */
+.app-link {
+  color: var(--app-link);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-link:hover,
+.app-link:focus-visible {
+  text-decoration: underline;
+}
+
 .app-table tbody td[class*='font-semibold'] {
   color: var(--app-text-strong);
 }
@@ -8873,24 +8886,8 @@ a.app-step-rail__link:focus-visible {
   margin-top: 4px;
 }
 
-/* ── Ficha: superfície única com seções ─────────────────────────────────── */
-.app-bl-sheet {
-  display: grid;
-  gap: 0;
-}
 
-.app-bl-sheet__section {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-}
 
-.app-bl-sheet__section--ruled {
-  margin-top: 16px;
-  border-top: 1px solid var(--app-border);
-  padding-top: 16px;
-}
 
 .app-bl-section-head {
   display: flex;
@@ -8900,12 +8897,6 @@ a.app-step-rail__link:focus-visible {
   gap: 4px 16px;
 }
 
-.app-bl-section-head__title-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
 
 .app-bl-section-head__link {
   display: inline-flex;
@@ -8925,13 +8916,6 @@ a.app-step-rail__link:focus-visible {
   line-height: 24px;
 }
 
-.app-bl-subsection-title {
-  margin: 0 0 8px;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-body);
-  font-weight: 600;
-  line-height: 20px;
-}
 
 .app-bl-facts {
   display: grid;
@@ -8968,12 +8952,6 @@ a.app-step-rail__link:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.app-bl-facts__sub {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  font-weight: 400;
-  line-height: 16px;
-}
 
 .app-bl-facts__missing {
   color: var(--app-muted);
@@ -9010,13 +8988,7 @@ a.app-step-rail__link:focus-visible {
   list-style: disc;
 }
 
-.app-bl-subtable {
-  text-align: left;
-}
 
-.app-bl-subtable td {
-  vertical-align: middle;
-}
 
 /* Terminal de descarga como fato do Embarque. */
 .app-bl-terminal__value {
@@ -9113,35 +9085,18 @@ a.app-step-rail__link:focus-visible {
 .app-bl-savebar {
   display: grid;
   gap: 12px;
-  margin-top: 24px;
-  border-top: 1px solid var(--app-border);
-  padding-top: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  padding: 12px 16px;
 }
 
+/* Com alteração não salva, a faixa gruda no rodapé da janela. */
 .app-bl-savebar--dirty {
   position: sticky;
   bottom: 0;
   z-index: 4;
-  margin-inline: -22px;
-  margin-bottom: -22px;
-  background: var(--app-surface);
-  padding: 12px 22px;
   box-shadow: 0 -8px 16px -12px rgba(15, 23, 42, 0.35);
-}
-
-/* `.app-surface` corta com overflow: hidden, que vira o contêiner de rolagem
-   do sticky e prendia a barra no fim do cartão. `clip` corta sem criar esse
-   contêiner, então a barra gruda no rodapé da janela enquanto há alteração. */
-.app-bl-form.app-surface {
-  overflow: clip;
-}
-
-@media (max-width: 480px) {
-  .app-bl-savebar--dirty {
-    margin-inline: -18px;
-    margin-bottom: -18px;
-    padding-inline: 18px;
-  }
 }
 
 @media (min-width: 768px) {
@@ -9151,40 +9106,9 @@ a.app-step-rail__link:focus-visible {
   }
 }
 
-.app-bl-issue {
-  display: grid;
-  justify-items: end;
-  gap: 4px;
-  max-width: 280px;
-  text-align: right;
-}
 
-.app-bl-invoice-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 16px;
-  margin: 0 0 8px;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-}
 
-.app-bl-invoice-list {
-  display: grid;
-  margin: 0 0 12px;
-  padding: 0;
-  list-style: none;
-  font-size: var(--app-size-table);
-}
 
-.app-bl-invoice-list li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  border-bottom: 1px solid var(--app-border);
-  padding: 6px 0;
-}
 
 @media (max-width: 639px) {
 
@@ -9202,10 +9126,6 @@ a.app-step-rail__link:focus-visible {
     padding-inline: 6px;
   }
 
-  .app-bl-issue {
-    justify-items: start;
-    text-align: left;
-  }
 }
 
 /*  Line-Up na TV: quadro anterior à etapa 03, restaurado a pedido em 2026-10-08.  */
@@ -9881,30 +9801,6 @@ a.app-step-rail__link:focus-visible {
   white-space: nowrap;
 }
 
-.app-voyage-table-frame {
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-}
-
-.app-voyage-table-frame .app-table {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.app-voyage-table-frame .app-table thead tr:first-child > th:first-child {
-  border-top-left-radius: var(--app-radius);
-}
-
-.app-voyage-table-frame .app-table thead tr:first-child > th:last-child {
-  border-top-right-radius: var(--app-radius);
-}
-
-.app-voyage-table-frame .app-table tbody td {
-  background: var(--app-surface);
-}
-
 /*  Ficha da viagem — revisão sobre a versão restaurada (2026-10-08).
     Mesma composição de antes (identidade, indicadores, abas), com três
     ajustes: faixa de identidade azul-marinho lisa, filetes internos suaves e
@@ -9960,35 +9856,6 @@ a.app-step-rail__link:focus-visible {
   align-items: center;
   gap: 4px 16px;
   padding-bottom: 6px;
-}
-
-/* Rota em Rotas e Manifestos: link com área de clique de controle. */
-.app-voyage-route-link {
-  display: inline-flex;
-  flex-wrap: wrap;
-  min-height: var(--app-control-h);
-  align-items: center;
-  column-gap: 4px;
-  color: var(--app-link);
-  font-weight: 600;
-}
-
-.app-voyage-route-link:hover {
-  text-decoration: underline;
-}
-
-/* Ação de dado pendente (ex.: Nº de manifesto a informar): botão de verdade,
-   com o tom de atenção do selo que substituiu. */
-.app-voyage-pending-action.app-btn {
-  border-color: var(--app-warning-border);
-  background: var(--app-warning-bg);
-  color: var(--app-warning-fg);
-}
-
-.app-voyage-pending-action.app-btn:hover:not(:disabled) {
-  border-color: var(--app-warning-fg);
-  background: var(--app-warning-bg);
-  color: var(--app-warning-fg);
 }
 
 /* Bloco de seção dentro das abas: levemente escurecido, filete suave, sem sombra. */

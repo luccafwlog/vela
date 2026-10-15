@@ -131,7 +131,7 @@ export function BlHistoricoTab({ active, blId }: { active: boolean; blId?: strin
                     <td className="whitespace-nowrap tabular-nums">{row.at ? <time dateTime={row.at}>{formatMoment(row.at)}</time> : <NoValue label="Sem data" />}</td>
                     <td className="whitespace-nowrap">{row.subject}</td>
                     <td className="app-table__text app-table__text--wrap">
-                      {row.link ? <Link to={row.link}>{row.what}</Link> : row.what}
+                      {row.link ? <Link className="app-link" to={row.link}>{row.what}</Link> : row.what}
                       {row.status ? <> · {row.status.warning ? <StatusText tone="warning">{row.status.text}</StatusText> : row.status.text}</> : null}
                       {row.detail ? <span className="app-facts__detail"> · {row.detail}</span> : null}
                     </td>

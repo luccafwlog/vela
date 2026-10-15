@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Identidade visual, lote 1 · abas restantes da ficha do B/L e Rotas e Manifestos (2026-10-15):**
+  Carga, Detalhes do B/L, Faturamento e Histórico do B/L e Rotas e Manifestos da Viagem
+  no formato aprovado (blocos, tabela limpa, situação em texto). A aba Carga ganhou a
+  janela **Corrigir** do container, com a migration `283` (`correct_bl_container_data`):
+  lacre, peso bruto e CBM corrigíveis com justificativa, também com B/L faturado, porque
+  não entram na base da fatura; a reimportação do B/L volta ao valor do arquivo. Peça
+  comum nova `.app-link` para identificador sem link de família.
+
 - **Correções da revisão geral e do modelo de permissões (2026-10-15, PR 954):**
   os 43 itens do [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
   (migrations `230` a `266`: escrita de cobrança, fatura, pagamento e contatos só

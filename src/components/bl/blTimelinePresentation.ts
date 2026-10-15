@@ -61,6 +61,9 @@ const FIELD_LABELS: Record<string, string> = {
   imo_class: 'Classe IMO',
   un_number: 'Número ONU',
   is_oog: 'OOG',
+  seal_number: 'Lacre',
+  gross_weight_kg: 'Peso bruto (kg)',
+  cbm: 'CBM (m³)',
 }
 
 const VALUE_LABELS_BY_FIELD: Record<string, Record<string, string>> = {

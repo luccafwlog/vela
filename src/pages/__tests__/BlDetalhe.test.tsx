@@ -161,10 +161,10 @@ describe('BlDetalhe - B/L Misto e Rota Canônica', () => {
     )
 
     // Ambos os blocos de carga devem estar presentes simultaneamente para B/L misto
-    expect(screen.getByText('Containers vinculados')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Contêineres' })).toBeTruthy()
     expect(screen.getByText('MSKU1234567')).toBeTruthy()
 
-    expect(screen.getByText('Resumo da carga solta')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Carga solta' })).toBeTruthy()
     expect(screen.getByText('Tubos de aço')).toBeTruthy()
   })
 

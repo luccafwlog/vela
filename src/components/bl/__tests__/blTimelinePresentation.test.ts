@@ -5,6 +5,8 @@ describe('describeTimelineEvent', () => {
   it('nomeia o container e o campo vindos da auditoria por coluna (migration 079)', () => {
     const devolucao = { family: 'container', entity_type: 'bl_container', field_name: 'return_date|TCLU1234567', old_value: null, new_value: '2026-10-20', justification: null } as never
     expect(describeTimelineEvent(devolucao)).toBe('Container TCLU1234567 · Devolução: vazio → 20/10/2026')
+    const lacre = { family: 'container', entity_type: 'bl_container', field_name: 'seal_number|TCLU1234567', old_value: 'SL1', new_value: 'SL2', justification: 'Lacre trocado' } as never
+    expect(describeTimelineEvent(lacre)).toBe('Container TCLU1234567 · Lacre: SL1 → SL2')
     const imo = { family: 'container', entity_type: 'bl_container', field_name: 'is_imo|TCLU1234567', old_value: 'false', new_value: 'true', justification: null } as never
     expect(describeTimelineEvent(imo)).toBe('Container TCLU1234567 · IMO: Não → Sim')
   })

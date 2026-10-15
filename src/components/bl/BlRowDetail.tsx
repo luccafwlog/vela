@@ -4,6 +4,8 @@ import { Fact, FactList } from '../ui/Block'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
+import { DemurrageCell, ProfileCell } from './BlCargoCells'
+import { containerSummary, formatOptionalNumber, formatOptionalText, hasBreakbulkData } from './blCargoFormat'
 import { formatDate } from '../../lib/utils'
 import { isBreakbulkCargoMode, isContainerCargoMode } from '../../lib/cargoMode'
 import type { BLContainer, BLListItem } from '../../types/database'
@@ -123,46 +125,6 @@ function DetailHead({ title, summary, action }: { title: string; summary: string
   )
 }
 
-/** "2 contêineres · 2 COC · 48.500 kg · 112,5 m³ · 1 de 2 devolvido". */
-function containerSummary(containers: ListContainer[]) {
-  const soc = containers.filter((container) => container.ownership === 'SOC').length
-  const coc = containers.length - soc
-  const weight = containers.reduce((sum, container) => sum + Number(container.gross_weight_kg ?? 0), 0)
-  const cbm = containers.reduce((sum, container) => sum + Number(container.cbm ?? 0), 0)
-  const returned = containers.filter((container) => container.ownership !== 'SOC' && container.return_date).length
-  const parts = [
-    `${containers.length} ${containers.length === 1 ? 'contêiner' : 'contêineres'}`,
-    [coc ? `${coc} COC` : '', soc ? `${soc} SOC` : ''].filter(Boolean).join(' · '),
-    weight ? `${weight.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg` : '',
-    cbm ? `${cbm.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 3 })} m³` : '',
-    coc ? `${returned} de ${coc} ${returned === 1 ? 'devolvido' : 'devolvidos'}` : '',
-  ]
-  return parts.filter(Boolean).join(' · ')
-}
-
-function DemurrageCell({ container }: { container: ListContainer }) {
-  if (container.ownership === 'SOC') return <StatusText tone="muted">Não se aplica (SOC)</StatusText>
-  // Sem descarga o banco grava "no free time" por padrão (migration 197).
-  if (!container.discharge_date) return <NoValue label="Sem descarga" />
-  if (container.demurrage_status === 'returned') return <StatusText tone="muted">Devolvido</StatusText>
-  if (container.demurrage_status === 'overdue') return <StatusText tone="warning">Em atraso</StatusText>
-  return <StatusText>No free time</StatusText>
-}
-
-function hasBreakbulkData(bl: BLListItem) {
-  return [bl.bb_machine_qty, bl.bb_packages_qty, bl.bb_packages_total, bl.bb_weight_ton, bl.bb_cbm].some((value) => value != null)
-}
-
-function formatOptionalText(value: number | string) {
-  return Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 3 })
-}
-
-function ProfileCell({ isImo, isOog, imoClass, unNumber }: { isImo: boolean; isOog: boolean; imoClass?: string | null; unNumber?: string | null }) {
-  if (!isImo && !isOog) return <span className="text-[var(--app-muted)]">Padrão</span>
-  const imo = isImo ? [`IMO${imoClass ? ` ${imoClass}` : ''}`, unNumber ? `ONU ${unNumber}` : ''].filter(Boolean).join(' · ') : ''
-  return <span className="whitespace-nowrap">{[imo, isOog ? 'OOG' : ''].filter(Boolean).join(' · ')}</span>
-}
-
 function EmptyLine({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-[var(--app-muted)]">{children}</p>
 }
@@ -224,10 +186,4 @@ function DetailTable({
       </div>
     </>
   )
-}
-
-function formatOptionalNumber(value: number | string | null | undefined, emptyLabel: string): ReactNode {
-  if (value === null || value === undefined || value === '') return <NoValue label={emptyLabel} />
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric.toLocaleString('pt-BR', { maximumFractionDigits: 3 }) : <NoValue label={emptyLabel} />
 }

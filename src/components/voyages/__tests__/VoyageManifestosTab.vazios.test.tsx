@@ -40,7 +40,7 @@ function renderTab() {
       />
     </MemoryRouter>,
   )
-  const rows = screen.getAllByRole('row').slice(2) // pula as duas linhas de cabeçalho
+  const rows = screen.getAllByRole('row').slice(1) // pula a linha de cabeçalho
   const rowOf = (modo: string) => rows.find((row) => within(row).queryByText(modo)) as HTMLElement
   return { carga: rowOf('CNTR'), vazios: rowOf('VAZIOS') }
 }
