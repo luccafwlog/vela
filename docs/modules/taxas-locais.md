@@ -276,7 +276,13 @@ O cálculo tem duas fases:
 - **Confirmada** — cadastrar o CE Mercante recalcula, fecha e só então emite a
   fatura quando os demais requisitos forem satisfeitos
   ([Faturamento § Motivo de bloqueio](faturamento.md#motivo-de-bloqueio-de-faturamento)).
-  A regra operacional é cadastrar o CE depois de completar os B/Ls envolvidos
+  O recálculo vale também para o B/L sem Cliente conciliado: a fatura espera o
+  Cliente, mas o cálculo já sai com o rateio dos irmãos gravados. A planilha
+  de CE da tela de B/Ls (emissão em lotes, migration `181`) já recalculava; a
+  migration `288` estende isso aos demais caminhos que gravam o primeiro CE
+  fora desse modo. Falha nesse recálculo não desfaz o CE e fica em
+  `audit_logs` (`local_charges_auto_calc_error`); não há nova tentativa
+  automática até o vínculo do Cliente, que recalcula. A regra operacional é cadastrar o CE depois de completar os B/Ls envolvidos
   no rateio; a presença do CE, sozinha, não prova que essa conferência foi
   feita.
 
