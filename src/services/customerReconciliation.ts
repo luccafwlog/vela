@@ -190,6 +190,15 @@ export type CustomerLink = {
   notes: string
 }
 
+/**
+ * Granito não tem a sugestão de Cliente desativado (B17 vale para o B/L, com o
+ * gatilho `guard_bl_link_to_deactivated_customer`): o CNPJ de Cliente
+ * desativado fica sem vínculo e sem sugestão, como antes do B17 (migration 270).
+ */
+export function withoutDeactivatedCustomer(match: CustomerMatchResult | null): CustomerMatchResult | null {
+  return match?.customer.deactivated ? null : match
+}
+
 export function resolveCustomerLink(match: CustomerMatchResult | null): CustomerLink {
   if (match?.matchType === 'document' && match.customer.deactivated) {
     return {

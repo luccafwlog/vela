@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { canonicalizeName, findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, type CustomerMaps } from '../customerReconciliation'
+import { canonicalizeName, findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, withoutDeactivatedCustomer, type CustomerMaps } from '../customerReconciliation'
 import { supabase } from '../supabase'
 
 vi.mock('../supabase', () => ({
@@ -206,5 +206,15 @@ describe('Cliente desativado na reconciliação (B17)', () => {
     })
     expect(findMatchedCustomer({ cnpjCpf: null, consignee: 'CLIENTE INATIVO LTDA' }, maps)).toBeNull()
     expect(resolveCustomerLink(findMatchedCustomer({ cnpjCpf: '45723174000110' }, maps)).customerId).toBe(8)
+  })
+
+  it('no Granito, o CNPJ de Cliente desativado fica sem vínculo e sem sugestão (270)', async () => {
+    const page = [{ id: 7, cnpj_cpf: '11.222.333/0001-81', name: 'CLIENTE INATIVO LTDA', deactivated_at: '2026-09-01T00:00:00Z' }]
+    const builder = { select: vi.fn(() => builder), order: vi.fn(() => builder), range: vi.fn(() => Promise.resolve({ data: page, error: null })) }
+    vi.mocked(supabase.from).mockReturnValue(builder as never)
+    const maps = await loadCustomerMaps()
+
+    const link = resolveCustomerLink(withoutDeactivatedCustomer(findMatchedCustomer({ cnpjCpf: '11222333000181', consignee: 'Qualquer' }, maps)))
+    expect(link).toMatchObject({ customerId: null, suggestedCustomerId: null, status: 'missing_customer' })
   })
 })

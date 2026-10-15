@@ -388,6 +388,8 @@ describe('Revisao', () => {
     await user.click(screen.getByRole('button', { name: /Inativo Ltda/ }))
     expect(screen.getAllByText(/Cliente desativado com este CNPJ/).length).toBeGreaterThan(0)
     expect(screen.queryByText(/Sugestão por nome/)).toBeNull()
+    // O banco recusa o vínculo a Cliente desativado: a tela não oferece a ação.
+    expect(screen.queryByRole('button', { name: 'Usar a sugestão' })).toBeNull()
   })
 
   it('exibe sugestao de Granito sem trata-la como vinculo automatico', async () => {

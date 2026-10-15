@@ -15,6 +15,7 @@ const DEM_ITAU_ID = 99242012
 const MANUAL_ID = 99242021
 const MANUAL_ITAU_ID = 99242022
 const EXCEPTION_ID = 99242031
+const MANUAL_EXCEPTION_ID = 99242032
 const DEM_TXID = 'VELA24200000000000000000000001'
 const MANUAL_TXID = 'VELA24200000000000000000000002'
 
@@ -34,7 +35,7 @@ function asAdmin(sql: string): { ok: boolean; output: string; error: string } {
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
-    DELETE FROM public.pix_reconciliation_exceptions WHERE id = ${EXCEPTION_ID};
+    DELETE FROM public.pix_reconciliation_exceptions WHERE id IN (${EXCEPTION_ID}, ${MANUAL_EXCEPTION_ID});
     DELETE FROM public.itau_pix_charges WHERE invoice_id IN (${MANUAL_ID}, ${MANUAL_ITAU_ID}) OR demurrage_invoice_id IN (${DEM_ID}, ${DEM_ITAU_ID});
     DELETE FROM public.invoice_lifecycle_events WHERE invoice_id IN (${MANUAL_ID}, ${MANUAL_ITAU_ID});
     DELETE FROM public.payments WHERE invoice_id IN (${MANUAL_ID}, ${MANUAL_ITAU_ID});
@@ -116,5 +117,20 @@ describeLocal('242 — plano B do extrato acha Invoice de Demurrage e avulsa pel
     expect(result.error).toBe('')
     expect(JSON.parse(result.output)).toMatchObject({ matched: true, invoice_id: MANUAL_ITAU_ID, settled: true })
     expect(psql(`SELECT status FROM public.invoices WHERE id = ${MANUAL_ITAU_ID};`)).toBe('paid')
+  })
+
+  it('a exceção da avulsa baixada pelo TXID encerra; com outro valor, não (269)', () => {
+    // Depende do caso anterior: a avulsa do QR Itaú já foi baixada por TXID.
+    psql(`SET session_replication_role = replica;
+      INSERT INTO public.pix_reconciliation_exceptions (id, import_key, line_number, txid, normalized_txid, amount_brl, reason)
+      VALUES (${MANUAL_EXCEPTION_ID}, 'a242-extrato-0002', 3, '${MANUAL_TXID}', '${MANUAL_TXID}', 999, 'unmatched');
+      SET session_replication_role = origin;`)
+    const resolve = `SELECT public.resolve_pix_reconciliation_exception(${MANUAL_EXCEPTION_ID}, 'local', ${MANUAL_ITAU_ID}, NULL, '${MANUAL_TXID}')`
+    expect(asAdmin(resolve).error).toMatch(/Nenhuma baixa\/settlement autoritativa/)
+
+    psql(`UPDATE public.pix_reconciliation_exceptions SET amount_brl = 130 WHERE id = ${MANUAL_EXCEPTION_ID};`)
+    const resolved = asAdmin(resolve)
+    expect(resolved.error).toBe('')
+    expect(psql(`SELECT status FROM public.pix_reconciliation_exceptions WHERE id = ${MANUAL_EXCEPTION_ID};`)).toBe('resolved')
   })
 })

@@ -377,7 +377,8 @@ export function ReviewDrawer({
                       Sugestão por nome: <strong>{item.suggested_customer.name}</strong> ({formatCnpj(item.suggested_customer.cnpj_cpf)}). Confira o CNPJ antes de vincular.
                     </p>
                   )}
-                  {selectedCustomerId !== item.suggested_customer.id ? (
+                  {/* Cliente desativado: o banco recusa o vínculo (migration 092); reativar vem antes. */}
+                  {selectedCustomerId !== item.suggested_customer.id && !isDeactivatedCustomerSuggestion(item) ? (
                     <button type="button" className="review-link-button" onClick={() => setSelectedCustomer(item.suggested_customer!)}>Usar a sugestão</button>
                   ) : null}
                 </div>

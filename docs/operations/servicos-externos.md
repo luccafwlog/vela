@@ -282,6 +282,28 @@ e `132` antes de publicar `portal-password-reset` e
 `portal-recovery-email-change`. O procedimento de triagem de reset interrompido
 está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 
+Para publicar as correções da PR 954 (plano de correções da revisão geral),
+as migrations `230` a `270` vão para o banco **antes** das Edge Functions e do
+frontend, porque duas funções dependem delas:
+
+| Função | Depende de | Se for publicada antes |
+|---|---|---|
+| `recalc-demurrage-ptax` | migration `264` (`save_exchange_rate_reference_v2` aceita ROE nulo) | O job da PTAX das 14h falha com `reference_failed` e as Invoices de Demurrage ficam sem o BRL do dia |
+| `send-customer-communication` | migration `243` (`bl_belongs_to_atracacao`) | Todo NOB manual devolve 422 ("Um B/L não pertence à Frente de Operação") |
+
+`admin-users`, `portal-daily-digest` e `demurrage-dunning` também mudaram, sem
+depender de migration nova. O frontend chama RPCs que só existem nas
+migrations novas (`reactivate_catalog_row`, `resolve_alert_item_with_justification`,
+`list_pix_txid_candidates`, `delete_manual_vazios_booking` com motivo,
+`create_manual_invoice` com motivo) e mostra a todos botões que o banco só
+aceita depois da `246` e da `251`. Como a integração publica as Functions no
+merge e o Cloudflare publica o frontend com o CI verde em `main`, aplique as
+migrations antes do merge ou logo nele, e depois confira:
+
+1. `SELECT proname FROM pg_proc WHERE proname IN ('bl_belongs_to_atracacao', '_demurrage_roe_markup', 'reactivate_catalog_row');` devolve as três.
+2. Em Supabase → Edge Functions, `recalc-demurrage-ptax` e `send-customer-communication` com a data do merge.
+3. Uma execução manual do job da PTAX devolve HTTP 200 e grava a referência do dia.
+
 ### Secrets das Edge Functions
 
 | Grupo | Nomes | Serviço de origem |
