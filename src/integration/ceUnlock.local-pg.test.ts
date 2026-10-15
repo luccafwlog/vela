@@ -228,8 +228,12 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(sql(`SELECT state FROM public.ce_unlock_requests WHERE id='${draft.id}';`)).toBe('cancelled')
     expect(error(`SELECT public.ce_unlock_document_access('${doc}');`,client)).not.toBe('')
     expect(sql(`SELECT active FROM public.ce_unlock_request_bls WHERE request_id='${draft.id}';`)).toBe('f')
+    // Reivindicado e ainda no Storage: a projeção não diz "removido" antes da confirmação (migration 282).
+    expect(sql(`SELECT (ce_unlock_private.doc_json('${doc}')->>'purged')||'|'||(ce_unlock_private.doc_json('${doc}')->>'cleanup_pending');`)).toBe('false|true')
     sql(`SELECT public.ce_unlock_cleanup_record('${doc}');`)
     expect(sql(`SELECT purged_at IS NOT NULL FROM public.ce_unlock_documents WHERE id='${doc}';`)).toBe('t')
+    // A projeção avisa a tela que o arquivo saiu (migration 282), em vez de oferecer o download recusado.
+    expect(sql(`SELECT (ce_unlock_private.doc_json('${doc}')->>'purged')||'|'||(ce_unlock_private.doc_json('${doc}')->>'cleanup_pending');`)).toBe('true|false')
   })
   it('pedido com dois BLs conclui quando todos atendem os quatro requisitos; CE divergente é recusado até a reconferência',()=>{
     command('set_vip',{customer_id:998557,enabled:true,reason:'Teste misto VIP',request_key:crypto.randomUUID()})
@@ -360,6 +364,110 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       DELETE FROM public.ledger_settlements WHERE receivable_id=998847;
       SELECT ce_unlock_private.item('CE557-REVIEW')->'paid';`)
     expect(result.split('\n')).toEqual(['true','false'])
+  })
+  it('B/L com Taxas Locais isentas fica apto sem pagamento; fatura avulsa do B/L em aberto bloqueia até a baixa (ADR 0087)',()=>{
+    const flags="SELECT (ce_unlock_private.item('CE557-REVIEW')->>'paid')||':'||(ce_unlock_private.item('CE557-REVIEW')->>'paid_exempt')||':'||(ce_unlock_private.item('CE557-REVIEW')->'reasons')::text;"
+    const result=reviewScenario(`
+      SET LOCAL session_replication_role=replica;
+      DELETE FROM public.ledger_settlements WHERE receivable_id=998847;
+      DELETE FROM public.bl_receivables WHERE id=998847;
+      SET LOCAL session_replication_role=origin;
+      ${flags}
+      UPDATE public.bls SET charge_status='exempt',charge_exemption_reason='Isento por acordo (teste)' WHERE id='CE557-REVIEW';
+      ${flags}
+      SET LOCAL session_replication_role=replica;
+      INSERT INTO public.invoices(id,invoice_number,customer_id,bl_id,total_brl,balance_brl,status,invoice_type,pix_payload)
+        VALUES(998871,'CE557-AVULSA',998557,'CE557-REVIEW',50,50,'issued','manual','CE557');
+      ${portalReady}
+      SET LOCAL session_replication_role=origin;
+      ${flags}
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
+      SELECT public.register_verified_invoice_payment(998871,50,'ted',now(),NULL,'00000000-0000-0000-0000-000000557871','CE557-AVULSA-TED')->>'status';
+      RESET ROLE;
+      ${flags}
+      UPDATE public.ce_unlock_requests SET state='submitted' WHERE id='${reviewRequest}';
+      UPDATE public.ce_unlock_request_bls SET active=true WHERE request_id='${reviewRequest}';
+      SELECT (ce_unlock_private.item('CE557-REVIEW')->>'can_export');
+      -- Demurrage não entra no requisito: só a avulsa conta.
+      SELECT count(*) FROM public.invoices WHERE bl_id='CE557-REVIEW' AND invoice_type<>'manual';
+      -- Pagamento posterior de avulsa do Cliente anterior do B/L não reinicia o prazo do atual.
+      CREATE TEMP TABLE sla_antes ON COMMIT DROP AS SELECT ce_unlock_private.item('CE557-REVIEW')->>'sla_started_at' AS v;
+      SET LOCAL session_replication_role=replica;
+      INSERT INTO public.invoices(id,invoice_number,customer_id,bl_id,total_brl,balance_brl,status,invoice_type,pix_payload)
+        VALUES(998872,'CE557-AVULSA-ANT',998558,'CE557-REVIEW',10,0,'paid','manual','CE557');
+      INSERT INTO public.payments(invoice_id,amount_brl,created_at) VALUES(998872,10,now()+interval '1 day');
+      SET LOCAL session_replication_role=origin;
+      SELECT (ce_unlock_private.item('CE557-REVIEW')->>'sla_started_at') IS NOT DISTINCT FROM v FROM sla_antes;
+      -- Exportar trava as avulsas dos B/Ls antes de conferir a aptidão (estorno concorrente).
+      SELECT position('FROM public.invoices WHERE bl_id=ANY(ids) AND invoice_type=''manual'' ORDER BY id FOR UPDATE' IN
+        pg_get_functiondef('ce_unlock_private.command(text,jsonb,boolean)'::regprocedure))>0;`)
+    expect(result.split('\n')).toEqual([
+      'false:false:["Taxas locais sem liquidação integral confirmada"]',
+      'true:true:[]',
+      'false:true:["Fatura avulsa do B/L em aberto"]',
+      expect.any(String),
+      'true:true:[]',
+      'true',
+      '0',
+      't',
+      't',
+    ])
+  })
+  it('expurgo: anexos do pedido saem 30 dias após o encerramento, nunca em andamento; Termo Anual VIP fica até ser substituído (ADR 0087)',()=>{
+    const ids=(q:string)=>`SELECT '#'||coalesce(string_agg(x->>'id',',' ORDER BY x->>'id'),'') FROM jsonb_array_elements(public.ce_unlock_cleanup_candidates()) x WHERE (x->>'id') IN (${q});`
+    const docs=`'${reviewTerm}','00000000-0000-0000-0000-000000557849'`
+    const oldVip='00000000-0000-0000-0000-000000557881', newVip='00000000-0000-0000-0000-000000557882', pendingVip='00000000-0000-0000-0000-000000557883'
+    const vipIds=`'${oldVip}','${newVip}','${pendingVip}'`
+    const result=reviewScenario(`
+      UPDATE public.ce_unlock_requests SET state='in_review' WHERE id='${reviewRequest}';
+      -- Isola o cenário dos anuais aprovados por outros testes deste Cliente.
+      UPDATE public.ce_unlock_documents SET purged_at=now() WHERE source='vip_annual' AND customer_id=998557 AND purged_at IS NULL;
+      INSERT INTO public.ce_unlock_events(customer_id,request_id,action,actor_id,created_at) VALUES(998557,'${reviewRequest}','submit','${client}',now()-interval '29 days');
+      ${ids(docs)}
+      UPDATE public.ce_unlock_events SET created_at=now()-interval '31 days' WHERE request_id='${reviewRequest}' AND action='submit';
+      ${ids(docs)}
+      UPDATE public.ce_unlock_requests SET state='completed' WHERE id='${reviewRequest}';
+      INSERT INTO public.ce_unlock_events(customer_id,request_id,action,actor_id,created_at) VALUES(998557,'${reviewRequest}','complete','${client}',now()-interval '29 days');
+      ${ids(docs)}
+      UPDATE public.ce_unlock_events SET created_at=now()-interval '31 days' WHERE request_id='${reviewRequest}' AND action='complete';
+      UPDATE public.ce_unlock_request_bls SET active=true,exported_at=NULL WHERE request_id='${reviewRequest}';
+      ${ids(docs)}
+      UPDATE public.ce_unlock_request_bls SET exported_at=now() WHERE request_id='${reviewRequest}';
+      ${ids(docs)}
+      INSERT INTO public.ce_unlock_documents(id,customer_id,type,source,status,storage_path,file_name,size_bytes,uploaded_by,coverage_year,valid_from,valid_until,created_at) VALUES
+        ('${oldVip}',998557,'termo','vip_annual','approved','vip/old','old.pdf',10,'${client}',2020,'2020-01-01','2020-12-31',now()-interval '6 years');
+      ${ids(vipIds)}
+      INSERT INTO public.ce_unlock_documents(id,customer_id,type,source,status,storage_path,file_name,size_bytes,uploaded_by,created_at) VALUES
+        ('${pendingVip}',998557,'termo','vip_annual','uploaded','vip/pending','pending.pdf',10,'${client}',now()-interval '1 day');
+      ${ids(vipIds)}
+      INSERT INTO public.ce_unlock_documents(id,customer_id,type,source,status,storage_path,file_name,size_bytes,uploaded_by,coverage_year,valid_from,valid_until) VALUES
+        ('${newVip}',998557,'termo','vip_annual','approved','vip/new','new.pdf',10,'${client}',extract(year FROM now())::int,date_trunc('year',now())::date,make_date(extract(year FROM now())::int,12,31));
+      ${ids(vipIds)}`)
+    expect(result.split('\n')).toEqual([
+      '#', // 29 dias após o envio: ficam
+      '#', // 31 dias após o envio, ainda em análise: ficam (o pedido não trava)
+      '#', // concluído há 29 dias: ficam
+      '#', // concluído há 31 dias, mas com B/L ainda não exportado: ficam (aprovação ainda vale)
+      '#00000000-0000-0000-0000-000000557848,00000000-0000-0000-0000-000000557849', // concluído há 31 dias e exportado: saem
+      '#', // anual vencido, sem substituto aprovado: fica
+      '#', // renovação ainda em análise não substitui
+      `#${oldVip}`, // novo anual aprovado: só então o vencido sai
+    ])
+  })
+  it('lote da exportação ZPT nasce com hash do conteúdo e não aceita reescrita; só o registro do envio muda',()=>{
+    const lot='00000000-0000-0000-0000-000000557891'
+    const result=sql(`BEGIN;
+      INSERT INTO public.ce_unlock_exports(id,layout_version,rows,snapshot,created_by) VALUES('${lot}','zpt-5-v2','[{"BL":"CE557-X"}]','[]','${admin}');
+      SELECT hash=encode(sha256(convert_to('zpt-5-v2'||E'\\n'||'[{"BL": "CE557-X"}]','UTF8')),'hex') FROM public.ce_unlock_exports WHERE id='${lot}';
+      UPDATE public.ce_unlock_exports SET sent_at=now(),reference='Enviado (teste)' WHERE id='${lot}';
+      SELECT reference FROM public.ce_unlock_exports WHERE id='${lot}';
+      ROLLBACK;`)
+    expect(result.split('\n')).toEqual(['t','Enviado (teste)'])
+    const rewrite=String((()=>{ try { sql(`BEGIN;
+      INSERT INTO public.ce_unlock_exports(id,layout_version,rows,snapshot,created_by) VALUES('${lot}','zpt-5-v2','[{"BL":"CE557-X"}]','[]','${admin}');
+      UPDATE public.ce_unlock_exports SET rows='[{"BL":"OUTRO"}]' WHERE id='${lot}';
+      ROLLBACK;`); return '' } catch(e) { return (e as {stderr:string}).stderr } })())
+    expect(rewrite).toMatch(/Lote de exportação ZPT é imutável/)
   })
   it('histórico legado de confirmação externa permanece só no desk',()=>{
     const result=reviewScenario(`

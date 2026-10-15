@@ -1,7 +1,8 @@
 # Desbloqueio de CE Mercante — Issue 557
 
-Estado: implementada e publicada em produção; homologação com a ZPT e ativação
-pendentes. Data: 2026-10-04.
+Estado: implementada e publicada em produção; planilha homologada com a ZPT em
+2026-10-14; conciliação com "Exportar Tela" real dispensada pelo responsável em
+2026-10-15; estado vigente no [módulo](../modules/desbloqueio-ce.md). Data: 2026-10-04.
 
 > **Atualização de estado (2026-10-13):** publicado em produção (backend e Cloudflare
 > Pages), modelo do termo em DOCX cadastrado em 2026-10-10 e compatibilidade
@@ -284,11 +285,11 @@ Confirmar desbloqueio por B/L/CE mediante referência/evidência externa e ator.
 
 | Decisão | Proposta / dependência |
 |---|---|
-| Entrega física | Desk registra após pedido; confirmar com operação (os papéis foram decididos na [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16) |
-| Termo e procuração | Modelo oficial, requisitos de assinatura/validade e retenção; agência fornece |
+| Entrega física | **Decidido** ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)): desk registra antes ou depois do pedido, independente (os papéis foram decididos na [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16) |
+| Termo e procuração | **Decidido** (ADR 0087): assinatura e validade por conferência humana; anexos expurgados 30 dias após o encerramento da solicitação (nota de 2026-10-15 na ADR), Termo Anual VIP até ser substituído depois do vencimento |
 | “CS” na issue | Não criar campo CS nem trocar silenciosamente por CE; autor esclarece |
-| Isenção/valor zero | Pagamento ausente não é confirmado; Financeiro define tratamento explícito |
-| COD e cobertura | Financeiro homologa quais ajustes/recebíveis compõem taxas locais exigíveis |
+| Isenção/valor zero | **Decidido** (ADR 0087): B/L isento não tem requisito de pagamento |
+| COD e cobertura | **Decidido** (ADR 0087): Taxas Locais e cobranças avulsas do B/L; Demurrage fora |
 | VIP — validade anual | Definida pelo usuário: até 31/12 do ano correspondente; aprovação e renovação documental por CNPJ |
 | ZPT | Cinco colunas confirmadas; validar representação dos status em exemplo e evidência de retorno |
 

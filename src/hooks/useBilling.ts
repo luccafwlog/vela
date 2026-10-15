@@ -56,6 +56,8 @@ export function useCreateManualInvoice() {
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
+        // A avulsa do B/L entra no requisito de pagamento do Desbloqueio de CE (ADR 0087, item 3).
+        queryClient.invalidateQueries({ queryKey: queryKeys.ceUnlock.all() }),
       ]
 
       if (variables.blId) {
@@ -82,6 +84,7 @@ export function useRegisterInvoicePayment() {
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.ceUnlock.all() }),
       ])
     },
   })
@@ -132,6 +135,7 @@ export function useCancelInvoice() {
         queryClient.invalidateQueries({ queryKey: queryKeys.bls.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.ceUnlock.all() }),
       ])
     },
   })

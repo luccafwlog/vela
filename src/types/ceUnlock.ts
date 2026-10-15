@@ -15,6 +15,10 @@ export type CeUnlockDocument = {
   coverage_year: number | null;
   reason: string | null;
   created_at: string;
+  /** Arquivo já removido do Storage pelo expurgo (migration 282); metadados ficam. */
+  purged?: boolean;
+  /** Expurgo reivindicou o arquivo e ainda não confirmou a remoção (migration 282); download recusado. */
+  cleanup_pending?: boolean;
 };
 export type CeUnlockItem = {
   bl_id: string;
@@ -35,6 +39,8 @@ export type CeUnlockItem = {
   termo: boolean;
   procuracao: boolean;
   paid: boolean;
+  /** B/L com Taxas Locais isentas: requisito atendido sem pagamento (migration 279). */
+  paid_exempt?: boolean;
   delivered: boolean;
   can_submit: boolean;
   can_export: boolean;

@@ -4,14 +4,18 @@ export function validateCePdf(
   mime: string,
   bytes: Uint8Array,
 ): void {
+  if (bytes.length > CE_PDF_MAX_BYTES)
+    throw new Error("O arquivo passa de 10 MiB. Envie um PDF menor.");
+  // Arquivo renomeado para .pdf (ex.: .docx) chega aqui: a causa precisa ficar clara para o cliente.
   if (
     mime !== "application/pdf" ||
     !/\.pdf$/i.test(name) ||
     bytes.length < 5 ||
-    bytes.length > CE_PDF_MAX_BYTES ||
     new TextDecoder().decode(bytes.subarray(0, 5)) !== "%PDF-"
   )
-    throw new Error("Use PDF válido de até 10 MiB.");
+    throw new Error(
+      "O arquivo não é um PDF. Abra o documento e use \"Salvar como PDF\" ou \"Imprimir em PDF\"; renomear a extensão não converte.",
+    );
 }
 export const CE_DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

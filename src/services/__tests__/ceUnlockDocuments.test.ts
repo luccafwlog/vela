@@ -15,7 +15,7 @@ it("aceita somente PDF real, não vazio e até 10 MiB", () => {
       "application/pdf",
       new TextEncoder().encode("<html>fake</html>"),
     ),
-  ).toThrow();
+  ).toThrow(/não é um PDF.*Salvar como PDF/);
   expect(() =>
     validateCePdf(
       "x.html",
@@ -25,7 +25,7 @@ it("aceita somente PDF real, não vazio e até 10 MiB", () => {
   ).toThrow();
   expect(() =>
     validateCePdf("x.pdf", "application/pdf", new Uint8Array(10485761)),
-  ).toThrow();
+  ).toThrow(/passa de 10 MiB/);
 });
 
 it("limita multipart mesmo quando Content-Length não foi declarado", async () => {
