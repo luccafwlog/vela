@@ -9,7 +9,7 @@ import { afterBlEstadoAlterado, afterDatasContainerAlteradas } from '../../servi
 import { queryKeys } from '../../services/queryKeys'
 import { containerCorrectionValues, correctContainerData, planContainerCorrection, type ContainerCorrectionValues } from '../../services/containerCorrection'
 import { CONTAINER_PROFILE_LABELS, partLotInvoicedNotice, setContainerOwnership, setContainerProfile, type ContainerProfile } from '../../services/vaziosNatureza'
-import { updateContainerDates } from '../../services/demurrage/demurrageContainers'
+import { updateContainerDates, updateContainerReturnDate } from '../../services/demurrage/demurrageContainers'
 import { userFacingErrorMessage } from '../../lib/errors'
 import type { ContainerOwnership } from '../../lib/containerOwnership'
 import type { BLDetail } from '../../types/database'
@@ -38,11 +38,16 @@ export function BlContainerCorrectModal({
   const queryClient = useQueryClient()
   const confirm = useConfirm()
   const { showToast } = useToast()
-  const [initial] = useState(() => containerCorrectionValues(container))
+  // A base anda a cada etapa gravada: se uma etapa seguinte falha, Salvar de
+  // novo reenvia só o que faltou (o perfil já gravado seria recusado como igual).
+  const [initial, setInitial] = useState(() => containerCorrectionValues(container))
   const [values, setValues] = useState<ContainerCorrectionValues>(initial)
   const [justification, setJustification] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  // O campo numérico entrega "" quando o navegador não entende o texto
+  // ("1.234,5" no Firefox): sem isto, a correção apagaria o peso.
+  const [badNumber, setBadNumber] = useState({ grossWeightKg: false, cbm: false })
 
   const set = <K extends keyof ContainerCorrectionValues>(key: K, value: ContainerCorrectionValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }))
@@ -50,6 +55,7 @@ export function BlContainerCorrectModal({
   }
 
   async function handleSave() {
+    if (badNumber.grossWeightKg || badNumber.cbm) return setError('Peso bruto e CBM aceitam só números positivos.')
     const plan = planContainerCorrection(initial, values)
     if (plan.error) return setError(plan.error)
     if (!plan.changes.length) return setError('Nenhum dado do container mudou.')
@@ -84,18 +90,24 @@ export function BlContainerCorrectModal({
         const result = await setContainerProfile({ containerId: container.id, profile: plan.profile, justification: reason })
         result.invoicedBls.forEach((id) => invoicedBls.add(id))
         saved.push('perfil')
+        setInitial((current) => ({ ...current, profile: values.profile }))
       }
       if (plan.ownership) {
         const result = await setContainerOwnership({ containerId: container.id, ownership: plan.ownership, justification: reason })
         result.invoicedBls.forEach((id) => invoicedBls.add(id))
         saved.push('COC/SOC')
+        setInitial((current) => ({ ...current, ownership: values.ownership }))
       }
       if (plan.data) {
         await correctContainerData({ containerId: container.id, ...plan.data, justification: reason })
         saved.push('lacre, peso e CBM')
+        setInitial((current) => ({ ...current, seal: values.seal, grossWeightKg: values.grossWeightKg, cbm: values.cbm }))
       }
       if (plan.dates) {
-        await updateContainerDates(container.id, plan.dates.discharge, plan.dates.returnDate, reason)
+        // Só a devolução mudou: não reenvia a descarga lida ao abrir a janela,
+        // que outra sessão pode ter corrigido nesse meio-tempo (migration 210).
+        if (plan.dates.discharge === initial.discharge) await updateContainerReturnDate(container.id, plan.dates.returnDate, reason)
+        else await updateContainerDates(container.id, plan.dates.discharge, plan.dates.returnDate, reason)
         saved.push('datas')
       }
       showToast(`Container ${container.container_number} corrigido.${partLotInvoicedNotice([...invoicedBls])}`, 'success')
@@ -141,10 +153,10 @@ export function BlContainerCorrectModal({
             <Input value={values.seal} onChange={(event) => set('seal', event.target.value)} />
           </Field>
           <Field label="Peso bruto (kg)">
-            <Input type="number" min={0} step="any" value={values.grossWeightKg} onChange={(event) => set('grossWeightKg', event.target.value)} />
+            <Input type="number" min={0} step="any" value={values.grossWeightKg} onChange={(event) => { setBadNumber((current) => ({ ...current, grossWeightKg: event.target.validity.badInput })); set('grossWeightKg', event.target.value) }} />
           </Field>
           <Field label="CBM (m³)">
-            <Input type="number" min={0} step="any" value={values.cbm} onChange={(event) => set('cbm', event.target.value)} />
+            <Input type="number" min={0} step="any" value={values.cbm} onChange={(event) => { setBadNumber((current) => ({ ...current, cbm: event.target.validity.badInput })); set('cbm', event.target.value) }} />
           </Field>
           <span aria-hidden="true" />
           <Field label="Descarga">

@@ -9,7 +9,8 @@ export function useBlTimeline(blId?: string) {
     enabled: Boolean(blId),
     queryFn: async () => {
       const events = await fetchFullBlTimeline(blId!)
-      const actorNames = await fetchActorNames(events.map((event) => event.changed_by))
+      // Sem os nomes, o Histórico ainda abre; a coluna "Por" fica vazia.
+      const actorNames = await fetchActorNames(events.map((event) => event.changed_by)).catch(() => new Map<string, string>())
       return { events, actorNames }
     },
   })

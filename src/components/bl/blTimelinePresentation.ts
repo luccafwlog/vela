@@ -130,6 +130,10 @@ function formatTimelineValue(fieldName: string, val: string | null | undefined):
   const fieldLabels = VALUE_LABELS_BY_FIELD[fieldName]
   const isoDate = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized)
   if (isoDate && (fieldName === 'discharge_date' || fieldName === 'return_date')) return `${isoDate[3]}/${isoDate[2]}/${isoDate[1]}`
+  // Peso e CBM chegam como texto do numeric ("47900.000"): mostra no formato da tela.
+  if ((fieldName === 'gross_weight_kg' || fieldName === 'cbm') && Number.isFinite(Number(normalized))) {
+    return Number(normalized).toLocaleString('pt-BR', { maximumFractionDigits: 3 })
+  }
   return fieldLabels?.[normalized.toLowerCase()] ?? normalized
 }
 

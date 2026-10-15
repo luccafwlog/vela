@@ -9,6 +9,8 @@ describe('describeTimelineEvent', () => {
     expect(describeTimelineEvent(lacre)).toBe('Container TCLU1234567 · Lacre: SL1 → SL2')
     const imo = { family: 'container', entity_type: 'bl_container', field_name: 'is_imo|TCLU1234567', old_value: 'false', new_value: 'true', justification: null } as never
     expect(describeTimelineEvent(imo)).toBe('Container TCLU1234567 · IMO: Não → Sim')
+    const peso = { family: 'container', entity_type: 'bl_container', field_name: 'gross_weight_kg|TCLU1234567', old_value: '47900.000', new_value: '48250.5', justification: 'Balança' } as never
+    expect(describeTimelineEvent(peso)).toBe('Container TCLU1234567 · Peso bruto (kg): 47.900 → 48.250,5')
   })
   it('edição das datas pela ficha mostra só as datas que mudaram, sem o JSON do evento', () => {
     const edit = {

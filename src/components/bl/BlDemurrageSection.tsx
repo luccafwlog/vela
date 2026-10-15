@@ -237,7 +237,16 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
   const firstDischarge = containers.map((container) => container.discharge_date).filter(Boolean).sort()[0] ?? today
   const agreement = selectAgreementForDischargeDate(customerAgreements ?? [], firstDischarge)
   const conditionSource = hasOverride ? 'Condição deste B/L' : agreement ? 'Acordo do Cliente' : 'Tabela de Demurrage'
-  const containerTypes = Array.from(new Set(containers.map((container) => container.type ?? null)))
+  // SOC não tem Demurrage; tipo sem tarifa vira "Sem tarifa" no bloco, não erro
+  // na ficha inteira (o cálculo por container trata o mesmo caso na linha).
+  const containerTypes = Array.from(new Set(containers.filter((container) => container.ownership !== 'SOC').map((container) => container.type ?? null)))
+  const conditionFor = (type: string | null) => {
+    try {
+      return demurrageRateFor(type, bl.free_time_override, bl.demurrage_rate_override_p1_usd, bl.demurrage_rate_override_p2_usd, agreement)
+    } catch {
+      return null
+    }
+  }
 
   const lines = containers.map((container) => {
     const soc = container.ownership === 'SOC'
@@ -253,7 +262,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
           calc = calculateDemurrage(
             container.type,
             container.discharge_date,
-            container.return_date || today,
+            returnDateVal || today,
             bl.free_time_override,
             bl.demurrage_rate_override_p1_usd,
             bl.demurrage_rate_override_p2_usd,
@@ -264,11 +273,12 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
         error = err instanceof Error ? err.message : 'Falha ao calcular Demurrage.'
       }
     }
-    const days = container.discharge_date ? daysSince(container.discharge_date, container.return_date || today) : null
+    const days = container.discharge_date ? daysSince(container.discharge_date, returnDateVal || today) : null
     return { container, soc, returnDateVal, returnDateChanged: returnDateVal !== (container.return_date ?? ''), calc, freeTimeDays, days, error }
   })
   const chargeable = lines.filter((line) => !line.soc && line.container.discharge_date)
   const overdue = chargeable.filter((line) => line.calc?.status === 'overdue')
+  const notCalculated = chargeable.filter((line) => line.error || !line.calc)
   const overdueUsd = overdue.reduce((sum, line) => sum + (line.calc?.total_usd ?? 0), 0)
   const invoicesText = invoices?.length
     ? invoices.map((invoice) => invoice.doc_number ?? `#${invoice.id}`).join(', ')
@@ -283,7 +293,9 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
       >
         <div className="app-block__body">
           {overdue.length ? (
-            <LeadValue tone="warning" detail={`${overdue.length} de ${chargeable.length} fora do free time · ${invoicesText}`}>{formatUSD(overdueUsd)} {overdue.every((line) => line.container.return_date) ? 'a faturar' : 'em curso'}</LeadValue>
+            <LeadValue tone="warning" detail={`${overdue.length} de ${chargeable.length} fora do free time${notCalculated.length ? ` · ${notCalculated.length} sem cálculo` : ''} · ${invoicesText}`}>{formatUSD(overdueUsd)} {overdue.every((line) => line.returnDateVal) ? 'a faturar' : 'em curso'}</LeadValue>
+          ) : notCalculated.length ? (
+            <LeadValue tone="warning" detail={invoicesText}>{`Demurrage não calculada para ${notCalculated.length} de ${chargeable.length} contêiner${chargeable.length > 1 ? 'es' : ''}`}</LeadValue>
           ) : (
             <LeadValue detail={invoicesText}>{chargeable.length ? `${chargeable.length} de ${chargeable.length} no free time` : 'Sem contêiner descarregado'}</LeadValue>
           )}
@@ -352,7 +364,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                         : line.error ? <span className="text-[var(--app-danger-fg)]">{line.error}</span>
                         : over && calc ? (
                           <span title={`1º período: ${calc.days_p1} d × ${formatUSD(calc.rate_p1_usd)} · 2º período: ${calc.days_p2} d × ${formatUSD(calc.rate_p2_usd)}`}>
-                            <StatusText tone="warning">{formatUSD(calc.total_usd)}</StatusText> <span className="text-[var(--app-muted)]">{container.return_date ? 'a faturar' : 'em curso'}</span>
+                            <StatusText tone="warning">{formatUSD(calc.total_usd)}</StatusText> <span className="text-[var(--app-muted)]">{line.returnDateVal ? 'a faturar' : 'em curso'}</span>
                           </span>
                         ) : <NoValue label="Sem cobrança" />}
                     </td>
@@ -376,10 +388,10 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
         {ratesReady ? (
           <FactList columns={3}>
             {containerTypes.map((type) => {
-              const rate = demurrageRateFor(type, bl.free_time_override, bl.demurrage_rate_override_p1_usd, bl.demurrage_rate_override_p2_usd, agreement)
+              const rate = conditionFor(type)
               return (
                 <Fact key={type ?? 'sem-tipo'} label={`Free time e diárias${type ? ` (${type})` : ''}`}>
-                  {rate.freeUntil} dias · {formatUSD(rate.p1.usd)} por dia (dias {rate.p1.range[0]} a {rate.p1.range[1]}) · {formatUSD(rate.p2.usd)} por dia a partir do dia {rate.p2.range[0]}
+                  {!rate ? <NoValue label="Sem tarifa de Demurrage para este tipo" /> : <>{rate.freeUntil} dias · {formatUSD(rate.p1.usd)} por dia (dias {rate.p1.range[0]} a {rate.p1.range[1]}) · {formatUSD(rate.p2.usd)} por dia a partir do dia {rate.p2.range[0]}</>}
                 </Fact>
               )
             })}
