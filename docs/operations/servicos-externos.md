@@ -289,27 +289,26 @@ e `132` antes de publicar `portal-password-reset` e
 `portal-recovery-email-change`. O procedimento de triagem de reset interrompido
 está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 
-Para publicar as correções da PR 954 (plano de correções da revisão geral),
-as migrations `230` a `277` vão para o banco **antes** das Edge Functions e do
-frontend, porque duas funções dependem delas:
+As correções da PR 954 (plano de correções da revisão geral) vão a produção
+pelo caminho automático: no merge em `main`, a integração do Supabase aplica as
+migrations `230` a `277` e publica as Edge Functions alteradas, e o frontend só
+é publicado depois do check do Supabase no commit
+([Deploy](../setup/deploy.md)). Duas funções dependem de migration nova:
 
-| Função | Depende de | Se for publicada antes |
+| Função | Depende de | Se ficasse no ar sem a migration |
 |---|---|---|
 | `recalc-demurrage-ptax` | migration `264` (`save_exchange_rate_reference_v2` aceita ROE nulo) | O job da PTAX das 14h falha com `reference_failed` e as Invoices de Demurrage ficam sem o BRL do dia |
 | `send-customer-communication` | migration `243` (`bl_belongs_to_atracacao`) | Todo NOB manual devolve 422 ("Um B/L não pertence à Frente de Operação") |
 
 `admin-users`, `portal-daily-digest` e `demurrage-dunning` também mudaram, sem
-depender de migration nova. O frontend chama RPCs que só existem nas
-migrations novas (`reactivate_catalog_row`, `resolve_alert_item_with_justification`,
-`list_pix_txid_candidates`, `delete_manual_vazios_booking` com motivo,
-`create_manual_invoice` com motivo) e mostra a todos botões que o banco só
-aceita depois da `246` e da `251`. Como a integração publica as Functions no
-merge e o Cloudflare publica o frontend com o CI verde em `main`, aplique as
-migrations antes do merge ou logo nele, e depois confira:
+depender de migration nova. A ordem entre migrations e Functions dentro da
+integração não foi conferida (ver acima); se a aplicação das migrations falhar
+no merge, as duas funções da tabela ficam no ar sem o que precisam. Depois do
+merge, confira:
 
 1. `SELECT proname FROM pg_proc WHERE proname IN ('bl_belongs_to_atracacao', '_demurrage_roe_markup', 'reactivate_catalog_row');` devolve as três.
 2. Em Supabase → Edge Functions, `recalc-demurrage-ptax` e `send-customer-communication` com a data do merge.
-3. Uma execução manual do job da PTAX devolve HTTP 200 e grava a referência do dia.
+3. A execução seguinte do job da PTAX grava a referência do dia (sem alerta de falha da PTAX).
 
 ### Secrets das Edge Functions
 
