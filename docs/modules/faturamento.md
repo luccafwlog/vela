@@ -699,7 +699,10 @@ avulsa emitida; nos de abatimento e restituição, aplicando-os.
 [correção após emissão](#correção-após-emissão-adr-0077). Sem pagamento, a
 fatura é reemitida sozinha e o ajuste (ação `cancel_and_reissue`, mostrada
 como **Reemissão automática**) se liquida quando o B/L ganha a fatura
-sucessora, com ela como documento resultante (migration `249`); se a
+sucessora, com ela como documento resultante (migration `249`), inclusive
+quando a sucessora nasce em rascunho e é emitida depois; a liquidação grava
+`audit_logs`, e cancelar a sucessora devolve o ajuste a pendente até a próxima
+reemissão (migration `276`); se a
 reemissão travar, o painel só aponta o B/L, sem pedir número; com pagamento e valor menor, o
 abatimento e a restituição são feitos pela correção e o ajuste é marcado
 liquidado, vinculado a ela; com pagamento e valor maior, abre Fatura

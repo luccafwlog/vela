@@ -112,7 +112,7 @@ export function useAgencyReportDepartmentSignoffEvents(voyageId: number, port: s
 // B8: a chave inclui o ATD, então registrar outro ATD busca de novo o momento do registro.
 export function useAgencyReportAtdRegisteredAt(voyageId: number, port: string | null, terminalId: string | null, atd: string | null) {
   return useQuery({
-    queryKey: ['agency-report-atd-registered-at', voyageId, port, terminalId, atd],
+    queryKey: queryKeys.agencyReports.atdRegisteredAt(voyageId, port, terminalId, atd),
     queryFn: () => fetchTerminalAtdRegisteredAt(voyageId, port as string, terminalId as string, atd as string),
     enabled: Boolean(port && terminalId && atd),
   })

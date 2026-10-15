@@ -63,7 +63,6 @@ export function GraniteRates() {
           { field: 'Valor unitário', before: `${originalRate.currency} ${originalRate.unit_value}`, after: `${form.currency} ${form.unit_value}` },
           { field: 'Vigência de', before: originalRate.valid_from ? originalRate.valid_from.slice(0, 10) : '', after: form.valid_from ? form.valid_from.slice(0, 10) : '' },
           { field: 'Vigência até', before: originalRate.valid_to ? originalRate.valid_to.slice(0, 10) : '', after: form.valid_to ? form.valid_to.slice(0, 10) : '' },
-          { field: 'Status', before: originalRate.active ? 'Ativa' : 'Inativa', after: form.active ? 'Ativa' : 'Inativa' },
         ].filter((c) => c.before !== c.after)
       : []
 
@@ -89,7 +88,10 @@ export function GraniteRates() {
 
     setSaving(true)
     try {
-      await upsertGraniteRate(form)
+      // B13: na edição não envia `active`; reativar só pelo botão com motivo.
+      const payload: Parameters<typeof upsertGraniteRate>[0] = { ...form }
+      if (form.id) delete payload.active
+      await upsertGraniteRate(payload)
       await queryClient.invalidateQueries({ queryKey: ['granite-rates'] })
       showToast('Taxa salva.', 'success')
       setModalOpen(false)
@@ -304,7 +306,7 @@ export function GraniteRates() {
             </Field>
           </div>
 
-          {isAdmin ? (
+          {isAdmin && !form.id ? (
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"

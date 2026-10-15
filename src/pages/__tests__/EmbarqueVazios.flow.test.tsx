@@ -412,6 +412,19 @@ describe("EmbarqueVazios", () => {
     await expect(Promise.resolve(queryFns.get("embarque-vazios-voyage-ports")?.())).resolves.toEqual(["BRVIX"]);
   });
 
+  it("B10: porto de escala omitida/excluída não volta pelos portos dos B/Ls", async () => {
+    escalaMocks.listEscalas.mockResolvedValue(new Map([[179, [
+      { port: "BRVIX", deleted: false, omitted: false },
+      { port: "BRSSZ", deleted: true, omitted: false },
+      { port: "BRRIG", deleted: false, omitted: true },
+    ]]]));
+    escalaMocks.listBlPorts.mockResolvedValue(["BRRIG", "BRSSZ", "BRPNG", "BRVIX"]);
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: /Selecionar viagem/i }));
+    await screen.findByLabelText("Porto de embarque");
+    await expect(Promise.resolve(queryFns.get("embarque-vazios-voyage-ports")?.())).resolves.toEqual(["BRPNG", "BRVIX"]);
+  });
+
   describe("Importar planilha de Unidades Embarcadas com linhas ocultas", () => {
     const parsedWith = (hidden: { rows: number; sheets: string[] }) => ({
       bookings: [{ rowNumber: 2, container_number: "MSCU1234567", container_type: "40HC", local_code: "VBR", condition: "vazio" as const, hand_in_date: null, hand_out_date: null, movement_date: null }],

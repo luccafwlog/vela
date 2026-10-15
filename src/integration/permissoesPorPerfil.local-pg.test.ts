@@ -35,10 +35,22 @@ function runAs(profile: Profile, sql: string): { ok: boolean; output: string; er
 
 /** Como `runAs`, para um usuário que não é perfil interno (Portal, sem cadastro). */
 function runAsUser(userId: string, sql: string): { ok: boolean; output: string; error: string } {
-  const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  // VERBOSITY verbose põe o SQLSTATE na mensagem (`ERROR:  42501: ...`).
+  const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-At', '-q', '-d', databaseUrl, '-c',
     `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${userId}';
      SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql}; COMMIT;`], { encoding: 'utf8' })
   return { ok: result.status === 0, output: (result.stdout ?? '').trim(), error: (result.stderr ?? '').trim() }
+}
+
+/**
+ * O perfil passou da guarda: o erro (se houver) é da regra de negócio, nunca de
+ * permissão (42501, inclusive "permission denied for function"), de função
+ * inexistente (42883), de sintaxe (42601) ou de tabela/coluna (42P01/42703).
+ * Sem isso, um REVOKE de EXECUTE ou uma assinatura trocada passaria verde.
+ */
+function expectPastProfileGuard(result: { error: string }, context: string) {
+  expect(result.error, context).not.toMatch(/ERROR:\s+(42501|42883|42601|42P01|42703):/)
+  expect(result.error, context).not.toMatch(/sem permiss|Credenciais invalidas|Somente o Administrativo|permission denied/i)
 }
 
 /** Escrita direta recusada: o erro é de privilégio (42501) ou de RLS. */
@@ -396,9 +408,10 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     expect(runAs(profile, `UPDATE public.bls SET financial_status = financial_status, consignee = 'P85 ${profile}' WHERE id = '${BL}'`).error).toBe('')
   })
 
-  it('P3: B/L novo pela API nasce pendente; a baixa legada roda como dono', () => {
+  it('P3: B/L novo pela API não nasce com situação financeira; a baixa legada roda como dono', () => {
     const inserted = runAs('documentacao', `INSERT INTO public.bls (id, voyage_id, financial_status) VALUES ('P85-BL2', ${VOYAGE_ID}, 'paid')`)
     expect(inserted.ok).toBe(false)
+    expect(inserted.error).toMatch(/muda só pela emissão, baixa ou cancelamento da fatura/)
     expect(psql(`SELECT prosecdef FROM pg_proc WHERE proname = 'register_invoice_payment';`)).toBe('t')
   })
 
@@ -549,10 +562,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       `SELECT public.retry_invoice_basis_changes('P85-NAO-EXISTE')`,
       `SELECT public.resolve_stale_invoice(-1, 'Conferida P4')`,
     ]
-    for (const call of calls) {
-      const result = runAs(profile, call)
-      expect(result.error, `${profile}: ${call}`).not.toMatch(/sem permiss|Credenciais invalidas|Sem permissão/i)
-    }
+    for (const call of calls) expectPastProfileGuard(runAs(profile, call), `${profile}: ${call}`)
   })
 
   // P5 — baixa, Restituição, desconto e Conciliação PIX (ADR 0085, base, D2, D4, D5; migration 247).
@@ -585,15 +595,13 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   it.each(ALL_PROFILES)('P5: baixa manual e conciliar PIX só para Financeiro e Administrativo (%s)', (profile) => {
     for (const call of P5_SETTLE) {
       const result = runAs(profile, call)
-      if (FINANCE.has(profile)) expect(result.error, `${profile}: ${call}`).not.toMatch(PERMISSION_DENIED)
+      if (FINANCE.has(profile)) expectPastProfileGuard(result, `${profile}: ${call}`)
       else expect(result.error, `${profile}: ${call}`).toMatch(PERMISSION_DENIED)
     }
   })
 
   it.each(ALL_PROFILES)('P5: %s lê a Conciliação, autoriza restituição e aplica desconto', (profile) => {
-    for (const call of [...P5_READ, ...P5_ANY]) {
-      expect(runAs(profile, call).error, `${profile}: ${call}`).not.toMatch(PERMISSION_DENIED)
-    }
+    for (const call of [...P5_READ, ...P5_ANY]) expectPastProfileGuard(runAs(profile, call), `${profile}: ${call}`)
   })
 
   it('P5: Pix não conciliado, Fatura desatualizada e Restituição pendente avisam o Financeiro', () => {
@@ -666,7 +674,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       // Dados vazios são recusados pela validação do tipo, não pelo perfil.
       const result = runAs(profile, `SELECT public.internal_save_portal_information('${kind}', '{}'::jsonb)`)
       expect(result.ok, `${profile}: ${kind}`).toBe(false)
-      expect(result.error, `${profile}: ${kind}`).not.toMatch(/Sem permissão para alterar/)
+      expectPastProfileGuard(result, `${profile}: ${kind}`)
     }
   })
 
@@ -796,4 +804,3 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     expect(psql(`SET request.jwt.claim.role = 'service_role'; SELECT public._assert_actor_is_caller('${PROFILES.financeiro}'); SELECT 'ok';`)).toBe('ok')
   })
 })
-

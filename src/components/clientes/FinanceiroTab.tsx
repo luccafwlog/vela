@@ -19,7 +19,7 @@ import { CustomerDemurrageAgreementModal } from '../demurrage/CustomerDemurrageA
 import { AgreementSituationBadge } from '../demurrage/CustomerDemurrageAgreementsTab'
 import { agreementPeriodText, agreementRatesText } from '../demurrage/demurrageFormRules'
 import { demurrageInvoiceHref } from '../../pages/demurrageListState'
-import { invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
+import { invoiceNetUsd } from '../../services/demurrage/demurrageNetUsd'
 import { useAuth } from '../../hooks/useAuth'
 import type { useCustomerDetail } from '../../hooks/useCustomers'
 import { usePortalProvisioningForCustomer } from '../../hooks/usePortalProvisioning'
@@ -345,7 +345,7 @@ export function FinanceiroTab({ data }: { data: Data }) {
                       <tr key={row.id}>
                         <td className="whitespace-nowrap"><Link className="app-customer-link app-customer-code" to={demurrageInvoiceHref(row.id)} title={row.dispute_subject ?? undefined}>{row.doc_number}</Link></td>
                         <td className="whitespace-nowrap"><CopyValue value={row.bl_id} label="número do B/L"><Link className="app-customer-link app-customer-code" to={`/bls/${row.bl_id}`}>{row.bl_id}</Link></CopyValue></td>
-                        <td className="whitespace-nowrap tabular-nums">{formatUSD(row.total_usd)}</td>
+                        <td className="whitespace-nowrap tabular-nums">{formatUSD(invoiceNetUsd(row).netUsd)}</td>
                         <td className="whitespace-nowrap tabular-nums">{row.current_total_brl == null ? <NoValue label="Sem valor atual em R$" /> : money(row.current_total_brl, row.status === 'issued' || row.status === 'overdue')}</td>
                         <td className="whitespace-nowrap">{demurrageSituation(row)}</td>
                         <td className="whitespace-nowrap">{demurrageDispute(row)}</td>

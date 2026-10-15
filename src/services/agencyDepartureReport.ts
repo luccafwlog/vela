@@ -781,6 +781,8 @@ async function listTransshipmentBlIds(voyageId: number, port: string): Promise<s
     .select('id')
     .eq('voyage_id', voyageId)
     .in('discharge_pod', portCodeVariants(port))
+    // A8: omissão revertida não trata mais os B/Ls como transbordo.
+    .is('reverted_at', null)
   if (omissionsRes.error) throw omissionsRes.error
   const omissionIds = (omissionsRes.data ?? []).map((row) => row.id)
   if (!omissionIds.length) return []

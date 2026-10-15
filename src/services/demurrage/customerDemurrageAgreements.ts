@@ -116,7 +116,8 @@ export async function saveCustomerDemurrageAgreement(
     p2_usd: input.p2_usd != null && input.p2_usd !== ('' as unknown as number) ? Number(input.p2_usd) : null,
     valid_from: input.valid_from,
     valid_to: input.valid_to || null,
-    active: input.active ?? true,
+    // B13: a edição não altera `active`; reativar é pela RPC com motivo.
+    ...(input.id ? {} : { active: input.active ?? true }),
     notes: input.notes?.trim() || null,
   }
 

@@ -92,6 +92,11 @@ com resposta incerta ou erro.
 
 ### Exceções do extrato
 
+A exceção encerra quando há baixa autoritativa do mesmo TXID e valor: o
+`ledger_settlements` da fatura local, a Invoice de Demurrage conciliada ou,
+para a avulsa, o TXID gravado na fatura com o evento `reconciled_by_txid`
+(migration `269`).
+
 Linhas de extrato sem baixa segura ficam em `pix_reconciliation_exceptions` por
 arquivo e linha, inclusive sem TXID. Cada linha mostra valor, dia do extrato,
 Ambígua ou Sem documento, o motivo gravado pelo matching, o documento indicado,

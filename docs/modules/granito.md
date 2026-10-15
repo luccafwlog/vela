@@ -30,6 +30,7 @@ são graváveis por usuário ativo.
 O ownership é separado:
 
 - `granite_bls` não é uma extensão de `bls`;
+- `granite_bls` não se vincula a Cliente desativado (gatilho `guard_granite_link_to_deactivated_customer`, migration `270`); na importação, o CNPJ de Cliente desativado fica sem vínculo e sem sugestão;
 - `granite_bl_charges` é o snapshot das taxas calculadas;
 - `invoice_granite_bls` preserva vínculos financeiros históricos entre invoices
   compartilhadas e B/Ls de Granito;

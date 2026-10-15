@@ -69,7 +69,6 @@ function CustomerDemurrageAgreementForm({
       { field: 'Tarifa P2 (USD/dia)', before: initialAgreement?.p2_usd == null ? '' : String(Number(initialAgreement.p2_usd)), after: p2Val == null ? '' : String(p2Val) },
       { field: 'Vigência de', before: initialAgreement ? formatDate(initialAgreement.valid_from.slice(0, 10)) : '', after: formatDate(validFrom) },
       { field: 'Vigência até', before: initialAgreement?.valid_to ? formatDate(initialAgreement.valid_to.slice(0, 10)) : '', after: validTo ? formatDate(validTo) : '' },
-      { field: 'Status', before: initialAgreement ? (initialAgreement.active ? 'Ativo' : 'Inativo') : '', after: active ? 'Ativo' : 'Inativo' },
       { field: 'Observações', before: initialAgreement?.notes ?? '', after: notes.trim() },
     ].filter((field) => field.before !== field.after)
     if (initialAgreement && changes.length === 0) {
@@ -101,7 +100,8 @@ function CustomerDemurrageAgreementForm({
         p2_usd: p2Val,
         valid_from: validFrom,
         valid_to: validTo || null,
-        active,
+        // B13: só o cadastro define `active`; a edição não reativa sem motivo.
+        ...(initialAgreement ? {} : { active }),
         notes: notes.trim() || null,
       })
       showToast(initialAgreement ? 'Acordo de Demurrage atualizado.' : 'Acordo de Demurrage cadastrado.', 'success')
@@ -154,7 +154,7 @@ function CustomerDemurrageAgreementForm({
           <Input type="date" value={validTo} min={validFrom || undefined} onChange={(e) => { setValidTo(e.target.value); clearError('validTo') }} />
         </Field>
       </div>
-      {isAdmin ? (
+      {isAdmin && !initialAgreement ? (
         <label className="app-dem-check">
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
           <span>Acordo ativo</span>

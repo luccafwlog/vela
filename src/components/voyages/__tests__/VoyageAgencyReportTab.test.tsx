@@ -27,6 +27,8 @@ const { useAgencyReportDerivedMock, useAgencyReportOwnMock, useAgencyReportTermi
   useAuthMock: vi.fn(),
 }))
 
+const { atdRegisteredAtMock } = vi.hoisted(() => ({ atdRegisteredAtMock: vi.fn(() => ({ data: null as string | null })) }))
+
 const { signoffMutateMock, departmentSignoffMutateMock, observationMutateMock, useAgencyReportSignoffEventsMock, useAgencyReportDepartmentSignoffEventsMock } = vi.hoisted(() => ({
   signoffMutateMock: vi.fn(),
   departmentSignoffMutateMock: vi.fn(),
@@ -41,7 +43,7 @@ vi.mock('../../../hooks/useAgencyReport', () => ({
   useAgencyReportTerminalState: useAgencyReportTerminalStateMock,
   useAgencyReportSignoffEvents: useAgencyReportSignoffEventsMock,
   useAgencyReportDepartmentSignoffEvents: useAgencyReportDepartmentSignoffEventsMock,
-  useAgencyReportAtdRegisteredAt: () => ({ data: null }),
+  useAgencyReportAtdRegisteredAt: atdRegisteredAtMock,
   useSetAgencyReportSignoff: () => ({ mutate: signoffMutateMock, isPending: false }),
   useSetAgencyReportDepartmentSignoff: () => ({ mutate: departmentSignoffMutateMock, isPending: false }),
   useSetAgencyReportSectionObservation: () => ({ mutate: observationMutateMock }),
@@ -1461,4 +1463,25 @@ it('B7: a seção Veículos fica no painel de Equipamentos, que conta e mostra a
   expect(within(panelOf('Documentação')).queryByText('Veículos')).toBeNull()
   expect(within(panelOf('Equipamentos')).getByText('Veículos')).toBeTruthy()
   expect(within(panelOf('Equipamentos')).getByText('0/3 seções')).toBeTruthy()
+})
+
+it('B8: ADR fechado sem atdRegisteredAt no snapshot não mostra o registro de um ATD corrigido depois', () => {
+  atdRegisteredAtMock.mockReturnValue({ data: '2026-07-25T15:00:00Z' })
+  useAgencyReportOwnMock.mockReturnValue({
+    data: {
+      status: 'closed',
+      closed_at: '2026-07-20T10:00:00Z',
+      closed_by_name: 'Lucca F.',
+      closed_snapshot: { header: { schedule: {}, unifiedAtd: '2026-07-18', atdSource: 'terminal' }, sections: { cargaDescarregada: { rows: {}, totals: {} } }, occurrences: [], signoffs: [] },
+      signoffs: [],
+      departmentSignoffs: [],
+      occurrences: [],
+    },
+  })
+  try {
+    render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+    expect(screen.queryByText(/registrado em/)).toBeNull()
+  } finally {
+    atdRegisteredAtMock.mockReturnValue({ data: null })
+  }
 })

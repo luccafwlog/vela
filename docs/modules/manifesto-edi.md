@@ -393,7 +393,9 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   mensagem de validação segura; a exclusão pede confirmação com motivo, gravado
   no rastro, é recusada com o ADR de Saída fechado da escala (reabrir o ADR
   solta a trava; B14, migration `262`) e não deixa manifesto órfão. A exclusão
-  de Linha de Serviço (`delete_catalog_row`) segue a mesma trava.
+  de Linha de Serviço (`delete_catalog_row`) e a reimportação da planilha de
+  Unidades Embarcadas (`import_vazios_bookings_transactional`, migration `274`)
+  seguem a mesma trava.
 - **Linha de Serviço.** Declaração de um serviço efetivamente performado:
   **Local**, **Natureza**, **Serviço** (do catálogo daquele local),
   **Quantidade** e **Valor unitário**; o serviço de transporte leva a rota (o

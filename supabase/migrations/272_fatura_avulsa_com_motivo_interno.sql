@@ -25,23 +25,10 @@ ALTER FUNCTION public.create_manual_invoice(bigint, text, numeric, numeric, text
 REVOKE ALL ON FUNCTION public._create_manual_invoice_core_272(bigint, text, numeric, numeric, text, text, bigint, uuid, bigint)
   FROM PUBLIC, anon, authenticated;
 
-CREATE FUNCTION public.create_manual_invoice(
-  p_customer_id bigint,
-  p_item_name text,
-  p_quantity numeric,
-  p_unit_value_brl numeric,
-  p_description text DEFAULT NULL,
-  p_bl_id text DEFAULT NULL,
-  p_voyage_id bigint DEFAULT NULL,
-  p_actor uuid DEFAULT NULL,
-  p_charge_item_id bigint DEFAULT NULL,
-  p_reason text DEFAULT NULL
-)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public', 'pg_temp'
-AS $function$
+CREATE FUNCTION public.create_manual_invoice(p_customer_id bigint, p_item_name text, p_quantity numeric, p_unit_value_brl numeric,
+  p_description text = NULL, p_bl_id text = NULL, p_voyage_id bigint = NULL, p_actor uuid = NULL,
+  p_charge_item_id bigint = NULL, p_reason text = NULL)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public', 'pg_temp' AS $function$
 DECLARE
   v_reason text := NULLIF(btrim(COALESCE(p_reason, '')), '');
   v_result jsonb;

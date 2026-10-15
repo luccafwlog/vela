@@ -31,9 +31,10 @@ if (typeof Deno !== 'undefined') {
       // Cliente desativado não entra na contagem de convites pendentes.
       admin.from('customer_portal_accounts').select('id, customers!inner(deactivated_at)').eq('account_situation', 'convite_pendente').is('customers.deactivated_at', null),
       admin.from('user_profiles').select('id').eq('active', true).in('role', ['admin', 'administrativo', 'documentacao']),
-      // Exceção crítica de fatura: abertura e fechamento nas últimas 24 horas (ADR 0083, item 19).
-      admin.from('alert_items').select('id').eq('item_type', 'portal_excecao_critica_fatura').gte('created_at', since),
-      admin.from('alert_items').select('id').eq('item_type', 'portal_excecao_critica_fatura').eq('status', 'resolved').gte('resolved_at', since),
+      // Exceção crítica de fatura: abertura e fechamento nas últimas 24 horas (ADR 0083, item 19),
+      // pelos eventos do item: a reabertura reaproveita a linha e mantém o `created_at`.
+      admin.from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'opened').gte('created_at', since),
+      admin.from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'resolved').gte('created_at', since),
     ])
     const counts = {
       failures: failures?.length ?? 0,

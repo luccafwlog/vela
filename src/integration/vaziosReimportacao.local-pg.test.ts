@@ -215,6 +215,10 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
     expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', ' ')`).stderr).toMatch(/Informe o motivo/)
     expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', 'lancada por engano')`).stderr).toMatch(/ADR de Saida fechado/)
     expect(asUser(`SELECT public.delete_catalog_row('vazios_export_service_lines', '${line}', 'custo errado')`).stderr).toMatch(/ADR de Saida fechado/)
+    // 274: a reimportação da planilha também não muda as unidades com o ADR fechado.
+    const before = psql(`SELECT count(*) FROM public.vazios_bookings WHERE voyage_id = ${voyageId};`)
+    expect(bookings([{ container: 'AZCU2349992', date: '2026-09-03' }]).stderr).toMatch(/ADR de Saída deste porto está fechado/)
+    expect(psql(`SELECT count(*) FROM public.vazios_bookings WHERE voyage_id = ${voyageId};`)).toBe(before)
 
     psql(`UPDATE public.agency_departure_reports SET status = 'open' WHERE voyage_id = ${voyageId} AND port = 'BRVIX';`)
     expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', 'lancada por engano')`).stderr).toBe('')

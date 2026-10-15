@@ -115,10 +115,20 @@ async function fetchVoyageEscalaPorts(voyageId: number): Promise<string[]> {
     const code = normalizePortCode(raw);
     if (code && code.startsWith("BR")) ports.add(code);
   };
+  // Porto só de escala omitida/excluída não volta pelos portos dos B/Ls.
+  const removed = new Set<string>();
   for (const escala of escalas.get(voyageId) ?? []) {
     if (!escala.deleted && !escala.omitted) add(escala.port);
+    else {
+      const code = normalizePortCode(escala.port);
+      if (code) removed.add(code);
+    }
   }
-  for (const raw of blPorts) add(raw);
+  for (const raw of blPorts) {
+    const code = normalizePortCode(raw);
+    if (code && removed.has(code) && !ports.has(code)) continue;
+    add(raw);
+  }
   return [...ports].sort();
 }
 

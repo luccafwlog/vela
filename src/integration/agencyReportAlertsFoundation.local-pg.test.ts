@@ -34,7 +34,8 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
       DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE a.entity_id='${entityId}');
       DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id='${entityId}');
       DELETE FROM public.alerts WHERE entity_id = '${entityId}';
-      DELETE FROM public.agency_departure_reports WHERE id = '${reportId}' OR (voyage_id = ${voyageId} AND port = 'BRVIX');
+      DELETE FROM public.agency_departure_reports WHERE id = '${reportId}' OR (voyage_id = ${voyageId} AND port IN ('BRVIX', 'BRPNG', 'BRITJ'));
+      DELETE FROM public.bls WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyages WHERE id = ${voyageId};
@@ -79,7 +80,8 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
       DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE a.entity_id='${entityId}');
       DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id='${entityId}');
       DELETE FROM public.alerts WHERE entity_id = '${entityId}';
-      DELETE FROM public.agency_departure_reports WHERE id = '${reportId}' OR (voyage_id = ${voyageId} AND port = 'BRVIX');
+      DELETE FROM public.agency_departure_reports WHERE id = '${reportId}' OR (voyage_id = ${voyageId} AND port IN ('BRVIX', 'BRPNG', 'BRITJ'));
+      DELETE FROM public.bls WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyages WHERE id = ${voyageId};
@@ -149,5 +151,24 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
     expect(result.status).not.toBe(0)
     expect(result.stderr).toMatch(/atribua o terminal/)
     expect(psql(`SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId} AND port = 'BRVIX';`)).toBe('0')
+  })
+
+  // B6 (migration 273): a frente derivada dos dados (B/L com POD no porto) também recusa, sem frente gravada.
+  it('B6 — escala com B/L e sem frente gravada não cria ADR legado; escala sem carga ainda cria', () => {
+    const signAs = (port: string) => spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${opsId}'; SET LOCAL request.jwt.claim.role = 'authenticated';
+       SELECT public.set_agency_report_signoff(${voyageId}, '${port}', 'datas', 'confirmed', NULL); COMMIT;`], { encoding: 'utf8' })
+    psql(`SET session_replication_role = replica;
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('B6-273-BL', ${voyageId}, 'BRPNG', 'container');
+      SET session_replication_role = origin;`)
+    expect(psql(`SELECT count(*) FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId} AND port = 'BRPNG';`)).toBe('0')
+    const withBl = signAs('BRPNG')
+    expect(withBl.status).not.toBe(0)
+    expect(withBl.stderr).toMatch(/atribua o terminal/)
+    expect(psql(`SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId} AND port = 'BRPNG';`)).toBe('0')
+
+    // Escala sem frente gravada nem dado operacional: o legado por porto segue.
+    expect(signAs('BRITJ').stderr).toBe('')
+    expect(psql(`SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId} AND port = 'BRITJ' AND terminal_id IS NULL;`)).toBe('1')
   })
 })

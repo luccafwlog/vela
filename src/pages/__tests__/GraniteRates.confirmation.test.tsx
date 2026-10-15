@@ -104,6 +104,21 @@ describe('GraniteRates - confirmação com diff antes/depois (ADR 0072)', () => 
     expect(mocks.showToast).toHaveBeenCalledWith('Taxa salva.', 'success')
   })
 
+  it('B13: edição de taxa inativa não mostra "Taxa ativa" nem envia active', async () => {
+    mocks.listGraniteRates.mockResolvedValue([{ ...mockRates[0], active: false }])
+    const user = userEvent.setup()
+    renderComponent()
+    await waitFor(() => expect(screen.getByText('Taxa de Escaneamento')).toBeTruthy())
+    await user.click(screen.getByRole('button', { name: /^Editar taxa / }))
+    expect(screen.queryByLabelText('Taxa ativa')).toBeNull()
+    const inputDesc = screen.getByPlaceholderText('Ex: Taxa de agenciamento')
+    await user.clear(inputDesc)
+    await user.type(inputDesc, 'Outra')
+    await user.click(screen.getByRole('button', { name: /^salvar$/i }))
+    await waitFor(() => expect(mocks.upsertGraniteRate).toHaveBeenCalled())
+    expect(mocks.upsertGraniteRate.mock.calls[0][0]).not.toHaveProperty('active')
+  })
+
   it('não executa mutação se usuário fechar no Voltar', async () => {
     mocks.confirm.mockResolvedValue(false)
     const user = userEvent.setup()

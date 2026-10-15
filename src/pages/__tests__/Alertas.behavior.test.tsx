@@ -246,4 +246,3 @@ it('A23: "Resolver" com justificativa só aparece nos alertas de conferência se
     confirmLabel: 'Resolver',
   })))
 })
-

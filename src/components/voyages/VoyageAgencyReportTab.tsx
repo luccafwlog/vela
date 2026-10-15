@@ -70,6 +70,21 @@ const OPERATION_FRONT_LABELS: Record<string, string> = {
   'exportacao:vazio': 'Vazios EXP',
 }
 
+// B8: ADR fechado antes do campo atdRegisteredAt no snapshot. O registro ao vivo
+// só vale se o ATD vigente for o mesmo congelado; ATD corrigido depois não mostra "registrado em".
+function closedAtdRegisteredAt(
+  header: { unifiedAtd?: string | null; atdRegisteredAt?: string | null } | null | undefined,
+  liveAtd: string | null,
+  liveRegisteredAt: string | null,
+): string | null {
+  if (header?.atdRegisteredAt) return header.atdRegisteredAt
+  const frozenAtd = header?.unifiedAtd ?? null
+  if (frozenAtd == null) return liveRegisteredAt
+  if (liveAtd == null) return null
+  const sameAtd = frozenAtd === liveAtd || (Date.parse(frozenAtd) === Date.parse(liveAtd) && !Number.isNaN(Date.parse(liveAtd)))
+  return sameAtd ? liveRegisteredAt : null
+}
+
 function operationFrontLabel(front: string) {
   return OPERATION_FRONT_LABELS[front] ?? front
 }
@@ -748,7 +763,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
           <AgencyReportTimeline
             atd={closedSnapshot.header?.unifiedAtd ?? terminalAtd}
             atdSource={closedSnapshot.header?.atdSource ?? (terminalAtd ? ('terminal' as const) : null)}
-            atdRegisteredAt={closedSnapshot.header?.atdRegisteredAt ?? terminalAtdRegisteredAt ?? null}
+            atdRegisteredAt={closedAtdRegisteredAt(closedSnapshot.header, terminalAtd, terminalAtdRegisteredAt ?? null)}
             deadline={closedSnapshot.header?.deadlineDate ?? deadlineDate}
             omitted={isOmittedEscala}
             now={new Date()}

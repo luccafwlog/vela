@@ -182,6 +182,8 @@ export function DepotCadastro() {
     await run(async () => {
       await upsertDepotService({
         ...serviceForm,
+        // B31: `active` vem do registro atual, não do momento em que se clicou Editar.
+        active: original?.active ?? serviceForm.active,
         depot_id: selected.id,
         container_type: null,
         route_destino_id: serviceForm.natureza === 'transporte' ? serviceForm.route_destino_id || null : null,
@@ -214,7 +216,19 @@ export function DepotCadastro() {
     const reason = await askToggle('local', selected.code, selected.active)
     if (reason === null) return
     await run(async () => {
-      if (selected.active) await upsertDepot({ ...depotForm, active: false, id: selected.id })
+      // B15: desativa a partir do registro salvo; edições não salvas do formulário não vão junto.
+      if (selected.active) {
+        await upsertDepot({
+          code: selected.code,
+          name: selected.name ?? '',
+          tipo: selected.tipo as 'depot' | 'terminal_portuario',
+          port_id: 'port_id' in selected && typeof selected.port_id === 'number' ? selected.port_id : null,
+          free_time_vazio_days: selected.free_time_vazio_days,
+          free_time_material_days: selected.free_time_material_days,
+          active: false,
+          id: selected.id,
+        })
+      }
       else await reactivateCatalogRow('depots', selected.id, reason)
       await depots.refetch()
     }, selected.active ? 'Local desativado.' : 'Local reativado.')

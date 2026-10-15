@@ -514,6 +514,13 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     expect(successor).not.toBe('');
     expect(psql(`SELECT action||':'||status||':'||coalesce(resulting_document_id::text,'')||':'||coalesce(resulting_document_type,'') FROM public.cod_adjustments WHERE bl_id='${bl.vehicleB}'`))
       .toBe(`cancel_and_reissue:settled:${successor}:invoice`);
+    // 276: a liquidação automática deixa rastro, e cancelar a sucessora devolve o ajuste a pendente.
+    const adjustment=psql(`SELECT id FROM public.cod_adjustments WHERE bl_id='${bl.vehicleB}'`);
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_type='cod_adjustment' AND entity_id='${adjustment}' AND new_value='settled'`))
+      .toMatch(new RegExp(`sucessora ${successor}`));
+    expect(asAdmin(`SELECT public.cancel_invoice(${successor},'Sucessora cancelada no teste 276','${actorId}'::uuid)`).stderr).toBe('');
+    expect(psql(`SELECT status||':'||coalesce(resulting_document_id::text,'') FROM public.cod_adjustments WHERE id=${adjustment}`)).toBe('pending:');
+    expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_type='cod_adjustment' AND entity_id='${adjustment}' AND old_value='settled' AND new_value='pending'`)).toBe('1');
   });
 
   it('recibo preserva bruto, devolução pendente e líquido após confirmação bancária', () => {
@@ -550,6 +557,16 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     expect(psql(`SELECT source FROM public.bl_receivables WHERE id=${oldReceivable}`)).toBe(`local_charges_archived:${oldReceivable}`)
     adminJson(`SELECT public.retry_invoice_basis_changes('${bl.full}')`)
     expect(psql(`SELECT count(*) FROM public.invoices WHERE customer_id=${otherCustomerId}`)).toBe('1')
+  })
+
+  it('sem correção pendente, "Tentar aplicar correção" não toca na fatura emitida (275)', () => {
+    const invoice = issueByCe(bl.full, '839000000000031')
+    expect(psql(`SELECT count(*) FROM public.invoice_basis_pending_changes WHERE bl_id='${bl.full}'`)).toBe('0')
+    // A tabela muda depois da emissão; sem pendência registrada, a RPC não reprecifica.
+    psql(`UPDATE public.charge_table_items SET value_brl = value_brl + 50, unit_value_brl = unit_value_brl + 50 WHERE charge_table_id=${chargeTableId}`)
+    expect(adminJson(`SELECT public.retry_invoice_basis_changes('${bl.full}')`)).toMatchObject({ status: 'nothing_pending' })
+    expect(psql(`SELECT status FROM public.invoices WHERE id=${invoice}`)).toBe('issued')
+    expect(psql(`SELECT count(*) FROM public.invoices WHERE id <> ${invoice} AND customer_id=${customerId} AND status <> 'cancelled'`)).toBe('0')
   })
 
   it('mesma referência bancária financia duas baixas; replay de baixa cancelada é recusado', () => {

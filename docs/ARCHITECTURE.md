@@ -678,7 +678,7 @@ fica o desenho:
   [ADR 0046](adr/0046-escrita-interna-global-com-rastro-obrigatorio.md),
   [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)); quem faz o quê
   está na [matriz de Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil),
-  com o que o código ainda não cumpre marcado como correção pendente;
+  e cada linha diz a migration que a cumpre;
 - helpers como `is_active_user()`, `is_active_read_user()` e `is_admin()`
   sustentam policies; leitura de dado interno usa `is_active_read_user()`. Hoje
   `is_active_user()` tem o mesmo corpo (migration `002`: qualquer perfil interno

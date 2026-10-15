@@ -16,18 +16,19 @@ export function DemurrageStatusBadge({ status }: { status: string | null }) {
 const INVOICE_TONES: Record<string, StatusTextTone> = {
   paid: 'paid',
   cancelled: 'muted',
-  overdue: 'warning',
 }
 
 /**
  * Situação da fatura de Demurrage em texto (regra 5, tabela limpa de
- * 2026-10-14): Pago com o ✓ verde, Vencido em âmbar, Cancelado em cinza. O
- * vocabulário continua o de Demurrage ("Faturado", "Pago").
+ * 2026-10-14): Pago com o ✓ verde, Cancelado em cinza. O vocabulário
+ * continua o de Demurrage ("Faturado", "Pago"). B29 (ADR 0014): invoice de
+ * Demurrage não vence; o status legado `overdue` aparece como "Em aberto", no
+ * tom de Faturado.
  */
 export function InvoiceStatusBadge({ status }: { status: DemurrageInvoice['status'] }) {
   return (
     <StatusText tone={INVOICE_TONES[status ?? ''] ?? 'default'}>
-      {statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, status, 'Faturado')}
+      {status === 'overdue' ? 'Em aberto' : statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, status, 'Faturado')}
     </StatusText>
   )
 }

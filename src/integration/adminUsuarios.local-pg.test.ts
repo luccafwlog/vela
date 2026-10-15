@@ -118,4 +118,3 @@ describeLocal('migration 259 — administração de usuários internos', () => {
     expect(psql(`SELECT count(*) FROM public.user_profiles WHERE id = '${memberId}';`)).toBe('1')
   })
 })
-

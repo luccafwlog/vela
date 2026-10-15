@@ -6,6 +6,17 @@
 
 ## 2026-10
 
+- **Correções da revisão geral e do modelo de permissões (2026-10-15, PR 954):**
+  os 43 itens do [plano de correções](archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+  (migrations `230` a `266`: escrita de cobrança, fatura, pagamento e contatos só
+  pelas RPCs; autor é quem está logado; emissão por qualquer Departamento; baixa
+  e Conciliação PIX do Financeiro; leitura global; alertas fechando pela origem;
+  ADR de Saída, Vazios e importações). A revisão da PR acrescentou as migrations
+  `267` a `276`. Decisões do dono na revisão: motivo interno obrigatório na
+  fatura avulsa, regra M14 do e-mail do manifesto também na Revisão e viagem
+  limpável na importação de CE Mercante. Publicar na ordem migrations → Edge
+  Functions → frontend ([Serviços externos](operations/servicos-externos.md#edge-functions)).
+
 - **Modelo de permissões por perfil (2026-10-14, [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)):**
   o dono fixou a base (escrita global com rastro, mais cancelar fatura, baixa manual e registro da
   Restituição como exceções) e a lista fechada de exceções; a matriz ação × perfil passou a ter dono

@@ -389,3 +389,46 @@ it('B26: a viagem de contexto semeia o campo, que continua editável', async () 
   fireEvent.click(screen.getByRole('button', { name: 'Limpar viagem' }))
   expect(screen.getByTestId('voyage').textContent).toBe('nenhuma')
 })
+
+it('B26: resposta atrasada da viagem anterior não sobrescreve a prévia da viagem atual', async () => {
+  const row = { rowNumber: 2, bl_id: 'BL-8', ce_mercante: '122605051526081' }
+  mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [] })
+  let resolveLate: (value: unknown) => void = () => undefined
+  mocks.partition.mockReset().mockImplementation((_rows: unknown[], voyageId: number) => (
+    voyageId === 8
+      ? new Promise((resolve) => { resolveLate = resolve })
+      : Promise.resolve({ rows: [row], blocked: [] })
+  ))
+  const { container } = render(<CeMercanteImportModal open initialVoyageId={7} onClose={vi.fn()} />)
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ce.xlsx')] },
+  })
+  await waitFor(() => expect(mocks.partition).toHaveBeenCalledWith([row], 7))
+
+  fireEvent.click(screen.getByRole('button', { name: 'Outra viagem' }))
+  await waitFor(() => expect(mocks.partition).toHaveBeenLastCalledWith([row], 8))
+  fireEvent.click(screen.getByRole('button', { name: 'Limpar viagem' }))
+  resolveLate({ rows: [], blocked: [{ row: 2, bl_id: 'BL-8', message: 'B/L BL-8 pertence a outra viagem' }] })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  expect(screen.getByTestId('voyage').textContent).toBe('nenhuma')
+  expect(screen.queryByText('Linha 2: B/L BL-8 pertence a outra viagem')).toBeNull()
+})
+
+it('B26: trocar a viagem durante a leitura do arquivo usa a viagem atual na prévia', async () => {
+  const row = { rowNumber: 2, bl_id: 'BL-8', ce_mercante: '122605051526081' }
+  let resolveParse: (value: unknown) => void = () => undefined
+  mocks.parse.mockReset().mockImplementation(() => new Promise((resolve) => { resolveParse = resolve }))
+  mocks.partition.mockReset().mockResolvedValue({ rows: [row], blocked: [] })
+  const { container } = render(<CeMercanteImportModal open initialVoyageId={7} onClose={vi.fn()} />)
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ce.xlsx')] },
+  })
+  await waitFor(() => expect(mocks.parse).toHaveBeenCalled())
+  fireEvent.click(screen.getByRole('button', { name: 'Outra viagem' }))
+  resolveParse({ rows: [row], rowErrors: [] })
+
+  await waitFor(() => expect(mocks.partition).toHaveBeenCalled())
+  expect(mocks.partition).toHaveBeenCalledWith([row], 8)
+  expect(mocks.partition).not.toHaveBeenCalledWith([row], 7)
+})

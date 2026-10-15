@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../../services/cacheEffects'
 import { Upload } from 'lucide-react'
@@ -50,6 +50,9 @@ export function CeMercanteImportModal({
   const { showToast } = useToast()
   const { user } = useAuth()
   const [voyageId, setVoyageId] = useState<number | null>(initialVoyageId ?? null)
+  // B26: viagem atual e contador de requisição; resposta atrasada de outra viagem/arquivo é descartada.
+  const voyageIdRef = useRef<number | null>(initialVoyageId ?? null)
+  const previewRequestRef = useRef(0)
   const [parsedFile, setParsedFile] = useState<ParsedCeMercanteFile | null>(null)
   const { file, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedCeMercanteFile>(parseCeMercanteFile)
 
@@ -102,32 +105,40 @@ export function CeMercanteImportModal({
     resetPreviewState()
     setNumeroManifesto('')
     setParsedFile(null)
+    previewRequestRef.current += 1
+    voyageIdRef.current = initialVoyageId ?? null
     setVoyageId(initialVoyageId ?? null)
   }
 
   async function handleFiles(files: File[]) {
     const nextFile = files[0] ?? null
+    const request = ++previewRequestRef.current
     resetPreviewState()
     setParsedFile(null)
     try {
       const result = await readFile(nextFile)
+      if (request !== previewRequestRef.current) return
       if (result) {
         setParsedFile(result)
-        setPreview(await restrictToVoyage(result, voyageId))
+        const restricted = await restrictToVoyage(result, voyageIdRef.current)
+        if (request === previewRequestRef.current) setPreview(restricted)
       }
     } catch (error) {
-      setReadError(error instanceof Error ? error.message : 'Não foi possível ler o arquivo.')
+      if (request === previewRequestRef.current) setReadError(error instanceof Error ? error.message : 'Não foi possível ler o arquivo.')
     }
   }
 
   async function handleVoyageSelect(nextVoyageId: number | null) {
+    voyageIdRef.current = nextVoyageId
     setVoyageId(nextVoyageId)
     if (!parsedFile) return
+    const request = ++previewRequestRef.current
     resetPreviewState()
     try {
-      setPreview(await restrictToVoyage(parsedFile, nextVoyageId))
+      const restricted = await restrictToVoyage(parsedFile, nextVoyageId)
+      if (request === previewRequestRef.current) setPreview(restricted)
     } catch (error) {
-      setReadError(error instanceof Error ? error.message : 'Não foi possível conferir a viagem dos B/Ls.')
+      if (request === previewRequestRef.current) setReadError(error instanceof Error ? error.message : 'Não foi possível conferir a viagem dos B/Ls.')
     }
   }
 

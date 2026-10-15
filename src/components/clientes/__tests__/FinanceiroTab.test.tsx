@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { formatUSD } from '../../../lib/utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -107,6 +107,15 @@ describe('FinanceiroTab — estados de carregamento e erro', () => {
     expect(screen.queryByRole('columnheader', { name: 'Vencimento' })).toBeNull()
     expect(screen.queryByText('Vencida')).toBeNull()
     expect(screen.getByText('Emitida')).toBeTruthy()
+  })
+
+  it('B29/A13: a coluna Total US$ mostra o USD líquido do desconto, como /demurrage', () => {
+    mocks.demurrage = { data: { rows: [{ id: 79, doc_number: 'DEM-079', bl_id: 'BL-9', billed_at: '2026-07-01', status: 'issued', total_usd: 1000, discount_mode: 'percent', discount_value: 10, current_total_brl: 4950 }], denied: false }, isLoading: false, isError: false }
+    render(<MemoryRouter><FinanceiroTab data={baseData} /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('radio', { name: /Demurrage/ }))
+    const row = screen.getByRole('link', { name: 'DEM-079' }).closest('tr') as HTMLElement
+    expect(row.textContent).toContain(formatUSD(900))
+    expect(row.textContent).not.toContain(formatUSD(1000))
   })
 
   it('abre a Invoice de Demurrage direto no detalhe de /demurrage', () => {

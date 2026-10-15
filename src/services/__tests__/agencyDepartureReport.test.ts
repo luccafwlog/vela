@@ -460,6 +460,20 @@ describe('getAgencyReportDerivedData', () => {
   })
 
   describe('carga em transbordo (ADR 2026-07-31, Task 1)', () => {
+    it('A8: ignora omissão revertida ao buscar os B/Ls em transbordo', async () => {
+      const omissions = queryBuilder([])
+      fromMock.mockImplementation((table: string) => {
+        if (table === 'voyage_omissions') return omissions
+        if (table === 'vazios_export_operations') return singleQueryBuilder(null)
+        return queryBuilder()
+      })
+      schedulesMock.mockResolvedValue(new Map())
+
+      await getAgencyReportDerivedData(179, 'BRVIX')
+
+      expect(omissions.is).toHaveBeenCalledWith('reverted_at', null)
+    })
+
     it('inclui containers, carga solta e veículos de B/Ls em transbordo de um porto omitido', async () => {
       let blContainersCall = 0
       let vehiclesCall = 0

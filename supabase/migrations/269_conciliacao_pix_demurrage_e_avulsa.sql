@@ -142,4 +142,3 @@ BEGIN
   RETURN jsonb_build_object('id', v_exception.id, 'status', 'resolved');
 END;
 $function$;
-

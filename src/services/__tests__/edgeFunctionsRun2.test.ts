@@ -139,8 +139,10 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
 
   it('resumo das 08:00 conta a exceção crítica de fatura aberta e fechada (ADR 0083, item 19)', () => {
     const source = fn('portal-daily-digest')
-    expect(source).toContain(".eq('item_type', 'portal_excecao_critica_fatura').gte('created_at', since)")
-    expect(source).toContain(".eq('item_type', 'portal_excecao_critica_fatura').eq('status', 'resolved').gte('resolved_at', since)")
+    // Pelos eventos do item, para a reabertura (mesma linha, mesmo created_at) contar de novo.
+    expect(source).toContain(".from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'opened').gte('created_at', since)")
+    expect(source).toContain(".from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'resolved').gte('created_at', since)")
+    expect(source).not.toContain(".from('alert_items').select('id').eq('item_type', 'portal_excecao_critica_fatura')")
     expect(source).toContain('Object.values(counts).every((count) => count === 0)')
   })
 

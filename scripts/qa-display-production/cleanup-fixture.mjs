@@ -47,6 +47,12 @@ export async function cleanupFixture(client, catalog, { dryRun = true } = {}) {
     throw new Error('cleanup plan contains a protected table')
   }
   if (dryRun) return { dryRun: true, operations }
+  // ADR 0085 (migrations 106, 109, 231-240): nenhuma tabela desta ordem aceita
+  // DELETE de `authenticated`; a exclusão é só pelas RPCs, com motivo e trava.
+  // O dry-run segue como inventário; a remoção usa o procedimento de limpeza.
+  if (operations.length) {
+    throw new Error('A API não apaga mais as tabelas da fixture (exclusão só pelas RPCs, ADR 0085). Use o dry-run como inventário e docs/operations/reset-ambiente.md para remover.')
+  }
   for (const operation of operations) {
     const query = client.from(operation.table).delete().in(operation.column, operation.ids)
     const result = query?.then ? await query : query

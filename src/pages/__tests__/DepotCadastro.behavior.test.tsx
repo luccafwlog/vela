@@ -15,7 +15,7 @@ const { mocks, auth, depot, destination, service } = vi.hoisted(() => ({
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ can: () => true, isAdmin: auth.isAdmin, profile: { id: 'user-1' } }) }))
 vi.mock('../../services/deleteRecords', () => ({ reactivateCatalogRow: mocks.reactivate }))
 vi.mock('../../hooks/useDepots', () => ({ useDepots: () => ({ data: [depot, destination], error: null, refetch: vi.fn(async () => {}) }) }))
-vi.mock('../../services/depots', () => ({ listDepotServices: vi.fn(async () => [service]), listBrazilianPorts: mocks.listBrazilianPorts, preflightDepotsTerminalPortMapping: vi.fn(async () => ({ pending_count: 0, codes: [] })), upsertDepot: mocks.upsertDepot, upsertDepotService: mocks.upsertDepotService, deleteDepot: mocks.deleteDepot, deleteDepotService: mocks.deleteDepotService }))
+vi.mock('../../services/depots', () => ({ listDepotServices: vi.fn(async () => [{ ...service }]), listBrazilianPorts: mocks.listBrazilianPorts, preflightDepotsTerminalPortMapping: vi.fn(async () => ({ pending_count: 0, codes: [] })), upsertDepot: mocks.upsertDepot, upsertDepotService: mocks.upsertDepotService, deleteDepot: mocks.deleteDepot, deleteDepotService: mocks.deleteDepotService }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async () => ((await mocks.confirm()) ? 'motivo' : null) }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 import { DepotCadastro } from '../DepotCadastro'
@@ -105,5 +105,28 @@ describe('Cadastro de Depot', () => {
       title: 'Salvar serviço',
       changes: [{ field: 'Valor sugerido (R$)', before: '100', after: '120' }],
     })))
+  })
+  it('B15: Desativar local grava o registro salvo, sem as edições não salvas do formulário', async () => {
+    renderPage()
+    await waitFor(() => expect((screen.getAllByLabelText('Código')[0] as HTMLInputElement).value).toBe('VBR'))
+    fireEvent.change(screen.getAllByLabelText('Nome')[0], { target: { value: 'Nome não salvo' } })
+    fireEvent.click(screen.getByRole('button', { name: /desativar local/i }))
+    await waitFor(() => expect(mocks.upsertDepot).toHaveBeenCalled())
+    expect((mocks.upsertDepot.mock.calls as unknown as Array<[Record<string, unknown>]>)[0][0]).toMatchObject({ id: 'd1', name: 'Vila Velha', free_time_vazio_days: 3, active: false })
+  })
+  it('B31: salvar serviço depois de Desativar não reverte o estado', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /editar/i }))
+    service.active = false
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /^Desativar$/ }))
+      await screen.findByRole('button', { name: /^Reativar$/ })
+      fireEvent.change(screen.getByLabelText('Valor sugerido'), { target: { value: '120' } })
+      fireEvent.click(screen.getByRole('button', { name: /salvar serviço/i }))
+      await waitFor(() => expect(mocks.upsertDepotService).toHaveBeenCalledTimes(2))
+      expect((mocks.upsertDepotService.mock.calls as unknown as Array<[Record<string, unknown>]>)[1][0]).toMatchObject({ id: 's1', rate_brl: 120, active: false })
+    } finally {
+      service.active = true
+    }
   })
 })

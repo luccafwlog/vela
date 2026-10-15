@@ -225,6 +225,9 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 O banco recusa rebaixar de setor ou desativar o último Administrativo ativo
 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 2; migration `239`). A regra está em
 [Operação e suporte § Administrativo ativo mínimo](../modules/operacao-suporte.md#administrativo-ativo-mínimo).
+Limite conhecido: o gatilho olha UPDATE de `user_profiles`; apagar o usuário no
+Supabase Auth (painel ou `service_role`) remove o perfil em cascata sem passar
+por ele. A API do navegador não apaga perfil (migration `240`).
 
 ## Duas fronteiras de autenticação
 

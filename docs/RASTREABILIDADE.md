@@ -340,11 +340,11 @@ Regra: [Manifestos e EDI](modules/manifesto-edi.md).
 | `emit_ce_mercante_billing` | `ceMercanteImport.ts` | `212` | DEFINER · `authenticated` | usuário interno ativo | Emissão em lotes de 25 depois da planilha de CE; abre `billing_auto_issue_failed` só em falha técnica. |
 | `enqueue_import_effect` | `importEffects.ts` | `178` | DEFINER · `service_role` | usuário interno ativo; ator = sessão ou `service_role` | — |
 | `get_bl_portal_status` | `blPortalStatus.ts` | `047` | DEFINER · `authenticated` | usuário interno ativo | Bloco Portal da Visão geral da ficha do B/L (`047`). |
-| `import_baplie_staging_transactional` | `baplieImport.ts` | `121`, `237` | DEFINER · `authenticated` | usuário interno ativo | Recusa Baplie sem container, mantendo o anterior (`237`). |
+| `import_baplie_staging_transactional` | `baplieImport.ts` | `121`, `237`, `268` | DEFINER · `authenticated` | usuário interno ativo (conferido antes da lista, `268`) | Recusa Baplie sem container, mantendo o anterior (`237`). |
 | `import_bl_freight_transactional` | `blFreightImport.ts` | `176` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Ponto de entrada na `176`; as camadas `_legacy_205`/`_legacy_357` foram redefinidas na `213`. Em B/L com cálculo ou `invoice_bls`, containers e veículos só mudam com `override_billing`; o peso de contêiner só trava em B/L de carga solta faturado sem override. |
 | `import_bl_freight_with_metadata` | `blFreightImport.ts` | `178` | DEFINER · `authenticated`, `service_role` | usuário interno ativo; ator = sessão | Envelope do modal **Importar B/L** (prévia, lote, metadados) sobre `import_bl_freight_transactional`. |
 | `import_breakbulk_manifest_transactional` | `breakbulkImport.ts` | `174` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `import_vazios_bookings_transactional` | `vaziosImport.ts` | `187` | DEFINER · `authenticated` | usuário interno ativo | Reimportação do Embarque de Vazios atualiza por container e preserva as unidades incluídas à mão (`187`). |
+| `import_vazios_bookings_transactional` | `vaziosImport.ts` | `187`, `274` | DEFINER · `authenticated` | usuário interno ativo | Reimportação do Embarque de Vazios atualiza por container e preserva as unidades incluídas à mão (`187`); recusada com o ADR de Saída fechado (`274`). |
 | `import_vazios_importacao_transactional` | `vaziosImportacaoImport.ts` | `187` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | — |
 | `import_vehicle_rows_transactional` | `vehicleImport.ts` | `184` | DEFINER · `authenticated` | usuário interno ativo | Confere B/L, container, chassi e desova no servidor e recalcula as Taxas Locais (`184`). |
 | `list_import_effects` | `importEffects.ts` | `017` | DEFINER · `authenticated`, `service_role` | usuário interno ativo ou `service_role` | — |
@@ -362,7 +362,7 @@ Regra: [Manifestos e EDI](modules/manifesto-edi.md).
 | `replace_vazios_from_baplie_transactional` | `vaziosImportacaoImport.ts` | `187` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | — |
 | `resolve_baplie_divergence` | `baplieReconciliation.ts` | `194` | DEFINER · `authenticated` | usuário interno ativo | "Vale o B/L": registra só a resolução daquele par de valores (`194`). |
 | `retry_import_effect` | `importEffects.ts` | `106`, `252` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo de qualquer Departamento (P7, `252`); ou `service_role` | Justificativa obrigatória. |
-| `save_bl_review` | `hooks/useBlEditForm.ts`; `review.ts` | `177` | DEFINER · `authenticated` | usuário interno ativo | Lock otimista (`PT409`), recomputa o gate e audita; ao vincular Cliente, captura o e-mail do manifesto como contato financeiro. |
+| `save_bl_review` | `hooks/useBlEditForm.ts`; `review.ts` | `177`, `271` | DEFINER · `authenticated` | usuário interno ativo | Lock otimista (`PT409`), recomputa o gate e audita; ao vincular Cliente, captura o e-mail do manifesto como contato financeiro só quando o CNPJ do manifesto é o do Cliente (`271`). |
 | `set_bl_container_ownership` | `vaziosNatureza.ts` | `205` | DEFINER · `authenticated`, `service_role` | usuário interno ativo; ator = sessão | — |
 | `set_bl_container_profile` | `vaziosNatureza.ts` | `205` | DEFINER · `authenticated`, `service_role` | usuário interno ativo; ator = sessão | Correção manual do perfil IMO/OOG na aba Carga, com motivo. |
 | `set_bl_terminal_override` | `blTerminal.ts` | `060` | DEFINER · `authenticated`, `service_role` | usuário interno ativo; ator = sessão | — |
@@ -395,7 +395,7 @@ Regra: [Clientes](modules/clientes.md).
 | `get_customer_pending_balances` | `customers.ts` | `070` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `get_customer_receivables` | `customerFicha.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `grant_customer_billing_portal_release` | `billingPortalRelease.ts` | `085` | DEFINER · `authenticated`, `service_role` | Administrativo | Liberação de faturamento sem Portal: reprocessa as faturas retidas do Cliente (`_reprocess_customer_held_billing`). |
-| `internal_save_customer_contact_configuration` | `customerContactConfiguration.ts` | `008`, `245` | DEFINER · `authenticated`, `service_role` | Administrativo, Documentação ou Equipamentos | — |
+| `internal_save_customer_contact_configuration` | `customerContactConfiguration.ts` | `008`, `245`, `267` | DEFINER · `authenticated`, `service_role` | Administrativo, Documentação ou Equipamentos | — |
 | `list_customer_communication_saved_templates` | `customerCommunications.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `list_customer_reconciliation_queue` | `charges/chargeReconciliationService.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `reactivate_customer` | `customers.ts` | `092` | DEFINER · `authenticated` | Administrativo ativo | — |
@@ -426,12 +426,12 @@ Regra: [Faturamento](modules/faturamento.md).
 | Contrato | Chamador | Definição vigente | Execução | Acesso conferido | Efeito e observação |
 |---|---|---|---|---|---|
 | `cancel_financial_refund_authorization` | `financialRefunds.ts` | `136`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
-| `cancel_invoice` | `billing.ts` | `126` | DEFINER · `authenticated`, `service_role` | Administrativo ativo ou `service_role` (consumidor de efeitos) | Cancela invoice sem pagamento, com justificativa (`126`). `p_actor` conferido com a sessão (`241`). |
+| `cancel_invoice` | `billing.ts` | `126`, `241` | DEFINER · `authenticated`, `service_role` | Administrativo ativo ou `service_role` (consumidor de efeitos) | Cancela invoice sem pagamento, com justificativa (`126`). `p_actor` conferido com a sessão (`241`). |
 | `confirm_demurrage_refund` | `financialRefunds.ts` | `136` | DEFINER · `authenticated` | Financeiro ou Administrativo | Idem para Demurrage (`136`). |
 | `confirm_invoice_refund` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | Financeiro ou Administrativo | Confirma devolução com referência bancária, favorecido e data (`136`); chamada por `settleInvoiceRefund`. |
 | `create_invoice_from_bls_with_ledger` | `billing.ts` | `002`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | `p_actor` conferido com a sessão (`241`). |
 | `create_local_consolidated_invoice` | `billingLedger.ts` | `002`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | `p_actor` conferido com a sessão (`241`). |
-| `create_manual_invoice` | `billing.ts` | `125`, `246` | DEFINER · `authenticated` | Usuário interno ativo (A9, `246`) | Fatura avulsa `manual`, com tipo de cobrança opcional (9 parâmetros, `125`); `p_actor` conferido com a sessão (`241`). |
+| `create_manual_invoice` | `billing.ts` | `125`, `246`, `272` | DEFINER · `authenticated` | Usuário interno ativo (A9, `246`) | Fatura avulsa `manual`, com tipo de cobrança opcional; motivo interno obrigatório no rastro (`272`, 10 parâmetros); `p_actor` conferido com a sessão (`241`). |
 | `get_consolidated_invoice_item_breakdown` | `billing.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `get_invoice_correction_summary` | `billingLedger.ts` | `136` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `get_invoice_reissue_links` | `billing.ts` | `128` | DEFINER · `authenticated` | usuário interno ativo | — |
@@ -450,7 +450,7 @@ Regra: [Faturamento](modules/faturamento.md).
 | `register_verified_invoice_payment` | `billing.ts`; `billingLedger.ts` | `136`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | Baixa com referência bancária (`136`). |
 | `request_financial_refund` | `financialRefunds.ts` | `136`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | Restituição excepcional autorizada (`136`). |
 | `resolve_stale_invoice` | `billingLedger.ts` | `124`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
-| `retry_invoice_basis_changes` | `billingLedger.ts` | `136`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
+| `retry_invoice_basis_changes` | `billingLedger.ts` | `136`, `246`, `275` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | Sem correção pendente não faz nada (`275`). |
 | `retry_pending_consolidated_reissue` | `billing.ts` | `128`, `246` | DEFINER · `authenticated` | Usuário interno ativo (P4, `246`) | — |
 | `settle_cod_adjustment` | `billingLedger.ts` | `130` | DEFINER · `authenticated` | Financeiro ou Administrativo; ator = sessão | Liquidação do Ajuste de COD. |
 
@@ -462,7 +462,7 @@ Regra: [Demurrage](modules/demurrage.md).
 |---|---|---|---|---|---|
 | `add_demurrage_dispute_attachment` | `demurrage/demurrageDisputes.ts`; Edge `portal-dispute-attachment` | `106` | DEFINER · `authenticated`, `service_role` | Equipamentos ou Administrativo na própria mensagem; ou Cliente da sessão | — |
 | `add_demurrage_dispute_message` | `demurrage/demurrageDisputes.ts` | `081` | DEFINER · `authenticated` | Equipamentos ou Administrativo | Responde com `next_responder = equipamentos`; o Alerta segue de Equipamentos (`081`). |
-| `apply_demurrage_discount` | `demurrage/demurrageInvoices.ts` | `012`, `247` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P5, `247`) ou `service_role` | — |
+| `apply_demurrage_discount` | `demurrage/demurrageInvoices.ts` | `012`, `247`, `264` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P5, `247`) ou `service_role` | — |
 | `cancel_demurrage_invoice` | `demurrage/demurrageInvoices.ts` | `012` | DEFINER · `authenticated`, `service_role` | Administrativo ou `service_role` | — |
 | `issue_demurrage_invoice_for_bl` | `demurrage/demurrageInvoices.ts` | `214`, `246` | DEFINER · `authenticated`, `service_role` | Usuário interno ativo (P4, `246`) ou `service_role` | Emissão da Invoice de Demurrage do B/L (`214`). |
 | `list_demurrage_disputes_internal` | `demurrage/demurrageDisputes.ts` | `081`, `250` | DEFINER · `authenticated` | Usuário interno ativo (P12, `250`) | Responder, reabrir e anexar seguem de Equipamentos e do Administrativo. |
@@ -472,7 +472,7 @@ Regra: [Demurrage](modules/demurrage.md).
 | `reopen_demurrage_dispute` | `demurrage/demurrageDisputes.ts` | `081` | DEFINER · `authenticated` | Equipamentos ou Administrativo | — |
 | `reopen_demurrage_invoice` | `demurrage/demurrageInvoices.ts` | `012` | DEFINER · `authenticated`, `service_role` | Administrativo ou `service_role` | Reabre Invoice paga (volta a `issued`), com justificativa e auditoria. |
 | `save_bl_demurrage_config` | `blDemurrageConfig.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | — |
-| `save_exchange_rate_reference_v2` | Edge `recalc-demurrage-ptax`; `recalculate_demurrage_invoices` | `018`, `236` | DEFINER · `service_role` | `service_role` (ou chamada interna como dono) | Só o job do BCB e o Informar PTAX gravam a referência (ADR 0083, item 14). |
+| `save_exchange_rate_reference_v2` | Edge `recalc-demurrage-ptax`; `recalculate_demurrage_invoices` | `018`, `236`, `264` | DEFINER · `service_role` | `service_role` (ou chamada interna como dono) | Só o job do BCB e o Informar PTAX gravam a referência (ADR 0083, item 14). |
 | `set_container_dates` | `demurrage/demurrageContainers.ts` | `211` | DEFINER · `authenticated`, `service_role` | usuário interno ativo | Datas de descarga e devolução do container (ficha do B/L e `/demurrage`). |
 | `set_demurrage_dunning_interval_days` | `appSettings.ts` | `002` | DEFINER · `authenticated` | Administrativo | — |
 
@@ -482,7 +482,7 @@ Regra: [Conciliação PIX](modules/reconciliacao-pix.md).
 
 | Contrato | Chamador | Definição vigente | Execução | Acesso conferido | Efeito e observação |
 |---|---|---|---|---|---|
-| `confirm_unified_pix_matches` | `reconciliacao.ts` | `002`, `247` | INVOKER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) (guarda própria; `INVOKER`) | Lote tudo ou nada: local e Demurrage numa transação. Guarda própria desde a `247`. |
+| `confirm_unified_pix_matches` | `reconciliacao.ts` | `002`, `247`, `264`, `269` | INVOKER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) (guarda própria; `INVOKER`) | Lote tudo ou nada: local e Demurrage numa transação. Guarda própria desde a `247`. |
 | `itau_pix_mark_receipt_handled` | `reconciliacao.ts` | `154`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | Encerra Pix em análise com motivo e fecha `pix_unreconciled`. |
 | `itau_pix_monitor` | `reconciliacao.ts` | `154`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `link_pix_reconciliation_candidate` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |
@@ -490,7 +490,7 @@ Regra: [Conciliação PIX](modules/reconciliacao-pix.md).
 | `list_pix_txid_candidates` | `reconciliacao.ts` | `242`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | Resolve o TXID nas faturas abertas, inclusive avulsa e Invoice de Demurrage (`_pix_txid_open_candidates`). |
 | `list_pix_reconciliation_candidates` | `reconciliacao.ts` | `097`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
 | `list_pix_reconciliation_exceptions` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Usuário interno ativo (P5, `247`) | — |
-| `resolve_pix_reconciliation_exception` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |
+| `resolve_pix_reconciliation_exception` | `reconciliacao.ts` | `002`, `247`, `269` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |
 | `reverse_demurrage_payment` | `reconciliacao.ts` | `002` | DEFINER · `authenticated` | Administrativo ativo | Reabre a Invoice; os gatilhos da `191` reemitem a Invoice suspensa e a `136` recusa com restituição ativa. `p_actor` conferido com a sessão (`241`). |
 | `reverse_invoice_payment` | `reconciliacao.ts` | `136` | DEFINER · `authenticated` | Administrativo; ator = sessão | Cancela excedente automático pendente e recalcula a avulsa (`136`); a exclusão da baixa fica em `audit_logs` pelo gatilho `audit_payments`. |
 | `upsert_pix_reconciliation_exceptions` | `reconciliacao.ts` | `002`, `247` | DEFINER · `authenticated` | Financeiro ou Administrativo ativo (P5, `247`) | — |
@@ -593,7 +593,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_request_dispute_reopen` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_resolve_login` | `portalBilling.ts` | `002` | DEFINER · nenhum papel | sem `EXECUTE` para nenhum papel da API | Resíduo legado: sem grant e sem chamador de produção (`portalResolveLogin` está `@deprecated`); o login lê `customer_portal_accounts` na Edge `portal-login`. |
 | `portal_return_to_analysis` | `portalProvisioning.ts` | `002` | DEFINER · `authenticated` | Administrativo ou Documentação; ou `service_role` | Única transição de decisão no console; `portal_set_exception` só recusa e não tem chamador. |
-| `portal_save_contact_configuration` | `portalContactConfiguration.ts` | `008`, `245` | DEFINER · `authenticated`, `service_role` | Cliente da sessão (`current_portal_customer_id()`) | — |
+| `portal_save_contact_configuration` | `portalContactConfiguration.ts` | `008`, `245`, `267` | DEFINER · `authenticated`, `service_role` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_update_profile` | `portalBilling.ts` | `008` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 
 #### Administração

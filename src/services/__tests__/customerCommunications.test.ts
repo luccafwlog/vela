@@ -366,4 +366,3 @@ describe('NOB: regra única de quem entra na Atracação (B3, migration 243)', (
     expect(nob({ id: 'EXC', terminalOverrideId: T2 }, [key(T1, 'carga_cheia')])).toEqual([])
   })
 })
-

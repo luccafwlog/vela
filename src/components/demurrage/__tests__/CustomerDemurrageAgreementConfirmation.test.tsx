@@ -97,6 +97,18 @@ describe('Acordos de Demurrage — confirmação', () => {
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ id: 12, customer_id: 9, free_days: 25 })))
   })
 
+  it('B13: Administrativo edita acordo inativo sem o controle de ativo e sem enviar active', async () => {
+    mocks.confirm.mockResolvedValue(true)
+    const user = userEvent.setup()
+    render(<CustomerDemurrageAgreementModal open onClose={vi.fn()} initialAgreement={{ ...agreement, active: false }} />)
+    expect(screen.queryByText('Acordo ativo')).toBeNull()
+    await user.clear(screen.getByLabelText('Free Time (dias) *'))
+    await user.type(screen.getByLabelText('Free Time (dias) *'), '25')
+    await user.click(screen.getByRole('button', { name: 'Salvar Alterações' }))
+    await waitFor(() => expect(mocks.save).toHaveBeenCalled())
+    expect(mocks.save.mock.calls[0][0]).not.toHaveProperty('active')
+  })
+
   it('confirma a ativação antes de gravar o status', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit canManage /></MemoryRouter>)
