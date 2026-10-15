@@ -16,7 +16,7 @@
 // Namespace exclusivo: ids 99214xxx, B/Ls 'R214-*', containers 'RQCU214xxxx',
 // usuário ...000000214001. A limpeza roda com `session_replication_role =
 // replica`, porque B/L cancelado e Invoice paga recusam mudança.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
@@ -69,12 +69,12 @@ const discharge = '2026-07-01'
 const returned = '2026-09-20'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function run(sql: string) {
-  return spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
 }
 
 function asAdmin(sql: string) {

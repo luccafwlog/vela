@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { expect, it, beforeAll, afterAll } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
@@ -19,9 +19,7 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 function cbmSemanticsPresent(): boolean {
   if (!enabled) return false
   try {
-    const present = execFileSync(
-      'psql',
-      ['-X', '-At', '-q', '-d', databaseUrl, '-c',
+    const present = execPsql(['-X', '-At', '-q', '-d', databaseUrl, '-c',
         "SELECT to_regclass('public.bls') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bls' AND column_name='bb_cbm')"],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
     ).trim()
@@ -39,7 +37,7 @@ const voyageId = 6406403
 const customerId = 6406404
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }

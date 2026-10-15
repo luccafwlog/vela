@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -25,7 +25,7 @@ const blLocked = 'CLAUDE060-LOCKED'
 const blLoosePure = 'CLAUDE061-LOOSE-PURE'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }
@@ -35,7 +35,7 @@ function asService(sql: string): string {
 }
 
 function asAuthenticated(sql: string): string {
-  const result = spawnSync('psql', [
+  const result = spawnPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${actorId}'; ${sql} COMMIT;`,
   ], { encoding: 'utf8' })
@@ -242,8 +242,10 @@ describeLocal('PR 698 — revisão Claude Code no catálogo PostgreSQL', () => {
   it('restaura o GUC de exceção terminal ao sair da RPC', () => {
     const output = asAuthenticated(`
       SELECT public.set_bl_terminal_override('${blException}', '${terminalA}', ${portId}, 'Teste de restauração', '${actorId}');
-      SELECT current_setting('vela.bl_terminal_override', true);
+      SELECT coalesce(nullif(current_setting('vela.bl_terminal_override', true), ''), 'off');
     `)
+    // Sessão já usada (PostgREST, ou a conexão reaproveitada das suítes) guarda a
+    // variável como '' em vez de NULL; o que importa é não sair 'on'.
     expect(output.split('\n').at(-1)).toBe('off')
     asAuthenticated(`
       SELECT public.set_bl_terminal_override('${blException}', '${terminalB}', ${portId}, 'Restaurar terminal do fixture', '${actorId}');

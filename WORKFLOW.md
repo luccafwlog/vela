@@ -709,10 +709,36 @@ cria, inclusive versões de regra de tarifa e contas de Portal do próprio Clien
 a bateria financeira roda num passo próprio, por último, e falha com resíduo
 global. Toda suíte nova entra em `scripts/local-pg-suites.txt`;
 `npm run localpg:check` falha quando um `*.local-pg.test.ts` fica fora dela
-(e dos passos do CI), quando há suíte repetida ou quando o CI deixa de rodar
-uma das duas ordens. Sonda de pré-requisito usa
+(e dos passos do CI), quando há suíte repetida, quando o CI ou o workflow
+semanal deixa de rodar a sua ordem, ou quando uma suíte chama
+`execFileSync('psql', ...)` ou `spawnSync('psql', ...)`. Sonda de pré-requisito usa
 `describeWithProbe` (`src/integration/localTestData.ts`): com
 `LOCAL_PG_INTEGRATION=1`, sonda falsa falha o teste em vez de pular a suíte.
+
+Suíte nova executa SQL com `execPsql` e `spawnPsql`
+(`src/integration/localPsql.ts`). Eles recebem os mesmos argumentos e opções de
+`execFileSync('psql', ...)` e `spawnSync('psql', ...)` e devolvem o mesmo
+formato, mas usam uma conexão por arquivo de suíte em vez de um processo e uma
+conexão por chamada:
+
+```ts
+import { execPsql } from './localPsql'
+
+function psql(sql: string): string {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
+    encoding: 'utf8',
+  }).trim()
+}
+```
+
+Cada chamada termina com `ROLLBACK` e `DISCARD ALL`, então começa como um
+`psql` novo: sem `SET`/`SET ROLE`, temporárias, locks consultivos nem
+transação aberta. A diferença conhecida: uma variável personalizada que a
+sessão já usou (`request.jwt.claim.sub`, `vela.*`) volta como `''`, não `NULL`,
+em `current_setting(nome, true)`, como numa conexão do PostgREST. O teste
+`src/integration/localPsql.local-pg.test.ts` compara a saída, os erros, os
+avisos e o status com o binário `psql`. Para outra sessão em paralelo (janela
+de concorrência, lock), continue usando `spawn('psql', ...)`.
 
 `npm run rpc:check` requer `psql` e banco já preparado. Configure explicitamente
 `LOCAL_DATABASE_URL` para o alvo descartável; o script também aceita

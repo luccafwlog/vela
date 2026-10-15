@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { expect, it, beforeAll, afterAll } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
@@ -28,9 +28,7 @@ const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:pos
 function pr698SchemaPresent(): boolean {
   if (!enabled) return false
   try {
-    const present = execFileSync(
-      'psql',
-      ['-X', '-At', '-q', '-d', databaseUrl, '-c',
+    const present = execPsql(['-X', '-At', '-q', '-d', databaseUrl, '-c',
         "SELECT to_regprocedure('public.resolve_bl_local_charge_table_ids(text,date)') IS NOT NULL"],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
     ).trim()
@@ -51,7 +49,7 @@ const cntrTableId = 6989811
 const bbTableId = 6989812
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }

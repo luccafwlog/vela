@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -39,7 +39,7 @@ type ExchangeRateSnapshot = {
 let exchangeRateSnapshot: ExchangeRateSnapshot | null = null
 
 function psql(sql: string, jwtRole: 'service_role' | 'authenticated' = 'service_role'): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = '${jwtRole}'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()
@@ -51,7 +51,7 @@ function callAs(
   jwtRole: 'service_role' | 'authenticated' = 'authenticated',
 ) {
   const dbRole = jwtRole === 'authenticated' ? 'authenticated' : 'service_role'
-  return spawnSync('psql', [
+  return spawnPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `BEGIN; SET LOCAL ROLE ${dbRole}; SET LOCAL request.jwt.claim.role = '${jwtRole}'; SET LOCAL request.jwt.claim.sub = '${userId}'; ${sql}; COMMIT;`,
   ], { encoding: 'utf8' })

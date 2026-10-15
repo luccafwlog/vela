@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { describe, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -10,7 +10,7 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
     if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(databaseUrl).hostname)) {
       throw new Error('Este teste exige banco local descartável.')
     }
-    execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl], {
+    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl], {
       encoding: 'utf8',
       input: `
         BEGIN;

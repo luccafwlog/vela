@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
@@ -29,7 +29,7 @@ const allBls = Object.values(bl)
 let insertedRoe = false
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`], { encoding: 'utf8' }).trim()
 }
 
@@ -38,7 +38,7 @@ function psql(sql: string): string {
 const describeLocal = enabled ? describe : describe.skip
 
 function calculate(blId: string) {
-  const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+  const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
     BEGIN;
     SET LOCAL ROLE authenticated;
     SET LOCAL request.jwt.claim.role = 'authenticated';
@@ -168,13 +168,13 @@ describeLocal('171 — Condição de Cliente em item em dólar', () => {
              ('${bl.invoiced}', ${chargeTableId}, ${docUsd}, 'auto', 'calculated', 'auto:item:${docUsd}', 1, 35, 35, true, now());
       SET session_replication_role = origin;
     `)
-    execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl, '-f', migration172], { encoding: 'utf8', stdio: 'pipe' })
+    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', databaseUrl, '-f', migration172], { encoding: 'utf8', stdio: 'pipe' })
     expect(lines(bl.stale)).toContain(`auto:item:${docUsd}|30.00|30.00|-|-|t`)
     expect(lines(bl.invoiced)).toBe(`auto:item:${docUsd}|35.00|35.00|-|-|t`)
   })
 
   it('172: item com condição ativa não troca de moeda; sem condição ativa, troca', () => {
-    const blocked = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    const blocked = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
       `UPDATE public.charge_table_items SET currency = 'BRL', unit_value_brl = 150, unit_value_usd = NULL WHERE id = ${docUsd};`], { encoding: 'utf8' })
     expect(blocked.status).not.toBe(0)
     expect(blocked.stderr).toContain('condição(ões) de Cliente ativa(s)')

@@ -108,7 +108,7 @@ export function customerContainerView(row: DemurrageContainerRow, today = saoPau
   if (invoice) return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'invoice', invoice } }
   let usd: number
   try {
-    usd = effectiveDemurrage(row, row.customer_agreement)?.total_usd ?? 0
+    usd = effectiveDemurrage(row, row.customer_agreement, today)?.total_usd ?? 0
   } catch (error) {
     return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'error', message: error instanceof Error ? error.message : String(error) } }
   }

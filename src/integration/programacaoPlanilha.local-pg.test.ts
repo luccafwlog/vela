@@ -14,7 +14,8 @@
 // não duplica navio nem Viagem.
 //
 // Namespace exclusivo: navios 'A235 *', IMO 9235xxx, usuário ...0000002350NN.
-import { execFileSync, spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -25,12 +26,12 @@ const userId = '00000000-0000-0000-0000-000000235001'
 const carrierName = 'A235 CARRIER'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function asUser(sql: string): { stdout: string; stderr: string } {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${userId}'; ${sql}`],
   { encoding: 'utf8' })
   return { stdout: run.stdout.trim(), stderr: run.stderr }

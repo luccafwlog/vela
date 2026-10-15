@@ -4,8 +4,51 @@ Plano vivo para reduzir o tempo de espera do CI e o que ele faz sem
 necessidade, sem tirar nenhuma conferência que proteja o Vela ou o Portal. A
 medição que o motiva está no
 [relatório de 2026-10-15](../archive/reports/2026-10-15-medicao-do-tempo-do-ci.md).
-PR principal: luccafwlog/vela#953, que leva este plano e o Lote 1. O Lote 2
-entra numa PR própria ligada a ela.
+PR principal: luccafwlog/vela#953, que leva este plano e os dois lotes (o dono
+pediu em 2026-10-15 o plano completo na mesma PR).
+
+## Estado (2026-10-15)
+
+Código dos dois lotes entregue na PR luccafwlog/vela#953 ([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)).
+O plano fica vivo até os aceites que só o GitHub ou o dono comprovam:
+
+| Pendência | Quem | Como |
+| --- | --- | --- |
+| CI verde da PR com os jobs novos, e tempos de `quality`, `test` (2 shards, D5) e `db` registrados na descrição da PR | Execução | Runs da própria PR |
+| PR de teste que só muda texto de tela: `db` sem suítes, espera ≤ ~3 min | Execução | PR descartável, fechada sem merge |
+| Vínculo da `main` com a produção no painel do Supabase (D1) | Dono | Branching → Configuration; registrar em [serviços externos](../operations/servicos-externos.md#supabase) |
+| Etiqueta `preview` criada no repositório; proteção da `main` exigindo só `checks` | Dono | Configurações do GitHub |
+| Primeiro merge: nenhum run de `CI` na `main`; `Cloudflare Pages Production` espera o check do Supabase e publica em ~2 a 3 min | Execução | Merge desta PR |
+| Disparo manual verde de `local-pg-order.yml` | Execução | Só depois do merge: `workflow_dispatch` exige o arquivo na `main` |
+
+Medido no contêiner (Runtime, 4 vCPU, PostgreSQL 16 local), antes e depois do
+Lote 2:
+
+| Medida | Antes | Depois |
+| --- | ---: | ---: |
+| Seis arquivos do piloto (184 testes) | 131,5 s | 26,0 s (−80%) |
+| Passada natural completa | 274 s (660 testes) | 94 s (679 testes: 660 + 19 do helper) |
+| Passada invertida completa | ~270 s | 96 s |
+
+Diferenças em relação ao texto abaixo, todas registradas aqui:
+
+- **Helper síncrono (2.1):** em vez de trocar 1.464 chamadas por `await`,
+  `execPsql`/`spawnPsql` mantêm a assinatura de `execFileSync('psql')` e
+  `spawnSync('psql')`: um worker guarda a conexão `pg` e o teste espera com
+  `Atomics.wait`. A troca nos arquivos ficou mecânica (nome da função e
+  import). O helper cai no binário `psql` para formato alinhado ou `env`
+  próprio.
+- **Limite conhecido do helper:** variável personalizada já usada na sessão
+  volta como `''`, não `NULL` (o `DISCARD ALL` não a remove; é o comportamento
+  de conexão reaproveitada, como no PostgREST). Uma asserção mudou por isso:
+  `pr698ClaudeReview`, "restaura o GUC de exceção terminal", passou a conferir
+  que a variável não fica `on`, em vez de exigir `off` literal.
+- **Mutação do piloto (2.2):** com a função principal de cada um dos seis
+  arquivos trocada por uma que falha (`register_ledger_invoice_payment`,
+  `import_bl_freight_transactional`, `ce_unlock_read`,
+  `emit_ce_mercante_billing`, `set_container_dates`, `itau_pix_claim`), os seis
+  falharam: 42/50, 20/22, 14/33, 6/23, 6/28 e 15/28 testes.
+- **Shards (D5):** 2, a confirmar com o tempo do job no GitHub.
 
 ## Resultado pretendido
 
@@ -258,8 +301,9 @@ chamada:
   `pg_temp` como `pg_temp.captured_post` e preparações.
 - **Saída igual à do `psql -At`:** valores como texto do servidor, sem
   conversão de tipo (`t`/`f`, numérico como escrito, nulo vazio). Colunas
-  separadas por `|`, linhas por `\n`. Com vários comandos, vale só o
-  resultado do último, como no `psql -c`.
+  separadas por `|`, linhas por `\n`. Com vários comandos num `-c`, todos os
+  resultados, como o `psql` 15+ (corrigido na execução: o texto original dizia
+  "só o último").
 - **Erros com o mesmo texto:** a mensagem que os testes comparam (ex.: "não
   pode ser apagada (TRUNCATE)"), no mesmo canal (exceção ou retorno, conforme
   o helper atual de cada arquivo).

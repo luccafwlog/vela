@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
@@ -69,7 +69,7 @@ const asOwner = `RESET ROLE; SET LOCAL request.jwt.claim.role = 'service_role'; 
 const try_ = (sql: string) => `SELECT pg_temp.try($q$${sql}$q$);`
 
 function scenario(sql: string): string[] {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `BEGIN; ${FIXTURES} ${sql} ROLLBACK;`,
   ], { encoding: 'utf8' }).trim().split(/\r?\n/)

@@ -38,6 +38,10 @@ Supabase está desligado.
    problema; reavaliar se acontecer.
 6. **Previews só por etiqueta** `preview` ou disparo manual a partir da `main`.
 7. Menos jobs por run: `quality`, `test` (em shards), `db` e `checks`.
+8. **As suítes SQL usam uma conexão por arquivo** (`execPsql`/`spawnPsql` em
+   `src/integration/localPsql.ts`), com a sessão limpa entre chamadas, em vez
+   de um processo `psql` e uma conexão por chamada; `npm run localpg:check`
+   recusa o `psql` síncrono nas suítes.
 
 ## Consequências
 

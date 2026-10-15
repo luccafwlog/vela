@@ -22,6 +22,17 @@ function fixture({ ciText = ci, weeklyText = weekly } = {}) {
   return root
 }
 
+test('recusa psql síncrono numa suíte, salvo a exceção do helper', () => {
+  const root = fixture()
+  writeFileSync(join(root, 'src/integration/a.local-pg.test.ts'), "const out = execFileSync(\n  'psql', ['-c', 'SELECT 1'])\n")
+  assert.match(checkLocalPgCi(root).errors.join('\n'), /psql síncrono[\s\S]*a\.local-pg/)
+  writeFileSync(join(root, 'src/integration/a.local-pg.test.ts'), "const out = execPsql(['-c', 'SELECT 1'])\nspawn('psql', [])\n")
+  assert.deepEqual(checkLocalPgCi(root).errors, [])
+  writeFileSync(join(root, 'scripts/local-pg-suites.txt'), 'src/integration/a.local-pg.test.ts\nsrc/integration/localPsql.local-pg.test.ts\n')
+  writeFileSync(join(root, 'src/integration/localPsql.local-pg.test.ts'), "spawnSync('psql', args)\n")
+  assert.deepEqual(checkLocalPgCi(root).errors, [])
+})
+
 test('aceita ordem natural no CI e as duas ordens no semanal', () => {
   assert.deepEqual(checkLocalPgCi(fixture()).errors, [])
 })
