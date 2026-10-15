@@ -8,7 +8,7 @@
 // `voyage_route_ce_master`.
 //
 // Namespace exclusivo: ids 99234xxx, containers 'AZCU234xxxx', usuário ...0000002340NN.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -22,13 +22,14 @@ const voyageId = 99234003
 const depotCode = 'A234DEP'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function asUser(sql: string): { stdout: string; stderr: string } {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
-    `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${userId}'; ${sql}`],
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    // SET LOCAL: com a conexão reaproveitada (localPsql), um SET de sessão vazaria para a próxima chamada.
+    `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated'; SET LOCAL request.jwt.claim.sub = '${userId}'; ${sql}; COMMIT;`],
   { encoding: 'utf8' })
   return { stdout: run.stdout.trim(), stderr: run.stderr }
 }
@@ -188,7 +189,7 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
       SELECT id, 'B12 armazenagem generica', 'armazenagem', NULL, 10 FROM public.depots WHERE code = '${depotCode}';
       INSERT INTO public.depot_services (depot_id, name, natureza, condition, rate_brl)
       SELECT id, 'B12 armazenagem material', 'armazenagem', 'material', 12 FROM public.depots WHERE code = '${depotCode}';`)
-    const insertLine = (serviceName: string, condition: string) => spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    const insertLine = (serviceName: string, condition: string) => spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
       `INSERT INTO public.vazios_export_service_lines (operation_id, service_id, local_id, condition, quantidade, valor_unitario)
        SELECT o.id, s.id, s.depot_id, '${condition}', 3, 10 FROM public.vazios_export_operations o, public.depot_services s
        WHERE o.voyage_id = ${voyageId} AND s.name = '${serviceName}' AND s.depot_id = (SELECT id FROM public.depots WHERE code = '${depotCode}');`], { encoding: 'utf8' })
@@ -220,7 +221,7 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
     expect(bookings([{ container: 'AZCU2349992', date: '2026-09-03' }]).stderr).toMatch(/ADR de Saída deste porto está fechado/)
     expect(psql(`SELECT count(*) FROM public.vazios_bookings WHERE voyage_id = ${voyageId};`)).toBe(before)
 
-    psql(`UPDATE public.agency_departure_reports SET status = 'open' WHERE voyage_id = ${voyageId} AND port = 'BRVIX';`)
+    psql(`SET request.jwt.claim.role = 'service_role'; UPDATE public.agency_departure_reports SET status = 'open' WHERE voyage_id = ${voyageId} AND port = 'BRVIX';`)
     expect(asUser(`SELECT public.delete_manual_vazios_booking('${booking}', 'lancada por engano')`).stderr).toBe('')
     expect(asUser(`SELECT public.delete_catalog_row('vazios_export_service_lines', '${line}', 'custo errado')`).stderr).toBe('')
     expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_type = 'vazios_bookings' AND field_name = 'excluido' AND old_value LIKE '%AZCU2349991%' ORDER BY id DESC LIMIT 1;`)).toBe('lancada por engano')

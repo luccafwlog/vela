@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
@@ -18,13 +18,13 @@ const SUPPRESSED = 'suprimido-b245@example.test'
 const VALID = 'docs-b245@example.test'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
   }).trim()
 }
 
 function asDocumentacao(sql: string): { output: string; error: string } {
-  const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${DOCS_USER}';
      SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql}; COMMIT;`], { encoding: 'utf8' })
   return { output: (result.stdout ?? '').trim(), error: (result.stderr ?? '').trim() }
@@ -32,7 +32,7 @@ function asDocumentacao(sql: string): { output: string; error: string } {
 
 function asPortal(sql: string): { output: string; error: string } {
   const claims = JSON.stringify({ sub: PORTAL_USER, role: 'authenticated', iat: Math.floor(Date.now() / 1000) })
-  const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${PORTAL_USER}';
      SET LOCAL request.jwt.claim.role = 'authenticated'; SELECT set_config('request.jwt.claims', '${claims}', true);
      ${sql}; COMMIT;`], { encoding: 'utf8' })

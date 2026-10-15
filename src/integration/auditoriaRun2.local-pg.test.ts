@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
@@ -56,7 +56,7 @@ const try_ = (sql: string) => `SELECT pg_temp.try($q$${sql}$q$);`
 
 /** Roda o cenário numa transação descartável e devolve uma linha por SELECT. */
 function scenario(sql: string): string[] {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `BEGIN; ${FIXTURES} ${sql} ROLLBACK;`,
   ], { encoding: 'utf8' }).trim().split(/\r?\n/)

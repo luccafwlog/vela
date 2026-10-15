@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -9,11 +9,11 @@ const adminId = '40000000-0000-0000-0000-000000000001'
 const memberId = '50000000-0000-0000-0000-000000000002'
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' }).trim()
 }
 
 function callAs(userId: string, sql: string) {
-  return spawnSync('psql', [
+  return spawnPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl,
     '-c', `BEGIN; SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${userId}', true); ${sql} COMMIT;`,
   ], { encoding: 'utf8' })
@@ -83,7 +83,7 @@ describeLocal('migration 259 — administração de usuários internos', () => {
   // Tudo numa transação desfeita: os demais Administrativos do banco local
   // ficam inativos só dentro dela, para este ser o último.
   function asLastAdmin(sql: string) {
-    return spawnSync('psql', [
+    return spawnPsql([
       '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl,
       '-c', `BEGIN;
         SET LOCAL session_replication_role = replica;

@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -20,14 +20,14 @@ const bouncePayload = JSON.stringify({
 })
 
 function psql(sql: string): string {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = 'service_role'; ${sql}`,
   ], { encoding: 'utf8' }).trim()
 }
 
 function callAsAuthenticated(sql: string) {
-  return spawnSync('psql', [
+  return spawnPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql} COMMIT;`,
   ], { encoding: 'utf8' })
@@ -48,7 +48,7 @@ function processEvent(eventId: number): Record<string, unknown> {
 function cleanup() {
   // O trigger append-only é deliberadamente incontornável pelo serviço. A
   // fixture local é removida pelo owner entre execuções do teste.
-  execFileSync('psql', [
+  execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `
       ALTER TABLE public.portal_email_event_attempts DISABLE TRIGGER portal_email_event_attempts_append_only;

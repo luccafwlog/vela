@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 import type { PortalInformation } from '../services/portalInformation'
@@ -25,10 +25,10 @@ const noRate = 9134006
 const ids = [admin, equipment, inactive, portal, operations]
 function quote(value: unknown) { return `'${JSON.stringify(value).replaceAll("'", "''")}'::jsonb` }
 function sql(statement: string) {
-  return execFileSync('psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-d', databaseUrl, '-c', statement], { encoding: 'utf8' }).trim()
+  return execPsql(['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-d', databaseUrl, '-c', statement], { encoding: 'utf8' }).trim()
 }
 function as(user: string, statement: string, rollback = false) {
-  return spawnSync('psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-d', databaseUrl, '-c',
+  return spawnPsql(['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-d', databaseUrl, '-c',
     `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${user}'; ${statement} ${rollback ? 'ROLLBACK' : 'COMMIT'};`], { encoding: 'utf8' })
 }
 function call<T>(user: string, statement: string): T {
@@ -114,7 +114,7 @@ describeLocal('Portal information — executed PostgreSQL authorization and retu
     ['revoked credentials with malformed iat', `UPDATE public.customer_portal_accounts SET credentials_revoked_at=now() WHERE customer_id=${customer}; SET LOCAL request.jwt.claims='{"iat":"invalid"}';`, portal],
   ])('rejects information reads with %s', (_name, prepare, actor) => {
     for (const statement of ['SELECT public.portal_get_information();']) {
-      const result = spawnSync('psql', ['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-d', databaseUrl, '-c',
+      const result = spawnPsql(['-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-d', databaseUrl, '-c',
         `BEGIN; SET LOCAL session_replication_role=replica; ${prepare} SET LOCAL session_replication_role=origin; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${actor}'; ${statement} ROLLBACK;`], { encoding: 'utf8' })
       expect(result.status).not.toBe(0)
       expect(result.stderr).toContain('28000')

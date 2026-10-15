@@ -1,12 +1,18 @@
 name: Provision Preview Admin
 
-# Este workflow usa workflow_run de propósito: ele executa a versão do arquivo
-# presente na branch padrão, nunca o YAML alterado pela PR. Assim, os secrets
-# nunca ficam disponíveis para código fornecido por uma PR externa.
+# Sob demanda, no mesmo gatilho da Preview: etiqueta `preview` ou
+# workflow_dispatch a partir de main. pull_request_target executa a versão
+# deste arquivo na branch padrão, nunca o YAML alterado pela PR. O checkout é
+# só dessa branch; secrets não vão para código da PR.
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  pull_request_target:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Número da PR aberta contra main
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -14,25 +20,33 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: preview-admin-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+  group: preview-admin-${{ github.event.inputs.pr_number || github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   provision:
     if: >-
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.pull_requests[0].head.repo.id == github.event.repository.id &&
-      github.event.workflow_run.pull_requests[0].number
+      (
+        github.event_name == 'pull_request_target' &&
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'preview' &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.head.repo.id == github.event.repository.id
+      ) || (
+        github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main'
+      )
     runs-on: ubuntu-latest
     # Environment sem restrição de branch: o dono recusou restringi-lo a main
     # em 2026-10-06 (auditoria run-2, #14; risco aceito). O código confiável
-    # vem da branch padrão (workflow_run e checkout dela), não do environment.
+    # vem da branch padrão (pull_request_target / dispatch em main, e o
+    # checkout dela), não do environment.
     environment: supabase-branches
     env:
       GH_TOKEN: ${{ github.token }}
-      PR_HEAD_REF: ${{ github.event.workflow_run.pull_requests[0].head.ref }}
-      PR_HEAD_SHA: ${{ github.event.workflow_run.pull_requests[0].head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+      PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       # Cópia sob nome próprio: o step "Load branch credentials" despeja a saída
       # do CLI em $GITHUB_ENV, e uma chave `SUPABASE_PROJECT_REF` vinda de lá
@@ -44,12 +58,52 @@ jobs:
     # Secrets só no `env` dos steps que os usam (auditoria run-2, #14): npm ci
     # e os demais steps não os recebem.
     steps:
-      # workflow_run executa no contexto padrão; explicitar a branch impede que
-      # o script seja substituído pelo conteúdo não confiável da PR.
+      # pull_request_target e o dispatch em main executam no contexto da branch
+      # padrão; explicitar a branch impede que o script seja substituído pelo
+      # conteúdo não confiável da PR.
       - name: Checkout trusted provisioning code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.repository.default_branch }}
+
+      - name: Resolve PR context
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REPO_ID: ${{ github.repository_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${PR_NUMBER:?Número da PR ausente}" =~ ^[0-9]+$ ]] || {
+            echo 'Número de PR inválido.'
+            exit 1
+          }
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          state="$(jq -r '.state' <<<"$pr_json")"
+          base="$(jq -r '.base.ref' <<<"$pr_json")"
+          head_repo="$(jq -r '.head.repo.id' <<<"$pr_json")"
+          head_ref="$(jq -r '.head.ref' <<<"$pr_json")"
+          head_sha="$(jq -r '.head.sha' <<<"$pr_json")"
+          [[ "$state" == open && "$base" == main && "$head_repo" == "$REPO_ID" ]] || {
+            echo 'PR fechada, fora de main, ou vinda de fork; sem provisionar.'
+            exit 1
+          }
+          if [[ "$EVENT_NAME" == pull_request_target ]]; then
+            head_ref="${PR_HEAD_REF:?PR_HEAD_REF ausente}"
+            head_sha="${PR_HEAD_SHA:?PR_HEAD_SHA ausente}"
+            jq -e '.labels | map(.name) | index("preview") != null' <<<"$pr_json" >/dev/null || {
+              echo 'Etiqueta preview ausente; sem provisionar.'
+              exit 1
+            }
+          fi
+          [[ "$head_ref" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || {
+            echo 'Nome de branch inesperado; recusando passá-lo ao Supabase CLI.'
+            exit 1
+          }
+          {
+            echo "PR_NUMBER=$PR_NUMBER"
+            echo "PR_HEAD_REF=$head_ref"
+            echo "PR_HEAD_SHA=$head_sha"
+          } >> "$GITHUB_ENV"
 
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -79,7 +133,6 @@ jobs:
         id: readiness
         shell: bash
         env:
-          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail

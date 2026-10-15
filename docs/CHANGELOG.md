@@ -17,6 +17,14 @@
   limpável na importação de CE Mercante e confirmação legada do Desbloqueio de CE presa ao CE confirmado. Publicar na ordem migrations → Edge
   Functions → frontend ([Serviços externos](operations/servicos-externos.md#edge-functions)).
 
+- **CI na medida da mudança (2026-10-15, [ADR 0086](adr/0086-ci-confere-na-medida-da-mudanca.md), PR luccafwlog/vela#953):**
+  o CI roda só em PR, em quatro jobs (`quality`, `test` em 2 shards, `db`, `checks`); replay,
+  invariantes, catálogo de RPCs e seed em toda PR, e as suítes SQL só quando o diff toca o banco
+  (`scripts/ci-db-paths.mjs`). A ordem invertida passou ao workflow semanal `local-pg-order.yml`. O
+  merge não repete o CI: a produção publica no push em `main` depois do check do Supabase no commit
+  (`scripts/wait-supabase-migrations.mjs`). Previews só pela etiqueta `preview`. As suítes SQL usam
+  uma conexão por arquivo (`src/integration/localPsql.ts`): a passada caiu de 274 s para 94 s no
+  contêiner. Aceites conferidos no GitHub no mesmo dia ([plano arquivado](archive/plans/2026-10-15-compactacao-do-ci.md)).
 - **Modelo de permissões por perfil (2026-10-14, [ADR 0085](adr/0085-modelo-de-permissoes-por-perfil.md)):**
   o dono fixou a base (escrita global com rastro, mais cancelar fatura, baixa manual e registro da
   Restituição como exceções) e a lista fechada de exceções; a matriz ação × perfil passou a ter dono

@@ -55,7 +55,7 @@
 // Alertas (inclusive os de efeito), auditoria, notificações do Portal, contatos
 // e a conta de Portal criada pelo gatilho de inserção de Cliente.
 import { randomUUID } from 'node:crypto'
-import { execFileSync } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -100,14 +100,14 @@ function psqlArgs(sql: string): string[] {
 
 // Fixture e leitura: dono do banco com claims de service_role (sem RLS).
 function localPsql(sql: string): string {
-  return execFileSync('psql', psqlArgs(
+  return execPsql(psqlArgs(
     `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 // Usuário interno real (Administrativo): papel `authenticated`, RLS e grants valem.
 function asAdmin(sql: string): string {
-  return execFileSync('psql', psqlArgs(
+  return execPsql(psqlArgs(
     `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`,
   ), { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
@@ -124,7 +124,7 @@ function tryAsAdmin(sql: string): { output: string | null; error: string | null 
 
 // Um ciclo do executor (import-effects-runner/index.ts:46-68), restrito ao prefixo.
 function runWorker(entityPrefix: string): Array<{ id: number; entity: string; kind: string; status: string }> {
-  const output = execFileSync('psql', psqlArgs(`
+  const output = execPsql(psqlArgs(`
     SET ROLE service_role; SET request.jwt.claim.role = 'service_role';
     SET import_effects.entity_prefix = '${entityPrefix}';
     SELECT jsonb_build_object(

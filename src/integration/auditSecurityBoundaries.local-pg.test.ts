@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // S01 — fronteiras de segurança das RPCs auditadas (#659.2, #660.1/3).
@@ -18,7 +18,7 @@ const OTHER_SUB = 'cccccccc-0000-4000-8000-000000000703'
 const LOGIN_SENTINEL = '2026-01-01T00:00:00Z'
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }
@@ -28,9 +28,7 @@ function runAs(role: 'authenticated' | 'anon', sub: string | null, claims: strin
     `SET LOCAL ROLE ${role};` +
     (sub === null ? '' : `SELECT set_config('request.jwt.claim.sub', '${sub}', true);`) +
     (claims === null ? '' : `SELECT set_config('request.jwt.claims', '${claims}', true);`)
-  return spawnSync(
-    'psql',
-    ['-X', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-At', '-d', databaseUrl,
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=verbose', '-At', '-d', databaseUrl,
       '-c', `BEGIN; ${settings} ${sql} COMMIT;`],
     { encoding: 'utf8' },
   )
@@ -100,7 +98,7 @@ describeLocal('S01 — fronteiras de segurança das RPCs auditadas', () => {
       `DELETE FROM public.vessels WHERE id = ${CUSTOMER_ID};`,
       `DELETE FROM public.carriers WHERE id = ${CUSTOMER_ID};`,
     ]) {
-      spawnSync('psql', ['-X', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
+      spawnPsql(['-X', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
     }
   })
 

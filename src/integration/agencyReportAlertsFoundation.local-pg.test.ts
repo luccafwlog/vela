@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -17,7 +17,7 @@ const equipmentId = '00000000-0000-0000-0000-000000952414'
 const entityId = `${voyageId}::BRSSZ::TST524`
 
 function psql(sql: string) {
-  return execFileSync('psql', [
+  return execPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${adminId}'; ${sql}`,
   ], { encoding: 'utf8' }).trim()
@@ -134,7 +134,7 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
 
   // B5 (ADR 0029; migration 257): no ADR terminalizado, o banco recusa o sign-off departamental com seção Pendente.
   it('B5 — sign-off departamental recusa seção Pendente pela API', () => {
-    const asUser = (userId: string, sql: string) => spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    const asUser = (userId: string, sql: string) => spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
       `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${userId}'; SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql}; COMMIT;`], { encoding: 'utf8' })
     // O teste anterior deixou 'datas' (Operações) Pendente; as seções da Documentação estão resolvidas.
     const pending = asUser(opsId, `SELECT public.set_agency_report_department_signoff_by_report_id('${reportId}', ${voyageId}, 'BRSSZ', 'operacoes', true)`)
@@ -149,7 +149,7 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
   it('B6 — escala com frente TBC não cria ADR legado sem terminal', () => {
     psql(`INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, terminal_id, source)
       SELECT ${voyageId}, 'BRVIX', id, 'importacao', 'carga_cheia', NULL, 'operational_data' FROM public.ports WHERE locode = 'BRVIX';`)
-    const result = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
       `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${opsId}'; SET LOCAL request.jwt.claim.role = 'authenticated';
        SELECT public.set_agency_report_signoff(${voyageId}, 'BRVIX', 'datas', 'confirmed', NULL); COMMIT;`], { encoding: 'utf8' })
     expect(result.status).not.toBe(0)
@@ -159,7 +159,7 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
 
   // B6 (migration 273): a frente derivada dos dados (B/L com POD no porto) também recusa, sem frente gravada.
   it('B6 — escala com B/L e sem frente gravada não cria ADR legado; escala sem carga ainda cria', () => {
-    const signAs = (port: string) => spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    const signAs = (port: string) => spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
       `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${opsId}'; SET LOCAL request.jwt.claim.role = 'authenticated';
        SELECT public.set_agency_report_signoff(${voyageId}, '${port}', 'datas', 'confirmed', NULL); COMMIT;`], { encoding: 'utf8' })
     psql(`SET session_replication_role = replica;

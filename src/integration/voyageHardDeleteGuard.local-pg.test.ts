@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
@@ -6,7 +6,7 @@ const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }
@@ -68,9 +68,7 @@ describeLocal('067 — hard-delete de Viagem sem dados vinculados', () => {
   })
 
   it('bloqueia a exclusao quando existe somente uma escala vinculada', () => {
-    const attempt = spawnSync(
-      'psql',
-      ['-X', '-v', 'ON_ERROR_STOP=1', '-d', databaseUrl, '-c', `DELETE FROM public.voyages WHERE id = ${LINKED_VOYAGE_ID};`],
+    const attempt = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-d', databaseUrl, '-c', `DELETE FROM public.voyages WHERE id = ${LINKED_VOYAGE_ID};`],
       { encoding: 'utf8' },
     )
 
@@ -81,9 +79,7 @@ describeLocal('067 — hard-delete de Viagem sem dados vinculados', () => {
   })
 
   it('mantem Viagem cancelada retida mesmo sem outro dado operacional', () => {
-    const attempt = spawnSync(
-      'psql',
-      ['-X', '-v', 'ON_ERROR_STOP=1', '-d', databaseUrl, '-c', `DELETE FROM public.voyages WHERE id = ${CANCELLED_VOYAGE_ID};`],
+    const attempt = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-d', databaseUrl, '-c', `DELETE FROM public.voyages WHERE id = ${CANCELLED_VOYAGE_ID};`],
       { encoding: 'utf8' },
     )
 

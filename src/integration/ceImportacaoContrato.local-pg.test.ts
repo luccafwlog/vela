@@ -6,7 +6,8 @@
 // As ações usam as RPCs reais como `authenticated` (Administrativo).
 // Namespace exclusivo: ids 99228xxx, B/Ls 'A228-*', usuário ...0000002280NN,
 // manifestos 'A228*' (13 caracteres), CEs '992280…'.
-import { execFileSync, spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
@@ -38,13 +39,13 @@ const pol = 'A228O'
 const pod = 'A228P'
 
 function psql(sql: string): string {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`],
   { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function asAdmin(sql: string): { output: string; error: string | null } {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
     `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${actorId}'; ${sql}`],
   { encoding: 'utf8' })
   const error = run.stderr.split('\n').find((line) => line.startsWith('ERROR:')) ?? null
@@ -53,7 +54,7 @@ function asAdmin(sql: string): { output: string; error: string | null } {
 
 /** Como o dono das funções (as RPCs SECURITY DEFINER), que é quem grava o cadastro de Manifestos desde a 212. */
 function asOwner(sql: string): { error: string | null } {
-  const run = spawnSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql], { encoding: 'utf8' })
   return { error: run.stderr.split('\n').find((line) => line.startsWith('ERROR:'))?.trim() ?? null }
 }
 

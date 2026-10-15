@@ -1,4 +1,5 @@
-import { execFileSync, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
+import { execPsql } from './localPsql'
 import { describe, expect, it, beforeAll } from 'vitest'
 const db = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 const local = process.env.LOCAL_PG_INTEGRATION === '1' ? describe : describe.skip
@@ -8,7 +9,7 @@ const foreign = '00000000-0000-0000-0000-000000557003'
 const finance = '00000000-0000-0000-0000-000000557004'
 function sql(q:string, uid?:string):string {
   // SQL por stdin: argv do psql no Windows corrompe acentos.
-  return execFileSync('psql',['-X','-Atq','-v','ON_ERROR_STOP=1','-d',db,'-f','-'],{input:uid ? `SET ROLE authenticated; SET request.jwt.claim.sub='${uid}'; ${q}` : q,encoding:'utf8',stdio:['pipe','pipe','pipe']}).replaceAll(String.fromCharCode(13),'').trim()
+  return execPsql(['-X','-Atq','-v','ON_ERROR_STOP=1','-d',db,'-f','-'],{input:uid ? `SET ROLE authenticated; SET request.jwt.claim.sub='${uid}'; ${q}` : q,encoding:'utf8',stdio:['pipe','pipe','pipe']}).replaceAll(String.fromCharCode(13),'').trim()
 }
 function error(q:string, uid:string) { try {sql(q,uid);return ''} catch(e) {return String((e as {stderr:string}).stderr)} }
 const command = (action:string, payload:object, uid=admin) => JSON.parse(sql(`SELECT public.${uid===client?'portal_':''}ce_unlock_command('${action}', '${JSON.stringify(payload)}'::jsonb);`, uid))

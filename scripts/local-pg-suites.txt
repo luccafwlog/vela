@@ -1,10 +1,12 @@
-# Suítes `*.local-pg.test.ts` do job migration-replay do CI, na ordem de execução.
+# Suítes `*.local-pg.test.ts` do job db do CI, na ordem de execução.
 # Rodam em série num banco só (`npm run test:local-pg`); o CI as roda nesta ordem
-# e, depois de um novo replay do banco, de trás para frente (`-- --reverse`), o
-# que prova que nenhuma depende do que a anterior fez nem é quebrada por ela.
+# e o workflow semanal local-pg-order.yml, depois de um novo replay do banco, de
+# trás para frente (`-- --reverse`), o que prova que nenhuma depende do que a
+# anterior fez nem é quebrada por ela.
 # A bateria financeira (`financialBattery.local-pg.test.ts`) fica fora: roda
 # sozinha, por último, num passo próprio do CI. `npm run localpg:check` falha
 # quando surge suíte fora desta lista e do CI.
+src/integration/localPsql.local-pg.test.ts
 src/integration/appSettingsSingleton.local-pg.test.ts
 src/integration/alinhamentoPermissoes.local-pg.test.ts
 src/integration/auditoriaRun2.local-pg.test.ts

@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   PORTAL_READ_INSPECT_MAP,
@@ -25,15 +25,13 @@ const customerACnpj = syntheticCnpj(11301)
 const customerBCnpj = syntheticCnpj(11302)
 
 function psql(sql: string) {
-  return execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], {
+  return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl, '-c', sql], {
     encoding: 'utf8',
   }).trim()
 }
 
 function callAs(userId: string, sql: string) {
-  return spawnSync(
-    'psql',
-    [
+  return spawnPsql([
       '-X',
       '-v',
       'ON_ERROR_STOP=1',
@@ -48,9 +46,7 @@ function callAs(userId: string, sql: string) {
 }
 
 function callAsRollback(userId: string, sql: string) {
-  return spawnSync(
-    'psql',
-    [
+  return spawnPsql([
       '-X',
       '-v',
       'ON_ERROR_STOP=1',
