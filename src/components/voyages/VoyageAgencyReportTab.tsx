@@ -40,7 +40,7 @@ import {
   type AgencyReportSignoffEvent,
   type SignoffState,
 } from '../../services/agencyDepartureReport'
-import { calculateAgencyReportDeadlineDate } from '../../services/agencyReportDeadline'
+import { calculateAgencyReportDeadlineAt, formatAgencyReportInstant, toDateOnly } from '../../services/agencyReportDeadline'
 import type { AgencyReportDepartmentKey, Json } from '../../types/database'
 import type { AdrEscalaPod } from '../../services/voyageSummaries'
 import { formatBRL, formatDate } from '../../lib/utils'
@@ -638,7 +638,9 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const terminalAtd = selectedAtracacao?.atd ?? null
   const terminalAtb = selectedAtracacao?.atb ?? null
   const terminalRtw = selectedAtracacao?.rtw ?? null
-  const deadlineDate = terminalAtd ? calculateAgencyReportDeadlineDate(terminalAtd) : null
+  // Prazo: ATD + 72 horas (284). `deadlineDate` é o dia de Brasília do prazo, para o relatório de SLA e a impressão.
+  const deadlineAt = terminalAtd ? calculateAgencyReportDeadlineAt(terminalAtd) : null
+  const deadlineDate = deadlineAt ? toDateOnly(deadlineAt) : null
 
   // Reaberturas por departamento (com justificativa) — o predicado de
   // "o que é reabertura" vem de filterDepartmentReopeningEvents
@@ -685,6 +687,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       atdRegisteredAt: terminalAtdRegisteredAt ?? null,
       atdSource: terminalAtd ? ('terminal' as const) : null,
       deadlineDate,
+      deadlineAt,
     },
     sections: {
       cargaDescarregada: { ...dischargeMatrix, destino: dischargeDestination },
@@ -778,7 +781,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             atd={closedSnapshot.header?.unifiedAtd ?? terminalAtd}
             atdSource={closedSnapshot.header?.atdSource ?? (terminalAtd ? ('terminal' as const) : null)}
             atdRegisteredAt={closedAtdRegisteredAt(closedSnapshot.header, terminalAtd, terminalAtdRegisteredAt ?? null)}
-            deadline={closedSnapshot.header?.deadlineDate ?? deadlineDate}
+            deadline={closedSnapshot.header?.deadlineAt ?? closedSnapshot.header?.deadlineDate ?? deadlineAt}
             omitted={isOmittedEscala}
             now={new Date()}
             departmentSignoffs={closedSnapshot.departmentSignoffs ?? ownData?.departmentSignoffs ?? []}
@@ -794,7 +797,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
            <div className="flex flex-wrap items-center justify-between gap-3">
              <div className="flex flex-wrap items-center gap-3">
                <span className="font-[var(--app-font-mono)] text-[13px] font-semibold text-[var(--app-text)]" style={{ fontVariantNumeric: 'tabular-nums' }}>{signedDepartmentsCount}/3 departamentos assinados</span>
-               <span className="app-badge app-badge--slate">{deadlineDate ? `Prazo ${formatDate(deadlineDate)}` : 'Sem prazo'}</span>
+               <span className="app-badge app-badge--slate">{deadlineAt ? `Prazo ${formatAgencyReportInstant(deadlineAt)}` : 'Sem prazo'}</span>
              </div>
              <div className="flex gap-2">
                <Button variant="secondary" disabled title="A impressão fica disponível depois do fechamento.">Imprimir</Button>
@@ -816,7 +819,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
           <div className="app-panel grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3.5 px-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3"><h2 className="app-voyage-section-card__title">Operações</h2><span className="font-[var(--app-font-mono)] text-xs text-[var(--app-green)]">{sectionsOf('operacoes').filter((section) => sectionState(section) !== 'pending').length}/{sectionsOf('operacoes').length} seções</span><span className="flex gap-1">{sectionsOf('operacoes').map((section) => <span key={section} className={`h-1 w-7 rounded-full ${sectionState(section) === 'pending' ? 'bg-[var(--app-panel-strong)]' : 'bg-[var(--app-green)]'}`} />)}</span></div>
-              <div className="flex flex-wrap items-center justify-end gap-2"><span className="app-badge app-badge--slate">{deadlineDate ? `Prazo ${formatDate(deadlineDate)}` : 'Sem prazo'}</span><DepartmentSignoffControl department="operacoes" label="Operações" signed={isDepartmentSigned('operacoes')} attribution={departmentAttribution('operacoes')} canSignoff={canSignDepartment('operacoes')} sectionsPending={departmentSectionsPending('operacoes')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
+              <div className="flex flex-wrap items-center justify-end gap-2"><span className="app-badge app-badge--slate">{deadlineAt ? `Prazo ${formatAgencyReportInstant(deadlineAt)}` : 'Sem prazo'}</span><DepartmentSignoffControl department="operacoes" label="Operações" signed={isDepartmentSigned('operacoes')} attribution={departmentAttribution('operacoes')} canSignoff={canSignDepartment('operacoes')} sectionsPending={departmentSectionsPending('operacoes')} isPending={departmentSignoffMutation.isPending} compact onChange={updateDepartmentSignoff} /></div>
             </div>
             <div className="grid gap-3">
               <ReportSection
@@ -988,7 +991,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
             atd={terminalAtd}
             atdSource={terminalAtd ? ('terminal' as const) : null}
             atdRegisteredAt={terminalAtdRegisteredAt ?? null}
-            deadline={deadlineDate}
+            deadline={deadlineAt}
             omitted={isOmittedEscala}
             now={new Date()}
             departmentSignoffs={ownData?.departmentSignoffs ?? []}

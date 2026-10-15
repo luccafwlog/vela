@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import type { ReactNode } from 'react'
-import { deriveAgencyReportDeadlineState, type AgencyReportDeadlineState } from '../../services/agencyReportDeadline'
+import { deriveAgencyReportDeadlineState, formatAgencyReportInstant, type AgencyReportDeadlineState } from '../../services/agencyReportDeadline'
 import { AGENCY_REPORT_DEPARTMENT_LABELS, filterDepartmentReopeningEvents, type AgencyReportDepartmentSignoffEvent } from '../../services/agencyDepartureReport'
 import type { AgencyReportDepartmentKey, AgencyReportDepartmentSignoff } from '../../types/database'
 import { formatDate } from '../../lib/utils'
@@ -170,7 +170,7 @@ export function AgencyReportTimeline({
           {omitted ? (
             <p className="text-sm text-[var(--app-muted)]">Escala omitida — fora da medição.</p>
           ) : deadline ? (
-            <p className="text-sm text-[var(--app-text)]">Vence em {formatDate(deadline)} (3 dias úteis após o ATD).</p>
+            <p className="text-sm text-[var(--app-text)]">{deadline.length > 10 ? `Vence em ${formatAgencyReportInstant(deadline)} (72 horas após o ATD).` : `Vence em ${formatDate(deadline)} (3 dias úteis após o ATD).`}</p>
           ) : (
             <p className="text-sm text-[var(--app-muted)]">Aguardando a saída do navio.</p>
           )}

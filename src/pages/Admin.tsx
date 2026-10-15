@@ -794,7 +794,7 @@ export function Admin() {
                           </div>
                           <div className="text-xs text-[var(--app-muted)]">
                             {departmentRow.signedAt
-                              ? `${formatDate(departmentRow.signedAt)} · ${departmentRow.businessDaysElapsed ?? '—'} dia(s) útil(eis)`
+                              ? `${formatDate(departmentRow.signedAt)} · ${departmentRow.hoursElapsed ?? '—'} h após o ATD`
                               : 'Não assinado'}
                           </div>
                         </td>

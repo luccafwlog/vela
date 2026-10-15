@@ -23,7 +23,7 @@
 
 import { supabase } from './supabase'
 import {
-  countBusinessDaysBetween,
+  hoursSinceAtd,
   deriveAgencyReportDeadlineState,
   toDateOnly,
   type AgencyReportDeadlineState,
@@ -41,6 +41,8 @@ export type ClosedAgencyReportSnapshotForSla = {
   header?: {
     unifiedAtd?: string | null
     deadlineDate?: string | null
+    /** Instante do prazo (ATD + 72 h); só nos ADRs fechados desde 2026-10-15. */
+    deadlineAt?: string | null
   } | null
   departmentSignoffs?: Array<{
     department: AgencyReportDepartmentKey
@@ -92,8 +94,8 @@ export type AgencyReportSlaDepartmentRow = {
   department: AgencyReportDepartmentKey
   label: string
   signedAt: string | null
-  /** Dias úteis do ATD até a assinatura; null se ainda não assinado (não deveria ocorrer em ADR fechado — ver mapClosedReportToSlaRow). */
-  businessDaysElapsed: number | null
+  /** Horas do ATD até a assinatura; null se ainda não assinado (não deveria ocorrer em ADR fechado — ver mapClosedReportToSlaRow). */
+  hoursElapsed: number | null
   state: AgencyReportDeadlineState
 }
 
@@ -138,19 +140,22 @@ export function mapClosedReportToSlaRow(row: ClosedAgencyReportListItem): Agency
   const departments: AgencyReportSlaDepartmentRow[] = DEPARTMENT_ORDER.map((department) => {
     const signoff = signoffsByDepartment.get(department)
     const signedAt = signoff?.signed_at ?? null
+    // Fechado com o prazo de 72 h guarda `deadlineAt`; fechado antes guarda só
+    // a data (regra de dias úteis) e é comparado por dia, como foi medido.
     const state = signedAt ? deriveAgencyReportDeadlineState({
       atd,
       omitted: false, // linhas omitidas já são excluídas antes de chegar aqui (ver excludeOmittedRows).
       signedAt,
       now: signedAt,
+      frozenDeadlineDate: header?.deadlineAt ? null : deadlineDate,
     }) : 'no-deadline'
-    const businessDaysElapsed = signedAt ? countBusinessDaysBetween(atd, toDateOnly(signedAt) ?? atd) : null
+    const hoursElapsed = signedAt ? hoursSinceAtd(atd, signedAt) : null
 
     return {
       department,
       label: AGENCY_REPORT_DEPARTMENT_LABELS[department],
       signedAt,
-      businessDaysElapsed,
+      hoursElapsed,
       state,
     }
   })
