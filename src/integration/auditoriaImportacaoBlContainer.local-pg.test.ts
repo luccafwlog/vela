@@ -558,8 +558,6 @@ const cleanupSql = `
   WHERE customer_id IN (SELECT id FROM a202_customers) OR account_id IN (SELECT id FROM a202_accounts);
   DELETE FROM public.portal_email_attempts WHERE account_id IN (SELECT id FROM a202_accounts);
   DELETE FROM public.portal_invites WHERE account_id IN (SELECT id FROM a202_accounts);
-  DELETE FROM public.customer_portal_sessions
-  WHERE account_id IN (SELECT id FROM a202_accounts) OR customer_id IN (SELECT id FROM a202_customers);
   DELETE FROM public.portal_inspection_events WHERE customer_id IN (SELECT id FROM a202_customers);
   DELETE FROM public.portal_rate_limits WHERE customer_id IN (SELECT id FROM a202_customers);
   DELETE FROM public.customer_portal_accounts WHERE id IN (SELECT id FROM a202_accounts);

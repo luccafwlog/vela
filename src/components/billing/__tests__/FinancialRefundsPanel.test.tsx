@@ -3,8 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ isAdmin: true, mayConfirm: true, confirm: vi.fn(), request: vi.fn(), settle: vi.fn(), toast: vi.fn(), summary: { received_brl: 550, refunds: [{ id: 1, amount_brl: 100, status: 'pending', purpose: 'correction', notes: 'Ajuste autorizado', bank_reference: null, beneficiary: null, settled_at: null }] } }))
-vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: mocks.isAdmin, can: () => mocks.mayConfirm }) }))
+const mocks = vi.hoisted(() => ({ isAdmin: true, mayConfirm: true, role: 'administrativo' as string | null, confirm: vi.fn(), request: vi.fn(), settle: vi.fn(), toast: vi.fn(), summary: { received_brl: 550, refunds: [{ id: 1, amount_brl: 100, status: 'pending', purpose: 'correction', notes: 'Ajuste autorizado', bank_reference: null, beneficiary: null, settled_at: null }] } }))
+vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: mocks.isAdmin, can: () => mocks.mayConfirm, effectiveRole: mocks.role }) }))
 vi.mock('../../../hooks/useFinancialRefunds', () => ({ useFinancialRefunds: () => ({ data: mocks.summary }), useCancelFinancialRefundAuthorization: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('../../../services/financialRefunds', () => ({ cancelFinancialRefundAuthorization: vi.fn(), requestFinancialRefund: mocks.request, confirmDemurrageRefund: mocks.settle }))
 vi.mock('../../../services/cacheEffects', () => ({ afterDatasContainerAlteradas: vi.fn() }))
@@ -12,14 +12,20 @@ vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.toast }) }))
 import { FinancialRefundsPanel } from '../FinancialRefundsPanel'
 function mount() { return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}})}><FinancialRefundsPanel source="demurrage" invoiceId={9} /></QueryClientProvider>) }
-beforeEach(() => { vi.clearAllMocks(); mocks.isAdmin = true; mocks.mayConfirm = true; mocks.confirm.mockResolvedValue(true); mocks.request.mockResolvedValue(undefined); mocks.settle.mockResolvedValue(undefined) })
+beforeEach(() => { vi.clearAllMocks(); mocks.isAdmin = true; mocks.mayConfirm = true; mocks.role = 'administrativo'; mocks.confirm.mockResolvedValue(true); mocks.request.mockResolvedValue(undefined); mocks.settle.mockResolvedValue(undefined) })
 afterEach(cleanup)
 
 it('consulta preserva valores sem oferecer ações à leitura sem autorização', () => {
-  mocks.isAdmin = false; mocks.mayConfirm = false
+  mocks.isAdmin = false; mocks.mayConfirm = false; mocks.role = null
   mount()
   expect(screen.getByText(/Disponível para autorizar/).textContent).toMatch(/450,00/)
   expect(screen.queryByRole('button')).toBeNull()
+})
+it('qualquer Departamento autoriza a restituição; registrar a devolução segue do Financeiro e do Administrativo', () => {
+  mocks.isAdmin = false; mocks.mayConfirm = false; mocks.role = 'operacoes'
+  mount()
+  expect(screen.getByRole('button', { name: 'Autorizar restituição' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Registrar devolução' })).toBeNull()
 })
 it('rejeita autorização acima do valor recebido ainda disponível', async () => {
   mount()

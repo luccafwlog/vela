@@ -719,9 +719,9 @@ export type EscalaDeleteResult = {
  * Exclui a escala (voyage, porto) numa operacao so no banco (migration 088):
  * marca o POD como removido do planejamento e apaga a escala de exportacao do
  * mesmo porto, com as atracações, as frentes e o ADR de Saída aberto do
- * porto. Somente o Administrativo, com motivo; B/L com CE Mercante, documento
- * financeiro ou ADR fechado no porto travam (ADR 0071). Com `dryRun`, so
- * devolve os motivos da trava.
+ * porto. Somente o Administrativo, com motivo; qualquer B/L vinculado à
+ * escala (migration 235), CE Mercante, documento financeiro ou ADR fechado no
+ * porto travam (ADR 0071). Com `dryRun`, so devolve os motivos da trava.
  */
 export async function deleteEscala(
   voyageId: number,

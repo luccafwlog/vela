@@ -164,7 +164,7 @@ export function useSetChargeTableActive() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, active }: { id: number; active: boolean }) => setChargeTableActive(id, active),
+    mutationFn: ({ id, active, reason }: { id: number; active: boolean; reason?: string }) => setChargeTableActive(id, active, reason),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
@@ -178,7 +178,7 @@ export function useSetChargeTableItemActive() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, active }: { id: number; active: boolean }) => setChargeTableItemActive(id, active),
+    mutationFn: ({ id, active, reason }: { id: number; active: boolean; reason?: string }) => setChargeTableItemActive(id, active, reason),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.tables() }),
@@ -192,7 +192,7 @@ export function useSetCustomerRateOverrideActive() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, active }: { id: number; active: boolean }) => setCustomerRateOverrideActive(id, active),
+    mutationFn: ({ id, active, reason }: { id: number; active: boolean; reason?: string }) => setCustomerRateOverrideActive(id, active, reason),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.charges.overrides() }),

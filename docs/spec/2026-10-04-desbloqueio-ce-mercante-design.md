@@ -154,8 +154,7 @@ vigente na [matriz de Segurança](../operations/seguranca.md#desbloqueio-de-ce))
 Administrativo e Documentação executam análise, entrega, exportação e
 conciliação. Todos os Departamentos consultam pedidos, requisitos e documentos,
 sem escrita. A proposta original deixava Equipamentos sem acesso e os demais
-sem os documentos; o código ainda faz isso (correção pendente, item P12 do
-plano de correções). Espelhar a matriz no banco e em `useAuth`, incluindo o alias legado
+sem os documentos; desde a migration `250` o código segue a regra. Espelhar a matriz no banco e em `useAuth`, incluindo o alias legado
 `operator = documentacao`.
 Modo Inspeção do Portal oferece as mesmas leituras autorizadas, somente leitura.
 

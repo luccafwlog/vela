@@ -192,7 +192,7 @@ export function DemurrageContainersTab({
               { label: 'a faturar (previsto)', value: fmtUSD(toBillUsd), tone: toBillUsd > 0 ? 'warning' : 'default' },
             ]}
           />
-          {!canIssue ? <p className="app-dem-note">Gerar Invoice é do Administrativo.</p> : null}
+          {!canIssue ? <p className="app-dem-note">Gerar Invoice exige um perfil interno ativo.</p> : null}
         </div>
 
         {grouped.size === 0 ? (

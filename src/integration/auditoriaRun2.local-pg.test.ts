@@ -151,7 +151,9 @@ describeLocal('migration 106 — remediação da auditoria run-2', () => {
     `)).toEqual(['42501', '22023', 'ok', 'P0429'])
   })
 
-  it('2.4 quem não é admin só registra a si mesmo como autor', () => {
+  // Desde a migration 241 (P11, ADR 0085 regra base 2) nem o Administrativo
+  // registra outro autor.
+  it('2.4 cada usuário só registra a si mesmo como autor, inclusive o Administrativo', () => {
     expect(scenario(`
       ${as(FIN)}
       ${try_(`SELECT public.reject_customer_reconciliation(0, 'x', '${ADM}')`)}
@@ -161,7 +163,7 @@ describeLocal('migration 106 — remediação da auditoria run-2', () => {
       ${try_(`SELECT public.run_billing_for_import_batch(0, '${ADM}')`)}
       ${as(ADM)}
       ${try_(`SELECT public.reject_customer_reconciliation(0, 'x', '${FIN}')`)}
-    `)).toEqual(['42501', 'P0002', '42501', '42501', '42501', 'P0002'])
+    `)).toEqual(['42501', 'P0002', '42501', '42501', '42501', '42501'])
   })
 
   it('2.5 audit_logs grava departamento e data reais', () => {

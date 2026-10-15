@@ -18,7 +18,7 @@ const detail: DemurrageInvoiceDocumentDetail = {
   total_usd: 100,
   items: [{
     id: 1, container_number: 'TCLU1234567', container_type: '40GP',
-    days_p1: 5, rate_p1_usd: 20, days_p2: 0, rate_p2_usd: 30,
+    free_days: 14, days_p1: 5, rate_p1_usd: 20, days_p2: 0, rate_p2_usd: 30,
     discharge_date: '2026-06-01', return_date: '2026-06-20', subtotal_usd: 100,
   }],
   customer: { name: 'Cliente Demurrage', cnpj_cpf: '11222333000181' },
@@ -110,4 +110,10 @@ it('cabeçalho da tabela não repete chave React (USD/Dia aparece duas vezes)', 
     console.error = original
   }
   expect(errors).toEqual([])
+})
+
+it('B30: o recibo impresso mostra o free time de cada container', () => {
+  render(<InvoiceDocument detail={detail} type="receipt" />)
+  expect(screen.getByRole('columnheader', { name: 'FREE TIME' })).toBeTruthy()
+  expect(screen.getByRole('cell', { name: '14' })).toBeTruthy()
 })

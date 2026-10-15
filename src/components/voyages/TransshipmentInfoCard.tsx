@@ -30,7 +30,7 @@ export function TransshipmentInfoCard({ voyageId }: { voyageId: number }) {
 }
 
 function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omission: VoyageOmission; blCount: number }) {
-  const { user, isAdmin } = useAuth()
+  const { user } = useAuth()
   const update = useUpdateVoyageOmission(voyageId)
   const revert = useRevertVoyageOmission(voyageId)
   const confirm = useConfirm()
@@ -104,7 +104,7 @@ function OmissionInfo({ voyageId, omission, blCount }: { voyageId: number; omiss
         {!editing ? (
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" className="app-btn--sm" onClick={() => setEditing(true)}>Complementar</Button>
-            {isAdmin ? <Button variant="danger" className="app-btn--sm" onClick={() => setRevertOpen(true)}>Reverter omissão</Button> : null}
+            <Button variant="danger" className="app-btn--sm" onClick={() => setRevertOpen(true)}>Reverter omissão</Button>
           </div>
         ) : null}
       </div>

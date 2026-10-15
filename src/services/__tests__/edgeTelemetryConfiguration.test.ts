@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const config = readFileSync('supabase/config.toml', 'utf8')
@@ -24,5 +24,15 @@ describe('Edge telemetry configuration', () => {
       expect(config).toContain(`[functions.${functionName}]\nverify_jwt = false\nimport_map = "./functions/deno.json"`)
     }
     expect(deno.imports?.['@sentry/deno']).toMatch(/^npm:@sentry\/deno@\d+\.\d+\.\d+$/)
+  })
+
+  // A integração do Supabase só publica no merge a função declarada aqui;
+  // admin-users ficou de fora e parou numa versão antiga em produção.
+  it('declares every Edge Function of the repository in config.toml', () => {
+    const functions = readdirSync('supabase/functions', { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
+      .map((entry) => entry.name)
+    expect(functions.length).toBeGreaterThan(0)
+    expect(functions.filter((name) => !config.includes(`[functions.${name}]`))).toEqual([])
   })
 })

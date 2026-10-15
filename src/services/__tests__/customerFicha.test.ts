@@ -213,6 +213,9 @@ describe('fetchCustomerPendingReconciliation', () => {
     const result = await fetchCustomerPendingReconciliation(101)
 
     expect(result).toEqual([{ id: 'BL2', consignee: 'BETA', customer_reconciliation_status: 'matched_name' }])
+    // B16: a sugestão por nome tem customer_id nulo; a ficha procura pelo Cliente sugerido.
+    expect(builder.eq).toHaveBeenCalledWith('suggested_customer_id', 101)
+    expect(builder.eq).toHaveBeenCalledWith('customer_reconciliation_status', 'matched_name')
   })
 })
 

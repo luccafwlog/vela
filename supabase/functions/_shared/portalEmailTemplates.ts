@@ -195,8 +195,24 @@ export function emailChangeAssistedAlertTemplate(i: { portalUrl: string; support
   }
 }
 
-export function dailyDigestTemplate(i: { date: string; failures: number; activity: number; pending: number; portalUrl: string; supportEmail: string }) {
-  const list = [`Falhas/supressões: ${i.failures}`, `Atividade de provisionamento: ${i.activity}`, `Ativação pendente: ${i.pending}`]
+export function dailyDigestTemplate(i: {
+  date: string
+  failures: number
+  activity: number
+  pending: number
+  /** Exceção crítica de fatura aberta e fechada nas últimas 24 horas (ADR 0083, item 19). */
+  criticalOpened: number
+  criticalClosed: number
+  portalUrl: string
+  supportEmail: string
+}) {
+  const list = [
+    `Falhas/supressões: ${i.failures}`,
+    `Atividade de provisionamento: ${i.activity}`,
+    `Ativação pendente: ${i.pending}`,
+    `Exceção crítica de fatura aberta: ${i.criticalOpened}`,
+    `Exceção crítica de fatura fechada: ${i.criticalClosed}`,
+  ]
   const text = [`Resumo do Portal — ${i.date}`, '', ...list].join('\n')
   return {
     subject: `Resumo do Portal — ${i.date}`,

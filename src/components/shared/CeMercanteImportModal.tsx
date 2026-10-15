@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../../services/cacheEffects'
 import { Upload } from 'lucide-react'
@@ -28,27 +28,39 @@ import {
 import { userFacingErrorMessage } from '../../lib/errors'
 import { queryKeys } from '../../services/queryKeys'
 import { ImportReadProgress } from './ImportReadProgress'
+import { VoyageCombobox } from './VoyageCombobox'
 
 export function CeMercanteImportModal({
   open,
   onClose,
-  lockedVoyageId,
+  initialVoyageId,
   target = 'bls',
 }: {
   open: boolean
   onClose: () => void
-  lockedVoyageId?: number
+  /**
+   * Viagem de contexto (página da viagem, filtro da lista). B26 (ADR 0018,
+   * decisão 2): semeia o campo Viagem, que continua editável; sem viagem, o
+   * arquivo entra inteiro.
+   */
+  initialVoyageId?: number
   target?: CeMercanteImportTarget
 }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const { user } = useAuth()
-  const { file, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedCeMercanteFile>(async (nextFile) => {
-    const parsed = await parseCeMercanteFile(nextFile)
-    if (lockedVoyageId == null) return parsed
+  const [voyageId, setVoyageId] = useState<number | null>(initialVoyageId ?? null)
+  // B26: viagem atual e contador de requisição; resposta atrasada de outra viagem/arquivo é descartada.
+  const voyageIdRef = useRef<number | null>(initialVoyageId ?? null)
+  const previewRequestRef = useRef(0)
+  const [parsedFile, setParsedFile] = useState<ParsedCeMercanteFile | null>(null)
+  const { file, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedCeMercanteFile>(parseCeMercanteFile)
+
+  async function restrictToVoyage(parsed: ParsedCeMercanteFile, selectedVoyageId: number | null): Promise<ParsedCeMercanteFile> {
+    if (selectedVoyageId == null) return parsed
     const partition = target === 'bls'
-      ? await partitionRowsByVoyage(parsed.rows, lockedVoyageId)
-      : await partitionRowsByVoyage(parsed.rows, lockedVoyageId, target)
+      ? await partitionRowsByVoyage(parsed.rows, selectedVoyageId)
+      : await partitionRowsByVoyage(parsed.rows, selectedVoyageId, target)
     return {
       rows: partition.rows,
       rowErrors: [
@@ -56,7 +68,7 @@ export function CeMercanteImportModal({
         ...partition.blocked.map((item) => ({ row: item.row, message: item.message, raw: item.bl_id })),
       ],
     }
-  })
+  }
   const [preview, setPreview] = useState<ParsedCeMercanteFile | null>(null)
   const [report, setReport] = useState<CeMercanteImportResult | null>(null)
   const [numeroManifesto, setNumeroManifesto] = useState('')
@@ -92,16 +104,41 @@ export function CeMercanteImportModal({
   function resetState() {
     resetPreviewState()
     setNumeroManifesto('')
+    setParsedFile(null)
+    previewRequestRef.current += 1
+    voyageIdRef.current = initialVoyageId ?? null
+    setVoyageId(initialVoyageId ?? null)
   }
 
   async function handleFiles(files: File[]) {
     const nextFile = files[0] ?? null
+    const request = ++previewRequestRef.current
     resetPreviewState()
+    setParsedFile(null)
     try {
       const result = await readFile(nextFile)
-      if (result) setPreview(result)
+      if (request !== previewRequestRef.current) return
+      if (result) {
+        setParsedFile(result)
+        const restricted = await restrictToVoyage(result, voyageIdRef.current)
+        if (request === previewRequestRef.current) setPreview(restricted)
+      }
     } catch (error) {
-      setReadError(error instanceof Error ? error.message : 'Não foi possível ler o arquivo.')
+      if (request === previewRequestRef.current) setReadError(error instanceof Error ? error.message : 'Não foi possível ler o arquivo.')
+    }
+  }
+
+  async function handleVoyageSelect(nextVoyageId: number | null) {
+    voyageIdRef.current = nextVoyageId
+    setVoyageId(nextVoyageId)
+    if (!parsedFile) return
+    const request = ++previewRequestRef.current
+    resetPreviewState()
+    try {
+      const restricted = await restrictToVoyage(parsedFile, nextVoyageId)
+      if (request === previewRequestRef.current) setPreview(restricted)
+    } catch (error) {
+      if (request === previewRequestRef.current) setReadError(error instanceof Error ? error.message : 'Não foi possível conferir a viagem dos B/Ls.')
     }
   }
 
@@ -120,7 +157,7 @@ export function CeMercanteImportModal({
     try {
       let current = serverPreview
       if (target === 'bls' && !current) {
-        current = await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: lockedVoyageId })
+        current = await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: voyageId ?? undefined })
         setServerPreview(current)
         // Erro do lote ou troca a confirmar: a prévia mostra e para aqui.
         if (current.errors.length || current.needs_confirmation) return
@@ -133,7 +170,7 @@ export function CeMercanteImportModal({
       // ponytail: entre esta leitura e a gravação sobra uma janela curta;
       // fechá-la exige a RPC receber o CE e o Manifesto esperados por B/L.
       if (target === 'bls' && needsConfirmation && current) {
-        const fresh = await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: lockedVoyageId })
+        const fresh = await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: voyageId ?? undefined })
         if (confirmationKey(fresh) !== confirmationKey(current)) {
           showChangedPreview(fresh)
           return
@@ -143,7 +180,7 @@ export function CeMercanteImportModal({
       const result = await importCeMercanteRows(preview.rows, {
         changedBy: user?.id ?? null,
         target,
-        voyageId: lockedVoyageId,
+        voyageId: voyageId ?? undefined,
         manifestoNumero: target === 'bls' ? numeroManifesto.trim() : undefined,
         confirmChanges: needsConfirmation,
         reason: needsConfirmation ? reason.trim() : undefined,
@@ -154,7 +191,7 @@ export function CeMercanteImportModal({
       // servidor pede confirmação. A prévia é refeita e mostra a troca a
       // confirmar, em vez de repetir a recusa a cada clique (K9).
       if (target === 'bls' && result.needsConfirmation) {
-        showChangedPreview(await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: lockedVoyageId }))
+        showChangedPreview(await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: voyageId ?? undefined }))
         return
       }
       setReport(result)
@@ -287,6 +324,15 @@ export function CeMercanteImportModal({
           }
           templates={<ImportTemplateLinks baseName="ce-mercante-modelo" />}
         />
+
+        {initialVoyageId != null ? (
+          <VoyageCombobox
+            label="Viagem"
+            clearable
+            selectedVoyageId={voyageId == null ? null : String(voyageId)}
+            onSelect={(id) => void handleVoyageSelect(id == null ? null : Number(id))}
+          />
+        ) : null}
 
         <ImportFilePicker
           accept=".xlsx,.xls,.csv"

@@ -25,6 +25,8 @@ describe('financialValidation', () => {
   })
 
   it('valida e normaliza os dados da criacao de fatura avulsa', () => {
+    // Motivo interno obrigatório (migration 272).
+    expect(manualInvoiceCreationSchema.safeParse({ customerId: 7, itemName: 'Taxa', reason: '  ', quantity: '1', unitValueBrl: '10' }).success).toBe(false)
     expect(manualInvoiceCreationSchema.safeParse({
       customerId: '',
       itemName: 'Taxa',
@@ -54,6 +56,7 @@ describe('financialValidation', () => {
       customerId: '7',
       itemName: ' Taxa especial ',
       description: ' Observacao da cobranca ',
+      reason: ' Servico extra combinado ',
       quantity: '2',
       unitValueBrl: '10,50',
       blId: ' BL-1 ',
@@ -62,6 +65,7 @@ describe('financialValidation', () => {
       customerId: 7,
       itemName: 'Taxa especial',
       description: 'Observacao da cobranca',
+      reason: 'Servico extra combinado',
       quantity: 2,
       unitValueBrl: 10.5,
       blId: 'BL-1',
@@ -71,6 +75,7 @@ describe('financialValidation', () => {
     expect(manualInvoiceCreationSchema.parse({
       customerId: 7,
       itemName: 'Taxa sem contexto',
+      reason: 'Ajuste combinado',
       quantity: 1,
       unitValueBrl: 10,
     })).toMatchObject({

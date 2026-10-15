@@ -1,4 +1,4 @@
-import { execPsql } from './localPsql'
+import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -34,13 +34,17 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
       DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE a.entity_id='${entityId}');
       DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id='${entityId}');
       DELETE FROM public.alerts WHERE entity_id = '${entityId}';
-      DELETE FROM public.agency_departure_reports WHERE id = '${reportId}';
+      DELETE FROM public.agency_departure_reports WHERE id = '${reportId}' OR (voyage_id = ${voyageId} AND port IN ('BRVIX', 'BRPNG', 'BRITJ'));
+      DELETE FROM public.bls WHERE voyage_id = ${voyageId};
+      DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyages WHERE id = ${voyageId};
       DELETE FROM public.vessels WHERE id = ${vesselId};
       DELETE FROM public.carriers WHERE id = ${carrierId};
       DELETE FROM public.depots WHERE id = '${terminalId}';
       DELETE FROM public.audit_logs WHERE changed_by IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
+      -- Os DELETEs acima disparam a reconciliação dos alertas, que grava eventos com o autor da sessão.
+      DELETE FROM public.alert_item_events WHERE actor_id IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
       DELETE FROM public.user_profiles WHERE id IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
       DELETE FROM auth.users WHERE id IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
 
@@ -78,13 +82,17 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
       DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE a.entity_id='${entityId}');
       DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM public.alerts WHERE entity_id='${entityId}');
       DELETE FROM public.alerts WHERE entity_id = '${entityId}';
-      DELETE FROM public.agency_departure_reports WHERE id = '${reportId}';
+      DELETE FROM public.agency_departure_reports WHERE id = '${reportId}' OR (voyage_id = ${voyageId} AND port IN ('BRVIX', 'BRPNG', 'BRITJ'));
+      DELETE FROM public.bls WHERE voyage_id = ${voyageId};
+      DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyages WHERE id = ${voyageId};
       DELETE FROM public.vessels WHERE id = ${vesselId};
       DELETE FROM public.carriers WHERE id = ${carrierId};
       DELETE FROM public.depots WHERE id = '${terminalId}';
       DELETE FROM public.audit_logs WHERE changed_by IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
+      -- Os DELETEs acima disparam a reconciliação dos alertas, que grava eventos com o autor da sessão.
+      DELETE FROM public.alert_item_events WHERE actor_id IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
       DELETE FROM public.user_profiles WHERE id IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
       DELETE FROM auth.users WHERE id IN ('${adminId}', '${opsId}', '${docsId}', '${equipmentId}');
     `)
@@ -122,5 +130,49 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
     `)
     expect(psql(`SELECT (signed_at IS NULL)::text FROM public.agency_departure_report_department_signoffs WHERE report_id='${reportId}' AND department='operacoes';`)).toBe('true')
     expect(psql(`SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE a.entity_id='${entityId}' AND i.department='operacoes' AND i.status='active' AND i.item_type IN ('agency_report_department_pending', 'agency_report_deadline_missed');`)).toBe('2')
+  })
+
+  // B5 (ADR 0029; migration 257): no ADR terminalizado, o banco recusa o sign-off departamental com seção Pendente.
+  it('B5 — sign-off departamental recusa seção Pendente pela API', () => {
+    const asUser = (userId: string, sql: string) => spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${userId}'; SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql}; COMMIT;`], { encoding: 'utf8' })
+    // O teste anterior deixou 'datas' (Operações) Pendente; as seções da Documentação estão resolvidas.
+    const pending = asUser(opsId, `SELECT public.set_agency_report_department_signoff_by_report_id('${reportId}', ${voyageId}, 'BRSSZ', 'operacoes', true)`)
+    expect(pending.status).not.toBe(0)
+    expect(pending.stderr).toMatch(/secoes pendentes/)
+    expect(psql(`SELECT count(*) FROM public.agency_departure_report_department_signoffs WHERE report_id='${reportId}' AND department='operacoes' AND signed_at IS NOT NULL;`)).toBe('0')
+    const resolved = asUser(docsId, `SELECT public.set_agency_report_department_signoff_by_report_id('${reportId}', ${voyageId}, 'BRSSZ', 'documentacao', true)`)
+    expect(resolved.stderr).toBe('')
+  })
+
+  // B6 (ADR 0035; migration 259): escala com frente de operação e sem terminal (TBC) não abre ADR legado por porto.
+  it('B6 — escala com frente TBC não cria ADR legado sem terminal', () => {
+    psql(`INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, terminal_id, source)
+      SELECT ${voyageId}, 'BRVIX', id, 'importacao', 'carga_cheia', NULL, 'operational_data' FROM public.ports WHERE locode = 'BRVIX';`)
+    const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${opsId}'; SET LOCAL request.jwt.claim.role = 'authenticated';
+       SELECT public.set_agency_report_signoff(${voyageId}, 'BRVIX', 'datas', 'confirmed', NULL); COMMIT;`], { encoding: 'utf8' })
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toMatch(/atribua o terminal/)
+    expect(psql(`SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId} AND port = 'BRVIX';`)).toBe('0')
+  })
+
+  // B6 (migration 273): a frente derivada dos dados (B/L com POD no porto) também recusa, sem frente gravada.
+  it('B6 — escala com B/L e sem frente gravada não cria ADR legado; escala sem carga ainda cria', () => {
+    const signAs = (port: string) => spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+      `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${opsId}'; SET LOCAL request.jwt.claim.role = 'authenticated';
+       SELECT public.set_agency_report_signoff(${voyageId}, '${port}', 'datas', 'confirmed', NULL); COMMIT;`], { encoding: 'utf8' })
+    psql(`SET session_replication_role = replica;
+      INSERT INTO public.bls (id, voyage_id, pod, cargo_mode) VALUES ('B6-273-BL', ${voyageId}, 'BRPNG', 'container');
+      SET session_replication_role = origin;`)
+    expect(psql(`SELECT count(*) FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${voyageId} AND port = 'BRPNG';`)).toBe('0')
+    const withBl = signAs('BRPNG')
+    expect(withBl.status).not.toBe(0)
+    expect(withBl.stderr).toMatch(/atribua o terminal/)
+    expect(psql(`SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId} AND port = 'BRPNG';`)).toBe('0')
+
+    // Escala sem frente gravada nem dado operacional: o legado por porto segue.
+    expect(signAs('BRITJ').stderr).toBe('')
+    expect(psql(`SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId} AND port = 'BRITJ' AND terminal_id IS NULL;`)).toBe('1')
   })
 })

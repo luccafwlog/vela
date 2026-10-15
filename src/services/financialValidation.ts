@@ -67,6 +67,8 @@ export const manualInvoiceCreationSchema = z.object({
   ),
   itemName: z.string().trim().min(1, 'Nome do item obrigatorio.'),
   description: nullableTextSchema,
+  // Motivo interno obrigatório (ADR 0083, item 9; migration 272); não vai para o Portal.
+  reason: z.string().trim().min(1, 'Motivo obrigatorio.'),
   quantity: positiveNumberSchema,
   unitValueBrl: positiveNumberSchema,
   blId: z.preprocess(

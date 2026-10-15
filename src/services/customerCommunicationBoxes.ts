@@ -1,5 +1,6 @@
 import type { CustomerContact } from '../types/database'
 import { getEmailSuppressionReason, type EmailSuppressionRow } from './customerCommunications'
+import { supabase } from './supabase'
 
 export const CUSTOMER_COMMUNICATION_BOXES = [
   {
@@ -25,10 +26,23 @@ export type CustomerCommunicationAudience =
   | { mode: 'todos' }
   | { mode: 'caixa'; boxCode: CommunicationBoxCode }
 
-export const CUSTOMER_COMMUNICATION_BOX_KINDS: Record<CommunicationBoxCode, readonly string[]> = {
-  documentacao_operacao: ['aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob', 'ce_mercante_taxas'],
-  financeiro: ['ce_mercante_taxas', 'cobranca_demurrage'],
-  demurrage: ['cobranca_demurrage'],
+/** Linha de `customer_communication_box_kinds`: a caixa recebe o modelo. */
+export type CommunicationBoxKind = {
+  box_code: string
+  kind: string
+}
+
+/**
+ * O mapa caixa → modelo vem do banco (`customer_communication_box_kinds`), a
+ * mesma tabela que a Edge Function consulta antes de enviar (item B18 do plano
+ * de correções de 2026-10-14). O navegador não guarda uma cópia.
+ */
+export async function fetchCommunicationBoxKinds(kind?: string): Promise<CommunicationBoxKind[]> {
+  let query = supabase.from('customer_communication_box_kinds').select('box_code, kind')
+  if (kind) query = query.eq('kind', kind)
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []) as CommunicationBoxKind[]
 }
 
 export type CustomerContactBoxLink = {
@@ -88,21 +102,18 @@ export function normalizeEmail(email: string | null | undefined): string {
   return (email ?? '').trim().toLowerCase()
 }
 
-export function getBoxesForKind(kind: string | undefined): CommunicationBoxCode[] {
+export function getBoxesForKind(kind: string | undefined, boxKinds: readonly CommunicationBoxKind[]): CommunicationBoxCode[] {
   if (!kind) return []
-  const boxes: CommunicationBoxCode[] = []
-  for (const box of CUSTOMER_COMMUNICATION_BOXES) {
-    const kinds = CUSTOMER_COMMUNICATION_BOX_KINDS[box.code]
-    if (kinds && kinds.includes(kind)) {
-      boxes.push(box.code)
-    }
-  }
-  return boxes
+  return CUSTOMER_COMMUNICATION_BOXES
+    .filter((box) => boxKinds.some((row) => row.box_code === box.code && row.kind === kind))
+    .map((box) => box.code)
 }
 
 export function resolveCustomerCommunicationRecipientsByBoxes(input: {
   contacts: readonly ExtendedCustomerContact[]
   boxLinks?: readonly CustomerContactBoxLink[]
+  /** Linhas de `customer_communication_box_kinds`; sem elas, nenhum modelo tem caixa. */
+  boxKinds?: readonly CommunicationBoxKind[]
   kind?: string
   audience?: CustomerCommunicationAudience
   portalSuppressions?: readonly EmailSuppressionRow[]
@@ -144,7 +155,7 @@ export function resolveCustomerCommunicationRecipientsByBoxes(input: {
   if (input.audience && input.audience.mode === 'caixa') {
     targetBoxes = [input.audience.boxCode]
   } else if (!isGeneralAudience && input.kind) {
-    targetBoxes = getBoxesForKind(input.kind)
+    targetBoxes = getBoxesForKind(input.kind, input.boxKinds ?? [])
   }
 
   const eligibleMap = new Map<string, CustomerCommunicationRecipient>()

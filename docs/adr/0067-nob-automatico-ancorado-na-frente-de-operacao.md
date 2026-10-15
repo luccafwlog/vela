@@ -2,7 +2,7 @@
 
 > **Situação atual (2026-10-14).** O NOB automático por Atracação e a janela de 30 dias valem. Pela [ADR 0068](./0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md), não vale mais a âncora derivada só de `cargo_mode → modalidade`: o NOB usa o terminal resolvido do B/L (`resolve_bl_terminal_id`), a exceção individual vence a frente mesmo sem frente naquele terminal, e o B/L misto não cai mais em `carga_cheia` (exige as duas frentes no terminal).
 > A produtora vigente é a da migration `190`, não a da `062` citada na nota abaixo; ela aplica essa regra e não comunica Viagem cancelada.
-> Defeito com correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26): o NOB manual (conferência na tela, Edge Function `send-customer-communication` e RPC `create_customer_communication_atomic`) ainda escolhe o público pela frente da modalidade, ignora a exceção de terminal e recusa o B/L misto, ao contrário da régua.
+> O NOB manual segue a mesma regra desde a migration `243` (item B3 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)): a conferência na tela, a Edge Function e a RPC `create_customer_communication_atomic` usam `bl_belongs_to_atracacao`, a regra da produtora.
 > Regra vigente em [Clientes](../modules/clientes.md), seção `/clientes/comunicacao`.
 
 > **Nota editorial — 2026-09-18 · supersedida parcialmente.** NOB usa terminal resolvido do B/L, incluindo exceção, não apenas modalidade da frente. A produtora vigente foi redefinida em 062; a variante _045 ficou inerte.

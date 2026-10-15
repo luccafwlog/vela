@@ -15,6 +15,9 @@ const demurrageId = 998805
 const demurrage2Id = 998806
 const bl2Id = 'ITAU-152-BL'
 const userId = '00000000-0000-0000-0000-000000098801'
+// Outro Administrativo ativo: os casos que trocam o setor de `userId` não
+// esbarram no "Administrativo ativo mínimo" (migration 239) num banco recém-replicado.
+const spareAdminId = '00000000-0000-0000-0000-000000098802'
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -71,8 +74,8 @@ function cleanup() {
     DELETE FROM public.portal_provisioning_events WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}) OR account_id IN (SELECT id FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId}));
     DELETE FROM public.customer_portal_accounts WHERE customer_id IN (SELECT id FROM public.customers WHERE id = ${customerId});
     DELETE FROM public.customers WHERE id = ${customerId};
-    DELETE FROM public.user_profiles WHERE id = '${userId}';
-    DELETE FROM auth.users WHERE id = '${userId}';
+    DELETE FROM public.user_profiles WHERE id IN ('${userId}', '${spareAdminId}');
+    DELETE FROM auth.users WHERE id IN ('${userId}', '${spareAdminId}');
     SET session_replication_role = origin;
     UPDATE public.app_settings SET pix_provider = 'static', itau_pix_settlement_actor = NULL WHERE id = 1;
   `)
@@ -82,8 +85,9 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
   beforeAll(() => {
     cleanup()
     psql(`
-      INSERT INTO auth.users (id, email) VALUES ('${userId}', 'admin-150@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${userId}', 'Admin 150', 'administrativo', true);
+      INSERT INTO auth.users (id, email) VALUES ('${userId}', 'admin-150@example.test'), ('${spareAdminId}', 'admin-150-reserva@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${userId}', 'Admin 150', 'administrativo', true),
+        ('${spareAdminId}', 'Admin 150 reserva', 'administrativo', true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${syntheticCnpj(98801)}', 'Cliente Itau 150');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 150');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 150', ${carrierId});
@@ -192,7 +196,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
   it('emissão real de avulsa pela RPC não deixa escapar o QR estático', () => {
     setProvider('itau')
     const result = JSON.parse(psql(`SET request.jwt.claim.sub = '${userId}';
-      SELECT public.create_manual_invoice(${customerId}, 'Teste Itau', 1, 0.01, NULL, NULL, NULL, '${userId}'::uuid)`)) as { invoice_id: number }
+      SELECT public.create_manual_invoice(${customerId}, 'Teste Itau', 1, 0.01, NULL, NULL, NULL, '${userId}'::uuid, p_reason => 'Motivo interno de teste')`)) as { invoice_id: number }
     expect(psql(`SELECT coalesce(pix_payload, 'NULL') FROM public.invoices WHERE id = ${result.invoice_id}`)).toBe('NULL')
     expect(charges(`invoice_id = ${result.invoice_id}`).map((c) => [c.amount, c.status])).toEqual([['0.01', 'pending_create']])
   })
@@ -391,7 +395,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
   })
 
   // ---- Fase 5 (migration 154): monitoramento na Conciliação PIX ----
-  it('Admin lê o monitoramento com cancelamento pendente; outro perfil não', () => {
+  it('qualquer perfil lê o monitoramento com cancelamento pendente; perfil inativo não', () => {
     setProvider('itau')
     const id = manualInvoice('ITAU153-MON', 0.06)
     activate(`invoice_id = ${id}`, '000201ITAU153')
@@ -401,11 +405,14 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     }
     expect(monitor.provider).toBe('itau')
     expect(monitor.charges).toContainEqual(expect.objectContaining({ doc_number: 'ITAU153-MON', status: 'pending_cancel' }))
+    // Ler a Conciliação é de todos (ADR 0085, D5; migration 247).
     psql(`UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${userId}'`)
     try {
+      expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/pending_cancel/)
+      psql(`UPDATE public.user_profiles SET active = false WHERE id = '${userId}'`)
       expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/Sem permissao/)
     } finally {
-      psql(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${userId}'`)
+      psql(`UPDATE public.user_profiles SET role = 'administrativo', active = true WHERE id = '${userId}'`)
     }
   })
 

@@ -190,6 +190,34 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
     expect(own).toBe('3')
   })
 
+  // A15 (ADR 0083, item 15; migration 256): depois de uma pausa, sai uma cobrança e as seguintes
+  // seguem o intervalo a partir do último envio, sem recuperar as "atrasadas".
+  it('A15 — a Régua retoma ancorada no último envio', () => {
+    const invoice = invoiceIds[11]!
+    const claimAt = (asOf: string) => (JSON.parse(localPsql(`SELECT public.claim_demurrage_dunning_candidates(${asOf}, 50);`)) as Candidate[])
+      .filter((candidate) => Number(candidate.invoice_id) === invoice)
+    try {
+      // Cada envio é um comunicado enviado da tentativa; sem ele o claim seria liberado após 30 minutos.
+      const sent = (attempt: number) => localPsql(`INSERT INTO public.customer_communications
+        (customer_id, kind, nature, status, anchor_invoice_id, attempt_discriminator)
+        VALUES (${customerId}, 'cobranca_demurrage', 'demurrage', 'enviado', ${invoice}, ${attempt});`)
+      localPsql(`DELETE FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ANY(ARRAY[${invoiceIds.join(',')}]::bigint[]);
+        INSERT INTO public.demurrage_dunning_claims (demurrage_invoice_id, attempt_discriminator, claimed_at)
+        VALUES (${invoice}, 1, now() - interval '40 days');`)
+      sent(1)
+      // 40 dias depois do 1º envio (pausa): sai a 2ª cobrança.
+      expect(claimAt('now()').map((candidate) => Number(candidate.attempt_discriminator))).toEqual([2])
+      sent(2)
+      // Uma hora depois, a 3ª não sai: vence 7 dias depois do último envio.
+      expect(claimAt(`now() + interval '1 hour'`)).toEqual([])
+      expect(claimAt(`now() + interval '5 days'`)).toEqual([])
+      expect(claimAt(`now() + interval '8 days'`).map((candidate) => Number(candidate.attempt_discriminator))).toEqual([3])
+    } finally {
+      localPsql(`DELETE FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ANY(ARRAY[${invoiceIds.join(',')}]::bigint[]);
+        DELETE FROM public.customer_communications WHERE anchor_invoice_id = ${invoice} AND kind = 'cobranca_demurrage';`)
+    }
+  })
+
   it('revalidação: quitação e disputa excluem a fatura sem travar as demais', () => {
     const [quitada, disputada] = [invoiceIds[0]!, invoiceIds[1]!]
     localPsql(`UPDATE public.demurrage_invoices SET paid_at = '2026-09-09' WHERE id = ${quitada};`)

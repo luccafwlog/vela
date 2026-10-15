@@ -41,6 +41,10 @@ describe('leitura da régua de Demurrage', () => {
       if (table === 'app_settings') return queryResult(table, { demurrage_dunning_interval_days: 5 })
       if (table === 'customer_contact_box_links') return queryResult(table, [{ contact_id: 11, box_code: 'demurrage' }])
       if (table === 'customer_communication_suppressions' || table === 'portal_suppressed_emails') return queryResult(table, [])
+      if (table === 'customer_communication_box_kinds') return queryResult(table, [
+        { box_code: 'financeiro', kind: 'cobranca_demurrage' },
+        { box_code: 'demurrage', kind: 'cobranca_demurrage' },
+      ])
       throw new Error(`tabela inesperada: ${table}`)
     })
   })
@@ -56,6 +60,9 @@ describe('leitura da régua de Demurrage', () => {
     })
     expect(mockRpc).toHaveBeenCalledWith('list_demurrage_dunning_claim_statuses', { p_invoice_ids: [1] })
     expect(queryCalls).toContainEqual({ table: 'customer_contact_box_links', method: 'in', args: ['contact_id', [11]] })
+    // As caixas que recebem a cobrança vêm de customer_communication_box_kinds (B18).
+    expect(queryCalls).toContainEqual({ table: 'customer_communication_box_kinds', method: 'eq', args: ['kind', 'cobranca_demurrage'] })
+    expect(queryCalls).toContainEqual({ table: 'customer_contact_box_links', method: 'in', args: ['box_code', ['financeiro', 'demurrage']] })
     expect(queryCalls).toContainEqual({
       table: 'customer_communication_suppressions',
       method: 'in',

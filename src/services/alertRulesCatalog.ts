@@ -2,7 +2,7 @@ import { AGENCY_REPORT_SECTIONS, AGENCY_REPORT_SECTION_LABELS, type AgencyReport
 import { ENTITY_TYPE_LABELS, TYPE_LABELS, type ActiveAlertType } from './alerts'
 
 export type AlertRuleDomain = 'Operação' | 'Revisão' | 'Financeiro' | 'Portal'
-export type AlertRuleDepartment = 'documentacao' | 'equipamentos' | 'operacoes' | 'administrativo'
+export type AlertRuleDepartment = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
 export type AlertRuleSeverity = 'critical' | 'normal'
 
 // O manual só documenta regras vivas: um tipo sem produtor sai desta lista na
@@ -55,17 +55,21 @@ type AlertRuleDraft = Omit<AlertRule, 'label' | 'notifiedDepartments' | 'respons
 }
 
 export const ALERT_RULE_DEPARTMENTS: AlertRuleDepartment[] = ['documentacao', 'equipamentos', 'operacoes']
-const DEPARTMENT_ORDER: AlertRuleDepartment[] = [...ALERT_RULE_DEPARTMENTS, 'administrativo']
+// Financeiro recebe os alertas de baixa e Restituição (migration 247).
+const DEPARTMENT_ORDER: AlertRuleDepartment[] = [...ALERT_RULE_DEPARTMENTS, 'financeiro', 'administrativo']
 
 export const ALERT_RULE_DEPARTMENT_LABELS: Record<AlertRuleDepartment, string> = {
   documentacao: 'Documentação',
   equipamentos: 'Equipamentos',
   operacoes: 'Operações',
+  financeiro: 'Financeiro',
   administrativo: 'Administrativo',
 }
 
 const temporaryDismissal = 'Pode ser dispensado temporariamente na fila, com motivo obrigatório e data futura de revisão. A dispensa não corrige a origem nem libera um bloqueio.'
 const derivedResolution = 'O alerta é fechado automaticamente quando a origem é corrigida e a reconciliação confirma que a pendência deixou de existir.'
+// Conferência sem fato de origem (ADR 0083, item 23; migration 238).
+const justifiedResolution = 'Depois de conferir, use Resolver na fila: a justificativa é obrigatória e fica no histórico do alerta com o seu nome.'
 
 // Ordem canônica dos departamentos do ADR no detector SQL
 // (`reconcile_agency_report_alerts`, migrations 323/342).
@@ -294,7 +298,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Conferir o Desbloqueio de CE com o CE novo e refazer o que dependia do CE anterior.',
     destination: '/desbloqueio-ce',
     destinationLabel: 'Abrir o Desbloqueio de CE',
-    afterResolution: 'Registre a conferência ao resolver o alerta.',
+    afterResolution: 'Fecha sozinho quando a conciliação com a ZPT confere o Desbloqueio do CE atual. Se o CE foi removido ou a conferência foi feita fora da conciliação, use Resolver na fila: a justificativa é obrigatória e fica no histórico do alerta com o seu nome.',
     dismissal: temporaryDismissal,
   },
   {
@@ -310,7 +314,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Conferir na ficha do B/L os veículos que entraram e saíram e o local de desova; a cobrança segue a ADR 0077.',
     destination: '/bls',
     destinationLabel: 'Abrir o B/L',
-    afterResolution: 'Registre a conferência ao resolver o alerta.',
+    afterResolution: justifiedResolution,
     dismissal: temporaryDismissal,
   },
   {
@@ -326,15 +330,16 @@ const ALERT_RULES_BASE = [
     resolution: 'Reenviar o Comunicado de CE e Taxas ao Cliente com o CE atual.',
     destination: '/bls',
     destinationLabel: 'Abrir o B/L',
-    afterResolution: 'Registre o reenvio ao resolver o alerta.',
+    afterResolution: 'Fecha sozinho quando o Comunicado de CE e Taxas é enviado de novo ao Cliente, depois da troca do CE.',
     dismissal: temporaryDismissal,
   },
   {
     type: 'pix_unreconciled',
     domain: 'Financeiro',
     responsible: 'administrativo',
-    catalogAudience: ['administrativo', 'documentacao', 'equipamentos'],
-    routingNote: 'Administrativo trata na fila, porque só ele abre a Conciliação PIX; Documentação e Equipamentos também recebem a notificação interna, porque o PIX pode se referir a uma invoice de Demurrage.',
+    responsibleDepartments: ['administrativo', 'financeiro'],
+    catalogAudience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'],
+    routingNote: 'Administrativo e Financeiro tratam na fila, porque conciliar o PIX é deles (migration 247); Documentação e Equipamentos também recebem a notificação interna, porque o PIX pode se referir a uma invoice de Demurrage.',
     entityType: 'pix_transaction',
     severity: 'critical',
     summary: 'Um PIX não encontrou uma correspondência segura com a cobrança esperada.',
@@ -439,7 +444,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Investigue as evidências, proteja a conta e registre a tratativa de segurança.',
     destination: '/clientes/portal',
     destinationLabel: 'Abrir Clientes e Portal',
-    afterResolution: derivedResolution,
+    afterResolution: justifiedResolution,
     dismissal: temporaryDismissal,
   },
   {
@@ -458,6 +463,42 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir Clientes',
     destinationNote: 'Quando o cliente estiver identificado, o alerta abre diretamente `/clientes/{cnpj}?tab=cadastro`.',
     afterResolution: derivedResolution,
+    dismissal: temporaryDismissal,
+  },
+  {
+    type: 'caixa_sem_destinatario',
+    domain: 'Portal',
+    responsible: 'documentacao',
+    responsibleDepartments: ['documentacao', 'administrativo'],
+    catalogAudience: ['documentacao', 'administrativo'],
+    entityType: 'customer',
+    severity: 'critical',
+    summary: 'Uma Caixa de Comunicação do Cliente ficou sem destinatário elegível: os Comunicados dessa caixa não têm para quem ir.',
+    trigger: 'O salvamento dos contatos deixa uma caixa só com e-mails suprimidos (bounce permanente ou reclamação), ou o reparo das caixas não encontra contato ativo para religar.',
+    timing: 'Aparece no salvamento ou no reparo das caixas e permanece até um salvamento em que toda caixa ativa tenha destinatário elegível.',
+    resolution: 'Abra o cadastro do Cliente na aba Contatos e coloque na caixa um contato ativo com e-mail válido e não suprimido.',
+    destination: '/clientes',
+    destinationLabel: 'Abrir Clientes',
+    destinationNote: 'Quando o cliente estiver identificado, o alerta abre diretamente `/clientes/{cnpj}?tab=cadastro`.',
+    afterResolution: 'Fecha sozinho ao salvar os contatos com destinatário elegível em toda caixa ativa (migration 245).',
+    dismissal: temporaryDismissal,
+  },
+  {
+    type: 'cliente_sem_contato_principal',
+    domain: 'Portal',
+    responsible: 'documentacao',
+    responsibleDepartments: ['documentacao', 'administrativo'],
+    catalogAudience: ['documentacao', 'administrativo'],
+    entityType: 'customer',
+    severity: 'critical',
+    summary: 'O Cliente não tem contato principal ativo e um B/L trouxe um e-mail que está desativado no cadastro.',
+    trigger: 'A captura do e-mail do consignatário na importação do B/L encontra o endereço desativado e nenhum contato principal ativo; o cadastro não é reativado sozinho.',
+    timing: 'Aparece na importação do B/L e permanece até os contatos do Cliente serem salvos.',
+    resolution: 'Abra o cadastro do Cliente na aba Contatos, escolha o contato principal (reativando o endereço, se for o caso) e salve.',
+    destination: '/clientes',
+    destinationLabel: 'Abrir Clientes',
+    destinationNote: 'Quando o cliente estiver identificado, o alerta abre diretamente `/clientes/{cnpj}?tab=cadastro`.',
+    afterResolution: 'Fecha sozinho ao salvar os contatos, porque o salvamento exige exatamente um contato principal ativo (migration 245).',
     dismissal: temporaryDismissal,
   },
   {
@@ -658,6 +699,22 @@ const ALERT_RULES_BASE = [
     dismissal: temporaryDismissal,
   },
   {
+    type: 'nob_sem_destinatario',
+    domain: 'Operação',
+    responsible: 'documentacao',
+    catalogAudience: ['documentacao'],
+    entityType: 'customer',
+    severity: 'normal',
+    summary: 'O Cliente tem carga numa Atracação com ATB recente, mas nenhum contato elegível na caixa Documentação e Operação para receber o NOB.',
+    trigger: 'A rodada dos Comunicados automáticos encontra o Cliente no NOB da Atracação sem contato ativo, com e-mail válido e sem supressão, na caixa Documentação e Operação.',
+    timing: 'Aparece na rodada automática (a cada 15 minutos) durante os trinta dias depois do ATB; os outros Clientes da Atracação recebem o NOB normalmente.',
+    resolution: 'Abra o cadastro do Cliente na aba Contatos e coloque um contato com e-mail válido na caixa Documentação e Operação.',
+    destination: '/clientes',
+    destinationLabel: 'Abrir Clientes',
+    afterResolution: 'Fecha sozinho na rodada seguinte em que o Cliente tem contato elegível na caixa.',
+    dismissal: temporaryDismissal,
+  },
+  {
     type: 'agency_report_department_pending',
     domain: 'Operação',
     responsible: 'documentacao',
@@ -695,7 +752,8 @@ const ALERT_RULES_BASE = [
   },
   {
     type: 'fatura_desatualizada', domain: 'Financeiro', responsible: 'administrativo',
-    catalogAudience: ['administrativo'], entityType: 'invoice', severity: 'normal',
+    responsibleDepartments: ['administrativo', 'financeiro'],
+    catalogAudience: ['administrativo', 'financeiro'], entityType: 'invoice', severity: 'normal',
     summary: 'A correção do B/L mudou a cobrança de uma fatura e o sistema não conseguiu resolver sozinho.',
     trigger: 'Correção do B/L em fatura com pagamento que aumenta o valor, troca o Cliente ou precisa de revisão; ou reemissão automática travada.',
     timing: 'No fim da transação da correção.',
@@ -706,7 +764,8 @@ const ALERT_RULES_BASE = [
   },
   {
     type: 'restituicao_pendente', domain: 'Financeiro', responsible: 'administrativo',
-    catalogAudience: ['administrativo'], entityType: 'invoice', severity: 'normal',
+    responsibleDepartments: ['administrativo', 'financeiro'],
+    catalogAudience: ['administrativo', 'financeiro'], entityType: 'invoice', severity: 'normal',
     summary: 'A correção do B/L reduziu uma fatura além do saldo aberto: há dinheiro a devolver ao Cliente.',
     trigger: 'Correção do B/L em fatura paga cuja redução passa do saldo em aberto.',
     timing: 'No fim da transação da correção.',

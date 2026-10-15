@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { useToast } from '../ui/Toast'
 import { usePendingReissues, useRetryPendingConsolidatedReissue } from '../../hooks/useBilling'
-import { useAuth } from '../../hooks/useAuth'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { formatDate } from '../../lib/utils'
 
@@ -15,7 +14,6 @@ type Props = {
 // que reemitir (B/L cancelado, isento, ou consolidada com outros B/Ls).
 export function PendingReissuesPanel({ onOpenInvoice }: Props) {
   const { data } = usePendingReissues()
-  const { isAdmin } = useAuth()
   const retry = useRetryPendingConsolidatedReissue()
   const { showToast } = useToast()
   const rows = data ?? []
@@ -55,7 +53,7 @@ export function PendingReissuesPanel({ onOpenInvoice }: Props) {
                 <span key={blId}>{index > 0 ? ', ' : ''}<Link className="app-fin-alerts__link" to={`/bls/${encodeURIComponent(blId)}`}>{blId}</Link></span>
               ))}
             </span>
-            {row.invoice_type === 'consolidated' && isAdmin ? (
+            {row.invoice_type === 'consolidated' ? (
               <Button
                 variant="secondary"
                 loading={retry.isPending && retry.variables === row.invoice_id}

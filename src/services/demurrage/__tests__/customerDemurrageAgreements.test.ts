@@ -126,6 +126,21 @@ describe('customerDemurrageAgreements service', () => {
     })
   })
 
+  it('B13: edição não envia active (reativar é pela RPC com motivo)', async () => {
+    const builder = createMockQuery({ error: null })
+    mocks.from.mockReturnValue(builder)
+
+    await saveCustomerDemurrageAgreement({
+      id: 7,
+      customer_id: 10,
+      free_days: 28,
+      valid_from: '2026-01-01',
+      active: true,
+    })
+
+    expect((builder.upsert.mock.calls as unknown as Array<[Record<string, unknown>]>)[0][0]).not.toHaveProperty('active')
+  })
+
   it('handles overlap constraint violation error with user-friendly message', async () => {
     const builder = createMockQuery({
       error: { message: 'conflicting key value violates exclusion constraint "customer_demurrage_agreements_no_overlap"' },

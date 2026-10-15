@@ -34,11 +34,11 @@ describe("createManualVaziosBooking", () => {
   it("exclui pela RPC que tambem limpa manifesto manual vazio", async () => {
     rpcMock.mockResolvedValue({ error: null });
 
-    await deleteManualVaziosBooking("booking-1");
+    await deleteManualVaziosBooking("booking-1", "lançada por engano");
 
     expect(rpcMock).toHaveBeenCalledWith(
       "delete_manual_vazios_booking",
-      { p_booking_id: "booking-1" },
+      { p_booking_id: "booking-1", p_reason: "lançada por engano" },
     );
   });
 

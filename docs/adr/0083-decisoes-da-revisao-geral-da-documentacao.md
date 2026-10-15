@@ -1,8 +1,14 @@
 # 0083 — Decisões da revisão geral da documentação
 
-Status: aceito — 2026-10-14 (decisões do dono). Implementação pendente: a
-correção de código de cada item está no
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+Status: aceito — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelo
+[plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
+(migrations `230` a `266`; a tabela "Execução" do plano liga cada item à sua
+prova). Migration nova só vale em produção depois de publicada. Na revisão da
+PR 954 (2026-10-15), as migrations `267` a `278` corrigiram defeitos da
+implementação e o dono decidiu três pontos: o "motivo" do item 9 é um motivo
+interno obrigatório, fora do Portal (migration `272`); a regra M14 da captura
+de e-mail vale também na Revisão (item 26, B28; migration `271`); a viagem da
+importação de CE Mercante é limpável ([ADR 0018](./0018-selecao-viagem-busca-preditiva-combobox.md)).
 
 Responde às decisões pendentes A1–A25 e aos itens B28, B30 e B32 do
 [plano da revisão geral](../archive/plans/2026-10-13-revisao-geral-documentacao.md)

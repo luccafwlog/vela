@@ -11,6 +11,7 @@ import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { listGraniteRates, upsertGraniteRate, deleteGraniteRate } from '../services/graniteCharges'
+import { reactivateCatalogRow } from '../services/deleteRecords'
 import type { GraniteRate } from '../types/database'
 
 const EMPTY_FORM: Omit<GraniteRate, 'id' | 'created_at'> = {
@@ -25,7 +26,9 @@ const EMPTY_FORM: Omit<GraniteRate, 'id' | 'created_at'> = {
 
 export function GraniteRates() {
   const queryClient = useQueryClient()
-  const { isAdmin } = useAuth()
+  // Criar e editar é de qualquer Departamento; ativar, desativar e excluir, do Administrativo (ADR 0085, D6; ADR 0073, item 4).
+  const { isAdmin, effectiveRole } = useAuth()
+  const canEdit = effectiveRole != null
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
@@ -60,7 +63,6 @@ export function GraniteRates() {
           { field: 'Valor unitário', before: `${originalRate.currency} ${originalRate.unit_value}`, after: `${form.currency} ${form.unit_value}` },
           { field: 'Vigência de', before: originalRate.valid_from ? originalRate.valid_from.slice(0, 10) : '', after: form.valid_from ? form.valid_from.slice(0, 10) : '' },
           { field: 'Vigência até', before: originalRate.valid_to ? originalRate.valid_to.slice(0, 10) : '', after: form.valid_to ? form.valid_to.slice(0, 10) : '' },
-          { field: 'Status', before: originalRate.active ? 'Ativa' : 'Inativa', after: form.active ? 'Ativa' : 'Inativa' },
         ].filter((c) => c.before !== c.after)
       : []
 
@@ -86,7 +88,10 @@ export function GraniteRates() {
 
     setSaving(true)
     try {
-      await upsertGraniteRate(form)
+      // B13: na edição não envia `active`; reativar só pelo botão com motivo.
+      const payload: Parameters<typeof upsertGraniteRate>[0] = { ...form }
+      if (form.id) delete payload.active
+      await upsertGraniteRate(payload)
       await queryClient.invalidateQueries({ queryKey: ['granite-rates'] })
       showToast('Taxa salva.', 'success')
       setModalOpen(false)
@@ -114,22 +119,25 @@ export function GraniteRates() {
 
   async function handleToggleActive(rate: GraniteRate) {
     const nextActive = !rate.active
-    const confirmed = await confirm({
+    // B13: reativar pede motivo (ADR 0072), gravado pela RPC reactivate_catalog_row (migration 261).
+    const confirmOptions = {
       title: nextActive ? 'Reativar taxa de Granito' : 'Desativar taxa de Granito',
       message: nextActive
         ? `Reativar a taxa "${rate.description}"?`
         : `Desativar a taxa "${rate.description}"?`,
       confirmLabel: nextActive ? 'Reativar' : 'Desativar',
-      tone: nextActive ? 'primary' : 'danger',
+      tone: nextActive ? ('primary' as const) : ('danger' as const),
       consequence: nextActive
         ? 'A taxa volta a entrar nos cálculos de novos B/Ls de granito.'
         : 'A taxa não será aplicada a novos cálculos; faturamentos antigos permanecem inalterados.',
       reversibility: nextActive ? 'Desative novamente se necessário.' : 'Reative a taxa quando precisar.',
-    })
-    if (!confirmed) return
+    }
+    const reason = nextActive ? await confirmWithReason(confirmOptions) : (await confirm(confirmOptions)) ? '' : null
+    if (reason === null) return
 
     try {
-      await upsertGraniteRate({ ...rate, active: nextActive })
+      if (nextActive) await reactivateCatalogRow('granite_rates', rate.id, reason)
+      else await upsertGraniteRate({ ...rate, active: nextActive })
       await queryClient.invalidateQueries({ queryKey: ['granite-rates'] })
       showToast(nextActive ? 'Taxa reativada.' : 'Taxa desativada.', 'success')
     } catch (err) {
@@ -150,7 +158,7 @@ export function GraniteRates() {
         title="Tabela de Taxas — Granito"
         description="Taxas aplicadas ao peso real dos B/Ls de granito."
         action={
-          isAdmin ? (
+          canEdit ? (
             <Button onClick={openNew}>
               <Plus size={16} />
               Nova taxa
@@ -173,7 +181,7 @@ export function GraniteRates() {
                 <th scope="col" className="px-4 py-3">Moeda</th>
                 <th scope="col" className="px-4 py-3">Vigência</th>
                 <th scope="col" className="px-4 py-3">Status</th>
-                {isAdmin ? <th scope="col" className="px-4 py-3">Ações</th> : null}
+                {canEdit ? <th scope="col" className="px-4 py-3">Ações</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#30363d]">
@@ -220,10 +228,10 @@ export function GraniteRates() {
                       </span>
                     )}
                   </td>
-                  {isAdmin ? (
+                  {canEdit ? (
                     <td className="px-4 py-3">
                       <button type="button" className="app-table__action mr-2" onClick={() => openEdit(rate)} aria-label={`Editar taxa ${rate.description}`}>Editar</button>
-                      <Button
+                      {isAdmin ? <Button
                         variant="danger"
                         className="app-btn--sm"
                         onClick={() => handleDelete(rate.id)}
@@ -231,7 +239,7 @@ export function GraniteRates() {
                         aria-label={`Excluir taxa ${rate.description}`}
                       >
                         Excluir
-                      </Button>
+                      </Button> : null}
                     </td>
                   ) : null}
                 </tr>
@@ -298,15 +306,17 @@ export function GraniteRates() {
             </Field>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="rate-active"
-              checked={form.active}
-              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-            />
-            <label htmlFor="rate-active" className="text-sm text-slate-300">Taxa ativa</label>
-          </div>
+          {isAdmin && !form.id ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="rate-active"
+                checked={form.active}
+                onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+              />
+              <label htmlFor="rate-active" className="text-sm text-slate-300">Taxa ativa</label>
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Voltar</Button>

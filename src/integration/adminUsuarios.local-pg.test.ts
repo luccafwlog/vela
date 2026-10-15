@@ -78,4 +78,43 @@ describeLocal('migration 259 — administração de usuários internos', () => {
     `)
     expect(row).toBe('true|false')
   })
+
+  // A2 (migration 239): o sistema mantém ao menos um Administrativo ativo.
+  // Tudo numa transação desfeita: os demais Administrativos do banco local
+  // ficam inativos só dentro dela, para este ser o último.
+  function asLastAdmin(sql: string) {
+    return spawnPsql([
+      '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-d', databaseUrl,
+      '-c', `BEGIN;
+        SET LOCAL session_replication_role = replica;
+        UPDATE public.user_profiles SET active = false WHERE role = 'administrativo' AND id <> '${adminId}';
+        SET LOCAL session_replication_role = origin;
+        SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${adminId}', true);
+        ${sql}
+        ROLLBACK;`,
+    ], { encoding: 'utf8' })
+  }
+
+  it('A2: o último Administrativo ativo não muda de setor nem é desativado', () => {
+    const demote = asLastAdmin(`UPDATE public.user_profiles SET role = 'financeiro' WHERE id = '${adminId}';`)
+    expect(demote.status).not.toBe(0)
+    expect(demote.stderr).toContain('Admin 258 é o último usuário Administrativo ativo')
+
+    const deactivate = asLastAdmin(`UPDATE public.user_profiles SET active = false WHERE id = '${adminId}';`)
+    expect(deactivate.status).not.toBe(0)
+    expect(deactivate.stderr).toContain('último usuário Administrativo ativo')
+
+    // Com outro Administrativo ativo, a troca passa (e é desfeita no fim).
+    const withOther = asLastAdmin(`RESET ROLE; UPDATE public.user_profiles SET role = 'administrativo', active = true WHERE id = '${memberId}';
+      SET LOCAL ROLE authenticated; UPDATE public.user_profiles SET role = 'financeiro' WHERE id = '${adminId}';`)
+    expect(withOther.stderr).not.toContain('último usuário Administrativo ativo')
+    expect(withOther.status).toBe(0)
+  })
+
+  it('A3 (migration 240): nem o Administrativo exclui perfil interno pela API', () => {
+    const result = callAs(adminId, `DELETE FROM public.user_profiles WHERE id = '${memberId}';`)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toMatch(/permission denied for table user_profiles/)
+    expect(psql(`SELECT count(*) FROM public.user_profiles WHERE id = '${memberId}';`)).toBe('1')
+  })
 })

@@ -1,7 +1,7 @@
--- Migration 234: a projeção de documento do Desbloqueio de CE informa se o
+-- Migration 282: a projeção de documento do Desbloqueio de CE informa se o
 -- arquivo já saiu do Storage.
 --
--- Com a retenção de 30 dias (migration `231`) e as versões anteriores visíveis
+-- Com a retenção de 30 dias (migration `280`) e as versões anteriores visíveis
 -- no pedido interno, a tela precisa saber quando o PDF não existe mais, em vez
 -- de oferecer "Abrir documento" e receber "Documento não autorizado". O campo
 -- novo `purged` é verdadeiro quando o expurgo já reivindicou ou removeu o

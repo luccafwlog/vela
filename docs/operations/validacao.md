@@ -104,7 +104,10 @@ Os scripts em `scripts/qa-display-production/` usam o prefixo
 ADR e exceções, cenários financeiros, Portal/PIX e validação/limpeza seletiva.
 Nenhuma etapa deve ser executada contra produção sem inventário, usuário,
 catálogo de IDs e autorização explícita. `cleanup-fixture.mjs` permanece em
-dry-run por padrão e não pode remover tabelas protegidas.
+dry-run por padrão e não pode remover tabelas protegidas. O modo destrutivo
+recusa antes de apagar: nenhuma tabela da fixture aceita DELETE pela API
+(exclusão só pelas RPCs, [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md));
+o dry-run serve de inventário e a remoção segue [Reset do ambiente](reset-ambiente.md).
 
 Para cada fluxo:
 

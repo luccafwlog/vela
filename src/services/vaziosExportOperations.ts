@@ -98,10 +98,11 @@ export async function updateManualVaziosBooking(
   if (error) throw error;
 }
 
-export async function deleteManualVaziosBooking(id: string) {
+/** B14 (migration 262): exclui com motivo; o banco recusa com o ADR de Saída fechado. */
+export async function deleteManualVaziosBooking(id: string, reason: string) {
   const { error } = await supabase.rpc(
     "delete_manual_vazios_booking" as never,
-    { p_booking_id: id } as never,
+    { p_booking_id: id, p_reason: reason } as never,
   );
   if (error) throw error;
 }

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   AGENCY_REPORT_SECTIONS,
-  addOccurrence,
   buildContainerTypeMatrix,
   groupEmptyEmbarkBookings,
   groupVehiclesByBrand,
@@ -12,6 +11,13 @@ import {
   setSectionObservation,
   setSignoff,
 } from '../agencyDepartureReport'
+
+// B2: `blTerminals` só serve ao recorte por terminal; estes testes conferem a classificação.
+const withoutBlTerminals = (container: { blTerminals?: unknown } & Record<string, unknown>) => {
+  const copy = { ...container }
+  delete copy.blTerminals
+  return copy
+}
 
 const { fromMock, schedulesMock } = vi.hoisted(() => ({
   fromMock: vi.fn(),
@@ -301,7 +307,7 @@ describe('getAgencyReportDerivedData', () => {
 
     const result = await getAgencyReportDerivedData(179, 'BRVIX')
 
-    expect(result.containers).toEqual(expect.arrayContaining([
+    expect(result.containers.map(withoutBlTerminals)).toEqual(expect.arrayContaining([
       { container_number: 'OOGIMO00001', size_type: '40HC', is_imo: true, is_oog: true, is_transshipment: false, category: 'oog' },
       { container_number: 'IMOONLY00001', size_type: '20GP', is_imo: true, is_oog: false, is_transshipment: false, category: 'imo' },
       { container_number: 'BAPOOG00001', size_type: '20GP', is_imo: false, is_oog: true, is_transshipment: false, category: 'oog' },
@@ -333,7 +339,7 @@ describe('getAgencyReportDerivedData', () => {
 
     const result = await getAgencyReportDerivedData(179, 'BRVIX')
 
-    expect(result.containers).toEqual([
+    expect(result.containers.map(withoutBlTerminals)).toEqual([
       { container_number: 'FM400000001', size_type: '40FM', is_imo: true, is_oog: false, is_transshipment: false, category: 'imo' },
       { container_number: 'FR480000001', size_type: '48FR', is_imo: true, is_oog: false, is_transshipment: false, category: 'imo' },
       { container_number: 'HC400000001', size_type: '40HC', is_imo: false, is_oog: false, is_transshipment: false, category: 'carga_geral' },
@@ -454,6 +460,20 @@ describe('getAgencyReportDerivedData', () => {
   })
 
   describe('carga em transbordo (ADR 2026-07-31, Task 1)', () => {
+    it('A8: ignora omissão revertida ao buscar os B/Ls em transbordo', async () => {
+      const omissions = queryBuilder([])
+      fromMock.mockImplementation((table: string) => {
+        if (table === 'voyage_omissions') return omissions
+        if (table === 'vazios_export_operations') return singleQueryBuilder(null)
+        return queryBuilder()
+      })
+      schedulesMock.mockResolvedValue(new Map())
+
+      await getAgencyReportDerivedData(179, 'BRVIX')
+
+      expect(omissions.is).toHaveBeenCalledWith('reverted_at', null)
+    })
+
     it('inclui containers, carga solta e veículos de B/Ls em transbordo de um porto omitido', async () => {
       let blContainersCall = 0
       let vehiclesCall = 0
@@ -535,7 +555,7 @@ describe('getAgencyReportDerivedData', () => {
 
       expect(fromMock).not.toHaveBeenCalledWith('bl_transshipments')
       expect(blContainersCall).toBe(1)
-      expect(result.containers).toEqual([
+      expect(result.containers.map(withoutBlTerminals)).toEqual([
         { container_number: 'OWN0000001', size_type: '40HC', is_imo: false, is_oog: false, is_transshipment: false, category: 'carga_geral' },
       ])
       expect(result.cargaSolta.transshipment).toMatchObject({ bls: 0, machines: 0, packages: 0, weightTon: 0, cbm: 0 })
@@ -650,7 +670,7 @@ describe('Granito casa por porto normalizado, com fallback do manifesto (ADR 202
 
     const result = await getAgencyReportDerivedData(179, 'BRVIX')
 
-    expect(result.containers).toEqual([
+    expect(result.containers.map(withoutBlTerminals)).toEqual([
       { container_number: 'SHRD1234567', size_type: '40HC', is_imo: true, is_oog: false, is_transshipment: false, category: 'imo' },
     ])
   })
@@ -759,34 +779,6 @@ describe('setSignoff', () => {
       p_port: 'BRVIX',
       p_section: 'datas',
       p_state: 'confirmed',
-    })
-  })
-})
-
-describe('addOccurrence', () => {
-  it('chama a RPC com a tag de seção opcional', async () => {
-    rpcMock.mockResolvedValue({ error: null })
-
-    await addOccurrence({ voyageId: 7, port: 'BRVIX', body: 'Atracação concluída.', section: 'vazios_embarcados' })
-
-    expect(rpcMock).toHaveBeenCalledWith('add_agency_report_occurrence', {
-      p_voyage_id: 7,
-      p_port: 'BRVIX',
-      p_body: 'Atracação concluída.',
-      p_section: 'vazios_embarcados',
-    })
-  })
-
-  it('omite a seção quando não informada', async () => {
-    rpcMock.mockResolvedValue({ error: null })
-
-    await addOccurrence({ voyageId: 7, port: 'BRVIX', body: 'Sem tag.' })
-
-    expect(rpcMock).toHaveBeenCalledWith('add_agency_report_occurrence', {
-      p_voyage_id: 7,
-      p_port: 'BRVIX',
-      p_body: 'Sem tag.',
-      p_section: undefined,
     })
   })
 })

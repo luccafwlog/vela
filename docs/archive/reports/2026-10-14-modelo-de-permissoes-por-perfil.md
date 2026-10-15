@@ -4,7 +4,7 @@ Relatório de execução do lote D da revisão. Nasce histórico: registra o que
 lido, executado e decidido nesta data. A regra vigente está na
 [matriz de Segurança](../../operations/seguranca.md#modelo-de-permissões-por-perfil);
 o motivo, na [ADR 0085](../../adr/0085-modelo-de-permissoes-por-perfil.md); as
-correções, nos itens P1 a P15 do [plano de correções](../../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
+correções, nos itens P1 a P15 do [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 Na mesma data, por decisão do dono, os itens P deixaram de ter plano próprio e
 entraram na fila única por impacto do plano de correções da revisão geral,
 fundidos com os itens A7, A9 e A18, que mexiam nos mesmos pontos.

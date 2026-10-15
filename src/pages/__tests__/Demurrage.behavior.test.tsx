@@ -457,7 +457,9 @@ describe('Demurrage page behaviours', () => {
     const detail = await openIssuedDetail(user)
     expect(within(detail).queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
     expect(within(detail).queryByRole('button', { name: 'Cancelar Invoice…' })).toBeNull()
-    expect(within(detail).getByText(/Registrar pagamento e desconto: Financeiro ou Administrativo\./)).toBeTruthy()
+    expect(within(detail).getByText(/Registrar pagamento: Financeiro ou Administrativo\./)).toBeTruthy()
+    // Desconto é de qualquer Departamento (ADR 0085, D4; migration 247).
+    expect(within(detail).getByRole('button', { name: /Aplicar desconto|Alterar desconto/ })).toBeTruthy()
   })
 
   it('explica a Invoice tirada da Régua por datas alteradas com desconto ou disputa', async () => {
@@ -521,10 +523,9 @@ describe('Demurrage page behaviours', () => {
     expect(document.getElementById('dispute-5')?.className).toContain('app-dem-dispute--focused')
   })
 
-  it('perfil sem a conversa de Disputas não vê a aba', () => {
+  it('qualquer Departamento abre a aba Disputas para ler (ADR 0085, D12)', () => {
     mocks.role = 'financeiro'
     renderPage(['/demurrage?tab=disputas'])
-    expect(screen.queryByRole('tab', { name: /Disputas/ })).toBeNull()
-    expect(screen.getByRole('tab', { name: 'Containers' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: /Disputas/ }).getAttribute('aria-selected')).toBe('true')
   })
 })

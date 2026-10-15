@@ -487,6 +487,31 @@ describe('blFreightImport', () => {
     expect(row?.billingImpacts.some((message) => message.includes('Peso (carga solta'))).toBe(true)
   })
 
+  it('B21: no B/L misto, o peso dos contêineres não pede a confirmação de faturamento', () => {
+    const matchingContainer = {
+      container_number: 'TCLU1234567', seal_number: 'SEAL001', type: '40HC', tare_weight_kg: 3900, gross_weight_kg: 28000,
+      cbm: 68.5, is_imo: false, is_oog: false, imo_class: null, un_number: null,
+    }
+    const preview = buildBlFreightPreview({
+      documents: [parsedBL()],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      billingLockedBlIds: new Set(['CSC45250E02Y00']),
+      existingBls: [
+        {
+          id: 'CSC45250E02Y00', voyage_id: 7, cargo_mode: 'misto', shipper: 'SHIPPER LTDA\nADDRESS', consignee: 'IMPORTADOR LTDA',
+          notify_party: 'NOTIFY LTDA', pol: 'CNSHA', pod: 'BRSSZ', place_of_delivery: 'SANTOS', total_weight_kg: 999,
+          total_cbm: 68.5, payment_type: 'PREPAID', bl_emission_date: '2026-02-20', manifest_customer_cnpj_cpf: '12345678000195',
+          manifest_customer_name: 'IMPORTADOR LTDA', bl_containers: [matchingContainer], bl_freight_lines: [],
+        },
+      ],
+    })
+
+    const row = preview.rows[0]
+    expect(row?.diffs.find((diff) => diff.field === 'total_weight_kg')?.billingImpact).toBe(false)
+    // Outras diferenças do arquivo de exemplo (SOC/COC, veículos) seguem pedindo a confirmação; o peso, não.
+    expect(row?.billingImpacts.some((message) => message.includes('Peso (carga solta'))).toBe(false)
+  })
+
   it('flags replacing an existing shared container even when the count is unchanged', () => {
     // existing billed BL has one container that is shared with another B/L;
     // the import replaces it with the parsed unique container (same count).

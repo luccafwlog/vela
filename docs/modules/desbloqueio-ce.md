@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `230`–`233` com a correção B1 (PR 956, em produção após o merge); expurgo de um PDF real comprovado em produção em 2026-10-15; resta a validação em produção das mudanças da PR 956 ([plano](../plans/2026-10-04-desbloqueio-ce-mercante.md)) · **Atualizado:** 2026-10-15 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `279`–`282` (PR 956, em produção após o merge); alerta de troca de CE com Desbloqueio conferido corrigido nas migrations `230` e `277` (PR 954); expurgo de um PDF real comprovado em produção em 2026-10-15; resta a validação em produção das mudanças da PR 956 ([plano](../plans/2026-10-04-desbloqueio-ce-mercante.md)) · **Atualizado:** 2026-10-15 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -57,10 +57,8 @@ Gerir é dos papéis Administrativo e Documentação (`ce_unlock_manage`; o alia
 legado `operator` vale como Documentação); os demais consultam,
 inclusive os documentos do pedido, sem escrita
 ([matriz de permissões](../operations/seguranca.md#desbloqueio-de-ce),
-[ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16). Hoje
-os demais consultam sem os documentos (`ce_unlock_read`; documentos só com
-`ce_unlock_documents`) e Equipamentos ainda não consulta: correção pendente no item P12 do
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md). Os comandos internos
+[ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), itens D11 e D16;
+migration `250`). A referência externa da confirmação segue só para quem gere. Os comandos internos
 passam por `ce_unlock_command` e os do Portal por `portal_ce_unlock_command`,
 ambos em `ce_unlock_private.command`, com chave idempotente (`request_key`) e
 versão esperada. Toda escrita do módulo chama `afterCeUnlockChanged`, que
@@ -74,18 +72,18 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 | Solicitação · **Solicitar desbloqueio** / **Reenviar solicitação** | Rascunho ou correção solicitada; termo e procuração atuais anexados (VIP: anuais aprovados e vigentes); cada B/L pago, do Cliente, não cancelado e com o mesmo CE do pedido | `PortalDesbloqueioCe.tsx` (confirmação) | `portalCeUnlockCommand('submit')` | Pedido enviado; itens ligados às versões atuais dos documentos (versão nova zera a aprovação daquele documento); evento `submit`; reavalia a conclusão | O prazo parte do envio e recomeça no reenvio; `afterCeUnlockChanged` | "Anexe versões atuais de termo de devolução e procuração"; "Regularize os documentos anuais VIP"; "Condição VIP revogada"; "B/L X perdeu elegibilidade" recusa o envio inteiro; versão desatualizada (`40001`) | **Teste:** `ceUnlock.local-pg.test.ts` (inclui baixa cancelada concorrente ao envio); **Runtime:** produção, 2026-10-13 |
 | Solicitação · **Cancelar solicitação** (Portal) | Rascunho ou correção solicitada; nenhum B/L já exportado | `PortalDesbloqueioCe.tsx` | `portalCeUnlockCommand('cancel')` | Pedido cancelado e itens inativos; motivo padrão "Cancelado pelo cliente" | Libera os B/Ls; o Portal recebe só a projeção do cliente | "Pedido não pode ser cancelado pelo cliente. Contate a agência." | **Teste:** `ceUnlock.local-pg.test.ts` (cancelamento pelo cliente) |
 | Documentos anuais (Portal, só VIP) e ficha do Cliente · anexar termo e procuração anuais | CNPJ com condição VIP; PDF; mesmos limites de upload | `CeUnlockVipCoveragePanel.tsx` | `uploadCeUnlockDocument` (origem `vip_annual`) → `portal-ce-unlock-document` | `ce_unlock_documents` em análise; não revoga o anual vigente | `afterCeUnlockChanged` | "Cliente sem condição VIP" (`42501`); "Condição VIP revogada" | **Código:** `ce_unlock_prepare_upload` (`173`); matriz VIP incompleta (ver [plano](../plans/2026-10-04-desbloqueio-ce-mercante.md)) |
-| Portal · baixar o modelo do termo; Portal e Vela · baixar documento | Modelo: qualquer Cliente; documento: autorização atual (Portal só do próprio CNPJ; interno hoje só gestão, qualquer Departamento pelo item P12 do plano) | `PortalDesbloqueioCe.tsx`, `CeUnlockDocuments.tsx` | `downloadCeUnlockDocument` → `ce-unlock-document-download` | Não escreve; `ce_unlock_document_access` e URL assinada por 60 s | — | Documento de outro CNPJ: `403` (`42501`); objeto alheio no Storage: 400 "Object not found" | **Runtime:** produção, 2026-10-13 (acesso cruzado recusado) |
+| Portal · baixar o modelo do termo; Portal e Vela · baixar documento | Modelo: qualquer Cliente; documento: autorização atual (Portal só do próprio CNPJ; interno: qualquer Departamento, migration `250`) | `PortalDesbloqueioCe.tsx`, `CeUnlockDocuments.tsx` | `downloadCeUnlockDocument` → `ce-unlock-document-download` | Não escreve; `ce_unlock_document_access` e URL assinada por 60 s | — | Documento de outro CNPJ: `403` (`42501`); objeto alheio no Storage: 400 "Object not found" | **Runtime:** produção, 2026-10-13 (acesso cruzado recusado) |
 | `/desbloqueio-ce` › Solicitações › pedido · **Aprovar** / **Recusar documento** | Gestão; pedido enviado, em análise, com correção solicitada ou concluído; versão mais recente do documento; recusa com motivo | `CeUnlockReviewQueue.tsx` → `CeUnlockRequestDetail.tsx` | `useCeUnlock` → `ceUnlockCommand('review')` | Decisão em todos os B/Ls abertos do pedido; status e motivo no documento; evento | Recusa: aviso no sino e linha em `ce_unlock_email_outbox` com o motivo; reavalia a conclusão; aprovar não recomeça o prazo | "Motivo obrigatório"; "Documento alterado; atualize a página" (`40001`); "Documento não pertence à análise atual" | **Teste:** `CeUnlockRequestDetail.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 (recusa com motivo) |
 | Controle ZPT · caixa **BL de Entrega** (**Registrar entrega** / **Desmarcar entrega**) | Gestão; B/L com CE, com ou sem pedido; desmarcar exige motivo | `DesbloqueioCe.tsx` | `useCeUnlock` → `ceUnlockCommand('delivery')` | `ce_unlock_bl_deliveries` com versão; evento; reavalia a conclusão do pedido ativo | Registrar recomeça o prazo; desmarcar tira o B/L dos aptos e reabre a conclusão | "Entrega alterada; atualize a página" (`40001`); "Motivo obrigatório" | **Teste:** `DesbloqueioCe.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 (entrega parcial) |
-| Pedido · **Versões anteriores** · **Abrir documento** | Gestão; pedido não VIP com termo ou procuração substituídos | `CeUnlockRequestDetail.tsx` (`CeUnlockDocumentList` sem ações de análise) | `downloadCeUnlockDocument` → `ce-unlock-document-download` | Não escreve | — | Cada versão mostra "Enviado em" com data e hora; versão já expurgada mostra "Arquivo removido pela regra de retenção" no lugar do botão (`purged`, migration `234`) | **Teste:** `CeUnlockRequestDetail.test.tsx`, `ceUnlock.local-pg.test.ts` |
+| Pedido · **Versões anteriores** · **Abrir documento** | Gestão; pedido não VIP com termo ou procuração substituídos | `CeUnlockRequestDetail.tsx` (`CeUnlockDocumentList` sem ações de análise) | `downloadCeUnlockDocument` → `ce-unlock-document-download` | Não escreve | — | Cada versão mostra "Enviado em" com data e hora; versão já expurgada mostra "Arquivo removido pela regra de retenção" no lugar do botão (`purged`, migration `282`) | **Teste:** `CeUnlockRequestDetail.test.tsx`, `ceUnlock.local-pg.test.ts` |
 | Pedido · **Reconferir CE** | Gestão; B/L com o motivo "CE alterado: reconferência necessária"; motivo ("Como o CE foi conferido") | `CeUnlockRequestDetail.tsx` | `ceUnlockCommand('reconfirm_ce')` | O item passa a usar o CE atual; aprovações de termo e procuração do item voltam a pendentes; o envio volta à fila (`export_id` fica) | Reavalia a conclusão | "B/L não pertence ao pedido"; "Motivo obrigatório" | **Código:** `ce_unlock_private.command` (`161`); matriz de CE corrigido incompleta (ver plano) |
 | Pedido VIP · **Aplicar renovação VIP** | Gestão; pedido VIP aberto, fora de rascunho; CNPJ VIP com termo e procuração anuais vigentes | `CeUnlockRequestDetail.tsx` | `ceUnlockCommand('apply_vip')` | Itens pendentes passam a apontar os anuais vigentes; histórico preservado | Reavalia a conclusão | "Cobertura VIP indisponível"; "Cobertura anual incompleta" | **Código:** `161` |
 | Pedido · **Cancelar pedido** (desk) | Gestão; pedido ativo e não concluído; nenhum B/L já exportado; motivo | `CeUnlockRequestDetail.tsx` | `ceUnlockCommand('cancel')` | Pedido cancelado e itens inativos; evento com o motivo | Libera os B/Ls para nova solicitação; o cliente vê o pedido cancelado | "Documentação validada: a solicitação não pode mais ser cancelada"; "Pedido com B/L já exportado para a ZPT: confirme o tratamento externo antes de cancelar" | **Código:** `161` |
 | Controle ZPT · **Exportar N apto(s) para ZPT** (**Exportar planilha**) | Gestão; 1 a 100 B/Ls com os quatro requisitos | `DesbloqueioCe.tsx` (confirmação) | `downloadCeUnlockExport` → Edge Function `ce-unlock-export` → `ce_unlock_command('export')` | `ce_unlock_exports` (layout `zpt-5-v2`, linhas e snapshot); `exported_at`, `exported_by` e `export_id` por B/L; apaga o *Divergente* anterior desses B/Ls | Baixa o XLSX e registra o envio, que mede o cumprimento do prazo; aviso para importar na aba "Planilha desbloqueio" da ZPT | "B/L X não apto" com os motivos recusa o lote inteiro (inclui liquidação perdida durante a exportação); "Seleção inválida" | **Teste:** `ceUnlockRules.test.ts` (layout), `ceUnlock.local-pg.test.ts` (reversão concorrente); **Runtime:** produção, 2026-10-13 (`zpt-5-v2`, 3 B/Ls); aceite pela ZPT não comprovado |
-| **Histórico ZPT** · **Baixar lote** / **Reexportar** | Gestão | `DesbloqueioCe.tsx` | `listCeUnlockExports`; `downloadCeUnlockExport` com `export_id` ou `reexport_of` | Baixar não escreve (devolve o lote como foi gerado, inclusive `zpt-5-v1`); o lote guarda o hash SHA-256 do conteúdo e não aceita reescrita, só o registro do envio (migration `233`); Reexportar cria lote novo ligado ao anterior, com os requisitos atuais | Reexportar registra novo envio | "Lote não encontrado"; na reexportação, as mesmas recusas de Exportar | **Código:** `ce-unlock-export`; retry do mesmo lote sem teste (ver plano) |
+| **Histórico ZPT** · **Baixar lote** / **Reexportar** | Gestão | `DesbloqueioCe.tsx` | `listCeUnlockExports`; `downloadCeUnlockExport` com `export_id` ou `reexport_of` | Baixar não escreve (devolve o lote como foi gerado, inclusive `zpt-5-v1`); o lote guarda o hash SHA-256 do conteúdo e não aceita reescrita, só o registro do envio (migration `281`); Reexportar cria lote novo ligado ao anterior, com os requisitos atuais | Reexportar registra novo envio | "Lote não encontrado"; na reexportação, as mesmas recusas de Exportar | **Código:** `ce-unlock-export`; retry do mesmo lote sem teste (ver plano) |
 | **Conciliar com a ZPT** · **Conciliar arquivo** | Gestão; arquivo "Exportar Tela" da ZPT (.xls, .xlsx ou .csv) de até 20.000 linhas | `CeUnlockZptImport.tsx` (confirmação com "Fora da conciliação") | `parseCeUnlockZptFile` e `reconcileCeUnlockZpt` (lotes de 5.000) → `ce_unlock_reconcile` | `ce_unlock_zpt_status` por B/L (*Desbloqueio conferido* ou *Divergente*); evento `reconcile`; sem recibo | Resumo: Desbloqueados, Divergentes, ZPT ainda sem atualização, Bloqueados não exportados, CE desconhecido; nada vai ao cliente nem muda o prazo | "Arquivo da ZPT vazio ou grande demais"; linhas e abas ocultas e linhas sem CE ou Status ficam de fora | **Teste:** `ceUnlockZptReconcile.test.ts`, `CeUnlockZptImport.test.tsx`, `ceUnlock.local-pg.test.ts`; arquivo real da ZPT não comprovado |
 | **Modelo do termo de devolução** · **Publicar modelo** | Gestão; DOCX de até 10 MiB | `DesbloqueioCe.tsx` (`CeUnlockDocumentUploader` com origem `model`) | `uploadCeUnlockDocument` → `portal-ce-unlock-document` | `ce_unlock_documents` (`model`) e objeto `.docx` no bucket; o mais recente aprovado é o vigente | Disponível no Portal de todos os clientes; rascunhos novos guardam o modelo vigente | "Use o modelo em DOCX de até 10 MiB"; assinatura ZIP ou tipo inválidos recusados | **Remoto:** modelo cadastrado em produção em 2026-10-10 (ver plano) |
-| Controle ZPT e pedido · consultar (Financeiro e Operações) | `ce_unlock_read` sem `ce_unlock_manage` | `DesbloqueioCe.tsx` | `useCeUnlock`, `ceUnlockRead` | Não escreve | — | Ações de gestão indisponíveis na tela e recusadas no banco; hoje o download de anexos também é recusado e Equipamentos não abre a tela (correção pendente, item P12 do plano: ADR 0085, D11 e D16) | **Teste:** `DesbloqueioCe.test.tsx` (ações restritas) |
+| Controle ZPT e pedido · consultar (Financeiro, Operações e Equipamentos) | `ce_unlock_read` sem `ce_unlock_manage` | `DesbloqueioCe.tsx` | `useCeUnlock`, `ceUnlockRead` | Não escreve | — | Ações de gestão indisponíveis na tela e recusadas no banco; documentos abertos a todos (migration `250`) | **Teste:** `DesbloqueioCe.test.tsx` (ações restritas) |
 | Ficha do Cliente › Desbloqueio de CE / VIP · **Habilitar condição VIP** / **Revogar condição VIP** | Gestão; motivo | `CeUnlockVipCoveragePanel.tsx` | `ceUnlockCommand('set_vip')` | `ce_unlock_vip_customers` com versão; evento | Os próximos pedidos usam (ou deixam de usar) os anuais | "Motivo obrigatório"; "Condição VIP alterada" (`40001`) | **Código:** `161` |
 | Ficha do Cliente › documentos anuais · **Aprovar** / **Solicitar correção** / **Revogar aprovação** | Gestão; aprovação informa início e ano, com fim em 31/12 do ano; correção e revogação com motivo | `CeUnlockVipCoveragePanel.tsx` | `ceUnlockCommand('review')` | `ce_unlock_documents`: status, `coverage_year`, `valid_from`, `valid_until`; evento | Aprovação cobre os pedidos VIP do CNPJ na vigência; revogação pode tirar o requisito de pedidos não concluídos | "Validade anual deve terminar em 31/12 do ano informado"; "Motivo obrigatório" | **Teste:** limites 31/12–01/01 e ano inválido em `ceUnlockRules.test.ts` |
 
@@ -93,10 +91,10 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 
 ### Tabelas e migrations
 
-Migrations `139`–`149`, `160`, `161`, `173`, `220`, `230` (requisito de
-pagamento), `231` (retenção), `233` (lote com hash e imutável) e `234` (documento
+Migrations `139`–`149`, `160`, `161`, `173`, `220`, `279` (requisito de
+pagamento), `280` (retenção), `281` (lote com hash e imutável) e `282` (documento
 expurgado na projeção); a `177` redefine `ce_unlock_reconcile` (chave
-do CE) e a `181`/`195`/`232` o alerta `ce_trocado_com_desbloqueio`. Tabelas `ce_unlock_*` (`ce_unlock_requests`,
+do CE) e a `181`/`195`/`230`/`277` o alerta `ce_trocado_com_desbloqueio`. Tabelas `ce_unlock_*` (`ce_unlock_requests`,
 `ce_unlock_request_bls`, `ce_unlock_documents`, `ce_unlock_vip_customers`,
 `ce_unlock_bl_deliveries`, `ce_unlock_events`, `ce_unlock_exports`,
 `ce_unlock_zpt_status` e `ce_unlock_email_outbox`), schema privado de
@@ -155,7 +153,7 @@ emitida para o B/L e o Cliente atual (`issued`/`partially_paid` com saldo)
 bloqueia com o motivo "Fatura avulsa do B/L em aberto"; rascunho, cancelada e
 paga não bloqueiam. Demurrage não faz parte do requisito
 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), itens 2 e 3;
-migration `230`; **Teste:** `ceUnlock.local-pg.test.ts`). Correções para menor
+migration `279`; **Teste:** `ceUnlock.local-pg.test.ts`). Correções para menor
 reduzem o valor exigível: a liquidação cobre o valor original menos a correção,
 com saldo zero e evidência real no ledger. Fatura consolidada parcialmente paga
 libera só o B/L cujo recebível foi liquidado, nunca pelo status da fatura.
@@ -215,11 +213,13 @@ Cancelamento de B/L e correção do CE também exigem nova conferência: o item 
 pedido guarda o CE da solicitação, e o B/L com CE diferente aparece com o motivo
 "CE alterado: reconferência necessária" até o desk usar **Reconferir CE**. Trocar o CE de um B/L com
 *Desbloqueio conferido*, pela planilha ou pela ficha, abre o alerta
-`ce_trocado_com_desbloqueio` e avisa na prévia. *Conferido* é o B/L que a
-conciliação com a ZPT marcou como desbloqueado para o CE anterior
-(`ce_unlock_zpt_status`); o CE novo só conta como conferido depois de nova
-conciliação (migration `232`, correção B1; **Teste:** K2 de
-`ceImportacaoContrato.local-pg.test.ts`, pela conciliação real). As
+`ce_trocado_com_desbloqueio`, e a prévia da planilha avisa "Desbloqueio já
+conferido". Conferido é a conciliação com a ZPT `unlocked` do CE anterior
+(`ce_unlock_zpt_status`, pela chave `ce_mercante_key`) ou a confirmação manual
+legada do mesmo CE (`_bl_ce_unlock_conferred`, migration `230`; antes dela o
+código só lia a confirmação manual retirada na `160`). Desde a migration `277`,
+a confirmação legada também só vale para o CE que confirmou: depois de uma
+troca, a troca seguinte do CE que nunca foi desbloqueado não abre o alerta. As
 portas de troca do CE e o alerta de reenvio do Comunicado são regra de
 [CE Mercante](manifesto-edi.md#ce-mercante).
 
@@ -246,7 +246,7 @@ O modelo atual e anuais vigentes não são expurgados por mera idade.
 
 Expurgo usa Storage API, preservando metadados e histórico
 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), item 5;
-**Código:** `ce_unlock_cleanup_candidates`, migration `231`; **Teste:**
+**Código:** `ce_unlock_cleanup_candidates`, migration `280`; **Teste:**
 `ceUnlock.local-pg.test.ts`):
 
 - upload abandonado após 1 dia e rascunho após 7 dias;
@@ -290,10 +290,10 @@ que não comprovam o gateway Supabase nem o envio real de e-mail.
   com motivo e reenvio, entrega parcial, conclusão e exportação; a sessão de B
   não leu, alterou nem baixou nada de A (403/400). Detalhes nas "Fontes da
   reconciliação" do [plano](../plans/2026-10-04-desbloqueio-ce-mercante.md).
-- O teste K2 de `src/integration/ceImportacaoContrato.local-pg.test.ts` cobre o
-  alerta de troca de CE com Desbloqueio conferido pela conciliação real
-  (`ce_unlock_reconcile`); falha sem a migration `232` (Postgres local,
-  2026-10-15).
+- O alerta de troca de CE com Desbloqueio conferido tem dois testes em
+  `src/integration/ceImportacaoContrato.local-pg.test.ts`: K2, pela confirmação
+  manual legada, e B1, pela conciliação ZPT `unlocked` do fluxo vigente
+  (alerta na ficha, aviso na prévia; conciliação divergente não alerta).
 
 **Não comprovado:** aceite da planilha `zpt-5-v2` pela aba "Planilha desbloqueio" da ZPT
 (sem modelo oficial de importação; o primeiro upload real é o teste), entrega real dos avisos por e-mail (em produção os Comunicados estavam

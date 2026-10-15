@@ -289,7 +289,7 @@ describe('Tabelas de Taxas Locais', () => {
       tone: 'danger',
       consequence: expect.stringContaining('Sai do cálculo de Container · BRVIX'),
     }))
-    expect(mocks.toggleTable).toHaveBeenCalledWith({ id: 1, active: false })
+    expect(mocks.toggleTable).toHaveBeenCalledWith({ id: 1, active: false, reason: '' })
   })
 
   it('cadastra item com valor em formato brasileiro e exclui item só depois da confirmação', async () => {
@@ -460,7 +460,7 @@ describe('Condições de Cliente', () => {
     let menu = await openMenu(user, 'Mais ações da condição Cliente A · THD')
     await user.click(within(menu).getByRole('menuitem', { name: 'Desativar condição' }))
     expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Desativar condição de Cliente', consequence: expect.any(String) }))
-    expect(mocks.toggleOverride).toHaveBeenCalledWith({ id: 20, active: false })
+    expect(mocks.toggleOverride).toHaveBeenCalledWith({ id: 20, active: false, reason: '' })
 
     menu = await openMenu(user, 'Mais ações da condição Cliente A · THD')
     await user.click(within(menu).getByRole('menuitem', { name: 'Excluir condição' }))

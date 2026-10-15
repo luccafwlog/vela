@@ -42,7 +42,7 @@ export function useDeleteDemurrageRate() {
 export function useToggleDemurrageRateActive() {
   const invalidate = useInvalidateRates()
   return useMutation({
-    mutationFn: ({ id, active }: { id: number; active: boolean }) => toggleDemurrageRateActive(id, active),
+    mutationFn: ({ id, active, reason }: { id: number; active: boolean; reason?: string }) => toggleDemurrageRateActive(id, active, reason),
     onSuccess: invalidate,
   })
 }

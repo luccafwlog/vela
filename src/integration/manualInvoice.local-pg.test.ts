@@ -74,7 +74,8 @@ function createInvoice(customerId: number, item = 'Serviço especial', options: 
       ${options.description ? `'${options.description}'` : 'NULL'},
       ${options.blId ? `'${options.blId}'` : 'NULL'},
       ${options.voyageId ?? 'NULL'},
-      '${adminId}'::uuid
+      '${adminId}'::uuid,
+      p_reason => 'Motivo interno de teste'
     );
   `)
   return JSON.parse(result) as {
@@ -149,10 +150,29 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
 
   it('rejeita cliente, BL, viagem e usuário inválidos sem deixar invoice parcial', () => {
     const before = Number(psql(`SELECT count(*) FROM public.invoices WHERE customer_id = ${customerA} AND invoice_type = 'manual';`))
-    expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'BL de outro cliente', 1, 10, NULL, '${blB}', NULL, '${adminId}'::uuid);`))).toMatch(/não pertence|nao pertence/i)
-    expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'Viagem incoerente', 1, 10, NULL, '${blA}', ${voyageB}, '${adminId}'::uuid);`))).toMatch(/não pertence|nao pertence/i)
-    expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'Sem permissão', 1, 10, NULL, NULL, NULL, '${operatorId}'::uuid);`, 'authenticated', operatorId))).toMatch(/permissao|permissão/i)
+    expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'BL de outro cliente', 1, 10, NULL, '${blB}', NULL, '${adminId}'::uuid, p_reason => 'Motivo interno de teste');`))).toMatch(/não pertence|nao pertence/i)
+    expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'Viagem incoerente', 1, 10, NULL, '${blA}', ${voyageB}, '${adminId}'::uuid, p_reason => 'Motivo interno de teste');`))).toMatch(/não pertence|nao pertence/i)
+    // Qualquer usuário interno ativo emite a avulsa (A9, migration 246), mas só em nome próprio.
+    expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'Autor forjado', 1, 10, NULL, NULL, NULL, '${adminId}'::uuid, p_reason => 'Motivo interno de teste');`, 'authenticated', operatorId))).toMatch(/Autor informado difere/i)
     expect(Number(psql(`SELECT count(*) FROM public.invoices WHERE customer_id = ${customerA} AND invoice_type = 'manual';`))).toBe(before)
+  })
+
+  it('exige o motivo interno e o grava no rastro, fora da fatura (272)', () => {
+    const before = Number(psql(`SELECT count(*) FROM public.invoices WHERE customer_id = ${customerA} AND invoice_type = 'manual';`))
+    for (const reason of ['NULL', `'   '`]) {
+      expect(sqlError(() => psql(`SELECT public.create_manual_invoice(${customerA}, 'Sem motivo', 1, 10, NULL, NULL, NULL, '${adminId}'::uuid, p_reason => ${reason});`)))
+        .toMatch(/Informe o motivo da fatura avulsa/)
+    }
+    expect(Number(psql(`SELECT count(*) FROM public.invoices WHERE customer_id = ${customerA} AND invoice_type = 'manual';`))).toBe(before)
+
+    const issued = createInvoice(customerA, 'Com motivo')
+    expect(psql(`SELECT payload->>'reason' FROM public.invoice_lifecycle_events WHERE invoice_id = ${issued.invoice_id} AND event_type = 'issued';`))
+      .toBe('Motivo interno de teste')
+    expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_type = 'invoice' AND entity_id = '${issued.invoice_id}' AND field_name = 'manual_invoice_reason';`))
+      .toBe('Motivo interno de teste')
+    // O Cliente vê a descrição, não o motivo.
+    expect(psql(`SELECT count(*) FROM public.invoice_items WHERE invoice_id = ${issued.invoice_id} AND COALESCE(description, '') LIKE '%Motivo interno%';`)).toBe('0')
+    expect(psql(`SELECT count(*) FROM public.invoices WHERE id = ${issued.invoice_id} AND COALESCE(notes, '') LIKE '%Motivo interno%';`)).toBe('0')
   })
 
   it('cancela sem alterar o status financeiro do BL e reconcilia pelo pagamento genérico', () => {

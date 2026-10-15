@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,14 +18,18 @@ const mocks = vi.hoisted(() => ({
   operationData: { linhas: [] } as Record<string, unknown> | undefined,
   unitsData: { rows: [] as unknown[], count: 0 },
   armazenagemServicesData: [] as unknown[],
+  extraDepotServices: [] as unknown[],
   voyagePortsData: [] as string[],
   upsertVaziosExportOperation: vi.fn(() => Promise.resolve({ id: "operation-new" })),
 }));
 
+const queryFns = new Map<string, (() => unknown) | undefined>();
+const escalaMocks = vi.hoisted(() => ({ listEscalas: vi.fn(), listBlPorts: vi.fn() }));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, getQueryData: mocks.getQueryData, setQueryData: mocks.setQueryData }),
-  useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
+  useQuery: ({ queryKey, queryFn }: { queryKey: unknown[]; queryFn?: () => unknown }) => {
     const key = queryKey[0];
+    queryFns.set(String(key), queryFn);
     const data = key === "vazios-export-operations"
       ? [{
           id: "operation-1",
@@ -46,6 +50,7 @@ vi.mock("@tanstack/react-query", () => ({
               ? [
                   { id: "general-1", name: "Handling", natureza: "geral", route_destino_id: null },
                   { id: "transport-1", name: "Transporte", natureza: "transporte", route_destino_id: "terminal-1" },
+                  ...mocks.extraDepotServices,
                 ]
               : key === "armazenagem-services"
                 ? mocks.armazenagemServicesData
@@ -67,13 +72,15 @@ vi.mock("../../hooks/useAuth", () => ({
 vi.mock("../../components/ui/Toast", () => ({ useToast: () => ({ showToast: mocks.showToast }) }));
 vi.mock("../../components/ui/ConfirmDialog", () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (o: unknown) => ((await mocks.confirm(o)) ? "motivo" : null) }));
 vi.mock("../../components/shared/VoyageCombobox", () => ({
-  VoyageCombobox: ({ onSelect }: { onSelect: (voyageId: number | null) => void }) => (
-    <button type="button" onClick={() => onSelect(179)}>
+  VoyageCombobox: ({ onSelect, disabled, selectedVoyageId }: { onSelect: (voyageId: number | null) => void; disabled?: boolean; selectedVoyageId?: number | null }) => (
+    <button type="button" disabled={disabled} data-voyage={selectedVoyageId ?? ""} onClick={() => onSelect(179)}>
       Selecionar viagem
     </button>
   ),
 }));
 vi.mock("../../services/supabase", () => ({ supabase: {} }));
+vi.mock("../../services/voyageRouteSchedules", () => ({ listVoyageEscalaSchedulesByVoyageIds: escalaMocks.listEscalas }));
+vi.mock("../../services/operationalLists", () => ({ listVoyageRoutePorts: escalaMocks.listBlPorts }));
 vi.mock("../../services/depots", () => ({
   listDepots: vi.fn(),
   listDepotServices: vi.fn(),
@@ -103,6 +110,7 @@ beforeEach(() => {
   mocks.operationData = { linhas: [] };
   mocks.unitsData = { rows: [], count: 0 };
   mocks.armazenagemServicesData = [];
+  mocks.extraDepotServices = [];
   mocks.voyagePortsData = [];
   mocks.upsertVaziosExportOperation.mockClear();
 });
@@ -270,7 +278,7 @@ describe("EmbarqueVazios", () => {
     expect(mocks.deleteManualVaziosBooking).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Excluir unidade MSCU7654321" }));
-    await waitFor(() => expect(mocks.deleteManualVaziosBooking).toHaveBeenCalledWith("u1"));
+    await waitFor(() => expect(mocks.deleteManualVaziosBooking).toHaveBeenCalledWith("u1", "motivo"));
     expect(mocks.confirm).toHaveBeenLastCalledWith(expect.objectContaining({ confirmLabel: "Excluir", consequence: expect.any(String) }));
   });
 
@@ -299,6 +307,49 @@ describe("EmbarqueVazios", () => {
       valor_unitario: 25,
       valor_sugerido: 25,
       quantidade_manual: false,
+    })));
+  });
+
+  it("B12: reconhece o serviço de armazenagem sem condição e lança a linha com a condição da unidade", async () => {
+    mocks.unitsData = {
+      rows: [{ id: "u1", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-01-01", hand_out_date: "2026-01-05" }],
+      count: 1,
+    };
+    mocks.armazenagemServicesData = [
+      { id: "armaz-generico", depot_id: "depot-1", condition: null, natureza: "armazenagem", rate_brl: 30, active: true, name: "Armazenagem" },
+    ];
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    await selectOperation();
+    fireEvent.click(screen.getByRole("button", { name: /Serviços/i }));
+
+    expect(screen.queryByText(/sem serviço de armazenagem cadastrado/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Lançar$/i }));
+    await waitFor(() => expect(mocks.upsertServiceLine).toHaveBeenCalledWith(expect.objectContaining({
+      service_id: "armaz-generico",
+      condition: "vazio",
+      valor_unitario: 30,
+    })));
+  });
+
+  it("B12: no lançamento manual, o serviço de armazenagem sem condição pede a condição da linha", async () => {
+    mocks.extraDepotServices = [
+      { id: "armaz-generico", depot_id: "depot-1", name: "Armazenagem", natureza: "armazenagem", condition: null, route_destino_id: null, rate_brl: 30 },
+    ];
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    await selectOperation();
+    fireEvent.click(screen.getByRole("button", { name: /Serviços/i }));
+    fireEvent.change(screen.getByLabelText("Local"), { target: { value: "depot-1" } });
+    fireEvent.change(screen.getByLabelText("Natureza"), { target: { value: "armazenagem" } });
+    fireEvent.change(screen.getByLabelText("Serviço"), { target: { value: "armaz-generico" } });
+
+    const condition = screen.getByLabelText("Condição") as HTMLSelectElement;
+    expect(condition.disabled).toBe(false);
+    fireEvent.change(condition, { target: { value: "material" } });
+    fireEvent.click(screen.getByRole("button", { name: /Lançar linha/i }));
+
+    await waitFor(() => expect(mocks.upsertServiceLine).toHaveBeenCalledWith(expect.objectContaining({
+      service_id: "armaz-generico",
+      condition: "material",
     })));
   });
 
@@ -349,6 +400,54 @@ describe("EmbarqueVazios", () => {
         embarkPort: "BRVIX",
       }),
     );
+  });
+
+  it("B11: o Total da Linha de Serviço é quantidade × valor unitário, sem o percentual legado", async () => {
+    mocks.operationData = {
+      linhas: [{ id: "line-legacy", local_id: "depot-1", condition: null, quantidade: "4", valor_unitario: "25", percentual: "50", quantidade_manual: true, service: { name: "Handling", natureza: "geral" } }],
+    };
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    await selectOperation();
+    fireEvent.click(screen.getByRole("button", { name: /Serviços/i }));
+    const row = (await screen.findAllByText("Handling")).map((node) => node.closest("tr")).find(Boolean) as HTMLElement;
+    expect(within(row).getByText("R$ 100,00")).toBeTruthy();
+    expect(within(row).queryByText("R$ 50,00")).toBeNull();
+  });
+
+  it("B26: aberto pela viagem, o campo vem semeado e continua editável", () => {
+    render(<MemoryRouter initialEntries={["/embarquevazios?voyage=55"]}><EmbarqueVazios /></MemoryRouter>);
+    const voyageButton = screen.getByRole("button", { name: /Selecionar viagem/i }) as HTMLButtonElement;
+    expect(voyageButton.getAttribute("data-voyage")).toBe("55");
+    expect(voyageButton.disabled).toBe(false);
+    fireEvent.click(voyageButton);
+    expect(voyageButton.getAttribute("data-voyage")).toBe("179");
+  });
+
+  it("B10: viagem só de embarque de vazios, sem B/L, oferece as escalas da viagem", async () => {
+    escalaMocks.listEscalas.mockResolvedValue(new Map([[179, [
+      { port: "BRVIX", deleted: false, omitted: false },
+      { port: "BRSSZ", deleted: true, omitted: false },
+      { port: "BRRIG", deleted: false, omitted: true },
+      { port: "CNSHA", deleted: false, omitted: false },
+    ]]]));
+    escalaMocks.listBlPorts.mockResolvedValue([]);
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: /Selecionar viagem/i }));
+    await screen.findByLabelText("Porto de embarque");
+    await expect(Promise.resolve(queryFns.get("embarque-vazios-voyage-ports")?.())).resolves.toEqual(["BRVIX"]);
+  });
+
+  it("B10: porto de escala omitida/excluída não volta pelos portos dos B/Ls", async () => {
+    escalaMocks.listEscalas.mockResolvedValue(new Map([[179, [
+      { port: "BRVIX", deleted: false, omitted: false },
+      { port: "BRSSZ", deleted: true, omitted: false },
+      { port: "BRRIG", deleted: false, omitted: true },
+    ]]]));
+    escalaMocks.listBlPorts.mockResolvedValue(["BRRIG", "BRSSZ", "BRPNG", "BRVIX"]);
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: /Selecionar viagem/i }));
+    await screen.findByLabelText("Porto de embarque");
+    await expect(Promise.resolve(queryFns.get("embarque-vazios-voyage-ports")?.())).resolves.toEqual(["BRPNG", "BRVIX"]);
   });
 
   describe("Importar planilha de Unidades Embarcadas com linhas ocultas", () => {

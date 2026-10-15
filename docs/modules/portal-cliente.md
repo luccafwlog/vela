@@ -141,19 +141,17 @@ A leitura usa `portal_list_provisioning_console` (definição vigente na
 migration `103`; o read model nasceu nas migrations arquivadas `196`–`198`).
 Antes de projetar a fila, a RPC chama `portal_repair_missing_accounts()`, que
 cria de forma idempotente a linha inicial de Clientes sem
-`customer_portal_accounts` e grava evento de sistema. Administrativo,
-Documentação, Financeiro e Equipamentos recebem os dados completos; Operações
-recebe a situação resumida e os booleanos `has_open_invoice`/`has_active_process`,
-sem Email de Recuperação, origem, status de entrega nem candidatos, e o painel
-não lhe mostra ações. Pela ADR 0045, Operações vê os campos completos, como os
-demais perfis leitores ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18): correção
-pendente em [Notas e divergências](#notas-e-divergências). Somente Administrativo e
-Documentação executam ações; **Alterar CNPJ auditado** e a Liberação de
-faturamento sem Portal são só do Administrativo ([matriz de permissões](../operations/seguranca.md#clientes-comunicação-e-portal)). O Histórico
-(`portal_list_provisioning_events`, de 1 a 50 eventos) hoje é recusado a
-Operações pelo banco, e a tela mostra a seção; pela
-[ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md) (item D12),
-Operações também o vê (correção pendente).
+`customer_portal_accounts` e grava evento de sistema. Todos os perfis
+internos, inclusive Operações, recebem os dados completos (Email de
+Recuperação, origem, status de entrega e candidatos; ADR 0045 e
+[ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18;
+migration `250`); para Operações o painel mostra esses dados sem ações.
+Somente Administrativo e Documentação executam ações; **Alterar CNPJ auditado**
+e a Liberação de faturamento sem Portal são só do Administrativo
+([matriz de permissões](../operations/seguranca.md#clientes-comunicação-e-portal)).
+O Histórico (`portal_list_provisioning_events`, de 1 a 50 eventos) é de todos os
+Departamentos ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item
+D12; migration `250`).
 
 O registro interno de Portal possui dois eixos independentes: `provisioning_decision`
 (`aguardando_analise` ou `aprovado_para_provisionar`) e `account_situation` (`sem_conta`, convite,
@@ -314,12 +312,11 @@ consulta no sistema sem estar na audiência.
 
 O resumo diário (`portal-daily-digest`, 08:00 de Brasília) vai por email aos
 usuários ativos de Administrativo e Documentação quando houve, nas últimas 24
-horas, falha ou supressão de email, atividade de provisionamento, ou quando há
-Ativação pendente; sem nada disso, não sai. Não há email imediato de alerta
-crítico. A exceção crítica de fatura (abertura e fechamento) também entra no
-resumo, junto com o sino e `/alertas` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19);
-hoje o resumo não a inclui: correção pendente em
-[Notas e divergências](#notas-e-divergências).
+horas, falha ou supressão de email, atividade de provisionamento, abertura ou
+fechamento de exceção crítica de fatura (`portal_excecao_critica_fatura`), ou
+quando há Ativação pendente; sem nada disso, não sai. Não há email imediato de
+alerta crítico: a exceção crítica chega pelo resumo, pelo sino e por `/alertas`
+([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19).
 
 #### Gate de faturamento e Dispute
 
@@ -484,12 +481,9 @@ na barra superior. Em `/clientes/informacoes`, a aba Demurrage mostra as tarifas
 oficiais, além da edição das observações. Pela
 [matriz de permissões](../operations/seguranca.md#manifesto-importações-e-cadastros)
 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D7), qualquer
-Departamento publica na Central. Hoje Equipamentos e Administrativo editam
-a publicação e instruções dos depots existentes, e somente o Administrativo altera agentes,
-contatos, tracking e observações (correção pendente, item P8 do
-[plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)).
-O acesso usa `is_active_read_user()` e as
-mutações conferem o papel no banco, além da interface. Alterações geram auditoria.
+Departamento publica na Central: depots, agentes, contatos, tracking e
+observações (migration `253`). O acesso usa `is_active_read_user()` e a
+gravação exige usuário interno ativo no banco, além da interface. Alterações geram auditoria.
 Na aba interna Tracking, o endereço aparece apenas no link “Abrir tracking”;
 a URL completa fica no editor do armador.
 Links externos admitem apenas HTTP/HTTPS sem credenciais. Na seção Tracking do
@@ -602,7 +596,7 @@ reconferido aqui). O uso real pelo Cliente em produção não foi conferido.
 | Layout — marcar uma/todas como lidas | Notificação do cliente ou contagem > 0 | Clique na linha ou ação “Marcar todas” | `usePortalMarkRead`/`usePortalMarkAllRead` | RPCs atualizam `portal_notifications.read_at` escopado ao cliente | Invalida lista e contador | Falha ao marcar uma notificação avisa e abre o conteúdo; “Marcar todas” mostra “Marcando…” e explica falha ou lista alterada no próprio painel, com “Atualizar lista” | **Código:** hooks e `supabase/migrations_archive/116_portal_fase2_notifications_disputes_profile.sql` |
 | `/portal/perfil` — carregar perfil | Sessão autenticada | `PortalProfile` | `usePortalProfile` → `portalGetProfile` | RPC `portal_get_profile`; lê conta, cliente e primeiro contato `faturamento` | Query `['portal-profile', mode, customerId]` | Falha mostra `InlineError` ("Falha ao carregar perfil. Tente novamente em instantes.") e o botão de salvar fica desativado | **Código:** `src/pages/PortalProfile.tsx`, `src/hooks/usePortalProfile.ts`; **Teste:** `src/pages/__tests__/PortalProfile.test.tsx` |
 | `/portal/perfil` — **Salvar alterações** (Dados cadastrais) | Sessão autenticada; endereço, cidade, UF ou CEP alterados; confirmação "Confirmar alterações do perfil" | `PortalProfileForm.handleSubmit` | `usePortalProfile.updateProfile` → `portalUpdateProfile` | RPC `portal_update_profile` (definição vigente na migration `008`): a tela envia só endereço, cidade, UF e CEP; a RPC também aceita email de contato e telefone do contato `faturamento` | Invalida `portal-profile` e chama `refreshOverview` | Sem alteração mostra "Nenhuma alteração detectada."; erro da RPC aparece inline; campo vazio de endereço não apaga o valor gravado | **Código:** `src/pages/PortalProfile.tsx`, `supabase/migrations/008_portal_contact_boxes.sql` |
-| `/portal/perfil` — **Salvar contatos** (Contatos e recebimento) | Sessão autenticada; contatos alterados; confirmação "Confirmar contatos e recebimento" | `PortalContactConfiguration` | `usePortalContactConfiguration` → `portalSaveContactConfiguration` | RPCs `portal_get_contact_configuration`/`portal_save_contact_configuration` (migration `008`), que gravam contatos e vínculos às caixas com auditoria em `customer_contact_change_events` | Invalida `portal-contact-configuration` e `portal-profile`; não envia mensagem | Erro mostra "Falha ao salvar contatos."; no Modo Inspeção a gravação fica indisponível | **Código:** `src/components/portal/PortalContactConfiguration.tsx`, `src/services/portalContactConfiguration.ts`; **Teste:** `src/components/portal/__tests__/PortalContactConfiguration.test.tsx` |
+| `/portal/perfil` — **Salvar contatos** (Contatos e recebimento) | Sessão autenticada; contatos alterados; confirmação "Confirmar contatos e recebimento" | `PortalContactConfiguration` | `usePortalContactConfiguration` → `portalSaveContactConfiguration` | RPCs `portal_get_contact_configuration`/`portal_save_contact_configuration` (migration `008`), que gravam contatos e vínculos às caixas com auditoria em `customer_contact_change_events` e fecham pela origem os alertas de contato do Cliente, inclusive `nob_sem_destinatario` (migration `267`) | Invalida `portal-contact-configuration` e `portal-profile`; não envia mensagem | Erro mostra "Falha ao salvar contatos."; no Modo Inspeção a gravação fica indisponível | **Código:** `src/components/portal/PortalContactConfiguration.tsx`, `src/services/portalContactConfiguration.ts`; **Teste:** `src/components/portal/__tests__/PortalContactConfiguration.test.tsx` |
 
 ### Provisionamento e ativação do convite
 
@@ -765,11 +759,10 @@ Há testes focados de componente para `PortalLogin` (`src/pages/__tests__/Portal
 - **Teste de contrato SQL — ações críticas do Portal.** Na definição vigente da migration `109`, `portal_create_consolidation` e `portal_obsolete_consolidation` gravam `portal_notifications` (o desfazimento também grava `invoice_lifecycle_events`), e a abertura de disputa (`portal_open_demurrage_dispute` → `portal_add_dispute_message`) grava a mensagem, `portal_notifications` e o alerta `portal_dispute_opened`. `portal_update_profile`, na definição vigente da migration `008`, não grava trilha server-side; criar auditoria para essa ação exige decisão e migration próprias.
 - **Código — mensagem do Turnstile inalcançável no login.** `usePortalAuth.signIn` troca qualquer erro do `portal-login` por `Error('CNPJ ou senha inválidos.')` sem status; por isso os ramos `TURNSTILE_REJECTED` e `P0429` de `PortalLogin` nunca disparam e a recusa do Turnstile aparece como credencial inválida. A recuperação trata o `403` corretamente. Defeito a tratar em tarefa separada.
 - **Código — literal morto.** `portal_refresh_general_pendencies` (job a cada 15 minutos) ainda filtra pelo valor removido `provisionamento_nao_necessario`; não tem efeito, porque o CHECK de `provisioning_decision` não aceita esse valor.
-- **Correção pendente (ADR 0085, item D12):** Operações vê o Histórico do console de provisionamento, como o resto do console; hoje `portal_list_provisioning_events` recusa esse perfil e a seção aparece vazia ou com erro (`PortalReviewPanel.tsx` inclui Operações em `canReadEvents`). Correção no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) (P12).
-- **Correção pendente (A18):** vale a ADR 0045: Operações vê no console os mesmos campos completos dos demais perfis leitores, porque a leitura interna é global (ADR 0044). Desde o Bloco #521 (migration arquivada `325`) o read model esconde dela Email de Recuperação, origem, entrega e candidatos. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 18).
-- **Correção pendente (A19):** a exceção crítica de fatura entra no resumo das 08:00 (abertura e fechamento), além do sino e de `/alertas`; o e-mail imediato não volta ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19). Hoje `portal-daily-digest` conta apenas falhas e supressões de email, atividade de provisionamento e Ativação pendente e não lê `alerts` (**Código:** `supabase/functions/portal-daily-digest/index.ts`), e `portal_abuso_login` só avisa a Documentação. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
-- **Correção pendente (A21):** o caminho legado de contas do Portal sai: as RPCs `upsert_customer_portal_account` e `set_customer_portal_account_active`, o job `cleanup-portal-sessions`, a tabela `customer_portal_sessions` e a escrita direta permitida pela policy `cpa_admin_all` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 21; a ADR 0013 recusa senha própria em tabela). Hoje as RPCs, sem chamador no código, continuam executáveis pelo Administrativo, e a policy permite as mesmas escritas direto em `customer_portal_accounts` — inclusive reativar uma conta Suspensa fora da máquina de estados. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
-- **Correção pendente (B25):** a remoção do pré-voo e do backfill foi decidida (migration arquivada `203`), mas `portal_provisioning_backfill` voltou ao catálogo (migration arquivada `293`, mantida no dump `002`), sem grant a `authenticated`; a função sai do catálogo. Correção pendente no [plano de correções](../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26).
+- **Console e Histórico completos para Operações (A18; ADR 0085, D12).** Desde a migration `250`, `portal_list_provisioning_console` não mascara mais Email de Recuperação, origem, entrega e candidatos para Operações, e `portal_list_provisioning_events` aceita esse perfil (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`; **Teste:** `PortalReviewPanel.test.tsx`).
+- **Exceção crítica de fatura no resumo (A19).** O `portal-daily-digest` conta as exceções críticas de fatura abertas e fechadas nas últimas 24 horas; o e-mail imediato não volta ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19). Prova: **Teste de contrato** (`edgeFunctionsRun2.test.ts`, `portalEmailTemplatesBranding.test.ts`); o envio real não foi executado.
+- **Caminho legado de contas removido (A21).** As RPCs `upsert_customer_portal_account` e `set_customer_portal_account_active` (senha própria em tabela, que a ADR 0013 recusa), o job `cleanup-portal-sessions` e a tabela `customer_portal_sessions` saíram na migration `234` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 21). A policy `cpa_admin_all` deu lugar a `cpa_admin_select`, só de leitura: nenhum perfil escreve direto em `customer_portal_accounts`, e a conta só muda pelas Edge Functions e pelas RPCs `portal_*` da máquina de estados (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`).
+- **Corrigido (B25, migration `265`):** `portal_provisioning_backfill`, que tinha voltado ao catálogo (migration arquivada `293`, mantida no dump `002`) depois da remoção decidida na migration arquivada `203`, saiu de vez; o pré-voo já não existia. **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (B25).
 - `portal_list_disputes()` é consumida por `portalListDisputes` (`src/services/portalBilling.ts` via `usePortalDisputes`) e tem par de inspeção `portal_inspect_list_disputes` desde `013_portal_disputes_inspection.sql`.
 - [ADR 0001](../adr/0001-portal-login-supabase-auth.md) continua válida para Supabase Auth e fim do token legado, mas foi parcialmente superada pela [ADR 0013](../adr/0013-portal-auth-identificador-resolvido-e-excecao-anon.md) quanto aos identificadores aceitos.
 

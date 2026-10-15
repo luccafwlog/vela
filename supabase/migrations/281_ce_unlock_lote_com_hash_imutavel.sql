@@ -1,4 +1,4 @@
--- Migration 233: lote da exportação ZPT com hash e conteúdo imutável.
+-- Migration 281: lote da exportação ZPT com hash e conteúdo imutável.
 --
 -- O lote (`ce_unlock_exports`) guarda as linhas e o snapshot de cada envio à
 -- ZPT, e a planilha é gerada de novo a partir dele quando o download falha ou é

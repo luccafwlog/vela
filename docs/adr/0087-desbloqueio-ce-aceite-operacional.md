@@ -1,7 +1,7 @@
 # 0087 — Aceite operacional e jurídico do Desbloqueio de CE
 
 Status: aceito — 2026-10-14 (decisões do dono). Itens 2 e 3 implementados na
-migration `230` e item 5 na `231` (PR 956), com testes no Postgres local; ver o
+migration `279` e item 5 na `280` (PR 956), com testes no Postgres local; ver o
 [plano do Desbloqueio de CE](../plans/2026-10-04-desbloqueio-ce-mercante.md).
 
 Fecha o aceite operacional e jurídico que a

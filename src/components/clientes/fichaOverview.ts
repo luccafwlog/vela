@@ -60,7 +60,8 @@ export type OverviewInput = {
   hasPrimaryEmail: boolean
   pendingReconciliation: Source<number>
   /** `false` quando o perfil não lê Demurrage. */
-  demurrage: Source<{ overdue: number; disputes: number } | false>
+  // Demurrage não vence (ADR 0014; B29): a ficha só sinaliza a disputa aberta.
+  demurrage: Source<{ disputes: number } | false>
   runningDemurrage: Source<number>
 }
 
@@ -170,15 +171,6 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
   }
 
   if (track('Faturas de Demurrage', input.demurrage) && input.demurrage) {
-    if (input.demurrage.overdue > 0) {
-      items.push({
-        key: 'vencidas',
-        block: 'saldo',
-        tone: 'danger',
-        title: `${plural(input.demurrage.overdue, 'fatura de Demurrage vencida', 'faturas de Demurrage vencidas')}`,
-        actions: [{ label: 'Ver na aba Financeiro', tab: 'financeiro' }],
-      })
-    }
     if (input.demurrage.disputes > 0) {
       items.push({
         key: 'disputas',

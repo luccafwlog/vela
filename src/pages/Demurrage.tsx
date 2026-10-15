@@ -102,12 +102,14 @@ export function Demurrage() {
   const { tab, search, lens } = state
 
   // Permissões das RPCs, para a tela não oferecer o que o banco recusa.
-  const canIssue = effectiveRole === 'administrativo' // issue_demurrage_invoice_for_bl (is_admin)
+  const canIssue = effectiveRole != null // issue_demurrage_invoice_for_bl: qualquer Departamento (ADR 0085, D3; migration 246)
   const canAdmin = effectiveRole === 'administrativo' // cancel_demurrage_invoice, reverse_demurrage_payment
-  const canSettle = effectiveRole === 'financeiro' || effectiveRole === 'administrativo' // register_demurrage_payment, apply_demurrage_discount
+  const canSettle = effectiveRole === 'financeiro' || effectiveRole === 'administrativo' // register_demurrage_payment; apply_demurrage_discount é de qualquer Departamento (247)
   const canInformPtax = canSettle || effectiveRole === 'equipamentos' // migration 110
   const canAnswerDispute = canAnswerDemurrageDispute(effectiveRole)
-  const activeTab: DemurrageTab = tab === 'disputas' && !canAnswerDispute ? 'containers' : tab
+  // A aba Disputas é de leitura para todos (ADR 0085, D12; migration 250).
+  const canReadDisputes = effectiveRole != null
+  const activeTab: DemurrageTab = tab === 'disputas' && !canReadDisputes ? 'containers' : tab
 
   const [generatingBl, setGeneratingBl] = useState<string | null>(null)
   const [generateError, setGenerateError] = useState<{ blId: string; message: string } | null>(null)
@@ -160,7 +162,7 @@ export function Demurrage() {
     queryKey: ['demurrage-disputes'],
     queryFn: () => listDemurrageDisputes(),
     staleTime: 30_000,
-    enabled: canAnswerDispute,
+    enabled: canReadDisputes,
   })
   const disputesWaiting = (disputesQuery.data ?? []).filter((dispute) => dispute.state === 'aberta' && dispute.next_responder === 'equipamentos').length
 
@@ -458,7 +460,7 @@ export function Demurrage() {
           <TabButton key={item.key} id={`dem-tab-${item.key}`} controls={panelId} active={activeTab === item.key} label={item.label} onClick={() => selectTab(item.key)} />
         ))}
         <TabButton id="dem-tab-clientes" controls={panelId} active={activeTab === 'clientes'} label="Por Cliente" onClick={() => selectTab('clientes')} />
-        {canAnswerDispute ? (
+        {canReadDisputes ? (
           <TabButton
             id="dem-tab-disputas"
             controls={panelId}

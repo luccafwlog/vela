@@ -1,4 +1,4 @@
--- Migration 231: retenção dos documentos do Desbloqueio de CE conforme o aceite
+-- Migration 280: retenção dos documentos do Desbloqueio de CE conforme o aceite
 -- operacional (ADR 0087, item 5), no lugar dos 5 anos da migration `143`.
 --
 -- - Anexos de solicitação (`source = 'request'`): expurgados 30 dias após o

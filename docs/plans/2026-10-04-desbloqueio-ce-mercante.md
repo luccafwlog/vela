@@ -47,8 +47,11 @@ produção com os Clientes 1 (A) e 2 (B), operado pelo responsável e conferido 
 banco, até a exportação; B não leu, alterou nem baixou nada de A pelo serviço
 real. Falta a conciliação com um "Exportar Tela" real da ZPT (Tarefa 6).
 A revisão geral da documentação do mesmo dia reabriu o alerta de troca de CE
-com Desbloqueio conferido, que o código não abre (correção pendente B1
-do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico).
+com Desbloqueio conferido, que o código não abria (B1 do
+[plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico). A
+correção é a migration `230`, completada pela `277` (a confirmação manual legada vale só
+para o CE confirmado), provadas no Postgres local e aplicadas em produção em
+2026-10-15 (merge da PR 954).
 
 **Estado conferido em 2026-10-14:** a rodada do expurgo das 06:00 UTC executou o
 ciclo completo sobre o documento de teste: rascunho cancelado, documento
@@ -74,8 +77,8 @@ Desbloqueio conferido (item 8).
 
 **Estado em 2026-10-15, PR 956:** o responsável dispensou a conciliação com um
 "Exportar Tela" real (o modelo da ZPT basta). As mudanças da ADR 0087
-(migrations `230` e `231`), a correção B1 (`232`), o lote com hash imutável
-(`233`), a mensagem de recusa do PDF e as matrizes de teste (`ceUnlockMatriz`,
+(migrations `279` e `280`), o lote com hash imutável
+(`281`), o documento expurgado na projeção (`282`), a mensagem de recusa do PDF e as matrizes de teste (`ceUnlockMatriz`,
 `ceUnlockVip`, Deno do expurgo e telas) estão na PR 956, comprovadas no Postgres
 local e em jsdom. Ficam abertos só os itens que se observam no serviço real em
 produção depois do merge (caminho crítico, item 10).
@@ -273,11 +276,11 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    conciliação com evidência externa fica no item 4.
 7. ~~Validar o resultado do expurgo no Storage real (Tarefa 7).~~ Feito em
    2026-10-15 com um PDF real enviado pelo Portal (ver "Fontes").
-8. ~~Corrigir o alerta de troca de CE com Desbloqueio conferido (B1).~~ Feito na
-   migration `232` (PR 956), com o teste K2 pela conciliação real.
-9. ~~Implementar as mudanças da ADR 0087.~~ Feito nas migrations `230` e `231`
+8. ~~Corrigir o alerta de troca de CE com Desbloqueio conferido (B1).~~ Feito nas
+   migrations `230` e `277` (PR 954), aplicadas em produção em 2026-10-15.
+9. ~~Implementar as mudanças da ADR 0087.~~ Feito nas migrations `279` e `280`
    (PR 956), com testes no Postgres local.
-10. Depois do merge da PR 956: conferir em produção as migrations `230`–`233`,
+10. Depois do merge da PR 956: conferir em produção as migrations `279`–`282`,
     republicar a Edge Function `portal-ce-unlock-document` (mensagem do PDF) e
     fazer a observação no serviço real que resta na Tarefa 7.
 
@@ -322,7 +325,7 @@ apresentação; timestamps persistidos continuam UTC.
 - [x] Registrar a decisão de execução de não criar entidade distinta “CS”, conforme relatório local.
 - [x] Registrar as cinco colunas ZPT, documentos anuais VIP por CNPJ e validade até 31/12 sem renovação automática.
 - [x] Implementar tipos, versões, requisitos e motivos públicos separados do andamento externo. **Código:** `ceUnlock.ts`; layout usa `layout_version`, e o pedido referencia `model_id`, em vez de exigir os nomes `layoutVersion`/`modelVersion` inicialmente propostos.
-- [x] Obter/reconciliar aceite operacional de entrega, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); o aceite foi obtido em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)): entrega independente da solicitação, B/L isento sem requisito de pagamento, avulsas no requisito (sem Demurrage), assinatura e validade por conferência humana e retenção de 30 dias; as mudanças de código estão nas Tarefas 2 e 3. A matriz de papéis saiu deste aceite: foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11) — leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação —, e a correção para Equipamentos é o item P12 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md).
+- [x] Obter/reconciliar aceite operacional de entrega, assinatura/validade, retenção, isenção e ajustes locais na spec, incluindo que a análise humana é a única conferência do conteúdo dos PDFs. Em 2026-10-10 o responsável forneceu o termo (`.doc`, modelo COSCO Specialized Carriers) e decidiu que o modelo baixado seja `.docx`, com anexo do cliente só em PDF; o cadastro do modelo passou a aceitar só DOCX (migration `173`), e o modelo foi cadastrado no mesmo dia (ver "Fontes"); o aceite foi obtido em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)): entrega independente da solicitação, B/L isento sem requisito de pagamento, avulsas no requisito (sem Demurrage), assinatura e validade por conferência humana e retenção de 30 dias; as mudanças de código estão nas Tarefas 2 e 3. A matriz de papéis saiu deste aceite: foi decidida em 2026-10-14 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D11) — leitura para todos, inclusive Equipamentos, e gestão do Administrativo e da Documentação —, e a correção para Equipamentos é o item P12 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md).
 - A homologação da amostra XLSX e dos indicadores Sim/Não com responsável/ZPT é registrada na Tarefa 6 (concluída em 2026-10-14).
 
 ## Tarefa 2 — Persistência, autorização e requisito financeiro
@@ -354,7 +357,7 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [x] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original. **Teste:** `ceUnlockVip.local-pg.test.ts`.
 - [x] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa. **Teste:** `ceUnlockMatriz.local-pg.test.ts` (cancelamento e remoção bloqueiam a exportação; correção dá "CE alterado: reconferência necessária", `reconfirm_ce` volta termo e procuração para análise e, reaprovado, o B/L sai de novo com o CE novo).
 
-- [x] B/L com Taxas Locais isentas fica apto sem requisito de pagamento (termo, procuração e entrega), e o requisito passa a incluir as faturas avulsas do B/L, sem Demurrage ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), itens 2 e 3). **Código:** migration `230` (`ce_unlock_private.item`; motivo "Fatura avulsa do B/L em aberto"; `paid` alimenta Portal e planilha). **Teste:** `ceUnlock.local-pg.test.ts` (isento sem recebível, avulsa aberta, baixa real da avulsa); falha sem a `230` no Postgres local em 2026-10-15. Em produção após o merge.
+- [x] B/L com Taxas Locais isentas fica apto sem requisito de pagamento (termo, procuração e entrega), e o requisito passa a incluir as faturas avulsas do B/L, sem Demurrage ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), itens 2 e 3). **Código:** migration `279` (`ce_unlock_private.item`; motivo "Fatura avulsa do B/L em aberto"; `paid` alimenta Portal e planilha). **Teste:** `ceUnlock.local-pg.test.ts` (isento sem recebível, avulsa aberta, baixa real da avulsa); falha sem a `279` no Postgres local em 2026-10-15. Em produção após o merge.
 
 ## Tarefa 3 — Documentos e análise interna auditável
 
@@ -392,9 +395,9 @@ RPCs internas `set_ce_unlock_vip`, `review_ce_unlock_vip_document`,
 - [x] Completar matriz anual: termo vigente/procuração vencida, pedido atravessando vencimento e renovação aplicada a múltiplos itens sem alterar snapshots antigos. **Teste:** `ceUnlockVip.local-pg.test.ts`.
 - [x] Demonstrar retry sem eventos duplicados e preservação de documentos enviados/anuais no expurgo, incluindo anuais sem pedido e quotas VIP. **Teste:** `ceUnlockVip.local-pg.test.ts` e `supabase/functions/ce-unlock-cleanup/index.test.ts`.
 - [x] Publicar a função e o job de expurgo. **Remoto:** `ce-unlock-cleanup` ativo e agendado diariamente em 2026-10-10.
-- [x] Retenção e nova tentativa do expurgo. A retenção foi decidida na [ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md) (item 5) e implementada na migration `231`. A remoção de um PDF real pela Storage API foi observada em produção em 2026-10-15 (ver "Fontes"). A falha física com nova tentativa é coberta pelo handler real contra Storage simulado: falha não registra `purged_at`, o documento fica reivindicado e a rodada seguinte remove. **Teste:** `supabase/functions/ce-unlock-cleanup/index.test.ts` (Deno, no CI). Provocar a falha no Storage de produção não foi feito, por ser intrusivo.
+- [x] Retenção e nova tentativa do expurgo. A retenção foi decidida na [ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md) (item 5) e implementada na migration `280`. A remoção de um PDF real pela Storage API foi observada em produção em 2026-10-15 (ver "Fontes"). A falha física com nova tentativa é coberta pelo handler real contra Storage simulado: falha não registra `purged_at`, o documento fica reivindicado e a rodada seguinte remove. **Teste:** `supabase/functions/ce-unlock-cleanup/index.test.ts` (Deno, no CI). Provocar a falha no Storage de produção não foi feito, por ser intrusivo.
 
-- [x] Expurgo dos anexos da solicitação 30 dias após o envio e dos documentos do Termo Anual VIP só quando um anual aprovado mais novo substitui o vencido ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), item 5); upload abandonado (1 dia) e rascunho (7 dias) não mudam; modelos anteriores saem após 5 anos. **Código:** migration `231`. **Teste:** `ceUnlock.local-pg.test.ts` (29/31 dias, anual vencido sem substituto, renovação em análise, anual aprovado); falha sem a `231` no Postgres local em 2026-10-15. Em produção após o merge.
+- [x] Expurgo dos anexos da solicitação 30 dias após o envio e dos documentos do Termo Anual VIP só quando um anual aprovado mais novo substitui o vencido ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), item 5); upload abandonado (1 dia) e rascunho (7 dias) não mudam; modelos anteriores saem após 5 anos. **Código:** migration `280`. **Teste:** `ceUnlock.local-pg.test.ts` (29/31 dias, anual vencido sem substituto, renovação em análise, anual aprovado); falha sem a `280` no Postgres local em 2026-10-15. Em produção após o merge.
 
 ## Tarefa 4 — Portal: selecionar, solicitar e acompanhar
 
@@ -477,12 +480,12 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
 - [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Superado** pela revisão de 2026-10-07: as ações `sent` e `confirm` saíram; exportar registra o envio e a conciliação com o "Exportar Tela" da ZPT marca *Desbloqueio conferido* ou *Divergente* ([módulo vivo](../modules/desbloqueio-ce.md)). Confirmações antigas ficam como histórico do desk.
 - [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número. **Código/Remoto:** migration `177` (PR 929), em produção em 2026-10-12.
-- [x] Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia (correção B1). **Código:** migration `232`: `_set_bl_ce_mercante` e `_analyze_ce_mercante_rows` leem a conciliação (`ce_unlock_zpt_status` desbloqueado para o CE anterior), não a confirmação manual retirada na `160`. **Teste:** K2 de `ceImportacaoContrato.local-pg.test.ts`, agora pela conciliação real; falha sem a `232` no Postgres local em 2026-10-15. Em produção após o merge.
+- [x] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: a definição da `195` lia a confirmação manual retirada na `160`, não o status da conciliação. Corrigido nas migrations `230` e `277` (B1 do [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)), provado no Postgres local pelos testes B1 e 277; aplicadas em produção em 2026-10-15 (item 8 do caminho crítico; a troca de CE em produção não foi exercitada).
 - [x] Demonstrar baixa cancelada concorrente à criação da exportação. **Teste:** "exportação aguarda reversão financeira concorrente…" em `ceUnlock.local-pg.test.ts` (ver "Fontes").
-- [x] Demonstrar bloqueio por cada requisito, snapshot imutável e retry do mesmo lote. **Teste:** `ceUnlockMatriz.local-pg.test.ts` (pagamento, termo, procuração e entrega perdidos e restabelecidos pelos comandos reais; mesma chave devolve o mesmo lote; snapshot inalterado) e migration `233`.
+- [x] Demonstrar bloqueio por cada requisito, snapshot imutável e retry do mesmo lote. **Teste:** `ceUnlockMatriz.local-pg.test.ts` (pagamento, termo, procuração e entrega perdidos e restabelecidos pelos comandos reais; mesma chave devolve o mesmo lote; snapshot inalterado) e migration `281`.
 - [x] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; rastreabilidade de origem/versão/vigência no snapshot. **Teste:** `ceUnlockVip.local-pg.test.ts`.
-- [x] Reconciliar o requisito inicial de estado explícito de falha recuperável. **Decisão técnica (2026-10-15):** não há estado de falha persistido porque a geração da planilha não tem efeito externo: o lote (`ce_unlock_exports`) é gravado antes, é imutável desde a migration `233` e a planilha é gerada de novo a partir dele quantas vezes for preciso; o envio só fica registrado quando o desk o informa. Um estado de falha não acrescentaria recuperação.
-- [x] Hash do lote preenchido: SHA-256 de `layout_version` e das linhas, calculado no banco ao gravar o lote, com backfill dos lotes existentes; distinto do hash de cada PDF. O lote não aceita reescrita (só `sent_at` e `reference`). **Código:** migration `233`. **Teste:** `ceUnlock.local-pg.test.ts` ("lote da exportação ZPT nasce com hash…").
+- [x] Reconciliar o requisito inicial de estado explícito de falha recuperável. **Decisão técnica (2026-10-15):** não há estado de falha persistido porque a geração da planilha não tem efeito externo: o lote (`ce_unlock_exports`) é gravado antes, é imutável desde a migration `281` e a planilha é gerada de novo a partir dele quantas vezes for preciso; o envio só fica registrado quando o desk o informa. Um estado de falha não acrescentaria recuperação.
+- [x] Hash do lote preenchido: SHA-256 de `layout_version` e das linhas, calculado no banco ao gravar o lote, com backfill dos lotes existentes; distinto do hash de cada PDF. O lote não aceita reescrita (só `sent_at` e `reference`). **Código:** migration `281`. **Teste:** `ceUnlock.local-pg.test.ts` ("lote da exportação ZPT nasce com hash…").
 - [x] Homologar a amostra XLSX (`zpt-5-v2`) e os indicadores Sim/Não com responsável/ZPT. **Aceite:** o responsável informou em 2026-10-14 que combinou com a ZPT e que o modelo atual de exportação está homologado (declaração, sem documento da ZPT anexado).
 - [x] Conciliação com o "Exportar Tela": o responsável decidiu em 2026-10-15 que o modelo da ZPT usado no código e nos testes basta e dispensou a conciliação com um arquivo real antes da ativação. **Teste:** `ceUnlockZptReconcile.test.ts`, `CeUnlockZptImport.test.tsx` e `ceUnlock.local-pg.test.ts`; o primeiro arquivo real fica como observação da operação.
 
@@ -506,7 +509,7 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
 - [ ] Validar fluxo VIP completo no ambiente controlado. No banco, o fluxo completo (dois pedidos sem reanexação, vencimento, renovação, reexportação e histórico) está em `ceUnlockVip.local-pg.test.ts`; falta a observação nas telas em produção.
 - [ ] Registrar gates da árvore integrada no fechamento técnico e validação de Preview/gateway/Storage; distinguir testes locais, skips e observação remota.
-- [x] Versões documentais anteriores na UI interna: `request_json` já devolve todas as versões, e `CeUnlockRequestDetail` as mostra em "Versões anteriores", só para consulta: arquivo, data de envio, situação, motivo e **Abrir documento** (tela aprovada pelo responsável em 2026-10-15, por captura); versão já expurgada mostra "Arquivo removido pela regra de retenção" (campo `purged`, migration `234`). **Teste:** `CeUnlockRequestDetail.test.tsx` e `ceUnlock.local-pg.test.ts`. Teto O(n) da fila: **decisão técnica (2026-10-15)** manter como está, marcado `ponytail` no serviço, porque o volume previsto é de dezenas de pedidos abertos; o upgrade (read model indexado) entra quando a fila passar de algumas centenas de candidatos ou a tela ficar lenta.
+- [x] Versões documentais anteriores na UI interna: `request_json` já devolve todas as versões, e `CeUnlockRequestDetail` as mostra em "Versões anteriores", só para consulta: arquivo, data de envio, situação, motivo e **Abrir documento** (tela aprovada pelo responsável em 2026-10-15, por captura); versão já expurgada mostra "Arquivo removido pela regra de retenção" (campo `purged`, migration `282`). **Teste:** `CeUnlockRequestDetail.test.tsx` e `ceUnlock.local-pg.test.ts`. Teto O(n) da fila: **decisão técnica (2026-10-15)** manter como está, marcado `ponytail` no serviço, porque o volume previsto é de dezenas de pedidos abertos; o upgrade (read model indexado) entra quando a fila passar de algumas centenas de candidatos ou a tela ficar lenta.
 - [ ] Concluir aceite operacional/ZPT; arquivar plano/spec e remover entradas dos índices na mesma mudança. Permanecem ativos enquanto faltarem aceites.
 
 ## Verificação da reconciliação

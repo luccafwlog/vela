@@ -1,4 +1,4 @@
--- Migration 230: requisito de pagamento do Desbloqueio de CE conforme o aceite
+-- Migration 279: requisito de pagamento do Desbloqueio de CE conforme o aceite
 -- operacional (ADR 0087, itens 2 e 3).
 --
 -- 1. B/L com Taxas Locais isentas (`bls.charge_status = 'exempt'`) e sem

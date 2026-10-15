@@ -1,6 +1,6 @@
 # 2026-10-13 — Revisão geral da documentação
 
-> **Nota editorial (2026-10-14).** Plano encerrado e arquivado: o dono respondeu todas as decisões pendentes em 2026-10-14, registradas na [ADR 0083](../../../adr/0083-decisoes-da-revisao-geral-da-documentacao.md) (lotes A e B) e na [ADR 0084](../../../adr/0084-registro-de-decisoes-ja-em-producao.md) (C1). As correções de código seguem no [plano de correções](../../../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md). O texto abaixo é o registro das decisões como estavam pendentes.
+> **Nota editorial (2026-10-14).** Plano encerrado e arquivado: o dono respondeu todas as decisões pendentes em 2026-10-14, registradas na [ADR 0083](../../../adr/0083-decisoes-da-revisao-geral-da-documentacao.md) (lotes A e B) e na [ADR 0084](../../../adr/0084-registro-de-decisoes-ja-em-producao.md) (C1). As correções de código seguem no [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md). O texto abaixo é o registro das decisões como estavam pendentes.
 
 Plano vivo da revisão aprovada pelo dono em 2026-10-13. As regras do trabalho
 estão na [ADR 0082](../../adr/0082-governanca-documental-dono-unico-e-adr-historica.md)

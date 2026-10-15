@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 test('creates portal account states and PIX reconciliation scenarios without returning secrets', async () => {
-  process.env.QA_PORTAL_FIXTURE_PASSWORD = 'fixture-password-only-in-test'
   const { createPortalScenarios } = await import('./create-portal-scenarios.mjs')
   const calls = []
   let sequence = 200
@@ -20,6 +19,6 @@ test('creates portal account states and PIX reconciliation scenarios without ret
 
   assert.deepEqual(result.reconciliations.map((item) => item.status), ['exact', 'partial', 'overpaid', 'reverted'])
   assert.equal(result.accounts.length, 4)
-  assert.equal(JSON.stringify(result).includes('fixture-password-only-in-test'), false)
+  assert.equal(calls.some((call) => call.name === 'upsert_customer_portal_account'), false)
   assert.ok(calls.some((call) => call.name === 'reverse_invoice_payment'))
 })

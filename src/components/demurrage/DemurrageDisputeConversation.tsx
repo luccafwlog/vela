@@ -43,13 +43,15 @@ type Props = {
   onOpenInvoice?: (invoiceId: number) => void
 }
 
+// Ler as Disputas é de todos os Departamentos; responder, reabrir e anexar
+// seguem de Equipamentos e do Administrativo (ADR 0085, D12; migration 250).
 export function DemurrageDisputeConversation(props: Props) {
   const { effectiveRole } = useAuth()
-  if (!canAnswerDemurrageDispute(effectiveRole)) return null
-  return <DemurrageDisputeConversationContent {...props} />
+  if (!effectiveRole) return null
+  return <DemurrageDisputeConversationContent {...props} canAnswer={canAnswerDemurrageDispute(effectiveRole)} />
 }
 
-function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoiceId = null, onOpenInvoice }: Props) {
+function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoiceId = null, onOpenInvoice, canAnswer }: Props & { canAnswer: boolean }) {
   const queryClient = useQueryClient()
   const confirm = useConfirm()
   const [drafts, setDrafts] = useState<Record<number, string>>({})
@@ -265,7 +267,10 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
                   </ol>
                 ) : <p className="app-dem-meta">Sem mensagens.</p>}
 
-                {dispute.state !== 'cancelada' ? (
+                {dispute.state !== 'cancelada' && !canAnswer ? (
+                  <p className="app-dem-meta">Responder, reabrir e anexar são de Equipamentos e do Administrativo.</p>
+                ) : null}
+                {dispute.state !== 'cancelada' && canAnswer ? (
                   <div className="app-dem-dispute__reply">
                     <label className="app-field__label" htmlFor={`dispute-${dispute.id}-body`}>{dispute.state === 'resolvida' ? 'Justificativa da reabertura' : 'Resposta ao Cliente'}</label>
                     <Textarea

@@ -24,6 +24,12 @@ describe('estado da régua de Demurrage', () => {
     expect(nextDemurrageDunningAttemptNumber(attempts)).toBe(8)
   })
 
+  it('A15: depois de uma pausa, a próxima vence um intervalo depois do último envio', () => {
+    const display = getDemurrageDunningDisplay(invoice, { attemptCount: 2, lastAttemptAt: '2026-10-20T15:00:00Z', intervalDays: 7 })
+    expect(display.nextDate).toBe('2026-10-27T15:00:00.000Z')
+    expect(display.statusLabel).toBe('3ª cobrança, próxima em 27/10/2026')
+  })
+
   it('pausa por disputa, contato inválido e encerra após pagamento', () => {
     expect(getDemurrageDunningDisplay(invoice, { hasValidContact: true }).statusLabel).toContain('1ª cobrança')
     expect(getDemurrageDunningDisplay({ ...invoice, dispute_open: true }).statusLabel).toBe('Pausada: disputa aberta')

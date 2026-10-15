@@ -15,7 +15,7 @@ export type CeUnlockDocument = {
   coverage_year: number | null;
   reason: string | null;
   created_at: string;
-  /** Arquivo já removido do Storage pelo expurgo (migration 234); metadados ficam. */
+  /** Arquivo já removido do Storage pelo expurgo (migration 282); metadados ficam. */
   purged?: boolean;
 };
 export type CeUnlockItem = {

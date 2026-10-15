@@ -36,6 +36,9 @@ export type ActiveAlertType =
   | 'portal_email_suprimido'
   | 'portal_abuso_login'
   | 'cliente_contato_bounced_sem_alternativa'
+  | 'nob_sem_destinatario'
+  | 'caixa_sem_destinatario'
+  | 'cliente_sem_contato_principal'
   | 'comunicado_noa_pendente'
   | 'comunicado_nor_pendente'
   | 'comunicado_nob_pendente'
@@ -89,6 +92,9 @@ export const TYPE_LABELS: Record<string, string> = {
   comunicado_noa_pendente: 'Comunicado NOA pendente',
   comunicado_nor_pendente: 'Comunicado NOR pendente',
   comunicado_nob_pendente: 'Comunicado NOB pendente',
+  nob_sem_destinatario: 'NOB sem destinatário',
+  caixa_sem_destinatario: 'Caixa de comunicação sem destinatário',
+  cliente_sem_contato_principal: 'Cliente sem contato principal',
   agency_report_department_pending: 'ADR — departamento pendente',
   agency_report_deadline_missed: 'ADR — prazo vencido',
   review_customer_unlinked: 'Revisão de B/L — cliente não vinculado',
@@ -123,16 +129,16 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   pix_transaction: 'Transação PIX',
 }
 
-export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'administrativo'
+export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
 export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'demurrage_invoice' | 'exchange_rate_reference'
 
 export const FINANCIAL_ALERT_EVENTS = {
-  fatura_desatualizada: { audience: ['administrativo'], unit: 'invoice' },
-  restituicao_pendente: { audience: ['administrativo'], unit: 'invoice' },
+  fatura_desatualizada: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
+  restituicao_pendente: { audience: ['administrativo', 'financeiro'], unit: 'invoice' },
   billing_calculation_blocked: { audience: ['documentacao'], unit: 'bl' },
   billing_auto_issue_failed: { audience: ['documentacao'], unit: 'bl' },
   demurrage_ptax_recalc_failed: { audience: ['documentacao'], unit: 'exchange_rate_reference' },
-  pix_unreconciled: { audience: ['administrativo', 'documentacao', 'equipamentos'], unit: 'pix_transaction' },
+  pix_unreconciled: { audience: ['administrativo', 'financeiro', 'documentacao', 'equipamentos'], unit: 'pix_transaction' },
   portal_dispute_opened: { audience: ['equipamentos'], unit: 'demurrage_invoice' },
 } as const satisfies Record<string, { audience: readonly AlertAudience[]; unit: AlertEventUnit }>
 
@@ -148,6 +154,14 @@ export const FINANCIAL_ALERT_TYPES = [
 export type FinancialAlertType = typeof FINANCIAL_ALERT_TYPES[number]
 
 import { AGENCY_REPORT_DEPARTMENT_LABELS, agencyReportSectionLabel } from './agencyReportLabels'
+
+/** Alertas de contato do Cliente: o tratamento é na aba Cadastro e contatos. */
+const CUSTOMER_CONTACT_ALERT_TYPES: ReadonlySet<string> = new Set([
+  'cliente_contato_bounced_sem_alternativa',
+  'nob_sem_destinatario',
+  'caixa_sem_destinatario',
+  'cliente_sem_contato_principal',
+])
 
 function isTerminalCode(value: string | undefined): boolean {
   return Boolean(value && /^[A-Z0-9][A-Z0-9._-]*$/.test(value))
@@ -333,7 +347,7 @@ export function alertEntityLink(alert: {
   if (effectiveType === 'review_granite_customer_unlinked') {
     return '/granito'
   }
-  if (effectiveType === 'cliente_contato_bounced_sem_alternativa' && alert.entity_type === 'customer') {
+  if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType) && alert.entity_type === 'customer') {
     const customerCnpj = alert.metadata?.customer_cnpj
     if (typeof customerCnpj === 'string' && customerCnpj.trim()) {
       return `/clientes/${encodeURIComponent(customerCnpj.trim())}?tab=cadastro`
@@ -399,7 +413,7 @@ export function alertEntityLinkLabel(alert: {
     || effectiveType === 'comunicado_nor_pendente'
     || effectiveType === 'comunicado_nob_pendente'
   ) return 'Abrir Comunicados'
-  if (effectiveType === 'cliente_contato_bounced_sem_alternativa') return 'Abrir Cliente'
+  if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType)) return 'Abrir Cliente'
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
     return 'Taxas Locais'
@@ -479,6 +493,30 @@ export async function dismissAlertItem(
     p_item_id: itemId,
     p_reason: reason,
     p_review_at: reviewAt,
+  })
+  if (error) throw error
+}
+
+/**
+ * Tipos de conferência sem fato de origem: fecham com "Resolver com
+ * justificativa" (ADR 0083, item 23). Espelha
+ * `_alert_types_resolved_with_justification()` (migration 238); os demais
+ * fecham sozinhos quando a origem é corrigida.
+ */
+export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
+  'portal_abuso_login',
+  'bl_vehicles_changed_on_reimport',
+  'ce_trocado_com_desbloqueio',
+]
+
+export function canResolveWithJustification(type: string | null | undefined): boolean {
+  return Boolean(type && ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION.includes(type))
+}
+
+export async function resolveAlertItemWithJustification(itemId: number, reason: string): Promise<void> {
+  const { error } = await alertsRpc.rpc('resolve_alert_item_with_justification', {
+    p_item_id: itemId,
+    p_reason: reason,
   })
   if (error) throw error
 }
