@@ -66,6 +66,9 @@ verify_jwt = false
 verify_jwt = false
 import_map = "./functions/deno.json"
 
+[functions.admin-users]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.
