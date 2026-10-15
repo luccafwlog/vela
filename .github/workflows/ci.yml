@@ -3,11 +3,11 @@ name: CI
 permissions:
   contents: read
 
+# Só em PR (ADR 0086): o merge na `main` não repete o CI. A produção publica no
+# push e espera o Supabase aplicar as migrations (cloudflare-pages-production.yml).
 on:
   pull_request:
-  push:
-    branches:
-      - main
+    types: [opened, synchronize, reopened, ready_for_review]
 
 # Um PR só precisa do resultado do commit mais recente. Runs antigos do mesmo
 # ref são cancelados para liberar runners e encurtar a fila.
@@ -17,7 +17,8 @@ concurrency:
 
 jobs:
   quality:
-    name: Docs + Lint
+    # Um computador para tudo que não é teste nem banco: um só `npm ci`.
+    name: Quality + Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -37,6 +38,9 @@ jobs:
           node scripts/lib/docs-anchors.test.mjs
           node scripts/check-docs.test.mjs
           npm run docs:check
+
+      - name: CI scripts
+        run: npm run ci:test
 
       - name: Lint
         run: npm run lint
@@ -76,7 +80,8 @@ jobs:
         run: npm run migrations:check
 
       - name: Local-pg suites listed in CI
-        # Toda suíte `*.local-pg.test.ts` precisa estar no job local-pg.
+        # Toda suíte `*.local-pg.test.ts` precisa estar no job db e na passada
+        # invertida semanal (local-pg-order.yml).
         run: npm run localpg:check
 
       - name: Destructive migration check self-test
@@ -88,19 +93,14 @@ jobs:
       - name: Cloudflare Pages provisioning contract
         run: npm run cloudflare:provision:test
 
-  build:
-    name: Build + Bundle size
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7.1.0
+      - uses: actions/setup-python@v7
         with:
-          node-version: '24'
-          cache: 'npm'
+          python-version: '3.12'
 
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+      - name: Verify database security guards
+        run: |
+          python -B -m unittest discover -s scripts/security -p 'test_*.py'
+          python -B scripts/security/verificar_guardas.py --ci
 
       - name: Build Vite bundles and stage both Cloudflare Pages sites
         run: npm run cloudflare:build:sites
@@ -114,12 +114,12 @@ jobs:
         run: npm run size-limit
 
   test:
-    name: Test (${{ matrix.shard }}/3)
+    name: Test (${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v7
 
@@ -132,22 +132,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Test
-        run: npm test -- --shard=${{ matrix.shard }}/3
-
-  security-audit:
-    name: Security guard replay
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-
-      - name: Verify database security guards
-        run: |
-          python -B -m unittest discover -s scripts/security -p 'test_*.py'
-          python -B scripts/security/verificar_guardas.py --ci
+        run: npm test -- --shard=${{ matrix.shard }}/2
 
   # Aplica de verdade as migrations num Postgres 16 descartável. Docs, lint,
   # build, vitest e o replay estático leem o texto das migrations sem executar:
@@ -155,11 +140,22 @@ jobs:
   # pg_trgm fora de public) nem seeds que faltam. O Supabase Preview tampouco
   # serve de evidência, porque só aplica arquivos novos e 001–004 reaproveitam
   # prefixos já registrados.
-  migration-replay:
-    name: Migration replay (Postgres real)
+  #
+  # Schema, invariantes, catálogo de RPCs e seed rodam em toda PR. As suítes SQL
+  # e a bateria financeira só quando o diff toca o banco (scripts/ci-db-paths.mjs,
+  # ADR 0086); a condição fica nos passos, para o job nunca ser `skipped`.
+  db:
+    name: Database (Postgres real)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # O merge da PR e o seu primeiro pai (a base) bastam para o diff.
+          fetch-depth: 2
+
+      - name: Decide whether the SQL suites run
+        id: paths
+        run: git diff --name-only HEAD^1 HEAD | node scripts/ci-db-paths.mjs >> "$GITHUB_OUTPUT"
 
       - name: Ensure PostgreSQL 16 cluster
         run: |
@@ -190,6 +186,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Run SQL contract suites against the replayed database
+        if: steps.paths.outputs.suites == 'true'
         # Sem esta etapa os suites *.local-pg.test.ts eram `describe.skip` (a
         # variável nunca era definida) e todo contrato SQL desta remediação
         # ficava provado só na máquina de quem executou.
@@ -208,7 +205,8 @@ jobs:
         # de PTAX e confere que nenhuma suíte deixou tarifa ou cálculo residual
         # (ordem explícita, Etapa 12 do plano de correção das importações).
         # `npm run localpg:check` falha quando surge um `*.local-pg.test.ts`
-        # fora da lista e dos passos deste job.
+        # fora da lista e dos passos deste job. A passada em ordem invertida,
+        # num banco recriado, roda uma vez por semana (local-pg-order.yml).
         #
         # Sonda de pré-requisito com LOCAL_PG_INTEGRATION=1 falha o teste
         # (`describeWithProbe` em src/integration/localTestData.ts), em vez de
@@ -218,21 +216,8 @@ jobs:
           LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
         run: npm run test:local-pg
 
-      - name: Replay the database again before the reverse pass
-        # Banco limpo para a passada invertida: no banco da passada natural, a
-        # suíte que depende sem querer do que outra deixou (A antes de B)
-        # encontraria esse estado também na ordem invertida e passaria.
-        run: sudo scripts/setup-local-pg.sh --reset
-
-      - name: Run the SQL contract suites in reverse order
-        # Falha aqui e não na passada natural indica dependência de ordem
-        # entre suítes (aceite da Etapa 12 do plano de correção das importações).
-        env:
-          LOCAL_PG_INTEGRATION: '1'
-          LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
-        run: npm run test:local-pg -- --reverse
-
       - name: Run the financial battery after the other suites
+        if: steps.paths.outputs.suites == 'true'
         env:
           LOCAL_PG_INTEGRATION: '1'
           LOCAL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vela_test
@@ -263,18 +248,14 @@ jobs:
   checks:
     name: checks
     runs-on: ubuntu-latest
-    needs: [quality, build, test, security-audit, migration-replay]
+    needs: [quality, test, db]
     if: always()
     steps:
       - name: Verify all jobs succeeded
         run: |
           echo "quality: ${{ needs.quality.result }}"
-          echo "build:   ${{ needs.build.result }}"
           echo "test:    ${{ needs.test.result }}"
-          echo "security-audit: ${{ needs.security-audit.result }}"
-          echo "migration-replay: ${{ needs.migration-replay.result }}"
+          echo "db:      ${{ needs.db.result }}"
           [ "${{ needs.quality.result }}" = "success" ] \
-            && [ "${{ needs.build.result }}" = "success" ] \
             && [ "${{ needs.test.result }}" = "success" ] \
-            && [ "${{ needs.security-audit.result }}" = "success" ] \
-            && [ "${{ needs.migration-replay.result }}" = "success" ]
+            && [ "${{ needs.db.result }}" = "success" ]

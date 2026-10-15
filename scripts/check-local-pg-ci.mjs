@@ -1,42 +1,62 @@
 #!/usr/bin/env node
 // Falha quando um `src/integration/*.local-pg.test.ts` não está na lista do
-// job local-pg do CI (scripts/local-pg-suites.txt) nem num passo próprio do
+// job db do CI (scripts/local-pg-suites.txt) nem num passo próprio do
 // workflow (Etapa 12 do plano de correção das importações): suíte fora da
 // lista era `describe.skip` no CI e só provava algo na máquina de quem a
-// escreveu. Também acusa caminho listado que não existe mais ou repetido.
+// escreveu. Também acusa caminho listado que não existe mais ou repetido, e
+// exige a ordem natural no CI e a invertida no workflow semanal (ADR 0086).
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { LOCAL_PG_SUITES_FILE, readLocalPgSuites } from './local-pg-suites.mjs'
 
-const root = process.cwd()
-const workflow = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8')
-// Só conta o que o CI executa: linhas comentadas do YAML não listam suíte.
-const executed = workflow.split('\n').filter((line) => !line.trimStart().startsWith('#')).join('\n')
-const suites = readLocalPgSuites(root)
-const listed = new Set([
-  ...suites,
-  ...(executed.match(/src\/integration\/[A-Za-z0-9]+\.local-pg\.test\.ts/g) ?? []),
-])
-const repeated = suites.filter((path, index) => suites.indexOf(path) !== index)
-// A lista só vale se o job a executar nas duas ordens.
-const missingRuns = [
-  ['ordem natural', /run: npm run test:local-pg\s*$/m],
-  ['ordem invertida', /run: npm run test:local-pg -- --reverse\s*$/m],
-].filter(([, pattern]) => !pattern.test(executed)).map(([label]) => label)
-const present = new Set(
-  readdirSync(join(root, 'src/integration'))
-    .filter((name) => name.endsWith('.local-pg.test.ts'))
-    .map((name) => `src/integration/${name}`),
-)
+const CI = '.github/workflows/ci.yml'
+const WEEKLY = '.github/workflows/local-pg-order.yml'
+const NATURAL = /run: npm run test:local-pg\s*$/m
+const REVERSE = /run: npm run test:local-pg -- --reverse\s*$/m
 
-const missing = [...present].filter((path) => !listed.has(path)).sort()
-const stale = [...listed].filter((path) => !present.has(path)).sort()
+// Só conta o que o workflow executa: linhas comentadas do YAML não listam suíte.
+const executed = (text) => text.split('\n').filter((line) => !line.trimStart().startsWith('#')).join('\n')
 
-if (missing.length || stale.length || repeated.length || missingRuns.length) {
-  if (missing.length) console.error(`Suítes local-pg fora do CI (${LOCAL_PG_SUITES_FILE} ou .github/workflows/ci.yml):\n  ${missing.join('\n  ')}`)
-  if (stale.length) console.error(`Caminhos no CI sem arquivo:\n  ${stale.join('\n  ')}`)
-  if (repeated.length) console.error(`Suítes repetidas em ${LOCAL_PG_SUITES_FILE}:\n  ${repeated.join('\n  ')}`)
-  if (missingRuns.length) console.error(`O CI não roda ${LOCAL_PG_SUITES_FILE} em: ${missingRuns.join(', ')}`)
-  process.exit(1)
+/** @param {string} root @returns {string[]} erros */
+export function checkLocalPgCi(root) {
+  const ci = executed(readFileSync(join(root, CI), 'utf8'))
+  const weekly = executed(readFileSync(join(root, WEEKLY), 'utf8'))
+  const suites = readLocalPgSuites(root)
+  const listed = new Set([
+    ...suites,
+    ...(ci.match(/src\/integration\/[A-Za-z0-9]+\.local-pg\.test\.ts/g) ?? []),
+  ])
+  const repeated = suites.filter((path, index) => suites.indexOf(path) !== index)
+  const missingRuns = [
+    [`ordem natural em ${CI}`, NATURAL.test(ci)],
+    [`ordem natural em ${WEEKLY}`, NATURAL.test(weekly)],
+    [`ordem invertida em ${WEEKLY}`, REVERSE.test(weekly)],
+  ].filter(([, ok]) => !ok).map(([label]) => label)
+  const present = new Set(
+    readdirSync(join(root, 'src/integration'))
+      .filter((name) => name.endsWith('.local-pg.test.ts'))
+      .map((name) => `src/integration/${name}`),
+  )
+  // Passo próprio no CI (ex.: bateria financeira) também precisa rodar no semanal.
+  const ciOnly = [...(ci.match(/src\/integration\/[A-Za-z0-9]+\.local-pg\.test\.ts/g) ?? [])]
+    .filter((path) => !weekly.includes(path))
+
+  const errors = []
+  const missing = [...present].filter((path) => !listed.has(path)).sort()
+  const stale = [...listed].filter((path) => !present.has(path)).sort()
+  if (missing.length) errors.push(`Suítes local-pg fora do CI (${LOCAL_PG_SUITES_FILE} ou ${CI}):\n  ${missing.join('\n  ')}`)
+  if (stale.length) errors.push(`Caminhos no CI sem arquivo:\n  ${stale.join('\n  ')}`)
+  if (repeated.length) errors.push(`Suítes repetidas em ${LOCAL_PG_SUITES_FILE}:\n  ${repeated.join('\n  ')}`)
+  if (missingRuns.length) errors.push(`${LOCAL_PG_SUITES_FILE} não roda em: ${missingRuns.join(', ')}`)
+  if (ciOnly.length) errors.push(`Passos do CI ausentes em ${WEEKLY}:\n  ${ciOnly.join('\n  ')}`)
+  return { errors, count: present.size }
 }
-console.log(`Local-pg CI list passed: ${present.size} suites listed.`)
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { errors, count } = checkLocalPgCi(process.cwd())
+  if (errors.length) {
+    for (const error of errors) console.error(error)
+    process.exit(1)
+  }
+  console.log(`Local-pg CI list passed: ${count} suites listed.`)
+}

@@ -81,7 +81,7 @@ identifica somente a superfície interna. Workflows, variáveis e headers estão
 em [Deploy](setup/deploy.md); projetos e contas, em
 [Serviços externos § Hospedagem do front-end](operations/servicos-externos.md#hospedagem-do-front-end).
 
-Depois de um CI verde, o workflow confiável
+Quando a PR recebe a etiqueta `preview`, o workflow confiável
 `.github/workflows/provision-preview-admin.yml` aguarda o check da branch
 Supabase e provisiona `qa-admin@example.test` pela Auth Admin API da própria
 Preview, com perfil interno `administrativo`. A senha existe somente como secret do
