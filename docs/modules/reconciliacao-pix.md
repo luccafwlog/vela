@@ -24,7 +24,9 @@ esse caminho têm prioridade de contingência. Desde a migration `242`, o TXID
 é resolvido no servidor (`_pix_txid_open_candidates`) também para a Invoice de
 Demurrage e a fatura avulsa abertas, pelo número do documento (TXID do QR
 estático) ou pela cobrança Itaú ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
-item 16). Limite conhecido do plano B: uma fatura local sem versão de cobrança
+item 16). O TXID da Invoice de Demurrage é único desde a migration `278`
+([Demurrage](demurrage.md)), e o Pix do QR de uma Invoice cancelada não cai
+na irmã aberta do mesmo B/L. Limite conhecido do plano B: uma fatura local sem versão de cobrança
 pode aparecer pronta e ter o lote recusado (`no_match`).
 
 - A rota interna está em `src/AppInterno.tsx` e a composição em

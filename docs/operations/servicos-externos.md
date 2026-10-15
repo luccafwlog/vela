@@ -291,7 +291,7 @@ está em [Segurança](seguranca.md#invariante-de-provisionamento-do-portal).
 
 As correções da PR 954 (plano de correções da revisão geral) vão a produção
 pelo caminho automático: no merge em `main`, a integração do Supabase aplica as
-migrations `230` a `277` e publica as Edge Functions alteradas, e o frontend só
+migrations `230` a `278` e publica as Edge Functions alteradas, e o frontend só
 é publicado depois do check do Supabase no commit
 ([Deploy](../setup/deploy.md)). Duas funções dependem de migration nova:
 

@@ -4,7 +4,7 @@ Status: aceito — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pe
 [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)
 (migrations `230` a `266`; a tabela "Execução" do plano liga cada item à sua
 prova). Migration nova só vale em produção depois de publicada. Na revisão da
-PR 954 (2026-10-15), as migrations `267` a `277` corrigiram defeitos da
+PR 954 (2026-10-15), as migrations `267` a `278` corrigiram defeitos da
 implementação e o dono decidiu três pontos: o "motivo" do item 9 é um motivo
 interno obrigatório, fora do Portal (migration `272`); a regra M14 da captura
 de e-mail vale também na Revisão (item 26, B28; migration `271`); a viagem da

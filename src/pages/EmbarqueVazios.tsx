@@ -510,6 +510,9 @@ export function EmbarqueVazios() {
       if (selectedService.natureza === "transporte" && !selectedService.route_destino_id) {
         throw new Error("Serviço de transporte sem destino cadastrado.");
       }
+      if (selectedService.natureza === "armazenagem" && !selectedService.condition && !line.condition) {
+        throw new Error("Escolha a condição da linha de armazenagem.");
+      }
       await persistServiceLine({
         serviceId: selectedService.id,
         service: selectedService,
@@ -523,9 +526,10 @@ export function EmbarqueVazios() {
           selectedService.natureza === "armazenagem"
             ? null
             : line.containerType || null,
+        // B12 (ADR 0033): o serviço genérico leva a condição escolhida na linha.
         condition:
           selectedService.natureza === "armazenagem"
-            ? selectedService.condition ?? null
+            ? selectedService.condition ?? (line.condition || null)
             : null,
         quantidade: line.quantidade,
         valorUnitario: line.valor,
@@ -564,6 +568,25 @@ export function EmbarqueVazios() {
         quantidadeManual: false,
       });
     }, "Linha de armazenagem lançada.");
+  }
+  function chooseCondition(condition: string) {
+    const suggestion =
+      selectedService && local && condition
+        ? valorSugerido({
+            local,
+            servico: selectedService,
+            tipo: line.containerType,
+            rota: "",
+            condicao: condition,
+            catalogo: serviceRows,
+          })
+        : null;
+    setLine((current) => ({
+      ...current,
+      condition,
+      valor: suggestion ?? current.valor,
+      valorSugerido: suggestion,
+    }));
   }
   function chooseService(serviceId: string) {
     const service = serviceRows.find((item) => item.id === serviceId);
@@ -1071,6 +1094,18 @@ export function EmbarqueVazios() {
                         <option value={selectedService.condition}>
                           {selectedService.condition === "material" ? "EMPTY W/ MATERIAL" : "EMPTY"}
                         </option>
+                      </Select>
+                    </Field>
+                  ) : selectedService?.natureza === "armazenagem" ? (
+                    // B12 (ADR 0033): serviço sem condição vale para as duas; a linha escolhe.
+                    <Field label="Condição">
+                      <Select
+                        value={line.condition}
+                        onChange={(event) => chooseCondition(event.target.value)}
+                      >
+                        <option value="">Selecione</option>
+                        <option value="vazio">EMPTY</option>
+                        <option value="material">EMPTY W/ MATERIAL</option>
                       </Select>
                     </Field>
                   ) : null}

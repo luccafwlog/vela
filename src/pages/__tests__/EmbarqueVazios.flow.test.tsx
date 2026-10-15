@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   operationData: { linhas: [] } as Record<string, unknown> | undefined,
   unitsData: { rows: [] as unknown[], count: 0 },
   armazenagemServicesData: [] as unknown[],
+  extraDepotServices: [] as unknown[],
   voyagePortsData: [] as string[],
   upsertVaziosExportOperation: vi.fn(() => Promise.resolve({ id: "operation-new" })),
 }));
@@ -49,6 +50,7 @@ vi.mock("@tanstack/react-query", () => ({
               ? [
                   { id: "general-1", name: "Handling", natureza: "geral", route_destino_id: null },
                   { id: "transport-1", name: "Transporte", natureza: "transporte", route_destino_id: "terminal-1" },
+                  ...mocks.extraDepotServices,
                 ]
               : key === "armazenagem-services"
                 ? mocks.armazenagemServicesData
@@ -108,6 +110,7 @@ beforeEach(() => {
   mocks.operationData = { linhas: [] };
   mocks.unitsData = { rows: [], count: 0 };
   mocks.armazenagemServicesData = [];
+  mocks.extraDepotServices = [];
   mocks.voyagePortsData = [];
   mocks.upsertVaziosExportOperation.mockClear();
 });
@@ -325,6 +328,28 @@ describe("EmbarqueVazios", () => {
       service_id: "armaz-generico",
       condition: "vazio",
       valor_unitario: 30,
+    })));
+  });
+
+  it("B12: no lançamento manual, o serviço de armazenagem sem condição pede a condição da linha", async () => {
+    mocks.extraDepotServices = [
+      { id: "armaz-generico", depot_id: "depot-1", name: "Armazenagem", natureza: "armazenagem", condition: null, route_destino_id: null, rate_brl: 30 },
+    ];
+    render(<MemoryRouter><EmbarqueVazios /></MemoryRouter>);
+    await selectOperation();
+    fireEvent.click(screen.getByRole("button", { name: /Serviços/i }));
+    fireEvent.change(screen.getByLabelText("Local"), { target: { value: "depot-1" } });
+    fireEvent.change(screen.getByLabelText("Natureza"), { target: { value: "armazenagem" } });
+    fireEvent.change(screen.getByLabelText("Serviço"), { target: { value: "armaz-generico" } });
+
+    const condition = screen.getByLabelText("Condição") as HTMLSelectElement;
+    expect(condition.disabled).toBe(false);
+    fireEvent.change(condition, { target: { value: "material" } });
+    fireEvent.click(screen.getByRole("button", { name: /Lançar linha/i }));
+
+    await waitFor(() => expect(mocks.upsertServiceLine).toHaveBeenCalledWith(expect.objectContaining({
+      service_id: "armaz-generico",
+      condition: "material",
     })));
   });
 
