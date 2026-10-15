@@ -51,6 +51,17 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   escuro foi retirado do sistema por decisão do responsável (não tinha
   seletor na tela e não fora aprovado), e as telas seguintes não são mais
   conferidas no escuro. O lote 2 é o próximo.
+- **Lote 2 proposto em 2026-10-15** numa página só ("Lote 2 da identidade",
+  na conta do responsável), com capturas da `main` de 2026-10-15 no ambiente
+  local: Revisão, Chegadas e Saídas com a programação do Portal, Demurrage
+  (abas, detalhe da Invoice) e as Tarifas de Demurrage, Containers, Veículos,
+  Baplie, a faixa de viagens (lista de Viagens, Veículos e Baplie) e a lista
+  de Clientes. Aguarda a resposta tela a tela; nada implementado. Achados fora
+  da mudança visual, a decidir à parte: a faixa de viagens diz "Ordenado por
+  próxima escala" mas só a lista de Viagens ordena; o cartão da faixa nunca
+  mostra "Divergente" (`buildVoyageRailItems` calcula sem as divergências
+  abertas); a barra do topo diz "N demurrages vencidos", contra a regra B29;
+  Exportar em Veículos leva só a página na tela.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -279,7 +290,7 @@ lotes tratam só da organização de cada tela.
 | Lote | Telas (ordem da tabela "Telas") | Estado |
 |---|---|---|
 | 1 | Lista de BLs (2), ficha da Viagem (3), ficha do Cliente (5, com as seis abas), Taxas Locais · Faturas (7), Portal · Faturas (10); desde 2026-10-15, também as quatro abas restantes da ficha do B/L (1) e da ficha da Viagem (3) | Entregue em 2026-10-14 (todas as telas e as abas da ficha do Cliente), branch `claude/determined-bardeen-kvwaxt`; as oito abas restantes foram entregues em 2026-10-15, branch `claude/sweet-rubin-6udppg` |
-| 2 | Operação do dia a dia: Revisão (6), Chegadas e Saídas e programação do Portal (4), Demurrage (8), Containers, Veículos e Baplie (14); listas de Viagens e de Clientes | Proposto em 2026-10-13, a confirmar |
+| 2 | Operação do dia a dia: Revisão (6), Chegadas e Saídas e programação do Portal (4), Demurrage (8), Containers, Veículos e Baplie (14); listas de Viagens e de Clientes; Tarifas de Demurrage (`/demurrage/taxas`, da tela 8) | Proposta apresentada em 2026-10-15 (página "Lote 2 da identidade"), aguardando aprovação tela a tela |
 | 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Proposto, a confirmar |
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Proposto, a confirmar |
 | 5 | Apoio e administração: Painel e Alertas (13), Provisionamento, Comunicação e Modo Inspeção (16), Granito, Vazios e depots (17), Relatórios e Administração (18) | Proposto, a confirmar |
