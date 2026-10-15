@@ -672,8 +672,10 @@ para eles vale o backup do próprio Supabase.
   `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
   etiqueta). Regra em [ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md).
 - **Etiqueta `preview`:** dispara a preview e o usuário admin de uma PR; a
-  limpeza ao fechar só roda em PR com essa etiqueta. Criar a etiqueta no
-  repositório se ainda não existir.
+  limpeza ao fechar só roda em PR com essa etiqueta (existe no repositório).
+- **Ruleset da `main` ("auto-merge claude"):** impede apagar a branch e
+  force-push, exige PR com 1 aprovação e o check `checks` do GitHub Actions
+  verde, sem exigir branch atualizada (conferido pela API em 2026-10-15).
 - **Repository secrets:** só `SUPABASE_PROJECT_REF` (Preview),
   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Em 2026-10-08
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,

@@ -21,9 +21,10 @@ mesclada em `cb7ef2de`. Aceites no GitHub (Runtime):
 | Disparo manual de `local-pg-order.yml` | verde em 3 min 36 s; cada passada 1 min 21 s (antes ~4 min 27 s) |
 | Vínculo da `main` com a produção no Supabase (D1) | check `Supabase Preview` verde no merge `cb7ef2de` |
 
-Fica com o dono, fora deste plano: criar a etiqueta `preview` e tornar o
-`checks` obrigatório no ruleset da `main` (hoje o ruleset exige só 1
-aprovação; conferido pela API em 2026-10-15).
+Depois dos aceites, em 2026-10-15: o dono tornou o `checks` obrigatório no
+ruleset "auto-merge claude" da `main` (sem exigir branch atualizada, D2;
+conferido pela API: `required_status_checks` com `checks` do GitHub Actions).
+A etiqueta `preview` já existia no repositório.
 
 Medido no contêiner (Runtime, 4 vCPU, PostgreSQL 16 local), antes e depois do
 Lote 2:
