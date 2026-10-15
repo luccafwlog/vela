@@ -352,7 +352,7 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
 - [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
 
-- [ ] **[bloqueia ativação]** B/L com Taxas Locais isentas fica apto sem requisito de pagamento (termo, procuração e entrega), e o requisito passa a incluir as cobranças avulsas do B/L, sem Demurrage ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), itens 2 e 3). Hoje `ce_unlock_private.item` só lê `bl_receivables` de `local_charges`, e o B/L isento, sem recebível, sai como não pago. Ajustar aptidão, motivos, Portal e coluna de pagamento da planilha, com teste no Postgres local.
+- [x] B/L com Taxas Locais isentas fica apto sem requisito de pagamento (termo, procuração e entrega), e o requisito passa a incluir as faturas avulsas do B/L, sem Demurrage ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), itens 2 e 3). **Código:** migration `230` (`ce_unlock_private.item`; motivo "Fatura avulsa do B/L em aberto"; `paid` alimenta Portal e planilha). **Teste:** `ceUnlock.local-pg.test.ts` (isento sem recebível, avulsa aberta, baixa real da avulsa); falha sem a `230` no Postgres local em 2026-10-15. Em produção após o merge.
 
 ## Tarefa 3 — Documentos e análise interna auditável
 
@@ -392,7 +392,7 @@ RPCs internas `set_ce_unlock_vip`, `review_ce_unlock_vip_document`,
 - [x] Publicar a função e o job de expurgo. **Remoto:** `ce-unlock-cleanup` ativo e agendado diariamente em 2026-10-10.
 - [ ] Homologar retenção e validar retry no Storage real. A remoção de um PDF real pela Storage API foi observada em produção em 2026-10-15 (ver "Fontes"); falta a falha física com nova tentativa e a decisão de retenção.
 
-- [ ] **[bloqueia ativação]** Expurgo dos anexos da solicitação 30 dias após o envio e dos documentos do Termo Anual VIP só quando um termo novo aprovado substitui o vencido ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), item 5), no lugar dos 5 anos de `ce_unlock_cleanup_candidates`; upload abandonado (1 dia) e rascunho (7 dias) não mudam. Teste no Postgres local.
+- [x] Expurgo dos anexos da solicitação 30 dias após o envio e dos documentos do Termo Anual VIP só quando um anual aprovado mais novo substitui o vencido ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), item 5); upload abandonado (1 dia) e rascunho (7 dias) não mudam; modelos anteriores saem após 5 anos. **Código:** migration `231`. **Teste:** `ceUnlock.local-pg.test.ts` (29/31 dias, anual vencido sem substituto, renovação em análise, anual aprovado); falha sem a `231` no Postgres local em 2026-10-15. Em produção após o merge.
 
 ## Tarefa 4 — Portal: selecionar, solicitar e acompanhar
 
@@ -420,7 +420,7 @@ modo, cliente de inspeção, filtros, paginação e ID, sem compartilhar caches 
 - [x] Integrar Portal na `main`; typecheck da entrega original registrado no relatório.
 - [ ] Completar testes de modelo disponível, confirmação, correção completa e retry de rede preservando chave idempotente; demonstrar VIP expirado/pendente e renovação em análise na UI.
 - [ ] Validar teclado, perda de pagamento entre seleção e envio, com atualização visível, e URLs de inspeção. Login real por CNPJ, upload, recusa de não-PDF e reenvio foram observados em produção em 2026-10-13 (ver "Fontes").
-- [ ] Mensagem de recusa de anexo: "Use PDF válido de até 10 MiB" não diz que o arquivo não é PDF de verdade (em 2026-10-13, um `.docx` renomeado para `.pdf` foi recusado com HTTP 422 sem que a causa ficasse clara). Avaliar texto que oriente salvar o documento como PDF.
+- [x] Mensagem de recusa de anexo diz a causa: "O arquivo não é um PDF" com orientação de salvar como PDF (renomear não converte) e "O arquivo passa de 10 MiB". **Código:** `supabase/functions/_shared/ceUnlockFile.ts` e `ceUnlockService.ts`. **Teste:** `ceUnlockDocuments.test.ts`. A Edge Function `portal-ce-unlock-document` precisa ser republicada após o merge.
 
 ## Tarefa 5 — Vela: página de gestão por B/L
 
@@ -475,14 +475,14 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Implementar lote/snapshot, geração server-side, download preservado, reexportação deliberada e registro explícito de envio.
 - [x] Implementar confirmação individual por B/L/CE/referência externa, separada de aprovação/exportação. **Superado** pela revisão de 2026-10-07: as ações `sent` e `confirm` saíram; exportar registra o envio e a conciliação com o "Exportar Tela" da ZPT marca *Desbloqueio conferido* ou *Divergente* ([módulo vivo](../modules/desbloqueio-ce.md)). Confirmações antigas ficam como histórico do desk.
 - [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número. **Código/Remoto:** migration `177` (PR 929), em produção em 2026-10-12.
-- [ ] **[bloqueia ativação]** Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia. Reaberto em 2026-10-13: as migrations `181` e `195` estão em produção desde 2026-10-12, mas a definição vigente (`195`) lê a confirmação manual retirada na `160`, que o fluxo vigente não grava, e não o status da conciliação; o teste K2 passa porque monta esse estado à força. Correção pendente B1 do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md); item 8 do caminho crítico.
+- [x] Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia (correção B1). **Código:** migration `232`: `_set_bl_ce_mercante` e `_analyze_ce_mercante_rows` leem a conciliação (`ce_unlock_zpt_status` desbloqueado para o CE anterior), não a confirmação manual retirada na `160`. **Teste:** K2 de `ceImportacaoContrato.local-pg.test.ts`, agora pela conciliação real; falha sem a `232` no Postgres local em 2026-10-15. Em produção após o merge.
 - [x] Demonstrar baixa cancelada concorrente à criação da exportação. **Teste:** "exportação aguarda reversão financeira concorrente…" em `ceUnlock.local-pg.test.ts` (ver "Fontes").
 - [ ] Demonstrar bloqueio por cada requisito (hoje há teste de pagamento e de termo anual revogado), snapshot imutável e retry do mesmo lote.
 - [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.
 - [ ] Reconciliar o requisito inicial de estado explícito de falha recuperável: a geração pode ser repetida sobre o lote preservado, mas isso não comprova um estado persistido de falha do arquivo.
 - [ ] Resolver/aceitar a limitação registrada de hash do lote sem preenchimento; diferenciar do hash de PDF já implementado.
 - [x] Homologar a amostra XLSX (`zpt-5-v2`) e os indicadores Sim/Não com responsável/ZPT. **Aceite:** o responsável informou em 2026-10-14 que combinou com a ZPT e que o modelo atual de exportação está homologado (declaração, sem documento da ZPT anexado).
-- [ ] **[bloqueia ativação]** Conciliar um arquivo "Exportar Tela" real da ZPT pela conciliação do Vela e conferir *Desbloqueio conferido*/*Divergente* nos B/Ls do lote. Código integrado; falta a evidência externa.
+- [x] Conciliação com o "Exportar Tela": o responsável decidiu em 2026-10-15 que o modelo da ZPT usado no código e nos testes basta e dispensou a conciliação com um arquivo real antes da ativação. **Teste:** `ceUnlockZptReconcile.test.ts`, `CeUnlockZptImport.test.tsx` e `ceUnlock.local-pg.test.ts`; o primeiro arquivo real fica como observação da operação.
 
 ## Tarefa 7 — Validação completa, documentação e entrega
 

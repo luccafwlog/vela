@@ -126,6 +126,7 @@ function cleanup() {
     DELETE FROM public.internal_notifications WHERE alert_id IN (SELECT id FROM a228_alerts);
     DELETE FROM public.alert_items WHERE alert_id IN (SELECT id FROM a228_alerts);
     DELETE FROM public.alerts WHERE id IN (SELECT id FROM a228_alerts);
+    DELETE FROM public.ce_unlock_zpt_status WHERE bl_id IN (SELECT id FROM a228_bls);
     DELETE FROM public.ce_unlock_request_bls WHERE bl_id IN (SELECT id FROM a228_bls) OR request_id = '${unlockRequestId}';
     DELETE FROM public.ce_unlock_requests WHERE id = '${unlockRequestId}';
     DELETE FROM public.granite_bls WHERE id = '${graniteBlId}' OR manifest_id = '${graniteManifestId}';
@@ -336,10 +337,14 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
       SET session_replication_role = replica;
       INSERT INTO public.ce_unlock_requests (id, customer_id, state, source, created_by)
       VALUES ('${unlockRequestId}', ${customer.id}, 'completed', 'request', '${actorId}') ON CONFLICT (id) DO NOTHING;
-      INSERT INTO public.ce_unlock_request_bls (request_id, bl_id, ce_at_request, active, confirmed_at, confirmed_by, confirmed_ce)
-      VALUES ('${unlockRequestId}', '${blId}', '${ce}', true, now(), '${actorId}', '${ce}');
+      INSERT INTO public.ce_unlock_request_bls (request_id, bl_id, ce_at_request, active, exported_at)
+      VALUES ('${unlockRequestId}', '${blId}', '${ce}', true, now());
       SET session_replication_role = origin;
     `)
+    // Desbloqueio conferido pela conciliação real com a ZPT (B1), não por estado montado à força.
+    const reconciled = asAdmin(`SELECT public.ce_unlock_reconcile('[{"ce":"${ce}","status":"Desbloqueado"}]'::jsonb);`)
+    expect(reconciled.error).toBeNull()
+    expect(psql(`SELECT status FROM public.ce_unlock_zpt_status WHERE bl_id = '${blId}';`)).toBe('unlocked')
   }
 
   it('K1: emissão pelo CE — espera de negócio vem com a frase e sem alerta crítico', () => {
@@ -536,6 +541,9 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     expect(activeAlert('ce_trocado_com_desbloqueio', 'A228-U1')).toMatch(/992280000000051 -> 992280000000052/)
     expect(psql(`SELECT source FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'ce_trocado_com_desbloqueio' AND a.entity_id = 'A228-U1';`)).toBe('ce_mercante_ficha')
+
+    // A conciliação vale para o CE conferido: o novo CE só conta depois de a ZPT desbloqueá-lo.
+    expect(asAdmin(`SELECT public.ce_unlock_reconcile('[{"ce":"992280000000052","status":"Desbloqueado"}]'::jsonb);`).error).toBeNull()
 
     // Migration 209: remover também confere o CE exibido.
     expect(asAdmin(`SELECT public.remove_bl_ce_mercante('A228-U1', 'CE do B/L errado (A228)', '992280000000051');`).error)
