@@ -72,6 +72,14 @@ conciliação com um "Exportar Tela" real da ZPT (item 4 do caminho crítico), a
 mudanças da ADR 0087 (item 9) e a correção do alerta de troca de CE com
 Desbloqueio conferido (item 8).
 
+**Estado em 2026-10-15, PR 956:** o responsável dispensou a conciliação com um
+"Exportar Tela" real (o modelo da ZPT basta). As mudanças da ADR 0087
+(migrations `230` e `231`), a correção B1 (`232`), o lote com hash imutável
+(`233`), a mensagem de recusa do PDF e as matrizes de teste (`ceUnlockMatriz`,
+`ceUnlockVip`, Deno do expurgo e telas) estão na PR 956, comprovadas no Postgres
+local e em jsdom. Ficam abertos só os itens que se observam no serviço real em
+produção depois do merge (caminho crítico, item 10).
+
 **Como ler o checklist:** `[x]` registra o resultado específico comprovado pela
 fonte indicada; `[ ]` registra trabalho ou evidência ainda necessários. Um teste
 existente não equivale a execução recente, e código integrado não comprova deploy.
@@ -251,9 +259,9 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
 3. ~~Etapa 8.7 do mesmo plano: troca de CE pela planilha sem prévia reabria o
    Desbloqueio em silêncio (cenários 11 e 13).~~ Feito: PR 929, em produção em
    2026-10-12 (ver "Fontes").
-4. ~~Homologar com o responsável/ZPT a planilha exportada (`zpt-5-v2`).~~ Feito
-   em 2026-10-14, por declaração do responsável. Falta conciliar um arquivo
-   "Exportar Tela" real da ZPT (Tarefa 6). O aceite operacional foi obtido em
+4. ~~Homologar com o responsável/ZPT a planilha exportada (`zpt-5-v2`) e conciliar um "Exportar Tela" real.~~
+   Planilha homologada em 2026-10-14 por declaração do responsável; conciliação por
+   arquivo real dispensada pelo responsável em 2026-10-15. Aceite operacional em
    2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)).
 5. ~~Demonstrar as matrizes que protegem dinheiro e dados: fatura consolidada
    parcialmente paga (Tarefa 2), baixa cancelada concorrente ao envio
@@ -265,19 +273,13 @@ dívida registrada no aceite, sem impedir a operação. Ordem proposta:
    conciliação com evidência externa fica no item 4.
 7. ~~Validar o resultado do expurgo no Storage real (Tarefa 7).~~ Feito em
    2026-10-15 com um PDF real enviado pelo Portal (ver "Fontes").
-8. Corrigir o alerta de troca de CE com Desbloqueio conferido (Tarefa 6):
-   trocar ou remover o CE de um B/L conciliado como *Desbloqueio conferido* não
-   abre `ce_trocado_com_desbloqueio` nem avisa na prévia, porque
-   `_set_bl_ce_mercante` e `_analyze_ce_mercante_rows` (migration `195`) procuram a
-   confirmação manual retirada na `160`, e não o status da conciliação em
-   `ce_unlock_zpt_status`. Defeito B1, aprovado pelo dono em 2026-10-14
-   ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 26)
-   e primeiro item do [plano de correções](2026-10-14-correcoes-decididas-na-revisao-geral.md):
-   corrigir o código e refazer o teste K2 de
-   `ceImportacaoContrato.local-pg.test.ts` a partir de `ce_unlock_reconcile`.
-9. Implementar as mudanças da ADR 0087: B/L isento sem requisito de pagamento
-   e cobranças avulsas no requisito (Tarefa 2); expurgo dos anexos 30 dias
-   após o envio e Termo Anual VIP até a substituição (Tarefa 3).
+8. ~~Corrigir o alerta de troca de CE com Desbloqueio conferido (B1).~~ Feito na
+   migration `232` (PR 956), com o teste K2 pela conciliação real.
+9. ~~Implementar as mudanças da ADR 0087.~~ Feito nas migrations `230` e `231`
+   (PR 956), com testes no Postgres local.
+10. Depois do merge da PR 956: conferir em produção as migrations `230`–`233`,
+    republicar a Edge Function `portal-ce-unlock-document` (mensagem do PDF) e
+    fazer a observação no serviço real que resta na Tarefa 7.
 
 ## Foco da revisão
 
@@ -345,12 +347,12 @@ Resposta paginada `{items, total, page, page_size:25}`.
 - [x] Registrar replay local descartável, testes SQL e gates de migrations/RPC da entrega original; registrar limitações dos shims. **Teste histórico:** relatório local, sem aplicação remota.
 - [x] Integrar a fundação e correções na `main`; a antiga etapa de commit isolado está superada.
 - [x] Demonstrar fatura consolidada parcialmente paga: só o B/L cujo recebível foi liquidado fica pago; o status da fatura não conta. **Teste:** `ceUnlock.local-pg.test.ts` (2026-10-13, ver "Fontes").
-- [ ] Completar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível e obrigação de COD.
+- [x] Completar a matriz SQL originalmente prevista: anonymous, B/L sem importação/CE/recebível e obrigação de COD. **Teste:** `ceUnlockMatriz.local-pg.test.ts` (anônimo recusado em toda RPC pública `ce_unlock*` e no schema privado; B/L sem CE não selecionável; sem recebível e não isento não pago; COD pendente a cobrar bloqueia), Postgres local em 2026-10-15.
 - [x] Demonstrar reversão financeira concorrente à exportação: a exportação espera a transação e recusa o requisito perdido. **Teste:** `ceUnlock.local-pg.test.ts` (2026-10-07, no CI), com a reversão simulada no recebível (ver "Fontes").
 - [x] Demonstrar cancelamento de baixa concorrente ao envio do pedido, pelo comando real `reverse_invoice_payment`. **Teste/Código:** `ceUnlock.local-pg.test.ts` e migration `220`, que corrigiu o deadlock achado pelo teste (2026-10-13, ver "Fontes"). A `220` está em produção desde 2026-10-13 (ver "Fontes").
-- [ ] Demonstrar concorrência de dois pedidos para o mesmo B/L e o cancelamento de baixa concorrente à exportação pelo comando real (o teste da exportação altera o recebível diretamente).
-- [ ] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original.
-- [ ] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa; teste de CE divergente na confirmação não encerra a matriz.
+- [x] Demonstrar concorrência de dois pedidos para o mesmo B/L e o cancelamento de baixa concorrente à exportação pelo comando real. **Teste:** `ceUnlockMatriz.local-pg.test.ts` (rascunhos concorrentes deixam uma reserva; envios concorrentes, um recusado por versão; `reverse_invoice_payment` em transação aberta faz a exportação esperar e recusar).
+- [x] Completar matriz VIP de ausência, vencimento, perda de VIP e documento de outro CNPJ; preservar bloqueio por pagamento e original. **Teste:** `ceUnlockVip.local-pg.test.ts`.
+- [x] Demonstrar cancelamento de B/L, remoção/correção do CE e reconferência completa. **Teste:** `ceUnlockMatriz.local-pg.test.ts` (cancelamento e remoção bloqueiam a exportação; correção dá "CE alterado: reconferência necessária", `reconfirm_ce` volta termo e procuração para análise e, reaprovado, o B/L sai de novo com o CE novo).
 
 - [x] B/L com Taxas Locais isentas fica apto sem requisito de pagamento (termo, procuração e entrega), e o requisito passa a incluir as faturas avulsas do B/L, sem Demurrage ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md), itens 2 e 3). **Código:** migration `230` (`ce_unlock_private.item`; motivo "Fatura avulsa do B/L em aberto"; `paid` alimenta Portal e planilha). **Teste:** `ceUnlock.local-pg.test.ts` (isento sem recebível, avulsa aberta, baixa real da avulsa); falha sem a `230` no Postgres local em 2026-10-15. Em produção após o merge.
 
@@ -386,9 +388,9 @@ RPCs internas `set_ce_unlock_vip`, `review_ce_unlock_vip_document`,
 - [x] Implementar expurgo server-only com reivindicação antes de remoção via Storage API e preservação de modelo/anuais vigentes; agendamento é etapa operacional separada.
 - [x] Disponibilizar testes de PDF falso/vazio/tamanho/corpo, falha de upload, resposta de finalização perdida, versão antiga/substituída, reenvio, revogação e expurgo sob lock. **Teste:** suites CE, handler Deno e suíte SQL; execução histórica conforme relatório, sem afirmar falha inicial de todos os casos.
 - [x] Demonstrar que outro CNPJ não lê, altera nem baixa IDs, caminhos e documentos no serviço gerenciado real. **Runtime:** produção, 2026-10-13, sessão do Cliente B contra pedido, B/L, documento e objeto do Cliente A: 403 nas RPCs e Edge Functions, 400 "Object not found" no Storage, nada alterado no banco (ver "Fontes").
-- [ ] Completar a matriz de quota/rate limit, sessão revogada e downloads/papéis internos no serviço gerenciado real.
-- [ ] Completar matriz anual: termo vigente/procuração vencida, pedido atravessando vencimento e renovação aplicada a múltiplos itens sem alterar snapshots antigos. Limites 31/12–01/01 e ano inválido já têm teste unitário.
-- [ ] Demonstrar retry sem eventos duplicados e preservação de documentos enviados/anuais no expurgo, incluindo anuais sem pedido e quotas VIP.
+- [ ] Completar a matriz de quota/rate limit, sessão revogada e downloads/papéis internos no serviço gerenciado real. Quota VIP coberta no banco por `ceUnlockVip.local-pg.test.ts`; falta a observação no serviço real (Edge Functions e gateway), que exige operar em produção.
+- [x] Completar matriz anual: termo vigente/procuração vencida, pedido atravessando vencimento e renovação aplicada a múltiplos itens sem alterar snapshots antigos. **Teste:** `ceUnlockVip.local-pg.test.ts`.
+- [x] Demonstrar retry sem eventos duplicados e preservação de documentos enviados/anuais no expurgo, incluindo anuais sem pedido e quotas VIP. **Teste:** `ceUnlockVip.local-pg.test.ts` e `supabase/functions/ce-unlock-cleanup/index.test.ts`.
 - [x] Publicar a função e o job de expurgo. **Remoto:** `ce-unlock-cleanup` ativo e agendado diariamente em 2026-10-10.
 - [x] Retenção e nova tentativa do expurgo. A retenção foi decidida na [ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md) (item 5) e implementada na migration `231`. A remoção de um PDF real pela Storage API foi observada em produção em 2026-10-15 (ver "Fontes"). A falha física com nova tentativa é coberta pelo handler real contra Storage simulado: falha não registra `purged_at`, o documento fica reivindicado e a rodada seguinte remove. **Teste:** `supabase/functions/ce-unlock-cleanup/index.test.ts` (Deno, no CI). Provocar a falha no Storage de produção não foi feito, por ser intrusivo.
 
@@ -418,8 +420,8 @@ modo, cliente de inspeção, filtros, paginação e ID, sem compartilhar caches 
 - [x] Disponibilizar testes de seleção paga, cobertura VIP, inspeção sem seleção, anexos obrigatórios, reenvio parcial e remoção de seleção inelegível. **Teste:** `PortalDesbloqueioCe.test.tsx` e serviço; passaram nos checks focados desta sessão.
 - [x] Registrar observação local de seleção/rascunho, envio bloqueado sem anexos e mobile a 390 px. **Runtime histórico:** relatório; login por CNPJ e gateway real não foram cobertos.
 - [x] Integrar Portal na `main`; typecheck da entrega original registrado no relatório.
-- [ ] Completar testes de modelo disponível, confirmação, correção completa e retry de rede preservando chave idempotente; demonstrar VIP expirado/pendente e renovação em análise na UI.
-- [ ] Validar teclado, perda de pagamento entre seleção e envio, com atualização visível, e URLs de inspeção. Login real por CNPJ, upload, recusa de não-PDF e reenvio foram observados em produção em 2026-10-13 (ver "Fontes").
+- [x] Completar testes de modelo disponível, confirmação, correção completa e retry de rede preservando chave idempotente; demonstrar VIP expirado/pendente e renovação em análise na UI. **Teste:** `PortalDesbloqueioCe.flow.test.tsx` (hook real, serviço simulado; jsdom, não runtime).
+- [x] Validar teclado, perda de pagamento entre seleção e envio, com atualização visível, e URLs de inspeção. **Teste:** `PortalDesbloqueioCe.flow.test.tsx`: seleção e rascunho só por teclado; recusa "perdeu elegibilidade" invalida o cache e a lista volta com taxas pendentes, BL removível da seleção; `/clientes/portal/inspecao/:customerId/desbloqueio-ce` somente leitura. Comportamento em jsdom; navegador real e gateway não foram exercitados. Login real por CNPJ, upload, recusa de não-PDF e reenvio foram observados em produção em 2026-10-13 (ver "Fontes").
 - [x] Mensagem de recusa de anexo diz a causa: "O arquivo não é um PDF" com orientação de salvar como PDF (renomear não converte) e "O arquivo passa de 10 MiB". **Código:** `supabase/functions/_shared/ceUnlockFile.ts` e `ceUnlockService.ts`. **Teste:** `ceUnlockDocuments.test.ts`. A Edge Function `portal-ce-unlock-document` precisa ser republicada após o merge.
 
 ## Tarefa 5 — Vela: página de gestão por B/L
@@ -444,8 +446,8 @@ aplicam matriz da spec tanto em UI quanto em servidor.
 - [x] Integrar cache financeiro/carga, refetch no foco e limpeza do cache privado no logout do Portal. **Código/Teste:** efeitos de cache e teste de atualização financeira CE.
 - [x] Disponibilizar testes de B/L sem pedido, dívida, ações restritas para Financeiro/Operações e remoção de seleção inelegível. **Teste:** página interna e componentes; passaram nos checks focados desta sessão.
 - [x] Integrar gestão na `main`; execução local original de navegação/gates registrada no relatório.
-- [ ] Completar matriz de filtros Sem solicitação, exclusão sem CE, paginação e pedidos mistos. A projeção de anexos sensíveis por papel saiu desta matriz: pela ADR 0085, D16, os documentos ficam abertos a todo Departamento, e a projeção por papel deixa de existir com o item P12 do plano de correções.
-- [ ] Demonstrar aplicação anual e invalidação de ficha/fila/Portal entre CNPJs; validar atualização observável entre as duas SPAs, não apenas invalidação no mesmo cache.
+- [x] Completar matriz de filtros Sem solicitação, exclusão sem CE, paginação e pedidos mistos. **Teste:** `ceUnlockMatriz.local-pg.test.ts` (situação, requisito pendente, Cliente, busca por CE, Portal dos dois Clientes; páginas de 25 sem repetir nem perder). A projeção de anexos por papel deixa de existir com o item P12 do plano de correções (ADR 0085, D16).
+- [ ] Demonstrar aplicação anual e invalidação de ficha/fila/Portal entre CNPJs; validar atualização observável entre as duas SPAs, não apenas invalidação no mesmo cache. A invalidação no mesmo cache (fila interna, VIP e solicitações da ficha, Portal; comando do desk e do Portal, com sucesso e com erro) está coberta por `src/hooks/__tests__/ceUnlockCacheEffects.test.tsx`.
 
 ## Tarefa 6 — Exportação ZPT e confirmação de desbloqueio
 
@@ -477,8 +479,8 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Conciliação ZPT pela chave normalizada do CE, sem desbloquear dois B/Ls com o mesmo número. **Código/Remoto:** migration `177` (PR 929), em produção em 2026-10-12.
 - [x] Troca ou remoção de CE com Desbloqueio conferido abre o alerta `ce_trocado_com_desbloqueio` e aparece na prévia (correção B1). **Código:** migration `232`: `_set_bl_ce_mercante` e `_analyze_ce_mercante_rows` leem a conciliação (`ce_unlock_zpt_status` desbloqueado para o CE anterior), não a confirmação manual retirada na `160`. **Teste:** K2 de `ceImportacaoContrato.local-pg.test.ts`, agora pela conciliação real; falha sem a `232` no Postgres local em 2026-10-15. Em produção após o merge.
 - [x] Demonstrar baixa cancelada concorrente à criação da exportação. **Teste:** "exportação aguarda reversão financeira concorrente…" em `ceUnlock.local-pg.test.ts` (ver "Fontes").
-- [ ] Demonstrar bloqueio por cada requisito (hoje há teste de pagamento e de termo anual revogado), snapshot imutável e retry do mesmo lote.
-- [ ] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; conferir a rastreabilidade de origem/versão/vigência no snapshot.
+- [x] Demonstrar bloqueio por cada requisito, snapshot imutável e retry do mesmo lote. **Teste:** `ceUnlockMatriz.local-pg.test.ts` (pagamento, termo, procuração e entrega perdidos e restabelecidos pelos comandos reais; mesma chave devolve o mesmo lote; snapshot inalterado) e migration `233`.
+- [x] Completar teste de vencimento/revogação entre pedido e exportação e preservação de lote anterior; rastreabilidade de origem/versão/vigência no snapshot. **Teste:** `ceUnlockVip.local-pg.test.ts`.
 - [x] Reconciliar o requisito inicial de estado explícito de falha recuperável. **Decisão técnica (2026-10-15):** não há estado de falha persistido porque a geração da planilha não tem efeito externo: o lote (`ce_unlock_exports`) é gravado antes, é imutável desde a migration `233` e a planilha é gerada de novo a partir dele quantas vezes for preciso; o envio só fica registrado quando o desk o informa. Um estado de falha não acrescentaria recuperação.
 - [x] Hash do lote preenchido: SHA-256 de `layout_version` e das linhas, calculado no banco ao gravar o lote, com backfill dos lotes existentes; distinto do hash de cada PDF. O lote não aceita reescrita (só `sent_at` e `reference`). **Código:** migration `233`. **Teste:** `ceUnlock.local-pg.test.ts` ("lote da exportação ZPT nasce com hash…").
 - [x] Homologar a amostra XLSX (`zpt-5-v2`) e os indicadores Sim/Não com responsável/ZPT. **Aceite:** o responsável informou em 2026-10-14 que combinou com a ZPT e que o modelo atual de exportação está homologado (declaração, sem documento da ZPT anexado).
@@ -502,9 +504,9 @@ RPCs `create_ce_unlock_export`, `mark_ce_unlock_export_sent`, `confirm_ce_unlock
 - [x] Concluir as Etapas 6 (unicidade do CE) e 8.7 (prévia da troca de CE com alerta de Desbloqueio) do [plano de 2026-10-09](../archive/plans/2026-10-09-correcao-importacoes-ce-mercante.md). **Código/Remoto:** PR 929; migrations `174`–`217` em produção em 2026-10-12 (ver "Fontes").
 - [x] Executar fluxo completo com clientes A/B e papéis internos no ambiente controlado: modelo, anexos, envio, correção/reenvio, aprovação, entrega parcial e exportação. **Runtime:** produção, 2026-10-13 (ver "Fontes"). A confirmação com evidência externa (conciliação com o "Exportar Tela" real) fica no item bloqueante de homologação da Tarefa 6; papel Financeiro e Operações nas telas não foram exercidos.
 - [ ] Validar matriz integrada de pagamento parcial/consolidado, baixa cancelada, troca de Cliente, CE corrigido, múltiplas abas/retry, inspeção, downloads entre CNPJs e mobile/teclado.
-- [ ] Validar fluxo VIP completo no ambiente controlado, incluindo dois pedidos sem reanexação, vencimento/renovação e preservação de histórico.
+- [ ] Validar fluxo VIP completo no ambiente controlado. No banco, o fluxo completo (dois pedidos sem reanexação, vencimento, renovação, reexportação e histórico) está em `ceUnlockVip.local-pg.test.ts`; falta a observação nas telas em produção.
 - [ ] Registrar gates da árvore integrada no fechamento técnico e validação de Preview/gateway/Storage; distinguir testes locais, skips e observação remota.
-- [ ] Resolver/aceitar apresentação de versões documentais anteriores na UI interna (persistidas, mas a UI mostra as atuais) e avaliar teto O(n) da fila conforme volume; registrar decisão sem alegar refatoração necessária para o aceite.
+- [x] Versões documentais anteriores na UI interna: `request_json` já devolve todas as versões, e `CeUnlockRequestDetail` as lista em "Versões anteriores" (arquivo, situação, data e motivo). **Teste:** `CeUnlockRequestDetail.test.tsx`. Teto O(n) da fila: **decisão técnica (2026-10-15)** manter como está, marcado `ponytail` no serviço, porque o volume previsto é de dezenas de pedidos abertos; o upgrade (read model indexado) entra quando a fila passar de algumas centenas de candidatos ou a tela ficar lenta.
 - [ ] Concluir aceite operacional/ZPT; arquivar plano/spec e remover entradas dos índices na mesma mudança. Permanecem ativos enquanto faltarem aceites.
 
 ## Verificação da reconciliação
