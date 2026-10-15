@@ -59,6 +59,8 @@ function DocumentRow({
       <div className="flex flex-wrap items-center gap-2">
         {doc.purged ? (
           <span className="text-xs text-[var(--app-muted)]">Arquivo removido pela regra de retenção</span>
+        ) : doc.cleanup_pending ? (
+          <span className="text-xs text-[var(--app-muted)]">Arquivo em remoção pela regra de retenção</span>
         ) : (
           <Button
             variant="ghost"

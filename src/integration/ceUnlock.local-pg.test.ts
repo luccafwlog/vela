@@ -228,10 +228,12 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(sql(`SELECT state FROM public.ce_unlock_requests WHERE id='${draft.id}';`)).toBe('cancelled')
     expect(error(`SELECT public.ce_unlock_document_access('${doc}');`,client)).not.toBe('')
     expect(sql(`SELECT active FROM public.ce_unlock_request_bls WHERE request_id='${draft.id}';`)).toBe('f')
+    // Reivindicado e ainda no Storage: a projeção não diz "removido" antes da confirmação (migration 282).
+    expect(sql(`SELECT (ce_unlock_private.doc_json('${doc}')->>'purged')||'|'||(ce_unlock_private.doc_json('${doc}')->>'cleanup_pending');`)).toBe('false|true')
     sql(`SELECT public.ce_unlock_cleanup_record('${doc}');`)
     expect(sql(`SELECT purged_at IS NOT NULL FROM public.ce_unlock_documents WHERE id='${doc}';`)).toBe('t')
     // A projeção avisa a tela que o arquivo saiu (migration 282), em vez de oferecer o download recusado.
-    expect(sql(`SELECT ce_unlock_private.doc_json('${doc}')->>'purged';`)).toBe('true')
+    expect(sql(`SELECT (ce_unlock_private.doc_json('${doc}')->>'purged')||'|'||(ce_unlock_private.doc_json('${doc}')->>'cleanup_pending');`)).toBe('true|false')
   })
   it('pedido com dois BLs conclui quando todos atendem os quatro requisitos; CE divergente é recusado até a reconferência',()=>{
     command('set_vip',{customer_id:998557,enabled:true,reason:'Teste misto VIP',request_key:crypto.randomUUID()})
@@ -387,7 +389,18 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       UPDATE public.ce_unlock_request_bls SET active=true WHERE request_id='${reviewRequest}';
       SELECT (ce_unlock_private.item('CE557-REVIEW')->>'can_export');
       -- Demurrage não entra no requisito: só a avulsa conta.
-      SELECT count(*) FROM public.invoices WHERE bl_id='CE557-REVIEW' AND invoice_type<>'manual';`)
+      SELECT count(*) FROM public.invoices WHERE bl_id='CE557-REVIEW' AND invoice_type<>'manual';
+      -- Pagamento posterior de avulsa do Cliente anterior do B/L não reinicia o prazo do atual.
+      CREATE TEMP TABLE sla_antes ON COMMIT DROP AS SELECT ce_unlock_private.item('CE557-REVIEW')->>'sla_started_at' AS v;
+      SET LOCAL session_replication_role=replica;
+      INSERT INTO public.invoices(id,invoice_number,customer_id,bl_id,total_brl,balance_brl,status,invoice_type,pix_payload)
+        VALUES(998872,'CE557-AVULSA-ANT',998558,'CE557-REVIEW',10,0,'paid','manual','CE557');
+      INSERT INTO public.payments(invoice_id,amount_brl,created_at) VALUES(998872,10,now()+interval '1 day');
+      SET LOCAL session_replication_role=origin;
+      SELECT (ce_unlock_private.item('CE557-REVIEW')->>'sla_started_at') IS NOT DISTINCT FROM v FROM sla_antes;
+      -- Exportar trava as avulsas dos B/Ls antes de conferir a aptidão (estorno concorrente).
+      SELECT position('FROM public.invoices WHERE bl_id=ANY(ids) AND invoice_type=''manual'' ORDER BY id FOR UPDATE' IN
+        pg_get_functiondef('ce_unlock_private.command(text,jsonb,boolean)'::regprocedure))>0;`)
     expect(result.split('\n')).toEqual([
       'false:["Taxas locais sem liquidação integral confirmada"]',
       'true:[]',
@@ -396,6 +409,8 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       'true:[]',
       'true',
       '0',
+      't',
+      't',
     ])
   })
   it('expurgo: anexos do pedido saem 30 dias após o envio; Termo Anual VIP fica até ser substituído (ADR 0087)',()=>{

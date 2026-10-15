@@ -9,14 +9,21 @@
 --    emitidas para o B/L e o Cliente atual: avulsa `issued`/`partially_paid` com
 --    saldo bloqueia, com o motivo "Fatura avulsa do B/L em aberto". Rascunho,
 --    cancelada e paga não bloqueiam. Demurrage tem tabelas próprias e não entra.
--- 3. O prazo recomeça também com o pagamento da avulsa do B/L.
+-- 3. O prazo recomeça também com o pagamento da avulsa do B/L e do Cliente
+--    atual (pagamento da avulsa do Cliente anterior não conta).
+-- 4. Exportar trava também as avulsas dos B/Ls selecionados antes de conferir
+--    a aptidão. Sem isso, um estorno concorrente da avulsa (que trava só a
+--    fatura) podia reabrir o saldo depois da leitura `paid=true` e o lote sair
+--    com o pagamento desatualizado. Patch pontual em `ce_unlock_private.command`
+--    sobre a definição vigente (161, com a trava de Cliente da 220).
 --
 -- Troca de Cliente, COD e as demais regras ficam como na `160`. Como `paid`
 -- alimenta o Portal e a coluna "Pagamento das taxas" da planilha ZPT, o B/L
 -- isento sai "Sim" sem mudança nesses consumidores. Nenhuma linha de dados é
 -- alterada; assinatura, grants e SECURITY DEFINER são preservados.
 --
--- Rollback: reaplicar a definição de `ce_unlock_private.item` da migration `160`.
+-- Rollback: reaplicar a definição de `ce_unlock_private.item` da migration `160`
+-- e a de `ce_unlock_private.command` vigente antes desta (161 com a 220).
 
 CREATE OR REPLACE FUNCTION ce_unlock_private.item(p_bl text, p_request uuid DEFAULT NULL::uuid)
  RETURNS jsonb
@@ -61,7 +68,7 @@ BEGIN
  sla:=greatest((SELECT max(e.created_at) FROM public.ce_unlock_events e WHERE e.request_id=r.id AND e.action='submit'),
  CASE WHEN delivered THEN (SELECT d.updated_at FROM public.ce_unlock_bl_deliveries d WHERE d.bl_id=p_bl) END,
  (SELECT max(s.created_at) FROM public.ledger_settlements s JOIN public.bl_receivables x ON x.id=s.receivable_id WHERE x.bl_id=p_bl AND x.status<>'void'),
- (SELECT max(p.created_at) FROM public.payments p JOIN public.invoices n ON n.id=p.invoice_id WHERE n.bl_id=p_bl AND n.invoice_type='manual'));
+ (SELECT max(p.created_at) FROM public.payments p JOIN public.invoices n ON n.id=p.invoice_id WHERE n.bl_id=p_bl AND n.invoice_type='manual' AND n.customer_id=b.customer_id));
  END IF;
  IF r.id IS NOT NULL AND r.customer_id IS DISTINCT FROM b.customer_id THEN reasons:=array_append(reasons,'Cliente do B/L alterado: solicitação anterior inaplicável'); END IF;
  IF b.cancelled_at IS NOT NULL THEN reasons:=array_append(reasons,'B/L cancelado'); END IF;
@@ -86,3 +93,18 @@ BEGIN
  'zpt_status',zs.status,'zpt_description',zs.description,'zpt_pending',to_jsonb(zs.pending),'zpt_updated_at',zs.zpt_updated_at,'zpt_without_export',zs.without_export,
  'reasons',to_jsonb(reasons));
 END $function$;
+
+DO $migration$
+DECLARE
+  v_def text;
+  v_anchor constant text := 'PERFORM 1 FROM public.ce_unlock_bl_deliveries WHERE bl_id=ANY(ids) ORDER BY bl_id FOR UPDATE;';
+  v_lock constant text := 'PERFORM 1 FROM public.ce_unlock_bl_deliveries WHERE bl_id=ANY(ids) ORDER BY bl_id FOR UPDATE;
+ PERFORM 1 FROM public.invoices WHERE bl_id=ANY(ids) AND invoice_type=''manual'' ORDER BY id FOR UPDATE;';
+BEGIN
+  v_def := pg_get_functiondef('ce_unlock_private.command(text,jsonb,boolean)'::regprocedure);
+  IF array_length(string_to_array(v_def, v_anchor), 1) <> 2 THEN
+    RAISE EXCEPTION 'ce_unlock_private.command: trava de entregas da exportação não encontrada uma única vez';
+  END IF;
+  EXECUTE replace(v_def, v_anchor, v_lock);
+END
+$migration$;

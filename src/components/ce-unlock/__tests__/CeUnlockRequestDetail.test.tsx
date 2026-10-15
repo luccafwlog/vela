@@ -111,6 +111,15 @@ it("versão anterior já expurgada avisa que o arquivo saiu, em vez de oferecer 
   expect(within(previous).queryByRole("button", { name: "Abrir documento" })).toBeNull();
 });
 
+it("versão reivindicada pelo expurgo, ainda não removida, não se diz removida nem oferece abrir", () => {
+  const pending = [versionDocs[0], { ...versionDocs[1], cleanup_pending: true }, versionDocs[2]];
+  render(<CeUnlockRequestDetail request={versionRequest(pending)} manage busy={false} onAction={vi.fn()} />);
+  const previous = screen.getByRole("region", { name: "Versões anteriores dos documentos" });
+  expect(within(previous).getByText("Arquivo em remoção pela regra de retenção")).toBeTruthy();
+  expect(within(previous).queryByText("Arquivo removido pela regra de retenção")).toBeNull();
+  expect(within(previous).queryByRole("button", { name: "Abrir documento" })).toBeNull();
+});
+
 it("sem substituições, ou em pedido VIP, não mostra versões anteriores", () => {
   render(<CeUnlockRequestDetail request={versionRequest([versionDocs[0], versionDocs[2]])} manage busy={false} onAction={vi.fn()} />);
   expect(screen.queryByText("Versões anteriores")).toBeNull();

@@ -17,6 +17,8 @@ export type CeUnlockDocument = {
   created_at: string;
   /** Arquivo já removido do Storage pelo expurgo (migration 282); metadados ficam. */
   purged?: boolean;
+  /** Expurgo reivindicou o arquivo e ainda não confirmou a remoção (migration 282); download recusado. */
+  cleanup_pending?: boolean;
 };
 export type CeUnlockItem = {
   bl_id: string;
