@@ -36,6 +36,14 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   filete, bloco de dados do Cliente em tabela e bloco Pix; um redesenho foi
   feito e reprovado). Entraram só regras de impressão e de comportamento. Ver
   o registro abaixo.
+- **Abas que faltavam no lote 1, propostas em 2026-10-15:** o lote 1
+  reorganizou só a Visão geral das fichas do B/L e da Viagem. Por decisão do
+  responsável de 2026-10-15, o lote 1 só se encerra com as outras oito abas
+  (Carga, Detalhes do B/L, Faturamento e Histórico do B/L; Importação,
+  Exportação, Rotas e Manifestos e ADR da Viagem) e com as pendências de
+  verificação do lote 1; o lote 2 começa depois. As oito propostas estão numa
+  página só ("Abas do lote 1", na conta do responsável), com capturas da
+  `main` de 2026-10-15, e aguardam a resposta aba a aba.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -263,7 +271,7 @@ lotes tratam só da organização de cada tela.
 
 | Lote | Telas (ordem da tabela "Telas") | Estado |
 |---|---|---|
-| 1 | Lista de BLs (2), ficha da Viagem (3), ficha do Cliente (5, com as seis abas), Taxas Locais · Faturas (7), Portal · Faturas (10) | Entregue em 2026-10-14 (todas as telas e as abas da ficha do Cliente), branch `claude/determined-bardeen-kvwaxt` |
+| 1 | Lista de BLs (2), ficha da Viagem (3), ficha do Cliente (5, com as seis abas), Taxas Locais · Faturas (7), Portal · Faturas (10); desde 2026-10-15, também as quatro abas restantes da ficha do B/L (1) e da ficha da Viagem (3) | Entregue em 2026-10-14 (todas as telas e as abas da ficha do Cliente), branch `claude/determined-bardeen-kvwaxt`; as oito abas restantes foram propostas em 2026-10-15 e aguardam aprovação |
 | 2 | Operação do dia a dia: Revisão (6), Chegadas e Saídas e programação do Portal (4), Demurrage (8), Containers, Veículos e Baplie (14); listas de Viagens e de Clientes | Proposto em 2026-10-13, a confirmar |
 | 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Proposto, a confirmar |
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Proposto, a confirmar |
@@ -300,9 +308,9 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 
 | Ordem | Tela | Rotas | Pontos já conhecidos | Estado |
 |---|---|---|---|---|
-| 1 | Ficha do B/L | `/bls/:blId` | Visão geral numa caixa só com filetes; "Resolver na Revisão", "Definir exceção" e "Ver itens da carga" como texto (regra 9) | Entregue em 2026-10-13 (aba Visão geral, faixa, próxima ação e trilhos; as demais abas herdam a base) |
+| 1 | Ficha do B/L | `/bls/:blId` | Visão geral numa caixa só com filetes; "Resolver na Revisão", "Definir exceção" e "Ver itens da carga" como texto (regra 9) | Entregue em 2026-10-13 (aba Visão geral, faixa, próxima ação e trilhos); Carga, Detalhes do B/L, Faturamento e Histórico propostos em 2026-10-15 (lote 1) |
 | 2 | Lista de BLs | `/bls` | Cartões que filtram, faixa de resumo, linha com duas ações | Entregue em 2026-10-14 (lote 1) |
-| 3 | Ficha da Viagem e Viagens | `/viagens`, `/viagens/:voyageId` | Ficha restaurada em 2026-10-08 com faixa azul-marinho; conferir contra as regras | Ficha entregue em 2026-10-14 (lote 1); lista de Viagens no lote 2 |
+| 3 | Ficha da Viagem e Viagens | `/viagens`, `/viagens/:voyageId` | Ficha restaurada em 2026-10-08 com faixa azul-marinho; conferir contra as regras | Ficha entregue em 2026-10-14 (lote 1, Visão geral); Importação, Exportação, Rotas e Manifestos e ADR propostos em 2026-10-15 (lote 1); lista de Viagens no lote 2 |
 | 4 | Chegadas e Saídas e programação do Portal | `/chegadas-saidas`, Painel do Portal | "X" em toda célula, grupos ETD/ETA sem separação. Decidir: Chegada no Brasil antes da Saída; esconder porto sem data; previsão de saída já passada em cinza | Pendente |
 | 5 | Ficha do Cliente e Clientes | `/clientes`, `/clientes/:cnpj` | `.app-customer-*` é a maior família de CSS de página | Ficha entregue em 2026-10-14 (Visão geral, as abas e a aba nova Contêineres); lista de Clientes no lote 2 |
 | 6 | Revisão | `/revisao` | `review-link-button` como ação em texto (regra 9) | Pendente |
