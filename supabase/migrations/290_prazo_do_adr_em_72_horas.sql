@@ -1,4 +1,4 @@
--- 289 — Prazo de conclusão do ADR em 72 horas corridas a partir da hora do ATD
+-- 290 — Prazo de conclusão do ADR em 72 horas corridas a partir da hora do ATD
 -- (decisão do responsável de 2026-10-15; nota na ADR 0039).
 --
 -- Antes (258): o prazo vencia ao fim do 3º dia útil depois do dia do ATD, no
@@ -85,7 +85,7 @@ BEGIN
     END IF;
     IF p_deadline THEN
       SELECT COALESCE((SELECT signed_at IS NOT NULL FROM public.agency_departure_report_department_signoffs ds WHERE ds.report_id = v_report.id AND ds.department = v_department), false) INTO v_signed;
-      -- 289: ATD + 72 horas, comparado ao instante de agora.
+      -- 290: ATD + 72 horas, comparado ao instante de agora.
       v_deadline_missed := v_deadline_eligible AND v_deadline_at < now() AND NOT v_signed;
       v_message := 'ADR ' || upper(btrim(v_report.port)) || ' / ' || COALESCE(v_report.terminal_code, 'terminal') || ': prazo de conclusão vencido para "' || public.agency_report_department_label(v_department) || '".';
       IF v_deadline_missed THEN

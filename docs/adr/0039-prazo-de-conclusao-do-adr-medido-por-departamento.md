@@ -1,6 +1,6 @@
 # 0039 — Prazo de Conclusão do ADR: contagem a partir do ATD real, medida por departamento
 
-> **Situação atual (2026-10-15).** O prazo passou a ser de **72 horas corridas a partir da hora do ATD** (decisão do responsável; migration `289`), no lugar dos três dias úteis contados do dia do ATD. ADRs abertos passam à regra nova; os fechados mantêm o prazo congelado. O restante da nota de 2026-10-13 abaixo segue valendo.
+> **Situação atual (2026-10-15).** O prazo passou a ser de **72 horas corridas a partir da hora do ATD** (decisão do responsável; migration `290`), no lugar dos três dias úteis contados do dia do ATD. ADRs abertos passam à regra nova; os fechados mantêm o prazo congelado. O restante da nota de 2026-10-13 abaixo segue valendo.
 
 > **Situação atual (2026-10-13).** Permanecem três dias úteis a partir da data real do ATD, um prazo por departamento cumprido pela assinatura vigente e o impresso sem veredito.
 > Não valem mais: o ATD da escala unificada, com reserva do POL, como marco zero (conta o ATD da Atracação do terminal, nota de 2026-08-24 abaixo e [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md); o ADR legado, sem terminal, não tem prazo nem alerta de prazo);

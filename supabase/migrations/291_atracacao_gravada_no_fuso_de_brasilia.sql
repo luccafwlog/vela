@@ -1,4 +1,4 @@
--- 290: ETB/ATB/ETD/ATD da atracação passam a chegar com o fuso de Brasília.
+-- 291: ETB/ATB/ETD/ATD da atracação passam a chegar com o fuso de Brasília.
 --
 -- Até aqui a janela de escala enviava "2026-10-16T18:40:00" sem fuso e o cast
 -- ::TIMESTAMPTZ do save_voyage_escala_terminal_state_v2 o lia como UTC: a hora
