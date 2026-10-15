@@ -1,6 +1,6 @@
 # 0010 — Validação, testes e gates de deploy
 
-> **Situação atual (2026-10-15).** Estendida pela [ADR 0087](./0086-ci-confere-na-medida-da-mudanca.md): o CI roda só em PR e confere na medida do que ela muda (suítes SQL só quando o diff toca o banco, ordem invertida semanal); a produção publica no push em `main` depois do check do Supabase.
+> **Situação atual (2026-10-15).** Estendida pela [ADR 0086](./0086-ci-confere-na-medida-da-mudanca.md): o CI roda só em PR e confere na medida do que ela muda (suítes SQL só quando o diff toca o banco, ordem invertida semanal); a produção publica no push em `main` depois do check do Supabase.
 
 > **Situação atual (2026-10-13).** Continuam valendo os testes, o lint, o build e a validação manual registrada, ampliados com `docs:check`, `migrations:check` e o replay das migrations no CI.
 > Não vale mais a publicação pela integração GitHub/Vercel: o GitHub Actions publica as duas SPAs no Cloudflare Pages depois do CI, e a Vercel fica só para rollback manual ([ADR 0076](./0076-cloudflare-pages-como-hosting.md); a [ADR 0066](./0066-transicao-marca-vela.md) já tinha trocado o Firebase Hosting pela Vercel).

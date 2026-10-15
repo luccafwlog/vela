@@ -10,7 +10,7 @@ pediu em 2026-10-15 o plano completo na mesma PR).
 ## Estado (2026-10-15)
 
 **Concluído e arquivado em 2026-10-15.** Código dos dois lotes na PR
-luccafwlog/vela#953 ([ADR 0087](../../adr/0086-ci-confere-na-medida-da-mudanca.md)),
+luccafwlog/vela#953 ([ADR 0086](../../adr/0086-ci-confere-na-medida-da-mudanca.md)),
 mesclada em `cb7ef2de`. Aceites no GitHub (Runtime):
 
 | Aceite | Resultado |
@@ -262,7 +262,7 @@ localpg:check` falha se qualquer uma das duas ordens sumir.
 
 Na mesma PR, junto com o código de cada item:
 
-- **ADR 0087:** "O CI confere na medida do que a PR muda", com o motivo
+- **ADR 0086:** "O CI confere na medida do que a PR muda", com o motivo
   (medição de 2026-10-15) e o que continua obrigatório. Faixa "Situação atual"
   na ADR 0010. Confirmar o número livre no momento do commit.
 - **WORKFLOW.md:**

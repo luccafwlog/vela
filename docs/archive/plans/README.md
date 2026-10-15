@@ -1,6 +1,6 @@
 # Planos históricos (archive)
 
-- [2026-10-15 — Compactação do CI](2026-10-15-compactacao-do-ci.md) — concluído em 2026-10-15 (PR luccafwlog/vela#953, [ADR 0087](../../adr/0086-ci-confere-na-medida-da-mudanca.md)): CI de PR de ~11 min para ~2 min, merge à produção de ~13 min para ~2 min, suítes SQL com conexão reaproveitada e ordem invertida semanal. Aceites e medições no próprio plano.
+- [2026-10-15 — Compactação do CI](2026-10-15-compactacao-do-ci.md) — concluído em 2026-10-15 (PR luccafwlog/vela#953, [ADR 0086](../../adr/0086-ci-confere-na-medida-da-mudanca.md)): CI de PR de ~11 min para ~2 min, merge à produção de ~13 min para ~2 min, suítes SQL com conexão reaproveitada e ordem invertida semanal. Aceites e medições no próprio plano.
 
 - [2026-10-13 — Revisão geral da documentação](2026-10-13-revisao-geral-documentacao.md) — encerrado em 2026-10-14: varredura, aplicação e gate concluídos, e o dono respondeu as decisões pendentes no mesmo dia. Decisões nas ADRs [0083](../../adr/0083-decisoes-da-revisao-geral-da-documentacao.md) e [0084](../../adr/0084-registro-de-decisoes-ja-em-producao.md); correções de código no [plano vivo](../../plans/2026-10-14-correcoes-decididas-na-revisao-geral.md); relatório em [2026-10-13-revisao-geral-documentacao.md](../audits/2026-10-13-revisao-geral-documentacao.md).
 

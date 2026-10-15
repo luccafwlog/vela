@@ -6,7 +6,7 @@
 
 ## 2026-10
 
-- **CI na medida da mudança (2026-10-15, [ADR 0087](adr/0086-ci-confere-na-medida-da-mudanca.md), PR luccafwlog/vela#953):**
+- **CI na medida da mudança (2026-10-15, [ADR 0086](adr/0086-ci-confere-na-medida-da-mudanca.md), PR luccafwlog/vela#953):**
   o CI roda só em PR, em quatro jobs (`quality`, `test` em 2 shards, `db`, `checks`); replay,
   invariantes, catálogo de RPCs e seed em toda PR, e as suítes SQL só quando o diff toca o banco
   (`scripts/ci-db-paths.mjs`). A ordem invertida passou ao workflow semanal `local-pg-order.yml`. O

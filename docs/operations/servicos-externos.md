@@ -201,7 +201,7 @@ Banco PostgreSQL, Auth, Storage, Edge Functions e jobs agendados. Projeto de
 produção `fgmkhbzhaeebrsizwccx`. O projeto GitHub é `luccafwlog/vela`.
 A produção do Cloudflare Pages espera o check que a integração publica no
 commit da `main` antes de publicar
-([ADR 0087](../adr/0086-ci-confere-na-medida-da-mudanca.md)); a `main` precisa
+([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)); a `main` precisa
 continuar vinculada à produção em Branching → Configuration (vínculo
 conferido no painel pelo dono em 2026-10-15; o check veio verde nos merges
 `b42427c7`, `2763f99b` e `cb7ef2de`, e pulado no `1aa7aaf7` com "not
@@ -670,7 +670,7 @@ para eles vale o backup do próprio Supabase.
   ordens), `cloudflare-pages-*.yml` (Pages; produção no push em `main`,
   esperando o check do Supabase; previews pela etiqueta `preview`),
   `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
-  etiqueta). Regra em [ADR 0087](../adr/0086-ci-confere-na-medida-da-mudanca.md).
+  etiqueta). Regra em [ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md).
 - **Etiqueta `preview`:** dispara a preview e o usuário admin de uma PR; a
   limpeza ao fechar só roda em PR com essa etiqueta (existe no repositório).
 - **Ruleset da `main` ("auto-merge claude"):** impede apagar a branch e

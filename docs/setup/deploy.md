@@ -15,7 +15,7 @@ O staging publica o `index.html` correspondente a cada projeto e copia somente s
 
 | Workflow | Gatilho | Resultado |
 |---|---|---|
-| `.github/workflows/ci.yml` | PR (aberta, novo commit, reaberta, pronta para revisão) | Documentação, lint, build, testes, tamanho de bundle, contratos do Pages e replay de migrations em toda PR; suítes SQL só quando o diff toca o banco ([ADR 0087](../adr/0086-ci-confere-na-medida-da-mudanca.md)). Não roda depois do merge. |
+| `.github/workflows/ci.yml` | PR (aberta, novo commit, reaberta, pronta para revisão) | Documentação, lint, build, testes, tamanho de bundle, contratos do Pages e replay de migrations em toda PR; suítes SQL só quando o diff toca o banco ([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)). Não roda depois do merge. |
 | `.github/workflows/local-pg-order.yml` | Segunda, 09:17 UTC, ou execução manual | Suítes SQL nas duas ordens, cada uma num banco recriado, e bateria financeira. |
 | `.github/workflows/cloudflare-pages-preview.yml` | Etiqueta `preview` em PR interna, ou execução manual a partir da `main` com o número da PR | Aguarda o check Supabase Preview da branch vinculada à PR e publica os dois previews privados; sem essa branch, termina com falha depois de cerca de 6 min de espera. |
 | `.github/workflows/cloudflare-pages-preview-cleanup.yml` | PR interna com etiqueta `preview` fechada | Remove deployments antigos de preview da branch; a Cloudflare mantém o deployment mais recente. |
