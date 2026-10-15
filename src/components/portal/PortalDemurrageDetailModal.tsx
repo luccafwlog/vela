@@ -8,7 +8,6 @@ import { demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/por
 import { formatBRL, formatDate } from '../../lib/utils'
 import type { PortalDemurrageInvoiceDetail, PortalDispute } from '../../services/portalBilling'
 import { PortalPaymentBlock } from './PortalPixPaymentBlock'
-import { roundCents } from '../../services/demurrage/demurrageNetUsd'
 import { Button } from '../ui/Button'
 
 type PortalDemurrageDetailModalProps = {
@@ -30,17 +29,11 @@ type PortalDemurrageDetailModalProps = {
  * disputa fica no fim, discreta: "Discorda de algum valor? Abrir disputa"
  * enquanto a fatura não está paga, cancelada ou já em disputa.
  */
-/** Valor de um período (P1 ou P2) do container: dias × diária, em centavos como o banco (B30). */
+/** Período (P1 ou P2) do contêiner numa linha: dias × diária (tabela limpa, 2026-10-15); o valor fica na coluna US$. */
 function periodValue(days: number | null | undefined, rate: number | null | undefined) {
   const count = Number(days ?? 0)
   if (count <= 0) return <NoValue label="Sem dias neste período" />
-  const daily = Number(rate ?? 0)
-  return (
-    <span className="app-table__cell-stack">
-      <span>{formatUsd(roundCents(count * daily))}</span>
-      <span className="text-xs text-[var(--app-muted)]">{count} {count === 1 ? 'dia' : 'dias'} × {formatUsd(daily)}</span>
-    </span>
-  )
+  return `${count} × ${formatUsd(Number(rate ?? 0))}`
 }
 
 export function PortalDemurrageDetailModal({
@@ -101,7 +94,6 @@ export function PortalDemurrageDetailModal({
                       <th scope="col" className="px-3 py-2">Devolução</th>
                       <th scope="col" className="px-3 py-2">Dias</th>
                       <th scope="col" className="px-3 py-2">Free time</th>
-                      <th scope="col" className="px-3 py-2">Dias cobrados</th>
                       <th scope="col" className="px-3 py-2">1º período</th>
                       <th scope="col" className="px-3 py-2">2º período</th>
                       <th scope="col" className="px-3 py-2">US$</th>
@@ -116,7 +108,6 @@ export function PortalDemurrageDetailModal({
                         <td className="whitespace-nowrap px-3 py-2">{item.return_date ? formatDate(item.return_date) : <NoValue label="Sem data de devolução" />}</td>
                         <td className="px-3 py-2 tabular-nums">{item.total_days}</td>
                         <td className="px-3 py-2 tabular-nums">{item.free_days}</td>
-                        <td className="px-3 py-2 tabular-nums">{Number(item.days_p1 ?? 0) + Number(item.days_p2 ?? 0)}</td>
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{periodValue(item.days_p1, item.rate_p1_usd)}</td>
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{periodValue(item.days_p2, item.rate_p2_usd)}</td>
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatUsd(item.subtotal_usd)}</td>
