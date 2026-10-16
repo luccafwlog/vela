@@ -30,6 +30,22 @@ function makeMaps(): CustomerMaps {
 }
 
 describe('customerReconciliation', () => {
+  it('vincula pelo unico CNPJ lido fora do campo do consignatario', () => {
+    const match = findMatchedCustomer(
+      { cnpjCpf: null, consignee: 'NOME QUALQUER', readTexts: ['NOME QUALQUER\nCNPJ: 12.345.678/0001-95', 'PARTS CNPJ 12345678000195'] },
+      makeMaps(),
+    )
+    expect(match).toEqual({ customer: { id: 1, name: 'CLIENTE ALFA LTDA' }, matchType: 'document' })
+  })
+
+  it('nao vincula por documento quando ha dois CNPJs lidos diferentes', () => {
+    const match = findMatchedCustomer(
+      { cnpjCpf: null, consignee: 'NOME QUALQUER', readTexts: ['CNPJ: 12.345.678/0001-95', 'CNPJ: 11.222.333/0001-81'] },
+      makeMaps(),
+    )
+    expect(match).toBeNull()
+  })
+
   it('traduz match por documento em vinculo sem sugestao', () => {
     expect(resolveCustomerLink({ customer: { id: 1, name: 'CLIENTE ALFA LTDA' }, matchType: 'document' })).toEqual({
       customerId: 1,

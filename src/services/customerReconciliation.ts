@@ -1,4 +1,4 @@
-import { canonicalizeDocument } from '../lib/cnpj'
+import { canonicalizeDocument, extractCnpjsFromText } from '../lib/cnpj'
 import { normalizeText } from '../lib/utils'
 import { supabase } from './supabase'
 
@@ -126,12 +126,33 @@ export function findMatchedCustomer(
   candidate: {
     cnpjCpf?: string | null
     consignee?: string | null
+    /** Textos do B/L com CNPJ rotulado (bloco do consignatário, descrição da carga). */
+    readTexts?: Array<string | null | undefined>
   },
   maps: CustomerMaps,
 ): CustomerMatchResult | null {
   const document = canonicalizeDocument(candidate.cnpjCpf ?? '')
   if (document) {
     const customerByDocument = maps.customersByDocument.get(document)
+    if (customerByDocument) {
+      return { customer: customerByDocument, matchType: 'document' }
+    }
+  }
+
+  // Vínculo automático (decisão de 2026-10-16): quando o B/L traz um único
+  // CNPJ lido, em qualquer campo, e ele é de um Cliente cadastrado, vale como
+  // o documento do consignatário. Dois CNPJs diferentes ficam para a Revisão.
+  const readDocuments = new Set<string>()
+  if (document) readDocuments.add(document)
+  for (const text of candidate.readTexts ?? []) {
+    for (const cnpj of extractCnpjsFromText(text)) {
+      const canonical = canonicalizeDocument(cnpj)
+      if (canonical) readDocuments.add(canonical)
+    }
+  }
+  if (readDocuments.size === 1) {
+    const [onlyDocument] = readDocuments
+    const customerByDocument = maps.customersByDocument.get(onlyDocument)
     if (customerByDocument) {
       return { customer: customerByDocument, matchType: 'document' }
     }
