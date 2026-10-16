@@ -59,7 +59,7 @@ Manifesto Mercante é regra de
   No cabeçalho do bloco: **Exportar planilha** (planilha comum do recorte inteiro, separada da
   planilha da ZPT), **Planilhas enviadas à ZPT** (baixar e reexportar lotes), **Conciliar com a ZPT**
   (importa o "Exportar Tela") e **Exportar N aptos para a ZPT** (só os aptos selecionados, até 100).
-- Detalhe da solicitação (janela): blocos Solicitação ("aberta em" pelo primeiro rascunho ou envio; situação e o que falta, Cliente, B/Ls, prazo,
+- Detalhe da solicitação (janela): blocos Solicitação ("aberta em" pelo primeiro rascunho ou envio; situação e o que falta, Cliente, B/Ls, prazo (corre até a exportação de todos os B/Ls, inclusive na concluída; some só na cancelada),
   origem dos documentos), Documentos (o nome do arquivo abre; **Analisar** abre Aprovar e Recusar;
   documento recusado continua com **Analisar**, só com Aprovar; aprovado tem o menu ⋮ com
   **Recusar aprovação**; versões anteriores no pé, com o motivo), B/Ls da

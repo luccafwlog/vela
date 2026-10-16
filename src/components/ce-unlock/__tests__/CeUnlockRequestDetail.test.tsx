@@ -197,3 +197,18 @@ it('"aberta em" usa o rascunho ou o envio, não a entrega do original registrada
   expect(block.textContent).toContain('aberta em 12/10')
   expect(block.textContent).not.toContain('aberta em 10/10')
 })
+
+it('solicitação concluída e ainda não exportada continua com o prazo correndo', () => {
+  const sla = { sla_started_at: '2026-10-07T09:00:00-03:00' }
+  const pending = base({ state: 'completed', items: [{ ...item('BL-1', true, true), ...sla }] as never })
+  render(<CeUnlockRequestDetail request={pending} manage onAction={async () => {}} busy={false} />)
+  expect(screen.getByRole('region', { name: 'Solicitação' }).querySelector('[data-sla="overdue"]')?.textContent).toBe('Venceu 07/10, 17:00')
+  cleanup()
+  // Exportado: o prazo fica medido pela exportação, sem "Venceu".
+  const exported = base({ state: 'completed', items: [{ ...item('BL-1', true, true), ...sla, exported_at: '2026-10-07T16:00:00-03:00' }] as never })
+  render(<CeUnlockRequestDetail request={exported} manage onAction={async () => {}} busy={false} />)
+  expect(screen.getByRole('region', { name: 'Solicitação' }).querySelector('[data-sla="met"]')?.textContent).toBe('07/10, 17:00')
+  cleanup()
+  render(<CeUnlockRequestDetail request={base({ state: 'cancelled', items: [{ ...item('BL-1'), ...sla }] as never })} manage onAction={async () => {}} busy={false} />)
+  expect(screen.getByRole('region', { name: 'Solicitação' }).querySelector('[data-sla]')).toBeNull()
+})

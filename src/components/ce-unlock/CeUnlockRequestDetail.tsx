@@ -155,6 +155,12 @@ export function CeUnlockRequestDetail({
   // a abertura é o primeiro rascunho ou envio.
   const openedAt = (request.events.find((e) => e.action === "draft" || e.action === "submit") ?? request.events[0])?.created_at;
   const missing = open ? ceUnlockMissing(request) : null;
+  // O prazo é medido pela exportação, não pela conclusão da documentação: a concluída continua com o
+  // prazo correndo até o último B/L ser exportado (docs/modules/desbloqueio-ce.md, "Prazo").
+  const exportedAt =
+    request.items.length > 0 && request.items.every((i) => i.exported_at)
+      ? request.items.reduce((last, i) => (i.exported_at! > last ? i.exported_at! : last), "")
+      : null;
   return (
     <section className="space-y-4">
       {manage && open && (
@@ -221,7 +227,7 @@ export function CeUnlockRequestDetail({
             )}
           </Fact>
           <Fact label="B/Ls">{blIds.length}</Fact>
-          <Fact label="Prazo"><CeUnlockSla start={open ? latestSlaStart(request.items) : null} /></Fact>
+          <Fact label="Prazo"><CeUnlockSla start={request.state === "cancelled" ? null : latestSlaStart(request.items)} doneAt={exportedAt} /></Fact>
           <Fact label="Documentos">{vip ? "Anuais VIP" : "Da solicitação"}</Fact>
         </FactList>
       </Block>
