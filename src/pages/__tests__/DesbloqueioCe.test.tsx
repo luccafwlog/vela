@@ -8,7 +8,7 @@ import { DesbloqueioCe } from '../DesbloqueioCe'
 import { ToastProvider } from '../../components/ui/Toast'
 const state = vi.hoisted(() => ({
   manage: true, canExport: false, delivered: false, mutateAsync: vi.fn(async () => ({})), filters: [] as unknown[],
-  extra: [] as Record<string, unknown>[], command: vi.fn(async (..._args: unknown[]) => ({})), confirms: [] as unknown[],
+  extra: [] as Record<string, unknown>[], command: vi.fn(async (...args: unknown[]) => args && {}), confirms: [] as unknown[],
 }))
 const row = (patch: Record<string, unknown> = {}) => ({
   bl_id: 'BL-557', ce_mercante: '123', customer_name: 'Cliente', cnpj_cpf: '123456', state: 'no_request',

@@ -109,7 +109,7 @@ vi.mock('../../components/demurrage/InvoiceDocument', () => ({
 
 import { Reconciliacao } from '../Reconciliacao'
 
-function renderPage(path = '/reconciliacao') {
+function renderPage(path = '/reconciliacao?tab=pendencias') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -212,19 +212,34 @@ describe('Conciliação PIX', () => {
       ],
       receipts: [{ endToEndId: 'E1', txid: 'VELA9', amount: 5, paidAt: '2026-10-06T14:00:00Z', reason: 'Valor recebido difere do valor da cobrança.' }],
     })
+    const user = userEvent.setup()
     renderPage()
 
     // 15:00 UTC é meio-dia em Brasília; a hora literal do texto seria 3 h adiantada.
-    expect(await screen.findByText(/06\/10\/2026 às 12:00 \(há/)).toBeTruthy()
-    expect(screen.getByText('A consulta de recebimentos do Itaú não está avançando')).toBeTruthy()
-    expect(screen.getByText('Cancelamento pendente')).toBeTruthy()
-    expect(screen.getByText('Resposta incerta')).toBeTruthy()
-    expect(screen.getByText('timeout')).toBeTruthy()
-    expect(screen.getByText(/Valor recebido difere/)).toBeTruthy()
-    expect(screen.getByText(/recebido em 06\/10\/2026 às 11:00/)).toBeTruthy()
+    const itau = (await screen.findByRole('heading', { name: 'Cobrança Pix Itaú' })).closest('section')!
+    expect(await within(itau).findByText('06/10/2026 às 12:00')).toBeTruthy()
+    // Consulta parada é o dado principal, em âmbar, com a orientação.
+    const lead = within(itau).getByText(/^Consulta parada há/)
+    expect(lead.className).toContain('app-lead__value--warning')
+    expect(within(itau).getByText(/Pix pagos depois de 06\/10\/2026 às 12:00 não deram baixa automática\. Avise quem cuida da integração/)).toBeTruthy()
+    expect(within(itau).getByText('Cobranças ativas')).toBeTruthy()
+
     const queue = screen.getByRole('heading', { name: /Cobranças aguardando o Itaú/ }).closest('section')!
-    const docs = within(queue).getAllByRole('button').map((button) => button.textContent)
+    expect(within(queue).getByText('Cancelamento pendente').closest('.app-status-text')).toBeNull()
+    expect(within(queue).getByText('Emissão sem resposta do banco').closest('.app-status-text--warning')).toBeTruthy()
+    const docs = within(queue).getAllByRole('button', { name: /^(DM|FL)-/ }).map((button) => button.textContent)
     expect(docs).toEqual(['DM-200', 'FL-100'])
+    // A resposta do banco e o identificador inteiro ficam na linha aberta.
+    expect(within(queue).queryByText('timeout')).toBeNull()
+    await user.click(within(queue).getByRole('button', { name: /Abrir resposta do banco da cobrança DM-200/ }))
+    expect(within(queue).getByText('timeout')).toBeTruthy()
+    expect(within(queue).getAllByText('VELA2').length).toBeGreaterThan(0)
+
+    const receipts = screen.getByRole('heading', { name: 'Pix recebidos sem baixa' }).closest('section')!
+    expect(within(receipts).getByText(/Valor recebido difere/)).toBeTruthy()
+    expect(within(receipts).getByText('06/10/2026 11:00')).toBeTruthy()
+    expect(within(receipts).getByRole('columnheader', { name: 'Identificador do Pix' })).toBeTruthy()
+    expect(screen.queryByText(/TXID|endToEndId/)).toBeNull()
     // Pix sem baixa e cobrança com resposta incerta pedem ação; o cancelamento na fila não.
     expect(screen.getByRole('tab', { name: /Pendências/ }).textContent).toContain('2')
   })
@@ -232,8 +247,9 @@ describe('Conciliação PIX', () => {
   it('consulta Itaú recente não mostra o aviso de consulta parada', async () => {
     mocks.itauMonitor.mockResolvedValue({ provider: 'itau', polledUntil: new Date().toISOString(), counts: {}, charges: [], receipts: [] })
     renderPage()
-    expect(await screen.findByText(/agora há pouco/)).toBeTruthy()
-    expect(screen.queryByText('A consulta de recebimentos do Itaú não está avançando')).toBeNull()
+    expect(await screen.findByText(/Recebimentos consultados agora há pouco/)).toBeTruthy()
+    expect(screen.getByText('Baixa automática ligada')).toBeTruthy()
+    expect(screen.queryByText(/Consulta parada/)).toBeNull()
   })
 
   it('Pix Itaú em análise só é marcado como tratado com motivo; Voltar devolve o foco e a recusa fica no campo', async () => {
@@ -245,13 +261,13 @@ describe('Conciliação PIX', () => {
     const user = userEvent.setup()
     renderPage()
 
-    const trigger = await screen.findByRole('button', { name: 'Marcar como tratado…' })
+    const trigger = await screen.findByRole('button', { name: 'Marcar como tratado' })
     await user.click(trigger)
     expect(document.activeElement).toBe(screen.getByLabelText(/Motivo do tratamento/))
     await user.click(screen.getByRole('button', { name: 'Voltar' }))
-    await waitFor(() => expect(document.activeElement?.textContent).toBe('Marcar como tratado…'))
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('Marcar como tratado'))
 
-    await user.click(screen.getByRole('button', { name: 'Marcar como tratado…' }))
+    await user.click(screen.getByRole('button', { name: 'Marcar como tratado' }))
     const submit = screen.getByRole('button', { name: 'Marcar como tratado' }) as HTMLButtonElement
     expect(submit.disabled).toBe(true)
     await user.type(screen.getByLabelText(/Motivo do tratamento/), 'Rest.')
@@ -269,14 +285,20 @@ describe('Conciliação PIX', () => {
     await uploadExtract(user)
 
     expect(mocks.persist).toHaveBeenCalledWith('sha256:pix-import', [safeMatch, ambiguousMatch, unmatchedMatch])
+    // Dado principal da conferência e o que fica como exceção.
+    expect(screen.getByText('1 pronta para baixa')).toBeTruthy()
+    expect(screen.getByText(/R\$\s100,00 no lote/)).toBeTruthy()
     const ready = screen.getByRole('table', { name: 'Linhas do extrato prontas para baixa' })
-    expect(within(ready).getAllByText('INV-001')).toHaveLength(2) // TXID e fatura
-    expect(within(ready).getByText('12.345.678/0001-90')).toBeTruthy()
+    expect(within(ready).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Linha', 'Pago em', 'Valor do Pix', 'Identificador do Pix', 'Fatura', 'Origem', 'Cliente'])
+    expect(within(ready).getAllByText('INV-001')).toHaveLength(2) // identificador e fatura
+    expect(within(ready).getByText('Taxas Locais')).toBeTruthy()
+    // Sem o CNPJ sob o Cliente.
+    expect(within(ready).queryByText('12.345.678/0001-90')).toBeNull()
     const pending = screen.getByRole('table', { name: 'Linhas do extrato que ficam como exceção pendente' })
-    expect(within(pending).getByText('Ambígua')).toBeTruthy()
-    expect(within(pending).getByText('Sem documento')).toBeTruthy()
-    expect(within(pending).getByText('Valor do Pix diferente do valor da cobrança da fatura.')).toBeTruthy()
-    expect(screen.getByText('Nada foi baixado ainda.')).toBeTruthy()
+    expect(within(pending).getByText('Valor do Pix diferente do valor da cobrança da fatura').closest('.app-status-text--warning')).toBeTruthy()
+    expect(within(pending).getByText('Nenhuma fatura aberta com este identificador')).toBeTruthy()
+    expect(screen.getByText(/Nada foi baixado ainda\. As exceções já estão em Pendências\./)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Ver Pendências' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Confirmar 1 baixa' })).toBeTruthy()
     // As exceções gravadas na leitura aparecem em Pendências sem recarregar.
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['pix-reconciliation-exceptions'] })
@@ -302,9 +324,9 @@ describe('Conciliação PIX', () => {
     renderPage('/reconciliacao?tab=extrato')
     await uploadExtract(user)
 
-    expect(screen.getByText('Parte do extrato ficou de fora')).toBeTruthy()
-    expect(screen.getByText(/2 linhas ocultas da aba lida não entraram/)).toBeTruthy()
-    expect(screen.getByText(/Só as linhas visíveis entram na conciliação/)).toBeTruthy()
+    const hidden = screen.getByText('Linhas ocultas fora da leitura').closest('div')!
+    expect(within(hidden).getByText('2').closest('.app-status-text--warning')).toBeTruthy()
+    expect(within(hidden).getByText(/Só as linhas visíveis entram/)).toBeTruthy()
     expect(await screen.findByText(/2 linhas ocultas ignoradas: o filtro/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Confirmar 1 baixa' })).toBeTruthy()
   })
@@ -319,7 +341,8 @@ describe('Conciliação PIX', () => {
 
     expect(await screen.findByText('Avisos de leitura do arquivo')).toBeTruthy()
     expect(screen.getByText(/aba "Resumo"/)).toBeTruthy()
-    expect(screen.queryByText('Parte do extrato ficou de fora')).toBeNull()
+    const hidden = screen.getByText('Linhas ocultas fora da leitura').closest('div')!
+    expect(within(hidden).getByText('Nenhuma')).toBeTruthy()
   })
 
   it('confirma só o lote seguro e mostra o resultado que o banco devolveu, com caminho para o detalhe', async () => {
@@ -383,12 +406,13 @@ describe('Conciliação PIX', () => {
     const user = userEvent.setup()
     renderPage()
 
-    expect(await screen.findByText(/2 documentos usam o mesmo TXID\./)).toBeTruthy()
+    // Ambígua: motivo em texto âmbar, com "identificador" no lugar de "TXID".
+    expect((await screen.findByText('2 faturas usam o mesmo identificador')).closest('.app-status-text--warning')).toBeTruthy()
     expect(screen.getByText('12.345.678/0001-90')).toBeTruthy()
     // A data do extrato fica no dia escrito, não no dia anterior de Brasília.
-    expect(screen.getByText('pago em 23/06/2026')).toBeTruthy()
+    expect(screen.getByText('23/06/2026')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Tentar de novo' }))
-    expect(await screen.findByText(/Ainda não há uma fatura segura para esta linha: TXID repetido/)).toBeTruthy()
+    expect(await screen.findByText(/Ainda não há uma fatura segura para esta linha: Identificador repetido no mesmo extrato\./)).toBeTruthy()
     expect(mocks.confirm).not.toHaveBeenCalled()
   })
 
@@ -398,9 +422,12 @@ describe('Conciliação PIX', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: 'Escolher fatura…' }))
+    await user.click(await screen.findByRole('button', { name: /Abrir faturas candidatas da linha 8/ }))
     expect(await screen.findByText('INV-010')).toBeTruthy()
-    expect(screen.getByText('mesmo valor do Pix')).toBeTruthy()
+    expect(screen.getByText(/Linha 8 do extrato importado em 23\/06\/2026 às 10:00/)).toBeTruthy()
+    const candidates = screen.getByRole('table', { name: 'Faturas candidatas da linha 8' })
+    expect(within(candidates).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Fatura', 'Origem', 'Valor da fatura', 'Pix', 'Ação'])
+    expect(within(candidates).getByTitle('Mesmo valor do Pix')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Baixar nesta fatura' }))
 
     await waitFor(() => expect(mocks.resolveException).toHaveBeenCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10, txid: 'TX-42' })))
@@ -416,12 +443,12 @@ describe('Conciliação PIX', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: 'Escolher fatura…' }))
+    await user.click(await screen.findByRole('button', { name: /Abrir faturas candidatas da linha 8/ }))
     await user.click(await screen.findByRole('button', { name: 'Baixar nesta fatura' }))
     expect(await screen.findByText(/A baixa em INV-010 foi gravada, mas a exceção não foi encerrada: timeout Não repita a baixa; use Encerrar exceção/)).toBeTruthy()
     // A fatura já não está aberta: Tentar de novo e Escolher fatura não a achariam.
     expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Escolher fatura…' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /faturas candidatas/ })).toBeNull()
     expect(mocks.confirm).toHaveBeenCalledTimes(1)
 
     await user.click(screen.getByRole('button', { name: 'Encerrar exceção' }))
@@ -469,6 +496,16 @@ describe('Conciliação PIX', () => {
     expect(await screen.findByText(/Restituição depende desta baixa\. A baixa continua registrada\./)).toBeTruthy()
   })
 
+  it('sem aba na URL abre no Histórico de baixas; as abas ficam Histórico, Pendências (com contagem) e Conciliar extrato', async () => {
+    mocks.listExceptions.mockResolvedValue([exceptionRow])
+    renderPage('/reconciliacao')
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.map((tab) => tab.textContent?.replace(/\d.*$/, '').trim())).toEqual(['Histórico de baixas', 'Pendências', 'Conciliar extrato'])
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Abrir local' })).toBeTruthy()
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Pendências/ }).textContent).toContain('1'))
+  })
+
   it('a aba fica na URL e o extrato lido sobrevive à troca de aba', async () => {
     const user = userEvent.setup()
     renderPage('/reconciliacao?tab=extrato')
@@ -487,7 +524,9 @@ describe('Conciliação PIX', () => {
     renderPage()
     expect(screen.getByRole('tab', { name: /Pendências/ })).toBeTruthy()
     await waitFor(() => expect(mocks.itauMonitor).toHaveBeenCalled())
-    expect(screen.queryByRole('button', { name: 'Marcar como tratado…' })).toBeNull()
+    // Cobrança Itaú desligada: o dado principal diz de onde vem a baixa.
+    expect(await screen.findByText('Desligada: as faturas usam o QR estático e a baixa vem do extrato')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Marcar como tratado' })).toBeNull()
     await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
     expect(screen.getByText('Conciliar extrato é do Financeiro e do Administrativo')).toBeTruthy()
   })

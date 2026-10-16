@@ -233,7 +233,7 @@ export function CeUnlockRequestDetail({
             : "a análise vale para todos os B/Ls da solicitação"
         }
       >
-        {documents.length === 0 ? (
+        {documents.length === 0 && vip ? (
           <div className="app-block__body">
             <p className="app-table__cell-meta">Nenhum documento apresentado.</p>
           </div>
@@ -287,6 +287,18 @@ export function CeUnlockRequestDetail({
                     ) : null}
                   </tr>
                 ))}
+                {!vip &&
+                  (["termo", "procuracao"] as const)
+                    .filter((type) => !documents.some((d) => d.type === type))
+                    .map((type) => (
+                      <tr key={`missing-${type}`}>
+                        <td className="app-table__text">{ceDocumentName(type)}</td>
+                        <td><NoValue label="Sem arquivo" /></td>
+                        <td><NoValue label="Não enviado" /></td>
+                        <td className="app-table__text">{ceDocumentStatusText(type, null).label}</td>
+                        {reviewable ? <td /> : null}
+                      </tr>
+                    ))}
               </tbody>
             </table>
           </div>

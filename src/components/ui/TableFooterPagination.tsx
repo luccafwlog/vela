@@ -40,7 +40,7 @@ export function TableFooterPagination({
       </div>
       <div className="app-table__footer-controls">
         {onPageSizeChange ? (
-          <Select className="w-36" aria-label="Registros por página" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
+          <Select className="w-auto" aria-label="Registros por página" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
             {pageSizes.map((size) => (
               <option key={size} value={size}>
                 {size} por página

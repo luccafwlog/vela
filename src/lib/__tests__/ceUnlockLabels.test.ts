@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
-import { ceDocumentStatusText, ceUnlockZptText } from '../ceUnlockLabels'
+import { ceDocumentStatusText, ceUnlockZptText, type CeUnlockZptItem } from '../ceUnlockLabels'
 
-const base = { zpt_status: null, reasons: [], can_export: false, export_state: 'not_exported', exported_at: null, confirmed: false } as const
+const base: CeUnlockZptItem = { zpt_status: null, reasons: [], can_export: false, export_state: 'not_exported', exported_at: null, confirmed: false }
 
 it('documento: âmbar no que pede ação, ✓ no aprovado, gênero do documento', () => {
   expect(ceDocumentStatusText('termo', null)).toEqual({ label: 'Não enviado', tone: 'default' })
