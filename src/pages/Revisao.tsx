@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
+import { Fragment, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { EmptyState, PageHeader } from '../components/ui/Card'
-import { Input } from '../components/ui/Input'
+import { Field, Input } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { SummaryStrip } from '../components/ui/SummaryStrip'
@@ -15,16 +15,16 @@ import { useAuth } from '../hooks/useAuth'
 import { useReviewQueue, type ReviewCustomer, type ReviewQueueItem } from '../hooks/useReview'
 import {
   countReviewCauses,
-  flattenReviewGroupIds,
   getReviewItemCauses,
   getReviewItemDocumentCandidates,
   groupReviewItems,
-  hasCustomerDocumentConflict,
   needsCustomerLink,
   parseWeightTon,
   readReviewCauseParam,
   REVIEW_CAUSE_LABELS,
+  REVIEW_CAUSE_ORDER,
   sortReviewGroupsByPriority,
+  splitReviewNotes,
   summarizeRemainingPendencies,
   summarizeReviewGroup,
   type ReviewCause,
@@ -33,18 +33,20 @@ import {
 import { extractErrorText } from '../lib/errors'
 import { canonicalizeValidCnpj, formatCnpj } from '../lib/cnpj'
 import { invalidateReviewQueueCaches } from '../components/review/reviewCaches'
-import { ReviewGroupBlock } from '../components/review/ReviewGroupBlock'
-import type { ReviewCustomerOnboardingInput } from '../components/review/ReviewCustomerOnboarding'
-import { ReviewDrawer } from '../components/review/ReviewDrawer'
+import { ReviewGroupDetail } from '../components/review/ReviewGroupDetail'
+import type { ReviewCustomerOnboardingInput } from '../components/review/ReviewCustomerForm'
+import type { ReviewBlCheckValues } from '../components/review/ReviewBlCheckForm'
 import { ReviewOutcomes, type ReviewOutcome, type ReviewRecalcNotice } from '../components/review/ReviewOutcomes'
 import { calculateBlLocalCharges } from '../services/charges/chargeOperationsService'
 import { queryKeys } from '../services/queryKeys'
 import {
   applyInlineBlReviewFix,
   ConcurrentEditError,
+  saveBlReview,
   saveGraniteBlReview,
   type SaveBlReviewResult,
 } from '../services/review'
+import { logOperationalEvent } from '../services/operationalEvents'
 import { tryAutoIssueInvoice } from '../services/reviewBillingAutomation'
 import { useReviewCustomerGroup } from '../hooks/useReviewCustomerGroup'
 
@@ -62,8 +64,8 @@ function readQueueTarget(params: URLSearchParams) {
   )
 }
 
-// Causas com cartão próprio: no máximo quatro números, e cada um filtra.
-const CARD_CAUSES: ReviewCause[] = ['cliente', 'peso', 'portal', 'granito']
+// Causas com cartão próprio; cada um filtra, "Outras pendências" inclusive.
+const CARD_CAUSES: ReviewCause[] = ['cliente', 'peso', 'portal', 'granito', 'outros']
 
 function plural(count: number, singular: string, pluralForm: string) {
   return `${count} ${count === 1 ? singular : pluralForm}`
@@ -95,7 +97,6 @@ export function Revisao() {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const reviewCustomerGroup = useReviewCustomerGroup()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   // A fila inicia recolhida; o mapa guarda o que o operador abriu ou fechou.
   const [openOverrides, setOpenOverrides] = useState<Map<string, boolean>>(new Map())
 
@@ -316,8 +317,6 @@ export function Revisao() {
 
   const groups = useMemo(() => sortReviewGroupsByPriority(groupReviewItems(filteredData)), [filteredData])
   const summaries = useMemo(() => new Map(groups.map((group) => [group.key, summarizeReviewGroup(group)])), [groups])
-  // O drawer anda na mesma ordem em que a fila aparece na tela.
-  const orderedIds = useMemo(() => flattenReviewGroupIds(groups), [groups])
   const blockedBlCount = useMemo(() => filteredData.filter((item) => item.source === 'bl').length, [filteredData])
 
   // Grupos que o alvo de chegada abre por padrão; o clique do operador prevalece.
@@ -342,28 +341,94 @@ export function Revisao() {
     return openOverrides.get(key) ?? arrivalKeys.has(key)
   }
 
-  // Busca na fila inteira, não no recorte: um B/L salvo que continua em
-  // revisão por outra causa sai do filtro, mas o drawer segue nele em vez de
-  // fechar e reabrir sozinho quando o filtro for limpo.
-  const selected = selectedId ? (data?.find((item) => item.id === selectedId) ?? null) : null
-  const selectedGroup = selected ? groups.find((group) => group.items.some((item) => item.id === selected.id)) ?? null : null
-  const currentIndex = selectedId ? orderedIds.indexOf(selectedId) : -1
   const hasActiveFilters = Boolean(searchText.trim() || causeFilter)
-
-  function handleClose() {
-    setSelectedId(null)
-  }
-
-  // Navegacao por id: calcula o proximo ANTES do refetch remover o item
-  // resolvido, evitando pular o item seguinte (bug do indice posicional).
-  function handleSaved(resolved: boolean) {
-    if (!resolved || currentIndex < 0) return
-    const nextId = orderedIds[currentIndex + 1] ?? null
-    setSelectedId(nextId)
-  }
 
   function toggleGroupCollapsed(key: string) {
     setOpenOverrides((current) => new Map(current).set(key, !isGroupOpen(key)))
+  }
+
+  // Caso F ("Conferir os dados do B/L"): grava os dados conferidos e reavalia
+  // as pendências, como a janela lateral fazia antes de 2026-10-16.
+  async function handleCheckSave(item: Extract<ReviewQueueItem, { source: 'bl' }>, values: ReviewBlCheckValues) {
+    if (!user) return
+    const changes: Array<{ field: string; before: string; after: string }> = []
+    const addChange = (field: string, before: string | number | null | undefined, after: string | number | null | undefined) => {
+      const beforeText = before == null ? '' : String(before)
+      const afterText = after == null ? '' : String(after)
+      if (beforeText !== afterText) changes.push({ field, before: beforeText, after: afterText })
+    }
+    addChange('Shipper', item.shipper, values.shipper.trim() || null)
+    addChange('Consignatário', item.consignee, values.consignee.trim() || null)
+    addChange('POL', item.pol, values.pol.trim() || null)
+    addChange('POD', item.pod, values.pod.trim() || null)
+    addChange('Peso contêiner (kg)', item.total_weight_kg, values.total_weight_kg)
+    addChange('CBM contêiner (m³)', item.total_cbm, values.total_cbm)
+    addChange('Peso carga solta (t)', item.bb_weight_ton, values.bb_weight_ton)
+    addChange('CBM carga solta (m³)', item.bb_cbm, values.bb_cbm)
+    addChange('Notas da revisão', splitReviewNotes(item.notes) || null, values.notes)
+    const confirmed = await confirm({
+      title: 'Salvar revisão do B/L',
+      message: changes.length
+        ? `Salvar as correções do B/L ${item.id} e reavaliar as pendências?`
+        : `Nenhum campo mudou. Reavaliar as pendências do B/L ${item.id}?`,
+      confirmLabel: 'Salvar revisão',
+      affected: { summary: `B/L ${item.id} · ${item.customer?.name ?? 'sem cliente vinculado'}` },
+      changes,
+      consequence: 'Atualiza os dados documentais e o servidor recalcula as pendências. Se nenhuma sobrar e os demais gates estiverem atendidos, a emissão da fatura poderá ocorrer automaticamente.',
+      reversibility: 'Os campos podem ser corrigidos novamente antes da emissão. Uma fatura emitida não pode ser apagada; sem pagamento, seu cancelamento é restrito ao perfil Administrativo.',
+    })
+    if (!confirmed) return
+    setSavingInlineId(item.id)
+    try {
+      const result = await saveBlReview({
+        blId: item.id,
+        original: {
+          shipper: item.shipper,
+          consignee: item.consignee,
+          pol: item.pol,
+          pod: item.pod,
+          total_weight_kg: item.total_weight_kg,
+          total_cbm: item.total_cbm,
+          bb_weight_ton: item.bb_weight_ton ?? null,
+          bb_cbm: item.bb_cbm ?? null,
+          // Só a parte humana: a linha técnica é regravada pela RPC.
+          notes: splitReviewNotes(item.notes) || null,
+        },
+        values: {
+          shipper: values.shipper,
+          consignee: values.consignee,
+          pol: values.pol,
+          pod: values.pod,
+          total_weight_kg: values.total_weight_kg,
+          total_cbm: values.total_cbm,
+          bb_weight_ton: values.bb_weight_ton,
+          bb_cbm: values.bb_cbm,
+          notes: values.notes,
+        },
+        customerId: item.customer_id ?? null,
+        previousCustomerId: item.customer_id ?? null,
+        changedBy: user.id,
+        justification: values.justification,
+        expectedUpdatedAt: item.updated_at ?? null,
+      })
+      await finishBlCorrection(item, item.customer_id ?? null, result, 'Revisão salva')
+    } catch (err) {
+      if (err instanceof ConcurrentEditError) {
+        void logOperationalEvent({
+          code: 'bl_review_concurrent_conflict',
+          message: err.message,
+          changedBy: user.id,
+          entityId: item.id,
+          context: { source: 'review_group' },
+        })
+        await queryClient.invalidateQueries({ queryKey: ['review-queue'] })
+        pushOutcome({ tone: 'danger', title: `B/L ${item.id}: não foi salvo`, lines: ['Outro usuário alterou este B/L. A fila foi recarregada; confira os dados e salve de novo.'] })
+      } else {
+        pushOutcome({ tone: 'danger', title: `B/L ${item.id}: falha ao salvar a revisão`, lines: [extractErrorText(err) || 'Tente de novo.'] })
+      }
+    } finally {
+      setSavingInlineId(null)
+    }
   }
 
   // Vincula um cliente a todos os registros do grupo que ainda nao tem cliente.
@@ -535,7 +600,7 @@ export function Revisao() {
       <PageHeader title="Revisão" />
 
       {data && data.length > 0 ? (
-        <div className="review-causes" role="group" aria-label="Filtrar por causa">
+        <div className="app-metric-row" role="group" aria-label="Filtrar por causa">
           {CARD_CAUSES.map((cause) => (
             <MetricCard
               key={cause}
@@ -557,47 +622,27 @@ export function Revisao() {
         onRecalc={(notice) => void handleRecalc(notice)}
       />
 
-      <section className="review-queue" aria-label="Fila de revisão">
-        <div className="review-toolbar">
-          <div className="review-search">
-            <Search className="review-search__icon" size={15} aria-hidden="true" />
+      <section className="grid gap-3" aria-label="Fila de revisão">
+        <div className="app-filter-grid">
+          <Field label="Buscar">
             <Input
+              type="search"
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Buscar B/L, cliente, consignatário..."
-              aria-label="Buscar B/L, cliente, consignatário ou CNPJ"
-              className="app-review-search__input"
+              placeholder="B/L, cliente, consignatário ou CNPJ"
             />
-            {searchText ? (
-              <button type="button" className="review-search__clear" onClick={() => setSearchText('')} aria-label="Limpar busca">
-                <X size={14} aria-hidden="true" />
-              </button>
-            ) : null}
+          </Field>
+          <div className="flex flex-wrap items-center gap-3">
+            {data ? <SummaryStrip items={summaryItems} label="Resumo da fila" /> : null}
+            {hasActiveFilters ? <Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button> : null}
           </div>
-          {data ? <SummaryStrip items={summaryItems} label="Resumo da fila" className="review-toolbar__summary" /> : null}
-          {hasActiveFilters ? (
-            <div className="review-toolbar__filters">
-              <span>
-                {causeFilter ? `Causa: ${REVIEW_CAUSE_LABELS[causeFilter]}` : null}
-                {causeFilter && searchText.trim() ? ' · ' : null}
-                {searchText.trim() ? `Busca: “${searchText.trim()}”` : null}
-              </span>
-              <Button variant="secondary" className="app-btn--sm" onClick={clearFilters}>Limpar filtros</Button>
-            </div>
-          ) : null}
-          {causeCounts.outros > 0 && causeFilter !== 'outros' ? (
-            <Button variant="secondary" className="app-btn--sm review-toolbar__other" onClick={() => setCauseFilter('outros')}>
-              {plural(causeCounts.outros, 'registro com outra pendência', 'registros com outras pendências')}
-            </Button>
-          ) : null}
         </div>
 
         {graniteUnavailable ? (
-          <div className="review-partial" role="alert">
-            <AlertTriangle size={16} aria-hidden="true" />
-            <p>Os registros de Granito não carregaram; a fila abaixo mostra só os B/Ls.</p>
+          <p className="app-status-text app-status-text--warning" role="alert">
+            Os registros de Granito não carregaram; a fila abaixo mostra só os B/Ls.{' '}
             <Button variant="secondary" className="app-btn--sm" onClick={() => void reviewQueue.refetch?.()}>Tentar novamente</Button>
-          </div>
+          </p>
         ) : null}
 
         <QueryStateGate
@@ -608,7 +653,7 @@ export function Revisao() {
           errorMessage="Não foi possível carregar a fila de revisão. Nenhum dado foi alterado."
           onRetry={reviewQueue.refetch ? () => void reviewQueue.refetch() : undefined}
           loadingLabel="Carregando a fila de revisão…"
-          loadingFallback={<SkeletonTable rows={6} cols={3} label="Carregando a fila de revisão" />}
+          loadingFallback={<SkeletonTable rows={6} cols={4} label="Carregando a fila de revisão" />}
         >
           {!filteredData.length ? (
             hasActiveFilters ? (
@@ -624,42 +669,75 @@ export function Revisao() {
               />
             )
           ) : (
-            <div className="review-groups">
-              {groups.map((group) => (
-                <ReviewGroupBlock
-                  key={group.key}
-                  group={group}
-                  summary={summaries.get(group.key)!}
-                  collapsed={!isGroupOpen(group.key)}
-                  savingGroup={savingGroupKey === group.key}
-                  savingInlineId={savingInlineId}
-                  onToggle={() => toggleGroupCollapsed(group.key)}
-                  onGroupLink={(customer) => void handleGroupLinkCustomer(group, customer)}
-                  onGroupOnboard={(input) => void handleGroupOnboard(group, input)}
-                  onCorrect={(id) => setSelectedId(id)}
-                  onInlineWeight={(item, value) => void handleInlineWeight(item, value)}
-                />
-              ))}
+            <div className="app-table-scroll">
+              <table className="app-table">
+                <caption className="sr-only">Fila de revisão, uma linha por Cliente</caption>
+                <thead>
+                  <tr>
+                    <th scope="col"><span className="sr-only">Abrir</span></th>
+                    <th scope="col" className="app-table__text-head">Cliente</th>
+                    <th scope="col">B/Ls</th>
+                    <th scope="col" className="app-table__text-head hidden lg:table-cell">Pendências</th>
+                    <th scope="col" className="app-table__text-head">Próxima ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.map((group) => {
+                    const summary = summaries.get(group.key)!
+                    const open = isGroupOpen(group.key)
+                    const panelId = `revisao-grupo-${group.key}`
+                    const causes = REVIEW_CAUSE_ORDER.filter((cause) => summary.causeCounts[cause] > 0)
+                    return (
+                      <Fragment key={group.key}>
+                        <tr data-review-group={group.key}>
+                          <td>
+                            <button
+                              type="button"
+                              className="app-table__icon-button"
+                              aria-controls={open ? panelId : undefined}
+                              aria-expanded={open}
+                              aria-label={`${open ? 'Recolher' : 'Abrir'} ${group.displayName}`}
+                              onClick={() => toggleGroupCollapsed(group.key)}
+                            >
+                              {open ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+                            </button>
+                          </td>
+                          <td className="app-table__text"><strong>{group.displayName}</strong></td>
+                          <td>
+                            {summary.blCount > 0 ? summary.blCount : null}
+                            {summary.blCount > 0 && summary.graniteCount > 0 ? ' + ' : null}
+                            {summary.graniteCount > 0 ? `${summary.graniteCount} Granito` : null}
+                          </td>
+                          <td className="app-table__text hidden lg:table-cell">
+                            {causes.map((cause) => (cause === 'outros' ? 'Outra pendência' : REVIEW_CAUSE_LABELS[cause])).join(' · ')}
+                          </td>
+                          <td className="app-table__text">{summary.nextAction.title}</td>
+                        </tr>
+                        {open ? (
+                          <tr id={panelId} data-row-detail>
+                            <td colSpan={5}>
+                              <ReviewGroupDetail
+                                group={group}
+                                summary={summary}
+                                savingGroup={savingGroupKey === group.key}
+                                savingInlineId={savingInlineId}
+                                onGroupLink={(customer) => void handleGroupLinkCustomer(group, customer)}
+                                onGroupOnboard={(input) => void handleGroupOnboard(group, input)}
+                                onInlineWeight={(item, value) => void handleInlineWeight(item, value)}
+                                onCheckSave={(item, values) => void handleCheckSave(item, values)}
+                              />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </QueryStateGate>
       </section>
-
-      <ReviewDrawer
-        item={selected}
-        currentIndex={currentIndex}
-        totalItems={orderedIds.length}
-        onClose={handleClose}
-        onSaved={handleSaved}
-        onReviewSaved={evaluateRecalcNotice}
-        onNavigate={(id) => setSelectedId(id)}
-        siblingIds={orderedIds}
-        allowCustomerLink={Boolean(
-          selected?.source === 'bl' && selected.customer_id != null
-            || selectedGroup?.identityKind === 'conflict'
-            || (selected && hasCustomerDocumentConflict(selected)),
-        )}
-      />
     </>
   )
 }

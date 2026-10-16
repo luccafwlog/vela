@@ -89,7 +89,6 @@
   font-family: var(--app-font-body);
 }
 
-
 :root[data-visual-theme='light'] {
   color-scheme: light;
   --app-header-height: 56px;
@@ -215,7 +214,6 @@
   --app-info-fg: #1d67b3;
   --app-focus-ring: #1d67b3;
 }
-
 
 /* Degraus que o Tailwind não tem por padrão. Os demais: 12 = text-xs,
    14 = text-sm, 16 = text-base, 20 = text-xl, 24 = text-2xl. */
@@ -896,7 +894,6 @@ textarea {
   box-shadow: inset 3px 0 0 var(--app-nav-active);
 }
 
-
 /* Entre 1101 e 1399 px a barra perde os ícones da navegação; até 1279 px
    perde também o nome da conta (que segue como nome acessível). Medido com
    os nove itens do Vela e o Admin visível. */
@@ -1271,109 +1268,10 @@ textarea {
   }
 }
 
-/* Revisão (etapa 07): fila de triagem por cliente. Uma superfície por grupo,
-   seções separadas por filete; cor só para estado (causa, conflito, resultado).
-   Todos os tamanhos na escala 12/13/14/16/20 e só tokens com par escuro. */
-.review-causes {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  max-width: 960px;
-  margin-bottom: 16px;
-}
-
-.review-causes .app-metric-tile {
-  padding: 10px 14px;
-}
-
-.review-queue {
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-}
-
-.review-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--app-border);
-}
-
-.review-search {
-  position: relative;
-  width: min(100%, 320px);
-}
-
-.review-search__icon {
-  position: absolute;
-  top: 50%;
-  left: 12px;
-  transform: translateY(-50%);
-  color: var(--app-muted-soft);
-  pointer-events: none;
-}
-
-.review-search__clear {
-  position: absolute;
-  top: 50%;
-  right: 4px;
-  display: inline-flex;
-  min-width: 32px;
-  min-height: 32px;
-  align-items: center;
-  justify-content: center;
-  transform: translateY(-50%);
-  border: 0;
-  border-radius: var(--app-radius-control);
-  background: transparent;
-  color: var(--app-muted);
-  cursor: pointer;
-}
-
-.review-search__clear:hover {
-  color: var(--app-text);
-}
-
-.review-toolbar__summary {
-  margin-left: auto;
-}
-
-.review-toolbar__filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  width: 100%;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-}
-
-.review-toolbar__other {
-  font-size: var(--app-size-caption);
-}
-
-.review-partial {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--app-warning-border);
-  background: var(--app-warning-bg);
-  color: var(--app-warning-fg);
-  font-size: var(--app-size-table);
-}
-
-.review-partial p {
-  margin: 0;
-  flex: 1 1 240px;
-}
-
-.review-groups > * + * {
-  border-top: 1px solid var(--app-border-strong);
-}
+/* Revisão: o que sobrou da família depois do lote 2 da identidade (2026-10-16):
+   busca de cliente e edição inline (ReviewInlineEditors), cadastro embutido na
+   ficha do B/L (ReviewCustomerOnboarding) e os resultados recentes. A fila e o
+   grupo aberto usam só as peças comuns. */
 
 .review-section-title {
   margin: 0;
@@ -1412,330 +1310,10 @@ textarea {
 }
 
 .review-link:focus-visible,
-.review-link-button:focus-visible,
-.review-group__toggle:focus-visible,
-.review-evidence__item-toggle:focus-visible,
-.review-items__id:focus-visible {
+.review-link-button:focus-visible {
   outline: 2px solid var(--app-focus-ring);
   outline-offset: 2px;
   border-radius: 4px;
-}
-
-/* Grupo */
-.review-group__heading {
-  margin: 0;
-  font: inherit;
-}
-
-.review-group__toggle {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr);
-  align-items: center;
-  gap: 4px 16px;
-  width: 100%;
-  min-height: 56px;
-  padding: 10px 16px;
-  border: 0;
-  background: transparent;
-  color: var(--app-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.review-group__toggle:hover {
-  background: var(--app-surface-hover);
-}
-
-.review-group__toggle[aria-expanded='true'] {
-  background: var(--app-surface-muted);
-  border-bottom: 1px solid var(--app-border);
-}
-
-.review-group__chevron {
-  color: var(--app-muted);
-  transition: transform 160ms ease-out;
-}
-
-.review-group__identity,
-.review-group__next {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.review-group__name {
-  color: var(--app-text-strong);
-  font-size: var(--app-size-section);
-  font-weight: 600;
-  line-height: 22px;
-  overflow-wrap: anywhere;
-}
-
-.review-group__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.review-group__next-label {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.review-group__next-title {
-  color: var(--app-text-strong);
-  font-size: var(--app-size-table);
-  font-weight: 500;
-  line-height: 18px;
-}
-
-.review-group__causes {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px 12px;
-}
-
-/* Causa: ponto + texto, a cor nunca é o único sinal. */
-.review-cause {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--app-text);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-  white-space: nowrap;
-}
-
-.review-cause::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  flex: none;
-  border-radius: 999px;
-  background: var(--app-neutral-fg);
-}
-
-.review-cause--cliente::before,
-.review-cause--peso::before {
-  background: var(--app-danger-fg);
-}
-
-.review-cause--portal::before {
-  background: var(--app-warning-fg);
-}
-
-.review-cause--granito::before {
-  background: var(--app-info-fg);
-}
-
-.review-group__body {
-  display: grid;
-  gap: 16px;
-  padding: 16px 16px 20px 52px;
-}
-
-.review-next {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 16px;
-  padding-left: 12px;
-  border-left: 3px solid var(--app-border-strong);
-}
-
-.review-next--conflict,
-.review-next--customer,
-.review-next--customer-name,
-.review-next--email,
-.review-next--weight {
-  border-left-color: var(--app-danger-fg);
-}
-
-.review-next--portal {
-  border-left-color: var(--app-warning-fg);
-}
-
-.review-next--granite {
-  border-left-color: var(--app-info-fg);
-}
-
-.review-next__detail {
-  flex: 1 1 360px;
-  margin: 0;
-  color: var(--app-text);
-  font-size: var(--app-size-body);
-  line-height: 20px;
-}
-
-.review-next__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-}
-
-.review-customer {
-  display: grid;
-  gap: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--app-border);
-}
-
-@media (min-width: 1100px) {
-  .review-customer--split {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  }
-}
-
-.review-customer__form {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-}
-
-/* Evidências */
-.review-evidence {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-}
-
-.review-evidence__none {
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-}
-
-.review-evidence__candidates {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--app-border);
-}
-
-.review-evidence__candidate {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--app-border);
-}
-
-.review-evidence__cnpj {
-  display: block;
-  color: var(--app-text-strong);
-  font-weight: 500;
-}
-
-.review-evidence__source {
-  display: block;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-}
-
-.review-evidence__in-use {
-  color: var(--app-success-fg);
-  font-size: var(--app-size-caption);
-  font-weight: 500;
-}
-
-.review-evidence__items {
-  display: grid;
-  gap: 8px;
-}
-
-.review-evidence__item {
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control);
-}
-
-.review-evidence__item-toggle {
-  display: flex;
-  width: 100%;
-  min-height: 44px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border: 0;
-  background: transparent;
-  color: var(--app-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.review-evidence__item-toggle:hover {
-  background: var(--app-surface-hover);
-}
-
-.review-evidence__item-id {
-  display: block;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-table);
-  font-weight: 500;
-}
-
-.review-evidence__item-summary {
-  display: block;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  overflow-wrap: anywhere;
-}
-
-.review-evidence__chevron {
-  flex: none;
-  color: var(--app-muted);
-  transition: transform 160ms ease-out;
-}
-
-.review-evidence__raw-fields {
-  display: grid;
-  gap: 8px;
-  padding: 8px 12px 12px;
-  border-top: 1px solid var(--app-border);
-}
-
-.review-evidence__field-label {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  font-weight: 500;
-}
-
-.review-evidence__raw {
-  max-height: 180px;
-  margin: 4px 0 0;
-  overflow: auto;
-  padding: 8px 10px;
-  border-radius: var(--app-radius-control);
-  background: var(--app-surface-muted);
-  color: var(--app-text);
-  font-family: var(--app-font-mono);
-  font-size: var(--app-size-caption);
-  line-height: 18px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.review-evidence__raw--empty {
-  color: var(--app-muted);
-}
-
-.review-evidence__mark {
-  padding: 0 2px;
-  border-radius: 2px;
-  background: var(--app-warning-bg);
-  color: var(--app-warning-fg);
-  font-weight: 600;
 }
 
 /* Cadastro do grupo */
@@ -1745,7 +1323,6 @@ textarea {
 }
 
 .review-onboarding__intro,
-.review-quick-link__hint,
 .review-onboarding__selected {
   margin: 4px 0 0;
   color: var(--app-muted);
@@ -1826,23 +1403,10 @@ textarea {
   gap: 4px;
 }
 
-.review-onboarding__block,
-.review-drawer__block {
+.review-onboarding__block {
   margin: 0;
   color: var(--app-muted);
   font-size: var(--app-size-caption);
-}
-
-.review-quick-link {
-  display: grid;
-  gap: 8px;
-}
-
-.review-quick-link__body {
-  display: grid;
-  gap: 8px;
-  padding-left: 12px;
-  border-left: 2px solid var(--app-border);
 }
 
 /* Busca de cliente */
@@ -1954,78 +1518,6 @@ textarea {
   font-size: var(--app-size-caption);
 }
 
-/* Registros do grupo */
-.review-items {
-  overflow-x: auto;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control);
-}
-
-.review-items__table {
-  width: 100%;
-  font-size: var(--app-size-table);
-}
-
-.review-items__table td {
-  vertical-align: top;
-}
-
-.review-items__id {
-  display: block;
-  color: var(--app-link);
-  font-weight: 600;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-a.review-items__id:hover {
-  text-decoration: underline;
-}
-
-span.review-items__id {
-  color: var(--app-text-strong);
-}
-
-.review-items__sub {
-  display: block;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-}
-
-.review-items__reasons {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.review-items__reason {
-  color: var(--app-text);
-}
-
-.review-items__reason--group,
-.review-items__where {
-  color: var(--app-muted);
-}
-
-.review-items__suggestion {
-  margin: 4px 0 0;
-  color: var(--app-warning-fg);
-  font-size: var(--app-size-caption);
-}
-
-.review-items__voyage {
-  color: var(--app-muted);
-  white-space: nowrap;
-}
-
-.review-items__action {
-  width: 1%;
-  text-align: right;
-  white-space: nowrap;
-}
-
 /* Resultados */
 .review-outcomes {
   display: grid;
@@ -2116,208 +1608,8 @@ span.review-items__id {
 }
 
 /* Drawer */
-.review-drawer {
-  display: grid;
-  gap: 20px;
-}
-
-.review-drawer__pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--app-border);
-}
-
-.review-drawer__pager-button {
-  display: inline-flex;
-  min-height: 36px;
-  align-items: center;
-  gap: 4px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--app-radius-control);
-  background: transparent;
-  color: var(--app-link);
-  font: inherit;
-  font-size: var(--app-size-table);
-  cursor: pointer;
-}
-
-.review-drawer__pager-button:hover:not(:disabled) {
-  background: var(--app-surface-hover);
-}
-
-.review-drawer__pager-button:disabled {
-  color: var(--app-muted-soft);
-  cursor: not-allowed;
-}
-
-.review-drawer__pager-count {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  font-variant-numeric: tabular-nums;
-}
-
-.review-drawer__pending {
-  display: grid;
-  gap: 8px;
-  padding-left: 12px;
-  border-left: 3px solid var(--app-warning-fg);
-}
-
-.review-drawer__pending ul {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--app-size-table);
-}
-
-.review-drawer__pending li {
-  display: grid;
-  gap: 1px;
-}
-
-.review-drawer__pending li strong {
-  color: var(--app-text-strong);
-  font-weight: 600;
-}
-
-.review-drawer__pending li span {
-  color: var(--app-muted);
-}
-
-.review-drawer__section {
-  display: grid;
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--app-border);
-}
-
-.review-drawer__grid {
-  display: grid;
-  gap: 12px;
-}
-
-@media (min-width: 640px) {
-  .review-drawer__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.review-drawer__note {
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-}
-
-.review-drawer__suggestion {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 12px;
-  padding: 8px 12px;
-  border: 1px solid var(--app-warning-border);
-  border-radius: var(--app-radius-control);
-  background: var(--app-warning-bg);
-  color: var(--app-warning-fg);
-  font-size: var(--app-size-table);
-}
-
-.review-drawer__suggestion p {
-  margin: 0;
-}
-
-.review-drawer__selected {
-  margin: 0;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-}
-
-.review-drawer__cargo-description {
-  min-height: 72px;
-  resize: vertical;
-  background: var(--app-surface-muted);
-}
-
-.review-drawer__notes {
-  min-height: 64px;
-}
-
-.review-drawer__footer {
-  position: sticky;
-  bottom: 0;
-  display: grid;
-  gap: 8px;
-  margin: 0 -4px;
-  padding: 12px 4px 4px;
-  border-top: 1px solid var(--app-border);
-  background: var(--app-surface);
-}
-
-.review-drawer__effect {
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.review-drawer__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-@media (max-width: 1099px) {
-  .review-group__toggle {
-    grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .review-group__causes {
-    grid-column: 2 / -1;
-    justify-content: flex-start;
-  }
-}
 
 @media (max-width: 767px) {
-  .review-causes {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .review-causes .app-metric-tile {
-    padding: 8px 10px;
-  }
-
-  .review-toolbar {
-    padding: 10px 12px;
-  }
-
-  .review-search {
-    width: 100%;
-  }
-
-  .review-toolbar__summary {
-    margin-left: 0;
-  }
-
-  .review-group__toggle {
-    grid-template-columns: 20px minmax(0, 1fr);
-    padding: 10px 12px;
-  }
-
-  .review-group__next,
-  .review-group__causes {
-    grid-column: 2;
-  }
-
-  .review-group__body {
-    padding: 12px;
-  }
 
   .review-onboarding__submit {
     justify-items: stretch;
@@ -2329,12 +1621,10 @@ span.review-items__id {
 @media (pointer: coarse) {
   .review-link,
   .review-link-button,
-  .review-items__id,
   .review-onboarding__invite {
     min-height: 44px;
   }
 
-  .review-items__id,
   .review-onboarding__invite {
     display: flex;
     align-items: center;
@@ -2342,59 +1632,6 @@ span.review-items__id {
 }
 
 /* Abaixo de 640 px cada registro vira um cartão com rótulos. */
-@media (max-width: 639px) {
-  .review-items {
-    overflow: visible;
-    border: 0;
-  }
-
-  .review-items__table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-  }
-
-  .review-items__table,
-  .review-items__table tbody,
-  .review-items__table tr,
-  .review-items__table td {
-    display: block;
-    width: 100%;
-  }
-
-  .review-items__table tr {
-    margin-bottom: 8px;
-    padding: 4px 0;
-    border: 1px solid var(--app-border);
-    border-radius: var(--app-radius-control);
-  }
-
-  .review-items__table td {
-    padding: 6px 12px;
-    border: 0;
-  }
-
-  .review-items__table td[data-label]:not(:first-child)::before {
-    content: attr(data-label);
-    display: block;
-    color: var(--app-muted);
-    font-size: var(--app-size-caption);
-  }
-
-  .review-items__voyage {
-    white-space: normal;
-  }
-
-  .review-items__action {
-    text-align: left;
-  }
-
-  .review-items__action .app-btn {
-    width: 100%;
-  }
-}
 
 .page-header {
   display: flex;
@@ -3185,7 +2422,6 @@ button.app-metric-tile[aria-pressed='true'] {
   color: #ffffff;
 }
 
-
 @media (pointer: fine) {
   .app-shell--vela .app-tab {
     min-height: 40px;
@@ -3649,7 +2885,6 @@ button.app-metric-tile[aria-pressed='true'] {
   color: var(--app-blue-btn);
 }
 
-
 .app-confirm__lead--danger .app-confirm__lead-icon {
   background: var(--app-red-soft);
   color: var(--app-red);
@@ -3982,7 +3217,6 @@ button.app-metric-tile[aria-pressed='true'] {
   background: color-mix(in srgb, var(--app-red) 88%, #000000);
   border-color: color-mix(in srgb, var(--app-red) 88%, #000000);
 }
-
 
 @media (max-width: 480px) {
   .app-modal__body.app-confirm__body {
@@ -6702,7 +5936,6 @@ button.app-metric-tile[aria-pressed='true'] {
   border-color: #bfd4ff !important;
 }
 
-
 @media (max-width: 1024px) {
   .app-main {
     padding: 28px 20px 40px;
@@ -9165,7 +8398,6 @@ a.app-step-rail__link:focus-visible {
   margin-top: 4px;
 }
 
-
 .app-bl-section-head {
   display: flex;
   flex-wrap: wrap;
@@ -9173,7 +8405,6 @@ a.app-step-rail__link:focus-visible {
   justify-content: space-between;
   gap: 4px 16px;
 }
-
 
 .app-bl-section-head__link {
   display: inline-flex;
@@ -9192,7 +8423,6 @@ a.app-step-rail__link:focus-visible {
   font-weight: 600;
   line-height: 24px;
 }
-
 
 .app-bl-facts {
   display: grid;
@@ -9229,7 +8459,6 @@ a.app-step-rail__link:focus-visible {
   overflow-wrap: anywhere;
 }
 
-
 .app-bl-facts__missing {
   color: var(--app-muted);
   font-weight: 400;
@@ -9264,7 +8493,6 @@ a.app-step-rail__link:focus-visible {
   padding-left: 18px;
   list-style: disc;
 }
-
 
 /* Terminal de descarga como fato do Embarque. */
 .app-bl-terminal__value {
@@ -9381,7 +8609,6 @@ a.app-step-rail__link:focus-visible {
     align-items: end;
   }
 }
-
 
 @media (max-width: 639px) {
 
@@ -14125,7 +13352,6 @@ tr[data-inactive] .app-rates-item__value {
   color: #ffffff;
 }
 
-
 .app-identity__main {
   flex: 1 1 420px;
   min-width: 0;
@@ -14287,6 +13513,69 @@ tr[data-inactive] .app-rates-item__value {
 .app-status-text__icon {
   flex: none;
   color: var(--app-success-fg);
+}
+
+/* Escolha em cartões (ChoiceCards): opções lado a lado, cada uma com o efeito
+   escrito embaixo; pode começar sem nada marcado. */
+.app-choice {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.app-choice__legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.app-choice__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.app-choice__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface);
+  cursor: pointer;
+}
+
+.app-choice__option:has(.app-choice__input:checked) {
+  border-color: var(--app-blue-btn);
+  box-shadow: inset 0 0 0 1px var(--app-blue-btn);
+}
+
+.app-choice__option:has(.app-choice__input:focus-visible) {
+  outline: 2px solid var(--app-link);
+  outline-offset: 2px;
+}
+
+.app-choice__input {
+  flex: none;
+  margin-top: 3px;
+  accent-color: var(--app-blue-btn);
+}
+
+.app-choice__text {
+  display: grid;
+  gap: 2px;
+}
+
+.app-choice__title {
+  font-weight: 600;
+}
+
+.app-choice__description {
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
 }
 
 /* Linha encerrada sem efeito (fatura cancelada): inteira em cinza, link inclusive. */
