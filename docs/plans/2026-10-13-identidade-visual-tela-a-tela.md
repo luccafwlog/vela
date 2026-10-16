@@ -78,6 +78,11 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   é vinculado automaticamente; hoje a importação só vincula pelo CNPJ do campo
   do manifesto (`findMatchedCustomer` em `blFreightImport.ts`), e o B/L com o
   CNPJ só no texto do consignatário ou na descrição cai na Revisão.
+  **Revisão aprovada em 2026-10-16** com as respostas da rodada 3: no
+  cadastro, o Portal do Cliente não vem marcado (o botão só libera depois da
+  escolha); no caso D, as ações do Provisionamento (autorizar e enviar,
+  reenviar convite, usar outro e-mail) ficam na própria Revisão; a Liberação
+  de faturamento sem Portal fica só na ficha do Cliente.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
