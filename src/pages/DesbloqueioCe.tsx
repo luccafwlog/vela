@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, FileSpreadsheet, History, SearchX, X } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useCeUnlock, useCeUnlockRequest, useCeUnlockReviewQueue, useCeUnlockSituationCounts } from "../hooks/useCeUnlock";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { Block } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
 import { EmptyState, InlineError, PageHeader } from "../components/ui/Card";
@@ -87,9 +88,14 @@ export function DesbloqueioCe() {
   const [sheetBusy, setSheetBusy] = useState(false);
   const [deliveryBusy, setDeliveryBusy] = useState(false);
   const keys = useRef(new Map<string, string>());
-  const { list, command } = useCeUnlock(filters, page, read && tab === "controle");
+  // Busca e POD só consultam depois da pausa na digitação: cada leitura recalcula a situação de todos os
+  // B/Ls com CE, e os cartões fazem mais quatro.
+  const search = useDebouncedValue(filters.search ?? "");
+  const pod = useDebouncedValue(filters.pod ?? "");
+  const queryFilters = useMemo(() => ({ ...filters, search, pod }), [filters, search, pod]);
+  const { list, command } = useCeUnlock(queryFilters, page, read && tab === "controle");
   const queueCount = useCeUnlockReviewQueue(1, read);
-  const counts = useCeUnlockSituationCounts(filters, CARDS.map(([s]) => s), read && tab === "controle");
+  const counts = useCeUnlockSituationCounts(queryFilters, CARDS.map(([s]) => s), read && tab === "controle");
   const request = useCeUnlockRequest(id);
   const client = useQueryClient();
   const confirm = useConfirm();
@@ -112,7 +118,8 @@ export function DesbloqueioCe() {
     (["search", "pod", "voyage_id"] as const).filter((k) => !!filters[k]).length +
     (filters.situation !== DEFAULT_FILTERS.situation ? 1 : 0);
   const activeFilters = openFilters + moreFilters;
-  // A linha da página atual é a versão mais recente do B/L selecionado.
+  // A linha da página atual é a versão mais recente do B/L selecionado; fora dela vale a cópia guardada,
+  // que a entrega registrada ou desmarcada nesta tela renova com o B/L devolvido pelo comando.
   const current = new Map(items.map((i) => [i.bl_id, i]));
   const selected = [...selection.values()].map((i) => current.get(i.bl_id) ?? i);
   const selectedReady = selected.filter((i) => i.can_export);
@@ -169,6 +176,10 @@ export function DesbloqueioCe() {
     keys.current.delete(k.text);
     return result;
   }
+  function refreshSelected(i: CeUnlockItem, updated: unknown) {
+    if (!updated || typeof updated !== "object") return;
+    setSelection((prev) => (prev.has(i.bl_id) ? new Map(prev).set(i.bl_id, { ...i, ...(updated as Partial<CeUnlockItem>) }) : prev));
+  }
   async function delivery(i: CeUnlockItem) {
     let reason: string | null = null;
     if (i.delivered) {
@@ -190,7 +201,8 @@ export function DesbloqueioCe() {
     )
       return;
     try {
-      await act("delivery", { bl_id: i.bl_id, delivered: !i.delivered, expected_version: i.delivery_version, reason });
+      const updated = await act("delivery", { bl_id: i.bl_id, delivered: !i.delivered, expected_version: i.delivery_version, reason });
+      refreshSelected(i, updated);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Falha ao registrar entrega", "error");
     }
@@ -242,7 +254,7 @@ export function DesbloqueioCe() {
         affected: { summary: bls(blIds.length), items: blIds },
         consequence: "A planilha é baixada e o envio fica registrado nestes B/Ls. O desbloqueio acontece quando ela for importada na ZPT.",
         reversibility: "B/L recusado pela ZPT aparece como divergente após a conciliação e pode ser reexportado.",
-        confirmLabel: reexportOf ? "Reexportar" : "Exportar planilha",
+        confirmLabel: reexportOf ? "Reexportar" : "Exportar para a ZPT",
       }))
     )
       return;
@@ -269,7 +281,7 @@ export function DesbloqueioCe() {
   async function exportSheet() {
     setSheetBusy(true);
     try {
-      await exportCeUnlockWorkbook(await fetchAllCeUnlockBls(filters));
+      await exportCeUnlockWorkbook(await fetchAllCeUnlockBls(queryFilters));
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Falha ao exportar a planilha", "error");
     } finally {

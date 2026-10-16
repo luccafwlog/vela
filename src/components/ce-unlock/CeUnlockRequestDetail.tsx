@@ -147,10 +147,13 @@ export function CeUnlockRequestDetail({
   const reviewable =
     manage && !vip && !busy && ["submitted", "in_review", "changes_requested", "completed"].includes(request.state);
   const documents = (manage && !vip ? latestDocuments : request.documents).filter((d) => d.status !== "uploading");
-  const canApprove = (d: CeUnlockDocument) => !approvedFor(d.type) && !["changes_requested", "revoked"].includes(d.status);
+  // Documento recusado ainda pode ser aprovado (recusa por engano ou "Recusar aprovação"); o banco só exige a versão atual.
+  const canApprove = (d: CeUnlockDocument) => !approvedFor(d.type) && d.status !== "revoked";
   const analyzed = documents.find((d) => d.id === analyzing) ?? null;
   const cnpj = request.items[0]?.cnpj_cpf;
-  const openedAt = request.events[0]?.created_at;
+  // Os eventos vêm em ordem de registro e incluem os do B/L sem solicitação (a entrega do original, por exemplo):
+  // a abertura é o primeiro rascunho ou envio.
+  const openedAt = (request.events.find((e) => e.action === "draft" || e.action === "submit") ?? request.events[0])?.created_at;
   const missing = open ? ceUnlockMissing(request) : null;
   return (
     <section className="space-y-4">
@@ -338,7 +341,9 @@ export function CeUnlockRequestDetail({
             <span className="app-table__cell-meta">Confira o documento e decida.</span>
             <span className="ml-auto flex flex-wrap gap-2">
               <Button onClick={() => void review(analyzed, "approved")}>Aprovar {lower(analyzed.type)}</Button>
-              <Button variant="secondary" onClick={() => void review(analyzed, "changes_requested")}>Recusar…</Button>
+              {analyzed.status !== "changes_requested" ? (
+                <Button variant="secondary" onClick={() => void review(analyzed, "changes_requested")}>Recusar…</Button>
+              ) : null}
               <Button variant="ghost" onClick={() => setAnalyzing(null)}>Voltar</Button>
             </span>
           </div>

@@ -175,3 +175,25 @@ it("sem substituições, ou em pedido VIP, não mostra versões anteriores", () 
   render(<CeUnlockRequestDetail request={versionRequest(versionDocs, "vip_annual")} manage busy={false} onAction={vi.fn()} />);
   expect(screen.queryByRole("region", { name: "Versões anteriores dos documentos" })).toBeNull();
 });
+
+it('documento recusado ainda pode ser aprovado, sem recusar de novo', async () => {
+  const onAction = vi.fn<(action: string, payload: Record<string, unknown>) => Promise<void>>(async () => {})
+  const request = base({ state: 'changes_requested', documents: [doc('termo-atual', 'termo', 'changes_requested'), doc('proc-atual', 'procuracao')] as never })
+  render(<CeUnlockRequestDetail request={request} manage onAction={onAction} busy={false} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Analisar termo de devolução' }))
+  const block = screen.getByRole('region', { name: 'Analisar termo de devolução' })
+  expect(within(block).queryByRole('button', { name: 'Recusar…' })).toBeNull()
+  await userEvent.click(within(block).getByRole('button', { name: 'Aprovar termo de devolução' }))
+  expect(onAction).toHaveBeenCalledWith('review', expect.objectContaining({ document_id: 'termo-atual', decision: 'approved' }))
+})
+
+it('"aberta em" usa o rascunho ou o envio, não a entrega do original registrada antes', () => {
+  const request = base({ events: [
+    { id: 1, action: 'delivery', reason: null, created_at: '2026-10-10T12:00:00Z', actor: 'Ana Ribeiro' },
+    { id: 2, action: 'submit', reason: null, created_at: '2026-10-12T12:00:00Z', actor: 'Cliente pelo Portal' },
+  ] })
+  render(<CeUnlockRequestDetail request={request} manage onAction={async () => {}} busy={false} />)
+  const block = screen.getByRole('region', { name: 'Solicitação' })
+  expect(block.textContent).toContain('aberta em 12/10')
+  expect(block.textContent).not.toContain('aberta em 10/10')
+})

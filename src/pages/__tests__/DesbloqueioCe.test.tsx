@@ -152,3 +152,19 @@ it('B/L desbloqueado na ZPT sem exportação pelo Vela continua com o prazo aber
   const line = screen.getByRole('link', { name: 'BL-800' }).closest('tr') as HTMLElement
   expect(line.querySelector('[data-sla="overdue"]')?.textContent).toBe('Venceu 07/10, 17:00')
 })
+it('a seleção guarda a versão mais recente do B/L depois que ele sai da página', async () => {
+  state.extra = [{ bl_id: 'BL-900', delivery_version: 1 }]
+  // O comando devolve o B/L com a entrega registrada e a versão nova.
+  state.mutateAsync.mockImplementationOnce((async () => ({ bl_id: 'BL-900', delivered: true, delivery_version: 2 })) as never)
+  const view = mount()
+  await userEvent.click(screen.getByLabelText('Selecionar B/L BL-900'))
+  await userEvent.click(screen.getByLabelText('B/L original: BL-900'))
+  await waitFor(() => expect(state.mutateAsync).toHaveBeenCalled())
+  // Mudou de página: o BL-900 não está mais na lista.
+  state.extra = []
+  view.rerender(<QueryClientProvider client={new QueryClient()}><ToastProvider><MemoryRouter initialEntries={['/?aba=controle']}><DesbloqueioCe /></MemoryRouter></ToastProvider></QueryClientProvider>)
+  const bar = screen.getByRole('region', { name: 'Seleção' })
+  expect(bar.textContent).toContain('1 selecionado')
+  await waitFor(() => expect(bar.textContent).toContain('0 sem a entrega do B/L original'))
+  expect(within(bar).queryByRole('button', { name: /Registrar entrega de/ })).toBeNull()
+})
