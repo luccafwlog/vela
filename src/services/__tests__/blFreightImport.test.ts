@@ -328,6 +328,28 @@ describe('blFreightImport', () => {
     })
   })
 
+  it('links by the only CNPJ read in the consignee block when the CNPJ field is empty', () => {
+    const customer = { id: 45, name: 'IMPORTADOR LTDA' }
+    const doc = parsedBL()
+    doc.parties.consigneeTaxId = ''
+    doc.parties.consigneeBlock = 'IMPORTADOR LTDA\nCNPJ: 12.345.678/0001-95'
+    const preview = buildBlFreightPreview({
+      documents: [doc],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      customerMaps: {
+        customersByDocument: new Map([['12345678000195', customer]]),
+        customersByName: new Map(),
+        customersByCanonicalName: new Map(),
+        canonicalList: [],
+      },
+    })
+    expect(preview.rows[0].payload).toMatchObject({
+      customer_id: 45,
+      customer_reconciliation_status: 'matched_document',
+      billing_hold_reason: null,
+    })
+  })
+
   it('keeps name-only customer matches under manual reconciliation', () => {
     const customer = { id: 43, name: 'IMPORTADOR LTDA' }
     const doc = parsedBL()

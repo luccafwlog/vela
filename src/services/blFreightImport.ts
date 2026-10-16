@@ -372,7 +372,7 @@ export async function previewBlFreightImport(args: {
   for (const doc of args.documents) {
     const payload = buildBlFreightPayload(doc, selectedVoyage.id)
     targetCustomerIds.push(findMatchedCustomer(
-      { cnpjCpf: payload.manifest_customer_cnpj_cpf, consignee: payload.consignee },
+      { cnpjCpf: payload.manifest_customer_cnpj_cpf, consignee: payload.consignee, readTexts: [payload.consignee_block, payload.cargo_description] },
       customerMaps,
     )?.customer.id ?? null)
     const existing = existingById.get(doc.blNumber)
@@ -436,7 +436,7 @@ export function buildBlFreightPreview({
     const portBlock = knownPorts && payload ? applyPortCatalog(payload, doc, knownPorts) : null
     const matchedCustomer = payload && customerMaps
       ? findMatchedCustomer(
-        { cnpjCpf: payload.manifest_customer_cnpj_cpf, consignee: payload.consignee },
+        { cnpjCpf: payload.manifest_customer_cnpj_cpf, consignee: payload.consignee, readTexts: [payload.consignee_block, payload.cargo_description] },
         customerMaps,
       )
       : null
