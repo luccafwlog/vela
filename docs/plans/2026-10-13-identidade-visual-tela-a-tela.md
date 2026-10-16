@@ -137,6 +137,27 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   "Tipo Doc.", "Valor BL", "Status"); o seletor "50 por página" corta o
   texto; `#a85309` escrito direto no prazo e no aviso do modelo do
   Desbloqueio de CE. Aguarda a resposta do responsável, tela a tela.
+  **Respostas de 2026-10-16** (comentários na página): no detalhe da
+  fatura, Registrar pagamento atrás de botão, o bloco Cancelar fatura some
+  para quem não é Administrativo e sai o "Nº interno"; nas Tabelas, cartões
+  no lugar do seletor; nas Condições de Cliente, fica a coluna Valor da
+  tabela com a diferença; na Conciliação PIX, "Identificador do Pix" no
+  lugar de "TXID", o Histórico só com o resumo na faixa do bloco e a tela
+  abrindo no Histórico de baixas; no Desbloqueio de CE, documentos recusados
+  ou revogados em âmbar, os ícones de hoje nas colunas dos requisitos,
+  Navio / Viagem e POD fora da linha mas no filtro e numa exportação comum
+  em planilha (nova, separada da planilha da ZPT), e entrega do B/L original
+  em massa. Voltaram em rodada 2 na mesma página: o detalhe da fatura (B/Ls e
+  itens lado a lado deixariam espaço em branco; agora um embaixo do outro, e
+  a fatura de um B/L só leva o B/L no bloco Saldo), os nomes das situações
+  das Tabelas (não ficou claro o sentido; proposta "Em uso no cálculo",
+  "Ativa, mas não usada" e "Desativada", com a explicação), a ordem das abas
+  da Conciliação (Histórico, Pendências, Conciliar extrato) e, no Desbloqueio
+  de CE, os botões do topo (cada um no bloco do seu assunto), a seleção em
+  qualquer B/L com "Registrar entrega de N B/Ls", a tabela de documentos do
+  detalhe (o nome do arquivo abre o documento; um botão "Analisar" só onde há
+  decisão) e o nome da segunda aba sem falar em ZPT ("Andamento dos B/Ls",
+  sugerido).
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
