@@ -147,42 +147,33 @@ afterEach(() => {
   voyageServiceMocks.cancelVoyage.mockReset()
 })
 
-it('filtra o rail por viagens canceladas', () => {
+it('filtra a faixa e a tabela por viagens canceladas, com os filtros sempre abertos', () => {
   renderAt('/viagens')
 
-  fireEvent.click(screen.getByRole('button', { name: /Filtros/ }))
   fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'cancelled' } })
 
-  expect(screen.getByText('Navio cancelado / CANCEL-42')).toBeTruthy()
-  expect(screen.queryByText('Navio ativo / ACTIVE-41')).toBeNull()
+  expect(screen.getAllByText('Navio cancelado / CANCEL-42').length).toBeGreaterThan(0)
+  expect(screen.queryAllByText('Navio ativo / ACTIVE-41')).toHaveLength(0)
 })
 
-it('mantém a busca visível e permite remover um filtro aplicado pelo chip', () => {
+it('mantém a busca visível e Limpar filtros volta ao recorte inteiro', () => {
   renderAt('/viagens')
 
-  expect(screen.getByLabelText('Busca')).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: /Filtros/ }))
+  fireEvent.change(screen.getByLabelText('Buscar'), { target: { value: 'ACTIVE' } })
   fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'cancelled' } })
+  expect(screen.queryAllByText('Navio ativo / ACTIVE-41')).toHaveLength(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }))
 
-  expect(screen.getByLabelText('Filtros aplicados').textContent).toContain('Status: Canceladas')
-  fireEvent.click(screen.getByRole('button', { name: 'Remover filtro Status' }))
-
-  expect(screen.queryByLabelText('Filtros aplicados')).toBeNull()
-  expect(screen.getByText('Navio ativo / ACTIVE-41')).toBeTruthy()
+  expect(screen.getAllByText('Navio ativo / ACTIVE-41').length).toBeGreaterThan(0)
+  expect(screen.queryByRole('button', { name: 'Limpar filtros' })).toBeNull()
 })
 
-it('não exibe badge no botão Filtros quando apenas busca textual está ativa', () => {
+it('sem viagem escolhida mostra a tabela de viagens, com BB e Veículos', () => {
   renderAt('/viagens')
-
-  fireEvent.change(screen.getByLabelText('Busca'), { target: { value: 'ACTIVE' } })
-  const filtrosBtn = screen.getByRole('button', { name: /^Filtros/ })
-  expect(filtrosBtn.textContent).toBe('Filtros')
-  expect(screen.getByRole('button', { name: 'Limpar' })).toBeTruthy()
-})
-
-it('US-213: sem selecao mostra "Selecione uma viagem"', () => {
-  renderAt('/viagens')
-  expect(screen.getByText('Selecione uma viagem')).toBeTruthy()
+  const table = screen.getByRole('table', { name: /Viagens do recorte/ })
+  expect(within(table).getByRole('columnheader', { name: 'BB (t)' })).toBeTruthy()
+  expect(within(table).getByRole('columnheader', { name: 'Veículos' })).toBeTruthy()
+  expect(within(table).getByRole('link', { name: 'Navio ativo / ACTIVE-41' }).getAttribute('href')).toBe('/viagens/41')
 })
 
 it('declara granito e vazios no rail mesmo sem quantidades operadas', () => {
@@ -195,7 +186,7 @@ it('declara granito e vazios no rail mesmo sem quantidades operadas', () => {
 it('seleciona a viagem pelo id do item do rail', () => {
   renderAt('/viagens')
 
-  fireEvent.click(screen.getByText('Navio cancelado / CANCEL-42'))
+  fireEvent.click(screen.getAllByText('Navio cancelado / CANCEL-42')[0])
 
   expect(screen.getByRole('heading', { name: 'Navio cancelado / CANCEL-42' })).toBeTruthy()
 })

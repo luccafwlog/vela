@@ -1830,54 +1830,15 @@ textarea {
   border-top: 1px solid var(--app-border);
 }
 
-/* Viagens: a busca permanece no fluxo; os filtros secundários só abrem quando
-   necessários. Isso mantém a área acima do rail em uma única linha no desktop. */
-.app-voyage-command-bar {
-  position: relative;
-  margin-bottom: 20px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface-muted);
+/* Viagens: contador do recorte ao lado dos filtros, sempre abertos (lote 2). */
+.app-voyage-command-bar__count {
+  padding-bottom: 10px;
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.app-voyage-command-bar__row {
-  display: flex;
-  min-height: 64px;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-}
-
-.app-voyage-command-bar__search {
-  display: flex;
-  min-width: 180px;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: 10px;
-  color: var(--app-muted-soft);
-}
-
-.app-voyage-command-bar__search:focus-within {
-  outline: 2px solid var(--app-focus-ring);
-  outline-offset: 2px;
-  border-radius: var(--app-radius);
-}
-
-.app-voyage-command-bar__search .app-input {
-  min-height: var(--app-control-h);
-  flex: 1 1 auto;
-  border-color: transparent;
-  padding: 8px 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.app-voyage-command-bar__search .app-input:focus {
-  border-color: transparent;
-  box-shadow: none;
-}
-
-.app-voyage-command-bar__clear-search,
 .app-filter-chip button {
   display: inline-flex;
   min-width: 28px;
@@ -1891,74 +1852,8 @@ textarea {
   cursor: pointer;
 }
 
-.app-voyage-command-bar__clear-search:hover,
 .app-filter-chip button:hover {
   background: color-mix(in srgb, currentColor 12%, transparent);
-}
-
-.app-voyage-command-bar__chips {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-}
-
-.app-voyage-command-bar__chips .app-filter-chip {
-  gap: 4px;
-  min-height: 34px;
-  padding: 0 4px 0 10px;
-  cursor: default;
-}
-
-.app-voyage-command-bar__filters {
-  flex: none;
-}
-
-.app-voyage-command-bar__count {
-  flex: none;
-  border-left: 1px solid var(--app-border);
-  padding-left: 12px;
-  color: var(--app-muted);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.app-voyage-command-bar__panel {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  border-top: 1px solid var(--app-border);
-  padding: 14px 16px 16px;
-}
-
-@media (max-width: 900px) {
-  .app-voyage-command-bar__row {
-    flex-wrap: wrap;
-  }
-
-  .app-voyage-command-bar__search {
-    flex-basis: 100%;
-  }
-
-  .app-voyage-command-bar__count {
-    margin-left: auto;
-  }
-
-  .app-voyage-command-bar__panel {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
-  .app-voyage-command-bar__panel {
-    grid-template-columns: 1fr;
-  }
-
-  .app-voyage-command-bar__chips {
-    max-width: 100%;
-    overflow-x: auto;
-  }
 }
 
 .app-filter-grid {
