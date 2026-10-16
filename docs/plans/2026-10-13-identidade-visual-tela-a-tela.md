@@ -62,6 +62,15 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   mostra "Divergente" (`buildVoyageRailItems` calcula sem as divergências
   abertas); a barra do topo diz "N demurrages vencidos", contra a regra B29;
   Exportar em Veículos leva só a página na tela.
+  **Revisão, 2026-10-16:** aprovada a fila em tabela com uma linha por
+  Cliente. O grupo aberto se adapta ao caso, sem a janela lateral "Revisar
+  B/L" (decisão do responsável): nome lido sem CNPJ mostra os dados brutos do
+  B/L (linha do consignatário e descrição da carga); CNPJ lido leva ao
+  cadastro, com o Portal provisionado no mesmo passo se o operador quiser;
+  Cliente cadastrado com Portal pendente põe o foco no provisionamento. Os
+  exemplos por caso (A a G: nome sem CNPJ, CNPJ lido, CNPJs divergentes,
+  Portal, peso, outra pendência, Granito) estão na rodada 2 da mesma página,
+  aguardando resposta.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
