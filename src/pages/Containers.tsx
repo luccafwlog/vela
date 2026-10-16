@@ -32,7 +32,7 @@ import { userFacingErrorMessage } from '../lib/errors'
 import { formatDate } from '../lib/utils'
 import { STALE_PAGE_CLASS } from '../lib/pagination'
 import type { BLContainer, ContainerListItem } from '../types/database'
-import { CHARGE_STATUS_FILTER_OPTIONS } from './blsListState'
+import { LOCAL_CHARGES_FILTER_OPTIONS } from './blsListState'
 import {
   containersSearchFromFilters,
   countActiveContainerFilters,
@@ -315,6 +315,10 @@ export function Containers() {
               {portOptions?.pods.map((pod) => <option key={pod} value={pod}>{pod}</option>)}
             </Select>
           </Field>
+          {/* Como na lista de BLs: com filtro só nos campos abertos, o Limpar fica aqui; com "Mais filtros", fica lá. */}
+          {activeFilterCount > 0 && moreFilterCount === 0 ? (
+            <div><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button></div>
+          ) : null}
       </div>
 
       <FilterBar title="Mais filtros" activeCount={moreFilterCount} onClear={clearFilters}>
@@ -354,7 +358,7 @@ export function Containers() {
           <Field label="Taxas locais">
             <Select value={filters.chargeStatus} onChange={(event) => updateFilter('chargeStatus', event.target.value)}>
               <option value="">Todas</option>
-              {CHARGE_STATUS_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              {LOCAL_CHARGES_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </Select>
           </Field>
         </div>

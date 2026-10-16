@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from 'react'
-import { useQueries, useQuery } from '@tanstack/react-query'
-import { reconcileBaplieWithManifest } from '../services/baplieReconciliation'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { countOpenBaplieDivergences, reconcileBaplieWithManifest } from '../services/baplieReconciliation'
 
 function reconciliationQuery(voyageId: number) {
   return {
@@ -24,11 +24,12 @@ export function useVoyageReconciliation(voyageId: number | null | undefined) {
 
 /**
  * Divergências abertas por viagem, para o cartão da faixa mostrar
- * "Divergente". Só consulta viagens ativas que têm Baplie gravado: sem Baplie
- * não há divergência.
- * ponytail: uma conciliação por viagem com Baplie, calculada no navegador
- * (a mesma da ficha, com o cache compartilhado). Com dezenas de viagens ativas
- * com Baplie, trocar por uma RPC que devolva a contagem de todas de uma vez.
+ * "Divergente". Só viagens ativas com Baplie gravado (sem Baplie não há
+ * divergência), numa consulta só para todas (`countOpenBaplieDivergences`, a
+ * mesma regra da ficha). A família `['baplie-reconciliation']` é invalidada
+ * junto com a da ficha depois de gravar carga, Baplie ou escala.
+ * ponytail: viagem concluída ou cancelada não entra (o histórico inteiro de
+ * Baplie seria lido a cada abertura); o cartão dela segue só a cobertura de CE.
  */
 export function useVoyageRailDivergences(
   voyages: ReadonlyArray<{ id: number; status?: string | null; baplieCount?: number | null }> | null | undefined,
@@ -36,13 +37,17 @@ export function useVoyageRailDivergences(
   const voyageIds = useMemo(
     () => (voyages ?? [])
       .filter((voyage) => (voyage.baplieCount ?? 0) > 0 && voyage.status !== 'completed' && voyage.status !== 'cancelled')
-      .map((voyage) => voyage.id),
+      .map((voyage) => voyage.id)
+      .sort((a, b) => a - b),
     [voyages],
   )
-  // `combine` estável: o React Query só remonta o mapa quando as consultas mudam.
-  const combine = useCallback(
-    (results: Array<{ data?: { items: unknown[] } }>) => new Map(voyageIds.map((voyageId, index) => [voyageId, results[index]?.data?.items.length ?? 0])),
-    [voyageIds],
-  )
-  return useQueries({ queries: voyageIds.map((voyageId) => reconciliationQuery(voyageId)), combine })
+  const { data } = useQuery({
+    queryKey: ['baplie-reconciliation', 'rail', voyageIds],
+    enabled: voyageIds.length > 0,
+    staleTime: 60_000,
+    queryFn: () => countOpenBaplieDivergences(voyageIds),
+  })
+  return data ?? EMPTY_DIVERGENCES
 }
+
+const EMPTY_DIVERGENCES: ReadonlyMap<number, number> = new Map()

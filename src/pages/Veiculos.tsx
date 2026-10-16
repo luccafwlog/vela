@@ -188,6 +188,17 @@ export function Veiculos() {
     missing: filteredRows.filter((row) => row.container && !(row.container.unpacking_location ?? '').trim()).length,
   }
 
+  // O local é do container: conta todos os veículos dentro dele, inclusive os
+  // que o filtro de agora esconde (outra marca no mesmo container).
+  const affectedVehicles = (containerIds: number[]) => containerIds
+    .reduce((sum, containerId) => sum + (data?.vehicleCountByContainerId?.[containerId] ?? 0), 0)
+  const scopeDescription = (scope: DesovaScope, base: string) => {
+    const containers = scopeContainerIds[scope]
+    const affected = affectedVehicles(containers)
+    const total = `${plural(containers.length, 'container', 'containers')}, ${plural(affected, 'veículo', 'veículos')} no total`
+    return base ? `${base} · ${total}` : total
+  }
+
   function openBulkDesova() {
     setBulkDesovaError(null)
     setBulkDesovaScope(selection.count > 0 ? 'selected' : null)
@@ -346,6 +357,10 @@ export function Veiculos() {
                 {(data?.unpackingLocations ?? []).filter((item) => !isMissingLabel(item.label)).map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
               </Select>
             </Field>
+            {/* Como na lista de BLs: com filtro só nos campos abertos, o Limpar fica aqui; com "Mais filtros", fica lá. */}
+            {activeFilterCount > 0 && moreFilterCount === 0 ? (
+              <div><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button></div>
+            ) : null}
           </div>
 
           <FilterBar title="Mais filtros" activeCount={moreFilterCount} onClear={clearFilters}>
@@ -537,9 +552,9 @@ export function Veiculos() {
             value={bulkDesovaScope}
             onChange={setBulkDesovaScope}
             options={[
-              ...(selection.count > 0 ? [{ value: 'selected' as const, title: `Os ${plural(scopeVehicleCount.selected, 'veículo marcado', 'veículos marcados')}`, description: `${plural(scopeContainerIds.selected.length, 'container', 'containers')}` }] : []),
-              { value: 'all' as const, title: `Todos os ${plural(scopeVehicleCount.all, 'veículo', 'veículos')} do recorte`, description: 'os que aparecem com os filtros de agora' },
-              { value: 'missing' as const, title: `Só os ${plural(scopeVehicleCount.missing, 'veículo sem local', 'veículos sem local')}`, description: 'não muda quem já tem local' },
+              ...(selection.count > 0 ? [{ value: 'selected' as const, title: `Os ${plural(scopeVehicleCount.selected, 'veículo marcado', 'veículos marcados')}`, description: scopeDescription('selected', '') }] : []),
+              { value: 'all' as const, title: `Todos os ${plural(scopeVehicleCount.all, 'veículo', 'veículos')} do recorte`, description: scopeDescription('all', 'os que aparecem com os filtros de agora') },
+              { value: 'missing' as const, title: `Só os ${plural(scopeVehicleCount.missing, 'veículo sem local', 'veículos sem local')}`, description: scopeDescription('missing', 'não muda quem já tem local') },
             ]}
           />
           <p className="text-sm text-[var(--app-muted)]">O local é do container: vale para todos os veículos dentro dele.</p>
@@ -560,7 +575,7 @@ export function Veiculos() {
               loadingLabel="Aplicando…"
               disabled={!bulkDesovaScope || !scopeContainerIds[bulkDesovaScope].length}
             >
-              {!bulkDesovaScope ? 'Escolha a quem aplicar' : bulkDesovaValue.trim() ? `Aplicar a ${plural(scopeContainerIds[bulkDesovaScope].length, 'container', 'containers')}` : 'Apagar o local'}
+              {!bulkDesovaScope ? 'Escolha a quem aplicar' : bulkDesovaValue.trim() ? `Aplicar a ${plural(scopeContainerIds[bulkDesovaScope].length, 'container', 'containers')}` : `Apagar o local de ${plural(scopeContainerIds[bulkDesovaScope].length, 'container', 'containers')}`}
             </Button>
           </div>
         </div>

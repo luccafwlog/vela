@@ -68,6 +68,7 @@ function installReconcileMocks(input: { bls?: unknown[]; baplie?: unknown[]; con
       const builder = {
         select: vi.fn(() => builder),
         eq: vi.fn(() => builder),
+        in: vi.fn(() => builder),
         order: vi.fn(() => builder),
         range: vi.fn((from: number, to: number) => { window = { from, to: Math.min(to, from + 999) }; return builder }),
         then: (resolve: (value: QueryResult) => unknown) =>
@@ -513,5 +514,31 @@ describe('computeProfileDivergences — perfil manual (migration 182)', () => {
       { kind: 'profile_mismatch', container_number: 'ABCD1234567', bl_container_id: 1, bl_id: 'BL1', bl_profile: 'sem marca', baplie_profile: 'IMO' },
     ])
     expect(computeProfileDivergences(baplie, containers, new Map([[1, new Set(['IMO'])]]))).toEqual([])
+  })
+})
+
+describe('countOpenBaplieDivergences (faixa de viagens)', () => {
+  it('conta as divergências de cada viagem numa leitura só, com a regra da ficha', async () => {
+    mockRpc.mockResolvedValue({ data: '2020-01-01', error: null })
+    installReconcileMocks({
+      bls: [
+        { id: 'BL-A', voyage_id: 1, pol: 'CNSHA', pod: 'BRSSZ' },
+        { id: 'BL-B', voyage_id: 2, pol: 'CNSHA', pod: 'BRSSZ' },
+      ],
+      baplie: [
+        { id: 1, voyage_id: 1, container_number: 'ABCD1234567', status: 'full', pol: 'CNSHA', pod: 'BRSSZ' },
+        { id: 2, voyage_id: 1, container_number: 'ZZZZ7654321', status: 'full', pol: 'CNSHA', pod: 'BRSSZ' },
+        { id: 3, voyage_id: 2, container_number: 'EFGH1234567', status: 'full', pol: 'CNSHA', pod: 'BRSSZ' },
+      ],
+      containers: [
+        { id: 10, bl_id: 'BL-A', container_number: 'ABCD1234567' },
+        { id: 11, bl_id: 'BL-B', container_number: 'EFGH1234567' },
+      ],
+    })
+    const { countOpenBaplieDivergences } = await import('../baplieReconciliation')
+    const counts = await countOpenBaplieDivergences([2, 1])
+    // Viagem 1: ZZZZ7654321 está no Baplie e em nenhum B/L. Viagem 2 confere.
+    expect(Object.fromEntries(counts)).toEqual({ 1: 1, 2: 0 })
+    expect(mockFrom.mock.calls.filter(([table]) => table === 'baplie_containers')).toHaveLength(1)
   })
 })

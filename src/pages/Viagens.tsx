@@ -175,7 +175,7 @@ export function Viagens() {
 
   const voyageIds = useMemo(() => voyages.map((voyage) => voyage.id), [voyages])
   const { data: vehicleStatsData } = useVoyageVehicleStats(voyageIds)
-  const { data: breakbulkTons } = useVoyageBreakbulkTons(voyageIds)
+  const { data: breakbulkTons, isError: breakbulkError } = useVoyageBreakbulkTons(voyageIds)
   const { data: vaziosImpStatsData } = useVaziosImportacaoStats(voyageIds)
   const { voyagesWithUnpaidBls, polSchedules, escalaSchedulesByVoyage: escalaSchedulesByVoyageData, exportSchedulesData, routeCeMasters, indicatedFirstPorts } =
     useViagemSchedulesAndStats(voyageIds, polEntityIds)
@@ -361,6 +361,7 @@ export function Viagens() {
             <VoyageListTable
               items={visibleRailItems}
               breakbulkTons={breakbulkTons}
+              breakbulkError={breakbulkError}
               vehicleCounts={vehicleStatsByVoyage}
               onEdit={canEditVoyages ? (id) => setEditingVoyageId(id) : undefined}
             />

@@ -110,13 +110,13 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing, saving 
         ) : null}
       </div>
       <fieldset className="app-schedule-form__group">
+        <legend>Saída na origem (ETD)</legend>
+        <div className="app-schedule-form__lanes">{POL_LANES.map(renderLane)}</div>
+      </fieldset>
+      <fieldset className="app-schedule-form__group">
         <legend>Chegada no Brasil (ETA)<span className="app-field__required" aria-hidden="true"> *</span></legend>
         <p className="app-field__hint">Ao menos um porto com data.</p>
         <div className="app-schedule-form__lanes">{POD_LANES.map(renderLane)}</div>
-      </fieldset>
-      <fieldset className="app-schedule-form__group">
-        <legend>Saída na origem (ETD)</legend>
-        <div className="app-schedule-form__lanes">{POL_LANES.map(renderLane)}</div>
       </fieldset>
       <div className="app-modal__actions">
         <Button type="button" variant="secondary" onClick={onCancel}>Voltar</Button>

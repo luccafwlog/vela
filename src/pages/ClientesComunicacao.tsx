@@ -1,11 +1,12 @@
 import { formatCnpjCpf } from '../lib/utils'
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Building2, CheckCircle2, Eye, History, Info, Mail, Paperclip, Pencil, Send, Users } from 'lucide-react'
+import { AlertTriangle, Building2, CheckCircle2, Eye, Info, Mail, Paperclip, Pencil, Send, Users } from 'lucide-react'
 import { Badge, type BadgeTone } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
 import { ClientesTabs } from '../components/customers/ClientesTabs'
+import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { CopyValue } from '../components/ui/CopyValue'
 import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
@@ -508,11 +509,11 @@ export function ClientesComunicacao() {
 
   return (
     <>
-      <ClientesTabs active="comunicacao" />
       <PageHeader
         title="Comunicação com Clientes"
         description="Conferência e envio controlado de avisos operacionais e institucionais."
       />
+      <ClientesTabs active="comunicacao" />
 
       {settingsLoading ? (
         <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-[var(--app-border)] p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between animate-pulse">
@@ -605,27 +606,18 @@ export function ClientesComunicacao() {
         </div>
       )}
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        <button type="button" className={`app-tab ${tab === 'cobertura' ? 'app-tab--active' : ''}`} onClick={() => selectTab('cobertura')}>
-          <CheckCircle2 size={15} className="mr-2 inline" /> Cobertura de viagens
-        </button>
-        {canSend ? (
-          <button
-            type="button"
-            className={`app-tab ${tab === 'disparo' ? 'app-tab--active' : ''}`}
-            onClick={() => selectTab('disparo')}
-          >
-            <Mail size={15} className="mr-2 inline" /> Disparo
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={`app-tab ${tab === 'historico' ? 'app-tab--active' : ''}`}
-          onClick={() => selectTab('historico')}
-        >
-          <History size={15} className="mr-2 inline" /> Histórico
-        </button>
-      </div>
+      {/* Segundo nível: as abas da página são as de Clientes (ClientesTabs); aqui a vista. */}
+      <SegmentedControl<CommunicationTab>
+        className="mb-6"
+        label="Vista da Comunicação"
+        value={tab}
+        onChange={selectTab}
+        options={[
+          { value: 'cobertura', label: 'Cobertura de viagens' },
+          ...(canSend ? [{ value: 'disparo' as const, label: 'Disparo' }] : []),
+          { value: 'historico', label: 'Histórico' },
+        ]}
+      />
 
       {tab === 'cobertura' ? (
         <Card>

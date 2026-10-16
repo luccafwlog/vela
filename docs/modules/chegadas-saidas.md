@@ -29,7 +29,7 @@ A página lista viagens com `show_on_portal = true` por
 `PORTAL_SCHEDULE_LANES`: Qingdao, Shanghai, Taicang, Ningbo, Nansha, Salvador,
 Vitória e Pecém.
 
-O modal (`Modal` do design system, tamanho `md`) pede navio, VOY, IMO e uma data ISO por lane, agrupadas em **Chegada no Brasil (ETA)** — primeiro, porque ao menos um porto de descarga é obrigatório — e **Saída na origem (ETD)**. O botão principal mostra "Salvando…" e impede repetição. Checkbox "não escala"
+O modal (`Modal` do design system, tamanho `md`) pede navio, VOY, IMO e uma data ISO por lane, agrupadas em **Saída na origem (ETD)** e depois **Chegada no Brasil (ETA)**, na ordem da tabela (desde 2026-10-16; ao menos um porto de chegada é obrigatório). O botão principal mostra "Salvando…" e impede repetição. Checkbox "não escala"
 deixa a lane sem data e, portanto, sem schedule. Ao salvar,
 `createOrAttachVoyageFromSchedule` deduplica por VOY + IMO (fallback nome
 canônico), cria ou anexa a viagem, liga `show_on_portal` e grava somente ETD de

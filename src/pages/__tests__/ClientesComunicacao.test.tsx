@@ -202,8 +202,8 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
         <ClientesComunicacao />
       </MemoryRouter>,
     )
-    expect(screen.queryByRole('button', { name: /Disparo/ })).toBeNull()
-    expect(screen.getByRole('button', { name: /Histórico/ })).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: /Disparo/ })).toBeNull()
+    expect(screen.getByRole('radio', { name: /Histórico/ })).toBeTruthy()
     expect(screen.getByText('Painel de cobertura')).toBeTruthy()
   })
 

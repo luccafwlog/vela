@@ -519,8 +519,24 @@ export async function reconcileBaplieWithManifest(
 ): Promise<BaplieReconciliationResult> {
   const { staged, blContainers, blRows } = await fetchStagingAndBlContainers(voyageId)
   if (!staged.length) return { items: [], source: 'not_imported', pendingRoutes: [] }
-
   const isD7 = await resolveIsD7(voyageId, options)
+  return reconcileFromRows({ staged, blContainers, blRows, isD7, resolutions: () => fetchResolutions(voyageId) })
+}
+
+/**
+ * A conciliação a partir das linhas já lidas (pura, salvo as resoluções, lidas
+ * só quando há rota conciliável). A ficha (`reconcileBaplieWithManifest`) e a
+ * faixa de viagens (`countOpenBaplieDivergences`) usam esta mesma regra.
+ */
+async function reconcileFromRows(input: {
+  staged: BaplieContainerRow[]
+  blContainers: BlContainerPhysical[]
+  blRows: BlRouteRow[]
+  isD7: boolean
+  resolutions: () => Promise<Resolutions>
+}): Promise<BaplieReconciliationResult> {
+  const { staged, blContainers, blRows, isD7 } = input
+  if (!staged.length) return { items: [], source: 'not_imported', pendingRoutes: [] }
 
   const fullStaged = staged.filter((c) => c.status !== 'empty')
   // Só B/L ativo COM containers cobre rota: um B/L sem container (ou
@@ -539,7 +555,7 @@ export async function reconcileBaplieWithManifest(
     return { items: [], source: 'awaiting_route_coverage', pendingRoutes }
   }
 
-  const { profile: resolved, ownership: resolvedOwnership } = await fetchResolutions(voyageId)
+  const { profile: resolved, ownership: resolvedOwnership } = await input.resolutions()
   return {
     items: [
       ...computeExistenceDivergences(staged, blContainers, new Set(pendingRoutes)),
@@ -549,6 +565,74 @@ export async function reconcileBaplieWithManifest(
     source: 'reconciled',
     pendingRoutes,
   }
+}
+
+/** Lê todas as páginas de uma consulta ordenada (teto de 1.000 linhas do PostgREST). */
+async function readAllPages<T>(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
+  const PAGE = 1000
+  const rows: T[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from, from + PAGE - 1)
+    if (error) throw error
+    const batch = (data ?? []) as T[]
+    rows.push(...batch)
+    if (batch.length < PAGE) break
+  }
+  return rows
+}
+
+/**
+ * Divergências abertas por viagem, para o "Divergente" do cartão da faixa:
+ * a mesma regra da ficha, com uma leitura por tabela para todas as viagens
+ * (antes eram cinco consultas por viagem). Viagem sem Baplie fica com 0.
+ * ponytail: ainda baixa o Baplie inteiro das viagens pedidas; com muitas
+ * viagens ativas, levar a contagem para uma RPC (exige portar a regra de rota,
+ * D-7 e resoluções para SQL sem divergir da ficha).
+ */
+export async function countOpenBaplieDivergences(voyageIds: readonly number[]): Promise<Map<number, number>> {
+  const ids = [...new Set(voyageIds)].sort((a, b) => a - b)
+  const counts = new Map<number, number>(ids.map((id) => [id, 0]))
+  if (!ids.length) return counts
+
+  type BlRow = BlRouteRow & { voyage_id: number; cancelled_at?: string | null }
+  type ResolutionRow = { voyage_id: number; bl_container_id: number; baplie_value: string; manifest_value: string | null; field_name: string; resolution: string }
+  const [blRows, stagedRows, resolutionRows, etas] = await Promise.all([
+    readAllPages<BlRow>((from, to) => supabase.from('bls')
+      .select('id, voyage_id, pol, pod, cancelled_at' as 'id, voyage_id, pol, pod')
+      .in('voyage_id', ids).order('id').range(from, to)),
+    readAllPages<BaplieContainerRow>((from, to) => supabase.from('baplie_containers')
+      .select('*').in('voyage_id', ids).order('id').range(from, to)),
+    readAllPages<ResolutionRow>((from, to) => supabase.from('baplie_reconciliation_resolutions')
+      .select('voyage_id, bl_container_id, baplie_value, manifest_value, field_name, resolution')
+      .in('voyage_id', ids).order('id').range(from, to)),
+    Promise.all(ids.map(async (id) => [id, await fetchFirstBrazilianEta(id)] as const)),
+  ])
+
+  const voyageOfBl = new Map(blRows.map((bl) => [String(bl.id), Number(bl.voyage_id)]))
+  const cancelledBls = new Set(blRows.filter((bl) => bl.cancelled_at).map((bl) => String(bl.id)))
+  // Os ids de B/L vão na URL: em lotes, para não estourar o tamanho dela.
+  const blIds = [...voyageOfBl.keys()]
+  const blContainers: BlContainerPhysical[] = []
+  for (let start = 0; start < blIds.length; start += 200) {
+    const chunk = blIds.slice(start, start + 200)
+    const rows = await readAllPages<BlContainerPhysical>((from, to) => supabase.from('bl_containers')
+      .select('id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership, ownership_source, profile_source' as 'id, bl_id, container_number, is_imo, imo_class, un_number, is_oog, ownership, ownership_source')
+      .in('bl_id', chunk).order('id').range(from, to))
+    blContainers.push(...rows.map((c) => ({ ...c, cancelled: cancelledBls.has(String(c.bl_id)) })))
+  }
+
+  const etaByVoyage = new Map(etas)
+  await Promise.all(ids.map(async (voyageId) => {
+    const result = await reconcileFromRows({
+      staged: dedupeBaplieContainers(stagedRows.filter((row) => Number(row.voyage_id) === voyageId)),
+      blContainers: blContainers.filter((c) => voyageOfBl.get(String(c.bl_id)) === voyageId),
+      blRows: blRows.filter((bl) => Number(bl.voyage_id) === voyageId),
+      isD7: isBaplieReconciliationD7(etaByVoyage.get(voyageId) ?? null),
+      resolutions: async () => buildResolutions(resolutionRows.filter((row) => Number(row.voyage_id) === voyageId)),
+    })
+    counts.set(voyageId, result.items.length)
+  }))
+  return counts
 }
 
 /**
@@ -596,33 +680,28 @@ export function ownershipResolutionKey(baplieValue: string | null | undefined, b
   return `${normalizeVal(baplieValue)}|${normalizeVal(blValue)}`
 }
 
+type Resolutions = { profile: Map<number, Set<string>>; ownership: Map<number, Set<string>> }
+type ResolutionRecord = { bl_container_id: number; baplie_value: string; manifest_value: string | null; field_name: string; resolution: string }
+
 /**
  * Divergências já encerradas com "Vale o B/L": perfil (container → valores do
  * Baplie resolvidos) e SOC/COC (container → pares "baplie|B/L" resolvidos).
  * O mesmo container pode ter várias resoluções de perfil (o Baplie mudou de
  * IMO para OOG e as duas foram confirmadas): todas valem.
  */
-async function fetchResolutions(voyageId: number): Promise<{
-  profile: Map<number, Set<string>>
-  ownership: Map<number, Set<string>>
-}> {
-  type ResolutionRow = { bl_container_id: number; baplie_value: string; manifest_value: string | null; field_name: string; resolution: string }
+async function fetchResolutions(voyageId: number): Promise<Resolutions> {
   // Paginado em ordem estável, como o staging e os containers: acima do teto
   // do PostgREST (1.000 linhas) a resolução fora da página voltava a divergir.
-  const PAGE = 1000
-  const rows: ResolutionRow[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from('baplie_reconciliation_resolutions')
-      .select('bl_container_id, baplie_value, manifest_value, field_name, resolution')
-      .eq('voyage_id', voyageId)
-      .order('id')
-      .range(from, from + PAGE - 1)
-    if (error) throw error
-    const page = (data ?? []) as ResolutionRow[]
-    rows.push(...page)
-    if (page.length < PAGE) break
-  }
+  const rows = await readAllPages<ResolutionRecord>((from, to) => supabase
+    .from('baplie_reconciliation_resolutions')
+    .select('bl_container_id, baplie_value, manifest_value, field_name, resolution')
+    .eq('voyage_id', voyageId)
+    .order('id')
+    .range(from, to))
+  return buildResolutions(rows)
+}
+
+function buildResolutions(rows: readonly ResolutionRecord[]): Resolutions {
   const valeOBl = rows.filter((row) => row.resolution === 'vale_o_bl')
   const ownership = new Map<number, Set<string>>()
   for (const row of valeOBl.filter((r) => r.field_name === 'ownership')) {

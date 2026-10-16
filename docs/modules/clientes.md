@@ -1,6 +1,6 @@
 # Clientes
 
-> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/clientes`, `/clientes/:cnpj`, `/clientes/comunicacao`
+> **Status:** ativo · **Atualizado:** 2026-10-16 · **Rotas:** `/clientes`, `/clientes/:cnpj`, `/clientes/comunicacao`
 
 ## Propósito e escopo
 
@@ -53,7 +53,7 @@ Loading com skeleton cobre a página inteira antes de qualquer aba montar. Docum
 
 ### `/clientes/comunicacao`
 
-`src/pages/ClientesComunicacao.tsx` mantém as abas de cobertura, disparo e histórico. Todos os Departamentos abrem a rota e consultam cobertura e histórico; a aba **Disparo** só aparece com a permissão `customer_communications` (Administrativo, Documentação e Equipamentos; [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), D19). A cobertura filtra navio, viagem e mês e mostra a matriz NOA/NOR/NOB/CE-Taxas. O histórico filtra navio, mês, modelo, status e origem (`Robô automático` ou `Operador`); a viagem pode ser filtrada pela ficha do cliente. No topo, a faixa da chave de envio mostra **Canal de envio real ativo** ou **Modo de simulação permanente** e, para o Administrativo, o botão **Desativar envio real**/**Ativar envio real** (ver [Chave de envio de Comunicados](#chave-de-envio-de-comunicados)). As regras de público, recorte, janelas da régua automática e idempotência estão em [Comunicados ao Cliente](#comunicados-ao-cliente).
+`src/pages/ClientesComunicacao.tsx` mantém as vistas de cobertura, disparo e histórico, num controle segmentado logo abaixo das abas de Clientes (`ClientesTabs`, que nas três páginas ficam abaixo do cabeçalho); as "abas" Disparo e Histórico citadas nesta seção são essas vistas. Todos os Departamentos abrem a rota e consultam cobertura e histórico; a aba **Disparo** só aparece com a permissão `customer_communications` (Administrativo, Documentação e Equipamentos; [ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), D19). A cobertura filtra navio, viagem e mês e mostra a matriz NOA/NOR/NOB/CE-Taxas. O histórico filtra navio, mês, modelo, status e origem (`Robô automático` ou `Operador`); a viagem pode ser filtrada pela ficha do cliente. No topo, a faixa da chave de envio mostra **Canal de envio real ativo** ou **Modo de simulação permanente** e, para o Administrativo, o botão **Desativar envio real**/**Ativar envio real** (ver [Chave de envio de Comunicados](#chave-de-envio-de-comunicados)). As regras de público, recorte, janelas da régua automática e idempotência estão em [Comunicados ao Cliente](#comunicados-ao-cliente).
 
 A aba **Disparo** tem duas colunas: à esquerda o operador compõe, à direita o
 painel **O que será enviado** responde "quem vai receber isto?" desde o primeiro

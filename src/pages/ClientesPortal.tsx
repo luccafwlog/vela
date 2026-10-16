@@ -66,7 +66,6 @@ export function ClientesPortal() {
 
   return (
     <>
-      <ClientesTabs active="portal" />
       <PageHeader
         title="Provisionamento do Portal"
         description="Fila operacional de análise, convites e situações do Portal."
@@ -88,6 +87,7 @@ export function ClientesPortal() {
           </div>
         }
       />
+      <ClientesTabs active="portal" />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtros de provisionamento">
           {presets.map((item) => (

@@ -21,9 +21,11 @@ function shortDate(iso: string | null | undefined) {
  * mesma ordem e com os mesmos filtros da faixa de cartões, que continua em
  * cima. A linha abre a ficha da Viagem, como o cartão.
  */
-export function VoyageListTable({ items, breakbulkTons, vehicleCounts, onEdit }: {
+export function VoyageListTable({ items, breakbulkTons, breakbulkError = false, vehicleCounts, onEdit }: {
   items: readonly VoyageRailItem[]
   breakbulkTons: ReadonlyMap<number, number> | undefined
+  /** A leitura das toneladas falhou: o traço diz que não carregou, não que não há carga solta. */
+  breakbulkError?: boolean
   vehicleCounts: Readonly<Record<number, { totalVehicles?: number } | undefined>>
   onEdit?: (id: number) => void
 }) {
@@ -64,7 +66,10 @@ export function VoyageListTable({ items, breakbulkTons, vehicleCounts, onEdit }:
                   </td>
                   <td className="tabular-nums">{(item.blCount ?? 0).toLocaleString('pt-BR')}</td>
                   <td className="tabular-nums">{(item.containerCount ?? 0).toLocaleString('pt-BR')}</td>
-                  <td className="tabular-nums">{tons == null ? <NoValue label="Toneladas de carga solta não carregadas" /> : tons.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</td>
+                  <td className="tabular-nums">{tons != null
+                    ? tons.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+                    // Mapa carregado sem a viagem: ela não tem B/L de carga solta ativo.
+                    : <NoValue label={breakbulkTons ? 'Sem carga solta' : breakbulkError ? 'Toneladas de carga solta não carregadas' : 'Carregando toneladas de carga solta'} />}</td>
                   <td className="tabular-nums">{vehicles.toLocaleString('pt-BR')}</td>
                   <td className="tabular-nums">{ce && ce.total > 0 ? (ce.filled < ce.total ? <StatusText tone="warning">{ce.filled} de {ce.total}</StatusText> : `${ce.filled} de ${ce.total}`) : <NoValue label="Sem B/L" />}</td>
                   <td className="app-table__text">{item.estado === 'conciliado' ? CONCILIACAO_LABEL[item.estado] : <StatusText tone="warning">{CONCILIACAO_LABEL[item.estado]}</StatusText>}</td>

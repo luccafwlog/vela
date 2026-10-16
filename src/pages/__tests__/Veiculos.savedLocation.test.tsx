@@ -30,6 +30,8 @@ vi.mock('../../hooks/useVehicles', async (importOriginal) => {
       select: (rows) => ({
         rows, filteredRows: rows, count: rows.length, filteredIds: rows.map((row) => row.id),
         containerIdByVehicleId: Object.fromEntries(rows.map((row) => [row.id, row.container.id])),
+        // Da viagem inteira: o container 44 tem um veículo fora deste recorte.
+        vehicleCountByContainerId: { 33: 2, 44: 2 },
         distinctContainerCount: 1, distinctBlCount: 1, totalWeightKg: 0, totalCbm: 0,
         vehiclesByBrand: [], vehiclesByContainerType: [], containersByContainerType: [],
       }),
@@ -108,5 +110,25 @@ it('enquanto o filtro novo não chega, Exportar e o local para o recorte esperam
     expect((screen.getByRole('button', { name: /Definir local de desova/ }) as HTMLButtonElement).disabled).toBe(true)
     // Passada a pausa da digitação, o recorte é o do filtro e as ações voltam.
     await waitFor(() => expect((screen.getByRole('button', { name: /Exportar/ }) as HTMLButtonElement).disabled).toBe(false))
+  } finally { client.clear() }
+})
+
+it('filtro só nos campos abertos oferece Limpar filtros, que volta ao recorte inteiro', () => {
+  const client = renderPage()
+  try {
+    expect(screen.queryByRole('button', { name: 'Limpar filtros' })).toBeNull()
+    fireEvent.change(screen.getByLabelText('Chassi'), { target: { value: 'CHASSI-2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }))
+    expect((screen.getByLabelText('Chassi') as HTMLInputElement).value).toBe('')
+  } finally { client.clear() }
+})
+
+it('a janela diz quantos veículos o local atinge nos containers, e Apagar diz quantos containers', () => {
+  const client = renderPage()
+  try {
+    const dialog = openDialog()
+    expect(within(dialog).getByText(/2 containers, 4 veículos no total/)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Só os 1 veículo sem local/ }))
+    expect(within(dialog).getByRole('button', { name: 'Apagar o local de 1 container' })).toBeTruthy()
   } finally { client.clear() }
 })
