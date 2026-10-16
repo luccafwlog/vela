@@ -145,3 +145,10 @@ it('registra a entrega em massa B/L por B/L e diz quais falharam', async () => {
   expect((screen.getByLabelText('Selecionar B/L BL-700') as HTMLInputElement).checked).toBe(true)
   expect((screen.getByLabelText('Selecionar B/L BL-557') as HTMLInputElement).checked).toBe(false)
 })
+it('B/L desbloqueado na ZPT sem exportação pelo Vela continua com o prazo aberto', () => {
+  // O cumprimento do prazo é medido pela exportação (docs/modules/desbloqueio-ce.md, "Prazo"); a conciliação não o encerra.
+  state.extra = [{ bl_id: 'BL-800', sla_started_at: '2026-10-07T09:00:00-03:00', zpt_status: 'unlocked', zpt_updated_at: '2026-10-07T10:00:00-03:00', zpt_without_export: true }]
+  mount()
+  const line = screen.getByRole('link', { name: 'BL-800' }).closest('tr') as HTMLElement
+  expect(line.querySelector('[data-sla="overdue"]')?.textContent).toBe('Venceu 07/10, 17:00')
+})

@@ -542,7 +542,7 @@ export function DesbloqueioCe() {
                             onChange={() => void delivery(i)}
                           />
                         </td>
-                        <td><CeUnlockSla start={i.sla_started_at} doneAt={i.exported_at ?? (i.zpt_status === "unlocked" ? i.zpt_updated_at : null)} /></td>
+                        <td><CeUnlockSla start={i.sla_started_at} doneAt={i.exported_at} /></td>
                         <td className="app-table__text"><span className="app-table__truncate max-w-[100px]"><CeUnlockZptState item={i} /></span></td>
                       </tr>
                     ))}
