@@ -503,7 +503,7 @@ export function DesbloqueioCe() {
                         <td className="app-table__text">
                           {i.customer_name ? (
                             <Link
-                              className="app-link app-table__truncate app-table__truncate--sm"
+                              className="app-link app-table__truncate max-w-[110px]"
                               title={i.customer_name}
                               to={`/clientes/${i.cnpj_cpf}?tab=desbloqueio-ce`}
                             >
@@ -543,7 +543,7 @@ export function DesbloqueioCe() {
                           />
                         </td>
                         <td><CeUnlockSla start={i.sla_started_at} doneAt={i.exported_at ?? (i.zpt_status === "unlocked" ? i.zpt_updated_at : null)} /></td>
-                        <td className="app-table__text"><CeUnlockZptState item={i} /></td>
+                        <td className="app-table__text"><span className="app-table__truncate max-w-[100px]"><CeUnlockZptState item={i} /></span></td>
                       </tr>
                     ))}
                   </tbody>

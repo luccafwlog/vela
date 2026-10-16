@@ -1,6 +1,6 @@
 # Reconciliação PIX
 
-> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/reconciliacao` (leitura de todos, conciliar do Financeiro e do Administrativo; [matriz de permissões](../operations/seguranca.md#conciliação-pix); abas `?tab=` Pendências, `extrato` e `historico`); `/demurrage/reconciliacao` redireciona para esta rota
+> **Status:** ativo · **Atualizado:** 2026-10-16 · **Rotas:** `/reconciliacao` (leitura de todos, conciliar do Financeiro e do Administrativo; [matriz de permissões](../operations/seguranca.md#conciliação-pix); abas Histórico de baixas (padrão, sem `?tab`), `?tab=pendencias` e `?tab=extrato`); `/demurrage/reconciliacao` redireciona para esta rota
 
 ## Propósito e escopo
 
@@ -63,31 +63,44 @@ grava as exceções).
 
 ### Monitoramento das cobranças Itaú
 
-A aba **Pendências** (padrão, destino do Alerta `pix_unreconciled`) começa pela
-linha de estado da cobrança Pix Itaú (`itau_pix_monitor`, migration 154,
-relido a cada minuto): baixa automática ligada ou desligada, até quando os
-recebimentos foram consultados (em Brasília) e quantas cobranças estão ativas.
-Se o checkpoint de recebimentos (`app_settings.itau_pix_polled_until`) não
-avança há 15 min ou mais, um aviso diz que Pix pagos depois daquele horário não
-deram baixa automática (limite fixo da tela, `ITAU_POLL_STALE_MINUTES`). Com a
-chave desligada, a linha diz que vale o QR estático e leva ao extrato.
+A tela abre no **Histórico de baixas**; as abas ficam na ordem Histórico de
+baixas, Pendências (com contagem) e Conciliar extrato (identidade visual, lote 3,
+aprovado em 2026-10-16). Os Alertas de Pix (`pix_unreconciled`, inclusive os
+gravados com destino `/reconciliacao` pelas migrations 152, 153 e 247) abrem em
+`/reconciliacao?tab=pendencias` (`alertEntityLink`, `PIX_PENDING_HREF`). Na
+tela, o código do Pix se chama **Identificador do Pix** (nome da coluna no
+extrato do Itaú), encurtado em letra de código na tabela e inteiro ao passar o
+mouse e na linha aberta; motivos gravados pelo matching com "TXID" são
+reescritos na tela (`pendingExceptionReason`, `extractLineReason`).
 
-Abaixo vêm três listas, cada uma com contagem, uma frase do que significa e o
-caminho:
+A aba **Pendências** começa pelo bloco **Cobrança Pix Itaú**
+(`itau_pix_monitor`, migration 154, relido a cada minuto), com Conciliar
+extrato na faixa. Se o checkpoint de recebimentos
+(`app_settings.itau_pix_polled_until`) não avança há 15 min ou mais, o dado
+principal é "Consulta parada há N min" em âmbar, com a frase de que Pix pagos
+depois daquele horário não deram baixa automática e de avisar quem cuida da
+integração (limite fixo da tela, `ITAU_POLL_STALE_MINUTES`); senão, "Baixa
+automática ligada". Os fatos são Baixa automática, Recebimentos consultados até
+(em Brasília) e Cobranças ativas. Com a chave desligada, o dado principal é
+"Desligada: as faturas usam o QR estático e a baixa vem do extrato".
 
-- **Pix recebidos sem baixa** (`itau_pix_receipts` em análise): valor, horário,
-  motivo e TXID. Quando a fatura da cobrança fica paga (baixa pelo extrato ou
-  pagamento verificado), o Pix sai da lista e o Alerta fecha sozinho. Nos
-  outros casos (fatura cancelada a restituir, TXID sem fatura), **Marcar como
-  tratado…** abre o motivo na própria linha (mínimo de 5 caracteres, como a
-  `itau_pix_mark_receipt_handled`), com a recusa do banco junto do campo;
-  Voltar devolve o foco ao botão.
+Abaixo vêm três blocos com tabela limpa, cada um com a contagem e uma frase na
+faixa; a situação vai em texto, âmbar só no que pede ação:
+
+- **Pix recebidos sem baixa** (`itau_pix_receipts` em análise): Recebido em,
+  Valor, Identificador do Pix e Motivo. Quando a fatura da cobrança fica paga
+  (baixa pelo extrato ou pagamento verificado), o Pix sai da lista e o Alerta
+  fecha sozinho. Nos outros casos (fatura cancelada a restituir, identificador
+  sem fatura), **Marcar como tratado** abre o motivo na linha de baixo (mínimo
+  de 5 caracteres, como a `itau_pix_mark_receipt_handled`), com a recusa do
+  banco junto do campo; Voltar devolve o foco ao botão.
 - **Exceções do extrato** (abaixo).
-- **Cobranças aguardando o Itaú**: emissão, alteração, conferência de
-  vencimento e cancelamento ainda não confirmados, com a resposta incerta e o
-  erro primeiro, tentativas e próxima tentativa. O número abre o detalhe da
-  fatura. Não há ação: a fila tenta de novo sozinha e consulta antes de repetir
-  uma resposta incerta.
+- **Cobranças aguardando o Itaú**: Fatura (abre o detalhe), Origem, Valor,
+  Situação, Tentativas e Próxima tentativa; resposta incerta e erro vêm
+  primeiro e em âmbar ("Alteração sem resposta do banco", "Emissão com erro"),
+  o que só aguarda o banco fica na tinta normal. A seta abre a resposta do
+  banco, o identificador inteiro e a última tentativa. Não há ação: a fila
+  tenta de novo sozinha e consulta antes de repetir uma resposta incerta.
 
 A contagem da aba soma o que pede decisão: Pix sem baixa, exceções e cobranças
 com resposta incerta ou erro.
@@ -100,15 +113,17 @@ para a avulsa, o TXID gravado na fatura com o evento `reconciled_by_txid`
 (migration `269`).
 
 Linhas de extrato sem baixa segura ficam em `pix_reconciliation_exceptions` por
-arquivo e linha, inclusive sem TXID. Cada linha mostra valor, dia do extrato,
-Ambígua ou Sem documento, o motivo gravado pelo matching, o documento indicado,
-TXID, linha, CNPJ e quando foi importada. **Tentar de novo** refaz o matching
-só daquela linha; sem fatura segura, explica o motivo na linha e não chama a
-baixa. **Escolher fatura…** lista as faturas abertas que aceitam o TXID, com o
-valor de cada uma ao lado do Pix; **Baixar nesta fatura** vincula, baixa e
-encerra. A falha diz até onde chegou: antes da baixa, nada foi gravado; depois
+arquivo e linha, inclusive sem identificador. A tabela mostra Pago em (dia do
+extrato), Valor, Identificador do Pix, CNPJ e Motivo (em âmbar quando a linha é
+ambígua; linha sem identificador diz "Linha sem identificador no extrato").
+**Tentar de novo** refaz o matching só daquela linha; sem fatura segura,
+explica o motivo na linha e não chama a baixa. A seta da linha abre a linha e o
+arquivo do extrato e a tabela das faturas abertas que aceitam o identificador
+(Fatura, Origem, Valor da fatura e Pix, em âmbar quando difere);
+**Baixar nesta fatura** vincula, baixa e encerra. A lista de candidatas
+(`list_pix_reconciliation_candidates`) não devolve o Cliente. A falha diz até onde chegou: antes da baixa, nada foi gravado; depois
 dela, a baixa existe e só a exceção ficou aberta (não repetir a baixa). Nesse
-caso a linha troca Tentar de novo e Escolher fatura por **Encerrar exceção**,
+caso a linha troca Tentar de novo e a seta por **Encerrar exceção**,
 que chama só `resolve_pix_reconciliation_exception` com a fatura já baixada (a
 fatura não está mais aberta, então o matching e a lista de faturas não a
 acham). A tela guarda essa fatura só enquanto está aberta; depois de recarregar,
@@ -134,25 +149,28 @@ repetida (ADR 0078, item 22), preserva TXID vazio para revisão, ignora valor n�
 positivo e normaliza a data para `YYYY-MM-DD`. Extrato sem nenhuma transação
 para na leitura ("Nenhuma transação Pix encontrada no extrato"). Linhas ocultas
 da aba lida ficam de fora; quando há, a conferência diz que parte do extrato
-ficou de fora e que só as linhas visíveis entram na conciliação
+ficou de fora no fato **Linhas ocultas fora da leitura**, em âmbar, e que só
+as linhas visíveis entram na conciliação
 (`readSpreadsheetNotices.firstSheetHiddenRows`).
 
 ### Revisão do resultado
 
-A conferência mostra uma faixa de resumo (prontas para baixa e o total do lote,
-quantas ficam como exceção, linhas lidas) e duas listas (tabela no desktop,
-linhas abaixo de 640 px):
+O bloco **Conferência do extrato** (linhas lidas na faixa) tem como dado
+principal "N prontas para baixa" com o total do lote, os fatos Ficam como
+exceção (âmbar quando há) e Linhas ocultas fora da leitura, e duas tabelas
+limpas:
 
-- **Prontas para baixa**: na tabela, linha, pago em, valor do Pix, TXID,
-  fatura e origem, Cliente e CNPJ (com o ícone de copiar); abaixo de 640 px,
-  valor, pago em, fatura, origem, Cliente e TXID. Uma Invoice de Demurrage
-  paga com a cotação anterior diz que a janela das duas PTAX foi aceita.
-- **Ficam como exceção pendente**: Ambígua ou Sem documento, com o motivo e o
-  documento indicado; já estão salvas em Pendências.
+- **Prontas para baixa**: Linha, Pago em, Valor do Pix, Identificador do Pix,
+  Fatura, Origem e Cliente. A coluna **Conferência** só aparece quando alguma
+  linha tem nota: uma Invoice de Demurrage paga com a cotação anterior diz que
+  a janela das duas PTAX foi aceita.
+- **Ficam como exceção**: Linha, Pago em, Valor do Pix, Identificador do Pix e
+  Motivo (as mesmas palavras de Pendências); já estão salvas em Pendências.
 
 O rodapé diz que nada foi baixado ainda e, com mais de uma linha, que o lote é
-gravado junto. **Confirmar N baixas** só aparece ativo com linha pronta;
-**Descartar leitura** não apaga as exceções já salvas.
+gravado junto. **Ver Pendências** aparece quando há exceção; **Confirmar N
+baixas** só aparece ativo com linha pronta; **Descartar leitura** não apaga as
+exceções já salvas.
 
 Transações sem documento candidato geram um `UnifiedPixMatch` com
 `source = unmatched`. Elas permanecem visíveis para conferência, são contadas
@@ -162,10 +180,11 @@ separadamente e nunca entram na confirmação.
 
 Recusa do lote fica na conferência: "Nenhuma baixa foi gravada", a mensagem do
 banco e o lembrete de que uma linha recusada impede as demais. Com sucesso, o
-resultado lista só o que a RPC devolveu (fatura, origem, Cliente, valor, dia,
-TXID e "Baixa confirmada"); o número abre o detalhe. Se a resposta vier com
+resultado é uma tabela só com o que a RPC devolveu (Fatura, Origem, Cliente,
+Pago em, Valor do Pix, Identificador do Pix e a situação "Baixa confirmada" em
+texto); o número abre o detalhe. Se a resposta vier com
 menos itens que o enviado, a tela manda conferir o histórico em vez de
-prometer a baixa. As linhas que não entraram apontam para Pendências.
+prometer a baixa. As linhas que não entraram apontam para Pendências (botão **Ver Pendências**).
 
 ### Histórico, filtros e exportação
 
@@ -175,18 +194,25 @@ baixas**) combina:
 - invoices locais `paid`, `covered` e `partially_paid` com data em `payments`;
 - invoices avulsas `manual` pagas/parcialmente pagas, sem exigir vínculo a B/L;
 - `demurrage_invoices.status = paid`;
-- filtros de período, origem, tipo de fatura (só Taxas Locais), Cliente, B/L,
-  navio, viagem e POD, todos na URL com a ordenação, a página e o tamanho;
+- filtros abertos Pago de, Pago até, Origem, Cliente e B/L; em **Mais
+  filtros**, Tipo de fatura (só Taxas Locais), Navio, Viagem e POD; todos na URL com a ordenação, a página e o tamanho;
   escolher a origem Demurrage tira o tipo de fatura, e um `tipo` vindo de link
   com `origem=demurrage` é ignorado; página além do fim (link antigo ou baixa
   cancelada na última página) vai para a última existente;
-- situação gravada (Paga, Parcialmente paga com recebido e saldo, Coberta pela
-  consolidada) e o valor do B/L com o total da fatura quando difere;
-- ícone de copiar no número do B/L e, na tabela, no CNPJ do Cliente;
-- "Exibindo 1–N de M" no topo e no rodapé; erro de consulta com Tentar
+- bloco **Baixas** com o resumo do recorte na faixa ("N baixas · R$ X
+  recebidos", cada fatura contada uma vez e a coberta pela consolidada sem
+  somar, `summarizeReconciliationHistory`) e Exportar planilha;
+- tabela limpa: Fatura (com o ícone de pilha na consolidada), Origem, B/L (com
+  ícone de copiar), Cliente, Navio / Viagem, Pago em, Valor pago, Saldo (âmbar
+  maior que zero) e Situação ("✓ Paga", "Parcialmente paga", "Coberta pela
+  consolidada"), sem texto embaixo da célula; a consolidada tem uma linha por
+  B/L com o valor pago da fatura;
+- "Exibindo 1–N de M" no rodapé; erro de consulta com Tentar
   novamente, sem lista vazia nem "Nenhum registro"; vazio com e sem filtro
   distintos; cartões abaixo de 640 px;
-- exportação XLSX do recorte (desativada sem registros);
+- exportação XLSX do recorte (desativada sem registros), com os cabeçalhos da
+  tela (Fatura, Origem, Tipo de fatura, B/L, Cliente, CNPJ, Navio, Viagem, POD,
+  Pago em, Valor da fatura, Valor pago, Saldo, Situação);
 - abertura do detalhe pelo número da fatura.
 
 ### Detalhe e cancelamento de baixa
@@ -211,8 +237,8 @@ baixas**) combina:
 | Parser · extrair linhas bancárias | Cabeçalho `identificador` e coluna `valor pago` | `parsePixExtractFile` | `assertUploadFile` (tamanho e extensão) → `parsePixExtract` → `readSheet` de `importCore` (carrega `@e965/xlsx` sob demanda) | Nenhuma persistência | Retorna `{txid, cnpj, date, amount, lineNumber}`; preserva TXID vazio, ignora valor não positivo e recusa coluna repetida no cabeçalho | Cabeçalho/valor ausente ou coluna repetida lança erro; data inválida vira string vazia e falhará na confirmação | **Código:** `src/services/demurrage/demurrageKpis.ts` |
 | Matching · carregar documentos locais e Demurrage | Transações parseadas | `matchUnifiedPixTransactions` | `list_pix_txid_candidates` resolve no servidor cada TXID do extrato nas faturas abertas (`_pix_txid_open_candidates`: versão de cobrança local, TXID gravado, avulsa e Invoice de Demurrage pelo número do documento, que é o TXID do QR estático, ou pela cobrança Itaú), depois o histórico de recálculo das Invoices de Demurrage candidatas; normalização alfanumérica maiúscula | RPC `list_pix_txid_candidates` (migration `242`) e `SELECT demurrage_invoice_history` | Sem cache React Query; monta mapa único de TXID para os dois domínios | Erro de qualquer leitura aborta o matching | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L. O matching acha a avulsa aberta pelo número (QR estático) ou pela cobrança Itaú (migration `242`) | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` (migration `130`), que sem versão de cobrança cai no caminho da migration `097` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | Avulsa aberta vira “Sem documento” no extrato; TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migrations `097` e `130`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
-| Matching · classificar sem match | TXID sem candidato aberto | Loop de `matchUnifiedPixTransactions` | `txidMap.get(key)` retorna vazio | Exceção salva na leitura (linha acima) | Linha `source = unmatched` (“Sem documento”, “Nenhum documento aberto usa este TXID.”) na lista **Ficam como exceção pendente** e na contagem; nunca entra na confirmação | Nenhum documento é alterado; a linha é tratada em Pendências | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
-| Matching · classificar ambiguidade de documento/TXID | Mais de um documento com TXID normalizado ou TXID repetido no extrato | Mesmo loop | `entries.length > 1` ou `seenTxids` | Exceção salva na leitura | `ambiguous = true`, motivo e `candidateCount`; a linha vai para **Ficam como exceção pendente** (“Ambígua”) | A escolha da fatura não é feita na conferência: é feita em Pendências (**Escolher fatura…**) | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
+| Matching · classificar sem match | TXID sem candidato aberto | Loop de `matchUnifiedPixTransactions` | `txidMap.get(key)` retorna vazio | Exceção salva na leitura (linha acima) | Linha `source = unmatched` (motivo “Nenhuma fatura aberta com este identificador”, ou “Linha sem identificador no extrato” sem identificador) na tabela **Ficam como exceção** e na contagem; nunca entra na confirmação | Nenhum documento é alterado; a linha é tratada em Pendências | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
+| Matching · classificar ambiguidade de documento/TXID | Mais de um documento com TXID normalizado ou TXID repetido no extrato | Mesmo loop | `entries.length > 1` ou `seenTxids` | Exceção salva na leitura | `ambiguous = true`, motivo e `candidateCount`; a linha vai para **Ficam como exceção** com o motivo em âmbar | A escolha da fatura não é feita na conferência: é feita em Pendências (seta da linha → **Baixar nesta fatura**) | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | Matching · classificar divergência de valor | Diferença absoluta maior que `0,01` ou valor esperado não numérico | Mesmo loop | Compara transação com saldo local ou `current_total_brl` | Sem persistência | Marca como ambíguo; local e Demurrage recebem motivos distintos | Não existe pagamento parcial por PIX neste fluxo | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | `/reconciliacao` · confirmar somente não ambíguos | Ao menos um match seguro; data parseada | `confirmMutation` | Filtra `!ambiguous`; `confirmUnifiedPixReconciliation` refiltra e monta JSON | RPC `confirm_unified_pix_matches` | Em sucesso `afterPixConciliado` (`cacheEffects.ts`): famílias da base de faturamento (ledger, faturas, B/Ls, Cliente, Portal), da Invoice de Demurrage, histórico, exceções, monitor Itaú e alertas | Data vazia falha antes da RPC; erro do lote fica na conferência (“Nenhuma baixa foi gravada”) | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `Reconciliacao.behavior.test.tsx`, `cacheEffects.test.ts` · **Runtime local** (etapa 12: recusa `no_match`; a baixa de Demurrage só passou depois de gravar o TXID na Invoice emitida à mão; desde a migration `242` (A16) o TXID é resolvido nas faturas abertas, ver [Notas e divergências](#notas-e-divergências)) |
 | RPC unificada · conciliar item local | `source = local`, data presente, TXID resolve uma única cobrança local pagável e o valor é exatamente o dessa cobrança | `confirm_unified_pix_matches` | `reconcile_invoice_payment_by_txid` → `register_ledger_invoice_payment` | `payments`, `ledger_settlements`, `bl_receivables`, links, invoice, B/Ls e eventos | Item `{source: local, status: ok}`; transação inteira aborta se um item falhar | Sem match, ambíguo no domínio local, já conciliado ou valor inexato gera falha do lote | **Código:** `confirm_unified_pix_matches` na migration `002` e `reconcile_invoice_payment_by_txid` na migration `130` (definições vigentes; origem nas migrations arquivadas `103` e `111`) |
@@ -447,7 +473,7 @@ cancelamento de baixa de Demurrage.
 - `src/pages/__tests__/Reconciliacao.behavior.test.tsx`: monitor Itaú em
   Brasília e consulta parada, Pix tratado com motivo e foco, leitura com
   exceções salvas, linhas ocultas, lote recusado, resultado parcial honesto,
-  exceção por Tentar de novo e Escolher fatura (com falha depois da baixa),
+  exceção por Tentar de novo e pela lista de faturas da linha aberta (com falha depois da baixa),
   detalhes, cancelamento de baixa de Demurrage, aba na URL e acesso restrito.
 - `src/components/billing/__tests__/pixReconciliationPresentation.test.ts` e
   `src/pages/__tests__/reconciliacaoState.test.ts`: leituras puras e estado na URL.
@@ -514,7 +540,7 @@ Estes testes verificam texto de migrations, não um banco aplicado:
 - **Pendências PIX são persistidas — Código.** `persistUnresolvedPixMatches`
   conserva linhas sem candidata e ambíguas por importação/linha, inclusive sem
   TXID. Financeiro e Administrativo as tratam em Pendências com **Tentar de novo**,
-  **Escolher fatura…** e **Baixar nesta fatura** (ou **Encerrar exceção**, quando
+  a seta da linha e **Baixar nesta fatura** (ou **Encerrar exceção**, quando
   a baixa já existe); a resolução exige prova de baixa autoritativa. Essas
   linhas não entram automaticamente no lote seguro.
 - **Suspeita sem prova de falha/exploit — ambiguidade é parcialmente
