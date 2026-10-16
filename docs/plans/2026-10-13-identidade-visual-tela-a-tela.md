@@ -69,8 +69,15 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   cadastro, com o Portal provisionado no mesmo passo se o operador quiser;
   Cliente cadastrado com Portal pendente põe o foco no provisionamento. Os
   exemplos por caso (A a G: nome sem CNPJ, CNPJ lido, CNPJs divergentes,
-  Portal, peso, outra pendência, Granito) estão na rodada 2 da mesma página,
-  aguardando resposta.
+  Portal, peso, outra pendência, Granito) estão na rodada 2 da mesma página;
+  C a G aprovados em 2026-10-16. Na mesma data saíram "Corrigir dados" e a
+  janela lateral (a correção do B/L fica na ficha do B/L), e A e B voltaram
+  em rodada 3 com o cadastro reorganizado e o Portal do Cliente como escolha
+  visível. **Regra de negócio decidida em 2026-10-16, fora da mudança
+  visual:** B/L cujo único CNPJ lido (em qualquer campo) é de um Cliente ativo
+  é vinculado automaticamente; hoje a importação só vincula pelo CNPJ do campo
+  do manifesto (`findMatchedCustomer` em `blFreightImport.ts`), e o B/L com o
+  CNPJ só no texto do consignatário ou na descrição cai na Revisão.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
