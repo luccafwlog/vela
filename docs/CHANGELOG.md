@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Triagem do Sentry de 15–16/10 (2026-10-16):** o logout do Vela e do Portal (inclusive o
+  automático por inatividade) deixa de abrir issues `[Sem permissão] 42501` com as consultas que ainda estavam na
+  fila e saíram sem sessão (VELA-1Q a VELA-1Z, rótulos do sino com o departamento Documentação);
+  o `user_role` sai do Sentry junto com o usuário. Uma tela lazy cujo chunk novo ainda responde
+  404 logo após o deploy ganha outro reload em vez da tela de erro (VELA-1P, `/painel`).
+  [Eventos descartados](operations/sentry-configuracao.md#eventos-descartados-no-navegador).
 - **Identidade visual, lote 1 encerrado (2026-10-15):** aba ADR da Viagem em blocos, com a
   linha do tempo em painel e registro; prazo do ADR em 72 horas corridas da hora do ATD
   (migration `290`); hora obrigatória em ETB, ATB, ETD, ATD, ATA e no ETA digitado, com a

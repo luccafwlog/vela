@@ -43,6 +43,12 @@ vi.mock('@sentry/react', () => sentry)
 
 import { PortalAuthProvider, usePortalAuth } from '../usePortalAuth'
 import { PortalProtectedRoute } from '../../components/layout/PortalProtectedRoute'
+import { telemetryBeforeSend } from '../../lib/telemetry'
+
+const portalDenied = () => telemetryBeforeSend(
+  { exception: { values: [{ type: 'Error', value: 'permission denied' }] } } as Parameters<typeof telemetryBeforeSend>[0],
+  { originalException: { code: '42501', message: 'permission denied for table invoices' } },
+)
 
 let queryClient: QueryClient
 
@@ -122,10 +128,15 @@ describe('usePortalAuth', () => {
     expect(sentry.setUser).toHaveBeenCalledWith(null)
     expect(sentry.setTag).toHaveBeenCalledWith('area', 'portal')
 
+    // Logado, o 42501 é real e vai ao Sentry.
+    expect(portalDenied()).not.toBeNull()
+
     act(() => authCallback?.('SIGNED_OUT', null))
 
     await waitFor(() => expect(result.current.isAuthenticated).toBe(false))
     expect(sentry.setUser).toHaveBeenCalledWith(null)
+    // Depois do logout, a consulta que ainda estava na fila é descartada.
+    expect(portalDenied()).toBeNull()
     expect(queryClient.getQueryData(['portal-invoices'])).toBeUndefined()
     expect(queryClient.getQueryData(ceClientKey)).toBeUndefined()
     expect(queryClient.getQueryData(ceInternalKey)).toEqual({ protocol: 'INTERNAL' })

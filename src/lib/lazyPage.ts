@@ -35,11 +35,15 @@ function isDynamicImportLoadError(error: unknown): error is TypeError {
   )
 }
 
+function chunkUrlOf(error: TypeError) {
+  return /https?:\/\/\S+?\.js/.exec(error.message)?.[0] ?? null
+}
+
 // Um chunk salvo errado no cache HTTP (ex.: HTML do fallback como immutable)
 // sobreviveria a um reload simples; rebuscar com cache 'reload' o sobrescreve.
 function reloadBypassingChunkCache(error: TypeError) {
   const reload = () => globalThis.location?.reload()
-  const url = /https?:\/\/\S+?\.js/.exec(error.message)?.[0]
+  const url = chunkUrlOf(error)
   if (!url || !globalThis.fetch) return reload()
   void globalThis.fetch(url, { cache: 'reload' }).then(reload, reload)
 }
@@ -62,10 +66,21 @@ export function createLazyPageLoader<T extends Record<string, unknown>, K extend
       storage?.removeItem(key)
       return { default: module[exportName] as ComponentType }
     } catch (error) {
-      if (isDynamicImportLoadError(error) && storage && storage.getItem(key) !== '1') {
-        storage.setItem(key, '1')
-        ;(options.reload ?? (() => reloadBypassingChunkCache(error)))()
-        return new Promise<never>(() => {})
+      // O marcador guarda os chunks que já ganharam reload: a rota recarrega
+      // uma vez por arquivo, não uma vez por sessão. No deploy, o chunk antigo
+      // some e, logo após o reload, o novo ainda pode responder 404 por alguns
+      // segundos; com um reload só por rota, a segunda falha virava tela de
+      // erro (VELA-1P). Guardar todos (não só o último) impede laço quando
+      // bordas da CDN alternam versões (A, B, A...). Sem URL na mensagem
+      // (Safari), vale um reload por rota, como antes.
+      if (isDynamicImportLoadError(error) && storage) {
+        const attempt = chunkUrlOf(error) ?? '1'
+        const attempted = (storage.getItem(key) ?? '').split('\n').filter(Boolean)
+        if (!attempted.includes(attempt)) {
+          storage.setItem(key, [...attempted, attempt].join('\n'))
+          ;(options.reload ?? (() => reloadBypassingChunkCache(error)))()
+          return new Promise<never>(() => {})
+        }
       }
 
       throw error

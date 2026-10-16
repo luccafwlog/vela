@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/react'
 import { supabasePortal } from '../services/supabase'
 import { signOutSupabaseClient } from '../services/supabaseAuth'
 import { canonicalizeDocument } from '../lib/cnpj'
+import { setTelemetrySessionEnded } from '../lib/telemetry'
 import type { PortalSessionOverview } from '../services/portalBilling'
 
 type PortalAuthContextValue = {
@@ -50,6 +51,7 @@ function setPortalTelemetryUser() {
   // O Portal não envia ID estável de cliente ao Sentry.
   Sentry.setUser(null)
   Sentry.setTag('area', 'portal')
+  setTelemetrySessionEnded(false)
 }
 
 export function PortalAuthProvider({ children }: PropsWithChildren) {
@@ -72,6 +74,7 @@ export function PortalAuthProvider({ children }: PropsWithChildren) {
   const clearSession = useCallback(() => {
     setOverview(null)
     Sentry.setUser(null)
+    setTelemetrySessionEnded(true)
     clearPortalQueries()
   }, [clearPortalQueries])
 
