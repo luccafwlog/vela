@@ -98,10 +98,8 @@ export function DemurrageCustomersTab({
                                 aria-controls={panelId}
                               >
                                 {isExpanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
-                                <span className="app-table__cell-stack">
-                                  <span className="app-dem-strong">{customer.customer_name}</span>
-                                  <span className="app-dem-meta tabular-nums">{customer.cnpj_cpf ? formatCnpjCpf(customer.cnpj_cpf) : <NoValue label="Sem CNPJ/CPF" />}</span>
-                                </span>
+                                {/* Tabela limpa: o CNPJ fica no relatório do Cliente e na busca. */}
+                                <span className="app-dem-strong" title={customer.cnpj_cpf ? formatCnpjCpf(customer.cnpj_cpf) : undefined}>{customer.customer_name}</span>
                               </button>
                             </div>
                           </td>

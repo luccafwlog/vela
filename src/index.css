@@ -12251,10 +12251,6 @@ tr[data-inactive] .app-rates-item__value {
   line-height: 16px;
 }
 
-.app-dem-meta--warning {
-  color: var(--app-warning-fg);
-}
-
 .app-dem-amount {
   color: var(--app-text-strong);
   font-variant-numeric: tabular-nums;
@@ -12358,39 +12354,14 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-danger-fg);
 }
 
-.app-dem-refs {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 8px;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-}
-
-.app-dem-refs__status {
-  color: var(--app-muted);
-  font-family: inherit;
-  text-decoration: none;
-}
-
 .app-dem-state {
   font-size: var(--app-size-caption);
   font-weight: 500;
   line-height: 16px;
 }
 
-.app-dem-state--muted { color: var(--app-muted); }
 .app-dem-state--success { color: var(--app-success-fg); }
 .app-dem-state--warning { color: var(--app-warning-fg); }
-
-.app-dem-legend {
-  margin: 0;
-  border-top: 1px solid var(--app-border);
-  padding: 8px 16px;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
 
 .app-dem-cards {
   display: grid;
@@ -12494,11 +12465,6 @@ tr[data-inactive] .app-rates-item__value {
 
 .app-dem-dunning__label {
   font-weight: 500;
-}
-
-.app-dem-dunning__meta {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
 }
 
 .app-dem-dunning--muted { color: var(--app-muted); }

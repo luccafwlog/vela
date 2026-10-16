@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { FileText } from 'lucide-react'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
+import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
 import { EmptyState } from '../ui/Card'
 import { Input } from '../ui/Input'
@@ -12,7 +13,7 @@ import { QueryStateGate } from '../shared/QueryStateGate'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
 import { InvoiceStatusBadge } from './DemurrageBadges'
 import { demurrageInvoiceNotices, fmtBRL, fmtUSD, invoiceNetUsd, type DemurrageInvoiceRow } from '../../services/demurrage/demurragePresentation'
-import { formatCnpjCpf, formatDate } from '../../lib/utils'
+import { formatDate } from '../../lib/utils'
 import type { DemurrageInvoiceListItem } from '../../services/demurrage/demurrageInvoices'
 import { fetchDemurrageDunningStatuses, getDemurrageDunningDisplay } from '../../services/demurrageDunning'
 import { queryKeys } from '../../services/queryKeys'
@@ -49,13 +50,38 @@ function matchesSearch(invoice: DemurrageInvoiceListItem, query: string) {
   )
 }
 
-/** Situação curta para a linha: o que impede ou pausa a cobrança. */
+/** Situação curta para o cartão do celular: o que impede ou pausa a cobrança. */
 function rowFlags(invoice: DemurrageInvoiceRow): string[] {
   const flags: string[] = demurrageInvoiceNotices(invoice)
     .filter((notice) => notice.key !== 'roe-cache')
     .map((notice) => (notice.key === 'dispute' ? 'Disputa aberta' : notice.key === 'suspended' ? 'Fora da Régua' : 'Fora da Régua: datas alteradas'))
   if (Number(invoice.discount_value ?? 0) > 0) flags.push('Com desconto')
   return flags
+}
+
+/**
+ * Situação na tabela (regra 5, tabela limpa): disputa aberta vira "Em disputa"
+ * em âmbar. Fora da Régua fica na coluna da Régua; sem essa coluna (Pagas e
+ * Canceladas), aparece ao lado da situação.
+ */
+function InvoiceSituation({ invoice, withDunning }: { invoice: DemurrageInvoiceRow; withDunning: boolean }) {
+  const open = invoice.status === 'issued' || invoice.status === 'overdue'
+  if (open && invoice.dispute_open) return <StatusText tone="warning">Em disputa</StatusText>
+  const outOfDunning = !withDunning && demurrageInvoiceNotices(invoice).some((notice) => notice.key === 'dates-paid' || notice.key === 'dates-negotiated' || notice.key === 'suspended')
+  return (
+    <>
+      <InvoiceStatusBadge status={invoice.status} />
+      {outOfDunning ? <> · <StatusText tone="warning">Fora da Régua</StatusText></> : null}
+    </>
+  )
+}
+
+/** ROE comum a todas as Invoices do recorte (o da PTAX do dia, nas em aberto); null quando variam. */
+function sharedRoe(invoices: readonly DemurrageInvoiceListItem[]): number | null {
+  const values = new Set(invoices.map((invoice) => (invoice.current_roe ? Number(invoice.current_roe) : null)))
+  if (values.size !== 1) return null
+  const [value] = values
+  return value ?? null
 }
 
 export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, onRetry, onSearchChange, onOpenDetail }: Props) {
@@ -77,6 +103,7 @@ export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, on
     brl: sum.brl + Number(invoice.current_total_brl ?? 0),
   }), { usd: 0, brl: 0 })
   const filtering = Boolean(search.trim())
+  const roe = sharedRoe(visible)
 
   function dunningCell(invoice: DemurrageInvoiceListItem) {
     const status = dunningStatuses.get(invoice.id)
@@ -114,6 +141,7 @@ export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, on
               { label: visible.length === 1 ? 'Invoice' : 'Invoices', value: String(visible.length) },
               { label: 'USD a cobrar', value: fmtUSD(totals.usd) },
               { label: tab === 'pagas' ? 'BRL recebido' : tab === 'emitidas' ? 'BRL hoje' : 'BRL no cancelamento', value: fmtBRL(totals.brl) },
+              ...(roe ? [{ label: 'ROE', value: roe.toFixed(4).replace('.', ',') }] : []),
             ]}
           />
           {tab === 'emitidas' ? <p className="app-dem-note">O USD fica travado na emissão; o BRL acompanha a PTAX até o pagamento.</p> : null}
@@ -162,57 +190,32 @@ export function DemurrageInvoicesTab({ tab, invoices, search, loading, error, on
                 <thead>
                   <tr>
                     <th scope="col">Invoice</th>
+                    <th scope="col">B/L</th>
+                    <th scope="col">Emissão</th>
+                    {tab === 'pagas' ? <th scope="col">Pagamento</th> : null}
                     <th scope="col" className="app-table__text-head">Cliente</th>
-                    <th scope="col">{tab === 'pagas' ? 'Emissão · pagamento' : 'Emissão'}</th>
-                    <th scope="col" className="app-dem-num">USD a cobrar</th>
-                    <th scope="col" className="app-dem-num">{tab === 'pagas' ? 'BRL pago' : 'BRL'}</th>
-                    <th scope="col">Situação</th>
-                    {showDunning ? <th scope="col">Régua de cobrança</th> : null}
+                    <th scope="col">USD a cobrar</th>
+                    <th scope="col">{tab === 'pagas' ? 'BRL pago' : tab === 'emitidas' ? 'BRL hoje' : 'BRL'}</th>
+                    <th scope="col" className="app-table__text-head">Situação</th>
+                    {showDunning ? <th scope="col" className="app-table__text-head">Régua de cobrança</th> : null}
                   </tr>
                 </thead>
                 <tbody>
                   {visible.map((invoice) => {
                     const net = invoiceNetUsd(invoice)
-                    const flags = rowFlags(invoice as DemurrageInvoiceRow)
+                    const cancelled = invoice.status === 'cancelled'
+                    const brlPending = tab === 'emitidas' && Number(invoice.current_total_brl ?? 0) > 0
                     return (
-                      <tr key={invoice.id}>
-                        <td>
-                          <div className="app-table__cell-stack" data-testid="demurrage-invoice-context">
-                            <button type="button" className="app-dem-link app-dem-code app-dem-strong" onClick={() => onOpenDetail(invoice.id)}>{invoice.doc_number}</button>
-                            <span className="app-dem-meta">B/L <CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-dem-link app-dem-code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></CopyValue></span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="app-table__cell-stack">
-                            <span className="app-table__truncate app-table__truncate--xl" title={invoice.customer?.name ?? undefined}>{invoice.customer?.name ?? 'Cliente não identificado'}</span>
-                            <span className="app-dem-meta tabular-nums">{invoice.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(invoice.customer.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span>
-                          </div>
-                        </td>
-                        <td className="tabular-nums">
-                          <div className="app-table__cell-stack">
-                            <span>{invoice.billed_at ? formatDate(invoice.billed_at) : <NoValue label="Sem data de emissão" />}</span>
-                            {tab === 'pagas' && invoice.paid_at ? <span className="app-dem-meta">Paga em {formatDate(invoice.paid_at)}</span> : null}
-                          </div>
-                        </td>
-                        <td className="app-dem-num">
-                          <div className="app-table__cell-stack" data-testid="demurrage-invoice-financial">
-                            <span className="app-dem-amount">{fmtUSD(net.netUsd)}</span>
-                            {net.discountUsd > 0 ? <span className="app-dem-meta">{fmtUSD(net.totalUsd)} − desconto</span> : null}
-                          </div>
-                        </td>
-                        <td className="app-dem-num">
-                          <div className="app-table__cell-stack">
-                            <span className="tabular-nums">{fmtBRL(invoice.current_total_brl)}</span>
-                            {invoice.current_roe ? <span className="app-dem-meta">ROE {Number(invoice.current_roe).toFixed(4).replace('.', ',')}{invoice.roe_source === 'cached' ? ' · cache' : ''}</span> : null}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="app-table__cell-stack">
-                            <InvoiceStatusBadge status={invoice.status} />
-                            {flags.map((flag) => <span key={flag} className="app-dem-meta app-dem-meta--warning">{flag}</span>)}
-                          </div>
-                        </td>
-                        {showDunning ? <td>{dunningCell(invoice)}</td> : null}
+                      <tr key={invoice.id} className={cancelled ? 'app-table__row--muted' : undefined}>
+                        <td data-testid="demurrage-invoice-context"><button type="button" className="app-dem-link app-dem-code app-dem-strong" onClick={() => onOpenDetail(invoice.id)}>{invoice.doc_number}</button></td>
+                        <td className="app-dem-code"><CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-dem-link" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></CopyValue></td>
+                        <td className="tabular-nums">{invoice.billed_at ? formatDate(invoice.billed_at) : <NoValue label="Sem data de emissão" />}</td>
+                        {tab === 'pagas' ? <td className="tabular-nums">{invoice.paid_at ? formatDate(invoice.paid_at) : <NoValue label="Sem data de pagamento" />}</td> : null}
+                        <td className="app-table__text" title={invoice.customer?.name ?? undefined}>{invoice.customer?.name ?? 'Cliente não identificado'}</td>
+                        <td className="tabular-nums" data-testid="demurrage-invoice-financial" title={net.discountUsd > 0 ? `${fmtUSD(net.totalUsd)} − desconto de ${fmtUSD(net.discountUsd)}` : undefined}>{fmtUSD(net.netUsd)}</td>
+                        <td className="tabular-nums">{brlPending ? <StatusText tone="warning">{fmtBRL(invoice.current_total_brl)}</StatusText> : fmtBRL(invoice.current_total_brl)}</td>
+                        <td className="app-table__text"><InvoiceSituation invoice={invoice as DemurrageInvoiceRow} withDunning={showDunning} /></td>
+                        {showDunning ? <td className="app-table__text">{dunningCell(invoice)}</td> : null}
                       </tr>
                     )
                   })}

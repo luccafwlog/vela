@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MessageSquare, Paperclip, Send } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Badge } from '../ui/Badge'
+import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
 import { EmptyState, InlineError } from '../ui/Card'
 import { Textarea } from '../ui/Input'
@@ -238,8 +238,9 @@ function DemurrageDisputeConversationContent({ focusDisputeId = null, focusInvoi
                     <span className="app-dem-meta">Atualizada em {formatDateTime(dispute.updated_at)}</span>
                   </div>
                   <div className="app-dem-dispute__state">
-                    <Badge tone={dispute.state === 'aberta' ? 'warning' : dispute.state === 'resolvida' ? 'success' : 'neutral'}>{STATE_LABELS[dispute.state] ?? dispute.state}</Badge>
-                    {dispute.state === 'aberta' ? <span className={waiting ? 'app-dem-state app-dem-state--warning' : 'app-dem-meta'}>{NEXT_LABELS[dispute.next_responder] ?? dispute.next_responder}</span> : null}
+                    {/* Situação em texto (regra 5): âmbar só quando a resposta é nossa. */}
+                    <StatusText tone={dispute.state === 'cancelada' ? 'muted' : 'default'}>{STATE_LABELS[dispute.state] ?? dispute.state}</StatusText>
+                    {dispute.state === 'aberta' ? <StatusText tone={waiting ? 'warning' : 'muted'}>{NEXT_LABELS[dispute.next_responder] ?? dispute.next_responder}</StatusText> : null}
                   </div>
                 </header>
 

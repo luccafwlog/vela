@@ -16,11 +16,13 @@ export function DemurrageDunningStatus({ display, loading = false, error = false
   }
 
   return (
-    <div data-testid="demurrage-dunning-status" className={display.pauseReason ? 'app-dem-dunning app-dem-dunning--warning' : 'app-dem-dunning'}>
+    // Tabela limpa: o último envio aparece ao passar o mouse, não embaixo do valor.
+    <div
+      data-testid="demurrage-dunning-status"
+      className={display.pauseReason ? 'app-dem-dunning app-dem-dunning--warning' : 'app-dem-dunning'}
+      title={display.lastAttemptAt && !display.pauseReason ? `Último envio: ${formatDate(display.lastAttemptAt)}` : undefined}
+    >
       <div className="app-dem-dunning__label">{display.statusLabel}</div>
-      {display.lastAttemptAt && !display.pauseReason ? (
-        <div className="app-dem-dunning__meta">Último envio: {formatDate(display.lastAttemptAt)}</div>
-      ) : null}
     </div>
   )
 }

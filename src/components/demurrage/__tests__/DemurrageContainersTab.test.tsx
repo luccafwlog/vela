@@ -49,6 +49,11 @@ function row(blId: string, id: number, options: { returned?: boolean; billed?: A
   } as unknown as DemurrageContainerRow
 }
 
+/** Abre a linha do B/L para mostrar os containers (fechada por padrão). */
+async function openBl(blId: string) {
+  await userEvent.setup().click(screen.getByRole('button', { name: `Abrir os containers do B/L ${blId}` }))
+}
+
 function renderTab(containers: DemurrageContainerRow[], props: Partial<Parameters<typeof DemurrageContainersTab>[0]> = {}) {
   const handlers = {
     onGenerateInvoice: vi.fn(),
@@ -81,7 +86,7 @@ describe('DemurrageContainersTab', () => {
     renderTab([row('BL-001', 1)])
     expect(screen.getByText('Aguarda devolução de 1 container')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Gerar Invoice/ })).toBeNull()
-    expect(screen.getByText(/Fora há \d+ dias/)).toBeTruthy()
+    expect(screen.getByText('0 de 1 devolvido')).toBeTruthy()
   })
 
   it('B/L devolvido com sobreestadia e sem Invoice oferece Gerar Invoice', async () => {
@@ -98,16 +103,18 @@ describe('DemurrageContainersTab', () => {
       row('BL-100', 11, { returned: true }),
     ])
     expect(screen.getByRole('button', { name: 'Gerar Invoice complementar do B/L BL-100' })).toBeTruthy()
-    expect(screen.getByText(/A complementar cobra só a caixa ainda não cobrada: MSCU11000000/)).toBeTruthy()
-    expect(screen.getByText('Sem Invoice')).toBeTruthy()
-    const situation = screen.getByText(/Cobrada em/)
-    await user.click(within(situation).getByRole('button', { name: 'DEM-005' }))
+    // Situação do B/L em texto: a Invoice que já cobra, a situação dela e o que falta cobrar.
+    expect(screen.getByText('1 caixa sem Invoice')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'DEM-005' }))
     expect(onOpenInvoice).toHaveBeenCalledWith(5)
+    await openBl('BL-100')
+    expect(screen.getByText(/A complementar cobra só a caixa ainda não cobrada: MSCU11000000/)).toBeTruthy()
+    expect(screen.getAllByTitle('Recalculado hoje; o cobrado é o da DEM-005')).toHaveLength(1)
   })
 
   it('grupo com todas as caixas cobradas não oferece emissão', () => {
     renderTab([row('BL-200', 20, { returned: true, billed: [{ id: 6, doc_number: 'DEM-006', status: 'issued' }] })])
-    expect(screen.getByText('Todas as caixas cobradas')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'DEM-006' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Gerar/ })).toBeNull()
   })
 
@@ -118,8 +125,10 @@ describe('DemurrageContainersTab', () => {
     expect(screen.getByText('Gerar Invoice exige um perfil interno ativo.')).toBeTruthy()
   })
 
-  it('a emissão em andamento fica no botão do B/L e trava só as outras emissões e as datas dele', () => {
+  it('a emissão em andamento fica no botão do B/L e trava só as outras emissões e as datas dele', async () => {
     renderTab([row('BL-001', 1, { returned: true }), row('BL-002', 2, { returned: true })], { generatingBl: 'BL-001' })
+    await openBl('BL-001')
+    await openBl('BL-002')
     const busy = screen.getByRole('button', { name: 'Gerar Invoice do B/L BL-001' }) as HTMLButtonElement
     expect(busy.getAttribute('aria-busy')).toBe('true')
     expect((screen.getByRole('button', { name: 'Gerar Invoice do B/L BL-002' }) as HTMLButtonElement).disabled).toBe(true)
@@ -132,10 +141,13 @@ describe('DemurrageContainersTab', () => {
     expect(screen.getByRole('alert').textContent).toContain('grupo do B/L BL-001')
   })
 
-  it('mostra de onde vem o free time aplicado', () => {
+  it('mostra de onde vem o free time aplicado, ao passar o mouse', async () => {
     renderTab([row('BL-002', 2, { returned: true, agreementDays: 28 })])
-    expect(screen.getByText('28 dias')).toBeTruthy()
-    expect(screen.getByText('acordo do Cliente')).toBeTruthy()
+    await openBl('BL-002')
+    expect(screen.getByTitle('Free time acordo do Cliente').textContent).toBe('28')
+    // Colunas da fatura do Portal: dias em âmbar além do free time e "dias × diária".
+    expect(screen.getByText('20 × US$ 10,00')).toBeTruthy()
+    expect(screen.getByText('10 × US$ 20,00')).toBeTruthy()
   })
 
   it('o recorte conta por lente e a busca sem resultado oferece limpar', async () => {
@@ -147,8 +159,9 @@ describe('DemurrageContainersTab', () => {
     expect(onLensChange).toHaveBeenCalledWith('todos')
   })
 
-  it('container devolvido que não se calcula continua visível, com o erro e a edição de datas', () => {
+  it('container devolvido que não se calcula continua visível, com o erro e a edição de datas', async () => {
     renderTab([{ ...row('BL-009', 9, { returned: true }), type: 'XXXX' } as DemurrageContainerRow])
+    await openBl('BL-009')
     expect(screen.getByText(/sem tarifa de Demurrage cadastrada/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Editar datas de MSCU9000000' })).toBeTruthy()
     expect(screen.queryByText('Nenhum container em Demurrage')).toBeNull()
@@ -184,7 +197,7 @@ describe('DemurrageContainersTab', () => {
     ])
     expect(screen.getAllByRole('button', { name: /Gerar Invoice/ })).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Gerar Invoice do B/L BL-001' })).toBeTruthy()
-    expect(screen.getByText('Container compartilhado: cobrança junto com o B/L BL-001')).toBeTruthy()
+    expect(screen.getByText('Cobrança junto com o B/L BL-001')).toBeTruthy()
     const strip = screen.getByLabelText('Resumo dos containers')
     expect(within(strip).getAllByText('US$ 400,00').length).toBeGreaterThan(0)
     expect(within(strip).queryByText('US$ 800,00')).toBeNull()
