@@ -268,7 +268,18 @@ export function ChargeOverridesTab({
     }
   }
 
-  function renderSituation({ periodLabel, notes, withoutEffect }: Row) {
+  function renderSituation({ periodLabel, notes, withoutEffect, period }: Row) {
+    // Condição futura ligada a tabela desativada, não usada ou a item inativo também não vai valer:
+    // avisa já, sem entrar no cartão "Sem efeito no cálculo", que conta só as vigentes.
+    if (period === 'future' && notes.length) {
+      const reason = notes.map((note) => note.text).join(' ')
+      return (
+        <span title={reason}>
+          {periodLabel} · <StatusText tone="warning">sem efeito no cálculo</StatusText>
+          <span className="sr-only">: {reason}</span>
+        </span>
+      )
+    }
     if (withoutEffect) {
       const reason = notes.map((note) => note.text).join(' ')
       return (

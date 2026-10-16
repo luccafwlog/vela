@@ -27,7 +27,7 @@ export function StaleInvoiceResolutionPanel({ invoiceId, hasPayment }: { invoice
   }
   return <Block title="Fatura desatualizada" headingLevel={3} aside="o B/L foi corrigido depois da emissão">
     <LeadValue tone="warning" detail={hasPayment ? 'com pagamento, o aumento vai em fatura avulsa; reduções o sistema já abate do saldo e restitui o excedente' : 'a correção do B/L reemite esta fatura sozinha; se o alerta continuar, a nova emissão travou e o motivo está no alerta financeiro'}>
-      {hasPayment ? 'Diferença a tratar' : 'Reemissão pendente'}
+      {hasPayment ? 'Diferença a tratar' : 'Aguardando reemissão'}
     </LeadValue>
     <div className="app-invoice-detail__form">
       <div className="app-invoice-detail__form-wide"><Field label="Como a diferença foi tratada" required hint="Informe a avulsa emitida ou como a diferença foi tratada."><Textarea value={reason} onChange={(event) => setReason(event.target.value)} /></Field></div>

@@ -60,7 +60,7 @@ de grafias diferentes do mesmo POD (BRVIX × BRVIT):
 
 - cartões `MetricCard` em `.app-metric-row` que filtram (`?lente=`): Tabelas,
   Em uso no cálculo (`aplicadas`), Ativas, mas não usadas (`nao-usadas`, âmbar
-  acima de zero), Com aviso nos itens (`aviso`, âmbar acima de zero) e
+  acima de zero), Com aviso (`aviso`, âmbar acima de zero: tabela em uso sem item automático ou com vigência fora do período, ou com aviso nos itens) e
   Desativadas (`inativas`); filtros por modo de carga e POD
   (`ChargeScopeFilters`, POD escolhido entre os cadastrados, já na grafia do
   motor);
@@ -74,7 +74,9 @@ de grafias diferentes do mesmo POD (BRVIX × BRVIT):
   (âmbar, com o nome da tabela que vence ao passar o mouse) ou **Desativada**
   (linha em cinza). A vigência aparece como informativa (ADR 0040): vencida ou futura em tabela
   ativa vira aviso de que ela continua no cálculo, nunca exclusão. Tabela
-  aplicada sem item automático avisa que o escopo não gera taxa;
+  aplicada sem item automático avisa que o escopo não gera taxa; os dois avisos
+  aparecem na coluna Aviso com a linha fechada ("Sem item automático",
+  "Vigência fora do período", frase inteira ao passar o mouse);
 - a linha da tabela tem Editar e, para o Administrativo, o menu ⋮
   (Desativar/Reativar); na "Ativa, mas não usada" o Desativar fica visível na
   linha. O nome da tabela abre a linha: notas da tabela, avisos de vigência e
@@ -121,7 +123,8 @@ aceita "1.420,50"; cada erro indica o campo).
   condição pela data de referência do B/L (ETA da escala do POD);
 - "Sem efeito no cálculo" em âmbar na condição vigente que não muda a
   cobrança (tabela desativada ou ativa mas não usada, ou item desativado), com
-  o motivo ao passar o mouse;
+  o motivo ao passar o mouse; a condição futura no mesmo caso mostra "Começa em
+  … · sem efeito no cálculo" e não entra no cartão, que conta só as vigentes;
 - `src/components/taxasLocais/ChargeOverrideFormModal.tsx`: modal com Cliente
   e item por `Combobox` (Cliente por `useOverrideCustomerLookup`, mesma chave de
   `useOverrideCustomers`), valor da tabela ao lado do negociado, regra de

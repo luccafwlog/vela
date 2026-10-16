@@ -70,6 +70,28 @@ function TableItemWarning({ reading }: { reading: TableReading }) {
   return <span title={title}>{reading.hasItemWarning ? <StatusText tone="warning">{text}</StatusText> : text}</span>
 }
 
+/**
+ * Coluna Aviso: o que a tabela em uso faz de inesperado no cálculo (sem item
+ * automático, vigência fora do período) e os avisos dos itens, sem abrir a linha.
+ */
+function TableWarning({ reading }: { reading: TableReading }) {
+  const parts = [
+    reading.noAutomaticItems ? (
+      <span key="auto" title="O cálculo deste escopo não gera taxa: todos os itens ativos são só manuais.">
+        <StatusText tone="warning">Sem item automático</StatusText>
+      </span>
+    ) : null,
+    reading.validityNote ? (
+      <span key="validity" title={reading.validityNote}>
+        <StatusText tone="warning">Vigência fora do período</StatusText>
+      </span>
+    ) : null,
+    reading.itemNotes ? <TableItemWarning key="items" reading={reading} /> : null,
+  ].filter(Boolean)
+  if (!parts.length) return null
+  return <>{parts.flatMap((part, index) => (index ? [<span key={`sep-${index}`}> · </span>, part] : [part]))}</>
+}
+
 function tableMenu({ table, reading, canDelete, busyTableId, onToggleTableActive }: RowProps): ActionMenuItem[] {
   if (!canDelete) return []
   const disabled = busyTableId === table.id
@@ -204,7 +226,7 @@ function ChargeTableRow(props: RowProps) {
         <td><TableSituation reading={reading} /></td>
         <td className="tabular-nums">{formatPeriod(table.valid_from, table.valid_to)}</td>
         <td>{itemCountText(reading)}</td>
-        <td><TableItemWarning reading={reading} /></td>
+        <td><TableWarning reading={reading} /></td>
         <td><TableActions {...props} /></td>
       </tr>
       {isOpen ? (
@@ -280,7 +302,7 @@ function ChargeTableCard(props: RowProps) {
         <div className="app-rates-table__cell app-rates-table__cell--items">
           <span className="app-rates-table__label">Itens</span>
           <span>{itemCountText(reading)}</span>
-          {reading.itemNotes ? <span>Aviso: <TableItemWarning reading={reading} /></span> : null}
+          {reading.hasWarning || reading.itemNotes ? <span>Aviso: <TableWarning reading={reading} /></span> : null}
         </div>
         <TableActions {...props} />
       </div>

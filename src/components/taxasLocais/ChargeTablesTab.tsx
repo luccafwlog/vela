@@ -40,7 +40,7 @@ function todayIso() {
 function matchesLens(lens: TablesLens, reading: TableReading) {
   if (lens === 'aplicadas') return reading.state.kind === 'applied'
   if (lens === 'nao-usadas') return reading.state.kind === 'shadowed'
-  if (lens === 'aviso') return reading.hasItemWarning
+  if (lens === 'aviso') return reading.hasWarning
   if (lens === 'inativas') return reading.state.kind === 'inactive'
   return true
 }
@@ -111,7 +111,7 @@ export function ChargeTablesTab({
   const counts = {
     applied: inScope.filter((table) => readings.get(table.id)?.state.kind === 'applied').length,
     shadowed: inScope.filter((table) => readings.get(table.id)?.state.kind === 'shadowed').length,
-    itemWarning: inScope.filter((table) => readings.get(table.id)?.hasItemWarning).length,
+    warning: inScope.filter((table) => readings.get(table.id)?.hasWarning).length,
     inactive: inScope.filter((table) => readings.get(table.id)?.state.kind === 'inactive').length,
   }
   const hasScopeFilter = Boolean(cargoModeFilter || podFilter)
@@ -232,7 +232,7 @@ export function ChargeTablesTab({
     { value: 'todas', label: 'Tabelas', count: inScope.length },
     { value: 'aplicadas', label: 'Em uso no cálculo', count: counts.applied },
     { value: 'nao-usadas', label: 'Ativas, mas não usadas', count: counts.shadowed, warn: true },
-    { value: 'aviso', label: 'Com aviso nos itens', count: counts.itemWarning, warn: true },
+    { value: 'aviso', label: 'Com aviso', count: counts.warning, warn: true },
     { value: 'inativas', label: 'Desativadas', count: counts.inactive },
   ]
 

@@ -163,8 +163,17 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   chamada "Andamento dos B/Ls".
 - **Lote 3 entregue em 2026-10-16** (branch `claude/serene-edison-ibuix9`):
   as cinco telas aprovadas, os achados e a migration `296`. Ver o registro.
-  Falta conferir em runtime: 768 e 360 px e a `296` no Supabase remoto. O
-  lote 4 é o próximo.
+  A revisão da PR 970 corrigiu: o prazo do Desbloqueio de CE voltou a ser
+  medido só pela exportação; a seleção guarda o B/L devolvido pela entrega;
+  documento recusado volta a poder ser aprovado; "aberta em" pelo rascunho
+  ou envio; Busca e POD com pausa e a planilha comum sem B/L repetido; o
+  Histórico de baixas voltou a ter o Valor do B/L e o resumo diz "N faturas ·
+  R$ X pagos"; a fatura indicada voltou ao Motivo das exceções do Pix; as
+  Tabelas voltaram a avisar, com a linha fechada e no cartão "Com aviso", a
+  tabela em uso sem item automático ou com vigência fora do período; a
+  condição futura sem efeito avisa; e textos ("Aguardando reemissão",
+  "Exportar para a ZPT", "ROE não registrado"). Falta conferir em runtime:
+  768 e 360 px e a `296` no Supabase remoto. O lote 4 é o próximo.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",

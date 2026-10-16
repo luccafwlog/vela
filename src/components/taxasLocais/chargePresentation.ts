@@ -227,7 +227,7 @@ export function readTable(
 
   let stateLabel = 'Desativada'
   let stateTone: TableReading['stateTone'] = 'muted'
-  let stateDetail: string | null = 'Desligada pelo Administrativo: fica guardada para consulta e pode ser reativada.'
+  let stateDetail: string | null = 'Fora do cálculo: fica guardada para consulta e pode ser reativada pelo Administrativo.'
   if (state.kind === 'applied') {
     stateLabel = 'Em uso no cálculo'
     stateTone = 'default'
@@ -263,7 +263,8 @@ export function readTable(
     itemNotes,
     noAutomaticItems,
     // Tabela inativa não entra no cálculo: aviso de item nela não é urgente.
-    hasWarning: state.kind === 'shadowed' || Boolean(validityNote) || noAutomaticItems || (state.kind !== 'inactive' && itemNotes > 0),
+    // "Ativa, mas não usada" tem cartão próprio e fica fora do aviso.
+    hasWarning: Boolean(validityNote) || noAutomaticItems || (state.kind !== 'inactive' && itemNotes > 0),
     hasItemWarning: state.kind !== 'inactive' && itemNotes > 0,
   }
 }

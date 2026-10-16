@@ -367,7 +367,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
     ? (!isAdmin && payments.length > 0 ? 'Somente o Administrativo cancela a baixa de um pagamento.' : null)
     : !canRegisterPayment
       ? 'Esta fatura não aceita registro de pagamento na situação atual.'
-      : !canSettleRefund ? 'Somente o Financeiro e o Administrativo registram recebimentos. Pix com TXID entra pela Conciliação.' : null
+      : !canSettleRefund ? 'Somente o Financeiro e o Administrativo registram recebimentos. Pix com identificador entra pela Conciliação.' : null
 
   return (
     <Modal open={Boolean(invoiceId)} onClose={onClose} title={title}>
@@ -481,7 +481,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                           <td>{item.source === 'manual' ? 'Manual' : 'Calculado'}</td>
                           <td className="tabular-nums">{String(item.quantity ?? 1).replace('.', ',')}</td>
                           <td className="whitespace-nowrap tabular-nums">{formatBRL(item.unit_value_brl)}</td>
-                          {showUsd ? <td className="whitespace-nowrap tabular-nums">{usdNotes[index] ?? <NoValue label="Item em reais" />}</td> : null}
+                          {showUsd ? <td className="whitespace-nowrap tabular-nums">{usdNotes[index] ?? <NoValue label={item.currency === 'USD' ? 'ROE não registrado' : 'Item em reais'} />}</td> : null}
                           <td className="whitespace-nowrap tabular-nums">{formatBRL(item.total_value_brl)}</td>
                         </tr>
                       ))}

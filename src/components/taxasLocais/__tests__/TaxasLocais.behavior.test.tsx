@@ -216,6 +216,15 @@ describe('Tabelas de Taxas Locais', () => {
     expect(within(salvador).getByText(/Enquanto ela estiver em uso no cálculo/)).toBeTruthy()
   })
 
+  it('a tabela em uso sem item automático e com vigência fora do período avisa na linha fechada e entra em "Com aviso"', () => {
+    renderTables({ lens: 'aviso' })
+    const salvador = screen.getByRole('region', { name: 'Carga solta · BRSSA' })
+    const row = within(salvador).getByRole('button', { name: 'Salvador Carga Solta 2027' }).closest('tr') as HTMLElement
+    expect(within(row).getByText('Sem item automático').closest('.app-status-text--warning')).toBeTruthy()
+    expect(within(row).getByTitle(/Vigência começa em 01\/01\/2027/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Com aviso/ }).textContent).toContain('2')
+  })
+
   it('a "Ativa, mas não usada" tem Desativar na linha para o Administrativo', async () => {
     const user = userEvent.setup()
     renderTables()
@@ -440,6 +449,21 @@ describe('Condições de Cliente', () => {
     const card = screen.getByRole('button', { name: /Sem efeito no cálculo/ })
     expect(card.textContent).toContain('1')
     expect(card.className).toContain('app-metric-tile--warning')
+  })
+
+  it('condição futura em tabela que não está em uso já avisa que fica sem efeito', () => {
+    const future = { ...overrides[1], id: 23, valid_from: '2099-01-01', customer: { id: 5, name: 'Cliente D', cnpj_cpf: '45678901000123' } }
+    overrides.push(future)
+    try {
+      renderConditions()
+      const rowD = screen.getByText('Cliente D').closest('tr') as HTMLElement
+      expect(rowD.textContent).toContain('Começa em 01/01/2099 · sem efeito no cálculo')
+      expect(within(rowD).getByTitle(/está ativa, mas não usada/)).toBeTruthy()
+      // O cartão conta só as vigentes.
+      expect(screen.getByRole('button', { name: /Sem efeito no cálculo/ }).textContent).toContain('1')
+    } finally {
+      overrides.pop()
+    }
   })
 
   it('cadastra condição escolhendo Cliente e item pela busca', async () => {

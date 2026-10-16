@@ -342,7 +342,9 @@ na paga, "Imprimir recibo" ficam no topo:
   navio/viagem e, na fatura de um B/L só, o B/L e o trecho; na avulsa, a
   descrição da cobrança; vínculo com a fatura substituída ou sucessora,
   Reemissão pendente e motivo de encerramento sem reemissão;
-- Fatura desatualizada, logo depois do Saldo, com a resolução por justificativa;
+- Fatura desatualizada, logo depois do Saldo ("Diferença a tratar" com pagamento, "Aguardando
+  reemissão" sem pagamento, para não confundir com a Reemissão pendente), com a resolução por
+  justificativa;
 - B/Ls (só na consolidada ou com mais de um B/L): B/L com link e copiar, trecho,
   quantidade de itens e subtotal;
 - Itens da fatura ("valores congelados na emissão"), com o total no pé; coluna
