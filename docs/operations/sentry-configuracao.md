@@ -23,7 +23,7 @@ Antes do envio para o Sentry, todo payload passa por sanitização automática e
 
 ### Eventos descartados no navegador
 * `Invalid Refresh Token` / `invalid_grant`: sessão expirada, sem ação possível (VELA-5).
-* Erro de banco de permissão (`42501`) ou de sessão expirada (`PGRST301`) que chega **depois do logout**: a consulta já estava na fila quando a sessão acabou (logout manual, inatividade de 8 h, outra aba) e saiu com a chave anônima. O usuário já está no login; reportar viraria uma issue por consulta montada (VELA-1Q a VELA-1Z). Com usuário logado, o mesmo erro continua indo ao Sentry. No logout, o `user_role` também sai do escopo.
+* Erro de banco de permissão (`42501`) ou de sessão expirada (`PGRST301`) que chega **depois do logout**: a consulta já estava na fila quando a sessão acabou (logout manual, inatividade de 8 h, outra aba) e saiu com a chave anônima. O usuário já está no login; reportar viraria uma issue por consulta montada (VELA-1Q a VELA-1Z). Vale para o Vela e para o Portal: cada um sinaliza o fim da própria sessão (`setTelemetrySessionEnded`), porque o Portal fica logado com usuário anônimo no Sentry. Com sessão ativa, o mesmo erro continua indo ao Sentry. No logout do Vela, o `user_role` também sai do escopo.
 
 ---
 

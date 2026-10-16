@@ -272,7 +272,13 @@ export function initTelemetry(surface?: TelemetrySurface): void {
 // inatividade de 8 h, outra aba) sai com a chave anônima e volta 42501 ou
 // PGRST301. Não há o que corrigir: o usuário já está no login. Sem este
 // filtro, cada consulta montada virava uma issue (VELA-1Q a VELA-1Z).
+// O estado é da sessão, não do usuário do Sentry: o Portal fica logado com
+// usuário anônimo no Sentry e sinaliza aqui por conta própria.
 let isSignedOutAfterSession = false
+
+export function setTelemetrySessionEnded(ended: boolean): void {
+  isSignedOutAfterSession = ended
+}
 
 function isSessionBoundDbError(error: unknown): boolean {
   const { kind } = classifyDbError(error)
@@ -281,14 +287,14 @@ function isSessionBoundDbError(error: unknown): boolean {
 
 export function setTelemetryUser(user: { id: string; role?: string } | null): void {
   if (!user) {
-    isSignedOutAfterSession = true
+    setTelemetrySessionEnded(true)
     Sentry.setUser(null)
     // O papel é tag, não usuário: sem limpar, o evento pós-logout seguia
     // marcado com o departamento de quem saiu.
     Sentry.setTag('user_role', undefined)
     return
   }
-  isSignedOutAfterSession = false
+  setTelemetrySessionEnded(false)
   Sentry.setUser({ id: user.id })
   if (user.role) {
     Sentry.setTag('user_role', user.role)

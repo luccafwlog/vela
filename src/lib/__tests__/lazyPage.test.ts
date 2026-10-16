@@ -84,9 +84,26 @@ describe('createLazyPageLoader', () => {
     const promise = loader()
     await Promise.resolve()
 
-    expect(storage.setItem).toHaveBeenCalledWith('chunk-reload:/painel', 'https://example.test/assets/Painel-new.js')
+    expect(storage.setItem).toHaveBeenCalledWith('chunk-reload:/painel', 'https://example.test/assets/Painel-old.js\nhttps://example.test/assets/Painel-new.js')
     expect(reload).toHaveBeenCalledTimes(1)
     expect(await Promise.race([promise.then(() => 'resolved'), Promise.resolve('pending')])).toBe('pending')
+  })
+
+  it('does not reload a chunk again when CDN versions alternate (A, B, A)', async () => {
+    const storage = createStorage({
+      'chunk-reload:/painel': 'https://example.test/assets/Painel-a.js\nhttps://example.test/assets/Painel-b.js',
+    })
+    const reload = vi.fn()
+    const loader = createLazyPageLoader(
+      async () => {
+        throw new TypeError('Failed to fetch dynamically imported module: https://example.test/assets/Painel-a.js')
+      },
+      'Painel',
+      { pathname: '/painel', reload, storage },
+    )
+
+    await expect(loader()).rejects.toThrow('Failed to fetch dynamically imported module')
+    expect(reload).not.toHaveBeenCalled()
   })
 
   it('throws without a URL after the route already retried once', async () => {

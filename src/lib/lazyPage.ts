@@ -66,16 +66,18 @@ export function createLazyPageLoader<T extends Record<string, unknown>, K extend
       storage?.removeItem(key)
       return { default: module[exportName] as ComponentType }
     } catch (error) {
-      // O marcador guarda o chunk que já ganhou reload: a rota recarrega uma
-      // vez por arquivo, não uma vez por sessão. No deploy, o chunk antigo
+      // O marcador guarda os chunks que já ganharam reload: a rota recarrega
+      // uma vez por arquivo, não uma vez por sessão. No deploy, o chunk antigo
       // some e, logo após o reload, o novo ainda pode responder 404 por alguns
       // segundos; com um reload só por rota, a segunda falha virava tela de
-      // erro (VELA-1P). O mesmo arquivo falhando de novo ainda para o laço.
-      // Sem URL na mensagem (Safari), vale um reload por rota, como antes.
+      // erro (VELA-1P). Guardar todos (não só o último) impede laço quando
+      // bordas da CDN alternam versões (A, B, A...). Sem URL na mensagem
+      // (Safari), vale um reload por rota, como antes.
       if (isDynamicImportLoadError(error) && storage) {
         const attempt = chunkUrlOf(error) ?? '1'
-        if (storage.getItem(key) !== attempt) {
-          storage.setItem(key, attempt)
+        const attempted = (storage.getItem(key) ?? '').split('\n').filter(Boolean)
+        if (!attempted.includes(attempt)) {
+          storage.setItem(key, [...attempted, attempt].join('\n'))
           ;(options.reload ?? (() => reloadBypassingChunkCache(error)))()
           return new Promise<never>(() => {})
         }

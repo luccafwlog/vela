@@ -6,8 +6,8 @@
 
 ## 2026-10
 
-- **Triagem do Sentry de 15–16/10 (2026-10-16):** o logout (inclusive o automático por
-  inatividade) deixa de abrir issues `[Sem permissão] 42501` com as consultas que ainda estavam na
+- **Triagem do Sentry de 15–16/10 (2026-10-16):** o logout do Vela e do Portal (inclusive o
+  automático por inatividade) deixa de abrir issues `[Sem permissão] 42501` com as consultas que ainda estavam na
   fila e saíram sem sessão (VELA-1Q a VELA-1Z, rótulos do sino com o departamento Documentação);
   o `user_role` sai do Sentry junto com o usuário. Uma tela lazy cujo chunk novo ainda responde
   404 logo após o deploy ganha outro reload em vez da tela de erro (VELA-1P, `/painel`).
