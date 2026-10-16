@@ -1,5 +1,5 @@
 import type { BadgeTone } from "../components/ui/Badge";
-import type { CeUnlockItem } from "../types/ceUnlock";
+import type { CeUnlockItem, CeUnlockRequest } from "../types/ceUnlock";
 
 export const ceStateLabel = (state: string) =>
   ({
@@ -161,4 +161,18 @@ export function ceUnlockZptText(item: CeUnlockZptItem): {
   if (item.export_state === "exported") return { text: `Exportado ${ceShortDate(item.exported_at)}`.trim(), tone: "default" };
   if (item.can_export) return { text: "Apto, não exportado", tone: "strong" };
   return { text: "Não exportado", tone: "muted" };
+}
+
+/** O que ainda falta para a solicitação: documentos a aprovar e requisitos dos B/Ls. */
+export function ceUnlockMissing(request: Pick<CeUnlockRequest, "items" | "state">): string | null {
+  if (["cancelled", "draft"].includes(request.state) || !request.items.length) return null;
+  const missing: string[] = [];
+  const termo = request.items.some((i) => !i.termo);
+  const procuracao = request.items.some((i) => !i.procuracao);
+  if (termo && procuracao) missing.push("aprovar o termo de devolução e a procuração");
+  else if (termo) missing.push("aprovar o termo de devolução");
+  else if (procuracao) missing.push("aprovar a procuração");
+  if (request.items.some((i) => !i.paid)) missing.push("liquidar as taxas locais");
+  if (request.items.some((i) => !i.delivered)) missing.push("entregar o B/L original");
+  return missing.length ? `falta ${missing.join("; ")}` : null;
 }

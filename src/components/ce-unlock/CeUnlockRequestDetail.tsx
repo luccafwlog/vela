@@ -15,7 +15,7 @@ import { latestSlaStart } from "../../services/ceUnlockSla";
 import { annualDocumentValid } from "../../services/ceUnlockRules";
 import { downloadCeUnlockDocument } from "../../services/ceUnlockService";
 import { CeUnlockSla } from "./CeUnlockSla";
-import { ceDate, ceDateTime, ceDocumentName, ceDocumentStatusText, ceStateLabel } from "../../lib/ceUnlockLabels";
+import { ceDate, ceDateTime, ceDocumentName, ceDocumentStatusText, ceStateLabel, ceUnlockMissing } from "../../lib/ceUnlockLabels";
 import type { CeUnlockDocument, CeUnlockRequest } from "../../types/ceUnlock";
 
 type Decision = "approved" | "changes_requested" | "revoked";
@@ -29,22 +29,6 @@ type ActOptions = {
 };
 
 const lower = (type: string) => ceDocumentName(type).toLowerCase();
-
-/** O que ainda falta para a solicitação: documentos a aprovar e requisitos dos B/Ls. */
-export function ceUnlockMissing(request: Pick<CeUnlockRequest, "items" | "state">): string | null {
-  if (["cancelled", "draft"].includes(request.state) || !request.items.length) return null;
-  const missing: string[] = [];
-  const termo = request.items.some((i) => !i.termo);
-  const procuracao = request.items.some((i) => !i.procuracao);
-  if (termo && procuracao) missing.push("aprovar o termo de devolução e a procuração");
-  else if (termo) missing.push("aprovar o termo de devolução");
-  else if (procuracao) missing.push("aprovar a procuração");
-  if (request.items.some((i) => !i.paid)) missing.push("liquidar as taxas locais");
-  if (request.items.some((i) => !i.delivered)) missing.push("entregar o B/L original");
-  if (!missing.length) return null;
-  const last = missing.pop()!;
-  return `falta ${missing.length ? `${missing.join(", ")} e ${last}` : last}`;
-}
 
 function OpenDocument({ doc, onError, children }: { doc: CeUnlockDocument; onError: (m: string) => void; children?: ReactNode }) {
   if (doc.purged) return <span title="Arquivo removido pela regra de retenção">{doc.file_name} (arquivo removido pela regra de retenção)</span>;
