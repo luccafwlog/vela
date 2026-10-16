@@ -5,6 +5,7 @@ import { AlertTriangle, Building2, CheckCircle2, Eye, History, Info, Mail, Paper
 import { Badge, type BadgeTone } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
+import { ClientesTabs } from '../components/customers/ClientesTabs'
 import { CopyValue } from '../components/ui/CopyValue'
 import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
@@ -507,14 +508,10 @@ export function ClientesComunicacao() {
 
   return (
     <>
+      <ClientesTabs active="comunicacao" />
       <PageHeader
         title="Comunicação com Clientes"
         description="Conferência e envio controlado de avisos operacionais e institucionais."
-        action={
-          <Link to="/clientes" className="app-btn app-btn--secondary">
-            Voltar para Clientes
-          </Link>
-        }
       />
 
       {settingsLoading ? (

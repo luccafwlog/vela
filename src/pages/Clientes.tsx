@@ -2,15 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { Download, Mail, Plus, Search, ShieldCheck, Upload } from 'lucide-react'
+import { Download, Plus, Search, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
 import { NoValue } from '../components/ui/NoValue'
 import { EmptyState, PageHeader } from '../components/ui/Card'
-import { SummaryStrip } from '../components/ui/SummaryStrip'
-import { WorkspaceNav } from '../components/ui/WorkspaceNav'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
@@ -18,6 +15,7 @@ import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { CreateCustomerModal } from '../components/customers/CreateCustomerModal'
 import { CustomerTable } from '../components/customers/CustomerTable'
+import { ClientesTabs } from '../components/customers/ClientesTabs'
 import { ImportBaseModal, type CustomerBaseImportOutcome } from '../components/customers/ImportBaseModal'
 import {
   emptyCreateCustomerForm,
@@ -34,11 +32,11 @@ import { usePortalProvisioning } from '../hooks/usePortalProvisioning'
 import { formatBRL, formatCnpjCpf, formatCountLabel } from '../lib/utils'
 import { userFacingErrorMessage } from '../lib/errors'
 import { isValidCnpj } from '../lib/cnpj'
-import { getCustomerFilterChips, type CustomerSortKey } from '../lib/customerTableViewModel'
+import { type CustomerSortKey } from '../lib/customerTableViewModel'
 import { CUSTOMER_COMMUNICATION_BOXES } from '../services/customerCommunicationBoxes'
 import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
 import { afterBlRevisado, afterCargaAlterada } from '../services/cacheEffects'
-import { checkCustomerDependencies, createCustomer, deactivateCustomer, deleteCustomers, reactivateCustomer } from '../services/customers'
+import { checkCustomerDependencies, createCustomer, deleteCustomers } from '../services/customers'
 import { buildDeleteAffected, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
 import {
@@ -121,7 +119,6 @@ export function Clientes() {
       page: 0,
     }))
   }
-  const filterChips = getCustomerFilterChips({ ...filters, search: '' })
   async function copyText(value: string, label: string) {
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponível')
@@ -149,9 +146,6 @@ export function Clientes() {
   const summary = summaryQuery.data
   const canSeePortalQueue = ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole ?? '')
   const { data: portalRows } = usePortalProvisioning(canSeePortalQueue)
-  const awaitingPortalAnalysis = canSeePortalQueue
-    ? (portalRows?.filter((row) => row.provisioning_decision === 'aguardando_analise').length ?? null)
-    : null
 
   const totalPages = Math.ceil((data?.totalCount ?? 0) / filters.pageSize)
 
@@ -380,52 +374,6 @@ export function Clientes() {
     }
   }
 
-  async function handleToggleCustomerActive(id: number, deactivated: boolean) {
-    try {
-      if (!deactivated) {
-        const preview = await deactivateCustomer(id, '', { dryRun: true })
-        if (preview.reasons.length > 0) {
-          showToast(`O cliente não pode ser desativado: ${preview.reasons.join(', ')}. O Financeiro quita ou cancela antes.`, 'error')
-          return
-        }
-      }
-      const reason = await confirmWithReason(deactivated ? {
-        title: 'Reativar cliente',
-        message: 'Reativar este cliente?',
-        consequence: 'O cliente volta às listas de escolha, recupera o acesso ao Portal e pode ser vinculado de novo a B/Ls.',
-        reversibility: 'Desative de novo se precisar.',
-        confirmLabel: 'Reativar cliente',
-        tone: 'primary',
-      } : {
-        title: 'Desativar cliente',
-        message: 'Desativar este cliente?',
-        consequence: 'O cliente sai das listas de escolha e perde o acesso ao Portal. B/Ls novos com o CNPJ dele vão para a Revisão. O histórico, as faturas e os B/Ls antigos continuam com ele.',
-        reversibility: 'Reativar cliente, pelo Administrativo, com motivo.',
-        confirmLabel: 'Desativar cliente',
-        tone: 'danger',
-      })
-      if (reason === null) return
-      if (deactivated) {
-        await reactivateCustomer(id, reason)
-      } else {
-        const result = await deactivateCustomer(id, reason)
-        if (!result.deactivated) {
-          showToast(`O cliente não foi desativado: ${result.reasons.join(', ')}.`, 'error')
-          return
-        }
-      }
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['customers'] }),
-        queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
-        queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
-        queryClient.invalidateQueries({ queryKey: ['customer-detail'] }),
-      ])
-      showToast(deactivated ? 'Cliente reativado.' : 'Cliente desativado.', 'success')
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Falha ao alterar o cliente.', 'error')
-    }
-  }
-
   function updateCreateField<K extends keyof Omit<CreateCustomerForm, 'contacts'>>(field: K, value: CreateCustomerForm[K]) {
     setCreateForm((current) => ({ ...current, [field]: value }))
   }
@@ -489,15 +437,6 @@ export function Clientes() {
     />
   )
 
-  const summaryItems = summaryQuery.isError
-    ? [{ label: 'resumo indisponível', value: <NoValue label="Resumo indisponível" /> }]
-    : [
-        { label: summary?.totalCustomers === 1 ? 'cliente' : 'clientes', value: metric(summary?.totalCustomers) },
-        { label: 'B/Ls vinculados', value: metric(summary?.totalBls) },
-        { label: 'com taxas a revisar', value: metric(summary?.chargePending), tone: summary?.chargePending ? 'warning' as const : 'default' as const },
-        { label: 'prontos para faturar', value: metric(summary?.chargeReady) },
-      ]
-
   return (
     <>
       <PageHeader
@@ -520,27 +459,34 @@ export function Clientes() {
         }
       />
 
-      <WorkspaceNav
-        ariaLabel="Outros ambientes de Clientes"
-        items={[
-          {
-            to: '/clientes/portal',
-            label: 'Provisionamento do Portal',
-            description: 'Convites, e-mails e situações de conta.',
-            icon: ShieldCheck,
-            count: awaitingPortalAnalysis,
-            countLabel: 'Clientes aguardando análise',
-          },
-          {
-            to: '/clientes/comunicacao',
-            label: 'Comunicação',
-            description: 'Comunicados e histórico de envios.',
-            icon: Mail,
-          },
-        ]}
-      />
+      <ClientesTabs active="clientes" />
 
-      <div className="app-customer-search">
+      <div className="app-metric-row" role="group" aria-label="Totais do recorte">
+        <MetricCard label="Clientes" value={metric(summary?.totalCustomers)} />
+        <MetricCard label="B/Ls vinculados" value={metric(summary?.totalBls)} />
+        <MetricCard
+          label="Saldo pendente"
+          value={metric(summary?.pendingBalance, formatBRL)}
+          tone={(summary?.pendingBalance ?? 0) > 0 ? 'warning' : 'secondary'}
+          selected={filters.pendingStatus === 'with'}
+          onSelect={() => togglePresence('pendingStatus', 'with')}
+        />
+        <MetricCard
+          label="Taxas a revisar"
+          value={metric(summary?.chargePending)}
+          tone={(summary?.chargePending ?? 0) > 0 ? 'warning' : 'secondary'}
+        />
+        <MetricCard
+          label="Sem e-mail de contato"
+          value={metric(summary?.customersWithoutEmail)}
+          tone={(summary?.customersWithoutEmail ?? 0) > 0 ? 'warning' : 'secondary'}
+          selected={filters.emailStatus === 'without'}
+          onSelect={() => togglePresence('emailStatus', 'without')}
+        />
+      </div>
+      {summaryQuery.isError ? <p className="app-customer-note" role="alert">Totais indisponíveis; aparecem como —.</p> : null}
+
+      <div className="app-filter-grid">
         <Field label="Buscar cliente">
           <Input
             type="search"
@@ -549,67 +495,37 @@ export function Clientes() {
             placeholder="Razão social, nome fantasia ou CNPJ"
           />
         </Field>
-        <div className="app-customer-metrics" role="group" aria-label="Atenção no recorte">
-          <MetricCard
-            label="Saldo pendente"
-            value={metric(summary?.pendingBalance, formatBRL)}
-            tone="primary"
-            selected={filters.pendingStatus === 'with'}
-            onSelect={() => togglePresence('pendingStatus', 'with')}
+        <Field label="E-mail do contato">
+          <Input
+            type="email"
+            value={filters.contactEmail}
+            onChange={(event) => setFilterField('contactEmail', event.target.value)}
+            placeholder="email@cliente.com"
           />
-          <MetricCard
-            label="Sem e-mail de contato"
-            value={metric(summary?.customersWithoutEmail)}
-            selected={filters.emailStatus === 'without'}
-            onSelect={() => togglePresence('emailStatus', 'without')}
-          />
-        </div>
+        </Field>
+        <Field label="B/Ls vinculados">
+          <Select value={filters.blStatus} onChange={(event) => setFilterField('blStatus', event.target.value as CustomerFilters['blStatus'])}>
+            <option value="">Todos</option>
+            <option value="with">Com B/Ls</option>
+            <option value="without">Sem B/Ls</option>
+          </Select>
+        </Field>
+        <Field label="Saldo pendente">
+          <Select value={filters.pendingStatus} onChange={(event) => setFilterField('pendingStatus', event.target.value as CustomerFilters['pendingStatus'])}>
+            <option value="">Todos</option>
+            <option value="with">Com saldo pendente</option>
+            <option value="without">Sem saldo pendente</option>
+          </Select>
+        </Field>
+        <Field label="E-mails de contato">
+          <Select value={filters.emailStatus} onChange={(event) => setFilterField('emailStatus', event.target.value as CustomerFilters['emailStatus'])}>
+            <option value="">Todos</option>
+            <option value="with">Com e-mail</option>
+            <option value="without">Sem e-mail</option>
+          </Select>
+        </Field>
+        {hasAnyFilter ? <div><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button></div> : null}
       </div>
-
-      <FilterBar activeCount={panelFilterCount} onClear={clearFilters}>
-        <div className="app-filter-grid">
-          <Field label="E-mail do contato">
-            <Input
-              type="email"
-              value={filters.contactEmail}
-              onChange={(event) => setFilterField('contactEmail', event.target.value)}
-              placeholder="email@cliente.com"
-            />
-          </Field>
-          <Field label="E-mails de contato">
-            <Select value={filters.emailStatus} onChange={(event) => setFilterField('emailStatus', event.target.value as CustomerFilters['emailStatus'])}>
-              <option value="">Todos</option>
-              <option value="with">Com e-mail</option>
-              <option value="without">Sem e-mail</option>
-            </Select>
-          </Field>
-          <Field label="B/Ls vinculados">
-            <Select value={filters.blStatus} onChange={(event) => setFilterField('blStatus', event.target.value as CustomerFilters['blStatus'])}>
-              <option value="">Todos</option>
-              <option value="with">Com B/Ls</option>
-              <option value="without">Sem B/Ls</option>
-            </Select>
-          </Field>
-          <Field label="Saldo pendente">
-            <Select value={filters.pendingStatus} onChange={(event) => setFilterField('pendingStatus', event.target.value as CustomerFilters['pendingStatus'])}>
-              <option value="">Todos</option>
-              <option value="with">Com saldo pendente</option>
-              <option value="without">Sem saldo pendente</option>
-            </Select>
-          </Field>
-        </div>
-      </FilterBar>
-
-      {filterChips.length ? (
-        <div className="app-filter-chips">
-          {filterChips.map((chip) => (
-            <button key={chip.key} type="button" className="app-filter-chip" aria-label={`Remover filtro ${chip.label}`} onClick={() => setFilterField(chip.key as PanelFilterKey, '' as never)}>
-              {chip.label}
-              <span aria-hidden="true">×</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       {canDeleteCustomers ? (
         <BulkActionsBar
@@ -638,16 +554,10 @@ export function Clientes() {
           deleting={deleting}
           narrow={narrow}
           emptyState={emptyState}
-          toolbar={(
-            <div className="app-customer-toolbar">
-              <SummaryStrip label="Resumo do recorte" items={summaryItems} />
-            </div>
-          )}
           onToggleSort={toggleSort}
           onPageChange={(page) => setFilters((current) => ({ ...current, page }))}
           onCopy={copyText}
           onDeleteCustomer={(id) => void runCustomerDelete([id])}
-          onToggleCustomerActive={(id, deactivated) => void handleToggleCustomerActive(id, deactivated)}
           portalRows={portalRows ?? undefined}
         />
       </QueryStateGate>

@@ -1,5 +1,9 @@
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, FileStack, MoreHorizontal, ReceiptText, ShieldCheck } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, FileStack, MoreHorizontal, Power, ReceiptText, ShieldCheck } from 'lucide-react'
+import { useToast } from '../components/ui/Toast'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { deactivateCustomer, reactivateCustomer } from '../services/customers'
 import { CeUnlockVipCoveragePanel } from '../components/ce-unlock/CeUnlockVipCoveragePanel'
 import { useAuth } from '../hooks/useAuth'
 import { ActionMenu, type ActionMenuItem } from '../components/ui/ActionMenu'
@@ -28,7 +32,10 @@ import { clientesListHref } from './clientesListState'
 type Deactivation = { deactivated_at?: string | null; deactivation_reason?: string | null }
 
 export function ClienteFicha() {
-  const { can } = useAuth()
+  const { can, isAdmin } = useAuth()
+  const queryClient = useQueryClient()
+  const { showToast } = useToast()
+  const confirmWithReason = useConfirmWithReason()
   const canReadCeUnlock = can('ce_unlock_read')
   const { cnpj } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -91,10 +98,64 @@ export function ClienteFicha() {
   // E-mail do contato principal ativo, o mesmo do bloco Contato principal da Visão geral.
   const primaryEmail = data.customer_contacts?.find((contact) => contact.is_primary && !contact.deactivated_at && Boolean(contact.email?.trim()))?.email ?? null
 
+  // Desativar e Reativar ficam só aqui desde o lote 2 (2026-10-16); a lista não tem mais o menu ⋮.
+  async function handleToggleCustomerActive(id: number, deactivated: boolean) {
+    try {
+      if (!deactivated) {
+        const preview = await deactivateCustomer(id, '', { dryRun: true })
+        if (preview.reasons.length > 0) {
+          showToast(`O cliente não pode ser desativado: ${preview.reasons.join(', ')}. O Financeiro quita ou cancela antes.`, 'error')
+          return
+        }
+      }
+      const reason = await confirmWithReason(deactivated ? {
+        title: 'Reativar cliente',
+        message: 'Reativar este cliente?',
+        consequence: 'O cliente volta às listas de escolha, recupera o acesso ao Portal e pode ser vinculado de novo a B/Ls.',
+        reversibility: 'Desative de novo se precisar.',
+        confirmLabel: 'Reativar cliente',
+        tone: 'primary',
+      } : {
+        title: 'Desativar cliente',
+        message: 'Desativar este cliente?',
+        consequence: 'O cliente sai das listas de escolha e perde o acesso ao Portal. B/Ls novos com o CNPJ dele vão para a Revisão. O histórico, as faturas e os B/Ls antigos continuam com ele.',
+        reversibility: 'Reativar cliente, pelo Administrativo, com motivo.',
+        confirmLabel: 'Desativar cliente',
+        tone: 'danger',
+      })
+      if (reason === null) return
+      if (deactivated) {
+        await reactivateCustomer(id, reason)
+      } else {
+        const result = await deactivateCustomer(id, reason)
+        if (!result.deactivated) {
+          showToast(`O cliente não foi desativado: ${result.reasons.join(', ')}.`, 'error')
+          return
+        }
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
+        queryClient.invalidateQueries({ queryKey: ['customer-detail'] }),
+      ])
+      showToast(deactivated ? 'Cliente reativado.' : 'Cliente desativado.', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Falha ao alterar o cliente.', 'error')
+    }
+  }
+
   const menu: ActionMenuItem[] = [
     { key: 'faturas', label: 'Ver faturas em Taxas Locais', icon: <ReceiptText size={14} aria-hidden="true" />, to: buildCustomerBillingUrl(data) },
     { key: 'bls', label: 'Ver os B/Ls na lista de BLs', icon: <FileStack size={14} aria-hidden="true" />, to: `/bls?q=${encodeURIComponent(data.cnpj_cpf)}` },
     { key: 'portal', label: 'Abrir no Provisionamento do Portal', icon: <ShieldCheck size={14} aria-hidden="true" />, to: `/clientes/portal?cliente=${data.id}` },
+    ...(isAdmin ? [{
+      key: 'ativo',
+      label: deactivatedAt ? 'Reativar cliente' : 'Desativar cliente',
+      icon: <Power size={14} aria-hidden="true" />,
+      danger: !deactivatedAt,
+      onSelect: () => void handleToggleCustomerActive(data.id, Boolean(deactivatedAt)),
+    }] : []),
   ]
 
   return (
@@ -124,7 +185,7 @@ export function ClienteFicha() {
 
       {deactivatedAt ? (
         <div className="app-customer-banner" role="status">
-          <p><strong>Cliente desativado em {formatDate(deactivatedAt)}.</strong> Fora das listas de escolha e sem acesso ao Portal; B/Ls novos com este CNPJ vão para a Revisão. O Administrativo reativa pela lista de Clientes.</p>
+          <p><strong>Cliente desativado em {formatDate(deactivatedAt)}.</strong> Fora das listas de escolha e sem acesso ao Portal; B/Ls novos com este CNPJ vão para a Revisão. O Administrativo reativa em Mais ações, nesta ficha.</p>
           {deactivationReason ? <p className="app-customer-banner__reason">Motivo: {deactivationReason}</p> : null}
         </div>
       ) : null}

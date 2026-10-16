@@ -15,6 +15,7 @@ const rows = [
   { ...row, customer_id: 125, customer_name: 'Cliente Aguardando', account_situation: 'convite_pendente', provisioning_decision: 'aguardando_analise' },
 ] as const
 
+vi.mock('../../components/customers/ClientesTabs', () => ({ ClientesTabs: () => null }))
 vi.mock('../../hooks/usePortalProvisioning', () => ({
   usePortalProvisioning: () => ({ data: rows, isLoading: false, error: null, refetch: vi.fn() }),
 }))

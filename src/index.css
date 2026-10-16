@@ -6513,97 +6513,6 @@ button.app-metric-tile[aria-pressed='true'] {
    fora da paleta e "Comunicação" um botão secundário no cabeçalho — mesma
    função, hierarquias opostas.
    =========================================================================== */
-.app-workspace-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.app-workspace-nav__item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface-strong);
-  color: var(--app-text);
-  text-decoration: none;
-  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.app-workspace-nav__item:hover {
-  border-color: var(--app-link);
-  background: var(--app-surface-hover);
-  box-shadow: var(--app-shadow);
-}
-
-.app-workspace-nav__item:focus-visible {
-  outline: 2px solid var(--app-link);
-  outline-offset: 2px;
-}
-
-.app-workspace-nav__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  border-radius: 8px;
-  background: var(--app-blue-soft);
-  color: var(--app-link);
-}
-
-.app-workspace-nav__body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.app-workspace-nav__label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--app-size-body);
-  font-weight: 700;
-  color: var(--app-text-strong);
-}
-
-.app-workspace-nav__count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: var(--app-blue-btn);
-  color: #ffffff;
-  font-size: var(--app-size-caption);
-  font-weight: 700;
-  line-height: 1;
-}
-
-.app-workspace-nav__description {
-  font-size: 0.8rem;
-  color: var(--app-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.app-workspace-nav__arrow {
-  flex: 0 0 auto;
-  color: var(--app-muted);
-}
-
-.app-workspace-nav__item:hover .app-workspace-nav__arrow {
-  color: var(--app-link);
-}
 
 /* Filtros do recorte em Clientes › Comunicação › Disparo. São quatro campos de
    texto curto enfileirados; a altura padrão de 44px empurrava o botão de
@@ -9630,19 +9539,9 @@ td.app-cargo-num {
   line-height: 16px;
 }
 
-.app-customer-note--warning {
-  color: var(--app-warning-fg);
-  font-weight: 500;
-}
-
 .app-customer-money {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.app-customer-money--due {
-  color: var(--app-text-strong);
-  font-weight: 600;
 }
 
 .app-customer-error {
@@ -9698,32 +9597,6 @@ td.app-cargo-num {
 }
 
 /* ── Lista ──────────────────────────────────────────────────────────────── */
-.app-customer-search {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px 16px;
-  margin-bottom: 12px;
-}
-
-.app-customer-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(168px, 1fr));
-  gap: 12px;
-}
-
-.app-customer-metrics .app-metric-tile {
-  padding: 10px 14px;
-}
-
-.app-customer-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  border-bottom: 1px solid var(--app-border);
-  padding: 10px 16px;
-}
 
 .app-customer-empty-actions {
   display: flex;
@@ -9792,23 +9665,11 @@ td.app-cargo-num {
   font-variant-numeric: tabular-nums;
 }
 
-.app-customer-cell__flags {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  margin-top: 2px;
-}
-
 .app-customer-cell__truncate {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.app-customer-menu-trigger {
-  margin-left: auto;
 }
 
 .app-customer-cards {
@@ -10350,9 +10211,6 @@ td.app-cargo-num {
 }
 
 @media (max-width: 900px) {
-  .app-customer-search {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   .app-customer-boxes__grid,
   .app-customer-subsections {
@@ -10369,11 +10227,7 @@ td.app-cargo-num {
 }
 
 @media (max-width: 639px) {
-  .app-customer-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
-  .app-customer-toolbar,
   .app-customer-card {
     padding-inline: 12px;
   }

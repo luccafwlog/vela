@@ -7,8 +7,8 @@ import { Button } from '../components/ui/Button'
 import { CopyValue } from '../components/ui/CopyValue'
 import { NoValue } from '../components/ui/NoValue'
 import { Input } from '../components/ui/Input'
-import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { usePortalProvisioning } from '../hooks/usePortalProvisioning'
+import { ClientesTabs } from '../components/customers/ClientesTabs'
 import { comparePriority, type QueueRow } from '../services/portalProvisioning'
 import { PortalReviewPanel } from '../components/portal/PortalReviewPanel'
 import { accountSituationLabel, getPortalNextAction, provisioningDecisionLabel } from '../lib/portalProvisioningViewModel'
@@ -66,7 +66,7 @@ export function ClientesPortal() {
 
   return (
     <>
-      <Breadcrumb items={[{ label: 'Clientes', to: '/clientes' }, { label: 'Provisionamento do Portal' }]} />
+      <ClientesTabs active="portal" />
       <PageHeader
         title="Provisionamento do Portal"
         description="Fila operacional de análise, convites e situações do Portal."

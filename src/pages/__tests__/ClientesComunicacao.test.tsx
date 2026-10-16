@@ -124,6 +124,7 @@ let mockAppSettingsLoading = false
 let mockAppSettingsError: Error | null = null
 const mockRefetchSettings = vi.fn()
 
+vi.mock('../../components/customers/ClientesTabs', () => ({ ClientesTabs: () => null }))
 vi.mock('../../hooks/useAppSettings', () => ({
   useAppSettings: () => ({
     data: mockAppSettings,
