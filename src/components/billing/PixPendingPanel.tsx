@@ -7,6 +7,7 @@ import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
 import { Field, Textarea } from '../ui/Input'
+import { TxidCell } from './PixTxidCell'
 import { afterPendenciaPixAlterada, afterPixConciliado } from '../../services/cacheEffects'
 import { useItauPixMonitor, usePixExceptions } from '../../hooks/usePixReconciliation'
 import { useAuth } from '../../hooks/useAuth'
@@ -32,7 +33,6 @@ import {
   itauChargeState,
   pendingExceptionReason,
   extractLineReason,
-  shortTxid,
   sortItauCharges,
 } from './pixReconciliationPresentation'
 
@@ -44,13 +44,6 @@ const sourceLabel = (source: 'local' | 'demurrage') => (source === 'demurrage' ?
 
 /** Data e hora de Brasília na célula da tabela, sem o "às" da frase. */
 const cellInstant = (value: string | null | undefined) => formatBrasiliaInstant(value).replace(' às', '')
-
-/** Identificador do Pix na tabela: encurtado em letra de código, inteiro no `title`. */
-export function TxidCell({ txid }: { txid: string | null | undefined }) {
-  const value = (txid ?? '').trim()
-  if (!value) return <NoValue label="Sem identificador do Pix" />
-  return <span className="font-[var(--app-font-mono)]" title={value}>{shortTxid(value)}</span>
-}
 
 function RowToggle({ open, controls, label, onClick, disabled }: { open: boolean; controls: string; label: string; onClick: () => void; disabled?: boolean }) {
   return (
