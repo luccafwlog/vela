@@ -194,9 +194,28 @@ describe('setTelemetryUser', () => {
     expect(sentryMock.setTag).toHaveBeenCalledWith('user_role', 'administrativo')
   })
 
-  it('limpa o usuário no Sentry quando recebe null', () => {
+  it('limpa o usuário e o papel no Sentry quando recebe null', () => {
     setTelemetryUser(null)
     expect(sentryMock.setUser).toHaveBeenCalledWith(null)
+    expect(sentryMock.setTag).toHaveBeenCalledWith('user_role', undefined)
+  })
+
+  it('descarta 42501/PGRST301 de requisição que terminou depois do logout (VELA-1Q a VELA-1Z)', () => {
+    const permissionEvent = () => mockEvent({ exception: { values: [{ type: 'Error', value: 'permission denied' }] } })
+    const anonDenied = { code: '42501', message: 'permission denied for table voyages' }
+    const expired = { code: 'PGRST301', message: 'JWT expired' }
+    const unrelated = { code: '23505', message: 'duplicate key value violates unique constraint' }
+
+    setTelemetryUser({ id: 'user-123', role: 'documentacao' })
+    expect(telemetryBeforeSend(permissionEvent(), { originalException: anonDenied })).not.toBeNull()
+
+    setTelemetryUser(null)
+    expect(telemetryBeforeSend(permissionEvent(), { originalException: anonDenied })).toBeNull()
+    expect(telemetryBeforeSend(permissionEvent(), { originalException: expired })).toBeNull()
+    expect(telemetryBeforeSend(permissionEvent(), { originalException: unrelated })).not.toBeNull()
+
+    setTelemetryUser({ id: 'user-123', role: 'documentacao' })
+    expect(telemetryBeforeSend(permissionEvent(), { originalException: anonDenied })).not.toBeNull()
   })
 })
 

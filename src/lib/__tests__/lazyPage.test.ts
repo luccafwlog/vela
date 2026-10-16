@@ -30,7 +30,7 @@ describe('createLazyPageLoader', () => {
 
     await Promise.resolve()
 
-    expect(storage.setItem).toHaveBeenCalledWith('chunk-reload:/viagens', '1')
+    expect(storage.setItem).toHaveBeenCalledWith('chunk-reload:/viagens', 'https://example.test/assets/Viagens-old.js')
     expect(reload).toHaveBeenCalledTimes(1)
     expect(await Promise.race([promise.then(() => 'resolved'), Promise.resolve('pending')])).toBe('pending')
   })
@@ -68,8 +68,44 @@ describe('createLazyPageLoader', () => {
     expect(storage.removeItem).toHaveBeenCalledWith('chunk-reload:/viagens')
   })
 
-  it('throws the dynamic import error after the same route already retried', async () => {
+  // VELA-1P: o reload pelo chunk antigo caiu na versão nova enquanto o chunk
+  // novo ainda respondia 404; a rota precisa de outra tentativa.
+  it('reloads again when a different chunk fails after the route already retried', async () => {
+    const storage = createStorage({ 'chunk-reload:/painel': 'https://example.test/assets/Painel-old.js' })
+    const reload = vi.fn()
+    const loader = createLazyPageLoader(
+      async () => {
+        throw new TypeError('Failed to fetch dynamically imported module: https://example.test/assets/Painel-new.js')
+      },
+      'Painel',
+      { pathname: '/painel', reload, storage },
+    )
+
+    const promise = loader()
+    await Promise.resolve()
+
+    expect(storage.setItem).toHaveBeenCalledWith('chunk-reload:/painel', 'https://example.test/assets/Painel-new.js')
+    expect(reload).toHaveBeenCalledTimes(1)
+    expect(await Promise.race([promise.then(() => 'resolved'), Promise.resolve('pending')])).toBe('pending')
+  })
+
+  it('throws without a URL after the route already retried once', async () => {
     const storage = createStorage({ 'chunk-reload:/viagens': '1' })
+    const reload = vi.fn()
+    const loader = createLazyPageLoader(
+      async () => {
+        throw new TypeError('Importing a module script failed.')
+      },
+      'Viagens',
+      { pathname: '/viagens', reload, storage },
+    )
+
+    await expect(loader()).rejects.toThrow('Importing a module script failed')
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  it('throws the dynamic import error after the same chunk already retried', async () => {
+    const storage = createStorage({ 'chunk-reload:/viagens': 'https://example.test/assets/Viagens-old.js' })
     const reload = vi.fn()
     const loader = createLazyPageLoader(
       async () => {
