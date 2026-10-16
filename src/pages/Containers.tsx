@@ -2,15 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../services/cacheEffects'
-import { CalendarDays, Download, MoreVertical, Trash2 } from 'lucide-react'
+import { CalendarDays, Download } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { ActionMenu } from '../components/ui/ActionMenu'
 import { CopyValue } from '../components/ui/CopyValue'
 import { NoValue } from '../components/ui/NoValue'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
-import { SummaryStrip, type SummaryItem } from '../components/ui/SummaryStrip'
+import { MetricCard } from '../components/ui/MetricCard'
+import { LocalChargesStatus } from '../components/bl/LocalChargesStatus'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
@@ -23,7 +23,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { ContainerDatesImportModal } from '../components/shared/ContainerDatesImportModal'
-import { CargoProfileBadge, ChargeStatusBadge, ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
+import { CargoProfileBadge, ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { checkContainerDependencies, deleteContainers } from '../services/containers'
 import { buildDeleteAffected, formatBlockedSummary, formatDeleteOutcome } from '../services/deleteDependencies'
@@ -76,14 +76,14 @@ function partyName(row: ContainerRow) {
 
 function VoyageCell({ row }: { row: ContainerRow }) {
   const voyage = row.bl?.voyage
-  return (
-    <span className="app-cargo-cell__stack app-table__cell-stack">
-      {voyage?.id ? (
-        <Link className="app-cargo-link app-cargo-cell__truncate" to={`/viagens/${voyage.id}`} title={voyageText(row)}>{voyageText(row)}</Link>
-      ) : <NoValue label="Sem viagem" />}
-      <span className="app-cargo-cell__sub">{routeText(row)}</span>
-    </span>
-  )
+  // Tabela limpa (lote 2): o trecho POL → POD fica nos filtros e ao passar o mouse.
+  return voyage?.id ? (
+    <Link className="app-cargo-link app-cargo-cell__truncate" to={`/viagens/${voyage.id}`} title={`${voyageText(row)} · ${routeText(row)}`}>{voyageText(row)}</Link>
+  ) : <NoValue label="Sem viagem" />
+}
+
+function BlNumberCell({ row }: { row: ContainerRow }) {
+  return row.bl?.id ? <CopyValue value={row.bl.id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${row.bl.id}`}>{row.bl.id}</Link></CopyValue> : <NoValue label="Sem B/L" />
 }
 
 function BlCell({ row }: { row: ContainerRow }) {
@@ -96,6 +96,20 @@ function BlCell({ row }: { row: ContainerRow }) {
   )
 }
 
+/** COC/SOC em texto (lote 2); a origem e o "tratado como COC" ao passar o mouse. */
+function OwnershipText({ row }: { row: ContainerRow }) {
+  const source = ownershipSourceLabel(row.ownership_source, row.ownership)
+  if (row.ownership !== 'SOC' && row.ownership !== 'COC') {
+    return <span title="Não informado: tratado como COC"><NoValue label="SOC/COC não informado, tratado como COC" /></span>
+  }
+  return <span title={source ?? undefined}>{row.ownership}</span>
+}
+
+function ProfileText({ row }: { row: ContainerRow }) {
+  if (!row.is_imo && !row.is_oog) return <NoValue label="Sem IMO nem OOG" />
+  return <>{[row.is_imo ? 'IMO' : null, row.is_oog ? 'OOG' : null].filter(Boolean).join(' · ')}</>
+}
+
 function OwnershipCell({ row }: { row: ContainerRow }) {
   const source = ownershipSourceLabel(row.ownership_source, row.ownership)
   return (
@@ -104,11 +118,6 @@ function OwnershipCell({ row }: { row: ContainerRow }) {
       {source ? <span className="app-cargo-cell__sub">{source}</span> : null}
     </span>
   )
-}
-
-function ProfileCell({ row }: { row: ContainerRow }) {
-  if (!row.is_imo && !row.is_oog) return <NoValue label="Sem IMO nem OOG" />
-  return <CargoProfileBadge isImo={Boolean(row.is_imo)} isOog={Boolean(row.is_oog)} />
 }
 
 function DateCell({ value, label }: { value: string | null | undefined; label: string }) {
@@ -176,6 +185,9 @@ export function Containers() {
     if (lastPage !== null && filters.page > lastPage) updateFilter('page', lastPage)
   }, [filters.page, lastPage, updateFilter])
   const activeFilterCount = countActiveContainerFilters(filters)
+  // Busca, Viagem, Tipo, POL e POD ficam abertos; o resto vai para "Mais filtros" (como na lista de BLs).
+  const moreFilterCount = (['cargoProfile', 'vehicleContainer', 'reviewStatus', 'financialStatus', 'chargeStatus'] as (keyof ContainerFilters)[])
+    .filter((key) => String(filters[key] ?? '').trim() !== '').length
 
   function clearFilters() {
     setFilters((current) => ({ ...current, ...EMPTY_FILTERS, page: 1 }))
@@ -235,39 +247,15 @@ export function Containers() {
 
   const pageContainerIds = rows.map((row) => row.id)
   const allPageSelected = pageContainerIds.length > 0 && pageContainerIds.every((id) => selection.isSelected(id))
-  const containerColumnCount = isAdmin ? 11 : 9
-  const containerSkeletonTemplate = `${isAdmin ? '44px ' : ''}1.1fr 1.3fr 1.4fr 0.6fr 0.7fr 0.9fr 0.8fr 0.9fr 0.9fr${isAdmin ? ' 52px' : ''}`
+  const containerColumnCount = isAdmin ? 11 : 10
+  const containerSkeletonTemplate = `${isAdmin ? '44px ' : ''}1.1fr 1.1fr 1.3fr 1.4fr 0.6fr 0.7fr 0.7fr 0.8fr 0.9fr 0.9fr`
 
   // Erro ou carregamento mostram "—", nunca um zero que o sistema não sabe.
   const known = data !== undefined && !error && !stale
   const count = (value: number | undefined) => (known ? (value ?? 0).toLocaleString('pt-BR') : '—')
-  const summaryItems: SummaryItem[] = [
-    { label: 'containers distintos', value: count(data?.distinctCount) },
-    { label: data?.blCount === 1 ? 'B/L' : 'B/Ls', value: count(data?.blCount) },
-    { label: 'OOG', value: count(data?.oogDistinctCount) },
-    { label: 'IMO', value: count(data?.imoDistinctCount) },
-    ...(known ? (data?.typeSummary ?? []).map((item) => ({ label: displayAggregateLabel(item.type), value: item.distinctCount.toLocaleString('pt-BR') })) : []),
-  ]
+  // Quantos há de cada tipo vai no próprio filtro Tipo (decisão de 2026-10-16: sem cartão por tipo).
+  const typeCounts = new Map((known ? data?.typeSummary ?? [] : []).map((item) => [displayAggregateLabel(item.type), item.distinctCount]))
   const repeatedAcrossBls = known && (data?.count ?? 0) > (data?.distinctCount ?? 0)
-
-  function rowMenu(row: ContainerRow) {
-    return (
-      <ActionMenu
-        label={`Ações para container ${row.container_number}`}
-        menuId={`container-actions-${row.id}`}
-        triggerClassName="app-table__icon-button"
-        trigger={<MoreVertical size={16} aria-hidden="true" />}
-        items={[{
-          key: 'delete',
-          label: 'Excluir container',
-          icon: <Trash2 size={14} aria-hidden="true" />,
-          danger: true,
-          disabled: deleting,
-          onSelect: () => void runContainerDelete([row.id]),
-        }]}
-      />
-    )
-  }
 
   return (
     <>
@@ -287,8 +275,14 @@ export function Containers() {
         }
       />
 
-      <FilterBar activeCount={activeFilterCount} onClear={clearFilters}>
-        <div className="app-filter-grid">
+      <div className="app-metric-row" role="group" aria-label="Totais do recorte">
+        <MetricCard label="Containers" value={count(data?.distinctCount)} />
+        <MetricCard label="B/Ls" value={count(data?.blCount)} />
+        <MetricCard label="IMO" value={count(data?.imoDistinctCount)} />
+        <MetricCard label="OOG" value={count(data?.oogDistinctCount)} />
+      </div>
+
+      <div className="app-filter-grid">
           <Field label="Buscar">
             <Input
               type="search"
@@ -303,6 +297,12 @@ export function Containers() {
             selectedVoyageId={filters.voyageId}
             onSelect={(id) => updateFilter('voyageId', id == null ? '' : String(id))}
           />
+          <Field label="Tipo">
+            <Select value={filters.containerType ?? ''} onChange={(event) => updateFilter('containerType', event.target.value)}>
+              <option value="">Todos</option>
+              {typeOptions?.map((type) => <option key={type} value={type}>{typeCounts.has(type) ? `${type} (${typeCounts.get(type)!.toLocaleString('pt-BR')})` : type}</option>)}
+            </Select>
+          </Field>
           <Field label="POL">
             <Select value={filters.pol} onChange={(event) => updateFilter('pol', event.target.value)}>
               <option value="">Todos</option>
@@ -315,12 +315,10 @@ export function Containers() {
               {portOptions?.pods.map((pod) => <option key={pod} value={pod}>{pod}</option>)}
             </Select>
           </Field>
-          <Field label="Tipo de container">
-            <Select value={filters.containerType ?? ''} onChange={(event) => updateFilter('containerType', event.target.value)}>
-              <option value="">Todos</option>
-              {typeOptions?.map((type) => <option key={type} value={type}>{type}</option>)}
-            </Select>
-          </Field>
+      </div>
+
+      <FilterBar title="Mais filtros" activeCount={moreFilterCount} onClear={clearFilters}>
+        <div className="app-filter-grid">
           <Field label="Perfil de carga">
             <Select value={filters.cargoProfile} onChange={(event) => updateFilter('cargoProfile', event.target.value)}>
               <option value="">Todos</option>
@@ -373,12 +371,11 @@ export function Containers() {
       ) : null}
 
       <Card className="overflow-hidden p-0">
-        <div className="app-cargo-toolbar">
-          <SummaryStrip label="Resumo do recorte" items={summaryItems} />
-          {repeatedAcrossBls ? (
-            <span className="app-cargo-toolbar__hint">Container em mais de um B/L conta uma vez nos distintos e aparece em cada B/L.</span>
-          ) : null}
-        </div>
+        {repeatedAcrossBls ? (
+          <div className="app-cargo-toolbar">
+            <span className="app-cargo-toolbar__hint">Container em mais de um B/L conta uma vez no total e aparece em cada B/L.</span>
+          </div>
+        ) : null}
         <QueryStateGate
           isLoading={false}
           isError={Boolean(error)}
@@ -424,7 +421,6 @@ export function Containers() {
                         {row.type ?? 'Tipo não informado'}{row.seal_number ? ` · Lacre ${row.seal_number}` : ''}
                       </span>
                     </div>
-                    {isAdmin ? rowMenu(row) : null}
                   </div>
                   <div className="app-cargo-card__body">
                     <BlCell row={row} />
@@ -436,7 +432,7 @@ export function Containers() {
                     <span className="app-cargo-card__status">
                       {row.is_imo || row.is_oog ? <CargoProfileBadge isImo={Boolean(row.is_imo)} isOog={Boolean(row.is_oog)} /> : null}
                       <OwnershipCell row={row} />
-                      <ChargeStatusBadge status={row.bl?.charge_status ?? null} />
+                      <LocalChargesStatus bl={row.bl ?? {}} />
                     </span>
                   </div>
                 </li>
@@ -460,7 +456,8 @@ export function Containers() {
                       </th>
                     ) : null}
                     <th scope="col" className="app-cargo-table__id app-table__text-head">Container</th>
-                    <th scope="col" className="app-table__text-head">B/L e cliente</th>
+                    <th scope="col">B/L</th>
+                    <th scope="col" className="app-table__text-head">Cliente</th>
                     <th scope="col" className="app-table__text-head">Navio / Viagem</th>
                     <th scope="col">Tipo</th>
                     <th scope="col">IMO / OOG</th>
@@ -468,7 +465,6 @@ export function Containers() {
                     <th scope="col">Descarga</th>
                     <th scope="col">Devolução</th>
                     <th scope="col">Taxas locais</th>
-                    {isAdmin ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -485,21 +481,16 @@ export function Containers() {
                           />
                         </td>
                       ) : null}
-                      <td className="app-cargo-table__id">
-                        <span className="app-cargo-cell__stack app-table__cell-stack">
-                          <span className="app-cargo-code app-cargo-id"><CopyValue value={row.container_number} label="número do contêiner" /></span>
-                          {row.seal_number ? <span className="app-cargo-cell__sub">Lacre {row.seal_number}</span> : null}
-                        </span>
-                      </td>
-                      <td><BlCell row={row} /></td>
-                      <td><VoyageCell row={row} /></td>
+                      <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id"><CopyValue value={row.container_number} label="número do contêiner" /></span></td>
+                      <td><BlNumberCell row={row} /></td>
+                      <td className="app-table__text" title={partyName(row) ?? undefined}>{partyName(row) ?? <NoValue label="Sem cliente" />}</td>
+                      <td className="app-table__text"><VoyageCell row={row} /></td>
                       <td>{row.type ?? <NoValue label="Tipo não informado" />}</td>
-                      <td><ProfileCell row={row} /></td>
-                      <td><OwnershipCell row={row} /></td>
+                      <td><ProfileText row={row} /></td>
+                      <td><OwnershipText row={row} /></td>
                       <td><DateCell value={row.discharge_date} label="descarga" /></td>
                       <td><ReturnCell row={row} /></td>
-                      <td><ChargeStatusBadge status={row.bl?.charge_status ?? null} /></td>
-                      {isAdmin ? <td>{rowMenu(row)}</td> : null}
+                      <td><LocalChargesStatus bl={row.bl ?? {}} /></td>
                     </tr>
                   ))}
                 </tbody>

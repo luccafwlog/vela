@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 
@@ -49,7 +49,7 @@ it('excluir Container remove a linha e atualiza os cards abertos de Containers, 
     await waitFor(() => expect(screen.queryByText('CXRU1234567')).toBeNull())
     await waitFor(() => expect(screen.getByLabelText('Containers no resumo de B/Ls').textContent).toBe('0'))
     expect(screen.getByLabelText('Containers no card da Viagem').textContent).toBe('0')
-    expect(screen.getByText('containers distintos').parentElement?.textContent).toContain('0')
+    expect(within(screen.getByRole('group', { name: 'Totais do recorte' })).getByText('Containers').parentElement?.textContent).toContain('0')
   } finally { client.clear() }
 })
 
