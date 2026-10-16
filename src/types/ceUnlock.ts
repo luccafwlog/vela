@@ -74,6 +74,8 @@ export type CeUnlockRequest = {
     action: string;
     reason: string | null;
     created_at: string;
+    /** Quem fez (migration 296): nome do usuário interno, "Cliente pelo Portal" ou "Sistema". Só no detalhe interno. */
+    actor?: string | null;
   }>;
 };
 /** Linha da aba Solicitações: um pedido com termo de devolução/procuração a validar. */

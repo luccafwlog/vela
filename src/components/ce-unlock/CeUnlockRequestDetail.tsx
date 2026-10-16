@@ -1,17 +1,21 @@
-import { useState } from "react";
-import { RefreshCw } from "lucide-react";
-import { Badge } from "../ui/Badge";
+import { useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { ExternalLink, MoreVertical, RefreshCw } from "lucide-react";
+import { ActionMenu } from "../ui/ActionMenu";
+import { Block, Fact, FactList, LeadValue } from "../ui/Block";
 import { Button } from "../ui/Button";
 import { InlineError } from "../ui/Card";
 import { CopyValue } from "../ui/CopyValue";
 import { NoValue } from "../ui/NoValue";
+import { StatusText } from "../ui/StatusText";
 import { useConfirm, useConfirmWithReason } from "../ui/ConfirmDialog";
-import { CeUnlockDocumentList } from "./CeUnlockDocuments";
-import { CeUnlockRequirementIcon } from "./CeUnlockRequirements";
-import { CeUnlockHistory } from "./CeUnlockHistory";
+import { CeUnlockRequirementIcon, CeUnlockZptState } from "./CeUnlockRequirements";
+import { CeUnlockHistoryTable } from "./CeUnlockHistory";
 import { latestSlaStart } from "../../services/ceUnlockSla";
+import { annualDocumentValid } from "../../services/ceUnlockRules";
+import { downloadCeUnlockDocument } from "../../services/ceUnlockService";
 import { CeUnlockSla } from "./CeUnlockSla";
-import { ceDateTime, ceDocumentName, ceStateLabel, ceStateTone } from "../../lib/ceUnlockLabels";
+import { ceDate, ceDateTime, ceDocumentName, ceDocumentStatusText, ceStateLabel, ceUnlockMissing } from "../../lib/ceUnlockLabels";
 import type { CeUnlockDocument, CeUnlockRequest } from "../../types/ceUnlock";
 
 type Decision = "approved" | "changes_requested" | "revoked";
@@ -23,6 +27,36 @@ type ActOptions = {
   tone?: "danger" | "primary";
   reasonLabel?: string;
 };
+
+const lower = (type: string) => ceDocumentName(type).toLowerCase();
+
+function OpenDocument({ doc, onError, children }: { doc: CeUnlockDocument; onError: (m: string) => void; children?: ReactNode }) {
+  if (doc.purged) return <span title="Arquivo removido pela regra de retenção">{doc.file_name} (arquivo removido pela regra de retenção)</span>;
+  if (doc.cleanup_pending) return <span title="Arquivo em remoção pela regra de retenção">{doc.file_name} (arquivo em remoção pela regra de retenção)</span>;
+  return (
+    <button
+      type="button"
+      className="app-link"
+      onClick={() =>
+        void downloadCeUnlockDocument(doc.id).catch((e) => onError(e instanceof Error ? e.message : "Falha ao abrir documento"))
+      }
+    >
+      {children ?? doc.file_name}
+    </button>
+  );
+}
+
+function DocumentSituation({ doc }: { doc: CeUnlockDocument }) {
+  if (doc.source === "vip_annual" && doc.status === "approved" && !annualDocumentValid(doc))
+    return <StatusText tone="warning">Fora da vigência</StatusText>;
+  const { label, tone } = ceDocumentStatusText(doc.type, doc.status);
+  return (
+    <span className="app-table__cell-stack">
+      <StatusText tone={tone}>{label}</StatusText>
+      {doc.reason && doc.status !== "approved" ? <span className="app-table__cell-meta">Motivo: {doc.reason}</span> : null}
+    </span>
+  );
+}
 
 export function CeUnlockRequestDetail({
   request,
@@ -38,45 +72,62 @@ export function CeUnlockRequestDetail({
   const confirm = useConfirm();
   const reasonDialog = useConfirmWithReason();
   const [error, setError] = useState("");
+  const [analyzing, setAnalyzing] = useState<string | null>(null);
   const blIds = request.items.map((i) => i.bl_id);
-  const affected = { summary: `${blIds.length} BL(s) da solicitação`, items: blIds };
+  const affected = { summary: blIds.length === 1 ? "1 B/L da solicitação" : `${blIds.length} B/Ls da solicitação`, items: blIds };
   async function act(action: string, payload: Record<string, unknown>, options: ActOptions, reasonRequired = false) {
     let reason: string | null = null;
     if (reasonRequired) {
       reason = await reasonDialog({ ...options, affected });
-      if (!reason) return;
-    } else if (!(await confirm({ ...options, affected }))) return;
+      if (!reason) return false;
+    } else if (!(await confirm({ ...options, affected }))) return false;
     setError("");
     try {
       await onAction(action, { ...payload, request_id: request.id, expected_version: request.version, reason });
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível concluir a ação");
+      return false;
     }
   }
-  // A análise vale para a solicitação inteira: o documento é aprovado ou recusado para todos os BLs.
-  function review(d: CeUnlockDocument, decision: Decision) {
-    const name = ceDocumentName(d.type);
+  // A análise vale para a solicitação inteira: o documento é aprovado ou recusado para todos os B/Ls.
+  async function review(d: CeUnlockDocument, decision: Decision) {
+    const name = lower(d.type);
     const payload = { document_id: d.id, expected_document_version: d.version, decision };
-    if (decision === "approved")
-      void act("review", payload, {
-        message: `Aprovar ${name.toLowerCase()} para todos os BLs desta solicitação?`,
-        consequence: "O requisito passa a atendido em todos os BLs do pedido.",
-        reversibility: "A aprovação pode ser revista com uma recusa, com histórico.",
-        confirmLabel: "Aprovar",
-      });
-    else
-      void act(
-        "review",
-        payload,
-        {
-          message: `Recusar ${name.toLowerCase()}?`,
-          consequence: "O cliente recebe o motivo no Portal e por e-mail e precisa enviar um documento corrigido.",
-          confirmLabel: "Recusar documento",
-          tone: "danger",
-          reasonLabel: "O que o cliente precisa corrigir",
-        },
-        true,
-      );
+    const done =
+      decision === "approved"
+        ? await act("review", payload, {
+            message: `Aprovar ${name} para todos os B/Ls desta solicitação?`,
+            consequence: "O requisito passa a atendido em todos os B/Ls do pedido.",
+            reversibility: "A aprovação pode ser revista com uma recusa, com histórico.",
+            confirmLabel: "Aprovar",
+          })
+        : decision === "revoked"
+          ? await act(
+              "review",
+              payload,
+              {
+                message: `Revogar a aprovação de ${name}?`,
+                consequence: "O requisito volta a pendente nos B/Ls cobertos por este documento.",
+                confirmLabel: "Revogar aprovação",
+                tone: "danger",
+                reasonLabel: "Motivo da revogação",
+              },
+              true,
+            )
+          : await act(
+              "review",
+              payload,
+              {
+                message: `Recusar ${name}?`,
+                consequence: "O cliente recebe o motivo no Portal e por e-mail e precisa enviar um documento corrigido.",
+                confirmLabel: "Recusar documento",
+                tone: "danger",
+                reasonLabel: "O que o cliente precisa corrigir",
+              },
+              true,
+            );
+    if (done) setAnalyzing(null);
   }
   const latestDocuments = request.documents.filter(
     (d) =>
@@ -91,150 +142,37 @@ export function CeUnlockRequestDetail({
     .filter((d) => d.source === "request" && d.status !== "uploading" && !latestDocuments.includes(d))
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   const approvedFor = (type: string) => request.items.every((i) => (type === "termo" ? i.termo : i.procuracao));
-  const canReview = (d: CeUnlockDocument, decision: Decision) =>
-    decision === "approved" ? !approvedFor(d.type) : decision === "changes_requested" && d.status !== "changes_requested";
   const vip = request.source === "vip_annual";
   const open = !["cancelled", "completed"].includes(request.state);
+  const reviewable =
+    manage && !vip && !busy && ["submitted", "in_review", "changes_requested", "completed"].includes(request.state);
+  const documents = (manage && !vip ? latestDocuments : request.documents).filter((d) => d.status !== "uploading");
+  // Documento recusado ainda pode ser aprovado (recusa por engano ou "Recusar aprovação"); o banco só exige a versão atual.
+  const canApprove = (d: CeUnlockDocument) => !approvedFor(d.type) && d.status !== "revoked";
+  const analyzed = documents.find((d) => d.id === analyzing) ?? null;
+  const cnpj = request.items[0]?.cnpj_cpf;
+  // Os eventos vêm em ordem de registro e incluem os do B/L sem solicitação (a entrega do original, por exemplo):
+  // a abertura é o primeiro rascunho ou envio.
+  const openedAt = (request.events.find((e) => e.action === "draft" || e.action === "submit") ?? request.events[0])?.created_at;
+  const missing = open ? ceUnlockMissing(request) : null;
+  // O prazo é medido pela exportação, não pela conclusão da documentação: a concluída continua com o
+  // prazo correndo até o último B/L ser exportado (docs/modules/desbloqueio-ce.md, "Prazo").
+  const exportedAt =
+    request.items.length > 0 && request.items.every((i) => i.exported_at)
+      ? request.items.reduce((last, i) => (i.exported_at! > last ? i.exported_at! : last), "")
+      : null;
   return (
-    <section className="space-y-6">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <Badge tone={ceStateTone(request.state)}>{ceStateLabel(request.state)}</Badge>
-        {vip && <Badge tone="blue">Documentos anuais VIP</Badge>}
-        {request.customer_name && <strong className="text-[var(--app-text-strong)]">{request.customer_name}</strong>}
-        <span className="text-[var(--app-muted)]">{blIds.length} BL(s)</span>
-        <span className="ml-auto flex items-center gap-2 text-[var(--app-muted)]">
-          Prazo <CeUnlockSla start={latestSlaStart(request.items)} />
-        </span>
-      </div>
-      {error && <InlineError message={error} />}
-
-      <div className="space-y-3">
-        <div>
-          <h3 className="app-panel__title">Documentos</h3>
-          <p className="app-panel__meta">
-            {vip
-              ? "Pedido coberto pelos documentos anuais VIP aprovados na ficha do cliente."
-              : "A análise de cada documento vale para todos os BLs da solicitação."}
-          </p>
-        </div>
-        <CeUnlockDocumentList
-          documents={manage && !vip ? latestDocuments : request.documents}
-          canReview={canReview}
-          onReview={
-            manage &&
-            !vip &&
-            !busy &&
-            ["submitted", "in_review", "changes_requested", "completed"].includes(request.state)
-              ? review
-              : undefined
-          }
-        />
-        {manage && !vip && previousDocuments.length > 0 && (
-          <section aria-label="Versões anteriores dos documentos" className="space-y-2">
-            <div>
-              <h4 className="app-panel__title">Versões anteriores</h4>
-              <p className="app-panel__meta">Somente consulta; a análise vale para a versão atual.</p>
-            </div>
-            <CeUnlockDocumentList documents={previousDocuments} showSentAt />
-          </section>
-        )}
-      </div>
-
-      <div className="space-y-3">
-        <h3 className="app-panel__title">BLs da solicitação</h3>
-        <div className="app-table-scroll rounded-lg border border-[var(--app-border)]">
-          <table className="app-table app-table--compact min-w-[640px] text-sm">
-            <caption className="sr-only">Requisitos de cada BL da solicitação</caption>
-            <thead>
-              <tr>
-                <th scope="col" className="app-table__text-head px-3 py-2">BL / CE</th>
-                <th scope="col" className="px-2 py-2">Termo</th>
-                <th scope="col" className="px-2 py-2">Procuração</th>
-                <th scope="col" className="px-2 py-2">Taxas</th>
-                <th scope="col" className="px-2 py-2">BL original</th>
-                <th scope="col" className="px-3 py-2">Situação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {request.items.map((i) => (
-                <tr key={i.bl_id}>
-                  <td className="px-3 py-2">
-                    <span className="app-table__cell-stack">
-                      <span className="app-table__cell-value font-semibold"><CopyValue value={i.bl_id} label="número do B/L" /></span>
-                      <span className="app-table__cell-meta whitespace-nowrap">CE {i.ce_mercante ? <CopyValue value={i.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</span>
-                    </span>
-                  </td>
-                  <td className="px-2 py-2"><CeUnlockRequirementIcon ok={i.termo} label="Termo de devolução" /></td>
-                  <td className="px-2 py-2"><CeUnlockRequirementIcon ok={i.procuracao} label="Procuração" /></td>
-                  <td className="px-2 py-2"><CeUnlockRequirementIcon ok={i.paid} label="Taxas locais" /></td>
-                  <td className="px-2 py-2"><CeUnlockRequirementIcon ok={i.delivered} label="BL original" /></td>
-                  <td className="px-3 py-2">
-                    {i.confirmed ? (
-                      <span className="app-table__cell-meta">Confirmação externa registrada (histórico anterior)</span>
-                    ) : i.can_export ? (
-                      <Badge tone="green">Apto para envio à ZPT</Badge>
-                    ) : (
-                      <ul className="app-table__cell-meta list-none space-y-0.5">
-                        {i.reasons.map((r) => <li key={r}>{r}</li>)}
-                      </ul>
-                    )}
-                    {manage && i.reasons.some((r) => r.includes("CE alterado")) && (
-                      <Button
-                        variant="secondary"
-                        className="app-btn--sm mt-2"
-                        disabled={busy}
-                        onClick={() =>
-                          void act(
-                            "reconfirm_ce",
-                            { bl_id: i.bl_id },
-                            {
-                              message: `Reconferir o CE atual de ${i.bl_id}?`,
-                              consequence: "O CE atual passa a valer para este pedido e o BL volta a ser avaliado.",
-                              confirmLabel: "Reconferir CE",
-                              reasonLabel: "Como o CE foi conferido",
-                            },
-                            true,
-                          )
-                        }
-                      >
-                        <RefreshCw size={14} aria-hidden="true" />
-                        Reconferir CE
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {!!request.confirmation_records?.length && (
-        <div className="space-y-2">
-          <h3 className="app-panel__title">Confirmações externas (histórico anterior)</h3>
-          <ul className="space-y-1 text-xs text-[var(--app-muted)]">
-            {request.confirmation_records.map((record) => (
-              <li key={record.bl_id}>
-                {record.bl_id} · CE {record.ce_mercante} · {ceDateTime(record.confirmed_at)} · Referência:{" "}
-                {record.reference}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <CeUnlockHistory events={request.events} />
-
+    <section className="space-y-4">
       {manage && open && (
-        <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--app-border)] pt-4">
+        <div className="flex flex-wrap justify-end gap-2">
           {vip && request.state !== "draft" && (
             <Button
               variant="secondary"
               disabled={busy}
               onClick={() =>
                 void act("apply_vip", {}, {
-                  message: "Aplicar a cobertura anual VIP vigente aos BLs pendentes deste pedido?",
-                  consequence: "Os BLs pendentes passam a usar o termo e a procuração anuais vigentes.",
+                  message: "Aplicar a cobertura anual VIP vigente aos B/Ls pendentes deste pedido?",
+                  consequence: "Os B/Ls pendentes passam a usar o termo e a procuração anuais vigentes.",
                   reversibility: "O histórico é preservado.",
                   confirmLabel: "Aplicar renovação",
                 })
@@ -253,7 +191,7 @@ export function CeUnlockRequestDetail({
                 {},
                 {
                   message: `Cancelar a solicitação ${request.protocol}?`,
-                  consequence: "Os BLs ficam livres para uma nova solicitação e o cliente vê o pedido como cancelado.",
+                  consequence: "Os B/Ls ficam livres para uma nova solicitação e o cliente vê o pedido como cancelado.",
                   reversibility: "Não pode ser desfeito; o cliente precisará abrir uma nova solicitação.",
                   confirmLabel: "Cancelar pedido",
                   tone: "danger",
@@ -266,6 +204,249 @@ export function CeUnlockRequestDetail({
             Cancelar pedido
           </Button>
         </div>
+      )}
+      {error && <InlineError message={error} />}
+
+      <Block title="Solicitação" headingLevel={3} aside={openedAt ? `aberta em ${ceDateTime(openedAt)}` : undefined}>
+        <LeadValue
+          tone={request.state === "changes_requested" ? "warning" : request.state === "cancelled" ? "muted" : "default"}
+          detail={missing}
+        >
+          {ceStateLabel(request.state)}
+        </LeadValue>
+        <FactList columns={4}>
+          <Fact label="Cliente">
+            {request.customer_name ? (
+              cnpj ? (
+                <Link className="app-link" to={`/clientes/${cnpj}?tab=desbloqueio-ce`}>{request.customer_name}</Link>
+              ) : (
+                request.customer_name
+              )
+            ) : (
+              <NoValue label="Cliente não identificado" />
+            )}
+          </Fact>
+          <Fact label="B/Ls">{blIds.length}</Fact>
+          <Fact label="Prazo"><CeUnlockSla start={request.state === "cancelled" ? null : latestSlaStart(request.items)} doneAt={exportedAt} /></Fact>
+          <Fact label="Documentos">{vip ? "Anuais VIP" : "Da solicitação"}</Fact>
+        </FactList>
+      </Block>
+
+      <Block
+        title="Documentos"
+        headingLevel={3}
+        flush
+        aside={
+          vip
+            ? "cobertos pelos documentos anuais VIP aprovados na ficha do Cliente"
+            : "a análise vale para todos os B/Ls da solicitação"
+        }
+      >
+        {documents.length === 0 && vip ? (
+          <div className="app-block__body">
+            <p className="app-table__cell-meta">Nenhum documento apresentado.</p>
+          </div>
+        ) : (
+          <div className="app-table-scroll">
+            <table className="app-table app-table--compact text-sm">
+              <caption className="sr-only">Documentos da solicitação</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="app-table__text-head">Documento</th>
+                  <th scope="col" className="app-table__text-head">Arquivo</th>
+                  <th scope="col">Enviado em</th>
+                  <th scope="col" className="app-table__text-head">Situação</th>
+                  {reviewable ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map((d) => (
+                  <tr key={d.id}>
+                    <td className="app-table__text">{ceDocumentName(d.type)}</td>
+                    <td className="app-table__text" title={d.file_name}>
+                      <OpenDocument doc={d} onError={setError} />
+                      {d.valid_until ? (
+                        <span className="app-table__cell-meta"> · vigência {ceDate(d.valid_from)} a {ceDate(d.valid_until)}</span>
+                      ) : null}
+                    </td>
+                    <td className="whitespace-nowrap tabular-nums">{ceDate(d.created_at)}</td>
+                    <td className="app-table__text"><DocumentSituation doc={d} /></td>
+                    {reviewable ? (
+                      <td className="whitespace-nowrap text-right">
+                        {canApprove(d) ? (
+                          <Button
+                            className="app-btn--sm"
+                            aria-label={`Analisar ${lower(d.type)}`}
+                            aria-expanded={analyzing === d.id}
+                            onClick={() => setAnalyzing(d.id)}
+                          >
+                            Analisar
+                          </Button>
+                        ) : d.status === "approved" ? (
+                          <ActionMenu
+                            label={`Ações de ${lower(d.type)}`}
+                            triggerClassName="app-btn app-btn--ghost app-btn--sm"
+                            trigger={<MoreVertical size={16} aria-hidden="true" />}
+                            items={[
+                              { key: "refuse", label: "Recusar aprovação", onSelect: () => void review(d, "changes_requested") },
+                            ]}
+                          />
+                        ) : null}
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+                {!vip &&
+                  (["termo", "procuracao"] as const)
+                    .filter((type) => !documents.some((d) => d.type === type))
+                    .map((type) => (
+                      <tr key={`missing-${type}`}>
+                        <td className="app-table__text">{ceDocumentName(type)}</td>
+                        <td><NoValue label="Sem arquivo" /></td>
+                        <td><NoValue label="Não enviado" /></td>
+                        <td className="app-table__text">{ceDocumentStatusText(type, null).label}</td>
+                        {reviewable ? <td /> : null}
+                      </tr>
+                    ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {manage && !vip && previousDocuments.length > 0 && (
+          <div className="app-block__body" role="region" aria-label="Versões anteriores dos documentos">
+            {previousDocuments.map((d) => {
+              const { label } = ceDocumentStatusText(d.type, d.status);
+              return (
+                <p key={d.id} className="app-table__cell-meta">
+                  Versão anterior de {lower(d.type)}: <OpenDocument doc={d} onError={setError} />, enviada em {ceDate(d.created_at)},{" "}
+                  {label.toLowerCase()}
+                  {d.reason ? ` (${d.reason})` : ""}.
+                </p>
+              );
+            })}
+          </div>
+        )}
+      </Block>
+
+      {analyzed && reviewable ? (
+        <Block title={`Analisar ${lower(analyzed.type)}`} headingLevel={3}>
+          <div className="flex flex-wrap items-center gap-2">
+            {!analyzed.purged && !analyzed.cleanup_pending ? (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  void downloadCeUnlockDocument(analyzed.id).catch((e) =>
+                    setError(e instanceof Error ? e.message : "Falha ao abrir documento"),
+                  )
+                }
+              >
+                <ExternalLink size={14} aria-hidden="true" />
+                Abrir {analyzed.file_name}
+              </Button>
+            ) : null}
+            <span className="app-table__cell-meta">Confira o documento e decida.</span>
+            <span className="ml-auto flex flex-wrap gap-2">
+              <Button onClick={() => void review(analyzed, "approved")}>Aprovar {lower(analyzed.type)}</Button>
+              {analyzed.status !== "changes_requested" ? (
+                <Button variant="secondary" onClick={() => void review(analyzed, "changes_requested")}>Recusar…</Button>
+              ) : null}
+              <Button variant="ghost" onClick={() => setAnalyzing(null)}>Voltar</Button>
+            </span>
+          </div>
+        </Block>
+      ) : null}
+
+      <Block title="B/Ls da solicitação" headingLevel={3} flush>
+        <div className="app-table-scroll">
+          <table className="app-table app-table--compact text-sm">
+            <caption className="sr-only">Requisitos de cada B/L da solicitação</caption>
+            <thead>
+              <tr>
+                <th scope="col">B/L</th>
+                <th scope="col">CE Mercante</th>
+                <th scope="col">Termo de devolução</th>
+                <th scope="col">Procuração</th>
+                <th scope="col">Taxas locais</th>
+                <th scope="col">B/L original</th>
+                <th scope="col" className="app-table__text-head">Na ZPT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {request.items.map((i) => (
+                <tr key={i.bl_id}>
+                  <td className="whitespace-nowrap">
+                    <CopyValue value={i.bl_id} label="número do B/L">
+                      <Link className="app-link" to={`/bls/${encodeURIComponent(i.bl_id)}`}>{i.bl_id}</Link>
+                    </CopyValue>
+                  </td>
+                  <td className="whitespace-nowrap">
+                    {i.ce_mercante ? <CopyValue value={i.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}
+                  </td>
+                  <td><CeUnlockRequirementIcon ok={i.termo} label="Termo de devolução" subject={i.bl_id} /></td>
+                  <td><CeUnlockRequirementIcon ok={i.procuracao} label="Procuração" subject={i.bl_id} /></td>
+                  <td><CeUnlockRequirementIcon ok={i.paid} label="Taxas locais" subject={i.bl_id} /></td>
+                  <td><CeUnlockRequirementIcon ok={i.delivered} label="B/L original" subject={i.bl_id} /></td>
+                  <td className="app-table__text">
+                    <CeUnlockZptState item={i} />
+                    {manage && (i.reasons ?? []).some((r) => r.includes("CE alterado")) && (
+                      <Button
+                        variant="secondary"
+                        className="app-btn--sm ml-2"
+                        disabled={busy}
+                        onClick={() =>
+                          void act(
+                            "reconfirm_ce",
+                            { bl_id: i.bl_id },
+                            {
+                              message: `Reconferir o CE atual de ${i.bl_id}?`,
+                              consequence: "O CE atual passa a valer para este pedido e o B/L volta a ser avaliado.",
+                              confirmLabel: "Reconferir CE",
+                              reasonLabel: "Como o CE foi conferido",
+                            },
+                            true,
+                          )
+                        }
+                      >
+                        <RefreshCw size={14} aria-hidden="true" />
+                        Reconferir CE
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Block>
+
+      <CeUnlockHistoryTable events={request.events} />
+
+      {!!request.confirmation_records?.length && (
+        <Block title="Confirmações externas" headingLevel={3} flush aside="histórico anterior">
+          <div className="app-table-scroll">
+            <table className="app-table app-table--compact text-sm">
+              <caption className="sr-only">Confirmações externas registradas antes da conciliação com a ZPT</caption>
+              <thead>
+                <tr>
+                  <th scope="col">B/L</th>
+                  <th scope="col">CE Mercante</th>
+                  <th scope="col">Quando</th>
+                  <th scope="col" className="app-table__text-head">Referência</th>
+                </tr>
+              </thead>
+              <tbody>
+                {request.confirmation_records.map((record) => (
+                  <tr key={record.bl_id}>
+                    <td className="whitespace-nowrap">{record.bl_id}</td>
+                    <td className="whitespace-nowrap">{record.ce_mercante}</td>
+                    <td className="whitespace-nowrap tabular-nums">{ceDateTime(record.confirmed_at)}</td>
+                    <td className="app-table__text">{record.reference}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Block>
       )}
     </section>
   );

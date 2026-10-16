@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { Field, Select, Textarea } from '../ui/Input'
 import { Button } from '../ui/Button'
+import { Block } from '../ui/Block'
 import { useInvoiceCorrectionSummary, useRetryInvoiceBasisChanges, usePrepareBlFinancialCancellation } from '../../hooks/useBillingLedger'
 import { formatBRL } from '../../lib/utils'
 import { useAuth } from '../../hooks/useAuth'
@@ -9,7 +10,7 @@ import { useAuth } from '../../hooks/useAuth'
 // ADR 0077: reduções pela base do B/L seguem automáticas. Quando a
 // correção do B/L reduz uma fatura com pagamento, o sistema abate o saldo e
 // registra a restituição do excedente. O retry recupera falha da mesma operação.
-// Seção do detalhe da fatura: filete e título, sem card dentro do modal.
+// Bloco próprio no detalhe da fatura (um assunto, um bloco).
 export function InvoiceCorrectionPanel({ invoiceId }: { invoiceId: number }) {
   const summary = useInvoiceCorrectionSummary(invoiceId)
   const cancellation = usePrepareBlFinancialCancellation()
@@ -33,8 +34,7 @@ export function InvoiceCorrectionPanel({ invoiceId }: { invoiceId: number }) {
     try { await cancellation.mutateAsync({ invoiceId, blId: target.bl_id, reason: cancelReason }); setCancelBlId(''); setCancelReason('') }
     catch { /* O erro permanece visível no painel da operação. */ }
   }
-  return <section className="app-invoice-detail__section" aria-labelledby={`invoice-corrections-${invoiceId}`}>
-    <h3 id={`invoice-corrections-${invoiceId}`} className="app-invoice-detail__heading">Ajustes pela correção do B/L</h3>
+  return <Block title="Ajustes pela correção do B/L" headingLevel={3}>
     <p className="app-invoice-detail__note">A fatura emitida preserva total e itens. A redução abate primeiro o saldo aberto; o que passar dele é restituído ao Cliente.</p>
     {summary.error ? <p role="alert" className="app-invoice-detail__alert">Não foi possível consultar os ajustes. Recarregue a página.</p> : null}
     {customerChanges.map((change) => <div key={change.bl_id} className="app-invoice-detail__refund">
@@ -59,5 +59,5 @@ export function InvoiceCorrectionPanel({ invoiceId }: { invoiceId: number }) {
       {cancellation.error ? <p role="alert" className="app-invoice-detail__alert app-invoice-detail__form-wide">Não foi possível preparar o cancelamento. Confira o recebível e a pendência financeira.</p> : null}
       <div className="app-invoice-detail__form-actions"><Button variant="danger" onClick={prepareCancellation} loading={cancellation.isPending} disabled={!cancelBlId || cancelReason.trim().length < 10}>Preparar cancelamento financeiro</Button></div>
     </div> : null}
-  </section>
+  </Block>
 }

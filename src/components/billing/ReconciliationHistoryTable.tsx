@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ArrowUpDown, Download } from 'lucide-react'
-import { Badge } from '../ui/Badge'
+import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { EmptyState } from '../ui/Card'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
+import { ConsolidatedMark, StatusText } from '../ui/StatusText'
 import { SkeletonTable } from '../ui/Skeleton'
 import { FilterBar } from '../ui/FilterBar'
 import { Field, Input, Select } from '../ui/Input'
@@ -14,14 +15,15 @@ import { Combobox, type ComboOption } from '../ui/Combobox'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { useToast } from '../ui/Toast'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
-import { describePageRange } from '../../lib/pagination'
 import { extractErrorText } from '../../lib/errors'
 import { formatBRL, formatCnpjCpf, formatDate } from '../../lib/utils'
 import { invoiceTypeLabel, listBillingCustomers } from '../../services/billing'
-import { historyRowStatus } from './pixReconciliationPresentation'
+import { historyRowStatus, pluralize } from './pixReconciliationPresentation'
 import { queryKeys } from '../../services/queryKeys'
 import {
   exportReconciliationHistoryExcel,
+  historyBalance,
+  historyPaidAmount,
   listReconciliationHistory,
   type ReconciliationFilters,
   type ReconciliationHistoryRow,
@@ -37,6 +39,7 @@ import {
   withHistorySort,
   withoutHistoryFilters,
   type HistoryFilterKey,
+  type HistoryUrlState,
   type HistorySortField,
 } from '../../pages/reconciliacaoState'
 
@@ -45,28 +48,46 @@ type ReconciliationHistoryTableProps = {
   onSelectDemurrageInvoice?: (demurrageId: number) => void
 }
 
-function amountLines(row: ReconciliationHistoryRow) {
-  const lines: string[] = []
-  if (Math.abs(row.totalAmount - row.blAmount) > 0.005) lines.push(`de ${formatBRL(row.totalAmount)} na fatura`)
-  if (row.status === 'partially_paid' && row.totalPaid != null) {
-    lines.push(`recebido ${formatBRL(row.totalPaid)}${row.balance != null ? ` · saldo ${formatBRL(row.balance)}` : ''}`)
-  }
-  return lines
-}
-
-function docTypeLabel(row: ReconciliationHistoryRow) {
-  return row.source === 'demurrage' ? 'Demurrage' : `Taxas Locais · ${invoiceTypeLabel(row.invoiceType)}`
-}
+const sourceLabel = (row: ReconciliationHistoryRow) => (row.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais')
 
 function shipLine(row: ReconciliationHistoryRow): string | null {
-  const ship = [row.vesselName, row.voyageNumber].filter(Boolean).join(' · ')
-  return [ship || null, row.pod].filter(Boolean).join(' · ') || null
+  return [row.vesselName, row.voyageNumber].filter(Boolean).join(' / ') || null
+}
+
+/** Filtros que ficam em "Mais filtros"; os demais ficam abertos. */
+const MORE_FILTER_KEYS: readonly HistoryFilterKey[] = ['invoiceTypeFilter', 'vesselSearch', 'voyageSearch', 'pod']
+
+function countMoreFilters(state: HistoryUrlState) {
+  return MORE_FILTER_KEYS.filter((key) => String(state[key] ?? '').trim() !== '').length
+}
+
+function HistoryStatus({ row }: { row: ReconciliationHistoryRow }) {
+  const status = historyRowStatus(row)
+  if (status.kind === 'paid') return <StatusText tone="paid">{status.label}</StatusText>
+  if (status.kind === 'covered') return <span className="inline-flex items-center gap-1"><ConsolidatedMark />{status.label}</span>
+  return <>{status.label}</>
+}
+
+function PaidAmount({ row }: { row: ReconciliationHistoryRow }) {
+  const paid = historyPaidAmount(row)
+  return paid == null ? <NoValue label="Pago pela consolidada" /> : <>{formatBRL(paid)}</>
+}
+
+/** Saldo maior que zero em âmbar: ainda há o que receber. */
+function Balance({ row }: { row: ReconciliationHistoryRow }) {
+  const balance = historyBalance(row)
+  return balance > 0.005 ? <StatusText tone="warning">{formatBRL(balance)}</StatusText> : <>{formatBRL(balance)}</>
+}
+
+function isConsolidated(row: ReconciliationHistoryRow) {
+  return row.source === 'local' && row.invoiceType === 'consolidated'
 }
 
 /**
  * Histórico de baixas confirmadas (Taxas Locais e Demurrage), seja pelo Itaú,
  * pelo extrato ou pelo registro manual. Filtros, ordenação e página ficam na
- * URL; o número do documento abre o detalhe, onde a baixa pode ser cancelada.
+ * URL; o número da fatura abre o detalhe, onde a baixa pode ser cancelada.
+ * Tabela limpa (lote 3 da identidade): nada escrito embaixo da célula.
  */
 export function ReconciliationHistoryTable({
   onSelectLocalInvoice,
@@ -94,6 +115,7 @@ export function ReconciliationHistoryTable({
     pageSize: state.pageSize,
   }
   const activeCount = countActiveHistoryFilters(state)
+  const moreCount = countMoreFilters(state)
 
   const query = useQuery({
     queryKey: [...queryKeys.reconciliation.history(), filters],
@@ -103,12 +125,12 @@ export function ReconciliationHistoryTable({
 
   const rows = query.data?.rows ?? []
   const totalCount = query.data?.totalCount ?? 0
+  const summary = query.data?.summary
   const totalPages = Math.max(1, Math.ceil(totalCount / state.pageSize))
   const failed = Boolean(query.error)
   // Página além do fim (link compartilhado, ou baixa cancelada na última página):
   // vai para a última existente em vez de dizer que não há baixas.
   const pastEnd = Boolean(query.data) && state.page > totalPages
-  const range = query.data && !pastEnd ? describePageRange({ page: state.page, pageSize: state.pageSize, totalCount }) : null
 
   const update = (next: (params: URLSearchParams) => URLSearchParams) => setSearchParams((params) => next(params), { replace: true })
   useEffect(() => {
@@ -147,6 +169,7 @@ export function ReconciliationHistoryTable({
     )
   }
 
+  const columns = 10
   const empty = !query.isLoading && !failed && !pastEnd && rows.length === 0
   const emptyState = activeCount > 0 ? (
     <EmptyState
@@ -158,24 +181,54 @@ export function ReconciliationHistoryTable({
     <EmptyState title="Nenhuma baixa registrada ainda" description="Pagamentos confirmados pelo Itaú, pelo extrato ou registrados à mão aparecem aqui." />
   )
 
+  const invoiceButton = (row: ReconciliationHistoryRow) => (
+    <>
+      <button type="button" className="app-link" onClick={() => open(row)}>{row.docNumber}</button>
+      {isConsolidated(row) ? <ConsolidatedMark /> : null}
+    </>
+  )
+  const blValue = (row: ReconciliationHistoryRow) =>
+    row.blId === '-' || !row.blId ? <NoValue label="Sem B/L" /> : <CopyValue value={row.blId} label="número do B/L" />
+
   return (
-    <section className="app-invoices app-pix-history" aria-label="Histórico de baixas">
-      <div className="app-pix-history__filters">
-        <FilterBar activeCount={activeCount} onClear={() => update(withoutHistoryFilters)} title="Filtros do histórico">
+    <div className="grid min-w-0 gap-4">
+      <div className="grid gap-3" role="group" aria-label="Filtros do histórico">
+        <div className="app-filter-grid">
+          <Field label="Pago de">
+            <Input type="date" value={state.paidFrom} max={state.paidTo || undefined} onChange={(e) => setFilter('paidFrom', e.target.value)} />
+          </Field>
+          <Field label="Pago até">
+            <Input type="date" value={state.paidTo} min={state.paidFrom || undefined} onChange={(e) => setFilter('paidTo', e.target.value)} />
+          </Field>
+          <Field label="Origem">
+            <Select value={state.source} onChange={(e) => setFilter('source', e.target.value)}>
+              <option value="">Todas</option>
+              <option value="local">Taxas Locais</option>
+              <option value="demurrage">Demurrage</option>
+            </Select>
+          </Field>
+          <Combobox
+            key={state.customerId || 'sem-cliente'}
+            label="Cliente"
+            placeholder="Nome ou CNPJ"
+            initialValue={state.customerName}
+            onValueChange={(value) => { if (!value.trim() && state.customerId) update((params) => withHistoryCustomer(params, null)) }}
+            fetchOptions={async (q) =>
+              (await listBillingCustomers(q)).map((c): ComboOption => ({ value: String(c.id), label: c.name, meta: formatCnpjCpf(c.cnpj_cpf) }))
+            }
+            onSelectOption={(option) => update((params) => withHistoryCustomer(params, { id: option.value, name: option.label }))}
+          />
+          <Field label="B/L">
+            <Input type="text" placeholder="Número do B/L" value={state.blSearch} onChange={(e) => setFilter('blSearch', e.target.value)} />
+          </Field>
+          {activeCount > moreCount ? (
+            <div className="self-end">
+              <Button variant="ghost" onClick={() => update(withoutHistoryFilters)}>Limpar filtros</Button>
+            </div>
+          ) : null}
+        </div>
+        <FilterBar title="Mais filtros" activeCount={moreCount} onClear={() => update(withoutHistoryFilters)}>
           <div className="app-filter-grid">
-            <Field label="Pago de">
-              <Input type="date" value={state.paidFrom} max={state.paidTo || undefined} onChange={(e) => setFilter('paidFrom', e.target.value)} />
-            </Field>
-            <Field label="Pago até">
-              <Input type="date" value={state.paidTo} min={state.paidFrom || undefined} onChange={(e) => setFilter('paidTo', e.target.value)} />
-            </Field>
-            <Field label="Origem">
-              <Select value={state.source} onChange={(e) => setFilter('source', e.target.value)}>
-                <option value="">Todas</option>
-                <option value="local">Taxas Locais</option>
-                <option value="demurrage">Demurrage</option>
-              </Select>
-            </Field>
             <Field label="Tipo de fatura" hint={state.source === 'demurrage' ? 'Só vale para Taxas Locais.' : undefined}>
               <Select value={state.invoiceTypeFilter} disabled={state.source === 'demurrage'} onChange={(e) => setFilter('invoiceTypeFilter', e.target.value)}>
                 <option value="">Todos</option>
@@ -183,20 +236,6 @@ export function ReconciliationHistoryTable({
                 <option value="consolidated">{invoiceTypeLabel('consolidated')}</option>
                 <option value="manual">{invoiceTypeLabel('manual')}</option>
               </Select>
-            </Field>
-            <Combobox
-              key={state.customerId || 'sem-cliente'}
-              label="Cliente"
-              placeholder="Nome ou CNPJ"
-              initialValue={state.customerName}
-              onValueChange={(value) => { if (!value.trim() && state.customerId) update((params) => withHistoryCustomer(params, null)) }}
-              fetchOptions={async (q) =>
-                (await listBillingCustomers(q)).map((c): ComboOption => ({ value: String(c.id), label: c.name, meta: formatCnpjCpf(c.cnpj_cpf) }))
-              }
-              onSelectOption={(option) => update((params) => withHistoryCustomer(params, { id: option.value, name: option.label }))}
-            />
-            <Field label="B/L">
-              <Input type="text" value={state.blSearch} onChange={(e) => setFilter('blSearch', e.target.value)} />
             </Field>
             <Field label="Navio">
               <Input type="text" value={state.vesselSearch} onChange={(e) => setFilter('vesselSearch', e.target.value)} />
@@ -211,114 +250,114 @@ export function ReconciliationHistoryTable({
         </FilterBar>
       </div>
 
-      <div className="app-invoices__bar">
-        <p className="app-invoices__summary" aria-live="polite">{range ?? (failed ? 'Histórico indisponível' : 'Carregando…')}</p>
-        <div className="app-invoices__actions">
-          <Button
-            variant="secondary"
-            onClick={handleExport}
-            loading={exporting}
-            loadingLabel="Exportando…"
-            disabled={!totalCount}
-            title={totalCount ? undefined : 'Nada a exportar neste recorte'}
-          >
-            <Download size={15} aria-hidden="true" />
-            Exportar planilha
-          </Button>
-        </div>
-      </div>
+      <Block
+        title="Baixas"
+        flush
+        aside={(
+          <>
+            <span aria-live="polite">
+              {summary && !failed
+                ? `${pluralize(summary.invoices, 'fatura', 'faturas')} · ${formatBRL(summary.received)} pagos${activeCount ? ' no recorte' : ''}`
+                : failed ? 'Histórico indisponível' : 'Carregando…'}
+            </span>
+            <Button
+              variant="secondary"
+              className="app-btn--sm"
+              onClick={handleExport}
+              loading={exporting}
+              loadingLabel="Exportando…"
+              disabled={!totalCount}
+              title={totalCount ? undefined : 'Nada a exportar neste recorte'}
+            >
+              <Download size={14} aria-hidden="true" />
+              Exportar planilha
+            </Button>
+          </>
+        )}
+      >
+        {failed ? (
+          <div role="alert" className="app-block__body">
+            <p>Não foi possível carregar o histórico de baixas: {extractErrorText(query.error)}</p>
+            <Button variant="secondary" onClick={() => void query.refetch()}>Tentar novamente</Button>
+          </div>
+        ) : null}
 
-      {failed ? (
-        <div role="alert" className="app-invoices__error">
-          <p>Não foi possível carregar o histórico de baixas: {extractErrorText(query.error)}</p>
-          <Button variant="secondary" onClick={() => void query.refetch()}>Tentar novamente</Button>
-        </div>
-      ) : null}
-
-      {narrow ? (
-        <div className="app-invoice-cards">
-          {query.isLoading ? <SkeletonTable rows={4} cols={2} /> : null}
-          {empty ? emptyState : null}
-          {rows.map((row) => {
-            const status = historyRowStatus(row)
-            return (
-              <article key={row.id} className="app-invoice-card">
+        {narrow ? (
+          <div className="app-invoice-cards">
+            {query.isLoading ? <SkeletonTable rows={4} cols={2} /> : null}
+            {empty ? emptyState : null}
+            {rows.map((row) => (
+              <article key={row.id} className="app-invoice-card" aria-label={`Fatura ${row.docNumber}`}>
                 <div className="app-invoice-card__head">
-                  <button type="button" className="app-invoices__number" onClick={() => open(row)}>{row.docNumber}</button>
-                  <Badge tone={status.tone}>{status.label}</Badge>
+                  <span>{invoiceButton(row)}</span>
+                  <HistoryStatus row={row} />
                 </div>
-                <p className="app-invoice-card__amount">
-                  <span className="app-invoices__amount">{formatBRL(row.blAmount)}</span>
-                  {amountLines(row).map((line) => <span key={line} className="app-invoices__meta">{line}</span>)}
-                </p>
-                <p className="app-invoices__meta">{docTypeLabel(row)} · pago em {row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</p>
-                <p className="app-invoices__customer">{row.customerName || <NoValue label="Sem Cliente" />}</p>
-                <p className="app-invoices__meta">
-                  {row.blId === '-' ? 'Sem B/L' : <CopyValue value={row.blId} label="número do B/L"><span className="app-pix-code">{row.blId}</span></CopyValue>} · {shipLine(row) ?? <NoValue label="Sem navio, viagem e POD" />}
-                </p>
+                <div className="app-invoice-card__amount">
+                  Pago <PaidAmount row={row} /> · Saldo <Balance row={row} />
+                </div>
+                <div>{row.customerName || <NoValue label="Sem Cliente" />}</div>
+                <p className="app-invoices__meta">{sourceLabel(row)} · pago em {row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</p>
+                <div>{blValue(row)}</div>
               </article>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="app-table-scroll app-table-scroll--sticky">
-          <table className="app-table app-table--compact app-pix-history__table">
-            <caption className="sr-only">Histórico de baixas</caption>
-            <thead>
-              <tr>
-                {sortHeader('docNumber', 'Fatura')}
-                {sortHeader('blId', 'B/L')}
-                {sortHeader('customerName', 'Cliente', 'app-table__text-head')}
-                <th scope="col">Navio / Viagem · POD</th>
-                {sortHeader('paidAt', 'Pago em')}
-                <th scope="col">Situação</th>
-                {sortHeader('blAmount', 'Valor', 'app-invoices__num')}
-              </tr>
-            </thead>
-            <tbody>
-              {query.isLoading ? (
-                <tr><td colSpan={7} className="p-0"><SkeletonTable rows={6} cols={7} /></td></tr>
-              ) : null}
-              {empty ? <tr><td colSpan={7} className="p-0">{emptyState}</td></tr> : null}
-              {rows.map((row) => {
-                const status = historyRowStatus(row)
-                return (
-                  <tr key={row.id}>
-                    <td>
-                      <button type="button" className="app-invoices__number" onClick={() => open(row)}>{row.docNumber}</button>
-                      <span className="app-invoices__meta">{docTypeLabel(row)}</span>
-                    </td>
-                    <td>{row.blId === '-' ? <span className="app-pix-muted">Sem B/L</span> : <CopyValue value={row.blId} label="número do B/L"><span className="app-pix-code">{row.blId}</span></CopyValue>}</td>
-                    <td className="app-table__text">
-                      <span className="app-invoices__customer app-invoices__clamp" title={row.customerName}>{row.customerName || <NoValue label="Sem Cliente" />}</span>
-                      {row.customerCnpj ? <span className="app-invoices__meta tabular-nums"><CopyValue value={formatCnpjCpf(row.customerCnpj)} label="CNPJ/CPF" /></span> : null}
-                    </td>
-                    <td><span className="app-invoices__clamp">{shipLine(row) ?? <NoValue label="Sem navio, viagem e POD" />}</span></td>
-                    <td className="app-invoices__date tabular-nums">{row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</td>
-                    <td><Badge tone={status.tone}>{status.label}</Badge></td>
-                    <td className="app-invoices__num">
-                      <span className="app-invoices__amount">{formatBRL(row.blAmount)}</span>
-                      {amountLines(row).map((line) => <span key={line} className="app-invoices__meta">{line}</span>)}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))}
+          </div>
+        ) : (
+          <div className="app-table-scroll app-table-scroll--sticky">
+            <table className="app-table app-table--compact">
+              <caption className="sr-only">Histórico de baixas</caption>
+              <thead>
+                <tr>
+                  {sortHeader('docNumber', 'Fatura')}
+                  <th scope="col">Origem</th>
+                  {sortHeader('blId', 'B/L')}
+                  {sortHeader('customerName', 'Cliente', 'app-table__text-head')}
+                  <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+                  {sortHeader('paidAt', 'Pago em')}
+                  {sortHeader('blAmount', 'Valor do B/L')}
+                  <th scope="col">Valor pago</th>
+                  <th scope="col">Saldo</th>
+                  <th scope="col">Situação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {query.isLoading ? (
+                  <tr><td colSpan={columns} className="p-0"><SkeletonTable rows={6} cols={columns} /></td></tr>
+                ) : null}
+                {empty ? <tr><td colSpan={columns} className="p-0">{emptyState}</td></tr> : null}
+                {rows.map((row) => {
+                  const ship = shipLine(row)
+                  return (
+                    <tr key={row.id}>
+                      <td className="whitespace-nowrap">{invoiceButton(row)}</td>
+                      <td className="whitespace-nowrap">{sourceLabel(row)}</td>
+                      <td className="whitespace-nowrap">{blValue(row)}</td>
+                      <td className="app-table__text" title={row.customerName || undefined}>{row.customerName || <NoValue label="Sem Cliente" />}</td>
+                      <td className="app-table__text" title={ship ?? undefined}>{ship ?? <NoValue label="Sem navio e viagem" />}</td>
+                      <td className="whitespace-nowrap tabular-nums">{row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</td>
+                      <td className="whitespace-nowrap tabular-nums">{formatBRL(row.blAmount)}</td>
+                      <td className="whitespace-nowrap tabular-nums"><PaidAmount row={row} /></td>
+                      <td className="whitespace-nowrap tabular-nums"><Balance row={row} /></td>
+                      <td className="whitespace-nowrap"><HistoryStatus row={row} /></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {query.data && !pastEnd ? (
-      <TableFooterPagination
-        page={state.page}
-        pageSize={state.pageSize}
-        totalCount={totalCount}
-        totalPages={totalPages}
-        pageSizes={HISTORY_PAGE_SIZES}
-        onPageChange={(page) => update((params) => withHistoryPage(params, page))}
-        onPageSizeChange={(size) => update((params) => withHistoryPageSize(params, size))}
-      />
-      ) : null}
-    </section>
+        {query.data && !pastEnd ? (
+          <TableFooterPagination
+            page={state.page}
+            pageSize={state.pageSize}
+            totalCount={totalCount}
+            totalPages={totalPages}
+            pageSizes={HISTORY_PAGE_SIZES}
+            onPageChange={(page) => update((params) => withHistoryPage(params, page))}
+            onPageSizeChange={(size) => update((params) => withHistoryPageSize(params, size))}
+          />
+        ) : null}
+      </Block>
+    </div>
   )
 }

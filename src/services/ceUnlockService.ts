@@ -42,6 +42,23 @@ export const ceUnlockRead = <T>(
 // move predicates/counts into an indexed read model when operational volume warrants it.
 export const listCeUnlockBls = (filters: CeUnlockFilters, page: number) =>
   ceUnlockRead<CeUnlockPage<CeUnlockItem>>("bls", { filters, page });
+/** Recorte inteiro (todas as páginas) para a planilha comum da aba Andamento dos B/Ls. */
+// ponytail: a planilha comum lê o recorte na paginação da tela (25 por página), quatro páginas por vez;
+// cada página recalcula a situação de todos os B/Ls com CE no banco, então o custo é O(páginas × B/Ls).
+// Um B/L que muda de posição entre páginas sai uma vez só (dedupe por B/L). Upgrade: uma leitura
+// própria da exportação no `ce_unlock_read`, sem paginação.
+export async function fetchAllCeUnlockBls(filters: CeUnlockFilters): Promise<CeUnlockItem[]> {
+  const first = await listCeUnlockBls(filters, 1);
+  const pages = Math.ceil(first.total / (first.page_size || 25));
+  const byBl = new Map(first.items.map((i) => [i.bl_id, i]));
+  for (let start = 2; start <= pages; start += 4) {
+    const batch = await Promise.all(
+      Array.from({ length: Math.min(4, pages - start + 1) }, (_, n) => listCeUnlockBls(filters, start + n)),
+    );
+    for (const result of batch) for (const i of result.items) if (!byBl.has(i.bl_id)) byBl.set(i.bl_id, i);
+  }
+  return [...byBl.values()];
+}
 export const listCeUnlockReviewQueue = (page: number) =>
   ceUnlockRead<CeUnlockPage<CeUnlockReviewRow>>("review_queue", { page });
 /** Solicitações de um Cliente, em todos os estados (migration 224), para a ficha do Cliente. */

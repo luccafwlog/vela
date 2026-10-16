@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
-import { Badge } from '../ui/Badge'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { NoValue } from '../ui/NoValue'
-import { SummaryStrip } from '../ui/SummaryStrip'
+import { StatusText } from '../ui/StatusText'
 import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice } from '../shared/ImportParts'
-import { useNarrowViewport } from '../bl/useNarrowViewport'
 import { useAuth } from '../../hooks/useAuth'
 import { afterPendenciaPixAlterada, afterPixConciliado } from '../../services/cacheEffects'
 import { parsePixExtractFile } from '../../services/demurrage/demurrageKpis'
@@ -21,12 +20,12 @@ import {
   type UnifiedPixMatch,
 } from '../../services/reconciliacao'
 import { extractErrorText } from '../../lib/errors'
-import { formatBRL, formatCnpjCpf } from '../../lib/utils'
-import { CopyValue } from '../ui/CopyValue'
+import { formatBRL } from '../../lib/utils'
+import { TxidCell } from './PixTxidCell'
 import {
   describeConfirmation,
-  exceptionKindLabel,
   extractLineKind,
+  extractLineReason,
   formatExtractDay,
   pluralize,
   readyAmountNote,
@@ -41,7 +40,7 @@ type ReadResult = {
   firstSheetHiddenRows: number
 }
 
-const sourceLabel = (source: 'local' | 'demurrage' | 'unmatched') => (source === 'demurrage' ? 'Demurrage' : source === 'local' ? 'Taxas Locais' : '—')
+const sourceLabel = (source: 'local' | 'demurrage' | 'unmatched') => (source === 'demurrage' ? 'Demurrage' : 'Taxas Locais')
 
 /**
  * Conciliação pelo extrato "QR Codes recebidos" do Itaú: escolher o arquivo,
@@ -108,29 +107,23 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
   // Financeiro e do Administrativo (ADR 0085, D5; migration 247).
   if (!canReconcile) {
     return (
-      <div className="app-pix-panel">
-        <section className="app-pix-section" aria-labelledby="pix-extract-title">
-          <div className="app-pix-section__head">
-            <h2 id="pix-extract-title" className="app-pix-section__title">Extrato Pix do Itaú</h2>
-          </div>
+      <div className="grid min-w-0 gap-4 pt-1">
+        <Block title="Extrato Pix do Itaú">
           <ImportNotice tone="info" role="status" title="Conciliar extrato é do Financeiro e do Administrativo">
             <p>Você acompanha as pendências e o histórico de baixas; a leitura do extrato registra exceções e baixa faturas.</p>
           </ImportNotice>
-        </section>
+        </Block>
       </div>
     )
   }
 
   return (
-    <div className="app-pix-panel">
-      <section className="app-pix-section" aria-labelledby="pix-extract-title">
-        <div className="app-pix-section__head">
-          <h2 id="pix-extract-title" className="app-pix-section__title">Extrato Pix do Itaú</h2>
-          <p className="app-pix-section__hint">Para Pix que não deu baixa automática ou faturas com QR estático. O casamento é só pelo TXID; CNPJ e valor não localizam fatura.</p>
-        </div>
+    <div className="grid min-w-0 gap-4 pt-1">
+      <Block title="Extrato Pix do Itaú" aside={'Relatório "QR Codes recebidos", .xlsx ou .xls'} bodyClassName="grid gap-3">
+        <p>Para Pix que não deu baixa automática ou faturas com QR estático. A fatura é encontrada só pelo identificador do Pix; CNPJ e valor não localizam fatura.</p>
         <ImportGuide
           requiredLabel="Colunas lidas"
-          required={<>Identificador (TXID) e Valor pago</>}
+          required={<>Identificador do Pix e Valor pago</>}
           optional={<>CPF/CNPJ e Pago em</>}
           details={(
             <p>
@@ -151,7 +144,7 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
           <div className="app-import-reading" role="status" aria-live="polite">
             <Loader2 size={18} className="app-import-reading__spinner animate-spin" aria-hidden="true" />
             <div className="app-import-reading__body">
-              <p className="app-import-reading__title">Lendo o extrato e procurando as faturas pelo TXID</p>
+              <p className="app-import-reading__title">Lendo o extrato e procurando as faturas pelo identificador do Pix</p>
               <p className="app-import-reading__meta">Nada é baixado nesta fase. Linhas sem fatura segura ficam salvas como exceção.</p>
               <div role="progressbar" aria-label="Lendo o extrato" className="app-import-reading__bar app-import-reading__bar--indeterminate"><span /></div>
             </div>
@@ -162,7 +155,7 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
             <p>{extractErrorText(readMutation.error)} Nada foi baixado.</p>
           </ImportNotice>
         ) : null}
-      </section>
+      </Block>
 
       {read ? (
         <ExtractReview
@@ -205,49 +198,35 @@ function ExtractReview({
   const lines = splitExtractLines(read.matches)
   const readyCount = lines.ready.length
   const exceptionCount = lines.exceptions.length
+  const hidden = read.firstSheetHiddenRows
 
   return (
-    <section className="app-pix-section app-pix-review" aria-labelledby="pix-review-title">
-      <div className="app-pix-section__head">
-        <h2 id="pix-review-title" className="app-pix-section__title">Conferência do extrato</h2>
-        <SummaryStrip
-          label="Resumo da leitura"
-          items={[
-            { label: readyCount === 1 ? 'pronta para baixa' : 'prontas para baixa', value: readyCount.toLocaleString('pt-BR') },
-            ...(readyCount ? [{ label: 'no lote', value: formatBRL(lines.readyTotal) }] : []),
-            { label: exceptionCount === 1 ? 'fica como exceção' : 'ficam como exceção', value: exceptionCount.toLocaleString('pt-BR'), tone: exceptionCount ? 'warning' as const : 'default' as const },
-            { label: read.matches.length === 1 ? 'linha lida' : 'linhas lidas', value: read.matches.length.toLocaleString('pt-BR') },
-          ]}
-        />
-      </div>
+    <Block title="Conferência do extrato" aside={pluralize(read.matches.length, 'linha lida', 'linhas lidas')} bodyClassName="grid gap-4">
+      <LeadValue detail={readyCount ? `${formatBRL(lines.readyTotal)} no lote` : 'Nenhuma linha tem uma fatura aberta com o mesmo identificador e um valor aceito.'}>
+        {readyCount ? `${readyCount.toLocaleString('pt-BR')} ${readyCount === 1 ? 'pronta' : 'prontas'} para baixa` : 'Nenhuma pronta para baixa'}
+      </LeadValue>
+      <FactList columns={2}>
+        <Fact label="Ficam como exceção">
+          {exceptionCount ? <StatusText tone="warning">{exceptionCount.toLocaleString('pt-BR')}</StatusText> : 'Nenhuma'}
+        </Fact>
+        <Fact
+          label="Linhas ocultas fora da leitura"
+          detail={hidden ? 'Só as linhas visíveis entram. Reexiba as ocultas e envie de novo se elas também devem entrar.' : undefined}
+        >
+          {hidden ? <StatusText tone="warning">{hidden.toLocaleString('pt-BR')}</StatusText> : 'Nenhuma'}
+        </Fact>
+      </FactList>
 
-      {read.firstSheetHiddenRows > 0 ? (
-        <ImportNotice tone="warning" role="status" title="Parte do extrato ficou de fora">
-          <p>
-            {pluralize(read.firstSheetHiddenRows, 'linha oculta', 'linhas ocultas')} da aba lida não {read.firstSheetHiddenRows === 1 ? 'entrou' : 'entraram'}.
-            Só as linhas visíveis entram na conciliação. Reexiba as ocultas e envie de novo se elas também devem entrar.
-          </p>
-        </ImportNotice>
+      {readyCount ? (
+        <Block title={`Prontas para baixa · ${readyCount.toLocaleString('pt-BR')}`} headingLevel={3} flush>
+          <ReadyLines lines={lines.ready} />
+        </Block>
       ) : null}
 
-      <div className="app-pix-block">
-        <h3 className="app-pix-block__title">Prontas para baixa <span className="app-pix-count">{readyCount}</span></h3>
-        {readyCount ? (
-          <ExtractLines lines={lines.ready} variant="ready" />
-        ) : (
-          <p className="app-pix-empty">Nenhuma linha tem uma fatura aberta com o mesmo TXID e um valor aceito.</p>
-        )}
-      </div>
-
       {exceptionCount ? (
-        <div className="app-pix-block">
-          <h3 className="app-pix-block__title">Ficam como exceção pendente <span className="app-pix-count">{exceptionCount}</span></h3>
-          <p className="app-pix-section__hint">
-            Não entram no lote. Já estão salvas em{' '}
-            <button type="button" className="app-pix-link" onClick={onOpenPending}>Pendências</button>, onde podem ser conciliadas depois.
-          </p>
-          <ExtractLines lines={lines.exceptions} variant="exception" />
-        </div>
+        <Block title={`Ficam como exceção · ${exceptionCount.toLocaleString('pt-BR')}`} headingLevel={3} flush aside="Já estão salvas em Pendências">
+          <ExceptionLines lines={lines.exceptions} />
+        </Block>
       ) : null}
 
       {confirmError ? (
@@ -257,13 +236,15 @@ function ExtractReview({
         </ImportNotice>
       ) : null}
 
-      <div className="app-pix-footer">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <ImportFootnote tone={readyCount ? 'default' : 'warning'}>
           {readyCount > 1
             ? `Nada foi baixado ainda. As ${readyCount.toLocaleString('pt-BR')} baixas são gravadas juntas: se uma for recusada, nenhuma é gravada.`
             : readyCount ? 'Nada foi baixado ainda.' : 'Nada para baixar neste extrato.'}
+          {exceptionCount ? ' As exceções já estão em Pendências.' : ''}
         </ImportFootnote>
-        <div className="app-pix-footer__actions">
+        <div className="flex flex-wrap gap-2">
+          {exceptionCount ? <Button variant="secondary" disabled={confirming} onClick={onOpenPending}>Ver Pendências</Button> : null}
           <Button variant="ghost" disabled={confirming} onClick={onDiscard}>Descartar leitura</Button>
           <Button
             disabled={!readyCount}
@@ -275,99 +256,81 @@ function ExtractReview({
           </Button>
         </div>
       </div>
-    </section>
+    </Block>
   )
 }
 
-function ExtractLines({ lines, variant }: { lines: UnifiedPixMatch[]; variant: 'ready' | 'exception' }) {
-  const narrow = useNarrowViewport()
-  const caption = variant === 'ready' ? 'Linhas do extrato prontas para baixa' : 'Linhas do extrato que ficam como exceção pendente'
+const lineKey = (prefix: string, match: UnifiedPixMatch, index: number) => `${prefix}-${getPixLineIdentity(match.transaction)}-${index}`
 
-  if (narrow) {
-    return (
-      <ul className="app-pix-list" aria-label={caption}>
-        {lines.map((match, index) => {
-          const kind = extractLineKind(match)
-          const note = variant === 'ready' ? readyAmountNote(match) : match.ambiguityReason
-          return (
-            <li key={`${variant}-${getPixLineIdentity(match.transaction)}-${index}`} className="app-pix-row">
-              <div className="app-pix-row__main">
-                <p className="app-pix-row__title">
-                  <span className="app-pix-amount">{formatBRL(match.transaction.amount)}</span>
-                  <span className="app-pix-muted">pago em {formatExtractDay(match.transaction.date)}</span>
-                  {kind !== 'ready' ? <Badge tone={kind === 'unmatched' ? 'neutral' : 'warning'}>{exceptionKindLabel(kind)}</Badge> : null}
-                </p>
-                {match.source !== 'unmatched' ? (
-                  <p className="app-pix-row__reason">
-                    <span className="app-pix-doc">{match.docNumber}</span> · {sourceLabel(match.source)}
-                    {match.customerName ? ` · ${match.customerName}` : ''}
-                    {variant === 'exception' ? ` · documento ${formatBRL(match.amount)}` : ''}
-                  </p>
-                ) : null}
-                {note ? <p className={variant === 'ready' ? 'app-pix-row__meta' : 'app-pix-row__reason'}>{note}</p> : null}
-                <p className="app-pix-row__meta"><span>TXID</span> <span className="app-pix-code">{match.transaction.txid || 'ausente'}</span></p>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    )
-  }
+function LineNumber({ match }: { match: UnifiedPixMatch }) {
+  return <>{match.transaction.lineNumber ?? <NoValue label="Sem número de linha" />}</>
+}
 
+function ReadyLines({ lines }: { lines: UnifiedPixMatch[] }) {
+  // A coluna Conferência só aparece quando alguma linha tem nota (valor diferente da cobrança).
+  const notes = lines.map(readyAmountNote)
+  const withNotes = notes.some(Boolean)
   return (
     <div className="app-table-scroll">
-      <table className="app-table app-table--compact app-pix-table">
-        <caption className="sr-only">{caption}</caption>
+      <table className="app-table app-table--compact">
+        <caption className="sr-only">Linhas do extrato prontas para baixa</caption>
         <thead>
           <tr>
-            <th scope="col" className="app-pix-num">Linha</th>
+            <th scope="col">Linha</th>
             <th scope="col">Pago em</th>
-            <th scope="col" className="app-pix-num">Valor do Pix</th>
-            <th scope="col">TXID</th>
-            <th scope="col">{variant === 'ready' ? 'Fatura' : 'Situação'}</th>
-            <th scope="col" className={variant === 'ready' ? 'app-table__text-head' : undefined}>{variant === 'ready' ? 'Cliente' : 'Documento indicado'}</th>
+            <th scope="col">Valor do Pix</th>
+            <th scope="col">Identificador do Pix</th>
+            <th scope="col">Fatura</th>
+            <th scope="col">Origem</th>
+            <th scope="col" className="app-table__text-head">Cliente</th>
+            {withNotes ? <th scope="col" className="app-table__text-head">Conferência</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((match, index) => (
+            <tr key={lineKey('ready', match, index)}>
+              <td className="whitespace-nowrap tabular-nums"><LineNumber match={match} /></td>
+              <td className="whitespace-nowrap tabular-nums">{formatExtractDay(match.transaction.date)}</td>
+              <td className="whitespace-nowrap tabular-nums">{formatBRL(match.transaction.amount)}</td>
+              <td className="whitespace-nowrap"><TxidCell txid={match.transaction.txid} /></td>
+              <td className="whitespace-nowrap">{match.docNumber}</td>
+              <td className="whitespace-nowrap">{sourceLabel(match.source)}</td>
+              <td className="app-table__text" title={match.customerName || undefined}>{match.customerName || <NoValue label="Sem Cliente" />}</td>
+              {withNotes ? <td className="app-table__text app-table__text--wrap">{notes[index] ?? <NoValue label="Sem observação" />}</td> : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ExceptionLines({ lines }: { lines: UnifiedPixMatch[] }) {
+  return (
+    <div className="app-table-scroll">
+      <table className="app-table app-table--compact">
+        <caption className="sr-only">Linhas do extrato que ficam como exceção pendente</caption>
+        <thead>
+          <tr>
+            <th scope="col">Linha</th>
+            <th scope="col">Pago em</th>
+            <th scope="col">Valor do Pix</th>
+            <th scope="col">Identificador do Pix</th>
+            <th scope="col" className="app-table__text-head">Motivo</th>
           </tr>
         </thead>
         <tbody>
           {lines.map((match, index) => {
-            const kind = extractLineKind(match)
-            const note = readyAmountNote(match)
+            const indicated = match.source !== 'unmatched' && match.docNumber ? ` · Fatura indicada: ${match.docNumber} (${formatBRL(match.amount)})` : ''
+            const reason = `${extractLineReason(match)}${indicated}`
+            const ambiguous = extractLineKind(match) === 'ambiguous'
             return (
-              <tr key={`${variant}-${getPixLineIdentity(match.transaction)}-${index}`}>
-                <td className="app-pix-num">{match.transaction.lineNumber ?? <NoValue label="Sem número de linha" />}</td>
-                <td className="tabular-nums">{formatExtractDay(match.transaction.date)}</td>
-                <td className="app-pix-num">
-                  <span className="app-pix-amount">{formatBRL(match.transaction.amount)}</span>
-                  {variant === 'ready' && note ? <span className="app-pix-meta">{note}</span> : null}
-                </td>
-                <td><span className="app-pix-code">{match.transaction.txid || 'ausente'}</span></td>
-                {variant === 'ready' ? (
-                  <>
-                    <td>
-                      <span className="app-pix-doc">{match.docNumber}</span>
-                      <span className="app-pix-meta">{sourceLabel(match.source)}</span>
-                    </td>
-                    <td className="app-table__text app-table__text--wrap">
-                      <span className="app-pix-clamp">{match.customerName || <NoValue label="Sem Cliente" />}</span>
-                      {match.customerCnpj ? <span className="app-pix-meta tabular-nums"><CopyValue value={formatCnpjCpf(match.customerCnpj)} label="CNPJ/CPF" /></span> : null}
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td>
-                      <Badge tone={kind === 'unmatched' ? 'neutral' : 'warning'}>{exceptionKindLabel(kind === 'unmatched' ? 'unmatched' : 'ambiguous')}</Badge>
-                      <span className="app-pix-meta">{match.ambiguityReason ?? <NoValue label="Sem motivo informado" />}</span>
-                    </td>
-                    <td>
-                      {match.source === 'unmatched' ? <NoValue label="Sem documento indicado" /> : (
-                        <>
-                          <span className="app-pix-doc">{match.docNumber}</span>
-                          <span className="app-pix-meta">{sourceLabel(match.source)} · {formatBRL(match.amount)}</span>
-                        </>
-                      )}
-                    </td>
-                  </>
-                )}
+              <tr key={lineKey('exception', match, index)}>
+                <td className="whitespace-nowrap tabular-nums"><LineNumber match={match} /></td>
+                <td className="whitespace-nowrap tabular-nums">{formatExtractDay(match.transaction.date)}</td>
+                <td className="whitespace-nowrap tabular-nums">{formatBRL(match.transaction.amount)}</td>
+                <td className="whitespace-nowrap"><TxidCell txid={match.transaction.txid} /></td>
+                <td className="app-table__text app-table__text--wrap">{ambiguous ? <StatusText tone="warning">{reason}</StatusText> : reason}</td>
               </tr>
             )
           })}
@@ -392,49 +355,62 @@ function ConfirmationResult({
   const total = items.reduce((sum, item) => sum + (item.amount ?? 0), 0)
 
   return (
-    <section className="app-pix-section" aria-labelledby="pix-result-title">
-      <div className="app-pix-section__head">
-        <h2 id="pix-result-title" className="app-pix-section__title">Resultado da baixa</h2>
+    <Block title="Resultado da baixa" bodyClassName="grid gap-4">
+      <div role="status">
+        <LeadValue
+          tone={missing ? 'warning' : 'default'}
+          detail={(
+            <>
+              {items.length ? `Total de ${formatBRL(total)}. As faturas já aparecem no histórico de baixas.` : 'O banco não devolveu nenhuma baixa.'}
+              {missing ? ` ${pluralize(missing, 'linha enviada não voltou', 'linhas enviadas não voltaram')} na resposta: confira o histórico antes de enviar o extrato de novo.` : ''}
+            </>
+          )}
+        >
+          {`${pluralize(items.length, 'baixa confirmada', 'baixas confirmadas')} pelo banco`}
+        </LeadValue>
       </div>
-      <ImportNotice tone={missing ? 'warning' : 'success'} role="status" title={`${pluralize(items.length, 'baixa confirmada', 'baixas confirmadas')} pelo banco`}>
-        <p>
-          {items.length ? `Total de ${formatBRL(total)}. As faturas já aparecem no histórico de baixas.` : 'O banco não devolveu nenhuma baixa.'}
-          {missing ? ` ${pluralize(missing, 'linha enviada não voltou', 'linhas enviadas não voltaram')} na resposta: confira o histórico antes de enviar o extrato de novo.` : ''}
-        </p>
-      </ImportNotice>
       {items.length ? (
-        <ul className="app-pix-list" aria-label="Baixas confirmadas">
-          {items.map((item) => (
-            <li key={item.key} className="app-pix-row">
-              <div className="app-pix-row__main">
-                <p className="app-pix-row__title">
-                  <button type="button" className="app-pix-link app-pix-doc" onClick={() => onOpenInvoice(item.source, item.invoiceId)}>{item.docNumber}</button>
-                  <span className="app-pix-muted">{sourceLabel(item.source)}</span>
-                  {item.amount != null ? <span className="app-pix-amount">{formatBRL(item.amount)}</span> : null}
-                  <Badge tone="success">Baixa confirmada</Badge>
-                </p>
-                <p className="app-pix-row__meta">
-                  {item.customerName ? <span>{item.customerName}</span> : null}
-                  {item.paidAt ? <><span aria-hidden="true">·</span><span>pago em {formatExtractDay(item.paidAt)}</span></> : null}
-                  {item.txid ? <><span aria-hidden="true">·</span><span>TXID</span> <span className="app-pix-code">{item.txid}</span></> : null}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="app-table-scroll">
+          <table className="app-table app-table--compact">
+            <caption className="sr-only">Baixas confirmadas</caption>
+            <thead>
+              <tr>
+                <th scope="col">Fatura</th>
+                <th scope="col">Origem</th>
+                <th scope="col" className="app-table__text-head">Cliente</th>
+                <th scope="col">Pago em</th>
+                <th scope="col">Valor do Pix</th>
+                <th scope="col">Identificador do Pix</th>
+                <th scope="col">Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.key}>
+                  <td className="whitespace-nowrap"><button type="button" className="app-link" onClick={() => onOpenInvoice(item.source, item.invoiceId)}>{item.docNumber}</button></td>
+                  <td className="whitespace-nowrap">{sourceLabel(item.source)}</td>
+                  <td className="app-table__text" title={item.customerName || undefined}>{item.customerName || <NoValue label="Sem Cliente" />}</td>
+                  <td className="whitespace-nowrap tabular-nums">{item.paidAt ? formatExtractDay(item.paidAt) : <NoValue label="Sem data de pagamento" />}</td>
+                  <td className="whitespace-nowrap tabular-nums">{item.amount != null ? formatBRL(item.amount) : <NoValue label="Sem valor" />}</td>
+                  <td className="whitespace-nowrap"><TxidCell txid={item.txid} /></td>
+                  <td className="whitespace-nowrap"><StatusText tone="paid">Baixa confirmada</StatusText></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
-      {outcome.exceptions ? (
-        <p className="app-pix-section__hint">
-          {pluralize(outcome.exceptions, 'linha não entrou no lote e está', 'linhas não entraram no lote e estão')} em{' '}
-          <button type="button" className="app-pix-link" onClick={onOpenPending}>Pendências</button>.
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p>
+          {outcome.exceptions
+            ? `${pluralize(outcome.exceptions, 'linha não entrou no lote e está', 'linhas não entraram no lote e estão')} em Pendências.`
+            : ''}
         </p>
-      ) : null}
-      <div className="app-pix-footer">
-        <span />
-        <div className="app-pix-footer__actions">
+        <div className="flex flex-wrap gap-2">
+          {outcome.exceptions ? <Button variant="secondary" onClick={onOpenPending}>Ver Pendências</Button> : null}
           <Button variant="secondary" onClick={onReset}>Conciliar outro extrato</Button>
         </div>
       </div>
-    </section>
+    </Block>
   )
 }

@@ -153,7 +153,7 @@ export function ChargeTableFormModal({
                 label="Situação ao cadastrar"
                 value={form.active ? 'ativa' : 'inativa'}
                 onChange={(value) => update('active', value === 'ativa')}
-                options={[{ value: 'ativa', label: 'Ativa' }, { value: 'inativa', label: 'Inativa (preparar itens antes)' }]}
+                options={[{ value: 'ativa', label: 'Ativa' }, { value: 'inativa', label: 'Desativada (preparar itens antes)' }]}
               />
             </div>
           ) : null}

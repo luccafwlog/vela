@@ -171,7 +171,7 @@ export function ChargeTableItemFormModal({
             <span className="app-field__hint">
               {form.manualOnly
                 ? 'Nunca é aplicado sozinho: fica disponível para lançar na ficha do B/L e na fatura avulsa.'
-                : 'Aplicado a todo B/L do escopo quando esta tabela é a aplicada no cálculo.'}
+                : 'Aplicado a todo B/L do escopo quando esta tabela está em uso no cálculo.'}
             </span>
           </div>
           <Field label="Incide" required hint={basis?.hint}>

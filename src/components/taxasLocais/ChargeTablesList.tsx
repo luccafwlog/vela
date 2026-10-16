@@ -1,7 +1,9 @@
+import { Fragment } from 'react'
 import { Ban, ChevronDown, ChevronRight, MoreVertical, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { ActionMenu, type ActionMenuItem } from '../ui/ActionMenu'
-import { Badge } from '../ui/Badge'
+import { Block, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { StatusText } from '../ui/StatusText'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
 import {
   basisUnit,
@@ -35,75 +37,244 @@ type ChargeTablesListProps = {
   busyItemId: number | null
 }
 
+type RowProps = ChargeTablesListProps & { table: ChargeTable; reading: TableReading }
+
+const TABLE_COLUMNS = 7
+
 function itemCountText(reading: TableReading) {
   const parts: string[] = []
   if (reading.autoItems) parts.push(`${reading.autoItems} ${reading.autoItems === 1 ? 'automático' : 'automáticos'}`)
   if (reading.manualItems) parts.push(`${reading.manualItems} ${reading.manualItems === 1 ? 'manual' : 'manuais'}`)
-  if (reading.inactiveItems) parts.push(`${reading.inactiveItems} ${reading.inactiveItems === 1 ? 'inativo' : 'inativos'}`)
+  if (reading.inactiveItems) parts.push(`${reading.inactiveItems} ${reading.inactiveItems === 1 ? 'desativado' : 'desativados'}`)
   return parts.length ? parts.join(' · ') : 'Sem itens'
 }
 
-/**
- * Tabelas agrupadas pelo escopo que o motor usa para escolher (modo de carga +
- * POD). Cada grupo diz qual tabela vale; cada tabela diz se está no cálculo,
- * por que não está e o que a vigência significa.
- */
-export function ChargeTablesList(props: ChargeTablesListProps) {
-  const { groups } = props
+function itemWarningText(count: number) {
+  return count === 1 ? '1 item' : `${count} itens`
+}
+
+/** Situação em texto (sem selo), com a explicação ao passar o mouse. */
+function TableSituation({ reading }: { reading: TableReading }) {
   return (
-    <div className="app-rates-scopes">
-      {groups.map((group) => {
-        const headingId = `rates-scope-${group.key.replace(/[^a-z0-9]/gi, '-')}`
-        return (
-          <section key={group.key} className="app-rates-scope" aria-labelledby={headingId}>
-            <header className="app-rates-scope__head">
-              <h2 id={headingId} className="app-rates-scope__title">{group.label}</h2>
-              <p className="app-rates-scope__applied">
-                {group.applied ? (
-                  <>Vale no cálculo: <strong>{group.applied.name}</strong></>
-                ) : (
-                  <span className="app-rates-scope__none">Nenhuma tabela ativa: B/Ls deste escopo ficam sem cálculo até uma ser ativada.</span>
-                )}
-              </p>
-            </header>
-            <ul className="app-rates-tables">
-              {group.tables.map((table) => (
-                <ChargeTableRow key={table.id} table={table} {...props} />
-              ))}
-            </ul>
-          </section>
-        )
-      })}
+    <span title={reading.stateDetail ?? undefined}>
+      <StatusText tone={reading.stateTone}>{reading.stateLabel}</StatusText>
+    </span>
+  )
+}
+
+/** Aviso nos itens: âmbar só se a tabela não está desativada. */
+function TableItemWarning({ reading }: { reading: TableReading }) {
+  if (!reading.itemNotes) return null
+  const text = itemWarningText(reading.itemNotes)
+  const title = `${text} com aviso: entram no cálculo de um jeito que talvez não seja o esperado. Abra a tabela para ver.`
+  return <span title={title}>{reading.hasItemWarning ? <StatusText tone="warning">{text}</StatusText> : text}</span>
+}
+
+/**
+ * Coluna Aviso: o que a tabela em uso faz de inesperado no cálculo (sem item
+ * automático, vigência fora do período) e os avisos dos itens, sem abrir a linha.
+ */
+function TableWarning({ reading }: { reading: TableReading }) {
+  const parts = [
+    reading.noAutomaticItems ? (
+      <span key="auto" title="O cálculo deste escopo não gera taxa: todos os itens ativos são só manuais.">
+        <StatusText tone="warning">Sem item automático</StatusText>
+      </span>
+    ) : null,
+    reading.validityNote ? (
+      <span key="validity" title={reading.validityNote}>
+        <StatusText tone="warning">Vigência fora do período</StatusText>
+      </span>
+    ) : null,
+    reading.itemNotes ? <TableItemWarning key="items" reading={reading} /> : null,
+  ].filter(Boolean)
+  if (!parts.length) return null
+  return <>{parts.flatMap((part, index) => (index ? [<span key={`sep-${index}`}> · </span>, part] : [part]))}</>
+}
+
+function tableMenu({ table, reading, canDelete, busyTableId, onToggleTableActive }: RowProps): ActionMenuItem[] {
+  if (!canDelete) return []
+  const disabled = busyTableId === table.id
+  if (!table.active) {
+    return [{ key: 'on', label: 'Reativar tabela', icon: <RotateCcw size={14} aria-hidden="true" />, disabled, onSelect: () => onToggleTableActive(table) }]
+  }
+  // A "Ativa, mas não usada" já tem Desativar na linha.
+  if (reading.state.kind === 'shadowed') return []
+  return [{ key: 'off', label: 'Desativar tabela', icon: <Ban size={14} aria-hidden="true" />, danger: true, disabled, onSelect: () => onToggleTableActive(table) }]
+}
+
+function TableActions(props: RowProps) {
+  const { table, reading, canEdit, canDelete, busyTableId, onEditTable, onToggleTableActive } = props
+  if (!canEdit) return null
+  const menu = tableMenu(props)
+  return (
+    <div className="app-rates-table__actions">
+      {canDelete && reading.state.kind === 'shadowed' ? (
+        <Button
+          variant="secondary"
+          className="app-btn--sm"
+          disabled={busyTableId === table.id}
+          onClick={() => onToggleTableActive(table)}
+          aria-label={`Desativar tabela ${table.name}`}
+        >
+          Desativar
+        </Button>
+      ) : null}
+      <Button variant="secondary" className="app-btn--sm" onClick={() => onEditTable(table)} aria-label={`Editar tabela ${table.name}`}>
+        <Pencil size={14} aria-hidden="true" />
+        Editar
+      </Button>
+      {menu.length ? (
+        <ActionMenu
+          label={`Mais ações da tabela ${table.name}`}
+          menuId={`charge-table-menu-${table.id}`}
+          triggerClassName="app-table__icon-button"
+          trigger={<MoreVertical size={16} aria-hidden="true" />}
+          items={menu}
+        />
+      ) : null}
     </div>
   )
 }
 
-function ChargeTableRow({
-  table,
-  readings,
-  expanded,
-  onToggleExpanded,
-  canEdit,
-  canDelete,
-  onEditTable,
-  onAddItem,
-  onToggleTableActive,
-  busyTableId,
-  ...itemProps
-}: ChargeTablesListProps & { table: ChargeTable }) {
-  const reading = readings.get(table.id)
-  if (!reading) return null
+/**
+ * Tabelas agrupadas pelo escopo que o motor usa para escolher (modo de carga +
+ * POD). Cada escopo é um bloco com a tabela em uso no cálculo como dado
+ * principal e, embaixo, as tabelas do escopo numa tabela limpa.
+ */
+export function ChargeTablesList(props: ChargeTablesListProps) {
+  const narrow = useNarrowViewport()
+  return (
+    <div className="grid gap-4">
+      {props.groups.map((group) => (
+        <Block
+          key={group.key}
+          title={group.label}
+          aside="vale no cálculo a tabela ativa de vigência inicial mais recente"
+          flush
+        >
+          <div className="app-block__body">
+            {group.applied ? (
+              <LeadValue detail="em uso no cálculo">{group.applied.name}</LeadValue>
+            ) : (
+              <LeadValue tone="warning" detail="B/Ls deste escopo ficam sem cálculo até uma tabela ser ativada">
+                Nenhuma tabela em uso
+              </LeadValue>
+            )}
+          </div>
+          {narrow ? (
+            <ul className="app-rates-tables">
+              {group.tables.map((table) => {
+                const reading = props.readings.get(table.id)
+                return reading ? <ChargeTableCard key={table.id} {...props} table={table} reading={reading} /> : null
+              })}
+            </ul>
+          ) : (
+            <div className="app-table-scroll">
+              <table className="app-table app-table--compact">
+                <caption className="sr-only">Tabelas de {group.label}; o nome abre os itens</caption>
+                <thead>
+                  <tr>
+                    <th scope="col"><span className="sr-only">Abrir itens</span></th>
+                    <th scope="col" className="app-table__text-head">Tabela</th>
+                    <th scope="col">Situação</th>
+                    <th scope="col">Vigência</th>
+                    <th scope="col">Itens</th>
+                    <th scope="col">Aviso</th>
+                    <th scope="col"><span className="sr-only">Ações</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.tables.map((table) => {
+                    const reading = props.readings.get(table.id)
+                    return reading ? <ChargeTableRow key={table.id} {...props} table={table} reading={reading} /> : null
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Block>
+      ))}
+    </div>
+  )
+}
+
+function ChargeTableRow(props: RowProps) {
+  const { table, reading, expanded, onToggleExpanded } = props
   const isOpen = expanded.has(table.id)
   const panelId = `charge-table-items-${table.id}`
-  const menuItems: ActionMenuItem[] = [
-    { key: 'add', label: 'Adicionar item', icon: <Plus size={14} aria-hidden="true" />, onSelect: () => onAddItem(table) },
-  ]
-  if (canDelete) {
-    menuItems.push(table.active
-      ? { key: 'off', label: 'Desativar tabela', icon: <Ban size={14} aria-hidden="true" />, danger: true, disabled: busyTableId === table.id, onSelect: () => onToggleTableActive(table) }
-      : { key: 'on', label: 'Reativar tabela', icon: <RotateCcw size={14} aria-hidden="true" />, disabled: busyTableId === table.id, onSelect: () => onToggleTableActive(table) })
-  }
+  return (
+    <Fragment>
+      <tr className={reading.state.kind === 'inactive' ? 'app-table__row--muted' : undefined}>
+        <td>
+          <button
+            type="button"
+            className="app-table__icon-button"
+            aria-controls={isOpen ? panelId : undefined}
+            aria-expanded={isOpen}
+            aria-label={`${isOpen ? 'Recolher' : 'Abrir'} os itens da tabela ${table.name}`}
+            onClick={() => onToggleExpanded(table.id)}
+          >
+            {isOpen ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+          </button>
+        </td>
+        <td className="app-table__text">
+          <button type="button" className="app-link" aria-expanded={isOpen} onClick={() => onToggleExpanded(table.id)}>
+            {table.name}
+          </button>
+        </td>
+        <td><TableSituation reading={reading} /></td>
+        <td className="tabular-nums">{formatPeriod(table.valid_from, table.valid_to)}</td>
+        <td>{itemCountText(reading)}</td>
+        <td><TableWarning reading={reading} /></td>
+        <td><TableActions {...props} /></td>
+      </tr>
+      {isOpen ? (
+        <tr id={panelId} data-row-detail>
+          <td colSpan={TABLE_COLUMNS}>
+            <TableDetail {...props} />
+          </td>
+        </tr>
+      ) : null}
+    </Fragment>
+  )
+}
 
+/** Linha aberta: notas da tabela, avisos de vigência e os itens. */
+function TableDetail(props: RowProps) {
+  const { table, reading, canEdit, onAddItem } = props
+  return (
+    <div className="app-rates-items" role="region" aria-label={`Itens da tabela ${table.name}`}>
+      {table.notes ? <p className="app-rates-help">{table.notes}</p> : null}
+      {reading.validityNote ? <ChargeNoteList notes={[{ tone: 'warning', text: reading.validityNote }]} /> : null}
+      {reading.noAutomaticItems && table.charge_table_items.length > 0 ? (
+        <ChargeNoteList notes={[{ tone: 'warning', text: 'Sem item automático: o cálculo deste escopo não gera taxa.' }]} />
+      ) : null}
+      {table.charge_table_items.length === 0 ? (
+        <p className="app-rates-help">
+          Nenhum item nesta tabela.
+          {reading.state.kind === 'applied' ? ' Enquanto ela estiver em uso no cálculo, o cálculo deste escopo não gera taxa.' : ''}
+        </p>
+      ) : (
+        <ChargeItemsTable {...props} />
+      )}
+      {canEdit ? (
+        <div className="app-rates-items__footer">
+          <Button variant="secondary" className="app-btn--sm" onClick={() => onAddItem(table)}>
+            <Plus size={14} aria-hidden="true" />
+            Adicionar item
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** Tela estreita: o cartão de lista de antes, com os nomes novos. */
+function ChargeTableCard(props: RowProps) {
+  const { table, reading, expanded, onToggleExpanded } = props
+  const isOpen = expanded.has(table.id)
+  const panelId = `charge-table-items-${table.id}`
   return (
     <li className="app-rates-table" data-state={reading.state.kind}>
       <div className="app-rates-table__row">
@@ -119,87 +290,32 @@ function ChargeTableRow({
             <span>{table.name}</span>
             <span className="sr-only">{isOpen ? ', recolher itens' : ', ver itens'}</span>
           </button>
-          {table.notes ? <p className="app-rates-table__notes" title={table.notes}>{table.notes}</p> : null}
         </div>
         <div className="app-rates-table__cell">
-          <span className="app-rates-table__label">Cálculo</span>
-          <Badge tone={reading.stateTone} className="w-fit">{reading.stateLabel}</Badge>
-          {reading.stateDetail && reading.state.kind === 'shadowed' ? <span className="app-rates-table__detail app-rates-table__detail--danger">{reading.stateDetail}</span> : null}
+          <span className="app-rates-table__label">Situação</span>
+          <TableSituation reading={reading} />
         </div>
         <div className="app-rates-table__cell app-rates-table__cell--validity">
-          <span className="app-rates-table__label">Vigência (informativa)</span>
+          <span className="app-rates-table__label">Vigência</span>
           <span className="app-rates-num">{formatPeriod(table.valid_from, table.valid_to)}</span>
-          {reading.validityNote ? <span className="app-rates-table__detail app-rates-table__detail--warning">{reading.validityNote}</span> : null}
         </div>
         <div className="app-rates-table__cell app-rates-table__cell--items">
           <span className="app-rates-table__label">Itens</span>
           <span>{itemCountText(reading)}</span>
-          {reading.noAutomaticItems ? <span className="app-rates-table__detail app-rates-table__detail--warning">Sem item automático: o cálculo deste escopo não gera taxa.</span> : null}
-          {reading.itemNotes ? (
-            <span className="app-rates-table__detail app-rates-table__detail--warning">
-              {reading.itemNotes === 1 ? '1 item com aviso' : `${reading.itemNotes} itens com aviso`}
-            </span>
-          ) : null}
+          {reading.hasWarning || reading.itemNotes ? <span>Aviso: <TableWarning reading={reading} /></span> : null}
         </div>
-        {canEdit ? (
-          <div className="app-rates-table__actions">
-            <Button variant="secondary" className="app-btn--sm" onClick={() => onEditTable(table)} aria-label={`Editar tabela ${table.name}`}>
-              <Pencil size={14} aria-hidden="true" />
-              Editar
-            </Button>
-            <ActionMenu
-              label={`Mais ações da tabela ${table.name}`}
-              menuId={`charge-table-menu-${table.id}`}
-              triggerClassName="app-table__icon-button"
-              trigger={<MoreVertical size={16} aria-hidden="true" />}
-              items={menuItems}
-            />
-          </div>
-        ) : null}
+        <TableActions {...props} />
       </div>
       {isOpen ? (
-        <div id={panelId} className="app-rates-items" role="region" aria-label={`Itens da tabela ${table.name}`}>
-          {table.charge_table_items.length === 0 ? (
-            <div className="app-rates-items__empty">
-              <p>
-                Nenhum item nesta tabela.
-                {reading.state.kind === 'applied' ? ' Enquanto ela for a aplicada, o cálculo deste escopo não gera taxa.' : ''}
-              </p>
-              {canEdit ? (
-                <Button variant="secondary" className="app-btn--sm" onClick={() => onAddItem(table)}>
-                  <Plus size={14} aria-hidden="true" />
-                  Adicionar item
-                </Button>
-              ) : null}
-            </div>
-          ) : (
-            <>
-              <ChargeItemsTable table={table} canEdit={canEdit} canDelete={canDelete} {...itemProps} />
-              {canEdit ? (
-                <div className="app-rates-items__footer">
-                  <Button variant="ghost" className="app-btn--sm" onClick={() => onAddItem(table)}>
-                    <Plus size={14} aria-hidden="true" />
-                    Adicionar item
-                  </Button>
-                </div>
-              ) : null}
-            </>
-          )}
+        <div id={panelId}>
+          <TableDetail {...props} />
         </div>
       ) : null}
     </li>
   )
 }
 
-type ItemsProps = {
-  table: ChargeTable
-  canEdit: boolean
-  canDelete: boolean
-  onEditItem: (table: ChargeTable, item: ChargeItem) => void
-  onToggleItemActive: (item: ChargeItem) => void
-  onDeleteItem: (item: ChargeItem) => void
-  busyItemId: number | null
-}
+type ItemsProps = RowProps
 
 function itemMenu(item: ChargeItem, { canDelete, onToggleItemActive, onDeleteItem, busyItemId }: ItemsProps): ActionMenuItem[] {
   if (!canDelete) return []
@@ -234,14 +350,25 @@ function ItemActions({ item, ...props }: ItemsProps & { item: ChargeItem }) {
   )
 }
 
-function ItemFlags({ item }: { item: ChargeItem }) {
+function itemIncidence(item: ChargeItem) {
+  const unit = basisUnit(item.application_basis)
+  return item.applies_to_soc === false && item.application_basis === 'container_distinct_voyage' ? `${unit}, exceto SOC` : unit
+}
+
+/** Aviso do item: texto curto (âmbar se pede ação), frase inteira no title. */
+function ItemWarning({ item }: { item: ChargeItem }) {
+  if (item.active === false) return null
   const notes = itemEngineNotes(item)
+  if (!notes.length) return null
   return (
-    <>
-      {item.active === false ? <span className="app-rates-item__flag">Inativo: fora do cálculo</span> : null}
-      {item.applies_to_soc === false && item.application_basis === 'container_distinct_voyage' ? <span className="app-rates-item__flag">Não cobra de container SOC</span> : null}
-      {item.active !== false ? <ChargeNoteList notes={notes} className="app-rates-item__notes" /> : null}
-    </>
+    <span className="grid gap-0.5">
+      {notes.map((note) => (
+        <span key={note.text} title={note.text}>
+          {note.tone === 'info' ? note.short ?? note.text : <StatusText tone="warning">{note.short ?? note.text}</StatusText>}
+          <span className="sr-only">: {note.text}</span>
+        </span>
+      ))}
+    </span>
   )
 }
 
@@ -259,48 +386,47 @@ function ChargeItemsTable(props: ItemsProps) {
             </div>
             <p className="app-rates-item-card__value">
               <span className="app-rates-num">{formatRate(item.currency, itemUnitValue(item))}</span>{' '}
-              <span className="app-rates-unit">{basisUnit(item.application_basis)}</span>
+              <span className="app-rates-unit">{itemIncidence(item)}</span>
             </p>
             <p className="app-rates-unit">
-              {item.manual_only ? 'Só manual' : 'Automático'} · Perfil {cargoProfileLabel(item.cargo_profile)}
+              {item.active === false ? 'Desativado · ' : ''}{item.manual_only ? 'Só manual' : 'Automático'} · Perfil {cargoProfileLabel(item.cargo_profile)}
             </p>
-            <ItemFlags item={item} />
+            <ItemWarning item={item} />
           </li>
         ))}
       </ul>
     )
   }
   return (
-    <div className="app-table-scroll">
-      <table className="app-table app-table--compact app-rates-item-table">
-        <caption className="sr-only">Itens da tabela {table.name}</caption>
-        <thead>
-          <tr>
-            <th scope="col" className="app-table__text-head">Item</th>
-            <th scope="col">Entra no cálculo</th>
-            <th scope="col">Perfil</th>
-            <th scope="col">Valor unitário</th>
-            {props.canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
+    <table className="app-table app-table--compact app-table--nested">
+      <caption className="sr-only">Itens da tabela {table.name}</caption>
+      <thead>
+        <tr>
+          <th scope="col" className="app-table__text-head">Item</th>
+          <th scope="col">Entra no cálculo</th>
+          <th scope="col">Perfil</th>
+          <th scope="col">Incide</th>
+          <th scope="col">Valor unitário</th>
+          <th scope="col" className="app-table__text-head">Aviso</th>
+          {props.canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
+        </tr>
+      </thead>
+      <tbody>
+        {table.charge_table_items.map((item) => (
+          <tr key={item.id} className={item.active === false ? 'app-table__row--muted' : undefined}>
+            <td className="app-table__text">
+              {item.name}
+              {item.active === false ? <span className="sr-only"> (desativado, fora do cálculo)</span> : null}
+            </td>
+            <td>{item.active === false ? 'Desativado' : item.manual_only ? 'Só manual' : 'Automático'}</td>
+            <td>{cargoProfileLabel(item.cargo_profile)}</td>
+            <td>{itemIncidence(item)}</td>
+            <td className="tabular-nums">{formatRate(item.currency, itemUnitValue(item))}</td>
+            <td className="app-table__text"><ItemWarning item={item} /></td>
+            {props.canEdit ? <td><ItemActions item={item} {...props} /></td> : null}
           </tr>
-        </thead>
-        <tbody>
-          {table.charge_table_items.map((item) => (
-            <tr key={item.id} data-inactive={item.active === false || undefined}>
-              <td className="app-table__text">
-                <div className="app-rates-item__name">{item.name}</div>
-                <ItemFlags item={item} />
-              </td>
-              <td>{item.manual_only ? 'Só manual' : 'Automático'}</td>
-              <td>{cargoProfileLabel(item.cargo_profile)}</td>
-              <td>
-                <span className="app-rates-num app-rates-item__value">{formatRate(item.currency, itemUnitValue(item))}</span>
-                <span className="app-rates-unit">{basisUnit(item.application_basis)}</span>
-              </td>
-              {props.canEdit ? <td className="app-rates-item__actions-cell"><ItemActions item={item} {...props} /></td> : null}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   )
 }

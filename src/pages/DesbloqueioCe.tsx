@@ -1,20 +1,23 @@
-import { formatCnpjCpf } from "../lib/utils";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileSpreadsheet, FileText, History, SearchX } from "lucide-react";
+import { Download, FileSpreadsheet, History, SearchX, X } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import { useCeUnlock, useCeUnlockRequest } from "../hooks/useCeUnlock";
-import { Badge } from "../components/ui/Badge";
+import { useCeUnlock, useCeUnlockRequest, useCeUnlockReviewQueue, useCeUnlockSituationCounts } from "../hooks/useCeUnlock";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { Block } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
-import { Card, EmptyState, InlineError, PageHeader } from "../components/ui/Card";
+import { EmptyState, InlineError, PageHeader } from "../components/ui/Card";
 import { CopyValue } from "../components/ui/CopyValue";
 import { FilterBar } from "../components/ui/FilterBar";
 import { Field, Input, Select } from "../components/ui/Input";
+import { MetricCard } from "../components/ui/MetricCard";
 import { Modal } from "../components/ui/Modal";
 import { NoValue } from "../components/ui/NoValue";
 import { SkeletonTable } from "../components/ui/Skeleton";
+import { StatusText } from "../components/ui/StatusText";
 import { TabButton } from "../components/ui/TabButton";
+import { TabList } from "../components/ui/TabList";
 import { TableFooterPagination } from "../components/ui/TableFooterPagination";
 import { useToast } from "../components/ui/Toast";
 import { QueryStateGate } from "../components/shared/QueryStateGate";
@@ -23,11 +26,18 @@ import { useConfirm, useConfirmWithReason } from "../components/ui/ConfirmDialog
 import { CeUnlockRequestDetail } from "../components/ce-unlock/CeUnlockRequestDetail";
 import { CeUnlockDocumentList, CeUnlockDocumentUploader } from "../components/ce-unlock/CeUnlockDocuments";
 import { CeUnlockReviewQueue } from "../components/ce-unlock/CeUnlockReviewQueue";
-import { CeUnlockRequirementIcon } from "../components/ce-unlock/CeUnlockRequirements";
+import { CeUnlockRequirementIcon, CeUnlockZptState } from "../components/ce-unlock/CeUnlockRequirements";
 import { CeUnlockSla } from "../components/ce-unlock/CeUnlockSla";
 import { CeUnlockZptImport } from "../components/ce-unlock/CeUnlockZptImport";
-import { ceDateTime, ceStateLabel, ceStateTone } from "../lib/ceUnlockLabels";
-import { ceUnlockRead, downloadCeUnlockExport, listCeUnlockExports } from "../services/ceUnlockService";
+import { ceDateTime } from "../lib/ceUnlockLabels";
+import {
+  ceUnlockCommand,
+  ceUnlockRead,
+  downloadCeUnlockExport,
+  fetchAllCeUnlockBls,
+  listCeUnlockExports,
+} from "../services/ceUnlockService";
+import { exportCeUnlockWorkbook } from "../services/exports";
 import { afterCeUnlockChanged } from "../services/cacheEffects";
 import type { CeUnlockDocument, CeUnlockFilters, CeUnlockItem } from "../types/ceUnlock";
 
@@ -35,12 +45,14 @@ type Tab = "solicitacoes" | "controle";
 type Panel = "model" | "zpt" | "exports" | null;
 const PAGE_SIZE = 25;
 const EXPORT_LIMIT = 100;
-// A página abre com todos os BLs com CE; "Aptos — não exportados" é a fila de exportação.
+// A aba abre com todos os B/Ls com CE; "Aptos, não exportados" é a fila de exportação.
 const DEFAULT_FILTERS: CeUnlockFilters = { situation: "" };
 const SITUATIONS: Array<[string, string]> = [
-  ["", "Todas as situações"],
-  ["ready_not_exported", "Aptos — não exportados"],
+  ["", "Todas"],
+  ["ready_not_exported", "Aptos, não exportados"],
+  ["exported", "Exportados, aguardando a ZPT"],
   ["divergent", "Divergentes na ZPT"],
+  ["unlocked", "Desbloqueados"],
   ["no_request", "Sem solicitação"],
   ["submitted", "Enviado"],
   ["in_review", "Em análise"],
@@ -48,53 +60,42 @@ const SITUATIONS: Array<[string, string]> = [
   ["ready", "Aptos (inclui exportados)"],
   ["completed", "Documentação validada"],
 ];
+const CARDS: Array<[string, string]> = [
+  ["ready_not_exported", "Aptos, não exportados"],
+  ["exported", "Exportados, aguardando a ZPT"],
+  ["divergent", "Divergentes na ZPT"],
+  ["unlocked", "Desbloqueados"],
+  ["", "B/Ls com CE"],
+];
 const COLUMNS = 11;
 
-function ZptCell({ i }: { i: CeUnlockItem }) {
-  if (i.zpt_status === "divergent")
-    return (
-      <span className="app-table__cell-stack max-w-[200px] whitespace-normal">
-        <span><Badge tone="red">{ceStateLabel("divergent")}</Badge></span>
-        {i.zpt_description && <span className="app-table__cell-meta">{i.zpt_description}</span>}
-        {!!i.zpt_pending?.length && <span className="app-table__cell-meta">Pendente na ZPT: {i.zpt_pending.join(", ")}</span>}
-      </span>
-    );
-  if (i.zpt_status === "unlocked")
-    return (
-      <span className="app-table__cell-stack">
-        <span><Badge tone="green">{ceStateLabel("unlocked")}</Badge></span>
-        {i.zpt_without_export && <span className="app-table__cell-meta">Sem exportação pelo Vela</span>}
-      </span>
-    );
-  if (i.can_export) {
-    const state = i.export_state ?? "not_exported";
-    return (
-      <span className="app-table__cell-stack">
-        <span><Badge tone={state === "not_exported" ? "yellow" : ceStateTone(state)}>{ceStateLabel(state)}</Badge></span>
-        {i.exported_at && <span className="app-table__cell-meta">{ceDateTime(i.exported_at)}</span>}
-      </span>
-    );
-  }
-  return (
-    <ul className="app-table__cell-meta max-w-[200px] list-none space-y-0.5 whitespace-normal">
-      {i.reasons.map((r) => <li key={r}>{r}</li>)}
-    </ul>
-  );
-}
+const bls = (n: number) => (n === 1 ? "1 B/L" : `${n} B/Ls`);
+const aptos = (n: number) => (n === 1 ? "1 apto" : `${n} aptos`);
 
 export function DesbloqueioCe() {
   const { can } = useAuth();
+  const read = can("ce_unlock_read");
   const manage = can("ce_unlock_manage");
   const [params, setParams] = useSearchParams();
   const id = params.get("pedido");
   const tab: Tab = params.get("aba") === "controle" ? "controle" : "solicitacoes";
   const [filters, setFilters] = useState<CeUnlockFilters>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<string[]>([]);
+  // A seleção guarda o B/L inteiro: atravessa páginas e ainda sabe se é apto e se tem a entrega.
+  const [selection, setSelection] = useState<Map<string, CeUnlockItem>>(new Map());
   const [panel, setPanel] = useState<Panel>(null);
   const [exportBusy, setExportBusy] = useState(false);
+  const [sheetBusy, setSheetBusy] = useState(false);
+  const [deliveryBusy, setDeliveryBusy] = useState(false);
   const keys = useRef(new Map<string, string>());
-  const { list, command } = useCeUnlock(filters, page, can("ce_unlock_read") && tab === "controle");
+  // Busca e POD só consultam depois da pausa na digitação: cada leitura recalcula a situação de todos os
+  // B/Ls com CE, e os cartões fazem mais quatro.
+  const search = useDebouncedValue(filters.search ?? "");
+  const pod = useDebouncedValue(filters.pod ?? "");
+  const queryFilters = useMemo(() => ({ ...filters, search, pod }), [filters, search, pod]);
+  const { list, command } = useCeUnlock(queryFilters, page, read && tab === "controle");
+  const queueCount = useCeUnlockReviewQueue(1, read);
+  const counts = useCeUnlockSituationCounts(queryFilters, CARDS.map(([s]) => s), read && tab === "controle");
   const request = useCeUnlockRequest(id);
   const client = useQueryClient();
   const confirm = useConfirm();
@@ -112,16 +113,44 @@ export function DesbloqueioCe() {
   });
   const items = list.data?.items ?? [];
   const total = list.data?.total ?? 0;
-  const activeFilters =
-    (["search", "pending_requirement", "pod", "voyage_id"] as const).filter((k) => !!filters[k]).length +
+  const moreFilters = filters.pending_requirement ? 1 : 0;
+  const openFilters =
+    (["search", "pod", "voyage_id"] as const).filter((k) => !!filters[k]).length +
     (filters.situation !== DEFAULT_FILTERS.situation ? 1 : 0);
-  const situationLabel = SITUATIONS.find(([v]) => v === (filters.situation ?? ""))?.[1] ?? "";
-  const pageExportable = items.filter((i) => i.can_export).map((i) => i.bl_id);
-  const allPageSelected = pageExportable.length > 0 && pageExportable.every((b) => selected.includes(b));
+  const activeFilters = openFilters + moreFilters;
+  // A linha da página atual é a versão mais recente do B/L selecionado; fora dela vale a cópia guardada,
+  // que a entrega registrada ou desmarcada nesta tela renova com o B/L devolvido pelo comando.
+  const current = new Map(items.map((i) => [i.bl_id, i]));
+  const selected = [...selection.values()].map((i) => current.get(i.bl_id) ?? i);
+  const selectedReady = selected.filter((i) => i.can_export);
+  const selectedUndelivered = selected.filter((i) => !i.delivered);
+  const allPageSelected = items.length > 0 && items.every((i) => selection.has(i.bl_id));
 
   function filter(key: keyof CeUnlockFilters, value: string | number | undefined) {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
+  }
+  function clearFilters() {
+    setFilters(DEFAULT_FILTERS);
+    setPage(1);
+  }
+  function toggle(i: CeUnlockItem, on: boolean) {
+    setSelection((prev) => {
+      const next = new Map(prev);
+      if (on) next.set(i.bl_id, i);
+      else next.delete(i.bl_id);
+      return next;
+    });
+  }
+  function togglePage() {
+    setSelection((prev) => {
+      const next = new Map(prev);
+      for (const i of items) {
+        if (allPageSelected) next.delete(i.bl_id);
+        else next.set(i.bl_id, i);
+      }
+      return next;
+    });
   }
   function setRequest(next: string | null) {
     setParams((p) => {
@@ -147,12 +176,16 @@ export function DesbloqueioCe() {
     keys.current.delete(k.text);
     return result;
   }
+  function refreshSelected(i: CeUnlockItem, updated: unknown) {
+    if (!updated || typeof updated !== "object") return;
+    setSelection((prev) => (prev.has(i.bl_id) ? new Map(prev).set(i.bl_id, { ...i, ...(updated as Partial<CeUnlockItem>) }) : prev));
+  }
   async function delivery(i: CeUnlockItem) {
     let reason: string | null = null;
     if (i.delivered) {
       reason = await reasonDialog({
-        message: `Desmarcar a entrega do BL original ${i.bl_id}?`,
-        consequence: "O BL deixa de atender o requisito BL de Entrega e não pode ser exportado.",
+        message: `Desmarcar a entrega do B/L original ${i.bl_id}?`,
+        consequence: "O B/L deixa de atender o requisito B/L original e não pode ser exportado.",
         reversibility: "A entrega pode ser registrada novamente.",
         confirmLabel: "Desmarcar entrega",
         tone: "danger",
@@ -160,27 +193,68 @@ export function DesbloqueioCe() {
       if (!reason) return;
     } else if (
       !(await confirm({
-        message: `Registrar o recebimento do BL original ${i.bl_id}?`,
-        consequence: "O requisito BL de Entrega passa a atendido e o prazo do cliente recomeça a partir de agora.",
+        message: `Registrar o recebimento do B/L original ${i.bl_id}?`,
+        consequence: "O requisito B/L original passa a atendido e o prazo do cliente recomeça a partir de agora.",
         reversibility: "Uma marcação incorreta pode ser desfeita com motivo.",
         confirmLabel: "Registrar entrega",
       }))
     )
       return;
     try {
-      await act("delivery", { bl_id: i.bl_id, delivered: !i.delivered, expected_version: i.delivery_version, reason });
+      const updated = await act("delivery", { bl_id: i.bl_id, delivered: !i.delivered, expected_version: i.delivery_version, reason });
+      refreshSelected(i, updated);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Falha ao registrar entrega", "error");
     }
   }
-  async function exportSelected(blIds = selected, reexportOf?: string) {
+  async function deliverSelected() {
+    const targets = selectedUndelivered;
+    if (
+      !targets.length ||
+      !(await confirm({
+        message: `Registrar a entrega do B/L original de ${bls(targets.length)}?`,
+        affected: { summary: bls(targets.length), items: targets.map((i) => i.bl_id) },
+        consequence: "O requisito B/L original passa a atendido nestes B/Ls e o prazo do cliente recomeça a partir de agora. Os que já têm a entrega ficam de fora.",
+        reversibility: "Uma marcação incorreta pode ser desfeita com motivo, um B/L por vez.",
+        confirmLabel: `Registrar entrega de ${bls(targets.length)}`,
+      }))
+    )
+      return;
+    setDeliveryBusy(true);
+    const failed: string[] = [];
+    let saved = 0;
+    // ponytail: um comando 'delivery' por B/L, em sequência; não é atômico (uma falha no meio
+    // deixa os anteriores gravados, e o relatório diz quais falharam). Upgrade: uma ação em lote
+    // no ce_unlock_command que grave todos na mesma transação.
+    for (const i of targets) {
+      const payload = { bl_id: i.bl_id, delivered: true, expected_version: i.delivery_version, reason: null };
+      const k = keyFor("delivery", payload);
+      try {
+        await ceUnlockCommand("delivery", { ...payload, request_key: k.key });
+        keys.current.delete(k.text);
+        saved++;
+      } catch (e) {
+        failed.push(`${i.bl_id}: ${e instanceof Error ? e.message : "falha"}`);
+      }
+    }
+    await afterCeUnlockChanged(client);
+    setDeliveryBusy(false);
+    if (saved) showToast(`Entrega registrada em ${bls(saved)}.`, "success");
+    if (failed.length) showToast(`Não gravou em ${bls(failed.length)}: ${failed.join("; ")}`, "error");
+    setSelection((prev) => {
+      const next = new Map(prev);
+      for (const i of targets) if (!failed.some((f) => f.startsWith(`${i.bl_id}:`))) next.delete(i.bl_id);
+      return next;
+    });
+  }
+  async function exportSelected(blIds = selectedReady.map((i) => i.bl_id), reexportOf?: string) {
     if (
       !(await confirm({
-        message: `${reexportOf ? "Reexportar" : "Exportar"} ${blIds.length} BL(s) para a ZPT?`,
-        affected: { summary: `${blIds.length} BL(s)`, items: blIds },
-        consequence: "A planilha é baixada e o envio fica registrado nestes BLs. O desbloqueio acontece quando ela for importada na ZPT.",
-        reversibility: "BL recusado pela ZPT aparece como divergente após a conciliação e pode ser reexportado.",
-        confirmLabel: reexportOf ? "Reexportar" : "Exportar planilha",
+        message: `${reexportOf ? "Reexportar" : "Exportar"} ${bls(blIds.length)} para a ZPT?`,
+        affected: { summary: bls(blIds.length), items: blIds },
+        consequence: "A planilha é baixada e o envio fica registrado nestes B/Ls. O desbloqueio acontece quando ela for importada na ZPT.",
+        reversibility: "B/L recusado pela ZPT aparece como divergente após a conciliação e pode ser reexportado.",
+        confirmLabel: reexportOf ? "Reexportar" : "Exportar para a ZPT",
       }))
     )
       return;
@@ -191,160 +265,219 @@ export function DesbloqueioCe() {
       await downloadCeUnlockExport({ ...payload, request_key: k.key });
       keys.current.delete(k.text);
       await afterCeUnlockChanged(client);
-      if (!reexportOf) setSelected([]);
-      showToast(`Planilha gerada com ${blIds.length} BL(s). Importe-a na aba "Planilha desbloqueio" da ZPT.`, "success");
+      if (!reexportOf)
+        setSelection((prev) => {
+          const next = new Map(prev);
+          for (const b of blIds) next.delete(b);
+          return next;
+        });
+      showToast(`Planilha gerada com ${bls(blIds.length)}. Importe-a na aba "Planilha desbloqueio" da ZPT.`, "success");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Falha ao exportar", "error");
     } finally {
       setExportBusy(false);
     }
   }
-  if (!can("ce_unlock_read"))
-    return <EmptyState title="Acesso não autorizado" description="Seu perfil não consulta o Desbloqueio de CE." />;
+  async function exportSheet() {
+    setSheetBusy(true);
+    try {
+      await exportCeUnlockWorkbook(await fetchAllCeUnlockBls(queryFilters));
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Falha ao exportar a planilha", "error");
+    } finally {
+      setSheetBusy(false);
+    }
+  }
+  if (!read) return <EmptyState title="Acesso não autorizado" description="Seu perfil não consulta o Desbloqueio de CE." />;
   return (
     <>
-      <PageHeader
-        title="Desbloqueio de CE"
-        description="Valide os documentos das solicitações do Portal e prepare os BLs aptos para a ZPT."
-        action={
-          manage ? (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => setPanel("model")}>
-                <FileText size={16} aria-hidden="true" />
-                Modelo do termo de devolução
-              </Button>
-              <Button variant="secondary" onClick={() => setPanel("exports")}>
-                <History size={16} aria-hidden="true" />
-                Histórico ZPT
-              </Button>
-              <Button variant="secondary" onClick={() => setPanel("zpt")}>
-                <FileSpreadsheet size={16} aria-hidden="true" />
-                Conciliar com a ZPT
-              </Button>
-            </div>
-          ) : undefined
-        }
-      />
-      <div role="tablist" className="mb-4 flex gap-2 border-b border-[var(--app-border)]">
-        <TabButton active={tab === "solicitacoes"} label="Solicitações" onClick={() => openTab("solicitacoes")} />
-        <TabButton active={tab === "controle"} label="Controle ZPT" onClick={() => openTab("controle")} />
-      </div>
+      <PageHeader title="Desbloqueio de CE" />
+      <TabList label="Seções do Desbloqueio de CE">
+        <TabButton
+          active={tab === "solicitacoes"}
+          label="Solicitações"
+          count={queueCount.data?.total ?? null}
+          countLabel={queueCount.data ? `${queueCount.data.total} aguardando análise` : undefined}
+          onClick={() => openTab("solicitacoes")}
+        />
+        <TabButton active={tab === "controle"} label="Andamento dos B/Ls" onClick={() => openTab("controle")} />
+      </TabList>
       {tab === "solicitacoes" ? (
-        <CeUnlockReviewQueue enabled={can("ce_unlock_read")} onOpen={setRequest} />
+        <CeUnlockReviewQueue enabled={read} onOpen={setRequest} onOpenModel={manage ? () => setPanel("model") : undefined} />
       ) : (
         <>
-          <FilterBar
-            defaultOpen
-            activeCount={activeFilters}
-            appliedDefaults={situationLabel ? [situationLabel] : undefined}
-            onClear={() => {
-              setFilters(DEFAULT_FILTERS);
-              setPage(1);
-            }}
-          >
-            <div className="app-filter-grid">
-              <Field label="Buscar BL, CE ou cliente">
-                <Input
-                  placeholder="Número do BL, CE ou nome do cliente"
-                  value={filters.search ?? ""}
-                  onChange={(e) => filter("search", e.target.value)}
+          <div className="app-metric-row" role="group" aria-label="Situação dos B/Ls do recorte">
+            {CARDS.map(([value, label]) => {
+              const count = counts[value];
+              return (
+                <MetricCard
+                  key={value || "all"}
+                  label={label}
+                  value={count ?? <NoValue label="Carregando" />}
+                  tone={value === "divergent" && (count ?? 0) > 0 ? "warning" : "secondary"}
+                  selected={(filters.situation ?? "") === value}
+                  onSelect={() => filter("situation", (filters.situation ?? "") === value ? "" : value)}
                 />
-              </Field>
-              <Field label="Situação">
-                <Select value={filters.situation ?? ""} onChange={(e) => filter("situation", e.target.value)}>
-                  {SITUATIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </Select>
-              </Field>
+              );
+            })}
+          </div>
+
+          <div className="app-filter-grid">
+            <Field label="Buscar">
+              <Input
+                placeholder="B/L, CE ou Cliente"
+                value={filters.search ?? ""}
+                onChange={(e) => filter("search", e.target.value)}
+              />
+            </Field>
+            <Field label="Situação">
+              <Select value={filters.situation ?? ""} onChange={(e) => filter("situation", e.target.value)}>
+                {SITUATIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </Select>
+            </Field>
+            <VoyageCombobox
+              clearable
+              label="Viagem"
+              selectedVoyageId={filters.voyage_id}
+              onSelect={(next) => filter("voyage_id", next ?? undefined)}
+            />
+            <Field label="POD">
+              <Input value={filters.pod ?? ""} onChange={(e) => filter("pod", e.target.value)} />
+            </Field>
+            {openFilters > 0 && moreFilters === 0 ? (
+              <div><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button></div>
+            ) : null}
+          </div>
+          <FilterBar title="Mais filtros" activeCount={moreFilters} onClear={clearFilters}>
+            <div className="app-filter-grid">
               <Field label="Requisito pendente">
                 <Select value={filters.pending_requirement ?? ""} onChange={(e) => filter("pending_requirement", e.target.value)}>
                   <option value="">Todos</option>
                   <option value="termo">Termo de devolução</option>
                   <option value="procuracao">Procuração</option>
-                  <option value="taxas">Financeiro (taxas locais)</option>
-                  <option value="bl_fisico">BL de Entrega</option>
+                  <option value="taxas">Taxas locais</option>
+                  <option value="bl_fisico">B/L original</option>
                 </Select>
               </Field>
-              <Field label="POD">
-                <Input value={filters.pod ?? ""} onChange={(e) => filter("pod", e.target.value)} />
-              </Field>
-              <VoyageCombobox
-                clearable
-                label="Viagem"
-                selectedVoyageId={filters.voyage_id}
-                onSelect={(next) => filter("voyage_id", next ?? undefined)}
-              />
             </div>
           </FilterBar>
-          <Card className="overflow-hidden p-0">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--app-border)] px-4 py-3 text-sm">
-              <span className="font-semibold text-[var(--app-text-strong)]">{total} BL(s)</span>
-              {manage && (
-                <div className="flex flex-wrap items-center gap-3">
-                  {selected.length > 0 && (
-                    <>
-                      <span className="text-[var(--app-muted)]">{selected.length} selecionado(s)</span>
-                      <Button variant="ghost" className="app-btn--sm" onClick={() => setSelected([])}>Limpar seleção</Button>
-                    </>
-                  )}
-                  {selected.length > EXPORT_LIMIT && (
-                    <span className="text-xs font-semibold text-[var(--app-red)]">Máximo de {EXPORT_LIMIT} BLs por planilha</span>
-                  )}
-                  <Button
-                    disabled={!selected.length || selected.length > EXPORT_LIMIT || command.isPending}
-                    loading={exportBusy}
-                    loadingLabel="Exportando…"
-                    onClick={() => void exportSelected()}
-                  >
-                    <Download size={16} aria-hidden="true" />
-                    Exportar {selected.length} apto(s) para ZPT
-                  </Button>
+
+          <Block
+            title="B/Ls com CE Mercante"
+            flush
+            aside={
+              <>
+                {list.data ? <span>{bls(total)}</span> : null}
+                <Button
+                  variant="secondary"
+                  className="app-btn--sm"
+                  loading={sheetBusy}
+                  loadingLabel="Exportando…"
+                  disabled={!list.data || total === 0}
+                  onClick={() => void exportSheet()}
+                >
+                  <Download size={14} aria-hidden="true" />
+                  Exportar planilha
+                </Button>
+                {manage && (
+                  <>
+                    <Button variant="secondary" className="app-btn--sm" onClick={() => setPanel("exports")}>
+                      <History size={14} aria-hidden="true" />
+                      Planilhas enviadas à ZPT
+                    </Button>
+                    <Button variant="secondary" className="app-btn--sm" onClick={() => setPanel("zpt")}>
+                      <FileSpreadsheet size={14} aria-hidden="true" />
+                      Conciliar com a ZPT
+                    </Button>
+                    <Button
+                      className="app-btn--sm"
+                      disabled={!selectedReady.length || selectedReady.length > EXPORT_LIMIT || command.isPending || deliveryBusy}
+                      title={selectedReady.length ? undefined : "Selecione B/Ls aptos para exportar"}
+                      loading={exportBusy}
+                      loadingLabel="Exportando…"
+                      onClick={() => void exportSelected()}
+                    >
+                      {selectedReady.length ? `Exportar ${aptos(selectedReady.length)} para a ZPT` : "Exportar aptos para a ZPT"}
+                    </Button>
+                  </>
+                )}
+              </>
+            }
+          >
+            {manage && selected.length > 0 && (
+              <div className="app-block__body">
+                <div className="app-bulk-bar" role="region" aria-label="Seleção">
+                  <span className="app-bulk-bar__count" aria-live="polite">
+                    {selected.length === 1 ? "1 selecionado" : `${selected.length} selecionados`}
+                    {" · "}
+                    {selectedReady.length === 1 ? "1 apto" : `${selectedReady.length} aptos`} para a ZPT
+                    {" · "}
+                    {selectedUndelivered.length} sem a entrega do B/L original
+                    {selectedReady.length > EXPORT_LIMIT ? (
+                      <>
+                        {" · "}
+                        <StatusText tone="danger">máximo de {EXPORT_LIMIT} B/Ls por planilha</StatusText>
+                      </>
+                    ) : null}
+                  </span>
+                  <div className="app-bulk-bar__actions">
+                    {selectedUndelivered.length > 0 && (
+                      <Button
+                        variant="secondary"
+                        loading={deliveryBusy}
+                        loadingLabel="Registrando…"
+                        disabled={command.isPending || exportBusy}
+                        onClick={() => void deliverSelected()}
+                      >
+                        Registrar entrega de {bls(selectedUndelivered.length)}
+                      </Button>
+                    )}
+                    <Button variant="ghost" disabled={deliveryBusy} onClick={() => setSelection(new Map())}>
+                      <X size={15} aria-hidden="true" />
+                      Limpar seleção
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             <QueryStateGate
               isLoading={false}
               isError={Boolean(list.error)}
               hasData={list.data !== undefined}
-              errorMessage="Falha ao consultar BLs."
+              errorMessage="Falha ao consultar B/Ls."
               onRetry={() => void list.refetch?.()}
             >
               <div className="app-table-scroll app-table-scroll--sticky">
-                <table className="app-table app-table--compact min-w-[1240px] whitespace-nowrap text-sm">
-                  <caption className="sr-only">Requisitos de desbloqueio de cada BL</caption>
+                <table className="app-table app-table--compact whitespace-nowrap text-sm">
+                  <caption className="sr-only">Requisitos de desbloqueio de cada B/L</caption>
                   <thead>
                     <tr>
-                      <th scope="col" className="w-10 px-3 py-3">
+                      <th scope="col" className="w-10">
                         <input
                           type="checkbox"
-                          aria-label="Selecionar os BLs aptos da página"
-                          disabled={!manage || !pageExportable.length}
+                          aria-label="Selecionar os B/Ls da página"
+                          disabled={!manage || !items.length}
                           checked={allPageSelected}
-                          onChange={() =>
-                            setSelected((prev) =>
-                              allPageSelected
-                                ? prev.filter((b) => !pageExportable.includes(b))
-                                : [...new Set([...prev, ...pageExportable])],
-                            )
-                          }
+                          onChange={togglePage}
                         />
                       </th>
-                      <th scope="col" className="px-3 py-3 app-table__text-head">BL / CE</th>
-                      <th scope="col" className="px-3 py-3 app-table__text-head">Cliente</th>
-                      <th scope="col" className="px-3 py-3 app-table__text-head">Viagem / POD</th>
-                      <th scope="col" className="px-3 py-3 app-table__text-head">Solicitação</th>
-                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">T. de Devolução</th>
-                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">Procuração</th>
-                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">Financeiro</th>
-                      <th scope="col" className="w-[92px] whitespace-normal px-2 py-3">BL de Entrega</th>
-                      <th scope="col" className="px-3 py-3">Prazo</th>
-                      <th scope="col" className="px-3 py-3">ZPT</th>
+                      <th scope="col">B/L</th>
+                      <th scope="col">CE Mercante</th>
+                      <th scope="col" className="app-table__text-head">Cliente</th>
+                      <th scope="col">Solicitação</th>
+                      <th scope="col">Termo de devolução</th>
+                      <th scope="col">Procuração</th>
+                      <th scope="col">Taxas locais</th>
+                      <th scope="col">B/L original</th>
+                      <th scope="col">Prazo</th>
+                      <th scope="col" className="app-table__text-head">Na ZPT</th>
                     </tr>
                   </thead>
                   <tbody>
                     {list.isLoading && (
                       <tr>
                         <td colSpan={COLUMNS} className="p-0">
-                          <SkeletonTable rows={8} cols={COLUMNS} label="Carregando BLs" />
+                          <SkeletonTable rows={8} cols={COLUMNS} label="Carregando B/Ls" />
                         </td>
                       </tr>
                     )}
@@ -353,94 +486,76 @@ export function DesbloqueioCe() {
                         <td colSpan={COLUMNS} className="p-0">
                           <EmptyState
                             icon={SearchX}
-                            title={filters.situation === DEFAULT_FILTERS.situation && activeFilters === 0 ? "Nenhum BL com CE Mercante" : "Nenhum BL encontrado para este filtro"}
-                            description="BLs com CE aparecem aqui conforme os quatro requisitos são atendidos."
+                            title={activeFilters === 0 ? "Nenhum B/L com CE Mercante" : "Nenhum B/L encontrado para este filtro"}
+                            description="B/Ls com CE aparecem aqui conforme os quatro requisitos são atendidos."
                             action={activeFilters > 0 ? (
-                              <Button variant="secondary" onClick={() => { setFilters(DEFAULT_FILTERS); setPage(1); }}>
-                                Limpar filtros
-                              </Button>
+                              <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>
                             ) : undefined}
                           />
                         </td>
                       </tr>
                     )}
                     {items.map((i) => (
-                      <tr key={i.bl_id} className={selected.includes(i.bl_id) ? "bg-[var(--app-blue-soft)]" : undefined}>
-                        <td className="px-3 py-3">
+                      <tr key={i.bl_id}>
+                        <td>
                           <input
                             type="checkbox"
-                            aria-label={`Exportar BL ${i.bl_id}`}
-                            disabled={!manage || (!i.can_export && !selected.includes(i.bl_id))}
-                            checked={selected.includes(i.bl_id)}
-                            onChange={(e) =>
-                              setSelected((prev) => (e.target.checked ? [...prev, i.bl_id] : prev.filter((b) => b !== i.bl_id)))
-                            }
+                            aria-label={`Selecionar B/L ${i.bl_id}`}
+                            disabled={!manage}
+                            checked={selection.has(i.bl_id)}
+                            onChange={(e) => toggle(i, e.target.checked)}
                           />
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="app-table__cell-stack">
-                            <CopyValue value={i.bl_id} label="número do B/L">
-                              <Link className="font-semibold text-[var(--app-link)] hover:underline" to={`/bls/${encodeURIComponent(i.bl_id)}`}>
-                                {i.bl_id}
-                              </Link>
-                            </CopyValue>
-                            <span className="app-table__cell-meta whitespace-nowrap">CE {i.ce_mercante ? <CopyValue value={i.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</span>
-                          </span>
+                        <td>
+                          <CopyValue value={i.bl_id} label="número do B/L">
+                            <Link className="app-link" to={`/bls/${encodeURIComponent(i.bl_id)}`}>{i.bl_id}</Link>
+                          </CopyValue>
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="app-table__cell-stack">
+                        <td>{i.ce_mercante ? <CopyValue value={i.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</td>
+                        <td className="app-table__text">
+                          {i.customer_name ? (
                             <Link
-                              className="app-table__truncate app-table__truncate--sm text-[var(--app-link)] hover:underline"
+                              className="app-link app-table__truncate max-w-[110px]"
                               title={i.customer_name}
                               to={`/clientes/${i.cnpj_cpf}?tab=desbloqueio-ce`}
                             >
                               {i.customer_name}
                             </Link>
-                            <span className="app-table__cell-meta flex items-center gap-1.5">
-                              <CopyValue value={i.cnpj_cpf ? formatCnpjCpf(i.cnpj_cpf) : null} label="CNPJ/CPF" />
-                              {i.vip && <Badge tone="blue">VIP</Badge>}
-                            </span>
-                          </span>
+                          ) : (
+                            <NoValue label="Sem Cliente" />
+                          )}
+                          {i.vip && <span className="app-table__cell-meta" title="Documentos anuais VIP"> VIP</span>}
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="app-table__cell-stack">
-                            <span className="app-table__truncate app-table__truncate--sm" title={`${i.vessel_name} · ${i.voyage_number}`}>
-                              {i.vessel_name} · {i.voyage_number}
-                            </span>
-                            <span className="app-table__cell-meta">{i.pod ?? <NoValue label="Sem POD" />}</span>
-                          </span>
+                        <td>
+                          {i.request_id ? (
+                            <button
+                              type="button"
+                              className="app-link"
+                              aria-label={`Abrir solicitação ${i.protocol}`}
+                              onClick={() => setRequest(i.request_id)}
+                            >
+                              {i.protocol}
+                            </button>
+                          ) : (
+                            <StatusText tone="muted">Sem solicitação</StatusText>
+                          )}
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="app-table__cell-stack">
-                            {i.request_id ? (
-                              <button
-                                type="button"
-                                className="text-left font-semibold text-[var(--app-link)] hover:underline"
-                                onClick={() => setRequest(i.request_id)}
-                              >
-                                {i.protocol}
-                              </button>
-                            ) : null}
-                            <span><Badge tone={ceStateTone(i.state)}>{ceStateLabel(i.state)}</Badge></span>
-                            {i.requested_at && <span className="app-table__cell-meta">{ceDateTime(i.requested_at)}</span>}
-                          </span>
-                        </td>
-                        <td className="px-2 py-3"><CeUnlockRequirementIcon label="T. de Devolução" subject={i.bl_id} ok={i.termo} /></td>
-                        <td className="px-2 py-3"><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} /></td>
-                        <td className="px-2 py-3"><CeUnlockRequirementIcon label="Financeiro" subject={i.bl_id} ok={i.paid} /></td>
-                        <td className="px-2 py-3">
+                        <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} /></td>
+                        <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} /></td>
+                        <td><CeUnlockRequirementIcon label="Taxas locais" subject={i.bl_id} ok={i.paid} /></td>
+                        <td>
                           <input
                             type="checkbox"
                             className="h-4 w-4 cursor-pointer accent-[var(--app-green)] disabled:cursor-default"
-                            aria-label={`BL de Entrega: ${i.bl_id}`}
-                            title={manage ? (i.delivered ? "Desmarcar entrega do BL original" : "Registrar entrega do BL original") : undefined}
+                            aria-label={`B/L original: ${i.bl_id}`}
+                            title={manage ? (i.delivered ? "Desmarcar entrega do B/L original" : "Registrar entrega do B/L original") : undefined}
                             checked={i.delivered}
-                            disabled={!manage || command.isPending}
+                            disabled={!manage || command.isPending || deliveryBusy}
                             onChange={() => void delivery(i)}
                           />
                         </td>
-                        <td className="px-3 py-3"><CeUnlockSla start={i.sla_started_at} doneAt={i.exported_at} /></td>
-                        <td className="px-3 py-3"><ZptCell i={i} /></td>
+                        <td><CeUnlockSla start={i.sla_started_at} doneAt={i.exported_at} /></td>
+                        <td className="app-table__text"><span className="app-table__truncate max-w-[100px]"><CeUnlockZptState item={i} /></span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -456,7 +571,7 @@ export function DesbloqueioCe() {
                 onPageChange={setPage}
               />
             )}
-          </Card>
+          </Block>
         </>
       )}
 
@@ -467,7 +582,9 @@ export function DesbloqueioCe() {
           </p>
           {model.data && <CeUnlockDocumentList documents={[model.data]} />}
           {model.isSuccess && !model.data && (
-            <p className="text-sm font-semibold text-[#a85309]">Nenhum modelo publicado: o Portal informa que o modelo ainda não está disponível.</p>
+            <p className="text-sm">
+              <StatusText tone="warning">Nenhum modelo publicado: o Portal informa que o modelo ainda não está disponível.</StatusText>
+            </p>
           )}
           <CeUnlockDocumentUploader source="model" model onUploaded={() => afterCeUnlockChanged(client)} />
         </div>
@@ -477,7 +594,7 @@ export function DesbloqueioCe() {
         <CeUnlockZptImport />
       </Modal>
 
-      <Modal open={manage && panel === "exports"} title="Histórico ZPT" onClose={() => setPanel(null)}>
+      <Modal open={manage && panel === "exports"} title="Planilhas enviadas à ZPT" onClose={() => setPanel(null)}>
         <div className="space-y-4">
           <p className="text-sm text-[var(--app-muted)]">
             Baixar lote devolve o arquivo como foi gerado. Reexportar gera uma nova planilha com os requisitos atuais.
@@ -488,27 +605,27 @@ export function DesbloqueioCe() {
           {!!exports.data?.length && (
             <div className="app-table-scroll rounded-lg border border-[var(--app-border)]">
               <table className="app-table app-table--compact min-w-[560px] text-sm">
-                <caption className="sr-only">Planilhas exportadas para a ZPT</caption>
+                <caption className="sr-only">Planilhas enviadas à ZPT</caption>
                 <thead>
                   <tr>
-                    <th scope="col" className="px-3 py-2">Gerada em</th>
-                    <th scope="col" className="px-3 py-2">BLs</th>
-                    <th scope="col" className="px-3 py-2"><span className="sr-only">Ações</span></th>
+                    <th scope="col">Gerada em</th>
+                    <th scope="col" className="app-table__text-head">B/Ls</th>
+                    <th scope="col"><span className="sr-only">Ações</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {exports.data.map((e) => (
                     <tr key={e.id}>
-                      <td className="px-3 py-2">{ceDateTime(e.created_at)}</td>
-                      <td className="px-3 py-2">
+                      <td className="whitespace-nowrap">{ceDateTime(e.created_at)}</td>
+                      <td className="app-table__text">
                         <span className="app-table__cell-stack">
-                          <span>{e.rows.length} BL(s)</span>
+                          <span>{bls(e.rows.length)}</span>
                           <span className="app-table__cell-meta app-table__truncate app-table__truncate--md" title={e.rows.map((r) => r.bl_id).join(", ")}>
                             {e.rows.map((r) => r.bl_id).join(", ")}
                           </span>
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td>
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="secondary"

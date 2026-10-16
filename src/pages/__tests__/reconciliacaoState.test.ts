@@ -15,11 +15,12 @@ import {
 const params = (search: string) => new URLSearchParams(search)
 
 describe('estado de /reconciliacao na URL', () => {
-  it('abre em Pendências (destino do Alerta pix_unreconciled) e ignora aba desconhecida', () => {
-    expect(reconciliacaoTabFromSearch(params(''))).toBe('pendencias')
-    expect(reconciliacaoTabFromSearch(params('tab=xyz'))).toBe('pendencias')
-    expect(reconciliacaoTabFromSearch(params('tab=historico'))).toBe('historico')
-    expect(withReconciliacaoTab(params('tab=historico&bl=X'), 'pendencias').toString()).toBe('bl=X')
+  it('abre no Histórico de baixas; Pendências só com tab=pendencias (destino dos Alertas de Pix)', () => {
+    expect(reconciliacaoTabFromSearch(params(''))).toBe('historico')
+    expect(reconciliacaoTabFromSearch(params('tab=xyz'))).toBe('historico')
+    expect(reconciliacaoTabFromSearch(params('tab=pendencias'))).toBe('pendencias')
+    expect(withReconciliacaoTab(params('tab=pendencias&bl=X'), 'historico').toString()).toBe('bl=X')
+    expect(withReconciliacaoTab(params('bl=X'), 'pendencias').toString()).toBe('bl=X&tab=pendencias')
   })
 
   it('descarta valores inválidos em vez de filtrar por eles', () => {

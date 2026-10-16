@@ -184,7 +184,8 @@ expect(getAlertTypeLabel('outro_tipo_desconhecido')).toBe('Alerta não catalogad
 it('resolve destinos pela unidade do evento e pelo identificador canônico da invoice', () => {
   expect(alertEntityLink({ type: 'portal_dispute_opened', entity_type: 'demurrage_invoice', entity_id: '77' })).toBe('/demurrage')
   expect(alertEntityLink({ type: 'portal_dispute_opened', entity_type: 'demurrage_invoice', entity_id: '77', metadata: { dispute_id: 12 } })).toBe('/demurrage?dispute=12')
-  expect(alertEntityLink({ type: 'pix_unreconciled', entity_type: 'pix_transaction', entity_id: 'PIX-77' })).toBe('/reconciliacao')
+  expect(alertEntityLink({ type: 'pix_unreconciled', entity_type: 'pix_transaction', entity_id: 'PIX-77' })).toBe('/reconciliacao?tab=pendencias')
+  expect(alertEntityLink({ type: 'pix_unreconciled', entity_type: 'itau_pix_receipt', entity_id: 'E2E-1', destination: '/reconciliacao' })).toBe('/reconciliacao?tab=pendencias')
   expect(alertEntityLink({ type: 'billing_calculation_blocked', entity_type: 'bl', entity_id: 'BL-77' })).toBe('/taxas-locais')
   expect(alertEntityLink({ type: 'billing_calculation_blocked', entity_type: 'bl', entity_id: 'BL-77', metadata: { correction_route: '/taxas-locais/tabelas' } })).toBe('/taxas-locais/tabelas')
   expect(alertEntityLink({ type: 'billing_calculation_blocked', entity_type: 'bl', entity_id: 'BL-77', metadata: { correction_route: '/\\evil' } })).toBe('/taxas-locais')

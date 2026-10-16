@@ -51,23 +51,6 @@ export function longDate() {
   return new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-// Etapa 1 do plano de faturamento (ADR 0038, achado 3): o detalhamento de uma
-// invoice individual vem congelado em invoice_items desde a emissão (migration
-// 025_billing_orchestration_portal.sql), então recálculos posteriores do B/L
-// não o alteram. Desde a migration 261, consolidadas também congelam o
-// detalhamento no momento da consolidação (create_local_consolidated_invoice_core);
-// a reconstrução ao vivo a partir de charge_calculations só roda como rede de
-// seguranca para consolidadas antigas que não passaram pelo backfill.
-export function describeInvoiceItemsFreezeNote(invoice: { invoice_type?: string | null; issued_at?: string | null }) {
-  if (invoice.invoice_type === 'manual') {
-    return `Emitida em ${formatDate(invoice.issued_at)}. Fatura avulsa: o item e a descrição da cobrança foram registrados no momento da emissão e não dependem de recálculo de taxas locais.`
-  }
-  if (invoice.invoice_type === 'consolidated') {
-    return `Emitida em ${formatDate(invoice.issued_at)}. Consolidada: o detalhamento por B/L reflete o saldo de cada B/L congelado no momento da consolidação e não muda com recálculos posteriores.`
-  }
-  return `Itens automáticos (Origem: Auto) refletem o cálculo do B/L congelado na emissão (${formatDate(invoice.issued_at)}) e não mudam com recálculos posteriores. Itens manuais podem ter sido lançados depois da emissão — veja a coluna Origem.`
-}
-
 // Paleta única dos documentos imprimíveis (fatura de taxas locais, fatura/recibo
 // de Demurrage e Agency Departure Report). A fatura de taxas locais é o modelo:
 // barra de cabeçalho navy com texto branco, zebra clara nas linhas, barra de

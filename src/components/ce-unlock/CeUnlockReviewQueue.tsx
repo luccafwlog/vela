@@ -1,37 +1,69 @@
-import { formatCnpjCpf } from "../../lib/utils";
 import { useState } from "react";
-import { FileCheck2 } from "lucide-react";
-import { Badge, type BadgeTone } from "../ui/Badge";
+import { Link } from "react-router-dom";
+import { FileCheck2, FileText } from "lucide-react";
+import { Block } from "../ui/Block";
 import { Button } from "../ui/Button";
-import { Card, EmptyState } from "../ui/Card";
-import { CopyValue } from "../ui/CopyValue";
+import { EmptyState } from "../ui/Card";
+import { NoValue } from "../ui/NoValue";
 import { SkeletonTable } from "../ui/Skeleton";
+import { StatusText } from "../ui/StatusText";
 import { TableFooterPagination } from "../ui/TableFooterPagination";
 import { QueryStateGate } from "../shared/QueryStateGate";
 import { CeUnlockSla } from "./CeUnlockSla";
 import { useCeUnlockReviewQueue } from "../../hooks/useCeUnlock";
-import { ceStateLabel, ceStateTone } from "../../lib/ceUnlockLabels";
-import type { CeUnlockReviewRow } from "../../types/ceUnlock";
+import { ceDocumentStatusText, ceStateLabel } from "../../lib/ceUnlockLabels";
 
 const PAGE_SIZE = 25;
-const DOCUMENT_STATUS: Record<string, [string, BadgeTone]> = {
-  uploaded: ["Aguardando análise", "yellow"],
-  approved: ["Aprovado", "green"],
-  changes_requested: ["Recusado — aguardando cliente", "red"],
-  revoked: ["Revogado", "red"],
-};
-function DocumentStatus({ status }: { status: CeUnlockReviewRow["termo_status"] }) {
-  const [label, tone] = status ? (DOCUMENT_STATUS[status] ?? [status, "slate"]) : ["Não enviado", "slate" as BadgeTone];
-  return <Badge tone={tone}>{label}</Badge>;
+const COLUMNS = 7;
+
+/** Situação de um documento em texto: âmbar no que pede ação, "✓ Aprovado". */
+export function CeUnlockDocumentStatus({ type, status }: { type: "termo" | "procuracao"; status: string | null | undefined }) {
+  const { label, tone } = ceDocumentStatusText(type, status);
+  return <StatusText tone={tone}>{label}</StatusText>;
 }
 
-/** Aba Solicitações: uma linha por pedido; termo de devolução e procuração valem para todos os BLs dele. */
-export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onOpen: (id: string) => void }) {
+/** Primeiro B/L e "+n", como nas Faturas. */
+export function CeUnlockBlList({ blIds }: { blIds: string[] }) {
+  if (!blIds.length) return <NoValue label="Sem B/L" />;
+  const [first, ...rest] = blIds;
+  return (
+    <span className="whitespace-nowrap">
+      <Link className="app-link" to={`/bls/${encodeURIComponent(first)}`}>{first}</Link>
+      {rest.length > 0 ? <span className="app-table__cell-meta" title={blIds.join(", ")}> +{rest.length}</span> : null}
+    </span>
+  );
+}
+
+/** Aba Solicitações: uma linha por pedido; termo de devolução e procuração valem para todos os B/Ls dele. */
+export function CeUnlockReviewQueue({
+  enabled,
+  onOpen,
+  onOpenModel,
+}: {
+  enabled: boolean;
+  onOpen: (id: string) => void;
+  /** Só para quem analisa (manage): abre o modelo do termo de devolução. */
+  onOpenModel?: () => void;
+}) {
   const [page, setPage] = useState(1);
   const queue = useCeUnlockReviewQueue(page, enabled);
   const total = queue.data?.total ?? 0;
   return (
-    <Card className="overflow-hidden p-0">
+    <Block
+      title="Solicitações aguardando análise"
+      flush
+      aside={
+        <>
+          {queue.data ? <span>{total} · até o termo de devolução e a procuração serem aprovados</span> : null}
+          {onOpenModel ? (
+            <Button variant="secondary" className="app-btn--sm" onClick={onOpenModel}>
+              <FileText size={14} aria-hidden="true" />
+              Modelo do termo de devolução
+            </Button>
+          ) : null}
+        </>
+      }
+    >
       <QueryStateGate
         isLoading={false}
         isError={Boolean(queue.error)}
@@ -40,31 +72,33 @@ export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onO
         onRetry={() => void queue.refetch()}
       >
         <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[860px] text-sm">
-            <caption className="sr-only">Solicitações com documentos a validar</caption>
+          <table className="app-table app-table--compact text-sm">
+            <caption className="sr-only">Solicitações com documentos a analisar</caption>
             <thead>
               <tr>
-                {["Solicitação", "Cliente", "BLs", "Termo de devolução", "Procuração", "Prazo", ""].map((c) => (
-                  <th scope="col" className={["Solicitação", "Cliente", "BLs"].includes(c) ? "px-3 py-3 app-table__text-head" : "px-3 py-3"} key={c || "acao"}>
-                    {c || <span className="sr-only">Ação</span>}
-                  </th>
-                ))}
+                <th scope="col">Solicitação</th>
+                <th scope="col" className="app-table__text-head">Cliente</th>
+                <th scope="col">B/Ls</th>
+                <th scope="col">Termo de devolução</th>
+                <th scope="col">Procuração</th>
+                <th scope="col">Situação</th>
+                <th scope="col">Prazo</th>
               </tr>
             </thead>
             <tbody>
               {queue.isLoading && (
                 <tr>
-                  <td colSpan={7} className="p-0">
-                    <SkeletonTable rows={5} cols={7} label="Carregando solicitações" />
+                  <td colSpan={COLUMNS} className="p-0">
+                    <SkeletonTable rows={5} cols={COLUMNS} label="Carregando solicitações" />
                   </td>
                 </tr>
               )}
               {queue.data && total === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-0">
+                  <td colSpan={COLUMNS} className="p-0">
                     <EmptyState
                       icon={FileCheck2}
-                      title="Nenhuma solicitação aguardando validação"
+                      title="Nenhuma solicitação aguardando análise"
                       description="Pedidos enviados pelo Portal aparecem aqui até o termo de devolução e a procuração serem aprovados."
                     />
                   </td>
@@ -72,34 +106,23 @@ export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onO
               )}
               {queue.data?.items.map((r) => (
                 <tr key={r.id}>
-                  <td className="px-3 py-3">
-                    <span className="app-table__cell-stack">
-                      <span className="app-table__cell-value font-semibold">{r.protocol}</span>
-                      <span><Badge tone={ceStateTone(r.state)}>{ceStateLabel(r.state)}</Badge></span>
-                    </span>
+                  <td className="whitespace-nowrap">
+                    <button type="button" className="app-link font-[var(--app-font-mono)]" aria-label={`Abrir solicitação ${r.protocol}`} onClick={() => onOpen(r.id)}>
+                      {r.protocol}
+                    </button>
                   </td>
-                  <td className="px-3 py-3">
-                    <span className="app-table__cell-stack">
-                      <span className="app-table__cell-value">{r.customer_name}</span>
-                      <span className="app-table__cell-meta"><CopyValue value={r.cnpj_cpf ? formatCnpjCpf(r.cnpj_cpf) : null} label="CNPJ/CPF" /></span>
-                    </span>
+                  <td className="app-table__text" title={r.customer_name}>
+                    {r.cnpj_cpf ? (
+                      <Link className="app-link" to={`/clientes/${r.cnpj_cpf}?tab=desbloqueio-ce`}>{r.customer_name}</Link>
+                    ) : (
+                      r.customer_name
+                    )}
                   </td>
-                  <td className="px-3 py-3">
-                    <span className="app-table__cell-stack">
-                      <span className="app-table__cell-value">{r.bl_ids.length} BL(s)</span>
-                      <span className="app-table__cell-meta app-table__truncate app-table__truncate--sm" title={r.bl_ids.join(", ")}>
-                        {r.bl_ids.join(", ")}
-                      </span>
-                    </span>
-                  </td>
-                  <td className="px-3 py-3"><DocumentStatus status={r.termo_status} /></td>
-                  <td className="px-3 py-3"><DocumentStatus status={r.procuracao_status} /></td>
-                  <td className="px-3 py-3"><CeUnlockSla start={r.sla_started_at} /></td>
-                  <td className="px-3 py-3">
-                    <Button variant="secondary" className="app-btn--sm" aria-label={`Analisar ${r.protocol}`} onClick={() => onOpen(r.id)}>
-                      Analisar
-                    </Button>
-                  </td>
+                  <td><CeUnlockBlList blIds={r.bl_ids} /></td>
+                  <td className="whitespace-nowrap"><CeUnlockDocumentStatus type="termo" status={r.termo_status} /></td>
+                  <td className="whitespace-nowrap"><CeUnlockDocumentStatus type="procuracao" status={r.procuracao_status} /></td>
+                  <td className="whitespace-nowrap">{ceStateLabel(r.state)}</td>
+                  <td><CeUnlockSla start={r.sla_started_at} /></td>
                 </tr>
               ))}
             </tbody>
@@ -115,6 +138,6 @@ export function CeUnlockReviewQueue({ enabled, onOpen }: { enabled: boolean; onO
           onPageChange={setPage}
         />
       )}
-    </Card>
+    </Block>
   );
 }

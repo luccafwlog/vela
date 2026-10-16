@@ -274,7 +274,17 @@ export function getAlertTypeLabel(type: string): string {
   return type ? `Alerta não catalogado (${type})` : 'Alerta não catalogado'
 }
 
-export function alertEntityLink(alert: {
+// A Conciliação PIX abre no Histórico de baixas; o que um Alerta de Pix aponta
+// está em Pendências. Destinos gravados antes como "/reconciliacao" (migrations
+// 152, 153 e 247) passam a abrir nessa aba.
+export const PIX_PENDING_HREF = '/reconciliacao?tab=pendencias'
+
+export function alertEntityLink(alert: Parameters<typeof alertEntityLinkRaw>[0]): string | null {
+  const link = alertEntityLinkRaw(alert)
+  return link === '/reconciliacao' ? PIX_PENDING_HREF : link
+}
+
+function alertEntityLinkRaw(alert: {
   type: string
   item_type?: string | null
   entity_type: string | null
@@ -318,7 +328,7 @@ export function alertEntityLink(alert: {
     return alert.destination ?? '/clientes/comunicacao'
   }
 
-  if (alert.entity_type === 'pix_transaction') return '/reconciliacao'
+  if (alert.entity_type === 'pix_transaction') return PIX_PENDING_HREF
   if (effectiveType === 'portal_dispute_opened' && alert.entity_type === 'demurrage_invoice') {
     const disputeId = alert.metadata?.dispute_id
     return typeof disputeId === 'string' || typeof disputeId === 'number'

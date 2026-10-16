@@ -4,12 +4,14 @@ import {
   countPixPending,
   describeConfirmation,
   describeItauPoll,
+  extractLineReason,
   formatBrasiliaInstant,
   formatExtractDay,
   historyRowStatus,
   itauChargeState,
   pendingExceptionReason,
   readyAmountNote,
+  shortTxid,
   sortItauCharges,
   splitExtractLines,
 } from '../pixReconciliationPresentation'
@@ -58,16 +60,32 @@ describe('Conciliação PIX — leituras', () => {
 
   it('motivo da exceção persistida: o do matching primeiro, depois o que os dados dizem', () => {
     const base = { reason: 'ambiguous' as const, txid: 'TX', candidateCount: 2, metadata: {} }
-    expect(pendingExceptionReason({ ...base, metadata: { ambiguity_reason: 'TXID repetido no mesmo extrato.' } })).toBe('TXID repetido no mesmo extrato.')
-    expect(pendingExceptionReason({ ...base, txid: ' ' })).toBe('Linha sem TXID no extrato.')
-    expect(pendingExceptionReason(base)).toBe('2 documentos usam o mesmo TXID.')
-    expect(pendingExceptionReason({ ...base, reason: 'unmatched', candidateCount: 0 })).toBe('Nenhum documento aberto usa este TXID.')
+    // O matching ainda diz "TXID"; a tela diz "identificador do Pix".
+    expect(pendingExceptionReason({ ...base, metadata: { ambiguity_reason: 'TXID repetido no mesmo extrato.' } })).toBe('Identificador repetido no mesmo extrato')
+    expect(pendingExceptionReason({ ...base, metadata: { ambiguity_reason: 'Valor diferente do saldo da FAT-1.' } })).toBe('Valor diferente do saldo da FAT-1')
+    expect(pendingExceptionReason({ ...base, txid: ' ', metadata: { ambiguity_reason: 'Nenhum documento aberto usa este TXID.' } })).toBe('Linha sem identificador no extrato')
+    expect(pendingExceptionReason(base)).toBe('2 faturas usam o mesmo identificador')
+    expect(pendingExceptionReason({ ...base, reason: 'unmatched', candidateCount: 0 })).toBe('Nenhuma fatura aberta com este identificador')
+  })
+
+  it('conferência do extrato: linha sem identificador não é "nenhuma fatura usa" (mesmo motivo de Pendências)', () => {
+    const noTxid = match({ source: 'unmatched', ambiguous: true, ambiguityReason: 'Nenhum documento aberto usa este TXID.', transaction: { txid: '', cnpj: '', date: '', amount: 300 } })
+    expect(extractLineReason(noTxid)).toBe('Linha sem identificador no extrato')
+    expect(extractLineReason(match({ source: 'unmatched', ambiguous: true, ambiguityReason: 'Nenhum documento aberto usa este TXID.' }))).toBe('Nenhuma fatura aberta com este identificador')
+    expect(extractLineReason(match({ ambiguous: true, ambiguityReason: '2 documentos usam o mesmo TXID.' }))).toBe('2 faturas usam o mesmo identificador')
+  })
+
+  it('identificador encurtado no começo e no fim; curto fica inteiro', () => {
+    expect(shortTxid('VELA00000000000000000000099999')).toBe('VELA0000…0099999')
+    expect(shortTxid('TX1')).toBe('TX1')
+    expect(shortTxid(null)).toBe('')
   })
 
   it('fila Itaú: incerta e erro pedem ação e vêm primeiro; a contagem da aba ignora a fila normal', () => {
     const charge = (id: string, extra: object) => ({ status: 'pending_create' as const, uncertain: false, lastError: null, updatedAt: id, ...extra })
-    expect(itauChargeState(charge('a', { status: 'pending_cancel' }))).toEqual({ label: 'Cancelamento pendente', tone: 'warning', needsAction: false })
-    expect(itauChargeState(charge('a', { lastError: '500' })).label).toBe('Aguardando emissão · com erro')
+    expect(itauChargeState(charge('a', { status: 'pending_cancel' }))).toEqual({ label: 'Cancelamento pendente', needsAction: false })
+    expect(itauChargeState(charge('a', { lastError: '500' }))).toEqual({ label: 'Emissão com erro', needsAction: true })
+    expect(itauChargeState(charge('a', { status: 'pending_update', uncertain: true })).label).toBe('Alteração sem resposta do banco')
     const sorted = sortItauCharges([charge('1', {}), charge('2', { uncertain: true }), charge('0', {})])
     expect(sorted.map((c) => c.updatedAt)).toEqual(['2', '0', '1'])
     expect(countPixPending({ receipts: [{}, {}] as never, charges: sorted as never }, [{}])).toBe(4)
@@ -83,7 +101,7 @@ describe('Conciliação PIX — leituras', () => {
 
   it('histórico: parcial e coberta não aparecem como paga', () => {
     expect(historyRowStatus({ source: 'local', status: 'paid' }).label).toBe('Paga')
-    expect(historyRowStatus({ source: 'local', status: 'partially_paid' }).tone).toBe('warning')
+    expect(historyRowStatus({ source: 'local', status: 'partially_paid' })).toEqual({ label: 'Parcialmente paga', kind: 'partial' })
     expect(historyRowStatus({ source: 'local', status: 'covered' }).label).toBe('Coberta pela consolidada')
   })
 })

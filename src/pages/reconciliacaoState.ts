@@ -1,16 +1,17 @@
 import type { ReconciliationFilters } from '../services/reconciliacao'
 
-// Estado de /reconciliacao na URL: aba e filtros do histórico de baixas. O
-// Alerta `pix_unreconciled` abre `/reconciliacao` sem parâmetros e cai em
-// Pendências, onde o Pix sem baixa está.
+// Estado de /reconciliacao na URL: aba e filtros do histórico de baixas. Sem
+// `tab`, a tela abre no Histórico de baixas (lote 3 da identidade, 2026-10-16);
+// os Alertas de Pix levam a `?tab=pendencias` (`alertEntityLink`).
 
 export type ReconciliacaoTab = 'pendencias' | 'extrato' | 'historico'
 
-const TABS: readonly ReconciliacaoTab[] = ['pendencias', 'extrato', 'historico']
+/** Ordem das abas na tela. */
+export const RECONCILIACAO_TABS: readonly ReconciliacaoTab[] = ['historico', 'pendencias', 'extrato']
 
 export function reconciliacaoTabFromSearch(params: URLSearchParams): ReconciliacaoTab {
   const tab = params.get('tab')
-  return TABS.includes(tab as ReconciliacaoTab) ? (tab as ReconciliacaoTab) : 'pendencias'
+  return RECONCILIACAO_TABS.includes(tab as ReconciliacaoTab) ? (tab as ReconciliacaoTab) : 'historico'
 }
 
 export type HistorySortField = 'paidAt' | 'docNumber' | 'customerName' | 'blAmount' | 'totalAmount' | 'blId'
@@ -156,7 +157,7 @@ export function countActiveHistoryFilters(state: HistoryUrlState): number {
 
 export function withReconciliacaoTab(params: URLSearchParams, tab: ReconciliacaoTab): URLSearchParams {
   const next = new URLSearchParams(params)
-  if (tab === 'pendencias') next.delete('tab')
+  if (tab === 'historico') next.delete('tab')
   else next.set('tab', tab)
   return next
 }

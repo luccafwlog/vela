@@ -149,7 +149,7 @@ export function InvoiceFiltersBar({
             fetchOptions={async (q) => (await listPodSuggestions(q)).map((p): ComboOption => ({ value: p, label: p }))}
             onSelectOption={(option) => { pod.track(option.value); updateFilter('pod', option.value) }}
           />
-          <Field label="Tipo"><Select value={filters.invoiceType} onChange={(event) => updateFilter('invoiceType', event.target.value as InvoiceTypeFilter)}><option value="">Todos</option><option value="single">Única BL</option><option value="consolidated">Consolidada</option><option value="manual">Avulsa</option></Select></Field>
+          <Field label="Tipo"><Select value={filters.invoiceType} onChange={(event) => updateFilter('invoiceType', event.target.value as InvoiceTypeFilter)}><option value="">Todos</option><option value="single">Individual</option><option value="consolidated">Consolidada</option><option value="manual">Avulsa</option></Select></Field>
           <Field label="Emissão de"><Input type="date" value={filters.dateFrom} onChange={(event) => updateFilter('dateFrom', event.target.value)} /></Field>
           <Field label="Emissão até"><Input type="date" value={filters.dateTo} onChange={(event) => updateFilter('dateTo', event.target.value)} /></Field>
           <Field label="Pagamento de"><Input type="date" value={filters.paidFrom} onChange={(event) => updateFilter('paidFrom', event.target.value)} /></Field>
