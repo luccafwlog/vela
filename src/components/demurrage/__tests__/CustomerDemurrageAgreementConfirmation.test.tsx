@@ -134,7 +134,8 @@ describe('Acordos de Demurrage — lista e formulário', () => {
       vi.setSystemTime(new Date('2027-01-01T01:00:00Z'))
       render(<MemoryRouter><CustomerDemurrageAgreementsTab canEdit={false} canManage={false} /></MemoryRouter>)
       expect(screen.getByText('Vigente')).toBeTruthy()
-      expect(screen.getByText('P1 US$ 50,00/dia · P2 US$ 70,00/dia')).toBeTruthy()
+      expect(screen.getByText('US$ 50,00')).toBeTruthy()
+      expect(screen.getByText('US$ 70,00')).toBeTruthy()
       expect(screen.queryByRole('button', { name: /Mais ações/ })).toBeNull()
     } finally {
       vi.useRealTimers()

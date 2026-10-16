@@ -1,6 +1,6 @@
 # Demurrage
 
-> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/demurrage`, `/demurrage/taxas`
+> **Status:** ativo · **Atualizado:** 2026-10-16 · **Rotas:** `/demurrage`, `/demurrage/taxas`
 
 ## Propósito e escopo
 
@@ -239,9 +239,15 @@ como segunda entrada operacional. A seção permite:
 ### `/demurrage/taxas`
 
 [`src/pages/DemurrageRates.tsx`](../../src/pages/DemurrageRates.tsx) lista
-`demurrage_rates` por tipo de equipamento, free days, faixas P1/P2, vigência e
-estado ativo, com a aba na URL (`?tab=acordos`) e a ordem de aplicação no
-cabeçalho. Editar fica na linha; ativar/desativar e excluir, no menu ⋮. Excluir
+`demurrage_rates` em tabela limpa (lote 2 da identidade, 2026-10-16): Tipo,
+Free time, 1º período, Diária 1º, 2º período, Diária 2º, Vigência, Situação em
+texto e Observações, cada dado na sua coluna. A aba fica na URL (`?tab=acordos`)
+e a ordem de aplicação, no cabeçalho. Tarifa inativa e acordo encerrado ou
+inativo ficam escondidos por padrão; **Mostrar inativas** (e, nos Acordos,
+**Mostrar encerrados e inativos**) os traz com a linha inteira em cinza, com o
+estado em `?inativas=1` (`useShowInactive`). Nos Acordos, a coluna Cliente leva
+só o nome (o CNPJ fica na busca e no cartão do celular), as diárias ficam em
+duas colunas e o acordo futuro diz "Começa em dd/mm/aaaa". Editar fica na linha; ativar/desativar e excluir, no menu ⋮. Excluir
 só é oferecido para tarifa ou acordo que ainda não entrou em vigor: o banco
 recusa os demais (`guard_used_tariff_delete`, migration `091`), e a tela manda
 desativar. O formulário (`DemurrageRateModal`) segue
