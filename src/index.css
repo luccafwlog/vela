@@ -9607,38 +9607,51 @@ td.app-cargo-num {
 
 .app-customer-table {
   width: 100%;
-  min-width: 820px;
+  min-width: 1040px;
   table-layout: fixed;
 }
 
+/* Layout fixo: as oito colunas somam 100% (mais a seleção); coluna sem
+   largura aqui ficaria espremida a zero. */
 .app-customer-table__select {
   width: 44px;
 }
 
 .app-customer-table__name {
-  width: 40%;
+  width: 21%;
+}
+
+.app-customer-table__document {
+  width: 14%;
+}
+
+.app-customer-table__city {
+  width: 11%;
 }
 
 .app-customer-table__contact {
-  width: 28%;
+  width: 18%;
 }
 
 .app-customer-table__bls {
-  width: 16%;
+  width: 7%;
+}
+
+.app-customer-table__charges {
+  width: 10%;
 }
 
 .app-customer-table__balance {
-  width: 16%;
+  width: 10%;
   text-align: right;
+}
+
+.app-customer-table__portal {
+  width: 9%;
 }
 
 .app-customer-table th.app-customer-table__balance .app-table__sort {
   margin-left: auto;
-}
-
-.app-customer-table__actions {
-  width: 56px;
-  text-align: right;
 }
 
 .app-customer-table td {

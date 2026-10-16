@@ -52,6 +52,12 @@ it('renderiza a programação projetada com data efetiva, previsão, omitida e s
   // Porto sem data em nenhum navio sai da tabela, com nota (regra 4).
   expect(within(table).queryByRole('columnheader', { name: 'Ningbo ETD' })).toBeNull()
   expect(screen.getByText(/sem data em nenhum navio/)).toBeTruthy()
+
+  // O cartão do celular segue a mesma ordem e também deixa o porto sem data de fora.
+  const card = within(screen.getByRole('list', { name: 'Programação de navios' })).getByRole('listitem')
+  const text = card.textContent ?? ''
+  expect(text.indexOf('Saída na origem (ETD)')).toBeLessThan(text.indexOf('Chegada no Brasil (ETA)'))
+  expect(text).not.toMatch(/Ningbo/i)
 })
 
 it('não confunde erro de consulta com programação vazia', async () => {

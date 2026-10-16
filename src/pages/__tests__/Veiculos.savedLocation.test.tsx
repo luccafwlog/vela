@@ -99,3 +99,14 @@ it('a falha da gravação fica na janela, com o que fazer', async () => {
     expect((await within(dialog).findByRole('alert')).textContent).toContain('sem permissão')
   } finally { client.clear(); mocks.save.mockClear() }
 })
+
+it('enquanto o filtro novo não chega, Exportar e o local para o recorte esperam (não agem no recorte anterior)', async () => {
+  const client = renderPage()
+  try {
+    fireEvent.change(screen.getByLabelText('Chassi'), { target: { value: 'CHASSI-2' } })
+    expect((screen.getByRole('button', { name: /Exportar/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: /Definir local de desova/ }) as HTMLButtonElement).disabled).toBe(true)
+    // Passada a pausa da digitação, o recorte é o do filtro e as ações voltam.
+    await waitFor(() => expect((screen.getByRole('button', { name: /Exportar/ }) as HTMLButtonElement).disabled).toBe(false))
+  } finally { client.clear() }
+})

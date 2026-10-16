@@ -46,8 +46,8 @@ type IssueDemurrageResult = {
 // paga fica fora, e a nova sai numa Invoice complementar (ADR 0080).
 async function issueDemurrageInvoiceForBl(blId: string): Promise<IssueDemurrageResult> {
   const { data, error } = await supabase.rpc('issue_demurrage_invoice_for_bl' as never, {
-    // Sem número: o banco gera `DEM-<instante>-<B/L>` (migration 278), cujo
-    // TXID leva o instante inteiro nos 25 caracteres do QR.
+    // Sem número: o banco gera o do ano, `DEM-AAAA-NNNN` (migrations 293 e
+    // 294), e pula o que já existe; o TXID do QR é esse número sem hífens.
     p_bl_id: blId,
   } as never)
   if (error) {
@@ -55,8 +55,8 @@ async function issueDemurrageInvoiceForBl(blId: string): Promise<IssueDemurrageR
     // mesma Viagem e Cliente; a mensagem do banco nomeia o container.
     if ((error as { code?: string }).code === '23505') {
       const message = (error as { message?: string }).message?.trim() ?? ''
-      // 23505 do índice da 278: o TXID repetiu o de outra Invoice; emitir de
-      // novo gera outro instante, sem cancelar nada.
+      // 23505 do índice da 278: o TXID repetiu o de outra Invoice gravada ao
+      // mesmo tempo; emitir de novo pega o número seguinte, sem cancelar nada.
       if (message.includes('demurrage_invoices_pix_txid_unique')) {
         throw new Error('O número da Invoice coincidiu com o de outra. Emita de novo.')
       }

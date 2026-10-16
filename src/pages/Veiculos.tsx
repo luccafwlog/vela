@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../services/cacheEffects'
@@ -125,7 +125,16 @@ export function Veiculos() {
   // Chassi, lacre, marca, modelo ou tipo trocados: as linhas na tela ainda são
   // do recorte anterior até a resposta chegar. Ficam esmaecidas e sem seleção.
   const stale = isPlaceholderData
+  // O recorte na tela ainda não é o dos filtros: resposta a caminho ou chassi/
+  // lacre na pausa da digitação. Exportar e aplicar ao recorte esperam por ele.
+  const sliceSettling = stale || filters.search !== debouncedSearch || filters.seal !== debouncedSeal
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / filters.pageSize))
+  // Lista que encolheu (desova aplicada com "Sem local de desova" ligado, exclusão):
+  // volta para a última página com linhas, como em Containers.
+  const lastPage = data && !error && !sliceSettling ? totalPages : null
+  useEffect(() => {
+    if (lastPage !== null && filters.page > lastPage) setFilters((current) => ({ ...current, page: lastPage }))
+  }, [filters.page, lastPage, setFilters])
 
   const activeFilterCount = (Object.keys(EMPTY_FILTERS) as (keyof typeof EMPTY_FILTERS)[])
     .filter((key) => String(filters[key] ?? '').trim() !== '').length
@@ -145,7 +154,7 @@ export function Veiculos() {
   }
 
   async function handleExport() {
-    if (!data?.filteredRows.length) return
+    if (sliceSettling || !data?.filteredRows.length) return
     setExporting(true)
     try {
       await exportVehicleWorkbook(data.filteredRows)
@@ -188,6 +197,10 @@ export function Veiculos() {
   async function handleBulkUnpackingLocation() {
     const value = bulkDesovaValue.trim() || null
     const containerIds = bulkDesovaScope ? scopeContainerIds[bulkDesovaScope] : []
+    if (bulkDesovaScope !== 'selected' && sliceSettling) {
+      setBulkDesovaError('O recorte ainda está carregando os filtros novos. Aguarde e aplique de novo.')
+      return
+    }
     if (!containerIds.length) {
       setBulkDesovaError('Nenhum container nesta escolha.')
       return
@@ -201,6 +214,8 @@ export function Veiculos() {
       }))
       await afterCargaAlterada(queryClient)
       showToast(`Local de desova aplicado a ${containerIds.length} container(s).`, 'success')
+      // Os marcados podem ter saído do recorte (filtro "Sem local de desova").
+      selection.clear()
       setBulkDesovaOpen(false)
       setBulkDesovaValue('')
     } catch (err) {
@@ -255,7 +270,7 @@ export function Veiculos() {
         action={(
           <div className="flex flex-wrap gap-2">
             {voyageId ? (
-              <Button variant="secondary" loading={exporting} loadingLabel="Exportando…" disabled={!data?.filteredRows.length} onClick={() => void handleExport()}>
+              <Button variant="secondary" loading={exporting} loadingLabel="Exportando…" disabled={sliceSettling || !data?.filteredRows.length} onClick={() => void handleExport()}>
                 <Download size={16} aria-hidden="true" /> Exportar
               </Button>
             ) : null}
@@ -379,7 +394,7 @@ export function Veiculos() {
             aside={canEditVehicles ? (
               <span className="inline-flex flex-wrap items-center gap-2">
                 {selection.count === 0 ? <span>marque veículos, ou defina o local para o recorte inteiro</span> : null}
-                <Button className="app-btn--sm" onClick={openBulkDesova} disabled={deleting || !data?.filteredRows.length}>
+                <Button className="app-btn--sm" onClick={openBulkDesova} disabled={deleting || sliceSettling || !data?.filteredRows.length}>
                   <MapPin size={14} aria-hidden="true" />
                   Definir local de desova
                 </Button>

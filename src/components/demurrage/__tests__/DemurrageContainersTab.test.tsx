@@ -105,11 +105,17 @@ describe('DemurrageContainersTab', () => {
     expect(screen.getByRole('button', { name: 'Gerar Invoice complementar do B/L BL-100' })).toBeTruthy()
     // Situação do B/L em texto: a Invoice que já cobra, a situação dela e o que falta cobrar.
     expect(screen.getByText('1 caixa sem Invoice')).toBeTruthy()
+    // Em âmbar só o que falta faturar (a caixa sem Invoice), não o total do B/L.
+    const table = screen.getByRole('table', { name: /B\/Ls com containers em Demurrage/ })
+    expect(within(table).getByText('a faturar de US$ 800,00')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'DEM-005' }))
     expect(onOpenInvoice).toHaveBeenCalledWith(5)
     await openBl('BL-100')
     expect(screen.getByText(/A complementar cobra só a caixa ainda não cobrada: MSCU11000000/)).toBeTruthy()
-    expect(screen.getAllByTitle('Recalculado hoje; o cobrado é o da DEM-005')).toHaveLength(1)
+    // A caixa cobrada diz em qual Invoice, num botão que abre a Invoice.
+    const boxes = screen.getByRole('table', { name: 'Containers do B/L BL-100' })
+    await user.click(within(boxes).getByRole('button', { name: 'DEM-005' }))
+    expect(onOpenInvoice).toHaveBeenCalledTimes(2)
   })
 
   it('grupo com todas as caixas cobradas não oferece emissão', () => {

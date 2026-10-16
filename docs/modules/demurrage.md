@@ -373,9 +373,11 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
   o recálculo montam o QR estático no banco
   (`build_transshipping_pix_payload`, migration `034`) com o valor BRL e o
   `doc_number` como TXID. Desde a migration `293` (decisão de 2026-10-16), o banco gera o número da
-  emissão pela tela e da reemissão automática em sequência por ano,
+  emissão pela tela, da reemissão e, desde a `294`, da emissão automática pela
+  planilha de datas (antes `DEM-AUTO-<efeito>`) em sequência por ano,
   `DEM-AAAA-NNNN` (`next_demurrage_doc_number`, contador em
-  `demurrage_doc_counters`), como a fatura de Taxas Locais; antes era
+  `demurrage_doc_counters`; pula o número cujo TXID já exista, como um número
+  informado à mão), como a fatura de Taxas Locais; antes era
   `DEM-<AAAAMMDDHHMMSSmmm>-<B/L>` (migration `278`), de 36 caracteres. O índice único
   `demurrage_invoices_pix_txid_unique` recusa Invoice cujo TXID repita o de
   outra; [`src/lib/pix.ts`](../../src/lib/pix.ts) só

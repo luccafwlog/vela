@@ -109,7 +109,7 @@ describe('authoritative Demurrage invoice creation', () => {
     mocks.rpc.mockResolvedValueOnce({ data: { status: 'issued', invoice_id: 321, anchor_bl_id: 'BL-1' }, error: null })
     const invoiceId = await createInvoiceForBL('BL-1')
 
-    // O número fica com o banco (migration 278): `DEM-<instante>-<B/L>`.
+    // O número fica com o banco (migrations 293 e 294): `DEM-AAAA-NNNN`.
     expect(mocks.rpc).toHaveBeenCalledWith('issue_demurrage_invoice_for_bl', { p_bl_id: 'BL-1' })
     expect(mocks.from).not.toHaveBeenCalled()
     expect(mocks.calculate).not.toHaveBeenCalled()

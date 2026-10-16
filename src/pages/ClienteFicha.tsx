@@ -4,6 +4,7 @@ import { ArrowLeft, FileStack, MoreHorizontal, Power, ReceiptText, ShieldCheck }
 import { useToast } from '../components/ui/Toast'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { deactivateCustomer, reactivateCustomer } from '../services/customers'
+import { afterClienteAtivacaoAlterada } from '../services/cacheEffects'
 import { CeUnlockVipCoveragePanel } from '../components/ce-unlock/CeUnlockVipCoveragePanel'
 import { useAuth } from '../hooks/useAuth'
 import { ActionMenu, type ActionMenuItem } from '../components/ui/ActionMenu'
@@ -133,12 +134,7 @@ export function ClienteFicha() {
           return
         }
       }
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['customers'] }),
-        queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
-        queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
-        queryClient.invalidateQueries({ queryKey: ['customer-detail'] }),
-      ])
+      await afterClienteAtivacaoAlterada(queryClient)
       showToast(deactivated ? 'Cliente reativado.' : 'Cliente desativado.', 'success')
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Falha ao alterar o cliente.', 'error')

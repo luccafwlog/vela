@@ -366,8 +366,10 @@ export function Viagens() {
             />
           ) : (
             <EmptyState
-              title="Selecione uma viagem"
-              description="Escolha uma viagem na faixa acima para ver escalas, carga, manifestos e ADR."
+              title={railItems.length ? 'Nenhuma viagem neste recorte' : error || isLoading ? 'Selecione uma viagem' : 'Nenhuma viagem cadastrada'}
+              description={railItems.length
+                ? 'Nenhuma viagem atende aos filtros acima. Limpe os filtros para ver todas.'
+                : error || isLoading ? 'Escolha uma viagem na faixa acima para ver escalas, carga, manifestos e ADR.' : 'Cadastre uma viagem em Nova Viagem ou importe um manifesto.'}
             />
           )
         ) : isSelectedVoyageLoading ? (

@@ -81,9 +81,9 @@ export function Baplie() {
   const [exporting, setExporting] = useState(false)
   const [containerFilters, setContainerFilters] = useState<ContainerFilters>(EMPTY_CONTAINER_FILTERS)
 
-  // O rail reaproveita a projeção resumida de Viagens. A presença de Baplie
-  // também vem do agregado server-side, portanto a tela não precisa varrer
-  // `baplie_containers` inteiro apenas para desenhar os cards.
+  // O rail reaproveita a projeção resumida de Viagens; a presença de Baplie vem
+  // do agregado server-side. O "Divergente" do cartão roda a conciliação das
+  // viagens ativas com Baplie (`useVoyageRailDivergences`, ver o ponytail lá).
   const { data: voyageRows = [], isLoading: voyagesLoading } = useVoyages()
   const voyageIds = useMemo(() => voyageRows.map((voyage) => voyage.id), [voyageRows])
   const { data: schedulesByVoyage = new Map() } = useQuery({

@@ -391,6 +391,13 @@ describeLocal('Demurrage cobrada uma vez por caixa (migration 214)', () => {
     // A emissão seguinte do ano pega o número seguinte.
     const next = psql(`SELECT public.next_demurrage_doc_number()`)
     expect(Number(next.slice(9))).toBe(Number(doc.slice(9)) + 1)
+    // Número do ano já gravado à mão (mesmo TXID) é pulado, não repetido (294).
+    const year = doc.slice(4, 8)
+    const taken = Number(next.slice(9)) + 1
+    psql(`SET session_replication_role = replica;
+      INSERT INTO public.demurrage_invoices (doc_number, bl_id, customer_id, status)
+      SELECT 'DEM.${year}.${String(taken).padStart(4, '0')}', bl_id, customer_id, 'draft' FROM public.demurrage_invoices WHERE id = ${invoiceId};`)
+    expect(psql(`SELECT public.next_demurrage_doc_number()`)).toBe(`DEM-${year}-${String(taken + 1).padStart(4, '0')}`)
 
     // Outra Invoice com número que dá o mesmo TXID é recusada, mesmo informado à mão.
     const clash = run(`

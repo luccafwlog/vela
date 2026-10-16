@@ -33,7 +33,7 @@ type RowHandlers = {
 /**
  * Lista de Clientes em tabela limpa (lote 2, 2026-10-16): o nome abre a ficha,
  * o saldo abre o Financeiro do Cliente; sem menu ⋮ (Desativar fica na ficha,
- * Excluir na seleção em lote e na ficha).
+ * Excluir só na seleção em lote).
  * Abaixo de 640 px a página passa `narrow` e cada Cliente vira um cartão.
  */
 export function CustomerTable({
@@ -127,13 +127,13 @@ export function CustomerTable({
                   </th>
                 ) : null}
                 {sortHeader('name', 'Cliente', 'app-customer-table__name app-table__text-head')}
-                <th scope="col">CNPJ</th>
-                <th scope="col">Cidade</th>
+                <th scope="col" className="app-customer-table__document">CNPJ</th>
+                <th scope="col" className="app-customer-table__city">Cidade</th>
                 <th scope="col" className="app-customer-table__contact app-table__text-head">Contato principal</th>
                 {sortHeader('bls', 'B/Ls', 'app-customer-table__bls')}
-                <th scope="col">Taxas locais</th>
+                <th scope="col" className="app-customer-table__charges">Taxas locais</th>
                 {sortHeader('pendingBalance', 'Saldo pendente', 'app-customer-table__balance')}
-                <th scope="col" className="app-table__text-head">Portal</th>
+                <th scope="col" className="app-customer-table__portal app-table__text-head">Portal</th>
               </tr>
             </thead>
             <tbody>

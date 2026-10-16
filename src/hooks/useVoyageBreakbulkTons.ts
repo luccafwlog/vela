@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../services/supabase'
 import { breakbulkWeightTon } from '../lib/breakbulkWeight'
+import { queryKeys } from '../services/queryKeys'
 
 /**
  * Toneladas de carga solta por viagem, para a coluna BB da tabela de Viagens
@@ -12,7 +13,7 @@ import { breakbulkWeightTon } from '../lib/breakbulkWeight'
  */
 export function useVoyageBreakbulkTons(voyageIds: readonly number[]) {
   return useQuery({
-    queryKey: ['voyage-breakbulk-tons', [...voyageIds].sort((a, b) => a - b)],
+    queryKey: queryKeys.voyages.breakbulkTons([...voyageIds].sort((a, b) => a - b)),
     enabled: voyageIds.length > 0,
     staleTime: 60_000,
     queryFn: async () => {

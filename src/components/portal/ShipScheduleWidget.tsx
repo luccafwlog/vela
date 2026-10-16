@@ -124,6 +124,11 @@ export function ScheduleTable({ vessels, caption, actions }: {
  */
 export function ShipScheduleWidget() {
   const { data: vessels, isLoading, isError, refetch, isFetching } = usePortalScheduleVoyages()
+  // O cartão do celular segue a tabela: Saída antes da Chegada, sem o porto
+  // que não tem data em nenhum navio.
+  const shownLanes = new Set(visibleLanes(vessels ?? []))
+  const cardPolLanes = POL_LANES.filter((lane) => shownLanes.has(lane))
+  const cardPodLanes = POD_LANES.filter((lane) => shownLanes.has(lane))
 
   return (
     <section className="app-schedule" aria-labelledby="ship-schedule-title">
@@ -156,8 +161,8 @@ export function ShipScheduleWidget() {
                   <span className="app-schedule-card__vessel">{vessel.vesselName}</span>
                   <span className="app-schedule-card__voyage">Viagem {vessel.voyage}</span>
                 </div>
-                <ScheduleCardGroup title="Chegada no Brasil (ETA)" lanes={POD_LANES} voyage={vessel} />
-                <ScheduleCardGroup title="Saída na origem (ETD)" lanes={POL_LANES} voyage={vessel} />
+                <ScheduleCardGroup title="Saída na origem (ETD)" lanes={cardPolLanes} voyage={vessel} />
+                <ScheduleCardGroup title="Chegada no Brasil (ETA)" lanes={cardPodLanes} voyage={vessel} />
                 <VesselMapButton voyage={vessel} />
               </li>
             ))}
@@ -171,6 +176,7 @@ export function ShipScheduleWidget() {
 }
 
 function ScheduleCardGroup({ title, lanes, voyage }: { title: string; lanes: PortalScheduleLane[]; voyage: PortalScheduleVoyage }) {
+  if (!lanes.length) return null
   return (
     <div className="app-schedule-card__group">
       <div className="app-schedule-card__group-title">{title}</div>

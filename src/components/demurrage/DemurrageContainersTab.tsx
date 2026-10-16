@@ -261,7 +261,8 @@ export function DemurrageContainersTab({
                     const boxes = distinctBoxes(rows)
                     const returned = boxes.filter((container) => Boolean(container.return_date)).length
                     const blUsd = boxes.reduce((sum, container) => sum + (calcs.get(container.id)?.calc?.total_usd ?? 0), 0)
-                    const usdPending = isLead && (state.action === 'generate' || state.action === 'complement' || (state.action === 'waiting' && blUsd > 0))
+                    // Âmbar só o que ainda não tem Invoice; a parte já cobrada fica no total.
+                    const usdPending = isLead && state.action !== 'covered' && state.uncoveredUsd > 0
                     const { customerName, voyage } = blContext(rows)
                     const rowError = generateError?.blId === blId ? generateError.message : null
                     return (
@@ -283,7 +284,14 @@ export function DemurrageContainersTab({
                           <td className="app-table__text" title={customerName}>{customerName}</td>
                           <td>{voyage ?? <NoValue label="Sem viagem" />}</td>
                           <td className="tabular-nums">{returned} de {formatCountLabel(boxes.length, 'devolvido', 'devolvidos')}</td>
-                          <td className="tabular-nums">{usdPending ? <StatusText tone="warning">{fmtUSD(blUsd)}</StatusText> : fmtUSD(blUsd)}</td>
+                          <td className="tabular-nums">
+                            {usdPending ? (
+                              <>
+                                <StatusText tone="warning">{fmtUSD(state.uncoveredUsd)}</StatusText>
+                                {' '}<span className="app-dem-meta">{state.action === 'waiting' ? 'correndo' : 'a faturar'}{state.uncoveredUsd < blUsd ? ` de ${fmtUSD(blUsd)}` : ''}</span>
+                              </>
+                            ) : fmtUSD(blUsd)}
+                          </td>
                           <td className="app-table__text"><BlSituation state={state} isLead={isLead} leadBlId={leadBlId} canIssue={canIssue} onOpenInvoice={onOpenInvoice} /></td>
                           <td className="app-dem-row-action">
                             {isLead ? <BillingAction blId={blId} state={state} canIssue={canIssue} generatingBl={generatingBl} onGenerateInvoice={onGenerateInvoice} /> : null}
@@ -326,6 +334,7 @@ export function DemurrageContainersTab({
                                       calc={calcs.get(container.id) ?? { calc: null, error: null }}
                                       disabled={generatingBl === blId}
                                       onEdit={onEditContainer}
+                                      onOpenInvoice={onOpenInvoice}
                                     />
                                   ))}
                                 </tbody>
@@ -478,6 +487,23 @@ function periodValue(days: number, rate: number) {
   return days > 0 ? `${days} × ${fmtUSD(rate)}` : <NoValue label="Sem dias neste período" />
 }
 
+/** Invoice(s) que já cobram a caixa, abríveis por teclado e toque. */
+function BilledIn({ container, onOpenInvoice }: { container: DemurrageContainerRow; onOpenInvoice: (id: number) => void }) {
+  const billed = container.billed_in ?? []
+  if (!billed.length) return null
+  return (
+    <span className="app-dem-meta">
+      {' '}· cobrada em{' '}
+      {billed.map((ref, index) => (
+        <Fragment key={ref.id}>
+          {index > 0 ? ', ' : null}
+          <button type="button" className="app-dem-link app-dem-code" onClick={() => onOpenInvoice(ref.id)}>{ref.doc_number}</button>
+        </Fragment>
+      ))}
+    </span>
+  )
+}
+
 function UsdCell({ calc }: { calc: Calc }) {
   if (calc.error) return <span className="app-dem-error-text">{calc.error}</span>
   if (!calc.calc) return <NoValue label="Sem descarga" />
@@ -489,11 +515,13 @@ function ContainerRow({
   calc,
   disabled,
   onEdit,
+  onOpenInvoice,
 }: {
   container: DemurrageContainerRow
   calc: Calc
   disabled: boolean
   onEdit: (container: DemurrageContainerRow) => void
+  onOpenInvoice: (id: number) => void
 }) {
   const result = calc.calc
   const late = Boolean(result && result.days_p1 + result.days_p2 > 0)
@@ -510,7 +538,7 @@ function ContainerRow({
       </td>
       <td className="tabular-nums">{result ? periodValue(result.days_p1, result.rate_p1_usd) : <NoValue label="Sem dias calculados" />}</td>
       <td className="tabular-nums">{result ? periodValue(result.days_p2, result.rate_p2_usd) : <NoValue label="Sem dias calculados" />}</td>
-      <td title={billed.length ? `Recalculado hoje; o cobrado é o da ${billed.map((ref) => ref.doc_number).join(', ')}` : undefined}><UsdCell calc={calc} /></td>
+      <td title={billed.length ? 'Recalculado hoje; o valor cobrado é o da Invoice' : undefined}><UsdCell calc={calc} /><BilledIn container={container} onOpenInvoice={onOpenInvoice} /></td>
       <td className="app-dem-row-action">
         <Button
           type="button"
@@ -590,7 +618,7 @@ function BlCard({
               </p>
               <div className="app-dem-card__foot">
                 <span className="app-dem-meta">{calc.calc ? `${calc.calc.total_days} dias` : null}</span>
-                <div className="app-dem-num"><UsdCell calc={calc} /></div>
+                <div className="app-dem-num"><UsdCell calc={calc} /><BilledIn container={container} onOpenInvoice={onOpenInvoice} /></div>
               </div>
             </li>
           )

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
+import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -46,6 +46,7 @@ describe('cache effects', () => {
     await afterManifestoImportado(client, { voyageId: 24 })
     expect(keys()).toEqual(expect.arrayContaining(keySet([
       ['bls'], ['bl-summary'], ['bl-detail'], ['containers'], ['vehicles'], ['vehicle-stats'], ['voyage-vehicle-stats'],
+      ['voyage-breakbulk-tons'],
       ['alerts'], ['financial-alerts'], ['invoice-corrections'], ['invoices'], ['invoice-detail'], ['invoice-links'], ['billing-ledger'], ['customers'], ['voyages'], ['port-options'],
       ['vazios-importacao-containers'], ['vazios-importacao-manifests'], ['vazios-importacao-stats'],
       ['manifestos-mercante'],
@@ -136,5 +137,13 @@ it('pendência PIX gravada ou tratada atualiza Pendências e o Alerta sem reler 
   await afterPendenciaPixAlterada(client)
   expect(keys()).toEqual(keySet([
     ['pix-reconciliation-exceptions'], ['itau-pix-monitor'], ['alerts'], ['financial-alerts'], ['header-alert'],
+  ]))
+})
+
+it('Cliente desativado ou reativado na ficha atualiza a lista, a ficha com o Histórico e o Provisionamento do Portal', async () => {
+  const { client, keys } = fakeQueryClient()
+  await afterClienteAtivacaoAlterada(client)
+  expect(keys()).toEqual(keySet([
+    ['customers'], ['customers-summary'], ['customer-lookup'], ['customer-detail'], ['customer-ficha'], ['portal-provisioning'],
   ]))
 })
