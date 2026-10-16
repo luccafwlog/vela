@@ -7,7 +7,6 @@ import {
   filtersFromContainersSearch,
   ownershipSourceLabel,
 } from '../containersListState'
-import { groupVehiclesByContainer, unpackingScopeText } from '../veiculosPresentation'
 import { buildReconciliationOverview, describeRowCoverage } from '../bapliePresentation'
 import type { BaplieReconciliationResult } from '../../services/baplieReconciliation'
 import { countVehiclesByUnpackingLocation } from '../../hooks/useVehicles'
@@ -42,23 +41,7 @@ describe('linha de /containers', () => {
   })
 })
 
-describe('veículos agrupados por container', () => {
-  it('agrupa na ordem da página, separa veículos sem container e junta os B/Ls distintos', () => {
-    const c1 = { id: 1, container_number: 'CSNU6012309' }
-    const c2 = { id: 2, container_number: 'CSNU6012310' }
-    const groups = groupVehiclesByContainer([
-      { id: 10, container: c2, bl: { id: 'BL-B' } },
-      { id: 11, container: c1, bl: { id: 'BL-A' } },
-      { id: 12, container: c2, bl: { id: 'BL-C' } },
-      { id: 13, container: null, bl: { id: 'BL-A' } },
-      { id: 14, container: c2, bl: { id: 'BL-B' } },
-    ])
-    expect(groups.map((group) => group.key)).toEqual(['container:2', 'container:1', 'none'])
-    expect(groups[0].vehicles.map((row) => row.id)).toEqual([10, 12, 14])
-    expect(groups[0].blIds).toEqual(['BL-B', 'BL-C'])
-    expect(groups[2].container).toBeNull()
-  })
-
+describe('veículos e local de desova', () => {
   it('conta sem local só os veículos em container, como o filtro "Sem local informado"', () => {
     expect(countVehiclesByUnpackingLocation([
       { container: { unpacking_location: 'Pátio 3' } },
@@ -68,10 +51,6 @@ describe('veículos agrupados por container', () => {
     ])).toEqual([{ label: 'Nao informado', count: 2 }, { label: 'Pátio 3', count: 1 }])
   })
 
-  it('diz o alcance real da edição do local de desova', () => {
-    expect(unpackingScopeText(1)).toBe('Vale para o veículo deste container')
-    expect(unpackingScopeText(3)).toBe('Vale para os 3 veículos deste container')
-  })
 })
 
 describe('conciliação Baplie × B/L', () => {

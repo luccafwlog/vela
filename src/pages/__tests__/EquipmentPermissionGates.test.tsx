@@ -138,18 +138,10 @@ function renderPage(page: React.ReactNode, initialEntry = '/') {
 }
 
 describe('controles de Veiculos', () => {
-  it('desova salva volta a acompanhar o dado recarregado após outra importação', async () => {
-    const view = renderPage(<Veiculos />, '/?voyage=7')
-    const input = screen.getByRole('textbox', { name: 'Local de desova do container CXRU1234567' }) as HTMLInputElement
-    fireEvent.focus(input)
-    fireEvent.change(input, { target: { value: 'Terminal B' } })
-    fireEvent.blur(input)
-    await waitFor(() => expect(mocks.saveLocation).toHaveBeenCalledWith(33, 'Terminal B'))
-    await waitFor(() => expect(input.disabled).toBe(false))
-    mocks.unpackingLocation = 'Terminal C'
-    view.rerender(<MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter>)
-    expect((screen.getByRole('textbox', { name: 'Local de desova do container CXRU1234567' }) as HTMLInputElement).value).toBe('Terminal C')
-    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['vehicle-stats'] })
+  it('sem local de desova aparece em âmbar e o local gravado em texto na linha do veículo', () => {
+    mocks.unpackingLocation = null
+    renderPage(<Veiculos />, '/?voyage=7')
+    expect(screen.getByRole('cell', { name: 'Sem local' })).toBeTruthy()
   })
 
   it('Equipamentos importa e exclui com motivo (ADR 0078, item 23)', () => {
@@ -159,7 +151,8 @@ describe('controles de Veiculos', () => {
     renderPage(<Veiculos />, '/?voyage=7')
 
     expect(screen.getByRole('button', { name: 'Importar veículos' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar veículo CHASSI-1' }))
+    expect(screen.getByRole('button', { name: /Excluir/ })).toBeTruthy()
   })
 
   it('Documentacao importa e exclui com motivo (ADR 0078, item 23)', () => {
@@ -169,7 +162,8 @@ describe('controles de Veiculos', () => {
     renderPage(<Veiculos />, '/?voyage=7')
 
     expect(screen.getByRole('button', { name: 'Importar veículos' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar veículo CHASSI-1' }))
+    expect(screen.getByRole('button', { name: /Excluir/ })).toBeTruthy()
   })
 
   it('admin recebe importacao e exclusao', () => {
@@ -179,7 +173,8 @@ describe('controles de Veiculos', () => {
     renderPage(<Veiculos />, '/?voyage=7')
 
     expect(screen.getByRole('button', { name: 'Importar veículos' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar veículo CHASSI-1' }))
+    expect(screen.getByRole('button', { name: /Excluir/ })).toBeTruthy()
   })
 
   it('oculta importacao e exclusao sem veiculos_edit', () => {
@@ -188,7 +183,7 @@ describe('controles de Veiculos', () => {
     renderPage(<Veiculos />, '/?voyage=7')
 
     expect(screen.queryByRole('button', { name: 'Importar veículos' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Excluir veículo CHASSI-1' })).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: 'Selecionar veículo CHASSI-1' })).toBeNull()
   })
 })
 
