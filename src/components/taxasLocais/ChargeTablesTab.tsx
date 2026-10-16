@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { EmptyState, InlineError } from '../ui/Card'
-import { SegmentedControl } from '../ui/SegmentedControl'
+import { MetricCard } from '../ui/MetricCard'
+import { NoValue } from '../ui/NoValue'
 import { SkeletonTable } from '../ui/Skeleton'
-import { SummaryStrip } from '../ui/SummaryStrip'
 import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import {
@@ -40,7 +39,8 @@ function todayIso() {
 
 function matchesLens(lens: TablesLens, reading: TableReading) {
   if (lens === 'aplicadas') return reading.state.kind === 'applied'
-  if (lens === 'aviso') return reading.hasWarning
+  if (lens === 'nao-usadas') return reading.state.kind === 'shadowed'
+  if (lens === 'aviso') return reading.hasItemWarning
   if (lens === 'inativas') return reading.state.kind === 'inactive'
   return true
 }
@@ -54,17 +54,22 @@ export function ChargeTablesTab({
   setLens,
   canEdit,
   canDelete,
+  creating,
+  onCreateDone,
 }: ChargeFilterProps & {
   lens: TablesLens
   setLens: (value: TablesLens) => void
   canEdit: boolean
   canDelete: boolean
+  /** "+ Nova tabela" do título da página pediu o formulário em branco. */
+  creating: boolean
+  onCreateDone: () => void
 }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
-  // A lista inteira vem do banco e o recorte é feito aqui: o aviso "Não
-  // aplicada" e o "vale no cálculo" precisam enxergar todas as tabelas do
+  // A lista inteira vem do banco e o recorte é feito aqui: o aviso "Ativa,
+  // mas não usada" e o "vale no cálculo" precisam enxergar todas as tabelas do
   // escopo, inclusive as de grafia diferente de POD (BRVIX × BRVIT).
   const { data, isLoading, error, refetch, isFetching } = useLocalChargeTables()
   const saveTable = useSaveChargeTable()
@@ -97,15 +102,15 @@ export function ChargeTablesTab({
     const reading = readings.get(table.id)
     return reading ? matchesLens(lens, reading) : false
   })
-  const groups = groupTablesByScope(visible, states)
+  // A tabela em uso do escopo vem de todas as tabelas, não só das que a lente
+  // mostra: "Desativadas" não pode dizer "Nenhuma tabela em uso".
+  const groups = groupTablesByScope(visible, states, tables)
 
   const counts = {
     applied: inScope.filter((table) => readings.get(table.id)?.state.kind === 'applied').length,
-    warning: inScope.filter((table) => readings.get(table.id)?.hasWarning).length,
+    shadowed: inScope.filter((table) => readings.get(table.id)?.state.kind === 'shadowed').length,
+    itemWarning: inScope.filter((table) => readings.get(table.id)?.hasItemWarning).length,
     inactive: inScope.filter((table) => readings.get(table.id)?.state.kind === 'inactive').length,
-    autoItems: inScope
-      .filter((table) => readings.get(table.id)?.state.kind === 'applied')
-      .reduce((sum, table) => sum + (readings.get(table.id)?.autoItems ?? 0), 0),
   }
   const hasScopeFilter = Boolean(cargoModeFilter || podFilter)
   const hasAnyFilter = hasScopeFilter || lens !== 'todas'
@@ -119,6 +124,11 @@ export function ChargeTablesTab({
     })
   }
 
+  function closeTableModal() {
+    setTableModal(null)
+    onCreateDone()
+  }
+
   function clearFilters() {
     setCargoModeFilter('')
     setPodFilter('')
@@ -127,7 +137,7 @@ export function ChargeTablesTab({
 
   async function handleSaveTable(input: ChargeTableInput) {
     const id = await saveTable.mutateAsync(input)
-    setTableModal(null)
+    closeTableModal()
     setExpanded((current) => new Set(current).add(Number(input.id ?? id)))
     showToast(input.id ? 'Tabela atualizada.' : 'Tabela cadastrada. Adicione os itens dela.', 'success')
   }
@@ -153,7 +163,7 @@ export function ChargeTablesTab({
         ? `Volta a disputar o cálculo de ${scope}: vale se tiver a vigência inicial mais recente entre as ativas.`
         : reading?.state.kind === 'applied'
           ? `Sai do cálculo de ${scope}. Cálculos novos usam a próxima tabela ativa do escopo, ou ficam pendentes se não houver. Faturas emitidas não mudam.`
-          : 'Sai da lista de tabelas ativas. Ela já não era a aplicada, então o cálculo não muda.',
+          : 'Sai da lista de tabelas ativas. Ela já não era a usada no cálculo, então o cálculo não muda.',
       reversibility: nextActive ? 'Pode ser desativada de novo.' : 'Pode ser reativada pelo Administrativo.',
     }
     const reason = nextActive ? await confirmWithReason(confirmOptions) : (await confirm(confirmOptions)) ? '' : null
@@ -216,106 +226,91 @@ export function ChargeTablesTab({
     }
   }
 
-  const lensOptions = [
-    { value: 'todas' as const, label: 'Todas' },
-    { value: 'aplicadas' as const, label: `Aplicadas (${counts.applied})` },
-    { value: 'aviso' as const, label: `Com aviso (${counts.warning})` },
-    { value: 'inativas' as const, label: `Inativas (${counts.inactive})` },
+  const lensCards: Array<{ value: TablesLens; label: string; count: number; warn?: boolean }> = [
+    { value: 'todas', label: 'Tabelas', count: inScope.length },
+    { value: 'aplicadas', label: 'Em uso no cálculo', count: counts.applied },
+    { value: 'nao-usadas', label: 'Ativas, mas não usadas', count: counts.shadowed, warn: true },
+    { value: 'aviso', label: 'Com aviso nos itens', count: counts.itemWarning, warn: true },
+    { value: 'inativas', label: 'Desativadas', count: counts.inactive },
   ]
 
   return (
     <>
-      <div className="app-rates-toolbar">
-        <div className="app-rates-toolbar__filters">
-          <ChargeScopeFilters
-            cargoModeFilter={cargoModeFilter}
-            setCargoModeFilter={setCargoModeFilter}
-            podFilter={podFilter}
-            setPodFilter={setPodFilter}
-            pods={pods}
+      <div className="app-metric-row" role="group" aria-label="Filtrar tabelas por situação">
+        {lensCards.map((card) => (
+          <MetricCard
+            key={card.value}
+            label={card.label}
+            value={data ? card.count : <NoValue label="Carregando" />}
+            tone={card.warn && card.count > 0 ? 'warning' : 'secondary'}
+            selected={lens === card.value}
+            onSelect={() => setLens(lens === card.value ? 'todas' : card.value)}
           />
-        </div>
-        {canEdit ? (
-          <Button type="button" onClick={() => setTableModal({ table: null })} className="app-rates-toolbar__primary">
-            <Plus size={15} aria-hidden="true" />
-            Nova tabela
-          </Button>
-        ) : null}
+        ))}
       </div>
 
-      <section className="app-surface app-rates-surface" aria-label="Tabelas de Taxas Locais">
-        <div className="app-rates-surface__bar">
-          <SegmentedControl label="Mostrar tabelas" options={lensOptions} value={lens} onChange={setLens} />
-          {data ? (
-            <SummaryStrip
-              label="Resumo das tabelas"
-              items={[
-                { label: inScope.length === 1 ? 'tabela' : 'tabelas', value: inScope.length },
-                { label: counts.applied === 1 ? 'aplicada no cálculo' : 'aplicadas no cálculo', value: counts.applied },
-                { label: 'itens automáticos em uso', value: counts.autoItems },
-                ...(counts.warning ? [{ label: counts.warning === 1 ? 'com aviso' : 'com aviso', value: counts.warning, tone: 'warning' as const }] : []),
-              ]}
-            />
-          ) : null}
+      <div className="app-filter-grid">
+        <ChargeScopeFilters
+          cargoModeFilter={cargoModeFilter}
+          setCargoModeFilter={setCargoModeFilter}
+          podFilter={podFilter}
+          setPodFilter={setPodFilter}
+          pods={pods}
+        />
+      </div>
+
+      {error ? (
+        <div className="app-rates-state">
+          <InlineError message={data ? 'Não foi possível atualizar as tabelas; a lista abaixo pode estar desatualizada.' : 'Não foi possível consultar as tabelas de taxas.'} />
+          <Button variant="secondary" className="app-btn--sm" onClick={() => void refetch()} loading={isFetching} loadingLabel="Consultando…">
+            Tentar novamente
+          </Button>
         </div>
-        <p className="app-rates-surface__rule">
-          Vale no cálculo a tabela <strong>ativa</strong> de cada modo de carga e POD; entre duas ativas, a de vigência inicial mais recente. A vigência não liga nem desliga tabela (ADR 0040).
-        </p>
+      ) : null}
 
-        {error ? (
-          <div className="app-rates-state">
-            <InlineError message={data ? 'Não foi possível atualizar as tabelas; a lista abaixo pode estar desatualizada.' : 'Não foi possível consultar as tabelas de taxas.'} />
-            <Button variant="secondary" className="app-btn--sm" onClick={() => void refetch()} loading={isFetching} loadingLabel="Consultando…">
-              Tentar novamente
-            </Button>
-          </div>
-        ) : null}
+      {isLoading ? <SkeletonTable rows={4} cols={4} columnTemplate="2fr 1fr 1fr 1fr" label="Carregando tabelas" /> : null}
 
-        {isLoading ? <SkeletonTable rows={4} cols={4} columnTemplate="2fr 1fr 1fr 1fr" label="Carregando tabelas" /> : null}
+      {!isLoading && data && tables.length === 0 ? (
+        <EmptyState
+          title="Nenhuma tabela cadastrada"
+          description="Sem tabela ativa no modo de carga e POD do B/L, o cálculo das Taxas Locais fica pendente."
+        />
+      ) : null}
 
-        {!isLoading && data && tables.length === 0 ? (
-          <EmptyState
-            title="Nenhuma tabela cadastrada"
-            description="Sem tabela ativa no modo de carga e POD do B/L, o cálculo das Taxas Locais fica pendente."
-            action={canEdit ? <Button onClick={() => setTableModal({ table: null })}><Plus size={15} aria-hidden="true" />Nova tabela</Button> : undefined}
-          />
-        ) : null}
+      {!isLoading && tables.length > 0 && groups.length === 0 ? (
+        <EmptyState
+          title="Nenhuma tabela neste recorte"
+          description={hasScopeFilter ? 'Não há tabela com esse modo de carga e POD.' : 'Nenhuma tabela nesta situação.'}
+          action={hasAnyFilter ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button> : undefined}
+        />
+      ) : null}
 
-        {!isLoading && tables.length > 0 && groups.length === 0 ? (
-          <EmptyState
-            title="Nenhuma tabela neste recorte"
-            description={hasScopeFilter ? 'Não há tabela com esse modo de carga e POD.' : 'Nenhuma tabela nesta situação.'}
-            action={hasAnyFilter ? <Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button> : undefined}
-          />
-        ) : null}
+      {groups.length > 0 ? (
+        <ChargeTablesList
+          groups={groups}
+          readings={readings}
+          expanded={expanded}
+          onToggleExpanded={toggleExpanded}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onEditTable={(table) => setTableModal({ table })}
+          onAddItem={(table) => setItemModal({ table, item: null })}
+          onToggleTableActive={handleToggleTableActive}
+          onEditItem={(table, item) => setItemModal({ table, item })}
+          onToggleItemActive={handleToggleItemActive}
+          onDeleteItem={handleDeleteItem}
+          busyTableId={busyTableId}
+          busyItemId={busyItemId}
+        />
+      ) : null}
 
-        {groups.length > 0 ? (
-          <ChargeTablesList
-            groups={groups}
-            readings={readings}
-            expanded={expanded}
-            onToggleExpanded={toggleExpanded}
-            canEdit={canEdit}
-            canDelete={canDelete}
-            onEditTable={(table) => setTableModal({ table })}
-            onAddItem={(table) => setItemModal({ table, item: null })}
-            onToggleTableActive={handleToggleTableActive}
-            onEditItem={(table, item) => setItemModal({ table, item })}
-            onToggleItemActive={handleToggleItemActive}
-            onDeleteItem={handleDeleteItem}
-            busyTableId={busyTableId}
-            busyItemId={busyItemId}
-          />
-        ) : null}
-      </section>
-
-      {tableModal ? (
+      {tableModal || creating ? (
         <ChargeTableFormModal
-          key={tableModal.table?.id ?? 'new'}
+          key={tableModal?.table?.id ?? 'new'}
           open
-          table={tableModal.table}
+          table={tableModal?.table ?? null}
           tables={tables}
-          onClose={() => setTableModal(null)}
+          onClose={closeTableModal}
           onSave={handleSaveTable}
         />
       ) : null}

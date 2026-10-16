@@ -1,42 +1,39 @@
 import { describe, expect, it } from 'vitest'
-import { describeInvoiceAmounts, describeInvoiceRowAmount, invoiceStatusTag } from '../invoiceDetailPresentation'
+import { describeInvoiceBalance, describeInvoiceRowAmount, invoiceStatusTag } from '../invoiceDetailPresentation'
 
 const base = { id: 1, invoice_number: 'F-1', invoice_type: 'individual', total_brl: 600, total_paid_brl: 0, balance_brl: 600, status: 'issued' }
-const read = (lines: ReturnType<typeof describeInvoiceAmounts>) => lines.map((line) => `${line.label}=${line.value.replace(/\s/g, ' ')}${line.note ? ` (${line.note})` : ''}`)
+const read = (lead: ReturnType<typeof describeInvoiceBalance>) => lead ? `${lead.paid ? '✓ ' : ''}${lead.value} | ${lead.detail} | ${lead.tone}`.replace(/\s/g, ' ') : null
+const summary = (extra: object) => ({ gross_received_brl: 0, offset_brl: 0, refunded_brl: 0, pending_refund_brl: 0, net_received_brl: 0, paid_at: null, ...extra })
 
-describe('describeInvoiceAmounts', () => {
-  it('fatura emitida sem recebimento: total, recebido zero e saldo a cobrar', () => {
-    expect(read(describeInvoiceAmounts({ invoice: base } as never))).toEqual(['Total emitido=R$ 600,00', 'Recebido=R$ 0,00', 'Saldo em aberto=R$ 600,00'])
+describe('describeInvoiceBalance', () => {
+  it('em aberto: o que falta receber em âmbar, com total e recebido na linha de apoio', () => {
+    expect(read(describeInvoiceBalance({ invoice: base } as never))).toBe('R$ 600,00 em aberto | de R$ 600,00 | warning')
+    expect(read(describeInvoiceBalance({ invoice: { ...base, status: 'partially_paid', total_paid_brl: 100, balance_brl: 500 } } as never)))
+      .toBe('R$ 500,00 em aberto | de R$ 600,00 · recebido R$ 100,00 | warning')
   })
 
-  it('correção após pagamento: abatimento, devolução e pendência aparecem separados do total original', () => {
-    const lines = describeInvoiceAmounts({
+  it('paga com correção: abatimento, devolução e pendência ficam no apoio, separados do recebido', () => {
+    const lead = describeInvoiceBalance({
       invoice: { ...base, status: 'paid', total_paid_brl: 550, balance_brl: 0 },
-      financial_summary: { gross_received_brl: 550, offset_brl: 50, refunded_brl: 20, pending_refund_brl: 30, net_received_brl: 530, paid_at: null },
+      financial_summary: summary({ gross_received_brl: 550, offset_brl: 50, refunded_brl: 20, pending_refund_brl: 30, paid_at: '2026-10-14T12:00:00Z' }),
     } as never)
-    expect(read(lines)).toEqual([
-      'Total emitido=R$ 600,00',
-      'Recebido=R$ 550,00',
-      'Abatido pela correção do B/L=R$ 50,00',
-      'Devolvido ao Cliente=R$ 20,00',
-      'A devolver=R$ 30,00 (Ainda não devolvido no banco)',
-      'Saldo em aberto=R$ 0,00 (Quitada)',
-    ])
+    expect(read(lead)).toBe('✓ Paga | R$ 550,00 recebidos em 14/10/2026 · total R$ 600,00 · abatido pela correção do B/L R$ 50,00 · devolvido ao Cliente R$ 20,00 · a devolver R$ 30,00 | default')
   })
 
   it('sem resumo do servidor, usa as restituições listadas', () => {
-    const lines = describeInvoiceAmounts({ invoice: { ...base, status: 'paid', total_paid_brl: 650, balance_brl: 0 } } as never, [
+    const lead = describeInvoiceBalance({ invoice: { ...base, status: 'paid', total_paid_brl: 650, balance_brl: 0 } } as never, [
       { amount_brl: 50, status: 'pending' }, { amount_brl: 10, status: 'cancelled' },
     ])
-    expect(read(lines)).toContain('A devolver=R$ 50,00 (Ainda não devolvido no banco)')
-    expect(read(lines).some((line) => line.startsWith('Devolvido'))).toBe(false)
+    expect(lead?.detail).toContain('a devolver R$')
+    expect(lead?.detail).not.toContain('devolvido')
   })
 
-  it('cancelada e obsoleta não mostram o saldo antigo como dívida; coberta nomeia a consolidada', () => {
-    expect(read(describeInvoiceAmounts({ invoice: { ...base, status: 'cancelled' } } as never)).at(-1)).toBe('Saldo=Não cobrado (Fatura cancelada)')
-    expect(read(describeInvoiceAmounts({ invoice: { ...base, status: 'obsolete' } } as never)).at(-1)).toMatch(/^Saldo=Não cobrado \(Obsoleta/)
-    expect(read(describeInvoiceAmounts({ invoice: { ...base, status: 'covered', balance_brl: 0 }, financial_summary: { gross_received_brl: 0, offset_brl: 0, refunded_brl: 0, pending_refund_brl: 0, net_received_brl: 0, paid_at: null, covered_by_invoice_number: 'FAT-9' } } as never)).at(-1))
-      .toBe('Saldo=R$ 0,00 (Coberta pela consolidada FAT-9)')
+  it('cancelada, obsoleta e coberta não aparecem como dívida', () => {
+    expect(read(describeInvoiceBalance({ invoice: { ...base, status: 'cancelled', cancel_reason: 'Cliente pediu faturas separadas' } } as never)))
+      .toBe('Cancelada | não cobrada · motivo: Cliente pediu faturas separadas | muted')
+    expect(describeInvoiceBalance({ invoice: { ...base, status: 'obsolete' } } as never)).toMatchObject({ value: 'Cancelada', tone: 'muted' })
+    expect(read(describeInvoiceBalance({ invoice: { ...base, status: 'covered', balance_brl: 0 }, financial_summary: summary({ covered_by_invoice_number: 'FAT-9' }) } as never)))
+      .toBe('Coberta | pela consolidada FAT-9 · total R$ 600,00 | muted')
   })
 })
 

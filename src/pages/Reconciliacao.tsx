@@ -27,7 +27,7 @@ import { getInvoiceDetail as getDemurrageDetail } from '../services/demurrage/de
 import { reversalDatesNotice } from '../services/demurrage/demurragePresentation'
 import { reverseDemurragePayment } from '../services/reconciliacao'
 import { demurrageInvoiceHref } from './demurrageListState'
-import { reconciliacaoTabFromSearch, withReconciliacaoTab, type ReconciliacaoTab } from './reconciliacaoState'
+import { RECONCILIACAO_TABS, reconciliacaoTabFromSearch, withReconciliacaoTab, type ReconciliacaoTab } from './reconciliacaoState'
 
 // Ler a Conciliação é de todos; tratar e baixar é do Financeiro e do
 // Administrativo, conferido nos painéis e nas RPCs (ADR 0085, D5; migration 247).
@@ -36,9 +36,9 @@ export function Reconciliacao() {
 }
 
 const TAB_LABELS: Record<ReconciliacaoTab, string> = {
+  historico: 'Histórico de baixas',
   pendencias: 'Pendências',
   extrato: 'Conciliar extrato',
-  historico: 'Histórico de baixas',
 }
 
 type OpenedInvoice =
@@ -118,13 +118,13 @@ function ReconciliacaoContent() {
   }
 
   const panelId = 'reconciliacao-panel'
-  const tabs: ReconciliacaoTab[] = ['pendencias', 'extrato', 'historico']
+  const tabs = RECONCILIACAO_TABS
 
   return (
-    <div className="app-pix-page">
+    <div className="grid gap-4">
       <PageHeader title="Conciliação PIX" />
 
-      <TabList label="Seções da Conciliação PIX" className="app-pix-tabs">
+      <TabList label="Seções da Conciliação PIX">
         {tabs.map((item) => (
           <TabButton
             key={item}

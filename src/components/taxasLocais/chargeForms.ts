@@ -7,10 +7,10 @@ export type LocalChargeTab = 'tabelas' | 'overrides'
 export type CargoModeFilter = '' | 'container' | 'carga_solta' | 'granito'
 
 /** Lente da aba Tabelas: o que olhar primeiro. */
-export type TablesLens = 'todas' | 'aplicadas' | 'aviso' | 'inativas'
+export type TablesLens = 'todas' | 'aplicadas' | 'nao-usadas' | 'aviso' | 'inativas'
 
 /** Lente da aba Condições de Cliente, pela vigência de hoje. */
-export type ConditionsLens = 'todas' | 'vigentes' | 'futuras' | 'encerradas'
+export type ConditionsLens = 'todas' | 'vigentes' | 'futuras' | 'encerradas' | 'sem-efeito'
 
 export type OverrideForm = {
   id: number | null

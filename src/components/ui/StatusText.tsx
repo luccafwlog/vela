@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
 import { CircleCheck, Layers } from 'lucide-react'
 
-export type StatusTextTone = 'default' | 'warning' | 'muted' | 'paid'
+export type StatusTextTone = 'default' | 'warning' | 'danger' | 'muted' | 'paid'
 
 /**
  * Situação em texto simples, sem selo colorido (regra 5, tabela limpa de
- * 2026-10-14): âmbar só no que pede ação, cinza no que encerrou sem efeito e
+ * 2026-10-14): âmbar só no que pede ação, vermelho no que já venceu ou falhou, cinza no que encerrou sem efeito e
  * "Paga" com o ícone ✓ verde antes da palavra, em toda tela que mostra paga.
  */
 export function StatusText({ tone = 'default', children }: { tone?: StatusTextTone; children: ReactNode }) {

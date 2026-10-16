@@ -105,7 +105,8 @@ export function itemDisplayName(item: { name: string | null; cargo_profile?: str
   return `${name} · ${cargoProfileLabel(item.cargo_profile)}`
 }
 
-export type ChargeNote = { tone: 'danger' | 'warning' | 'info'; text: string }
+/** `short` é o rótulo curto da coluna Aviso; a frase inteira vai no title e na edição. */
+export type ChargeNote = { tone: 'danger' | 'warning' | 'info'; text: string; short?: string }
 
 /**
  * O que o motor faz com o item além do valor (migration 129). Só itens
@@ -122,16 +123,16 @@ export function itemEngineNotes(item: {
   const profile = item.cargo_profile ?? 'any'
   const perContainer = item.application_basis === 'container_distinct_voyage'
   if (item.application_basis === 'teu') {
-    notes.push({ tone: 'danger', text: 'Base TEU não é calculada: o B/L vai para revisão.' })
+    notes.push({ tone: 'danger', short: 'TEU não calculado', text: 'Base TEU não é calculada: o B/L vai para revisão.' })
   }
   if (perContainer && isThdItem(item.name)) {
     if (profile === 'any') {
-      notes.push({ tone: 'danger', text: 'THD com perfil "Todos" não é calculado: o B/L vai para revisão. Use Padrão, IMO ou OOG.' })
+      notes.push({ tone: 'danger', short: 'THD sem perfil', text: 'THD com perfil "Todos" não é calculado: o B/L vai para revisão. Use Padrão, IMO ou OOG.' })
     } else if (profile === 'standard') {
-      notes.push({ tone: 'info', text: 'Também é a base do container IMO e OOG ao mesmo tempo (THD × 2,5).' })
+      notes.push({ tone: 'info', short: 'Base de IMO e OOG', text: 'Também é a base do container IMO e OOG ao mesmo tempo (THD × 2,5).' })
     }
   } else if (perContainer && profile !== 'any') {
-    notes.push({ tone: 'warning', text: 'O perfil não separa este item: o cálculo cobra todos os containers. Só itens THD separam por perfil.' })
+    notes.push({ tone: 'warning', short: 'Perfil não separa', text: 'O perfil não separa este item: o cálculo cobra todos os containers. Só itens THD separam por perfil.' })
   }
   return notes
 }
@@ -157,7 +158,12 @@ function stateRank(state: ChargeTableEngineState | undefined) {
  * desempate e as inativas, cada grupo da vigência inicial mais recente para a
  * mais antiga.
  */
-export function groupTablesByScope(tables: ChargeTable[], states: Map<number, ChargeTableEngineState>): ScopeGroup[] {
+export function groupTablesByScope(
+  tables: ChargeTable[],
+  states: Map<number, ChargeTableEngineState>,
+  /** Todas as tabelas, para achar a em uso de um escopo que a lente escondeu. */
+  allTables: ChargeTable[] = tables,
+): ScopeGroup[] {
   const groups = new Map<string, ScopeGroup>()
   for (const table of tables) {
     const key = chargeTableScopeKey(table)
@@ -167,7 +173,10 @@ export function groupTablesByScope(tables: ChargeTable[], states: Map<number, Ch
       groups.set(key, group)
     }
     group.tables.push(table)
-    if (states.get(table.id)?.kind === 'applied') group.applied = table
+  }
+  for (const table of allTables) {
+    const group = groups.get(chargeTableScopeKey(table))
+    if (group && states.get(table.id)?.kind === 'applied') group.applied = table
   }
   for (const group of groups.values()) {
     group.tables.sort((a, b) => {
@@ -187,7 +196,9 @@ export type TableReading = {
   state: ChargeTableEngineState
   /** Frase curta da situação no cálculo. */
   stateLabel: string
-  stateTone: 'success' | 'danger' | 'neutral'
+  /** Tom do StatusText: âmbar só na ativa que não é usada (pede ação). */
+  stateTone: 'default' | 'warning' | 'muted'
+  /** Explicação da situação (title da situação na lista). */
   stateDetail: string | null
   validityNote: string | null
   autoItems: number
@@ -197,6 +208,8 @@ export type TableReading = {
   /** A tabela aplicada não gera nenhuma taxa automática. */
   noAutomaticItems: boolean
   hasWarning: boolean
+  /** Algum item ativo com aviso, numa tabela que não está desativada. */
+  hasItemWarning: boolean
 }
 
 export function readTable(
@@ -212,21 +225,21 @@ export function readTable(
   const inactiveItems = table.charge_table_items.length - activeItems.length
   const itemNotes = activeItems.filter((item) => itemEngineNotes(item).some((note) => note.tone !== 'info')).length
 
-  let stateLabel = 'Inativa'
-  let stateTone: TableReading['stateTone'] = 'neutral'
-  let stateDetail: string | null = 'Fora do cálculo.'
+  let stateLabel = 'Desativada'
+  let stateTone: TableReading['stateTone'] = 'muted'
+  let stateDetail: string | null = 'Desligada pelo Administrativo: fica guardada para consulta e pode ser reativada.'
   if (state.kind === 'applied') {
-    stateLabel = 'Aplicada no cálculo'
-    stateTone = 'success'
-    stateDetail = null
+    stateLabel = 'Em uso no cálculo'
+    stateTone = 'default'
+    stateDetail = 'É a tabela que o sistema usa para calcular os B/Ls deste escopo.'
   } else if (state.kind === 'shadowed') {
     const winner = tablesById.get(state.winnerId)
-    stateLabel = 'Não aplicada'
-    stateTone = 'danger'
-    stateDetail = `Ativa, mas "${winner?.name ?? 'outra tabela'}" tem vigência inicial mais recente e é a usada. Desative uma das duas.`
+    stateLabel = 'Ativa, mas não usada'
+    stateTone = 'warning'
+    stateDetail = `Está ligada, mas "${winner?.name ?? 'outra tabela'}" começou depois e é a usada; os valores desta não entram em nenhum cálculo. Desative uma das duas.`
   }
 
-  // Só a tabela aplicada está no cálculo; numa "Não aplicada" o aviso de
+  // Só a tabela em uso está no cálculo; numa "Ativa, mas não usada" o aviso de
   // vigência contradiria o estado.
   let validityNote: string | null = null
   if (state.kind !== 'applied') {
@@ -251,6 +264,7 @@ export function readTable(
     noAutomaticItems,
     // Tabela inativa não entra no cálculo: aviso de item nela não é urgente.
     hasWarning: state.kind === 'shadowed' || Boolean(validityNote) || noAutomaticItems || (state.kind !== 'inactive' && itemNotes > 0),
+    hasItemWarning: state.kind !== 'inactive' && itemNotes > 0,
   }
 }
 
@@ -284,13 +298,13 @@ export function previewTableState(
   const scope = scopeLabel(draft.cargoMode, draft.pod)
   const state = states.get(draftId)
   if (!state || state.kind === 'inactive') {
-    return { tone: 'info', text: `Fica inativa: não entra no cálculo de ${scope}.` }
+    return { tone: 'info', text: `Fica desativada: não entra no cálculo de ${scope}.` }
   }
   if (state.kind === 'shadowed') {
     const winner = tables.find((table) => table.id === state.winnerId)
     return {
       tone: 'warning',
-      text: `Não será aplicada: "${winner?.name ?? 'outra tabela'}" é ativa em ${scope} com vigência inicial mais recente.`,
+      text: `Fica ativa, mas não usada: "${winner?.name ?? 'outra tabela'}" é ativa em ${scope} com vigência inicial mais recente e é a usada.`,
     }
   }
   const replaced = tables.find((table) => {
@@ -299,8 +313,8 @@ export function previewTableState(
     return before?.kind === 'applied' && chargeTableScopeKey(table) === chargeTableScopeKey(draftRow)
   })
   return replaced
-    ? { tone: 'warning', text: `Passa a ser a tabela aplicada em ${scope}, no lugar de "${replaced.name}". Cálculos novos usam os itens desta tabela.` }
-    : { tone: 'info', text: `Será a tabela aplicada em ${scope}.` }
+    ? { tone: 'warning', text: `Passa a ser a tabela em uso no cálculo de ${scope}, no lugar de "${replaced.name}". Cálculos novos usam os itens desta tabela.` }
+    : { tone: 'info', text: `Será a tabela em uso no cálculo de ${scope}.` }
 }
 
 // Condição de Cliente ------------------------------------------------------
@@ -323,9 +337,9 @@ export function conditionPeriodLabel(
 ) {
   const period = conditionPeriod(row, today)
   if (period === 'disabled') return 'Desativada'
-  if (period === 'ended') return `Encerrada em ${formatDate(row.valid_to)}`
+  if (period === 'ended') return 'Encerrada'
   if (period === 'future') return `Começa em ${formatDate(row.valid_from)}`
-  return 'Vigente hoje'
+  return 'Vigente'
 }
 
 /**
@@ -347,12 +361,12 @@ export function conditionEffectNotes(
   const tableId = item.charge_table?.id
   const state = tableId != null ? states.get(tableId) : undefined
   if (state?.kind === 'inactive') {
-    notes.push({ tone: 'warning', text: `A tabela "${item.charge_table?.name}" está inativa: a condição não entra no cálculo.` })
+    notes.push({ tone: 'warning', text: `A tabela "${item.charge_table?.name}" está desativada: a condição não entra no cálculo.` })
   } else if (state?.kind === 'shadowed') {
     const winner = tablesById.get(state.winnerId)
     notes.push({
       tone: 'warning',
-      text: `A tabela "${item.charge_table?.name}" não é a aplicada ("${winner?.name ?? 'outra tabela'}" vence): a condição não entra no cálculo.`,
+      text: `A tabela "${item.charge_table?.name}" está ativa, mas não usada ("${winner?.name ?? 'outra tabela'}" está em uso no cálculo): a condição não entra no cálculo.`,
     })
   }
   if (item.active === false) {
@@ -367,4 +381,11 @@ export function describeDifference(base: number, negotiated: number) {
   if (Math.abs(ratio) < 0.0005) return 'Igual ao valor da tabela'
   const percent = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(Math.abs(ratio) * 100)
   return `${ratio < 0 ? '−' : '+'}${percent}% em relação à tabela`
+}
+
+/** Diferença curta para a coluna "Valor da tabela": "−12%", "+5,5%" ou null. */
+export function shortDifference(base: number, negotiated: number) {
+  const text = describeDifference(base, negotiated)
+  if (!text) return null
+  return text === 'Igual ao valor da tabela' ? 'igual' : text.replace(' em relação à tabela', '')
 }

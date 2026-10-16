@@ -104,7 +104,7 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
       entity_type: 'pix_transaction',
       entity_id: 'tx-123',
     })
-    expect(link).toBe('/reconciliacao')
+    expect(link).toBe('/reconciliacao?tab=pendencias')
   })
 
   it('rebaixa destination a fallback quando o roteador não deriva rota', () => {

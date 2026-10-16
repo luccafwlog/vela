@@ -78,17 +78,47 @@ export function readyAmountNote(match: UnifiedPixMatch): string | null {
     : 'Valor diferente da cobrança; o banco confere de novo na baixa.'
 }
 
-export function exceptionKindLabel(kind: 'ambiguous' | 'unmatched'): string {
-  return kind === 'unmatched' ? 'Sem documento' : 'Ambígua'
+/**
+ * Identificador do Pix encurtado para a tabela: começo e fim, que é onde
+ * dois identificadores da Vela diferem. O valor inteiro vai no `title` e na
+ * linha aberta.
+ */
+export function shortTxid(txid: string | null | undefined): string {
+  const value = (txid ?? '').trim()
+  return value.length > 18 ? `${value.slice(0, 8)}…${value.slice(-7)}` : value
+}
+
+const NO_TXID_REASON = 'Linha sem identificador no extrato'
+const UNMATCHED_REASON = 'Nenhuma fatura aberta com este identificador'
+
+/** Texto da tela: o matching e o banco ainda dizem "TXID"; a tela diz "identificador". */
+function screenReason(text: string): string {
+  return text
+    .trim()
+    .replace(/\.$/, '')
+    .replace(/Nenhum documento aberto usa este TXID/i, UNMATCHED_REASON)
+    .replace(/documentos usam o mesmo TXID/i, 'faturas usam o mesmo identificador')
+    .replace(/TXID repetido no mesmo extrato/i, 'Identificador repetido no mesmo extrato')
+    .replace(/\bTXID\b/g, 'identificador do Pix')
 }
 
 /** Motivo de uma exceção persistida, com o que a tela tem do matching. */
 export function pendingExceptionReason(exception: Pick<PixReconciliationException, 'reason' | 'txid' | 'candidateCount' | 'metadata'>): string {
+  if (!exception.txid.trim()) return NO_TXID_REASON
   const stored = typeof exception.metadata?.ambiguity_reason === 'string' ? exception.metadata.ambiguity_reason.trim() : ''
-  if (stored) return stored
-  if (!exception.txid.trim()) return 'Linha sem TXID no extrato.'
-  if (exception.reason === 'unmatched') return 'Nenhum documento aberto usa este TXID.'
-  return exception.candidateCount > 1 ? `${exception.candidateCount} documentos usam o mesmo TXID.` : 'Precisa de conferência antes da baixa.'
+  if (stored) return screenReason(stored)
+  if (exception.reason === 'unmatched') return UNMATCHED_REASON
+  return exception.candidateCount > 1 ? `${exception.candidateCount} faturas usam o mesmo identificador` : 'Precisa de conferência antes da baixa'
+}
+
+/**
+ * Motivo de uma linha do extrato que fica como exceção, com as mesmas
+ * palavras de Pendências: linha sem identificador não é "nenhuma fatura usa".
+ */
+export function extractLineReason(match: Pick<UnifiedPixMatch, 'transaction' | 'ambiguityReason' | 'source'>): string {
+  if (!match.transaction.txid.trim()) return NO_TXID_REASON
+  if (match.ambiguityReason) return screenReason(match.ambiguityReason)
+  return match.source === 'unmatched' ? UNMATCHED_REASON : 'Precisa de conferência antes da baixa'
 }
 
 export function pendingExceptionDoc(exception: Pick<PixReconciliationException, 'metadata'>): string | null {
@@ -121,14 +151,27 @@ const ITAU_CHARGE_STATUS: Record<ItauPixMonitorCharge['status'], string> = {
   expired: 'Vencida',
 }
 
+/** O pedido ao banco, para dizer o que ficou sem resposta ou deu erro. */
+const ITAU_CHARGE_REQUEST: Record<ItauPixMonitorCharge['status'], string> = {
+  pending_create: 'Emissão',
+  pending_update: 'Alteração',
+  pending_expire_check: 'Conferência de vencimento',
+  pending_cancel: 'Cancelamento',
+  active: 'Cobrança',
+  cancelled: 'Cancelamento',
+  concluded: 'Cobrança',
+  expired: 'Cobrança',
+}
+
 /**
- * Situação da cobrança na fila do Itaú. Resposta incerta e erro pedem ação de
- * quem acompanha; o resto é o banco processando (a fila tenta de novo sozinha).
+ * Situação da cobrança na fila do Itaú, em texto. Resposta incerta e erro
+ * pedem ação de quem acompanha (âmbar); o resto é o banco processando (a fila
+ * tenta de novo sozinha) e fica na tinta normal.
  */
-export function itauChargeState(charge: Pick<ItauPixMonitorCharge, 'status' | 'uncertain' | 'lastError'>): { label: string; tone: 'danger' | 'warning' | 'neutral'; needsAction: boolean } {
-  if (charge.uncertain) return { label: 'Resposta incerta', tone: 'danger', needsAction: true }
-  if (charge.lastError) return { label: `${ITAU_CHARGE_STATUS[charge.status]} · com erro`, tone: 'danger', needsAction: true }
-  return { label: ITAU_CHARGE_STATUS[charge.status], tone: charge.status === 'active' ? 'neutral' : 'warning', needsAction: false }
+export function itauChargeState(charge: Pick<ItauPixMonitorCharge, 'status' | 'uncertain' | 'lastError'>): { label: string; needsAction: boolean } {
+  if (charge.uncertain) return { label: `${ITAU_CHARGE_REQUEST[charge.status]} sem resposta do banco`, needsAction: true }
+  if (charge.lastError) return { label: `${ITAU_CHARGE_REQUEST[charge.status]} com erro`, needsAction: true }
+  return { label: ITAU_CHARGE_STATUS[charge.status], needsAction: false }
 }
 
 /** Primeiro o que pede ação (incerta, erro), depois a fila na ordem do banco. */
@@ -181,13 +224,12 @@ export function pluralize(count: number, singular: string, plural: string): stri
 }
 
 /** Situação gravada da fatura na baixa mais recente; parcial e coberta não são "paga". */
-export function historyRowStatus(row: Pick<ReconciliationHistoryRow, 'source' | 'status'>): { label: string; tone: 'success' | 'warning' | 'info' | 'neutral' } {
-  if (row.status === 'paid') return { label: 'Paga', tone: 'success' }
-  if (row.status === 'partially_paid') return { label: 'Parcialmente paga', tone: 'warning' }
-  if (row.status === 'covered') return { label: 'Coberta pela consolidada', tone: 'info' }
-  return { label: row.status || '—', tone: 'neutral' }
+export function historyRowStatus(row: Pick<ReconciliationHistoryRow, 'source' | 'status'>): { label: string; kind: 'paid' | 'partial' | 'covered' | 'other' } {
+  if (row.status === 'paid') return { label: 'Paga', kind: 'paid' }
+  if (row.status === 'partially_paid') return { label: 'Parcialmente paga', kind: 'partial' }
+  if (row.status === 'covered') return { label: 'Coberta pela consolidada', kind: 'covered' }
+  return { label: row.status || '—', kind: 'other' }
 }
-
 
 /** O que a aba Pendências conta: só o que pede uma decisão de quem opera. */
 export function countPixPending(monitor: Pick<ItauPixMonitor, 'receipts' | 'charges'> | undefined, exceptions: readonly unknown[] | undefined): number | null {

@@ -514,8 +514,7 @@ export function isManualInvoice(row: { invoice_type?: string | null } | null | u
 export function invoiceTypeLabel(invoiceType: string | null | undefined): string {
   if (invoiceType === 'manual') return 'Avulsa'
   if (invoiceType === 'consolidated') return 'Consolidada'
-  if (invoiceType === 'granite') return 'Única BL'
-  return 'Única BL'
+  return 'Individual'
 }
 
 // Data de pagamento exibida: o pagamento mais recente registrado na fatura.
@@ -961,7 +960,8 @@ export async function listInvoiceDetails(invoiceId: number) {
     p_invoice_id: invoiceId,
   })
 
-  if (error) throw error
+  // O RPC recusa com "Invoice N nao encontrada." (P0002): a tela diz "Fatura não encontrada."
+  if (error) throw error.code === 'P0002' ? Object.assign(new Error('Fatura não encontrada.'), { code: 'P0002' }) : error
 
   const result = createInvoiceDetail((data ?? {}) as InvoiceDetailPayload)
   await hydrateGraniteInvoiceBls(result, invoiceId)

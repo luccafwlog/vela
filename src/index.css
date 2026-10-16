@@ -12945,6 +12945,11 @@ tr[data-inactive] .app-rates-item__value {
   font-weight: 600;
 }
 
+.app-status-text--danger {
+  color: var(--app-danger-fg);
+  font-weight: 600;
+}
+
 .app-status-text--muted {
   color: var(--app-muted);
 }

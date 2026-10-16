@@ -1,4 +1,6 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
+import { Plus } from 'lucide-react'
+import { Button } from '../components/ui/Button'
 import { useSearchParams } from 'react-router-dom'
 import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
@@ -10,8 +12,8 @@ import type { CargoModeFilter, ConditionsLens, LocalChargeTab, TablesLens } from
 import { normalizeChargeTablePod } from './taxasLocaisHelpers'
 
 const CARGO_MODES: CargoModeFilter[] = ['container', 'carga_solta', 'granito']
-const TABLE_LENSES: TablesLens[] = ['todas', 'aplicadas', 'aviso', 'inativas']
-const CONDITION_LENSES: ConditionsLens[] = ['todas', 'vigentes', 'futuras', 'encerradas']
+const TABLE_LENSES: TablesLens[] = ['todas', 'aplicadas', 'nao-usadas', 'aviso', 'inativas']
+const CONDITION_LENSES: ConditionsLens[] = ['todas', 'vigentes', 'futuras', 'encerradas', 'sem-efeito']
 
 function pick<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
   return allowed.includes(value as T) ? (value as T) : fallback
@@ -38,6 +40,9 @@ export function TaxasLocaisTabelas() {
   const conditionsLens = pick(searchParams.get('vigencia'), CONDITION_LENSES, 'todas')
   const customerSearch = searchParams.get('cliente') ?? ''
 
+  // A criação abre pelo botão do título; o modal continua dono da aba.
+  const [creating, setCreating] = useState(false)
+
   const setParam = useCallback((key: string, value: string, fallback = '') => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
@@ -56,7 +61,15 @@ export function TaxasLocaisTabelas() {
 
   return (
     <>
-      <PageHeader title="Tabelas de Taxas Locais" />
+      <PageHeader
+        title="Tabelas de Taxas Locais"
+        action={canEdit ? (
+          <Button type="button" onClick={() => setCreating(true)}>
+            <Plus size={15} aria-hidden="true" />
+            {tab === 'tabelas' ? 'Nova tabela' : 'Nova condição'}
+          </Button>
+        ) : undefined}
+      />
 
       <TabList label="Cadastro de Taxas Locais" className="mb-4">
         <TabButton
@@ -64,14 +77,14 @@ export function TaxasLocaisTabelas() {
           controls="taxas-panel-tabelas"
           active={tab === 'tabelas'}
           label="Tabelas"
-          onClick={() => setParam('tab', 'tabelas', 'tabelas')}
+          onClick={() => { setCreating(false); setParam('tab', 'tabelas', 'tabelas') }}
         />
         <TabButton
           id="taxas-tab-condicoes"
           controls="taxas-panel-condicoes"
           active={tab === 'overrides'}
           label="Condições de Cliente"
-          onClick={() => setParam('tab', 'overrides', 'tabelas')}
+          onClick={() => { setCreating(false); setParam('tab', 'overrides', 'tabelas') }}
         />
       </TabList>
 
@@ -83,6 +96,8 @@ export function TaxasLocaisTabelas() {
             setLens={(value) => setParam('lente', value, 'todas')}
             canEdit={canEdit}
             canDelete={canDelete}
+            creating={creating}
+            onCreateDone={() => setCreating(false)}
           />
         </div>
       ) : (
@@ -95,6 +110,8 @@ export function TaxasLocaisTabelas() {
             setCustomerSearch={(value) => setParam('cliente', value)}
             canEdit={canEdit}
             canDelete={canDelete}
+            creating={creating}
+            onCreateDone={() => setCreating(false)}
           />
         </div>
       )}

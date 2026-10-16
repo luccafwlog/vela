@@ -135,7 +135,7 @@ export function ChargeOverrideFormModal({
       .slice(0, 40)
       .map((item) => {
         const state = states.get(item.charge_table?.id ?? -1)
-        const situation = state?.kind === 'applied' ? '' : state?.kind === 'shadowed' ? ' · tabela não aplicada' : ' · tabela inativa'
+        const situation = state?.kind === 'applied' ? '' : state?.kind === 'shadowed' ? ' · tabela ativa, mas não usada' : ' · tabela desativada'
         return {
           value: String(item.id),
           label: itemLabel(item),

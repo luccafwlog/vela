@@ -52,7 +52,7 @@ vi.mock('../../../services/reconciliacao', () => ({
 }))
 vi.mock('../../../services/billing', () => ({
   listBillingCustomers: vi.fn().mockResolvedValue([]),
-  invoiceTypeLabel: (invoiceType: string | null) => invoiceType === 'consolidated' ? 'Consolidada' : invoiceType === 'manual' ? 'Avulsa' : 'Única BL',
+  invoiceTypeLabel: (invoiceType: string | null) => invoiceType === 'consolidated' ? 'Consolidada' : invoiceType === 'manual' ? 'Avulsa' : 'Individual',
 }))
 vi.mock('../../ui/Combobox', () => ({ Combobox: ({ initialValue }: { initialValue: string }) => <span>Cliente: {initialValue || 'vazio'}</span> }))
 vi.mock('../../ui/Toast', () => ({

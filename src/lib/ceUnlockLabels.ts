@@ -74,3 +74,45 @@ export const ceDateTime = (value: string | null | undefined) =>
         timeZone: "America/Sao_Paulo",
       })
     : "—";
+
+/** Tom do texto de situação (StatusText) de um documento. */
+export type CeDocumentStatusTone = "default" | "warning" | "paid";
+
+/**
+ * Situação de um documento em texto (lote 3 da identidade): aguardando
+ * análise, recusado e revogado em âmbar (pedem ação); "✓ Aprovado";
+ * "Não enviado" em tinta normal. Concorda com o gênero do documento.
+ */
+export function ceDocumentStatusText(
+  type: string,
+  status: string | null | undefined,
+): { label: string; tone: CeDocumentStatusTone } {
+  const a = type === "procuracao" ? "a" : "o";
+  switch (status) {
+    case null:
+    case undefined:
+      return { label: `Não enviad${a}`, tone: "default" };
+    case "uploaded":
+      return { label: "Aguardando análise", tone: "warning" };
+    case "approved":
+      return { label: `Aprovad${a}`, tone: "paid" };
+    case "changes_requested":
+      return { label: `Recusad${a}`, tone: "warning" };
+    case "revoked":
+      return { label: `Revogad${a}`, tone: "warning" };
+    case "uploading":
+      return { label: "Envio em andamento", tone: "default" };
+    default:
+      return { label: ceStateLabel(status), tone: "default" };
+  }
+}
+
+/** Data dd/mm no fuso da operação. */
+export const ceShortDate = (value: string | null | undefined) =>
+  value
+    ? new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })
+    : "";
+
+/** Data dd/mm/aaaa no fuso da operação. */
+export const ceDate = (value: string | null | undefined) =>
+  value ? new Date(value).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "";
