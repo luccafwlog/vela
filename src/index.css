@@ -2388,7 +2388,9 @@ button.app-metric-tile[aria-pressed='true'] {
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: var(--app-radius-control) var(--app-radius-control) 0 0;
-  background: transparent;
+  /* Aba não selecionada sombreada, na cor da faixa dos blocos, para não ficar
+     solta (decisão de 2026-10-16, padrão de todas as abas). */
+  background: var(--app-strip);
   color: var(--app-muted);
   font-size: var(--app-size-body);
   font-weight: 500;
@@ -2399,7 +2401,7 @@ button.app-metric-tile[aria-pressed='true'] {
 
 .app-tab:hover {
   color: var(--app-text-strong);
-  background: var(--app-surface-hover);
+  background: var(--app-border);
 }
 
 .app-tab:focus-visible {

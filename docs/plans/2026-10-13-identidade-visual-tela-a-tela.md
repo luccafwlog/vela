@@ -102,6 +102,12 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   de negócio proposta, a decidir:** número da Invoice de Demurrage
   sequencial por ano (`DEM-2026-0001`), como a fatura de Taxas Locais, no
   lugar de `DEM-<AAAAMMDDHHMMSSmmm>-<B/L>` (migration `278`).
+  **Rodada 2 aprovada em 2026-10-16:** Chegadas e Saídas com o Portal
+  (Saída antes da Chegada, âmbar nas duas, botão "Ver no mapa"), Containers,
+  Veículos (a janela de desova oferece marcados, todo o recorte e só os sem
+  local), Baplie, Viagens (tabela com BB e Veículos; cartão inteiro como hoje)
+  e Clientes (abas). Também aprovados o número `DEM-AAAA-NNNN` e, como padrão
+  do sistema, as abas não selecionadas com fundo sombreado.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
