@@ -52,6 +52,7 @@ vi.mock('@tanstack/react-query', () => ({
     return { data: { rows: [], count: 0 }, isLoading: false, error: null }
   },
 }))
+vi.mock('../../hooks/useVoyageReconciliation', () => ({ useVoyageRailDivergences: () => new Map() }))
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
     isAdmin: mocks.isAdmin(),
@@ -78,6 +79,7 @@ vi.mock('../../hooks/useVehicles', async (importOriginal) => ({
         container: { id: 33, unpacking_location: mocks.unpackingLocation, container_number: 'CXRU1234567', type: '40HC', seal_number: 'L1' },
         bl: { id: 'BL-1' },
       }],
+      get filteredRows() { return this.rows },
       count: 1,
       distinctContainerCount: 1,
       distinctBlCount: 1,
