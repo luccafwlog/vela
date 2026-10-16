@@ -3,9 +3,10 @@ import { afterBaplieImportado, afterCargaAlterada } from '../services/cacheEffec
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, Clock3, Download, Upload, XCircle } from 'lucide-react'
+import { Download, Upload } from 'lucide-react'
 import { exportBaplieWorkbook } from '../services/exports'
-import { Badge } from '../components/ui/Badge'
+import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
+import { StatusText } from '../components/ui/StatusText'
 import { CopyValue } from '../components/ui/CopyValue'
 import { NoValue } from '../components/ui/NoValue'
 import { Button } from '../components/ui/Button'
@@ -18,7 +19,7 @@ import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
-import { CargoProfileBadge, ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
+import { ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
 import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection } from '../components/shared/ImportParts'
 import { plural } from '../components/shared/importPresentation'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
@@ -250,7 +251,7 @@ export function Baplie() {
               <Button variant="secondary" className="app-btn--sm" onClick={() => void stagingQuery.refetch()}>Tentar novamente</Button>
             </ImportNotice>
           ) : null}
-          <BaplieOverviewSection containers={containers} importedAt={importedAt} pendingFlags={pendingFlags} />
+          <BaplieOverviewSection containers={containers} importedAt={importedAt} pendingFlags={pendingFlags}>
           {pendingFlags ? (
             <PendingFlagsNotice
               count={pendingFlags}
@@ -265,6 +266,7 @@ export function Baplie() {
               }}
             />
           ) : null}
+          </BaplieOverviewSection>
 
           <ReconciliacaoSection
             overview={overview}
@@ -333,32 +335,25 @@ function StateA({ canImport, onUpload }: { canImport: boolean; onUpload: () => v
   )
 }
 
-function BaplieOverviewSection({ containers, importedAt, pendingFlags }: { containers: BaplieContainer[]; importedAt: string | null; pendingFlags: number | undefined }) {
+function BaplieOverviewSection({ containers, importedAt, pendingFlags, children }: { containers: BaplieContainer[]; importedAt: string | null; pendingFlags: number | undefined; children?: ReactNode }) {
   const full = containers.filter((c) => c.status !== 'empty')
   return (
-    <Card className="app-cargo-panel p-0">
-      <div className="app-cargo-panel__head">
-        <div>
-          <h2 className="app-cargo-panel__title">Carga física no Baplie</h2>
-          <p className="app-cargo-panel__meta">{importedAt ? `Importado em ${formatDateTimeBR(importedAt)}` : 'Data de importação não registrada'}</p>
-        </div>
-        <SummaryStrip
-          label="Resumo do Baplie"
-          items={[
-            { label: containers.length === 1 ? 'container' : 'containers', value: containers.length.toLocaleString('pt-BR') },
-            { label: 'cheios', value: full.length.toLocaleString('pt-BR') },
-            { label: 'vazios', value: (containers.length - full.length).toLocaleString('pt-BR') },
-            { label: 'IMO', value: full.filter((c) => c.is_imo).length.toLocaleString('pt-BR') },
-            { label: 'OOG', value: full.filter((c) => c.is_oog).length.toLocaleString('pt-BR') },
-          ]}
-        />
-      </div>
+    <Block title="Carga física no Baplie" aside={importedAt ? `importado em ${formatDateTimeBR(importedAt)}` : 'data de importação não registrada'}>
+      <LeadValue>{plural(containers.length, 'container', 'containers')}</LeadValue>
+      <FactList columns={4}>
+        <Fact label="Cheios">{full.length.toLocaleString('pt-BR')}</Fact>
+        <Fact label="Vazios">{(containers.length - full.length).toLocaleString('pt-BR')}</Fact>
+        <Fact label="IMO">{full.filter((c) => c.is_imo).length.toLocaleString('pt-BR')}</Fact>
+        <Fact label="OOG">{full.filter((c) => c.is_oog).length.toLocaleString('pt-BR')}</Fact>
+      </FactList>
+      {/* O aviso de IMO/OOG não aplicado (hipótese de falha da aplicação automática) fica no bloco do assunto. */}
+      {children}
       <p className="app-cargo-panel__note">
         {pendingFlags === 0
           ? 'O Baplie vale para IMO, classe, ONU e OOG, e esses dados estão aplicados aos containers dos B/Ls. Para SOC/COC, vale o B/L.'
           : 'O Baplie vale para IMO, classe, ONU e OOG: cada importação aplica esses dados aos containers dos B/Ls. Para SOC/COC, vale o B/L.'}
       </p>
-    </Card>
+    </Block>
   )
 }
 
@@ -391,14 +386,6 @@ function PendingFlagsNotice({ count, canApply, onApply }: { count: number; canAp
   )
 }
 
-const STATE_ICON = {
-  error: XCircle,
-  loading: Clock3,
-  no_bls: Clock3,
-  awaiting_route_coverage: Clock3,
-  divergent: AlertTriangle,
-  clean: CheckCircle2,
-} as const
 
 function reconciliationHeadline(overview: ReconciliationOverview, divergences: number): { title: string; text: ReactNode; tone: 'danger' | 'warning' | 'success' | 'neutral' } {
   switch (overview.state) {
@@ -449,36 +436,27 @@ function ReconciliacaoSection({
     (item): item is Extract<BaplieReconciliationItem, { kind: 'profile_mismatch' }> => item.kind === 'profile_mismatch',
   )
   const headline = reconciliationHeadline(overview, items.length)
-  const Icon = STATE_ICON[overview.state]
   const showCoverage = overview.state === 'divergent' || overview.state === 'clean'
 
+  const leadTone = headline.tone === 'danger' ? 'danger' : headline.tone === 'warning' ? 'warning' : 'default'
+
   return (
-    <Card className="app-cargo-panel p-0">
-      <section aria-labelledby="baplie-conciliacao-title">
-        <div className="app-cargo-panel__head">
-          <h2 id="baplie-conciliacao-title" className="app-cargo-panel__title">Conciliação Baplie × B/L</h2>
+    <>
+      <Block title="Conciliação Baplie × B/L">
+        <div role={overview.state === 'error' ? 'alert' : 'status'}>
+          <LeadValue tone={leadTone} detail={headline.text}>{headline.title}</LeadValue>
         </div>
-        <div className={`app-cargo-verdict app-cargo-verdict--${headline.tone}`} role={overview.state === 'error' ? 'alert' : 'status'}>
-          <Icon size={18} aria-hidden="true" className="app-cargo-verdict__icon" />
-          <div className="app-cargo-verdict__body">
-            <p className="app-cargo-verdict__title">{headline.title}</p>
-            <p className="app-cargo-verdict__text">{headline.text}</p>
-            {overview.state === 'error' ? <Button variant="secondary" className="app-btn--sm" onClick={onRetry}>Tentar novamente</Button> : null}
-            {overview.state === 'no_bls' ? <Link className="app-cargo-link" to={`/viagens/${voyageId}`}>Abrir a viagem para importar B/Ls →</Link> : null}
-          </div>
-        </div>
+        {overview.state === 'error' ? <div><Button variant="secondary" className="app-btn--sm" onClick={onRetry}>Tentar novamente</Button></div> : null}
+        {overview.state === 'no_bls' ? <div><Link className="app-btn app-btn--secondary app-btn--sm" to={`/viagens/${voyageId}`}>Abrir a viagem para importar B/Ls</Link></div> : null}
 
         {showCoverage ? (
-          <dl className="app-cargo-facts" aria-label="Cobertura documental">
-            <div className="app-cargo-facts__item">
-              <dt>Cheios com B/L</dt>
-              <dd>{overview.covered.toLocaleString('pt-BR')} de {overview.inScope.toLocaleString('pt-BR')}</dd>
-            </div>
+          <FactList columns={4}>
+            <Fact label="Cheios com B/L">{overview.covered.toLocaleString('pt-BR')} de {overview.inScope.toLocaleString('pt-BR')}</Fact>
             <CoverageFact label="No Baplie, sem B/L" count={missing.length} anchor="baplie-sem-bl" />
             <CoverageFact label="Em B/L, fora do Baplie" count={missingInBaplie.length} anchor="baplie-fora" />
             <CoverageFact label="SOC/COC diverge" count={ownershipMismatch.length} anchor="baplie-soc-coc" />
             <CoverageFact label="IMO/OOG manual diverge" count={profileMismatch.length} anchor="baplie-perfil" />
-          </dl>
+          </FactList>
         ) : null}
 
         {overview.pendingRoutes.length ? (
@@ -487,6 +465,7 @@ function ReconciliacaoSection({
             <strong>{overview.pendingRoutes.map(formatRouteKey).join(', ')}</strong>
           </p>
         ) : null}
+      </Block>
 
         {missing.length > 0 ? (
           <DivergenceGroup
@@ -495,7 +474,7 @@ function ReconciliacaoSection({
             meaning="Container cheio a bordo sem documento na viagem. Não conta como carga no ADR nem gera cobrança."
             action="Pedir ao armador o B/L ou a correção do manifesto; quando o B/L for importado, a divergência some."
           >
-            <table className="app-table app-cargo-table app-cargo-table--sub">
+            <table className="app-table app-table--nested app-cargo-table">
               <caption className="sr-only">Containers no Baplie sem B/L</caption>
               <thead>
                 <tr>
@@ -524,7 +503,7 @@ function ReconciliacaoSection({
             meaning="O B/L declara um container que o Baplie não mostra a bordo. A cobrança continua pelo B/L."
             action="Confirmar o embarque com o armador; se embarcou, reimportar o Baplie corrigido."
           >
-            <table className="app-table app-cargo-table app-cargo-table--sub">
+            <table className="app-table app-table--nested app-cargo-table">
               <caption className="sr-only">Containers em B/L ausentes do Baplie</caption>
               <thead>
                 <tr>
@@ -551,7 +530,7 @@ function ReconciliacaoSection({
             meaning="O B/L e o Baplie informam donos diferentes. Vale o B/L nas taxas e na Demurrage; nada é trocado sozinho."
             action="Confirmar com o armador; se o B/L estiver errado, corrigir na aba Carga do B/L, com justificativa."
           >
-            <table className="app-table app-cargo-table app-cargo-table--sub">
+            <table className="app-table app-table--nested app-cargo-table">
               <caption className="sr-only">SOC/COC divergente entre B/L e Baplie</caption>
               <thead>
                 <tr>
@@ -567,8 +546,8 @@ function ReconciliacaoSection({
                   <tr key={`${item.container_number}-${item.bl_container_id}`}>
                     <td className="app-cargo-code app-cargo-id"><CopyValue value={item.container_number} label="número do contêiner" /></td>
                     <td>{item.bl_id ? <CopyValue value={item.bl_id} label="número do B/L"><Link className="app-cargo-link app-cargo-id" to={`/bls/${item.bl_id}?tab=carga`}>{item.bl_id}</Link></CopyValue> : <NoValue label="Sem B/L" />}</td>
-                    <td><ContainerOwnershipBadge ownership={item.bl_ownership} /></td>
-                    <td><ContainerOwnershipBadge ownership={item.baplie_ownership} /></td>
+                    <td>{item.bl_ownership ?? <NoValue label="Não informado" />}</td>
+                    <td>{item.baplie_ownership ?? <NoValue label="Não informado" />}</td>
                     <td><ValeOBlButton blContainerId={item.bl_container_id} field="ownership" label={`${item.container_number} no B/L ${item.bl_id ?? ''}`} /></td>
                   </tr>
                 ))}
@@ -584,7 +563,7 @@ function ReconciliacaoSection({
             meaning="O perfil IMO/OOG foi corrigido à mão (o armador confirmou fora do Baplie) e o Baplie diz outra coisa. A correção manual vale; o Baplie não a troca."
             action="Confirmar com o armador; se a correção manual estiver certa, Vale o B/L encerra a divergência."
           >
-            <table className="app-table app-cargo-table app-cargo-table--sub">
+            <table className="app-table app-table--nested app-cargo-table">
               <caption className="sr-only">Perfil IMO/OOG manual divergente do Baplie</caption>
               <thead>
                 <tr>
@@ -609,8 +588,7 @@ function ReconciliacaoSection({
             </table>
           </DivergenceGroup>
         ) : null}
-      </section>
-    </Card>
+    </>
   )
 }
 
@@ -647,23 +625,21 @@ function ValeOBlButton({ blContainerId, field, label }: { blContainerId: number;
 
 function CoverageFact({ label, count, anchor }: { label: string; count: number; anchor: string }) {
   return (
-    <div className={`app-cargo-facts__item${count > 0 ? ' app-cargo-facts__item--warning' : ''}`}>
-      <dt>{label}</dt>
-      <dd>{count > 0 ? <a className="app-cargo-link" href={`#${anchor}`}>{count.toLocaleString('pt-BR')}</a> : '0'}</dd>
-    </div>
+    <Fact label={label}>
+      {count > 0 ? <a className="app-cargo-link" href={`#${anchor}`}><StatusText tone="warning">{count.toLocaleString('pt-BR')}</StatusText></a> : '0'}
+    </Fact>
   )
 }
 
+/** Um grupo de divergência por bloco: o significado na faixa, "O que fazer" e a tabela de cabeçalho claro. */
 function DivergenceGroup({ id, title, meaning, action, children }: { id: string; title: string; meaning: string; action: string; children: ReactNode }) {
   return (
-    <section id={id} className="app-cargo-divergence" aria-labelledby={`${id}-title`} tabIndex={-1}>
-      <h3 id={`${id}-title`} className="app-cargo-divergence__title">
-        <AlertTriangle size={15} aria-hidden="true" /> {title}
-      </h3>
-      <p className="app-cargo-divergence__text">{meaning}</p>
-      <p className="app-cargo-divergence__text"><strong>O que fazer:</strong> {action}</p>
-      <div className="app-table-scroll app-cargo-divergence__table">{children}</div>
-    </section>
+    <div id={id} tabIndex={-1}>
+      <Block title={title} aside={meaning} headingLevel={3}>
+        <p className="app-cargo-divergence__text"><strong>O que fazer:</strong> {action}</p>
+        <div className="app-table-scroll">{children}</div>
+      </Block>
+    </div>
   )
 }
 
@@ -699,26 +675,22 @@ function VaziosSection({
   const vaziosLink = <Link className="app-cargo-link" to={`/vazios-importacao?voyage=${voyageId}`}>Abrir Vazios de importação →</Link>
 
   return (
-    <Card className="app-cargo-panel p-0">
-      <section aria-labelledby="baplie-vazios-title">
-        <div className="app-cargo-panel__head">
-          <div>
-            <h2 id="baplie-vazios-title" className="app-cargo-panel__title">Vazios de importação</h2>
-            <p className="app-cargo-panel__meta">{plural(emptyCount, 'container vazio', 'containers vazios')} neste Baplie · fora da conciliação com B/L</p>
-          </div>
-        </div>
-        <div className="app-cargo-panel__body">
+    <Block
+      title="Vazios de importação"
+      aside="fora da conciliação com B/L"
+    >
           {loadingExistingManifest ? (
             <p className="app-cargo-state__text" role="status">Verificando o cadastro de vazios…</p>
           ) : existingManifest ? (
-            <div className="app-cargo-row">
-              <p className={`app-cargo-row__text${isCountMismatch ? ' app-cargo-row__text--warning' : ''}`}>
-                {isCountMismatch ? <AlertTriangle size={15} aria-hidden="true" /> : <CheckCircle2 size={15} aria-hidden="true" />}
-                <span>
-                  Cadastrados em {formatDate(existingManifest.imported_at)} com {plural(existingManifest.total_containers, 'container', 'containers')}.
-                  {isCountMismatch ? ` O Baplie atual tem ${emptyCount}; atualizar substitui os containers do cadastro pelos vazios deste Baplie.` : ''}
-                </span>
-              </p>
+            <>
+              <LeadValue
+                tone={isCountMismatch ? 'warning' : 'default'}
+                detail={isCountMismatch
+                  ? `cadastrados em ${formatDate(existingManifest.imported_at)} com ${existingManifest.total_containers}; atualizar substitui o cadastro pelos vazios deste Baplie`
+                  : `cadastrados em ${formatDate(existingManifest.imported_at)}`}
+              >
+                {plural(emptyCount, 'vazio', 'vazios')} neste Baplie
+              </LeadValue>
               <span className="app-cargo-row__actions">
                 {vaziosLink}
                 {canWrite && isCountMismatch ? (
@@ -727,28 +699,27 @@ function VaziosSection({
                   </Button>
                 ) : null}
               </span>
-            </div>
+            </>
           ) : (
-            <div className="app-cargo-row">
-              <p className="app-cargo-row__text">
-                <Clock3 size={15} aria-hidden="true" />
-                <span>Ainda não cadastrados. Entram sem Nº de manifesto Mercante; o número é informado depois em Rotas e Manifestos da viagem.</span>
-              </p>
+            <>
+              <LeadValue detail="ainda não cadastrados; entram sem Nº de manifesto Mercante, informado depois em Rotas e Manifestos da viagem">
+                {plural(emptyCount, 'vazio', 'vazios')}
+              </LeadValue>
               {canWrite ? (
-                <Button disabled={loadingExistingManifest} loading={loading} loadingLabel="Cadastrando…" onClick={() => run(onConfirmar)}>
-                  Cadastrar {plural(emptyCount, 'vazio', 'vazios')}
-                </Button>
+                <div>
+                  <Button disabled={loadingExistingManifest} loading={loading} loadingLabel="Cadastrando…" onClick={() => run(onConfirmar)}>
+                    Cadastrar {plural(emptyCount, 'vazio', 'vazios')}
+                  </Button>
+                </div>
               ) : null}
-            </div>
+            </>
           )}
           {error ? (
             <ImportNotice tone="danger" role="alert" title="Os vazios não foram gravados">
               <p>{error}</p>
             </ImportNotice>
           ) : null}
-        </div>
-      </section>
-    </Card>
+    </Block>
   )
 }
 
@@ -819,7 +790,8 @@ function ContainerList({
 
   return (
     <>
-      <FilterBar title="Filtros dos containers" activeCount={activeCount} onClear={() => onFiltersChange(EMPTY_CONTAINER_FILTERS)}>
+      <Block title="Containers do Baplie" aside={filtered.length === containers.length ? plural(containers.length, 'container', 'containers') : `${filtered.length.toLocaleString('pt-BR')} de ${plural(containers.length, 'container', 'containers')}`} flush>
+      <FilterBar title="Filtros" activeCount={activeCount} onClear={() => onFiltersChange(EMPTY_CONTAINER_FILTERS)}>
         <div className="app-filter-grid">
           <Field label="Buscar"><Input type="search" value={filters.container} onChange={(event) => update('container', event.target.value)} placeholder="Container, slot ou B/L citado" /></Field>
           <Field label="Conciliação">
@@ -842,11 +814,6 @@ function ContainerList({
         </div>
       </FilterBar>
 
-      <Card className="overflow-hidden p-0">
-        <div className="app-cargo-toolbar">
-          <h2 className="app-cargo-panel__title">Containers do Baplie</h2>
-          <span className="app-cargo-toolbar__hint">{filtered.length === containers.length ? plural(containers.length, 'container', 'containers') : `${filtered.length.toLocaleString('pt-BR')} de ${plural(containers.length, 'container', 'containers')}`}</span>
-        </div>
         {filtered.length === 0 ? (
           <EmptyState
             title="Nenhum container neste recorte"
@@ -890,15 +857,15 @@ function ContainerList({
               </thead>
               <tbody>
                 {paginated.map(({ container: c, coverage }) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} className={coverage?.keys.includes('empty') || coverage?.keys.includes('out_of_scope') ? 'app-table__row--muted' : undefined}>
                     <td className="app-cargo-table__id"><span className="app-cargo-code app-cargo-id"><CopyValue value={c.container_number} label="número do contêiner" /></span></td>
-                    <td><CoverageTag coverage={coverage} /></td>
+                    <td className="app-table__text"><CoverageTag coverage={coverage} /></td>
                     <td>{c.status === 'empty' ? 'Vazio' : 'Cheio'}</td>
                     <td>{c.size_type ?? <NoValue label="Sem tipo" />}</td>
                     <td className="whitespace-nowrap">{c.pol ?? <NoValue label="Sem POL" />} → {c.pod ?? <NoValue label="Sem POD" />}</td>
                     <td className="app-cargo-code">{c.slot ?? <NoValue label="Sem slot" />}</td>
                     <td><ProfileTag container={c} /></td>
-                    <td><ContainerOwnershipBadge ownership={c.ownership} /></td>
+                    <td>{c.ownership === 'SOC' || c.ownership === 'COC' ? c.ownership : <NoValue label="SOC/COC não informado" />}</td>
                     <td className="app-cargo-code">{c.bl_ref ? <CopyValue value={c.bl_ref} label="número do B/L" /> : <NoValue label="B/L não citado" />}</td>
                   </tr>
                 ))}
@@ -916,25 +883,26 @@ function ContainerList({
             onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
           />
         ) : null}
-      </Card>
+      </Block>
     </>
   )
 }
 
+/** Conciliação em texto (regra 5): divergência em âmbar, o resto em tinta normal. */
 function CoverageTag({ coverage }: { coverage: ReturnType<typeof describeRowCoverage> }) {
   if (!coverage) return <NoValue label="Conciliação indisponível" />
-  return <Badge tone={coverage.tone}>{coverage.label}</Badge>
+  return coverage.tone === 'warning' ? <StatusText tone="warning">{coverage.label}</StatusText> : <>{coverage.label}</>
 }
 
+/** IMO numa linha só: "IMO 3 · ONU 1263", sem nada embaixo. */
 function ProfileTag({ container }: { container: BaplieContainer }) {
   if (!container.is_imo && !container.is_oog) return <NoValue label="Sem IMO nem OOG" />
-  const detail = container.is_imo ? [container.imo_class ? `classe ${container.imo_class}` : null, container.un_number ? `ONU ${container.un_number}` : null].filter(Boolean).join(' · ') : ''
-  return (
-    <span className="app-cargo-cell__stack app-table__cell-stack">
-      <CargoProfileBadge isImo={Boolean(container.is_imo)} isOog={Boolean(container.is_oog)} />
-      {detail ? <span className="app-cargo-cell__sub">{detail}</span> : null}
-    </span>
-  )
+  const parts = [
+    container.is_imo ? `IMO${container.imo_class ? ` ${container.imo_class}` : ''}` : null,
+    container.is_imo && container.un_number ? `ONU ${container.un_number}` : null,
+    container.is_oog ? 'OOG' : null,
+  ].filter(Boolean)
+  return <>{parts.join(' · ')}</>
 }
 
 function BaplieUploadModal({

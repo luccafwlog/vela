@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -139,7 +139,7 @@ function renderPage(page: React.ReactNode, initialEntry = '/') {
 
 describe('controles de Veiculos', () => {
   it('sem local de desova aparece em âmbar e o local gravado em texto na linha do veículo', () => {
-    mocks.unpackingLocation = null
+    mocks.unpackingLocation = null as unknown as string
     renderPage(<Veiculos />, '/?voyage=7')
     expect(screen.getByRole('cell', { name: 'Sem local' })).toBeTruthy()
   })

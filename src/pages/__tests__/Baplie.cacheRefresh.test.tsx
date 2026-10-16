@@ -108,7 +108,7 @@ describe('lista de containers do Baplie', () => {
     try {
       render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Baplie /></MemoryRouter></QueryClientProvider>)
       expect(await screen.findByText('AAAU0000001')).toBeTruthy()
-      fireEvent.click(screen.getByRole('button', { name: /Filtros dos containers/ }))
+      fireEvent.click(screen.getByRole('button', { name: /^Filtros/ }))
       fireEvent.change(screen.getByLabelText('IMO / OOG'), { target: { value: 'oog' } })
       await waitFor(() => expect(screen.queryByText('BBBU0000002')).toBeNull())
       expect(screen.getByText('AAAU0000001')).toBeTruthy()
