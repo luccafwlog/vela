@@ -381,21 +381,22 @@ describeLocal('Demurrage cobrada uma vez por caixa (migration 214)', () => {
       ORDER BY i.id DESC LIMIT 1`)).toMatch(new RegExp(`^active\\|.*não cobrou o\\(s\\) container\\(s\\) ${box.lostGone}`))
   })
 
-  it('278 — o número gerado põe o instante antes do B/L, e o TXID do QR não se repete', () => {
+  it('293 — o número gerado é sequencial por ano (DEM-AAAA-NNNN), e o TXID do QR não se repete (278)', () => {
     const issued = JSON.parse(psql(`SET vela.demurrage_internal = 'on';
       SELECT public.issue_demurrage_invoice_for_bl('${bl.txid}')`)) as IssueResult
     expect(issued.status).toBe('issued')
     const invoiceId = Number(issued.invoice_id)
     const doc = psql(`SELECT doc_number FROM public.demurrage_invoices WHERE id = ${invoiceId}`)
-    expect(doc).toMatch(new RegExp(`^DEM-\\d{17}-${bl.txid}$`))
-    // Os 25 caracteres do TXID levam o instante inteiro (DEM + 17 dígitos).
-    expect(psql(`SELECT left(regexp_replace('${doc}', '[^A-Za-z0-9]', '', 'g'), 25)`)).toMatch(/^DEM\d{17}/)
+    expect(doc).toMatch(/^DEM-\d{4}-\d{4,}$/)
+    // A emissão seguinte do ano pega o número seguinte.
+    const next = psql(`SELECT public.next_demurrage_doc_number()`)
+    expect(Number(next.slice(9))).toBe(Number(doc.slice(9)) + 1)
 
     // Outra Invoice com número que dá o mesmo TXID é recusada, mesmo informado à mão.
     const clash = run(`
       SET session_replication_role = replica;
       CREATE TEMP TABLE r278 AS SELECT * FROM public.demurrage_invoices WHERE id = ${invoiceId};
-      UPDATE r278 SET id = nextval(pg_get_serial_sequence('public.demurrage_invoices', 'id')), doc_number = '${doc}-2';
+      UPDATE r278 SET id = nextval(pg_get_serial_sequence('public.demurrage_invoices', 'id')), doc_number = replace('${doc}', '-', '.');
       INSERT INTO public.demurrage_invoices SELECT * FROM r278;`)
     expect(clash.status).not.toBe(0)
     expect(clash.stderr).toMatch(/demurrage_invoices_pix_txid_unique/)
