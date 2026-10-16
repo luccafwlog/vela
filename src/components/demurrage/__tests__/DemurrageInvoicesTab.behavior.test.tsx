@@ -63,18 +63,30 @@ it('o número da Invoice abre o detalhe e a linha mostra o USD a cobrar depois d
   const { onOpenDetail } = renderTab()
 
   expect(screen.getByTestId('demurrage-invoice-context')).toBeTruthy()
-  expect(screen.getByTestId('demurrage-invoice-financial').textContent).toContain('800,00')
-  expect(screen.getByText('11.222.333/0001-81')).toBeTruthy()
+  const financial = screen.getByTestId('demurrage-invoice-financial')
+  expect(financial.textContent).toContain('800,00')
+  // Tabela limpa: o desconto aparece ao passar o mouse, e o CNPJ fica no detalhe e na busca.
+  expect(financial.getAttribute('title')).toContain('desconto')
+  expect(screen.queryByText('11.222.333/0001-81')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Detalhes' })).toBeNull()
   await user.click(screen.getByRole('button', { name: 'DEM-001' }))
   expect(onOpenDetail).toHaveBeenCalledWith(1)
 })
 
-it('diz que a Invoice está fora da Régua e com disputa, sem depender só da cor', () => {
+it('disputa aberta vira a situação "Em disputa", em texto', () => {
   renderTab()
-  expect(screen.getByText('Fora da Régua: datas alteradas')).toBeTruthy()
-  expect(screen.getByText('Disputa aberta')).toBeTruthy()
-  expect(screen.getByText('Com desconto')).toBeTruthy()
+  expect(screen.getByText('Em disputa')).toBeTruthy()
+})
+
+it('sem a coluna da Régua (Pagas), a Invoice fora da Régua diz isso ao lado da situação', () => {
+  renderTab({ tab: 'pagas', invoices: [{ ...(invoice as object), status: 'paid', dispute_open: false, paid_at: '2026-08-20T12:00:00Z' } as never] })
+  expect(screen.getByText('Fora da Régua')).toBeTruthy()
+  expect(screen.getByText('20/08/2026')).toBeTruthy()
+})
+
+it('a busca ainda acha a Invoice pelo CNPJ do Cliente', () => {
+  renderTab({ search: '11222333' })
+  expect(screen.getByRole('button', { name: 'DEM-001' })).toBeTruthy()
 })
 
 it('separa busca sem resultado de lista vazia e oferece limpar', async () => {

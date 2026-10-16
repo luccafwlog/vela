@@ -676,6 +676,11 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     ])
   })
 
+  it('a emissão automática sai no número do ano, DEM-AAAA-NNNN, e não DEM-AUTO (migration 294)', () => {
+    expect(localPsql(`SELECT string_agg(doc_number, ',') FROM public.demurrage_invoices WHERE bl_id = 'A207-S2' AND status IN ('issued', 'paid')`))
+      .toMatch(/^DEM-\d{4}-\d{4,}$/)
+  })
+
   // --- Checagens novas da etapa 7 (migration 179) ---------------------------
   function containerDates(blId: string): Record<string, { discharge: string | null; return: string | null }> {
     return JSON.parse(localPsql(`

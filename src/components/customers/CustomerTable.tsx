@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowDown, ArrowUp, ArrowUpDown, Copy, MoreHorizontal, Power, ReceiptText, Trash2 } from 'lucide-react'
-import { ActionMenu, type ActionMenuItem } from '../ui/ActionMenu'
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { CopyValue } from '../ui/CopyValue'
-import { Badge } from '../ui/Badge'
+import { NoValue } from '../ui/NoValue'
+import { StatusText } from '../ui/StatusText'
 import { Card } from '../ui/Card'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { summarizeChargeStatuses } from '../../lib/chargeStatus'
@@ -28,12 +28,15 @@ type RowHandlers = {
   deleting: boolean
   onCopy: (value: string, label: string) => Promise<void>
   onDeleteCustomer: (id: number) => void
-  onToggleCustomerActive: (id: number, deactivated: boolean) => void
+  portalStatus: PortalStatus
 }
 
+type PortalStatus = 'ready' | 'loading' | 'error'
+
 /**
- * Lista de Clientes. O nome abre a ficha; a única ação visível é "Mais ações"
- * (⋮), com faturas, cópia do e-mail e, para o Administrativo, desativar e excluir.
+ * Lista de Clientes em tabela limpa (lote 2, 2026-10-16): o nome abre a ficha,
+ * o saldo abre o Financeiro do Cliente; sem menu ⋮ (Desativar fica na ficha,
+ * Excluir só na seleção em lote).
  * Abaixo de 640 px a página passa `narrow` e cada Cliente vira um cartão.
  */
 export function CustomerTable({
@@ -50,8 +53,8 @@ export function CustomerTable({
   onPageChange,
   onCopy,
   onDeleteCustomer,
-  onToggleCustomerActive,
   portalRows,
+  portalStatus = 'ready',
 }: {
   data: CustomerRows | undefined
   canDeleteCustomers: boolean
@@ -72,14 +75,15 @@ export function CustomerTable({
   onPageChange: (page: number) => void
   onCopy: (value: string, label: string) => Promise<void>
   onDeleteCustomer: (id: number) => void
-  onToggleCustomerActive: (id: number, deactivated: boolean) => void
   portalRows?: QueueRow[]
+  /** Situação da consulta do Portal: carregando ou com falha não é "sem situação". */
+  portalStatus?: PortalStatus
 }) {
   const rows = data?.rows ?? []
   const pageCustomerIds = rows.map((row) => row.id)
   const allPageSelected = pageCustomerIds.length > 0 && pageCustomerIds.every((id) => selection.isSelected(id))
   const portalByCustomer = new Map((portalRows ?? []).map((row) => [row.customer_id, row]))
-  const handlers: RowHandlers = { canDeleteCustomers, deleting, onCopy, onDeleteCustomer, onToggleCustomerActive }
+  const handlers: RowHandlers = { canDeleteCustomers, deleting, onCopy, onDeleteCustomer, portalStatus }
 
   const sortHeader = (key: CustomerSortKey, label: string, className?: string) => (
     <th
@@ -129,10 +133,13 @@ export function CustomerTable({
                   </th>
                 ) : null}
                 {sortHeader('name', 'Cliente', 'app-customer-table__name app-table__text-head')}
+                <th scope="col" className="app-customer-table__document">CNPJ</th>
+                <th scope="col" className="app-customer-table__city">Cidade</th>
                 <th scope="col" className="app-customer-table__contact app-table__text-head">Contato principal</th>
                 {sortHeader('bls', 'B/Ls', 'app-customer-table__bls')}
+                <th scope="col" className="app-customer-table__charges">Taxas locais</th>
                 {sortHeader('pendingBalance', 'Saldo pendente', 'app-customer-table__balance')}
-                <th scope="col" className="app-customer-table__actions"><span className="sr-only">Ações</span></th>
+                <th scope="col" className="app-customer-table__portal app-table__text-head">Portal</th>
               </tr>
             </thead>
             <tbody>
@@ -168,16 +175,22 @@ function isDeactivated(row: CustomerListItem) {
   return Boolean((row as { deactivated_at?: string | null }).deactivated_at)
 }
 
-/** Situação do Portal só quando pede atenção: o que trava ou vai travar a fatura. */
-function customerPortalNote(portalRow?: QueueRow) {
-  if (!portalRow) return null
-  if (portalRow.hasCriticalAlert) return 'Portal: alerta crítico'
-  if (portalRow.hasActiveProcess && portalRow.account_situation !== 'ativo') return `Portal: ${accountSituationLabel(portalRow.account_situation).toLowerCase()}`
-  if (portalRow.hasActiveProcess && portalRow.recoveryEmailStatus && portalRow.recoveryEmailStatus !== 'ok') return 'Portal: Email de Recuperação com falha'
-  return null
+/**
+ * Situação do Portal em texto, em todas as situações (decisão de 2026-10-16):
+ * o que trava ou vai travar a fatura em âmbar; conta ativa em tinta normal.
+ */
+function PortalSituation({ row, portalRow, status }: { row: CustomerListItem; portalRow?: QueueRow; status: PortalStatus }) {
+  if (isDeactivated(row)) return <StatusText tone="muted">Desativado</StatusText>
+  if (!portalRow && status === 'loading') return <NoValue label="Carregando a situação do Portal" />
+  if (!portalRow && status === 'error') return <StatusText tone="muted">Não carregou</StatusText>
+  if (!portalRow) return <NoValue label="Sem situação do Portal" />
+  if (portalRow.hasCriticalAlert) return <StatusText tone="warning">Alerta crítico</StatusText>
+  if (portalRow.hasActiveProcess && portalRow.recoveryEmailStatus && portalRow.recoveryEmailStatus !== 'ok') return <StatusText tone="warning">E-mail de recuperação com falha</StatusText>
+  const label = accountSituationLabel(portalRow.account_situation)
+  return portalRow.account_situation === 'ativo' ? <>{label}</> : <StatusText tone="warning">{label}</StatusText>
 }
 
-function rowFacts(row: CustomerListItem, portalRow?: QueueRow) {
+function rowFacts(row: CustomerListItem) {
   const charges = summarizeChargeStatuses(row.bls ?? [])
   const contacts = summarizeContactsForDisplay(row.customer_contacts)
   const place = row.city && row.state ? `${row.city}/${row.state}` : row.city || row.state
@@ -187,50 +200,23 @@ function rowFacts(row: CustomerListItem, portalRow?: QueueRow) {
     blCount: row.bls?.length ?? 0,
     document: formatCnpjCpf(row.cnpj_cpf),
     meta: [row.trade_name, place].filter(Boolean) as string[],
+    place,
     deactivated: isDeactivated(row),
-    portalNote: customerPortalNote(portalRow),
   }
 }
 
-function rowMenuItems(row: CustomerListItem, primaryEmail: string | null, handlers: RowHandlers): ActionMenuItem[] {
-  const deactivated = isDeactivated(row)
-  return [
-    { key: 'faturas', label: 'Ver faturas em Taxas Locais', icon: <ReceiptText size={14} aria-hidden="true" />, to: buildCustomerBillingUrl(row) },
-    ...(primaryEmail
-      ? [{ key: 'email', label: 'Copiar e-mail', icon: <Copy size={14} aria-hidden="true" />, onSelect: () => void handlers.onCopy(primaryEmail, 'E-mail principal') }]
-      : []),
-    ...(handlers.canDeleteCustomers
-      ? [
-          {
-            key: 'ativo',
-            label: deactivated ? 'Reativar cliente' : 'Desativar cliente',
-            icon: <Power size={14} aria-hidden="true" />,
-            danger: !deactivated,
-            onSelect: () => handlers.onToggleCustomerActive(row.id, deactivated),
-          },
-          {
-            key: 'excluir',
-            label: 'Excluir cliente',
-            icon: <Trash2 size={14} aria-hidden="true" />,
-            danger: true,
-            disabled: handlers.deleting,
-            onSelect: () => handlers.onDeleteCustomer(row.id),
-          },
-        ]
-      : []),
-  ]
+/** Saldo pendente; maior que zero abre o Financeiro do Cliente (no lugar de "Ver faturas" do menu). */
+function BalanceValue({ row }: { row: CustomerListItem }) {
+  const balance = Number(row.pending_balance ?? 0)
+  if (balance <= 0) return <span className="app-customer-money">{formatBRL(balance)}</span>
+  return <Link className="app-link" to={buildCustomerBillingUrl(row)}><StatusText tone="warning">{formatBRL(balance)}</StatusText></Link>
 }
 
-function RowMenu({ row, primaryEmail, handlers }: { row: CustomerListItem; primaryEmail: string | null; handlers: RowHandlers }) {
-  return (
-    <ActionMenu
-      label={`Mais ações para ${row.name}`}
-      menuId={`customer-menu-${row.id}`}
-      triggerClassName="app-table__icon-button app-table__icon-button--sm app-customer-menu-trigger"
-      trigger={<MoreHorizontal size={16} aria-hidden="true" />}
-      items={rowMenuItems(row, primaryEmail, handlers)}
-    />
-  )
+function ChargesText({ facts }: { facts: ReturnType<typeof rowFacts> }) {
+  const { charges } = facts
+  if (charges.pending > 0) return <StatusText tone="warning">{charges.pending} a revisar</StatusText>
+  if (charges.ready > 0) return <>{formatCountLabel(charges.ready, 'pronta', 'prontas')}</>
+  return <NoValue label="Sem taxas a revisar nem prontas" />
 }
 
 function NameBlock({ row, facts }: { row: CustomerListItem; facts: ReturnType<typeof rowFacts> }) {
@@ -242,46 +228,14 @@ function NameBlock({ row, facts }: { row: CustomerListItem; facts: ReturnType<ty
         {facts.document && facts.meta.length > 0 ? ' · ' : null}
         {facts.meta.join(' · ')}
       </span>
-      {facts.deactivated || facts.portalNote ? (
-        <span className="app-customer-cell__flags">
-          {facts.deactivated ? <Badge tone="neutral">Desativado</Badge> : null}
-          {facts.portalNote ? <span className="app-customer-note app-customer-note--warning">{facts.portalNote}</span> : null}
-        </span>
-      ) : null}
     </div>
   )
 }
 
+/** Só o e-mail, com copiar (no lugar de "Copiar e-mail" do menu). */
 function ContactBlock({ contacts }: { contacts: ReturnType<typeof summarizeContactsForDisplay> }) {
-  if (!contacts.primaryEmail) {
-    return (
-      <div className="app-customer-cell app-table__cell-stack">
-        <span className="app-customer-note app-customer-note--warning">Sem e-mail de contato</span>
-        {contacts.count > 0 ? <span className="app-customer-cell__meta">{formatCountLabel(contacts.count, 'contato sem e-mail', 'contatos sem e-mail')}</span> : null}
-      </div>
-    )
-  }
-  const others = contacts.count - 1
-  return (
-    <div className="app-customer-cell app-table__cell-stack">
-      <span className="app-customer-cell__truncate" title={contacts.primaryEmail}>{contacts.primaryEmail}</span>
-      <span className="app-customer-cell__meta">
-        {contacts.isPrimary ? 'Principal' : 'Sem contato principal'}
-        {others > 0 ? ` · mais ${formatCountLabel(others, 'contato', 'contatos')}` : ''}
-      </span>
-    </div>
-  )
-}
-
-function BlsBlock({ facts }: { facts: ReturnType<typeof rowFacts> }) {
-  const { charges, blCount } = facts
-  return (
-    <div className="app-customer-cell">
-      <span className="tabular-nums">{blCount === 0 ? 'Nenhum' : blCount}</span>
-      {charges.pending > 0 ? <span className="app-customer-note app-customer-note--warning">{formatCountLabel(charges.pending, 'com taxas a revisar', 'com taxas a revisar')}</span> : null}
-      {charges.ready > 0 ? <span className="app-customer-note">{formatCountLabel(charges.ready, 'pronto para faturar', 'prontos para faturar')}</span> : null}
-    </div>
-  )
+  if (!contacts.primaryEmail) return <StatusText tone="warning">Sem e-mail</StatusText>
+  return <span className="app-customer-cell__truncate" title={contacts.primaryEmail}><CopyValue value={contacts.primaryEmail} label="e-mail" /></span>
 }
 
 function CustomerTableRow({
@@ -296,25 +250,23 @@ function CustomerTableRow({
   selected: boolean
   onToggle: () => void
 }) {
-  const facts = rowFacts(row, portalRow)
-  const balance = Number(row.pending_balance ?? 0)
+  const facts = rowFacts(row)
 
   return (
-    <tr data-deactivated={facts.deactivated ? 'true' : undefined}>
+    <tr className={facts.deactivated ? 'app-table__row--muted' : undefined} data-deactivated={facts.deactivated ? 'true' : undefined}>
       {handlers.canDeleteCustomers ? (
         <td className="app-customer-table__select">
           <input type="checkbox" aria-label={`Selecionar cliente ${row.name}`} checked={selected} onChange={onToggle} />
         </td>
       ) : null}
-      <td><NameBlock row={row} facts={facts} /></td>
-      <td><ContactBlock contacts={facts.contacts} /></td>
-      <td className="app-customer-table__bls"><BlsBlock facts={facts} /></td>
-      <td className="app-customer-table__balance">
-        <span className={balance > 0 ? 'app-customer-money app-customer-money--due' : 'app-customer-money'}>{formatBRL(balance)}</span>
-      </td>
-      <td className="app-customer-table__actions">
-        <RowMenu row={row} primaryEmail={facts.contacts.primaryEmail} handlers={handlers} />
-      </td>
+      <td className="app-table__text"><Link className="app-customer-link" to={`/clientes/${encodeURIComponent(row.cnpj_cpf)}`} title={row.name}>{row.name}</Link></td>
+      <td className="tabular-nums">{facts.document ? <CopyValue value={facts.document} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ" />}</td>
+      <td>{facts.place || <NoValue label="Sem cidade" />}</td>
+      <td className="app-table__text"><ContactBlock contacts={facts.contacts} /></td>
+      <td className="tabular-nums">{facts.blCount === 0 ? 'Nenhum' : facts.blCount}</td>
+      <td><ChargesText facts={facts} /></td>
+      <td className="app-customer-table__balance"><BalanceValue row={row} /></td>
+      <td className="app-table__text"><PortalSituation row={row} portalRow={portalRow} status={handlers.portalStatus} /></td>
     </tr>
   )
 }
@@ -331,8 +283,7 @@ function CustomerCard({
   selected: boolean
   onToggle: () => void
 }) {
-  const facts = rowFacts(row, portalRow)
-  const balance = Number(row.pending_balance ?? 0)
+  const facts = rowFacts(row)
 
   return (
     <li className="app-customer-card" data-deactivated={facts.deactivated ? 'true' : undefined}>
@@ -341,7 +292,6 @@ function CustomerCard({
           <input type="checkbox" aria-label={`Selecionar cliente ${row.name}`} checked={selected} onChange={onToggle} />
         ) : null}
         <NameBlock row={row} facts={facts} />
-        <RowMenu row={row} primaryEmail={facts.contacts.primaryEmail} handlers={handlers} />
       </div>
       <dl className="app-customer-card__facts">
         <div>
@@ -350,11 +300,15 @@ function CustomerCard({
         </div>
         <div>
           <dt>B/Ls</dt>
-          <dd><BlsBlock facts={facts} /></dd>
+          <dd>{facts.blCount === 0 ? 'Nenhum' : facts.blCount} · <ChargesText facts={facts} /></dd>
         </div>
         <div>
           <dt>Saldo pendente</dt>
-          <dd className={balance > 0 ? 'app-customer-money app-customer-money--due' : 'app-customer-money'}>{formatBRL(balance)}</dd>
+          <dd><BalanceValue row={row} /></dd>
+        </div>
+        <div>
+          <dt>Portal</dt>
+          <dd><PortalSituation row={row} portalRow={portalRow} status={handlers.portalStatus} /></dd>
         </div>
       </dl>
     </li>

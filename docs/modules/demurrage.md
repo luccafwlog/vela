@@ -1,6 +1,6 @@
 # Demurrage
 
-> **Status:** ativo · **Atualizado:** 2026-10-14 · **Rotas:** `/demurrage`, `/demurrage/taxas`
+> **Status:** ativo · **Atualizado:** 2026-10-16 · **Rotas:** `/demurrage`, `/demurrage/taxas`
 
 ## Propósito e escopo
 
@@ -143,13 +143,19 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   `demurrage_group_bl_ids`: B/Ls ativos da mesma Viagem e do mesmo Cliente
   ligados por container compartilhado; âncora é o menor id) lendo todas as
   caixas desses B/Ls, inclusive as ainda fora no free time que a aba não lista.
-  A linha do B/L mostra as Invoices que cobrem o grupo e a ação, decidida na
-  ordem de `issue_demurrage_invoice_for_bl` sobre o grupo inteiro (nunca só
-  sobre o que a busca ou a lente deixaram visível): "Todas as caixas cobradas"
-  (`existing`), "Aguarda devolução de N containers" (alguma caixa não-SOC do
-  grupo sem devolução: `waiting_return`), **Gerar complementar** (o grupo já tem
-  Invoice; só as caixas ainda não cobradas, migration `214`) ou **Gerar
-  Invoice**. Em grupo com container compartilhado, a ação aparece uma vez, no
+  Desde o lote 2 da identidade (2026-10-16), a tabela tem **uma linha por
+  B/L** (B/L, Cliente, Navio / Viagem, Containers como "x de y devolvidos",
+  US$ e Situação, com a ação na ponta) e a seta abre os contêineres embaixo, em
+  tabela de cabeçalho claro, com as colunas da fatura do Portal: Dias (âmbar
+  quando passa do free time), Free time (a origem ao passar o mouse), 1º e 2º
+  período como "dias × diária", US$ e **Editar datas**. A Situação do B/L, em
+  texto, segue a ordem de `issue_demurrage_invoice_for_bl` sobre o grupo
+  inteiro (nunca só sobre o que a busca ou a lente deixaram visível): as
+  Invoices que cobrem o grupo com a situação de cada uma (`existing`),
+  "Aguarda devolução de N containers" (alguma caixa não-SOC do grupo sem
+  devolução: `waiting_return`), "N caixas sem Invoice" com **Gerar
+  complementar** (o grupo já tem Invoice; só as caixas ainda não cobradas,
+  migration `214`) ou "A faturar" com **Gerar Invoice**. Em grupo com container compartilhado, a ação aparece uma vez, no
   primeiro B/L do grupo na lista; os outros dizem "cobrança junto com o B/L X",
   e o resumo conta o container compartilhado uma vez. A recusa do banco fica na
   linha do B/L que pediu a emissão e sai quando as datas são editadas. As
@@ -163,7 +169,7 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   JavaScript; upgrade: RPC de leitura com o estado do grupo. O free time
   mostrado é o prazo (B/L > acordo > tabela, `demurrageFreeTimeDays`), não o dia
   corrido; o USD da caixa já cobrada é o recalculado hoje, e o cobrado é o da
-  Invoice.
+  Invoice (dito ao passar o mouse no valor).
 - Os cartões do topo mostram **Containers em atraso** (contagem lida de
   `demurrage_status = 'overdue'`, gravado pelo banco), **Aguardando
   pagamento (BRL hoje)** e, para Equipamentos e Administrativo, que respondem,
@@ -192,11 +198,16 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   devolução gravada é recusada com mensagem de negócio (migration `191`), que
   fica no modal.
 - As abas de invoice consultam um status exato por vez (`issued`, `paid` ou
-  `cancelled`). O número da Invoice abre o detalhe; a linha mostra o USD a
-  cobrar (total dos itens menos o desconto, que a RPC aplica em USD), o BRL com
-  ROE e origem, a situação e o que pausa a cobrança (Disputa aberta, "Fora da
-  Régua: datas alteradas", Com desconto) e, em Faturas, a Régua. O detalhe traz
-  os valores (itens, desconto, USD a cobrar, BRL de hoje ou pago), os avisos de
+  `cancelled`). Em tabela limpa (2026-10-16): Invoice (abre o detalhe), B/L,
+  Emissão, Pagamento (só em Pagas), Cliente, USD a cobrar (total dos itens menos
+  o desconto, que a RPC aplica em USD; o desconto aparece ao passar o mouse),
+  BRL e Situação em texto ("Em disputa" em âmbar quando há disputa aberta); em
+  Faturas, a Régua por último, com o que pausa a cobrança; em Pagas e
+  Canceladas, "Fora da Régua" ao lado da situação. Canceladas ficam com a linha
+  em cinza. O CNPJ fica no detalhe e na busca, e o ROE comum ao recorte, no
+  resumo. O detalhe abre com um bloco de dado principal ("US$ … a cobrar") e os
+  fatos (BRL, ROE e origem, Situação, Tipo Normal ou Complementar, Cliente,
+  CNPJ, B/L, Navio / Viagem, Emitida em, Itens, Desconto), sem selos; os avisos de
   Invoice suspensa por `dunning_suspended_reason` (paga: restituição ou avulsa;
   com desconto ou disputa: cancelar, gerar de novo e refazer), a marca
   **Complementar** quando há outra Invoice viva anterior no mesmo B/L (ponytail:
@@ -208,7 +219,12 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   regressão em `Demurrage.behavior.test.tsx`).
 - A Régua mostra "Pausada: datas alteradas, aguarda tratamento" para a Invoice
   com `dunning_suspended_reason`, que o job não cobra (migrations `179`, `203` e
-  `214`); antes a coluna prometia a próxima cobrança.
+  `214`); antes a coluna prometia a próxima cobrança. O último envio aparece ao
+  passar o mouse na Régua.
+- **Por Cliente** mostra só o nome (o CNPJ fica no relatório do Cliente, na
+  busca e ao passar o mouse). **Disputas**: cada conversa num bloco, com
+  Aberta, Resolvida ou Cancelada em texto e "Aguarda a nossa resposta" em
+  âmbar, sem selo (2026-10-16).
 - O visualizador de fatura/recibo usa
   [`src/components/demurrage/InvoiceDocument.tsx`](../../src/components/demurrage/InvoiceDocument.tsx)
   e o kit compartilhado
@@ -239,9 +255,15 @@ como segunda entrada operacional. A seção permite:
 ### `/demurrage/taxas`
 
 [`src/pages/DemurrageRates.tsx`](../../src/pages/DemurrageRates.tsx) lista
-`demurrage_rates` por tipo de equipamento, free days, faixas P1/P2, vigência e
-estado ativo, com a aba na URL (`?tab=acordos`) e a ordem de aplicação no
-cabeçalho. Editar fica na linha; ativar/desativar e excluir, no menu ⋮. Excluir
+`demurrage_rates` em tabela limpa (lote 2 da identidade, 2026-10-16): Tipo,
+Free time, 1º período, Diária 1º, 2º período, Diária 2º, Vigência, Situação em
+texto e Observações, cada dado na sua coluna. A aba fica na URL (`?tab=acordos`)
+e a ordem de aplicação, no cabeçalho. Tarifa inativa e acordo encerrado ou
+inativo ficam escondidos por padrão; **Mostrar inativas** (e, nos Acordos,
+**Mostrar encerrados e inativos**) os traz com a linha inteira em cinza, com o
+estado em `?inativas=1` (`useShowInactive`). Nos Acordos, a coluna Cliente leva
+só o nome (o CNPJ fica na busca e no cartão do celular), as diárias ficam em
+duas colunas e o acordo futuro diz "Começa em dd/mm/aaaa". Editar fica na linha; ativar/desativar e excluir, no menu ⋮. Excluir
 só é oferecido para tarifa ou acordo que ainda não entrou em vigor: o banco
 recusa os demais (`guard_used_tariff_delete`, migration `091`), e a tela manda
 desativar. O formulário (`DemurrageRateModal`) segue
@@ -350,9 +372,13 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
 - **PIX:** com `app_settings.pix_provider = 'static'`, a emissão, o desconto e
   o recálculo montam o QR estático no banco
   (`build_transshipping_pix_payload`, migration `034`) com o valor BRL e o
-  `doc_number` como TXID. Desde a migration `278`, o banco gera o número da emissão pela tela
-  e da reemissão automática: `DEM-<AAAAMMDDHHMMSSmmm>-<B/L>`, para que os 25 caracteres do TXID levem o
-  instante inteiro mesmo com B/L longo, e o índice único
+  `doc_number` como TXID. Desde a migration `293` (decisão de 2026-10-16), o banco gera o número da
+  emissão pela tela, da reemissão e, desde a `294`, da emissão automática pela
+  planilha de datas (antes `DEM-AUTO-<efeito>`) em sequência por ano,
+  `DEM-AAAA-NNNN` (`next_demurrage_doc_number`, contador em
+  `demurrage_doc_counters`; pula o número cujo TXID já exista, como um número
+  informado à mão), como a fatura de Taxas Locais; antes era
+  `DEM-<AAAAMMDDHHMMSSmmm>-<B/L>` (migration `278`), de 36 caracteres. O índice único
   `demurrage_invoices_pix_txid_unique` recusa Invoice cujo TXID repita o de
   outra; [`src/lib/pix.ts`](../../src/lib/pix.ts) só
   normaliza o TXID lido no extrato (`normalizePixTxid`). A baixa de demurrage não cria `bl_receivables`,

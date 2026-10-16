@@ -6,6 +6,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
+import { StatusText } from '../ui/StatusText'
 import { EmptyState } from '../ui/Card'
 import { Input } from '../ui/Input'
 import { SummaryStrip } from '../ui/SummaryStrip'
@@ -21,8 +22,10 @@ import {
 import { AGREEMENT_SITUATION_LABELS, agreementSituation, type AgreementSituation } from '../../services/demurrage/demurragePresentation'
 import { classifyDbError } from '../../lib/errors'
 import { saoPauloTodayIso } from '../../lib/dates'
-import { formatCnpjCpf } from '../../lib/utils'
+import { formatCnpjCpf, formatDate, formatUSD } from '../../lib/utils'
 import { CustomerDemurrageAgreementModal } from './CustomerDemurrageAgreementModal'
+import { ShowInactiveToggle } from './ShowInactiveToggle'
+import { useShowInactive } from '../../hooks/useShowInactive'
 import { agreementPeriodText, agreementRatesText } from './demurrageFormRules'
 import type { CustomerDemurrageAgreementListItem } from '../../types/customerDemurrageAgreements'
 
@@ -39,6 +42,24 @@ const todayIso = () => saoPauloTodayIso()
 export function AgreementSituationBadge({ agreement }: { agreement: Pick<CustomerDemurrageAgreementListItem, 'active' | 'valid_from' | 'valid_to'> }) {
   const situation = agreementSituation(agreement, todayIso())
   return <Badge tone={SITUATION_TONES[situation]}>{AGREEMENT_SITUATION_LABELS[situation]}</Badge>
+}
+
+/** Situação em texto na tabela (regra 5): o que encerrou fica em cinza, e o acordo futuro diz quando começa. */
+function AgreementSituationText({ agreement }: { agreement: CustomerDemurrageAgreementListItem }) {
+  const situation = agreementSituation(agreement, todayIso())
+  if (situation === 'futuro') return <>Começa em {formatDate(agreement.valid_from)}</>
+  if (situation === 'vigente') return <>{AGREEMENT_SITUATION_LABELS.vigente}</>
+  return <StatusText tone="muted">{AGREEMENT_SITUATION_LABELS[situation]}</StatusText>
+}
+
+/** Acordo que não vale mais (encerrado ou inativo): só aparece com "Mostrar inativos". */
+function isClosedAgreement(agreement: CustomerDemurrageAgreementListItem, today: string) {
+  const situation = agreementSituation(agreement, today)
+  return situation === 'encerrado' || situation === 'inativo'
+}
+
+function rateText(value: number | null | undefined) {
+  return value != null ? formatUSD(value) : 'tabela padrão'
 }
 
 function vigencia(agreement: CustomerDemurrageAgreementListItem) {
@@ -70,15 +91,18 @@ export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit
     }, { replace: true })
   }
 
+  const [showInactive, setShowInactive] = useShowInactive()
   const term = search.trim().toLowerCase()
   const digits = term.replace(/\D/g, '')
+  const today = todayIso()
+  const closedCount = (agreements ?? []).filter((agreement) => isClosedAgreement(agreement, today)).length
   const filtered = (agreements ?? []).filter((agreement) => {
+    if (!showInactive && isClosedAgreement(agreement, today)) return false
     if (!term) return true
     const name = agreement.customer?.name?.toLowerCase() ?? ''
     const cnpj = (agreement.customer?.cnpj_cpf ?? '').replace(/\D/g, '')
     return name.includes(term) || (digits.length >= 3 && cnpj.includes(digits))
   })
-  const today = todayIso()
   const vigentes = filtered.filter((agreement) => agreementSituation(agreement, today) === 'vigente').length
 
   function handleOpenNew() {
@@ -164,6 +188,14 @@ export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit
     )
   }
 
+  /** Na tabela, só o nome (o CNPJ fica na busca e no cartão do celular). */
+  function customerLink(item: CustomerDemurrageAgreementListItem) {
+    const name = item.customer?.name ?? `Cliente #${item.customer_id}`
+    return item.customer?.cnpj_cpf
+      ? <Link className="app-dem-link app-dem-strong" to={`/clientes/${encodeURIComponent(item.customer.cnpj_cpf)}?tab=financeiro`} title={name}>{name}</Link>
+      : <span className="app-dem-strong" title={name}>{name}</span>
+  }
+
   function customerCell(item: CustomerDemurrageAgreementListItem) {
     const name = item.customer?.name ?? `Cliente #${item.customer_id}`
     return (
@@ -183,6 +215,7 @@ export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit
           <label className="sr-only" htmlFor="demurrage-agreement-search">Buscar acordo por Cliente ou CNPJ</label>
           <Input id="demurrage-agreement-search" type="search" placeholder="Cliente ou CNPJ" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
+        {closedCount > 0 ? <ShowInactiveToggle checked={showInactive} onChange={setShowInactive} label="Mostrar encerrados e inativos" hiddenCount={closedCount} /> : null}
         {canEdit ? (
           <Button onClick={handleOpenNew}>
             <Plus size={16} aria-hidden="true" />
@@ -211,8 +244,8 @@ export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit
         {filtered.length === 0 ? (
           <EmptyState
             icon={Users}
-            title={term ? 'Nenhum acordo nesta busca' : 'Nenhum acordo de Demurrage'}
-            description={term ? `Nada encontrado para "${search.trim()}".` : 'Cadastre free time e diárias negociados por Cliente; sem acordo, vale a tabela padrão.'}
+ title={term ? 'Nenhum acordo nesta busca' : closedCount > 0 && !showInactive ? 'Nenhum acordo vigente' : 'Nenhum acordo de Demurrage'}
+            description={term ? `Nada encontrado para "${search.trim()}".` : closedCount > 0 && !showInactive ? 'Os acordos cadastrados estão encerrados ou inativos. Marque Mostrar encerrados e inativos para vê-los.' : 'Cadastre free time e diárias negociados por Cliente; sem acordo, vale a tabela padrão.'}
             action={term ? <Button variant="secondary" onClick={() => setSearch('')}>Limpar busca</Button> : canEdit ? <Button variant="secondary" onClick={handleOpenNew}><Plus size={16} aria-hidden="true" />Cadastrar primeiro acordo</Button> : undefined}
           />
         ) : narrow ? (
@@ -234,8 +267,9 @@ export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit
                 <thead>
                   <tr>
                     <th scope="col" className="app-table__text-head">Cliente</th>
-                    <th scope="col" className="app-dem-num">Free time</th>
-                    <th scope="col">Diárias</th>
+                    <th scope="col">Free time</th>
+                    <th scope="col">Diária 1º</th>
+                    <th scope="col">Diária 2º</th>
                     <th scope="col">Vigência</th>
                     <th scope="col">Situação</th>
                     <th scope="col" className="app-table__text-head">Observações</th>
@@ -244,12 +278,13 @@ export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit
                 </thead>
                 <tbody>
                   {filtered.map((item) => (
-                    <tr key={item.id}>
-                      <td>{customerCell(item)}</td>
-                      <td className="app-dem-num app-dem-strong">{item.free_days} dias</td>
-                      <td className="tabular-nums">{agreementRatesText(item)}</td>
+                    <tr key={item.id} className={isClosedAgreement(item, today) ? 'app-table__row--muted' : undefined}>
+                      <td className="app-table__text">{customerLink(item)}</td>
+                      <td className="tabular-nums">{item.free_days} dias</td>
+                      <td className="tabular-nums">{rateText(item.p1_usd)}</td>
+                      <td className="tabular-nums">{rateText(item.p2_usd)}</td>
                       <td className="tabular-nums">{vigencia(item)}</td>
-                      <td><AgreementSituationBadge agreement={item} /></td>
+                      <td><AgreementSituationText agreement={item} /></td>
                       <td className="app-dem-notes app-table__text app-table__text--wrap">{item.notes ?? <NoValue label="Sem observações" />}</td>
                       {canEdit ? <td className="app-dem-row-action">{rowActions(item)}</td> : null}
                     </tr>

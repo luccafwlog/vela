@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   showToast: vi.fn(),
   confirm: vi.fn(),
   useCustomers: vi.fn(),
+  portalQuery: { data: [] as unknown[], isLoading: false, isError: false },
   useCustomerSummary: vi.fn(),
   createCustomer: vi.fn(),
   parseCustomerBaseFile: vi.fn(),
@@ -46,7 +47,7 @@ vi.mock('../../hooks/useCustomers', () => ({
   filterCustomerRowsByClientSideFilters: (rows: unknown[]) => rows,
 }))
 vi.mock('../../hooks/usePortalProvisioning', () => ({
-  usePortalProvisioning: () => ({ data: [] }),
+  usePortalProvisioning: () => mocks.portalQuery,
 }))
 vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
@@ -195,6 +196,17 @@ describe('Clientes page behaviours', () => {
     expect(screen.getByRole('row', { name: /Cliente Teste/ })).toBeTruthy()
   })
 
+  it('a coluna Portal diz que não carregou quando a consulta do Portal falha, em vez de "sem situação"', () => {
+    mocks.portalQuery = { data: undefined as never, isLoading: false, isError: true }
+    try {
+      mocks.useCustomers.mockReturnValue({ data: { rows: [customer], totalCount: 1 }, isLoading: false, error: null, fetchStatus: 'idle', refetch: vi.fn() })
+      renderPage()
+      expect(within(screen.getByRole('row', { name: /Cliente Teste/ })).getByText('Não carregou')).toBeTruthy()
+    } finally {
+      mocks.portalQuery = { data: [], isLoading: false, isError: false }
+    }
+  })
+
   it('creates a customer, invalidates customer caches, closes and resets the modal', async () => {
     const user = userEvent.setup()
     const { invalidateQueries } = renderPage()
@@ -203,7 +215,7 @@ describe('Clientes page behaviours', () => {
     await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
     await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
     await user.type(screen.getByLabelText('Nome'), 'Financeiro')
-    await user.type(screen.getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/^E-mail/), 'novo@example.com')
     await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
 
     await waitFor(() => expect(mocks.createCustomer).toHaveBeenCalledWith(expect.objectContaining({
@@ -293,34 +305,6 @@ describe('Clientes page behaviours', () => {
     expect((screen.getByRole('checkbox', { name: 'Selecionar cliente Cliente Teste' }) as HTMLInputElement).checked).toBe(false)
   })
 
-  it('desativa o cliente pela prévia, com motivo (ADR 0073)', async () => {
-    const user = userEvent.setup()
-    mocks.deactivateCustomer.mockReset()
-      .mockResolvedValueOnce({ deactivated: false, reasons: [] })
-      .mockResolvedValueOnce({ deactivated: true, reasons: [] })
-    renderPage()
-
-    await user.click(screen.getByRole('button', { name: 'Mais ações para Cliente Teste' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Desativar cliente' }))
-
-    await waitFor(() => expect(mocks.deactivateCustomer).toHaveBeenLastCalledWith(42, 'cadastro duplicado'))
-    expect(mocks.deactivateCustomer).toHaveBeenNthCalledWith(1, 42, '', { dryRun: true })
-    expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Desativar cliente' }))
-  })
-
-  it('não abre a confirmação quando há cobrança em aberto', async () => {
-    const user = userEvent.setup()
-    mocks.deactivateCustomer.mockReset().mockResolvedValueOnce({ deactivated: false, reasons: ['fatura em aberto'] })
-    mocks.confirmWithReason.mockClear()
-    renderPage()
-
-    await user.click(screen.getByRole('button', { name: 'Mais ações para Cliente Teste' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Desativar cliente' }))
-
-    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('fatura em aberto'), 'error'))
-    expect(mocks.confirmWithReason).not.toHaveBeenCalled()
-  })
-
   it('mostra um aviso em diálogo quando o cliente não pode ser excluído', async () => {
     const user = userEvent.setup()
     mocks.checkCustomerDependencies.mockResolvedValueOnce({ deletableIds: [], blockedIds: [{ id: 42, reasons: ['possui B/Ls'] }] })
@@ -328,8 +312,9 @@ describe('Clientes page behaviours', () => {
     mocks.confirmWithReason.mockClear()
     renderPage()
 
-    await user.click(screen.getByRole('button', { name: 'Mais ações para Cliente Teste' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Excluir cliente' }))
+    // Excluir fica na seleção em lote (lote 2: a linha não tem mais o menu ⋮).
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar cliente Cliente Teste' }))
+    await user.click(screen.getByRole('button', { name: /Excluir/ }))
 
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
       noticeOnly: true,
@@ -357,26 +342,15 @@ describe('Clientes page behaviours', () => {
     await user.click(screen.getByRole('button', { name: 'Copiar CNPJ/CPF 12.345.678/0001-95' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('12.345.678/0001-95'))
 
-    // O CNPJ exibido tem o ícone de copiar; o menu não repete a ação.
-    await user.click(screen.getByRole('button', { name: 'Mais ações para Cliente Teste' }))
-    expect(screen.queryByRole('menuitem', { name: 'Copiar CNPJ' })).toBeNull()
+    // Tabela limpa: sem menu ⋮ na linha.
+    expect(screen.queryByRole('button', { name: 'Mais ações para Cliente Teste' })).toBeNull()
   })
 
-  it('supports arrow navigation and restores focus when the customer actions menu closes with Escape', async () => {
-    const user = userEvent.setup()
+  it('saldo pendente abre o Financeiro do Cliente e a coluna Portal diz a situação', () => {
     renderPage()
-
-    const trigger = screen.getByRole('button', { name: 'Mais ações para Cliente Teste' })
-    await user.click(trigger)
-
-    const menuItems = screen.getAllByRole('menuitem')
-    expect(document.activeElement).toBe(menuItems[0])
-    await user.keyboard('{ArrowDown}')
-    expect(document.activeElement).toBe(menuItems[1])
-    await user.keyboard('{Escape}')
-
-    expect(screen.queryByRole('menu')).toBeNull()
-    expect(document.activeElement).toBe(trigger)
+    const table = screen.getByRole('table', { name: 'Clientes filtrados' })
+    expect(within(table).getByRole('columnheader', { name: 'Portal' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'CNPJ' })).toBeTruthy()
   })
 
   it('exporta exatamente o recorte da lista: busca, filtros e ordem, todas as páginas', async () => {
@@ -418,7 +392,7 @@ describe('Clientes page behaviours', () => {
     mocks.useCustomers.mockImplementation(() => ({ data: { rows: [], totalCount: 0 }, isLoading: false, error: null, fetchStatus: 'idle', refetch: vi.fn() }))
     await user.type(screen.getByLabelText('Buscar cliente'), 'zzz')
     expect(await screen.findByText('Nenhum cliente com esses filtros')).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }))
+    await user.click(screen.getAllByRole('button', { name: 'Limpar filtros' })[0])
     expect((screen.getByLabelText('Buscar cliente') as HTMLInputElement).value).toBe('')
     expect(card.getAttribute('aria-pressed')).toBe('false')
   })
@@ -447,7 +421,7 @@ describe('Clientes page behaviours', () => {
     await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
     await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
     await user.type(screen.getByLabelText('Nome'), 'Financeiro')
-    await user.type(screen.getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/^E-mail/), 'novo@example.com')
     await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Novo cliente' })
@@ -478,7 +452,7 @@ describe('Clientes page behaviours', () => {
     await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
     await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
     await user.type(screen.getByLabelText('Nome'), 'Financeiro')
-    await user.type(screen.getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/^E-mail/), 'novo@example.com')
     await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
     await waitFor(() => expect(mocks.createCustomer).toHaveBeenCalled())
 

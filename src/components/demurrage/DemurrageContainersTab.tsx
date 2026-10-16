@@ -1,21 +1,20 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, FileText } from 'lucide-react'
+import { ChevronDown, ChevronRight, Clock, FileText } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { EmptyState } from '../ui/Card'
 import { Input } from '../ui/Input'
 import { SegmentedControl } from '../ui/SegmentedControl'
+import { StatusText } from '../ui/StatusText'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { QueryStateGate } from '../shared/QueryStateGate'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
-import { DemurrageStatusBadge } from './DemurrageBadges'
 import {
   FREE_TIME_SOURCE_LABELS,
   containerFreeTimeDays,
   blBillingState,
-  daysSince,
   distinctBoxes,
   effectiveDemurrage,
   fmtUSD,
@@ -26,7 +25,6 @@ import {
 import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../../lib/statusLabels'
 import { formatCountLabel, formatDate } from '../../lib/utils'
 import { extractErrorText } from '../../lib/errors'
-import { saoPauloTodayIso } from '../../lib/dates'
 import type { DemurrageContainerRow } from '../../services/demurrage/demurrageContainers'
 import type { ContainerLens } from '../../pages/demurrageListState'
 
@@ -57,8 +55,6 @@ function safeCalc(container: DemurrageContainerRow): Calc {
     return { calc: null, error: extractErrorText(error) }
   }
 }
-
-const today = () => saoPauloTodayIso()
 
 function matchesSearch(container: DemurrageContainerRow, query: string) {
   if (!query) return true
@@ -93,6 +89,15 @@ export function DemurrageContainersTab({
   onOpenInvoice,
 }: Props) {
   const narrow = useNarrowViewport()
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
+  function toggle(blId: string) {
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (next.has(blId)) next.delete(blId)
+      else next.add(blId)
+      return next
+    })
+  }
   const calcs = useMemo(() => new Map((containers ?? []).map((container) => [container.id, safeCalc(container)])), [containers])
 
   // Devolvido no free time e sem Invoice não é monitoramento; o que já está
@@ -233,71 +238,120 @@ export function DemurrageContainersTab({
           <div className="app-surface app-dem-table-surface">
             <div className="app-table-scroll app-table-scroll--sticky">
               <table className="app-table app-table--compact app-dem-table">
-                <caption className="sr-only">Containers em Demurrage agrupados por B/L</caption>
+                <caption className="sr-only">B/Ls com containers em Demurrage; cada linha abre os containers do B/L</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Container</th>
-                    <th scope="col">Tipo</th>
-                    <th scope="col">Descarga</th>
-                    <th scope="col">Devolução</th>
-                    <th scope="col">Free time</th>
-                    <th scope="col">P1 · P2</th>
-                    <th scope="col">Situação</th>
-                    <th scope="col" className="app-dem-num">USD</th>
+                    <th scope="col"><span className="sr-only">Abrir containers</span></th>
+                    <th scope="col">B/L</th>
+                    <th scope="col" className="app-table__text-head">Cliente</th>
+                    <th scope="col">Navio / Viagem</th>
+                    <th scope="col">Containers</th>
+                    <th scope="col">US$</th>
+                    <th scope="col" className="app-table__text-head">Situação</th>
                     <th scope="col"><span className="sr-only">Ações</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {Array.from(grouped.entries()).map(([blId, rows]) => {
                     const state = stateOf(rows)
+                    const leadBlId = leadOf(blId, rows)
+                    const isLead = leadBlId === blId
+                    const open = expanded.has(blId)
+                    const panelId = `dem-bl-${blId}`
+                    const boxes = distinctBoxes(rows)
+                    const returned = boxes.filter((container) => Boolean(container.return_date)).length
+                    const blUsd = boxes.reduce((sum, container) => sum + (calcs.get(container.id)?.calc?.total_usd ?? 0), 0)
+                    // Âmbar só o que ainda não tem Invoice; a parte já cobrada fica no total.
+                    const usdPending = isLead && state.action !== 'covered' && state.uncoveredUsd > 0
+                    const { customerName, voyage } = blContext(rows)
+                    const rowError = generateError?.blId === blId ? generateError.message : null
                     return (
                       <Fragment key={blId}>
-                        <tr className="app-dem-group">
-                          <th scope="colgroup" colSpan={9}>
-                            <BlHeader
-                              blId={blId}
-                              rows={rows}
-                              state={state}
-                              leadBlId={leadOf(blId, rows)}
-                              canIssue={canIssue}
-                              generatingBl={generatingBl}
-                              error={generateError?.blId === blId ? generateError.message : null}
-                              onGenerateInvoice={onGenerateInvoice}
-                              onOpenInvoice={onOpenInvoice}
-                            />
-                          </th>
+                        <tr>
+                          <td>
+                            <button
+                              type="button"
+                              className="app-table__icon-button"
+                              aria-controls={open ? panelId : undefined}
+                              aria-expanded={open}
+                              aria-label={`${open ? 'Recolher' : 'Abrir'} os containers do B/L ${blId}`}
+                              onClick={() => toggle(blId)}
+                            >
+                              {open ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+                            </button>
+                          </td>
+                          <td className="app-dem-code"><CopyValue value={blId} label="número do B/L"><Link to={`/bls/${encodeURIComponent(blId)}?tab=faturamento`} className="app-dem-link app-dem-strong">{blId}</Link></CopyValue></td>
+                          <td className="app-table__text" title={customerName}>{customerName}</td>
+                          <td>{voyage ?? <NoValue label="Sem viagem" />}</td>
+                          <td className="tabular-nums">{returned} de {formatCountLabel(boxes.length, 'devolvido', 'devolvidos')}</td>
+                          <td className="tabular-nums">
+                            {usdPending ? (
+                              <>
+                                <StatusText tone="warning">{fmtUSD(state.uncoveredUsd)}</StatusText>
+                                {' '}<span className="app-dem-meta">{state.action === 'waiting' ? 'correndo' : 'a faturar'}{state.uncoveredUsd < blUsd ? ` de ${fmtUSD(blUsd)}` : ''}</span>
+                              </>
+                            ) : fmtUSD(blUsd)}
+                          </td>
+                          <td className="app-table__text"><BlSituation state={state} isLead={isLead} leadBlId={leadBlId} canIssue={canIssue} onOpenInvoice={onOpenInvoice} /></td>
+                          <td className="app-dem-row-action">
+                            {isLead ? <BillingAction blId={blId} state={state} canIssue={canIssue} generatingBl={generatingBl} onGenerateInvoice={onGenerateInvoice} /> : null}
+                          </td>
                         </tr>
-                        {rows.map((container) => (
-                          <ContainerRow
-                            key={container.id}
-                            container={container}
-                            calc={calcs.get(container.id) ?? { calc: null, error: null }}
-                            disabled={generatingBl === blId}
-                            onEdit={onEditContainer}
-                            onOpenInvoice={onOpenInvoice}
-                          />
-                        ))}
+                        {rowError ? (
+                          <tr data-row-detail>
+                            <td colSpan={8}><p className="app-dem-group__error" role="alert">{rowError}</p></td>
+                          </tr>
+                        ) : null}
+                        {open ? (
+                          <tr id={panelId} data-row-detail>
+                            <td colSpan={8}>
+                              {isLead && state.action === 'complement' ? (
+                                <p className="app-dem-group__hint">
+                                  O grupo já tem Invoice. A complementar cobra só {state.uncovered.length === 1 ? 'a caixa ainda não cobrada' : 'as caixas ainda não cobradas'}: {state.uncovered.map((container) => container.container_number).join(', ')}.
+                                </p>
+                              ) : null}
+                              <table className="app-table app-table--compact app-dem-table">
+                                <caption className="sr-only">Containers do B/L {blId}</caption>
+                                <thead>
+                                  <tr>
+                                    <th scope="col">Container</th>
+                                    <th scope="col">Tipo</th>
+                                    <th scope="col">Descarga</th>
+                                    <th scope="col">Devolução</th>
+                                    <th scope="col">Dias</th>
+                                    <th scope="col">Free time</th>
+                                    <th scope="col">1º período</th>
+                                    <th scope="col">2º período</th>
+                                    <th scope="col">US$</th>
+                                    <th scope="col"><span className="sr-only">Ações</span></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rows.map((container) => (
+                                    <ContainerRow
+                                      key={container.id}
+                                      container={container}
+                                      calc={calcs.get(container.id) ?? { calc: null, error: null }}
+                                      disabled={generatingBl === blId}
+                                      onEdit={onEditContainer}
+                                      onOpenInvoice={onOpenInvoice}
+                                    />
+                                  ))}
+                                </tbody>
+                              </table>
+                            </td>
+                          </tr>
+                        ) : null}
                       </Fragment>
                     )
                   })}
                 </tbody>
               </table>
             </div>
-            <Legend />
           </div>
         )}
       </QueryStateGate>
     </div>
-  )
-}
-
-function Legend() {
-  // P1/P2 são as faixas tarifárias do CONTEXT.md, não abreviação de interface.
-  return (
-    <p className="app-dem-legend">
-      Free time: dias sem cobrança depois da descarga · P1: primeira faixa diária depois do free time · P2: segunda faixa, com diária maior ·
-      USD: sobreestadia calculada até a devolução ou até hoje; o valor cobrado é o da Invoice, travado na emissão.
-    </p>
   )
 }
 
@@ -314,19 +368,35 @@ function blContext(rows: DemurrageContainerRow[]) {
   }
 }
 
-function InvoiceRefs({ state, onOpenInvoice }: { state: BlBillingState; onOpenInvoice: (id: number) => void }) {
-  if (!state.invoices.length) return null
-  return (
-    <span className="app-dem-refs">
-      <span>{state.invoices.length > 1 ? 'Invoices:' : 'Invoice:'}</span>
-      {state.invoices.map((ref) => (
-        <button key={ref.id} type="button" className="app-dem-link app-dem-code" onClick={() => onOpenInvoice(ref.id)}>
-          {ref.doc_number}
-          <span className="app-dem-refs__status"> · {statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, ref.status)}</span>
-        </button>
-      ))}
-    </span>
-  )
+/**
+ * Situação do B/L em texto (regra 5): aguarda devolução, a faturar ou a
+ * Invoice que já cobra o grupo, com a situação dela.
+ */
+function BlSituation({ state, isLead, leadBlId, canIssue, onOpenInvoice }: {
+  state: BlBillingState
+  isLead: boolean
+  leadBlId: string
+  canIssue: boolean
+  onOpenInvoice: (id: number) => void
+}) {
+  if (!isLead) return <StatusText tone="muted">Cobrança junto com o B/L {leadBlId}</StatusText>
+  const invoices = state.invoices.map((ref, index) => (
+    <Fragment key={ref.id}>
+      {index > 0 ? ', ' : null}
+      <button type="button" className="app-dem-link app-dem-code" onClick={() => onOpenInvoice(ref.id)}>{ref.doc_number}</button>
+      {' '}
+      {ref.status === 'paid'
+        ? <StatusText tone="paid">{statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, ref.status)}</StatusText>
+        : <span className="lowercase">{statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, ref.status)}</span>}
+    </Fragment>
+  ))
+  if (state.action === 'waiting') {
+    return <>{invoices.length ? <>{invoices} · </> : null}<StatusText tone="muted">Aguarda devolução de {formatCountLabel(state.stillOut, 'container', 'containers')}</StatusText></>
+  }
+  if (state.action === 'generate') return <StatusText tone={canIssue ? 'muted' : 'warning'}>{canIssue ? 'A faturar' : 'Pronto para faturar'}</StatusText>
+  if (state.action === 'complement') return <>{invoices} · <StatusText tone="warning">{formatCountLabel(state.uncovered.length, 'caixa', 'caixas')} sem Invoice</StatusText></>
+  if (invoices.length) return <>{invoices}</>
+  return <NoValue label="Nada a cobrar" />
 }
 
 function BillingAction({
@@ -342,17 +412,9 @@ function BillingAction({
   generatingBl: string | null
   onGenerateInvoice: (blId: string) => void
 }) {
-  if (state.action === 'waiting') {
-    return <span className="app-dem-state app-dem-state--muted">Aguarda devolução de {formatCountLabel(state.stillOut, 'container', 'containers')}</span>
-  }
-  if (state.action === 'covered') {
-    return <span className="app-dem-state app-dem-state--success">Todas as caixas cobradas</span>
-  }
-  if (state.action === 'none') return null
+  if (state.action !== 'generate' && state.action !== 'complement') return null
   const complement = state.action === 'complement'
-  if (!canIssue) {
-    return <span className="app-dem-state app-dem-state--warning">{complement ? `${formatCountLabel(state.uncovered.length, 'caixa', 'caixas')} sem Invoice` : 'Pronto para faturar'}</span>
-  }
+  if (!canIssue) return null
   return (
     <Button
       variant="secondary"
@@ -399,12 +461,9 @@ function BlHeader({
         <CopyValue value={blId} label="número do B/L"><Link to={`/bls/${encodeURIComponent(blId)}?tab=faturamento`} className="app-dem-link app-dem-code app-dem-group__bl">{blId}</Link></CopyValue>
         <span className="app-dem-group__customer">{customerName}</span>
         {voyage ? <span className="app-dem-group__meta">{voyage}</span> : null}
-        <InvoiceRefs state={state} onOpenInvoice={onOpenInvoice} />
+        <span><BlSituation state={state} isLead={isLead} leadBlId={leadBlId} canIssue={canIssue} onOpenInvoice={onOpenInvoice} /></span>
       </div>
       <div className="app-dem-group__actions">
-        {!isLead ? (
-          <span className="app-dem-state app-dem-state--muted">Container compartilhado: cobrança junto com o B/L {leadBlId}</span>
-        ) : null}
         {isLead && state.uncoveredUsd > 0 && state.action !== 'covered' ? (
           <span className="app-dem-group__amount" title="Sobreestadia prevista das caixas ainda sem Invoice">
             {fmtUSD(state.uncoveredUsd)}
@@ -423,43 +482,32 @@ function BlHeader({
   )
 }
 
-function situationNote(container: DemurrageContainerRow) {
-  if (!container.return_date && container.discharge_date) return `Fora há ${daysSince(container.discharge_date, today())} dias`
-  return null
+/** "9 × US$ 30,00", como na fatura do Portal (lote 1); "—" sem dias no período. */
+function periodValue(days: number, rate: number) {
+  return days > 0 ? `${days} × ${fmtUSD(rate)}` : <NoValue label="Sem dias neste período" />
 }
 
-function UsdCell({ container, calc }: { container: DemurrageContainerRow; calc: Calc }) {
+/** Invoice(s) que já cobram a caixa, abríveis por teclado e toque. */
+function BilledIn({ container, onOpenInvoice }: { container: DemurrageContainerRow; onOpenInvoice: (id: number) => void }) {
+  const billed = container.billed_in ?? []
+  if (!billed.length) return null
+  return (
+    <span className="app-dem-meta">
+      {' '}· cobrada em{' '}
+      {billed.map((ref, index) => (
+        <Fragment key={ref.id}>
+          {index > 0 ? ', ' : null}
+          <button type="button" className="app-dem-link app-dem-code" onClick={() => onOpenInvoice(ref.id)}>{ref.doc_number}</button>
+        </Fragment>
+      ))}
+    </span>
+  )
+}
+
+function UsdCell({ calc }: { calc: Calc }) {
   if (calc.error) return <span className="app-dem-error-text">{calc.error}</span>
   if (!calc.calc) return <NoValue label="Sem descarga" />
-  const billed = container.billed_in?.[0]
-  return (
-    <>
-      <span className="app-dem-amount">{calc.calc.total_usd > 0 ? fmtUSD(calc.calc.total_usd) : fmtUSD(0)}</span>
-      <span className="app-dem-meta">{billed ? `recalculado hoje; o cobrado é o da ${billed.doc_number}` : container.return_date ? 'previsto' : 'até hoje'}</span>
-    </>
-  )
-}
-
-function SituationCell({ container, onOpenInvoice }: { container: DemurrageContainerRow; onOpenInvoice: (id: number) => void }) {
-  const note = situationNote(container)
-  const billed = container.billed_in ?? []
-  return (
-    <div className="app-table__cell-stack app-table__cell-stack--center">
-      <DemurrageStatusBadge status={container.demurrage_status} />
-      {note ? <span className="app-dem-meta">{note}</span> : null}
-      {billed.length ? (
-        <span className="app-dem-meta">
-          Cobrada em{' '}
-          {billed.map((ref, index) => (
-            <Fragment key={ref.id}>
-              {index > 0 ? ', ' : null}
-              <button type="button" className="app-dem-link app-dem-code" onClick={() => onOpenInvoice(ref.id)}>{ref.doc_number}</button>
-            </Fragment>
-          ))}
-        </span>
-      ) : container.return_date ? <span className="app-dem-meta">Sem Invoice</span> : null}
-    </div>
-  )
+  return <span className="tabular-nums">{fmtUSD(calc.calc.total_usd)}</span>
 }
 
 function ContainerRow({
@@ -476,23 +524,21 @@ function ContainerRow({
   onOpenInvoice: (id: number) => void
 }) {
   const result = calc.calc
+  const late = Boolean(result && result.days_p1 + result.days_p2 > 0)
+  const billed = container.billed_in ?? []
   return (
     <tr>
       <td className="app-dem-code app-dem-strong"><CopyValue value={container.container_number} label="número do contêiner" /></td>
       <td>{container.type ?? <NoValue label="Sem tipo" />}</td>
       <td className="tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
-      <td className="tabular-nums">{container.return_date ? formatDate(container.return_date) : <span className="app-dem-meta">Não devolvido</span>}</td>
-      <td>
-        {result ? (
-          <div className="app-table__cell-stack app-table__cell-stack--center">
-            <span className="tabular-nums">{containerFreeTimeDays(container) ?? result.free_days} dias</span>
-            <span className="app-dem-meta">{FREE_TIME_SOURCE_LABELS[freeTimeSource(container)]}</span>
-          </div>
-        ) : <NoValue label="Sem free time calculado" />}
+      <td className="tabular-nums">{container.return_date ? formatDate(container.return_date) : <NoValue label="Não devolvido" />}</td>
+      <td className="tabular-nums">{result ? (late ? <StatusText tone="warning">{result.total_days}</StatusText> : result.total_days) : <NoValue label="Sem dias calculados" />}</td>
+      <td className="tabular-nums" title={result ? `Free time ${FREE_TIME_SOURCE_LABELS[freeTimeSource(container)]}` : undefined}>
+        {result ? containerFreeTimeDays(container) ?? result.free_days : <NoValue label="Sem free time calculado" />}
       </td>
-      <td className="tabular-nums">{result ? `${result.days_p1} d · ${result.days_p2} d` : <NoValue label="Sem dias calculados" />}</td>
-      <td><SituationCell container={container} onOpenInvoice={onOpenInvoice} /></td>
-      <td className="app-dem-num"><div className="app-table__cell-stack app-table__cell-stack--center"><UsdCell container={container} calc={calc} /></div></td>
+      <td className="tabular-nums">{result ? periodValue(result.days_p1, result.rate_p1_usd) : <NoValue label="Sem dias calculados" />}</td>
+      <td className="tabular-nums">{result ? periodValue(result.days_p2, result.rate_p2_usd) : <NoValue label="Sem dias calculados" />}</td>
+      <td title={billed.length ? 'Recalculado hoje; o valor cobrado é o da Invoice' : undefined}><UsdCell calc={calc} /><BilledIn container={container} onOpenInvoice={onOpenInvoice} /></td>
       <td className="app-dem-row-action">
         <Button
           type="button"
@@ -571,8 +617,8 @@ function BlCard({
                 {calc.calc ? ` · Free time ${containerFreeTimeDays(container) ?? calc.calc.free_days} dias (${FREE_TIME_SOURCE_LABELS[freeTimeSource(container)]})` : ''}
               </p>
               <div className="app-dem-card__foot">
-                <SituationCell container={container} onOpenInvoice={onOpenInvoice} />
-                <div className="app-table__cell-stack app-dem-num"><UsdCell container={container} calc={calc} /></div>
+                <span className="app-dem-meta">{calc.calc ? `${calc.calc.total_days} dias` : null}</span>
+                <div className="app-dem-num"><UsdCell calc={calc} /><BilledIn container={container} onOpenInvoice={onOpenInvoice} /></div>
               </div>
             </li>
           )

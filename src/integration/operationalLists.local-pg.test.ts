@@ -137,6 +137,31 @@ describeLocal('S12 — leituras operacionais paginadas', () => {
     expect(page.rows[0]?.bl?.id).toBe(blIds[1])
   })
 
+  // Migration 295: sem a data, a coluna Taxas locais dizia "Pendente" para o B/L cancelado.
+  it('o contêiner de B/L cancelado leva a data de cancelamento do B/L, e o ativo leva nulo', () => {
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = '2026-10-16T12:00:00Z' WHERE id = '${blIds[1]}';`)
+    try {
+      const page = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_containers(1, 100, NULL, ${voyageId});`))) as {
+        rows: Array<{ bl?: { id: string; cancelled_at: string | null } | null }>
+      }
+      const byBl = Object.fromEntries(page.rows.map((row) => [row.bl?.id, row.bl?.cancelled_at]))
+      expect(byBl[blIds[1]]).toMatch(/^2026-10-16T12:00:00/)
+      expect(Object.entries(byBl).filter(([id]) => id !== blIds[1]).every(([, value]) => value === null)).toBe(true)
+      // O filtro "Pendente" segue a coluna: o B/L cancelado não é taxa a cobrar.
+      const pending = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_containers(1, 100, NULL, ${voyageId}, NULL, NULL, NULL, NULL, NULL, 'pending');`))) as {
+        rows: Array<{ bl?: { id: string } | null }>
+      }
+      expect(pending.rows.map((row) => row.bl?.id)).not.toContain(blIds[1])
+      psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = NULL WHERE id = '${blIds[1]}';`)
+      const pendingActive = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_containers(1, 100, NULL, ${voyageId}, NULL, NULL, NULL, NULL, NULL, 'pending');`))) as {
+        rows: Array<{ bl?: { id: string } | null }>
+      }
+      expect(pendingActive.rows.map((row) => row.bl?.id)).toContain(blIds[1])
+    } finally {
+      psql(`SET session_replication_role = replica; UPDATE public.bls SET cancelled_at = NULL WHERE id = '${blIds[1]}';`)
+    }
+  })
+
   it('entrega o rail com agregados de viagem sem materializar o detalhe', () => {
     const page = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_voyage_summaries(1, 100);`))) as {
       rows: Array<{

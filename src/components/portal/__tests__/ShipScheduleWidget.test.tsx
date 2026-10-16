@@ -31,21 +31,33 @@ const lane = (label: string) => PORTAL_SCHEDULE_LANES.find((item) => item.label 
 
 afterEach(cleanup)
 
-it('renderiza a programação projetada com data efetiva, previsão, OMIT e X distintos', () => {
+it('renderiza a programação projetada com data efetiva, previsão, omitida e sem data distintos', () => {
   hookState = { isLoading: false, data: [ALPHA] }
   render(<ShipScheduleWidget />)
 
   const table = screen.getByRole('table')
-  expect(within(table).getByRole('link', { name: /ALPHA/ }).getAttribute('href')).toBe(
+  // A posição do navio é o botão "Ver no mapa" (MarineTraffic pelo IMO cadastrado).
+  expect(within(table).getByRole('link', { name: /Ver ALPHA no mapa/ }).getAttribute('href')).toBe(
     'https://www.marinetraffic.com/en/ais/details/ships/imo:9876543',
   )
   // ATD no POL: data efetiva, lida em texto e não só pela cor.
   expect(within(table).getByText(/04\/01\/2026/).textContent).toContain('saída registrada')
   expect(within(table).getByText(/22\/01\/2099/).textContent).toContain('previsão')
   expect(within(table).getByText(/10\/01\/2026/).textContent).toContain('previsão a confirmar')
-  expect(within(table).getByText('OMIT')).toBeTruthy()
-  expect(within(table).getAllByText('X').length).toBeGreaterThan(0)
-  expect(within(table).getByRole('columnheader', { name: 'Pecém' })).toBeTruthy()
+  expect(within(table).getByText('Omitida')).toBeTruthy()
+  // Uma linha de título: Saída (ETD) antes da Chegada (ETA), na ordem em que acontecem.
+  const headers = within(table).getAllByRole('columnheader').map((th) => th.textContent ?? '')
+  expect(headers.findIndex((h) => h.endsWith('ETD'))).toBeLessThan(headers.findIndex((h) => h.endsWith('ETA')))
+  expect(within(table).getByRole('columnheader', { name: 'Pecém ETA' })).toBeTruthy()
+  // Porto sem data em nenhum navio sai da tabela, com nota (regra 4).
+  expect(within(table).queryByRole('columnheader', { name: 'Ningbo ETD' })).toBeNull()
+  expect(screen.getByText(/sem data em nenhum navio/)).toBeTruthy()
+
+  // O cartão do celular segue a mesma ordem e também deixa o porto sem data de fora.
+  const card = within(screen.getByRole('list', { name: 'Programação de navios' })).getByRole('listitem')
+  const text = card.textContent ?? ''
+  expect(text.indexOf('Saída na origem (ETD)')).toBeLessThan(text.indexOf('Chegada no Brasil (ETA)'))
+  expect(text).not.toMatch(/Ningbo/i)
 })
 
 it('não confunde erro de consulta com programação vazia', async () => {

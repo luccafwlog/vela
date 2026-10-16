@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 
@@ -28,8 +28,10 @@ vi.mock('../../hooks/useVehicles', async (importOriginal) => {
         { id: 13, chassis: 'CHASSI-3', container: { id: 33, container_number: 'CXRU1234567', unpacking_location: 'Terminal A' }, bl: { id: 'BL-2' } },
       ],
       select: (rows) => ({
-        rows, count: rows.length, filteredIds: rows.map((row) => row.id),
+        rows, filteredRows: rows, count: rows.length, filteredIds: rows.map((row) => row.id),
         containerIdByVehicleId: Object.fromEntries(rows.map((row) => [row.id, row.container.id])),
+        // Da viagem inteira: o container 44 tem um veículo fora deste recorte.
+        vehicleCountByContainerId: { 33: 2, 44: 2 },
         distinctContainerCount: 1, distinctBlCount: 1, totalWeightKg: 0, totalCbm: 0,
         vehiclesByBrand: [], vehiclesByContainerType: [], containersByContainerType: [],
       }),
@@ -39,79 +41,94 @@ vi.mock('../../hooks/useVehicles', async (importOriginal) => {
 })
 import { Veiculos } from '../Veiculos'
 
-it('mantém a desova salva quando a releitura falha e acompanha uma atualização posterior', async () => {
+function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+  render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
+  return client
+}
+
+function openDialog() {
+  fireEvent.click(screen.getAllByRole('button', { name: /Definir local de desova/ })[0])
+  return screen.getByRole('dialog')
+}
+
+it('uma linha por veículo, ordenada por container, com o local em texto e "Sem local" em âmbar', () => {
+  const client = renderPage()
   try {
-    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
-    const input = screen.getByRole('textbox', { name: 'Local de desova do container CXRU1234567' }) as HTMLInputElement
-    fireEvent.change(input, { target: { value: 'Terminal B' } })
-    fireEvent.blur(input)
-    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith(33, 'Terminal B'))
-    await waitFor(() => expect(client.getQueryState(['vehicles', 7])?.status).toBe('error'))
-    expect(input.value).toBe('Terminal B')
-    client.setQueriesData<Array<{ container: { unpacking_location: string } }>>({ queryKey: ['vehicles'] }, (cached) => cached?.map((row) => (
-      { ...row, container: { ...row.container, unpacking_location: 'Terminal C' } }
-    )))
-    await waitFor(() => expect(input.value).toBe('Terminal C'))
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(3)
+    expect(within(rows[0]).getByText('CXRU1234567')).toBeTruthy()
+    expect(screen.getAllByRole('cell', { name: 'Terminal A' })).toHaveLength(2)
+    expect(screen.getByRole('cell', { name: 'Sem local' })).toBeTruthy()
+    // Cada veículo diz o seu B/L, também quando o container tem dois B/Ls.
+    expect(screen.getByRole('link', { name: 'BL-2' })).toBeTruthy()
   } finally { client.clear() }
 })
 
-it('Escape desfaz o rascunho do local sem gravar e a falha de gravação aparece junto do campo', async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+it('com veículos marcados, a janela começa nos marcados e grava só os containers deles', async () => {
+  const client = renderPage()
   try {
-    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
-    const input = screen.getByRole('textbox', { name: 'Local de desova do container CXRU1234567' }) as HTMLInputElement
-    const saved = input.value
-    mocks.save.mockClear()
-    fireEvent.change(input, { target: { value: 'Rascunho' } })
-    fireEvent.keyDown(input, { key: 'Escape' })
-    expect(input.value).toBe(saved)
-    expect(mocks.save).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Selecionar veículo CHASSI-2' }))
+    const dialog = openDialog()
+    expect((within(dialog).getByRole('radio', { name: /1 veículo marcado/ }) as HTMLInputElement).checked).toBe(true)
+    fireEvent.change(within(dialog).getByLabelText(/Local de desova/), { target: { value: 'Pátio 3' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Aplicar a 1 container' }))
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1))
+    expect(mocks.save).toHaveBeenCalledWith(44, 'Pátio 3')
+  } finally { client.clear(); mocks.save.mockClear() }
+})
 
-    mocks.save.mockRejectedValueOnce(new Error('sem permissão'))
-    fireEvent.change(input, { target: { value: 'Pátio 9' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Não salvo: sem permissão')
-    expect(mocks.save).toHaveBeenCalledTimes(1)
-    expect(input.value).toBe(saved)
+it('"Só os sem local" não muda o container que já tem local', async () => {
+  const client = renderPage()
+  try {
+    const dialog = openDialog()
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Só os 1 veículo sem local/ }))
+    fireEvent.change(within(dialog).getByLabelText(/Local de desova/), { target: { value: 'Pátio 3' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Aplicar a 1 container' }))
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1))
+    expect(mocks.save).toHaveBeenCalledWith(44, 'Pátio 3')
+  } finally { client.clear(); mocks.save.mockClear() }
+})
+
+it('a falha da gravação fica na janela, com o que fazer', async () => {
+  mocks.save.mockRejectedValueOnce(new Error('sem permissão'))
+  const client = renderPage()
+  try {
+    const dialog = openDialog()
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Todos os 3 veículos do recorte/ }))
+    fireEvent.change(within(dialog).getByLabelText(/Local de desova/), { target: { value: 'Pátio 3' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Aplicar a 2 containers' }))
+    expect((await within(dialog).findByRole('alert')).textContent).toContain('sem permissão')
+  } finally { client.clear(); mocks.save.mockClear() }
+})
+
+it('enquanto o filtro novo não chega, Exportar e o local para o recorte esperam (não agem no recorte anterior)', async () => {
+  const client = renderPage()
+  try {
+    fireEvent.change(screen.getByLabelText('Chassi'), { target: { value: 'CHASSI-2' } })
+    expect((screen.getByRole('button', { name: /Exportar/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: /Definir local de desova/ }) as HTMLButtonElement).disabled).toBe(true)
+    // Passada a pausa da digitação, o recorte é o do filtro e as ações voltam.
+    await waitFor(() => expect((screen.getByRole('button', { name: /Exportar/ }) as HTMLButtonElement).disabled).toBe(false))
   } finally { client.clear() }
 })
 
-it('dois containers gravando ao mesmo tempo: o primeiro a terminar não reabre o campo do outro', async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
-  const pending = new Map<number, () => void>()
-  mocks.save.mockImplementation((containerId: number) => new Promise<void>((resolve) => { pending.set(containerId, resolve) }))
+it('filtro só nos campos abertos oferece Limpar filtros, que volta ao recorte inteiro', () => {
+  const client = renderPage()
   try {
-    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
-    const first = screen.getByRole('textbox', { name: 'Local de desova do container CXRU1234567' }) as HTMLInputElement
-    const second = screen.getByRole('textbox', { name: 'Local de desova do container CXRU7654321' }) as HTMLInputElement
-    fireEvent.change(first, { target: { value: 'Pátio 1' } })
-    fireEvent.blur(first)
-    fireEvent.change(second, { target: { value: 'Pátio 2' } })
-    fireEvent.blur(second)
-    await waitFor(() => expect(pending.size).toBe(2))
-    expect(first.disabled && second.disabled).toBe(true)
-    pending.get(33)?.()
-    await waitFor(() => expect(first.disabled).toBe(false))
-    expect(second.disabled).toBe(true)
-    pending.get(44)?.()
-    await waitFor(() => expect(second.disabled).toBe(false))
-  } finally {
-    mocks.save.mockImplementation(() => Promise.resolve())
-    client.clear()
-  }
+    expect(screen.queryByRole('button', { name: 'Limpar filtros' })).toBeNull()
+    fireEvent.change(screen.getByLabelText('Chassi'), { target: { value: 'CHASSI-2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }))
+    expect((screen.getByLabelText('Chassi') as HTMLInputElement).value).toBe('')
+  } finally { client.clear() }
 })
 
-it('container com veículos de dois B/Ls diz o B/L de cada veículo', async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+it('a janela diz quantos veículos o local atinge nos containers, e Apagar diz quantos containers', () => {
+  const client = renderPage()
   try {
-    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
-    const chassis3 = screen.getByText('CHASSI-3').closest('td') as HTMLElement
-    expect(chassis3.textContent).toContain('BL-2')
-    const chassis1 = screen.getByText('CHASSI-1').closest('td') as HTMLElement
-    expect(chassis1.textContent).toContain('BL-1')
-    // Container de um só B/L: o B/L fica só no cabeçalho do grupo.
-    const chassis2 = screen.getByText('CHASSI-2').closest('td') as HTMLElement
-    expect(chassis2.textContent).not.toContain('BL-1')
+    const dialog = openDialog()
+    expect(within(dialog).getByText(/2 containers, 4 veículos no total/)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Só os 1 veículo sem local/ }))
+    expect(within(dialog).getByRole('button', { name: 'Apagar o local de 1 container' })).toBeTruthy()
   } finally { client.clear() }
 })

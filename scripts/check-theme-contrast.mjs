@@ -126,6 +126,8 @@ const checks = [
   // Identidade visual (ADR 0081): faixa de título dos blocos, contagem da
   // navegação ativa, botão principal e texto da barra.
   ['block title on block strip', '--app-strip-text', '--app-strip'],
+  ['inactive tab on tab shade', '--app-muted', '--app-strip'],
+  ['hovered tab on tab hover', '--app-text-strong', '--app-border'],
   ['navigation count on active marker', '--app-nav-active-text', '--app-nav-active'],
   ['primary button text on primary button', '#ffffff', '--app-blue-btn'],
   ['header text on header', '#ffffff', '--app-navy'],

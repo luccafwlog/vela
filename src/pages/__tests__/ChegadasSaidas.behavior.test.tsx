@@ -72,6 +72,10 @@ vi.mock('../../services/portalScheduleVoyages', () => ({
 }))
 
 import { ChegadasSaidas } from '../ChegadasSaidas'
+import { PORTAL_SCHEDULE_LANES } from '../../services/portalScheduleLanes'
+
+// O formulário mostra Saída na origem antes da Chegada no Brasil: os portos de chegada vêm depois dos de saída.
+const POL_COUNT = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pol').length
 
 describe('ChegadasSaidas user behaviours', () => {
   afterEach(cleanup)
@@ -91,7 +95,7 @@ describe('ChegadasSaidas user behaviours', () => {
     await user.click(screen.getByRole('button', { name: /Adicionar navio/ }))
     await user.type(screen.getByLabelText(/Nome do Navio/), 'GAMMA')
     await user.type(screen.getByLabelText(/Viagem \(VOY\)/), '003')
-    await user.click(screen.getAllByLabelText('Não escala')[0])
+    await user.click(screen.getAllByLabelText('Não escala')[POL_COUNT])
     await user.click(screen.getByRole('button', { name: 'Adicionar e publicar' }))
 
     expect(mocks.createOrAttach).toHaveBeenCalledWith(expect.objectContaining({
@@ -152,10 +156,12 @@ describe('ChegadasSaidas user behaviours', () => {
     )
   })
 
-  it('mostra OMIT para escala omitida, distinto de X', () => {
+  it('mostra "Omitida" para escala omitida, distinto de porto sem data', () => {
     render(<ChegadasSaidas />)
-    expect(within(screen.getByRole('table')).getByText('OMIT')).toBeTruthy()
-    expect(screen.getAllByText('X').length).toBeGreaterThan(0)
+    const table = within(screen.getByRole('table'))
+    expect(table.getByText('Omitida')).toBeTruthy()
+    expect(table.queryByText('OMIT')).toBeNull()
+    expect(table.queryByText('X')).toBeNull()
   })
 
   it('permite escrita a Equipamentos', () => {
@@ -242,7 +248,7 @@ describe('ChegadasSaidas user behaviours', () => {
 
     await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
-    const checkbox = screen.getAllByLabelText('Não escala')[0] as HTMLInputElement
+    const checkbox = screen.getAllByLabelText('Não escala')[POL_COUNT] as HTMLInputElement
 
     expect(dateInput.disabled).toBe(false)
     expect(checkbox.checked).toBe(false)
@@ -276,7 +282,7 @@ describe('ChegadasSaidas user behaviours', () => {
 
     await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
-    const checkbox = screen.getAllByLabelText('Não escala')[0] as HTMLInputElement
+    const checkbox = screen.getAllByLabelText('Não escala')[POL_COUNT] as HTMLInputElement
 
     expect(checkbox.checked).toBe(false)
     expect(dateInput.disabled).toBe(false)
@@ -296,7 +302,7 @@ describe('ChegadasSaidas user behaviours', () => {
     await user.type(screen.getByLabelText(/Viagem \(VOY\)/), '004')
 
     // Desmarca "Não escala" em Salvador (primeiro porto de chegada)
-    await user.click(screen.getAllByLabelText('Não escala')[0])
+    await user.click(screen.getAllByLabelText('Não escala')[POL_COUNT])
     const dateInput = screen.getByLabelText(/Salvador/) as HTMLInputElement
     expect(dateInput.disabled).toBe(false)
 
@@ -365,11 +371,11 @@ describe('ChegadasSaidas user behaviours', () => {
 
     await user.click(screen.getAllByRole('button', { name: /^Editar programação de/ })[0])
     // Desmarca "Não escala" em Vitória (preenche data automaticamente)
-    const vitoriaCheckbox = screen.getAllByLabelText('Não escala')[1] as HTMLInputElement
+    const vitoriaCheckbox = screen.getAllByLabelText('Não escala')[POL_COUNT + 1] as HTMLInputElement
     await user.click(vitoriaCheckbox)
 
     // Marca Salvador como não escala
-    const salvadorCheckbox = screen.getAllByLabelText('Não escala')[0] as HTMLInputElement
+    const salvadorCheckbox = screen.getAllByLabelText('Não escala')[POL_COUNT] as HTMLInputElement
     await user.click(salvadorCheckbox)
 
     await user.click(screen.getByRole('button', { name: /Salvar/ }))

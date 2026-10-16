@@ -13,6 +13,7 @@ import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyageDetail, useVoyages } from '../hooks/useBls'
+import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
 import { useVoyageVehicleStats } from '../hooks/useVehicles'
 import { useVaziosImportacaoStats } from '../hooks/useVaziosImportacaoStats'
 import { useViagemSchedulesAndStats } from '../hooks/useViagemSchedulesAndStats'
@@ -51,6 +52,8 @@ import {
 } from '../components/voyages/VoyageCard'
 import { VoyageRail } from '../components/voyages/VoyageRail'
 import { VoyageFilters } from '../components/voyages/VoyageFilters'
+import { VoyageListTable } from '../components/voyages/VoyageListTable'
+import { useVoyageBreakbulkTons } from '../hooks/useVoyageBreakbulkTons'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import {
   countActiveFilters,
@@ -172,6 +175,7 @@ export function Viagens() {
 
   const voyageIds = useMemo(() => voyages.map((voyage) => voyage.id), [voyages])
   const { data: vehicleStatsData } = useVoyageVehicleStats(voyageIds)
+  const { data: breakbulkTons, isError: breakbulkError } = useVoyageBreakbulkTons(voyageIds)
   const { data: vaziosImpStatsData } = useVaziosImportacaoStats(voyageIds)
   const { voyagesWithUnpaidBls, polSchedules, escalaSchedulesByVoyage: escalaSchedulesByVoyageData, exportSchedulesData, routeCeMasters, indicatedFirstPorts } =
     useViagemSchedulesAndStats(voyageIds, polEntityIds)
@@ -198,9 +202,10 @@ export function Viagens() {
     return map
   }, [voyages, vehicleStatsByVoyage, vaziosImpStatsByVoyage, exportSchedulesData])
 
+  const openDivergencesByVoyage = useVoyageRailDivergences(voyages)
   const railItems = useMemo(
-    () => buildVoyageRailItems(voyages, escalaSchedulesByVoyage, moduleStatsByVoyageId),
-    [voyages, escalaSchedulesByVoyage, moduleStatsByVoyageId],
+    () => buildVoyageRailItems(voyages, escalaSchedulesByVoyage, moduleStatsByVoyageId, openDivergencesByVoyage),
+    [voyages, escalaSchedulesByVoyage, moduleStatsByVoyageId, openDivergencesByVoyage],
   )
 
   const visibleRailItems = useMemo(
@@ -352,10 +357,22 @@ export function Viagens() {
         )}
 
         {!selectedVoyageId ? (
-          <EmptyState
-            title="Selecione uma viagem"
-            description="Escolha uma viagem na faixa acima para ver escalas, carga, manifestos e ADR."
-          />
+          visibleRailItems.length ? (
+            <VoyageListTable
+              items={visibleRailItems}
+              breakbulkTons={breakbulkTons}
+              breakbulkError={breakbulkError}
+              vehicleCounts={vehicleStatsByVoyage}
+              onEdit={canEditVoyages ? (id) => setEditingVoyageId(id) : undefined}
+            />
+          ) : (
+            <EmptyState
+              title={railItems.length ? 'Nenhuma viagem neste recorte' : error || isLoading ? 'Selecione uma viagem' : 'Nenhuma viagem cadastrada'}
+              description={railItems.length
+                ? 'Nenhuma viagem atende aos filtros acima. Limpe os filtros para ver todas.'
+                : error || isLoading ? 'Escolha uma viagem na faixa acima para ver escalas, carga, manifestos e ADR.' : 'Cadastre uma viagem em Nova Viagem ou importe um manifesto.'}
+            />
+          )
         ) : isSelectedVoyageLoading ? (
           <SkeletonCard lines={4} />
         ) : selectedVoyageError ? (

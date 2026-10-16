@@ -174,9 +174,16 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
         rows = rows.filter((r) => (r.container?.unpacking_location ?? '').toLowerCase().includes(term))
       }
 
+      // Uma linha por veículo, os do mesmo container juntos (lote 2, 2026-10-16).
+      rows = [...rows].sort((left, right) => (
+        (left.container?.container_number ?? '\uffff').localeCompare(right.container?.container_number ?? '\uffff')
+        || String(left.chassis ?? '').localeCompare(String(right.chassis ?? ''))
+      ))
       const rangeFrom = (filters.page - 1) * filters.pageSize
       return {
         rows: rows.slice(rangeFrom, rangeFrom + filters.pageSize),
+        // O recorte filtrado inteiro, para exportar (não só a página na tela).
+        filteredRows: rows,
         count: rows.length,
         allIds: rows.map((row) => row.id),
         containerIdByVehicleId: Object.fromEntries(rows.map((row) => [row.id, row.container?.id ?? null])),
@@ -269,6 +276,7 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
     error: listQuery.error ?? statsQuery.error,
     data: {
       rows: listQuery.data?.rows ?? [],
+      filteredRows: listQuery.data?.filteredRows ?? [],
       count: listQuery.data?.count ?? 0,
       filteredIds: listQuery.data?.allIds ?? [],
       containerIdByVehicleId: listQuery.data?.containerIdByVehicleId ?? {},

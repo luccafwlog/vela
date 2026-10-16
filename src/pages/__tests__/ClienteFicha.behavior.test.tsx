@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   invalidateQueries: vi.fn(),
   can: vi.fn(() => true),
+  confirmWithReason: vi.fn(async () => 'cadastro duplicado' as string | null),
+  deactivateCustomer: vi.fn(),
+  reactivateCustomer: vi.fn(),
 }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -50,6 +53,7 @@ vi.mock('../../components/ui/Toast', () => ({
 }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => mocks.confirm,
+  useConfirmWithReason: () => mocks.confirmWithReason,
 }))
 vi.mock('../../components/clientes/CustomerContactConfiguration', () => ({
   CustomerContactConfiguration: ({ customerId, canEdit, onSaved }: { customerId: number; canEdit?: boolean; onSaved?: () => void }) => (
@@ -65,6 +69,8 @@ vi.mock('../../components/clientes/CustomerContactConfiguration', () => ({
 }))
 vi.mock('../../services/customers', () => ({
   updateCustomerWithAudit: vi.fn(),
+  deactivateCustomer: mocks.deactivateCustomer,
+  reactivateCustomer: mocks.reactivateCustomer,
 }))
 
 import { ClienteFicha } from '../ClienteFicha'
@@ -199,6 +205,30 @@ describe('ClienteFicha user behaviours', () => {
     await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'Copiar CNPJ/CPF 12.345.678/0001-95' }))
     expect(await navigator.clipboard.readText()).toBe('12.345.678/0001-95')
+  })
+
+  it('Desativar fica na ficha (lote 2): confere pela prévia e pede motivo (ADR 0073)', async () => {
+    const user = userEvent.setup()
+    mocks.deactivateCustomer.mockReset()
+      .mockResolvedValueOnce({ deactivated: false, reasons: [] })
+      .mockResolvedValueOnce({ deactivated: true, reasons: [] })
+    renderPage('/clientes/12345678000195')
+    await user.click(screen.getByRole('button', { name: 'Mais ações do Cliente' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Desativar cliente' }))
+    await vi.waitFor(() => expect(mocks.deactivateCustomer).toHaveBeenLastCalledWith(42, 'cadastro duplicado'))
+    expect(mocks.deactivateCustomer).toHaveBeenNthCalledWith(1, 42, '', { dryRun: true })
+    expect(mocks.confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Desativar cliente' }))
+  })
+
+  it('não abre a confirmação de desativar quando há cobrança em aberto', async () => {
+    const user = userEvent.setup()
+    mocks.deactivateCustomer.mockReset().mockResolvedValueOnce({ deactivated: false, reasons: ['fatura em aberto'] })
+    mocks.confirmWithReason.mockClear()
+    renderPage('/clientes/12345678000195')
+    await user.click(screen.getByRole('button', { name: 'Mais ações do Cliente' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Desativar cliente' }))
+    await vi.waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('fatura em aberto'), 'error'))
+    expect(mocks.confirmWithReason).not.toHaveBeenCalled()
   })
 
   it('cliente desativado avisa data, efeito e motivo', () => {

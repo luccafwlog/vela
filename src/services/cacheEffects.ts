@@ -24,7 +24,7 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   queryKeys.bls.all(), queryKeys.bls.summary(), queryKeys.bls.detail(), queryKeys.bls.cockpit(), queryKeys.portal.blStatus(),
   ['containers'], queryKeys.bls.portOptions(),
   queryKeys.vehicles.all(), ['vehicle-stats'], ['voyage-vehicle-stats'],
-  queryKeys.voyages.all(), queryKeys.voyages.detail(), ['voyage-billing-status'],
+  queryKeys.voyages.all(), queryKeys.voyages.detail(), ['voyage-billing-status'], queryKeys.voyages.breakbulkTons(),
   // O contexto do Baplie lista os containers dos B/Ls da Viagem (ADR 0079, decisão 6).
   ['baplie-bls-exist'], ['baplie-reconciliation'], ['baplie-voyage-context'], ['bl-timeline'], ['voyage-timeline'],
   ['agency-report'], ['review-queue'], ['op-count'], ['report-operational'],
@@ -178,6 +178,17 @@ export async function afterLiberacaoFaturamentoPortal(
 }
 
 /** B/L corrections may reissue invoices, correct balances or create refunds. */
+/**
+ * Cliente desativado ou reativado (ficha, Mais ações): a lista, o resumo, a
+ * busca de Cliente, a ficha com o Histórico (evento `deactivated` em
+ * `audit_logs`) e o Provisionamento do Portal, que perde ou recupera a conta.
+ */
+export async function afterClienteAtivacaoAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [
+    ['customers'], ['customers-summary'], ['customer-lookup'], ['customer-detail'], ['customer-ficha'], ['portal-provisioning'],
+  ])
+}
+
 export async function afterBlInvoiceBasisAlterada(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [...INVOICE_BASIS_CACHE_KEYS, queryKeys.ceUnlock.all()])
 }

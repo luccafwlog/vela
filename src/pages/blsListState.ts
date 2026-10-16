@@ -3,7 +3,6 @@
 import type { BlFilters } from '../hooks/useBls'
 import { PAGE_SIZES } from '../hooks/usePageFilters'
 import { LOCAL_CHARGES_LIST_STATE_LABELS } from '../lib/chargeStatus'
-import { resolveChargeStatusLabel } from './blDetalheHelpers'
 
 type TextFilterKey = Exclude<keyof BlFilters, 'page' | 'pageSize' | 'cargoMode'>
 
@@ -23,11 +22,7 @@ const TEXT_PARAMS: Record<TextFilterKey, string> = {
 const CARGO_MODES = new Set(['container', 'carga_solta', 'misto'])
 const DEFAULT_PAGE_SIZE = PAGE_SIZES[0]
 
-export const CHARGE_STATUS_FILTER_OPTIONS = (
-  ['not_calculated', 'calculated', 'review_required', 'reviewed', 'ready_for_billing', 'exempt'] as const
-).map((value) => ({ value, label: resolveChargeStatusLabel(value) }))
-
-/** Filtro "Taxas locais" da lista: os três estados da coluna (migration 222); cancelado fica fora. */
+/** Filtro "Taxas locais" das listas de BLs e de Containers: os três estados da coluna (migrations 222 e 295); cancelado fica fora. */
 export const LOCAL_CHARGES_FILTER_OPTIONS = (['pending', 'issued', 'exempt'] as const).map((value) => ({
   value,
   label: LOCAL_CHARGES_LIST_STATE_LABELS[value],

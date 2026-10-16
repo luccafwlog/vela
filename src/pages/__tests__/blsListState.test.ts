@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CHARGE_STATUS_FILTER_OPTIONS, blsSearchFromFilters, filtersFromBlsSearch } from '../blsListState'
+import { LOCAL_CHARGES_FILTER_OPTIONS, blsSearchFromFilters, filtersFromBlsSearch } from '../blsListState'
 
 describe('estado da lista /bls na URL', () => {
   it('reabre o mesmo recorte a partir da query string', () => {
@@ -22,8 +22,7 @@ describe('estado da lista /bls na URL', () => {
     expect(filters).toMatchObject({ cargoMode: '', page: 1, pageSize: 20 })
   })
 
-  it('oferece no filtro de taxas os mesmos rótulos da ficha, com "Pronto para faturar" distinto de faturado', () => {
-    expect(CHARGE_STATUS_FILTER_OPTIONS.find((option) => option.value === 'ready_for_billing')?.label).toBe('Pronto para faturar')
-    expect(CHARGE_STATUS_FILTER_OPTIONS.map((option) => option.value)).toContain('not_calculated')
+  it('oferece no filtro de taxas os três estados da coluna, sem os estados técnicos', () => {
+    expect(LOCAL_CHARGES_FILTER_OPTIONS.map((option) => option.label)).toEqual(['Pendente', 'Emitida', 'Isenta'])
   })
 })

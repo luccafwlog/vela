@@ -2,7 +2,7 @@
 // Usa o useVehicles real: o cache da lista guarda as linhas cruas da viagem, e a
 // gravação do local de desova precisa atualizar esse formato, não o da tela.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 
@@ -48,20 +48,26 @@ vi.mock('../../hooks/useVehicles', async (importOriginal) => {
 import { Veiculos } from '../Veiculos'
 import { STALE_PAGE_CLASS } from '../../lib/pagination'
 
-it('local de desova gravado fica no campo e no cache, sem aviso de falha', async () => {
+it('"Definir local de desova" fica à vista sem seleção, aplica ao recorte e atualiza o cache', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
   try {
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Veiculos /></MemoryRouter></QueryClientProvider>)
-    const input = await screen.findByRole('textbox', { name: 'Local de desova do container CXRU1234567' }) as HTMLInputElement
-    fireEvent.change(input, { target: { value: 'Terminal B' } })
-    fireEvent.blur(input)
+    await screen.findByRole('checkbox', { name: 'Selecionar veículo CHASSI-1' })
+    // Sem nada marcado, a ação está na faixa da tabela (decisão de 2026-10-16).
+    fireEvent.click(screen.getByRole('button', { name: /Definir local de desova/ }))
+    const dialog = await screen.findByRole('dialog')
+    // A janela pergunta a quem aplicar; sem marcados, a opção "marcados" não aparece.
+    expect(within(dialog).queryByText(/marcado/)).toBeNull()
+    const apply = within(dialog).getByRole('button', { name: 'Escolha a quem aplicar' }) as HTMLButtonElement
+    expect(apply.disabled).toBe(true)
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Todos os 1 veículo do recorte/ }))
+    fireEvent.change(within(dialog).getByLabelText(/Local de desova/), { target: { value: 'Terminal B' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Aplicar a 1 container' }))
 
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith(33, 'Terminal B'))
-    expect(await screen.findByText('Salvo')).not.toBeNull()
-    expect(screen.queryByRole('alert')).toBeNull()
-    expect(input.value).toBe('Terminal B')
     const cached = client.getQueriesData<Array<{ container: { unpacking_location: string | null } }>>({ queryKey: ['vehicles'] })
     expect(cached.flatMap(([, rows]) => rows ?? []).map((row) => row.container.unpacking_location)).toEqual(['Terminal B'])
+    expect(await screen.findByRole('cell', { name: 'Terminal B' })).not.toBeNull()
   } finally { client.clear() }
 })
 

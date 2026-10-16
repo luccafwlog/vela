@@ -113,6 +113,11 @@ it('B13: reativar a tarifa pede motivo e diz Reativar', async () => {
   const user = userEvent.setup()
   renderPage()
 
+  // A tarifa inativa só aparece com "Mostrar inativas" (decisão de 2026-10-16), em cinza.
+  await screen.findByRole('button', { name: 'Mais ações da tarifa 20GP' })
+  expect(screen.queryByRole('button', { name: 'Mais ações da tarifa 40RF' })).toBeNull()
+  await user.click(screen.getByRole('checkbox', { name: /Mostrar inativas/ }))
+  expect(screen.getByText('40RF').closest('tr')!.className).toContain('app-table__row--muted')
   await user.click(await screen.findByRole('button', { name: 'Mais ações da tarifa 40RF' }))
   await user.click(screen.getByRole('menuitem', { name: 'Reativar tarifa' }))
 

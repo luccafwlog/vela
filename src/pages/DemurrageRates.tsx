@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, MoreVertical, Pencil, Plus } from 'lucide-react'
 import { ActionMenu } from '../components/ui/ActionMenu'
-import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { EmptyState, PageHeader } from '../components/ui/Card'
+import { NoValue } from '../components/ui/NoValue'
+import { StatusText } from '../components/ui/StatusText'
 import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
 import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
@@ -12,6 +13,8 @@ import { useToast } from '../components/ui/Toast'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { CustomerDemurrageAgreementsTab } from '../components/demurrage/CustomerDemurrageAgreementsTab'
 import { DemurrageRateModal } from '../components/demurrage/DemurrageRateModal'
+import { ShowInactiveToggle } from '../components/demurrage/ShowInactiveToggle'
+import { useShowInactive } from '../hooks/useShowInactive'
 import { useAuth } from '../hooks/useAuth'
 import {
   useDeleteDemurrageRate,
@@ -50,7 +53,10 @@ export function DemurrageRates() {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const ratesQuery = useDemurrageRates()
-  const rates = ratesQuery.data
+  const [showInactive, setShowInactive] = useShowInactive()
+  const allRates = ratesQuery.data
+  const inactiveCount = allRates?.filter((rate) => !rate.active).length ?? 0
+  const rates = showInactive ? allRates : allRates?.filter((rate) => rate.active)
   const saveMutation = useSaveDemurrageRate()
   const deleteMutation = useDeleteDemurrageRate()
   const toggleMutation = useToggleDemurrageRateActive()
@@ -191,8 +197,15 @@ export function DemurrageRates() {
             onRetry={() => void ratesQuery.refetch()}
             loadingLabel="Carregando tarifas…"
           >
+            {inactiveCount > 0 ? (
+              <div className="app-dem-toolbar mb-3">
+                <ShowInactiveToggle checked={showInactive} onChange={setShowInactive} label="Mostrar inativas" hiddenCount={inactiveCount} />
+              </div>
+            ) : null}
             {!rates?.length ? (
-              <EmptyState title="Nenhuma tarifa cadastrada" description="Sem tarifa vigente para o tipo de container, o cálculo de Demurrage falha com aviso ao operador." />
+              allRates?.length
+                ? <EmptyState title="Nenhuma tarifa ativa" description="As tarifas cadastradas estão inativas. Marque Mostrar inativas para vê-las." />
+                : <EmptyState title="Nenhuma tarifa cadastrada" description="Sem tarifa vigente para o tipo de container, o cálculo de Demurrage falha com aviso ao operador." />
             ) : (
               <div className="app-surface app-dem-table-surface">
                 <div className="app-table-scroll">
@@ -200,39 +213,30 @@ export function DemurrageRates() {
                     <caption className="sr-only">Tabela padrão de tarifas de Demurrage</caption>
                     <thead>
                       <tr>
-                        <th scope="col" className="app-table__text-head">Tipo de container</th>
-                        <th scope="col" className="app-dem-num">Free time</th>
-                        <th scope="col">P1</th>
-                        <th scope="col">P2</th>
+                        <th scope="col">Tipo</th>
+                        <th scope="col">Free time</th>
+                        <th scope="col">1º período</th>
+                        <th scope="col">Diária 1º</th>
+                        <th scope="col">2º período</th>
+                        <th scope="col">Diária 2º</th>
                         <th scope="col">Vigência</th>
                         <th scope="col">Situação</th>
+                        <th scope="col" className="app-table__text-head">Observações</th>
                         {canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                       </tr>
                     </thead>
                     <tbody>
                       {rates.map((rate) => (
-                        <tr key={rate.id}>
-                          <td>
-                            <div className="app-table__cell-stack">
-                              <span className="app-dem-code app-dem-strong">{rate.container_type}</span>
-                              {rate.notes ? <span className="app-dem-meta">{rate.notes}</span> : null}
-                            </div>
-                          </td>
-                          <td className="app-dem-num">{rate.free_days} dias</td>
-                          <td>
-                            <div className="app-table__cell-stack app-table__cell-stack--center">
-                              <span className="tabular-nums">{formatUSD(rate.p1_usd ?? 0)}/dia</span>
-                              <span className="app-dem-meta">dias {rate.p1_day_from} a {rate.p1_day_to}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="app-table__cell-stack app-table__cell-stack--center">
-                              <span className="tabular-nums">{formatUSD(rate.p2_usd ?? 0)}/dia</span>
-                              <span className="app-dem-meta">a partir do dia {rate.p2_day_from}</span>
-                            </div>
-                          </td>
+                        <tr key={rate.id} className={rate.active ? undefined : 'app-table__row--muted'}>
+                          <td className="app-dem-code app-dem-strong">{rate.container_type}</td>
+                          <td className="tabular-nums">{rate.free_days} dias</td>
+                          <td className="tabular-nums">dias {rate.p1_day_from} a {rate.p1_day_to}</td>
+                          <td className="tabular-nums">{formatUSD(rate.p1_usd ?? 0)}</td>
+                          <td className="tabular-nums">a partir do dia {rate.p2_day_from}</td>
+                          <td className="tabular-nums">{formatUSD(rate.p2_usd ?? 0)}</td>
                           <td className="tabular-nums">{rateVigencia(rate)}</td>
-                          <td><Badge tone={rate.active ? 'success' : 'neutral'}>{rate.active ? 'Ativa' : 'Inativa'}</Badge></td>
+                          <td>{rate.active ? 'Ativa' : <StatusText tone="muted">Inativa</StatusText>}</td>
+                          <td className="app-table__text app-table__text--wrap">{rate.notes || <NoValue label="Sem observações" />}</td>
                           {canEdit ? (
                             <td className="app-dem-row-action">
                               <div className="app-dem-row-buttons">

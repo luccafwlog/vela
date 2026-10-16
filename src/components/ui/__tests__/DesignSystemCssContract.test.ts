@@ -39,7 +39,6 @@ describe('contrato visual compartilhado', () => {
   it('usa a escala de sete degraus e aliases semânticos nos toasts', () => {
     expect(css).toMatch(/\.app-confirm__message\s*\{[^}]*font-size:\s*var\(--app-size-body\)/s)
     expect(css).toMatch(/\.app-empty-state__title\s*\{[^}]*font-size:\s*var\(--app-size-section\)/s)
-    expect(css).toMatch(/\.app-workspace-nav__label\s*\{[^}]*font-size:\s*var\(--app-size-body\)/s)
     for (const [variant, role] of [['success', 'success'], ['error', 'danger'], ['info', 'info']]) {
       expect(css).toMatch(new RegExp(`\\.app-toast--${variant}\\s*\\{[^}]*background:\\s*var\\(--app-${role}-bg\\)[^}]*color:\\s*var\\(--app-${role}-fg\\)`, 's'))
     }

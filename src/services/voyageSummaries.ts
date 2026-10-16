@@ -340,7 +340,9 @@ export function computeAdrEscalaPods(
 
 // --- Estado de Conciliação da Viagem (ver CONTEXT.md) -----------------------
 
-export type EstadoConciliacao = 'divergente' | 'incompleto' | 'conciliado'
+// 'verificando': só na faixa, enquanto a contagem de divergências do Baplie não
+// chegou (ou falhou) e a cobertura de CE sozinha diria "conciliado".
+export type EstadoConciliacao = 'divergente' | 'incompleto' | 'conciliado' | 'verificando'
 
 /** Cobertura de CE Mercante: quantos B/Ls têm ce_mercante preenchido. */
 export function voyageCeCoverage(bls: Array<{ ce_mercante: string | null }> | null | undefined) {
@@ -373,6 +375,11 @@ export function deriveEstadoConciliacao({
   if (hasOpenDivergences) return 'divergente'
   if (ceTotal > 0 && ceFilled < ceTotal) return 'incompleto'
   return 'conciliado'
+}
+
+function railEstado(openDivergences: number | null | undefined, ceFilled: number, ceTotal: number): EstadoConciliacao {
+  const estado = deriveEstadoConciliacao({ hasOpenDivergences: (openDivergences ?? 0) > 0, ceFilled, ceTotal })
+  return openDivergences === null && estado === 'conciliado' ? 'verificando' : estado
 }
 
 /** Próxima escala: menor ETA entre PODs com ETA definido e sem ATA registrado. */
@@ -467,10 +474,20 @@ type EscalaScheduleRow = {
 }
 
 /**
- * Monta os itens do rail. Estado de Conciliação usa apenas sinais baratos do
- * payload (CE + manifesto faltando); divergências (estado 'divergente') ficam
- * a cargo da view de detalhe, que consulta uma viagem por vez.
+ * Ordem da faixa nas três telas que a mostram (Viagens, Veículos e Baplie):
+ * próxima escala (ETA, depois ETB), sem próxima escala ao final, e então navio
+ * e número da viagem.
  */
+export function compareVoyageRailItems(left: VoyageRailItem, right: VoyageRailItem): number {
+  const byEscala = (left.proximaEscala?.eta ?? '\uffff').localeCompare(right.proximaEscala?.eta ?? '\uffff')
+  if (byEscala !== 0) return byEscala
+  const byEtb = (left.proximaEscala?.etb ?? '\uffff').localeCompare(right.proximaEscala?.etb ?? '\uffff')
+  if (byEtb !== 0) return byEtb
+  const byVessel = left.vesselName.localeCompare(right.vesselName, 'pt-BR')
+  if (byVessel !== 0) return byVessel
+  return left.voyageNumber.localeCompare(right.voyageNumber, 'pt-BR')
+}
+
 /** Presença de módulos por viagem, calculada fora do payload de B/Ls (veículos, vazios de importação e granito vêm de consultas próprias). */
 export type VoyageRailModuleStats = {
   hasVehicles?: boolean
@@ -511,12 +528,20 @@ function collectEscalasBrasileiras(
     .sort((left, right) => (left.eta ?? '￿').localeCompare(right.eta ?? '￿'))
 }
 
+/**
+ * Monta os itens do rail, já na ordem de `compareVoyageRailItems`. O Estado de
+ * Conciliação usa a cobertura de CE do payload e, quando o chamador informa,
+ * as divergências abertas do Baplie (`openDivergencesByVoyageId`, ver
+ * `useVoyageRailDivergences`). Contagem `null` é "ainda não se sabe": a
+ * viagem não aparece conciliada por falta de dado.
+ */
 export function buildVoyageRailItems(
   voyages: VoyageRailSource[] | null | undefined,
   escalaRowsByVoyageId: ReadonlyMap<number, Array<PodScheduleRow | EscalaScheduleRow>> = new Map(),
   moduleStatsByVoyageId: ReadonlyMap<number, VoyageRailModuleStats> = new Map(),
+  openDivergencesByVoyageId: ReadonlyMap<number, number | null> = new Map(),
 ): VoyageRailItem[] {
-  return (voyages ?? []).map((voyage) => {
+  return (voyages ?? []).map((voyage): VoyageRailItem => {
     const escalaRows = escalaRowsByVoyageId.get(voyage.id) ?? []
     const exportEscalas = escalaRows.filter((row) => 'port' in row && row.temExportacao)
     const { containerBls, breakbulkBls } = splitVoyageBls(voyage.bls)
@@ -544,11 +569,7 @@ export function buildVoyageRailItems(
         null,
         escalaRows,
       ),
-      estado: deriveEstadoConciliacao({
-        hasOpenDivergences: false,
-        ceFilled: filled,
-        ceTotal: total,
-      }),
+      estado: railEstado(openDivergencesByVoyageId.get(voyage.id), filled, total),
       proximaEscala: getProximaEscala(escalaRows),
       blCount,
       containerCount,
@@ -579,7 +600,7 @@ export function buildVoyageRailItems(
         granito: moduleStats?.hasGranite ?? false,
       },
     }
-  })
+  }).sort(compareVoyageRailItems)
 }
 
 // --- Linha do tempo da viagem ------------------------------------------------

@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Ban, CircleDollarSign, FileText, MessageSquare, Percent, Receipt, RotateCcw } from 'lucide-react'
-import { Badge } from '../ui/Badge'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { CopyValue } from '../ui/CopyValue'
 import { Modal } from '../ui/Modal'
 import { NoValue } from '../ui/NoValue'
 import { FinancialRefundsPanel } from '../billing/FinancialRefundsPanel'
 import { ImportNotice } from '../shared/ImportParts'
+import { StatusText } from '../ui/StatusText'
 import { InvoiceStatusBadge } from './DemurrageBadges'
 import {
   demurrageInvoiceNotices,
@@ -54,10 +55,15 @@ type Props = {
 }
 
 function roeText(invoice: DemurrageDetailInvoice) {
-  if (!invoice.current_roe) return 'Sem câmbio calculado'
+  if (!invoice.current_roe) return <NoValue label="Sem câmbio calculado" />
   const roe = Number(invoice.current_roe).toFixed(4).replace('.', ',')
   const source = invoice.roe_source === 'cached' ? 'PTAX do cache' : invoice.roe_source === 'manual' ? 'PTAX informada' : 'PTAX do BCB'
-  return `ROE ${roe} · ${source}`
+  return `${roe} (${source})`
+}
+
+/** "9 × US$ 30,00", como na fatura do Portal; "—" sem dias no período. */
+function periodValue(days: number, rate: number) {
+  return days > 0 ? `${days} × ${fmtUSD(rate)}` : <NoValue label="Sem dias neste período" />
 }
 
 /**
@@ -171,57 +177,35 @@ function DetailBody({
 
   return (
     <div className="app-invoice-detail">
-      <div className="app-invoice-detail__head">
-        <div className="app-invoice-detail__identity">
-          <p className="app-invoice-detail__tags">
-            <InvoiceStatusBadge status={invoice.status} />
-            {earlier.length ? <Badge tone="info">Complementar</Badge> : null}
-            {Number(invoice.discount_value ?? 0) > 0 ? <Badge tone="neutral">Com desconto</Badge> : null}
-            {invoice.dispute_open ? <Badge tone="warning">Disputa aberta</Badge> : null}
-          </p>
-          <p className="app-invoice-detail__customer">{invoice.customer?.name ?? 'Cliente não identificado'}</p>
-          <p className="app-invoice-detail__meta">
-            <span className="tabular-nums">{invoice.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(invoice.customer.cnpj_cpf)} label="CNPJ/CPF" /> : 'CNPJ não informado'}</span>
-            <span>B/L <CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-invoice-detail__link app-invoice-detail__code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></CopyValue></span>
-            {voyage?.voyage_number ? <span>Viagem {voyage.voyage_number}{voyage.vessel?.name ? ` · ${voyage.vessel.name}` : ''}</span> : null}
-            <span>Emitida em {invoice.billed_at ? formatDate(invoice.billed_at) : <NoValue label="Sem data de emissão" />}</span>
-            {invoice.paid_at ? <span>Paga em {formatDate(invoice.paid_at)}</span> : null}
-          </p>
-        </div>
-      </div>
-
       {notices.map((notice) => (
         <ImportNotice key={notice.key} tone={notice.tone} title={notice.title}>
           <p>{notice.text}</p>
         </ImportNotice>
       ))}
 
-      <dl className="app-invoice-amounts" aria-label="Valores da Invoice">
-        <div className="app-invoice-amounts__item">
-          <dt>Itens</dt>
-          <dd><span className="app-invoice-amounts__value">{fmtUSD(net.totalUsd)}</span><span className="app-invoice-amounts__note">{items.length} {items.length === 1 ? 'container' : 'containers'}</span></dd>
-        </div>
-        {net.discountUsd > 0 ? (
-          <div className="app-invoice-amounts__item app-invoice-amounts__item--warning">
-            <dt>Desconto</dt>
-            <dd>
-              <span className="app-invoice-amounts__value">− {fmtUSD(net.discountUsd)}</span>
-              <span className="app-invoice-amounts__note">{invoice.discount_mode === 'percent' ? `${String(invoice.discount_value).replace('.', ',')}% em USD` : 'Valor fixo em USD'}</span>
-            </dd>
-          </div>
-        ) : null}
-        <div className="app-invoice-amounts__item">
-          <dt>USD a cobrar</dt>
-          <dd><span className="app-invoice-amounts__value">{fmtUSD(net.netUsd)}</span><span className="app-invoice-amounts__note">Travado na emissão</span></dd>
-        </div>
-        <div className="app-invoice-amounts__item app-invoice-amounts__item--balance">
-          <dt>{paid ? 'BRL pago' : invoice.status === 'cancelled' ? 'BRL no cancelamento' : 'BRL hoje'}</dt>
-          <dd>
-            <span className="app-invoice-amounts__value">{fmtBRL(invoice.current_total_brl)}</span>
-            <span className="app-invoice-amounts__note">{roeText(invoice)}{paid ? ' · congelado no pagamento' : issued ? ' · acompanha a PTAX até o pagamento' : ''}</span>
-          </dd>
-        </div>
-      </dl>
+      <Block title="Valores e dados da Invoice" headingLevel={3}>
+        <LeadValue detail={issued ? 'travado na emissão; o BRL acompanha a PTAX até o pagamento' : 'travado na emissão'}>
+          {fmtUSD(net.netUsd)} a cobrar
+        </LeadValue>
+        <FactList columns={4}>
+          <Fact label={paid ? 'BRL pago' : invoice.status === 'cancelled' ? 'BRL no cancelamento' : 'BRL hoje'}>{fmtBRL(invoice.current_total_brl)}</Fact>
+          <Fact label={paid ? 'ROE (congelado no pagamento)' : 'ROE'}>{roeText(invoice)}</Fact>
+          <Fact label="Situação">{issued && invoice.dispute_open ? <StatusText tone="warning">Em disputa</StatusText> : <InvoiceStatusBadge status={invoice.status} />}</Fact>
+          <Fact label="Tipo">{earlier.length ? 'Complementar' : 'Normal'}</Fact>
+          <Fact label="Cliente">{invoice.customer?.name ?? 'Cliente não identificado'}</Fact>
+          <Fact label="CNPJ">{invoice.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(invoice.customer.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="CNPJ não informado" />}</Fact>
+          <Fact label="B/L"><CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-invoice-detail__link app-invoice-detail__code" to={`/bls/${encodeURIComponent(invoice.bl_id)}?tab=faturamento`}>{invoice.bl_id}</Link></CopyValue></Fact>
+          <Fact label="Navio / Viagem">{voyage?.voyage_number ? `${voyage.vessel?.name ? `${voyage.vessel.name} / ` : ''}${voyage.voyage_number}` : <NoValue label="Sem viagem" />}</Fact>
+          <Fact label="Emitida em">{invoice.billed_at ? formatDate(invoice.billed_at) : <NoValue label="Sem data de emissão" />}</Fact>
+          {invoice.paid_at ? <Fact label="Paga em">{formatDate(invoice.paid_at)}</Fact> : null}
+          <Fact label="Itens">{fmtUSD(net.totalUsd)} em {items.length} {items.length === 1 ? 'container' : 'containers'}</Fact>
+          <Fact label="Desconto">
+            {net.discountUsd > 0
+              ? `− ${fmtUSD(net.discountUsd)} (${invoice.discount_mode === 'percent' ? `${String(invoice.discount_value).replace('.', ',')}% em USD` : 'valor fixo em USD'})`
+              : <NoValue label="Sem desconto" />}
+          </Fact>
+        </FactList>
+      </Block>
 
       <div className="app-invoice-detail__actions">
         {issued && permissions.canSettle ? (
@@ -284,9 +268,9 @@ function DetailBody({
                 <th scope="col">Devolução</th>
                 <th scope="col" className="app-invoice-detail__num">Dias</th>
                 <th scope="col" className="app-invoice-detail__num">Free time</th>
-                <th scope="col" className="app-invoice-detail__num">P1</th>
-                <th scope="col" className="app-invoice-detail__num">P2</th>
-                <th scope="col" className="app-invoice-detail__num">Subtotal</th>
+                <th scope="col" className="app-invoice-detail__num">1º período</th>
+                <th scope="col" className="app-invoice-detail__num">2º período</th>
+                <th scope="col" className="app-invoice-detail__num">US$</th>
               </tr>
             </thead>
             <tbody>
@@ -298,8 +282,8 @@ function DetailBody({
                   <td className="tabular-nums">{item.return_date ? formatDate(item.return_date) : <NoValue label="Sem devolução" />}</td>
                   <td className="app-invoice-detail__num">{item.total_days}</td>
                   <td className="app-invoice-detail__num">{item.free_days}</td>
-                  <td className="app-invoice-detail__num">{item.days_p1 > 0 ? `${item.days_p1} × ${fmtUSD(item.rate_p1_usd)}` : '0 d'}</td>
-                  <td className="app-invoice-detail__num">{item.days_p2 > 0 ? `${item.days_p2} × ${fmtUSD(item.rate_p2_usd)}` : '0 d'}</td>
+                  <td className="app-invoice-detail__num">{periodValue(item.days_p1, item.rate_p1_usd)}</td>
+                  <td className="app-invoice-detail__num">{periodValue(item.days_p2, item.rate_p2_usd)}</td>
                   <td className="app-invoice-detail__num">{fmtUSD(item.subtotal_usd)}</td>
                 </tr>
               )) : (

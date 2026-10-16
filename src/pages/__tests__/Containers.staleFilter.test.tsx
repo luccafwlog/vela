@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 
@@ -34,9 +34,9 @@ it('trocar o POD deixa as linhas do recorte anterior esmaecidas, sem seleção e
     const oldRow = await screen.findByRole('checkbox', { name: 'Selecionar container CXRU1234567' })
     const table = screen.getByRole('table').closest('.app-table-scroll') as HTMLElement
     expect(table.getAttribute('aria-busy')).toBeNull()
-    expect(screen.getByText('containers distintos').parentElement?.textContent).toContain('1')
+    expect(within(screen.getByRole('group', { name: 'Totais do recorte' })).getByText('Containers').parentElement?.textContent).toContain('1')
 
-    fireEvent.click(screen.getByRole('button', { name: /Filtros/, expanded: false }))
+    // POD fica sempre aberto (lote 2, como na lista de BLs): não há painel a abrir.
     await waitFor(() => expect((screen.getByLabelText('POD') as HTMLSelectElement).innerHTML).toContain('BRSSZ'))
     fireEvent.change(screen.getByLabelText('POD'), { target: { value: 'BRSSZ' } })
 
@@ -45,7 +45,7 @@ it('trocar o POD deixa as linhas do recorte anterior esmaecidas, sem seleção e
     expect(table.className).toContain(STALE_PAGE_CLASS)
     expect((oldRow as HTMLInputElement).disabled).toBe(true)
     expect((screen.getByRole('checkbox', { name: 'Selecionar todos os containers da página' }) as HTMLInputElement).disabled).toBe(true)
-    expect(screen.getByText('containers distintos').parentElement?.textContent).toContain('—')
+    expect(within(screen.getByRole('group', { name: 'Totais do recorte' })).getByText('Containers').parentElement?.textContent).toContain('—')
 
     mocks.releaseBrssz?.(page('MSCU7654321', 44))
     const newRow = await screen.findByRole('checkbox', { name: 'Selecionar container MSCU7654321' })

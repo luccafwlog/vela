@@ -1830,54 +1830,15 @@ textarea {
   border-top: 1px solid var(--app-border);
 }
 
-/* Viagens: a busca permanece no fluxo; os filtros secundários só abrem quando
-   necessários. Isso mantém a área acima do rail em uma única linha no desktop. */
-.app-voyage-command-bar {
-  position: relative;
-  margin-bottom: 20px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface-muted);
+/* Viagens: contador do recorte ao lado dos filtros, sempre abertos (lote 2). */
+.app-voyage-command-bar__count {
+  padding-bottom: 10px;
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.app-voyage-command-bar__row {
-  display: flex;
-  min-height: 64px;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-}
-
-.app-voyage-command-bar__search {
-  display: flex;
-  min-width: 180px;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: 10px;
-  color: var(--app-muted-soft);
-}
-
-.app-voyage-command-bar__search:focus-within {
-  outline: 2px solid var(--app-focus-ring);
-  outline-offset: 2px;
-  border-radius: var(--app-radius);
-}
-
-.app-voyage-command-bar__search .app-input {
-  min-height: var(--app-control-h);
-  flex: 1 1 auto;
-  border-color: transparent;
-  padding: 8px 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.app-voyage-command-bar__search .app-input:focus {
-  border-color: transparent;
-  box-shadow: none;
-}
-
-.app-voyage-command-bar__clear-search,
 .app-filter-chip button {
   display: inline-flex;
   min-width: 28px;
@@ -1891,74 +1852,8 @@ textarea {
   cursor: pointer;
 }
 
-.app-voyage-command-bar__clear-search:hover,
 .app-filter-chip button:hover {
   background: color-mix(in srgb, currentColor 12%, transparent);
-}
-
-.app-voyage-command-bar__chips {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-}
-
-.app-voyage-command-bar__chips .app-filter-chip {
-  gap: 4px;
-  min-height: 34px;
-  padding: 0 4px 0 10px;
-  cursor: default;
-}
-
-.app-voyage-command-bar__filters {
-  flex: none;
-}
-
-.app-voyage-command-bar__count {
-  flex: none;
-  border-left: 1px solid var(--app-border);
-  padding-left: 12px;
-  color: var(--app-muted);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.app-voyage-command-bar__panel {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  border-top: 1px solid var(--app-border);
-  padding: 14px 16px 16px;
-}
-
-@media (max-width: 900px) {
-  .app-voyage-command-bar__row {
-    flex-wrap: wrap;
-  }
-
-  .app-voyage-command-bar__search {
-    flex-basis: 100%;
-  }
-
-  .app-voyage-command-bar__count {
-    margin-left: auto;
-  }
-
-  .app-voyage-command-bar__panel {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
-  .app-voyage-command-bar__panel {
-    grid-template-columns: 1fr;
-  }
-
-  .app-voyage-command-bar__chips {
-    max-width: 100%;
-    overflow-x: auto;
-  }
 }
 
 .app-filter-grid {
@@ -2388,7 +2283,9 @@ button.app-metric-tile[aria-pressed='true'] {
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: var(--app-radius-control) var(--app-radius-control) 0 0;
-  background: transparent;
+  /* Aba não selecionada sombreada, na cor da faixa dos blocos, para não ficar
+     solta (decisão de 2026-10-16, padrão de todas as abas). */
+  background: var(--app-strip);
   color: var(--app-muted);
   font-size: var(--app-size-body);
   font-weight: 500;
@@ -2399,7 +2296,7 @@ button.app-metric-tile[aria-pressed='true'] {
 
 .app-tab:hover {
   color: var(--app-text-strong);
-  background: var(--app-surface-hover);
+  background: var(--app-border);
 }
 
 .app-tab:focus-visible {
@@ -6616,97 +6513,6 @@ button.app-metric-tile[aria-pressed='true'] {
    fora da paleta e "Comunicação" um botão secundário no cabeçalho — mesma
    função, hierarquias opostas.
    =========================================================================== */
-.app-workspace-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.app-workspace-nav__item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface-strong);
-  color: var(--app-text);
-  text-decoration: none;
-  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.app-workspace-nav__item:hover {
-  border-color: var(--app-link);
-  background: var(--app-surface-hover);
-  box-shadow: var(--app-shadow);
-}
-
-.app-workspace-nav__item:focus-visible {
-  outline: 2px solid var(--app-link);
-  outline-offset: 2px;
-}
-
-.app-workspace-nav__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  border-radius: 8px;
-  background: var(--app-blue-soft);
-  color: var(--app-link);
-}
-
-.app-workspace-nav__body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.app-workspace-nav__label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--app-size-body);
-  font-weight: 700;
-  color: var(--app-text-strong);
-}
-
-.app-workspace-nav__count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: var(--app-blue-btn);
-  color: #ffffff;
-  font-size: var(--app-size-caption);
-  font-weight: 700;
-  line-height: 1;
-}
-
-.app-workspace-nav__description {
-  font-size: 0.8rem;
-  color: var(--app-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.app-workspace-nav__arrow {
-  flex: 0 0 auto;
-  color: var(--app-muted);
-}
-
-.app-workspace-nav__item:hover .app-workspace-nav__arrow {
-  color: var(--app-link);
-}
 
 /* Filtros do recorte em Clientes › Comunicação › Disparo. São quatro campos de
    texto curto enfileirados; a altura padrão de 44px empurrava o botão de
@@ -7135,54 +6941,14 @@ a.app-step-rail__link:focus-visible {
   white-space: nowrap;
 }
 
-.app-schedule__group {
-  border-bottom: 1px solid var(--app-border);
-}
-
 .app-schedule-date {
   font-variant-numeric: tabular-nums;
 }
 
-.app-schedule-date--actual {
+/* Data efetiva: só o ✓ é verde; a data fica em tinta normal (lote 2). */
+.app-schedule-date__check {
   color: var(--app-success-fg);
-  font-weight: 600;
-}
-
-.app-schedule-date--overdue {
-  display: inline-grid;
-  justify-items: center;
-}
-
-.app-schedule-date__note {
-  color: var(--app-warning-fg);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-}
-
-.app-schedule-date--none {
-  color: var(--app-muted);
-}
-
-.app-schedule-date--omitted {
-  display: inline-block;
-  border: 1px solid var(--app-warning-border);
-  border-radius: var(--app-radius-control, 6px);
-  background: var(--app-warning-bg);
-  padding: 0 6px;
-  color: var(--app-warning-fg);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.app-schedule-vessel-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--app-link);
-  text-decoration: none;
-  text-underline-offset: 3px;
+  font-weight: 700;
 }
 
 .app-schedule-legend {
@@ -9530,30 +9296,6 @@ td.app-cargo-num {
   margin-bottom: 16px;
 }
 
-.app-cargo-panel__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 24px;
-  padding: 12px 16px;
-}
-
-.app-cargo-panel__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-section);
-  font-weight: 600;
-  line-height: 24px;
-}
-
-.app-cargo-panel__meta {
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
 .app-cargo-panel__note {
   margin: 0;
   border-top: 1px solid var(--app-border);
@@ -9566,13 +9308,6 @@ td.app-cargo-num {
 .app-cargo-panel__note strong {
   color: var(--app-text-strong);
   font-weight: 600;
-}
-
-.app-cargo-panel__body {
-  display: grid;
-  gap: 12px;
-  border-top: 1px solid var(--app-border);
-  padding: 12px 16px;
 }
 
 .app-cargo-state {
@@ -9602,27 +9337,6 @@ td.app-cargo-num {
   gap: 8px 16px;
 }
 
-.app-cargo-row__text {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 0;
-  max-width: 72ch;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-cargo-row__text svg {
-  flex: none;
-  margin-top: 1px;
-  color: var(--app-success-fg);
-}
-
-.app-cargo-row__text--warning svg {
-  color: var(--app-warning-fg);
-}
-
 .app-cargo-row__actions {
   display: inline-flex;
   flex-wrap: wrap;
@@ -9631,83 +9345,6 @@ td.app-cargo-num {
 }
 
 /* ── Conciliação Baplie × B/L ──────────────────────────────────────────── */
-.app-cargo-verdict {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  border-top: 1px solid var(--app-border);
-  border-left: 4px solid var(--app-border-strong);
-  padding: 12px 16px;
-}
-
-.app-cargo-verdict--success { border-left-color: var(--app-success-fg); }
-.app-cargo-verdict--warning { border-left-color: var(--app-warning-fg); background: var(--app-warning-bg); }
-.app-cargo-verdict--danger { border-left-color: var(--app-danger-fg); background: var(--app-danger-bg); }
-
-.app-cargo-verdict__icon {
-  flex: none;
-  margin-top: 2px;
-  color: var(--app-muted);
-}
-
-.app-cargo-verdict--success .app-cargo-verdict__icon { color: var(--app-success-fg); }
-.app-cargo-verdict--warning .app-cargo-verdict__icon { color: var(--app-warning-fg); }
-.app-cargo-verdict--danger .app-cargo-verdict__icon { color: var(--app-danger-fg); }
-
-.app-cargo-verdict__body {
-  display: grid;
-  justify-items: start;
-  gap: 4px;
-}
-
-.app-cargo-verdict__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-weight: 600;
-}
-
-.app-cargo-verdict__text {
-  margin: 0;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-}
-
-.app-cargo-facts {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 0;
-  border-top: 1px solid var(--app-border);
-}
-
-.app-cargo-facts__item {
-  display: grid;
-  gap: 2px;
-  padding: 10px 16px;
-}
-
-.app-cargo-facts__item + .app-cargo-facts__item {
-  border-left: 1px solid var(--app-border);
-}
-
-.app-cargo-facts__item dt {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-cargo-facts__item dd {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-section);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.app-cargo-facts__item--warning dd,
-.app-cargo-facts__item--warning dd .app-cargo-link {
-  color: var(--app-warning-fg);
-}
 
 .app-cargo-divergence {
   display: grid;
@@ -9721,20 +9358,6 @@ td.app-cargo-num {
   outline-offset: -2px;
 }
 
-.app-cargo-divergence__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-body);
-  font-weight: 600;
-}
-
-.app-cargo-divergence__title svg {
-  color: var(--app-warning-fg);
-}
-
 .app-cargo-divergence__text {
   margin: 0;
   max-width: 90ch;
@@ -9743,29 +9366,14 @@ td.app-cargo-num {
   line-height: 18px;
 }
 
-.app-cargo-divergence__table {
-  max-height: 360px;
-  margin-top: 8px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-}
-
 /* ── Tabelas ───────────────────────────────────────────────────────────── */
 .app-cargo-table {
   min-width: 960px;
   text-align: left;
 }
 
-.app-cargo-table--sub {
-  min-width: 0;
-}
-
 .app-cargo-table--preview {
   min-width: 420px;
-}
-
-.app-cargo-card .app-cargo-group__bls {
-  font-size: var(--app-size-table);
 }
 
 .app-cargo-table td {
@@ -9800,59 +9408,6 @@ td.app-cargo-num {
 }
 
 /* Veículos agrupados pelo container: o cabeçalho do grupo leva o local de desova. */
-.app-cargo-table--grouped {
-  min-width: 860px;
-}
-
-.app-cargo-group__row > td,
-.app-cargo-group__row > th {
-  background: var(--app-surface-muted);
-  vertical-align: middle;
-}
-
-.app-cargo-table .app-cargo-group__row > .app-cargo-table__check {
-  background: var(--app-surface-muted);
-}
-
-.app-cargo-group__cell {
-  font-weight: 400;
-}
-
-.app-cargo-group__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 16px;
-}
-
-.app-cargo-group__id {
-  display: inline-grid;
-  gap: 2px;
-}
-
-.app-cargo-group__bls {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-}
-
-.app-cargo-desova {
-  display: grid;
-  gap: 2px;
-  min-width: 220px;
-}
-
-.app-cargo-desova__status {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-cargo-desova__status--error {
-  color: var(--app-danger-fg);
-  font-weight: 500;
-}
 
 .app-cargo-danger-icon {
   color: var(--app-danger-fg);
@@ -9877,10 +9432,6 @@ td.app-cargo-num {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-}
-
-.app-cargo-card__head .app-cargo-group__head {
-  flex: 1 1 auto;
 }
 
 .app-cargo-card__check {
@@ -9931,49 +9482,13 @@ td.app-cargo-num {
   gap: 4px 8px;
 }
 
-.app-cargo-card__field .app-cargo-desova {
-  min-width: 0;
-}
-
-.app-cargo-card__list {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-cargo-card__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-top: 1px solid var(--app-border);
-  padding: 6px 0;
-}
-
-.app-cargo-card__item .app-cargo-cell__stack {
-  flex: 1 1 auto;
-}
-
 @media (max-width: 1100px) {
-  .app-cargo-facts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
-  .app-cargo-facts__item:nth-child(3) {
-    border-left: 0;
-  }
-
-  .app-cargo-facts__item:nth-child(n + 3) {
-    border-top: 1px solid var(--app-border);
-  }
 }
 
 @media (max-width: 639px) {
   .app-cargo-toolbar,
-  .app-cargo-panel__head,
-  .app-cargo-panel__body,
   .app-cargo-panel__note,
-  .app-cargo-verdict,
   .app-cargo-divergence,
   .app-cargo-card {
     padding-inline: 12px;
@@ -10024,19 +9539,9 @@ td.app-cargo-num {
   line-height: 16px;
 }
 
-.app-customer-note--warning {
-  color: var(--app-warning-fg);
-  font-weight: 500;
-}
-
 .app-customer-money {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.app-customer-money--due {
-  color: var(--app-text-strong);
-  font-weight: 600;
 }
 
 .app-customer-error {
@@ -10092,32 +9597,6 @@ td.app-cargo-num {
 }
 
 /* ── Lista ──────────────────────────────────────────────────────────────── */
-.app-customer-search {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px 16px;
-  margin-bottom: 12px;
-}
-
-.app-customer-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(168px, 1fr));
-  gap: 12px;
-}
-
-.app-customer-metrics .app-metric-tile {
-  padding: 10px 14px;
-}
-
-.app-customer-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  border-bottom: 1px solid var(--app-border);
-  padding: 10px 16px;
-}
 
 .app-customer-empty-actions {
   display: flex;
@@ -10128,38 +9607,51 @@ td.app-cargo-num {
 
 .app-customer-table {
   width: 100%;
-  min-width: 820px;
+  min-width: 1040px;
   table-layout: fixed;
 }
 
+/* Layout fixo: as oito colunas somam 100% (mais a seleção); coluna sem
+   largura aqui ficaria espremida a zero. */
 .app-customer-table__select {
   width: 44px;
 }
 
 .app-customer-table__name {
-  width: 40%;
+  width: 21%;
+}
+
+.app-customer-table__document {
+  width: 14%;
+}
+
+.app-customer-table__city {
+  width: 11%;
 }
 
 .app-customer-table__contact {
-  width: 28%;
+  width: 18%;
 }
 
 .app-customer-table__bls {
-  width: 16%;
+  width: 7%;
+}
+
+.app-customer-table__charges {
+  width: 10%;
 }
 
 .app-customer-table__balance {
-  width: 16%;
+  width: 10%;
   text-align: right;
+}
+
+.app-customer-table__portal {
+  width: 9%;
 }
 
 .app-customer-table th.app-customer-table__balance .app-table__sort {
   margin-left: auto;
-}
-
-.app-customer-table__actions {
-  width: 56px;
-  text-align: right;
 }
 
 .app-customer-table td {
@@ -10186,23 +9678,11 @@ td.app-cargo-num {
   font-variant-numeric: tabular-nums;
 }
 
-.app-customer-cell__flags {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  margin-top: 2px;
-}
-
 .app-customer-cell__truncate {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.app-customer-menu-trigger {
-  margin-left: auto;
 }
 
 .app-customer-cards {
@@ -10744,9 +10224,6 @@ td.app-cargo-num {
 }
 
 @media (max-width: 900px) {
-  .app-customer-search {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   .app-customer-boxes__grid,
   .app-customer-subsections {
@@ -10763,11 +10240,7 @@ td.app-cargo-num {
 }
 
 @media (max-width: 639px) {
-  .app-customer-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
-  .app-customer-toolbar,
   .app-customer-card {
     padding-inline: 12px;
   }
@@ -12251,10 +11724,6 @@ tr[data-inactive] .app-rates-item__value {
   line-height: 16px;
 }
 
-.app-dem-meta--warning {
-  color: var(--app-warning-fg);
-}
-
 .app-dem-amount {
   color: var(--app-text-strong);
   font-variant-numeric: tabular-nums;
@@ -12358,39 +11827,14 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-danger-fg);
 }
 
-.app-dem-refs {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 8px;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-}
-
-.app-dem-refs__status {
-  color: var(--app-muted);
-  font-family: inherit;
-  text-decoration: none;
-}
-
 .app-dem-state {
   font-size: var(--app-size-caption);
   font-weight: 500;
   line-height: 16px;
 }
 
-.app-dem-state--muted { color: var(--app-muted); }
 .app-dem-state--success { color: var(--app-success-fg); }
 .app-dem-state--warning { color: var(--app-warning-fg); }
-
-.app-dem-legend {
-  margin: 0;
-  border-top: 1px solid var(--app-border);
-  padding: 8px 16px;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
 
 .app-dem-cards {
   display: grid;
@@ -12494,11 +11938,6 @@ tr[data-inactive] .app-rates-item__value {
 
 .app-dem-dunning__label {
   font-weight: 500;
-}
-
-.app-dem-dunning__meta {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
 }
 
 .app-dem-dunning--muted { color: var(--app-muted); }
