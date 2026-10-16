@@ -5,7 +5,7 @@ import { Modal } from './Modal'
  * Painel lateral para consultar ou ajustar um registro sem perder a lista,
  * os filtros e a seleção. Reaproveita o Modal (foco preso, Escape, retorno do
  * foco, rolagem do corpo) com a geometria de `.app-drawer`; abaixo de 640px
- * ocupa a tela inteira. Promovido a partir do padrão do `ReviewDrawer`.
+ * ocupa a tela inteira. Promovido a partir do padrão da antiga janela lateral da Revisão.
  */
 export function Drawer({
   open,

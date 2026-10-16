@@ -7,11 +7,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReviewQueueItem } from '../../hooks/useReview'
 
 vi.mock('../../hooks/useReview', () => ({ useReviewQueue: vi.fn() }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, isAdmin: true }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, isAdmin: true, can: () => true }) }))
 vi.mock('../../hooks/useCustomers', () => ({ useCustomerLookup: vi.fn() }))
 vi.mock('../../hooks/useReviewCustomerGroup', () => ({ useReviewCustomerGroup: vi.fn() }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
-vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn().mockResolvedValue(true) }))
+const mocks = vi.hoisted(() => ({ confirm: vi.fn(), sendInvite: vi.fn() }))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
+vi.mock('../../hooks/usePortalProvisioning', () => ({
+  usePortalProvisioningForCustomer: () => ({
+    isLoading: false,
+    isError: false,
+    data: {
+      customer_id: 7, account_situation: 'sem_conta', provisioning_decision: 'aguardando_analise',
+      recovery_email: null, recovery_email_source: null, pending_invite_expires_at: null,
+      recoveryEmailStatus: null, recoveryEmailSuppressed: false, latestDeliveryStatus: null,
+      candidates: [{ email: 'contato@linked.com', purpose: 'geral', origin: 'Contato principal' }],
+    },
+  }),
+  useSendPortalInvite: () => ({ mutateAsync: mocks.sendInvite, isPending: false }),
+}))
 vi.mock('../../services/charges/chargeOperationsService', () => ({ calculateBlLocalCharges: vi.fn() }))
 vi.mock('../../services/operationalEvents', () => ({ logOperationalEvent: vi.fn() }))
 vi.mock('../../services/review', async () => {
@@ -115,6 +129,8 @@ beforeEach(() => {
   mockedUseCustomerLookup.mockImplementation((search: string) => ({
     data: search.trim().length >= 2 ? [{ id: 99, name: 'Cliente Modelo', cnpj_cpf: '11222333000181' }] : [],
   } as never))
+  mocks.confirm.mockResolvedValue(true)
+  mocks.sendInvite.mockResolvedValue(undefined)
   mockedUseReviewCustomerGroup.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue({ onboarding: { customer: { id: 99, cnpj_cpf: '11222333000181', name: 'Cliente Modelo' }, bls: [{ blId: 'BL1', resolved: true }, { blId: 'BL2', resolved: true }] }, portalInvite: 'not_requested' }) } as never)
 })
 
@@ -122,6 +138,10 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
 })
+
+async function choosePortalLater(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('radio', { name: /Deixar para depois/ }))
+}
 
 describe('Revisao', () => {
   it('filtra por causa com cartões que contam os registros e guardam o recorte na URL', async () => {
@@ -135,6 +155,8 @@ describe('Revisao', () => {
 
     const card = screen.getByRole('button', { name: /Sem cliente vinculado\s*1/ })
     expect(screen.getByRole('button', { name: /Portal não provisionado\s*1/ })).toBeTruthy()
+    // "Outras pendências" é o quinto cartão e filtra como os demais.
+    expect(screen.getByRole('button', { name: /Outras pendências\s*0/ })).toBeTruthy()
     await user.click(card)
 
     expect(card.getAttribute('aria-pressed')).toBe('true')
@@ -158,31 +180,49 @@ describe('Revisao', () => {
     expect(screen.queryByText('AC Comercial')).toBeNull()
   })
 
-  it('põe primeiro o que se resolve na Revisão e depois o que depende do Portal', () => {
+  it('mostra a fila em tabela, uma linha por Cliente, com o que se resolve na Revisão primeiro', () => {
     mockedUseReviewQueue.mockReturnValue({
       // "Linked Co SA" vem antes de "Zeta" no alfabeto, mas só espera o Portal.
       data: [makeLinkedBl('BL7', { emails: ['a@b.com'] }), makeBl('BL1', 'Zeta Importadora')],
       isLoading: false,
       error: null,
     } as never)
-    renderPage()
+    const { container } = renderPage()
 
-    const names = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent ?? '')
-    expect(names[0]).toMatch(/Zeta Importadora/)
-    expect(names[0]).toMatch(/Próxima ação.*Identificar o cliente/)
-    expect(names[1]).toMatch(/Linked Co SA/)
-    expect(names[1]).toMatch(/Ativar o Portal do Cliente/)
+    const rows = [...container.querySelectorAll('tr[data-review-group]')].map((row) => row.textContent ?? '')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatch(/Zeta Importadora.*Identificar o cliente/)
+    expect(rows[1]).toMatch(/Linked Co SA.*Ativar o Portal do Cliente/)
   })
 
-  it('leva o grupo que só espera o Portal ao Provisionamento e à Liberação', async () => {
+  it('provisiona o Portal no próprio grupo quando o Cliente já está cadastrado', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({ data: [makeLinkedBl('BL7', { emails: ['a@b.com'] })], isLoading: false, error: null } as never)
     renderPage()
 
     await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
-    expect(screen.getByRole('link', { name: /Abrir no Provisionamento do Portal/ }).getAttribute('href')).toBe('/clientes/portal?cliente=7')
-    expect(screen.getByRole('link', { name: /Liberação na ficha do Cliente/ }).getAttribute('href')).toBe('/clientes/11222333000181?tab=financeiro')
-    expect(screen.getByText(/Portal não provisionado — no grupo|Portal não provisionado/, { selector: 'li' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Portal do Cliente' })).toBeTruthy()
+    expect(screen.getByText('Sem conta')).toBeTruthy()
+    expect(screen.getByText('contato@linked.com')).toBeTruthy()
+    // A Liberação de faturamento sem Portal fica só na ficha do Cliente.
+    expect(screen.queryByRole('button', { name: /Liberação/ })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Liberação na ficha do Cliente' }).getAttribute('href')).toBe('/clientes/11222333000181?tab=financeiro')
+
+    await user.click(screen.getByRole('button', { name: 'Autorizar e enviar convite' }))
+    await waitFor(() => expect(mocks.sendInvite).toHaveBeenCalledWith({ customerId: 7, recoveryEmail: 'contato@linked.com', source: 'candidato' }))
+    expect(await screen.findByText(/Convite enviado para/)).toBeTruthy()
+  })
+
+  it('envia o convite para outro e-mail informado no grupo', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({ data: [makeLinkedBl('BL7', { emails: ['a@b.com'] })], isLoading: false, error: null } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
+    await user.click(screen.getByRole('button', { name: 'Usar outro e-mail' }))
+    await user.type(screen.getByLabelText('Outro e-mail para o convite'), 'Financeiro@Linked.com')
+    await user.click(screen.getByRole('button', { name: 'Autorizar e enviar convite' }))
+    await waitFor(() => expect(mocks.sendInvite).toHaveBeenCalledWith({ customerId: 7, recoveryEmail: 'financeiro@linked.com', source: 'informado_manualmente' }))
   })
 
   it('mostra erro de consulta com Tentar novamente, sem parecer fila vazia', async () => {
@@ -197,14 +237,12 @@ describe('Revisao', () => {
     expect(refetch).toHaveBeenCalled()
   })
 
-  it('agrupa os B/Ls por cliente/consignatario e inicia os processos recolhidos', () => {
+  it('agrupa os B/Ls por cliente/consignatario e inicia os grupos recolhidos', () => {
     renderPage()
     // grupos sao nomeados pelo consignatario quando nao ha cliente cadastrado
     expect(screen.getByText('AC Comercial')).toBeTruthy()
     expect(screen.getByText('Alma Trading')).toBeTruthy()
-    expect(screen.getAllByText('Sem cliente vinculado').length).toBeGreaterThan(0)
     expect(screen.queryByText('CNPJ pendente')).toBeNull()
-    // A fila inicia expandida para expor imediatamente as ações de cada B/L.
     expect(screen.getByRole('button', { name: /AC Comercial/ }).getAttribute('aria-expanded')).toBe('false')
     expect(screen.getByRole('button', { name: /Alma Trading/ }).getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByText('BL1')).toBeNull()
@@ -212,39 +250,97 @@ describe('Revisao', () => {
     expect(screen.queryByText('BL3')).toBeNull()
   })
 
-  it('cria e vincula todos os B/Ls do grupo após confirmar CNPJ e e-mail', async () => {
+  it('caso A: mostra o texto bruto do B/L quando só o nome foi lido', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{ ...makeBl('BL1', 'AC Comercial'), consignee_block: 'TO ORDER OF AC COMERCIAL LTDA' }],
+      isLoading: false,
+      error: null,
+    } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /AC Comercial/ }))
+    expect(screen.getByRole('heading', { name: 'Identificar o cliente' })).toBeTruthy()
+    expect(screen.getByText('TO ORDER OF AC COMERCIAL LTDA')).toBeTruthy()
+    expect(screen.getByText('Carga de teste do B/L')).toBeTruthy()
+    // Sem janela lateral: não há mais "Corrigir dados".
+    expect(screen.queryByRole('button', { name: /Corrigir dados/ })).toBeNull()
+  })
+
+  it('só cadastra depois de escolher o que fazer com o Portal, e vincula todos os B/Ls do grupo', async () => {
     const user = userEvent.setup()
     renderPage()
 
     // o grupo "AC Comercial" (2 B/Ls) e o primeiro na ordem alfabetica
     await user.click(screen.getByRole('button', { name: /AC Comercial/ }))
-    expect(screen.getAllByText('Contêiner').length).toBeGreaterThan(0)
-    expect(screen.queryByText('Tratada no cadastro do grupo')).toBeNull()
     await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '11222333000181')
     await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'financeiro@alfa.com')
-    await user.click(screen.getByRole('button', { name: /criar cliente e vincular 2 b\/ls/i }))
+    const submit = screen.getByRole('button', { name: 'Cadastrar e vincular' }) as HTMLButtonElement
+    // Nenhuma opção do Portal vem marcada: o botão espera a escolha.
+    expect(submit.disabled).toBe(true)
+    expect(screen.getByText('Escolha o que fazer com o Portal do Cliente para continuar.')).toBeTruthy()
+
+    await user.click(screen.getByRole('radio', { name: /Enviar o convite agora/ }))
+    expect(screen.getByText(/Vai cadastrar/).textContent).toMatch(/vincular 2 B\/Ls e enviar o convite do Portal para financeiro@alfa\.com/)
+    await user.click(submit)
     const mutateAsync = mockedUseReviewCustomerGroup.mock.results[0].value.mutateAsync
-    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BL1', 'BL2'], cnpjCpf: '11222333000181', email: 'financeiro@alfa.com', changedBy: 'user-1' })))
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BL1', 'BL2'], cnpjCpf: '11222333000181', email: 'financeiro@alfa.com', changedBy: 'user-1', sendPortalInvite: true })))
     await waitFor(() => expect(mockedTryAutoIssueInvoice).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BL1', customerId: 99 })))
     expect(mockedTryAutoIssueInvoice).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BL2', customerId: 99 }))
   })
 
-  it('mantém o drawer para exceções operacionais do B/L sem cadastrar cliente', async () => {
+  it('caso F mostra o motivo registrado pelo gate em vez de "sem motivo"', async () => {
     const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{ ...makeLinkedBl('BLR', { emails: ['a@b.com'], portalActive: true }), review_reasons: ['CE Mercante não informado'] }],
+      isLoading: false,
+      error: null,
+    } as never)
     renderPage()
 
-    await user.click(screen.getByRole('button', { name: /AC Comercial/ }))
-    await user.click(screen.getAllByRole('button', { name: /Corrigir dados/ })[0])
-    expect(screen.getByDisplayValue('Carga de teste do B/L')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
+    expect(screen.getAllByText(/CE Mercante não informado/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/não tem motivo registrado/)).toBeNull()
+  })
+
+  it('B/L vinculado com outro CNPJ no documento aponta a ficha do B/L para trocar o cliente', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{ ...makeLinkedBl('BLC', { emails: ['a@b.com'] }), manifest_customer_cnpj_cpf: '12345678000195' }],
+      isLoading: false,
+      error: null,
+    } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
+    expect(screen.getByRole('heading', { name: 'CNPJ do B/L diferente do cliente vinculado' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Abrir ficha do B/L' }).getAttribute('href')).toBe('/bls/BLC')
+  })
+
+  it('caso F: confere e salva os dados do B/L no próprio grupo', async () => {
+    const user = userEvent.setup()
+    mockedUseReviewQueue.mockReturnValue({
+      data: [{ ...makeLinkedBl('BLF', { emails: ['a@b.com'], portalActive: true }), cargo_mode: 'container', shipper: 'Sany', total_weight_kg: 24000, notes: 'Conferido com o armador\nPendencias de importacao: Pendente' }],
+      isLoading: false,
+      error: null,
+    } as never)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
+    expect(screen.getByRole('heading', { name: 'Conferir os dados do B/L' })).toBeTruthy()
+    // Só as notas humanas: a linha técnica é regravada pelo gate.
+    expect((screen.getByLabelText('Notas da revisão') as HTMLInputElement).value).toBe('Conferido com o armador')
+    expect(screen.queryByLabelText('Peso carga solta (t)')).toBeNull()
+    await user.clear(screen.getByLabelText('Shipper'))
+    await user.type(screen.getByLabelText('Shipper'), 'Novo embarcador')
     await user.click(screen.getByRole('button', { name: 'Salvar revisão' }))
 
     await waitFor(() => expect(mockedSaveBlReview).toHaveBeenCalledTimes(1))
-    expect(mockedSaveBlReview).toHaveBeenCalledWith(
-      expect.objectContaining({ justification: 'Revisão manual' }),
-    )
+    expect(mocks.confirm.mock.calls[0][0].changes).toEqual([{ field: 'Shipper', before: 'Sany', after: 'Novo embarcador' }])
+    expect(mockedSaveBlReview).toHaveBeenCalledWith(expect.objectContaining({ justification: 'Revisão manual', customerId: 7 }))
   })
 
-  it('permite vincular individualmente um B/L com CNPJs conflitantes', async () => {
+  it('caso C: lista os CNPJs divergentes e vincula a um cliente cadastrado sem janela', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
       data: [{
@@ -259,18 +355,19 @@ describe('Revisao', () => {
     renderPage()
 
     await user.click(screen.getByRole('button', { name: /Conflito SA/ }))
-    await user.click(screen.getByRole('button', { name: /Corrigir dados/ }))
-    await user.type(screen.getByLabelText('Buscar cliente por nome ou CNPJ'), 'Cliente')
+    expect(screen.getByRole('heading', { name: 'Confirmar o CNPJ do cliente' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: /Usar este CNPJ 11\.222\.333\/0001-81/ }))
+    await user.click(screen.getByRole('radio', { name: 'Vincular a um cliente cadastrado' }))
+    await user.type(screen.getByLabelText('Cliente cadastrado'), 'Cliente')
     const option = screen.getByRole('option', { name: /Cliente Modelo/ })
-    // O CNPJ do cliente aparece no B/L: a sugestão diz que confere.
     expect(option.textContent).toMatch(/CNPJ confere com o B\/L/)
     await user.click(option)
-    await user.click(screen.getByRole('button', { name: 'Salvar revisão' }))
+    await user.click(screen.getByRole('button', { name: 'Vincular 1 B/L' }))
 
-    await waitFor(() => expect(mockedSaveBlReview).toHaveBeenCalledWith(expect.objectContaining({ customerId: 99 })))
+    await waitFor(() => expect(mockedApplyInlineBlReviewFix).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BL-CONFLICT', field: 'customer_id', value: 99 })))
   })
 
-  it('permite confirmar um dos CNPJs evidenciados no cartão do conflito', async () => {
+  it('caso C: leva o CNPJ escolhido para o cadastro', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
       data: [{
@@ -285,15 +382,15 @@ describe('Revisao', () => {
     renderPage()
 
     await user.click(screen.getByRole('button', { name: /Conflito Cadastro SA/ }))
-    // O CNPJ vem das evidências, sem redigitar nem comparar textos soltos.
     await user.click(screen.getByRole('button', { name: /Usar este CNPJ 11\.222\.333\/0001-81/ }))
     expect((screen.getByPlaceholderText('00.000.000/0000-00') as HTMLInputElement).value).toBe('11.222.333/0001-81')
-    expect(screen.getByText('Em uso no cadastro')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Usar este CNPJ 11\.222\.333\/0001-81/ }).getAttribute('aria-pressed')).toBe('true')
     await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'conflito@cliente.com')
-    await user.click(screen.getByRole('button', { name: /criar cliente e vincular 1 b\/l$/i }))
+    await choosePortalLater(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
 
     const mutateAsync = mockedUseReviewCustomerGroup.mock.results[0].value.mutateAsync
-    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BL-CONFLICT-ONBOARD'], cnpjCpf: '11222333000181' })))
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BL-CONFLICT-ONBOARD'], cnpjCpf: '11222333000181', sendPortalInvite: false })))
   })
 
   it('vincula também as linhas de Granito quando compartilham o grupo do B/L', async () => {
@@ -313,14 +410,15 @@ describe('Revisao', () => {
     renderPage()
 
     await user.click(screen.getByRole('button', { name: /Cliente misto/ }))
-    await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '11222333000181')
+    expect(screen.getByRole('heading', { name: 'Cadastrar o cliente' })).toBeTruthy()
     await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'misto@cliente.com')
-    await user.click(screen.getByRole('button', { name: /criar cliente e vincular 1 b\/l$/i }))
+    await choosePortalLater(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
 
     await waitFor(() => expect(mockedSaveGraniteBlReview).toHaveBeenCalledWith({ graniteBlId: 'GR-MIXED', clientId: 99, changedBy: 'user-1' }))
   })
 
-  it('mantém onboarding e vínculo existente em grupo misto sem CNPJ', async () => {
+  it('vincula a um cliente cadastrado num grupo misto sem CNPJ', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
       data: [
@@ -337,10 +435,13 @@ describe('Revisao', () => {
     renderPage()
 
     await user.click(screen.getByRole('button', { name: /Cliente sem documento/ }))
-    expect(screen.getByText('Cadastrar ou vincular cliente')).toBeTruthy()
-    // O vínculo direto continua encontrável, mas sai do cabeçalho e diz o que faz.
-    await user.click(screen.getByRole('button', { name: 'Vincular cliente cadastrado sem informar e-mail' }))
-    expect(screen.getByLabelText('Cliente cadastrado para 2 registros sem cliente')).toBeTruthy()
+    await user.click(screen.getByRole('radio', { name: 'Vincular a um cliente cadastrado' }))
+    await user.type(screen.getByLabelText('Cliente cadastrado'), 'Cliente')
+    await user.click(screen.getByRole('option', { name: /Cliente Modelo/ }))
+    await user.click(screen.getByRole('button', { name: 'Vincular 1 B/L e 1 registro de Granito' }))
+
+    await waitFor(() => expect(mockedSaveGraniteBlReview).toHaveBeenCalledWith({ graniteBlId: 'GR-MIXED-NAME', clientId: 99, changedBy: 'user-1' }))
+    expect(mockedApplyInlineBlReviewFix).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BL-MIXED-NAME', value: 99 }))
   })
 
   it('adiciona e-mail ao cliente do grupo direto da fila', async () => {
@@ -353,14 +454,16 @@ describe('Revisao', () => {
     renderPage()
 
     await user.click(screen.getByRole('button', { name: /Linked Co/ }))
-    await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'novo@cliente.com')
-    await user.click(screen.getByRole('button', { name: /adicionar e-mail e vincular 1 b\/l$/i }))
+    // O motivo legado de e-mail tem o próprio bloco; não abre também "Conferir os dados".
+    expect(screen.queryByRole('heading', { name: 'Conferir os dados do B/L' })).toBeNull()
+    await user.type(screen.getByLabelText('E-mail principal'), 'novo@cliente.com')
+    await user.click(screen.getByRole('button', { name: 'Adicionar e-mail' }))
 
     const mutateAsync = mockedUseReviewCustomerGroup.mock.results[0].value.mutateAsync
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BLX'], customerId: 7, email: 'novo@cliente.com', changedBy: 'user-1' })))
   })
 
-  it('B16: exibe a sugestão por nome do B/L, como a do Granito', async () => {
+  it('B16: exibe a sugestão por nome do B/L e a leva ao vínculo', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
       data: [{ ...makeBl('BLSUG1', 'Sugerido Ltda'), suggested_customer_id: 42, suggested_customer: { id: 42, name: 'Cliente Sugerido', cnpj_cpf: '11222333000181' } }],
@@ -370,7 +473,10 @@ describe('Revisao', () => {
 
     await user.click(screen.getByRole('button', { name: /Sugerido Ltda/ }))
     expect(screen.getAllByText(/Sugestão por nome/).length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Cliente Sugerido').length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: 'Usar a sugestão' }))
+    expect(screen.getByRole('radio', { name: 'Vincular a um cliente cadastrado' }).getAttribute('aria-checked')).toBe('true')
+    await user.click(screen.getByRole('button', { name: 'Vincular 1 B/L' }))
+    await waitFor(() => expect(mockedApplyInlineBlReviewFix).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BLSUG1', value: 42 })))
   })
 
   it('B17: B/L com CNPJ de Cliente desativado mostra o motivo, não "Sugestão por nome"', async () => {
@@ -392,7 +498,7 @@ describe('Revisao', () => {
     expect(screen.queryByRole('button', { name: 'Usar a sugestão' })).toBeNull()
   })
 
-  it('exibe sugestao de Granito sem trata-la como vinculo automatico', async () => {
+  it('caso G: vincula o Granito só depois de escolher o cliente', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
       data: [{
@@ -405,16 +511,16 @@ describe('Revisao', () => {
 
     expect(screen.queryByText('Vinculado')).toBeNull()
     await user.click(screen.getByRole('button', { name: /G-001/ }))
+    expect(screen.getByRole('heading', { name: 'Vincular o cliente ao Granito' })).toBeTruthy()
     expect(screen.getAllByText(/Sugestão por nome/).length).toBeGreaterThan(0)
-    await user.click(screen.getByRole('button', { name: /Vincular cliente de G-001/ }))
-    const save = screen.getByRole('button', { name: 'Vincular cliente' }) as HTMLButtonElement
+    const save = screen.getByRole('button', { name: 'Vincular' }) as HTMLButtonElement
     // Sem escolha explícita a ação fica bloqueada, com o motivo à vista.
     expect(save.disabled).toBe(true)
-    expect(screen.getByText('Escolha um cliente para vincular.')).toBeTruthy()
+    expect(screen.getByText('Escolha o cliente cadastrado.')).toBeTruthy()
     expect(mockedSaveGraniteBlReview).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('button', { name: 'Usar a sugestão' }))
-    await user.click(screen.getByRole('button', { name: 'Vincular cliente' }))
+    await user.click(screen.getByRole('button', { name: 'Vincular' }))
     await waitFor(() => expect(mockedSaveGraniteBlReview).toHaveBeenCalledWith({ graniteBlId: 'granite-1', clientId: 42, changedBy: 'user-1' }))
   })
 
@@ -430,12 +536,12 @@ describe('Revisao', () => {
 
     renderPage(['/revisao?cliente=Linked'])
 
-    const searchInput = screen.getByPlaceholderText('Buscar B/L, cliente, consignatário...') as HTMLInputElement
+    const searchInput = screen.getByPlaceholderText('B/L, cliente, consignatário ou CNPJ') as HTMLInputElement
     expect(searchInput.value).toBe('Linked')
 
     // Somente o grupo correspondente a 'Linked' deve estar visível e seus B/Ls auto-expandidos
     expect(screen.getByText('Linked Co SA')).toBeTruthy()
-    expect(screen.getByText('BL2')).toBeTruthy()
+    expect(screen.getAllByText('BL2').length).toBeGreaterThan(0)
     expect(screen.queryByText('Empresa Alpha')).toBeNull()
   })
 
@@ -453,11 +559,11 @@ describe('Revisao', () => {
 
     renderPage(['/revisao?bl=BL2'])
 
-    const searchInput = screen.getByPlaceholderText('Buscar B/L, cliente, consignatário...') as HTMLInputElement
+    const searchInput = screen.getByPlaceholderText('B/L, cliente, consignatário ou CNPJ') as HTMLInputElement
     expect(searchInput.value).toBe('BL2')
 
     // Grupo do B/L aberto, o B/L visivel e o resto da fila fora do caminho.
-    expect(screen.getByText('BL2')).toBeTruthy()
+    expect(screen.getAllByText('BL2').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /Linked Co SA/ }).getAttribute('aria-expanded')).toBe('true')
     expect(screen.queryByText('Empresa Alpha')).toBeNull()
     expect(screen.queryByText('BL1')).toBeNull()
@@ -480,42 +586,14 @@ describe('Revisao', () => {
     await user.click(screen.getByRole('button', { name: /AC Comercial/ }))
     await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '11222333000181')
     await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'financeiro@alfa.com')
-    await user.click(screen.getByRole('button', { name: /criar cliente e vincular 2 b\/ls/i }))
+    await user.click(screen.getByRole('radio', { name: /Enviar o convite agora/ }))
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
 
     const results = await screen.findByRole('region', { name: 'Resultados recentes' })
     expect(results.textContent).toMatch(/Cliente Modelo: cliente cadastrado em 2 B\/Ls/)
     expect(results.textContent).toMatch(/Continuam em revisão: Portal não provisionado \(2\)/)
     expect(results.textContent).toMatch(/convite do Portal não foi enviado; o cadastro foi concluído/)
     expect(mockedTryAutoIssueInvoice).not.toHaveBeenCalled()
-  })
-
-  it('mantém o drawer no B/L que saiu do recorte de causa depois de corrigido', async () => {
-    const user = userEvent.setup()
-    const base = makeLinkedBl('BLW', { emails: ['a@b.com'] })
-    const semPeso = { ...base, cargo_mode: 'carga_solta', bb_weight_ton: null, review_reasons: ['Acesso ao portal nao provisionado', 'Peso BB ausente'] }
-    mockedUseReviewQueue.mockReturnValue({ data: [semPeso], isLoading: false, error: null } as never)
-    const view = renderPage(['/revisao?causa=peso'])
-
-    await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
-    await user.click(screen.getByRole('button', { name: /Corrigir dados de BLW/ }))
-    expect(screen.getByRole('dialog', { name: /Revisar B\/L BLW/ })).toBeTruthy()
-
-    // O servidor gravou o peso; o B/L continua em revisão só pelo Portal.
-    mockedUseReviewQueue.mockReturnValue({
-      data: [{ ...semPeso, bb_weight_ton: 5, review_reasons: ['Acesso ao portal nao provisionado'], updated_at: '2026-06-11T13:00:00Z' }],
-      isLoading: false,
-      error: null,
-    } as never)
-    // Mesma árvore: o estado da página (B/L selecionado) é preservado.
-    view.rerender(
-      <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter initialEntries={['/revisao?causa=peso']}>
-          <Revisao />
-          <LocationProbe />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    )
-    expect(screen.getByRole('dialog', { name: /Revisar B\/L BLW/ })).toBeTruthy()
   })
 
   it('avisa o recálculo pendente quando o faturamento do B/L liberado pelo cadastro é bloqueado', async () => {
@@ -526,14 +604,15 @@ describe('Revisao', () => {
     await user.click(screen.getByRole('button', { name: /AC Comercial/ }))
     await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '11222333000181')
     await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'financeiro@alfa.com')
-    await user.click(screen.getByRole('button', { name: /criar cliente e vincular 2 b\/ls/i }))
+    await choosePortalLater(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
 
     const results = await screen.findByRole('region', { name: 'Resultados recentes' })
     await waitFor(() => expect(results.textContent).toMatch(/B\/L BL1: taxas locais ainda por recalcular/))
     expect(results.textContent).toMatch(/1 fatura emitida automaticamente/)
   })
 
-  it('valida o peso da carga solta junto do campo, sem gravar valor inválido', async () => {
+  it('caso E: valida o peso da carga solta junto do campo, sem gravar valor inválido', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
       data: [{ ...makeLinkedBl('BLW', { emails: ['a@b.com'], portalActive: true }), cargo_mode: 'carga_solta', bb_weight_ton: null, review_reasons: ['Peso BB ausente'] }],
@@ -543,6 +622,7 @@ describe('Revisao', () => {
     renderPage()
 
     await user.click(screen.getByRole('button', { name: /Linked Co SA/ }))
+    expect(screen.getByRole('heading', { name: 'Informar o peso da carga solta' })).toBeTruthy()
     const field = screen.getByRole('textbox', { name: /Peso da carga solta do B\/L BLW/ })
     await user.type(field, '0{Enter}')
     expect(screen.getByText('Informe o peso em toneladas, maior que zero.')).toBeTruthy()

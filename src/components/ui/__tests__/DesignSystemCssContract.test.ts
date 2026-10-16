@@ -118,7 +118,7 @@ describe('contrato visual compartilhado', () => {
   })
 
   it('shell da etapa 02: nenhum texto abaixo de 12px na faixa, na navegação, na barra lateral e nos sinos', () => {
-    const shellBlock = css.slice(css.indexOf('/* ─── Shell (etapa 02)'), css.indexOf('/* Revisão (etapa 07)'))
+    const shellBlock = css.slice(css.indexOf('/* ─── Shell (etapa 02)'), css.indexOf('/* Revisão: o que sobrou'))
     expect(shellBlock).toContain('.app-sidebar__nav')
     // Início de linha: a barra lateral também cita .app-notifications.
     const notificationBlock = css.slice(css.indexOf('\n.app-notifications {'), css.indexOf('.app-notifications__pager'))

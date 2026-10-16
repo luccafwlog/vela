@@ -10,7 +10,7 @@ import type { BL, Json } from '../types/database'
  * solta. Enquanto a fila só oferecia o par de contêiner, um B/L de carga solta
  * aparecia aqui com os dois campos VAZIOS (as colunas dele são as outras), e
  * quem preenchesse criava uma segunda cubagem — `blTotalCbm()` somava as duas.
- * Qual par a tela mostra é decidido pela modalidade, em ReviewDrawer.
+ * Qual par a tela mostra é decidido pela modalidade, em ReviewBlCheckForm.
  */
 type ReviewEditableFields = Pick<
   BL,

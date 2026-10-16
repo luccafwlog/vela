@@ -372,7 +372,7 @@ export function summarizeReviewGroup(group: ReviewGroup): ReviewGroupSummary {
     nextAction = {
       kind: 'check',
       title: 'Conferir os dados do B/L',
-      detail: 'A pendência não tem motivo canônico registrado. Abra a revisão do B/L e salve para o sistema recalcular.',
+      detail: 'A pendência não tem causa canônica. Confira os dados do B/L no grupo e salve para o sistema recalcular.',
     }
   }
 
@@ -404,11 +404,6 @@ export function sortReviewGroupsByPriority(groups: ReviewGroup[]): ReviewGroup[]
       || sb.blockedBlCount - sa.blockedBlCount
       || a.displayName.localeCompare(b.displayName)
   })
-}
-
-/** Ordem de navegação do drawer: a mesma ordem visual dos grupos. */
-export function flattenReviewGroupIds(groups: ReviewGroup[]): string[] {
-  return groups.flatMap((group) => group.items.map((item) => item.id))
 }
 
 // ---------------------------------------------------------------------------
@@ -448,6 +443,16 @@ export function getReviewGroupCnpjEvidence(group: ReviewGroup): ReviewCnpjEviden
     for (const cnpj of extractCnpjsFromText(item.cargo_description)) add(cnpj, item.id, 'descricao')
   }
   return [...byCnpj.values()]
+}
+
+/** Onde um CNPJ do grupo foi lido, em palavras: "lido no manifesto · 2 de 2 B/Ls". */
+export function describeCnpjSource(group: ReviewGroup, cnpj: string) {
+  const occurrences = getReviewGroupCnpjEvidence(group).find((entry) => entry.cnpj === cnpj)?.occurrences ?? []
+  const sources = [...new Set(occurrences.map((o) => REVIEW_EVIDENCE_SOURCE_LABELS[o.source]))]
+  const blTotal = group.items.filter((item) => item.source === 'bl').length
+  const blHits = new Set(occurrences.map((o) => o.blId)).size
+  const where = sources.length ? `lido ${sources.join(' e ')}` : 'lido no B/L'
+  return blTotal > 1 ? `${where} · ${blHits} de ${blTotal} B/Ls` : where
 }
 
 const MANAGED_NOTES_LINE = /(^|\n)Pendencias de importacao:[^\n]*$/i
