@@ -83,6 +83,25 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   escolha); no caso D, as ações do Provisionamento (autorizar e enviar,
   reenviar convite, usar outro e-mail) ficam na própria Revisão; a Liberação
   de faturamento sem Portal fica só na ficha do Cliente.
+  **Demais telas, respostas de 2026-10-16** (comentários na página):
+  aprovadas **Demurrage** (aba Containers com uma linha por B/L) e
+  **Tarifas** (inativas atrás de "Mostrar inativas", desligado por padrão,
+  também nos Acordos), e os **quatro achados** são corrigidos neste lote
+  (ordem da faixa nas três telas, "Divergente" no cartão, "N containers em
+  atraso" na barra do topo e Exportar de Veículos com o recorte inteiro).
+  Voltaram em rodada 2 na mesma página: Chegadas e Saídas (a ordem fica Saída
+  na origem e depois Chegada no Brasil, por ser a cronológica; âmbar para
+  previsão passada nas duas; a seta do navio vira "Ver no mapa"; faltava a
+  proposta do Portal), Containers (sem cartão por tipo, tipo em filtro; lacre
+  fora da tabela), Veículos (uma linha por veículo; "Definir local de
+  desova" sempre à vista), Viagens (tabela de viagens quando nenhuma está
+  escolhida; o rodapé do cartão fica o de hoje) e Clientes (Desativar só na
+  ficha e coluna Portal com todas as situações aprovados; Provisionamento e
+  Comunicação não podem virar botões discretos). Baplie aguarda resposta (a
+  aplicação do IMO/OOG é automática; o aviso é a hipótese de falha). **Regra
+  de negócio proposta, a decidir:** número da Invoice de Demurrage
+  sequencial por ano (`DEM-2026-0001`), como a fatura de Taxas Locais, no
+  lugar de `DEM-<AAAAMMDDHHMMSSmmm>-<B/L>` (migration `278`).
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",

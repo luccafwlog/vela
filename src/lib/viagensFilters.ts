@@ -1,4 +1,4 @@
-import type { VoyageRailItem } from '../services/voyageSummaries'
+import { compareVoyageRailItems, type VoyageRailItem } from '../services/voyageSummaries'
 
 export type StatusFilter = 'all' | 'active' | 'completed' | 'cancelled'
 export type ConciliacaoFilter = 'all' | 'conciliada' | 'pendente'
@@ -12,14 +12,6 @@ export type VoyageFilters = {
   /** Usados apenas quando periodo === 'custom'. ISO (yyyy-mm-dd) ou ''. */
   dataInicio?: string
   dataFim?: string
-}
-
-function nextEscalaSortKey(item: VoyageRailItem) {
-  return item.proximaEscala?.eta ?? '￿'
-}
-
-function nextEscalaEtbSortKey(item: VoyageRailItem) {
-  return item.proximaEscala?.etb ?? '￿'
 }
 
 function isoDay(date: Date): string {
@@ -79,15 +71,7 @@ export function filterVoyageRailItems(
       }
       return true
     })
-    .sort((left, right) => {
-      const byEscala = nextEscalaSortKey(left).localeCompare(nextEscalaSortKey(right))
-      if (byEscala !== 0) return byEscala
-      const byEtb = nextEscalaEtbSortKey(left).localeCompare(nextEscalaEtbSortKey(right))
-      if (byEtb !== 0) return byEtb
-      const byVessel = left.vesselName.localeCompare(right.vesselName, 'pt-BR')
-      if (byVessel !== 0) return byVessel
-      return left.voyageNumber.localeCompare(right.voyageNumber, 'pt-BR')
-    })
+    .sort(compareVoyageRailItems)
 }
 
 export function countActiveFilters(filters: VoyageFilters): number {

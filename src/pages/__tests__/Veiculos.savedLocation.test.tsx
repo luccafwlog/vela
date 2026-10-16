@@ -28,7 +28,7 @@ vi.mock('../../hooks/useVehicles', async (importOriginal) => {
         { id: 13, chassis: 'CHASSI-3', container: { id: 33, container_number: 'CXRU1234567', unpacking_location: 'Terminal A' }, bl: { id: 'BL-2' } },
       ],
       select: (rows) => ({
-        rows, count: rows.length, filteredIds: rows.map((row) => row.id),
+        rows, filteredRows: rows, count: rows.length, filteredIds: rows.map((row) => row.id),
         containerIdByVehicleId: Object.fromEntries(rows.map((row) => [row.id, row.container.id])),
         distinctContainerCount: 1, distinctBlCount: 1, totalWeightKg: 0, totalCbm: 0,
         vehiclesByBrand: [], vehiclesByContainerType: [], containersByContainerType: [],

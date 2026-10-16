@@ -177,6 +177,8 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
       const rangeFrom = (filters.page - 1) * filters.pageSize
       return {
         rows: rows.slice(rangeFrom, rangeFrom + filters.pageSize),
+        // O recorte filtrado inteiro, para exportar (não só a página na tela).
+        filteredRows: rows,
         count: rows.length,
         allIds: rows.map((row) => row.id),
         containerIdByVehicleId: Object.fromEntries(rows.map((row) => [row.id, row.container?.id ?? null])),
@@ -269,6 +271,7 @@ export function useVehicles(voyageId: number | null, filters: VehiclePageFilters
     error: listQuery.error ?? statsQuery.error,
     data: {
       rows: listQuery.data?.rows ?? [],
+      filteredRows: listQuery.data?.filteredRows ?? [],
       count: listQuery.data?.count ?? 0,
       filteredIds: listQuery.data?.allIds ?? [],
       containerIdByVehicleId: listQuery.data?.containerIdByVehicleId ?? {},

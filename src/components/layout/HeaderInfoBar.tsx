@@ -31,7 +31,9 @@ export function HeaderInfoBar() {
       ? `Cotação em cache de ${new Intl.DateTimeFormat('pt-BR').format(new Date(rates.cachedAt))}.`
       : 'Cotação PTAX Venda mais recente do Banco Central e ROE com spread fixo de 1,065.'
 
-  const overdueLabel = `${alerts.demurrageOverdue} demurrage${alerts.demurrageOverdue !== 1 ? 's' : ''} vencido${alerts.demurrageOverdue !== 1 ? 's' : ''}`
+  // Demurrage não vence (regra B29): o que a faixa conta são containers que
+  // passaram do free time, o mesmo cartão "Containers em atraso" da Demurrage.
+  const overdueLabel = `${alerts.demurrageOverdue} container${alerts.demurrageOverdue !== 1 ? 's' : ''} em atraso`
 
   // Faixa de avisos de até 28 px (etapa 02): o aviso operacional à esquerda
   // nunca é cortado; o câmbio cede espaço e some abaixo de 768 px. A versão
@@ -44,8 +46,8 @@ export function HeaderInfoBar() {
             <button
               type="button"
               className="hib-alert-btn"
-              onClick={() => navigate('/demurrage')}
-              title={`${overdueLabel} — abrir Demurrage`}
+              onClick={() => navigate('/demurrage?lente=atraso')}
+              title={`${overdueLabel} de devolução — abrir na Demurrage`}
             >
               <AlertTriangle size={14} aria-hidden="true" />
               {overdueLabel}

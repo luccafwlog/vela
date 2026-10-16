@@ -23,6 +23,7 @@ import { plural } from '../components/shared/importPresentation'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
+import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
@@ -168,6 +169,7 @@ export function Veiculos() {
     enabled: voyageIds.length > 0,
     queryFn: () => listVoyageEscalaSchedulesByVoyageIds(voyageIds),
   })
+  const openDivergencesByVoyage = useVoyageRailDivergences(voyageRows)
   const voyageRailItems = useMemo(() => {
     const moduleStats = new Map<number, VoyageRailModuleStats>()
     for (const voyage of voyageRows) {
@@ -178,8 +180,8 @@ export function Veiculos() {
         vehiclePorts: Object.keys(stats?.byPod ?? {}),
       })
     }
-    return buildVoyageRailItems(voyageRows, escalaSchedulesByVoyage, moduleStats)
-  }, [voyageRows, escalaSchedulesByVoyage, voyageVehicleStats])
+    return buildVoyageRailItems(voyageRows, escalaSchedulesByVoyage, moduleStats, openDivergencesByVoyage)
+  }, [voyageRows, escalaSchedulesByVoyage, voyageVehicleStats, openDivergencesByVoyage])
 
   const voyageId = selectedVoyageId ? Number(selectedVoyageId) : null
   // Chassi e lacre vão ao servidor: só depois da pausa na digitação.
@@ -209,10 +211,10 @@ export function Veiculos() {
   }
 
   async function handleExport() {
-    if (!data?.rows.length) return
+    if (!data?.filteredRows.length) return
     setExporting(true)
     try {
-      await exportVehicleWorkbook(data.rows)
+      await exportVehicleWorkbook(data.filteredRows)
       showToast('Exportação de veículos concluída.', 'success')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Falha ao exportar veículos.', 'error')
@@ -414,7 +416,7 @@ export function Veiculos() {
         action={(
           <div className="flex flex-wrap gap-2">
             {voyageId ? (
-              <Button variant="secondary" loading={exporting} loadingLabel="Exportando…" disabled={!data?.rows.length} onClick={() => void handleExport()}>
+              <Button variant="secondary" loading={exporting} loadingLabel="Exportando…" disabled={!data?.filteredRows.length} onClick={() => void handleExport()}>
                 <Download size={16} aria-hidden="true" /> Exportar
               </Button>
             ) : null}

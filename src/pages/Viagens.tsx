@@ -13,6 +13,7 @@ import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyageDetail, useVoyages } from '../hooks/useBls'
+import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
 import { useVoyageVehicleStats } from '../hooks/useVehicles'
 import { useVaziosImportacaoStats } from '../hooks/useVaziosImportacaoStats'
 import { useViagemSchedulesAndStats } from '../hooks/useViagemSchedulesAndStats'
@@ -198,9 +199,10 @@ export function Viagens() {
     return map
   }, [voyages, vehicleStatsByVoyage, vaziosImpStatsByVoyage, exportSchedulesData])
 
+  const openDivergencesByVoyage = useVoyageRailDivergences(voyages)
   const railItems = useMemo(
-    () => buildVoyageRailItems(voyages, escalaSchedulesByVoyage, moduleStatsByVoyageId),
-    [voyages, escalaSchedulesByVoyage, moduleStatsByVoyageId],
+    () => buildVoyageRailItems(voyages, escalaSchedulesByVoyage, moduleStatsByVoyageId, openDivergencesByVoyage),
+    [voyages, escalaSchedulesByVoyage, moduleStatsByVoyageId, openDivergencesByVoyage],
   )
 
   const visibleRailItems = useMemo(

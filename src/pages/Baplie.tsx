@@ -24,6 +24,7 @@ import { plural } from '../components/shared/importPresentation'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
+import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { parseBaplieFile } from '../services/baplieParser'
 import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, baplieVoyageContextBlock, describeBaplieFlags, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, summarizeBaplieFlags, type BaplieImportDone } from '../services/baplieImport'
@@ -89,10 +90,13 @@ export function Baplie() {
     enabled: voyageIds.length > 0,
     queryFn: () => listVoyageEscalaSchedulesByVoyageIds(voyageIds),
   })
+  const openDivergencesByVoyage = useVoyageRailDivergences(voyageRows)
   const voyageCards = useMemo(() => {
     const items = buildVoyageRailItems(
       voyageRows,
       schedulesByVoyage,
+      undefined,
+      openDivergencesByVoyage,
     )
     return items.map((item): VoyageRailItem => ({
       ...item,
@@ -101,7 +105,7 @@ export function Baplie() {
         container: item.modules.container || (voyageRows.find((voyage) => voyage.id === item.id)?.baplieCount ?? 0) > 0,
       },
     }))
-  }, [schedulesByVoyage, voyageRows])
+  }, [schedulesByVoyage, voyageRows, openDivergencesByVoyage])
 
   const stagingQuery = useQuery({
     queryKey: ['baplie-staging', voyageId],

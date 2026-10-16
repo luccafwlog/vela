@@ -406,6 +406,27 @@ describe('buildVoyageRailItems', () => {
     expect(item.modules.cargaSolta).toBe(false)
   })
 
+  it('entrega a faixa na ordem da próxima escala, com a viagem sem escala ao final', () => {
+    const base = (voyages as unknown as Array<Record<string, unknown>>)[0]
+    const three = [
+      { ...base, id: 1, voyage_number: 'SEM', vessel: { name: 'AAA', carrier: { name: 'X' } } },
+      { ...base, id: 2, voyage_number: 'TARDE', vessel: { name: 'BBB', carrier: { name: 'X' } } },
+      { ...base, id: 3, voyage_number: 'CEDO', vessel: { name: 'CCC', carrier: { name: 'X' } } },
+    ] as never
+    const escalas = new Map([
+      [2, [{ pod: 'BRPEC', eta: '2026-12-03', etb: null, ata: null }]],
+      [3, [{ pod: 'BRVIX', eta: '2026-10-09', etb: null, ata: null }]],
+    ])
+    expect(buildVoyageRailItems(three, escalas).map((item) => item.voyageNumber)).toEqual(['CEDO', 'TARDE', 'SEM'])
+  })
+
+  it('marca divergente a viagem com divergência aberta no Baplie', () => {
+    const [semDivergencia] = buildVoyageRailItems(voyages, new Map(), new Map(), new Map([[1, 0]]))
+    const [comDivergencia] = buildVoyageRailItems(voyages, new Map(), new Map(), new Map([[1, 3]]))
+    expect(semDivergencia.estado).toBe('incompleto')
+    expect(comDivergencia.estado).toBe('divergente')
+  })
+
   it('usa mapa vazio de escalas sem quebrar', () => {
     const [item] = buildVoyageRailItems(voyages, new Map())
     expect(item.proximaEscala).toBeNull()

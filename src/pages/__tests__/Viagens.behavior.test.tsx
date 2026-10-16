@@ -52,6 +52,7 @@ vi.mock('../../hooks/useBls', () => ({
   }),
 }))
 vi.mock('../../hooks/useVehicles', () => ({ useVoyageVehicleStats: () => ({ data: { byVoyageId: {} } }) }))
+vi.mock('../../hooks/useVoyageReconciliation', async (importOriginal) => ({ ...(await importOriginal<typeof import('../../hooks/useVoyageReconciliation')>()), useVoyageRailDivergences: () => new Map() }))
 vi.mock('../../hooks/useVaziosImportacaoStats', () => ({ useVaziosImportacaoStats: () => ({ data: { byVoyageId: {} } }) }))
 vi.mock('../../hooks/useViagemSchedulesAndStats', () => ({
   useViagemSchedulesAndStats: () => ({

@@ -467,10 +467,20 @@ type EscalaScheduleRow = {
 }
 
 /**
- * Monta os itens do rail. Estado de Conciliação usa apenas sinais baratos do
- * payload (CE + manifesto faltando); divergências (estado 'divergente') ficam
- * a cargo da view de detalhe, que consulta uma viagem por vez.
+ * Ordem da faixa nas três telas que a mostram (Viagens, Veículos e Baplie):
+ * próxima escala (ETA, depois ETB), sem próxima escala ao final, e então navio
+ * e número da viagem.
  */
+export function compareVoyageRailItems(left: VoyageRailItem, right: VoyageRailItem): number {
+  const byEscala = (left.proximaEscala?.eta ?? '\uffff').localeCompare(right.proximaEscala?.eta ?? '\uffff')
+  if (byEscala !== 0) return byEscala
+  const byEtb = (left.proximaEscala?.etb ?? '\uffff').localeCompare(right.proximaEscala?.etb ?? '\uffff')
+  if (byEtb !== 0) return byEtb
+  const byVessel = left.vesselName.localeCompare(right.vesselName, 'pt-BR')
+  if (byVessel !== 0) return byVessel
+  return left.voyageNumber.localeCompare(right.voyageNumber, 'pt-BR')
+}
+
 /** Presença de módulos por viagem, calculada fora do payload de B/Ls (veículos, vazios de importação e granito vêm de consultas próprias). */
 export type VoyageRailModuleStats = {
   hasVehicles?: boolean
@@ -511,12 +521,19 @@ function collectEscalasBrasileiras(
     .sort((left, right) => (left.eta ?? '￿').localeCompare(right.eta ?? '￿'))
 }
 
+/**
+ * Monta os itens do rail, já na ordem de `compareVoyageRailItems`. O Estado de
+ * Conciliação usa a cobertura de CE do payload e, quando o chamador informa,
+ * as divergências abertas do Baplie (`openDivergencesByVoyageId`, ver
+ * `useVoyageRailDivergences`).
+ */
 export function buildVoyageRailItems(
   voyages: VoyageRailSource[] | null | undefined,
   escalaRowsByVoyageId: ReadonlyMap<number, Array<PodScheduleRow | EscalaScheduleRow>> = new Map(),
   moduleStatsByVoyageId: ReadonlyMap<number, VoyageRailModuleStats> = new Map(),
+  openDivergencesByVoyageId: ReadonlyMap<number, number> = new Map(),
 ): VoyageRailItem[] {
-  return (voyages ?? []).map((voyage) => {
+  return (voyages ?? []).map((voyage): VoyageRailItem => {
     const escalaRows = escalaRowsByVoyageId.get(voyage.id) ?? []
     const exportEscalas = escalaRows.filter((row) => 'port' in row && row.temExportacao)
     const { containerBls, breakbulkBls } = splitVoyageBls(voyage.bls)
@@ -545,7 +562,7 @@ export function buildVoyageRailItems(
         escalaRows,
       ),
       estado: deriveEstadoConciliacao({
-        hasOpenDivergences: false,
+        hasOpenDivergences: (openDivergencesByVoyageId.get(voyage.id) ?? 0) > 0,
         ceFilled: filled,
         ceTotal: total,
       }),
@@ -579,7 +596,7 @@ export function buildVoyageRailItems(
         granito: moduleStats?.hasGranite ?? false,
       },
     }
-  })
+  }).sort(compareVoyageRailItems)
 }
 
 // --- Linha do tempo da viagem ------------------------------------------------
