@@ -10,6 +10,7 @@ const CONCILIACAO_LABEL: Record<VoyageRailItem['estado'], string> = {
   conciliado: 'Conciliada',
   incompleto: 'Pendente',
   divergente: 'Divergente',
+  verificando: 'Verificando',
 }
 
 function shortDate(iso: string | null | undefined) {
@@ -72,7 +73,7 @@ export function VoyageListTable({ items, breakbulkTons, breakbulkError = false, 
                     : <NoValue label={breakbulkTons ? 'Sem carga solta' : breakbulkError ? 'Toneladas de carga solta não carregadas' : 'Carregando toneladas de carga solta'} />}</td>
                   <td className="tabular-nums">{vehicles.toLocaleString('pt-BR')}</td>
                   <td className="tabular-nums">{ce && ce.total > 0 ? (ce.filled < ce.total ? <StatusText tone="warning">{ce.filled} de {ce.total}</StatusText> : `${ce.filled} de ${ce.total}`) : <NoValue label="Sem B/L" />}</td>
-                  <td className="app-table__text">{item.estado === 'conciliado' ? CONCILIACAO_LABEL[item.estado] : <StatusText tone="warning">{CONCILIACAO_LABEL[item.estado]}</StatusText>}</td>
+                  <td className="app-table__text">{item.estado === 'conciliado' ? CONCILIACAO_LABEL[item.estado] : item.estado === 'verificando' ? <StatusText tone="muted">{CONCILIACAO_LABEL[item.estado]}</StatusText> : <StatusText tone="warning">{CONCILIACAO_LABEL[item.estado]}</StatusText>}</td>
                   {onEdit ? (
                     <td>{item.status === 'cancelled' ? null : <Button variant="secondary" className="app-btn--sm" onClick={() => onEdit(item.id)} aria-label={`Editar viagem ${item.vesselName} / ${item.voyageNumber}`}>Editar</Button>}</td>
                   ) : null}

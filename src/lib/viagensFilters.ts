@@ -44,7 +44,8 @@ export function filterVoyageRailItems(
     .filter((item) => {
       if (filters.status !== 'all' && item.status !== filters.status) return false
       if (filters.conciliacao === 'conciliada' && item.estado !== 'conciliado') return false
-      if (filters.conciliacao === 'pendente' && item.estado === 'conciliado') return false
+      // Sem a contagem de divergências ainda, a viagem não entra em nenhum dos dois.
+      if (filters.conciliacao === 'pendente' && (item.estado === 'conciliado' || item.estado === 'verificando')) return false
       if (filters.periodo === 'custom') {
         const ini = filters.dataInicio?.trim() ?? ''
         const fim = filters.dataFim?.trim() ?? ''

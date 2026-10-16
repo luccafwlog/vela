@@ -33,7 +33,7 @@ export function useVoyageReconciliation(voyageId: number | null | undefined) {
  */
 export function useVoyageRailDivergences(
   voyages: ReadonlyArray<{ id: number; status?: string | null; baplieCount?: number | null }> | null | undefined,
-): ReadonlyMap<number, number> {
+): ReadonlyMap<number, number | null> {
   const voyageIds = useMemo(
     () => (voyages ?? [])
       .filter((voyage) => (voyage.baplieCount ?? 0) > 0 && voyage.status !== 'completed' && voyage.status !== 'cancelled')
@@ -47,7 +47,6 @@ export function useVoyageRailDivergences(
     staleTime: 60_000,
     queryFn: () => countOpenBaplieDivergences(voyageIds),
   })
-  return data ?? EMPTY_DIVERGENCES
+  // Carregando ou com falha: `null` ("ainda não se sabe"), não zero.
+  return useMemo(() => data ?? new Map(voyageIds.map((id) => [id, null])), [data, voyageIds])
 }
-
-const EMPTY_DIVERGENCES: ReadonlyMap<number, number> = new Map()

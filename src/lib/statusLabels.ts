@@ -80,6 +80,12 @@ export const ESTADO_CONCILIACAO_META: Record<
     bg: 'var(--app-green-soft)',
     badgeTone: 'green',
   },
+  verificando: {
+    label: 'Verificando',
+    color: 'var(--app-muted)',
+    bg: 'var(--app-surface-muted)',
+    badgeTone: 'slate',
+  },
 }
 
 export const VOYAGE_STATUS_BADGE_TONE: Record<string, BadgeTone> = {

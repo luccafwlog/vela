@@ -28,7 +28,10 @@ type RowHandlers = {
   deleting: boolean
   onCopy: (value: string, label: string) => Promise<void>
   onDeleteCustomer: (id: number) => void
+  portalStatus: PortalStatus
 }
+
+type PortalStatus = 'ready' | 'loading' | 'error'
 
 /**
  * Lista de Clientes em tabela limpa (lote 2, 2026-10-16): o nome abre a ficha,
@@ -51,6 +54,7 @@ export function CustomerTable({
   onCopy,
   onDeleteCustomer,
   portalRows,
+  portalStatus = 'ready',
 }: {
   data: CustomerRows | undefined
   canDeleteCustomers: boolean
@@ -72,12 +76,14 @@ export function CustomerTable({
   onCopy: (value: string, label: string) => Promise<void>
   onDeleteCustomer: (id: number) => void
   portalRows?: QueueRow[]
+  /** Situação da consulta do Portal: carregando ou com falha não é "sem situação". */
+  portalStatus?: PortalStatus
 }) {
   const rows = data?.rows ?? []
   const pageCustomerIds = rows.map((row) => row.id)
   const allPageSelected = pageCustomerIds.length > 0 && pageCustomerIds.every((id) => selection.isSelected(id))
   const portalByCustomer = new Map((portalRows ?? []).map((row) => [row.customer_id, row]))
-  const handlers: RowHandlers = { canDeleteCustomers, deleting, onCopy, onDeleteCustomer }
+  const handlers: RowHandlers = { canDeleteCustomers, deleting, onCopy, onDeleteCustomer, portalStatus }
 
   const sortHeader = (key: CustomerSortKey, label: string, className?: string) => (
     <th
@@ -173,8 +179,10 @@ function isDeactivated(row: CustomerListItem) {
  * Situação do Portal em texto, em todas as situações (decisão de 2026-10-16):
  * o que trava ou vai travar a fatura em âmbar; conta ativa em tinta normal.
  */
-function PortalSituation({ row, portalRow }: { row: CustomerListItem; portalRow?: QueueRow }) {
+function PortalSituation({ row, portalRow, status }: { row: CustomerListItem; portalRow?: QueueRow; status: PortalStatus }) {
   if (isDeactivated(row)) return <StatusText tone="muted">Desativado</StatusText>
+  if (!portalRow && status === 'loading') return <NoValue label="Carregando a situação do Portal" />
+  if (!portalRow && status === 'error') return <StatusText tone="muted">Não carregou</StatusText>
   if (!portalRow) return <NoValue label="Sem situação do Portal" />
   if (portalRow.hasCriticalAlert) return <StatusText tone="warning">Alerta crítico</StatusText>
   if (portalRow.hasActiveProcess && portalRow.recoveryEmailStatus && portalRow.recoveryEmailStatus !== 'ok') return <StatusText tone="warning">E-mail de recuperação com falha</StatusText>
@@ -258,7 +266,7 @@ function CustomerTableRow({
       <td className="tabular-nums">{facts.blCount === 0 ? 'Nenhum' : facts.blCount}</td>
       <td><ChargesText facts={facts} /></td>
       <td className="app-customer-table__balance"><BalanceValue row={row} /></td>
-      <td className="app-table__text"><PortalSituation row={row} portalRow={portalRow} /></td>
+      <td className="app-table__text"><PortalSituation row={row} portalRow={portalRow} status={handlers.portalStatus} /></td>
     </tr>
   )
 }
@@ -300,7 +308,7 @@ function CustomerCard({
         </div>
         <div>
           <dt>Portal</dt>
-          <dd><PortalSituation row={row} portalRow={portalRow} /></dd>
+          <dd><PortalSituation row={row} portalRow={portalRow} status={handlers.portalStatus} /></dd>
         </div>
       </dl>
     </li>

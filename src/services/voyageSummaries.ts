@@ -340,7 +340,9 @@ export function computeAdrEscalaPods(
 
 // --- Estado de Conciliação da Viagem (ver CONTEXT.md) -----------------------
 
-export type EstadoConciliacao = 'divergente' | 'incompleto' | 'conciliado'
+// 'verificando': só na faixa, enquanto a contagem de divergências do Baplie não
+// chegou (ou falhou) e a cobertura de CE sozinha diria "conciliado".
+export type EstadoConciliacao = 'divergente' | 'incompleto' | 'conciliado' | 'verificando'
 
 /** Cobertura de CE Mercante: quantos B/Ls têm ce_mercante preenchido. */
 export function voyageCeCoverage(bls: Array<{ ce_mercante: string | null }> | null | undefined) {
@@ -373,6 +375,11 @@ export function deriveEstadoConciliacao({
   if (hasOpenDivergences) return 'divergente'
   if (ceTotal > 0 && ceFilled < ceTotal) return 'incompleto'
   return 'conciliado'
+}
+
+function railEstado(openDivergences: number | null | undefined, ceFilled: number, ceTotal: number): EstadoConciliacao {
+  const estado = deriveEstadoConciliacao({ hasOpenDivergences: (openDivergences ?? 0) > 0, ceFilled, ceTotal })
+  return openDivergences === null && estado === 'conciliado' ? 'verificando' : estado
 }
 
 /** Próxima escala: menor ETA entre PODs com ETA definido e sem ATA registrado. */
@@ -525,13 +532,14 @@ function collectEscalasBrasileiras(
  * Monta os itens do rail, já na ordem de `compareVoyageRailItems`. O Estado de
  * Conciliação usa a cobertura de CE do payload e, quando o chamador informa,
  * as divergências abertas do Baplie (`openDivergencesByVoyageId`, ver
- * `useVoyageRailDivergences`).
+ * `useVoyageRailDivergences`). Contagem `null` é "ainda não se sabe": a
+ * viagem não aparece conciliada por falta de dado.
  */
 export function buildVoyageRailItems(
   voyages: VoyageRailSource[] | null | undefined,
   escalaRowsByVoyageId: ReadonlyMap<number, Array<PodScheduleRow | EscalaScheduleRow>> = new Map(),
   moduleStatsByVoyageId: ReadonlyMap<number, VoyageRailModuleStats> = new Map(),
-  openDivergencesByVoyageId: ReadonlyMap<number, number> = new Map(),
+  openDivergencesByVoyageId: ReadonlyMap<number, number | null> = new Map(),
 ): VoyageRailItem[] {
   return (voyages ?? []).map((voyage): VoyageRailItem => {
     const escalaRows = escalaRowsByVoyageId.get(voyage.id) ?? []
@@ -561,11 +569,7 @@ export function buildVoyageRailItems(
         null,
         escalaRows,
       ),
-      estado: deriveEstadoConciliacao({
-        hasOpenDivergences: (openDivergencesByVoyageId.get(voyage.id) ?? 0) > 0,
-        ceFilled: filled,
-        ceTotal: total,
-      }),
+      estado: railEstado(openDivergencesByVoyageId.get(voyage.id), filled, total),
       proximaEscala: getProximaEscala(escalaRows),
       blCount,
       containerCount,

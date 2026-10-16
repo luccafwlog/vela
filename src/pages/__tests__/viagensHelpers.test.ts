@@ -427,6 +427,14 @@ describe('buildVoyageRailItems', () => {
     expect(comDivergencia.estado).toBe('divergente')
   })
 
+  it('sem a contagem de divergências ainda (carregando ou falhou), a viagem com CE completo fica "verificando", não conciliada', () => {
+    const completa = [{ id: 9, voyage_number: 'CE-OK', status: 'active', ceCoverage: { filled: 2, total: 2 }, bls: [] }] as never
+    expect(buildVoyageRailItems(completa, new Map(), new Map(), new Map([[9, null]]))[0].estado).toBe('verificando')
+    expect(buildVoyageRailItems(completa, new Map(), new Map(), new Map([[9, 0]]))[0].estado).toBe('conciliado')
+    // Divergência conhecida e CE incompleto não dependem da contagem que falta.
+    expect(buildVoyageRailItems(voyages, new Map(), new Map(), new Map([[1, null]]))[0].estado).toBe('incompleto')
+  })
+
   it('usa mapa vazio de escalas sem quebrar', () => {
     const [item] = buildVoyageRailItems(voyages, new Map())
     expect(item.proximaEscala).toBeNull()

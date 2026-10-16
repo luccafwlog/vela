@@ -145,7 +145,7 @@ export function Clientes() {
   const summaryQuery = useCustomerSummary(queryFilters)
   const summary = summaryQuery.data
   const canSeePortalQueue = ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole ?? '')
-  const { data: portalRows } = usePortalProvisioning(canSeePortalQueue)
+  const { data: portalRows, isLoading: portalLoading, isError: portalError } = usePortalProvisioning(canSeePortalQueue)
 
   const totalPages = Math.ceil((data?.totalCount ?? 0) / filters.pageSize)
 
@@ -559,6 +559,7 @@ export function Clientes() {
           onCopy={copyText}
           onDeleteCustomer={(id) => void runCustomerDelete([id])}
           portalRows={portalRows ?? undefined}
+          portalStatus={portalError ? 'error' : portalLoading ? 'loading' : 'ready'}
         />
       </QueryStateGate>
 

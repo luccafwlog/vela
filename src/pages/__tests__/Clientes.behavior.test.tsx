@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   showToast: vi.fn(),
   confirm: vi.fn(),
   useCustomers: vi.fn(),
+  portalQuery: { data: [] as unknown[], isLoading: false, isError: false },
   useCustomerSummary: vi.fn(),
   createCustomer: vi.fn(),
   parseCustomerBaseFile: vi.fn(),
@@ -46,7 +47,7 @@ vi.mock('../../hooks/useCustomers', () => ({
   filterCustomerRowsByClientSideFilters: (rows: unknown[]) => rows,
 }))
 vi.mock('../../hooks/usePortalProvisioning', () => ({
-  usePortalProvisioning: () => ({ data: [] }),
+  usePortalProvisioning: () => mocks.portalQuery,
 }))
 vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
@@ -193,6 +194,17 @@ describe('Clientes page behaviours', () => {
 
     expect(screen.getByRole('status').textContent).toContain('Você está offline. Exibindo dados salvos')
     expect(screen.getByRole('row', { name: /Cliente Teste/ })).toBeTruthy()
+  })
+
+  it('a coluna Portal diz que não carregou quando a consulta do Portal falha, em vez de "sem situação"', () => {
+    mocks.portalQuery = { data: undefined as never, isLoading: false, isError: true }
+    try {
+      mocks.useCustomers.mockReturnValue({ data: { rows: [customer], totalCount: 1 }, isLoading: false, error: null, fetchStatus: 'idle', refetch: vi.fn() })
+      renderPage()
+      expect(within(screen.getByRole('row', { name: /Cliente Teste/ })).getByText('Não carregou')).toBeTruthy()
+    } finally {
+      mocks.portalQuery = { data: [], isLoading: false, isError: false }
+    }
   })
 
   it('creates a customer, invalidates customer caches, closes and resets the modal', async () => {
