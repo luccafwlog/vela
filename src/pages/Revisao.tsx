@@ -246,7 +246,13 @@ export function Revisao() {
       if (autoInvoice.status === 'blocked') blockedMessage = autoInvoice.message
     }
 
-    await invalidateReviewQueueCaches(queryClient, { blId: item.id, includeCustomers: true })
+    await invalidateReviewQueueCaches(queryClient, {
+      blId: item.id,
+      includeCustomers: true,
+      includeAudit: true,
+      includeCharges: invoiced,
+      includeInvoices: invoiced,
+    })
 
     const title = `B/L ${item.id}: ${actionLabel.charAt(0).toLowerCase()}${actionLabel.slice(1)}`
     if (invoiced) {
@@ -411,6 +417,8 @@ export function Revisao() {
         justification: values.justification,
         expectedUpdatedAt: item.updated_at ?? null,
       })
+      // Como a antiga janela lateral: taxa em `review_required` ganha o aviso de recálculo.
+      evaluateRecalcNotice(item)
       await finishBlCorrection(item, item.customer_id ?? null, result, 'Revisão salva')
     } catch (err) {
       if (err instanceof ConcurrentEditError) {

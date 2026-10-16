@@ -12,7 +12,6 @@ import {
   groupReviewItems,
   needsCustomerLink,
   needsWeightFix,
-  flattenReviewGroupIds,
   getReviewGroupCnpjEvidence,
   getReviewItemCauses,
   readReviewCauseParam,
@@ -418,7 +417,7 @@ describe('próxima ação e prioridade do grupo', () => {
     const groups = groupReviewItems([granite, linkedPortal, unlinkedName, unlinkedDoc, item({ ...unlinkedDoc, id: 'U2' } as never)])
     const ordered = sortReviewGroupsByPriority(groups).map((group) => group.displayName)
     expect(ordered).toEqual(['Zeta', 'Sem Doc', 'Beta', 'Pedra'])
-    expect(flattenReviewGroupIds(sortReviewGroupsByPriority(groups))).toEqual(['U1', 'U2', 'N1', 'L1', 'g1'])
+    expect(sortReviewGroupsByPriority(groups).flatMap((group) => group.items.map((entry) => entry.id))).toEqual(['U1', 'U2', 'N1', 'L1', 'g1'])
   })
 })
 

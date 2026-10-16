@@ -37,6 +37,7 @@ function plural(count: number, singular: string, pluralForm: string) {
  */
 export function ReviewCustomerForm({
   blCount,
+  graniteCount = 0,
   expectedCnpjs,
   initialName,
   initialCnpj,
@@ -50,6 +51,8 @@ export function ReviewCustomerForm({
 }: {
   /** B/Ls do grupo que recebem o cadastro (o Granito do grupo vai junto). */
   blCount: number
+  /** Registros de Granito sem cliente do grupo; o cadastro e o vínculo os levam junto. */
+  graniteCount?: number
   /** CNPJs lidos no B/L; o cadastro só aceita um deles quando há algum. */
   expectedCnpjs: string[]
   initialName: string
@@ -99,7 +102,9 @@ export function ReviewCustomerForm({
 
   const validEmail = EMAIL_PATTERN.test(email.trim())
   const cnpjMismatch = Boolean(validCnpj && expectedCnpjs.length > 0 && !expectedCnpjs.includes(validCnpj))
-  const target = plural(blCount, 'B/L', 'B/Ls')
+  const target = graniteCount > 0
+    ? `${plural(blCount, 'B/L', 'B/Ls')} e ${plural(graniteCount, 'registro de Granito', 'registros de Granito')}`
+    : plural(blCount, 'B/L', 'B/Ls')
   const linkTargetCnpj = canonicalizeValidCnpj(linkTarget?.cnpj_cpf)
   const linkMatches = linkTarget && expectedCnpjs.length && linkTargetCnpj ? expectedCnpjs.includes(linkTargetCnpj) : null
 
@@ -128,7 +133,7 @@ export function ReviewCustomerForm({
         ? <>Vai cadastrar <strong>{name.trim() || 'o cliente'}</strong> e vincular <strong>{target}</strong>. {blCount === 1 ? 'O B/L continua' : 'Os B/Ls continuam'} na Revisão até o Portal ficar ativo.</>
         : null
     : linkTarget
-      ? <>Vai vincular <strong>{target}</strong> a <strong>{linkTarget.name}</strong>. Os contatos do Cliente não mudam.</>
+      ? <>Vai vincular <strong>{target}</strong> a <strong>{linkTarget.name}</strong>. O e-mail do manifesto entra como contato só se o CNPJ do B/L for o do cliente.</>
       : null
 
   function submit() {

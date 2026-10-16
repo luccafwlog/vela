@@ -98,7 +98,7 @@ export function ReviewPortalBlock({ customer, blCount }: { customer: ReviewCusto
     <Block
       title="Portal do Cliente"
       headingLevel={3}
-      aside={<Link className="app-btn app-btn--secondary app-btn--sm" to={ficha}>Ficha do Cliente</Link>}
+      aside={<Link className="app-btn app-btn--secondary app-btn--sm" to={`${ficha}?tab=financeiro`}>Liberação na ficha do Cliente</Link>}
     >
       <div className="grid gap-4">
         <LeadValue tone={provisioning.isError ? 'warning' : leadTone} detail="A fatura só sai com o Portal ativo ou com a Liberação de faturamento sem Portal, concedida na ficha do Cliente.">
@@ -139,9 +139,12 @@ export function ReviewPortalBlock({ customer, blCount }: { customer: ReviewCusto
                 {otherEmail === null ? 'Usar outro e-mail' : 'Voltar ao e-mail sugerido'}
               </Button>
             </>
-          ) : (
+          ) : !canProvision ? (
             <p className="text-[var(--app-muted)]">O convite do Portal é enviado pela Documentação ou pelo Administrativo.</p>
-          )}
+          ) : row ? (
+            // Conta ativa ou situação sem convite a enviar: a fila só sai quando o servidor reavaliar.
+            <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${customer.id}`}>Abrir no Provisionamento do Portal</Link>
+          ) : null}
         </div>
       </div>
     </Block>

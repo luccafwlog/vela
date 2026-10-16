@@ -3,6 +3,7 @@ import { Button } from '../ui/Button'
 import { Field, Input, Textarea } from '../ui/Input'
 import type { ReviewQueueItem } from '../../hooks/useReview'
 import { isBreakbulkCargoMode, isContainerCargoMode } from '../../lib/cargoMode'
+import { parseImportNumber } from '../../lib/importNumber'
 import { splitReviewNotes } from '../../pages/revisaoHelpers'
 
 type BlItem = Extract<ReviewQueueItem, { source: 'bl' }>
@@ -20,9 +21,22 @@ export type ReviewBlCheckValues = {
   justification: string
 }
 
-function numberOrNull(value: string) {
-  const parsed = Number(value.trim().replace(',', '.'))
-  return value.trim() === '' || !Number.isFinite(parsed) ? null : parsed
+type ParsedField = { value: number | null; error: string | null }
+
+/**
+ * Vazio limpa o campo; texto que não é número trava o salvar em vez de virar
+ * vazio. Aceita "1.234,5" e "28000.5"; "24.000" é ambíguo e pede outra forma.
+ */
+function parseField(value: string): ParsedField {
+  const parsed = parseImportNumber(value)
+  if (parsed.kind === 'empty') return { value: null, error: null }
+  if (parsed.kind === 'value') return { value: Number(parsed.decimal), error: null }
+  return {
+    value: null,
+    error: parsed.reason === 'ambiguous'
+      ? 'Número ambíguo: escreva sem o ponto de milhar (24000) ou com vírgula decimal (24,000).'
+      : 'Informe um número (ex.: 1.234,5).',
+  }
 }
 
 function initialOf(value: number | null | undefined) {
@@ -57,6 +71,17 @@ export function ReviewBlCheckForm({
   const showContainer = !item.cargo_mode || isContainerCargoMode(item.cargo_mode)
   const showBreakbulk = Boolean(item.cargo_mode) && isBreakbulkCargoMode(item.cargo_mode)
 
+  const weightField = parseField(weightKg)
+  const cbmField = parseField(cbm)
+  const bbWeightField = parseField(bbWeight)
+  const bbCbmField = parseField(bbCbm)
+  const invalid = [
+    showContainer && weightField.error,
+    showContainer && cbmField.error,
+    showBreakbulk && bbWeightField.error,
+    showBreakbulk && bbCbmField.error,
+  ].some(Boolean)
+
   function reset() {
     setShipper(item.shipper ?? '')
     setConsignee(item.consignee ?? '')
@@ -79,14 +104,14 @@ export function ReviewBlCheckForm({
         <Field label="POD"><Input value={pod} onChange={(event) => setPod(event.target.value)} /></Field>
         {showContainer ? (
           <>
-            <Field label="Peso contêiner (kg)"><Input inputMode="decimal" value={weightKg} onChange={(event) => setWeightKg(event.target.value)} /></Field>
-            <Field label="CBM contêiner (m³)"><Input inputMode="decimal" value={cbm} onChange={(event) => setCbm(event.target.value)} /></Field>
+            <Field label="Peso contêiner (kg)" error={weightField.error ?? undefined}><Input inputMode="decimal" value={weightKg} onChange={(event) => setWeightKg(event.target.value)} /></Field>
+            <Field label="CBM contêiner (m³)" error={cbmField.error ?? undefined}><Input inputMode="decimal" value={cbm} onChange={(event) => setCbm(event.target.value)} /></Field>
           </>
         ) : null}
         {showBreakbulk ? (
           <>
-            <Field label="Peso carga solta (t)"><Input inputMode="decimal" value={bbWeight} onChange={(event) => setBbWeight(event.target.value)} /></Field>
-            <Field label="CBM carga solta (m³)"><Input inputMode="decimal" value={bbCbm} onChange={(event) => setBbCbm(event.target.value)} /></Field>
+            <Field label="Peso carga solta (t)" error={bbWeightField.error ?? undefined}><Input inputMode="decimal" value={bbWeight} onChange={(event) => setBbWeight(event.target.value)} /></Field>
+            <Field label="CBM carga solta (m³)" error={bbCbmField.error ?? undefined}><Input inputMode="decimal" value={bbCbm} onChange={(event) => setBbCbm(event.target.value)} /></Field>
           </>
         ) : null}
       </div>
@@ -100,17 +125,18 @@ export function ReviewBlCheckForm({
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" disabled={saving} onClick={reset}>Descartar</Button>
         <Button
+          disabled={invalid}
           loading={saving}
           loadingLabel="Salvando…"
-          onClick={() => onSave(item, {
+          onClick={() => !invalid && onSave(item, {
             shipper,
             consignee,
             pol,
             pod,
-            total_weight_kg: numberOrNull(weightKg),
-            total_cbm: numberOrNull(cbm),
-            bb_weight_ton: numberOrNull(bbWeight),
-            bb_cbm: numberOrNull(bbCbm),
+            total_weight_kg: weightField.value,
+            total_cbm: cbmField.value,
+            bb_weight_ton: bbWeightField.value,
+            bb_cbm: bbCbmField.value,
             notes: notes.trim() || null,
             justification: justification.trim() || 'Revisão manual',
           })}

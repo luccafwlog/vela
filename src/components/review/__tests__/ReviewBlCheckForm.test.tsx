@@ -38,4 +38,20 @@ describe('ReviewBlCheckForm', () => {
     await user.click(screen.getByRole('button', { name: 'Descartar' }))
     expect((screen.getByLabelText('Peso contêiner (kg)') as HTMLInputElement).value).toBe('24000')
   })
+
+  it('número que não se lê trava o salvar em vez de limpar o campo', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+    render(<ReviewBlCheckForm item={makeItem({ cargo_mode: 'container', total_weight_kg: 24000 })} saving={false} onSave={onSave} />)
+    const weight = screen.getByLabelText('Peso contêiner (kg)')
+    await user.clear(weight)
+    await user.type(weight, '24.000')
+    expect(weight.getAttribute('aria-invalid')).toBe('true')
+    expect((screen.getByRole('button', { name: 'Salvar revisão' }) as HTMLButtonElement).disabled).toBe(true)
+
+    await user.clear(weight)
+    await user.type(weight, '1.234,5')
+    await user.click(screen.getByRole('button', { name: 'Salvar revisão' }))
+    expect(onSave.mock.calls[0][1]).toMatchObject({ total_weight_kg: 1234.5 })
+  })
 })

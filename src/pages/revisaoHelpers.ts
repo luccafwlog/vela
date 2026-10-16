@@ -372,7 +372,7 @@ export function summarizeReviewGroup(group: ReviewGroup): ReviewGroupSummary {
     nextAction = {
       kind: 'check',
       title: 'Conferir os dados do B/L',
-      detail: 'A pendência não tem motivo canônico registrado. Abra a revisão do B/L e salve para o sistema recalcular.',
+      detail: 'A pendência não tem causa canônica. Confira os dados do B/L no grupo e salve para o sistema recalcular.',
     }
   }
 
@@ -404,11 +404,6 @@ export function sortReviewGroupsByPriority(groups: ReviewGroup[]): ReviewGroup[]
       || sb.blockedBlCount - sa.blockedBlCount
       || a.displayName.localeCompare(b.displayName)
   })
-}
-
-/** Ordem de navegação do drawer: a mesma ordem visual dos grupos. */
-export function flattenReviewGroupIds(groups: ReviewGroup[]): string[] {
-  return groups.flatMap((group) => group.items.map((item) => item.id))
 }
 
 // ---------------------------------------------------------------------------

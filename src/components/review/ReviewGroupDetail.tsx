@@ -13,10 +13,14 @@ import {
   getGroupLinkedItem,
   getReviewCargoTypeLabel,
   getReviewItemCauses,
+  getReviewItemDocumentCandidates,
+  hasCustomerDocumentConflict,
   needsCustomerLink,
   needsWeightFix,
   describeCnpjSource,
   REVIEW_CAUSE_LABELS,
+  reviewReasonCause,
+  reviewReasonLabel,
   type ReviewGroup,
   type ReviewGroupSummary,
   validateWeightTon,
@@ -47,10 +51,25 @@ function routeText(item: ReviewQueueItem) {
   return item.pol || item.pod ? `${item.pol ?? '—'} → ${item.pod ?? '—'}` : null
 }
 
+// Motivo anterior à migration 085: tem o próprio bloco ("Completar o e-mail do cliente").
+const LEGACY_EMAIL_REASON = /cliente sem e-mail cadastrado/i
+
+/** Motivos do gate sem causa canônica, como o servidor os registrou ("CE Mercante não informado"). */
+function otherReasons(item: ReviewQueueItem) {
+  return (item.review_reasons ?? []).filter((reason) => reviewReasonCause(reason) === 'outros').map(reviewReasonLabel)
+}
+
+/** Pede "Conferir os dados do B/L": causa `outros` que não seja só o e-mail legado, já tratado no bloco de e-mail. */
+function needsDataCheck(item: ReviewQueueItem) {
+  if (!getReviewItemCauses(item).includes('outros')) return false
+  const reasons = (item.review_reasons ?? []).filter((reason) => reviewReasonCause(reason) === 'outros')
+  return reasons.length === 0 || reasons.some((reason) => !LEGACY_EMAIL_REASON.test(reason))
+}
+
 /** Pendências de um registro em texto, uma vez cada, no vocabulário da fila. */
 function pendencyText(item: ReviewQueueItem) {
   return getReviewItemCauses(item)
-    .map((cause) => (cause === 'outros' ? 'Conferir os dados' : REVIEW_CAUSE_LABELS[cause]))
+    .flatMap((cause) => (cause === 'outros' ? (otherReasons(item).length ? otherReasons(item) : ['Conferir os dados']) : [REVIEW_CAUSE_LABELS[cause]]))
     .join(' · ')
 }
 
@@ -62,7 +81,7 @@ function Suggestion({ item, onUse }: { item: ReviewQueueItem; onUse?: (customer:
     return (
       <div className="flex flex-wrap items-center gap-3">
         <p className="app-status-text app-status-text--warning">
-          Cliente desativado com este CNPJ: {suggested.name} ({formatCnpjCpf(suggested.cnpj_cpf)}). Reative o cliente ou escolha outro.
+          Cliente desativado com este CNPJ: {suggested.name} ({formatCnpjCpf(suggested.cnpj_cpf)}). Para vincular, reative o cliente na ficha.
         </p>
         <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/${encodeURIComponent(suggested.cnpj_cpf)}`}>Abrir ficha do Cliente</Link>
       </div>
@@ -104,7 +123,7 @@ export function ReviewGroupDetail({
   const [proposedCustomer, setProposedCustomer] = useState<{ customer: ReviewCustomer; seq: number } | null>(null)
   const [formCnpj, setFormCnpj] = useState<string | null>(null)
   const [graniteTarget, setGraniteTarget] = useState<ReviewCustomer | null>(null)
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => group.items.find((item) => item.manifest_customer_email)?.manifest_customer_email ?? '')
 
   const blItems = group.items.filter((item): item is BlItem => item.source === 'bl')
   const graniteItems = group.items.filter((item) => item.source === 'granite')
@@ -113,7 +132,9 @@ export function ReviewGroupDetail({
   const linked = getGroupLinkedItem(group)?.customer ?? null
   const expectedCnpjs = group.candidateCnpjs.length ? group.candidateCnpjs : group.cnpj ? [group.cnpj] : []
   const weightItems = blItems.filter(needsWeightFix)
-  const checkItems = blItems.filter((item) => getReviewItemCauses(item).includes('outros'))
+  const checkItems = blItems.filter(needsDataCheck)
+  // B/L já vinculado cujo documento cita outro CNPJ: a troca do cliente é feita na ficha do B/L.
+  const conflictLinkedBls = blItems.filter((item) => !needsCustomerLink(item) && hasCustomerDocumentConflict(item))
   const deactivated = unlinkedBls.find(isDeactivatedCustomerSuggestion) ?? null
   const suggestionItem = unlinkedBls.find((item) => item.suggested_customer?.name) ?? null
   const kind = summary.nextAction.kind
@@ -128,6 +149,7 @@ export function ReviewGroupDetail({
   const customerForm = (
     <ReviewCustomerForm
       blCount={unlinkedBls.length}
+      graniteCount={unlinkedGranite.length}
       expectedCnpjs={expectedCnpjs}
       initialName={group.displayName}
       initialCnpj={group.cnpj ?? ''}
@@ -206,8 +228,14 @@ export function ReviewGroupDetail({
         </div>
       </Block>
     )
-  } else if (unlinkedGranite.length > 0) {
-    customerBlock = (
+  }
+
+  // Fora da cadeia acima: com B/L sem cliente, o cadastro ou o vínculo do grupo
+  // já leva o Granito junto; sem ele, o Granito tem o próprio bloco, inclusive
+  // ao lado do bloco de e-mail.
+  let graniteBlock = null
+  if (unlinkedBls.length === 0 && unlinkedGranite.length > 0) {
+    graniteBlock = (
       <Block title="Vincular o cliente ao Granito" headingLevel={3} aside="Granito não gera fatura: o vínculo libera o cálculo de apoio no módulo Granito">
         <div className="grid gap-4">
           <table className="app-table app-table--nested">
@@ -248,6 +276,23 @@ export function ReviewGroupDetail({
   return (
     <div className="grid gap-3">
       {customerBlock}
+      {graniteBlock}
+
+      {conflictLinkedBls.length ? (
+        <Block title="CNPJ do B/L diferente do cliente vinculado" headingLevel={3} aside={linked?.name}>
+          <ul className="grid gap-2">
+            {conflictLinkedBls.map((item) => (
+              <li key={item.id} className="flex flex-wrap items-center gap-3">
+                <p className="min-w-0 flex-1">
+                  B/L <strong>{item.id}</strong> está vinculado a {item.customer?.name} ({formatCnpjCpf(item.customer?.cnpj_cpf)}), mas o documento cita{' '}
+                  {getReviewItemDocumentCandidates(item).map((cnpj) => formatCnpjCpf(cnpj)).join(', ')}. Para trocar o cliente, use a ficha do B/L.
+                </p>
+                <Link className="app-btn app-btn--secondary app-btn--sm" to={`/bls/${encodeURIComponent(item.id)}`}>Abrir ficha do B/L</Link>
+              </li>
+            ))}
+          </ul>
+        </Block>
+      ) : null}
 
       {weightItems.length ? (
         <Block title="Informar o peso da carga solta" headingLevel={3} aside="o cálculo das Taxas Locais depende dele" flush>
@@ -298,7 +343,11 @@ export function ReviewGroupDetail({
           aside={`B/L ${item.id} · ${getReviewCargoTypeLabel(item)}${routeText(item) ? ` · ${routeText(item)}` : ''}`}
         >
           <div className="grid gap-3">
-            <p className="text-[var(--app-muted)]">A pendência não tem motivo registrado. Confira os dados e salve: o sistema recalcula e o B/L sai da fila se não sobrar nada.</p>
+            <p className="text-[var(--app-muted)]">
+              {otherReasons(item).length
+                ? <>Pendência registrada: <strong>{otherReasons(item).join(' · ')}</strong>. Corrija o que faltar e salve: o sistema recalcula e o B/L sai da fila se não sobrar nada.</>
+                : 'A pendência não tem motivo registrado. Confira os dados e salve: o sistema recalcula e o B/L sai da fila se não sobrar nada.'}
+            </p>
             <ReviewBlCheckForm key={`${item.id}:${item.updated_at ?? ''}`} item={item} saving={savingInlineId === item.id} onSave={onCheckSave} />
           </div>
         </Block>
