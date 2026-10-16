@@ -119,7 +119,24 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   segmentado, para não repetir as abas de Clientes (a tela 16 segue no lote
   5). Ver o registro. Falta conferir em runtime: capturas em 1440, 768 e
   360 px e as migrations `293` a `295` no Supabase remoto. O lote 3 é o
-  próximo, a confirmar.
+  próximo.
+- **Lote 3 proposto em 2026-10-16** numa página só ("Lote 3 da identidade",
+  na conta do responsável), com capturas da `main` de 2026-10-16 (depois da
+  PR 969) no ambiente local, com dados de teste acrescentados só para a
+  captura (pagamentos, cobrança Itaú ligada, exceções do extrato, condições de
+  Cliente e solicitações de Desbloqueio de CE): detalhe da fatura de Taxas
+  Locais, Tabelas e Condições de Cliente, Conciliação PIX (três abas) e
+  Desbloqueio de CE (Solicitações, Controle ZPT e o detalhe). Achados fora da
+  mudança visual, propostos para correção no próprio lote: a fatura
+  individual se chama "Única BL" no detalhe e no Histórico de baixas e
+  "Individual" no filtro; a nota dos itens diz "Origem: Auto" e a coluna
+  mostra "Calculado"; a conferência do extrato diz "Nenhum documento aberto
+  usa este TXID" para linha sem TXID (Pendências diz "Linha sem TXID no
+  extrato"); fatura inexistente mostra "Invoice N nao encontrada"; a
+  planilha do Histórico de baixas tem cabeçalhos técnicos ("Nº Documento",
+  "Tipo Doc.", "Valor BL", "Status"); o seletor "50 por página" corta o
+  texto; `#a85309` escrito direto no prazo e no aviso do modelo do
+  Desbloqueio de CE. Aguarda a resposta do responsável, tela a tela.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -349,7 +366,7 @@ lotes tratam só da organização de cada tela.
 |---|---|---|
 | 1 | Lista de BLs (2), ficha da Viagem (3), ficha do Cliente (5, com as seis abas), Taxas Locais · Faturas (7), Portal · Faturas (10); desde 2026-10-15, também as quatro abas restantes da ficha do B/L (1) e da ficha da Viagem (3) | Entregue em 2026-10-14 (todas as telas e as abas da ficha do Cliente), branch `claude/determined-bardeen-kvwaxt`; as oito abas restantes foram entregues em 2026-10-15, branch `claude/sweet-rubin-6udppg` |
 | 2 | Operação do dia a dia: Revisão (6), Chegadas e Saídas e programação do Portal (4), Demurrage (8), Containers, Veículos e Baplie (14); listas de Viagens e de Clientes; Tarifas de Demurrage (`/demurrage/taxas`, da tela 8) | Entregue em 2026-10-16: Revisão (branch `claude/sweet-turing-r2tdp1`) e as demais telas, os quatro achados, o número `DEM-AAAA-NNNN` e as abas sombreadas (branch `claude/practical-cray-mpdw1p`), com a revisão da PR 969 (migrations `294` e `295`) |
-| 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Proposto, a confirmar |
+| 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Proposto em 2026-10-16 na página "Lote 3 da identidade"; aguarda resposta |
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Proposto, a confirmar |
 | 5 | Apoio e administração: Painel e Alertas (13), Provisionamento, Comunicação e Modo Inspeção (16), Granito, Vazios e depots (17), Relatórios e Administração (18) | Proposto, a confirmar |
 | 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21) | Proposto, a confirmar |
