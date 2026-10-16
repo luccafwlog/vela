@@ -31,6 +31,7 @@ import {
   formatBrasiliaInstant,
   formatExtractDay,
   itauChargeState,
+  pendingExceptionDoc,
   pendingExceptionReason,
   extractLineReason,
   sortItauCharges,
@@ -443,7 +444,8 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
             <tbody>
               {exceptions.map((exception) => {
                 const ambiguous = exception.reason !== 'unmatched' && Boolean(exception.txid.trim())
-                const reason = pendingExceptionReason(exception)
+                const indicated = pendingExceptionDoc(exception)
+                const reason = `${pendingExceptionReason(exception)}${indicated ? ` · Fatura indicada: ${indicated}` : ''}`
                 const pendingClose = unclosed.get(exception.id)
                 const open = openId === exception.id && !pendingClose
                 const rowFeedback = feedback?.id === exception.id ? feedback : null

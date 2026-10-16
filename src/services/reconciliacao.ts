@@ -736,6 +736,7 @@ export async function exportReconciliationHistoryExcel(filters: Partial<Reconcil
       Viagem: r.voyageNumber ?? '',
       POD: r.pod ?? '',
       'Pago em': r.paidAt ? formatDate(r.paidAt) : '',
+      'Valor do B/L': r.blAmount,
       'Valor da fatura': r.totalAmount,
       'Valor pago': paid ?? '',
       Saldo: historyBalance(r),

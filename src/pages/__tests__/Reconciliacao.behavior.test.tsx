@@ -295,7 +295,7 @@ describe('Conciliação PIX', () => {
     // Sem o CNPJ sob o Cliente.
     expect(within(ready).queryByText('12.345.678/0001-90')).toBeNull()
     const pending = screen.getByRole('table', { name: 'Linhas do extrato que ficam como exceção pendente' })
-    expect(within(pending).getByText('Valor do Pix diferente do valor da cobrança da fatura').closest('.app-status-text--warning')).toBeTruthy()
+    expect(within(pending).getByText(/^Valor do Pix diferente do valor da cobrança da fatura · Fatura indicada: INV-002 \(R\$\s[0-9.,]+\)$/).closest('.app-status-text--warning')).toBeTruthy()
     expect(within(pending).getByText('Nenhuma fatura aberta com este identificador')).toBeTruthy()
     expect(screen.getByText(/Nada foi baixado ainda\. As exceções já estão em Pendências\./)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Ver Pendências' })).toBeTruthy()

@@ -127,10 +127,10 @@ it('o número da fatura abre o detalhe da baixa escolhida, local ou de Demurrage
 it('tabela limpa: colunas da tela, valor pago, saldo em âmbar e situação em texto', () => {
   renderTable()
   const headers = screen.getAllByRole('columnheader').map((th) => th.textContent)
-  expect(headers).toEqual(['Fatura', 'Origem', 'B/L', 'Cliente', 'Navio / Viagem', 'Pago em', 'Valor pago', 'Saldo', 'Situação'])
+  expect(headers).toEqual(['Fatura', 'Origem', 'B/L', 'Cliente', 'Navio / Viagem', 'Pago em', 'Valor do B/L', 'Valor pago', 'Saldo', 'Situação'])
   const partial = screen.getByRole('button', { name: 'INV-12' }).closest('tr')!
   const cells = Array.from(partial.querySelectorAll('td')).map((td) => td.textContent?.replace(/\s/g, ' '))
-  expect(cells).toEqual(['INV-12', 'Taxas Locais', 'BL2', 'Cliente', 'Navio / V1', '23/06/2026', 'R$ 200,00', 'R$ 300,00', 'Parcialmente paga'])
+  expect(cells).toEqual(['INV-12', 'Taxas Locais', 'BL2', 'Cliente', 'Navio / V1', '23/06/2026', 'R$ 300,00', 'R$ 200,00', 'R$ 300,00', 'Parcialmente paga'])
   // Saldo a receber em âmbar; consolidada com o ícone de pilha.
   expect(partial.querySelector('.app-status-text--warning')?.textContent?.replace(/\s/g, ' ')).toBe('R$ 300,00')
   expect(partial.querySelector('[aria-label="Consolidada"]')).toBeTruthy()
@@ -140,7 +140,7 @@ it('tabela limpa: colunas da tela, valor pago, saldo em âmbar e situação em t
   expect(screen.queryByText(/na fatura/)).toBeNull()
   expect(screen.queryByText('12.345.678/0001-90')).toBeNull()
   // Resumo do recorte na faixa do bloco.
-  expect(screen.getByText((text) => text.replace(/\s/g, ' ') === '3 baixas · R$ 220,00 recebidos')).toBeTruthy()
+  expect(screen.getByText((text) => text.replace(/\s/g, ' ') === '3 faturas · R$ 220,00 pagos')).toBeTruthy()
   expect(screen.getByText('Exibindo 1–3 de 3')).toBeTruthy()
 })
 

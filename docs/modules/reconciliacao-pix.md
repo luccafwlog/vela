@@ -114,7 +114,7 @@ para a avulsa, o TXID gravado na fatura com o evento `reconciled_by_txid`
 
 Linhas de extrato sem baixa segura ficam em `pix_reconciliation_exceptions` por
 arquivo e linha, inclusive sem identificador. A tabela mostra Pago em (dia do
-extrato), Valor, Identificador do Pix, CNPJ e Motivo (em âmbar quando a linha é
+extrato), Valor, Identificador do Pix, CNPJ e Motivo (com a fatura indicada, quando houver; em âmbar quando a linha é
 ambígua; linha sem identificador diz "Linha sem identificador no extrato").
 **Tentar de novo** refaz o matching só daquela linha; sem fatura segura,
 explica o motivo na linha e não chama a baixa. A seta da linha abre a linha e o
@@ -165,7 +165,7 @@ limpas:
   linha tem nota: uma Invoice de Demurrage paga com a cotação anterior diz que
   a janela das duas PTAX foi aceita.
 - **Ficam como exceção**: Linha, Pago em, Valor do Pix, Identificador do Pix e
-  Motivo (as mesmas palavras de Pendências); já estão salvas em Pendências.
+  Motivo (as mesmas palavras de Pendências, com a fatura indicada e o valor dela); já estão salvas em Pendências.
 
 O rodapé diz que nada foi baixado ainda e, com mais de uma linha, que o lote é
 gravado junto. **Ver Pendências** aparece quando há exceção; **Confirmar N
@@ -199,20 +199,24 @@ baixas**) combina:
   escolher a origem Demurrage tira o tipo de fatura, e um `tipo` vindo de link
   com `origem=demurrage` é ignorado; página além do fim (link antigo ou baixa
   cancelada na última página) vai para a última existente;
-- bloco **Baixas** com o resumo do recorte na faixa ("N baixas · R$ X
-  recebidos", cada fatura contada uma vez e a coberta pela consolidada sem
-  somar, `summarizeReconciliationHistory`) e Exportar planilha;
+- bloco **Baixas** com o resumo do recorte na faixa ("N faturas · R$ X
+  pagos", cada fatura contada uma vez e a coberta pela consolidada sem
+  somar, `summarizeReconciliationHistory`) e Exportar planilha; o valor é o
+  total pago das faturas do recorte, não o que entrou no período (a fatura
+  entra pela data da baixa mais recente);
 - tabela limpa: Fatura (com o ícone de pilha na consolidada), Origem, B/L (com
-  ícone de copiar), Cliente, Navio / Viagem, Pago em, Valor pago, Saldo (âmbar
+  ícone de copiar), Cliente, Navio / Viagem, Pago em, Valor do B/L (ordenável),
+  Valor pago, Saldo (âmbar
   maior que zero) e Situação ("✓ Paga", "Parcialmente paga", "Coberta pela
   consolidada"), sem texto embaixo da célula; a consolidada tem uma linha por
-  B/L com o valor pago da fatura;
+  B/L com o Valor do B/L próprio e o valor pago e o saldo da fatura;
 - "Exibindo 1–N de M" no rodapé; erro de consulta com Tentar
   novamente, sem lista vazia nem "Nenhum registro"; vazio com e sem filtro
   distintos; cartões abaixo de 640 px;
 - exportação XLSX do recorte (desativada sem registros), com os cabeçalhos da
   tela (Fatura, Origem, Tipo de fatura, B/L, Cliente, CNPJ, Navio, Viagem, POD,
-  Pago em, Valor da fatura, Valor pago, Saldo, Situação);
+  Pago em, Valor do B/L, Valor da fatura, Valor pago, Saldo, Situação; o
+  valor pago e o saldo são da fatura e se repetem em cada B/L da consolidada);
 - abertura do detalhe pelo número da fatura.
 
 ### Detalhe e cancelamento de baixa

@@ -321,7 +321,8 @@ function ExceptionLines({ lines }: { lines: UnifiedPixMatch[] }) {
         </thead>
         <tbody>
           {lines.map((match, index) => {
-            const reason = extractLineReason(match)
+            const indicated = match.source !== 'unmatched' && match.docNumber ? ` · Fatura indicada: ${match.docNumber} (${formatBRL(match.amount)})` : ''
+            const reason = `${extractLineReason(match)}${indicated}`
             const ambiguous = extractLineKind(match) === 'ambiguous'
             return (
               <tr key={lineKey('exception', match, index)}>

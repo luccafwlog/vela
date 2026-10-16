@@ -169,7 +169,7 @@ export function ReconciliationHistoryTable({
     )
   }
 
-  const columns = 9
+  const columns = 10
   const empty = !query.isLoading && !failed && !pastEnd && rows.length === 0
   const emptyState = activeCount > 0 ? (
     <EmptyState
@@ -257,7 +257,7 @@ export function ReconciliationHistoryTable({
           <>
             <span aria-live="polite">
               {summary && !failed
-                ? `${pluralize(summary.invoices, 'baixa', 'baixas')} · ${formatBRL(summary.received)} recebidos${activeCount ? ' no recorte' : ''}`
+                ? `${pluralize(summary.invoices, 'fatura', 'faturas')} · ${formatBRL(summary.received)} pagos${activeCount ? ' no recorte' : ''}`
                 : failed ? 'Histórico indisponível' : 'Carregando…'}
             </span>
             <Button
@@ -313,6 +313,7 @@ export function ReconciliationHistoryTable({
                   {sortHeader('customerName', 'Cliente', 'app-table__text-head')}
                   <th scope="col" className="app-table__text-head">Navio / Viagem</th>
                   {sortHeader('paidAt', 'Pago em')}
+                  {sortHeader('blAmount', 'Valor do B/L')}
                   <th scope="col">Valor pago</th>
                   <th scope="col">Saldo</th>
                   <th scope="col">Situação</th>
@@ -333,6 +334,7 @@ export function ReconciliationHistoryTable({
                       <td className="app-table__text" title={row.customerName || undefined}>{row.customerName || <NoValue label="Sem Cliente" />}</td>
                       <td className="app-table__text" title={ship ?? undefined}>{ship ?? <NoValue label="Sem navio e viagem" />}</td>
                       <td className="whitespace-nowrap tabular-nums">{row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</td>
+                      <td className="whitespace-nowrap tabular-nums">{formatBRL(row.blAmount)}</td>
                       <td className="whitespace-nowrap tabular-nums"><PaidAmount row={row} /></td>
                       <td className="whitespace-nowrap tabular-nums"><Balance row={row} /></td>
                       <td className="whitespace-nowrap"><HistoryStatus row={row} /></td>
