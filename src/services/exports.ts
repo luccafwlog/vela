@@ -21,6 +21,9 @@ import type { PortalOperationBL } from './portalOperation'
 import type { PortalFlatContainer } from '../lib/portalOperationViews'
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
+import type { CeUnlockItem } from '../types/ceUnlock'
+import { ceStateLabel, ceUnlockZptText } from '../lib/ceUnlockLabels'
+import { ceUnlockDeadline, formatCeUnlockDeadline } from './ceUnlockSla'
 import { blTotalCbm, blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
 
 function toSheet<T extends Record<string, unknown>>(
@@ -297,6 +300,32 @@ export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListIt
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Demurrage')
   XLSX.writeFile(workbook, `relatorio-demurrage-${makeTimestamp()}.xlsx`)
+}
+
+/** Planilha comum do recorte inteiro do Desbloqueio de CE (aba Andamento dos B/Ls); a planilha da ZPT é outra. */
+export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
+  const XLSX = await import('@e965/xlsx')
+  const met = (ok: boolean) => (ok ? 'Atendido' : 'Pendente')
+  const exportRows = rows.map((row) => ({
+    'B/L': row.bl_id,
+    'CE Mercante': row.ce_mercante ?? '',
+    Cliente: row.customer_name ?? '',
+    'CNPJ/CPF': row.cnpj_cpf ?? '',
+    Navio: row.vessel_name ?? '',
+    Viagem: row.voyage_number ?? '',
+    POD: row.pod ?? '',
+    Solicitação: row.protocol ?? '',
+    Situação: ceStateLabel(row.state),
+    'Termo de devolução': met(row.termo),
+    Procuração: met(row.procuracao),
+    'Taxas locais': met(row.paid),
+    'B/L original': met(row.delivered),
+    Prazo: row.sla_started_at ? formatCeUnlockDeadline(ceUnlockDeadline(row.sla_started_at)) : '',
+    'Na ZPT': ceUnlockZptText(row).text,
+  }))
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Desbloqueio de CE')
+  XLSX.writeFile(workbook, `desbloqueio-ce-${makeTimestamp()}.xlsx`)
 }
 
 export function customerExportEmails(contacts: CustomerListItem['customer_contacts']) {

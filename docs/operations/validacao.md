@@ -335,8 +335,8 @@ e [Faturamento](../modules/faturamento.md#fluxos-e-invariantes).
 - adicione itens BRL e, quando aplicável, USD;
 - valide override de cliente;
 - crie duas tabelas ativas no mesmo escopo e confirme que vence a de vigência
-  inicial mais recente, com a outra marcada **Não aplicada**;
-- confirme que tabela ativa com vigência vencida continua aplicada (a vigência
+  inicial mais recente, com a outra marcada **Ativa, mas não usada**;
+- confirme que tabela ativa com vigência vencida continua em uso no cálculo (a vigência
   é informativa).
 
 ### Validação financeira

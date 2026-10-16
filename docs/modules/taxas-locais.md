@@ -43,36 +43,46 @@ cálculo: a confirmação é o CE Mercante (ADR 0077, decisão 7).
 
 ### Aba Tabelas em `/taxas-locais/tabelas`
 
-Revisada na etapa 09 da revisão visual (2026-10-09). A página
+Revisada na etapa 09 da revisão visual (2026-10-09) e no lote 3 da
+identidade visual (2026-10-16). A página
 (`src/pages/TaxasLocaisTabelas.tsx`), aberta pelo botão **Tabelas e
 condições** do cabeçalho de `/taxas-locais`, guarda o recorte na URL: `?tab=`
 (`tabelas` ou `overrides`, nome mantido pelos links existentes), `?modo=`,
 `?pod=` (POD normalizado), `?lente=` (Tabelas) e `?vigencia=`/`?cliente=`
-(Condições de Cliente). As abas usam `TabList`.
+(Condições de Cliente). As abas usam `TabList`; o botão primário da aba
+(**+ Nova tabela** ou **+ Nova condição**, só para quem edita) fica no título
+da página.
 
 `src/components/taxasLocais/ChargeTablesTab.tsx` lê todas as tabelas
 (`useLocalChargeTables()` sem filtro) e recorta na tela, porque a situação no
 cálculo de cada tabela depende de todas as tabelas do mesmo escopo, inclusive
 de grafias diferentes do mesmo POD (BRVIX × BRVIT):
 
-- filtros por modo de carga e POD (`ChargeScopeFilters`, POD escolhido entre
-  os cadastrados, já na grafia do motor), lente `SegmentedControl` (Todas,
-  Aplicadas, Com aviso, Inativas) e `SummaryStrip`;
+- cartões `MetricCard` em `.app-metric-row` que filtram (`?lente=`): Tabelas,
+  Em uso no cálculo (`aplicadas`), Ativas, mas não usadas (`nao-usadas`, âmbar
+  acima de zero), Com aviso nos itens (`aviso`, âmbar acima de zero) e
+  Desativadas (`inativas`); filtros por modo de carga e POD
+  (`ChargeScopeFilters`, POD escolhido entre os cadastrados, já na grafia do
+  motor);
 - `src/components/taxasLocais/ChargeTablesList.tsx` agrupa as tabelas por
-  escopo (modo de carga + POD normalizado) e diz em cada grupo qual tabela
-  "vale no cálculo". `resolveChargeTableStates` (`src/pages/taxasLocaisHelpers.ts`)
+  escopo (modo de carga + POD normalizado): cada escopo é um `Block` com a
+  tabela em uso no cálculo como dado principal (ou "Nenhuma tabela em uso" em
+  âmbar) e as tabelas do escopo numa tabela limpa (Tabela, Situação, Vigência,
+  Itens, Aviso, ações). `resolveChargeTableStates` (`src/pages/taxasLocaisHelpers.ts`)
   reproduz `resolve_local_charge_table_id` (definição ativa na `002`; regra da
-  migration arquivada `274`): Aplicada no
-  cálculo, Não aplicada (com o nome da tabela que vence) ou Inativa. A
-  vigência aparece como informativa (ADR 0040): vencida ou futura em tabela
+  migration arquivada `274`): **Em uso no cálculo**, **Ativa, mas não usada**
+  (âmbar, com o nome da tabela que vence ao passar o mouse) ou **Desativada**
+  (linha em cinza). A vigência aparece como informativa (ADR 0040): vencida ou futura em tabela
   ativa vira aviso de que ela continua no cálculo, nunca exclusão. Tabela
   aplicada sem item automático avisa que o escopo não gera taxa;
-- a linha da tabela tem uma ação visível (Editar) e o menu ⋮ (Adicionar item;
-  Desativar/Reativar só para o Administrativo). Os itens abrem dentro da
-  tabela, com valor, moeda e unidade (`por B/L`, `por container`,
-  `por tonelada`), "Automático"/"Só manual" e perfil; cada item tem o botão
-  **Editar** e, para o Administrativo, o menu ⋮ (Desativar/Reativar item,
-  Excluir item); abaixo de 640 px viram cartões;
+- a linha da tabela tem Editar e, para o Administrativo, o menu ⋮
+  (Desativar/Reativar); na "Ativa, mas não usada" o Desativar fica visível na
+  linha. O nome da tabela abre a linha: notas da tabela, avisos de vigência e
+  os itens numa tabela de cabeçalho claro (Item, Entra no cálculo, Perfil,
+  Incide, Valor unitário, Aviso curto em âmbar com a frase inteira ao passar o
+  mouse), item desativado em cinza e **+ Adicionar item** uma vez no pé. Cada
+  item tem **Editar** e, para o Administrativo, o menu ⋮ (Desativar/Reativar
+  item, Excluir item); abaixo de 640 px tabelas e itens viram cartões;
 - `src/components/taxasLocais/chargePresentation.ts` traduz o cadastro no que
   o motor faz (`resolve_bl_local_charge_items`, migrations `129` e `171`): THD por
   container com perfil "Todos" vai para revisão; perfil em item que não é THD
@@ -82,9 +92,9 @@ de grafias diferentes do mesmo POD (BRVIX × BRVIT):
 - `src/components/taxasLocais/ChargeTableFormModal.tsx` e
   `src/components/taxasLocais/ChargeTableItemFormModal.tsx`: formulários em
   modal, com erro junto do campo e falha de gravação no próprio modal. O de
-  tabela mostra antes de gravar o efeito no escopo (passa a ser a aplicada no
-  lugar de outra, não será aplicada ou fica inativa) e, só no cadastro, a
-  escolha "Ativa"/"Inativa" (preparar itens antes de entrar no cálculo). Na
+  tabela mostra antes de gravar o efeito no escopo (passa a ser a em uso no
+  cálculo no lugar de outra, fica ativa mas não usada ou fica desativada) e,
+  só no cadastro, a escolha "Ativa"/"Desativada" (preparar itens antes de entrar no cálculo). Na
   edição, as alterações aparecem campo a campo acima do botão (a conferência
   que antes era um segundo diálogo). Ativar e desativar saíram dos
   formulários: são do Administrativo e ficam no menu da linha;
@@ -100,15 +110,18 @@ aceita "1.420,50"; cada erro indica o campo).
 `src/components/taxasLocais/ChargeOverridesTab.tsx` contém:
 
 - busca de Cliente por nome ou CNPJ (enviada à URL depois de uma pausa na
-  digitação), filtros por modo de carga e POD e lente pela vigência de hoje
-  (Vigentes hoje, Futuras, Encerradas ou desativadas);
-- lista com Cliente (CNPJ com o ícone de copiar), item e tabela de origem,
-  vigência ("Vigente hoje",
-  "Começa em", "Encerrada em", "Desativada"), valor negociado com unidade,
-  valor da tabela e diferença. "Vigente hoje" é a leitura de hoje: o motor
-  escolhe a condição pela data de referência do B/L (ETA da escala do POD);
-- aviso quando a condição não muda a cobrança: tabela inativa ou não aplicada,
-  ou item inativo;
+  digitação), filtros por modo de carga e POD e cartões que filtram
+  (`?vigencia=`): Condições, Vigentes hoje, Futuras, Encerradas ou desativadas
+  e Sem efeito no cálculo (`sem-efeito`, âmbar acima de zero);
+- tabela limpa com Cliente (link para a ficha; o CNPJ entra só na busca), Item
+  de taxa (observação ao passar o mouse), Tabela (modo · POD · nome),
+  Vigência, Situação em texto ("Vigente", "Começa em …"; "Encerrada" e
+  "Desativada" com a linha em cinza), Valor negociado com unidade e Valor da
+  tabela com a diferença. "Vigente" é a leitura de hoje: o motor escolhe a
+  condição pela data de referência do B/L (ETA da escala do POD);
+- "Sem efeito no cálculo" em âmbar na condição vigente que não muda a
+  cobrança (tabela desativada ou ativa mas não usada, ou item desativado), com
+  o motivo ao passar o mouse;
 - `src/components/taxasLocais/ChargeOverrideFormModal.tsx`: modal com Cliente
   e item por `Combobox` (Cliente por `useOverrideCustomerLookup`, mesma chave de
   `useOverrideCustomers`), valor da tabela ao lado do negociado, regra de

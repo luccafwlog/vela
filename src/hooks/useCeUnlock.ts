@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ceUnlockCommand,
   getCeUnlockRequest,
@@ -50,4 +50,25 @@ export function useCeUnlockRequest(id: string | null) {
     enabled: !!id,
     refetchOnWindowFocus: "always",
   });
+}
+/**
+ * Contagem de cada cartão da aba Andamento dos B/Ls: o total da primeira página
+ * da mesma lista com o recorte atual e a situação do cartão (mesma chave de
+ * cache que a lista usa quando o cartão é o filtro aplicado).
+ * ponytail: uma leitura por cartão, e cada uma materializa a elegibilidade de
+ * todos os B/Ls (ver listCeUnlockBls); se pesar, devolver as contagens numa
+ * só leitura de `ce_unlock_read`.
+ */
+export function useCeUnlockSituationCounts(filters: CeUnlockFilters, situations: string[], enabled = true) {
+  const results = useQueries({
+    queries: situations.map((situation) => {
+      const f = { ...filters, situation };
+      return {
+        queryKey: queryKeys.ceUnlock.list("internal", f, 1),
+        queryFn: () => listCeUnlockBls(f, 1),
+        enabled,
+      };
+    }),
+  });
+  return Object.fromEntries(situations.map((s, i) => [s, results[i]?.data?.total ?? null])) as Record<string, number | null>;
 }

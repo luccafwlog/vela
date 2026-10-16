@@ -5,6 +5,7 @@ import {
   conditionEffectNotes,
   conditionPeriodLabel,
   describeDifference,
+  shortDifference,
   formatPeriod,
   groupTablesByScope,
   itemDisplayName,
@@ -72,14 +73,14 @@ describe('leitura da tabela', () => {
     const tables = [table(1, { charge_table_items: [autoItem({ manual_only: true })] as ChargeTable['charge_table_items'] })]
     const states = resolveChargeTableStates(tables)
     const reading = readTable(tables[0], states, new Map(tables.map((t) => [t.id, t])), today)
-    expect(reading).toMatchObject({ stateLabel: 'Aplicada no cálculo', noAutomaticItems: true, manualItems: 1, hasWarning: true })
+    expect(reading).toMatchObject({ stateLabel: 'Em uso no cálculo', noAutomaticItems: true, manualItems: 1, hasWarning: true })
   })
 
   it('vigência vencida em tabela ativa é aviso, não exclusão (ADR 0040)', () => {
     const tables = [table(1, { valid_from: '2025-01-01', valid_to: '2025-12-31', charge_table_items: [autoItem()] as ChargeTable['charge_table_items'] })]
     const states = resolveChargeTableStates(tables)
     const reading = readTable(tables[0], states, new Map(tables.map((t) => [t.id, t])), today)
-    expect(reading.stateLabel).toBe('Aplicada no cálculo')
+    expect(reading.stateLabel).toBe('Em uso no cálculo')
     expect(reading.validityNote).toContain('continua no cálculo')
   })
 
@@ -100,7 +101,7 @@ describe('aviso de vigência', () => {
     const states = resolveChargeTableStates(tables)
     const byId = new Map(tables.map((row) => [row.id, row]))
     const reading = readTable(old, states, byId, '2026-10-09')
-    expect(reading.stateLabel).toBe('Não aplicada')
+    expect(reading.stateLabel).toBe('Ativa, mas não usada')
     expect(reading.validityNote).toBeNull()
   })
 })
@@ -123,12 +124,12 @@ describe('previewTableState', () => {
   })
 
   it('mais antiga não é aplicada; inativa fica fora do cálculo', () => {
-    expect(previewTableState({ ...draft, validFrom: '2020-01-01' }, tables)).toMatchObject({ tone: 'warning', text: expect.stringContaining('Não será aplicada') })
-    expect(previewTableState({ ...draft, active: false }, tables)?.text).toContain('Fica inativa')
+    expect(previewTableState({ ...draft, validFrom: '2020-01-01' }, tables)).toMatchObject({ tone: 'warning', text: expect.stringContaining('Fica ativa, mas não usada') })
+    expect(previewTableState({ ...draft, active: false }, tables)?.text).toContain('Fica desativada')
   })
 
   it('editar a própria tabela aplicada não acusa troca', () => {
-    expect(previewTableState({ ...draft, id: 1, pod: 'BRVIT' }, tables)?.text).toBe('Será a tabela aplicada em Container · BRVIX.')
+    expect(previewTableState({ ...draft, id: 1, pod: 'BRVIT' }, tables)?.text).toBe('Será a tabela em uso no cálculo de Container · BRVIX.')
   })
 })
 
@@ -142,17 +143,17 @@ describe('Condição de Cliente', () => {
   })
 
   it('avisa tabela não aplicada, inativa e item inativo; item em dólar vale como o em reais (migration 171)', () => {
-    expect(conditionEffectNotes({ currency: 'BRL', charge_table: { id: 2, name: 'Antiga' } }, states, byId)[0].text).toContain('"Vigente" vence')
-    expect(conditionEffectNotes({ currency: 'BRL', charge_table: { id: 3, name: 'Desligada' } }, states, byId)[0].text).toContain('inativa')
+    expect(conditionEffectNotes({ currency: 'BRL', charge_table: { id: 2, name: 'Antiga' } }, states, byId)[0].text).toContain('"Vigente" está em uso no cálculo')
+    expect(conditionEffectNotes({ currency: 'BRL', charge_table: { id: 3, name: 'Desligada' } }, states, byId)[0].text).toContain('desativada')
     expect(conditionEffectNotes({ currency: 'BRL', active: false, charge_table: { id: 1, name: 'Vigente' } }, states, byId)[0].text).toContain('item está inativo')
     expect(conditionEffectNotes({ currency: 'USD', active: true, charge_table: { id: 1, name: 'Vigente' } }, states, byId)).toEqual([])
   })
 
   it('situação pela data de hoje', () => {
     const today = '2026-10-09'
-    expect(conditionPeriodLabel({ active: true, valid_from: null, valid_to: null }, today)).toBe('Vigente hoje')
+    expect(conditionPeriodLabel({ active: true, valid_from: null, valid_to: null }, today)).toBe('Vigente')
     expect(conditionPeriodLabel({ active: true, valid_from: '2026-11-01', valid_to: null }, today)).toBe('Começa em 01/11/2026')
-    expect(conditionPeriodLabel({ active: true, valid_from: null, valid_to: '2025-12-31' }, today)).toBe('Encerrada em 31/12/2025')
+    expect(conditionPeriodLabel({ active: true, valid_from: null, valid_to: '2025-12-31' }, today)).toBe('Encerrada')
     expect(conditionPeriodLabel({ active: false, valid_from: null, valid_to: null }, today)).toBe('Desativada')
   })
 
@@ -162,5 +163,8 @@ describe('Condição de Cliente', () => {
     expect(basisUnit('weight_ton')).toBe('por tonelada')
     expect(describeDifference(100, 80)).toBe('−20% em relação à tabela')
     expect(describeDifference(0, 80)).toBeNull()
+    expect(shortDifference(100, 80)).toBe('−20%')
+    expect(shortDifference(100, 100)).toBe('igual')
+    expect(shortDifference(0, 80)).toBeNull()
   })
 })

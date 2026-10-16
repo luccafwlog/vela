@@ -23,6 +23,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }))
 let mockReissueLinks: Record<string, unknown> | null = null
+let mockDetailError: Record<string, unknown> | null = null
 let mockDetailData: Record<string, unknown> | null = {
   invoice: {
     id: 9,
@@ -43,9 +44,9 @@ let mockDetailData: Record<string, unknown> | null = {
 
 vi.mock('../../../hooks/useBilling', () => ({
   useInvoiceDetail: () => ({
-    data: mockDetailData,
+    data: mockDetailError ? undefined : mockDetailData,
     isLoading: false,
-    error: null,
+    error: mockDetailError,
   }),
   useRegisterInvoicePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCancelInvoice: () => ({ mutateAsync: cancelInvoice, isPending: false }),
@@ -79,6 +80,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mockDetailData = initialDetail
   mockReissueLinks = null
+  mockDetailError = null
   mockRefunds = []
   auth.isAdmin = true
 })
@@ -91,8 +93,9 @@ it('repetição após timeout mantém chave, valor e data da tentativa', async (
   registerLedgerPayment.mockRejectedValueOnce(new Error('Timeout')).mockResolvedValueOnce({})
   const user = userEvent.setup()
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
-  fireEvent.change(screen.getByLabelText(/Data do recebimento/), { target: { value: '2026-10-04' } })
-  fireEvent.change(screen.getByLabelText(/Referência do recebimento bancário/), { target: { value: 'BANCO-TESTE-9' } })
+  await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
+  fireEvent.change(screen.getByLabelText(/Recebido em/), { target: { value: '2026-10-04' } })
+  fireEvent.change(screen.getByLabelText(/Referência bancária/), { target: { value: 'BANCO-TESTE-9' } })
   await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
   await user.click(screen.getByRole('button', { name: /Registrar pagamento|Tentar novamente/ }))
   const first = registerLedgerPayment.mock.calls[0][0]
@@ -161,13 +164,14 @@ it('explica as consequências da baixa parcial e aguarda confirmação antes de 
   confirm.mockResolvedValueOnce(false)
   const user = userEvent.setup()
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+  await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
   const amount = screen.getByLabelText(/Valor recebido/)
   await user.clear(amount)
   await user.type(amount, '40')
-  expect(screen.getByText(/Após esta baixa/).textContent).toContain('60,00')
-  fireEvent.change(screen.getByLabelText(/Data do recebimento/), { target: { value: '2026-10-01' } })
+  expect(screen.getByText(/Saldo depois desta baixa/).textContent).toContain('60,00')
+  fireEvent.change(screen.getByLabelText(/Recebido em/), { target: { value: '2026-10-01' } })
   expect(screen.getByText(/a correção do B\/L não reemite a fatura/)).toBeTruthy()
-  fireEvent.change(screen.getByLabelText(/Referência do recebimento bancário/), { target: { value: 'BANCO-TESTE-9' } })
+  fireEvent.change(screen.getByLabelText(/Referência bancária/), { target: { value: 'BANCO-TESTE-9' } })
   await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
   expect(confirm).toHaveBeenCalledWith(expect.objectContaining({
     title: 'Registrar pagamento parcial?',
@@ -232,8 +236,8 @@ it('avulsa cancelada não oferece registro de pagamento nem novo cancelamento', 
   render(<MemoryRouter><InvoiceDetailModal invoiceId={11} onClose={vi.fn()} /></MemoryRouter>)
 
   expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
-  expect(screen.queryByLabelText(/Referência do recebimento bancário/)).toBeNull()
-  expect(screen.getByText('Esta fatura não aceita registro de pagamento no status atual.')).toBeTruthy()
+  expect(screen.queryByLabelText(/Referência bancária/)).toBeNull()
+  expect(screen.getByText('Esta fatura não aceita registro de pagamento na situação atual.')).toBeTruthy()
   expect(screen.queryByRole('button', { name: /Cancelar fatura/ })).toBeNull()
 })
 
@@ -251,12 +255,12 @@ it('distingue total emitido, recebido, a devolver e saldo da avulsa paga a maior
     bls: [], items: [], payments: [{ id: 5, amount_brl: 800, paid_at: '2026-10-08', payment_method: 'ted' }],
   }
   render(<MemoryRouter><InvoiceDetailModal invoiceId={13} onClose={vi.fn()} /></MemoryRouter>)
-  const amounts = document.querySelector('[aria-label="Valores da fatura"]')
-  const text = (amounts?.textContent ?? '').replace(/\s/g, ' ')
-  expect(text).toContain('Total emitidoR$ 750,00')
-  expect(text).toContain('RecebidoR$ 800,00')
-  expect(text).toContain('A devolverR$ 50,00')
-  expect(text).toContain('Saldo em abertoR$ 0,00Quitada')
+  const saldo = screen.getByRole('region', { name: 'Saldo' })
+  const text = (saldo.textContent ?? '').replace(/\s/g, ' ')
+  expect(text).toContain('Avulsa · emitida em 09/10/2026')
+  expect(text).toContain('Paga')
+  expect(text).toContain('R$ 800,00 recebidos em 08/10/2026 · total R$ 750,00 · a devolver R$ 50,00')
+  expect(text).not.toContain('Nº interno')
 })
 
 it('sem Administrativo, mostra o motivo no lugar dos formulários de baixa e cancelamento', () => {
@@ -265,7 +269,7 @@ it('sem Administrativo, mostra o motivo no lugar dos formulários de baixa e can
   expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
   expect(screen.getByText(/Somente o Financeiro e o Administrativo registram recebimentos/)).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Cancelar fatura' })).toBeNull()
-  expect(screen.getByText('Somente o Administrativo cancela faturas.')).toBeTruthy()
+  expect(screen.queryByRole('region', { name: 'Cancelar fatura' })).toBeNull()
 })
 
 it('fatura com pagamento explica por que não é cancelada e abre a baixa pela linha', async () => {
@@ -273,7 +277,7 @@ it('fatura com pagamento explica por que não é cancelada e abre a baixa pela l
     payments: [{ id: 7, amount_brl: 40, paid_at: '2026-10-01', payment_method: 'pix' }] }
   const user = userEvent.setup()
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
-  expect(screen.getByText(/Fatura com pagamento não é cancelada aqui/)).toBeTruthy()
+  expect(screen.getByText(/Fatura com pagamento não se cancela/)).toBeTruthy()
   expect(screen.queryByLabelText(/Baixa a cancelar/)).toBeNull()
   await user.click(screen.getByRole('button', { name: /Cancelar baixa de R\$\s40,00/ }))
   expect((screen.getByLabelText(/Baixa a cancelar/) as HTMLSelectElement).value).toBe('7')
@@ -298,7 +302,7 @@ it('confirma a devolução dentro da seção de restituições, com evidência e
   settleRefund.mockResolvedValue({})
   const user = userEvent.setup()
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
-  await user.click(screen.getByRole('button', { name: 'Confirmar devolução…' }))
+  await user.click(screen.getByRole('button', { name: 'Confirmar devolução' }))
   expect(screen.getAllByRole('dialog')).toHaveLength(1)
   fireEvent.change(screen.getByLabelText(/Referência do comprovante bancário/), { target: { value: 'COMPROVANTE-1' } })
   fireEvent.change(screen.getByLabelText(/Favorecido/), { target: { value: 'Cliente original' } })
@@ -306,4 +310,64 @@ it('confirma a devolução dentro da seção de restituições, com evidência e
   await user.click(screen.getByRole('button', { name: 'Confirmar devolução realizada' }))
   expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Confirmar devolução realizada?' }))
   expect(settleRefund).toHaveBeenCalledWith(expect.objectContaining({ refundId: 3, bankReference: 'COMPROVANTE-1' }))
+})
+
+it('Registrar pagamento abre o formulário no próprio bloco e Voltar fecha', async () => {
+  const user = userEvent.setup()
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+  expect(screen.queryByLabelText(/Valor recebido/)).toBeNull()
+  await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
+  expect(screen.getByRole('group', { name: 'Registrar pagamento' })).toBeTruthy()
+  await user.click(screen.getByRole('button', { name: 'Voltar' }))
+  expect(screen.queryByLabelText(/Valor recebido/)).toBeNull()
+})
+
+it('aberto pela Conciliação não registra pagamento nem cancela a fatura', () => {
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} enablePaymentReversal onClose={vi.fn()} /></MemoryRouter>)
+  expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
+  expect(screen.queryByRole('region', { name: 'Cancelar fatura' })).toBeNull()
+})
+
+it('um B/L só vai no Saldo; colunas opcionais só aparecem quando há o dado', () => {
+  mockDetailData = {
+    invoice: { id: 9, invoice_number: 'INV-9', invoice_type: 'individual', status: 'partially_paid', total_brl: 3010, balance_brl: 1510, total_paid_brl: 1500, customer_name: 'Comercial Pacífico', customer_cnpj_cpf: '23456789000101' },
+    bls: [{ id: 1, bl_id: 'XPDU1', pol: 'CNSHA', pod: 'BRSSZ', subtotal_brl: 3010 }],
+    items: [{ id: 31, bl_id: 'XPDU1', description: 'THC', quantity: 1, unit_value_brl: 3010, total_value_brl: 3010, source: 'auto' }],
+    payments: [{ id: 7, amount_brl: 1500, paid_at: '2026-10-13', payment_method: 'ted', bank_reference: 'TED 1' }],
+  }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+  const saldo = screen.getByRole('region', { name: 'Saldo' })
+  expect(saldo.textContent?.replace(/\s/g, ' ')).toContain('R$ 1.510,00 em aberto')
+  expect(saldo.textContent).toContain('CNSHA → BRSSZ')
+  expect(screen.getByRole('link', { name: 'Comercial Pacífico' }).getAttribute('href')).toBe('/clientes/23456789000101')
+  expect(screen.queryByRole('region', { name: 'B/Ls' })).toBeNull()
+  expect(screen.queryByRole('columnheader', { name: 'Em US$' })).toBeNull()
+  expect(screen.queryByRole('columnheader', { name: 'B/L' })).toBeNull()
+  expect(screen.queryByRole('columnheader', { name: 'Observação' })).toBeNull()
+  expect(screen.queryByRole('columnheader', { name: 'Registrado por' })).toBeNull()
+  expect(screen.getByText('Total da fatura')).toBeTruthy()
+})
+
+it('consolidada: bloco B/Ls com itens por B/L, coluna B/L nos itens e Em US$ só com item em dólar', () => {
+  mockDetailData = {
+    invoice: { id: 19, invoice_number: 'FAT-19', invoice_type: 'consolidated', status: 'issued', total_brl: 200, balance_brl: 200, total_paid_brl: 0 },
+    bls: [{ id: 1, bl_id: 'BL-A', subtotal_brl: 100 }, { id: 2, bl_id: 'BL-B', subtotal_brl: 100 }],
+    items: [
+      { id: 1, bl_id: 'BL-A', description: 'THC', quantity: 1, unit_value_brl: 100, total_value_brl: 100, source: 'auto' },
+      { id: 2, bl_id: 'BL-B', description: 'BL Fee', quantity: 1, unit_value_brl: 100, total_value_brl: 100, source: 'auto', currency: 'USD', unit_value_usd: 20, snapshot_payload: { roe: 5 } },
+    ],
+    payments: [],
+  }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={19} onClose={vi.fn()} /></MemoryRouter>)
+  expect(screen.getByRole('region', { name: 'B/Ls' })).toBeTruthy()
+  expect(screen.getByRole('columnheader', { name: 'Itens' })).toBeTruthy()
+  expect(screen.getAllByRole('columnheader', { name: 'B/L' })).toHaveLength(2)
+  expect(screen.getByRole('columnheader', { name: 'Em US$' })).toBeTruthy()
+  expect(screen.getByText(/× ROE 5,0000/)).toBeTruthy()
+})
+
+it('fatura inexistente diz "Fatura não encontrada." sem o texto do banco', () => {
+  mockDetailError = { code: 'P0002', message: 'Invoice 77 nao encontrada.' }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={77} onClose={vi.fn()} /></MemoryRouter>)
+  expect(screen.getByRole('alert').textContent).toBe('Fatura não encontrada.')
 })

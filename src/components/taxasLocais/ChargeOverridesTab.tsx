@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Ban, MoreVertical, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Ban, MoreVertical, RotateCcw, Trash2 } from 'lucide-react'
 import { ActionMenu, type ActionMenuItem } from '../ui/ActionMenu'
 import { Button } from '../ui/Button'
-import { CopyValue } from '../ui/CopyValue'
+import { Block } from '../ui/Block'
+import { MetricCard } from '../ui/MetricCard'
+import { StatusText } from '../ui/StatusText'
 import { NoValue } from '../ui/NoValue'
 import { EmptyState, InlineError } from '../ui/Card'
 import { Field, Input } from '../ui/Input'
-import { SegmentedControl } from '../ui/SegmentedControl'
 import { SkeletonTable } from '../ui/Skeleton'
-import { SummaryStrip } from '../ui/SummaryStrip'
 import { useConfirm, useConfirmWithReason } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
@@ -20,24 +21,22 @@ import {
   useSetCustomerRateOverrideActive,
 } from '../../hooks/useLocalCharges'
 import { extractErrorText } from '../../lib/errors'
-import { formatCnpjCpf } from '../../lib/utils'
 import { normalizeChargeTablePod, resolveChargeTableStates, type OverridePayload } from '../../pages/taxasLocaisHelpers'
 import type { LocalChargeOverrideItem } from '../../services/charges/chargeRateService'
 import { ChargeOverrideFormModal } from './ChargeOverrideFormModal'
-import { ChargeNoteList } from './ChargeFormParts'
 import { ChargeScopeFilters } from './ChargeScopeFilters'
 import {
   basisUnit,
   conditionEffectNotes,
   conditionPeriod,
   conditionPeriodLabel,
-  describeDifference,
   formatPeriod,
   formatRate,
   itemDisplayName,
   itemUnitValue,
   podOptions,
   scopeLabel,
+  shortDifference,
   type ChargeNote,
   type ConditionPeriod,
 } from './chargePresentation'
@@ -53,18 +52,17 @@ function todayIso() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10)
 }
 
-const LENS_PERIODS: Record<ConditionsLens, ConditionPeriod[] | null> = {
+const LENS_PERIODS: Record<Exclude<ConditionsLens, 'sem-efeito'>, ConditionPeriod[] | null> = {
   todas: null,
   vigentes: ['current'],
   futuras: ['future'],
   encerradas: ['ended', 'disabled'],
 }
 
-const PERIOD_CLASS: Record<ConditionPeriod, string> = {
-  current: 'app-rates-period--current',
-  future: 'app-rates-period--future',
-  ended: 'app-rates-period--ended',
-  disabled: 'app-rates-period--ended',
+function matchesLens(lens: ConditionsLens, entry: Row) {
+  if (lens === 'sem-efeito') return entry.withoutEffect
+  const periods = LENS_PERIODS[lens]
+  return !periods || periods.includes(entry.period)
 }
 
 type Row = {
@@ -75,6 +73,8 @@ type Row = {
   /** Vigente hoje, mas sem efeito no cálculo. */
   withoutEffect: boolean
 }
+
+function noop() {}
 
 export function ChargeOverridesTab({
   cargoModeFilter,
@@ -87,6 +87,8 @@ export function ChargeOverridesTab({
   setCustomerSearch,
   canEdit,
   canDelete,
+  creating = false,
+  onCreateDone = noop,
 }: ChargeFilterProps & {
   lens: ConditionsLens
   setLens: (value: ConditionsLens) => void
@@ -94,6 +96,9 @@ export function ChargeOverridesTab({
   setCustomerSearch: (value: string) => void
   canEdit: boolean
   canDelete: boolean
+  /** "+ Nova condição" do título da página pediu o formulário em branco. */
+  creating?: boolean
+  onCreateDone?: () => void
 }) {
   const { showToast } = useToast()
   const confirm = useConfirm()
@@ -140,7 +145,7 @@ export function ChargeOverridesTab({
       return { row, period, periodLabel: conditionPeriodLabel(row, today), notes, withoutEffect: period === 'current' && notes.length > 0 }
     }), [overrides.data, podFilter, today, states, tablesById, tablesQuery.data])
 
-  const visible = rows.filter((entry) => !LENS_PERIODS[lens] || LENS_PERIODS[lens]!.includes(entry.period))
+  const visible = rows.filter((entry) => matchesLens(lens, entry))
   const counts = {
     current: rows.filter((entry) => entry.period === 'current').length,
     future: rows.filter((entry) => entry.period === 'future').length,
@@ -149,6 +154,11 @@ export function ChargeOverridesTab({
   }
   const hasFilters = Boolean(customerSearch || cargoModeFilter || podFilter || lens !== 'todas')
   const truncated = (overrides.data?.length ?? 0) >= CONDITIONS_LIMIT
+
+  function closeModal() {
+    setModal(null)
+    onCreateDone()
+  }
 
   function clearFilters() {
     setSearchText('')
@@ -160,7 +170,7 @@ export function ChargeOverridesTab({
 
   async function handleSave(input: OverridePayload & { id: number | null }) {
     await saveOverride.mutateAsync(input)
-    setModal(null)
+    closeModal()
     showToast(input.id ? 'Condição atualizada.' : 'Condição cadastrada.', 'success')
   }
 
@@ -251,171 +261,182 @@ export function ChargeOverridesTab({
     const currency = row.charge_item?.currency ?? 'BRL'
     const base = row.charge_item ? itemUnitValue(row.charge_item) : 0
     const negotiated = Number(row.override_value ?? 0)
-    const difference = describeDifference(base, negotiated)
-    return (
-      <div className="app-rates-values">
-        <span className="app-rates-num app-rates-values__negotiated">{formatRate(currency, negotiated)}</span>
-        <span className="app-rates-unit">{basisUnit(row.charge_item?.application_basis ?? null)}</span>
-        <span className="app-rates-unit">
-          Tabela: <span className="app-rates-num">{formatRate(currency, base)}</span>
-          {difference ? ` (${difference.replace(' em relação à tabela', '')})` : ''}
-        </span>
-      </div>
-    )
+    const difference = shortDifference(base, negotiated)
+    return {
+      negotiated: `${formatRate(currency, negotiated)} ${basisUnit(row.charge_item?.application_basis ?? null)}`,
+      table: `${formatRate(currency, base)}${difference ? ` (${difference})` : ''}`,
+    }
   }
 
-  const lensOptions = [
-    { value: 'todas' as const, label: 'Todas' },
-    { value: 'vigentes' as const, label: `Vigentes hoje (${counts.current})` },
-    { value: 'futuras' as const, label: `Futuras (${counts.future})` },
-    { value: 'encerradas' as const, label: `Encerradas ou desativadas (${counts.ended})` },
+  function renderSituation({ periodLabel, notes, withoutEffect }: Row) {
+    if (withoutEffect) {
+      const reason = notes.map((note) => note.text).join(' ')
+      return (
+        <span title={reason}>
+          <StatusText tone="warning">Sem efeito no cálculo</StatusText>
+          <span className="sr-only">: {reason}</span>
+        </span>
+      )
+    }
+    return periodLabel
+  }
+
+  function tableLabel(row: LocalChargeOverrideItem) {
+    const table = row.charge_item?.charge_table
+    return `${scopeLabel(table?.cargo_mode, table?.pod)} · ${table?.name ?? 'sem tabela'}`
+  }
+
+  function customerCell(row: LocalChargeOverrideItem) {
+    if (!row.customer?.name) return <NoValue label="Sem Cliente" />
+    return row.customer.cnpj_cpf
+      ? <Link className="app-link" to={`/clientes/${encodeURIComponent(row.customer.cnpj_cpf)}`}>{row.customer.name}</Link>
+      : row.customer.name
+  }
+
+  const lensCards: Array<{ value: ConditionsLens; label: string; count: number; warn?: boolean }> = [
+    { value: 'todas', label: 'Condições', count: rows.length },
+    { value: 'vigentes', label: 'Vigentes hoje', count: counts.current },
+    { value: 'futuras', label: 'Futuras', count: counts.future },
+    { value: 'encerradas', label: 'Encerradas ou desativadas', count: counts.ended },
+    { value: 'sem-efeito', label: 'Sem efeito no cálculo', count: counts.withoutEffect, warn: true },
   ]
 
   return (
     <>
-      <div className="app-rates-toolbar">
-        <div className="app-rates-toolbar__filters">
-          <Field label="Cliente">
-            <Input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Nome ou CNPJ" type="search" />
-          </Field>
-          <ChargeScopeFilters
-            cargoModeFilter={cargoModeFilter}
-            setCargoModeFilter={setCargoModeFilter}
-            podFilter={podFilter}
-            setPodFilter={setPodFilter}
-            pods={podOptions(tables)}
+      <div className="app-metric-row" role="group" aria-label="Filtrar condições por situação">
+        {lensCards.map((card) => (
+          <MetricCard
+            key={card.value}
+            label={card.label}
+            value={overrides.data ? card.count : <NoValue label="Carregando" />}
+            tone={card.warn && card.count > 0 ? 'warning' : 'secondary'}
+            selected={lens === card.value}
+            onSelect={() => setLens(lens === card.value ? 'todas' : card.value)}
           />
-        </div>
-        {canEdit ? (
-          <Button type="button" onClick={() => setModal({ row: null })} className="app-rates-toolbar__primary">
-            <Plus size={15} aria-hidden="true" />
-            Nova condição
-          </Button>
-        ) : null}
+        ))}
       </div>
 
-      <section className="app-surface app-rates-surface" aria-label="Condições de Cliente">
-        <div className="app-rates-surface__bar">
-          <SegmentedControl label="Mostrar condições" options={lensOptions} value={lens} onChange={setLens} />
-          {overrides.data ? (
-            <SummaryStrip
-              label="Resumo das condições"
-              items={[
-                { label: rows.length === 1 ? 'condição' : 'condições', value: rows.length },
-                { label: 'vigentes hoje', value: counts.current },
-                ...(counts.withoutEffect ? [{ label: 'vigentes sem efeito no cálculo', value: counts.withoutEffect, tone: 'warning' as const }] : []),
-              ]}
-            />
-          ) : null}
+      <div className="app-filter-grid">
+        <Field label="Cliente">
+          <Input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Nome ou CNPJ" type="search" />
+        </Field>
+        <ChargeScopeFilters
+          cargoModeFilter={cargoModeFilter}
+          setCargoModeFilter={setCargoModeFilter}
+          podFilter={podFilter}
+          setPodFilter={setPodFilter}
+          pods={podOptions(tables)}
+        />
+      </div>
+
+      {overrides.error ? (
+        <div className="app-rates-state">
+          <InlineError message="Não foi possível consultar as condições de Cliente." />
+          <Button variant="secondary" className="app-btn--sm" onClick={() => void overrides.refetch()} loading={overrides.isFetching} loadingLabel="Consultando…">
+            Tentar novamente
+          </Button>
         </div>
-        <p className="app-rates-surface__rule">
-          O valor negociado substitui o da tabela para o Cliente quando a data de referência do B/L (ETA da escala do POD) cai na vigência. "Vigente hoje" é a leitura de hoje, não a de cada B/L.
-        </p>
+      ) : null}
+      {tablesQuery.error && !overrides.error ? (
+        <p className="app-rates-help app-rates-state">Sem a lista de tabelas, a tela não confere se cada condição está na tabela em uso no cálculo.</p>
+      ) : null}
+      {truncated ? (
+        <p className="app-rates-help app-rates-state">Mostrando as {CONDITIONS_LIMIT} condições mais recentes deste recorte. Refine pelo Cliente para ver as demais.</p>
+      ) : null}
 
-        {overrides.error ? (
-          <div className="app-rates-state">
-            <InlineError message="Não foi possível consultar as condições de Cliente." />
-            <Button variant="secondary" className="app-btn--sm" onClick={() => void overrides.refetch()} loading={overrides.isFetching} loadingLabel="Consultando…">
-              Tentar novamente
-            </Button>
-          </div>
-        ) : null}
-        {tablesQuery.error && !overrides.error ? (
-          <p className="app-rates-help app-rates-state">Sem a lista de tabelas, a tela não confere se cada condição está na tabela aplicada.</p>
-        ) : null}
-        {truncated ? (
-          <p className="app-rates-help app-rates-state">Mostrando as {CONDITIONS_LIMIT} condições mais recentes deste recorte. Refine pelo Cliente para ver as demais.</p>
-        ) : null}
+      {overrides.isLoading ? <SkeletonTable rows={4} cols={4} columnTemplate="1.4fr 1.4fr 1fr 1fr" label="Carregando condições" /> : null}
 
-        {overrides.isLoading ? <SkeletonTable rows={4} cols={4} columnTemplate="1.4fr 1.4fr 1fr 1fr" label="Carregando condições" /> : null}
+      {!overrides.isLoading && overrides.data && visible.length === 0 ? (
+        hasFilters ? (
+          <EmptyState
+            title="Nenhuma condição neste recorte"
+            description={customerSearch ? `Nenhuma condição para "${customerSearch}" com esses filtros.` : 'Nenhuma condição com esses filtros.'}
+            action={<Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>}
+          />
+        ) : (
+          <EmptyState
+            title="Nenhuma condição de Cliente"
+            description="Sem condição, todo Cliente paga o valor da tabela em uso no cálculo."
+          />
+        )
+      ) : null}
 
-        {!overrides.isLoading && overrides.data && visible.length === 0 ? (
-          hasFilters ? (
-            <EmptyState
-              title="Nenhuma condição neste recorte"
-              description={customerSearch ? `Nenhuma condição para "${customerSearch}" com esses filtros.` : 'Nenhuma condição com esses filtros.'}
-              action={<Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>}
-            />
+      {visible.length > 0 ? (
+        <Block
+          title="Condições de Cliente"
+          aside="o valor negociado vale quando a chegada do navio no POD cai na vigência"
+          flush
+        >
+          {narrow ? (
+            <div className="app-block__body">
+            <ul className="app-rates-item-cards">
+              {visible.map((entry) => {
+                const { row, period } = entry
+                const values = renderValues(row)
+                return (
+                  <li key={row.id} className="app-rates-item-card" data-inactive={period === 'ended' || period === 'disabled' || undefined}>
+                    <div className="app-rates-item-card__head">
+                      <strong>{customerCell(row)}</strong>
+                      {renderActions(row)}
+                    </div>
+                    <p title={row.notes ?? undefined}>{row.charge_item ? itemDisplayName(row.charge_item) : <NoValue label="Sem item de taxa" />} <span className="app-rates-unit">{tableLabel(row)}</span></p>
+                    <p><span className="app-rates-num">{values.negotiated}</span> <span className="app-rates-unit">Tabela: {values.table}</span></p>
+                    <p>{renderSituation(entry)} · <span className="app-rates-num">{formatPeriod(row.valid_from, row.valid_to)}</span></p>
+                  </li>
+                )
+              })}
+            </ul>
+            </div>
           ) : (
-            <EmptyState
-              title="Nenhuma condição de Cliente"
-              description="Sem condição, todo Cliente paga o valor da tabela aplicada."
-              action={canEdit ? <Button onClick={() => setModal({ row: null })}><Plus size={15} aria-hidden="true" />Nova condição</Button> : undefined}
-            />
-          )
-        ) : null}
-
-        {visible.length > 0 && narrow ? (
-          <ul className="app-rates-item-cards">
-            {visible.map(({ row, period, periodLabel, notes }) => (
-              <li key={row.id} className="app-rates-item-card" data-inactive={period === 'ended' || period === 'disabled' || undefined}>
-                <div className="app-rates-item-card__head">
-                  <span>
-                    <strong>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</strong>
-                    <span className="app-rates-unit app-rates-code app-rates-block">{row.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(row.customer.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</span>
-                  </span>
-                  {renderActions(row)}
-                </div>
-                <p>{row.charge_item ? itemDisplayName(row.charge_item) : <NoValue label="Sem item de taxa" />} <span className="app-rates-unit">{scopeLabel(row.charge_item?.charge_table?.cargo_mode, row.charge_item?.charge_table?.pod)}</span></p>
-                {renderValues(row)}
-                <p className={`app-rates-period ${PERIOD_CLASS[period]}`}>{periodLabel} · <span className="app-rates-num">{formatPeriod(row.valid_from, row.valid_to)}</span></p>
-                <ChargeNoteList notes={notes} />
-                {row.notes ? <p className="app-rates-table__notes">{row.notes}</p> : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {visible.length > 0 && !narrow ? (
-          <div className="app-table-scroll">
-            <table className="app-table app-table--compact app-rates-condition-table">
-              <caption className="sr-only">Condições de Cliente</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="app-table__text-head">Cliente</th>
-                  <th scope="col" className="app-table__text-head">Item de taxa</th>
-                  <th scope="col">Vigência</th>
-                  <th scope="col">Valor negociado</th>
-                  {canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map(({ row, period, periodLabel, notes }) => (
-                  <tr key={row.id} data-inactive={period === 'ended' || period === 'disabled' || undefined}>
-                    <td className="app-table__text">
-                      <div className="app-rates-item__name">{row.customer?.name ?? <NoValue label="Sem Cliente" />}</div>
-                      <div className="app-rates-unit app-rates-code">{row.customer?.cnpj_cpf ? <CopyValue value={formatCnpjCpf(row.customer.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</div>
-                    </td>
-                    <td className="app-table__text">
-                      <div className="app-rates-item__name">{row.charge_item ? itemDisplayName(row.charge_item) : <NoValue label="Sem item de taxa" />}</div>
-                      <div className="app-rates-unit">
-                        {scopeLabel(row.charge_item?.charge_table?.cargo_mode, row.charge_item?.charge_table?.pod)} · {row.charge_item?.charge_table?.name ?? 'sem tabela'}
-                      </div>
-                      <ChargeNoteList notes={notes} className="app-rates-item__notes" />
-                      {row.notes ? <p className="app-rates-table__notes" title={row.notes}>{row.notes}</p> : null}
-                    </td>
-                    <td>
-                      <div className={`app-rates-period ${PERIOD_CLASS[period]}`}>{periodLabel}</div>
-                      <div className="app-rates-unit app-rates-num">{formatPeriod(row.valid_from, row.valid_to)}</div>
-                    </td>
-                    <td>{renderValues(row)}</td>
-                    {canEdit ? <td className="app-rates-item__actions-cell">{renderActions(row)}</td> : null}
+            <div className="app-table-scroll">
+              <table className="app-table app-table--compact">
+                <caption className="sr-only">Condições de Cliente</caption>
+                <thead>
+                  <tr>
+                    <th scope="col" className="app-table__text-head">Cliente</th>
+                    <th scope="col" className="app-table__text-head">Item de taxa</th>
+                    <th scope="col" className="app-table__text-head">Tabela</th>
+                    <th scope="col">Vigência</th>
+                    <th scope="col">Situação</th>
+                    <th scope="col">Valor negociado</th>
+                    <th scope="col">Valor da tabela</th>
+                    {canEdit ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-      </section>
+                </thead>
+                <tbody>
+                  {visible.map((entry) => {
+                    const { row, period } = entry
+                    const values = renderValues(row)
+                    return (
+                      <tr key={row.id} className={period === 'ended' || period === 'disabled' ? 'app-table__row--muted' : undefined}>
+                        <td className="app-table__text">{customerCell(row)}</td>
+                        <td className="app-table__text" title={row.notes ?? undefined}>
+                          {row.charge_item ? itemDisplayName(row.charge_item) : <NoValue label="Sem item de taxa" />}
+                        </td>
+                        <td className="app-table__text">{tableLabel(row)}</td>
+                        <td className="tabular-nums">{formatPeriod(row.valid_from, row.valid_to)}</td>
+                        <td>{renderSituation(entry)}</td>
+                        <td className="tabular-nums">{values.negotiated}</td>
+                        <td className="tabular-nums">{values.table}</td>
+                        {canEdit ? <td>{renderActions(row)}</td> : null}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Block>
+      ) : null}
 
-      {modal ? (
+      {modal || creating ? (
         <ChargeOverrideFormModal
-          key={modal.row?.id ?? 'new'}
+          key={modal?.row?.id ?? 'new'}
           open
-          row={modal.row}
+          row={modal?.row ?? null}
           states={states}
           tablesById={tablesById}
-          onClose={() => setModal(null)}
+          onClose={closeModal}
           onSave={handleSave}
         />
       ) : null}

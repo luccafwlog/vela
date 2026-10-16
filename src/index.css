@@ -9482,10 +9482,6 @@ td.app-cargo-num {
   gap: 4px 8px;
 }
 
-@media (max-width: 1100px) {
-
-}
-
 @media (max-width: 639px) {
   .app-cargo-toolbar,
   .app-cargo-panel__note,
@@ -10265,55 +10261,6 @@ td.app-cargo-num {
    Tabelas agrupadas pelo escopo do motor (modo de carga + POD); a situação no
    cálculo vem em texto; valores com moeda e unidade, alinhados à direita.
    =========================================================================== */
-.app-rates-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px 16px;
-  margin-bottom: 16px;
-}
-
-.app-rates-toolbar__filters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
-  flex: 1 1 520px;
-  gap: 12px;
-}
-
-.app-rates-toolbar__filters .app-field {
-  margin: 0;
-}
-
-.app-rates-surface {
-  padding: 0;
-  overflow: hidden;
-}
-
-.app-rates-surface__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  border-bottom: 1px solid var(--app-border);
-  padding: 12px 16px;
-}
-
-.app-rates-surface__rule {
-  margin: 0;
-  border-bottom: 1px solid var(--app-border-soft);
-  background: var(--app-surface-muted);
-  padding: 8px 16px;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-rates-surface__rule strong {
-  color: var(--app-text);
-  font-weight: 600;
-}
 
 .app-rates-state {
   display: flex;
@@ -10347,43 +10294,6 @@ td.app-cargo-num {
 }
 
 /* Escopo: cabeçalho de grupo com a tabela que vale. */
-.app-rates-scope + .app-rates-scope {
-  border-top: 1px solid var(--app-border-strong);
-}
-
-.app-rates-scope__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 16px;
-  padding: 12px 16px 8px;
-}
-
-.app-rates-scope__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-body, 14px);
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.app-rates-scope__applied {
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-  line-height: 18px;
-  overflow-wrap: anywhere;
-}
-
-.app-rates-scope__applied strong {
-  color: var(--app-text);
-  font-weight: 600;
-}
-
-.app-rates-scope__none {
-  color: var(--app-warning-fg);
-  font-weight: 500;
-}
 
 .app-rates-tables {
   margin: 0;
@@ -10446,22 +10356,6 @@ td.app-cargo-num {
   border-radius: 4px;
 }
 
-.app-rates-table__notes {
-  display: -webkit-box;
-  margin: 2px 0 0 22px;
-  overflow: hidden;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.app-rates-item-card .app-rates-table__notes,
-.app-rates-condition-table .app-rates-table__notes {
-  margin-left: 0;
-}
-
 .app-rates-table__cell {
   display: grid;
   gap: 2px;
@@ -10475,19 +10369,6 @@ td.app-cargo-num {
   color: var(--app-muted);
   font-size: var(--app-size-caption);
   line-height: 16px;
-}
-
-.app-rates-table__detail {
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-rates-table__detail--warning {
-  color: var(--app-warning-fg);
-}
-
-.app-rates-table__detail--danger {
-  color: var(--app-danger-fg);
 }
 
 .app-rates-table__actions,
@@ -10505,77 +10386,12 @@ td.app-cargo-num {
   padding: 8px 16px 12px 38px;
 }
 
-.app-rates-items .app-table-scroll {
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control, 6px);
-  background: var(--app-surface);
-}
-
-.app-rates-item-table,
-.app-rates-condition-table {
-  width: 100%;
-}
-
-.app-rates-item-table td,
-.app-rates-condition-table td {
-  vertical-align: top;
-}
-
-.app-rates-item-table tr[data-inactive] td,
-.app-rates-condition-table tr[data-inactive] td,
 .app-rates-item-card[data-inactive] {
   color: var(--app-muted);
 }
 
-.app-rates-item__name {
-  color: var(--app-text-strong);
-  font-weight: 500;
-  overflow-wrap: anywhere;
-}
-
-tr[data-inactive] .app-rates-item__name,
 .app-rates-item-card[data-inactive] strong {
   color: var(--app-muted);
-}
-
-.app-rates-item__value {
-  margin-right: 4px;
-  color: var(--app-text-strong);
-  font-weight: 600;
-}
-
-tr[data-inactive] .app-rates-item__value {
-  color: var(--app-muted);
-}
-
-.app-rates-item__flag {
-  display: block;
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-rates-item__notes {
-  margin-top: 4px;
-}
-
-.app-rates-item__actions-cell {
-  width: 1%;
-  white-space: nowrap;
-}
-
-.app-rates-items__empty {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-  color: var(--app-text);
-  font-size: var(--app-size-table);
-}
-
-.app-rates-items__empty p {
-  margin: 0;
 }
 
 .app-rates-items__footer {
@@ -10596,10 +10412,6 @@ tr[data-inactive] .app-rates-item__value {
   padding: 10px 0;
   font-size: var(--app-size-table);
   line-height: 18px;
-}
-
-.app-rates-surface > .app-rates-item-cards > .app-rates-item-card {
-  padding: 12px 16px;
 }
 
 .app-rates-item-card:first-child {
@@ -10657,38 +10469,6 @@ tr[data-inactive] .app-rates-item__value {
 }
 
 /* Condições de Cliente. */
-.app-rates-values {
-  display: grid;
-  justify-items: end;
-  gap: 0;
-}
-
-.app-rates-item-card .app-rates-values {
-  justify-items: start;
-}
-
-.app-rates-values__negotiated {
-  color: var(--app-text-strong);
-  font-weight: 600;
-}
-
-.app-rates-period {
-  font-size: var(--app-size-table);
-  font-weight: 500;
-  line-height: 18px;
-}
-
-.app-rates-period--current {
-  color: var(--app-success-fg);
-}
-
-.app-rates-period--future {
-  color: var(--app-info-fg);
-}
-
-.app-rates-period--ended {
-  color: var(--app-muted);
-}
 
 /* Formulários (modal). */
 .app-rates-form {
@@ -10861,18 +10641,6 @@ tr[data-inactive] .app-rates-item__value {
 }
 
 @media (max-width: 639px) {
-  .app-rates-toolbar__filters {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    flex-basis: 100%;
-  }
-
-  .app-rates-toolbar__filters > .app-field:first-child:nth-last-child(3) {
-    grid-column: 1 / -1;
-  }
-
-  .app-rates-toolbar__primary {
-    width: 100%;
-  }
 
   .app-rates-table__row {
     grid-template-columns: fit-content(55%) minmax(0, 1fr) auto;
@@ -10906,18 +10674,6 @@ tr[data-inactive] .app-rates-item__value {
     gap: 0;
   }
 
-  .app-rates-surface__bar .app-segmented {
-    flex-wrap: wrap;
-  }
-
-  .app-rates-surface__bar .app-segmented__option {
-    flex: 0 0 auto;
-    white-space: nowrap;
-  }
-}
-
-.app-rates-block {
-  display: block;
 }
 
 /* ===========================================================================
@@ -10938,22 +10694,6 @@ tr[data-inactive] .app-rates-item__value {
   gap: 8px;
 }
 
-.app-invoice-detail__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 24px;
-}
-
-.app-invoice-detail__identity {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  flex: 1 1 320px;
-}
-
-.app-invoice-detail__tags,
 .app-invoice-detail__meta {
   display: flex;
   flex-wrap: wrap;
@@ -10963,15 +10703,6 @@ tr[data-inactive] .app-rates-item__value {
   color: var(--app-muted);
   font-size: var(--app-size-caption);
   line-height: 16px;
-}
-
-.app-invoice-detail__customer {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-section);
-  font-weight: 600;
-  line-height: 24px;
-  overflow-wrap: anywhere;
 }
 
 .app-invoice-detail__description {
@@ -10998,20 +10729,12 @@ tr[data-inactive] .app-rates-item__value {
   margin-top: 8px;
 }
 
-.app-invoice-detail__section,
-.app-invoice-detail__callout {
+.app-invoice-detail__section {
   display: grid;
   gap: 8px;
   min-width: 0;
   border-top: 1px solid var(--app-border);
   padding-top: 16px;
-}
-
-.app-invoice-detail__callout {
-  border: 1px solid var(--app-warning-border);
-  border-radius: var(--app-radius-control);
-  background: var(--app-warning-bg);
-  padding: 12px 16px;
 }
 
 .app-invoice-detail__heading {
@@ -11037,16 +10760,11 @@ tr[data-inactive] .app-rates-item__value {
   font-weight: 500;
 }
 
-.app-invoice-detail__note,
-.app-invoice-detail__cell-note {
+.app-invoice-detail__note {
   margin: 0;
   color: var(--app-muted);
   font-size: var(--app-size-caption);
   line-height: 16px;
-}
-
-.app-invoice-detail__cell-note {
-  display: block;
 }
 
 .app-invoice-detail__alert {
@@ -11133,13 +10851,6 @@ tr[data-inactive] .app-rates-item__value {
   margin: 0;
 }
 
-.app-invoice-detail__refund-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-}
-
 .app-invoice-detail__form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11169,94 +10880,6 @@ tr[data-inactive] .app-rates-item__value {
 
   .app-invoice-detail__actions {
     justify-content: flex-start;
-  }
-}
-
-/* Valores: emitido → recebido → abatido → devolvido → a devolver → saldo. */
-.app-invoice-amounts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  margin: 0;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control);
-  background: var(--app-surface-muted);
-}
-
-.app-invoice-amounts__item {
-  display: grid;
-  align-content: start;
-  gap: 2px;
-  min-width: 0;
-  border-right: 1px solid var(--app-border-soft);
-  padding: 10px 14px;
-}
-
-.app-invoice-amounts__item:last-child {
-  border-right: 0;
-}
-
-.app-invoice-amounts dt {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  font-weight: 500;
-  line-height: 16px;
-}
-
-.app-invoice-amounts dd {
-  display: grid;
-  margin: 0;
-}
-
-.app-invoice-amounts__value {
-  color: var(--app-text-strong);
-  font-size: var(--app-size-section);
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  line-height: 24px;
-  white-space: nowrap;
-}
-
-.app-invoice-amounts__note {
-  color: var(--app-muted);
-  font-size: var(--app-size-caption);
-  line-height: 16px;
-}
-
-.app-invoice-amounts__item--balance {
-  background: var(--app-surface);
-}
-
-.app-invoice-amounts__item--balance .app-invoice-amounts__value {
-  font-size: var(--app-size-panel);
-  font-weight: 600;
-  line-height: 28px;
-}
-
-.app-invoice-amounts__item--warning .app-invoice-amounts__value,
-.app-invoice-amounts__item--warning .app-invoice-amounts__note {
-  color: var(--app-warning-fg);
-}
-
-.app-invoice-amounts__item--success .app-invoice-amounts__note {
-  color: var(--app-success-fg);
-}
-
-.app-invoice-amounts__item--muted .app-invoice-amounts__value {
-  color: var(--app-muted);
-}
-
-@media (max-width: 640px) {
-  .app-invoice-amounts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .app-invoice-amounts__item {
-    border-bottom: 1px solid var(--app-border-soft);
-  }
-
-  .app-invoice-amounts__item--balance {
-    grid-column: 1 / -1;
-    border-bottom: 0;
   }
 }
 

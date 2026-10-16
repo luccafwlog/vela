@@ -329,32 +329,41 @@ isolada em `src/components/billing/consolidatedInvoiceSelection.ts`.
 ### Detalhe, pagamento, restituição e cancelamento
 
 `src/components/billing/InvoiceDetailModal.tsx` (também aberto pela
-Conciliação, com `enablePaymentReversal`) é uma superfície única com seções por
-filete:
+Conciliação, com `enablePaymentReversal`) tem um bloco por assunto, um embaixo
+do outro ([identidade visual](../identidade-visual.md)); "Imprimir fatura" e,
+na paga, "Imprimir recibo" ficam no topo:
 
-- cabeçalho com situação exata, tipo, emissão, número interno, Cliente com CNPJ
-  (com o ícone de copiar), navio/viagem e, na avulsa, a descrição da cobrança;
-- faixa de valores que separa total emitido, recebido, abatido pela correção do
-  B/L, devolvido, a devolver e saldo (ou "Coberta pela consolidada X" /
-  "Não cobrado"), lida de `financial_summary`
-  (`src/components/billing/invoiceDetailPresentation.ts`); sem vencimento;
-- vínculo com a fatura substituída ou sucessora, Reemissão pendente e motivo de encerramento sem reemissão;
-- Fatura desatualizada e histórico dos ajustes que a correção do B/L fez em fatura com pagamento (abatimento e restituição);
-- B/Ls (número com link para a ficha e o ícone de copiar), itens (breakdown
-  reconstruído de consolidadas) e pagamentos; cada
-  pagamento tem "Cancelar baixa…" para o Administrativo, que abre o formulário
-  na própria seção com a baixa escolhida, justificativa e conferência de
-  valor/data; na Conciliação o formulário já abre na baixa selecionada;
-- uma única lista de restituições (`invoice_refunds`); Confirmar devolução e
-  Cancelar autorização abrem dentro da linha, com comprovante, favorecido e data;
-  na avulsa, a autorização de restituição excepcional fica logo abaixo
-  (`FinancialRefundsPanel variant="authorization"`);
-- registro de pagamento (ledger versus legado) e cancelamento da fatura sem
-  pagamentos, com confirmação; o registro aparece para o Financeiro e o
-  Administrativo, e o cancelamento só para o Administrativo — os demais perfis
-  leem o motivo (migration `247`);
+- Saldo: tipo (Individual, Consolidada ou Avulsa) e emissão na faixa do título;
+  dado principal é o que falta receber (em âmbar), "Paga" com ✓, "Coberta" ou
+  "Cancelada" (cinza); a linha de apoio separa total, recebido, abatido pela
+  correção do B/L, devolvido e a devolver, lidos de `financial_summary`
+  (`src/components/billing/invoiceDetailPresentation.ts`); sem vencimento.
+  Dados de apoio: situação, Cliente (link para a ficha), CNPJ com copiar,
+  navio/viagem e, na fatura de um B/L só, o B/L e o trecho; na avulsa, a
+  descrição da cobrança; vínculo com a fatura substituída ou sucessora,
+  Reemissão pendente e motivo de encerramento sem reemissão;
+- Fatura desatualizada, logo depois do Saldo, com a resolução por justificativa;
+- B/Ls (só na consolidada ou com mais de um B/L): B/L com link e copiar, trecho,
+  quantidade de itens e subtotal;
+- Itens da fatura ("valores congelados na emissão"), com o total no pé; coluna
+  B/L quando há mais de um B/L e coluna "Em US$" (valor em dólar × ROE) só
+  quando algum item é em dólar;
+- Pagamentos: o botão "Registrar pagamento" (Financeiro e Administrativo; ledger
+  versus legado) abre o formulário no próprio bloco, com Voltar; Observação e
+  Registrado por só aparecem quando alguma linha tem o dado; cada pagamento tem
+  "Cancelar baixa" para o Administrativo, que abre o formulário no bloco com a
+  baixa escolhida, justificativa e conferência de valor/data; na Conciliação o
+  formulário já abre na baixa selecionada e não há registro de pagamento nem
+  cancelamento da fatura;
+- Restituições ao Cliente (`invoice_refunds`), em tabela com a situação em
+  texto; Confirmar devolução e Cancelar autorização abrem no bloco, com
+  comprovante, favorecido e data; na avulsa, a autorização de restituição
+  excepcional vem em bloco próprio (`FinancialRefundsPanel variant="authorization"`);
+- Ajustes pela correção do B/L em fatura com pagamento (abatimento e restituição);
+- Cancelar fatura sem pagamentos, com confirmação; o bloco só aparece para o
+  Administrativo (migration `247`);
 - impressão da fatura ou do recibo no próprio modal (Voltar ao detalhe), sem
-  abrir um segundo diálogo.
+  abrir um segundo diálogo. O documento impresso não muda com o detalhe.
 
 ### Demurrage
 
@@ -424,7 +433,7 @@ blocos. **Código:** `src/components/billing/InvoiceDocumentLocal.tsx`.
 | Detalhe · registrar pagamento ledger | `canRegisterInvoicePayment`: fatura não avulsa com status `issued`/`partially_paid`/`overdue` e saldo positivo; fora disso o card mostra que a fatura não aceita pagamento | `InvoiceDetailModal.handleRegisterPayment` | `useRegisterLedgerInvoicePayment` → `registerLedgerInvoicePayment` | RPC `register_verified_invoice_payment` → `register_ledger_invoice_payment` → `payments`, `ledger_settlements`, receivables, invoice, B/Ls, eventos e possível refund | Invalidação ledger comum | Valor/data validados; RPC rejeita estado, ausência de links, TXID duplicado e regras de valor | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/services/__tests__/billingLedger.test.ts` |
 | Detalhe · registrar pagamento de avulsa | `canRegisterInvoicePayment`: fatura avulsa com status `issued`/`overdue`/`partially_paid`/`paid` (excedente vira restituição); cancelada ou rascunho não mostra o formulário (VELA-15) | Mesmo handler, ramo `else` | `useRegisterInvoicePayment` → `registerInvoicePayment` | RPC `register_verified_invoice_payment` (ramo `manual`) → `payments`, agregados de `invoices`, restituição do excedente | Invalida invoices, detalhe, B/Ls e clientes | Bloqueia valor não positivo, referência bancária ausente e avulsa fora dos status aceitos (22023) | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/hooks/useBilling.ts`, `supabase/migrations/136_controles_financeiros.sql` · **Teste:** `src/pages/__tests__/faturamentoLedgerPayment.test.ts`, `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx` |
 | Taxas Locais · Reemissão pendente · Tentar reemitir | Consolidada cancelada pela correção do B/L; qualquer Departamento (migration `246`) | `PendingReissuesPanel` | `useRetryPendingConsolidatedReissue` → `retryPendingConsolidatedReissue` | RPC `retry_pending_consolidated_reissue` → `_try_recreate_consolidated` (128): recria com os mesmos B/Ls, encerra se já não são os mesmos ou aguarda a individual | Invalida invoices (inclui Reemissão pendente), detalhe, ledger e clientes | Trava (Portal não pronto) mantém a pendência com o motivo no alerta | **Teste:** `invoiceBasisCorrection.local-pg.test.ts` |
-| Detalhe · Resolver alerta com justificativa | Fatura desatualizada tratada; qualquer Departamento (migration `246`); motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo vazio e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts` |
+| Detalhe · Resolver com justificativa | Fatura desatualizada tratada; qualquer Departamento (migration `246`); motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo vazio e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts` |
 | Detalhe · cancelar invoice | Admin; invoice sem pagamentos | `handleCancelInvoice` | `useCancelInvoice` → `cancelInvoice` | RPC protegida `cancel_invoice` (executa como `SECURITY DEFINER` após validar sessão ativa e papel admin) → invoice, batch, B/Ls e auditoria; implementação mais recente também preserva regras de Granito | Invalida invoices, detalhe, billing-ready, B/Ls e clientes | Pagamentos bloqueiam cancelamento; tabelas internas não são expostas diretamente; falha cria alerta/evento best-effort | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts`, `supabase/migrations_archive/064_fix_granite_invoice_cancel_reissue.sql`, `supabase/migrations_archive/142_secure_cancel_invoice_wrapper.sql` |
 | Detalhe · confirmar devolução | Refund pendente; Financeiro/Administrativo; comprovante, favorecido e data | `handleSettleRefund` com conferência | `useSettleInvoiceRefund` → `settleInvoiceRefund` | RPC `confirm_invoice_refund` (136), com evidência/auditoria | Invalidação financeira comum, inclusive Portal e Demurrage | Sem permissão, evidência ou lastro é rejeitado; repetição idêntica é idempotente | **Código:** `src/services/billingLedger.ts` · **Teste local:** `invoicePostBillingSafety.local-pg.test.ts` · **Migration 136:** [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md) |
 | Detalhe da avulsa ou de Demurrage · **Restituição excepcional** (autorizar) | Qualquer Departamento (migration `247`); avulsa paga ou parcialmente paga, ou Invoice de Demurrage paga; valor positivo até o recebido ainda não reservado (em Cancelamento com devolução integral, exatamente esse valor); finalidade (Devolução por ajuste ou Cancelamento com devolução integral) e justificativa de ao menos 10 caracteres | `FinancialRefundsPanel` (variante de autorização no detalhe da avulsa; completa no detalhe de Demurrage) | `requestFinancialRefund` (`src/services/financialRefunds.ts`), com chave de tentativa | RPC `request_financial_refund` (`136`) → `invoice_refunds` ou `demurrage_refunds` pendente com finalidade e `request_id` | Invalida restituições e dados financeiros relacionados | Usuário inativo ou do Portal recebe `42501`; valor acima do disponível ou justificativa curta, `22023`. A autorização não transfere dinheiro: a devolução é registrada pelo Financeiro ou pelo Administrativo | **Código:** `src/components/billing/FinancialRefundsPanel.tsx`, `supabase/migrations/136_controles_financeiros.sql` |

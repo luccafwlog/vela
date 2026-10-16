@@ -42,6 +42,14 @@ export const ceUnlockRead = <T>(
 // move predicates/counts into an indexed read model when operational volume warrants it.
 export const listCeUnlockBls = (filters: CeUnlockFilters, page: number) =>
   ceUnlockRead<CeUnlockPage<CeUnlockItem>>("bls", { filters, page });
+/** Recorte inteiro (todas as páginas) para a planilha comum da aba Andamento dos B/Ls. */
+export async function fetchAllCeUnlockBls(filters: CeUnlockFilters): Promise<CeUnlockItem[]> {
+  const first = await listCeUnlockBls(filters, 1);
+  const items = [...first.items];
+  const pages = Math.ceil(first.total / (first.page_size || 25));
+  for (let page = 2; page <= pages; page++) items.push(...(await listCeUnlockBls(filters, page)).items);
+  return items;
+}
 export const listCeUnlockReviewQueue = (page: number) =>
   ceUnlockRead<CeUnlockPage<CeUnlockReviewRow>>("review_queue", { page });
 /** Solicitações de um Cliente, em todos os estados (migration 224), para a ficha do Cliente. */

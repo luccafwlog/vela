@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Badge } from '../ui/Badge'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { CopyValue } from '../ui/CopyValue'
+import { NoValue } from '../ui/NoValue'
+import { StatusText } from '../ui/StatusText'
 import { Field, Textarea } from '../ui/Input'
-import { ImportNotice } from '../shared/ImportParts'
 import { afterPendenciaPixAlterada, afterPixConciliado } from '../../services/cacheEffects'
 import { useItauPixMonitor, usePixExceptions } from '../../hooks/usePixReconciliation'
 import { useAuth } from '../../hooks/useAuth'
@@ -24,13 +27,12 @@ import {
 } from '../../services/reconciliacao'
 import {
   describeItauPoll,
-  exceptionKindLabel,
   formatBrasiliaInstant,
   formatExtractDay,
   itauChargeState,
-  pendingExceptionDoc,
   pendingExceptionReason,
-  pluralize,
+  extractLineReason,
+  shortTxid,
   sortItauCharges,
 } from './pixReconciliationPresentation'
 
@@ -38,10 +40,39 @@ const HANDLED_NOTE_MIN = 5 // itau_pix_mark_receipt_handled (migration 154)
 
 type OpenInvoice = (source: 'local' | 'demurrage', invoiceId: number) => void
 
+const sourceLabel = (source: 'local' | 'demurrage') => (source === 'demurrage' ? 'Demurrage' : 'Taxas Locais')
+
+/** Data e hora de Brasília na célula da tabela, sem o "às" da frase. */
+const cellInstant = (value: string | null | undefined) => formatBrasiliaInstant(value).replace(' às', '')
+
+/** Identificador do Pix na tabela: encurtado em letra de código, inteiro no `title`. */
+export function TxidCell({ txid }: { txid: string | null | undefined }) {
+  const value = (txid ?? '').trim()
+  if (!value) return <NoValue label="Sem identificador do Pix" />
+  return <span className="font-[var(--app-font-mono)]" title={value}>{shortTxid(value)}</span>
+}
+
+function RowToggle({ open, controls, label, onClick, disabled }: { open: boolean; controls: string; label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      className="app-table__icon-button app-table__icon-button--sm"
+      aria-expanded={open}
+      aria-controls={controls}
+      aria-label={`${open ? 'Recolher' : 'Abrir'} ${label}`}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+    </button>
+  )
+}
+
 /**
  * Pendências da Conciliação PIX: Pix que entrou no Itaú e não deu baixa,
  * linhas de extrato sem baixa segura e cobranças que ainda esperam o banco.
- * Cada lista diz o que falta e o caminho; nada aqui baixa por semelhança.
+ * Cada assunto é um bloco com tabela limpa (lote 3 da identidade); a situação
+ * vai em texto, âmbar só no que pede ação. Nada aqui baixa por semelhança.
  */
 export function PixPendingPanel({ onOpenExtract, onOpenInvoice }: { onOpenExtract: () => void; onOpenInvoice: OpenInvoice }) {
   const monitorQuery = useItauPixMonitor()
@@ -49,62 +80,67 @@ export function PixPendingPanel({ onOpenExtract, onOpenInvoice }: { onOpenExtrac
   const monitor = monitorQuery.data
 
   return (
-    <div className="app-pix-panel">
-      <ItauStatus query={monitorQuery} onOpenExtract={onOpenExtract} />
-      {monitor?.provider === 'itau' || monitor?.receipts.length ? <ReceiptsSection monitor={monitor} /> : null}
-      <ExceptionsSection query={exceptionsQuery} onOpenExtract={onOpenExtract} />
-      {monitor?.provider === 'itau' || monitor?.charges.length ? <ChargesSection monitor={monitor} onOpenInvoice={onOpenInvoice} /> : null}
+    <div className="grid min-w-0 gap-4 pt-1">
+      <ItauBlock query={monitorQuery} onOpenExtract={onOpenExtract} />
+      {monitor?.provider === 'itau' || monitor?.receipts.length ? <ReceiptsBlock monitor={monitor} /> : null}
+      <ExceptionsBlock query={exceptionsQuery} onOpenExtract={onOpenExtract} />
+      {monitor?.provider === 'itau' || monitor?.charges.length ? <ChargesBlock monitor={monitor} onOpenInvoice={onOpenInvoice} /> : null}
     </div>
   )
 }
 
-function ItauStatus({ query, onOpenExtract }: { query: ReturnType<typeof useItauPixMonitor>; onOpenExtract: () => void }) {
+function ItauBlock({ query, onOpenExtract }: { query: ReturnType<typeof useItauPixMonitor>; onOpenExtract: () => void }) {
   const monitor = query.data
-  if (query.isLoading) return <p className="app-pix-status app-pix-muted" role="status">Consultando a cobrança Pix Itaú…</p>
+  return (
+    <Block
+      title="Cobrança Pix Itaú"
+      aside={<Button variant="secondary" className="app-btn--sm" onClick={onOpenExtract}>Conciliar extrato</Button>}
+    >
+      <ItauStatus query={query} monitor={monitor} />
+    </Block>
+  )
+}
+
+function ItauStatus({ query, monitor }: { query: ReturnType<typeof useItauPixMonitor>; monitor: ItauPixMonitor | undefined }) {
+  if (query.isLoading) return <p role="status">Consultando a cobrança Pix Itaú…</p>
   if (query.error || !monitor) {
     return (
-      <div className="app-pix-status app-pix-status--error" role="alert">
+      <div role="alert" className="grid justify-items-start gap-2">
         <p>Não foi possível consultar a cobrança Pix Itaú: {extractErrorText(query.error)}. Os Pix sem baixa e a fila do banco não estão nesta tela agora.</p>
         <Button variant="secondary" className="app-btn--sm" onClick={() => void query.refetch()}>Tentar novamente</Button>
       </div>
     )
   }
   if (monitor.provider !== 'itau') {
-    return (
-      <div className="app-pix-status">
-        <p><strong>Cobrança Itaú desligada.</strong> As faturas usam o QR estático e a baixa vem do extrato.</p>
-        <Button variant="secondary" className="app-btn--sm" onClick={onOpenExtract}>Conciliar extrato</Button>
-      </div>
-    )
+    return <LeadValue>Desligada: as faturas usam o QR estático e a baixa vem do extrato</LeadValue>
   }
   const poll = describeItauPoll(monitor.polledUntil, new Date())
   return (
-    <>
-      <dl className="app-pix-status app-pix-facts" aria-label="Cobrança Pix Itaú">
-        <div><dt>Baixa automática</dt><dd>Ligada</dd></div>
-        <div>
-          <dt>Recebimentos consultados até</dt>
-          <dd className={poll.stale ? 'app-pix-warning' : undefined}>
-            {monitor.polledUntil ? `${formatBrasiliaInstant(monitor.polledUntil)} (${poll.text})` : 'ainda não consultados'}
-          </dd>
-        </div>
-        <div><dt>Cobranças ativas</dt><dd className="tabular-nums">{(monitor.counts.active ?? 0).toLocaleString('pt-BR')}</dd></div>
-      </dl>
+    <div className="grid gap-4">
       {poll.stale ? (
-        <ImportNotice tone="warning" role="status" title="A consulta de recebimentos do Itaú não está avançando">
-          <p>
-            {monitor.polledUntil
-              ? `Pix pagos depois de ${formatBrasiliaInstant(monitor.polledUntil)} ainda não foram consultados e não deram baixa automática.`
-              : 'Nenhum recebimento foi consultado ainda; Pix pagos não deram baixa automática.'}{' '}
-            Avise quem cuida da integração Itaú antes de baixar à mão.
-          </p>
-        </ImportNotice>
-      ) : null}
-    </>
+        <div role="status">
+          <LeadValue
+            tone="warning"
+            detail={`${monitor.polledUntil
+              ? `Pix pagos depois de ${formatBrasiliaInstant(monitor.polledUntil)} não deram baixa automática.`
+              : 'Nenhum recebimento foi consultado ainda; Pix pagos não deram baixa automática.'} Avise quem cuida da integração antes de baixar à mão.`}
+          >
+            {monitor.polledUntil ? `Consulta parada ${poll.text}` : 'Consulta de recebimentos ainda não feita'}
+          </LeadValue>
+        </div>
+      ) : (
+        <LeadValue detail={`Recebimentos consultados ${poll.text}.`}>Baixa automática ligada</LeadValue>
+      )}
+      <FactList columns={3}>
+        <Fact label="Baixa automática">Ligada</Fact>
+        <Fact label="Recebimentos consultados até">{monitor.polledUntil ? formatBrasiliaInstant(monitor.polledUntil) : 'Ainda não consultados'}</Fact>
+        <Fact label="Cobranças ativas"><span className="tabular-nums">{(monitor.counts.active ?? 0).toLocaleString('pt-BR')}</span></Fact>
+      </FactList>
+    </div>
   )
 }
 
-function ReceiptsSection({ monitor }: { monitor: ItauPixMonitor | undefined }) {
+function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<{ endToEndId: string; note: string; error: string | null } | null>(null)
   const [done, setDone] = useState<string | null>(null)
@@ -144,75 +180,87 @@ function ReceiptsSection({ monitor }: { monitor: ItauPixMonitor | undefined }) {
   }
 
   return (
-    <section className="app-pix-section" aria-labelledby="pix-receipts-title">
-      <div className="app-pix-section__head">
-        <h2 id="pix-receipts-title" className="app-pix-section__title">
-          Pix recebidos sem baixa <span className="app-pix-count">{receipts.length}</span>
-        </h2>
-        <p className="app-pix-section__hint">O dinheiro entrou no Itaú e a fatura não foi baixada. Baixe pela fatura ou pelo extrato; sem baixa a fazer (fatura cancelada a restituir, TXID sem fatura), marque como tratado com o motivo.</p>
-      </div>
-      {done ? <p className="app-pix-done" role="status">{done}</p> : null}
+    <Block title="Pix recebidos sem baixa" flush aside={`${receipts.length.toLocaleString('pt-BR')} · o dinheiro entrou e nenhuma fatura foi baixada`}>
+      {done ? <p className="app-block__body" role="status">{done}</p> : null}
       {receipts.length ? (
-        <ul className="app-pix-list">
-          {receipts.map((receipt) => {
-            const open = form?.endToEndId === receipt.endToEndId
-            const noteLength = form?.note.trim().length ?? 0
-            return (
-              <li key={receipt.endToEndId} className="app-pix-row">
-                <div className="app-pix-row__main">
-                  <p className="app-pix-row__title">
-                    <span className="app-pix-amount">{formatBRL(receipt.amount)}</span>
-                    <span className="app-pix-muted">recebido em {formatBrasiliaInstant(receipt.paidAt)}</span>
-                  </p>
-                  <p className="app-pix-row__reason">{receipt.reason ?? 'Em análise.'}</p>
-                  <p className="app-pix-row__meta"><span>TXID</span> <span className="app-pix-code" title={`endToEndId ${receipt.endToEndId}`}>{receipt.txid || '—'}</span></p>
-                </div>
-                {open && form ? (
-                  <div className="app-pix-row__form">
-                    <Field
-                      label="Motivo do tratamento"
-                      required
-                      hint={`Mínimo de ${HANDLED_NOTE_MIN} caracteres. Fica registrado no recebimento e encerra o Alerta; não baixa nem devolve nada.`}
-                      error={form.error ?? undefined}
-                    >
-                      <Textarea
-                        ref={noteRef}
-                        value={form.note}
-                        placeholder="Ex.: restituição registrada ao Cliente"
-                        onChange={(event) => setForm({ ...form, note: event.target.value, error: null })}
-                      />
-                    </Field>
-                    <div className="app-pix-row__actions">
-                      <Button variant="ghost" disabled={handleMutation.isPending} onClick={() => closeForm(receipt.endToEndId)}>Voltar</Button>
-                      <Button
-                        loading={handleMutation.isPending}
-                        loadingLabel="Marcando…"
-                        disabled={noteLength < HANDLED_NOTE_MIN}
-                        onClick={() => handleMutation.mutate({ endToEndId: receipt.endToEndId, note: form.note.trim(), amount: receipt.amount })}
-                      >
-                        Marcar como tratado
-                      </Button>
-                    </div>
-                  </div>
-                ) : canReconcile ? (
-                  <div className="app-pix-row__side">
-                    <Button
-                      ref={(node) => { if (node) triggerRefs.current.set(receipt.endToEndId, node); else triggerRefs.current.delete(receipt.endToEndId) }}
-                      variant="secondary"
-                      onClick={() => { setDone(null); setForm({ endToEndId: receipt.endToEndId, note: '', error: null }) }}
-                    >
-                      Marcar como tratado…
-                    </Button>
-                  </div>
-                ) : null}
-              </li>
-            )
-          })}
-        </ul>
+        <div className="app-table-scroll">
+          <table className="app-table app-table--compact">
+            <caption className="sr-only">Pix recebidos pelo Itaú sem baixa</caption>
+            <thead>
+              <tr>
+                <th scope="col">Recebido em</th>
+                <th scope="col">Valor</th>
+                <th scope="col">Identificador do Pix</th>
+                <th scope="col" className="app-table__text-head">Motivo</th>
+                <th scope="col"><span className="sr-only">Ação</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {receipts.map((receipt) => {
+                const open = form?.endToEndId === receipt.endToEndId
+                const noteLength = form?.note.trim().length ?? 0
+                return (
+                  <Fragment key={receipt.endToEndId}>
+                    <tr>
+                      <td className="whitespace-nowrap tabular-nums">{cellInstant(receipt.paidAt)}</td>
+                      <td className="whitespace-nowrap tabular-nums">{formatBRL(receipt.amount)}</td>
+                      <td className="whitespace-nowrap"><TxidCell txid={receipt.txid} /></td>
+                      <td className="app-table__text app-table__text--wrap">{receipt.reason?.trim() || <NoValue label="Sem motivo informado" />}</td>
+                      <td className="whitespace-nowrap text-right">
+                        {canReconcile && !open ? (
+                          <Button
+                            ref={(node) => { if (node) triggerRefs.current.set(receipt.endToEndId, node); else triggerRefs.current.delete(receipt.endToEndId) }}
+                            variant="secondary"
+                            className="app-btn--sm"
+                            onClick={() => { setDone(null); setForm({ endToEndId: receipt.endToEndId, note: '', error: null }) }}
+                          >
+                            Marcar como tratado
+                          </Button>
+                        ) : null}
+                      </td>
+                    </tr>
+                    {open && form ? (
+                      <tr data-row-detail>
+                        <td colSpan={5}>
+                          <div className="grid max-w-xl gap-3">
+                            <Field
+                              label="Motivo do tratamento"
+                              required
+                              hint={`Mínimo de ${HANDLED_NOTE_MIN} caracteres. Fica registrado no recebimento e encerra o Alerta; não baixa nem devolve nada.`}
+                              error={form.error ?? undefined}
+                            >
+                              <Textarea
+                                ref={noteRef}
+                                value={form.note}
+                                placeholder="Ex.: restituição registrada ao Cliente"
+                                onChange={(event) => setForm({ ...form, note: event.target.value, error: null })}
+                              />
+                            </Field>
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button variant="ghost" disabled={handleMutation.isPending} onClick={() => closeForm(receipt.endToEndId)}>Voltar</Button>
+                              <Button
+                                loading={handleMutation.isPending}
+                                loadingLabel="Marcando…"
+                                disabled={noteLength < HANDLED_NOTE_MIN}
+                                onClick={() => handleMutation.mutate({ endToEndId: receipt.endToEndId, note: form.note.trim(), amount: receipt.amount })}
+                              >
+                                Marcar como tratado
+                              </Button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        <p className="app-pix-empty">Nenhum Pix recebido sem baixa.</p>
+        <p className="app-block__body">Nenhum Pix recebido sem baixa.</p>
       )}
-    </section>
+    </Block>
   )
 }
 
@@ -265,14 +313,14 @@ function settleErrorText(error: unknown, docNumber: string | null) {
 
 type ExceptionFeedback = { id: number; tone: 'danger' | 'success'; text: string }
 
-function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof usePixExceptions>; onOpenExtract: () => void }) {
+function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof usePixExceptions>; onOpenExtract: () => void }) {
   const queryClient = useQueryClient()
   const { can } = useAuth()
   const canReconcile = can('settle_financial_adjustments')
   const [openId, setOpenId] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<ExceptionFeedback | null>(null)
   // Exceções com baixa gravada e encerramento recusado. A fatura já não está
-  // aberta, então Tentar de novo e Escolher fatura não a acham mais; só falta
+  // aberta, então Tentar de novo e a lista de faturas não a acham mais; só falta
   // `resolve_pix_reconciliation_exception`, que aceita a fatura já baixada.
   // ponytail: guardado só nesta tela; depois de recarregar a página a exceção
   // volta a mostrar só Tentar de novo. Se isso ocorrer na prática, gravar a
@@ -296,7 +344,7 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
     mutationFn: async (exception: PixReconciliationException) => {
       const [match] = await matchUnifiedPixTransactions([transactionOf(exception)])
       if (!match || match.ambiguous || match.source === 'unmatched') {
-        throw new Error(`Ainda não há uma fatura segura para esta linha: ${match?.ambiguityReason ?? 'nenhum documento aberto usa este TXID.'}`)
+        throw new Error(`Ainda não há uma fatura segura para esta linha: ${match ? extractLineReason(match) : 'Nenhuma fatura aberta com este identificador'}.`)
       }
       return settleException(exception, match as UnifiedPixMatch & { source: 'local' | 'demurrage' }, null)
     },
@@ -365,187 +413,251 @@ function ExceptionsSection({ query, onOpenExtract }: { query: ReturnType<typeof 
   const successElsewhere = feedback?.tone === 'success' && !exceptions.some((exception) => exception.id === feedback.id)
 
   return (
-    <section className="app-pix-section" aria-labelledby="pix-exceptions-title">
-      <div className="app-pix-section__head">
-        <h2 id="pix-exceptions-title" className="app-pix-section__title">
-          Exceções do extrato <span className="app-pix-count">{query.data ? exceptions.length : '…'}</span>
-        </h2>
-        <p className="app-pix-section__hint">Linhas de extrato sem baixa segura (sem documento, TXID repetido, valor diferente). Ficam salvas por arquivo e linha até a baixa; Pix sem fatura segura se investiga com o banco ou o Cliente.</p>
-      </div>
-      {successElsewhere && feedback ? <p className="app-pix-done" role="status">{feedback.text}</p> : null}
-      {query.isLoading ? <p className="app-pix-muted" role="status">Carregando as exceções…</p> : null}
+    <Block
+      title="Exceções do extrato"
+      flush
+      aside={`${query.data ? exceptions.length.toLocaleString('pt-BR') : '…'} · linhas sem fatura segura para baixar`}
+    >
+      {successElsewhere && feedback ? <p className="app-block__body" role="status">{feedback.text}</p> : null}
+      {query.isLoading ? <p className="app-block__body" role="status">Carregando as exceções…</p> : null}
       {query.error ? (
-        <div className="app-pix-status app-pix-status--error" role="alert">
+        <div className="app-block__body grid justify-items-start gap-2" role="alert">
           <p>Não foi possível carregar as exceções do extrato: {extractErrorText(query.error)}</p>
           <Button variant="secondary" className="app-btn--sm" onClick={() => void query.refetch()}>Tentar novamente</Button>
         </div>
       ) : null}
       {query.data && !exceptions.length ? (
-        <p className="app-pix-empty">
-          Nenhuma exceção pendente.{' '}
-          <button type="button" className="app-pix-link" onClick={onOpenExtract}>Conciliar um extrato</button>
-        </p>
+        <div className="app-block__body flex flex-wrap items-center gap-3">
+          <p>Nenhuma exceção pendente.</p>
+          <Button variant="secondary" className="app-btn--sm" onClick={onOpenExtract}>Conciliar extrato</Button>
+        </div>
       ) : null}
       {exceptions.length ? (
-        <ul className="app-pix-list">
-          {exceptions.map((exception) => {
-            const kind = exception.reason === 'unmatched' ? 'unmatched' : 'ambiguous'
-            const doc = pendingExceptionDoc(exception)
-            const open = openId === exception.id
-            const rowFeedback = feedback?.id === exception.id ? feedback : null
-            const busy = busyId === exception.id
-            const pendingClose = unclosed.get(exception.id)
-            return (
-              <li key={exception.id} className="app-pix-row">
-                <div className="app-pix-row__main">
-                  <p className="app-pix-row__title">
-                    <span className="app-pix-amount">{formatBRL(exception.amount)}</span>
-                    <span className="app-pix-muted">pago em {formatExtractDay(exception.paidAt)}</span>
-                    <Badge tone={kind === 'unmatched' ? 'neutral' : 'warning'}>{exceptionKindLabel(kind)}</Badge>
-                  </p>
-                  <p className="app-pix-row__reason">{pendingExceptionReason(exception)}{doc ? ` Documento indicado: ${doc}.` : ''}</p>
-                  <p className="app-pix-row__meta">
-                    <span>TXID</span> <span className="app-pix-code">{exception.txid || 'ausente'}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>Linha {exception.lineNumber}</span>
-                    {exception.cnpj ? <><span aria-hidden="true">·</span><span className="tabular-nums">{formatCnpjCpf(exception.cnpj)}</span></> : null}
-                    <span aria-hidden="true">·</span>
-                    <span>importada em {formatBrasiliaInstant(exception.createdAt)}</span>
-                  </p>
-                  {rowFeedback ? (
-                    <p className={rowFeedback.tone === 'danger' ? 'app-pix-row__error' : 'app-pix-done'} role={rowFeedback.tone === 'danger' ? 'alert' : 'status'}>{rowFeedback.text}</p>
-                  ) : null}
-                </div>
-                {pendingClose && canReconcile ? (
-                  <div className="app-pix-row__side">
-                    <Button
-                      variant="secondary"
-                      loading={busy && closeMutation.isPending}
-                      loadingLabel="Encerrando…"
-                      disabled={busy}
-                      onClick={() => closeMutation.mutate({ exception, ...pendingClose })}
-                    >
-                      Encerrar exceção
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="app-pix-row__side">
-                    {canReconcile ? (
-                      <Button
-                        variant="secondary"
-                        loading={busy && retryMutation.isPending}
-                        loadingLabel="Conferindo…"
-                        disabled={busy}
-                        onClick={() => retryMutation.mutate(exception)}
-                      >
-                        Tentar de novo
-                      </Button>
+        <div className="app-table-scroll">
+          <table className="app-table app-table--compact">
+            <caption className="sr-only">Exceções do extrato pendentes</caption>
+            <thead>
+              <tr>
+                <th scope="col"><span className="sr-only">Faturas candidatas</span></th>
+                <th scope="col">Pago em</th>
+                <th scope="col">Valor</th>
+                <th scope="col">Identificador do Pix</th>
+                <th scope="col">CNPJ</th>
+                <th scope="col" className="app-table__text-head">Motivo</th>
+                <th scope="col"><span className="sr-only">Ação</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {exceptions.map((exception) => {
+                const ambiguous = exception.reason !== 'unmatched' && Boolean(exception.txid.trim())
+                const reason = pendingExceptionReason(exception)
+                const pendingClose = unclosed.get(exception.id)
+                const open = openId === exception.id && !pendingClose
+                const rowFeedback = feedback?.id === exception.id ? feedback : null
+                const busy = busyId === exception.id
+                const detailId = `pix-candidates-${exception.id}`
+                return (
+                  <Fragment key={exception.id}>
+                    <tr>
+                      <td className="w-px">
+                        {pendingClose ? null : (
+                          <RowToggle
+                            open={open}
+                            controls={detailId}
+                            label={`faturas candidatas da linha ${exception.lineNumber}`}
+                            disabled={busy}
+                            onClick={() => setOpenId((current) => (current === exception.id ? null : exception.id))}
+                          />
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap tabular-nums">{formatExtractDay(exception.paidAt)}</td>
+                      <td className="whitespace-nowrap tabular-nums">{formatBRL(exception.amount)}</td>
+                      <td className="whitespace-nowrap"><TxidCell txid={exception.txid} /></td>
+                      <td className="whitespace-nowrap tabular-nums">{exception.cnpj ? <CopyValue value={formatCnpjCpf(exception.cnpj)} label="CNPJ" /> : <NoValue label="Sem CNPJ" />}</td>
+                      <td className="app-table__text app-table__text--wrap">{ambiguous ? <StatusText tone="warning">{reason}</StatusText> : reason}</td>
+                      <td className="whitespace-nowrap text-right">
+                        {canReconcile && pendingClose ? (
+                          <Button
+                            variant="secondary"
+                            className="app-btn--sm"
+                            loading={busy && closeMutation.isPending}
+                            loadingLabel="Encerrando…"
+                            disabled={busy}
+                            onClick={() => closeMutation.mutate({ exception, ...pendingClose })}
+                          >
+                            Encerrar exceção
+                          </Button>
+                        ) : canReconcile ? (
+                          <Button
+                            variant="secondary"
+                            className="app-btn--sm"
+                            loading={busy && retryMutation.isPending}
+                            loadingLabel="Conferindo…"
+                            disabled={busy}
+                            onClick={() => retryMutation.mutate(exception)}
+                          >
+                            Tentar de novo
+                          </Button>
+                        ) : null}
+                      </td>
+                    </tr>
+                    {rowFeedback ? (
+                      <tr data-row-detail>
+                        <td colSpan={7}>
+                          {rowFeedback.tone === 'danger'
+                            ? <p role="alert"><StatusText tone="warning">{rowFeedback.text}</StatusText></p>
+                            : <p role="status">{rowFeedback.text}</p>}
+                        </td>
+                      </tr>
                     ) : null}
-                    <Button
-                      variant="ghost"
-                      aria-expanded={open}
-                      aria-controls={`pix-candidates-${exception.id}`}
-                      disabled={busy}
-                      onClick={() => setOpenId((current) => (current === exception.id ? null : exception.id))}
-                    >
-                      {open ? 'Fechar faturas' : 'Escolher fatura…'}
-                    </Button>
-                  </div>
-                )}
-                {open && !pendingClose ? (
-                  <div id={`pix-candidates-${exception.id}`} className="app-pix-candidates">
-                    <p className="app-pix-section__hint">Faturas abertas que aceitam este TXID. A baixa só é gravada se o banco aceitar o TXID e o valor da fatura escolhida.</p>
-                    {candidatesQuery.isLoading ? <p className="app-pix-muted" role="status">Procurando faturas…</p> : null}
-                    {candidatesQuery.error ? (
-                      <p className="app-pix-row__error" role="alert">Não foi possível procurar as faturas: {extractErrorText(candidatesQuery.error)}</p>
+                    {open ? (
+                      <tr id={detailId} data-row-detail>
+                        <td colSpan={7}>
+                          <div className="grid gap-3">
+                            <p>
+                              Faturas abertas que aceitam este Pix. A baixa só é gravada se o banco aceitar o identificador e o valor.
+                              {' '}Linha {exception.lineNumber} do extrato importado em {formatBrasiliaInstant(exception.createdAt)}.
+                            </p>
+                            {exception.txid.trim() ? <p>Identificador do Pix: <span className="font-[var(--app-font-mono)]">{exception.txid}</span></p> : null}
+                            {candidatesQuery.isLoading ? <p role="status">Procurando faturas…</p> : null}
+                            {candidatesQuery.error ? (
+                              <p role="alert"><StatusText tone="warning">Não foi possível procurar as faturas: {extractErrorText(candidatesQuery.error)}</StatusText></p>
+                            ) : null}
+                            {candidatesQuery.data && !candidatesQuery.data.length ? (
+                              <p>Nenhuma fatura aberta aceita o identificador desta linha. Investigue com o banco ou o Cliente antes de qualquer baixa.</p>
+                            ) : null}
+                            {candidatesQuery.data?.length ? (
+                              <table className="app-table app-table--compact app-table--nested">
+                                <caption className="sr-only">Faturas candidatas da linha {exception.lineNumber}</caption>
+                                <thead>
+                                  <tr>
+                                    <th scope="col">Fatura</th>
+                                    <th scope="col">Origem</th>
+                                    <th scope="col">Valor da fatura</th>
+                                    <th scope="col">Pix</th>
+                                    <th scope="col"><span className="sr-only">Ação</span></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {candidatesQuery.data.map((candidate) => {
+                                    const sameAmount = Math.abs(candidate.amount - exception.amount) <= 0.01
+                                    const linking = linkMutation.isPending && linkMutation.variables?.candidate.invoiceId === candidate.invoiceId
+                                    return (
+                                      <tr key={`${candidate.source}-${candidate.invoiceId}`}>
+                                        <td className="whitespace-nowrap">{candidate.docNumber}</td>
+                                        <td className="whitespace-nowrap">{sourceLabel(candidate.source)}</td>
+                                        <td className="whitespace-nowrap tabular-nums">{formatBRL(candidate.amount)}</td>
+                                        <td className="whitespace-nowrap tabular-nums" title={sameAmount ? 'Mesmo valor do Pix' : 'Valor diferente do Pix'}>
+                                          {sameAmount ? formatBRL(exception.amount) : <StatusText tone="warning">{formatBRL(exception.amount)}</StatusText>}
+                                        </td>
+                                        <td className="whitespace-nowrap text-right">
+                                          {canReconcile ? (
+                                            <Button
+                                              variant="secondary"
+                                              className="app-btn--sm"
+                                              loading={linking}
+                                              loadingLabel="Baixando…"
+                                              disabled={busy}
+                                              onClick={() => linkMutation.mutate({ exception, candidate })}
+                                            >
+                                              Baixar nesta fatura
+                                            </Button>
+                                          ) : null}
+                                        </td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
                     ) : null}
-                    {candidatesQuery.data && !candidatesQuery.data.length ? (
-                      <p className="app-pix-muted">Nenhuma fatura aberta aceita o TXID desta linha. Investigue com o banco ou o Cliente antes de qualquer baixa.</p>
-                    ) : null}
-                    {candidatesQuery.data?.length ? (
-                      <ul className="app-pix-candidates__list">
-                        {candidatesQuery.data.map((candidate) => {
-                          const sameAmount = Math.abs(candidate.amount - exception.amount) <= 0.01
-                          const linking = linkMutation.isPending && linkMutation.variables?.candidate.invoiceId === candidate.invoiceId
-                          return (
-                            <li key={`${candidate.source}-${candidate.invoiceId}`} className="app-pix-candidate">
-                              <span className="app-pix-candidate__doc">{candidate.docNumber}</span>
-                              <span className="app-pix-muted">{candidate.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais'}</span>
-                              <span className="app-pix-amount">{formatBRL(candidate.amount)}</span>
-                              <span className={sameAmount ? 'app-pix-muted' : 'app-pix-warning'}>{sameAmount ? 'mesmo valor do Pix' : `Pix de ${formatBRL(exception.amount)}`}</span>
-                              {canReconcile ? (
-                                <Button
-                                  variant="secondary"
-                                  className="app-btn--sm"
-                                  loading={linking}
-                                  loadingLabel="Baixando…"
-                                  disabled={busy}
-                                  onClick={() => linkMutation.mutate({ exception, candidate })}
-                                >
-                                  Baixar nesta fatura
-                                </Button>
-                              ) : null}
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    ) : null}
-                  </div>
-                ) : null}
-              </li>
-            )
-          })}
-        </ul>
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : null}
-    </section>
+    </Block>
   )
 }
 
-function ChargesSection({ monitor, onOpenInvoice }: { monitor: ItauPixMonitor | undefined; onOpenInvoice: OpenInvoice }) {
+function ChargesBlock({ monitor, onOpenInvoice }: { monitor: ItauPixMonitor | undefined; onOpenInvoice: OpenInvoice }) {
   const charges = sortItauCharges(monitor?.charges ?? [])
-  const withProblem = charges.filter((charge) => itauChargeState(charge).needsAction).length
+  const [openId, setOpenId] = useState<number | null>(null)
   return (
-    <section className="app-pix-section" aria-labelledby="pix-charges-title">
-      <div className="app-pix-section__head">
-        <h2 id="pix-charges-title" className="app-pix-section__title">
-          Cobranças aguardando o Itaú <span className="app-pix-count">{charges.length}</span>
-        </h2>
-        <p className="app-pix-section__hint">
-          Emissão, alteração, conferência de vencimento e cancelamento ainda não confirmados pelo banco. A fila tenta de novo sozinha; resposta incerta é consultada antes de repetir. Enquanto aguarda, a fatura mostra "QR em preparação".
-          {withProblem ? ` ${pluralize(withProblem, 'cobrança está', 'cobranças estão')} com erro ou resposta incerta.` : ''}
-        </p>
-      </div>
+    <Block
+      title="Cobranças aguardando o Itaú"
+      flush
+      aside={`${charges.length.toLocaleString('pt-BR')} · a fatura mostra "QR em preparação" enquanto aguarda`}
+    >
       {charges.length ? (
-        <ul className="app-pix-list">
-          {charges.map((charge) => {
-            const state = itauChargeState(charge)
-            return (
-              <li key={charge.id} className="app-pix-row">
-                <div className="app-pix-row__main">
-                  <p className="app-pix-row__title">
-                    {charge.docNumber && charge.invoiceId != null ? (
-                      <button type="button" className="app-pix-link app-pix-doc" onClick={() => onOpenInvoice(charge.source, charge.invoiceId!)}>{charge.docNumber}</button>
-                    ) : (
-                      <span className="app-pix-doc">{charge.docNumber ?? 'Fatura removida'}</span>
-                    )}
-                    <span className="app-pix-muted">{charge.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais'}</span>
-                    <span className="app-pix-amount">{formatBRL(charge.amount)}</span>
-                    <Badge tone={state.tone}>{state.label}</Badge>
-                  </p>
-                  {charge.lastError ? <p className="app-pix-row__error">{charge.lastError}</p> : null}
-                  <p className="app-pix-row__meta">
-                    <span>TXID</span> <span className="app-pix-code">{charge.txid}</span>
-                    {charge.attempts > 1 ? <><span aria-hidden="true">·</span><span>{charge.attempts} tentativas</span></> : null}
-                    {charge.nextAttemptAt ? <><span aria-hidden="true">·</span><span>próxima tentativa {formatBrasiliaInstant(charge.nextAttemptAt)}</span></> : null}
-                  </p>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="app-table-scroll">
+          <table className="app-table app-table--compact">
+            <caption className="sr-only">Cobranças ainda não confirmadas pelo Itaú</caption>
+            <thead>
+              <tr>
+                <th scope="col"><span className="sr-only">Resposta do banco</span></th>
+                <th scope="col">Fatura</th>
+                <th scope="col">Origem</th>
+                <th scope="col">Valor</th>
+                <th scope="col">Situação</th>
+                <th scope="col">Tentativas</th>
+                <th scope="col">Próxima tentativa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {charges.map((charge) => {
+                const state = itauChargeState(charge)
+                const open = openId === charge.id
+                const detailId = `pix-charge-${charge.id}`
+                return (
+                  <Fragment key={charge.id}>
+                    <tr>
+                      <td className="w-px">
+                        <RowToggle
+                          open={open}
+                          controls={detailId}
+                          label={`resposta do banco da cobrança ${charge.docNumber ?? charge.id}`}
+                          onClick={() => setOpenId((current) => (current === charge.id ? null : charge.id))}
+                        />
+                      </td>
+                      <td className="whitespace-nowrap">
+                        {charge.docNumber && charge.invoiceId != null ? (
+                          <button type="button" className="app-link" onClick={() => onOpenInvoice(charge.source, charge.invoiceId!)}>{charge.docNumber}</button>
+                        ) : (
+                          charge.docNumber ?? <NoValue label="Fatura removida" />
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap">{sourceLabel(charge.source)}</td>
+                      <td className="whitespace-nowrap tabular-nums">{formatBRL(charge.amount)}</td>
+                      <td className="whitespace-nowrap">{state.needsAction ? <StatusText tone="warning">{state.label}</StatusText> : state.label}</td>
+                      <td className="whitespace-nowrap tabular-nums">{charge.attempts.toLocaleString('pt-BR')}</td>
+                      <td className="whitespace-nowrap tabular-nums">{charge.nextAttemptAt ? cellInstant(charge.nextAttemptAt) : <NoValue label="Sem tentativa marcada" />}</td>
+                    </tr>
+                    {open ? (
+                      <tr id={detailId} data-row-detail>
+                        <td colSpan={7}>
+                          <FactList columns={3}>
+                            <Fact label="Resposta do banco">{charge.lastError?.trim() || (charge.uncertain ? 'Sem resposta; a fila consulta o banco antes de repetir' : 'Nenhum erro')}</Fact>
+                            <Fact label="Identificador do Pix"><span className="font-[var(--app-font-mono)] break-all">{charge.txid}</span></Fact>
+                            <Fact label="Última tentativa">{cellInstant(charge.updatedAt)}</Fact>
+                          </FactList>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        <p className="app-pix-empty">Nenhuma cobrança aguardando o Itaú.</p>
+        <p className="app-block__body">Nenhuma cobrança aguardando o Itaú.</p>
       )}
-    </section>
+    </Block>
   )
 }

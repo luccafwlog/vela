@@ -1,4 +1,5 @@
 import type { BadgeTone } from "../components/ui/Badge";
+import type { CeUnlockItem } from "../types/ceUnlock";
 
 export const ceStateLabel = (state: string) =>
   ({
@@ -116,3 +117,48 @@ export const ceShortDate = (value: string | null | undefined) =>
 /** Data dd/mm/aaaa no fuso da operação. */
 export const ceDate = (value: string | null | undefined) =>
   value ? new Date(value).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "";
+
+/**
+ * Impedimento que não é requisito (os quatro requisitos já têm coluna própria):
+ * o texto curto da coluna "Na ZPT". Reconhece os motivos de `ce_unlock_private.item`.
+ */
+export function ceUnlockImpediment(reasons: string[]): string | null {
+  for (const r of reasons) {
+    if (r.includes("CE alterado")) return "CE alterado: reconferir";
+    if (r.includes("B/L cancelado")) return "B/L cancelado";
+    if (r.includes("Troca de Cliente")) return "Troca de Cliente";
+    if (r.includes("Cliente do B/L alterado")) return "Cliente alterado";
+  }
+  return null;
+}
+
+export type CeUnlockZptItem = Pick<
+  CeUnlockItem,
+  "zpt_status" | "zpt_description" | "zpt_pending" | "zpt_without_export" | "reasons" | "can_export" | "export_state" | "exported_at" | "confirmed"
+>;
+
+/**
+ * Texto da coluna "Na ZPT", também usado na planilha: estado da ZPT
+ * (Divergente, Desbloqueado), o impedimento que não é requisito, ou o envio
+ * (Exportado dd/mm, Apto não exportado, Não exportado).
+ */
+export function ceUnlockZptText(item: CeUnlockZptItem): {
+  text: string;
+  tone: "default" | "strong" | "warning" | "danger" | "muted" | "paid";
+  title?: string;
+} {
+  if (item.zpt_status === "divergent") {
+    const title = [item.zpt_description, item.zpt_pending?.length ? `Pendente na ZPT: ${item.zpt_pending.join(", ")}` : null]
+      .filter(Boolean)
+      .join(". ");
+    return { text: "Divergente", tone: "danger", title: title || undefined };
+  }
+  if (item.zpt_status === "unlocked")
+    return { text: "Desbloqueado", tone: "paid", title: item.zpt_without_export ? "Sem exportação pelo Vela" : undefined };
+  const impediment = ceUnlockImpediment(item.reasons ?? []);
+  if (impediment) return { text: impediment, tone: "warning" };
+  if (item.confirmed || item.export_state === "confirmed") return { text: "Confirmação externa registrada", tone: "default" };
+  if (item.export_state === "exported") return { text: `Exportado ${ceShortDate(item.exported_at)}`.trim(), tone: "default" };
+  if (item.can_export) return { text: "Apto, não exportado", tone: "strong" };
+  return { text: "Não exportado", tone: "muted" };
+}

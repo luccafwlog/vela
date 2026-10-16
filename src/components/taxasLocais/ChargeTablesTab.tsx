@@ -45,6 +45,8 @@ function matchesLens(lens: TablesLens, reading: TableReading) {
   return true
 }
 
+function noop() {}
+
 export function ChargeTablesTab({
   cargoModeFilter,
   setCargoModeFilter,
@@ -54,16 +56,16 @@ export function ChargeTablesTab({
   setLens,
   canEdit,
   canDelete,
-  creating,
-  onCreateDone,
+  creating = false,
+  onCreateDone = noop,
 }: ChargeFilterProps & {
   lens: TablesLens
   setLens: (value: TablesLens) => void
   canEdit: boolean
   canDelete: boolean
   /** "+ Nova tabela" do título da página pediu o formulário em branco. */
-  creating: boolean
-  onCreateDone: () => void
+  creating?: boolean
+  onCreateDone?: () => void
 }) {
   const { showToast } = useToast()
   const confirm = useConfirm()

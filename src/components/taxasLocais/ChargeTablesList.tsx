@@ -273,11 +273,11 @@ function ChargeTableCard(props: RowProps) {
           <span className="app-rates-table__label">Situação</span>
           <TableSituation reading={reading} />
         </div>
-        <div className="app-rates-table__cell">
+        <div className="app-rates-table__cell app-rates-table__cell--validity">
           <span className="app-rates-table__label">Vigência</span>
           <span className="app-rates-num">{formatPeriod(table.valid_from, table.valid_to)}</span>
         </div>
-        <div className="app-rates-table__cell">
+        <div className="app-rates-table__cell app-rates-table__cell--items">
           <span className="app-rates-table__label">Itens</span>
           <span>{itemCountText(reading)}</span>
           {reading.itemNotes ? <span>Aviso: <TableItemWarning reading={reading} /></span> : null}

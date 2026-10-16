@@ -8,6 +8,7 @@ import { parseImportNumber } from '../../lib/importNumber'
 import { formatBRL, formatDate } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { Card } from '../ui/Card'
+import { Block } from '../ui/Block'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Field, Input, Select, Textarea } from '../ui/Input'
@@ -126,10 +127,7 @@ export function FinancialRefundsPanel({ source, invoiceId, variant = 'full' }: {
   </>
 
   if (variant === 'authorization') {
-    return <section className="app-invoice-detail__section" aria-labelledby={`refund-auth-${invoiceId}`}>
-      <h3 id={`refund-auth-${invoiceId}`} className="app-invoice-detail__heading">Restituição excepcional</h3>
-      {body}
-    </section>
+    return <Block title="Restituição excepcional" headingLevel={3}>{body}</Block>
   }
   return <Card>
     <h2 className="mb-3 text-base font-semibold">Restituição excepcional</h2>

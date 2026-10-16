@@ -525,9 +525,45 @@ function flattenBls(inv: Record<string, unknown>): FlatBl[] {
   }]
 }
 
+/**
+ * Valor pago da fatura na linha do histórico. Demurrage só entra paga e
+ * inteira; Taxas Locais usa o total pago gravado. Coberta pela consolidada não
+ * recebeu nada: o dinheiro entrou na consolidada (null).
+ */
+export function historyPaidAmount(row: Pick<ReconciliationHistoryRow, 'source' | 'status' | 'totalPaid' | 'totalAmount'>): number | null {
+  if (row.status === 'covered') return null
+  if (row.source === 'demurrage') return row.totalAmount
+  return row.totalPaid ?? (row.status === 'paid' ? row.totalAmount : null)
+}
+
+/** Saldo da fatura; Demurrage paga não tem saldo. */
+export function historyBalance(row: Pick<ReconciliationHistoryRow, 'source' | 'balance'>): number {
+  return row.source === 'demurrage' ? 0 : row.balance ?? 0
+}
+
+export type ReconciliationHistorySummary = {
+  /** Faturas distintas no recorte (a consolidada tem uma linha por B/L). */
+  invoices: number
+  /** Soma do valor pago dessas faturas; coberta pela consolidada não soma. */
+  received: number
+}
+
+/** Resumo do recorte inteiro, não só da página: cada fatura conta uma vez. */
+export function summarizeReconciliationHistory(rows: readonly ReconciliationHistoryRow[]): ReconciliationHistorySummary {
+  const seen = new Set<string>()
+  let received = 0
+  for (const row of rows) {
+    const key = `${row.source}-${row.invoiceId}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    received += historyPaidAmount(row) ?? 0
+  }
+  return { invoices: seen.size, received: Math.round(received * 100) / 100 }
+}
+
 export async function listReconciliationHistory(
   userFilters: Partial<ReconciliationFilters>,
-): Promise<{ rows: ReconciliationHistoryRow[]; totalCount: number }> {
+): Promise<{ rows: ReconciliationHistoryRow[]; totalCount: number; summary: ReconciliationHistorySummary }> {
   const filters: ReconciliationFilters = { ...DEFAULT_HISTORY_FILTERS, ...userFilters }
   const pageSize = 1000
 
@@ -675,7 +711,10 @@ export async function listReconciliationHistory(
   const from = (filters.page - 1) * filters.pageSize
   const rows = all.slice(from, from + filters.pageSize)
 
-  return { rows, totalCount }
+  // ponytail: o histórico já é filtrado e paginado no navegador sobre a lista
+  // inteira, então o resumo do recorte sai daqui sem nova consulta. Se a
+  // paginação for para o servidor, o resumo precisa vir junto da RPC.
+  return { rows, totalCount, summary: summarizeReconciliationHistory(all) }
 }
 
 export async function exportReconciliationHistoryExcel(filters: Partial<ReconciliationFilters>) {
@@ -683,21 +722,26 @@ export async function exportReconciliationHistoryExcel(filters: Partial<Reconcil
 
   const XLSX = await import('@e965/xlsx')
 
-  const data = rows.map((r) => ({
-    Tipo: r.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais',
-    'Nº Documento': r.docNumber,
-    'Tipo Doc.': r.source === 'demurrage' ? '—' : invoiceTypeLabel(r.invoiceType),
-    Consignatário: r.customerName,
-    CNPJ: r.customerCnpj,
-    'B/L': r.blId,
-    'Valor BL': r.blAmount,
-    'Valor Total': r.totalAmount,
-    Navio: r.vesselName ?? '',
-    Viagem: r.voyageNumber ?? '',
-    POD: r.pod ?? '',
-    'Data Pagamento': r.paidAt ? formatDate(r.paidAt) : '',
-    Status: r.status === 'paid' ? 'Paga' : r.status === 'covered' ? 'Coberta' : r.status === 'partially_paid' ? 'Parcial' : r.status,
-  }))
+  // Cabeçalhos com os nomes das colunas da tela (lote 3 da identidade).
+  const data = rows.map((r) => {
+    const paid = historyPaidAmount(r)
+    return {
+      Fatura: r.docNumber,
+      Origem: r.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais',
+      'Tipo de fatura': r.source === 'demurrage' ? '' : invoiceTypeLabel(r.invoiceType),
+      'B/L': r.blId === '-' ? '' : r.blId,
+      Cliente: r.customerName,
+      CNPJ: r.customerCnpj,
+      Navio: r.vesselName ?? '',
+      Viagem: r.voyageNumber ?? '',
+      POD: r.pod ?? '',
+      'Pago em': r.paidAt ? formatDate(r.paidAt) : '',
+      'Valor da fatura': r.totalAmount,
+      'Valor pago': paid ?? '',
+      Saldo: historyBalance(r),
+      Situação: r.status === 'paid' ? 'Paga' : r.status === 'covered' ? 'Coberta pela consolidada' : r.status === 'partially_paid' ? 'Parcialmente paga' : r.status,
+    }
+  })
 
   const safeRows = sanitizeSheetRows(data)
 

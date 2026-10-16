@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChargeOverridesTab } from '../ChargeOverridesTab'
 import { ChargeTablesTab } from '../ChargeTablesTab'
@@ -166,12 +167,14 @@ const filterProps = {
 }
 
 function renderTables(props: Partial<Parameters<typeof ChargeTablesTab>[0]> = {}) {
-  return render(<ChargeTablesTab {...filterProps} lens="todas" setLens={vi.fn()} canEdit canDelete {...props} />)
+  return render(<MemoryRouter><ChargeTablesTab {...filterProps} lens="todas" setLens={vi.fn()} canEdit canDelete {...props} /></MemoryRouter>)
 }
 
 function renderConditions(props: Partial<Parameters<typeof ChargeOverridesTab>[0]> = {}) {
   return render(
-    <ChargeOverridesTab {...filterProps} lens="todas" setLens={vi.fn()} customerSearch="" setCustomerSearch={vi.fn()} canEdit canDelete {...props} />,
+    <MemoryRouter>
+      <ChargeOverridesTab {...filterProps} lens="todas" setLens={vi.fn()} customerSearch="" setCustomerSearch={vi.fn()} canEdit canDelete {...props} />
+    </MemoryRouter>,
   )
 }
 
@@ -192,62 +195,98 @@ describe('Tabelas de Taxas Locais', () => {
     mocks.activeConditions.value = 0
   })
 
-  it('agrupa pelo escopo do motor e diz qual tabela vale e por que a outra não', () => {
+  it('agrupa pelo escopo do motor e diz qual tabela está em uso e por que a outra não', async () => {
+    const user = userEvent.setup()
     renderTables()
 
     const vitoria = screen.getByRole('region', { name: 'Container · BRVIX' })
-    expect(within(vitoria).getByText('Tabela Vitória', { selector: 'strong' })).toBeTruthy()
+    expect(within(vitoria).getByText('Tabela Vitória', { selector: '.app-lead__value' })).toBeTruthy()
+    expect(within(vitoria).getByText('em uso no cálculo')).toBeTruthy()
+    expect(within(vitoria).queryByText(/ADR 0040/)).toBeNull()
     // BRVIX caiu no mesmo escopo e perde o desempate pela vigência inicial.
-    expect(within(vitoria).getByText('Não aplicada')).toBeTruthy()
-    expect(within(vitoria).getByText(/"Tabela Vitória" tem vigência inicial mais recente/)).toBeTruthy()
-    // A perdedora não está no cálculo: sem o aviso "continua no cálculo".
-    expect(within(vitoria).queryByText(/Vigência encerrada em 31\/12\/2025/)).toBeNull()
+    expect(within(vitoria).getByText('Ativa, mas não usada')).toBeTruthy()
+    expect(within(vitoria).getByTitle(/"Tabela Vitória" começou depois e é a usada/)).toBeTruthy()
+    // Aviso nos itens: o THD "Todos" da tabela em uso.
+    expect(within(vitoria).getByText('1 item')).toBeTruthy()
 
     const salvador = screen.getByRole('region', { name: 'Carga solta · BRSSA' })
-    expect(within(salvador).getByText('Aplicada no cálculo')).toBeTruthy()
+    expect(within(salvador).getByText('Em uso no cálculo')).toBeTruthy()
+    await user.click(within(salvador).getByRole('button', { name: 'Salvador Carga Solta 2027' }))
     expect(within(salvador).getByText(/Vigência começa em 01\/01\/2027, mas já está no cálculo/)).toBeTruthy()
-    expect(within(salvador).getByText('Sem item automático: o cálculo deste escopo não gera taxa.')).toBeTruthy()
+    expect(within(salvador).getByText(/Enquanto ela estiver em uso no cálculo/)).toBeTruthy()
+  })
+
+  it('a "Ativa, mas não usada" tem Desativar na linha para o Administrativo', async () => {
+    const user = userEvent.setup()
+    renderTables()
+
+    await user.click(screen.getByRole('button', { name: 'Desativar tabela Tabela Vitória 2025' }))
+    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ consequence: expect.stringContaining('já não era a usada') }))
+    expect(mocks.toggleTable).toHaveBeenCalledWith({ id: 2, active: false, reason: '' })
+    expect(screen.queryByRole('button', { name: 'Mais ações da tabela Tabela Vitória 2025' })).toBeNull()
+  })
+
+  it('os cartões contam pelos nomes novos e filtram pela lente', async () => {
+    const user = userEvent.setup()
+    const setLens = vi.fn()
+    const { unmount } = renderTables({ setLens })
+
+    const card = screen.getByRole('button', { name: /Ativas, mas não usadas/ })
+    expect(card.textContent).toContain('1')
+    expect(card.className).toContain('app-metric-tile--warning')
+    await user.click(card)
+    expect(setLens).toHaveBeenCalledWith('nao-usadas')
+    unmount()
+
+    renderTables({ lens: 'nao-usadas' })
+    expect(screen.getByRole('button', { name: /Ativas, mas não usadas/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getAllByText('Tabela Vitória 2025').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('region', { name: 'Carga solta · BRSSA' })).toBeNull()
+    // A lente esconde a tabela em uso, mas o escopo continua dizendo qual é.
+    expect(screen.getByText('Tabela Vitória', { selector: '.app-lead__value' })).toBeTruthy()
   })
 
   it('abre os itens com unidade, perfil e o que o motor faz com cada um', async () => {
     const user = userEvent.setup()
     renderTables()
 
-    const toggle = screen.getByRole('button', { name: /^Tabela Vitória, ver itens/ })
-    expect(toggle.getAttribute('aria-controls')).toBe('charge-table-items-1')
+    const toggle = screen.getByRole('button', { name: 'Tabela Vitória' })
     await user.click(toggle)
     expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Recolher os itens da tabela Tabela Vitória' }).getAttribute('aria-controls')).toBe('charge-table-items-1')
 
     const items = screen.getByRole('region', { name: 'Itens da tabela Tabela Vitória' })
     expect(within(items).getAllByText('por container').length).toBeGreaterThan(0)
     expect(within(items).getByText(/Também é a base do container IMO e OOG/)).toBeTruthy()
     expect(within(items).getByText(/THD com perfil "Todos" não é calculado/)).toBeTruthy()
+    expect(within(items).getByTitle(/THD com perfil "Todos"/).textContent).toContain('THD sem perfil')
     expect(within(items).getAllByText('Só manual').length).toBe(2)
+    expect(within(items).getByText('vigente')).toBeTruthy()
+    expect(within(items).getAllByRole('button', { name: 'Adicionar item' })).toHaveLength(1)
   })
 
   it('cadastra tabela no modal, mostrando antes de gravar que ela passa a valer no escopo', async () => {
     const user = userEvent.setup()
-    renderTables()
+    const onCreateDone = vi.fn()
+    renderTables({ creating: true, onCreateDone })
 
-    await user.click(screen.getByRole('button', { name: 'Nova tabela' }))
     const dialog = screen.getByRole('dialog', { name: 'Nova tabela de taxas' })
     await user.type(within(dialog).getByLabelText(/Nome da tabela/), 'Vitória 2027')
     await user.type(within(dialog).getByLabelText(/^POD/), 'brvit')
     await user.type(within(dialog).getByLabelText(/Vigência inicial/), '2027-01-01')
 
-    expect(within(dialog).getByText(/Passa a ser a tabela aplicada em Container · BRVIX, no lugar de "Tabela Vitória"/)).toBeTruthy()
+    expect(within(dialog).getByText(/Passa a ser a tabela em uso no cálculo de Container · BRVIX, no lugar de "Tabela Vitória"/)).toBeTruthy()
     await user.click(within(dialog).getByRole('button', { name: 'Cadastrar tabela' }))
 
     expect(mocks.confirm).not.toHaveBeenCalled()
     expect(mocks.saveTable).toHaveBeenCalledWith(expect.objectContaining({ name: 'Vitória 2027', pod: 'BRVIT', validFrom: '2027-01-01', active: true }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(onCreateDone).toHaveBeenCalled()
   })
 
   it('mostra o erro junto do campo e não grava tabela sem nome', async () => {
     const user = userEvent.setup()
-    renderTables()
+    renderTables({ creating: true })
 
-    await user.click(screen.getByRole('button', { name: 'Nova tabela' }))
     const dialog = screen.getByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: 'Cadastrar tabela' }))
 
@@ -296,7 +335,7 @@ describe('Tabelas de Taxas Locais', () => {
     const user = userEvent.setup()
     renderTables()
 
-    await user.click(screen.getByRole('button', { name: /^Tabela Vitória, ver itens/ }))
+    await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
     await user.click(screen.getByRole('button', { name: 'Adicionar item' }))
     const dialog = screen.getByRole('dialog', { name: 'Novo item de taxa' })
     expect(within(dialog).getByText('Tabela Vitória', { selector: 'strong' })).toBeTruthy()
@@ -314,7 +353,7 @@ describe('Tabelas de Taxas Locais', () => {
     const user = userEvent.setup()
     renderTables()
 
-    await user.click(screen.getByRole('button', { name: /^Tabela Vitória, ver itens/ }))
+    await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
     await user.click(screen.getByRole('button', { name: 'Editar item Booking (legado)' }))
     const option = screen.getByRole('option', { name: /TEU/ }) as HTMLOptionElement
     expect(option.disabled).toBe(true)
@@ -326,7 +365,7 @@ describe('Tabelas de Taxas Locais', () => {
     const user = userEvent.setup()
     renderTables()
 
-    await user.click(screen.getByRole('button', { name: /^Tabela Vitória, ver itens/ }))
+    await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
     await user.click(screen.getByRole('button', { name: 'Editar item Booking (legado)' }))
     const dialog = screen.getByRole('dialog')
     const usd = within(dialog).getByRole('radio', { name: 'Dólar (US$)' }) as HTMLButtonElement
@@ -345,13 +384,14 @@ describe('Tabelas de Taxas Locais', () => {
     expect(screen.queryByRole('button', { name: /Editar tabela/ })).toBeNull()
   })
 
-  it('quem edita mas não é Administrativo não recebe desativar no menu', async () => {
+  it('quem edita mas não é Administrativo não recebe desativar nem o menu ⋮', async () => {
     const user = userEvent.setup()
     renderTables({ canDelete: false })
 
-    const menu = await openMenu(user, 'Mais ações da tabela Tabela Vitória')
-    expect(within(menu).getByRole('menuitem', { name: 'Adicionar item' })).toBeTruthy()
-    expect(within(menu).queryByRole('menuitem', { name: 'Desativar tabela' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Mais ações da tabela Tabela Vitória' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Desativar tabela/ })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
+    expect(screen.getByRole('button', { name: 'Adicionar item' })).toBeTruthy()
   })
 
   it('lente "Com aviso" e recorte vazio oferecem Limpar filtros', async () => {
@@ -381,25 +421,31 @@ describe('Condições de Cliente', () => {
     renderConditions()
 
     const rowA = screen.getByText('Cliente A').closest('tr') as HTMLElement
-    expect(within(rowA).getByText('Vigente hoje')).toBeTruthy()
-    expect(within(rowA).getByText(/−20% em relação|−20%/)).toBeTruthy()
+    expect(within(rowA).getByText('Vigente')).toBeTruthy()
+    expect(within(rowA).getByText('R$ 100,00 (−20%)')).toBeTruthy()
+    expect(within(rowA).getByText('R$ 80,00 por container')).toBeTruthy()
+    expect(within(rowA).getByRole('link', { name: 'Cliente A' }).getAttribute('href')).toBe('/clientes/12345678000190')
+    expect(within(rowA).queryByText(/12\.345\.678/)).toBeNull()
+    expect(within(rowA).getByTitle('acordo')).toBeTruthy()
 
     const rowB = screen.getByText('Cliente B').closest('tr') as HTMLElement
-    expect(within(rowB).getByText(/não é a aplicada \("Tabela Vitória" vence\)/)).toBeTruthy()
+    expect(within(rowB).getByText('Sem efeito no cálculo')).toBeTruthy()
+    expect(within(rowB).getByTitle(/está ativa, mas não usada \("Tabela Vitória" está em uso no cálculo\)/)).toBeTruthy()
 
     const rowC = screen.getByText('Cliente C').closest('tr') as HTMLElement
     expect(within(rowC).getByText('Começa em 01/01/2099')).toBeTruthy()
     // Migration 171: condição em item USD muda a cobrança, então não há aviso.
     expect(within(rowC).queryByText(/dólar/)).toBeNull()
 
-    expect(screen.getByText('vigentes sem efeito no cálculo')).toBeTruthy()
+    const card = screen.getByRole('button', { name: /Sem efeito no cálculo/ })
+    expect(card.textContent).toContain('1')
+    expect(card.className).toContain('app-metric-tile--warning')
   })
 
   it('cadastra condição escolhendo Cliente e item pela busca', async () => {
     const user = userEvent.setup()
-    renderConditions()
+    renderConditions({ creating: true })
 
-    await user.click(screen.getByRole('button', { name: 'Nova condição' }))
     const dialog = screen.getByRole('dialog', { name: 'Nova condição de Cliente' })
 
     await user.type(within(dialog).getByRole('combobox', { name: /Cliente/ }), 'Clie')
@@ -426,9 +472,8 @@ describe('Condições de Cliente', () => {
 
   it('não grava sem Cliente e mostra o motivo junto do campo', async () => {
     const user = userEvent.setup()
-    renderConditions()
+    renderConditions({ creating: true })
 
-    await user.click(screen.getByRole('button', { name: 'Nova condição' }))
     const dialog = screen.getByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: 'Cadastrar condição' }))
     expect(within(dialog).getByText('Selecione o Cliente da condição.')).toBeTruthy()
@@ -483,5 +528,12 @@ describe('Condições de Cliente', () => {
     renderConditions({ lens: 'futuras' })
     expect(screen.getByText('Cliente C')).toBeTruthy()
     expect(screen.queryByText('Cliente A')).toBeNull()
+  })
+
+  it('o cartão "Sem efeito no cálculo" filtra só as vigentes que não mudam a cobrança', () => {
+    renderConditions({ lens: 'sem-efeito' })
+    expect(screen.getByText('Cliente B')).toBeTruthy()
+    expect(screen.queryByText('Cliente A')).toBeNull()
+    expect(screen.queryByText('Cliente C')).toBeNull()
   })
 })
