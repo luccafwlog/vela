@@ -7137,54 +7137,14 @@ a.app-step-rail__link:focus-visible {
   white-space: nowrap;
 }
 
-.app-schedule__group {
-  border-bottom: 1px solid var(--app-border);
-}
-
 .app-schedule-date {
   font-variant-numeric: tabular-nums;
 }
 
-.app-schedule-date--actual {
+/* Data efetiva: só o ✓ é verde; a data fica em tinta normal (lote 2). */
+.app-schedule-date__check {
   color: var(--app-success-fg);
-  font-weight: 600;
-}
-
-.app-schedule-date--overdue {
-  display: inline-grid;
-  justify-items: center;
-}
-
-.app-schedule-date__note {
-  color: var(--app-warning-fg);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-}
-
-.app-schedule-date--none {
-  color: var(--app-muted);
-}
-
-.app-schedule-date--omitted {
-  display: inline-block;
-  border: 1px solid var(--app-warning-border);
-  border-radius: var(--app-radius-control, 6px);
-  background: var(--app-warning-bg);
-  padding: 0 6px;
-  color: var(--app-warning-fg);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.app-schedule-vessel-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--app-link);
-  text-decoration: none;
-  text-underline-offset: 3px;
+  font-weight: 700;
 }
 
 .app-schedule-legend {

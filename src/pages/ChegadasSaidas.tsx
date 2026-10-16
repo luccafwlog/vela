@@ -6,7 +6,8 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { ImportFilePicker } from '../components/shared/ImportParts'
 import { SkeletonTable } from '../components/ui/Skeleton'
-import { ScheduleDate, ScheduleLegend, VesselLink } from '../components/portal/ShipScheduleWidget'
+import { Block } from '../components/ui/Block'
+import { ScheduleLegend, ScheduleTable } from '../components/portal/ShipScheduleWidget'
 import { scheduleLaneTitle } from '../components/portal/shipScheduleCells'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
@@ -476,7 +477,12 @@ export function ChegadasSaidas() {
         <VesselForm formData={formData} onChange={setFormData} onSubmit={handleSubmit} onCancel={closeDialog} isEditing={!!editingId} saving={saving} />
       </Modal>
 
-      <section className="app-schedule" aria-label="Programação publicada">
+      <Block
+        title="Programação publicada no Portal"
+        aside={vessels.length ? `${vessels.length} ${vessels.length === 1 ? 'navio' : 'navios'}` : undefined}
+        flush
+        className="app-schedule"
+      >
         {isLoading ? (
           <SkeletonTable rows={4} cols={8} label="Carregando a programação" />
         ) : isError ? (
@@ -492,52 +498,24 @@ export function ChegadasSaidas() {
             description="Adicione um navio ou envie a planilha para publicar a programação."
           />
         ) : (
-          <div className="app-table-scroll">
-            <table className="app-table app-table--dense">
-              <caption className="sr-only">Programação de chegadas e saídas</caption>
-              <thead>
-                <tr>
-                  <th scope="col" rowSpan={2} className="app-table__text-head">Navio</th>
-                  <th scope="col" rowSpan={2} className="text-center">Viagem</th>
-                  <th scope="colgroup" colSpan={POL_LANES.length} className="text-center app-schedule__group">Saída na origem (ETD)</th>
-                  <th scope="colgroup" colSpan={POD_LANES.length} className="text-center app-schedule__group">Chegada no Brasil (ETA)</th>
-                  {canWrite ? <th scope="col" rowSpan={2}><span className="sr-only">Ações</span></th> : null}
-                </tr>
-                <tr>
-                  {PORTAL_SCHEDULE_LANES.map((lane) => (
-                    <th scope="col" key={lane.label} className="text-center">{scheduleLaneTitle(lane)}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {vessels.map((vessel) => (
-                  <tr key={vessel.voyageId}>
-                    <th scope="row" className="app-table__text font-semibold"><VesselLink voyage={vessel} /></th>
-                    <td className="text-center">{vessel.voyage}</td>
-                    {PORTAL_SCHEDULE_LANES.map((lane) => (
-                      <td key={lane.label} className="text-center"><ScheduleDate voyage={vessel} lane={lane} /></td>
-                    ))}
-                    {canWrite ? (
-                      <td className="text-center">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="app-btn--sm"
-                          aria-label={`Editar programação de ${vessel.vesselName} / ${vessel.voyage}`}
-                          onClick={() => openEdit(vessel)}
-                        >
-                          Editar
-                        </Button>
-                      </td>
-                    ) : null}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ScheduleTable
+            vessels={vessels}
+            caption="Programação de chegadas e saídas"
+            actions={canWrite ? (vessel) => (
+              <Button
+                type="button"
+                variant="secondary"
+                className="app-btn--sm"
+                aria-label={`Editar programação de ${vessel.vesselName} / ${vessel.voyage}`}
+                onClick={() => openEdit(vessel)}
+              >
+                Editar
+              </Button>
+            ) : undefined}
+          />
         )}
         {vessels.length > 0 && !isError ? <ScheduleLegend /> : null}
-      </section>
+      </Block>
 
       <div className="mt-6">
         <SpreadsheetUpload canWrite={canWrite} onUpdate={invalidateSchedules} />

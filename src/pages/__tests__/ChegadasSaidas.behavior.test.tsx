@@ -152,10 +152,12 @@ describe('ChegadasSaidas user behaviours', () => {
     )
   })
 
-  it('mostra OMIT para escala omitida, distinto de X', () => {
+  it('mostra "Omitida" para escala omitida, distinto de porto sem data', () => {
     render(<ChegadasSaidas />)
-    expect(within(screen.getByRole('table')).getByText('OMIT')).toBeTruthy()
-    expect(screen.getAllByText('X').length).toBeGreaterThan(0)
+    const table = within(screen.getByRole('table'))
+    expect(table.getByText('Omitida')).toBeTruthy()
+    expect(table.queryByText('OMIT')).toBeNull()
+    expect(table.queryByText('X')).toBeNull()
   })
 
   it('permite escrita a Equipamentos', () => {

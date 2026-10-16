@@ -100,18 +100,23 @@ tamanho do arquivo.
 `ShipScheduleWidget` usa `usePortalScheduleVoyages` com query key
 `['portal-schedule-voyages']`. Widget e quadro interno compartilham as regras de célula de
 `src/components/portal/shipScheduleCells.ts` e a apresentação de
-`ShipScheduleWidget.tsx`: data efetiva (ATD no POL, ATA no POD) com `✓` e o verde
-de concluído — o mesmo verde do ATD do POL descrito em
-[Viagens](viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota) —, previsão
-sem marca, previsão já passada sem data efetiva como "a confirmar", `OMIT` e `X`
-distintos, cada estado também em texto para leitor de tela. Colunas agrupadas em
-Saída na origem (ETD) e Chegada no Brasil (ETA); abaixo de 640 px o widget vira
-cartões por navio. Erro de consulta mostra "Tentar novamente" e não se confunde
+`ShipScheduleWidget.tsx` (`ScheduleTable`, a mesma tabela nas duas telas desde o
+lote 2 da identidade, 2026-10-16): uma linha de título, com Saída na origem
+(colunas "Porto ETD") antes de Chegada no Brasil ("Porto ETA"), na ordem em que
+acontecem; data efetiva (ATD no POL, ATA no POD) com o `✓` verde e a data em
+tinta normal; previsão sem marca; previsão já passada sem data efetiva, de saída
+ou de chegada, em âmbar, com o motivo ao passar o mouse; escala omitida como
+"Omitida" em cinza e porto sem data como "—", cada estado também em texto para
+leitor de tela. Porto sem data em nenhum navio sai da tabela, com uma nota. A
+posição do navio no MarineTraffic (pelo IMO cadastrado) é o botão **Ver no
+mapa**, na ponta da linha; navio sem IMO não tem o botão. No Vela, **Editar**
+fica ao lado dele, e a tabela fica no bloco "Programação publicada no Portal".
+Abaixo de 640 px o widget do Portal vira cartões por navio. Erro de consulta mostra "Tentar novamente" e não se confunde
 com programação vazia. O serviço chama a RPC `portal_ship_schedule`,
 que é `SECURITY DEFINER` e allowlisted para `anon`, retornando somente viagens
 ativas com `show_on_portal = true`. PODs deletados continuam ocultos; PODs
-omitidos retornam com `omitted=true` e são renderizados como `OMIT`, distinto de
-`X` e sem representar uma data. O widget renderiza as colunas pela constante de
+omitidos retornam com `omitted=true` e são renderizados como "Omitida", distinto de
+porto sem data e sem representar uma data. O widget renderiza as colunas pela constante de
 lanes e ordena pela menor ETA de POD.
 
 ## Catálogo de ações
