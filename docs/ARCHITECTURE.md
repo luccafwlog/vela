@@ -144,6 +144,8 @@ aqui fica o desenho:
   atomicamente e envia ou registra a simulação.
 - **Automação.** O `customer-communication-auto-runner` avalia NOA, NOR, NOB e
   CE e Taxas com claims recuperáveis (`customer_communication_automation_claims`);
+  recusa definitiva do envio rejeita a claim por 24 horas em vez de liberá-la
+  (migration `297`);
   a condição do CE e Taxas é a
   [Prontidão de Comunicação de Taxas](modules/clientes.md#prontidão-de-comunicação-de-taxas)
   (`customer_local_charges_communication_readiness`).

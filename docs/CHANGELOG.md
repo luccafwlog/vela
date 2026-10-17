@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **CE e Taxas automático parou de ser recusado em loop (2026-10-17):** a validação de anexos
+  recusava cobrança local e demurrage mesmo sem anexo, e a Edge devolvia 422 a cada rodada
+  (~250 recusas em 24 h, 84 rodadas × 3 destinatários de teste); o envio manual do CE também
+  quebrava. Agora só um anexo real é recusado. A Edge loga o motivo de toda recusa e marca
+  `permanent: true` nas que só mudam com outro código ou payload; o runner rejeita a claim
+  nesses casos (migration `297`, alerta `comunicado_recusado`), a produtora não a retoma por
+  24 horas e `failed` na resposta deixa o heartbeat vermelho.
+  [Comunicados automáticos](modules/clientes.md).
 - **Triagem do Sentry de 15–16/10 (2026-10-16):** o logout do Vela e do Portal (inclusive o
   automático por inatividade) deixa de abrir issues `[Sem permissão] 42501` com as consultas que ainda estavam na
   fila e saíram sem sessão (VELA-1Q a VELA-1Z, rótulos do sino com o departamento Documentação);
