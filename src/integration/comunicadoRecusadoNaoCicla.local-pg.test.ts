@@ -99,6 +99,13 @@ describeLocal('297 — claim recusada não volta como candidata dentro da janela
     expect(psql(`SELECT i.status FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'comunicado_recusado' AND a.entity_type = 'customer' AND a.entity_id = '${CUSTOMER}';`)).toBe('active')
 
+    // Outra recusa do mesmo Cliente não apaga a primeira do alerta. (A claim de CE
+    // exige prontidão por trigger; a de NOA serve ao mesmo caso.)
+    psql(`INSERT INTO public.customer_communication_automation_claims (claim_key) VALUES ('aviso_chegada_noa:${CUSTOMER}:${VOYAGE_ID}:${PORT}');`)
+    psql(`SELECT public.reject_customer_communication_automation_claim('aviso_chegada_noa:${CUSTOMER}:${VOYAGE_ID}:${PORT}', 'B/Ls inválidos.');`)
+    expect(psql(`SELECT jsonb_array_length(i.metadata->'claims') || '|' || (i.message LIKE '%${CLAIM}%') FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'comunicado_recusado' AND a.entity_type = 'customer' AND a.entity_id = '${CUSTOMER}' AND i.status = 'active';`)).toBe('2|true')
+
     // Sem a recusa, os dois casos abaixo devolviam a candidata.
     expect(candidateClaims(`now() + interval '1 hour'`)).toEqual([])
     psql(`SELECT public.release_customer_communication_automation_claim('${CLAIM}');`)

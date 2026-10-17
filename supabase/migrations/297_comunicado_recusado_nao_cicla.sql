@@ -37,6 +37,8 @@ DECLARE
   v_kind text;
   v_customer_id bigint;
   v_customer_name text;
+  v_claims jsonb;
+  v_summary text;
 BEGIN
   IF auth.role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Executor server-only.' USING ERRCODE = '42501';
@@ -62,15 +64,25 @@ BEGIN
   END IF;
 
   IF v_customer_id IS NOT NULL THEN
+    -- O alerta é um por Cliente; ele lista todas as claims do Cliente ainda
+    -- recusadas na janela de 24 h, para a segunda recusa (ex.: o CE de outra
+    -- viagem) não apagar a primeira da triagem.
+    SELECT jsonb_agg(jsonb_build_object('claim_key', cl.claim_key, 'kind', split_part(cl.claim_key, ':', 1), 'reason', cl.rejection_reason) ORDER BY cl.claim_key),
+      string_agg(cl.claim_key || ' (' || COALESCE(cl.rejection_reason, 'sem motivo') || ')', '; ' ORDER BY cl.claim_key)
+    INTO v_claims, v_summary
+    FROM public.customer_communication_automation_claims cl
+    WHERE split_part(cl.claim_key, ':', 2) = v_customer_id::text
+      AND cl.rejected_at >= now() - interval '24 hours';
+
     -- Falha no alerta não desfaz a recusa: a claim parar de ciclar vem antes.
     BEGIN
       PERFORM public.upsert_alert_item(
         'comunicado_recusado',
         'customer',
         v_customer_id::text,
-        'Cliente ' || COALESCE(v_customer_name, v_customer_id::text) || ': Comunicado automático ' || v_kind || ' recusado pelo envio. Motivo: ' || v_reason,
+        'Cliente ' || COALESCE(v_customer_name, v_customer_id::text) || ': ' || jsonb_array_length(v_claims) || ' Comunicado(s) automático(s) recusado(s) pelo envio: ' || v_summary,
         'comunicado_automacao',
-        jsonb_build_object('customer_id', v_customer_id, 'kind', v_kind, 'claim_key', p_claim_key, 'reason', v_reason),
+        jsonb_build_object('customer_id', v_customer_id, 'kind', v_kind, 'claim_key', p_claim_key, 'reason', v_reason, 'claims', v_claims),
         '/clientes/comunicacao'
       );
     EXCEPTION WHEN OTHERS THEN
