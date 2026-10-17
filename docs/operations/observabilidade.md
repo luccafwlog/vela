@@ -23,7 +23,9 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   `portal-daily-digest`, `demurrage-dunning` e `customer-communication-auto-runner`.
   Eles emitem ping HTTP apenas em conclusões bem-sucedidas (status < 400) quando a URL
   do heartbeat está configurada nos secrets do Supabase. Sem o secret, operam em no-op
-  sem falhar o job. Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
+  sem falhar o job. Uma resposta 2xx com `failed`, `partial` ou `releaseFailures`
+  maior que zero também envia o ping de falha; o `customer-communication-auto-runner`
+  conta em `failed` todo destinatário recusado ou com falha na rodada. Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
 
 Esta seção combina inspeção estática com verificações de runtime registradas no
 plano de migração. O DSN de produção e os alertas foram configurados em
