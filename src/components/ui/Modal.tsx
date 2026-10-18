@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { Button } from './Button'
 
@@ -18,7 +18,8 @@ export function Modal({
   size = 'lg',
 }: {
   open: boolean
-  title: string
+  // Texto do título; pode levar uma marca (ex.: ⊕ da Invoice complementar).
+  title: ReactNode
   children: React.ReactNode
   onClose: () => void
   initialFocusRef?: { readonly current: HTMLElement | null }
