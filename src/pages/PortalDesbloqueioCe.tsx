@@ -1,95 +1,207 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CircleCheck, Download, FileSignature, FileText, Inbox, PackageCheck, Receipt, SearchX } from "lucide-react";
+import { Download, Inbox, SearchX, X } from "lucide-react";
 import { Badge } from "../components/ui/Badge";
+import { Block, Fact, FactList, LeadValue } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
-import { Card, EmptyState, InlineError, PageHeader } from "../components/ui/Card";
+import { EmptyState, InlineError, PageHeader } from "../components/ui/Card";
 import { CopyValue } from "../components/ui/CopyValue";
-import { Field, Input } from "../components/ui/Input";
+import { Input } from "../components/ui/Input";
+import { MetricCard } from "../components/ui/MetricCard";
 import { Modal } from "../components/ui/Modal";
 import { NoValue } from "../components/ui/NoValue";
 import { SkeletonTable } from "../components/ui/Skeleton";
+import { StatusText } from "../components/ui/StatusText";
 import { TabButton } from "../components/ui/TabButton";
+import { TabList } from "../components/ui/TabList";
 import { TableFooterPagination } from "../components/ui/TableFooterPagination";
 import { useConfirm } from "../components/ui/ConfirmDialog";
 import { QueryStateGate } from "../components/shared/QueryStateGate";
-import { CeUnlockDocumentList, CeUnlockDocumentUploader } from "../components/ce-unlock/CeUnlockDocuments";
+import {
+  CeUnlockAnnualDocumentTable,
+  CeUnlockDocumentSituation,
+  CeUnlockFileButton,
+  CeUnlockFileLink,
+} from "../components/ce-unlock/CeUnlockDocuments";
 import { CeUnlockHistory } from "../components/ce-unlock/CeUnlockHistory";
 import { CeUnlockRequirementIcon } from "../components/ce-unlock/CeUnlockRequirements";
 import { CeUnlockVipCoveragePanel } from "../components/ce-unlock/CeUnlockVipCoveragePanel";
-import { ceDocumentName, ceStateLabel, ceStateTone } from "../lib/ceUnlockLabels";
+import { ceDate, ceDocumentName, ceDocumentStatusText, cePortalRequestState, ceRequestOpenForMove } from "../lib/ceUnlockLabels";
+import { coveredUntil } from "../lib/ceUnlockCoverage";
+import { formatDate } from "../lib/utils";
 import { ceUnlockDeadline, formatCeUnlockDeadline, latestSlaStart } from "../services/ceUnlockSla";
 import { usePortalCeUnlock } from "../hooks/usePortalCeUnlock";
 import { downloadCeUnlockDocument, uploadCeUnlockDocument } from "../services/ceUnlockService";
-import type { CeDocumentType } from "../types/ceUnlock";
-import { portalPath } from "../services/portalScope";
+import type { CeUnlockDocument, CeUnlockItem, CeUnlockRequest, CeUnlockVipCoverage } from "../types/ceUnlock";
+import { portalPath, type PortalScope } from "../services/portalScope";
 
 type Tab = "new" | "requests" | "annual";
+type DocType = "termo" | "procuracao";
+type CardFilter = "can_submit" | "open_charges" | "in_request";
 const PAGE_SIZE = 25;
 const SELECTION_LIMIT = 100;
+const DOC_TYPES = ["termo", "procuracao"] as const;
+const TAB_PARAM: Record<Tab, string | null> = { new: null, requests: "solicitacoes", annual: "anuais" };
+const NUMBER_WORDS = ["Nenhum", "Um", "Dois", "Três", "Quatro", "Cinco", "Seis", "Sete", "Oito", "Nove", "Dez"];
 
-/** Próximo passo do cliente em cada estado; o Portal nunca fala de envio à ZPT. */
-const NEXT_STEP: Record<string, string> = {
-  draft: "Anexe o termo de devolução e a procuração e clique em Solicitar desbloqueio.",
-  submitted: "Recebemos sua solicitação. A agência vai analisar os documentos.",
-  in_review: "A agência está analisando os documentos. Lembre-se de entregar o BL original.",
-  changes_requested: "A agência pediu correção de um documento. Veja o motivo, envie o arquivo corrigido e reenvie a solicitação.",
-  cancelled: "Solicitação cancelada. Os BLs estão livres para uma nova solicitação.",
-};
+const bls = (n: number) => (n === 1 ? "1 B/L" : `${n} B/Ls`);
+/** "o termo de devolução", "a procuração", com o artigo do documento. */
+const withArticle = (type: DocType) => (type === "termo" ? "o termo de devolução" : "a procuração");
+const joinDocs = (types: DocType[]) => types.map(withArticle).join(" e ");
+/** "o termo de devolução corrigido", "o termo de devolução e a procuração corrigidos". */
+const correctedDocs = (types: DocType[]) =>
+  types.length > 1 ? `${joinDocs(types)} corrigidos` : types[0] === "termo" ? "o termo de devolução corrigido" : "a procuração corrigida";
 
-function Requirement({ icon: Icon, title, children }: { icon: typeof Receipt; title: string; children?: ReactNode }) {
-  return (
-    <li className="flex items-start gap-3">
-      <span className="mt-0.5 rounded-lg bg-[var(--app-blue-soft)] p-2 text-[var(--app-blue-btn)]" aria-hidden="true">
-        <Icon size={16} />
-      </span>
-      <div className="min-w-0 text-sm">
-        <p className="font-semibold text-[var(--app-text-strong)]">{title}</p>
-        {children && <div className="mt-0.5 text-xs text-[var(--app-muted)]">{children}</div>}
-      </div>
-    </li>
-  );
+/** Versão mais recente de cada documento anexado à solicitação. */
+const latestRequestDoc = (documents: CeUnlockDocument[], type: DocType) =>
+  documents
+    .filter((d) => d.type === type && d.source === "request" && d.status !== "uploading")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+/** Documentos cuja versão mais recente teve correção pedida ou aprovação revogada. */
+const refusedTypes = (documents: CeUnlockDocument[]) =>
+  DOC_TYPES.filter((type) => ["changes_requested", "revoked"].includes(latestRequestDoc(documents, type)?.status ?? ""));
+
+/** B/L numa solicitação ativa (a cancelada não prende o B/L). */
+const inRequest = (i: CeUnlockItem) => !!i.request_id && i.state !== "cancelled";
+/** Taxas locais com fatura em aberto; "aguardando fatura" não pede ação do Cliente. */
+const openCharges = (i: CeUnlockItem) => !i.paid && !i.local_charges_awaiting_invoice;
+
+/**
+ * O que falta nos documentos anuais VIP para pedir desbloqueios, uma frase.
+ * Ex.: "A procuração anual foi recusada: envie a nova para pedir desbloqueios."
+ */
+function annualGapMessage(vip: CeUnlockVipCoverage): string | null {
+  const gaps = DOC_TYPES.filter((type) => !vip[type]).map((type) => {
+    const doc = vip.documents
+      .filter((d) => d.type === type && d.status !== "uploading")
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    const a = type === "termo" ? "o" : "a";
+    const name = type === "termo" ? "o termo de devolução anual" : "a procuração anual";
+    const fact = !doc
+      ? `ainda não foi enviad${a}`
+      : doc.status === "uploaded"
+        ? "está em análise"
+        : doc.status === "changes_requested"
+          ? `foi recusad${a}`
+          : doc.status === "revoked"
+            ? "teve a aprovação revogada"
+            : "venceu";
+    return { type, sent: !!doc, waiting: doc?.status === "uploaded", text: `${name} ${fact}` };
+  });
+  if (!gaps.length) return null;
+  const actionable = gaps.filter((g) => !g.waiting);
+  const action = !actionable.length
+    ? "os pedidos ficam liberados quando a análise terminar"
+    : actionable.length > 1
+      ? "envie os novos para pedir desbloqueios"
+      : !actionable[0].sent
+        ? `envie ${actionable[0].type === "termo" ? "o termo" : "a procuração"} para pedir desbloqueios`
+        : `envie ${actionable[0].type === "termo" ? "o novo" : "a nova"} para pedir desbloqueios`;
+  const sentence = gaps.map((g) => g.text).join(" e ");
+  return `${sentence[0].toUpperCase()}${sentence.slice(1)}: ${action}.`;
+}
+
+/** Próximo passo do Cliente em cada situação; o Portal nunca fala de envio à ZPT. */
+function nextStep(detail: CeUnlockRequest, validated: boolean): string | null {
+  if (validated) return "consulte o Mercante para verificar o desbloqueio";
+  const vipSource = detail.source === "vip_annual";
+  switch (detail.state) {
+    case "draft":
+      return vipSource
+        ? "os documentos anuais VIP cobrem esta solicitação; clique em Solicitar desbloqueio"
+        : "anexe o termo de devolução e a procuração e clique em Solicitar desbloqueio";
+    case "submitted":
+      return "a agência vai analisar os documentos";
+    case "in_review":
+      return detail.items.some((i) => !i.delivered)
+        ? "a agência está analisando os documentos; entregue o B/L original na agência"
+        : "a agência está analisando os documentos";
+    case "changes_requested": {
+      const refused = refusedTypes(detail.documents);
+      return refused.length ? `envie ${correctedDocs(refused)} e reenvie a solicitação` : "reenvie a solicitação";
+    }
+    case "completed":
+      return "consulte o Mercante para verificar o desbloqueio";
+    case "cancelled":
+      return [...detail.events].reverse().find((e) => e.action === "cancel")?.reason ?? null;
+    default:
+      return null;
+  }
 }
 
 export function PortalDesbloqueioCe() {
   const [params, setParams] = useSearchParams();
   const id = params.get("pedido");
-  const [tab, setTab] = useState<Tab>("new");
+  const tabParam = params.get("aba");
+  const tab: Tab = tabParam === TAB_PARAM.requests ? "requests" : tabParam === TAB_PARAM.annual ? "annual" : "new";
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [card, setCard] = useState<CardFilter | null>(null);
+  const [listPage, setListPage] = useState(1);
+  const [requestsPage, setRequestsPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
+  const [moving, setMoving] = useState(false);
   const [error, setError] = useState("");
   // Termo e procuração escolhidos e ainda não enviados: sobem ao clicar em Solicitar desbloqueio.
-  const [pendingFiles, setPendingFiles] = useState<Partial<Record<CeDocumentType, File>>>({});
+  const [pendingFiles, setPendingFiles] = useState<Partial<Record<DocType, File>>>({});
   const [sending, setSending] = useState(false);
-  const [uploadRound, setUploadRound] = useState(0);
   const draftKey = useRef(crypto.randomUUID());
   const submitKey = useRef(crypto.randomUUID());
   const cancelKey = useRef(crypto.randomUUID());
-  const flow = usePortalCeUnlock({ search }, page, id);
+  const flow = usePortalCeUnlock(requestsPage, id);
   const confirm = useConfirm();
   const readOnly = flow.scope.mode === "inspect";
   const vip = flow.vip.data;
-  const vipPending = !!vip?.enabled && (!vip.termo || !vip.procuracao);
+  const vipEnabled = !!vip?.enabled;
+  const vipPending = vipEnabled && (!vip.termo || !vip.procuracao);
   const detail = flow.detail.data;
-  // Documento do pedido ainda não apresentado, ou recusado e sem nova versão.
-  const missingDocs = (["termo", "procuracao"] as const).filter((type) => {
+
+  // Nova solicitação: a lista inteira do Cliente; busca, cartões e paginação aqui.
+  const allItems = flow.list.data ?? [];
+  const needle = search.trim().toLowerCase();
+  const searched = needle
+    ? allItems.filter((i) => i.bl_id.toLowerCase().includes(needle) || (i.ce_mercante ?? "").toLowerCase().includes(needle))
+    : allItems;
+  // Com documento anual faltando, nada pode ser pedido agora (o botão fica desativado).
+  const canRequest = (i: CeUnlockItem) => i.can_submit && !vipPending;
+  const cardFilters: Record<CardFilter, (i: CeUnlockItem) => boolean> = {
+    can_submit: canRequest,
+    open_charges: openCharges,
+    in_request: inRequest,
+  };
+  const filtered = card ? searched.filter(cardFilters[card]) : searched;
+  const pageItems = filtered.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
+  const pageSelectable = pageItems.filter((i) => i.can_submit).map((i) => i.bl_id);
+  const allPageSelected = pageSelectable.length > 0 && pageSelectable.every((b) => selected.includes(b));
+  const byBl = new Map(allItems.map((i) => [i.bl_id, i]));
+  const moves = selected.flatMap((b) => {
+    const item = byBl.get(b);
+    return item?.request_id && ceRequestOpenForMove(item.state) ? [item] : [];
+  });
+  // A antiga é cancelada quando todos os B/Ls dela que o Portal lista vão para a nova.
+  // ponytail: conta só os B/Ls que o Portal lista; o banco decide de fato ao criar.
+  const emptied = (requestId: string) =>
+    allItems.filter((i) => i.request_id === requestId && inRequest(i)).every((i) => selected.includes(i.bl_id));
+  const movedFrom = new Set(moves.map((i) => i.request_id));
+
+  // Detalhe: documento do pedido ainda não apresentado, ou recusado e sem nova versão.
+  const missingDocs = DOC_TYPES.filter((type) => {
     if (pendingFiles[type]) return false;
-    const latest = detail?.documents.find((d) => d.type === type && d.source === "request" && d.status !== "uploading");
+    const latest = detail ? latestRequestDoc(detail.documents, type) : undefined;
     return !latest || !["uploaded", "approved"].includes(latest.status);
   });
-  const documentsReady =
-    detail?.source === "vip_annual" ? !!(vip?.enabled && vip.termo && vip.procuracao) : missingDocs.length === 0;
+  const vipSource = detail?.source === "vip_annual";
+  const documentsReady = vipSource ? !!(vip?.enabled && vip.termo && vip.procuracao) : missingDocs.length === 0;
   const pendingItems = detail?.items.filter((i) => !i.confirmed) ?? [];
   const unpaid = pendingItems.some((i) => !i.paid);
   const submitReady = documentsReady && pendingItems.length > 0 && !unpaid;
-  // Com os quatro requisitos atendidos em todos os BLs: o prazo final parte da pendência resolvida mais recente.
+  // Com os quatro requisitos atendidos em todos os B/Ls: o prazo final parte da pendência resolvida mais recente.
   const allReady = !!detail && detail.items.length > 0 && detail.items.every((i) => i.can_export);
   const latestStart = detail ? latestSlaStart(detail.items) : null;
+  const validated = allReady && !!latestStart;
   const editable = !!detail && !readOnly && ["draft", "changes_requested"].includes(detail.state);
-  const listItems = flow.list.data?.items ?? [];
-  const pageSelectable = listItems.filter((i) => i.can_submit).map((i) => i.bl_id);
-  const allPageSelected = pageSelectable.length > 0 && pageSelectable.every((b) => selected.includes(b));
+  const openedAt = detail
+    ? (detail.events.find((e) => e.action === "draft" || e.action === "submit") ?? detail.events[0])?.created_at
+    : undefined;
 
   const open = (next: string | null) => {
     setParams((p) => {
@@ -99,18 +211,27 @@ export function PortalDesbloqueioCe() {
     });
     submitKey.current = crypto.randomUUID();
     setPendingFiles({});
-    setUploadRound((n) => n + 1);
     setError("");
   };
   function changeTab(next: Tab) {
-    setTab(next);
-    setPage(1);
+    setParams((p) => {
+      const value = TAB_PARAM[next];
+      if (value) p.set("aba", value);
+      else p.delete("aba");
+      return p;
+    });
+    setRequestsPage(1);
   }
   function toggle(blIds: string[], on: boolean) {
     setSelected((prev) => (on ? [...new Set([...prev, ...blIds])] : prev.filter((b) => !blIds.includes(b))));
     draftKey.current = crypto.randomUUID();
   }
-  // O rascunho só reserva os BLs e o próprio cliente pode cancelá-lo: não pede confirmação.
+  // O rascunho só reserva os B/Ls e o próprio Cliente pode cancelá-lo: só pede
+  // confirmação quando algum B/L sai de outra solicitação (migration 298).
+  function request() {
+    if (moves.length) setMoving(true);
+    else void create();
+  }
   async function create() {
     setError("");
     try {
@@ -119,10 +240,12 @@ export function PortalDesbloqueioCe() {
         payload: { bl_ids: selected, request_key: draftKey.current },
       });
       if (!r) throw new Error("Resposta incompleta da solicitação");
+      setMoving(false);
       open(r.id);
       setSelected([]);
       draftKey.current = crypto.randomUUID();
     } catch (e) {
+      setMoving(false);
       setError(e instanceof Error ? e.message : "Não foi possível preparar a solicitação");
     }
   }
@@ -133,9 +256,9 @@ export function PortalDesbloqueioCe() {
       !(await confirm({
         message: resend
           ? `Reenviar a solicitação ${detail.protocol}?`
-          : `Solicitar o desbloqueio dos BLs do protocolo ${detail.protocol}?`,
-        affected: { summary: `${detail.items.length} BL(s)`, items: detail.items.map((i) => i.bl_id) },
-        consequence: "A agência recebe os documentos para análise. A entrega do BL original continua necessária.",
+          : `Solicitar o desbloqueio dos B/Ls do protocolo ${detail.protocol}?`,
+        affected: { summary: bls(detail.items.length), items: detail.items.map((i) => i.bl_id) },
+        consequence: "A agência recebe os documentos para análise. A entrega do B/L original continua necessária.",
         reversibility: "A agência pode pedir correção de um documento antes de concluir.",
         confirmLabel: resend ? "Reenviar solicitação" : "Solicitar desbloqueio",
       }))
@@ -148,13 +271,12 @@ export function PortalDesbloqueioCe() {
       // o envio usa a versão relida depois deles. Anexo já enviado sai da lista,
       // então uma nova tentativa só reenvia o que faltou.
       let version = detail.version;
-      const queued = (["termo", "procuracao"] as const).filter((type) => pendingFiles[type]);
+      const queued = DOC_TYPES.filter((type) => pendingFiles[type]);
       for (const type of queued) {
         await uploadCeUnlockDocument({ source: "request", request_id: detail.id, type }, pendingFiles[type]!, flow.scope);
         setPendingFiles((prev) => ({ ...prev, [type]: undefined }));
       }
       if (queued.length) {
-        setUploadRound((n) => n + 1);
         await flow.refresh();
         const fresh = await flow.detail.refetch();
         version = fresh.data?.version ?? version;
@@ -164,12 +286,11 @@ export function PortalDesbloqueioCe() {
         payload: { request_id: detail.id, expected_version: version, request_key: submitKey.current },
       });
       submitKey.current = crypto.randomUUID();
-      setTab("requests");
+      changeTab("requests");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível enviar o pedido");
       // Anexo recusado (ex.: não é PDF) precisa ser escolhido de novo; o que já subiu aparece acima.
       setPendingFiles({});
-      setUploadRound((n) => n + 1);
     } finally {
       setSending(false);
     }
@@ -179,8 +300,8 @@ export function PortalDesbloqueioCe() {
     if (
       !(await confirm({
         message: `Cancelar a solicitação ${detail.protocol}?`,
-        affected: { summary: `${detail.items.length} BL(s)`, items: detail.items.map((i) => i.bl_id) },
-        consequence: "Os BLs ficam livres para uma nova solicitação.",
+        affected: { summary: bls(detail.items.length), items: detail.items.map((i) => i.bl_id) },
+        consequence: "Os B/Ls ficam livres para uma nova solicitação.",
         reversibility: "Não pode ser desfeito. Para pedir o desbloqueio de novo, abra uma nova solicitação.",
         confirmLabel: "Cancelar solicitação",
         tone: "danger",
@@ -195,58 +316,53 @@ export function PortalDesbloqueioCe() {
       });
       cancelKey.current = crypto.randomUUID();
       open(null);
-      setTab("requests");
+      changeTab("requests");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível cancelar a solicitação");
     }
   }
-  const total = (tab === "new" ? flow.list.data?.total : flow.requests.data?.total) ?? 0;
-  const pagination =
-    total > PAGE_SIZE ? (
-      <TableFooterPagination
-        page={page}
-        pageSize={PAGE_SIZE}
-        totalCount={total}
-        totalPages={Math.ceil(total / PAGE_SIZE)}
-        onPageChange={setPage}
-      />
-    ) : null;
+  const requestsTotal = flow.requests.data?.total ?? 0;
+  const annualMissing = vipEnabled ? DOC_TYPES.filter((type) => !vip?.[type]).length : 0;
+  const gap = vipPending && vip ? annualGapMessage(vip) : null;
+  const termoUntil = vip ? coveredUntil(vip.documents, "termo") : null;
+  const procuracaoUntil = vip ? coveredUntil(vip.documents, "procuracao") : null;
+  const filterCard = (next: CardFilter) => {
+    setCard((current) => (current === next ? null : next));
+    setListPage(1);
+  };
   return (
     <>
-      <PageHeader title="Desbloqueio de CE" description="Solicite e acompanhe o desbloqueio do CE Mercante dos seus BLs." />
-      <div role="tablist" className="mb-4 flex gap-2 border-b border-[var(--app-border)]">
+      <PageHeader title="Desbloqueio de CE" />
+      <TabList label="Seções do Desbloqueio de CE">
         <TabButton active={tab === "new"} label="Nova solicitação" onClick={() => changeTab("new")} />
         <TabButton active={tab === "requests"} label="Minhas solicitações" onClick={() => changeTab("requests")} />
-        {vip?.enabled && (
-          <TabButton active={tab === "annual"} label="Documentos anuais" onClick={() => changeTab("annual")} />
+        {vipEnabled && (
+          <TabButton
+            active={tab === "annual"}
+            label="Documentos anuais"
+            count={annualMissing || null}
+            countLabel={annualMissing === 1 ? "1 documento a regularizar" : `${annualMissing} documentos a regularizar`}
+            onClick={() => changeTab("annual")}
+          />
         )}
-      </div>
+      </TabList>
       {error && !id && (
         <div className="mb-4">
           <InlineError message={error} />
         </div>
       )}
 
-      {tab === "annual" && (
-        <CeUnlockVipCoveragePanel scope={flow.scope} />
-      )}
+      {tab === "annual" && <CeUnlockVipCoveragePanel scope={flow.scope} />}
 
       {tab === "new" && (
         <div className="space-y-4">
-          <section className="app-soft-panel">
-            <h2 className="app-soft-panel__title">O que é necessário para o desbloqueio</h2>
-            <ul className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <Requirement icon={Receipt} title="Taxas locais pagas">
-                Confira em{" "}
-                <a className="font-semibold text-[var(--app-link)] hover:underline" href={portalPath(flow.scope, "/billing")}>
-                  Faturas
-                </a>
-                .
-              </Requirement>
-              <Requirement icon={FileSignature} title="Termo de devolução assinado">
-                {vip?.enabled ? (
-                  "Coberto pelo termo anual VIP."
-                ) : flow.model.data ? (
+          <Block
+            title="O que o desbloqueio pede"
+            aside={
+              <>
+                <span>para cada B/L</span>
+                {vipEnabled && <Badge tone="slate" title="Condição VIP: documentos anuais">VIP</Badge>}
+                {!vipEnabled && flow.model.data && (
                   <Button
                     variant="secondary"
                     className="app-btn--sm"
@@ -254,195 +370,216 @@ export function PortalDesbloqueioCe() {
                       void downloadCeUnlockDocument(flow.model.data!.id, flow.scope).catch((e) => setError(e.message))
                     }
                   >
-                    <Download size={12} aria-hidden="true" />
-                    Baixar modelo do termo de devolução
+                    <Download size={14} aria-hidden="true" />
+                    Baixar modelo do termo
                   </Button>
-                ) : (
-                  "Modelo ainda não disponibilizado pela agência."
                 )}
-              </Requirement>
-              <Requirement icon={FileText} title="Procuração">
-                {vip?.enabled ? "Coberta pela procuração anual VIP." : "Em PDF, anexada à solicitação."}
-              </Requirement>
-              <Requirement icon={PackageCheck} title="BL original entregue">
-                Entregue o BL original na agência.
-              </Requirement>
-            </ul>
-            {/* ponytail: modelo estático do frontend, fora do requisito e do versionamento do termo;
-                trocar o texto exige deploy. Se a agência precisar atualizá-lo sozinha, migrar para
-                um documento gerenciado como o modelo do termo. */}
-            <p className="mt-4 border-t border-[var(--app-border)] pt-3 text-xs text-[var(--app-muted)]">
-              Para retirar documentos na agência, leve o memorando preenchido em papel timbrado e assinado.{" "}
-              <a
-                className="app-btn app-btn--secondary app-btn--sm"
-                href="/templates/memorando-liberacao-documentos-modelo.docx"
-                download="memorando-liberacao-documentos.docx"
+                {/* ponytail: modelo estático do frontend, fora do requisito e do versionamento do termo;
+                    trocar o texto exige deploy. Se a agência precisar atualizá-lo sozinha, migrar para
+                    um documento gerenciado como o modelo do termo. */}
+                <a
+                  className="app-btn app-btn--secondary app-btn--sm"
+                  href="/templates/memorando-liberacao-documentos-modelo.docx"
+                  download="memorando-liberacao-documentos.docx"
+                  title="Para retirar documentos na agência: preencha em papel timbrado e assine."
+                >
+                  <Download size={14} aria-hidden="true" />
+                  Baixar memorando de liberação
+                </a>
+              </>
+            }
+          >
+            <FactList columns={4}>
+              <Fact label="Taxas locais">Pagas, B/L a B/L (na tabela)</Fact>
+              <Fact
+                label="Termo de devolução"
+                detail={!vipEnabled && flow.model.isSuccess && !flow.model.data ? "Modelo ainda não disponibilizado pela agência." : null}
               >
-                <Download size={12} aria-hidden="true" />
-                Baixar memorando de liberação de documentos
-              </a>
-            </p>
-          </section>
-
-          {vip?.enabled &&
-            (vipPending ? (
-              <div className="app-callout app-callout--warning">
-                Documentos anuais VIP precisam de regularização antes de uma nova solicitação.{" "}
-                <Button variant="secondary" className="app-btn--sm" onClick={() => changeTab("annual")}>
+                {!vipEnabled ? (
+                  "Assinado, em PDF, anexado à solicitação"
+                ) : vip?.termo ? (
+                  `Coberto pelo termo anual${termoUntil ? ` até ${formatDate(termoUntil)}` : ""}`
+                ) : (
+                  <StatusText tone="warning">Falta o termo anual</StatusText>
+                )}
+              </Fact>
+              <Fact label="Procuração">
+                {!vipEnabled ? (
+                  "Em PDF, anexada à solicitação"
+                ) : vip?.procuracao ? (
+                  `Coberta pela procuração anual${procuracaoUntil ? ` até ${formatDate(procuracaoUntil)}` : ""}`
+                ) : (
+                  <StatusText tone="warning">Falta a procuração anual</StatusText>
+                )}
+              </Fact>
+              <Fact label="B/L original">Entregue na agência</Fact>
+            </FactList>
+            {gap && (
+              <div className="app-callout app-callout--warning flex flex-wrap items-center gap-3">
+                <span>{gap}</span>
+                <Button variant="secondary" className="app-btn--sm ml-auto" onClick={() => changeTab("annual")}>
                   Abrir Documentos anuais
                 </Button>
               </div>
-            ) : (
-              <p className="app-panel app-panel--padded flex items-center gap-2 text-sm">
-                <CircleCheck size={16} aria-hidden="true" className="text-[var(--app-green)]" />
-                Cobertura VIP vigente — termo e procuração anuais já aprovados.
-              </p>
-            ))}
+            )}
+          </Block>
 
-          <Card className="overflow-hidden p-0">
-            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--app-border)] px-4 py-3">
-              <div className="w-full max-w-sm">
-                <Field label="Buscar BL ou CE">
-                  <Input
-                    placeholder="Número do BL ou do CE"
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1);
-                    }}
-                  />
-                </Field>
-              </div>
-              {!readOnly && (
-                <div className="flex flex-wrap items-center gap-3">
-                  {selected.length > SELECTION_LIMIT && (
-                    <span className="text-xs font-semibold text-[var(--app-red)]">
-                      Máximo de {SELECTION_LIMIT} BLs por solicitação
-                    </span>
-                  )}
-                  <Button
-                    disabled={!selected.length || selected.length > SELECTION_LIMIT || flow.command.isPending || vipPending}
-                    onClick={() => void create()}
-                  >
-                    Continuar com {selected.length} BL(s)
-                  </Button>
-                </div>
-              )}
-            </div>
+          <div className="app-metric-row" role="group" aria-label="Situação dos B/Ls">
+            <MetricCard
+              label="Podem ser pedidos"
+              value={flow.list.data ? searched.filter(canRequest).length : <NoValue label="Carregando" />}
+              selected={card === "can_submit"}
+              onSelect={() => filterCard("can_submit")}
+            />
+            <MetricCard
+              label="Com taxas locais em aberto"
+              value={flow.list.data ? searched.filter(openCharges).length : <NoValue label="Carregando" />}
+              tone={searched.some(openCharges) ? "warning" : "secondary"}
+              selected={card === "open_charges"}
+              onSelect={() => filterCard("open_charges")}
+            />
+            <MetricCard
+              label="Já em solicitação"
+              value={flow.list.data ? searched.filter(inRequest).length : <NoValue label="Carregando" />}
+              selected={card === "in_request"}
+              onSelect={() => filterCard("in_request")}
+            />
+          </div>
+
+          <Block
+            title="B/Ls com CE Mercante"
+            flush
+            aside={
+              <>
+                {flow.list.data ? <span>{filtered.length}</span> : null}
+                <Input
+                  type="search"
+                  aria-label="Buscar B/L ou CE"
+                  placeholder="Buscar B/L ou CE"
+                  className="w-full sm:w-[260px]"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setListPage(1);
+                  }}
+                />
+              </>
+            }
+          >
             <QueryStateGate
               isLoading={false}
               isError={Boolean(flow.list.error)}
               hasData={flow.list.data !== undefined}
-              errorMessage="Falha ao consultar BLs."
+              errorMessage="Falha ao consultar B/Ls."
               onRetry={() => void flow.list.refetch?.()}
             >
               <div className="app-table-scroll">
-                <table className="app-table app-table--compact min-w-[760px] text-sm">
-                  <caption className="sr-only">BLs com CE Mercante</caption>
+                <table className="app-table app-table--compact whitespace-nowrap text-sm">
+                  <caption className="sr-only">B/Ls com CE Mercante</caption>
                   <thead>
                     <tr>
-                      <th scope="col" className="w-10 px-3 py-3">
+                      <th scope="col" className="w-10">
                         <input
                           type="checkbox"
-                          aria-label="Selecionar os BLs disponíveis da página"
+                          aria-label="Selecionar os B/Ls disponíveis da página"
                           disabled={readOnly || !pageSelectable.length}
                           checked={allPageSelected}
                           onChange={() => toggle(pageSelectable, !allPageSelected)}
                         />
                       </th>
-                      <th scope="col" className="app-table__text-head px-3 py-3">BL / CE</th>
-                      <th scope="col" className="app-table__text-head px-3 py-3">Navio / Viagem</th>
-                      <th scope="col" className="px-3 py-3">POD</th>
-                      <th scope="col" className="px-3 py-3">Taxas locais</th>
-                      <th scope="col" className="px-3 py-3">Situação</th>
+                      <th scope="col">B/L</th>
+                      <th scope="col">CE Mercante</th>
+                      <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+                      <th scope="col">POD</th>
+                      <th scope="col">Taxas locais</th>
+                      <th scope="col">Solicitação</th>
                     </tr>
                   </thead>
                   <tbody>
                     {flow.list.isLoading && (
                       <tr>
-                        <td colSpan={6} className="p-0">
-                          <SkeletonTable rows={5} cols={6} label="Carregando BLs" />
+                        <td colSpan={7} className="p-0">
+                          <SkeletonTable rows={5} cols={7} label="Carregando B/Ls" />
                         </td>
                       </tr>
                     )}
-                    {flow.list.data?.total === 0 && (
+                    {flow.list.data && filtered.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="p-0">
+                        <td colSpan={7} className="p-0">
                           <EmptyState
                             icon={SearchX}
-                            title={search ? "Nenhum BL encontrado" : "Nenhum BL com CE Mercante"}
+                            title={
+                              search
+                                ? "Nenhum B/L encontrado"
+                                : card
+                                  ? "Nenhum B/L nesta situação"
+                                  : "Nenhum B/L com CE Mercante"
+                            }
                             description={
                               search
                                 ? "Confira o número digitado."
-                                : "Os BLs aparecem aqui assim que o CE Mercante for registrado."
+                                : card
+                                  ? "Escolha outro cartão ou clique de novo neste para ver todos."
+                                  : "Os B/Ls aparecem aqui assim que o CE Mercante for registrado."
                             }
                           />
                         </td>
                       </tr>
                     )}
-                    {listItems.map((i) => {
+                    {pageItems.map((i) => {
                       const checked = selected.includes(i.bl_id);
+                      const state = cePortalRequestState(i.state);
                       return (
-                        <tr key={i.bl_id} className={checked ? "bg-[var(--app-blue-soft)]" : undefined}>
-                          <td className="px-3 py-3">
+                        <tr key={i.bl_id}>
+                          <td>
                             <input
                               type="checkbox"
-                              aria-label={`Selecionar BL ${i.bl_id}`}
+                              aria-label={`Selecionar B/L ${i.bl_id}`}
                               disabled={readOnly || (!i.can_submit && !checked)}
                               checked={checked}
                               onChange={(e) => toggle([i.bl_id], e.target.checked)}
                             />
                           </td>
-                          <td className="px-3 py-3">
-                            <span className="app-table__cell-stack">
-                              <span className="app-table__cell-value font-semibold">
-                                <CopyValue value={i.bl_id} label="número do B/L" />
-                              </span>
-                              <span className="app-table__cell-meta whitespace-nowrap">
-                                CE{" "}
-                                {i.ce_mercante ? (
-                                  <CopyValue value={i.ce_mercante} label="CE Mercante" />
-                                ) : (
-                                  <NoValue label="Sem CE Mercante" />
-                                )}
-                              </span>
-                            </span>
+                          <td className="font-semibold">
+                            <CopyValue value={i.bl_id} label="número do B/L" />
                           </td>
-                          <td className="app-table__text px-3 py-3">
-                            {[i.vessel_name, i.voyage_number].filter(Boolean).join(" · ") || <NoValue label="Sem navio/viagem" />}
+                          <td>
+                            {i.ce_mercante ? <CopyValue value={i.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}
                           </td>
-                          <td className="px-3 py-3">{i.pod ?? <NoValue label="Sem POD" />}</td>
-                          <td className="px-3 py-3">
-                            <span className="app-table__cell-stack app-table__cell-stack--center">
-                              <span>
-                                <Badge tone={i.paid ? "green" : "yellow"}>{i.paid ? (i.paid_exempt ? "Isento" : "Pagas") : "Pendentes"}</Badge>
-                              </span>
-                              {!i.paid && (
-                                <a
-                                  className="app-btn app-btn--secondary app-btn--sm"
-                                  href={portalPath(flow.scope, "/billing")}
-                                >
+                          <td className="app-table__text">
+                            {[i.vessel_name, i.voyage_number].filter(Boolean).join(" / ") || <NoValue label="Sem navio/viagem" />}
+                          </td>
+                          <td>{i.pod ?? <NoValue label="Sem POD" />}</td>
+                          <td>
+                            {i.paid ? (
+                              i.paid_exempt ? <StatusText tone="muted">Isentas</StatusText> : <StatusText tone="paid">Pagas</StatusText>
+                            ) : i.local_charges_awaiting_invoice ? (
+                              "Aguardando fatura"
+                            ) : (
+                              <span className="inline-flex items-center gap-2">
+                                <StatusText tone="warning">Em aberto</StatusText>
+                                <a className="app-btn app-btn--secondary app-btn--sm" href={portalPath(flow.scope, "/billing")}>
                                   Ver faturas
                                 </a>
-                              )}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3">
-                            {i.request_id ? (
-                              <span className="flex flex-wrap items-center gap-2">
-                                <Badge tone={ceStateTone(i.state)}>{ceStateLabel(i.state)}</Badge>
-                                <Button variant="ghost" className="app-btn--sm" onClick={() => open(i.request_id)}>
-                                  Abrir solicitação
-                                </Button>
                               </span>
-                            ) : i.can_submit ? (
-                              <span className="app-table__cell-meta">Disponível para solicitar</span>
+                            )}
+                          </td>
+                          <td>
+                            {inRequest(i) ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="app-link"
+                                  aria-label={`Abrir solicitação ${i.protocol ?? ""}`.trim()}
+                                  onClick={() => open(i.request_id)}
+                                >
+                                  {i.protocol}
+                                </button>
+                                {" · "}
+                                {state.tone === "default" ? state.label : <StatusText tone={state.tone}>{state.label}</StatusText>}
+                              </>
                             ) : (
-                              <ul className="app-table__cell-meta list-none space-y-0.5">
-                                {i.reasons.map((r) => (
-                                  <li key={r}>{r}</li>
-                                ))}
-                              </ul>
+                              <NoValue label="Sem solicitação" />
                             )}
                           </td>
                         </tr>
@@ -452,13 +589,51 @@ export function PortalDesbloqueioCe() {
                 </table>
               </div>
             </QueryStateGate>
-            {pagination}
-          </Card>
+            {filtered.length > PAGE_SIZE ? (
+              <TableFooterPagination
+                page={listPage}
+                pageSize={PAGE_SIZE}
+                totalCount={filtered.length}
+                totalPages={Math.ceil(filtered.length / PAGE_SIZE)}
+                onPageChange={setListPage}
+              />
+            ) : null}
+          </Block>
+
+          {!readOnly && (
+            <div className="app-bulk-bar" role="region" aria-label="Seleção">
+              <span className="app-bulk-bar__count" aria-live="polite">
+                {selected.length ? `${bls(selected.length)} selecionado${selected.length === 1 ? "" : "s"}` : "Selecione os B/Ls"}
+                {" · "}
+                {selected.length > SELECTION_LIMIT ? (
+                  <StatusText tone="danger">máximo de {SELECTION_LIMIT} B/Ls por solicitação</StatusText>
+                ) : (
+                  <span className="app-table__cell-meta">
+                    {vipPending ? "regularize os documentos anuais para pedir" : "a seleção abre a solicitação com os documentos"}
+                  </span>
+                )}
+              </span>
+              <div className="app-bulk-bar__actions">
+                {selected.length > 0 && (
+                  <Button variant="ghost" onClick={() => toggle(selected, false)}>
+                    <X size={15} aria-hidden="true" />
+                    Limpar seleção
+                  </Button>
+                )}
+                <Button
+                  disabled={!selected.length || selected.length > SELECTION_LIMIT || flow.command.isPending || vipPending}
+                  onClick={request}
+                >
+                  Pedir desbloqueio de {bls(selected.length)}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {tab === "requests" && (
-        <Card className="overflow-hidden p-0">
+        <Block title="Minhas solicitações" flush aside={flow.requests.data ? String(requestsTotal) : undefined}>
           <QueryStateGate
             isLoading={false}
             isError={Boolean(flow.requests.error)}
@@ -467,12 +642,12 @@ export function PortalDesbloqueioCe() {
             onRetry={() => void flow.requests.refetch?.()}
           >
             {flow.requests.isLoading ? (
-              <SkeletonTable rows={4} cols={4} label="Carregando solicitações" />
-            ) : flow.requests.data?.total === 0 ? (
+              <SkeletonTable rows={4} cols={6} label="Carregando solicitações" />
+            ) : requestsTotal === 0 ? (
               <EmptyState
                 icon={Inbox}
                 title="Nenhuma solicitação ainda"
-                description="Selecione os BLs em Nova solicitação para pedir o desbloqueio."
+                description="Selecione os B/Ls em Nova solicitação para pedir o desbloqueio."
                 action={
                   <Button variant="secondary" onClick={() => changeTab("new")}>
                     Nova solicitação
@@ -481,48 +656,134 @@ export function PortalDesbloqueioCe() {
               />
             ) : (
               <div className="app-table-scroll">
-                <table className="app-table app-table--compact min-w-[520px] text-sm">
+                <table className="app-table app-table--compact whitespace-nowrap text-sm">
                   <caption className="sr-only">Minhas solicitações de desbloqueio</caption>
                   <thead>
                     <tr>
-                      <th scope="col" className="px-3 py-3">Protocolo</th>
-                      <th scope="col" className="px-3 py-3">Situação</th>
-                      <th scope="col" className="px-3 py-3">Documentos</th>
-                      <th scope="col" className="px-3 py-3">
-                        <span className="sr-only">Ação</span>
-                      </th>
+                      <th scope="col">Protocolo</th>
+                      <th scope="col">Aberta em</th>
+                      <th scope="col">B/Ls</th>
+                      <th scope="col">Documentos</th>
+                      <th scope="col">Prazo para desbloqueio</th>
+                      <th scope="col" className="app-table__text-head">Situação</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {flow.requests.data?.items.map((r) => (
-                      <tr key={r.id}>
-                        <td className="px-3 py-3 font-semibold text-[var(--app-text-strong)]">{r.protocol}</td>
-                        <td className="px-3 py-3">
-                          <Badge tone={ceStateTone(r.state)}>{ceStateLabel(r.state)}</Badge>
-                        </td>
-                        <td className="px-3 py-3 text-[var(--app-muted)]">
-                          {r.source === "vip_annual" ? "Anuais VIP" : "Anexados à solicitação"}
-                        </td>
-                        <td className="px-3 py-3">
-                          <Button
-                            variant="secondary"
-                            className="app-btn--sm"
-                            aria-label={`Abrir ${r.protocol}`}
-                            onClick={() => open(r.id)}
-                          >
-                            Abrir
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {flow.requests.data?.items.map((r) => {
+                      const state = cePortalRequestState(r.state);
+                      const blIds = r.bl_ids ?? [];
+                      const correction = flow.correctionDetails.get(r.id);
+                      const refused = correction ? refusedTypes(correction.documents) : [];
+                      const situation =
+                        r.state === "draft"
+                          ? "Rascunho · falta enviar"
+                          : r.state === "changes_requested" && correction
+                            ? `Correção pedida · reenvie ${refused.length ? joinDocs(refused) : "a solicitação"}`
+                            : state.label;
+                      return (
+                        <tr key={r.id} className={r.state === "cancelled" ? "app-table__row--muted" : undefined}>
+                          <td>
+                            <button type="button" className="app-link" onClick={() => open(r.id)}>
+                              {r.protocol}
+                            </button>
+                          </td>
+                          <td className="tabular-nums">{r.created_at ? ceDate(r.created_at) : <NoValue label="Sem data" />}</td>
+                          <td title={blIds.join(", ") || undefined}>
+                            {blIds.length ? `${blIds[0]}${blIds.length > 1 ? ` +${blIds.length - 1}` : ""}` : <NoValue label="Sem B/L" />}
+                          </td>
+                          <td>
+                            {r.state === "draft" ? (
+                              <NoValue label="Ainda não enviados" />
+                            ) : r.source === "vip_annual" ? (
+                              "Anuais VIP"
+                            ) : (
+                              "Da solicitação"
+                            )}
+                          </td>
+                          <td className="tabular-nums">
+                            {r.sla_started_at ? formatCeUnlockDeadline(ceUnlockDeadline(r.sla_started_at)) : <NoValue label="Sem prazo" />}
+                          </td>
+                          <td>
+                            <span className="app-table__cell-stack">
+                              {state.tone === "default" ? situation : <StatusText tone={state.tone}>{situation}</StatusText>}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </QueryStateGate>
-          {pagination}
-        </Card>
+          {requestsTotal > PAGE_SIZE ? (
+            <TableFooterPagination
+              page={requestsPage}
+              pageSize={PAGE_SIZE}
+              totalCount={requestsTotal}
+              totalPages={Math.ceil(requestsTotal / PAGE_SIZE)}
+              onPageChange={setRequestsPage}
+            />
+          ) : null}
+        </Block>
       )}
+
+      <Modal
+        open={moving}
+        size="md"
+        title={`Pedir desbloqueio de ${bls(selected.length)}`}
+        onClose={() => setMoving(false)}
+      >
+        <div className="space-y-4">
+          <p>
+            {moves.length === 1
+              ? "Um B/L está em outra solicitação e passa para esta:"
+              : `${NUMBER_WORDS[moves.length] ?? moves.length} B/Ls estão em outras solicitações e passam para esta:`}
+          </p>
+          <div className="app-table-scroll">
+            <table className="app-table app-table--compact whitespace-nowrap text-sm">
+              <caption className="sr-only">B/Ls que mudam de solicitação</caption>
+              <thead>
+                <tr>
+                  <th scope="col">B/L</th>
+                  <th scope="col" className="app-table__text-head">Sai de</th>
+                  <th scope="col" className="app-table__text-head">O que acontece com a antiga</th>
+                </tr>
+              </thead>
+              <tbody>
+                {moves.map((i) => (
+                  <tr key={i.bl_id}>
+                    <td>{i.bl_id}</td>
+                    <td className="app-table__text">
+                      {i.protocol} · {cePortalRequestState(i.state).label}
+                    </td>
+                    <td className="app-table__text">
+                      {emptied(i.request_id!) ? "Fica sem B/L e é cancelada" : "Continua aberta com os outros B/Ls"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="app-table__cell-meta">
+            {/* Cliente VIP: os anuais cobrem a nova; a frase sobre termo e procuração não aparece. */}
+            {vipEnabled
+              ? ""
+              : movedFrom.size > 1
+                ? "Os documentos e a análise das solicitações antigas não passam para a nova: termo e procuração são enviados de novo nesta. "
+                : "Os documentos e a análise da solicitação antiga não passam para a nova: termo e procuração são enviados de novo nesta. "}
+            Não dá para desfazer; para voltar, crie outra solicitação.
+          </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" onClick={() => setMoving(false)}>
+              Voltar
+            </Button>
+            <Button loading={flow.command.isPending} loadingLabel="Preparando…" onClick={() => void create()}>
+              Mudar {bls(moves.length)} e continuar
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={!!id}
@@ -535,155 +796,126 @@ export function PortalDesbloqueioCe() {
           <InlineError message="Não foi possível consultar a solicitação." />
         ) : (
           detail && (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                  {!(allReady && latestStart) && <Badge tone={ceStateTone(detail.state)}>{ceStateLabel(detail.state)}</Badge>}
-                  <span className="text-[var(--app-muted)]">{detail.items.length} BL(s)</span>
-                  {latestStart && !allReady && (
-                    <span className="text-[var(--app-muted)]">
-                      {/* Só a data: o cliente não vê se o prazo da agência venceu. */}
-                      Prazo: até{" "}
-                      <strong className="text-[var(--app-text-strong)]">
-                        {formatCeUnlockDeadline(ceUnlockDeadline(latestStart))}
-                      </strong>
-                    </span>
-                  )}
+            <div className="space-y-4">
+              {editable && (
+                <div className="flex justify-end">
+                  <Button variant="danger" disabled={sending || flow.command.isPending} onClick={() => void cancel()}>
+                    Cancelar solicitação
+                  </Button>
                 </div>
-                {allReady && latestStart ? (
-                  <p
-                    role="status"
-                    className="flex items-start gap-2 rounded-lg bg-[var(--app-green-soft)] p-3 text-sm font-semibold text-[#157a45]"
-                  >
-                    <CircleCheck size={18} aria-hidden="true" className="shrink-0" />
-                    <span>
-                      Documentação validada. Prazo para o desbloqueio: até{" "}
-                      {formatCeUnlockDeadline(ceUnlockDeadline(latestStart))}. Consulte o Mercante para verificar o
-                      desbloqueio.
-                    </span>
-                  </p>
-                ) : (
-                  NEXT_STEP[detail.state] && <p className="text-sm text-[var(--app-muted)]">{NEXT_STEP[detail.state]}</p>
-                )}
-                {latestStart && !allReady && (
-                  <p className="text-xs text-[var(--app-muted)]">
-                    O prazo recomeça quando uma pendência é regularizada: reenvio de documento, entrega do BL original ou
-                    pagamento das taxas.
-                  </p>
-                )}
-              </div>
+              )}
               {error && <InlineError message={error} />}
 
-              <div className="space-y-3">
-                <h3 className="app-panel__title">Documentos</h3>
-                {detail.source === "vip_annual" ? (
-                  <p className="text-sm text-[var(--app-muted)]">Esta solicitação usa seus documentos anuais VIP.</p>
-                ) : editable ? (
-                  <CeUnlockDocumentUploader
-                    source="request"
-                    requestId={detail.id}
-                    scope={flow.scope}
-                    onUploaded={flow.refresh}
-                    current={detail.documents.filter((d) => d.source === "request")}
-                    resetKey={uploadRound}
-                    onPendingChange={(type, file) => setPendingFiles((prev) => ({ ...prev, [type]: file }))}
-                  />
-                ) : (
-                  <CeUnlockDocumentList documents={detail.documents} scope={flow.scope} />
+              <Block title="Solicitação" headingLevel={3} aside={openedAt ? `aberta em ${ceDate(openedAt)}` : undefined}>
+                <LeadValue
+                  tone={validated ? "default" : cePortalRequestState(detail.state).tone}
+                  detail={nextStep(detail, validated)}
+                >
+                  {validated ? "Documentação validada" : cePortalRequestState(detail.state).label}
+                </LeadValue>
+                <FactList columns={4}>
+                  <Fact label="B/Ls">{detail.items.length}</Fact>
+                  {/* Só a data: o Cliente não vê se o prazo da agência venceu. */}
+                  <Fact label="Prazo para desbloqueio">
+                    {latestStart ? formatCeUnlockDeadline(ceUnlockDeadline(latestStart)) : <NoValue label="Sem prazo" />}
+                  </Fact>
+                  <Fact label="Documentos">{vipSource ? "Anuais VIP" : "Da solicitação"}</Fact>
+                </FactList>
+                {latestStart && !validated && (
+                  <p className="app-table__cell-meta">
+                    O prazo para desbloqueio recomeça quando uma pendência é regularizada: reenvio de documento, entrega
+                    do B/L original ou pagamento das taxas.
+                  </p>
                 )}
-              </div>
+              </Block>
 
-              <div className="space-y-3">
-                <h3 className="app-panel__title">BLs da solicitação</h3>
-                <div className="app-table-scroll rounded-lg border border-[var(--app-border)]">
-                  <table className="app-table app-table--compact min-w-[560px] text-sm">
-                    <caption className="sr-only">Requisitos de cada BL</caption>
+              <Block
+                title="Documentos"
+                headingLevel={3}
+                flush
+                aside={vipSource ? "cobertos pelos documentos anuais VIP" : "valem para todos os B/Ls da solicitação"}
+              >
+                {vipSource ? (
+                  detail.documents.some((d) => d.source === "vip_annual") ? (
+                    <CeUnlockAnnualDocumentTable
+                      documents={detail.documents.filter((d) => d.source === "vip_annual")}
+                      scope={flow.scope}
+                      onError={setError}
+                    />
+                  ) : (
+                    <div className="app-block__body">
+                      <p>Os documentos anuais VIP entram na solicitação quando ela é enviada.</p>
+                    </div>
+                  )
+                ) : (
+                  <RequestDocuments
+                    request={detail}
+                    scope={flow.scope}
+                    editable={editable}
+                    pending={pendingFiles}
+                    busy={sending}
+                    onPick={(type, file) => setPendingFiles((prev) => ({ ...prev, [type]: file }))}
+                    onError={setError}
+                  />
+                )}
+              </Block>
+
+              <Block title="B/Ls da solicitação" headingLevel={3} flush>
+                <div className="app-table-scroll">
+                  <table className="app-table app-table--compact whitespace-nowrap text-sm">
+                    <caption className="sr-only">Requisitos de cada B/L da solicitação</caption>
                     <thead>
                       <tr>
-                        <th scope="col" className="app-table__text-head px-3 py-2">BL / CE</th>
-                        <th scope="col" className="px-2 py-2">Termo</th>
-                        <th scope="col" className="px-2 py-2">Procuração</th>
-                        <th scope="col" className="px-2 py-2">Taxas locais</th>
-                        <th scope="col" className="px-2 py-2">BL original</th>
-                        <th scope="col" className="px-3 py-2">Pendências</th>
+                        <th scope="col">B/L</th>
+                        <th scope="col">CE Mercante</th>
+                        <th scope="col">Termo de devolução</th>
+                        <th scope="col">Procuração</th>
+                        <th scope="col">Taxas locais</th>
+                        <th scope="col">B/L original</th>
                       </tr>
                     </thead>
                     <tbody>
                       {detail.items.map((i) => (
                         <tr key={i.bl_id}>
-                          <td className="px-3 py-2">
-                            <span className="app-table__cell-stack">
-                              <span className="app-table__cell-value font-semibold">
-                                <CopyValue value={i.bl_id} label="número do B/L" />
-                              </span>
-                              <span className="app-table__cell-meta whitespace-nowrap">
-                                CE{" "}
-                                {i.ce_mercante ? (
-                                  <CopyValue value={i.ce_mercante} label="CE Mercante" />
-                                ) : (
-                                  <NoValue label="Sem CE Mercante" />
-                                )}
-                              </span>
-                            </span>
-                          </td>
-                          <td className="px-2 py-2">
-                            <CeUnlockRequirementIcon ok={!!i.termo} label="Termo de devolução" />
-                          </td>
-                          <td className="px-2 py-2">
-                            <CeUnlockRequirementIcon ok={!!i.procuracao} label="Procuração" />
-                          </td>
-                          <td className="px-2 py-2">
-                            <CeUnlockRequirementIcon ok={!!i.paid} label="Taxas locais" />
-                          </td>
-                          <td className="px-2 py-2">
-                            <CeUnlockRequirementIcon ok={!!i.delivered} label="BL original" />
-                          </td>
-                          <td className="px-3 py-2">
-                            {i.can_export ? (
-                              <span className="app-table__cell-meta">Requisitos atendidos</span>
-                            ) : (
-                              <ul className="app-table__cell-meta list-none space-y-0.5">
-                                {i.reasons.map((r) => (
-                                  <li key={r}>{r}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </td>
+                          <td><CopyValue value={i.bl_id} label="número do B/L" /></td>
+                          <td>{i.ce_mercante ? <CopyValue value={i.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</td>
+                          <td><CeUnlockRequirementIcon ok={!!i.termo} label="Termo de devolução" subject={i.bl_id} /></td>
+                          <td><CeUnlockRequirementIcon ok={!!i.procuracao} label="Procuração" subject={i.bl_id} /></td>
+                          <td><CeUnlockRequirementIcon ok={!!i.paid} label="Taxas locais" subject={i.bl_id} /></td>
+                          <td><CeUnlockRequirementIcon ok={!!i.delivered} label="B/L original" subject={i.bl_id} /></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </Block>
 
               <CeUnlockHistory events={detail.events} />
 
               {editable && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--app-border)] pt-4">
-                  <Button variant="ghost" disabled={sending || flow.command.isPending} onClick={() => void cancel()}>
-                    Cancelar solicitação
+                <div className="flex flex-wrap items-center gap-3 border-t border-[var(--app-border)] pt-4">
+                  {!submitReady && (
+                    <span className="app-table__cell-meta">
+                      {!documentsReady
+                        ? vipSource
+                          ? "Regularize os documentos anuais VIP para enviar."
+                          : detail.state === "draft"
+                            ? `Anexe ${joinDocs(missingDocs)} para solicitar.`
+                            : `Envie ${correctedDocs(missingDocs)} para reenviar.`
+                        : unpaid
+                          ? "Há B/L com taxas locais em aberto."
+                          : null}
+                    </span>
+                  )}
+                  <Button
+                    className="ml-auto"
+                    disabled={sending || flow.command.isPending || !submitReady}
+                    loading={sending}
+                    loadingLabel="Enviando…"
+                    onClick={() => void submit()}
+                  >
+                    {detail.state === "draft" ? "Solicitar desbloqueio" : "Reenviar solicitação"}
                   </Button>
-                  <div className="flex flex-wrap items-center justify-end gap-3">
-                    {!submitReady && (
-                      <span className="text-xs text-[var(--app-muted)]">
-                        {!documentsReady
-                          ? detail.source === "vip_annual"
-                            ? "Regularize os documentos anuais VIP para enviar."
-                            : `Anexe ${missingDocs.map((t) => ceDocumentName(t).toLowerCase()).join(" e ")} para continuar.`
-                          : unpaid
-                            ? "Há BL com taxas locais pendentes."
-                            : null}
-                      </span>
-                    )}
-                    <Button
-                      disabled={sending || flow.command.isPending || !submitReady}
-                      loading={sending}
-                      loadingLabel="Enviando…"
-                      onClick={() => void submit()}
-                    >
-                      {detail.state === "draft" ? "Solicitar desbloqueio" : "Reenviar solicitação"}
-                    </Button>
-                  </div>
                 </div>
               )}
             </div>
@@ -691,5 +923,104 @@ export function PortalDesbloqueioCe() {
         )}
       </Modal>
     </>
+  );
+}
+
+/**
+ * Documentos da solicitação em tabela (lote 4 da identidade): a versão mais
+ * recente de cada documento; o arquivo escolhido e ainda não enviado aparece
+ * numa linha própria e sobe ao solicitar (ou reenviar). Com correção pedida,
+ * "Enviar nova versão" só na linha do documento recusado.
+ */
+function RequestDocuments({
+  request,
+  scope,
+  editable,
+  pending,
+  busy,
+  onPick,
+  onError,
+}: {
+  request: CeUnlockRequest;
+  scope: PortalScope;
+  editable: boolean;
+  pending: Partial<Record<DocType, File>>;
+  busy: boolean;
+  onPick: (type: DocType, file: File) => void;
+  onError: (message: string) => void;
+}) {
+  const draft = request.state === "draft";
+  const when = draft ? "Sobe ao solicitar o desbloqueio" : "Sobe ao reenviar a solicitação";
+  const fileButton = (type: DocType, label: string, variant: "primary" | "secondary") => (
+    <CeUnlockFileButton
+      variant={variant}
+      className="app-btn--sm"
+      inputLabel={`Arquivo ${type === "termo" ? "do termo de devolução" : "da procuração"} (PDF)`}
+      ariaLabel={`${label}: ${ceDocumentName(type).toLowerCase()}`}
+      disabled={busy}
+      onFile={(file) => onPick(type, file)}
+    >
+      {label}
+    </CeUnlockFileButton>
+  );
+  return (
+    <div className="app-table-scroll">
+      <table className="app-table app-table--compact text-sm">
+        <caption className="sr-only">Documentos da solicitação</caption>
+        <thead>
+          <tr>
+            <th scope="col" className="app-table__text-head">Documento</th>
+            <th scope="col" className="app-table__text-head">Arquivo</th>
+            <th scope="col">Enviado em</th>
+            <th scope="col" className="app-table__text-head">Situação</th>
+            {editable ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {DOC_TYPES.map((type) => {
+            const doc = latestRequestDoc(request.documents, type);
+            const file = pending[type];
+            const refused = !!doc && ["changes_requested", "revoked"].includes(doc.status);
+            // Rascunho: anexa ou troca qualquer um; com correção pedida, só o recusado (ou o que falta).
+            const replaceable = editable && !file && (draft || !doc || refused);
+            const label = !doc ? "Anexar PDF" : draft ? "Trocar arquivo" : "Enviar nova versão";
+            return [
+              doc || !file ? (
+                <tr key={`${type}-doc`}>
+                  <td className="app-table__text">{ceDocumentName(type)}</td>
+                  <td className="app-table__text">
+                    {doc ? <CeUnlockFileLink doc={doc} scope={scope} onError={onError} /> : <NoValue label="Sem arquivo" />}
+                  </td>
+                  <td className="whitespace-nowrap tabular-nums">{doc ? ceDate(doc.created_at) : <NoValue label="Não enviado" />}</td>
+                  <td className="whitespace-nowrap">
+                    {doc ? (
+                      <CeUnlockDocumentSituation doc={doc} />
+                    ) : (
+                      <span className="app-table__cell-stack">
+                        {editable ? <StatusText tone="warning">Falta anexar</StatusText> : ceDocumentStatusText(type, null).label}
+                      </span>
+                    )}
+                  </td>
+                  {editable ? (
+                    <td className="whitespace-nowrap text-right">
+                      {replaceable ? fileButton(type, label, doc && !refused ? "secondary" : "primary") : null}
+                    </td>
+                  ) : null}
+                </tr>
+              ) : null,
+              file ? (
+                <tr key={`${type}-pending`}>
+                  <td className="app-table__text">{ceDocumentName(type)}</td>
+                  <td className="app-table__text" title={file.name}>{file.name}</td>
+                  <td><NoValue label="Ainda não enviado" /></td>
+                  <td className="whitespace-nowrap"><span className="app-table__cell-stack">{when}</span></td>
+                  <td className="whitespace-nowrap text-right">{fileButton(type, "Trocar arquivo", "secondary")}</td>
+                </tr>
+              ) : null,
+            ];
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

@@ -64,6 +64,7 @@ export const ceActionLabel = (action: string) =>
     upload_procuracao: "Procuração apresentada",
     upload_model: "Modelo disponibilizado",
     expire_draft: "Rascunho expirado por inatividade",
+    bl_moved: "B/L passou para outra solicitação",
   })[action] ?? "Andamento atualizado";
 
 /** Data e hora de um evento (timestamptz) no fuso da operação. */
@@ -106,6 +107,54 @@ export function ceDocumentStatusText(
     default:
       return { label: ceStateLabel(status), tone: "default" };
   }
+}
+
+/**
+ * Situação da solicitação no Portal (lote 4 da identidade), no feminino de
+ * "solicitação": âmbar no que pede ação do Cliente (rascunho, correção
+ * pedida), cinza na cancelada. O Portal nunca fala de envio à ZPT.
+ */
+export function cePortalRequestState(state: string): { label: string; tone: "default" | "warning" | "muted" } {
+  switch (state) {
+    case "draft":
+      return { label: "Rascunho", tone: "warning" };
+    case "submitted":
+      return { label: "Enviada", tone: "default" };
+    case "in_review":
+      return { label: "Em análise", tone: "default" };
+    case "changes_requested":
+      return { label: "Correção pedida", tone: "warning" };
+    case "completed":
+      return { label: "Documentação validada", tone: "default" };
+    case "cancelled":
+      return { label: "Cancelada", tone: "muted" };
+    default:
+      return { label: ceStateLabel(state), tone: "default" };
+  }
+}
+
+/** Solicitação que ainda não foi validada: o B/L dela pode passar para uma nova (migration 298). */
+export const ceRequestOpenForMove = (state: string | null | undefined) =>
+  ["draft", "submitted", "in_review", "changes_requested"].includes(state ?? "");
+
+const REASON_DOC_PREFIX = /^(?:(?:a|o)\s+)?(?:procura[çc][ãa]o|termo(?:\s+de\s+devolu[çc][ãa]o)?)(?:\s+anual)?\s+/i;
+const REASON_TAIL_WORD = /\s+(?:a|o|as|os|de|do|da|dos|das|e|em|no|na|com|para|por)$/i;
+
+/**
+ * Motivo curto de uma correção pedida, para a célula de situação (o inteiro
+ * vai no `title`): a primeira frase, sem repetir o nome do documento da
+ * linha, cortada numa palavra até `max` letras.
+ * Ex.: "A procuração anual venceu em 30/09/2026; envie…" → "venceu em 30/09/2026".
+ */
+export function ceShortReason(reason: string, max = 40): string {
+  const clause = reason.trim().split(/[;.](?:\s|$)/)[0].trim();
+  let text = clause.replace(REASON_DOC_PREFIX, "") || clause;
+  if (/^\p{Lu}\p{Ll}/u.test(text)) text = text[0].toLocaleLowerCase("pt-BR") + text.slice(1);
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max + 1);
+  let short = cut.slice(0, cut.lastIndexOf(" ") > 0 ? cut.lastIndexOf(" ") : max).trimEnd();
+  while (REASON_TAIL_WORD.test(short)) short = short.replace(REASON_TAIL_WORD, "");
+  return `${short}…`;
 }
 
 /** Data dd/mm no fuso da operação. */

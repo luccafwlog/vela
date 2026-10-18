@@ -16,6 +16,7 @@ vi.mock("../../services/ceUnlockService", () => ({
   listCeUnlockBls: vi.fn(async () => ({ items: [], total: 0 })),
   listCeUnlockReviewQueue: vi.fn(), listCustomerCeUnlockRequests: vi.fn(), getCeUnlockRequest: vi.fn(),
   listPortalCeUnlockBls: vi.fn(async () => ({ items: [], total: 0 })),
+  fetchAllPortalCeUnlockBls: vi.fn(async () => []),
   listPortalCeUnlockRequests: vi.fn(async () => ({ items: [], total: 0 })),
   getPortalCeUnlockVip: vi.fn(async () => null), getPortalCeUnlockModel: vi.fn(async () => null), getPortalCeUnlockRequest: vi.fn(),
 }));
@@ -58,7 +59,7 @@ describe("invalidação do Desbloqueio de CE", () => {
   it("comando do Portal invalida fila interna e ficha do Cliente", async () => {
     svc.portalCeUnlockCommand.mockResolvedValueOnce({ id: "req-1" });
     const { wrapper, stale } = setup();
-    const { result } = renderHook(() => usePortalCeUnlock({}, 1, null), { wrapper });
+    const { result } = renderHook(() => usePortalCeUnlock(1, null), { wrapper });
     await result.current.command.mutateAsync({ action: "submit", payload: {} });
     await waitFor(() => expect(stale()).toEqual(expect.arrayContaining(["filaInterna", "fichaVip", "fichaSolicitacoes", "fichaCliente"])));
   });
