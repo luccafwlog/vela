@@ -26,6 +26,14 @@
     falhas", confirmação antes de Disparar, motivo por destinatário no
     Histórico e reenvio do CE e Taxas.
   - **Meu perfil:** a troca de e-mail saiu da tela.
+  - **Revisão do PR (migrations `313` a `315`):**
+    - a cobrança suspensa por recusa volta ao resolver o alerta com
+      justificativa;
+    - o Comunicado automático só é dado como feito quando cada contato recebeu;
+    - escala excluída numa grafia (BRVIT/BRVIX) não bloqueia mais a outra;
+    - "Em envio" esquecido vira falha;
+    - o alerta de provedor sem retorno mede o silêncio do webhook;
+    - o reenvio do CE não para na primeira recusa.
 
   [Plano](plans/2026-10-17-correcao-dos-emails.md).
 - **Identidade visual, lote 4: restante do Portal (2026-10-18):** Painel com quatro cartões
