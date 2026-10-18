@@ -1,18 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePortalScope } from "./usePortalScope";
 import {
+  fetchAllPortalCeUnlockBls,
   getPortalCeUnlockModel,
   getPortalCeUnlockRequest,
   getPortalCeUnlockVip,
-  listPortalCeUnlockBls,
   listPortalCeUnlockRequests,
   portalCeUnlockCommand,
 } from "../services/ceUnlockService";
 import { queryKeys } from "../services/queryKeys";
 import { afterCeUnlockChanged } from "../services/cacheEffects";
-import type { CeUnlockFilters, CeUnlockRequest } from "../types/ceUnlock";
+import type { CeUnlockRequest } from "../types/ceUnlock";
 export function usePortalCeUnlock(
-  filters: CeUnlockFilters,
   page: number,
   id: string | null,
 ) {
@@ -23,9 +22,10 @@ export function usePortalCeUnlock(
     authCustomer: scope.overview?.customer_id,
   };
   const client = useQueryClient();
+  // Página 0: o recorte inteiro do Cliente; busca, cartões e paginação ficam na tela.
   const list = useQuery({
-    queryKey: queryKeys.ceUnlock.list(key, filters, page),
-    queryFn: () => listPortalCeUnlockBls(scope, filters, page),
+    queryKey: queryKeys.ceUnlock.list(key, {}, 0),
+    queryFn: () => fetchAllPortalCeUnlockBls(scope, {}),
     refetchOnWindowFocus: "always",
   });
   const requests = useQuery({
@@ -33,6 +33,20 @@ export function usePortalCeUnlock(
     queryFn: () => listPortalCeUnlockRequests(scope, page),
     refetchOnWindowFocus: "always",
   });
+  // "Correção pedida · reenvie a procuração": a lista não diz qual documento
+  // foi recusado; o detalhe de cada solicitação em correção da página diz.
+  // ponytail: uma leitura por solicitação em correção (poucas por Cliente);
+  // upgrade: a lista trazer o tipo do documento recusado.
+  const correctionIds = (requests.data?.items ?? []).filter((r) => r.state === "changes_requested").map((r) => r.id);
+  const corrections = useQueries({
+    queries: correctionIds.map((requestId) => ({
+      queryKey: queryKeys.ceUnlock.request(key, requestId),
+      queryFn: () => getPortalCeUnlockRequest(scope, requestId),
+    })),
+  });
+  const correctionDetails = new Map(
+    corrections.flatMap((q, n) => (q.data ? [[correctionIds[n], q.data] as const] : [])),
+  );
   const vip = useQuery({
     queryKey: queryKeys.ceUnlock.vip(key),
     queryFn: () => getPortalCeUnlockVip(scope),
@@ -65,6 +79,7 @@ export function usePortalCeUnlock(
     scope,
     list,
     requests,
+    correctionDetails,
     vip,
     model,
     detail,

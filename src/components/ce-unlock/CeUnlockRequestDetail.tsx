@@ -11,8 +11,8 @@ import { StatusText } from "../ui/StatusText";
 import { useConfirm, useConfirmWithReason } from "../ui/ConfirmDialog";
 import { CeUnlockRequirementIcon, CeUnlockZptState } from "./CeUnlockRequirements";
 import { CeUnlockHistoryTable } from "./CeUnlockHistory";
+import { CeUnlockAnnualDocumentTable } from "./CeUnlockDocuments";
 import { latestSlaStart } from "../../services/ceUnlockSla";
-import { annualDocumentValid } from "../../services/ceUnlockRules";
 import { downloadCeUnlockDocument } from "../../services/ceUnlockService";
 import { CeUnlockSla } from "./CeUnlockSla";
 import { ceDate, ceDateTime, ceDocumentName, ceDocumentStatusText, ceStateLabel, ceUnlockMissing } from "../../lib/ceUnlockLabels";
@@ -47,8 +47,6 @@ function OpenDocument({ doc, onError, children }: { doc: CeUnlockDocument; onErr
 }
 
 function DocumentSituation({ doc }: { doc: CeUnlockDocument }) {
-  if (doc.source === "vip_annual" && doc.status === "approved" && !annualDocumentValid(doc))
-    return <StatusText tone="warning">Fora da vigência</StatusText>;
   const { label, tone } = ceDocumentStatusText(doc.type, doc.status);
   return (
     <span className="app-table__cell-stack">
@@ -242,10 +240,8 @@ export function CeUnlockRequestDetail({
             : "a análise vale para todos os B/Ls da solicitação"
         }
       >
-        {documents.length === 0 && vip ? (
-          <div className="app-block__body">
-            <p className="app-table__cell-meta">Nenhum documento apresentado.</p>
-          </div>
+        {vip ? (
+          <CeUnlockAnnualDocumentTable documents={documents} onError={setError} />
         ) : (
           <div className="app-table-scroll">
             <table className="app-table app-table--compact text-sm">
@@ -265,9 +261,6 @@ export function CeUnlockRequestDetail({
                     <td className="app-table__text">{ceDocumentName(d.type)}</td>
                     <td className="app-table__text" title={d.file_name}>
                       <OpenDocument doc={d} onError={setError} />
-                      {d.valid_until ? (
-                        <span className="app-table__cell-meta"> · vigência {ceDate(d.valid_from)} a {ceDate(d.valid_until)}</span>
-                      ) : null}
                     </td>
                     <td className="whitespace-nowrap tabular-nums">{ceDate(d.created_at)}</td>
                     <td className="app-table__text"><DocumentSituation doc={d} /></td>
@@ -296,18 +289,17 @@ export function CeUnlockRequestDetail({
                     ) : null}
                   </tr>
                 ))}
-                {!vip &&
-                  (["termo", "procuracao"] as const)
-                    .filter((type) => !documents.some((d) => d.type === type))
-                    .map((type) => (
-                      <tr key={`missing-${type}`}>
-                        <td className="app-table__text">{ceDocumentName(type)}</td>
-                        <td><NoValue label="Sem arquivo" /></td>
-                        <td><NoValue label="Não enviado" /></td>
-                        <td className="app-table__text">{ceDocumentStatusText(type, null).label}</td>
-                        {reviewable ? <td /> : null}
-                      </tr>
-                    ))}
+                {(["termo", "procuracao"] as const)
+                  .filter((type) => !documents.some((d) => d.type === type))
+                  .map((type) => (
+                    <tr key={`missing-${type}`}>
+                      <td className="app-table__text">{ceDocumentName(type)}</td>
+                      <td><NoValue label="Sem arquivo" /></td>
+                      <td><NoValue label="Não enviado" /></td>
+                      <td className="app-table__text">{ceDocumentStatusText(type, null).label}</td>
+                      {reviewable ? <td /> : null}
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>

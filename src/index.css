@@ -4032,31 +4032,6 @@ button.app-metric-tile[aria-pressed='true'] {
   gap: 20px;
 }
 
-.app-soft-panel {
-  border: 1.5px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  padding: 18px 20px;
-  box-shadow: none;
-}
-
-.app-soft-panel__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
-}
-
-.app-soft-panel__description {
-  margin: 8px 0 0;
-  color: var(--app-muted);
-  font-size: 13px;
-  line-height: 1.6;
-  text-wrap: pretty;
-}
-
 /* ─── Painel de estado do shell (etapa 02) ─────────────────────────────────
    Acesso restrito, perfil ausente, erro de tela e página não encontrada usam o
    mesmo bloco: ícone, título, explicação e ações, com a cor só no ícone e no
