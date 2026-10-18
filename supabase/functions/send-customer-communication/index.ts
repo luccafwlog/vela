@@ -3,6 +3,7 @@ import { corsHeaders, withCors } from '../_shared/cors.ts'
 import { base64Head, matchesExtension, matchesMagicBytes } from '../_shared/fileSignature.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
+import { resolveDispatchStatus, statusToPersist } from '../_shared/communicationDispatchStatus.ts'
 import {
   assertValidCommunicationAttachments,
   renderCustomerCommunicationTemplate,
@@ -618,6 +619,15 @@ async function handler(req: Request): Promise<Response> {
   if (communicationSuppression || portalSuppression) return json(422, { error: 'Endereço suprimido para Comunicados.', suppressed: true }, origin)
   if (!recipientAllowed) return json(422, { error: 'Contato desativado para esta caixa ou modelo.' }, origin)
 
+  // Envio real sem configuração não chega a registrar o Comunicado: antes,
+  // ele nascia e ficava sem tentativa (plano dos e-mails, 1B).
+  const enabled = Boolean((settings as { communications_enabled?: boolean } | null)?.communications_enabled)
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  if (enabled && (!resendApiKey || !Deno.env.get('PORTAL_FROM_EMAIL') || !Deno.env.get('COMMUNICATIONS_REPLY_TO'))) {
+    console.error('[send-customer-communication] envio real sem RESEND_API_KEY, PORTAL_FROM_EMAIL ou COMMUNICATIONS_REPLY_TO')
+    return json(500, { error: 'Envio real sem configuração do provedor de e-mail.' }, origin)
+  }
+
   let existingCommunicationId: number | null = null
   if (isAutomation) {
     try {
@@ -638,7 +648,7 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  const { data: communicationId, error: createError } = await admin.rpc('create_customer_communication_atomic', {
+  const { data: createdCommunicationId, error: createError } = await admin.rpc('create_customer_communication_atomic', {
     p_customer_id: customerId,
     p_kind: kind,
     p_nature: nature,
@@ -654,10 +664,30 @@ async function handler(req: Request): Promise<Response> {
     p_created_by: callerUser.user?.id ?? null,
     p_bl_ids: effectiveBlIds,
   })
+  let communicationId = createdCommunicationId as number | null
   if (createError || communicationId == null) {
-    if (isUniqueViolation(createError)) return json(200, { status: 'simulado', message: 'Comunicado já registrado.' }, origin)
-    console.error('customer communication atomic record failed', createError)
-    return json(500, { error: 'Não foi possível registrar o comunicado.' }, origin)
+    // Duas chamadas criando o mesmo Comunicado ao mesmo tempo: a perdedora
+    // segue o envio no Comunicado da vencedora, em vez de responder
+    // "simulado" sem enviar (plano dos e-mails, 1B).
+    if (isUniqueViolation(createError)) {
+      try {
+        communicationId = await findExistingCommunicationId(admin, {
+          customerId, kind, nature,
+          anchorVoyageId: body.anchor_voyage_id,
+          anchorPort: body.anchor_port,
+          anchorAtracacaoId: body.anchor_atracacao_id,
+          anchorInvoiceId: body.anchor_invoice_id,
+          attemptDiscriminator,
+          dispatchId: body.dispatch_id,
+        })
+      } catch (error) {
+        console.error('customer communication identity lookup after conflict failed', error)
+      }
+    }
+    if (communicationId == null) {
+      console.error('customer communication atomic record failed', createError)
+      return json(500, { error: 'Não foi possível registrar o comunicado.' }, origin)
+    }
   }
 
   // Cópia do que saiu: o registro do comunicado guarda assunto, texto e o
@@ -690,13 +720,6 @@ async function handler(req: Request): Promise<Response> {
     await admin.from('customer_communications').update({ status: 'falha' }).eq('id', communicationId)
     console.error('customer communication attachment persistence failed', error)
     return json(500, { error: 'Não foi possível persistir os anexos do comunicado.' }, origin)
-  }
-
-  const enabled = Boolean((settings as { communications_enabled?: boolean } | null)?.communications_enabled)
-  const resendApiKey = Deno.env.get('RESEND_API_KEY')
-  if (enabled && !resendApiKey) {
-    await admin.from('customer_communications').update({ status: 'falha' }).eq('id', communicationId)
-    return json(500, { error: 'RESEND_API_KEY não está configurada para envio real.' }, origin)
   }
 
   if (kind === 'ce_mercante_taxas') {
@@ -777,9 +800,18 @@ async function handler(req: Request): Promise<Response> {
       },
     })
   } catch (error) {
-    await admin.from('customer_communications').update({ status: 'falha' }).eq('id', communicationId)
+    // Exceção neste destinatário não apaga o que os outros já receberam: o
+    // status vem das tentativas, e este destinatário conta como falha.
     console.error('customer communication send failed', error)
-    return json(500, { error: 'Falha no envio do comunicado.' }, origin)
+    const { data: refreshedAfterError } = await admin.rpc('refresh_customer_communication_status', {
+      p_communication_id: Number(communicationId),
+    })
+    const statusAfterError = resolveDispatchStatus({
+      refreshed: refreshedAfterError, communicationsEnabled: enabled, succeeded: 0, failed: 0, unrecordedFailures: 1,
+    })
+    const persistAfterError = statusToPersist(refreshedAfterError, statusAfterError)
+    if (persistAfterError) await admin.from('customer_communications').update({ status: persistAfterError }).eq('id', communicationId)
+    return json(500, { error: 'Falha no envio do comunicado.', status: statusAfterError, communicationId }, origin)
   }
 
   const { data: refreshedStatus, error: statusError } = await admin.rpc('refresh_customer_communication_status', {
@@ -789,7 +821,14 @@ async function handler(req: Request): Promise<Response> {
     console.error('customer communication status persistence failed', statusError)
     return json(500, { error: 'Não foi possível persistir o status do comunicado.' }, origin)
   }
-  const status = String(refreshedStatus ?? (sent.ok ? (enabled ? 'enviado' : 'simulado') : 'falha'))
+  const status = resolveDispatchStatus({
+    refreshed: refreshedStatus, communicationsEnabled: enabled, succeeded: sent.ok ? 1 : 0, failed: sent.ok ? 0 : 1,
+  })
+  const persist = statusToPersist(refreshedStatus, status)
+  if (persist) {
+    const { error: persistError } = await admin.from('customer_communications').update({ status: persist }).eq('id', communicationId)
+    if (persistError) console.error('customer communication resolved status persistence failed', persistError)
+  }
   const { data: attempt } = await admin
     .from('customer_communication_attempts')
     .select('id')

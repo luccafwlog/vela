@@ -5,6 +5,7 @@ import { renderDemurrageTemplate } from '../_shared/customerCommunicationTemplat
 import { maskEmail, recipientKey, sendEmail, type EmailAttemptRecord } from '../_shared/email.ts'
 import { escapeHtml } from '../_shared/portalEmailTemplates.ts'
 import { invoiceNetUsd } from '../_shared/demurrageNetUsd.ts'
+import { resolveDispatchStatus, statusToPersist } from '../_shared/communicationDispatchStatus.ts'
 
 type DunningCandidate = {
   invoice_id: number
@@ -356,6 +357,35 @@ async function recordDunningAttempt({
   return { id: data.id, status: 'aceito', providerMessageId: null, idempotencyKey: attemptKey, existing: false }
 }
 
+// Envio real sem configuração não cria o Comunicado (plano dos e-mails, 1B).
+function assertRealSendConfigured(communicationsEnabled: boolean, resendApiKey: string | null | undefined): void {
+  if (!communicationsEnabled) return
+  if (!resendApiKey) throw new Error('RESEND_API_KEY não está configurada para envio real.')
+  if (!Deno.env.get('PORTAL_FROM_EMAIL') || !demurrageReplyTo()) {
+    throw new Error('PORTAL_FROM_EMAIL e DEMURRAGE_REPLY_TO (ou COMMUNICATIONS_REPLY_TO) são obrigatórios para envio real')
+  }
+}
+
+// Com a chave ligada, um Comunicado que o banco não decidiu nunca volta como
+// "simulado": a Régua avançaria sem e-mail (plano dos e-mails, 1B / DEM-01).
+async function settleCommunicationStatus(
+  admin: ReturnType<typeof createClient>,
+  communicationId: number,
+  counts: { communicationsEnabled: boolean; succeeded: number; failed: number; unrecordedFailures: number },
+): Promise<'enviado' | 'simulado' | 'parcial' | 'falha'> {
+  const { data: refreshedStatus, error: statusError } = await admin.rpc('refresh_customer_communication_status', {
+    p_communication_id: communicationId,
+  })
+  if (statusError) throw statusError
+  const resolved = resolveDispatchStatus({ refreshed: refreshedStatus, ...counts })
+  const persist = statusToPersist(refreshedStatus, resolved)
+  if (persist) {
+    const { error } = await admin.from('customer_communications').update({ status: persist }).eq('id', communicationId)
+    if (error) throw error
+  }
+  return resolved
+}
+
 async function createCommunication(
   admin: ReturnType<typeof createClient>,
   candidate: DunningCandidate,
@@ -510,11 +540,12 @@ async function sendCandidateGroup(
     text: `Olá, ${anchor.customer!.name}.\n\n${sendable.length} cobrança(s) de Demurrage disponíveis:\n${textList}\n\nConsulte os detalhes no Portal do Cliente: ${portalUrl}`,
   }
   const resendApiKey = communicationsEnabled ? Deno.env.get('RESEND_API_KEY') : null
-  if (communicationsEnabled && !resendApiKey) throw new Error('RESEND_API_KEY não está configurada para envio real.')
+  assertRealSendConfigured(communicationsEnabled, resendApiKey)
   const communicationId = await createGroupedCommunication(admin, sendable, anchor, vesselName, voyageNumber)
   let deliveredRecipients = 0
   let simulatedRecipients = 0
   let failedRecipients = 0
+  let unrecordedFailures = 0
   let eligibleRecipients = 0
   for (const contact of contacts) {
     for (const candidate of sendable) {
@@ -572,20 +603,18 @@ async function sendCandidateGroup(
         failedRecipients += 1
       }
     } catch (error) {
-      failedRecipients += 1
+      unrecordedFailures += 1
       console.error('[demurrage-dunning] falha no envio em grupo', first.customer_id, first.attempt_discriminator, recipient, error)
     }
   }
 
   if (eligibleRecipients === 0) return 'pausado'
-  const allDelivered = deliveredRecipients === eligibleRecipients && failedRecipients === 0
-  const allSimulated = simulatedRecipients === eligibleRecipients && failedRecipients === 0
-  const fallbackStatus = allDelivered ? 'enviado' : allSimulated ? 'simulado' : 'falha'
-  const { data: refreshedStatus, error: statusError } = await admin.rpc('refresh_customer_communication_status', {
-    p_communication_id: communicationId,
+  return await settleCommunicationStatus(admin, communicationId, {
+    communicationsEnabled,
+    succeeded: communicationsEnabled ? deliveredRecipients : simulatedRecipients,
+    failed: failedRecipients,
+    unrecordedFailures,
   })
-  if (statusError) throw statusError
-  return (refreshedStatus ?? fallbackStatus) as 'enviado' | 'simulado' | 'parcial' | 'falha'
 }
 
 async function sendCandidate(
@@ -625,11 +654,12 @@ async function sendCandidate(
     },
   })
   const resendApiKey = communicationsEnabled ? Deno.env.get('RESEND_API_KEY') : null
-  if (communicationsEnabled && !resendApiKey) throw new Error('RESEND_API_KEY não está configurada para envio real.')
+  assertRealSendConfigured(communicationsEnabled, resendApiKey)
   const communicationId = await createCommunication(admin, candidate, context, vesselName, voyageNumber, null)
   let deliveredRecipients = 0
   let simulatedRecipients = 0
   let failedRecipients = 0
+  let unrecordedFailures = 0
   let eligibleRecipients = 0
   for (const contact of contacts) {
     if (!await revalidateInvoiceBeforeSend(admin, candidate.invoice_id)) return 'pausado'
@@ -685,20 +715,18 @@ async function sendCandidate(
         failedRecipients += 1
       }
     } catch (error) {
-      failedRecipients += 1
+      unrecordedFailures += 1
       console.error('[demurrage-dunning] falha no envio', candidate.invoice_id, recipient, error)
     }
   }
 
   if (eligibleRecipients === 0) return 'pausado'
-  const allDelivered = deliveredRecipients === eligibleRecipients && failedRecipients === 0
-  const allSimulated = simulatedRecipients === eligibleRecipients && failedRecipients === 0
-  const fallbackStatus = allDelivered ? 'enviado' : allSimulated ? 'simulado' : 'falha'
-  const { data: refreshedStatus, error: statusError } = await admin.rpc('refresh_customer_communication_status', {
-    p_communication_id: communicationId,
+  return await settleCommunicationStatus(admin, communicationId, {
+    communicationsEnabled,
+    succeeded: communicationsEnabled ? deliveredRecipients : simulatedRecipients,
+    failed: failedRecipients,
+    unrecordedFailures,
   })
-  if (statusError) throw statusError
-  return (refreshedStatus ?? fallbackStatus) as 'enviado' | 'simulado' | 'parcial' | 'falha'
 }
 
 async function releaseClaim(

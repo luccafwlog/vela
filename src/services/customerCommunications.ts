@@ -1181,6 +1181,7 @@ export async function fetchBlCommunicationHistory(blId: string): Promise<Custome
 }
 
 export function customerCommunicationStatusLabel(status: string): string {
+  if (status === 'pendente') return 'Em envio'
   if (status === 'enviado') return 'Enviado'
   if (status === 'simulado') return 'Simulado'
   if (status === 'parcial') return 'Parcial'
