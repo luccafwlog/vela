@@ -233,6 +233,20 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
     expect(out).toMatch(/^inspecao=612\.5/m)
   })
 
+  it('o Perfil mostra ao Cliente o e-mail de recuperação; a Inspeção não o recebe (migration 299)', () => {
+    const out = psql(`
+      BEGIN;
+      SET LOCAL ROLE authenticated;
+      SELECT set_config('request.jwt.claim.sub', '${portalUserA}', true);
+      SELECT 'portal=' || coalesce(public.portal_get_profile()->>'recovery_email', 'ausente');
+      SELECT set_config('request.jwt.claim.sub', '${inspectorId}', true);
+      SELECT 'inspecao=' || coalesce(public.portal_inspect_get_profile(${customerA})->>'recovery_email', 'ausente');
+      ROLLBACK;
+    `)
+    expect(out).toMatch(/^portal=financeiro-s11@example\.test$/m)
+    expect(out).toMatch(/^inspecao=ausente$/m)
+  })
+
   it('o Portal só mostra Taxas Locais de fatura emitida e visível (migration 297)', () => {
     // Numa transação desfeita: um B/L com recebível de R$ 700 só em rascunho e
     // outro com fatura individual emitida de R$ 300. O saldo soma a emitida e a

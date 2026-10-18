@@ -3,13 +3,13 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ClientesInformacoes } from '../ClientesInformacoes'
-const mocks = vi.hoisted(() => ({ role: 'equipamentos', isAdmin: false, contacts: [] as { key: string; title: string; active: boolean }[] }))
+const mocks = vi.hoisted(() => ({ role: 'equipamentos', isAdmin: false, contacts: [] as { key: string; title: string; active: boolean }[], trackingUrl: 'https://example.com/tracking' }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ profile: { role: mocks.role, active: true }, isAdmin: mocks.isAdmin }) }))
 vi.mock('../../hooks/usePortalInformation', () => ({
-  useInternalPortalInformation: () => ({ data: { depots: [{ id: 'existing', name: 'Depot Vela', active: true, published: false, ports: ['BRSSZ'] }], agents: [{ id: 'a', name: 'Agente', active: true }], contacts: mocks.contacts, carriers: [{ carrier_id: 1, name: 'Armador', tracking_url: 'https://example.com/tracking' }], ports: [{ code: 'BRSSZ', name: 'Santos' }], demurrage_notes: '', demurrage_rates: [{ id: 1, container_type: '20DC', free_days: 7, p1_day_from: 8, p1_day_to: 14, p1_usd: 50, p2_day_from: 15, p2_usd: 100, valid_from: '2026-01-01', valid_to: null }] }, isLoading: false }),
+  useInternalPortalInformation: () => ({ data: { depots: [{ id: 'existing', name: 'Depot Vela', active: true, published: false, ports: ['BRSSZ'] }], agents: [{ id: 'a', name: 'Agente', active: true }], contacts: mocks.contacts, carriers: [{ carrier_id: 1, name: 'Armador', tracking_url: mocks.trackingUrl }], ports: [{ code: 'BRSSZ', name: 'Santos' }], demurrage_notes: '', demurrage_rates: [{ id: 1, container_type: '20DC', free_days: 7, p1_day_from: 8, p1_day_to: 14, p1_usd: 50, p2_day_from: 15, p2_usd: 100, valid_from: '2026-01-01', valid_to: null }] }, isLoading: false }),
   useSavePortalInformation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
-afterEach(() => { cleanup(); mocks.role = 'equipamentos'; mocks.isAdmin = false; mocks.contacts = [] })
+afterEach(() => { cleanup(); mocks.role = 'equipamentos'; mocks.isAdmin = false; mocks.contacts = []; mocks.trackingUrl = 'https://example.com/tracking' })
 describe('Administração de informações do Portal', () => {
   it('mostra o tracking apenas como um link e mantém a URL no editor', () => {
     mocks.isAdmin = true
@@ -19,6 +19,13 @@ describe('Administração de informações do Portal', () => {
     expect(screen.queryByText(/URL de tracking do armador:/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Editar Armador' }))
     expect((screen.getByRole('textbox', { name: 'URL de tracking do armador' }) as HTMLInputElement).value).toBe('https://example.com/tracking')
+  })
+  it('link com {BL} não abre sem o número do B/L: diz que o Portal faz a troca', () => {
+    mocks.trackingUrl = 'https://example.com/track?bl={BL}'
+    render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Tracking' }))
+    expect(screen.queryByRole('link', { name: 'Abrir tracking' })).toBeNull()
+    expect(screen.getByText('O Portal abre este link com o número do B/L no lugar de {BL}.')).toBeTruthy()
   })
   it('mostra as tarifas oficiais na aba Demurrage junto das observações', () => {
     render(<MemoryRouter><ClientesInformacoes /></MemoryRouter>)

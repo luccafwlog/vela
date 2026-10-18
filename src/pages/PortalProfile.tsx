@@ -126,10 +126,9 @@ function PortalProfileForm({
     .map(([field, before, after]) => ({ field, before: before || '—', after }))
   const addressDirty = addressChanges.length > 0
   const recoveryReady = Boolean(currentPassword && newRecoveryEmail.trim() && confirmRecoveryEmail.trim())
-  // ponytail: o e-mail de recuperação atual só aparece quando
-  // `portal_get_profile` o devolve; a consulta de hoje traz só o contact_email,
-  // que não acompanha a troca. Sem o campo, o bloco começa pela senha atual.
-  const currentRecoveryEmail = (profile as PortalProfileData & { recovery_email?: string | null }).recovery_email ?? null
+  // A Inspeção não recebe o e-mail de recuperação (migration 299): sem ele,
+  // o bloco começa pela senha atual.
+  const currentRecoveryEmail = profile.recovery_email ?? null
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()

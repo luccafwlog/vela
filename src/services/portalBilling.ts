@@ -510,6 +510,8 @@ export type PortalProfile = {
   city: string | null
   state: string | null
   zip: string | null
+  /** Só na sessão do Cliente (migration 299); a Inspeção não recebe. */
+  recovery_email?: string | null
 }
 
 export async function portalGetProfile(scope: PortalScope = clientPortalScope): Promise<PortalProfile> {
