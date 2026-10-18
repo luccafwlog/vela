@@ -174,7 +174,7 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   condição futura sem efeito avisa; e textos ("Aguardando reemissão",
   "Exportar para a ZPT", "ROE não registrado"). Falta conferir em runtime:
   768 e 360 px e a `296` no Supabase remoto. O lote 4 é o próximo.
-- **Lote 4 proposto em 2026-10-17** numa página só ("Lote 4 da identidade",
+- **Lote 4 proposto em 2026-10-17** (aprovado em 2026-10-18, abaixo) numa página só ("Lote 4 da identidade",
   na conta do responsável), com capturas da `main` de 2026-10-17 (depois da
   PR 970) no ambiente local, com o login do próprio Cliente (fora do Modo
   Inspeção) e dados de teste acrescentados só para a captura (B/Ls com
@@ -204,6 +204,21 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   depois da regra base, com teste de contrato em
   `src/__tests__/designSystemLote2.test.ts`; conferida no Painel do Portal a
   360 e 1440 px no ambiente local.
+- **Lote 4 aprovado e entregue em 2026-10-18** (branch
+  `claude/laughing-meitner-3rfy0l`, PR 972, junto com a correção do celular).
+  O responsável aprovou todas as telas em três rodadas de comentários na
+  página e decidiu: (1) o Portal só mostra Taxas Locais de fatura emitida e
+  liberada ao Cliente, "exibir algo que não aparece pro cliente é falha grave
+  de segurança" ([ADR 0088](../adr/0088-portal-so-mostra-fatura-emitida.md),
+  migration `297`): o Saldo pendente do Portal deixou de somar recebível sem
+  fatura e rascunho, a consolidação só lista e só aceita B/L faturado, e as
+  telas dizem "Aguardando fatura" sem valor; (2) no Desbloqueio de CE, o B/L
+  de solicitação ainda não validada pode ser pedido de novo e muda para a
+  nova, com a antiga sem B/L cancelada e os documentos enviados de novo
+  (caminho A, [ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md),
+  migration `298`); (3) tracking com a marca `{BL}` no link do armador; (4)
+  tudo na mesma PR. O "E-mail atual" do Perfil pediu a migration `299` (só a
+  sessão do Cliente o recebe). Registro abaixo.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -434,7 +449,7 @@ lotes tratam só da organização de cada tela.
 | 1 | Lista de BLs (2), ficha da Viagem (3), ficha do Cliente (5, com as seis abas), Taxas Locais · Faturas (7), Portal · Faturas (10); desde 2026-10-15, também as quatro abas restantes da ficha do B/L (1) e da ficha da Viagem (3) | Entregue em 2026-10-14 (todas as telas e as abas da ficha do Cliente), branch `claude/determined-bardeen-kvwaxt`; as oito abas restantes foram entregues em 2026-10-15, branch `claude/sweet-rubin-6udppg` |
 | 2 | Operação do dia a dia: Revisão (6), Chegadas e Saídas e programação do Portal (4), Demurrage (8), Containers, Veículos e Baplie (14); listas de Viagens e de Clientes; Tarifas de Demurrage (`/demurrage/taxas`, da tela 8) | Entregue em 2026-10-16: Revisão (branch `claude/sweet-turing-r2tdp1`) e as demais telas, os quatro achados, o número `DEM-AAAA-NNNN` e as abas sombreadas (branch `claude/practical-cray-mpdw1p`), com a revisão da PR 969 (migrations `294` e `295`) |
 | 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Entregue em 2026-10-16 (aprovado na rodada 2 da página "Lote 3 da identidade"), branch `claude/serene-edison-ibuix9` |
-| 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Proposto em 2026-10-17 na página "Lote 4 da identidade"; aguarda a resposta |
+| 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Aprovado em 2026-10-18 (todas as telas, três rodadas) e entregue em 2026-10-18 na PR 972, branch `claude/laughing-meitner-3rfy0l`, com as migrations `297` a `299` |
 | 5 | Apoio e administração: Painel e Alertas (13), Provisionamento, Comunicação e Modo Inspeção (16), Granito, Vazios e depots (17), Relatórios e Administração (18) | Proposto, a confirmar |
 | 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21) | Proposto, a confirmar |
 
@@ -477,9 +492,9 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 | 7 | Taxas Locais e detalhe da fatura | `/taxas-locais`, `/taxas-locais/tabelas` | `app-invoice-comm__link`, `app-fin-alerts__link` | Faturas e Validação entregues em 2026-10-14 (lote 1); detalhe da fatura, Tabelas e Condições de Cliente entregues em 2026-10-16 (lote 3) |
 | 8 | Demurrage | `/demurrage`, `/demurrage/taxas` | `app-dem-link` (número da Invoice é identificador; conferir as ações) | Entregue em 2026-10-16 (lote 2, com as Tarifas e o número `DEM-AAAA-NNNN`), branch `claude/practical-cray-mpdw1p` |
 | 9 | Conciliação PIX | `/reconciliacao` | `app-pix-link` | Entregue em 2026-10-16 (lote 3) |
-| 10 | Portal: Faturas, PIX, consolidada e disputa | `/portal/billing` e inspeção | Pix abaixo dos itens no detalhe; saldo pendente diverge entre telas (regra de dado, à parte) | Faturas (Taxas Locais e Demurrage, com a disputa no detalhe da fatura de Demurrage) entregues em 2026-10-14 (lote 1), com o Saldo pendente da inspeção corrigido (migration `225`); Pix e consolidada no lote 4 |
-| 11 | Portal: B/Ls e Containers | `/portal/operacao` e inspeção | | Pendente |
-| 12 | Portal: Painel, Central de Informações, Desbloqueio de CE, Perfil | `/portal`, `/portal/informacoes`, `/portal/desbloqueio-ce`, `/portal/perfil` | | Pendente |
+| 10 | Portal: Faturas, PIX, consolidada e disputa | `/portal/billing` e inspeção | Pix abaixo dos itens no detalhe; saldo pendente diverge entre telas (regra de dado, à parte) | Faturas (Taxas Locais e Demurrage) entregues em 2026-10-14 (lote 1), com o Saldo pendente da inspeção corrigido (migration `225`); detalhe por situação, Pix em faixa baixa, Pagamentos recebidos, consolidada com filtros, tela de Disputas, Invoice complementar e restituições entregues em 2026-10-18 (lote 4, PR 972) |
+| 11 | Portal: B/Ls e Containers | `/portal/operacao` e inspeção | | Entregue em 2026-10-18 (lote 4, PR 972) |
+| 12 | Portal: Painel, Central de Informações, Desbloqueio de CE, Perfil | `/portal`, `/portal/informacoes`, `/portal/desbloqueio-ce`, `/portal/perfil` | | Entregue em 2026-10-18 (lote 4, PR 972), com a peça comum dos Documentos anuais VIP |
 | 13 | Painel, Alertas | `/painel`, `/alertas`, `/alertas/regras` | | Pendente |
 | 14 | Containers, Veículos, Baplie | `/containers`, `/veiculos`, `/baplie` | | Entregue em 2026-10-16 (lote 2), branch `claude/practical-cray-mpdw1p` |
 | 15 | Desbloqueio de CE interno | `/desbloqueio-ce` | | Entregue em 2026-10-16 (lote 3), com a aba "Andamento dos B/Ls" |
