@@ -217,6 +217,11 @@ describe('recusas da Edge send-customer-communication', () => {
     expect(edge).toContain("...(!sent.ok && attempt?.status === 'falha_permanente' ? { permanent: true } : {})")
   })
 
+  it('o 502 leva o last_error da tentativa em `reason`, fora do `error` que a régua usa como motivo da claim', () => {
+    expect(edge).toContain(".select('id, status, last_error')")
+    expect(edge).toContain('...(!sent.ok && attempt?.last_error ? { reason: attempt.last_error } : {})')
+  })
+
   it('loga o motivo de toda recusa 4xx', () => {
     expect(edge).toContain("if (status >= 400 && status < 500) {")
     expect(edge).toContain("console.warn('[send-customer-communication] recusa', { status, error,")

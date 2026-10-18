@@ -102,8 +102,11 @@ export function useResendCeMercanteTaxasCommunication() {
   return useMutation({
     mutationFn: (input: { voyageId: number; customerId: number }) =>
       dispatchCeMercanteTaxasCommunication(input.voyageId, input.customerId, { forceRetry: true }),
-    onSettled: async (_summary, _error, input) => {
-      await afterCustomerCommunicationBatchDispatched(queryClient, { customerIds: [input.customerId] })
+    onSettled: async (summary, _error, input) => {
+      await afterCustomerCommunicationBatchDispatched(queryClient, {
+        customerIds: [input.customerId],
+        blIds: summary?.blIds ?? [],
+      })
     },
   })
 }

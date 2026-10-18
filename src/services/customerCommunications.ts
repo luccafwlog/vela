@@ -323,6 +323,12 @@ export type CustomerCommunicationConferenceRow = {
   blockedReason?: string | null
   selected: boolean
   nextAttemptDiscriminator: number
+  /**
+   * Institucional e livre: quantos Comunicados deste modelo o Cliente já tem —
+   * no livre, só os da mesma Viagem. É o rótulo "N envio(s) anterior(es)"; o
+   * discriminador continua contado por Cliente, como a identidade no servidor.
+   */
+  previousDispatchCount?: number
   renderInput: CustomerCommunicationTemplateInput
   audience?: CustomerCommunicationAudience
   recipientSnapshot?: string
@@ -481,6 +487,17 @@ function nextInstitutionalAttemptDiscriminator(
   return Math.max(...matching.map((history) => history.attemptDiscriminator)) + 1
 }
 
+/** Envios anteriores do institucional (por Cliente) e do livre (por Cliente e Viagem, D15). */
+function previousUserWrittenDispatchCount(
+  rows: readonly CustomerCommunicationHistoryMatch[],
+  candidate: { customerId: number; voyageId: number },
+  kind: CustomerCommunicationKind,
+): number {
+  return rows.filter((history) => history.kind === kind
+    && history.customerId === candidate.customerId
+    && (kind !== 'livre' || history.anchorVoyageId === candidate.voyageId)).length
+}
+
 export function makeCustomerCommunicationRenderInput(
   row: CustomerCommunicationBlCandidate,
   bls: readonly CustomerCommunicationBlCandidate[],
@@ -607,6 +624,9 @@ export function buildCustomerCommunicationConference(input: {
       nextAttemptDiscriminator: input.kind === 'institucional' || input.kind === 'livre'
         ? nextInstitutionalAttemptDiscriminator(input.history ?? [], first.customerId, input.kind)
         : nextAttemptDiscriminator(input.history ?? [], first, input.kind),
+      ...(input.kind === 'institucional' || input.kind === 'livre'
+        ? { previousDispatchCount: previousUserWrittenDispatchCount(input.history ?? [], first, input.kind) }
+        : {}),
       renderInput: makeCustomerCommunicationRenderInput(anchorRow, candidates, institutional),
     })
   }
@@ -1113,11 +1133,10 @@ export async function fetchCustomerCommunicationHistory(input?: number | Custome
     if (filters.origin) {
       query = (query as unknown as { eq: (column: string, value: string) => typeof query }).eq('origin', filters.origin)
     }
-    if (filters.month && /^\d{4}-\d{2}$/.test(filters.month)) {
-      const start = new Date(`${filters.month}-01T00:00:00.000Z`)
-      const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1))
-      query = query.gte('created_at', start.toISOString()).lt('created_at', end.toISOString())
-    }
+    // Mês no fuso de Brasília, como a Cobertura: o Comunicado de 31/10 às 22h
+    // é de outubro, não de novembro.
+    const monthRange = brasiliaMonthRange(filters.month)
+    if (monthRange) query = query.gte('created_at', monthRange.start).lt('created_at', monthRange.end)
     const { data, error } = await query.overrideTypes<CustomerCommunicationHistoryItem[], { merge: false }>()
     if (error) throw error
     rows.push(...(data ?? []))
@@ -1127,8 +1146,9 @@ export async function fetchCustomerCommunicationHistory(input?: number | Custome
 }
 
 /**
- * Mês da Cobertura: viagens com ETA dentro do mês, no fuso de Brasília. Antes o
- * filtro ia para a consulta e era ignorado (plano dos e-mails, 3.5).
+ * Mês da Cobertura (viagens com ETA no mês) e do Histórico (Comunicados criados
+ * no mês), no fuso de Brasília. Antes o filtro da Cobertura ia para a consulta
+ * e era ignorado (plano dos e-mails, 3.5).
  */
 export function brasiliaMonthRange(month: string | null | undefined): { start: string; end: string } | null {
   const match = month?.trim().match(/^(\d{4})-(\d{2})$/)

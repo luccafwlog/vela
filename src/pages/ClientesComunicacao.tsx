@@ -301,10 +301,14 @@ export function ClientesComunicacao() {
     () => (conference?.rows ?? []).filter((row) => selectedKeys.has(row.key) && !row.blocked),
     [conference?.rows, selectedKeys],
   )
-  // Institucional e livre carregam `dispatch_id` novo a cada lote: um envio anterior
-  // não é reenvio do mesmo Comunicado, então vira informação e não trava.
+  // Institucional e livre ganham `dispatch_id` novo a cada conferência e texto: um
+  // envio anterior não é reenvio do mesmo Comunicado, então vira informação e não
+  // trava. O livre conta só os envios da mesma Viagem (`previousDispatchCount`).
   const resendGateApplies = requiresResendConfirmation(kind)
-  const previouslyContacted = selectedRows.filter((row) => row.nextAttemptDiscriminator > 0).length
+  const previousDispatches = (row: CustomerCommunicationConferenceRow) => (
+    resendGateApplies ? row.nextAttemptDiscriminator : row.previousDispatchCount ?? 0
+  )
+  const previouslyContacted = selectedRows.filter((row) => previousDispatches(row) > 0).length
   const hasResend = resendGateApplies && previouslyContacted > 0
   const activePreviewRow = customPreviewRow ?? selectedRows[0] ?? conference?.rows.find((row) => !row.blocked) ?? conference?.rows[0] ?? null
 
@@ -568,6 +572,15 @@ export function ClientesComunicacao() {
           setDispatchError('A lista de destinatários mudou. Confira novamente antes de enviar.')
           return
         }
+        // Depois de um lote, a conferência na tela fica velha (o cache não a
+        // relê): os discriminadores dela já foram usados. Disparar com eles
+        // cairia nas mesmas tentativas e o resumo contaria "enviado" sem sair
+        // e-mail. Qualquer diferença na conferência inteira recusa o disparo.
+        if (conferenceSignature(freshConference) !== signature) {
+          setResendConfirmationScope(undefined)
+          setDispatchError('Há Comunicados novos desde a conferência. Confira de novo.')
+          return
+        }
       } catch {
         setDispatchError('Não foi possível atualizar a conferência. Tente novamente antes de disparar.')
         return
@@ -592,10 +605,14 @@ export function ClientesComunicacao() {
     }
   }
 
-  /** Repete só os destinatários que falharam, com os mesmos itens (mesmo Comunicado). */
+  /**
+   * Repete só os destinatários que falharam, com os mesmos itens (mesmo
+   * Comunicado). Recusa definitiva (contato inválido, endereço suprimido) fica
+   * de fora: outra tentativa daria o mesmo resultado.
+   */
   async function retryFailures() {
     if (!batch || !signature) return
-    const failed = batch.outcomes.filter((outcome) => outcome.result === 'falha')
+    const failed = summarizeCustomerCommunicationBatch(batch.outcomes).retryable
     if (!failed.length) return
     setDispatchError(null)
     setSending(true)
@@ -836,7 +853,7 @@ export function ClientesComunicacao() {
                               key={row.key}
                               row={row}
                               selected={selectedKeys.has(row.key)}
-                              resendLabel={row.nextAttemptDiscriminator > 0 ? (resendGateApplies ? `Reenvio ${row.nextAttemptDiscriminator}` : `${row.nextAttemptDiscriminator} envio(s) anterior(es)`) : null}
+                              resendLabel={previousDispatches(row) > 0 ? (resendGateApplies ? `Reenvio ${row.nextAttemptDiscriminator}` : `${previousDispatches(row)} envio(s) anterior(es)`) : null}
                               onToggle={() => toggleRow(row.key)}
                               onPreview={() => {
                                 setCustomPreviewRow(row)
@@ -1194,7 +1211,7 @@ export function ClientesComunicacao() {
                 <>
                   <PanelRule />
                   <p className="m-5 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 text-xs leading-relaxed text-[var(--app-muted)]">
-                    {previouslyContacted} cliente(s) selecionado(s) já receberam outro comunicado deste modelo. Como o texto é escrito
+                    {previouslyContacted} cliente(s) selecionado(s) já receberam outro comunicado {kind === 'livre' ? 'livre nesta viagem' : 'deste modelo'}. Como o texto é escrito
                     a cada disparo, este envio é uma mensagem nova e não um reenvio.
                   </p>
                 </>
@@ -1572,7 +1589,7 @@ function ConferenceRow({
               })}
             </div>
           ) : (
-            <div className="text-[var(--app-red)]">Nenhum contato elegível neste recorte.</div>
+            <div className="text-[var(--app-danger-fg)]">Nenhum contato elegível neste recorte.</div>
           )}
           {row.excludedRecipients.length ? (
             <div className="mt-1.5 text-[11px] text-[var(--app-gold-strong)]">
@@ -1586,7 +1603,7 @@ function ConferenceRow({
           {row.blocked ? <Badge tone="red">Bloqueado</Badge> : selected ? <Badge tone="green">Elegível</Badge> : <Badge tone="slate">Desmarcado</Badge>}
           {resendLabel ? <Badge tone="yellow">{resendLabel}</Badge> : null}
         </div>
-        {row.blockedReason ? <p className="mt-1.5 text-xs text-[var(--app-red)]">{row.blockedReason}</p> : null}
+        {row.blockedReason ? <p className="mt-1.5 text-xs text-[var(--app-danger-fg)]">{row.blockedReason}</p> : null}
         <Button type="button" variant="secondary" className="app-btn--sm mt-2" onClick={onPreview}>
           <Eye size={13} aria-hidden="true" /> Ver e-mail
         </Button>
@@ -1658,7 +1675,7 @@ function CeResendResult({ result }: { result: { summary?: CeMercanteCommunicatio
         : summary.status === 'simulado'
           ? `Reenvio registrado em simulação (tentativa ${summary.attemptDiscriminator}); nenhum e-mail saiu.`
           : summary.status === 'parcial'
-            ? `Reenvio parcial: ${summary.sentCount} enviado(s), ${summary.simulatedCount} simulado(s); confira os destinatários no Histórico.`
+            ? `Reenvio parcial: ${summary.sentCount} enviado(s), ${summary.simulatedCount} simulado(s), ${summary.failedCount} falha(s)${summary.reason ? ` (${summary.reason})` : ''}; confira os destinatários no Histórico.`
             : `Reenvio não feito: ${summary.reason ?? 'falha no envio.'}`
   if (!text) return null
   const problem = Boolean(result.error) || (summary ? summary.status !== 'enviado' && summary.status !== 'simulado' : false)
@@ -1680,7 +1697,7 @@ function BatchResult({
   retrying,
   onRetry,
 }: {
-  summary: { sent: number; simulated: number; failed: CustomerCommunicationBatchOutcome[] }
+  summary: { sent: number; simulated: number; failed: CustomerCommunicationBatchOutcome[]; retryable: CustomerCommunicationBatchOutcome[] }
   attachmentCustomers: number
   retrying: boolean
   onRetry: () => void
@@ -1699,12 +1716,15 @@ function BatchResult({
             {summary.failed.map((outcome) => (
               <li key={outcome.key}>
                 <strong className="font-semibold">{outcome.customerName}</strong> · {outcome.input.recipient}: {outcome.reason ?? 'Falha no envio do comunicado.'}
+                {outcome.permanent ? <> <StatusText tone="warning">Não adianta repetir; corrija o contato.</StatusText></> : null}
               </li>
             ))}
           </ul>
-          <Button type="button" variant="secondary" className="app-btn--sm mt-2.5" loading={retrying} onClick={onRetry}>
-            <RotateCcw size={14} aria-hidden="true" /> Repetir só as falhas ({summary.failed.length})
-          </Button>
+          {summary.retryable.length ? (
+            <Button type="button" variant="secondary" className="app-btn--sm mt-2.5" loading={retrying} onClick={onRetry}>
+              <RotateCcw size={14} aria-hidden="true" /> Repetir só as falhas ({summary.retryable.length})
+            </Button>
+          ) : null}
         </>
       ) : null}
     </div>

@@ -808,6 +808,82 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     expect(first.anchorPort).toBeNull()
   })
 
+  it('no livre, o rótulo de envios anteriores conta os da Viagem, não o discriminador do Cliente', () => {
+    const livre = { ...noaRow(1, 'ACME Importadora', ['a@acme.com']), key: 'livre:1:1', nextAttemptDiscriminator: 5, previousDispatchCount: 2 }
+    activeMockConference = conferenceOf('livre', [livre])
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: /Comunicado livre/ }))
+    fireEvent.change(screen.getByLabelText(/^Assunto/), { target: { value: 'Recesso' } })
+    fireEvent.change(screen.getByLabelText(/^Mensagem/), { target: { value: 'Comunicamos o recesso.' } })
+    conferir()
+
+    expect(screen.getByText('2 envio(s) anterior(es)')).toBeTruthy()
+    expect(screen.queryByText('5 envio(s) anterior(es)')).toBeNull()
+  })
+
+  it('disparar de novo depois do lote, com Comunicados novos, recusa e pede para conferir de novo', async () => {
+    activeMockConference = conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com'])])
+    // A reconferência do 1º disparo vê a mesma conferência; a do 2º já vê o
+    // Comunicado do 1º (discriminador seguinte), e a tela continua com a velha.
+    mockFetchConference
+      .mockResolvedValueOnce(activeMockConference)
+      .mockResolvedValueOnce(conferenceOf('aviso_chegada_noa', [{ ...noaRow(1, 'ACME Importadora', ['a@acme.com']), nextAttemptDiscriminator: 1 }]))
+    mockDispatch.mockResolvedValue({ communicationId: 9, status: 'enviado' })
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+    await screen.findByText('Resultado do disparo')
+    expect(mockDispatch).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+
+    expect(await screen.findByText('Há Comunicados novos desde a conferência. Confira de novo.')).toBeTruthy()
+    expect(mockFetchConference).toHaveBeenCalledTimes(2)
+    expect(mockDispatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('recusa definitiva aparece como "não adianta repetir" e fica fora de "Repetir só as falhas"', async () => {
+    const { CustomerCommunicationDispatchError } = await import('../../services/customerCommunicationDispatches')
+    activeMockConference = conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com', 'c@acme.com'])])
+    mockFetchConference.mockResolvedValue(activeMockConference)
+    mockDispatch
+      .mockRejectedValueOnce(new CustomerCommunicationDispatchError('O provedor recusou a mensagem (endereço ou conteúdo inválido).', { permanent: true, communicationId: 9 }))
+      .mockRejectedValueOnce(new CustomerCommunicationDispatchError('Provedor de e-mail indisponível no momento; a mensagem pode ser reenviada.', { communicationId: 9 }))
+      .mockResolvedValueOnce({ communicationId: 9, status: 'simulado' })
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+
+    const painel = (await screen.findByText('Resultado do disparo')).closest('[role="status"]') as HTMLElement
+    expect(within(painel).getByText('2 falha(s)')).toBeTruthy()
+    expect(within(painel).getByText(/a@acme.com: O provedor recusou a mensagem \(endereço ou conteúdo inválido\)\./)).toBeTruthy()
+    expect(within(painel).getAllByText('Não adianta repetir; corrija o contato.')).toHaveLength(1)
+
+    mockDispatch.mockResolvedValueOnce({ communicationId: 9, status: 'simulado' })
+    fireEvent.click(within(painel).getByRole('button', { name: /Repetir só as falhas \(1\)/ }))
+
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalledTimes(4))
+    expect(mockDispatch.mock.calls[3][0].recipient).toBe('b@acme.com')
+    expect(await within(painel).findByText('1 falha(s)')).toBeTruthy()
+    // Sobra só a recusa definitiva: não há o que repetir.
+    expect(within(painel).queryByRole('button', { name: /Repetir só as falhas/ })).toBeNull()
+  })
+
   it('mostra na conferência o NOB bloqueado pelo terminal sem sigla, com o motivo', () => {
     activeMockConference = conferenceOf('aviso_atracacao_nob', [
       { ...noaRow(1, 'ACME Importadora', ['a@acme.com']), blocked: true, selected: false, blockedReason: 'Terminal da Atracação sem sigla cadastrada.' },

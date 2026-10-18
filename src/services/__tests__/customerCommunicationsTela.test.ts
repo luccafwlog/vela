@@ -16,6 +16,7 @@ import {
   type RawCommunicationBlRow,
 } from '../customerCommunications'
 import {
+  CustomerCommunicationDispatchError,
   mergeCustomerCommunicationBatchRetry,
   runCustomerCommunicationBatch,
   summarizeCustomerCommunicationBatch,
@@ -114,6 +115,26 @@ describe('3.2 e 3.8 — agrupamento da conferência', () => {
     ])
   })
 
+  it('no livre, "envios anteriores" conta só os da mesma Viagem; o discriminador segue por Cliente', () => {
+    const history = [
+      { customerId: 99, kind: 'livre', anchorVoyageId: 7, anchorPort: null, anchorAtracacaoId: null, anchorInvoiceId: null, attemptDiscriminator: 0 },
+      { customerId: 99, kind: 'livre', anchorVoyageId: 8, anchorPort: null, anchorAtracacaoId: null, anchorInvoiceId: null, attemptDiscriminator: 1 },
+      { customerId: 99, kind: 'livre', anchorVoyageId: 8, anchorPort: null, anchorAtracacaoId: null, anchorInvoiceId: null, attemptDiscriminator: 2 },
+    ]
+    const conference = buildCustomerCommunicationConference({
+      kind: 'livre',
+      mode: 'carga',
+      candidates: [candidate({ id: 'BL-1' }), candidate({ id: 'BL-3', voyageId: 9, voyageNumber: 'V9' })],
+      contactsByCustomer: new Map([[99, [contact]]]),
+      preferences: [],
+      history,
+    })
+    expect(conference.rows.map((row) => [row.renderInput.voyageNumber, row.previousDispatchCount, row.nextAttemptDiscriminator])).toEqual([
+      ['V7', 1, 3],
+      ['V9', 0, 3],
+    ])
+  })
+
   it('o NOB de terminal sem sigla fica bloqueado com o motivo', () => {
     const conference = buildCustomerCommunicationConference({
       kind: 'aviso_atracacao_nob',
@@ -152,6 +173,16 @@ describe('3.2 — lote que continua depois de um erro', () => {
     expect([merged.sent, merged.simulated, merged.failed]).toEqual([2, 1, []])
   })
 
+  it('recusa definitiva fica fora de "Repetir só as falhas", com o motivo e o Comunicado', async () => {
+    const dispatch = vi.fn()
+      .mockRejectedValueOnce(new CustomerCommunicationDispatchError('O provedor recusou a mensagem (endereço ou conteúdo inválido).', { permanent: true, communicationId: 4 }))
+      .mockRejectedValueOnce(new CustomerCommunicationDispatchError('Provedor de e-mail indisponível no momento; a mensagem pode ser reenviada.', { communicationId: 4 }))
+    const summary = summarizeCustomerCommunicationBatch(await runCustomerCommunicationBatch([item('a'), item('b')], dispatch))
+
+    expect(summary.failed.map((outcome) => [outcome.key, outcome.permanent, outcome.communicationId])).toEqual([['a', true, 4], ['b', false, 4]])
+    expect(summary.retryable.map((outcome) => outcome.key)).toEqual(['b'])
+  })
+
   it('resposta com status falha conta como falha', async () => {
     const outcomes = await runCustomerCommunicationBatch([item('a')], vi.fn().mockResolvedValue({ communicationId: 3, status: 'falha', message: 'Falha no envio do comunicado.' }))
     expect(outcomes[0]).toMatchObject({ result: 'falha', reason: 'Falha no envio do comunicado.', communicationId: 3 })
@@ -188,6 +219,20 @@ describe('3.5 — filtros', () => {
     await fetchVoyageCommunicationCoverage({ month: '2026-10' })
     expect(voyages.gte).toHaveBeenCalledWith('eta', '2026-10-01T00:00:00-03:00')
     expect(voyages.lt).toHaveBeenCalledWith('eta', '2026-11-01T00:00:00-03:00')
+  })
+
+  it('o Mês do Histórico usa o fuso de Brasília: 31/10 às 22h é outubro', async () => {
+    const history = queryResult([])
+    mockFrom.mockReturnValue(history)
+    await fetchCustomerCommunicationHistory({ month: '2026-10' })
+    expect(history.gte).toHaveBeenCalledWith('created_at', '2026-10-01T00:00:00-03:00')
+    expect(history.lt).toHaveBeenCalledWith('created_at', '2026-11-01T00:00:00-03:00')
+
+    // 31/10 22h em Brasília é 01/11 01h em UTC: dentro do intervalo de outubro.
+    const createdAt = new Date('2026-10-31T22:00:00-03:00').getTime()
+    const [start, end] = [history.gte.mock.calls[0][1], history.lt.mock.calls[0][1]].map((value) => new Date(value as string).getTime())
+    expect(createdAt >= start && createdAt < end).toBe(true)
+    expect(new Date('2026-10-01T01:00:00Z').getTime() < start).toBe(true)
   })
 
   it('o Histórico filtra pelos Comunicados vinculados a um B/L', async () => {

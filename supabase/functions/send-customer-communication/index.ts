@@ -854,7 +854,7 @@ async function handler(req: Request): Promise<Response> {
   }
   const { data: attempt } = await admin
     .from('customer_communication_attempts')
-    .select('id, status')
+    .select('id, status, last_error')
     .eq('communication_id', communicationId)
     .eq('idempotency_key', attemptKey)
     .maybeSingle()
@@ -866,6 +866,10 @@ async function handler(req: Request): Promise<Response> {
     // Recusa definitiva do provedor (ex.: 422 do endereço): a mesma chave nunca
     // mais chama o provedor, então a régua rejeita a claim (plano, 1D.4).
     ...(!sent.ok && attempt?.status === 'falha_permanente' ? { permanent: true } : {}),
+    // Motivo técnico da tentativa (`HTTP 422 validation_error`, "Tempo
+    // esgotado…"): a tela o traduz no resumo do lote. Fica fora de `error`,
+    // que a régua automática usa como motivo da claim.
+    ...(!sent.ok && attempt?.last_error ? { reason: attempt.last_error } : {}),
     message: !sent.ok ? 'Falha no envio do comunicado.' : enabled ? 'Comunicado enviado.' : 'Comunicado registrado em simulação; nenhum e-mail foi enviado.',
   }, origin)
 }

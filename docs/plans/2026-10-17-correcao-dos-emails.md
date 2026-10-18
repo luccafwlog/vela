@@ -28,7 +28,11 @@ refutá-lo.
     O alerta `comunicado_ce_reenvio_pendente` passou a apontar para lá.
   - 1E.3 (D7): não havia status de isento; a fatura com 100% de desconto vira
     `paid` com valor zero e registro em `audit_logs`.
-  - 3.7: o envio do anexo uma vez só ficou para depois, como o item previa.
+  - 3.7: ficou parcial. A Cobertura só carrega na aba dela e o modo carga
+    filtra os B/Ls no servidor, mas o modo institucional ainda lê todos os
+    B/Ls ativos (ver o comentário `ponytail:` de `fetchCommunicationBlRows`
+    em `src/services/customerCommunications.ts`). O envio do anexo uma vez só
+    ficou para depois, como o item previa.
 - **Pendente:**
   - **Depois do merge:** confirmar a aplicação das migrations e a publicação
     das Edges em produção.

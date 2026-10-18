@@ -3,7 +3,7 @@ import {
   type CommunicationAttachment,
   type CustomerCommunicationKind,
 } from './customerCommunicationTemplates'
-import { getCustomerCommunicationNature } from './customerCommunications'
+import { customerCommunicationAttemptReason, getCustomerCommunicationNature } from './customerCommunications'
 import type { CustomerCommunicationAudience } from './customerCommunicationBoxes'
 import { supabase } from './supabase'
 
@@ -43,7 +43,24 @@ export type CustomerCommunicationDispatchResult = {
   message?: string
 }
 
-async function readFunctionErrorMessage(error: unknown): Promise<string | null> {
+/**
+ * Recusa da Edge com o que o corpo dela diz: o motivo e se repetir adianta.
+ * `permanent` vem do 422 de payload e do 502 com recusa definitiva do provedor;
+ * endereço suprimido (`suppressed`) também não muda com outra tentativa.
+ */
+export class CustomerCommunicationDispatchError extends Error {
+  readonly permanent: boolean
+  readonly communicationId?: number
+
+  constructor(message: string, options: { permanent?: boolean; communicationId?: number } = {}) {
+    super(message)
+    this.name = 'CustomerCommunicationDispatchError'
+    this.permanent = options.permanent ?? false
+    this.communicationId = options.communicationId
+  }
+}
+
+async function readFunctionErrorBody(error: unknown): Promise<Record<string, unknown> | null> {
   const context = error && typeof error === 'object'
     ? (error as { context?: unknown }).context
     : null
@@ -51,13 +68,31 @@ async function readFunctionErrorMessage(error: unknown): Promise<string | null> 
 
   try {
     const body = await (context as { json: () => Promise<unknown> }).json()
-    if (!body || typeof body !== 'object') return null
-    const message = (body as { error?: unknown; message?: unknown }).error
-      ?? (body as { error?: unknown; message?: unknown }).message
-    return typeof message === 'string' && message.trim() ? message.trim() : null
+    return body && typeof body === 'object' ? body as Record<string, unknown> : null
   } catch {
     return null
   }
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+/**
+ * O 502 do envio comum traz `reason` com o `last_error` da tentativa; ele vem
+ * traduzido antes da mensagem genérica, para o resumo dizer por que falhou.
+ */
+function functionErrorFromBody(body: Record<string, unknown>): CustomerCommunicationDispatchError | null {
+  const technicalReason = nonEmptyString(body.reason)
+  const message = nonEmptyString(body.error)
+    ?? (technicalReason ? customerCommunicationAttemptReason(technicalReason) : null)
+    ?? nonEmptyString(body.message)
+  if (!message) return null
+  const communicationId = Number(body.communicationId)
+  return new CustomerCommunicationDispatchError(message, {
+    permanent: body.permanent === true || body.suppressed === true,
+    communicationId: Number.isFinite(communicationId) && communicationId > 0 ? communicationId : undefined,
+  })
 }
 
 function makeIdempotencyKey(input: CustomerCommunicationDispatchInput): string {
@@ -116,8 +151,9 @@ export async function dispatchCustomerCommunication(input: CustomerCommunication
     body: customerCommunicationDispatchPayload(input),
   })
   if (error) {
-    const functionMessage = await readFunctionErrorMessage(error)
-    if (functionMessage) throw new Error(functionMessage)
+    const body = await readFunctionErrorBody(error)
+    const functionError = body ? functionErrorFromBody(body) : null
+    if (functionError) throw functionError
     throw error
   }
   const result = data as CustomerCommunicationDispatchResult & { error?: string }
@@ -145,6 +181,8 @@ export type CustomerCommunicationBatchOutcome = CustomerCommunicationBatchItem &
   result: 'enviado' | 'simulado' | 'falha'
   communicationId?: number
   reason?: string
+  /** Falha que outra tentativa não resolve: fica fora de "Repetir só as falhas". */
+  permanent?: boolean
 }
 
 export type CustomerCommunicationBatchSummary = {
@@ -152,14 +190,18 @@ export type CustomerCommunicationBatchSummary = {
   sent: number
   simulated: number
   failed: CustomerCommunicationBatchOutcome[]
+  /** As falhas que "Repetir só as falhas" reenvia; as definitivas ficam de fora. */
+  retryable: CustomerCommunicationBatchOutcome[]
 }
 
 export function summarizeCustomerCommunicationBatch(outcomes: readonly CustomerCommunicationBatchOutcome[]): CustomerCommunicationBatchSummary {
+  const failed = outcomes.filter((outcome) => outcome.result === 'falha')
   return {
     outcomes: [...outcomes],
     sent: outcomes.filter((outcome) => outcome.result === 'enviado').length,
     simulated: outcomes.filter((outcome) => outcome.result === 'simulado').length,
-    failed: outcomes.filter((outcome) => outcome.result === 'falha'),
+    failed,
+    retryable: failed.filter((outcome) => !outcome.permanent),
   }
 }
 
@@ -184,7 +226,12 @@ export async function runCustomerCommunicationBatch(
         outcomes.push({ ...item, result: response.status === 'simulado' ? 'simulado' : 'enviado', communicationId: response.communicationId })
       }
     } catch (error) {
-      outcomes.push({ ...item, result: 'falha', reason: error instanceof Error && error.message ? error.message : 'Falha no envio do comunicado.' })
+      const reason = error instanceof Error && error.message ? error.message : 'Falha no envio do comunicado.'
+      if (error instanceof CustomerCommunicationDispatchError) {
+        outcomes.push({ ...item, result: 'falha', reason, communicationId: error.communicationId, permanent: error.permanent })
+      } else {
+        outcomes.push({ ...item, result: 'falha', reason })
+      }
     }
   }
   return outcomes

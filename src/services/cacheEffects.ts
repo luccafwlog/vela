@@ -142,8 +142,9 @@ export async function afterBlRevisado(queryClient: QueryClient, scope: ReviewCac
  * Fim de um disparo em lote de `/clientes/comunicacao` (plano dos e-mails, 3.2):
  * uma invalidação só, depois do último destinatário. A conferência na tela não é
  * relida agora — relê-la trocava os discriminadores e desfazia a seleção no meio
- * do lote —, mas fica velha, e o próximo "Conferir destinatários" a busca de novo.
- * O reenvio do CE e Taxas também fecha `comunicado_ce_reenvio_pendente`.
+ * do lote —, mas fica velha, e o próximo "Conferir destinatários" a busca de novo;
+ * disparar outra vez com ela é recusado pela reconferência da tela. O reenvio do
+ * CE e Taxas também fecha `comunicado_ce_reenvio_pendente` nos B/Ls da Viagem.
  */
 export async function afterCustomerCommunicationBatchDispatched(
   queryClient: QueryInvalidator,
@@ -153,7 +154,6 @@ export async function afterCustomerCommunicationBatchDispatched(
   await invalidate(queryClient, [
     queryKeys.customerCommunications.history(),
     ['customer-communications', 'coverage'],
-    queryKeys.customerCommunications.statusRoot(),
     ['customer-communications', 'bl'],
     ...(options.customerIds ?? []).map((customerId) => ['customer-ficha', 'timeline', customerId] as const),
     ...[...new Set(options.blIds ?? [])].map((blId) => ['bl-timeline', blId] as const),
