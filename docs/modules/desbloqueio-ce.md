@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `279`–`282` (PR 956, em produção após o merge); alerta de troca de CE com Desbloqueio conferido corrigido nas migrations `230` e `277` (PR 954); expurgo de um PDF real comprovado em produção em 2026-10-15; mudanças da PR 956 conferidas e observadas em produção em 2026-10-15, com os ajustes da PR 961; [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md) arquivado · **Atualizado:** 2026-10-15 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `279`–`282` (PR 956, em produção após o merge); alerta de troca de CE com Desbloqueio conferido corrigido nas migrations `230` e `277` (PR 954); expurgo de um PDF real comprovado em produção em 2026-10-15; mudanças da PR 956 conferidas e observadas em produção em 2026-10-15, com os ajustes da PR 961; [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md) arquivado; B/L que muda de solicitação (migration `299`, [ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)) e "Taxas locais aguardando fatura" (migration `298`) ainda não aplicados no Supabase remoto · **Atualizado:** 2026-10-18 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -21,18 +21,30 @@ Manifesto Mercante é regra de
 
 ## Anatomia das telas
 
-- Portal (`/portal/desbloqueio-ce`): abas Nova solicitação, Minhas solicitações e Documentos anuais (só VIP).
-  Nova solicitação lista os quatro requisitos (no termo, o botão **Baixar modelo do termo de
-  devolução**, quando há modelo publicado e o Cliente não é VIP) e uma tabela de BLs.
-  Abaixo dos requisitos fica o botão **Baixar memorando de liberação de documentos**
-  (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar
-  documentos na agência; não é requisito nem entra no pedido (**Código:**
-  `src/pages/PortalDesbloqueioCe.tsx`). Selecionar e continuar
-  cria o rascunho sem confirmação, pois o cliente pode cancelá-lo. A solicitação abre em modal: próximo passo do estado, prazo, documentos
-  (anexar/substituir com o motivo da recusa à vista), requisitos por BL e histórico.
-  O cliente cancela enquanto o pedido está em rascunho ou com correção solicitada.
-  Com tudo atendido, "Documentação validada… consulte o Mercante". Não mostra envio,
-  ZPT nem desbloqueio. Modo Inspeção (`/clientes/portal/inspecao/:customerId/desbloqueio-ce`)
+- Portal (`/portal/desbloqueio-ce`): abas Nova solicitação, Minhas solicitações (`?aba=solicitacoes`) e
+  Documentos anuais (`?aba=anuais`, só VIP); desenho do lote 4 da identidade (2026-10-18).
+  **Nova solicitação** abre com o bloco "O que o desbloqueio pede" na situação deste Cliente: VIP vê
+  termo e procuração "Coberto(a) pelo … anual até 31/12/AAAA" ou "Falta …" em âmbar, com "Abrir
+  Documentos anuais" quando falta; Cliente sem VIP vê "Assinado, em PDF, anexado à solicitação" e
+  "Em PDF, anexada à solicitação", com **Baixar modelo do termo** quando há modelo publicado, e
+  nenhuma menção a documento anual. Na faixa, **Baixar memorando de liberação**
+  (`public/templates/memorando-liberacao-documentos-modelo.docx`), formulário para retirar documentos
+  na agência; não é requisito nem entra no pedido. Cartões que filtram ("Podem ser pedidos", "Com
+  taxas locais em aberto", "Já em solicitação") e tabela limpa: B/L, CE Mercante, Navio / Viagem, POD,
+  Taxas locais ("✓ Pagas", "Em aberto" em âmbar com "Ver faturas", "Aguardando fatura" sem valor,
+  "Isentas") e Solicitação (protocolo e situação). A faixa "Pedir desbloqueio de N B/Ls" cria o
+  rascunho sem confirmação, pois o cliente pode cancelá-lo; com B/L de outra solicitação ainda não
+  validada, antes mostra a confirmação "Mudar N B/Ls e continuar" (B/L, Sai de, O que acontece com a
+  antiga; ver [B/L que muda de solicitação](#bl-que-muda-de-solicitação)).
+  **Minhas solicitações:** Protocolo (abre o detalhe), Aberta em, B/Ls (primeiro e "+N"), Documentos,
+  Prazo para desbloqueio (de `sla_started_at`) e Situação em texto ("Correção pedida · reenvie …" e
+  "Rascunho · falta enviar" em âmbar; cancelada em cinza). O **detalhe** (janela) tem os blocos
+  Solicitação (situação e próximo passo, B/Ls, prazo e quando ele recomeça), Documentos em tabela
+  ("Enviar nova versão" só onde há correção pedida, por botão), B/Ls da solicitação, Histórico
+  fechado em tabela e a faixa de reenvio no pé; "Cancelar solicitação" no topo, enquanto o pedido
+  está em rascunho ou com correção solicitada. Com tudo atendido, "Documentação validada… consulte o
+  Mercante". Não mostra envio, ZPT nem desbloqueio (**Código:** `src/pages/PortalDesbloqueioCe.tsx`).
+  Modo Inspeção (`/clientes/portal/inspecao/:customerId/desbloqueio-ce`)
   é somente leitura (aviso global da inspeção).
 - Vela (`/desbloqueio-ce`), aba **Solicitações** (com a contagem): bloco "Solicitações aguardando
   análise", uma linha por pedido a validar (protocolo, que abre o detalhe; Cliente, que leva à ficha;
@@ -66,7 +78,16 @@ Manifesto Mercante é regra de
   solicitação, Histórico (tabela com quem fez, migration `296`) e Confirmações externas, se houver.
 - Clientes → ficha → Desbloqueio de CE / VIP: habilitar/revogar VIP, apresentar
   documentos anuais, aprovar vigência e renovar. Portal também permite apresentar
-  anuais sem B/L/pagamento; somente o desk aprova.
+  anuais sem B/L/pagamento; somente o desk aprova. A peça dos documentos anuais é a
+  mesma no Portal, na ficha e na análise do pedido VIP (`CeUnlockVipCoveragePanel` e
+  `CeUnlockDocuments`, lote 4): cobertura de cada documento como fato ("Coberto até
+  31/12/AAAA" / "Falta" em âmbar) e uma tabela Documento | Arquivo | Enviado em |
+  Vigência | Situação, com a versão anterior recusada ou revogada em cinza. No Portal, o
+  envio é pelos botões "Enviar termo de devolução" e "Enviar procuração"; no Vela,
+  **Analisar** só onde há decisão abre "Analisar <documento>" (Ano da cobertura,
+  Início da vigência, Fim 31/12) com Aprovar / Solicitar correção / Voltar, e
+  **Revogar aprovação** fica no menu ⋮ do aprovado. Ficha de Cliente sem VIP mostra só
+  o bloco Condição VIP.
 
 ## Catálogo de ações
 
@@ -176,6 +197,35 @@ migration `279`; **Teste:** `ceUnlock.local-pg.test.ts`). Correções para menor
 reduzem o valor exigível: a liquidação cobre o valor original menos a correção,
 com saldo zero e evidência real no ledger. Fatura consolidada parcialmente paga
 libera só o B/L cujo recebível foi liquidado, nunca pelo status da fatura.
+
+No Portal, B/L com Taxas Locais não pagas e sem fatura visível ao Cliente
+(emitida, não cancelada nem obsoleta, individual ou consolidada) aparece com
+"Taxas locais aguardando fatura", sem valor nem situação de pagamento
+(`local_charges_awaiting_invoice` em `ce_unlock_private.portal_view`, migration
+`298`; desde a `301`, só pelo motivo de Taxas Locais, não por avulsa em aberto; [ADR 0088](../adr/0088-portal-so-mostra-fatura-emitida.md)). A aptidão
+interna não muda: o requisito continua pelo razão.
+
+### B/L que muda de solicitação
+
+Desde a migration `299` ([ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)),
+B/L ativo em solicitação ainda não validada (rascunho, enviada, em análise ou
+correção pedida) do mesmo Cliente e ainda não enviado à ZPT pode ser pedido de
+novo (`item.can_submit`). Ao criar o rascunho novo (`command('draft')`), o B/L
+sai da antiga (`active = false`) com o evento `bl_moved` ("B/L passou para a
+solicitação CE-…") e deixa de aparecer nos B/Ls dela, também depois que ela
+é cancelada, e de pesar no reenvio dela (migration `301`); a antiga que fica sem B/L
+é cancelada com o evento `cancel` ("Todos os B/Ls passaram para a solicitação
+CE-…"), e a que mantém outros B/Ls continua com eles, com a versão e a
+conclusão recalculadas. Documentos não passam para a nova: termo e procuração
+são enviados de novo (o VIP usa os anuais). O Portal mostra antes a
+confirmação "Mudar N B/Ls e continuar" com o destino de cada solicitação
+antiga, contado pelos B/Ls ativos dela (`bl_ids` de todas as solicitações,
+inclusive B/L que o Portal deixou de listar). O comando trava primeiro as solicitações de origem, na ordem dos demais
+comandos (pedido antes do Cliente e do B/L); se uma delas mudou entre a leitura
+e a criação, recusa com "Solicitação alterada; atualize a página." (`40001`).
+B/L de "Documentação validada", de outro Cliente ou já exportado continua
+bloqueado, e a trava `ce_unlock_one_active_bl` continua: um B/L, uma
+solicitação ativa. **Teste:** `ceUnlockMatriz.local-pg.test.ts`.
 
 ### Conclusão
 

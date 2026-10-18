@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { cleanup, render, screen, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { PortalInformation } from '../PortalInformation'
 
@@ -11,6 +11,7 @@ vi.mock('../../hooks/usePortalOperation', () => ({ usePortalOperationBls: catalo
 const empty = { depots: [], agents: [], contacts: [], carriers: [], local_tables: [], demurrage_rates: [], demurrage_notes: '', ports: [] }
 beforeEach(() => { catalog.hook.mockReturnValue({ data: empty, isLoading: false, error: null, refetch: catalog.refetch }); catalog.operation.mockReturnValue({ data: [], isLoading: false, error: null }) })
 afterEach(() => { cleanup(); vi.clearAllMocks() })
+function Location() { const location = useLocation(); return <p data-testid="location">{location.pathname + location.search}</p> }
 function show(path = '/portal/informacoes') { render(<MemoryRouter initialEntries={[path]}><Routes><Route path="/portal/informacoes/:section?" element={<PortalInformation />} /></Routes></MemoryRouter>) }
 describe('Página Central de Informações', () => {
   it('mostra seis seções com as rotas do Portal e preserva contexto', () => {
@@ -49,7 +50,20 @@ describe('Página Central de Informações', () => {
     catalog.hook.mockReturnValue({ data: { ...empty, depots: portDepots, ports: [{ code: 'BRSSZ', name: 'Santos' }, { code: 'BRVIX', name: 'Vitória' }, { code: 'BRSSA', name: 'Salvador' }, { code: 'BRSUA', name: 'Suape' }] }, isLoading: false, error: null })
     show('/portal/informacoes/devolucao?pod=BRVIX')
     expect(screen.getByText('Depot Vitória')).toBeTruthy()
-    expect(screen.getByText('Depósitos para devolução')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'BRVIX · Vitória' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'BRSSA · Salvador' })).toBeNull()
+  })
+  it('mostra as seções como abas, sem o botão "Todas as informações", e troca de seção mantendo o POD', async () => {
+    const user = userEvent.setup()
+    render(<MemoryRouter initialEntries={['/portal/informacoes/taxas?pod=BRVIX']}><Routes><Route path="/portal/informacoes/:section?" element={<><PortalInformation /><Location /></>} /></Routes></MemoryRouter>)
+    const tabs = screen.getByRole('tablist', { name: 'Seções de informações' })
+    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Taxas Locais', 'Devolução', 'Demurrage', 'Agentes por porto', 'Contato', 'Tracking'])
+    expect(within(tabs).getByRole('tab', { name: 'Taxas Locais' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tabpanel')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Central de Informações' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Todas as informações' })).toBeNull()
+    await user.click(within(tabs).getByRole('tab', { name: 'Devolução' }))
+    expect(screen.getByTestId('location').textContent).toBe('/portal/informacoes/devolucao?pod=BRVIX')
   })
   it('distingue tarifa ausente de free time zero', () => {
     show('/portal/informacoes/demurrage')

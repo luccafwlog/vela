@@ -120,9 +120,12 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
       SELECT i.id, ${customerB}, 'aberta', 'equipamentos', 'assunto B', 'cliente'
       FROM public.demurrage_invoices i WHERE i.doc_number = 'S11-DEM-B'
       ON CONFLICT DO NOTHING;
+      -- Emitida direto, sem os gatilhos de emissão (até o fim do bloco): o Portal só
+      -- vê fatura emitida (298).
+      SET session_replication_role = replica;
       INSERT INTO public.invoices (invoice_number, customer_id, bl_id, total_brl, balance_brl, status, pix_payload, notes, pix_txid)
-      VALUES ('S11-INV-A', ${customerA}, '${blA}', 100, 100, 'draft', 'PIX-S11', 'nota interna S11', 'txid-interno-s11')
-      ON CONFLICT (invoice_number) DO UPDATE SET notes = EXCLUDED.notes, pix_txid = EXCLUDED.pix_txid;
+      VALUES ('S11-INV-A', ${customerA}, '${blA}', 100, 100, 'issued', 'PIX-S11', 'nota interna S11', 'txid-interno-s11')
+      ON CONFLICT (invoice_number) DO UPDATE SET status = EXCLUDED.status, notes = EXCLUDED.notes, pix_txid = EXCLUDED.pix_txid;
       INSERT INTO public.invoice_bls (invoice_id, bl_id, subtotal_brl, subtotal_usd)
       SELECT i.id, '${blA}', 100, 0 FROM public.invoices i WHERE i.invoice_number = 'S11-INV-A'
       ON CONFLICT DO NOTHING;
@@ -136,6 +139,7 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
       FROM public.invoices i
       WHERE i.invoice_number = 'S11-INV-A'
         AND NOT EXISTS (SELECT 1 FROM public.payments p WHERE p.invoice_id = i.id);
+      SET session_replication_role = origin;
     `)
   })
 
@@ -211,8 +215,8 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
   })
 
   it('Saldo pendente da Inspeção é o mesmo que o Cliente vê (migration 225)', () => {
-    // Numa transação desfeita: o campo antigo do cadastro diz 999, a fatura
-    // avulsa em aberto diz 512,50. As duas sessões têm de mostrar 512,50.
+    // Numa transação desfeita: o campo antigo do cadastro diz 999; a fatura
+    // avulsa em aberto (512,50) e a S11-INV-A emitida (100) somam 612,50.
     const out = psql(`
       BEGIN;
       UPDATE public.customers SET pending_balance = 999 WHERE id = ${customerA};
@@ -225,8 +229,69 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
       SELECT 'inspecao=' || (public.portal_open_inspection(${customerA}, 'ficha')->>'pending_balance');
       ROLLBACK;
     `)
-    expect(out).toMatch(/^portal=512\.5/m)
-    expect(out).toMatch(/^inspecao=512\.5/m)
+    expect(out).toMatch(/^portal=612\.5/m)
+    expect(out).toMatch(/^inspecao=612\.5/m)
+  })
+
+  it('avulsa em aberto não vira "aguardando fatura" no Desbloqueio de CE (migration 301)', () => {
+    const view = (reasons: string[]) => JSON.parse(psql(`SELECT ce_unlock_private.portal_view('${JSON.stringify({ customer_id: customerA, bl_id: 'BL-S11-SEM-FATURA', paid: false, reasons })}'::jsonb);`))
+    expect(view(['Fatura avulsa do B/L em aberto']).local_charges_awaiting_invoice).toBe(false)
+    const local = view(['Taxas locais sem liquidação integral confirmada'])
+    expect(local.local_charges_awaiting_invoice).toBe(true)
+    expect(local.reasons).toEqual(['Taxas locais aguardando fatura'])
+  })
+
+  it('o Perfil mostra ao Cliente o e-mail de recuperação; a Inspeção não o recebe (migration 300)', () => {
+    const out = psql(`
+      BEGIN;
+      SET LOCAL ROLE authenticated;
+      SELECT set_config('request.jwt.claim.sub', '${portalUserA}', true);
+      SELECT 'portal=' || coalesce(public.portal_get_profile()->>'recovery_email', 'ausente');
+      SELECT set_config('request.jwt.claim.sub', '${inspectorId}', true);
+      SELECT 'inspecao=' || coalesce(public.portal_inspect_get_profile(${customerA})->>'recovery_email', 'ausente');
+      ROLLBACK;
+    `)
+    expect(out).toMatch(/^portal=financeiro-s11@example\.test$/m)
+    expect(out).toMatch(/^inspecao=ausente$/m)
+  })
+
+  it('o Portal só mostra Taxas Locais de fatura emitida e visível (migration 298)', () => {
+    // Numa transação desfeita: um B/L com recebível de R$ 700 só em rascunho e
+    // outro com fatura individual emitida de R$ 300. O saldo soma a emitida e a
+    // S11-INV-A do beforeAll (100); o rascunho não aparece em lugar nenhum.
+    const out = psql(`
+      BEGIN;
+      SET LOCAL session_replication_role = replica;
+      INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode, pod, ce_mercante) VALUES
+        ('BL-S11-SEMFAT', ${voyageId}, ${customerA}, 'container', 'BRVIX', 'CE-S11-SF'),
+        ('BL-S11-FAT', ${voyageId}, ${customerA}, 'container', 'BRVIX', 'CE-S11-F');
+      INSERT INTO public.bl_receivables (id, bl_id, customer_id, source, original_amount_brl, settled_amount_brl, balance_brl, status, voyage_id) VALUES
+        (990141, 'BL-S11-SEMFAT', ${customerA}, 'local_charges', 700, 0, 700, 'open', ${voyageId}),
+        (990142, 'BL-S11-FAT', ${customerA}, 'local_charges', 300, 0, 300, 'open', ${voyageId});
+      INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, total_paid_brl, balance_brl, status, invoice_type)
+      VALUES (990142, 'S11-INV-FAT', ${customerA}, 'BL-S11-FAT', 300, 0, 300, 'issued', 'individual');
+      INSERT INTO public.invoice_bls (invoice_id, bl_id, subtotal_brl) VALUES (990142, 'BL-S11-FAT', 300);
+      INSERT INTO public.invoice_receivable_links (invoice_id, receivable_id, bl_id, subtotal_brl, status)
+      VALUES (990142, 990142, 'BL-S11-FAT', 300, 'active');
+      INSERT INTO public.invoices (id, invoice_number, customer_id, bl_id, total_brl, total_paid_brl, balance_brl, status, invoice_type)
+      VALUES (990143, 'S11-INV-RASC', ${customerA}, 'BL-S11-SEMFAT', 700, 0, 700, 'draft', 'individual');
+      INSERT INTO public.invoice_bls (invoice_id, bl_id, subtotal_brl) VALUES (990143, 'BL-S11-SEMFAT', 700);
+      SET LOCAL session_replication_role = origin;
+      SET LOCAL ROLE authenticated;
+      SELECT set_config('request.jwt.claim.sub', '${portalUserA}', true);
+      SELECT 'saldo=' || (public.portal_get_session_overview_v2()->>'pending_balance');
+      SELECT 'consolidar=' || coalesce(string_agg(bl_id, ',' ORDER BY bl_id), '') FROM public.portal_list_consolidatable_receivables();
+      SELECT 'lista=' || string_agg((x->>'bl_id') || ':' || (x->'local_charges')::text, ';' ORDER BY x->>'bl_id')
+        FROM jsonb_array_elements(public.portal_list_operation_bls()) AS x WHERE x->>'bl_id' IN ('BL-S11-SEMFAT', 'BL-S11-FAT');
+      SELECT 'rascunho=' || count(*) FROM public.portal_list_invoices() WHERE invoice_number = 'S11-INV-RASC';
+      ROLLBACK;
+    `)
+    expect(out).toMatch(/^saldo=400(\.0+)?$/m)
+    expect(out).toMatch(/^consolidar=BL-S11-FAT$/m)
+    expect(out).toMatch(/BL-S11-FAT:\{"status": "open", "total_brl": 300(\.0+)?, "balance_brl": 300(\.0+)?\}/)
+    expect(out).toContain('BL-S11-SEMFAT:{"status": "awaiting_invoice"}')
+    expect(out).toMatch(/^rascunho=0$/m)
+    expect(out).not.toContain('700')
   })
 
   it('nega ao usuário do Portal as cinco RPCs internas com 42501', () => {
@@ -256,8 +321,7 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
       items: Array<Record<string, unknown>>
       payments: Array<Record<string, unknown>>
     }
-    // Rascunho conserva a allowlist, mas não oferece cobrança Pix.
-    expect(localPayload.invoice).toMatchObject({ invoice_number: 'S11-INV-A', pix_payload: null })
+    expect(localPayload.invoice).toMatchObject({ invoice_number: 'S11-INV-A' })
     expect(localPayload.invoice).not.toHaveProperty('notes')
     expect(localPayload.invoice).not.toHaveProperty('pix_txid')
     expect(localPayload.invoice).not.toHaveProperty('issued_by')

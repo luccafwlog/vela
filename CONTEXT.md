@@ -754,8 +754,9 @@ VIP do Desbloqueio de CE).
 
 **Saldo Pendente do Cliente**
 Leitura consolidada do que o Cliente tem em aberto em Taxas Locais e Demurrage,
-com as duas parcelas. A parcela local inclui Taxas Locais já calculadas ainda
-sem fatura emitida; não é conceito contábil novo.
+com as duas parcelas. No Vela, a parcela local inclui Taxas Locais já
+calculadas ainda sem fatura emitida; no Portal, o Cliente vê só o saldo das
+faturas emitidas e visíveis a ele. Não é conceito contábil novo.
 → Regra: [Clientes § Saldo pendente](docs/modules/clientes.md#saldo-pendente)
 
 ## Faturamento

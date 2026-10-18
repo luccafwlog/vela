@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { customerExportEmails, exportCustomerBaseWorkbook, exportInvoicesWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import { customerExportEmails, exportCustomerBaseWorkbook, exportInvoicesWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import type { PortalOperationBL } from '../portalOperation'
+import { flattenContainers } from '../../lib/portalOperationViews'
 import type { InvoiceListRow } from '../billing'
 import type { PortalInvoiceSummary } from '../portalBilling'
 import type { VaziosImportacaoContainerListItem } from '../../types/database'
@@ -125,6 +127,40 @@ describe('exportPortalLocalInvoicesWorkbook', () => {
     expect(jsonToSheet).toHaveBeenCalledWith(expect.arrayContaining([
       expect.objectContaining({ Tipo: 'Avulsa', 'B/L': '', 'Navio/Viagem': 'NAVIO MANUAL / 42N' }),
     ]))
+  })
+})
+
+describe('planilhas de BLs e Containers do Portal', () => {
+  const bl = (bl_id: string, local_charges: PortalOperationBL['local_charges']): PortalOperationBL => ({
+    bl_id, ce_mercante: '152609130000101', pol: 'CNSHA', pod: 'BRSSA', voyage_id: 1, voyage_number: '021W', vessel_name: 'NORDIC STAR',
+    container_count: 1, containers_in_demurrage: 0, containers_returned: 0, local_charges,
+    containers: [{ id: 1, container_number: `CSNU${bl_id}`, type: '40HC', discharge_date: '2026-09-22', return_date: null, usage_days: 12, free_time_days: 21, demurrage_days: 0, status: 'dentro_free_time' }],
+  })
+
+  beforeEach(() => { jsonToSheet.mockClear() })
+
+  it('acrescenta Taxas locais e Pagamento com a regra da tela', async () => {
+    await exportPortalBlsWorkbook([
+      bl('ABERTO', { status: 'open', total_brl: 4804, balance_brl: 1202 }),
+      bl('PAGO', { status: 'paid', total_brl: 2702, balance_brl: 0 }),
+      bl('SEM-FATURA', { status: 'awaiting_invoice', total_brl: null, balance_brl: null }),
+      bl('NADA', { status: 'none', total_brl: null, balance_brl: null }),
+    ])
+    const sheet = jsonToSheet.mock.calls[0][0] as Array<Record<string, unknown>>
+    expect(sheet.map((row) => [row['Taxas locais'], row.Pagamento])).toEqual([
+      [4804, expect.stringMatching(/^R\$\s1\.202,00 em aberto$/)],
+      [2702, 'Pago'],
+      ['', 'Aguardando fatura'],
+      ['', ''],
+    ])
+    expect(sheet[0]).toMatchObject({ 'B/L': 'ABERTO', 'CE Mercante': '152609130000101', Navio: 'NORDIC STAR', Viagem: '021W', POL: 'CNSHA', POD: 'BRSSA' })
+  })
+
+  it('mantém CE Mercante, Navio, Viagem e POL na planilha de Containers', async () => {
+    await exportPortalContainersWorkbook(flattenContainers([bl('BL1', { status: 'none', total_brl: null, balance_brl: null })]))
+    expect(jsonToSheet.mock.calls[0][0]).toEqual([
+      expect.objectContaining({ Container: 'CSNUBL1', 'CE Mercante': '152609130000101', Navio: 'NORDIC STAR', Viagem: '021W', POL: 'CNSHA', POD: 'BRSSA' }),
+    ])
   })
 })
 

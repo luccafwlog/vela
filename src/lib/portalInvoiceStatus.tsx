@@ -1,4 +1,6 @@
-export const OPEN_INVOICE_STATUSES = ['issued', 'partially_paid', 'draft'] as const
+import { formatDate, splitIsoDateTime } from './utils'
+
+export const OPEN_INVOICE_STATUSES =['issued', 'partially_paid', 'draft'] as const
 export const CLOSED_DEMURRAGE_STATUSES = ['paid', 'covered', 'cancelled', 'obsolete'] as const
 
 export const STATUS_GROUPS = {
@@ -8,6 +10,23 @@ export const STATUS_GROUPS = {
 } as const
 
 export type PortalStatusFilter = '' | keyof typeof STATUS_GROUPS
+
+/**
+ * "Recebido em" de um pagamento da fatura no Portal (lote 4): dia e hora de
+ * Brasília quando o pagamento guarda a hora (Pix conciliado); só o dia
+ * quando a baixa foi informada com o dia, sem inventar uma hora.
+ */
+// ponytail: o Portal não recebe a origem da baixa; o dia sem hora chega como
+// 00:00 ou como o meio-dia em ponto que a baixa manual do Vela grava. Upgrade:
+// `portal_invoice_details` devolver se a baixa foi manual ou conciliada.
+export function formatPortalPaymentDate(paidAt: string | null | undefined): string {
+  const { date, time } = splitIsoDateTime(paidAt)
+  if (!date) return ''
+  const instant = new Date(paidAt ?? '')
+  const onTheMinute = Number.isNaN(instant.getTime()) || (instant.getUTCSeconds() === 0 && instant.getUTCMilliseconds() === 0)
+  const dayOnly = !time || time === '00:00' || (time === '12:00' && onTheMinute)
+  return dayOnly ? formatDate(date) : `${formatDate(date)} ${time}`
+}
 
 export function portalInvoiceStatusLabel(status: string | null) {
   if (status === 'partially_paid') return 'Parcial'

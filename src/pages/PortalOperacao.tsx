@@ -1,29 +1,36 @@
-import { Link } from 'react-router-dom'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ChevronDown, ChevronRight, Download } from 'lucide-react'
 import { usePortalScope } from '../hooks/usePortalScope'
 import { portalPath } from '../services/portalScope'
-import { Fragment, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Download, Unlock } from 'lucide-react'
-import { InformationLinks } from '../components/portal/information/InformationLinks'
-import { Badge } from '../components/ui/Badge'
+import { Block, Fact, FactList } from '../components/ui/Block'
 import { Button } from '../components/ui/Button'
-import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
+import { EmptyState, InlineError, PageHeader } from '../components/ui/Card'
 import { CopyValue } from '../components/ui/CopyValue'
+import { MetricCard } from '../components/ui/MetricCard'
 import { NoValue } from '../components/ui/NoValue'
+import { StatusText } from '../components/ui/StatusText'
 import { TabButton } from '../components/ui/TabButton'
+import { TabList } from '../components/ui/TabList'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { usePortalOperationBls } from '../hooks/usePortalOperation'
-import { formatDate } from '../lib/utils'
+import { formatBRL, formatDate } from '../lib/utils'
 import {
+  blCargoLabel,
   blMatchesReturnSituation,
+  blReturnSummary,
   containerMatchesReturnSituation,
+  containerSituation,
   flattenContainers,
+  formatTons,
+  localChargesView,
+  type PortalFlatContainer,
   type ReturnSituation,
 } from '../lib/portalOperationViews'
 import { exportPortalBlsWorkbook, exportPortalContainersWorkbook } from '../services/exports'
-import type { PortalOperationBL, PortalOperationContainerStatus } from '../services/portalOperation'
+import type { PortalOperationBL, PortalOperationContainer, PortalOperationContainerStatus } from '../services/portalOperation'
 
 type OperationTab = 'bls' | 'containers'
 type OpStatus = '' | PortalOperationContainerStatus
@@ -34,6 +41,7 @@ const RETURN_OPTIONS: { value: ReturnSituation; label: string }[] = [
   { value: '', label: 'Todos' },
   { value: 'todos_devolvidos', label: 'Todos devolvidos' },
   { value: 'sem_devolucao', label: 'Com containers sem devolução' },
+  { value: 'no_free_time', label: 'Sem devolução, no free time' },
   { value: 'em_demurrage', label: 'Com containers em demurrage' },
   { value: 'sem_descarga', label: 'Sem descarga' },
 ]
@@ -47,6 +55,23 @@ const STATUS_OPTIONS: { value: OpStatus; label: string }[] = [
   { value: 'tarifa_indisponivel', label: 'Tarifa indisponível' },
   { value: 'soc', label: 'SOC (sem devolução)' },
 ]
+
+// Cartões que filtram (rodada 2): usam o filtro de devolução de cada aba.
+const BL_CARDS: { value: ReturnSituation; label: string; warn?: boolean }[] = [
+  { value: '', label: 'B/Ls' },
+  { value: 'sem_devolucao', label: 'Com container sem devolução', warn: true },
+  { value: 'em_demurrage', label: 'Com container em demurrage', warn: true },
+  { value: 'todos_devolvidos', label: 'Tudo devolvido' },
+]
+
+const CONTAINER_CARDS: { value: ReturnSituation; label: string; warn?: boolean }[] = [
+  { value: '', label: 'Containers' },
+  { value: 'no_free_time', label: 'Sem devolução, no free time', warn: true },
+  { value: 'em_demurrage', label: 'Em demurrage', warn: true },
+  { value: 'todos_devolvidos', label: 'Devolvidos' },
+]
+
+const monoClass = 'font-(family-name:--app-font-mono) tabular-nums whitespace-nowrap'
 
 function includesText(value: string | null | undefined, term: string) {
   if (!term.trim()) return true
@@ -101,37 +126,80 @@ export function PortalOperacao() {
     devolucao: RETURN_OPTIONS.some((o) => o.value === initialDevolucao) ? initialDevolucao : '',
   })
 
+  // Os atalhos ficam uma vez só, no título da página (rodada 2).
   return (
     <>
       <PageHeader
         title="BLs e Containers"
         description="Consulte seus B/Ls e containers: descarga, devolução, free time e dias de demurrage."
         action={
-          <Link className="app-btn app-btn--secondary" to={portalPath(scope, '/desbloqueio-ce')}>
-            <Unlock size={16} aria-hidden="true" />
-            Solicitar desbloqueio de CE
-          </Link>
+          <>
+            <Link className="app-btn app-btn--secondary" to={portalPath(scope, '/informacoes/devolucao')}>Depósitos de devolução</Link>
+            <Link className="app-btn app-btn--secondary" to={portalPath(scope, '/informacoes/tracking')}>Tracking do B/L</Link>
+            <Link className="app-btn app-btn--secondary" to={portalPath(scope, '/desbloqueio-ce')}>Solicitar desbloqueio de CE</Link>
+          </>
         }
       />
 
-      <div className="mb-4"><InformationLinks sections={['devolucao', 'tracking', 'agentes']} /></div>
+      <TabList label="BLs e Containers" className="mb-4">
+        <TabButton id="operacao-tab-bls" controls="operacao-panel" active={tab === 'bls'} label="BLs" onClick={() => setTab('bls')} />
+        <TabButton id="operacao-tab-containers" controls="operacao-panel" active={tab === 'containers'} label="Containers" onClick={() => setTab('containers')} />
+      </TabList>
 
-      <div className="mb-4 flex gap-2 border-b border-[var(--app-border)]" role="tablist">
-        <TabButton active={tab === 'bls'} label="BLs" onClick={() => setTab('bls')} />
-        <TabButton active={tab === 'containers'} label="Containers" onClick={() => setTab('containers')} />
+      <div id="operacao-panel" role="tabpanel" aria-labelledby={tab === 'bls' ? 'operacao-tab-bls' : 'operacao-tab-containers'}>
+        {isLoading ? <EmptyState title="Carregando..." description="Buscando dados operacionais." /> : null}
+        {error ? <div className="px-1 py-4"><InlineError message="Falha ao carregar dados operacionais do portal." /></div> : null}
+
+        {!isLoading && !error ? (
+          tab === 'bls' ? (
+            <BlsTab rows={rows} filters={blFilters} onFilters={setBlFilters} />
+          ) : (
+            <ContainersTab rows={rows} filters={containerFilters} onFilters={setContainerFilters} />
+          )
+        ) : null}
       </div>
-
-      {isLoading ? <EmptyState title="Carregando..." description="Buscando dados operacionais." /> : null}
-      {error ? <div className="px-1 py-4"><InlineError message="Falha ao carregar dados operacionais do portal." /></div> : null}
-
-      {!isLoading && !error ? (
-        tab === 'bls' ? (
-          <BlsTab rows={rows} filters={blFilters} onFilters={setBlFilters} />
-        ) : (
-          <ContainersTab rows={rows} filters={containerFilters} onFilters={setContainerFilters} />
-        )
-      ) : null}
     </>
+  )
+}
+
+function FilterCards({
+  label,
+  cards,
+  counts,
+  selected,
+  onSelect,
+}: {
+  label: string
+  cards: { value: ReturnSituation; label: string; warn?: boolean }[]
+  counts: Record<string, number>
+  selected: ReturnSituation
+  onSelect: (value: ReturnSituation) => void
+}) {
+  return (
+    <div className="app-metric-row" role="group" aria-label={label}>
+      {cards.map((card) => {
+        const count = counts[card.value] ?? 0
+        return (
+          <MetricCard
+            key={card.value || 'todos'}
+            label={card.label}
+            value={count}
+            tone={card.warn && count > 0 ? 'warning' : 'secondary'}
+            selected={selected === card.value}
+            onSelect={() => onSelect(selected === card.value ? '' : card.value)}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+function ExportButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
+  return (
+    <Button variant="secondary" className="app-btn--sm" onClick={onClick} disabled={disabled}>
+      <Download size={14} aria-hidden="true" />
+      Exportar Excel
+    </Button>
   )
 }
 
@@ -142,7 +210,9 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
   const [pageSize, setPageSize] = useState(25)
   const [openBl, setOpenBl] = useState<string | null>(null)
 
-  const filtered = useMemo(
+  // Os cartões contam o recorte dos demais filtros; o cartão escolhido é o
+  // filtro de devolução.
+  const scoped = useMemo(
     () =>
       rows.filter(
         (r) =>
@@ -152,160 +222,196 @@ function BlsTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]; filte
           includesText(r.voyage_number, filters.voyage) &&
           includesText(r.pol, filters.pol) &&
           includesText(r.pod, filters.pod) &&
-          blMatchesReturnSituation(r, filters.devolucao) &&
           (!filters.status || r.containers.some((c) => c.status === filters.status)),
       ),
-    [rows, filters],
+    [rows, filters.bl, filters.ce, filters.vessel, filters.voyage, filters.pol, filters.pod, filters.status],
+  )
+  const filtered = useMemo(() => scoped.filter((r) => blMatchesReturnSituation(r, filters.devolucao)), [scoped, filters.devolucao])
+  const counts = useMemo(
+    () => Object.fromEntries(BL_CARDS.map((card) => [card.value, scoped.filter((r) => blMatchesReturnSituation(r, card.value)).length])),
+    [scoped],
   )
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, totalPages - 1)
   const paginated = filtered.slice(safePage * pageSize, (safePage + 1) * pageSize)
   const activeFilters = Object.values(filters).filter(Boolean).length
+  const update = (next: Partial<BlFilters>) => { onFilters({ ...filters, ...next }); setPage(0) }
 
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--app-border)] px-5 py-4">
-        <div>
-          <h2 className="text-base font-semibold">B/Ls</h2>
-          <p className="mt-1 text-sm text-[var(--app-muted)]">{filtered.length} B/L(s) encontrado(s)</p>
+    <>
+      <FilterCards label="Filtrar B/Ls por devolução" cards={BL_CARDS} counts={counts} selected={filters.devolucao} onSelect={(devolucao) => update({ devolucao })} />
+
+      <Block
+        title="B/Ls"
+        flush
+        aside={<>{filtered.length}<ExportButton onClick={() => void exportPortalBlsWorkbook(filtered)} disabled={filtered.length === 0} /></>}
+      >
+        <div className="app-block__body">
+          <FilterBar activeCount={activeFilters} onClear={() => { onFilters(EMPTY_BL_FILTERS); setPage(0) }}>
+            <div className="app-filter-grid">
+              <Field label="B/L"><Input value={filters.bl} onChange={(e) => update({ bl: e.target.value })} placeholder="Número do B/L" /></Field>
+              <Field label="CE Mercante"><Input value={filters.ce} onChange={(e) => update({ ce: e.target.value })} placeholder="CE Mercante" /></Field>
+              <Field label="Navio"><Input value={filters.vessel} onChange={(e) => update({ vessel: e.target.value })} placeholder="Navio" /></Field>
+              <Field label="Viagem"><Input value={filters.voyage} onChange={(e) => update({ voyage: e.target.value })} placeholder="Viagem" /></Field>
+              <Field label="POL"><Input value={filters.pol} onChange={(e) => update({ pol: e.target.value })} placeholder="POL" /></Field>
+              <Field label="POD"><Input value={filters.pod} onChange={(e) => update({ pod: e.target.value })} placeholder="POD" /></Field>
+              <Field label="Situação de devolução">
+                <Select value={filters.devolucao} onChange={(e) => update({ devolucao: e.target.value as ReturnSituation })}>
+                  {RETURN_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Status operacional">
+                <Select value={filters.status} onChange={(e) => update({ status: e.target.value as OpStatus })}>
+                  {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Por página">
+                <Select value={String(pageSize)} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0) }}>
+                  {PAGE_SIZES.map((s) => <option key={s} value={String(s)}>{s}</option>)}
+                </Select>
+              </Field>
+            </div>
+          </FilterBar>
         </div>
-        <Button variant="secondary" onClick={() => void exportPortalBlsWorkbook(filtered)} disabled={filtered.length === 0}>
-          <Download size={16} />
-          Exportar Excel
-        </Button>
-      </div>
 
-      <div className="px-5 pt-4">
-        <FilterBar activeCount={activeFilters} onClear={() => { onFilters(EMPTY_BL_FILTERS); setPage(0) }}>
-          <div className="app-filter-grid">
-            <Field label="B/L"><Input value={filters.bl} onChange={(e) => { onFilters({ ...filters, bl: e.target.value }); setPage(0) }} placeholder="Numero do B/L" /></Field>
-            <Field label="CE Mercante"><Input value={filters.ce} onChange={(e) => { onFilters({ ...filters, ce: e.target.value }); setPage(0) }} placeholder="CE Mercante" /></Field>
-            <Field label="Navio"><Input value={filters.vessel} onChange={(e) => { onFilters({ ...filters, vessel: e.target.value }); setPage(0) }} placeholder="Navio" /></Field>
-            <Field label="Viagem"><Input value={filters.voyage} onChange={(e) => { onFilters({ ...filters, voyage: e.target.value }); setPage(0) }} placeholder="Viagem" /></Field>
-            <Field label="POL"><Input value={filters.pol} onChange={(e) => { onFilters({ ...filters, pol: e.target.value }); setPage(0) }} placeholder="POL" /></Field>
-            <Field label="POD"><Input value={filters.pod} onChange={(e) => { onFilters({ ...filters, pod: e.target.value }); setPage(0) }} placeholder="POD" /></Field>
-            <Field label="Situação de devolução">
-              <Select value={filters.devolucao} onChange={(e) => { onFilters({ ...filters, devolucao: e.target.value as ReturnSituation }); setPage(0) }}>
-                {RETURN_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </Select>
-            </Field>
-            <Field label="Status operacional">
-              <Select value={filters.status} onChange={(e) => { onFilters({ ...filters, status: e.target.value as OpStatus }); setPage(0) }}>
-                {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </Select>
-            </Field>
-            <Field label="Por página">
-              <Select value={String(pageSize)} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0) }}>
-                {PAGE_SIZES.map((s) => <option key={s} value={String(s)}>{s}</option>)}
-              </Select>
-            </Field>
-          </div>
-        </FilterBar>
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyState title="Sem B/Ls" description="Nenhum B/L encontrado para os filtros atuais." />
-      ) : (
-        <>
-          <div className="hidden app-table-scroll md:block">
-            <table className="app-table app-table--compact min-w-[1040px] text-sm">
-              <caption className="sr-only">B/Ls da operação do cliente</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="px-4 py-3">B/L</th>
-                  <th scope="col" className="px-4 py-3">CE Mercante</th>
-                  <th scope="col" className="app-table__text-head px-4 py-3">Navio</th>
-                  <th scope="col" className="px-4 py-3">Viagem</th>
-                  <th scope="col" className="px-4 py-3">POL</th>
-                  <th scope="col" className="px-4 py-3">POD</th>
-                  <th scope="col" className="px-4 py-3">Containers</th>
-                  <th scope="col" className="px-4 py-3">Devolvidos</th>
-                  <th scope="col" className="px-4 py-3">Sem devolução</th>
-                  <th scope="col" className="px-4 py-3">Em demurrage</th>
-                  <th scope="col" className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.map((row) => {
-                  const isOpen = openBl === row.bl_id
-                  const noReturn = row.container_count - row.containers_returned
-                  return (
-                    <Fragment key={row.bl_id}>
-                      <tr className={`cursor-pointer ${isOpen ? 'bg-[var(--app-surface-hover)]' : ''}`} onClick={() => setOpenBl(isOpen ? null : row.bl_id)}>
-                        <td className="px-4 py-3 font-semibold"><CopyValue value={row.bl_id} label="número do B/L" />{row.cancelled_at ? <> <Badge tone="red">Cancelado</Badge></> : null}</td>
-                        <td className="px-4 py-3">{row.ce_mercante ? <CopyValue value={row.ce_mercante} label="CE Mercante"><Badge tone="blue">CE {row.ce_mercante}</Badge></CopyValue> : <Badge>Sem CE</Badge>}</td>
-                        <td className="app-table__text px-4 py-3" title={row.vessel_name ?? undefined}>{row.vessel_name ?? <NoValue label="Sem navio" />}</td>
-                        <td className="px-4 py-3">{row.voyage_number ?? <NoValue label="Sem viagem" />}</td>
-                        <td className="px-4 py-3">{row.pol ?? <NoValue label="Sem POL" />}</td>
-                        <td className="px-4 py-3">{row.pod ?? <NoValue label="Sem POD" />}</td>
-                        <td className="px-4 py-3">
-                          {row.cargo_mode === 'misto' || ((row.bb_weight_ton ?? 0) > 0 && row.container_count > 0) ? (
-                            <span className="font-medium">{row.container_count} CNTR + {row.bb_weight_ton ?? 0}t</span>
-                          ) : row.cargo_mode === 'carga_solta' ? (
-                            <span className="font-medium">{row.bb_weight_ton ?? 0}t</span>
-                          ) : (
-                            row.container_count
-                          )}
-                        </td>
-                        <td className="px-4 py-3">{row.containers_returned}</td>
-                        <td className="px-4 py-3">{noReturn > 0 ? <Badge tone="yellow">{noReturn}</Badge> : '0'}</td>
-                        <td className="px-4 py-3">{row.containers_in_demurrage > 0 ? <Badge tone="red">{row.containers_in_demurrage}</Badge> : '0'}</td>
-                        <td className="px-4 py-3">{isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</td>
-                      </tr>
-                      {isOpen ? (
-                        <tr key={`${row.bl_id}-details`}>
-                          <td colSpan={11} className="p-0"><ContainerDetails row={row} /></td>
+        {filtered.length === 0 ? (
+          <EmptyState title="Sem B/Ls" description="Nenhum B/L encontrado para os filtros atuais." />
+        ) : (
+          <>
+            <div className="hidden app-table-scroll md:block">
+              <table className="app-table app-table--dense text-sm">
+                <caption className="sr-only">B/Ls da operação do cliente; cada linha abre os containers do B/L</caption>
+                <thead>
+                  <tr>
+                    <th scope="col"><span className="sr-only">Abrir containers</span></th>
+                    <th scope="col">B/L</th>
+                    <th scope="col">CE Mercante</th>
+                    <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+                    <th scope="col">Trecho</th>
+                    <th scope="col">Carga</th>
+                    <th scope="col">Taxas locais</th>
+                    <th scope="col">Pagamento</th>
+                    <th scope="col">Devolução</th>
+                    <th scope="col">Demurrage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map((row) => {
+                    const isOpen = openBl === row.bl_id
+                    const panelId = `operacao-bl-${row.bl_id}`
+                    const toggle = () => setOpenBl(isOpen ? null : row.bl_id)
+                    return (
+                      <Fragment key={row.bl_id}>
+                        <tr className={`cursor-pointer ${row.cancelled_at ? 'app-table__row--muted' : ''}`} onClick={toggle}>
+                          <td>
+                            <button
+                              type="button"
+                              className="app-table__icon-button"
+                              aria-controls={isOpen ? panelId : undefined}
+                              aria-expanded={isOpen}
+                              aria-label={`${isOpen ? 'Recolher' : 'Abrir'} os containers do B/L ${row.bl_id}`}
+                              onClick={(event) => { event.stopPropagation(); toggle() }}
+                            >
+                              {isOpen ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+                            </button>
+                          </td>
+                          <td className="whitespace-nowrap">
+                            <span className={`${monoClass} font-semibold`}><CopyValue value={row.bl_id} label="número do B/L" /></span>
+                            {row.cancelled_at ? <> · <StatusText tone="muted">Cancelado</StatusText></> : null}
+                          </td>
+                          <td className="whitespace-nowrap"><CeMercante value={row.ce_mercante} /></td>
+                          <td className="app-table__text" title={vesselVoyage(row) ?? undefined}>{vesselVoyage(row) ?? <NoValue label="Sem navio e viagem" />}</td>
+                          <td className="whitespace-nowrap">{route(row)}</td>
+                          <td className="whitespace-nowrap">{blCargoLabel(row)}</td>
+                          <LocalChargesCells row={row} />
+                          <td className="whitespace-nowrap tabular-nums"><ReturnCell row={row} /></td>
+                          <td className="whitespace-nowrap tabular-nums"><DemurrageCell row={row} /></td>
                         </tr>
-                      ) : null}
-                    </Fragment>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="grid gap-3 p-4 md:hidden" data-testid="portal-operacao-bl-mobile-cards">
-            {paginated.map((row) => {
-              const noReturn = row.container_count - row.containers_returned
-              return (
-                <div key={row.bl_id}>
-                <button
-                  type="button"
-                  onClick={() => setOpenBl(openBl === row.bl_id ? null : row.bl_id)}
-                  className="w-full rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 text-left"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold">B/L {row.bl_id}</span>
-                    {row.cancelled_at ? <Badge tone="red">Cancelado</Badge> : null}
-                    {row.ce_mercante ? <Badge tone="blue">CE</Badge> : <Badge>Sem CE</Badge>}
-                  </div>
-                  <div className="mt-2 text-sm text-[var(--app-muted)]">
-                    {[row.vessel_name, row.voyage_number].filter(Boolean).join(' / ') || <NoValue label="Sem navio/viagem" />}
-                  </div>
-                  <div className="mt-1 text-sm text-[var(--app-muted)]">{row.pol ?? <NoValue label="Sem POL" />} - {row.pod ?? <NoValue label="Sem POD" />}</div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <span>Containers {row.container_count}</span>
-                    <span>Sem dev. {noReturn}</span>
-                    <span>Dem. {row.containers_in_demurrage}</span>
-                  </div>
-                </button>
-                <div className="mt-2"><InformationLinks sections={['devolucao', 'tracking']} bl={row.bl_id} pod={row.pod} /></div>
-                </div>
-              )
-            })}
-          </div>
-          <TableFooterPagination
-            page={safePage}
-            pageBase={0}
-            pageSize={pageSize}
-            totalCount={filtered.length}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </>
-      )}
-    </Card>
+                        {isOpen ? (
+                          <tr id={panelId} data-row-detail>
+                            <td colSpan={10}><BlDetails row={row} /></td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="grid gap-3 px-4 pb-4 md:hidden" data-testid="portal-operacao-bl-mobile-cards">
+              {paginated.map((row) => {
+                const { total, payment } = localChargesView(row.local_charges)
+                return (
+                  <article key={row.bl_id} aria-label={`B/L ${row.bl_id}`} className="grid gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
+                    <div className="flex flex-wrap items-center gap-2 font-semibold">
+                      <span>B/L <span className={monoClass}><CopyValue value={row.bl_id} label="número do B/L" /></span></span>
+                      {row.cancelled_at ? <StatusText tone="muted">Cancelado</StatusText> : null}
+                    </div>
+                    <FactList columns={2}>
+                      <Fact label="CE Mercante" className="col-span-2 content-start"><CeMercante value={row.ce_mercante} /></Fact>
+                      <Fact className="content-start" label="Navio / Viagem">{vesselVoyage(row) ?? <NoValue label="Sem navio e viagem" />}</Fact>
+                      <Fact className="content-start" label="Trecho">{route(row)}</Fact>
+                      <Fact className="content-start" label="Carga">{blCargoLabel(row)}</Fact>
+                      <Fact className="content-start" label="Taxas locais">{total != null ? formatBRL(total) : <NoValue label="Sem valor de fatura" />}</Fact>
+                      <Fact className="content-start" label="Pagamento">{payment ? <StatusText tone={payment.tone}>{payment.label}</StatusText> : <NoValue label="Sem fatura" />}</Fact>
+                      <Fact className="content-start" label="Devolução"><ReturnCell row={row} /></Fact>
+                      <Fact className="content-start" label="Demurrage"><DemurrageCell row={row} /></Fact>
+                    </FactList>
+                  </article>
+                )
+              })}
+            </div>
+            <TableFooterPagination
+              page={safePage}
+              pageBase={0}
+              pageSize={pageSize}
+              totalCount={filtered.length}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </>
+        )}
+      </Block>
+    </>
   )
+}
+
+function vesselVoyage(row: { vessel_name: string | null; voyage_number: string | null }) {
+  return [row.vessel_name, row.voyage_number].filter(Boolean).join(' / ') || null
+}
+
+function route(row: PortalOperationBL) {
+  if (!row.pol && !row.pod) return <NoValue label="Sem trecho" />
+  return <>{row.pol ?? <NoValue label="Sem POL" />} → {row.pod ?? <NoValue label="Sem POD" />}</>
+}
+
+function CeMercante({ value }: { value: string | null }) {
+  return value ? <span className={monoClass}><CopyValue value={value} label="CE Mercante" /></span> : <NoValue label="Sem CE Mercante" />
+}
+
+function LocalChargesCells({ row }: { row: PortalOperationBL }) {
+  const { total, payment } = localChargesView(row.local_charges)
+  return (
+    <>
+      <td className="whitespace-nowrap tabular-nums">{total != null ? formatBRL(total) : <NoValue label="Sem valor de fatura" />}</td>
+      <td className="whitespace-nowrap tabular-nums">{payment ? <StatusText tone={payment.tone}>{payment.label}</StatusText> : <NoValue label="Sem fatura" />}</td>
+    </>
+  )
+}
+
+function ReturnCell({ row }: { row: PortalOperationBL }) {
+  if (row.containers.length === 0) return <NoValue label="Sem containers" />
+  const { returnable, returned, awaiting } = blReturnSummary(row)
+  if (returnable === 0) return <>SOC (sem devolução)</>
+  const text = `${returned} de ${returnable} ${returnable === 1 ? 'devolvido' : 'devolvidos'}`
+  return awaiting > 0 ? <StatusText tone="warning">{text}</StatusText> : <>{text}</>
+}
+
+function DemurrageCell({ row }: { row: PortalOperationBL }) {
+  if (row.containers.length === 0) return <NoValue label="Sem containers" />
+  const { inDemurrage } = blReturnSummary(row)
+  return inDemurrage > 0 ? <StatusText tone="danger">{`${inDemurrage} em demurrage`}</StatusText> : <>Nenhum</>
 }
 
 // --- Aba Containers ------------------------------------------------------
@@ -316,7 +422,7 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
 
   const containers = useMemo(() => flattenContainers(rows), [rows])
 
-  const filtered = useMemo(
+  const scoped = useMemo(
     () =>
       containers.filter(
         (c) =>
@@ -327,233 +433,227 @@ function ContainersTab({ rows, filters, onFilters }: { rows: PortalOperationBL[]
           includesText(c.voyage_number, filters.voyage) &&
           includesText(c.pol, filters.pol) &&
           includesText(c.pod, filters.pod) &&
-          containerMatchesReturnSituation(c, filters.devolucao) &&
           (!filters.status || c.status === filters.status),
       ),
-    [containers, filters],
+    [containers, filters.container, filters.bl, filters.ce, filters.vessel, filters.voyage, filters.pol, filters.pod, filters.status],
+  )
+  const filtered = useMemo(() => scoped.filter((c) => containerMatchesReturnSituation(c, filters.devolucao)), [scoped, filters.devolucao])
+  const counts = useMemo(
+    () => Object.fromEntries(CONTAINER_CARDS.map((card) => [card.value, scoped.filter((c) => containerMatchesReturnSituation(c, card.value)).length])),
+    [scoped],
   )
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, totalPages - 1)
   const paginated = filtered.slice(safePage * pageSize, (safePage + 1) * pageSize)
   const activeFilters = Object.values(filters).filter(Boolean).length
+  const update = (next: Partial<ContainerFilters>) => { onFilters({ ...filters, ...next }); setPage(0) }
 
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--app-border)] px-5 py-4">
-        <div>
-          <h2 className="text-base font-semibold">Containers</h2>
-          <p className="mt-1 text-sm text-[var(--app-muted)]">{filtered.length} container(es) encontrado(s)</p>
+    <>
+      <FilterCards label="Filtrar containers por devolução" cards={CONTAINER_CARDS} counts={counts} selected={filters.devolucao} onSelect={(devolucao) => update({ devolucao })} />
+
+      <Block
+        title="Containers"
+        flush
+        aside={<>{filtered.length}<ExportButton onClick={() => void exportPortalContainersWorkbook(filtered)} disabled={filtered.length === 0} /></>}
+      >
+        <div className="app-block__body">
+          <FilterBar activeCount={activeFilters} onClear={() => { onFilters(EMPTY_CONTAINER_FILTERS); setPage(0) }}>
+            <div className="app-filter-grid">
+              <Field label="Container"><Input value={filters.container} onChange={(e) => update({ container: e.target.value })} placeholder="Número do container" /></Field>
+              <Field label="B/L"><Input value={filters.bl} onChange={(e) => update({ bl: e.target.value })} placeholder="Número do B/L" /></Field>
+              <Field label="CE Mercante"><Input value={filters.ce} onChange={(e) => update({ ce: e.target.value })} placeholder="CE Mercante" /></Field>
+              <Field label="Navio"><Input value={filters.vessel} onChange={(e) => update({ vessel: e.target.value })} placeholder="Navio" /></Field>
+              <Field label="Viagem"><Input value={filters.voyage} onChange={(e) => update({ voyage: e.target.value })} placeholder="Viagem" /></Field>
+              <Field label="POL"><Input value={filters.pol} onChange={(e) => update({ pol: e.target.value })} placeholder="POL" /></Field>
+              <Field label="POD"><Input value={filters.pod} onChange={(e) => update({ pod: e.target.value })} placeholder="POD" /></Field>
+              <Field label="Situação de devolução">
+                <Select value={filters.devolucao} onChange={(e) => update({ devolucao: e.target.value as ReturnSituation })}>
+                  {RETURN_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Status operacional">
+                <Select value={filters.status} onChange={(e) => update({ status: e.target.value as OpStatus })}>
+                  {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Por página">
+                <Select value={String(pageSize)} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0) }}>
+                  {PAGE_SIZES.map((s) => <option key={s} value={String(s)}>{s}</option>)}
+                </Select>
+              </Field>
+            </div>
+          </FilterBar>
         </div>
-        <Button variant="secondary" onClick={() => void exportPortalContainersWorkbook(filtered)} disabled={filtered.length === 0}>
-          <Download size={16} />
-          Exportar Excel
-        </Button>
-      </div>
 
-      <div className="px-5 pt-4">
-        <FilterBar activeCount={activeFilters} onClear={() => { onFilters(EMPTY_CONTAINER_FILTERS); setPage(0) }}>
-          <div className="app-filter-grid">
-            <Field label="Container"><Input value={filters.container} onChange={(e) => { onFilters({ ...filters, container: e.target.value }); setPage(0) }} placeholder="Numero do container" /></Field>
-            <Field label="B/L"><Input value={filters.bl} onChange={(e) => { onFilters({ ...filters, bl: e.target.value }); setPage(0) }} placeholder="Numero do B/L" /></Field>
-            <Field label="CE Mercante"><Input value={filters.ce} onChange={(e) => { onFilters({ ...filters, ce: e.target.value }); setPage(0) }} placeholder="CE Mercante" /></Field>
-            <Field label="Navio"><Input value={filters.vessel} onChange={(e) => { onFilters({ ...filters, vessel: e.target.value }); setPage(0) }} placeholder="Navio" /></Field>
-            <Field label="Viagem"><Input value={filters.voyage} onChange={(e) => { onFilters({ ...filters, voyage: e.target.value }); setPage(0) }} placeholder="Viagem" /></Field>
-            <Field label="POL"><Input value={filters.pol} onChange={(e) => { onFilters({ ...filters, pol: e.target.value }); setPage(0) }} placeholder="POL" /></Field>
-            <Field label="POD"><Input value={filters.pod} onChange={(e) => { onFilters({ ...filters, pod: e.target.value }); setPage(0) }} placeholder="POD" /></Field>
-            <Field label="Situação de devolução">
-              <Select value={filters.devolucao} onChange={(e) => { onFilters({ ...filters, devolucao: e.target.value as ReturnSituation }); setPage(0) }}>
-                {RETURN_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </Select>
-            </Field>
-            <Field label="Status operacional">
-              <Select value={filters.status} onChange={(e) => { onFilters({ ...filters, status: e.target.value as OpStatus }); setPage(0) }}>
-                {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </Select>
-            </Field>
-            <Field label="Por página">
-              <Select value={String(pageSize)} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0) }}>
-                {PAGE_SIZES.map((s) => <option key={s} value={String(s)}>{s}</option>)}
-              </Select>
-            </Field>
-          </div>
-        </FilterBar>
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyState title="Sem containers" description="Nenhum container encontrado para os filtros atuais." />
-      ) : (
-        <>
-          <div className="hidden app-table-scroll md:block">
-            <table className="app-table app-table--compact min-w-[1200px] text-sm">
-              <caption className="sr-only">Containers da operação do cliente</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="px-4 py-3">Container</th>
-                  <th scope="col" className="px-4 py-3">Tipo</th>
-                  <th scope="col" className="px-4 py-3">B/L</th>
-                  <th scope="col" className="px-4 py-3">CE Mercante</th>
-                  <th scope="col" className="app-table__text-head px-4 py-3">Navio</th>
-                  <th scope="col" className="px-4 py-3">Viagem</th>
-                  <th scope="col" className="px-4 py-3">POL</th>
-                  <th scope="col" className="px-4 py-3">POD</th>
-                  <th scope="col" className="px-4 py-3">Descarga</th>
-                  <th scope="col" className="px-4 py-3">Devolução</th>
-                  <th scope="col" className="px-4 py-3">Dias de uso</th>
-                  <th scope="col" className="px-4 py-3">Free time</th>
-                  <th scope="col" className="px-4 py-3">Dias em demurrage</th>
-                  <th scope="col" className="px-4 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.map((c) => (
-                  <tr key={`${c.bl_id}-${c.id}`}>
-                    <td className="px-4 py-3 font-semibold"><CopyValue value={c.container_number} label="número do contêiner" /></td>
-                    <td className="px-4 py-3">{c.type ?? <NoValue label="Sem tipo" />}</td>
-                    <td className="px-4 py-3"><CopyValue value={c.bl_id} label="número do B/L" /></td>
-                    <td className="px-4 py-3">{c.ce_mercante ? <CopyValue value={c.ce_mercante} label="CE Mercante" /> : <NoValue label="Sem CE Mercante" />}</td>
-                    <td className="app-table__text px-4 py-3" title={c.vessel_name ?? undefined}>{c.vessel_name ?? <NoValue label="Sem navio" />}</td>
-                    <td className="px-4 py-3">{c.voyage_number ?? <NoValue label="Sem viagem" />}</td>
-                    <td className="px-4 py-3">{c.pol ?? <NoValue label="Sem POL" />}</td>
-                    <td className="px-4 py-3">{c.pod ?? <NoValue label="Sem POD" />}</td>
-                    <td className="px-4 py-3">{c.discharge_date ? formatDate(c.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
-                    <td className="px-4 py-3">{c.return_date ? formatDate(c.return_date) : 'Pendente'}</td>
-                    <td className="px-4 py-3">{formatNumber(c.usage_days, 'Sem dias de uso')}</td>
-                    <td className="px-4 py-3">{formatNumber(c.free_time_days, 'Sem free time')}</td>
-                    <td className="px-4 py-3">{formatNumber(c.demurrage_days, 'Sem dias em demurrage')}</td>
-                    <td className="px-4 py-3">{renderStatus(c.status)}</td>
+        {filtered.length === 0 ? (
+          <EmptyState title="Sem containers" description="Nenhum container encontrado para os filtros atuais." />
+        ) : (
+          <>
+            {/* CE Mercante, Navio, Viagem e POL ficam na aba BLs e na planilha
+                (rodada 1): sem elas a Situação cabe a 1440 px. */}
+            <div className="hidden app-table-scroll md:block">
+              <table className="app-table app-table--dense text-sm">
+                <caption className="sr-only">Containers da operação do cliente</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Container</th>
+                    <th scope="col">Tipo</th>
+                    <th scope="col">B/L</th>
+                    <th scope="col">POD</th>
+                    <th scope="col">Descarga</th>
+                    <th scope="col">Devolução</th>
+                    <th scope="col">Dias de uso</th>
+                    <th scope="col">Free time</th>
+                    <th scope="col">Dias em demurrage</th>
+                    <th scope="col">Situação</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="grid gap-3 p-4 md:hidden" data-testid="portal-operacao-container-mobile-cards">
-            {paginated.map((c) => (
-              <div
-                key={`${c.bl_id}-${c.id}`}
-                className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 text-left"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold">Container <CopyValue value={c.container_number} label="número do contêiner" /></span>
-                  {renderStatus(c.status)}
-                </div>
-                <div className="mt-2 text-sm text-[var(--app-muted)]">B/L <CopyValue value={c.bl_id} label="número do B/L" /></div>
-                <div className="mt-1 text-sm text-[var(--app-muted)]">
-                  {[c.vessel_name, c.voyage_number].filter(Boolean).join(' / ') || <NoValue label="Sem navio/viagem" />}
-                </div>
-                <div className="mt-1 text-sm text-[var(--app-muted)]">{c.pol ?? <NoValue label="Sem POL" />} - {c.pod ?? <NoValue label="Sem POD" />}</div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                  <span>Uso {formatNumber(c.usage_days, 'Sem dias de uso')}</span>
-                  <span>Free {formatNumber(c.free_time_days, 'Sem free time')}</span>
-                  <span>Dem. {formatNumber(c.demurrage_days, 'Sem dias em demurrage')}</span>
-                </div>
-                <div className="mt-3"><InformationLinks sections={['devolucao', 'tracking']} bl={c.bl_id} pod={c.pod} /></div>
-              </div>
-            ))}
-          </div>
-          <TableFooterPagination
-            page={safePage}
-            pageBase={0}
-            pageSize={pageSize}
-            totalCount={filtered.length}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </>
-      )}
-    </Card>
+                </thead>
+                <tbody>
+                  {paginated.map((c) => (
+                    <tr key={`${c.bl_id}-${c.id}`}>
+                      <td className="whitespace-nowrap"><span className={`${monoClass} font-semibold`}><CopyValue value={c.container_number} label="número do contêiner" /></span></td>
+                      <td>{c.type ?? <NoValue label="Sem tipo" />}</td>
+                      <td className="whitespace-nowrap"><span className={monoClass}><CopyValue value={c.bl_id} label="número do B/L" /></span></td>
+                      <td>{c.pod ?? <NoValue label="Sem POD" />}</td>
+                      <ContainerDayCells container={c} />
+                      <td className="whitespace-nowrap"><Situation container={c} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="grid gap-3 px-4 pb-4 md:hidden" data-testid="portal-operacao-container-mobile-cards">
+              {paginated.map((c) => <ContainerCard key={`${c.bl_id}-${c.id}`} container={c} />)}
+            </div>
+            <TableFooterPagination
+              page={safePage}
+              pageBase={0}
+              pageSize={pageSize}
+              totalCount={filtered.length}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </>
+        )}
+      </Block>
+    </>
   )
 }
 
-function ContainerDetails({ row }: { row: PortalOperationBL }) {
+function ContainerCard({ container: c }: { container: PortalFlatContainer }) {
+  return (
+    <article aria-label={`Container ${c.container_number}`} className="grid gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-semibold">Container <span className={monoClass}><CopyValue value={c.container_number} label="número do contêiner" /></span></span>
+        <Situation container={c} />
+      </div>
+      <FactList columns={2}>
+        <Fact label="B/L" className="col-span-2 content-start"><span className={monoClass}><CopyValue value={c.bl_id} label="número do B/L" /></span></Fact>
+        <Fact className="content-start" label="Tipo">{c.type ?? <NoValue label="Sem tipo" />}</Fact>
+        <Fact className="content-start" label="POD">{c.pod ?? <NoValue label="Sem POD" />}</Fact>
+        <Fact className="content-start" label="Descarga">{c.discharge_date ? formatDate(c.discharge_date) : <NoValue label="Sem data de descarga" />}</Fact>
+        <Fact className="content-start" label="Devolução">{c.return_date ? formatDate(c.return_date) : <NoValue label="Ainda não devolvido" />}</Fact>
+        <Fact className="content-start" label="Dias de uso">{formatNumber(c.usage_days, 'Sem dias de uso')}</Fact>
+        <Fact className="content-start" label="Free time">{formatNumber(c.free_time_days, 'Sem free time')}</Fact>
+        <Fact className="content-start" label="Dias em demurrage">{formatNumber(c.demurrage_days, 'Sem dias em demurrage')}</Fact>
+      </FactList>
+    </article>
+  )
+}
+
+function ContainerDayCells({ container }: { container: PortalOperationContainer }) {
+  return (
+    <>
+      <td className="whitespace-nowrap tabular-nums">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
+      <td className="whitespace-nowrap tabular-nums">{container.return_date ? formatDate(container.return_date) : <NoValue label="Ainda não devolvido" />}</td>
+      <td className="tabular-nums">{formatNumber(container.usage_days, 'Sem dias de uso')}</td>
+      <td className="tabular-nums">{formatNumber(container.free_time_days, 'Sem free time')}</td>
+      <td className="tabular-nums">{formatNumber(container.demurrage_days, 'Sem dias em demurrage')}</td>
+    </>
+  )
+}
+
+function Situation({ container }: { container: PortalOperationContainer }) {
+  const { label, tone, title } = containerSituation(container)
+  const text = tone === 'default' ? <>{label}</> : <StatusText tone={tone}>{label}</StatusText>
+  return title ? <span title={title}>{text}</span> : text
+}
+
+function BlDetails({ row }: { row: PortalOperationBL }) {
   const hasBreakbulk =
     row.cargo_mode === 'misto' ||
     row.cargo_mode === 'carga_solta' ||
     (row.bb_weight_ton != null && row.bb_weight_ton > 0)
-
-  return (
-    <div className="border-t border-[var(--app-border)]">
-      <div className="px-5 py-4"><InformationLinks sections={['taxas', 'devolucao', 'tracking', 'agentes']} bl={row.bl_id} pod={row.pod} /></div>
-      {row.transshipment ? <PortalTransshipmentCard transshipment={row.transshipment} /> : null}
-      {hasBreakbulk ? (
-        <section
-          className="m-4 grid gap-1 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4"
-          data-testid="portal-breakbulk-summary"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[var(--app-text-strong)]">Carga Solta (Breakbulk)</h3>
-            <Badge tone="slate">Breakbulk</Badge>
-          </div>
-          <p className="text-sm text-[var(--app-muted)]">
-            Resumo dos packages de carga solta vinculados a este B/L.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-6 text-sm">
-            <div>
-              <span className="text-xs text-[var(--app-muted)]">Peso Total: </span>
-              <span className="font-semibold">{row.bb_weight_ton != null ? `${row.bb_weight_ton} ton` : <NoValue label="Sem peso total" />}</span>
-            </div>
-            <div>
-              <span className="text-xs text-[var(--app-muted)]">Packages: </span>
-              <span className="font-semibold">
-                {row.bb_packages_qty != null ? `${row.bb_packages_qty} package(s)` : <NoValue label="Sem packages" />}
-              </span>
-            </div>
-          </div>
-        </section>
-      ) : null}
-      {row.containers.length === 0 ? (
-        <div className="px-5 pb-5 text-sm text-[var(--app-muted)]">Nenhum container vinculado a este B/L.</div>
-      ) : <div className="app-table-scroll">
-      <table aria-label={`Containers do BL ${row.bl_id}`} className="app-table app-table--compact min-w-[860px] text-sm">
-        <thead>
-          <tr>
-            <th scope="col" className="px-4 py-3">Container</th>
-            <th scope="col" className="px-4 py-3">Tipo</th>
-            <th scope="col" className="px-4 py-3">Descarga</th>
-            <th scope="col" className="px-4 py-3">Devolução</th>
-            <th scope="col" className="px-4 py-3">Dias uso</th>
-            <th scope="col" className="px-4 py-3">Free time</th>
-            <th scope="col" className="px-4 py-3">Demurrage</th>
-            <th scope="col" className="px-4 py-3">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {row.containers.map((container) => (
-            <tr key={container.id}>
-              <td className="px-4 py-3 font-semibold"><CopyValue value={container.container_number} label="número do contêiner" /></td>
-              <td className="px-4 py-3">{container.type ?? <NoValue label="Sem tipo" />}</td>
-              <td className="px-4 py-3">{container.discharge_date ? formatDate(container.discharge_date) : <NoValue label="Sem data de descarga" />}</td>
-              <td className="px-4 py-3">{container.return_date ? formatDate(container.return_date) : 'Pendente'}</td>
-              <td className="px-4 py-3">{formatNumber(container.usage_days, 'Sem dias de uso')}</td>
-              <td className="px-4 py-3">{formatNumber(container.free_time_days, 'Sem free time')}</td>
-              <td className="px-4 py-3">{formatNumber(container.demurrage_days, 'Sem dias em demurrage')}</td>
-              <td className="px-4 py-3">{renderStatus(container.status)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>}
-    </div>
-  )
-}
-
-function PortalTransshipmentCard({ transshipment }: { transshipment: NonNullable<PortalOperationBL['transshipment']> }) {
-  const value = (text: string | null, label = 'Sem informação') => text || <NoValue label={label} />
-
-  if (transshipment.disposition === 'cod') {
-    return (
-      <section className="m-4 grid gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-        <h3 className="text-sm font-semibold">Destino alterado para {value(transshipment.discharge_pod)} (COD)</h3>
-        <p className="text-sm">Sua carga não seguirá em transbordo.</p>
-      </section>
+  const blocks: ReactNode[] = []
+  if (row.transshipment) blocks.push(<PortalTransshipmentBlock key="transbordo" transshipment={row.transshipment} />)
+  if (hasBreakbulk) {
+    blocks.push(
+      <div key="carga-solta" data-testid="portal-breakbulk-summary">
+        <Block title="Carga solta" headingLevel={3}>
+          <FactList columns={2}>
+            <Fact className="content-start" label="Peso total">{row.bb_weight_ton != null ? formatTons(row.bb_weight_ton) : <NoValue label="Sem peso total" />}</Fact>
+            <Fact className="content-start" label="Packages">{row.bb_packages_qty ?? <NoValue label="Sem packages" />}</Fact>
+          </FactList>
+        </Block>
+      </div>,
     )
   }
 
   return (
-    <section className="m-4 grid gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-      <h3 className="text-sm font-semibold text-[var(--app-text-strong)]">Informações de Transbordo</h3>
-      <p className="text-sm">Escala de {value(transshipment.omitted_pod)} omitida · Porto de Transbordo — {value(transshipment.discharge_pod)}</p>
-      <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 py-2">
+      {blocks.length ? <div className="grid gap-3 lg:grid-cols-2">{blocks}</div> : null}
+      {row.containers.length === 0 ? (
+        row.cargo_mode === 'carga_solta' ? null : <p className="m-0 text-sm text-[var(--app-muted)]">Nenhum container vinculado a este B/L.</p>
+      ) : (
+        <div className="app-table-scroll">
+          <table className="app-table app-table--dense text-sm">
+            <caption className="sr-only">Containers do B/L {row.bl_id}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Container</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Descarga</th>
+                <th scope="col">Devolução</th>
+                <th scope="col">Dias de uso</th>
+                <th scope="col">Free time</th>
+                <th scope="col">Dias em demurrage</th>
+                <th scope="col">Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {row.containers.map((container) => (
+                <tr key={container.id}>
+                  <td className="whitespace-nowrap"><span className={`${monoClass} font-semibold`}><CopyValue value={container.container_number} label="número do contêiner" /></span></td>
+                  <td>{container.type ?? <NoValue label="Sem tipo" />}</td>
+                  <ContainerDayCells container={container} />
+                  <td className="whitespace-nowrap"><Situation container={container} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PortalTransshipmentBlock({ transshipment }: { transshipment: NonNullable<PortalOperationBL['transshipment']> }) {
+  const value = (text: string | null, label = 'Sem informação') => text || <NoValue label={label} />
+
+  if (transshipment.disposition === 'cod') {
+    return (
+      <Block title={<>Destino alterado para {value(transshipment.discharge_pod, 'Sem porto')} (COD)</>} headingLevel={3}>
+        <p className="m-0 text-sm">Sua carga não seguirá em transbordo.</p>
+      </Block>
+    )
+  }
+
+  return (
+    <Block title="Informações de Transbordo" headingLevel={3}>
+      <p className="m-0 text-sm">Escala de {value(transshipment.omitted_pod)} omitida · Porto de Transbordo — {value(transshipment.discharge_pod)}</p>
+      <FactList columns={3}>
         {[
           ['Navio', transshipment.onward_vessel_name],
           ['Armador', transshipment.onward_carrier],
@@ -561,22 +661,13 @@ function PortalTransshipmentCard({ transshipment }: { transshipment: NonNullable
           ['ETD', transshipment.onward_etd ? formatDate(transshipment.onward_etd) : null],
           ['ETA', transshipment.onward_eta ? formatDate(transshipment.onward_eta) : null],
         ].map(([label, text]) => (
-          <div key={label}><dt className="text-xs text-[var(--app-muted)]">{label}</dt><dd>{value(text, `Sem ${label}`)}</dd></div>
+          <Fact key={label} label={label}>{value(text, `Sem ${label}`)}</Fact>
         ))}
-      </dl>
-    </section>
+      </FactList>
+    </Block>
   )
 }
 
 function formatNumber(value: number | null, emptyLabel: string) {
   return value == null ? <NoValue label={emptyLabel} /> : String(value)
-}
-
-function renderStatus(status: PortalOperationContainerStatus) {
-  if (status === 'devolvido') return <Badge tone="green">Devolvido</Badge>
-  if (status === 'soc') return <Badge tone="slate" title="Container do próprio cliente: sem devolução nem demurrage">SOC</Badge>
-  if (status === 'tarifa_indisponivel') return <Badge tone="yellow" title="Free time oficial indisponível. Consulte o atendimento.">Tarifa indisponível</Badge>
-  if (status === 'em_demurrage') return <Badge tone="red">Em demurrage</Badge>
-  if (status === 'dentro_free_time') return <Badge tone="blue">Dentro free time</Badge>
-  return <Badge tone="slate">Sem descarga</Badge>
 }

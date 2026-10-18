@@ -6,6 +6,7 @@ import {
   type PortalScope,
 } from "./portalScope";
 import type {
+  CePortalRequestRow,
   CeUnlockDocument,
   CeUnlockExport,
   CeUnlockFilters,
@@ -47,15 +48,18 @@ export const listCeUnlockBls = (filters: CeUnlockFilters, page: number) =>
 // cada página recalcula a situação de todos os B/Ls com CE no banco, então o custo é O(páginas × B/Ls).
 // Um B/L que muda de posição entre páginas sai uma vez só (dedupe por B/L). Upgrade: uma leitura
 // própria da exportação no `ce_unlock_read`, sem paginação.
-export async function fetchAllCeUnlockBls(filters: CeUnlockFilters): Promise<CeUnlockItem[]> {
-  const first = await listCeUnlockBls(filters, 1);
+export const fetchAllCeUnlockBls = (filters: CeUnlockFilters): Promise<CeUnlockItem[]> =>
+  readAllCeUnlockPages((page) => listCeUnlockBls(filters, page));
+async function readAllCeUnlockPages(read: (page: number) => Promise<CeUnlockPage<CeUnlockItem> | null>): Promise<CeUnlockItem[]> {
+  const first = await read(1);
+  if (!first) return [];
   const pages = Math.ceil(first.total / (first.page_size || 25));
   const byBl = new Map(first.items.map((i) => [i.bl_id, i]));
   for (let start = 2; start <= pages; start += 4) {
     const batch = await Promise.all(
-      Array.from({ length: Math.min(4, pages - start + 1) }, (_, n) => listCeUnlockBls(filters, start + n)),
+      Array.from({ length: Math.min(4, pages - start + 1) }, (_, n) => read(start + n)),
     );
-    for (const result of batch) for (const i of result.items) if (!byBl.has(i.bl_id)) byBl.set(i.bl_id, i);
+    for (const result of batch) for (const i of result?.items ?? []) if (!byBl.has(i.bl_id)) byBl.set(i.bl_id, i);
   }
   return [...byBl.values()];
 }
@@ -89,12 +93,28 @@ export const listPortalCeUnlockBls = (
     "portal_list_ce_unlock_bls",
     { p_filters: filters, p_page: page },
   );
+/**
+ * Todos os B/Ls com CE do Cliente, para os cartões que contam e filtram a Nova
+ * solicitação e para a confirmação de B/L que muda de solicitação.
+ */
+// ponytail: lê as páginas do Portal (25 por página, quatro por vez) e a tela
+// conta, filtra e pagina no navegador; cada página recalcula todos os B/Ls do
+// Cliente no banco, então o custo é O(páginas × B/Ls). Upgrade: contagens e
+// filtros dos cartões no próprio `portal_list_ce_unlock_bls`.
+export const fetchAllPortalCeUnlockBls = (scope: PortalScope, filters: CeUnlockFilters): Promise<CeUnlockItem[]> =>
+  readAllCeUnlockPages((page) => listPortalCeUnlockBls(scope, filters, page));
 export const listPortalCeUnlockRequests = (scope: PortalScope, page: number) =>
-  callPortalRpc<
-    CeUnlockPage<
-      Pick<CeUnlockRequest, "id" | "protocol" | "state" | "version" | "source">
-    >
-  >(scope, "portal_list_ce_unlock_requests", { p_filters: {}, p_page: page });
+  callPortalRpc<CeUnlockPage<CePortalRequestRow>>(scope, "portal_list_ce_unlock_requests", { p_filters: {}, p_page: page });
+// ponytail: a lista do Portal é paginada (25 por página) e não filtra por
+// situação; quem precisa de todas (Painel, prévia da mudança de B/L) lê todas
+// as páginas. Upgrade: contagem e B/Ls por solicitação no próprio RPC.
+export async function fetchAllPortalCeUnlockRequests(scope: PortalScope): Promise<CePortalRequestRow[]> {
+  const first = await listPortalCeUnlockRequests(scope, 1);
+  if (!first) return [];
+  const pages = Math.ceil(first.total / (first.page_size || 25));
+  const rest = await Promise.all(Array.from({ length: Math.max(pages - 1, 0) }, (_, index) => listPortalCeUnlockRequests(scope, index + 2)));
+  return [first, ...rest].flatMap((page) => page?.items ?? []);
+}
 export const getPortalCeUnlockRequest = (scope: PortalScope, id: string) =>
   callPortalRpc<CeUnlockRequest>(scope, "portal_get_ce_unlock_request", {
     p_request_id: id,

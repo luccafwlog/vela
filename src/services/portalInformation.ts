@@ -21,13 +21,39 @@ export type PortalInformation = {
 }
 export type InformationKind = 'depot' | 'agent' | 'contact' | 'carrier' | 'notes'
 
-/** Links cadastrados jamais podem executar código ou carregar credenciais. */
+/** Marca do número do B/L no link de tracking do armador. */
+export const TRACKING_BL_MARKER = '{BL}'
+
+/**
+ * Links cadastrados jamais podem executar código ou carregar credenciais. A
+ * marca {BL} continua legível depois da normalização: o navegador a escreve
+ * como %7BBL%7D no caminho, e só o que vem depois da origem volta a {BL}.
+ */
 export function externalInformationUrl(value: string | null | undefined): string | null {
   if (!value) return null
   try {
     const url = new URL(value)
-    return ['https:', 'http:'].includes(url.protocol) && url.hostname && !url.username && !url.password ? url.href : null
+    if (!['https:', 'http:'].includes(url.protocol) || !url.hostname || url.username || url.password) return null
+    return url.origin + url.href.slice(url.origin.length).replace(/%7BBL%7D/gi, TRACKING_BL_MARKER)
   } catch { return null }
+}
+
+/** O link de tracking abre já na consulta do B/L quando traz a marca {BL}. */
+export function trackingUrlHasBlMarker(value: string | null | undefined): boolean {
+  return externalInformationUrl(value)?.includes(TRACKING_BL_MARKER) ?? false
+}
+
+/**
+ * Link de tracking com o número do B/L no lugar da marca. O número entra
+ * codificado (não muda o endereço do site) e o resultado passa de novo pela
+ * mesma validação; fora disso, nenhum link.
+ */
+export function trackingUrlForBl(value: string | null | undefined, bl: string): string | null {
+  const template = externalInformationUrl(value)
+  const number = bl.trim()
+  if (!template || !number || !template.includes(TRACKING_BL_MARKER)) return null
+  const url = externalInformationUrl(template.split(TRACKING_BL_MARKER).join(encodeURIComponent(number)))
+  return url && new URL(url).origin === new URL(template).origin ? url : null
 }
 
 export async function portalGetInformation(scope: PortalScope = clientPortalScope): Promise<PortalInformation> {

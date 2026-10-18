@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, PageHeader } from '../components/ui/Card'
 import { InformationEditor, type InformationField } from '../components/portal-information/InformationEditor'
-import { externalInformationUrl, type InformationKind, type PortalInformation } from '../services/portalInformation'
+import { externalInformationUrl, trackingUrlHasBlMarker, type InformationKind, type PortalInformation } from '../services/portalInformation'
 
 import { DemurrageSection } from '../components/portal/information/ReferenceSections'
 
@@ -59,7 +59,9 @@ export function ClientesInformacoes() {
             const value = row[f.key]
             return value ? <p key={f.key} className="whitespace-pre-wrap break-words"><span className="font-medium">{f.label}: </span>{Array.isArray(value) ? value.join(', ') : String(value)}</p> : null
           })}</div>
-          {url ? <a className="mt-3 inline-block text-sm text-blue-400" href={url} target="_blank" rel="noopener noreferrer">{section === 'carriers' ? 'Abrir tracking' : 'Abrir agendamento'}</a> : null}
+          {/* Link com {BL} só funciona com o número trocado pelo Portal: aqui, sem B/L, não abre. */}
+          {url && section === 'carriers' && trackingUrlHasBlMarker(url) ? <p className="mt-3 text-sm">O Portal abre este link com o número do B/L no lugar de {'{BL}'}.</p> : null}
+          {url && !(section === 'carriers' && trackingUrlHasBlMarker(url)) ? <a className="mt-3 inline-block text-sm text-blue-400" href={url} target="_blank" rel="noopener noreferrer">{section === 'carriers' ? 'Abrir tracking' : 'Abrir agendamento'}</a> : null}
           {canEdit ? <div className="mt-4"><Button variant="secondary" onClick={() => { setSaved(false); setCreatingContact(false); setEditing(row) }}>Editar {title}</Button></div> : null}
         </Card>
       })}</div>}

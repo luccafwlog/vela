@@ -212,3 +212,14 @@ it('solicitação concluída e ainda não exportada continua com o prazo corrend
   render(<CeUnlockRequestDetail request={base({ state: 'cancelled', items: [{ ...item('BL-1'), ...sla }] as never })} manage onAction={async () => {}} busy={false} />)
   expect(screen.getByRole('region', { name: 'Solicitação' }).querySelector('[data-sla]')).toBeNull()
 })
+
+it("pedido VIP mostra os documentos anuais na tabela comum, com a vigência em coluna", () => {
+  const annual = [
+    versionDoc({ id: "ta", source: "vip_annual", status: "approved", file_name: "termo-anual.pdf", valid_from: "2026-01-01", valid_until: "2026-12-31", coverage_year: 2026 }),
+  ];
+  render(<CeUnlockRequestDetail request={versionRequest(annual, "vip_annual")} manage busy={false} onAction={vi.fn()} />);
+  const block = screen.getByRole("region", { name: "Documentos" });
+  expect(within(block).getByRole("columnheader", { name: "Vigência" })).toBeTruthy();
+  expect(within(block).getByRole("button", { name: "termo-anual.pdf" }).closest("tr")!.textContent).toContain("01/01/2026 a 31/12/2026");
+  expect(within(block).queryByRole("button", { name: /Analisar/ })).toBeNull();
+})

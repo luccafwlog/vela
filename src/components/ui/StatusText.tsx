@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { CircleCheck, Layers } from 'lucide-react'
+import { CircleCheck, CirclePlus, Layers } from 'lucide-react'
 
 export type StatusTextTone = 'default' | 'warning' | 'danger' | 'muted' | 'paid'
 
@@ -22,6 +22,20 @@ export function ConsolidatedMark() {
   return (
     <span className="app-consolidated-mark" role="img" aria-label="Consolidada" title="Consolidada">
       <Layers size={14} aria-hidden="true" />
+    </span>
+  )
+}
+
+/**
+ * Marca de Invoice complementar: o mesmo ícone pequeno da consolidada, ao lado
+ * do número, com a Invoice que ela completa ao passar o mouse
+ * ("Complementa a DEM-2026-0001").
+ */
+export function ComplementMark({ of }: { of: string }) {
+  const label = `Complementa a ${of}`
+  return (
+    <span className="app-consolidated-mark" role="img" aria-label={label} title={label}>
+      <CirclePlus size={14} aria-hidden="true" />
     </span>
   )
 }

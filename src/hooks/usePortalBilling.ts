@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePortalAuth } from './usePortalAuth'
 import { usePortalScope } from './usePortalScope'
@@ -11,7 +12,9 @@ import {
   portalListDemurrageInvoicesPage,
   portalListInvoices,
   portalListInvoicesPage,
+  portalDemurrageComplementOf,
   portalObsoleteConsolidation,
+  type PortalDemurrageInvoice,
 } from '../services/portalBilling'
 import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../lib/portalBillingFilters'
 import { queryKeys } from '../services/queryKeys'
@@ -97,6 +100,34 @@ export function usePortalDemurrageInvoices() {
     enabled: isAuthenticated || readOnly,
     queryFn: () => portalListDemurrageInvoices(scope),
   })
+}
+
+export type PortalDemurrageComplements = {
+  /** Lista inteira do Cliente (também serve para achar o B/L de uma disputa). */
+  invoices: PortalDemurrageInvoice[] | undefined
+  /** Invoices anteriores que esta completa; `undefined` enquanto não se sabe. */
+  complementOf: (invoice: PortalDemurrageInvoice) => PortalDemurrageInvoice[] | undefined
+  /** Ainda não se sabe se é complementar: o documento não deve ser impresso. */
+  pending: boolean
+  /** A consulta falhou: imprimir omitiria o aviso de complementar. */
+  failed: boolean
+}
+
+/**
+ * Invoice complementar (ADR 0080, decisão 1) a partir da lista inteira de
+ * Demurrage do Portal, a mesma do Painel: a marca da lista e o detalhe não
+ * dependem dos filtros nem da página aberta.
+ * ponytail: lê a lista inteira do Cliente só para a marca; com muitas
+ * Invoices, upgrade é a RPC do Portal devolver `complement_of`.
+ */
+export function usePortalDemurrageComplements(): PortalDemurrageComplements {
+  const { data, error } = usePortalDemurrageInvoices()
+  return useMemo(() => ({
+    invoices: data,
+    complementOf: (invoice: PortalDemurrageInvoice) => (data ? portalDemurrageComplementOf(invoice, data) : undefined),
+    pending: !data && !error,
+    failed: Boolean(error),
+  }), [data, error])
 }
 
 export function usePortalDemurrageInvoicesPage(filters: PortalBillingFilters = EMPTY_PORTAL_BILLING_FILTERS, page = 0, pageSize = 25) {

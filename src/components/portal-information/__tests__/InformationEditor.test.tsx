@@ -34,6 +34,17 @@ describe('Informações publicadas', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar informações' }))
     await waitFor(() => expect(save).toHaveBeenCalledWith({ kind: 'depot', data: { id: 'existing', ports: ['BRSSZ', 'BRRIO'], published: true } }))
   })
+  it('explica a marca {BL} no link de tracking e salva o link com a marca legível', async () => {
+    render(<InformationEditor title="Tracking" kind="carrier" data={{ carrier_id: 1, tracking_url: '' }} fields={[{ key: 'tracking_url', label: 'URL de tracking do armador', type: 'url' }]} onClose={() => {}} />)
+    expect(screen.getByText('Use {BL} no lugar do número do B/L para o Portal abrir a consulta já preenchida.')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText(/URL de tracking/), { target: { value: 'https://carrier.example/track/{BL}' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar informações' }))
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ kind: 'carrier', data: { carrier_id: 1, tracking_url: 'https://carrier.example/track/{BL}' } }))
+  })
+  it('não mostra a dica da marca {BL} fora do link de tracking', () => {
+    render(<InformationEditor title="Depot" kind="depot" data={{ id: 'd1', scheduling_url: '' }} fields={[{ key: 'scheduling_url', label: 'URL de agendamento', type: 'url' }]} onClose={() => {}} />)
+    expect(screen.queryByText(/Use \{BL\}/)).toBeNull()
+  })
   it('mantém formulário e mostra erro quando o serviço rejeita a alteração', async () => {
     save.mockRejectedValueOnce(new Error('failure'))
     render(<InformationEditor title="Tracking" kind="carrier" data={{ carrier_id: 1, tracking_url: 'https://carrier.example' }} fields={[{ key: 'tracking_url', label: 'URL', type: 'url' }]} onClose={() => {}} />)

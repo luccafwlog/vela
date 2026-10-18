@@ -1,6 +1,8 @@
 import type { InvoiceDetail } from './billing'
 import type { ConsolidatableReceivable, DemurrageInvoiceItem } from '../types/database'
 import type { PortalBillingFilters } from '../lib/portalBillingFilters'
+import type { FinancialRefundSummary } from './financialRefunds'
+import { earlierLiveInvoices } from './demurrage/demurragePresentation'
 import { callPortalRpc, clientPortalScope, isPortalReadOnly, type PortalScope } from './portalScope'
 import { supabase, supabasePortal } from './supabase'
 
@@ -47,7 +49,20 @@ type PortalInvoiceContainer = {
   gross_weight_kg: number | null
 }
 
-export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice'> & {
+/**
+ * Pagamento recebido como o Portal o lê em `portal_invoice_details`: dia e
+ * hora, forma de pagamento e valor. Referência bancária, observação e autor
+ * da baixa ficam só no Vela.
+ */
+export type PortalInvoicePayment = {
+  id: number
+  amount_brl: number
+  payment_method: 'pix' | 'ted' | 'doc' | 'boleto' | 'outros' | null
+  paid_at: string | null
+  created_at: string | null
+}
+
+export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice' | 'payments'> & {
   corrections?: Array<{ amount_brl: number; offset_brl: number; refund_brl: number; bl_id: string; created_at: string }>
   invoice: (NonNullable<InvoiceDetail['invoice']> & {
     pix_payload: string | null
@@ -55,6 +70,19 @@ export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice'> & {
     covered_by_invoice_number?: string | null
   }) | null
   containers: PortalInvoiceContainer[]
+  payments: PortalInvoicePayment[]
+}
+
+/**
+ * O documento impresso da fatura (comum ao Vela) lê dos pagamentos só a data;
+ * os campos internos que o Portal não recebe vão vazios.
+ */
+export function portalInvoiceDocumentDetail(detail: PortalInvoiceDetail): InvoiceDetail {
+  const invoiceId = Number(detail.invoice?.id ?? 0)
+  return {
+    ...detail,
+    payments: (detail.payments ?? []).map((payment) => ({ ...payment, invoice_id: invoiceId, notes: null, registered_by: null })),
+  }
 }
 
 export async function portalListConsolidatableReceivables(scope: PortalScope = clientPortalScope) {
@@ -153,7 +181,7 @@ export async function portalInvoiceDetails(invoiceId: number, scope: PortalScope
     items?: InvoiceDetail['items']
     containers?: PortalInvoiceContainer[]
     corrections?: PortalInvoiceDetail['corrections']
-    payments?: InvoiceDetail['payments']
+    payments?: PortalInvoicePayment[]
   }
 
   const invoice = payload.invoice
@@ -171,7 +199,7 @@ export async function portalInvoiceDetails(invoiceId: number, scope: PortalScope
     bls: payload.bls ?? [],
     items: payload.items ?? [],
     containers: payload.containers ?? [],
-    payments: payload.payments ?? [],
+    payments: (payload.payments ?? []).map((payment) => ({ ...payment, amount_brl: Number(payment.amount_brl ?? 0) })),
   } as PortalInvoiceDetail
 }
 
@@ -203,6 +231,34 @@ export type PortalDemurrageInvoice = {
 export type PortalDemurrageInvoiceDetail = {
   invoice: PortalDemurrageInvoice & { customer_name: string; customer_cnpj_cpf: string }
   items: DemurrageInvoiceItem[]
+  /**
+   * Restituições da Invoice, sem as anotações internas (migration 298), no
+   * formato do recibo interno. `null` quando o banco ainda não as devolve.
+   */
+  refund_summary: FinancialRefundSummary | null
+}
+
+type PortalDemurrageComplementRef = Pick<PortalDemurrageInvoice, 'id' | 'bl_id' | 'doc_date' | 'doc_number' | 'status'>
+
+/**
+ * Invoice complementar no Portal (ADR 0080, decisão 1): as Invoices vivas
+ * (emitida ou paga) do mesmo B/L emitidas antes desta, pela mesma regra de
+ * `earlierLiveInvoices`, da mais antiga para a mais nova. Vazio quando não é
+ * complementar.
+ * ponytail: a lista do Portal não traz `created_at`; a ordem usa `doc_date` e,
+ * no mesmo dia, o id (que segue a ordem de criação), aproximação da regra
+ * interna. Upgrade: a RPC do Portal devolver `complement_of`.
+ */
+export function portalDemurrageComplementOf<T extends PortalDemurrageComplementRef>(invoice: T, rows: readonly T[]): T[] {
+  const asRef = (row: T) => ({ row, id: row.id, status: row.status, created_at: row.doc_date ?? '' })
+  const sameBl = rows.filter((row) => row.bl_id === invoice.bl_id).map(asRef)
+  return earlierLiveInvoices(asRef(invoice), sameBl).map((ref) => ref.row)
+}
+
+/** Números das Invoices numa frase: "DEM-1", "DEM-1 e a DEM-2", "DEM-1, a DEM-2 e a DEM-3". */
+export function joinDemurrageDocNumbers(numbers: readonly string[]): string {
+  if (numbers.length <= 1) return numbers[0] ?? ''
+  return `${numbers.slice(0, -1).join(', a ')} e a ${numbers[numbers.length - 1]}`
 }
 
 export type PortalCurrentRoe = {
@@ -269,8 +325,22 @@ export async function portalListDemurrageInvoicesForExport(
 
 export async function portalGetDemurrageInvoiceDetail(invoiceId: number, scope: PortalScope = clientPortalScope): Promise<PortalDemurrageInvoiceDetail> {
   const data = await callPortalRpc<unknown>(scope, 'portal_get_demurrage_invoice_detail', { p_invoice_id: invoiceId })
-  const payload = (data ?? {}) as { invoice?: PortalDemurrageInvoiceDetail['invoice']; items?: DemurrageInvoiceItem[] }
-  return { invoice: payload.invoice!, items: payload.items ?? [] }
+  const payload = (data ?? {}) as {
+    invoice?: PortalDemurrageInvoiceDetail['invoice']
+    items?: DemurrageInvoiceItem[]
+    refund_summary?: FinancialRefundSummary | null
+  }
+  const refunds = payload.refund_summary
+  return {
+    invoice: payload.invoice!,
+    items: payload.items ?? [],
+    refund_summary: refunds
+      ? {
+          received_brl: Number(refunds.received_brl ?? 0),
+          refunds: (refunds.refunds ?? []).map((row) => ({ ...row, amount_brl: Number(row.amount_brl ?? 0) })),
+        }
+      : null,
+  }
 }
 
 export async function portalCreateConsolidation(input: { receivableIds: number[] }, scope: PortalScope = clientPortalScope) {
@@ -440,6 +510,8 @@ export type PortalProfile = {
   city: string | null
   state: string | null
   zip: string | null
+  /** Só na sessão do Cliente (migration 300); a Inspeção não recebe. */
+  recovery_email?: string | null
 }
 
 export async function portalGetProfile(scope: PortalScope = clientPortalScope): Promise<PortalProfile> {

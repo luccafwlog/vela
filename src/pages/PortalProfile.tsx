@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Block, Fact, FactList } from '../components/ui/Block'
 import { Button } from '../components/ui/Button'
-import { Card, InlineError, PageHeader } from '../components/ui/Card'
+import { InlineError, PageHeader } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Input'
 import { PasswordInput } from '../components/auth/PasswordInput'
 import { useToast } from '../components/ui/Toast'
@@ -12,6 +13,7 @@ import { portalErrorMessage } from '../lib/portalErrorMessage'
 import type { PortalProfile as PortalProfileData } from '../services/portalBilling'
 import { supabasePortal } from '../services/supabase'
 import { PortalContactConfiguration } from '../components/portal/PortalContactConfiguration'
+import { ProfileSaveBar } from '../components/portal/ProfileSaveBar'
 import { isPortalReadOnly } from '../services/portalScope'
 
 export const RECOVERY_EMAIL_RATE_LIMIT_MESSAGE =
@@ -20,8 +22,13 @@ export const RECOVERY_EMAIL_RATE_LIMIT_MESSAGE =
 export const RECOVERY_EMAIL_SEND_FAILED_MESSAGE =
   'Não conseguimos enviar o email de confirmação. Nenhuma troca foi iniciada; tente novamente mais tarde.'
 
+const READ_ONLY_TITLE = 'Ação do cliente — indisponível em Modo Inspeção'
+const fieldsetClass = 'm-0 grid min-w-0 gap-4 border-0 p-0'
+
 export function PortalProfile() {
   const profile = usePortalProfile()
+  const refetchProfile = profile.refetch
+  const profileLoaded = profile.isFetched
   const scope = usePortalScope()
   const readOnly = isPortalReadOnly(scope)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -33,19 +40,23 @@ export function PortalProfile() {
   useEffect(() => {
     const token = searchParams.get('confirm_email')
     if (!token) return
-    if (readOnly) return
+    // Espera a primeira leitura do perfil: com ela em curso, a releitura
+    // depois da troca seria descartada e o "E-mail atual" ficaria o antigo.
+    if (readOnly || !profileLoaded) return
     void supabasePortal.functions.invoke('portal-recovery-email-change', { body: { action: 'confirm', token } }).then(({ error }) => {
-      showToast(error ? 'Não foi possível confirmar o novo email.' : 'Email de Recuperação atualizado com sucesso.', error ? 'error' : 'success')
+      showToast(error ? 'Não foi possível confirmar o novo e-mail.' : 'E-mail de recuperação atualizado com sucesso.', error ? 'error' : 'success')
+      // O "E-mail atual" do bloco vem do perfil: relê depois da troca.
+      if (!error) void refetchProfile()
       searchParams.delete('confirm_email'); setSearchParams(searchParams, { replace: true })
     })
-  }, [searchParams, setSearchParams, showToast, readOnly])
+  }, [searchParams, setSearchParams, showToast, readOnly, refetchProfile, profileLoaded])
   const loadError = profile.error
     ? portalErrorMessage(profile.error, 'Falha ao carregar perfil. Tente novamente em instantes.')
     : ''
 
   return (
     <>
-      <PageHeader title="Meu perfil" description="Contatos que recebem comunicados, endereço da empresa e o email usado para recuperar a senha." />
+      <PageHeader title="Meu perfil" description="Contatos que recebem comunicados, endereço da empresa e o e-mail usado para recuperar a senha." />
 
       {readOnly ? (
         <p className="portal-profile__inspection-note" role="note">
@@ -53,24 +64,26 @@ export function PortalProfile() {
         </p>
       ) : null}
 
-      {profile.data ? (
-        <PortalProfileForm
-          profile={profile.data}
-          updateProfile={profile.updateProfile.mutateAsync}
-          loadError={loadError}
-          loadFailed={profile.isError}
-          readOnly={readOnly}
-        />
-      ) : (
-        <Card className="p-5">
-          <div className="grid gap-4">
-            {loadError ? <InlineError message={loadError} /> : <div className="text-sm text-[var(--app-muted)]" role="status">Carregando perfil…</div>}
-            <div className="flex justify-end">
-              <Button disabled type="button">Salvar alterações</Button>
-            </div>
-          </div>
-        </Card>
-      )}
+      <div className="grid gap-4">
+        <PortalContactConfiguration readOnly={readOnly} />
+
+        {profile.data ? (
+          <PortalProfileForm
+            profile={profile.data}
+            updateProfile={profile.updateProfile.mutateAsync}
+            loadError={loadError}
+            loadFailed={profile.isError}
+            readOnly={readOnly}
+          />
+        ) : (
+          <Block title="Endereço da empresa" aside="no cadastro da FWLOG">
+            {loadError ? <InlineError message={loadError} /> : <p className="m-0 text-sm text-[var(--app-muted)]" role="status">Carregando perfil…</p>}
+            <ProfileSaveBar>
+              <Button disabled type="button">Salvar endereço</Button>
+            </ProfileSaveBar>
+          </Block>
+        )}
+      </div>
     </>
   )
 }
@@ -109,30 +122,34 @@ function PortalProfileForm({
   const [emailSubmitting, setEmailSubmitting] = useState(false)
   const [recoveryError, setRecoveryError] = useState('')
 
+  const addressChanges = ([
+    ['Endereço', profile.address ?? '', address.trim() || '—'],
+    ['Cidade', profile.city ?? '', city.trim() || '—'],
+    ['Estado', profile.state ?? '', state.trim() || '—'],
+    ['CEP', profile.zip ?? '', zip.trim() || '—'],
+  ] as const)
+    .filter(([, before, after]) => (before || '—') !== after)
+    .map(([field, before, after]) => ({ field, before: before || '—', after }))
+  const addressDirty = addressChanges.length > 0
+  const recoveryReady = Boolean(currentPassword && newRecoveryEmail.trim() && confirmRecoveryEmail.trim())
+  // A Inspeção não recebe o e-mail de recuperação (migration 300): sem ele,
+  // o bloco começa pela senha atual.
+  const currentRecoveryEmail = profile.recovery_email ?? null
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError('')
     if (readOnly) return
-    const changes = [
-      ...([
-        ['Endereço', profile.address ?? '', address.trim() || '—'],
-        ['Cidade', profile.city ?? '', city.trim() || '—'],
-        ['Estado', profile.state ?? '', state.trim() || '—'],
-        ['CEP', profile.zip ?? '', zip.trim() || '—'],
-      ] as const)
-        .filter(([, before, after]) => (before || '—') !== after)
-        .map(([field, before, after]) => ({ field, before: before || '—', after })),
-    ]
-    if (changes.length === 0) {
+    if (!addressDirty) {
       showToast('Nenhuma alteração detectada.', 'info')
       return
     }
     const confirmed = await confirm({
-      title: 'Confirmar alterações do perfil',
-      message: 'Salvar os dados cadastrais alterados?',
-      confirmLabel: 'Salvar alterações',
-      changes,
-      consequence: 'Os dados de contato e endereço do cliente serão atualizados no Portal e nos fluxos que consultam o perfil.',
+      title: 'Confirmar endereço da empresa',
+      message: 'Salvar o endereço alterado?',
+      confirmLabel: 'Salvar endereço',
+      changes: addressChanges,
+      consequence: 'O endereço do cliente será atualizado no Portal e nos fluxos que consultam o perfil.',
       reversibility: 'Edite novamente para corrigir os dados.',
     })
     if (!confirmed) return
@@ -145,7 +162,7 @@ function PortalProfileForm({
         state: state.trim() || null,
         zip: zip.trim() || null,
       })
-      showToast('Perfil atualizado com sucesso.', 'success')
+      showToast('Endereço atualizado com sucesso.', 'success')
     } catch (err: unknown) {
       setError(portalErrorMessage(err, 'Falha ao atualizar perfil. Tente novamente em instantes.'))
     } finally {
@@ -155,14 +172,14 @@ function PortalProfileForm({
 
   async function handleRecoveryEmailChange(event: FormEvent) {
     event.preventDefault(); setRecoveryError('')
-    if (newRecoveryEmail.trim().toLowerCase() !== confirmRecoveryEmail.trim().toLowerCase()) { setRecoveryError('Os emails de recuperação não conferem.'); return }
+    if (newRecoveryEmail.trim().toLowerCase() !== confirmRecoveryEmail.trim().toLowerCase()) { setRecoveryError('Os e-mails de recuperação não conferem.'); return }
     if (readOnly) return
     const nextRecoveryEmail = newRecoveryEmail.trim().toLowerCase()
     const confirmed = await confirm({
       title: 'Confirmar troca do e-mail de recuperação',
       message: `Enviar um link para confirmar ${nextRecoveryEmail}?`,
       confirmLabel: 'Enviar link',
-      changes: [{ field: 'E-mail de recuperação', before: 'Endereço atual', after: nextRecoveryEmail }],
+      changes: [{ field: 'E-mail de recuperação', before: currentRecoveryEmail ?? 'Endereço atual', after: nextRecoveryEmail }],
       consequence: 'Um link de confirmação será enviado ao novo endereço. O endereço atual continua válido até a confirmação.',
       reversibility: 'Antes da confirmação, basta solicitar a troca para outro endereço.',
     })
@@ -174,90 +191,81 @@ function PortalProfileForm({
       if (status === 429) { setRecoveryError(RECOVERY_EMAIL_RATE_LIMIT_MESSAGE); return }
       if (status === 502) { setRecoveryError(RECOVERY_EMAIL_SEND_FAILED_MESSAGE); return }
       if (invokeError) throw invokeError
-      showToast('Enviamos um link para confirmar o novo email.', 'success')
+      showToast('Enviamos um link para confirmar o novo e-mail.', 'success')
       setCurrentPassword(''); setNewRecoveryEmail(''); setConfirmRecoveryEmail('')
-    } catch (err) { setRecoveryError(portalErrorMessage(err, 'Não foi possível iniciar a troca de email.')) } finally { setEmailSubmitting(false) }
+    } catch (err) { setRecoveryError(portalErrorMessage(err, 'Não foi possível iniciar a troca de e-mail.')) } finally { setEmailSubmitting(false) }
   }
 
-  // Três formulários independentes, cada um com o próprio botão e os próprios
-  // erros: contatos (quem recebe comunicados), dados cadastrais (endereço) e
-  // Email de Recuperação (convites e redefinição de senha, separado dos
-  // contatos).
+  // Três blocos independentes, cada um com o próprio botão principal no pé e
+  // os próprios erros: contatos (quem recebe comunicados), endereço e e-mail
+  // de recuperação (convites e redefinição de senha, separado dos contatos).
   return (
-    <div className="portal-profile">
-      <Card className="portal-profile__contacts min-w-0">
-        <PortalContactConfiguration readOnly={readOnly} />
-      </Card>
-
-      <div className="portal-profile__side">
-        <Card className="min-w-0">
-          <form className="grid gap-4" onSubmit={handleSubmit}>
-            <div>
-              <h2 className="portal-profile__section-title">Dados cadastrais</h2>
-              <p className="portal-profile__section-intro">Endereço da empresa no cadastro da FWLOG.</p>
-            </div>
-            <fieldset className="portal-profile__fieldset" disabled={readOnly}>
-              <legend className="sr-only">Endereço</legend>
-              <Field label="Endereço">
-                <Input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Rua, número, complemento"
-                  autoComplete="street-address"
-                />
-              </Field>
-
+    <div className="grid items-start gap-4 lg:grid-cols-2">
+      <Block title="Endereço da empresa" aside="no cadastro da FWLOG">
+        <form className="grid gap-4" onSubmit={handleSubmit}>
+          <fieldset className={fieldsetClass} disabled={readOnly}>
+            <legend className="sr-only">Endereço</legend>
+            <Field label="Endereço">
+              <Input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Rua, número, complemento"
+                autoComplete="street-address"
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
               <Field label="Cidade">
                 <Input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="São Paulo" autoComplete="address-level2" />
               </Field>
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4">
-                <Field label="Estado">
-                  <Input type="text" value={state} onChange={(e) => setState(e.target.value)} placeholder="SP" maxLength={2} autoComplete="address-level1" />
-                </Field>
-                <Field label="CEP">
-                  <Input type="text" inputMode="numeric" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="01000-000" autoComplete="postal-code" />
-                </Field>
-              </div>
-            </fieldset>
-
-            {loadError || error ? <InlineError message={error || loadError} /> : null}
-
-            <div className="portal-profile__form-actions">
-              <Button disabled={readOnly || loadFailed} loading={submitting} loadingLabel="Salvando..." type="submit" title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Salvar alterações</Button>
+              <Field label="Estado">
+                <Input type="text" value={state} onChange={(e) => setState(e.target.value)} placeholder="SP" maxLength={2} autoComplete="address-level1" />
+              </Field>
+              <Field label="CEP">
+                <Input type="text" inputMode="numeric" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="01000-000" autoComplete="postal-code" />
+              </Field>
             </div>
-          </form>
-        </Card>
+          </fieldset>
 
-        <Card className="min-w-0">
-          <form className="grid gap-4" onSubmit={handleRecoveryEmailChange}>
-            <div>
-              <h2 className="portal-profile__section-title">Email de Recuperação</h2>
-              <p className="portal-profile__section-intro">
-                Recebe convites e links para redefinir a senha do Portal; é separado dos contatos de comunicados. O endereço atual continua valendo até o novo ser confirmado pelo link.
-              </p>
+          {loadError || error ? <InlineError message={error || loadError} /> : null}
+
+          <ProfileSaveBar status={readOnly ? null : addressDirty ? 'Endereço alterado, ainda não salvo.' : 'Nada alterado.'}>
+            <Button disabled={readOnly || loadFailed || !addressDirty} loading={submitting} loadingLabel="Salvando..." type="submit" title={readOnly ? READ_ONLY_TITLE : undefined}>Salvar endereço</Button>
+          </ProfileSaveBar>
+        </form>
+      </Block>
+
+      <Block title="E-mail de recuperação" aside="recebe convites e o link para trocar a senha">
+        <form className="grid gap-4" onSubmit={handleRecoveryEmailChange}>
+          {currentRecoveryEmail ? (
+            <FactList columns={1}>
+              <Fact label="E-mail atual">{currentRecoveryEmail}</Fact>
+            </FactList>
+          ) : null}
+          <fieldset className={fieldsetClass} disabled={readOnly}>
+            <legend className="sr-only">Trocar e-mail de recuperação</legend>
+            <Field label="Senha atual">
+              <PasswordInput
+                autoComplete="current-password"
+                aria-describedby="portal-recovery-password-note"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Novo e-mail"><Input type="email" autoComplete="email" placeholder="nome@empresa.com.br" value={newRecoveryEmail} onChange={(e) => setNewRecoveryEmail(e.target.value)} /></Field>
+              <Field label="Confirmar novo e-mail"><Input type="email" autoComplete="email" placeholder="repita o e-mail" value={confirmRecoveryEmail} onChange={(e) => setConfirmRecoveryEmail(e.target.value)} /></Field>
             </div>
-            <fieldset className="portal-profile__fieldset" disabled={readOnly}>
-              <legend className="sr-only">Trocar Email de Recuperação</legend>
-              <div className="grid gap-1.5">
-                <Field label="Senha atual">
-                  <PasswordInput
-                    autoComplete="current-password"
-                    aria-describedby="portal-recovery-password-note"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                  />
-                </Field>
-                <p id="portal-recovery-password-note" className="app-field__hint">Errar a senha aqui consome as mesmas tentativas do login do Portal.</p>
-              </div>
-              <Field label="Novo email"><Input type="email" autoComplete="email" value={newRecoveryEmail} onChange={(e) => setNewRecoveryEmail(e.target.value)} /></Field>
-              <Field label="Confirmar novo email"><Input type="email" autoComplete="email" value={confirmRecoveryEmail} onChange={(e) => setConfirmRecoveryEmail(e.target.value)} /></Field>
-            </fieldset>
-            {recoveryError ? <InlineError message={recoveryError} /> : null}
-            <div className="portal-profile__form-actions"><Button disabled={readOnly} loading={emailSubmitting} loadingLabel="Enviando..." type="submit" title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}>Solicitar troca de email</Button></div>
-          </form>
-        </Card>
-      </div>
+          </fieldset>
+          <p id="portal-recovery-password-note" className="m-0 text-sm text-[var(--app-muted)]">
+            O e-mail atual continua valendo até o novo ser confirmado pelo link que enviaremos. Errar a senha conta como tentativa de login.
+          </p>
+          {recoveryError ? <InlineError message={recoveryError} /> : null}
+          <ProfileSaveBar>
+            <Button disabled={readOnly || !recoveryReady} loading={emailSubmitting} loadingLabel="Enviando..." type="submit" title={readOnly ? READ_ONLY_TITLE : undefined}>Trocar e-mail de recuperação</Button>
+          </ProfileSaveBar>
+        </form>
+      </Block>
     </div>
   )
 }

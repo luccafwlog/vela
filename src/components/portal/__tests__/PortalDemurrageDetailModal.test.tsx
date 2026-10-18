@@ -36,11 +36,12 @@ function makeDetail(overrides: Partial<PortalDemurrageInvoiceDetail['invoice']> 
         ...overrides,
       },
       items: [],
+      refund_summary: { received_brl: 0, refunds: [] },
     } as PortalDemurrageInvoiceDetail
 }
 
-function renderModal(detail: PortalDemurrageInvoiceDetail, extra: { dispute?: PortalDispute | null } = {}) {
-  const handlers = { onDispute: vi.fn(), onShowDispute: vi.fn() }
+function renderModal(detail: PortalDemurrageInvoiceDetail, extra: { dispute?: PortalDispute | null; complementOf?: Array<{ id: number; doc_number: string }> } = {}) {
+  const handlers = { onDispute: vi.fn(), onShowDispute: vi.fn(), onOpenInvoice: vi.fn(), onPrint: vi.fn() }
   render(
     <PortalDemurrageDetailModal
       open
@@ -48,8 +49,8 @@ function renderModal(detail: PortalDemurrageInvoiceDetail, extra: { dispute?: Po
       detail={detail}
       loading={false}
       dispute={extra.dispute}
+      complementOf={extra.complementOf}
       onClose={vi.fn()}
-      onPrint={vi.fn()}
       {...handlers}
     />,
   )
@@ -57,17 +58,20 @@ function renderModal(detail: PortalDemurrageInvoiceDetail, extra: { dispute?: Po
 }
 
 describe('PortalDemurrageDetailModal', () => {
-  it('mostra o pagamento primeiro, com o ROE de hoje e o Pix em preparação', () => {
-    renderModal(makeDetail())
+  it('mostra o pagamento primeiro: a pagar hoje, dólar, ROE de hoje, B/L, trecho e o Pix em preparação', () => {
+    const handlers = renderModal(makeDetail())
 
     expect(screen.getByRole('heading', { name: 'Pagamento' })).toBeTruthy()
-    expect(screen.getByText('Total a pagar hoje')).toBeTruthy()
+    expect(screen.getByText('R$ 575,10 a pagar hoje')).toBeTruthy()
     expect(screen.getByText('ROE de hoje')).toBeTruthy()
-    expect(screen.getByText(/5,7510/)).toBeTruthy()
+    expect(screen.getByText('R$ 5,7510')).toBeTruthy()
     expect(screen.getByText('US$ 100,00')).toBeTruthy()
-    expect(screen.queryByText('PTAX ref.')).toBeNull()
+    expect(screen.getByText('CNSHA → BRVIX')).toBeTruthy()
+    expect(screen.getByText(/emitida em 20\/09\/2026/)).toBeTruthy()
     // Emitida sem cobrança confirmada: Portal avisa em vez de esconder o Pix.
     expect(screen.getByRole('status').textContent).toContain('QR Code Pix em preparação')
+    fireEvent.click(screen.getByRole('button', { name: /Imprimir Invoice/ }))
+    expect(handlers.onPrint).toHaveBeenCalled()
   })
 
   it('B30: mostra cada período (P1/P2) numa linha, dias × diária, sem Dias cobrados', () => {
@@ -84,29 +88,56 @@ describe('PortalDemurrageDetailModal', () => {
     expect(screen.queryByRole('columnheader', { name: 'Dias cobrados' })).toBeNull()
   })
 
-  it('oferece a disputa no fim do detalhe enquanto a fatura está em aberto', () => {
+  it('oferece "Abrir disputa" como botão no fim do detalhe enquanto a fatura está em aberto', () => {
     const handlers = renderModal(makeDetail())
-    expect(screen.getByText(/Discorda de algum valor\?/)).toBeTruthy()
+    expect(screen.getByText('se discordar de algum valor')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Abrir disputa' }))
     expect(handlers.onDispute).toHaveBeenCalledWith(1, 'DEM-001')
   })
 
-  it('com disputa aberta, mostra a data e leva às mensagens', () => {
+  it('com disputa aberta, mostra o bloco Disputa e leva à conversa', () => {
     const dispute = { id: 9, demurrage_invoice_id: 1, doc_number: 'DEM-001', state: 'aberta', next_responder: 'equipamentos', subject: null, created_at: '2026-09-22T10:00:00Z', updated_at: '2026-09-22T10:00:00Z', messages: [] } as PortalDispute
     const handlers = renderModal(makeDetail({ dispute_open: true }), { dispute })
     expect(screen.getByText('Em disputa')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Abrir disputa' })).toBeNull()
-    expect(screen.getByText(/Disputa aberta em 22\/09\/2026/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'ver mensagens' }))
+    expect(screen.getByRole('heading', { name: 'Disputa' })).toBeTruthy()
+    expect(screen.getByText('aberta em 22/09/2026 · aguarda a equipe de Containers')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver conversa' }))
     expect(handlers.onShowDispute).toHaveBeenCalled()
   })
 
-  it('fatura paga não oferece disputa nem o Pix guardado, e mostra Paga', () => {
-    renderModal(makeDetail({ status: 'paid', pix_payload: '00020126PIXANTIGO' }))
+  it('Invoice complementar diz qual Invoice completa e abre a primeira', () => {
+    const detail = makeDetail()
+    detail.items = [{ id: 9, container_number: 'TGHU8120032', container_type: '40HC', total_days: 45, free_days: 21, days_p1: 9, rate_p1_usd: 60, days_p2: 15, rate_p2_usd: 80, subtotal_usd: 1740 }] as PortalDemurrageInvoiceDetail['items']
+    const handlers = renderModal(detail, { complementOf: [{ id: 7, doc_number: 'DEM-000' }] })
+    expect(screen.getByRole('heading', { name: 'Invoice complementar' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Complementa a DEM-000' })).toBeTruthy()
+    expect(screen.getByText(/cobra o contêiner TGHU8120032, que entrou no B\/L depois da primeira Invoice\. A DEM-000 continua valendo/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir DEM-000' }))
+    expect(handlers.onOpenInvoice).toHaveBeenCalledWith(7)
+  })
+
+  it('fatura paga: ✓ Paga com valor, dia e US$ × ROE, restituições e recibo, sem disputa nem Pix guardado', () => {
+    const detail = makeDetail({ status: 'paid', paid_at: '2026-10-11', pix_payload: '00020126PIXANTIGO' })
+    detail.refund_summary = {
+      received_brl: 575.1,
+      refunds: [
+        { id: 1, amount_brl: 150, status: 'settled', purpose: 'correction', settled_at: '2026-10-14T12:00:00Z', notes: null, bank_reference: null, beneficiary: null },
+        { id: 2, amount_brl: 20, status: 'pending', purpose: 'correction', settled_at: null, notes: null, bank_reference: null, beneficiary: null },
+      ],
+    }
+    renderModal(detail)
     expect(screen.queryByText('Pagamento via PIX')).toBeNull()
     expect(screen.queryByRole('button', { name: /Copiar código Pix/ })).toBeNull()
     expect(screen.getByText('Paga')).toBeTruthy()
-    expect(screen.queryByText(/Discorda de algum valor/)).toBeNull()
+    expect(screen.getByText('R$ 575,10 em 11/10/2026 · US$ 100,00 × R$ 5,7510')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Abrir disputa' })).toBeNull()
     expect(screen.getByText('ROE aplicado')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Restituições' })).toBeTruthy()
+    expect(screen.getByText('R$ 150,00')).toBeTruthy()
+    expect(screen.getByText('Devolvida')).toBeTruthy()
+    expect(screen.getByText('A devolver')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Imprimir recibo/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Imprimir Invoice/ })).toBeNull()
   })
 })
