@@ -28,6 +28,7 @@ type FinanceBlRow = {
   customer_id: number
   ce_mercante: string | null
   financial_status: string | null
+  cancelled_at?: string | null
   pod: string | null
   customer: { id: number; name: string; cnpj_cpf: string } | null
   voyage: { id: number; voyage_number: string; eta: string | null; vessel: { name: string } | null } | null
@@ -99,13 +100,13 @@ function firstReason(readiness: CustomerLocalChargesCommunicationReadiness): str
 async function fetchFinanceBls(voyageId: number, customerId: number): Promise<FinanceBlRow[]> {
   const { data, error } = await supabase
     .from('bls')
-    .select('id, voyage_id, customer_id, ce_mercante, financial_status, pod, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, vessel:vessels(name))')
+    .select('id, voyage_id, customer_id, ce_mercante, financial_status, cancelled_at, pod, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, vessel:vessels(name))')
     .eq('voyage_id', voyageId)
     .eq('customer_id', customerId)
     .overrideTypes<FinanceBlRow[], { merge: false }>()
   if (error) throw error
   return (data ?? [])
-    .filter((row) => row.financial_status !== 'cancelled')
+    .filter((row) => row.financial_status !== 'cancelled' && !row.cancelled_at)
     .sort((left, right) => left.id.localeCompare(right.id))
 }
 

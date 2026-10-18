@@ -134,4 +134,11 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     expect(link).toBe('/baplie?voyage=99')
     expect(alertEntityLinkLabel({ type: 'generic_alert', item_type: 'voyage_baplie_missing', entity_type: 'voyage' })).toBe('Abrir Baplie')
   })
+
+  // Plano dos e-mails, 3.1: o reenvio do CE e Taxas está no Histórico dos Comunicados.
+  it('abre os Comunicados de CE e Taxas do B/L no alerta de reenvio do CE', () => {
+    expect(alertEntityLink({ type: 'comunicado_ce_reenvio_pendente', entity_type: 'bl', entity_id: 'BL 1/2' }))
+      .toBe('/clientes/comunicacao?tab=historico&kind=ce_mercante_taxas&bl=BL%201%2F2')
+    expect(alertEntityLinkLabel({ type: 'comunicado_ce_reenvio_pendente', entity_type: 'bl' })).toBe('Abrir Comunicados')
+  })
 })

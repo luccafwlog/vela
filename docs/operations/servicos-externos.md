@@ -588,9 +588,11 @@ Não há caixa de e-mail nos domínios do sistema; o ImprovMX só encaminha.
 Encaminhamento conferido em 2026-09-24: um e-mail enviado de um endereço
 externo chegou às duas caixas.
 
-`suporte@portalfwlog.com.br` é o endereço impresso nos e-mails aos clientes
-(`src/services/customerCommunicationTemplates.ts`) e o destino dos relatórios
-DMARC. Ao trocar de responsável, troque também o destino pessoal do alias.
+`suporte@portalfwlog.com.br` é o endereço impresso nos e-mails de acesso ao
+Portal e o destino dos relatórios DMARC. O rodapé dos Comunicados
+(`src/services/customerCommunicationTemplates.ts`, `COMMUNICATIONS_CONTACT_EMAIL`)
+imprime `importacao@fwlog.com.br`, o mesmo endereço de `COMMUNICATIONS_REPLY_TO`
+(D20 do plano dos e-mails, 2026-10-18). Ao trocar de responsável, troque também o destino pessoal do alias.
 
 ---
 

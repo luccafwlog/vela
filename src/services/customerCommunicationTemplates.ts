@@ -189,6 +189,11 @@ const BRAND_BORDER = '#e5e7eb'
 const BRAND_CARD_BG = '#ffffff'
 const BRAND_PAGE_BG = '#f1f3f6'
 const DEFAULT_PORTAL_BASE_URL = 'https://portalfwlog.com.br'
+/**
+ * Endereço do rodapé dos Comunicados (D20): o mesmo do reply-to
+ * (`COMMUNICATIONS_REPLY_TO`), para a resposta e a dúvida chegarem à mesma caixa.
+ */
+export const COMMUNICATIONS_CONTACT_EMAIL = 'importacao@fwlog.com.br'
 
 function extractBasePortalUrl(url?: string | null): string {
   const raw = url?.trim() || DEFAULT_PORTAL_BASE_URL
@@ -243,7 +248,7 @@ function layout(title: string, bodyHtml: string, portalUrl?: string | null): str
                 <tr>
                   <td style="padding-top:16px">
                     <p style="margin:0;font-size:12.5px;line-height:1.6;color:${BRAND_MUTED}">
-                      Portal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com <a href="mailto:suporte@portalfwlog.com.br" style="color:${BRAND_NAVY};text-decoration:underline">suporte@portalfwlog.com.br</a>.
+                      Portal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com <a href="mailto:${COMMUNICATIONS_CONTACT_EMAIL}" style="color:${BRAND_NAVY};text-decoration:underline">${COMMUNICATIONS_CONTACT_EMAIL}</a>.
                     </p>
                   </td>
                 </tr>
@@ -259,7 +264,7 @@ function layout(title: string, bodyHtml: string, portalUrl?: string | null): str
 }
 
 function textLayout(title: string, body: string): string {
-  return `Portal Fwlog\n${title}\n\n${body}\n\nPortal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com suporte@portalfwlog.com.br.`
+  return `Portal Fwlog\n${title}\n\n${body}\n\nPortal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com ${COMMUNICATIONS_CONTACT_EMAIL}.`
 }
 
 function formatBrl(value: number): string {
@@ -540,6 +545,22 @@ export function renderNobTemplate(input: CustomerCommunicationTemplateInput): Re
   return renderMilestoneContent(input, 'aviso_atracacao_nob', subject, sentenceHtml, sentenceText)
 }
 
+function renderCargoBlock(input: CustomerCommunicationTemplateInput): { html: string; text: string } {
+  const vessel = clean(input.vesselName)
+  const voyage = clean(input.voyageNumber)
+  const blIds = input.bls.map((bl) => bl.id.trim())
+  const cell = `padding:8px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:13.5px`
+  const label = `${cell};color:${BRAND_MUTED};width:32%`
+  return {
+    html: `<table style="width:100%;border-collapse:collapse;margin:20px 0 4px;border:1px solid ${BRAND_BORDER};border-radius:6px;overflow:hidden">`
+      + `<tr><td style="${label}">Navio</td><td style="${cell};font-weight:600">${escapeHtml(vessel)}</td></tr>`
+      + `<tr><td style="${label}">Viagem</td><td style="${cell};font-weight:600">${escapeHtml(voyage)}</td></tr>`
+      + `<tr><td style="padding:8px 12px;font-size:13.5px;color:${BRAND_MUTED}">B/Ls</td><td style="padding:8px 12px;font-size:13.5px">${blIds.map(escapeHtml).join(', ')}</td></tr>`
+      + '</table>',
+    text: `Navio: ${vessel}\nViagem: ${voyage}\nB/Ls: ${blIds.join(', ')}`,
+  }
+}
+
 export function renderInstitutionalTemplate(input: CustomerCommunicationTemplateInput, kind: 'institucional' | 'livre' = 'institucional'): RenderedCustomerCommunication {
   if (kind === 'livre') assertCommunicationScope(input, kind)
   else {
@@ -550,11 +571,14 @@ export function renderInstitutionalTemplate(input: CustomerCommunicationTemplate
   const subject = clean(input.subject, 'Comunicado Transhipping Desk')
   const body = clean(input.body, '')
   const safeBodyHtml = escapeHtml(body).replace(/\n/g, '<br>')
-  const bodyText = `Olá, ${clean(input.customerName)}.\n\n${body}`
+  // D15: o livre leva os dados da carga do Cliente — Navio, Viagem e B/Ls —, que
+  // a tela promete ("os dados da carga de cada cliente são acrescentados").
+  const cargo = kind === 'livre' ? renderCargoBlock(input) : null
+  const bodyText = `Olá, ${clean(input.customerName)}.\n\n${body}${cargo ? `\n\n${cargo.text}` : ''}`
   return {
     kind,
     subject,
-    html: layout(subject, `<p style="margin:0 0 14px">Olá, ${escapeHtml(clean(input.customerName))}.</p><p style="margin:0">${safeBodyHtml}</p>`, input.portalUrl),
+    html: layout(subject, `<p style="margin:0 0 14px">Olá, ${escapeHtml(clean(input.customerName))}.</p><p style="margin:0">${safeBodyHtml}</p>${cargo?.html ?? ''}`, input.portalUrl),
     text: textLayout(subject, bodyText),
     customerId: input.customerId,
     blIds: input.bls.map((bl) => bl.id.trim()),
