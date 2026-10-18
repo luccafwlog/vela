@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from 'react'
 import { Block } from '../ui/Block'
-import { ConsolidatedMark, StatusText } from '../ui/StatusText'
+import { Button } from '../ui/Button'
+import { ComplementMark, ConsolidatedMark, StatusText } from '../ui/StatusText'
 import { InvoiceSituation } from '../billing/InvoiceSituation'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
@@ -11,7 +12,7 @@ import { formatResultCount } from '../../lib/operationalState'
 import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../../lib/portalBillingFilters'
 import { formatBRL, formatDate } from '../../lib/utils'
 import { demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/portalInvoiceStatus'
-import type { PortalDemurrageInvoice, PortalInvoiceSummary } from '../../services/portalBilling'
+import { joinDemurrageDocNumbers, type PortalDemurrageInvoice, type PortalInvoiceSummary } from '../../services/portalBilling'
 import { invoiceNetUsd } from '../../services/demurrage/demurragePresentation'
 
 type Filters = PortalBillingFilters
@@ -155,16 +156,23 @@ type DemTabProps = {
   vesselOptions: string[]
   pods: string[]
   onOpenDetail: (id: number) => void
-  /** Cotação do dia, numa linha só no topo do bloco (a mesma para todas as faturas). */
+  /** Cotação do dia, na faixa do bloco (a mesma para todas as faturas). */
   roe?: { roe: number; updatedAt: string } | null
+  /** Disputas em aberto do Cliente, contadas no botão Disputas. */
+  openDisputeCount: number
+  onOpenDisputes: () => void
+  /** Invoices anteriores que a linha completa (Invoice complementar). */
+  complementOf?: (invoice: PortalDemurrageInvoice) => PortalDemurrageInvoice[] | undefined
 }
 
 /**
  * Faturas de Demurrage do Portal em tabela limpa: Fatura, B/L, Emissão, Navio /
- * Viagem, Total US$, Total R$ e Situação. A disputa sai da lista e fica no fim
- * do detalhe da fatura (decisão de 2026-10-14).
+ * Viagem, Total US$, Total R$ hoje e Situação. A faixa do bloco traz o em
+ * aberto, o ROE de hoje e o botão Disputas, que abre a tela das disputas
+ * (lote 4 da identidade, 2026-10-18); a Invoice complementar leva a marca ao
+ * lado do número.
  */
-export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail, roe }: DemTabProps) {
+export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail, roe, openDisputeCount, onOpenDisputes, complementOf }: DemTabProps) {
   const totalPages = Math.max(1, Math.ceil(totalCount / BILLING_PAGE_SIZE))
   const safePage = Math.min(page, totalPages - 1)
   // ponytail: o total em aberto soma só a página carregada; com mais de uma
@@ -172,27 +180,25 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
   const openUsd = totalCount === invoices.length
     ? invoices.filter(isDemurragePayable).reduce((sum, inv) => sum + invoiceNetUsd(inv).netUsd, 0)
     : null
+  const disputesLabel = openDisputeCount > 0
+    ? `Disputas · ${openDisputeCount} ${openDisputeCount === 1 ? 'aberta' : 'abertas'}`
+    : 'Disputas'
 
   return (
     <Block
       title="Faturas de Demurrage"
       aside={(
         <>
-          {formatResultCount(totalCount, 'fatura', 'faturas')}
-          {openUsd ? <> · <StatusText tone="warning">{formatUsd(openUsd)} em aberto</StatusText></> : null}
+          <span>
+            {formatResultCount(totalCount, 'fatura', 'faturas')}
+            {openUsd ? <> · <StatusText tone="warning">{formatUsd(openUsd)} em aberto</StatusText></> : null}
+            {roe ? <> · <span className="whitespace-nowrap" title={`Atualizado em ${new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(roe.updatedAt))}`}>ROE de hoje {formatRoe(roe.roe)}</span></> : null}
+          </span>
+          <Button variant="secondary" className="app-btn--sm" onClick={onOpenDisputes}>{disputesLabel}</Button>
         </>
       )}
       flush
     >
-      {roe ? (
-        <p className="border-b border-[var(--app-border)] px-5 py-3 text-sm text-[var(--app-muted)]">
-          Total em R$ pelo ROE vigente:{' '}
-          <strong className="text-[var(--app-text-strong)]">R$ {roe.roe.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</strong>
-          {' · atualizado em '}
-          {new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(roe.updatedAt))}
-        </p>
-      ) : null}
-
       <div className="px-5 pt-4">
         <FiltersControls filters={filters} onFilters={onFilters} vesselOptions={vesselOptions} pods={pods} />
       </div>
@@ -209,7 +215,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
               <th scope="col">Emissão</th>
               <th scope="col" className="app-table__text-head">Navio / Viagem</th>
               <th scope="col">Total US$</th>
-              <th scope="col">Total R$</th>
+              <th scope="col">Total R$ hoje</th>
               <th scope="col">Situação</th>
             </tr>
           </thead>
@@ -224,7 +230,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
               const voyage = [inv.vessel_name, inv.voyage_number].filter(Boolean).join(' / ')
               return (
                 <tr key={inv.id} className={isCancelled(inv.status) ? 'app-table__row--muted' : undefined}>
-                  <td className="whitespace-nowrap"><DemurrageNumber invoice={inv} onOpen={onOpenDetail} /></td>
+                  <td className="whitespace-nowrap"><DemurrageNumber invoice={inv} onOpen={onOpenDetail} complementOf={complementOf?.(inv)} /></td>
                   <td className="whitespace-nowrap"><CopyValue value={inv.bl_id} label="número do B/L" /></td>
                   <td className="whitespace-nowrap tabular-nums">{inv.billed_at ? formatDate(inv.billed_at) : <NoValue label="Sem data de emissão" />}</td>
                   <td className="app-table__text" title={voyage || undefined}>{voyage || <NoValue label="Sem navio/viagem" />}</td>
@@ -245,7 +251,7 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
         {invoices.map((inv) => (
           <article key={inv.id} className="app-invoice-card" aria-label={`Fatura ${inv.doc_number}`}>
             <div className="app-invoice-card__head">
-              <span><DemurrageNumber invoice={inv} onOpen={onOpenDetail} /></span>
+              <span><DemurrageNumber invoice={inv} onOpen={onOpenDetail} complementOf={complementOf?.(inv)} /></span>
               <DemurrageSituation invoice={inv} />
             </div>
             <div className="app-invoice-card__amount">{formatUsd(inv.total_usd)} · <DemurrageBrl invoice={inv} /></div>
@@ -267,8 +273,18 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
   )
 }
 
-function DemurrageNumber({ invoice, onOpen }: { invoice: PortalDemurrageInvoice; onOpen: (id: number) => void }) {
-  return <button type="button" className="app-invoices__number" aria-label={`Abrir fatura ${invoice.doc_number}`} onClick={() => onOpen(invoice.id)}>{invoice.doc_number}</button>
+/** ROE com quatro casas, como no detalhe: "R$ 5,7734". */
+function formatRoe(roe: number) {
+  return `R$ ${roe.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
+}
+
+function DemurrageNumber({ invoice, onOpen, complementOf }: { invoice: PortalDemurrageInvoice; onOpen: (id: number) => void; complementOf?: PortalDemurrageInvoice[] }) {
+  return (
+    <>
+      <button type="button" className="app-invoices__number" aria-label={`Abrir fatura ${invoice.doc_number}`} onClick={() => onOpen(invoice.id)}>{invoice.doc_number}</button>
+      {complementOf?.length ? <ComplementMark of={joinDemurrageDocNumbers(complementOf.map((other) => other.doc_number))} /> : null}
+    </>
+  )
 }
 
 /** Total em reais em âmbar enquanto há valor a pagar. */
