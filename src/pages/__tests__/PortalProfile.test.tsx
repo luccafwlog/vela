@@ -183,3 +183,19 @@ it('mantém o Modo Inspeção só para leitura', async () => {
   expect((screen.getByRole('button', { name: 'Trocar e-mail de recuperação' }) as HTMLButtonElement).disabled).toBe(true)
   expect(screen.getByRole('note').textContent).toContain('Modo Inspeção')
 })
+
+it('depois de confirmar a troca pelo link antigo, relê o perfil e mostra o e-mail novo', async () => {
+  getProfile
+    .mockResolvedValueOnce({ contact_email: 'perfil@example.com', recovery_email: 'antigo@example.com', phone: '', address: '', city: '', state: '', zip: '' })
+    .mockResolvedValue({ contact_email: 'perfil@example.com', recovery_email: 'novo@example.com', phone: '', address: '', city: '', state: '', zip: '' })
+  invoke.mockResolvedValue({ error: null })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ConfirmDialogProvider><MemoryRouter initialEntries={['/portal/perfil?confirm_email=tok']}><PortalProfile /></MemoryRouter></ConfirmDialogProvider>
+    </QueryClientProvider>,
+  )
+  await waitFor(() => expect(invoke).toHaveBeenCalled())
+  expect(await screen.findByText('novo@example.com')).toBeTruthy()
+  expect(invoke).toHaveBeenCalledWith('portal-recovery-email-change', { body: { action: 'confirm', token: 'tok' } })
+})

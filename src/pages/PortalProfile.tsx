@@ -27,6 +27,8 @@ const fieldsetClass = 'm-0 grid min-w-0 gap-4 border-0 p-0'
 
 export function PortalProfile() {
   const profile = usePortalProfile()
+  const refetchProfile = profile.refetch
+  const profileLoaded = profile.isFetched
   const scope = usePortalScope()
   const readOnly = isPortalReadOnly(scope)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -38,12 +40,16 @@ export function PortalProfile() {
   useEffect(() => {
     const token = searchParams.get('confirm_email')
     if (!token) return
-    if (readOnly) return
+    // Espera a primeira leitura do perfil: com ela em curso, a releitura
+    // depois da troca seria descartada e o "E-mail atual" ficaria o antigo.
+    if (readOnly || !profileLoaded) return
     void supabasePortal.functions.invoke('portal-recovery-email-change', { body: { action: 'confirm', token } }).then(({ error }) => {
       showToast(error ? 'Não foi possível confirmar o novo e-mail.' : 'E-mail de recuperação atualizado com sucesso.', error ? 'error' : 'success')
+      // O "E-mail atual" do bloco vem do perfil: relê depois da troca.
+      if (!error) void refetchProfile()
       searchParams.delete('confirm_email'); setSearchParams(searchParams, { replace: true })
     })
-  }, [searchParams, setSearchParams, showToast, readOnly])
+  }, [searchParams, setSearchParams, showToast, readOnly, refetchProfile, profileLoaded])
   const loadError = profile.error
     ? portalErrorMessage(profile.error, 'Falha ao carregar perfil. Tente novamente em instantes.')
     : ''
