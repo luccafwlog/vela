@@ -105,6 +105,16 @@ export const fetchAllPortalCeUnlockBls = (scope: PortalScope, filters: CeUnlockF
   readAllCeUnlockPages((page) => listPortalCeUnlockBls(scope, filters, page));
 export const listPortalCeUnlockRequests = (scope: PortalScope, page: number) =>
   callPortalRpc<CeUnlockPage<CePortalRequestRow>>(scope, "portal_list_ce_unlock_requests", { p_filters: {}, p_page: page });
+// ponytail: a lista do Portal é paginada (25 por página) e não filtra por
+// situação; quem precisa de todas (Painel, prévia da mudança de B/L) lê todas
+// as páginas. Upgrade: contagem e B/Ls por solicitação no próprio RPC.
+export async function fetchAllPortalCeUnlockRequests(scope: PortalScope): Promise<CePortalRequestRow[]> {
+  const first = await listPortalCeUnlockRequests(scope, 1);
+  if (!first) return [];
+  const pages = Math.ceil(first.total / (first.page_size || 25));
+  const rest = await Promise.all(Array.from({ length: Math.max(pages - 1, 0) }, (_, index) => listPortalCeUnlockRequests(scope, index + 2)));
+  return [first, ...rest].flatMap((page) => page?.items ?? []);
+}
 export const getPortalCeUnlockRequest = (scope: PortalScope, id: string) =>
   callPortalRpc<CeUnlockRequest>(scope, "portal_get_ce_unlock_request", {
     p_request_id: id,

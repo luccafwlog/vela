@@ -17,6 +17,7 @@ const fixtures = vi.hoisted(() => ({
   state: "draft",
   extraItems: [] as Record<string, unknown>[],
   requests: [] as Record<string, unknown>[],
+  allRequests: [] as { id: string; bl_ids: string[] }[],
   mutate: vi.fn(async (): Promise<unknown> => ({})),
 }));
 vi.mock("../../hooks/usePortalCeUnlock", () => ({
@@ -40,6 +41,7 @@ vi.mock("../../hooks/usePortalCeUnlock", () => ({
       ],
     },
     requests: { data: { items: fixtures.requests, total: fixtures.requests.length } },
+    allRequests: { data: fixtures.allRequests },
     correctionDetails: new Map(),
     vip: { data: { enabled: fixtures.vip, termo: true, procuracao: true, documents: [] } },
     model: { data: null },
@@ -64,6 +66,7 @@ afterEach(() => {
   fixtures.state = "draft";
   fixtures.extraItems = [];
   fixtures.requests = [];
+  fixtures.allRequests = [];
   fixtures.mutate.mockClear();
 });
 function mount() {
@@ -142,6 +145,15 @@ it("B/L de solicitação ainda não validada: confirma de qual protocolo sai e o
   expect(dialog.textContent).toContain("Não dá para desfazer");
   await userEvent.click(within(dialog).getByRole("button", { name: "Mudar 2 B/Ls e continuar" }));
   expect(fixtures.mutate).toHaveBeenCalledWith({ action: "draft", payload: expect.objectContaining({ bl_ids: ["BL-A", "BL-B"] }) });
+});
+it("prévia conta B/L ativo que o Portal não lista: a antiga continua aberta", async () => {
+  fixtures.listRequest = true;
+  fixtures.allRequests = [{ id: "req-1", bl_ids: ["BL-A", "BL-SEM-CE"] }];
+  mount();
+  await userEvent.click(screen.getByLabelText("Selecionar B/L BL-A"));
+  await userEvent.click(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }));
+  const dialog = screen.getByRole("dialog", { name: "Pedir desbloqueio de 1 B/L" });
+  expect(dialog.textContent).toContain("Continua aberta com os outros B/Ls");
 });
 it("Cliente VIP: a confirmação de mudança não fala de termo e procuração", async () => {
   fixtures.vip = true;

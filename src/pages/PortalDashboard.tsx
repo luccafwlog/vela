@@ -11,8 +11,8 @@ import { countContainersInDemurrage, countContainersWithoutReturn } from '../lib
 import { formatBRL, formatCountLabel } from '../lib/utils'
 import { OPEN_INVOICE_STATUSES, formatUsd } from '../lib/portalInvoiceStatus'
 import { usePortalScope } from '../hooks/usePortalScope'
-import { portalPath, type PortalScope } from '../services/portalScope'
-import { listPortalCeUnlockRequests } from '../services/ceUnlockService'
+import { portalPath } from '../services/portalScope'
+import { fetchAllPortalCeUnlockRequests } from '../services/ceUnlockService'
 
 // Demurrage em aberto: emitida (com ou sem disputa) e o legado `overdue`, como na aba Demurrage.
 const OPEN_DEMURRAGE_STATUSES = ['issued', 'overdue']
@@ -29,17 +29,6 @@ const CONSULTAS = [
   { section: 'tracking', label: 'Tracking' },
 ] as const
 
-// ponytail: a lista do Portal é paginada (25 por página) e não filtra por
-// situação; o Painel lê todas as páginas para contar. Upgrade: uma contagem
-// por situação no próprio RPC quando um Cliente tiver muitas solicitações.
-async function listAllPortalCeUnlockRequests(scope: PortalScope) {
-  const first = await listPortalCeUnlockRequests(scope, 1)
-  if (!first) return []
-  const pages = Math.ceil(first.total / (first.page_size || 25))
-  const rest = await Promise.all(Array.from({ length: Math.max(pages - 1, 0) }, (_, index) => listPortalCeUnlockRequests(scope, index + 2)))
-  return [first, ...rest].flatMap((page) => page?.items ?? [])
-}
-
 export function PortalDashboard() {
   const { data: invoices, isLoading: invLoading, error: invoicesError } = usePortalInvoices()
   const { data: demurrage, isLoading: demLoading, error: demurrageError } = usePortalDemurrageInvoices()
@@ -49,7 +38,7 @@ export function PortalDashboard() {
   // Mesma família de chave do Desbloqueio de CE: um comando lá atualiza o cartão aqui.
   const ceRequests = useQuery({
     queryKey: ['ce-unlock', 'requests', { mode: scope.mode, customerId: scope.customerId, authCustomer: scope.overview?.customer_id }, 'all'],
-    queryFn: () => listAllPortalCeUnlockRequests(scope),
+    queryFn: () => fetchAllPortalCeUnlockRequests(scope),
   })
 
   const openLocal = (invoices ?? []).filter((i) => (OPEN_INVOICE_STATUSES as readonly string[]).includes(i.status ?? 'issued'))

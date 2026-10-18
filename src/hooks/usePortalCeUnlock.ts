@@ -5,7 +5,7 @@ import {
   getPortalCeUnlockModel,
   getPortalCeUnlockRequest,
   getPortalCeUnlockVip,
-  listPortalCeUnlockRequests,
+  listPortalCeUnlockRequests, fetchAllPortalCeUnlockRequests,
   portalCeUnlockCommand,
 } from "../services/ceUnlockService";
 import { queryKeys } from "../services/queryKeys";
@@ -32,6 +32,12 @@ export function usePortalCeUnlock(
     queryKey: ["ce-unlock", "requests", key, page],
     queryFn: () => listPortalCeUnlockRequests(scope, page),
     refetchOnWindowFocus: "always",
+  });
+  // Todas as solicitações (mesma chave do Painel): a prévia da mudança de B/L
+  // precisa de todos os B/Ls ativos da antiga, inclusive os que o Portal não lista.
+  const allRequests = useQuery({
+    queryKey: ["ce-unlock", "requests", key, "all"],
+    queryFn: () => fetchAllPortalCeUnlockRequests(scope),
   });
   // "Correção pedida · reenvie a procuração": a lista não diz qual documento
   // foi recusado; o detalhe de cada solicitação em correção da página diz.
@@ -79,6 +85,7 @@ export function usePortalCeUnlock(
     scope,
     list,
     requests,
+    allRequests,
     correctionDetails,
     vip,
     model,

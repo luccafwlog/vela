@@ -233,6 +233,14 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
     expect(out).toMatch(/^inspecao=612\.5/m)
   })
 
+  it('avulsa em aberto não vira "aguardando fatura" no Desbloqueio de CE (migration 300)', () => {
+    const view = (reasons: string[]) => JSON.parse(psql(`SELECT ce_unlock_private.portal_view('${JSON.stringify({ customer_id: customerA, bl_id: 'BL-S11-SEM-FATURA', paid: false, reasons })}'::jsonb);`))
+    expect(view(['Fatura avulsa do B/L em aberto']).local_charges_awaiting_invoice).toBe(false)
+    const local = view(['Taxas locais sem liquidação integral confirmada'])
+    expect(local.local_charges_awaiting_invoice).toBe(true)
+    expect(local.reasons).toEqual(['Taxas locais aguardando fatura'])
+  })
+
   it('o Perfil mostra ao Cliente o e-mail de recuperação; a Inspeção não o recebe (migration 299)', () => {
     const out = psql(`
       BEGIN;

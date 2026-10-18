@@ -177,10 +177,12 @@ export function PortalDesbloqueioCe() {
     const item = byBl.get(b);
     return item?.request_id && ceRequestOpenForMove(item.state) ? [item] : [];
   });
-  // A antiga é cancelada quando todos os B/Ls dela que o Portal lista vão para a nova.
-  // ponytail: conta só os B/Ls que o Portal lista; o banco decide de fato ao criar.
-  const emptied = (requestId: string) =>
-    allItems.filter((i) => i.request_id === requestId && inRequest(i)).every((i) => selected.includes(i.bl_id));
+  // A antiga é cancelada quando todos os B/Ls ativos dela vão para a nova: conta
+  // pelos `bl_ids` da solicitação, que incluem B/L que o Portal deixou de listar.
+  const sourceBls = (requestId: string) =>
+    flow.allRequests.data?.find((r) => r.id === requestId)?.bl_ids
+    ?? allItems.filter((i) => i.request_id === requestId && inRequest(i)).map((i) => i.bl_id);
+  const emptied = (requestId: string) => sourceBls(requestId).every((b) => selected.includes(b));
   const movedFrom = new Set(moves.map((i) => i.request_id));
 
   // Detalhe: documento do pedido ainda não apresentado, ou recusado e sem nova versão.
@@ -778,7 +780,8 @@ export function PortalDesbloqueioCe() {
             <Button variant="secondary" onClick={() => setMoving(false)}>
               Voltar
             </Button>
-            <Button loading={flow.command.isPending} loadingLabel="Preparando…" onClick={() => void create()}>
+            {/* Espera os B/Ls de cada solicitação antiga: a tabela acima precisa estar certa. */}
+            <Button disabled={!flow.allRequests.data} loading={flow.command.isPending} loadingLabel="Preparando…" onClick={() => void create()}>
               Mudar {bls(moves.length)} e continuar
             </Button>
           </div>

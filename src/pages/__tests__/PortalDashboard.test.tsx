@@ -55,9 +55,9 @@ const ceRequests = vi.hoisted(() => ({
   ],
 }))
 vi.mock('../../services/ceUnlockService', () => ({
-  listPortalCeUnlockRequests: async () => {
+  fetchAllPortalCeUnlockRequests: async () => {
     if (ceRequests.fail) throw new Error('rpc indisponivel')
-    return { items: ceRequests.items, total: ceRequests.items.length, page: 1, page_size: 25 }
+    return ceRequests.items
   },
 }))
 

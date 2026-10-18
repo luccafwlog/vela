@@ -14,6 +14,7 @@ const svc = vi.hoisted(() => ({
   listPortalCeUnlockBls: vi.fn(),
   fetchAllPortalCeUnlockBls: vi.fn(),
   listPortalCeUnlockRequests: vi.fn(),
+  fetchAllPortalCeUnlockRequests: vi.fn(async () => []),
   getPortalCeUnlockVip: vi.fn(),
   getPortalCeUnlockModel: vi.fn(),
   getPortalCeUnlockRequest: vi.fn(),

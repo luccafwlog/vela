@@ -169,9 +169,19 @@ local('desbloqueio CE — matriz SQL de requisitos, filtros e concorrência',()=
     expect(old.state).toBe('draft')
     expect(old.items.map((i:{bl_id:string})=>i.bl_id)).toEqual(['CE600-MOVE2'])
     expect(old.events.map((e:{action:string})=>e.action)).toContain('bl_moved')
+    // 300: o B/L que saiu não recusa mais o reenvio da antiga.
+    attachDocs(first.id)
+    expect(JSON.parse(sql("SELECT public.cancel_bl('CE600-MOVE1','Cancelado pelo armador');", admin)).cancelled).toBe(true)
+    const version = Number(sql(`SELECT version FROM public.ce_unlock_requests WHERE id='${first.id}';`))
+    command('submit',{request_id:first.id,expected_version:version,request_key:key()},client)
+    expect(sql(`SELECT state FROM public.ce_unlock_requests WHERE id='${first.id}';`)).toBe('submitted')
     const third = command('draft',{bl_ids:['CE600-MOVE2'],request_key:key()},client)
     expect(sql(`SELECT state FROM public.ce_unlock_requests WHERE id='${first.id}';`)).toBe('cancelled')
     expect(sql(`SELECT reason FROM public.ce_unlock_events WHERE request_id='${first.id}' AND action='cancel';`)).toBe(`Todos os B/Ls passaram para a solicitação ${third.protocol}`)
+    // 300: a antiga cancelada não volta a mostrar os B/Ls que saíram.
+    expect(JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${first.id}');`, client)).items).toEqual([])
+    const listed = JSON.parse(sql(`SELECT public.portal_list_ce_unlock_requests('{}'::jsonb,1);`, client)).items.find((r:{id:string})=>r.id===first.id)
+    expect(listed.bl_ids).toEqual([])
     // Documentação validada continua presa à sua solicitação.
     sql(`UPDATE public.ce_unlock_requests SET state='completed' WHERE id='${third.id}';`)
     try {
