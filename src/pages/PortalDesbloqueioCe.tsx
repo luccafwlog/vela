@@ -229,7 +229,7 @@ export function PortalDesbloqueioCe() {
     draftKey.current = crypto.randomUUID();
   }
   // O rascunho só reserva os B/Ls e o próprio Cliente pode cancelá-lo: só pede
-  // confirmação quando algum B/L sai de outra solicitação (migration 298).
+  // confirmação quando algum B/L sai de outra solicitação (migration 299).
   function request() {
     if (moves.length) setMoving(true);
     else void create();

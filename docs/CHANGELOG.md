@@ -14,15 +14,23 @@
   filtram e as colunas Taxas locais e Pagamento; Central de Informações em abas, com tracking
   que abre a consulta do B/L quando o link do armador tem `{BL}`; Desbloqueio de CE e
   Documentos anuais VIP numa tabela comum; Perfil em três blocos com o e-mail de recuperação
-  atual (migration `299`). **Segurança:** o Portal só mostra Taxas Locais de fatura emitida e
+  atual (migration `300`). **Segurança:** o Portal só mostra Taxas Locais de fatura emitida e
   liberada; o Saldo pendente, a consolidação e o Desbloqueio de CE deixaram de expor valor
   ainda não faturado ou fatura em rascunho ([ADR 0088](adr/0088-portal-so-mostra-fatura-emitida.md),
-  migration `297`). **Desbloqueio de CE:** o B/L de solicitação ainda não validada pode ser
+  migration `298`). **Desbloqueio de CE:** o B/L de solicitação ainda não validada pode ser
   pedido de novo e muda para a nova ([ADR 0089](adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md),
-  migration `298`).
+  migration `299`).
 - **Programação de navios do Portal no celular (2026-10-18):** abaixo de 640 px o Painel
   do Portal voltou a mostrar um cartão por navio; desde o lote 2 da identidade a regra que
   esconde os cartões vinha depois da que os mostra, e o Cliente via só o título e a legenda.
+- **CE e Taxas automático parou de ser recusado em loop (2026-10-17):** a validação de anexos
+  recusava cobrança local e demurrage mesmo sem anexo, e a Edge devolvia 422 a cada rodada
+  (~250 recusas em 24 h, 84 rodadas × 3 destinatários de teste); o envio manual do CE também
+  quebrava. Agora só um anexo real é recusado. A Edge loga o motivo de toda recusa e marca
+  `permanent: true` nas que só mudam com outro código ou payload; o runner rejeita a claim
+  nesses casos (migration `297`, alerta `comunicado_recusado`), a produtora não a retoma por
+  24 horas e `failed` na resposta deixa o heartbeat vermelho.
+  [Comunicados automáticos](modules/clientes.md).
 - **Triagem do Sentry de 15–16/10 (2026-10-16):** o logout do Vela e do Portal (inclusive o
   automático por inatividade) deixa de abrir issues `[Sem permissão] 42501` com as consultas que ainda estavam na
   fila e saíram sem sessão (VELA-1Q a VELA-1Z, rótulos do sino com o departamento Documentação);

@@ -1,4 +1,4 @@
--- 299: o Perfil do Portal mostra ao Cliente o e-mail de recuperação atual
+-- 300: o Perfil do Portal mostra ao Cliente o e-mail de recuperação atual
 -- (lote 4 da identidade visual, aprovado em 2026-10-18).
 --
 -- Problema: o bloco "E-mail de recuperação" do Perfil mostra o e-mail atual

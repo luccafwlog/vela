@@ -155,12 +155,12 @@ local('desbloqueio CE — matriz SQL de requisitos, filtros e concorrência',()=
     const first = JSON.stringify({bl_ids:['CE600-DUP'],request_key:key()})
     const worker = await heldTransaction(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}'; SELECT public.portal_ce_unlock_command('draft','${first}'::jsonb) IS NOT NULL; SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
     // O segundo espera o primeiro; a solicitação de onde o B/L sairia não estava
-    // travada quando ele começou, então recebe conflito (migration 298).
+    // travada quando ele começou, então recebe conflito (migration 299).
     try { expect(()=>command('draft',{bl_ids:['CE600-DUP'],request_key:key()},client)).toThrow(/Solicitação alterada/) }
     finally { await worker.done }
     expect(sql("SELECT count(*) FROM public.ce_unlock_request_bls WHERE bl_id='CE600-DUP' AND active;")).toBe('1')
   })
-  it('B/L de solicitação não validada muda para a nova; a antiga sem B/L é cancelada (caminho A, migration 298)',()=>{
+  it('B/L de solicitação não validada muda para a nova; a antiga sem B/L é cancelada (caminho A, migration 299)',()=>{
     const first = command('draft',{bl_ids:['CE600-MOVE1','CE600-MOVE2'],request_key:key()},client)
     const second = command('draft',{bl_ids:['CE600-MOVE1'],request_key:key()},client)
     expect(sql("SELECT request_id FROM public.ce_unlock_request_bls WHERE bl_id='CE600-MOVE1' AND active;")).toBe(second.id)
@@ -169,7 +169,7 @@ local('desbloqueio CE — matriz SQL de requisitos, filtros e concorrência',()=
     expect(old.state).toBe('draft')
     expect(old.items.map((i:{bl_id:string})=>i.bl_id)).toEqual(['CE600-MOVE2'])
     expect(old.events.map((e:{action:string})=>e.action)).toContain('bl_moved')
-    // 300: o B/L que saiu não recusa mais o reenvio da antiga.
+    // 301: o B/L que saiu não recusa mais o reenvio da antiga.
     attachDocs(first.id)
     expect(JSON.parse(sql("SELECT public.cancel_bl('CE600-MOVE1','Cancelado pelo armador');", admin)).cancelled).toBe(true)
     const version = Number(sql(`SELECT version FROM public.ce_unlock_requests WHERE id='${first.id}';`))
@@ -178,7 +178,7 @@ local('desbloqueio CE — matriz SQL de requisitos, filtros e concorrência',()=
     const third = command('draft',{bl_ids:['CE600-MOVE2'],request_key:key()},client)
     expect(sql(`SELECT state FROM public.ce_unlock_requests WHERE id='${first.id}';`)).toBe('cancelled')
     expect(sql(`SELECT reason FROM public.ce_unlock_events WHERE request_id='${first.id}' AND action='cancel';`)).toBe(`Todos os B/Ls passaram para a solicitação ${third.protocol}`)
-    // 300: a antiga cancelada não volta a mostrar os B/Ls que saíram.
+    // 301: a antiga cancelada não volta a mostrar os B/Ls que saíram.
     expect(JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${first.id}');`, client)).items).toEqual([])
     const listed = JSON.parse(sql(`SELECT public.portal_list_ce_unlock_requests('{}'::jsonb,1);`, client)).items.find((r:{id:string})=>r.id===first.id)
     expect(listed.bl_ids).toEqual([])

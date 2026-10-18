@@ -133,7 +133,7 @@ export function cePortalRequestState(state: string): { label: string; tone: "def
   }
 }
 
-/** Solicitação que ainda não foi validada: o B/L dela pode passar para uma nova (migration 298). */
+/** Solicitação que ainda não foi validada: o B/L dela pode passar para uma nova (migration 299). */
 export const ceRequestOpenForMove = (state: string | null | undefined) =>
   ["draft", "submitted", "in_review", "changes_requested"].includes(state ?? "");
 

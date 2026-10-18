@@ -41,7 +41,7 @@ export type CeUnlockItem = {
   paid: boolean;
   /** B/L com Taxas Locais isentas: requisito atendido sem pagamento (migration 279). */
   paid_exempt?: boolean;
-  /** Só no Portal (migration 297): taxas ainda sem fatura visível ao Cliente. */
+  /** Só no Portal (migration 298): taxas ainda sem fatura visível ao Cliente. */
   local_charges_awaiting_invoice?: boolean;
   delivered: boolean;
   can_submit: boolean;
@@ -80,7 +80,7 @@ export type CeUnlockRequest = {
     actor?: string | null;
   }>;
 };
-/** Linha de "Minhas solicitações" no Portal (migration 298). */
+/** Linha de "Minhas solicitações" no Portal (migration 299). */
 export type CePortalRequestRow = Pick<CeUnlockRequest, "id" | "protocol" | "state" | "version" | "source"> & {
   created_at: string;
   /** B/Ls da solicitação; na cancelada, os que ela tinha. */

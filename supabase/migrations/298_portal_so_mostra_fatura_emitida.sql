@@ -1,4 +1,4 @@
--- 297: o Portal só mostra Taxas Locais de fatura emitida e liberada ao Cliente
+-- 298: o Portal só mostra Taxas Locais de fatura emitida e liberada ao Cliente
 -- (lote 4 da identidade visual, decisão do responsável de 2026-10-18).
 --
 -- Problema: o Portal mostrava valores que o Cliente ainda não tinha recebido
@@ -122,7 +122,7 @@ BEGIN
     SELECT i.id AS invoice_id
     FROM public.invoices AS i
     WHERE i.customer_id = p_customer_id
-      -- 297: rascunho não é fatura emitida; o Portal só vê o que foi emitido.
+      -- 298: rascunho não é fatura emitida; o Portal só vê o que foi emitido.
       AND i.status <> 'draft'
       AND (
         i.invoice_type = 'manual'
@@ -281,7 +281,7 @@ BEGIN
     WHERE br.customer_id = p_customer_id
       AND br.source = 'local_charges'
       AND public.bl_has_portal_release(br.bl_id)
-      -- 297: só entra o recebível que o Cliente já recebeu como fatura
+      -- 298: só entra o recebível que o Cliente já recebeu como fatura
       -- emitida, não cancelada e visível no Portal (ADR 0088).
       AND (
         EXISTS (
@@ -360,7 +360,7 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.bl_receivables br WHERE br.id = ANY(v_ids) AND NOT public.bl_has_portal_release(br.bl_id)) THEN
     RAISE EXCEPTION 'Seleção contém B/L sem CE Mercante liberado para o portal.' USING ERRCODE = '42501';
   END IF;
-  -- 297: o Portal só consolida o que a janela lista como elegível: recebível
+  -- 298: o Portal só consolida o que a janela lista como elegível: recebível
   -- com fatura emitida e visível, saldo em aberto e sem consolidada aberta.
   IF EXISTS (
     SELECT 1 FROM UNNEST(COALESCE(v_ids, ARRAY[]::BIGINT[])) AS u(id)
@@ -549,7 +549,7 @@ BEGIN
   INTO v_items
   FROM jsonb_array_elements(COALESCE(v_raw->'items', '[]'::jsonb)) AS row;
 
-  -- 297: restituições da Invoice (valor, situação e data), sem as anotações
+  -- 298: restituições da Invoice (valor, situação e data), sem as anotações
   -- internas, para o detalhe e o recibo do Portal mostrarem o que foi devolvido.
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
     'id', f.id,
@@ -594,7 +594,7 @@ DECLARE
   v_awaiting boolean;
 BEGIN
   -- Campos que só o desk vê: envio/conciliação com a ZPT. O Portal nunca os recebe.
-  -- 297: B/L ainda sem fatura visível não tem "Taxas locais sem liquidação":
+  -- 298: B/L ainda sem fatura visível não tem "Taxas locais sem liquidação":
   -- o Cliente vê só que a fatura ainda não saiu (ADR 0088).
   v_awaiting := NOT COALESCE((j->>'paid')::boolean, false)
     AND v_customer IS NOT NULL

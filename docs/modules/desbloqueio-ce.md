@@ -1,6 +1,6 @@
 # Desbloqueio de CE Mercante
 
-> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `279`–`282` (PR 956, em produção após o merge); alerta de troca de CE com Desbloqueio conferido corrigido nas migrations `230` e `277` (PR 954); expurgo de um PDF real comprovado em produção em 2026-10-15; mudanças da PR 956 conferidas e observadas em produção em 2026-10-15, com os ajustes da PR 961; [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md) arquivado; B/L que muda de solicitação (migration `298`, [ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)) e "Taxas locais aguardando fatura" (migration `297`) ainda não aplicados no Supabase remoto · **Atualizado:** 2026-10-18 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
+> **Status:** publicado em produção (backend e Cloudflare Pages); compatibilidade frontend/backend conferida em 2026-10-13 e fluxo com dois Clientes observado em produção até a exportação no mesmo dia; planilha `zpt-5-v2` homologada com a ZPT em 2026-10-14 (declaração do responsável), com a conciliação por arquivo real dispensada pelo responsável em 2026-10-15; aceite operacional e jurídico em 2026-10-14 ([ADR 0087](../adr/0087-desbloqueio-ce-aceite-operacional.md)), implementado nas migrations `279`–`282` (PR 956, em produção após o merge); alerta de troca de CE com Desbloqueio conferido corrigido nas migrations `230` e `277` (PR 954); expurgo de um PDF real comprovado em produção em 2026-10-15; mudanças da PR 956 conferidas e observadas em produção em 2026-10-15, com os ajustes da PR 961; [plano](../archive/plans/2026-10-04-desbloqueio-ce-mercante.md) arquivado; B/L que muda de solicitação (migration `299`, [ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)) e "Taxas locais aguardando fatura" (migration `298`) ainda não aplicados no Supabase remoto · **Atualizado:** 2026-10-18 · **Rotas:** `/desbloqueio-ce`, `/portal/desbloqueio-ce`, `/clientes/portal/inspecao/:customerId/desbloqueio-ce`
 
 ## Propósito e escopo
 
@@ -202,18 +202,18 @@ No Portal, B/L com Taxas Locais não pagas e sem fatura visível ao Cliente
 (emitida, não cancelada nem obsoleta, individual ou consolidada) aparece com
 "Taxas locais aguardando fatura", sem valor nem situação de pagamento
 (`local_charges_awaiting_invoice` em `ce_unlock_private.portal_view`, migration
-`297`; desde a `300`, só pelo motivo de Taxas Locais, não por avulsa em aberto; [ADR 0088](../adr/0088-portal-so-mostra-fatura-emitida.md)). A aptidão
+`298`; desde a `301`, só pelo motivo de Taxas Locais, não por avulsa em aberto; [ADR 0088](../adr/0088-portal-so-mostra-fatura-emitida.md)). A aptidão
 interna não muda: o requisito continua pelo razão.
 
 ### B/L que muda de solicitação
 
-Desde a migration `298` ([ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)),
+Desde a migration `299` ([ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)),
 B/L ativo em solicitação ainda não validada (rascunho, enviada, em análise ou
 correção pedida) do mesmo Cliente e ainda não enviado à ZPT pode ser pedido de
 novo (`item.can_submit`). Ao criar o rascunho novo (`command('draft')`), o B/L
 sai da antiga (`active = false`) com o evento `bl_moved` ("B/L passou para a
 solicitação CE-…") e deixa de aparecer nos B/Ls dela, também depois que ela
-é cancelada, e de pesar no reenvio dela (migration `300`); a antiga que fica sem B/L
+é cancelada, e de pesar no reenvio dela (migration `301`); a antiga que fica sem B/L
 é cancelada com o evento `cancel` ("Todos os B/Ls passaram para a solicitação
 CE-…"), e a que mantém outros B/Ls continua com eles, com a versão e a
 conclusão recalculadas. Documentos não passam para a nova: termo e procuração

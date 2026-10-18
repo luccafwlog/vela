@@ -23,7 +23,7 @@ export type PortalOperationContainer = {
 }
 
 /**
- * Taxas Locais do B/L na visão do Portal (migration 297): valores só quando
+ * Taxas Locais do B/L na visão do Portal (migration 298): valores só quando
  * há fatura visível ao Cliente; `awaiting_invoice` (taxa em aberto ainda sem
  * fatura emitida) e `none` vêm sem valor.
  */

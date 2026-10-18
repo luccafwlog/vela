@@ -132,7 +132,7 @@ function PortalProfileForm({
     .map(([field, before, after]) => ({ field, before: before || '—', after }))
   const addressDirty = addressChanges.length > 0
   const recoveryReady = Boolean(currentPassword && newRecoveryEmail.trim() && confirmRecoveryEmail.trim())
-  // A Inspeção não recebe o e-mail de recuperação (migration 299): sem ele,
+  // A Inspeção não recebe o e-mail de recuperação (migration 300): sem ele,
   // o bloco começa pela senha atual.
   const currentRecoveryEmail = profile.recovery_email ?? null
 

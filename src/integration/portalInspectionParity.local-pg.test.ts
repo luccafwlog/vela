@@ -121,7 +121,7 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
       FROM public.demurrage_invoices i WHERE i.doc_number = 'S11-DEM-B'
       ON CONFLICT DO NOTHING;
       -- Emitida direto, sem os gatilhos de emissão (até o fim do bloco): o Portal só
-      -- vê fatura emitida (297).
+      -- vê fatura emitida (298).
       SET session_replication_role = replica;
       INSERT INTO public.invoices (invoice_number, customer_id, bl_id, total_brl, balance_brl, status, pix_payload, notes, pix_txid)
       VALUES ('S11-INV-A', ${customerA}, '${blA}', 100, 100, 'issued', 'PIX-S11', 'nota interna S11', 'txid-interno-s11')
@@ -233,7 +233,7 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
     expect(out).toMatch(/^inspecao=612\.5/m)
   })
 
-  it('avulsa em aberto não vira "aguardando fatura" no Desbloqueio de CE (migration 300)', () => {
+  it('avulsa em aberto não vira "aguardando fatura" no Desbloqueio de CE (migration 301)', () => {
     const view = (reasons: string[]) => JSON.parse(psql(`SELECT ce_unlock_private.portal_view('${JSON.stringify({ customer_id: customerA, bl_id: 'BL-S11-SEM-FATURA', paid: false, reasons })}'::jsonb);`))
     expect(view(['Fatura avulsa do B/L em aberto']).local_charges_awaiting_invoice).toBe(false)
     const local = view(['Taxas locais sem liquidação integral confirmada'])
@@ -241,7 +241,7 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
     expect(local.reasons).toEqual(['Taxas locais aguardando fatura'])
   })
 
-  it('o Perfil mostra ao Cliente o e-mail de recuperação; a Inspeção não o recebe (migration 299)', () => {
+  it('o Perfil mostra ao Cliente o e-mail de recuperação; a Inspeção não o recebe (migration 300)', () => {
     const out = psql(`
       BEGIN;
       SET LOCAL ROLE authenticated;
@@ -255,7 +255,7 @@ describeLocal('S11 — paridade de Inspeção das disputas', () => {
     expect(out).toMatch(/^inspecao=ausente$/m)
   })
 
-  it('o Portal só mostra Taxas Locais de fatura emitida e visível (migration 297)', () => {
+  it('o Portal só mostra Taxas Locais de fatura emitida e visível (migration 298)', () => {
     // Numa transação desfeita: um B/L com recebível de R$ 700 só em rascunho e
     // outro com fatura individual emitida de R$ 300. O saldo soma a emitida e a
     // S11-INV-A do beforeAll (100); o rascunho não aparece em lugar nenhum.

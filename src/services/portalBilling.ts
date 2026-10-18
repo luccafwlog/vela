@@ -232,7 +232,7 @@ export type PortalDemurrageInvoiceDetail = {
   invoice: PortalDemurrageInvoice & { customer_name: string; customer_cnpj_cpf: string }
   items: DemurrageInvoiceItem[]
   /**
-   * Restituições da Invoice, sem as anotações internas (migration 297), no
+   * Restituições da Invoice, sem as anotações internas (migration 298), no
    * formato do recibo interno. `null` quando o banco ainda não as devolve.
    */
   refund_summary: FinancialRefundSummary | null
@@ -510,7 +510,7 @@ export type PortalProfile = {
   city: string | null
   state: string | null
   zip: string | null
-  /** Só na sessão do Cliente (migration 299); a Inspeção não recebe. */
+  /** Só na sessão do Cliente (migration 300); a Inspeção não recebe. */
   recovery_email?: string | null
 }
 

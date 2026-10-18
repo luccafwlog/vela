@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { runWithBetterStackHeartbeat } from '../../../supabase/functions/_shared/betterStackHeartbeat.ts'
+import {
+  runAutomaticCommunications,
+  type AutoRunnerCandidate,
+} from '../../../supabase/functions/_shared/customerCommunicationAutoRunner.ts'
 
-const source = readFileSync(new URL('../../../supabase/functions/customer-communication-auto-runner/index.ts', import.meta.url), 'utf8')
+const entry = readFileSync(new URL('../../../supabase/functions/customer-communication-auto-runner/index.ts', import.meta.url), 'utf8')
+const source = readFileSync(new URL('../../../supabase/functions/_shared/customerCommunicationAutoRunner.ts', import.meta.url), 'utf8')
 
 describe('contrato do runner automático de Comunicados', () => {
   it('suporta CE financeiro, simulação reprocessável e trata supressão permanente', () => {
@@ -9,10 +15,9 @@ describe('contrato do runner automático de Comunicados', () => {
     expect(source).toContain("customer_local_charges_communication_payload")
     expect(source).toContain("result?.status === 'enviado' || result?.status === 'simulado' || result?.status === 'parcial'")
     expect(source).toContain("response.status === 422 && Boolean(result?.suppressed)")
-    expect(source).toContain('const shouldRelease = resolvedRecipients < recipients.length')
-    expect(source).toContain("const { error } = await admin.rpc('release_customer_communication_automation_claim'")
-    expect(source).toContain("timingSafeEqual(providedSecret, secret)")
-    expect(source).toContain("if (req.method !== 'POST') return json(405")
+    expect(source).toContain("await rpc('release_customer_communication_automation_claim'")
+    expect(entry).toContain("timingSafeEqual(providedSecret, secret)")
+    expect(entry).toContain("if (req.method !== 'POST') return json(405")
   })
 
   it('repassa a identidade da Atracação exigida pelo NOB', () => {
@@ -25,5 +30,146 @@ describe('contrato do runner automático de Comunicados', () => {
     // não existe e o mesmo NOB sai de novo a cada passagem do cron.
     expect(source).toContain('anchor_atracacao_id: candidate.anchor_atracacao_id ?? null')
     expect(source).toContain('terminal_name: candidate.terminal_name ?? null')
+  })
+})
+
+describe('rodada do runner com envio falso', () => {
+  const candidate: AutoRunnerCandidate = {
+    claim_key: 'aviso_chegada_noa:1:1:BRSSZ',
+    kind: 'aviso_chegada_noa',
+    nature: 'avisos_operacionais',
+    customer_id: 1,
+    customer_name: 'CLIENTE TESTE',
+    customer_cnpj: '00000000000191',
+    voyage_id: 1,
+    vessel_name: 'NAVIO TESTE',
+    voyage_number: '001',
+    port: 'BRSSZ',
+    milestone_at: '2026-10-20T12:00:00Z',
+    bl_ids: ['BL-1'],
+    emails: ['a@example.test', 'b@example.test'],
+  }
+
+  function setup(responses: Array<{ status: number; body: unknown }>) {
+    const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = []
+    const rpc = vi.fn((fn: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ fn, args })
+      return Promise.resolve({ data: fn === 'evaluate_and_dispatch_automatic_communications' ? [candidate] : true, error: null })
+    })
+    const queue = [...responses]
+    const fetcher = vi.fn(() => {
+      const next = queue.shift() ?? { status: 500, body: { error: 'sem resposta' } }
+      return Promise.resolve(new Response(JSON.stringify(next.body), { status: next.status }))
+    }) as unknown as typeof fetch
+    const run = () => runAutomaticCommunications({
+      rpc, fetcher, supabaseUrl: 'https://supabase.example.test', serviceKey: 'service', secret: 'secret',
+    })
+    const claimCalls = () => rpcCalls.filter(({ fn }) => fn !== 'evaluate_and_dispatch_automatic_communications')
+    return { run, claimCalls }
+  }
+
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('422 permanente em todos os destinatários rejeita a claim e não a libera', async () => {
+    const refused = { status: 422, body: { error: 'Anexos inválidos.', permanent: true } }
+    const { run, claimCalls } = setup([refused, refused])
+    const result = await run()
+
+    expect(claimCalls()).toEqual([{
+      fn: 'reject_customer_communication_automation_claim',
+      args: { p_claim_key: candidate.claim_key, p_reason: 'Anexos inválidos.' },
+    }])
+    expect(result).toMatchObject({ status: 200, body: { failed: 2, releaseFailures: 0 } })
+    expect(console.warn).toHaveBeenCalledWith('[customer-communication-auto-runner] envio recusado', expect.objectContaining({
+      status: 422, error: 'Anexos inválidos.', kind: 'aviso_chegada_noa', customerId: 1, claimKey: candidate.claim_key,
+    }))
+  })
+
+  it('422 sem a marca permanente libera a claim para a próxima rodada', async () => {
+    const refused = { status: 422, body: { error: 'Prontidão financeira bloqueada para este cliente e viagem.' } }
+    const { run, claimCalls } = setup([refused, refused])
+    const result = await run()
+
+    expect(claimCalls().map(({ fn }) => fn)).toEqual(['release_customer_communication_automation_claim'])
+    expect(result.body.failed).toBe(2)
+  })
+
+  it('recusa permanente misturada a falha transitória ainda libera', async () => {
+    const { run, claimCalls } = setup([
+      { status: 422, body: { error: 'Anexos inválidos.', permanent: true } },
+      { status: 500, body: { error: 'Falha no envio do comunicado.' } },
+    ])
+    await run()
+
+    expect(claimCalls().map(({ fn }) => fn)).toEqual(['release_customer_communication_automation_claim'])
+  })
+
+  it('destinatário simulado fica resolvido e só o outro, recusado em definitivo, decide a rejeição', async () => {
+    const { run, claimCalls } = setup([
+      { status: 200, body: { status: 'simulado' } },
+      { status: 422, body: { error: 'Destinatário inválido.', permanent: true } },
+    ])
+    const result = await run()
+
+    expect(claimCalls().map(({ fn }) => fn)).toEqual(['reject_customer_communication_automation_claim'])
+    expect(result.body).toMatchObject({ failed: 1, sent: [{ kind: 'aviso_chegada_noa', customerId: 1, emails: 1 }] })
+  })
+
+  it('envio completo não mexe na claim e reporta failed: 0', async () => {
+    const { run, claimCalls } = setup([
+      { status: 200, body: { status: 'simulado' } },
+      { status: 422, body: { error: 'Endereço suprimido para Comunicados.', suppressed: true } },
+    ])
+    const result = await run()
+
+    expect(claimCalls()).toEqual([])
+    expect(result.body).toMatchObject({ failed: 0, releaseFailures: 0 })
+  })
+
+  it('a rodada com recusa deixa o heartbeat vermelho', async () => {
+    const refused = { status: 422, body: { error: 'Anexos inválidos.', permanent: true } }
+    const { run } = setup([refused, refused])
+    const result = await run()
+    const heartbeats: string[] = []
+    await runWithBetterStackHeartbeat('customerCommunicationAutoRunner', () => new Response(JSON.stringify(result.body), { status: result.status }), {
+      getEnv: () => 'https://uptime.betterstack.com/api/v1/heartbeat/token',
+      fetcher: (input) => {
+        heartbeats.push(String(input))
+        return Promise.resolve(new Response(null, { status: 200 }))
+      },
+    })
+
+    expect(heartbeats).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/token/fail'])
+  })
+})
+
+describe('recusas da Edge send-customer-communication', () => {
+  const edge = readFileSync(new URL('../../../supabase/functions/send-customer-communication/index.ts', import.meta.url), 'utf8')
+  const linesWith = (text: string) => edge.split('\n').filter((line) => line.includes(text))
+
+  it('marca permanent só nas recusas que não mudam sem outro código ou payload', () => {
+    for (const text of ['Natureza inválida ou ausente.', 'Tipo de comunicado não disponível neste bloco.', 'B/Ls inválidos.', "'Anexos inválidos.'"]) {
+      expect(linesWith(text).every((line) => line.includes('permanentRejection(')), text).toBe(true)
+    }
+    for (const text of [
+      'Prontidão financeira bloqueada para este cliente e viagem.',
+      'Contato desativado para esta caixa ou modelo.',
+      'Destinatário não pertence ao cliente selecionado.',
+      'Cliente desativado não recebe Comunicados.',
+      'A escala canônica do porto não está disponível para este comunicado.',
+      'A Atracação não corresponde à viagem e ao porto informados.',
+    ]) {
+      expect(linesWith(text).length, text).toBeGreaterThan(0)
+      expect(linesWith(text).some((line) => line.includes('permanentRejection(')), text).toBe(false)
+    }
+  })
+
+  it('loga o motivo de toda recusa 4xx', () => {
+    expect(edge).toContain("if (status >= 400 && status < 500) {")
+    expect(edge).toContain("console.warn('[send-customer-communication] recusa', { status, error,")
   })
 })

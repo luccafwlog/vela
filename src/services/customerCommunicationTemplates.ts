@@ -492,7 +492,7 @@ export function validateCommunicationAttachments(
   const errors: string[] = []
   const totalBytes = files.reduce((sum, file) => sum + (Number.isFinite(file.size) ? Math.max(0, file.size) : 0), 0)
 
-  if (FORBIDDEN_ATTACHMENT_KINDS.has(kind)) {
+  if (FORBIDDEN_ATTACHMENT_KINDS.has(kind) && files.length > 0) {
     errors.push('Anexos não são permitidos para cobrança local ou cobrança de demurrage.')
   }
   if (files.length > COMMUNICATION_ATTACHMENT_MAX_FILES) {
