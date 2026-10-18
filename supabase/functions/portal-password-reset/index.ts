@@ -1,7 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { hashToken } from '../_shared/portalToken.ts'
 import { revokePortalSessions } from '../_shared/revokePortalSessions.ts'
-import { resetPortalPasswordFailClosed } from '../_shared/portalPasswordResetFlow.ts'
+import { notifyPortalPasswordChanged, resetPortalPasswordFailClosed } from '../_shared/portalPasswordResetFlow.ts'
+import { sendPortalEmail } from '../_shared/portalEmail.ts'
+import { passwordChangedTemplate } from '../_shared/portalEmailTemplates.ts'
+import { canonicalPortalOrigin, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { withCors } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
@@ -41,5 +44,17 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     },
   })
   await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: account.id, p_invite_id: inviteId, p_prev_decision: account.provisioning_decision, p_new_decision: account.provisioning_decision, p_prev_situation: account.account_situation, p_new_situation: account.account_situation, p_actor_type: 'cliente', p_reason: 'Recuperação de senha concluída pelo cliente', p_request_id: null })
+  await notifyPortalPasswordChanged(inviteId, {
+    loadAccount: async () => {
+      const { data, error } = await admin.from('customer_portal_accounts').select('recovery_email, customers(name, cnpj_cpf)').eq('id', account.id).single()
+      if (error) throw error
+      const customer = data?.customers as { name?: string; cnpj_cpf?: string } | null
+      return { recoveryEmail: data?.recovery_email ?? null, companyName: customer?.name ?? null, cnpj: customer?.cnpj_cpf ?? null }
+    },
+    send: async ({ to, companyName, cnpjMasked, idempotencyKey }) => {
+      const template = passwordChangedTemplate({ companyName, cnpjMasked, portalUrl: canonicalPortalOrigin(), supportEmail: portalSupportEmail() })
+      return sendPortalEmail({ admin, kind: 'senha_alterada', to, subject: template.subject, html: template.html, text: template.text, idempotencyKey, accountId: account.id, inviteId })
+    },
+  })
   return new Response(JSON.stringify({ reset: true }), { status: 200 })
 }))

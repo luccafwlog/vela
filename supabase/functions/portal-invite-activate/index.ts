@@ -22,16 +22,21 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
   const valid = Boolean(invite && invite.status === 'pendente' && new Date(invite.expires_at).getTime() > Date.now())
   if (body.action === 'inspect') {
     if (!valid) return cors(410, { error: GENERIC_INVALID })
-    const { data: account } = await admin.from('customer_portal_accounts').select('login_cnpj, customers(name)').eq('id', invite.account_id).single()
-    const customer = account?.customers as { name?: string } | null
+    const { data: account } = await admin.from('customer_portal_accounts').select('login_cnpj, customers(name, deactivated_at)').eq('id', invite.account_id).single()
+    const customer = account?.customers as { name?: string; deactivated_at?: string | null } | null
+    // Cliente desativado: o convite pendente deixa de valer, com a mesma resposta genérica.
+    if (!customer || customer.deactivated_at) return cors(410, { error: GENERIC_INVALID })
     return cors(200, { company_name: customer?.name ?? '', cnpj_masked: maskCnpj(account?.login_cnpj ?? '') })
   }
   if (!valid) return cors(410, { error: GENERIC_INVALID })
   if (body.action !== 'activate' || typeof body.password !== 'string') return cors(400, { error: GENERIC_INVALID })
-  const { data: accountForRateLimit } = await admin.from('customer_portal_accounts').select('login_cnpj, account_situation, auth_user_id').eq('id', invite.account_id).maybeSingle()
+  const { data: accountForRateLimit } = await admin.from('customer_portal_accounts').select('login_cnpj, account_situation, auth_user_id, customers(deactivated_at)').eq('id', invite.account_id).maybeSingle()
   // Só ativa conta à espera do convite e ainda sem usuário técnico (auditoria
-  // run-2, reforço): convite de conta suspensa ou já ativa não vale.
-  if (!accountForRateLimit || accountForRateLimit.auth_user_id || !PENDING_SITUATIONS.includes(accountForRateLimit.account_situation)) return cors(410, { error: GENERIC_INVALID })
+  // run-2, reforço): convite de conta suspensa ou já ativa não vale. Cliente
+  // desativado também não ativa (plano dos e-mails, 4.7): o convite pendente
+  // continua no banco, mas é recusado com a resposta genérica.
+  const customerForActivation = accountForRateLimit?.customers as { deactivated_at?: string | null } | null
+  if (!accountForRateLimit || accountForRateLimit.auth_user_id || !PENDING_SITUATIONS.includes(accountForRateLimit.account_situation) || !customerForActivation || customerForActivation.deactivated_at) return cors(410, { error: GENERIC_INVALID })
   const loginCnpj = typeof accountForRateLimit?.login_cnpj === 'string' ? accountForRateLimit.login_cnpj : ''
   if (!loginCnpj || await isActivationRateLimited(admin, loginCnpj, { ip: requestIp(req) })) return cors(429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' })
   if (!isValidPassword(body.password)) {

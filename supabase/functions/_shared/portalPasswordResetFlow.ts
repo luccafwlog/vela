@@ -24,3 +24,35 @@ export async function resetPortalPasswordFailClosed(
   await dependencies.revokeSessions(userId)
   await dependencies.completeReset()
 }
+
+export type PasswordChangedNoticeDependencies = {
+  /** Email de Recuperação e Cliente da conta, lidos depois da troca. */
+  loadAccount: () => Promise<{ recoveryEmail: string | null; companyName: string | null; cnpj: string | null } | null>
+  send: (input: { to: string; companyName: string; cnpjMasked: string; idempotencyKey: string }) => Promise<{ ok: boolean }>
+}
+
+function maskCnpj(value: string | null): string {
+  const d = (value ?? '').replace(/[^0-9a-z]/gi, '').toUpperCase()
+  return d.length === 14 ? `${d.slice(0, 2)}.***.***/${d.slice(8, 12)}-${d.slice(12)}` : '***'
+}
+
+// Aviso "sua senha foi alterada" (D12) ao Email de Recuperação. A senha já
+// mudou quando ele sai: uma falha aqui fica no log e na tentativa, nunca
+// desfaz nem falha a recuperação. Uma chave por recuperação (o convite).
+export async function notifyPortalPasswordChanged(inviteId: number | string, dependencies: PasswordChangedNoticeDependencies): Promise<boolean> {
+  try {
+    const account = await dependencies.loadAccount()
+    const to = account?.recoveryEmail?.trim()
+    if (!to) return false
+    const result = await dependencies.send({
+      to,
+      companyName: account?.companyName ?? 'sua empresa',
+      cnpjMasked: maskCnpj(account?.cnpj ?? null),
+      idempotencyKey: `senha_alterada:${inviteId}`,
+    })
+    return result.ok
+  } catch (error) {
+    console.error('[portal-password-reset] aviso de senha alterada não enviado', error instanceof Error ? error.message : String(error))
+    return false
+  }
+}
