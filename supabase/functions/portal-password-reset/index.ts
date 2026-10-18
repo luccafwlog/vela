@@ -8,6 +8,8 @@ import { canonicalPortalOrigin, portalSupportEmail } from '../_shared/portalUrls
 import { withCors } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
+// Global do runtime das Edge Functions do Supabase; não existe no deno check.
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined
 if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
   const body = await req.json().catch(() => ({})) as { token?: string; password?: string }
@@ -44,7 +46,9 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     },
   })
   await admin.rpc('_portal_log_event', { p_customer_id: account.customer_id, p_account_id: account.id, p_invite_id: inviteId, p_prev_decision: account.provisioning_decision, p_new_decision: account.provisioning_decision, p_prev_situation: account.account_situation, p_new_situation: account.account_situation, p_actor_type: 'cliente', p_reason: 'Recuperação de senha concluída pelo cliente', p_request_id: null })
-  await notifyPortalPasswordChanged(inviteId, {
+  // O aviso sai em segundo plano: com o provedor lento (até 3 tentativas de
+  // 15 s), esperar por ele faria o Cliente ver erro numa recuperação já feita.
+  const notice = notifyPortalPasswordChanged(inviteId, {
     loadAccount: async () => {
       const { data, error } = await admin.from('customer_portal_accounts').select('recovery_email, customers(name, cnpj_cpf)').eq('id', account.id).single()
       if (error) throw error
@@ -56,5 +60,6 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
       return sendPortalEmail({ admin, kind: 'senha_alterada', to, subject: template.subject, html: template.html, text: template.text, idempotencyKey, accountId: account.id, inviteId })
     },
   })
+  if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(notice)
   return new Response(JSON.stringify({ reset: true }), { status: 200 })
 }))

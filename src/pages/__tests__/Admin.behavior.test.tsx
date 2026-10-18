@@ -244,3 +244,15 @@ it('solicita confirmação com diff ao alterar credenciais de acesso', async () 
   })))
   expect(mocks.updateUserCredentials).toHaveBeenCalled()
 })
+
+it('salvar o mesmo e-mail devolvido libera a supressão (plano dos e-mails, 2.8)', async () => {
+  mocks.updateUserCredentials.mockResolvedValue(undefined)
+  renderAdmin()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
+  expect(screen.getByText(/salve o mesmo e-mail para liberá-lo/)).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+    changes: [expect.objectContaining({ field: 'E-mail', after: 'Liberado para receber de novo' })],
+  })))
+  expect(mocks.updateUserCredentials).toHaveBeenCalledWith(expect.objectContaining({ email: 'alice@fwlog.com.br' }))
+})

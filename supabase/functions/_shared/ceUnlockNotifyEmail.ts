@@ -36,7 +36,7 @@ export type NotifyDeps = {
   finish: (id: number, status: OutboxStatus, done: string[], error?: string) => Promise<void>
 }
 
-export type NotifySummary = { sent: number; partial: number; simulated: number; skipped: number; retry: number; failed: number }
+export type NotifySummary = { sent: number; partialSuppressed: number; simulated: number; skipped: number; retry: number; failed: number }
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -93,7 +93,7 @@ async function processRow(deps: NotifyDeps, row: OutboxRow, simulate: boolean, d
 }
 
 export async function processCeUnlockEmails(deps: NotifyDeps): Promise<NotifySummary> {
-  const summary: NotifySummary = { sent: 0, partial: 0, simulated: 0, skipped: 0, retry: 0, failed: 0 }
+  const summary: NotifySummary = { sent: 0, partialSuppressed: 0, simulated: 0, skipped: 0, retry: 0, failed: 0 }
   // Lida antes da fila: um erro aqui sobe e nenhuma linha é consumida.
   const simulate = !(await deps.communicationsEnabled())
   for (const row of await deps.pending()) {
@@ -115,6 +115,9 @@ export async function processCeUnlockEmails(deps: NotifyDeps): Promise<NotifySum
       }
     }
     if (status === 'pending') summary.retry += 1
+    // Parcial por supressão é desfecho correto; o nome fica fora de "partial",
+    // que o heartbeat lê como falha.
+    else if (status === 'partial') summary.partialSuppressed += 1
     else summary[status] += 1
   }
   return summary

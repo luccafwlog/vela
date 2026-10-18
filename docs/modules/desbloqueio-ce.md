@@ -276,7 +276,7 @@ Regras da rodada:
 - `skipped` e `failed` abrem o alerta **Aviso do Desbloqueio de CE não enviado**
   (`desbloqueio_ce_aviso_nao_enviado`, Administrativo, um por Cliente). Ele fecha sozinho quando
   um aviso seguinte do mesmo Cliente termina `sent`, `partial` ou `simulated`.
-- A resposta traz `{ sent, partial, simulated, skipped, retry, failed }`; `failed > 0` deixa o
+- A resposta traz `{ sent, partialSuppressed, simulated, skipped, retry, failed }`; `failed > 0` deixa o
   heartbeat `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` vermelho. Exceções e respostas 5xx vão
   ao Sentry.
 

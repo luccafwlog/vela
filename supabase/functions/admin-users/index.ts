@@ -137,25 +137,29 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     const { data: current } = await admin.auth.admin.getUserById(userId)
     const previousEmail = current.user?.email ?? null
 
+    // O mesmo e-mail salvo de novo não troca credencial: só libera a supressão.
+    const emailChanged = Boolean(email) && email !== previousEmail?.toLowerCase()
     const updates: { email?: string; password?: string; email_confirm?: boolean } = {}
-    if (email) { updates.email = email; updates.email_confirm = true }
+    if (email && emailChanged) { updates.email = email; updates.email_confirm = true }
     if (password) updates.password = password
 
-    const { error: updateError } = await admin.auth.admin.updateUserById(userId, updates)
-    if (updateError) {
-      const duplicate = String(updateError.message ?? '').toLowerCase().includes('already')
-      return json(duplicate ? 409 : 500, {
-        error: duplicate ? 'Já existe um usuário com este e-mail.' : 'Não foi possível atualizar o acesso.',
-      }, origin)
+    if (Object.keys(updates).length) {
+      const { error: updateError } = await admin.auth.admin.updateUserById(userId, updates)
+      if (updateError) {
+        const duplicate = String(updateError.message ?? '').toLowerCase().includes('already')
+        return json(duplicate ? 409 : 500, {
+          error: duplicate ? 'Já existe um usuário com este e-mail.' : 'Não foi possível atualizar o acesso.',
+        }, origin)
+      }
+
+      // Credencial trocada derruba as sessões abertas com a credencial antiga.
+      await revokeSessions(userId)
     }
 
-    // Credencial trocada derruba as sessões abertas com a credencial antiga.
-    await revokeSessions(userId)
-
-    // E-mail salvo libera a supressão (bounce/spam) do endereço anterior (2.8).
+    // E-mail salvo (novo ou o mesmo) libera a supressão (bounce/spam) do endereço anterior (2.8).
     if (email) await releasePreviousEmailSuppression(admin, previousEmail, email)
 
-    if (email && email !== previousEmail) await audit(userId, 'email', previousEmail, email)
+    if (emailChanged) await audit(userId, 'email', previousEmail, email ?? null)
     // A senha nunca é registrada, só o fato de ter sido trocada.
     if (password) await audit(userId, 'password', null, 'redefinida pelo administrador')
     return json(200, { ok: true }, origin)

@@ -7,6 +7,7 @@ import {
   type OutboxRow,
   type SendOutcome,
 } from '../../../supabase/functions/_shared/ceUnlockNotifyEmail.ts'
+import { runWithBetterStackHeartbeat } from '../../../supabase/functions/_shared/betterStackHeartbeat.ts'
 import { ceUnlockNoticeTemplate } from '../../../supabase/functions/_shared/portalEmailTemplates.ts'
 
 const row = (patch: Partial<OutboxRow> = {}): OutboxRow => ({
@@ -25,7 +26,7 @@ function deps(patch: Partial<NotifyDeps> & { rows?: OutboxRow[] } = {}) {
   }
   return { deps: { ...base, ...patch }, finish, send }
 }
-const empty = { sent: 0, partial: 0, simulated: 0, skipped: 0, retry: 0, failed: 0 }
+const empty = { sent: 0, partialSuppressed: 0, simulated: 0, skipped: 0, retry: 0, failed: 0 }
 
 describe('fila de e-mails do Desbloqueio de CE', () => {
   it('envia uma vez por endereço habilitado na caixa, com chave idempotente por destinatário', async () => {
@@ -68,7 +69,7 @@ describe('fila de e-mails do Desbloqueio de CE', () => {
   it('destinatário suprimido no Portal não deixa a linha voltar: fecha parcial na primeira rodada', async () => {
     const two = [{ id: 1, email: 'a@c.com' }, { id: 2, email: 'bounce@c.com' }]
     const { deps: d, finish } = deps({ contacts: async () => two, send: vi.fn(async ({ to }): Promise<SendOutcome> => (to === 'a@c.com' ? 'sent' : 'suppressed')) })
-    expect(await processCeUnlockEmails(d)).toEqual({ ...empty, partial: 1 })
+    expect(await processCeUnlockEmails(d)).toEqual({ ...empty, partialSuppressed: 1 })
     expect(finish).toHaveBeenCalledWith(7, 'partial', ['k:a@c.com'], expect.stringContaining('suprimido'))
   })
 
@@ -136,6 +137,22 @@ describe('handler do Desbloqueio de CE', () => {
   it('devolve failed no corpo para o heartbeat ficar vermelho', async () => {
     const { full } = handlerDeps({ pending: async () => [row({ attempts: 4 })], send: vi.fn(async (): Promise<SendOutcome> => 'failed') })
     expect((await runCeUnlockNotify(full)).body).toMatchObject({ failed: 1 })
+  })
+
+  it('parcial por contato suprimido mantém o heartbeat verde', async () => {
+    const two = [{ id: 1, email: 'a@c.com' }, { id: 2, email: 'bounce@c.com' }]
+    const { deps: d } = deps({ contacts: async () => two, send: vi.fn(async ({ to }): Promise<SendOutcome> => (to === 'a@c.com' ? 'sent' : 'suppressed')) })
+    const summary = await processCeUnlockEmails(d)
+    expect(summary.partialSuppressed).toBe(1)
+    const heartbeats: string[] = []
+    await runWithBetterStackHeartbeat('ceUnlockNotifyEmail', () => new Response(JSON.stringify(summary), { status: 200 }), {
+      getEnv: () => 'https://uptime.betterstack.com/api/v1/heartbeat/token',
+      fetcher: (input) => {
+        heartbeats.push(String(input))
+        return Promise.resolve(new Response(null, { status: 200 }))
+      },
+    })
+    expect(heartbeats).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/token'])
   })
 })
 

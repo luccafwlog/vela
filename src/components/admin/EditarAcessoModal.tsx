@@ -8,6 +8,7 @@ export function EditarAcessoModal({
   open,
   userName,
   currentEmail,
+  emailBounced = false,
   onClose,
   onSubmit,
   submitting,
@@ -15,6 +16,8 @@ export function EditarAcessoModal({
   open: boolean
   userName: string
   currentEmail: string | null
+  /** Endereço suprimido por bounce ou spam: salvar o mesmo e-mail libera a supressão. */
+  emailBounced?: boolean
   onClose: () => void
   onSubmit: (input: { email?: string; password?: string }) => void
   submitting: boolean
@@ -31,9 +34,11 @@ export function EditarAcessoModal({
     if (emailChanged && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) return setError('E-mail inválido.')
     if (password && !isValidPassword(password)) return setError(PASSWORD_RULE_MESSAGE)
     if (password && password !== confirmation) return setError('As senhas não conferem.')
-    if (!emailChanged && !password) return setError('Informe um novo e-mail ou uma nova senha.')
+    // Com a caixa já consertada, o mesmo endereço salvo de novo volta a receber.
+    const releaseSameEmail = !emailChanged && emailBounced && Boolean(trimmed)
+    if (!emailChanged && !password && !releaseSameEmail) return setError('Informe um novo e-mail ou uma nova senha.')
     setError('')
-    onSubmit({ email: emailChanged ? trimmed : undefined, password: password || undefined })
+    onSubmit({ email: emailChanged || releaseSameEmail ? trimmed : undefined, password: password || undefined })
   }
 
   return (
@@ -42,6 +47,11 @@ export function EditarAcessoModal({
         <Field label="E-mail de login">
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
+        {emailBounced ? (
+          <p className="text-xs text-[var(--app-muted)]">
+            Este e-mail foi devolvido e o sistema parou de enviar para ele. Corrija o endereço ou, se a caixa já foi consertada, salve o mesmo e-mail para liberá-lo.
+          </p>
+        ) : null}
         <Field label="Nova senha">
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Deixe em branco para manter" />
         </Field>

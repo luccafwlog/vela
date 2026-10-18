@@ -84,7 +84,7 @@ jobs:
           deno_flags="--config supabase/functions/deno.json --frozen"
           files=""
           for fn in portal-email-webhook portal-email-events-runner portal-invite-send portal-password-recovery \
-                    portal-recovery-email-change portal-daily-digest ce-unlock-notify-email admin-users \
+                    portal-recovery-email-change portal-daily-digest ce-unlock-notify-email admin-users portal-password-reset \
                     send-customer-communication demurrage-dunning customer-communication-auto-runner; do
             files="$files supabase/functions/$fn/index.ts"
           done

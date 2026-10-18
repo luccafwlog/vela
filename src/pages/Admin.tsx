@@ -404,11 +404,14 @@ export function Admin() {
               open
               userName={editando.full_name}
               currentEmail={editando.email}
+              emailBounced={Boolean(editando.email_bounced)}
               onClose={() => setEditando(null)}
               onSubmit={async (updates) => {
                 const emailChanged = updates.email && updates.email !== editando.email
                 const passChanged = Boolean(updates.password)
+                const releasesEmail = Boolean(updates.email) && !emailChanged
                 const changes = [
+                  ...(releasesEmail ? [{ field: 'E-mail', before: 'Devolvido', after: 'Liberado para receber de novo' }] : []),
                   ...(emailChanged ? [{ field: 'E-mail', before: editando.email ?? '', after: updates.email! }] : []),
                   ...(passChanged ? [{ field: 'Senha', before: '••••••••', after: 'Nova senha definida' }] : []),
                 ]
@@ -419,7 +422,9 @@ export function Admin() {
                   changes,
                   consequence: passChanged
                     ? 'A senha será redefinida imediatamente. Se o e-mail mudou, o novo e-mail passará a ser exigido no login.'
-                    : 'O e-mail de acesso do usuário será alterado.',
+                    : releasesEmail
+                      ? 'O sistema volta a enviar e-mails para este endereço.'
+                      : 'O e-mail de acesso do usuário será alterado.',
                   reversibility: 'As credenciais podem ser atualizadas novamente no painel administrativo.',
                 })
                 if (!confirmed) return
