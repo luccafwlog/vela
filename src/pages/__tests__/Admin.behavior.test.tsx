@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 const users = [
-  { id: 'u-1', full_name: 'Alice Operadora', role: 'operacoes', active: true, created_at: '2026-01-02T00:00:00Z', email: 'alice@fwlog.com.br', last_sign_in_at: '2026-08-01T12:00:00Z' },
+  { id: 'u-1', full_name: 'Alice Operadora', role: 'operacoes', active: true, created_at: '2026-01-02T00:00:00Z', email: 'alice@fwlog.com.br', last_sign_in_at: '2026-08-01T12:00:00Z', email_bounced: true },
   { id: 'u-2', full_name: 'Bruno Inativo', role: 'financeiro', active: false, created_at: '2026-01-03T00:00:00Z', email: 'bruno@fwlog.com.br', last_sign_in_at: null },
 ]
 
@@ -84,6 +84,14 @@ it('US-146: lista os usuarios com nome, perfil e status', () => {
   // status badges
   expect(screen.getAllByText('Ativo').length).toBeGreaterThan(0)
   expect(screen.getAllByText('Inativo').length).toBeGreaterThan(0)
+})
+
+it('marca "E-mail devolvido" só no usuário com o e-mail suprimido (plano dos e-mails, 2.8)', () => {
+  renderAdmin()
+
+  const badges = screen.getAllByText('E-mail devolvido')
+  expect(badges).toHaveLength(1)
+  expect(badges[0].closest('tr')?.textContent).toContain('Alice Operadora')
 })
 
 it('US-147: alterna o status ativo de um usuario apos confirmar', async () => {

@@ -5,6 +5,8 @@ import type { UserProfile, UserProfileRole } from '../types/database'
 export type AdminUserRow = UserProfile & {
   email: string | null
   last_sign_in_at: string | null
+  /** E-mail suprimido por devolução ou spam (migration 310, plano dos e-mails 2.8). */
+  email_bounced?: boolean
 }
 
 export async function listAllUserProfiles(): Promise<AdminUserRow[]> {

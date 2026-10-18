@@ -43,6 +43,9 @@ export type ActiveAlertType =
   | 'comunicado_nor_pendente'
   | 'comunicado_nob_pendente'
   | 'comunicado_recusado'
+  | 'email_retorno_provedor_silencioso'
+  | 'usuario_email_devolvido'
+  | 'rotina_http_falhou'
   | 'agency_report_department_pending'
   | 'agency_report_deadline_missed'
   | 'review_customer_unlinked'
@@ -94,6 +97,9 @@ export const TYPE_LABELS: Record<string, string> = {
   comunicado_nor_pendente: 'Comunicado NOR pendente',
   comunicado_nob_pendente: 'Comunicado NOB pendente',
   comunicado_recusado: 'Comunicado automático recusado',
+  email_retorno_provedor_silencioso: 'Provedor de e-mail sem retorno',
+  usuario_email_devolvido: 'Usuário interno com e-mail devolvido',
+  rotina_http_falhou: 'Rotina agendada com resposta de erro',
   nob_sem_destinatario: 'NOB sem destinatário',
   caixa_sem_destinatario: 'Caixa de comunicação sem destinatário',
   cliente_sem_contato_principal: 'Cliente sem contato principal',
@@ -129,6 +135,10 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   import_effect_queue: 'Fila de efeitos de importação',
   charge_table_gap: 'Tabela de cobrança',
   pix_transaction: 'Transação PIX',
+  email_provider: 'Provedor de e-mail',
+  user_profile: 'Usuário interno',
+  cron_http: 'Rotinas agendadas',
+  portal_email_event: 'Evento de e-mail',
 }
 
 export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
