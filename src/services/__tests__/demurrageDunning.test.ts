@@ -57,3 +57,14 @@ describe('Invoice tirada da Régua por datas alteradas', () => {
     expect(display.statusLabel).toBe('Pausada: datas alteradas, aguarda tratamento')
   })
 })
+
+describe('Invoice suspensa por recusa do provedor (plano dos e-mails, 1E.1)', () => {
+  it('diz o que fazer para retomar', () => {
+    const display = getDemurrageDunningDisplay(
+      { ...invoice, dunning_suspended_reason: 'Cobrança recusada pelo provedor: HTTP 422 validation_error' },
+      { attempts: [], intervalDays: 7, hasValidContact: true },
+    )
+    expect(display.nextDate).toBeNull()
+    expect(display.statusLabel).toBe('Pausada: e-mail recusado pelo provedor, corrija o contato e resolva o alerta')
+  })
+})

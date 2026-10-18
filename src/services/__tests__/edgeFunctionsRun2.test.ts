@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { decideInternalTarget } from '../../../supabase/functions/_shared/internalUserTarget'
+import { renderDemurrageGroupTemplate } from '../../../supabase/functions/_shared/customerCommunicationTemplates'
 
 const base = { userId: 'u-1', dummyUserId: 'dummy', hasProfile: true, isPortalAccount: false }
 
@@ -78,9 +79,18 @@ describe('reforços da Fase 3', () => {
   })
 
   it('cobrança agrupada de Demurrage escapa o HTML', () => {
-    const source = fn('demurrage-dunning')
-    expect(source).toContain('${escapeHtml(anchor.customer!.name)}')
-    expect(source).toContain('${escapeHtml(line.candidate.doc_number)}')
+    // Desde o plano dos e-mails (4.1), o agrupado sai do módulo de modelos.
+    const rendered = renderDemurrageGroupTemplate({
+      customerId: 1,
+      customerName: '<b>Cliente</b>',
+      lines: [
+        { docNumber: '<i>D1</i>', blId: 'BL1', vesselName: 'N', voyageNumber: 'V', totalUsd: 1, totalBrl: 5, roe: 5, roeReferenceDate: '2026-09-01' },
+        { docNumber: 'D2', blId: 'BL2', vesselName: 'N', voyageNumber: 'V', totalUsd: 1, totalBrl: 5, roe: 5, roeReferenceDate: '2026-09-01' },
+      ],
+    })
+    expect(rendered.html).toContain('&lt;b&gt;Cliente&lt;/b&gt;')
+    expect(rendered.html).toContain('&lt;i&gt;D1&lt;/i&gt;')
+    expect(rendered.html).not.toContain('<i>D1</i>')
   })
 
   it('suspensão valida a situação, cancela convites e a reativação bane o usuário antigo', () => {

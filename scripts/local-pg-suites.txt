@@ -102,3 +102,4 @@ src/integration/omissaoRevertidaReomitir.local-pg.test.ts
 src/integration/correcaoDadosContainer.local-pg.test.ts
 src/integration/comunicadoRecusadoNaoCicla.local-pg.test.ts
 src/integration/comunicadoEmEnvio.local-pg.test.ts
+src/integration/reguaCobrancaDemurrage.local-pg.test.ts
