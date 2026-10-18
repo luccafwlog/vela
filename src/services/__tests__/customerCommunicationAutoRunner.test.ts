@@ -15,7 +15,7 @@ describe('contrato do runner automático de Comunicados', () => {
     expect(source).toContain("customer_local_charges_communication_payload")
     expect(source).toContain("result?.status === 'enviado' || result?.status === 'simulado' || result?.status === 'parcial'")
     expect(source).toContain("response.status === 422 && Boolean(result?.suppressed)")
-    expect(source).toContain("await rpc('release_customer_communication_automation_claim'")
+    expect(source).toContain("release: 'release_customer_communication_automation_claim'")
     expect(entry).toContain("timingSafeEqual(providedSecret, secret)")
     expect(entry).toContain("if (req.method !== 'POST') return json(405")
   })
@@ -89,23 +89,64 @@ describe('rodada do runner com envio falso', () => {
     }))
   })
 
-  it('422 sem a marca permanente libera a claim para a próxima rodada', async () => {
+  // Plano dos e-mails, 1D (D18): recusa que pode mudar adia a claim com
+  // intervalo crescente; o banco decide quando o alerta abre.
+  it('422 de prontidão adia a claim como recusa por dado (alerta na 1ª)', async () => {
     const refused = { status: 422, body: { error: 'Prontidão financeira bloqueada para este cliente e viagem.' } }
     const { run, claimCalls } = setup([refused, refused])
     const result = await run()
 
-    expect(claimCalls().map(({ fn }) => fn)).toEqual(['release_customer_communication_automation_claim'])
+    expect(claimCalls()).toEqual([{
+      fn: 'defer_customer_communication_automation_claim',
+      args: { p_claim_key: candidate.claim_key, p_reason: 'Prontidão financeira bloqueada para este cliente e viagem.', p_provider_failure: false },
+    }])
     expect(result.body.failed).toBe(2)
   })
 
-  it('recusa permanente misturada a falha transitória ainda libera', async () => {
+  it('falha do provedor adia a claim como falha do provedor (alerta na 3ª seguida)', async () => {
+    const failure = { status: 502, body: { status: 'falha', error: undefined, message: 'Falha no envio do comunicado.' } }
+    const { run, claimCalls } = setup([failure, failure])
+    await run()
+
+    expect(claimCalls()).toEqual([{
+      fn: 'defer_customer_communication_automation_claim',
+      args: { p_claim_key: candidate.claim_key, p_reason: 'HTTP 502', p_provider_failure: true },
+    }])
+  })
+
+  it('502 com falha_permanente do provedor rejeita a claim', async () => {
+    const refused = { status: 502, body: { status: 'falha', permanent: true } }
+    const { run, claimCalls } = setup([refused, refused])
+    await run()
+
+    expect(claimCalls()).toEqual([{
+      fn: 'reject_customer_communication_automation_claim',
+      args: { p_claim_key: candidate.claim_key, p_reason: 'HTTP 502' },
+    }])
+  })
+
+  it('recusa permanente misturada a falha transitória adia, sem rejeitar', async () => {
     const { run, claimCalls } = setup([
       { status: 422, body: { error: 'Anexos inválidos.', permanent: true } },
       { status: 500, body: { error: 'Falha no envio do comunicado.' } },
     ])
     await run()
 
-    expect(claimCalls().map(({ fn }) => fn)).toEqual(['release_customer_communication_automation_claim'])
+    expect(claimCalls()).toEqual([{
+      fn: 'defer_customer_communication_automation_claim',
+      args: { p_claim_key: candidate.claim_key, p_reason: 'Falha no envio do comunicado.', p_provider_failure: true },
+    }])
+  })
+
+  it('falha ao montar o candidato adia a claim', async () => {
+    const broken = { ...candidate, kind: 'ce_mercante_taxas' as const }
+    const rpc = vi.fn((fn: string) => Promise.resolve(fn === 'evaluate_and_dispatch_automatic_communications'
+      ? { data: [broken], error: null }
+      : fn === 'customer_local_charges_communication_payload' ? { data: null, error: new Error('payload indisponível') } : { data: true, error: null }))
+    await runAutomaticCommunications({ rpc, fetcher: vi.fn() as unknown as typeof fetch, supabaseUrl: 'https://x.test', serviceKey: 's', secret: 's' })
+    expect(rpc).toHaveBeenCalledWith('defer_customer_communication_automation_claim', {
+      p_claim_key: candidate.claim_key, p_reason: 'payload indisponível', p_provider_failure: true,
+    })
   })
 
   it('destinatário simulado fica resolvido e só o outro, recusado em definitivo, decide a rejeição', async () => {
@@ -119,14 +160,14 @@ describe('rodada do runner com envio falso', () => {
     expect(result.body).toMatchObject({ failed: 1, sent: [{ kind: 'aviso_chegada_noa', customerId: 1, emails: 1 }] })
   })
 
-  it('envio completo não mexe na claim e reporta failed: 0', async () => {
+  it('envio completo encerra a claim (fecha o alerta) e reporta failed: 0', async () => {
     const { run, claimCalls } = setup([
       { status: 200, body: { status: 'simulado' } },
       { status: 422, body: { error: 'Endereço suprimido para Comunicados.', suppressed: true } },
     ])
     const result = await run()
 
-    expect(claimCalls()).toEqual([])
+    expect(claimCalls()).toEqual([{ fn: 'complete_customer_communication_automation_claim', args: { p_claim_key: candidate.claim_key } }])
     expect(result.body).toMatchObject({ failed: 0, releaseFailures: 0 })
   })
 
@@ -160,12 +201,20 @@ describe('recusas da Edge send-customer-communication', () => {
       'Contato desativado para esta caixa ou modelo.',
       'Destinatário não pertence ao cliente selecionado.',
       'Cliente desativado não recebe Comunicados.',
-      'A escala canônica do porto não está disponível para este comunicado.',
-      'A Atracação não corresponde à viagem e ao porto informados.',
     ]) {
       expect(linesWith(text).length, text).toBeGreaterThan(0)
       expect(linesWith(text).some((line) => line.includes('permanentRejection(')), text).toBe(false)
     }
+  })
+
+  it('valida a âncora pela RPC única, sem ler o snapshot da viagem, e a recusa não é permanente', () => {
+    expect(edge).not.toContain('pod_schedule_snapshot')
+    expect(edge).toContain("admin.rpc('customer_communication_anchor_validation'")
+    expect(linesWith('if (!anchor?.ok) return json(422')).toHaveLength(1)
+  })
+
+  it('marca permanent quando o provedor recusou em definitivo', () => {
+    expect(edge).toContain("...(!sent.ok && attempt?.status === 'falha_permanente' ? { permanent: true } : {})")
   })
 
   it('loga o motivo de toda recusa 4xx', () => {

@@ -28,8 +28,9 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain("from('customer_communication_suppressions')")
     expect(source).toContain("reason', 'bounce_permanente'")
     expect(source).toContain("admin.rpc('create_customer_communication_atomic'")
-    // NOB: a regra de quem entra na Atracação é a do banco (migration 243).
-    expect(source).toContain("admin.rpc('bl_belongs_to_atracacao'")
+    // Escala, porto, B/L cancelado, Atracação e a regra do NOB (migration 243)
+    // são conferidos pela mesma validação da RPC (migration 300).
+    expect(source).toContain("admin.rpc('customer_communication_anchor_validation'")
     expect(source).not.toContain(".from('voyage_escala_operation_fronts')")
     expect(source).toContain("admin.from('customer_communication_attempts').insert")
     expect(source).toContain("admin.rpc('customer_local_charges_communication_payload'")
@@ -38,7 +39,9 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain('recipient_key: await recipientKey(to)')
     expect(source).toContain("existing.dispatch_mode === 'legado'")
     expect(source).toContain('renderCeMercanteTaxasTemplate')
-    expect(source).toContain('idempotencyKey: `comunicado:${communicationId}:${attemptDiscriminator}:${recipient}`')
+    // Plano dos e-mails, 5.1: a chave da tentativa leva o hash do destinatário.
+    expect(source).toContain('idempotencyKey: attemptKey,')
+    expect(source).toContain('resolveCommunicationAttemptKey(')
     expect(source).toContain('Cobrança de Demurrage é enviada exclusivamente pela régua automática.')
     expect(source).toContain('if (isAutomation && existingCommunicationId == null)')
     expect(source).toContain('findExistingCommunicationId')
@@ -56,9 +59,13 @@ describe('Edge Function send-customer-communication', () => {
 
   it('lê a sigla do terminal do NOB em depots e nunca manda o UUID ao cliente', () => {
     expect(source).not.toContain('terminals(code)')
-    expect(source).toContain('terminal:depots!voyage_escala_terminal_state_terminal_id_port_id_fkey(code)')
+    // A sigla vem de voyage_terminal_code (depots) pela validação única da
+    // âncora (migration 300); sem sigla, a validação recusa.
+    expect(source).toContain('anchor?.terminal_code ?? null')
     expect(source).not.toContain('?? row.terminal_id')
-    expect(source).toContain("'O terminal da Atracação está sem sigla cadastrada.'")
+    const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/300_escala_unica_dos_comunicados.sql'), 'utf8')
+    expect(migration).toContain("'O terminal da Atracação está sem sigla cadastrada.'")
+    expect(migration).toContain('public.voyage_terminal_code(t.terminal_id) AS terminal_code')
     // Auditoria run-2 (reforço): o histórico não aceita terminal vindo do navegador.
     expect(source).toContain('p_terminal_name: canonicalTerminalName,')
   })

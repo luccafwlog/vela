@@ -4,6 +4,7 @@ import { base64Head, matchesExtension, matchesMagicBytes } from '../_shared/file
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
 import { resolveDispatchStatus, statusToPersist } from '../_shared/communicationDispatchStatus.ts'
+import { resolveCommunicationAttemptKey } from '../_shared/customerCommunicationAttemptKey.ts'
 import {
   assertValidCommunicationAttachments,
   renderCustomerCommunicationTemplate,
@@ -57,6 +58,16 @@ type DispatchPayload = {
 }
 
 type ContactRow = { id: number; customer_id: number | null; email: string | null }
+
+type AnchorValidation = {
+  ok: boolean
+  error?: string
+  voyage_id?: number | null
+  port?: string | null
+  milestone_at?: string | null
+  terminal_id?: string | null
+  terminal_code?: string | null
+}
 
 function json(status: number, body: unknown, origin: string | null): Response {
   // Toda recusa deixa o motivo no log: sem isto o loop de 422 do CE Mercante
@@ -425,6 +436,9 @@ async function handler(req: Request): Promise<Response> {
   if (targetCustomer.deactivated_at) return json(422, { error: 'Cliente desativado não recebe Comunicados.' }, origin)
 
   let canonicalPayload: { subject: string; html: string; text: string; blIds: string[] } | null = null
+  // Porto gravado no Comunicado. No CE e Taxas ele é informativo e vem do
+  // servidor (Cliente × Viagem, D3), igual ao da produtora e ao do registro.
+  let anchorPort: string | null = body.anchor_port ?? null
   // No NOB o histórico grava o terminal que o servidor pôs no e-mail, não o
   // que o navegador mandou.
   let canonicalTerminalName: string | null = null
@@ -455,6 +469,7 @@ async function handler(req: Request): Promise<Response> {
     if (!row?.customer_name || !row.vessel_name || !row.voyage_number || !Array.isArray(row.bls) || !row.bls.length) {
       return json(422, { error: 'Dados financeiros incompletos para o comunicado.' }, origin)
     }
+    anchorPort = row.port ?? '—'
     const rendered = renderCeMercanteTaxasTemplate({
       customerId,
       customerName: row.customer_name,
@@ -497,63 +512,51 @@ async function handler(req: Request): Promise<Response> {
     const uniqueBlIds = Array.from(new Set(effectiveBlIds))
     const { data: ownedBls, error: ownedBlsError } = await admin
       .from('bls')
-      .select('id, customer_id, voyage_id, pod, cargo_mode, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, pod_schedule_snapshot, vessel:vessels(name))')
+      .select('id, customer_id, voyage_id, pod, cargo_mode, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, vessel:vessels(name))')
       .in('id', uniqueBlIds)
     if (ownedBlsError) return json(500, { error: 'Não foi possível conferir os B/Ls do comunicado.' }, origin)
-    const validBls = (ownedBls ?? []) as unknown as Array<{ id: string; customer_id: number | null; voyage_id: number | null; pod: string | null; cargo_mode: string | null; customer: { name: string } | null; voyage: { voyage_number: string; pod_schedule_snapshot?: Record<string, { eta?: string | null; ata?: string | null; omitted?: boolean; deleted?: boolean }> | null; vessel: { name: string } | null } | null }>
+    const validBls = (ownedBls ?? []) as unknown as Array<{ id: string; customer_id: number | null; voyage_id: number | null; pod: string | null; cargo_mode: string | null; customer: { name: string } | null; voyage: { voyage_number: string; vessel: { name: string } | null } | null }>
     if (validBls.length !== uniqueBlIds.length || validBls.some((bl) => bl.customer_id !== customerId)) {
       return json(422, { error: 'Um ou mais B/Ls não pertencem ao cliente selecionado.' }, origin)
     }
     derivedVesselName = validBls[0]?.voyage?.vessel?.name ?? null
     derivedVoyageNumber = validBls[0]?.voyage?.voyage_number ?? null
-    if (body.anchor_voyage_id != null && validBls.some((bl) => bl.voyage_id !== Number(body.anchor_voyage_id))) {
+    const anchoredKind = fixedOperationalKind || kind === 'ce_mercante_taxas'
+    if (!anchoredKind && body.anchor_voyage_id != null && validBls.some((bl) => bl.voyage_id !== Number(body.anchor_voyage_id))) {
       return json(422, { error: 'A viagem-âncora não corresponde aos B/Ls selecionados.' }, origin)
     }
-    if (body.anchor_port && validBls.some((bl) => (bl.pod ?? '').trim().toUpperCase() !== body.anchor_port!.trim().toUpperCase())) {
+    if (!anchoredKind && body.anchor_port && validBls.some((bl) => (bl.pod ?? '').trim().toUpperCase() !== body.anchor_port!.trim().toUpperCase())) {
       return json(422, { error: 'O porto-âncora não corresponde aos B/Ls selecionados.' }, origin)
+    }
+    // Escala, porto (normalizado), B/L cancelado, Atracação e regra única do
+    // NOB: a mesma validação da RPC create_customer_communication_atomic, com
+    // a escala lida do Histórico da Viagem (plano dos e-mails, 1C). O snapshot
+    // de escalas da viagem não é lido pelos Comunicados.
+    let anchor: AnchorValidation | null = null
+    if (anchoredKind) {
+      const { data: validation, error: validationError } = await admin.rpc('customer_communication_anchor_validation', {
+        p_customer_id: customerId,
+        p_kind: kind,
+        p_anchor_voyage_id: body.anchor_voyage_id ?? null,
+        p_anchor_port: anchorPort,
+        p_anchor_atracacao_id: body.anchor_atracacao_id ?? null,
+        p_bl_ids: uniqueBlIds,
+      })
+      if (validationError) {
+        console.error('customer communication anchor validation failed', validationError)
+        return json(500, { error: 'Não foi possível conferir a âncora do comunicado.' }, origin)
+      }
+      anchor = validation as AnchorValidation | null
+      if (!anchor?.ok) return json(422, { error: anchor?.error ?? 'Âncora do comunicado inválida.' }, origin)
+      anchorPort = anchor.port ?? anchorPort
     }
     if (fixedOperationalKind) {
       const first = validBls[0]
-      let terminalId: string | null = null
-      let terminalName: string | null = null
-      const schedule = first?.voyage?.pod_schedule_snapshot?.[first.pod ?? '']
-      let milestoneAt = kind === 'aviso_prontidao_nor' ? schedule?.ata : schedule?.eta
-      if (fixedOperationalKind && kind !== 'aviso_atracacao_nob' && (!schedule || schedule.omitted || schedule.deleted)) {
-        return json(422, { error: 'A escala canônica do porto não está disponível para este comunicado.' }, origin)
-      }
-      if (kind === 'aviso_atracacao_nob') {
-        const { data: berth, error: berthError } = await admin
-          .from('voyage_escala_terminal_state')
-          // Terminais vivem em depots; não existe tabela terminals, e o embed
-          // por esse nome falhava e recusava todo NOB com 422.
-          .select('id, voyage_id, port, terminal_id, terminal_atb, terminal:depots!voyage_escala_terminal_state_terminal_id_port_id_fkey(code)')
-          .eq('id', body.anchor_atracacao_id!)
-          .maybeSingle()
-        const row = berth as unknown as { voyage_id?: number; port?: string; terminal_id?: string | null; terminal_atb?: string | null; terminal?: { code?: string | null } | null } | null
-        // Erro de leitura não é Atracação divergente: sem o log, o 422 abaixo
-        // escondia a causa real (foi assim que o embed quebrado passou).
-        if (berthError) console.error('customer communication berth lookup failed', berthError)
-        if (berthError || !row || row.voyage_id !== Number(body.anchor_voyage_id) || (row.port ?? '').toUpperCase() !== body.anchor_port!.trim().toUpperCase() || !row.terminal_id || !row.terminal_atb) {
-          return json(422, { error: 'A Atracação não corresponde à viagem e ao porto informados.' }, origin)
-        }
-        terminalId = row.terminal_id
-        // O cliente lê a sigla do terminal; o UUID nunca vai para o e-mail.
-        terminalName = row.terminal?.code?.trim() || null
-        if (!terminalName) return json(422, { error: 'O terminal da Atracação está sem sigla cadastrada.' }, origin)
-        canonicalTerminalName = terminalName
-        milestoneAt = row.terminal_atb
-        // Regra única do NOB (ADR 0068, item 7; migration 243): a mesma da
-        // produtora automática e da RPC — exceção de terminal do B/L vence a
-        // frente, e o B/L misto precisa das duas frentes no terminal.
-        for (const bl of validBls) {
-          const { data: belongs, error: belongsError } = await admin.rpc('bl_belongs_to_atracacao', {
-            p_bl_id: bl.id,
-            p_atracacao_id: body.anchor_atracacao_id!,
-          })
-          if (belongsError) console.error('customer communication NOB rule failed', belongsError)
-          if (belongsError || belongs !== true) return json(422, { error: 'Um B/L não pertence à Frente de Operação desta Atracação.' }, origin)
-        }
-      }
+      const terminalId = kind === 'aviso_atracacao_nob' ? anchor?.terminal_id ?? null : null
+      // O cliente lê a sigla do terminal; o UUID nunca vai para o e-mail.
+      const terminalName = kind === 'aviso_atracacao_nob' ? anchor?.terminal_code ?? null : null
+      if (kind === 'aviso_atracacao_nob') canonicalTerminalName = terminalName
+      const milestoneAt = anchor?.milestone_at ?? null
       if (!first?.customer?.name || !first.voyage?.voyage_number || !first.voyage.vessel?.name || !milestoneAt) {
         return json(422, { error: 'Dados operacionais incompletos para renderizar o comunicado.' }, origin)
       }
@@ -562,7 +565,7 @@ async function handler(req: Request): Promise<Response> {
         customerName: first.customer.name,
         vesselName: first.voyage.vessel.name,
         voyageNumber: first.voyage.voyage_number,
-        port: body.anchor_port!,
+        port: anchorPort ?? '',
         terminalId,
         terminalName,
         terminalStateId: body.anchor_atracacao_id ?? null,
@@ -636,7 +639,7 @@ async function handler(req: Request): Promise<Response> {
         kind,
         nature,
         anchorVoyageId: body.anchor_voyage_id,
-        anchorPort: body.anchor_port,
+        anchorPort,
         anchorAtracacaoId: body.anchor_atracacao_id,
         anchorInvoiceId: body.anchor_invoice_id,
         attemptDiscriminator,
@@ -653,7 +656,7 @@ async function handler(req: Request): Promise<Response> {
     p_kind: kind,
     p_nature: nature,
     p_anchor_voyage_id: body.anchor_voyage_id ?? null,
-    p_anchor_port: body.anchor_port ?? null,
+    p_anchor_port: anchorPort,
     p_anchor_atracacao_id: body.anchor_atracacao_id ?? null,
     p_anchor_invoice_id: body.anchor_invoice_id ?? null,
     p_attempt_discriminator: attemptDiscriminator,
@@ -674,7 +677,7 @@ async function handler(req: Request): Promise<Response> {
         communicationId = await findExistingCommunicationId(admin, {
           customerId, kind, nature,
           anchorVoyageId: body.anchor_voyage_id,
-          anchorPort: body.anchor_port,
+          anchorPort,
           anchorAtracacaoId: body.anchor_atracacao_id,
           anchorInvoiceId: body.anchor_invoice_id,
           attemptDiscriminator,
@@ -737,6 +740,21 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
+  let attemptKey: string
+  try {
+    attemptKey = await resolveCommunicationAttemptKey(
+      { communicationId: Number(communicationId), attemptDiscriminator, recipient },
+      async (idempotencyKey) => {
+        const { data, error } = await admin.from('customer_communication_attempts').select('id').eq('idempotency_key', idempotencyKey).maybeSingle()
+        if (error) throw error
+        return Boolean(data)
+      },
+    )
+  } catch (error) {
+    console.error('customer communication attempt lookup failed', error)
+    return json(500, { error: 'Não foi possível conferir a tentativa do comunicado.' }, origin)
+  }
+
   let sent: { ok: boolean }
   try {
     sent = await sendEmail({
@@ -746,7 +764,7 @@ async function handler(req: Request): Promise<Response> {
       html: effectiveHtml,
       text: effectiveText,
       attachments: emailAttachments,
-      idempotencyKey: `comunicado:${communicationId}:${attemptDiscriminator}:${recipient}`,
+      idempotencyKey: attemptKey,
       resendApiKey: enabled ? resendApiKey : null,
       simulate: !enabled,
       from: Deno.env.get('PORTAL_FROM_EMAIL'),
@@ -831,15 +849,18 @@ async function handler(req: Request): Promise<Response> {
   }
   const { data: attempt } = await admin
     .from('customer_communication_attempts')
-    .select('id')
+    .select('id, status')
     .eq('communication_id', communicationId)
-    .eq('idempotency_key', `comunicado:${communicationId}:${attemptDiscriminator}:${recipient}`)
+    .eq('idempotency_key', attemptKey)
     .maybeSingle()
   return json(sent.ok ? 200 : 502, {
     communicationId,
     attemptId: attempt?.id ?? undefined,
     status,
     suppressed: false,
+    // Recusa definitiva do provedor (ex.: 422 do endereço): a mesma chave nunca
+    // mais chama o provedor, então a régua rejeita a claim (plano, 1D.4).
+    ...(!sent.ok && attempt?.status === 'falha_permanente' ? { permanent: true } : {}),
     message: !sent.ok ? 'Falha no envio do comunicado.' : enabled ? 'Comunicado enviado.' : 'Comunicado registrado em simulação; nenhum e-mail foi enviado.',
   }, origin)
 }

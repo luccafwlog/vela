@@ -94,7 +94,7 @@ export const TYPE_LABELS: Record<string, string> = {
   comunicado_nor_pendente: 'Comunicado NOR pendente',
   comunicado_nob_pendente: 'Comunicado NOB pendente',
   comunicado_recusado: 'Comunicado automático recusado',
-  nob_sem_destinatario: 'NOB sem destinatário',
+  nob_sem_destinatario: 'Comunicado sem destinatário',
   caixa_sem_destinatario: 'Caixa de comunicação sem destinatário',
   cliente_sem_contato_principal: 'Cliente sem contato principal',
   agency_report_department_pending: 'ADR — departamento pendente',
