@@ -58,10 +58,26 @@ type DispatchPayload = {
 type ContactRow = { id: number; customer_id: number | null; email: string | null }
 
 function json(status: number, body: unknown, origin: string | null): Response {
+  // Toda recusa deixa o motivo no log: sem isto o loop de 422 do CE Mercante
+  // passou um dia sem rastro. As mensagens não carregam e-mail do destinatário.
+  if (status >= 400 && status < 500) {
+    const error = isRecord(body) ? body.error : undefined
+    console.warn('[send-customer-communication] recusa', { status, error, permanent: isRecord(body) && body.permanent === true })
+  }
   return new Response(body === null ? null : JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
   })
+}
+
+/**
+ * 422 que só muda com outro código ou outro payload. O runner automático
+ * rejeita a claim em vez de liberá-la. Recusas que dependem de dados mutáveis
+ * (prontidão financeira, contato, cliente, escala ou Atracação) ficam sem a
+ * marca e continuam sendo tentadas de novo.
+ */
+function permanentRejection(error: string, origin: string | null): Response {
+  return json(422, { error, permanent: true }, origin)
 }
 
 function normalizeEmail(value: string): string {
@@ -334,7 +350,7 @@ async function handler(req: Request): Promise<Response> {
   try {
     body = parsePayload(await req.json())
   } catch (error) {
-    return json(422, { error: error instanceof Error ? error.message : 'Payload inválido.' }, origin)
+    return permanentRejection(error instanceof Error ? error.message : 'Payload inválido.', origin)
   }
 
   const customerId = Number(body.customer_id)
@@ -345,59 +361,59 @@ async function handler(req: Request): Promise<Response> {
   const html = String(body.html ?? '')
   const text = String(body.text ?? '')
   const attemptDiscriminator = Number(body.attempt_discriminator ?? 0)
-  if (!Number.isInteger(customerId) || customerId <= 0) return json(422, { error: 'Cliente inválido.' }, origin)
-  if (!ALLOWED_KINDS.has(kind as CustomerCommunicationKind)) return json(422, { error: 'Tipo de comunicado não disponível neste bloco.' }, origin)
+  if (!Number.isInteger(customerId) || customerId <= 0) return permanentRejection('Cliente inválido.', origin)
+  if (!ALLOWED_KINDS.has(kind as CustomerCommunicationKind)) return permanentRejection('Tipo de comunicado não disponível neste bloco.', origin)
   // A natureza é validada antes de qualquer renderização/mensagem para não
   // permitir que um payload incompleto contorne o isolamento da fundação.
-  if (!nature || !natureForKind(kind, nature)) return json(422, { error: 'Natureza inválida ou ausente.' }, origin)
-  if (!EMAIL_PATTERN.test(recipient)) return json(422, { error: 'Destinatário inválido.' }, origin)
-  if (kind !== 'ce_mercante_taxas' && (!subject || !html || !text)) return json(422, { error: 'Assunto e conteúdo do comunicado são obrigatórios.' }, origin)
-  if (kind === 'cobranca_demurrage') return json(422, { error: 'Cobrança de Demurrage é enviada exclusivamente pela régua automática.' }, origin)
-  if (!Number.isInteger(attemptDiscriminator) || attemptDiscriminator < 0) return json(422, { error: 'Discriminador de tentativa inválido.' }, origin)
+  if (!nature || !natureForKind(kind, nature)) return permanentRejection('Natureza inválida ou ausente.', origin)
+  if (!EMAIL_PATTERN.test(recipient)) return permanentRejection('Destinatário inválido.', origin)
+  if (kind !== 'ce_mercante_taxas' && (!subject || !html || !text)) return permanentRejection('Assunto e conteúdo do comunicado são obrigatórios.', origin)
+  if (kind === 'cobranca_demurrage') return permanentRejection('Cobrança de Demurrage é enviada exclusivamente pela régua automática.', origin)
+  if (!Number.isInteger(attemptDiscriminator) || attemptDiscriminator < 0) return permanentRejection('Discriminador de tentativa inválido.', origin)
 
   const blIds = body.bl_ids ?? []
   if (!Array.isArray(blIds) || !blIds.every((blId) => typeof blId === 'string' && blId.trim().length > 0)) {
-    return json(422, { error: 'B/Ls inválidos.' }, origin)
+    return permanentRejection('B/Ls inválidos.', origin)
   }
   if (kind === 'institucional' && blIds.length > 0) {
-    return json(422, { error: 'Comunicado institucional não pode conter B/Ls.' }, origin)
+    return permanentRejection('Comunicado institucional não pode conter B/Ls.', origin)
   }
   if (kind !== 'institucional' && blIds.length === 0) {
-    return json(422, { error: 'Selecione ao menos um B/L para o comunicado.' }, origin)
+    return permanentRejection('Selecione ao menos um B/L para o comunicado.', origin)
   }
   const fixedOperationalKind = ['aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob'].includes(kind)
   if (fixedOperationalKind && (!Number.isInteger(body.anchor_voyage_id) || Number(body.anchor_voyage_id) <= 0 || !body.anchor_port?.trim())) {
-    return json(422, { error: 'Viagem e porto são obrigatórios para o comunicado operacional.' }, origin)
+    return permanentRejection('Viagem e porto são obrigatórios para o comunicado operacional.', origin)
   }
   if (kind === 'aviso_atracacao_nob' && !body.anchor_atracacao_id?.trim()) {
-    return json(422, { error: 'Atracação obrigatória para o NOB.' }, origin)
+    return permanentRejection('Atracação obrigatória para o NOB.', origin)
   }
 
   const attachments: CommunicationAttachment[] = []
   const emailAttachments: EmailAttachment[] = []
   try {
     for (const [index, attachment] of (body.attachments ?? []).entries()) {
-      if (!attachment || typeof attachment !== 'object') return json(422, { error: `Anexo inválido na posição ${index + 1}.` }, origin)
+      if (!attachment || typeof attachment !== 'object') return permanentRejection(`Anexo inválido na posição ${index + 1}.`, origin)
       const filename = String(attachment.filename ?? '').trim()
       const contentType = String(attachment.content_type ?? '').trim().toLowerCase()
       const contentBase64 = String(attachment.content_base64 ?? '')
       const actualSize = decodeBase64ByteLength(contentBase64)
       const declaredSize = Number(attachment.size ?? actualSize)
-      if (declaredSize !== actualSize) return json(422, { error: `Tamanho inconsistente no anexo ${index + 1}.` }, origin)
+      if (declaredSize !== actualSize) return permanentRejection(`Tamanho inconsistente no anexo ${index + 1}.`, origin)
       // Tipo declarado precisa bater com conteúdo e extensão (auditoria run-2, reforço).
       if (!matchesExtension(filename, contentType) || !matchesMagicBytes(base64Head(contentBase64), contentType)) {
-        return json(422, { error: `O conteúdo do anexo ${index + 1} não corresponde ao tipo informado.` }, origin)
+        return permanentRejection(`O conteúdo do anexo ${index + 1} não corresponde ao tipo informado.`, origin)
       }
       attachments.push({ filename, contentType, size: actualSize, contentBase64 })
       emailAttachments.push({ filename, content: contentBase64, contentType })
     }
   } catch (error) {
-    return json(422, { error: error instanceof Error ? error.message : 'Conteúdo de anexo inválido.' }, origin)
+    return permanentRejection(error instanceof Error ? error.message : 'Conteúdo de anexo inválido.', origin)
   }
   try {
     assertValidCommunicationAttachments(kind, attachments)
   } catch (error) {
-    return json(422, { error: error instanceof Error ? error.message : 'Anexos inválidos.' }, origin)
+    return permanentRejection(error instanceof Error ? error.message : 'Anexos inválidos.', origin)
   }
 
   const admin = createClient(url, serviceKey)
@@ -413,7 +429,7 @@ async function handler(req: Request): Promise<Response> {
   let canonicalTerminalName: string | null = null
   if (kind === 'ce_mercante_taxas') {
     if (!Number.isInteger(body.anchor_voyage_id) || Number(body.anchor_voyage_id) <= 0) {
-      return json(422, { error: 'Viagem obrigatória para o comunicado financeiro.' }, origin)
+      return permanentRejection('Viagem obrigatória para o comunicado financeiro.', origin)
     }
     const [{ data: readiness, error: readinessError }, { data: payload, error: payloadError }] = await Promise.all([
       admin.rpc('customer_local_charges_communication_readiness', {
@@ -458,7 +474,7 @@ async function handler(req: Request): Promise<Response> {
   let effectiveBlIds = canonicalPayload?.blIds ?? blIds
   const userWrittenKind = kind === 'livre' || kind === 'institucional'
   const messageBody = String(body.message_body ?? '').trim()
-  if (userWrittenKind && !messageBody) return json(422, { error: 'Assunto e conteúdo do comunicado são obrigatórios.' }, origin)
+  if (userWrittenKind && !messageBody) return permanentRejection('Assunto e conteúdo do comunicado são obrigatórios.', origin)
   const isFixedOperationalAudience = ['aviso_chegada_noa', 'aviso_prontidao_nor', 'aviso_atracacao_nob', 'ce_mercante_taxas'].includes(kind)
   const effectiveAudienceMode = kind === 'institucional'
     ? 'todos'

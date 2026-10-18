@@ -134,6 +134,13 @@ describe('validação de anexos de Comunicados', () => {
     expect(validateCommunicationAttachments('cobranca_demurrage', [pdf(1)]).errors.join(' ')).toContain('demurrage')
   })
 
+  it('aceita cobrança local e demurrage sem anexos', () => {
+    expect(validateCommunicationAttachments('ce_mercante_taxas', [])).toMatchObject({ valid: true, totalBytes: 0 })
+    expect(validateCommunicationAttachments('ce_mercante_taxas', undefined).valid).toBe(true)
+    expect(validateCommunicationAttachments('cobranca_demurrage', []).valid).toBe(true)
+    expect(validateCommunicationAttachments('ce_mercante_taxas', [pdf(1)]).valid).toBe(false)
+  })
+
   it('recusa tipos MIME não permitidos', () => {
     const result = validateCommunicationAttachments('livre', [{ filename: 'arquivo.zip', contentType: 'application/zip', size: 10 }])
     expect(result.valid).toBe(false)
