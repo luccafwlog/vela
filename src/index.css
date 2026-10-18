@@ -4479,35 +4479,10 @@ button.app-metric-tile[aria-pressed='true'] {
   outline-offset: -2px;
 }
 
-/* ─── Perfil do Portal (etapa 02) ─────────────────────────────────────────
-   Contatos na coluna larga; endereço e Email de Recuperação ao lado. Cada
-   contato é um grupo com filete, sem card dentro de card. */
-.portal-profile {
-  display: grid;
-  align-items: start;
-  gap: 24px;
-}
-
-@media (min-width: 1280px) {
-  .portal-profile {
-    grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
-  }
-}
-
-.portal-profile__side {
-  display: grid;
-  gap: 24px;
-  min-width: 0;
-}
-
-.portal-profile__section-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 16px;
-}
-
+/* ─── Perfil (etapa 02) ─────────────────────────────────────────────────
+   O Perfil do Portal passou aos blocos comuns (lote 4 da identidade); ficam
+   o título, a introdução e a faixa de ações que o Perfil interno ainda usa e
+   o aviso do Modo Inspeção. */
 .portal-profile__section-title {
   margin: 0;
   color: var(--app-text-strong);
@@ -4524,15 +4499,6 @@ button.app-metric-tile[aria-pressed='true'] {
   line-height: 20px;
 }
 
-.portal-profile__fieldset {
-  display: grid;
-  gap: 16px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
 .portal-profile__form-actions {
   display: flex;
   justify-content: flex-end;
@@ -4547,181 +4513,6 @@ button.app-metric-tile[aria-pressed='true'] {
   color: var(--app-warning-fg);
   font-size: 14px;
   line-height: 20px;
-}
-
-.portal-contacts__form {
-  display: grid;
-  gap: 16px;
-  margin-top: 20px;
-}
-
-.portal-contact {
-  display: grid;
-  gap: 16px;
-  min-width: 0;
-  margin: 0;
-  padding: 16px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-}
-
-.portal-contact[data-primary='true'] {
-  border-color: var(--app-info-border);
-  box-shadow: inset 3px 0 0 var(--app-info-fg);
-}
-
-.portal-contact[data-active='false'] {
-  background: var(--app-surface-muted);
-}
-
-.portal-contact__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.portal-contact__tags {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.portal-contact__origin {
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.portal-contact__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.portal-contact__action {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--app-radius-control);
-  background: transparent;
-  color: var(--app-link);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.portal-contact__action:hover {
-  background: var(--app-surface-hover);
-  text-decoration: underline;
-}
-
-.portal-contact__action:focus-visible {
-  outline: 2px solid var(--app-focus-ring);
-  outline-offset: -2px;
-}
-
-.portal-contact__notice {
-  margin: 0;
-}
-
-.portal-contact__fields {
-  display: grid;
-  gap: 16px;
-}
-
-@media (min-width: 900px) {
-  .portal-contact__fields {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
-  }
-}
-
-.portal-contact__boxes {
-  display: grid;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--app-border);
-}
-
-.portal-contact__boxes-title {
-  color: var(--app-text-strong);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-}
-
-.portal-contact__boxes-hint {
-  margin: 0;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.portal-contact__box-grid {
-  display: grid;
-  gap: 8px;
-}
-
-@media (min-width: 640px) {
-  .portal-contact__box-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.portal-contact__box {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control);
-  background: var(--app-surface);
-  cursor: pointer;
-}
-
-.portal-contact__box[data-checked='true'] {
-  border-color: var(--app-info-border);
-  background: var(--app-info-bg);
-}
-
-.portal-contact__box[data-disabled='true'] {
-  cursor: not-allowed;
-  opacity: 0.72;
-}
-
-.portal-contact__box input {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
-  accent-color: var(--app-blue-btn);
-}
-
-.portal-contact__box:focus-within {
-  outline: 2px solid var(--app-focus-ring);
-  outline-offset: 2px;
-}
-
-.portal-contact__box-label {
-  display: block;
-  color: var(--app-text-strong);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-}
-
-.portal-contact__box-desc {
-  display: block;
-  margin-top: 2px;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 16px;
 }
 
 /* Perfil interno: dois blocos lado a lado a partir de 1100 px. */

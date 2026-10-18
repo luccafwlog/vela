@@ -22,6 +22,19 @@ export type PortalOperationContainer = {
   status: PortalOperationContainerStatus
 }
 
+/**
+ * Taxas Locais do B/L na visão do Portal (migration 297): valores só quando
+ * há fatura visível ao Cliente; `awaiting_invoice` (taxa em aberto ainda sem
+ * fatura emitida) e `none` vêm sem valor.
+ */
+export type PortalOperationLocalChargesStatus = 'open' | 'paid' | 'awaiting_invoice' | 'none'
+
+export type PortalOperationLocalCharges = {
+  status: PortalOperationLocalChargesStatus
+  total_brl: number | null
+  balance_brl: number | null
+}
+
 export type PortalOperationBL = {
   bl_id: string
   ce_mercante: string | null
@@ -43,6 +56,7 @@ export type PortalOperationBL = {
   bb_packages_qty?: number | null
   /** Preenchido quando o B/L foi cancelado depois de liberado (ADR 0071). */
   cancelled_at?: string | null
+  local_charges?: PortalOperationLocalCharges
 }
 
 export type PortalOperationTransshipment = {
@@ -107,6 +121,15 @@ function normalizeContainer(value: unknown): PortalOperationContainer {
   }
 }
 
+function normalizeLocalCharges(value: unknown): PortalOperationLocalCharges {
+  const row = asRecord(value)
+  if (row.status === 'open' || row.status === 'paid') {
+    return { status: row.status, total_brl: asNumberOrNull(row.total_brl), balance_brl: asNumberOrNull(row.balance_brl) }
+  }
+  // Sem fatura visível não há valor a mostrar, mesmo que o banco mande algum.
+  return { status: row.status === 'awaiting_invoice' ? 'awaiting_invoice' : 'none', total_brl: null, balance_brl: null }
+}
+
 function normalizeTransshipment(value: unknown): PortalOperationTransshipment | null {
   const row = asRecord(value)
   const omissionId = asNumberOrNull(row.omission_id)
@@ -151,6 +174,7 @@ export function normalizePortalOperationRows(data: unknown): PortalOperationBL[]
       bb_weight_ton: asNumberOrNull(row.bb_weight_ton),
       bb_packages_qty: asNumberOrNull(row.bb_packages_qty),
       cancelled_at: asStringOrNull(row.cancelled_at),
+      local_charges: normalizeLocalCharges(row.local_charges),
     }
   })
 }

@@ -18,7 +18,7 @@ import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
 import type { LineUpRow } from './lineup'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from './portalBilling'
 import type { PortalOperationBL } from './portalOperation'
-import type { PortalFlatContainer } from '../lib/portalOperationViews'
+import { localChargesView, type PortalFlatContainer } from '../lib/portalOperationViews'
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
 import type { CeUnlockItem } from '../types/ceUnlock'
@@ -463,11 +463,22 @@ export async function exportPortalBlsWorkbook(rows: PortalOperationBL[]) {
     Devolvidos: row.containers_returned,
     'Sem devolucao': row.container_count - row.containers_returned,
     'Em demurrage': row.containers_in_demurrage,
+    ...portalBlLocalChargesColumns(row),
   }))
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'BLs')
   XLSX.writeFile(workbook, `bls-${makeTimestamp()}.xlsx`)
+}
+
+// Taxas locais e Pagamento com a mesma regra da tela: valores só de fatura
+// visível; "Aguardando fatura" sem valor.
+function portalBlLocalChargesColumns(row: PortalOperationBL) {
+  const { total, payment } = localChargesView(row.local_charges)
+  return {
+    'Taxas locais': total ?? '',
+    Pagamento: payment?.label ?? '',
+  }
 }
 
 export async function exportPortalContainersWorkbook(rows: PortalFlatContainer[]) {
