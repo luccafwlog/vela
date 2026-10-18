@@ -72,6 +72,7 @@ const exemptBls: Array<[string,string|null,number]> = [
   ['CE600-NOCE',null,998600],['CE600-COD','600600000000002',998600],['CE600-DUP','600600000000003',998600],['CE600-SUB','600600000000004',998600],
   ['CE600-CANC','600600000000005',998600],['CE600-CORR','600600000000006',998600],['CE600-REM','600600000000007',998600],['CE600-SNAP','600600000000008',998600],
   ['CE600-L-NOREQ','600600000000010',998600],['CE600-L-MIX1','600600000000011',998600],['CE600-L-MIX2','600600000000012',998600],['CE600-L-NOCE',null,998600],['CE600-L-FOREIGN','600600000000013',998601],
+  ['CE600-MOVE1','600600000000014',998600],['CE600-MOVE2','600600000000015',998600],['CE600-MOVE3','600600000000016',998600],
   ...pages.map((n):[string,string,number]=>[`CE600-PG-${n}`,`6006010000000${n}`,998600]),
 ]
 
@@ -153,9 +154,30 @@ local('desbloqueio CE — matriz SQL de requisitos, filtros e concorrência',()=
   it('dois rascunhos concorrentes para o mesmo B/L deixam uma única reserva ativa',async()=>{
     const first = JSON.stringify({bl_ids:['CE600-DUP'],request_key:key()})
     const worker = await heldTransaction(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${client}'; SELECT public.portal_ce_unlock_command('draft','${first}'::jsonb) IS NOT NULL; SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
-    try { expect(()=>command('draft',{bl_ids:['CE600-DUP'],request_key:key()},client)).toThrow(/não pode ser solicitado/) }
+    // O segundo espera o primeiro; a solicitação de onde o B/L sairia não estava
+    // travada quando ele começou, então recebe conflito (migration 298).
+    try { expect(()=>command('draft',{bl_ids:['CE600-DUP'],request_key:key()},client)).toThrow(/Solicitação alterada/) }
     finally { await worker.done }
     expect(sql("SELECT count(*) FROM public.ce_unlock_request_bls WHERE bl_id='CE600-DUP' AND active;")).toBe('1')
+  })
+  it('B/L de solicitação não validada muda para a nova; a antiga sem B/L é cancelada (caminho A, migration 298)',()=>{
+    const first = command('draft',{bl_ids:['CE600-MOVE1','CE600-MOVE2'],request_key:key()},client)
+    const second = command('draft',{bl_ids:['CE600-MOVE1'],request_key:key()},client)
+    expect(sql("SELECT request_id FROM public.ce_unlock_request_bls WHERE bl_id='CE600-MOVE1' AND active;")).toBe(second.id)
+    // A antiga continua com o outro B/L, sem o que saiu, e o Histórico do Portal mostra a saída.
+    const old = JSON.parse(sql(`SELECT public.portal_get_ce_unlock_request('${first.id}');`, client))
+    expect(old.state).toBe('draft')
+    expect(old.items.map((i:{bl_id:string})=>i.bl_id)).toEqual(['CE600-MOVE2'])
+    expect(old.events.map((e:{action:string})=>e.action)).toContain('bl_moved')
+    const third = command('draft',{bl_ids:['CE600-MOVE2'],request_key:key()},client)
+    expect(sql(`SELECT state FROM public.ce_unlock_requests WHERE id='${first.id}';`)).toBe('cancelled')
+    expect(sql(`SELECT reason FROM public.ce_unlock_events WHERE request_id='${first.id}' AND action='cancel';`)).toBe(`Todos os B/Ls passaram para a solicitação ${third.protocol}`)
+    // Documentação validada continua presa à sua solicitação.
+    sql(`UPDATE public.ce_unlock_requests SET state='completed' WHERE id='${third.id}';`)
+    try {
+      expect(item('CE600-MOVE2').can_submit).toBe(false)
+      expect(()=>command('draft',{bl_ids:['CE600-MOVE2','CE600-MOVE3'],request_key:key()},client)).toThrow(/não pode ser solicitado/)
+    } finally { sql(`UPDATE public.ce_unlock_requests SET state='draft' WHERE id='${third.id}';`) }
   })
   it('dois envios concorrentes do mesmo pedido: só um é aceito, o outro recebe conflito de versão',async()=>{
     const draft = command('draft',{bl_ids:['CE600-SUB'],request_key:key()},client)
