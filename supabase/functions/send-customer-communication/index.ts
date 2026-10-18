@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders, withCors } from '../_shared/cors.ts'
 import { base64Head, matchesExtension, matchesMagicBytes } from '../_shared/fileSignature.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
@@ -12,6 +12,11 @@ import {
   type CustomerCommunicationKind,
   type CommunicationAttachment,
 } from '../_shared/customerCommunicationTemplates.ts'
+
+// Cliente sem schema tipado: com `ReturnType<typeof createClient>` o deno check
+// resolve as tabelas como `never` (plano dos e-mails, 5.4).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Admin = SupabaseClient<any, 'public', any>
 
 const ALLOWED_KINDS = new Set<CustomerCommunicationKind>([
   'aviso_chegada_noa',
@@ -207,7 +212,7 @@ function isAlreadyExists(error: unknown): boolean {
 }
 
 async function persistCommunicationAttachments(
-  admin: ReturnType<typeof createClient>,
+  admin: Admin,
   communicationId: number,
   attachments: readonly CommunicationAttachment[],
   uploadedBy: string | null,
@@ -285,7 +290,7 @@ function normalizedAnchorPort(value: string | null | undefined): string | null {
 }
 
 async function findExistingCommunicationId(
-  admin: ReturnType<typeof createClient>,
+  admin: Admin,
   input: {
     customerId: number
     kind: string

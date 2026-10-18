@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, type EmailAttemptRecord } from '../_shared/email.ts'
@@ -14,7 +14,10 @@ import {
 // (plano dos e-mails, 1E.5). Aqui ficam a autenticação, o ambiente e o acesso
 // ao banco pelo cliente Supabase.
 
-type Admin = ReturnType<typeof createClient>
+// Cliente sem schema tipado: com `ReturnType<typeof createClient>` o deno check
+// resolve as tabelas como `never` (plano dos e-mails, 5.4).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Admin = SupabaseClient<any, 'public', any>
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
@@ -98,7 +101,7 @@ async function loadInvoice(admin: Admin, invoiceId: number): Promise<DunningInvo
     .eq('id', invoiceId)
     .single()
   if (error) throw error
-  const row = data as DunningInvoiceContext
+  const row = data as unknown as DunningInvoiceContext
   return { ...row, customer: normalizeNested(row.customer), bl: normalizeNested(row.bl) }
 }
 

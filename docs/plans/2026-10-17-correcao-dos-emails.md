@@ -12,8 +12,34 @@ refutá-lo.
 
 - **Fase 0 concluída em 2026-10-18:** PR #971 em `main`. A migration `297` foi
   aplicada em produção e as Edges foram republicadas pela integração.
-- **1A em andamento** (branch `claude/emails-1a-envio-comum`). Este plano entra
-  no mesmo PR.
+- **Fases 1 a 5 implementadas em 2026-10-18 no PR #973** (branch
+  `claude/emails-1a-envio-comum`), por decisão do responsável de fazer o plano
+  inteiro num PR só. Migrations `298` a `300`, `303`, `304`, `307`, `308` e
+  `310` a `313` (os números pulados ficaram sem uso). Verificado localmente:
+  typecheck, lint, testes unitários, as 101 suítes local-pg num banco recriado
+  com todas as migrations, `rpc:check`, `migrations:check`, `design:check`,
+  `a11y:contrast`, build e `deno check` das 11 Edges de e-mail. Nada disso foi
+  verificado em produção.
+- **Diferenças em relação ao texto dos itens:**
+  - 2.7: em vez de um tipo novo, o alerta `nob_sem_destinatario` passou a cobrir
+    todos os Comunicados ("Comunicado sem destinatário") e ficou com
+    Documentação, como os demais alertas de Comunicado.
+  - 3.1: o reenvio do CE e Taxas fica no Histórico de `/clientes/comunicacao`.
+    O alerta `comunicado_ce_reenvio_pendente` passou a apontar para lá.
+  - 1E.3 (D7): não havia status de isento; a fatura com 100% de desconto vira
+    `paid` com valor zero e registro em `audit_logs`.
+  - 3.7: o envio do anexo uma vez só ficou para depois, como o item previa.
+- **Pendente:**
+  - **Depois do merge:** confirmar a aplicação das migrations e a publicação
+    das Edges em produção.
+  - **Configuração externa:** cadastrar no Better Stack os heartbeats
+    `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e
+    `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` e gravar os secrets.
+  - **Ação imediata:** corrigir o e-mail do usuário do Administrativo suprimido
+    desde 08/10 (o alerta `usuario_email_devolvido` vai apontá-lo).
+  - **Fase 6:** ligar a chave de envio real é decisão do responsável.
+
+  O plano fica vivo até a Fase 6.
 
 ## Resultado pretendido
 
@@ -354,7 +380,8 @@ Antes de alterar, conferir todos os chamadores de `sendEmail` e
 
 **Aceite:**
 - Testes do orquestrador:
-  - 403 do provedor suspende a fatura e abre alerta;
+  - recusa definitiva do provedor (ex.: 422) suspende a fatura e abre alerta;
+    403 é falha de configuração e volta a ser tentado (1A.3);
   - rede caída gera `falha` e libera a claim.
 - Testes local-pg:
   - um grupo {B,D} que falhou seguido de {A,B,D} cria o grupo novo;

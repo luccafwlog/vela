@@ -6,6 +6,28 @@
 
 ## 2026-10
 
+- **Correção dos e-mails do sistema (2026-10-18, PR #973):** os e-mails passam a
+  falhar de forma visível e a não repetir em loop.
+  - **Envio:** tempo limite e falhas classificadas no envio comum. O Comunicado
+    nasce "Em envio" e nunca termina "simulado" com a chave ligada.
+  - **Régua automática:** a escala vem do Histórico da Viagem, com data e hora
+    (o NOA automático nunca tinha saído). CE e Taxas por Cliente e Viagem.
+    Recusas não definitivas são adiadas com intervalo crescente e abrem alerta.
+  - **Régua de Cobrança de Demurrage:** recusa definitiva suspende a fatura e
+    abre alerta. Envio só em dia útil a partir das 9h. Fatura com 100% de
+    desconto vira paga. E-mail agrupado com o layout comum.
+  - **Avisos do Desbloqueio de CE:** com a chave desligada, ficam registrados
+    como simulados.
+  - **Portal:** aviso de "senha alterada".
+  - **Monitoramento:** provedor sem retorno, rotinas com erro e e-mail interno
+    devolvido abrem alerta. Fingerprint por Edge no Sentry e novos heartbeats.
+  - **Retenção:** eventos de e-mail guardados por 1 ano.
+  - **Tela de Comunicados:** disparo em lote com resumo e "Repetir só as
+    falhas", confirmação antes de Disparar, motivo por destinatário no
+    Histórico e reenvio do CE e Taxas.
+  - **Meu perfil:** a troca de e-mail saiu da tela.
+
+  [Plano](plans/2026-10-17-correcao-dos-emails.md).
 - **CE e Taxas automático parou de ser recusado em loop (2026-10-17):** a validação de anexos
   recusava cobrança local e demurrage mesmo sem anexo, e a Edge devolvia 422 a cada rodada
   (~250 recusas em 24 h, 84 rodadas × 3 destinatários de teste); o envio manual do CE também

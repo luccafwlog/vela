@@ -311,7 +311,9 @@ Regras e peças: [identidade visual](../identidade-visual.md).
     B/Ls mostra o primeiro e "+n". Saem da linha o CNPJ e o POD (filtro e
     detalhe da fatura) e a coluna **Comunicado de CE** (o Comunicado de CE
     e Taxas é por Cliente e Viagem, não por fatura, e já está em Clientes ›
-    Comunicação; a falha de envio segue como alerta). Busca única por
+    Comunicação; a falha de envio segue como alerta; desde 2026-10-18 o
+    reenvio fica no Histórico de Clientes › Comunicação, decisão D5 do
+    [plano dos e-mails](2026-10-17-correcao-dos-emails.md)). Busca única por
     fatura ou B/L; resumo do recorte na faixa do título. Consolidada
     marcada por um ícone pequeno de pilha ao lado do número ("Consolidada"
     ao passar o mouse), não por selo. O ícone ✓ de
