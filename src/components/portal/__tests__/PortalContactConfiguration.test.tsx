@@ -301,10 +301,48 @@ describe('PortalContactConfiguration', () => {
 
     const checkboxes = screen.getAllByRole('checkbox')
     await user.click(checkboxes[0])
+    // Sem alteração o botão fica apagado; uma alteração qualquer libera o envio.
+    await user.type(screen.getByLabelText(/telefone/i), '1')
     await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
 
     expect(await screen.findByText(/não pode ficar sem nenhum contato/i)).toBeTruthy()
     expect(saveContactConfig).not.toHaveBeenCalled()
+  })
+
+  it('mostra cada contato num bloco, com "contato principal" no título, caixas em linha e "Desativar contato" como botão', async () => {
+    const user = userEvent.setup()
+    getContactConfig.mockResolvedValueOnce({
+      boxes: [],
+      contacts: [
+        { id: 1, name: 'Mariana Souza', email: 'mariana@cliente.com', phone: null, is_primary: true, active: true, origin: 'portal', box_codes: ['documentacao_operacao', 'financeiro', 'demurrage'], suppression_reason: null, sendable: true },
+        { id: 2, name: 'João', email: 'joao@cliente.com', phone: null, is_primary: false, active: true, origin: 'portal', box_codes: ['financeiro'], suppression_reason: null, sendable: true },
+      ],
+    })
+    renderComponent()
+    await screen.findByDisplayValue('mariana@cliente.com')
+
+    expect(screen.getByRole('heading', { name: 'Quem recebe os comunicados' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Mariana Souza · contato principal' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'João' })).toBeTruthy()
+    expect(screen.queryByText('Contato principal', { selector: '[class*="badge"]' })).toBeNull()
+
+    const boxes = screen.getByRole('group', { name: 'Caixas de recebimento de Mariana Souza' })
+    const financeiro = within(boxes).getByRole('checkbox', { name: 'Financeiro' })
+    expect(financeiro.getAttribute('aria-describedby')).toBeTruthy()
+    expect(financeiro.closest('label')?.getAttribute('title')).toBe('CE e Taxas e Cobranças de Demurrage.')
+
+    const save = screen.getByRole('button', { name: 'Salvar contatos' }) as HTMLButtonElement
+    expect(save.disabled).toBe(true)
+    expect(screen.getByText('Nada alterado.')).toBeTruthy()
+
+    const deactivate = screen.getAllByRole('button', { name: 'Desativar contato' })
+    expect(deactivate).toHaveLength(2)
+    expect(deactivate[1].className).toContain('app-btn')
+    await user.click(deactivate[1])
+    expect(screen.getByRole('heading', { name: 'João · desativado' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Reativar contato' })).toBeTruthy()
+    expect(save.disabled).toBe(false)
+    expect(screen.getByText('Contatos alterados, ainda não salvos.')).toBeTruthy()
   })
   const allBoxes = ['documentacao_operacao', 'financeiro', 'demurrage']
   const principal = {

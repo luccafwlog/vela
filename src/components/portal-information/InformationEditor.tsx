@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import { useSavePortalInformation } from '../../hooks/usePortalInformation'
-import { externalInformationUrl, type InformationKind } from '../../services/portalInformation'
+import { externalInformationUrl, TRACKING_BL_MARKER, type InformationKind } from '../../services/portalInformation'
 import { Button } from '../ui/Button'
 import { Field, Input, Select, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 
 export type InformationField = { key: string; label: string; type?: 'list' | 'url' | 'boolean' | 'text'; required?: boolean; readOnly?: boolean; options?: { value: string; label: string }[] }
+
+function fieldHint(kind: InformationKind, field: InformationField) {
+  if (field.type === 'list') return 'Separe os valores por vírgula ou por linha.'
+  // O Portal troca a marca pelo número do B/L escolhido (Central de Informações, Tracking).
+  if (kind === 'carrier' && field.key === 'tracking_url') return `Use ${TRACKING_BL_MARKER} no lugar do número do B/L para o Portal abrir a consulta já preenchida.`
+  return undefined
+}
 export function InformationEditor({ title, kind, data, fields, onClose, onSaved }: { title: string; kind: InformationKind; data: Record<string, unknown>; fields: InformationField[]; onClose: () => void; onSaved?: () => void }) {
   const [draft, setDraft] = useState(data)
   const [error, setError] = useState<string | null>(null)
@@ -44,7 +51,7 @@ export function InformationEditor({ title, kind, data, fields, onClose, onSaved 
   return <Modal open title={title} onClose={onClose}>
     <form className="grid gap-4" onSubmit={e => { e.preventDefault(); void submit() }}>
       {fields.map(field => field.type === 'boolean' ? <label key={field.key} className="flex items-center gap-2"><input type="checkbox" checked={Boolean(draft[field.key])} onChange={e => setDraft({ ...draft, [field.key]: e.target.checked })} />{field.label}</label> :
-        <Field key={field.key} label={field.label} required={field.required} hint={field.type === 'list' ? 'Separe os valores por vírgula ou por linha.' : undefined}>
+        <Field key={field.key} label={field.label} required={field.required} hint={fieldHint(kind, field)}>
           {field.readOnly ? <span>{field.options?.find(option => option.value === draft[field.key])?.label ?? String(draft[field.key] ?? '')}</span> : field.options ? <Select value={String(draft[field.key] ?? '')} onChange={e => setDraft({ ...draft, [field.key]: e.target.value })}>{field.options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</Select> : field.type === 'text' || field.type === 'list' ? <Textarea rows={3} value={String(draft[field.key] ?? '')} onChange={e => setDraft({ ...draft, [field.key]: e.target.value })} /> : <Input value={String(draft[field.key] ?? '')} onChange={e => setDraft({ ...draft, [field.key]: e.target.value })} />}
         </Field>)}
       {error ? <p role="alert" className="text-sm text-red-400">{error}</p> : null}

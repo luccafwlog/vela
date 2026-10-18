@@ -85,7 +85,25 @@ describe('portalOperation', () => {
         bb_weight_ton: null,
         bb_packages_qty: null,
         cancelled_at: null,
+        local_charges: { status: 'none', total_brl: null, balance_brl: null },
       },
+    ])
+  })
+
+  it('normaliza Taxas Locais do B/L e só aceita valor com fatura visível', () => {
+    const rows = normalizePortalOperationRows([
+      { bl_id: 'ABERTO', local_charges: { status: 'open', total_brl: '4804.00', balance_brl: '1202' } },
+      { bl_id: 'PAGO', local_charges: { status: 'paid', total_brl: 2702, balance_brl: 0 } },
+      { bl_id: 'SEM-FATURA', local_charges: { status: 'awaiting_invoice', total_brl: 2702 } },
+      { bl_id: 'DESCONHECIDO', local_charges: { status: 'draft', total_brl: 10 } },
+      { bl_id: 'ANTIGO' },
+    ])
+    expect(rows.map((row) => row.local_charges)).toEqual([
+      { status: 'open', total_brl: 4804, balance_brl: 1202 },
+      { status: 'paid', total_brl: 2702, balance_brl: 0 },
+      { status: 'awaiting_invoice', total_brl: null, balance_brl: null },
+      { status: 'none', total_brl: null, balance_brl: null },
+      { status: 'none', total_brl: null, balance_brl: null },
     ])
   })
 

@@ -14,6 +14,7 @@ const rows: PortalOperationBL[] = [
     voyage_id: 10,
     voyage_number: '001W',
     vessel_name: 'NAVIO TESTE',
+    local_charges: { status: 'open', total_brl: 4804, balance_brl: 1202 },
     transshipment: {
         omission_id: 9,
         disposition: 'transshipment',
@@ -61,6 +62,7 @@ const rows: PortalOperationBL[] = [
     voyage_id: 11,
     voyage_number: '002W',
     vessel_name: 'NAVIO SEM CONTAINER',
+    local_charges: { status: 'none', total_brl: null, balance_brl: null },
     transshipment: {
       omission_id: 10,
       disposition: 'cod',
@@ -85,6 +87,7 @@ const rows: PortalOperationBL[] = [
     voyage_id: 12,
     voyage_number: '003W',
     vessel_name: 'NAVIO DEVOLVIDO',
+    local_charges: { status: 'paid', total_brl: 2702, balance_brl: 0 },
     container_count: 2,
     containers_in_demurrage: 0,
     containers_returned: 2,
@@ -121,6 +124,7 @@ const rows: PortalOperationBL[] = [
     voyage_id: 13,
     voyage_number: '004W',
     vessel_name: 'NAVIO MISTO',
+    local_charges: { status: 'awaiting_invoice', total_brl: null, balance_brl: null },
     cargo_mode: 'misto',
     bb_weight_ton: 12.5,
     bb_packages_qty: 4,
@@ -138,6 +142,49 @@ const rows: PortalOperationBL[] = [
         free_time_days: 15,
         demurrage_days: 0,
         status: 'devolvido',
+      },
+    ],
+  },
+  {
+    bl_id: 'BL005',
+    ce_mercante: '111222333444555',
+    pol: 'CNSHA',
+    pod: 'BRSSA',
+    voyage_id: 14,
+    voyage_number: '005W',
+    vessel_name: 'NAVIO CARGA SOLTA',
+    local_charges: { status: 'none', total_brl: null, balance_brl: null },
+    cargo_mode: 'carga_solta',
+    bb_weight_ton: 64.5,
+    bb_packages_qty: 3,
+    container_count: 0,
+    containers_in_demurrage: 0,
+    containers_returned: 0,
+    containers: [],
+  },
+  {
+    bl_id: 'BL006',
+    ce_mercante: '666777888999000',
+    pol: 'CNNGB',
+    pod: 'BRSSA',
+    voyage_id: 15,
+    voyage_number: '006W',
+    vessel_name: 'NAVIO FREE TIME',
+    local_charges: { status: 'open', total_brl: 2702, balance_brl: 2702 },
+    container_count: 1,
+    containers_in_demurrage: 0,
+    containers_returned: 0,
+    containers: [
+      {
+        id: 6,
+        container_number: 'FREE1234567',
+        type: '20GP',
+        discharge_date: '2026-10-05',
+        return_date: null,
+        usage_days: 12,
+        free_time_days: 21,
+        demurrage_days: 0,
+        status: 'dentro_free_time',
       },
     ],
   },
@@ -164,15 +211,26 @@ function renderOperacao(initialEntry = '/portal/operacao') {
   )
 }
 
+// jsdom não aplica o CSS: tabela e cartões do celular ficam no DOM juntos.
+const blsTable = () => screen.getByRole('table', { name: /B\/Ls da operação/ })
+const containersTable = () => screen.getByRole('table', { name: 'Containers da operação do cliente' })
+const blRow = (bl: string) => within(blsTable()).getByRole('button', { name: `Abrir os containers do B/L ${bl}` }).closest('tr') as HTMLElement
+
 describe('PortalOperacao (BLs e Containers)', () => {
-  it('disponibiliza acesso aos depósitos de devolução por B/L e porto', () => {
-    renderOperacao('/portal/operacao?tab=containers')
-    const links = screen.getAllByRole('link', { name: 'Depósitos de devolução' })
-    expect(links.length).toBeGreaterThan(0)
-    const blLink = links.find(l => l.getAttribute('href')?.includes('bl=BL001'))
-    expect(blLink).toBeDefined()
-    expect(blLink!.getAttribute('href')).toContain('/portal/informacoes/devolucao?pod=BRVIX&bl=BL001')
+  it('mostra os atalhos uma vez só, no título da página, sem Agentes do porto', async () => {
+    const user = userEvent.setup()
+    renderOperacao()
+    await user.click(screen.getByRole('button', { name: 'Abrir os containers do B/L BL001' }))
+
+    expect(screen.getAllByRole('link', { name: 'Depósitos de devolução' })).toHaveLength(1)
+    expect(screen.getByRole('link', { name: 'Depósitos de devolução' }).getAttribute('href')).toBe('/portal/informacoes/devolucao')
+    expect(screen.getAllByRole('link', { name: 'Tracking do B/L' })).toHaveLength(1)
+    expect(screen.getByRole('link', { name: 'Tracking do B/L' }).getAttribute('href')).toBe('/portal/informacoes/tracking')
+    expect(screen.getAllByRole('link', { name: 'Solicitar desbloqueio de CE' })).toHaveLength(1)
+    expect(screen.queryByRole('link', { name: 'Agentes do porto' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Consultar Taxas Locais' })).toBeNull()
   })
+
   it('distingue tarifa indisponível de dentro do free time e permite filtrar a unidade', async () => {
     const container = rows[0].containers[1]
     const previous = { ...container }
@@ -180,38 +238,80 @@ describe('PortalOperacao (BLs e Containers)', () => {
     try {
       const user = userEvent.setup()
       renderOperacao('/portal/operacao?tab=containers')
-      const table = screen.getByRole('table')
-      const row = within(table).getByText(container.container_number).closest('tr') as HTMLElement
+      const row = within(containersTable()).getByText(container.container_number).closest('tr') as HTMLElement
       expect(within(row).getByText('Tarifa indisponível')).toBeTruthy()
-      expect(within(row).queryByText('Dentro free time')).toBeNull()
+      expect(within(row).queryByText(/No free time/)).toBeNull()
       await user.click(screen.getByRole('button', { name: /Filtros/i }))
       await user.selectOptions(screen.getByLabelText('Status operacional'), 'tarifa_indisponivel')
-      expect(within(table).getByText(container.container_number)).toBeTruthy()
-      expect(within(table).queryByText('ABCD1234567')).toBeNull()
+      expect(within(containersTable()).getByText(container.container_number)).toBeTruthy()
+      expect(within(containersTable()).queryByText('ABCD1234567')).toBeNull()
     } finally { Object.assign(container, previous) }
   })
 
-  it('mostra as abas BLs e Containers e a coluna POL na aba BLs', () => {
+  it('mostra a tabela limpa da aba BLs: Navio / Viagem, Trecho, Carga, Taxas locais, Pagamento, Devolução e Demurrage', () => {
     renderOperacao()
     expect(screen.getByRole('heading', { name: 'BLs e Containers' })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: 'BLs' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'BLs' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('tab', { name: 'Containers' })).toBeTruthy()
 
-    const blsTable = screen.getByRole('table')
-    expect(within(blsTable).getByRole('columnheader', { name: 'POL' })).toBeTruthy()
-    // POL exibido na linha do B/L
-    expect(within(blsTable).getAllByText('CNSHA').length).toBeGreaterThan(0)
+    const headers = within(blsTable()).getAllByRole('columnheader').map((th) => th.textContent)
+    expect(headers).toEqual(['Abrir containers', 'B/L', 'CE Mercante', 'Navio / Viagem', 'Trecho', 'Carga', 'Taxas locais', 'Pagamento', 'Devolução', 'Demurrage'])
+
+    const open = blRow('BL001')
+    expect(within(open).getByText('NAVIO TESTE / 001W')).toBeTruthy()
+    expect(open.textContent).toContain('CNSHA → BRVIX')
+    expect(within(open).getByText('2 containers')).toBeTruthy()
+    expect(within(open).getByText('R$ 4.804,00')).toBeTruthy()
+    expect(within(open).getByText('R$ 1.202,00 em aberto').closest('.app-status-text--warning')).not.toBeNull()
+    expect(within(open).getByText('1 de 2 devolvidos').closest('.app-status-text--warning')).not.toBeNull()
+    expect(within(open).getByText('1 em demurrage').closest('.app-status-text--danger')).not.toBeNull()
+    // CE como texto com copiar, sem selo "CE …".
+    expect(within(open).getByText('123456789012345')).toBeTruthy()
+    expect(within(open).queryByText(/^CE /)).toBeNull()
+
+    const paid = blRow('BL003')
+    expect(within(paid).getByText('R$ 2.702,00')).toBeTruthy()
+    expect(within(paid).getByText('Pago').closest('.app-status-text--paid')).not.toBeNull()
+    expect(within(paid).getByText('2 de 2 devolvidos').closest('.app-status-text--warning')).toBeNull()
+    expect(within(paid).getByText('Nenhum')).toBeTruthy()
+
+    const awaiting = blRow('BL004')
+    expect(within(awaiting).getByText('Aguardando fatura').closest('.app-status-text--warning')).toBeNull()
+    expect(within(awaiting).getByText('Sem valor de fatura')).toBeTruthy()
+    expect(within(awaiting).getByText('1 container + 12,5 t')).toBeTruthy()
+
+    const looseCargo = blRow('BL005')
+    expect(within(looseCargo).getByText('Carga solta · 64,5 t')).toBeTruthy()
+    expect(within(looseCargo).getByText('Sem fatura')).toBeTruthy()
+    expect(within(looseCargo).getAllByText('Sem containers')).toHaveLength(2)
+  })
+
+  it('filtra pelos cartões da aba BLs no lugar da contagem "B/L(s) encontrado(s)"', async () => {
+    const user = userEvent.setup()
+    renderOperacao()
+    expect(screen.queryByText(/encontrado\(s\)/)).toBeNull()
+
+    const cards = screen.getByRole('group', { name: 'Filtrar B/Ls por devolução' })
+    expect(within(cards).getByRole('button', { name: /^B\/Ls\s*6$/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(within(cards).getByRole('button', { name: /Com container sem devolução\s*2/ })).toBeTruthy()
+    expect(within(cards).getByRole('button', { name: /Tudo devolvido\s*2/ })).toBeTruthy()
+
+    await user.click(within(cards).getByRole('button', { name: /Com container em demurrage\s*1/ }))
+    expect(within(blsTable()).getByText('BL001')).toBeTruthy()
+    expect(within(blsTable()).queryByText('BL003')).toBeNull()
+
+    await user.click(within(cards).getByRole('button', { name: /Com container em demurrage/ }))
+    expect(within(blsTable()).getByText('BL003')).toBeTruthy()
   })
 
   it('marca como Cancelado o B/L cancelado depois de liberado (ADR 0071)', () => {
     rows[1].cancelled_at = '2026-09-25T10:00:00Z'
     try {
       renderOperacao()
-      const blsTable = screen.getByRole('table')
-      const cancelledRow = within(blsTable).getByText('BL002').closest('tr') as HTMLElement
+      const cancelledRow = blRow('BL002')
       expect(within(cancelledRow).getByText('Cancelado')).toBeTruthy()
-      const activeRow = within(blsTable).getByText('BL001').closest('tr') as HTMLElement
-      expect(within(activeRow).queryByText('Cancelado')).toBeNull()
+      expect(cancelledRow.className).toContain('app-table__row--muted')
+      expect(within(blRow('BL001')).queryByText('Cancelado')).toBeNull()
     } finally {
       rows[1].cancelled_at = null
     }
@@ -224,28 +324,37 @@ describe('PortalOperacao (BLs e Containers)', () => {
     await user.click(screen.getByRole('button', { name: /Filtros/i }))
     await user.type(screen.getByLabelText('Navio'), 'NAVIO TESTE')
 
-    expect(screen.getByText('BL001')).toBeTruthy()
-    expect(screen.queryByText('BL003')).toBeNull()
+    expect(within(blsTable()).getByText('BL001')).toBeTruthy()
+    expect(within(blsTable()).queryByText('BL003')).toBeNull()
   })
 
-  it('exibe o card persistente de Informações de Transbordo na ficha do B/L', async () => {
+  it('abre a linha com os contêineres em tabela interna, Situação em texto e o transbordo', async () => {
     const user = userEvent.setup()
     renderOperacao()
 
-    await user.click(screen.getByText('BL001'))
+    await user.click(screen.getByRole('button', { name: 'Abrir os containers do B/L BL001' }))
 
     expect(screen.getByRole('heading', { name: 'Informações de Transbordo' })).toBeTruthy()
     expect(screen.getByText('COSCO STAR')).toBeTruthy()
     expect(screen.getByText('20/07/2026')).toBeTruthy()
     expect(screen.getByText('22/07/2026')).toBeTruthy()
     expect(screen.queryByText('Motivo')).toBeNull()
+
+    const inner = screen.getByRole('table', { name: 'Containers do B/L BL001' })
+    expect(inner.closest('tr[data-row-detail]')).not.toBeNull()
+    expect(within(inner).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Container', 'Tipo', 'Descarga', 'Devolução', 'Dias de uso', 'Free time', 'Dias em demurrage', 'Situação'])
+    const demurrage = within(inner).getByText('EFGH1234567').closest('tr') as HTMLElement
+    expect(within(demurrage).getByText('Em demurrage').closest('.app-status-text--danger')).not.toBeNull()
+    expect(within(demurrage).getByText('Ainda não devolvido')).toBeTruthy()
+    // Sem selo: a situação é texto.
+    expect(inner.querySelector('[class*="badge"]')).toBeNull()
   })
 
-  it('exibe um card próprio para COD sem publicar dados de transbordo', async () => {
+  it('exibe um bloco próprio para COD sem publicar dados de transbordo', async () => {
     const user = userEvent.setup()
     renderOperacao()
 
-    await user.click(screen.getByText('BL002'))
+    await user.click(screen.getByRole('button', { name: 'Abrir os containers do B/L BL002' }))
 
     expect(screen.getByRole('heading', { name: 'Destino alterado para BRSSA (COD)' })).toBeTruthy()
     expect(screen.getByText('Sua carga não seguirá em transbordo.')).toBeTruthy()
@@ -259,34 +368,60 @@ describe('PortalOperacao (BLs e Containers)', () => {
     expect(within(codCard as HTMLElement).queryByText('Motivo')).toBeNull()
   })
 
-  it('deriva a aba Containers dos containers dos B/Ls', async () => {
+  it('mostra a aba Containers com 10 colunas, sem CE, Navio, Viagem e POL, e a situação em texto', async () => {
     const user = userEvent.setup()
     renderOperacao()
 
     await user.click(screen.getByRole('tab', { name: 'Containers' }))
-    // Containers de todos os B/Ls aparecem sem precisar abrir o B/L
-    expect(screen.getAllByText('ABCD1234567').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('EFGH1234567').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('IJKL1234567').length).toBeGreaterThan(0)
+    const headers = within(containersTable()).getAllByRole('columnheader').map((th) => th.textContent)
+    expect(headers).toEqual(['Container', 'Tipo', 'B/L', 'POD', 'Descarga', 'Devolução', 'Dias de uso', 'Free time', 'Dias em demurrage', 'Situação'])
+
+    // Containers de todos os B/Ls aparecem sem precisar abrir o B/L.
+    const freeTime = within(containersTable()).getByText('FREE1234567').closest('tr') as HTMLElement
+    expect(within(freeTime).getByText('No free time · 9 dias').closest('.app-status-text--warning')).not.toBeNull()
+    const returned = within(containersTable()).getByText('ABCD1234567').closest('tr') as HTMLElement
+    expect(within(returned).getByText('Devolvido').closest('.app-status-text')).toBeNull()
+    expect(within(containersTable()).getByText('IJKL1234567')).toBeTruthy()
   })
 
-  it('renderiza cards mobile nas abas BLs e Containers', async () => {
+  it('filtra pelos cartões da aba Containers, com "Sem devolução, no free time" fora da demurrage', async () => {
+    const user = userEvent.setup()
+    renderOperacao('/portal/operacao?tab=containers')
+
+    const cards = screen.getByRole('group', { name: 'Filtrar containers por devolução' })
+    expect(within(cards).getByRole('button', { name: /^Containers\s*6$/ })).toBeTruthy()
+    expect(within(cards).getByRole('button', { name: /Em demurrage\s*1/ })).toBeTruthy()
+    expect(within(cards).getByRole('button', { name: /Devolvidos\s*4/ })).toBeTruthy()
+
+    await user.click(within(cards).getByRole('button', { name: /Sem devolução, no free time\s*1/ }))
+    expect(within(containersTable()).getByText('FREE1234567')).toBeTruthy()
+    expect(within(containersTable()).queryByText('EFGH1234567')).toBeNull()
+    expect(within(containersTable()).queryByText('ABCD1234567')).toBeNull()
+  })
+
+  it('renderiza cards mobile nas abas BLs e Containers, sem os botões repetidos', async () => {
     const user = userEvent.setup()
     renderOperacao()
 
-    expect(screen.getByTestId('portal-operacao-bl-mobile-cards').textContent).toContain('B/L BL001')
+    const blCards = screen.getByTestId('portal-operacao-bl-mobile-cards')
+    expect(within(blCards).getByRole('article', { name: 'B/L BL001' }).textContent).toMatch(/R\$\s1\.202,00 em aberto/)
+    expect(within(blCards).queryAllByRole('link')).toHaveLength(0)
 
     await user.click(screen.getByRole('tab', { name: 'Containers' }))
 
-    expect(screen.getByTestId('portal-operacao-container-mobile-cards').textContent).toContain('Container ABCD1234567')
+    const containerCards = screen.getByTestId('portal-operacao-container-mobile-cards')
+    expect(within(containerCards).getByRole('article', { name: 'Container ABCD1234567' })).toBeTruthy()
+    expect(within(containerCards).queryAllByRole('link')).toHaveLength(0)
   })
 
   it('abre a aba Containers filtrada por demurrage via query param', () => {
     renderOperacao('/portal/operacao?tab=containers&devolucao=em_demurrage')
     // Apenas EFGH (em demurrage, sem devolucao) deve aparecer
-    expect(screen.getAllByText('EFGH1234567').length).toBeGreaterThan(0)
-    expect(screen.queryAllByText('ABCD1234567')).toHaveLength(0)
-    expect(screen.queryByText('IJKL1234567')).toBeNull()
+    expect(within(containersTable()).getByText('EFGH1234567')).toBeTruthy()
+    expect(within(containersTable()).queryByText('ABCD1234567')).toBeNull()
+    expect(within(containersTable()).queryByText('IJKL1234567')).toBeNull()
+    const cards = screen.getByRole('group', { name: 'Filtrar containers por devolução' })
+    expect(within(cards).getByRole('button', { name: /Em demurrage/ }).getAttribute('aria-pressed')).toBe('true')
   })
 
   it('US-172: exporta os B/Ls e os containers para Excel', async () => {
@@ -309,18 +444,19 @@ describe('PortalOperacao (BLs e Containers)', () => {
     renderOperacao()
 
     // B/L misto exibe indicador composto de contêineres e carga solta
-    expect(screen.getByText('1 CNTR + 12.5t')).toBeTruthy()
+    expect(within(blsTable()).getByText('1 container + 12,5 t')).toBeTruthy()
 
     // Ao expandir o B/L misto
-    await user.click(screen.getByText('BL004'))
+    await user.click(screen.getByRole('button', { name: 'Abrir os containers do B/L BL004' }))
 
     // Exibe sumário de carga solta (breakbulk)
-    expect(screen.getByTestId('portal-breakbulk-summary')).toBeTruthy()
-    expect(screen.getByText('12.5 ton')).toBeTruthy()
-    expect(screen.getByText('4 package(s)')).toBeTruthy()
+    const summary = screen.getByTestId('portal-breakbulk-summary')
+    expect(within(summary).getByText('12,5 t')).toBeTruthy()
+    expect(within(summary).getByText('4')).toBeTruthy()
 
-    // Exibe contêiner e status normalmente
-    expect(screen.getByText('MIXU9999999')).toBeTruthy()
-    expect(screen.getByText('40HC')).toBeTruthy()
+    // Exibe contêiner e situação normalmente
+    const inner = screen.getByRole('table', { name: 'Containers do B/L BL004' })
+    expect(within(inner).getByText('MIXU9999999')).toBeTruthy()
+    expect(within(inner).getByText('40HC')).toBeTruthy()
   })
 })
