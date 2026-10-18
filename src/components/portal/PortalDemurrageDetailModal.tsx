@@ -3,7 +3,7 @@ import { Block } from '../ui/Block'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { Modal } from '../ui/Modal'
-import { StatusText } from '../ui/StatusText'
+import { ComplementMark, StatusText } from '../ui/StatusText'
 import { demurrageSituation, formatUsd, isDemurragePayable } from '../../lib/portalInvoiceStatus'
 import { formatBRL, formatDate } from '../../lib/utils'
 import { joinDemurrageDocNumbers, type PortalDemurrageInvoice, type PortalDemurrageInvoiceDetail, type PortalDispute } from '../../services/portalBilling'
@@ -72,7 +72,12 @@ export function PortalDemurrageDetailModal({
   const invoice = detail?.invoice
 
   return (
-    <Modal open={open} onClose={onClose} title={`Fatura ${invoice?.doc_number ?? invoiceId ?? ''}`}>
+    <Modal open={open} onClose={onClose} title={(
+      <>
+        {`Fatura ${invoice?.doc_number ?? invoiceId ?? ''}`}
+        {complementOf.length > 0 ? <> <ComplementMark of={joinDemurrageDocNumbers(complementOf.map((other) => other.doc_number))} /></> : null}
+      </>
+    )}>
       <div className="grid gap-5">
         {loading ? <div className="text-sm text-[var(--app-muted)]">Carregando…</div> : null}
         {detail ? (() => {
@@ -119,6 +124,7 @@ export function PortalDemurrageDetailModal({
                 { label: 'B/L', value: <CopyValue value={invoice.bl_id} label="número do B/L" /> },
                 { label: 'Trecho', value: invoice.pol || invoice.pod ? `${invoice.pol ?? '—'} → ${invoice.pod ?? '—'}` : <NoValue label="Sem trecho" /> },
               ]}
+              factColumns={4}
               pix={showPix ? invoice.pix_payload : undefined}
             />
 

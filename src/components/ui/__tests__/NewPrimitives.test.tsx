@@ -134,4 +134,9 @@ describe('SummaryStrip e MetricCard', () => {
     await userEvent.click(button)
     expect(onSelect).toHaveBeenCalledTimes(1)
   })
+
+  it('card que só leva a outra tela não diz que está ligado ou desligado', () => {
+    render(<MetricCard label="Taxas Locais em aberto" value="R$ 10,00" onSelect={() => undefined} />)
+    expect(screen.getByRole('button', { name: /Taxas Locais em aberto/ }).hasAttribute('aria-pressed')).toBe(false)
+  })
 })

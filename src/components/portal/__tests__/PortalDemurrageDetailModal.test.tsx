@@ -111,6 +111,7 @@ describe('PortalDemurrageDetailModal', () => {
     detail.items = [{ id: 9, container_number: 'TGHU8120032', container_type: '40HC', total_days: 45, free_days: 21, days_p1: 9, rate_p1_usd: 60, days_p2: 15, rate_p2_usd: 80, subtotal_usd: 1740 }] as PortalDemurrageInvoiceDetail['items']
     const handlers = renderModal(detail, { complementOf: [{ id: 7, doc_number: 'DEM-000' }] })
     expect(screen.getByRole('heading', { name: 'Invoice complementar' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Complementa a DEM-000' })).toBeTruthy()
     expect(screen.getByText(/cobra o contêiner TGHU8120032, que entrou no B\/L depois da primeira Invoice\. A DEM-000 continua valendo/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Abrir DEM-000' }))
     expect(handlers.onOpenInvoice).toHaveBeenCalledWith(7)

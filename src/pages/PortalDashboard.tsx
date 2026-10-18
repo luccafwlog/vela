@@ -106,7 +106,7 @@ export function PortalDashboard() {
             label="Desbloqueio de CE em aberto"
             value={ceRequests.isError ? <NoValue label="Não foi possível carregar as solicitações" /> : ceRequests.isLoading ? <NoValue label="Carregando" /> : formatCountLabel(openRequests.length, 'solicitação', 'solicitações')}
             detail={ceRequests.isError ? 'Não foi possível carregar.' : ceRequests.data && openRequests.length > 0 ? correctionLabel(correctionRequests) : null}
-            onSelect={() => nav(portalPath(scope, '/desbloqueio-ce'))}
+            onSelect={() => nav(portalPath(scope, '/desbloqueio-ce?aba=solicitacoes'))}
           />
         </div>
       )}
