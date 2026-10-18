@@ -538,10 +538,12 @@ async function sendCandidateGroup(
         replyTo: demurrageReplyTo(),
         missingConfigurationMessage: 'PORTAL_FROM_EMAIL e DEMURRAGE_REPLY_TO (ou COMMUNICATIONS_REPLY_TO) são obrigatórios para envio real',
         checkSuppression: async (to) => {
-          const [{ data: communicationSuppression }, { data: portalSuppression }] = await Promise.all([
+          const [{ data: communicationSuppression, error: communicationError }, { data: portalSuppression, error: portalError }] = await Promise.all([
             admin.from('customer_communication_suppressions').select('id').eq('email', to).maybeSingle(),
             admin.from('portal_suppressed_emails').select('id').eq('email', to).eq('reason', 'bounce_permanente').maybeSingle(),
           ])
+          // Erro na consulta não libera o envio para um endereço que pode estar suprimido.
+          if (communicationError || portalError) throw communicationError ?? portalError
           return { suppressed: Boolean(communicationSuppression || portalSuppression) }
         },
         recordAttempt: ({ idempotencyKey: attemptKey, to }) => recordDunningAttempt({
@@ -649,10 +651,12 @@ async function sendCandidate(
         replyTo: demurrageReplyTo(),
         missingConfigurationMessage: 'PORTAL_FROM_EMAIL e DEMURRAGE_REPLY_TO (ou COMMUNICATIONS_REPLY_TO) são obrigatórios para envio real',
         checkSuppression: async (to) => {
-          const [{ data: communicationSuppression }, { data: portalSuppression }] = await Promise.all([
+          const [{ data: communicationSuppression, error: communicationError }, { data: portalSuppression, error: portalError }] = await Promise.all([
             admin.from('customer_communication_suppressions').select('id').eq('email', to).maybeSingle(),
             admin.from('portal_suppressed_emails').select('id').eq('email', to).eq('reason', 'bounce_permanente').maybeSingle(),
           ])
+          // Erro na consulta não libera o envio para um endereço que pode estar suprimido.
+          if (communicationError || portalError) throw communicationError ?? portalError
           return { suppressed: Boolean(communicationSuppression || portalSuppression) }
         },
         recordAttempt: ({ idempotencyKey: attemptKey, to }) => recordDunningAttempt({

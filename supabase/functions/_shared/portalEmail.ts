@@ -30,7 +30,10 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
     replyTo: typeof Deno !== 'undefined' ? Deno.env.get('PORTAL_REPLY_TO') : null,
     missingConfigurationMessage: 'PORTAL_FROM_EMAIL e PORTAL_REPLY_TO são obrigatórios para envio real',
     checkSuppression: async (to) => {
-      const { data: suppressed } = await admin.from('portal_suppressed_emails').select('id').eq('email', to).maybeSingle()
+      // Erro na consulta não libera o envio: sem a resposta, o endereço pode
+      // estar suprimido. A exceção vira nova tentativa no chamador.
+      const { data: suppressed, error } = await admin.from('portal_suppressed_emails').select('id').eq('email', to).maybeSingle()
+      if (error) throw error
       return { suppressed: Boolean(suppressed) }
     },
     recordAttempt: async ({ kind, to, idempotencyKey }) => {

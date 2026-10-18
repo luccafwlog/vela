@@ -799,7 +799,14 @@ tentativas e supressões do Portal. Ambos preservam idempotência e novas
 tentativas de falhas transitórias. A simulação (`simulate: true`) só acontece no
 canal de Comunicados, inclusive a Régua de Cobrança, com a chave global de envio
 desligada; sem `RESEND_API_KEY`, o envio real falha e a tentativa fica
-registrada como `falha_permanente`. A origem da API vem do secret opcional
+registrada como `falha_permanente`. Cada chamada ao provedor tem tempo limite
+de 15 s e até três tentativas na mesma rodada. Tempo esgotado, erro de rede,
+408, 429 (respeitando `Retry-After` até 10 s) e 5xx viram `falha_transitoria`.
+401 e 403 também ficam `falha_transitoria`, com "(configuração do provedor)" no
+motivo, para a tentativa voltar a ser feita depois de corrigida a chave. Os
+demais 4xx viram `falha_permanente`. Se o provedor aceitou e a gravação do id
+falhou, o envio conta como aceito, e a chave de idempotência evita
+duplicidade. Erro ao consultar as listas de supressão impede o envio. A origem da API vem do secret opcional
 `RESEND_BASE_URL` (padrão `https://api.resend.com`), o que permite trocar por
 um provedor compatível sem mudar código. O envio real usa `PORTAL_FROM_EMAIL` e
 `PORTAL_REPLY_TO`; domínio próprio verificado continua sendo condição para o

@@ -730,10 +730,12 @@ async function handler(req: Request): Promise<Response> {
       replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO'),
       missingConfigurationMessage: 'PORTAL_FROM_EMAIL e COMMUNICATIONS_REPLY_TO são obrigatórios para envio real',
       checkSuppression: async (to) => {
-        const [{ data: complaint }, { data: bounce }] = await Promise.all([
+        const [{ data: complaint, error: complaintError }, { data: bounce, error: bounceError }] = await Promise.all([
           admin.from('customer_communication_suppressions').select('id').eq('email', to).maybeSingle(),
           admin.from('portal_suppressed_emails').select('id').eq('email', to).eq('reason', 'bounce_permanente').maybeSingle(),
         ])
+        // Erro na consulta não libera o envio para um endereço que pode estar suprimido.
+        if (complaintError || bounceError) throw complaintError ?? bounceError
         return { suppressed: Boolean(complaint || bounce) }
       },
       recordAttempt: async ({ kind: attemptKind, to, idempotencyKey }): Promise<EmailAttemptRecord> => {

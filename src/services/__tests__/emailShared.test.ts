@@ -216,4 +216,85 @@ describe('sendEmail', () => {
     expect(recordAttempt).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  describe('falhas na chamada ao provedor (plano dos e-mails, 1A)', () => {
+    const noSleep = vi.fn<(ms: number) => Promise<void>>(async () => undefined)
+
+    it('passa um tempo limite em toda chamada ao provedor', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'p-1' }), { status: 200 }))
+      await sendEmail({ ...baseInput, fetchImpl: fetchMock })
+      expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
+    })
+
+    it('tempo esgotado em todas as tentativas grava falha transitória com o motivo', async () => {
+      const updateAttempt = vi.fn(async () => undefined)
+      const neverAnswers = vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(init.signal?.reason))
+      }))
+      const result = await sendEmail({ ...baseInput, updateAttempt, fetchImpl: neverAnswers as unknown as typeof fetch, timeoutMs: 5, sleep: noSleep })
+
+      expect(result).toEqual({ ok: false })
+      expect(neverAnswers).toHaveBeenCalledTimes(3)
+      expect(updateAttempt).toHaveBeenCalledWith(7, {
+        retryCount: 2, status: 'falha_transitoria', lastError: 'Tempo esgotado na chamada ao provedor',
+      })
+    })
+
+    it('erro de rede é tentado de novo e não escapa sem atualizar a tentativa', async () => {
+      const updateAttempt = vi.fn(async () => undefined)
+      const fetchMock = vi.fn()
+        .mockRejectedValueOnce(new TypeError('connection reset'))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'p-net' }), { status: 200 }))
+      expect(await sendEmail({ ...baseInput, updateAttempt, fetchImpl: fetchMock, sleep: noSleep })).toEqual({ ok: true })
+      expect(updateAttempt).toHaveBeenCalledWith(7, expect.objectContaining({ providerMessageId: 'p-net', retryCount: 1 }))
+
+      const failing = vi.fn().mockRejectedValue(new TypeError('connection reset'))
+      const update2 = vi.fn(async () => undefined)
+      expect(await sendEmail({ ...baseInput, updateAttempt: update2, fetchImpl: failing, sleep: noSleep })).toEqual({ ok: false })
+      expect(update2).toHaveBeenCalledWith(7, {
+        retryCount: 2, status: 'falha_transitoria', lastError: 'Falha de rede na chamada ao provedor (TypeError)',
+      })
+    })
+
+    it.each([401, 403])('HTTP %s (configuração do provedor) não repete na rodada e volta a enviar depois de corrigido', async (status) => {
+      const updateAttempt = vi.fn(async () => undefined)
+      const rejected = vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: 'invalid_api_key' }), { status }))
+      expect(await sendEmail({ ...baseInput, updateAttempt, fetchImpl: rejected, sleep: noSleep })).toEqual({ ok: false })
+      expect(rejected).toHaveBeenCalledTimes(1)
+      expect(updateAttempt).toHaveBeenCalledWith(7, {
+        retryCount: 0, status: 'falha_transitoria', lastError: `HTTP ${status} invalid_api_key (configuração do provedor)`,
+      })
+
+      // Com a chave corrigida, a mesma tentativa (agora transitória) chama o provedor de novo.
+      const fixed = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'p-fixed' }), { status: 200 }))
+      const recordAttempt = vi.fn(async () => ({ id: 7, status: 'falha_transitoria' as const, providerMessageId: null, existing: true }))
+      expect(await sendEmail({ ...baseInput, recordAttempt, fetchImpl: fixed, sleep: noSleep })).toEqual({ ok: true })
+      expect(fixed).toHaveBeenCalledTimes(1)
+    })
+
+    it('respeita o Retry-After do 429, limitado a 10 s', async () => {
+      const sleep = vi.fn<(ms: number) => Promise<void>>(async () => undefined)
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(new Response(null, { status: 429, headers: { 'retry-after': '4' } }))
+        .mockResolvedValueOnce(new Response(null, { status: 429, headers: { 'retry-after': '60' } }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'p-429' }), { status: 200 }))
+      expect(await sendEmail({ ...baseInput, fetchImpl: fetchMock, sleep })).toEqual({ ok: true })
+      expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([4000, 10000])
+    })
+
+    it('e-mail aceito pelo provedor continua ok quando gravar o id falha', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      const updateAttempt = vi.fn(async () => { throw new Error('banco indisponível') })
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'p-ok' }), { status: 200 }))
+      expect(await sendEmail({ ...baseInput, updateAttempt, fetchImpl: fetchMock })).toEqual({ ok: true })
+    })
+
+    it('erro na consulta de supressão impede o envio', async () => {
+      const fetchMock = vi.fn()
+      await expect(sendEmail({ ...baseInput, fetchImpl: fetchMock,
+        checkSuppression: async () => { throw new Error('consulta falhou') },
+      })).rejects.toThrow('consulta falhou')
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+  })
 })

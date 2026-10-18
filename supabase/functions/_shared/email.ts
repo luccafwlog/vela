@@ -45,6 +45,10 @@ export type SendEmailInput = {
   recordAttempt: (input: { kind: string; to: string; idempotencyKey: string }) => Promise<EmailAttemptRecord>
   updateAttempt: (attemptId: string | number, update: EmailAttemptUpdate) => Promise<void>
   fetchImpl?: typeof fetch
+  /** Tempo máximo de cada chamada ao provedor; o padrão vale para produção. */
+  timeoutMs?: number
+  /** Espera entre tentativas; injetável para os testes não dormirem. */
+  sleep?: (ms: number) => Promise<void>
 }
 
 const DEFAULT_API_BASE_URL = 'https://api.resend.com'
@@ -56,8 +60,31 @@ export function emailApiBaseUrl(configured?: string | null): string {
   return value ? value.replace(/\/+$/, '') : DEFAULT_API_BASE_URL
 }
 
-const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504])
+const TRANSIENT_STATUS = new Set([408, 429, 500, 502, 503, 504])
+// Credencial ou permissão do provedor: tentar de novo na mesma rodada não
+// adianta, mas a falha não é do destinatário. Fica `falha_transitoria` para
+// a tentativa voltar a ser feita depois que a configuração for corrigida;
+// como permanente, a mesma chave nunca mais chamaria o provedor.
+const CONFIGURATION_STATUS = new Set([401, 403])
 const BACKOFF_MS = [1000, 3000, 9000]
+const PROVIDER_TIMEOUT_MS = 15_000
+const MAX_RETRY_AFTER_MS = 10_000
+
+function retryAfterMs(response: Response): number | null {
+  const header = response.headers.get('retry-after')
+  if (!header) return null
+  const seconds = Number(header)
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000)
+  const at = Date.parse(header)
+  return Number.isNaN(at) ? null : Math.max(0, at - Date.now())
+}
+
+function networkErrorReason(error: unknown): string {
+  const name = error instanceof Error ? error.name : ''
+  return name === 'TimeoutError' || name === 'AbortError'
+    ? 'Tempo esgotado na chamada ao provedor'
+    : `Falha de rede na chamada ao provedor${name ? ` (${name})` : ''}`
+}
 
 // Mantém a mesma regra de src/lib/maskEmail.ts; Deno não importa o bundle Vite.
 export function maskEmail(email: string): string {
@@ -143,39 +170,67 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
   // ponytail: retry de crash que regenere conteúdo diferente vira envio novo
   // em vez de 409; gravar um nonce por tentativa se isso passar a importar.
   const providerIdempotencyKey = `${attempt.idempotencyKey ?? input.idempotencyKey}:${(await sha256Hex(body)).slice(0, 32)}`
+  const sleep = input.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   for (let index = 0; index < 3; index += 1) {
-    const response = await fetchImpl(emailsUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${input.resendApiKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': providerIdempotencyKey,
-      },
-      body,
-    })
+    const lastTry = index === 2
+    let response: Response
+    try {
+      // Um tempo esgotado depois de o provedor aceitar não duplica o e-mail:
+      // a nova chamada leva a mesma Idempotency-Key.
+      response = await fetchImpl(emailsUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${input.resendApiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': providerIdempotencyKey,
+        },
+        body,
+        signal: AbortSignal.timeout(input.timeoutMs ?? PROVIDER_TIMEOUT_MS),
+      })
+    } catch (error) {
+      if (lastTry) {
+        await input.updateAttempt(attempt.id, {
+          retryCount: index,
+          status: 'falha_transitoria',
+          lastError: networkErrorReason(error),
+        })
+        return { ok: false }
+      }
+      await sleep(BACKOFF_MS[index])
+      continue
+    }
 
     if (response.ok) {
-      const accepted = await response.json() as { id?: string }
-      await input.updateAttempt(attempt.id, {
-        providerMessageId: accepted.id ?? null,
-        retryCount: index,
-        status: 'aceito',
-        lastError: undefined,
-      })
+      const accepted = await response.json().catch(() => ({})) as { id?: string }
+      try {
+        await input.updateAttempt(attempt.id, {
+          providerMessageId: accepted.id ?? null,
+          retryCount: index,
+          status: 'aceito',
+          lastError: undefined,
+        })
+      } catch (error) {
+        // O provedor já aceitou: tratar como falha levaria o operador ou a
+        // régua a reenviar em duplicidade. A tentativa fica `aceito` sem id e
+        // a próxima chamada com a mesma chave é deduplicada pelo provedor.
+        console.error('[email] e-mail aceito pelo provedor, mas a tentativa não foi atualizada', attempt.id, error)
+      }
       return { ok: true }
     }
 
+    const configuration = CONFIGURATION_STATUS.has(response.status)
     const transient = TRANSIENT_STATUS.has(response.status)
-    if (!transient || index === 2) {
+    if (configuration || !transient || lastTry) {
       await input.updateAttempt(attempt.id, {
         retryCount: index,
-        status: transient ? 'falha_transitoria' : 'falha_permanente',
-        lastError: `HTTP ${response.status}${await providerErrorName(response)}`,
+        status: configuration || transient ? 'falha_transitoria' : 'falha_permanente',
+        lastError: `HTTP ${response.status}${await providerErrorName(response)}${configuration ? ' (configuração do provedor)' : ''}`,
       })
       return { ok: false }
     }
 
-    await new Promise((resolve) => setTimeout(resolve, BACKOFF_MS[index]))
+    const wait = response.status === 429 ? retryAfterMs(response) : null
+    await sleep(wait === null ? BACKOFF_MS[index] : Math.min(wait, MAX_RETRY_AFTER_MS))
   }
 
   return { ok: false }
