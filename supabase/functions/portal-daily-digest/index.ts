@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
+import { recipientKey } from '../_shared/email.ts'
+import { runPortalDailyDigest } from '../_shared/portalDailyDigest.ts'
 import { dailyDigestTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { canonicalPortalOrigin, portalSupportEmail } from '../_shared/portalUrls.ts'
@@ -25,35 +27,34 @@ if (typeof Deno !== 'undefined') {
     if (!serviceRoleKey) return new Response(JSON.stringify({ error: 'internal_configuration_error' }), { status: 500 })
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey)
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    const [{ data: failures }, { data: events }, { data: pending }, { data: users }, { data: criticalOpened }, { data: criticalClosed }] = await Promise.all([
-      admin.from('portal_email_attempts').select('id').in('status', ['bounce', 'complaint', 'falha_transitoria', 'falha_permanente']).gte('created_at', since),
-      admin.from('portal_provisioning_events').select('id').gte('created_at', since),
-      // Cliente desativado não entra na contagem de convites pendentes.
-      admin.from('customer_portal_accounts').select('id, customers!inner(deactivated_at)').eq('account_situation', 'convite_pendente').is('customers.deactivated_at', null),
-      admin.from('user_profiles').select('id').eq('active', true).in('role', ['admin', 'administrativo', 'documentacao']),
-      // Exceção crítica de fatura: abertura e fechamento nas últimas 24 horas (ADR 0083, item 19),
-      // pelos eventos do item: a reabertura reaproveita a linha e mantém o `created_at`.
-      admin.from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'opened').gte('created_at', since),
-      admin.from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'resolved').gte('created_at', since),
-    ])
-    const counts = {
-      failures: failures?.length ?? 0,
-      activity: events?.length ?? 0,
-      pending: pending?.length ?? 0,
-      criticalOpened: criticalOpened?.length ?? 0,
-      criticalClosed: criticalClosed?.length ?? 0,
-    }
-    if (Object.values(counts).every((count) => count === 0)) return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
-    const date = new Date().toISOString().slice(0, 10)
     const portalUrl = canonicalPortalOrigin()
     const supportEmail = portalSupportEmail()
-    const template = dailyDigestTemplate({ date, ...counts, portalUrl, supportEmail })
-    for (const user of users ?? []) {
-      const { data: authUser } = await admin.auth.admin.getUserById(user.id)
-      const email = authUser.user?.email
-      if (email) await sendPortalEmail({ admin, kind: 'resumo_diario', to: email, subject: template.subject, html: template.html, text: template.text, idempotencyKey: `resumo:${date}:${email.toLowerCase()}` })
-    }
-    return new Response(JSON.stringify({ sent: users?.length ?? 0 }), { status: 200 })
+    const result = await runPortalDailyDigest({
+      queries: {
+        failures: admin.from('portal_email_attempts').select('id').in('status', ['bounce', 'complaint', 'falha_transitoria', 'falha_permanente']).gte('created_at', since),
+        activity: admin.from('portal_provisioning_events').select('id').gte('created_at', since),
+        // Cliente desativado não entra na contagem de convites pendentes.
+        pending: admin.from('customer_portal_accounts').select('id, customers!inner(deactivated_at)').eq('account_situation', 'convite_pendente').is('customers.deactivated_at', null),
+        users: admin.from('user_profiles').select('id').eq('active', true).in('role', ['admin', 'administrativo', 'documentacao']),
+        // Exceção crítica de fatura: abertura e fechamento nas últimas 24 horas (ADR 0083, item 19),
+        // pelos eventos do item: a reabertura reaproveita a linha e mantém o `created_at`.
+        criticalOpened: admin.from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'opened').gte('created_at', since),
+        criticalClosed: admin.from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'resolved').gte('created_at', since),
+      },
+      userEmail: async (userId) => {
+        const { data: authUser, error } = await admin.auth.admin.getUserById(userId)
+        if (error) throw error
+        return authUser.user?.email ?? null
+      },
+      recipientKey,
+      today: () => new Date().toISOString().slice(0, 10),
+      send: async ({ to, counts, date, idempotencyKey }) => {
+        const template = dailyDigestTemplate({ date, ...counts, portalUrl, supportEmail })
+        return sendPortalEmail({ admin, kind: 'resumo_diario', to, subject: template.subject, html: template.html, text: template.text, idempotencyKey })
+      },
+    })
+    // `failed > 0` deixa o heartbeat vermelho; status 500 também chega ao Sentry.
+    return new Response(JSON.stringify(result.body), { status: result.status })
   })
 
   Deno.serve((req) => {

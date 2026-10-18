@@ -475,5 +475,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.ce-unlock-notify-email]
 verify_jwt = false
+import_map = "./functions/deno.json"
 [functions.itau-pix]
 verify_jwt = false

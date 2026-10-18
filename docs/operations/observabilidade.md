@@ -20,12 +20,16 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   `https://portalfwlog.com.br`;
 - heartbeats repository-side para Edge Functions agendadas foram implementados via
   `supabase/functions/_shared/betterStackHeartbeat.ts` nos runners `alerts-detector`,
-  `portal-daily-digest`, `demurrage-dunning` e `customer-communication-auto-runner`.
+  `portal-daily-digest`, `demurrage-dunning`, `customer-communication-auto-runner` e
+  `ce-unlock-notify-email`.
   Eles emitem ping HTTP apenas em conclusões bem-sucedidas (status < 400) quando a URL
   do heartbeat está configurada nos secrets do Supabase. Sem o secret, operam em no-op
   sem falhar o job. Uma resposta 2xx com `failed`, `partial` ou `releaseFailures`
   maior que zero também envia o ping de falha; o `customer-communication-auto-runner`
-  conta em `failed` todo destinatário recusado ou com falha na rodada. Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
+  conta em `failed` todo destinatário recusado ou com falha na rodada; o
+  `portal-daily-digest` conta em `failed` cada destinatário que não recebeu e responde
+  500 quando uma consulta falha; o `ce-unlock-notify-email` conta em `failed` cada aviso
+  que esgotou as tentativas. Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
 
 Esta seção combina inspeção estática com verificações de runtime registradas no
 plano de migração. O DSN de produção e os alertas foram configurados em
@@ -64,10 +68,11 @@ ao bundle nem commitadas no Git:
 | `alerts-detector` | `BETTERSTACK_HEARTBEAT_ALERTS_DETECTOR_URL` | 15 min |
 | `customer-communication-auto-runner` | `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL` | 15 min |
 | `portal-daily-digest` | `BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL` | diária |
+| `ce-unlock-notify-email` | `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` | 5 min |
 
 O ping de sucesso ocorre estritamente após a conclusão bem-sucedida do job. Se a
 URL não estiver configurada no Supabase, a função executa normalmente e ignora o
-ping. Só esses quatro runners enviam heartbeat: `itau-pix` (job
+ping. Só esses cinco runners enviam heartbeat: `itau-pix` (job
 `itau-pix-queue`) e `import-effects-runner` não enviam; para a fila de efeitos,
 a parada é avisada pelo Alerta `import_effects_queue_stalled`. O monitor no
 painel do Better Stack deve alertar pela ausência de ping além
@@ -75,7 +80,9 @@ da janela acordada (ex.: 70 min para job horário).
 
 **Estado atual:** a instrumentação repository-side dos 4 runners principais está
 concluída e testada. Os 4 heartbeats foram cadastrados no Better Stack e suas
-URLs estão configuradas nos secrets do Supabase; a execução recorrente continua
+URLs estão configuradas nos secrets do Supabase. O de `ce-unlock-notify-email`
+(plano dos e-mails, 2.3) existe só no código: falta cadastrar o heartbeat e o
+secret, sem os quais a função opera em no-op; a execução recorrente continua
 sendo acompanhada e não bloqueia o encerramento do plano de migração.
 
 ## M3 — projetos Sentry separados
@@ -104,12 +111,12 @@ superfície. O Portal também aplica `area=portal` depois de hidratar a sessão.
 (versão fixada em `supabase/functions/deno.json`) somente quando uma função
 falha com exceção não
 tratada ou resposta 5xx. O wrapper é aplicado a `portal-invite-send`,
-`send-customer-communication`, `portal-email-webhook`, `demurrage-dunning` e
-seis runners. Captura apenas classe genérica de erro e tags operacionais
+`send-customer-communication`, `portal-email-webhook`, `demurrage-dunning`,
+`ce-unlock-notify-email` e seis runners. Captura apenas classe genérica de erro e tags operacionais
 (função, ambiente, status e duração); não envia mensagem original, usuário,
 headers, request body nem response body. O flush tem limite de um segundo e a
 falha do Sentry não muda o resultado da função.
-As dez entradas em `supabase/config.toml` apontam para o manifesto Deno
+As onze entradas em `supabase/config.toml` apontam para o manifesto Deno
 compartilhado em `supabase/functions/deno.json`; a configuração não altera
 `verify_jwt` nem os contratos HTTP.
 

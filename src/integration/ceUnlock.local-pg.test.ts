@@ -662,6 +662,28 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(error("SELECT public.ce_unlock_email_finish(1,'sent',NULL,NULL);", client)).toContain('permission denied')
   })
 
+  it('fila de e-mail: aviso sem destinatário abre alerta ao Administrativo e o simulado seguinte fecha (migration 307)', () => {
+    const item = "SELECT coalesce((SELECT i.status||':'||i.department FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE i.item_type='desbloqueio_ce_aviso_nao_enviado' AND a.entity_id='998557' ORDER BY i.id DESC LIMIT 1),'none');"
+    // A Edge chama a RPC como service_role; o produtor de alertas exige esse papel.
+    const result = reviewScenario(`
+      SET LOCAL request.jwt.claim.role='service_role';
+      SELECT ce_unlock_private.notify('${reviewRequest}','changes_requested','Termo ilegível');
+      SELECT public.ce_unlock_email_finish((SELECT max(id) FROM public.ce_unlock_email_outbox),'skipped',ARRAY[]::text[],'Sem contato habilitado na caixa documentacao_operacao');
+      ${item}
+      SELECT ce_unlock_private.notify('${reviewRequest}','changes_requested','Termo ilegível de novo');
+      SELECT public.ce_unlock_email_finish((SELECT max(id) FROM public.ce_unlock_email_outbox),'simulated',ARRAY['k:a'],'Canal de envio real desligado; envio simulado');
+      SELECT status FROM public.ce_unlock_email_outbox ORDER BY id DESC LIMIT 1;
+      ${item}
+      SELECT ce_unlock_private.notify('${reviewRequest}','changes_requested','Terceiro');
+      SELECT public.ce_unlock_email_finish((SELECT max(id) FROM public.ce_unlock_email_outbox),'partial',ARRAY['k:a'],'1 contato(s) suprimido(s)');
+      SELECT status FROM public.ce_unlock_email_outbox ORDER BY id DESC LIMIT 1;`)
+    const lines = result.split('\n').filter(Boolean)
+    expect(lines[0]).toBe('active:administrativo')
+    expect(lines[1]).toBe('simulated')
+    expect(lines[2]).toMatch(/^resolved:/)
+    expect(lines[3]).toBe('partial')
+  })
+
   it('fatura consolidada parcialmente paga libera só o B/L efetivamente liquidado', () => {
     const consolidated = "(SELECT max(id) FROM public.invoices WHERE customer_id=998557 AND invoice_type='consolidated')"
     const paidFlags = "SELECT string_agg((j->>'bl_id')||':'||(j->>'paid')||':'||(j->>'can_submit'),',' ORDER BY j->>'bl_id') FROM jsonb_array_elements(public.portal_list_ce_unlock_bls('{\"search\":\"CE557-CONS\"}',1)->'items') j;"

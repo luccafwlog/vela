@@ -24,7 +24,7 @@ Quando o ambiente tem a Site Key (`VITE_TURNSTILE_SITE_KEY`), a tela mostra o de
 
 ### `/portal/ativar`
 
-`src/pages/PortalAtivacao.tsx` lê o `token` do link do convite, tira-o da barra de endereços e pede à Edge Function `portal-invite-activate` (`action: 'inspect'`) o nome da empresa e o CNPJ mascarado, que preserva os dois primeiros caracteres, a filial e os dígitos verificadores (ex.: `12.***.***/0001-90`). Abrir o link não consome o convite. **Ativar acesso** envia a senha (`action: 'activate'`); o convite só é consumido quando a ativação conclui. Concluída, a tela mostra **Acesso ativado** e o botão **Ir para o login**: não há entrada automática na sessão do Portal. Convite inválido, usado ou vencido mostra "Link inválido ou expirado. Solicite um novo convite à empresa." e explica que o convite vale 48 horas, é de uso único e que um reenvio invalida os anteriores.
+`src/pages/PortalAtivacao.tsx` lê o `token` do link do convite, tira-o da barra de endereços e pede à Edge Function `portal-invite-activate` (`action: 'inspect'`) o nome da empresa e o CNPJ mascarado, que preserva os dois primeiros caracteres, a filial e os dígitos verificadores (ex.: `12.***.***/0001-90`). Abrir o link não consome o convite. **Ativar acesso** envia a senha (`action: 'activate'`); o convite só é consumido quando a ativação conclui. Concluída, a tela mostra **Acesso ativado** e o botão **Ir para o login**: não há entrada automática na sessão do Portal. Convite inválido, usado ou vencido mostra "Link inválido ou expirado. Solicite um novo convite à empresa." e explica que o convite vale 48 horas, é de uso único e que um reenvio invalida os anteriores. Convite pendente de Cliente desativado também recebe essa resposta genérica, na inspeção e na ativação: `portal-invite-activate` recusa a ativação em vez de cancelar os convites na desativação, porque a checagem no momento do uso cobre também o Cliente desativado com o link já aberto e não exige mexer em `portal_invites` (plano dos e-mails, item 4.7). O convite continua `pendente` no banco e vence no prazo normal.
 
 ### `/portal/esqueci-senha`
 
@@ -92,6 +92,17 @@ contra o Email de Recuperação atual. A troca via Auth Admin e as revogações
 encerram com `portal_finish_password_reset`. Durante o reset, a troca do email
 é bloqueada; falha exige triagem conforme
 [Segurança](../operations/seguranca.md#invariante-de-provisionamento-do-portal).
+
+Concluída a recuperação, `portal-password-reset` envia ao Email de Recuperação
+atual o aviso "Sua senha do Portal do Cliente foi alterada", que orienta a falar
+com o suporte se a troca não foi da pessoa (`passwordChangedTemplate`; tentativa
+`senha_alterada` em `portal_email_attempts`, migration `308`; chave
+`senha_alterada:<convite de recuperação>`). A senha já mudou quando o aviso
+sai: uma falha nele fica no log e na tentativa e não falha a recuperação. É o
+único aviso de segurança por e-mail do Portal: suspensão e reativação da conta
+**não** avisam o Cliente (D12 do
+[plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md)). O Portal não
+tem outra tela de troca de senha.
 
 ### `/portal`
 
@@ -310,13 +321,20 @@ consulta no sistema sem estar na audiência.
 - **Abuso de login:** tentativa bloqueada pelo rate limit abre
   `portal_abuso_login` para o Cliente do CNPJ, quando existe conta.
 
-O resumo diário (`portal-daily-digest`, 08:00 de Brasília) vai por email aos
+O resumo diário (`portal-daily-digest`, 08:00 de Brasília) é um e-mail
+**interno**, de acompanhamento do provisionamento: não vai a Clientes. Vai aos
 usuários ativos de Administrativo e Documentação quando houve, nas últimas 24
 horas, falha ou supressão de email, atividade de provisionamento, abertura ou
 fechamento de exceção crítica de fatura (`portal_excecao_critica_fatura`), ou
 quando há Ativação pendente; sem nada disso, não sai. Não há email imediato de
 alerta crítico: a exceção crítica chega pelo resumo, pelo sino e por `/alertas`
 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19).
+
+Se alguma consulta do resumo falha, a rodada responde 500 e não envia um
+resumo com contagens zeradas. A resposta traz `{ sent, failed, suppressed }`
+reais por destinatário (`_shared/portalDailyDigest.ts`); `failed > 0` deixa o
+heartbeat do Better Stack vermelho. A chave idempotente de cada envio é
+`resumo:<data>:<hash do destinatário>`, sem o e-mail em claro.
 
 #### Gate de faturamento e Dispute
 

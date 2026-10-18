@@ -36,6 +36,7 @@ const CATALOG_MIGRATIONS = [
   '243_nob_regra_unica_e_produtora_sem_aborto.sql',
   '297_comunicado_recusado_nao_cicla.sql',
   '303_regua_cobranca_recusa_janela_e_portal.sql',
+  '307_desbloqueio_ce_aviso_simulado_e_alerta.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto
