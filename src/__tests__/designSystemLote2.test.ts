@@ -70,6 +70,12 @@ describe('contratos CSS do design system', () => {
     expect(displayAt('.app-schedule__table', 1440)).toBe('block')
   })
 
+  it('o filete entre as linhas da tabela passa também pelo cabeçalho de linha (nome do navio)', () => {
+    // Regra cujo seletor inclui a célula comum também precisa incluir o th de linha.
+    const rule = css.match(/([^{}]*\.app-table tbody tr \+ tr td[^{}]*)\{[^}]*border-top/)
+    expect(rule?.[1]).toContain('.app-table tbody tr + tr th')
+  })
+
   it('documenta que os tons Tailwind legados têm remapeamento transversal nos temas claros', () => {
     expect(css).toContain('/* Legacy Tailwind status colors are remapped globally for Vela and Portal. */')
     expect(css).toContain(":root[data-visual-theme='light'] .text-amber-400")
