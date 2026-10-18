@@ -177,6 +177,33 @@ reduzem o valor exigível: a liquidação cobre o valor original menos a correç
 com saldo zero e evidência real no ledger. Fatura consolidada parcialmente paga
 libera só o B/L cujo recebível foi liquidado, nunca pelo status da fatura.
 
+No Portal, B/L com Taxas Locais não pagas e sem fatura visível ao Cliente
+(emitida, não cancelada nem obsoleta, individual ou consolidada) aparece com
+"Taxas locais aguardando fatura", sem valor nem situação de pagamento
+(`local_charges_awaiting_invoice` em `ce_unlock_private.portal_view`, migration
+`297`, [ADR 0088](../adr/0088-portal-so-mostra-fatura-emitida.md)). A aptidão
+interna não muda: o requisito continua pelo razão.
+
+### B/L que muda de solicitação
+
+Desde a migration `298` ([ADR 0089](../adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md)),
+B/L ativo em solicitação ainda não validada (rascunho, enviada, em análise ou
+correção pedida) do mesmo Cliente e ainda não enviado à ZPT pode ser pedido de
+novo (`item.can_submit`). Ao criar o rascunho novo (`command('draft')`), o B/L
+sai da antiga (`active = false`) com o evento `bl_moved` ("B/L passou para a
+solicitação CE-…") e deixa de aparecer nos B/Ls dela; a antiga que fica sem B/L
+é cancelada com o evento `cancel` ("Todos os B/Ls passaram para a solicitação
+CE-…"), e a que mantém outros B/Ls continua com eles, com a versão e a
+conclusão recalculadas. Documentos não passam para a nova: termo e procuração
+são enviados de novo (o VIP usa os anuais). O Portal mostra antes a
+confirmação "Mudar N B/Ls e continuar" com o destino de cada solicitação
+antiga. O comando trava primeiro as solicitações de origem, na ordem dos demais
+comandos (pedido antes do Cliente e do B/L); se uma delas mudou entre a leitura
+e a criação, recusa com "Solicitação alterada; atualize a página." (`40001`).
+B/L de "Documentação validada", de outro Cliente ou já exportado continua
+bloqueado, e a trava `ce_unlock_one_active_bl` continua: um B/L, uma
+solicitação ativa. **Teste:** `ceUnlockMatriz.local-pg.test.ts`.
+
 ### Conclusão
 
 A solicitação passa a *Documentação validada* quando todos os B/Ls
