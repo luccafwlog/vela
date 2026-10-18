@@ -617,7 +617,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `ce_unlock_cleanup_candidates` | Edge `ce-unlock-cleanup` | `143` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_cleanup_claim` | Edge `ce-unlock-cleanup` | `144` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_cleanup_record` | Edge `ce-unlock-cleanup`; Edge `portal-ce-unlock-document` | `143` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
-| `ce_unlock_email_finish` | Edge `ce-unlock-notify-email` | `160` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
+| `ce_unlock_email_finish` | Edge `ce-unlock-notify-email` | `307` (antes `160`) | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_email_pending` | Edge `ce-unlock-notify-email` | `160` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_expire_drafts` | Edge `ce-unlock-cleanup` | `141` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_refresh_open` | Edge `ce-unlock-notify-email` | `161` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
@@ -870,8 +870,8 @@ código.
 | `itau-pix` | Job `itau-pix-queue` e disparo `{"action":"process_charges"}` pela transação (`ops.kick_itau_pix_runner`, `219`) | Bearer de `ITAU_PIX_ADMIN_SECRET` | `acquire_itau_pix_runner`, `itau_pix_maintain`, `itau_pix_claim`, `itau_pix_record`, `itau_pix_checkpoint`, `itau_pix_settle`, `release_itau_pix_runner`; mTLS com o Itaú | Cria, altera e cancela COB, consulta recebimentos e dá baixa. A versão publicada depois da `219` não está registrada; ver o [manual dos serviços externos](operations/servicos-externos.md#itaú--api-pix-recebimentos) | **Código**; **Teste:** `itauPix.test.ts`; **Teste local-pg:** `itauPixCharges.local-pg.test.ts` |
 | `portal-login` | `usePortalAuth.tsx` | Turnstile e controle de tentativas | `customer_portal_accounts`, `portal_login_*` | Login do Portal | **Código** |
 | `portal-invite-send` | `portalProvisioning.ts` | JWT interno validado (`getUser`) e papel por `portal_current_role` | `customer_portal_accounts`, `portal_invites`, `alerts`, `_portal_log_event` | Envia ou reenvia convite | **Código** |
-| `portal-invite-activate` | `PortalAtivacao.tsx` | Token do convite | `portal_invites`, `customer_portal_accounts`, `portal_activation_*`, `reprocess_customer_billing_after_portal_activation`, `reconcile_client_portal_alerts` | Ativa a conta e reprocessa faturas retidas | **Código** |
-| `portal-password-recovery`, `portal-password-reset` | Páginas de recuperação | Token de uso único | `portal_invites`, `portal_recovery_*`, `portal_begin_password_reset`, `portal_finish_password_reset`, `portal_revoke_sessions` | Recuperação e troca de senha | **Código** |
+| `portal-invite-activate` | `PortalAtivacao.tsx` | Token do convite | `portal_invites`, `customer_portal_accounts`, `portal_activation_*`, `reprocess_customer_billing_after_portal_activation`, `reconcile_client_portal_alerts` | Ativa a conta e reprocessa faturas retidas; Cliente desativado recebe a resposta genérica de link inválido | **Código** |
+| `portal-password-recovery`, `portal-password-reset` | Páginas de recuperação | Token de uso único | `portal_invites`, `portal_recovery_*`, `portal_begin_password_reset`, `portal_finish_password_reset`, `portal_revoke_sessions` | Recuperação e troca de senha; a troca avisa o Email de Recuperação (`senha_alterada`) | **Código**; **Teste:** `portalPasswordChangedNotice.test.ts` |
 | `portal-recovery-email-change` | `PortalProfile.tsx`, `PortalConfirmarEmail.tsx`, `portalProvisioning.ts` | Sessão do Portal, token ou JWT interno (troca assistida) | `portal_assisted_email_change`, `portal_confirm_recovery_email` (encerra as sessões), `portal_login_*` | Troca do Email de Recuperação | **Código** |
 | `portal-account-suspend` | `usePortalProvisioning.ts` | Papel do JWT interno por `portal_current_role` | `customer_portal_accounts`, `portal_invites`, `_portal_log_event`, `portal_revoke_sessions` | Suspende ou reativa a conta | **Código** |
 | `portal-daily-digest` | Job do mesmo nome | Bearer de `PORTAL_DIGEST_SECRET` | Leituras de contas, eventos, tentativas de e-mail e itens `portal_excecao_critica_fatura` | Resumo diário | **Código**; **Teste de contrato:** `edgeFunctionsRun2.test.ts` |
@@ -880,7 +880,7 @@ código.
 | `ce-unlock-document-download` | `ceUnlockService.ts` | `auth.getUser()` | `ce_unlock_document_access`, `ce_unlock_documents`; Storage | Download com URL assinada | **Código** |
 | `ce-unlock-export` | `ceUnlockService.ts` | `auth.getUser()` | `ce_unlock_read`, `ce_unlock_command` (`export`) | Exportação para a ZPT | **Código** |
 | `ce-unlock-cleanup` | Job agendado manualmente | Bearer de `CE_UNLOCK_CLEANUP_SECRET` | `ce_unlock_cleanup_candidates`, `ce_unlock_cleanup_claim`, `ce_unlock_cleanup_record`, `ce_unlock_expire_drafts` | Expurgo de documentos e expiração de rascunhos | **Código** |
-| `ce-unlock-notify-email` | Job agendado manualmente (5 min) | Bearer de `CE_UNLOCK_CLEANUP_SECRET` | `ce_unlock_refresh_open`, `ce_unlock_email_pending`, `ce_unlock_email_finish`, `customer_communication_recipient_allowed` | Avisos do Desbloqueio ao Cliente | **Código** |
+| `ce-unlock-notify-email` | Job agendado manualmente (5 min) | Bearer de `CE_UNLOCK_CLEANUP_SECRET` | `ce_unlock_refresh_open`, `ce_unlock_email_pending`, `ce_unlock_email_finish`, `customer_communication_recipient_allowed` | Avisos do Desbloqueio ao Cliente; com a chave desligada, registra `simulated`; abre/fecha `desbloqueio_ce_aviso_nao_enviado` | **Código**; **Teste:** `ceUnlockNotifyEmail.test.ts`, `ceUnlock.local-pg.test.ts` |
 
 ## Testes identificados por superfície
 

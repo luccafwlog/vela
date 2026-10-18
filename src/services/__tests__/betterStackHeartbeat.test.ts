@@ -103,6 +103,22 @@ describe('heartbeats dos jobs no Better Stack', () => {
     }
   })
 
+  it('avisos do Desbloqueio de CE (job agendado manualmente) reportam ao próprio heartbeat', async () => {
+    const source = readFileSync(path.resolve('supabase/functions/ce-unlock-notify-email/index.ts'), 'utf8')
+    expect(source).toContain('runWithBetterStackHeartbeat("ceUnlockNotifyEmail"')
+    expect(source).toContain('instrumentEdgeHandler("ce-unlock-notify-email"')
+    const requests: string[] = []
+    const response = Response.json({ sent: 0, failed: 1 })
+    await runWithBetterStackHeartbeat('ceUnlockNotifyEmail', () => response, {
+      getEnv: (name) => (name === 'BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL' ? 'https://uptime.betterstack.com/api/v1/heartbeat/ce' : undefined),
+      fetcher: (input: RequestInfo | URL) => {
+        requests.push(String(input))
+        return Promise.resolve(new Response(null, { status: 200 }))
+      },
+    })
+    expect(requests).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/ce/fail'])
+  })
+
   it('pula telemetria para chamadas não autorizadas', async () => {
     const response = new Response(null, { status: 401 })
     const fetcher = vi.fn()
