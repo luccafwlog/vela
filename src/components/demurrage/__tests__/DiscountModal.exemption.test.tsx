@@ -4,7 +4,7 @@ import { expect, it, vi } from 'vitest'
 import { DiscountModal } from '../DiscountModal'
 import type { DiscountForm } from '../../../services/demurrage/demurrageForms'
 
-// Plano dos e-mails, 1E.3 (D7; migration 304): o desconto integral quita a
+// Plano dos e-mails, 1E.3 (D7; migration 306): o desconto integral quita a
 // Invoice ao salvar, e a tela avisa a consequência antes.
 const form = (discount_value: string, discount_mode: DiscountForm['discount_mode'] = 'percent'): DiscountForm => ({
   discount_type: 'cortesia',

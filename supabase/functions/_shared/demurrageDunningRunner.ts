@@ -20,7 +20,7 @@ export type DunningCandidate = {
   claimed_at: string
   roe_reference_date: string
   attempt_discriminator: number
-  /** Retomadas depois de recusa definitiva (migration 303); muda a chave do e-mail. */
+  /** Retomadas depois de recusa definitiva (migration 305); muda a chave do e-mail. */
   resume_generation: number
 }
 
@@ -46,7 +46,7 @@ export type DunningInvoiceContext = {
   } | null
 }
 
-/** Desfecho de cada fatura na rodada (settle_demurrage_dunning_claim, migration 303). */
+/** Desfecho de cada fatura na rodada (settle_demurrage_dunning_claim, migration 305). */
 export type DunningClaimOutcome = 'sent' | 'partial' | 'failed' | 'refused' | 'paused'
 
 export type DunningCommunicationInput = {
@@ -218,7 +218,7 @@ function buildLine(candidate: DunningCandidate, context: DunningInvoiceContext):
       totalUsd: netUsd,
       totalBrl,
       roe,
-      // 4.3: data da cotação vinda de demurrage_invoice_history (migration 303).
+      // 4.3: data da cotação vinda de demurrage_invoice_history (migration 305).
       roeReferenceDate: candidate.roe_reference_date || (context.updated_at || context.first_billed_at || '').slice(0, 10),
     },
   }

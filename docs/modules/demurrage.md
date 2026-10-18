@@ -305,7 +305,7 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
 | `/demurrage` · marcar pago manualmente | Financeiro/Administrativo; invoice `issued`; data entre a emissão e hoje (conferida junto do campo) | `PaymentModal`; `payMutation`; falha fica no modal | `markInvoicePaid` → `register_demurrage_payment`, com request UUID | RPC valida e bloqueia invoice, congela valores e registra histórico | `afterFaturaDemurrageAlterada` | Estado/valor/data incompatíveis rejeitam; não é UPDATE direto do navegador | **Código/Teste:** [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts), `demurrageMoney.local-pg.test.ts` |
 | `/demurrage` · **Cancelar baixa…** | Administrativo ativo; Invoice `paid`; justificativa digitada | Botão `Cancelar baixa…` no detalhe → `DemurragePaymentReversalModal` (avisa quando as datas do container mudaram depois do pagamento e diz o que o cancelamento fará); `unpayMutation` | `reverseDemurragePayment(id, justificativa)` → RPC `reverse_demurrage_payment` | RPC volta a Invoice a `issued`, limpa `paid_at`, `pix_txid` e `conciliated_by_extract` e grava `audit_logs` `payment_reversed` com a justificativa; Invoice suspensa por datas alteradas é cancelada e reemitida, segue suspensa ou perde a suspensão (gatilho `trg_reconcile_demurrage_after_payment_reversal`, migration `191`) | `afterFaturaDemurrageAlterada`; relê o detalhe antes de voltar a ele | Sem permissão (`42501`), Invoice não paga ou justificativa vazia; restituição de Demurrage não cancelada faz o banco recusar (`guard_demurrage_payment_after_refund`, migration `136`); a recusa fica no modal e a baixa continua registrada; cancelar a baixa não devolve dinheiro | **Código/Teste:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`DemurragePaymentReversalModal.tsx`](../../src/components/demurrage/DemurragePaymentReversalModal.tsx), `DemurragePaymentReversalModal.test.tsx`, `Demurrage.behavior.test.tsx`, `auditoriaFaturasDemurrageComunicado.local-pg.test.ts` (cancelamento da baixa de Invoice suspensa) |
 | `/demurrage` · cancelar invoice | Administrativo; documento não pago; confirmação com motivo | `Cancelar Invoice…` no detalhe; `handleCancelInvoice`; `cancelMutation` | `cancelDemurrageInvoice(id, motivo)` → `cancel_demurrage_invoice`, com request UUID e o motivo digitado | RPC cancela e audita; fatura paga é recusada | `afterFaturaDemurrageAlterada` | Estado/permissão incompatíveis rejeitam | **Código:** [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts), `012_demurrage_mutation_guards.sql` |
-| `/demurrage` · aplicar ou remover desconto (USD) | Qualquer Departamento (migration `247`); invoice elegível; percentual 0–100 ou valor fixo permitido; justificativa em toda alteração (a RPC exige) | `DiscountModal` com prévia em USD; `discountMutation`; erros junto do campo | `applyDemurrageDiscount` → `apply_demurrage_discount`, com request UUID, justificativa e aprovador | RPC calcula desconto em USD antes da conversão, atualiza total/QR e histórico; desconto que zera o USD líquido quita a Invoice (isenta, migration `304`) | `afterFaturaDemurrageAlterada` | Desconto acima da base/estado incompatível é recusado | **Código/Teste:** [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts), `demurrageMoney.local-pg.test.ts` |
+| `/demurrage` · aplicar ou remover desconto (USD) | Qualquer Departamento (migration `247`); invoice elegível; percentual 0–100 ou valor fixo permitido; justificativa em toda alteração (a RPC exige) | `DiscountModal` com prévia em USD; `discountMutation`; erros junto do campo | `applyDemurrageDiscount` → `apply_demurrage_discount`, com request UUID, justificativa e aprovador | RPC calcula desconto em USD antes da conversão, atualiza total/QR e histórico; desconto que zera o USD líquido quita a Invoice (isenta, migration `306`) | `afterFaturaDemurrageAlterada` | Desconto acima da base/estado incompatível é recusado | **Código/Teste:** [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts), `demurrageMoney.local-pg.test.ts` |
 | `/demurrage` · atualizar assunto, motivo e notas da disputa | Invoice visível | `DisputeModal` ("Dados da disputa"); `disputeMutation` | `updateDemurrageInvoice` | UPDATE direto só de assunto, motivo e notas; o estado da Dispute (`dispute_open`/`dispute_status`) muda apenas pela conversa de Disputes (RPCs `add_demurrage_dispute_message`/`reopen_demurrage_dispute`), porque a migration `106` revogou o UPDATE dessas colunas | `afterFaturaDemurrageAlterada` | Não há schema local específico; erro do banco mostra toast | **Código:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`DisputeModal.tsx`](../../src/components/demurrage/DisputeModal.tsx), [`demurrageInvoices.ts`](../../src/services/demurrage/demurrageInvoices.ts) |
 | `/demurrage` · imprimir fatura/recibo | Invoice detail carregado; recibo só depois de consultar as restituições | Visualizador e botão `Imprimir` | Render React → `printDocumentElement` (janela só com o documento, espera a marca) | Sem escrita | Abre diálogo nativo em A4 com "Página N de M"; fatura em aberto traz Pix, paga ou cancelada não; recibo traz recebido, devolvido, a devolver e líquido, sem Pix; complementar diz qual Invoice completa | Popup bloqueado cai em `window.print()` da página; não há geração de PDF no servidor | **Código:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`InvoiceDocument.tsx`](../../src/components/demurrage/InvoiceDocument.tsx), [`InvoiceDocumentKit.tsx`](../../src/components/shared/InvoiceDocumentKit.tsx) |
 | `/demurrage` · **Informar PTAX** | Financeiro, Administrativo ou Equipamentos (o botão só aparece para eles, migration `110`); PTAX positiva | Botão `Informar PTAX` → `PtaxModal`; `recalcManualMutation` | `recalculateInvoicesManual` → RPC `recalculate_demurrage_invoices_manual` → `recalculate_demurrage_invoices(ptax, hoje, 'manual')`, que grava no servidor a referência cambial com origem `manual` | `exchange_rate_reference`; Invoices emitidas e não pagas cujo ROE muda (`current_roe`, `current_total_brl`, `roe_source`, `pix_payload`) e foto em `demurrage_invoice_history` | `afterFaturaDemurrageAlterada`; toast com o número de Invoices recalculadas | `42501` para outros perfis; PTAX fora da faixa usual pede um segundo clique; a falha fica no modal | **Código/Teste:** [`Demurrage.tsx`](../../src/pages/Demurrage.tsx), [`PtaxModal.tsx`](../../src/components/demurrage/PtaxModal.tsx), [`demurrageKpis.ts`](../../src/services/demurrage/demurrageKpis.ts), `Demurrage.behavior.test.tsx` (perfil, vírgula, faixa e falha) |
@@ -695,7 +695,7 @@ O desconto é de qualquer Departamento, com justificativa em toda alteração
 (migration `247`). Invoice sem pagamento com desconto não é reemitida quando as datas
 mudam ([Datas alteradas depois da emissão](#datas-alteradas-depois-da-emissão)).
 
-**Desconto integral (isenção):** desde a migration `304` (decisão D7 do plano de
+**Desconto integral (isenção):** desde a migration `306` (decisão D7 do plano de
 correção dos e-mails), o desconto que zera o USD líquido de uma Invoice emitida
 a quita na hora: `apply_demurrage_discount` grava `paid` com `paid_at` na data
 do desconto (Brasília), BRL zero e sem PIX, a foto `source='payment'` com valor
@@ -760,7 +760,7 @@ data, o último envio ou a pausa.
 - **Quando cobra:** o job `demurrage-dunning` roda de hora em hora (no minuto 7
   desde a migration `165`, fora da rajada dos minutos cheios). Toda cobrança,
   inclusive a primeira, só sai em dia útil a partir das 9h de Brasília
-  (migration `303`; decisão D9 do plano de correção dos e-mails):
+  (migration `305`; decisão D9 do plano de correção dos e-mails):
   o dia útil é o do calendário `business_holidays` usado pelo Itaú PIX
   (`itau_pix_business_day`; sem o ano cadastrado, feriado conta como dia
   útil). A cobrança que vence fora da janela sai na primeira rodada da janela
@@ -773,7 +773,7 @@ data, o último envio ou a pausa.
   intervalo normal, sem recuperar as "atrasadas" ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
   item 15). Cada tentativa é numerada, e o número distingue uma cobrança
   da anterior sobre a mesma Invoice. A seleção vigente é
-  `claim_demurrage_dunning_candidates` (migration `303`; antes, migrations
+  `claim_demurrage_dunning_candidates` (migration `305`; antes, migrations
   `256`, `179`, `010`, `011` e `041` e migrations arquivadas `378` e `379`). A coluna
   Régua calcula a próxima data pela mesma âncora (`getDemurrageDunningDisplay`)
   e mostra o dia em que a cobrança vence, sem descontar fim de semana ou
@@ -786,7 +786,7 @@ data, o último envio ou a pausa.
   `customer_communication_recipient_allowed`: contato ativo, e-mail válido, sem
   supressão (bounce permanente ou supressão de Comunicados) e numa caixa ativa
   ligada ao tipo (hoje Demurrage e Financeiro). A regra é uma só
-  (`_demurrage_dunning_invoice_billable`, migration `303`) na seleção e na
+  (`_demurrage_dunning_invoice_billable`, migration `305`) na seleção e na
   conferência antes de cada destinatário. Invoice paga, isenta ou cancelada sai
   da Régua ("Régua encerrada").
 - **Pausas e suspensão:** Disputa aberta, bounce sem alternativa, ausência de
@@ -817,7 +817,7 @@ data, o último envio ou a pausa.
   seguinte; na terceira falha seguida da mesma tentativa abre o mesmo alerta,
   que fecha sozinho quando a cobrança sai. Recusa definitiva de só parte dos
   contatos deixa o Comunicado `parcial` e também abre o alerta. O desfecho de
-  cada Invoice é gravado por `settle_demurrage_dunning_claim` (migration `303`),
+  cada Invoice é gravado por `settle_demurrage_dunning_claim` (migration `305`),
   e cada pausa, falha e recusa fica no log da Edge com Invoice, Cliente,
   tentativa, motivo e e-mail mascarado.
 - **Lote e recuperação:** cada execução reivindica um lote limitado e libera a
@@ -829,7 +829,7 @@ data, o último envio ou a pausa.
   reescrevê-la. Um grupo da mesma tentativa cujo Comunicado terminou em falha
   (ou sem tentativa aceita) não segura as Invoices: a composição seguinte (por
   exemplo, com uma Invoice nova) cria o grupo novo
-  (`create_customer_dunning_group_atomic`, migration `303`). A UI lê o contador pela RPC
+  (`create_customer_dunning_group_atomic`, migration `305`). A UI lê o contador pela RPC
   `list_demurrage_dunning_claim_statuses`. Com a chave de envio desligada, a
   tentativa é registrada como simulada e conta como cobrança da sequência
   (**Código:** a posição só é liberada em falha ou pausa). A rodada fica em
@@ -845,7 +845,7 @@ data, o último envio ou a pausa.
   líquido, BRL informativo e o ROE com a data da cotação, mais a observação de
   que o valor em reais é recalculado no dia do pagamento. A data do ROE é a da
   cotação vigente em `demurrage_invoice_history` (a primeira foto com o ROE
-  atual; migration `303`). Sem PIX nem anexo; o link leva ao Portal.
+  atual; migration `305`). Sem PIX nem anexo; o link leva ao Portal.
 
 ### Disputa de Demurrage
 

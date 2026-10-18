@@ -1,4 +1,4 @@
--- Migration 310: ninguém fica sem saber dos e-mails (plano de correção dos
+-- Migration 309: ninguém fica sem saber dos e-mails (plano de correção dos
 -- e-mails, docs/plans/2026-10-17-correcao-dos-emails.md, itens 2.1, 2.4 e 2.8).
 --
 -- 1. Provedor sem retorno (2.1, INF-01): o detector de Alertas abre o tipo novo
@@ -42,7 +42,7 @@ ON CONFLICT (type) DO NOTHING;
 -- 1 e 3. Detector dos e-mails
 -- ---------------------------------------------------------------------------
 -- ponytail: olha só as tentativas criadas e aceitas nos últimos 7 dias (o
--- silêncio antigo já foi visto; a máscara da retenção, migration 312, toca
+-- silêncio antigo já foi visto; a máscara da retenção, migration 311, toca
 -- updated_at de tentativas de mais de 1 ano e não pode reabrir o Alerta) e faz um NOT EXISTS por tentativa em
 -- portal_email_events (índices por provider_message_id, attempt_id e
 -- communication_attempt_id). Com volume alto, trocar por uma marca de
@@ -288,7 +288,7 @@ BEGIN
   END IF;
 
   -- Seis tentativas (1, 5, 15, 60 e 360 min entre elas) esgotadas: o evento
-  -- vai para investigação e o gatilho abre o Alerta (migration 310). Antes
+  -- vai para investigação e o gatilho abre o Alerta (migration 309). Antes
   -- ficava em retry_wait a cada 6 h para sempre, sem aviso.
   IF v_status = 'retry_wait' AND v_event.attempt_count >= 6 THEN
     v_status := 'investigate';

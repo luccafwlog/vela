@@ -1,4 +1,4 @@
--- Migration 303: Régua de Cobrança de Demurrage — recusa definitiva, grupo que
+-- Migration 305: Régua de Cobrança de Demurrage — recusa definitiva, grupo que
 -- muda depois de falha, fatura líquida zero, janela de envio, data do ROE e
 -- só fatura visível no Portal.
 --

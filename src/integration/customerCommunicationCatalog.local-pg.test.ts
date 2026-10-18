@@ -46,7 +46,7 @@ describeLocal('Comunicados — recuperação do catálogo estrutural', () => {
         p_customer_id := 990215701, p_kind := 'livre', p_nature := 'documentacao',
         p_dispatch_id := '00000000-0000-0000-0000-000000015702'
       ) IS NOT NULL;
-      -- Nasce "Em envio" (migration 298): nenhum envio real é presumido.
+      -- Nasce "Em envio" (migration 302): nenhum envio real é presumido.
       SELECT bool_and(status = 'pendente') FROM public.customer_communications WHERE customer_id = 990215701;
       ROLLBACK;
     `], { encoding: 'utf8' }).trim().split('\n')

@@ -1,4 +1,4 @@
--- Migration 311: resposta de erro das rotinas HTTP abre Alerta (plano de
+-- Migration 310: resposta de erro das rotinas HTTP abre Alerta (plano de
 -- correção dos e-mails, item 2.9, INF-12).
 --
 -- O pg_cron marca o job 'succeeded' só por ter enfileirado o POST no pg_net

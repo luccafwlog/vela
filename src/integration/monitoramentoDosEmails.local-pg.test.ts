@@ -4,7 +4,7 @@ import { execPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migrations 310 e 313 (plano dos e-mails, 2.1, 2.4 e 2.8): provedor sem retorno,
+// Migrations 309 e 312 (plano dos e-mails, 2.1, 2.4 e 2.8): provedor sem retorno,
 // evento de e-mail que esgota as tentativas ou é ambíguo, e usuário interno
 // com e-mail devolvido abrem Alerta; o detector fecha quando a causa some.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -51,7 +51,7 @@ function cleanup(): void {
   `)
 }
 
-function migration310Applied(): boolean {
+function migration309Applied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT to_regprocedure('public.detect_email_monitoring_alerts()') IS NOT NULL;`) === 't'
@@ -60,9 +60,9 @@ function migration310Applied(): boolean {
   }
 }
 
-const describeLocal = describeWithProbe(migration310Applied, 'migration310Applied (monitoramento dos e-mails)')
+const describeLocal = describeWithProbe(migration309Applied, 'migration309Applied (monitoramento dos e-mails)')
 
-describeLocal('310 — monitoramento dos e-mails', () => {
+describeLocal('309 — monitoramento dos e-mails', () => {
   beforeAll(() => {
     cleanup()
     psql(`
@@ -155,7 +155,7 @@ describeLocal('310 — monitoramento dos e-mails', () => {
   it('313 — tira TRUNCATE, TRIGGER e REFERENCES de authenticated e anon nas tabelas de e-mail', () => {
     // O banco local não herda o padrão de privilégios de produção; a suíte o
     // recria numa transação desfeita e aplica a migration por cima.
-    const migration = readFileSync(resolve('supabase/migrations/313_grants_das_tabelas_de_email.sql'), 'utf8')
+    const migration = readFileSync(resolve('supabase/migrations/312_grants_das_tabelas_de_email.sql'), 'utf8')
     const privileges = `SELECT string_agg(r || ':' || p || '=' || has_table_privilege(r, 'public.customer_communications', p), ',' ORDER BY r, p)
       FROM unnest(ARRAY['anon', 'authenticated']) r, unnest(ARRAY['TRUNCATE', 'TRIGGER', 'REFERENCES', 'SELECT']) p;`
     const output = psql(`BEGIN;

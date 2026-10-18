@@ -124,7 +124,7 @@ function describeCargoScope(filters: CustomerCommunicationFilters): React.ReactN
   return partes.map((parte, index) => <span key={index}>{index ? ', ' : ''}{parte}</span>)
 }
 
-/** Status do Histórico, na ordem do filtro; "Em envio" é o `pendente` da migration 298. */
+/** Status do Histórico, na ordem do filtro; "Em envio" é o `pendente` da migration 302. */
 const HISTORY_STATUS_OPTIONS = ['pendente', 'enviado', 'simulado', 'parcial', 'falha'] as const
 
 /**

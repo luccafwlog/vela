@@ -134,7 +134,7 @@ essa leitura.
 **Risco residual:** uma falha que dure mais de 30 s (DNS fora do ar, Function
 travada) ainda perde a rodada. Se reaparecer, o próximo passo é um job de
 reconciliação que leia `net._http_response` e redispare uma vez. Desde a
-migration `311`, o job SQL `http-job-failures` (a cada 15 min) lê
+migration `310`, o job SQL `http-job-failures` (a cada 15 min) lê
 `net._http_response` e abre o Alerta `rotina_http_falhou` para resposta fora de
 2xx, sem status ou com tempo esgotado na última hora; ele avisa, não redispara
 ([observabilidade](observabilidade.md#respostas-de-erro-das-rotinas-http)).

@@ -194,7 +194,7 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
   // seguem o intervalo a partir do último envio, sem recuperar as "atrasadas".
   it('A15 — a Régua retoma ancorada no último envio', () => {
     const invoice = invoiceIds[11]!
-    // Quinta-feira 10/09/2026, 9h de Brasília: dentro da janela de envio (migration 303).
+    // Quinta-feira 10/09/2026, 9h de Brasília: dentro da janela de envio (migration 305).
     const base = "'2026-09-10T12:00:00Z'::timestamptz"
     const claimAt = (asOf: string) => (JSON.parse(localPsql(`SELECT public.claim_demurrage_dunning_candidates(${asOf}, 50);`)) as Candidate[])
       .filter((candidate) => Number(candidate.invoice_id) === invoice)

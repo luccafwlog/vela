@@ -97,7 +97,7 @@ secret, o runner segue em no-op de heartbeat.
 O `pg_cron` registra `succeeded` em `cron.job_run_details` quando consegue
 enfileirar o POST no `pg_net`, não quando a Edge Function responde bem. A
 resposta fica em `net._http_response` por cerca de 6 horas. Desde a migration
-`311`, o job SQL `http-job-failures` (a cada 15 min) lê essa tabela e abre o
+`310`, o job SQL `http-job-failures` (a cada 15 min) lê essa tabela e abre o
 Alerta crítico `rotina_http_falhou` (Administrativo) quando, na última hora, há
 resposta fora de 2xx, sem status ou com tempo esgotado; ele fecha sozinho
 quando a hora fica limpa. O `pg_net` não guarda a URL nem o job: o Alerta traz

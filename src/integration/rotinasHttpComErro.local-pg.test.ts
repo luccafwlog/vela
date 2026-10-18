@@ -2,7 +2,7 @@ import { execPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
-// Migration 311 (plano dos e-mails, 2.9): resposta não-2xx das rotinas HTTP em
+// Migration 310 (plano dos e-mails, 2.9): resposta não-2xx das rotinas HTTP em
 // net._http_response abre o Alerta rotina_http_falhou; sem falha na última
 // hora, fecha. O pg_net local é só um esboço de schema: a suíte cria uma
 // tabela equivalente dentro de uma transação desfeita no fim, e chama a função
@@ -19,7 +19,7 @@ const alertStatus = `SELECT 'status=' || COALESCE((SELECT i.status FROM public.a
   WHERE i.item_type = 'rotina_http_falhou' AND a.entity_type = 'cron_http' AND a.entity_id = 'net_http_response'
   ORDER BY i.id DESC LIMIT 1), 'none');`
 
-function migration311Applied(): boolean {
+function migration310Applied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT to_regprocedure('public.reconcile_http_job_failures_alert(interval)') IS NOT NULL
@@ -29,9 +29,9 @@ function migration311Applied(): boolean {
   }
 }
 
-const describeLocal = describeWithProbe(migration311Applied, 'migration311Applied (rotinas HTTP com erro; net._http_response ausente no banco local)')
+const describeLocal = describeWithProbe(migration310Applied, 'migration310Applied (rotinas HTTP com erro; net._http_response ausente no banco local)')
 
-describeLocal('311 — rotinas HTTP com erro', () => {
+describeLocal('310 — rotinas HTTP com erro', () => {
   it('abre o alerta com 401 e tempo esgotado na última hora e fecha quando só há 2xx', () => {
     const output = psql(`
       BEGIN;

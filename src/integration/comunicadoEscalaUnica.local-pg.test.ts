@@ -2,7 +2,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 300 (plano dos e-mails, itens 1C, 2.6, 2.7 e 4.5): a escala dos
+// Migration 304 (plano dos e-mails, itens 1C, 2.6, 2.7 e 4.5): a escala dos
 // Comunicados vem só do Histórico da Viagem, o CE e Taxas é por Cliente ×
 // Viagem, B/L cancelado e Cliente desativado não viram alvo, o detector usa os
 // alvos da produtora e o Cliente sem contato abre alerta.
@@ -83,7 +83,7 @@ function cleanup() {
   `)
 }
 
-function migration300Applied(): boolean {
+function migration304Applied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT count(*) FROM pg_proc WHERE proname = 'customer_communication_automation_targets';`) === '1'
@@ -92,9 +92,9 @@ function migration300Applied(): boolean {
   }
 }
 
-const describeLocal = describeWithProbe(migration300Applied, 'migration300Applied (escala única dos Comunicados)')
+const describeLocal = describeWithProbe(migration304Applied, 'migration304Applied (escala única dos Comunicados)')
 
-describeLocal('300 — escala única, CE por Viagem, filtros e alvos do detector', () => {
+describeLocal('304 — escala única, CE por Viagem, filtros e alvos do detector', () => {
   beforeAll(() => {
     cleanup()
     psql(`

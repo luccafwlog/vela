@@ -29,7 +29,7 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain("reason', 'bounce_permanente'")
     expect(source).toContain("admin.rpc('create_customer_communication_atomic'")
     // Escala, porto, B/L cancelado, Atracação e a regra do NOB (migration 243)
-    // são conferidos pela mesma validação da RPC (migration 300).
+    // são conferidos pela mesma validação da RPC (migration 304).
     expect(source).toContain("admin.rpc('customer_communication_anchor_validation'")
     expect(source).not.toContain(".from('voyage_escala_operation_fronts')")
     expect(source).toContain("admin.from('customer_communication_attempts').insert")
@@ -60,10 +60,10 @@ describe('Edge Function send-customer-communication', () => {
   it('lê a sigla do terminal do NOB em depots e nunca manda o UUID ao cliente', () => {
     expect(source).not.toContain('terminals(code)')
     // A sigla vem de voyage_terminal_code (depots) pela validação única da
-    // âncora (migration 300); sem sigla, a validação recusa.
+    // âncora (migration 304); sem sigla, a validação recusa.
     expect(source).toContain('anchor?.terminal_code ?? null')
     expect(source).not.toContain('?? row.terminal_id')
-    const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/300_escala_unica_dos_comunicados.sql'), 'utf8')
+    const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/304_escala_unica_dos_comunicados.sql'), 'utf8')
     expect(migration).toContain("'O terminal da Atracação está sem sigla cadastrada.'")
     expect(migration).toContain('public.voyage_terminal_code(t.terminal_id) AS terminal_code')
     // Auditoria run-2 (reforço): o histórico não aceita terminal vindo do navegador.

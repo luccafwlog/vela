@@ -1,4 +1,4 @@
--- Migration 298: Comunicado nasce "Em envio" (pendente), não "simulado".
+-- Migration 302: Comunicado nasce "Em envio" (pendente), não "simulado".
 --
 -- Plano de correção dos e-mails, item 1B (docs/plans/2026-10-17-correcao-dos-emails.md).
 -- create_customer_communication_atomic_legacy_070 criava o Comunicado já com

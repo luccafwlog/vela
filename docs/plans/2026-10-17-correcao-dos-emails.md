@@ -14,8 +14,8 @@ refutá-lo.
   aplicada em produção e as Edges foram republicadas pela integração.
 - **Fases 1 a 5 implementadas em 2026-10-18 no PR #973** (branch
   `claude/emails-1a-envio-comum`), por decisão do responsável de fazer o plano
-  inteiro num PR só. Migrations `298` a `300`, `303`, `304`, `307`, `308` e
-  `310` a `313` (os números pulados ficaram sem uso). Verificado localmente:
+  inteiro num PR só. Migrations `302` a `312`, renumeradas depois do merge do PR #972, que ocupou
+  da `298` à `301`. Verificado localmente:
   typecheck, lint, testes unitários, as 101 suítes local-pg num banco recriado
   com todas as migrations, `rpc:check`, `migrations:check`, `design:check`,
   `a11y:contrast`, build e `deno check` das 11 Edges de e-mail. Nada disso foi
@@ -82,7 +82,7 @@ cada uma deixa o heartbeat vermelho, abre alerta ou chega ao Sentry.
     (migration `297`) e o alerta `comunicado_recusado`;
   - adiciona o log das recusas e `failed` no runner.
 
-  Este plano parte dele: as migrations novas começam na `298`.
+  Este plano parte dele: as migrations novas começam na `302`.
 - **O que foi conferido e está certo** (não entra no plano):
   - o Resumo diário só sai quando há ocorrência de provisionamento, então a
     falta de envio desde 15/10 é esperada;
@@ -212,7 +212,7 @@ Antes de alterar, conferir todos os chamadores de `sendEmail` e
 
 **Mudança:**
 1. Novo status `pendente` (rótulo "Em envio"), usado na criação. É a migration
-   `298`; amplia o CHECK (D14).
+   `302`; amplia o CHECK (D14).
 2. O refresh passa a projetar:
    - `parcial` quando há sucesso junto de pendente;
    - `pendente` quando só há pendente.
@@ -697,7 +697,7 @@ Ligar só quando:
 
 **PRs:** um por lote (1A, 1B, 1C, 1D, 1E, 1F, Fase 2, Fase 3...), pequenos e
 com teste de comportamento. Cada migration nova segue a numeração da cadeia
-ativa a partir da `298`. A que reescreve linhas declara no cabeçalho que se
+ativa a partir da `302`. A que reescreve linhas declara no cabeçalho que se
 apoia no "Data status".
 
 ## Checks por lote

@@ -386,7 +386,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
-| `portal-email-events-runner` | a cada minuto | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `310`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; a cadastrar) |
+| `portal-email-events-runner` | a cada minuto | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `309`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; a cadastrar) |
 | `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente; com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; heartbeat ainda não cadastrado no Better Stack) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
@@ -400,7 +400,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
 | `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação e tira do atraso o de B/L ou Viagem Cancelados (SQL puro; migration `200`) | — |
-| `http-job-failures` | a cada 15 min, em :09/:24/:39/:54 (`9-59/15 * * * *`, migration `311`) | `reconcile_http_job_failures_alert()`: abre o Alerta crítico `rotina_http_falhou` (Administrativo) quando `net._http_response` tem, na última hora, resposta fora de 2xx, sem status ou com tempo esgotado, e o fecha quando a hora fica limpa; SQL puro, sem Vault nem Edge Function | — |
+| `http-job-failures` | a cada 15 min, em :09/:24/:39/:54 (`9-59/15 * * * *`, migration `310`) | `reconcile_http_job_failures_alert()`: abre o Alerta crítico `rotina_http_falhou` (Administrativo) quando `net._http_response` tem, na última hora, resposta fora de 2xx, sem status ou com tempo esgotado, e o fecha quando a hora fica limpa; SQL puro, sem Vault nem Edge Function | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação (inclui a exceção crítica de fatura) | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
@@ -505,7 +505,7 @@ tempo. Em produção desde 2026-10-13: a `218` aplicada e a função nova
 publicada (as respostas trazem `elapsed_ms`); o acumulado de ~2.800 efeitos
 esvaziou em ~7 minutos, a 490–610 efeitos por minuto em `local_billing`.
 
-`data-retention` roda `public.run_retention()` (migration `094`, ADR 0074; vigente na `312`): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano, inclusive os eventos do provedor de e-mail, e mascara o e-mail em claro das tentativas de envio com mais de 1 ano ([regras de negócio](regras-de-negocio.md)). É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
+`data-retention` roda `public.run_retention()` (migration `094`, ADR 0074; vigente na `311`): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano, inclusive os eventos do provedor de e-mail, e mascara o e-mail em claro das tentativas de envio com mais de 1 ano ([regras de negócio](regras-de-negocio.md)). É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 
 Os jobs HTTP chamam a Edge Function por `ops.dispatch_edge_job`, que dá 30 s
 ao `pg_net` (antes, o padrão de 5 s incluía DNS e perdia a rodada nos minutos
@@ -575,7 +575,7 @@ mesmos.
      que as entregas seguintes voltam a 2xx e, no banco, que
      `portal_email_events` recebeu linhas novas.
   4. Se o webhook parar de vez, o Alerta `email_retorno_provedor_silencioso`
-     (Administrativo, migration `310`) abre quando um e-mail aceito pelo
+     (Administrativo, migration `309`) abre quando um e-mail aceito pelo
      provedor fica mais de 2 horas sem nenhum evento.
 - **Recebimento** e **Caixas de entrada** da MillionSend não são usados: o
   recebimento é do ImprovMX.

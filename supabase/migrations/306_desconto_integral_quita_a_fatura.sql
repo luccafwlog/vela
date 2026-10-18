@@ -1,4 +1,4 @@
--- Migration 304: desconto de 100% quita a Invoice de Demurrage (isenta).
+-- Migration 306: desconto de 100% quita a Invoice de Demurrage (isenta).
 --
 -- Plano de correção dos e-mails (docs/plans/2026-10-17-correcao-dos-emails.md),
 -- item 1E.3, decisão D7. Uma Invoice com desconto igual ao total ficava

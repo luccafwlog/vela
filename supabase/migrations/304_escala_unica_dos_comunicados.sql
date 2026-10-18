@@ -1,4 +1,4 @@
--- Migration 300: escala única para NOA, NOR e NOB, âncora do CE e Taxas por
+-- Migration 304: escala única para NOA, NOR e NOB, âncora do CE e Taxas por
 -- Cliente × Viagem e o mesmo alvo na produtora e no detector.
 --
 -- Plano dos e-mails (docs/plans/2026-10-17-correcao-dos-emails.md), itens 1C,
@@ -33,7 +33,7 @@
 -- 4.5   customer_communication_safe_timestamptz lê data pura e data/hora sem
 --       fuso no horário de Brasília e passa a STABLE.
 -- A produtora também só retoma uma claim adiada depois de next_attempt_at
--- (migration 299) e, a cada rodada, recalcula os alertas comunicado_recusado.
+-- (migration 303) e, a cada rodada, recalcula os alertas comunicado_recusado.
 -- Não altera nem apaga linhas existentes.
 
 -- 4.5 ---------------------------------------------------------------------
@@ -634,7 +634,7 @@ BEGIN
          OR customer_communication_automation_claims.claimed_at < v_as_of - interval '30 minutes')
         AND (customer_communication_automation_claims.rejected_at IS NULL
          OR customer_communication_automation_claims.rejected_at < v_as_of - interval '24 hours')
-        -- 1D: recusa não definitiva só volta depois do intervalo (migration 299).
+        -- 1D: recusa não definitiva só volta depois do intervalo (migration 303).
         AND (customer_communication_automation_claims.next_attempt_at IS NULL
          OR customer_communication_automation_claims.next_attempt_at <= v_as_of);
     IF FOUND THEN

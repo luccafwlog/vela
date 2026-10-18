@@ -1,4 +1,4 @@
--- Migration 299: recusa não definitiva da régua automática volta com intervalo
+-- Migration 303: recusa não definitiva da régua automática volta com intervalo
 -- crescente e abre o alerta comunicado_recusado (plano dos e-mails, item 1D; D18).
 --
 -- Até aqui só a recusa definitiva (permanent: true, migration 297) parava a
@@ -10,7 +10,7 @@
 --    next_attempt_at e provider_failures (falhas seguidas do provedor).
 -- 2. defer_customer_communication_automation_claim: o runner adia a claim.
 --    Intervalo: 15 min na 1ª recusa, 1 h na 2ª, 6 h da 3ª em diante. A
---    produtora (migration 300) só retoma a claim depois de next_attempt_at.
+--    produtora (migration 304) só retoma a claim depois de next_attempt_at.
 -- 3. Alerta comunicado_recusado (um por Cliente, lista as claims):
 --    - recusa por dado (p_provider_failure = false): na 1ª recusa;
 --    - falha do provedor (p_provider_failure = true): na 3ª seguida;

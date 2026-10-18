@@ -88,7 +88,7 @@ describeLocal('094 — rotina de guarda de dados', () => {
   })
 })
 
-// Migration 312 (plano dos e-mails, 5.2, D17): eventos do provedor com mais de
+// Migration 311 (plano dos e-mails, 5.2, D17): eventos do provedor com mais de
 // 1 ano saem com o histórico; tentativas de envio ficam, sem o e-mail em claro.
 const EMAIL_TAG = 'ret312'
 const COMMUNICATION_CUSTOMER_ID = 9400312
@@ -108,7 +108,7 @@ function cleanupEmails() {
   `)
 }
 
-describeLocal('312 — retenção de 1 ano dos e-mails', () => {
+describeLocal('311 — retenção de 1 ano dos e-mails', () => {
   beforeAll(() => {
     cleanupEmails()
     psql(`

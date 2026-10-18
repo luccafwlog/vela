@@ -2,7 +2,7 @@ import { execPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migration 298 (plano dos e-mails, 1B): o Comunicado nasce "pendente" (Em
+// Migration 302 (plano dos e-mails, 1B): o Comunicado nasce "pendente" (Em
 // envio) e o recálculo nunca o deixa "simulado" por falta de decisão.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -33,7 +33,7 @@ function cleanup(): void {
   `)
 }
 
-function migration298Applied(): boolean {
+function migration302Applied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT pg_get_constraintdef(oid) LIKE '%pendente%' FROM pg_constraint WHERE conname = 'customer_communications_status_check';`) === 't'
@@ -42,9 +42,9 @@ function migration298Applied(): boolean {
   }
 }
 
-const describeLocal = describeWithProbe(migration298Applied, 'migration298Applied (Comunicado nasce Em envio)')
+const describeLocal = describeWithProbe(migration302Applied, 'migration302Applied (Comunicado nasce Em envio)')
 
-describeLocal('298 — Comunicado nasce Em envio', () => {
+describeLocal('302 — Comunicado nasce Em envio', () => {
   beforeAll(() => {
     cleanup()
     psql(`

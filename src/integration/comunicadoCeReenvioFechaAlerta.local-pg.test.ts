@@ -4,7 +4,7 @@ import { describeWithProbe, syntheticCnpj } from './localTestData'
 
 // Plano dos e-mails, 3.1 (D5): o "Reenviar CE e Taxas" da tela cria o Comunicado
 // pela mesma RPC da Edge (`create_customer_communication_atomic`), com novo
-// discriminador. Desde a migration 298 ele nasce `pendente`; só o envio real
+// discriminador. Desde a migration 302 ele nasce `pendente`; só o envio real
 // (enviado/parcial) fecha `comunicado_ce_reenvio_pendente` (gatilho da 238). O
 // reenvio que fica em simulação ou ainda em envio não fecha.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -68,7 +68,7 @@ function prerequisites(): boolean {
   }
 }
 
-const describeLocal = describeWithProbe(prerequisites, 'gatilho da migration 238 e status pendente da 298')
+const describeLocal = describeWithProbe(prerequisites, 'gatilho da migration 238 e status pendente da 302')
 
 describeLocal('3.1 — Reenviar CE e Taxas fecha "Reenviar Comunicado de CE e Taxas" só quando sai', () => {
   beforeAll(() => {

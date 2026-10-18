@@ -1,4 +1,4 @@
--- Migration 313: tira TRUNCATE, TRIGGER e REFERENCES de anon e authenticated
+-- Migration 312: tira TRUNCATE, TRIGGER e REFERENCES de anon e authenticated
 -- nas tabelas de Comunicado e de e-mail (plano de correção dos e-mails, item
 -- 5.3, CLI-13).
 --

@@ -1,7 +1,7 @@
 // Editar acesso (Edge admin-users) e o e-mail devolvido do usuário interno
 // (plano de correção dos e-mails, 2.8, D19). Quando o Administrativo salva o
 // e-mail do usuário, a supressão por bounce ou reclamação do endereço anterior
-// sai (RPC release_internal_user_email_suppression, migration 310), a não ser
+// sai (RPC release_internal_user_email_suppression, migration 309), a não ser
 // que o endereço também seja de Cliente. Sem isso, um e-mail corrigido na
 // caixa do usuário e salvo de novo continuaria suprimido para sempre.
 

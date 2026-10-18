@@ -116,7 +116,7 @@ describeLocal('297 — claim recusada não volta como candidata dentro da janela
     expect(psql(`SELECT rejected_at IS NULL FROM public.customer_communication_automation_claims WHERE claim_key = '${CLAIM}';`)).toBe('t')
   })
 
-  // Migration 299 (plano dos e-mails, 1D; D18): recusa não definitiva volta
+  // Migration 303 (plano dos e-mails, 1D; D18): recusa não definitiva volta
   // com intervalo crescente e abre o alerta na 1ª recusa por dado ou na 3ª
   // falha seguida do provedor; o envio fecha o alerta.
   it('299 — recusa não definitiva respeita o intervalo e o alerta segue D18', () => {

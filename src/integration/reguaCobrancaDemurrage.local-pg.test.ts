@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
 // Régua de Cobrança de Demurrage: plano dos e-mails (docs/plans/2026-10-17-correcao-dos-emails.md),
-// itens 1E, 2.5, 4.2, 4.3 e 4.4 (migrations 303 e 304).
+// itens 1E, 2.5, 4.2, 4.3 e 4.4 (migrations 305 e 306).
 // Opt-in (`LOCAL_PG_INTEGRATION=1` + `LOCAL_DATABASE_URL`).
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'

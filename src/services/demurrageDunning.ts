@@ -76,7 +76,7 @@ export function demurrageDunningPauseReason(invoice: DunningInvoiceFields, hasVa
   const suspended = invoice.dunning_suspended_reason?.trim()
   if (suspended) {
     if (suspended.startsWith('Datas de container alteradas')) return 'datas alteradas, aguarda tratamento'
-    // Recusa definitiva do provedor (migration 303): resolver o alerta retoma.
+    // Recusa definitiva do provedor (migration 305): resolver o alerta retoma.
     if (suspended.startsWith('Cobrança recusada pelo provedor')) return 'e-mail recusado pelo provedor, corrija o contato e resolva o alerta'
     return 'suspensa, aguarda tratamento'
   }

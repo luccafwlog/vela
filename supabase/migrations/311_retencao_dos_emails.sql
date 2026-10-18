@@ -1,4 +1,4 @@
--- Migration 312: retenção de 1 ano dos e-mails (plano de correção dos e-mails,
+-- Migration 311: retenção de 1 ano dos e-mails (plano de correção dos e-mails,
 -- item 5.2, D17, INF-15).
 --
 -- run_retention (migration 094) já apagava portal_email_event_attempts com
@@ -21,7 +21,7 @@
 --
 -- As tabelas de tentativas não têm payload próprio: o envelope do provedor
 -- fica só em portal_email_events, que sai inteiro. A máscara muda updated_at
--- (gatilho set_updated_at); o detector de provedor sem retorno (migration 310)
+-- (gatilho set_updated_at); o detector de provedor sem retorno (migration 309)
 -- só olha tentativas criadas nos últimos 7 dias, então não reabre Alerta.
 --
 -- A migration não altera nem apaga linhas; quem apaga e mascara é a rotina,
