@@ -6877,37 +6877,9 @@ a.app-step-rail__link:focus-visible {
 
 /* ===========================================================================
    Programação de navios (ShipScheduleWidget no Portal; Chegadas e Saídas no
-   Vela) — etapa 03. Mesmas regras de célula nos dois produtos.
+   Vela) — etapa 03. Mesmas regras de célula nos dois produtos. O bloco é o
+   `Block` comum; `.app-schedule` só marca a tabela e os estados dele.
    =========================================================================== */
-.app-schedule {
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius, 8px);
-  background: var(--app-surface);
-}
-
-.app-schedule__header {
-  display: grid;
-  gap: 2px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--app-border);
-}
-
-.app-schedule__title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
-  color: var(--app-text-strong);
-}
-
-.app-schedule__service {
-  margin: 0;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--app-muted);
-}
-
 .app-schedule__state {
   display: grid;
   justify-items: center;

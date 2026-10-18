@@ -31,7 +31,7 @@ import {
 import { usePortalDisputes } from '../hooks/usePortalDisputes'
 import { buildInvoiceFileBaseName } from '../components/shared/invoiceFormat'
 import { exportPortalDemurrageWorkbook, exportPortalLocalInvoicesWorkbook } from '../services/exports'
-import { portalListDemurrageInvoicesForExport, portalListInvoicesForExport } from '../services/portalBilling'
+import { portalInvoiceDocumentDetail, portalListDemurrageInvoicesForExport, portalListInvoicesForExport } from '../services/portalBilling'
 import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../lib/portalBillingFilters'
 import { formatBRL } from '../lib/utils'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
@@ -279,13 +279,13 @@ export function PortalBilling() {
         onOpenInvoice={setSelectedInvoiceId}
       />
       {printOpen && detailQuery.data?.invoice ? (
-        <Modal open onClose={() => setPrintOpen(false)} title={`Imprimir ${detailQuery.data.invoice.invoice_number ?? ''}`}>
+        <Modal open onClose={() => setPrintOpen(false)} title={`Imprimir fatura ${detailQuery.data.invoice.invoice_number ?? ''}`}>
           <div className="mb-3 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setPrintOpen(false)}>Fechar</Button>
             <Button
               onClick={() => {
                 const prev = document.title
-                document.title = buildInvoiceFileBaseName(detailQuery.data!)
+                document.title = buildInvoiceFileBaseName(portalInvoiceDocumentDetail(detailQuery.data!))
                 window.print()
                 document.title = prev
               }}
@@ -295,7 +295,7 @@ export function PortalBilling() {
             </Button>
           </div>
           <div className="invoice-print-content">
-            <InvoiceDocumentLocal detail={detailQuery.data} />
+            <InvoiceDocumentLocal detail={portalInvoiceDocumentDetail(detailQuery.data)} />
           </div>
         </Modal>
       ) : null}
@@ -340,7 +340,7 @@ export function PortalBilling() {
             <Button variant="secondary" onClick={() => setReceiptOpen(false)}>Fechar</Button>
             <Button onClick={() => window.print()}><Printer size={16} />Imprimir</Button>
           </div>
-          <div className="invoice-print-content"><InvoiceDocumentLocal detail={detailQuery.data} type="receipt" /></div>
+          <div className="invoice-print-content"><InvoiceDocumentLocal detail={portalInvoiceDocumentDetail(detailQuery.data)} type="receipt" /></div>
         </Modal>
       ) : null}
     </>

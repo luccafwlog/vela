@@ -9,7 +9,8 @@ it('does not promise unsupported schedule confirmation or update times', () => {
   // A data efetiva é a registrada (ATD/ATA), não "a data alcançada": a
   // legenda diz de onde vem cada data.
   expect(source).toContain('data efetiva: saída ou chegada registrada')
-  expect(source).toContain('Datas atualizadas conforme os dados publicados')
+  // Lote 4: a faixa do bloco leva só o nome do serviço, sem prometer horário.
+  expect(source).toContain('CSSC Container Liner Service Schedule – ECSA')
 })
 
 it('uses neutral report-limit copy instead of claiming one global limit', () => {

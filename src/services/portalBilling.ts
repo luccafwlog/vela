@@ -47,7 +47,20 @@ type PortalInvoiceContainer = {
   gross_weight_kg: number | null
 }
 
-export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice'> & {
+/**
+ * Pagamento recebido como o Portal o lê em `portal_invoice_details`: dia e
+ * hora, forma de pagamento e valor. Referência bancária, observação e autor
+ * da baixa ficam só no Vela.
+ */
+export type PortalInvoicePayment = {
+  id: number
+  amount_brl: number
+  payment_method: 'pix' | 'ted' | 'doc' | 'boleto' | 'outros' | null
+  paid_at: string | null
+  created_at: string | null
+}
+
+export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice' | 'payments'> & {
   corrections?: Array<{ amount_brl: number; offset_brl: number; refund_brl: number; bl_id: string; created_at: string }>
   invoice: (NonNullable<InvoiceDetail['invoice']> & {
     pix_payload: string | null
@@ -55,6 +68,19 @@ export type PortalInvoiceDetail = Omit<InvoiceDetail, 'invoice'> & {
     covered_by_invoice_number?: string | null
   }) | null
   containers: PortalInvoiceContainer[]
+  payments: PortalInvoicePayment[]
+}
+
+/**
+ * O documento impresso da fatura (comum ao Vela) lê dos pagamentos só a data;
+ * os campos internos que o Portal não recebe vão vazios.
+ */
+export function portalInvoiceDocumentDetail(detail: PortalInvoiceDetail): InvoiceDetail {
+  const invoiceId = Number(detail.invoice?.id ?? 0)
+  return {
+    ...detail,
+    payments: (detail.payments ?? []).map((payment) => ({ ...payment, invoice_id: invoiceId, notes: null, registered_by: null })),
+  }
 }
 
 export async function portalListConsolidatableReceivables(scope: PortalScope = clientPortalScope) {
@@ -153,7 +179,7 @@ export async function portalInvoiceDetails(invoiceId: number, scope: PortalScope
     items?: InvoiceDetail['items']
     containers?: PortalInvoiceContainer[]
     corrections?: PortalInvoiceDetail['corrections']
-    payments?: InvoiceDetail['payments']
+    payments?: PortalInvoicePayment[]
   }
 
   const invoice = payload.invoice
@@ -171,7 +197,7 @@ export async function portalInvoiceDetails(invoiceId: number, scope: PortalScope
     bls: payload.bls ?? [],
     items: payload.items ?? [],
     containers: payload.containers ?? [],
-    payments: payload.payments ?? [],
+    payments: (payload.payments ?? []).map((payment) => ({ ...payment, amount_brl: Number(payment.amount_brl ?? 0) })),
   } as PortalInvoiceDetail
 }
 
