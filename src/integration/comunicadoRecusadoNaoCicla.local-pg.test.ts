@@ -116,6 +116,47 @@ describeLocal('297 — claim recusada não volta como candidata dentro da janela
     expect(psql(`SELECT rejected_at IS NULL FROM public.customer_communication_automation_claims WHERE claim_key = '${CLAIM}';`)).toBe('t')
   })
 
+  // Migration 299 (plano dos e-mails, 1D; D18): recusa não definitiva volta
+  // com intervalo crescente e abre o alerta na 1ª recusa por dado ou na 3ª
+  // falha seguida do provedor; o envio fecha o alerta.
+  it('299 — recusa não definitiva respeita o intervalo e o alerta segue D18', () => {
+    const alertStatus = () => psql(`SELECT i.status FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'comunicado_recusado' AND a.entity_type = 'customer' AND a.entity_id = '${CUSTOMER}' ORDER BY i.id DESC LIMIT 1;`)
+    const defer = (reason: string, provider: boolean) => JSON.parse(psql(
+      `SELECT public.defer_customer_communication_automation_claim('${CLAIM}', '${reason}', ${provider});`)) as { attempts: number; alerted: boolean }
+    const interval = () => psql(`SELECT round(extract(epoch FROM next_attempt_at - now()) / 60) FROM public.customer_communication_automation_claims WHERE claim_key = '${CLAIM}';`)
+
+    psql(`DELETE FROM public.customer_communication_automation_claims WHERE claim_key LIKE '%:${CUSTOMER}:%';
+      SELECT public.refresh_customer_communication_refusal_alert(${CUSTOMER});`)
+    expect(alertStatus()).not.toBe('active')
+    expect(candidateClaims('now()')).toEqual([CLAIM])
+
+    // Falha do provedor: 15 min, 1 h, 6 h; alerta só na 3ª seguida.
+    expect(defer('HTTP 503', true)).toMatchObject({ attempts: 1, alerted: false })
+    expect(interval()).toBe('15')
+    expect(alertStatus()).not.toBe('active')
+    expect(candidateClaims(`now() + interval '10 minutes'`)).toEqual([])
+    expect(candidateClaims(`now() + interval '16 minutes'`)).toEqual([CLAIM])
+    expect(defer('Tempo esgotado', true)).toMatchObject({ attempts: 2, alerted: false })
+    expect(interval()).toBe('60')
+    expect(defer('HTTP 502', true)).toMatchObject({ attempts: 3, alerted: true })
+    expect(interval()).toBe('360')
+    expect(alertStatus()).toBe('active')
+
+    // O envio sai: zera a contagem e fecha o alerta.
+    expect(psql(`SELECT public.complete_customer_communication_automation_claim('${CLAIM}');`)).toBe('t')
+    expect(alertStatus()).toBe('resolved')
+    expect(psql(`SELECT attempts || '|' || (next_attempt_at IS NULL) FROM public.customer_communication_automation_claims WHERE claim_key = '${CLAIM}';`)).toBe('0|true')
+
+    // Recusa por dado: alerta na 1ª, com o motivo.
+    expect(defer('Prontidão financeira bloqueada', false)).toMatchObject({ attempts: 1, alerted: true })
+    expect(alertStatus()).toBe('active')
+    expect(psql(`SELECT i.message LIKE '%Prontidão financeira bloqueada%' FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'comunicado_recusado' AND a.entity_type = 'customer' AND a.entity_id = '${CUSTOMER}' AND i.status = 'active';`)).toBe('t')
+    psql(`SELECT public.complete_customer_communication_automation_claim('${CLAIM}');`)
+    expect(alertStatus()).toBe('resolved')
+  })
+
   it('é server-only', () => {
     expect(() => execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
       `SET request.jwt.claim.role = 'authenticated'; SELECT public.reject_customer_communication_automation_claim('${CLAIM}', 'x');`],

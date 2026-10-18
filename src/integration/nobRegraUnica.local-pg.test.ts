@@ -133,7 +133,7 @@ describeLocal('243 — regra única do NOB e produtora sem aborto (B3, B4)', () 
     const create = (bls: string[]) => tryPsql(`SELECT public.create_customer_communication_atomic(${CUSTOMER_A}, 'aviso_atracacao_nob', 'avisos_operacionais',
       ${VOYAGE_ID}, '${PORT}', '${BERTH_T1}', NULL, 0, NULL, NULL, NULL, 'T243A', NULL, ARRAY[${bls.map((id) => `'${id}'`).join(', ')}]::text[])`)
     expect(create([BL_EXC, BL_MIX]).error).toBe('')
-    expect(create([BL_OTHER]).error).toMatch(/Atracação não corresponde à Frente de Operação do B\/L/)
+    expect(create([BL_OTHER]).error).toMatch(/Um B\/L não pertence à Frente de Operação desta Atracação/)
   })
 
   it('B4: Cliente sem contato abre o alerta catalogado e não aborta a rodada; os demais recebem o NOB', () => {
