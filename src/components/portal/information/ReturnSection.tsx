@@ -1,7 +1,9 @@
-import { Card, EmptyState } from '../../ui/Card'
+import type { ReactNode } from 'react'
+import { Block } from '../../ui/Block'
 import { isPortalServicePort, normalizeInformationPort, portalServicePorts } from '../../../services/informationPort'
 import type { PortalDepot, PortalInformation } from '../../../services/portalInformation'
 import { DepotCards } from './DepotCards'
+import { FilterRow } from './FilterRow'
 
 function supportedDepots(depots: PortalDepot[]) {
   return depots.map(depot => ({
@@ -10,47 +12,27 @@ function supportedDepots(depots: PortalDepot[]) {
   })).filter(depot => depot.ports.length > 0)
 }
 
-export function ReturnSection({ information, pod }: { information: PortalInformation; pod: string }) {
+export function ReturnSection({ information, pod, filters }: { information: PortalInformation; pod: string; filters?: ReactNode }) {
   const publishedDepots = supportedDepots(information.depots).filter(
     (depot) => depot.active && depot.published
   )
 
   const activePort = pod ? (normalizeInformationPort(pod) ?? pod) : ''
+  const ports = activePort ? portalServicePorts.filter((port) => port.code === activePort) : portalServicePorts
 
+  // Um bloco por porto, em caixa normal; o depósito que atende mais de um
+  // porto aparece em cada um deles.
   return (
     <div className="grid gap-4">
-      <Card>
-        <h2 className="text-base font-semibold">Depósitos para devolução</h2>
-        <p className="mt-2 text-sm text-[var(--app-muted)]">
-          Os containers descarregados em um porto podem ser devolvidos em qualquer depósito disponível desse porto.
-          Confira endereço, horário de atendimento, restrições e agendamento antes da entrega.
-        </p>
-      </Card>
-
-      {activePort ? (
-        <DepotCards
-          depots={publishedDepots.filter((depot) => depot.ports.includes(activePort))}
-        />
-      ) : (
-        portalServicePorts.map((port) => {
-          const portDepots = publishedDepots.filter((depot) => depot.ports.includes(port.code))
-          return (
-            <section key={port.code} className="grid gap-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--app-muted)]">
-                {port.code} · {port.name}
-              </h3>
-              {portDepots.length > 0 ? (
-                <DepotCards depots={portDepots} />
-              ) : (
-                <EmptyState
-                  title="Sem depósitos disponíveis"
-                  description="Entre em contato com o atendimento para confirmar a devolução."
-                />
-              )}
-            </section>
-          )
-        })
-      )}
+      <FilterRow note="Os containers descarregados num porto podem ser devolvidos em qualquer depósito desse porto.">{filters}</FilterRow>
+      {ports.map((port) => {
+        const portDepots = publishedDepots.filter((depot) => depot.ports.includes(port.code))
+        return (
+          <Block key={port.code} title={`${port.code} · ${port.name}`} aside={portDepots.length === 1 ? '1 depósito' : `${portDepots.length} depósitos`}>
+            <DepotCards depots={portDepots} />
+          </Block>
+        )
+      })}
     </div>
   )
 }

@@ -74,7 +74,7 @@ function DisputeModalContent({ demurrageInvoiceId, docNumber, onClose }: { demur
           rows={4}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Descreva detalhadamente o motivo da disputa (dias, valores, condicoes)..."
+          placeholder="Descreva o motivo da disputa (dias, valores, condições)…"
         />
       </Field>
 

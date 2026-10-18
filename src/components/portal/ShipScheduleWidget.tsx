@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
+import { cn } from '../../lib/utils'
 import { usePortalScheduleVoyages } from '../../hooks/usePortalScheduleVoyages'
 import { PORTAL_SCHEDULE_LANES, formatScheduleDate, type PortalScheduleLane } from '../../services/portalScheduleLanes'
 import { scheduleCellState, scheduleLaneTitle, type ScheduleCellState } from './shipScheduleCells'
 import type { PortalScheduleVoyage } from '../../services/portalScheduleVoyages'
+import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { SkeletonTable } from '../ui/Skeleton'
 import { NoValue } from '../ui/NoValue'
@@ -120,9 +122,10 @@ export function ScheduleTable({ vessels, caption, actions }: {
 /**
  * Programação de navios no Portal (dono: etapa 03; composto no Painel do
  * Portal pela etapa 19). Mesma projeção e mesmas regras de célula de
- * Chegadas e Saídas, que publica estas datas.
+ * Chegadas e Saídas, que publica estas datas. Um bloco só (lote 4): o nome
+ * do serviço na faixa do título e a legenda no pé.
  */
-export function ShipScheduleWidget() {
+export function ShipScheduleWidget({ className }: { className?: string }) {
   const { data: vessels, isLoading, isError, refetch, isFetching } = usePortalScheduleVoyages()
   // O cartão do celular segue a tabela: Saída antes da Chegada, sem o porto
   // que não tem data em nenhum navio.
@@ -131,12 +134,7 @@ export function ShipScheduleWidget() {
   const cardPodLanes = POD_LANES.filter((lane) => shownLanes.has(lane))
 
   return (
-    <section className="app-schedule" aria-labelledby="ship-schedule-title">
-      <header className="app-schedule__header">
-        <h3 id="ship-schedule-title" className="app-schedule__title">Programação de navios</h3>
-        <p className="app-schedule__service">CSSC Container Liner Service Schedule – ECSA · Datas atualizadas conforme os dados publicados</p>
-      </header>
-
+    <Block title="Programação de navios" aside="CSSC Container Liner Service Schedule – ECSA" flush className={cn('app-schedule', className)}>
       {isLoading ? (
         <SkeletonTable rows={3} cols={6} label="Carregando a programação de navios" />
       ) : isError ? (
@@ -171,7 +169,7 @@ export function ShipScheduleWidget() {
           <ScheduleLegend />
         </>
       )}
-    </section>
+    </Block>
   )
 }
 

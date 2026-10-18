@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Download, FilePlus2, Printer } from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { PageHeader } from '../components/ui/Card'
+import { InlineError, PageHeader } from '../components/ui/Card'
 import { MetricCard } from '../components/ui/MetricCard'
 import { TabButton } from '../components/ui/TabButton'
 import { Modal } from '../components/ui/Modal'
@@ -14,7 +14,7 @@ import { InformationLinks } from '../components/portal/information/InformationLi
 import { PortalConsolidatedModal } from '../components/portal/PortalConsolidatedModal'
 import { DisputeModal } from '../components/portal/DisputeModal'
 import { PortalDemurrageDetailModal } from '../components/portal/PortalDemurrageDetailModal'
-import { PortalDisputeConversation } from '../components/portal/PortalDisputeConversation'
+import { PortalDisputesScreen } from '../components/portal/PortalDisputeConversation'
 import { PortalInvoiceDetailModal } from '../components/portal/PortalInvoiceDetailModal'
 import { DemurrageTab, LocalFeesTab } from '../components/portal/PortalBillingTabs'
 import { usePortalAuth } from '../hooks/usePortalAuth'
@@ -22,6 +22,7 @@ import { usePortalScope } from '../hooks/usePortalScope'
 import {
   usePortalConsolidatableReceivables,
   usePortalCurrentRoe,
+  usePortalDemurrageComplements,
   usePortalDemurrageInvoiceDetail,
   usePortalDemurrageInvoicesPage,
   usePortalInvoiceDetail,
@@ -31,7 +32,7 @@ import {
 import { usePortalDisputes } from '../hooks/usePortalDisputes'
 import { buildInvoiceFileBaseName } from '../components/shared/invoiceFormat'
 import { exportPortalDemurrageWorkbook, exportPortalLocalInvoicesWorkbook } from '../services/exports'
-import { portalListDemurrageInvoicesForExport, portalListInvoicesForExport } from '../services/portalBilling'
+import { portalInvoiceDocumentDetail, portalListDemurrageInvoicesForExport, portalListInvoicesForExport } from '../services/portalBilling'
 import { EMPTY_PORTAL_BILLING_FILTERS, type PortalBillingFilters } from '../lib/portalBillingFilters'
 import { formatBRL } from '../lib/utils'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
@@ -54,7 +55,9 @@ export function PortalBilling() {
   const { data: receivables } = usePortalConsolidatableReceivables()
   const { data: currentRoe } = usePortalCurrentRoe()
   const obsoleteMutation = usePortalObsoleteConsolidation()
-  const { data: disputes } = usePortalDisputes()
+  const disputesQuery = usePortalDisputes()
+  const disputes = disputesQuery.data
+  const complements = usePortalDemurrageComplements()
 
   const [searchParams, setSearchParams] = useSearchParams()
   const tab: PortalTab = searchParams.get('tab') === 'demurrage' ? 'demurrage' : 'local'
@@ -65,6 +68,28 @@ export function PortalBilling() {
       return params
     })
   }
+  // Disputas de Demurrage: outra tela dentro de Faturas, na URL
+  // (`?tab=demurrage&disputas=1`, e `&disputa=<id>` com a conversa aberta).
+  const disputesOpen = tab === 'demurrage' && searchParams.get('disputas') === '1'
+  const selectedDisputeId = Number(searchParams.get('disputa')) || null
+  const showDisputes = (disputeId: number | null = null) => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev)
+      params.set('tab', 'demurrage')
+      params.set('disputas', '1')
+      if (disputeId) params.set('disputa', String(disputeId))
+      else params.delete('disputa')
+      return params
+    })
+  }
+  const leaveDisputes = () => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev)
+      params.delete('disputas')
+      params.delete('disputa')
+      return params
+    })
+  }
   const [consolidateOpen, setConsolidateOpen] = useState(false)
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null)
   const [selectedDemurrageId, setSelectedDemurrageId] = useState<number | null>(null)
@@ -72,7 +97,7 @@ export function PortalBilling() {
   const [disputeDocNumber, setDisputeDocNumber] = useState('')
   const [printOpen, setPrintOpen] = useState(false)
   const [receiptOpen, setReceiptOpen] = useState(false)
-  const [demurragePrintOpen, setDemurragePrintOpen] = useState(false)
+  const [demurragePrint, setDemurragePrint] = useState<'invoice' | 'receipt' | null>(null)
   const [exporting, setExporting] = useState(false)
   const [localFilters, setLocalFilters] = useState<Filters>(EMPTY_PORTAL_BILLING_FILTERS)
   const [demFilters, setDemFilters] = useState<Filters>(EMPTY_PORTAL_BILLING_FILTERS)
@@ -182,6 +207,81 @@ export function PortalBilling() {
     ['issued', 'partially_paid', 'overdue'].includes(detailInvoice.status ?? 'issued') &&
     (detailQuery.data?.payments.length ?? 0) === 0
 
+  const openDisputeCount = (disputes ?? []).filter((item) => item.state === 'aberta').length
+  const demurrageDetail = demurrageDetailQuery.data
+  const selectedDemurrageDispute = (disputes ?? []).find((item) => item.demurrage_invoice_id === selectedDemurrageId && item.state === 'aberta') ?? null
+  const demurrageComplementOf = demurrageDetail?.invoice ? complements.complementOf(demurrageDetail.invoice) : undefined
+  // A Invoice e o recibo dizem de qual Invoice esta completa: enquanto isso
+  // não se sabe (ou a consulta falhou), o documento não é impresso.
+  const demurragePrintBlocked = complements.pending || complements.failed
+
+  const demurrageModals = (
+    <>
+      <DisputeModal
+        demurrageInvoiceId={disputeInvoiceId}
+        docNumber={disputeDocNumber}
+        onClose={() => setDisputeInvoiceId(null)}
+      />
+      <PortalDemurrageDetailModal
+        open={Boolean(selectedDemurrageId)}
+        invoiceId={selectedDemurrageId}
+        detail={demurrageDetail}
+        loading={demurrageDetailQuery.isLoading}
+        dispute={selectedDemurrageDispute}
+        complementOf={demurrageComplementOf}
+        onClose={() => setSelectedDemurrageId(null)}
+        onPrint={() => setDemurragePrint(demurrageDetail?.invoice.status === 'paid' || demurrageDetail?.invoice.status === 'covered' ? 'receipt' : 'invoice')}
+        onDispute={(id: number, doc: string) => { setSelectedDemurrageId(null); setDisputeInvoiceId(id); setDisputeDocNumber(doc) }}
+        onShowDispute={() => {
+          setSelectedDemurrageId(null)
+          showDisputes(selectedDemurrageDispute?.id ?? null)
+        }}
+        onOpenInvoice={setSelectedDemurrageId}
+      />
+      {demurragePrint && demurrageDetail?.invoice ? (
+        <Modal open onClose={() => setDemurragePrint(null)} title={`${demurragePrint === 'receipt' ? 'Recibo' : 'Invoice'} ${demurrageDetail.invoice.doc_number}`}>
+          <div className="mb-3 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setDemurragePrint(null)}>Fechar</Button>
+            <Button loading={complements.pending} disabled={demurragePrintBlocked} onClick={() => window.print()}><Printer size={16} />Imprimir</Button>
+          </div>
+          {complements.failed ? <div className="mb-3"><InlineError message="Não foi possível confirmar se esta Invoice completa outra. Tente de novo em instantes." /></div> : null}
+          <div className="invoice-print-content">
+            <DemurrageInvoiceDocument
+              detail={{
+                ...demurrageDetail.invoice,
+                items: demurrageDetail.items,
+                refund_summary: demurrageDetail.refund_summary ?? undefined,
+                complement_of: demurrageComplementOf?.map((other) => other.doc_number),
+                customer: { name: demurrageDetail.invoice.customer_name, cnpj_cpf: demurrageDetail.invoice.customer_cnpj_cpf },
+                bl: { pol: demurrageDetail.invoice.pol, pod: demurrageDetail.invoice.pod, voyage: { voyage_number: demurrageDetail.invoice.voyage_number, vessel: { name: demurrageDetail.invoice.vessel_name } } },
+              } satisfies DemurrageInvoiceDocumentDetail}
+              type={demurragePrint}
+            />
+          </div>
+        </Modal>
+      ) : null}
+    </>
+  )
+
+  if (disputesOpen) {
+    return (
+      <>
+        <PortalDisputesScreen
+          disputes={disputes ?? []}
+          loading={disputesQuery.isLoading}
+          error={Boolean(disputesQuery.error)}
+          invoices={complements.invoices ?? []}
+          selectedDisputeId={selectedDisputeId}
+          onOpenDispute={showDisputes}
+          onBackToList={() => showDisputes(null)}
+          onBackToInvoices={leaveDisputes}
+          onOpenInvoice={setSelectedDemurrageId}
+        />
+        {demurrageModals}
+      </>
+    )
+  }
+
   return (
     <>
       <PageHeader
@@ -233,35 +333,29 @@ export function PortalBilling() {
           onOpenDetail={setSelectedInvoiceId}
         />
       ) : (
-        <>
-          <PortalDisputeConversation disputes={disputes ?? []} />
-          <DemurrageTab
-            invoices={demurrageInvoices}
-            totalCount={demurrageInvoiceCount}
-            page={demPage}
-            onPageChange={setDemPage}
-            loading={demurrageInvoicesQuery.isLoading}
-            error={Boolean(demurrageInvoicesQuery.error)}
-            filters={demFilters}
-            onFilters={updateDemFilters}
-            vesselOptions={demurrageInvoicesQuery.data?.vesselOptions ?? []}
-            pods={demurrageInvoicesQuery.data?.pods ?? []}
-            onOpenDetail={setSelectedDemurrageId}
-            roe={currentRoe}
-          />
-        </>
+        <DemurrageTab
+          invoices={demurrageInvoices}
+          totalCount={demurrageInvoiceCount}
+          page={demPage}
+          onPageChange={setDemPage}
+          loading={demurrageInvoicesQuery.isLoading}
+          error={Boolean(demurrageInvoicesQuery.error)}
+          filters={demFilters}
+          onFilters={updateDemFilters}
+          vesselOptions={demurrageInvoicesQuery.data?.vesselOptions ?? []}
+          pods={demurrageInvoicesQuery.data?.pods ?? []}
+          onOpenDetail={setSelectedDemurrageId}
+          roe={currentRoe}
+          openDisputeCount={openDisputeCount}
+          onOpenDisputes={() => showDisputes(null)}
+          complementOf={complements.complementOf}
+        />
       )}
 
       <PortalConsolidatedModal
         open={consolidateOpen}
         onClose={() => setConsolidateOpen(false)}
         onCreated={(id) => setSelectedInvoiceId(id)}
-      />
-
-      <DisputeModal
-        demurrageInvoiceId={disputeInvoiceId}
-        docNumber={disputeDocNumber}
-        onClose={() => setDisputeInvoiceId(null)}
       />
 
       <PortalInvoiceDetailModal
@@ -279,13 +373,13 @@ export function PortalBilling() {
         onOpenInvoice={setSelectedInvoiceId}
       />
       {printOpen && detailQuery.data?.invoice ? (
-        <Modal open onClose={() => setPrintOpen(false)} title={`Imprimir ${detailQuery.data.invoice.invoice_number ?? ''}`}>
+        <Modal open onClose={() => setPrintOpen(false)} title={`Imprimir fatura ${detailQuery.data.invoice.invoice_number ?? ''}`}>
           <div className="mb-3 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setPrintOpen(false)}>Fechar</Button>
             <Button
               onClick={() => {
                 const prev = document.title
-                document.title = buildInvoiceFileBaseName(detailQuery.data!)
+                document.title = buildInvoiceFileBaseName(portalInvoiceDocumentDetail(detailQuery.data!))
                 window.print()
                 document.title = prev
               }}
@@ -295,52 +389,19 @@ export function PortalBilling() {
             </Button>
           </div>
           <div className="invoice-print-content">
-            <InvoiceDocumentLocal detail={detailQuery.data} />
+            <InvoiceDocumentLocal detail={portalInvoiceDocumentDetail(detailQuery.data)} />
           </div>
         </Modal>
       ) : null}
 
-      <PortalDemurrageDetailModal
-        open={Boolean(selectedDemurrageId)}
-        invoiceId={selectedDemurrageId}
-        detail={demurrageDetailQuery.data}
-        loading={demurrageDetailQuery.isLoading}
-        dispute={(disputes ?? []).find((item) => item.demurrage_invoice_id === selectedDemurrageId && item.state === 'aberta') ?? null}
-        onClose={() => setSelectedDemurrageId(null)}
-        onPrint={() => setDemurragePrintOpen(true)}
-        onDispute={(id: number, doc: string) => { setSelectedDemurrageId(null); setDisputeInvoiceId(id); setDisputeDocNumber(doc) }}
-        onShowDispute={() => {
-          setSelectedDemurrageId(null)
-          // A conversa da disputa fica no topo da aba Demurrage.
-          requestAnimationFrame(() => document.getElementById('portal-disputas')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-        }}
-      />
-      {demurragePrintOpen && demurrageDetailQuery.data?.invoice ? (
-        <Modal open onClose={() => setDemurragePrintOpen(false)} title={`Recibo ${demurrageDetailQuery.data.invoice.doc_number}`}>
-          <div className="mb-3 flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setDemurragePrintOpen(false)}>Fechar</Button>
-            <Button onClick={() => window.print()}><Printer size={16} />Imprimir</Button>
-          </div>
-          <div className="invoice-print-content">
-            <DemurrageInvoiceDocument
-              detail={{
-                ...demurrageDetailQuery.data.invoice,
-                items: demurrageDetailQuery.data.items,
-                customer: { name: demurrageDetailQuery.data.invoice.customer_name, cnpj_cpf: demurrageDetailQuery.data.invoice.customer_cnpj_cpf },
-                bl: { pol: demurrageDetailQuery.data.invoice.pol, pod: demurrageDetailQuery.data.invoice.pod, voyage: { voyage_number: demurrageDetailQuery.data.invoice.voyage_number, vessel: { name: demurrageDetailQuery.data.invoice.vessel_name } } },
-              } satisfies DemurrageInvoiceDocumentDetail}
-              type="receipt"
-            />
-          </div>
-        </Modal>
-      ) : null}
+      {demurrageModals}
       {receiptOpen && detailQuery.data?.invoice?.status === 'paid' ? (
         <Modal open onClose={() => setReceiptOpen(false)} title={`Recibo ${detailQuery.data.invoice.invoice_number ?? ''}`}>
           <div className="mb-3 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setReceiptOpen(false)}>Fechar</Button>
             <Button onClick={() => window.print()}><Printer size={16} />Imprimir</Button>
           </div>
-          <div className="invoice-print-content"><InvoiceDocumentLocal detail={detailQuery.data} type="receipt" /></div>
+          <div className="invoice-print-content"><InvoiceDocumentLocal detail={portalInvoiceDocumentDetail(detailQuery.data)} type="receipt" /></div>
         </Modal>
       ) : null}
     </>

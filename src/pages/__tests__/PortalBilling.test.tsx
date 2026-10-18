@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from '../../services/portalBilling'
 
 const localInvoices: PortalInvoiceSummary[] = [
@@ -78,7 +78,43 @@ const demurrageInvoices: PortalDemurrageInvoice[] = [
     voyage_number: '003W',
     vessel_name: 'NAVIO C',
   },
+  {
+    id: 11,
+    doc_number: 'DEM-002',
+    doc_date: '2026-06-10',
+    due_date: null,
+    billed_at: '2026-06-10',
+    paid_at: null,
+    total_usd: 20,
+    current_roe: 5,
+    current_total_brl: 100,
+    roe_source: 'bcb_live',
+    updated_at: '2026-06-10T12:00:00Z',
+    status: 'issued',
+    pix_payload: null,
+    dispute_open: true,
+    discount_type: null,
+    discount_value: null,
+    discount_mode: null,
+    bl_id: 'BL-DEM',
+    pol: 'CNSHA',
+    pod: 'BRVIX',
+    voyage_number: '003W',
+    vessel_name: 'NAVIO C',
+  },
 ]
+
+const openDispute = {
+  id: 77,
+  demurrage_invoice_id: 11,
+  doc_number: 'DEM-002',
+  state: 'aberta' as const,
+  next_responder: 'equipamentos' as const,
+  subject: null,
+  created_at: '2026-06-12T12:00:00Z',
+  updated_at: '2026-06-12T12:00:00Z',
+  messages: [{ id: 1, author_type: 'cliente' as const, body: 'Os dias estão errados.', next_responder: 'equipamentos' as const, created_at: '2026-06-12T12:00:00Z', attachments: [] }],
+}
 
 const exportLocal = vi.fn()
 const exportDemurrage = vi.fn()
@@ -96,6 +132,7 @@ const mocks = vi.hoisted(() => ({
   obsolete: vi.fn(),
   detail: null as unknown,
   demurrageError: null as Error | null,
+  disputes: [] as unknown[],
   currentRoe: { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' } as { roe: number; updatedAt: string } | null,
 }))
 
@@ -167,13 +204,20 @@ vi.mock('../../hooks/usePortalBilling', () => ({
     error: mocks.demurrageError,
   }),
   usePortalCurrentRoe: () => ({ data: mocks.currentRoe }),
+  // Regra de verdade em portalBilling.test (portalDemurrageComplementOf): aqui, mesmo B/L e emissão anterior.
+  usePortalDemurrageComplements: () => ({
+    invoices: demurrageInvoices,
+    complementOf: (invoice: PortalDemurrageInvoice) => demurrageInvoices.filter((other) => other.bl_id === invoice.bl_id && (other.doc_date ?? '') < (invoice.doc_date ?? '')),
+    pending: false,
+    failed: false,
+  }),
   usePortalInvoiceDetail: () => ({ data: mocks.detail, isLoading: false, error: null }),
   usePortalDemurrageInvoiceDetail: () => ({ data: null, isLoading: false, error: null }),
   usePortalObsoleteConsolidation: () => ({ isPending: false, mutateAsync: mocks.obsolete }),
 }))
 
 vi.mock('../../hooks/usePortalDisputes', () => ({
-  usePortalDisputes: () => ({ data: [] }),
+  usePortalDisputes: () => ({ data: mocks.disputes, isLoading: false, error: null }),
   usePortalOpenDispute: () => ({ isPending: false, mutateAsync: vi.fn() }),
   usePortalAddDisputeMessage: () => ({ isPending: false, mutateAsync: vi.fn() }),
   usePortalRequestDisputeReopen: () => ({ isPending: false, mutateAsync: vi.fn() }),
@@ -185,16 +229,24 @@ vi.mock('../../services/exports', () => ({
 }))
 
 vi.mock('../../services/portalBilling', () => ({
+  portalInvoiceDocumentDetail: (detail: unknown) => detail,
   portalListInvoicesForExport: (...args: unknown[]) => portalExport.local(...args),
   portalListDemurrageInvoicesForExport: (...args: unknown[]) => portalExport.demurrage(...args),
+  joinDemurrageDocNumbers: (numbers: string[]) => numbers.join(' e a '),
 }))
 
 import { PortalBilling } from '../PortalBilling'
 
-function renderBilling() {
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location">{location.search}</output>
+}
+
+function renderBilling(path = '/portal/billing') {
   return render(
-    <MemoryRouter initialEntries={['/portal/billing']}>
+    <MemoryRouter initialEntries={[path]}>
       <PortalBilling />
+      <LocationProbe />
     </MemoryRouter>,
   )
 }
@@ -211,6 +263,7 @@ afterEach(() => {
   mocks.obsolete.mockReset()
   mocks.detail = null
   mocks.demurrageError = null
+  mocks.disputes = []
   mocks.currentRoe = { roe: 5.4288, updatedAt: '2026-07-16T12:00:00Z' }
   portalScope.mode = 'client'
 })
@@ -281,7 +334,7 @@ describe('PortalBilling', () => {
 
     expect(exportDemurrage).toHaveBeenCalledTimes(1)
     const rows = exportDemurrage.mock.calls[0]?.[0] as PortalDemurrageInvoice[]
-    expect(rows).toHaveLength(1)
+    expect(rows).toHaveLength(2)
     expect(rows[0].doc_number).toBe('DEM-001')
   })
 
@@ -289,12 +342,13 @@ describe('PortalBilling', () => {
     const user = userEvent.setup()
     renderBilling()
 
-    expect(screen.queryByText(/pelo ROE vigente/)).toBeNull()
+    expect(screen.queryByText(/ROE de hoje/)).toBeNull()
     await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
-    // Uma linha só, no topo do bloco Faturas de Demurrage.
-    expect(screen.getByText(/pelo ROE vigente/).textContent).toBe('Total em R$ pelo ROE vigente: R$ 5,4288 · atualizado em 16/07/2026')
-    // O em aberto soma o líquido do desconto (US$ 50 com 10%), como o total em R$.
-    expect(screen.getByText(/^US\$ [0-9.,]+ em aberto$/).textContent).toBe('US$ 45,00 em aberto')
+    // Na faixa do bloco Faturas de Demurrage, com a data no título.
+    const roe = screen.getByText('ROE de hoje R$ 5,4288')
+    expect(roe.getAttribute('title')).toBe('Atualizado em 16/07/2026')
+    // O em aberto soma o líquido do desconto (US$ 50 com 10%) e os US$ 20 da outra.
+    expect(screen.getByText(/^US\$ [0-9.,]+ em aberto$/).textContent).toBe('US$ 65,00 em aberto')
   })
 
   it('nao exibe erro cambial ao cliente quando o ROE vigente esta indisponivel', async () => {
@@ -303,7 +357,7 @@ describe('PortalBilling', () => {
     renderBilling()
 
     await user.click(screen.getByRole('tab', { name: 'Demurrage' }))
-    expect(screen.queryByText(/ROE vigente/)).toBeNull()
+    expect(screen.queryByText(/ROE de hoje/)).toBeNull()
   })
 
   it('mantem a emissão de consolidada indisponivel no Modo Inspeção', () => {
@@ -344,5 +398,43 @@ describe('PortalBilling', () => {
 
     expect(mocks.confirm).toHaveBeenCalledTimes(1)
     expect(mocks.obsolete).not.toHaveBeenCalled()
+  })
+
+  it('marca a Invoice complementar ao lado do número, com a primeira ao passar o mouse', () => {
+    renderBilling('/portal/billing?tab=demurrage')
+    const marks = screen.getAllByRole('img', { name: 'Complementa a DEM-001' })
+    expect(marks.length).toBeGreaterThan(0)
+    expect(marks[0].getAttribute('title')).toBe('Complementa a DEM-001')
+    expect(screen.queryByRole('img', { name: /Complementa a DEM-002/ })).toBeNull()
+  })
+
+  it('tira a conversa do topo da aba: o botão Disputas conta as abertas e abre a tela das disputas', async () => {
+    const user = userEvent.setup()
+    mocks.disputes = [openDispute]
+    renderBilling('/portal/billing?tab=demurrage')
+
+    expect(screen.queryByText(/Dispute/)).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Conversa' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Disputas · 1 aberta' }))
+
+    expect(screen.getByTestId('location').textContent).toBe('?tab=demurrage&disputas=1')
+    expect(screen.getByRole('heading', { name: 'Disputas de Demurrage' })).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: 'Demurrage' })).toBeNull()
+    expect(screen.getAllByText('BL-DEM').length).toBeGreaterThan(0)
+
+    await user.click(screen.getAllByRole('button', { name: 'Abrir a disputa da DEM-002' })[0])
+    expect(screen.getByTestId('location').textContent).toBe('?tab=demurrage&disputas=1&disputa=77')
+    expect(screen.getByRole('heading', { name: 'Disputa da DEM-002' })).toBeTruthy()
+    expect(screen.getByText('Os dias estão errados.')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: /Voltar às disputas/ }))
+    await user.click(screen.getByRole('button', { name: /Voltar às faturas/ }))
+    expect(screen.getByTestId('location').textContent).toBe('?tab=demurrage')
+    expect(screen.getByRole('heading', { name: 'Faturas de Demurrage' })).toBeTruthy()
+  })
+
+  it('sem disputa aberta, o botão diz só "Disputas"', () => {
+    renderBilling('/portal/billing?tab=demurrage')
+    expect(screen.getByRole('button', { name: 'Disputas' })).toBeTruthy()
   })
 })

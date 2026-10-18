@@ -3,14 +3,15 @@ import type { ReactNode } from 'react'
 // caixa normal + valor em destaque, fundo neutro, legível em tema claro e escuro.
 // Unifica as 7 cópias que existiam por página. Use no máximo quatro por tela e
 // só para números que levam a uma decisão; os demais vão para a SummaryStrip.
-// Com `onSelect`, o card vira o botão que aplica o filtro correspondente.
+// Com `onSelect`, o card vira botão: com `selected`, aplica o filtro
+// correspondente (aria-pressed); sem `selected`, só leva a outra tela.
 export function MetricCard({
   label,
   value,
   tone = 'secondary',
   detail,
   onSelect,
-  selected = false,
+  selected,
 }: {
   label: string
   /** Número ou texto; para ausência, `<NoValue />`. */
@@ -20,7 +21,7 @@ export function MetricCard({
   /** Linha curta de apoio sob o valor. */
   detail?: ReactNode
   onSelect?: () => void
-  /** Filtro do card aplicado no momento. */
+  /** Filtro do card aplicado no momento; omita no card que só navega. */
   selected?: boolean
 }) {
   const className = `app-metric-tile ${tone === 'secondary' ? '' : `app-metric-tile--${tone}`}`

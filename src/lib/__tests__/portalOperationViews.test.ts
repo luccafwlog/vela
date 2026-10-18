@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { PortalOperationBL } from '../../services/portalOperation'
 import {
+  blCargoLabel,
   blMatchesReturnSituation,
+  blReturnSummary,
   containerMatchesReturnSituation,
+  containerSituation,
   countContainersInDemurrage,
   countContainersWithoutReturn,
   flattenContainers,
+  localChargesView,
 } from '../portalOperationViews'
 
 const bls: PortalOperationBL[] = [
@@ -86,5 +90,50 @@ describe('portalOperationViews — SOC', () => {
     expect(containerMatchesReturnSituation(socBl.containers[0], 'sem_devolucao')).toBe(false)
     expect(countContainersWithoutReturn([socBl])).toBe(0)
     expect(countContainersInDemurrage([socBl])).toBe(0)
+  })
+})
+
+describe('portalOperationViews — tela limpa da rodada 2', () => {
+  const inFreeTime = { id: 20, container_number: 'F1', type: '20GP', discharge_date: '2026-10-05', return_date: null, usage_days: 12, free_time_days: 21, demurrage_days: 0, status: 'dentro_free_time' as const }
+  const freeTimeBl: PortalOperationBL = { ...bls[1], bl_id: 'BL-FT', containers: [inFreeTime, bls[0].containers[1]] }
+
+  it('no_free_time separa quem ainda está no free time de quem já está em demurrage', () => {
+    expect(containerMatchesReturnSituation(inFreeTime, 'no_free_time')).toBe(true)
+    expect(containerMatchesReturnSituation(bls[0].containers[1], 'no_free_time')).toBe(false)
+    expect(containerMatchesReturnSituation({ ...inFreeTime, return_date: '2026-10-10' }, 'no_free_time')).toBe(false)
+    expect(blMatchesReturnSituation(freeTimeBl, 'no_free_time')).toBe(true)
+    expect(blMatchesReturnSituation(bls[0], 'no_free_time')).toBe(false)
+  })
+
+  it('situação em texto com os dias que faltam do free time', () => {
+    expect(containerSituation(inFreeTime)).toEqual({ label: 'No free time · 9 dias', tone: 'warning' })
+    expect(containerSituation({ ...inFreeTime, usage_days: 20 }).label).toBe('No free time · 1 dia')
+    expect(containerSituation({ ...inFreeTime, usage_days: 21 }).label).toBe('No free time · último dia')
+    expect(containerSituation(bls[0].containers[1])).toEqual({ label: 'Em demurrage', tone: 'danger' })
+    expect(containerSituation(bls[0].containers[0])).toEqual({ label: 'Devolvido', tone: 'default' })
+  })
+
+  it('resume devolução e demurrage do B/L sem contar SOC', () => {
+    expect(blReturnSummary(bls[0])).toEqual({ returnable: 2, returned: 1, awaiting: 1, inDemurrage: 1 })
+    const soc = { ...inFreeTime, id: 21, status: 'soc' as const }
+    expect(blReturnSummary({ ...bls[0], containers: [soc, bls[0].containers[0]] })).toEqual({ returnable: 1, returned: 1, awaiting: 0, inDemurrage: 0 })
+  })
+
+  it('escreve a carga com vírgula decimal e diz que é carga solta', () => {
+    expect(blCargoLabel(bls[0])).toBe('2 containers')
+    expect(blCargoLabel(bls[1])).toBe('1 container')
+    expect(blCargoLabel({ ...bls[1], cargo_mode: 'carga_solta', container_count: 0, containers: [], bb_weight_ton: 64.5 })).toBe('Carga solta · 64,5 t')
+    expect(blCargoLabel({ ...bls[1], cargo_mode: 'misto', bb_weight_ton: 12.5 })).toBe('1 container + 12,5 t')
+  })
+
+  it('Taxas locais e Pagamento só com fatura visível', () => {
+    const open = localChargesView({ status: 'open', total_brl: 4804, balance_brl: 1202 })
+    expect(open.total).toBe(4804)
+    expect(open.payment?.tone).toBe('warning')
+    expect(open.payment?.label).toMatch(/^R\$\s1\.202,00 em aberto$/)
+    expect(localChargesView({ status: 'paid', total_brl: 2702, balance_brl: 0 })).toEqual({ total: 2702, payment: { label: 'Pago', tone: 'paid' } })
+    expect(localChargesView({ status: 'awaiting_invoice', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: { label: 'Aguardando fatura', tone: 'default' } })
+    expect(localChargesView({ status: 'none', total_brl: null, balance_brl: null })).toEqual({ total: null, payment: null })
+    expect(localChargesView(undefined)).toEqual({ total: null, payment: null })
   })
 })

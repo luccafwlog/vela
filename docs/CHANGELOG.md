@@ -6,6 +6,23 @@
 
 ## 2026-10
 
+- **Identidade visual, lote 4: restante do Portal (2026-10-18):** Painel com quatro cartões
+  (Demurrage em US$, Desbloqueio de CE), Programação de navios num bloco e Consultas; detalhe
+  da fatura pela situação, com o Pix numa faixa baixa e os Pagamentos recebidos; Gerar fatura
+  consolidada com filtros de B/L e Navio / Viagem; Demurrage com a tela de Disputas, a marca ⊕
+  da Invoice complementar, restituições e "Imprimir Invoice"; BLs e Containers com cartões que
+  filtram e as colunas Taxas locais e Pagamento; Central de Informações em abas, com tracking
+  que abre a consulta do B/L quando o link do armador tem `{BL}`; Desbloqueio de CE e
+  Documentos anuais VIP numa tabela comum; Perfil em três blocos com o e-mail de recuperação
+  atual (migration `300`). **Segurança:** o Portal só mostra Taxas Locais de fatura emitida e
+  liberada; o Saldo pendente, a consolidação e o Desbloqueio de CE deixaram de expor valor
+  ainda não faturado ou fatura em rascunho ([ADR 0088](adr/0088-portal-so-mostra-fatura-emitida.md),
+  migration `298`). **Desbloqueio de CE:** o B/L de solicitação ainda não validada pode ser
+  pedido de novo e muda para a nova ([ADR 0089](adr/0089-desbloqueio-ce-bl-muda-de-solicitacao.md),
+  migration `299`).
+- **Programação de navios do Portal no celular (2026-10-18):** abaixo de 640 px o Painel
+  do Portal voltou a mostrar um cartão por navio; desde o lote 2 da identidade a regra que
+  esconde os cartões vinha depois da que os mostra, e o Cliente via só o título e a legenda.
 - **CE e Taxas automático parou de ser recusado em loop (2026-10-17):** a validação de anexos
   recusava cobrança local e demurrage mesmo sem anexo, e a Edge devolvia 422 a cada rodada
   (~250 recusas em 24 h, 84 rodadas × 3 destinatários de teste); o envio manual do CE também

@@ -1,21 +1,33 @@
-import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Card, InlineError, PageHeader } from '../components/ui/Card'
+import { useQuery } from '@tanstack/react-query'
+import { InlineError, PageHeader } from '../components/ui/Card'
+import { Block } from '../components/ui/Block'
+import { MetricCard } from '../components/ui/MetricCard'
+import { NoValue } from '../components/ui/NoValue'
 import { ShipScheduleWidget } from '../components/portal/ShipScheduleWidget'
 import { usePortalInvoices, usePortalDemurrageInvoices } from '../hooks/usePortalBilling'
 import { usePortalOperationBls } from '../hooks/usePortalOperation'
 import { countContainersInDemurrage, countContainersWithoutReturn } from '../lib/portalOperationViews'
-import { formatBRL } from '../lib/utils'
-import { CLOSED_DEMURRAGE_STATUSES, OPEN_INVOICE_STATUSES } from '../lib/portalInvoiceStatus'
+import { formatBRL, formatCountLabel } from '../lib/utils'
+import { OPEN_INVOICE_STATUSES, formatUsd } from '../lib/portalInvoiceStatus'
 import { usePortalScope } from '../hooks/usePortalScope'
 import { portalPath } from '../services/portalScope'
+import { fetchAllPortalCeUnlockRequests } from '../services/ceUnlockService'
 
-type PanelCard = {
-  label: string
-  primary: string
-  secondary: string
-  link: string
-}
+// Demurrage em aberto: emitida (com ou sem disputa) e o legado `overdue`, como na aba Demurrage.
+const OPEN_DEMURRAGE_STATUSES = ['issued', 'overdue']
+// Solicitação de Desbloqueio de CE ainda não concluída nem cancelada.
+const OPEN_CE_REQUEST_STATES = ['draft', 'submitted', 'in_review', 'changes_requested']
+
+// Atalhos para as seções da Central de Informações (lote 4).
+const CONSULTAS = [
+  { section: 'taxas', label: 'Taxas Locais' },
+  { section: 'devolucao', label: 'Depósitos de devolução' },
+  { section: 'demurrage', label: 'Tarifa de Demurrage' },
+  { section: 'agentes', label: 'Agentes por porto' },
+  { section: 'atendimento', label: 'Contato' },
+  { section: 'tracking', label: 'Tracking' },
+] as const
 
 export function PortalDashboard() {
   const { data: invoices, isLoading: invLoading, error: invoicesError } = usePortalInvoices()
@@ -23,44 +35,24 @@ export function PortalDashboard() {
   const { data: operationBls, isLoading: opLoading, error: operationError } = usePortalOperationBls()
   const nav = useNavigate()
   const scope = usePortalScope()
+  // Mesma família de chave do Desbloqueio de CE: um comando lá atualiza o cartão aqui.
+  const ceRequests = useQuery({
+    queryKey: ['ce-unlock', 'requests', { mode: scope.mode, customerId: scope.customerId, authCustomer: scope.overview?.customer_id }, 'all'],
+    queryFn: () => fetchAllPortalCeUnlockRequests(scope),
+  })
 
-  const cards = useMemo<PanelCard[]>(() => {
-    const openLocal = (invoices ?? []).filter((i) => (OPEN_INVOICE_STATUSES as readonly string[]).includes(i.status ?? 'issued'))
-    const localTotal = openLocal.reduce((sum, i) => sum + (i.balance_brl ?? 0), 0)
+  const openLocal = (invoices ?? []).filter((i) => (OPEN_INVOICE_STATUSES as readonly string[]).includes(i.status ?? 'issued'))
+  const localTotal = openLocal.reduce((sum, i) => sum + (i.balance_brl ?? 0), 0)
 
-    const openDemurrage = (demurrage ?? []).filter((i) => !(CLOSED_DEMURRAGE_STATUSES as readonly string[]).includes(i.status ?? 'issued'))
-    const demurrageTotal = openDemurrage.reduce((sum, i) => sum + (i.current_total_brl ?? 0), 0)
+  const openDemurrage = (demurrage ?? []).filter((i) => OPEN_DEMURRAGE_STATUSES.includes(i.status ?? 'issued'))
+  const demurrageUsd = openDemurrage.reduce((sum, i) => sum + Number(i.total_usd ?? 0), 0)
+  const demurrageBrl = openDemurrage.reduce((sum, i) => sum + Number(i.current_total_brl ?? 0), 0)
 
-    const containersNoReturn = countContainersWithoutReturn(operationBls ?? [])
-    const containersDemurrage = countContainersInDemurrage(operationBls ?? [])
+  const containersNoReturn = countContainersWithoutReturn(operationBls ?? [])
+  const containersDemurrage = countContainersInDemurrage(operationBls ?? [])
 
-    return [
-      {
-        label: 'Taxas locais em aberto',
-        primary: formatBRL(localTotal),
-        secondary: `${openLocal.length} fatura(s) em aberto`,
-        link: portalPath(scope, '/billing?tab=local'),
-      },
-      {
-        label: 'Demurrage em aberto',
-        primary: formatBRL(demurrageTotal),
-        secondary: `${openDemurrage.length} fatura(s) em aberto`,
-        link: portalPath(scope, '/billing?tab=demurrage'),
-      },
-      {
-        label: 'Containers sem devolução',
-        primary: String(containersNoReturn),
-        secondary: 'container(es) ainda não devolvido(s)',
-        link: portalPath(scope, '/operacao?tab=containers&devolucao=sem_devolucao'),
-      },
-      {
-        label: 'Containers em demurrage',
-        primary: String(containersDemurrage),
-        secondary: 'container(es) gerando sobreestadia',
-        link: portalPath(scope, '/operacao?tab=containers&devolucao=em_demurrage'),
-      },
-    ]
-  }, [invoices, demurrage, operationBls, scope])
+  const openRequests = (ceRequests.data ?? []).filter((request) => OPEN_CE_REQUEST_STATES.includes(request.state))
+  const correctionRequests = openRequests.filter((request) => request.state === 'changes_requested').length
 
   const loading = invLoading || demLoading || opLoading
   const financialError = Boolean(invoicesError || demurrageError)
@@ -77,33 +69,53 @@ export function PortalDashboard() {
       ) : operationLoadError ? (
         <InlineError message="Falha ao carregar indicadores operacionais. Tente novamente em instantes." />
       ) : (
-        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-          {cards.map((card) => (
-            <Card key={card.label} className="p-0">
-              <button
-                type="button"
-                onClick={() => nav(card.link)}
-                className="flex w-full flex-col gap-1 rounded-2xl p-5 text-left hover:bg-[var(--app-surface-hover)]"
-              >
-                <span className="text-xs uppercase tracking-wider text-[var(--app-muted)]">{card.label}</span>
-                <span className="text-2xl font-semibold">{card.primary}</span>
-                <span className="text-sm text-[var(--app-muted)]">{card.secondary}</span>
-              </button>
-            </Card>
-          ))}
+        <div className="app-metric-row" role="group" aria-label="Resumo">
+          <MetricCard
+            label="Taxas Locais em aberto"
+            value={formatBRL(localTotal)}
+            detail={formatCountLabel(openLocal.length, 'fatura', 'faturas')}
+            tone={localTotal > 0 ? 'warning' : 'secondary'}
+            onSelect={() => nav(portalPath(scope, '/billing?tab=local'))}
+          />
+          <MetricCard
+            label="Demurrage em aberto"
+            value={formatUsd(demurrageUsd)}
+            detail={`${formatCountLabel(openDemurrage.length, 'fatura', 'faturas')} · ${formatBRL(demurrageBrl)} hoje`}
+            tone={demurrageUsd > 0 ? 'warning' : 'secondary'}
+            onSelect={() => nav(portalPath(scope, '/billing?tab=demurrage'))}
+          />
+          <MetricCard
+            label="Containers sem devolução"
+            value={String(containersNoReturn)}
+            detail={`${containersDemurrage} já em demurrage`}
+            tone={containersNoReturn > 0 ? 'warning' : 'secondary'}
+            onSelect={() => nav(portalPath(scope, '/operacao?tab=containers&devolucao=sem_devolucao'))}
+          />
+          <MetricCard
+            label="Desbloqueio de CE em aberto"
+            value={ceRequests.isError ? <NoValue label="Não foi possível carregar as solicitações" /> : ceRequests.isLoading ? <NoValue label="Carregando" /> : formatCountLabel(openRequests.length, 'solicitação', 'solicitações')}
+            detail={ceRequests.isError ? 'Não foi possível carregar.' : ceRequests.data && openRequests.length > 0 ? correctionLabel(correctionRequests) : null}
+            onSelect={() => nav(portalPath(scope, '/desbloqueio-ce?aba=solicitacoes'))}
+          />
         </div>
       )}
 
-      <Card className="mt-6">
-        <h2 className="text-base font-semibold">Central de Informações</h2>
-        <p className="my-2 text-sm text-[var(--app-muted)]">Taxas Locais, depots de devolução, Demurrage, agentes, atendimento e tracking.</p>
-        <Link to={portalPath(scope, '/informacoes')} className="app-btn app-btn--secondary app-btn--sm">Consultar informações</Link>
-      </Card>
+      <ShipScheduleWidget className="mt-6" />
 
-      <section className="mt-8">
-        <h2 className="text-base font-semibold mb-4">Chegadas e Saídas</h2>
-        <ShipScheduleWidget />
-      </section>
+      <Block title="Consultas" aside="Central de Informações" className="mt-6">
+        <nav aria-label="Consultas na Central de Informações" className="flex flex-wrap gap-2">
+          {CONSULTAS.map((item) => (
+            <Link key={item.section} to={portalPath(scope, `/informacoes/${item.section}`)} className="app-btn app-btn--secondary">
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </Block>
     </>
   )
+}
+
+function correctionLabel(count: number) {
+  if (count === 0) return 'nenhuma pede correção'
+  return `${count} ${count === 1 ? 'pede' : 'pedem'} correção`
 }

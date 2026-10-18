@@ -12,7 +12,9 @@ import type { PortalScope } from "../../services/portalScope";
 
 const svc = vi.hoisted(() => ({
   listPortalCeUnlockBls: vi.fn(),
+  fetchAllPortalCeUnlockBls: vi.fn(),
   listPortalCeUnlockRequests: vi.fn(),
+  fetchAllPortalCeUnlockRequests: vi.fn(async () => []),
   getPortalCeUnlockVip: vi.fn(),
   getPortalCeUnlockModel: vi.fn(),
   getPortalCeUnlockRequest: vi.fn(),
@@ -45,6 +47,9 @@ const request = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl()], total: 1 });
+  // A tela lê a lista inteira; aqui, a primeira página simulada.
+  svc.fetchAllPortalCeUnlockBls.mockImplementation(async (scope: PortalScope, filters: unknown) =>
+    (await svc.listPortalCeUnlockBls(scope, filters, 1)).items);
   svc.listPortalCeUnlockRequests.mockResolvedValue({ items: [], total: 0 });
   svc.getPortalCeUnlockVip.mockResolvedValue({ enabled: false, termo: false, procuracao: false, documents: [] });
   svc.getPortalCeUnlockModel.mockResolvedValue(null);
@@ -77,7 +82,7 @@ const commandCalls = (action: string) => svc.portalCeUnlockCommand.mock.calls.fi
 it("com modelo disponível, o botão baixa o termo publicado pela agência", async () => {
   svc.getPortalCeUnlockModel.mockResolvedValue({ id: "model-1" });
   mount();
-  await userEvent.click(await screen.findByRole("button", { name: "Baixar modelo do termo de devolução" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Baixar modelo do termo" }));
   expect(svc.downloadCeUnlockDocument).toHaveBeenCalledWith("model-1", expect.objectContaining({ mode: "client" }));
 });
 
@@ -85,13 +90,13 @@ it("seleção e envio do rascunho funcionam só pelo teclado", async () => {
   svc.portalCeUnlockCommand.mockResolvedValue({ id: "req-1" });
   const user = userEvent.setup();
   mount();
-  const box = await screen.findByLabelText("Selecionar BL BL-A");
+  const box = await screen.findByLabelText("Selecionar B/L BL-A");
   for (let i = 0; i < 40 && document.activeElement !== box; i++) await user.tab();
   expect(document.activeElement).toBe(box);
   await user.keyboard(" ");
   expect((box as HTMLInputElement).checked).toBe(true);
-  const next = screen.getByRole("button", { name: "Continuar com 1 BL(s)" });
-  for (let i = 0; i < 40 && document.activeElement !== next; i++) await user.tab({ shift: true });
+  const next = screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" });
+  for (let i = 0; i < 40 && document.activeElement !== next; i++) await user.tab();
   expect(document.activeElement).toBe(next);
   await user.keyboard("{Enter}");
   await waitFor(() => expect(commandCalls("draft")).toHaveLength(1));
@@ -101,30 +106,31 @@ it("seleção e envio do rascunho funcionam só pelo teclado", async () => {
 it("pagamento perdido entre seleção e envio: mostra o erro e a lista atualizada com taxas pendentes", async () => {
   svc.portalCeUnlockCommand.mockRejectedValue(new Error("B/L BL-A perdeu elegibilidade"));
   mount();
-  await userEvent.click(await screen.findByLabelText("Selecionar BL BL-A"));
+  await userEvent.click(await screen.findByLabelText("Selecionar B/L BL-A"));
   svc.listPortalCeUnlockBls.mockResolvedValue({
-    items: [bl({ paid: false, can_submit: false, reasons: ["Taxas locais pendentes"] })], total: 1,
+    items: [bl({ paid: false, can_submit: false, reasons: ["Taxas locais sem liquidação integral confirmada"] })], total: 1,
   });
-  await userEvent.click(screen.getByRole("button", { name: "Continuar com 1 BL(s)" }));
+  await userEvent.click(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }));
   expect(await screen.findByText("B/L BL-A perdeu elegibilidade")).toBeTruthy();
-  expect(await screen.findByText("Pendentes")).toBeTruthy();
-  expect(screen.getByText("Taxas locais pendentes")).toBeTruthy();
+  expect(await screen.findByText("Em aberto")).toBeTruthy();
+  // O motivo longo não se repete na linha: a coluna Taxas locais já diz.
+  expect(screen.queryByText(/sem liquidação integral/)).toBeNull();
   expect(screen.getByRole("link", { name: "Ver faturas" }).getAttribute("href")).toBe("/portal/billing");
   // O BL inelegível continua marcado, mas pode ser retirado da seleção.
-  const box = screen.getByLabelText("Selecionar BL BL-A") as HTMLInputElement;
+  const box = screen.getByLabelText("Selecionar B/L BL-A") as HTMLInputElement;
   expect(box.disabled).toBe(false);
   await userEvent.click(box);
   expect(box.checked).toBe(false);
-  expect(screen.getByRole("button", { name: "Continuar com 0 BL(s)" }).hasAttribute("disabled")).toBe(true);
+  expect(screen.getByRole("button", { name: "Pedir desbloqueio de 0 B/Ls" }).hasAttribute("disabled")).toBe(true);
 });
 
 it("retry de rede do rascunho reaproveita a mesma chave idempotente", async () => {
   svc.portalCeUnlockCommand.mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValueOnce({ id: "req-1" });
   mount();
-  await userEvent.click(await screen.findByLabelText("Selecionar BL BL-A"));
-  await userEvent.click(screen.getByRole("button", { name: "Continuar com 1 BL(s)" }));
+  await userEvent.click(await screen.findByLabelText("Selecionar B/L BL-A"));
+  await userEvent.click(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }));
   expect(await screen.findByText("Failed to fetch")).toBeTruthy();
-  await userEvent.click(screen.getByRole("button", { name: "Continuar com 1 BL(s)" }));
+  await userEvent.click(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }));
   await waitFor(() => expect(commandCalls("draft")).toHaveLength(2));
   const [first, second] = commandCalls("draft").map((c) => c[2].request_key);
   expect(first).toBeTruthy();
@@ -156,8 +162,12 @@ it("correção completa: com a nova versão do documento recusado, a solicitaç�
   const view = mount("/portal/desbloqueio-ce?pedido=req-1");
   const resend = await screen.findByRole("button", { name: "Reenviar solicitação" });
   expect(resend.hasAttribute("disabled")).toBe(true);
-  expect(screen.getByText("Anexe termo de devolução para continuar.")).toBeTruthy();
-  expect(screen.getByText("Motivo: Assinatura ilegível")).toBeTruthy();
+  expect(screen.getByText("Envie o termo de devolução corrigido para reenviar.")).toBeTruthy();
+  const refusedRow = screen.getByRole("button", { name: "termo.pdf" }).closest("tr") as HTMLElement;
+  expect(within(refusedRow).getByText("Correção pedida: assinatura ilegível")).toBeTruthy();
+  expect(within(refusedRow).getByRole("button", { name: "Enviar nova versão: termo de devolução" })).toBeTruthy();
+  // Só o documento recusado oferece nova versão.
+  expect(screen.getAllByRole("button", { name: /Enviar nova versão/ })).toHaveLength(1);
   view.unmount();
 
   svc.getPortalCeUnlockRequest.mockResolvedValue(
@@ -182,25 +192,30 @@ it("VIP com termo anual vencido fica pendente: bloqueia nova solicitação e mos
     ],
   });
   mount();
-  expect(await screen.findByText(/Documentos anuais VIP precisam de regularização/)).toBeTruthy();
-  await userEvent.click(screen.getByLabelText("Selecionar BL BL-A"));
-  expect(screen.getByRole("button", { name: "Continuar com 1 BL(s)" }).hasAttribute("disabled")).toBe(true);
+  expect(await screen.findByText("O termo de devolução anual está em análise: os pedidos ficam liberados quando a análise terminar.")).toBeTruthy();
+  expect(screen.getByText("Falta o termo anual")).toBeTruthy();
+  await userEvent.click(screen.getByLabelText("Selecionar B/L BL-A"));
+  expect(screen.getByRole("button", { name: "Pedir desbloqueio de 1 B/L" }).hasAttribute("disabled")).toBe(true);
 
   await userEvent.click(screen.getByRole("button", { name: "Abrir Documentos anuais" }));
   expect(await screen.findByText("Falta")).toBeTruthy();
-  const expired = screen.getAllByText(/termo-2025\.pdf/)[0].closest("div.rounded-lg") as HTMLElement;
-  expect(within(expired).getByText("Fora da vigência")).toBeTruthy();
-  const renewal = screen.getAllByText("termo-2027.pdf")[0].closest("div.rounded-lg") as HTMLElement;
-  expect(within(renewal).getByText("Aguardando análise")).toBeTruthy();
+  const rows = screen.getAllByRole("row").slice(1);
+  // A renovação em análise vem antes; a versão vencida fica no fim, em cinza.
+  expect(rows.map((r) => within(r).getAllByRole("button")[0].textContent)).toEqual(["termo-2027.pdf", "proc.pdf", "termo-2025.pdf"]);
+  expect(within(rows[0]).getByText("Aguardando análise")).toBeTruthy();
+  expect(rows[2].className).toContain("app-table__row--muted");
+  expect(rows[2].textContent).toContain("Fora da vigência");
+  expect(rows[1].textContent).toContain("01/01/2026 a 31/12/2026");
 });
 
 it("URL de inspeção carrega o Portal do Cliente em modo somente leitura", async () => {
+  svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl({ paid: false, can_submit: false })], total: 1 });
   const scope: PortalScope = { mode: "inspect", customerId: 7, overview: null, basePath: "/clientes/portal/inspecao/7" };
   mount("/clientes/portal/inspecao/7/desbloqueio-ce", scope);
-  const box = await screen.findByLabelText("Selecionar BL BL-A");
+  const box = await screen.findByLabelText("Selecionar B/L BL-A");
   expect(box.hasAttribute("disabled")).toBe(true);
-  expect(screen.queryByRole("button", { name: /Continuar com/ })).toBeNull();
-  expect(screen.getByRole("link", { name: "Faturas" }).getAttribute("href")).toBe("/clientes/portal/inspecao/7/billing");
+  expect(screen.queryByRole("button", { name: /Pedir desbloqueio/ })).toBeNull();
+  expect(screen.getByRole("link", { name: "Ver faturas" }).getAttribute("href")).toBe("/clientes/portal/inspecao/7/billing");
   expect(svc.listPortalCeUnlockBls).toHaveBeenCalledWith(expect.objectContaining({ mode: "inspect", customerId: 7 }), expect.anything(), 1);
 });
 
@@ -210,7 +225,8 @@ it("pedido aberto em inspeção não oferece envio, cancelamento nem upload", as
   expect(await screen.findByText("termo.pdf")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Solicitar desbloqueio" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Cancelar solicitação" })).toBeNull();
-  expect(screen.queryByLabelText(/Termo de devolução assinado/)).toBeNull();
+  expect(screen.queryByLabelText(/Arquivo do termo/)).toBeNull();
+  expect(screen.queryByRole("button", { name: /Anexar|Enviar nova versão|Trocar arquivo/ })).toBeNull();
 });
 
 it("anexar não envia: Solicitar desbloqueio sobe termo e procuração e envia com a versão relida", async () => {
@@ -223,9 +239,12 @@ it("anexar não envia: Solicitar desbloqueio sobe termo e procuração e envia c
   expect(send.hasAttribute("disabled")).toBe(true);
   expect(screen.queryByRole("button", { name: /Enviar termo|Enviar procuração/ })).toBeNull();
 
-  await userEvent.upload(screen.getByLabelText(/Termo de devolução assinado/), pdf("termo.pdf"));
-  expect(screen.getByText("Anexe procuração para continuar.")).toBeTruthy();
-  await userEvent.upload(screen.getByLabelText("Procuração (PDF)"), pdf("proc.pdf"));
+  expect(screen.getAllByText("Falta anexar")).toHaveLength(2);
+  await userEvent.upload(screen.getByLabelText("Arquivo do termo de devolução (PDF)"), pdf("termo.pdf"));
+  expect(screen.getByText("Anexe a procuração para solicitar.")).toBeTruthy();
+  // O arquivo escolhido aparece na tabela e só sobe ao solicitar.
+  expect(screen.getByText("termo.pdf").closest("tr")!.textContent).toContain("Sobe ao solicitar o desbloqueio");
+  await userEvent.upload(screen.getByLabelText("Arquivo da procuração (PDF)"), pdf("proc.pdf"));
   expect(svc.uploadCeUnlockDocument).not.toHaveBeenCalled();
 
   // Depois dos anexos o pedido relido tem versão nova; o envio usa essa versão.
@@ -245,17 +264,17 @@ it("anexo recusado no envio mostra o motivo e não envia a solicitação", async
   svc.getPortalCeUnlockRequest.mockResolvedValue(request({ documents: [doc({ id: "p1", type: "procuracao", file_name: "proc.pdf" })] }));
   svc.uploadCeUnlockDocument.mockRejectedValue(new Error("O arquivo não é um PDF."));
   mount("/portal/desbloqueio-ce?pedido=req-1");
-  await userEvent.upload(await screen.findByLabelText(/Termo de devolução assinado/), file);
+  await userEvent.upload(await screen.findByLabelText("Arquivo do termo de devolução (PDF)"), file);
   await userEvent.click(screen.getByRole("button", { name: "Solicitar desbloqueio" }));
   expect(await screen.findByText("O arquivo não é um PDF.")).toBeTruthy();
   expect(commandCalls("submit")).toHaveLength(0);
   // O anexo recusado precisa ser escolhido de novo.
-  expect(screen.getByText("Anexe termo de devolução para continuar.")).toBeTruthy();
+  expect(screen.getByText("Anexe o termo de devolução para solicitar.")).toBeTruthy();
 });
 
-it("B/L isento aparece como Isento, não como taxas pagas", async () => {
+it("B/L isento aparece como Isentas, não como taxas pagas", async () => {
   svc.listPortalCeUnlockBls.mockResolvedValue({ items: [bl({ paid_exempt: true })], total: 1 });
   mount();
-  expect(await screen.findByText("Isento")).toBeTruthy();
+  expect(await screen.findByText("Isentas")).toBeTruthy();
   expect(screen.queryByText("Pagas")).toBeNull();
 });
