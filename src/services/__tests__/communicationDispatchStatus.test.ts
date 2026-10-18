@@ -30,10 +30,15 @@ describe('status final do Comunicado depois do envio', () => {
     expect(resolveDispatchStatus({ ...off, refreshed: 'simulado', succeeded: 0, failed: 0, unrecordedFailures: 1 })).toBe('parcial')
   })
 
-  it('grava só falha e parcial que o banco não tem', () => {
+  it('grava o status resolvido sempre que o banco ficou diferente dele', () => {
     expect(statusToPersist('pendente', 'falha')).toBe('falha')
     expect(statusToPersist('enviado', 'parcial')).toBe('parcial')
     expect(statusToPersist('falha', 'falha')).toBeNull()
-    expect(statusToPersist('pendente', 'enviado')).toBeNull()
+    // 200 do provedor sem o id gravado: o banco ficou "Em envio" e a resposta
+    // foi "enviado". Antes ficava pendente sem ninguém que o resolvesse.
+    expect(statusToPersist('pendente', 'enviado')).toBe('enviado')
+    expect(statusToPersist('simulado', 'enviado')).toBe('enviado')
+    expect(statusToPersist(null, 'falha')).toBe('falha')
+    expect(statusToPersist('simulado', 'simulado')).toBeNull()
   })
 })

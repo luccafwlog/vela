@@ -41,7 +41,7 @@ function cleanup() {
     DELETE FROM public.customer_communication_automation_claims WHERE claim_key LIKE '%:${CUSTOMER}:%';
     DELETE FROM public.customer_contact_box_links WHERE contact_id = ${CONTACT};
     DELETE FROM public.customer_contacts WHERE customer_id = ${CUSTOMER};
-    DELETE FROM public.audit_logs WHERE entity_id = '${BL}';
+    DELETE FROM public.audit_logs WHERE entity_id = '${BL}' OR (entity_type = 'voyage_pod_schedule' AND entity_id = '${VOYAGE_ID}::${PORT}');
     DELETE FROM public.bls WHERE id = '${BL}';
     DELETE FROM public.voyage_escala_operation_fronts WHERE voyage_id = ${VOYAGE_ID};
     DELETE FROM public.voyage_escala_terminal_state WHERE voyage_id = ${VOYAGE_ID};
@@ -86,6 +86,10 @@ describeLocal('297 — claim recusada não volta como candidata dentro da janela
         (${VOYAGE_ID}, '${PORT}', ${PORT_ID}, '${TERMINAL}', 'importacao', 'carga_solta', 'operational_data');
       INSERT INTO public.bls (id, voyage_id, customer_id, pol, pod, cargo_mode, financial_status, charge_status, review_status, terminal_id, pod_port_id) VALUES
         ('${BL}', ${VOYAGE_ID}, ${CUSTOMER}, 'CNSHA', '${PORT}', 'carga_solta', 'pending', 'calculated', 'ok', NULL, NULL);
+      -- Escala com ETA daqui a 2 dias: o NOA do Cliente também é alvo devido
+      -- (o alerta só lista claims de alvo devido, migration 315).
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_at) VALUES
+        ('voyage_pod_schedule', '${VOYAGE_ID}::${PORT}', 'eta', NULL, to_char(now() + interval '2 days', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), now() - interval '1 hour');
       SET session_replication_role = origin;
     `)
   })
@@ -100,8 +104,12 @@ describeLocal('297 — claim recusada não volta como candidata dentro da janela
       WHERE i.item_type = 'comunicado_recusado' AND a.entity_type = 'customer' AND a.entity_id = '${CUSTOMER}';`)).toBe('active')
 
     // Outra recusa do mesmo Cliente não apaga a primeira do alerta. (A claim de CE
-    // exige prontidão por trigger; a de NOA serve ao mesmo caso.)
-    psql(`INSERT INTO public.customer_communication_automation_claims (claim_key) VALUES ('aviso_chegada_noa:${CUSTOMER}:${VOYAGE_ID}:${PORT}');`)
+    // exige prontidão por trigger; a de NOA serve ao mesmo caso.) Claim de alvo
+    // que não está devido não entra (migration 315).
+    psql(`INSERT INTO public.customer_communication_automation_claims (claim_key) VALUES ('aviso_chegada_noa:${CUSTOMER}:${VOYAGE_ID}:BRX99');
+      SELECT public.reject_customer_communication_automation_claim('aviso_chegada_noa:${CUSTOMER}:${VOYAGE_ID}:BRX99', 'Sem alvo.');`)
+    psql(`INSERT INTO public.customer_communication_automation_claims (claim_key) VALUES ('aviso_chegada_noa:${CUSTOMER}:${VOYAGE_ID}:${PORT}')
+      ON CONFLICT (claim_key) DO NOTHING;`)
     psql(`SELECT public.reject_customer_communication_automation_claim('aviso_chegada_noa:${CUSTOMER}:${VOYAGE_ID}:${PORT}', 'B/Ls inválidos.');`)
     expect(psql(`SELECT jsonb_array_length(i.metadata->'claims') || '|' || (i.message LIKE '%${CLAIM}%') FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'comunicado_recusado' AND a.entity_type = 'customer' AND a.entity_id = '${CUSTOMER}' AND i.status = 'active';`)).toBe('2|true')
@@ -119,7 +127,7 @@ describeLocal('297 — claim recusada não volta como candidata dentro da janela
   // Migration 303 (plano dos e-mails, 1D; D18): recusa não definitiva volta
   // com intervalo crescente e abre o alerta na 1ª recusa por dado ou na 3ª
   // falha seguida do provedor; o envio fecha o alerta.
-  it('299 — recusa não definitiva respeita o intervalo e o alerta segue D18', () => {
+  it('303 — recusa não definitiva respeita o intervalo e o alerta segue D18', () => {
     const alertStatus = () => psql(`SELECT i.status FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'comunicado_recusado' AND a.entity_type = 'customer' AND a.entity_id = '${CUSTOMER}' ORDER BY i.id DESC LIMIT 1;`)
     const defer = (reason: string, provider: boolean) => JSON.parse(psql(

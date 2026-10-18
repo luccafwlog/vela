@@ -11,7 +11,8 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain("caller.rpc('portal_current_role')")
     expect(source).toContain("if (!nature || !natureForKind(kind, nature))")
     expect(source).toContain("const enabled = Boolean")
-    expect(source).toContain("dispatch_mode: enabled ? 'real' : 'simulado'")
+    // Registro da tentativa: _shared/customerCommunicationAttempts.ts (testado com banco falso).
+    expect(source).toContain('communicationAttemptRecorder(attemptStore, { communicationId: Number(communicationId), enabled })')
     expect(source).toContain("resendApiKey: enabled ? resendApiKey : null")
     expect(source).toContain("refresh_customer_communication_status")
     expect(source).toContain("replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO')")
@@ -32,12 +33,11 @@ describe('Edge Function send-customer-communication', () => {
     // são conferidos pela mesma validação da RPC (migration 304).
     expect(source).toContain("admin.rpc('customer_communication_anchor_validation'")
     expect(source).not.toContain(".from('voyage_escala_operation_fronts')")
-    expect(source).toContain("admin.from('customer_communication_attempts').insert")
+    expect(source).toContain("admin.from('customer_communication_attempts').insert(row)")
     expect(source).toContain("admin.rpc('customer_local_charges_communication_payload'")
     expect(source).toContain("admin.rpc('customer_local_charges_communication_dispatch_ready'")
     expect(source).toContain("admin.rpc('mark_customer_communication_dispatch_blocked'")
-    expect(source).toContain('recipient_key: await recipientKey(to)')
-    expect(source).toContain("existing.dispatch_mode === 'legado'")
+    expect(source).toContain('recordUnsentCommunicationAttempt(attemptStore')
     expect(source).toContain('renderCeMercanteTaxasTemplate')
     // Plano dos e-mails, 5.1: a chave da tentativa leva o hash do destinatário.
     expect(source).toContain('idempotencyKey: attemptKey,')

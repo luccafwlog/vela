@@ -93,8 +93,11 @@ async function settleClaim(rpc: AutoRunnerRpc, claimKey: string | undefined, set
 // ponytail: a rodada é sequencial — um POST à Edge por destinatário, um
 // candidato de cada vez, dentro do tempo de uma invocação da Edge (~150 s). Com
 // o provedor a ~1-2 s por chamada, o teto prático fica em torno de 60-100
-// destinatários por rodada; o que não couber fica com a claim presa até ela
-// envelhecer (30 min) e volta na rodada seguinte. Caminho de melhoria: limitar
+// destinatários por rodada. Se a invocação cair no meio de um Cliente, a claim
+// fica presa até envelhecer (30 min) e a produtora a devolve na primeira rodada
+// depois disso: o alvo só sai da lista quando todo destinatário automático tem
+// tentativa entregue (migration 315), e quem já recebeu não recebe de novo (a
+// Edge reaproveita a tentativa pela chave). Caminho de melhoria: limitar
 // o lote na produtora (LIMIT por rodada) e/ou paralelizar os destinatários com
 // concorrência fixa (ex.: 4).
 export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<AutoRunnerResult> {

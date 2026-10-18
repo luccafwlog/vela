@@ -15,6 +15,7 @@ const CARRIER_ID = 99300001
 const VESSEL_ID = 99300002
 const VOYAGE_NOA = 99300003
 const VOYAGE_CE = 99300004
+const VOYAGE_SPELLING = 99300005
 const CUSTOMER_A = 99300011
 const CUSTOMER_OFF = 99300012
 const CUSTOMER_NOCONTACT = 99300013
@@ -49,6 +50,14 @@ function candidates(asOf = 'now()'): Candidate[] {
     .filter((candidate) => [CUSTOMER_A, CUSTOMER_OFF, CUSTOMER_NOCONTACT].includes(candidate.customer_id))
 }
 
+/** Tentativa simulada aceita: o destinatário recebeu (migration 315; D4). */
+function simulatedDelivery(communicationId: number | string, email: string): void {
+  psql(`INSERT INTO public.customer_communication_attempts
+      (communication_id, recipient_masked, recipient_key, status, idempotency_key, dispatch_mode)
+    VALUES (${communicationId}, 'x***@e***.test', public.customer_communication_recipient_key('${email}'), 'aceito',
+      'e300:${communicationId}:${email}', 'simulado');`)
+}
+
 function alertItem(type: string, entityType: string, entityId: string): { status: string; message: string } | null {
   const row = psql(`SELECT i.status || '|' || i.message FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
     WHERE i.item_type = '${type}' AND a.entity_type = '${entityType}' AND a.entity_id = '${entityId}' ORDER BY i.id DESC LIMIT 1;`)
@@ -70,10 +79,12 @@ function cleanup() {
     DELETE FROM public.customer_communication_automation_claims
       WHERE claim_key LIKE '%:${CUSTOMER_A}:%' OR claim_key LIKE '%:${CUSTOMER_OFF}:%' OR claim_key LIKE '%:${CUSTOMER_NOCONTACT}:%';
     DELETE FROM public.customer_communication_bls WHERE bl_id IN (${ALL_BLS});
+    DELETE FROM public.customer_communication_attempts WHERE communication_id IN (SELECT id FROM public.customer_communications WHERE customer_id IN (${CUSTOMERS}));
     DELETE FROM public.customer_communications WHERE customer_id IN (${CUSTOMERS});
     DELETE FROM public.customer_contact_box_links WHERE contact_id IN (${CONTACT_A}, ${CONTACT_OFF});
     DELETE FROM public.customer_contacts WHERE customer_id IN (${CUSTOMERS});
-    DELETE FROM public.audit_logs WHERE entity_id IN (${ALL_BLS}) OR (entity_type = 'voyage_pod_schedule' AND entity_id LIKE '${VOYAGE_NOA}::%');
+    DELETE FROM public.audit_logs WHERE entity_id IN (${ALL_BLS}) OR (entity_type = 'voyage_pod_schedule'
+      AND (entity_id LIKE '${VOYAGE_NOA}::%' OR entity_id LIKE '${VOYAGE_SPELLING}::%'));
     DELETE FROM public.bls WHERE id IN (${ALL_BLS});
     DELETE FROM public.customers WHERE id IN (${CUSTOMERS});
     DELETE FROM public.voyages WHERE id IN (${VOYAGE_NOA}, ${VOYAGE_CE});
@@ -148,6 +159,25 @@ describeLocal('304 — escala única, CE por Viagem, filtros e alvos do detector
     expect(validation).toMatchObject({ ok: true, milestone_at: psql(`SELECT to_char(current_date + 2, 'YYYY-MM-DD');`) })
   })
 
+  // 315: deleted é lido por grafia exata; a grafia ativa vence a excluída.
+  it('1C.1: escala excluída numa grafia e recriada na outra fica ativa, com data e hora', () => {
+    psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_at) VALUES
+      ('voyage_pod_schedule', '${VOYAGE_SPELLING}::BRVIT', 'eta', NULL, '2026-11-01T08:00:00Z', now() - interval '3 hours'),
+      ('voyage_pod_schedule', '${VOYAGE_SPELLING}::BRVIT', 'deleted', 'false', 'true', now() - interval '2 hours'),
+      ('voyage_pod_schedule', '${VOYAGE_SPELLING}::BRVIX', 'eta', NULL, '2026-11-02T09:30:00Z', now() - interval '1 hour');`)
+    expect(psql(`SELECT port || '|' || eta_text || '|' || deleted FROM public.customer_communication_scale_schedules(${VOYAGE_SPELLING}, 'BRVIX');`))
+      .toBe('BRVIX|2026-11-02T09:30:00Z|false')
+    // Excluída nas duas grafias: excluída.
+    psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_at) VALUES
+      ('voyage_pod_schedule', '${VOYAGE_SPELLING}::BRVIX', 'deleted', 'false', 'true', now() - interval '30 minutes');`)
+    expect(psql(`SELECT deleted FROM public.customer_communication_scale_schedules(${VOYAGE_SPELLING}, 'BRVIT');`)).toBe('t')
+    // Recriada na 1ª grafia depois: ativa de novo, com o ETA dela.
+    psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_at) VALUES
+      ('voyage_pod_schedule', '${VOYAGE_SPELLING}::BRVIT', 'deleted', 'true', 'false', now() - interval '10 minutes');`)
+    expect(psql(`SELECT eta_text || '|' || deleted FROM public.customer_communication_scale_schedules(${VOYAGE_SPELLING}, 'BRVIX');`))
+      .toBe('2026-11-01T08:00:00Z|false')
+  })
+
   it('1C/2.7: a produtora gera o NOA do Cliente com ETA só no histórico; cancelado, desativado e sem contato ficam fora', () => {
     const noa = candidates().filter((candidate) => candidate.kind === 'aviso_chegada_noa')
     expect(noa).toEqual([expect.objectContaining({ claim_key: NOA_CLAIM, customer_id: CUSTOMER_A, port: 'BRVIX', bl_ids: [BL_A] })])
@@ -183,7 +213,7 @@ describeLocal('304 — escala única, CE por Viagem, filtros e alvos do detector
     // Data pura: o alerta mostra só a data.
     expect(item!.message).toMatch(/\(ETA \d{2}\/\d{2}\/\d{4}\)/)
 
-    psql(`UPDATE public.customer_communications SET status = 'simulado' WHERE customer_id = ${CUSTOMER_A} AND kind = 'aviso_chegada_noa';`)
+    simulatedDelivery(psql(`SELECT id FROM public.customer_communications WHERE customer_id = ${CUSTOMER_A} AND kind = 'aviso_chegada_noa';`), 'docs-e300@example.test')
     psql(`SELECT public.detect_customer_communication_alerts();`)
     item = alertItem('comunicado_noa_pendente', 'voyage_pod_schedule', entity)
     expect(item!.message).not.toContain('CLIENTE E300 A')
@@ -217,9 +247,16 @@ describeLocal('304 — escala única, CE por Viagem, filtros e alvos do detector
     const automatic = tryPsql(`SELECT public.create_customer_communication_atomic(${CUSTOMER_A}, 'ce_mercante_taxas', 'documentacao',
       ${VOYAGE_CE}, 'BRSSZ', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, ARRAY['${BL_CE_SSZ}', '${BL_CE_VIX}']::text[]);`)
     expect(automatic.output).toBe(manual.output)
-    expect(psql(`SELECT anchor_port FROM public.customer_communications WHERE id = ${manual.output};`)).toBe('BRSSZ / BRVIX')
+    // 315: o porto não entra na identidade do CE (anchor_port nulo).
+    expect(psql(`SELECT anchor_port IS NULL FROM public.customer_communications WHERE id = ${manual.output};`)).toBe('t')
+    // A troca de POD de um B/L não cria outro Comunicado.
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET pod = 'BRRIO' WHERE id = '${BL_CE_VIX}'; SET session_replication_role = origin;`)
+    const afterPodChange = tryPsql(`SELECT public.create_customer_communication_atomic(${CUSTOMER_A}, 'ce_mercante_taxas', 'documentacao',
+      ${VOYAGE_CE}, 'BRSSZ / BRVIX', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, ARRAY['${BL_CE_SSZ}', '${BL_CE_VIX}']::text[]);`)
+    expect(afterPodChange.output).toBe(manual.output)
+    psql(`SET session_replication_role = replica; UPDATE public.bls SET pod = 'VITORIA' WHERE id = '${BL_CE_VIX}'; SET session_replication_role = origin;`)
 
-    psql(`UPDATE public.customer_communications SET status = 'simulado' WHERE id = ${manual.output};`)
+    simulatedDelivery(manual.output, 'docs-e300@example.test')
     psql(`UPDATE public.customer_communication_automation_claims SET released_at = now() WHERE claim_key = '${CE_CLAIM}';`)
     expect(candidates().some((candidate) => candidate.claim_key === CE_CLAIM)).toBe(false)
   })

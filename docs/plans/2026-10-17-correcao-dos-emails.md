@@ -29,6 +29,15 @@ refutá-lo.
   - 1E.3 (D7): não havia status de isento; a fatura com 100% de desconto vira
     `paid` com valor zero e registro em `audit_logs`.
   - 3.7: o envio do anexo uma vez só ficou para depois, como o item previa.
+  - Revisão do núcleo dos Comunicados (migration `315`): a produtora e o
+    detector deixaram de olhar o status do Comunicado; o alvo é feito quando
+    todo destinatário automático atual tem tentativa entregue ou devolvida
+    (`customer_communication_target_done`). A escala é lida por grafia exata
+    antes de agregar o porto; o CE e Taxas grava `anchor_port` nulo (D3 sem o
+    porto na identidade); Comunicado `pendente` sem tentativa nova há 15 min é
+    recalculado e vira `falha` no detector; a claim só fica em
+    `comunicado_recusado` enquanto o alvo está devido. Regra em
+    [Clientes](../modules/clientes.md#régua-automática-de-comunicados).
 - **Pendente:**
   - **Depois do merge:** confirmar a aplicação das migrations e a publicação
     das Edges em produção.
@@ -720,8 +729,11 @@ apoia no "Data status".
 
 - **Status `pendente` (1B):** muda o que a tela, os filtros e a produtora leem.
   - Fazer num PR só, cobrindo todos os leitores.
-  - **Rollback:** a migration seguinte volta o default para `simulado`; as
-    linhas `pendente` viram `falha` ou `parcial` pelo refresh.
+  - **Rollback:** a migration seguinte volta o default para `simulado`. O
+    refresh sozinho não resolve linha `pendente` sem tentativa (ele devolve o
+    status atual): quem a resolve é a varredura
+    `settle_stale_pending_customer_communications` do detector (migration
+    `315`), que recalcula e grava `falha` no que continuar `pendente`.
 - **Escala única (1C.1):** muda quem recebe NOA, NOR e NOB.
   - Validar contra os dados de produção antes, comparando os candidatos da
     produtora atual com os da nova numa consulta de leitura.
