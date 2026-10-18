@@ -185,6 +185,7 @@ vi.mock('../../services/exports', () => ({
 }))
 
 vi.mock('../../services/portalBilling', () => ({
+  portalInvoiceDocumentDetail: (detail: unknown) => detail,
   portalListInvoicesForExport: (...args: unknown[]) => portalExport.local(...args),
   portalListDemurrageInvoicesForExport: (...args: unknown[]) => portalExport.demurrage(...args),
 }))

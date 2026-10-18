@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from '../../services/portalBilling'
 import type { PortalOperationBL } from '../../services/portalOperation'
 
@@ -12,6 +13,7 @@ const localInvoices: PortalInvoiceSummary[] = [
 ]
 
 const demurrageInvoices: PortalDemurrageInvoice[] = [
+  { id: 11, doc_number: 'DEM-2', doc_date: '2026-06-03', due_date: null, billed_at: '2026-06-03', paid_at: '2026-06-10', total_usd: 70, current_roe: 5, current_total_brl: 350, roe_source: 'bcb_live', updated_at: null, status: 'paid', pix_payload: null, dispute_open: false, discount_type: null, discount_value: null, discount_mode: null, bl_id: 'BL1', pol: null, pod: null, voyage_number: null, vessel_name: null },
   { id: 10, doc_number: 'DEM-1', doc_date: '2026-06-03', due_date: '2026-06-30', billed_at: '2026-06-03', paid_at: null, total_usd: 50, current_roe: 5, current_total_brl: 250, roe_source: 'bcb_live', updated_at: '2026-06-03T12:00:00Z', status: 'issued', pix_payload: null, dispute_open: false, discount_type: null, discount_value: null, discount_mode: null, bl_id: 'BL1', pol: null, pod: null, voyage_number: null, vessel_name: null },
 ]
 
@@ -42,14 +44,27 @@ vi.mock('../../hooks/usePortalOperation', () => ({
   usePortalOperationBls: () => ({ data: hookState.operationError ? undefined : operationBls, isLoading: false, error: hookState.operationError }),
 }))
 
+const ceRequests = vi.hoisted(() => ({
+  fail: false,
+  items: [
+    { id: 'a', protocol: 'CE-A', state: 'draft' },
+    { id: 'b', protocol: 'CE-B', state: 'changes_requested' },
+    { id: 'c', protocol: 'CE-C', state: 'in_review' },
+    { id: 'd', protocol: 'CE-D', state: 'completed' },
+    { id: 'e', protocol: 'CE-E', state: 'cancelled' },
+  ],
+}))
+vi.mock('../../services/ceUnlockService', () => ({
+  listPortalCeUnlockRequests: async () => {
+    if (ceRequests.fail) throw new Error('rpc indisponivel')
+    return { items: ceRequests.items, total: ceRequests.items.length, page: 1, page_size: 25 }
+  },
+}))
+
 vi.mock('../../hooks/usePortalScheduleVoyages', () => ({
   usePortalScheduleVoyages: () => ({ data: [], isLoading: false }),
 }))
 
-vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual('@tanstack/react-query')
-  return { ...actual, useQueryClient: () => ({ invalidateQueries: vi.fn() }) }
-})
 
 import { PortalDashboard } from '../PortalDashboard'
 
@@ -59,13 +74,16 @@ function LocationProbe() {
 }
 
 function renderPainel() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter initialEntries={['/portal']}>
-      <Routes>
-        <Route path="/portal" element={<PortalDashboard />} />
-        <Route path="*" element={<LocationProbe />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/portal']}>
+        <Routes>
+          <Route path="/portal" element={<PortalDashboard />} />
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
@@ -78,32 +96,54 @@ describe('PortalDashboard (Painel)', () => {
     hookState.operationError = null
   })
 
-  it('mostra somente os quatro cards com valores derivados', () => {
+  it('mostra os quatro cartões com valores derivados e plural certo', async () => {
     renderPainel()
     expect(screen.getByRole('heading', { name: 'Painel' })).toBeTruthy()
 
-    // Taxas locais em aberto: somente INV-1 (issued) -> saldo 100, 1 fatura
-    expect(screen.getByText('Taxas locais em aberto')).toBeTruthy()
-    // Local e demurrage: cada um com 1 fatura em aberto
-    expect(screen.getAllByText('1 fatura(s) em aberto')).toHaveLength(2)
+    // Taxas Locais em aberto: só INV-1 (issued), em âmbar.
+    const local = screen.getByRole('button', { name: /Taxas Locais em aberto/ })
+    expect(local.textContent).toMatch(/R\$\s100,00/)
+    expect(local.textContent).toContain('1 fatura')
+    expect(local.textContent).not.toContain('fatura(s)')
+    expect(local.className).toContain('app-metric-tile--warning')
 
-    // Demurrage em aberto: 1 fatura
-    expect(screen.getByText('Demurrage em aberto')).toBeTruthy()
+    // Demurrage em dólar, com o valor em reais de hoje; a paga não entra.
+    const demurrage = screen.getByRole('button', { name: /Demurrage em aberto/ })
+    expect(demurrage.textContent).toContain('US$ 50,00')
+    expect(demurrage.textContent).toMatch(/1 fatura · R\$\s250,00 hoje/)
 
-    // Containers sem devolução: C2 e C3 -> 2
-    expect(screen.getByText('Containers sem devolução')).toBeTruthy()
-    // Containers em demurrage: C3 -> 1
-    expect(screen.getByText('Containers em demurrage')).toBeTruthy()
+    // Containers sem devolução: C2 e C3; C3 já em demurrage.
+    const containers = screen.getByRole('button', { name: /Containers sem devolução/ })
+    expect(containers.textContent).toContain('2')
+    expect(containers.textContent).toContain('1 já em demurrage')
+    expect(screen.queryByText('Containers em demurrage')).toBeNull()
 
-    // Apenas quatro cards (quatro botoes)
-    expect(screen.getAllByRole('button')).toHaveLength(4)
+    // Desbloqueio de CE: rascunho, em análise e pede correção contam; concluída e cancelada não.
+    await waitFor(() => expect(screen.getByRole('button', { name: /Desbloqueio de CE em aberto/ }).textContent).toContain('3 solicitações'))
+    expect(screen.getByText('1 pede correção')).toBeTruthy()
+
+    // Consultas: os seis atalhos da Central de Informações, no lugar do cartão.
+    const consultas = screen.getByRole('navigation', { name: 'Consultas na Central de Informações' })
+    expect(within(consultas).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      '/portal/informacoes/taxas', '/portal/informacoes/devolucao', '/portal/informacoes/demurrage',
+      '/portal/informacoes/agentes', '/portal/informacoes/atendimento', '/portal/informacoes/tracking',
+    ])
+    expect(screen.queryByText('Chegadas e Saídas')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Programação de navios' })).toBeTruthy()
   })
 
-  it('navega para Containers filtrado ao clicar no card de demurrage', async () => {
+  it('navega para Containers filtrado ao clicar no cartão de containers', async () => {
     const user = userEvent.setup()
     renderPainel()
-    await user.click(screen.getByText('Containers em demurrage'))
-    expect(screen.getByTestId('location').textContent).toBe('/portal/operacao?tab=containers&devolucao=em_demurrage')
+    await user.click(screen.getByRole('button', { name: /Containers sem devolução/ }))
+    expect(screen.getByTestId('location').textContent).toBe('/portal/operacao?tab=containers&devolucao=sem_devolucao')
+  })
+
+  it('cartão do Desbloqueio de CE diz quando a lista falha', async () => {
+    ceRequests.fail = true
+    renderPainel()
+    await waitFor(() => expect(screen.getByRole('button', { name: /Desbloqueio de CE em aberto/ }).textContent).toContain('Não foi possível carregar.'))
+    ceRequests.fail = false
   })
 
   it('mostra falha honesta em vez de R$ 0,00 quando indicadores financeiros falham', () => {
