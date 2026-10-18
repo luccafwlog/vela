@@ -6932,10 +6932,6 @@ a.app-step-rail__link:focus-visible {
   .app-schedule__table { display: block; }
 }
 
-@media (max-width: 639.98px) {
-  .app-schedule__cards { display: grid; }
-}
-
 .app-schedule .app-table th,
 .app-schedule .app-table td {
   white-space: nowrap;
@@ -6969,6 +6965,12 @@ a.app-step-rail__link:focus-visible {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* Depois da regra base: com a mesma especificidade, a que vem antes perde e
+   o celular ficava sem nenhum navio. */
+@media (max-width: 639.98px) {
+  .app-schedule__cards { display: grid; }
 }
 
 .app-schedule-card {

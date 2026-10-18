@@ -6,6 +6,9 @@
 
 ## 2026-10
 
+- **Programação de navios do Portal no celular (2026-10-18):** abaixo de 640 px o Painel
+  do Portal voltou a mostrar um cartão por navio; desde o lote 2 da identidade a regra que
+  esconde os cartões vinha depois da que os mostra, e o Cliente via só o título e a legenda.
 - **Triagem do Sentry de 15–16/10 (2026-10-16):** o logout do Vela e do Portal (inclusive o
   automático por inatividade) deixa de abrir issues `[Sem permissão] 42501` com as consultas que ainda estavam na
   fila e saíram sem sessão (VELA-1Q a VELA-1Z, rótulos do sino com o departamento Documentação);

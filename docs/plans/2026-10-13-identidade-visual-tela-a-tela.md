@@ -199,6 +199,11 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   parcialmente paga não lista os pagamentos no Portal. Não capturada: a ficha
   do Cliente com os Documentos anuais (o CNPJ do Cliente de teste tem dígito
   inválido). Aguarda a resposta do responsável, tela a tela.
+  **Programação de navios no celular corrigida em 2026-10-18**, fora do lote
+  (branch `claude/laughing-meitner-3rfy0l`): a regra do celular passou para
+  depois da regra base, com teste de contrato em
+  `src/__tests__/designSystemLote2.test.ts`; conferida no Painel do Portal a
+  360 e 1440 px no ambiente local.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",

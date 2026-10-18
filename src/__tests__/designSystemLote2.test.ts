@@ -17,6 +17,13 @@ describe('contratos CSS do design system', () => {
     expect(offenders).toEqual([])
   })
 
+  it('mostra os cartões da programação de navios abaixo de 640 px (a regra do celular vem depois da que esconde)', () => {
+    const hide = css.indexOf('.app-schedule__cards {\n  display: none;')
+    const show = css.indexOf('.app-schedule__cards { display: grid; }')
+    expect(hide).toBeGreaterThan(-1)
+    expect(show).toBeGreaterThan(hide)
+  })
+
   it('documenta que os tons Tailwind legados têm remapeamento transversal nos temas claros', () => {
     expect(css).toContain('/* Legacy Tailwind status colors are remapped globally for Vela and Portal. */')
     expect(css).toContain(":root[data-visual-theme='light'] .text-amber-400")
