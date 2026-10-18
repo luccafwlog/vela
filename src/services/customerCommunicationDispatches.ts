@@ -38,7 +38,7 @@ export type CustomerCommunicationDispatchInput = {
 export type CustomerCommunicationDispatchResult = {
   communicationId: number
   attemptId?: number
-  status: 'enviado' | 'simulado' | 'parcial' | 'falha'
+  status: 'pendente' | 'enviado' | 'simulado' | 'parcial' | 'falha'
   suppressed?: boolean
   message?: string
 }
@@ -132,4 +132,69 @@ export async function dispatchCustomerCommunications(
   // Mantém uma tentativa por cliente e evita rajadas paralelas no provider.
   for (const input of inputs) results.push(await dispatchCustomerCommunication(input))
   return results
+}
+
+/** Um destinatário de um disparo em lote, com o rótulo que a tela mostra no resumo. */
+export type CustomerCommunicationBatchItem = {
+  key: string
+  customerName: string
+  input: CustomerCommunicationDispatchInput
+}
+
+export type CustomerCommunicationBatchOutcome = CustomerCommunicationBatchItem & {
+  result: 'enviado' | 'simulado' | 'falha'
+  communicationId?: number
+  reason?: string
+}
+
+export type CustomerCommunicationBatchSummary = {
+  outcomes: CustomerCommunicationBatchOutcome[]
+  sent: number
+  simulated: number
+  failed: CustomerCommunicationBatchOutcome[]
+}
+
+export function summarizeCustomerCommunicationBatch(outcomes: readonly CustomerCommunicationBatchOutcome[]): CustomerCommunicationBatchSummary {
+  return {
+    outcomes: [...outcomes],
+    sent: outcomes.filter((outcome) => outcome.result === 'enviado').length,
+    simulated: outcomes.filter((outcome) => outcome.result === 'simulado').length,
+    failed: outcomes.filter((outcome) => outcome.result === 'falha'),
+  }
+}
+
+/**
+ * Disparo em lote da tela (plano dos e-mails, 3.2): um destinatário por vez, para
+ * não fazer rajada no provedor; a falha de um não interrompe os seguintes, e cada
+ * um volta com o motivo. Repetir um item reenvia o mesmo `input` — mesmo
+ * `dispatchId`, discriminador e chave —, então cai no mesmo Comunicado e o
+ * servidor não duplica quem já recebeu.
+ */
+export async function runCustomerCommunicationBatch(
+  items: readonly CustomerCommunicationBatchItem[],
+  dispatch: (input: CustomerCommunicationDispatchInput) => Promise<CustomerCommunicationDispatchResult> = dispatchCustomerCommunication,
+): Promise<CustomerCommunicationBatchOutcome[]> {
+  const outcomes: CustomerCommunicationBatchOutcome[] = []
+  for (const item of items) {
+    try {
+      const response = await dispatch(item.input)
+      if (response.status === 'falha') {
+        outcomes.push({ ...item, result: 'falha', communicationId: response.communicationId, reason: response.message ?? 'Falha no envio do comunicado.' })
+      } else {
+        outcomes.push({ ...item, result: response.status === 'simulado' ? 'simulado' : 'enviado', communicationId: response.communicationId })
+      }
+    } catch (error) {
+      outcomes.push({ ...item, result: 'falha', reason: error instanceof Error && error.message ? error.message : 'Falha no envio do comunicado.' })
+    }
+  }
+  return outcomes
+}
+
+/** Junta o resultado de "Repetir só as falhas" ao lote original, item a item. */
+export function mergeCustomerCommunicationBatchRetry(
+  previous: readonly CustomerCommunicationBatchOutcome[],
+  retried: readonly CustomerCommunicationBatchOutcome[],
+): CustomerCommunicationBatchOutcome[] {
+  const byKey = new Map(retried.map((outcome) => [outcome.key, outcome]))
+  return previous.map((outcome) => byKey.get(outcome.key) ?? outcome)
 }

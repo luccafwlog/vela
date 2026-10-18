@@ -319,6 +319,8 @@ export type CustomerCommunicationConferenceRow = {
   eligibleRecipients: (CustomerContact & Partial<CustomerCommunicationRecipient>)[]
   excludedRecipients: ExcludedCustomerCommunicationRecipient[]
   blocked: boolean
+  /** Motivo do bloqueio que não vem dos contatos (ex.: NOB com terminal sem sigla). */
+  blockedReason?: string | null
   selected: boolean
   nextAttemptDiscriminator: number
   renderInput: CustomerCommunicationTemplateInput
@@ -437,7 +439,10 @@ export function getCustomerCommunicationNature(kind: CustomerCommunicationKind, 
 }
 
 function candidateIdentity(row: CustomerCommunicationBlCandidate, kind: CustomerCommunicationKind): string {
-  if (kind === 'institucional' || kind === 'livre') return String(row.customerId)
+  if (kind === 'institucional') return String(row.customerId)
+  // D15: o livre leva Navio, Viagem e B/Ls, então sai um e-mail por Cliente e
+  // Viagem — o Cliente com carga em duas viagens recebe dois.
+  if (kind === 'livre') return `${row.customerId}:${row.voyageId}`
   if (kind === 'aviso_atracacao_nob') {
     return `${row.customerId}:${row.voyageId}:${normalizedUpper(row.pod)}:${row.terminalStateId ?? 'terminal-state-sem-identidade'}`
   }
@@ -576,6 +581,13 @@ export function buildCustomerCommunicationConference(input: {
     })
 
     const anchorRow = institutional ? { ...first, milestoneAt: null } : first
+    // O NOB sem a sigla do terminal é recusado pela Edge ("O terminal da
+    // Atracação está sem sigla cadastrada."): a conferência já o mostra
+    // bloqueado, com o motivo, em vez de deixá-lo falhar no disparo.
+    const blockedReason = input.kind === 'aviso_atracacao_nob' && !first.terminalName?.trim()
+      ? 'Terminal da Atracação sem sigla cadastrada.'
+      : null
+    const blocked = recipients.blocked || blockedReason !== null
     rows.push({
       key: `${input.kind}:${candidateIdentity(first, input.kind)}`,
       customerId: first.customerId,
@@ -587,8 +599,9 @@ export function buildCustomerCommunicationConference(input: {
       sourceBls,
       eligibleRecipients: recipients.eligible,
       excludedRecipients: recipients.excluded,
-      blocked: recipients.blocked,
-      selected: !recipients.blocked,
+      blocked,
+      blockedReason,
+      selected: !blocked,
       audience: input.audience,
       recipientSnapshot,
       nextAttemptDiscriminator: input.kind === 'institucional' || input.kind === 'livre'
@@ -620,7 +633,7 @@ export function buildCustomerCommunicationConference(input: {
   }
 }
 
-type RawCommunicationBlRow = {
+export type RawCommunicationBlRow = {
   id: string
   voyage_id: number
   customer_id: number | null
@@ -628,13 +641,23 @@ type RawCommunicationBlRow = {
   pol: string | null
   cargo_mode: string
   terminal_id?: string | null
-  customer: { id: number; name: string; cnpj_cpf: string } | null
-  voyage: { id: number; voyage_number: string; eta: string | null; ata: string | null; vessel: { name: string } | null } | null
+  cancelled_at?: string | null
+  financial_status?: string | null
+  customer: { id: number; name: string; cnpj_cpf: string; deactivated_at?: string | null } | null
+  voyage: { id: number; voyage_number: string; eta: string | null; ata: string | null; status?: string | null; vessel: { name: string } | null } | null
 }
 
-function toBaseCandidate(row: RawCommunicationBlRow): CustomerCommunicationBlCandidate | null {
+/**
+ * Elegibilidade igual à da régua automática (plano dos e-mails, 3.4 com 1C.3 e
+ * 1C.4): B/L cancelado (`cancelled_at` ou `financial_status`), Cliente
+ * desativado e Viagem cancelada não entram na conferência manual.
+ */
+export function toBaseCandidate(row: RawCommunicationBlRow): CustomerCommunicationBlCandidate | null {
   if (!row.customer_id || !row.customer || !row.voyage) return null
   if (!row.pod?.trim()) return null
+  if (row.cancelled_at || row.financial_status === 'cancelled') return null
+  if (row.customer.deactivated_at) return null
+  if (row.voyage.status === 'cancelled') return null
   return {
     id: row.id,
     customerId: row.customer_id,
@@ -763,18 +786,65 @@ export function expandCandidatesForKind(
   return expanded
 }
 
-async function fetchCommunicationBlRows(): Promise<RawCommunicationBlRow[]> {
-  const rows: RawCommunicationBlRow[] = []
-  for (let from = 0; ; from += 500) {
+const COMMUNICATION_BL_SELECT = 'id, voyage_id, customer_id, pod, pol, cargo_mode, terminal_id, cancelled_at, financial_status, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf, deactivated_at), voyage:voyages(id, voyage_number, eta, ata, status, vessel:vessels(name))'
+
+/**
+ * Viagens cujo "NAVIO VIAGEM" casa com o filtro de navio/viagem. A lista de
+ * viagens é muito menor que a de B/Ls; com ela o recorte da carga sai do
+ * servidor em vez de ler todos os B/Ls (plano dos e-mails, 3.7).
+ */
+async function fetchVoyageIdsMatching(filter: string): Promise<number[]> {
+  const ids: number[] = []
+  for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
-      .from('bls')
-      .select('id, voyage_id, customer_id, pod, pol, cargo_mode, terminal_id, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, ata, vessel:vessels(name))')
+      .from('voyages')
+      .select('id, voyage_number, vessel:vessels(name)')
       .order('id', { ascending: true })
-      .range(from, from + 499)
-      .overrideTypes<RawCommunicationBlRow[], { merge: false }>()
+      .range(from, from + 999)
+      .overrideTypes<Array<{ id: number; voyage_number: string; vessel: { name: string } | null }>, { merge: false }>()
     if (error) throw error
-    rows.push(...(data ?? []))
-    if (!data || data.length < 500) break
+    for (const voyage of data ?? []) {
+      if (matchesVesselVoyage(voyage.vessel?.name, voyage.voyage_number, filter)) ids.push(voyage.id)
+    }
+    if (!data || data.length < 1000) break
+  }
+  return ids
+}
+
+// ponytail: o recorte por navio/viagem, POL e POD sai do servidor; o CNPJ e a
+// regra fina (`filterCustomerCommunicationBls`) continuam no navegador. O modo
+// institucional ainda lê todos os B/Ls ativos — o Cliente Comunicável depende
+// do ETA da escala; o próximo passo seria uma RPC com essa regra.
+export async function fetchCommunicationBlRows(filters?: CustomerCommunicationFilters): Promise<RawCommunicationBlRow[]> {
+  const cargo = filters?.mode === 'carga'
+  let voyageIds: number[] | null = null
+  if (cargo && cleanFilter(filters.vesselVoyage)) {
+    voyageIds = await fetchVoyageIdsMatching(filters.vesselVoyage)
+    if (!voyageIds.length) return []
+  }
+  const voyageChunks = voyageIds ? Array.from({ length: Math.ceil(voyageIds.length / 100) }, (_, index) => voyageIds!.slice(index * 100, index * 100 + 100)) : [null]
+  const rows: RawCommunicationBlRow[] = []
+  for (const chunk of voyageChunks) {
+    for (let from = 0; ; from += 500) {
+      let query = supabase
+        .from('bls')
+        .select(COMMUNICATION_BL_SELECT)
+        .is('cancelled_at', null)
+      if (chunk) query = query.in('voyage_id', chunk)
+      if (cargo) {
+        const pol = sanitizeLikeTerm(filters.pol)
+        const pod = sanitizeLikeTerm(filters.pod)
+        if (pol) query = query.ilike('pol', `%${pol}%`)
+        if (pod) query = query.ilike('pod', `%${pod}%`)
+      }
+      const { data, error } = await query
+        .order('id', { ascending: true })
+        .range(from, from + 499)
+        .overrideTypes<RawCommunicationBlRow[], { merge: false }>()
+      if (error) throw error
+      rows.push(...(data ?? []))
+      if (!data || data.length < 500) break
+    }
   }
   return rows
 }
@@ -846,7 +916,7 @@ export async function fetchCustomerCommunicationConference(input: {
   const validation = validateCustomerCommunicationFilters(input.filters)
   if (!validation.valid) throw new Error(validation.message ?? 'Filtros inválidos.')
 
-  const rawRows = await fetchCommunicationBlRows()
+  const rawRows = await fetchCommunicationBlRows(input.filters)
   const baseRows = rawRows.flatMap((row) => {
     const candidate = toBaseCandidate(row)
     return candidate ? [candidate] : []
@@ -966,6 +1036,8 @@ export type CustomerCommunicationHistoryItem = {
 export type CustomerCommunicationHistoryFilters = {
   id?: number
   customerId?: number
+  /** Comunicados vinculados a este B/L (o alerta de reenvio do CE abre por B/L). */
+  blId?: string
   voyageId?: number
   vessel?: string
   month?: string
@@ -1015,13 +1087,24 @@ export async function saveCustomerCommunicationSavedTemplate(input: { name: stri
 const COMMUNICATION_HISTORY_SELECT = 'id, customer_id, kind, nature, anchor_voyage_id, anchor_port, anchor_atracacao_id, anchor_invoice_id, attempt_discriminator, status, dispatch_id, vessel_name, voyage_number, terminal_name, created_by, origin, created_at, customer:customers(id, name, cnpj_cpf), attempts:customer_communication_attempts(id, recipient_masked, dispatch_mode, status, retry_count, provider_message_id, last_error, created_at, updated_at), bl_links:customer_communication_bls(bl_id), attachments:customer_communication_attachments(id, file_name, mime_type, storage_path, size_bytes, created_at)'
 
 export async function fetchCustomerCommunicationHistory(input?: number | CustomerCommunicationHistoryFilters): Promise<CustomerCommunicationHistoryItem[]> {
-  const filters = typeof input === 'number' ? { customerId: input } : (input ?? {})
+  const filters: CustomerCommunicationHistoryFilters = typeof input === 'number' ? { customerId: input } : (input ?? {})
   const rows: CustomerCommunicationHistoryItem[] = []
+  let blCommunicationIds: number[] | null = null
+  if (filters.blId?.trim()) {
+    const { data: links, error: linksError } = await supabase
+      .from('customer_communication_bls')
+      .select('communication_id')
+      .eq('bl_id', filters.blId.trim())
+    if (linksError) throw linksError
+    blCommunicationIds = [...new Set((links ?? []).map((link) => link.communication_id))]
+    if (!blCommunicationIds.length) return []
+  }
   const pageSize = 200
   for (let from = 0; ; from += pageSize) {
     let query = supabase.from('customer_communications').select(COMMUNICATION_HISTORY_SELECT).order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, from + pageSize - 1)
     if (filters.id != null) query = query.eq('id', filters.id)
     if (filters.customerId != null) query = query.eq('customer_id', filters.customerId)
+    if (blCommunicationIds) query = query.in('id', blCommunicationIds)
     if (filters.voyageId != null) query = query.eq('anchor_voyage_id', filters.voyageId)
     const vessel = sanitizeLikeTerm(filters.vessel ?? '')
     if (vessel) query = query.ilike('vessel_name', `%${vessel}%`)
@@ -1043,6 +1126,25 @@ export async function fetchCustomerCommunicationHistory(input?: number | Custome
   return rows.map((item) => ({ ...item, attempts: item.attempts ?? [], bl_links: item.bl_links ?? [], attachments: item.attachments ?? [] }))
 }
 
+/**
+ * Mês da Cobertura: viagens com ETA dentro do mês, no fuso de Brasília. Antes o
+ * filtro ia para a consulta e era ignorado (plano dos e-mails, 3.5).
+ */
+export function brasiliaMonthRange(month: string | null | undefined): { start: string; end: string } | null {
+  const match = month?.trim().match(/^(\d{4})-(\d{2})$/)
+  if (!match) return null
+  const year = Number(match[1])
+  const monthIndex = Number(match[2])
+  if (monthIndex < 1 || monthIndex > 12) return null
+  const nextYear = monthIndex === 12 ? year + 1 : year
+  const nextMonth = monthIndex === 12 ? 1 : monthIndex + 1
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return {
+    start: `${year}-${pad(monthIndex)}-01T00:00:00-03:00`,
+    end: `${nextYear}-${pad(nextMonth)}-01T00:00:00-03:00`,
+  }
+}
+
 type CoveragePage<T> = { data: T[] | null; error: unknown }
 
 async function fetchCoverageRows<T>(fetchPage: (from: number, to: number) => PromiseLike<CoveragePage<T>>): Promise<T[]> {
@@ -1061,6 +1163,8 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
     let voyageQuery = supabase.from('voyages').select('id, voyage_number, vessel:vessels(name)').order('id', { ascending: false }).range(from, to)
     const voyage = sanitizeLikeTerm(filters?.voyage ?? '')
     if (voyage) voyageQuery = voyageQuery.ilike('voyage_number', `%${voyage}%`)
+    const monthRange = brasiliaMonthRange(filters?.month)
+    if (monthRange) voyageQuery = voyageQuery.gte('eta', monthRange.start).lt('eta', monthRange.end)
     return voyageQuery.overrideTypes<Array<{ id: number; voyage_number: string; vessel: { name: string } | null }>, { merge: false }>()
   })
 
@@ -1187,6 +1291,47 @@ export function customerCommunicationStatusLabel(status: string): string {
   if (status === 'parcial') return 'Parcial'
   if (status === 'falha') return 'Falha'
   return status
+}
+
+/** Situação de cada tentativa (destinatário) no Histórico. */
+export function customerCommunicationAttemptStatusLabel(attempt: Pick<CustomerCommunicationAttemptHistory, 'status' | 'dispatch_mode' | 'provider_message_id'>): string {
+  if (attempt.status === 'aceito') {
+    if (attempt.dispatch_mode === 'simulado') return 'Registrado em simulação'
+    return attempt.provider_message_id ? 'Aceito pelo provedor' : 'Em envio'
+  }
+  if (attempt.status === 'entregue') return 'Entregue'
+  if (attempt.status === 'bounce') return 'Devolvido (endereço inexistente)'
+  if (attempt.status === 'complaint') return 'Marcado como spam'
+  if (attempt.status === 'falha_transitoria') return 'Falha passageira'
+  if (attempt.status === 'falha_permanente') return 'Recusado pelo provedor'
+  return attempt.status
+}
+
+export function isFailedCustomerCommunicationAttempt(status: string): boolean {
+  return status === 'falha_transitoria' || status === 'falha_permanente' || status === 'bounce' || status === 'complaint'
+}
+
+/**
+ * Traduz o `last_error` gravado pelo envio comum (`_shared/email.ts`) para quem
+ * opera a tela. O texto técnico não some: a tela o mantém no `title`.
+ */
+export function customerCommunicationAttemptReason(lastError: string | null | undefined): string | null {
+  const raw = lastError?.trim()
+  if (!raw) return null
+  if (/^Tempo esgotado/i.test(raw)) return 'O provedor de e-mail não respondeu a tempo; a mensagem pode ser reenviada.'
+  if (/^Falha de rede/i.test(raw)) return 'Falha de rede ao falar com o provedor de e-mail; a mensagem pode ser reenviada.'
+  if (/RESEND_API_KEY/i.test(raw)) return 'Envio real sem a chave do provedor de e-mail configurada.'
+  const http = raw.match(/^HTTP (\d{3})/)
+  if (http) {
+    const status = Number(http[1])
+    if (status === 401 || status === 403) return 'O provedor recusou a credencial do envio (configuração do provedor).'
+    if (status === 429) return 'Limite de envios do provedor atingido; a mensagem pode ser reenviada.'
+    if (status === 408 || status >= 500) return 'Provedor de e-mail indisponível no momento; a mensagem pode ser reenviada.'
+    if (status === 422 || status === 400) return 'O provedor recusou a mensagem (endereço ou conteúdo inválido).'
+    if (status === 409) return 'O provedor recusou a mensagem repetida.'
+    return `O provedor recusou a mensagem (HTTP ${status}).`
+  }
+  return raw
 }
 
 export function customerCommunicationKindLabel(kind: string): string {

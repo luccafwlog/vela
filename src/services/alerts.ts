@@ -331,6 +331,12 @@ function alertEntityLinkRaw(alert: {
     return alert.destination ?? '/clientes/comunicacao'
   }
 
+  // O reenvio do CE e Taxas mora no Histórico dos Comunicados (plano dos
+  // e-mails, 3.1): o alerta abre os Comunicados deste B/L.
+  if (effectiveType === 'comunicado_ce_reenvio_pendente' && alert.entity_type === 'bl') {
+    return `/clientes/comunicacao?tab=historico&kind=ce_mercante_taxas&bl=${encodeURIComponent(alert.entity_id)}`
+  }
+
   if (alert.entity_type === 'pix_transaction') return PIX_PENDING_HREF
   if (effectiveType === 'portal_dispute_opened' && alert.entity_type === 'demurrage_invoice') {
     const disputeId = alert.metadata?.dispute_id
@@ -426,6 +432,7 @@ export function alertEntityLinkLabel(alert: {
     || effectiveType === 'comunicado_nor_pendente'
     || effectiveType === 'comunicado_nob_pendente'
     || effectiveType === 'comunicado_recusado'
+    || effectiveType === 'comunicado_ce_reenvio_pendente'
   ) return 'Abrir Comunicados'
   if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType)) return 'Abrir Cliente'
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'

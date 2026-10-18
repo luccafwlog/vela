@@ -4,7 +4,7 @@ import { invalidateReviewQueueCaches, type ReviewCacheScope } from '../component
 import { queryKeys } from './queryKeys'
 
 export type QueryInvalidator = {
-  invalidateQueries: (input: { queryKey: readonly unknown[] }) => Promise<unknown>
+  invalidateQueries: (input: { queryKey: readonly unknown[]; refetchType?: 'none' | 'active' | 'inactive' | 'all' }) => Promise<unknown>
 }
 
 const LINEUP_KEYS: readonly (readonly unknown[])[] = [['lineup-tv-v3'], ['lineup-tv-display-v2']]
@@ -138,16 +138,27 @@ export async function afterBlRevisado(queryClient: QueryClient, scope: ReviewCac
   await invalidateReviewQueueCaches(queryClient, scope)
 }
 
-export async function afterCustomerCommunicationDispatched(
+/**
+ * Fim de um disparo em lote de `/clientes/comunicacao` (plano dos e-mails, 3.2):
+ * uma invalidação só, depois do último destinatário. A conferência na tela não é
+ * relida agora — relê-la trocava os discriminadores e desfazia a seleção no meio
+ * do lote —, mas fica velha, e o próximo "Conferir destinatários" a busca de novo.
+ * O reenvio do CE e Taxas também fecha `comunicado_ce_reenvio_pendente`.
+ */
+export async function afterCustomerCommunicationBatchDispatched(
   queryClient: QueryInvalidator,
-  options: { customerId?: number; blIds?: readonly string[] } = {},
+  options: { customerIds?: readonly number[]; blIds?: readonly string[] } = {},
 ): Promise<void> {
-  const keys: readonly (readonly unknown[])[] = [
-    ['customer-communications'],
-    ...(options.customerId != null ? [['customer-ficha', 'timeline', options.customerId] as const] : []),
-    ...(options.blIds ?? []).map((blId) => ['bl-timeline', blId] as const),
-  ]
-  await invalidate(queryClient, keys)
+  await queryClient.invalidateQueries({ queryKey: ['customer-communications', 'conference'], refetchType: 'none' })
+  await invalidate(queryClient, [
+    queryKeys.customerCommunications.history(),
+    ['customer-communications', 'coverage'],
+    queryKeys.customerCommunications.statusRoot(),
+    ['customer-communications', 'bl'],
+    ...(options.customerIds ?? []).map((customerId) => ['customer-ficha', 'timeline', customerId] as const),
+    ...[...new Set(options.blIds ?? [])].map((blId) => ['bl-timeline', blId] as const),
+    queryKeys.alerts.all(), ['alert-department-summary'], ['header-alert'],
+  ])
 }
 
 // Liberação de faturamento sem Portal (ADR 0070): conceder reprocessa o Cliente
