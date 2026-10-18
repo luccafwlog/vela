@@ -64,7 +64,7 @@ describe('sendEmail', () => {
     expect(first).toMatch(/^sha256:[0-9a-f]{64}$/)
   })
 
-  it.each([429, 500, 502, 503, 504])('repete status transitório %s com backoff', async (status) => {
+  it.each([408, 429, 500, 501, 502, 503, 504, 507, 599])('repete status transitório %s com backoff', async (status) => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(null, { status }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'provider-1' }), { status: 200 }))

@@ -60,7 +60,11 @@ export function emailApiBaseUrl(configured?: string | null): string {
   return value ? value.replace(/\/+$/, '') : DEFAULT_API_BASE_URL
 }
 
-const TRANSIENT_STATUS = new Set([408, 429, 500, 502, 503, 504])
+// 408, 429 e qualquer 5xx: o problema é do provedor ou do momento, não do e-mail.
+const TRANSIENT_STATUS = new Set([408, 429])
+function isTransientStatus(status: number): boolean {
+  return TRANSIENT_STATUS.has(status) || (status >= 500 && status <= 599)
+}
 // Credencial ou permissão do provedor: tentar de novo na mesma rodada não
 // adianta, mas a falha não é do destinatário. Fica `falha_transitoria` para
 // a tentativa voltar a ser feita depois que a configuração for corrigida;
@@ -219,7 +223,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
     }
 
     const configuration = CONFIGURATION_STATUS.has(response.status)
-    const transient = TRANSIENT_STATUS.has(response.status)
+    const transient = isTransientStatus(response.status)
     if (configuration || !transient || lastTry) {
       await input.updateAttempt(attempt.id, {
         retryCount: index,
