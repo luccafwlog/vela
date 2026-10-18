@@ -380,6 +380,103 @@ export function renderDemurrageTemplate(input: CustomerCommunicationTemplateInpu
   }
 }
 
+export type DemurrageGroupLine = {
+  docNumber: string
+  blId: string
+  vesselName: string
+  voyageNumber: string
+  /** USD líquido do desconto. */
+  totalUsd: number
+  totalBrl: number
+  roe: number
+  /** Data da cotação do ROE (AAAA-MM-DD). */
+  roeReferenceDate: string
+}
+
+export type DemurrageGroupTemplateInput = {
+  customerId: number
+  customerName: string
+  lines: readonly DemurrageGroupLine[]
+  portalUrl?: string | null
+}
+
+/**
+ * Cobrança agrupada da Régua (plano dos e-mails, 4.1; D8): um e-mail por
+ * Cliente e etapa, com o layout comum, cada Invoice na sua linha (navio,
+ * viagem, USD, BRL informativo e ROE com a data da cotação), sem consolidar
+ * valores, e a observação de recálculo. Uma linha só mantém o assunto da
+ * cobrança unitária.
+ */
+export function renderDemurrageGroupTemplate(input: DemurrageGroupTemplateInput): RenderedCustomerCommunication {
+  if (!Number.isInteger(input.customerId) || input.customerId <= 0) throw new Error('Cliente inválido para o comunicado.')
+  if (!input.customerName.trim()) throw new Error('Nome do cliente ausente.')
+  if (!input.lines.length) throw new Error('A cobrança de Demurrage precisa de ao menos uma Invoice.')
+  for (const line of input.lines) {
+    if (!line.docNumber.trim() || !line.blId.trim() || !line.vesselName.trim() || !line.voyageNumber.trim()
+      || !Number.isFinite(line.totalUsd) || line.totalUsd <= 0
+      || !Number.isFinite(line.totalBrl) || line.totalBrl < 0
+      || !Number.isFinite(line.roe) || line.roe <= 0
+      || !line.roeReferenceDate.trim()) {
+      throw new Error('Dados incompletos para a cobrança de Demurrage.')
+    }
+  }
+  const lines = input.lines.map((line) => ({
+    docNumber: line.docNumber.trim(),
+    blId: line.blId.trim(),
+    vessel: line.vesselName.trim(),
+    voyage: line.voyageNumber.trim(),
+    usd: formatUsd(line.totalUsd),
+    brl: formatBrl(line.totalBrl),
+    roe: line.roe.toFixed(4),
+    date: formatDateOnly(line.roeReferenceDate.trim()),
+  }))
+  const count = lines.length
+  const first = lines[0]!
+  const subject = count === 1
+    ? `Cobrança de Demurrage — ${first.docNumber} — ${first.vessel} / ${first.voyage}`
+    : `Cobrança de Demurrage — ${count} faturas`
+  const customer = clean(input.customerName)
+  const portalUrl = input.portalUrl?.trim() || CUSTOMER_PORTAL_BILLING_URL
+  const totalUsd = formatUsd(input.lines.reduce((sum, line) => sum + line.totalUsd, 0))
+  const intro = count === 1
+    ? 'A cobrança de Demurrage abaixo está disponível.'
+    : `Há ${count} cobranças de Demurrage disponíveis. Os valores são por Invoice, sem consolidação.`
+  const bodyText = [
+    `Olá, ${customer}.`,
+    '',
+    intro,
+    '',
+    ...lines.map((line) => `• ${line.docNumber} — B/L ${line.blId} — ${line.vessel} / ${line.voyage}: ${line.usd}; informativo ${line.brl} pelo ROE ${line.roe} com referência em ${line.date}.`),
+    ...(count > 1 ? ['', `Soma das Invoices: ${totalUsd}.`] : []),
+    '',
+    'O valor em reais será recalculado no dia do pagamento.',
+    '',
+    `Consulte os detalhes no Portal do Cliente: ${portalUrl}`,
+  ].join('\n')
+  const cell = `padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:14px;vertical-align:top`
+  const head = `text-align:left;padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:13px;color:${BRAND_MUTED}`
+  const bodyHtml = [
+    `<p style="margin:0 0 14px">Olá, ${escapeHtml(customer)}.</p>`,
+    `<p style="margin:0 0 16px">${escapeHtml(intro)}</p>`,
+    `<table style="width:100%;border-collapse:collapse;margin:16px 0 20px;border:1px solid ${BRAND_BORDER};border-radius:6px;overflow:hidden"><thead><tr style="background:#f9fafb"><th style="${head}">Invoice / B/L</th><th style="${head}">Navio / Viagem</th><th style="${head};text-align:right">Valor da cobrança</th></tr></thead><tbody>`,
+    ...lines.map((line) => `<tr><td style="${cell}"><strong>${escapeHtml(line.docNumber)}</strong><br><span style="color:${BRAND_MUTED};font-size:13px">B/L ${escapeHtml(line.blId)}</span></td><td style="${cell}">${escapeHtml(line.vessel)} / ${escapeHtml(line.voyage)}</td><td style="${cell};text-align:right"><strong style="color:${BRAND_NAVY}">${escapeHtml(line.usd)}</strong><br><span style="color:${BRAND_GOLD};font-weight:600">${escapeHtml(line.brl)}</span><br><span style="color:${BRAND_MUTED};font-size:12.5px">ROE ${escapeHtml(line.roe)}, referência ${escapeHtml(line.date)}</span></td></tr>`),
+    '</tbody>',
+    count > 1 ? `<tfoot><tr style="background:#f9fafb"><td colspan="2" style="padding:10px 12px;font-weight:700">Soma das Invoices</td><td style="padding:10px 12px;text-align:right;font-weight:700;color:${BRAND_NAVY}">${escapeHtml(totalUsd)}</td></tr></tfoot>` : '',
+    '</table>',
+    `<p style="margin:0 0 20px;font-size:13px;color:${BRAND_MUTED}"><strong>Observação:</strong> O valor em reais será recalculado no dia do pagamento.</p>`,
+    `<table role="presentation" width="100%" style="margin:16px 0 8px"><tr><td align="center"><a href="${escapeHtml(portalUrl)}" style="background:${BRAND_NAVY};color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;font-size:14px;font-weight:600">Consultar detalhes no Portal do Cliente</a></td></tr></table>`,
+  ].join('')
+  return {
+    kind: 'cobranca_demurrage',
+    subject,
+    html: layout(subject, bodyHtml, input.portalUrl),
+    text: textLayout(subject, bodyText),
+    customerId: input.customerId,
+    blIds: lines.map((line) => line.blId),
+    terminalId: null,
+  }
+}
+
 function renderMilestoneContent(
   input: CustomerCommunicationTemplateInput,
   kind: CustomerCommunicationKind,
