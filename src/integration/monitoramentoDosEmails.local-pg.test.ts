@@ -4,7 +4,7 @@ import { execPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
 
-// Migrations 309 e 312 (plano dos e-mails, 2.1, 2.4 e 2.8): provedor sem retorno,
+// Migrations 309, 312 e 314 (plano dos e-mails, 2.1, 2.4 e 2.8): provedor sem retorno,
 // evento de e-mail que esgota as tentativas ou é ambíguo, e usuário interno
 // com e-mail devolvido abrem Alerta; o detector fecha quando a causa some.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -76,21 +76,48 @@ describeLocal('309 — monitoramento dos e-mails', () => {
   })
   afterAll(cleanup)
 
-  it('2.1 — tentativa aceita há mais de 2 h sem evento abre o alerta, e o evento o fecha', () => {
-    const before = detect().silent_portal_attempts
-    psql(`INSERT INTO public.portal_email_attempts (kind, idempotency_key, provider_message_id, recipient_masked, status, created_at, updated_at)
-      VALUES ('convite', 'r310-silencio', 'r310-msg-silencio', 'r***@example.test', 'aceito', now() - interval '3 hours', now() - interval '3 hours'),
-             ('convite', 'r310-recente', 'r310-msg-recente', 'r***@example.test', 'aceito', now() - interval '30 minutes', now() - interval '30 minutes');`)
-    expect(detect().silent_portal_attempts).toBe(before + 1)
-    expect(alertStatus('email_retorno_provedor_silencioso', 'email_provider', 'webhook')).toBe('active')
-    expect(psql(`SELECT i.department FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
-      WHERE i.item_type = 'email_retorno_provedor_silencioso' AND a.entity_id = 'webhook' AND i.status = 'active';`)).toBe('administrativo')
-
-    psql(`INSERT INTO public.portal_email_events (provider_event_id, provider_message_id, event_type, payload, status)
-      VALUES ('r310-evt-silencio', 'r310-msg-silencio', 'email.delivered', '{}'::jsonb, 'processed');`)
-    const after = detect().silent_portal_attempts
-    expect(after).toBe(before)
-    if (after === 0) expect(alertStatus('email_retorno_provedor_silencioso', 'email_provider', 'webhook')).toBe('resolved')
+  it('2.1 — o alerta mede o silêncio do webhook: 3 tentativas aceitas depois do último evento abrem, qualquer evento novo fecha', () => {
+    // Tudo numa transação desfeita: o detector olha o último evento da tabela
+    // inteira e as tentativas dos últimos 7 dias, e outras suítes deixam
+    // eventos e tentativas no banco local.
+    const silentAlert = `SELECT COALESCE((SELECT i.status || ':' || i.department FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'email_retorno_provedor_silencioso' AND a.entity_type = 'email_provider' AND a.entity_id = 'webhook'
+      ORDER BY i.id DESC LIMIT 1), 'none');`
+    const detectSilent = `SELECT (d ->> 'silent_portal_attempts') || '+' || (d ->> 'silent_communication_attempts') FROM public.detect_email_monitoring_alerts() d;`
+    const output = psql(`BEGIN;
+      SET LOCAL vela.retention = 'on';
+      DELETE FROM public.portal_email_event_attempts;
+      DELETE FROM public.portal_email_events;
+      SET LOCAL session_replication_role = replica;
+      UPDATE public.portal_email_attempts SET created_at = created_at - interval '30 days' WHERE created_at >= now() - interval '7 days';
+      UPDATE public.customer_communication_attempts SET created_at = created_at - interval '30 days' WHERE created_at >= now() - interval '7 days';
+      SET LOCAL session_replication_role = origin;
+      INSERT INTO public.portal_email_events (provider_event_id, provider_message_id, event_type, payload, status, received_at)
+        VALUES ('r310-evt-antigo', 'r310-msg-antigo', 'email.delivered', '{}'::jsonb, 'processed', now() - interval '4 hours');
+      -- Antes do último evento: não conta, mesmo sem evento próprio.
+      INSERT INTO public.portal_email_attempts (kind, idempotency_key, provider_message_id, recipient_masked, status, created_at, updated_at)
+        VALUES ('convite', 'r310-antes', 'r310-msg-antes', 'r***@example.test', 'aceito', now() - interval '5 hours', now() - interval '5 hours'),
+               ('convite', 'r310-s1', 'r310-msg-s1', 'r***@example.test', 'aceito', now() - interval '3 hours', now() - interval '3 hours'),
+               ('convite', 'r310-s2', 'r310-msg-s2', 'r***@example.test', 'aceito', now() - interval '3 hours', now() - interval '3 hours'),
+               ('convite', 'r310-recente', 'r310-msg-recente', 'r***@example.test', 'aceito', now() - interval '30 minutes', now() - interval '30 minutes');
+      ${detectSilent}
+      ${silentAlert}
+      INSERT INTO public.portal_email_attempts (kind, idempotency_key, provider_message_id, recipient_masked, status, created_at, updated_at)
+        VALUES ('convite', 'r310-s3', 'r310-msg-s3', 'r***@example.test', 'aceito', now() - interval '150 minutes', now() - interval '150 minutes');
+      ${detectSilent}
+      ${silentAlert}
+      INSERT INTO public.portal_email_events (provider_event_id, provider_message_id, event_type, payload, status, received_at)
+        VALUES ('r310-evt-volta', 'r310-msg-outro', 'email.delivered', '{}'::jsonb, 'pending', now() - interval '1 hour');
+      ${detectSilent}
+      ${silentAlert}
+      ROLLBACK;`).split('\n')
+    // Duas tentativas caladas ficam abaixo do mínimo: pode ser só o provedor
+    // segurando aquelas mensagens.
+    expect(output.slice(0, 2)).toEqual(['2+0', 'none'])
+    expect(output.slice(2, 4)).toEqual(['3+0', 'active:administrativo'])
+    // Um evento qualquer depois delas mostra que o webhook voltou: fecha, mesmo
+    // sem evento das próprias tentativas.
+    expect(output.slice(4, 6)).toEqual(['0+0', 'resolved:administrativo'])
   })
 
   it('2.4 — a 6ª conclusão com retry_wait vai para investigação e abre o alerta', () => {
@@ -152,7 +179,7 @@ describeLocal('309 — monitoramento dos e-mails', () => {
     expect(psql(`SELECT count(*) FROM public.portal_suppressed_emails WHERE email = '${customerEmail}';`)).toBe('1')
   })
 
-  it('313 — tira TRUNCATE, TRIGGER e REFERENCES de authenticated e anon nas tabelas de e-mail', () => {
+  it('312 — tira TRUNCATE, TRIGGER e REFERENCES de authenticated e anon nas tabelas de e-mail', () => {
     // O banco local não herda o padrão de privilégios de produção; a suíte o
     // recria numa transação desfeita e aplica a migration por cima.
     const migration = readFileSync(resolve('supabase/migrations/312_grants_das_tabelas_de_email.sql'), 'utf8')
@@ -167,6 +194,22 @@ describeLocal('309 — monitoramento dos e-mails', () => {
     expect(output[0]).toContain('authenticated:TRUNCATE=true')
     expect(output[1]).toBe('anon:REFERENCES=false,anon:SELECT=true,anon:TRIGGER=false,anon:TRUNCATE=false,'
       + 'authenticated:REFERENCES=false,authenticated:SELECT=true,authenticated:TRIGGER=false,authenticated:TRUNCATE=false')
+  })
+
+  it('314 — tira os mesmos privilégios das tabelas da Régua de Cobrança que faltaram na 312', () => {
+    const migration = readFileSync(resolve('supabase/migrations/314_revisao_monitoramento_dos_emails.sql'), 'utf8')
+    const privileges = `SELECT string_agg(t || ':' || r || ':' || p || '=' || has_table_privilege(r, 'public.' || t, p), ',' ORDER BY t, r, p)
+      FROM unnest(ARRAY['customer_communication_dunning_groups', 'demurrage_dunning_claims']) t,
+        unnest(ARRAY['anon', 'authenticated']) r, unnest(ARRAY['TRUNCATE', 'TRIGGER', 'REFERENCES']) p;`
+    const output = psql(`BEGIN;
+      GRANT TRUNCATE, TRIGGER, REFERENCES ON public.customer_communication_dunning_groups, public.demurrage_dunning_claims TO authenticated, anon;
+      ${privileges}
+      ${migration}
+      ${privileges}
+      ROLLBACK;`).split('\n')
+    expect(output[0]).toContain('demurrage_dunning_claims:authenticated:TRUNCATE=true')
+    expect(output[1]).not.toContain('=true')
+    expect(output[1]).toContain('customer_communication_dunning_groups:anon:TRUNCATE=false')
   })
 
   it('as funções novas são server-only', () => {

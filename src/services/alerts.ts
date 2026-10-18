@@ -353,6 +353,10 @@ function alertEntityLinkRaw(alert: {
   }
 
   if (alert.entity_type === 'pix_transaction') return PIX_PENDING_HREF
+  // Evento do provedor de e-mail que foi para investigação (migrations 109 e
+  // 309): o entity_id é o id do evento, não de um Cliente, e nenhuma tela
+  // mostra o evento. O alerta fica na fila, com o motivo na mensagem.
+  if (alert.entity_type === 'portal_email_event') return '/alertas'
   if (effectiveType === 'portal_dispute_opened' && alert.entity_type === 'demurrage_invoice') {
     const disputeId = alert.metadata?.dispute_id
     return typeof disputeId === 'string' || typeof disputeId === 'number'
@@ -458,6 +462,7 @@ export function alertEntityLinkLabel(alert: {
   if (effectiveType === 'review_granite_customer_unlinked') return 'Abrir Granito'
   if (effectiveType.startsWith('review_')) return 'Revisar B/Ls'
   if (alert.entity_type === 'pix_transaction') return 'Abrir Reconciliação'
+  if (alert.entity_type === 'portal_email_event') return 'Abrir Alertas'
   if (alert.entity_type === 'customer') return 'Abrir Portal'
   if (alert.entity_type === 'invoice') return 'Ver Fatura'
   if (alert.entity_type === 'demurrage_invoice') return 'Ver Demurrage'

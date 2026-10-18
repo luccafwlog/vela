@@ -302,7 +302,9 @@ As pendências do Portal aparecem para a equipe interna no console, na central
 `/alertas` e no sino de Notificação Interna, nunca para o Cliente. Pelo catálogo
 de alertas, todas têm Documentação como responsável: `portal_pendencia_geral`,
 `portal_convite_expirado`, `portal_falha_envio`, `portal_email_suprimido`,
-`portal_reprocessamento_falhou` e `portal_abuso_login` avisam só Documentação;
+`portal_reprocessamento_falhou` e `portal_abuso_login` avisam só Documentação
+(o `portal_reprocessamento_falhou` de um evento do provedor de e-mail em
+investigação não tem B/L nem Cliente e abre os Alertas);
 `portal_excecao_critica_fatura` e `review_portal_not_ready` avisam também o
 Administrativo. Operações não recebe pendências do Portal, e o Financeiro
 consulta no sistema sem estar na audiência.

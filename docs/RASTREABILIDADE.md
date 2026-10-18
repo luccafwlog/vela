@@ -617,7 +617,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `ce_unlock_cleanup_candidates` | Edge `ce-unlock-cleanup` | `143` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_cleanup_claim` | Edge `ce-unlock-cleanup` | `144` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_cleanup_record` | Edge `ce-unlock-cleanup`; Edge `portal-ce-unlock-document` | `143` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
-| `ce_unlock_email_finish` | Edge `ce-unlock-notify-email` | `307` (antes `160`) | DEFINER · `service_role` | só pelo grant a `service_role` | — |
+| `ce_unlock_email_finish` | Edge `ce-unlock-notify-email` | `314` (antes `307`, `160`) | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_email_pending` | Edge `ce-unlock-notify-email` | `160` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_expire_drafts` | Edge `ce-unlock-cleanup` | `141` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `ce_unlock_refresh_open` | Edge `ce-unlock-notify-email` | `161` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
@@ -634,7 +634,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `customer_local_charges_communication_dispatch_ready` | Edge `send-customer-communication` | `033` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `customer_local_charges_communication_payload` | Edge `customer-communication-auto-runner`; Edge `send-customer-communication` | `179` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `demurrage_dunning_candidate_sendable` | Edge `demurrage-dunning` | `179`, `305` | DEFINER · `service_role` | `service_role` (conferido no corpo) | A mesma regra da seleção (`_demurrage_dunning_invoice_billable`, `305`). |
-| `evaluate_and_dispatch_automatic_communications` | Edge `customer-communication-auto-runner` | `190`, `243`, `244`, `297`, `304` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Produtora de NOA, NOR, NOB e CE e Taxas; o NOB usa a regra única `bl_belongs_to_atracacao`, e o Cliente sem contato abre `nob_sem_destinatario` sem abortar a rodada (`243`); claim recusada nas últimas 24 h não volta como candidata (`297`); claim adiada só volta depois de `next_attempt_at` e os alvos vêm de `customer_communication_automation_targets` (`304`). |
+| `evaluate_and_dispatch_automatic_communications` | Edge `customer-communication-auto-runner` | `190`, `243`, `244`, `297`, `304`, `314` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Produtora de NOA, NOR, NOB e CE e Taxas; o NOB usa a regra única `bl_belongs_to_atracacao`, e o Cliente sem contato abre `nob_sem_destinatario` sem abortar a rodada (`243`); claim recusada nas últimas 24 h não volta como candidata (`297`); claim adiada só volta depois de `next_attempt_at` e os alvos vêm de `customer_communication_automation_targets` (`304`). |
 | `internal_revoke_sessions` | Edge `admin-users` | `106` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
 | `is_admin` | Edge `admin-users` | `002` | DEFINER · `authenticated` | devolve se a sessão é Administrativo ativo | — |
 | `itau_pix_checkpoint` | Edge `itau-pix` | `152` | DEFINER · `service_role` | só pelo grant a `service_role` | — |

@@ -11,7 +11,7 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   valores aninhados e URLs, usada pelo browser e pelas Edge Functions;
 - `src/lib/telemetry.ts` captura erros de browser em builds de produção,
   remove query strings e redige CNPJ, CPF e e-mail;
-- doze Edge Functions têm wrapper repository-side que reporta exceções não
+- treze Edge Functions têm wrapper repository-side (`instrumentEdgeHandler`) que reporta exceções não
   tratadas e respostas HTTP 5xx apenas se `SENTRY_DSN` estiver configurado;
   erros brutos, corpo/resposta HTTP, usuário e headers não são enviados;
 - o helper Edge carrega o SDK Sentry sob demanda e fica em no-op sem `SENTRY_DSN`;
@@ -20,7 +20,7 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   `https://portalfwlog.com.br`;
 - heartbeats repository-side para Edge Functions agendadas foram implementados via
   `supabase/functions/_shared/betterStackHeartbeat.ts` nos runners `alerts-detector`,
-  `portal-daily-digest`, `demurrage-dunning`, `customer-communication-auto-runner` e
+  `portal-daily-digest`, `demurrage-dunning`, `customer-communication-auto-runner`,
   `ce-unlock-notify-email` e `portal-email-events-runner`.
   Eles emitem ping HTTP apenas em conclusões bem-sucedidas (status < 400) quando a URL
   do heartbeat está configurada nos secrets do Supabase. Sem o secret, operam em no-op
@@ -29,7 +29,8 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   conta em `failed` todo destinatário recusado ou com falha na rodada; o
   `portal-daily-digest` conta em `failed` cada destinatário que não recebeu e responde
   500 quando uma consulta falha; o `ce-unlock-notify-email` conta em `failed` cada aviso
-  que esgotou as tentativas. Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
+  que esgotou as tentativas; o `portal-email-events-runner` conta em `failed` cada evento
+  que falhou e foi devolvido para nova tentativa. Heartbeats diretos de triggers `pg_cron` no Postgres continuam opcionais.
 
 Esta seção combina inspeção estática com verificações de runtime registradas no
 plano de migração. O DSN de produção e os alertas foram configurados em
@@ -73,7 +74,7 @@ ao bundle nem commitadas no Git:
 
 O ping de sucesso ocorre estritamente após a conclusão bem-sucedida do job. Se a
 URL não estiver configurada no Supabase, a função executa normalmente e ignora o
-ping. Só esses cinco runners enviam heartbeat: `itau-pix` (job
+ping. Só esses seis runners enviam heartbeat: `itau-pix` (job
 `itau-pix-queue`) e `import-effects-runner` não enviam; para a fila de efeitos,
 a parada é avisada pelo Alerta `import_effects_queue_stalled`. O monitor no
 painel do Better Stack deve alertar pela ausência de ping além
@@ -86,8 +87,9 @@ URLs estão configuradas nos secrets do Supabase. O de `ce-unlock-notify-email`
 secret, sem os quais a função opera em no-op; a execução recorrente continua
 sendo acompanhada e não bloqueia o encerramento do plano de migração.
 O heartbeat do `portal-email-events-runner` (plano de correção dos e-mails, 2.3)
-existe no código e está testado (`portalEmailEventsRunner.test.ts`: falha num
-evento ou no claim responde 500 e chama `/fail`); falta cadastrá-lo no Better
+existe no código e está testado (`portalEmailEventsRunner.test.ts`: evento que
+falha e volta para nova tentativa responde 200 com `failed` e chama `/fail`;
+falha no claim ou ao devolver o evento responde 500); falta cadastrá-lo no Better
 Stack, com tolerância de alguns minutos para o job de minuto em minuto, e
 gravar `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` nos secrets. Sem o
 secret, o runner segue em no-op de heartbeat.

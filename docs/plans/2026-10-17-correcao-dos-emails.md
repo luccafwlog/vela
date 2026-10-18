@@ -431,6 +431,10 @@ Antes de alterar, conferir todos os chamadores de `sendEmail` e
      `email_retorno_provedor_silencioso`, Administrativo, D21) quando há tentativa
      `aceito` com id do provedor há mais de 2 h sem evento. Vale para as duas
      tabelas de tentativas.
+   - **Revisão (migration `314`):** o detector mede o silêncio do webhook, não
+     o evento de cada tentativa: abre com ao menos 3 tentativas aceitas há mais
+     de 2 h e depois do último evento recebido, e fecha quando chega qualquer
+     evento novo. Uma tentativa sozinha podia ser só um e-mail adiado.
    - Documentar em `servicos-externos.md` como trocar o segredo do webhook.
 2. **Sentry das Edges** (INF-02 · baixa) **[Código]**
    - `scope.setFingerprint(['edge', functionName, status])` em

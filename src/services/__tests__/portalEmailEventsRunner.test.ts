@@ -3,7 +3,9 @@ import { runPortalEmailEventsBatch, type EventsRunnerAdmin } from '../../../supa
 import { runWithBetterStackHeartbeat } from '../../../supabase/functions/_shared/betterStackHeartbeat.ts'
 
 // Plano dos e-mails, 2.3 (INF-08): o processamento dos eventos do provedor tem
-// heartbeat; falha no claim ou num evento deixa o monitor vermelho.
+// heartbeat; falha no claim ou num evento deixa o monitor vermelho. Só a
+// falha no claim ou na devolução do evento vira erro HTTP (Sentry e o Alerta
+// rotina_http_falhou); evento devolvido para nova tentativa responde 200.
 const HEARTBEAT = 'https://uptime.betterstack.com/api/v1/heartbeat/eventos'
 
 function fakeAdmin(options: { claimError?: boolean; completionError?: boolean; events?: number[] } = {}) {
@@ -43,18 +45,18 @@ describe('portal-email-events-runner', () => {
     const statuses: Record<number, string> = { 1: 'processed', 2: 'retry_wait', 3: 'investigate' }
     const { response, pings, body } = await runWithHeartbeat(admin, (id) => Promise.resolve({ status: statuses[id] }))
     expect(response.status).toBe(200)
-    expect(body).toMatchObject({ claimed: 3, processed: 1, retried: 1, investigated: 1, failures: 0 })
+    expect(body).toMatchObject({ claimed: 3, processed: 1, retried: 1, investigated: 1, failed: 0, releaseFailures: 0 })
     expect(pings).toEqual([HEARTBEAT])
   })
 
-  it('evento com exceção volta para nova tentativa, os outros seguem e o heartbeat chama /fail', async () => {
+  it('evento com exceção volta para nova tentativa: responde 200 com failed, os outros seguem e o heartbeat chama /fail', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const { admin, calls } = fakeAdmin({ events: [1, 2] })
     const { response, pings, body } = await runWithHeartbeat(admin, (id) => (id === 1
       ? Promise.reject(new Error('falha no efeito'))
       : Promise.resolve({ status: 'processed' })))
-    expect(response.status).toBe(500)
-    expect(body).toMatchObject({ claimed: 2, processed: 1, failures: 1 })
+    expect(response.status).toBe(200)
+    expect(body).toMatchObject({ claimed: 2, processed: 1, failed: 1, releaseFailures: 0 })
     expect(calls).toContainEqual({ fn: 'complete_portal_email_event', args: expect.objectContaining({ p_event_id: 1, p_status: 'retry_wait', p_error_code: 'runner_error' }) })
     expect(pings).toEqual([`${HEARTBEAT}/fail`])
     vi.restoreAllMocks()
@@ -71,10 +73,10 @@ describe('portal-email-events-runner', () => {
     vi.restoreAllMocks()
   })
 
-  it('falha ao devolver o evento conta como segunda falha', async () => {
+  it('falha ao devolver o evento para nova tentativa responde 500', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const result = await runPortalEmailEventsBatch(fakeAdmin({ events: [7], completionError: true }).admin, () => Promise.reject(new Error('x')), 'w')
-    expect(result).toMatchObject({ status: 500, body: { failures: 2 } })
+    expect(result).toMatchObject({ status: 500, body: { failed: 1, releaseFailures: 1 } })
     vi.restoreAllMocks()
   })
 })

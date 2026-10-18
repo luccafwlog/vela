@@ -15,7 +15,7 @@
 -- TRIGGER nem REFERENCES); SELECT, INSERT, UPDATE e DELETE ficam como estão.
 -- Tabela ausente no ambiente é ignorada. Não altera nem apaga linhas.
 
-DO $grants_313$
+DO $grants_312$
 DECLARE
   v_table text;
 BEGIN
@@ -44,4 +44,4 @@ BEGIN
     END IF;
   END LOOP;
 END;
-$grants_313$;
+$grants_312$;

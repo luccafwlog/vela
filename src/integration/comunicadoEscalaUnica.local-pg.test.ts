@@ -157,6 +157,11 @@ describeLocal('304 — escala única, CE por Viagem, filtros e alvos do detector
     const unreachable = alertItem('nob_sem_destinatario', 'customer', String(CUSTOMER_NOCONTACT))
     expect(unreachable).toMatchObject({ status: 'active' })
     expect(unreachable!.message).toContain('NOA da viagem E300N (BRVIX)')
+    // 314: o metadata leva o CNPJ, para "Abrir Cliente" abrir a ficha do Cliente.
+    expect(psql(`SELECT (i.metadata ->> 'customer_cnpj') = (SELECT c.cnpj_cpf FROM public.customers c WHERE c.id = ${CUSTOMER_NOCONTACT})
+      FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'nob_sem_destinatario' AND a.entity_type = 'customer' AND a.entity_id = '${CUSTOMER_NOCONTACT}'
+      ORDER BY i.id DESC LIMIT 1;`)).toBe('t')
     // Cliente desativado não vira alvo nem alerta.
     expect(alertItem('nob_sem_destinatario', 'customer', String(CUSTOMER_OFF))).toBeNull()
   })

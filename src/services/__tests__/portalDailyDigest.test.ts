@@ -13,6 +13,7 @@ function deps(patch: Partial<DailyDigestDeps> = {}, queries: Partial<DailyDigest
     },
     userEmail: async (id) => ({ u1: 'Ana@Fwlog.com.br', u2: 'falha@fwlog.com.br', u3: 'sup@fwlog.com.br' } as Record<string, string>)[id] ?? null,
     recipientKey: async (email) => `sha256:${email.toLowerCase().length}`,
+    attemptExists: async () => false,
     send,
     today: () => '2026-10-18',
     ...patch,
@@ -32,6 +33,16 @@ describe('Resumo diário do Portal', () => {
     const keys = send.mock.calls.map(([input]) => (input as unknown as { idempotencyKey: string }).idempotencyKey)
     expect(keys[0]).toBe('resumo:2026-10-18:sha256:16')
     expect(keys.join(' ')).not.toContain('@')
+  })
+
+  // Rodada anterior ao deploy, no mesmo dia, gravou a chave com o e-mail: a
+  // nova rodada reaproveita essa tentativa em vez de reenviar o resumo.
+  it('reaproveita a chave antiga com o e-mail quando o resumo do dia já saiu com ela', async () => {
+    const existing = new Set(['resumo:2026-10-18:ana@fwlog.com.br'])
+    const { full, send } = deps({ attemptExists: async (key) => existing.has(key) })
+    await runPortalDailyDigest(full)
+    const keys = send.mock.calls.map(([input]) => (input as unknown as { idempotencyKey: string }).idempotencyKey)
+    expect(keys).toEqual(['resumo:2026-10-18:ana@fwlog.com.br', 'resumo:2026-10-18:sha256:18', 'resumo:2026-10-18:sha256:16'])
   })
 
   it('consulta com erro devolve 500 e não envia resumo zerado', async () => {

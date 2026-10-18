@@ -23,8 +23,25 @@ export type DailyDigestDeps = {
   }
   userEmail: (userId: string) => Promise<string | null>
   recipientKey: (email: string) => Promise<string>
+  /** Há tentativa em portal_email_attempts com esta chave de idempotência? */
+  attemptExists: (idempotencyKey: string) => Promise<boolean>
   send: (input: { to: string; counts: DigestCounts; date: string; idempotencyKey: string }) => Promise<{ ok: boolean; suppressed: boolean }>
   today: () => string
+}
+
+/** Chave gravada antes do plano dos e-mails (5.1), com o e-mail em claro. */
+export function legacyDigestIdempotencyKey(date: string, email: string): string {
+  return `resumo:${date}:${email.toLowerCase()}`
+}
+
+// Chave com o hash do destinatário: o e-mail não fica em claro em
+// portal_email_attempts. Se o resumo do dia já saiu com a chave antiga (rodada
+// anterior ao deploy, no mesmo dia), ela continua valendo, para a nova rodada
+// achar a mesma tentativa e não reenviar o resumo.
+async function digestIdempotencyKey(deps: DailyDigestDeps, date: string, email: string): Promise<string> {
+  const legacy = legacyDigestIdempotencyKey(date, email)
+  if (await deps.attemptExists(legacy)) return legacy
+  return `resumo:${date}:${await deps.recipientKey(email)}`
 }
 
 export type DailyDigestResult = { status: number; body: Record<string, unknown> }
@@ -59,8 +76,7 @@ export async function runPortalDailyDigest(deps: DailyDigestDeps): Promise<Daily
         result.failed += 1
         continue
       }
-      // Chave com o hash do destinatário: o e-mail não fica em claro em portal_email_attempts.
-      const idempotencyKey = `resumo:${date}:${await deps.recipientKey(email)}`
+      const idempotencyKey = await digestIdempotencyKey(deps, date, email)
       const sent = await deps.send({ to: email, counts, date, idempotencyKey })
       if (sent.ok) result.sent += 1
       else if (sent.suppressed) result.suppressed += 1

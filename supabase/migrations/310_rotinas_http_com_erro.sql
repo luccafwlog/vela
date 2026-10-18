@@ -113,7 +113,7 @@ $function$;
 REVOKE ALL ON FUNCTION public.reconcile_http_job_failures_alert(interval) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_http_job_failures_alert(interval) TO service_role;
 
-DO $cron_311$
+DO $cron_310$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
     IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'http-job-failures') THEN
@@ -124,4 +124,4 @@ BEGIN
     RAISE WARNING '311: pg_cron ausente; agende public.reconcile_http_job_failures_alert() a cada 15 minutos neste ambiente.';
   END IF;
 END;
-$cron_311$;
+$cron_310$;
