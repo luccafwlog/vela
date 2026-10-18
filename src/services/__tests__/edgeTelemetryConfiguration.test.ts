@@ -12,6 +12,8 @@ const instrumentedFunctions = [
   'portal-email-events-runner',
   'portal-invite-send',
   'ce-unlock-notify-email',
+  'portal-password-recovery',
+  'portal-recovery-email-change',
   'send-customer-communication',
   'demurrage-dunning',
   'customer-communication-auto-runner',

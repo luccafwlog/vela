@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 import { decideInternalTarget } from '../_shared/internalUserTarget.ts'
+import { releasePreviousEmailSuppression } from '../_shared/internalUserEmailSuppression.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 
 const MANAGED_PROFILES = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']
@@ -150,6 +151,9 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
 
     // Credencial trocada derruba as sessões abertas com a credencial antiga.
     await revokeSessions(userId)
+
+    // E-mail salvo libera a supressão (bounce/spam) do endereço anterior (2.8).
+    if (email) await releasePreviousEmailSuppression(admin, previousEmail, email)
 
     if (email && email !== previousEmail) await audit(userId, 'email', previousEmail, email)
     // A senha nunca é registrada, só o fato de ter sido trocada.

@@ -37,6 +37,8 @@ const CATALOG_MIGRATIONS = [
   '297_comunicado_recusado_nao_cicla.sql',
   '303_regua_cobranca_recusa_janela_e_portal.sql',
   '307_desbloqueio_ce_aviso_simulado_e_alerta.sql',
+  '310_monitoramento_dos_emails.sql',
+  '311_rotinas_http_com_erro.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

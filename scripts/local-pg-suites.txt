@@ -105,3 +105,5 @@ src/integration/comunicadoRecusadoNaoCicla.local-pg.test.ts
 src/integration/comunicadoEmEnvio.local-pg.test.ts
 src/integration/comunicadoEscalaUnica.local-pg.test.ts
 src/integration/reguaCobrancaDemurrage.local-pg.test.ts
+src/integration/monitoramentoDosEmails.local-pg.test.ts
+src/integration/rotinasHttpComErro.local-pg.test.ts

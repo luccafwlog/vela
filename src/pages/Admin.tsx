@@ -290,6 +290,9 @@ export function Admin() {
                           <div className="app-table__cell-stack">
                             <div className="app-table__truncate app-table__truncate--xl font-medium text-[var(--app-text-strong)]" title={u.full_name ?? undefined}>{u.full_name}</div>
                             <div className="app-table__truncate app-table__truncate--xl text-xs text-[var(--app-muted)]" title={u.email ?? undefined}>{u.email ?? <NoValue label="Sem e-mail" />}</div>
+                            {u.email_bounced ? (
+                              <div><Badge tone="red" title="O provedor devolveu ou marcou como spam um e-mail para este endereço; o sistema não envia mais para ele. Corrija em Editar acesso.">E-mail devolvido</Badge></div>
+                            ) : null}
                           </div>
                         </td>
                         <td className="px-4 py-3">

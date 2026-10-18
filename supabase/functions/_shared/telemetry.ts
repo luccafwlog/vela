@@ -5,6 +5,7 @@ import {
   scrubTelemetryValue,
   type EdgeTelemetryContext,
 } from '../../../src/lib/telemetryContract.ts'
+import { applyEdgeTelemetryScope } from './telemetryScope.ts'
 
 type SentrySdk = typeof import('@sentry/deno')
 let sentryPromise: Promise<SentrySdk> | null = null
@@ -32,7 +33,17 @@ async function initializeSentry(): Promise<SentrySdk | null> {
     environment: Deno.env.get('SENTRY_ENVIRONMENT')?.trim() || 'production',
     release: Deno.env.get('SENTRY_RELEASE')?.trim() || undefined,
     defaultIntegrations: false,
-    sendDefaultPii: false,
+    // O SDK 11 trocou sendDefaultPii por dataCollection, que coleta tudo por
+    // padrão; o mesmo desligamento do navegador (src/lib/telemetry.ts).
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      databaseQueryData: false,
+      stackFrameVariables: false,
+    },
     beforeSend(event) {
       event.user = undefined
       if (event.message) event.message = scrubTelemetryText(event.message)
@@ -71,14 +82,7 @@ export async function captureEdgeException(
     const Sentry = await initializeSentry()
     if (!Sentry) return
     Sentry.withScope((scope) => {
-      scope.setTag('surface', context.surface ?? 'edge')
-      scope.setTag('function_name', context.functionName)
-      if (context.jobName) scope.setTag('job_name', context.jobName)
-      if (context.category) scope.setTag('categoria_falha', scrubTelemetryText(context.category))
-      if (context.status) scope.setTag('status', context.status)
-      if (context.result) scope.setTag('result', context.result)
-      if (Number.isFinite(context.durationMs)) scope.setTag('duration_ms', String(context.durationMs))
-      if (Number.isFinite(context.processedCount)) scope.setTag('processed_count', String(context.processedCount))
+      applyEdgeTelemetryScope(scope, context)
       // Exception messages from HTTP/database SDKs can echo request values or
       // opaque secrets. Keep the class and function context, not raw text.
       const safeError = new Error('Edge Function execution failed')
