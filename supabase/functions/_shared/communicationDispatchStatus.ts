@@ -46,8 +46,12 @@ export function resolveDispatchStatus(input: ResolveDispatchStatusInput): Resolv
   return 'falha'
 }
 
-/** Status que precisa ser gravado porque o banco ficou para trás; null quando o banco já está certo. */
-export function statusToPersist(refreshed: unknown, resolved: ResolvedDispatchStatus): 'parcial' | 'falha' | null {
-  if (asStatus(refreshed) === resolved) return null
-  return resolved === 'falha' || resolved === 'parcial' ? resolved : null
+/**
+ * Status que precisa ser gravado porque o banco ficou diferente do resolvido;
+ * null quando o banco já está certo. Inclui `pendente` com resposta `enviado`
+ * (o provedor aceitou, mas o id não foi gravado): sem isto o Comunicado ficava
+ * "Em envio" enquanto a tela e a régua recebiam "enviado".
+ */
+export function statusToPersist(refreshed: unknown, resolved: ResolvedDispatchStatus): ResolvedDispatchStatus | null {
+  return asStatus(refreshed) === resolved ? null : resolved
 }

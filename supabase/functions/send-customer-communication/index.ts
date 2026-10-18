@@ -2,8 +2,15 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 import { corsHeaders, withCors } from '../_shared/cors.ts'
 import { base64Head, matchesExtension, matchesMagicBytes } from '../_shared/fileSignature.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
-import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
-import { resolveDispatchStatus, statusToPersist } from '../_shared/communicationDispatchStatus.ts'
+import { sendEmail, type EmailAttachment } from '../_shared/email.ts'
+import {
+  communicationAttemptRecorder,
+  isPermanentProviderFailure,
+  missingProviderConfiguration,
+  recordUnsentCommunicationAttempt,
+  settleCommunicationStatus,
+  type CommunicationAttemptStore,
+} from '../_shared/customerCommunicationAttempts.ts'
 import { resolveCommunicationAttemptKey } from '../_shared/customerCommunicationAttemptKey.ts'
 import {
   assertValidCommunicationAttachments,
@@ -329,6 +336,22 @@ async function findExistingCommunicationId(
   return row?.id ?? null
 }
 
+// Acesso ao banco do registro da tentativa e do status final
+// (_shared/customerCommunicationAttempts.ts).
+function communicationAttemptStore(admin: Admin): CommunicationAttemptStore {
+  return {
+    insertAttempt: (row) => admin.from('customer_communication_attempts').insert(row).select('id').single(),
+    findAttemptByKey: (idempotencyKey) => admin
+      .from('customer_communication_attempts')
+      .select('id, status, provider_message_id, dispatch_mode')
+      .eq('idempotency_key', idempotencyKey)
+      .single(),
+    patchAttempt: (id, patch) => admin.from('customer_communication_attempts').update(patch).eq('id', id),
+    refreshStatus: (communicationId) => admin.rpc('refresh_customer_communication_status', { p_communication_id: communicationId }),
+    persistStatus: (communicationId, status) => admin.from('customer_communications').update({ status }).eq('id', communicationId),
+  }
+}
+
 function timingSafeEqual(leftValue: string, rightValue: string): boolean {
   const encoder = new TextEncoder()
   const left = encoder.encode(leftValue)
@@ -441,8 +464,8 @@ async function handler(req: Request): Promise<Response> {
   if (targetCustomer.deactivated_at) return json(422, { error: 'Cliente desativado não recebe Comunicados.' }, origin)
 
   let canonicalPayload: { subject: string; html: string; text: string; blIds: string[] } | null = null
-  // Porto gravado no Comunicado. No CE e Taxas ele é informativo e vem do
-  // servidor (Cliente × Viagem, D3), igual ao da produtora e ao do registro.
+  // Porto gravado no Comunicado. No CE e Taxas fica nulo: a identidade é
+  // Cliente × Viagem (D3) e o porto informativo vai só no corpo.
   let anchorPort: string | null = body.anchor_port ?? null
   // No NOB o histórico grava o terminal que o servidor pôs no e-mail, não o
   // que o navegador mandou.
@@ -474,7 +497,10 @@ async function handler(req: Request): Promise<Response> {
     if (!row?.customer_name || !row.vessel_name || !row.voyage_number || !Array.isArray(row.bls) || !row.bls.length) {
       return json(422, { error: 'Dados financeiros incompletos para o comunicado.' }, origin)
     }
-    anchorPort = row.port ?? '—'
+    // A identidade do CE e Taxas é Cliente × Viagem (D3): o porto fica só no
+    // corpo do e-mail e o registro grava anchor_port nulo (migration 315), para
+    // a troca de POD de um B/L não criar outro Comunicado nem reenviar o CE.
+    anchorPort = null
     const rendered = renderCeMercanteTaxasTemplate({
       customerId,
       customerName: row.customer_name,
@@ -631,7 +657,7 @@ async function handler(req: Request): Promise<Response> {
   // ele nascia e ficava sem tentativa (plano dos e-mails, 1B).
   const enabled = Boolean((settings as { communications_enabled?: boolean } | null)?.communications_enabled)
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
-  if (enabled && (!resendApiKey || !Deno.env.get('PORTAL_FROM_EMAIL') || !Deno.env.get('COMMUNICATIONS_REPLY_TO'))) {
+  if (missingProviderConfiguration(enabled, { resendApiKey, from: Deno.env.get('PORTAL_FROM_EMAIL'), replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO') })) {
     console.error('[send-customer-communication] envio real sem RESEND_API_KEY, PORTAL_FROM_EMAIL ou COMMUNICATIONS_REPLY_TO')
     return json(500, { error: 'Envio real sem configuração do provedor de e-mail.' }, origin)
   }
@@ -760,6 +786,8 @@ async function handler(req: Request): Promise<Response> {
     return json(500, { error: 'Não foi possível conferir a tentativa do comunicado.' }, origin)
   }
 
+  const attemptStore = communicationAttemptStore(admin)
+  const attemptRecorder = communicationAttemptRecorder(attemptStore, { communicationId: Number(communicationId), enabled })
   let sent: { ok: boolean }
   try {
     sent = await sendEmail({
@@ -784,73 +812,30 @@ async function handler(req: Request): Promise<Response> {
         if (complaintError || bounceError) throw complaintError ?? bounceError
         return { suppressed: Boolean(complaint || bounce) }
       },
-      recordAttempt: async ({ kind: attemptKind, to, idempotencyKey }): Promise<EmailAttemptRecord> => {
-        const { data, error } = await admin.from('customer_communication_attempts').insert({
-          communication_id: communicationId,
-          recipient_masked: maskEmail(to),
-          recipient_key: await recipientKey(to),
-          status: 'aceito',
-          dispatch_mode: enabled ? 'real' : 'simulado',
-          idempotency_key: idempotencyKey,
-        }).select('id').single()
-        if (error?.code === '23505') {
-          const { data: existing, error: existingError } = await admin
-            .from('customer_communication_attempts')
-            .select('id, status, provider_message_id, dispatch_mode')
-            .eq('idempotency_key', idempotencyKey)
-            .single()
-          if (existingError || !existing) throw existingError ?? error
-          if (existing.dispatch_mode === 'legado' && existing.status === 'aceito' && existing.provider_message_id == null) {
-            const { error: repairError } = await admin.from('customer_communication_attempts').update({
-              recipient_key: await recipientKey(to),
-              dispatch_mode: enabled ? 'real' : 'simulado',
-            }).eq('id', existing.id)
-            if (repairError) throw repairError
-          }
-          return { id: existing.id, status: existing.status as EmailAttemptRecord['status'], providerMessageId: existing.provider_message_id, existing: true }
-        }
-        if (error || !data) throw error ?? new Error(`Não foi possível registrar a tentativa ${attemptKind}.`)
-        return { id: data.id, status: 'aceito', providerMessageId: null, existing: false }
-      },
-      updateAttempt: async (attemptId, update) => {
-        const { error } = await admin.from('customer_communication_attempts').update({
-          provider_message_id: update.providerMessageId,
-          retry_count: update.retryCount,
-          status: update.status,
-          last_error: update.lastError,
-        }).eq('id', attemptId)
-        if (error) throw error
-      },
+      ...attemptRecorder,
     })
   } catch (error) {
     // Exceção neste destinatário não apaga o que os outros já receberam: o
     // status vem das tentativas, e este destinatário conta como falha.
     console.error('customer communication send failed', error)
-    const { data: refreshedAfterError } = await admin.rpc('refresh_customer_communication_status', {
-      p_communication_id: Number(communicationId),
+    // Grava o destinatário como falha_transitoria: o Histórico o mostra e a
+    // produtora o tenta de novo (o alvo só é feito com a entrega, migration 315).
+    const recorded = await recordUnsentCommunicationAttempt(attemptStore, {
+      communicationId: Number(communicationId), enabled, recipient, idempotencyKey: attemptKey,
+      reason: `Falha antes do envio: ${error instanceof Error ? error.message : String(error)}`,
     })
-    const statusAfterError = resolveDispatchStatus({
-      refreshed: refreshedAfterError, communicationsEnabled: enabled, succeeded: 0, failed: 0, unrecordedFailures: 1,
+    const { status: statusAfterError } = await settleCommunicationStatus(attemptStore, {
+      communicationId: Number(communicationId), enabled, succeeded: 0, failed: recorded ? 1 : 0, unrecordedFailures: recorded ? 0 : 1,
     })
-    const persistAfterError = statusToPersist(refreshedAfterError, statusAfterError)
-    if (persistAfterError) await admin.from('customer_communications').update({ status: persistAfterError }).eq('id', communicationId)
     return json(500, { error: 'Falha no envio do comunicado.', status: statusAfterError, communicationId }, origin)
   }
 
-  const { data: refreshedStatus, error: statusError } = await admin.rpc('refresh_customer_communication_status', {
-    p_communication_id: Number(communicationId),
+  const { status, refreshError: statusError } = await settleCommunicationStatus(attemptStore, {
+    communicationId: Number(communicationId), enabled, succeeded: sent.ok ? 1 : 0, failed: sent.ok ? 0 : 1,
   })
   if (statusError) {
     console.error('customer communication status persistence failed', statusError)
     return json(500, { error: 'Não foi possível persistir o status do comunicado.' }, origin)
-  }
-  const status = resolveDispatchStatus({
-    refreshed: refreshedStatus, communicationsEnabled: enabled, succeeded: sent.ok ? 1 : 0, failed: sent.ok ? 0 : 1,
-  })
-  const persist = statusToPersist(refreshedStatus, status)
-  if (persist) {
-    const { error: persistError } = await admin.from('customer_communications').update({ status: persist }).eq('id', communicationId)
-    if (persistError) console.error('customer communication resolved status persistence failed', persistError)
   }
   const { data: attempt } = await admin
     .from('customer_communication_attempts')
@@ -865,7 +850,7 @@ async function handler(req: Request): Promise<Response> {
     suppressed: false,
     // Recusa definitiva do provedor (ex.: 422 do endereço): a mesma chave nunca
     // mais chama o provedor, então a régua rejeita a claim (plano, 1D.4).
-    ...(!sent.ok && attempt?.status === 'falha_permanente' ? { permanent: true } : {}),
+    ...(isPermanentProviderFailure(sent.ok, attempt?.status) ? { permanent: true } : {}),
     // Motivo técnico da tentativa (`HTTP 422 validation_error`, "Tempo
     // esgotado…"): a tela o traduz no resumo do lote. Fica fora de `error`,
     // que a régua automática usa como motivo da claim.

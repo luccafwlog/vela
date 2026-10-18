@@ -82,7 +82,7 @@ export interface DunningStore {
   recordAttempt(input: DunningAttemptInput): Promise<EmailAttemptRecord>
   updateAttempt(attemptId: string | number, update: EmailAttemptUpdate): Promise<void>
   refreshStatus(communicationId: number): Promise<unknown>
-  persistStatus(communicationId: number, status: 'parcial' | 'falha'): Promise<void>
+  persistStatus(communicationId: number, status: ResolvedDispatchStatus): Promise<void>
   /**
    * Grava o desfecho. Com o Comunicado já criado, a fatura pausada sai dele
    * (migration 313) para poder voltar em outra composição na mesma etapa.

@@ -14,8 +14,9 @@ refutá-lo.
   aplicada em produção e as Edges foram republicadas pela integração.
 - **Fases 1 a 5 implementadas em 2026-10-18 no PR #973** (branch
   `claude/emails-1a-envio-comum`), por decisão do responsável de fazer o plano
-  inteiro num PR só. Migrations `302` a `312`, renumeradas depois do merge do PR #972, que ocupou
-  da `298` à `301`. Verificado localmente:
+  inteiro num PR só. Migrations `302` a `312`, renumeradas depois do merge do
+  PR #972, que ocupou da `298` à `301`; as correções da revisão do PR vieram
+  nas `313` a `315`. Verificado localmente:
   typecheck, lint, testes unitários, as 101 suítes local-pg num banco recriado
   com todas as migrations, `rpc:check`, `migrations:check`, `design:check`,
   `a11y:contrast`, build e `deno check` das 11 Edges de e-mail. Nada disso foi
@@ -39,6 +40,29 @@ refutá-lo.
   demais; varredura não solta a claim recusada; coluna Régua com o motivo do
   servidor; isentas anteriores à `306` quitadas e cancelamento da baixa sem
   aviso de "Nova fatura"; e-mail agrupado sem soma.
+- **Correções da revisão do núcleo dos Comunicados (2026-10-18, migration
+  `315`):** a produtora e o detector deixaram de olhar o status do Comunicado;
+  o alvo é feito quando todo destinatário automático que já era contato
+  elegível no primeiro envio tem tentativa entregue ou devolvida
+  (`customer_communication_target_done`). A escala é lida por grafia exata
+  antes de agregar o porto; o CE e Taxas grava `anchor_port` nulo (D3 sem o
+  porto na identidade); Comunicado `pendente` sem tentativa nova há 15 min é
+  recalculado e vira `falha` no detector; a claim só fica em
+  `comunicado_recusado` enquanto o alvo está devido. Regra em
+  [Clientes](../modules/clientes.md#régua-automática-de-comunicados).
+- **Correções da revisão do monitoramento (2026-10-18, migration `314`):**
+  "Provedor de e-mail sem retorno" mede o silêncio do webhook (3 tentativas
+  depois do último evento) e fecha com qualquer evento; alerta de evento de
+  e-mail abre `/alertas`, não um Cliente; grants das tabelas da Régua;
+  `customer_cnpj` nos alertas sem destinatário; runner de eventos responde
+  200 com `failed` quando o evento volta para nova tentativa; chave legada do
+  Resumo diário.
+- **Correções da revisão do Portal e da tela de Comunicados:** parcial por
+  contato suprimido no Desbloqueio de CE não deixa o heartbeat vermelho;
+  salvar o mesmo e-mail devolvido em Editar acesso libera a supressão; aviso
+  de senha alterada em segundo plano; reenvio do CE segue depois de uma
+  recusa; reconferência antes de disparar de novo; recusas definitivas fora
+  de "Repetir só as falhas"; mês do Histórico em Brasília.
 - **Pendente:**
   - **Depois do merge:** confirmar a aplicação das migrations e a publicação
     das Edges em produção.
@@ -734,8 +758,11 @@ apoia no "Data status".
 
 - **Status `pendente` (1B):** muda o que a tela, os filtros e a produtora leem.
   - Fazer num PR só, cobrindo todos os leitores.
-  - **Rollback:** a migration seguinte volta o default para `simulado`; as
-    linhas `pendente` viram `falha` ou `parcial` pelo refresh.
+  - **Rollback:** a migration seguinte volta o default para `simulado`. O
+    refresh sozinho não resolve linha `pendente` sem tentativa (ele devolve o
+    status atual): quem a resolve é a varredura
+    `settle_stale_pending_customer_communications` do detector (migration
+    `315`), que recalcula e grava `falha` no que continuar `pendente`.
 - **Escala única (1C.1):** muda quem recebe NOA, NOR e NOB.
   - Validar contra os dados de produção antes, comparando os candidatos da
     produtora atual com os da nova numa consulta de leitura.

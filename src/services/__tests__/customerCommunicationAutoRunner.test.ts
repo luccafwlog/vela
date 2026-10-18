@@ -214,7 +214,8 @@ describe('recusas da Edge send-customer-communication', () => {
   })
 
   it('marca permanent quando o provedor recusou em definitivo', () => {
-    expect(edge).toContain("...(!sent.ok && attempt?.status === 'falha_permanente' ? { permanent: true } : {})")
+    // O comportamento é testado em customerCommunicationAttempts.test.ts.
+    expect(edge).toContain('...(isPermanentProviderFailure(sent.ok, attempt?.status) ? { permanent: true } : {})')
   })
 
   it('o 502 leva o last_error da tentativa em `reason`, fora do `error` que a régua usa como motivo da claim', () => {
