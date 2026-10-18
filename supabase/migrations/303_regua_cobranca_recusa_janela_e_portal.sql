@@ -307,9 +307,10 @@ REVOKE ALL ON FUNCTION public.demurrage_dunning_candidate_sendable(bigint) FROM 
 GRANT EXECUTE ON FUNCTION public.demurrage_dunning_candidate_sendable(bigint) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.create_customer_dunning_group_atomic(p_customer_id bigint,
- p_attempt_discriminator integer, p_invoice_ids bigint[], p_anchor_voyage_id bigint DEFAULT NULL,
- p_anchor_port text DEFAULT NULL, p_vessel_name text DEFAULT NULL, p_voyage_number text DEFAULT NULL,
- p_terminal_name text DEFAULT NULL) RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER
+p_attempt_discriminator integer,p_invoice_ids bigint[],p_anchor_voyage_id bigint DEFAULT NULL,
+p_anchor_port text DEFAULT NULL,p_vessel_name text DEFAULT NULL,p_voyage_number text DEFAULT NULL,
+p_terminal_name text DEFAULT NULL) RETURNS bigint
+SET search_path=pg_catalog,public,pg_temp
 AS $function$
 DECLARE
   v_invoice_ids bigint[];
@@ -437,12 +438,8 @@ BEGIN
 
   RETURN v_communication_id;
 END;
-$function$;
+$function$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- search_path à parte: com ele no cabeçalho, o verificador de migrations destrutivas
--- (scripts/check-destructive-migrations.mjs) não reconhece o corpo como função.
-ALTER FUNCTION public.create_customer_dunning_group_atomic(bigint, integer, bigint[], bigint, text, text, text, text)
-  SET search_path TO 'pg_catalog', 'public', 'pg_temp';
 REVOKE ALL ON FUNCTION public.create_customer_dunning_group_atomic(bigint, integer, bigint[], bigint, text, text, text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.create_customer_dunning_group_atomic(bigint, integer, bigint[], bigint, text, text, text, text) TO service_role;
 
