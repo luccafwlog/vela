@@ -44,7 +44,7 @@ flowchart LR
 | Upstash | database `vela-rate-limit` (`sa-east-1`) | — |
 | Sentry | organização com projetos `vela` e `portal` | — |
 | PostHog | região **EU** (`eu.posthog.com`) | — |
-| Better Stack | Uptime: 2 monitores e 5 heartbeats (um deles do backup); o de `portal-email-events-runner` (plano dos e-mails, 2.3) ainda não foi cadastrado | Free (avisa a equipe inteira) |
+| Better Stack | Uptime: 2 monitores e 5 heartbeats (um deles do backup); os de `ce-unlock-notify-email` e `portal-email-events-runner` (plano dos e-mails, 2.3) ainda não foram cadastrados | Free (avisa a equipe inteira) |
 | Computador do backup | usuário Windows `Lucca`, pasta `C:\Users\Lucca\Downloads\Vela` | — |
 
 Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-responsabilidade).
@@ -575,8 +575,9 @@ mesmos.
      que as entregas seguintes voltam a 2xx e, no banco, que
      `portal_email_events` recebeu linhas novas.
   4. Se o webhook parar de vez, o Alerta `email_retorno_provedor_silencioso`
-     (Administrativo, migration `309`) abre quando um e-mail aceito pelo
-     provedor fica mais de 2 horas sem nenhum evento.
+     (Administrativo, migrations `309` e `314`) abre quando ao menos 3 e-mails
+     foram aceitos pelo provedor há mais de 2 horas sem nenhum evento recebido
+     depois deles, e fecha na rodada seguinte ao primeiro evento novo.
 - **Recebimento** e **Caixas de entrada** da MillionSend não são usados: o
   recebimento é do ImprovMX.
 - **Virada conferida em 2026-10-14:** "Esqueci minha senha" no Portal chegou,

@@ -45,6 +45,7 @@ async function handler(req: Request): Promise<Response> {
 if (import.meta.main) {
   const edgeHandler = instrumentEdgeHandler('portal-email-events-runner', handler)
   // Heartbeat só para chamada autorizada do cron (plano dos e-mails, 2.3);
-  // resposta não-2xx (falha no claim ou num evento) manda /fail.
+  // manda /fail com resposta não-2xx (falha no claim ou na devolução do
+  // evento) ou com `failed > 0` (evento devolvido para nova tentativa).
   Deno.serve((req) => runWithBetterStackHeartbeat('portalEmailEvents', () => edgeHandler(req), { enabled: isAuthorized(req) }))
 }

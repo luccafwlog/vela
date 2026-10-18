@@ -227,7 +227,7 @@ BEGIN
   -- Comunicados ao Cliente: NOA/NOR/NOB e falha de contato alternativo.
   v_customer_communications := public.detect_customer_communication_alerts();
 
-  -- E-mails: provedor sem retorno e usuário interno com e-mail devolvido (310).
+  -- E-mails: provedor sem retorno e usuário interno com e-mail devolvido (309).
   v_email_monitoring := public.detect_email_monitoring_alerts();
 
   RETURN jsonb_build_object(

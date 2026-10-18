@@ -662,14 +662,17 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
     expect(error("SELECT public.ce_unlock_email_finish(1,'sent',NULL,NULL);", client)).toContain('permission denied')
   })
 
-  it('fila de e-mail: aviso sem destinatário abre alerta ao Administrativo e o simulado seguinte fecha (migration 307)', () => {
+  it('fila de e-mail: aviso sem destinatário abre alerta ao Administrativo, com o CNPJ do Cliente, e o simulado seguinte fecha (migrations 307 e 314)', () => {
     const item = "SELECT coalesce((SELECT i.status||':'||i.department FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE i.item_type='desbloqueio_ce_aviso_nao_enviado' AND a.entity_id='998557' ORDER BY i.id DESC LIMIT 1),'none');"
+    // 314: o metadata leva o CNPJ, para "Abrir Cliente" abrir a ficha do Cliente.
+    const cnpj = "SELECT (i.metadata->>'customer_cnpj') = (SELECT c.cnpj_cpf FROM public.customers c WHERE c.id=998557) FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE i.item_type='desbloqueio_ce_aviso_nao_enviado' AND a.entity_id='998557' ORDER BY i.id DESC LIMIT 1;"
     // A Edge chama a RPC como service_role; o produtor de alertas exige esse papel.
     const result = reviewScenario(`
       SET LOCAL request.jwt.claim.role='service_role';
       SELECT ce_unlock_private.notify('${reviewRequest}','changes_requested','Termo ilegível');
       SELECT public.ce_unlock_email_finish((SELECT max(id) FROM public.ce_unlock_email_outbox),'skipped',ARRAY[]::text[],'Sem contato habilitado na caixa documentacao_operacao');
       ${item}
+      ${cnpj}
       SELECT ce_unlock_private.notify('${reviewRequest}','changes_requested','Termo ilegível de novo');
       SELECT public.ce_unlock_email_finish((SELECT max(id) FROM public.ce_unlock_email_outbox),'simulated',ARRAY['k:a'],'Canal de envio real desligado; envio simulado');
       SELECT status FROM public.ce_unlock_email_outbox ORDER BY id DESC LIMIT 1;
@@ -679,9 +682,10 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       SELECT status FROM public.ce_unlock_email_outbox ORDER BY id DESC LIMIT 1;`)
     const lines = result.split('\n').filter(Boolean)
     expect(lines[0]).toBe('active:administrativo')
-    expect(lines[1]).toBe('simulated')
-    expect(lines[2]).toMatch(/^resolved:/)
-    expect(lines[3]).toBe('partial')
+    expect(lines[1]).toBe('t')
+    expect(lines[2]).toBe('simulated')
+    expect(lines[3]).toMatch(/^resolved:/)
+    expect(lines[4]).toBe('partial')
   })
 
   it('fatura consolidada parcialmente paga libera só o B/L efetivamente liquidado', () => {

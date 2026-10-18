@@ -47,6 +47,11 @@ if (typeof Deno !== 'undefined') {
         return authUser.user?.email ?? null
       },
       recipientKey,
+      attemptExists: async (idempotencyKey) => {
+        const { data, error } = await admin.from('portal_email_attempts').select('id').eq('idempotency_key', idempotencyKey).maybeSingle()
+        if (error) throw error
+        return Boolean(data)
+      },
       today: () => new Date().toISOString().slice(0, 10),
       send: async ({ to, counts, date, idempotencyKey }) => {
         const template = dailyDigestTemplate({ date, ...counts, portalUrl, supportEmail })

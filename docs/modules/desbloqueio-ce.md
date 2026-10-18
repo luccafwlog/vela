@@ -274,7 +274,8 @@ Regras da rodada:
   fila. Com a chave desligada, simula mesmo sem essa configuração.
 - Um erro numa linha conta a tentativa dela e a rodada segue para a próxima.
 - `skipped` e `failed` abrem o alerta **Aviso do Desbloqueio de CE não enviado**
-  (`desbloqueio_ce_aviso_nao_enviado`, Administrativo, um por Cliente). Ele fecha sozinho quando
+  (`desbloqueio_ce_aviso_nao_enviado`, Administrativo, um por Cliente). "Abrir Cliente" leva à ficha
+  do Cliente (o CNPJ vai no alerta desde a migration `314`). Ele fecha sozinho quando
   um aviso seguinte do mesmo Cliente termina `sent`, `partial` ou `simulated`.
 - A resposta traz `{ sent, partialSuppressed, simulated, skipped, retry, failed }`; `failed > 0` deixa o
   heartbeat `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` vermelho. Exceções e respostas 5xx vão
