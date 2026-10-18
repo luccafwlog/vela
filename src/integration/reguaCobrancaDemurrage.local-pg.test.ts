@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
 // Régua de Cobrança de Demurrage: plano dos e-mails (docs/plans/2026-10-17-correcao-dos-emails.md),
-// itens 1E, 2.5, 4.2, 4.3 e 4.4 (migrations 305 e 306).
+// itens 1E, 2.5, 4.1, 4.2, 4.3 e 4.4 (migrations 305, 306 e 313).
 // Opt-in (`LOCAL_PG_INTEGRATION=1` + `LOCAL_DATABASE_URL`).
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -32,6 +32,14 @@ function psqlResult(sql: string) {
   return spawnPsql([
     '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
     '-c', `SET request.jwt.claim.role = 'service_role'; SET request.jwt.claim.sub = '${adminId}'; ${sql}`,
+  ], { encoding: 'utf8' })
+}
+
+// Usuário interno (Administrativo) pela tela: papel authenticated com o JWT dele.
+function asAdmin(sql: string) {
+  return spawnPsql([
+    '-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl,
+    '-c', `BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${adminId}'; SET LOCAL request.jwt.claim.role = 'authenticated'; ${sql}; COMMIT;`,
   ], { encoding: 'utf8' })
 }
 
@@ -65,6 +73,7 @@ function cleanup(): void {
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${customerId};
     DELETE FROM public.customers WHERE id = ${customerId};
     SET session_replication_role = origin;
+    DELETE FROM public.portal_notifications WHERE customer_id = ${customerId};
     DELETE FROM public.audit_logs WHERE changed_by = '${adminId}' OR (entity_type = 'demurrage_invoice' AND entity_id IN (${invoiceIds.map((id) => `'${id}'`).join(',')}));
     DELETE FROM public.alert_item_events WHERE actor_id = '${adminId}';
     DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${customerId}';
@@ -259,6 +268,9 @@ describeLocal('Régua de Cobrança de Demurrage — plano dos e-mails (1E, 2.5, 
       WHERE i.item_type = 'cobranca_demurrage_recusada' AND a.entity_type = 'demurrage_invoice' AND a.entity_id = '${invoiceD}';
     `)).toBe('active|administrativo')
     expect(psql(`SELECT public.demurrage_dunning_candidate_sendable(${invoiceD});`)).toBe('f')
+    // A varredura de claims órfãs (30 min) não solta a claim da recusa (313).
+    claimAt("'2026-09-10T15:00:00Z'::timestamptz")
+    expect(psql(`SELECT released_at IS NULL FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ${invoiceD};`)).toBe('t')
     // Um desfecho "enviado" não fecha o alerta da fatura suspensa: só a pessoa retoma.
     psql(`SELECT public.settle_demurrage_dunning_claim(${invoiceD}, 1, 'sent', NULL);`)
     expect(psql(`
@@ -266,12 +278,101 @@ describeLocal('Régua de Cobrança de Demurrage — plano dos e-mails (1E, 2.5, 
       WHERE i.item_type = 'cobranca_demurrage_recusada' AND a.entity_id = '${invoiceD}';
     `)).toBe('active')
 
-    // A pessoa corrige o contato e resolve o alerta: a Régua retoma no mesmo discriminador.
-    psql(`SELECT public.resolve_alert_item('cobranca_demurrage_recusada', 'demurrage_invoice', '${invoiceD}', 'teste', '{}'::jsonb);`)
+    // A pessoa corrige o contato e resolve o alerta em /alertas, com justificativa
+    // (313): a Régua retoma no mesmo discriminador.
+    const itemId = psql(`
+      SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'cobranca_demurrage_recusada' AND a.entity_id = '${invoiceD}' AND i.status = 'active';
+    `)
+    const resolved = asAdmin(`SELECT public.resolve_alert_item_with_justification(${itemId}, 'E-mail do financeiro corrigido no cadastro')`)
+    expect(resolved.status, resolved.stderr).toBe(0)
+    expect(psql(`SELECT actor_id || '|' || (metadata->>'reason') FROM public.alert_item_events WHERE alert_item_id = ${itemId} AND event_type = 'resolved';`))
+      .toBe(`${adminId}|E-mail do financeiro corrigido no cadastro`)
     expect(psql(`SELECT dunning_suspended_reason IS NULL FROM public.demurrage_invoices WHERE id = ${invoiceD};`)).toBe('t')
     expect(psql(`SELECT released_at IS NOT NULL, resume_generation FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ${invoiceD};`)).toBe('t|1')
     const resumed = claimAt("'2026-09-10T13:07:00Z'::timestamptz").find((item) => Number(item.invoice_id) === invoiceD)
     expect(resumed).toMatchObject({ attempt_discriminator: 1, resume_generation: 1 })
+  })
+
+  it('1E.2 — fatura pausada no meio do grupo sai do Comunicado e volta noutra composição da mesma etapa', () => {
+    claimAt(BUSINESS_MORNING)
+    const createGroup = (ids: number[]) => psqlResult(`
+      SELECT public.create_customer_dunning_group_atomic(
+        ${customerId}, 1, ARRAY[${ids.join(',')}]::bigint[], ${voyageId}, 'BRSSZ', 'Vessel 303', 'R303', NULL);
+    `)
+    const first = createGroup([invoiceB, invoiceD])
+    expect(first.status, first.stderr).toBe(0)
+    const firstId = first.stdout.trim()
+    // D chegou ao Cliente; B deixou de ser cobrável antes da entrega e foi pausada.
+    psql(`
+      INSERT INTO public.customer_communication_attempts (communication_id, recipient_masked, recipient_key, status, dispatch_mode, idempotency_key, provider_message_id)
+      VALUES (${firstId}, 'r***@e***.test', 'sha256:reg313', 'aceito', 'real', 'reg313:sent:${firstId}', 'msg-reg313');
+      UPDATE public.customer_communications SET status = 'enviado' WHERE id = ${firstId};
+      SELECT public.settle_demurrage_dunning_claim(${invoiceB}, 1, 'paused', 'A Invoice deixou de ser cobrável durante o envio.', ${firstId});
+      SELECT public.settle_demurrage_dunning_claim(${invoiceD}, 1, 'sent', NULL, ${firstId});
+    `)
+    expect(psql(`SELECT string_agg(demurrage_invoice_id::text, ',') FROM public.customer_communication_dunning_invoices WHERE communication_id = ${firstId};`))
+      .toBe(String(invoiceD))
+    expect(psql(`SELECT released_at IS NOT NULL FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ${invoiceB};`)).toBe('t')
+
+    // B volta na mesma etapa, agora com A: o grupo novo sai sem duplicate key.
+    const next = createGroup([invoiceA, invoiceB])
+    expect(next.status, next.stderr).toBe(0)
+    expect(next.stdout.trim()).not.toBe(firstId)
+    // O desfecho paused sem Comunicado (pausa antes de criar) continua valendo.
+    expect(psql(`SELECT public.settle_demurrage_dunning_claim(${invoiceE}, 1, 'paused', NULL);`)).toBe('t')
+  })
+
+  it('313 — sem ROE vigente a Invoice não é cobrável; a coluna Régua recebe o motivo de cada pausa', () => {
+    psql(`
+      UPDATE public.demurrage_invoices SET current_roe = NULL, roe_source = NULL WHERE id = ${invoiceA};
+      UPDATE public.bls SET ce_mercante = NULL WHERE id = 'REG303-BL-${invoiceB}';
+    `)
+    try {
+      expect(psql(`SELECT public.demurrage_dunning_candidate_sendable(${invoiceA});`)).toBe('f')
+      const claimed = claimAt(BUSINESS_MORNING).map((item) => Number(item.invoice_id))
+      expect(claimed).not.toContain(invoiceA)
+      expect(claimed).toContain(invoiceD)
+      const statuses = asAdmin(`SELECT invoice_id || '|' || attempt_count || '|' || coalesce(pause_reason, '-')
+        FROM public.list_demurrage_dunning_claim_statuses(ARRAY[${invoiceA}, ${invoiceB}, ${invoiceD}]::bigint[]) ORDER BY invoice_id`)
+      expect(statuses.status, statuses.stderr).toBe(0)
+      expect(statuses.stdout.trim().split('\n')).toEqual([
+        `${invoiceA}|0|Invoice sem ROE vigente`,
+        `${invoiceB}|0|B/L sem CE Mercante, a Invoice não aparece no Portal`,
+        `${invoiceD}|1|-`,
+      ])
+    } finally {
+      psql(`
+        UPDATE public.demurrage_invoices SET current_roe = 5.5, roe_source = 'manual' WHERE id = ${invoiceA};
+        UPDATE public.bls SET ce_mercante = 'CE-${invoiceB}' WHERE id = 'REG303-BL-${invoiceB}';
+      `)
+    }
+  })
+
+  it('313 — cancelar a baixa de uma Invoice isenta não avisa "Nova fatura" ao Cliente', () => {
+    psql(`SELECT public.apply_demurrage_discount(gen_random_uuid(), ${invoiceF}, 'percent', 100, 'cortesia', 'Isenção acordada', NULL);`)
+    const notifications = () => psql(`SELECT count(*) FROM public.portal_notifications WHERE customer_id = ${customerId} AND type = 'demurrage_issued';`)
+    const before = notifications()
+    try {
+      const reversed = asAdmin(`SELECT public.reverse_demurrage_payment(${invoiceF}, 'Isenção aplicada por engano', '${adminId}')`)
+      expect(reversed.status, reversed.stderr).toBe(0)
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${invoiceF};`)).toBe('issued')
+      expect(notifications()).toBe(before)
+      // Emissão de verdade (rascunho que passa a emitida) continua avisando.
+      psql(`
+        SET session_replication_role = replica;
+        UPDATE public.demurrage_invoices SET status = 'draft' WHERE id = ${invoiceG};
+        SET session_replication_role = origin;
+      `)
+      psql(`UPDATE public.demurrage_invoices SET status = 'issued' WHERE id = ${invoiceG};`)
+      expect(Number(notifications())).toBe(Number(before) + 1)
+    } finally {
+      psql(`
+        SET session_replication_role = replica;
+        UPDATE public.demurrage_invoices SET status = 'issued', paid_at = NULL, discount_mode = NULL, discount_value = NULL, current_total_brl = 550 WHERE id IN (${invoiceF}, ${invoiceG});
+        SET session_replication_role = origin;
+      `)
+    }
   })
 
   it('2.5 — falha passageira libera a posição e abre o alerta só na 3ª seguida; o envio fecha', () => {

@@ -705,9 +705,14 @@ Régua de Cobrança ("Régua encerrada: liquidada") e das pendências do Cliente
 Vela e no Portal, onde aparece como paga. O `DiscountModal` avisa a
 consequência antes de salvar. Para desfazer, o Administrativo usa **Cancelar
 baixa…** (a Invoice volta a `issued` ainda com o desconto) e altera o desconto.
-Antes, a Invoice ficava emitida com valor zero, não podia ser baixada
-(`register_demurrage_payment` exige valor positivo) e a Régua a recusava em
-loop. **Teste local-pg:** `reguaCobrancaDemurrage.local-pg.test.ts`.
+Cancelar a baixa não manda ao Cliente o aviso de "Nova fatura de demurrage":
+desde a migration `313`, `notify_demurrage_issued` só avisa na emissão
+(inserção já emitida, ou rascunho/cancelada que passa a emitida). As Invoices
+que já tinham desconto integral antes da `306` foram quitadas pela `313` do
+mesmo jeito, na data do último desconto. Antes, a Invoice ficava emitida com
+valor zero, não podia ser baixada (`register_demurrage_payment` exige valor
+positivo) e a Régua a recusava em loop. **Teste local-pg:**
+`reguaCobrancaDemurrage.local-pg.test.ts`.
 
 ### Baixa, cancelamento da baixa e restituição
 
@@ -785,13 +790,19 @@ data, o último envio ou a pausa.
   contato autorizado para a Cobrança de Demurrage por
   `customer_communication_recipient_allowed`: contato ativo, e-mail válido, sem
   supressão (bounce permanente ou supressão de Comunicados) e numa caixa ativa
-  ligada ao tipo (hoje Demurrage e Financeiro). A regra é uma só
-  (`_demurrage_dunning_invoice_billable`, migration `305`) na seleção e na
-  conferência antes de cada destinatário. Invoice paga, isenta ou cancelada sai
-  da Régua ("Régua encerrada").
+  ligada ao tipo (hoje Demurrage e Financeiro), e com ROE vigente, navio e
+  viagem, que o e-mail mostra por Invoice. A regra é uma só
+  (`_demurrage_dunning_block_reason`, migration `313`, que devolve o motivo de
+  a Invoice não ser cobrável; `_demurrage_dunning_invoice_billable` é "sem
+  motivo") na seleção, na conferência antes de cada destinatário e na coluna
+  Régua. Invoice paga, isenta ou cancelada sai da Régua ("Régua encerrada").
 - **Pausas e suspensão:** Disputa aberta, bounce sem alternativa, ausência de
-  contato válido, B/L sem liberação do Portal ou Cliente desativado pausam a
-  régua; a posição volta e a regularização retoma no mesmo discriminador.
+  contato válido, B/L sem liberação do Portal, Cliente desativado, USD líquido
+  zero, Invoice sem ROE vigente ou B/L sem navio/viagem pausam a régua; a
+  posição volta e a regularização retoma no mesmo discriminador. A coluna
+  Régua mostra "Pausada: <motivo>" com o motivo do servidor (por exemplo,
+  "Pausada: Cliente desativado"), lido por `list_demurrage_dunning_claim_statuses`
+  (campo `pause_reason`, migration `313`), em vez de prometer a próxima data.
   `dunning_suspended_reason` tira a Invoice da Régua quando as
   datas mudam depois do pagamento ou numa Invoice sem pagamento com desconto
   ou disputa aberta
@@ -800,27 +811,38 @@ data, o último envio ou a pausa.
   destinatário, a Edge Function confere a Invoice de novo
   (`demurrage_dunning_candidate_sendable`). Numa mensagem agrupada, a Invoice
   que deixou de ser cobrável sai da mensagem dos destinatários seguintes, sem
-  abortar as demais: se ninguém a recebeu ainda, a posição dela volta; se já
-  chegou a alguém, a posição fica consumida, e quem já recebeu não recebe de
-  novo.
+  abortar as demais: se ninguém a recebeu ainda, a posição dela volta e ela sai
+  também do Comunicado do grupo (`settle_demurrage_dunning_claim` com o
+  Comunicado, migration `313`), para voltar noutra composição da mesma etapa
+  sem colidir com o grupo já enviado; se já chegou a alguém, a posição fica
+  consumida, e quem já recebeu não recebe de novo. Invoice que chega à
+  composição sem ROE, navio, viagem ou data da cotação sai da mensagem com
+  pausa ("Dados incompletos para a cobrança: falta …"), sem contar como falha
+  do provedor, e as demais seguem.
 - **Recusa definitiva do provedor (D6):** quando o provedor de e-mail recusa a
   cobrança em definitivo para todos os contatos (por exemplo, HTTP 400, 409 ou
   422, ou bounce), a posição não volta, a Invoice ganha
   `dunning_suspended_reason` "Cobrança recusada pelo provedor: …" e abre o
   alerta `cobranca_demurrage_recusada` para o Administrativo. A coluna mostra
   "Pausada: e-mail recusado pelo provedor, corrija o contato e resolva o
-  alerta". Resolver o alerta em `/alertas` tira a suspensão e devolve a posição
-  (retoma no mesmo discriminador); a retomada usa chave de idempotência nova
+  alerta". Depois de corrigir o contato, **Resolver** com justificativa em
+  `/alertas` (`resolve_alert_item_with_justification`; o tipo entrou em
+  `_alert_types_resolved_with_justification` na migration `313`) tira a
+  suspensão e devolve a posição (retoma no mesmo discriminador). Até lá a
+  varredura de posições órfãs (30 minutos) não solta a posição recusada
+  (migration `313`); a retomada usa chave de idempotência nova
   (`resume_generation`), então o provedor é chamado de novo com o contato
   corrigido. Falha de configuração do provedor (401 e 403), tempo esgotado, rede
   e 5xx não suspendem: a posição volta e a Régua tenta de novo na rodada
   seguinte; na terceira falha seguida da mesma tentativa abre o mesmo alerta,
   que fecha sozinho quando a cobrança sai. Recusa definitiva de só parte dos
   contatos deixa o Comunicado `parcial` e também abre o alerta. O desfecho de
-  cada Invoice é gravado por `settle_demurrage_dunning_claim` (migration `305`),
+  cada Invoice é gravado por `settle_demurrage_dunning_claim` (migrations `305` e `313`),
   e cada pausa, falha e recusa fica no log da Edge com Invoice, Cliente,
   tentativa, motivo e e-mail mascarado.
-- **Lote e recuperação:** cada execução reivindica um lote limitado e libera a
+- **Lote e recuperação:** cada execução reivindica um lote limitado (50
+  Invoices, por ordem de id; com mais vencidas que o lote, as de um mesmo
+  Cliente e etapa podem sair em rodadas diferentes, em dois e-mails) e libera a
   posição quando a cobrança não chega a envio concluído, exceto quando a
   tentativa termina em `parcial`, que é terminal para o scanner de claims
   órfãos, ou na recusa definitiva. O handler procura tentativas anteriores pela chave nova, pela
@@ -838,7 +860,7 @@ data, o último envio ou a pausa.
   regra do banco tem a suíte `reguaCobrancaDemurrage.local-pg.test.ts`.
 - **Comunicado:** na mesma rodada, as Invoices do mesmo Cliente com o mesmo
   número de tentativa vão numa só mensagem, que lista cada Invoice sem
-  consolidar valores. Uma Invoice só usa o modelo unitário
+  consolidar valores: não há soma das Invoices. Uma Invoice só usa o modelo unitário
   (`renderDemurrageTemplate`); duas ou mais usam `renderDemurrageGroupTemplate`
   (decisão D8): o mesmo layout dos Comunicados, assunto geral ("Cobrança de
   Demurrage — 3 faturas") e, em cada linha, Invoice, B/L, navio e viagem, USD
