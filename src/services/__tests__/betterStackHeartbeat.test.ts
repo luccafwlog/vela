@@ -71,6 +71,7 @@ describe('heartbeats dos jobs no Better Stack', () => {
       'demurrage-dunning': 'demurrageDunning',
       'customer-communication-auto-runner': 'customerCommunicationAutoRunner',
       'portal-daily-digest': 'portalDailyDigest',
+      'portal-email-events-runner': 'portalEmailEvents',
     } as const
 
     const cronMigration = readFileSync(path.resolve('supabase/migrations/007_cron_secrets_no_vault.sql'), 'utf8')
@@ -86,6 +87,9 @@ describe('heartbeats dos jobs no Better Stack', () => {
       ['demurrage-dunning', '7 * * * *', 'demurrage-dunning', staggerMigration],
       ['customer-communication-auto-runner', '4-59/15 * * * *', 'customer-communication-auto-runner', staggerMigration],
     ] as const
+    // portal-email-events-runner: a cada minuto desde a migration 107 (plano dos e-mails, 2.3).
+    expect(readFileSync(path.resolve('supabase/migrations/107_schedule_email_events_and_import_effects_runners.sql'), 'utf8'))
+      .toMatch(/'portal-email-events-runner',\s+'\* \* \* \* \*'/)
     for (const [cronName, schedule, functionName, migration] of expectedSchedules) {
       expect(migration).toMatch(new RegExp(`\\('${cronName}',\\s+'${schedule.replace(/[*/]/g, '\\$&')}'`))
       expect(cronMigration).toContain(`ops.dispatch_edge_job('${functionName}'`)
@@ -98,7 +102,7 @@ describe('heartbeats dos jobs no Better Stack', () => {
     }
 
     const helper = readFileSync(path.resolve('supabase/functions/_shared/betterStackHeartbeat.ts'), 'utf8')
-    for (const inactive of ['portal-email-events-runner', 'import-effects-runner', 'recalc-demurrage-ptax']) {
+    for (const inactive of ['import-effects-runner', 'recalc-demurrage-ptax']) {
       expect(helper).not.toContain(inactive)
     }
   })

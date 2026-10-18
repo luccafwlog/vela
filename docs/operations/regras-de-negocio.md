@@ -371,12 +371,21 @@ implementada (migrations `093` e `094`; backup encerrado em 2026-10-05).
   primeiro porto brasileiro indicado da viagem, que só existe na auditoria.
 - **Eventos e tentativas do Portal** (provisionamento, eventos de e-mail,
   Inspeção do Portal, tentativas de login e de resolução de login) são
-  guardados por 1 ano; o estado dos envios (`portal_email_attempts`) fica.
+  guardados por 1 ano. Os eventos do provedor de e-mail (`portal_email_events`,
+  que guardam o endereço no envelope) saem com 1 ano junto com o histórico de
+  processamento (migration `312`).
+- **Tentativas de envio de e-mail** (`portal_email_attempts` e
+  `customer_communication_attempts`) ficam, mas com mais de 1 ano o endereço
+  guardado em claro na chave de idempotência e no motivo da falha é trocado por
+  um marcador (`email-` + hash), e o Histórico do Comunicado continua com o
+  destinatário mascarado (decisão D17 de 2026-10-18, [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md);
+  migration `312`).
 - O expurgo é a rotina diária `run_retention` (job `data-retention` do
   `pg_cron`, 06:30 UTC; migration `094`). Os documentos do Desbloqueio de CE têm
   guarda própria ([Desbloqueio de CE § Documentos, upload e expurgo](../modules/desbloqueio-ce.md#documentos-upload-e-expurgo)).
 - **Dados pessoais não são anonimizados:** ficam enquanto o registro existir
-  (decisão de 2026-09-25).
+  (decisão de 2026-09-25), com a exceção do e-mail nas tentativas de envio
+  com mais de 1 ano (D17, acima).
 - **Recuperação:** não há PITR. A recuperação do banco é o backup lógico
   diário, cifrado, no Cloudflare R2 — restauração testada em 2026-10-05 e
   cópias diárias conferidas a partir de 2026-10-06

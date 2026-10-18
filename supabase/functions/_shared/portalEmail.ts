@@ -45,7 +45,7 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
         recipient_masked: maskEmail(to),
         status: 'aceito',
       }).select('id').single()
-      if (!error && data) return { id: data.id }
+      if (!error && data) return { id: data.id, status: 'aceito' }
 
       // A segunda execução depois de um crash precisa reaproveitar a mesma
       // tentativa. O provider pode já ter aceito a requisição; gerar outra

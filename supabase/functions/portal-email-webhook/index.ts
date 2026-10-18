@@ -42,7 +42,9 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-email-
 
   let event: ResendEvent
   try {
-    event = new Webhook(Deno.env.get('RESEND_WEBHOOK_SECRET') ?? '').verify(payload, svixHeaders, { tolerance: 300 }) as ResendEvent
+    // O svix recusa assinatura com mais de 5 minutos de diferença (padrão da
+    // biblioteca; o terceiro argumento { tolerance } não existe e era ignorado).
+    event = new Webhook(Deno.env.get('RESEND_WEBHOOK_SECRET') ?? '').verify(payload, svixHeaders) as ResendEvent
   } catch {
     return json(401, { error: 'invalid_signature' })
   }

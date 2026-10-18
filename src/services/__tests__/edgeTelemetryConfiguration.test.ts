@@ -11,6 +11,8 @@ const instrumentedFunctions = [
   'portal-email-webhook',
   'portal-email-events-runner',
   'portal-invite-send',
+  'portal-password-recovery',
+  'portal-recovery-email-change',
   'send-customer-communication',
   'demurrage-dunning',
   'customer-communication-auto-runner',

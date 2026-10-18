@@ -1,8 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { processPortalEmailEvent } from '../_shared/portalEmailEventProcessor.ts'
+import { runPortalEmailEventsBatch } from '../_shared/portalEmailEventsRunner.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
-
-type ClaimedEvent = { id: number }
 
 function timingSafeEqual(leftValue: string, rightValue: string): boolean {
   const encoder = new TextEncoder()
@@ -18,14 +18,15 @@ function json(status: number, value: unknown): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' })
-
+function isAuthorized(req: Request): boolean {
   const expectedSecret = Deno.env.get('PORTAL_EMAIL_EVENTS_CRON_SECRET') ?? ''
   const providedSecret = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
-  if (!expectedSecret || !timingSafeEqual(providedSecret, expectedSecret)) {
-    return json(401, { error: 'unauthorized' })
-  }
+  return req.method === 'POST' && Boolean(expectedSecret) && timingSafeEqual(providedSecret, expectedSecret)
+}
+
+async function handler(req: Request): Promise<Response> {
+  if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' })
+  if (!isAuthorized(req)) return json(401, { error: 'unauthorized' })
 
   const url = Deno.env.get('SUPABASE_URL')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -33,54 +34,17 @@ async function handler(req: Request): Promise<Response> {
 
   const admin = createClient(url, serviceKey)
   const workerId = `portal-email-events-runner:${crypto.randomUUID()}`
-  const { data, error } = await admin.rpc('claim_portal_email_events', {
-    p_worker_id: workerId,
-    p_limit: 50,
-    p_lease_seconds: 300,
-  })
-  if (error) {
-    console.error('[portal-email-events-runner] falha no claim', error)
-    return json(500, { error: 'claim_failed' })
-  }
-
-  const events = (data ?? []) as ClaimedEvent[]
-  let processed = 0
-  let retried = 0
-  let investigated = 0
-  let failures = 0
-
-  for (const event of events) {
-    try {
-      const result = await processPortalEmailEvent(admin, Number(event.id), workerId)
-      if (result.status === 'processed') processed += 1
-      else if (result.status === 'retry_wait') retried += 1
-      else if (result.status === 'investigate') investigated += 1
-    } catch (error) {
-      failures += 1
-      const message = error instanceof Error ? error.message : String(error)
-      console.error('[portal-email-events-runner] falha no evento', event.id, error)
-      const { error: completionError } = await admin.rpc('complete_portal_email_event', {
-        p_event_id: Number(event.id),
-        p_worker_id: workerId,
-        p_status: 'retry_wait',
-        p_error_code: 'runner_error',
-        p_error_message: message.slice(0, 500),
-      })
-      if (completionError) {
-        failures += 1
-        console.error('[portal-email-events-runner] falha ao devolver evento para retry', event.id, completionError)
-      }
-    }
-  }
-
-  return json(failures > 0 ? 500 : 200, {
-    worker_id: workerId,
-    claimed: events.length,
-    processed,
-    retried,
-    investigated,
-    failures,
-  })
+  const result = await runPortalEmailEventsBatch(
+    admin,
+    (eventId, worker) => processPortalEmailEvent(admin, eventId, worker),
+    workerId,
+  )
+  return json(result.status, result.body)
 }
 
-if (import.meta.main) Deno.serve(instrumentEdgeHandler('portal-email-events-runner', handler))
+if (import.meta.main) {
+  const edgeHandler = instrumentEdgeHandler('portal-email-events-runner', handler)
+  // Heartbeat só para chamada autorizada do cron (plano dos e-mails, 2.3);
+  // resposta não-2xx (falha no claim ou num evento) manda /fail.
+  Deno.serve((req) => runWithBetterStackHeartbeat('portalEmailEvents', () => edgeHandler(req), { enabled: isAuthorized(req) }))
+}

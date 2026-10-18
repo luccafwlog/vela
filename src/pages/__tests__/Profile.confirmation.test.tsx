@@ -44,28 +44,34 @@ beforeEach(() => {
   }
 })
 
-it('confirms the profile diff before updating the name or sending an email change', async () => {
+it('confirms the name diff before updating it', async () => {
   const user = userEvent.setup()
   renderProfile()
 
   await user.clear(screen.getByRole('textbox', { name: 'Nome' }))
   await user.type(screen.getByRole('textbox', { name: 'Nome' }), 'Nome novo')
-  await user.clear(screen.getByRole('textbox', { name: 'E-mail' }))
-  await user.type(screen.getByRole('textbox', { name: 'E-mail' }), 'novo@example.com')
   await user.click(screen.getByRole('button', { name: 'Salvar alterações' }))
 
   const dialog = await screen.findByRole('dialog')
   const table = within(dialog).getByRole('table', { name: 'Campos alterados' })
   expect(within(table).getByText('Nome antigo')).toBeTruthy()
   expect(within(table).getByText('Nome novo')).toBeTruthy()
-  expect(within(table).getByText('antigo@example.com')).toBeTruthy()
-  expect(within(table).getByText('novo@example.com')).toBeTruthy()
-  expect(within(dialog).getByText(/e-mail novo ficará pendente/i)).toBeTruthy()
   expect(mocks.from).not.toHaveBeenCalled()
-  expect(mocks.updateUser).not.toHaveBeenCalled()
 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Voltar' }))
   expect(mocks.from).not.toHaveBeenCalled()
+  expect(mocks.updateUser).not.toHaveBeenCalled()
+})
+
+// D13 (plano dos e-mails, 4.9): a confirmação de troca de e-mail do Auth nunca
+// chegava; o e-mail de acesso só muda pelo Administrativo, em Editar acesso.
+it('shows the access e-mail read-only and points to the Administrativo for changes', () => {
+  renderProfile()
+
+  expect(screen.queryByRole('textbox', { name: 'E-mail' })).toBeNull()
+  expect(screen.getByText('antigo@example.com')).toBeTruthy()
+  expect(screen.getByText(/peça ao Administrativo/)).toBeTruthy()
+  expect(screen.getByText(/Admin › Usuários › Editar acesso/)).toBeTruthy()
   expect(mocks.updateUser).not.toHaveBeenCalled()
 })
 

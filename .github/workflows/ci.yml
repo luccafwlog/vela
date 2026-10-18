@@ -72,6 +72,33 @@ jobs:
             npx --yes deno@2.9.6 test $deno_lock --cached-only --allow-env --allow-net "$dir/index.test.ts"
           done
 
+      - name: Email Edge Functions type check and webhook contract
+        # Plano de correção dos e-mails, 5.4: `deno check` das Edges de e-mail
+        # e o handler do webhook com assinatura Svix gerada. Usa o manifesto e
+        # o lock das funções (supabase/functions/deno.json e deno.lock), que
+        # cobrem o @sentry/deno do wrapper de telemetria e os imports do esm.sh.
+        # Mesmo esquema de download com nova tentativa do passo anterior.
+        # Fora por erros de tipo ainda não corrigidos: send-customer-communication
+        # e demurrage-dunning.
+        env:
+          DENO_NO_PACKAGE_JSON: "1"
+        run: |
+          deno_flags="--config supabase/functions/deno.json --frozen"
+          files=""
+          for fn in portal-email-webhook portal-email-events-runner portal-invite-send portal-password-recovery \
+                    portal-recovery-email-change portal-daily-digest ce-unlock-notify-email admin-users; do
+            files="$files supabase/functions/$fn/index.ts"
+          done
+          webhook_test=supabase/functions/portal-email-webhook/index.test.ts
+          for attempt in 1 2 3; do
+            npx --yes deno@2.9.6 cache $deno_flags $files $webhook_test && break
+            [ "$attempt" = 3 ] && exit 1
+            echo "Download das dependências falhou ($attempt/3); nova tentativa em 10 s."
+            sleep 10
+          done
+          npx --yes deno@2.9.6 check $deno_flags --cached-only $files
+          npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net $webhook_test
+
       - name: Squash generator self-check
         run: node scripts/build-squash-migrations.mjs --self-check
 

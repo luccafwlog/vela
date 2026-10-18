@@ -52,12 +52,14 @@ verify_jwt = false
 
 [functions.portal-password-recovery]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.portal-password-reset]
 verify_jwt = false
 
 [functions.portal-recovery-email-change]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.portal-dispute-attachment]
 verify_jwt = false

@@ -11,7 +11,7 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   valores aninhados e URLs, usada pelo browser e pelas Edge Functions;
 - `src/lib/telemetry.ts` captura erros de browser em builds de produção,
   remove query strings e redige CNPJ, CPF e e-mail;
-- dez Edge Functions têm wrapper repository-side que reporta exceções não
+- doze Edge Functions têm wrapper repository-side que reporta exceções não
   tratadas e respostas HTTP 5xx apenas se `SENTRY_DSN` estiver configurado;
   erros brutos, corpo/resposta HTTP, usuário e headers não são enviados;
 - o helper Edge carrega o SDK Sentry sob demanda e fica em no-op sem `SENTRY_DSN`;
@@ -20,7 +20,8 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
   `https://portalfwlog.com.br`;
 - heartbeats repository-side para Edge Functions agendadas foram implementados via
   `supabase/functions/_shared/betterStackHeartbeat.ts` nos runners `alerts-detector`,
-  `portal-daily-digest`, `demurrage-dunning` e `customer-communication-auto-runner`.
+  `portal-daily-digest`, `demurrage-dunning`, `customer-communication-auto-runner` e
+  `portal-email-events-runner`.
   Eles emitem ping HTTP apenas em conclusões bem-sucedidas (status < 400) quando a URL
   do heartbeat está configurada nos secrets do Supabase. Sem o secret, operam em no-op
   sem falhar o job. Uma resposta 2xx com `failed`, `partial` ou `releaseFailures`
@@ -64,10 +65,11 @@ ao bundle nem commitadas no Git:
 | `alerts-detector` | `BETTERSTACK_HEARTBEAT_ALERTS_DETECTOR_URL` | 15 min |
 | `customer-communication-auto-runner` | `BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL` | 15 min |
 | `portal-daily-digest` | `BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL` | diária |
+| `portal-email-events-runner` | `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` | a cada minuto |
 
 O ping de sucesso ocorre estritamente após a conclusão bem-sucedida do job. Se a
 URL não estiver configurada no Supabase, a função executa normalmente e ignora o
-ping. Só esses quatro runners enviam heartbeat: `itau-pix` (job
+ping. Só esses cinco runners enviam heartbeat: `itau-pix` (job
 `itau-pix-queue`) e `import-effects-runner` não enviam; para a fila de efeitos,
 a parada é avisada pelo Alerta `import_effects_queue_stalled`. O monitor no
 painel do Better Stack deve alertar pela ausência de ping além
@@ -77,6 +79,31 @@ da janela acordada (ex.: 70 min para job horário).
 concluída e testada. Os 4 heartbeats foram cadastrados no Better Stack e suas
 URLs estão configuradas nos secrets do Supabase; a execução recorrente continua
 sendo acompanhada e não bloqueia o encerramento do plano de migração.
+O heartbeat do `portal-email-events-runner` (plano de correção dos e-mails, 2.3)
+existe no código e está testado (`portalEmailEventsRunner.test.ts`: falha num
+evento ou no claim responde 500 e chama `/fail`); falta cadastrá-lo no Better
+Stack, com tolerância de alguns minutos para o job de minuto em minuto, e
+gravar `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` nos secrets. Sem o
+secret, o runner segue em no-op de heartbeat.
+
+### Respostas de erro das rotinas HTTP
+
+O `pg_cron` registra `succeeded` em `cron.job_run_details` quando consegue
+enfileirar o POST no `pg_net`, não quando a Edge Function responde bem. A
+resposta fica em `net._http_response` por cerca de 6 horas. Desde a migration
+`311`, o job SQL `http-job-failures` (a cada 15 min) lê essa tabela e abre o
+Alerta crítico `rotina_http_falhou` (Administrativo) quando, na última hora, há
+resposta fora de 2xx, sem status ou com tempo esgotado; ele fecha sozinho
+quando a hora fica limpa. O `pg_net` não guarda a URL nem o job: o Alerta traz
+horário, status e id da requisição, e a rotina se acha pelo horário em
+`cron.job_run_details`.
+
+A ausência de linha em `net._http_response` (ou de log da Edge Function) não
+prova que a chamada não aconteceu: a tabela é expurgada depois de ~6 horas, um
+disparo sem Vault (`ops.dispatch_edge_job` com `WARNING`) não gera requisição, e
+o log da função não registra a chamada recusada antes do handler. Para afirmar
+que uma rodada não rodou, cruze `cron.job_run_details`, `net._http_response`
+dentro da janela e os logs da Edge Function.
 
 ## M3 — projetos Sentry separados
 
@@ -104,12 +131,19 @@ superfície. O Portal também aplica `area=portal` depois de hidratar a sessão.
 (versão fixada em `supabase/functions/deno.json`) somente quando uma função
 falha com exceção não
 tratada ou resposta 5xx. O wrapper é aplicado a `portal-invite-send`,
+`portal-password-recovery`, `portal-recovery-email-change`,
 `send-customer-communication`, `portal-email-webhook`, `demurrage-dunning` e
-seis runners. Captura apenas classe genérica de erro e tags operacionais
+seis runners. Em `portal-password-recovery`, o envio roda depois da resposta
+(`EdgeRuntime.waitUntil`); a falha desse trabalho em segundo plano é enviada
+direto por `captureEdgeException`. Cada evento leva o fingerprint
+`['edge', função, status]` (`_shared/telemetryScope.ts`), para o Sentry não
+juntar num só issue as falhas de funções diferentes, que têm todas a mesma
+mensagem genérica. O SDK 11 coleta usuário, cabeçalhos, cookies e corpos por
+padrão; a inicialização desliga tudo em `dataCollection`, como no navegador. Captura apenas classe genérica de erro e tags operacionais
 (função, ambiente, status e duração); não envia mensagem original, usuário,
 headers, request body nem response body. O flush tem limite de um segundo e a
 falha do Sentry não muda o resultado da função.
-As dez entradas em `supabase/config.toml` apontam para o manifesto Deno
+As doze entradas em `supabase/config.toml` apontam para o manifesto Deno
 compartilhado em `supabase/functions/deno.json`; a configuração não altera
 `verify_jwt` nem os contratos HTTP.
 
