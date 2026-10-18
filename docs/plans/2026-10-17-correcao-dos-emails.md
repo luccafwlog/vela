@@ -29,6 +29,12 @@ refutá-lo.
   - 1E.3 (D7): não havia status de isento; a fatura com 100% de desconto vira
     `paid` com valor zero e registro em `audit_logs`.
   - 3.7: o envio do anexo uma vez só ficou para depois, como o item previa.
+- **Correções da revisão da Régua de Cobrança (2026-10-18, migration `313`):**
+  recusa definitiva resolvível com justificativa em `/alertas`; fatura pausada
+  sai do Comunicado do grupo; Invoice incompleta sai do grupo sem derrubar as
+  demais; varredura não solta a claim recusada; coluna Régua com o motivo do
+  servidor; isentas anteriores à `306` quitadas e cancelamento da baixa sem
+  aviso de "Nova fatura"; e-mail agrupado sem soma.
 - **Pendente:**
   - **Depois do merge:** confirmar a aplicação das migrations e a publicação
     das Edges em produção.

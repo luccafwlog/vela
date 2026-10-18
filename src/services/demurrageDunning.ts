@@ -28,12 +28,15 @@ export type DemurrageDunningStatusRow = {
   lastAttemptAt: string | null
   hasValidContact: boolean
   intervalDays: number
+  /** Motivo de a Invoice não ser cobrável agora, pela regra do servidor (migration 313). */
+  serverPauseReason: string | null
 }
 
 type DunningClaimStatusRow = {
   invoice_id: number
   attempt_count: number
   last_attempt_at: string | null
+  pause_reason?: string | null
 }
 
 type DunningContactRow = {
@@ -69,7 +72,13 @@ function parseDate(value: string | null | undefined): Date | null {
 // Colunas lidas com `select('*')` que o tipo gerado ainda não traz.
 type DunningInvoiceFields = Pick<DemurrageInvoice, 'paid_at' | 'dispute_open'> & { dunning_suspended_reason?: string | null }
 
-export function demurrageDunningPauseReason(invoice: DunningInvoiceFields, hasValidContact: boolean): string | null {
+/**
+ * Motivo da pausa na coluna Régua. Os motivos que a tela conhece têm texto
+ * próprio; os demais vêm do servidor (`_demurrage_dunning_block_reason`,
+ * migration 313: B/L sem CE, Cliente desativado, valor líquido zero, sem ROE,
+ * sem navio/viagem, sem contato autorizado), a mesma regra da seleção.
+ */
+export function demurrageDunningPauseReason(invoice: DunningInvoiceFields, hasValidContact: boolean, serverPauseReason?: string | null): string | null {
   if (invoice.paid_at) return 'liquidada'
   // A Régua não cobra Invoice suspensa (migrations 179, 203 e 214): datas do
   // container alteradas depois do pagamento ou com desconto/disputa aberta.
@@ -82,18 +91,19 @@ export function demurrageDunningPauseReason(invoice: DunningInvoiceFields, hasVa
   }
   if (invoice.dispute_open) return 'disputa aberta'
   if (!hasValidContact) return 'cliente sem contatos válidos'
-  return null
+  return serverPauseReason?.trim() || null
 }
 
 export function getDemurrageDunningDisplay(
   invoice: Pick<DemurrageInvoice, 'id' | 'first_billed_at' | 'paid_at' | 'dispute_open' | 'status'> & { dunning_suspended_reason?: string | null },
-  input: { attempts?: readonly DemurrageDunningAttempt[]; attemptCount?: number; lastAttemptAt?: string | null; hasValidContact?: boolean; intervalDays?: number; now?: Date } = {},
+  input: { attempts?: readonly DemurrageDunningAttempt[]; attemptCount?: number; lastAttemptAt?: string | null; hasValidContact?: boolean; intervalDays?: number; serverPauseReason?: string | null; now?: Date } = {},
 ): DemurrageDunningDisplay {
   const attempts = input.attempts ?? []
   const attemptCount = input.attemptCount ?? attempts.length
   const pauseReason = invoice.status === 'cancelled'
     ? 'cancelada'
-    : demurrageDunningPauseReason(invoice, input.hasValidContact ?? true)
+    // Antes da emissão a tela mostra "Aguardando primeira emissão", não a pausa do servidor.
+    : demurrageDunningPauseReason(invoice, input.hasValidContact ?? true, invoice.first_billed_at ? input.serverPauseReason : null)
   const firstBilledAt = parseDate(invoice.first_billed_at)
   const intervalDays = Math.max(1, Math.trunc(input.intervalDays ?? 7))
   const nextAttemptNumber = attemptCount + 1
@@ -205,6 +215,7 @@ export async function fetchDemurrageDunningStatuses(
       lastAttemptAt: claim?.last_attempt_at ?? null,
       hasValidContact: validByCustomer.get(invoice.customer_id) ?? false,
       intervalDays,
+      serverPauseReason: claim?.pause_reason ?? null,
     } satisfies DemurrageDunningStatusRow]
   }))
 }

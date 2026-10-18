@@ -295,10 +295,10 @@ const ALERT_RULES_BASE = [
     summary: 'A Régua de Cobrança não conseguiu enviar a cobrança de uma Invoice de Demurrage: o provedor de e-mail recusou o envio em definitivo ou falhou três vezes seguidas.',
     trigger: 'Na rodada da Régua (migration 305): recusa definitiva do provedor para todos os contatos da cobrança, recusa definitiva de parte dos contatos, ou a terceira falha passageira seguida da mesma tentativa.',
     timing: 'Na rodada da recusa ou da terceira falha, um por Invoice. Com recusa definitiva, a Régua suspende a Invoice; com falha passageira, continua tentando a cada rodada.',
-    resolution: 'Leia o motivo no alerta. Recusa definitiva: corrija o e-mail do contato do Cliente (ou a caixa de comunicação) e resolva o alerta, o que retoma a cobrança na rodada seguinte. Falha repetida: confira a configuração do provedor de e-mail.',
+    resolution: 'Leia o motivo no alerta. Recusa definitiva: corrija o e-mail do contato do Cliente (ou a caixa de comunicação); resolver com justificativa depois de corrigir o contato retoma a cobrança na rodada seguinte. Falha repetida: confira a configuração do provedor de e-mail.',
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
-    afterResolution: 'A falha repetida fecha sozinha quando a cobrança sai. A recusa definitiva fecha pela pessoa: resolver o alerta tira a suspensão e a Régua tenta de novo na rodada seguinte.',
+    afterResolution: 'A falha repetida fecha sozinha quando a cobrança sai. A recusa definitiva fecha pela pessoa: use Resolver na fila (a justificativa é obrigatória e fica no histórico do alerta com o seu nome); isso tira a suspensão e a Régua tenta de novo na rodada seguinte.',
     dismissal: temporaryDismissal,
   },
   {

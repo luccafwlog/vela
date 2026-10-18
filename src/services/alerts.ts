@@ -536,13 +536,15 @@ export async function dismissAlertItem(
 /**
  * Tipos de conferência sem fato de origem: fecham com "Resolver com
  * justificativa" (ADR 0083, item 23). Espelha
- * `_alert_types_resolved_with_justification()` (migration 238); os demais
+ * `_alert_types_resolved_with_justification()` (migrations 238 e 313); os demais
  * fecham sozinhos quando a origem é corrigida.
  */
 export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'portal_abuso_login',
   'bl_vehicles_changed_on_reimport',
   'ce_trocado_com_desbloqueio',
+  // Recusa definitiva da cobrança (migration 313): resolver retoma a Régua.
+  'cobranca_demurrage_recusada',
 ]
 
 export function canResolveWithJustification(type: string | null | undefined): boolean {

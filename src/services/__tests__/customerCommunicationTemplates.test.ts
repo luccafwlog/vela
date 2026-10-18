@@ -4,6 +4,7 @@ import {
   renderInstitutionalTemplate,
   renderCeMercanteTaxasTemplate,
   renderDemurrageGroupTemplate,
+  demurrageGroupLineMissing,
   renderDemurrageTemplate,
   renderNoaTemplate,
   renderNobTemplate,
@@ -169,6 +170,11 @@ describe('cobrança agrupada de Demurrage (plano dos e-mails, 4.1)', () => {
     // Layout comum dos Comunicados.
     expect(rendered.html).toContain('fwlog-logo-white.png')
     expect(rendered.blIds).toEqual(['BL-DEM-1', 'BL-DEM-2', 'BL-DEM-3'])
+    // D8: valores por Invoice, sem soma.
+    expect(rendered.text).toContain('Os valores são por Invoice, sem consolidação.')
+    expect(rendered.text).not.toContain('Soma')
+    expect(rendered.html).not.toContain('Soma')
+    expect(rendered.html).not.toContain('<tfoot>')
   })
 
   it('uma linha mantém o assunto da cobrança unitária', () => {
@@ -181,5 +187,10 @@ describe('cobrança agrupada de Demurrage (plano dos e-mails, 4.1)', () => {
     expect(() => renderDemurrageGroupTemplate({ customerId: 7, customerName: 'C', lines: [{ ...line('D', 'N', 'V'), roe: 0 }] })).toThrow('Dados incompletos')
     expect(() => renderDemurrageGroupTemplate({ customerId: 7, customerName: 'C', lines: [line('D', 'N', 'V', ' ')] })).toThrow('Dados incompletos')
     expect(() => renderDemurrageGroupTemplate({ customerId: 7, customerName: 'C', lines: [] })).toThrow()
+  })
+
+  it('aponta o que falta em cada linha, para a Régua tirar só a Invoice incompleta', () => {
+    expect(demurrageGroupLineMissing(line('D', 'N', 'V'))).toBeNull()
+    expect(demurrageGroupLineMissing({ ...line('D', ' ', ''), roe: Number.NaN })).toBe('navio, viagem, ROE')
   })
 })

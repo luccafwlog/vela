@@ -2,7 +2,7 @@
 // com banco e fetch falsos rodar no Vitest (plano dos e-mails, 1E.5). O
 // index.ts da Edge só autentica, lê o ambiente e injeta o acesso ao banco
 // (DunningStore) feito com o cliente Supabase.
-import { renderDemurrageGroupTemplate, renderDemurrageTemplate, type DemurrageGroupLine } from './customerCommunicationTemplates.ts'
+import { demurrageGroupLineMissing, renderDemurrageGroupTemplate, renderDemurrageTemplate, type DemurrageGroupLine } from './customerCommunicationTemplates.ts'
 import { maskEmail, sendEmail, type EmailAttemptRecord, type EmailAttemptUpdate, type EmailSuppression } from './email.ts'
 import { invoiceNetUsd } from './demurrageNetUsd.ts'
 import { resolveDispatchStatus, statusToPersist, type ResolvedDispatchStatus } from './communicationDispatchStatus.ts'
@@ -46,7 +46,7 @@ export type DunningInvoiceContext = {
   } | null
 }
 
-/** Desfecho de cada fatura na rodada (settle_demurrage_dunning_claim, migration 305). */
+/** Desfecho de cada fatura na rodada (settle_demurrage_dunning_claim, migrations 305 e 313). */
 export type DunningClaimOutcome = 'sent' | 'partial' | 'failed' | 'refused' | 'paused'
 
 export type DunningCommunicationInput = {
@@ -83,7 +83,11 @@ export interface DunningStore {
   updateAttempt(attemptId: string | number, update: EmailAttemptUpdate): Promise<void>
   refreshStatus(communicationId: number): Promise<unknown>
   persistStatus(communicationId: number, status: 'parcial' | 'falha'): Promise<void>
-  settleClaim(candidate: DunningCandidate, outcome: DunningClaimOutcome, reason?: string | null): Promise<void>
+  /**
+   * Grava o desfecho. Com o Comunicado já criado, a fatura pausada sai dele
+   * (migration 313) para poder voltar em outra composição na mesma etapa.
+   */
+  settleClaim(candidate: DunningCandidate, outcome: DunningClaimOutcome, reason?: string | null, communicationId?: number | null): Promise<void>
 }
 
 export type DunningRunnerConfig = {
@@ -119,6 +123,11 @@ export type DunningRunResult = {
   }
 }
 
+// ponytail: o lote é por Invoice (claim_demurrage_dunning_candidates ordena por
+// id). Com mais Invoices vencidas que o lote, as de um mesmo Cliente e etapa
+// podem cair em rodadas diferentes e o Cliente recebe dois e-mails da mesma
+// etapa. Melhoria: o claim ordenar por Cliente e completar o Cliente que
+// começou no lote.
 export const CLAIM_BATCH_SIZE = 50
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 export const MISSING_SENDER_MESSAGE = 'PORTAL_FROM_EMAIL e DEMURRAGE_REPLY_TO (ou COMMUNICATIONS_REPLY_TO) são obrigatórios para envio real'
@@ -268,11 +277,11 @@ function invoiceLog(candidate: DunningCandidate) {
   return { invoiceId: candidate.invoice_id, docNumber: candidate.doc_number, customerId: candidate.customer_id, attempt: candidate.attempt_discriminator }
 }
 
-async function settle(ctx: GroupContext, candidate: DunningCandidate, outcome: DunningClaimOutcome, reason: string | null): Promise<void> {
+async function settle(ctx: GroupContext, candidate: DunningCandidate, outcome: DunningClaimOutcome, reason: string | null, communicationId: number | null): Promise<void> {
   if (outcome === 'paused' || outcome === 'failed' || outcome === 'refused') {
     ctx.log.warn(`${LOG_PREFIX} cobrança ${outcome === 'paused' ? 'pausada' : outcome === 'refused' ? 'recusada em definitivo' : 'com falha'}`, { ...invoiceLog(candidate), reason })
   }
-  await ctx.store.settleClaim(candidate, outcome, reason)
+  await ctx.store.settleClaim(candidate, outcome, reason, communicationId)
 }
 
 /**
@@ -285,10 +294,12 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
   const customerId = group[0]!.customer_id
   // Faturas da mensagem ainda sem desfecho gravado.
   const open = new Set<DunningCandidate>(group)
+  // Comunicado da mensagem, depois de criado: a fatura pausada sai dele.
+  let createdCommunicationId: number | null = null
   const settleAll = async (outcome: DunningClaimOutcome, reason: string | null, only?: Iterable<DunningCandidate>) => {
     for (const candidate of only ?? [...open]) {
       open.delete(candidate)
-      await settle(ctx, candidate, outcome, reason)
+      await settle(ctx, candidate, outcome, reason, createdCommunicationId)
     }
   }
 
@@ -308,8 +319,16 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
       return 'pausado'
     }
 
+    // Linha a linha: a Invoice sem ROE, navio, viagem ou data da cotação sai da
+    // mensagem com pausa (não é falha do provedor) e as demais seguem.
     let lines: Line[] = []
-    for (const candidate of sendable) lines.push(buildLine(candidate, await store.loadInvoice(candidate.invoice_id)))
+    for (const candidate of sendable) {
+      const item = buildLine(candidate, await store.loadInvoice(candidate.invoice_id))
+      const missing = demurrageGroupLineMissing(item.line)
+      if (missing) await settleAll('paused', `Dados incompletos para a cobrança: falta ${missing}.`, [candidate])
+      else lines.push(item)
+    }
+    if (!lines.length) return 'pausado'
     const anchor = lines[0]!.context
     const customerName = anchor.customer?.name ?? ''
     // Valida antes de criar o Comunicado: dado incompleto não deixa registro vazio.
@@ -318,11 +337,12 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
 
     const communicationId = await store.createCommunication({
       mode,
-      candidates: sendable,
+      candidates: lines.map((item) => item.candidate),
       anchor,
       vesselName: lines[0]!.line.vesselName,
       voyageNumber: lines[0]!.line.voyageNumber,
     })
+    createdCommunicationId = communicationId
 
     let succeeded = 0
     let failed = 0
@@ -472,9 +492,9 @@ export async function runDemurrageDunning(deps: DunningRunnerDeps): Promise<Dunn
   // Uma falha ao gravar o desfecho não pode virar "enviado"; conta à parte.
   const store: DunningStore = {
     ...deps.store,
-    settleClaim: async (candidate, outcome, reason) => {
+    settleClaim: async (candidate, outcome, reason, communicationId) => {
       try {
-        await deps.store.settleClaim(candidate, outcome, reason)
+        await deps.store.settleClaim(candidate, outcome, reason, communicationId)
       } catch (error) {
         body.releaseFailures += 1
         log.error(`${LOG_PREFIX} falha ao gravar o desfecho da cobrança`, { ...invoiceLog(candidate), outcome, reason: errorMessage(error) })

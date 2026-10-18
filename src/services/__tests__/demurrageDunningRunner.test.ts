@@ -67,6 +67,7 @@ function fakeStore(options: FakeOptions) {
   const attempts: Attempt[] = []
   const communications = new Map<number, { status: string; mode: 'single' | 'group'; invoiceIds: number[] }>()
   const settled: Array<{ invoiceId: number; outcome: DunningClaimOutcome; reason: string | null | undefined }> = []
+  const settledCommunication = new Map<number, number | null | undefined>()
   const sendableCalls = new Map<number, number>()
   let nextId = 100
 
@@ -121,11 +122,12 @@ function fakeStore(options: FakeOptions) {
     persistStatus: async (communicationId, status) => {
       communications.get(communicationId)!.status = status
     },
-    settleClaim: async (item, outcome, reason) => {
+    settleClaim: async (item, outcome, reason, communicationId) => {
       settled.push({ invoiceId: item.invoice_id, outcome, reason })
+      settledCommunication.set(item.invoice_id, communicationId)
     },
   }
-  return { store, attempts, communications, settled }
+  return { store, attempts, communications, settled, settledCommunication }
 }
 
 function providerResponses(...responses: Array<{ status: number; body?: unknown } | Error>) {
@@ -288,6 +290,52 @@ describe('rodada da Régua de Cobrança com banco e provedor falsos', () => {
     expect(result.body).toMatchObject({ sent: 1, paused: 0 })
     expect(provider.requests[0]!.body.text).not.toContain('DEM-2')
     expect(fake.settled.map((item) => [item.invoiceId, item.outcome])).toEqual([[2, 'paused'], [1, 'sent']])
+  })
+
+  it('1E.2 — fatura pausada depois de criado o Comunicado sai dele (o desfecho leva o Comunicado)', async () => {
+    const fake = fakeStore({
+      candidates: [candidate(1), candidate(2)],
+      sendable: { 1: [true], 2: [true, false] },
+    })
+    await runDemurrageDunning({ store: fake.store, config, fetcher: providerResponses({ status: 200, body: { id: 'msg-1' } }).fetcher, sleep: async () => {}, log: quietLog() })
+    const communicationId = [...fake.communications.keys()][0]
+    expect(fake.settledCommunication.get(2)).toBe(communicationId)
+    // Pausa antes do Comunicado não tem de onde sair.
+    const early = fakeStore({ candidates: [candidate(3)], sendable: { 3: [false] } })
+    await runDemurrageDunning({ store: early.store, config, fetcher: providerResponses({ status: 200 }).fetcher, sleep: async () => {}, log: quietLog() })
+    expect(early.settledCommunication.get(3)).toBeNull()
+  })
+
+  it('4.1 — Invoice sem ROE ou sem navio sai do grupo com pausa; as demais seguem sem contar falha', async () => {
+    const semRoe = { ...context(2), current_roe: null, current_total_brl: null }
+    const semNavio = { ...context(3), bl: { id: 'BL-3', pod: 'BRVIX', voyage: null } }
+    const fake = fakeStore({
+      candidates: [candidate(1), candidate(2, { current_roe: null, current_total_brl: null }), candidate(3)],
+      contexts: [context(1), semRoe, semNavio],
+    })
+    const provider = providerResponses({ status: 200, body: { id: 'msg-1' } })
+    const result = await runDemurrageDunning({ store: fake.store, config, fetcher: provider.fetcher, sleep: async () => {}, log: quietLog() })
+    expect(result.body).toMatchObject({ sent: 1, failed: 0, refused: 0 })
+    expect(provider.fetcher).toHaveBeenCalledTimes(1)
+    expect(provider.requests[0]!.body.text).toContain('DEM-1')
+    expect(provider.requests[0]!.body.text).not.toContain('DEM-2')
+    expect(provider.requests[0]!.body.text).not.toContain('DEM-3')
+    expect(fake.settled).toEqual([
+      { invoiceId: 2, outcome: 'paused', reason: expect.stringMatching(/^Dados incompletos para a cobrança: falta .*ROE/) },
+      { invoiceId: 3, outcome: 'paused', reason: expect.stringMatching(/^Dados incompletos para a cobrança: falta navio, viagem/) },
+      { invoiceId: 1, outcome: 'sent', reason: null },
+    ])
+    // O Comunicado nasce só com a Invoice completa.
+    expect([...fake.communications.values()][0]!.invoiceIds).toEqual([1])
+  })
+
+  it('4.1 — grupo todo incompleto pausa sem criar Comunicado nem chamar o provedor', async () => {
+    const fake = fakeStore({ candidates: [candidate(1, { current_roe: null })], contexts: [{ ...context(1), current_roe: null }] })
+    const provider = providerResponses({ status: 200 })
+    const result = await runDemurrageDunning({ store: fake.store, config, fetcher: provider.fetcher, sleep: async () => {}, log: quietLog() })
+    expect(result.body).toMatchObject({ paused: 1, failed: 0 })
+    expect(fake.communications.size).toBe(0)
+    expect(provider.fetcher).not.toHaveBeenCalled()
   })
 
   it('5.1/2.5 — logs de falha levam fatura, Cliente, tentativa e motivo, com o e-mail mascarado', async () => {

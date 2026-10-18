@@ -328,12 +328,13 @@ function supabaseDunningStore(admin: Admin): DunningStore {
       const { error } = await admin.from('customer_communications').update({ status }).eq('id', communicationId)
       if (error) throw error
     },
-    async settleClaim(candidate, outcome, reason) {
+    async settleClaim(candidate, outcome, reason, communicationId) {
       const { error } = await admin.rpc('settle_demurrage_dunning_claim', {
         p_invoice_id: candidate.invoice_id,
         p_attempt_discriminator: candidate.attempt_discriminator,
         p_outcome: outcome,
         p_reason: reason ?? null,
+        p_communication_id: communicationId ?? null,
       })
       if (error) throw error
     },
