@@ -18,6 +18,7 @@ const VOYAGE_ID = 99315003
 const CUSTOMER = 99315011
 const CONTACT_A = 99315021
 const CONTACT_B = 99315022
+const CONTACT_C = 99315023
 const EMAIL_A = 'a-e315@example.test'
 const EMAIL_B = 'b-e315@example.test'
 const BL = 'B315-A'
@@ -65,7 +66,7 @@ function cleanup() {
     DELETE FROM public.customer_communication_bls WHERE bl_id = '${BL}';
     DELETE FROM public.customer_communications WHERE customer_id = ${CUSTOMER};
     DELETE FROM public.portal_suppressed_emails WHERE email IN ('${EMAIL_A}', '${EMAIL_B}');
-    DELETE FROM public.customer_contact_box_links WHERE contact_id IN (${CONTACT_A}, ${CONTACT_B});
+    DELETE FROM public.customer_contact_box_links WHERE contact_id IN (${CONTACT_A}, ${CONTACT_B}, ${CONTACT_C});
     DELETE FROM public.customer_contacts WHERE customer_id = ${CUSTOMER};
     DELETE FROM public.audit_logs WHERE entity_id = '${BL}' OR (entity_type = 'voyage_pod_schedule' AND entity_id LIKE '${VOYAGE_ID}::%');
     DELETE FROM public.bls WHERE id = '${BL}';
@@ -150,6 +151,20 @@ describeLocal('315 — alvo da régua feito só quando todo destinatário recebe
     expect(psql(`SELECT status FROM public.customer_communications WHERE id = ${communicationId};`)).toBe('parcial')
     expect(due()).toBe(false)
     expect(due(`now() + interval '1 hour'`)).toBe(false)
+  })
+
+  it('contato cadastrado depois do 1º Comunicado do alvo não o torna devido de novo', () => {
+    psql(`INSERT INTO public.customer_contacts (id, customer_id, name, email, is_primary)
+        VALUES (${CONTACT_C}, ${CUSTOMER}, 'Contato C', 'c-e315@example.test', false);
+      INSERT INTO public.customer_contact_box_links (contact_id, box_code) VALUES (${CONTACT_C}, 'documentacao_operacao') ON CONFLICT DO NOTHING;`)
+    expect(due()).toBe(false)
+    // Contato antigo ligado à caixa só agora também não reabre o alvo.
+    psql(`DELETE FROM public.customer_contact_box_links WHERE contact_id = ${CONTACT_C};
+      UPDATE public.customer_contacts SET created_at = now() - interval '1 day' WHERE id = ${CONTACT_C};
+      INSERT INTO public.customer_contact_box_links (contact_id, box_code) VALUES (${CONTACT_C}, 'documentacao_operacao') ON CONFLICT DO NOTHING;`)
+    expect(due()).toBe(false)
+    psql(`DELETE FROM public.customer_contact_box_links WHERE contact_id = ${CONTACT_C};
+      DELETE FROM public.customer_contacts WHERE id = ${CONTACT_C};`)
   })
 
   it('sem destinatário, o alvo só é feito se alguém já recebeu', () => {

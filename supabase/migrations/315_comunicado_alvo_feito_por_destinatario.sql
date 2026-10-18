@@ -15,6 +15,8 @@
 --    (customer_communication_automatic_recipients, que já tira os suprimidos)
 --    tem, em algum Comunicado do alvo, tentativa entregue (real com id do
 --    provedor ou entregue; simulada aceita) ou devolvida (bounce, complaint).
+--    Só conta o destinatário que já era contato elegível quando nasceu o 1º
+--    Comunicado do alvo: contato cadastrado depois não reabre o alvo.
 --    O destinatário é casado por recipient_key (sha256 do e-mail normalizado,
 --    o mesmo de _shared/email.ts). Sem destinatário, o alvo é feito só se
 --    alguém já recebeu. customer_communication_automation_targets passa a usar
@@ -63,6 +65,12 @@ $function$;
 -- ponytail: uma consulta por alvo (tentativas dos Comunicados do alvo). Com
 -- muitos alvos por rodada, trocar por um conjunto calculado uma vez na
 -- produtora.
+-- ponytail: "contato elegível desde" é o maior entre customer_contacts.created_at
+-- e o 1º vínculo dele às caixas do modelo (customer_contact_box_links.created_at).
+-- Não há data para a troca do e-mail de um contato nem para a reativação de um
+-- contato desativado: nesses casos vale a data de criação, e o endereço novo
+-- (ou reativado) conta como se já existisse no 1º Comunicado. Caminho de
+-- melhoria: gravar a data em que o endereço passou a ser elegível na caixa.
 CREATE OR REPLACE FUNCTION public.customer_communication_target_done(
   p_kind text,
   p_customer_id bigint,
@@ -77,16 +85,11 @@ STABLE
 SECURITY DEFINER
 SET search_path TO 'public', 'pg_temp'
 AS $function$
-  WITH target_attempts AS (
-    SELECT a.recipient_key,
-      (a.dispatch_mode = 'real' AND (a.status = 'entregue' OR (a.status = 'aceito' AND a.provider_message_id IS NOT NULL)))
-        OR (a.dispatch_mode = 'simulado' AND a.status IN ('aceito', 'entregue')) AS delivered,
-      a.status IN ('bounce', 'complaint') AS refused_by_address
+  WITH target_communications AS (
+    SELECT c.id, c.created_at
     FROM public.customer_communications c
-    JOIN public.customer_communication_attempts a ON a.communication_id = c.id
     WHERE c.customer_id = p_customer_id
       AND c.kind = p_kind
-      AND a.recipient_key IS NOT NULL
       AND CASE
         WHEN p_kind = 'aviso_atracacao_nob' THEN c.nature = 'avisos_operacionais' AND c.anchor_atracacao_id = p_atracacao_id
         -- CE e Taxas: Cliente × Viagem, envio da régua (discriminador 0), com
@@ -96,20 +99,49 @@ AS $function$
         ELSE c.nature = 'avisos_operacionais' AND c.anchor_voyage_id = p_voyage_id
           AND public.normalize_port_code(c.anchor_port) = p_port
       END
+  ), first_try AS (
+    -- O alvo foi tentado pela 1ª vez quando nasceu o 1º Comunicado dele.
+    SELECT min(tc.created_at) AS at FROM target_communications tc
+  ), target_attempts AS (
+    SELECT a.recipient_key,
+      (a.dispatch_mode = 'real' AND (a.status = 'entregue' OR (a.status = 'aceito' AND a.provider_message_id IS NOT NULL)))
+        OR (a.dispatch_mode = 'simulado' AND a.status IN ('aceito', 'entregue')) AS delivered,
+      a.status IN ('bounce', 'complaint') AS refused_by_address
+    FROM target_communications tc
+    JOIN public.customer_communication_attempts a ON a.communication_id = tc.id
+    WHERE a.recipient_key IS NOT NULL
   ), settled AS (
     SELECT t.recipient_key, bool_or(t.delivered) AS delivered
     FROM target_attempts t
     WHERE t.delivered OR t.refused_by_address
     GROUP BY t.recipient_key
+  ), required AS (
+    -- Destinatários que o alvo precisa cobrir: os atuais que já eram contato
+    -- elegível na 1ª tentativa. Contato cadastrado (ou ligado à caixa) depois
+    -- não torna o alvo devido de novo; sem Comunicado ainda, todos contam.
+    SELECT e.email
+    FROM unnest(COALESCE(p_emails, '{}'::text[])) AS e(email)
+    CROSS JOIN first_try f
+    WHERE f.at IS NULL
+       OR EXISTS (
+        SELECT 1
+        FROM public.customer_contacts cc
+        JOIN public.customer_contact_box_links ccb ON ccb.contact_id = cc.id
+        WHERE cc.customer_id = p_customer_id
+          AND lower(btrim(cc.email)) = lower(btrim(e.email))
+          AND ccb.box_code = ANY(CASE WHEN p_kind = 'ce_mercante_taxas'
+            THEN ARRAY['documentacao_operacao', 'financeiro'] ELSE ARRAY['documentacao_operacao'] END)
+          AND GREATEST(cc.created_at, ccb.created_at) <= f.at)
   )
   SELECT CASE
-    -- Sem destinatário: feito só se alguém já recebeu; senão o Cliente segue no
-    -- alerta "Comunicado sem destinatário".
-    WHEN COALESCE(cardinality(p_emails), 0) = 0 THEN EXISTS (SELECT 1 FROM settled s WHERE s.delivered)
+    -- Sem destinatário a cobrir (nenhum contato, ou só contatos novos): feito
+    -- só se alguém já recebeu; senão o alvo segue devido (e, sem contato,
+    -- no alerta "Comunicado sem destinatário").
+    WHEN NOT EXISTS (SELECT 1 FROM required) THEN EXISTS (SELECT 1 FROM settled s WHERE s.delivered)
     ELSE NOT EXISTS (
-      SELECT 1 FROM unnest(p_emails) AS e(email)
+      SELECT 1 FROM required r
       WHERE NOT EXISTS (
-        SELECT 1 FROM settled s WHERE s.recipient_key = public.customer_communication_recipient_key(e.email)))
+        SELECT 1 FROM settled s WHERE s.recipient_key = public.customer_communication_recipient_key(r.email)))
   END;
 $function$;
 
