@@ -265,6 +265,9 @@ describe('countDistinctRoutes', () => {
     ]
     expect(countDistinctRoutes(bls)).toBe(2)
   })
+  it('grafias do mesmo porto são a mesma rota', () => {
+    expect(countDistinctRoutes([{ pol: 'CNZJG', pod: 'BRVIT' }, { pol: 'CNZJG', pod: 'BRVIX' }])).toBe(1)
+  })
   it('trata POL/POD ausente como "-"', () => {
     expect(countDistinctRoutes([{ pol: null, pod: null }, {}])).toBe(1)
     expect(countDistinctRoutes(null)).toBe(0)

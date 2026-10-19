@@ -129,3 +129,43 @@ export function portCodeVariants(value: string | null | undefined): string[] {
   if (canonical === 'BRVIX') ['BRVIT', 'VIX', 'VIT'].forEach((alias) => variants.add(alias))
   return [...variants]
 }
+
+// Cópia exata de `public.normalize_port_code` (migrations 002 e 113). Filtros
+// de leitura que mandam o porto ao banco precisam dela: `normalizePortCode`
+// é do import e conhece sinônimos (CNTCA, SEP) que o banco não conhece, então
+// reescrever a URL com ela faria o filtro deixar de casar com o valor gravado.
+// ponytail: tabela duplicada; `operationalLists.local-pg.test.ts` compara as
+// duas e falha se divergirem. Upgrade: gerar esta tabela a partir do banco.
+const STORED_PORT_ALIASES: Array<[string, string[]]> = [
+  ['BRVIX', ['BRVIT', 'VIT', 'VITORIA', 'VITÓRIA', 'BRVIX', 'VIX']],
+  ['BRSSA', ['SALVADOR', 'BRSSA', 'SSA']],
+  ['BRPEC', ['PECEM', 'PECÉM', 'BRPEC', 'PEC']],
+  ['BRSSZ', ['SANTOS', 'BRSSZ', 'SSZ']],
+  ['BRPNG', ['PARANAGUA', 'PARANAGUÁ', 'BRPNG', 'PNG']],
+  ['BRITJ', ['ITAJAI', 'ITAJAÍ', 'BRITJ', 'ITJ', 'NAVEGANTES', 'BRNVT', 'NVT']],
+  ['BRRIG', ['RIO GRANDE', 'BRRIG', 'RIG']],
+  ['BRSUA', ['SUAPE', 'RECIFE', 'BRSUA', 'SUA', 'BRREC']],
+  ['BRRIO', ['RIO DE JANEIRO', 'BRRIO', 'BRRDJ']],
+  ['BRMAO', ['MANAUS', 'BRMAO']],
+  ['CNTAO', ['QINGDAO', 'QINDGAO', 'TSINGTAO', 'CNTAO', 'CNQDG', 'QDG']],
+  ['CNSHA', ['SHANGHAI', 'CNSHA', 'CNSHG', 'SHG']],
+  ['CNTAC', ['TAICANG', 'TAIKANG', 'CNTAC', 'CNTAI', 'CNTAG']],
+  ['CNNGB', ['NINGBO', 'CNNGB', 'CNNBO', 'NBO', 'ZHOUSHAN', 'CNZOS', 'ZOS']],
+  ['CNNSA', ['NANSHA', 'CNNSA', 'CNNAN', 'GUANGZHOU', 'CNGZU']],
+  ['CNZJG', ['ZHANGJIAGANG', 'CNZJG']],
+  ['CNXMN', ['XIAMEN', 'AMOY', 'CNXMN', 'XMN']],
+  ['CNSHK', ['SHEKOU', 'SHENZHEN', 'CNSHK', 'CNSZK', 'CNSHE']],
+  ['CNYTN', ['YANTIAN', 'CNYTN', 'YTN']],
+  ['HKHKG', ['HONG KONG', 'HONGKONG', 'HKHKG', 'HKG']],
+]
+const STORED_PORT_CODE = new Map(STORED_PORT_ALIASES.flatMap(([code, aliases]) => aliases.map((alias) => [alias, code] as const)))
+
+/** Todos os sinônimos conhecidos pelo banco (para o teste de paridade). */
+export const STORED_PORT_ALIAS_VALUES = [...STORED_PORT_CODE.keys()]
+
+/** Porto como `public.normalize_port_code` o devolve; vazio vira null. */
+export function normalizeStoredPortCode(value: string | null | undefined): string | null {
+  const normalized = (value ?? '').trim().toUpperCase()
+  if (!normalized) return null
+  return STORED_PORT_CODE.get(normalized) ?? normalized
+}

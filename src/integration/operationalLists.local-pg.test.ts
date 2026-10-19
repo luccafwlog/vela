@@ -1,4 +1,5 @@
 import { execPsql, spawnPsql } from './localPsql'
+import { normalizeStoredPortCode, STORED_PORT_ALIAS_VALUES } from '../services/portCode'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -123,6 +124,56 @@ describeLocal('S12 — leituras operacionais paginadas', () => {
 
     const summary = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bl_summary(NULL, ${voyageId}, NULL, NULL, NULL, NULL, NULL, NULL, NULL);`))) as { totalBls: number; totalDistinctContainers: number; chargeExempt: number; totalMachines: number; totalPackages: number; totalWeightTon: number; totalCbm: number }
     expect(summary).toMatchObject({ totalBls: 3, totalDistinctContainers: 2, chargeExempt: 1, totalMachines: 2, totalPackages: 12, totalWeightTon: 1.5, totalCbm: 4.25 })
+  })
+
+  // Migration 322: o link do Painel manda o POD canônico da escala (BRVIX);
+  // B/Ls gravados com a grafia legada BRVIT ficavam fora da lista.
+  it('filtro de POD e rotas da viagem comparam o porto canônico, não a grafia gravada', () => {
+    // Só neste teste: as outras leituras da suíte agrupam pela grafia gravada.
+    psql(`UPDATE public.bls SET pod = 'BRVIT' WHERE id = '${blIds[1]}';`)
+    try {
+      const bls = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bls(1, 100, NULL, ${voyageId}, NULL, NULL, 'BRVIX', NULL, NULL, NULL, NULL);`))) as { rows: Array<{ id: string }>; count: number }
+      expect(bls.rows.map((row) => row.id).sort()).toEqual(['S12-BL-A', 'S12-BL-B'])
+
+      const legacy = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bls(1, 100, NULL, ${voyageId}, NULL, NULL, 'BRVIT', NULL, NULL, NULL, NULL);`))) as { count: number }
+      expect(legacy.count).toBe(2)
+
+      const summary = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bl_summary(NULL, ${voyageId}, NULL, NULL, 'BRVIX', NULL, NULL, NULL, NULL);`))) as { totalBls: number }
+      expect(summary.totalBls).toBe(2)
+
+      const containers = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_containers(1, 100, NULL, ${voyageId}, NULL, NULL, 'BRVIX');`))) as { count: number }
+      expect(containers.count).toBe(2)
+
+      // Igualdade, não substring: "BRV" não é porto.
+      const partial = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bls(1, 100, NULL, ${voyageId}, NULL, NULL, 'BRV', NULL, NULL, NULL, NULL);`))) as { count: number }
+      expect(partial.count).toBe(0)
+
+      const options = JSON.parse(lastJson(callAsAuthenticated('SELECT public.operational_list_filter_options();'))) as { pods: string[] }
+      expect(options.pods).toContain('BRVIX')
+      expect(options.pods).not.toContain('BRVIT')
+
+      // Migration 323: as duas grafias são uma rota só no resumo da viagem.
+      const rail = JSON.parse(lastJson(callAsAuthenticated('SELECT public.operational_list_voyage_summaries(1, 100);'))) as { rows: Array<{ id: number; routes: Array<{ pol: string; pod: string; blCount: number }> }> }
+      const routes = rail.rows.find((row) => row.id === voyageId)?.routes ?? []
+      expect(routes.filter((route) => route.pod === 'BRVIX')).toEqual([expect.objectContaining({ pol: 'CNSHA', pod: 'BRVIX', blCount: 2 })])
+      expect(routes.some((route) => route.pod === 'BRVIT')).toBe(false)
+    } finally {
+      psql(`UPDATE public.bls SET pod = 'BRVIX' WHERE id = '${blIds[1]}';`)
+    }
+  })
+
+  // A URL de /bls e /containers é normalizada no navegador com a cópia da
+  // tabela do banco; se as duas divergirem, o select e o filtro se separam.
+  it('normalizeStoredPortCode é a mesma régua de public.normalize_port_code', () => {
+    // Os sinônimos saem também do corpo da função: um sinônimo novo no banco
+    // que falte na cópia do navegador precisa falhar aqui, não só o inverso.
+    const definition = psql(`SELECT pg_get_functiondef('public.normalize_port_code(text)'::regprocedure);`)
+    const dbAliases = [...definition.matchAll(/IN \(([^)]*)\)/g)].flatMap((match) => [...match[1].matchAll(/'([^']*)'/g)].map((alias) => alias[1]))
+    expect(dbAliases.length).toBeGreaterThan(50)
+    const values = [...new Set([...STORED_PORT_ALIAS_VALUES, ...dbAliases]), ' brvit ', 'CNTCA', 'SEP', 'XXXXX']
+    const literals = values.map((value) => `('${value.replace(/'/g, "''")}')`).join(', ')
+    const rows = psql(`SELECT json_agg(public.normalize_port_code(v) ORDER BY ord) FROM (SELECT v, row_number() OVER () AS ord FROM (VALUES ${literals}) t(v)) s;`)
+    expect(JSON.parse(rows)).toEqual(values.map((value) => normalizeStoredPortCode(value)))
   })
 
   it('pagina containers e calcula agregados no mesmo conjunto filtrado', () => {
