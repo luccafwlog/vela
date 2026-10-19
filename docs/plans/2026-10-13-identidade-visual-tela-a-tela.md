@@ -336,8 +336,13 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   (`fanout_alert_item*`, migration `002`), Operações sem o e-mail de
   recuperação na ficha (`RECOVERY_EMAIL_READER_ROLES`), citações
   desatualizadas em [segurança](../operations/seguranca.md) e ações sem
-  linha na matriz. Pendentes: aprovação final dos Relatórios e da
-  Administração e se os botões só com ícone valem para todo o sistema.
+  linha na matriz. Relatórios e Administração aprovados em 2026-10-19.
+  **Lote 5b aprovado em 2026-10-19** (todas as telas). **Decisão do
+  responsável na mesma data, para todo o sistema:** ação em linha de tabela
+  vira botão só com ícone, com o nome ao passar o mouse e para leitor de
+  tela (regra 9 em [identidade-visual.md](../identidade-visual.md), nota na
+  ADR 0081); aplicada de uma vez em todas as telas, como a passada única,
+  junto com a implementação do 5b. O 5b é o próximo a implementar.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -572,7 +577,7 @@ lotes tratam só da organização de cada tela.
 | 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Entregue em 2026-10-16 (aprovado na rodada 2 da página "Lote 3 da identidade"), branch `claude/serene-edison-ibuix9` |
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Aprovado em 2026-10-18 (todas as telas, três rodadas) e entregue em 2026-10-18 na PR 972, branch `claude/laughing-meitner-3rfy0l`, com as migrations `298` a `301` |
 | 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto e aprovado em 2026-10-19 (página "Lote 5a da identidade", três rodadas); entregue em 2026-10-19, branch `claude/stoic-cannon-v7g39p` |
-| 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado em 2026-10-19; proposto em 2026-10-19 (página "Lote 5b da identidade"), aguarda resposta |
+| 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado, proposto e aprovado em 2026-10-19 (página "Lote 5b da identidade"); a implementar, junto com os botões de linha só com ícone em todo o sistema |
 | 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21), e-mails do Vela e do Portal (22, acrescentados em 2026-10-19) | Proposto, a confirmar |
 
 O lote 2 vem logo depois do 1 por ser onde a operação passa mais tempo; o 6
