@@ -378,7 +378,7 @@ implementada (migrations `093` e `094`; backup encerrado em 2026-10-05).
   `customer_communication_attempts`) ficam, mas com mais de 1 ano o endereço
   guardado em claro na chave de idempotência e no motivo da falha é trocado por
   um marcador (`email-` + hash), e o Histórico do Comunicado continua com o
-  destinatário mascarado (decisão D17 de 2026-10-18, [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md);
+  destinatário mascarado (decisão D17 de 2026-10-18, [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md);
   migration `311`).
 - O expurgo é a rotina diária `run_retention` (job `data-retention` do
   `pg_cron`, 06:30 UTC; migration `094`). Os documentos do Desbloqueio de CE têm
@@ -500,7 +500,7 @@ prevalece. Não se guarda lote, arquivo nem linha da planilha.
 
 - Match key: `container_number` + `voyage_id`. `bl_ref` do Baplie é sinal secundário, não critério de bloqueio.
 - **Gate de cobertura por rota:** uma rota (POL→POD) de containers cheios prevista pelo Baplie só entra na conciliação quando tem pelo menos um B/L **com containers** naquela rota — B/L sem container não cobre rota. O gate é por rota: uma rota ainda sem B/L fica fora da conciliação, sem silenciar as demais rotas da viagem. Em D-7 do primeiro ETA brasileiro todas as rotas são conciliadas, inclusive as sem B/L.
-- Códigos de porto são normalizados antes da comparação (`public.normalize_port_code` no banco, `src/services/portCode.ts` no app). Zhoushan (`CNZOS`/`ZOS`) e Ningbo (`CNNGB`) são o mesmo complexo portuário: o Baplie costuma codificar `CNZOS` onde o B/L declara Ningbo. Variações como `QINDGAO` e `TSINGTAO` resolvem canonicamente para Qingdao (`CNTAO`).
+- Códigos de porto são normalizados antes da comparação (`public.normalize_port_code` no banco, `src/services/portCode.ts` no app). No app, `normalizePortCode` é a régua do import e conhece sinônimos que o banco não conhece (`CNTCA`, `SEP`); um valor que vai ao banco como filtro (POL/POD da URL de `/bls` e `/containers`) usa `normalizeStoredPortCode`, cópia exata da função do banco conferida pela suíte `operationalLists.local-pg`. Zhoushan (`CNZOS`/`ZOS`) e Ningbo (`CNNGB`) são o mesmo complexo portuário: o Baplie costuma codificar `CNZOS` onde o B/L declara Ningbo. Variações como `QINDGAO` e `TSINGTAO` resolvem canonicamente para Qingdao (`CNTAO`).
 - Divergências — de existência (container cheio no Baplie e em nenhum B/L, ou no B/L e ausente do Baplie), SOC/COC e perfil IMO/OOG corrigido à mão — são avisos, sem bloqueio. Os tipos, a única resolução (**Vale o B/L**, com motivo) e a aplicação das marcas físicas do Baplie estão em [Manifestos & EDI § Baplie: marcas, SOC/COC e divergências](../modules/manifesto-edi.md#baplie-marcas-soccoc-e-divergências). Dados documentais e financeiros vêm do B/L e permanecem protegidos.
 
 Definições em [CONTEXT.md](../../CONTEXT.md).

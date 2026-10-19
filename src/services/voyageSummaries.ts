@@ -189,8 +189,9 @@ export function groupBlsByRoute(bls: VoyageBl[] | null | undefined) {
 export function countDistinctRoutes(bls: Array<{ pol?: string | null; pod?: string | null }> | null | undefined) {
   const routes = new Set<string>()
   for (const bl of bls ?? []) {
-    const pol = String(bl.pol ?? '').trim().toUpperCase() || '-'
-    const pod = String(bl.pod ?? '').trim().toUpperCase() || '-'
+    // Mesmo porto em grafias diferentes (BRVIT, BRVIX) é a mesma rota.
+    const pol = normalizePortCode(bl.pol) ?? (String(bl.pol ?? '').trim().toUpperCase() || '-')
+    const pod = normalizePortCode(bl.pod) ?? (String(bl.pod ?? '').trim().toUpperCase() || '-')
     routes.add(`${pol}__${pod}`)
   }
   return routes.size

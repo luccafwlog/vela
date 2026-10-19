@@ -46,7 +46,7 @@ refutá-lo.
   falha; a retomada depois da recusa nasce num Comunicado novo e zera as
   falhas; o alerta de cobrança recusada fecha quando a Invoice é paga, isenta
   ou cancelada; estorno da baixa e datas alteradas não apagam a recusa. Regra
-  em [Demurrage](../modules/demurrage.md#régua-de-cobrança).
+  em [Demurrage](../../modules/demurrage.md#régua-de-cobrança).
 - **Correções da revisão do núcleo dos Comunicados (2026-10-18, migration
   `315`):** a produtora e o detector deixaram de olhar o status do Comunicado;
   o alvo é feito quando todo destinatário automático que já era contato
@@ -56,7 +56,7 @@ refutá-lo.
   porto na identidade); Comunicado `pendente` sem tentativa nova há 15 min é
   recalculado e vira `falha` no detector; a claim só fica em
   `comunicado_recusado` enquanto o alvo está devido. Regra em
-  [Clientes](../modules/clientes.md#régua-automática-de-comunicados).
+  [Clientes](../../modules/clientes.md#régua-automática-de-comunicados).
 - **Correções da revisão rigorosa do núcleo dos Comunicados (2026-10-19,
   migration `318`):** o alvo leva só os destinatários que faltam, e ligar a
   chave não manda e-mail real a quem recebeu a simulação nem ao contato
@@ -64,7 +64,7 @@ refutá-lo.
   na régua, na tela da Viagem e na conferência, que também compara o porto
   normalizado; a âncora manual grava o porto normalizado; a claim fica em
   `comunicado_recusado` até o envio sair (D18). Regra em
-  [Clientes](../modules/clientes.md#régua-automática-de-comunicados).
+  [Clientes](../../modules/clientes.md#régua-automática-de-comunicados).
 - **Revisão rigorosa do envio comum, do monitoramento, do Portal e da tela
   (2026-10-19, migration `316`):** 409 `concurrent_idempotent_requests` e
   `resource_locked` são transitórios, e 400/422 de chave, remetente ou reply-to
@@ -108,6 +108,13 @@ refutá-lo.
 
   O plano fica vivo até a Fase 6.
 
+- **Arquivado em 2026-10-19 por decisão do responsável:** as Fases 0 a 5
+  estão em produção. Ligar a chave de envio real é decisão separada, que não
+  depende deste plano. A lista da Fase 6 passou para
+  [Serviços externos](../../operations/servicos-externos.md#antes-de-ligar-a-chave-de-envio-real). Não estavam registrados como feitos: os envios de teste reais de
+  cada tipo com o bounce provocado, a limpeza dos dados de teste (D1) e o
+  `/fail` provocado nos heartbeats.
+
 ## Resultado pretendido
 
 Quando a chave **Canal de envio real** (`app_settings.communications_enabled`)
@@ -130,7 +137,7 @@ cada uma deixa o heartbeat vermelho, abre alerta ou chega ao Sentry.
 - Trocar de provedor de e-mail ou mudar DNS, SPF, DKIM ou DMARC.
 - Criar tipos novos de Comunicado.
 - Redesenhar a tela de Comunicados além do que os itens abaixo pedem. A
-  aparência segue o [plano da identidade visual](2026-10-13-identidade-visual-tela-a-tela.md).
+  aparência segue o [plano da identidade visual](../../plans/2026-10-13-identidade-visual-tela-a-tela.md).
 - Ligar a chave de envio real. A Fase 6 só lista o que precisa estar pronto; a
   decisão de ligar é do responsável.
 
@@ -165,18 +172,18 @@ cada uma deixa o heartbeat vermelho, abre alerta ou chega ao Sentry.
 ## Fontes de verdade
 
 - Regras de negócio:
-  - [Clientes › Comunicados](../modules/clientes.md);
-  - [Demurrage › Régua de Cobrança](../modules/demurrage.md);
-  - [Portal do Cliente](../modules/portal-cliente.md);
-  - [Desbloqueio de CE](../modules/desbloqueio-ce.md);
-  - [regras de negócio](../operations/regras-de-negocio.md).
-- Decisões: [ADR 0059](../adr/0059-chave-global-de-envio-desligada-por-padrao.md) (simulação com a chave desligada),
-  [ADR 0067](../adr/0067-nob-automatico-ancorado-na-frente-de-operacao.md),
-  [ADR 0068](../adr/0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md)
-  e [ADR 0072](../adr/0072-toda-escrita-confirmada-com-consequencia.md) (confirmação de ação).
-- Operação: [serviços externos › E-mail](../operations/servicos-externos.md),
-  [observabilidade](../operations/observabilidade.md) e
-  [segredos do cron](../operations/segredos-cron.md).
+  - [Clientes › Comunicados](../../modules/clientes.md);
+  - [Demurrage › Régua de Cobrança](../../modules/demurrage.md);
+  - [Portal do Cliente](../../modules/portal-cliente.md);
+  - [Desbloqueio de CE](../../modules/desbloqueio-ce.md);
+  - [regras de negócio](../../operations/regras-de-negocio.md).
+- Decisões: [ADR 0059](../../adr/0059-chave-global-de-envio-desligada-por-padrao.md) (simulação com a chave desligada),
+  [ADR 0067](../../adr/0067-nob-automatico-ancorado-na-frente-de-operacao.md),
+  [ADR 0068](../../adr/0068-terminal-do-bl-herdado-da-frente-com-excecao-individual.md)
+  e [ADR 0072](../../adr/0072-toda-escrita-confirmada-com-consequencia.md) (confirmação de ação).
+- Operação: [serviços externos › E-mail](../../operations/servicos-externos.md),
+  [observabilidade](../../operations/observabilidade.md) e
+  [segredos do cron](../../operations/segredos-cron.md).
 - **Código e funções que roda em produção hoje:**
   - a produtora é a da migration `244`;
   - as funções da Régua de Cobrança são as da `256`;
@@ -578,7 +585,7 @@ handlers com heartbeat (`failed > 0` faz o heartbeat chamar `/fail`).
    - Corrigir:
      - `clientes.md:140`;
      - `taxas-locais.md:198`;
-     - a linha do [plano da identidade visual](2026-10-13-identidade-visual-tela-a-tela.md)
+     - a linha do [plano da identidade visual](../../plans/2026-10-13-identidade-visual-tela-a-tela.md)
        que diz que o comunicado já está em Comunicação.
 2. **Disparo em lote** (CLI-01 · média) **[Código]**
    - Hoje o lote para no primeiro erro, perde a contagem de quem recebeu,
