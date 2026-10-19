@@ -114,12 +114,15 @@ export async function recipientKey(email: string): Promise<string> {
 
 // O `name` da Resend (ex.: invalid_idempotent_request) distingue causas que o
 // status sozinho esconde; não carrega dados do destinatário. A `message` só é
-// lida para reconhecer a chave da API inválida, que a Resend devolve como 400.
-async function providerError(response: Response): Promise<{ name: string; invalidApiKey: boolean }> {
+// lida para reconhecer erro da nossa configuração que a Resend devolve como
+// 400/422: chave da API, remetente (`from`) ou reply-to inválidos. Como
+// definitivo, cada destinatário da rodada ficaria recusado para sempre.
+async function providerError(response: Response): Promise<{ name: string; configuration: boolean }> {
   const body = await response.json().catch(() => null) as { name?: unknown; message?: unknown } | null
   const name = typeof body?.name === 'string' ? body.name : ''
-  const invalidApiKey = typeof body?.message === 'string' && /api key/i.test(body.message)
-  return { name, invalidApiKey }
+  const message = typeof body?.message === 'string' ? body.message : ''
+  const configuration = name === 'invalid_from_address' || /api key|\b(from|reply_to)\b/i.test(message)
+  return { name, configuration }
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }> {
@@ -236,7 +239,8 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
     }
 
     const providerFailure = await providerError(response)
-    const configuration = CONFIGURATION_STATUS.has(response.status) || (response.status === 400 && providerFailure.invalidApiKey)
+    const configuration = CONFIGURATION_STATUS.has(response.status) ||
+      ((response.status === 400 || response.status === 422) && providerFailure.configuration)
     const transient = isTransientStatus(response.status) || (response.status === 409 && TRANSIENT_CONFLICT_NAMES.has(providerFailure.name))
     if (configuration || !transient || lastTry) {
       await input.updateAttempt(attempt.id, {

@@ -541,8 +541,8 @@ export async function dismissAlertItem(
 /**
  * Tipos de conferência sem fato de origem: fecham com "Resolver com
  * justificativa" (ADR 0083, item 23). Espelha
- * `_alert_types_resolved_with_justification()` (migrations 238 e 313); os demais
- * fecham sozinhos quando a origem é corrigida.
+ * `_alert_types_resolved_with_justification()` (migrations 238, 313 e 316); os
+ * demais fecham sozinhos quando a origem é corrigida.
  */
 export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'portal_abuso_login',
@@ -550,10 +550,19 @@ export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'ce_trocado_com_desbloqueio',
   // Recusa definitiva da cobrança (migration 313): resolver retoma a Régua.
   'cobranca_demurrage_recusada',
+  // Aviso que não sai de novo depois que a solicitação terminou (migration 316).
+  'desbloqueio_ce_aviso_nao_enviado',
 ]
 
-export function canResolveWithJustification(type: string | null | undefined): boolean {
-  return Boolean(type && ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION.includes(type))
+/**
+ * Espelha `_alert_item_resolved_with_justification(tipo, entidade)` (migration
+ * 316): o evento de e-mail em investigação nunca sai de lá sozinho; o mesmo tipo
+ * no reprocessamento do faturamento por B/L fecha pela origem.
+ */
+export function canResolveWithJustification(type: string | null | undefined, entityType?: string | null): boolean {
+  if (!type) return false
+  if (type === 'portal_reprocessamento_falhou' && entityType === 'portal_email_event') return true
+  return ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION.includes(type)
 }
 
 export async function resolveAlertItemWithJustification(itemId: number, reason: string): Promise<void> {

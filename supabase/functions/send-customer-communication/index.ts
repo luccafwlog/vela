@@ -543,13 +543,16 @@ async function handler(req: Request): Promise<Response> {
     const uniqueBlIds = Array.from(new Set(effectiveBlIds))
     const { data: ownedBls, error: ownedBlsError } = await admin
       .from('bls')
-      .select('id, customer_id, voyage_id, pod, cargo_mode, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, vessel:vessels(name))')
+      .select('id, customer_id, voyage_id, pod, cargo_mode, cancelled_at, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, vessel:vessels(name))')
       .in('id', uniqueBlIds)
     if (ownedBlsError) return json(500, { error: 'Não foi possível conferir os B/Ls do comunicado.' }, origin)
-    const validBls = (ownedBls ?? []) as unknown as Array<{ id: string; customer_id: number | null; voyage_id: number | null; pod: string | null; cargo_mode: string | null; customer: { name: string } | null; voyage: { voyage_number: string; vessel: { name: string } | null } | null }>
+    const validBls = (ownedBls ?? []) as unknown as Array<{ id: string; customer_id: number | null; voyage_id: number | null; pod: string | null; cargo_mode: string | null; cancelled_at: string | null; customer: { name: string } | null; voyage: { voyage_number: string; vessel: { name: string } | null } | null }>
     if (validBls.length !== uniqueBlIds.length || validBls.some((bl) => bl.customer_id !== customerId)) {
       return json(422, { error: 'Um ou mais B/Ls não pertencem ao cliente selecionado.' }, origin)
     }
+    // Vale para todo modelo, inclusive o livre (sem validação de âncora), e só
+    // muda com outro payload: a tela tira o item de "Repetir só as falhas".
+    if (validBls.some((bl) => bl.cancelled_at)) return permanentRejection('B/L cancelado não recebe Comunicado.', origin)
     derivedVesselName = validBls[0]?.voyage?.vessel?.name ?? null
     derivedVoyageNumber = validBls[0]?.voyage?.voyage_number ?? null
     const anchoredKind = fixedOperationalKind || kind === 'ce_mercante_taxas'
@@ -847,6 +850,9 @@ async function handler(req: Request): Promise<Response> {
     communicationId,
     attemptId: attempt?.id ?? undefined,
     status,
+    // Modo deste destinatário: o `status` é o agregado do Comunicado e pode ser
+    // "parcial" por causa de outro destinatário.
+    dispatchMode: enabled ? 'real' : 'simulado',
     suppressed: false,
     // Recusa definitiva do provedor (ex.: 422 do endereço): a mesma chave nunca
     // mais chama o provedor, então a régua rejeita a claim (plano, 1D.4).

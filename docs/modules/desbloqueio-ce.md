@@ -276,7 +276,11 @@ Regras da rodada:
 - `skipped` e `failed` abrem o alerta **Aviso do Desbloqueio de CE não enviado**
   (`desbloqueio_ce_aviso_nao_enviado`, Administrativo, um por Cliente). "Abrir Cliente" leva à ficha
   do Cliente (o CNPJ vai no alerta desde a migration `314`). Ele fecha sozinho quando
-  um aviso seguinte do mesmo Cliente termina `sent`, `partial` ou `simulated`.
+  um aviso seguinte do mesmo Cliente termina `sent`, `partial` ou `simulated`; depois de
+  corrigir o contato, quando não há aviso seguinte, resolve-se com justificativa na fila
+  (migration `316`). Contato da caixa devolvido ou com reclamação não recebe: com outro
+  contato que recebeu, o aviso fecha `partial`; sem nenhum, `skipped` com o motivo
+  "todos suprimidos", não "sem contato".
 - A resposta traz `{ sent, partialSuppressed, simulated, skipped, retry, failed }`; `failed > 0` deixa o
   heartbeat `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` vermelho. Exceções e respostas 5xx vão
   ao Sentry.

@@ -260,6 +260,12 @@ describe('sendEmail', () => {
         retryCount: 0, status: 'falha_transitoria', lastError: 'HTTP 400 validation_error (configuração do provedor)',
       })
 
+      // Remetente inválido (422) também é configuração.
+      const badFrom = vi.fn(async () => new Response(JSON.stringify({ name: 'invalid_from_address', message: 'Invalid `from` field.' }), { status: 422 }))
+      const update3 = vi.fn(async () => undefined)
+      await sendEmail({ ...baseInput, updateAttempt: update3, fetchImpl: badFrom, sleep: noSleep })
+      expect(update3).toHaveBeenCalledWith(7, expect.objectContaining({ status: 'falha_transitoria' }))
+
       // 400 de conteúdo continua definitivo.
       const invalid = vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: 'validation_error', message: 'Invalid `to` field.' }), { status: 400 }))
       const update2 = vi.fn(async () => undefined)

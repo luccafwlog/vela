@@ -157,7 +157,8 @@ export async function afterCustomerCommunicationBatchDispatched(
     ['customer-communications', 'bl'],
     ...(options.customerIds ?? []).map((customerId) => ['customer-ficha', 'timeline', customerId] as const),
     ...[...new Set(options.blIds ?? [])].map((blId) => ['bl-timeline', blId] as const),
-    queryKeys.alerts.all(), ['alert-department-summary'], ['header-alert'],
+    // O contador de Alertas do menu também muda quando o reenvio fecha um alerta.
+    queryKeys.alerts.all(), queryKeys.alerts.operationalCount(), ['alert-department-summary'], ['header-alert'],
   ])
 }
 

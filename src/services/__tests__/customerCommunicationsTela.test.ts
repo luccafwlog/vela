@@ -173,6 +173,14 @@ describe('3.2 — lote que continua depois de um erro', () => {
     expect([merged.sent, merged.simulated, merged.failed]).toEqual([2, 1, []])
   })
 
+  it('destinatário simulado conta como simulado mesmo com o Comunicado "parcial" por outro destinatário', async () => {
+    const dispatch = vi.fn()
+      .mockResolvedValueOnce({ communicationId: 1, status: 'parcial', dispatchMode: 'simulado' })
+      .mockResolvedValueOnce({ communicationId: 1, status: 'parcial', dispatchMode: 'real' })
+    const summary = summarizeCustomerCommunicationBatch(await runCustomerCommunicationBatch([item('a'), item('b')], dispatch))
+    expect([summary.sent, summary.simulated]).toEqual([1, 1])
+  })
+
   it('recusa definitiva fica fora de "Repetir só as falhas", com o motivo e o Comunicado', async () => {
     const dispatch = vi.fn()
       .mockRejectedValueOnce(new CustomerCommunicationDispatchError('O provedor recusou a mensagem (endereço ou conteúdo inválido).', { permanent: true, communicationId: 4 }))

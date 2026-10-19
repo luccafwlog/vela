@@ -30,6 +30,7 @@ import {
   requiresResendConfirmation,
   validateCustomerCommunicationFilters,
   fetchCustomerCommunicationConference,
+  fetchCustomerCommunicationHistory,
   type CustomerCommunicationConferenceRow,
   type CustomerCommunicationConference,
   type CustomerCommunicationBlCandidate,
@@ -128,7 +129,7 @@ function describeCargoScope(filters: CustomerCommunicationFilters): React.ReactN
 const HISTORY_STATUS_OPTIONS = ['pendente', 'enviado', 'simulado', 'parcial', 'falha'] as const
 
 /**
- * Identidade da conferência na tela: Clientes, destinatários e discriminadores.
+ * Identidade da conferência na tela: Clientes, destinatários, B/Ls e discriminadores.
  * Enquanto ela não muda, a seleção, o `dispatchId` e o resultado do lote valem —
  * mesmo que a consulta devolva outro objeto (plano dos e-mails, 3.2).
  */
@@ -137,7 +138,8 @@ function conferenceSignature(conference: CustomerCommunicationConference | undef
   return JSON.stringify([
     conference.kind,
     conference.mode,
-    conference.rows.map((row) => [row.key, row.recipientSnapshot ?? '', row.nextAttemptDiscriminator, row.blocked]),
+    // B/L cancelado ou novo depois de conferir muda o que o e-mail leva.
+    conference.rows.map((row) => [row.key, row.recipientSnapshot ?? '', row.nextAttemptDiscriminator, row.blocked, row.bls.map((bl) => bl.id)]),
   ])
 }
 
@@ -614,6 +616,25 @@ export function ClientesComunicacao() {
     if (!batch || !signature) return
     const failed = summarizeCustomerCommunicationBatch(batch.outcomes).retryable
     if (!failed.length) return
+    if (typeof settings?.communications_enabled !== 'boolean') {
+      setDispatchError('Não foi possível conferir a chave de envio. Tente novamente antes de repetir.')
+      return
+    }
+    // D16: a chave pode ter mudado desde o lote; a repetição confirma de novo
+    // se é envio real ou simulação.
+    const real = settings.communications_enabled
+    const confirmed = await confirm({
+      title: real ? 'Repetir de verdade' : 'Repetir em simulação',
+      message: `${failed.length} destinatário(s) de ${new Set(failed.map(({ input }) => input.customerId)).size} Cliente(s) recebem ${customerCommunicationKindLabel(kind)} de novo.`,
+      consequence: real
+        ? 'A chave de envio está ligada: os e-mails que falharam saem agora aos Clientes.'
+        : 'A chave de envio está desligada: nenhum e-mail sai; cada destinatário fica registrado como simulado no Histórico.',
+      reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
+      confirmLabel: 'Confirmar',
+      cancelLabel: 'Cancelar',
+      tone: real ? 'danger' : 'primary',
+    })
+    if (!confirmed) return
     setDispatchError(null)
     setSending(true)
     try {
@@ -631,9 +652,20 @@ export function ClientesComunicacao() {
     if (item.anchor_voyage_id == null) return
     const key = `${item.customer_id}:${item.anchor_voyage_id}`
     const real = settings?.communications_enabled === true
+    // Com filtro de status, mês ou navio, o item da lista pode não ser o último
+    // da trilha: o diálogo diz qual foi o último envio de fato.
+    let latestNote = ''
+    try {
+      const [latest] = await fetchCustomerCommunicationHistory({ customerId: item.customer_id, voyageId: item.anchor_voyage_id, kind: 'ce_mercante_taxas' })
+      if (latest && latest.id !== item.id) {
+        latestNote = ` Há um envio mais recente desta viagem: ${customerCommunicationStatusLabel(latest.status)} em ${new Date(latest.created_at).toLocaleString('pt-BR')}.`
+      }
+    } catch {
+      latestNote = ' Não foi possível conferir o último envio desta viagem.'
+    }
     const confirmed = await confirm({
       title: 'Reenviar CE e Taxas',
-      message: `Reenviar o Comunicado de CE e Taxas de ${item.customer?.name ?? `Cliente ${item.customer_id}`} na viagem ${[item.vessel_name, item.voyage_number].filter(Boolean).join(' / ') || item.anchor_voyage_id}, com o CE e os valores atuais?`,
+      message: `Reenviar o Comunicado de CE e Taxas de ${item.customer?.name ?? `Cliente ${item.customer_id}`} na viagem ${[item.vessel_name, item.voyage_number].filter(Boolean).join(' / ') || item.anchor_voyage_id}, com o CE e os valores atuais?${latestNote}`,
       consequence: real
         ? 'A chave de envio está ligada: o e-mail sai agora para as caixas Documentação e Operação e Financeiro do Cliente. O envio fecha o alerta "Reenviar Comunicado de CE e Taxas" dos B/Ls.'
         : 'A chave de envio está desligada: o reenvio fica registrado como simulado e nenhum e-mail sai; o alerta "Reenviar Comunicado de CE e Taxas" só fecha com um envio real.',
@@ -1281,7 +1313,7 @@ export function ClientesComunicacao() {
                     {dispatchMessage}
                   </p>
                 ) : null}
-                {showConference && batchSummary ? (
+                {batchSummary ? (
                   <BatchResult
                     summary={batchSummary}
                     attachmentCustomers={batch?.attachmentCustomers ?? 0}
@@ -1436,7 +1468,7 @@ export function ClientesComunicacao() {
             >
               Fechar
             </Button>
-            {conference && selectedRows.length ? (
+            {showConference && selectedRows.length ? (
               <Button
                 onClick={() => {
                   setPreviewModalOpen(false)
@@ -1651,7 +1683,7 @@ function AttemptsTable({ communicationId, attempts }: { communicationId: number;
             const reason = customerCommunicationAttemptReason(attempt.last_error)
             return (
               <tr key={attempt.id}>
-                <td className="app-table__text font-mono text-xs">{attempt.recipient_masked}</td>
+                <td className="app-table__text text-xs">{attempt.recipient_masked}</td>
                 <td>{attempt.dispatch_mode === 'simulado' ? 'Simulado' : attempt.dispatch_mode === 'real' ? 'Real' : <NoValue label="Modo não registrado" />}</td>
                 <td>{failed ? <StatusText tone="danger">{customerCommunicationAttemptStatusLabel(attempt)}</StatusText> : customerCommunicationAttemptStatusLabel(attempt)}</td>
                 <td className="app-table__text app-table__text--wrap" title={attempt.last_error ?? undefined}>{reason ?? <NoValue label="Sem motivo registrado" />}</td>

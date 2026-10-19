@@ -28,6 +28,10 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).not.toContain("customer_contact_preferences")
     expect(source).toContain("from('customer_communication_suppressions')")
     expect(source).toContain("reason', 'bounce_permanente'")
+    // B/L cancelado é recusa definitiva em todo modelo, inclusive o livre (revisão do PR #973).
+    expect(source).toContain("permanentRejection('B/L cancelado não recebe Comunicado.', origin)")
+    // O modo do destinatário vai na resposta: o status é o agregado do Comunicado.
+    expect(source).toContain("dispatchMode: enabled ? 'real' : 'simulado'")
     expect(source).toContain("admin.rpc('create_customer_communication_atomic'")
     // Escala, porto, B/L cancelado, Atracação e a regra do NOB (migration 243)
     // são conferidos pela mesma validação da RPC (migration 304).

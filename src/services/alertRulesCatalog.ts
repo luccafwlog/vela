@@ -551,7 +551,7 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir B/Ls',
     destinationNote: 'Quando o B/L estiver identificado, o alerta abre diretamente `/bls/{id}?tab=faturamento`; este link leva à lista para localizar o B/L afetado.',
     routingNote: 'O mesmo tipo avisa o evento de e-mail do provedor que foi para investigação (sem tentativa vinculada, ambíguo ou depois de 6 tentativas; migrations 109 e 309). Esse alerta não tem B/L nem Cliente: o link fica nos Alertas, e o motivo está na mensagem. Documentação continua responsável, como no restante do tipo.',
-    afterResolution: derivedResolution,
+    afterResolution: `${derivedResolution} O alerta do evento de e-mail em investigação não tem rotina que o feche: depois de conferir o envio no provedor, use Resolver na fila com justificativa (migration 316).`,
     dismissal: temporaryDismissal,
   },
   {
@@ -850,7 +850,7 @@ const ALERT_RULES_BASE = [
     type: 'rotina_http_falhou', domain: 'Operação', responsible: 'administrativo',
     catalogAudience: ['administrativo'], entityType: 'cron_http', severity: 'critical',
     summary: 'Uma chamada de rotina agendada a uma Edge Function terminou com erro, sem resposta ou com tempo esgotado.',
-    trigger: 'A verificação a cada 15 min (pg_cron) encontra em net._http_response, na última hora, resposta fora de 2xx, sem status ou com tempo esgotado (migration 310).',
+    trigger: 'A verificação a cada 15 min (pg_cron) encontra em net._http_response, na última hora, resposta fora de 2xx ou falha sem resposta (migration 310); tempo esgotado só conta a partir de 10 na hora, porque a rodada longa continua depois de o pg_net desistir aos 30 s, e 30 ou mais chamadas paradas na fila do pg_net também abrem (migration 316).',
     timing: 'A cada 15 min; fecha sozinho quando a última hora não tem falha.',
     resolution: 'Pelo horário no alerta, achar a rotina em cron.job_run_details e conferir o segredo dela no Vault e na Edge Function (segredos do cron).',
     destination: '/alertas', destinationLabel: 'Abrir Alertas',

@@ -9,10 +9,11 @@ import { ClientesComunicacao } from '../ClientesComunicacao'
 
 // O disparo em lote e o reenvio do CE usam os hooks reais; só o envio à Edge
 // e o reenvio do CE (serviços) são falsos.
-const { mockDispatch, mockCeDispatch, mockFetchConference, mockConfirm } = vi.hoisted(() => ({
+const { mockDispatch, mockCeDispatch, mockFetchConference, mockFetchHistory, mockConfirm } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
   mockCeDispatch: vi.fn(),
   mockFetchConference: vi.fn(),
+  mockFetchHistory: vi.fn(),
   mockConfirm: vi.fn(),
 }))
 vi.mock('../../services/customerCommunicationDispatches', async () => ({
@@ -25,6 +26,7 @@ vi.mock('../../services/customerFinanceCommunications', () => ({
 vi.mock('../../services/customerCommunications', async () => ({
   ...(await vi.importActual<typeof import('../../services/customerCommunications')>('../../services/customerCommunications')),
   fetchCustomerCommunicationConference: mockFetchConference,
+  fetchCustomerCommunicationHistory: mockFetchHistory,
 }))
 
 function render(ui: ReactElement) {
@@ -217,6 +219,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockConfirm.mockResolvedValue(true)
+    mockFetchHistory.mockResolvedValue([])
     mockHistory = defaultHistory
     activeMockConference = undefined
     mockAppSettings = { communications_enabled: false }
@@ -689,6 +692,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
   beforeEach(() => {
     vi.clearAllMocks()
     mockConfirm.mockResolvedValue(true)
+    mockFetchHistory.mockResolvedValue([])
     mockHistory = defaultHistory
     mockAppSettings = { communications_enabled: false }
     mockAppSettingsLoading = false
@@ -731,6 +735,9 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     fireEvent.click(within(painel).getByRole('button', { name: /Repetir só as falhas \(1\)/ }))
 
     await waitFor(() => expect(within(painel).getByText(/3 simulado\(s\)/)).toBeTruthy())
+    // D16 também na repetição: a chave pode ter mudado depois do lote.
+    expect(mockConfirm.mock.calls.at(-1)?.[0]).toMatchObject({ title: 'Repetir em simulação' })
+    expect(mockConfirm.mock.calls.at(-1)?.[0].message).toMatch(/^1 destinatário\(s\) de 1 Cliente\(s\)/)
     expect(mockDispatch).toHaveBeenCalledTimes(4)
     expect(mockDispatch.mock.calls[3][0]).toEqual(mockDispatch.mock.calls[1][0])
     expect(within(painel).getByText(/nenhuma falha/)).toBeTruthy()
@@ -957,7 +964,27 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
 
     await waitFor(() => expect(mockCeDispatch).toHaveBeenCalledWith(7, 1, { forceRetry: true }))
     expect(mockConfirm.mock.calls[0][0]).toMatchObject({ title: 'Reenviar CE e Taxas', cancelLabel: 'Cancelar' })
+    expect(mockConfirm.mock.calls[0][0].message).not.toContain('mais recente')
     expect(await screen.findByText(/Reenvio registrado em simulação \(tentativa 2\)/)).toBeTruthy()
+  })
+
+  it('com o Histórico filtrado, o diálogo do reenvio do CE avisa o envio mais recente da viagem', async () => {
+    const ce = { ...defaultHistory[0], kind: 'ce_mercante_taxas', anchor_voyage_id: 7, status: 'falha' }
+    mockHistory = [{ ...ce, id: 800 }]
+    mockFetchHistory.mockResolvedValue([{ ...ce, id: 900, status: 'enviado', created_at: '2026-10-18T13:00:00Z' }, { ...ce, id: 800 }])
+    mockConfirm.mockResolvedValueOnce(false)
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Reenviar CE e Taxas/ }))
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalled())
+    expect(mockFetchHistory).toHaveBeenCalledWith({ customerId: 1, voyageId: 7, kind: 'ce_mercante_taxas' })
+    expect(mockConfirm.mock.calls[0][0].message).toContain('Há um envio mais recente desta viagem: Enviado')
+    expect(mockCeDispatch).not.toHaveBeenCalled()
   })
 
   it('quem não envia não vê o reenvio do CE', () => {

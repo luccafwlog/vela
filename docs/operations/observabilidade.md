@@ -101,8 +101,13 @@ enfileirar o POST no `pg_net`, não quando a Edge Function responde bem. A
 resposta fica em `net._http_response` por cerca de 6 horas. Desde a migration
 `310`, o job SQL `http-job-failures` (a cada 15 min) lê essa tabela e abre o
 Alerta crítico `rotina_http_falhou` (Administrativo) quando, na última hora, há
-resposta fora de 2xx, sem status ou com tempo esgotado; ele fecha sozinho
-quando a hora fica limpa. O `pg_net` não guarda a URL nem o job: o Alerta traz
+resposta fora de 2xx ou falha sem resposta que não seja tempo esgotado; ele
+fecha sozinho quando a hora fica limpa. Desde a migration `316`, tempo esgotado
+isolado não abre o Alerta: o `pg_net` desiste aos 30 s, mas a Edge Function
+continua a rodada, e o runner dos Comunicados e a Régua de Cobrança passam
+disso num lote grande. Abrem o Alerta 10 ou mais tempos esgotados na hora (só
+uma rotina de minuto travada chega a isso) e 30 ou mais chamadas paradas em
+`net.http_request_queue` (worker do `pg_net` parado). O `pg_net` não guarda a URL nem o job: o Alerta traz
 horário, status e id da requisição, e a rotina se acha pelo horário em
 `cron.job_run_details`.
 

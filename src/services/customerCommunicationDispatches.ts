@@ -39,6 +39,8 @@ export type CustomerCommunicationDispatchResult = {
   communicationId: number
   attemptId?: number
   status: 'pendente' | 'enviado' | 'simulado' | 'parcial' | 'falha'
+  /** Modo deste destinatário; `status` é o agregado do Comunicado. */
+  dispatchMode?: 'real' | 'simulado'
   suppressed?: boolean
   message?: string
 }
@@ -223,7 +225,9 @@ export async function runCustomerCommunicationBatch(
       if (response.status === 'falha') {
         outcomes.push({ ...item, result: 'falha', communicationId: response.communicationId, reason: response.message ?? 'Falha no envio do comunicado.' })
       } else {
-        outcomes.push({ ...item, result: response.status === 'simulado' ? 'simulado' : 'enviado', communicationId: response.communicationId })
+        // O agregado pode ser "parcial" por outro destinatário: o modo da resposta diz se este saiu simulado.
+        const simulated = response.dispatchMode ? response.dispatchMode === 'simulado' : response.status === 'simulado'
+        outcomes.push({ ...item, result: simulated ? 'simulado' : 'enviado', communicationId: response.communicationId })
       }
     } catch (error) {
       const reason = error instanceof Error && error.message ? error.message : 'Falha no envio do comunicado.'
