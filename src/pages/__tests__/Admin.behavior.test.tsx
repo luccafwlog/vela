@@ -32,10 +32,13 @@ vi.mock('@tanstack/react-query', () => ({
     return { data: error ? undefined : mocks.dataByKey[key], isLoading: false, error }
   },
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
-  useMutation: (opts: { mutationFn: (vars: unknown) => unknown; onSuccess?: (data: unknown, vars: unknown) => void }) => ({
+  useMutation: (opts: { mutationFn: (vars: unknown) => unknown; onSuccess?: (data: unknown, vars: unknown) => void; onError?: (err: unknown, vars: unknown) => void }) => ({
+    // Como o React Query, a falha vai para onError em vez de virar rejeição solta.
     mutate: (vars: unknown) => {
       mocks.mutate(vars)
-      return Promise.resolve(opts.mutationFn(vars)).then((data) => opts.onSuccess?.(data, vars))
+      return Promise.resolve()
+        .then(() => opts.mutationFn(vars))
+        .then((data) => opts.onSuccess?.(data, vars), (err) => opts.onError?.(err, vars))
     },
     isPending: false,
   }),
@@ -196,6 +199,7 @@ it('devolve o setor anterior quando a troca de senha falha na mesma edição', a
   await waitFor(() => expect(mocks.updateUserProfile).toHaveBeenCalledTimes(2))
   expect(mocks.updateUserProfile).toHaveBeenNthCalledWith(1, 'u-1', { role: 'financeiro' })
   expect(mocks.updateUserProfile).toHaveBeenNthCalledWith(2, 'u-1', { role: 'operacoes' })
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Falhou a troca de senha.', 'error'))
 })
 
 it('não troca o setor quando a confirmação é recusada', async () => {
