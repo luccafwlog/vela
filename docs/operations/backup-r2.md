@@ -112,6 +112,14 @@ Se a tarefa não roda (computador desligado, tarefa desabilitada), o aviso não
 chega e o heartbeat fica **Down** depois do prazo. Dry-run e `--verify` não
 avisam. Uma falha ao avisar não muda o resultado do backup e não imprime a URL.
 
+Cada `--execute` também acrescenta uma linha ao arquivo `backup-r2.log`, na
+pasta dos dumps (`%TEMP%\vela-r2-backups` no computador do backup, ou o
+`--output-dir` usado): `ok: <objeto enviado>` ou `falha: <motivo>`. A tarefa
+agendada descarta o que o script imprime, então esse arquivo é o único lugar
+onde fica o motivo da falha. O motivo traz o fim da mensagem de erro do
+`pg_dump`, do `pg_restore` ou da AWS CLI, que não contêm senha, chave nem
+credencial. O arquivo não é enviado ao R2 nem apagado pelo script.
+
 Para ligar:
 
 1. No Better Stack, em `Uptime > Heartbeats > Create heartbeat`, crie
@@ -123,6 +131,17 @@ Para ligar:
    heartbeat.
 3. Rode a tarefa `Backup Diario Vela R2` à mão uma vez e confira o heartbeat
    **Up** no Better Stack.
+
+Quando o heartbeat acusa **falha** (`Reported failure`), no computador do
+backup:
+
+1. Leia o motivo nas últimas linhas do registro:
+   `Get-Content "$env:TEMP\vela-r2-backups\backup-r2.log" -Tail 5`.
+2. Confira se a pasta da tarefa está na `main` (`git status -sb` em
+   `C:\Users\Lucca\Downloads\Vela` deve mostrar `## main...origin/main`); se
+   não estiver, `git switch main` e `git pull`.
+3. Corrija a causa e rode a tarefa `Backup Diario Vela R2` à mão; o heartbeat
+   volta a **Up** com o aviso de sucesso.
 
 ## Montar o backup em outro ambiente
 

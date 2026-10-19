@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
 import { test } from 'node:test'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createCipheriv, createDecipheriv } from 'node:crypto'
 import { Readable, Writable } from 'node:stream'
-import { buildObjectNames, consumeArchive, heartbeatUrl, parseDatabaseUrl, parseEncryptionKey, pingHeartbeat, planFor } from './backup-r2.mjs'
+import { buildObjectNames, consumeArchive, heartbeatUrl, parseDatabaseUrl, parseEncryptionKey, pingHeartbeat, planFor, verifyArchive } from './backup-r2.mjs'
 
 const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'backup-r2.mjs')
 
@@ -109,6 +111,44 @@ test('heartbeat avisa sucesso na URL e falha em /fail, sem mudar o resultado do 
     console.error = originalError
     if (previous === undefined) delete process.env.BETTERSTACK_HEARTBEAT_BACKUP_URL
     else process.env.BETTERSTACK_HEARTBEAT_BACKUP_URL = previous
+  }
+})
+
+test('falha do pg_restore traz o motivo do stderr na mensagem', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'backup-r2-test-'))
+  const previous = process.env.PG_RESTORE_BIN
+  try {
+    const key = Buffer.alloc(32, 1)
+    const iv = Buffer.alloc(12, 2)
+    const cipher = createCipheriv('aes-256-gcm', key, iv)
+    const body = Buffer.concat([cipher.update(Buffer.alloc(1024, 3)), cipher.final()])
+    const archive = path.join(dir, 'teste.dump.enc')
+    writeFileSync(archive, Buffer.concat([Buffer.from('VELA-R2-BACKUP\0', 'ascii'), Buffer.from([1]), iv, body, cipher.getAuthTag()]))
+    // O próprio node faz o papel de um pg_restore que recusa a entrada: com
+    // "--list" ele escreve o motivo no stderr e sai com código diferente de 0.
+    process.env.PG_RESTORE_BIN = process.execPath
+    await assert.rejects(verifyArchive(archive, key), /pg_restore --list terminou com codigo \d+: .*--list/)
+  } finally {
+    if (previous === undefined) delete process.env.PG_RESTORE_BIN
+    else process.env.PG_RESTORE_BIN = previous
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('execução com falha grava o motivo no registro, sem segredos', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'backup-r2-test-'))
+  try {
+    const env = { ...process.env, R2_SECRET_ACCESS_KEY: 'segredo-r2-nao-deve-aparecer' }
+    delete env.SUPABASE_DB_URL
+    delete env.DATABASE_URL
+    delete env.BETTERSTACK_HEARTBEAT_BACKUP_URL
+    const result = spawnSync(process.execPath, [script, '--execute', '--environment', 'staging', '--project-ref', 'testref', '--output-dir', dir], { encoding: 'utf8', env })
+    assert.equal(result.status, 2)
+    const log = readFileSync(path.join(dir, 'backup-r2.log'), 'utf8')
+    assert.match(log, /^\d{4}-\d{2}-\d{2}T[\d:.]+Z falha: SUPABASE_DB_URL\/DATABASE_URL nao e uma URL PostgreSQL valida\.\n$/)
+    assert.doesNotMatch(log, /segredo-r2/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
   }
 })
 
