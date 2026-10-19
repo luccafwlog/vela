@@ -17,10 +17,6 @@
     "src/components/portal-information/InformationEditor.tsx": {
       "cor-tailwind": 1
     },
-    "src/components/portal/PortalReviewPanel.tsx": {
-      "caixa-alta": 1,
-      "cor-tailwind": 13
-    },
     "src/components/shared/InvoiceDocumentKit.tsx": {
       "hex": 4,
       "tamanho-solto": 4,
@@ -73,10 +69,6 @@
       "cor-tailwind": 9
     },
     "src/pages/ClientesInformacoes.tsx": {
-      "cor-tailwind": 6
-    },
-    "src/pages/ClientesPortal.tsx": {
-      "tamanho-solto": 1,
       "cor-tailwind": 6
     },
     "src/pages/EmbarqueVazios.tsx": {

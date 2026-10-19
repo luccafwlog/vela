@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
@@ -9,7 +9,7 @@ const authState = vi.hoisted(() => ({ role: 'administrativo' as string }))
 vi.mock('../../../hooks/useAuth', () => ({
   useAuth: () => ({ isAdmin: authState.role === 'administrativo', can: () => authState.role !== 'operacoes', effectiveRole: authState.role }),
 }))
-vi.mock('../../../services/supabase', () => ({ supabase: { functions: { invoke: vi.fn() }, rpc: vi.fn() } }))
+vi.mock('../../../services/supabase', () => ({ supabase: { functions: { invoke: vi.fn() }, rpc: vi.fn().mockResolvedValue({ data: [], error: null }) } }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 
@@ -21,65 +21,73 @@ const row: QueueRow = {
   candidates: [{ email: 'financeiro@example.com', purpose: 'financeiro', origin: 'Contato do Cliente' }], sharedEmailCount: 0, latestDeliveryStatus: null, recoveryEmailStatus: 'ok', recoveryEmailSuppressed: false,
 }
 
+function renderPanel(override: Partial<QueueRow> = {}) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={{ ...row, ...override }} variant="inline" /></MemoryRouter></QueryClientProvider>)
+}
+
 describe('PortalReviewPanel', () => {
-  it('Operações lê Email de Recuperação, origem e candidatos, sem ações (ADR 0045; A18)', () => {
+  it('Operações lê e-mail de recuperação, origem e contatos, sem ações (ADR 0045; A18)', () => {
     authState.role = 'operacoes'
     try {
-      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-      render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={{ ...row, account_situation: 'ativo', recovery_email: 'financeiro@example.com', recovery_email_source: 'candidato' }} /></MemoryRouter></QueryClientProvider>)
-      expect(screen.getByText(/financeiro@example\.com · escolhido entre os candidatos/)).toBeTruthy()
-      expect(screen.getByText('Candidatos de email')).toBeTruthy()
-      // O candidato é só leitura: sem o campo, um botão não teria efeito.
-      expect(screen.queryByRole('button', { name: /financeiro@example\.com/ })).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Trocar Email de Recuperação' })).toBeNull()
+      renderPanel({ account_situation: 'ativo', recovery_email: 'financeiro@example.com', recovery_email_source: 'candidato' })
+      expect(screen.getByText(/financeiro@example\.com · escolhido entre os contatos/)).toBeTruthy()
+      expect(screen.getByRole('heading', { name: 'Contatos com e-mail' })).toBeTruthy()
+      expect(screen.queryByRole('radio')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Trocar e-mail de recuperação' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Ações administrativas' })).toBeNull()
     } finally {
       authState.role = 'administrativo'
     }
   })
 
-  it('mostra candidato e mantém convite desabilitado sem email selecionado', () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={{ ...row, candidates: [] }} /></MemoryRouter></QueryClientProvider>)
-    expect(screen.getByText('Nenhum contato com email disponível.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Enviar convite' })).toHaveProperty('disabled', true)
+  it('sem e-mail gravado: a conta diz "—", não "Em ordem", e o convite espera a escolha (A4)', () => {
+    renderPanel()
+    expect(screen.queryByText('Em ordem')).toBeNull()
+    const convite = screen.getByRole('button', { name: 'Enviar convite' })
+    expect(convite).toHaveProperty('disabled', true)
+
+    fireEvent.click(screen.getByRole('radio', { name: /financeiro@example\.com/ }))
+    expect(screen.getByRole('button', { name: 'Enviar convite para financeiro@example.com' })).toHaveProperty('disabled', false)
   })
 
-  it('mantém convite desabilitado quando o email informado não tem formato válido', () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={row} /></MemoryRouter></QueryClientProvider>)
-
-    fireEvent.change(screen.getByRole('textbox', { name: 'Email de Recuperação' }), {
-      target: { value: 'qa-invalid-synthetic' },
-    })
-
+  it('mantém o convite desabilitado quando o e-mail informado à mão não tem formato válido', () => {
+    renderPanel({ candidates: [] })
+    expect(screen.getByText(/Nenhum contato do Cliente tem e-mail/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('radio', { name: /Outro e-mail/ }))
+    fireEvent.change(screen.getByLabelText('Outro e-mail'), { target: { value: 'qa-invalid-synthetic' } })
     expect(screen.getByRole('button', { name: 'Enviar convite' })).toHaveProperty('disabled', true)
   })
 
   // Achado G: o sinal precisa aparecer junto do Cliente, não só na fila de
   // alertas. A conta segue ativa e o cliente entra com a senha; o que quebrou
   // foi o endereço para onde a recuperação seria enviada.
-  it('avisa quando o Email de Recuperação da conta ativa está quebrado', () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const broken: QueueRow = { ...row, account_situation: 'ativo', recovery_email: 'financeiro@example.com', recoveryEmailStatus: 'bounce_permanente', recoveryEmailSuppressed: true }
-    render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={broken} /></MemoryRouter></QueryClientProvider>)
+  it('avisa quando o e-mail de recuperação da conta ativa está quebrado e oferece a liberação na janela', () => {
+    renderPanel({ account_situation: 'ativo', recovery_email: 'financeiro@example.com', recoveryEmailStatus: 'bounce_permanente', recoveryEmailSuppressed: true })
     expect(screen.getByText(/está na lista de bloqueio de envio/)).toBeTruthy()
     expect(screen.getByText('Devolvido em definitivo')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Liberar endereço bloqueado' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Ações administrativas' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('radio', { name: /Liberar endereço bloqueado/ })).toBeTruthy()
+    expect(within(dialog).getByRole('radio', { name: /Suspender a conta/ })).toBeTruthy()
   })
 
-  // Achado F: sem endereço bloqueado não há o que liberar; a ação não deve
-  // ficar disponível como botão de rotina.
-  it('não oferece a liberação quando o endereço não está bloqueado', () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={{ ...row, account_situation: 'ativo', recovery_email: 'financeiro@example.com' }} /></MemoryRouter></QueryClientProvider>)
-    expect(screen.queryByRole('button', { name: 'Liberar endereço bloqueado' })).toBeNull()
-    expect(screen.queryByText(/lista de bloqueio de envio/)).toBeNull()
+  it('a janela mostra só as ações que valem para a conta e exige justificativa', () => {
+    renderPanel({ account_situation: 'ativo', recovery_email: 'financeiro@example.com' })
+    fireEvent.click(screen.getByRole('button', { name: 'Ações administrativas' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).queryByRole('radio', { name: /Liberar endereço bloqueado/ })).toBeNull()
+    expect(within(dialog).queryByRole('radio', { name: /Revogar o convite/ })).toBeNull()
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Alterar o CNPJ/ }))
+    expect((within(dialog).getByLabelText('Novo CNPJ') as HTMLInputElement).maxLength).toBe(18)
+    expect(within(dialog).getByRole('button', { name: 'Alterar o CNPJ' })).toHaveProperty('disabled', true)
+    fireEvent.change(within(dialog).getByLabelText('Justificativa'), { target: { value: 'CNPJ conferido no cartão' } })
+    expect(within(dialog).getByRole('button', { name: 'Alterar o CNPJ' })).toHaveProperty('disabled', false)
   })
 
-  it('aceita um CNPJ formatado completo no campo de alteração auditada', () => {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(<QueryClientProvider client={queryClient}><MemoryRouter><PortalReviewPanel row={row} /></MemoryRouter></QueryClientProvider>)
-
-    expect((screen.getByLabelText('Novo CNPJ') as HTMLInputElement).maxLength).toBe(18)
+  it('Novo CNPJ não fica aberto na linha (só dentro da janela)', () => {
+    renderPanel()
+    expect(screen.queryByLabelText('Novo CNPJ')).toBeNull()
   })
 })
