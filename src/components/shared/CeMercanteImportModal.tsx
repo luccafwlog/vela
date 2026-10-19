@@ -1,14 +1,23 @@
 import { useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { afterCargaAlterada } from '../../services/cacheEffects'
-import { Upload } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { NoValue } from '../ui/NoValue'
 import { Field, Input, Textarea } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
-import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportTemplateLinks } from './ImportParts'
+import {
+  ImportFileBlock,
+  ImportFilePicker,
+  ImportFootnote,
+  ImportGuide,
+  ImportNotice,
+  ImportSection,
+  ImportSteps,
+  ImportTemplateLinks,
+} from './ImportParts'
+import { ImportIssuesPanel } from './ImportIssuesPanel'
 import { plural } from './importPresentation'
 import { TruncationNote } from './TruncationNote'
 import { useAuth } from '../../hooks/useAuth'
@@ -21,12 +30,14 @@ import {
   previewCeMercanteRows,
   type CeBillingResult,
   type CeMercanteImportResult,
+  type CePreviewRow,
   type CeServerPreview,
   type ParsedCeMercanteFile,
   type CeMercanteImportTarget,
 } from '../../services/ceMercanteImport'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { queryKeys } from '../../services/queryKeys'
+import type { ImportIssue } from '../../services/importValidation'
 import { ImportReadProgress } from './ImportReadProgress'
 import { VoyageCombobox } from './VoyageCombobox'
 
@@ -199,7 +210,11 @@ export function CeMercanteImportModal({
       await invalidateBls()
 
       if ((preview.rowErrors.length ?? 0) === 0 && result.errorCount === 0) {
-        showToast(`CE Mercante atualizado em ${result.updated} B/L(s).`, 'success')
+        // D1 (ADR 0091): B/L cancelado na planilha não é tocado; o toast conta.
+        const cancelled = result.ignored
+          ? `; ${plural(result.ignored, 'B/L cancelado não foi tocado', 'B/Ls cancelados não foram tocados')}`
+          : ''
+        showToast(`CE Mercante atualizado em ${plural(result.updated, 'B/L', 'B/Ls')}${cancelled}.`, 'success')
         if (result.billingPendingBlIds?.length) {
           await runBilling(result.billingPendingBlIds)
           return
@@ -209,7 +224,7 @@ export function CeMercanteImportModal({
       }
 
       showToast(
-        `Nada foi gravado: ${result.errorCount} erro(s). Corrija a planilha e envie de novo.`,
+        `Nada foi gravado: ${plural(result.errorCount, 'erro', 'erros')}. Corrija a planilha e envie de novo.`,
         'error',
       )
     } catch (error) {
@@ -274,7 +289,7 @@ export function CeMercanteImportModal({
     resetAndClose()
   }
 
-  // Planilha é "tudo ou nada" (migration 082): erro de estrutura na prévia
+  // Planilha é "tudo ou nada" (migration 082, ADR 0091): erro na prévia
   // bloqueia a confirmação.
   const sheetBlocked = Boolean(preview && preview.rowErrors.length > 0)
   // Cada importação de B/L é um manifesto (migration 164): o número vem antes.
@@ -285,19 +300,28 @@ export function CeMercanteImportModal({
 
   const sheetReportErrors = report?.errors ?? []
   const rejectedAfterSubmit = sheetReportErrors.length > 0
+  // Erros por linha vão para o painel comum; o erro do lote, sem linha, vira
+  // "Nada foi gravado: <motivo>" (nunca "Linha 0").
+  const { issues, batchErrors } = useMemo(
+    () => collectIssues(preview, serverPreview, report?.errors ?? []),
+    [preview, serverPreview, report],
+  )
+  const recorded = Boolean(billing) || Boolean(report && !rejectedAfterSubmit && !report.needsConfirmation)
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
   if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (billing) footnote = 'CE gravado. A emissão das faturas aparece acima.'
   else if (rejectedAfterSubmit) footnote = 'Nada foi gravado. Corrija o arquivo e escolha de novo.'
-  else if (sheetBlocked) footnote = 'Há erro na prévia: nada pode ser gravado. Corrija o arquivo e escolha de novo.'
+  else if (sheetBlocked || serverBlocked) footnote = 'Com erro no arquivo, nada é importado. Corrija o arquivo ou o Nº de Manifesto e tente de novo.'
   else if (preview && missingManifesto) footnote = 'Informe o Nº de Manifesto Mercante para importar.'
-  else if (serverBlocked) footnote = 'O servidor recusou o lote: nada foi gravado. Corrija o arquivo ou o Nº de Manifesto.'
   else if (awaitingConfirmation) footnote = 'Confirme a troca de CE ou de Manifesto e informe o motivo.'
   else if (preview) footnote = 'Tudo ou nada: se algum B/L falhar, nada é gravado.'
   const submitCount = preview?.rows.length ?? 0
+  const step = recorded ? 'resultado' : preview || readError ? 'previa' : 'arquivo'
 
   return (
     <Modal open={open} onClose={requestClose} title="Importar CE Mercante">
       <div className="app-import">
+        <ImportSteps current={step} />
         {target === 'bls' ? (
           <Field
             label="Nº de Manifesto Mercante"
@@ -313,18 +337,6 @@ export function CeMercanteImportModal({
           </Field>
         ) : null}
 
-        <ImportGuide
-          requiredLabel="Formato"
-          required={<>planilha com as colunas <strong>BL</strong> e <strong>CE MERCANTE</strong>.</>}
-          details={
-            <p>
-              O CE de 15 dígitos é conferido e não pode haver B/L repetido. A gravação é tudo ou nada: se algo falhar,
-              nada é gravado, nem o vínculo com o manifesto.
-            </p>
-          }
-          templates={<ImportTemplateLinks baseName="ce-mercante-modelo" />}
-        />
-
         {initialVoyageId != null ? (
           <VoyageCombobox
             label="Viagem"
@@ -334,12 +346,23 @@ export function CeMercanteImportModal({
           />
         ) : null}
 
-        <ImportFilePicker
-          accept=".xlsx,.xls,.csv"
-          files={file ? [file] : []}
-          onFiles={(files) => void handleFiles(files)}
-          disabled={submitting}
-        />
+        <ImportFileBlock templates={<ImportTemplateLinks baseName="ce-mercante-modelo" />}>
+          <ImportGuide
+            required={<><strong>BL</strong> e <strong>CE MERCANTE</strong>.</>}
+            details={
+              <p>
+                O CE de 15 dígitos é conferido e não pode haver B/L repetido. A gravação é tudo ou nada: se algo falhar,
+                nada é gravado, nem o vínculo com o manifesto. B/L cancelado na planilha não é tocado; o resto entra.
+              </p>
+            }
+          />
+          <ImportFilePicker
+            accept=".xlsx,.xls,.csv"
+            files={file ? [file] : []}
+            onFiles={(files) => void handleFiles(files)}
+            disabled={submitting || Boolean(billing)}
+          />
+        </ImportFileBlock>
 
         {parsing ? <ImportReadProgress progress={progress} /> : null}
 
@@ -351,53 +374,63 @@ export function CeMercanteImportModal({
         ) : null}
 
         {preview ? (
-          <section className="app-import-section" aria-label="Prévia da planilha">
-            <div className="app-import-section__head">
-              <h3 className="app-import-section__title">Prévia</h3>
+          <ImportSection
+            title="Prévia"
+            aside={
               <SummaryStrip
                 label="Resumo da planilha"
                 items={[
                   { label: validCount === 1 ? 'linha válida' : 'linhas válidas', value: validCount },
-                  { label: preview.rowErrors.length === 1 ? 'erro de estrutura' : 'erros de estrutura', value: preview.rowErrors.length, tone: preview.rowErrors.length ? 'danger' : 'default' },
+                  { label: preview.rowErrors.length === 1 ? 'linha com erro' : 'linhas com erro', value: preview.rowErrors.length, tone: preview.rowErrors.length ? 'danger' : 'default' },
                   ...(report ? [{ label: 'recusados ao gravar', value: report.errorCount, tone: report.errorCount ? 'danger' as const : 'default' as const }] : []),
                 ]}
               />
-            </div>
-
+            }
+          >
             <PreviewTable rows={sampleRows.map((row) => ({ ref: row.rowNumber, bl: row.bl_id, ce: row.ce_mercante }))} refLabel="Linha" />
             <TruncationNote shown={sampleRows.length} total={preview.rows.length} noun="linha" />
-
-            {preview.rowErrors.length || sheetReportErrors.length ? (
-              <ImportNotice
-                tone="danger"
-                role="alert"
-                title={sheetReportErrors.length ? 'Nada foi gravado' : 'Corrija antes de importar'}
-              >
-                <ul className="app-import-notice__list">
-                  {preview.rowErrors.map((item, index) => (
-                    <li key={`preview-${item.row}-${index}`}>{lineLabel(item.row)}{item.message}</li>
-                  ))}
-                  {sheetReportErrors.map((item, index) => (
-                    <li key={`report-${item.row}-${item.bl_id ?? 'sem-bl'}-${index}`}>
-                      {lineLabel(item.row)}{item.message}
-                    </li>
-                  ))}
-                </ul>
-                <p>Corrija a planilha e escolha o arquivo de novo.</p>
-              </ImportNotice>
-            ) : null}
-          </section>
+          </ImportSection>
         ) : null}
 
-        {serverPreview ? (
-          <ServerPreviewSection
-            preview={serverPreview}
-            confirmed={confirmed}
-            reason={reason}
-            onConfirmedChange={setConfirmed}
-            onReasonChange={setReason}
-            disabled={submitting || Boolean(billing)}
-          />
+        {serverPreview ? <ServerPreviewSection preview={serverPreview} /> : null}
+
+        {issues.length ? <ImportIssuesPanel issues={issues} filename="ce-mercante-problemas.csv" /> : null}
+
+        {batchErrors.length ? (
+          <ImportNotice
+            tone="danger"
+            role="alert"
+            title={batchErrors.length === 1 ? `Nada foi gravado: ${batchErrors[0]}` : 'Nada foi gravado'}
+          >
+            {batchErrors.length > 1 ? (
+              <ul className="app-import-notice__list">
+                {batchErrors.map((message) => <li key={message}>{message}</li>)}
+              </ul>
+            ) : null}
+            <p>Corrija o arquivo ou o Nº de Manifesto e tente de novo.</p>
+          </ImportNotice>
+        ) : null}
+
+        {serverPreview?.needs_confirmation && !serverPreview.errors.length && !billing ? (
+          <div className="app-import-section">
+            <label className="app-import-override">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                disabled={submitting}
+                onChange={(event) => setConfirmed(event.target.checked)}
+              />
+              <span>
+                <span className="app-import-override__title">
+                  Confirmo trocar o CE de {plural(serverPreview.changes, 'B/L', 'B/Ls')} e mudar o Manifesto de {plural(serverPreview.moves, 'B/L', 'B/Ls')}
+                </span>
+                <span className="app-import-override__hint">A fatura emitida não muda. O motivo fica no Histórico de cada B/L.</span>
+              </span>
+            </label>
+            <Field label="Motivo" required>
+              <Textarea value={reason} disabled={submitting} onChange={(event) => setReason(event.target.value)} />
+            </Field>
+          </div>
         ) : null}
 
         {billing ? (
@@ -412,18 +445,57 @@ export function CeMercanteImportModal({
         ) : null}
 
         <div className="app-modal__actions">
-          <ImportFootnote tone={rejectedAfterSubmit || sheetBlocked ? 'warning' : 'default'}>{footnote}</ImportFootnote>
-          <Button variant="secondary" disabled={busy} onClick={parsing ? cancelReading : requestClose}>
-            {parsing ? 'Interromper leitura' : billing ? 'Fechar' : 'Voltar'}
-          </Button>
-          <Button disabled={!canSubmit || parsing} loading={submitting} loadingLabel="Importando…" onClick={handleSheetImport}>
-            <Upload size={16} aria-hidden="true" />
-            {submitCount > 0 && canSubmit ? `Importar ${plural(submitCount, 'CE', 'CEs')}` : 'Importar CEs'}
-          </Button>
+          <ImportFootnote tone={rejectedAfterSubmit || sheetBlocked || serverBlocked ? 'warning' : billing ? 'success' : 'default'}>{footnote}</ImportFootnote>
+          {billing ? (
+            <Button disabled={busy} onClick={requestClose}>Concluir</Button>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={busy} onClick={parsing ? cancelReading : requestClose}>
+                {parsing ? 'Interromper leitura' : 'Voltar'}
+              </Button>
+              <Button disabled={!canSubmit || parsing} loading={submitting} loadingLabel="Importando…" onClick={handleSheetImport}>
+                {submitCount > 0 && canSubmit ? `Importar ${plural(submitCount, 'CE', 'CEs')}` : 'Importar CEs'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Modal>
   )
+}
+
+type LineMessage = { row?: number; message: string }
+
+/**
+ * Erros e avisos da planilha, da conferência e da gravação no formato do painel
+ * comum. Mensagem sem linha (erro do lote) fica à parte, como "Nada foi
+ * gravado: <motivo>". B/L cancelado é aviso (ADR 0091, D1): não é tocado.
+ */
+function collectIssues(
+  preview: ParsedCeMercanteFile | null,
+  serverPreview: CeServerPreview | null,
+  reportErrors: LineMessage[],
+): { issues: ImportIssue[]; batchErrors: string[] } {
+  const issues: ImportIssue[] = []
+  const batchErrors: string[] = []
+  const add = (items: readonly LineMessage[], severity: ImportIssue['severity']) => {
+    for (const item of items) {
+      if (item.row && item.row > 0) issues.push({ row: item.row, field: 'row', code: 'invalid_group', severity, message: item.message })
+      else if (severity === 'error') batchErrors.push(item.message)
+      else issues.push({ row: 0, field: 'row', code: 'invalid_group', severity, message: item.message })
+    }
+  }
+  add(preview?.rowErrors ?? [], 'error')
+  add(serverPreview?.errors ?? [], 'error')
+  add(reportErrors, 'error')
+  add(serverPreview?.warnings ?? [], 'warning')
+  add(
+    (serverPreview?.rows ?? [])
+      .filter((row) => row.status === 'cancelled')
+      .map((row) => ({ row: row.row, message: `B/L ${row.bl_id} está cancelado: não é tocado, e o resto da planilha entra.` })),
+    'warning',
+  )
+  return { issues, batchErrors }
 }
 
 function PreviewTable({
@@ -436,6 +508,7 @@ function PreviewTable({
   return (
     <div className="app-table-scroll app-import-table">
       <table className="app-table app-table--compact w-full">
+        <caption className="sr-only">Linhas lidas da planilha</caption>
         <thead>
           <tr>
             <th scope="col" className="app-import-num">{refLabel}</th>
@@ -447,7 +520,7 @@ function PreviewTable({
           {rows.map((row) => (
             <tr key={`${row.ref}-${row.bl}`}>
               <td className="app-import-num">{row.ref}</td>
-              <td className="app-import-code font-semibold text-[var(--app-text-strong)]">{row.bl}</td>
+              <td className="app-import-code">{row.bl}</td>
               <td className="app-import-code">{row.ce}</td>
             </tr>
           ))}
@@ -457,7 +530,6 @@ function PreviewTable({
   )
 }
 
-// Erro do lote, sem linha, não vira "Linha 0" (etapa 8.2).
 /** As trocas que a confirmação cobre: B/L, CE e Manifesto antes → depois. */
 function confirmationKey(preview: CeServerPreview): string {
   return preview.rows
@@ -467,37 +539,29 @@ function confirmationKey(preview: CeServerPreview): string {
     .join('\n')
 }
 
-function lineLabel(row: number | undefined): string {
-  return row && row > 0 ? `Linha ${row}: ` : ''
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  new: 'CE novo',
+/** Situação em texto (regra 5): âmbar quando pede atenção. */
+const STATUS_LABEL: Record<CePreviewRow['status'], string> = {
+  new: 'Grava o CE',
   same: 'Sem mudança',
-  change: 'Troca de CE',
-  cancelled: 'Cancelado — ignorado',
+  change: 'Troca o CE',
+  cancelled: 'Cancelado, não é tocado',
 }
 
-function ServerPreviewSection({
-  preview,
-  confirmed,
-  reason,
-  onConfirmedChange,
-  onReasonChange,
-  disabled,
-}: {
-  preview: CeServerPreview
-  confirmed: boolean
-  reason: string
-  onConfirmedChange: (value: boolean) => void
-  onReasonChange: (value: string) => void
-  disabled: boolean
-}) {
+function statusNote(row: CePreviewRow): string {
+  return [
+    STATUS_LABEL[row.status] ?? row.status,
+    row.live_invoices?.length ? `fatura ${row.live_invoices.join(', ')} não muda` : null,
+    row.status === 'change' && row.comunicado_sent ? 'Comunicado será reenviado' : null,
+    row.status === 'change' && row.unlock_confirmed ? 'Desbloqueio já conferido' : null,
+  ].filter(Boolean).join(' · ')
+}
+
+function ServerPreviewSection({ preview }: { preview: CeServerPreview }) {
   const rows = preview.rows.slice(0, 50)
   return (
-    <section className="app-import-section" aria-label="Conferência no servidor">
-      <div className="app-import-section__head">
-        <h3 className="app-import-section__title">Conferência no servidor</h3>
+    <ImportSection
+      title="Conferência com o que já está gravado"
+      aside={
         <SummaryStrip
           label="Resumo da conferência"
           items={[
@@ -506,7 +570,8 @@ function ServerPreviewSection({
             { label: 'erros', value: preview.errors.length, tone: preview.errors.length ? 'danger' : 'default' },
           ]}
         />
-      </div>
+      }
+    >
       <div className="app-table-scroll app-import-table">
         <table className="app-table app-table--compact w-full">
           <caption className="sr-only">B/Ls antes e depois da importação</caption>
@@ -521,18 +586,15 @@ function ServerPreviewSection({
           <tbody>
             {rows.map((row) => (
               <tr key={`${row.row}-${row.bl_id}`}>
-                <td className="app-import-code font-semibold text-[var(--app-text-strong)]">{row.bl_id}</td>
+                <td className="app-import-code">{row.bl_id}</td>
                 <td className="app-import-code">
                   {row.status === 'change' ? `${row.current_ce} → ${row.new_ce}` : row.new_ce ?? <NoValue label="Sem CE Mercante" />}
                 </td>
                 <td className="app-import-code">
                   {row.manifesto_change ? `${row.current_manifesto} → ${row.target_manifesto}` : row.target_manifesto ?? <NoValue label="Sem Manifesto Mercante" />}
                 </td>
-                <td>
-                  {STATUS_LABEL[row.status] ?? row.status}
-                  {row.live_invoices?.length ? ` · fatura ${row.live_invoices.join(', ')} (não muda)` : ''}
-                  {row.status === 'change' && row.comunicado_sent ? ' · Comunicado será reenviado' : ''}
-                  {row.status === 'change' && row.unlock_confirmed ? ' · Desbloqueio já conferido' : ''}
+                <td className={row.status === 'change' || row.status === 'cancelled' || row.manifesto_change ? 'app-import-tone--warning' : undefined}>
+                  {statusNote(row)}
                 </td>
               </tr>
             ))}
@@ -540,38 +602,7 @@ function ServerPreviewSection({
         </table>
       </div>
       <TruncationNote shown={rows.length} total={preview.rows.length} noun="B/L" />
-
-      {preview.warnings.length ? (
-        <ImportNotice tone="warning" title="Avisos">
-          <ul className="app-import-notice__list">
-            {preview.warnings.map((item, index) => <li key={`warn-${index}`}>{lineLabel(item.row)}{item.message}</li>)}
-          </ul>
-        </ImportNotice>
-      ) : null}
-
-      {preview.errors.length ? (
-        <ImportNotice tone="danger" role="alert" title="O servidor recusou o lote">
-          <ul className="app-import-notice__list">
-            {preview.errors.map((item, index) => <li key={`err-${index}`}>{lineLabel(item.row)}{item.message}</li>)}
-          </ul>
-        </ImportNotice>
-      ) : null}
-
-      {preview.needs_confirmation && !preview.errors.length ? (
-        <ImportNotice tone="warning" title="Confirme a troca">
-          <label className="flex items-start gap-2">
-            <input type="checkbox" checked={confirmed} disabled={disabled} onChange={(event) => onConfirmedChange(event.target.checked)} />
-            <span>
-              Confirmo trocar o CE de {plural(preview.changes, 'B/L', 'B/Ls')} e mudar o Manifesto de {plural(preview.moves, 'B/L', 'B/Ls')}.
-              A fatura emitida não muda.
-            </span>
-          </label>
-          <Field label="Motivo" required>
-            <Textarea value={reason} disabled={disabled} onChange={(event) => onReasonChange(event.target.value)} />
-          </Field>
-        </ImportNotice>
-      ) : null}
-    </section>
+    </ImportSection>
   )
 }
 
@@ -606,9 +637,9 @@ function BillingProgress({
   // B/L calculado sem taxa com valor ou isento: não há fatura a emitir, nem falha (migration 204).
   const nothingToBill = billing.results.filter((item) => item.status === 'skipped' && (item.reason === 'nothing_to_bill' || item.reason === 'exempt'))
   return (
-    <section className="app-import-section" aria-label="Emissão das faturas">
-      <div className="app-import-section__head">
-        <h3 className="app-import-section__title">Emissão das faturas</h3>
+    <ImportSection
+      title="Resultado: emissão das faturas"
+      aside={
         <SummaryStrip
           label="Resultado da emissão"
           items={[
@@ -620,7 +651,8 @@ function BillingProgress({
             { label: 'bloqueados', value: blocked.length, tone: blocked.length ? 'danger' : 'default' },
           ]}
         />
-      </div>
+      }
+    >
       {billing.running ? <p role="status">Emitindo as faturas em lotes. Não feche esta janela.</p> : null}
       {waiting.length ? (
         <ImportNotice tone="warning" title="Aguardando">
@@ -650,6 +682,6 @@ function BillingProgress({
           <Button variant="secondary" onClick={onResume}>Retomar emissão</Button>
         </ImportNotice>
       ) : null}
-    </section>
+    </ImportSection>
   )
 }

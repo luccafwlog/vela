@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Upload } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
 import { parseBLFile } from '../../services/blParser'
 import {
+  BlFreightImportRefused,
   confirmBlFreightImport,
   previewBlFreightImport,
   type BlCustomerChange,
@@ -13,53 +13,63 @@ import {
   type BlFreightImportRow,
 } from '../../services/blFreightImport'
 import { afterManifestoImportado } from '../../services/cacheEffects'
-import { Badge, type SemanticBadgeTone } from '../ui/Badge'
+import type { ImportIssue } from '../../services/importValidation'
 import { Button } from '../ui/Button'
 import { NoValue } from '../ui/NoValue'
 import { Modal } from '../ui/Modal'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
 import { VoyageCombobox } from './VoyageCombobox'
+import { ImportIssuesPanel } from './ImportIssuesPanel'
 import { ImportReadProgress } from './ImportReadProgress'
-import { ImportContext, ImportFilePicker, ImportFootnote, ImportNotice } from './ImportParts'
+import {
+  ImportContext,
+  ImportFileBlock,
+  ImportFilePicker,
+  ImportFootnote,
+  ImportGuide,
+  ImportNotice,
+  ImportSection,
+  ImportSteps,
+  ImportTemplateLinks,
+} from './ImportParts'
 import { plural } from './importPresentation'
 
-/** O que a confirmação gravou e o que ficou de fora, mostrado no próprio modal. */
+/** O que a confirmação gravou, mostrado no próprio modal. */
 type ConfirmOutcome = {
   imported: number
-  blocked: number
   refusedRelinks: string[]
   /** Troca de Consignatário sem aceite: o consignatário gravado ficou (migration 213) */
   customerKept: string[]
   calculationErrors: string[]
-  /** contêineres e veículos que entraram, mudaram ou saíram, por B/L */
+  /** containers e veículos que entraram, mudaram ou saíram, por B/L */
   changes: string[]
-  /** linhas da aba VIN recusadas e mudanças de veículos não confirmadas */
+  /** mudanças de veículos não confirmadas */
   vehicleIssues: string[]
 }
 
-/** Frases por B/L do que a importação fez com contêineres e veículos. */
+/** Frases por B/L do que a importação fez com containers e veículos. */
 function describeChanges(result: BlFreightImportResult) {
-  const line = (kind: string, entry: { blNumber: string; inserted: string[]; updated: string[]; removed: string[] }) => {
+  const line = (
+    nouns: { one: string; many: string },
+    entry: { blNumber: string; inserted: string[]; updated: string[]; removed: string[] },
+  ) => {
     const parts = [
-      entry.inserted.length ? `${entry.inserted.length} entrou(aram)` : null,
-      entry.updated.length ? `${entry.updated.length} atualizado(s)` : null,
-      entry.removed.length ? `${entry.removed.length} saiu(íram): ${entry.removed.join(', ')}` : null,
+      entry.inserted.length ? plural(entry.inserted.length, `${nouns.one} entrou`, `${nouns.many} entraram`) : null,
+      entry.updated.length ? plural(entry.updated.length, `${nouns.one} atualizado`, `${nouns.many} atualizados`) : null,
+      entry.removed.length ? `${plural(entry.removed.length, `${nouns.one} saiu`, `${nouns.many} saíram`)}: ${entry.removed.join(', ')}` : null,
     ].filter(Boolean)
-    return parts.length ? `${entry.blNumber} — ${kind}: ${parts.join('; ')}` : null
+    return parts.length ? `${entry.blNumber} — ${parts.join('; ')}` : null
   }
   const changes = [
-    ...(result.containerChanges ?? []).map((entry) => line('contêineres', entry)),
-    ...(result.vehicleChanges ?? []).map((entry) => line('veículos', entry)),
+    ...(result.containerChanges ?? []).map((entry) => line({ one: 'container', many: 'containers' }, entry)),
+    ...(result.vehicleChanges ?? []).map((entry) => line({ one: 'veículo', many: 'veículos' }, entry)),
   ].filter((item): item is string => Boolean(item))
-  const vehicleIssues = [
-    ...(result.vehiclesDiscarded ?? []).map((entry) => `${entry.blNumber} — VIN ${entry.chassis} não entrou: ${entry.reason}.`),
-    ...(result.vehicleChangesPending ?? []).map((blNumber) => `${blNumber} — veículos mantidos: a mudança não foi confirmada.`),
-  ]
+  const vehicleIssues = (result.vehicleChangesPending ?? []).map((blNumber) => `${blNumber} — veículos mantidos: a mudança não foi confirmada.`)
   return { changes, vehicleIssues }
 }
 
-/** B/L e contêineres que só saem com a lista de veículos confirmada. */
+/** B/L e containers que só saem com a lista de veículos confirmada. */
 function describeVehicleConfirmationRequired(rows: BlFreightImportRow[]) {
   return rows
     .map((row) => {
@@ -69,6 +79,23 @@ function describeVehicleConfirmationRequired(rows: BlFreightImportRow[]) {
         : `no B/L ${row.blNumber}, os containers ${containers.join(', ')} saem do B/L levando os veículos`
     })
     .join('; ')
+}
+
+/**
+ * Erros e avisos da prévia no painel comum (ADR 0091). Cada B/L é uma linha da
+ * tabela da prévia; o número dela vai em "Linha" e o B/L no campo.
+ */
+function previewIssues(preview: BlFreightImportPreview): ImportIssue[] {
+  return preview.rows.flatMap((row, index) => {
+    const base = { row: index + 1, field: `B/L ${row.blNumber}`, code: 'invalid_group' as const }
+    return [
+      ...row.blockedReasons.map((message) => ({ ...base, severity: 'error' as const, message })),
+      ...(row.payload && row.removedContainers?.length
+        ? [{ ...base, severity: 'warning' as const, message: `Saem do B/L: ${row.removedContainers.join(', ')}.` }]
+        : []),
+      ...(row.warnings ?? []).map((message) => ({ ...base, severity: 'warning' as const, message })),
+    ]
+  })
 }
 
 export function BlImportModal({
@@ -97,14 +124,14 @@ export function BlImportModal({
   const [confirmVehicleChanges, setConfirmVehicleChanges] = useState(false)
   const [selectedVoyageId, setSelectedVoyageId] = useState<number | null>(voyageId)
   const [readError, setReadError] = useState<string | null>(null)
-  const [confirmError, setConfirmError] = useState<string | null>(null)
+  /** Algum dos arquivos escolhidos não pôde ser lido: com vários, um ruim bloqueia todos. */
+  const [readFailed, setReadFailed] = useState(false)
+  const [confirmError, setConfirmError] = useState<{ message: string; refused: string[] } | null>(null)
   const [outcome, setOutcome] = useState<ConfirmOutcome | null>(null)
 
-  const importableCount = useMemo(
-    () => preview?.rows.filter((row) => Boolean(row.payload)).length ?? 0,
-    [preview],
-  )
-  const billingOverrideCount = preview?.summary.billingOverrideCount ?? 0
+  const issues = useMemo(() => (preview ? previewIssues(preview) : []), [preview])
+  const hasErrors = readFailed || issues.some((issue) => issue.severity === 'error')
+  const importableCount = preview && !hasErrors ? preview.rows.length : 0
   const customerChangeCount = preview?.summary.customerChangeCount ?? 0
   const customerChangeRows = useMemo(
     () => preview?.rows.filter((row) => row.customerChange) ?? [],
@@ -115,7 +142,7 @@ export function BlImportModal({
     [preview],
   )
   // Container que sai do B/L levando os veículos: sem a confirmação a gravação
-  // recusaria o lote inteiro, então ela passa a ser obrigatória para importar.
+  // recusaria o arquivo inteiro, então ela passa a ser obrigatória para importar.
   const vehicleConfirmationRequiredRows = useMemo(
     () => preview?.rows.filter((row) => row.payload && row.vehicleConfirmationRequiredFor?.length) ?? [],
     [preview],
@@ -149,6 +176,7 @@ export function BlImportModal({
     resetDecisions()
     setSelectedVoyageId(voyageId ?? null)
     setReadError(null)
+    setReadFailed(false)
     setConfirmError(null)
     setOutcome(null)
     onClose()
@@ -166,6 +194,7 @@ export function BlImportModal({
     setPreview(null)
     resetDecisions()
     setReadError(null)
+    setReadFailed(false)
     setConfirmError(null)
     setOutcome(null)
     if (!selectedFiles.length) return
@@ -180,7 +209,10 @@ export function BlImportModal({
       const documents = (await readFiles(selectedFiles, (error, file) => {
         failures.push(`${file.name}: ${error instanceof Error ? error.message : 'Falha ao ler o arquivo.'}`)
       })) ?? []
-      if (failures.length) setReadError(failures.join(' | '))
+      if (failures.length) {
+        setReadError(failures.join(' | '))
+        setReadFailed(true)
+      }
 
       if (!documents.length) return
 
@@ -217,18 +249,17 @@ export function BlImportModal({
       const refused = refusedCustomerRelinks.map((relink) => `${relink.blNumber} (${relink.blockers.join(' ')})`)
       const failedCalculations = calculationErrors.map((failure) => `${failure.blNumber} (${failure.message})`)
       if (refused.length || customerKept.length || failedCalculations.length || vehicleIssues.length || changes.length) {
-        // Importou com contêineres ou veículos alterados, ou algo pedido não
+        // Importou com containers ou veículos alterados, ou algo pedido não
         // aconteceu: o modal fica aberto com o resultado por B/L. Fechar
         // esconderia o que mudou e o que o operador precisa resolver.
         const warnings: string[] = []
-        if (refused.length) warnings.push(`a troca de cliente foi recusada em ${refused.length} B/L(s): ${refused.join(' | ')}`)
+        if (refused.length) warnings.push(`a troca de cliente foi recusada em ${plural(refused.length, 'B/L', 'B/Ls')}: ${refused.join(' | ')}`)
         if (customerKept.length) warnings.push(`consignatário mantido em ${customerKept.join(', ')}: a troca não foi confirmada`)
-        if (failedCalculations.length) warnings.push(`${failedCalculations.length} B/L(s) ficaram sem cálculo automático: ${failedCalculations.join(' | ')}`)
-        if (vehicleIssues.length) warnings.push(`${vehicleIssues.length} pendência(s) de veículos`)
+        if (failedCalculations.length) warnings.push(`${plural(failedCalculations.length, 'B/L ficou', 'B/Ls ficaram')} sem cálculo automático: ${failedCalculations.join(' | ')}`)
+        if (vehicleIssues.length) warnings.push(plural(vehicleIssues.length, 'pendência de veículos', 'pendências de veículos'))
         showToast(warnings.length ? `Importação gravada, mas ${warnings.join(' | ')}` : 'Importação gravada; confira o resultado por B/L.', warnings.length ? 'error' : 'success')
         setOutcome({
           imported: importableCount,
-          blocked: preview.summary.blockedCount,
           refusedRelinks: refused,
           customerKept,
           calculationErrors: failedCalculations,
@@ -237,32 +268,40 @@ export function BlImportModal({
         })
         return
       }
-      showToast(
-        `Importação de B/L concluída: ${importableCount} B/L(s), ${preview.summary.blockedCount} bloqueado(s).`,
-        'success',
-      )
+      showToast(`Importação de B/L concluída: ${plural(importableCount, 'B/L gravado', 'B/Ls gravados')}.`, 'success')
       resetAndClose()
     } catch (error) {
-      setConfirmError(error instanceof Error ? error.message : 'Falha ao confirmar a importação de B/L.')
-      // A importacao vai em lotes: os que ja entraram precisam aparecer na tela.
-      void afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
+      // A gravação é uma transação só (migration 329): na falha, nada entrou.
+      setConfirmError({
+        message: error instanceof Error ? error.message : 'Nada foi gravado: falha ao importar o B/L.',
+        refused: error instanceof BlFreightImportRefused ? error.refused : [],
+      })
     } finally {
       setSubmitting(false)
     }
   }
 
-  const blockedAll = Boolean(preview && importableCount === 0)
   const outcomePending = Boolean(outcome && (outcome.refusedRelinks.length || outcome.customerKept.length || outcome.calculationErrors.length || outcome.vehicleIssues.length))
-  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
-  if (outcome) footnote = outcomePending ? 'Importação gravada com pendências; veja acima.' : 'Importação gravada; veja acima o resultado por B/L.'
-  else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
-  else if (blockedAll) footnote = 'Nenhum B/L pode ser importado; veja os bloqueios na tabela.'
-  else if (vehicleConfirmationMissing) footnote = 'Marque "Confirmo a lista de veículos da aba VIN" para importar. Nada foi gravado ainda.'
-  else if (preview) footnote = `${plural(importableCount, 'B/L será gravado', 'B/Ls serão gravados')}. Nada foi gravado ainda.`
+  let footnote: ReactNode = 'Nada é gravado antes de você conferir a prévia e confirmar.'
+  let footnoteTone: 'default' | 'warning' | 'success' = 'default'
+  if (outcome) {
+    footnote = outcomePending ? 'Importação gravada com pendências; veja acima.' : 'Importação gravada; veja acima o resultado por B/L.'
+    footnoteTone = outcomePending ? 'warning' : 'success'
+  } else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (hasErrors) {
+    footnote = 'Com erro no arquivo, nada é importado. Corrija e escolha o arquivo de novo.'
+    footnoteTone = 'warning'
+  } else if (vehicleConfirmationMissing) {
+    footnote = 'Marque "Confirmo a lista de veículos da aba VIN" para importar. Nada foi gravado ainda.'
+    footnoteTone = 'warning'
+  } else if (preview) footnote = `${plural(importableCount, 'B/L será gravado', 'B/Ls serão gravados')}. Nada foi gravado ainda.`
+  const step = outcome ? 'resultado' : preview || readError ? 'previa' : 'arquivo'
+  const allBillingConfirmed = billingOverrideRows.length > 0 && billingOverrideRows.every((row) => overrideBls.has(row.blNumber))
 
   return (
     <Modal open={open} onClose={resetAndClose} title="Importar B/L de container">
       <div className="app-import">
+        <ImportSteps current={step} />
         {onlyBlId ? (
           <ImportContext label="B/L">
             <span className="app-import-code">{onlyBlId}</span>
@@ -277,38 +316,80 @@ export function BlImportModal({
           onSelect={handleVoyageSelect}
         />
 
-        <ImportFilePicker
-          accept=".xlsx,.xls"
-          multiple
-          positional
-          files={files}
-          onFiles={(next) => void handleFiles(next)}
-          disabled={!selectedVoyageId || submitting || Boolean(outcome)}
-          disabledReason={!selectedVoyageId ? 'Escolha a viagem de destino: a prévia compara o navio e a viagem do arquivo com ela.' : undefined}
-        />
+        <ImportFileBlock templates={<ImportTemplateLinks baseName="bl-container-modelo" extensions={['xlsx']} />}>
+          <ImportGuide
+            requiredLabel="Formato"
+            required={<>planilha do B/L no layout da COSCO, um B/L por arquivo; vários arquivos de uma vez.</>}
+            optional={<>aba <strong>VIN</strong> com os veículos (VIN, container, marca, modelo, peso e cubagem).</>}
+            details={
+              <p>
+                O sistema lê as células pela posição, como no modelo. Sem a aba VIN, os veículos gravados não mudam;
+                com ela, a lista da aba vale. Com erro em qualquer B/L, nada é gravado.
+              </p>
+            }
+          />
+          <ImportFilePicker
+            accept=".xlsx,.xls"
+            multiple
+            positional
+            files={files}
+            onFiles={(next) => void handleFiles(next)}
+            disabled={!selectedVoyageId || submitting || Boolean(outcome)}
+            disabledReason={!selectedVoyageId ? 'Escolha a viagem de destino: a prévia compara o navio e a viagem do arquivo com ela.' : undefined}
+          />
+        </ImportFileBlock>
 
         {parsing ? <ImportReadProgress progress={progress} /> : null}
 
         {readError ? (
-          <ImportNotice tone="danger" role="alert" title="Não foi possível montar a prévia">
+          <ImportNotice tone="danger" role="alert" title={readFailed ? 'Não foi possível ler o arquivo' : 'Não foi possível montar a prévia'}>
             <p>{readError}</p>
             <p>Confira o arquivo e escolha de novo. Nada foi gravado.</p>
           </ImportNotice>
         ) : null}
 
-        {preview ? (
-          <BlImportPreview
-            preview={preview}
-            overrideBls={outcome ? null : overrideBls}
-            onToggleOverride={toggleOverride}
+        {preview ? <BlImportPreview preview={preview} /> : null}
+
+        {issues.length ? (
+          <ImportIssuesPanel
+            issues={issues}
+            filename="bl-container-problemas.csv"
+            title={hasErrors
+              ? `${plural(issues.filter((issue) => issue.severity === 'error').length, 'erro impede', 'erros impedem')} a importação`
+              : undefined}
+            hint={hasErrors ? 'Com erro em qualquer B/L, nada é gravado. Corrija o arquivo e escolha de novo.' : undefined}
           />
         ) : null}
 
-        {(vehicleChangeRows.length || vehicleConfirmationRequiredRows.length) && !outcome ? (
-          <section className="app-import-section" aria-label="Veículos da aba VIN">
-            <h3 className="app-import-section__title">
-              Veículos mudam em {plural(vehicleChangeRows.length, 'B/L', 'B/Ls')}
-            </h3>
+        {billingOverrideRows.length && !outcome && !hasErrors ? (
+          <ImportSection title="Faturamento" aside={plural(billingOverrideRows.length, 'B/L com impacto', 'B/Ls com impacto')}>
+            <p className="app-import-inspection">
+              Decisão por B/L: marcado, a fatura emitida segue a base nova (reemissão automática sem pagamento; com
+              pagamento, restituição). Sem marcar, o B/L é importado com os demais campos e as mudanças com impacto em
+              faturamento ficam como estão.
+            </p>
+            {billingOverrideRows.length > 1 ? (
+              <OverrideCheckbox
+                checked={allBillingConfirmed}
+                onChange={(checked) => setOverrideBls(checked ? new Set(billingOverrideRows.map((row) => row.blNumber)) : new Set())}
+                title={`Confirmar o faturamento nos ${plural(billingOverrideRows.length, 'B/L', 'B/Ls')} (${plural(overrideBls.size, 'marcado', 'marcados')})`}
+                hint="Marca ou desmarca todos os B/Ls abaixo."
+              />
+            ) : null}
+            {billingOverrideRows.map((row) => (
+              <OverrideCheckbox
+                key={row.blNumber}
+                checked={overrideBls.has(row.blNumber)}
+                onChange={(checked) => toggleOverride(row.blNumber, checked)}
+                title={`Confirmar o faturamento do B/L ${row.blNumber}`}
+                hint={row.billingImpacts.join('; ')}
+              />
+            ))}
+          </ImportSection>
+        ) : null}
+
+        {(vehicleChangeRows.length || vehicleConfirmationRequiredRows.length) && !outcome && !hasErrors ? (
+          <ImportSection title="Veículos da aba VIN" aside={`mudam em ${plural(vehicleChangeRows.length, 'B/L', 'B/Ls')}`}>
             <ImportNotice tone="warning" title="A aba VIN do arquivo substitui os veículos gravados">
               <ul className="app-import-notice__list">
                 {vehicleChangeRows.map((row) => (
@@ -321,131 +402,101 @@ export function BlImportModal({
                 ))}
               </ul>
             </ImportNotice>
-            <label className="app-import-override">
-              <input
-                type="checkbox"
-                checked={confirmVehicleChanges}
-                onChange={(event) => setConfirmVehicleChanges(event.target.checked)}
-              />
-              <span>
-                <span className="app-import-override__title">Confirmo a lista de veículos da aba VIN</span>
-                <span className="app-import-override__hint">
+            <OverrideCheckbox
+              checked={confirmVehicleChanges}
+              onChange={setConfirmVehicleChanges}
+              title="Confirmo a lista de veículos da aba VIN"
+              hint={
+                <>
                   O local de desova dos que continuam é preservado e um alerta registra as mudanças.{' '}
                   {vehicleConfirmationRequiredRows.length
                     ? `Obrigatória para importar: ${describeVehicleConfirmationRequired(vehicleConfirmationRequiredRows)}. Sem a confirmação nada é gravado.`
                     : 'Sem marcar, os veículos gravados ficam como estão e o restante do B/L é aplicado.'}
-                </span>
-              </span>
-            </label>
-          </section>
+                </>
+              }
+            />
+          </ImportSection>
         ) : null}
 
-        {customerChangeRows.length && !outcome ? (
-          <section className="app-import-section" aria-label="Troca de consignatário">
-            <h3 className="app-import-section__title">
-              Troca de consignatário em {plural(customerChangeRows.length, 'B/L', 'B/Ls')}
-            </h3>
+        {customerChangeRows.length && !outcome && !hasErrors ? (
+          <ImportSection title="Troca de consignatário" aside={`em ${plural(customerChangeRows.length, 'B/L', 'B/Ls')}`}>
             {customerChangeRows.map((row) => (
               <CustomerChangeCard key={row.blNumber} blNumber={row.blNumber} change={row.customerChange!} />
             ))}
             {customerChangeCount > 0 ? (
-              <label className="app-import-override">
-                <input
-                  type="checkbox"
-                  checked={confirmCustomerChange}
-                  onChange={(event) => setConfirmCustomerChange(event.target.checked)}
-                />
-                <span>
-                  <span className="app-import-override__title">
-                    Confirmo a troca de cliente em {plural(customerChangeCount, 'B/L', 'B/Ls')}
-                  </span>
-                  <span className="app-import-override__hint">
-                    O B/L passa a pertencer ao novo consignatário e as taxas locais são reemitidas; com recebimento,
-                    devolva ao Cliente original antes da nova cobrança. Sem marcar, o Cliente, o consignatário e o CNPJ
-                    gravados ficam como estão e os demais campos são aplicados.
-                  </span>
-                </span>
-              </label>
+              <OverrideCheckbox
+                checked={confirmCustomerChange}
+                onChange={setConfirmCustomerChange}
+                title={`Confirmo a troca de cliente em ${plural(customerChangeCount, 'B/L', 'B/Ls')}`}
+                hint="O B/L passa a pertencer ao novo consignatário e as taxas locais são reemitidas; com recebimento, devolva ao Cliente original antes da nova cobrança. Sem marcar, o Cliente, o consignatário e o CNPJ gravados ficam como estão e os demais campos são aplicados."
+              />
             ) : null}
-          </section>
+          </ImportSection>
         ) : null}
 
         {confirmError ? (
           <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
-            <p>{confirmError}</p>
-            <p>Os lotes que já entraram aparecem na lista. Confira e confirme de novo para o restante.</p>
+            <p>{confirmError.message}</p>
+            {confirmError.refused.length ? (
+              <ul className="app-import-notice__list">
+                {confirmError.refused.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            ) : null}
+            <p>A prévia continua aqui; corrija o arquivo e escolha de novo, ou confirme de novo se o problema já foi resolvido.</p>
           </ImportNotice>
         ) : null}
 
         {outcome ? (
-          <ImportNotice
-            tone={outcomePending ? 'warning' : 'success'}
-            role="status"
-            title={`${plural(outcome.imported, 'B/L gravado', 'B/Ls gravados')}${outcomePending ? ', com pendências' : ''}`}
-          >
-            {outcome.refusedRelinks.length ? (
-              <>
-                <p>A troca de cliente foi recusada; o B/L continua com o cliente anterior:</p>
-                <ul className="app-import-notice__list">
-                  {outcome.refusedRelinks.map((item) => <li key={item}>{item}</li>)}
-                </ul>
-              </>
-            ) : null}
-            {outcome.customerKept.length ? (
-              <p>
-                Consignatário mantido em {outcome.customerKept.join(', ')}: a troca de cliente não foi confirmada. O
-                Cliente, o consignatário e o CNPJ gravados ficaram; os demais campos foram aplicados.
-              </p>
-            ) : null}
-            {outcome.changes.length ? (
-              <>
-                <p>Mudanças aplicadas por B/L:</p>
-                <ul className="app-import-notice__list">
-                  {outcome.changes.map((item) => <li key={item}>{item}</li>)}
-                </ul>
-              </>
-            ) : null}
-            {outcome.vehicleIssues.length ? (
-              <>
-                <p>Veículos que não mudaram:</p>
-                <ul className="app-import-notice__list">
-                  {outcome.vehicleIssues.map((item) => <li key={item}>{item}</li>)}
-                </ul>
-              </>
-            ) : null}
-            {outcome.calculationErrors.length ? (
-              <>
-                <p>Ficaram sem cálculo automático de taxas locais; recalcule na ficha do B/L:</p>
-                <ul className="app-import-notice__list">
-                  {outcome.calculationErrors.map((item) => <li key={item}>{item}</li>)}
-                </ul>
-              </>
-            ) : null}
-          </ImportNotice>
+          <ImportSection title="Resultado" aside={plural(outcome.imported, 'B/L gravado', 'B/Ls gravados')}>
+            <ImportNotice
+              tone={outcomePending ? 'warning' : 'success'}
+              role="status"
+              title={`${plural(outcome.imported, 'B/L gravado', 'B/Ls gravados')}${outcomePending ? ', com pendências' : ''}`}
+            >
+              {outcome.refusedRelinks.length ? (
+                <>
+                  <p>A troca de cliente foi recusada; o B/L continua com o cliente anterior:</p>
+                  <ul className="app-import-notice__list">
+                    {outcome.refusedRelinks.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </>
+              ) : null}
+              {outcome.customerKept.length ? (
+                <p>
+                  Consignatário mantido em {outcome.customerKept.join(', ')}: a troca de cliente não foi confirmada. O
+                  Cliente, o consignatário e o CNPJ gravados ficaram; os demais campos foram aplicados.
+                </p>
+              ) : null}
+              {outcome.changes.length ? (
+                <>
+                  <p>Mudanças aplicadas por B/L:</p>
+                  <ul className="app-import-notice__list">
+                    {outcome.changes.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </>
+              ) : null}
+              {outcome.vehicleIssues.length ? (
+                <>
+                  <p>Veículos que não mudaram:</p>
+                  <ul className="app-import-notice__list">
+                    {outcome.vehicleIssues.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </>
+              ) : null}
+              {outcome.calculationErrors.length ? (
+                <>
+                  <p>Ficaram sem cálculo automático de taxas locais; recalcule na ficha do B/L:</p>
+                  <ul className="app-import-notice__list">
+                    {outcome.calculationErrors.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </>
+              ) : null}
+            </ImportNotice>
+          </ImportSection>
         ) : null}
 
         <div className="app-modal__actions">
-          {/* No rodape fixo: a decisao fica a vista de quem confirma a importacao. */}
-          {billingOverrideCount > 0 && !outcome ? (
-            <label className="app-import-override basis-full">
-              <input
-                type="checkbox"
-                checked={billingOverrideRows.length > 0 && billingOverrideRows.every((row) => overrideBls.has(row.blNumber))}
-                onChange={(event) => setOverrideBls(event.target.checked ? new Set(billingOverrideRows.map((row) => row.blNumber)) : new Set())}
-              />
-              <span>
-                <span className="app-import-override__title">
-                  Confirmar faturamento nos {plural(billingOverrideCount, 'B/L', 'B/Ls')} com impacto ({overrideBls.size} marcado{overrideBls.size === 1 ? '' : 's'})
-                </span>
-                <span className="app-import-override__hint">
-                  Marque por B/L na tabela ou todos aqui. A fatura emitida segue a base nova (reemissão automática sem
-                  pagamento; com pagamento, restituição). Sem marcar, os demais campos são aplicados e as mudanças com
-                  impacto em faturamento ficam de fora.
-                </span>
-              </span>
-            </label>
-          ) : null}
-          <ImportFootnote tone={outcome ? (outcomePending ? 'warning' : 'success') : blockedAll || vehicleConfirmationMissing ? 'warning' : 'default'}>{footnote}</ImportFootnote>
+          <ImportFootnote tone={footnoteTone}>{footnote}</ImportFootnote>
           {outcome ? (
             <Button onClick={resetAndClose}>Concluir</Button>
           ) : (
@@ -459,7 +510,6 @@ export function BlImportModal({
                 loadingLabel="Importando…"
                 onClick={() => void handleConfirm()}
               >
-                <Upload size={16} aria-hidden="true" />
                 {importableCount > 0 ? `Importar ${plural(importableCount, 'B/L', 'B/Ls')}` : 'Importar B/Ls'}
               </Button>
             </>
@@ -470,114 +520,102 @@ export function BlImportModal({
   )
 }
 
-function BlImportPreview({
-  preview,
-  overrideBls,
-  onToggleOverride,
+/** Aceite do molde (`app-import-override`): decisão de campo, não de erro. */
+function OverrideCheckbox({
+  checked,
+  onChange,
+  title,
+  hint,
 }: {
-  preview: BlFreightImportPreview
-  /** null depois da confirmação: a decisão já foi enviada */
-  overrideBls: ReadonlySet<string> | null
-  onToggleOverride: (blNumber: string, checked: boolean) => void
+  checked: boolean
+  onChange: (checked: boolean) => void
+  title: ReactNode
+  hint: ReactNode
 }) {
+  return (
+    <label className="app-import-override">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <span>
+        <span className="app-import-override__title">{title}</span>
+        <span className="app-import-override__hint">{hint}</span>
+      </span>
+    </label>
+  )
+}
+
+const STATUS_LABEL: Record<BlFreightImportRow['status'], string> = {
+  new: 'Cria',
+  updated: 'Atualiza',
+  unchanged: 'Sem mudança',
+  blocked: 'Erro',
+}
+
+/** Situação em texto (regra 5): vermelho para erro, âmbar quando a mudança pede decisão. */
+function statusTone(row: BlFreightImportRow) {
+  if (row.status === 'blocked') return 'app-import-tone--danger'
+  const needsDecision = row.requiresBillingOverride || row.customerChange || row.requiresVehicleConfirmation || row.removedContainers?.length
+  return row.status === 'updated' && needsDecision ? 'app-import-tone--warning' : undefined
+}
+
+function BlImportPreview({ preview }: { preview: BlFreightImportPreview }) {
   const { newCount, updatedCount, unchangedCount, blockedCount } = preview.summary
   return (
-    <section className="app-import-section" aria-label="Prévia da importação">
-      <div className="app-import-section__head">
-        <h3 className="app-import-section__title">Prévia</h3>
+    <ImportSection
+      title="Prévia"
+      aside={
         <SummaryStrip
           label="O que a importação faz"
           items={[
             { label: newCount === 1 ? 'novo' : 'novos', value: newCount },
             { label: updatedCount === 1 ? 'atualizado' : 'atualizados', value: updatedCount },
             { label: 'sem mudança', value: unchangedCount },
-            { label: blockedCount === 1 ? 'bloqueado' : 'bloqueados', value: blockedCount, tone: blockedCount ? 'danger' : 'default' },
+            { label: 'com erro', value: blockedCount, tone: blockedCount ? 'danger' : 'default' },
           ]}
         />
-      </div>
-
-      {/* Plain app-table-scroll (horizontal only): the modal body is already the
-          scroll container (.app-modal__body, overflow-y: auto) with a sticky
-          actions bar pinned to its bottom. Giving the table its own bounded
-          vertical scroll region (app-table-scroll--sticky) nests a second
-          independent scrollbar inside that one, and its sticky header/footer
-          fight the outer sticky actions bar, breaking scrolling and clipping
-          rows behind the buttons. */}
-      <div className="app-table-scroll rounded-[var(--app-radius)] border border-[var(--app-border)]">
-        <table className="app-table app-table--compact min-w-[880px]">
+      }
+    >
+      <div className="app-table-scroll app-import-table">
+        <table className="app-table app-table--compact min-w-[760px]">
+          <caption className="sr-only">B/Ls do arquivo e o que a importação faz com cada um</caption>
           <thead>
             <tr>
+              <th scope="col" className="app-import-num">Linha</th>
               <th scope="col">B/L</th>
               <th scope="col">Situação</th>
               <th scope="col">Viagem</th>
               <th scope="col">POL → POD</th>
-              <th scope="col">Laden on Board</th>
+              <th scope="col">Embarque</th>
               <th scope="col" className="app-table__text-head">Diferenças</th>
-              <th scope="col" className="app-table__text-head">Bloqueios e faturamento</th>
             </tr>
           </thead>
           <tbody>
-            {preview.rows.map((row) => (
+            {preview.rows.map((row, index) => (
               <tr key={row.blNumber}>
-                <td className="app-import-code font-semibold text-[var(--app-text-strong)]">{row.blNumber}</td>
-                <td>
-                  <StatusPill status={row.status} />
-                </td>
+                <td className="app-import-num">{index + 1}</td>
+                <td className="app-import-code">{row.blNumber}</td>
+                <td className={statusTone(row)}>{STATUS_LABEL[row.status]}</td>
                 <td>{row.voyageNumber ?? <NoValue label="Sem viagem" />}</td>
                 <td>{row.pol || row.pod ? `${row.pol ?? '—'} → ${row.pod ?? '—'}` : <NoValue label="Sem trecho" />}</td>
-                <td className="tabular-nums">{row.ladenOnBoard ?? <NoValue label="Sem Laden on Board" />}</td>
+                <td className="tabular-nums">{row.ladenOnBoard ?? <NoValue label="Sem data de embarque" />}</td>
                 <td>
                   <DiffList row={row} />
-                </td>
-                <td>
-                  {row.blockedReasons.length || row.billingImpacts.length || row.warnings?.length || row.removedContainers?.length ? (
-                    <ul className="app-table__cell-stack grid gap-1">
-                      {row.blockedReasons.map((reason) => (
-                        <li key={reason} className="app-import-tone--danger">{reason}</li>
-                      ))}
-                      {/* Linha bloqueada não grava nada: nenhum contêiner sai. */}
-                      {row.removedContainers?.length && row.payload ? (
-                        <li className="app-import-tone--warning">Saem do B/L: {row.removedContainers.join(', ')}</li>
-                      ) : null}
-                      {row.warnings?.map((warning) => (
-                        <li key={warning} className="app-import-tone--warning">{warning}</li>
-                      ))}
-                      {row.billingImpacts.map((reason) => (
-                        <li key={reason} className="app-import-tone--warning">Faturamento: {reason}</li>
-                      ))}
-                      {row.requiresBillingOverride && row.payload && overrideBls ? (
-                        <li>
-                          <label className="inline-flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={overrideBls.has(row.blNumber)}
-                              onChange={(event) => onToggleOverride(row.blNumber, event.target.checked)}
-                            />
-                            <span>Confirmar faturamento deste B/L</span>
-                          </label>
-                        </li>
-                      ) : null}
-                    </ul>
-                  ) : (
-                    <NoValue label="Sem bloqueios" />
-                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </section>
+    </ImportSection>
   )
 }
 
 /**
- * O aviso que o operador le antes de aceitar: de quem para quem o B/L vai, o que
- * a fatura faz, e o que impede a troca quando ela nao pode ser automatica.
+ * O aviso que o operador lê antes de aceitar: de quem para quem o B/L vai, o que
+ * a fatura faz, e o que impede a troca quando ela não pode ser automática.
  */
 function CustomerChangeCard({ blNumber, change }: { blNumber: string; change: BlCustomerChange }) {
   return (
-    <ImportNotice tone={change.blockedReasons.length ? 'danger' : 'warning'} title={<span className="app-import-code">{blNumber}</span>}>
+    <ImportNotice tone="warning" title={<span className="app-import-code">{blNumber}</span>}>
       <ul className="app-import-notice__list">
         {change.messages.map((message) => (
           <li key={message}>{message}</li>
@@ -599,35 +637,16 @@ function DiffList({ row }: { row: BlFreightImportRow }) {
   }
 
   return (
-    <ul className="app-table__cell-stack grid gap-1">
+    <ul className="app-table__cell-stack app-import-diff">
       {row.diffs.map((diff) => (
         <li key={`${row.blNumber}-${diff.field}`} className={diff.billingImpact ? 'app-import-tone--warning' : undefined}>
-          <span className="font-semibold">{diff.label}</span>:{' '}
+          <span>{diff.label}</span>:{' '}
           <span className="app-import-diff__old">{formatDiffValue(diff.from, 'Vazio antes')}</span>{' → '}<span>{formatDiffValue(diff.to, 'Vazio depois')}</span>
           {diff.billingImpact ? <span> (faturamento)</span> : null}
         </li>
       ))}
     </ul>
   )
-}
-
-function StatusPill({ status }: { status: BlFreightImportRow['status'] }) {
-  const labels: Record<BlFreightImportRow['status'], string> = {
-    new: 'Novo',
-    updated: 'Atualizado',
-    unchanged: 'Sem mudança',
-    blocked: 'Bloqueado',
-  }
-  // Bloqueado é perigo (não entra), não atenção.
-  const tone: SemanticBadgeTone = status === 'blocked'
-    ? 'danger'
-    : status === 'new'
-      ? 'success'
-      : status === 'updated'
-        ? 'info'
-        : 'neutral'
-
-  return <Badge tone={tone}>{labels[status]}</Badge>
 }
 
 function formatDiffValue(value: string | number | null, emptyLabel: string) {

@@ -25,6 +25,13 @@ vi.mock('../../../services/blParser', () => ({ parseBLFile: mocks.parseBLFile })
 vi.mock('../../../services/blFreightImport', () => ({
   previewBlFreightImport: mocks.previewBlFreightImport,
   confirmBlFreightImport: mocks.confirmBlFreightImport,
+  BlFreightImportRefused: class BlFreightImportRefused extends Error {
+    readonly refused: string[]
+    constructor(message: string, refused: string[] = []) {
+      super(message)
+      this.refused = refused
+    }
+  },
 }))
 vi.mock('../../../services/cacheEffects', () => ({
   afterManifestoImportado: mocks.afterManifestoImportado,
@@ -257,7 +264,7 @@ it('confirma importacao, usa o efeito central de manifesto e fecha modal', async
 
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
   expect(mocks.invalidateQueries).not.toHaveBeenCalled()
-  expect(mocks.showToast).toHaveBeenCalledWith('Importação de B/L concluída: 2 B/L(s), 0 bloqueado(s).', 'success')
+  expect(mocks.showToast).toHaveBeenCalledWith('Importação de B/L concluída: 2 B/Ls gravados.', 'success')
   expect(onClose).toHaveBeenCalled()
 })
 
@@ -278,7 +285,7 @@ it('confia na transação do servidor para persistir ATD junto com o import', as
   await waitFor(() => expect(onClose).toHaveBeenCalled())
   expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('ATD do POL não pôde ser atualizado'), 'info')
   expect(mocks.afterManifestoImportado).toHaveBeenCalledWith(expect.anything(), { voyageId: 7 })
-  expect(mocks.showToast).toHaveBeenCalledWith('Importação de B/L concluída: 2 B/L(s), 0 bloqueado(s).', 'success')
+  expect(mocks.showToast).toHaveBeenCalledWith('Importação de B/L concluída: 2 B/Ls gravados.', 'success')
 })
 
 it('exibe impacto de faturamento e envia override quando o operador marca', async () => {
@@ -306,12 +313,12 @@ it('exibe impacto de faturamento e envia override quando o operador marca', asyn
     target: { files: [new File(['x'], 'bl.xlsx')] },
   })
 
-  await screen.findByText('Faturamento: Quantidade de containers: 1 -> 2')
-  // A confirmação é por B/L, na linha da prévia (ADR 0078, item 17); o rodapé
-  // fixo marca todos de uma vez.
-  expect(screen.getByLabelText('Confirmar faturamento deste B/L')).toBeTruthy()
-  const checkbox = container.querySelector('.app-modal__actions input[type="checkbox"]') as HTMLInputElement
-  expect(checkbox).toBeTruthy()
+  await screen.findByText('Quantidade de containers: 1 -> 2')
+  // A confirmação é por B/L (ADR 0078, item 17), no aceite do molde, fora da
+  // tabela; com um B/L só não há o "marcar todos".
+  const checkbox = screen.getByLabelText(/Confirmar o faturamento do B\/L COSU777/) as HTMLInputElement
+  expect(checkbox.closest('.app-import-override')).toBeTruthy()
+  expect(container.querySelector('table input[type="checkbox"]')).toBeNull()
   // Com dezenas de arquivos, a lista de nomes so poluia o modal.
   expect(screen.queryByText(/arquivo\(s\) selecionado\(s\)/)).toBeNull()
   fireEvent.click(checkbox)
@@ -402,7 +409,7 @@ it('nao diz "concluida" quando o servidor recusa a troca de cliente', async () =
 
   await waitFor(() =>
     expect(mocks.showToast).toHaveBeenCalledWith(
-      expect.stringContaining('troca de cliente foi recusada em 1 B/L(s): COSU888 (Fatura INV-001 ja tem pagamento registrado.)'),
+      expect.stringContaining('troca de cliente foi recusada em 1 B/L: COSU888 (Fatura INV-001 ja tem pagamento registrado.)'),
       'error',
     ),
   )
@@ -437,7 +444,7 @@ it('informa B/Ls cujo calculo automatico falhou sem esconder a importacao', asyn
 
   await waitFor(() =>
     expect(mocks.showToast).toHaveBeenCalledWith(
-      expect.stringContaining('1 B/L(s) ficaram sem cálculo automático: COSU777 (Nenhuma tabela vigente.)'),
+      expect.stringContaining('1 B/L ficou sem cálculo automático: COSU777 (Nenhuma tabela vigente.)'),
       'error',
     ),
   )
@@ -490,7 +497,7 @@ it('mostra o impedimento quando a fatura nao pode acompanhar a troca de cliente'
         toDocument: '98765432000110',
         targetMissing: true,
         invoices: [],
-        blockedReasons: ['Cliente do novo consignatario nao esta cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.'],
+        blockedReasons: ['Cliente do novo consignatário não está cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.'],
         messages: ['Cliente do B/L: IMPORTADOR LTDA -> NOVO IMPORTADOR LTDA'],
       },
       requiresCustomerConfirmation: false,
@@ -507,7 +514,7 @@ it('mostra o impedimento quando a fatura nao pode acompanhar a troca de cliente'
     target: { files: [new File(['x'], 'bl.xlsx')] },
   })
 
-  await screen.findByText(/Impedimento: Cliente do novo consignatario nao esta cadastrado/)
+  await screen.findByText(/Impedimento: Cliente do novo consignatário não está cadastrado/)
   expect(container.querySelector('input[type="checkbox"]')).toBeNull()
 })
 
@@ -535,8 +542,8 @@ it('mostra o resultado por B/L quando a gravação muda contêineres, mesmo sem 
   await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(confirm)
 
-  await screen.findByText('COSU456 — contêineres: 1 entrou(aram)')
-  expect(screen.getByText('2 B/Ls gravados')).toBeTruthy()
+  await screen.findByText('COSU456 — 1 container entrou')
+  expect(screen.getAllByText('2 B/Ls gravados').length).toBeGreaterThan(0)
   expect(screen.queryByText(/com pendências/)).toBeNull()
   expect(mocks.showToast).toHaveBeenCalledWith('Importação gravada; confira o resultado por B/L.', 'success')
   expect(onClose).not.toHaveBeenCalled()
@@ -573,4 +580,56 @@ it('exige a confirmação de veículos quando um container sai do B/L levando os
   fireEvent.click(confirm)
 
   await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithVehicleExit, 'user-1', new Set(), 'bl.xlsx', false, true))
+})
+
+// ADR 0091: B/L com erro recusa o arquivo inteiro; os liberados não gravam sozinhos.
+it('um B/L bloqueado impede os outros: erro no painel comum e Importar desligado', async () => {
+  mocks.parseBLFile
+    .mockResolvedValueOnce(parsedDoc('COSU123'))
+    .mockResolvedValueOnce(parsedDoc('COSU999'))
+  mocks.previewBlFreightImport.mockResolvedValue({
+    rows: [
+      previewWithDiff.rows[0],
+      { ...previewWithDiff.rows[1], blNumber: 'COSU999', status: 'blocked', blockedReasons: ['Arquivo é da viagem X / 1, mas você apontou GREEN / 14N.'], diffs: [], payload: null },
+    ],
+    summary: { ...previewWithDiff.summary, updatedCount: 0, blockedCount: 1 },
+  })
+  const { container } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['a'], 'bl-1.xlsx'), new File(['b'], 'bl-2.xlsx')] },
+  })
+
+  await screen.findByText('Arquivo é da viagem X / 1, mas você apontou GREEN / 14N.')
+  expect(screen.getByText('1 erro impede a importação')).toBeTruthy()
+  expect(container.querySelector('tbody .app-import-tone--danger')?.textContent).toBe('Erro')
+  expect(screen.getByText(/Com erro no arquivo, nada é importado/)).toBeTruthy()
+  const confirm = screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement
+  expect(confirm.disabled).toBe(true)
+  expect(confirm.textContent).toMatch(/^Importar B\/Ls/)
+  fireEvent.click(confirm)
+  expect(mocks.confirmBlFreightImport).not.toHaveBeenCalled()
+})
+
+it('recusa na gravação diz que nada foi gravado e lista o que o banco recusou', async () => {
+  const { BlFreightImportRefused } = await import('../../../services/blFreightImport')
+  mocks.parseBLFile.mockResolvedValue(parsedDoc('COSU123'))
+  mocks.previewBlFreightImport.mockResolvedValue(previewWithDiff)
+  mocks.confirmBlFreightImport.mockRejectedValue(new BlFreightImportRefused(
+    'Nada foi gravado: o banco recusou veículos da aba VIN. Corrija o arquivo e escolha de novo.',
+    ['COSU456 — VIN VIN1: Chassi ja esta no B/L COSU9'],
+  ))
+  const { container, onClose } = renderModal({ voyageId: 7, voyageLabel: 'GREEN / 14N' })
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'bl.xlsx')] },
+  })
+  const confirm = await screen.findByRole('button', { name: /^Importar/ })
+  await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(confirm)
+
+  expect(await screen.findByText(/^Nada foi gravado: o banco recusou veículos da aba VIN/)).toBeTruthy()
+  expect(screen.getByText('COSU456 — VIN VIN1: Chassi ja esta no B/L COSU9')).toBeTruthy()
+  expect(mocks.afterManifestoImportado).not.toHaveBeenCalled()
+  expect(onClose).not.toHaveBeenCalled()
 })
