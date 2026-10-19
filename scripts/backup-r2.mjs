@@ -15,6 +15,7 @@ const IV_BYTES = 12
 const AUTH_TAG_BYTES = 16
 const HEADER_BYTES = MAGIC.length + 1 + IV_BYTES
 const DEFAULT_OUTPUT_DIR = path.join(os.tmpdir(), 'vela-r2-backups')
+const RUN_LOG_NAME = 'backup-r2.log'
 
 function requiredValue(name, value) {
   if (!value) throw new Error(`${name} is obrigatoria para --execute.`)
@@ -171,10 +172,16 @@ function waitForClose(child, label) {
   })
 }
 
+// Guarda o fim do stderr do processo filho para explicar a falha numa linha.
+// pg_dump, pg_restore e aws não imprimem senha, chave ou credencial no stderr.
 function drain(stream) {
   let tail = ''
   if (stream) stream.on('data', (chunk) => { tail = (tail + chunk).slice(-500) })
-  return () => tail.trim()
+  return () => tail.replace(/\s+/g, ' ').trim()
+}
+
+function withReason(message, reason) {
+  return reason ? `${message}: ${reason}` : message
 }
 
 async function encryptPgDump({ destination, databaseEnv, key }) {
@@ -200,12 +207,12 @@ async function encryptPgDump({ destination, databaseEnv, key }) {
   } catch (error) {
     pgDump.kill()
     await closing.catch(() => {})
-    throw new Error(`pg_dump falhou durante a cifragem (${error.message}).`)
+    throw new Error(withReason(`pg_dump falhou durante a cifragem (${error.message})`, pgDumpStderr()))
   }
 
   const result = await closing
   // pg_dump nao imprime a senha (vem de PGPASSWORD); o stderr so diz o motivo.
-  if (result.code !== 0) throw new Error(`pg_dump terminou com codigo ${result.code ?? 'desconhecido'}: ${pgDumpStderr()}`)
+  if (result.code !== 0) throw new Error(withReason(`pg_dump terminou com codigo ${result.code ?? 'desconhecido'}`, pgDumpStderr()))
   await appendFile(destination, cipher.getAuthTag())
 }
 
@@ -243,6 +250,10 @@ function requireFileSize(filePath) {
   }
 }
 
+// Escrita num stdin que o pg_restore já fechou. No Windows o mesmo fechamento
+// chega como EPIPE ou como EOF ("write EOF"), conforme o estado do pipe.
+const PIPE_CLOSED_CODES = new Set(['EPIPE', 'EOF'])
+
 async function consumeArchive(input, decipher, restoreInput) {
   // pg_restore --list pode fechar stdin ao terminar o catálogo. Continue lendo
   // o dump inteiro para autenticar também os dados com AES-GCM.
@@ -250,7 +261,7 @@ async function consumeArchive(input, decipher, restoreInput) {
   await pipeline(input, decipher, new Writable({
     write(chunk, _encoding, callback) {
       if (restoreInput.destroyed) return callback()
-      restoreInput.write(chunk, (error) => callback(error?.code === 'EPIPE' ? null : error))
+      restoreInput.write(chunk, (error) => callback(PIPE_CLOSED_CODES.has(error?.code) ? null : error))
     },
   }))
   restoreInput.end()
@@ -264,17 +275,17 @@ async function verifyArchive(filePath, key) {
   const restore = spawn(process.env.PG_RESTORE_BIN ?? 'pg_restore', ['--list', '--exit-on-error'], {
     stdio: ['pipe', 'ignore', 'pipe'],
   })
-  drain(restore.stderr)
+  const restoreStderr = drain(restore.stderr)
   const closing = waitForClose(restore, 'pg_restore')
   try {
     await consumeArchive(input, decipher, restore.stdin)
   } catch (error) {
     restore.kill()
     await closing.catch(() => {})
-    throw new Error(`validacao pg_restore --list falhou (${error.message}).`)
+    throw new Error(withReason(`validacao pg_restore --list falhou (${error.message})`, restoreStderr()))
   }
   const result = await closing
-  if (result.code !== 0) throw new Error(`pg_restore --list terminou com codigo ${result.code ?? 'desconhecido'}.`)
+  if (result.code !== 0) throw new Error(withReason(`pg_restore --list terminou com codigo ${result.code ?? 'desconhecido'}`, restoreStderr()))
 }
 
 async function sha256File(filePath) {
@@ -330,9 +341,9 @@ async function uploadToR2({ filePath, objectKey, config, contentType }) {
   ]
   if (contentType) cliArgs.push('--content-type', contentType)
   const aws = spawn(process.env.AWS_BIN ?? 'aws', cliArgs, { env, stdio: ['ignore', 'ignore', 'pipe'] })
-  drain(aws.stderr)
+  const awsStderr = drain(aws.stderr)
   const result = await waitForClose(aws, 'aws')
-  if (result.code !== 0) throw new Error(`upload R2 falhou com codigo ${result.code ?? 'desconhecido'}.`)
+  if (result.code !== 0) throw new Error(withReason(`upload R2 falhou com codigo ${result.code ?? 'desconhecido'}`, awsStderr()))
 }
 
 async function executeBackup(args) {
@@ -376,6 +387,7 @@ async function executeBackup(args) {
     await uploadToR2({ filePath: encryptedPath, objectKey: names.dumpKey, config: r2 })
     await uploadToR2({ filePath: manifestPath, objectKey: names.manifestKey, config: r2, contentType: 'application/json' })
     console.log(`upload concluido no prefixo R2: ${args.prefix}/${args.environment}/${args.projectRef}/`)
+    return names.dumpKey
   } finally {
     await unlink(partPath).catch(() => {})
   }
@@ -418,17 +430,34 @@ async function pingHeartbeat(ok, fetchImpl = globalThis.fetch) {
   }
 }
 
+// A tarefa agendada descarta o que o script imprime; este arquivo, ao lado dos
+// dumps, guarda uma linha por execução com o resultado e o motivo da falha.
+// ponytail: cresce uma linha por dia e nunca é podado; se incomodar, rotacione
+// por tamanho aqui.
+async function appendRunLog(outputDir, line) {
+  try {
+    const dir = path.resolve(outputDir)
+    await mkdir(dir, { recursive: true })
+    await appendFile(path.join(dir, RUN_LOG_NAME), `${new Date().toISOString()} ${line}\n`)
+  } catch (error) {
+    console.error(`backup-r2: registro da execucao nao gravado (${error.message}).`)
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv)
   if (args.help) return printHelp()
   if (args.mode === 'dry-run') return console.log(JSON.stringify(planFor(args), null, 2))
   if (args.mode === 'verify') return verifyOnly(args)
+  let dumpKey
   try {
-    await executeBackup(args)
+    dumpKey = await executeBackup(args)
   } catch (error) {
+    await appendRunLog(args.outputDir, `falha: ${error.message}`)
     await pingHeartbeat(false)
     throw error
   }
+  await appendRunLog(args.outputDir, `ok: ${dumpKey}`)
   await pingHeartbeat(true)
 }
 
@@ -440,4 +469,4 @@ if (isMain) {
   })
 }
 
-export { buildObjectNames, consumeArchive, heartbeatUrl, parseArgs, parseDatabaseUrl, parseEncryptionKey, pingHeartbeat, planFor }
+export { buildObjectNames, consumeArchive, heartbeatUrl, parseArgs, parseDatabaseUrl, parseEncryptionKey, pingHeartbeat, planFor, verifyArchive }

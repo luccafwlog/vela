@@ -4,7 +4,7 @@ import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block } from '../components/ui/Block'
 import { MetricCard } from '../components/ui/MetricCard'
 import { NoValue } from '../components/ui/NoValue'
-import { ShipScheduleWidget } from '../components/portal/ShipScheduleWidget'
+import { ScheduleWidthPage, ShipScheduleWidget } from '../components/portal/ShipScheduleWidget'
 import { usePortalInvoices, usePortalDemurrageInvoices } from '../hooks/usePortalBilling'
 import { usePortalOperationBls } from '../hooks/usePortalOperation'
 import { countContainersInDemurrage, countContainersWithoutReturn } from '../lib/portalOperationViews'
@@ -59,7 +59,7 @@ export function PortalDashboard() {
   const operationLoadError = Boolean(operationError)
 
   return (
-    <>
+    <ScheduleWidthPage>
       <PageHeader title="Painel" />
 
       {loading ? (
@@ -111,7 +111,7 @@ export function PortalDashboard() {
           ))}
         </nav>
       </Block>
-    </>
+    </ScheduleWidthPage>
   )
 }
 

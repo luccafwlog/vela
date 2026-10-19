@@ -6677,6 +6677,7 @@ a.app-step-rail__link:focus-visible {
 .app-schedule .app-table th,
 .app-schedule .app-table td {
   white-space: nowrap;
+  padding-inline: 14px;
 }
 
 .app-schedule-date {

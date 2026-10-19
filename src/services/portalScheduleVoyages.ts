@@ -87,7 +87,7 @@ export async function fetchPortalScheduleVoyages(scope: PortalScope = clientPort
 
 // `/chegadas-saidas` lê a mesma projeção com a sessão interna. O cliente do
 // Portal não tem login no Vela e chamaria como `anon`, sem EXECUTE desde a
-// migration 319 (ADR 0090).
+// migration 320 (ADR 0090).
 export async function fetchInternalScheduleVoyages(): Promise<PortalScheduleVoyage[]> {
   const { data, error } = await supabase.rpc('portal_ship_schedule')
   if (error) throw error

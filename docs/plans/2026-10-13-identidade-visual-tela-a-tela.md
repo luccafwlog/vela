@@ -204,6 +204,18 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   depois da regra base, com teste de contrato em
   `src/__tests__/designSystemLote2.test.ts`; conferida no Painel do Portal a
   360 e 1440 px no ambiente local.
+  **Programação de navios sem sobra em 2026-10-19**, a pedido do
+  responsável (colunas espaçadas demais no Vela e no Portal, em qualquer
+  largura): Chegadas e Saídas e o Painel do Portal ficam da largura da
+  tabela, centralizados (`ScheduleWidthPage` em
+  `src/components/portal/ShipScheduleWidget.tsx`); com mais portos a página
+  alarga até a tela e daí a tabela rola. Só essas duas páginas; o resto do
+  Vela e do Portal segue largo. Recusadas pelo responsável: a sobra no fim da
+  linha e o bloco estreito com a página larga. "Ver no mapa" virou só o
+  ícone de alfinete na tabela, com o nome no `title`; no cartão do celular
+  fica o ícone com o texto. Conferida numa página local com
+  dados fictícios, com 6 e 8 portos, a 1920, 1280 e 390 px; não capturada nas
+  telas reais.
 - **Lote 4 aprovado e entregue em 2026-10-18** (branch
   `claude/laughing-meitner-3rfy0l`, PR 972, junto com a correção do celular).
   O responsável aprovou todas as telas em três rodadas de comentários na

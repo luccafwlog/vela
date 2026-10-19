@@ -1,7 +1,7 @@
 # 0090 — A programação de navios do Portal só com sessão; nenhuma função para `anon`
 
 Status: aceito — 2026-10-19 (pedido do responsável a partir do advisor de
-segurança do Supabase de 19/10/2026). Implementada na migration `319`, com a
+segurança do Supabase de 19/10/2026). Implementada na migration `320`, com a
 suíte `src/integration/advisorFuncoesFechadas.local-pg.test.ts`.
 
 Supersede parcialmente a [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md)
@@ -53,6 +53,10 @@ contra abuso e teste focado ([WORKFLOW.md](../../WORKFLOW.md#segurança)).
 
 - Uma página pública futura com a programação precisa de outro caminho (Edge
   Function com `service_role` ou nova decisão); hoje nenhuma existe.
+- A função continua sem guarda de Cliente: toda sessão do Portal, de qualquer
+  Cliente, e toda sessão interna lê a mesma programação. A trava da ADR 0047
+  continua: nenhum campo de cliente, fatura, B/L, container ou contato entra
+  na projeção sem nova decisão.
 - O advisor de segurança deixa de listar `anon_security_definer_function_executable`.
 - O drift de produção em grants só aparece no advisor ou numa consulta ao
   catálogo remoto; o replay local prova o estado da cadeia, não o do projeto.

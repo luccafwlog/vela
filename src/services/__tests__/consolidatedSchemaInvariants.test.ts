@@ -93,7 +93,7 @@ describe('schema consolidado v1.0 (arquivos realmente aplicados)', () => {
       }
     }
     // A vitrine pública portal_ship_schedule (ADR 0047) fechou na migration
-    // 319: não resta função pré-autenticação.
+    // 320: não resta função pré-autenticação.
     expect([...anonAberto]).toEqual([])
     expect(concessoesPublic).toEqual([])
   })

@@ -1,4 +1,4 @@
--- 319: achados do advisor do Supabase de 19/10/2026 (projeto fgmkhbzhaeebrsizwccx).
+-- 320: achados do advisor do Supabase de 19/10/2026 (projeto fgmkhbzhaeebrsizwccx).
 --
 -- Problema:
 --   1. Onze funções SECURITY DEFINER executáveis por `anon` via

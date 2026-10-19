@@ -698,9 +698,11 @@ fica o desenho:
   nasce fechada e o acesso é concedido caso a caso na própria migration
   ([ADR 0047](adr/0047-grants-de-funcao-fechados-por-padrao.md)). Não há
   exceção pré-autenticação: `portal_ship_schedule()` deixou de ser executável
-  por `anon` na migration `319` ([ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)),
-  e a exceção `anon` da ADR 0013 (`portal_resolve_login`) foi encerrada pela
-  migration arquivada `182`;
+  por `anon` na migration `320` ([ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)).
+  Ela continua sem guarda de Cliente (toda sessão, de qualquer Cliente, lê a
+  mesma programação), então nenhum campo de cliente, fatura, B/L, container ou
+  contato pode entrar nela sem revisar a ADR 0090. A exceção `anon` da ADR
+  0013 (`portal_resolve_login`) foi encerrada pela migration arquivada `182`;
 - a emissão segue a trava do Portal, sem exceção para a automação pelo CE
   ([Revisão e auto-faturamento](#revisão-e-auto-faturamento)); a liberação
   documental para leitura no Portal é outro gate
