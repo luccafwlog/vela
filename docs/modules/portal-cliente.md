@@ -124,7 +124,7 @@ tem outra tela de troca de senha.
 
 ### `/portal/perfil`
 
-`src/pages/PortalProfile.tsx` carrega email de contato, telefone e endereço via RPC, mantém os campos em estado local e salva somente o conjunto permitido. Desde o lote 4 da identidade (2026-10-18), a página tem três blocos com um botão principal cada: **Quem recebe os comunicados** (um sub-bloco por contato, com "contato principal" no título, caixas de recebimento em linha, "Desativar contato"/"Reativar contato"/"Tornar principal" como botões e a faixa "Salvar contatos" no pé, apagada até haver alteração), **Endereço da empresa** ("Salvar endereço" no pé, apagado até haver alteração) e **E-mail de recuperação** (o e-mail atual como dado, Senha atual sem texto de exemplo, Novo e-mail, Confirmar novo e-mail e "Trocar e-mail de recuperação"). O e-mail atual vem de `portal_get_profile` só na sessão do Cliente (migration `300`); a Inspeção não o recebe, porque no Vela esse dado é restrito a alguns perfis, e o bloco começa pela senha. O E-mail de recuperação recebe só convites e links de redefinição. Os erros ficam próximos aos campos; no Modo Inspeção os campos ficam desativados e um aviso explica o motivo. No Portal, o contato principal sem vínculos começa com as três caixas marcadas; vínculos ausentes sem outro destinatário elegível são repostos no rascunho, enquanto delegações já salvas com cobertura são preservadas. Só é possível desmarcar uma caixa do principal quando outro contato ativo, com e-mail e sem bloqueio de entrega, cobre aquela caixa. A gravação continua dependendo de Salvar contatos; o Modo Inspeção exibe os vínculos armazenados sem normalizar o rascunho. `NotificationBell`, em `PortalLayout`, fica disponível em todas as rotas protegidas: painel não modal com Escape devolvendo o foco ao sino, estado de erro com Tentar novamente e não lida indicada também em texto. O `PortalLayout` é uma barra única de 56 px com marca, navegação, sino, Cliente e Sair; o atalho de perfil por ícone saiu porque repetia o item Perfil, e no Modo Inspeção o Sair do shell não aparece porque a faixa do wrapper já oferece "Sair da inspeção".
+`src/pages/PortalProfile.tsx` carrega email de contato, telefone e endereço via RPC, mantém os campos em estado local e salva somente o conjunto permitido. Desde o lote 4 da identidade (2026-10-18), a página tem três blocos com um botão principal cada: **Quem recebe os comunicados** (um sub-bloco por contato, com "contato principal" no título, caixas de recebimento em linha, "Desativar contato"/"Reativar contato"/"Tornar principal" como botões e a faixa "Salvar contatos" no pé, apagada até haver alteração), **Endereço da empresa** ("Salvar endereço" no pé, apagado até haver alteração) e **E-mail de recuperação** (o e-mail atual como dado, Senha atual sem texto de exemplo, Novo e-mail, Confirmar novo e-mail e "Trocar e-mail de recuperação"). O e-mail atual vem de `portal_get_profile` só na sessão do Cliente (migration `300`); a Inspeção não o recebe, porque no Vela esse dado é restrito a alguns perfis, e o bloco começa pela senha. O E-mail de recuperação recebe só convites e links de redefinição. Os erros ficam próximos aos campos; no Modo Inspeção os campos ficam desativados e um aviso explica o motivo. No Portal, o contato principal sem vínculos começa com as três caixas marcadas; vínculos ausentes sem outro destinatário elegível são repostos no rascunho, enquanto delegações já salvas com cobertura são preservadas. Só é possível desmarcar uma caixa do principal quando outro contato ativo, com e-mail e sem bloqueio de entrega, cobre aquela caixa. A gravação continua dependendo de Salvar contatos; o Modo Inspeção exibe os vínculos armazenados sem normalizar o rascunho. `NotificationBell`, em `PortalLayout`, fica disponível em todas as rotas protegidas: painel não modal com Escape devolvendo o foco ao sino, estado de erro com Tentar novamente e não lida indicada também em texto. O `PortalLayout` é uma barra única de 56 px com marca, navegação, sino, Cliente e Sair; o atalho de perfil por ícone saiu porque repetia o item Perfil, e no Modo Inspeção o Sair do shell não aparece porque a faixa do wrapper já oferece a saída.
 
 ### Provisionamento operacional
 
@@ -132,21 +132,31 @@ tem outra tela de troca de senha.
 
 A página **Provisionamento do Portal** (Clientes › Provisionamento do Portal),
 aberta pelo cabeçalho de Clientes, é a fila de análise, convites e situações do
-Portal. A tabela mostra Cliente, Situação, Decisão, Email de Recuperação,
-Alertas e Próxima ação. Os filtros são Todos, Pendências críticas, Aguardando
-análise (filtro inicial), Sem email, Ativação pendente, Convites expirados,
-Falhas de envio e Contas ativas, cada um com a contagem; há também busca por
-razão social ou CNPJ. A ordem segue a prioridade: alerta crítico, fatura
+Portal. Desde o lote 5a da identidade, seis cartões filtram a fila
+(Aguardando análise, o inicial; Sem e-mail; Ativação pendente; Convite
+expirado; Falha de envio; Contas ativas), cada um com a contagem; clicar no
+cartão marcado mostra todos. Há busca por razão social ou CNPJ e o filtro
+**Alerta** (`?alerta=critico`; o antigo `?filtro=criticas` cai nele). A tabela
+mostra Cliente, CNPJ, Conta, E-mail de recuperação (só o gravado), Alerta
+(**Crítico** só com alerta crítico ativo, migration `321`), Ação (o próximo
+passo, que abre a linha) e **Espiadinha** (o ícone de olho abre o Modo
+Inspeção em nova aba). A ordem segue a prioridade: alerta crítico, fatura
 aberta, processo ativo e atividade recente. Clicar na linha expande, na própria
 tabela, o painel **Revisão do Portal**; o filtro e o Cliente aberto ficam na URL
 (`?filtro=`, `?cliente={id}`), e um Cliente fora do filtro atual aparece com o
 botão **Voltar para a fila**. O cabeçalho tem **Informações do Portal** (leva a
-`/clientes/informacoes`) e **Exportar XLSX** (exporta as linhas do filtro e da
+`/clientes/informacoes`) e **Exportar** (exporta as linhas do filtro e da
 busca atuais). As ações estão no [catálogo](#provisionamento-e-ativação-do-convite).
 
-O painel mostra Situação, Decisão, Email atual, Origem, Entrega e a saúde do
-Email de Recuperação; os candidatos de email com finalidade e origem (clicar
-num candidato preenche o campo, sem gravar nada); o aviso "Este email também
+O painel tem os blocos **Conta do Portal** (situação, decisão, e-mail atual,
+origem, entrega e saúde do e-mail), a Liberação de faturamento sem Portal,
+**E-mail de recuperação e convite** (os contatos candidatos como escolha, com
+finalidade e origem, e **Outro e-mail**; escolher não grava nada) e
+**Histórico** em tabela (o que aconteceu e quem fez; a reparação automática da
+fila aparece como "Entrou na fila do Portal", por **Sistema**). **Ações
+administrativas** abre uma janela com as ações que valem para a conta
+(alterar CNPJ, suspender, reativar, liberar endereço, reabrir análise,
+revogar convite); o aviso "Este email também
 aparece em N outro(s) CNPJ(s). A análise manual continua obrigatória."; os
 botões de convite e troca; **Ações administrativas**; o cartão da Liberação de
 faturamento sem Portal; o **Histórico** (até 10 eventos); **Ver como o cliente
@@ -448,7 +458,7 @@ B/L cancelado depois de liberado continua listado em BLs e Containers, com o sel
 |---|---|---|---|---|---|---|---|
 | `/clientes/portal/inspecao/:customerId/*` — abrir | Usuário interno ativo e Cliente conhecido | `PortalReviewPanel` | `portal_open_inspection` → `PortalScope` → `PortalLayout` | `portal_inspection_events` append-only; overview sem `last_login_at` | Deduplicação de abertura; caches por Cliente no namespace `portal-*` | Gate `42501`, Cliente inválido ou overview indisponível | **Código:** ADR 0045; **Teste de contrato SQL:** guard, grants e abertura; **Integração em PostgreSQL local:** Saldo pendente igual ao do Cliente (`portalInspectionParity.local-pg.test.ts`, migration `225`) |
 | Inspeção — consultar Portal | Escopo em modo `inspect` | Páginas e hooks do Portal | `callPortalRpc` escolhe `supabase` + `portal_inspect_*` | Somente leitura pelos núcleos compartilhados | Chaves incluem `customerId`; `basePath` preserva sub-rotas | Falha da superfície correspondente | **Código:** plano da PR 529; **Teste de contrato SQL:** paridade estrutural |
-| Inspeção — navegar ou **Sair da inspeção** | Escopo em modo `inspect` | `PortalLayout`, dashboard e `NotificationBell` | Helper de `portalPath`; **Sair da inspeção** sempre volta ao console `/clientes/portal`, mesmo quando a inspeção foi aberta pela ficha (`?origem` só alimenta a auditoria) | Nenhuma; sino não marca leitura | Links não escapam para `/portal/*` | Destino inválido permanece no shell protegido | **Código:** ADR 0045; **Teste:** contenção da navegação |
+| Inspeção — navegar ou sair pela faixa | Escopo em modo `inspect` | `PortalLayout`, dashboard e `NotificationBell` | Helper de `portalPath`; a faixa (lote 5a, A5) mostra **Voltar ao Provisionamento**, **Voltar à ficha do Cliente** (aberta pela ficha, `?origem=ficha`) ou **Fechar inspeção** (aberta em nova aba pela Espiadinha, `?aba=nova`), por `inspectionExit` em `src/lib/portalInspectionExit.ts` | Nenhuma; sino não marca leitura | Links não escapam para `/portal/*` | Destino inválido permanece no shell protegido | **Código:** ADR 0045; **Teste:** contenção da navegação |
 | Inspeção — ação do cliente | Escopo em modo `inspect` | Disputa, perfil, consolidação e sino | UI desabilita; `callPortalRpc` recusa escrita | Nenhuma RPC de escrita de inspeção | Leitura e navegação continuam disponíveis | Tooltip de ação indisponível em Modo Inspeção | **Código:** ADR 0045; **Teste:** bloqueio de escrita |
 
 ##### Arquitetura núcleo + invólucro

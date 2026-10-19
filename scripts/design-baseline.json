@@ -90,9 +90,6 @@
       "caixa-alta": 1,
       "cor-tailwind": 4
     },
-    "src/pages/PortalInspection.tsx": {
-      "cor-tailwind": 5
-    },
     "src/pages/Relatorios.tsx": {
       "cor-tailwind": 7
     },

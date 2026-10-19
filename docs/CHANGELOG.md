@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Identidade visual, lote 5a (2026-10-19):** Painel com cartões por setor (agora também o
+  Administrativo) e Line-Up limpo; Alertas abre em Ativos, com Resolver e Dispensar em toda linha e
+  a mensagem sem repetir o registro (migration `321`, que também reescreveu os alertas abertos e faz
+  o Provisionamento marcar Crítico só com alerta crítico ativo); Regras sem código interno;
+  Provisionamento com seis cartões, coluna Espiadinha e ações administrativas numa janela;
+  Comunicação com abas de segundo nível e o envio real como chave (`Switch`); a faixa do Modo
+  Inspeção volta para onde a inspeção foi aberta.
 - **Advisor do Supabase de 19/10 (2026-10-19):** nenhuma função é executável antes do login:
   `portal_ship_schedule()` passou a exigir sessão, porque o Portal só a chama depois do login
   ([ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); dez funções de trigger que em
