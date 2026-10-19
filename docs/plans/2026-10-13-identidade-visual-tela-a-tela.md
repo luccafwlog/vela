@@ -323,7 +323,13 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   solta, ZPT, programação por planilha e extrato do Pix gravam em parte.
   O levantamento e três pontos para decisão (D1 B/L cancelado no arquivo,
   D2 passos depois da gravação, D3 linhas sem conteúdo) estão na rodada 2
-  da mesma página. Na implementação, a regra entra em
+  da mesma página, respondidos no mesmo dia como sugerido: B/L cancelado
+  no arquivo é aviso (não é tocado, o resto entra); falha técnica depois
+  da gravação (IMO/OOG e vazios do Baplie, emissão das faturas do CE
+  Mercante, cálculo das Taxas Locais) mantém a importação e o passo é
+  retomado; linhas sem conteúdo (ZPT sem CE ou situação, lançamentos
+  zerados ou negativos do extrato) são ignoradas com a contagem à vista, e
+  valor ilegível vira erro. Na implementação, a regra entra em
   [regras-de-negocio.md](../operations/regras-de-negocio.md) com uma ADR.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
@@ -560,7 +566,7 @@ lotes tratam só da organização de cada tela.
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Aprovado em 2026-10-18 (todas as telas, três rodadas) e entregue em 2026-10-18 na PR 972, branch `claude/laughing-meitner-3rfy0l`, com as migrations `298` a `301` |
 | 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto e aprovado em 2026-10-19 (página "Lote 5a da identidade", três rodadas); entregue em 2026-10-19, branch `claude/stoic-cannon-v7g39p` |
 | 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado em 2026-10-19; proposto depois do 5a |
-| 6a | Login, acesso e perfil (21); modais de importação (19) | Confirmado e dividido em 2026-10-19; proposto em 2026-10-19 (página "Lote 6a da identidade"); respostas de 2026-10-19 com a regra de importação com erro; rodada 2 aguarda D1 a D3 |
+| 6a | Login, acesso e perfil (21); modais de importação (19) | Confirmado e dividido em 2026-10-19; proposto em 2026-10-19 (página "Lote 6a da identidade"); respostas de 2026-10-19 com a regra de importação com erro; D1 a D3 decididos no mesmo dia |
 | 6b | E-mails do Vela e do Portal (22, acrescentados em 2026-10-19); itens de comportamento dos documentos impressos (20) | Confirmado em 2026-10-19; proposto depois do 6a |
 
 O lote 2 vem logo depois do 1 por ser onde a operação passa mais tempo; o 6
