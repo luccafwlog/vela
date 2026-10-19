@@ -10,11 +10,18 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // alvo Granito; cálculo e revisão do Granito perdem o EXECUTE de
 // `authenticated`.
 //
-// Namespace exclusivo: ids 99325xxx, B/Ls 'A325-*', usuário ...000000325001.
+// Migration 329 (decisão do responsável de 2026-10-19): as tarifas
+// (`granite_rates`) e o cálculo (`calculate_granite_bl_charges`) saem do banco;
+// os snapshots antigos de `granite_bl_charges` ficam, e a exclusão e a
+// reativação de cadastro seguem valendo para os outros cadastros.
+//
+// Namespace exclusivo: ids 99325xxx, B/Ls 'A325-*', usuário ...000000325001;
+// 329: B/L 'A329-*', usuário ...000000329001, tarifas e Local 'A329*'.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 const migrationPath = resolve(process.cwd(), 'supabase/migrations/325_granito_sem_cliente_e_sem_calculo.sql')
+const migration329Path = resolve(process.cwd(), 'supabase/migrations/329_granito_sem_tarifas_e_baixa_por_txid_fechada.sql')
 
 const userId = '00000000-0000-0000-0000-000000325001'
 const carrierId = 99325001
@@ -73,8 +80,24 @@ function importFile(bls: unknown[]) {
     ${bls.length}, 1000, '${userId}', '${JSON.stringify(bls)}'::jsonb, NULL);`)
 }
 
+// A 325 revoga o EXECUTE de `calculate_granite_bl_charges`, que a 329 apagou.
+// Para reaplicá-la sobre o banco atual, a função volta como casca vazia só
+// dentro da mesma transação, e sai no fim (num banco sem a 329, nada muda).
+const STUB_MARK = 'casca-a325-reaplicacao'
+const stubCalculate = `DO $stub$ BEGIN
+  IF to_regprocedure('public.calculate_granite_bl_charges(uuid,uuid)') IS NULL THEN
+    CREATE FUNCTION public.calculate_granite_bl_charges(uuid, uuid) RETURNS void
+      LANGUAGE sql SET search_path = '' AS $f$ SELECT NULL::void /* ${STUB_MARK} */ $f$;
+  END IF;
+END $stub$;`
+const dropStub = `DO $stub$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE oid = to_regprocedure('public.calculate_granite_bl_charges(uuid,uuid)') AND prosrc LIKE '%${STUB_MARK}%') THEN
+    DROP FUNCTION public.calculate_granite_bl_charges(uuid, uuid);
+  END IF;
+END $stub$;`
+
 function reapplyMigration() {
-  execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migrationPath], { encoding: 'utf8' })
+  execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-c', stubCalculate, '-f', migrationPath, '-c', dropStub], { encoding: 'utf8' })
 }
 
 describeLocal('Granito sem Cliente e sem cálculo de taxas (migration 325)', () => {
@@ -163,10 +186,107 @@ describeLocal('Granito sem Cliente e sem cálculo de taxas (migration 325)', () 
   })
 
   it('cálculo e revisão do Granito não são executáveis pela API', () => {
-    for (const fn of ['public.calculate_granite_bl_charges(uuid,uuid)', 'public.save_granite_bl_review(uuid,bigint,uuid)']) {
-      expect(psql(`SELECT has_function_privilege('authenticated', '${fn}', 'EXECUTE');`)).toBe('f')
-      expect(psql(`SELECT has_function_privilege('anon', '${fn}', 'EXECUTE');`)).toBe('f')
-    }
+    // O cálculo saiu do banco na 329; a revisão segue sem EXECUTE da API.
+    expect(psql(`SELECT to_regprocedure('public.calculate_granite_bl_charges(uuid,uuid)') IS NULL;`)).toBe('t')
+    const fn = 'public.save_granite_bl_review(uuid,bigint,uuid)'
+    expect(psql(`SELECT has_function_privilege('authenticated', '${fn}', 'EXECUTE');`)).toBe('f')
+    expect(psql(`SELECT has_function_privilege('anon', '${fn}', 'EXECUTE');`)).toBe('f')
     expect(psql(`SELECT has_function_privilege('authenticated', 'public.import_granite_manifest_transactional(bigint,text,text,text,integer,numeric,uuid,jsonb,text[])', 'EXECUTE');`)).toBe('t')
+  })
+})
+
+const adminId = '00000000-0000-0000-0000-000000329001'
+const a329ManifestId = '00000000-0000-0000-0000-000000329010'
+const a329BlId = '00000000-0000-0000-0000-000000329011'
+const a329RateId = '00000000-0000-0000-0000-000000329012'
+const a329ChargeId = '00000000-0000-0000-0000-000000329013'
+const a329DepotId = '00000000-0000-0000-0000-000000329020'
+
+function asAdmin(sql: string): { stdout: string; stderr: string } {
+  const run = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
+    `SET ROLE authenticated; SET request.jwt.claim.role = 'authenticated'; SET request.jwt.claim.sub = '${adminId}'; ${sql}`],
+  { encoding: 'utf8' })
+  return { stdout: run.stdout.trim(), stderr: run.stderr }
+}
+
+function cleanup329() {
+  psql(`
+    SET session_replication_role = replica;
+    DELETE FROM public.granite_bl_charges WHERE id = '${a329ChargeId}';
+    DELETE FROM public.granite_bls WHERE id = '${a329BlId}';
+    DELETE FROM public.granite_manifests WHERE id = '${a329ManifestId}';
+    DELETE FROM public.demurrage_rates WHERE notes LIKE 'A329%';
+    DELETE FROM public.depots WHERE id = '${a329DepotId}';
+    DELETE FROM public.audit_logs WHERE changed_by = '${adminId}' OR entity_id = '${a329DepotId}';
+    DELETE FROM public.user_profiles WHERE id = '${adminId}';
+    DELETE FROM auth.users WHERE id = '${adminId}';
+    SET session_replication_role = origin;
+  `)
+}
+
+function demurrageRate(note: string, validFrom: string, active = true): string {
+  return psql(`INSERT INTO public.demurrage_rates (container_type, p1_day_from, p1_day_to, p1_usd, p2_day_from, p2_usd, valid_from, active, notes)
+    VALUES ('A329', 1, 5, 10, 6, 20, ${validFrom}, ${active}, '${note}') RETURNING id;`)
+}
+
+describeLocal('Granito sem tarifas nem cálculo no banco (migration 329)', () => {
+  beforeAll(() => {
+    cleanup329()
+    psql(`
+      INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'a329-adm@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'A329 Administrativo', 'administrativo', true);
+    `)
+  })
+
+  afterAll(cleanup329)
+
+  it('a tabela de tarifas, a FK do snapshot e o cálculo saíram do banco', () => {
+    expect(psql(`SELECT to_regclass('public.granite_rates') IS NULL;`)).toBe('t')
+    expect(psql(`SELECT to_regprocedure('public.calculate_granite_bl_charges(uuid,uuid)') IS NULL;`)).toBe('t')
+    expect(psql(`SELECT count(*) FROM pg_constraint WHERE conname = 'granite_bl_charges_rate_id_fkey';`)).toBe('0')
+    expect(psql(`SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND prosrc LIKE '%granite_rates%';`)).toBe('0')
+  })
+
+  it('apagar as tarifas preserva o snapshot antigo com o id histórico da tarifa', () => {
+    // Monta o estado anterior à 329 (tabela, FK e snapshot que aponta para a
+    // tarifa) e reaplica a migration.
+    psql(`
+      CREATE TABLE public.granite_rates (id uuid PRIMARY KEY, description text NOT NULL);
+      INSERT INTO public.granite_rates (id, description) VALUES ('${a329RateId}', 'A329 THC');
+      ALTER TABLE public.granite_bl_charges ADD CONSTRAINT granite_bl_charges_rate_id_fkey
+        FOREIGN KEY (rate_id) REFERENCES public.granite_rates(id) ON DELETE SET NULL;
+      INSERT INTO public.granite_manifests (id, vessel_voyage) VALUES ('${a329ManifestId}', 'A329 NAVIO/A329');
+      INSERT INTO public.granite_bls (id, manifest_id, bl_number) VALUES ('${a329BlId}', '${a329ManifestId}', 'A329-1');
+      INSERT INTO public.granite_bl_charges (id, bl_id, rate_id, description, charge_type, unit_value, quantity, subtotal, currency)
+      VALUES ('${a329ChargeId}', '${a329BlId}', '${a329RateId}', 'A329 THC', 'per_bl', 45, 1, 45, 'BRL');
+    `)
+    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migration329Path], { encoding: 'utf8' })
+
+    expect(psql(`SELECT to_regclass('public.granite_rates') IS NULL;`)).toBe('t')
+    expect(psql(`SELECT rate_id || ':' || subtotal FROM public.granite_bl_charges WHERE id = '${a329ChargeId}';`)).toBe(`${a329RateId}:45.00`)
+  })
+
+  it('a exclusão e a reativação de cadastro seguem valendo para os outros cadastros', () => {
+    // Tarifa de Demurrage em vigor: a trava de tarifa usada continua.
+    const inForce = demurrageRate('A329 em vigor', 'CURRENT_DATE - 1')
+    expect(asAdmin(`SELECT public.delete_catalog_row('demurrage_rates', '${inForce}', 'Teste A329')`).stderr).toContain('já foi usada')
+    // Tarifa futura: exclui com motivo.
+    const future = demurrageRate('A329 futura', 'CURRENT_DATE + 30')
+    expect(asAdmin(`SELECT public.delete_catalog_row('demurrage_rates', '${future}', 'Teste A329')`).stderr).toBe('')
+    expect(psql(`SELECT count(*) FROM public.demurrage_rates WHERE id = ${future};`)).toBe('0')
+    // Reativação de tarifa e de Local inativos.
+    const inactive = demurrageRate('A329 inativa', 'CURRENT_DATE - 1', false)
+    expect(asAdmin(`SELECT public.reactivate_catalog_row('demurrage_rates', '${inactive}', 'Volta A329')`).stderr).toBe('')
+    expect(psql(`SELECT active FROM public.demurrage_rates WHERE id = ${inactive};`)).toBe('t')
+    psql(`INSERT INTO public.depots (id, code, name, active) VALUES ('${a329DepotId}', 'A329', 'A329 Local', false);`)
+    expect(asAdmin(`SELECT public.reactivate_catalog_row('depots', '${a329DepotId}', 'Volta A329')`).stderr).toBe('')
+    expect(psql(`SELECT active FROM public.depots WHERE id = '${a329DepotId}';`)).toBe('t')
+    expect(asAdmin(`SELECT public.delete_catalog_row('depots', '${a329DepotId}', 'Teste A329')`).stderr).toBe('')
+    expect(psql(`SELECT count(*) FROM public.depots WHERE id = '${a329DepotId}';`)).toBe('0')
+  })
+
+  it('a tarifa de Granito saiu da exclusão e da reativação de cadastro', () => {
+    expect(asAdmin(`SELECT public.delete_catalog_row('granite_rates', '${a329RateId}', 'Teste A329')`).stderr).toContain('Tabela fora da exclusão de cadastro')
+    expect(asAdmin(`SELECT public.reactivate_catalog_row('granite_rates', '${a329RateId}', 'Teste A329')`).stderr).toContain('Tabela fora da reativação de cadastro')
   })
 })

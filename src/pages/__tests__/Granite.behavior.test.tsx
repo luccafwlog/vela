@@ -106,7 +106,7 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-it('mostra só a carga: totais do recorte, carga por viagem e B/Ls com o peso pela regra', () => {
+it('mostra só a carga: totais do recorte, carga por viagem e B/Ls com o peso real', () => {
   const rows = [
     savedBl(),
     savedBl({ id: 'g2', bl_number: 'COSU2', shipper_name: 'Comercial Pacífico S.A.', blocks_qty: 7, real_weight_kg: null, shipper_weight_kg: 111900 }),
@@ -123,7 +123,8 @@ it('mostra só a carga: totais do recorte, carga por viagem e B/Ls com o peso pe
   const totals = screen.getByRole('group', { name: 'Totais do recorte' })
   expect(within(totals).getByText('2')).toBeTruthy()
   expect(within(totals).getByText('12')).toBeTruthy()
-  expect(within(totals).getByText('192,0 t')).toBeTruthy()
+  // Só o peso real conta: o declarado pelo shipper (111,9 t) não entra.
+  expect(within(totals).getByText('80,1 t')).toBeTruthy()
 
   const byVoyage = screen.getByRole('table', { name: 'Carga de Granito por navio e viagem' })
   const voyageLink = within(byVoyage).getByRole('link', { name: 'GREEN / 14N' })
@@ -131,12 +132,13 @@ it('mostra só a carga: totais do recorte, carga por viagem e B/Ls com o peso pe
   expect(within(byVoyage).getByText('BRVIX → CNXMN')).toBeTruthy()
 
   const list = screen.getByRole('table', { name: 'B/Ls de Granito do recorte atual' })
-  // Sem peso real, vale o declarado pelo shipper (111,9 t); o B/L não abre ficha.
+  // Sem peso real, o B/L fica "Sem peso", mesmo com o declarado; o B/L não abre ficha.
   expect(within(list).getByText('80,1 t')).toBeTruthy()
-  expect(within(list).getByText('111,9 t')).toBeTruthy()
+  expect(within(list).getByText('Sem peso')).toBeTruthy()
+  expect(screen.queryByText('111,9 t')).toBeNull()
   expect(within(list).queryByRole('link')).toBeNull()
   expect(within(list).getByText('Comercial Pacífico S.A.')).toBeTruthy()
-  expect(screen.getByText('Peso: o peso real quando a planilha traz; sem ele, o declarado pelo shipper.')).toBeTruthy()
+  expect(screen.getByText('Peso: o peso real da planilha COSCO.')).toBeTruthy()
 })
 
 it('o POD é uma lista de portos do recorte, e o filtro ativo mostra o navio, não o número interno', () => {
@@ -166,7 +168,11 @@ it('a prévia conta B/Ls, blocos e peso, sem conferência de Cliente ou CNPJ', a
 
   await waitFor(() => expect(screen.getByText('B/Ls válidos')).toBeTruthy())
   expect(screen.getByText('Erros de leitura')).toBeTruthy()
-  expect(screen.getByText('12,0 t')).toBeTruthy()
+  // Só o peso real: o total e a linha do BL-G1 dão 5,0 t; o BL-G2, com peso
+  // real zero, fica "Sem peso" e o declarado (7,0 t) não entra.
+  expect(screen.getAllByText('5,0 t')).toHaveLength(2)
+  expect(screen.getByText('Sem peso')).toBeTruthy()
+  expect(screen.queryByText(/12,0 t|7,0 t/)).toBeNull()
   expect(screen.getByText('7')).toBeTruthy()
   expect(screen.queryByPlaceholderText('Digite o CNPJ')).toBeNull()
   expect(screen.queryByText(/✓ OK|Sugestão|⚠ CNPJ|Não cad\./)).toBeNull()

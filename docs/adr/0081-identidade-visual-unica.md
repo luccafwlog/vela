@@ -152,3 +152,11 @@ faixa do bloco e das janelas continuam com texto. Substitui, para as linhas de
 tabela, o item "ação como botão com nome" da passada única de 2026-10-13. Como
 a passada única, vale em todas as telas de uma vez, conforme o
 [plano tela a tela](../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+
+Nota de 2026-10-19 (mesmo dia, depois da entrega do lote 5b): o responsável
+confirmou duas exceções que mantêm o texto em tabela — a ação cujo texto é a
+própria informação da coluna (Provisionamento do Portal, coluna Próxima ação)
+e as ações dentro do painel da linha aberta, que são de bloco ou de formulário
+("Reenviar CE e Taxas", "Adicionar atracação", Voltar e "Marcar como tratado"
+no formulário do Pix). A regra 9 de
+[identidade-visual.md](../identidade-visual.md#as-nove-regras) registra as duas.

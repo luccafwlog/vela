@@ -249,6 +249,7 @@ Sequência datada dos marcos de conclusão: a saída do navio (ATD) e o momento 
 - Vale a assinatura vigente, não a primeira: o departamento que reabre a própria assinatura volta a contar e fica fora do prazo se reassinar depois da data-limite; os outros permanecem em dia.
 - Não retroage: só escalas com ATD posterior ao início da vigência são medidas; ADRs fechados antes ficam fora do agregado.
 - O cumprimento é do departamento, nunca da pessoa: o nome de quem assinou continua visível no ADR, mas o agregado (**Prazo do ADR**, `/admin/prazo-do-adr`, só Administrativo) não soma por usuário.
+- No agregado, o total de cada departamento é todo ADR fechado no período, e o departamento que não assinou conta como fora do prazo: com 10 ADRs fechados, 8 assinados no prazo, 1 atrasado e 1 sem assinatura, o cartão mostra "8 de 10 no prazo" (regra confirmada pelo responsável em 2026-10-19).
 - Estados na tela: `No prazo`, `Atrasado` e `Sem prazo` (neutro: aguardando a saída ou escala omitida).
 
 #### Alertas do ADR

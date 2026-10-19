@@ -16,7 +16,6 @@ export type GraniteBlRow = {
   discharge_port: string | null
   blocks_qty: number | null
   real_weight_kg: number | null
-  shipper_weight_kg: number | null
   manifest: {
     voyage_id: number | null
     voyage: { id: number; voyage_number: string | null; vessel: { name: string | null } | null } | null
@@ -29,18 +28,16 @@ export type GraniteCargoFilters = {
   dischargePort?: string
 }
 
-const GRANITE_BL_COLUMNS = `id, bl_number, shipper_name, vessel_voyage, loading_port, discharge_port, blocks_qty, real_weight_kg, shipper_weight_kg,
+const GRANITE_BL_COLUMNS = `id, bl_number, shipper_name, vessel_voyage, loading_port, discharge_port, blocks_qty, real_weight_kg,
   manifest:granite_manifests!inner(voyage_id, voyage:voyages(id, voyage_number, vessel:vessels(name)))`
 
 /**
- * Peso do B/L (decidido em 2026-10-19): o peso real quando a planilha traz;
- * sem ele, o declarado pelo shipper. Sem nenhum dos dois, `null`.
+ * Peso do B/L (decidido em 2026-10-19): só o peso real. O peso declarado pelo
+ * shipper não conta, nem como reserva. Sem peso real (ou zero), `null`.
  */
-export function graniteWeightKg(bl: Pick<GraniteBlRow, 'real_weight_kg' | 'shipper_weight_kg'>): number | null {
+export function graniteWeightKg(bl: Pick<GraniteBlRow, 'real_weight_kg'>): number | null {
   const real = toNumber(bl.real_weight_kg)
-  if (real !== null && real > 0) return real
-  const declared = toNumber(bl.shipper_weight_kg)
-  return declared !== null && declared > 0 ? declared : null
+  return real !== null && real > 0 ? real : null
 }
 
 /** "Navio / Viagem" da Viagem do manifesto; sem ela, o texto da planilha. */
@@ -71,7 +68,7 @@ export type GraniteVoyageCargo = GraniteCargoTotals & {
  * por viagem"). Blocos e peso ausentes contam zero. Ordem: navio/viagem e
  * depois trecho.
  */
-export function summarizeGraniteCargo(rows: readonly Pick<GraniteBlRow, 'manifest' | 'vessel_voyage' | 'loading_port' | 'discharge_port' | 'blocks_qty' | 'real_weight_kg' | 'shipper_weight_kg'>[]): {
+export function summarizeGraniteCargo(rows: readonly Pick<GraniteBlRow, 'manifest' | 'vessel_voyage' | 'loading_port' | 'discharge_port' | 'blocks_qty' | 'real_weight_kg'>[]): {
   totals: GraniteCargoTotals
   byVoyage: GraniteVoyageCargo[]
 } {

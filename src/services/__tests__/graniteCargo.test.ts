@@ -28,7 +28,11 @@ import {
   type GraniteBlRow,
 } from '../graniteCargo'
 
-function bl(overrides: Partial<GraniteBlRow>): GraniteBlRow {
+// A planilha e o banco ainda guardam o peso declarado (`shipper_weight_kg`); a
+// linha de teste o carrega para provar que ele não conta.
+type RowWithDeclared = GraniteBlRow & { shipper_weight_kg: number | null }
+
+function bl(overrides: Partial<RowWithDeclared>): RowWithDeclared {
   return {
     id: 'g1',
     bl_number: 'COSU1',
@@ -52,24 +56,24 @@ beforeEach(() => {
   calls.pages = []
 })
 
-// Regra decidida em 2026-10-19 (lote 5b): peso real quando houver; sem ele, o declarado pelo shipper.
+// Regra decidida em 2026-10-19 (lote 5b): só o peso real; o declarado pelo shipper é ruído.
 describe('peso do B/L de Granito', () => {
-  it('usa o peso real quando a planilha traz', () => {
-    expect(graniteWeightKg({ real_weight_kg: 104000, shipper_weight_kg: 98000 })).toBe(104000)
+  it('usa o peso real, mesmo com um declarado diferente', () => {
+    expect(graniteWeightKg(bl({ real_weight_kg: 104000, shipper_weight_kg: 98000 }))).toBe(104000)
   })
 
-  it('sem peso real (ausente ou zero), usa o declarado pelo shipper', () => {
-    expect(graniteWeightKg({ real_weight_kg: null, shipper_weight_kg: 98000 })).toBe(98000)
-    expect(graniteWeightKg({ real_weight_kg: 0, shipper_weight_kg: 98000 })).toBe(98000)
+  it('sem peso real (ausente ou zero), não usa o declarado pelo shipper', () => {
+    expect(graniteWeightKg(bl({ real_weight_kg: null, shipper_weight_kg: 98000 }))).toBeNull()
+    expect(graniteWeightKg(bl({ real_weight_kg: 0, shipper_weight_kg: 98000 }))).toBeNull()
   })
 
   it('aceita o número que o PostgREST devolve como texto', () => {
-    expect(graniteWeightKg({ real_weight_kg: '80100.000' as unknown as number, shipper_weight_kg: null })).toBe(80100)
+    expect(graniteWeightKg({ real_weight_kg: '80100.000' as unknown as number })).toBe(80100)
   })
 
-  it('sem nenhum dos dois, não inventa zero', () => {
-    expect(graniteWeightKg({ real_weight_kg: null, shipper_weight_kg: null })).toBeNull()
-    expect(graniteWeightKg({ real_weight_kg: 0, shipper_weight_kg: 0 })).toBeNull()
+  it('sem peso real, não inventa zero', () => {
+    expect(graniteWeightKg({ real_weight_kg: null })).toBeNull()
+    expect(graniteWeightKg({ real_weight_kg: 0 })).toBeNull()
   })
 
   it('mostra toneladas com uma casa', () => {
@@ -79,7 +83,7 @@ describe('peso do B/L de Granito', () => {
 })
 
 describe('resumo da carga por viagem', () => {
-  it('totaliza o recorte e agrupa por navio, viagem e trecho, com o peso pela regra', () => {
+  it('totaliza o recorte e agrupa por navio, viagem e trecho, só com o peso real', () => {
     const rows = [
       bl({ id: 'a', blocks_qty: 6, real_weight_kg: 104000 }),
       bl({ id: 'b', blocks_qty: 7, real_weight_kg: null, shipper_weight_kg: 111900 }),
@@ -92,9 +96,10 @@ describe('resumo da carga por viagem', () => {
 
     const { totals, byVoyage } = summarizeGraniteCargo(rows)
 
-    expect(totals).toEqual({ bls: 4, blocks: 15, weightKg: 222900 })
+    // O B/L "b" não tem peso real: o declarado (111,9 t) não entra.
+    expect(totals).toEqual({ bls: 4, blocks: 15, weightKg: 111000 })
     expect(byVoyage.map(({ voyageId, voyageLabel, leg, bls, blocks, weightKg }) => ({ voyageId, voyageLabel, leg, bls, blocks, weightKg }))).toEqual([
-      { voyageId: 7, voyageLabel: 'COSCO SHIPPING ARIES / 088E', leg: 'BRVIX → CNXMN', bls: 2, blocks: 13, weightKg: 215900 },
+      { voyageId: 7, voyageLabel: 'COSCO SHIPPING ARIES / 088E', leg: 'BRVIX → CNXMN', bls: 2, blocks: 13, weightKg: 104000 },
       { voyageId: 7, voyageLabel: 'COSCO SHIPPING ARIES / 088E', leg: 'BRVIX → ITMDX', bls: 1, blocks: 0, weightKg: 5000 },
       { voyageId: 9, voyageLabel: 'XIN PU DONG / 012S', leg: 'BRVIX → CNXMN', bls: 1, blocks: 2, weightKg: 2000 },
     ])

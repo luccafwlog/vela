@@ -580,8 +580,10 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     `SELECT public.resolve_pix_reconciliation_exception(-1, 'P5-TXID', NULL, NULL, 'Encerrada no teste P5')`,
     `SELECT public.upsert_pix_reconciliation_exceptions('p5-extrato', '[]'::jsonb)`,
     `SELECT public.itau_pix_mark_receipt_handled('P5-E2E-NAO-EXISTE', 'Tratado no teste P5 por perfil')`,
-    `SELECT public.reconcile_invoice_payment_by_txid('P5-TXID-NAO-EXISTE', 1, now())`,
     `SELECT public.confirm_unified_pix_matches('[]'::jsonb)`,
+    // Item local: a confirmação chega à baixa por TXID como dono (329) e a
+    // recusa é do TXID inexistente, não de permissão.
+    `SELECT public.confirm_unified_pix_matches('[{"source":"local","invoice_id":-1,"doc_number":"P5-DOC","txid":"P5-TXID-NAO-EXISTE","amount":1,"paid_at":"2026-10-19T12:00:00Z"}]'::jsonb)`,
   ]
   const P5_READ = [
     `SELECT public.list_pix_reconciliation_exceptions(NULL)`,
@@ -602,6 +604,16 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       if (FINANCE.has(profile)) expectPastProfileGuard(result, `${profile}: ${call}`)
       else expect(result.error, `${profile}: ${call}`).toMatch(PERMISSION_DENIED)
     }
+  })
+
+  // Decisão do responsável de 2026-10-19 (migration 329): a baixa por TXID não
+  // é chamada direto pela API por nenhum setor; Financeiro e Administrativo a
+  // alcançam pela confirmação do lote (P5_SETTLE acima) e o Itaú por
+  // `itau_pix_settle` (service_role).
+  it.each(ALL_PROFILES)('P5: baixa por TXID só pela confirmação do lote (%s)', (profile) => {
+    const result = runAs(profile, `SELECT public.reconcile_invoice_payment_by_txid('P5-TXID-NAO-EXISTE', 1, now())`)
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(/ERROR:\s+42501: permission denied for function reconcile_invoice_payment_by_txid/)
   })
 
   it.each(ALL_PROFILES)('P5: %s lê a Conciliação, autoriza restituição e aplica desconto', (profile) => {

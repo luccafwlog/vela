@@ -15,13 +15,20 @@ responsável em 2026-10-19, no lote 5b da
   sugestão por nome e sem pendência. O Granito não entra na Revisão nem abre
   alerta de Cliente não vinculado.
 - **Sem taxa.** Não há cálculo de taxas, tarifa nem fatura de Granito; ele não
-  entra na Validação de Taxas Locais.
+  entra na Validação de Taxas Locais. A tabela de tarifas (`granite_rates`) e
+  o cálculo (`calculate_granite_bl_charges`) saíram do banco na migration
+  `329` (decisão do responsável de 2026-10-19: "Apagar a tabela").
+- **Só peso real.** O peso do Granito é o peso real da planilha (`Real
+  Weight`). O peso declarado pelo shipper é ruído e não conta em lugar nenhum,
+  nem como reserva (decisão do responsável de 2026-10-19).
 - **Sem CE.** A planilha de CE Mercante não grava CE em B/L de Granito.
 
 As colunas e tabelas do modelo anterior (`granite_bls.client_id`,
-`suggested_client_id`, `charge_status`, `granite_rates`, `granite_bl_charges`
-e `invoice_granite_bls`) continuam no banco, sem uso, até uma limpeza à parte;
-o que já estava gravado nelas não foi apagado.
+`suggested_client_id`, `charge_status`, `granite_bl_charges` e
+`invoice_granite_bls`) continuam no banco, sem uso, até uma limpeza à parte; o
+que já estava gravado nelas não foi apagado. A exceção é `granite_rates`,
+apagada na `329` com as tarifas que tinha; os snapshots de `granite_bl_charges`
+guardam o id da tarifa (`rate_id`) como histórico, sem FK.
 
 A rota é interna e fica sob `ProtectedRoute` em
 [`src/AppInterno.tsx`](../../src/AppInterno.tsx). Qualquer Departamento ativo,
@@ -63,10 +70,11 @@ lista da identidade visual:
   Peso. É o número que a tela existe para dar.
 - **B/Ls de Granito**: B/L (com o ícone de copiar; não abre ficha, porque não
   há o que ver além da linha), Shipper (como veio na planilha), Navio /
-  Viagem, Trecho, Blocos e Peso. A faixa do bloco repete os totais; uma nota
-  explica a regra do peso; **Por página** fica no rodapé.
-- **Peso** em toda a tela: o peso real quando a planilha traz; sem ele, o
-  declarado pelo shipper (`graniteWeightKg`).
+  Viagem, Trecho, Blocos e Peso. A faixa do bloco repete os totais; a nota
+  "Peso: o peso real da planilha COSCO." explica a regra; **Por página** fica
+  no rodapé.
+- **Peso** em toda a tela: só o peso real (`graniteWeightKg`); sem ele, "—"
+  ("Sem peso" para leitor de tela), nunca o declarado pelo shipper.
 
 A janela **Importar planilha COSCO** pede a Viagem de destino e o arquivo
 `.xls/.xlsx`, diz as colunas obrigatórias (BL e Real Weight) e mostra a
@@ -77,8 +85,8 @@ Com erro de leitura a confirmação fica bloqueada.
 ### `/granito/taxas`
 
 Saiu do sistema em 2026-10-19, junto com o cálculo de taxas: sem Cliente, não
-há a quem cobrar. O endereço leva a `/granito`. As tarifas gravadas em
-`granite_rates` ficam no banco, sem tela.
+há a quem cobrar. O endereço leva a `/granito`. A tabela `granite_rates`, com
+as tarifas gravadas, saiu do banco na migration `329`.
 
 ### Entrada por `/viagens/:voyageId`
 
@@ -121,12 +129,14 @@ blocos, toneladas (pela regra do peso) e erros; aceitar erros de linha
 - **Colunas sem uso desde a `325`:** `client_id`, `suggested_client_id` e
   `charge_status` (valores antigos ficam; a importação nova não preenche
   vínculo nem sugestão, e o reimportado mantém o que já tinha).
-- **Tabelas sem uso desde a `325`:** `granite_rates` (tarifas),
-  `granite_bl_charges` (snapshots de cálculo) e `invoice_granite_bls`
-  (vínculos de faturas antigas, ainda lidos pelo detalhe da fatura).
-- **Peso exibido:** `graniteWeightKg` usa o peso real quando ele existe e é
-  maior que zero; senão, o declarado pelo shipper; sem nenhum, a tela mostra
-  "—" e o total conta zero.
+- **Tabelas sem uso desde a `325`:** `granite_bl_charges` (snapshots de
+  cálculo; `rate_id` é o id histórico da tarifa, sem FK desde a `329`) e
+  `invoice_granite_bls` (vínculos de faturas antigas, ainda lidos pelo detalhe
+  da fatura). `granite_rates` (tarifas) saiu do banco na `329`.
+- **Peso exibido:** `graniteWeightKg` usa só o peso real, quando ele existe e é
+  maior que zero; sem ele, a tela mostra "—" e o total conta zero. O
+  `shipper_weight_kg` continua gravado como veio na planilha, mas a tela não o
+  lê.
 - **Queries/cache:** família `queryKeys.granite` (`['granite-bls', …]`):
   `bls(filtros)` para a página e `cargo(filtros)` para os totais e a Carga por
   viagem. `afterManifestoImportado` invalida a família inteira.
@@ -161,8 +171,14 @@ flowchart LR
   vínculo e a sugestão de Cliente que vierem no payload e tira da fila o
   efeito `granite_billing` que o corpo legado ainda enfileira; o efeito que
   já estivesse na fila termina sem agir (`skipped: granito_sem_calculo`).
-  `calculate_granite_bl_charges` e `save_granite_bl_review` não são
-  executáveis pela API; a planilha de CE Mercante recusa o alvo `granite`.
+  `save_granite_bl_review` não é executável pela API e
+  `calculate_granite_bl_charges` saiu do banco na `329`; a planilha de CE
+  Mercante recusa o alvo `granite`.
+- **Sem tarifas** (migration `329`). `granite_rates` saiu do banco; a FK
+  `granite_bl_charges_rate_id_fkey` saiu antes, e os snapshots antigos ficaram.
+  `delete_catalog_row` e `reactivate_catalog_row` recusam `granite_rates`
+  ("Tabela fora da …"), e `guard_used_tariff_delete` perdeu o ramo dela; para
+  os demais cadastros, as três funções seguem como antes.
 - **Sem alerta de Cliente.** O tipo `review_granite_customer_unlinked`
   ("Revisão de Granito — cliente não vinculado") está inativo no catálogo; o
   gatilho que o reconciliava a cada escrita em `granite_bls` saiu, o detector
@@ -171,7 +187,7 @@ flowchart LR
 ## Testes e validação
 
 - [`graniteCargo.test.ts`](../../src/services/__tests__/graniteCargo.test.ts):
-  regra do peso (real, senão declarado; sem nenhum, `null`), resumo por
+  regra do peso (só o real; sem ele, `null`, mesmo com declarado), resumo por
   viagem e trecho, busca escapada por B/L ou shipper, filtros de Viagem e POD
   e leitura do recorte em páginas de 1.000.
 - [`graniteParse.test.ts`](../../src/services/__tests__/graniteParse.test.ts):
@@ -182,13 +198,15 @@ flowchart LR
   uma RPC por importação, payload sem `client_id`/`suggested_client_id`,
   reimportação e mensagens de erro.
 - [`Granite.behavior.test.tsx`](../../src/pages/__tests__/Granite.behavior.test.tsx):
-  tela aprovada (cartões, Carga por viagem, peso pela regra, B/L sem link,
+  tela aprovada (cartões, Carga por viagem, só peso real, B/L sem link,
   POD em lista, filtro pelo nome da viagem) e janela de importação sem
   conferência de Cliente.
 - **Teste local-pg** (PostgreSQL local com shims de Auth):
   [`granitoSemCliente.local-pg.test.ts`](../../src/integration/granitoSemCliente.local-pg.test.ts)
   (importação sem vínculo nem efeito de cálculo, alerta fechado e fora do
-  catálogo, alvo `granite` recusado, grants) e
+  catálogo, alvo `granite` recusado, grants; na `329`, tabela e cálculo fora
+  do banco, snapshot antigo preservado e exclusão e reativação de cadastro
+  valendo para os outros cadastros) e
   [`granitoReimportacao.local-pg.test.ts`](../../src/integration/granitoReimportacao.local-pg.test.ts).
 - Não há selo **Runtime**: a tela não foi conferida num ambiente Supabase
   remoto nesta mudança.
@@ -209,10 +227,9 @@ flowchart LR
   invoice, `ready_for_billing`) já tinha sido removido; as invoices antigas e
   `invoice_granite_bls` continuam consultáveis.
 - **Código — peso real obrigatório na planilha.** O parser continua exigindo
-  `Real Weight` positivo em cada linha (sem ele a linha é erro). A regra
-  "peso real, senão declarado" vale para tudo o que a tela mostra; se a COSCO
-  passar a mandar linhas sem peso real, afrouxar o parser é uma decisão à
-  parte (o ADR soma o peso real).
+  `Real Weight` positivo em cada linha (sem ele a linha é erro), e a tela só
+  conta o peso real (decisão do responsável de 2026-10-19: o declarado é
+  ruído). O ADR também soma o peso real.
 - **Código — leitura do recorte no navegador.** Os totais e a Carga por viagem
   somam no navegador o recorte inteiro, lido em páginas de 1.000 (`ponytail:`
   em [`graniteCargo.ts`](../../src/services/graniteCargo.ts)); com o

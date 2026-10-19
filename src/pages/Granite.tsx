@@ -285,7 +285,7 @@ export function Granite() {
                   </tbody>
                 </table>
               </div>
-              <div className="app-block__body"><p className="app-facts__detail">Peso: o peso real quando a planilha traz; sem ele, o declarado pelo shipper.</p></div>
+              <div className="app-block__body"><p className="app-facts__detail">Peso: o peso real da planilha COSCO.</p></div>
             </>
           )}
         </QueryStateGate>

@@ -121,7 +121,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
 
   // Conciliação Pix
   { id: 'ver-conciliacao', group: 'pix', action: 'Ver a fila, as exceções e o monitor Itaú', can: ALL, proof: ['caso: P5: %s lê a Conciliação'] },
-  { id: 'conciliar', group: 'pix', action: 'Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú', can: ADM_FIN, proof: ['caso: P5: baixa manual e conciliar PIX'] },
+  { id: 'conciliar', group: 'pix', action: 'Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú', can: ADM_FIN, proof: ['caso: P5: baixa manual e conciliar PIX', 'caso: P5: baixa por TXID só pela confirmação do lote'] },
 
   // Clientes, Comunicação e Portal
   { id: 'editar-cliente', group: 'clientes', action: 'Criar e editar Cliente; ler o Histórico de Comunicados e o console do Portal', can: ALL, proof: ['todos: Editar Cliente', 'todos: Ler o Histórico de Comunicados', 'caso: A18:'] },
