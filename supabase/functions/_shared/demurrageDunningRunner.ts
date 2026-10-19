@@ -55,6 +55,13 @@ export type DunningCommunicationInput = {
   anchor: DunningInvoiceContext
   vesselName: string
   voyageNumber: string
+  /**
+   * Retomada depois de recusa definitiva (migration 317): com geração > 0 a
+   * mensagem nasce num Comunicado novo, sem a tentativa recusada do endereço
+   * antigo. No modo single vai em dispatch_id (dunningResumeDispatchId); no
+   * grupo, o banco lê a geração da posição e a põe na chave do grupo.
+   */
+  resumeGeneration: number
 }
 
 export type DunningAttemptInput = {
@@ -196,6 +203,18 @@ export async function dunningIdempotencyKey(mode: 'single' | 'group', communicat
   return resumeGeneration > 0 ? `${base}:r${resumeGeneration}` : base
 }
 
+/**
+ * dispatch_id do Comunicado unitário da retomada (geração > 0), derivado da
+ * Invoice, da tentativa e da geração: a mesma retomada devolve o mesmo
+ * Comunicado (create_customer_communication_atomic), e a geração seguinte, outro.
+ */
+export async function dunningResumeDispatchId(invoiceId: number, attemptDiscriminator: number, resumeGeneration: number): Promise<string | null> {
+  if (resumeGeneration <= 0) return null
+  const bytes = new TextEncoder().encode(`demurrage-resume:${invoiceId}:${attemptDiscriminator}:${resumeGeneration}`)
+  const hex = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
+}
+
 // Envio real sem configuração não cria o Comunicado (plano dos e-mails, 1B).
 export function assertRealSendConfigured(communicationsEnabled: boolean, config: DunningRunnerConfig): void {
   if (!communicationsEnabled) return
@@ -296,6 +315,11 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
   const open = new Set<DunningCandidate>(group)
   // Comunicado da mensagem, depois de criado: a fatura pausada sai dele.
   let createdCommunicationId: number | null = null
+  // Faturas já entregues a alguém: a posição delas fica consumida, inclusive
+  // quando a rodada cai numa exceção depois da entrega (catch abaixo).
+  const billed = new Set<DunningCandidate>()
+  let lastError: string | null = null
+  const resumeGeneration = Math.max(0, ...group.map((candidate) => candidate.resume_generation))
   const settleAll = async (outcome: DunningClaimOutcome, reason: string | null, only?: Iterable<DunningCandidate>) => {
     for (const candidate of only ?? [...open]) {
       open.delete(candidate)
@@ -341,6 +365,7 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
       anchor,
       vesselName: lines[0]!.line.vesselName,
       voyageNumber: lines[0]!.line.voyageNumber,
+      resumeGeneration,
     })
     createdCommunicationId = communicationId
 
@@ -349,9 +374,6 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
     let permanentFailures = 0
     let unrecordedFailures = 0
     let eligibleRecipients = 0
-    let lastError: string | null = null
-    // Faturas já entregues a alguém: a posição delas fica consumida.
-    const billed = new Set<DunningCandidate>()
 
     for (const contact of contacts) {
       // 1E.4: a fatura que deixou de ser cobrável sai da mensagem dos próximos
@@ -368,10 +390,21 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
         template = render(mode, lines, customerName, config.portalUrl)
       }
 
-      const recipient = await store.currentEligibleRecipient(customerId, contact.id)
+      // Erro ao reler o contato conta como falha deste destinatário, sem
+      // abortar a mensagem dos demais.
+      let recipient: string | null
+      try {
+        recipient = await store.currentEligibleRecipient(customerId, contact.id)
+      } catch (error) {
+        unrecordedFailures += 1
+        lastError = errorMessage(error)
+        ctx.log.error(`${LOG_PREFIX} falha ao conferir o destinatário`, {
+          communicationId, customerId, attempt: group[0]!.attempt_discriminator, contactId: contact.id, reason: lastError,
+        })
+        continue
+      }
       if (!recipient || !EMAIL_PATTERN.test(recipient)) continue
       eligibleRecipients += 1
-      const resumeGeneration = Math.max(0, ...group.map((candidate) => candidate.resume_generation))
       const idempotencyKey = await dunningIdempotencyKey(mode, communicationId, contact.id, recipient, resumeGeneration)
       // Último estado gravado da tentativa: distingue recusa definitiva de falha passageira.
       const tracked: { status: EmailAttemptRecord['status'] | null; error: string | null } = { status: null, error: null }
@@ -458,8 +491,14 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
       await settleAll('partial', permanentFailures > 0 ? lastError : null)
       return 'parcial'
     }
+    // O banco diz falha, mas alguém já recebeu nesta rodada (tentativa aceita
+    // que não ficou gravada): a posição não volta, para não cobrar de novo.
+    if (billed.size > 0) {
+      await settleAll('partial', null)
+      return 'parcial'
+    }
     // Falha: nada saiu nesta mensagem.
-    if (billed.size === 0 && failed > 0 && permanentFailures === failed && unrecordedFailures === 0) {
+    if (failed > 0 && permanentFailures === failed && unrecordedFailures === 0) {
       await settleAll('refused', lastError)
       return 'recusado'
     }
@@ -468,8 +507,13 @@ async function sendGroup(ctx: GroupContext, group: DunningCandidate[]): Promise<
   } catch (error) {
     const reason = errorMessage(error)
     ctx.log.error(`${LOG_PREFIX} cobrança com erro`, { customerId, attempt: group[0]!.attempt_discriminator, invoices: group.map((item) => item.invoice_id), reason })
+    // Fatura já entregue a alguém fica consumida (parcial: a rodada não
+    // terminou); só as demais voltam. Depois da primeira entrega toda fatura
+    // ainda aberta está em billed, então na prática é uma coisa ou outra.
+    const delivered = [...open].filter((candidate) => billed.has(candidate))
+    if (delivered.length) await settleAll('partial', null, delivered)
     if (open.size) await settleAll('failed', reason)
-    return 'falha'
+    return delivered.length ? 'parcial' : 'falha'
   }
 }
 

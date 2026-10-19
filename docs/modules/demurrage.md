@@ -642,7 +642,11 @@ no cancelamento da baixa com as datas de volta). No cancelamento da baixa
 (**Cancelar baixa…**) de uma Invoice suspensa (migration `191`), com as datas
 ainda diferentes das faturadas ela é cancelada e reemitida (ou só cancelada, se
 o valor novo for zero; com desconto ou disputa, fica suspensa); com as datas de
-volta às faturadas, a suspensão sai e a fatura segue emitida. A confirmação do
+volta às faturadas, a suspensão por datas sai e a fatura segue emitida. Nenhum
+dos dois caminhos toca a suspensão pela recusa do provedor
+([Régua de Cobrança](#régua-de-cobrança)): a Invoice paga ou negociada que já
+estava suspensa por ela continua assim, e a suspensão por datas é aplicada
+quando o alerta da recusa é resolvido (migration `317`). A confirmação do
 cancelamento da baixa em `/demurrage` e em `/reconciliacao`
 (`DemurragePaymentReversalModal`) avisa que as datas mudaram depois do
 pagamento e o que o cancelamento fará (ADR 0079, decisão 2).
@@ -778,8 +782,9 @@ data, o último envio ou a pausa.
   intervalo normal, sem recuperar as "atrasadas" ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md),
   item 15). Cada tentativa é numerada, e o número distingue uma cobrança
   da anterior sobre a mesma Invoice. A seleção vigente é
-  `claim_demurrage_dunning_candidates` (migration `305`; antes, migrations
-  `256`, `179`, `010`, `011` e `041` e migrations arquivadas `378` e `379`). A coluna
+  `claim_demurrage_dunning_candidates` (migration `317`; antes, migrations
+  `313`, `305`, `256`, `179`, `010`, `011` e `041` e migrations arquivadas
+  `378` e `379`). A coluna
   Régua calcula a próxima data pela mesma âncora (`getDemurrageDunningDisplay`)
   e mostra o dia em que a cobrança vence, sem descontar fim de semana ou
   feriado.
@@ -830,31 +835,56 @@ data, o último envio ou a pausa.
   `_alert_types_resolved_with_justification` na migration `313`) tira a
   suspensão e devolve a posição (retoma no mesmo discriminador). Até lá a
   varredura de posições órfãs (30 minutos) não solta a posição recusada
-  (migration `313`); a retomada usa chave de idempotência nova
-  (`resume_generation`), então o provedor é chamado de novo com o contato
-  corrigido. Falha de configuração do provedor (401 e 403), tempo esgotado, rede
-  e 5xx não suspendem: a posição volta e a Régua tenta de novo na rodada
-  seguinte; na terceira falha seguida da mesma tentativa abre o mesmo alerta,
-  que fecha sozinho quando a cobrança sai. Recusa definitiva de só parte dos
-  contatos deixa o Comunicado `parcial` e também abre o alerta. O desfecho de
+  (migration `313`), e nem o cancelamento da baixa nem a reconciliação de datas
+  alteradas apagam o motivo da recusa (migration `317`). A retomada usa chave
+  de idempotência nova (`resume_generation`), então o provedor é chamado de novo
+  com o contato corrigido, e a mensagem nasce num Comunicado novo (migration
+  `317`: no grupo, a geração entra na chave do grupo; na Invoice única, a Edge
+  passa um `dispatch_id` derivado da Invoice, da tentativa e da geração). O
+  Comunicado recusado fica no Histórico como falha, e o da retomada mostra só o
+  envio ao contato corrigido, em vez de "Parcial". A retomada também zera a
+  contagem de falhas da posição (migration `317`). Falha de configuração do
+  provedor (401 e 403), tempo esgotado, rede e 5xx não suspendem: a posição
+  volta e a Régua tenta de novo na rodada seguinte; na terceira falha seguida
+  da mesma tentativa abre o mesmo alerta, que fecha sozinho quando a cobrança
+  sai. O alerta (de recusa ou de falhas seguidas) também fecha sozinho quando a
+  Invoice passa a paga, inclusive isenta pelo desconto integral, ou cancelada
+  (gatilho `resolve_demurrage_dunning_alert_on_closed_invoice`, migration
+  `317`); o fechamento tira a suspensão pela recusa, e a Invoice cuja baixa for
+  cancelada volta a ser cobrada na geração seguinte. Recusa definitiva de só
+  parte dos contatos deixa o Comunicado `parcial` e também abre o alerta. O desfecho de
   cada Invoice é gravado por `settle_demurrage_dunning_claim` (migrations `305` e `313`),
   e cada pausa, falha e recusa fica no log da Edge com Invoice, Cliente,
   tentativa, motivo e e-mail mascarado.
 - **Lote e recuperação:** cada execução reivindica um lote limitado (50
   Invoices, por ordem de id; com mais vencidas que o lote, as de um mesmo
-  Cliente e etapa podem sair em rodadas diferentes, em dois e-mails) e libera a
-  posição quando a cobrança não chega a envio concluído, exceto quando a
-  tentativa termina em `parcial`, que é terminal para o scanner de claims
-  órfãos, ou na recusa definitiva. O handler procura tentativas anteriores pela chave nova, pela
+  Cliente e etapa podem sair em rodadas diferentes, em dois e-mails). A posição
+  de uma Invoice só volta quando a mensagem não chegou a ninguém: falha sem
+  nenhuma entrega, ou pausa. Se a mensagem já chegou a algum contato, a posição
+  fica consumida (`partial`) mesmo quando o banco não confirma o status, quando
+  outro contato falha ou quando a rodada cai numa exceção depois da entrega
+  (por exemplo, ao gravar o status do Comunicado), para quem já recebeu não
+  receber de novo; um erro ao conferir um contato conta como falha só dele, e
+  os demais seguem (Edge, migration `317`). A recusa definitiva também não
+  devolve a posição. A varredura de posições órfãs (30 minutos) não solta a
+  posição de Comunicado `enviado`, `simulado` ou `parcial`, nem a de Comunicado
+  com tentativa aceita pelo provedor, com ou sem id, ou entregue, ainda que o
+  Comunicado tenha virado falha (migration `317`). O handler procura tentativas anteriores pela chave nova, pela
   identidade do destinatário e pela chave legada do contato; quando encontra
   uma tentativa histórica, reutiliza a `idempotency_key` persistida em vez de
   reescrevê-la. Um grupo da mesma tentativa cujo Comunicado terminou em falha
-  (ou sem tentativa aceita) não segura as Invoices: a composição seguinte (por
-  exemplo, com uma Invoice nova) cria o grupo novo
-  (`create_customer_dunning_group_atomic`, migration `305`). A UI lê o contador pela RPC
+  sem tentativa aceita (ou que não tem tentativa aceita) não segura as Invoices:
+  a composição seguinte (por exemplo, com uma Invoice nova) cria o grupo novo
+  (`create_customer_dunning_group_atomic`, migrations `305` e `317`). O grupo
+  com tentativa aceita, com ou sem id do provedor, segura a participação mesmo
+  em falha, e a Régua passa à etapa seguinte depois do intervalo.
+  `ponytail:` a queda da Edge entre registrar a tentativa e chamar o provedor
+  também conta como aceita, então essa etapa pode não ter chegado ao Cliente;
+  a melhoria é consultar o provedor pela chave de idempotência antes de
+  decidir. A UI lê o contador pela RPC
   `list_demurrage_dunning_claim_statuses`. Com a chave de envio desligada, a
   tentativa é registrada como simulada e conta como cobrança da sequência
-  (**Código:** a posição só é liberada em falha ou pausa). A rodada fica em
+  (**Código:** a posição só é liberada em falha sem entrega ou pausa). A rodada fica em
   [`_shared/demurrageDunningRunner.ts`](../../supabase/functions/_shared/demurrageDunningRunner.ts),
   testada com banco e provedor falsos (`demurrageDunningRunner.test.ts`); a
   regra do banco tem a suíte `reguaCobrancaDemurrage.local-pg.test.ts`.

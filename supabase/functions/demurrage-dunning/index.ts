@@ -3,6 +3,7 @@ import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { maskEmail, recipientKey, type EmailAttemptRecord } from '../_shared/email.ts'
 import {
+  dunningResumeDispatchId,
   runDemurrageDunning,
   type DunningContact,
   type DunningInvoiceContext,
@@ -265,7 +266,7 @@ function supabaseDunningStore(admin: Admin): DunningStore {
       return data === true
     },
     currentEligibleRecipient: (customerId, contactId) => currentEligibleRecipient(admin, customerId, contactId),
-    async createCommunication({ mode, candidates, anchor, vesselName, voyageNumber }) {
+    async createCommunication({ mode, candidates, anchor, vesselName, voyageNumber, resumeGeneration }) {
       const first = candidates[0]!
       if (mode === 'group') {
         const { data, error } = await admin.rpc('create_customer_dunning_group_atomic', {
@@ -290,7 +291,9 @@ function supabaseDunningStore(admin: Admin): DunningStore {
         p_anchor_atracacao_id: null,
         p_anchor_invoice_id: first.invoice_id,
         p_attempt_discriminator: first.attempt_discriminator,
-        p_dispatch_id: null,
+        // Retomada depois da recusa (migration 317): Comunicado novo, sem a
+        // tentativa recusada do endereço antigo deixar o status em parcial.
+        p_dispatch_id: await dunningResumeDispatchId(first.invoice_id, first.attempt_discriminator, resumeGeneration),
         p_vessel_name: vesselName,
         p_voyage_number: voyageNumber,
         p_terminal_name: null,

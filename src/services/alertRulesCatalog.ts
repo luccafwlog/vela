@@ -298,7 +298,7 @@ const ALERT_RULES_BASE = [
     resolution: 'Leia o motivo no alerta. Recusa definitiva: corrija o e-mail do contato do Cliente (ou a caixa de comunicação); resolver com justificativa depois de corrigir o contato retoma a cobrança na rodada seguinte. Falha repetida: confira a configuração do provedor de e-mail.',
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
-    afterResolution: 'A falha repetida fecha sozinha quando a cobrança sai. A recusa definitiva fecha pela pessoa: use Resolver na fila (a justificativa é obrigatória e fica no histórico do alerta com o seu nome); isso tira a suspensão e a Régua tenta de novo na rodada seguinte.',
+    afterResolution: 'A falha repetida fecha sozinha quando a cobrança sai. A recusa definitiva fecha pela pessoa: use Resolver na fila (a justificativa é obrigatória e fica no histórico do alerta com o seu nome); isso tira a suspensão e a Régua tenta de novo na rodada seguinte. Os dois fecham sozinhos quando a Invoice é paga, isenta ou cancelada (migration 317).',
     dismissal: temporaryDismissal,
   },
   {

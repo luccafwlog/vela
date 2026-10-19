@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   dunningIdempotencyKey,
+  dunningResumeDispatchId,
   runDemurrageDunning,
   type DunningCandidate,
   type DunningClaimOutcome,
@@ -65,7 +66,7 @@ function fakeStore(options: FakeOptions) {
   const contexts = new Map((options.contexts ?? options.candidates.map((item) => context(item.invoice_id))).map((item) => [item.id, item]))
   const contacts = options.contacts ?? [{ id: 1, email: 'ana@cliente.test' }]
   const attempts: Attempt[] = []
-  const communications = new Map<number, { status: string; mode: 'single' | 'group'; invoiceIds: number[] }>()
+  const communications = new Map<number, { status: string; mode: 'single' | 'group'; invoiceIds: number[]; resumeGeneration: number }>()
   const settled: Array<{ invoiceId: number; outcome: DunningClaimOutcome; reason: string | null | undefined }> = []
   const settledCommunication = new Map<number, number | null | undefined>()
   const sendableCalls = new Map<number, number>()
@@ -83,13 +84,14 @@ function fakeStore(options: FakeOptions) {
       return sequence[Math.min(call, sequence.length - 1)]!
     },
     currentEligibleRecipient: async (_customerId, contactId) => contacts.find((item) => item.id === contactId)?.email ?? null,
-    createCommunication: async ({ mode, candidates }) => {
-      // Como create_customer_communication_atomic: a mesma âncora e tentativa devolvem o mesmo Comunicado.
+    createCommunication: async ({ mode, candidates, resumeGeneration }) => {
+      // Como create_customer_communication_atomic: a mesma âncora, tentativa e
+      // geração da retomada (migration 317) devolvem o mesmo Comunicado.
       const invoiceIds = candidates.map((item) => item.invoice_id).join(',')
-      const reused = [...communications.entries()].find(([, value]) => value.mode === mode && value.invoiceIds.join(',') === invoiceIds)
+      const reused = [...communications.entries()].find(([, value]) => value.mode === mode && value.invoiceIds.join(',') === invoiceIds && value.resumeGeneration === resumeGeneration)
       if (reused) return reused[0]
       const id = nextId++
-      communications.set(id, { status: 'pendente', mode, invoiceIds: candidates.map((item) => item.invoice_id) })
+      communications.set(id, { status: 'pendente', mode, invoiceIds: candidates.map((item) => item.invoice_id), resumeGeneration })
       return id
     },
     checkSuppression: async () => ({ suppressed: false }),
@@ -207,6 +209,78 @@ describe('rodada da Régua de Cobrança com banco e provedor falsos', () => {
     expect(result.body).toMatchObject({ sent: 1 })
     expect(provider.requests[0]!.idempotencyKey).toContain(':r1:')
     expect(await dunningIdempotencyKey('single', 100, 1, 'ana@cliente.test', 0)).not.toContain(':r')
+  })
+
+  it('317 (R3) — retomada com o e-mail corrigido nasce num Comunicado novo e fica enviado, não parcial', async () => {
+    const contacts = [{ id: 1, email: 'ana@cliente-errado.test' }]
+    const fake = fakeStore({ candidates: [candidate(1)], contacts })
+    await runDemurrageDunning({ store: fake.store, config, fetcher: providerResponses({ status: 422 }).fetcher, sleep: async () => {}, log: quietLog() })
+    const refusedId = [...fake.communications.keys()][0]!
+    expect(fake.communications.get(refusedId)!.status).toBe('falha')
+
+    // O Administrativo corrige o e-mail e resolve o alerta: a posição volta com a geração 1.
+    contacts[0]!.email = 'ana@cliente.test'
+    fake.store.claimCandidates = async () => [candidate(1, { resume_generation: 1 })]
+    fake.settled.length = 0
+    const result = await runDemurrageDunning({ store: fake.store, config, fetcher: providerResponses({ status: 200, body: { id: 'msg-2' } }).fetcher, sleep: async () => {}, log: quietLog() })
+    expect(result.body).toMatchObject({ sent: 1, partial: 0 })
+    const resumedId = [...fake.communications.keys()].find((id) => id !== refusedId)!
+    expect(resumedId).toBeDefined()
+    expect(fake.communications.get(resumedId)!.status).toBe('enviado')
+    expect(fake.communications.get(refusedId)!.status).toBe('falha')
+    expect(fake.settled).toEqual([{ invoiceId: 1, outcome: 'sent', reason: null }])
+    // O dispatch_id do Comunicado unitário da retomada é estável por geração.
+    expect(await dunningResumeDispatchId(1, 1, 0)).toBeNull()
+    expect(await dunningResumeDispatchId(1, 1, 1)).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+    expect(await dunningResumeDispatchId(1, 1, 1)).toBe(await dunningResumeDispatchId(1, 1, 1))
+    expect(await dunningResumeDispatchId(1, 1, 2)).not.toBe(await dunningResumeDispatchId(1, 1, 1))
+  })
+
+  it('317 (R1) — exceção depois da entrega não devolve a posição de quem já recebeu', async () => {
+    const fake = fakeStore({
+      candidates: [candidate(1), candidate(2)],
+      contacts: [{ id: 1, email: 'ana@cliente.test' }, { id: 2, email: 'bruno@cliente.test' }],
+    })
+    fake.store.refreshStatus = async () => { throw new Error('db down') }
+    const provider = providerResponses({ status: 200, body: { id: 'msg-1' } })
+    const result = await runDemurrageDunning({ store: fake.store, config, fetcher: provider.fetcher, sleep: async () => {}, log: quietLog() })
+    expect(provider.fetcher).toHaveBeenCalledTimes(2)
+    expect(result.body).toMatchObject({ partial: 1, failed: 0 })
+    expect(fake.settled.map((item) => [item.invoiceId, item.outcome])).toEqual([[1, 'partial'], [2, 'partial']])
+  })
+
+  it('317 (R1) — erro ao conferir um destinatário conta como falha dele e não aborta os demais', async () => {
+    const fake = fakeStore({
+      candidates: [candidate(1)],
+      contacts: [{ id: 1, email: 'ana@cliente.test' }, { id: 2, email: 'bruno@cliente.test' }, { id: 3, email: 'carla@cliente.test' }],
+    })
+    const eligible = fake.store.currentEligibleRecipient
+    fake.store.currentEligibleRecipient = async (customerId, contactId) => {
+      if (contactId === 2) throw new Error('timeout ao ler o contato')
+      return eligible(customerId, contactId)
+    }
+    const provider = providerResponses({ status: 200, body: { id: 'msg-1' } }, { status: 200, body: { id: 'msg-3' } })
+    const result = await runDemurrageDunning({ store: fake.store, config, fetcher: provider.fetcher, sleep: async () => {}, log: quietLog() })
+    expect(provider.requests.map((item) => item.body.to[0])).toEqual(['ana@cliente.test', 'carla@cliente.test'])
+    expect(result.body).toMatchObject({ partial: 1, failed: 0 })
+    expect(fake.settled).toEqual([{ invoiceId: 1, outcome: 'partial', reason: null }])
+  })
+
+  it('317 (R1) — banco sem decisão e falha de outro destinatário: quem recebeu mantém a posição', async () => {
+    const fake = fakeStore({
+      candidates: [candidate(1)],
+      contacts: [{ id: 1, email: 'ana@cliente.test' }, { id: 2, email: 'bruno@cliente.test' }],
+    })
+    // O provedor aceita, mas o id não é gravado (tentativa fica aceita sem id: "Em envio").
+    fake.store.updateAttempt = async () => { throw new Error('db down') }
+    const eligible = fake.store.currentEligibleRecipient
+    fake.store.currentEligibleRecipient = async (customerId, contactId) => {
+      if (contactId === 2) throw new Error('timeout ao ler o contato')
+      return eligible(customerId, contactId)
+    }
+    const result = await runDemurrageDunning({ store: fake.store, config, fetcher: providerResponses({ status: 200, body: { id: 'msg-1' } }).fetcher, sleep: async () => {}, log: quietLog() })
+    expect(result.body).toMatchObject({ partial: 1, failed: 0 })
+    expect(fake.settled).toEqual([{ invoiceId: 1, outcome: 'partial', reason: null }])
   })
 
   it('parcial com recusa definitiva: mantém a posição e leva o motivo para o alerta', async () => {
