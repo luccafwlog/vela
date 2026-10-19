@@ -36,6 +36,9 @@
     - o reenvio do CE não para na primeira recusa.
 
   [Plano](plans/2026-10-17-correcao-dos-emails.md).
+- **Filete das tabelas no nome da linha (2026-10-18):** a linha entre as linhas de uma tabela
+  passa também pela primeira coluna quando ela é o nome da linha (navio na Programação de navios
+  do Portal e as demais tabelas com cabeçalho de linha); antes o filete começava na segunda coluna.
 - **Identidade visual, lote 4: restante do Portal (2026-10-18):** Painel com quatro cartões
   (Demurrage em US$, Desbloqueio de CE), Programação de navios num bloco e Consultas; detalhe
   da fatura pela situação, com o Pix numa faixa baixa e os Pagamentos recebidos; Gerar fatura
