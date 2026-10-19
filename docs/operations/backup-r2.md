@@ -191,7 +191,9 @@ agendamento e a primeira execução em 2026-09-24. A tarefa Windows
 em 2026-10-06 às 09:00. A execução agendada de 2026-10-05 às 09:00:01
 retornou `LastTaskResult = 2`, o código genérico de falha do script. A causa
 foi o fechamento antecipado de `pg_restore --list` (`EPIPE`) na verificação,
-corrigido em `consumeArchive`. Com a correção, uma execução manual no mesmo
+corrigido em `consumeArchive`. No Windows o mesmo fechamento às vezes chega
+como `EOF` (`write EOF`), o que derrubou o backup de 2026-10-19; desde então
+`consumeArchive` tolera os dois ([manual](servicos-externos.md#backup)). Com a correção, uma execução manual no mesmo
 dia cifrou, verificou e enviou o dump ao R2, e ele foi restaurado no banco
 local descartável `vela_restore_20261005` (nota de encerramento da ADR 0074).
 

@@ -250,6 +250,10 @@ function requireFileSize(filePath) {
   }
 }
 
+// Escrita num stdin que o pg_restore já fechou. No Windows o mesmo fechamento
+// chega como EPIPE ou como EOF ("write EOF"), conforme o estado do pipe.
+const PIPE_CLOSED_CODES = new Set(['EPIPE', 'EOF'])
+
 async function consumeArchive(input, decipher, restoreInput) {
   // pg_restore --list pode fechar stdin ao terminar o catálogo. Continue lendo
   // o dump inteiro para autenticar também os dados com AES-GCM.
@@ -257,7 +261,7 @@ async function consumeArchive(input, decipher, restoreInput) {
   await pipeline(input, decipher, new Writable({
     write(chunk, _encoding, callback) {
       if (restoreInput.destroyed) return callback()
-      restoreInput.write(chunk, (error) => callback(error?.code === 'EPIPE' ? null : error))
+      restoreInput.write(chunk, (error) => callback(PIPE_CLOSED_CODES.has(error?.code) ? null : error))
     },
   }))
   restoreInput.end()
