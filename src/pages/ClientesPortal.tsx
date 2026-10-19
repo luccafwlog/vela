@@ -201,7 +201,7 @@ export function ClientesPortal() {
                     <td><Button variant="secondary" className="app-btn--sm min-w-36" onClick={() => { if (!expanded) toggleRow(row) }}>{getPortalNextAction(row)}</Button></td>
                     <td>
                       <Link
-                        to={`/clientes/portal/inspecao/${row.customer_id}?origem=provisionamento`}
+                        to={`/clientes/portal/inspecao/${row.customer_id}?origem=provisionamento&aba=nova`}
                         target="_blank"
                         rel="noreferrer"
                         className="app-btn app-btn--secondary app-btn--sm"

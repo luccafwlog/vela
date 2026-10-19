@@ -70,7 +70,7 @@ describe('ClientesPortal', () => {
     expect(plain.textContent).toContain('Sem e-mail')
     expect(plain.textContent).toContain('Cadastrar e-mail')
     const peek = screen.getByRole('link', { name: 'Espiadinha: ver o Portal como Cliente Portal vê' })
-    expect(peek.getAttribute('href')).toBe('/clientes/portal/inspecao/123?origem=provisionamento')
+    expect(peek.getAttribute('href')).toBe('/clientes/portal/inspecao/123?origem=provisionamento&aba=nova')
     expect(peek.getAttribute('target')).toBe('_blank')
   })
 })
