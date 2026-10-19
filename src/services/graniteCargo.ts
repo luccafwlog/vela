@@ -110,7 +110,7 @@ function toNumber(value: unknown): number | null {
   return Number.isFinite(number) ? number : null
 }
 
- 
+
 /** `granite_bls` com Busca, Viagem e POD do recorte. */
 function filteredGraniteBls(filters: GraniteCargoFilters, withCount = false) {
   let query = supabase.from('granite_bls').select(GRANITE_BL_COLUMNS, withCount ? { count: 'exact' } : undefined)
