@@ -315,8 +315,9 @@ consulta no sistema sem estar na audiência.
   bloqueio. Independe do estado de qualquer fatura. O reconciliador
   (`reconcile_client_portal_alerts`, chamado também após a ativação) abre e
   fecha a pendência; ela se encerra quando o Portal fica pronto ou o Cliente
-  deixa de ter processo ativo. O job `portal-refresh-general-pendencies` (a
-  cada 15 minutos) também a recalcula.
+  deixa de ter processo ativo. O job `portal-refresh-general-pendencies`, que
+  abria em paralelo um alerta antigo sem item (Sem setor) para o mesmo Cliente,
+  saiu na migration `321`, que também fechou esses alertas antigos.
 - **Convite expirado:** prazo de 48 horas vencido sem ativação; o alerta vai à
   Documentação e o novo envio é manual (**Reenviar convite**).
 - **Falha no envio:** após três tentativas transitórias sem sucesso, ou falha
@@ -800,7 +801,6 @@ Há testes focados de componente para `PortalLogin` (`src/pages/__tests__/Portal
 
 - **Teste de contrato SQL — ações críticas do Portal.** Na definição vigente da migration `109`, `portal_create_consolidation` e `portal_obsolete_consolidation` gravam `portal_notifications` (o desfazimento também grava `invoice_lifecycle_events`), e a abertura de disputa (`portal_open_demurrage_dispute` → `portal_add_dispute_message`) grava a mensagem, `portal_notifications` e o alerta `portal_dispute_opened`. `portal_update_profile`, na definição vigente da migration `008`, não grava trilha server-side; criar auditoria para essa ação exige decisão e migration próprias.
 - **Código — mensagem do Turnstile inalcançável no login.** `usePortalAuth.signIn` troca qualquer erro do `portal-login` por `Error('CNPJ ou senha inválidos.')` sem status; por isso os ramos `TURNSTILE_REJECTED` e `P0429` de `PortalLogin` nunca disparam e a recusa do Turnstile aparece como credencial inválida. A recuperação trata o `403` corretamente. Defeito a tratar em tarefa separada.
-- **Código — literal morto.** `portal_refresh_general_pendencies` (job a cada 15 minutos) ainda filtra pelo valor removido `provisionamento_nao_necessario`; não tem efeito, porque o CHECK de `provisioning_decision` não aceita esse valor.
 - **Console e Histórico completos para Operações (A18; ADR 0085, D12).** Desde a migration `250`, `portal_list_provisioning_console` não mascara mais Email de Recuperação, origem, entrega e candidatos para Operações, e `portal_list_provisioning_events` aceita esse perfil (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`; **Teste:** `PortalReviewPanel.test.tsx`).
 - **Exceção crítica de fatura no resumo (A19).** O `portal-daily-digest` conta as exceções críticas de fatura abertas e fechadas nas últimas 24 horas; o e-mail imediato não volta ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19). Prova: **Teste de contrato** (`edgeFunctionsRun2.test.ts`, `portalEmailTemplatesBranding.test.ts`); o envio real não foi executado.
 - **Caminho legado de contas removido (A21).** As RPCs `upsert_customer_portal_account` e `set_customer_portal_account_active` (senha própria em tabela, que a ADR 0013 recusa), o job `cleanup-portal-sessions` e a tabela `customer_portal_sessions` saíram na migration `234` ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 21). A policy `cpa_admin_all` deu lugar a `cpa_admin_select`, só de leitura: nenhum perfil escreve direto em `customer_portal_accounts`, e a conta só muda pelas Edge Functions e pelas RPCs `portal_*` da máquina de estados (**Teste**, Postgres local, `permissoesPorPerfil.local-pg.test.ts`).
