@@ -306,6 +306,25 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   conciliação com a ZPT (o login de teste não abre o botão) e o resultado
   gravado de cada importação. Aguarda a resposta do responsável, tela a
   tela.
+  **Respostas de 2026-10-19** (comentários na página): painel da marca no
+  Portal, como proposto, com o título "Portal do Cliente" no login e
+  "Esqueci minha senha" como texto, como hoje (exceção à regra 9, a
+  registrar em [identidade-visual.md](../identidade-visual.md) na
+  implementação); Meu perfil com os dois blocos um acima do outro, até
+  720 px de largura; nos modais, linha de passos aprovada, arrastar e
+  soltar em toda importação, Granito e Vazios no molde neste lote (a
+  página do 5b não redesenha esses dois modais), Shipper, Consignee e Notify
+  em inglês; os achados A1 a A6 aprovados, e toda importação ganha um
+  modelo padrão para baixar. **Regra de negócio decidida em 2026-10-19,
+  fora da mudança visual, para todo o sistema:** importação com qualquer
+  erro é recusada inteira e não grava nada; aviso não bloqueia. Hoje,
+  pela leitura do código, Granito (aba), Vazios, manifesto BB, Veículos,
+  datas de containers, base de Clientes, B/L de container, B/Ls de carga
+  solta, ZPT, programação por planilha e extrato do Pix gravam em parte.
+  O levantamento e três pontos para decisão (D1 B/L cancelado no arquivo,
+  D2 passos depois da gravação, D3 linhas sem conteúdo) estão na rodada 2
+  da mesma página. Na implementação, a regra entra em
+  [regras-de-negocio.md](../operations/regras-de-negocio.md) com uma ADR.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -541,7 +560,7 @@ lotes tratam só da organização de cada tela.
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Aprovado em 2026-10-18 (todas as telas, três rodadas) e entregue em 2026-10-18 na PR 972, branch `claude/laughing-meitner-3rfy0l`, com as migrations `298` a `301` |
 | 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto e aprovado em 2026-10-19 (página "Lote 5a da identidade", três rodadas); entregue em 2026-10-19, branch `claude/stoic-cannon-v7g39p` |
 | 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado em 2026-10-19; proposto depois do 5a |
-| 6a | Login, acesso e perfil (21); modais de importação (19) | Confirmado e dividido em 2026-10-19; proposto em 2026-10-19 (página "Lote 6a da identidade"), aguarda resposta |
+| 6a | Login, acesso e perfil (21); modais de importação (19) | Confirmado e dividido em 2026-10-19; proposto em 2026-10-19 (página "Lote 6a da identidade"); respostas de 2026-10-19 com a regra de importação com erro; rodada 2 aguarda D1 a D3 |
 | 6b | E-mails do Vela e do Portal (22, acrescentados em 2026-10-19); itens de comportamento dos documentos impressos (20) | Confirmado em 2026-10-19; proposto depois do 6a |
 
 O lote 2 vem logo depois do 1 por ser onde a operação passa mais tempo; o 6
