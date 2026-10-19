@@ -7017,9 +7017,57 @@ a.app-step-rail__link:focus-visible {
 
 .app-import-drop__swap {
   flex: none;
-  color: var(--app-link);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--app-control-h-sm);
+  padding: 0 12px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface);
+  color: var(--app-text-strong);
   font-size: var(--app-size-table);
   font-weight: 600;
+}
+
+/* Linha de passos do molde de importação (lote 6a): Arquivo · Prévia ·
+   Resultado; o passo atual em azul-marinho, os feitos com ✓ verde. */
+.app-import-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-import-steps__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.app-import-steps__item--current {
+  border-color: var(--app-navy);
+  background: var(--app-navy);
+  color: #ffffff;
+}
+
+.app-import-steps__item--done {
+  color: var(--app-success-fg);
+  border-color: var(--app-success-border);
+}
+
+.app-import-file {
+  display: grid;
+  gap: 12px;
 }
 
 .app-import-picker__reason {
@@ -7069,25 +7117,9 @@ a.app-step-rail__link:focus-visible {
 }
 
 .app-import-templates {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 6px;
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-}
-
-.app-import-templates a {
-  color: var(--app-link);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.app-import-templates__sep {
-  margin-right: 6px;
-  color: var(--app-muted-soft);
+  gap: 6px;
 }
 
 .app-import-reading {
@@ -7227,8 +7259,6 @@ a.app-step-rail__link:focus-visible {
   display: grid;
   gap: 8px;
   min-width: 0;
-  border-top: 1px solid var(--app-border);
-  padding-top: 12px;
 }
 
 .app-import-section__head {
@@ -7369,15 +7399,13 @@ a.app-step-rail__link:focus-visible {
   padding: 6px 0;
 }
 
+/* Severidade em texto, sem selo (regra 5; lote 6a). */
 .app-import-issues__tag {
-  border-radius: var(--app-radius-control);
-  padding: 0 6px;
-  font-size: var(--app-size-caption);
   font-weight: 600;
 }
 
-.app-import-issues__tag--error { background: var(--app-danger-bg); color: var(--app-danger-fg); }
-.app-import-issues__tag--warning { background: var(--app-warning-bg); color: var(--app-warning-fg); }
+.app-import-issues__tag--error { color: var(--app-danger-fg); }
+.app-import-issues__tag--warning { color: var(--app-warning-fg); }
 
 .app-import-issues__where {
   color: var(--app-muted);

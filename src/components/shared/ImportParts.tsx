@@ -1,13 +1,59 @@
 import { useEffect, useId, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react'
-import { AlertTriangle, CheckCircle2, Download, FileUp, Info, XCircle } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, Download, FileUp, Info, XCircle } from 'lucide-react'
+import { Block, Fact, FactList } from '../ui/Block'
 import { cn } from '../../lib/utils'
 import { describeAccept, formatFileSize, uploadLimitLabel } from './importPresentation'
 import { readSpreadsheetWarnings } from '../../services/importCore'
 
 /**
  * Peças visuais comuns do percurso de importação: escolher arquivo → ler →
- * conferir → confirmar → ver resultado. Donas: etapa 04 da revisão visual.
+ * conferir → confirmar → ver resultado. Donas: etapa 04 da revisão visual;
+ * o molde único (passos, blocos Arquivo/Prévia/Resultado, modelo como botão)
+ * é do lote 6a da identidade (docs/identidade-visual.md, "Importação").
  */
+
+export type ImportStep = 'arquivo' | 'previa' | 'resultado'
+
+const IMPORT_STEPS: { key: ImportStep; label: string }[] = [
+  { key: 'arquivo', label: 'Arquivo' },
+  { key: 'previa', label: 'Prévia' },
+  { key: 'resultado', label: 'Resultado' },
+]
+
+/** Linha de passos no topo do modal: onde se está no percurso. */
+export function ImportSteps({ current }: { current: ImportStep }) {
+  const currentIndex = IMPORT_STEPS.findIndex((step) => step.key === current)
+  return (
+    <ol className="app-import-steps" aria-label="Passos da importação">
+      {IMPORT_STEPS.map((step, index) => {
+        const state = index < currentIndex ? 'done' : index === currentIndex ? 'current' : 'next'
+        return (
+          <li
+            key={step.key}
+            className={cn('app-import-steps__item', `app-import-steps__item--${state}`)}
+            aria-current={state === 'current' ? 'step' : undefined}
+          >
+            {state === 'done' ? <Check size={12} aria-hidden="true" /> : null}
+            {step.label}
+            {state === 'done' ? <span className="sr-only"> (concluído)</span> : null}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+/**
+ * Bloco "Arquivo" do molde: colunas e escolha do arquivo no corpo, modelos
+ * para baixar na faixa do título.
+ */
+export function ImportFileBlock({ templates, children }: { templates?: ReactNode; children: ReactNode }) {
+  return (
+    <Block title="Arquivo" headingLevel={3} aside={templates}>
+      <div className="app-import-file">{children}</div>
+    </Block>
+  )
+}
 
 type FilePickerProps = {
   accept: string
@@ -126,18 +172,23 @@ export function ImportFilePicker({
               {files.length === 1 ? files[0].name : `${files.length} arquivos escolhidos`}
             </span>
             <span className="app-import-drop__meta">
-              {files.length === 1
-                ? formatFileSize(files[0].size)
-                : files.slice(0, 3).map((file) => file.name).join(', ') + (files.length > 3 ? ` e mais ${files.length - 3}` : '')}
+              <span>
+                {files.length === 1
+                  ? formatFileSize(files[0].size)
+                  : files.slice(0, 3).map((file) => file.name).join(', ') + (files.length > 3 ? ` e mais ${files.length - 3}` : '')}
+              </span>
+              <span> · solte outro arquivo aqui para trocar</span>
             </span>
           </span>
         ) : (
           <span className="app-import-drop__body">
-            <span className="app-import-drop__cta">Escolher {multiple ? 'arquivos' : 'arquivo'}</span>
-            <span className="app-import-drop__meta">ou arraste para cá</span>
+            <span className="app-import-drop__cta">Arraste {multiple ? 'os arquivos' : 'o arquivo'} para cá</span>
+            <span className="app-import-drop__meta">ou escolha no computador</span>
           </span>
         )}
-        {files.length ? <span className="app-import-drop__swap" aria-hidden="true">Trocar</span> : null}
+        <span className="app-import-drop__swap" aria-hidden="true">
+          {files.length ? 'Trocar arquivo' : multiple ? 'Escolher arquivos' : 'Escolher arquivo'}
+        </span>
       </label>
       <span id={hintId} className="app-field__hint">
         {formats} · {uploadLimitLabel()}{multiple ? ' · um ou vários de uma vez' : ''}
@@ -189,21 +240,26 @@ export function ImportNotice({
   )
 }
 
-/** Links de modelo como ação terciária: não competem com o arquivo. */
+/**
+ * Modelo padrão para baixar, como botão (regra 9; lote 6a): toda importação
+ * tem um. Vai na faixa do bloco Arquivo.
+ */
 export function ImportTemplateLinks({ baseName, extensions = ['xlsx', 'csv'] }: { baseName: string; extensions?: string[] }) {
   return (
-    <p className="app-import-templates">
-      <Download size={14} aria-hidden="true" />
-      <span>Modelo:</span>
-      {extensions.map((extension, index) => (
-        <span key={extension}>
-          {index > 0 ? <span aria-hidden="true" className="app-import-templates__sep">·</span> : null}
-          <a href={`/templates/${baseName}.${extension}`} download={`${baseName}.${extension}`} aria-label={`Baixar modelo .${extension}`}>
-            .{extension}
-          </a>
-        </span>
+    <span className="app-import-templates">
+      {extensions.map((extension) => (
+        <a
+          key={extension}
+          className="app-btn app-btn--ghost app-btn--sm"
+          href={`/templates/${baseName}.${extension}`}
+          download={`${baseName}.${extension}`}
+          aria-label={`Baixar modelo .${extension}`}
+        >
+          <Download size={14} aria-hidden="true" />
+          Modelo .{extension}
+        </a>
       ))}
-    </p>
+    </span>
   )
 }
 
@@ -226,10 +282,10 @@ export function ImportGuide({
 }) {
   return (
     <div className="app-import-guide">
-      <p>
-        <span className="app-import-guide__label">{requiredLabel}:</span> {required}
-      </p>
-      {optional ? <p className="app-import-guide__muted"><span className="app-import-guide__label">Opcionais:</span> {optional}</p> : null}
+      <FactList columns={optional ? 2 : 1}>
+        <Fact label={requiredLabel}>{required}</Fact>
+        {optional ? <Fact label="Opcionais">{optional}</Fact> : null}
+      </FactList>
       {details ? (
         <details className="app-import-guide__details">
           <summary>Como preencher</summary>
@@ -260,15 +316,14 @@ export function ImportFootnote({ children, tone = 'default' }: { children: React
   )
 }
 
-/** Seção da conferência com título curto. */
+/**
+ * Seção da conferência (Prévia, Resultado) como bloco do molde: título na
+ * faixa, resumo em `aside`.
+ */
 export function ImportSection({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
   return (
-    <section className="app-import-section" aria-label={title}>
-      <div className="app-import-section__head">
-        <h3 className="app-import-section__title">{title}</h3>
-        {aside}
-      </div>
-      {children}
-    </section>
+    <Block title={title} headingLevel={3} aside={aside}>
+      <div className="app-import-section">{children}</div>
+    </Block>
   )
 }

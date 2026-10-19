@@ -23,7 +23,6 @@ import {
 } from '../../services/breakbulkImport'
 import { BreakbulkImportOutcome, BreakbulkReimportReview } from '../shared/BreakbulkReimportReview'
 import { afterManifestoImportado } from '../../services/cacheEffects'
-import { inspectImportUpload } from '../../services/importText'
 import { rowErrorsToImportIssues } from '../../services/importValidation'
 
 /**
@@ -77,7 +76,6 @@ export function BreakbulkManifestUploadModal({
       accept=".xlsx,.xls,.csv"
       parser={parseManifest}
       reparseKey={`${numberFormat}:${voyageId}`}
-      inspectFile={inspectImportUpload}
       importer={async (nextManifest, file, override) => {
         if (!user || !voyageId) throw new Error('Escolha a viagem de destino.')
         const result = await importBreakbulkManifest({

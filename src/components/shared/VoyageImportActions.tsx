@@ -36,7 +36,6 @@ import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOpti
 import { BaplieImportPartialNotice } from './BaplieImportPartialNotice'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
-import { inspectImportUpload } from '../../services/importText'
 import { queryKeys } from '../../services/queryKeys'
 import { ImportIssuesPanel } from './ImportIssuesPanel'
 import { ImportReadProgress } from './ImportReadProgress'
@@ -167,7 +166,6 @@ export function VoyageImportActions({
           accept=".xlsx,.xls,.csv"
           parser={parseBbManifest}
           reparseKey={bbNumberFormat}
-          inspectFile={inspectImportUpload}
           prerequisite={
             <Field
               label="Formato numérico do arquivo"
@@ -234,7 +232,6 @@ export function VoyageImportActions({
           confirmLabel="Importar manifesto"
           accept=".xlsx,.xls"
           parser={parseGraniteManifestFile}
-          inspectFile={inspectImportUpload}
           canImport={(p, override) => p.bls.length > 0 && (p.rowErrors.length === 0 || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}
           importer={async (preview, file, override) => {
@@ -297,7 +294,6 @@ export function VoyageImportActions({
           confirmLabel="Importar manifesto"
           accept=".xlsx,.xls,.csv"
           parser={parseVaziosImportacaoFile}
-          inspectFile={inspectImportUpload}
           helper={<VaziosImportacaoGuide />}
           canImport={(p, override) => resolveVaziosManifestNumbers(p, vaziosManifestNumbers).manifestos !== null && (p.rowErrors.length === 0 || Boolean(override))}
           getIssues={(p) => rowErrorsToImportIssues(p.rowErrors)}

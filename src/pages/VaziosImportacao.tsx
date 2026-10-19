@@ -38,7 +38,6 @@ import {
   setVaziosImportacaoNaturezaMany,
 } from '../services/vaziosNatureza'
 import { afterManifestoImportado } from '../services/cacheEffects'
-import { inspectImportUpload } from '../services/importText'
 
 const exportPageSize = 200
 
@@ -440,7 +439,6 @@ export function VaziosImportacao() {
           title="Importar Planilha de Vazios (Importacao)"
           accept=".xlsx,.xls,.csv"
           parser={parseVaziosImportacaoFile}
-          inspectFile={inspectImportUpload}
           confirmBeforeImport={async (nextManifest) => {
             const hiddenQuestion = vaziosImportacaoHiddenConfirmOptions(nextManifest.hidden)
             return hiddenQuestion ? confirm(hiddenQuestion) : true
