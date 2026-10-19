@@ -106,6 +106,8 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, _op
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS,
     ...EMPTY_IMPORT_KEYS, ...LINEUP_KEYS, ['customers'], ['customer-lookup'],
     queryKeys.voyages.options(), ['vehicle-voyage-options'], ['baplie-staging'],
+    // A planilha COSCO entra pela tela do Granito e pela ficha da Viagem (G6).
+    queryKeys.granite.all(),
   ])
 }
 

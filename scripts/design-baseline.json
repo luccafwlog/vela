@@ -71,16 +71,6 @@
     "src/pages/EmbarqueVazios.tsx": {
       "hex": 1
     },
-    "src/pages/Granite.tsx": {
-      "hex": 7,
-      "caixa-alta": 1,
-      "cor-tailwind": 5
-    },
-    "src/pages/GraniteRates.tsx": {
-      "hex": 3,
-      "caixa-alta": 1,
-      "cor-tailwind": 5
-    },
     "src/pages/LineUpTVDisplay.tsx": {
       "hex": 1,
       "tamanho-solto": 1,

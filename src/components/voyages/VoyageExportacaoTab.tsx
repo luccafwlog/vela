@@ -53,7 +53,7 @@ export function VoyageExportacaoTab({ voyage, voyageLabel, userId }: {
       {userId ? (
         <section className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-4" aria-label="Ações da exportação">
           <h3 className="text-sm font-semibold text-[var(--app-strip-text)]">Ações da exportação</h3>
-          <VoyageImportActions voyageId={voyage.id} voyageLabel={voyageLabel} userId={userId} types={['granite', 'ceMercanteGranite', 'vaziosExp']} />
+          <VoyageImportActions voyageId={voyage.id} voyageLabel={voyageLabel} userId={userId} types={['granite', 'vaziosExp']} />
         </section>
       ) : null}
     </div>

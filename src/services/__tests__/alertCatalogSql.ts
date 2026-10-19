@@ -47,6 +47,8 @@ const DEACTIVATION_MIGRATIONS = [
   '347_alerts_retire_dead_invoice_types.sql',
   '348_taxas_locais_sem_vencimento.sql',
   '085_email_fora_do_faturamento_taxas_do_ce.sql',
+  // Granito sem Cliente (lote 5b, 2026-10-19): sai o alerta de Cliente não vinculado.
+  '325_granito_sem_cliente_e_sem_calculo.sql',
 ]
 
 // Migrations que mudam gravidade, responsável ou audiência de um tipo já

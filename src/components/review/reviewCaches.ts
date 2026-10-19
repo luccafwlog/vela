@@ -8,8 +8,6 @@ import { queryKeys } from '../../services/queryKeys'
 // Centralizamos aqui; cada chamador liga apenas os caches que de fato mexeu.
 export type ReviewCacheScope = {
   blId?: string
-  /** Inclui ['granite-bls'] (default: true — a fila mistura B/L e granito). */
-  includeGranite?: boolean
   /** Inclui ['customers'] quando o vínculo/contatos do cliente mudaram. */
   includeCustomers?: boolean
   /** Inclui ['audit-logs', 'bl', blId] quando houve escrita auditada no B/L. */
@@ -32,7 +30,6 @@ export async function invalidateReviewQueueCaches(
     ['containers'], ['vehicles'], ['report-operational'], ['customer-detail'], ['customer-ficha'],
     ['customer-communications'], queryKeys.billingReady.all(), ['billing-ready-bl-diagnostics'],
   ]
-  if (scope.includeGranite ?? true) keys.push(['granite-bls'])
   if (scope.includeAudit && scope.blId) keys.push(['audit-logs', 'bl', scope.blId])
   if (scope.includeCustomers) keys.push(['customers'])
   if (scope.includeCharges) keys.push(queryKeys.charges.operations())

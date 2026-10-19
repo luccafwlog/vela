@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
+  keepPreviousData: (data: unknown) => data,
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, setQueriesData: mocks.setQueriesData }),
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
     if (queryKey[0] === 'vazios-importacao-manifests') {
@@ -40,7 +41,11 @@ vi.mock('@tanstack/react-query', () => ({
     if (queryKey[0] === 'vazios-bookings' && queryKey[1] === 'operation-options') {
       return { data: { rows: mocks.vaziosRows }, isLoading: false, error: null }
     }
-    if (queryKey[0] === 'voyages') {
+    if (queryKey[0] === 'voyages' || queryKey[0] === 'voyage-options') {
+      return { data: [], isLoading: false, error: null }
+    }
+    // Granito: os totais do recorte vêm como lista de B/Ls.
+    if (queryKey[0] === 'granite-bls' && queryKey[1] === 'cargo') {
       return { data: [], isLoading: false, error: null }
     }
     if (queryKey[0] === 'vehicles-voyage-card-schedules') {
@@ -193,7 +198,7 @@ describe('imports fora do escopo de Equipamentos', () => {
 
     renderPage(<Granite />)
 
-    expect(screen.getByRole('button', { name: 'Importar Planilha COSCO' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Importar planilha COSCO' })).toBeTruthy()
   })
 
   it('permite importacao de Vazios IMP e preserva exportacao', () => {

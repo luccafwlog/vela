@@ -41,7 +41,6 @@ describe('needsCustomerLink', () => {
 describe('rótulos da fila de revisão', () => {
   it('padroniza a pendência de cliente sem alterar o valor bruto do motivo', () => {
     expect(reviewReasonLabel('Cliente nao vinculado')).toBe('Sem cliente vinculado')
-    expect(reviewReasonLabel('Cliente nao vinculado (Granito)')).toBe('Granito sem cliente vinculado')
     expect(reviewReasonLabel('Acesso ao portal nao provisionado')).toBe('Portal não provisionado')
     expect(reviewReasonLabel('Peso BB ausente')).toBe('Peso da carga solta ausente')
     expect(reviewReasonLabel('CE Mercante ausente')).toBe('CE Mercante ausente')
@@ -65,9 +64,8 @@ describe('needsWeightFix', () => {
     expect(needsWeightFix(item({ source: 'bl', cargo_mode: 'carga_solta', bb_weight_ton: 12 }))).toBe(false)
   })
 
-  it('não vale para container sem motivo, nem para fontes não-B/L', () => {
+  it('não vale para container sem motivo', () => {
     expect(needsWeightFix(item({ source: 'bl', cargo_mode: 'container' }))).toBe(false)
-    expect(needsWeightFix(item({ source: 'granite', cargo_mode: 'carga_solta', bb_weight_ton: null }))).toBe(false)
   })
 })
 
@@ -238,22 +236,6 @@ describe('groupReviewItems', () => {
     expect(groups[0].identityKind).toBe('conflict')
   })
 
-  it('preserva Granite sem habilitar onboarding em lote de B/L', () => {
-    const group = groupReviewItems([
-      item({
-        source: 'granite',
-        id: 'GR1',
-        bl_number: 'GR-1',
-        shipper: 'Alfa',
-        consignee: null,
-        manifest_customer_cnpj_cpf: '11222333000181',
-      }),
-    ])[0]
-
-    expect(group.identityKind).toBe('document')
-    expect(group.canBulkOnboard).toBe(false)
-  })
-
   it('agrupa pelo CNPJ e nomeia pelo cliente cadastrado, ordenando por nome', () => {
     const rows = [
       item({ id: 'BL1', customer: null, consignee: 'ALFA', manifest_customer_cnpj_cpf: '11222333000181' }),
@@ -364,7 +346,6 @@ describe('groupNeedsEmail / groupNeedsPortal', () => {
 describe('triagem por causa', () => {
   it('classifica os motivos brutos do gate e ignora a sugestão por nome', () => {
     expect(reviewReasonCause('Cliente nao vinculado')).toBe('cliente')
-    expect(reviewReasonCause('Cliente nao vinculado (Granito)')).toBe('granito')
     expect(reviewReasonCause('Acesso ao portal nao provisionado')).toBe('portal')
     expect(reviewReasonCause('Peso BB ausente')).toBe('peso')
     expect(reviewReasonCause('Cliente sem e-mail cadastrado')).toBe('outros')
@@ -375,13 +356,14 @@ describe('triagem por causa', () => {
     // Sem nota técnica, mas sem cliente e carga solta sem peso: o gate trava os dois.
     expect(getReviewItemCauses(item({ customer_id: null, cargo_mode: 'carga_solta', bb_weight_ton: null, review_reasons: [] }))).toEqual(['cliente', 'peso'])
     expect(getReviewItemCauses(item({ review_reasons: ['Acesso ao portal nao provisionado'] }))).toEqual(['portal'])
-    expect(getReviewItemCauses(item({ source: 'granite', customer_id: null, review_reasons: ['Cliente nao vinculado (Granito)', 'Sugerido: X'] }))).toEqual(['granito'])
     expect(getReviewItemCauses(item({ review_reasons: [] }))).toEqual(['outros'])
   })
 
   it('lê a causa da URL e aceita o motivo bruto antigo', () => {
     expect(readReviewCauseParam(new URLSearchParams('causa=portal'))).toBe('portal')
     expect(readReviewCauseParam(new URLSearchParams('causa=xyz'))).toBeNull()
+    // O Granito saiu da Revisão no lote 5b: o link antigo cai na fila inteira.
+    expect(readReviewCauseParam(new URLSearchParams('causa=granito'))).toBeNull()
     expect(readReviewCauseParam(new URLSearchParams('motivo=Peso%20BB%20ausente'))).toBe('peso')
     expect(readReviewCauseParam(new URLSearchParams(''))).toBeNull()
   })
@@ -393,13 +375,12 @@ describe('próxima ação e prioridade do grupo', () => {
   const unlinkedName = item({ id: 'N1', customer_id: null, consignee: 'Sem Doc', review_reasons: ['Cliente nao vinculado'] })
   const conflict = item({ id: 'C1', customer_id: null, consignee: 'Conf', consignee_block: 'CNPJ: 11.222.333/0001-81', cargo_description: 'CNPJ 06.352.972/0001-21', review_reasons: ['Cliente nao vinculado'] })
   const weight = item({ id: 'W1', customer_id: 7, customer: { id: 7, name: 'Beta', cnpj_cpf: '11222333000181' }, cargo_mode: 'carga_solta', bb_weight_ton: null, review_reasons: ['Acesso ao portal nao provisionado', 'Peso BB ausente'] })
-  const granite = item({ id: 'g1', source: 'granite', bl_number: 'G-1', customer_id: null, shipper: 'Pedra', review_reasons: ['Cliente nao vinculado (Granito)'] })
 
   function only(...items: ReviewQueueItem[]) {
     return groupReviewItems(items)[0]
   }
 
-  it('escolhe a ação pelo que trava primeiro: cliente, peso, Portal, Granito', () => {
+  it('escolhe a ação pelo que trava primeiro: cliente, peso, Portal', () => {
     expect(summarizeReviewGroup(only(conflict)).nextAction.kind).toBe('conflict')
     expect(summarizeReviewGroup(only(unlinkedName)).nextAction.kind).toBe('customer-name')
     const doc = summarizeReviewGroup(only(unlinkedDoc))
@@ -408,16 +389,13 @@ describe('próxima ação e prioridade do grupo', () => {
     expect(summarizeReviewGroup(only(weight, linkedPortal)).nextAction.kind).toBe('weight')
     expect(summarizeReviewGroup(only(linkedPortal)).nextAction.kind).toBe('portal')
     expect(summarizeReviewGroup(only(item({ ...linkedPortal, review_reasons: ['Cliente sem e-mail cadastrado'] } as never))).nextAction.kind).toBe('email')
-    const graniteSummary = summarizeReviewGroup(only(granite))
-    expect(graniteSummary.nextAction.kind).toBe('granite')
-    expect(graniteSummary.blockedBlCount).toBe(0)
   })
 
-  it('ordena pelo que se resolve aqui, depois Portal, depois Granito, com mais B/Ls na frente', () => {
-    const groups = groupReviewItems([granite, linkedPortal, unlinkedName, unlinkedDoc, item({ ...unlinkedDoc, id: 'U2' } as never)])
+  it('ordena pelo que se resolve aqui, depois Portal, com mais B/Ls na frente', () => {
+    const groups = groupReviewItems([linkedPortal, unlinkedName, unlinkedDoc, item({ ...unlinkedDoc, id: 'U2' } as never)])
     const ordered = sortReviewGroupsByPriority(groups).map((group) => group.displayName)
-    expect(ordered).toEqual(['Zeta', 'Sem Doc', 'Beta', 'Pedra'])
-    expect(sortReviewGroupsByPriority(groups).flatMap((group) => group.items.map((entry) => entry.id))).toEqual(['U1', 'U2', 'N1', 'L1', 'g1'])
+    expect(ordered).toEqual(['Zeta', 'Sem Doc', 'Beta'])
+    expect(sortReviewGroupsByPriority(groups).flatMap((group) => group.items.map((entry) => entry.id))).toEqual(['U1', 'U2', 'N1', 'L1'])
   })
 })
 

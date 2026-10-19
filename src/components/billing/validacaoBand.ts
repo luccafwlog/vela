@@ -2,7 +2,7 @@
 import { formatDate } from '../../lib/utils'
 
 /** Estados que não pedem ação: a faixa fica neutra, sem âmbar. */
-export const CALM_CODES = new Set(['faturado', 'isento', 'operacao_granito'])
+export const CALM_CODES = new Set(['faturado', 'isento'])
 
 export type ReasonEvent = { kind: 'auto_issue_failed' | 'calculation_blocked'; at: string }
 

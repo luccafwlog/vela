@@ -399,7 +399,6 @@ flowchart LR
     Manifest --> Reconcile
     Reconcile --> Review
     Manifest --> Review
-    Granite --> Review
     Manifest --> CE
     Review --> Charges
     CE --> Charges
@@ -425,7 +424,7 @@ flowchart LR
 - Carga solta tem duas portas de ingestão que convivem: o Manifesto BB (planilha) e o B/L avulso do armador em `.pdf`/`.docx`. As duas terminam na mesma RPC transacional (`import_breakbulk_manifest_transactional`); o B/L avulso é lido no cliente (`blDocumentParser.ts`) e convertido em um manifesto de uma linha.
 - O Nº de Manifesto Mercante vive em `manifestos_mercante` (número único, Viagem, par de portos e `natureza` = `carga` ou `vazio`), com vários manifestos por rota; cada B/L aponta para o seu por `bls.manifesto_mercante_id`, e `voyage_route_ce_master` continua como espelho do **Informar** (Nº de Manifesto Mercante) da rota para os leitores antigos — a nomenclatura "CE Master" sobrevive só nesses identificadores. Desde a migration `212` a API só lê o cadastro. Regra em [Manifestos & EDI § Manifesto Mercante](modules/manifesto-edi.md#manifesto-mercante); o efeito do COD sobre o CE e o vínculo do Manifesto está em [Viagens § Omissão de Escala, Transbordo e COD](modules/viagens.md#omissão-de-escala-transbordo-e-cod).
 - Terminal do B/L: `bls.terminal_id` é a exceção auditada; nulo herda de `voyage_escala_operation_fronts` via `resolve_bl_terminal_id`. B/L misto exige convergência das duas frentes ou exceção válida. Terminal não participa da chave tarifária (ADR 0068).
-- Granito mantém tabelas próprias, integradas downstream.
+- Granito mantém tabelas próprias e só totaliza a carga do navio (sem Cliente, taxa nem CE desde o lote 5b); alimenta o ADR de Saída e a Exportação da Viagem.
 - Veículos são importados por planilha e vinculados a B/L/container.
 - CE Mercante e datas operacionais têm importadores específicos.
 - Arquivos de planilha usam `@e965/xlsx` e devem passar pelo limite de upload antes do parsing. B/L em PDF usa `pdfjs-dist` (import dinâmico, chunk próprio) e B/L em `.docx` é descompactado por `src/lib/zipEntry.ts`, sem dependência de zip no bundle.
@@ -906,8 +905,8 @@ tabelas abaixo; o gate documental confere essa cobertura.
 | `/vazios-importacao` | Vazios de importação |
 | `/embarquevazios` | Embarques de Vazios por escala, unidades importadas e linhas de serviço manuais |
 | `/embarquevazios/depots` | Cadastro de Terminais (depots/terminais portuários) e catálogo de valores sugeridos |
-| `/granito` | Operação de Granito |
-| `/granito/taxas` | Tarifas de Granito |
+| `/granito` | Carga de Granito movimentada no navio |
+| `/granito/taxas` | Redirect para `/granito` (Tarifas do Granito saíram no lote 5b) |
 | `/revisao` | Revisão operacional |
 | `/clientes` | Clientes |
 | `/clientes/informacoes` | Cadastros internos e publicação da Central de Informações |

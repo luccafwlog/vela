@@ -211,7 +211,7 @@ describeLocal('S05 — outbox duravel dos efeitos de import', () => {
     `)).toBe('1')
   })
 
-  it('calcula Granito pelo consumidor SQL, preserva snapshot sem tarifa e reabre o resultado', () => {
+  it('o efeito de Granito termina sem calcular e preserva o snapshot antigo (migration 325)', () => {
     localPsql(`
       INSERT INTO public.granite_manifests(
         id, vessel_voyage, total_bls, total_weight_kg, imported_by
@@ -256,8 +256,11 @@ describeLocal('S05 — outbox duravel dos efeitos de import', () => {
     const processed = JSON.parse(localPsql(`
       SELECT public.process_import_effect(${queued.effect.id}, 'granite-worker');
     `, graniteBlId)) as { effect: Effect }
+    // Desde a 325 o Granito não calcula taxas: mesmo com tarifa vigente, o
+    // efeito termina sem agir e o snapshot antigo fica como estava.
     expect(processed.effect).toMatchObject({ status: 'succeeded', effect_kind: 'granite_billing' })
-    expect(localPsql(`SELECT charge_status FROM public.granite_bls WHERE id = '${graniteBlId}';`)).toBe('calculated')
-    expect(localPsql(`SELECT subtotal::text FROM public.granite_bl_charges WHERE bl_id = '${graniteBlId}';`)).toBe('2000.00')
+    expect(localPsql(`SELECT result->>'skipped' FROM public.import_pending_effects WHERE id = ${queued.effect.id};`)).toBe('granito_sem_calculo')
+    expect(localPsql(`SELECT charge_status FROM public.granite_bls WHERE id = '${graniteBlId}';`)).toBe('not_calculated')
+    expect(localPsql(`SELECT string_agg(subtotal::text, ',') FROM public.granite_bl_charges WHERE bl_id = '${graniteBlId}';`)).toBe('10.00')
   })
 })

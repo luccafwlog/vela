@@ -181,10 +181,6 @@ function importCeSheet(manifestoNumero: string, rows: Array<{ blId: string; ce: 
   return JSON.parse(asOperator(ceSheetCall(manifestoNumero, rows))) as CeSheetResult
 }
 
-function importGraniteCeSheet(rows: Array<{ graniteId: string; ce: string }>): CeSheetResult {
-  return JSON.parse(asOperator(graniteCeSheetCall(rows))) as CeSheetResult
-}
-
 /** Controle positivo da planilha: sem erro de SQL e com o resultado da RPC. */
 function probeCeSheet(sql: string): CeSheetResult | { error: string | null } {
   const attempt = probeAsOperator(sql)
@@ -558,23 +554,23 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
   })
 
   // --- 6. B/L de Granito recebe o CE de um B/L de carga ----------------------
-  let granite: { result: CeSheetResult; cargo: string[]; granite: string[] } | null = null
+  let granite: { refusal: string | null; cargo: string[]; granite: string[] } | null = null
 
+  // Desde a migration 325 o Granito não recebe CE pela planilha: o alvo
+  // `granite` é recusado antes de olhar qualquer B/L, com CE livre ou não.
   it('cenário 6: a planilha de CE de Granito traz o CE já gravado num B/L de carga ativo', () => {
     expect(importCeSheet('A206MAN000GRA', [{ blId: 'A206-GRA-1', ce: ce.granite }])).toMatchObject({ ok: true, inserted: 1 })
     expect(activeHolders(ce.granite)).toEqual(['A206-GRA-1'])
     expect(graniteHolders(ce.granite)).toEqual([])
-    // Controle desfeito: o B/L de Granito aceita um CE livre pela mesma planilha.
     expect(probeCeSheet(graniteCeSheetCall([{ graniteId: graniteBlId, ce: freeCe.granite }])))
-      .toMatchObject({ ok: true, inserted: 1 })
+      .toMatchObject({ error: expect.stringContaining('não se aplica ao Granito') })
 
-    const result = importGraniteCeSheet([{ graniteId: graniteBlId, ce: ce.granite }])
-    granite = { result, cargo: activeHolders(ce.granite), granite: graniteHolders(ce.granite) }
-    expect(typeof result.ok).toBe('boolean')
+    const attempt = tryAsOperator(graniteCeSheetCall([{ graniteId: graniteBlId, ce: ce.granite }]))
+    granite = { refusal: attempt.error, cargo: activeHolders(ce.granite), granite: graniteHolders(ce.granite) }
   })
 
   it('esperado: o CE do B/L de carga não entra no B/L de Granito [CE-01] — regra: CONTEXT.md:956-957 (CE por B/L nos sentidos de importação e exportação) e CONTEXT.md:963-964 (um número de CE não pode ser usado por mais de um B/L)', () => {
-    expect(granite?.result.ok).toBe(false)
+    expect(granite?.refusal).toMatch(/não se aplica ao Granito/)
     expect(granite?.granite).toEqual([])
     expect(granite?.cargo).toEqual(['A206-GRA-1'])
   })

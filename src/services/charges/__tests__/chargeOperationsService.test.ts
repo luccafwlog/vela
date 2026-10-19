@@ -24,23 +24,12 @@ describe('listLocalChargeOperationalRows', () => {
     rpc.mockReset()
   })
 
-  it('nao consulta B/Ls quando o filtro pede so granito', async () => {
+  // O Granito saiu da Validação no lote 5b (2026-10-19): a fila só lê B/Ls.
+  it('nao consulta granito em nenhum modo de carga', async () => {
     const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
     from.mockImplementation(() => builder({ data: [], error: null }))
-    await listLocalChargeOperationalRows({ cargoMode: 'granito' })
-    expect(from.mock.calls.map(([table]) => table)).not.toContain('bls')
-  })
-
-  it('nao consulta granito quando o filtro pede so container', async () => {
-    const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
-    from.mockImplementation(() => builder({ data: [], error: null }))
+    await listLocalChargeOperationalRows({})
     await listLocalChargeOperationalRows({ cargoMode: 'container' })
-    expect(from.mock.calls.map(([table]) => table)).not.toContain('granite_bls')
-  })
-
-  it('consulta B/Ls e nao consulta granito quando o filtro pede misto', async () => {
-    const { listLocalChargeOperationalRows } = await import('../chargeOperationsService')
-    from.mockImplementation(() => builder({ data: [], error: null }))
     await listLocalChargeOperationalRows({ cargoMode: 'misto' })
     expect(from.mock.calls.map(([table]) => table)).toContain('bls')
     expect(from.mock.calls.map(([table]) => table)).not.toContain('granite_bls')
