@@ -68,7 +68,7 @@ vi.mock('../../services/voyages', () => ({
   setVoyageShowOnPortal: mocks.setShow,
 }))
 vi.mock('../../services/portalScheduleVoyages', () => ({
-  fetchPortalScheduleVoyages: vi.fn(),
+  fetchInternalScheduleVoyages: vi.fn(),
 }))
 
 import { ChegadasSaidas } from '../ChegadasSaidas'

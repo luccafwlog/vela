@@ -83,9 +83,10 @@ describe('default-deny de grants em funções (migration 297)', () => {
     })
   })
 
-  describe('a única exceção pré-autenticação viva', () => {
-    // portal_ship_schedule é vitrine pública por decisão (auditoria A-02,
-    // registrada em docs/ARCHITECTURE.md). Precisa sobreviver à varredura.
+  describe('a exceção pré-autenticação da 297', () => {
+    // Contrato histórico: na 297 portal_ship_schedule era vitrine pública por
+    // decisão (auditoria A-02) e sobrevivia à varredura. A migration ativa 320
+    // fechou essa exceção (ADR 0090).
     it('preserva e reafirma o anon de portal_ship_schedule', () => {
       expect(sql).toMatch(/proname <> 'portal_ship_schedule'/)
       expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.portal_ship_schedule\(\) TO anon/)

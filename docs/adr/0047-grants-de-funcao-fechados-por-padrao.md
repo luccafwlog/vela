@@ -1,9 +1,9 @@
 # ADR 0047 — Grants de função fechados por padrão em `public`
 
-> **Situação atual (2026-10-13).** Decisão vigente e implementada. As migrations `078`, `088`, `093`, `152`, `182`, `257`, `296` e `297` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062; `078`, `088`, `093`, `152` e `182` também existem na cadeia ativa, com outro conteúdo. Na cadeia ativa, o default fechado está nas migrations `001` e `006` e a varredura do resíduo na `003`.
+> **Situação atual (2026-10-19).** Continuam valendo o default fechado (decisões 1 a 3) e o fim da exceção da ADR 0013 (decisão 5). Não vale mais a decisão 4: `portal_ship_schedule()` deixou de ser executável por `anon` na migration `320` ([ADR 0090](./0090-programacao-de-navios-so-com-sessao.md)), e não há função pré-autenticação. As migrations `078`, `088`, `093`, `152`, `182`, `257`, `296` e `297` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062; `078`, `088`, `093`, `152` e `182` também existem na cadeia ativa, com outro conteúdo. Na cadeia ativa, o default fechado está nas migrations `001` e `006` e a varredura do resíduo na `003`; em produção, onde a `003` não rodou, o resíduo foi fechado pela `320`.
 > Regra vigente em [Segurança](../operations/seguranca.md), seção "RLS-first" (item "Default-deny em funções").
 
-Status: aceito — 2026-08-14
+Status: supersedida parcialmente — 2026-08-14
 
 Estende a [ADR 0011](./0011-revogacao-anon-security-definer-default-deny.md), que
 estabeleceu o default-deny como *disciplina de autor*, e encerra formalmente a

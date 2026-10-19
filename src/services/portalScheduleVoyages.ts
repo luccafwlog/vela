@@ -1,5 +1,6 @@
 import { PORTAL_SCHEDULE_LANES, portalLaneCode } from './portalScheduleLanes'
 import { callPortalRpc, clientPortalScope, type PortalScope } from './portalScope'
+import { supabase } from './supabase'
 
 export type PortalScheduleRpcRow = {
   voyage_id: number
@@ -73,10 +74,22 @@ export function projectPortalScheduleRows(rows: PortalScheduleRpcRow[]): PortalS
   })
 }
 
-export async function fetchPortalScheduleVoyages(scope: PortalScope = clientPortalScope): Promise<PortalScheduleVoyage[]> {
-  const data = await callPortalRpc<PortalScheduleRpcRow[]>(scope, 'portal_ship_schedule')
+function projectRpcRows(data: PortalScheduleRpcRow[] | null): PortalScheduleVoyage[] {
   return projectPortalScheduleRows((data ?? []).map((row) => {
     if (row.kind !== 'pol' && row.kind !== 'pod') throw new Error(`Tipo de escala inválido: ${row.kind}`)
     return { ...row, kind: row.kind }
   }))
+}
+
+export async function fetchPortalScheduleVoyages(scope: PortalScope = clientPortalScope): Promise<PortalScheduleVoyage[]> {
+  return projectRpcRows(await callPortalRpc<PortalScheduleRpcRow[]>(scope, 'portal_ship_schedule'))
+}
+
+// `/chegadas-saidas` lê a mesma projeção com a sessão interna. O cliente do
+// Portal não tem login no Vela e chamaria como `anon`, sem EXECUTE desde a
+// migration 320 (ADR 0090).
+export async function fetchInternalScheduleVoyages(): Promise<PortalScheduleVoyage[]> {
+  const { data, error } = await supabase.rpc('portal_ship_schedule')
+  if (error) throw error
+  return projectRpcRows(data as PortalScheduleRpcRow[] | null)
 }

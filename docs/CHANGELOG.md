@@ -6,6 +6,12 @@
 
 ## 2026-10
 
+- **Advisor do Supabase de 19/10 (2026-10-19):** nenhuma função é executável antes do login:
+  `portal_ship_schedule()` passou a exigir sessão, porque o Portal só a chama depois do login
+  ([ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); dez funções de trigger que em
+  produção tinham `EXECUTE` para `PUBLIC` foram fechadas; 19 funções ganharam `search_path` fixo
+  (quatro funções SQL usadas linha a linha ficam sem, para não deixar listas e importações mais
+  lentas); 41 chaves estrangeiras de B/L, faturas e Demurrage ganharam índice (migration `320`).
 - **Backup diário explica a falha e tolera `write EOF` (2026-10-19):** depois de o heartbeat
   `backup-r2-diario` acusar falha sem deixar o motivo, cada execução do
   `scripts/backup-r2.mjs` registra o resultado em `backup-r2.log`, na pasta dos
