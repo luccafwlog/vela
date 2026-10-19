@@ -735,10 +735,16 @@ para eles vale o backup do próprio Supabase.
   normalmente 68 s depois, como no backup de 16/10, sem erro no banco. Na
   pasta dos dumps havia os pares de 17 e 18/10 (34,8 e 37,1 MB) e nada de
   19/10: o script falhou depois do dump e antes de concluir a verificação, e
-  o upload nem começou. O motivo exato não ficou registrado, porque a tarefa
+  o upload nem começou. O motivo não ficou registrado, porque a tarefa
   descarta a saída e o script só imprimia o código de saída do `pg_restore` e
   da AWS CLI. Desde então o motivo entra na mensagem e fica no
   `backup-r2.log` da pasta dos dumps ([roteiro](backup-r2.md#heartbeat-do-backup)).
+  **Causa**, achada com o registro na execução manual das 11:40: `validacao
+  pg_restore --list falhou (write EOF)`. É o mesmo fechamento antecipado do
+  `pg_restore --list` corrigido em 2026-10-05, mas no Windows ele às vezes
+  chega como `EOF` em vez de `EPIPE`, e o script só tolerava `EPIPE`; por
+  depender do estado do pipe, falha em alguns dias e passa em outros.
+  Corrigido em `consumeArchive`, que passou a tolerar os dois.
   Na mesma conferência a pasta da tarefa estava de novo fora da `main`, na
   branch `perf/startup-screens-scroll` (integrada em 15/10 e apagada no
   GitHub), com o script igual ao da `main`; o relógio do computador estava

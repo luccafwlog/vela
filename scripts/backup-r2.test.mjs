@@ -62,27 +62,31 @@ test('nomeia objetos por ambiente, projeto e instante sem credenciais', () => {
   })), /password|segredo|postgresql:\/\//i)
 })
 
-test('catálogo fecha cedo sem EPIPE, mas dados posteriores ainda exigem autenticação', async () => {
-  const key = Buffer.alloc(32, 1)
-  const iv = Buffer.alloc(12, 2)
-  const cipher = createCipheriv('aes-256-gcm', key, iv)
-  const encrypted = Buffer.concat([cipher.update(Buffer.alloc(1024 * 1024, 3)), cipher.final()])
-  const tag = cipher.getAuthTag()
-  async function verify(bytes) {
-    const decipher = createDecipheriv('aes-256-gcm', key, iv)
-    decipher.setAuthTag(tag)
-    const earlyClosingInput = new Writable({
-      write(_chunk, _encoding, callback) {
-        callback(Object.assign(new Error('catálogo já lido'), { code: 'EPIPE' }))
-      },
-    })
-    await consumeArchive(Readable.from([bytes.subarray(0, 65536), bytes.subarray(65536)]), decipher, earlyClosingInput)
-  }
-  await verify(encrypted)
-  const corrupted = Buffer.from(encrypted)
-  corrupted[corrupted.length - 1] ^= 1
-  await assert.rejects(verify(corrupted), /authenticate|authentication/i)
-})
+// No Windows o mesmo fechamento chega como EOF ("write EOF"), conforme o
+// estado do pipe; foi o que derrubou o backup de 2026-10-19.
+for (const code of ['EPIPE', 'EOF']) {
+  test(`catálogo fecha cedo sem ${code}, mas dados posteriores ainda exigem autenticação`, async () => {
+    const key = Buffer.alloc(32, 1)
+    const iv = Buffer.alloc(12, 2)
+    const cipher = createCipheriv('aes-256-gcm', key, iv)
+    const encrypted = Buffer.concat([cipher.update(Buffer.alloc(1024 * 1024, 3)), cipher.final()])
+    const tag = cipher.getAuthTag()
+    async function verify(bytes) {
+      const decipher = createDecipheriv('aes-256-gcm', key, iv)
+      decipher.setAuthTag(tag)
+      const earlyClosingInput = new Writable({
+        write(_chunk, _encoding, callback) {
+          callback(Object.assign(new Error('catálogo já lido'), { code }))
+        },
+      })
+      await consumeArchive(Readable.from([bytes.subarray(0, 65536), bytes.subarray(65536)]), decipher, earlyClosingInput)
+    }
+    await verify(encrypted)
+    const corrupted = Buffer.from(encrypted)
+    corrupted[corrupted.length - 1] ^= 1
+    await assert.rejects(verify(corrupted), /authenticate|authentication/i)
+  })
+}
 
 test('heartbeat avisa sucesso na URL e falha em /fail, sem mudar o resultado do backup', async () => {
   const base = 'https://uptime.betterstack.com/api/v1/heartbeat/abc123'

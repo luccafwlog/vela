@@ -6,11 +6,14 @@
 
 ## 2026-10
 
-- **Backup diário explica a falha (2026-10-19):** depois de o heartbeat
+- **Backup diário explica a falha e tolera `write EOF` (2026-10-19):** depois de o heartbeat
   `backup-r2-diario` acusar falha sem deixar o motivo, cada execução do
   `scripts/backup-r2.mjs` registra o resultado em `backup-r2.log`, na pasta dos
   dumps, e as falhas da verificação (`pg_restore --list`) e do upload trazem a
-  mensagem de erro, como já fazia o `pg_dump`. Registro do incidente no
+  mensagem de erro, como já fazia o `pg_dump`. O registro mostrou a causa:
+  no Windows, o fechamento antecipado do `pg_restore --list` às vezes chega
+  como `write EOF` em vez de `EPIPE`, e a verificação passou a tolerar os dois.
+  Registro do incidente no
   [manual de serviços externos](operations/servicos-externos.md#backup).
 - **Correção dos e-mails do sistema (2026-10-18, PR #973):** os e-mails passam a
   falhar de forma visível e a não repetir em loop.
