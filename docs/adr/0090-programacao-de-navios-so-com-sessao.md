@@ -15,12 +15,14 @@ pública da programação de navios. O advisor de 19/10/2026 a apontou, junto co
 dez funções de trigger `SECURITY DEFINER` que em produção tinham `EXECUTE` para
 `PUBLIC` (e, por herança, para `anon` e `authenticated`).
 
-Nenhum chamador usa a função sem sessão:
+Com esta mudança, nenhum chamador usa a função sem sessão:
 
 - no Portal, `usePortalScheduleVoyages` só consulta com o Cliente autenticado
   (`enabled: isAuthenticated || readOnly`), e o Painel (`/portal`) fica atrás
   de `PortalProtectedRoute`;
-- na inspeção e em `/chegadas-saidas`, a chamada sai com a sessão interna;
+- a inspeção chama com a sessão interna; `/chegadas-saidas` chamava pelo
+  cliente do Portal, que no Vela não tem login e caía em `anon`, e passou a
+  usar a sessão interna (`fetchInternalScheduleVoyages`) na mesma mudança;
 - nenhuma Edge Function a chama.
 
 As dez funções de trigger eram resíduo da cadeia arquivada: a varredura da

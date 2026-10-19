@@ -17,7 +17,7 @@ import { userFacingErrorMessage } from '../lib/errors'
 import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
 import { PORTAL_SCHEDULE_LANES, type PortalScheduleLane } from '../services/portalScheduleLanes'
 import { assertNoRepeatedScheduleColumns, parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
-import { fetchPortalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
+import { fetchInternalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
 import { applyScheduleSheetPlan, createOrAttachVoyageFromSchedule, isScheduleSheetWrite, planScheduleSheet, type ScheduleSheetPlanRow } from '../services/voyageFromSchedule'
 import { afterViagemAlterada } from '../services/cacheEffects'
 import { readSheet } from '../services/importCore'
@@ -348,7 +348,7 @@ export function ChegadasSaidas() {
 
   const { data: vessels = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['portal-schedule-voyages'],
-    queryFn: () => fetchPortalScheduleVoyages(),
+    queryFn: () => fetchInternalScheduleVoyages(),
   })
 
   // Viagem criada, publicada ou com datas novas muda as opções de Viagem, a

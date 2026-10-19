@@ -7,7 +7,9 @@
 --        Portal só a chama com sessão: `usePortalScheduleVoyages` fica
 --        desligado sem login, e a rota `/portal` fica atrás de
 --        `PortalProtectedRoute`; a inspeção interna chama com a sessão
---        interna. Nenhuma Edge Function a chama.
+--        interna, e `/chegadas-saidas` passa a chamar com ela na mesma
+--        mudança (antes ia pelo cliente do Portal, como `anon`). Nenhuma
+--        Edge Function a chama.
 --      - dez funções de trigger com `EXECUTE` para PUBLIC em produção. É
 --        resíduo da cadeia arquivada: a varredura da migration `003` nunca
 --        rodou em produção (ADR 0062, o histórico remoto já tinha `003`), e o

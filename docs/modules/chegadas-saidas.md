@@ -25,7 +25,8 @@ nasceram nas migrations arquivadas `172`/`173`).
 ### Rota interna `/chegadas-saidas`
 
 A página lista viagens com `show_on_portal = true` por
-`fetchPortalScheduleVoyages()`, projetando cada viagem na grade fixa de lanes
+`fetchInternalScheduleVoyages()`, que chama a RPC com a sessão interna (o
+Portal usa `fetchPortalScheduleVoyages()` com a sessão do Cliente), projetando cada viagem na grade fixa de lanes
 `PORTAL_SCHEDULE_LANES`: Qingdao, Shanghai, Taicang, Ningbo, Nansha, Salvador,
 Vitória e Pecém.
 
@@ -113,7 +114,8 @@ mapa**, na ponta da linha; navio sem IMO não tem o botão. No Vela, **Editar**
 fica ao lado dele, e a tabela fica no bloco "Programação publicada no Portal".
 Abaixo de 640 px o widget do Portal vira cartões por navio. Erro de consulta mostra "Tentar novamente" e não se confunde
 com programação vazia. O serviço chama a RPC `portal_ship_schedule`,
-que é `SECURITY DEFINER` e allowlisted para `anon`, retornando somente viagens
+que é `SECURITY DEFINER`, executável por `authenticated` e, desde a migration
+`302`, não por `anon` ([ADR 0090](../adr/0090-programacao-de-navios-so-com-sessao.md)), retornando somente viagens
 ativas com `show_on_portal = true`. PODs deletados continuam ocultos; PODs
 omitidos retornam com `omitted=true` e são renderizados como "Omitida", distinto de
 porto sem data e sem representar uma data. O widget renderiza as colunas pela constante de
