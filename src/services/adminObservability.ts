@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { brasiliaDayBounds } from '../lib/dates'
 
 export type AuditLogRow = {
   id: number
@@ -15,9 +16,15 @@ export type AuditLogRow = {
 
 export const LOG_PAGE_SIZE = 50
 
+/** Autor "Sistema" no filtro Por: linhas gravadas sem usuário (jobs, gatilhos). */
+export const SYSTEM_AUTHOR = 'sistema'
+
 export type LogFilters = {
-  entityType: string
+  /** Entidades do assunto escolhido; vazio = todos os assuntos. */
+  entityTypes: readonly string[]
+  /** Usuário (id), `SYSTEM_AUTHOR` ou vazio para qualquer pessoa. */
   changedBy: string
+  /** Dia de Brasília (YYYY-MM-DD), inclusive. */
   dateFrom: string
   dateTo: string
   page: number
@@ -33,10 +40,11 @@ export async function fetchAuditLogs(filters: LogFilters): Promise<{ rows: Audit
     .order('changed_at', { ascending: false })
     .range(from, to)
 
-  if (filters.entityType) query = query.eq('entity_type', filters.entityType)
-  if (filters.changedBy) query = query.eq('changed_by', filters.changedBy)
-  if (filters.dateFrom) query = query.gte('changed_at', filters.dateFrom + 'T00:00:00')
-  if (filters.dateTo) query = query.lte('changed_at', filters.dateTo + 'T23:59:59')
+  if (filters.entityTypes.length) query = query.in('entity_type', [...filters.entityTypes])
+  if (filters.changedBy === SYSTEM_AUTHOR) query = query.is('changed_by', null)
+  else if (filters.changedBy) query = query.eq('changed_by', filters.changedBy)
+  if (filters.dateFrom) query = query.gte('changed_at', brasiliaDayBounds(filters.dateFrom).start)
+  if (filters.dateTo) query = query.lte('changed_at', brasiliaDayBounds(filters.dateTo).end)
 
   const { data, error, count } = await query
   if (error) throw error
@@ -53,7 +61,8 @@ export async function fetchAuditLogs(filters: LogFilters): Promise<{ rows: Audit
   }
 
   return {
-    rows: rows.map((r) => ({ ...r, changer_name: r.changed_by ? (nameById.get(r.changed_by) ?? r.changed_by) : null })),
+    // Autor sem perfil (usuário apagado no Auth) aparece por extenso, nunca pelo número interno.
+    rows: rows.map((r) => ({ ...r, changer_name: r.changed_by ? (nameById.get(r.changed_by) ?? 'Pessoa sem cadastro') : null })),
     count: count ?? 0,
   }
 }
@@ -69,6 +78,16 @@ export type RoutingFailureRow = {
   created_at: string
   entity_type?: string | null
   entity_id?: string | null
+}
+
+/**
+ * Motivo da falha em português de tela: o banco grava a frase técnica
+ * (`fanout_alert_item*`, com "fallback"); motivo desconhecido segue como veio.
+ */
+export function routingFailureReasonLabel(reason: string): string {
+  if (/fallback/i.test(reason)) return 'Ninguém ativo no setor do alerta nem no Administrativo.'
+  if (/audi[eê]ncia/i.test(reason)) return 'Ninguém ativo no setor do alerta.'
+  return reason
 }
 
 export async function fetchRoutingFailures(page = 0): Promise<{ rows: RoutingFailureRow[]; count: number }> {
@@ -118,20 +137,24 @@ export async function fetchRoutingFailures(page = 0): Promise<{ rows: RoutingFai
   }
 }
 
-export async function fetchSystemMetrics() {
-  const [voyageRes, reconRes, invoiceRes] = await Promise.all([
+export type SystemMetrics = {
+  /** Criação da viagem mais recente. */
+  lastVoyageCreatedAt: string | null
+  /** Emissão da fatura mais recente (`issued_at`), não a criação. */
+  lastInvoiceIssuedAt: string | null
+}
+
+export async function fetchSystemMetrics(): Promise<SystemMetrics> {
+  const [voyageRes, invoiceRes] = await Promise.all([
     supabase.from('voyages').select('created_at').order('created_at', { ascending: false }).limit(1),
-    supabase.from('audit_logs').select('changed_at').eq('entity_type', 'pix_reconciliation').order('changed_at', { ascending: false }).limit(1),
-    supabase.from('invoices').select('created_at').order('created_at', { ascending: false }).limit(1),
+    supabase.from('invoices').select('issued_at').not('issued_at', 'is', null).order('issued_at', { ascending: false }).limit(1),
   ])
 
   if (voyageRes.error) throw voyageRes.error
-  if (reconRes.error) throw reconRes.error
   if (invoiceRes.error) throw invoiceRes.error
 
   return {
-    lastVoyageAt: voyageRes.data?.[0]?.created_at ?? null,
-    lastPixReconAt: (reconRes.data?.[0] as { changed_at?: string } | undefined)?.changed_at ?? null,
-    lastInvoiceAt: invoiceRes.data?.[0]?.created_at ?? null,
+    lastVoyageCreatedAt: voyageRes.data?.[0]?.created_at ?? null,
+    lastInvoiceIssuedAt: (invoiceRes.data?.[0] as { issued_at?: string | null } | undefined)?.issued_at ?? null,
   }
 }

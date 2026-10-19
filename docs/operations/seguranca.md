@@ -34,7 +34,7 @@ As policies de leitura e marcação de notificações internas exigem destinatá
 igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
 `131`), inclusive para acesso direto com um JWT ainda válido após desativação.
 
-`administrativo` · `financeiro` · `operacoes` · `documentacao` · `equipamentos`, em `user_profiles` (`role`, `active`). Geridas em `/admin/usuarios`. Ver [Admin Usuários](../modules/operacao-suporte.md#admin). O papel legado `operator` é tratado como Documentação; o papel `admin` (Administrador) deixou de existir (migration `093`).
+`administrativo` · `financeiro` · `operacoes` · `documentacao` · `equipamentos`, em `user_profiles` (`role`, `active`). Geridas em `/admin/usuarios`. Ver [Admin Usuários](../modules/operacao-suporte.md#admin). O papel legado `operator` é tratado como Documentação, inclusive no envio de alertas desde a migration `328`; o papel `admin` (Administrador) deixou de existir (migration `093`).
 
 - **Usuário interno ativo:** identidade do Supabase Auth com perfil ativo em
   `user_profiles` e papel reconhecido (`is_active_user()` no banco; o app recusa
@@ -57,8 +57,8 @@ igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
 Todo perfil interno ativo lê dado operacional e financeiro, inclusive de
 tarifação (`is_active_read_user()`;
 [ADR 0044](../adr/0044-leitura-interna-global-departamento-restringe-escrita.md)).
-A única exceção é a área `/admin` inteira — Usuários, logs, métricas e todas as
-abas —, só do Administrativo, inclusive para leitura; o item Admin do menu só
+A única exceção é a área `/admin` inteira — Usuários, Falhas de entrega de alertas,
+Histórico de ações, Sistema e Prazo do ADR —, só do Administrativo, inclusive para leitura; o item Admin do menu só
 aparece para ele. Desbloqueio de CE, documentos do pedido, fila de Disputas,
 Histórico do console do Portal e Comunicados passaram à leitura global na
 migration `250` (P12; [matriz](#modelo-de-permissões-por-perfil)).
@@ -111,16 +111,24 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
   dos cinco perfis no Postgres local, inclusive a escrita direta pela API nas
   tabelas de P1, P2, P3 e P15; as exceções sem caso próprio passam pela tabela
   `MATRIX_EXCEPTIONS` (P14), que confere a recusa por `42501` fora dos perfis
-  da linha. O texto de cada perfil em `/admin/usuarios` (`PROFILE_SCOPES`,
-  `src/services/adminUsers.ts`) resume as exceções desta matriz.
+  da linha; as ações de todos os setores sem caso próprio passam pela tabela
+  `MATRIX_GLOBAL`.
+- **Matriz da tela:** "O que cada setor pode", em `/admin/usuarios`, e a lista
+  "Com este setor, ... pode" das janelas de usuário vêm do catálogo único
+  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 39 linhas
+  que resumem as ações desta matriz, cada uma citando os casos da bateria que a
+  provam. `permissionMatrix.test.ts` falha se uma linha ficar sem caso ou citar
+  caso inexistente; a bateria falha se o banco divergir do catálogo. Mudar uma
+  permissão muda as três coisas na mesma alteração: o banco, esta matriz e o
+  catálogo.
 
 ### Leitura, administração e rastro
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Ler dado operacional e financeiro | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` | ADR 0044 | vigente |
-| `/admin`: usuários, logs e métricas | ✔ | — | — | — | — | Usuários: `admin_list_users` (`is_admin`). Logs e métricas: só a navegação (rota `adminOnly`); os dados por trás, como `audit_logs`, têm leitura global (ADR 0044) | ADR 0046 | vigente |
-| Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha | ✔ | — | — | — | — | Edge `admin-users` (`is_admin`); policy de `user_profiles` e gatilho `prevent_user_profile_privilege_escalation` | ADR 0046 | vigente |
+| `/admin`: usuários, falhas de entrega de alertas, histórico de ações, sistema e Prazo do ADR | ✔ | — | — | — | — | Usuários: `admin_list_users` (`is_admin`). As demais abas: só a navegação (rota `adminOnly`); os dados por trás, como `audit_logs`, têm leitura global (ADR 0044) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
+| Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha | ✔ | — | — | — | — | Edge `admin-users` (`is_admin`); policy de `user_profiles` e gatilho `prevent_user_profile_privilege_escalation` | ADR 0046 | vigente (**Teste** local da troca de setor e da situação: `permissoesPorPerfil.local-pg.test.ts`) |
 | Desativar ou rebaixar o último Administrativo ativo | — | — | — | — | — | Gatilho `guard_last_active_administrativo` (migration `239`) | ADR 0083, item 2 | vigente (**Teste** local) |
 | Excluir perfil interno | — | — | — | — | — | Sem DELETE em `user_profiles` para `authenticated` (migration `240`) | ADR 0083, item 3 | vigente (**Teste** local) |
 | Registrar escrita em nome de outro usuário | — | — | — | — | — | `_assert_actor_is_caller` sem exceção para o Administrativo, chamado no início de toda RPC `SECURITY DEFINER` com `p_actor` executável por `authenticated` (migration `241`); sem usuário na sessão (`service_role`), o autor informado vale | ADR 0085, regra base 2 | vigente (**Teste** local) |
@@ -133,6 +141,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Desmarcar a exportação de uma escala | ✔ | ✔ | ✔ | ✔ | ✔ | Gatilho `guard_export_schedule_removal` (migration `066`): recusa quando o porto tem Granito importado ou Embarque de Vazios aberto | ADR 0085, D14 | vigente (**Teste**, Postgres local, 2026-10-14) |
 | Cancelar e reativar Viagem e B/L, com motivo | ✔ | — | — | — | — | `cancel_voyage`, `reactivate_voyage`, `cancel_bl`, `reactivate_bl` (`is_admin`) e gatilhos das migrations `066` e `089` | ADR 0071, itens 8 e 9 | vigente |
 | Excluir viagem, escala (inclusive de exportação), atracação, B/L e container, com motivo e Trava | ✔ | — | — | — | — | `delete_records`, `delete_escala` (migrations `088` e `235`: escala com B/L recusada); sem DELETE direto pela API (`235`) | ADR 0046; ADR 0071; ADR 0083, item 7 | vigente (**Teste** local) |
+| Excluir Cliente, com motivo | ✔ | — | — | — | — | `delete_records('customer', …)`, com a guarda do Administrativo antes do tipo | ADR 0046; ADR 0071 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Excluir taxa manual do B/L | ✔ | — | — | — | — | `delete_manual_bl_charge` (`is_admin`) | ADR 0071, item 11 | vigente: escrita direta em `charge_calculations` revogada (migration `231`, **Teste** local) |
 | Reverter omissão de escala, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `revert_voyage_omission` | ADR 0085, D9 | migration `251` |
 | Reabrir ADR de Saída fechado, com motivo no Histórico | ✔ | ✔ | ✔ | ✔ | ✔ | `reopen_agency_departure_report*` | ADR 0085, D8 | migration `251`; a justificativa é obrigatória e vai para o rastro |
@@ -158,7 +167,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Criar e editar tabela, item e Condição de Cliente; lançar taxa manual | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `add_manual_bl_charge` | ADR 0046; decisão R6 de 2026-09-23 | vigente |
-| Desativar, reativar e excluir tarifa | ✔ | — | — | — | — | Gatilho `guard_tariff_active_change` (migration `091`); item e Condição de Cliente saem por `delete_catalog_row`, com motivo (migration `096`); a tabela (`charge_tables`) não tem exclusão desde a migration `235` | ADR 0073, item 4 | vigente |
+| Desativar, reativar e excluir tarifa | ✔ | — | — | — | — | Gatilho `guard_tariff_active_change` (migration `091`); reativar com motivo por `reactivate_catalog_row` (migration `261`); item e Condição de Cliente saem por `delete_catalog_row`, com motivo (migration `096`); a tabela (`charge_tables`) não tem exclusão desde a migration `235` | ADR 0073, item 4 | vigente |
 | Alterar valores do cálculo do B/L e a situação financeira do B/L | — | — | — | — | — | Só as RPCs de cálculo e faturamento | ADR 0077; ADR 0085 | vigente: `charge_calculations` sem escrita direta (migration `231`) e `bls.financial_status` recusado na escrita pela API pelo gatilho `guard_bl_financial_status_port` (migration `232`) (**Teste** local) |
 | Emitir fatura fora do automático: ficha do B/L, Validação, consolidada | ✔ | ✔ | ✔ | ✔ | ✔ | `mark_bl(s)_ready_and_create_invoice`, `create_invoice_from_bls*`, `create_local_consolidated_invoice` | ADR 0085, D3 | vigente desde a migration `246` (emissão por todos) e `272` (motivo interno obrigatório) (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4; `manualInvoice.local-pg.test.ts`) |
 | Corrigir fatura emitida: Tentar reemitir, Tentar aplicar correção, Tentar emitir para o novo Cliente, Resolver fatura desatualizada | ✔ | ✔ | ✔ | ✔ | ✔ | `retry_pending_consolidated_reissue`, `retry_invoice_basis_changes`, `resolve_stale_invoice` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
@@ -169,6 +178,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Alterar fatura, item, pagamento ou recebível fora das RPCs | — | — | — | — | — | Sem grant de INSERT, UPDATE ou DELETE para `authenticated` em `invoices`, `invoice_items`, `payments`, `ledger_settlements`, `bl_receivables`, `invoice_counters`, `invoice_bls`, `invoice_granite_bls`, `invoice_receivable_links`, `invoice_lifecycle_events` e `billing_batches` (migration `233`) | ADR 0077; ADR 0085, falha 5 | vigente (**Teste**, Postgres local) |
 | Autorizar restituição excepcional (avulsa e Demurrage) e cancelar a autorização pendente | ✔ | ✔ | ✔ | ✔ | ✔ | `request_financial_refund`, `cancel_financial_refund_authorization` | ADR 0085, D2 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
 | Registrar a Restituição: confirmar a devolução com comprovante, favorecido e data | ✔ | ✔ | — | — | — | `confirm_invoice_refund`, `confirm_demurrage_refund` (`is_financeiro_user`) | ADR 0085, base e D2; ADR 0077 | vigente |
+| Confirmar a Restituição pelo caminho antigo, sem comprovante | — | — | — | — | — | `settle_invoice_refund` sempre recusava e saiu do alcance de `authenticated` (migration `328`) | Achado P5 do lote 5b | vigente desde a migration `328` |
 | Receber os alertas "Pix não conciliado", "Restituição pendente" e "Fatura desatualizada" | ✔ | ✔ | — | — | — | Audiência em `alert_type_catalog` (migrations `078`, `124` e `128`) | ADR 0085, D18 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5). O Pix não conciliado também vai à Documentação e a Equipamentos. |
 | Preparar cancelamento financeiro de B/L em fatura paga | ✔ | — | — | — | — | `prepare_bl_financial_cancellation` (`is_admin`) | ADR 0077, exceções controladas | vigente |
 | Liquidar Ajuste de COD (vincular, abatimento, restituição) | ✔ | ✔ | — | — | — | `settle_cod_adjustment` (`is_financeiro_user`) | ADR 0051, decisão 3 | vigente |
@@ -178,9 +188,11 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Gerar Invoice de Demurrage e complementar | ✔ | ✔ | ✔ | ✔ | ✔ | `issue_demurrage_invoice_for_bl` | ADR 0085, D3 | vigente desde a migration `246` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, A9 e P4) |
+| Editar a condição de Demurrage do B/L (free time e diárias do B/L) | ✔ | ✔ | ✔ | ✔ | ✔ | `save_bl_demurrage_config` (`is_active_user()`, autor igual ao da sessão) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, MATRIX_GLOBAL) |
 | Registrar pagamento de Invoice de Demurrage | ✔ | ✔ | — | — | — | `register_demurrage_payment` (`is_financeiro_user`) | ADR 0085, base e D4 | vigente |
 | Aplicar ou alterar desconto | ✔ | ✔ | ✔ | ✔ | ✔ | `apply_demurrage_discount` | ADR 0085, D4 | vigente desde a migration `247` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P5) |
 | Cancelar Invoice e cancelar baixa de Demurrage | ✔ | — | — | — | — | `cancel_demurrage_invoice`, `reverse_demurrage_payment` (`is_admin`) | ADR 0085, base; ADR 0071, item 13 | vigente |
+| Reabrir Invoice de Demurrage paga | — | — | — | — | — | `reopen_demurrage_invoice` não tinha tela e saiu do alcance de `authenticated` (migration `328`); a baixa se desfaz por `reverse_demurrage_payment` | Achado P5 do lote 5b | vigente desde a migration `328` |
 | Alterar itens de Invoice emitida (dias, diária, subtotal) | — | — | — | — | — | Só as RPCs de emissão e recálculo | ADR 0077; ADR 0085 | vigente: escrita direta em `demurrage_invoice_items` revogada (migration `231`, **Teste** local) |
 | Informar PTAX | ✔ | ✔ | — | — | ✔ | `recalculate_demurrage_invoices_manual` (migration `110`) | Decisão do dono de 2026-09-29; ADR 0085 | vigente |
 | Gravar a referência cambial (ROE) | — | — | — | — | — | Só o job do BCB e o Informar PTAX | ADR 0083, item 14 | vigente: `save_exchange_rate_reference(_v2)` só para `service_role` e o Informar PTAX grava como dono (migration `236`, **Teste** local) |
@@ -206,10 +218,10 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Criar e editar Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()`; `create_customer_with_contacts`, `update_customer_with_audit` | ADR 0046 | vigente |
 | Desativar e reativar Cliente | ✔ | — | — | — | — | `deactivate_customer`, `reactivate_customer` (`is_admin`) e gatilho da migration `092` | ADR 0073, item 5 | vigente |
 | Editar contatos e Caixas de Comunicação | ✔ | — | — | ✔ | ✔ | `internal_save_customer_contact_configuration` (migration `008`), `internal_fill_empty_contact_boxes` | ADR 0060; ADR 0046, nota de 2026-09-18 | vigente: sem escrita direta em `customer_contacts` (migration `232`, **Teste** local) |
-| Consultar o histórico de Comunicados (`/clientes/comunicacao`) | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` de `customer_communications` e `customer_communication_bls`; a rota abre a todos; o Disparo exige `customer_communications` (`src/AppInterno.tsx`) | ADR 0044; ADR 0085, D19 | vigente: a rota abre a todos e a aba Disparo fica com quem envia (**Teste:** `ClientesComunicacao.test.tsx`) |
+| Consultar o histórico de Comunicados (`/clientes/comunicacao?tab=historico`) | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` de `customer_communications` e `customer_communication_bls`; a rota abre a todos; a vista Disparo exige `customer_communications` (`canSend` em `src/pages/ClientesComunicacao.tsx`) | ADR 0044; ADR 0085, D19 | vigente: a rota abre a todos e a vista Disparo fica com quem envia (**Teste:** `ClientesComunicacao.test.tsx`) |
 | Disparar Comunicado e salvar modelo | ✔ | — | — | ✔ | ✔ | Edge `send-customer-communication`; `save_customer_communication_saved_template` | ADR 0060 | vigente |
 | Ligar e desligar a chave global de envio | ✔ | — | — | — | — | `set_communications_enabled` | ADR 0059 | vigente |
-| Provisionar o Portal: convite, conta, Email de Recuperação, endereço bloqueado, reabrir análise | ✔ | — | — | ✔ | — | Edges `portal-invite-send` e `portal-account-suspend`; RPCs `portal_*` (migration `002`) | ADR 0046 | vigente |
+| Provisionar o Portal: enviar e cancelar convite, conta, Email de Recuperação, endereço bloqueado, reabrir análise | ✔ | — | — | ✔ | — | Edges `portal-invite-send`, `portal-account-suspend` e `portal-recovery-email-change`; RPCs `portal_cancel_invite`, `portal_assisted_email_change`, `portal_release_suppressed_email`, `portal_return_to_analysis` (migration `002`) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Trocar o CNPJ do Portal | ✔ | — | — | — | — | `portal_admin_change_cnpj` | Plano arquivado de 2026-08-13; ADR 0085 | vigente |
 | Conceder e revogar a Liberação de faturamento sem Portal | ✔ | — | — | — | — | `grant_`/`revoke_customer_billing_portal_release` | ADR 0070 | vigente |
 | Ler o console de provisionamento completo e o Histórico | ✔ | ✔ | ✔ | ✔ | ✔ | `portal_list_provisioning_console`, `portal_list_provisioning_events` | ADR 0045; ADR 0083, item 18; ADR 0085, D12 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
@@ -218,9 +230,9 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
-| Ver pedidos, situação e solicitações do Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_private.actor()` (migration `139`) | ADR 0085, D11 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
+| Ver pedidos, situação e solicitações do Cliente | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_private.actor()` (definição vigente na migration `250`) | ADR 0085, D11 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
 | Abrir e baixar documentos do pedido (procuração, termo, anexos) | ✔ | ✔ | ✔ | ✔ | ✔ | `ce_unlock_document_access` com `ce_unlock_private.actor()` (migration `250`); Edge `ce-unlock-document-download` | ADR 0085, D16 | vigente desde a migration `250` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e A18) |
-| Gerir pedidos, documentos, exportação para a ZPT e conciliação | ✔ | — | — | ✔ | — | `ce_unlock_private.actor(true)` | ADR 0085, D11 | vigente |
+| Gerir pedidos, documentos, exportação para a ZPT e conciliação | ✔ | — | — | ✔ | — | `ce_unlock_private.actor(true)` (definição vigente na migration `250`) | ADR 0085, D11 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P12 e P14) |
 
 ### Administrativo ativo mínimo
 

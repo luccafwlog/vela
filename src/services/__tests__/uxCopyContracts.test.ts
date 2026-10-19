@@ -21,11 +21,14 @@ it('uses neutral report-limit copy instead of claiming one global limit', () => 
   expect(source).toContain('A planilha traz todas.')
 })
 
-it('exposes the audit author filter and clears it with the other filters', () => {
-  const source = readFileSync(resolve(process.cwd(), 'src/pages/Admin.tsx'), 'utf8')
-  expect(source).toContain('Autor (ID)')
-  expect(source).toContain('value={logFilters.changedBy}')
-  expect(source).toContain('logFilters.entityType || logFilters.changedBy || logFilters.dateFrom || logFilters.dateTo')
+it('exposes the audit author filter as a list of people and clears it with the other filters', () => {
+  const source = readFileSync(resolve(process.cwd(), 'src/components/admin/AdminHistoryTab.tsx'), 'utf8')
+  // Lote 5b: "Por" é a lista de pessoas (e "Sistema"), no lugar do número interno do autor.
+  expect(source).not.toContain('Autor (ID)')
+  expect(source).toContain('<Field label="Por">')
+  expect(source).toContain('value={filters.changedBy}')
+  expect(source).toContain('filters.subject || filters.changedBy || filters.dateFrom || filters.dateTo')
+  expect(source).toContain('setFilters(EMPTY_FILTERS)')
 })
 
 it('uses the voyage-backed schedule flow instead of the legacy schedule export', () => {

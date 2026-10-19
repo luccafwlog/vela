@@ -698,7 +698,7 @@ const TIMELINE_OPERATION_KIND_LABELS: Record<string, string> = {
   vazio: 'vazios',
   granito: 'granito',
 }
-const TIMELINE_VOYAGE_FIELD_LABELS: Record<string, string> = {
+export const TIMELINE_VOYAGE_FIELD_LABELS: Record<string, string> = {
   created: 'Viagem',
   voyage_number: 'Nº da viagem',
   vessel_id: 'Navio',

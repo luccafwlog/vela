@@ -494,7 +494,7 @@ menores e específicas descritas no catálogo.
 | `cancel_invoice` | cancelamento, estado de B/Ls e auditoria | `cancelInvoice` |
 | `confirm_invoice_refund` | `pending → settled` com referência bancária, favorecido e data (Financeiro ou Administrativo) e auditoria | `settleInvoiceRefund` |
 | `add_manual_invoice_charge` / `delete_manual_invoice_charge` | Desativadas: sem `EXECUTE` para a API desde a `122` | — |
-| `settle_invoice_refund` | Desativada: recusa sempre desde a `136` e manda usar `confirm_invoice_refund` | — |
+| `settle_invoice_refund` | Desativada: recusa sempre desde a `136` e manda usar `confirm_invoice_refund`; fora do alcance de `authenticated` desde a `328` | — |
 
 ## Fluxos e invariantes
 

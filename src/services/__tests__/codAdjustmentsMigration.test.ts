@@ -213,8 +213,11 @@ describeLocal('comportamento efetivo da liquidação de COD no Postgres local', 
     expect(psql(`SELECT payment_id IS NULL || '|' || (cod_adjustment_id IS NOT NULL) || '|' || status FROM public.invoice_refunds WHERE cod_adjustment_id = (SELECT id FROM public.cod_adjustments WHERE omission_id = ${refundOmissionId});`)).toBe('true|true|pending')
 
     const refundId = psql(`SELECT id FROM public.invoice_refunds WHERE cod_adjustment_id = (SELECT id FROM public.cod_adjustments WHERE omission_id = ${refundOmissionId});`)
+    // O caminho antigo de confirmar a Restituição sempre falhava e saiu do alcance do navegador (migration 328, P5);
+    // a tela confirma com confirm_invoice_refund, com referência bancária, favorecido e data.
     const settleRefund = callAs('authenticated', adminId, `SELECT public.settle_invoice_refund(${refundId}, '${adminId}')`)
-    expect(settleRefund.status).toBe(0)
+    expect(settleRefund.status).not.toBe(0)
+    expect(`${settleRefund.stdout}\n${settleRefund.stderr}`).toMatch(/permission denied for function settle_invoice_refund/i)
 
     const directWrite = callAs('authenticated', adminId, `UPDATE public.cod_adjustments SET status = 'cancelled' WHERE omission_id = ${offsetOmissionId}`)
     expect(directWrite.status).not.toBe(0)

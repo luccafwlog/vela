@@ -1026,8 +1026,9 @@ está em [Estado e dados](#estado-e-dados).
 - **Corrigido (nota editorial de 2026-10-12, conferida no código):** as duas
   telas cancelam a baixa pela mesma RPC: `Cancelar baixa…` em `/demurrage` e a
   reversão em `/reconciliacao` chamam `reverse_demurrage_payment` (Administrativo,
-  justificativa e auditoria). `unmarkInvoicePaid` continua no serviço sem
-  chamador na tela. As datas da edição do container e da aba do B/L passam pela
+  justificativa e auditoria). `unmarkInvoicePaid`, sem chamador na tela, saiu
+  do serviço, e `reopen_demurrage_invoice` deixou de ser executável pelo
+  navegador (migration `328`). As datas da edição do container e da aba do B/L passam pela
   mesma `set_container_dates`, que grava `audit_logs` `container_dates`
   (migration `179`).
 - **Permissões por perfil (ADR 0085):** pela [matriz de permissões](../operations/seguranca.md#demurrage-e-granito), qualquer Departamento gera Invoice e complementar (migration `246`), aplica desconto e autoriza ou cancela a restituição excepcional (`247`), cria e edita tarifa e acordo de Demurrage (`254`) e lê a fila de Disputas (`250`); registrar pagamento e a devolução segue do Financeiro e do Administrativo; cancelar Invoice e baixa, só do Administrativo; responder, reabrir e anexar na Disputa, Equipamentos e Administrativo. **Teste local-pg:** `permissoesPorPerfil.local-pg.test.ts` (P4, P5, P9 e P12).

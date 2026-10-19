@@ -201,7 +201,7 @@ export function AgencyReportTimeline({
   closedByName: string | null
 }) {
   // Só a data (YYYY-MM-DD) é prazo congelado da regra de dias úteis: os
-  // vereditos seguem o prazo que valia no Fechamento, como em /admin/prazo-adr.
+  // vereditos seguem o prazo que valia no Fechamento, como em /admin/prazo-do-adr.
   const frozenDeadlineDate = deadline && /^\d{4}-\d{2}-\d{2}$/.test(deadline) ? deadline : null
   const departmentRows = buildDepartmentTimelineRows({ atd, frozenDeadlineDate, omitted, now, departmentSignoffs, departmentEvents, actorNames })
   const history = buildAdrHistoryRows({ atd, frozenDeadlineDate, atdSource, atdRegisteredAt, omitted, departmentSignoffs, departmentEvents, actorNames, closedAt, closedByName })

@@ -22,7 +22,7 @@ describe('routeTitle (WCAG 2.4.2 — título por rota)', () => {
     // /clientes/portal casava com o padrão de CNPJ e era titulado "Ficha do Cliente".
     expect(routeTitle('/clientes/portal')).toBe('Clientes · Provisionamento do Portal · Vela')
     expect(routeTitle('/admin')).toBe('Administração · Vela')
-    expect(routeTitle('/admin/logs')).toBe('Administração · Log de Ações · Vela')
+    expect(routeTitle('/admin/historico')).toBe('Administração · Histórico de ações · Vela')
   })
 
   it('distingue portal de app interno', () => {
