@@ -125,6 +125,36 @@ describeLocal('S12 — leituras operacionais paginadas', () => {
     expect(summary).toMatchObject({ totalBls: 3, totalDistinctContainers: 2, chargeExempt: 1, totalMachines: 2, totalPackages: 12, totalWeightTon: 1.5, totalCbm: 4.25 })
   })
 
+  // Migration 321: o link do Painel manda o POD canônico da escala (BRVIX);
+  // B/Ls gravados com a grafia legada BRVIT ficavam fora da lista.
+  it('filtro de POD compara o porto canônico, não a grafia gravada', () => {
+    // Só neste teste: as outras leituras da suíte agrupam pela grafia gravada.
+    psql(`UPDATE public.bls SET pod = 'BRVIT' WHERE id = '${blIds[1]}';`)
+    try {
+      const bls = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bls(1, 100, NULL, ${voyageId}, NULL, NULL, 'BRVIX', NULL, NULL, NULL, NULL);`))) as { rows: Array<{ id: string }>; count: number }
+      expect(bls.rows.map((row) => row.id).sort()).toEqual(['S12-BL-A', 'S12-BL-B'])
+
+      const legacy = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bls(1, 100, NULL, ${voyageId}, NULL, NULL, 'BRVIT', NULL, NULL, NULL, NULL);`))) as { count: number }
+      expect(legacy.count).toBe(2)
+
+      const summary = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bl_summary(NULL, ${voyageId}, NULL, NULL, 'BRVIX', NULL, NULL, NULL, NULL);`))) as { totalBls: number }
+      expect(summary.totalBls).toBe(2)
+
+      const containers = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_containers(1, 100, NULL, ${voyageId}, NULL, NULL, 'BRVIX');`))) as { count: number }
+      expect(containers.count).toBe(2)
+
+      // Igualdade, não substring: "BRV" não é porto.
+      const partial = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_bls(1, 100, NULL, ${voyageId}, NULL, NULL, 'BRV', NULL, NULL, NULL, NULL);`))) as { count: number }
+      expect(partial.count).toBe(0)
+
+      const options = JSON.parse(lastJson(callAsAuthenticated('SELECT public.operational_list_filter_options();'))) as { pods: string[] }
+      expect(options.pods).toContain('BRVIX')
+      expect(options.pods).not.toContain('BRVIT')
+    } finally {
+      psql(`UPDATE public.bls SET pod = 'BRVIX' WHERE id = '${blIds[1]}';`)
+    }
+  })
+
   it('pagina containers e calcula agregados no mesmo conjunto filtrado', () => {
     const page = JSON.parse(lastJson(callAsAuthenticated(`SELECT public.operational_list_containers(1, 100, NULL, ${voyageId}, NULL, NULL, NULL, NULL, NULL, NULL, 'imo', NULL, true);`))) as {
       rows: Array<{ id: number; bl?: { id: string } | null }>
