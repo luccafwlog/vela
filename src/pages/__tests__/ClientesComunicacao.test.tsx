@@ -960,6 +960,22 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     expect(await screen.findByText(/Reenvio registrado em simulação \(tentativa 2\)/)).toBeTruthy()
   })
 
+  it('"Reenviar CE e Taxas" sem saber se a chave está ligada não confirma nem envia', async () => {
+    mockAppSettings = null
+    mockHistory = [{ ...defaultHistory[0], kind: 'ce_mercante_taxas', anchor_voyage_id: 7, status: 'simulado', id: 900 }]
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Reenviar CE e Taxas/ }))
+    expect(await screen.findByText(/Não foi possível confirmar se o envio real está ligado/)).toBeTruthy()
+    expect(mockConfirm).not.toHaveBeenCalled()
+    expect(mockCeDispatch).not.toHaveBeenCalled()
+  })
+
   it('quem não envia não vê o reenvio do CE', () => {
     authState.canSend = false
     mockHistory = [{ ...defaultHistory[0], kind: 'ce_mercante_taxas', anchor_voyage_id: 7 }]

@@ -630,7 +630,13 @@ export function ClientesComunicacao() {
   async function resendCeMercante(item: CustomerCommunicationHistoryItem) {
     if (item.anchor_voyage_id == null) return
     const key = `${item.customer_id}:${item.anchor_voyage_id}`
-    const real = settings?.communications_enabled === true
+    // Como no Disparar: sem saber se a chave está ligada, a confirmação poderia
+    // prometer simulação e a Edge mandar o e-mail de verdade.
+    if (typeof settings?.communications_enabled !== 'boolean') {
+      setCeResendResults((current) => ({ ...current, [key]: { error: 'Não foi possível confirmar se o envio real está ligado. Recarregue a tela e tente de novo.' } }))
+      return
+    }
+    const real = settings.communications_enabled
     const confirmed = await confirm({
       title: 'Reenviar CE e Taxas',
       message: `Reenviar o Comunicado de CE e Taxas de ${item.customer?.name ?? `Cliente ${item.customer_id}`} na viagem ${[item.vessel_name, item.voyage_number].filter(Boolean).join(' / ') || item.anchor_voyage_id}, com o CE e os valores atuais?`,
