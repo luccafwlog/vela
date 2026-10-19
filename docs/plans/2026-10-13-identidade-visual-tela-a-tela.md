@@ -277,6 +277,31 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   inspeção"; A6 mostra "Entrou na fila do Portal", com "Sistema" na coluna
   Por.
   **Lote 5a entregue em 2026-10-19** (ver Registro). O 5b é o próximo.
+- **Lote 5b proposto em 2026-10-19** numa página só ("Lote 5b da
+  identidade", na conta do responsável), com capturas da `main` de
+  2026-10-19 (depois da PR 986) no ambiente local, a 1440 e 360 px, com o
+  login interno de teste e dados acrescentados só para a captura (um
+  manifesto de Granito com seis B/Ls e quatro tarifas, dois manifestos de
+  vazios de importação e um Embarque de vazios com unidades e serviços):
+  Granito, Tarifas do Granito, Vazios de importação, Embarque de vazios,
+  Locais (depots e terminais), Relatórios e as cinco abas da Administração.
+  Achados fora da mudança visual, propostos para correção no próprio lote:
+  no Granito, total da janela de taxas somando R$ e US$ como "BRL", busca
+  sem CNPJ com máscara, filtro de porto exato, confirmações das tarifas
+  falando em faturamento, "Fixo global" cobrado como "Por B/L", cache da
+  Validação e erros crus; nos Vazios, local e serviço inativos aceitos no
+  Embarque (tela e banco), ids internos em "Filtros ativos", POD sem campo,
+  Nº de manifesto pedido por porto de origem e não por rota, "Embarque
+  criado" para o já existente, planilha sem a Natureza, mensagens do banco
+  sem acento e o local novo que não abre depois de criado; nos Relatórios,
+  abas sem teclado (também na Administração), aviso de limite que nunca
+  aparece (a tela espera 2.000 linhas e o servidor entrega 1.000), Por
+  Cliente divergente do Financeiro, datas cortadas em UTC e sessão expirada
+  tratada como falta de perfil; na Administração, o papel "Administrador"
+  no texto dos perfis, "Produção" e "Operacional" fixos, "Última
+  conciliação Pix" sempre vazia, rótulos das Métricas que não batem com o
+  dado e "Sem prazo" para departamento que não assinou. Aguarda a resposta
+  do responsável, tela a tela.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -511,7 +536,7 @@ lotes tratam só da organização de cada tela.
 | 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Entregue em 2026-10-16 (aprovado na rodada 2 da página "Lote 3 da identidade"), branch `claude/serene-edison-ibuix9` |
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Aprovado em 2026-10-18 (todas as telas, três rodadas) e entregue em 2026-10-18 na PR 972, branch `claude/laughing-meitner-3rfy0l`, com as migrations `298` a `301` |
 | 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto e aprovado em 2026-10-19 (página "Lote 5a da identidade", três rodadas); entregue em 2026-10-19, branch `claude/stoic-cannon-v7g39p` |
-| 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado em 2026-10-19; proposto depois do 5a |
+| 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado em 2026-10-19; proposto em 2026-10-19 (página "Lote 5b da identidade"), aguarda resposta |
 | 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21), e-mails do Vela e do Portal (22, acrescentados em 2026-10-19) | Proposto, a confirmar |
 
 O lote 2 vem logo depois do 1 por ser onde a operação passa mais tempo; o 6
