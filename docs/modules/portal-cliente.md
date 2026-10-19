@@ -138,7 +138,7 @@ expirado; Falha de envio; Contas ativas), cada um com a contagem; clicar no
 cartão marcado mostra todos. Há busca por razão social ou CNPJ e o filtro
 **Alerta** (`?alerta=critico`; o antigo `?filtro=criticas` cai nele). A tabela
 mostra Cliente, CNPJ, Conta, E-mail de recuperação (só o gravado), Alerta
-(**Crítico** só com alerta crítico ativo, migration `321`), Ação (o próximo
+(**Crítico** só com alerta crítico ativo, migration `324`), Ação (o próximo
 passo, que abre a linha) e **Espiadinha** (o ícone de olho abre o Modo
 Inspeção em nova aba). A ordem segue a prioridade: alerta crítico, fatura
 aberta, processo ativo e atividade recente. Clicar na linha expande, na própria
@@ -328,6 +328,10 @@ consulta no sistema sem estar na audiência.
   deixa de ter processo ativo. O job `portal-refresh-general-pendencies`, que
   abria em paralelo um alerta antigo sem item (Sem setor) para o mesmo Cliente,
   saiu na migration `321`, que também fechou esses alertas antigos.
+  Desde a migration `324`, a mensagem diz o que falta: "Sem conta no Portal e
+  sem e-mail de recuperação.", "Conta do Portal ainda não ativa.", "Conta do
+  Portal suspensa.", "Conta ativa sem usuário de acesso ao Portal." ou "Conta
+  ativa sem e-mail de recuperação utilizável.".
 - **Convite expirado:** prazo de 48 horas vencido sem ativação; o alerta vai à
   Documentação e o novo envio é manual (**Reenviar convite**).
 - **Falha no envio:** após três tentativas transitórias sem sucesso, ou falha

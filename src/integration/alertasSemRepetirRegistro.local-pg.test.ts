@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-// Migration 321 (lote 5a da identidade, achados A2 e A3): a mensagem do
+// Migration 324 (lote 5a da identidade, achados A2 e A3): a mensagem do
 // alerta diz só o detalhe que o Alerta e o Registro não dizem, os alertas
 // abertos são reescritos no formato novo, e o Provisionamento só marca
 // "Crítico" o Cliente com alerta crítico ativo.
@@ -11,7 +11,7 @@ const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
 const databaseUrl =
   process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
-const migrationPath = resolve(process.cwd(), 'supabase/migrations/321_alertas_sem_repetir_registro_e_critico_do_portal.sql')
+const migrationPath = resolve(process.cwd(), 'supabase/migrations/324_alertas_sem_repetir_registro_e_critico_do_portal.sql')
 
 // Bloco de fixtures exclusivo deste arquivo.
 const ID = 632101
@@ -39,7 +39,7 @@ function activeMessage(itemType: string) {
     WHERE a.entity_type = 'customer' AND a.entity_id = '${ID}' AND i.item_type = '${itemType}' AND i.status = 'active';`)
 }
 
-describeLocal('migration 321 — mensagens dos alertas e "Crítico" do Provisionamento', () => {
+describeLocal('migration 324 — mensagens dos alertas e "Crítico" do Provisionamento', () => {
   beforeAll(() => {
     psql(`INSERT INTO public.carriers (id, name) VALUES (${ID}, 'Carrier A321') ON CONFLICT (id) DO NOTHING;`)
     psql(`INSERT INTO public.vessels (id, name, carrier_id) VALUES (${ID}, 'Vessel A321', ${ID}) ON CONFLICT (id) DO NOTHING;`)
@@ -54,6 +54,7 @@ describeLocal('migration 321 — mensagens dos alertas e "Crítico" do Provision
 
   afterAll(() => {
     psql(`DELETE FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '${ID}';`)
+    psql(`UPDATE public.customer_portal_accounts SET account_situation = 'sem_conta', recovery_email = NULL WHERE customer_id = ${ID};`)
   })
 
   it('a pendência geral do Portal diz o que falta àquele Cliente, sem a frase genérica', () => {
@@ -84,5 +85,30 @@ describeLocal('migration 321 — mensagens dos alertas e "Crítico" do Provision
     expect(activeMessage('portal_pendencia_geral')).toBe('3 B/Ls aguardam vínculo com Cliente.')
     const sql = readFileSync(migrationPath, 'utf8')
     expect(sql).not.toContain("'Baplie ausente para a viagem ' || p_voyage_id")
+  })
+
+  it('a CE Mercante reescrita diz o singular ou o plural, sem "(s)"', () => {
+    asServer('SELECT public.reconcile_client_portal_alerts()')
+    psql(`UPDATE public.alert_items i
+      SET message = 'CE Mercante pendente para 1 B/L(s) e 2 rota(s) de vazios sem Nº de manifesto Mercante da viagem 10 (D-5 atingido)'
+      FROM public.alerts a WHERE a.id = i.alert_id AND a.entity_id = '${ID}' AND i.item_type = 'portal_pendencia_geral';`)
+
+    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migrationPath], { encoding: 'utf8' })
+
+    expect(activeMessage('portal_pendencia_geral'))
+      .toBe('Falta para 1 B/L e 2 rotas de vazios sem Nº de manifesto Mercante; prazo D-5 atingido.')
+  })
+
+  it('conta suspensa diz "Conta do Portal suspensa.", no detector e na reescrita', () => {
+    psql(`UPDATE public.customer_portal_accounts
+      SET account_situation = 'suspenso', recovery_email = 'a321-cliente@example.test' WHERE customer_id = ${ID};`)
+    asServer('SELECT public.reconcile_client_portal_alerts()')
+    expect(activeMessage('portal_pendencia_geral')).toBe('Conta do Portal suspensa.')
+
+    psql(`UPDATE public.alert_items i
+      SET message = 'Cliente com processo ativo sem Portal ativo ou sem email de recuperação utilizável.'
+      FROM public.alerts a WHERE a.id = i.alert_id AND a.entity_id = '${ID}' AND i.item_type = 'portal_pendencia_geral';`)
+    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migrationPath], { encoding: 'utf8' })
+    expect(activeMessage('portal_pendencia_geral')).toBe('Conta do Portal suspensa.')
   })
 })

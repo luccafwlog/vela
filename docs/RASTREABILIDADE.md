@@ -584,7 +584,7 @@ Regra: [Portal do Cliente](modules/portal-cliente.md).
 | `portal_list_invoices_page` | `portalBilling.ts` | `021` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_notifications` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_list_operation_bls` | `portalOperation.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
-| `portal_list_provisioning_console` | `portalProvisioning.ts` | `103`, `250` | DEFINER · `authenticated` | Administrativo, Documentação, Financeiro, Operações ou Equipamentos | Fila do console `/clientes/portal` (`103`); sem máscara para Operações desde a `250`. |
+| `portal_list_provisioning_console` | `portalProvisioning.ts` | `103`, `250`, `324` | DEFINER · `authenticated` | Administrativo, Documentação, Financeiro, Operações ou Equipamentos | Fila do console `/clientes/portal` (`103`); sem máscara para Operações desde a `250`. |
 | `portal_list_provisioning_events` | `portalProvisioning.ts` | `002`, `250` | DEFINER · `authenticated` | Usuário interno ativo (`250`) | — |
 | `portal_mark_all_notifications_read` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
 | `portal_mark_notification_read` | `portalBilling.ts` | `002` | DEFINER · `authenticated` | Cliente da sessão (`current_portal_customer_id()`) | — |
@@ -660,7 +660,7 @@ Regra: [Operação e suporte](modules/operacao-suporte.md).
 | `process_import_effect` | Edge `import-effects-runner` | `211` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `process_portal_email_event` | Edge `_shared/portalEmailEventProcessor.ts` | `109` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Resolve a tentativa, grava supressões, repara Caixas e sinaliza a cascata (`109`). |
 | `recalculate_demurrage_invoices` | Edge `recalc-demurrage-ptax` | `066` | DEFINER · `service_role` | só pelo grant a `service_role` | — |
-| `reconcile_client_portal_alerts` | Edge `portal-invite-activate` | `002` | DEFINER · `service_role` | usuário interno ativo ou `service_role` | — |
+| `reconcile_client_portal_alerts` | Edge `portal-invite-activate` | `002`, `324` | DEFINER · `service_role` | usuário interno ativo ou `service_role` | — |
 | `refresh_customer_communication_status` | Edge `demurrage-dunning`; Edge `send-customer-communication` | `039` | DEFINER · `service_role` | `service_role` (conferido no corpo) | — |
 | `reject_customer_communication_automation_claim` | Edge `customer-communication-auto-runner` | `297`, `303` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Marca a claim recusada em definitivo e abre `comunicado_recusado`. |
 | `defer_customer_communication_automation_claim` | Edge `customer-communication-auto-runner` | `303` | DEFINER · `service_role` | `service_role` (conferido no corpo) | Recusa não definitiva: próxima tentativa em 15 min, 1 h e depois 6 h; `comunicado_recusado` na 1ª recusa por dado ou na 3ª falha seguida do provedor (D18). |

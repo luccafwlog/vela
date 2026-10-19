@@ -8,7 +8,7 @@
 
 - **Identidade visual, lote 5a (2026-10-19):** Painel com cartões por setor (agora também o
   Administrativo) e Line-Up limpo; Alertas abre em Ativos, com Resolver e Dispensar em toda linha e
-  a mensagem sem repetir o registro (migration `321`, que também reescreveu os alertas abertos e faz
+  a mensagem sem repetir o registro (migration `324`, que também reescreveu os alertas abertos e faz
   o Provisionamento marcar Crítico só com alerta crítico ativo); Regras sem código interno;
   Provisionamento com seis cartões, coluna Espiadinha e ações administrativas numa janela;
   Comunicação com abas de segundo nível e o envio real como chave (`Switch`); a faixa do Modo

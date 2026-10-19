@@ -1,4 +1,4 @@
--- 321: mensagens dos alertas sem repetir o registro e "Crítico" do
+-- 324: mensagens dos alertas sem repetir o registro e "Crítico" do
 -- Provisionamento só para alerta crítico (lote 5a da identidade visual,
 -- achados A2 e A3, decididos pelo responsável em 2026-10-19).
 --
@@ -20,7 +20,11 @@
 --   A2. Os detectores abaixo passam a escrever só o detalhe que o Alerta e o
 --       Registro não dizem (o prazo, a contagem, o que falta, o terminal),
 --       sem o nome do Cliente, o número da viagem ou o porto. A pendência
---       geral do Portal diz o que falta àquele Cliente. Os corpos são os
+--       geral do Portal diz o que falta àquele Cliente: sem conta e sem
+--       e-mail, conta ainda não ativa, conta suspensa (decisão do responsável
+--       em 2026-10-19), conta ativa sem usuário de acesso ou conta ativa sem
+--       e-mail utilizável. Contagens no singular ou no plural, sem "(s)".
+--       Numerada 324 depois das 321 a 323 da main. Os corpos são os
 --       vigentes (lidos do banco recriado com todas as migrations); só as
 --       mensagens mudam, e a assinatura e os grants ficam como estão.
 --       Os alertas ativos têm o texto reescrito aqui mesmo, para a fila não
@@ -388,10 +392,10 @@ BEGIN
   END IF;
 
   IF v_missing_ce_count > 0 THEN
-    v_parts := v_parts || (v_missing_ce_count || ' B/L(s)');
+    v_parts := v_parts || (v_missing_ce_count || CASE WHEN v_missing_ce_count = 1 THEN ' B/L' ELSE ' B/Ls' END);
   END IF;
   IF v_missing_vazios_count > 0 THEN
-    v_parts := v_parts || (v_missing_vazios_count || ' rota(s) de vazios sem Nº de manifesto Mercante');
+    v_parts := v_parts || (v_missing_vazios_count || CASE WHEN v_missing_vazios_count = 1 THEN ' rota' ELSE ' rotas' END || ' de vazios sem Nº de manifesto Mercante');
   END IF;
 
   PERFORM public.upsert_alert_item(
@@ -789,6 +793,7 @@ DECLARE
   v_account public.customer_portal_accounts%ROWTYPE;
   v_active_process BOOLEAN;
   v_gate_ok BOOLEAN;
+  v_email_ok BOOLEAN;
   v_result JSONB := '{}'::jsonb;
   v_count INTEGER := 0;
 BEGIN
@@ -812,23 +817,27 @@ BEGIN
     v_account.recovery_email := v_customer.recovery_email;
     v_account.recovery_email_status := v_customer.recovery_email_status;
     v_gate_ok := false;
+    v_email_ok := false;
     IF v_account.id IS NOT NULL THEN
+      v_email_ok := lower(COALESCE(v_account.recovery_email, '')) ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+        AND COALESCE(v_account.recovery_email_status, 'ok') = 'ok'
+        AND NOT EXISTS (SELECT 1 FROM public.portal_suppressed_emails s WHERE lower(s.email) = lower(v_account.recovery_email));
       v_gate_ok := v_account.active
         AND v_account.account_situation = 'ativo'
         AND v_account.auth_user_id IS NOT NULL
-        AND lower(COALESCE(v_account.recovery_email, '')) ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
-        AND COALESCE(v_account.recovery_email_status, 'ok') = 'ok'
-        AND NOT EXISTS (SELECT 1 FROM public.portal_suppressed_emails s WHERE lower(s.email) = lower(v_account.recovery_email));
+        AND v_email_ok;
     END IF;
 
     IF v_active_process AND NOT v_gate_ok THEN
       PERFORM public.block521_upsert_alert(
         'portal_pendencia_geral', 'customer', v_customer.id::text,
         CASE
+          WHEN v_account.account_situation = 'suspenso' THEN 'Conta do Portal suspensa.'
           WHEN v_account.id IS NULL OR v_account.account_situation IS DISTINCT FROM 'ativo' THEN
             CASE WHEN NULLIF(btrim(COALESCE(v_account.recovery_email, '')), '') IS NULL
               THEN 'Sem conta no Portal e sem e-mail de recuperação.'
               ELSE 'Conta do Portal ainda não ativa.' END
+          WHEN v_email_ok THEN 'Conta ativa sem usuário de acesso ao Portal.'
           ELSE 'Conta ativa sem e-mail de recuperação utilizável.'
         END,
         'portal_reconciliation',
@@ -1096,18 +1105,23 @@ BEGIN
       (3, '^Divergência Baplie/BL: ([0-9]+) container\(s\) divergente\(s\) na viagem [0-9]+$', '\1 containers divergem entre o Baplie e os B/Ls.'),
       (4, '^B/Ls esperados pendentes para a viagem [0-9]+ \(D-7 atingido\)$', 'Prazo D-7 atingido sem os B/Ls esperados.'),
       (5, '^CE Mercante pendente para (.+) da viagem [0-9]+ \(D-5 atingido\)$', 'Falta para \1; prazo D-5 atingido.'),
-      (6, '^Exportação pendente de vínculo após saída/ATD no terminal para a escala .+$', 'Saída (ATD) registrada no terminal sem a exportação vinculada.'),
-      (7, '^ATA pendente para escala [^ ]+ \(ETA ([0-9/]+) atingido\)$', 'ETA de \1 passou sem ATA registrada.'),
-      (8, '^ETB pendente para escala [^ ]+ \(ATA informada\)$', 'ATA registrada; falta o ETB.'),
-      (9, '^Cliente .+: 1 B/L pendente \(Conta de Portal não provisionada\)$', '1 B/L parado na Revisão: Portal sem conta.'),
-      (10, '^Cliente .+: ([0-9]+) B/Ls pendentes \(Conta de Portal não provisionada\)$', '\1 B/Ls parados na Revisão: Portal sem conta.'),
-      (11, '^Cliente .+: 1 B/L pendente de revisão \(peso BB ausente\)$', '1 B/L parado na Revisão: falta o peso BB.'),
-      (12, '^Cliente .+: ([0-9]+) B/Ls pendentes de revisão \(peso BB ausente\)$', '\1 B/Ls parados na Revisão: falta o peso BB.'),
-      (13, '^Cliente .+: 1 B/L pendente de vínculo com cliente$', '1 B/L aguarda vínculo com Cliente.'),
-      (14, '^Cliente .+: ([0-9]+) B/Ls pendentes de vínculo com cliente$', '\1 B/Ls aguardam vínculo com Cliente.'),
-      (15, '^Cliente não vinculado ao Granito B/L .+$', 'Vincule o Cliente na Revisão.'),
-      (16, '^ADR [^:]+: departamento "(.+)" pendente\.$', 'Departamento \1 pendente.'),
-      (17, '^ADR [^:]+: prazo de conclusão vencido para "(.+)"\.$', 'Prazo de conclusão vencido para o departamento \1.')
+      -- O texto antigo contava com "(s)"; o novo diz o singular ou o plural.
+      (6, '^Falta para 1 B/L\(s\)', 'Falta para 1 B/L'),
+      (7, '^Falta para ([0-9]+) B/L\(s\)', 'Falta para \1 B/Ls'),
+      (8, '^(Falta para |.* e )1 rota\(s\) de vazios', '\11 rota de vazios'),
+      (9, '^(Falta para |.* e )([0-9]+) rota\(s\) de vazios', '\1\2 rotas de vazios'),
+      (10, '^Exportação pendente de vínculo após saída/ATD no terminal para a escala .+$', 'Saída (ATD) registrada no terminal sem a exportação vinculada.'),
+      (11, '^ATA pendente para escala [^ ]+ \(ETA ([0-9/]+) atingido\)$', 'ETA de \1 passou sem ATA registrada.'),
+      (12, '^ETB pendente para escala [^ ]+ \(ATA informada\)$', 'ATA registrada; falta o ETB.'),
+      (13, '^Cliente .+: 1 B/L pendente \(Conta de Portal não provisionada\)$', '1 B/L parado na Revisão: Portal sem conta.'),
+      (14, '^Cliente .+: ([0-9]+) B/Ls pendentes \(Conta de Portal não provisionada\)$', '\1 B/Ls parados na Revisão: Portal sem conta.'),
+      (15, '^Cliente .+: 1 B/L pendente de revisão \(peso BB ausente\)$', '1 B/L parado na Revisão: falta o peso BB.'),
+      (16, '^Cliente .+: ([0-9]+) B/Ls pendentes de revisão \(peso BB ausente\)$', '\1 B/Ls parados na Revisão: falta o peso BB.'),
+      (17, '^Cliente .+: 1 B/L pendente de vínculo com cliente$', '1 B/L aguarda vínculo com Cliente.'),
+      (18, '^Cliente .+: ([0-9]+) B/Ls pendentes de vínculo com cliente$', '\1 B/Ls aguardam vínculo com Cliente.'),
+      (19, '^Cliente não vinculado ao Granito B/L .+$', 'Vincule o Cliente na Revisão.'),
+      (20, '^ADR [^:]+: departamento "(.+)" pendente\.$', 'Departamento \1 pendente.'),
+      (21, '^ADR [^:]+: prazo de conclusão vencido para "(.+)"\.$', 'Prazo de conclusão vencido para o departamento \1.')
     ) AS r(position, pattern, replacement)
     ORDER BY position
   LOOP
@@ -1148,12 +1162,18 @@ WHERE a.id = i.alert_id AND i.status = 'active'
   AND i.message ~ '^ATD pendente no terminal para a escala [^ ]+ \(ETD [0-9/]+ atingido\)$';
 
 -- Pendência geral do Portal: o que falta àquele Cliente, pela conta de hoje.
+-- Mesma escolha de texto de reconcile_client_portal_alerts acima.
 UPDATE public.alert_items i
 SET message = CASE
+      WHEN pa.account_situation = 'suspenso' THEN 'Conta do Portal suspensa.'
       WHEN pa.id IS NULL OR pa.account_situation IS DISTINCT FROM 'ativo' THEN
         CASE WHEN NULLIF(btrim(COALESCE(pa.recovery_email, '')), '') IS NULL
           THEN 'Sem conta no Portal e sem e-mail de recuperação.'
           ELSE 'Conta do Portal ainda não ativa.' END
+      WHEN lower(COALESCE(pa.recovery_email, '')) ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+        AND COALESCE(pa.recovery_email_status, 'ok') = 'ok'
+        AND NOT EXISTS (SELECT 1 FROM public.portal_suppressed_emails s WHERE lower(s.email) = lower(pa.recovery_email))
+        THEN 'Conta ativa sem usuário de acesso ao Portal.'
       ELSE 'Conta ativa sem e-mail de recuperação utilizável.'
     END,
     updated_at = now()
