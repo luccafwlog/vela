@@ -446,9 +446,12 @@ módulo, por exemplo em [Manifestos & EDI § Propósito e escopo](../modules/man
 - Linhas realmente vazias são descartadas sem renumerar os dados, e cada linha
   leva o número físico da planilha (a partir de 1).
 
-**Prévia e confirmação.** Os modais de importação seguem um percurso comum
-(`src/components/shared/ImportParts.tsx`): destino (viagem, manifesto) →
-arquivo → leitura → prévia → confirmação → resultado.
+**Prévia e confirmação.** Os modais de importação seguem um molde comum
+(`src/components/shared/ImportParts.tsx` e `FileImportModal.tsx`; aparência em
+[Identidade visual](../identidade-visual.md#peças-comuns)): linha de passos
+(Arquivo · Prévia · Resultado), destino (viagem, manifesto), bloco Arquivo,
+leitura, bloco Prévia, confirmação e bloco Resultado. Cada importação é um
+componente só, aberto de todas as telas que a oferecem.
 
 - A área de arquivo aceita clique ou arraste, informa os formatos e o limite de
   10 MB do `assertUploadSize` e fica desativada, com o motivo, enquanto faltar a
@@ -457,16 +460,27 @@ arquivo → leitura → prévia → confirmação → resultado.
   arquivos lidos. A leitura pode ser cancelada antes da gravação: o
   cancelamento descarta prévias parciais, e uma resposta tardia não publica
   prévia.
-- A prévia resume o que entra, muda e fica de fora e vale como o diálogo de
+- A prévia resume o que entra e o que muda e vale como o diálogo de
   [Confirmação de ação](#confirmação-de-ação). Os erros de linha são
   normalizados em `ImportIssue`: o painel mostra a lista completa, distingue
-  erro (impede ou exige aceite) de aviso e permite baixar um CSV sanitizado, sem
-  o payload bruto. Erro de linha bloqueia a confirmação, salvo onde o
-  importador permite decisão manual; erro documental ou de viagem bloqueia
-  sempre.
+  erro de aviso e permite baixar um CSV sanitizado, sem o payload bruto.
+- **Erro recusa a importação inteira** ([ADR 0091](../adr/0091-importacao-com-erro-e-recusada-inteira.md),
+  2026-10-19, para todo o sistema): com qualquer linha com erro, ou qualquer
+  arquivo ilegível ou com erro num envio de vários, o botão Importar fica
+  desligado e nada é gravado; não há "forçar a importação". Aviso não bloqueia
+  e pode pedir o aceite "Conferi os avisos e quero importar o arquivo". A
+  recusa que só o banco detecta também desfaz tudo: cada importação grava
+  numa transação só. B/L cancelado dentro do arquivo é aviso (não é tocado).
+  Linhas sem conteúdo (planilha da ZPT sem CE ou situação; lançamento zerado
+  ou negativo do extrato do Pix) são ignoradas com a contagem à vista; valor
+  ilegível é erro. Passo técnico depois da gravação (IMO/OOG e vazios do
+  Baplie, emissão das faturas do CE Mercante, cálculo das Taxas Locais) que
+  falhar não desfaz a importação: é retomado, e a tela diz o que falta.
+- Toda importação tem um modelo padrão para baixar (`public/templates/`); para
+  arquivo que vem de sistema de fora (Baplie, ZPT), um exemplo no formato
+  aceito.
 - Falha de leitura ou de gravação aparece no próprio modal, sem perder a
-  prévia, e o rodapé diz se algo já foi gravado. Resultado parcial fica na tela
-  com **Concluir**, sem oferecer reenviar o mesmo lote.
+  prévia, e o rodapé diz que nada foi gravado.
 
 ### Rastro das importações
 
