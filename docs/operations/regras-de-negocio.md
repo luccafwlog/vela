@@ -378,7 +378,7 @@ implementada (migrations `093` e `094`; backup encerrado em 2026-10-05).
   `customer_communication_attempts`) ficam, mas com mais de 1 ano o endereço
   guardado em claro na chave de idempotência e no motivo da falha é trocado por
   um marcador (`email-` + hash), e o Histórico do Comunicado continua com o
-  destinatário mascarado (decisão D17 de 2026-10-18, [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md);
+  destinatário mascarado (decisão D17 de 2026-10-18, [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md);
   migration `311`).
 - O expurgo é a rotina diária `run_retention` (job `data-retention` do
   `pg_cron`, 06:30 UTC; migration `094`). Os documentos do Desbloqueio de CE têm

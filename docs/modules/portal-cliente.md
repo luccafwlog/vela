@@ -101,7 +101,7 @@ com o suporte se a troca não foi da pessoa (`passwordChangedTemplate`; tentativ
 sai: uma falha nele fica no log e na tentativa e não falha a recuperação. É o
 único aviso de segurança por e-mail do Portal: suspensão e reativação da conta
 **não** avisam o Cliente (D12 do
-[plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md)). O Portal não
+[plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md)). O Portal não
 tem outra tela de troca de senha.
 
 ### `/portal`

@@ -553,7 +553,7 @@ mesmos.
   depende de e-mail do Auth: o usuário interno não troca o próprio e-mail em
   **Meu perfil**; quem troca é o Administrativo, em Admin › Usuários ›
   **Editar acesso** (Edge `admin-users`, confirma o e-mail na hora, sem
-  mensagem; D13 do [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md)). Para trocar a chave:
+  mensagem; D13 do [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md)). Para trocar a chave:
   crie a nova, troque o secret, teste com "Esqueci minha senha" no Portal e só
   então apague a antiga.
 - **Webhook:** a MillionSend avisa entregas, bounces e reclamações em
@@ -597,6 +597,25 @@ mesmos.
   confirmou que o problema de entrega de e-mails do Portal foi solucionado. O
   histórico anterior de mensagens marcadas **Delivered** no Resend sem entrega
   nas caixas foi encerrado; não há ação de TI pendente registrada.
+
+### Antes de ligar a chave de envio real
+
+A chave `app_settings.communications_enabled` ([Clientes](../modules/clientes.md#chave-de-envio-de-comunicados))
+está desligada. Ligar é decisão do responsável; antes, conferir:
+
+1. Um envio de teste real de cada tipo chegou a um endereço controlado: NOA,
+   NOR, NOB, CE e Taxas, institucional, livre com anexo, Cobrança de Demurrage
+   unitária e agrupada, e aviso do Desbloqueio de CE. Para cada um, o evento
+   "entregue" voltou pelo webhook, e um bounce provocado suprimiu o endereço e
+   abriu o Alerta.
+2. O que ficou `simulado` não sai de novo (D1): os dados de teste foram limpos
+   com `supabase/scripts/limpar_dados_teste.sql`, seguindo
+   [reset do ambiente](reset-ambiente.md).
+3. Os heartbeats dos jobs de e-mail (tabela de [jobs agendados](#jobs-agendados-pg_cron))
+   estão verdes, e um `/fail` provocado chegou ao Better Stack.
+
+Pendentes em 2026-10-19 os três itens. Origem e detalhes na Fase 6 do
+[plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md).
 
 ### ImprovMX (recebimento)
 
@@ -1054,7 +1073,7 @@ continha oito entradas legadas da Vercel.
 **URL Configuration — 2026-10-08:** Site URL `https://vela.app.br`; Redirect
 URLs só `https://vela.app.br/**`. A troca de e-mail em Meu perfil não informa
 `emailRedirectTo` e volta ao Site URL. (Nota de 2026-10-18: a troca de e-mail
-saiu de Meu perfil, D13 do [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md);
+saiu de Meu perfil, D13 do [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md);
 a confirmação do Auth não chegava pelo SMTP padrão.) Email provider com "Secure email change"
 ligado (confirmação no e-mail antigo e no novo). O Portal não depende dessas
 URLs: convite e senha usam links próprios das Edge Functions.

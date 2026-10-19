@@ -57,7 +57,7 @@
     - o alerta de provedor sem retorno mede o silêncio do webhook;
     - o reenvio do CE não para na primeira recusa.
 
-  [Plano](plans/2026-10-17-correcao-dos-emails.md).
+  [Plano](archive/plans/2026-10-17-correcao-dos-emails.md).
 - **Filete das tabelas no nome da linha (2026-10-18):** a linha entre as linhas de uma tabela
   passa também pela primeira coluna quando ela é o nome da linha (navio na Programação de navios
   do Portal e as demais tabelas com cabeçalho de linha); antes o filete começava na segunda coluna.
