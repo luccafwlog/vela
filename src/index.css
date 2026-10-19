@@ -2354,8 +2354,7 @@ button.app-metric-tile[aria-pressed='true'] {
   background: var(--app-surface-strong);
 }
 
-.app-input.app-review-search__input,
-.app-input.app-alerts-search__input {
+.app-input.app-review-search__input {
   padding-left: 38px;
   padding-right: 38px;
 }

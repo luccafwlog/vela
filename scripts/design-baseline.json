@@ -67,15 +67,6 @@
     "src/pages/Admin.tsx": {
       "cor-tailwind": 2
     },
-    "src/pages/Alertas.tsx": {
-      "tamanho-solto": 4,
-      "cor-tailwind": 8
-    },
-    "src/pages/AlertasRegras.tsx": {
-      "tamanho-solto": 12,
-      "caixa-alta": 4,
-      "cor-tailwind": 13
-    },
     "src/pages/ClientesComunicacao.tsx": {
       "tamanho-solto": 9,
       "caixa-alta": 2,
@@ -128,7 +119,6 @@
       "active": 9,
       "agency-report": 8,
       "app-action": 1,
-      "app-alerts": 1,
       "app-auth": 41,
       "app-badge": 9,
       "app-bl": 80,

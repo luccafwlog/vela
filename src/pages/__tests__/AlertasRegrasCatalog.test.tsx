@@ -103,26 +103,26 @@ describe('Regras de Alertas', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('48 regras encontradas')).toBeTruthy()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Setor notificado' }), { target: { value: 'equipamentos' } })
+    expect(screen.getByText('48 regras')).toBeTruthy()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'equipamentos' } })
 
-    expect(screen.getByText('4 regras encontradas')).toBeTruthy()
+    expect(screen.getByText('4 regras')).toBeTruthy()
     expect(screen.getByRole('button', { name: /ADR — departamento pendente/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /ADR — prazo vencido/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /PIX sem conciliação segura/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Disputa de invoice Demurrage/ })).toBeTruthy()
 
     // Filtro específico para regras aplicáveis a todos os setores simultaneamente
-    fireEvent.change(screen.getByRole('combobox', { name: 'Setor notificado' }), { target: { value: 'todos' } })
-    expect(screen.getByText('2 regras encontradas')).toBeTruthy()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'todos' } })
+    expect(screen.getByText('2 regras')).toBeTruthy()
     expect(screen.getByRole('button', { name: /ADR — departamento pendente/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /ADR — prazo vencido/ })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /PIX sem conciliação segura/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /Disputa de invoice Demurrage/ })).toBeNull()
 
     // Retorna para qualquer setor (sem filtro de setor)
-    fireEvent.change(screen.getByRole('combobox', { name: 'Setor notificado' }), { target: { value: 'all' } })
-    expect(screen.getByText('48 regras encontradas')).toBeTruthy()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'all' } })
+    expect(screen.getByText('48 regras')).toBeTruthy()
   })
 
   it('ignora um deep-link para um tipo aposentado e cai na primeira regra viva', () => {
@@ -134,7 +134,7 @@ describe('Regras de Alertas', () => {
 
     expect(screen.queryByRole('heading', { name: 'Cancelamento bloqueado' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancelamento bloqueado/ })).toBeNull()
-    expect(screen.getByText('48 regras encontradas')).toBeTruthy()
+    expect(screen.getByText('48 regras')).toBeTruthy()
   })
 
   it('combina filtros no topo e limpa a combinação sem perder a regra selecionada', () => {
@@ -144,18 +144,18 @@ describe('Regras de Alertas', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Domínio' }), { target: { value: 'Portal' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Assunto' }), { target: { value: 'Portal' } })
     fireEvent.change(screen.getByRole('combobox', { name: 'Gravidade' }), { target: { value: 'critical' } })
 
-    expect(screen.getByText('7 regras encontradas')).toBeTruthy()
+    expect(screen.getByText('7 regras')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Portal do Cliente — convite expirado/ })).toBeNull()
 
     const clearButton = screen.getByRole('button', { name: 'Limpar filtros' })
     expect((clearButton as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(clearButton)
 
-    expect(screen.getByText('48 regras encontradas')).toBeTruthy()
-    expect((screen.getByRole('combobox', { name: 'Domínio' }) as HTMLSelectElement).value).toBe('all')
+    expect(screen.getByText('48 regras')).toBeTruthy()
+    expect((screen.getByRole('combobox', { name: 'Assunto' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('combobox', { name: 'Gravidade' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('button', { name: 'Limpar filtros' }) as HTMLButtonElement).disabled).toBe(true)
   })
@@ -170,7 +170,13 @@ describe('Regras de Alertas', () => {
     expect(screen.getByRole('heading', { name: 'Baplie ausente' })).toBeTruthy()
     expect(screen.getByRole('list', { name: 'Regras de alertas' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Baplie ausente/ }).getAttribute('aria-current')).toBe('true')
-    expect(screen.getByRole('link', { name: /Abrir tela de resolução/ }).getAttribute('href')).toBe('/baplie')
+    expect(screen.getByRole('link', { name: 'Abrir Baplie EDI' }).getAttribute('href')).toBe('/baplie')
+    // Lote 5a: sem o código interno da regra e o endereço da tela à mostra.
+    expect(screen.queryByText('voyage_baplie_missing')).toBeNull()
+    expect(screen.queryByText('/baplie')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Quando abre' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Quem recebe' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Como resolver' })).toBeTruthy()
   })
 
   it('mantém as entidades e as etapas de data alinhadas aos detectores vigentes', () => {

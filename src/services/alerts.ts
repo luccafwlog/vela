@@ -267,6 +267,31 @@ export function formatAlertEntity(
   return null
 }
 
+/**
+ * Coluna Registro da fila (lote 5a): onde está a pendência, sem o tipo na
+ * frente ("COSCO SHIPPING ARIES / 088E", não "Viagem COSCO…"), porque o tipo
+ * já está no filtro e no nome do alerta. Abre a ficha quando o registro tem
+ * uma (B/L e viagem); os demais ficam em texto e se resolvem pelo botão.
+ * O grupo de B/Ls sem Cliente (`customer:sem_cliente`) não é um Cliente.
+ */
+export function alertRecord(
+  alert: Pick<AlertEntityRef, 'entity_type' | 'entity_id'>,
+  labels?: AlertEntityLabels,
+): { label: string; href: string | null } | null {
+  const { entity_type: entityType, entity_id: entityId } = alert
+  if (!entityType || !entityId) return null
+  if (entityType === 'customer' && entityId === 'sem_cliente') return { label: 'B/Ls sem Cliente', href: null }
+  const voyageId = voyageIdOf({ entity_type: entityType, entity_id: entityId })
+  if (voyageId) {
+    const voyage = resolveEntityLabel(labels, 'voyage', voyageId) ?? `Viagem ${voyageId}`
+    const [, port] = entityId.split('::')
+    return { label: port && entityType !== 'voyage' ? `${voyage} · ${port}` : voyage, href: `/viagens/${voyageId}` }
+  }
+  const label = resolveEntityLabel(labels, entityType, entityId) ?? entityId
+  if (entityType === 'bl') return { label, href: `/bls/${encodeURIComponent(entityId)}` }
+  return { label, href: null }
+}
+
 export function agencyReportAlertLink(
   entityId: string,
   metadata: Record<string, unknown> = {},
