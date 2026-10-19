@@ -839,7 +839,7 @@ const ALERT_RULES_BASE = [
     type: 'usuario_email_devolvido', domain: 'Portal', responsible: 'administrativo',
     catalogAudience: ['administrativo'], entityType: 'user_profile', severity: 'normal',
     summary: 'O e-mail de acesso de um usuário interno ativo foi devolvido ou marcado como spam e está suprimido: os e-mails do sistema não chegam a ele.',
-    trigger: 'O e-mail do usuário interno ativo está na lista de supressão do Portal ou dos Comunicados (migration 309).',
+    trigger: 'O e-mail do usuário interno ativo está na lista de supressão do Portal ou dos Comunicados (migration 309). A conta técnica da baixa automática Itaú ("API Itaú", `itau_pix_settlement_actor`) fica de fora: não é pessoa e o endereço dela não recebe e-mail (migration 319).',
     timing: 'Na rodada dos detectores (a cada 15 min).',
     resolution: 'Corrigir o e-mail em Admin › Usuários › Editar acesso. Salvar o e-mail libera a supressão do endereço antigo, se ele não for de Cliente.',
     destination: '/admin/usuarios', destinationLabel: 'Abrir Usuários',

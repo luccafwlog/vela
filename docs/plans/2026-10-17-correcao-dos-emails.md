@@ -99,9 +99,11 @@ refutá-lo.
     secrets gravados, e estão Up. Na primeira rodada dos detectores novos, o
     alerta falso de NOA pendente da escala 8 fechou e nenhum alerta novo abriu
     além de `usuario_email_devolvido`.
-  - **Ação imediata:** corrigir o e-mail do usuário API ITAÚ
-    (`api.itau@fwlog.com.br`, Administrativo), suprimido desde 08/10; o alerta
-    `usuario_email_devolvido` está aberto para ele.
+  - **Alerta da conta API ITAÚ (2026-10-19, migration `319`):** o alerta
+    `usuario_email_devolvido` abriu para `api.itau@fwlog.com.br`, a conta
+    técnica da baixa automática Itaú (`itau_pix_settlement_actor`), cujo
+    endereço não é uma caixa real. A conta precisa continuar ativa; o detector
+    passou a ignorá-la, e o alerta fecha na rodada seguinte.
   - **Fase 6:** ligar a chave de envio real é decisão do responsável.
 
   O plano fica vivo até a Fase 6.
