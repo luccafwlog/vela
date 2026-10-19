@@ -169,6 +169,21 @@ describeLocal('309 — monitoramento dos e-mails', () => {
     expect(alertStatus('usuario_email_devolvido', 'user_profile', bouncedId)).toBe('resolved')
   })
 
+  it('319 — a conta técnica da baixa automática Itaú não abre o alerta', () => {
+    psql(`SET session_replication_role = replica; UPDATE public.user_profiles SET active = true WHERE id = '${bouncedId}'; SET session_replication_role = origin;`)
+    psql(`INSERT INTO public.portal_suppressed_emails (email, reason) VALUES ('${bouncedEmail}', 'bounce_permanente') ON CONFLICT (email) DO NOTHING;`)
+    detect()
+    expect(alertStatus('usuario_email_devolvido', 'user_profile', bouncedId)).toBe('active')
+    const previous = psql(`SELECT COALESCE(itau_pix_settlement_actor::text, '') FROM public.app_settings WHERE id = 1;`)
+    try {
+      psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = '${bouncedId}' WHERE id = 1;`)
+      detect()
+      expect(alertStatus('usuario_email_devolvido', 'user_profile', bouncedId)).toBe('resolved')
+    } finally {
+      psql(`UPDATE public.app_settings SET itau_pix_settlement_actor = ${previous ? `'${previous}'` : 'NULL'} WHERE id = 1;`)
+    }
+  })
+
   it('2.8 — a liberação não tira a supressão de endereço que também é contato de Cliente', () => {
     psql(`
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${syntheticCnpj(310001)}', 'R310 Cliente');
