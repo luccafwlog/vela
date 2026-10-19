@@ -6,6 +6,16 @@
 
 ## 2026-10
 
+- **Identidade visual, lote 5b (2026-10-19):** Granito passa a só totalizar a carga do navio
+  (Blocos e Peso, peso real ou o declarado), sem Cliente vinculado, cálculo de taxas, Revisão nem
+  CE Mercante, e as Tarifas do Granito saem da tela (migration `325`); Vazios de importação com o
+  número do Manifesto Mercante e Natureza só pela seleção; Embarque de vazios abre na lista de
+  embarques e recusa local ou serviço inativo em lançamento novo (migration `326`); Locais em
+  leitura com edição em janela; Relatórios com filtros comuns, coluna Taxas locais, regra única de
+  fatura emitida e leitura além de 1.000 linhas; Administração com abas renomeadas e o quadro "O
+  que cada setor pode" conferido pela bateria de permissões (migration `328`: papel legado
+  `operator` nos alertas da Documentação e duas funções sem tela fechadas). Ações de linha de
+  tabela viram botões só com ícone em todo o sistema (`RowActionButton`).
 - **Identidade visual, lote 5a (2026-10-19):** Painel com cartões por setor (agora também o
   Administrativo) e Line-Up limpo; Alertas abre em Ativos, com Resolver e Dispensar em toda linha e
   a mensagem sem repetir o registro (migration `324`, que também reescreveu os alertas abertos e faz
