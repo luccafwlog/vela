@@ -310,9 +310,11 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   movimentada no navio. Consequência proposta na rodada 3 da página: a
   importação deixa de procurar Cliente, o Granito sai da Revisão e da
   Validação de Taxas Locais e o alerta "Revisão de Granito — cliente não
-  vinculado" deixa de existir; pendentes de resposta o peso (real ou
-  declarado) e se saem também as Tarifas do Granito, o cálculo de taxas e a
-  importação de CE Mercante da tela.
+  vinculado" deixa de existir. **Granito aprovado em 2026-10-19** na
+  rodada 3: peso real quando houver (senão o declarado) e saem do sistema a
+  tela de Tarifas do Granito (`/granito/taxas` passa a levar ao Granito), o
+  cálculo de taxas do Granito (também na Validação) e a importação de CE
+  Mercante para o Granito; os dados gravados ficam no banco, sem uso.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
