@@ -702,7 +702,8 @@ para eles vale o backup do próprio Supabase.
   `Backup Diario Vela R2`, diariamente às 09:00, programa
   `C:\Windows\System32\cmd.exe`, argumentos
   `/c node scripts\backup-r2.mjs --execute --allow-production --environment production --project-ref fgmkhbzhaeebrsizwccx`,
-  iniciar em `C:\Users\Lucca\Downloads\Vela`. Se o computador estiver desligado,
+  iniciar em `C:\Users\Lucca\Downloads\Vela` (sempre na `main`). Resultado de
+  cada execução em `%TEMP%\vela-r2-backups\backup-r2.log`. Se o computador estiver desligado,
   roda quando ligar. **Computador parado = sem backup.** O heartbeat do
   backup no Better Stack avisa quando o dia passa sem backup
   ([roteiro](backup-r2.md#heartbeat-do-backup); ligado em 2026-10-14).
@@ -728,6 +729,20 @@ para eles vale o backup do próprio Supabase.
   `BETTERSTACK_HEARTBEAT_BACKUP_URL` e executou a tarefa à mão; o heartbeat
   ficou **Up**. A pasta da tarefa deve ficar na `main`: `git pull` numa branch
   apagada não traz correções novas do script.
+- **Falha — 2026-10-19:** o heartbeat `backup-r2-diario` acusou falha
+  (`Reported failure`) na execução das 09:00 (`LastTaskResult = 2`). Pelo
+  Supabase (log do pooler), o `pg_dump` conectou às 08:58:28 de Brasília e saiu
+  normalmente 68 s depois, como no backup de 16/10, sem erro no banco. Na
+  pasta dos dumps havia os pares de 17 e 18/10 (34,8 e 37,1 MB) e nada de
+  19/10: o script falhou depois do dump e antes de concluir a verificação, e
+  o upload nem começou. O motivo exato não ficou registrado, porque a tarefa
+  descarta a saída e o script só imprimia o código de saída do `pg_restore` e
+  da AWS CLI. Desde então o motivo entra na mensagem e fica no
+  `backup-r2.log` da pasta dos dumps ([roteiro](backup-r2.md#heartbeat-do-backup)).
+  Na mesma conferência a pasta da tarefa estava de novo fora da `main`, na
+  branch `perf/startup-screens-scroll` (integrada em 15/10 e apagada no
+  GitHub), com o script igual ao da `main`; o relógio do computador estava
+  cerca de 1,5 min adiantado.
 - **Mudar de computador:** instalar os programas, recriar as 7 variáveis do
   usuário (roteiro, Etapa 6), mais `BETTERSTACK_HEARTBEAT_BACKUP_URL`, e a tarefa agendada.
 
