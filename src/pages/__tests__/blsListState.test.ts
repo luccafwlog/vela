@@ -17,6 +17,11 @@ describe('estado da lista /bls na URL', () => {
     expect(blsSearchFromFilters(filters)).toBe('voyage=7&pol=CNTAC&pod=BRVIX')
   })
 
+  it('converte a grafia legada do porto para a opção canônica do select', () => {
+    expect(filtersFromBlsSearch(new URLSearchParams('pol=CNZJG&pod=BRVIT'))).toMatchObject({ pol: 'CNZJG', pod: 'BRVIX' })
+    expect(filtersFromBlsSearch(new URLSearchParams('pod=XXXXX')).pod).toBe('XXXXX')
+  })
+
   it('ignora modalidade, página e tamanho inválidos em vez de consultar com eles', () => {
     const filters = filtersFromBlsSearch(new URLSearchParams('cargoMode=navio&page=-2&pageSize=33'))
     expect(filters).toMatchObject({ cargoMode: '', page: 1, pageSize: 20 })
