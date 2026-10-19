@@ -44,7 +44,7 @@ flowchart LR
 | Upstash | database `vela-rate-limit` (`sa-east-1`) | — |
 | Sentry | organização com projetos `vela` e `portal` | — |
 | PostHog | região **EU** (`eu.posthog.com`) | — |
-| Better Stack | Uptime: 2 monitores e 5 heartbeats (um deles do backup); os de `ce-unlock-notify-email` e `portal-email-events-runner` (plano dos e-mails, 2.3) ainda não foram cadastrados | Free (avisa a equipe inteira) |
+| Better Stack | Uptime: 2 monitores e 7 heartbeats (um deles do backup); os de `ce-unlock-notify-email` (5 min, tolerância 5 min) e `portal-email-events-runner` (1 min, tolerância 5 min) foram cadastrados em 2026-10-19 e estão Up | Free (avisa a equipe inteira) |
 | Computador do backup | usuário Windows `Lucca`, pasta `C:\Users\Lucca\Downloads\Vela` | — |
 
 Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-responsabilidade).
@@ -341,7 +341,7 @@ merge, confira:
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `ITAU_PIX_ADMIN_SECRET` (par com o Vault quando o job está habilitado; lista do cofre em [segredos-cron.md](segredos-cron.md)) | — |
 | Itaú | `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` (e opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL`, `ITAU_AUTH_HEADER`) | Itaú (seção [Itaú](#itaú--api-pix-recebimentos)) |
-| Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (6; a cadastrar: `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
+| Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (6, todos gravados; os dois últimos, `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`, em 2026-10-19), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
 
 `PORTAL_PASSWORD_PEPPER` (≥ 32 caracteres aleatórios) é a chave do
@@ -386,9 +386,9 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
-| `portal-email-events-runner` | a cada minuto | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `309`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; a cadastrar) |
+| `portal-email-events-runner` | a cada minuto | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `309`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
 | `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
-| `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente; com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; heartbeat ainda não cadastrado no Better Stack) |
+| `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente; com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; cadastrado em 2026-10-19) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
 | `customer-communication-auto-runner` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `165`) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global) | `customer-communication-auto-runner` |
