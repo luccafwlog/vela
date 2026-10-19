@@ -104,6 +104,9 @@ describe('planScheduleSheet', () => {
 
     expect(row.error).toMatch(/GREEN PECEM \/ 6 cancelada/)
     expect(isScheduleSheetWrite(row)).toBe(false)
+    // Regra de 2026-10-19: prévia com qualquer erro não grava nada.
+    await expect(applyScheduleSheetPlan([row])).rejects.toThrow(/nada foi gravado/)
+    expect(calls.rpc).not.toHaveBeenCalled()
   })
 
   it('Viagem nova: navio de mesmo nome com outro IMO é conflito, não "Cria a viagem"', async () => {

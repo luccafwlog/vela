@@ -43,37 +43,41 @@ describe('customerBase import', () => {
     expect(result.rows[0].cnpj_cpf).toBe('12345678000195')
   })
 
-  it('imports customer base and ensures contact email via RPC for each email', async () => {
-    mockRpc.mockResolvedValue({ data: { created: true, contacts_created: 2, bls_linked: 0 }, error: null })
+  it('grava a base inteira numa chamada só (migration 326)', async () => {
+    mockRpc.mockResolvedValue({ data: { ok: true, imported: 1, updated: 1, contacts_created: 3, bls_linked: 2 }, error: null })
+    const base = { trade_name: null, address: null, city: null, state: 'SP', zip: null }
 
     const result = await importCustomerBaseRows([
-      {
-        cnpj_cpf: '12345678000195',
-        name: 'Empresa Teste',
-        trade_name: null,
-        emails: ['contato1@empresa.com', 'contato2@empresa.com'],
-        address: null,
-        city: null,
-        state: 'SP',
-        zip: null,
-      },
+      { ...base, cnpj_cpf: '12345678000195', name: 'Empresa Teste', emails: ['contato1@empresa.com', 'contato2@empresa.com'] },
+      { ...base, cnpj_cpf: '11222333000181', name: 'Outra', emails: ['outra@empresa.com'], existingCustomerId: 9 },
     ], { changedBy: 'actor-1' })
 
-    expect(result.imported).toBe(1)
-    expect(result.contactsCreated).toBe(2)
+    expect(result).toEqual({ ok: true, imported: 1, updated: 1, contactsCreated: 3, blsLinked: 2, errors: [] })
     expect(mockRpc).toHaveBeenCalledTimes(1)
-    expect(mockRpc).toHaveBeenCalledWith('apply_customer_base_row_atomic', {
-      p_cnpj: '12345678000195',
-      p_name: 'Empresa Teste',
-      p_trade_name: null,
-      p_address: null,
-      p_city: null,
-      p_state: 'SP',
-      p_zip: null,
-      p_emails: ['contato1@empresa.com', 'contato2@empresa.com'],
+    expect(mockRpc).toHaveBeenCalledWith('apply_customer_base_batch_atomic', {
+      p_rows: [
+        expect.objectContaining({ cnpj: '12345678000195', name: 'Empresa Teste', emails: ['contato1@empresa.com', 'contato2@empresa.com'], state: 'SP', confirm_name_change: false }),
+        expect.objectContaining({ cnpj: '11222333000181', confirm_name_change: false, expected_current_name: null }),
+      ],
       p_changed_by: 'actor-1',
-      p_confirm_name_change: false,
     })
+  })
+
+  it('recusa do banco em um Cliente: nada gravado, recusa listada', async () => {
+    mockRpc.mockResolvedValue({
+      data: { ok: false, errors: [{ cnpj: '11222333000181', code: '22023', message: 'E-mail invalido para o cliente 11222333000181: x' }] },
+      error: null,
+    })
+    const base = { trade_name: null, address: null, city: null, state: null, zip: null }
+
+    const result = await importCustomerBaseRows([
+      { ...base, cnpj_cpf: '12345678000195', name: 'Empresa Teste', emails: ['a@b.com'] },
+      { ...base, cnpj_cpf: '11222333000181', name: 'Outra', emails: ['x'] },
+    ], { changedBy: 'actor-1' })
+
+    expect(result.ok).toBe(false)
+    expect(result.imported).toBe(0)
+    expect(result.errors).toEqual([{ cnpj_cpf: '11222333000181', message: 'E-mail invalido para o cliente 11222333000181: x' }])
   })
 })
 
@@ -81,22 +85,23 @@ describe('aceite da troca de razão social (revisão da PR 929)', () => {
   beforeEach(() => mockRpc.mockReset())
 
   it('vale só para o Cliente cuja troca apareceu na prévia, com o nome de antes que ela mostrou', async () => {
-    mockRpc.mockResolvedValue({ data: { created: false }, error: null })
-    // Depois da prévia, outra sessão renomeou o Cliente 4 (de "Antiga 4" para "Renomeada").
-    mockFrom.mockImplementation((table: string) => fakeQuery(table === 'customers'
-      ? [{ id: 1, name: 'Antiga' }, { id: 4, name: 'Renomeada' }]
-      : []))
+    mockRpc.mockResolvedValue({ data: { ok: true, updated: 2 }, error: null })
     const base = { name: 'Nova', trade_name: null, emails: ['a@b.com'], address: null, city: null, state: null, zip: null }
 
     await importCustomerBaseRows([
       { ...base, cnpj_cpf: '11111111000111', existingCustomerId: 1, currentName: 'Antiga' },
       { ...base, cnpj_cpf: '22222222000122', existingCustomerId: 2, currentName: null },
       { ...base, cnpj_cpf: '33333333000133' },
-      { ...base, cnpj_cpf: '44444444000144', existingCustomerId: 4, currentName: 'Antiga 4' },
     ], { changedBy: 'actor-1', confirmNameChange: true })
 
-    const confirmations = mockRpc.mock.calls.map(([, args]) => [(args as { p_cnpj: string }).p_cnpj, (args as { p_confirm_name_change: boolean }).p_confirm_name_change])
-    expect(confirmations).toEqual([['11111111000111', true], ['22222222000122', false], ['33333333000133', false], ['44444444000144', false]])
+    // O banco confere `expected_current_name` com o Cliente travado: se outra
+    // sessão o renomeou depois da prévia, a base inteira é recusada.
+    const rows = (mockRpc.mock.calls[0][1] as { p_rows: Array<{ cnpj: string; confirm_name_change: boolean; expected_current_name: string | null }> }).p_rows
+    expect(rows.map((row) => [row.cnpj, row.confirm_name_change, row.expected_current_name])).toEqual([
+      ['11111111000111', true, 'Antiga'],
+      ['22222222000122', false, null],
+      ['33333333000133', false, null],
+    ])
   })
 })
 

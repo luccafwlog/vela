@@ -44,32 +44,41 @@ export async function parseContainerDatesFile(file: File): Promise<ParsedContain
     expectedHeaders: Object.values(headerMap).flat(),
   })
   const { missing } = matchHeaders(headers, SPEC)
-  if (missing.length) throw new Error(`Colunas obrigatorias ausentes: ${missing.join(', ')}.`)
+  if (missing.length) throw new Error(`Colunas obrigatórias ausentes: ${missing.join(', ')}.`)
   return parseRows(rows)
 }
 
 /**
  * Leitura com prévia: o arquivo, o estado gravado de cada container ("antes →
- * depois") e a recusa do mesmo container com datas diferentes na Viagem.
+ * depois"), o container que não está no B/L e a recusa do mesmo container com
+ * datas diferentes na Viagem. Qualquer erro recusa o arquivo inteiro (regra de
+ * 2026-10-19): a tela não deixa importar com `rowErrors`.
  */
 export async function readContainerDatesFile(file: File): Promise<ParsedContainerDatesImport> {
   const parsed = await parseContainerDatesFile(file)
   const preview = annotateContainerDates(parsed.rows, await fetchContainerDatesCurrent(parsed.rows))
+  const notFound = preview.rows.filter((row) => !row.found)
   return {
-    rows: preview.rows,
+    rows: preview.rows.filter((row) => row.found),
     rowErrors: [
       ...parsed.rowErrors,
+      ...notFound.map((row) => ({ row: row.row_number ?? 0, message: `${row.bl_id} / ${row.container_number}: container não encontrado neste B/L.`, raw: row })),
       ...preview.conflicts.map((conflict) => ({ row: conflict.row_number ?? 0, message: `${conflict.bl_id} / ${conflict.container_number}: ${conflict.message}`, raw: conflict })),
-    ],
+    ].sort((left, right) => left.row - right.row),
   }
 }
 
 export type ContainerDatesImportError = { bl_id: string; container_number: string; message: string }
 
+/**
+ * Resultado da gravação. `ok: false` quer dizer que o banco recusou algum B/L
+ * e NADA foi gravado (regra de 2026-10-19; migration 325): `errors` lista o
+ * que foi recusado.
+ */
 export type ContainerDatesImportResult = {
+  ok: boolean
   updated: number
   unchanged: number
-  missing: number
   errors: ContainerDatesImportError[]
 }
 
@@ -82,8 +91,12 @@ export type ContainerDatesImportResult = {
 type ImportableContainerDatesRow = ContainerDatesImportRow
   & Partial<Pick<AnnotatedContainerDatesRow, 'found' | 'before_discharge' | 'before_return'>>
 
+/**
+ * Grava a planilha inteira numa chamada (`apply_container_dates_batch_atomic`,
+ * migration 325): se o banco recusa qualquer B/L, nenhum é gravado.
+ */
 export async function importContainerDates(rows: ImportableContainerDatesRow[]): Promise<ContainerDatesImportResult> {
-  if (!rows.length) return { updated: 0, unchanged: 0, missing: 0, errors: [] }
+  if (!rows.length) return { ok: true, updated: 0, unchanged: 0, errors: [] }
 
   const blIds = Array.from(new Set(rows.map((r) => r.bl_id)))
 
@@ -100,45 +113,35 @@ export async function importContainerDates(rows: ImportableContainerDatesRow[]):
     containersByKey.set(makeKey(c.bl_id ?? '', c.container_number), c)
   }
 
-  let updated = 0
-  let unchanged = 0
-  let missing = 0
-  const errors: ContainerDatesImportError[] = []
-
   const uniqueRows = Array.from(new Map(rows.map((r) => [makeKey(r.bl_id, r.container_number), r])).values())
 
-  // O RPC aplica cada B/L inteiro como unidade; um erro não deixa linhas
-  // parcialmente gravadas e o lote continua com os demais B/Ls.
-  const blsWithFailedUpdates = new Set<string>()
-  const rowsByBl = new Map<string, ImportableContainerDatesRow[]>()
-  for (const row of uniqueRows) {
-    if (!containersByKey.has(makeKey(row.bl_id, row.container_number))) {
-      missing += 1
-      blsWithFailedUpdates.add(row.bl_id)
-      errors.push({
+  // Container que não está no B/L recusa o arquivo inteiro antes de chamar o
+  // banco (a prévia já o mostra como erro).
+  const missing = uniqueRows.filter((row) => !containersByKey.has(makeKey(row.bl_id, row.container_number)))
+  if (missing.length) {
+    return {
+      ok: false,
+      updated: 0,
+      unchanged: 0,
+      errors: missing.map((row) => ({
         bl_id: row.bl_id,
         container_number: row.container_number,
-        message: `Container nao encontrado; o B/L foi ignorado para preservar a atomicidade.`,
-      })
-      continue
+        message: 'Container não encontrado neste B/L.',
+      })),
     }
-    const rowsForBl = rowsByBl.get(row.bl_id) ?? []
-    rowsForBl.push(row)
-    rowsByBl.set(row.bl_id, rowsForBl)
   }
 
-  let actorId: string | null = null
-  if (rowsByBl.size > 0) {
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    if (authError) throw authError
-    actorId = authData.user?.id ?? null
-    if (!actorId) throw new Error('Sessao expirada. Entre novamente antes de importar datas.')
-  }
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError) throw authError
+  const actorId = authData.user?.id ?? null
+  if (!actorId) throw new Error('Sessão expirada. Entre novamente antes de importar datas.')
 
-  for (const [blId, rowsForBl] of rowsByBl) {
-    if (blsWithFailedUpdates.has(blId)) continue
+  const rowsByBl = new Map<string, ImportableContainerDatesRow[]>()
+  for (const row of uniqueRows) rowsByBl.set(row.bl_id, [...(rowsByBl.get(row.bl_id) ?? []), row])
 
-    const payload = rowsForBl.map((row) => {
+  const batches = Array.from(rowsByBl, ([blId, rowsForBl]) => ({
+    bl_id: blId,
+    rows: rowsForBl.map((row) => {
       const current = containersByKey.get(makeKey(row.bl_id, row.container_number))!
       const previewed = row.found === true
       return {
@@ -148,30 +151,32 @@ export async function importContainerDates(rows: ImportableContainerDatesRow[]):
         expected_discharge_date: previewed ? row.before_discharge ?? null : current.discharge_date,
         expected_return_date: previewed ? row.before_return ?? null : current.return_date,
       }
-    })
+    }),
+  }))
 
-    const { data: applied, error: applyError } = await supabase.rpc('apply_container_dates_atomic', {
-      p_request_id: crypto.randomUUID(),
-      p_bl_id: blId,
-      p_rows: payload,
-      p_changed_by: actorId!,
-    })
+  const { data, error } = await supabase.rpc('apply_container_dates_batch_atomic' as never, {
+    p_request_id: crypto.randomUUID(),
+    p_batches: batches,
+    p_changed_by: actorId,
+  } as never)
+  if (error) throw error
 
-    if (applyError) {
-      // A recusa de negócio do banco (ex.: descarga posterior à devolução
-      // gravada) aparece como veio, sem o código; CHECK cru vira texto fixo.
-      const message = classifyDbError(applyError).message
-      rowsForBl.forEach((row) => errors.push({ bl_id: row.bl_id, container_number: row.container_number, message }))
-      blsWithFailedUpdates.add(blId)
-      continue
+  const result = (data ?? {}) as { ok?: boolean; updated?: number; unchanged?: number; errors?: Array<{ bl_id?: string; code?: string; message?: string }> }
+  if (result.ok === false) {
+    // A recusa de negócio do banco (ex.: descarga posterior à devolução
+    // gravada) aparece como veio, sem o código; CHECK cru vira texto fixo.
+    return {
+      ok: false,
+      updated: 0,
+      unchanged: 0,
+      errors: (result.errors ?? []).map((item) => ({
+        bl_id: String(item.bl_id ?? ''),
+        container_number: '',
+        message: classifyDbError({ code: item.code, message: item.message ?? '' }).message,
+      })),
     }
-
-    const result = (applied ?? {}) as { updated_ids?: unknown[]; unchanged_ids?: unknown[]; billing_state?: string }
-    updated += Array.isArray(result.updated_ids) ? result.updated_ids.length : 0
-    unchanged += Array.isArray(result.unchanged_ids) ? result.unchanged_ids.length : 0
   }
-
-  return { updated, unchanged, missing, errors }
+  return { ok: true, updated: Number(result.updated ?? 0), unchanged: Number(result.unchanged ?? 0), errors: [] }
 }
 
 export type ContainerDatesCurrent = {
@@ -274,18 +279,18 @@ function parseRows(objectRows: SheetRow[]): ParsedContainerDatesImport {
     const rawReturn = mapped.return_date
 
     const rowNumber = row.rowNumber
-    if (!blId) { rowErrors.push({ row: rowNumber, message: 'Linha sem BL.', raw: row }); return }
-    if (!containerNumber) { rowErrors.push({ row: rowNumber, message: 'Linha sem Container.', raw: row }); return }
+    if (!blId) { rowErrors.push({ row: rowNumber, message: 'Linha sem B/L.', raw: row }); return }
+    if (!containerNumber) { rowErrors.push({ row: rowNumber, message: 'Linha sem container.', raw: row }); return }
 
     const discharge = parseDate(rawDischarge)
-    if (!discharge) { rowErrors.push({ row: rowNumber, message: 'Data de descarga invalida ou ausente.', raw: row }); return }
+    if (!discharge) { rowErrors.push({ row: rowNumber, message: 'Data de descarga inválida ou ausente.', raw: row }); return }
 
     const returnDate = rawReturn != null && asString(rawReturn) ? parseDate(rawReturn) : null
     if (rawReturn != null && asString(rawReturn) && !returnDate) {
-      rowErrors.push({ row: rowNumber, message: 'Data de devolucao invalida.', raw: row }); return
+      rowErrors.push({ row: rowNumber, message: 'Data de devolução inválida.', raw: row }); return
     }
     if (returnDate && returnDate < discharge) {
-      rowErrors.push({ row: rowNumber, message: 'Data de devolucao anterior a descarga.', raw: row }); return
+      rowErrors.push({ row: rowNumber, message: 'Data de devolução anterior à descarga.', raw: row }); return
     }
 
     const parsedRow: ContainerDatesImportRow = { bl_id: blId, container_number: containerNumber, discharge_date: discharge, return_date: returnDate, row_number: rowNumber }
@@ -296,7 +301,7 @@ function parseRows(objectRows: SheetRow[]): ParsedContainerDatesImport {
       if (previous.discharge_date !== parsedRow.discharge_date || previous.return_date !== parsedRow.return_date) {
         conflictingKeys.add(key)
         rowsByKey.delete(key)
-        rowErrors.push({ row: rowNumber, message: 'Duplicata conflitante para o mesmo BL e container.', raw: row })
+        rowErrors.push({ row: rowNumber, message: 'Duplicata conflitante: o mesmo B/L e container aparecem com datas diferentes.', raw: row })
       }
       return
     }

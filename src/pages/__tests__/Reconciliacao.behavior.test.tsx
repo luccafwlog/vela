@@ -176,7 +176,7 @@ describe('Conciliação PIX', () => {
     vi.clearAllMocks()
     authState.isAdmin = true
     authState.role = 'administrativo'
-    mocks.parse.mockResolvedValue([transaction])
+    mocks.parse.mockResolvedValue({ transactions: [transaction], ignored: 0, errors: [] })
     mocks.match.mockResolvedValue([safeMatch, ambiguousMatch, unmatchedMatch])
     mocks.sheetNotices.mockResolvedValue({ warnings: [], firstSheetHiddenRows: 0 })
     mocks.sheetWarnings.mockResolvedValue([])
@@ -314,6 +314,32 @@ describe('Conciliação PIX', () => {
     expect(await screen.findByText('Não foi possível ler o extrato')).toBeTruthy()
     expect(screen.getByText(/valor pago" não encontrada\. Nada foi baixado\./)).toBeTruthy()
     expect(mocks.showToast).not.toHaveBeenCalled()
+  })
+
+  // Regra de 2026-10-19: valor ilegível recusa o extrato inteiro antes de
+  // procurar faturas ou salvar exceções.
+  it('valor ilegível no extrato: nada é procurado, salvo nem baixado', async () => {
+    mocks.parse.mockResolvedValueOnce({ transactions: [transaction], ignored: 0, errors: [{ row: 9, message: 'Valor pago "1,2,3" ilegível.' }] })
+    const user = userEvent.setup()
+    renderPage('/reconciliacao?tab=extrato')
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(input, new File(['xlsx'], 'pix.xlsx'))
+
+    expect(await screen.findByText('Valor pago "1,2,3" ilegível.')).toBeTruthy()
+    expect(screen.getByText(/nada é baixado nem salvo em Pendências/)).toBeTruthy()
+    expect(mocks.match).not.toHaveBeenCalled()
+    expect(mocks.persist).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /^Confirmar/ })).toBeNull()
+  })
+
+  it('lançamentos zerados ou negativos ficam fora com a contagem à vista (D3)', async () => {
+    mocks.parse.mockResolvedValueOnce({ transactions: [transaction], ignored: 3, errors: [] })
+    const user = userEvent.setup()
+    renderPage('/reconciliacao?tab=extrato')
+    await uploadExtract(user)
+
+    const ignored = screen.getByText('Lançamentos zerados ou negativos ignorados').closest('div')!
+    expect(within(ignored).getByText('3')).toBeTruthy()
   })
 
   // Revisão da PR 929: linhas ocultas do extrato ficam fora da leitura; o aviso aparece antes de Confirmar.

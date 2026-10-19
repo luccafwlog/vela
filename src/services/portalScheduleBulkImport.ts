@@ -1,14 +1,20 @@
 import { importDateOrNull } from '../lib/importDate'
 import { PORTAL_SCHEDULE_LANES, portalLaneCode, type PortalScheduleLaneKind } from './portalScheduleLanes'
-import type { ScheduleLaneInput } from './voyageFromSchedule'
+import type { ImportIssue } from './importValidation'
+import type { ScheduleLaneInput, ScheduleSheetPlanRow } from './voyageFromSchedule'
 
 export type BulkScheduleRow = {
   vesselName: string
   vesselImo: string
   voyageNumber: string
   lanes: ScheduleLaneInput[]
-  /** Colunas com conteudo que nao pode ser lido como data (aviso ao operador). */
+  /**
+   * Colunas com conteúdo que não pode ser lido como data. É erro: recusa a
+   * planilha inteira (regra de 2026-10-19).
+   */
   invalidCells: string[]
+  /** Linha da planilha, quando lida pelo leitor comum; a prévia aponta o erro por ela. */
+  rowNumber?: number
 }
 
 function stripAccents(value: string) {
@@ -73,7 +79,29 @@ export function parseScheduleRows(rows: Array<Record<string, unknown>>): BulkSch
         if (date === null && !isBlankCell(raw)) invalidCells.push(column)
         return { code: portalLaneCode(lane), kind: lane.kind, date }
       })
-      return { vesselName, vesselImo, voyageNumber, lanes, invalidCells }
+      const rowNumber = typeof row.rowNumber === 'number' ? row.rowNumber : undefined
+      return { vesselName, vesselImo, voyageNumber, lanes, invalidCells, ...(rowNumber === undefined ? {} : { rowNumber }) }
     })
     .filter((row) => row.vesselName && row.voyageNumber && row.vesselName !== 'EXEMPLO NAVIO')
+}
+
+/**
+ * Erros da planilha de programação (regra de 2026-10-19): data ilegível e
+ * Viagem que a prévia recusa. Qualquer um recusa a planilha inteira. `plan`
+ * tem uma linha por linha de `rows`, na mesma ordem (`planScheduleSheet`).
+ */
+export function scheduleSheetIssues(rows: readonly BulkScheduleRow[], plan: readonly ScheduleSheetPlanRow[]): ImportIssue[] {
+  const issues: ImportIssue[] = []
+  rows.forEach((row, index) => {
+    const line = row.rowNumber ?? index + 2
+    const label = `${row.vesselName} / ${row.voyageNumber}`
+    if (row.invalidCells.length) {
+      issues.push({ row: line, field: 'date', code: 'invalid_date', severity: 'error', message: `${label}: data ilegível em ${row.invalidCells.join(', ')}.` })
+    }
+    const planned = plan[index]
+    if (planned?.error) {
+      issues.push({ row: line, field: 'row', code: 'invalid_group', severity: 'error', message: `${planned.label}: ${planned.error}` })
+    }
+  })
+  return issues
 }

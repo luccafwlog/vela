@@ -1,6 +1,7 @@
 import { asString, onlyDigits } from '../lib/utils'
 import { canonicalizeValidCnpj } from '../lib/cnpj'
 import { assertUploadFile } from '../lib/fileGuard'
+import { classifyDbError } from '../lib/errors'
 import { supabase } from './supabase'
 import { matchHeaders, readSheet, type HeaderSpec } from './importCore'
 
@@ -17,7 +18,7 @@ const headerMap = {
 
 const requiredHeaders = {
   cnpj_cpf: 'CNPJ',
-  name: 'Razao Social',
+  name: 'Razão Social',
 } as const
 
 type DestinationField = keyof typeof headerMap
@@ -35,6 +36,8 @@ export type CustomerBaseRow = {
   city: string | null
   state: string | null
   zip: string | null
+  /** Primeira linha da planilha com este CNPJ; a prévia aponta os avisos por ela. */
+  row_number?: number
   existingCustomerId?: number
   changedFields?: string[]
   /** razão social gravada, quando a planilha traz outra (pede confirmação) */
@@ -120,67 +123,82 @@ export function customerNameChanges(rows: CustomerBaseRow[]) {
   return rows.filter((row) => row.existingCustomerId && row.currentName)
 }
 
-export async function importCustomerBaseRows(rows: CustomerBaseRow[], options: { changedBy: string | null; confirmNameChange?: boolean } = { changedBy: null }) {
+export type CustomerBaseImportResult = {
+  /** `false`: o banco recusou algum Cliente e NADA foi gravado (migration 326). */
+  ok: boolean
+  imported: number
+  updated: number
+  contactsCreated: number
+  blsLinked: number
+  errors: Array<{ cnpj_cpf: string; message: string }>
+}
+
+/**
+ * Grava a base inteira numa chamada (`apply_customer_base_batch_atomic`,
+ * migration 326): se o banco recusa qualquer Cliente, nenhum é gravado e a
+ * resposta lista o que foi recusado. O aceite da troca de razão social vale
+ * para o nome de antes que a prévia mostrou: o banco confere esse nome com o
+ * Cliente travado e recusa se ele mudou depois da prévia.
+ */
+export async function importCustomerBaseRows(
+  rows: CustomerBaseRow[],
+  options: { changedBy: string | null; confirmNameChange?: boolean } = { changedBy: null },
+): Promise<CustomerBaseImportResult> {
   const uniqueRows = Array.from(new Map(rows.map((row) => [row.cnpj_cpf, row])).values())
   if (!uniqueRows.length) {
-    return { imported: 0, updated: 0, contactsCreated: 0, blsLinked: 0 }
+    return { ok: true, imported: 0, updated: 0, contactsCreated: 0, blsLinked: 0, errors: [] }
   }
   if (!options.changedBy) throw new Error('Usuário ativo obrigatório para importar a base de clientes.')
 
-  let imported = 0
-  let updated = 0
-  let contactsCreated = 0
-  let blsLinked = 0
-  const errors: Array<{ cnpj_cpf: string; message: string }> = []
-
-  // O aceite vale só para a troca de razão social que a prévia mostrou, com o
-  // nome de antes que ela mostrou: Cliente criado ou renomeado depois da prévia
-  // volta a pedir confirmação (a RPC recusa a troca sem o aceite).
-  // ponytail: entre esta leitura e a RPC da linha sobra uma janela curta;
-  // fechá-la exige a RPC receber a razão social esperada.
-  const previewedNames = new Map<number, string>()
-  if (options.confirmNameChange) {
-    const ids = uniqueRows.filter((row) => row.existingCustomerId && row.currentName).map((row) => Number(row.existingCustomerId))
-    if (ids.length) {
-      const { data, error } = await supabase.from('customers').select('id, name').in('id', ids)
-      if (error) throw error
-      for (const customer of (data ?? []) as Array<{ id: number; name: string | null }>) {
-        previewedNames.set(Number(customer.id), String(customer.name ?? '').trim())
+  const { data, error } = await supabase.rpc('apply_customer_base_batch_atomic' as never, {
+    p_rows: uniqueRows.map((row) => {
+      const confirmsNameChange = Boolean(options.confirmNameChange && row.existingCustomerId && row.currentName)
+      return {
+        cnpj: row.cnpj_cpf,
+        name: row.name,
+        trade_name: row.trade_name,
+        address: row.address,
+        city: row.city,
+        state: row.state,
+        zip: row.zip,
+        emails: row.emails,
+        confirm_name_change: confirmsNameChange,
+        expected_current_name: confirmsNameChange ? row.currentName!.trim() : null,
       }
+    }),
+    p_changed_by: options.changedBy,
+  } as never)
+  if (error) throw error
+
+  const result = (data ?? {}) as {
+    ok?: boolean
+    imported?: number
+    updated?: number
+    contacts_created?: number
+    bls_linked?: number
+    errors?: Array<{ cnpj?: string; code?: string; message?: string }>
+  }
+  if (result.ok === false) {
+    return {
+      ok: false,
+      imported: 0,
+      updated: 0,
+      contactsCreated: 0,
+      blsLinked: 0,
+      errors: (result.errors ?? []).map((item) => ({
+        cnpj_cpf: String(item.cnpj ?? ''),
+        message: classifyDbError({ code: item.code, message: item.message ?? '' }).message || 'Falha ao importar cliente.',
+      })),
     }
   }
-  const confirmsNameChange = (row: CustomerBaseRow) => Boolean(
-    options.confirmNameChange && row.existingCustomerId && row.currentName
-      && previewedNames.get(Number(row.existingCustomerId)) === row.currentName.trim(),
-  )
-
-  // Cada linha e uma unidade: falha de unicidade/contato em um cliente nao
-  // desfaz os clientes anteriores nem deixa upsert parcial no navegador.
-  for (const row of uniqueRows) {
-    const { data, error } = await supabase.rpc('apply_customer_base_row_atomic', {
-      p_cnpj: row.cnpj_cpf,
-      p_name: row.name,
-      p_trade_name: row.trade_name,
-      p_address: row.address,
-      p_city: row.city,
-      p_state: row.state,
-      p_zip: row.zip,
-      p_emails: row.emails,
-      p_changed_by: options.changedBy,
-      p_confirm_name_change: confirmsNameChange(row),
-    } as never)
-    if (error) {
-      errors.push({ cnpj_cpf: row.cnpj_cpf, message: error.message || 'Falha ao importar cliente.' })
-      continue
-    }
-    const result = data as unknown as { created?: boolean; contacts_created?: number; bls_linked?: number } | null
-    if (result?.created) imported += 1
-    else updated += 1
-    contactsCreated += Number(result?.contacts_created ?? 0)
-    blsLinked += Number(result?.bls_linked ?? 0)
+  return {
+    ok: true,
+    imported: Number(result.imported ?? 0),
+    updated: Number(result.updated ?? 0),
+    contactsCreated: Number(result.contacts_created ?? 0),
+    blsLinked: Number(result.bls_linked ?? 0),
+    errors: [],
   }
-
-  return { imported, updated, contactsCreated, blsLinked, errors }
 }
 
 function validateRequiredHeaders(rawHeaders: string[]) {
@@ -188,7 +206,7 @@ function validateRequiredHeaders(rawHeaders: string[]) {
   const missing = missingFields.map((field) => requiredHeaders[field as keyof typeof requiredHeaders])
 
   if (missing.length) {
-    throw new Error(`Base invalida. Colunas obrigatorias: ${missing.join(', ')}.`)
+    throw new Error(`Base inválida. Colunas obrigatórias: ${missing.join(', ')}.`)
   }
 }
 
@@ -217,7 +235,7 @@ export function parseCustomerBaseRows(rows: Record<string, unknown>[]): ParsedCu
     }
 
     if (!name) {
-      rowErrors.push({ row: rowNumber, message: 'Linha sem Razao Social.', raw: row })
+      rowErrors.push({ row: rowNumber, message: 'Linha sem Razão Social.', raw: row })
       return
     }
 
@@ -236,6 +254,7 @@ export function parseCustomerBaseRows(rows: Record<string, unknown>[]): ParsedCu
       city: asNullableText(mapped.city),
       state: normalizeState(asNullableText(mapped.state)),
       zip: normalizeZip(asNullableText(mapped.zip)),
+      row_number: rowNumber,
     })
   })
 
@@ -306,6 +325,7 @@ function mergeBestRow(rows: CustomerBaseRow[]) {
       city: chooseText(current.city, best.city),
       state: chooseState(current.state, best.state),
       zip: chooseText(current.zip, best.zip),
+      row_number: rows[0].row_number,
     }),
     rows[0],
   )

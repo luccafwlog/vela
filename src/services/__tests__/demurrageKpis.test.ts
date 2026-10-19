@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as XLSX from '@e965/xlsx'
-import { parsePixExtract } from '../demurrage/demurrageKpis'
+import { parsePixExtract, readPixExtract } from '../demurrage/demurrageKpis'
 
 function pixWorkbook(rows: unknown[][]): ArrayBuffer {
   const sheet = XLSX.utils.aoa_to_sheet(rows)
@@ -105,5 +105,32 @@ describe('parsePixExtract', () => {
     XLSX.utils.book_append_sheet(workbook, sheet, 'PIX')
     const parsed = await parsePixExtract(XLSX.write(workbook, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer)
     expect(parsed.map((transaction) => [transaction.txid, transaction.lineNumber])).toEqual([['INV-002', 3]])
+  })
+
+  // Regra de 2026-10-19 (D3): zerado/negativo é ignorado com contagem; valor
+  // ilegível é erro que recusa o extrato inteiro.
+  it('ignora lançamento zerado ou negativo com contagem e aceita o símbolo da moeda', async () => {
+    const read = await readPixExtract(pixWorkbook([
+      ['identificador', 'CPF/CNPJ', 'pago em', 'valor pago'],
+      ['INV-001', '', '05/06/2026', 'R$ 1.500,50'],
+      ['TARIFA', '', '05/06/2026', '-2,50'],
+      ['INV-ZERO', '', '05/06/2026', '0,00'],
+      ['', '', '', ''],
+    ]))
+    expect(read.errors).toEqual([])
+    expect(read.ignored).toBe(2)
+    expect(read.transactions.map((transaction) => [transaction.txid, transaction.amount])).toEqual([['INV-001', 1500.5]])
+  })
+
+  it('valor ilegível vira erro e parsePixExtract recusa o extrato', async () => {
+    const buffer = pixWorkbook([
+      ['identificador', 'CPF/CNPJ', 'pago em', 'valor pago'],
+      ['INV-001', '', '05/06/2026', '100,00'],
+      ['INV-002', '', '05/06/2026', 'cem reais'],
+    ])
+    const read = await readPixExtract(buffer)
+    expect(read.errors).toEqual([{ row: 3, message: 'Valor pago "cem reais" ilegível (identificador INV-002).' }])
+    expect(read.transactions).toHaveLength(1)
+    await expect(parsePixExtract(buffer)).rejects.toThrow(/Linha 3: Valor pago "cem reais" ilegível/)
   })
 })

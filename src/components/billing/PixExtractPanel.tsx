@@ -6,6 +6,8 @@ import { Button } from '../ui/Button'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
 import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice } from '../shared/ImportParts'
+import { ImportIssuesPanel } from '../shared/ImportIssuesPanel'
+import type { ImportIssue } from '../../services/importValidation'
 import { useAuth } from '../../hooks/useAuth'
 import { afterPendenciaPixAlterada, afterPixConciliado } from '../../services/cacheEffects'
 import { parsePixExtractFile } from '../../services/demurrage/demurrageKpis'
@@ -38,6 +40,10 @@ type ReadResult = {
   matches: UnifiedPixMatch[]
   /** Linhas ocultas da aba que o parser PIX lê (a primeira visível): só elas tiram linhas da conciliação. */
   firstSheetHiddenRows: number
+  /** Lançamentos zerados ou negativos (tarifas e saídas) ignorados (D3). */
+  ignored: number
+  /** Valor ilegível: recusa o extrato inteiro; nada é lido nem salvo (regra de 2026-10-19). */
+  errors: ImportIssue[]
 }
 
 const sourceLabel = (source: 'local' | 'demurrage' | 'unmatched') => (source === 'demurrage' ? 'Demurrage' : 'Taxas Locais')
@@ -57,8 +63,21 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
 
   const readMutation = useMutation({
     mutationFn: async (chosen: File): Promise<ReadResult> => {
-      const [transactions, notices] = await Promise.all([parsePixExtractFile(chosen), readSpreadsheetNotices(chosen)])
-      if (!transactions.length) throw new Error('Nenhuma transação Pix encontrada no extrato. Confira se é o relatório "QR Codes recebidos" e se as linhas estão visíveis.')
+      const [extract, notices] = await Promise.all([parsePixExtractFile(chosen), readSpreadsheetNotices(chosen)])
+      const { transactions, ignored } = extract
+      // Valor ilegível recusa o extrato inteiro antes de procurar faturas ou
+      // salvar exceções: nada é gravado.
+      if (extract.errors.length) {
+        return {
+          matches: [],
+          firstSheetHiddenRows: notices.firstSheetHiddenRows,
+          ignored,
+          errors: extract.errors.map((error) => ({ row: error.row, field: 'value', code: 'invalid_number' as const, severity: 'error' as const, message: error.message })),
+        }
+      }
+      if (!transactions.length) {
+        throw new Error(`Nenhuma transação Pix encontrada no extrato${ignored ? ` (${pluralize(ignored, 'lançamento zerado ou negativo ignorado', 'lançamentos zerados ou negativos ignorados')})` : ''}. Confira se é o relatório "QR Codes recebidos" e se as linhas estão visíveis.`)
+      }
       const [importKey, found] = await Promise.all([createPixImportKey(chosen), matchUnifiedPixTransactions(transactions)])
       // As linhas sem baixa segura ficam salvas já na leitura: sair da tela não as perde.
       const persisted = await persistUnresolvedPixMatches(importKey, found)
@@ -66,6 +85,8 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
       return {
         matches: found.map((match) => ({ ...match, exceptionId: idsByLine.get(getPixLineIdentity(match.transaction)) })),
         firstSheetHiddenRows: notices.firstSheetHiddenRows,
+        ignored,
+        errors: [],
       }
     },
     onSuccess: async (result) => {
@@ -128,7 +149,8 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
           details={(
             <p>
               Use o relatório "QR Codes recebidos" (.xlsx ou .xls). A leitura começa na linha que tem a coluna Identificador e
-              ignora valores zerados ou negativos. Linhas e abas ocultas ficam de fora.
+              ignora lançamentos zerados ou negativos (tarifas e saídas), com a contagem na conferência. Valor pago ilegível
+              impede a leitura do extrato inteiro. Linhas e abas ocultas ficam de fora.
             </p>
           )}
         />
@@ -200,6 +222,18 @@ function ExtractReview({
   const exceptionCount = lines.exceptions.length
   const hidden = read.firstSheetHiddenRows
 
+  if (read.errors.length) {
+    return (
+      <Block title="Conferência do extrato" aside="Nada foi lido nem salvo" bodyClassName="grid gap-4">
+        <ImportIssuesPanel issues={read.errors} filename="extrato-pix-erros.csv" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ImportFootnote tone="warning">Com valor ilegível no extrato, nada é baixado nem salvo em Pendências. Corrija e escolha o arquivo de novo.</ImportFootnote>
+          <Button variant="ghost" onClick={onDiscard}>Descartar leitura</Button>
+        </div>
+      </Block>
+    )
+  }
+
   return (
     <Block title="Conferência do extrato" aside={pluralize(read.matches.length, 'linha lida', 'linhas lidas')} bodyClassName="grid gap-4">
       <LeadValue detail={readyCount ? `${formatBRL(lines.readyTotal)} no lote` : 'Nenhuma linha tem uma fatura aberta com o mesmo identificador e um valor aceito.'}>
@@ -208,6 +242,9 @@ function ExtractReview({
       <FactList columns={2}>
         <Fact label="Ficam como exceção">
           {exceptionCount ? <StatusText tone="warning">{exceptionCount.toLocaleString('pt-BR')}</StatusText> : 'Nenhuma'}
+        </Fact>
+        <Fact label="Lançamentos zerados ou negativos ignorados" detail={read.ignored ? 'Tarifas e saídas não são recebimentos: ficam fora da conciliação.' : undefined}>
+          {read.ignored ? read.ignored.toLocaleString('pt-BR') : 'Nenhum'}
         </Fact>
         <Fact
           label="Linhas ocultas fora da leitura"

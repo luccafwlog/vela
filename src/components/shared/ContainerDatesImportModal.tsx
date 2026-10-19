@@ -9,7 +9,16 @@ import { useToast } from '../ui/Toast'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
 import { ImportIssuesPanel } from './ImportIssuesPanel'
 import { ImportReadProgress } from './ImportReadProgress'
-import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice } from './ImportParts'
+import {
+  ImportFileBlock,
+  ImportFilePicker,
+  ImportFootnote,
+  ImportGuide,
+  ImportNotice,
+  ImportSection,
+  ImportSteps,
+  ImportTemplateLinks,
+} from './ImportParts'
 import { TruncationNote } from './TruncationNote'
 import { plural } from './importPresentation'
 import {
@@ -21,22 +30,36 @@ import {
 } from '../../services/containerDatesImport'
 import { classifyDbError } from '../../lib/errors'
 import { formatDate } from '../../lib/utils'
+import type { ImportIssue } from '../../services/importValidation'
 
 const SAMPLE_SIZE = 25
 
+/**
+ * Planilha de datas de descarga e devolução (Demurrage e Containers). Molde do
+ * lote 6a: Arquivo → Prévia → Resultado. Qualquer erro recusa o arquivo
+ * inteiro, e a gravação é uma chamada só (migration 325): se o banco recusa um
+ * B/L, nada é gravado e o Resultado lista o que foi recusado.
+ */
 export function ContainerDatesImportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const { file, preview, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedContainerDatesImport>(readContainerDatesFile)
-  const [report, setReport] = useState<ContainerDatesImportResult | null>(null)
+  const [refused, setRefused] = useState<ContainerDatesImportResult | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [readError, setReadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const sampleRows = useMemo(() => preview?.rows.slice(0, SAMPLE_SIZE) ?? [], [preview?.rows])
+  const issues = useMemo<ImportIssue[]>(() => (preview?.rowErrors ?? []).map((item) => ({
+    row: item.row,
+    field: 'row',
+    code: 'invalid_group' as const,
+    severity: 'error' as const,
+    message: item.message,
+  })), [preview?.rowErrors])
 
   async function handleFiles(files: File[]) {
-    setReport(null)
+    setRefused(null)
     setReadError(null)
     setSubmitError(null)
     try {
@@ -47,20 +70,18 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
   }
 
   async function handleImport() {
-    if (!preview?.rows.length) return
+    if (!preview?.rows.length || issues.length) return
     setSubmitting(true)
     setSubmitError(null)
     try {
       const result = await importContainerDates(preview.rows)
-      setReport(result)
-      await afterDatasContainerAlteradas(queryClient)
-      // Erros de estrutura vêm do parse; os de gravação vêm do lote parcial.
-      // Somar os dois evita fechar o modal escondendo linhas que não entraram.
-      const errors = preview.rowErrors.length + result.errors.length
-      if (errors === 0) {
-        showToast(`${plural(result.updated, 'container atualizado', 'containers atualizados')}.`, 'success')
-        resetAndClose()
+      if (!result.ok) {
+        setRefused(result)
+        return
       }
+      await afterDatasContainerAlteradas(queryClient)
+      showToast(`${plural(result.updated, 'container atualizado', 'containers atualizados')}.`, 'success')
+      resetAndClose()
     } catch (error) {
       setSubmitError(classifyDbError(error).message)
     } finally {
@@ -70,35 +91,49 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
 
   function resetAndClose() {
     cancelReading()
-    setReport(null)
+    setRefused(null)
     setReadError(null)
     setSubmitError(null)
     onClose()
   }
 
-  const structureErrors = preview?.rowErrors.length ?? 0
+  const rows = preview?.rows.length ?? 0
+  const hasErrors = issues.length > 0
+  const canImport = rows > 0 && !hasErrors && !parsing && !refused
+  const changing = preview?.rows.filter((row) => rowSituation(row) !== 'Sem alteração').length ?? 0
+
   let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
-  if (report) footnote = 'Lote gravado em parte. As linhas recusadas estão acima.'
+  let footnoteTone: 'default' | 'warning' = 'default'
+  if (refused) { footnote = 'Nada foi gravado. Corrija o arquivo e escolha-o de novo.'; footnoteTone = 'warning' }
   else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
-  else if (preview?.rows.length) footnote = structureErrors
-    ? `${plural(preview.rows.length, 'linha válida será gravada', 'linhas válidas serão gravadas')}; ${plural(structureErrors, 'linha com erro fica', 'linhas com erro ficam')} de fora.`
-    : `${plural(preview.rows.length, 'linha será gravada', 'linhas serão gravadas')}. Nada foi gravado ainda.`
+  else if (hasErrors) { footnote = 'Com erro no arquivo, nada é importado. Corrija e escolha o arquivo de novo.'; footnoteTone = 'warning' }
+  else if (rows) footnote = 'Prévia pronta. Nada foi gravado ainda.'
+
+  const step = refused ? 'resultado' : preview || readError ? 'previa' : 'arquivo'
 
   return (
     <Modal open={open} onClose={resetAndClose} title="Importar datas de descarga e devolução">
       <div className="app-import">
-        <ImportGuide
-          required={<><strong>BL</strong>, <strong>Container</strong> e <strong>Discharge</strong> (data de descarga).</>}
-          optional={<><strong>Return</strong> (data de devolução), que pode faltar ou ficar em branco.</>}
-          details={<p>Datas em DD/MM/AAAA ou AAAA-MM-DD. Cada linha atualiza o container do B/L informado; container não encontrado é listado no resultado.</p>}
-        />
+        <ImportSteps current={step} />
 
-        <ImportFilePicker
-          accept=".xlsx,.xls,.csv"
-          files={file ? [file] : []}
-          onFiles={(files) => void handleFiles(files)}
-          disabled={submitting || Boolean(report)}
-        />
+        <ImportFileBlock templates={<ImportTemplateLinks baseName="datas-container-modelo" />}>
+          <ImportGuide
+            required={<><strong>B/L</strong>, <strong>Container</strong> e <strong>Descarga</strong> (coluna Discharge).</>}
+            optional={<><strong>Devolução</strong> (coluna Return), que pode faltar ou ficar em branco.</>}
+            details={(
+              <>
+                <p>Datas em DD/MM/AAAA ou AAAA-MM-DD. Cada linha atualiza o container do B/L informado.</p>
+                <p>Devolução em branco mantém a data gravada. Container que não está no B/L, data ilegível ou o mesmo container com datas diferentes impedem a importação do arquivo inteiro.</p>
+              </>
+            )}
+          />
+          <ImportFilePicker
+            accept=".xlsx,.xls,.csv"
+            files={file ? [file] : []}
+            onFiles={(files) => void handleFiles(files)}
+            disabled={submitting}
+          />
+        </ImportFileBlock>
 
         {parsing ? <ImportReadProgress progress={progress} /> : null}
 
@@ -109,48 +144,21 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
           </ImportNotice>
         ) : null}
 
-        {preview ? (
-          <section className="app-import-section" aria-label="Prévia das datas">
-            <div className="app-import-section__head">
-              <h3 className="app-import-section__title">{report ? 'Resultado' : 'Prévia'}</h3>
+        {preview && !refused ? (
+          <ImportSection
+            title="Prévia"
+            aside={(
               <SummaryStrip
-                label={report ? 'Resultado da importação' : 'Resumo da planilha'}
-                items={report ? [
-                  { label: report.updated === 1 ? 'atualizado' : 'atualizados', value: report.updated },
-                  { label: 'não encontrados', value: report.missing, tone: report.missing ? 'warning' : 'default' },
-                  { label: 'recusados ao gravar', value: report.errors.length, tone: report.errors.length ? 'danger' : 'default' },
-                ] : [
-                  { label: preview.rows.length === 1 ? 'linha válida' : 'linhas válidas', value: preview.rows.length },
-                  { label: structureErrors === 1 ? 'linha com erro' : 'linhas com erro', value: structureErrors, tone: structureErrors ? 'danger' : 'default' },
+                label="Resumo da planilha"
+                items={[
+                  { label: rows === 1 ? 'container' : 'containers', value: rows },
+                  { label: 'com data nova', value: changing },
+                  { label: issues.length === 1 ? 'linha com erro' : 'linhas com erro', value: issues.length, tone: issues.length ? 'danger' : 'default' },
                 ]}
               />
-            </div>
-
-            {report?.errors.length ? (
-              <div className="app-table-scroll app-import-table">
-                <table className="app-table app-table--compact w-full">
-                  <caption className="sr-only">Linhas recusadas ao gravar</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">B/L</th>
-                      <th scope="col">Container</th>
-                      <th scope="col" className="app-table__text-head">Motivo da recusa</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.errors.map((row) => (
-                      <tr key={`${row.bl_id}-${row.container_number}`}>
-                        <td className="app-import-code">{row.bl_id}</td>
-                        <td className="app-import-code">{row.container_number || <NoValue label="Sem número do contêiner" />}</td>
-                        <td className="app-table__text app-import-tone--danger" title={row.message}>{row.message}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-
-            {report ? null : (
+            )}
+          >
+            {rows ? (
               <>
                 <div className="app-table-scroll app-import-table">
                   <table className="app-table app-table--compact w-full">
@@ -159,59 +167,84 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
                       <tr>
                         <th scope="col">B/L</th>
                         <th scope="col">Container</th>
-                        <th scope="col">Descarga (antes → depois)</th>
-                        <th scope="col">Devolução (antes → depois)</th>
+                        <th scope="col">Descarga</th>
+                        <th scope="col">Devolução</th>
+                        <th scope="col">Situação</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {sampleRows.map((row: ContainerDatesImportRow) => (
-                        <tr key={`${row.bl_id}-${row.container_number}`}>
-                          <td className="app-import-code font-semibold text-[var(--app-text-strong)]">{row.bl_id}</td>
-                          <td className="app-import-code">{row.container_number}</td>
-                          <td className="tabular-nums">{beforeAfter(row.before_discharge, row.discharge_date)}</td>
-                          <td className="tabular-nums app-import-tone--muted">{beforeAfter(row.before_return, row.after_return ?? row.return_date)}</td>
-                        </tr>
-                      ))}
+                      {sampleRows.map((row: ContainerDatesImportRow) => {
+                        const situation = rowSituation(row)
+                        return (
+                          <tr key={`${row.bl_id}-${row.container_number}`}>
+                            <td className="app-import-code">{row.bl_id}</td>
+                            <td className="app-import-code">{row.container_number}</td>
+                            <td className="tabular-nums">{beforeAfter(row.before_discharge, row.discharge_date)}</td>
+                            <td className="tabular-nums">{beforeAfter(row.before_return, row.after_return ?? row.return_date)}</td>
+                            <td className={situation === 'Atualiza' ? 'app-import-tone--warning' : situation === 'Sem alteração' ? 'app-import-tone--muted' : undefined}>
+                              {situation}
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
-                <TruncationNote shown={sampleRows.length} total={preview.rows.length} noun="linha" />
+                <TruncationNote shown={sampleRows.length} total={rows} noun="linha" />
               </>
-            )}
+            ) : null}
+          </ImportSection>
+        ) : null}
 
-            <ImportIssuesPanel
-              issues={preview.rowErrors.map((item) => ({
-                row: item.row,
-                field: 'row',
-                code: 'invalid_group' as const,
-                severity: 'error' as const,
-                message: item.message,
-              }))}
-              filename="container-dates-issues.csv"
-              title={`${plural(structureErrors, 'linha com erro fica', 'linhas com erro ficam')} de fora`}
-              hint="As demais linhas podem ser gravadas. Para incluir estas, corrija a planilha e importe de novo."
-            />
-          </section>
+        {!refused ? <ImportIssuesPanel issues={issues} filename="datas-container-erros.csv" /> : null}
+
+        {refused ? (
+          <ImportSection title="Resultado" aside={plural(refused.errors.length, 'B/L recusado', 'B/Ls recusados')}>
+            <ImportNotice tone="danger" role="alert" title="Nada foi gravado: o arquivo foi recusado">
+              <p>Com um B/L recusado, nenhuma data do arquivo é gravada. Corrija as linhas abaixo e importe o arquivo de novo.</p>
+            </ImportNotice>
+            <div className="app-table-scroll app-import-table">
+              <table className="app-table app-table--compact w-full">
+                <caption className="sr-only">B/Ls recusados</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">B/L</th>
+                    <th scope="col">Container</th>
+                    <th scope="col" className="app-table__text-head">Motivo da recusa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {refused.errors.map((row) => (
+                    <tr key={`${row.bl_id}-${row.container_number}`}>
+                      <td className="app-import-code">{row.bl_id}</td>
+                      <td className="app-import-code">{row.container_number || <NoValue label="Todos os containers do B/L" />}</td>
+                      <td className="app-table__text app-import-tone--danger" title={row.message}>{row.message}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </ImportSection>
         ) : null}
 
         {submitError ? (
           <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
-            <p>{submitError}</p>
+            <p>Nada foi gravado: {submitError}</p>
             <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
           </ImportNotice>
         ) : null}
 
         <div className="app-modal__actions">
-          <ImportFootnote tone={report ? 'warning' : 'default'}>{footnote}</ImportFootnote>
-          {report ? (
+          <ImportFootnote tone={footnoteTone}>{footnote}</ImportFootnote>
+          {refused ? (
             <Button onClick={resetAndClose}>Concluir</Button>
           ) : (
             <>
               <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : resetAndClose}>
                 {parsing ? 'Interromper leitura' : 'Voltar'}
               </Button>
-              <Button disabled={!preview?.rows.length || parsing} loading={submitting} loadingLabel="Importando…" onClick={() => void handleImport()}>
-                {preview?.rows.length ? `Importar ${plural(preview.rows.length, 'linha', 'linhas')}` : 'Importar datas'}
+              <Button disabled={!canImport} loading={submitting} loadingLabel="Importando…" onClick={() => void handleImport()}>
+                {rows ? `Importar ${plural(rows, 'container', 'containers')}` : 'Importar datas'}
               </Button>
             </>
           )}
@@ -219,6 +252,18 @@ export function ContainerDatesImportModal({ open, onClose }: { open: boolean; on
       </div>
     </Modal>
   )
+}
+
+type Situation = 'Grava' | 'Atualiza' | 'Sem alteração'
+
+/** Data nova num container sem data é "Grava"; trocar uma data gravada pede atenção. */
+function rowSituation(row: ContainerDatesImportRow): Situation {
+  const after = row.after_return ?? row.return_date
+  const dischargeChanges = (row.before_discharge ?? null) !== row.discharge_date
+  const returnChanges = (row.before_return ?? null) !== (after ?? null)
+  if (!dischargeChanges && !returnChanges) return 'Sem alteração'
+  const overwrites = (dischargeChanges && row.before_discharge) || (returnChanges && row.before_return)
+  return overwrites ? 'Atualiza' : 'Grava'
 }
 
 // "antes → depois" da prévia; sem mudança, só a data. Devolução vazia na

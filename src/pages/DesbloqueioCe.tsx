@@ -591,7 +591,7 @@ export function DesbloqueioCe() {
       </Modal>
 
       <Modal open={manage && panel === "zpt"} title="Conciliar com a ZPT" onClose={() => setPanel(null)}>
-        <CeUnlockZptImport />
+        <CeUnlockZptImport onClose={() => setPanel(null)} />
       </Modal>
 
       <Modal open={manage && panel === "exports"} title="Planilhas enviadas à ZPT" onClose={() => setPanel(null)}>

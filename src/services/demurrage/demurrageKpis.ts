@@ -137,7 +137,20 @@ export async function fetchDemurrageKPIs(): Promise<DemurrageKPIs> {
   }
 }
 
-export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTransaction[]> {
+/**
+ * Leitura do extrato "QR Codes recebidos" (regra de 2026-10-19, D3):
+ * lançamento zerado ou negativo (tarifas e saídas) ou sem valor é ignorado e
+ * contado em `ignored`; valor ilegível é erro (`errors`) e recusa o extrato
+ * inteiro antes de qualquer gravação.
+ */
+export type PixExtractRead = {
+  transactions: PixTransaction[]
+  /** Linhas ignoradas por valor zerado, negativo ou vazio. */
+  ignored: number
+  errors: Array<{ row: number; message: string }>
+}
+
+export async function readPixExtract(arrayBuffer: ArrayBuffer): Promise<PixExtractRead> {
   // `rowNumbers`: linha física de cada linha da matriz. Com linhas ocultas
   // fora da matriz, o índice não é mais a linha da planilha.
   const { matrix, rowNumbers } = await readSheet(arrayBuffer)
@@ -173,27 +186,44 @@ export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTran
   }
 
   const transactions: PixTransaction[] = []
+  const errors: PixExtractRead['errors'] = []
+  let ignored = 0
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
     const row = rows[i]
     const txid = String(row[colId] ?? '').trim()
+    const lineNumber = rowNumbers[i] ?? i + 1
 
     let date = ''
     if (colDate >= 0) {
       date = parsePixPaidDate(row[colDate])
     }
 
-    let amount = 0
-    if (colValue >= 0) {
-      // Célula numérica chega como número; texto do extrato é pt-BR (1.500,50).
-      const parsed = parseImportNumber(row[colValue], 'pt-BR')
-      amount = parsed.kind === 'value' ? Number(parsed.decimal) : 0
+    // Célula numérica chega como número; texto do extrato é pt-BR (1.500,50),
+    // às vezes com o símbolo da moeda ("R$ 1.500,50"), que continua legível.
+    const rawValue = row[colValue]
+    const parsed = parseImportNumber(typeof rawValue === 'string' ? rawValue.trim().replace(/^(-?)\s*R\$\s*/i, '$1') : rawValue, 'pt-BR')
+    if (parsed.kind === 'invalid') {
+      errors.push({ row: lineNumber, message: `Valor pago "${String(rawValue).trim()}" ilegível${txid ? ` (identificador ${txid})` : ''}.` })
+      continue
     }
-    if (amount <= 0) continue
+    const amount = parsed.kind === 'value' ? Number(parsed.decimal) : 0
+    if (amount <= 0) {
+      // Linha totalmente vazia não é lançamento; não entra na contagem.
+      if (txid || parsed.kind === 'value') ignored += 1
+      continue
+    }
 
     const cnpj = colCnpj >= 0 ? String(row[colCnpj] ?? '').trim() : ''
-    transactions.push({ txid, cnpj, date, amount, lineNumber: rowNumbers[i] ?? i + 1 })
+    transactions.push({ txid, cnpj, date, amount, lineNumber })
   }
-  return transactions
+  return { transactions, ignored, errors }
+}
+
+/** Só as transações; valor ilegível recusa o extrato (lança). */
+export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTransaction[]> {
+  const read = await readPixExtract(arrayBuffer)
+  if (read.errors.length) throw new Error(read.errors.map((error) => `Linha ${error.row}: ${error.message}`).join(' '))
+  return read.transactions
 }
 
 // Data civil única dos imports (src/lib/importDate.ts): a célula de data/hora
@@ -202,7 +232,7 @@ function parsePixPaidDate(raw: unknown): string {
   return importDateOrNull(raw) ?? ''
 }
 
-export async function parsePixExtractFile(file: File): Promise<PixTransaction[]> {
+export async function parsePixExtractFile(file: File): Promise<PixExtractRead> {
   assertUploadFile(file, ['xlsx', 'xls'])
-  return parsePixExtract(await file.arrayBuffer())
+  return readPixExtract(await file.arrayBuffer())
 }
