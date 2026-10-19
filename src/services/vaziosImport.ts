@@ -95,7 +95,7 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
     if (!containerNumber) { rowErrors.add(rowNumber, 'Container ausente.', row); return }
     if (!IsoContainerSchema.safeParse(containerNumber).success) rowErrors.add(rowNumber, `Container ${containerNumber}: formato ISO esperado (XXXX0000000).`, row)
     const condition = parseCondition(mapped.condition)
-    if (!condition) rowErrors.add(rowNumber, `Container ${containerNumber}: condição deve ser vazio ou material.`, row)
+    if (!condition) rowErrors.add(rowNumber, `Container ${containerNumber}: condição deve ser Vazio ou Com material.`, row)
     const localCode = text(mapped.local_code)
     const handIn = readDate(mapped.hand_in_date)
     const handOut = readDate(mapped.hand_out_date)
