@@ -87,8 +87,10 @@ BEGIN
   -- e a 254 (escrita só pelas RPCs, ADR 0085) tiraram 76 policies de escrita
   -- e puseram 5 (cpa_admin_select e as 4 de tarifa e acordo de Demurrage):
   -- o piso real era 270, e 270 - 72 = 198. Nenhuma policy de leitura saiu.
-  IF v_policies < 198 THEN
-    RAISE EXCEPTION 'Policies RLS em public: % (piso 198).', v_policies;
+  -- A 329 apagou granite_rates com as 3 policies dela (198 -> 195): as
+  -- Tarifas do Granito saíram do sistema (decisão de 2026-10-19).
+  IF v_policies < 195 THEN
+    RAISE EXCEPTION 'Policies RLS em public: % (piso 195).', v_policies;
   END IF;
   -- A 008 aposentou trg_seed_customer_contact_preferences (144 -> 143 triggers).
   SELECT COUNT(*) INTO v_triggers FROM pg_trigger t
