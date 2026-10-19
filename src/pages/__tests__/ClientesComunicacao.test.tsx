@@ -225,6 +225,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     mockAppSettings = { communications_enabled: false }
     mockAppSettingsLoading = false
     mockAppSettingsError = null
+    mockRefetchSettings.mockImplementation(async () => ({ data: mockAppSettings }))
     authState.canSend = true
   })
 
@@ -743,6 +744,31 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     expect(within(painel).getByText(/nenhuma falha/)).toBeTruthy()
   })
 
+  it('"Repetir só as falhas" relê a chave e confirma de novo: simulação que vira envio real avisa antes', async () => {
+    activeMockConference = conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com'])])
+    mockFetchConference.mockResolvedValue(activeMockConference)
+    mockDispatch
+      .mockResolvedValueOnce({ communicationId: 1, status: 'simulado' })
+      .mockRejectedValueOnce(new Error('Falha no envio do comunicado.'))
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+    const painel = (await screen.findByText('Resultado do disparo')).closest('[role="status"]') as HTMLElement
+
+    // A chave foi ligada depois do lote; a tela ainda mostra o valor antigo.
+    mockRefetchSettings.mockResolvedValueOnce({ data: { communications_enabled: true } })
+    mockConfirm.mockResolvedValueOnce(false)
+    fireEvent.click(within(painel).getByRole('button', { name: /Repetir só as falhas \(1\)/ }))
+
+    await waitFor(() => expect(mockConfirm).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Repetir de verdade', tone: 'danger' })))
+    expect(mockDispatch).toHaveBeenCalledTimes(2)
+  })
+
   it('confirma antes de disparar, dizendo se é simulação e para quantos destinatários; Cancelar não envia nada', async () => {
     activeMockConference = conferenceOf('aviso_chegada_noa', [
       noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com']),
@@ -984,6 +1010,22 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     await waitFor(() => expect(mockConfirm).toHaveBeenCalled())
     expect(mockFetchHistory).toHaveBeenCalledWith({ customerId: 1, voyageId: 7, kind: 'ce_mercante_taxas' })
     expect(mockConfirm.mock.calls[0][0].message).toContain('Há um envio mais recente desta viagem: Enviado')
+    expect(mockCeDispatch).not.toHaveBeenCalled()
+  })
+
+  it('"Reenviar CE e Taxas" sem saber se a chave está ligada não confirma nem envia', async () => {
+    mockAppSettings = null
+    mockHistory = [{ ...defaultHistory[0], kind: 'ce_mercante_taxas', anchor_voyage_id: 7, status: 'simulado', id: 900 }]
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Reenviar CE e Taxas/ }))
+    expect(await screen.findByText(/Não foi possível confirmar se o envio real está ligado/)).toBeTruthy()
+    expect(mockConfirm).not.toHaveBeenCalled()
     expect(mockCeDispatch).not.toHaveBeenCalled()
   })
 

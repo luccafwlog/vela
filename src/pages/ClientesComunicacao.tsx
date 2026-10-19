@@ -610,6 +610,16 @@ export function ClientesComunicacao() {
     }
   }
 
+  /** Lê a chave de envio no banco agora; null quando não dá para saber. */
+  async function readCommunicationsEnabled(): Promise<boolean | null> {
+    try {
+      const { data } = await refetchSettings()
+      return typeof data?.communications_enabled === 'boolean' ? data.communications_enabled : null
+    } catch {
+      return null
+    }
+  }
+
   /**
    * Repete só os destinatários que falharam, com os mesmos itens (mesmo
    * Comunicado). Recusa definitiva (contato inválido, endereço suprimido) fica
@@ -619,13 +629,13 @@ export function ClientesComunicacao() {
     if (!batch || !signature) return
     const failed = summarizeCustomerCommunicationBatch(batch.outcomes).retryable
     if (!failed.length) return
-    if (typeof settings?.communications_enabled !== 'boolean') {
+    // A chave pode ter mudado desde o lote: a Edge lê a atual, então a
+    // repetição relê o modo e confirma de novo (D16).
+    const real = await readCommunicationsEnabled()
+    if (real === null) {
       setDispatchError('Não foi possível conferir a chave de envio. Tente novamente antes de repetir.')
       return
     }
-    // D16: a chave pode ter mudado desde o lote; a repetição confirma de novo
-    // se é envio real ou simulação.
-    const real = settings.communications_enabled
     const confirmed = await confirm({
       title: real ? 'Repetir de verdade' : 'Repetir em simulação',
       message: `${failed.length} destinatário(s) de ${new Set(failed.map(({ input }) => input.customerId)).size} Cliente(s) recebem ${customerCommunicationKindLabel(kind)} de novo.`,
@@ -654,7 +664,13 @@ export function ClientesComunicacao() {
   async function resendCeMercante(item: CustomerCommunicationHistoryItem) {
     if (item.anchor_voyage_id == null) return
     const key = `${item.customer_id}:${item.anchor_voyage_id}`
-    const real = settings?.communications_enabled === true
+    // Sem saber se a chave está ligada, a confirmação poderia prometer
+    // simulação e a Edge mandar o e-mail de verdade: relê antes de confirmar.
+    const real = await readCommunicationsEnabled()
+    if (real === null) {
+      setCeResendResults((current) => ({ ...current, [key]: { error: 'Não foi possível confirmar se o envio real está ligado. Recarregue a tela e tente de novo.' } }))
+      return
+    }
     // Com filtro de status, mês ou navio, o item da lista pode não ser o último
     // da trilha: o diálogo diz qual foi o último envio de fato.
     let latestNote = ''

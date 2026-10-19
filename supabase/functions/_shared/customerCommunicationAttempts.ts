@@ -137,11 +137,14 @@ export async function settleCommunicationStatus(
   })
   // Sem recálculo, grava o resolvido: o Comunicado não fica "Em envio" sem dono.
   const persist = statusToPersist(refreshError ? null : refreshed, status)
+  let persistError: AttemptDbError = null
   if (persist) {
     const { error } = await store.persistStatus(input.communicationId, persist)
-    if (error) console.error('customer communication resolved status persistence failed', error)
+    // Sobe para a Edge responder erro: o Comunicado não pode ficar "Em envio"
+    // com a resposta dizendo que saiu. Repetir reaproveita a mesma tentativa.
+    if (error) persistError = error
   }
-  return { status, refreshError: refreshError ?? null }
+  return { status, refreshError: refreshError ?? persistError ?? null }
 }
 
 /** Envio real ligado sem a configuração do provedor: recusa antes de registrar o Comunicado. */

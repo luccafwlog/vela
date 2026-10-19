@@ -15,7 +15,7 @@ import {
 // com banco falso (plano dos e-mails, 1B/1D; revisão do núcleo, item 9).
 type Row = StoredCommunicationAttempt & Partial<Omit<NewCommunicationAttempt, 'dispatch_mode'>> & { retry_count?: number }
 
-function fakeStore(options: { refreshed?: unknown; refreshError?: boolean; insertError?: { code?: string; message?: string } } = {}) {
+function fakeStore(options: { refreshed?: unknown; refreshError?: boolean; persistError?: boolean; insertError?: { code?: string; message?: string } } = {}) {
   const rows = new Map<string, Row>()
   const persisted: string[] = []
   let nextId = 1
@@ -38,7 +38,7 @@ function fakeStore(options: { refreshed?: unknown; refreshError?: boolean; inser
       : { data: options.refreshed ?? null, error: null },
     persistStatus: async (_communicationId, status) => {
       persisted.push(status)
-      return { error: null }
+      return { error: options.persistError ? { message: 'gravação falhou' } : null }
     },
   }
   return { store, rows, persisted }
@@ -176,6 +176,12 @@ describe('status final do envio', () => {
     const { store, persisted } = fakeStore({ refreshed: 'parcial' })
     expect((await settleCommunicationStatus(store, { communicationId: 7, enabled: true, succeeded: 1, failed: 0 })).status).toBe('parcial')
     expect(persisted).toEqual([])
+  })
+
+  it('falha ao gravar o status resolvido sobe como erro, não como sucesso', async () => {
+    const { store } = fakeStore({ refreshed: 'pendente', persistError: true })
+    const result = await settleCommunicationStatus(store, { communicationId: 7, enabled: true, succeeded: 1, failed: 0 })
+    expect(result.refreshError).toMatchObject({ message: 'gravação falhou' })
   })
 
   it('sem recálculo, grava o resolvido e devolve o erro', async () => {

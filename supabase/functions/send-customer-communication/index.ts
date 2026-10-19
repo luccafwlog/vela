@@ -251,6 +251,7 @@ async function persistCommunicationAttachments(
   if (!newAttachments.length) return
 
   const uploadedNow: string[] = []
+  const insertedNow: string[] = []
   try {
     for (const item of newAttachments) {
       const { attachment, storagePath, bytes } = item
@@ -269,8 +270,16 @@ async function persistCommunicationAttachments(
         uploaded_by: uploadedBy,
       })
       if (metadataError && !isAlreadyExists(metadataError)) throw metadataError
+      if (!metadataError) insertedNow.push(storagePath)
     }
   } catch (error) {
+    // Desfaz também o registro dos anexos gravados nesta chamada: sem isso, a
+    // repetição acharia o registro e não subiria de novo o arquivo removido.
+    if (insertedNow.length) {
+      await admin.from('customer_communication_attachments').delete()
+        .eq('communication_id', communicationId).in('storage_path', insertedNow)
+        .then(() => undefined, () => undefined)
+    }
     if (uploadedNow.length) {
       await admin.storage.from('customer-communications').remove(uploadedNow).catch(() => undefined)
     }
@@ -556,6 +565,11 @@ async function handler(req: Request): Promise<Response> {
     derivedVesselName = validBls[0]?.voyage?.vessel?.name ?? null
     derivedVoyageNumber = validBls[0]?.voyage?.voyage_number ?? null
     const anchoredKind = fixedOperationalKind || kind === 'ce_mercante_taxas'
+    // D15: o livre com B/Ls é um e-mail por Cliente × Viagem; sem a viagem,
+    // B/Ls de viagens diferentes sairiam juntos com o navio do primeiro.
+    if (kind === 'livre' && body.anchor_voyage_id == null) {
+      return permanentRejection('Comunicado livre com B/Ls exige a viagem.', origin)
+    }
     if (!anchoredKind && body.anchor_voyage_id != null && validBls.some((bl) => bl.voyage_id !== Number(body.anchor_voyage_id))) {
       return json(422, { error: 'A viagem-âncora não corresponde aos B/Ls selecionados.' }, origin)
     }
