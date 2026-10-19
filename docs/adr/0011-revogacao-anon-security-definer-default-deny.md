@@ -1,7 +1,7 @@
 # ADR 0011 — Revogação total de `anon` em funções SECURITY DEFINER (default-deny)
 
 > **Situação atual (2026-10-13).** Continuam valendo a revogação de `anon` nas funções `SECURITY DEFINER` e a regra de revogar no mesmo arquivo que cria a função.
-> Não vale mais a allowlist `anon` vazia: a exceção `portal_resolve_login` da [ADR 0013](./0013-portal-auth-identificador-resolvido-e-excecao-anon.md) foi encerrada pela [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md), a única função pré-autenticação é `portal_ship_schedule()` e o default de `public` revoga `EXECUTE` de `PUBLIC`, `anon` e `authenticated`, de modo que a regra de processo deixou de ser a única defesa.
+> Não vale mais a allowlist `anon` vazia: a exceção `portal_resolve_login` da [ADR 0013](./0013-portal-auth-identificador-resolvido-e-excecao-anon.md) foi encerrada pela [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md), a última função pré-autenticação, `portal_ship_schedule()`, foi fechada pela [ADR 0090](./0090-programacao-de-navios-so-com-sessao.md) e o default de `public` revoga `EXECUTE` de `PUBLIC`, `anon` e `authenticated`, de modo que a regra de processo deixou de ser a única defesa.
 > As migrations com timestamp citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062: `20260530102907` é a `078`, `20260603130350` é a `084` e `20260608192000` é a `088`; a revogação abrangente descrita é a `093` (`20260609225321`), e não há `20260609210000` no arquivo.
 > Regra vigente em [Segurança](../operations/seguranca.md), seção "RLS-first".
 

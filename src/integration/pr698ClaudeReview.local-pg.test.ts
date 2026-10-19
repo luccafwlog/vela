@@ -138,7 +138,7 @@ describeLocal('PR 698 — revisão Claude Code no catálogo PostgreSQL', () => {
     `)
   })
 
-  it('valida o catálogo real: SQL inlinable, cargo_mode misto e FK terminal única', () => {
+  it('valida o catálogo real: filtro em SQL (sem inline desde o search_path da 302), cargo_mode misto e FK terminal única', () => {
     expect(psql(`
       SELECT l.lanname FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace

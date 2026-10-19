@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Advisor do Supabase de 19/10 (2026-10-19):** nenhuma função é executável antes do login:
+  `portal_ship_schedule()` passou a exigir sessão, porque o Portal só a chama depois do login
+  ([ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); dez funções de trigger que em
+  produção tinham `EXECUTE` para `PUBLIC` foram fechadas; 23 funções ganharam `search_path` fixo;
+  41 chaves estrangeiras de B/L, faturas e Demurrage ganharam índice (migration `302`).
 - **Filete das tabelas no nome da linha (2026-10-18):** a linha entre as linhas de uma tabela
   passa também pela primeira coluna quando ela é o nome da linha (navio na Programação de navios
   do Portal e as demais tabelas com cabeçalho de linha); antes o filete começava na segunda coluna.

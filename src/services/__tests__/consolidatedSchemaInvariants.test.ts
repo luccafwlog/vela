@@ -72,21 +72,29 @@ describe('schema consolidado v1.0 (arquivos realmente aplicados)', () => {
     expect(fechamento!.index).toBeLessThan(primeiroCreate)
   })
 
-  it('anon só recebe EXECUTE na vitrine pública de programação de navios', async () => {
+  it('nenhuma função termina a cadeia com EXECUTE para anon (ADR 0090)', async () => {
     const ativas = await lerMigrationsAtivas()
-    const concessoesAnon: string[] = []
+    const anonAberto = new Set<string>()
     const concessoesPublic: string[] = []
-    for (const sql of ativas.values()) {
+    for (const texto of ativas.values()) {
+      // Comentário não executa: o rollback descrito em prosa não conta.
+      const sql = texto.replace(/^\s*--.*$/gm, '')
       for (const match of sql.matchAll(
-        /GRANT\s+(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+FUNCTION\s+([^;]+?)\s+TO\s+([^;]+);/gi,
+        /(GRANT|REVOKE)\s+(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+FUNCTION\s+([^;]+?)\s+(?:TO|FROM)\s+([^;]+);/gi,
       )) {
-        if (/\banon\b/i.test(match[2])) concessoesAnon.push(match[1].trim())
+        const funcao = match[2].trim()
+        const concede = match[1].toUpperCase() === 'GRANT'
+        if (/\banon\b/i.test(match[3])) {
+          if (concede) anonAberto.add(funcao)
+          else anonAberto.delete(funcao)
+        }
         // `anon` herda de PUBLIC: um GRANT TO PUBLIC abre anon sem citar o nome.
-        if (/(?:^|,)\s*PUBLIC\s*(?:,|;|$)/i.test(match[2])) concessoesPublic.push(match[1].trim())
+        if (concede && /(?:^|,)\s*PUBLIC\s*(?:,|;|$)/i.test(match[3])) concessoesPublic.push(funcao)
       }
     }
-    // ADR 0013 / achado A-02: portal_ship_schedule é a única exceção viva.
-    expect(concessoesAnon).toEqual(['public.portal_ship_schedule()'])
+    // A vitrine pública portal_ship_schedule (ADR 0047) fechou na migration
+    // 302: não resta função pré-autenticação.
+    expect([...anonAberto]).toEqual([])
     expect(concessoesPublic).toEqual([])
   })
 

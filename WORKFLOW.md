@@ -189,9 +189,10 @@ CNPJ e senha. A Edge Function `portal-login` resolve a identidade técnica no
 servidor e devolve somente os tokens de sessão; `portal_resolve_login(text)`
 não é um contrato de frontend.
 
-Não existe sessão alternativa por senha armazenada em tabela. O acesso anônimo ao resolver da ADR 0013 foi revogado; a
-[ADR 0047](./docs/adr/0047-grants-de-funcao-fechados-por-padrao.md) registra
-a exceção pública remanescente: `portal_ship_schedule()`.
+Não existe sessão alternativa por senha armazenada em tabela. O acesso anônimo ao resolver da ADR 0013 foi revogado, e
+nenhuma função é executável antes do login: `portal_ship_schedule()`, a última
+exceção da [ADR 0047](./docs/adr/0047-grants-de-funcao-fechados-por-padrao.md),
+fechou na migration `302` ([ADR 0090](./docs/adr/0090-programacao-de-navios-so-com-sessao.md)).
 
 ## 3. Estrutura do repositório
 
@@ -443,11 +444,15 @@ plano de preservação.
 ### Segurança
 
 - tabelas novas precisam de RLS ou revogação explícita para uso servidor;
-- funções `SECURITY DEFINER` precisam de `search_path` controlado;
+- toda função fixa `search_path` (`SET search_path = ''` com nomes qualificados,
+  ou `public, pg_temp` nas `SECURITY DEFINER`); a suíte local-pg
+  `advisorFuncoesFechadas` falha com função sem ele;
 - revogue `PUBLIC` e `anon` no mesmo arquivo por padrão;
 - grants pré-autenticação para `anon` exigem decisão explícita, controles contra
   abuso e teste focado;
-- trigger functions não precisam ser executáveis diretamente por clientes.
+- trigger functions não precisam ser executáveis diretamente por clientes;
+- FK nova em `bls`, `bl_*`, `invoices`, `invoice_*` ou `demurrage_*` nasce com
+  índice que começa pelas colunas dela (a mesma suíte confere).
 
 ### Tipos
 

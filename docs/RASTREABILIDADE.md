@@ -262,8 +262,8 @@ app têm `search_path` fixo (`public, pg_temp`, às vezes com `pg_catalog` à
 frente). O
 default de `EXECUTE` em funções novas nasce fechado na cadeia ativa (cabeçalho
 da `001`, ADR 0047); tabelas seguem os grants da plataforma e a fronteira real
-é a RLS. A única RPC pré-autenticação com `EXECUTE` para `anon` é
-`portal_ship_schedule`. A exceção pré-auth de `portal_resolve_login` da ADR 0013
+é a RLS. Nenhuma RPC tem `EXECUTE` para `anon`: `portal_ship_schedule`
+deixou de ter na migration `302` ([ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)). A exceção pré-auth de `portal_resolve_login` da ADR 0013
 acabou: a migration arquivada `182` revogou seus grants públicos e a ADR 0047
 (migration arquivada `297`) encerrou a exceção; na cadeia ativa a função existe
 na `002` sem `EXECUTE` para nenhum papel da API. A regra de segurança é de
@@ -298,7 +298,7 @@ Regra: [Viagens](modules/viagens.md).
 | `omit_voyage_escala` | `transshipments.ts` | `016` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Registro global da omissão, herdado pelos B/Ls; audita. |
 | `operational_list_voyage_summaries` | `operationalLists.ts` | `058` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | — |
 | `operational_voyage_vehicle_stats` | `voyageVehicleStats.ts` | `287` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Indicadores de veículos da faixa de `/viagens` e `/veiculos`: contagens por viagem, POD, marca e tipo de contêiner, e contêineres com veículo, já agrupados. |
-| `portal_ship_schedule` | `portalScheduleVoyages.ts` | `002` | DEFINER · `anon`, `authenticated` | pública (sem guarda; `anon` e `authenticated`) | Projeção pública da Programação (`RETURNS TABLE`, `LANGUAGE sql`); distingue `OMIT` de `X`. Única RPC pré-autenticação com `anon` (ADR 0047). |
+| `portal_ship_schedule` | `portalScheduleVoyages.ts` | `002`; grants na `302` | DEFINER · `authenticated` | toda sessão (sem guarda de Cliente; sem `anon` desde a `302`) | Projeção da Programação (`RETURNS TABLE`, `LANGUAGE sql`); distingue `OMIT` de `X`. Sem `anon` desde a ADR 0090. |
 | `reactivate_voyage` | `voyages.ts` | `211` | DEFINER · `authenticated` | Administrativo ativo | Devolve a viagem a ativa, recalcula o status e devolve à fila os efeitos encerrados pelo cancelamento (`211`). |
 | `reopen_agency_departure_report` | `agencyDepartureReport.ts` | `002`, `251` | DEFINER · `authenticated` | Usuário interno ativo (P6, `251`) | Justificativa obrigatória, gravada em `audit_logs`. |
 | `reopen_agency_departure_report_by_report_id` | `agencyDepartureReport.ts`; variante de `portalRpcContracts.ts` | `002`, `251` | DEFINER · `authenticated` | Usuário interno ativo (P6, `251`) | Destrava a edição preservando sign-offs (ADR 0030); justificativa obrigatória. |
