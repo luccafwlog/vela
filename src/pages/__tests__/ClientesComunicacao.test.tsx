@@ -222,6 +222,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     mockAppSettings = { communications_enabled: false }
     mockAppSettingsLoading = false
     mockAppSettingsError = null
+    mockRefetchSettings.mockImplementation(async () => ({ data: mockAppSettings }))
     authState.canSend = true
   })
 
@@ -734,6 +735,31 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     expect(mockDispatch).toHaveBeenCalledTimes(4)
     expect(mockDispatch.mock.calls[3][0]).toEqual(mockDispatch.mock.calls[1][0])
     expect(within(painel).getByText(/nenhuma falha/)).toBeTruthy()
+  })
+
+  it('"Repetir só as falhas" relê a chave e confirma de novo: simulação que vira envio real avisa antes', async () => {
+    activeMockConference = conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com'])])
+    mockFetchConference.mockResolvedValue(activeMockConference)
+    mockDispatch
+      .mockResolvedValueOnce({ communicationId: 1, status: 'simulado' })
+      .mockRejectedValueOnce(new Error('Falha no envio do comunicado.'))
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+    const painel = (await screen.findByText('Resultado do disparo')).closest('[role="status"]') as HTMLElement
+
+    // A chave foi ligada depois do lote; a tela ainda mostra o valor antigo.
+    mockRefetchSettings.mockResolvedValueOnce({ data: { communications_enabled: true } })
+    mockConfirm.mockResolvedValueOnce(false)
+    fireEvent.click(within(painel).getByRole('button', { name: /Repetir só as falhas \(1\)/ }))
+
+    await waitFor(() => expect(mockConfirm).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Repetir de verdade', tone: 'danger' })))
+    expect(mockDispatch).toHaveBeenCalledTimes(2)
   })
 
   it('confirma antes de disparar, dizendo se é simulação e para quantos destinatários; Cancelar não envia nada', async () => {

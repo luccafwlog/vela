@@ -605,6 +605,16 @@ export function ClientesComunicacao() {
     }
   }
 
+  /** Lê a chave de envio no banco agora; null quando não dá para saber. */
+  async function readCommunicationsEnabled(): Promise<boolean | null> {
+    try {
+      const { data } = await refetchSettings()
+      return typeof data?.communications_enabled === 'boolean' ? data.communications_enabled : null
+    } catch {
+      return null
+    }
+  }
+
   /**
    * Repete só os destinatários que falharam, com os mesmos itens (mesmo
    * Comunicado). Recusa definitiva (contato inválido, endereço suprimido) fica
@@ -614,6 +624,25 @@ export function ClientesComunicacao() {
     if (!batch || !signature) return
     const failed = summarizeCustomerCommunicationBatch(batch.outcomes).retryable
     if (!failed.length) return
+    // A chave pode ter mudado desde o lote: a Edge lê a atual, então a
+    // repetição relê o modo e confirma de novo (D16).
+    const real = await readCommunicationsEnabled()
+    if (real === null) {
+      setDispatchError('Não foi possível conferir a chave de envio. Tente novamente antes de repetir.')
+      return
+    }
+    const confirmed = await confirm({
+      title: real ? 'Repetir de verdade' : 'Repetir em simulação',
+      message: `${failed.length} envio(s) que falharam serão tentados de novo.`,
+      consequence: real
+        ? 'A chave de envio está ligada: os e-mails saem agora aos Clientes.'
+        : 'A chave de envio está desligada: nenhum e-mail sai; cada destinatário fica registrado como simulado no Histórico.',
+      reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
+      confirmLabel: 'Confirmar',
+      cancelLabel: 'Cancelar',
+      tone: real ? 'danger' : 'primary',
+    })
+    if (!confirmed) return
     setDispatchError(null)
     setSending(true)
     try {
@@ -630,13 +659,13 @@ export function ClientesComunicacao() {
   async function resendCeMercante(item: CustomerCommunicationHistoryItem) {
     if (item.anchor_voyage_id == null) return
     const key = `${item.customer_id}:${item.anchor_voyage_id}`
-    // Como no Disparar: sem saber se a chave está ligada, a confirmação poderia
-    // prometer simulação e a Edge mandar o e-mail de verdade.
-    if (typeof settings?.communications_enabled !== 'boolean') {
+    // Sem saber se a chave está ligada, a confirmação poderia prometer
+    // simulação e a Edge mandar o e-mail de verdade: relê antes de confirmar.
+    const real = await readCommunicationsEnabled()
+    if (real === null) {
       setCeResendResults((current) => ({ ...current, [key]: { error: 'Não foi possível confirmar se o envio real está ligado. Recarregue a tela e tente de novo.' } }))
       return
     }
-    const real = settings.communications_enabled
     const confirmed = await confirm({
       title: 'Reenviar CE e Taxas',
       message: `Reenviar o Comunicado de CE e Taxas de ${item.customer?.name ?? `Cliente ${item.customer_id}`} na viagem ${[item.vessel_name, item.voyage_number].filter(Boolean).join(' / ') || item.anchor_voyage_id}, com o CE e os valores atuais?`,

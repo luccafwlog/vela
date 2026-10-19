@@ -20,6 +20,12 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain("timingSafeEqual(providedAutomationSecret, automationSecret)")
   })
 
+  it('livre com B/Ls exige a viagem (D15) e anexo que falha desfaz o registro gravado na chamada', () => {
+    expect(source).toContain("if (kind === 'livre' && body.anchor_voyage_id == null) {")
+    expect(source).toContain("return permanentRejection('Comunicado livre com B/Ls exige a viagem.', origin)")
+    expect(source).toContain(".eq('communication_id', communicationId).in('storage_path', insertedNow)")
+  })
+
   it('confere contato, preferência, bounce/complaint e grava a operação pelo RPC atômico', () => {
     expect(source).toContain("from('customer_contacts')")
     expect(source).toContain("admin.rpc('customer_communication_recipient_allowed'")
