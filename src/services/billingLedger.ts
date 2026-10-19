@@ -4,7 +4,6 @@ import type {
   ConsolidatableReceivable,
   ConsolidatedInvoiceResult,
   LedgerPaymentResult,
-  ReconcileByTxidResult,
 } from '../types/database'
 
 export type ConsolidatableReceivableFilters = {
@@ -33,25 +32,6 @@ const ledgerPaymentResultSchema: z.ZodType<LedgerPaymentResult> = z.object({
   individuals_covered: z.number(),
   consolidated_obsoleted: z.number(),
 })
-
-const reconcileByTxidResultSchema: z.ZodType<ReconcileByTxidResult> = z.union([
-  z.object({
-    matched: z.literal(false),
-    reason: z.string(),
-  }),
-  z.object({
-    matched: z.literal(true),
-    invoice_id: z.number(),
-    settled: z.literal(false),
-    reason: z.string(),
-  }),
-  z.object({
-    matched: z.literal(true),
-    invoice_id: z.number(),
-    settled: z.literal(true),
-    payment: ledgerPaymentResultSchema,
-  }),
-])
 
 function parseRpcResult<T>(schema: z.ZodType<T>, data: unknown, rpcName: string): T {
   const parsed = schema.safeParse(data)
@@ -248,20 +228,6 @@ export async function settleCodAdjustment(input: SettleCodAdjustmentInput): Prom
   if (error) throw error
   return data
 }
-export async function reconcileInvoicePaymentByTxid(input: {
-  txid: string
-  amountBrl: number
-  paidAt?: string | null
-}) {
-  const { data, error } = await supabase.rpc('reconcile_invoice_payment_by_txid', {
-    p_txid: input.txid,
-    p_amount_brl: input.amountBrl,
-    ...(input.paidAt == null ? {} : { p_paid_at: input.paidAt }),
-  })
-  if (error) throw error
-  return parseRpcResult(reconcileByTxidResultSchema, data, 'reconcile_invoice_payment_by_txid')
-}
-
 export type InvoiceCorrectionSummary = {
   customer_changes?: Array<{ bl_id: string; status: 'pending_refund' | 'reissue_pending' | 'completed'; new_invoice_id: number | null }>
   pending_bl_ids?: string[]
