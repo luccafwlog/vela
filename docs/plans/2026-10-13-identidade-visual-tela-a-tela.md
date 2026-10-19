@@ -512,7 +512,7 @@ lotes tratam só da organização de cada tela.
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Aprovado em 2026-10-18 (todas as telas, três rodadas) e entregue em 2026-10-18 na PR 972, branch `claude/laughing-meitner-3rfy0l`, com as migrations `298` a `301` |
 | 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto e aprovado em 2026-10-19 (página "Lote 5a da identidade", três rodadas); entregue em 2026-10-19, branch `claude/stoic-cannon-v7g39p` |
 | 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado em 2026-10-19; proposto depois do 5a |
-| 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21) | Proposto, a confirmar |
+| 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21), e-mails do Vela e do Portal (22, acrescentados em 2026-10-19) | Proposto, a confirmar |
 
 O lote 2 vem logo depois do 1 por ser onde a operação passa mais tempo; o 6
 fica por último porque essas telas mudam pouco além da passada única.
@@ -565,6 +565,7 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 | 19 | Importações (modais comuns) | modais de importação | | Pendente |
 | 20 | Documentos impressos | faturas, recibos, ADR | Marca Transhipping; só regras de impressão. Visual mantido por decisão de 2026-10-13 | Regras de impressão e comportamento entregues em 2026-10-14 (PR 939); restam, sem mudar o visual: taxas com ponto decimal (`60.00`), CNPJ sem máscara no resumo por Cliente, rótulos em inglês ("From/To") e textos de 9–11 px |
 | 21 | Login, acesso e perfil | `/login`, `/portal/login` e telas públicas | | Pendente |
+| 22 | E-mails do Vela e do Portal | modelos do Portal (`supabase/functions/_shared/portalEmailTemplates.ts`: convite, reenvio, recuperação de senha, troca de e-mail, senha alterada, resumo diário, aviso de devolução, aviso do Desbloqueio de CE) e dos Comunicados (`src/services/customerCommunicationTemplates.ts`: CE e Taxas, régua automática, Cobrança de Demurrage) | Acrescentada em 2026-10-19 a pedido do responsável; até então a aparência dos e-mails não tinha dono (o [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md) só corrigiu envio e conteúdo). Dois layouts separados, cada um com cópia própria das cores (`#152238`, `#d4882e`, cinzas), fonte do sistema e logo branco da Fwlog; os Comunicados usam ainda um verde-azulado (`#0f766e`) fora da identidade. Restrições de e-mail, como nos impressos: sem as fontes do site, layout em tabela e estilo escrito no HTML. Proposta mostra cada modelo como chega hoje e como ficaria; primeiro passo provável é uma base de layout só | Pendente (lote 6) |
 
 O plano é concluído quando todas as linhas estiverem entregues e a linha de
 base de `design:check` não tiver mais famílias de CSS de página nem violações
