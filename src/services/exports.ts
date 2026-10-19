@@ -223,7 +223,15 @@ export async function exportInvoicesWorkbook(rows: InvoiceListRow[]) {
   XLSX.writeFile(workbook, `faturas-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportOperationalReportWorkbook(rows: OperationalReportRow[]) {
+/** Filtro aplicado no relatório, uma linha por filtro na aba "Filtros" da planilha. */
+export type ReportFilterLine = { Filtro: string; Valor: string }
+
+function appendFiltersSheet(XLSX: typeof import('@e965/xlsx'), workbook: import('@e965/xlsx').WorkBook, filters: ReportFilterLine[]) {
+  const rows = filters.length ? filters : [{ Filtro: 'Filtros', Valor: 'Nenhum' }]
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, rows), 'Filtros')
+}
+
+export async function exportOperationalReportWorkbook(rows: OperationalReportRow[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     BL: row.id,
@@ -245,10 +253,11 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Operacional')
+  appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-operacional-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportFinancialReportWorkbook(rows: FinancialReportRow[]) {
+export async function exportFinancialReportWorkbook(rows: FinancialReportRow[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Invoice: row.invoice_number ?? `INV-${row.id}`,
@@ -262,10 +271,11 @@ export async function exportFinancialReportWorkbook(rows: FinancialReportRow[]) 
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Financeiro')
+  appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-financeiro-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportCustomerReportWorkbook(rows: CustomerReportRow[]) {
+export async function exportCustomerReportWorkbook(rows: CustomerReportRow[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Cliente: row.name,
@@ -280,10 +290,11 @@ export async function exportCustomerReportWorkbook(rows: CustomerReportRow[]) {
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Clientes')
+  appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-clientes-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListItem[]) {
+export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListItem[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Documento: row.doc_number ?? '',
@@ -299,6 +310,7 @@ export async function exportDemurrageReportWorkbook(rows: DemurrageInvoiceListIt
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Demurrage')
+  appendFiltersSheet(XLSX, workbook, filters)
   XLSX.writeFile(workbook, `relatorio-demurrage-${makeTimestamp()}.xlsx`)
 }
 

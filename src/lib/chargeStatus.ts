@@ -56,3 +56,24 @@ export const LOCAL_CHARGES_LIST_STATE_LABELS: Record<LocalChargesListState, stri
   exempt: 'Isenta',
   cancelled: 'B/L cancelado',
 }
+
+/**
+ * Coluna "Taxas locais" do relatório Operacional (lote 5b, decidido em
+ * 2026-10-19): os mesmos estados da lista de BLs, com "Paga" separada de
+ * "Emitida" quando o B/L já foi pago.
+ */
+export type ReportLocalChargesState = LocalChargesListState | 'paid'
+
+export function reportLocalChargesState(
+  chargeStatus: string | null | undefined,
+  financialStatus: string | null | undefined,
+  cancelledAt?: string | null,
+): ReportLocalChargesState {
+  const state = localChargesListState(chargeStatus, financialStatus, cancelledAt)
+  return state === 'issued' && financialStatus === 'paid' ? 'paid' : state
+}
+
+export const REPORT_LOCAL_CHARGES_STATE_LABELS: Record<ReportLocalChargesState, string> = {
+  ...LOCAL_CHARGES_LIST_STATE_LABELS,
+  paid: 'Paga',
+}

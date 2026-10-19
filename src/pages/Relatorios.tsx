@@ -1,45 +1,66 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { FileDown } from 'lucide-react'
-import { Badge } from '../components/ui/Badge'
+import { Block } from '../components/ui/Block'
 import { Button } from '../components/ui/Button'
 import { MetricCard } from '../components/ui/MetricCard'
 import { TabButton } from '../components/ui/TabButton'
-import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
+import { TabList } from '../components/ui/TabList'
+import { EmptyState, PageHeader } from '../components/ui/Card'
 import { CopyValue } from '../components/ui/CopyValue'
 import { NoValue } from '../components/ui/NoValue'
+import { StatusText, type StatusTextTone } from '../components/ui/StatusText'
+import { Combobox, type ComboOption } from '../components/ui/Combobox'
+import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
+import { QueryStateGate } from '../components/shared/QueryStateGate'
+import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { LocalChargesStatus } from '../components/bl/LocalChargesStatus'
 import { InvoiceStatusBadge } from '../components/demurrage/DemurrageBadges'
 import { useToast } from '../components/ui/Toast'
+import { useVoyageOptions, usePortOptions } from '../hooks/useBls'
 import { formatBRL, formatCnpjCpf, formatDate, formatUSD } from '../lib/utils'
 import { describeActiveFilters, formatResultCount, type OperationalFilter } from '../lib/operationalState'
-import {
-  DEMURRAGE_INVOICE_STATUS_LABELS,
-  FINANCIAL_STATUS_LABELS,
-  INVOICE_STATUS_LABELS,
-  REVIEW_STATUS_LABELS,
-  statusLabel,
-} from '../lib/statusLabels'
+import { userFacingErrorMessage } from '../lib/errors'
+import { formatPortDisplayName } from '../lib/voyageFormat'
+import { DEMURRAGE_INVOICE_STATUS_LABELS, INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
+import { blTotalCbm, blTotalWeightKg, cargoModeLabel } from '../lib/cargoMode'
+import { REPORT_LOCAL_CHARGES_STATE_LABELS } from '../lib/chargeStatus'
+import { listBillingCustomers } from '../services/billing'
+import type { ReportFilterLine } from '../services/exports'
 import {
   fetchCustomerReport,
+  fetchDemurrageReport,
   fetchFinancialReport,
-  fetchFinancialReportForExport,
   fetchOperationalReport,
-  fetchOperationalReportForExport,
-  type FinancialReportFilters,
-  type OperationalReportFilters,
-  type ReportFilters,
+  isReportComplete,
+  type ReportLoad,
+  type ReportScope,
 } from '../services/reports'
-import { listDemurrageInvoices } from '../services/demurrage/demurrageInvoices'
-import { blTotalCbm, blTotalWeightKg, cargoModeLabel } from '../lib/cargoMode'
+import {
+  REPORT_VIEWS,
+  customerFiltersFromSearch,
+  customerNameFromSearch,
+  demurrageFiltersFromSearch,
+  financialFiltersFromSearch,
+  operationalFiltersFromSearch,
+  reportViewFromSearch,
+  withReportParam,
+  withReportView,
+  type ReportParam,
+  type ReportView,
+} from './relatoriosListState'
+import { demurrageInvoiceHref } from './demurrageListState'
 
-type ReportTab = 'operacional' | 'financeiro' | 'clientes' | 'demurrage'
+// A planilha lê o recorte inteiro, sem o teto da tela (achado R2).
+const EXPORT_ALL = { ceiling: Number.POSITIVE_INFINITY }
 
-// ponytail: o relatório chega inteiro (KPIs e exportação usam tudo) e a tabela
-// mostra uma página por vez, recortada no navegador. Com as 1.000 linhas na
-// tela eram ~37 mil nós e meio segundo de thread travada ao abrir a aba.
+// ponytail: o relatório chega inteiro até o teto da tela (cartões e planilha
+// usam tudo) e a tabela mostra uma página por vez, recortada no navegador.
+// Com as 1.000 linhas na tela eram ~37 mil nós e meio segundo de thread travada.
 function useReportPage<T>(rows: readonly T[] | undefined) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
@@ -65,250 +86,394 @@ function useReportPage<T>(rows: readonly T[] | undefined) {
   }
 }
 
+type ViewProps = {
+  params: URLSearchParams
+  setParam: (key: ReportParam, value: string, keepEmpty?: boolean) => void
+  setParams: (next: URLSearchParams) => void
+}
+
 export function Relatorios() {
-  const [tab, setTab] = useState<ReportTab>('operacional')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view = reportViewFromSearch(searchParams)
+  const setParams = (next: URLSearchParams) => setSearchParams(next, { replace: true })
+  const props: ViewProps = {
+    params: searchParams,
+    setParams,
+    setParam: (key, value, keepEmpty) => setParams(withReportParam(searchParams, key, value, keepEmpty)),
+  }
 
   return (
     <>
-      <PageHeader
-        title="Relatórios"
-        description="Visão consolidada de operação, faturamento e clientes por período. Cada visão informa seu próprio limite."
-      />
+      <PageHeader title="Relatórios" />
 
-      <div className="mb-4 flex flex-wrap gap-2" role="tablist">
-        <TabButton active={tab === 'operacional'} label="Operacional" onClick={() => setTab('operacional')} />
-        <TabButton active={tab === 'financeiro'} label="Financeiro" onClick={() => setTab('financeiro')} />
-        <TabButton active={tab === 'clientes'} label="Por Cliente" onClick={() => setTab('clientes')} />
-        <TabButton active={tab === 'demurrage'} label="Demurrage" onClick={() => setTab('demurrage')} />
+      <TabList label="Visões do relatório" className="mb-4">
+        {REPORT_VIEWS.map((option) => (
+          <TabButton
+            key={option.value}
+            id={`report-tab-${option.value}`}
+            controls="report-panel"
+            active={view === option.value}
+            label={option.label}
+            onClick={() => setSearchParams(withReportView(searchParams, option.value as ReportView))}
+          />
+        ))}
+      </TabList>
+
+      <div id="report-panel" role="tabpanel" aria-labelledby={`report-tab-${view}`}>
+        {view === 'operacional' ? <OperationalReportView {...props} /> : null}
+        {view === 'financeiro' ? <FinancialReportView {...props} /> : null}
+        {view === 'por-cliente' ? <CustomerReportView {...props} /> : null}
+        {view === 'demurrage' ? <DemurrageReportView {...props} /> : null}
       </div>
-
-      {tab === 'operacional' ? <OperationalReportTab /> : null}
-      {tab === 'financeiro' ? <FinancialReportTab /> : null}
-      {tab === 'clientes' ? <CustomerReportTab /> : null}
-      {tab === 'demurrage' ? <DemurrageReportTab /> : null}
     </>
   )
 }
 
 // ---------- Peças compartilhadas pelas quatro visões ----------
 
-// As quatro abas repetiam a mesma caixa âmbar para limite de linhas e acesso
-// restrito. Uma peça só mantém o mesmo peso visual em todas.
-function Notice({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-4 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-800">
-      {children}
-    </div>
-  )
+function voyageLabel(voyages: ReturnType<typeof useVoyageOptions>['data'], voyageId: string) {
+  if (!voyageId) return ''
+  const voyage = voyages?.find((option) => String(option.id) === voyageId)
+  return voyage ? `${voyage.vessel?.name ?? 'Navio'} / ${voyage.voyage_number}` : `Viagem ${voyageId}`
 }
 
-// O usuário precisa ler o recorte aplicado sem reconstruir os filtros de cabeça.
-// Mesma barra já usada nas tabelas de Faturamento e Demurrage.
-function TableCaption({ count, singular, plural, filters, sortNote }: {
-  count: number
-  singular: string
-  plural: string
-  filters: OperationalFilter[]
-  sortNote: string
-}) {
-  return (
-    <div className="billing-table__head flex flex-col gap-1 border-b px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-      <span className="font-semibold text-white">{formatResultCount(count, singular, plural)}</span>
-      <span className="text-xs">{describeActiveFilters(filters)} · {sortNote}</span>
-    </div>
-  )
-}
-
-function LimitNotice({ limit, exportIsComplete }: { limit: number; exportIsComplete: boolean }) {
-  return (
-    <Notice>
-      Limite de {limit.toLocaleString('pt-BR')} linhas atingido; os indicadores acima consideram apenas essas linhas.{' '}
-      {exportIsComplete
-        ? 'A exportação xlsx traz todas as linhas do filtro.'
-        : 'Reduza o período para obter totais completos.'}
-    </Notice>
-  )
-}
-
-function periodFilters(dateFrom: string, dateTo: string): OperationalFilter[] {
+/** Período, Navio / Viagem e Cliente em linhas de filtro (planilha e "Filtros ativos"). */
+function scopeFilterLines(scope: ReportScope, periodLabel: string, voyage: string, customerName: string): ReportFilterLine[] {
   return [
-    { label: 'de', value: dateFrom ? formatDate(dateFrom) : '' },
-    { label: 'até', value: dateTo ? formatDate(dateTo) : '' },
+    { Filtro: `${periodLabel} de`, Valor: scope.dateFrom ? formatDate(scope.dateFrom) : '' },
+    { Filtro: `${periodLabel} até`, Valor: scope.dateTo ? formatDate(scope.dateTo) : '' },
+    { Filtro: 'Navio / Viagem', Valor: voyage },
+    { Filtro: 'Cliente', Valor: scope.customerId ? customerName || `Cliente ${scope.customerId}` : '' },
   ]
 }
 
-// ---------- Operacional ----------
+function activeLines(lines: ReportFilterLine[]) {
+  return lines.filter((line) => line.Valor.trim() !== '')
+}
 
-function OperationalReportTab() {
+function toOperationalFilters(lines: ReportFilterLine[]): OperationalFilter[] {
+  return lines.map((line) => ({ label: line.Filtro, value: line.Valor }))
+}
+
+/** Período, Navio / Viagem e Cliente: sempre abertos; "Exportar planilha" ao lado. */
+function ScopeFilters({ scope, customerName, periodLabel, onDate, onVoyage, onCustomer, exporting, canExport, onExport }: {
+  scope: ReportScope
+  customerName: string
+  periodLabel: string
+  onDate: (key: 'de' | 'ate', value: string) => void
+  onVoyage: (voyageId: string) => void
+  onCustomer: (customerId: string, customerName: string) => void
+  exporting: boolean
+  canExport: boolean
+  onExport: () => void
+}) {
+  return (
+    <div className="app-filter-grid">
+      <Field label={`${periodLabel} de`}>
+        <Input type="date" value={scope.dateFrom} onChange={(event) => onDate('de', event.target.value)} />
+      </Field>
+      <Field label="até">
+        <Input type="date" value={scope.dateTo} onChange={(event) => onDate('ate', event.target.value)} />
+      </Field>
+      <VoyageCombobox
+        clearable
+        label="Navio / Viagem"
+        placeholder="Todos"
+        selectedVoyageId={scope.voyageId}
+        onSelect={(id) => onVoyage(id == null ? '' : String(id))}
+      />
+      <Combobox
+        key={`cliente-${scope.customerId}-${customerName}`}
+        label="Cliente"
+        placeholder="Todos"
+        initialValue={customerName}
+        onValueChange={(value) => { if (!value.trim() && scope.customerId) onCustomer('', '') }}
+        fetchOptions={async (query) =>
+          (await listBillingCustomers(query)).map((customer): ComboOption => ({
+            value: String(customer.id),
+            label: customer.name,
+            meta: formatCnpjCpf(customer.cnpj_cpf),
+          }))
+        }
+        onSelectOption={(option) => onCustomer(option.value, option.label)}
+      />
+      <div>
+        <Button variant="secondary" onClick={onExport} loading={exporting} loadingLabel="Exportando…" disabled={!canExport}>
+          <FileDown size={16} aria-hidden="true" />
+          Exportar planilha
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function useScopeHandlers({ params, setParams }: ViewProps, keepEmptyDates = false) {
+  return {
+    onDate: (key: 'de' | 'ate', value: string) => {
+      let next = withReportParam(params, key, value, keepEmptyDates)
+      // Demurrage: a primeira data escolhida grava as duas, senão a outra
+      // voltaria ao padrão do ano em vez do valor que estava na tela.
+      if (keepEmptyDates) {
+        const current = demurrageFiltersFromSearch(params)
+        const other = key === 'de' ? 'ate' : 'de'
+        if (!params.has(other)) next = withReportParam(next, other, other === 'de' ? current.dateFrom : current.dateTo, true)
+      }
+      setParams(next)
+    },
+    onVoyage: (voyageId: string) => setParams(withReportParam(params, 'viagem', voyageId)),
+    onCustomer: (customerId: string, customerName: string) => {
+      const next = withReportParam(params, 'cliente', customerId)
+      setParams(customerId ? withReportParam(next, 'clienteNome', customerName) : next)
+    },
+  }
+}
+
+function ActiveFiltersNote({ lines }: { lines: ReportFilterLine[] }) {
+  return <p className="mb-4 text-xs text-[var(--app-muted)]">{describeActiveFilters(toOperationalFilters(lines))}</p>
+}
+
+/**
+ * Aviso de limite (achado R2): a tela parou no teto declarado. Diz quantas
+ * linhas faltam e que a planilha traz todas.
+ */
+function LoadNotice({ load }: { load: ReportLoad | undefined }) {
+  if (!load || isReportComplete(load)) return null
+  const missing = load.total - load.loaded
+  return (
+    <p className="app-bl-notice app-bl-notice--warning mb-4" role="status">
+      A tela mostra {load.loaded.toLocaleString('pt-BR')} de {load.total.toLocaleString('pt-BR')} linhas; faltam{' '}
+      {missing.toLocaleString('pt-BR')}. Os cartões contam só as linhas mostradas. A planilha traz todas.
+    </p>
+  )
+}
+
+function useExport() {
   const { showToast } = useToast()
-  const [filters, setFilters] = useState<OperationalReportFilters>({
-    dateFrom: '',
-    dateTo: '',
-    pod: '',
-    cargoMode: '',
-  })
   const [exporting, setExporting] = useState(false)
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['report-operational', filters],
-    queryFn: () => fetchOperationalReport(filters),
-    staleTime: 30_000,
-  })
-  const page = useReportPage(data?.rows)
-
-  async function handleExport() {
+  async function run(task: () => Promise<number>) {
     setExporting(true)
     try {
-      // Export fetches without row limit for complete data
-      const rows = await fetchOperationalReportForExport(filters)
-      const { exportOperationalReportWorkbook } = await import('../services/exports')
-      await exportOperationalReportWorkbook(rows)
-      showToast(`Relatório operacional exportado (${rows.length} linhas).`, 'success')
-    } catch {
-      showToast('Falha ao exportar o relatório.', 'error')
+      const count = await task()
+      showToast(`Planilha exportada (${count.toLocaleString('pt-BR')} linhas).`, 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Não foi possível exportar a planilha.'), 'error')
     } finally {
       setExporting(false)
     }
   }
+  return { exporting, run }
+}
+
+const decimal = (value: number, digits: number) =>
+  value.toLocaleString('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+
+function WithUnit({ value, unit }: { value: string; unit: string }) {
+  return <>{value} <span className="app-metric-tile__unit">{unit}</span></>
+}
+
+/** Valor em aberto: âmbar só quando passa de zero (regra 5). */
+function OpenAmount({ value }: { value: number }) {
+  return value > 0 ? <StatusText tone="warning">{formatBRL(value)}</StatusText> : <>{formatBRL(value)}</>
+}
+
+function ReportTable({ title, aside, columns, minWidth, caption, isLoading, error, errorMessage, onRetry, hasData, isEmpty, emptyTitle, children, pagination }: {
+  title: string
+  aside: string
+  columns: string[]
+  minWidth: string
+  caption: string
+  isLoading: boolean
+  error: unknown
+  errorMessage: string
+  onRetry: () => void
+  hasData: boolean
+  isEmpty: boolean
+  emptyTitle: string
+  children: ReactNode
+  pagination: ReturnType<typeof useReportPage>['pagination']
+}) {
+  return (
+    <Block title={title} aside={hasData ? aside : undefined} flush>
+      {/* Item 8: com erro, a tela mostra só o erro; nunca "Nenhum dado" junto. */}
+      <QueryStateGate
+        isLoading={isLoading}
+        isError={Boolean(error)}
+        hasData={hasData}
+        errorMessage={userFacingErrorMessage(error, errorMessage)}
+        onRetry={onRetry}
+        loadingFallback={<SkeletonTable rows={6} cols={columns.length} />}
+      >
+        {isEmpty ? (
+          <EmptyState title={emptyTitle} description="Ajuste o período ou os filtros aplicados." />
+        ) : (
+          <>
+            <div className="app-table-scroll">
+              <table className={`app-table app-table--compact text-sm ${minWidth}`}>
+                <caption className="sr-only">{caption}</caption>
+                <thead>
+                  <tr>
+                    {columns.map((column) => (
+                      <th key={column} scope="col" className={column === 'Cliente' ? 'app-table__text-head' : undefined}>{column}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>{children}</tbody>
+              </table>
+            </div>
+            <TableFooterPagination {...pagination} />
+          </>
+        )}
+      </QueryStateGate>
+    </Block>
+  )
+}
+
+// ---------- Operacional ----------
+
+function reviewText(status: string | null) {
+  if (!status) return <NoValue label="Sem revisão" />
+  return status === 'pending_review' ? <StatusText tone="warning">Pendente</StatusText> : <StatusText>Em ordem</StatusText>
+}
+
+const REVIEW_FILTER_LABELS: Record<string, string> = { pendente: 'Pendente', 'em-ordem': 'Em ordem' }
+const LOCAL_CHARGES_FILTER_OPTIONS = [
+  { value: 'pendente', label: REPORT_LOCAL_CHARGES_STATE_LABELS.pending },
+  { value: 'emitida', label: REPORT_LOCAL_CHARGES_STATE_LABELS.issued },
+  { value: 'paga', label: REPORT_LOCAL_CHARGES_STATE_LABELS.paid },
+  { value: 'isenta', label: REPORT_LOCAL_CHARGES_STATE_LABELS.exempt },
+]
+
+function OperationalReportView(props: ViewProps) {
+  const { params, setParam, setParams } = props
+  const filters = operationalFiltersFromSearch(params)
+  const customerName = customerNameFromSearch(params)
+  const handlers = useScopeHandlers(props)
+  const { data: voyages } = useVoyageOptions()
+  const { data: portOptions } = usePortOptions()
+  const exporter = useExport()
+
+  const query = useQuery({
+    queryKey: ['report-operational', filters],
+    queryFn: () => fetchOperationalReport(filters),
+    staleTime: 30_000,
+  })
+  const { data } = query
+  const page = useReportPage(data?.rows)
+
+  const moreLines: ReportFilterLine[] = [
+    { Filtro: 'POL', Valor: filters.pol ? formatPortDisplayName(filters.pol) : '' },
+    { Filtro: 'POD', Valor: filters.pod ? formatPortDisplayName(filters.pod) : '' },
+    { Filtro: 'Modalidade', Valor: filters.cargoMode ? cargoModeLabel(filters.cargoMode) : '' },
+    { Filtro: 'Revisão', Valor: REVIEW_FILTER_LABELS[filters.review] ?? '' },
+    { Filtro: 'Taxas locais', Valor: LOCAL_CHARGES_FILTER_OPTIONS.find((option) => option.value === filters.localCharges)?.label ?? '' },
+  ]
+  const lines = activeLines([...scopeFilterLines(filters, 'Criação do B/L', voyageLabel(voyages, filters.voyageId), customerName), ...moreLines])
+  const moreCount = activeLines(moreLines).length
+
+  function clearMore() {
+    let next = params
+    for (const key of ['pol', 'pod', 'modalidade', 'revisao', 'taxas'] as const) next = withReportParam(next, key, '')
+    setParams(next)
+  }
+
+  const exportReport = () => exporter.run(async () => {
+    const { rows } = await fetchOperationalReport(filters, EXPORT_ALL)
+    const { exportOperationalReportWorkbook } = await import('../services/exports')
+    await exportOperationalReportWorkbook(rows, lines)
+    return rows.length
+  })
 
   return (
     <>
-      <Card className="mb-5">
-        <div className="reports-filter-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <Field label="Data inicial" hint="Recorte pela data de criação do B/L.">
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(event) => setFilters((prev) => ({ ...prev, dateFrom: event.target.value }))}
-            />
-          </Field>
-          <Field label="Data final">
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(event) => setFilters((prev) => ({ ...prev, dateTo: event.target.value }))}
-            />
+      <ScopeFilters
+        scope={filters}
+        customerName={customerName}
+        periodLabel="Criação do B/L"
+        {...handlers}
+        exporting={exporter.exporting}
+        canExport={Boolean(data?.rows.length)}
+        onExport={() => void exportReport()}
+      />
+      <FilterBar title="Mais filtros" activeCount={moreCount} onClear={clearMore}>
+        <div className="app-filter-grid">
+          <Field label="POL">
+            <Select value={filters.pol} onChange={(event) => setParam('pol', event.target.value)}>
+              <option value="">Todos</option>
+              {portOptions?.pols.map((pol) => <option key={pol} value={pol}>{formatPortDisplayName(pol)}</option>)}
+            </Select>
           </Field>
           <Field label="POD">
-            <Input
-              value={filters.pod}
-              onChange={(event) => setFilters((prev) => ({ ...prev, pod: event.target.value.toUpperCase() }))}
-              placeholder="BRVIT"
-            />
+            <Select value={filters.pod} onChange={(event) => setParam('pod', event.target.value)}>
+              <option value="">Todos</option>
+              {portOptions?.pods.map((pod) => <option key={pod} value={pod}>{formatPortDisplayName(pod)}</option>)}
+            </Select>
           </Field>
           <Field label="Modalidade">
-            <Select
-              value={filters.cargoMode}
-              onChange={(event) =>
-                setFilters((prev) => ({ ...prev, cargoMode: event.target.value as OperationalReportFilters['cargoMode'] }))
-              }
-            >
+            <Select value={filters.cargoMode} onChange={(event) => setParam('modalidade', event.target.value)}>
               <option value="">Todas</option>
               <option value="container">Container</option>
               <option value="carga_solta">Carga Solta</option>
               <option value="misto">Misto</option>
             </Select>
           </Field>
-          <div className="reports-filter-action">
-            <Button onClick={handleExport} loading={exporting} disabled={!data?.rows.length}>
-              <FileDown size={15} />
-              Exportar xlsx
-            </Button>
-          </div>
+          <Field label="Revisão">
+            <Select value={filters.review} onChange={(event) => setParam('revisao', event.target.value)}>
+              <option value="">Todas</option>
+              <option value="pendente">Pendente</option>
+              <option value="em-ordem">Em ordem</option>
+            </Select>
+          </Field>
+          <Field label="Taxas locais">
+            <Select value={filters.localCharges} onChange={(event) => setParam('taxas', event.target.value)}>
+              <option value="">Todas</option>
+              {LOCAL_CHARGES_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </Select>
+          </Field>
         </div>
-      </Card>
+      </FilterBar>
+      <ActiveFiltersNote lines={lines} />
 
-      <div className="mb-5 flex flex-col gap-4">
-        <div>
-          <MetricCard label="B/Ls" value={String(data?.kpis.totalBls ?? 0)} tone="primary" />
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-          <MetricCard label="Containers distintos" value={String(data?.kpis.totalContainers ?? 0)} />
-          <MetricCard label="Viagens distintas" value={String(data?.kpis.totalVoyages ?? 0)} />
-          <MetricCard label="Peso total (kg)" value={(data?.kpis.totalWeightKg ?? 0).toLocaleString('pt-BR')} />
-          <MetricCard label="CBM total" value={(data?.kpis.totalCbm ?? 0).toLocaleString('pt-BR')} />
-        </div>
+      <div className="app-metric-row" role="group" aria-label="Totais do recorte">
+        <MetricCard label="B/Ls" value={(data?.kpis.totalBls ?? 0).toLocaleString('pt-BR')} />
+        <MetricCard label="Containers" value={(data?.kpis.totalContainers ?? 0).toLocaleString('pt-BR')} />
+        <MetricCard label="Viagens" value={(data?.kpis.totalVoyages ?? 0).toLocaleString('pt-BR')} />
+        <MetricCard label="Peso" value={<WithUnit value={decimal((data?.kpis.totalWeightKg ?? 0) / 1000, 1)} unit="t" />} />
+        <MetricCard label="CBM" value={decimal(data?.kpis.totalCbm ?? 0, 1)} />
       </div>
 
-      {data?.kpis.truncated ? <LimitNotice limit={2000} exportIsComplete /> : null}
+      <LoadNotice load={data?.load} />
 
-      <Card className="overflow-hidden p-0">
-        <TableCaption
-          count={data?.rows.length ?? 0}
-          singular="B/L retornado"
-          plural="B/Ls retornados"
-          filters={[
-            ...periodFilters(filters.dateFrom, filters.dateTo),
-            { label: 'POD', value: filters.pod },
-            {
-              label: 'modalidade',
-              value: filters.cargoMode ? cargoModeLabel(filters.cargoMode) : '',
-            },
-          ]}
-          sortNote="Ordenado por criação (recente)"
-        />
-        {error ? <InlineError message="Erro ao carregar relatório operacional." /> : null}
-        <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[1100px] text-sm">
-            <caption className="sr-only">B/Ls do relatório de cobrança</caption>
-            <thead>
-              <tr>
-                <th scope="col" className="px-4 py-3">B/L</th>
-                <th scope="col" className="px-4 py-3">Navio/Viagem</th>
-                <th scope="col" className="px-4 py-3">POL</th>
-                <th scope="col" className="px-4 py-3">POD</th>
-                <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
-                <th scope="col" className="px-4 py-3">Containers</th>
-                <th scope="col" className="px-4 py-3">Peso (kg)</th>
-                <th scope="col" className="px-4 py-3">CBM</th>
-                <th scope="col" className="px-4 py-3">Revisão</th>
-                <th scope="col" className="px-4 py-3">Financeiro</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={10} className="p-0">
-                    <SkeletonTable rows={6} cols={10} />
-                  </td>
-                </tr>
-              ) : null}
-              {!isLoading && !error && !data?.rows.length ? (
-                <tr>
-                  <td colSpan={10} className="p-0">
-                    <EmptyState title="Nenhum dado encontrado." description="Ajuste o período ou os filtros aplicados." />
-                  </td>
-                </tr>
-              ) : null}
-              {page.rows.map((row) => (
-                <tr key={row.id}>
-                  <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]"><CopyValue value={row.id} label="número do B/L" /></td>
-                  <td className="px-4 py-3 text-[var(--app-text)]">
-                    {row.voyage?.vessel?.name ?? <NoValue label="Sem navio" />} / {row.voyage?.voyage_number ?? <NoValue label="Sem viagem" />}
-                  </td>
-                  <td className="px-4 py-3">{row.pol ?? <NoValue label="Sem POL" />}</td>
-                  <td className="px-4 py-3">{row.pod ?? <NoValue label="Sem POD" />}</td>
-                  <td className="app-table__text px-4 py-3 text-[var(--app-text)]" title={row.customer?.name ?? undefined}>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
-                  <td className="px-4 py-3">{(row.bl_containers ?? []).length}</td>
-                  <td className="px-4 py-3 font-mono">
-                    {blTotalWeightKg(row).toLocaleString('pt-BR')}
-                  </td>
-                  <td className="px-4 py-3 font-mono">
-                    {blTotalCbm(row).toLocaleString('pt-BR')}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={row.review_status === 'reviewed' || row.review_status === 'ok' ? 'green' : 'yellow'}>
-                      {statusLabel(REVIEW_STATUS_LABELS, row.review_status)}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-[var(--app-muted)]">{statusLabel(FINANCIAL_STATUS_LABELS, row.financial_status)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <TableFooterPagination {...page.pagination} />
-      </Card>
+      <ReportTable
+        title="B/Ls"
+        aside={`${formatResultCount(data?.rows.length ?? 0, 'B/L', 'B/Ls')} · criação mais recente primeiro`}
+        columns={['B/L', 'Navio / Viagem', 'Trecho', 'Cliente', 'Containers', 'Peso', 'CBM', 'Revisão', 'Taxas locais']}
+        minWidth="min-w-[1100px]"
+        caption="B/Ls do relatório operacional"
+        isLoading={query.isLoading}
+        error={query.error}
+        errorMessage="Não foi possível carregar o relatório operacional."
+        onRetry={() => void query.refetch()}
+        hasData={data !== undefined}
+        isEmpty={!data?.rows.length}
+        emptyTitle="Nenhum B/L neste recorte."
+        pagination={page.pagination}
+      >
+        {page.rows.map((row) => (
+          <tr key={row.id}>
+            <td><CopyValue value={row.id} label="número do B/L"><Link className="app-link" to={`/bls/${encodeURIComponent(row.id)}`}>{row.id}</Link></CopyValue></td>
+            <td>{row.voyage?.vessel?.name ?? <NoValue label="Sem navio" />} / {row.voyage?.voyage_number ?? <NoValue label="Sem viagem" />}</td>
+            <td>{row.pol ?? <NoValue label="Sem POL" />} → {row.pod ?? <NoValue label="Sem POD" />}</td>
+            <td className="app-table__text" title={row.customer?.name ?? undefined}>
+              {row.customer?.name ?? <StatusText tone="warning">Sem cliente vinculado</StatusText>}
+            </td>
+            <td>{(row.bl_containers ?? []).length}</td>
+            <td>{blTotalWeightKg(row).toLocaleString('pt-BR')} kg</td>
+            <td>{blTotalCbm(row).toLocaleString('pt-BR')}</td>
+            <td>{reviewText(row.review_status)}</td>
+            <td><LocalChargesStatus bl={row} showPaid /></td>
+          </tr>
+        ))}
+      </ReportTable>
     </>
   )
 }
@@ -317,322 +482,227 @@ function OperationalReportTab() {
 
 const FINANCIAL_STATUS_FILTER_OPTIONS = ['draft', 'issued', 'partially_paid', 'paid', 'cancelled'] as const
 
-function FinancialReportTab() {
-  const { showToast } = useToast()
-  const [filters, setFilters] = useState<FinancialReportFilters>({
-    dateFrom: '',
-    dateTo: '',
-    status: '',
-  })
-  const [exporting, setExporting] = useState(false)
+function invoiceStatusTone(status: string | null): StatusTextTone {
+  if (status === 'paid') return 'paid'
+  if (status === 'cancelled' || status === 'obsolete') return 'muted'
+  return 'default'
+}
 
-  const { data, isLoading, error } = useQuery({
+function FinancialReportView(props: ViewProps) {
+  const { params, setParam, setParams } = props
+  const filters = financialFiltersFromSearch(params)
+  const customerName = customerNameFromSearch(params)
+  const handlers = useScopeHandlers(props)
+  const { data: voyages } = useVoyageOptions()
+  const exporter = useExport()
+
+  const query = useQuery({
     queryKey: ['report-financial', filters],
     queryFn: () => fetchFinancialReport(filters),
     staleTime: 30_000,
   })
+  const { data } = query
   const page = useReportPage(data?.rows)
   const accessDenied = Boolean(data?.accessDenied)
 
-  async function handleExport() {
-    setExporting(true)
-    try {
-      const rows = await fetchFinancialReportForExport(filters)
-      const { exportFinancialReportWorkbook } = await import('../services/exports')
-      await exportFinancialReportWorkbook(rows)
-      showToast(`Relatório financeiro exportado (${rows.length} linhas).`, 'success')
-    } catch {
-      showToast('Falha ao exportar o relatório.', 'error')
-    } finally {
-      setExporting(false)
-    }
+  const moreLines: ReportFilterLine[] = [
+    { Filtro: 'Situação', Valor: filters.status ? statusLabel(INVOICE_STATUS_LABELS, filters.status) : '' },
+    { Filtro: 'Consolidada', Valor: filters.consolidated === 'sim' ? 'Só consolidadas' : filters.consolidated === 'nao' ? 'Sem consolidadas' : '' },
+    { Filtro: 'Saldo em aberto', Valor: filters.balance === 'aberto' ? 'Com saldo' : filters.balance === 'zerado' ? 'Sem saldo' : '' },
+  ]
+  const lines = activeLines([...scopeFilterLines(filters, 'Emissão', voyageLabel(voyages, filters.voyageId), customerName), ...moreLines])
+  const moreCount = activeLines(moreLines).length
+
+  function clearMore() {
+    let next = params
+    for (const key of ['situacao', 'consolidada', 'saldo'] as const) next = withReportParam(next, key, '')
+    setParams(next)
   }
+
+  const exportReport = () => exporter.run(async () => {
+    const result = await fetchFinancialReport(filters, EXPORT_ALL)
+    if (result.accessDenied) throw new Error('Sem permissão para ver as faturas.')
+    const { exportFinancialReportWorkbook } = await import('../services/exports')
+    await exportFinancialReportWorkbook(result.rows, lines)
+    return result.rows.length
+  })
 
   return (
     <>
-      <Card className="mb-5">
-        <div className="reports-filter-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Field label="Data inicial" hint="Recorte pela data de emissão da invoice.">
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(event) => setFilters((prev) => ({ ...prev, dateFrom: event.target.value }))}
-            />
-          </Field>
-          <Field label="Data final">
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(event) => setFilters((prev) => ({ ...prev, dateTo: event.target.value }))}
-            />
-          </Field>
-          <Field label="Status">
-            <Select
-              value={filters.status}
-              onChange={(event) =>
-                setFilters((prev) => ({ ...prev, status: event.target.value as FinancialReportFilters['status'] }))
-              }
-            >
-              <option value="">Todos</option>
+      <ScopeFilters
+        scope={filters}
+        customerName={customerName}
+        periodLabel="Emissão"
+        {...handlers}
+        exporting={exporter.exporting}
+        canExport={Boolean(data?.rows.length)}
+        onExport={() => void exportReport()}
+      />
+      <FilterBar title="Mais filtros" activeCount={moreCount} onClear={clearMore}>
+        <div className="app-filter-grid">
+          <Field label="Situação">
+            <Select value={filters.status} onChange={(event) => setParam('situacao', event.target.value)}>
+              <option value="">Todas</option>
               {FINANCIAL_STATUS_FILTER_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {statusLabel(INVOICE_STATUS_LABELS, status)}
-                </option>
+                <option key={status} value={status}>{statusLabel(INVOICE_STATUS_LABELS, status)}</option>
               ))}
             </Select>
           </Field>
-          <div className="reports-filter-action">
-            <Button onClick={handleExport} loading={exporting} disabled={!data?.rows.length}>
-              <FileDown size={15} />
-              Exportar xlsx
-            </Button>
-          </div>
+          <Field label="Consolidada">
+            <Select value={filters.consolidated} onChange={(event) => setParam('consolidada', event.target.value)}>
+              <option value="">Todas</option>
+              <option value="sim">Só consolidadas</option>
+              <option value="nao">Sem consolidadas</option>
+            </Select>
+          </Field>
+          <Field label="Saldo em aberto">
+            <Select value={filters.balance} onChange={(event) => setParam('saldo', event.target.value)}>
+              <option value="">Todos</option>
+              <option value="aberto">Com saldo</option>
+              <option value="zerado">Sem saldo</option>
+            </Select>
+          </Field>
         </div>
-      </Card>
+      </FilterBar>
+      <ActiveFiltersNote lines={lines} />
 
       {accessDenied ? (
-        <Notice>
-          Visualização financeira restrita ao perfil admin. Nenhum indicador, linha ou exportação é liberado para este perfil.
-        </Notice>
-      ) : null}
-
-      {accessDenied ? null : (
+        <p className="app-bl-notice app-bl-notice--warning mb-4" role="status">
+          Sem permissão para ver as faturas: nenhum cartão, linha ou planilha é mostrado.
+        </p>
+      ) : (
         <>
-          <div className="mb-5 flex flex-col gap-4">
-            <div>
-              <MetricCard label="Saldo em aberto" value={formatBRL(data?.kpis.totalOpen ?? 0)} tone="primary" />
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-              <MetricCard label="Invoices" value={String(data?.kpis.totalInvoices ?? 0)} />
-              <MetricCard label="Total emitido" value={formatBRL(data?.kpis.totalIssued ?? 0)} />
-              <MetricCard label="Total pago" value={formatBRL(data?.kpis.totalPaid ?? 0)} />
-              <div className="opacity-75">
-                <MetricCard label="Canceladas" value={String(data?.kpis.totalCanceled ?? 0)} />
-              </div>
-            </div>
+          <div className="app-metric-row" role="group" aria-label="Totais do recorte">
+            <MetricCard
+              label="Saldo em aberto"
+              value={formatBRL(data?.kpis.totalOpen ?? 0)}
+              tone={(data?.kpis.totalOpen ?? 0) > 0 ? 'warning' : 'secondary'}
+            />
+            <MetricCard label="Faturas" value={(data?.kpis.totalInvoices ?? 0).toLocaleString('pt-BR')} detail="Emitidas, sem rascunho nem cancelada" />
+            <MetricCard label="Emitido" value={formatBRL(data?.kpis.totalIssued ?? 0)} />
+            <MetricCard label="Pago" value={formatBRL(data?.kpis.totalPaid ?? 0)} />
+            <MetricCard label="Canceladas" value={(data?.kpis.totalCanceled ?? 0).toLocaleString('pt-BR')} />
           </div>
 
-          {data?.kpis.truncated ? <LimitNotice limit={2000} exportIsComplete /> : null}
+          <LoadNotice load={data?.load} />
 
-          <Card className="overflow-hidden p-0">
-            <TableCaption
-              count={data?.rows.length ?? 0}
-              singular="invoice retornada"
-              plural="invoices retornadas"
-              filters={[
-                ...periodFilters(filters.dateFrom, filters.dateTo),
-                { label: 'status', value: filters.status ? statusLabel(INVOICE_STATUS_LABELS, filters.status) : '' },
-              ]}
-              sortNote="Ordenado por emissão (recente)"
-            />
-            {error ? <InlineError message="Erro ao carregar relatório financeiro." /> : null}
-            <div className="app-table-scroll">
-              <table className="app-table app-table--compact min-w-[980px] text-sm">
-                <caption className="sr-only">Invoices do relatório financeiro</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" className="px-4 py-3">Invoice</th>
-                    <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
-                    <th scope="col" className="px-4 py-3">Emissão</th>
-                    <th scope="col" className="px-4 py-3">Total BRL</th>
-                    <th scope="col" className="px-4 py-3">Saldo BRL</th>
-                    <th scope="col" className="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={6} className="p-0">
-                        <SkeletonTable rows={6} cols={6} />
-                      </td>
-                    </tr>
-                  ) : null}
-                  {!isLoading && !error && !data?.rows.length ? (
-                    <tr>
-                      <td colSpan={6} className="p-0">
-                        <EmptyState title="Nenhum dado encontrado." description="Ajuste o período ou os filtros aplicados." />
-                      </td>
-                    </tr>
-                  ) : null}
-                  {page.rows.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-4 py-3 font-semibold text-[var(--app-text-strong)]">{row.invoice_number ?? `INV-${row.id}`}</td>
-                      <td className="app-table__text px-4 py-3 text-[var(--app-text)]" title={row.customer?.name ?? undefined}>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
-                      <td className="px-4 py-3 text-[var(--app-muted)]">{row.issued_at ? formatDate(row.issued_at) : <NoValue label="Sem data de emissão" />}</td>
-                      <td className="px-4 py-3 font-mono text-[var(--app-text-strong)]">{formatBRL(row.total_brl ?? 0)}</td>
-                      <td className="px-4 py-3 font-mono text-amber-700">{formatBRL(row.balance_brl ?? 0)}</td>
-                      <td className="px-4 py-3">
-                        <Badge tone={invoiceStatusTone(row.status)}>{statusLabel(INVOICE_STATUS_LABELS, row.status)}</Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <TableFooterPagination {...page.pagination} />
-          </Card>
+          <ReportTable
+            title="Faturas"
+            aside={`${formatResultCount(data?.rows.length ?? 0, 'fatura', 'faturas')} · emissão mais recente primeiro`}
+            columns={['Fatura', 'Cliente', 'Emissão', 'Total', 'Saldo', 'Situação']}
+            minWidth="min-w-[900px]"
+            caption="Faturas do relatório financeiro"
+            isLoading={query.isLoading}
+            error={query.error}
+            errorMessage="Não foi possível carregar o relatório financeiro."
+            onRetry={() => void query.refetch()}
+            hasData={data !== undefined}
+            isEmpty={!data?.rows.length}
+            emptyTitle="Nenhuma fatura neste recorte."
+            pagination={page.pagination}
+          >
+            {page.rows.map((row) => (
+              <tr key={row.id} className={row.status === 'cancelled' ? 'app-table__row--muted' : undefined}>
+                <td><Link className="app-link" to={`/taxas-locais?invoice=${row.id}`}>{row.invoice_number}</Link></td>
+                <td className="app-table__text" title={row.customer?.name ?? undefined}>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
+                <td>{row.issued_at ? formatDate(row.issued_at) : <NoValue label="Sem data de emissão" />}</td>
+                <td>{formatBRL(row.total_brl ?? 0)}</td>
+                <td><OpenAmount value={Number(row.balance_brl ?? 0)} /></td>
+                <td><StatusText tone={invoiceStatusTone(row.status)}>{statusLabel(INVOICE_STATUS_LABELS, row.status)}</StatusText></td>
+              </tr>
+            ))}
+          </ReportTable>
         </>
       )}
     </>
   )
 }
 
-function invoiceStatusTone(status: string | null): 'green' | 'yellow' | 'red' | 'blue' | 'slate' {
-  switch (status) {
-    case 'paid':
-      return 'green'
-    case 'partially_paid':
-      return 'blue'
-    case 'issued':
-      return 'yellow'
-    case 'draft':
-    case 'cancelled':
-    default:
-      return 'slate'
-  }
-}
+// ---------- Por Cliente ----------
 
-// ---------- Clientes ----------
+function CustomerReportView(props: ViewProps) {
+  const { params } = props
+  const filters = customerFiltersFromSearch(params)
+  const customerName = customerNameFromSearch(params)
+  const handlers = useScopeHandlers(props)
+  const { data: voyages } = useVoyageOptions()
+  const exporter = useExport()
 
-function CustomerReportTab() {
-  const { showToast } = useToast()
-  const [filters, setFilters] = useState<ReportFilters>({
-    dateFrom: '',
-    dateTo: '',
-  })
-  const [exporting, setExporting] = useState(false)
-
-  const { data, isLoading, error } = useQuery({
+  const query = useQuery({
     queryKey: ['report-customers', filters],
     queryFn: () => fetchCustomerReport(filters),
     staleTime: 30_000,
   })
+  const { data } = query
   const page = useReportPage(data?.rows)
+  const lines = activeLines(scopeFilterLines(filters, 'Período', voyageLabel(voyages, filters.voyageId), customerName))
 
-  async function handleExport() {
-    if (!data?.rows.length) {
-      showToast('Nenhum dado para exportar.', 'info')
-      return
-    }
-    setExporting(true)
-    try {
-      const { exportCustomerReportWorkbook } = await import('../services/exports')
-      await exportCustomerReportWorkbook(data.rows)
-      showToast(`Relatório por cliente exportado (${data.rows.length} linhas).`, 'success')
-    } catch {
-      showToast('Falha ao exportar o relatório.', 'error')
-    } finally {
-      setExporting(false)
-    }
-  }
+  const exportReport = () => exporter.run(async () => {
+    const result = await fetchCustomerReport(filters, EXPORT_ALL)
+    const { exportCustomerReportWorkbook } = await import('../services/exports')
+    await exportCustomerReportWorkbook(result.rows, lines)
+    return result.rows.length
+  })
 
   return (
     <>
-      <Card className="mb-5">
-        <div className="reports-filter-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Field label="Data inicial" hint="B/Ls pela criação; invoices pela emissão.">
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(event) => setFilters((prev) => ({ ...prev, dateFrom: event.target.value }))}
-            />
-          </Field>
-          <Field label="Data final">
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(event) => setFilters((prev) => ({ ...prev, dateTo: event.target.value }))}
-            />
-          </Field>
-          <div className="reports-filter-action">
-            <Button onClick={handleExport} loading={exporting} disabled={!data?.rows.length}>
-              <FileDown size={15} />
-              Exportar xlsx
-            </Button>
-          </div>
-        </div>
-      </Card>
+      <ScopeFilters
+        scope={filters}
+        customerName={customerName}
+        periodLabel="Período"
+        {...handlers}
+        exporting={exporter.exporting}
+        canExport={Boolean(data?.rows.length)}
+        onExport={() => void exportReport()}
+      />
+      <p className="mb-1 text-xs text-[var(--app-muted)]">B/Ls pela data de criação; faturas pela emissão, sem rascunho nem cancelada.</p>
+      <ActiveFiltersNote lines={lines} />
 
       {data?.invoicesAccessDenied ? (
-        <Notice>
-          Totais financeiros por cliente indisponíveis para este perfil. Exibindo apenas métricas operacionais; as colunas
-          Invoices, Emitido e Em aberto ficam zeradas, inclusive no arquivo exportado.
-        </Notice>
+        <p className="app-bl-notice app-bl-notice--warning mb-4" role="status">
+          Sem permissão para ver as faturas: as colunas Faturas, Emitido e Em aberto ficam zeradas, inclusive na planilha.
+        </p>
       ) : null}
 
-      <div className="mb-5 flex flex-col gap-4">
-        <div>
-          <MetricCard label="Total faturado" value={formatBRL(data?.kpis.totalIssued ?? 0)} tone="primary" />
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-          <MetricCard label="Clientes ativos" value={String(data?.kpis.totalCustomers ?? 0)} />
-          <MetricCard label="Top por volume (B/Ls)" value={data?.kpis.topByBls ?? <NoValue label="Sem dados no período" />} />
-          <MetricCard label="Top por faturamento" value={data?.kpis.topByInvoiced ?? <NoValue label="Sem dados no período" />} />
-        </div>
+      <div className="app-metric-row" role="group" aria-label="Totais do recorte">
+        <MetricCard label="Emitido" value={formatBRL(data?.kpis.totalIssued ?? 0)} />
+        <MetricCard label="Clientes com fatura no período" value={(data?.kpis.customersWithInvoices ?? 0).toLocaleString('pt-BR')} />
+        <MetricCard label="Top por volume (B/Ls)" value={data?.kpis.topByBls ?? <NoValue label="Sem B/L no período" />} />
+        <MetricCard label="Top por faturamento" value={data?.kpis.topByInvoiced ?? <NoValue label="Sem fatura no período" />} />
       </div>
 
-      {data?.kpis.truncated ? <LimitNotice limit={4000} exportIsComplete={false} /> : null}
+      <LoadNotice load={data?.load} />
 
-      <Card className="overflow-hidden p-0">
-        <TableCaption
-          count={data?.rows.length ?? 0}
-          singular="cliente retornado"
-          plural="clientes retornados"
-          filters={periodFilters(filters.dateFrom, filters.dateTo)}
-          sortNote="Ordenado por faturamento"
-        />
-        {error ? <InlineError message="Erro ao carregar relatório por cliente." /> : null}
-        <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[1020px] text-sm">
-            <caption className="sr-only">Clientes por faturamento</caption>
-            <thead>
-              <tr>
-                <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
-                <th scope="col" className="px-4 py-3">CNPJ</th>
-                <th scope="col" className="px-4 py-3">B/Ls</th>
-                <th scope="col" className="px-4 py-3">Peso (kg)</th>
-                <th scope="col" className="px-4 py-3">CBM</th>
-                <th scope="col" className="px-4 py-3">Invoices</th>
-                <th scope="col" className="px-4 py-3">Emitido</th>
-                <th scope="col" className="px-4 py-3">Em aberto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="p-0">
-                    <SkeletonTable rows={6} cols={8} />
-                  </td>
-                </tr>
-              ) : null}
-              {!isLoading && !error && !data?.rows.length ? (
-                <tr>
-                  <td colSpan={8} className="p-0">
-                    <EmptyState title="Nenhum dado encontrado." description="Ajuste o período ou os filtros aplicados." />
-                  </td>
-                </tr>
-              ) : null}
-              {page.rows.map((row) => (
-                <tr key={row.customer_id}>
-                  <td className="app-table__text px-4 py-3 font-semibold text-[var(--app-text-strong)]" title={row.name ?? undefined}>{row.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-[var(--app-muted)]">{row.cnpj_cpf ? <CopyValue value={formatCnpjCpf(row.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</td>
-                  <td className="px-4 py-3">{row.blCount}</td>
-                  <td className="px-4 py-3 font-mono">
-                    {row.totalWeightKg.toLocaleString('pt-BR')}
-                  </td>
-                  <td className="px-4 py-3 font-mono">
-                    {row.totalCbm.toLocaleString('pt-BR')}
-                  </td>
-                  <td className="px-4 py-3">{row.invoiceCount}</td>
-                  <td className="px-4 py-3 font-mono text-[var(--app-text-strong)]">{formatBRL(row.totalIssued)}</td>
-                  <td className="px-4 py-3 font-mono text-amber-700">{formatBRL(row.totalBalance)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <TableFooterPagination {...page.pagination} />
-      </Card>
+      <ReportTable
+        title="Clientes"
+        aside={`${formatResultCount(data?.rows.length ?? 0, 'Cliente', 'Clientes')} · maior emitido primeiro`}
+        columns={['Cliente', 'CNPJ', 'B/Ls', 'Peso', 'CBM', 'Faturas', 'Emitido', 'Em aberto']}
+        minWidth="min-w-[1000px]"
+        caption="Clientes por faturamento"
+        isLoading={query.isLoading}
+        error={query.error}
+        errorMessage="Não foi possível carregar o relatório por Cliente."
+        onRetry={() => void query.refetch()}
+        hasData={data !== undefined}
+        isEmpty={!data?.rows.length}
+        emptyTitle="Nenhum Cliente neste recorte."
+        pagination={page.pagination}
+      >
+        {page.rows.map((row) => (
+          <tr key={row.customer_id}>
+            <td className="app-table__text" title={row.name}>
+              {row.cnpj_cpf ? <Link className="app-link" to={`/clientes/${encodeURIComponent(row.cnpj_cpf)}`}>{row.name}</Link> : row.name}
+            </td>
+            <td>{row.cnpj_cpf ? <CopyValue value={formatCnpjCpf(row.cnpj_cpf)} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ/CPF" />}</td>
+            <td>{row.blCount}</td>
+            <td>{row.totalWeightKg.toLocaleString('pt-BR')} kg</td>
+            <td>{row.totalCbm.toLocaleString('pt-BR')}</td>
+            <td>{row.invoiceCount}</td>
+            <td>{formatBRL(row.totalIssued)}</td>
+            <td><OpenAmount value={row.totalBalance} /></td>
+          </tr>
+        ))}
+      </ReportTable>
     </>
   )
 }
@@ -641,154 +711,122 @@ function CustomerReportTab() {
 
 const DEMURRAGE_STATUS_FILTER_OPTIONS = ['draft', 'issued', 'paid', 'cancelled'] as const
 
-function DemurrageReportTab() {
-  const { showToast } = useToast()
-  const today = new Date().toISOString().slice(0, 10)
-  const firstOfYear = today.slice(0, 4) + '-01-01'
-  const [dateFrom, setDateFrom] = useState(firstOfYear)
-  const [dateTo, setDateTo] = useState(today)
-  const [statusFilter, setStatusFilter] = useState('')
-  const [exporting, setExporting] = useState(false)
+function DemurrageReportView(props: ViewProps) {
+  const { params, setParam, setParams } = props
+  const filters = demurrageFiltersFromSearch(params)
+  const customerName = customerNameFromSearch(params)
+  const handlers = useScopeHandlers(props, true)
+  const { data: voyages } = useVoyageOptions()
+  const exporter = useExport()
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['demurrage-report', dateFrom, dateTo, statusFilter],
-    queryFn: () => listDemurrageInvoices({
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined,
-      status: (statusFilter as 'draft' | 'issued' | 'paid' | 'cancelled') || undefined,
-    }),
+  const query = useQuery({
+    queryKey: ['demurrage-report', filters],
+    queryFn: () => fetchDemurrageReport(filters),
     staleTime: 60_000,
   })
+  const { data } = query
+  const page = useReportPage(data?.rows)
 
-  const invoices = data ?? []
-  const page = useReportPage(data)
-  // Faturas canceladas continuam listadas (o operador precisa vê-las), mas somá-las
-  // inflaria os totais. Cada indicador declara no rótulo o recorte que agrega.
-  const active = invoices.filter((invoice) => invoice.status !== 'cancelled')
-  const totalUSD = active.reduce((sum, invoice) => sum + (invoice.total_usd ?? 0), 0)
-  const billedBRL = active
-    .filter((invoice) => invoice.status === 'issued' || invoice.status === 'paid')
-    .reduce((sum, invoice) => sum + (invoice.current_total_brl ?? 0), 0)
-  const paidBRL = invoices
-    .filter((invoice) => invoice.status === 'paid')
-    .reduce((sum, invoice) => sum + (invoice.current_total_brl ?? 0), 0)
+  const moreLines: ReportFilterLine[] = [
+    { Filtro: 'Situação', Valor: filters.status ? statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, filters.status) : '' },
+    { Filtro: 'Em disputa', Valor: filters.dispute === 'sim' ? 'Sim' : filters.dispute === 'nao' ? 'Não' : '' },
+    { Filtro: 'Vencidas', Valor: filters.overdue === 'sim' ? 'Só vencidas' : '' },
+  ]
+  const lines = activeLines([...scopeFilterLines(filters, 'Data do documento', voyageLabel(voyages, filters.voyageId), customerName), ...moreLines])
+  const moreCount = activeLines(moreLines).length
 
-  async function handleExport() {
-    if (!invoices.length) {
-      showToast('Nenhum dado para exportar.', 'info')
-      return
-    }
-    setExporting(true)
-    try {
-      const { exportDemurrageReportWorkbook } = await import('../services/exports')
-      await exportDemurrageReportWorkbook(invoices)
-      showToast(`Relatório de demurrage exportado (${invoices.length} linhas).`, 'success')
-    } catch {
-      showToast('Falha ao exportar o relatório.', 'error')
-    } finally {
-      setExporting(false)
-    }
+  function clearMore() {
+    let next = params
+    for (const key of ['situacao', 'disputa', 'vencidas'] as const) next = withReportParam(next, key, '')
+    setParams(next)
   }
+
+  const exportReport = () => exporter.run(async () => {
+    const { rows } = await fetchDemurrageReport(filters, EXPORT_ALL)
+    const { exportDemurrageReportWorkbook } = await import('../services/exports')
+    await exportDemurrageReportWorkbook(rows, lines)
+    return rows.length
+  })
 
   return (
     <>
-      <Card className="mb-5">
-        <div className="reports-filter-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Field label="Data inicial" hint="Recorte pela data do documento.">
-            <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-          </Field>
-          <Field label="Data final">
-            <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-          </Field>
-          <Field label="Status">
-            <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="">Todos</option>
+      <ScopeFilters
+        scope={filters}
+        customerName={customerName}
+        periodLabel="Data do documento"
+        {...handlers}
+        exporting={exporter.exporting}
+        canExport={Boolean(data?.rows.length)}
+        onExport={() => void exportReport()}
+      />
+      <FilterBar title="Mais filtros" activeCount={moreCount} onClear={clearMore}>
+        <div className="app-filter-grid">
+          <Field label="Situação">
+            <Select value={filters.status} onChange={(event) => setParam('situacao', event.target.value)}>
+              <option value="">Todas</option>
               {DEMURRAGE_STATUS_FILTER_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, status)}
-                </option>
+                <option key={status} value={status}>{statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, status)}</option>
               ))}
             </Select>
           </Field>
-          <div className="reports-filter-action">
-            <Button onClick={handleExport} loading={exporting} disabled={!invoices.length}>
-              <FileDown size={15} />
-              Exportar xlsx
-            </Button>
-          </div>
+          <Field label="Em disputa">
+            <Select value={filters.dispute} onChange={(event) => setParam('disputa', event.target.value)}>
+              <option value="">Todas</option>
+              <option value="sim">Sim</option>
+              <option value="nao">Não</option>
+            </Select>
+          </Field>
+          <Field label="Vencidas">
+            <Select value={filters.overdue} onChange={(event) => setParam('vencidas', event.target.value)}>
+              <option value="">Todas</option>
+              <option value="sim">Só vencidas</option>
+            </Select>
+          </Field>
         </div>
-      </Card>
+      </FilterBar>
+      <ActiveFiltersNote lines={lines} />
 
-      <div className="mb-5 flex flex-col gap-4">
-        <div>
-          <MetricCard label="Total USD (exceto canceladas)" value={formatUSD(totalUSD)} tone="primary" />
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-          <MetricCard label="Faturas" value={String(invoices.length)} />
-          <MetricCard label="Faturado (BRL)" value={formatBRL(billedBRL)} />
-          <MetricCard label="Recebido (BRL)" value={formatBRL(paidBRL)} />
-        </div>
+      <div className="app-metric-row" role="group" aria-label="Totais do recorte">
+        <MetricCard label="Total US$ (exceto canceladas)" value={formatUSD(data?.kpis.totalUsd ?? 0)} />
+        <MetricCard label="Faturas" value={(data?.rows.length ?? 0).toLocaleString('pt-BR')} />
+        <MetricCard label="Faturado (R$)" value={formatBRL(data?.kpis.billedBrl ?? 0)} />
+        <MetricCard label="Recebido (R$)" value={formatBRL(data?.kpis.paidBrl ?? 0)} />
       </div>
 
-      <Card className="overflow-hidden p-0">
-        <TableCaption
-          count={invoices.length}
-          singular="fatura retornada"
-          plural="faturas retornadas"
-          filters={[
-            ...periodFilters(dateFrom, dateTo),
-            { label: 'status', value: statusFilter ? statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, statusFilter) : '' },
-          ]}
-          sortNote="Ordenado por criação (recente)"
-        />
-        {error ? <InlineError message="Erro ao carregar relatório de demurrage." /> : null}
-        <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[900px] text-sm">
-            <caption className="sr-only">Invoices do relatório de demurrage</caption>
-            <thead>
-              <tr>
-                <th scope="col" className="px-4 py-3">Doc</th>
-                <th scope="col" className="px-4 py-3">BL</th>
-                <th scope="col" className="app-table__text-head px-4 py-3">Cliente</th>
-                <th scope="col" className="px-4 py-3">Emissão</th>
-                <th scope="col" className="px-4 py-3">Vencimento</th>
-                <th scope="col" className="px-4 py-3">Total USD</th>
-                <th scope="col" className="px-4 py-3">Total BRL</th>
-                <th scope="col" className="px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="p-0">
-                    <SkeletonTable rows={6} cols={8} />
-                  </td>
-                </tr>
-              ) : null}
-              {!isLoading && !error && !invoices.length ? (
-                <tr>
-                  <td colSpan={8} className="p-0">
-                    <EmptyState title="Nenhuma invoice no período." description="Ajuste o período ou o status aplicado." />
-                  </td>
-                </tr>
-              ) : null}
-              {page.rows.map((invoice) => (
-                <tr key={invoice.id}>
-                  <td className="px-4 py-2 font-mono text-xs text-[var(--app-text-strong)]">{invoice.doc_number}</td>
-                  <td className="px-4 py-2 text-[var(--app-blue-btn)]"><CopyValue value={invoice.bl_id} label="número do B/L" /></td>
-                  <td className="app-table__text px-4 py-2" title={invoice.customer?.name ?? undefined}>{invoice.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
-                  <td className="px-4 py-2 text-[var(--app-muted)]">{invoice.doc_date ? formatDate(invoice.doc_date) : <NoValue label="Sem data de emissão" />}</td>
-                  <td className="px-4 py-2 text-[var(--app-muted)]">{invoice.due_date ? formatDate(invoice.due_date) : <NoValue label="Sem vencimento" />}</td>
-                  <td className="px-4 py-2 font-mono font-semibold text-amber-700">{formatUSD(invoice.total_usd ?? 0)}</td>
-                  <td className="px-4 py-2 font-mono font-semibold text-green-700">{formatBRL(invoice.current_total_brl ?? 0)}</td>
-                  <td className="px-4 py-2"><InvoiceStatusBadge status={invoice.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <TableFooterPagination {...page.pagination} />
-      </Card>
+      <LoadNotice load={data?.load} />
+
+      <ReportTable
+        title="Invoices de Demurrage"
+        aside={`${formatResultCount(data?.rows.length ?? 0, 'Invoice', 'Invoices')} · criação mais recente primeiro`}
+        columns={['Invoice', 'B/L', 'Cliente', 'Emissão', 'Vencimento', 'Total US$', 'Total R$', 'Situação']}
+        minWidth="min-w-[900px]"
+        caption="Invoices do relatório de Demurrage"
+        isLoading={query.isLoading}
+        error={query.error}
+        errorMessage="Não foi possível carregar o relatório de Demurrage."
+        onRetry={() => void query.refetch()}
+        hasData={data !== undefined}
+        isEmpty={!data?.rows.length}
+        emptyTitle="Nenhuma Invoice no período."
+        pagination={page.pagination}
+      >
+        {page.rows.map((invoice) => (
+          <tr key={invoice.id} className={invoice.status === 'cancelled' ? 'app-table__row--muted' : undefined}>
+            <td><Link className="app-link" to={demurrageInvoiceHref(invoice.id)}>{invoice.doc_number}</Link></td>
+            <td>
+              {invoice.bl_id
+                ? <CopyValue value={invoice.bl_id} label="número do B/L"><Link className="app-link" to={`/bls/${encodeURIComponent(invoice.bl_id)}`}>{invoice.bl_id}</Link></CopyValue>
+                : <NoValue label="Sem B/L" />}
+            </td>
+            <td className="app-table__text" title={invoice.customer?.name ?? undefined}>{invoice.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
+            <td>{invoice.doc_date ? formatDate(invoice.doc_date) : <NoValue label="Sem data de emissão" />}</td>
+            <td>{invoice.due_date ? formatDate(invoice.due_date) : <NoValue label="Sem vencimento" />}</td>
+            <td>{formatUSD(invoice.total_usd ?? 0)}</td>
+            <td>{formatBRL(invoice.current_total_brl ?? 0)}</td>
+            <td><InvoiceStatusBadge status={invoice.status} /></td>
+          </tr>
+        ))}
+      </ReportTable>
     </>
   )
 }

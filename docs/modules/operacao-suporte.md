@@ -12,7 +12,7 @@ Escopo por rota:
 - `/revisao`: fila agrupada, correção individual ou por cliente, gate canônico e tentativa de faturamento automático;
 - `/alertas`: fila paginada, filtros e dispensa temporária de alertas internos;
 - `/alertas/regras`: manual somente leitura das regras vivas do catálogo de alertas, com filtros por setor notificado, domínio e gravidade e links para tratamento;
-- `/relatorios`: abas operacional, financeira, por cliente e demurrage, com exportação XLSX;
+- `/relatorios`: visões operacional, financeira, por cliente e demurrage, com filtros no endereço e exportação de planilha;
 - `/line-up-tv`: sem rota nem página dedicada — cai no catch-all interno de `src/AppInterno.tsx`, que responde com a tela "Página não encontrada";
 - `/line-up-tv/display`: quadro protegido, sem o shell do `AppLayout`, para monitor/TV;
 - `/admin` (e `/admin/:tab`): usuários internos, falhas de roteamento, log de ações, métricas e Relatório SLA ADR — uma sub-rota por aba;
@@ -129,18 +129,35 @@ O verbete distingue **setor responsável** (o `alert_items.department` gravado p
 
 ### `/relatorios`
 
-`src/pages/Relatorios.tsx` possui quatro abas:
+`src/pages/Relatorios.tsx` possui quatro visões em abas (`TabList`, com setas, Home e End), escolhidas pelo endereço: `?visao=operacional` (padrão, fora da URL), `financeiro`, `por-cliente` ou `demurrage` (lote 5b da [identidade visual](../identidade-visual.md)). A ordem é abas, filtros, cartões de total (`MetricCard` numa linha, do mesmo tamanho) e a tabela num `Block`.
 
-- **Operacional**: período, POD e modalidade; KPIs de B/Ls, containers, viagens, peso e CBM; na lista, o número do B/L tem o ícone de copiar;
-- **Financeiro**: período e status; invoices, emitido, pago, saldo e canceladas;
-- **Por Cliente**: período; B/Ls, peso, CBM, invoices, emitido e saldo por cliente, com o ícone de copiar no CNPJ/CPF;
-- **Demurrage**: período e status; `doc_number`, B/L (com o ícone de copiar), cliente, emissão, vencimento, USD, BRL e status.
+**Filtros.** Em todas as visões ficam sempre abertos o período, **Navio / Viagem** (`VoyageCombobox`) e **Cliente** (o combobox de Cliente do faturamento), com o botão **Exportar planilha**; o resto fica em **Mais filtros**. O rótulo do período diz qual data recorta:
 
-As queries são `['report-operational', filters]`, `['report-financial', filters]`, `['report-customers', filters]` e `['demurrage-report', dateFrom, dateTo, statusFilter]`.
+| Visão | Período | Mais filtros |
+|---|---|---|
+| Operacional | **Criação do B/L de / até** | POL, POD (portos canônicos; a consulta aceita todas as grafias gravadas do mesmo porto), Modalidade, Revisão (Pendente, Em ordem) e Taxas locais (Pendente, Emitida, Paga, Isenta) |
+| Financeiro | **Emissão de / até** | Situação, Consolidada (só consolidadas ou sem elas) e Saldo em aberto (com ou sem saldo) |
+| Por Cliente | **Período de / até** (B/Ls pela criação; faturas pela emissão) | nenhum |
+| Demurrage | **Data do documento de / até**; sem data escolhida, do 1º de janeiro até hoje no calendário de Brasília | Situação, Em disputa e Vencidas (Faturado ou o legado `overdue` com vencimento antes de hoje em Brasília) |
 
-`src/services/reports.ts` define `REPORT_ROW_LIMIT = 2000` para as listas operacional e financeira em tela; as variantes de exportação operacional/financeira removem o limite e carregam o XLSX sob demanda. O relatório por cliente consulta até 4.000 B/Ls e 4.000 invoices (`REPORT_ROW_LIMIT * 2`) antes do agrupamento. Demurrage usa `listDemurrageInvoices` sem limite explícito no service. Não há aviso geral de limite: a descrição da página diz que cada visão informa o seu, e cada aba mostra o aviso só quando o limite é atingido — 2.000 linhas em Operacional e Financeiro, dizendo que a exportação xlsx traz todas as linhas do filtro, e 4.000 em Por Cliente, pedindo para reduzir o período.
+Os filtros ficam no endereço (`de`, `ate`, `viagem`, `cliente` e `clienteNome`, comuns às quatro visões e mantidos na troca de aba; `pol`, `pod`, `modalidade`, `revisao`, `taxas`, `situacao`, `consolidada`, `saldo`, `disputa` e `vencidas`, de cada visão e descartados na troca), aparecem em "Filtros ativos" e vão para a aba **Filtros** da planilha exportada. As colunas das planilhas não mudaram.
 
-Há exportação XLSX nas quatro abas: operacional, financeiro, clientes e demurrage. Cada export respeita o conjunto obtido por sua consulta.
+**Período em Brasília.** As datas de criação e emissão (`TIMESTAMPTZ`) são cortadas em `-03:00` (`brasiliaStartOfDay`/`brasiliaEndOfDay` em `src/services/reports.ts`); a data do documento do Demurrage é `DATE` e compara a data crua.
+
+**Visões:**
+
+- **Operacional**: cartões B/Ls, Containers, Viagens, Peso (em t) e CBM. Tabela: B/L (abre a ficha, com o ícone de copiar), Navio / Viagem, Trecho (POL → POD), Cliente ("Sem cliente vinculado" em âmbar), Containers, Peso (kg), CBM, Revisão ("Pendente" em âmbar ou "Em ordem") e **Taxas locais**, com os estados da lista de BLs e "Paga" com ✓ (`reportLocalChargesState` em `src/lib/chargeStatus.ts`; `LocalChargesStatus` com `showPaid`).
+- **Financeiro**: cartões Saldo em aberto (âmbar acima de zero), Faturas, Emitido, Pago e Canceladas. Tabela: Fatura (abre o detalhe em `/taxas-locais?invoice=`), Cliente, Emissão, Total, Saldo (âmbar só acima de zero) e Situação em texto (Paga com ✓, Cancelada em cinza, linha cancelada em cinza).
+- **Por Cliente**: cartões Emitido, **Clientes com fatura no período**, Top por volume (B/Ls) e Top por faturamento ("—" quando não há). Tabela: Cliente (abre a ficha), CNPJ, B/Ls, Peso, CBM, Faturas, Emitido e Em aberto.
+- **Demurrage**: cartões Total US$ (exceto canceladas), Faturas, Faturado (R$) e Recebido (R$). Tabela: Invoice (abre o detalhe em `/demurrage?fatura=`), B/L, Cliente, Emissão, Vencimento, Total US$, Total R$ e Situação, com os totais em tinta normal.
+
+**Regra comum de faturas.** Financeiro e Por Cliente contam a mesma fatura: emitida no período, sem rascunho e sem cancelada (`countsAsIssuedInvoice` e `summarizeIssuedInvoices`, decisão de 2026-10-19). O valor emitido de fatura de Taxas Locais vem dos recebíveis do B/L, uma vez por recebível (a individual e a consolidada que a cobre apontam o mesmo); granito e avulsa usam o total da fatura. Em aberto soma o saldo dos recebíveis ativos e abertos, ou o saldo da fatura sem recebível. O Por Cliente inclui o Cliente que teve fatura no período mesmo sem B/L criado nele. Com Situação ou Saldo escolhidos no Financeiro, os cartões contam só o recorte filtrado.
+
+**Leitura em páginas e teto.** O servidor entrega no máximo 1.000 linhas por consulta (`max_rows` em `supabase/config.toml`). `fetchAllPages` lê em páginas de 1.000 (ordem estável: data e `id`) até o fim do recorte, com `count: 'exact'` na primeira página. A tela para no teto `REPORT_SCREEN_CEILING` (10.000 linhas por fonte); passando dele, um aviso âmbar diz quantas linhas faltam, que os cartões contam só as mostradas e que a planilha traz todas. A planilha relê o recorte inteiro, sem teto, nas quatro visões. A tabela mostra 50 linhas por página, recortadas no navegador.
+
+**Acesso e erros.** Falta de permissão de leitura das faturas (`42501`) mostra "Sem permissão para ver as faturas" (Financeiro sem cartões nem linhas; Por Cliente com as colunas financeiras zeradas). Sessão expirada é erro da consulta e mostra a mensagem de entrar de novo. Com erro, a tabela mostra só o erro, nunca "nenhum dado" junto (`QueryStateGate`).
+
+As queries são `['report-operational', filters]`, `['report-financial', filters]`, `['report-customers', filters]` e `['demurrage-report', filters]`.
 
 ### `/line-up-tv` e `/line-up-tv/display`
 
@@ -220,11 +237,11 @@ Não há lock otimista na troca de setor nem na reativação. A proteção efeti
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| Consultar operacional | Sessão ativa | Aba/filtros | `fetchOperationalReport`, limite 2.000 | Leitura de `bls` com customers, voyages/vessels/carriers e containers | Cache `['report-operational', filters]`; calcula KPIs no cliente | Erro da query interrompe; limite atingido gera aviso | **Código:** `src/pages/Relatorios.tsx`, `src/services/reports.ts` |
-| Consultar financeiro | Permissão de leitura financeira | Aba/filtros | `fetchFinancialReport`; reconstrói saldo local com receivables | `invoices`, `invoice_receivable_links`, `bl_receivables` | Cache `['report-financial', filters]`; limite 2.000 | `42501`/`PGRST301` retorna estado `accessDenied`, demais erros propagam | **Código:** `src/services/reports.ts`; **Teste:** `src/services/__tests__/reports.test.ts` |
-| Consultar por cliente | Sessão ativa; financeiro pode ser restrito | Aba/período | Carrega B/Ls e invoices, agrega por `customer_id`, deduplica recebíveis | `bls`, `invoices`, `invoice_receivable_links`, `bl_receivables` | Cache `['report-customers', filters]`; até 4.000 linhas por fonte | Sem acesso a invoices, mantém métricas operacionais e zera componente financeiro | **Código:** `src/pages/Relatorios.tsx`, `src/services/reports.ts`; **Teste:** `src/services/__tests__/reports.test.ts` |
-| Consultar demurrage | Sessão ativa | Aba/período/status | `listDemurrageInvoices` | `demurrage_invoices` com customers e B/L/viagem/navio | Cache `['demurrage-report', dateFrom, dateTo, statusFilter]` | Erro exibe `InlineError`; service não define limite explícito | **Código:** `src/pages/Relatorios.tsx`, `src/services/demurrage/demurrageInvoices.ts` |
-| Exportar XLSX | Aba com dados (as quatro abas) | Botão “Exportar xlsx” | Fetch de exportação e import dinâmico de `src/services/exports.ts` (Demurrage: `exportDemurrageReportWorkbook` com as invoices carregadas) | Sem escrita; gera arquivo local | Não invalida cache | Operacional/financeiro podem buscar volume sem limite; falha gera toast | **Código:** `src/pages/Relatorios.tsx`, `src/services/reports.ts`, `src/services/exports.ts` |
+| Consultar operacional | Sessão ativa | Aba/filtros na URL | `fetchOperationalReport` em páginas até o teto da tela | Leitura de `bls` com customers, voyages/vessels/carriers e containers | Cache `['report-operational', filters]`; calcula cartões no cliente | Erro da consulta mostra só o erro; teto atingido gera aviso com as linhas que faltam | **Código:** `src/pages/Relatorios.tsx`, `src/services/reports.ts`; **Teste:** `src/services/__tests__/reports.test.ts`, `src/pages/__tests__/Relatorios.behavior.test.tsx` |
+| Consultar financeiro | Permissão de leitura das faturas | Aba/filtros na URL | `fetchFinancialReport`; reconstrói saldo local com recebíveis; regra comum de faturas | `invoices`, `invoice_receivable_links`, `bl_receivables`; Navio / Viagem por `invoices.voyage_id`, `invoices.bl_id`, `invoice_bls` e `invoice_receivable_links` | Cache `['report-financial', filters]` | `42501` retorna `accessDenied`; sessão expirada e demais erros propagam | **Código:** `src/services/reports.ts`; **Teste:** `src/services/__tests__/reports.test.ts` |
+| Consultar por cliente | Sessão ativa; faturas podem ser restritas | Aba/filtros na URL | Carrega B/Ls e faturas em páginas, agrega por `customer_id` com a regra comum de faturas | `bls`, `invoices`, `invoice_receivable_links`, `bl_receivables` | Cache `['report-customers', filters]`; teto por fonte | Sem permissão nas faturas, mantém métricas operacionais e zera as financeiras | **Código:** `src/pages/Relatorios.tsx`, `src/services/reports.ts`; **Teste:** `src/services/__tests__/reports.test.ts` |
+| Consultar demurrage | Sessão ativa | Aba/filtros na URL | `fetchDemurrageReport` em páginas | `demurrage_invoices` com customers e B/L/viagem/navio | Cache `['demurrage-report', filters]` | Erro da consulta mostra só o erro | **Código:** `src/pages/Relatorios.tsx`, `src/services/reports.ts` |
+| Exportar planilha | Visão com dados | Botão **Exportar planilha** | Relê o recorte inteiro sem teto e importa `src/services/exports.ts` sob demanda; acrescenta a aba **Filtros** | Sem escrita; gera arquivo local | Não invalida cache | Falha gera toast com a mensagem do erro | **Código:** `src/pages/Relatorios.tsx`, `src/services/reports.ts`, `src/services/exports.ts` |
 
 ### `/line-up-tv` e `/line-up-tv/display`
 
@@ -427,7 +444,7 @@ Testes existentes relevantes, não executados nesta cartografia por restrição 
 | Gate SQL | três motivos (Cliente, Portal sem Liberação, peso BB); e-mail de contato não é pendência; Portal e Liberação reprocessam o Cliente | **Teste local-pg:** `src/integration/portalBillingRelease.local-pg.test.ts`; `src/services/__tests__/reviewGateCanonicalMigration.test.ts` e `src/services/__tests__/reviewGateHardeningMigration.test.ts` são contrato das migrations arquivadas `128` e `129` (histórico; o primeiro ainda afirma a trava de e-mail que a `085` removeu) |
 | Onboarding do grupo | `complete_review_customer_group` executado na cadeia ativa | **Teste local-pg:** `src/integration/auditoriaImportacaoCargaSolta.local-pg.test.ts` |
 | Auto-faturamento | recálculo, invoice, review_required, valor zero e erro | **Teste:** `src/services/__tests__/reviewBillingAutomation.test.ts` |
-| Relatórios | saldos por receivables e deduplicação por cliente | **Teste:** `src/services/__tests__/reports.test.ts` |
+| Relatórios | saldos por recebíveis, regra comum de faturas (Financeiro = Por Cliente), leitura em páginas até o fim, período em `-03:00`, abas pelo teclado e filtros no endereço | **Teste:** `src/services/__tests__/reports.test.ts`, `src/pages/__tests__/Relatorios.behavior.test.tsx`, `src/lib/__tests__/chargeStatus.test.ts` |
 | Navegação financeira | badge/alerta no menu | **Teste:** `src/components/layout/__tests__/AppLayout.test.ts` |
 | Alertas e notificações | entrega à audiência e nova ocorrência ao avançar o marco; dois itens por departamento no mesmo agregado do ADR com fan-out; fila e dispensa na tela; sino sem dispensar, fechar ou reconhecer; resumo por setor no Painel | **Teste local-pg:** `src/integration/alertsReviewHardening.local-pg.test.ts`, `src/integration/agencyReportAlertsFoundation.local-pg.test.ts`; **Teste:** `src/pages/__tests__/Alertas.behavior.test.tsx`, `src/components/layout/__tests__/InternalNotificationBell.test.tsx`, `src/pages/__tests__/PainelAlertsSummary.test.tsx` |
 | Regras de Alertas | cobertura dos tipos do catálogo, espelho de gravidade/audiência, ADR por departamento, filtro por setor notificado e deep-link de tipo aposentado | **Teste:** `src/pages/__tests__/AlertasRegrasCatalog.test.tsx`; **Teste de contrato SQL:** `src/pages/__tests__/AlertasCatalogContract.test.ts` com `src/services/__tests__/alertCatalogSql.ts` (lê 16 migrations de catálogo, arquivadas e ativas; não inclui a `008`) |
@@ -445,8 +462,8 @@ Validação runtime futura deve usar ambiente controlado e registrar: papel, B/L
 
 - **Admin sem lock otimista — Código.** A documentação anterior atribuía lock por `updated_at` à edição de usuários, mas `src/services/adminUsers.ts` faz update por `id` sem versão (troca de setor e reativação). Segurança de papel/ativo existe no banco; concorrência continua last-write-wins.
 - **Display não é público — Código.** `/line-up-tv/display` está fora do `AppLayout`, porém dentro de `ProtectedRoute` em `src/AppInterno.tsx`.
-- **Relatórios e limite — Código.** Cada aba avisa o próprio limite só quando ele é atingido (2.000 em Operacional e Financeiro, 4.000 em Por Cliente); as exportações operacional e financeira não aplicam limite e Demurrage não define limite explícito.
-- **Exportações — Código.** As quatro abas expõem XLSX; Demurrage usa `exportDemurrageReportWorkbook`. O export respeita os dados carregados e seus limites; não equivale a consulta ilimitada.
+- **Relatórios e limite — Código + Teste.** As quatro visões leem em páginas de 1.000 até o fim, com teto de 10.000 linhas por fonte na tela e aviso das linhas que faltam; a planilha lê o recorte inteiro (lote 5b, achado R2). Antes, a tela esperava 2.000 linhas e o servidor entregava 1.000, e o aviso nunca aparecia.
+- **Exportações — Código.** As quatro visões exportam planilha relendo o recorte inteiro, com os filtros na aba **Filtros**; Demurrage usa `exportDemurrageReportWorkbook`.
 - **CE Mercante — Código + Teste de contrato SQL.** O bloqueio de CE Mercante permanece na validação do faturamento; o predicado morto `needsCeMercante` foi removido da fila de revisão manual, que não trata esse motivo como pendência própria.
 - **Tipos de alerta aposentados — Código + Runtime.** Quatro tipos estão inativos no catálogo e não têm produtor: `invoice_overdue`, `invoice_payment_invalid` e `invoice_cancel_blocked` (aposentados nas migrations arquivadas `327`, `347` e `348`; na cadeia ativa já nascem inativos na `002`) e `review_customer_email_missing` (migration `085`). `register_invoice_payment`/`cancel_invoice` apenas gravam a recusa em `audit_logs` e devolvem erro ao operador, e o gatilho `route_catalog_alert_insert` exclui os dois tipos de recusa (`002`). `/alertas/regras` não os lista; só o rótulo (`TYPE_LABELS`) permanece, para itens históricos continuarem legíveis na fila. O rótulo Runtime cobre uma verificação pontual, anterior à consolidação das migrations: em 2026-08-26, `pg_get_triggerdef` do gatilho `route_catalog_alert_insert` no projeto de produção confirmou os dois tipos na cláusula `WHEN` de exclusão.
 - **Audiência do ADR inclui Documentação em todos os itens — Código.** `alert_type_catalog.audience_departments` do ADR é `{documentacao}`; como a entrega soma o departamento do item, Documentação recebe também as notificações dos itens de Operações e Equipamentos. O agrupamento da fila continua pelo departamento do item.

@@ -90,9 +90,6 @@
       "caixa-alta": 1,
       "cor-tailwind": 4
     },
-    "src/pages/Relatorios.tsx": {
-      "cor-tailwind": 7
-    },
     "src/pages/VaziosImportacao.tsx": {
       "hex": 12,
       "caixa-alta": 4,
@@ -126,7 +123,7 @@
       "app-drawer": 5,
       "app-empty": 5,
       "app-escala": 87,
-      "app-field": 17,
+      "app-field": 16,
       "app-filter": 16,
       "app-fin": 13,
       "app-floating": 7,
@@ -198,7 +195,6 @@
       "portal-notifications": 2,
       "portal-profile": 4,
       "print-hidden": 1,
-      "reports-filter": 3,
       "review-code": 2,
       "review-inline": 4,
       "review-link": 4,
