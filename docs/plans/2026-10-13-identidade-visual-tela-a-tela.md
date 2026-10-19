@@ -231,6 +231,31 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   migration `299`); (3) tracking com a marca `{BL}` no link do armador; (4)
   tudo na mesma PR. O "E-mail atual" do Perfil pediu a migration `300` (só a
   sessão do Cliente o recebe). Registro abaixo.
+- **Lote 5 confirmado em 2026-10-19 e dividido em 5a e 5b** pelo
+  responsável, para cada página de aprovação ficar do tamanho dos lotes
+  anteriores. **5a:** Painel, fila de Alertas e Regras de alertas (13),
+  Provisionamento do Portal, Comunicação e a faixa do Modo Inspeção (16).
+  **5b:** Granito com as tarifas, Vazios de importação e Embarque de vazios
+  (17), Relatórios e Administração com as cinco abas (18). O 5b é proposto
+  depois do 5a.
+- **Lote 5a proposto em 2026-10-19** numa página só ("Lote 5a da
+  identidade", na conta do responsável), com capturas da `main` de
+  2026-10-19 (depois das PRs 975 a 979) no ambiente local, a 1440 e 360 px,
+  com o login interno de teste e dados acrescentados só para a captura (uma
+  rodada dos detectores de alertas, uma dispensa e quatro Comunicados no
+  Histórico). Achados fora da mudança visual, propostos para correção no
+  próprio lote: (A1) o Painel não tem cartão do Administrativo, responsável
+  por 10 dos 48 tipos de alerta; (A2) mensagens de alerta com texto técnico
+  ("Cliente sem_cliente", "a viagem 10", a mesma frase genérica do Portal em
+  toda linha, "migração 318" num aviso); (A3) o Provisionamento marca
+  "Crítico" todo Cliente com alerta do tipo agrupado, o que inclui os
+  normais (`portal_list_provisioning_console`, migration `250`); (A4) a fila
+  do Provisionamento mostra o primeiro contato como e-mail de recuperação
+  quando nenhum foi gravado, e a linha aberta diz "Em ordem" sem e-mail;
+  (A5) "Sair da inspeção" sempre volta ao Provisionamento, mesmo aberta pela
+  ficha do Cliente; (A6) "Reparo automático da fila do Portal durante a
+  leitura." no Histórico do Portal. Aguarda a resposta do responsável, tela
+  a tela.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -464,7 +489,8 @@ lotes tratam só da organização de cada tela.
 | 2 | Operação do dia a dia: Revisão (6), Chegadas e Saídas e programação do Portal (4), Demurrage (8), Containers, Veículos e Baplie (14); listas de Viagens e de Clientes; Tarifas de Demurrage (`/demurrage/taxas`, da tela 8) | Entregue em 2026-10-16: Revisão (branch `claude/sweet-turing-r2tdp1`) e as demais telas, os quatro achados, o número `DEM-AAAA-NNNN` e as abas sombreadas (branch `claude/practical-cray-mpdw1p`), com a revisão da PR 969 (migrations `294` e `295`) |
 | 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Entregue em 2026-10-16 (aprovado na rodada 2 da página "Lote 3 da identidade"), branch `claude/serene-edison-ibuix9` |
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Aprovado em 2026-10-18 (todas as telas, três rodadas) e entregue em 2026-10-18 na PR 972, branch `claude/laughing-meitner-3rfy0l`, com as migrations `298` a `301` |
-| 5 | Apoio e administração: Painel e Alertas (13), Provisionamento, Comunicação e Modo Inspeção (16), Granito, Vazios e depots (17), Relatórios e Administração (18) | Proposto, a confirmar |
+| 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto em 2026-10-19 (página "Lote 5a da identidade"), aguarda resposta |
+| 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado em 2026-10-19; proposto depois do 5a |
 | 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21) | Proposto, a confirmar |
 
 O lote 2 vem logo depois do 1 por ser onde a operação passa mais tempo; o 6
@@ -509,12 +535,12 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 | 10 | Portal: Faturas, PIX, consolidada e disputa | `/portal/billing` e inspeção | Pix abaixo dos itens no detalhe; saldo pendente diverge entre telas (regra de dado, à parte) | Faturas (Taxas Locais e Demurrage) entregues em 2026-10-14 (lote 1), com o Saldo pendente da inspeção corrigido (migration `225`); detalhe por situação, Pix em faixa baixa, Pagamentos recebidos, consolidada com filtros, tela de Disputas, Invoice complementar e restituições entregues em 2026-10-18 (lote 4, PR 972) |
 | 11 | Portal: B/Ls e Containers | `/portal/operacao` e inspeção | | Entregue em 2026-10-18 (lote 4, PR 972) |
 | 12 | Portal: Painel, Central de Informações, Desbloqueio de CE, Perfil | `/portal`, `/portal/informacoes`, `/portal/desbloqueio-ce`, `/portal/perfil` | | Entregue em 2026-10-18 (lote 4, PR 972), com a peça comum dos Documentos anuais VIP |
-| 13 | Painel, Alertas | `/painel`, `/alertas`, `/alertas/regras` | | Pendente |
+| 13 | Painel, Alertas | `/painel`, `/alertas`, `/alertas/regras` | | Proposto em 2026-10-19 (lote 5a) |
 | 14 | Containers, Veículos, Baplie | `/containers`, `/veiculos`, `/baplie` | | Entregue em 2026-10-16 (lote 2), branch `claude/practical-cray-mpdw1p` |
 | 15 | Desbloqueio de CE interno | `/desbloqueio-ce` | | Entregue em 2026-10-16 (lote 3), com a aba "Andamento dos B/Ls" |
-| 16 | Provisionamento, Comunicação, Modo Inspeção | `/clientes/portal`, `/clientes/comunicacao`, faixa de inspeção | Abas de Clientes (`ClientesTabs`) abaixo do cabeçalho e vistas da Comunicação em controle segmentado desde 2026-10-16 (lote 2) | Pendente (lote 5) |
-| 17 | Granito, Vazios, depots | `/granito`, `/vazios-importacao`, `/embarquevazios` | `VaziosImportacaoPreview` com cores fixas do tema escuro | Pendente |
-| 18 | Relatórios e Administração | `/relatorios`, `/admin/:tab` | | Pendente |
+| 16 | Provisionamento, Comunicação, Modo Inspeção | `/clientes/portal`, `/clientes/comunicacao`, faixa de inspeção | Abas de Clientes (`ClientesTabs`) abaixo do cabeçalho e vistas da Comunicação em controle segmentado desde 2026-10-16 (lote 2) | Proposto em 2026-10-19 (lote 5a) |
+| 17 | Granito, Vazios, depots | `/granito`, `/vazios-importacao`, `/embarquevazios` | `VaziosImportacaoPreview` com cores fixas do tema escuro | Pendente (lote 5b) |
+| 18 | Relatórios e Administração | `/relatorios`, `/admin/:tab` | | Pendente (lote 5b) |
 | 19 | Importações (modais comuns) | modais de importação | | Pendente |
 | 20 | Documentos impressos | faturas, recibos, ADR | Marca Transhipping; só regras de impressão. Visual mantido por decisão de 2026-10-13 | Regras de impressão e comportamento entregues em 2026-10-14 (PR 939); restam, sem mudar o visual: taxas com ponto decimal (`60.00`), CNPJ sem máscara no resumo por Cliente, rótulos em inglês ("From/To") e textos de 9–11 px |
 | 21 | Login, acesso e perfil | `/login`, `/portal/login` e telas públicas | | Pendente |
