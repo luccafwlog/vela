@@ -1,7 +1,8 @@
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Clock, FileText } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronRight, Clock, FileText } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { EmptyState } from '../ui/Card'
@@ -540,16 +541,12 @@ function ContainerRow({
       <td className="tabular-nums">{result ? periodValue(result.days_p2, result.rate_p2_usd) : <NoValue label="Sem dias calculados" />}</td>
       <td title={billed.length ? 'Recalculado hoje; o valor cobrado é o da Invoice' : undefined}><UsdCell calc={calc} /><BilledIn container={container} onOpenInvoice={onOpenInvoice} /></td>
       <td className="app-dem-row-action">
-        <Button
-          type="button"
-          variant="secondary"
-          className="app-btn--sm"
-          aria-label={`Editar datas de ${container.container_number}`}
+        <RowActionButton
+          label={`Editar datas de ${container.container_number}`}
+          icon={CalendarDays}
           disabled={disabled}
           onClick={() => onEdit(container)}
-        >
-          Editar datas
-        </Button>
+        />
       </td>
     </tr>
   )

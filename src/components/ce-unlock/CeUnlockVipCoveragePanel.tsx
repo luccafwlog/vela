@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, MoreVertical } from "lucide-react";
+import { BadgeCheck, FileSearch, MoreVertical } from "lucide-react";
 import {
   ceUnlockCommand,
   getCeUnlockVip,
@@ -19,6 +19,7 @@ import { formatDate } from "../../lib/utils";
 import { coveredUntil } from "../../lib/ceUnlockCoverage";
 import { ceDocumentName } from "../../lib/ceUnlockLabels";
 import { Button } from "../ui/Button";
+import { RowActionButton } from "../ui/RowActionButton";
 import { InlineError } from "../ui/Card";
 import { Field, Input } from "../ui/Input";
 import { useConfirm, useConfirmWithReason } from "../ui/ConfirmDialog";
@@ -174,15 +175,14 @@ export function CeUnlockVipCoveragePanel({
   const actions = (d: CeUnlockDocument, current: boolean) => {
     if (current && (d.status === "uploaded" || d.status === "changes_requested"))
       return (
-        <Button
-          className="app-btn--sm"
+        <RowActionButton
+          variant="primary"
+          label={`Analisar ${lower(d.type)}`}
+          icon={FileSearch}
           disabled={busy}
-          aria-label={`Analisar ${lower(d.type)}`}
           aria-expanded={analyzing === d.id}
           onClick={() => analyze(d)}
-        >
-          Analisar
-        </Button>
+        />
       );
     if (annualDocumentValid(d))
       return (

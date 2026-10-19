@@ -17,6 +17,11 @@ describe('RowActionButton', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
+  it('aceita uma dica própria no title sem trocar o nome acessível', () => {
+    render(<RowActionButton label="Resolver" icon={Trash2} title="Ver Demurrage" />)
+    expect(screen.getByRole('button', { name: 'Resolver' }).getAttribute('title')).toBe('Ver Demurrage')
+  })
+
   it('em andamento, fica desativado', () => {
     render(<RowActionButton label="Editar" icon={Trash2} loading />)
     expect((screen.getByRole('button', { name: 'Editar' }) as HTMLButtonElement).disabled).toBe(true)

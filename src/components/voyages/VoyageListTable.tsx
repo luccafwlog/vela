@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Block } from '../ui/Block'
-import { Button } from '../ui/Button'
+import { Pencil } from 'lucide-react'
+import { RowActionButton } from '../ui/RowActionButton'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
 import { formatDate } from '../../lib/utils'
@@ -75,7 +76,7 @@ export function VoyageListTable({ items, breakbulkTons, breakbulkError = false, 
                   <td className="tabular-nums">{ce && ce.total > 0 ? (ce.filled < ce.total ? <StatusText tone="warning">{ce.filled} de {ce.total}</StatusText> : `${ce.filled} de ${ce.total}`) : <NoValue label="Sem B/L" />}</td>
                   <td className="app-table__text">{item.estado === 'conciliado' ? CONCILIACAO_LABEL[item.estado] : item.estado === 'verificando' ? <StatusText tone="muted">{CONCILIACAO_LABEL[item.estado]}</StatusText> : <StatusText tone="warning">{CONCILIACAO_LABEL[item.estado]}</StatusText>}</td>
                   {onEdit ? (
-                    <td>{item.status === 'cancelled' ? null : <Button variant="secondary" className="app-btn--sm" onClick={() => onEdit(item.id)} aria-label={`Editar viagem ${item.vesselName} / ${item.voyageNumber}`}>Editar</Button>}</td>
+                    <td>{item.status === 'cancelled' ? null : <RowActionButton label={`Editar viagem ${item.vesselName} / ${item.voyageNumber}`} icon={Pencil} onClick={() => onEdit(item.id)} />}</td>
                   ) : null}
                 </tr>
               )

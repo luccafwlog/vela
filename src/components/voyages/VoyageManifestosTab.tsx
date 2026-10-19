@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { ManifestoBlsModal } from './ManifestoBlsModal'
 import { useVoyageTransshipments } from '../../hooks/useTransshipments'
 import { useManifestosMercanteByVoyage } from '../../hooks/useManifestosMercante'
-import { Button } from '../ui/Button'
+import { FilePlus2, List, Pencil } from 'lucide-react'
+import { RowActionButton } from '../ui/RowActionButton'
 import { Block } from '../ui/Block'
 import { StatusText } from '../ui/StatusText'
 import { NoValue } from '../ui/NoValue'
@@ -127,38 +128,29 @@ export function VoyageManifestosTab({
                       <td className="whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           {!row.isVazios && row.blCount > 0 ? (
-                            <Button
-                              variant="secondary"
-                              className="app-btn--sm"
-                              aria-label={`Ver B/Ls de ${row.routeLabel}`}
+                            <RowActionButton
+                              label={`Ver B/Ls de ${row.routeLabel}`}
+                              icon={List}
                               title="Ver B/Ls: mover ou desvincular de Manifesto Mercante"
                               onClick={() => setBlsRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel })}
                               disabled={!canEdit}
-                            >
-                              Ver B/Ls
-                            </Button>
+                            />
                           ) : null}
                           {manifestPending ? (
-                            <Button
-                              variant="secondary"
-                              className="app-btn--sm"
-                              aria-label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
+                            <RowActionButton
+                              label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
+                              icon={FilePlus2}
                               onClick={() => onEditPol(editPayload)}
                               disabled={cannotEdit}
-                            >
-                              Informar manifesto
-                            </Button>
+                            />
                           ) : (
-                            <Button
-                              variant="secondary"
-                              className="app-btn--sm"
-                              aria-label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
+                            <RowActionButton
+                              label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
+                              icon={Pencil}
                               title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
                               onClick={() => onEditPol(editPayload)}
                               disabled={cannotEdit}
-                            >
-                              Editar
-                            </Button>
+                            />
                           )}
                         </div>
                       </td>

@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronRight, Eye, History, Info, Paperclip, Pencil, RotateCcw, Send, Ship, Users } from 'lucide-react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
+import { RowActionButton } from '../components/ui/RowActionButton'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
 import { Switch } from '../components/ui/Switch'
@@ -1649,9 +1650,7 @@ function ConferenceRow({
         {resendLabel ? <span className="text-[var(--app-muted)]"> · {resendLabel}</span> : null}
       </td>
       <td>
-        <Button type="button" variant="secondary" className="app-btn--sm" onClick={onPreview}>
-          <Eye size={13} aria-hidden="true" /> Ver e-mail
-        </Button>
+        <RowActionButton label="Ver e-mail" icon={Eye} onClick={onPreview} />
       </td>
     </tr>
   )
