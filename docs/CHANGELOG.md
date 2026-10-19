@@ -9,8 +9,9 @@
 - **Advisor do Supabase de 19/10 (2026-10-19):** nenhuma função é executável antes do login:
   `portal_ship_schedule()` passou a exigir sessão, porque o Portal só a chama depois do login
   ([ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); dez funções de trigger que em
-  produção tinham `EXECUTE` para `PUBLIC` foram fechadas; 23 funções ganharam `search_path` fixo;
-  41 chaves estrangeiras de B/L, faturas e Demurrage ganharam índice (migration `319`).
+  produção tinham `EXECUTE` para `PUBLIC` foram fechadas; 19 funções ganharam `search_path` fixo
+  (quatro funções SQL usadas linha a linha ficam sem, para não deixar listas e importações mais
+  lentas); 41 chaves estrangeiras de B/L, faturas e Demurrage ganharam índice (migration `319`).
 - **Correção dos e-mails do sistema (2026-10-18, PR #973):** os e-mails passam a
   falhar de forma visível e a não repetir em loop.
   - **Envio:** tempo limite e falhas classificadas no envio comum. O Comunicado

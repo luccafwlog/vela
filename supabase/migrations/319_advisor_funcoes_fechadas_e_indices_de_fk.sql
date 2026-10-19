@@ -30,19 +30,16 @@
 --      de `postgres` (global e em `public`) e falha o deploy se sobrar função
 --      do projeto executável por `anon` ou trigger executável por cliente
 --      (ADR 0090).
---   2. `ALTER FUNCTION ... SET search_path = ''` nas 23 funções. Custo
---      conhecido: função SQL com `SET` não é mais expandida inline pelo
---      planejador; no Postgres 16 local, 200 mil chamadas de
---      `bl_cargo_mode_matches_filter` passaram de ~90 ms para ~990 ms e de
---      `normalize_port_code` de ~340 ms para ~2.850 ms (5 a 12 µs por linha).
---      Reverter uma delas: `ALTER FUNCTION <assinatura> RESET search_path`.
+--   2. `ALTER FUNCTION ... SET search_path = ''` em 19 das 23 funções. As
+--      outras quatro ficam como estão por desempenho (decisão do responsável
+--      em 19/10/2026, PR 975): ver o bloco 2 abaixo.
 --   3. `CREATE INDEX IF NOT EXISTS` nas 41 FKs. As tabelas têm de 0 a 3.217
 --      linhas; o bloqueio de escrita durante a criação é desprezível.
 --
 -- Não reescreve nem apaga linhas.
 -- Rollback: `GRANT EXECUTE ON FUNCTION public.portal_ship_schedule() TO anon`
 -- (reabre a vitrine; exige revisar a ADR 0090), `ALTER FUNCTION ... RESET
--- search_path` e `DROP INDEX` dos índices `idx_*` criados aqui. Não há
+-- search_path` nas 19 e `DROP INDEX` dos índices `idx_*` criados aqui. Não há
 -- motivo para devolver EXECUTE a PUBLIC nas funções de trigger: elas rodam
 -- pelo trigger com o privilégio do dono, nunca por chamada direta.
 
@@ -120,6 +117,25 @@ $fechadas$;
 -- ===========================================================================
 -- Corpos inalterados: só usam pg_catalog (sempre pesquisado) ou nomes com
 -- schema. ALTER FUNCTION preserva corpo, dono e ACL.
+--
+-- ponytail: quatro funções `LANGUAGE sql` ficam SEM `SET search_path`, de
+-- propósito, porque rodam linha a linha em volume e função SQL com `SET` deixa
+-- de ser expandida inline pelo planejador. Medido no Postgres 16 local, 200
+-- mil linhas, sem `SET` -> com `SET`:
+--   - bl_cargo_mode_matches_filter (filtro de modalidade das listas de B/L e
+--     containers): ~90 ms -> ~990 ms;
+--   - normalize_port_code (portos nas importações e conferências de POD, 27
+--     funções): ~340 ms -> ~2.850 ms;
+--   - bl_operation_front_modalidade (modalidade por B/L nos comunicados
+--     automáticos e na Atracação): ~110 ms -> ~570 ms;
+--   - _import_effect_priority (ordem da fila de efeitos de importação):
+--     ~40 ms -> ~690 ms.
+-- O risco que fica é pequeno: nenhuma é SECURITY DEFINER e o corpo só chama
+-- pg_catalog, que o PostgreSQL pesquisa antes do search_path do chamador. O
+-- advisor continua listando as quatro (lint 0011). A suíte local-pg
+-- advisorFuncoesFechadas as aceita só enquanto continuarem SQL sem DEFINER;
+-- se uma delas passar a chamar outra função do projeto, qualifique o nome
+-- (`public.`) ou dê a ela o `SET`.
 
 ALTER FUNCTION ce_unlock_private.sla_deadline(timestamp with time zone) SET search_path = '';
 ALTER FUNCTION ce_unlock_private.today() SET search_path = '';
@@ -127,7 +143,6 @@ ALTER FUNCTION public._demurrage_ptax_from_roe(numeric) SET search_path = '';
 ALTER FUNCTION public._demurrage_roe_from_ptax(numeric) SET search_path = '';
 ALTER FUNCTION public._demurrage_roe_markup() SET search_path = '';
 ALTER FUNCTION public._demurrage_spread_version() SET search_path = '';
-ALTER FUNCTION public._import_effect_priority(text) SET search_path = '';
 ALTER FUNCTION public.agency_report_alert_entity_id(bigint, text, text, text) SET search_path = '';
 ALTER FUNCTION public.agency_report_alert_entity_key(bigint, text, text) SET search_path = '';
 ALTER FUNCTION public.agency_report_alert_entity_prefix(bigint, text, text) SET search_path = '';
@@ -135,13 +150,10 @@ ALTER FUNCTION public.agency_report_deadline_date(date) SET search_path = '';
 ALTER FUNCTION public.agency_report_department_label(text) SET search_path = '';
 ALTER FUNCTION public.agency_report_section_label(text) SET search_path = '';
 ALTER FUNCTION public.agency_report_section_owner(text) SET search_path = '';
-ALTER FUNCTION public.bl_cargo_mode_matches_filter(text, text) SET search_path = '';
-ALTER FUNCTION public.bl_operation_front_modalidade(text) SET search_path = '';
 ALTER FUNCTION public.customer_rate_overrides_validate_range() SET search_path = '';
 ALTER FUNCTION public.demurrage_dispute_messages_immutable() SET search_path = '';
 ALTER FUNCTION public.extract_ncm_codes(text) SET search_path = '';
 ALTER FUNCTION public.normalize_ncm_codes(jsonb) SET search_path = '';
-ALTER FUNCTION public.normalize_port_code(text) SET search_path = '';
 ALTER FUNCTION public.prevent_import_effect_attempt_mutation() SET search_path = '';
 ALTER FUNCTION public.trg_manifestos_mercante_updated_at() SET search_path = '';
 

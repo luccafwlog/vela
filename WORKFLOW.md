@@ -446,7 +446,9 @@ plano de preservação.
 - tabelas novas precisam de RLS ou revogação explícita para uso servidor;
 - toda função fixa `search_path` (`SET search_path = ''` com nomes qualificados,
   ou `public, pg_temp` nas `SECURITY DEFINER`); a suíte local-pg
-  `advisorFuncoesFechadas` falha com função sem ele;
+  `advisorFuncoesFechadas` falha com função sem ele, salvo as quatro funções
+  SQL de volume que ficam inline por desempenho
+  ([Segurança](./docs/operations/seguranca.md#rls-first));
 - revogue `PUBLIC` e `anon` no mesmo arquivo por padrão;
 - grants pré-autenticação para `anon` exigem decisão explícita, controles contra
   abuso e teste focado;

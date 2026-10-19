@@ -4,8 +4,8 @@ import { describeWithProbe } from './localTestData'
 
 // Migration 319 (advisor do Supabase de 19/10/2026, ADR 0090): nenhuma função
 // do projeto executável por `anon`, trigger fora do alcance dos clientes,
-// `search_path` fixo em toda função e índice nas FKs de B/L, faturas e
-// Demurrage. Varre o catálogo inteiro, não a lista da 319: função nova que
+// `search_path` fixo em toda função (menos quatro SQL de volume, nomeadas
+// abaixo) e índice nas FKs de B/L, faturas e Demurrage. Varre o catálogo inteiro, não a lista da 319: função nova que
 // nascer aberta ou sem `search_path` derruba esta suíte no CI, antes do advisor.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -36,6 +36,16 @@ const PROJECT_FUNCTIONS = `
       SELECT 1 FROM pg_depend d
       WHERE d.objid = p.oid AND d.classid = 'pg_proc'::regclass AND d.deptype = 'e'
     )`
+
+// Sem `SET search_path` por desempenho (bloco 2 da migration 319): rodam linha
+// a linha em listas de B/L, importações e fila de efeitos. Chamada de prova
+// para conferir no plano que continuam expandidas inline.
+const INLINE_SEM_SEARCH_PATH: ReadonlyArray<readonly [string, string]> = [
+  ['public._import_effect_priority(text)', 'public._import_effect_priority(v.x)'],
+  ['public.bl_cargo_mode_matches_filter(text,text)', "public.bl_cargo_mode_matches_filter(v.x, 'container')"],
+  ['public.bl_operation_front_modalidade(text)', 'public.bl_operation_front_modalidade(v.x)'],
+  ['public.normalize_port_code(text)', 'public.normalize_port_code(v.x)'],
+]
 
 function migration319Applied(): boolean {
   if (!enabled) return false
@@ -85,24 +95,38 @@ describeLocal('319 — funções fechadas, search_path fixo e índices de FK', (
     expect(privileges.split(',').filter((grant) => !grant.startsWith('service_role '))).toEqual([''])
   })
 
-  it('toda função do projeto fixa search_path', () => {
+  it('toda função do projeto fixa search_path, menos as quatro SQL de volume', () => {
     expect(lines(psql(`SELECT p.oid::regprocedure ${PROJECT_FUNCTIONS}
       AND p.prokind IN ('f', 'p')
       AND NOT EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig, '{}')) c WHERE c LIKE 'search_path=%')
-      ORDER BY 1;`))).toEqual([])
+      ORDER BY 1;`)).sort()).toEqual(INLINE_SEM_SEARCH_PATH.map(([signature]) => signature.replace('public.', '')).sort())
+  })
+
+  it('as quatro de volume seguem SQL simples, sem DEFINER e expandidas inline', () => {
+    // A exceção só se justifica enquanto o planejador cola a função na
+    // consulta (decisão do responsável em 19/10/2026, PR 975): com SET, ou
+    // virando plpgsql/DEFINER, ela volta a ser chamada linha a linha.
+    for (const [signature, call] of INLINE_SEM_SEARCH_PATH) {
+      expect(psql(`SELECT l.lanname || ':' || p.prosecdef FROM pg_proc p JOIN pg_language l ON l.oid = p.prolang
+        WHERE p.oid = '${signature}'::regprocedure;`)).toBe('sql:false')
+      // Entrada variável: com constante o planejador calcula a função antes e o
+      // plano não mostra a diferença.
+      const plan = psql(`EXPLAIN (VERBOSE, COSTS OFF) SELECT ${call} FROM (SELECT 'misto' || g AS x FROM generate_series(1, 2) g) AS v;`)
+      expect(plan).not.toContain(signature.split('(')[0].replace('public.', ''))
+    }
   })
 
   it('search_path vazio não muda o resultado das funções puras', () => {
     // Um search_path hostil do chamador não alcança mais o corpo.
     expect(psql(`SET search_path = pg_temp, public;
       SELECT concat_ws('|',
-        public.normalize_port_code(' vitória '),
-        public.bl_cargo_mode_matches_filter('misto', 'container'),
+        public.normalize_ncm_codes('["5509.12", "x"]')::text,
+        public.agency_report_section_owner('veiculos'),
         public._demurrage_roe_from_ptax(5),
         public.agency_report_alert_entity_id(1, 'brssz', NULL, 'x'),
         public.agency_report_deadline_date('2026-10-16'),
         ce_unlock_private.sla_deadline('2026-10-17 15:00-03') AT TIME ZONE 'America/Sao_Paulo');`))
-      .toBe('BRVIX|t|5.3250|1::BRSSZ::x|2026-10-21|2026-10-19 12:00:00')
+      .toBe('{550912}|equipamentos|5.3250|1::BRSSZ::x|2026-10-21|2026-10-19 12:00:00')
   })
 
   it('FK de B/L, faturas e Demurrage tem índice que começa pelas suas colunas', () => {

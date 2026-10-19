@@ -41,7 +41,9 @@ O replay local as cria fechadas, então o CI não enxergava a diferença.
    executável por `anon` ou trigger executável por cliente, em vez de deixar o
    advisor descobrir depois.
 4. A suíte local-pg varre o catálogo inteiro: função nova executável por
-   `anon`, trigger aberta, função sem `search_path` fixo ou FK de B/L, fatura
+   `anon`, trigger aberta, função sem `search_path` fixo (fora as quatro
+   funções SQL de volume que ficam inline por desempenho, em
+   [Segurança](../operations/seguranca.md#rls-first)) ou FK de B/L, fatura
    ou Demurrage sem índice falham o CI.
 
 Reabrir uma leitura antes do login exige ADR nova, grant explícito, controle
