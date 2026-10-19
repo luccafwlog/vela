@@ -110,8 +110,8 @@ refutá-lo.
 
 - **Arquivado em 2026-10-19 por decisão do responsável:** as Fases 0 a 5
   estão em produção. Ligar a chave de envio real é decisão separada, que não
-  depende deste plano; a Fase 6 fica como lista de conferência para quando ela
-  for tomada. Não estavam registrados como feitos: os envios de teste reais de
+  depende deste plano. A lista da Fase 6 passou para
+  [Serviços externos](../../operations/servicos-externos.md#antes-de-ligar-a-chave-de-envio-real). Não estavam registrados como feitos: os envios de teste reais de
   cada tipo com o bounce provocado, a limpeza dos dados de teste (D1) e o
   `/fail` provocado nos heartbeats.
 

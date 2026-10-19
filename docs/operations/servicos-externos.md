@@ -598,6 +598,25 @@ mesmos.
   histórico anterior de mensagens marcadas **Delivered** no Resend sem entrega
   nas caixas foi encerrado; não há ação de TI pendente registrada.
 
+### Antes de ligar a chave de envio real
+
+A chave `app_settings.communications_enabled` ([Clientes](../modules/clientes.md#chave-de-envio-de-comunicados))
+está desligada. Ligar é decisão do responsável; antes, conferir:
+
+1. Um envio de teste real de cada tipo chegou a um endereço controlado: NOA,
+   NOR, NOB, CE e Taxas, institucional, livre com anexo, Cobrança de Demurrage
+   unitária e agrupada, e aviso do Desbloqueio de CE. Para cada um, o evento
+   "entregue" voltou pelo webhook, e um bounce provocado suprimiu o endereço e
+   abriu o Alerta.
+2. O que ficou `simulado` não sai de novo (D1): os dados de teste foram limpos
+   com `supabase/scripts/limpar_dados_teste.sql`, seguindo
+   [reset do ambiente](reset-ambiente.md).
+3. Os heartbeats dos jobs de e-mail (tabela de [jobs agendados](#jobs-agendados-pg_cron))
+   estão verdes, e um `/fail` provocado chegou ao Better Stack.
+
+Pendentes em 2026-10-19 os três itens. Origem e detalhes na Fase 6 do
+[plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md).
+
 ### ImprovMX (recebimento)
 
 Não há caixa de e-mail nos domínios do sistema; o ImprovMX só encaminha.
