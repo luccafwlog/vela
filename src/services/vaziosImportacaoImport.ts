@@ -4,8 +4,8 @@ import { supabase } from './supabase'
 import { escapeFilterTerm } from '../lib/utils'
 import { parseImportNumber } from '../lib/importNumber'
 import { IsoContainerSchema, LocodeSchema } from './importValidation'
-import { resolvePortCode } from './portCode'
-import type { VaziosImportacaoContainerListItem, VaziosImportacaoManifest } from '../types/database'
+import { normalizePortCode, resolvePortCode } from './portCode'
+import type { VaziosImportacaoContainerListItem } from '../types/database'
 
 const HEADER_MAP: Record<string, string> = {
   'container': 'container_number',
@@ -73,7 +73,7 @@ export async function parseVaziosImportacaoBuffer(buffer: ArrayBuffer): Promise<
   const { missing } = matchHeaders(headers, VAZIOS_IMPORTACAO_HEADER_SPEC)
   if (missing.length) {
     const labels = missing.map((field) => VAZIOS_IMPORTACAO_HEADER_LABELS[field])
-    throw new Error(`Planilha invalida. Colunas obrigatorias: ${labels.join(', ')}.`)
+    throw new Error(`Planilha inválida. Colunas obrigatórias: ${labels.join(', ')}.`)
   }
   const mapRow = createHeaderMapper(rows[0], HEADER_MAP)
 
@@ -194,9 +194,10 @@ export type VaziosImportacaoRoute = { pol: string; pod: string }
 export const vaziosRouteKey = (route: VaziosImportacaoRoute) => `${route.pol}__${route.pod}`
 
 /**
- * Um Nº de manifesto Mercante para cada porto de origem dos vazios (decisão de
- * 2026-10-01). O manifesto pertence à rota POL/POD, então a planilha precisa de
- * POL e POD em todas as linhas; cada rota encontrada pede o seu número.
+ * Um Nº de manifesto Mercante para cada rota (POL → POD) dos vazios (decisão
+ * de 2026-10-01; achado V3 do lote 5b: o mesmo POL com dois POD pede dois
+ * números). A planilha precisa de POL e POD em todas as linhas; cada rota
+ * encontrada pede o seu número.
  */
 export function resolveVaziosManifestRoutes(
   manifest: Pick<ParsedVaziosImportacaoManifest, 'containers'>,
@@ -205,7 +206,7 @@ export function resolveVaziosManifestRoutes(
   if (manifest.containers.some((container) => !container.pol || !container.pod)) {
     return {
       routes: null,
-      error: 'POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence ao porto de origem.',
+      error: 'POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence à rota (POL → POD).',
     }
   }
   const routes = new Map<string, VaziosImportacaoRoute>()
@@ -236,7 +237,7 @@ export function resolveVaziosManifestNumbers(
   }
   const repeated = manifestos.find((m, index) => manifestos.findIndex((other) => other.numero === m.numero) !== index)
   if (repeated) {
-    return { manifestos: null, error: `O número ${repeated.numero} foi informado para mais de um porto de origem.` }
+    return { manifestos: null, error: `O número ${repeated.numero} foi informado para mais de uma rota.` }
   }
   return { manifestos, error: null }
 }
@@ -358,6 +359,8 @@ export async function getBaplieManifestForVoyage(voyageId: number): Promise<{
 export async function listVaziosImportacaoContainers(filters: {
   manifestId?: string
   voyageId?: string
+  /** Rota do manifesto Mercante escolhido no filtro (com o `pod`). */
+  pol?: string
   pod?: string
   search?: string
   page?: number
@@ -403,6 +406,13 @@ export async function listVaziosImportacaoContainers(filters: {
     query = query.in('manifest_id', ids)
   }
 
+  if (filters.pol) {
+    const safe = escapeFilterTerm(filters.pol)
+    if (safe) {
+      query = query.ilike('pol', safe)
+    }
+  }
+
   if (filters.pod) {
     const safe = escapeFilterTerm(filters.pod)
     if (safe) {
@@ -415,12 +425,44 @@ export async function listVaziosImportacaoContainers(filters: {
   return { rows: (data ?? []) as unknown as VaziosImportacaoContainerListItem[], count: count ?? 0 }
 }
 
-export async function listVaziosImportacaoManifests() {
+/** Manifesto Mercante de vazios de uma rota da Viagem (aba Rotas e Manifestos). */
+export type VaziosMercanteManifesto = {
+  id: string
+  voyage_id: number
+  pol: string
+  pod: string
+  numero: string
+}
+
+/** Manifestos Mercante de natureza `vazio` das Viagens pedidas. */
+export async function listVaziosMercanteManifestos(voyageIds: number[]): Promise<VaziosMercanteManifesto[]> {
+  const ids = Array.from(new Set(voyageIds.filter((id) => Number.isFinite(id))))
+  if (!ids.length) return []
   const { data, error } = await supabase
-    .from('vazios_importacao_manifests')
-    .select('id, description, total_containers, imported_at')
-    .order('imported_at', { ascending: false })
-    .limit(50)
+    .from('manifestos_mercante')
+    .select('id, voyage_id, pol, pod, numero')
+    .eq('natureza', 'vazio')
+    .in('voyage_id', ids)
+    .order('numero')
   if (error) throw error
-  return (data ?? []) as unknown as VaziosImportacaoManifest[]
+  return (data ?? []) as VaziosMercanteManifesto[]
+}
+
+/**
+ * Nº do manifesto Mercante da rota do container: o manifesto de vazios da
+ * mesma Viagem, POL e POD (comparados pela forma canônica do porto). `null`
+ * quando a rota ainda não tem número (vazio do Baplie sem manifesto: a mesma
+ * pendência do alerta "CE Mercante pendente").
+ */
+export function vazioManifestoNumero(
+  container: { pol?: string | null; pod?: string | null; manifest?: { voyage_id?: number | null } | null },
+  manifestos: ReadonlyArray<Pick<VaziosMercanteManifesto, 'voyage_id' | 'pol' | 'pod' | 'numero'>>,
+): string | null {
+  const voyageId = container.manifest?.voyage_id
+  const pol = normalizePortCode(container.pol)
+  const pod = normalizePortCode(container.pod)
+  if (voyageId == null || !pol || !pod) return null
+  const found = manifestos.find((item) =>
+    item.voyage_id === voyageId && normalizePortCode(item.pol) === pol && normalizePortCode(item.pod) === pod)
+  return found?.numero ?? null
 }

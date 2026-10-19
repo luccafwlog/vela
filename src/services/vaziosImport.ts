@@ -82,7 +82,7 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
   const { missing } = matchHeaders(headers, VAZIOS_HEADER_SPEC)
   if (missing.length) {
     const labels = missing.map((field) => VAZIOS_HEADER_LABELS[field])
-    throw new Error(`Planilha invalida. Colunas obrigatorias: ${labels.join(', ')}.`)
+    throw new Error(`Planilha inválida. Colunas obrigatórias: ${labels.join(', ')}.`)
   }
   const mapRow = createHeaderMapper(rows[0], HEADER_MAP)
   const mappedRows = rows.map(mapRow)
@@ -154,11 +154,11 @@ function validateLocalAgainstDepots(
 ): void {
   const depot = depots.find((item) => item.code.trim().toLowerCase() === localCode.trim().toLowerCase())
   if (!depot) {
-    rowErrors.add(rowNumber, `Container ${containerNumber}: local "${localCode}" não encontrado no Cadastro de Terminais.`, row)
+    rowErrors.add(rowNumber, `Container ${containerNumber}: local "${localCode}" não encontrado em Locais (depots e terminais).`, row)
     return
   }
   if (!depot.active) {
-    rowErrors.add(rowNumber, `Container ${containerNumber}: local "${localCode}" está inativo no Cadastro de Terminais.`, row)
+    rowErrors.add(rowNumber, `Container ${containerNumber}: local "${localCode}" está inativo em Locais (depots e terminais).`, row)
     return
   }
   if (depot.tipo === 'depot') {
