@@ -6,6 +6,8 @@ vi.mock('../supabase', () => ({ supabase: { from: mockFrom, rpc: mockRpc } }))
 import {
   brasiliaMonthRange,
   buildCustomerCommunicationConference,
+  communicationPortCode,
+  expandCandidatesForKind,
   customerCommunicationAttemptReason,
   customerCommunicationAttemptStatusLabel,
   fetchCommunicationBlRows,
@@ -23,6 +25,7 @@ import {
   type CustomerCommunicationBatchItem,
 } from '../customerCommunicationDispatches'
 import { renderCustomerCommunicationTemplate } from '../customerCommunicationTemplates'
+import { projectVoyageEscalaSchedules } from '../voyageRouteSchedules'
 import type { CustomerContact } from '../../types/database'
 
 // Testes da Fase 3 do plano dos e-mails (tela /clientes/comunicacao).
@@ -71,6 +74,58 @@ describe('3.4 — conferência manual com a elegibilidade da régua', () => {
     expect(toBaseCandidate(raw({ financial_status: 'cancelled' }))).toBeNull()
     expect(toBaseCandidate(raw({ customer: { id: 99, name: 'C', cnpj_cpf: '1', deactivated_at: '2026-10-01T00:00:00Z' } }))).toBeNull()
     expect(toBaseCandidate(raw({ voyage: { id: 7, voyage_number: 'V7', eta: null, ata: null, status: 'cancelled', vessel: null } }))).toBeNull()
+  })
+
+  // Migration 318: porto pelo normalize_port_code e Escala excluída pela mesma
+  // regra de customer_communication_scale_schedules.
+  const pod = (spelling: string, overrides: Record<string, unknown> = {}) => ({
+    entityId: `7::${spelling}`, voyageId: 7, pod: spelling, eta: '2026-11-01T08:00:00Z', etb: null, ata: null, atb: null,
+    etd: null, atd: null, rtw: null, ceStatus: null, linked: null, escalaNumber: null, deleted: false, omitted: false,
+    ...overrides,
+  })
+  const schedules = (...pods: ReturnType<typeof pod>[]) => new Map([[7, projectVoyageEscalaSchedules({ podSchedules: pods })]])
+
+  it('B/L em BRVIT entra na Escala gravada em BRVIX, como na régua', () => {
+    expect(communicationPortCode(' brvit ')).toBe('BRVIX')
+    expect(communicationPortCode('XXABC')).toBe('XXABC')
+    const expanded = expandCandidatesForKind([candidate({ pod: 'BRVIT', milestoneAt: null })], schedules(pod('BRVIX')), 'aviso_chegada_noa')
+    expect(expanded).toEqual([expect.objectContaining({ pod: 'BRVIT', milestoneAt: '2026-11-01T08:00:00Z' })])
+  })
+
+  it('a Escala excluída na grafia gravada por último some; reincluída na outra, volta', () => {
+    const deletedLater = schedules(
+      pod('BRVIT', { lastChangedAt: '2026-10-19T09:00:00Z' }),
+      pod('BRVIX', { deleted: true, lastChangedAt: '2026-10-19T10:00:00Z' }),
+    )
+    expect(expandCandidatesForKind([candidate({ pod: 'BRVIT' })], deletedLater, 'aviso_chegada_noa')).toEqual([])
+    const recreatedLater = schedules(
+      pod('BRVIT', { deleted: true, lastChangedAt: '2026-10-19T09:00:00Z' }),
+      pod('BRVIX', { lastChangedAt: '2026-10-19T10:00:00Z' }),
+    )
+    expect(expandCandidatesForKind([candidate({ pod: 'BRVIT' })], recreatedLater, 'aviso_chegada_noa')).toHaveLength(1)
+  })
+
+  it('POD excluído com a escala viva pela POL não gera NOB', () => {
+    const withPol = new Map([[7, projectVoyageEscalaSchedules({
+      podSchedules: [pod('BRVIX', { deleted: true })],
+      polSchedules: [{ entityId: '7::BRVIX', voyageId: 7, pol: 'BRVIX', atd: null, etd: null, escalaNumber: null }],
+      terminalStates: [{ voyageId: 7, port: 'BRVIX', stateId: 'state-1', terminalId: 'terminal-1', terminalCode: 'TVV',
+        terminalEtb: null, terminalAtb: '2026-11-01T10:00:00Z', terminalEtd: null, terminalAtd: null, terminalRtw: null, revision: 0 }],
+    })]])
+    expect(withPol.get(7)).toHaveLength(1)
+    expect(expandCandidatesForKind([candidate({ pod: 'BRVIX', terminalOverrideId: 'terminal-1' })], withPol, 'aviso_atracacao_nob')).toEqual([])
+  })
+
+  it('BRVIT e BRVIX do mesmo Cliente são uma linha, e o histórico em BRVIX conta no discriminador', () => {
+    const conference = buildCustomerCommunicationConference({
+      kind: 'aviso_chegada_noa',
+      mode: 'carga',
+      candidates: [candidate({ id: 'BL-1', pod: 'BRVIT' }), candidate({ id: 'BL-2', pod: 'BRVIX' })],
+      contactsByCustomer: new Map([[99, [contact]]]),
+      preferences: [],
+      history: [{ customerId: 99, kind: 'aviso_chegada_noa', anchorVoyageId: 7, anchorPort: 'BRVIX', anchorAtracacaoId: null, anchorInvoiceId: null, attemptDiscriminator: 0 }],
+    })
+    expect(conference.rows.map((row) => [row.bls.map((bl) => bl.id), row.nextAttemptDiscriminator])).toEqual([[['BL-1', 'BL-2'], 1]])
   })
 })
 
