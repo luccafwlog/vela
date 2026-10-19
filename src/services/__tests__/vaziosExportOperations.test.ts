@@ -1,5 +1,23 @@
-import { describe, expect, it } from 'vitest'
-import { computeStorageTotals, summarizeVaziosOperations } from '../vaziosExportOperations'
+import { describe, expect, it, vi } from 'vitest'
+
+const pages = vi.hoisted(() => ({ rows: {} as Record<string, unknown[]>, ranges: [] as Array<[string, number, number]> }))
+vi.mock('../supabase', () => ({
+  supabase: {
+    from: (table: string) => {
+      const builder = {
+        select: () => builder,
+        order: () => builder,
+        range: (from: number, to: number) => {
+          pages.ranges.push([table, from, to])
+          return Promise.resolve({ data: (pages.rows[table] ?? []).slice(from, to + 1), error: null })
+        },
+      }
+      return builder
+    },
+  },
+}))
+
+import { computeStorageTotals, listVaziosExportOperationsWithUnits, summarizeVaziosOperations } from '../vaziosExportOperations'
 
 describe('computeStorageTotals', () => {
   it('soma containers e dias derivados de hand-in/hand-out', () => {
@@ -38,5 +56,19 @@ describe('summarizeVaziosOperations (lista de embarques)', () => {
     expect(summary.map((item) => item.id)).toEqual(['antigo', 'novo'])
     expect(summary[1]).toMatchObject({ unidades: 2, servicos: 30, armazenagemLocais: 1 })
     expect(summary[0]).toMatchObject({ unidades: 1, servicos: 0, armazenagemLocais: 0, atualizadoEm: '2026-10-10T00:00:00Z' })
+  })
+})
+
+describe('listVaziosExportOperationsWithUnits', () => {
+  it('lê os embarques em páginas, sem perder os além de 1.000', async () => {
+    pages.rows.vazios_export_operations = Array.from({ length: 1001 }, (_, index) => ({ id: `op-${index}` }))
+    pages.rows.vazios_bookings = []
+    const { operations } = await listVaziosExportOperationsWithUnits()
+    expect(operations).toHaveLength(1001)
+    expect(operations.at(-1)).toMatchObject({ id: 'op-1000' })
+    expect(pages.ranges.filter(([table]) => table === 'vazios_export_operations')).toEqual([
+      ['vazios_export_operations', 0, 999],
+      ['vazios_export_operations', 1000, 1999],
+    ])
   })
 })

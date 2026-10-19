@@ -82,11 +82,25 @@ export function AdminUsersTab() {
 
   // Setor e credenciais saem da mesma janela: o setor muda primeiro (a recusa do
   // banco, como a do último Administrativo ativo, para tudo) e depois o e-mail ou a senha.
+  // Se as credenciais falharem, o setor volta ao de antes, para a edição não ficar pela metade.
+  // ponytail: compensação no navegador, não transação; o upgrade é uma função só no servidor.
   const accessMutation = useMutation({
     mutationFn: async ({ user, input }: { user: AdminUserRow; input: EditarAcessoInput; releasesEmail: boolean }) => {
+      const roleChanged = Boolean(input.role) && input.role !== user.role
       if (input.role) await updateUserProfile(user.id, { role: input.role })
       if (!input.email && !input.password) return null
-      return updateUserCredentials({ user_id: user.id, email: input.email, password: input.password })
+      try {
+        return await updateUserCredentials({ user_id: user.id, email: input.email, password: input.password })
+      } catch (err) {
+        if (roleChanged) {
+          try {
+            await updateUserProfile(user.id, { role: user.role })
+          } catch {
+            throw new Error(`${classifyDbError(err).message} O setor já tinha sido trocado e não voltou ao anterior; confira em Editar acesso.`)
+          }
+        }
+        throw err
+      }
     },
     onSuccess: (result, { releasesEmail }) => {
       invalidateUsers()
@@ -99,7 +113,7 @@ export function AdminUsersTab() {
       setEditando(null)
     },
     onError: (err: unknown) => {
-      // O setor pode ter mudado antes de a troca de credenciais falhar.
+      // O setor volta ao anterior quando as credenciais falham; a lista relê para confirmar.
       invalidateUsers()
       showToast(classifyDbError(err).message, 'error')
     },

@@ -184,6 +184,20 @@ it('troca o setor em "Editar acesso", com a lista do que a pessoa poderá fazer 
   expect(mocks.updateUserCredentials).not.toHaveBeenCalled()
 })
 
+it('devolve o setor anterior quando a troca de senha falha na mesma edição', async () => {
+  mocks.updateUserCredentials.mockRejectedValueOnce(new Error('Falhou a troca de senha.'))
+  renderAdmin()
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso' }))
+  const dialog = screen.getByRole('dialog')
+  fireEvent.change(within(dialog).getByLabelText('Setor'), { target: { value: 'financeiro' } })
+  fireEvent.change(within(dialog).getByLabelText('Nova senha'), { target: { value: 'SenhaNova#2026' } })
+  fireEvent.change(within(dialog).getByLabelText('Confirmar nova senha'), { target: { value: 'SenhaNova#2026' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.updateUserProfile).toHaveBeenCalledTimes(2))
+  expect(mocks.updateUserProfile).toHaveBeenNthCalledWith(1, 'u-1', { role: 'financeiro' })
+  expect(mocks.updateUserProfile).toHaveBeenNthCalledWith(2, 'u-1', { role: 'operacoes' })
+})
+
 it('não troca o setor quando a confirmação é recusada', async () => {
   mocks.confirm.mockResolvedValue(false)
   renderAdmin()

@@ -337,13 +337,22 @@ export async function listVaziosExportOperationsWithUnits(): Promise<{
   operations: VaziosOperationListRow[];
   bookings: VaziosOperationBookingRow[];
 }> {
-  const { data, error } = await supabase
-    .from("vazios_export_operations")
-    .select(
-      "id, voyage_id, embark_port, created_at, updated_at, voyage:voyages(voyage_number, vessel:vessels(name)), linhas:vazios_export_service_lines(local_id, condition, quantidade, valor_unitario, quantidade_manual, updated_at, service:depot_services(natureza))",
-    )
-    .order("created_at", { ascending: false });
-  if (error) throw error;
+  // O servidor corta cada leitura em max_rows (1.000): embarques e unidades vêm em páginas.
+  const operations: VaziosOperationListRow[] = [];
+  for (let from = 0; ; from += OPERATION_BOOKINGS_PAGE_SIZE) {
+    const { data: page, error } = await supabase
+      .from("vazios_export_operations")
+      .select(
+        "id, voyage_id, embark_port, created_at, updated_at, voyage:voyages(voyage_number, vessel:vessels(name)), linhas:vazios_export_service_lines(local_id, condition, quantidade, valor_unitario, quantidade_manual, updated_at, service:depot_services(natureza))",
+      )
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + OPERATION_BOOKINGS_PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = (page ?? []) as unknown as VaziosOperationListRow[];
+    operations.push(...rows);
+    if (rows.length < OPERATION_BOOKINGS_PAGE_SIZE) break;
+  }
   const bookings: VaziosOperationBookingRow[] = [];
   for (let from = 0; ; from += OPERATION_BOOKINGS_PAGE_SIZE) {
     const { data: page, error: pageError } = await supabase
@@ -356,7 +365,7 @@ export async function listVaziosExportOperationsWithUnits(): Promise<{
     bookings.push(...rows);
     if (rows.length < OPERATION_BOOKINGS_PAGE_SIZE) break;
   }
-  return { operations: (data ?? []) as unknown as VaziosOperationListRow[], bookings };
+  return { operations, bookings };
 }
 
 export type VaziosOperationSummary = {
