@@ -59,6 +59,8 @@ export type VoyagePodSchedule = {
   deleted?: boolean
   /** Escala omitida pelo armador (carga descarregada em outro POD). */
   omitted?: boolean
+  /** Última gravação de qualquer campo desta grafia no Histórico (`changed_at`). */
+  lastChangedAt?: string | null
 }
 
 export type VoyageEscalaDivergence = {
@@ -83,6 +85,11 @@ export type VoyageEscalaSchedule = {
   escalaNumber: string | null
   omitted: boolean
   deleted: boolean
+  /**
+   * POD excluído enquanto a escala segue por POL, exportação ou Atracação: a
+   * régua dos Comunicados a trata como excluída (sem NOA, NOR nem NOB).
+   */
+  podDeleted?: boolean
   temImportacao: boolean
   temExportacao: boolean
   temGranito: boolean
@@ -343,14 +350,37 @@ export function projectVoyageEscalaSchedules({
     terminalStatesByKey.set(key, current)
   }
 
-  // Coleta primeiro para que a ordem dos audit logs nao determine se um
-  // alias deletado apaga ou preserva a parte de importacao da escala.
-  for (const pod of podSchedules) {
+  // Duas grafias do mesmo porto (BRVIT e BRVIX) são a mesma escala. Ela está
+  // excluída quando nenhuma grafia está ativa ou quando a gravada por último
+  // está excluída (empate fica com a ativa); as datas vêm só das grafias
+  // ativas. É a regra de `customer_communication_scale_schedules` (migration
+  // 318), para a tela da Viagem e a conferência de /clientes/comunicacao verem
+  // a mesma escala que a régua dos Comunicados. Coleta primeiro para que a
+  // ordem dos audit logs não decida.
+  const pods = [...podSchedules]
+  const latestByKey = new Map<string, { active: number | null; deleted: number | null }>()
+  for (const pod of pods) {
     const port = normalizeBrazilianPortCode(pod.pod)
-    if (port && pod.deleted) deletedEscalaKeys.add(buildEscalaKey(pod.voyageId, port))
+    if (!port) continue
+    const key = buildEscalaKey(pod.voyageId, port)
+    const latest = latestByKey.get(key) ?? { active: null, deleted: null }
+    const at = changedAtValue(pod.lastChangedAt)
+    if (pod.deleted) latest.deleted = Math.max(latest.deleted ?? at, at)
+    else latest.active = Math.max(latest.active ?? at, at)
+    latestByKey.set(key, latest)
+  }
+  for (const [key, latest] of latestByKey) {
+    if (latest.deleted !== null && (latest.active === null || latest.deleted > latest.active)) deletedEscalaKeys.add(key)
   }
 
-  for (const pod of podSchedules) {
+  // ponytail: entre duas grafias ativas, a gravada por último fornece todos os
+  // campos; a régua escolhe campo a campo pelo registro mais recente. Só
+  // diverge com duas grafias ativas e campos gravados em ordens cruzadas
+  // (dado legado). Caminho: guardar o changed_at de cada campo na hidratação.
+  const activePods = pods
+    .filter((pod) => !pod.deleted)
+    .sort((left, right) => changedAtValue(left.lastChangedAt) - changedAtValue(right.lastChangedAt))
+  for (const pod of activePods) {
     const port = normalizeBrazilianPortCode(pod.pod)
     if (!port) continue
 
@@ -425,6 +455,7 @@ export function projectVoyageEscalaSchedules({
   }
 
   for (const escala of escalasByKey.values()) {
+    if (deletedEscalaKeys.has(buildEscalaKey(escala.voyageId, escala.port))) escala.podDeleted = true
     const atracacoes = terminalStatesByKey.get(buildEscalaKey(escala.voyageId, escala.port)) ?? []
     escala.atracacoes = sortAtracacoes(atracacoes.map((state) => ({
       stateId: state.stateId ?? null,
@@ -915,6 +946,12 @@ function buildEscalaKey(voyageId: number, port: string) {
   return `${voyageId}::${port}`
 }
 
+/** `changed_at` comparável; sem data, a grafia conta como a mais antiga. */
+function changedAtValue(value: string | null | undefined) {
+  const time = value ? Date.parse(value) : Number.NaN
+  return Number.isNaN(time) ? 0 : time
+}
+
 function normalizeBrazilianPortCode(value: string | null | undefined) {
   const normalized = normalizePortCode(value)
   return normalized && /^BR[A-Z0-9]{3}$/.test(normalized) ? normalized : null
@@ -1061,6 +1098,7 @@ function hydratePodSchedules(
     if (row.field_name === 'deleted' && !seenFields.has('deleted')) current.deleted = normalizeBooleanValue(row.new_value) ?? false
     if (row.field_name === 'omitted' && !seenFields.has('omitted')) current.omitted = normalizeBooleanValue(row.new_value) ?? false
     if (row.field_name === 'tem_importacao' && !seenFields.has('tem_importacao')) current.temImportacao = normalizeBooleanValue(row.new_value) ?? true
+    if (row.changed_at && changedAtValue(row.changed_at) >= changedAtValue(current.lastChangedAt)) current.lastChangedAt = row.changed_at
 
     seenFields.add(row.field_name)
     seenFieldsByEntity.set(entityId, seenFields)

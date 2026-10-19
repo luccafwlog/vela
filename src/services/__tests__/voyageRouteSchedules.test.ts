@@ -427,6 +427,47 @@ describe('projectVoyageEscalaSchedules', () => {
     expect(escalas).toMatchObject([{ port: 'BRSSZ', temImportacao: false, temExportacao: false }])
   })
 
+  // Migration 318: a mesma regra de customer_communication_scale_schedules.
+  describe('grafias do mesmo porto (BRVIT e BRVIX)', () => {
+    const pod = (spelling: string, overrides: Record<string, unknown>) => ({
+      entityId: `12::${spelling}`, voyageId: 12, pod: spelling, eta: null, etb: null, ata: null, atb: null,
+      etd: null, atd: null, rtw: null, ceStatus: null, linked: null, escalaNumber: null, deleted: false, omitted: false,
+      ...overrides,
+    })
+
+    it('"Excluir escala" grava na grafia normalizada e exclui a escala de dados em BRVIT', () => {
+      expect(projectVoyageEscalaSchedules({
+        podSchedules: [
+          pod('BRVIT', { eta: '2026-11-01T08:00:00Z', lastChangedAt: '2026-10-19T09:00:00Z' }),
+          pod('BRVIX', { deleted: true, lastChangedAt: '2026-10-19T10:00:00Z' }),
+        ],
+      })).toEqual([])
+    })
+
+    it('a grafia ativa gravada depois da exclusão vence e fornece as datas', () => {
+      const escalas = projectVoyageEscalaSchedules({
+        podSchedules: [
+          pod('BRVIX', { deleted: true, eta: '2026-10-30T08:00:00Z', lastChangedAt: '2026-10-19T09:00:00Z' }),
+          pod('BRVIT', { eta: '2026-11-01T08:00:00Z', omitted: false, lastChangedAt: '2026-10-19T10:00:00Z' }),
+        ],
+      })
+      expect(escalas).toEqual([expect.objectContaining({ port: 'BRVIX', eta: '2026-11-01T08:00:00Z', deleted: false })])
+      expect(escalas[0]?.podDeleted).toBeUndefined()
+      // Sem data de gravação (empate), a ativa vence.
+      expect(projectVoyageEscalaSchedules({
+        podSchedules: [pod('BRVIX', { deleted: true }), pod('BRVIT', { eta: '2026-11-01T08:00:00Z' })],
+      })).toEqual([expect.objectContaining({ eta: '2026-11-01T08:00:00Z' })])
+    })
+
+    it('POD excluído com a escala viva pela POL fica marcado para a régua', () => {
+      const escalas = projectVoyageEscalaSchedules({
+        podSchedules: [pod('BRVIX', { deleted: true, eta: '2026-11-01T08:00:00Z' })],
+        polSchedules: [{ entityId: '12::BRVIX', voyageId: 12, pol: 'BRVIX', atd: null, etd: '2026-11-03', escalaNumber: null }],
+      })
+      expect(escalas).toEqual([expect.objectContaining({ port: 'BRVIX', eta: null, deleted: false, podDeleted: true })])
+    })
+  })
+
   it('GREEN CHASE deriva o ATD da última Atracação somente com completude', () => {
     const base = {
       podSchedules: [{
@@ -493,6 +534,40 @@ it('mantem a linha da escala quando as colunas novas de Atracacao ainda nao exis
   const result = await listVoyageEscalaSchedulesByVoyageIds([12])
 
   expect(result.get(12)).toEqual([expect.objectContaining({ port: 'BRVIX', eta: '2026-08-01' })])
+})
+
+it('a leitura do Histórico guarda a última gravação de cada grafia para decidir a exclusão', async () => {
+  const auditQuery = {
+    entityType: null as string | null,
+    select: vi.fn(() => auditQuery),
+    eq: vi.fn((column: string, value: string) => {
+      if (column === 'entity_type') auditQuery.entityType = value
+      return auditQuery
+    }),
+    or: vi.fn(() => auditQuery),
+    order: vi.fn(() => auditQuery),
+    range: vi.fn(async () => ({
+      data: auditQuery.entityType === 'voyage_pod_schedule'
+        ? [
+          { entity_id: '12::BRVIX', field_name: 'deleted', new_value: 'true', changed_at: '2026-10-19T10:00:00Z' },
+          { entity_id: '12::BRVIT', field_name: 'eta', new_value: '2026-11-01T08:00:00Z', changed_at: '2026-10-19T09:00:00Z' },
+        ]
+        : [],
+      error: null,
+    })),
+  }
+  const emptyQuery = {
+    select: vi.fn(() => emptyQuery),
+    in: vi.fn(async () => ({ data: [], error: null })),
+  }
+  fromMock.mockImplementation((table: string) => {
+    if (table === 'audit_logs') return auditQuery
+    if (table === 'voyage_export_schedules' || table === 'voyage_escala_terminal_state') return emptyQuery
+    throw new Error(`Tabela inesperada: ${table}`)
+  })
+
+  const { listVoyageEscalaSchedulesByVoyageIds } = await import('../voyageRouteSchedules')
+  expect((await listVoyageEscalaSchedulesByVoyageIds([12])).get(12)).toEqual([])
 })
 
 it('nao reverte uma viagem cancelada quando o ATD muda', async () => {

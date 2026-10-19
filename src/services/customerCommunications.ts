@@ -6,6 +6,7 @@ import type {
 import { canonicalizeDocument } from '../lib/cnpj'
 import { sanitizeLikeTerm } from '../lib/utils'
 import { operationFrontKindsForCargoMode } from './escalaTerminalAllocation'
+import { normalizePortCode } from './portCode'
 import { listVoyageEscalaSchedulesByVoyageIds, type VoyageEscalaSchedule } from './voyageRouteSchedules'
 import { supabase } from './supabase'
 import { toError } from '../lib/errors'
@@ -384,9 +385,17 @@ function matchesVesselVoyage(vessel: string | null | undefined, voyage: string |
   return terms.every((term) => haystack.includes(term))
 }
 
+/**
+ * Porto como a régua o compara (`normalize_port_code`): BRVIT e BRVIX são o
+ * mesmo porto. Código fora do catálogo fica em maiúsculas, como no banco.
+ */
+export function communicationPortCode(value: string | null | undefined): string | null {
+  return normalizePortCode(value) ?? (normalizedUpper(value) || null)
+}
+
 function samePort(left: string | null | undefined, right: string | null | undefined): boolean {
-  const a = normalizedUpper(left)
-  const b = normalizedUpper(right)
+  const a = communicationPortCode(left)
+  const b = communicationPortCode(right)
   return Boolean(a && b && a === b)
 }
 
@@ -450,9 +459,9 @@ function candidateIdentity(row: CustomerCommunicationBlCandidate, kind: Customer
   // Viagem — o Cliente com carga em duas viagens recebe dois.
   if (kind === 'livre') return `${row.customerId}:${row.voyageId}`
   if (kind === 'aviso_atracacao_nob') {
-    return `${row.customerId}:${row.voyageId}:${normalizedUpper(row.pod)}:${row.terminalStateId ?? 'terminal-state-sem-identidade'}`
+    return `${row.customerId}:${row.voyageId}:${communicationPortCode(row.pod) ?? ''}:${row.terminalStateId ?? 'terminal-state-sem-identidade'}`
   }
-  return `${row.customerId}:${row.voyageId}:${normalizedUpper(row.pod)}`
+  return `${row.customerId}:${row.voyageId}:${communicationPortCode(row.pod) ?? ''}`
 }
 
 function historyMatchesRow(
@@ -709,7 +718,7 @@ function scheduleForCandidate(row: CustomerCommunicationBlCandidate, schedules: 
  * separa os clientes de uma Atracação dos da Atracação vizinha.
  */
 function operationFrontKey(voyageId: number, port: string, terminalId: string, modalidade: string): string {
-  return `${voyageId}::${normalizedUpper(port)}::${terminalId}::${modalidade}`
+  return `${voyageId}::${communicationPortCode(port) ?? ''}::${terminalId}::${modalidade}`
 }
 
 /**
@@ -760,7 +769,9 @@ export function expandCandidatesForKind(
       })
       continue
     }
-    if (!schedule || schedule.deleted || schedule.omitted) continue
+    // POD excluído com a escala viva por POL ou exportação: a régua também
+    // não comunica (customer_communication_scale_schedules, migration 318).
+    if (!schedule || schedule.deleted || schedule.podDeleted || schedule.omitted) continue
     if (kind === 'aviso_atracacao_nob') {
       for (const atracacao of schedule.atracacoes) {
         // NOB is anchored by the state row UUID, never by the terminal UUID.
@@ -1252,15 +1263,15 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
     const comms = communications
     const terminalTargets = terminalStates.filter((state) => state.voyage_id === voyage.id)
     const nobTargetKeys = new Set(rows.flatMap((row) => terminalTargets
-      .filter((state) => state.port.toUpperCase() === row.pod?.toUpperCase())
+      .filter((state) => samePort(state.port, row.pod))
       .map((state) => `${row.customer_id}:${state.id}`)))
     const count = (kind: string, customerId?: number) => new Set(comms
       .filter((comm) => comm.kind === kind && comm.status === 'enviado' && comm.anchor_voyage_id === voyage.id)
       .filter((comm) => customerId == null || comm.customer_id === customerId)
-      .filter((comm) => customerId == null || rows.some((row) => row.customer_id === customerId && row.pod?.toUpperCase() === comm.anchor_port?.toUpperCase()))
+      .filter((comm) => customerId == null || rows.some((row) => row.customer_id === customerId && samePort(row.pod, comm.anchor_port)))
       .filter((comm) => kind !== 'aviso_atracacao_nob' || nobTargetKeys.has(`${comm.customer_id}:${comm.anchor_atracacao_id}`))
-      .map((comm) => `${comm.customer_id}:${comm.anchor_voyage_id}:${comm.anchor_port?.toUpperCase() ?? ''}:${comm.anchor_atracacao_id ?? ''}`)).size
-    const total = (kind: string) => kind === 'aviso_atracacao_nob' ? nobTargetKeys.size : new Set(rows.map((row) => `${row.customer_id}:${row.pod?.toUpperCase()}`)).size
+      .map((comm) => `${comm.customer_id}:${comm.anchor_voyage_id}:${communicationPortCode(comm.anchor_port) ?? ''}:${comm.anchor_atracacao_id ?? ''}`)).size
+    const total = (kind: string) => kind === 'aviso_atracacao_nob' ? nobTargetKeys.size : new Set(rows.map((row) => `${row.customer_id}:${communicationPortCode(row.pod)}`)).size
 
     const customerBlMap = new Map<number, typeof rows>()
     for (const bl of rows) {

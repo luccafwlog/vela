@@ -20,6 +20,7 @@ import { useVoyageOptions } from '../hooks/useBls'
 import { useCustomerCommunicationConference, useCustomerCommunicationHistory, useCustomerCommunicationSavedTemplates, useDispatchCustomerCommunicationBatch, useResendCeMercanteTaxasCommunication, useSaveCustomerCommunicationSavedTemplate, useVoyageCommunicationCoverage } from '../hooks/useCustomerCommunications'
 import {
   DEFAULT_CUSTOMER_COMMUNICATION_FILTERS,
+  communicationPortCode,
   MANUAL_CUSTOMER_COMMUNICATION_KINDS_BY_MODE,
   getCustomerCommunicationAudienceRule,
   getCustomerCommunicationDispatchMode,
@@ -497,7 +498,9 @@ export function ClientesComunicacao() {
             // identidade, senão as duas viagens do Cliente cairiam no mesmo
             // Comunicado. O institucional não tem âncora.
             anchorVoyageId: kind === 'institucional' ? null : row.sourceBls[0]?.voyageId ?? null,
-            anchorPort: userWritten ? null : row.sourceBls[0]?.pod ?? null,
+            // Porto normalizado, como a régua grava (BRVIT → BRVIX): uma
+            // identidade só para o mesmo Comunicado.
+            anchorPort: userWritten ? null : communicationPortCode(row.sourceBls[0]?.pod),
             anchorAtracacaoId: kind === 'aviso_atracacao_nob' ? row.sourceBls[0]?.terminalStateId ?? null : null,
             attemptDiscriminator: row.nextAttemptDiscriminator,
             dispatchId,

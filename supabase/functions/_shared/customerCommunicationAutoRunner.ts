@@ -16,6 +16,7 @@ export type AutoRunnerCandidate = {
   port: string
   milestone_at: string
   bl_ids: string[]
+  /** Só os destinatários do alvo que ainda não receberam (migration 318). */
   emails: string[]
   /** Só no NOB: identidade da Atracação e do terminal que a hospeda. */
   anchor_atracacao_id?: string | null
@@ -97,8 +98,9 @@ async function settleClaim(rpc: AutoRunnerRpc, claimKey: string | undefined, set
 // destinatários por rodada. Se a invocação cair no meio de um Cliente, a claim
 // fica presa até envelhecer (30 min) e a produtora a devolve na primeira rodada
 // depois disso: o alvo só sai da lista quando todo destinatário automático tem
-// tentativa entregue (migration 315), e quem já recebeu não recebe de novo (a
-// Edge reaproveita a tentativa pela chave). Caminho de melhoria: limitar
+// tentativa entregue (migration 315), e `emails` traz só os que faltam
+// (migration 318) — quem já recebeu, inclusive em simulação, não recebe de
+// novo, nem com a chave ligada depois. Caminho de melhoria: limitar
 // o lote na produtora (LIMIT por rodada) e/ou paralelizar os destinatários com
 // concorrência fixa (ex.: 4).
 export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<AutoRunnerResult> {

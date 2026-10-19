@@ -16,7 +16,7 @@ refutá-lo.
   `claude/emails-1a-envio-comum`), por decisão do responsável de fazer o plano
   inteiro num PR só. Migrations `302` a `312`, renumeradas depois do merge do
   PR #972, que ocupou da `298` à `301`; as correções da revisão do PR vieram
-  nas `313` a `315`. Verificado localmente:
+  nas `313` a `315` e na `318`. Verificado localmente:
   typecheck, lint, testes unitários, as 101 suítes local-pg num banco recriado
   com todas as migrations, `rpc:check`, `migrations:check`, `design:check`,
   `a11y:contrast`, build e `deno check` das 11 Edges de e-mail. Nada disso foi
@@ -49,6 +49,14 @@ refutá-lo.
   porto na identidade); Comunicado `pendente` sem tentativa nova há 15 min é
   recalculado e vira `falha` no detector; a claim só fica em
   `comunicado_recusado` enquanto o alvo está devido. Regra em
+  [Clientes](../modules/clientes.md#régua-automática-de-comunicados).
+- **Correções da revisão rigorosa do núcleo dos Comunicados (2026-10-19,
+  migration `318`):** o alvo leva só os destinatários que faltam, e ligar a
+  chave não manda e-mail real a quem recebeu a simulação nem ao contato
+  cadastrado depois (D1); a Escala excluída segue a grafia gravada por último,
+  na régua, na tela da Viagem e na conferência, que também compara o porto
+  normalizado; a âncora manual grava o porto normalizado; a claim fica em
+  `comunicado_recusado` até o envio sair (D18). Regra em
   [Clientes](../modules/clientes.md#régua-automática-de-comunicados).
 - **Correções da revisão do monitoramento (2026-10-18, migration `314`):**
   "Provedor de e-mail sem retorno" mede o silêncio do webhook (3 tentativas
