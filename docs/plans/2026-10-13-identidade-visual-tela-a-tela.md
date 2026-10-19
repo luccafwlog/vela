@@ -254,8 +254,28 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   quando nenhum foi gravado, e a linha aberta diz "Em ordem" sem e-mail;
   (A5) "Sair da inspeção" sempre volta ao Provisionamento, mesmo aberta pela
   ficha do Cliente; (A6) "Reparo automático da fila do Portal durante a
-  leitura." no Histórico do Portal. Aguarda a resposta do responsável, tela
-  a tela.
+  leitura." no Histórico do Portal.
+  **Lote 5a aprovado em 2026-10-19**, em três rodadas de comentários na
+  página. Decisões: **Painel** sem Atualizar; acessos a Chegadas e Saídas e
+  à Tela TV como botões maiores com ícone e descrição (opção B); ETB mostra o
+  ATB com ✓ quando registrado; celular em cartões com todas as informações
+  da linha. **Alertas** abre em Ativos, sem "Todos" nem Atualizar; Mensagem
+  e Registro não repetem nada (Mensagem só com o detalhe, "—" quando não
+  há); toda linha com "Resolver" (leva ao lugar da resolução ou, nos alertas
+  de conferência sem lugar, abre a justificativa) e "Dispensar", de largura
+  fixa. **Regras** sem o código interno e o endereço da tela.
+  **Provisionamento** com seis cartões, sem a coluna Decisão; ações
+  administrativas numa janela, sem sair da tela; "Ver o que o Cliente veria"
+  vira a coluna "Espiadinha", com só o ícone de olho na linha.
+  **Comunicação** com duas colunas de CE e Taxas, Histórico em tabela, uma
+  barra de abas de segundo nível (largura do bloco, ícone, a escolhida em
+  azul-marinho) e o envio real como chave de ligar e desligar (peça comum
+  nova `Switch`; a confirmação de hoje continua nos dois sentidos). **Faixa
+  do Modo Inspeção** aprovada na rodada 1. **Achados:** todos corrigidos no
+  lote, como sugerido. A2 reescreve também os alertas já abertos; A5, com a
+  inspeção aberta em outra aba (a Espiadinha), o botão vira "Fechar
+  inspeção"; A6 mostra "Entrou na fila do Portal", com "Sistema" na coluna
+  Por.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -489,7 +509,7 @@ lotes tratam só da organização de cada tela.
 | 2 | Operação do dia a dia: Revisão (6), Chegadas e Saídas e programação do Portal (4), Demurrage (8), Containers, Veículos e Baplie (14); listas de Viagens e de Clientes; Tarifas de Demurrage (`/demurrage/taxas`, da tela 8) | Entregue em 2026-10-16: Revisão (branch `claude/sweet-turing-r2tdp1`) e as demais telas, os quatro achados, o número `DEM-AAAA-NNNN` e as abas sombreadas (branch `claude/practical-cray-mpdw1p`), com a revisão da PR 969 (migrations `294` e `295`) |
 | 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Entregue em 2026-10-16 (aprovado na rodada 2 da página "Lote 3 da identidade"), branch `claude/serene-edison-ibuix9` |
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Aprovado em 2026-10-18 (todas as telas, três rodadas) e entregue em 2026-10-18 na PR 972, branch `claude/laughing-meitner-3rfy0l`, com as migrations `298` a `301` |
-| 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto em 2026-10-19 (página "Lote 5a da identidade"), aguarda resposta |
+| 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto e aprovado em 2026-10-19 (página "Lote 5a da identidade", três rodadas), em implementação |
 | 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado em 2026-10-19; proposto depois do 5a |
 | 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21) | Proposto, a confirmar |
 
