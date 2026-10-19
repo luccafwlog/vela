@@ -3,7 +3,7 @@ import { maskEmail, sendEmail } from './email.ts'
 
 export { maskEmail } from './email.ts'
 
-export type PortalEmailKind = 'convite' | 'reenvio' | 'recuperacao' | 'alteracao_email' | 'alerta_critico' | 'resumo_diario' | 'contato_bounced_notificacao' | 'ce_unlock_notificacao'
+export type PortalEmailKind = 'convite' | 'reenvio' | 'recuperacao' | 'alteracao_email' | 'alerta_critico' | 'resumo_diario' | 'contato_bounced_notificacao' | 'ce_unlock_notificacao' | 'senha_alterada'
 export type SendPortalEmailInput = {
   admin: SupabaseClient
   kind: PortalEmailKind
@@ -14,11 +14,15 @@ export type SendPortalEmailInput = {
   idempotencyKey: string
   accountId?: number
   inviteId?: number
+  /** Chave de envio desligada: registra a tentativa sem chamar o provedor (ver `sendEmail`). */
+  simulate?: boolean
 }
 
-export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok: boolean }> {
+/** `suppressed`: o endereço está na supressão do Portal; nenhuma tentativa foi registrada. */
+export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok: boolean; suppressed: boolean }> {
   const { admin } = input
-  return sendEmail({
+  let suppressedAddress = false
+  const result = await sendEmail({
     kind: input.kind,
     to: input.to,
     subject: input.subject,
@@ -28,10 +32,15 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
     resendApiKey: typeof Deno !== 'undefined' ? Deno.env.get('RESEND_API_KEY') : null,
     from: typeof Deno !== 'undefined' ? Deno.env.get('PORTAL_FROM_EMAIL') : null,
     replyTo: typeof Deno !== 'undefined' ? Deno.env.get('PORTAL_REPLY_TO') : null,
+    simulate: input.simulate,
     missingConfigurationMessage: 'PORTAL_FROM_EMAIL e PORTAL_REPLY_TO são obrigatórios para envio real',
     checkSuppression: async (to) => {
-      const { data: suppressed } = await admin.from('portal_suppressed_emails').select('id').eq('email', to).maybeSingle()
-      return { suppressed: Boolean(suppressed) }
+      // Erro na consulta não libera o envio: sem a resposta, o endereço pode
+      // estar suprimido. A exceção vira nova tentativa no chamador.
+      const { data: suppressed, error } = await admin.from('portal_suppressed_emails').select('id').eq('email', to).maybeSingle()
+      if (error) throw error
+      suppressedAddress = Boolean(suppressed)
+      return { suppressed: suppressedAddress }
     },
     recordAttempt: async ({ kind, to, idempotencyKey }) => {
       const { data, error } = await admin.from('portal_email_attempts').insert({
@@ -42,7 +51,7 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
         recipient_masked: maskEmail(to),
         status: 'aceito',
       }).select('id').single()
-      if (!error && data) return { id: data.id }
+      if (!error && data) return { id: data.id, status: 'aceito' }
 
       // A segunda execução depois de um crash precisa reaproveitar a mesma
       // tentativa. O provider pode já ter aceito a requisição; gerar outra
@@ -74,4 +83,5 @@ export async function sendPortalEmail(input: SendPortalEmailInput): Promise<{ ok
       if (error) throw error
     },
   })
+  return { ok: result.ok, suppressed: suppressedAddress }
 }

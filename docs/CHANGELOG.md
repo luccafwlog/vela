@@ -6,6 +6,43 @@
 
 ## 2026-10
 
+- **Correção dos e-mails do sistema (2026-10-18, PR #973):** os e-mails passam a
+  falhar de forma visível e a não repetir em loop.
+  - **Envio:** tempo limite e falhas classificadas no envio comum. O Comunicado
+    nasce "Em envio" e nunca termina "simulado" com a chave ligada.
+  - **Régua automática:** a escala vem do Histórico da Viagem, com data e hora
+    (o NOA automático nunca tinha saído). CE e Taxas por Cliente e Viagem.
+    Recusas não definitivas são adiadas com intervalo crescente e abrem alerta.
+  - **Régua de Cobrança de Demurrage:** recusa definitiva suspende a fatura e
+    abre alerta. Envio só em dia útil a partir das 9h. Fatura com 100% de
+    desconto vira paga. E-mail agrupado com o layout comum.
+  - **Avisos do Desbloqueio de CE:** com a chave desligada, ficam registrados
+    como simulados.
+  - **Portal:** aviso de "senha alterada".
+  - **Monitoramento:** provedor sem retorno, rotinas com erro e e-mail interno
+    devolvido abrem alerta. Fingerprint por Edge no Sentry e novos heartbeats.
+  - **Retenção:** eventos de e-mail guardados por 1 ano.
+  - **Tela de Comunicados:** disparo em lote com resumo e "Repetir só as
+    falhas", confirmação antes de Disparar, motivo por destinatário no
+    Histórico e reenvio do CE e Taxas.
+  - **Meu perfil:** a troca de e-mail saiu da tela.
+  - **Revisão rigorosa (migrations `316` a `318`):** o envio comum separa
+    configuração e pedido concorrente de recusa do destinatário; a régua
+    automática não reenvia de verdade o que saiu simulado nem manda ao contato
+    novo; a Régua de Cobrança não repete cobrança depois de uma exceção e fecha
+    o alerta da fatura paga ou cancelada; alertas de e-mail sem rotina de
+    fechamento resolvem com justificativa; a tela confirma a repetição das
+    falhas. Detalhe no plano.
+  - **Revisão do PR (migrations `313` a `315`):**
+    - a cobrança suspensa por recusa volta ao resolver o alerta com
+      justificativa;
+    - o Comunicado automático só é dado como feito quando cada contato recebeu;
+    - escala excluída numa grafia (BRVIT/BRVIX) não bloqueia mais a outra;
+    - "Em envio" esquecido vira falha;
+    - o alerta de provedor sem retorno mede o silêncio do webhook;
+    - o reenvio do CE não para na primeira recusa.
+
+  [Plano](plans/2026-10-17-correcao-dos-emails.md).
 - **Filete das tabelas no nome da linha (2026-10-18):** a linha entre as linhas de uma tabela
   passa também pela primeira coluna quando ela é o nome da linha (navio na Programação de navios
   do Portal e as demais tabelas com cabeçalho de linha); antes o filete começava na segunda coluna.

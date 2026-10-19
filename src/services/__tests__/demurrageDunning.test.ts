@@ -57,3 +57,30 @@ describe('Invoice tirada da Régua por datas alteradas', () => {
     expect(display.statusLabel).toBe('Pausada: datas alteradas, aguarda tratamento')
   })
 })
+
+describe('Invoice suspensa por recusa do provedor (plano dos e-mails, 1E.1)', () => {
+  it('diz o que fazer para retomar', () => {
+    const display = getDemurrageDunningDisplay(
+      { ...invoice, dunning_suspended_reason: 'Cobrança recusada pelo provedor: HTTP 422 validation_error' },
+      { attempts: [], intervalDays: 7, hasValidContact: true },
+    )
+    expect(display.nextDate).toBeNull()
+    expect(display.statusLabel).toBe('Pausada: e-mail recusado pelo provedor, corrija o contato e resolva o alerta')
+  })
+})
+
+describe('motivo da pausa vindo do servidor (migration 313)', () => {
+  it('B/L sem CE, Cliente desativado e valor líquido zero não prometem a próxima cobrança', () => {
+    for (const reason of ['B/L sem CE Mercante, a Invoice não aparece no Portal', 'Cliente desativado', 'valor líquido zero']) {
+      const display = getDemurrageDunningDisplay(invoice, { attemptCount: 1, intervalDays: 7, hasValidContact: true, serverPauseReason: reason })
+      expect(display.nextDate).toBeNull()
+      expect(display.statusLabel).toBe(`Pausada: ${reason}`)
+    }
+  })
+
+  it('os motivos que a tela conhece têm precedência; antes da emissão não há pausa do servidor', () => {
+    expect(getDemurrageDunningDisplay({ ...invoice, dispute_open: true }, { serverPauseReason: 'disputa aberta' }).statusLabel).toBe('Pausada: disputa aberta')
+    expect(getDemurrageDunningDisplay({ ...invoice, paid_at: '2026-09-03' }, { serverPauseReason: 'liquidada' }).statusLabel).toBe('Régua encerrada: liquidada')
+    expect(getDemurrageDunningDisplay({ ...invoice, first_billed_at: null }, { serverPauseReason: 'não emitida' }).statusLabel).toBe('Aguardando primeira emissão')
+  })
+})

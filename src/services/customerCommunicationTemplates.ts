@@ -189,6 +189,11 @@ const BRAND_BORDER = '#e5e7eb'
 const BRAND_CARD_BG = '#ffffff'
 const BRAND_PAGE_BG = '#f1f3f6'
 const DEFAULT_PORTAL_BASE_URL = 'https://portalfwlog.com.br'
+/**
+ * Endereço do rodapé dos Comunicados (D20): o mesmo do reply-to
+ * (`COMMUNICATIONS_REPLY_TO`), para a resposta e a dúvida chegarem à mesma caixa.
+ */
+export const COMMUNICATIONS_CONTACT_EMAIL = 'importacao@fwlog.com.br'
 
 function extractBasePortalUrl(url?: string | null): string {
   const raw = url?.trim() || DEFAULT_PORTAL_BASE_URL
@@ -243,7 +248,7 @@ function layout(title: string, bodyHtml: string, portalUrl?: string | null): str
                 <tr>
                   <td style="padding-top:16px">
                     <p style="margin:0;font-size:12.5px;line-height:1.6;color:${BRAND_MUTED}">
-                      Portal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com <a href="mailto:suporte@portalfwlog.com.br" style="color:${BRAND_NAVY};text-decoration:underline">suporte@portalfwlog.com.br</a>.
+                      Portal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com <a href="mailto:${COMMUNICATIONS_CONTACT_EMAIL}" style="color:${BRAND_NAVY};text-decoration:underline">${COMMUNICATIONS_CONTACT_EMAIL}</a>.
                     </p>
                   </td>
                 </tr>
@@ -259,7 +264,7 @@ function layout(title: string, bodyHtml: string, portalUrl?: string | null): str
 }
 
 function textLayout(title: string, body: string): string {
-  return `Portal Fwlog\n${title}\n\n${body}\n\nPortal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com suporte@portalfwlog.com.br.`
+  return `Portal Fwlog\n${title}\n\n${body}\n\nPortal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com ${COMMUNICATIONS_CONTACT_EMAIL}.`
 }
 
 function formatBrl(value: number): string {
@@ -380,6 +385,112 @@ export function renderDemurrageTemplate(input: CustomerCommunicationTemplateInpu
   }
 }
 
+export type DemurrageGroupLine = {
+  docNumber: string
+  blId: string
+  vesselName: string
+  voyageNumber: string
+  /** USD líquido do desconto. */
+  totalUsd: number
+  totalBrl: number
+  roe: number
+  /** Data da cotação do ROE (AAAA-MM-DD). */
+  roeReferenceDate: string
+}
+
+export type DemurrageGroupTemplateInput = {
+  customerId: number
+  customerName: string
+  lines: readonly DemurrageGroupLine[]
+  portalUrl?: string | null
+}
+
+/**
+ * O que falta numa linha da cobrança para ela entrar no e-mail, ou null. A
+ * Régua confere linha a linha antes de compor (a Invoice incompleta sai do
+ * grupo e as demais seguem); o modelo recusa a linha incompleta que chegar.
+ */
+export function demurrageGroupLineMissing(line: DemurrageGroupLine): string | null {
+  const missing: string[] = []
+  if (!line.docNumber.trim()) missing.push('número da Invoice')
+  if (!line.blId.trim()) missing.push('B/L')
+  if (!line.vesselName.trim()) missing.push('navio')
+  if (!line.voyageNumber.trim()) missing.push('viagem')
+  if (!Number.isFinite(line.totalUsd) || line.totalUsd <= 0) missing.push('valor líquido em USD')
+  if (!Number.isFinite(line.totalBrl) || line.totalBrl < 0) missing.push('valor em reais')
+  if (!Number.isFinite(line.roe) || line.roe <= 0) missing.push('ROE')
+  if (!line.roeReferenceDate.trim()) missing.push('data do ROE')
+  return missing.length ? missing.join(', ') : null
+}
+
+/**
+ * Cobrança agrupada da Régua (plano dos e-mails, 4.1; D8): um e-mail por
+ * Cliente e etapa, com o layout comum, cada Invoice na sua linha (navio,
+ * viagem, USD, BRL informativo e ROE com a data da cotação), sem consolidar
+ * valores (não há soma), e a observação de recálculo. Uma linha só mantém o
+ * assunto da cobrança unitária.
+ */
+export function renderDemurrageGroupTemplate(input: DemurrageGroupTemplateInput): RenderedCustomerCommunication {
+  if (!Number.isInteger(input.customerId) || input.customerId <= 0) throw new Error('Cliente inválido para o comunicado.')
+  if (!input.customerName.trim()) throw new Error('Nome do cliente ausente.')
+  if (!input.lines.length) throw new Error('A cobrança de Demurrage precisa de ao menos uma Invoice.')
+  for (const line of input.lines) {
+    if (demurrageGroupLineMissing(line)) throw new Error('Dados incompletos para a cobrança de Demurrage.')
+  }
+  const lines = input.lines.map((line) => ({
+    docNumber: line.docNumber.trim(),
+    blId: line.blId.trim(),
+    vessel: line.vesselName.trim(),
+    voyage: line.voyageNumber.trim(),
+    usd: formatUsd(line.totalUsd),
+    brl: formatBrl(line.totalBrl),
+    roe: line.roe.toFixed(4),
+    date: formatDateOnly(line.roeReferenceDate.trim()),
+  }))
+  const count = lines.length
+  const first = lines[0]!
+  const subject = count === 1
+    ? `Cobrança de Demurrage — ${first.docNumber} — ${first.vessel} / ${first.voyage}`
+    : `Cobrança de Demurrage — ${count} faturas`
+  const customer = clean(input.customerName)
+  const portalUrl = input.portalUrl?.trim() || CUSTOMER_PORTAL_BILLING_URL
+  const intro = count === 1
+    ? 'A cobrança de Demurrage abaixo está disponível.'
+    : `Há ${count} cobranças de Demurrage disponíveis. Os valores são por Invoice, sem consolidação.`
+  const bodyText = [
+    `Olá, ${customer}.`,
+    '',
+    intro,
+    '',
+    ...lines.map((line) => `• ${line.docNumber} — B/L ${line.blId} — ${line.vessel} / ${line.voyage}: ${line.usd}; informativo ${line.brl} pelo ROE ${line.roe} com referência em ${line.date}.`),
+    '',
+    'O valor em reais será recalculado no dia do pagamento.',
+    '',
+    `Consulte os detalhes no Portal do Cliente: ${portalUrl}`,
+  ].join('\n')
+  const cell = `padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:14px;vertical-align:top`
+  const head = `text-align:left;padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:13px;color:${BRAND_MUTED}`
+  const bodyHtml = [
+    `<p style="margin:0 0 14px">Olá, ${escapeHtml(customer)}.</p>`,
+    `<p style="margin:0 0 16px">${escapeHtml(intro)}</p>`,
+    `<table style="width:100%;border-collapse:collapse;margin:16px 0 20px;border:1px solid ${BRAND_BORDER};border-radius:6px;overflow:hidden"><thead><tr style="background:#f9fafb"><th style="${head}">Invoice / B/L</th><th style="${head}">Navio / Viagem</th><th style="${head};text-align:right">Valor da cobrança</th></tr></thead><tbody>`,
+    ...lines.map((line) => `<tr><td style="${cell}"><strong>${escapeHtml(line.docNumber)}</strong><br><span style="color:${BRAND_MUTED};font-size:13px">B/L ${escapeHtml(line.blId)}</span></td><td style="${cell}">${escapeHtml(line.vessel)} / ${escapeHtml(line.voyage)}</td><td style="${cell};text-align:right"><strong style="color:${BRAND_NAVY}">${escapeHtml(line.usd)}</strong><br><span style="color:${BRAND_GOLD};font-weight:600">${escapeHtml(line.brl)}</span><br><span style="color:${BRAND_MUTED};font-size:12.5px">ROE ${escapeHtml(line.roe)}, referência ${escapeHtml(line.date)}</span></td></tr>`),
+    '</tbody>',
+    '</table>',
+    `<p style="margin:0 0 20px;font-size:13px;color:${BRAND_MUTED}"><strong>Observação:</strong> O valor em reais será recalculado no dia do pagamento.</p>`,
+    `<table role="presentation" width="100%" style="margin:16px 0 8px"><tr><td align="center"><a href="${escapeHtml(portalUrl)}" style="background:${BRAND_NAVY};color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;font-size:14px;font-weight:600">Consultar detalhes no Portal do Cliente</a></td></tr></table>`,
+  ].join('')
+  return {
+    kind: 'cobranca_demurrage',
+    subject,
+    html: layout(subject, bodyHtml, input.portalUrl),
+    text: textLayout(subject, bodyText),
+    customerId: input.customerId,
+    blIds: lines.map((line) => line.blId),
+    terminalId: null,
+  }
+}
+
 function renderMilestoneContent(
   input: CustomerCommunicationTemplateInput,
   kind: CustomerCommunicationKind,
@@ -443,6 +554,22 @@ export function renderNobTemplate(input: CustomerCommunicationTemplateInput): Re
   return renderMilestoneContent(input, 'aviso_atracacao_nob', subject, sentenceHtml, sentenceText)
 }
 
+function renderCargoBlock(input: CustomerCommunicationTemplateInput): { html: string; text: string } {
+  const vessel = clean(input.vesselName)
+  const voyage = clean(input.voyageNumber)
+  const blIds = input.bls.map((bl) => bl.id.trim())
+  const cell = `padding:8px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:13.5px`
+  const label = `${cell};color:${BRAND_MUTED};width:32%`
+  return {
+    html: `<table style="width:100%;border-collapse:collapse;margin:20px 0 4px;border:1px solid ${BRAND_BORDER};border-radius:6px;overflow:hidden">`
+      + `<tr><td style="${label}">Navio</td><td style="${cell};font-weight:600">${escapeHtml(vessel)}</td></tr>`
+      + `<tr><td style="${label}">Viagem</td><td style="${cell};font-weight:600">${escapeHtml(voyage)}</td></tr>`
+      + `<tr><td style="padding:8px 12px;font-size:13.5px;color:${BRAND_MUTED}">B/Ls</td><td style="padding:8px 12px;font-size:13.5px">${blIds.map(escapeHtml).join(', ')}</td></tr>`
+      + '</table>',
+    text: `Navio: ${vessel}\nViagem: ${voyage}\nB/Ls: ${blIds.join(', ')}`,
+  }
+}
+
 export function renderInstitutionalTemplate(input: CustomerCommunicationTemplateInput, kind: 'institucional' | 'livre' = 'institucional'): RenderedCustomerCommunication {
   if (kind === 'livre') assertCommunicationScope(input, kind)
   else {
@@ -453,11 +580,14 @@ export function renderInstitutionalTemplate(input: CustomerCommunicationTemplate
   const subject = clean(input.subject, 'Comunicado Transhipping Desk')
   const body = clean(input.body, '')
   const safeBodyHtml = escapeHtml(body).replace(/\n/g, '<br>')
-  const bodyText = `Olá, ${clean(input.customerName)}.\n\n${body}`
+  // D15: o livre leva os dados da carga do Cliente — Navio, Viagem e B/Ls —, que
+  // a tela promete ("os dados da carga de cada cliente são acrescentados").
+  const cargo = kind === 'livre' ? renderCargoBlock(input) : null
+  const bodyText = `Olá, ${clean(input.customerName)}.\n\n${body}${cargo ? `\n\n${cargo.text}` : ''}`
   return {
     kind,
     subject,
-    html: layout(subject, `<p style="margin:0 0 14px">Olá, ${escapeHtml(clean(input.customerName))}.</p><p style="margin:0">${safeBodyHtml}</p>`, input.portalUrl),
+    html: layout(subject, `<p style="margin:0 0 14px">Olá, ${escapeHtml(clean(input.customerName))}.</p><p style="margin:0">${safeBodyHtml}</p>${cargo?.html ?? ''}`, input.portalUrl),
     text: textLayout(subject, bodyText),
     customerId: input.customerId,
     blIds: input.bls.map((bl) => bl.id.trim()),

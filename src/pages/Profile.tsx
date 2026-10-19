@@ -14,7 +14,6 @@ export function Profile() {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [name, setName] = useState(profile?.full_name ?? '')
-  const [email, setEmail] = useState(session?.user.email ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [passwordOpen, setPasswordOpen] = useState(false)
@@ -22,19 +21,12 @@ export function Profile() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const trimmedName = name.trim()
-    const trimmedEmail = email.trim().toLowerCase()
-    if (!trimmedName || !trimmedEmail) {
-      setError('Informe nome e e-mail.')
+    if (!trimmedName) {
+      setError('Informe o nome.')
       return
     }
     const currentName = profile?.full_name ?? ''
-    const currentEmail = session?.user.email?.toLowerCase() ?? ''
-    const emailChanged = trimmedEmail !== currentEmail
-    const changes = [
-      ...(trimmedName !== currentName ? [{ field: 'Nome', before: currentName, after: trimmedName }] : []),
-      ...(emailChanged ? [{ field: 'E-mail', before: currentEmail, after: trimmedEmail }] : []),
-    ]
-    if (changes.length === 0) {
+    if (trimmedName === currentName) {
       showToast('Nenhuma alteração detectada.', 'info')
       return
     }
@@ -43,34 +35,21 @@ export function Profile() {
       title: 'Confirmar alterações do perfil',
       message: 'Salvar as alterações dos dados pessoais?',
       confirmLabel: 'Salvar alterações',
-      changes,
-      consequence: emailChanged
-        ? 'O nome será atualizado e o e-mail novo ficará pendente até a confirmação enviada ao endereço informado.'
-        : 'O nome será atualizado nos dados de acesso ao sistema.',
-      reversibility: emailChanged
-        ? 'O nome pode ser editado novamente. A troca de e-mail só passa a valer depois da confirmação do link.'
-        : 'Edite novamente para corrigir o nome.',
+      changes: [{ field: 'Nome', before: currentName, after: trimmedName }],
+      consequence: 'O nome será atualizado nos dados de acesso ao sistema.',
+      reversibility: 'Edite novamente para corrigir o nome.',
     })
     if (!confirmed) return
 
     setError('')
     setSaving(true)
     try {
-      if (trimmedName !== currentName) {
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .update({ full_name: trimmedName })
-          .eq('id', profile?.id ?? '')
-        if (profileError) throw profileError
-      }
-
-      if (emailChanged) {
-        const { error: emailError } = await supabase.auth.updateUser({ email: trimmedEmail })
-        if (emailError) throw emailError
-        showToast('Dados salvos. Confirme o novo e-mail pela mensagem recebida.', 'success')
-      } else {
-        showToast('Dados do perfil salvos.', 'success')
-      }
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update({ full_name: trimmedName })
+        .eq('id', profile?.id ?? '')
+      if (profileError) throw profileError
+      showToast('Dados do perfil salvos.', 'success')
       await refreshProfile()
     } catch {
       setError('Não foi possível salvar os dados do perfil.')
@@ -81,7 +60,7 @@ export function Profile() {
 
   return (
     <>
-      <PageHeader title="Meu perfil" description="Nome e e-mail de acesso ao Vela e troca de senha." />
+      <PageHeader title="Meu perfil" description="Nome, e-mail de acesso ao Vela e troca de senha." />
       <div className="vela-profile">
         <Card>
           <form className="grid gap-4" onSubmit={handleSubmit}>
@@ -89,26 +68,22 @@ export function Profile() {
             <Field label="Nome" required>
               <Input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
             </Field>
-            <div className="grid gap-1.5">
-              <Field label="E-mail" required>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  autoComplete="email"
-                  aria-describedby="profile-email-note"
-                />
-              </Field>
-              <p id="profile-email-note" className="app-field__hint">
-                É o e-mail de login. Um endereço novo só passa a valer depois da confirmação enviada a ele.
-              </p>
-            </div>
             <dl className="vela-profile__facts">
+              <div>
+                <dt>E-mail de acesso</dt>
+                <dd>{session?.user.email ?? '—'}</dd>
+              </div>
               <div>
                 <dt>Departamento</dt>
                 <dd>{departmentLabel(profile?.role)}</dd>
               </div>
             </dl>
+            {/* D13 (plano dos e-mails, 4.9): a confirmação de troca pelo Auth nunca
+                chegava (SMTP padrão do Supabase só entrega ao Team); quem troca é o
+                Administrativo em Admin › Usuários › Editar acesso, sem e-mail. */}
+            <p className="app-field__hint">
+              Para trocar o e-mail de acesso, peça ao Administrativo: a troca é feita em Admin › Usuários › Editar acesso.
+            </p>
             {error ? <InlineError message={error} /> : null}
             <div className="portal-profile__form-actions">
               <Button type="submit" loading={saving} loadingLabel="Salvando...">Salvar alterações</Button>

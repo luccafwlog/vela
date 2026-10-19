@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 import { decideInternalTarget } from '../_shared/internalUserTarget.ts'
+import { releasePreviousEmailSuppression } from '../_shared/internalUserEmailSuppression.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 
 const MANAGED_PROFILES = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']
@@ -136,25 +137,33 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     const { data: current } = await admin.auth.admin.getUserById(userId)
     const previousEmail = current.user?.email ?? null
 
+    // O mesmo e-mail salvo de novo não troca credencial: só libera a supressão.
+    const emailChanged = Boolean(email) && email !== previousEmail?.toLowerCase()
     const updates: { email?: string; password?: string; email_confirm?: boolean } = {}
-    if (email) { updates.email = email; updates.email_confirm = true }
+    if (email && emailChanged) { updates.email = email; updates.email_confirm = true }
     if (password) updates.password = password
 
-    const { error: updateError } = await admin.auth.admin.updateUserById(userId, updates)
-    if (updateError) {
-      const duplicate = String(updateError.message ?? '').toLowerCase().includes('already')
-      return json(duplicate ? 409 : 500, {
-        error: duplicate ? 'Já existe um usuário com este e-mail.' : 'Não foi possível atualizar o acesso.',
-      }, origin)
+    if (Object.keys(updates).length) {
+      const { error: updateError } = await admin.auth.admin.updateUserById(userId, updates)
+      if (updateError) {
+        const duplicate = String(updateError.message ?? '').toLowerCase().includes('already')
+        return json(duplicate ? 409 : 500, {
+          error: duplicate ? 'Já existe um usuário com este e-mail.' : 'Não foi possível atualizar o acesso.',
+        }, origin)
+      }
+
+      // Credencial trocada derruba as sessões abertas com a credencial antiga.
+      await revokeSessions(userId)
     }
 
-    // Credencial trocada derruba as sessões abertas com a credencial antiga.
-    await revokeSessions(userId)
+    // E-mail salvo (novo ou o mesmo) libera a supressão (bounce/spam) do endereço anterior (2.8).
+    // `released` 0 com o mesmo e-mail: o endereço é de Cliente e continua suprimido.
+    const released = email ? await releasePreviousEmailSuppression(admin, previousEmail, email) : 0
 
-    if (email && email !== previousEmail) await audit(userId, 'email', previousEmail, email)
+    if (emailChanged) await audit(userId, 'email', previousEmail, email ?? null)
     // A senha nunca é registrada, só o fato de ter sido trocada.
     if (password) await audit(userId, 'password', null, 'redefinida pelo administrador')
-    return json(200, { ok: true }, origin)
+    return json(200, { ok: true, released }, origin)
   }
 
   if (body.action === 'deactivate') {

@@ -44,7 +44,7 @@ flowchart LR
 | Upstash | database `vela-rate-limit` (`sa-east-1`) | — |
 | Sentry | organização com projetos `vela` e `portal` | — |
 | PostHog | região **EU** (`eu.posthog.com`) | — |
-| Better Stack | Uptime: 2 monitores e 5 heartbeats (um deles do backup) | Free (avisa a equipe inteira) |
+| Better Stack | Uptime: 2 monitores e 5 heartbeats (um deles do backup); os de `ce-unlock-notify-email` e `portal-email-events-runner` (plano dos e-mails, 2.3) ainda não foram cadastrados | Free (avisa a equipe inteira) |
 | Computador do backup | usuário Windows `Lucca`, pasta `C:\Users\Lucca\Downloads\Vela` | — |
 
 Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-responsabilidade).
@@ -341,7 +341,7 @@ merge, confira:
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `ITAU_PIX_ADMIN_SECRET` (par com o Vault quando o job está habilitado; lista do cofre em [segredos-cron.md](segredos-cron.md)) | — |
 | Itaú | `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` (e opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL`, `ITAU_AUTH_HEADER`) | Itaú (seção [Itaú](#itaú--api-pix-recebimentos)) |
-| Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (4), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
+| Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (6; a cadastrar: `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
 
 `PORTAL_PASSWORD_PEPPER` (≥ 32 caracteres aleatórios) é a chave do
@@ -386,9 +386,9 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
-| `portal-email-events-runner` | a cada minuto | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas | — |
+| `portal-email-events-runner` | a cada minuto | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; evento que esgota as 6 tentativas ou é ambíguo vai para investigação e abre `portal_reprocessamento_falhou` (migration `309`) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; a cadastrar) |
 | `itau-pix-queue` | a cada minuto (agendado manualmente em 07/10, jobid 25); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
-| `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente (respeita a chave global) | — |
+| `ce-unlock-notify-email` | a cada 5 min (manual, 07/10, jobid 23) | avisos do Desbloqueio de CE ao Cliente; com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; heartbeat ainda não cadastrado no Better Stack) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
 | `customer-communication-auto-runner` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `165`) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global) | `customer-communication-auto-runner` |
@@ -400,6 +400,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
 | `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação e tira do atraso o de B/L ou Viagem Cancelados (SQL puro; migration `200`) | — |
+| `http-job-failures` | a cada 15 min, em :09/:24/:39/:54 (`9-59/15 * * * *`, migration `310`) | `reconcile_http_job_failures_alert()`: abre o Alerta crítico `rotina_http_falhou` (Administrativo) quando `net._http_response` tem, na última hora, resposta fora de 2xx ou falha sem resposta que não seja tempo esgotado, 10 ou mais tempos esgotados, ou quando há 30 ou mais chamadas paradas na fila do `pg_net` (migration `316`), e o fecha quando a hora fica limpa; SQL puro, sem Vault nem Edge Function | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação (inclui a exceção crítica de fatura) | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (14:00 de Brasília; manual, 07/10, jobid 26) | PTAX do BCB, referência cambial e recálculo em BRL das faturas emitidas | — |
@@ -504,7 +505,7 @@ tempo. Em produção desde 2026-10-13: a `218` aplicada e a função nova
 publicada (as respostas trazem `elapsed_ms`); o acumulado de ~2.800 efeitos
 esvaziou em ~7 minutos, a 490–610 efeitos por minuto em `local_billing`.
 
-`data-retention` roda `public.run_retention()` (migration `094`, ADR 0074): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano. É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
+`data-retention` roda `public.run_retention()` (migration `094`, ADR 0074; vigente na `311`): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano, inclusive os eventos do provedor de e-mail, e mascara o e-mail em claro das tentativas de envio com mais de 1 ano ([regras de negócio](regras-de-negocio.md)). É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
 
 Os jobs HTTP chamam a Edge Function por `ops.dispatch_edge_job`, que dá 30 s
 ao `pg_net` (antes, o padrão de 5 s incluía DNS e perdia a rodada nos minutos
@@ -528,7 +529,9 @@ mesmos.
 
 | Uso | Remetente | Resposta vai para |
 |---|---|---|
-| Acesso ao Portal (convite, senha, digest) | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
+| Acesso ao Portal (convite, recuperação de senha, aviso de senha alterada, troca do Email de Recuperação) e aviso de bounce ao Cliente | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
+| Resumo diário do Portal (interno, aos usuários de Administrativo e Documentação) | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
+| Avisos do Desbloqueio de CE ao Cliente | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
 | Comunicados | `PORTAL_FROM_EMAIL` | `COMMUNICATIONS_REPLY_TO` = `importacao@fwlog.com.br` |
 | Cobrança de Demurrage (régua automática) | `PORTAL_FROM_EMAIL` | `DEMURRAGE_REPLY_TO` = `eqp@fwlog.com.br` |
 
@@ -545,7 +548,12 @@ mesmos.
 - **Chave de API:** uma só, `vela-supabase` (**Apenas envio**), guardada apenas
   no secret `RESEND_API_KEY` do Supabase. Nada mais usa a chave: o GitHub não tem
   secret dela e o **Custom SMTP** do Auth do Supabase está desligado (os e-mails
-  de login do Auth saem pelo serviço do próprio Supabase). Para trocar a chave:
+  de login do Auth saem pelo serviço do próprio Supabase, que só entrega a
+  membros do Team; ver [Supabase](#supabase)). Por isso nenhum fluxo do Vela
+  depende de e-mail do Auth: o usuário interno não troca o próprio e-mail em
+  **Meu perfil**; quem troca é o Administrativo, em Admin › Usuários ›
+  **Editar acesso** (Edge `admin-users`, confirma o e-mail na hora, sem
+  mensagem; D13 do [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md)). Para trocar a chave:
   crie a nova, troque o secret, teste com "Esqueci minha senha" no Portal e só
   então apague a antiga.
 - **Webhook:** a MillionSend avisa entregas, bounces e reclamações em
@@ -553,7 +561,23 @@ mesmos.
   **Marcado como spam**), assinado com o segredo guardado em
   `RESEND_WEBHOOK_SECRET`. Bounces e reclamações alimentam as listas de
   supressão. Outros eventos não devem ser marcados: o webhook grava qualquer
-  evento recebido na fila de processamento.
+  evento recebido na fila de processamento. A assinatura segue o padrão Svix
+  e é recusada com mais de 5 minutos de diferença; o handler é testado com
+  assinatura gerada no CI (`supabase/functions/portal-email-webhook/index.test.ts`).
+- **Trocar o segredo do webhook** (vazamento ou webhook recriado), nesta ordem:
+  1. Na MillionSend, no webhook de `portal-email-webhook`, gere o segredo novo
+     (ou recrie o webhook com os mesmos três eventos) e copie o valor
+     `whsec_...` sem colar em arquivo ou terminal compartilhado.
+  2. No Supabase → Edge Functions → Secrets, troque `RESEND_WEBHOOK_SECRET` por
+     esse valor (o nome segue o da Resend). Não é preciso republicar a função.
+  3. Entre os dois passos, os eventos chegam com assinatura que não confere e
+     recebem 401; a MillionSend reenvia os que falharam. Confira na MillionSend
+     que as entregas seguintes voltam a 2xx e, no banco, que
+     `portal_email_events` recebeu linhas novas.
+  4. Se o webhook parar de vez, o Alerta `email_retorno_provedor_silencioso`
+     (Administrativo, migrations `309` e `314`) abre quando ao menos 3 e-mails
+     foram aceitos pelo provedor há mais de 2 horas sem nenhum evento recebido
+     depois deles, e fecha na rodada seguinte ao primeiro evento novo.
 - **Recebimento** e **Caixas de entrada** da MillionSend não são usados: o
   recebimento é do ImprovMX.
 - **Virada conferida em 2026-10-14:** "Esqueci minha senha" no Portal chegou,
@@ -586,9 +610,11 @@ Não há caixa de e-mail nos domínios do sistema; o ImprovMX só encaminha.
 Encaminhamento conferido em 2026-09-24: um e-mail enviado de um endereço
 externo chegou às duas caixas.
 
-`suporte@portalfwlog.com.br` é o endereço impresso nos e-mails aos clientes
-(`src/services/customerCommunicationTemplates.ts`) e o destino dos relatórios
-DMARC. Ao trocar de responsável, troque também o destino pessoal do alias.
+`suporte@portalfwlog.com.br` é o endereço impresso nos e-mails de acesso ao
+Portal e o destino dos relatórios DMARC. O rodapé dos Comunicados
+(`src/services/customerCommunicationTemplates.ts`, `COMMUNICATIONS_CONTACT_EMAIL`)
+imprime `importacao@fwlog.com.br`, o mesmo endereço de `COMMUNICATIONS_REPLY_TO`
+(D20 do plano dos e-mails, 2026-10-18). Ao trocar de responsável, troque também o destino pessoal do alias.
 
 ---
 
@@ -815,9 +841,11 @@ A função `ce-unlock-notify-email` envia a fila de avisos ao cliente (recusa de
 documentação validada) pela MillionSend, para a caixa Documentação e Operação. Usa o mesmo
 segredo `CE_UNLOCK_CLEANUP_SECRET` e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`;
 Antes de enviar, reavalia a conclusão das solicitações abertas (`ce_unlock_refresh_open`);
-sem a chave ou o remetente responde 503 e deixa a fila intacta. Cada envio registra tentativa
-em `portal_email_attempts` (kind `ce_unlock_notificacao`), associada pelo webhook de e-mail. Respeita a chave global
-de Comunicados (desligada: descarta com motivo), supressão e bounce. Job `ce-unlock-notify-email`
+com a chave global de Comunicados ligada e sem a chave do provedor ou o remetente, responde 503
+e deixa a fila intacta. Cada envio registra tentativa em `portal_email_attempts` (kind
+`ce_unlock_notificacao`), associada pelo webhook de e-mail. Com a chave global desligada,
+registra o aviso como `simulated` e não o envia depois (D11, migration `307`); contato suprimido
+(bounce ou reclamação) não recebe e o aviso fecha `partial`. Job `ce-unlock-notify-email`
 agendado em produção em 2026-10-07 (`*/5 * * * *`, jobid 23); `CE_UNLOCK_CLEANUP_SECRET` está no
 cofre (`vault.secrets`) e nas secrets das Edge Functions. Ver [segredos e cron](segredos-cron.md).
 
@@ -1004,6 +1032,8 @@ continha oito entradas legadas da Vercel.
 
 **URL Configuration — 2026-10-08:** Site URL `https://vela.app.br`; Redirect
 URLs só `https://vela.app.br/**`. A troca de e-mail em Meu perfil não informa
-`emailRedirectTo` e volta ao Site URL. Email provider com "Secure email change"
+`emailRedirectTo` e volta ao Site URL. (Nota de 2026-10-18: a troca de e-mail
+saiu de Meu perfil, D13 do [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md);
+a confirmação do Auth não chegava pelo SMTP padrão.) Email provider com "Secure email change"
 ligado (confirmação no e-mail antigo e no novo). O Portal não depende dessas
 URLs: convite e senha usam links próprios das Edge Functions.

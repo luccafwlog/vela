@@ -50,7 +50,7 @@ function itemId(type: string, blId: string): string {
 function cleanup() {
   psql(`
     SET session_replication_role = replica;
-    CREATE TEMP TABLE a238_alerts AS SELECT id FROM public.alerts WHERE entity_type = 'bl' AND entity_id IN (${ALL_BLS});
+    CREATE TEMP TABLE a238_alerts AS SELECT id FROM public.alerts WHERE (entity_type = 'bl' AND entity_id IN (${ALL_BLS})) OR (entity_type = 'portal_email_event' AND entity_id = '316001');
     DELETE FROM public.alert_item_events WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE alert_id IN (SELECT id FROM a238_alerts));
     DELETE FROM public.alert_item_dismissals WHERE alert_item_id IN (SELECT id FROM public.alert_items WHERE alert_id IN (SELECT id FROM a238_alerts));
     DELETE FROM public.internal_notifications WHERE alert_id IN (SELECT id FROM a238_alerts);
@@ -181,6 +181,23 @@ describeLocal('238 — alertas fecham pela origem ou com justificativa (B27, A23
     const withOrigin = asUser(`SELECT public.resolve_alert_item_with_justification(${itemId('billing_auto_issue_failed', BL_ABUSE)}, 'Fechar à mão')`)
     expect(withOrigin.ok).toBe(false)
     expect(withOrigin.error).toMatch(/fecha sozinho quando a origem é corrigida/)
+  })
+
+  it('316: evento de e-mail em investigação resolve com justificativa; o mesmo tipo por B/L, não', async () => {
+    const { canResolveWithJustification } = await import('../services/alerts')
+    const sql = (entity: string) => psql(`SELECT public._alert_item_resolved_with_justification('portal_reprocessamento_falhou', '${entity}');`)
+    expect(sql('portal_email_event')).toBe('t')
+    expect(sql('bl')).toBe('f')
+    expect(canResolveWithJustification('portal_reprocessamento_falhou', 'portal_email_event')).toBe(true)
+    expect(canResolveWithJustification('portal_reprocessamento_falhou', 'bl')).toBe(false)
+    expect(psql(`SELECT public._alert_item_resolved_with_justification('desbloqueio_ce_aviso_nao_enviado', 'customer');`)).toBe('t')
+
+    psql(`SELECT public.upsert_alert_item('portal_reprocessamento_falhou', 'portal_email_event', '316001', 'Evento ambíguo', 'a316_fixture', '{}'::jsonb, '/alertas');`)
+    const eventItem = psql(`SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = 'portal_reprocessamento_falhou' AND a.entity_type = 'portal_email_event' AND a.entity_id = '316001' AND i.status = 'active';`)
+    const resolved = asUser(`SELECT public.resolve_alert_item_with_justification(${eventItem}, 'Conferido no provedor: entregue')`)
+    expect(resolved.error).toBe('')
+    expect(psql(`SELECT status FROM public.alert_items WHERE id = ${eventItem};`)).toBe('resolved')
   })
 
   it('A23: a lista de tipos com justificativa é a mesma no banco e na tela', async () => {

@@ -1,8 +1,17 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { corsHeaders, withCors } from '../_shared/cors.ts'
 import { base64Head, matchesExtension, matchesMagicBytes } from '../_shared/fileSignature.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
-import { maskEmail, recipientKey, sendEmail, type EmailAttachment, type EmailAttemptRecord } from '../_shared/email.ts'
+import { sendEmail, type EmailAttachment } from '../_shared/email.ts'
+import {
+  communicationAttemptRecorder,
+  isPermanentProviderFailure,
+  missingProviderConfiguration,
+  recordUnsentCommunicationAttempt,
+  settleCommunicationStatus,
+  type CommunicationAttemptStore,
+} from '../_shared/customerCommunicationAttempts.ts'
+import { resolveCommunicationAttemptKey } from '../_shared/customerCommunicationAttemptKey.ts'
 import {
   assertValidCommunicationAttachments,
   renderCustomerCommunicationTemplate,
@@ -10,6 +19,11 @@ import {
   type CustomerCommunicationKind,
   type CommunicationAttachment,
 } from '../_shared/customerCommunicationTemplates.ts'
+
+// Cliente sem schema tipado: com `ReturnType<typeof createClient>` o deno check
+// resolve as tabelas como `never` (plano dos e-mails, 5.4).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Admin = SupabaseClient<any, 'public', any>
 
 const ALLOWED_KINDS = new Set<CustomerCommunicationKind>([
   'aviso_chegada_noa',
@@ -56,6 +70,16 @@ type DispatchPayload = {
 }
 
 type ContactRow = { id: number; customer_id: number | null; email: string | null }
+
+type AnchorValidation = {
+  ok: boolean
+  error?: string
+  voyage_id?: number | null
+  port?: string | null
+  milestone_at?: string | null
+  terminal_id?: string | null
+  terminal_code?: string | null
+}
 
 function json(status: number, body: unknown, origin: string | null): Response {
   // Toda recusa deixa o motivo no log: sem isto o loop de 422 do CE Mercante
@@ -195,7 +219,7 @@ function isAlreadyExists(error: unknown): boolean {
 }
 
 async function persistCommunicationAttachments(
-  admin: ReturnType<typeof createClient>,
+  admin: Admin,
   communicationId: number,
   attachments: readonly CommunicationAttachment[],
   uploadedBy: string | null,
@@ -227,6 +251,7 @@ async function persistCommunicationAttachments(
   if (!newAttachments.length) return
 
   const uploadedNow: string[] = []
+  const insertedNow: string[] = []
   try {
     for (const item of newAttachments) {
       const { attachment, storagePath, bytes } = item
@@ -245,8 +270,16 @@ async function persistCommunicationAttachments(
         uploaded_by: uploadedBy,
       })
       if (metadataError && !isAlreadyExists(metadataError)) throw metadataError
+      if (!metadataError) insertedNow.push(storagePath)
     }
   } catch (error) {
+    // Desfaz também o registro dos anexos gravados nesta chamada: sem isso, a
+    // repetição acharia o registro e não subiria de novo o arquivo removido.
+    if (insertedNow.length) {
+      await admin.from('customer_communication_attachments').delete()
+        .eq('communication_id', communicationId).in('storage_path', insertedNow)
+        .then(() => undefined, () => undefined)
+    }
     if (uploadedNow.length) {
       await admin.storage.from('customer-communications').remove(uploadedNow).catch(() => undefined)
     }
@@ -273,7 +306,7 @@ function normalizedAnchorPort(value: string | null | undefined): string | null {
 }
 
 async function findExistingCommunicationId(
-  admin: ReturnType<typeof createClient>,
+  admin: Admin,
   input: {
     customerId: number
     kind: string
@@ -310,6 +343,22 @@ async function findExistingCommunicationId(
     && (candidate.dispatch_id ?? null) === (input.dispatchId ?? null),
   )
   return row?.id ?? null
+}
+
+// Acesso ao banco do registro da tentativa e do status final
+// (_shared/customerCommunicationAttempts.ts).
+function communicationAttemptStore(admin: Admin): CommunicationAttemptStore {
+  return {
+    insertAttempt: (row) => admin.from('customer_communication_attempts').insert(row).select('id').single(),
+    findAttemptByKey: (idempotencyKey) => admin
+      .from('customer_communication_attempts')
+      .select('id, status, provider_message_id, dispatch_mode')
+      .eq('idempotency_key', idempotencyKey)
+      .single(),
+    patchAttempt: (id, patch) => admin.from('customer_communication_attempts').update(patch).eq('id', id),
+    refreshStatus: (communicationId) => admin.rpc('refresh_customer_communication_status', { p_communication_id: communicationId }),
+    persistStatus: (communicationId, status) => admin.from('customer_communications').update({ status }).eq('id', communicationId),
+  }
 }
 
 function timingSafeEqual(leftValue: string, rightValue: string): boolean {
@@ -424,6 +473,9 @@ async function handler(req: Request): Promise<Response> {
   if (targetCustomer.deactivated_at) return json(422, { error: 'Cliente desativado não recebe Comunicados.' }, origin)
 
   let canonicalPayload: { subject: string; html: string; text: string; blIds: string[] } | null = null
+  // Porto gravado no Comunicado. No CE e Taxas fica nulo: a identidade é
+  // Cliente × Viagem (D3) e o porto informativo vai só no corpo.
+  let anchorPort: string | null = body.anchor_port ?? null
   // No NOB o histórico grava o terminal que o servidor pôs no e-mail, não o
   // que o navegador mandou.
   let canonicalTerminalName: string | null = null
@@ -454,6 +506,10 @@ async function handler(req: Request): Promise<Response> {
     if (!row?.customer_name || !row.vessel_name || !row.voyage_number || !Array.isArray(row.bls) || !row.bls.length) {
       return json(422, { error: 'Dados financeiros incompletos para o comunicado.' }, origin)
     }
+    // A identidade do CE e Taxas é Cliente × Viagem (D3): o porto fica só no
+    // corpo do e-mail e o registro grava anchor_port nulo (migration 315), para
+    // a troca de POD de um B/L não criar outro Comunicado nem reenviar o CE.
+    anchorPort = null
     const rendered = renderCeMercanteTaxasTemplate({
       customerId,
       customerName: row.customer_name,
@@ -496,63 +552,59 @@ async function handler(req: Request): Promise<Response> {
     const uniqueBlIds = Array.from(new Set(effectiveBlIds))
     const { data: ownedBls, error: ownedBlsError } = await admin
       .from('bls')
-      .select('id, customer_id, voyage_id, pod, cargo_mode, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, pod_schedule_snapshot, vessel:vessels(name))')
+      .select('id, customer_id, voyage_id, pod, cargo_mode, cancelled_at, customer:customers!bls_customer_id_fkey(name), voyage:voyages(voyage_number, vessel:vessels(name))')
       .in('id', uniqueBlIds)
     if (ownedBlsError) return json(500, { error: 'Não foi possível conferir os B/Ls do comunicado.' }, origin)
-    const validBls = (ownedBls ?? []) as unknown as Array<{ id: string; customer_id: number | null; voyage_id: number | null; pod: string | null; cargo_mode: string | null; customer: { name: string } | null; voyage: { voyage_number: string; pod_schedule_snapshot?: Record<string, { eta?: string | null; ata?: string | null; omitted?: boolean; deleted?: boolean }> | null; vessel: { name: string } | null } | null }>
+    const validBls = (ownedBls ?? []) as unknown as Array<{ id: string; customer_id: number | null; voyage_id: number | null; pod: string | null; cargo_mode: string | null; cancelled_at: string | null; customer: { name: string } | null; voyage: { voyage_number: string; vessel: { name: string } | null } | null }>
     if (validBls.length !== uniqueBlIds.length || validBls.some((bl) => bl.customer_id !== customerId)) {
       return json(422, { error: 'Um ou mais B/Ls não pertencem ao cliente selecionado.' }, origin)
     }
+    // Vale para todo modelo, inclusive o livre (sem validação de âncora), e só
+    // muda com outro payload: a tela tira o item de "Repetir só as falhas".
+    if (validBls.some((bl) => bl.cancelled_at)) return permanentRejection('B/L cancelado não recebe Comunicado.', origin)
     derivedVesselName = validBls[0]?.voyage?.vessel?.name ?? null
     derivedVoyageNumber = validBls[0]?.voyage?.voyage_number ?? null
-    if (body.anchor_voyage_id != null && validBls.some((bl) => bl.voyage_id !== Number(body.anchor_voyage_id))) {
+    const anchoredKind = fixedOperationalKind || kind === 'ce_mercante_taxas'
+    // D15: o livre com B/Ls é um e-mail por Cliente × Viagem; sem a viagem,
+    // B/Ls de viagens diferentes sairiam juntos com o navio do primeiro.
+    if (kind === 'livre' && body.anchor_voyage_id == null) {
+      return permanentRejection('Comunicado livre com B/Ls exige a viagem.', origin)
+    }
+    if (!anchoredKind && body.anchor_voyage_id != null && validBls.some((bl) => bl.voyage_id !== Number(body.anchor_voyage_id))) {
       return json(422, { error: 'A viagem-âncora não corresponde aos B/Ls selecionados.' }, origin)
     }
-    if (body.anchor_port && validBls.some((bl) => (bl.pod ?? '').trim().toUpperCase() !== body.anchor_port!.trim().toUpperCase())) {
+    if (!anchoredKind && body.anchor_port && validBls.some((bl) => (bl.pod ?? '').trim().toUpperCase() !== body.anchor_port!.trim().toUpperCase())) {
       return json(422, { error: 'O porto-âncora não corresponde aos B/Ls selecionados.' }, origin)
+    }
+    // Escala, porto (normalizado), B/L cancelado, Atracação e regra única do
+    // NOB: a mesma validação da RPC create_customer_communication_atomic, com
+    // a escala lida do Histórico da Viagem (plano dos e-mails, 1C). O snapshot
+    // de escalas da viagem não é lido pelos Comunicados.
+    let anchor: AnchorValidation | null = null
+    if (anchoredKind) {
+      const { data: validation, error: validationError } = await admin.rpc('customer_communication_anchor_validation', {
+        p_customer_id: customerId,
+        p_kind: kind,
+        p_anchor_voyage_id: body.anchor_voyage_id ?? null,
+        p_anchor_port: anchorPort,
+        p_anchor_atracacao_id: body.anchor_atracacao_id ?? null,
+        p_bl_ids: uniqueBlIds,
+      })
+      if (validationError) {
+        console.error('customer communication anchor validation failed', validationError)
+        return json(500, { error: 'Não foi possível conferir a âncora do comunicado.' }, origin)
+      }
+      anchor = validation as AnchorValidation | null
+      if (!anchor?.ok) return json(422, { error: anchor?.error ?? 'Âncora do comunicado inválida.' }, origin)
+      anchorPort = anchor.port ?? anchorPort
     }
     if (fixedOperationalKind) {
       const first = validBls[0]
-      let terminalId: string | null = null
-      let terminalName: string | null = null
-      const schedule = first?.voyage?.pod_schedule_snapshot?.[first.pod ?? '']
-      let milestoneAt = kind === 'aviso_prontidao_nor' ? schedule?.ata : schedule?.eta
-      if (fixedOperationalKind && kind !== 'aviso_atracacao_nob' && (!schedule || schedule.omitted || schedule.deleted)) {
-        return json(422, { error: 'A escala canônica do porto não está disponível para este comunicado.' }, origin)
-      }
-      if (kind === 'aviso_atracacao_nob') {
-        const { data: berth, error: berthError } = await admin
-          .from('voyage_escala_terminal_state')
-          // Terminais vivem em depots; não existe tabela terminals, e o embed
-          // por esse nome falhava e recusava todo NOB com 422.
-          .select('id, voyage_id, port, terminal_id, terminal_atb, terminal:depots!voyage_escala_terminal_state_terminal_id_port_id_fkey(code)')
-          .eq('id', body.anchor_atracacao_id!)
-          .maybeSingle()
-        const row = berth as unknown as { voyage_id?: number; port?: string; terminal_id?: string | null; terminal_atb?: string | null; terminal?: { code?: string | null } | null } | null
-        // Erro de leitura não é Atracação divergente: sem o log, o 422 abaixo
-        // escondia a causa real (foi assim que o embed quebrado passou).
-        if (berthError) console.error('customer communication berth lookup failed', berthError)
-        if (berthError || !row || row.voyage_id !== Number(body.anchor_voyage_id) || (row.port ?? '').toUpperCase() !== body.anchor_port!.trim().toUpperCase() || !row.terminal_id || !row.terminal_atb) {
-          return json(422, { error: 'A Atracação não corresponde à viagem e ao porto informados.' }, origin)
-        }
-        terminalId = row.terminal_id
-        // O cliente lê a sigla do terminal; o UUID nunca vai para o e-mail.
-        terminalName = row.terminal?.code?.trim() || null
-        if (!terminalName) return json(422, { error: 'O terminal da Atracação está sem sigla cadastrada.' }, origin)
-        canonicalTerminalName = terminalName
-        milestoneAt = row.terminal_atb
-        // Regra única do NOB (ADR 0068, item 7; migration 243): a mesma da
-        // produtora automática e da RPC — exceção de terminal do B/L vence a
-        // frente, e o B/L misto precisa das duas frentes no terminal.
-        for (const bl of validBls) {
-          const { data: belongs, error: belongsError } = await admin.rpc('bl_belongs_to_atracacao', {
-            p_bl_id: bl.id,
-            p_atracacao_id: body.anchor_atracacao_id!,
-          })
-          if (belongsError) console.error('customer communication NOB rule failed', belongsError)
-          if (belongsError || belongs !== true) return json(422, { error: 'Um B/L não pertence à Frente de Operação desta Atracação.' }, origin)
-        }
-      }
+      const terminalId = kind === 'aviso_atracacao_nob' ? anchor?.terminal_id ?? null : null
+      // O cliente lê a sigla do terminal; o UUID nunca vai para o e-mail.
+      const terminalName = kind === 'aviso_atracacao_nob' ? anchor?.terminal_code ?? null : null
+      if (kind === 'aviso_atracacao_nob') canonicalTerminalName = terminalName
+      const milestoneAt = anchor?.milestone_at ?? null
       if (!first?.customer?.name || !first.voyage?.voyage_number || !first.voyage.vessel?.name || !milestoneAt) {
         return json(422, { error: 'Dados operacionais incompletos para renderizar o comunicado.' }, origin)
       }
@@ -561,7 +613,7 @@ async function handler(req: Request): Promise<Response> {
         customerName: first.customer.name,
         vesselName: first.voyage.vessel.name,
         voyageNumber: first.voyage.voyage_number,
-        port: body.anchor_port!,
+        port: anchorPort ?? '',
         terminalId,
         terminalName,
         terminalStateId: body.anchor_atracacao_id ?? null,
@@ -618,6 +670,15 @@ async function handler(req: Request): Promise<Response> {
   if (communicationSuppression || portalSuppression) return json(422, { error: 'Endereço suprimido para Comunicados.', suppressed: true }, origin)
   if (!recipientAllowed) return json(422, { error: 'Contato desativado para esta caixa ou modelo.' }, origin)
 
+  // Envio real sem configuração não chega a registrar o Comunicado: antes,
+  // ele nascia e ficava sem tentativa (plano dos e-mails, 1B).
+  const enabled = Boolean((settings as { communications_enabled?: boolean } | null)?.communications_enabled)
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  if (missingProviderConfiguration(enabled, { resendApiKey, from: Deno.env.get('PORTAL_FROM_EMAIL'), replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO') })) {
+    console.error('[send-customer-communication] envio real sem RESEND_API_KEY, PORTAL_FROM_EMAIL ou COMMUNICATIONS_REPLY_TO')
+    return json(500, { error: 'Envio real sem configuração do provedor de e-mail.' }, origin)
+  }
+
   let existingCommunicationId: number | null = null
   if (isAutomation) {
     try {
@@ -626,7 +687,7 @@ async function handler(req: Request): Promise<Response> {
         kind,
         nature,
         anchorVoyageId: body.anchor_voyage_id,
-        anchorPort: body.anchor_port,
+        anchorPort,
         anchorAtracacaoId: body.anchor_atracacao_id,
         anchorInvoiceId: body.anchor_invoice_id,
         attemptDiscriminator,
@@ -638,12 +699,12 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  const { data: communicationId, error: createError } = await admin.rpc('create_customer_communication_atomic', {
+  const { data: createdCommunicationId, error: createError } = await admin.rpc('create_customer_communication_atomic', {
     p_customer_id: customerId,
     p_kind: kind,
     p_nature: nature,
     p_anchor_voyage_id: body.anchor_voyage_id ?? null,
-    p_anchor_port: body.anchor_port ?? null,
+    p_anchor_port: anchorPort,
     p_anchor_atracacao_id: body.anchor_atracacao_id ?? null,
     p_anchor_invoice_id: body.anchor_invoice_id ?? null,
     p_attempt_discriminator: attemptDiscriminator,
@@ -654,10 +715,30 @@ async function handler(req: Request): Promise<Response> {
     p_created_by: callerUser.user?.id ?? null,
     p_bl_ids: effectiveBlIds,
   })
+  let communicationId = createdCommunicationId as number | null
   if (createError || communicationId == null) {
-    if (isUniqueViolation(createError)) return json(200, { status: 'simulado', message: 'Comunicado já registrado.' }, origin)
-    console.error('customer communication atomic record failed', createError)
-    return json(500, { error: 'Não foi possível registrar o comunicado.' }, origin)
+    // Duas chamadas criando o mesmo Comunicado ao mesmo tempo: a perdedora
+    // segue o envio no Comunicado da vencedora, em vez de responder
+    // "simulado" sem enviar (plano dos e-mails, 1B).
+    if (isUniqueViolation(createError)) {
+      try {
+        communicationId = await findExistingCommunicationId(admin, {
+          customerId, kind, nature,
+          anchorVoyageId: body.anchor_voyage_id,
+          anchorPort,
+          anchorAtracacaoId: body.anchor_atracacao_id,
+          anchorInvoiceId: body.anchor_invoice_id,
+          attemptDiscriminator,
+          dispatchId: body.dispatch_id,
+        })
+      } catch (error) {
+        console.error('customer communication identity lookup after conflict failed', error)
+      }
+    }
+    if (communicationId == null) {
+      console.error('customer communication atomic record failed', createError)
+      return json(500, { error: 'Não foi possível registrar o comunicado.' }, origin)
+    }
   }
 
   // Cópia do que saiu: o registro do comunicado guarda assunto, texto e o
@@ -692,13 +773,6 @@ async function handler(req: Request): Promise<Response> {
     return json(500, { error: 'Não foi possível persistir os anexos do comunicado.' }, origin)
   }
 
-  const enabled = Boolean((settings as { communications_enabled?: boolean } | null)?.communications_enabled)
-  const resendApiKey = Deno.env.get('RESEND_API_KEY')
-  if (enabled && !resendApiKey) {
-    await admin.from('customer_communications').update({ status: 'falha' }).eq('id', communicationId)
-    return json(500, { error: 'RESEND_API_KEY não está configurada para envio real.' }, origin)
-  }
-
   if (kind === 'ce_mercante_taxas') {
     const { error: dispatchReadinessError } = await admin.rpc('customer_local_charges_communication_dispatch_ready', {
       p_voyage_id: Number(body.anchor_voyage_id),
@@ -714,6 +788,23 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
+  let attemptKey: string
+  try {
+    attemptKey = await resolveCommunicationAttemptKey(
+      { communicationId: Number(communicationId), attemptDiscriminator, recipient },
+      async (idempotencyKey) => {
+        const { data, error } = await admin.from('customer_communication_attempts').select('id').eq('idempotency_key', idempotencyKey).maybeSingle()
+        if (error) throw error
+        return Boolean(data)
+      },
+    )
+  } catch (error) {
+    console.error('customer communication attempt lookup failed', error)
+    return json(500, { error: 'Não foi possível conferir a tentativa do comunicado.' }, origin)
+  }
+
+  const attemptStore = communicationAttemptStore(admin)
+  const attemptRecorder = communicationAttemptRecorder(attemptStore, { communicationId: Number(communicationId), enabled })
   let sent: { ok: boolean }
   try {
     sent = await sendEmail({
@@ -723,82 +814,67 @@ async function handler(req: Request): Promise<Response> {
       html: effectiveHtml,
       text: effectiveText,
       attachments: emailAttachments,
-      idempotencyKey: `comunicado:${communicationId}:${attemptDiscriminator}:${recipient}`,
+      idempotencyKey: attemptKey,
       resendApiKey: enabled ? resendApiKey : null,
       simulate: !enabled,
       from: Deno.env.get('PORTAL_FROM_EMAIL'),
       replyTo: Deno.env.get('COMMUNICATIONS_REPLY_TO'),
       missingConfigurationMessage: 'PORTAL_FROM_EMAIL e COMMUNICATIONS_REPLY_TO são obrigatórios para envio real',
       checkSuppression: async (to) => {
-        const [{ data: complaint }, { data: bounce }] = await Promise.all([
+        const [{ data: complaint, error: complaintError }, { data: bounce, error: bounceError }] = await Promise.all([
           admin.from('customer_communication_suppressions').select('id').eq('email', to).maybeSingle(),
           admin.from('portal_suppressed_emails').select('id').eq('email', to).eq('reason', 'bounce_permanente').maybeSingle(),
         ])
+        // Erro na consulta não libera o envio para um endereço que pode estar suprimido.
+        if (complaintError || bounceError) throw complaintError ?? bounceError
         return { suppressed: Boolean(complaint || bounce) }
       },
-      recordAttempt: async ({ kind: attemptKind, to, idempotencyKey }): Promise<EmailAttemptRecord> => {
-        const { data, error } = await admin.from('customer_communication_attempts').insert({
-          communication_id: communicationId,
-          recipient_masked: maskEmail(to),
-          recipient_key: await recipientKey(to),
-          status: 'aceito',
-          dispatch_mode: enabled ? 'real' : 'simulado',
-          idempotency_key: idempotencyKey,
-        }).select('id').single()
-        if (error?.code === '23505') {
-          const { data: existing, error: existingError } = await admin
-            .from('customer_communication_attempts')
-            .select('id, status, provider_message_id, dispatch_mode')
-            .eq('idempotency_key', idempotencyKey)
-            .single()
-          if (existingError || !existing) throw existingError ?? error
-          if (existing.dispatch_mode === 'legado' && existing.status === 'aceito' && existing.provider_message_id == null) {
-            const { error: repairError } = await admin.from('customer_communication_attempts').update({
-              recipient_key: await recipientKey(to),
-              dispatch_mode: enabled ? 'real' : 'simulado',
-            }).eq('id', existing.id)
-            if (repairError) throw repairError
-          }
-          return { id: existing.id, status: existing.status as EmailAttemptRecord['status'], providerMessageId: existing.provider_message_id, existing: true }
-        }
-        if (error || !data) throw error ?? new Error(`Não foi possível registrar a tentativa ${attemptKind}.`)
-        return { id: data.id, status: 'aceito', providerMessageId: null, existing: false }
-      },
-      updateAttempt: async (attemptId, update) => {
-        const { error } = await admin.from('customer_communication_attempts').update({
-          provider_message_id: update.providerMessageId,
-          retry_count: update.retryCount,
-          status: update.status,
-          last_error: update.lastError,
-        }).eq('id', attemptId)
-        if (error) throw error
-      },
+      ...attemptRecorder,
     })
   } catch (error) {
-    await admin.from('customer_communications').update({ status: 'falha' }).eq('id', communicationId)
+    // Exceção neste destinatário não apaga o que os outros já receberam: o
+    // status vem das tentativas, e este destinatário conta como falha.
     console.error('customer communication send failed', error)
-    return json(500, { error: 'Falha no envio do comunicado.' }, origin)
+    // Grava o destinatário como falha_transitoria: o Histórico o mostra e a
+    // produtora o tenta de novo (o alvo só é feito com a entrega, migration 315).
+    const recorded = await recordUnsentCommunicationAttempt(attemptStore, {
+      communicationId: Number(communicationId), enabled, recipient, idempotencyKey: attemptKey,
+      reason: `Falha antes do envio: ${error instanceof Error ? error.message : String(error)}`,
+    })
+    const { status: statusAfterError } = await settleCommunicationStatus(attemptStore, {
+      communicationId: Number(communicationId), enabled, succeeded: 0, failed: recorded ? 1 : 0, unrecordedFailures: recorded ? 0 : 1,
+    })
+    return json(500, { error: 'Falha no envio do comunicado.', status: statusAfterError, communicationId }, origin)
   }
 
-  const { data: refreshedStatus, error: statusError } = await admin.rpc('refresh_customer_communication_status', {
-    p_communication_id: Number(communicationId),
+  const { status, refreshError: statusError } = await settleCommunicationStatus(attemptStore, {
+    communicationId: Number(communicationId), enabled, succeeded: sent.ok ? 1 : 0, failed: sent.ok ? 0 : 1,
   })
   if (statusError) {
     console.error('customer communication status persistence failed', statusError)
     return json(500, { error: 'Não foi possível persistir o status do comunicado.' }, origin)
   }
-  const status = String(refreshedStatus ?? (sent.ok ? (enabled ? 'enviado' : 'simulado') : 'falha'))
   const { data: attempt } = await admin
     .from('customer_communication_attempts')
-    .select('id')
+    .select('id, status, last_error')
     .eq('communication_id', communicationId)
-    .eq('idempotency_key', `comunicado:${communicationId}:${attemptDiscriminator}:${recipient}`)
+    .eq('idempotency_key', attemptKey)
     .maybeSingle()
   return json(sent.ok ? 200 : 502, {
     communicationId,
     attemptId: attempt?.id ?? undefined,
     status,
+    // Modo deste destinatário: o `status` é o agregado do Comunicado e pode ser
+    // "parcial" por causa de outro destinatário.
+    dispatchMode: enabled ? 'real' : 'simulado',
     suppressed: false,
+    // Recusa definitiva do provedor (ex.: 422 do endereço): a mesma chave nunca
+    // mais chama o provedor, então a régua rejeita a claim (plano, 1D.4).
+    ...(isPermanentProviderFailure(sent.ok, attempt?.status) ? { permanent: true } : {}),
+    // Motivo técnico da tentativa (`HTTP 422 validation_error`, "Tempo
+    // esgotado…"): a tela o traduz no resumo do lote e a régua automática o
+    // grava como motivo da claim e do alerta comunicado_recusado.
+    ...(!sent.ok && attempt?.last_error ? { reason: attempt.last_error } : {}),
     message: !sent.ok ? 'Falha no envio do comunicado.' : enabled ? 'Comunicado enviado.' : 'Comunicado registrado em simulação; nenhum e-mail foi enviado.',
   }, origin)
 }

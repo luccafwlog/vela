@@ -39,7 +39,7 @@ function claimAll(): Candidate[] {
 
 describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalidação)', () => {
   beforeAll(() => {
-    const bls = invoiceIds.map((id) => `('S06-GRP-BL-${id}', ${voyageId}, ${customerId}, 'container')`).join(',\n        ')
+    const bls = invoiceIds.map((id) => `('S06-GRP-BL-${id}', ${voyageId}, ${customerId}, 'container', 'CE-S06-${id}')`).join(',\n        ')
     const invoices = invoiceIds
       .map((id) => `(${id}, 'S06-GRP-${id}', 'S06-GRP-BL-${id}', ${customerId}, '2026-09-01', '2026-09-01', 100, 5.5, 550, 'manual', 'issued')`)
       .join(',\n        ')
@@ -75,7 +75,7 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S06');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel S06', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'S06', 'active');
-      INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode) VALUES ${bls};
+      INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode, ce_mercante) VALUES ${bls};
       INSERT INTO public.demurrage_invoices
         (id, doc_number, bl_id, customer_id, doc_date, first_billed_at, total_usd, current_roe, current_total_brl, roe_source, status)
       VALUES ${invoices};
@@ -132,7 +132,7 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
     `)) as { customer_id: number; port: string; bls: Array<{ bl_id: string; ce_mercante: string | null; total_brl: number }> }
     expect(payload.customer_id).toBe(customerId)
     expect(payload.port).toBe('—')
-    expect(payload.bls).toEqual(invoiceIds.map((id) => ({ bl_id: `S06-GRP-BL-${id}`, ce_mercante: null, total_brl: 0 })))
+    expect(payload.bls).toEqual(invoiceIds.map((id) => ({ bl_id: `S06-GRP-BL-${id}`, ce_mercante: `CE-S06-${id}`, total_brl: 0 })))
   })
 
   it('D11 — as 12 faturas do mesmo cliente/ciclo saem juntas no 1º lote útil', () => {
@@ -194,6 +194,8 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
   // seguem o intervalo a partir do último envio, sem recuperar as "atrasadas".
   it('A15 — a Régua retoma ancorada no último envio', () => {
     const invoice = invoiceIds[11]!
+    // Quinta-feira 10/09/2026, 9h de Brasília: dentro da janela de envio (migration 305).
+    const base = "'2026-09-10T12:00:00Z'::timestamptz"
     const claimAt = (asOf: string) => (JSON.parse(localPsql(`SELECT public.claim_demurrage_dunning_candidates(${asOf}, 50);`)) as Candidate[])
       .filter((candidate) => Number(candidate.invoice_id) === invoice)
     try {
@@ -203,15 +205,15 @@ describeLocal('S06 — elegibilidade de comunicados e da régua (D11 + revalida�
         VALUES (${customerId}, 'cobranca_demurrage', 'demurrage', 'enviado', ${invoice}, ${attempt});`)
       localPsql(`DELETE FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ANY(ARRAY[${invoiceIds.join(',')}]::bigint[]);
         INSERT INTO public.demurrage_dunning_claims (demurrage_invoice_id, attempt_discriminator, claimed_at)
-        VALUES (${invoice}, 1, now() - interval '40 days');`)
+        VALUES (${invoice}, 1, ${base} - interval '40 days');`)
       sent(1)
       // 40 dias depois do 1º envio (pausa): sai a 2ª cobrança.
-      expect(claimAt('now()').map((candidate) => Number(candidate.attempt_discriminator))).toEqual([2])
+      expect(claimAt(base).map((candidate) => Number(candidate.attempt_discriminator))).toEqual([2])
       sent(2)
       // Uma hora depois, a 3ª não sai: vence 7 dias depois do último envio.
-      expect(claimAt(`now() + interval '1 hour'`)).toEqual([])
-      expect(claimAt(`now() + interval '5 days'`)).toEqual([])
-      expect(claimAt(`now() + interval '8 days'`).map((candidate) => Number(candidate.attempt_discriminator))).toEqual([3])
+      expect(claimAt(`${base} + interval '1 hour'`)).toEqual([])
+      expect(claimAt(`${base} + interval '5 days'`)).toEqual([])
+      expect(claimAt(`${base} + interval '8 days'`).map((candidate) => Number(candidate.attempt_discriminator))).toEqual([3])
     } finally {
       localPsql(`DELETE FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ANY(ARRAY[${invoiceIds.join(',')}]::bigint[]);
         DELETE FROM public.customer_communications WHERE anchor_invoice_id = ${invoice} AND kind = 'cobranca_demurrage';`)

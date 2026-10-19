@@ -143,11 +143,16 @@ export function Admin() {
   })
 
   const credentialsMutation = useMutation({
-    mutationFn: ({ userId, updates }: { userId: string; updates: { email?: string; password?: string } }) =>
+    mutationFn: ({ userId, updates }: { userId: string; updates: { email?: string; password?: string }; releasesEmail: boolean }) =>
       updateUserCredentials({ user_id: userId, ...updates }),
-    onSuccess: () => {
+    onSuccess: (result, { releasesEmail }) => {
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
-      showToast('Acesso atualizado.', 'success')
+      if (releasesEmail && result.released === 0) {
+        // A RPC mantém suprimido o endereço que também é contato de Cliente ou e-mail de recuperação do Portal.
+        showToast('O e-mail continua bloqueado: ele também é contato de Cliente ou e-mail de recuperação do Portal. Corrija pelo cadastro do Cliente.', 'error')
+      } else {
+        showToast('Acesso atualizado.', 'success')
+      }
       setEditando(null)
     },
     onError: (err: Error) => showToast(err.message, 'error'),
@@ -290,6 +295,9 @@ export function Admin() {
                           <div className="app-table__cell-stack">
                             <div className="app-table__truncate app-table__truncate--xl font-medium text-[var(--app-text-strong)]" title={u.full_name ?? undefined}>{u.full_name}</div>
                             <div className="app-table__truncate app-table__truncate--xl text-xs text-[var(--app-muted)]" title={u.email ?? undefined}>{u.email ?? <NoValue label="Sem e-mail" />}</div>
+                            {u.email_bounced ? (
+                              <div><Badge tone="red" title="O provedor devolveu ou marcou como spam um e-mail para este endereço; o sistema não envia mais para ele. Corrija em Editar acesso.">E-mail devolvido</Badge></div>
+                            ) : null}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -401,11 +409,14 @@ export function Admin() {
               open
               userName={editando.full_name}
               currentEmail={editando.email}
+              emailBounced={Boolean(editando.email_bounced)}
               onClose={() => setEditando(null)}
               onSubmit={async (updates) => {
                 const emailChanged = updates.email && updates.email !== editando.email
                 const passChanged = Boolean(updates.password)
+                const releasesEmail = Boolean(updates.email) && !emailChanged
                 const changes = [
+                  ...(releasesEmail ? [{ field: 'E-mail', before: 'Devolvido', after: 'Liberado para receber de novo' }] : []),
                   ...(emailChanged ? [{ field: 'E-mail', before: editando.email ?? '', after: updates.email! }] : []),
                   ...(passChanged ? [{ field: 'Senha', before: '••••••••', after: 'Nova senha definida' }] : []),
                 ]
@@ -416,11 +427,13 @@ export function Admin() {
                   changes,
                   consequence: passChanged
                     ? 'A senha será redefinida imediatamente. Se o e-mail mudou, o novo e-mail passará a ser exigido no login.'
-                    : 'O e-mail de acesso do usuário será alterado.',
+                    : releasesEmail
+                      ? 'O sistema volta a enviar e-mails para este endereço.'
+                      : 'O e-mail de acesso do usuário será alterado.',
                   reversibility: 'As credenciais podem ser atualizadas novamente no painel administrativo.',
                 })
                 if (!confirmed) return
-                credentialsMutation.mutate({ userId: editando.id, updates })
+                credentialsMutation.mutate({ userId: editando.id, updates, releasesEmail })
               }}
               submitting={credentialsMutation.isPending}
             />

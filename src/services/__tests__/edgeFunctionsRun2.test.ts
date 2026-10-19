@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { decideInternalTarget } from '../../../supabase/functions/_shared/internalUserTarget'
+import { renderDemurrageGroupTemplate } from '../../../supabase/functions/_shared/customerCommunicationTemplates'
 
 const base = { userId: 'u-1', dummyUserId: 'dummy', hasProfile: true, isPortalAccount: false }
 
@@ -78,9 +79,18 @@ describe('reforços da Fase 3', () => {
   })
 
   it('cobrança agrupada de Demurrage escapa o HTML', () => {
-    const source = fn('demurrage-dunning')
-    expect(source).toContain('${escapeHtml(anchor.customer!.name)}')
-    expect(source).toContain('${escapeHtml(line.candidate.doc_number)}')
+    // Desde o plano dos e-mails (4.1), o agrupado sai do módulo de modelos.
+    const rendered = renderDemurrageGroupTemplate({
+      customerId: 1,
+      customerName: '<b>Cliente</b>',
+      lines: [
+        { docNumber: '<i>D1</i>', blId: 'BL1', vesselName: 'N', voyageNumber: 'V', totalUsd: 1, totalBrl: 5, roe: 5, roeReferenceDate: '2026-09-01' },
+        { docNumber: 'D2', blId: 'BL2', vesselName: 'N', voyageNumber: 'V', totalUsd: 1, totalBrl: 5, roe: 5, roeReferenceDate: '2026-09-01' },
+      ],
+    })
+    expect(rendered.html).toContain('&lt;b&gt;Cliente&lt;/b&gt;')
+    expect(rendered.html).toContain('&lt;i&gt;D1&lt;/i&gt;')
+    expect(rendered.html).not.toContain('<i>D1</i>')
   })
 
   it('suspensão valida a situação, cancela convites e a reativação bane o usuário antigo', () => {
@@ -135,6 +145,9 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
     expect(fn('portal-invite-send')).toContain('Cliente desativado não recebe convite.')
     expect(fn('send-customer-communication')).toContain('Cliente desativado não recebe Comunicados.')
     expect(fn('portal-daily-digest')).toContain(".is('customers.deactivated_at', null)")
+    // Convite pendente de Cliente desativado não ativa a conta (plano dos e-mails, 4.7).
+    expect(fn('portal-invite-activate')).toContain('customerForActivation.deactivated_at) return cors(410, { error: GENERIC_INVALID })')
+    expect(fn('portal-invite-activate')).toContain('customer.deactivated_at) return cors(410, { error: GENERIC_INVALID })')
   })
 
   it('resumo das 08:00 conta a exceção crítica de fatura aberta e fechada (ADR 0083, item 19)', () => {
@@ -143,7 +156,7 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
     expect(source).toContain(".from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'opened').gte('created_at', since)")
     expect(source).toContain(".from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'resolved').gte('created_at', since)")
     expect(source).not.toContain(".from('alert_items').select('id').eq('item_type', 'portal_excecao_critica_fatura')")
-    expect(source).toContain('Object.values(counts).every((count) => count === 0)')
+    expect(readFileSync('supabase/functions/_shared/portalDailyDigest.ts', 'utf8')).toContain('Object.values(counts).every((count) => count === 0)')
   })
 
   it('troca de e-mail de recuperação exige conta ativa e tem cota diária', () => {

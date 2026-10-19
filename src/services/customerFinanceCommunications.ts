@@ -28,6 +28,7 @@ type FinanceBlRow = {
   customer_id: number
   ce_mercante: string | null
   financial_status: string | null
+  cancelled_at?: string | null
   pod: string | null
   customer: { id: number; name: string; cnpj_cpf: string } | null
   voyage: { id: number; voyage_number: string; eta: string | null; vessel: { name: string } | null } | null
@@ -49,26 +50,23 @@ type CommunicationHistoryRow = {
 
 const ACTIVE_LOCAL_INVOICE_STATUSES = new Set(['issued', 'partially_paid', 'paid', 'covered'])
 
-export type CustomerVoyageCommunicationStatus = {
-  readiness: CustomerLocalChargesCommunicationReadiness
-  latest: {
-    id: number
-    status: string
-    createdAt: string
-    attemptDiscriminator: number
-  } | null
-  blockedReason: string | null
-  nextManualAttemptDiscriminator: number
-}
-
 export type CeMercanteCommunicationDispatchSummary = {
   status: 'enviado' | 'simulado' | 'parcial' | 'falha' | 'bloqueado' | 'ignorado'
   readiness: CustomerLocalChargesCommunicationReadiness
   sentCount: number
   simulatedCount: number
+  /** Destinatários que falharam; os demais seguiram (a falha de um não para o reenvio). */
+  failedCount: number
   communicationIds: number[]
   attemptDiscriminator: number
   reason: string | null
+  /** B/Ls do Cliente na Viagem, para a linha do tempo de cada um ser relida. */
+  blIds: string[]
+}
+
+type RecipientDispatchResult = Pick<CustomerCommunicationDispatchResult, 'status'> & {
+  communicationId?: number
+  reason?: string
 }
 
 function canonicalPortalBillingUrl(value: string): string {
@@ -91,6 +89,10 @@ function normalizeNested<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null
 }
 
+function readinessBlIds(readiness: CustomerLocalChargesCommunicationReadiness): string[] {
+  return readiness.bls.map((bl) => bl.bl_id)
+}
+
 function firstReason(readiness: CustomerLocalChargesCommunicationReadiness): string | null {
   const reason = readiness.reasons[0] ?? readiness.bls.flatMap((bl) => bl.blocked_reasons)[0]
   return reason ? customerCommunicationReadinessReasonLabel(reason) : null
@@ -99,13 +101,13 @@ function firstReason(readiness: CustomerLocalChargesCommunicationReadiness): str
 async function fetchFinanceBls(voyageId: number, customerId: number): Promise<FinanceBlRow[]> {
   const { data, error } = await supabase
     .from('bls')
-    .select('id, voyage_id, customer_id, ce_mercante, financial_status, pod, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, vessel:vessels(name))')
+    .select('id, voyage_id, customer_id, ce_mercante, financial_status, cancelled_at, pod, customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf), voyage:voyages(id, voyage_number, eta, vessel:vessels(name))')
     .eq('voyage_id', voyageId)
     .eq('customer_id', customerId)
     .overrideTypes<FinanceBlRow[], { merge: false }>()
   if (error) throw error
   return (data ?? [])
-    .filter((row) => row.financial_status !== 'cancelled')
+    .filter((row) => row.financial_status !== 'cancelled' && !row.cancelled_at)
     .sort((left, right) => left.id.localeCompare(right.id))
 }
 
@@ -228,28 +230,6 @@ function buildCeMercanteInput(
   }
 }
 
-export async function fetchCustomerVoyageCommunicationStatus(
-  voyageId: number,
-  customerId: number,
-): Promise<CustomerVoyageCommunicationStatus> {
-  const readiness = await fetchCustomerLocalChargesCommunicationReadiness(voyageId, customerId)
-  const history = await fetchCommunicationHistory(voyageId, customerId)
-  const latest = history[0]
-  return {
-    readiness,
-    latest: latest
-      ? {
-        id: latest.id,
-        status: latest.status,
-        createdAt: latest.created_at,
-        attemptDiscriminator: latest.attempt_discriminator,
-      }
-      : null,
-    blockedReason: readiness.ready ? null : firstReason(readiness),
-    nextManualAttemptDiscriminator: nextAttempt(history),
-  }
-}
-
 export async function dispatchCeMercanteTaxasCommunication(
   voyageId: number,
   customerId: number,
@@ -262,9 +242,11 @@ export async function dispatchCeMercanteTaxasCommunication(
       readiness,
       sentCount: 0,
       simulatedCount: 0,
+      failedCount: 0,
       communicationIds: [],
       attemptDiscriminator: 0,
       reason: firstReason(readiness),
+      blIds: readinessBlIds(readiness),
     }
   }
 
@@ -282,9 +264,11 @@ export async function dispatchCeMercanteTaxasCommunication(
       readiness,
       sentCount: 0,
       simulatedCount: 0,
+      failedCount: 0,
       communicationIds: [],
       attemptDiscriminator: 0,
       reason: 'Comunicado automático já registrado; o reenvio deve ser assistido pela tela.',
+      blIds: readinessBlIds(readiness),
     }
   }
 
@@ -295,9 +279,11 @@ export async function dispatchCeMercanteTaxasCommunication(
       readiness,
       sentCount: 0,
       simulatedCount: 0,
+      failedCount: 0,
       communicationIds: [],
       attemptDiscriminator: 0,
       reason: customerCommunicationReadinessReasonLabel('no_bls'),
+      blIds: [],
     }
   }
   const invoiceBls = await fetchInvoiceBls(bls.map((bl) => bl.id))
@@ -320,42 +306,60 @@ export async function dispatchCeMercanteTaxasCommunication(
       readiness,
       sentCount: 0,
       simulatedCount: 0,
+      failedCount: 0,
       communicationIds: [],
       attemptDiscriminator: options.forceRetry || automaticAttemptFailed ? nextAttempt(history) : 0,
       reason: 'Cliente sem contato válido habilitado para Documentação e Operação ou Financeiro.',
+      blIds: bls.map((bl) => bl.id),
     }
   }
 
   const rendered = renderCeMercanteTaxasTemplate(templateInput)
   const attemptDiscriminator = options.forceRetry || automaticAttemptFailed ? nextAttempt(history) : 0
-  const results: CustomerCommunicationDispatchResult[] = []
+  const results: RecipientDispatchResult[] = []
   for (const contact of recipients.eligible) {
     if (!contact.email?.trim()) continue
-    results.push(await dispatchCustomerCommunication({
-      customerId,
-      kind: 'ce_mercante_taxas',
-      nature: 'documentacao',
-      audience: { mode: 'caixa', boxCode: contact.matchedBoxCodes[0] ?? 'documentacao_operacao' },
-      recipient: contact.email,
-      subject: rendered.subject,
-      html: rendered.html,
-      text: rendered.text,
-      blIds: rendered.blIds,
-      anchorVoyageId: voyageId,
-      // A viagem pode ter mais de um POD. O porto não é parte da identidade
-      // deste comunicado financeiro agrupado; usar o primeiro B/L tornava a
-      // idempotência dependente da ordem arbitrária do SELECT.
-      anchorPort: null,
-      attemptDiscriminator,
-      vesselName: templateInput.vesselName,
-      voyageNumber: templateInput.voyageNumber,
-      attachments: [],
-    }))
+    // A recusa de um destinatário (502 do provedor, 422 de contato) não para os
+    // demais: parar aqui deixava parte sem e-mail, e repetir reenviava a quem
+    // já tinha recebido.
+    try {
+      results.push(await dispatchCustomerCommunication({
+        customerId,
+        kind: 'ce_mercante_taxas',
+        nature: 'documentacao',
+        audience: { mode: 'caixa', boxCode: contact.matchedBoxCodes[0] ?? 'documentacao_operacao' },
+        recipient: contact.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        blIds: rendered.blIds,
+        anchorVoyageId: voyageId,
+        // A viagem pode ter mais de um POD. O porto não é parte da identidade
+        // deste comunicado financeiro agrupado; usar o primeiro B/L tornava a
+        // idempotência dependente da ordem arbitrária do SELECT.
+        anchorPort: null,
+        attemptDiscriminator,
+        vesselName: templateInput.vesselName,
+        voyageNumber: templateInput.voyageNumber,
+        attachments: [],
+      }))
+    } catch (error) {
+      const communicationId = Number((error as { communicationId?: unknown } | null)?.communicationId)
+      results.push({
+        status: 'falha',
+        communicationId: Number.isFinite(communicationId) && communicationId > 0 ? communicationId : undefined,
+        reason: error instanceof Error && error.message ? error.message : 'Falha no envio do comunicado.',
+      })
+    }
   }
-  const communicationIds = results.map((result) => result.communicationId).filter((id) => Number.isFinite(id))
+  const communicationIds = [...new Set(results.flatMap((result) => (
+    result.communicationId != null && Number.isFinite(result.communicationId) ? [result.communicationId] : []
+  )))]
   const sentCount = results.filter((result) => result.status === 'enviado').length
   const simulatedCount = results.filter((result) => result.status === 'simulado').length
-  const hasFailed = results.some((result) => result.status === 'falha')
+  const failedCount = results.filter((result) => result.status === 'falha').length
+  const firstFailureReason = results.find((result) => result.reason)?.reason ?? null
+  const hasFailed = failedCount > 0
   const hasPartial = results.some((result) => result.status === 'parcial')
   const hasSent = sentCount > 0
   const hasSimulated = simulatedCount > 0
@@ -373,10 +377,14 @@ export async function dispatchCeMercanteTaxasCommunication(
     readiness,
     sentCount,
     simulatedCount,
+    failedCount,
     communicationIds,
     attemptDiscriminator,
-    reason: results.length
-      ? (status === 'falha' ? 'Falha no envio de todos os destinatários.' : null)
-      : 'Nenhum contato válido habilitado para Documentação.',
+    reason: !results.length
+      ? 'Nenhum contato válido habilitado para Documentação.'
+      : status === 'falha'
+        ? firstFailureReason ?? 'Falha no envio de todos os destinatários.'
+        : hasFailed ? firstFailureReason : null,
+    blIds: [...rendered.blIds],
   }
 }

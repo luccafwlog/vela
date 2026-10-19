@@ -92,6 +92,7 @@ src/integration/voyageHardDeleteGuard.local-pg.test.ts
 src/integration/paymentRegistrarNames.local-pg.test.ts
 src/integration/permissoesPorPerfil.local-pg.test.ts
 src/integration/alertasFechamPelaOrigem.local-pg.test.ts
+src/integration/comunicadoCeReenvioFechaAlerta.local-pg.test.ts
 src/integration/planoBExtratoPix.local-pg.test.ts
 src/integration/nobRegraUnica.local-pg.test.ts
 src/integration/comunicadosCaixasPorModelo.local-pg.test.ts
@@ -101,3 +102,10 @@ src/integration/caminhoManualVigencia.local-pg.test.ts
 src/integration/omissaoRevertidaReomitir.local-pg.test.ts
 src/integration/correcaoDadosContainer.local-pg.test.ts
 src/integration/comunicadoRecusadoNaoCicla.local-pg.test.ts
+src/integration/comunicadoEmEnvio.local-pg.test.ts
+src/integration/comunicadoEscalaUnica.local-pg.test.ts
+src/integration/comunicadoAlvoPorDestinatario.local-pg.test.ts
+src/integration/comunicadoRevisaoRigorosa.local-pg.test.ts
+src/integration/reguaCobrancaDemurrage.local-pg.test.ts
+src/integration/monitoramentoDosEmails.local-pg.test.ts
+src/integration/rotinasHttpComErro.local-pg.test.ts

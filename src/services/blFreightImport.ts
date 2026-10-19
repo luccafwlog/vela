@@ -1572,10 +1572,12 @@ function describeCustomerChange(
 
 /**
  * Taxas locais usam restituição/reemissão; Demurrage recebida exige devolver
- * primeiro pelo fluxo excepcional. Nenhum pagamento muda de Cliente.
+ * primeiro pelo fluxo excepcional. Nenhum pagamento muda de Cliente. A Invoice
+ * isenta (desconto integral, `paid` com R$ 0, migration 306) não recebeu nada:
+ * não bloqueia, como em `_bl_customer_change_cash_blockers`.
  */
 function describeInvoiceTransferBlock(invoice: BlInvoiceSnapshot): string | null {
-  if (invoice.kind === 'demurrage' && (invoice.status === 'paid' || (invoice.totalPaidBrl ?? 0) > 0)) return 'devolva ao Cliente original e confirme a restituição excepcional antes de trocar o CNPJ.'
+  if (invoice.kind === 'demurrage' && (invoice.totalPaidBrl ?? 0) > 0) return 'devolva ao Cliente original e confirme a restituição excepcional antes de trocar o CNPJ.'
   return null
 }
 

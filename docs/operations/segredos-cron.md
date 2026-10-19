@@ -133,7 +133,11 @@ essa leitura.
 
 **Risco residual:** uma falha que dure mais de 30 s (DNS fora do ar, Function
 travada) ainda perde a rodada. Se reaparecer, o próximo passo é um job de
-reconciliação que leia `net._http_response` e redispare uma vez.
+reconciliação que leia `net._http_response` e redispare uma vez. Desde a
+migration `310`, o job SQL `http-job-failures` (a cada 15 min) lê
+`net._http_response` e abre o Alerta `rotina_http_falhou` para resposta fora de
+2xx, sem status ou com tempo esgotado na última hora; ele avisa, não redispara
+([observabilidade](observabilidade.md#respostas-de-erro-das-rotinas-http)).
 
 **Verificar depois de aplicar:** nenhuma linha recente com `timed_out` nos
 minutos de rajada:
@@ -296,6 +300,8 @@ SELECT cron.schedule(
 
 Remover: `SELECT cron.unschedule('ce-unlock-notify-email');`. Sem o job, os avisos do sino
 continuam funcionando e as linhas de e-mail ficam pendentes em `ce_unlock_email_outbox`.
+Com a chave de envio desligada, a função não exige `RESEND_API_KEY` nem remetente: registra
+os avisos como `simulated` (migration `307`).
 
 **O cofre tem as dez entradas** — deve retornar `10`:
 

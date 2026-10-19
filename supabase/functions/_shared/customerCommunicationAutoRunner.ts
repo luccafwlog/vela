@@ -16,6 +16,7 @@ export type AutoRunnerCandidate = {
   port: string
   milestone_at: string
   bl_ids: string[]
+  /** Só os destinatários do alvo que ainda não receberam (migration 318). */
   emails: string[]
   /** Só no NOB: identidade da Atracação e do terminal que a hospeda. */
   anchor_atracacao_id?: string | null
@@ -47,27 +48,61 @@ export type AutoRunnerResult = {
   }
 }
 
-type DispatchResponse = { status?: string; suppressed?: boolean; permanent?: boolean; error?: string }
+// `reason`: motivo técnico da tentativa no 502 do provedor ("HTTP 422 validation_error", "Tempo esgotado…").
+type DispatchResponse = { status?: string; suppressed?: boolean; permanent?: boolean; error?: string; reason?: string }
 
-async function settleClaim(
-  rpc: AutoRunnerRpc,
-  action: 'release' | 'reject',
-  claimKey: string | undefined,
-  reason?: string,
-): Promise<boolean> {
+/**
+ * Desfecho da claim depois da rodada (plano dos e-mails, 1D; D18):
+ * - complete: todos os destinatários resolvidos; zera a contagem e fecha o
+ *   alerta comunicado_recusado do Cliente;
+ * - reject: recusa definitiva (código, payload ou provedor com
+ *   falha_permanente); a produtora não retoma por 24 h;
+ * - defer: recusa que pode mudar. Volta em 15 min, 1 h e depois a cada 6 h; o
+ *   alerta abre na 1ª recusa por dado ou na 3ª falha seguida do provedor;
+ * - release: sem destinatário (a produtora já não manda este caso).
+ */
+type ClaimSettlement =
+  | { action: 'complete' }
+  | { action: 'reject'; reason?: string }
+  | { action: 'defer'; reason?: string; providerFailure: boolean }
+  | { action: 'release' }
+
+const SETTLE_RPC: Record<ClaimSettlement['action'], string> = {
+  complete: 'complete_customer_communication_automation_claim',
+  reject: 'reject_customer_communication_automation_claim',
+  defer: 'defer_customer_communication_automation_claim',
+  release: 'release_customer_communication_automation_claim',
+}
+
+async function settleClaim(rpc: AutoRunnerRpc, claimKey: string | undefined, settlement: ClaimSettlement): Promise<boolean> {
   if (!claimKey) return true
+  const args: Record<string, unknown> = { p_claim_key: claimKey }
+  if (settlement.action === 'reject') args.p_reason = settlement.reason ?? null
+  if (settlement.action === 'defer') {
+    args.p_reason = settlement.reason ?? null
+    args.p_provider_failure = settlement.providerFailure
+  }
   try {
-    const { error } = action === 'reject'
-      ? await rpc('reject_customer_communication_automation_claim', { p_claim_key: claimKey, p_reason: reason ?? null })
-      : await rpc('release_customer_communication_automation_claim', { p_claim_key: claimKey })
+    const { error } = await rpc(SETTLE_RPC[settlement.action], args)
     if (error) throw error
     return true
   } catch (error) {
-    console.error(`[customer-communication-auto-runner] falha ao ${action === 'reject' ? 'rejeitar' : 'liberar'} claim`, claimKey, error)
+    console.error(`[customer-communication-auto-runner] falha ao encerrar claim (${settlement.action})`, claimKey, error)
     return false
   }
 }
 
+// ponytail: a rodada é sequencial — um POST à Edge por destinatário, um
+// candidato de cada vez, dentro do tempo de uma invocação da Edge (~150 s). Com
+// o provedor a ~1-2 s por chamada, o teto prático fica em torno de 60-100
+// destinatários por rodada. Se a invocação cair no meio de um Cliente, a claim
+// fica presa até envelhecer (30 min) e a produtora a devolve na primeira rodada
+// depois disso: o alvo só sai da lista quando todo destinatário automático tem
+// tentativa entregue (migration 315), e `emails` traz só os que faltam
+// (migration 318) — quem já recebeu, inclusive em simulação, não recebe de
+// novo, nem com a chave ligada depois. Caminho de melhoria: limitar
+// o lote na produtora (LIMIT por rodada) e/ou paralelizar os destinatários com
+// concorrência fixa (ex.: 4).
 export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<AutoRunnerResult> {
   const { rpc, fetcher, supabaseUrl, serviceKey, secret } = deps
   const { data, error } = await rpc('evaluate_and_dispatch_automatic_communications', { p_as_of: (deps.asOf ?? new Date()).toISOString() })
@@ -125,11 +160,13 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
       })
       const recipients = candidate.emails ?? []
       if (!recipients.length) {
-        if (!await settleClaim(rpc, 'release', candidate.claim_key)) releaseFailures += 1
+        if (!await settleClaim(rpc, candidate.claim_key, { action: 'release' })) releaseFailures += 1
       } else {
         let resolvedRecipients = 0
         let permanentRejections = 0
+        let dataRefusals = 0
         let rejectionReason: string | undefined
+        let deferReason: string | undefined
         for (const recipient of recipients) {
           try {
             const response = await fetcher(`${supabaseUrl}/functions/v1/send-customer-communication`, {
@@ -164,13 +201,21 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
                 customerId: candidate.customer_id,
                 claimKey: candidate.claim_key,
               })
-              if (response.status === 422 && result?.permanent === true) {
+              if (result?.permanent === true) {
+                // 422 de código/payload ou 502 com falha_permanente do provedor.
                 permanentRejections += 1
-                rejectionReason ??= result.error
+                rejectionReason ??= result.error ?? result.reason ?? `HTTP ${response.status}`
+              } else if (response.status === 422) {
+                // Recusa por dado: prontidão, contato, Cliente, escala, Atracação.
+                dataRefusals += 1
+                deferReason ??= result?.error ?? 'Recusa sem motivo informado.'
+              } else {
+                deferReason ??= result?.error ?? result?.reason ?? `HTTP ${response.status}`
               }
             }
           } catch (dispatchError) {
             failed += 1
+            deferReason ??= 'Falha de requisição ao envio do Comunicado.'
             console.error('[customer-communication-auto-runner] falha de requisição', candidate.kind, candidate.customer_id, candidate.claim_key, dispatchError)
           }
         }
@@ -179,16 +224,20 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
         // only changes with new code or payload, reject the claim so the next
         // runs stop retrying it; any transient failure still releases it.
         const pendingRecipients = recipients.length - resolvedRecipients
-        if (pendingRecipients > 0 && permanentRejections === pendingRecipients) {
-          if (!await settleClaim(rpc, 'reject', candidate.claim_key, rejectionReason)) releaseFailures += 1
-        } else if (pendingRecipients > 0) {
-          if (!await settleClaim(rpc, 'release', candidate.claim_key)) releaseFailures += 1
-        }
+        const settlement: ClaimSettlement = pendingRecipients === 0
+          ? { action: 'complete' }
+          : permanentRejections === pendingRecipients
+            ? { action: 'reject', reason: rejectionReason }
+            // Uma recusa por dado já pede uma pessoa; sem ela, é falha do
+            // provedor ou da infraestrutura.
+            : { action: 'defer', reason: deferReason ?? rejectionReason, providerFailure: dataRefusals === 0 }
+        if (!await settleClaim(rpc, candidate.claim_key, settlement)) releaseFailures += 1
       }
     } catch (candidateError) {
       failed += 1
       console.error('[customer-communication-auto-runner] candidato com erro', candidate.kind, candidate.customer_id, candidate.claim_key, candidateError)
-      if (!await settleClaim(rpc, 'release', candidate.claim_key)) releaseFailures += 1
+      const reason = candidateError instanceof Error ? candidateError.message : 'Erro ao preparar o Comunicado.'
+      if (!await settleClaim(rpc, candidate.claim_key, { action: 'defer', reason, providerFailure: true })) releaseFailures += 1
     }
     sent.push({ kind: candidate.kind, customerId: candidate.customer_id, emails: count })
   }

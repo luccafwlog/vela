@@ -34,6 +34,7 @@ describe('leitura da régua de Demurrage', () => {
         invoice_id: 1,
         attempt_count: 2,
         last_attempt_at: '2026-09-01T10:00:00Z',
+        pause_reason: 'Cliente desativado',
       }])
     })
     mockFrom.mockImplementation((table: string) => {
@@ -57,6 +58,7 @@ describe('leitura da régua de Demurrage', () => {
       lastAttemptAt: '2026-09-01T10:00:00Z',
       hasValidContact: true,
       intervalDays: 5,
+      serverPauseReason: 'Cliente desativado',
     })
     expect(mockRpc).toHaveBeenCalledWith('list_demurrage_dunning_claim_statuses', { p_invoice_ids: [1] })
     expect(queryCalls).toContainEqual({ table: 'customer_contact_box_links', method: 'in', args: ['contact_id', [11]] })
