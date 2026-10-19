@@ -4607,7 +4607,8 @@ button.app-metric-tile[aria-pressed='true'] {
   background: rgba(36, 89, 219, 0.06);
 }
 
-.app-shell table tbody tr:last-child td {
+.app-shell table tbody tr:last-child td,
+.app-shell table tbody tr:last-child th {
   border-bottom: 0;
 }
 
@@ -4748,8 +4749,11 @@ button.app-metric-tile[aria-pressed='true'] {
 
 /* Keep table-body dividers on theme tokens. */
 
+/* O cabeçalho de linha (th scope="row", ex.: nome do navio) leva o mesmo filete. */
 .app-shell table tbody tr + tr td,
-.app-table tbody tr + tr td {
+.app-shell table tbody tr + tr th,
+.app-table tbody tr + tr td,
+.app-table tbody tr + tr th {
   border-top: 1px solid var(--app-border) !important;
 }
 
