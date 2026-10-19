@@ -26,6 +26,13 @@
     falhas", confirmação antes de Disparar, motivo por destinatário no
     Histórico e reenvio do CE e Taxas.
   - **Meu perfil:** a troca de e-mail saiu da tela.
+  - **Revisão rigorosa (migrations `316` a `318`):** o envio comum separa
+    configuração e pedido concorrente de recusa do destinatário; a régua
+    automática não reenvia de verdade o que saiu simulado nem manda ao contato
+    novo; a Régua de Cobrança não repete cobrança depois de uma exceção e fecha
+    o alerta da fatura paga ou cancelada; alertas de e-mail sem rotina de
+    fechamento resolvem com justificativa; a tela confirma a repetição das
+    falhas. Detalhe no plano.
   - **Revisão do PR (migrations `313` a `315`):**
     - a cobrança suspensa por recusa volta ao resolver o alerta com
       justificativa;

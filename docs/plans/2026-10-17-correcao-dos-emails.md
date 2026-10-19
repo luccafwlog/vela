@@ -16,7 +16,7 @@ refutá-lo.
   `claude/emails-1a-envio-comum`), por decisão do responsável de fazer o plano
   inteiro num PR só. Migrations `302` a `312`, renumeradas depois do merge do
   PR #972, que ocupou da `298` à `301`; as correções da revisão do PR vieram
-  nas `313` a `315` e na `318`. Verificado localmente:
+  nas `313` a `318`. Verificado localmente:
   typecheck, lint, testes unitários, as 101 suítes local-pg num banco recriado
   com todas as migrations, `rpc:check`, `migrations:check`, `design:check`,
   `a11y:contrast`, build e `deno check` das 11 Edges de e-mail. Nada disso foi
@@ -65,6 +65,19 @@ refutá-lo.
   normalizado; a âncora manual grava o porto normalizado; a claim fica em
   `comunicado_recusado` até o envio sair (D18). Regra em
   [Clientes](../modules/clientes.md#régua-automática-de-comunicados).
+- **Revisão rigorosa do envio comum, do monitoramento, do Portal e da tela
+  (2026-10-19, migration `316`):** 409 `concurrent_idempotent_requests` e
+  `resource_locked` são transitórios, e 400/422 de chave, remetente ou reply-to
+  inválidos são configuração (diferença em relação ao 1A.3, que mantinha 400,
+  409 e 422 como permanentes: esses casos não são do destinatário); tempo
+  esgotado não repete na mesma chamada; provedor que aceita na retentativa não
+  deixa o Comunicado em falha; evento de e-mail em investigação e aviso do
+  Desbloqueio de CE não enviado resolvem com justificativa; tempo esgotado de
+  rodada longa não abre `rotina_http_falhou` e fila do `pg_net` parada abre;
+  contato devolvido no Desbloqueio de CE fecha parcial; Resumo diário na data
+  de Brasília; Editar acesso só libera o e-mail devolvido sem troca de senha e
+  avisa quando ele continua bloqueado; "Repetir só as falhas" confirma real ou
+  simulado (D16); B/L cancelado é recusa definitiva em todo modelo.
 - **Correções da revisão do monitoramento (2026-10-18, migration `314`):**
   "Provedor de e-mail sem retorno" mede o silêncio do webhook (3 tentativas
   depois do último evento) e fecha com qualquer evento; alerta de evento de
