@@ -52,7 +52,8 @@ if (typeof Deno !== 'undefined') {
         if (error) throw error
         return Boolean(data)
       },
-      today: () => new Date().toISOString().slice(0, 10),
+      // Data de Brasília: uma rodada manual depois das 21h não pode usar a chave do dia seguinte.
+      today: () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date()),
       send: async ({ to, counts, date, idempotencyKey }) => {
         const template = dailyDigestTemplate({ date, ...counts, portalUrl, supportEmail })
         return sendPortalEmail({ admin, kind: 'resumo_diario', to, subject: template.subject, html: template.html, text: template.text, idempotencyKey })

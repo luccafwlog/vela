@@ -226,7 +226,7 @@ describe('sendEmail', () => {
       expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
     })
 
-    it('tempo esgotado em todas as tentativas grava falha transitória com o motivo', async () => {
+    it('tempo esgotado grava falha transitória com o motivo, sem repetir na mesma chamada', async () => {
       const updateAttempt = vi.fn(async () => undefined)
       const neverAnswers = vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
         init.signal?.addEventListener('abort', () => reject(init.signal?.reason))
@@ -234,10 +234,37 @@ describe('sendEmail', () => {
       const result = await sendEmail({ ...baseInput, updateAttempt, fetchImpl: neverAnswers as unknown as typeof fetch, timeoutMs: 5, sleep: noSleep })
 
       expect(result).toEqual({ ok: false })
-      expect(neverAnswers).toHaveBeenCalledTimes(3)
+      // O pedido anterior pode ainda rodar no provedor: repetir já receberia 409
+      // e três esperas de 15 s por destinatário estourariam o runner.
+      expect(neverAnswers).toHaveBeenCalledTimes(1)
+      expect(noSleep).not.toHaveBeenCalled()
       expect(updateAttempt).toHaveBeenCalledWith(7, {
-        retryCount: 2, status: 'falha_transitoria', lastError: 'Tempo esgotado na chamada ao provedor',
+        retryCount: 0, status: 'falha_transitoria', lastError: 'Tempo esgotado na chamada ao provedor',
       })
+    })
+
+    it.each(['concurrent_idempotent_requests', 'resource_locked'])('409 %s é transitório: o e-mail anterior pode ter saído', async (name) => {
+      const updateAttempt = vi.fn(async () => undefined)
+      const busy = vi.fn(async () => new Response(JSON.stringify({ name }), { status: 409 }))
+      expect(await sendEmail({ ...baseInput, updateAttempt, fetchImpl: busy, sleep: noSleep })).toEqual({ ok: false })
+      expect(busy).toHaveBeenCalledTimes(3)
+      expect(updateAttempt).toHaveBeenCalledWith(7, { retryCount: 2, status: 'falha_transitoria', lastError: `HTTP 409 ${name}` })
+    })
+
+    it('400 com a chave da API inválida é configuração, não recusa do destinatário', async () => {
+      const updateAttempt = vi.fn(async () => undefined)
+      const rejected = vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: 'validation_error', message: 'API key is invalid' }), { status: 400 }))
+      expect(await sendEmail({ ...baseInput, updateAttempt, fetchImpl: rejected, sleep: noSleep })).toEqual({ ok: false })
+      expect(rejected).toHaveBeenCalledTimes(1)
+      expect(updateAttempt).toHaveBeenCalledWith(7, {
+        retryCount: 0, status: 'falha_transitoria', lastError: 'HTTP 400 validation_error (configuração do provedor)',
+      })
+
+      // 400 de conteúdo continua definitivo.
+      const invalid = vi.fn().mockResolvedValue(new Response(JSON.stringify({ name: 'validation_error', message: 'Invalid `to` field.' }), { status: 400 }))
+      const update2 = vi.fn(async () => undefined)
+      await sendEmail({ ...baseInput, updateAttempt: update2, fetchImpl: invalid, sleep: noSleep })
+      expect(update2).toHaveBeenCalledWith(7, { retryCount: 0, status: 'falha_permanente', lastError: 'HTTP 400 validation_error' })
     })
 
     it('erro de rede é tentado de novo e não escapa sem atualizar a tentativa', async () => {

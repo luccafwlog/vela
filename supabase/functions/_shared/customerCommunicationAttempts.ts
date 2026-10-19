@@ -41,7 +41,9 @@ function dispatchMode(enabled: boolean): 'real' | 'simulado' {
  * `recordAttempt`/`updateAttempt` do sendEmail. Na corrida (23505), relê a
  * tentativa pela chave e segue com ela: o destinatário que já recebeu não
  * recebe de novo, e uma tentativa sem id do provedor volta a chamar o provedor
- * com a mesma chave. Tentativa legada sem confirmação ganha o modo atual.
+ * com a mesma chave. Tentativa sem confirmação do provedor (legada, ou de
+ * uma rodada com a chave no outro estado) ganha o modo atual: sem isso, um
+ * e-mail simulado apareceria como "Real" no Histórico, e vice-versa.
  */
 export function communicationAttemptRecorder(
   store: CommunicationAttemptStore,
@@ -63,10 +65,12 @@ export function communicationAttemptRecorder(
       if (error?.code === '23505') {
         const { data: existing, error: existingError } = await store.findAttemptByKey(idempotencyKey)
         if (existingError || !existing) throw existingError ?? error
-        if (existing.dispatch_mode === 'legado' && existing.status === 'aceito' && existing.provider_message_id == null) {
+        const mode = dispatchMode(input.enabled)
+        const unconfirmed = existing.provider_message_id == null && (existing.status === 'aceito' || existing.status === 'falha_transitoria')
+        if (unconfirmed && existing.dispatch_mode !== mode) {
           const { error: repairError } = await store.patchAttempt(existing.id, {
-            recipient_key: await recipientKey(to),
-            dispatch_mode: dispatchMode(input.enabled),
+            ...(existing.dispatch_mode === 'legado' ? { recipient_key: await recipientKey(to) } : {}),
+            dispatch_mode: mode,
           })
           if (repairError) throw repairError
         }

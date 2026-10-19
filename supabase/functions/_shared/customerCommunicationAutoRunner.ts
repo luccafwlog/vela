@@ -47,7 +47,8 @@ export type AutoRunnerResult = {
   }
 }
 
-type DispatchResponse = { status?: string; suppressed?: boolean; permanent?: boolean; error?: string }
+// `reason`: motivo técnico da tentativa no 502 do provedor ("HTTP 422 validation_error", "Tempo esgotado…").
+type DispatchResponse = { status?: string; suppressed?: boolean; permanent?: boolean; error?: string; reason?: string }
 
 /**
  * Desfecho da claim depois da rodada (plano dos e-mails, 1D; D18):
@@ -201,13 +202,13 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
               if (result?.permanent === true) {
                 // 422 de código/payload ou 502 com falha_permanente do provedor.
                 permanentRejections += 1
-                rejectionReason ??= result.error ?? `HTTP ${response.status}`
+                rejectionReason ??= result.error ?? result.reason ?? `HTTP ${response.status}`
               } else if (response.status === 422) {
                 // Recusa por dado: prontidão, contato, Cliente, escala, Atracação.
                 dataRefusals += 1
                 deferReason ??= result?.error ?? 'Recusa sem motivo informado.'
               } else {
-                deferReason ??= result?.error ?? `HTTP ${response.status}`
+                deferReason ??= result?.error ?? result?.reason ?? `HTTP ${response.status}`
               }
             }
           } catch (dispatchError) {

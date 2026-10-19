@@ -104,24 +104,24 @@ describe('rodada do runner com envio falso', () => {
   })
 
   it('falha do provedor adia a claim como falha do provedor (alerta na 3ª seguida)', async () => {
-    const failure = { status: 502, body: { status: 'falha', error: undefined, message: 'Falha no envio do comunicado.' } }
+    const failure = { status: 502, body: { status: 'falha', error: undefined, reason: 'Tempo esgotado na chamada ao provedor', message: 'Falha no envio do comunicado.' } }
     const { run, claimCalls } = setup([failure, failure])
     await run()
 
     expect(claimCalls()).toEqual([{
       fn: 'defer_customer_communication_automation_claim',
-      args: { p_claim_key: candidate.claim_key, p_reason: 'HTTP 502', p_provider_failure: true },
+      args: { p_claim_key: candidate.claim_key, p_reason: 'Tempo esgotado na chamada ao provedor', p_provider_failure: true },
     }])
   })
 
   it('502 com falha_permanente do provedor rejeita a claim', async () => {
-    const refused = { status: 502, body: { status: 'falha', permanent: true } }
+    const refused = { status: 502, body: { status: 'falha', permanent: true, reason: 'HTTP 422 validation_error' } }
     const { run, claimCalls } = setup([refused, refused])
     await run()
 
     expect(claimCalls()).toEqual([{
       fn: 'reject_customer_communication_automation_claim',
-      args: { p_claim_key: candidate.claim_key, p_reason: 'HTTP 502' },
+      args: { p_claim_key: candidate.claim_key, p_reason: 'HTTP 422 validation_error' },
     }])
   })
 

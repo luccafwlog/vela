@@ -17,6 +17,8 @@ export type OutboxRow = {
   attempts: number
 }
 export type Contact = { id: number; email: string | null }
+/** `suppressed`: contato da caixa cujo endereço está suprimido (bounce ou reclamação); `blocked`: fora da caixa ou inválido. */
+export type ContactEligibility = 'allowed' | 'suppressed' | 'blocked'
 
 /** Resultado do envio a um destinatário. `suppressed`: endereço na supressão do Portal (bounce/reclamação). */
 export type SendOutcome = 'sent' | 'suppressed' | 'failed'
@@ -28,8 +30,8 @@ export type NotifyDeps = {
   communicationsEnabled: () => Promise<boolean>
   pending: () => Promise<OutboxRow[]>
   contacts: (customerId: number) => Promise<Contact[]>
-  /** Contato habilitado na caixa Documentação e Operação. */
-  allowed: (customerId: number, contactId: number) => Promise<boolean>
+  /** Contato habilitado na caixa Documentação e Operação, ou da caixa mas suprimido. */
+  allowed: (customerId: number, contactId: number) => Promise<ContactEligibility>
   recipientKey: (email: string) => Promise<string>
   /** `simulate`: chave de envio desligada; registra a tentativa sem chamar o provedor. */
   send: (input: { row: OutboxRow; to: string; idempotencyKey: string; simulate: boolean }) => Promise<SendOutcome>
@@ -47,18 +49,22 @@ function errorMessage(error: unknown): string {
 async function processRow(deps: NotifyDeps, row: OutboxRow, simulate: boolean, done: Set<string>): Promise<OutboxStatus> {
   const targets: Array<{ email: string; key: string }> = []
   const seen = new Set<string>()
+  let suppressed = 0
   for (const contact of await deps.contacts(row.customer_id)) {
     const email = contact.email?.trim().toLowerCase()
-    if (!email || seen.has(email) || !(await deps.allowed(row.customer_id, contact.id))) continue
+    if (!email || seen.has(email)) continue
+    const eligibility = await deps.allowed(row.customer_id, contact.id)
+    if (eligibility === 'blocked') continue
     seen.add(email)
-    targets.push({ email, key: await deps.recipientKey(email) })
+    // Contato da caixa suprimido não recebe em nenhuma rodada: conta como resolvido sem envio.
+    if (eligibility === 'suppressed') suppressed += 1
+    else targets.push({ email, key: await deps.recipientKey(email) })
   }
-  if (!targets.length) {
+  if (!targets.length && !suppressed) {
     await deps.finish(row.id, 'skipped', [...done], `Sem contato habilitado na caixa ${CE_UNLOCK_BOX}`)
     return 'skipped'
   }
   let failure = false
-  let suppressed = 0
   for (const target of targets) {
     if (done.has(target.key)) continue
     const outcome = await deps.send({ row, to: target.email, idempotencyKey: `ce-unlock:${row.id}:${target.key}`, simulate })

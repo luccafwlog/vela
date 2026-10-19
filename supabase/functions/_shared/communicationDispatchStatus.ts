@@ -35,6 +35,10 @@ export function resolveDispatchStatus(input: ResolveDispatchStatusInput): Resolv
     return refreshed === 'enviado' || refreshed === 'simulado' || refreshed === 'parcial' ? 'parcial' : 'falha'
   }
 
+  // O provedor aceitou nesta execução, mas a tentativa reaproveitada não foi
+  // atualizada e continua como falha: "falha" levaria a régua ou o operador a
+  // reenviar. Fica "parcial", que não esconde a falha de outro destinatário.
+  if (refreshed === 'falha' && input.succeeded > 0) return 'parcial'
   if (refreshed === 'enviado' || refreshed === 'parcial' || refreshed === 'falha') return refreshed
   // Com a chave ligada, "simulado" nunca é resposta válida: seria o marcador
   // antigo de um envio que não se concluiu.

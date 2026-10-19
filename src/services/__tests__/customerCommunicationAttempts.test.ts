@@ -100,6 +100,29 @@ describe('registro da tentativa do Comunicado', () => {
     expect(rows.get(KEY)).toMatchObject({ id: 42, provider_message_id: 'prov-retry', dispatch_mode: 'real', recipient_key: await recipientKey('a@example.test') })
   })
 
+  it('tentativa simulada que falhou, retomada com a chave ligada, passa a valer como real', async () => {
+    const { store, rows } = fakeStore()
+    rows.set(KEY, { id: 43, status: 'falha_transitoria', provider_message_id: null, dispatch_mode: 'simulado' })
+    expect(await send(store, accepted('prov-real'))).toEqual({ ok: true })
+    expect(rows.get(KEY)).toMatchObject({ id: 43, provider_message_id: 'prov-real', dispatch_mode: 'real' })
+  })
+
+  it('tentativa real sem id do provedor, retomada com a chave desligada, fica como simulada', async () => {
+    const { store, rows } = fakeStore()
+    rows.set(KEY, { id: 44, status: 'falha_transitoria', provider_message_id: null, dispatch_mode: 'real' })
+    const fetchImpl = accepted()
+    const result = await sendEmail({
+      kind: 'aviso_chegada_noa', to: 'a@example.test', subject: 'NOA', html: '<p>NOA</p>', text: 'NOA',
+      idempotencyKey: KEY, resendApiKey: null, simulate: true,
+      checkSuppression: async () => ({ suppressed: false }),
+      ...communicationAttemptRecorder(store, { communicationId: 7, enabled: false }),
+      fetchImpl,
+    })
+    expect(result).toEqual({ ok: true })
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(rows.get(KEY)).toMatchObject({ id: 44, status: 'aceito', dispatch_mode: 'simulado' })
+  })
+
   it('recusa definitiva do provedor vira falha_permanente e marca permanent', async () => {
     const { store, rows } = fakeStore()
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ name: 'validation_error' }), { status: 422 }))

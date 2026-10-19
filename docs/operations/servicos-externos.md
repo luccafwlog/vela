@@ -841,9 +841,11 @@ A função `ce-unlock-notify-email` envia a fila de avisos ao cliente (recusa de
 documentação validada) pela MillionSend, para a caixa Documentação e Operação. Usa o mesmo
 segredo `CE_UNLOCK_CLEANUP_SECRET` e `RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`;
 Antes de enviar, reavalia a conclusão das solicitações abertas (`ce_unlock_refresh_open`);
-sem a chave ou o remetente responde 503 e deixa a fila intacta. Cada envio registra tentativa
-em `portal_email_attempts` (kind `ce_unlock_notificacao`), associada pelo webhook de e-mail. Respeita a chave global
-de Comunicados (desligada: descarta com motivo), supressão e bounce. Job `ce-unlock-notify-email`
+com a chave global de Comunicados ligada e sem a chave do provedor ou o remetente, responde 503
+e deixa a fila intacta. Cada envio registra tentativa em `portal_email_attempts` (kind
+`ce_unlock_notificacao`), associada pelo webhook de e-mail. Com a chave global desligada,
+registra o aviso como `simulated` e não o envia depois (D11, migration `307`); contato suprimido
+(bounce ou reclamação) não recebe e o aviso fecha `partial`. Job `ce-unlock-notify-email`
 agendado em produção em 2026-10-07 (`*/5 * * * *`, jobid 23); `CE_UNLOCK_CLEANUP_SECRET` está no
 cofre (`vault.secrets`) e nas secrets das Edge Functions. Ver [segredos e cron](segredos-cron.md).
 

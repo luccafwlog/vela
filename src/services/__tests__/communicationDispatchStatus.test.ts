@@ -14,6 +14,10 @@ describe('status final do Comunicado depois do envio', () => {
     expect(resolveDispatchStatus({ ...off, refreshed: 'simulado', succeeded: 1, failed: 0 })).toBe('simulado')
   })
 
+  it('o provedor aceitou na retentativa, mas a tentativa continua como falha no banco: não vira falha', () => {
+    expect(resolveDispatchStatus({ ...on, refreshed: 'falha', succeeded: 1, failed: 0 })).toBe('parcial')
+  })
+
   it('com a chave ligada, "simulado" ou "pendente" do banco sem sucesso vira falha', () => {
     expect(resolveDispatchStatus({ ...on, refreshed: 'simulado', succeeded: 0, failed: 0 })).toBe('falha')
     expect(resolveDispatchStatus({ ...on, refreshed: 'pendente', succeeded: 0, failed: 1 })).toBe('falha')

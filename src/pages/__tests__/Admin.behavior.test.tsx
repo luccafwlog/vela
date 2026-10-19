@@ -29,10 +29,10 @@ vi.mock('@tanstack/react-query', () => ({
     return { data: undefined, isLoading: false, error }
   },
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
-  useMutation: (opts: { mutationFn: (vars: unknown) => unknown }) => ({
+  useMutation: (opts: { mutationFn: (vars: unknown) => unknown; onSuccess?: (data: unknown, vars: unknown) => void }) => ({
     mutate: (vars: unknown) => {
       mocks.mutate(vars)
-      return opts.mutationFn(vars)
+      return Promise.resolve(opts.mutationFn(vars)).then((data) => opts.onSuccess?.(data, vars))
     },
     isPending: false,
   }),
@@ -231,7 +231,7 @@ it('mostra as informacoes do sistema na aba Metricas, nao no topo da tela', () =
 })
 
 it('solicita confirmação com diff ao alterar credenciais de acesso', async () => {
-  mocks.updateUserCredentials.mockResolvedValue(undefined)
+  mocks.updateUserCredentials.mockResolvedValue({ released: 1 })
   renderAdmin()
   fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
   fireEvent.change(screen.getByLabelText(/E-mail de login/), { target: { value: 'novo@fwlog.com.br' } })
@@ -246,7 +246,7 @@ it('solicita confirmação com diff ao alterar credenciais de acesso', async () 
 })
 
 it('salvar o mesmo e-mail devolvido libera a supressão (plano dos e-mails, 2.8)', async () => {
-  mocks.updateUserCredentials.mockResolvedValue(undefined)
+  mocks.updateUserCredentials.mockResolvedValue({ released: 1 })
   renderAdmin()
   fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
   expect(screen.getByText(/salve o mesmo e-mail para liberá-lo/)).toBeTruthy()
@@ -255,4 +255,24 @@ it('salvar o mesmo e-mail devolvido libera a supressão (plano dos e-mails, 2.8)
     changes: [expect.objectContaining({ field: 'E-mail', after: 'Liberado para receber de novo' })],
   })))
   expect(mocks.updateUserCredentials).toHaveBeenCalledWith(expect.objectContaining({ email: 'alice@fwlog.com.br' }))
+})
+
+it('redefinir só a senha de um e-mail devolvido não libera a supressão', async () => {
+  mocks.updateUserCredentials.mockResolvedValue({ released: 0 })
+  renderAdmin()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
+  fireEvent.change(screen.getByLabelText('Nova senha'), { target: { value: 'NovaSenha#2026' } })
+  fireEvent.change(screen.getByLabelText('Confirmar nova senha'), { target: { value: 'NovaSenha#2026' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.updateUserCredentials).toHaveBeenCalled())
+  expect(mocks.updateUserCredentials).toHaveBeenCalledWith(expect.objectContaining({ email: undefined, password: 'NovaSenha#2026' }))
+  expect(mocks.showToast).toHaveBeenCalledWith('Acesso atualizado.', 'success')
+})
+
+it('avisa quando o e-mail devolvido continua bloqueado por ser também de Cliente', async () => {
+  mocks.updateUserCredentials.mockResolvedValue({ released: 0 })
+  renderAdmin()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('continua bloqueado'), 'error'))
 })

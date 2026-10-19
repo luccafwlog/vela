@@ -143,11 +143,16 @@ export function Admin() {
   })
 
   const credentialsMutation = useMutation({
-    mutationFn: ({ userId, updates }: { userId: string; updates: { email?: string; password?: string } }) =>
+    mutationFn: ({ userId, updates }: { userId: string; updates: { email?: string; password?: string }; releasesEmail: boolean }) =>
       updateUserCredentials({ user_id: userId, ...updates }),
-    onSuccess: () => {
+    onSuccess: (result, { releasesEmail }) => {
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
-      showToast('Acesso atualizado.', 'success')
+      if (releasesEmail && result.released === 0) {
+        // A RPC mantém suprimido o endereço que também é contato de Cliente ou e-mail de recuperação do Portal.
+        showToast('O e-mail continua bloqueado: ele também é contato de Cliente ou e-mail de recuperação do Portal. Corrija pelo cadastro do Cliente.', 'error')
+      } else {
+        showToast('Acesso atualizado.', 'success')
+      }
       setEditando(null)
     },
     onError: (err: Error) => showToast(err.message, 'error'),
@@ -428,7 +433,7 @@ export function Admin() {
                   reversibility: 'As credenciais podem ser atualizadas novamente no painel administrativo.',
                 })
                 if (!confirmed) return
-                credentialsMutation.mutate({ userId: editando.id, updates })
+                credentialsMutation.mutate({ userId: editando.id, updates, releasesEmail })
               }}
               submitting={credentialsMutation.isPending}
             />

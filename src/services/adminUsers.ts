@@ -23,9 +23,9 @@ export async function updateUserProfile(
   if (error) throw error
 }
 
-async function invokeAdminUsers(body: Record<string, unknown>): Promise<void> {
-  const { error } = await supabase.functions.invoke('admin-users', { body })
-  if (!error) return
+async function invokeAdminUsers(body: Record<string, unknown>): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('admin-users', { body })
+  if (!error) return data
   // Em resposta não-2xx o supabase-js devolve `data` nulo e guarda o corpo em
   // error.context (um Response). Ler dali é o que faz "Já existe um usuário com
   // este e-mail" chegar à tela em vez da mensagem genérica.
@@ -47,8 +47,10 @@ export async function updateUserCredentials(input: {
   user_id: string
   email?: string
   password?: string
-}): Promise<void> {
-  await invokeAdminUsers({ action: 'update_credentials', ...input })
+}): Promise<{ released: number }> {
+  const data = await invokeAdminUsers({ action: 'update_credentials', ...input }) as { released?: unknown } | null
+  // `released`: supressões liberadas do endereço salvo (0 quando ele também é de Cliente).
+  return { released: typeof data?.released === 'number' ? data.released : 0 }
 }
 
 // Desativar passa pela Edge Function porque encerrar a sessão exige service_role;

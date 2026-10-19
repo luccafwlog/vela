@@ -70,6 +70,10 @@ function isTransientStatus(status: number): boolean {
 // a tentativa voltar a ser feita depois que a configuração for corrigida;
 // como permanente, a mesma chave nunca mais chamaria o provedor.
 const CONFIGURATION_STATUS = new Set([401, 403])
+// 409 da Resend: o pedido anterior com a mesma Idempotency-Key ainda roda
+// (`concurrent_idempotent_requests`) ou o recurso está travado. O e-mail pode
+// ter saído; só `invalid_idempotent_request` (chave com outro corpo) é definitivo.
+const TRANSIENT_CONFLICT_NAMES = new Set(['concurrent_idempotent_requests', 'resource_locked'])
 const BACKOFF_MS = [1000, 3000, 9000]
 const PROVIDER_TIMEOUT_MS = 15_000
 const MAX_RETRY_AFTER_MS = 10_000
@@ -109,10 +113,13 @@ export async function recipientKey(email: string): Promise<string> {
 }
 
 // O `name` da Resend (ex.: invalid_idempotent_request) distingue causas que o
-// status sozinho esconde; não carrega dados do destinatário.
-async function providerErrorName(response: Response): Promise<string> {
-  const body = await response.json().catch(() => null) as { name?: unknown } | null
-  return typeof body?.name === 'string' ? ` ${body.name}` : ''
+// status sozinho esconde; não carrega dados do destinatário. A `message` só é
+// lida para reconhecer a chave da API inválida, que a Resend devolve como 400.
+async function providerError(response: Response): Promise<{ name: string; invalidApiKey: boolean }> {
+  const body = await response.json().catch(() => null) as { name?: unknown; message?: unknown } | null
+  const name = typeof body?.name === 'string' ? body.name : ''
+  const invalidApiKey = typeof body?.message === 'string' && /api key/i.test(body.message)
+  return { name, invalidApiKey }
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }> {
@@ -192,7 +199,11 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
         signal: AbortSignal.timeout(input.timeoutMs ?? PROVIDER_TIMEOUT_MS),
       })
     } catch (error) {
-      if (lastTry) {
+      // Tempo esgotado não repete na mesma chamada: o pedido anterior pode
+      // ainda estar rodando no provedor (a repetição receberia 409) e três
+      // esperas de 15 s por destinatário estouram o tempo de quem chamou.
+      const timedOut = error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
+      if (lastTry || timedOut) {
         await input.updateAttempt(attempt.id, {
           retryCount: index,
           status: 'falha_transitoria',
@@ -215,20 +226,23 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean }>
         })
       } catch (error) {
         // O provedor já aceitou: tratar como falha levaria o operador ou a
-        // régua a reenviar em duplicidade. A tentativa fica `aceito` sem id e
-        // a próxima chamada com a mesma chave é deduplicada pelo provedor.
+        // régua a reenviar em duplicidade. A tentativa nova já está `aceito`
+        // sem id; a reaproveitada (ex.: `falha_transitoria`) não, e quem chama
+        // resolve o status pelo sucesso (`resolveDispatchStatus`). A próxima
+        // chamada com a mesma chave é deduplicada pelo provedor.
         console.error('[email] e-mail aceito pelo provedor, mas a tentativa não foi atualizada', attempt.id, error)
       }
       return { ok: true }
     }
 
-    const configuration = CONFIGURATION_STATUS.has(response.status)
-    const transient = isTransientStatus(response.status)
+    const providerFailure = await providerError(response)
+    const configuration = CONFIGURATION_STATUS.has(response.status) || (response.status === 400 && providerFailure.invalidApiKey)
+    const transient = isTransientStatus(response.status) || (response.status === 409 && TRANSIENT_CONFLICT_NAMES.has(providerFailure.name))
     if (configuration || !transient || lastTry) {
       await input.updateAttempt(attempt.id, {
         retryCount: index,
         status: configuration || transient ? 'falha_transitoria' : 'falha_permanente',
-        lastError: `HTTP ${response.status}${await providerErrorName(response)}${configuration ? ' (configuração do provedor)' : ''}`,
+        lastError: `HTTP ${response.status}${providerFailure.name ? ` ${providerFailure.name}` : ''}${configuration ? ' (configuração do provedor)' : ''}`,
       })
       return { ok: false }
     }

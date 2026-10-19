@@ -35,7 +35,8 @@ export function EditarAcessoModal({
     if (password && !isValidPassword(password)) return setError(PASSWORD_RULE_MESSAGE)
     if (password && password !== confirmation) return setError('As senhas não conferem.')
     // Com a caixa já consertada, o mesmo endereço salvo de novo volta a receber.
-    const releaseSameEmail = !emailChanged && emailBounced && Boolean(trimmed)
+    // Só redefinir a senha não libera: ninguém confirmou que a caixa voltou.
+    const releaseSameEmail = !emailChanged && emailBounced && Boolean(trimmed) && !password
     if (!emailChanged && !password && !releaseSameEmail) return setError('Informe um novo e-mail ou uma nova senha.')
     setError('')
     onSubmit({ email: emailChanged || releaseSameEmail ? trimmed : undefined, password: password || undefined })

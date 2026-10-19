@@ -852,8 +852,8 @@ async function handler(req: Request): Promise<Response> {
     // mais chama o provedor, então a régua rejeita a claim (plano, 1D.4).
     ...(isPermanentProviderFailure(sent.ok, attempt?.status) ? { permanent: true } : {}),
     // Motivo técnico da tentativa (`HTTP 422 validation_error`, "Tempo
-    // esgotado…"): a tela o traduz no resumo do lote. Fica fora de `error`,
-    // que a régua automática usa como motivo da claim.
+    // esgotado…"): a tela o traduz no resumo do lote e a régua automática o
+    // grava como motivo da claim e do alerta comunicado_recusado.
     ...(!sent.ok && attempt?.last_error ? { reason: attempt.last_error } : {}),
     message: !sent.ok ? 'Falha no envio do comunicado.' : enabled ? 'Comunicado enviado.' : 'Comunicado registrado em simulação; nenhum e-mail foi enviado.',
   }, origin)

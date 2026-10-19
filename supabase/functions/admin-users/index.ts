@@ -157,12 +157,13 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
     }
 
     // E-mail salvo (novo ou o mesmo) libera a supressão (bounce/spam) do endereço anterior (2.8).
-    if (email) await releasePreviousEmailSuppression(admin, previousEmail, email)
+    // `released` 0 com o mesmo e-mail: o endereço é de Cliente e continua suprimido.
+    const released = email ? await releasePreviousEmailSuppression(admin, previousEmail, email) : 0
 
     if (emailChanged) await audit(userId, 'email', previousEmail, email ?? null)
     // A senha nunca é registrada, só o fato de ter sido trocada.
     if (password) await audit(userId, 'password', null, 'redefinida pelo administrador')
-    return json(200, { ok: true }, origin)
+    return json(200, { ok: true, released }, origin)
   }
 
   if (body.action === 'deactivate') {

@@ -20,7 +20,7 @@ function deps(patch: Partial<NotifyDeps> & { rows?: OutboxRow[] } = {}) {
     communicationsEnabled: async () => true,
     pending: async () => patch.rows ?? [row()],
     contacts: async () => [{ id: 1, email: 'Ops@Cliente.com' }, { id: 2, email: 'ops@cliente.com' }, { id: 3, email: 'bloqueado@cliente.com' }, { id: 4, email: null }],
-    allowed: async (_customer, contact) => contact !== 3,
+    allowed: async (_customer, contact) => (contact === 3 ? 'blocked' : 'allowed'),
     recipientKey: async (email) => `k:${email}`,
     send, finish,
   }
@@ -46,7 +46,7 @@ describe('fila de e-mails do Desbloqueio de CE', () => {
   })
 
   it('sem contato habilitado na caixa não envia e fecha sem destinatário', async () => {
-    const { deps: d, send, finish } = deps({ allowed: async () => false })
+    const { deps: d, send, finish } = deps({ allowed: async () => 'blocked' })
     expect((await processCeUnlockEmails(d)).skipped).toBe(1)
     expect(send).not.toHaveBeenCalled()
     expect(finish).toHaveBeenCalledWith(7, 'skipped', [], expect.stringContaining('documentacao_operacao'))
@@ -71,6 +71,21 @@ describe('fila de e-mails do Desbloqueio de CE', () => {
     const { deps: d, finish } = deps({ contacts: async () => two, send: vi.fn(async ({ to }): Promise<SendOutcome> => (to === 'a@c.com' ? 'sent' : 'suppressed')) })
     expect(await processCeUnlockEmails(d)).toEqual({ ...empty, partialSuppressed: 1 })
     expect(finish).toHaveBeenCalledWith(7, 'partial', ['k:a@c.com'], expect.stringContaining('suprimido'))
+  })
+
+  it('contato da caixa devolvido (a RPC já o recusa) fecha parcial, sem tentar enviar a ele', async () => {
+    const two = [{ id: 1, email: 'a@c.com' }, { id: 2, email: 'bounce@c.com' }]
+    const { deps: d, send, finish } = deps({ contacts: async () => two, allowed: async (_customer, contact) => (contact === 2 ? 'suppressed' : 'allowed') })
+    expect(await processCeUnlockEmails(d)).toEqual({ ...empty, partialSuppressed: 1 })
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(finish).toHaveBeenCalledWith(7, 'partial', ['k:a@c.com'], expect.stringContaining('suprimido'))
+  })
+
+  it('todos os contatos da caixa devolvidos fecham dizendo que estão suprimidos, não que falta contato', async () => {
+    const { deps: d, send, finish } = deps({ allowed: async () => 'suppressed' })
+    expect(await processCeUnlockEmails(d)).toEqual({ ...empty, skipped: 1 })
+    expect(send).not.toHaveBeenCalled()
+    expect(finish).toHaveBeenCalledWith(7, 'skipped', [], expect.stringContaining('suprimidos'))
   })
 
   it('todos os destinatários suprimidos fecham sem destinatário, sem nova tentativa', async () => {
