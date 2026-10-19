@@ -848,7 +848,6 @@ Aqui fica só o efeito indireto e a migration ativa que agenda o job.
 | `import-effects-runner` | Chama a Edge da fila de efeitos de importação (também disparada pela transação, `218`) | `025` … `218` |
 | `import-effects-queue-health` | `reconcile_import_effects_queue_alert()`: abre `import_effects_queue_stalled` | `178`, `190` |
 | `portal-mark-expired-invites` | `portal_mark_expired_invites()` | `003` |
-| `portal-refresh-general-pendencies` | `portal_refresh_general_pendencies()` (função de job, não gatilho) | `003` |
 | `billing-release-expiry-review` | `reevaluate_expired_billing_releases()`: Liberação vencida volta a reter | `168` |
 | `container-demurrage-status` | `refresh_containers_demurrage_status()` | `197` |
 | `data-retention` | `run_retention()` | `094` (vigente na `311`) |
