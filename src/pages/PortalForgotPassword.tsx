@@ -1,7 +1,8 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
-import { Card, InlineError } from '../components/ui/Card'
+import { InlineError } from '../components/ui/Card'
+import { AuthLayout } from '../components/auth/AuthLayout'
 import { Field, Input } from '../components/ui/Input'
 import { supabasePortal } from '../services/supabase'
 import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../lib/cnpj'
@@ -68,79 +69,58 @@ export function PortalForgotPassword() {
 
   if (sent) {
     return (
-      <main className="app-auth">
-        <Card className="app-auth__card">
-          <div className="app-auth__brand">
-            <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-            <h1 className="app-auth__title">Solicitação recebida</h1>
-          </div>
-          {/* A tela afirma o envio sem condicionar a "se houver conta": o texto
-              condicional devolvia ao cliente o mesmo sinal de enumeração que o
-              backend deixou de dar (achado 3.2). Nenhuma variação por CNPJ. */}
-          <div className="app-auth__body" role="status">
-            <p>Enviamos um link de redefinição para o email cadastrado na conta. O link vale por 1 hora.</p>
-            <p>Não recebeu em alguns minutos? Confira a caixa de spam ou solicite de novo.</p>
-          </div>
-          <div className="app-auth__actions">
-            <Link to="/portal/login" className="app-btn app-btn--primary">Voltar para o login</Link>
-            <button type="button" className="app-auth__link" onClick={() => setSent(false)}>
-              Solicitar outro link
-            </button>
-          </div>
-          <PortalAccessHelp />
-        </Card>
-      </main>
+      <AuthLayout brand="portal" title="Link enviado">
+        {/* A tela afirma o envio sem condicionar a "se houver conta": o texto
+            condicional devolvia ao cliente o mesmo sinal de enumeração que o
+            backend deixou de dar (achado 3.2). Nenhuma variação por CNPJ. */}
+        <div className="app-auth__body" role="status">
+          <p>Enviamos um link de redefinição para o e-mail cadastrado na conta. O link vale por 1 hora.</p>
+          <p className="app-auth__subtitle">Não recebeu em alguns minutos? Confira a caixa de spam ou peça de novo.</p>
+        </div>
+        <div className="app-auth__actions app-auth__actions--stack">
+          <Link to="/portal/login" className="app-btn app-btn--primary">Voltar para o login</Link>
+          <Button variant="secondary" onClick={() => setSent(false)}>Pedir outro link</Button>
+        </div>
+        <PortalAccessHelp />
+      </AuthLayout>
     )
   }
 
   return (
-    <main className="app-auth">
-      <Card className="app-auth__card">
-        <div className="app-auth__brand">
-          <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-          <div className="app-auth__form-header">
-            <h1 className="app-auth__title">Recuperar senha</h1>
-            <p className="app-auth__subtitle">Informe o CNPJ da conta. Enviaremos o link de redefinição para o email cadastrado.</p>
-          </div>
-        </div>
-
-        <form className="grid gap-4" onSubmit={handleSubmit}>
-          <Field label="CNPJ">
-            <Input
-              required
-              type="text"
-              inputMode="text"
-              autoComplete="username"
-              autoFocus
-              maxLength={CNPJ_INPUT_MAX_LENGTH}
-              value={cnpj}
-              onChange={(event) => setCnpj(normalizeCnpj(event.target.value))}
-              placeholder="00.000.000/0000-00"
-            />
-          </Field>
-
-          <TurnstileChallenge
-            action="portal_recovery"
-            resetKey={turnstileResetKey}
-            onToken={handleTurnstileToken}
-            onError={handleTurnstileError}
+    <AuthLayout
+      brand="portal"
+      title="Recuperar senha"
+      subtitle="Informe o CNPJ da conta. Enviaremos o link de redefinição para o e-mail cadastrado."
+    >
+      <form className="grid gap-4" onSubmit={handleSubmit}>
+        <Field label="CNPJ">
+          <Input
+            required
+            type="text"
+            inputMode="text"
+            autoComplete="username"
+            autoFocus
+            maxLength={CNPJ_INPUT_MAX_LENGTH}
+            value={cnpj}
+            onChange={(event) => setCnpj(normalizeCnpj(event.target.value))}
+            placeholder="00.000.000/0000-00"
           />
-
-          {error ? <InlineError message={error} /> : null}
-
-          <Button loading={submitting} loadingLabel="Enviando..." type="submit">
-            Enviar link de recuperação
-          </Button>
-        </form>
-
-        <div className="app-auth__actions app-auth__actions--center">
-          <Link to="/portal/login" className="app-auth__link">
-            Voltar para o login
-          </Link>
-        </div>
-
-        <PortalAccessHelp />
-      </Card>
-    </main>
+        </Field>
+        <TurnstileChallenge
+          action="portal_recovery"
+          resetKey={turnstileResetKey}
+          onToken={handleTurnstileToken}
+          onError={handleTurnstileError}
+        />
+        {error ? <InlineError message={error} /> : null}
+        <Button loading={submitting} loadingLabel="Enviando..." type="submit">
+          Enviar link de recuperação
+        </Button>
+        <Link to="/portal/login" className="app-btn app-btn--secondary">
+          Voltar para o login
+        </Link>
+      </form>
+      <PortalAccessHelp />
+    </AuthLayout>
   )
 }

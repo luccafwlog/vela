@@ -31,9 +31,9 @@ it('reset em andamento mantém a troca pendente e orienta tentar novamente', asy
     </MemoryRouter>,
   )
   await waitFor(() => expect(screen.getByText(/Recuperação de senha em andamento/)).toBeTruthy())
-  expect(screen.getByText(/Abra o link do email novamente após sua conclusão/)).toBeTruthy()
-  expect(screen.queryByText(/pedido de troca de email já foi resolvido/)).toBeNull()
-  expect(screen.queryByRole('heading', { name: 'Email confirmado' })).toBeNull()
+  expect(screen.getByText(/Abra o link do e-mail novamente após sua conclusão/)).toBeTruthy()
+  expect(screen.queryByText(/pedido de troca de e-mail já foi resolvido/)).toBeNull()
+  expect(screen.queryByRole('heading', { name: 'E-mail confirmado' })).toBeNull()
 })
 
 it('confirma o novo email sem exigir sessao do Portal', async () => {
@@ -43,7 +43,7 @@ it('confirma o novo email sem exigir sessao do Portal', async () => {
     </MemoryRouter>,
   )
 
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'Email confirmado' })).toBeTruthy())
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'E-mail confirmado' })).toBeTruthy())
   expect(auth.functions.invoke).toHaveBeenCalledWith('portal-recovery-email-change', {
     body: { action: 'confirm', token: 'TOKEN' },
   })
@@ -146,7 +146,7 @@ it('falha de transporte nao declara o link morto, porque o token continua valido
     </MemoryRouter>,
   )
 
-  await waitFor(() => expect(screen.getByText(/Abra o link do email novamente em instantes/)).toBeTruthy())
+  await waitFor(() => expect(screen.getByText(/Abra o link do e-mail novamente em instantes/)).toBeTruthy())
   expect(screen.queryByText(/Link de confirmação inválido ou expirado/)).toBeNull()
 })
 
@@ -166,7 +166,7 @@ it('pedido ja resolvido tem mensagem propria, distinta de link invalido', async 
     </MemoryRouter>,
   )
 
-  await waitFor(() => expect(screen.getByText(/pedido de troca de email já foi resolvido/)).toBeTruthy())
+  await waitFor(() => expect(screen.getByText(/pedido de troca de e-mail já foi resolvido/)).toBeTruthy())
   expect(screen.queryByText(/Link de confirmação inválido ou expirado/)).toBeNull()
-  expect(screen.queryByText(/Abra o link do email novamente em instantes/)).toBeNull()
+  expect(screen.queryByText(/Abra o link do e-mail novamente em instantes/)).toBeNull()
 })

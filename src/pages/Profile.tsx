@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { Card, InlineError, PageHeader } from '../components/ui/Card'
+import { InlineError, PageHeader } from '../components/ui/Card'
+import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
+import { NoValue } from '../components/ui/NoValue'
 import { Button } from '../components/ui/Button'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { Field, Input } from '../components/ui/Input'
@@ -60,24 +62,19 @@ export function Profile() {
 
   return (
     <>
-      <PageHeader title="Meu perfil" description="Nome, e-mail de acesso ao Vela e troca de senha." />
-      <div className="vela-profile">
-        <Card>
+      <PageHeader title="Meu perfil" />
+      {/* Dois blocos, um acima do outro, até 720 px (lote 6a da identidade). */}
+      <div className="grid max-w-[720px] gap-4">
+        <Block title="Dados pessoais">
           <form className="grid gap-4" onSubmit={handleSubmit}>
-            <h2 className="portal-profile__section-title">Dados pessoais</h2>
+            <LeadValue detail={departmentLabel(profile?.role)}>{profile?.full_name || session?.user.email || '—'}</LeadValue>
             <Field label="Nome" required>
               <Input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
             </Field>
-            <dl className="vela-profile__facts">
-              <div>
-                <dt>E-mail de acesso</dt>
-                <dd>{session?.user.email ?? '—'}</dd>
-              </div>
-              <div>
-                <dt>Departamento</dt>
-                <dd>{departmentLabel(profile?.role)}</dd>
-              </div>
-            </dl>
+            <FactList>
+              <Fact label="E-mail de acesso">{session?.user.email ?? <NoValue />}</Fact>
+              <Fact label="Departamento">{departmentLabel(profile?.role)}</Fact>
+            </FactList>
             {/* D13 (plano dos e-mails, 4.9): a confirmação de troca pelo Auth nunca
                 chegava (SMTP padrão do Supabase só entrega ao Team); quem troca é o
                 Administrativo em Admin › Usuários › Editar acesso, sem e-mail. */}
@@ -85,23 +82,18 @@ export function Profile() {
               Para trocar o e-mail de acesso, peça ao Administrativo: a troca é feita em Admin › Usuários › Editar acesso.
             </p>
             {error ? <InlineError message={error} /> : null}
-            <div className="portal-profile__form-actions">
+            <div className="flex justify-end">
               <Button type="submit" loading={saving} loadingLabel="Salvando...">Salvar alterações</Button>
             </div>
           </form>
-        </Card>
+        </Block>
 
-        <Card>
-          <div className="grid gap-3">
-            <div>
-              <h2 className="portal-profile__section-title">Senha</h2>
-              <p className="portal-profile__section-intro">Para trocar, informe a senha atual e a nova.</p>
-            </div>
-            <div>
-              <Button variant="secondary" onClick={() => setPasswordOpen(true)}>Alterar senha</Button>
-            </div>
+        <Block title="Senha">
+          <div className="grid justify-items-start gap-3">
+            <p className="app-field__hint">Para trocar, informe a senha atual e a nova.</p>
+            <Button variant="secondary" onClick={() => setPasswordOpen(true)}>Alterar senha</Button>
           </div>
-        </Card>
+        </Block>
       </div>
       {passwordOpen && session?.user.email ? (
         <AlterarMinhaSenhaModal open email={session.user.email} onClose={() => setPasswordOpen(false)} />

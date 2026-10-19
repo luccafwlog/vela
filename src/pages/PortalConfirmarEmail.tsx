@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PortalAccessHelp } from '../components/auth/PortalAccessHelp'
-import { Card, InlineError } from '../components/ui/Card'
+import { AuthLayout, AuthNotice } from '../components/auth/AuthLayout'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { supabasePortal } from '../services/supabase'
 
 const INVALID_LINK_MESSAGE = 'Link de confirmação inválido ou expirado. Peça a troca novamente pelo Portal.'
-const TRANSIENT_MESSAGE = 'Não foi possível confirmar agora. Abra o link do email novamente em instantes.'
-const RESET_IN_PROGRESS_MESSAGE = 'Recuperação de senha em andamento. O novo email ainda não foi confirmado. Abra o link do email novamente após sua conclusão.'
+const TRANSIENT_MESSAGE = 'Não foi possível confirmar agora. Abra o link do e-mail novamente em instantes.'
+const RESET_IN_PROGRESS_MESSAGE = 'Recuperação de senha em andamento. O novo e-mail ainda não foi confirmado. Abra o link do e-mail novamente após sua conclusão.'
 // 409: o link estava valido, mas o pedido de troca ja tinha sido resolvido por
 // outro caminho (tipicamente a troca assistida pelo atendimento). Dizer "link
 // invalido" aqui mandaria o cliente refazer uma troca que ja aconteceu.
-const ALREADY_RESOLVED_MESSAGE = 'Este pedido de troca de email já foi resolvido. Nenhuma ação é necessária; o Email de Recuperação em vigor é o atual.'
+const ALREADY_RESOLVED_MESSAGE = 'Este pedido de troca de e-mail já foi resolvido. Nenhuma ação é necessária; o Email de Recuperação em vigor é o atual.'
 
 // `functions.invoke` nao rejeita em falha de transporte: devolve `{ error }`
 // tanto para a resposta 410 da funcao quanto para rede fora do ar. Tratar as
@@ -87,38 +87,30 @@ export function PortalConfirmarEmail() {
   }, [token, confirmAction])
 
   return (
-    <main className="app-auth">
-      <Card className="app-auth__card">
-        <div className="app-auth__brand">
-          <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-          <h1 className="app-auth__title">
-            {state === 'ok' ? 'Email confirmado' : state === 'erro' ? 'Confirmação de email' : 'Confirmando seu email…'}
-          </h1>
+    <AuthLayout
+      brand="portal"
+      title={state === 'ok' ? 'E-mail confirmado' : state === 'erro' ? 'Confirmação de e-mail' : 'Confirmando seu e-mail…'}
+    >
+      {state === 'confirmando' ? (
+        <p className="app-auth__body" role="status">Estamos confirmando o novo Email de Recuperação.</p>
+      ) : null}
+
+      {state === 'ok' ? (
+        <div className="app-auth__body" role="status">
+          <p>
+            O novo Email de Recuperação passou a valer e o endereço anterior deixou de valer. As sessões abertas em
+            outros dispositivos foram encerradas. Entre novamente no Portal.
+          </p>
         </div>
+      ) : null}
 
-        {state === 'confirmando' ? (
-          <p className="app-auth__body" role="status">Estamos confirmando o novo Email de Recuperação.</p>
-        ) : null}
+      {state === 'erro' ? <AuthNotice title={error} /> : null}
 
-        {state === 'ok' ? (
-          <div className="app-auth__body" role="status">
-            <p>
-              O novo Email de Recuperação passou a valer e o endereço anterior deixou de valer. As sessões abertas em
-              outros dispositivos foram encerradas — entre novamente no Portal.
-            </p>
-          </div>
-        ) : null}
+      <Link to="/portal/login" className={state === 'ok' ? 'app-btn app-btn--primary' : 'app-btn app-btn--secondary'}>
+        Ir para o login
+      </Link>
 
-        {state === 'erro' ? <InlineError message={error} /> : null}
-
-        <div className="app-auth__actions">
-          <Link to="/portal/login" className={state === 'ok' ? 'app-btn app-btn--primary' : 'app-auth__link'}>
-            Ir para o login
-          </Link>
-        </div>
-
-        <PortalAccessHelp />
-      </Card>
-    </main>
+      <PortalAccessHelp />
+    </AuthLayout>
   )
 }

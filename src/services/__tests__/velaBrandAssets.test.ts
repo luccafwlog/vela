@@ -31,8 +31,9 @@ describe('aplicação da identidade Vela', () => {
     expect(read('index.html')).toContain('/branding/vela-icon-32.png')
     expect(read('public/site.webmanifest')).toContain('/branding/vela-icon-192.png')
     expect(read('src/components/layout/AppLayout.tsx')).toContain('/branding/vela-mark-dark.svg')
-    expect(read('src/pages/Login.tsx')).toContain('app-auth__logo--vela')
-    expect(read('src/pages/Login.tsx')).toContain('/branding/vela-mark-dark.svg')
+    expect(read('src/pages/Login.tsx')).toContain('brand="vela"')
+    expect(read('src/components/auth/AuthLayout.tsx')).toContain('app-auth__logo--vela')
+    expect(read('src/components/auth/AuthLayout.tsx')).toContain('/branding/vela-mark-dark.svg')
     // A TV voltou ao quadro claro anterior à etapa 03: símbolo padrão.
     expect(read('src/pages/LineUpTVDisplay.tsx')).toContain('/branding/vela-mark.svg')
   })
