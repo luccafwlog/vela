@@ -5378,9 +5378,6 @@ button.app-metric-tile[aria-pressed='true'] {
   padding: 0;
 }
 
-.app-lineup-export-row {
-  background-color: var(--app-warning-bg);
-}
 
 :root[data-visual-theme='current'] .text-white,
 :root[data-visual-theme='current'] .text-slate-100,
@@ -6262,13 +6259,8 @@ button.app-metric-tile[aria-pressed='true'] {
     scroll-behavior: auto !important;
   }
 }
-/* "Atracada" e um estado operacional lido de longe (parede de TV) e por quem
-   nao distingue verde. A cor sozinha nao basta — e ela ja significa outra
-   coisa na mesma linha (data real). A barra a esquerda e o sinal de forma. */
-.app-lineup-row--berthed > td:not(:nth-last-child(-n + 2)) {
-  color: var(--app-success-fg);
-}
-
+/* Navio atracado: a faixa verde à esquerda é o sinal (lote 5a). O texto fica
+   em tinta normal; o verde já marca a data efetiva (✓) na mesma linha. */
 .app-lineup-row--berthed > td:first-child {
   box-shadow: inset 4px 0 0 var(--app-green);
 }
@@ -6624,20 +6616,6 @@ a.app-step-rail__link:focus-visible {
   gap: 8px;
 }
 
-/* Line-Up do Painel (etapa 03): os números levam às listas filtradas sem
-   pintar a tabela inteira de azul; o sublinhado pontilhado indica o atalho. */
-.app-table--lineup tbody a {
-  text-decoration: underline dotted;
-  text-decoration-color: var(--app-border-strong);
-  text-underline-offset: 3px;
-}
-
-.app-table--lineup tbody a:hover,
-.app-table--lineup tbody a:focus-visible {
-  color: var(--app-link);
-  text-decoration-style: solid;
-  text-decoration-color: currentColor;
-}
 
 /* Data efetiva (ATA, ATD): verde de concluído e um ✓, para não depender só da cor. */
 .app-date--actual {

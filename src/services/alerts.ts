@@ -171,6 +171,18 @@ export type FinancialAlertType = typeof FINANCIAL_ALERT_TYPES[number]
 
 import { AGENCY_REPORT_DEPARTMENT_LABELS, agencyReportSectionLabel } from './agencyReportLabels'
 
+/**
+ * Setor responsável por um alerta, como a fila e o Painel o mostram. Os três
+ * setores do ADR mais o Administrativo, responsável por parte do catálogo
+ * (Pix, restituição, cobrança de Demurrage, rotinas). "Sem setor" é o alerta
+ * anterior à divisão por setor.
+ */
+export const ALERT_DEPARTMENT_LABELS: Record<string, string> = {
+  ...AGENCY_REPORT_DEPARTMENT_LABELS,
+  administrativo: 'Administrativo',
+  sem_departamento: 'Sem setor',
+}
+
 /** Alertas de contato do Cliente: o tratamento é na aba Cadastro e contatos. */
 const CUSTOMER_CONTACT_ALERT_TYPES: ReadonlySet<string> = new Set([
   'cliente_contato_bounced_sem_alternativa',

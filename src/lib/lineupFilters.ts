@@ -73,6 +73,11 @@ export function countActiveLineUpFilters(filters: LineUpFilters): number {
   return count
 }
 
+/** Filtros de "Mais filtros" do Painel: presença de carga e vínculo do manifesto. */
+export function countMoreLineUpFilters(filters: LineUpFilters): number {
+  return [filters.vehicles, filters.bb, filters.mty, filters.rtw, filters.linked].filter((value) => value !== 'all').length
+}
+
 export function emptyLineUpFilters(): LineUpFilters {
   return {
     search: '', status: 'active', periodo: 'all', dataInicio: '', dataFim: '',

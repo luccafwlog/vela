@@ -107,11 +107,6 @@
       "caixa-alta": 1,
       "cor-tailwind": 4
     },
-    "src/pages/Painel.tsx": {
-      "tamanho-solto": 5,
-      "caixa-alta": 1,
-      "cor-tailwind": 8
-    },
     "src/pages/PortalInspection.tsx": {
       "cor-tailwind": 5
     },
@@ -163,7 +158,7 @@
       "app-invoice": 40,
       "app-invoices": 18,
       "app-kpi": 14,
-      "app-lineup": 71,
+      "app-lineup": 69,
       "app-link": 2,
       "app-main": 8,
       "app-manual": 16,
@@ -192,7 +187,7 @@
       "app-summary": 7,
       "app-surface": 8,
       "app-tab": 8,
-      "app-table": 88,
+      "app-table": 86,
       "app-tablist": 2,
       "app-textarea": 2,
       "app-toast": 14,

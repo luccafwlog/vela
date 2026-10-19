@@ -34,7 +34,7 @@ export function lineUpExportLabel(row: Pick<LineUpRow, 'exportHasGranite' | 'exp
   if (row.exportHasGranite) parts.push('Granito')
   if (row.exportContainersQty !== null) {
     const moves = row.exportMovementsQty !== null ? ` · ${formatLineUpInteger(row.exportMovementsQty)} movimentos` : ''
-    parts.push(`${formatLineUpInteger(row.exportContainersQty)} CNTRs${moves}`)
+    parts.push(`${formatLineUpInteger(row.exportContainersQty)} containers${moves}`)
   }
   return parts.join(' · ')
 }
