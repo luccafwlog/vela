@@ -2,7 +2,7 @@
 // compartilhar o endereço reabre o mesmo recorte (filtros, lente e página).
 import type { BlFilters } from '../hooks/useBls'
 import { PAGE_SIZES } from '../hooks/usePageFilters'
-import { normalizePortCode } from '../services/portCode'
+import { normalizeInformationPort } from '../services/informationPort'
 import { LOCAL_CHARGES_LIST_STATE_LABELS } from '../lib/chargeStatus'
 
 type TextFilterKey = Exclude<keyof BlFilters, 'page' | 'pageSize' | 'cargoMode'>
@@ -40,8 +40,8 @@ export function filtersFromBlsSearch(params: URLSearchParams): BlFilters {
   ) as Record<TextFilterKey, string>
   // Endereço salvo com grafia legada (pod=BRVIT): as opções do select vêm
   // canônicas desde a migration 322, então o valor também precisa vir.
-  text.pol = normalizePortCode(text.pol) ?? text.pol
-  text.pod = normalizePortCode(text.pod) ?? text.pod
+  text.pol = normalizeInformationPort(text.pol) ?? ''
+  text.pod = normalizeInformationPort(text.pod) ?? ''
   const cargoMode = params.get('cargoMode') ?? ''
   const pageSize = positiveInt(params.get('pageSize'))
   return {

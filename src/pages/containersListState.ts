@@ -2,7 +2,7 @@
 // Voltar do B/L, recarregar ou compartilhar o endereço reabre o mesmo recorte.
 import type { ContainerFilters } from '../hooks/useBls'
 import { PAGE_SIZES } from '../hooks/usePageFilters'
-import { normalizePortCode } from '../services/portCode'
+import { normalizeInformationPort } from '../services/informationPort'
 
 type TextFilterKey = Exclude<keyof ContainerFilters, 'page' | 'pageSize' | 'cargoMode' | 'vehicleContainer'>
 
@@ -36,8 +36,8 @@ export function filtersFromContainersSearch(params: URLSearchParams): ContainerF
   ) as Record<TextFilterKey, string>
   // Endereço salvo com grafia legada (pod=BRVIT): as opções do select vêm
   // canônicas desde a migration 322, então o valor também precisa vir.
-  text.pol = normalizePortCode(text.pol) ?? text.pol
-  text.pod = normalizePortCode(text.pod) ?? text.pod
+  text.pol = normalizeInformationPort(text.pol) ?? ''
+  text.pod = normalizeInformationPort(text.pod) ?? ''
   if (!text.search) text.search = params.get('search') ?? ''
   const vehicleContainer = params.get('vehicle_container') ?? ''
   const pageSize = positiveInt(params.get('pageSize'))

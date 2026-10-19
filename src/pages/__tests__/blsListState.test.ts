@@ -19,6 +19,7 @@ describe('estado da lista /bls na URL', () => {
 
   it('converte a grafia legada do porto para a opção canônica do select', () => {
     expect(filtersFromBlsSearch(new URLSearchParams('pol=CNZJG&pod=BRVIT'))).toMatchObject({ pol: 'CNZJG', pod: 'BRVIX' })
+    expect(filtersFromBlsSearch(new URLSearchParams('pod=BRNVT')).pod).toBe('BRITJ')
     expect(filtersFromBlsSearch(new URLSearchParams('pod=XXXXX')).pod).toBe('XXXXX')
   })
 
