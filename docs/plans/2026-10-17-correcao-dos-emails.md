@@ -40,6 +40,13 @@ refutá-lo.
   demais; varredura não solta a claim recusada; coluna Régua com o motivo do
   servidor; isentas anteriores à `306` quitadas e cancelamento da baixa sem
   aviso de "Nova fatura"; e-mail agrupado sem soma.
+- **Revisão rigorosa da Régua de Cobrança (2026-10-19, migration `317`):**
+  exceção depois de uma entrega não devolve a posição de quem já recebeu;
+  tentativa aceita sem id segura o grupo e a posição mesmo com o Comunicado em
+  falha; a retomada depois da recusa nasce num Comunicado novo e zera as
+  falhas; o alerta de cobrança recusada fecha quando a Invoice é paga, isenta
+  ou cancelada; estorno da baixa e datas alteradas não apagam a recusa. Regra
+  em [Demurrage](../modules/demurrage.md#régua-de-cobrança).
 - **Correções da revisão do núcleo dos Comunicados (2026-10-18, migration
   `315`):** a produtora e o detector deixaram de olhar o status do Comunicado;
   o alvo é feito quando todo destinatário automático que já era contato

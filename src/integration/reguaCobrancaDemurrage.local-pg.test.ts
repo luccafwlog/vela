@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
 
 // Régua de Cobrança de Demurrage: plano dos e-mails (docs/plans/2026-10-17-correcao-dos-emails.md),
-// itens 1E, 2.5, 4.1, 4.2, 4.3 e 4.4 (migrations 305, 306 e 313).
+// itens 1E, 2.5, 4.1, 4.2, 4.3 e 4.4 (migrations 305, 306, 313 e 317).
 // Opt-in (`LOCAL_PG_INTEGRATION=1` + `LOCAL_DATABASE_URL`).
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -52,6 +52,10 @@ function claimAt(asOf: string): Candidate[] {
 
 function cleanup(): void {
   psql(`
+    SET session_replication_role = replica;
+    DELETE FROM public.demurrage_invoice_items WHERE invoice_id = ANY(ARRAY[${invoiceIds.join(',')}]::bigint[]);
+    DELETE FROM public.bl_containers WHERE bl_id LIKE 'REG303-BL-%';
+    SET session_replication_role = origin;
     DELETE FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ANY(ARRAY[${invoiceIds.join(',')}]::bigint[]);
     DELETE FROM public.customer_communication_dunning_invoices WHERE customer_id = ${customerId};
     DELETE FROM public.customer_communication_dunning_groups WHERE customer_id = ${customerId};
@@ -395,6 +399,165 @@ describeLocal('Régua de Cobrança de Demurrage — plano dos e-mails (1E, 2.5, 
     psql(`SELECT public.settle_demurrage_dunning_claim(${invoiceA}, 1, 'sent', NULL);`)
     expect(alertStatus()).toBe('resolved')
     expect(psql(`SELECT released_at IS NULL FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ${invoiceA};`)).toBe('t')
+  })
+
+  // 317: revisão rigorosa do PR #973.
+  const refusalAlert = (invoiceId: number) => psql(`
+    SELECT coalesce(max(i.status), 'none') FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+    WHERE i.item_type = 'cobranca_demurrage_recusada' AND a.entity_type = 'demurrage_invoice' AND a.entity_id = '${invoiceId}';
+  `)
+  const createGroupAt = (ids: number[]) => psqlResult(`
+    SELECT public.create_customer_dunning_group_atomic(
+      ${customerId}, 1, ARRAY[${ids.join(',')}]::bigint[], ${voyageId}, 'BRSSZ', 'Vessel 303', 'R303', NULL);
+  `)
+  // A varredura solta a posição e a mesma rodada a reivindica de novo (claimed_at da rodada).
+  const reclaimedBD = (asOf: string) => psql(`
+    SELECT string_agg((claimed_at = ${asOf} AND released_at IS NULL)::text, ',' ORDER BY demurrage_invoice_id)
+    FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id IN (${invoiceB}, ${invoiceD});
+  `)
+
+  it('317 (R2) — tentativa aceita sem id segura o grupo em falha, e a varredura não devolve a posição', () => {
+    claimAt(BUSINESS_MORNING)
+    const first = createGroupAt([invoiceB, invoiceD])
+    expect(first.status, first.stderr).toBe(0)
+    const firstId = first.stdout.trim()
+    // Queda entre registrar a tentativa e gravar o id; a 315 converte o "Em envio" parado em falha.
+    psql(`
+      INSERT INTO public.customer_communication_attempts (communication_id, recipient_masked, recipient_key, status, dispatch_mode, idempotency_key)
+      VALUES (${firstId}, 'r***@e***.test', 'sha256:reg317', 'aceito', 'real', 'reg317:pending:${firstId}');
+      UPDATE public.customer_communications SET status = 'falha' WHERE id = ${firstId};
+    `)
+    // Outra composição da mesma etapa não tira a participação: o provedor pode ter entregue.
+    const next = createGroupAt([invoiceA, invoiceB, invoiceD])
+    expect(next.status).not.toBe(0)
+    expect(psql(`SELECT count(*) FROM public.customer_communication_dunning_invoices WHERE communication_id = ${firstId};`)).toBe('2')
+    // A posição fica consumida: a Régua passa à etapa seguinte, sem colidir com esta.
+    const sweepAt = "'2026-09-10T15:00:00Z'::timestamptz"
+    claimAt(sweepAt)
+    expect(reclaimedBD(sweepAt)).toBe('false,false')
+    // Sem tentativa aceita (só falhas), a varredura devolve e o grupo em falha solta a fatura.
+    psql(`UPDATE public.customer_communication_attempts SET status = 'falha_transitoria' WHERE communication_id = ${firstId};`)
+    claimAt(sweepAt)
+    expect(reclaimedBD(sweepAt)).toBe('true,true')
+    const after = createGroupAt([invoiceA, invoiceB, invoiceD])
+    expect(after.status, after.stderr).toBe(0)
+  })
+
+  it('317 (R3) — retomada do grupo recusado nasce num Comunicado novo', () => {
+    claimAt(BUSINESS_MORNING)
+    const refused = createGroupAt([invoiceB, invoiceD])
+    expect(refused.status, refused.stderr).toBe(0)
+    const refusedId = refused.stdout.trim()
+    psql(`
+      INSERT INTO public.customer_communication_attempts (communication_id, recipient_masked, recipient_key, status, dispatch_mode, idempotency_key)
+      VALUES (${refusedId}, 'r***@e***.test', 'sha256:reg317-old', 'falha_permanente', 'real', 'reg317:refused:${refusedId}');
+      UPDATE public.customer_communications SET status = 'falha' WHERE id = ${refusedId};
+      SELECT public.settle_demurrage_dunning_claim(${invoiceB}, 1, 'refused', 'HTTP 422', ${refusedId});
+      SELECT public.settle_demurrage_dunning_claim(${invoiceD}, 1, 'refused', 'HTTP 422', ${refusedId});
+    `)
+    // Sem retomada, a mesma composição devolve o mesmo Comunicado.
+    expect(createGroupAt([invoiceB, invoiceD]).stdout.trim()).toBe(refusedId)
+    for (const invoiceId of [invoiceB, invoiceD]) {
+      const itemId = psql(`
+        SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+        WHERE i.item_type = 'cobranca_demurrage_recusada' AND a.entity_id = '${invoiceId}' AND i.status = 'active';
+      `)
+      const resolved = asAdmin(`SELECT public.resolve_alert_item_with_justification(${itemId}, 'E-mail corrigido')`)
+      expect(resolved.status, resolved.stderr).toBe(0)
+    }
+    // A recusa contou uma falha; a retomada zera a contagem.
+    expect(psql(`
+      SELECT string_agg(resume_generation || '/' || failure_count, ',' ORDER BY demurrage_invoice_id)
+      FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id IN (${invoiceB}, ${invoiceD});
+    `)).toBe('1/0,1/0')
+    claimAt("'2026-09-10T13:07:00Z'::timestamptz")
+    const resumed = createGroupAt([invoiceB, invoiceD])
+    expect(resumed.status, resumed.stderr).toBe(0)
+    const resumedId = resumed.stdout.trim()
+    expect(resumedId).not.toBe(refusedId)
+    expect(psql(`SELECT count(*) FROM public.customer_communication_attempts WHERE communication_id = ${resumedId};`)).toBe('0')
+    // O registro da recusa fica no Histórico; a participação passa ao Comunicado novo.
+    expect(psql(`SELECT status FROM public.customer_communications WHERE id = ${refusedId};`)).toBe('falha')
+    expect(psql(`SELECT count(*) FROM public.customer_communication_dunning_invoices WHERE communication_id = ${resumedId};`)).toBe('2')
+    // A mesma retomada repetida (rodada que falhou) devolve o mesmo Comunicado.
+    expect(createGroupAt([invoiceB, invoiceD]).stdout.trim()).toBe(resumedId)
+  })
+
+  it('317 (R4) — Invoice isenta (paga) ou cancelada fecha o alerta de cobrança recusada', () => {
+    claimAt(BUSINESS_MORNING)
+    psql(`
+      SELECT public.settle_demurrage_dunning_claim(${invoiceF}, 1, 'refused', 'HTTP 422');
+      SELECT public.settle_demurrage_dunning_claim(${invoiceG}, 1, 'failed', 'Tempo esgotado');
+      SELECT public.settle_demurrage_dunning_claim(${invoiceG}, 1, 'failed', 'Tempo esgotado');
+      SELECT public.settle_demurrage_dunning_claim(${invoiceG}, 1, 'failed', 'Tempo esgotado');
+    `)
+    expect(refusalAlert(invoiceF)).toBe('active')
+    expect(refusalAlert(invoiceG)).toBe('active')
+    try {
+      psql(`SELECT public.apply_demurrage_discount(gen_random_uuid(), ${invoiceF}, 'percent', 100, 'cortesia', 'Isenção acordada', NULL);`)
+      expect(psql(`SELECT status FROM public.demurrage_invoices WHERE id = ${invoiceF};`)).toBe('paid')
+      expect(refusalAlert(invoiceF)).toBe('resolved')
+      expect(psql(`SELECT dunning_suspended_reason IS NULL FROM public.demurrage_invoices WHERE id = ${invoiceF};`)).toBe('t')
+      psql(`UPDATE public.demurrage_invoices SET status = 'cancelled' WHERE id = ${invoiceG};`)
+      expect(refusalAlert(invoiceG)).toBe('resolved')
+    } finally {
+      psql(`
+        SET session_replication_role = replica;
+        UPDATE public.demurrage_invoices SET status = 'issued', paid_at = NULL, discount_mode = NULL, discount_value = NULL, current_total_brl = 550 WHERE id IN (${invoiceF}, ${invoiceG});
+        SET session_replication_role = origin;
+      `)
+    }
+  })
+
+  it('317 (R5) — estorno da baixa e datas alteradas preservam a suspensão pela recusa; a retomada aplica a de datas', () => {
+    claimAt(BUSINESS_MORNING)
+    psql(`SELECT public.settle_demurrage_dunning_claim(${invoiceE}, 1, 'refused', 'HTTP 422');`)
+    const reason = () => psql(`SELECT dunning_suspended_reason FROM public.demurrage_invoices WHERE id = ${invoiceE};`)
+    expect(reason()).toBe('Cobrança recusada pelo provedor: HTTP 422')
+    try {
+      // Estorno de uma baixa (paga sem passar pelo gatilho do alerta): a recusa fica.
+      psql(`
+        SET session_replication_role = replica;
+        UPDATE public.demurrage_invoices SET status = 'paid', paid_at = '2026-09-09' WHERE id = ${invoiceE};
+        SET session_replication_role = origin;
+        UPDATE public.demurrage_invoices SET status = 'issued', paid_at = NULL WHERE id = ${invoiceE};
+      `)
+      expect(reason()).toBe('Cobrança recusada pelo provedor: HTTP 422')
+
+      // Datas do container mudam numa Invoice com desconto: a recusa não é sobrescrita.
+      psql(`
+        UPDATE public.demurrage_invoices SET discount_mode = 'fixed', discount_value = 10 WHERE id = ${invoiceE};
+        SET session_replication_role = replica;
+        INSERT INTO public.bl_containers (id, bl_id, container_number, type, discharge_date, return_date)
+        VALUES (99330399, 'REG303-BL-${invoiceE}', 'REGU3170001', '40HC', '2026-08-01', '2026-08-25');
+        INSERT INTO public.demurrage_invoice_items (invoice_id, container_id, container_number, container_type, discharge_date, return_date, total_days, free_days, subtotal_usd)
+        VALUES (${invoiceE}, 99330399, 'REGU3170001', '40HC', '2026-08-01', '2026-08-20', 20, 10, 100);
+        SET session_replication_role = origin;
+      `)
+      psql(`SELECT public._reconcile_demurrage_after_dates(ARRAY['REG303-BL-${invoiceE}'], NULL);`)
+      expect(reason()).toBe('Cobrança recusada pelo provedor: HTTP 422')
+      claimAt("'2026-09-10T15:00:00Z'::timestamptz")
+      expect(psql(`SELECT released_at IS NULL FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ${invoiceE};`)).toBe('t')
+
+      // Ao resolver o alerta, a Invoice fica com a suspensão por datas e as falhas recomeçam.
+      const itemId = psql(`
+        SELECT i.id FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+        WHERE i.item_type = 'cobranca_demurrage_recusada' AND a.entity_id = '${invoiceE}' AND i.status = 'active';
+      `)
+      const resolved = asAdmin(`SELECT public.resolve_alert_item_with_justification(${itemId}, 'E-mail corrigido')`)
+      expect(resolved.status, resolved.stderr).toBe(0)
+      expect(reason()).toBe('Datas de container alteradas em Invoice com desconto ou disputa; reemitir à mão.')
+      expect(psql(`SELECT released_at IS NOT NULL, resume_generation, failure_count FROM public.demurrage_dunning_claims WHERE demurrage_invoice_id = ${invoiceE};`))
+        .toBe('t|1|0')
+    } finally {
+      psql(`
+        SET session_replication_role = replica;
+        DELETE FROM public.demurrage_invoice_items WHERE invoice_id = ${invoiceE};
+        DELETE FROM public.bl_containers WHERE id = 99330399;
+        UPDATE public.demurrage_invoices SET status = 'issued', paid_at = NULL, discount_mode = NULL, discount_value = NULL WHERE id = ${invoiceE};
+        SET session_replication_role = origin;
+      `)
+    }
   })
 
   it('settle_demurrage_dunning_claim é server-only e recusa desfecho desconhecido', () => {
