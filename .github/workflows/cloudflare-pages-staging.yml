@@ -1,0 +1,131 @@
+name: Cloudflare Pages Staging
+
+# Publica os dois sites no link fixo de staging do Cloudflare Pages a cada push
+# na branch git `staging`:
+#   https://staging.vela-internal.pages.dev
+#   https://staging.vela-portal.pages.dev
+# A branch `staging` NÃO é o production branch dos projetos Pages (que segue
+# `main`), então o deploy cai no ambiente de Preview, atrás do mesmo
+# Cloudflare Access das prévias pr-N (*.vela-internal.pages.dev e
+# *.vela-portal.pages.dev).
+#
+# Banco: a branch persistente `staging` do Supabase (filha do projeto Vela),
+# nunca a produção. URL e chave pública vêm do GitHub Environment `staging`.
+# O build recusa a URL de produção.
+#
+# Fica desligado até a variável de repositório CLOUDFLARE_PAGES_STAGING_ENABLED
+# ser `true`.
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages-staging
+  cancel-in-progress: true
+
+env:
+  PRODUCTION_SUPABASE_PROJECT_REF: fgmkhbzhaeebrsizwccx
+  STAGING_PAGES_BRANCH: staging
+
+jobs:
+  publish:
+    if: >-
+      vars.CLOUDFLARE_PAGES_STAGING_ENABLED == 'true' &&
+      vars.CLOUDFLARE_PAGES_ACCESS_CONFIGURED == 'true' &&
+      github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      - name: Checkout staging
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      # Com a branch Supabase `staging` ligada à git branch `staging`
+      # ("Sync with Git branch"), a integração aplica as migrations do push.
+      - name: Wait for Supabase to apply this commit's migrations
+        if: github.event_name == 'push'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: node scripts/wait-supabase-migrations.mjs
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Refuse a staging build without its own Supabase branch
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${VITE_SUPABASE_URL:?Configure VITE_SUPABASE_URL no environment staging (URL da branch Supabase staging)}"
+          : "${VITE_SUPABASE_ANON_KEY:?Configure VITE_SUPABASE_ANON_KEY no environment staging}"
+          if [[ "$VITE_SUPABASE_URL" == *"$PRODUCTION_SUPABASE_PROJECT_REF"* ]]; then
+            echo '::error::VITE_SUPABASE_URL do environment staging aponta para a produção; staging nunca usa o banco de produção.'
+            exit 1
+          fi
+
+      - name: Build and stage both sites against the Supabase staging branch
+        run: npm run cloudflare:build:sites
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          CLOUDFLARE_PORTAL_ORIGIN: https://staging.vela-portal.pages.dev
+          VITE_PORTAL_URL: https://staging.vela-portal.pages.dev
+          VITE_PORTAL_BILLING_URL: https://staging.vela-portal.pages.dev/portal/billing
+          VITE_SENTRY_ENVIRONMENT: staging
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          VITE_APP_COMMIT_SHA: ${{ github.sha }}
+
+      - name: Refuse a bundle that still points to production Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -rl "$PRODUCTION_SUPABASE_PROJECT_REF" dist/pages-internal dist/pages-portal; then
+            echo '::error::O bundle de staging cita o projeto Supabase de produção.'
+            exit 1
+          fi
+
+      - name: Publish Vela and Portal to the staging alias
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          COMMIT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${CLOUDFLARE_API_TOKEN:?Configure o secret CLOUDFLARE_PAGES_API_TOKEN no environment staging}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?Configure a variável CLOUDFLARE_ACCOUNT_ID}"
+          [[ "$STAGING_PAGES_BRANCH" != main ]] || { echo 'Staging nunca publica na branch de produção.'; exit 1; }
+          npx --no-install wrangler pages deploy dist/pages-internal \
+            --project-name vela-internal --branch "$STAGING_PAGES_BRANCH" --commit-hash "$COMMIT_SHA"
+          npx --no-install wrangler pages deploy dist/pages-portal \
+            --project-name vela-portal --branch "$STAGING_PAGES_BRANCH" --commit-hash "$COMMIT_SHA"
+          {
+            echo '# Cloudflare Pages staging'
+            echo
+            echo "Commit: \`${COMMIT_SHA}\`"
+            echo
+            echo '- Vela: https://staging.vela-internal.pages.dev'
+            echo '- Portal: https://staging.vela-portal.pages.dev'
+            echo
+            echo 'Protegido pelo Cloudflare Access das prévias; banco = branch Supabase staging.'
+          } >> "$GITHUB_STEP_SUMMARY"

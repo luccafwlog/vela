@@ -32,6 +32,26 @@ Os previews ficam atrás do Cloudflare Access, permitindo somente as identidades
 
 Cada preview usa alias `pr-<número>` (`pr-123.vela-internal.pages.dev` e `pr-123.vela-portal.pages.dev`). Os `pages.dev` de produção permanecem públicos; os domínios de produção são `vela.app.br` e `portalfwlog.com.br`.
 
+## Staging persistente
+
+Pedido do dono em 2026-10-19. Não é o destino das PRs rejeitado na ADR 0056
+(`stagingtdesk`): as PRs seguem para `main`; `staging` é um ambiente fixo de QA
+e treino, atualizado por push (ou merge de `main`) na git branch `staging`.
+
+- **Sites:** `https://staging.vela-internal.pages.dev` e
+  `https://staging.vela-portal.pages.dev`. A branch `staging` não é o
+  production branch dos projetos Pages (`main`), então o deploy é de Preview e
+  fica atrás do mesmo Cloudflare Access das prévias `pr-N`.
+- **Banco:** branch persistente `staging` do Supabase (filha do projeto Vela,
+  ref `uvgqfpleiyfythkhutlj`), ligada à git branch `staging`. Nunca a produção:
+  o workflow recusa a URL e o bundle que citem o ref de produção.
+- **Workflow:** `.github/workflows/cloudflare-pages-staging.yml`, ligado pela
+  variável de repositório `CLOUDFLARE_PAGES_STAGING_ENABLED=true`.
+- **GitHub Environment `staging`:** variáveis `VITE_SUPABASE_URL`,
+  `VITE_SUPABASE_ANON_KEY` (da branch staging) e, se houver,
+  `VITE_TURNSTILE_SITE_KEY`; secret `CLOUDFLARE_PAGES_API_TOKEN` (o mesmo token
+  de Pages Write). `CLOUDFLARE_ACCOUNT_ID` vem da variável de repositório.
+
 ## Variáveis do frontend
 
 | Variável | Uso |
