@@ -97,7 +97,9 @@ export function ScheduleTable({ vessels, caption, actions }: {
               {lanes.map((lane) => (
                 <th key={lane.label} scope="col">{scheduleLaneTitle(lane)} {lane.kind === 'pol' ? 'ETD' : 'ETA'}</th>
               ))}
-              <th scope="col"><span className="sr-only">Ações</span></th>
+              {/* Colunas na largura do dado (2026-10-19): a sobra do bloco vai
+                  toda para a coluna de ações, em vez de se espalhar entre as datas. */}
+              <th scope="col" className="w-full"><span className="sr-only">Ações</span></th>
             </tr>
           </thead>
           <tbody>
@@ -108,7 +110,7 @@ export function ScheduleTable({ vessels, caption, actions }: {
                 {lanes.map((lane) => (
                   <td key={lane.label}><ScheduleDate voyage={vessel} lane={lane} /></td>
                 ))}
-                <td><span className="inline-flex gap-2"><VesselMapButton voyage={vessel} />{actions?.(vessel)}</span></td>
+                <td className="w-full"><span className="ml-2 flex gap-2"><VesselMapButton voyage={vessel} />{actions?.(vessel)}</span></td>
               </tr>
             ))}
           </tbody>

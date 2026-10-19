@@ -204,6 +204,13 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   depois da regra base, com teste de contrato em
   `src/__tests__/designSystemLote2.test.ts`; conferida no Painel do Portal a
   360 e 1440 px no ambiente local.
+  **Programação de navios compactada em 2026-10-19**, a pedido do
+  responsável (colunas espaçadas demais no Vela e no Portal, em qualquer
+  largura): a `ScheduleTable` deixa cada coluna na largura do dado e dá a
+  sobra do bloco à última coluna, com Ver no mapa e Editar logo depois da
+  última data (`src/components/portal/ShipScheduleWidget.tsx`). Conferida numa página
+  local com dados fictícios a 1920, 1280 e 700 px (rolagem horizontal
+  mantida); não capturada nas telas reais.
 - **Lote 4 aprovado e entregue em 2026-10-18** (branch
   `claude/laughing-meitner-3rfy0l`, PR 972, junto com a correção do celular).
   O responsável aprovou todas as telas em três rodadas de comentários na
