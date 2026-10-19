@@ -60,9 +60,6 @@
       "hex": 2,
       "tamanho-solto": 1
     },
-    "src/pages/Admin.tsx": {
-      "cor-tailwind": 2
-    },
     "src/pages/ClientesComunicacao.tsx": {
       "tamanho-solto": 4,
       "caixa-alta": 1,

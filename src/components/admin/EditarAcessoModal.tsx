@@ -1,13 +1,20 @@
 import { useState, type FormEvent } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Field, Input } from '../ui/Input'
+import { Field, Input, Select } from '../ui/Input'
+import { SectorCapabilities } from './SectorCapabilities'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../../lib/passwordPolicy'
+import { MANAGED_PROFILES, PROFILE_LABELS, managedProfileOf } from '../../services/adminUsers'
+import type { Department } from '../../services/permissionMatrix'
+import type { UserProfileRole } from '../../types/database'
+
+export type EditarAcessoInput = { email?: string; password?: string; role?: UserProfileRole }
 
 export function EditarAcessoModal({
   open,
   userName,
   currentEmail,
+  currentRole,
   emailBounced = false,
   onClose,
   onSubmit,
@@ -16,13 +23,17 @@ export function EditarAcessoModal({
   open: boolean
   userName: string
   currentEmail: string | null
+  /** Setor de hoje; o papel legado `operator` aparece como Documentação. */
+  currentRole: UserProfileRole
   /** Endereço suprimido por bounce ou spam: salvar o mesmo e-mail libera a supressão. */
   emailBounced?: boolean
   onClose: () => void
-  onSubmit: (input: { email?: string; password?: string }) => void
+  onSubmit: (input: EditarAcessoInput) => void
   submitting: boolean
 }) {
+  const initialRole = managedProfileOf(currentRole)
   const [email, setEmail] = useState(currentEmail ?? '')
+  const [role, setRole] = useState<Department>(initialRole)
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState('')
@@ -31,20 +42,34 @@ export function EditarAcessoModal({
     event.preventDefault()
     const trimmed = email.trim().toLowerCase()
     const emailChanged = trimmed !== (currentEmail ?? '').toLowerCase()
+    // O papel legado só muda quando alguém escolhe outro setor de fato.
+    const roleChanged = role !== initialRole
     if (emailChanged && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) return setError('E-mail inválido.')
     if (password && !isValidPassword(password)) return setError(PASSWORD_RULE_MESSAGE)
     if (password && password !== confirmation) return setError('As senhas não conferem.')
     // Com a caixa já consertada, o mesmo endereço salvo de novo volta a receber.
     // Só redefinir a senha não libera: ninguém confirmou que a caixa voltou.
-    const releaseSameEmail = !emailChanged && emailBounced && Boolean(trimmed) && !password
-    if (!emailChanged && !password && !releaseSameEmail) return setError('Informe um novo e-mail ou uma nova senha.')
+    const releaseSameEmail = !emailChanged && emailBounced && Boolean(trimmed) && !password && !roleChanged
+    if (!emailChanged && !password && !releaseSameEmail && !roleChanged) return setError('Troque o setor, o e-mail ou a senha.')
     setError('')
-    onSubmit({ email: emailChanged || releaseSameEmail ? trimmed : undefined, password: password || undefined })
+    onSubmit({
+      email: emailChanged || releaseSameEmail ? trimmed : undefined,
+      password: password || undefined,
+      role: roleChanged ? role : undefined,
+    })
   }
 
   return (
     <Modal open={open} title={`Editar acesso — ${userName}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="grid gap-3">
+        <Field label="Setor">
+          <Select value={role} onChange={(e) => setRole(e.target.value as Department)}>
+            {MANAGED_PROFILES.map((profile) => (
+              <option key={profile} value={profile}>{PROFILE_LABELS[profile]}</option>
+            ))}
+          </Select>
+        </Field>
+        <SectorCapabilities department={role} personName={userName} />
         <Field label="E-mail de login">
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>

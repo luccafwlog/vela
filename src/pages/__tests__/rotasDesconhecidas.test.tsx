@@ -3,7 +3,7 @@ import { render, screen, cleanup } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
 import { NaoEncontrado } from '../NaoEncontrado'
-import { ADMIN_TABS, DEFAULT_ADMIN_TAB, isAdminTab } from '../adminTabs'
+import { ADMIN_TABS, DEFAULT_ADMIN_TAB, LEGACY_ADMIN_TABS, isAdminTab, legacyAdminTab } from '../adminTabs'
 import { routeTitle } from '../../lib/pageTitle'
 
 afterEach(cleanup)
@@ -33,6 +33,16 @@ describe('abas de Administração em sub-rota', () => {
     expect(isAdminTab('inexistente')).toBe(false)
     expect(isAdminTab(undefined)).toBe(false)
     expect(isAdminTab(DEFAULT_ADMIN_TAB)).toBe(true)
+  })
+
+  it('os endereços antigos (lote 5b) levam à aba nova certa', () => {
+    expect(legacyAdminTab('falhas')).toBe('falhas-de-alertas')
+    expect(legacyAdminTab('logs')).toBe('historico')
+    expect(legacyAdminTab('metricas')).toBe('sistema')
+    expect(legacyAdminTab('prazo-adr')).toBe('prazo-do-adr')
+    expect(legacyAdminTab('usuarios')).toBeNull()
+    expect(legacyAdminTab('toString')).toBeNull()
+    for (const target of Object.values(LEGACY_ADMIN_TABS)) expect(isAdminTab(target)).toBe(true)
   })
 
   it('usa slugs seguros para URL', () => {

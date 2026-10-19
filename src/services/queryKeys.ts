@@ -199,4 +199,10 @@ export const queryKeys = {
   },
   appSettings: () => ['app-settings'] as const,
   dashboard: () => ['dashboard'] as const,
+  admin: {
+    users: () => ['admin-users'] as const,
+    routingFailures: (page: number) => ['admin-routing-failures', page] as const,
+    auditLogs: (filters: unknown) => ['admin-audit-logs', filters] as const,
+    metrics: () => ['admin-metrics'] as const,
+  },
 }
