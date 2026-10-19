@@ -71,9 +71,6 @@
     "src/pages/ClientesInformacoes.tsx": {
       "cor-tailwind": 6
     },
-    "src/pages/EmbarqueVazios.tsx": {
-      "hex": 1
-    },
     "src/pages/Granite.tsx": {
       "hex": 7,
       "caixa-alta": 1,
@@ -92,11 +89,6 @@
     },
     "src/pages/Relatorios.tsx": {
       "cor-tailwind": 7
-    },
-    "src/pages/VaziosImportacao.tsx": {
-      "hex": 12,
-      "caixa-alta": 4,
-      "cor-tailwind": 6
     },
     "src/portal-main.tsx": {
       "hex": 2,

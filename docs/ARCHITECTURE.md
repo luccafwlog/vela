@@ -905,7 +905,7 @@ tabelas abaixo; o gate documental confere essa cobertura.
 | `/veiculos` | Veículos RoRo |
 | `/vazios-importacao` | Vazios de importação |
 | `/embarquevazios` | Embarques de Vazios por escala, unidades importadas e linhas de serviço manuais |
-| `/embarquevazios/depots` | Cadastro de Terminais (depots/terminais portuários) e catálogo de valores sugeridos |
+| `/embarquevazios/depots` | Locais (depots e terminais portuários) e catálogo de valores sugeridos |
 | `/granito` | Operação de Granito |
 | `/granito/taxas` | Tarifas de Granito |
 | `/revisao` | Revisão operacional |
