@@ -677,6 +677,6 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     // B/L com POD "VITORIA" e sem CE conta para a escala BRVIX.
     insertBl('A228-V1', { voyage: alertVoyageId, blPod: 'VITORIA', container: 'ADCU2280092', withCustomer: false })
     reconcile()
-    expect(activeAlert('voyage_ce_mercante_missing', String(alertVoyageId), 'voyage')).toMatch(/1 B\/L\(s\)/)
+    expect(activeAlert('voyage_ce_mercante_missing', String(alertVoyageId), 'voyage')).toBe('active:Falta para 1 B/L; prazo D-5 atingido.')
   })
 })

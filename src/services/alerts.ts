@@ -171,6 +171,18 @@ export type FinancialAlertType = typeof FINANCIAL_ALERT_TYPES[number]
 
 import { AGENCY_REPORT_DEPARTMENT_LABELS, agencyReportSectionLabel } from './agencyReportLabels'
 
+/**
+ * Setor responsável por um alerta, como a fila e o Painel o mostram. Os três
+ * setores do ADR mais o Administrativo, responsável por parte do catálogo
+ * (Pix, restituição, cobrança de Demurrage, rotinas). "Sem setor" é o alerta
+ * anterior à divisão por setor.
+ */
+export const ALERT_DEPARTMENT_LABELS: Record<string, string> = {
+  ...AGENCY_REPORT_DEPARTMENT_LABELS,
+  administrativo: 'Administrativo',
+  sem_departamento: 'Sem setor',
+}
+
 /** Alertas de contato do Cliente: o tratamento é na aba Cadastro e contatos. */
 const CUSTOMER_CONTACT_ALERT_TYPES: ReadonlySet<string> = new Set([
   'cliente_contato_bounced_sem_alternativa',
@@ -253,6 +265,31 @@ export function formatAlertEntity(
     return `${label} ${resolveEntityLabel(labels, entityType, entityId) ?? entityId}`
   }
   return null
+}
+
+/**
+ * Coluna Registro da fila (lote 5a): onde está a pendência, sem o tipo na
+ * frente ("COSCO SHIPPING ARIES / 088E", não "Viagem COSCO…"), porque o tipo
+ * já está no filtro e no nome do alerta. Abre a ficha quando o registro tem
+ * uma (B/L e viagem); os demais ficam em texto e se resolvem pelo botão.
+ * O grupo de B/Ls sem Cliente (`customer:sem_cliente`) não é um Cliente.
+ */
+export function alertRecord(
+  alert: Pick<AlertEntityRef, 'entity_type' | 'entity_id'>,
+  labels?: AlertEntityLabels,
+): { label: string; href: string | null } | null {
+  const { entity_type: entityType, entity_id: entityId } = alert
+  if (!entityType || !entityId) return null
+  if (entityType === 'customer' && entityId === 'sem_cliente') return { label: 'B/Ls sem Cliente', href: null }
+  const voyageId = voyageIdOf({ entity_type: entityType, entity_id: entityId })
+  if (voyageId) {
+    const voyage = resolveEntityLabel(labels, 'voyage', voyageId) ?? `Viagem ${voyageId}`
+    const [, port] = entityId.split('::')
+    return { label: port && entityType !== 'voyage' ? `${voyage} · ${port}` : voyage, href: `/viagens/${voyageId}` }
+  }
+  const label = resolveEntityLabel(labels, entityType, entityId) ?? entityId
+  if (entityType === 'bl') return { label, href: `/bls/${encodeURIComponent(entityId)}` }
+  return { label, href: null }
 }
 
 export function agencyReportAlertLink(

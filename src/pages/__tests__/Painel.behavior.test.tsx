@@ -167,10 +167,10 @@ it('informa falha e encerra loading quando a exportacao do Line-Up falha', async
     </MemoryRouter>,
   )
 
-  fireEvent.click(screen.getByRole('button', { name: 'Exportar Excel' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Exportar' }))
 
   await waitFor(() => expect(showToast).toHaveBeenCalledWith('Falha ao exportar o Line Up.', 'error'))
-  expect(screen.getByRole('button', { name: 'Exportar Excel' }).hasAttribute('disabled')).toBe(false)
+  expect(screen.getByRole('button', { name: 'Exportar' }).hasAttribute('disabled')).toBe(false)
 })
 
 it('exporta CEs e Linked da programação de exportação', async () => {
@@ -180,7 +180,7 @@ it('exporta CEs e Linked da programação de exportação', async () => {
     </MemoryRouter>,
   )
 
-  fireEvent.click(screen.getByRole('button', { name: 'Exportar Excel' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Exportar' }))
 
   await waitFor(() => expect(writeFileMock).toHaveBeenCalled())
   expect(jsonToSheetMock).toHaveBeenCalledWith(expect.arrayContaining([
@@ -196,10 +196,10 @@ function renderPainel() {
   )
 }
 
-// A barra de filtros do Painel nasce recolhida (como nas demais telas). Quem
-// for mexer nos campos precisa abri-la primeiro, igual ao usuário.
-function abrirFiltros() {
-  fireEvent.click(screen.getByRole('button', { expanded: false }))
+// Busca, Escalas, Período e CEs ficam abertos; os de presença de carga vivem
+// em "Mais filtros", que nasce recolhido. Quem for mexer neles abre primeiro.
+function abrirMaisFiltros() {
+  fireEvent.click(screen.getByRole('button', { name: /Mais filtros/ }))
 }
 
 it('US-120: as celulas do Line-Up navegam para os destinos corretos', () => {
@@ -216,10 +216,12 @@ it('US-121: carrega o snapshot do Line-Up com a escala', () => {
   expect(screen.getAllByText('Navio ativo').length).toBeGreaterThan(0)
 })
 
-it('US-121: exibe escala aguardando com status vermelho', () => {
+it('US-121: CE aguardando em texto âmbar, sem selo (regra 5)', () => {
   renderPainel()
 
-  expect(screen.getAllByText('Aguardando').some((element) => element.classList.contains('app-badge--red'))).toBe(true)
+  const waiting = screen.getAllByText('Aguardando')
+  expect(waiting.some((element) => element.classList.contains('app-status-text--warning'))).toBe(true)
+  expect(waiting.some((element) => element.closest('.app-badge'))).toBe(false)
 })
 
 it('exibe terminal por sentido na mesma linha da escala e preserva TBC', () => {
@@ -227,18 +229,21 @@ it('exibe terminal por sentido na mesma linha da escala e preserva TBC', () => {
 
   expect(screen.getByText('TVV')).toBeTruthy()
   expect(screen.getByText('PORTMAC')).toBeTruthy()
-  expect(screen.getByText(/TBC = sem atribuição/)).toBeTruthy()
+  expect(screen.getByText(/TBC: terminal sem atribuição/)).toBeTruthy()
 })
 
-it('usa ATA na coluna ETA e destaca somente a escala atracada', () => {
+it('usa ATA na coluna ETA, ATB na coluna ETB e destaca somente a escala atracada', () => {
   renderPainel()
-  abrirFiltros()
-  fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'all' } })
+  fireEvent.change(screen.getByLabelText('Escalas'), { target: { value: 'all' } })
 
   // ATA aparece com ✓ e cor de concluído, não só pela cor.
   const actualArrival = screen.getByTitle('ATA registrada')
   expect(actualArrival.textContent).toBe('✓ 10/07')
   expect(actualArrival.classList.contains('app-date--actual')).toBe(true)
+
+  // ATB registrado substitui o ETB, também com ✓ (decisão do lote 5a).
+  const berthedRowCells = screen.getByRole('link', { name: 'Navio ativo' }).closest('tr')?.querySelectorAll('td')
+  expect(berthedRowCells?.[5].textContent).toBe('✓ 10/07')
 
   const berthedRow = screen.getByRole('link', { name: 'Navio ativo' }).closest('tr')
   const completedRow = screen.getByRole('link', { name: 'Navio cancelado' }).closest('tr')
@@ -248,29 +253,27 @@ it('usa ATA na coluna ETA e destaca somente a escala atracada', () => {
 
 it('US-122: filtra o Line-Up por status de escala', () => {
   renderPainel()
-  abrirFiltros()
 
   expect(screen.getByRole('link', { name: 'Navio ativo' })).toBeTruthy()
 
-  fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'completed' } })
+  fireEvent.change(screen.getByLabelText('Escalas'), { target: { value: 'completed' } })
   expect(screen.queryByRole('link', { name: 'Navio ativo' })).toBeNull()
   expect(screen.getByRole('link', { name: 'Navio exportação' })).toBeTruthy()
 
-  fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'active' } })
+  fireEvent.change(screen.getByLabelText('Escalas'), { target: { value: 'active' } })
   expect(screen.getByRole('link', { name: 'Navio ativo' })).toBeTruthy()
 })
 
 it('não oferece filtro de escalas canceladas, que não entram no Line-Up', () => {
   renderPainel()
-  abrirFiltros()
 
-  const status = screen.getByLabelText('Status') as HTMLSelectElement
+  const status = screen.getByLabelText('Escalas') as HTMLSelectElement
   expect(Array.from(status.options).map((option) => option.value)).toEqual(['active', 'completed', 'all'])
 })
 
 it('combina busca por navio e filtro de veículos no Line-Up', () => {
   renderPainel()
-  abrirFiltros()
+  abrirMaisFiltros()
 
   fireEvent.change(screen.getByLabelText('Busca'), { target: { value: 'navio' } })
   fireEvent.change(screen.getByLabelText('Veículos'), { target: { value: 'with' } })
@@ -283,5 +286,14 @@ it('US-123: oferece os atalhos para Chegadas/Saidas e para a tela TV', () => {
   renderPainel()
 
   expect(screen.getByRole('link', { name: /Chegadas e Sa/ }).getAttribute('href')).toBe('/chegadas-saidas')
-  expect(screen.getByRole('link', { name: /Abrir tela TV/ }).getAttribute('href')).toBe('/line-up-tv/display')
+  expect(screen.getByRole('link', { name: /Tela TV/ }).getAttribute('href')).toBe('/line-up-tv/display')
+})
+
+it('exportação ocupa as colunas de carga em cinza, sem fundo de aviso', () => {
+  renderPainel()
+  fireEvent.change(screen.getByLabelText('Escalas'), { target: { value: 'all' } })
+
+  const exportRow = screen.getByRole('link', { name: 'Navio exportação' }).closest('tr')
+  expect(exportRow?.className ?? '').not.toContain('app-lineup-export-row')
+  expect(exportRow?.textContent).toContain('Exportação')
 })

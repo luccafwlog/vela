@@ -111,3 +111,4 @@ src/integration/reguaCobrancaDemurrage.local-pg.test.ts
 src/integration/monitoramentoDosEmails.local-pg.test.ts
 src/integration/rotinasHttpComErro.local-pg.test.ts
 src/integration/pendenciaGeralPortalSemDuplicata.local-pg.test.ts
+src/integration/alertasSemRepetirRegistro.local-pg.test.ts

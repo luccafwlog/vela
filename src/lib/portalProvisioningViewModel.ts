@@ -50,14 +50,44 @@ export function hasPortalPendency(row: Pick<QueueRow, 'account_situation' | 'pro
   return row.account_situation !== 'ativo'
 }
 
+/**
+ * A ação da linha da fila do Provisionamento (lote 5a): diz o que falta, e o
+ * botão abre a linha no bloco certo. Sem e-mail gravado, a escolha depende de
+ * haver contato com e-mail ("Escolher e-mail") ou não ("Cadastrar e-mail").
+ */
 export function getPortalNextAction(row: QueueRow): string {
-  if (row.account_situation === 'convite_pendente') return 'Aguardar ativação'
+  if (row.account_situation === 'convite_pendente') return 'Acompanhar convite'
   if (row.account_situation === 'convite_expirado') return 'Reenviar convite'
-  if (row.account_situation === 'falha_no_envio') return row.recovery_email ? 'Revisar email e reenviar' : 'Revisar email'
-  if (row.account_situation === 'ativo') return hasBrokenRecoveryEmail(row) ? 'Validar Email de Recuperação' : 'Conta ativa'
+  if (row.account_situation === 'falha_no_envio') return 'Revisar e-mail e reenviar'
+  if (row.account_situation === 'ativo') return hasBrokenRecoveryEmail(row) ? 'Validar e-mail de recuperação' : 'Ver conta'
   if (row.account_situation === 'suspenso') return 'Reativar conta'
-  if (row.provisioning_decision === 'aprovado_para_provisionar') return row.recovery_email ? 'Revisar e enviar' : 'Revisar email'
-  return 'Revisar email'
+  if (row.recovery_email) return 'Enviar convite'
+  return row.candidates.length ? 'Escolher e-mail' : 'Cadastrar e-mail'
+}
+
+/**
+ * O que aconteceu num evento do Portal, em português (lote 5a, achado A6). O
+ * motivo gravado pelo sistema ao reparar a fila é texto técnico; os demais
+ * motivos são escritos por quem agiu. Sem motivo, a mudança de situação.
+ */
+export function portalEventDescription(event: { reason: string | null; previous_situation: string | null; new_situation: string | null }): string {
+  const reason = event.reason?.trim()
+  if (reason === 'Reparo automático da fila do Portal durante a leitura.') return 'Entrou na fila do Portal'
+  if (reason) return reason
+  if (event.new_situation && event.new_situation !== event.previous_situation) {
+    return event.previous_situation
+      ? `Conta: ${accountSituationLabel(event.previous_situation)} → ${accountSituationLabel(event.new_situation)}`
+      : `Conta: ${accountSituationLabel(event.new_situation)}`
+  }
+  return 'Evento do Portal'
+}
+
+const ACTOR_LABELS: Record<string, string> = {
+  sistema: 'Sistema', cliente: 'Cliente', documentacao: 'Documentação', administrativo: 'Administrativo',
+}
+
+export function portalEventActorLabel(actorType: string | null | undefined): string | null {
+  return actorType ? ACTOR_LABELS[actorType] ?? null : null
 }
 
 export function formatPortalCandidate(candidate: EmailCandidate) {

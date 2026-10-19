@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountSituationLabel, contactPurposeLabel, deliveryStatusLabel, getPortalNextAction, hasBrokenRecoveryEmail, provisioningDecisionLabel, recoveryEmailSourceLabel } from '../portalProvisioningViewModel'
+import { accountSituationLabel, contactPurposeLabel, deliveryStatusLabel, getPortalNextAction, hasBrokenRecoveryEmail, portalEventActorLabel, portalEventDescription, provisioningDecisionLabel, recoveryEmailSourceLabel } from '../portalProvisioningViewModel'
 import type { QueueRow } from '../../services/portalProvisioning'
 
 const row = (partial: Partial<QueueRow> = {}): QueueRow => ({
@@ -25,7 +25,11 @@ describe('portalProvisioningViewModel', () => {
   })
   it('deriva a próxima ação sem expor enum', () => {
     expect(getPortalNextAction(row({ account_situation: 'convite_expirado' }))).toBe('Reenviar convite')
-    expect(getPortalNextAction(row({ provisioning_decision: 'aprovado_para_provisionar' }))).toBe('Revisar email')
+    expect(getPortalNextAction(row({ provisioning_decision: 'aprovado_para_provisionar' }))).toBe('Cadastrar e-mail')
+    // A ação diz o que falta: com contato, escolher; com e-mail gravado, enviar.
+    expect(getPortalNextAction(row({ candidates: [{ email: 'a@b.co', purpose: 'geral', origin: 'Contato do Cliente' }] }))).toBe('Escolher e-mail')
+    expect(getPortalNextAction(row({ recovery_email: 'a@b.co' }))).toBe('Enviar convite')
+    expect(getPortalNextAction(row({ account_situation: 'convite_pendente' }))).toBe('Acompanhar convite')
   })
 })
 
@@ -40,7 +44,17 @@ describe('sinal do Email de Recuperação', () => {
   // A conta continua ativa — o cliente entra com a senha. O que muda é o que o
   // operador precisa fazer, e isso aparece na fila sem rebaixar a situação.
   it('conta ativa com email quebrado pede validação em vez de "Conta ativa"', () => {
-    expect(getPortalNextAction(row({ account_situation: 'ativo' }))).toBe('Conta ativa')
-    expect(getPortalNextAction(row({ account_situation: 'ativo', recoveryEmailSuppressed: true }))).toBe('Validar Email de Recuperação')
+    expect(getPortalNextAction(row({ account_situation: 'ativo' }))).toBe('Ver conta')
+    expect(getPortalNextAction(row({ account_situation: 'ativo', recoveryEmailSuppressed: true }))).toBe('Validar e-mail de recuperação')
+  })
+})
+
+describe('Histórico do Portal (achado A6)', () => {
+  it('troca o texto técnico do reparo da fila e descreve a mudança de situação sem motivo', () => {
+    expect(portalEventDescription({ reason: 'Reparo automático da fila do Portal durante a leitura.', previous_situation: null, new_situation: 'sem_conta' })).toBe('Entrou na fila do Portal')
+    expect(portalEventDescription({ reason: 'Cliente pediu outro e-mail', previous_situation: 'ativo', new_situation: 'ativo' })).toBe('Cliente pediu outro e-mail')
+    expect(portalEventDescription({ reason: null, previous_situation: 'sem_conta', new_situation: 'convite_pendente' })).toBe('Conta: Sem conta → Ativação pendente')
+    expect(portalEventActorLabel('sistema')).toBe('Sistema')
+    expect(portalEventActorLabel(null)).toBeNull()
   })
 })

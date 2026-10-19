@@ -1,35 +1,25 @@
 import { FilterBar } from '../ui/FilterBar'
+import { Button } from '../ui/Button'
 import { Field, Input, Select } from '../ui/Input'
-import type { LineUpCeFilter, LineUpFilters as Filters, LineUpPeriodoFilter, LineUpPresenceFilter, LineUpStatusFilter } from '../../lib/lineupFilters'
+import { countMoreLineUpFilters, type LineUpCeFilter, type LineUpFilters as Filters, type LineUpPeriodoFilter, type LineUpPresenceFilter, type LineUpStatusFilter } from '../../lib/lineupFilters'
 
 type LineUpFiltersProps = {
   filters: Filters
   onChange: (next: Filters) => void
   onClear: () => void
   activeCount: number
-  /** Total de escalas visíveis após filtro / total bruto, para o contador. */
-  visibleCount: number
-  totalCount: number
-  loading?: boolean
 }
 
-// `status` nasce em 'active' e, por isso, não entra em `countActiveLineUpFilters`.
-// Com a barra recolhida ele continuaria recortando a lista sem aparecer em lugar
-// nenhum — daí o rótulo explícito em `appliedDefaults`.
-const STATUS_LABELS: Record<LineUpStatusFilter, string> = {
-  active: 'Escalas ativas',
-  completed: 'Escalas concluídas',
-  all: 'Todas as escalas',
-}
-
-export function LineUpFilters({ filters, onChange, onClear, activeCount, visibleCount, totalCount, loading }: LineUpFiltersProps) {
+/**
+ * Filtros do Line-Up no Painel (lote 5a): Busca, Escalas, Período e CEs ficam
+ * abertos; os de presença de carga (Veículos, BB, MTY, RTW, Vinculada) vão
+ * para "Mais filtros", como na lista de BLs. A contagem de escalas fica na
+ * faixa do bloco do Line Up.
+ */
+export function LineUpFilters({ filters, onChange, onClear, activeCount }: LineUpFiltersProps) {
+  const moreCount = countMoreLineUpFilters(filters)
   return (
-    <FilterBar
-      title={loading ? '—' : `${visibleCount} de ${totalCount} escalas`}
-      activeCount={activeCount}
-      appliedDefaults={filters.status === 'all' ? undefined : [STATUS_LABELS[filters.status]]}
-      onClear={onClear}
-    >
+    <>
       <div className="app-filter-grid">
         <Field label="Busca">
           <Input
@@ -40,11 +30,11 @@ export function LineUpFilters({ filters, onChange, onClear, activeCount, visible
           />
         </Field>
 
-        <Field label="Status">
+        <Field label="Escalas">
           <Select value={filters.status} onChange={(event) => onChange({ ...filters, status: event.target.value as LineUpStatusFilter })}>
-            <option value="active">Escalas ativas</option>
-            <option value="completed">Escalas concluídas</option>
-            <option value="all">Todas as escalas</option>
+            <option value="active">Ativas</option>
+            <option value="completed">Concluídas</option>
+            <option value="all">Todas</option>
           </Select>
         </Field>
 
@@ -77,13 +67,22 @@ export function LineUpFilters({ filters, onChange, onClear, activeCount, visible
           </Select>
         </Field>
 
-        <PresenceField label="Veículos" value={filters.vehicles} onChange={(vehicles) => onChange({ ...filters, vehicles })} withLabel="Com veículos" withoutLabel="Sem veículos" />
-        <PresenceField label="BB" value={filters.bb} onChange={(bb) => onChange({ ...filters, bb })} withLabel="Com break-bulk" withoutLabel="Sem break-bulk" />
-        <PresenceField label="MTY" value={filters.mty} onChange={(mty) => onChange({ ...filters, mty })} withLabel="Com vazios" withoutLabel="Sem vazios" />
-        <PresenceField label="RTW" value={filters.rtw} onChange={(rtw) => onChange({ ...filters, rtw })} withLabel="Com restow" withoutLabel="Sem restow" />
-        <PresenceField label="Linked" value={filters.linked} onChange={(linked) => onChange({ ...filters, linked })} withLabel="Manifesto vinculado" withoutLabel="Sem manifesto" />
+        {/* Como na lista de BLs: com filtro só nos campos abertos, o Limpar fica aqui; com "Mais filtros", fica lá. */}
+        {activeCount > 0 && moreCount === 0 ? (
+          <div><Button variant="ghost" onClick={onClear}>Limpar filtros</Button></div>
+        ) : null}
       </div>
-    </FilterBar>
+
+      <FilterBar title="Mais filtros" activeCount={moreCount} onClear={onClear}>
+        <div className="app-filter-grid">
+          <PresenceField label="Veículos" value={filters.vehicles} onChange={(vehicles) => onChange({ ...filters, vehicles })} withLabel="Com veículos" withoutLabel="Sem veículos" />
+          <PresenceField label="BB" value={filters.bb} onChange={(bb) => onChange({ ...filters, bb })} withLabel="Com break-bulk" withoutLabel="Sem break-bulk" />
+          <PresenceField label="MTY" value={filters.mty} onChange={(mty) => onChange({ ...filters, mty })} withLabel="Com vazios" withoutLabel="Sem vazios" />
+          <PresenceField label="RTW" value={filters.rtw} onChange={(rtw) => onChange({ ...filters, rtw })} withLabel="Com restow" withoutLabel="Sem restow" />
+          <PresenceField label="Vinculada" value={filters.linked} onChange={(linked) => onChange({ ...filters, linked })} withLabel="Manifesto vinculado" withoutLabel="Sem manifesto" />
+        </div>
+      </FilterBar>
+    </>
   )
 }
 

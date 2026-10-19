@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -10,6 +10,7 @@ const mockSummary = [
   { department: 'documentacao', active_count: 5, dismissed_count: 2, is_legacy: false },
   { department: 'equipamentos', active_count: 3, dismissed_count: 0, is_legacy: false },
   { department: 'operacoes', active_count: 0, dismissed_count: 1, is_legacy: false },
+  { department: 'administrativo', active_count: 2, dismissed_count: 0, is_legacy: false },
   { department: 'sem_departamento', active_count: 1, dismissed_count: 0, is_legacy: true },
 ]
 
@@ -40,63 +41,45 @@ beforeEach(() => {
   summaryState.error = null
 })
 
-describe('Painel — Resumo de Pendências por Setor', () => {
-  it('renderiza os cartões de cada setor com pendências ativas e dispensadas', () => {
-    render(
-      <MemoryRouter>
-        <Painel />
-      </MemoryRouter>,
-    )
+const navigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router-dom')>()),
+  useNavigate: () => navigate,
+}))
 
-    expect(screen.getByText('Pendências por Setor Responsável')).toBeTruthy()
-    expect(screen.getByText('Documentação')).toBeTruthy()
-    expect(screen.getByText('5 pendências')).toBeTruthy()
-    expect(screen.getByText('+ 2 dispensada(s)')).toBeTruthy()
+function renderPainel() {
+  render(
+    <MemoryRouter>
+      <Painel />
+    </MemoryRouter>,
+  )
+}
 
-    expect(screen.getByText('Equipamentos')).toBeTruthy()
-    expect(screen.getByText('3 pendências')).toBeTruthy()
+describe('Painel — alertas por setor', () => {
+  it('mostra um cartão por setor, inclusive o Administrativo (achado A1)', () => {
+    renderPainel()
 
-    expect(screen.getByText('Operações')).toBeTruthy()
-    expect(screen.getByText('0 pendências')).toBeTruthy()
-    expect(screen.getByText('+ 1 dispensada(s)')).toBeTruthy()
-
-    expect(screen.getByText('Sem setor / Legado')).toBeTruthy()
-    expect(screen.getByText('1')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Documentação\s*5 alertas\s*2 dispensados/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Equipamentos\s*3 alertas/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Operações\s*Nenhum\s*1 dispensado/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Administrativo\s*2 alertas/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Sem setor\s*1 alerta\s*anteriores aos setores/ })).toBeTruthy()
   })
 
-  it('cada cartão de setor possui link correto com query param para /alertas', () => {
-    render(
-      <MemoryRouter>
-        <Painel />
-      </MemoryRouter>,
-    )
+  it('cada cartão leva à fila de Alertas filtrada pelo setor', () => {
+    renderPainel()
 
-    const docLink = screen.getByText('Documentação').closest('a')
-    expect(docLink?.getAttribute('href')).toBe('/alertas?departamento=documentacao')
-
-    const equipLink = screen.getByText('Equipamentos').closest('a')
-    expect(equipLink?.getAttribute('href')).toBe('/alertas?departamento=equipamentos')
-
-    const opsLink = screen.getByText('Operações').closest('a')
-    expect(opsLink?.getAttribute('href')).toBe('/alertas?departamento=operacoes')
-
-    const legacyLink = screen.getByText('Sem setor / Legado').closest('a')
-    expect(legacyLink?.getAttribute('href')).toBe('/alertas?departamento=sem_departamento')
-
-    const fullQueueLink = screen.getByText('Fila completa de alertas').closest('a')
-    expect(fullQueueLink?.getAttribute('href')).toBe('/alertas')
+    fireEvent.click(screen.getByRole('button', { name: /Administrativo/ }))
+    expect(navigate).toHaveBeenCalledWith('/alertas?departamento=administrativo')
+    fireEvent.click(screen.getByRole('button', { name: /Sem setor/ }))
+    expect(navigate).toHaveBeenCalledWith('/alertas?departamento=sem_departamento')
   })
 
   it('expõe falha do resumo sem transformar erro em cartões zerados', () => {
     summaryState.error = new Error('RPC indisponível')
+    renderPainel()
 
-    render(
-      <MemoryRouter>
-        <Painel />
-      </MemoryRouter>,
-    )
-
-    expect(screen.getByText('Erro ao carregar pendências por setor.')).toBeTruthy()
-    expect(screen.queryByText('5 pendências')).toBeNull()
+    expect(screen.getByText('Erro ao carregar os alertas por setor.')).toBeTruthy()
+    expect(screen.queryByText('5 alertas')).toBeNull()
   })
 })

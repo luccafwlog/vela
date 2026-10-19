@@ -1,32 +1,39 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, BookOpen, ExternalLink, FilterX, History, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { NoValue } from '../components/ui/NoValue'
-import { Card, InlineError, PageHeader } from '../components/ui/Card'
+import { InlineError, PageHeader } from '../components/ui/Card'
+import { Block, Fact, FactList } from '../components/ui/Block'
+import { MetricCard } from '../components/ui/MetricCard'
+import { Modal } from '../components/ui/Modal'
+import { StatusText } from '../components/ui/StatusText'
+import { Field, Input, Select, Textarea } from '../components/ui/Input'
 import { useToast } from '../components/ui/Toast'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
-import { formatDate } from '../lib/utils'
+import { useNarrowViewport } from '../components/bl/useNarrowViewport'
+import { formatDate, formatDateTime } from '../lib/utils'
 import {
+  ALERT_DEPARTMENT_LABELS,
   alertEntityLink,
   alertEntityLinkLabel,
+  alertRecord,
   canResolveWithJustification,
   dismissAlertItem,
   fetchAlertEntityLabels,
   formatAlertEntity,
+  getAlertDepartmentSummary,
   getAlertTypeLabel,
   getEffectiveAlertType,
   invalidateAllAlertQueries,
   listAlerts,
   resolveAlertItemWithJustification,
-  ENTITY_TYPE_LABELS,
+  type AlertDepartmentSummary,
   type AlertEntityLabels,
   type AlertQueueRow,
-  type AlertStatusFilter,
 } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
-import { AGENCY_REPORT_DEPARTMENT_LABELS } from '../services/agencyDepartureReport'
 
 function getTomorrowDateString(): string {
   const d = new Date()
@@ -40,11 +47,8 @@ function getDefaultReviewDateString(): string {
   return d.toISOString().slice(0, 10)
 }
 
-const FILTER_TABS: { value: AlertStatusFilter; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'active', label: 'Ativos' },
-  { value: 'dismissed', label: 'Dispensados' },
-]
+/** Cartões que filtram a fila (lote 5a). Abre em Ativos; não há "Todos". */
+type AlertLens = 'ativos' | 'criticos' | 'dispensados'
 
 const DEPARTMENT_OPTIONS = [
   { value: 'all', label: 'Todos os setores' },
@@ -52,17 +56,17 @@ const DEPARTMENT_OPTIONS = [
   { value: 'equipamentos', label: 'Equipamentos' },
   { value: 'operacoes', label: 'Operações' },
   { value: 'administrativo', label: 'Administrativo' },
-  { value: 'sem_departamento', label: 'Sem setor / Legado' },
+  { value: 'sem_departamento', label: 'Sem setor' },
 ]
 
 const SEVERITY_OPTIONS = [
-  { value: 'all', label: 'Todas as severidades' },
+  { value: 'all', label: 'Todas' },
   { value: 'critical', label: 'Crítico' },
   { value: 'normal', label: 'Normal' },
 ]
 
 const ENTITY_OPTIONS = [
-  { value: 'all', label: 'Todas as entidades' },
+  { value: 'all', label: 'Todos' },
   { value: 'bl', label: 'B/L' },
   { value: 'customer', label: 'Cliente' },
   { value: 'voyage', label: 'Viagem' },
@@ -76,15 +80,25 @@ const ENTITY_OPTIONS = [
   { value: 'pix_transaction', label: 'Transação PIX' },
 ]
 
+function sumSummary(summary: AlertDepartmentSummary[] | undefined, department: string, field: 'active_count' | 'dismissed_count') {
+  if (!summary) return null
+  return summary
+    .filter((row) => department === 'all' || row.department === department)
+    .reduce((total, row) => total + Number(row[field] ?? 0), 0)
+}
+
 export function Alertas() {
   const [searchParams, setSearchParams] = useSearchParams()
   const rawDept = searchParams.get('departamento') || searchParams.get('department') || 'all'
   const departmentFilter = DEPARTMENT_OPTIONS.some((opt) => opt.value === rawDept) ? rawDept : 'all'
 
-  const [statusFilter, setStatusFilter] = useState<AlertStatusFilter>('all')
+  const [lens, setLens] = useState<AlertLens>('ativos')
+  const statusFilter = lens === 'dispensados' ? 'dismissed' : 'active'
   const [searchQuery, setSearchQuery] = useState('')
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [entityFilter, setEntityFilter] = useState<string>('all')
+  const [openDismissedId, setOpenDismissedId] = useState<string | null>(null)
+  const narrow = useNarrowViewport()
 
   const [pagination, setPagination] = useState({ department: departmentFilter, page: 0 })
   const page = pagination.department === departmentFilter ? pagination.page : 0
@@ -105,13 +119,31 @@ export function Alertas() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const confirmWithReason = useConfirmWithReason()
+  const navigate = useNavigate()
 
   const activeDepartment = departmentFilter === 'all' ? undefined : departmentFilter
 
-  const { data, isLoading, isError, error, refetch } = useQuery<AlertQueueRow[]>({
+  const { data, isLoading, isError, error } = useQuery<AlertQueueRow[]>({
     queryKey: queryKeys.alerts.list(statusFilter, page, departmentFilter),
     queryFn: () => listAlerts(statusFilter, undefined, page, activeDepartment),
   })
+
+  // Ativos e Dispensados contam pelo resumo por setor (a fila inteira, não a
+  // página); Críticos conta a página de ativos carregada.
+  // ponytail: com mais de 100 ativos, "Críticos" conta só a primeira página;
+  // o caminho é devolver a contagem por gravidade no resumo por setor.
+  const { data: summary } = useQuery<AlertDepartmentSummary[]>({
+    queryKey: queryKeys.alerts.departmentSummary(),
+    queryFn: getAlertDepartmentSummary,
+    staleTime: 60_000,
+  })
+  const { data: activePage } = useQuery<AlertQueueRow[]>({
+    queryKey: queryKeys.alerts.list('active', 0, departmentFilter),
+    queryFn: () => listAlerts('active', undefined, 0, activeDepartment),
+  })
+  const activeCount = sumSummary(summary, departmentFilter, 'active_count')
+  const dismissedCount = sumSummary(summary, departmentFilter, 'dismissed_count')
+  const criticalCount = activePage ? activePage.filter((alert) => alert.severity === 'critical').length : null
 
   // A fila guarda a chave surrogate da entidade; o operador reconhece o
   // navio/viagem, o número da fatura ou o nome do cliente. A tradução é uma
@@ -127,6 +159,10 @@ export function Alertas() {
   const filteredAlerts = useMemo(() => {
     if (!data) return []
     let list = data
+
+    if (lens === 'criticos') {
+      list = list.filter((alert) => alert.severity === 'critical')
+    }
 
     if (severityFilter !== 'all') {
       list = list.filter((alert) => alert.severity === severityFilter)
@@ -152,7 +188,7 @@ export function Alertas() {
     }
 
     return list
-  }, [data, severityFilter, entityFilter, searchQuery, entityLabels])
+  }, [data, lens, severityFilter, entityFilter, searchQuery, entityLabels])
 
   function closeDismissModal() {
     setDismissTarget(null)
@@ -162,18 +198,18 @@ export function Alertas() {
   const dismissMutation = useMutation({
     mutationFn: async () => {
       if (!dismissTarget?.item_id) {
-        throw new Error('Alerta legado sem item não suporta dispensa estruturada.')
+        throw new Error('Este alerta é anterior à divisão por setor e não pode ser dispensado; ele sai da fila quando a pendência é resolvida.')
       }
       const trimmedReason = dismissReason.trim()
       if (!trimmedReason) {
         throw new Error('Informe o motivo da dispensa.')
       }
       if (!reviewBy) {
-        throw new Error('Informe a data de revisão futura.')
+        throw new Error('Informe a data em que o alerta volta para a fila.')
       }
       const targetDate = new Date(`${reviewBy}T23:59:59Z`)
       if (Number.isNaN(targetDate.getTime()) || targetDate <= new Date()) {
-        throw new Error('A data de revisão deve ser uma data futura.')
+        throw new Error('A data para voltar à fila deve ser futura.')
       }
       await dismissAlertItem(
         dismissTarget.item_id,
@@ -193,13 +229,6 @@ export function Alertas() {
   })
 
   const requestDismissal = (alert: AlertQueueRow) => {
-    if (!alert.item_id) {
-      showToast(
-        'Alertas legados anteriores à migração 318 são históricos e saem da fila quando a pendência é sanada.',
-        'error',
-      )
-      return
-    }
     setDismissReason('')
     setReviewBy(getDefaultReviewDateString())
     setDismissTarget(alert)
@@ -245,6 +274,11 @@ export function Alertas() {
     setSearchParams(newParams)
   }
 
+  function selectLens(next: AlertLens) {
+    setLens(next)
+    setPage(0)
+  }
+
   const hasActiveFilters = searchQuery.trim().length > 0 || severityFilter !== 'all' || entityFilter !== 'all' || departmentFilter !== 'all'
 
   function clearFilters() {
@@ -254,374 +288,323 @@ export function Alertas() {
     handleDepartmentChange('all')
   }
 
+  const isMutating = dismissMutation.isPending || resolveMutation.isPending
+  const actions = {
+    isMutating,
+    onDismiss: requestDismissal,
+    onResolve: (alert: AlertQueueRow) => void requestResolution(alert),
+    onNavigate: (to: string) => navigate(to),
+  }
+  const isDismissedLens = lens === 'dispensados'
+  const blockTitle = isDismissedLens ? 'Dispensados' : lens === 'criticos' ? 'Alertas críticos' : 'Alertas ativos'
+  const pluralAlerts = (count: number) => `${count} ${count === 1 ? 'alerta' : 'alertas'}`
+
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader
-        title="Fila de Alertas Operacionais"
-        description="Pendências de auditoria e operacionais com ações corretivas no sistema."
+        title="Alertas"
         action={(
-          <Link to="/alertas/regras" className="app-btn app-btn--secondary inline-flex items-center gap-2">
-            <BookOpen size={15} aria-hidden="true" />
-            Regras de Alertas
+          <Link to="/alertas/regras" className="app-btn app-btn--secondary">
+            Regras de alertas
           </Link>
         )}
       />
 
-      {/* Barra de Filtros e Busca */}
-      <Card className="p-4 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-1 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-1">
-            {FILTER_TABS.map((tab) => (
-              <Button
-                key={tab.value}
-                variant={statusFilter === tab.value ? 'primary' : 'secondary'}
-                onClick={() => {
-                  setStatusFilter(tab.value)
-                  setPage(0)
-                }}
-              >
-                {tab.label}
-              </Button>
-            ))}
-          </div>
+      <div className="app-metric-row" role="group" aria-label="Recortes da fila">
+        <MetricCard
+          label="Ativos"
+          value={activeCount ?? <NoValue label="Carregando" />}
+          tone={(activeCount ?? 0) > 0 ? 'warning' : 'secondary'}
+          detail="na fila"
+          onSelect={() => selectLens('ativos')}
+          selected={lens === 'ativos'}
+        />
+        <MetricCard
+          label="Críticos"
+          value={criticalCount ?? <NoValue label="Carregando" />}
+          tone={(criticalCount ?? 0) > 0 ? 'warning' : 'secondary'}
+          detail="entre os ativos"
+          onSelect={() => selectLens('criticos')}
+          selected={lens === 'criticos'}
+        />
+        <MetricCard
+          label="Dispensados"
+          value={dismissedCount ?? <NoValue label="Carregando" />}
+          detail="voltam na data marcada"
+          onSelect={() => selectLens('dispensados')}
+          selected={lens === 'dispensados'}
+        />
+      </div>
 
-          <Button variant="secondary" onClick={() => void refetch()} loading={isLoading}>
-            Atualizar
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap items-end gap-3 pt-1 border-t border-[var(--app-border)]">
-          <label className="w-full sm:w-72 md:w-80">
-            <span className="mb-1 block text-xs font-medium text-[var(--app-muted)]">
-              Buscar (B/L, navio, cliente, CNPJ...)
-            </span>
-            <span className="relative block">
-              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" aria-hidden="true" />
-              <input
-                className="app-input app-alerts-search__input w-full text-xs"
-                style={{ paddingLeft: '38px' }}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Ex.: COSCO SHIPPING, CNPJ, BL123..."
-                aria-label="Buscar alertas"
-              />
-            </span>
-          </label>
-
-          <div>
-            <span className="mb-1 block text-xs font-medium text-[var(--app-muted)]">Setor</span>
-            <select
-              className="app-input app-select text-xs py-1.5 px-3 w-full sm:w-44"
-              value={departmentFilter}
-              aria-label="Filtrar por setor"
-              onChange={(e) => handleDepartmentChange(e.target.value)}
-            >
-              {DEPARTMENT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <span className="mb-1 block text-xs font-medium text-[var(--app-muted)]">Entidade</span>
-            <select
-              className="app-input app-select text-xs py-1.5 px-3 w-full sm:w-48"
-              value={entityFilter}
-              aria-label="Filtrar por tipo de entidade"
-              onChange={(e) => setEntityFilter(e.target.value)}
-            >
-              {ENTITY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <span className="mb-1 block text-xs font-medium text-[var(--app-muted)]">Severidade</span>
-            <select
-              className="app-input app-select text-xs py-1.5 px-3 w-full sm:w-48"
-              value={severityFilter}
-              aria-label="Filtrar por severidade"
-              onChange={(e) => setSeverityFilter(e.target.value)}
-            >
-              {SEVERITY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {hasActiveFilters ? (
-            <button
-              type="button"
-              className="app-btn app-btn--ghost inline-flex items-center gap-1 text-xs text-[var(--app-muted)] hover:text-[var(--app-text)]"
-              onClick={clearFilters}
-              title="Limpar todos os filtros"
-            >
-              <FilterX size={14} aria-hidden="true" />
-              Limpar
-            </button>
-          ) : null}
-        </div>
-      </Card>
-
-      <Card>
-        {isError ? (
-          <div className="p-4">
-            <InlineError message={error instanceof Error ? error.message : 'Erro ao carregar fila de alertas.'} />
-          </div>
+      <div className="app-filter-grid mb-4">
+        <Field label="Busca">
+          <Input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="B/L, navio, Cliente, CNPJ ou mensagem"
+            aria-label="Buscar alertas"
+          />
+        </Field>
+        <Field label="Setor">
+          <Select value={departmentFilter} onChange={(e) => handleDepartmentChange(e.target.value)}>
+            {DEPARTMENT_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </Select>
+        </Field>
+        <Field label="Registro">
+          <Select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>
+            {ENTITY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </Select>
+        </Field>
+        <Field label="Gravidade">
+          <Select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}>
+            {SEVERITY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </Select>
+        </Field>
+        {hasActiveFilters ? (
+          <div><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button></div>
         ) : null}
+      </div>
 
-        <div className="app-table-scroll rounded-xl border border-[var(--app-border)]">
-          <table className="app-table text-xs">
-            <caption className="sr-only">Fila de alertas operacionais</caption>
-            <thead>
-              <tr>
-                <th scope="col" className="px-4 py-3">Severidade</th>
-                <th scope="col" className="px-4 py-3">Tipo</th>
-                <th scope="col" className="px-4 py-3">Responsável</th>
-                <th scope="col" className="app-table__text-head px-4 py-3">Mensagem</th>
-                <th scope="col" className="app-table__text-head px-4 py-3">Entidade</th>
-                <th scope="col" className="px-4 py-3">Criação</th>
-                <th scope="col" className="px-4 py-3">Status / Ação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--app-border)]">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-[var(--app-muted)]">
-                    Carregando alertas...
-                  </td>
-                </tr>
-              ) : null}
-              {!isLoading && filteredAlerts.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-[var(--app-muted)]">
-                    {hasActiveFilters
-                      ? 'Nenhum alerta corresponde aos filtros aplicados.'
-                      : 'Nenhum alerta encontrado no filtro selecionado.'}
-                  </td>
-                </tr>
-              ) : null}
-              {filteredAlerts.map((alert) => (
-                <AlertRow
-                  key={`${alert.id}:${alert.item_id ?? getEffectiveAlertType(alert)}`}
-                  alert={alert}
-                  entityLabels={entityLabels}
-                  isMutating={dismissMutation.isPending || resolveMutation.isPending}
-                  onDismiss={() => requestDismissal(alert)}
-                  onResolve={() => void requestResolution(alert)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      {isError ? <InlineError message={error instanceof Error ? error.message : 'Erro ao carregar a fila de alertas.'} /> : null}
 
-      <div className="flex items-center justify-between text-xs text-[var(--app-muted)]">
-        <span>
-          Página {page + 1} · {filteredAlerts.length} {filteredAlerts.length === 1 ? 'item exibido' : 'itens exibidos'}
-          {data && filteredAlerts.length !== data.length ? ` (de ${data.length} carregados)` : ''}
-        </span>
+      <Block
+        title={blockTitle}
+        aside={isLoading ? null : pluralAlerts(filteredAlerts.length)}
+        flush
+      >
+        {isLoading ? (
+          <p className="px-4 py-8 text-center text-[var(--app-muted)]">Carregando alertas...</p>
+        ) : filteredAlerts.length === 0 ? (
+          <p className="px-4 py-8 text-center text-[var(--app-muted)]">
+            {hasActiveFilters ? 'Nenhum alerta corresponde aos filtros aplicados.' : isDismissedLens ? 'Nenhum alerta dispensado.' : 'Nenhum alerta na fila.'}
+          </p>
+        ) : narrow ? (
+          <ul className="grid gap-3 p-3" aria-label={blockTitle}>
+            {filteredAlerts.map((alert) => (
+              <li key={`${alert.id}:${alert.item_id ?? getEffectiveAlertType(alert)}`}>
+                <AlertCard alert={alert} entityLabels={entityLabels} {...actions} />
+              </li>
+            ))}
+          </ul>
+        ) : isDismissedLens ? (
+          <div className="app-table-scroll">
+            <table className="app-table">
+              <caption className="sr-only">Alertas dispensados</caption>
+              <thead>
+                <tr>
+                  <th scope="col"><span className="sr-only">Abrir</span></th>
+                  <th scope="col" className="app-table__text-head">Alerta</th>
+                  <th scope="col" className="app-table__text-head">Registro</th>
+                  <th scope="col">Dispensado até</th>
+                  <th scope="col">Por</th>
+                  <th scope="col">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAlerts.map((alert) => {
+                  const key = `${alert.id}:${alert.item_id ?? getEffectiveAlertType(alert)}`
+                  const expanded = openDismissedId === key
+                  return (
+                    <DismissedRow
+                      key={key}
+                      alert={alert}
+                      entityLabels={entityLabels}
+                      expanded={expanded}
+                      onToggle={() => setOpenDismissedId(expanded ? null : key)}
+                      {...actions}
+                    />
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="app-table-scroll">
+            <table className="app-table">
+              <caption className="sr-only">Fila de alertas</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Gravidade</th>
+                  <th scope="col" className="app-table__text-head">Alerta</th>
+                  <th scope="col" className="app-table__text-head">Registro</th>
+                  <th scope="col" className="app-table__text-head">Mensagem</th>
+                  <th scope="col">Setor</th>
+                  <th scope="col">Aberto em</th>
+                  <th scope="col">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAlerts.map((alert) => (
+                  <AlertRow
+                    key={`${alert.id}:${alert.item_id ?? getEffectiveAlertType(alert)}`}
+                    alert={alert}
+                    entityLabels={entityLabels}
+                    {...actions}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Block>
+
+      <div className="mt-4 flex items-center justify-between text-xs text-[var(--app-muted)]">
+        <span>Página {page + 1}</span>
         <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            disabled={page === 0}
-            onClick={() => setPage((current) => Math.max(0, current - 1))}
-          >
+          <Button variant="secondary" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>
             Anterior
           </Button>
-          <Button
-            variant="secondary"
-            disabled={!data || data.length < 100}
-            onClick={() => setPage((current) => current + 1)}
-          >
+          <Button variant="secondary" disabled={!data || data.length < 100} onClick={() => setPage((current) => current + 1)}>
             Próxima
           </Button>
         </div>
       </div>
 
-      {dismissTarget ? (
-        <div
-          className="app-modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dismiss-alert-modal-title"
-        >
-          <Card className="max-h-[calc(100dvh-24px)] w-full max-w-md overflow-y-auto p-6 max-sm:max-w-none max-sm:rounded-b-none">
-            <h2 id="dismiss-alert-modal-title" className="text-base font-semibold text-[var(--app-text)]">
-              Dispensar alerta temporariamente
-            </h2>
-            <p className="mt-1 text-xs text-[var(--app-muted)]">{dismissTarget.message}</p>
-            <p className="mt-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 text-xs text-[var(--app-text)]">
-              A dispensa tira este alerta da fila ativa até a data escolhida, mas não resolve a pendência.
-              Ele reaparece automaticamente depois dessa data. O motivo fica registrado e o alerta pode ser consultado no filtro “Dispensados”; não há desfazer antecipado nesta tela.
-            </p>
-
-            <div className="mt-4 space-y-3">
-              <div>
-                <label htmlFor="dismiss-reason-input" className="block text-xs font-medium text-[var(--app-muted)]">
-                  Motivo da dispensa (obrigatório para auditoria)
-                </label>
-                <textarea
-                  id="dismiss-reason-input"
-                  className="mt-1 w-full rounded border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-xs text-[var(--app-text)]"
-                  rows={3}
-                  value={dismissReason}
-                  onChange={(e) => setDismissReason(e.target.value)}
-                  placeholder="Ex.: Aguardando retorno da agência marítima até sexta."
-                />
-              </div>
-
-              <div>
-                <label htmlFor="dismiss-review-by-input" className="block text-xs font-medium text-[var(--app-muted)]">
-                  Revisar até (o alerta reaparece após esta data)
-                </label>
-                <input
-                  id="dismiss-review-by-input"
-                  type="date"
-                  min={getTomorrowDateString()}
-                  className="mt-1 w-full rounded border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-xs text-[var(--app-text)]"
-                  value={reviewBy}
-                  onChange={(e) => setReviewBy(e.target.value)}
-                />
-              </div>
+      <Modal open={dismissTarget !== null} title="Dispensar alerta" onClose={closeDismissModal} size="sm">
+        {dismissTarget ? (
+          <div className="grid gap-4">
+            <div>
+              <p className="text-base font-bold text-[var(--app-text-strong)]">{getAlertTypeLabel(getEffectiveAlertType(dismissTarget))}</p>
+              <p className="text-[var(--app-muted)]">{alertRecord(dismissTarget, entityLabels)?.label ?? dismissTarget.message}</p>
             </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={closeDismissModal}
-                disabled={dismissMutation.isPending}
-              >
-                Voltar
-              </Button>
+            <Field label="Motivo">
+              <Textarea
+                rows={3}
+                value={dismissReason}
+                onChange={(e) => setDismissReason(e.target.value)}
+                placeholder="Ex.: aguardando retorno da agência marítima até sexta."
+              />
+            </Field>
+            <Field label="Volta para a fila em">
+              <Input type="date" min={getTomorrowDateString()} value={reviewBy} onChange={(e) => setReviewBy(e.target.value)} />
+            </Field>
+            <p className="text-[var(--app-muted)]">O alerta sai da fila até essa data e volta sozinho se a pendência continuar. A dispensa não resolve a pendência.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closeDismissModal} disabled={dismissMutation.isPending}>Voltar</Button>
               <Button
                 variant="primary"
                 onClick={() => dismissMutation.mutate()}
                 loading={dismissMutation.isPending}
                 disabled={!dismissReason.trim() || !reviewBy}
               >
-                Confirmar dispensa
+                {reviewBy ? `Dispensar até ${formatDate(`${reviewBy}T12:00:00`).slice(0, 5)}` : 'Dispensar'}
               </Button>
             </div>
-          </Card>
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+      </Modal>
+    </>
+  )
+}
+
+type RowActions = {
+  isMutating: boolean
+  onDismiss: (alert: AlertQueueRow) => void
+  onResolve: (alert: AlertQueueRow) => void
+  onNavigate: (to: string) => void
+}
+
+function Severity({ alert }: { alert: AlertQueueRow }) {
+  return alert.severity === 'critical' ? <StatusText tone="danger">Crítico</StatusText> : <>Normal</>
+}
+
+function RecordCell({ alert, entityLabels }: { alert: AlertQueueRow; entityLabels?: AlertEntityLabels }) {
+  const record = alertRecord(alert, entityLabels)
+  if (!record) return <NoValue label="Sem registro" />
+  return record.href ? <Link className="app-link" to={record.href}>{record.label}</Link> : <>{record.label}</>
+}
+
+function Department({ alert }: { alert: AlertQueueRow }) {
+  return alert.department ? <>{ALERT_DEPARTMENT_LABELS[alert.department] ?? alert.department}</> : <NoValue label="Sem setor" />
+}
+
+/**
+ * "Resolver" e "Dispensar", de largura fixa e alinhados em toda linha (lote
+ * 5a). "Resolver" leva ao lugar onde a pendência se resolve (o nome do lugar
+ * fica no `title`); nos alertas de conferência sem fato de origem (ADR 0083),
+ * abre a justificativa. Dispensar só existe para o alerta por item.
+ */
+function AlertActions({ alert, isMutating, onDismiss, onResolve, onNavigate, dismissible = true }: RowActions & { alert: AlertQueueRow; dismissible?: boolean }) {
+  const effectiveType = getEffectiveAlertType(alert)
+  const byJustification = Boolean(alert.item_id) && canResolveWithJustification(effectiveType, alert.entity_type)
+  const link = byJustification ? null : alertEntityLink(alert)
+  return (
+    <div className="flex items-center justify-center gap-2">
+      {byJustification ? (
+        <Button variant="secondary" className="min-w-24" onClick={() => onResolve(alert)} disabled={isMutating} title="Resolver com justificativa">
+          Resolver
+        </Button>
+      ) : link ? (
+        <Button variant="secondary" className="min-w-24" onClick={() => onNavigate(link)} title={alertEntityLinkLabel(alert)}>
+          Resolver
+        </Button>
+      ) : <span className="inline-block min-w-24" aria-hidden="true" />}
+      {dismissible && alert.item_id ? (
+        <Button variant="secondary" className="min-w-24" onClick={() => onDismiss(alert)} disabled={isMutating}>
+          Dispensar
+        </Button>
+      ) : dismissible ? <span className="inline-block min-w-24" aria-hidden="true" /> : null}
     </div>
   )
 }
 
-function AlertRow({
-  alert,
-  entityLabels,
-  isMutating,
-  onDismiss,
-  onResolve,
-}: {
-  alert: AlertQueueRow
-  entityLabels?: AlertEntityLabels
-  isMutating: boolean
-  onDismiss: () => void
-  onResolve: () => void
-}) {
-  const isDismissed = Boolean(alert.dismissed_until && new Date(alert.dismissed_until) > new Date())
-  const effectiveType = getEffectiveAlertType(alert)
-  const link = alertEntityLink(alert)
-  const linkLabel = alertEntityLinkLabel(alert)
-
-  const entityFormatted = formatAlertEntity(alert.entity_type, alert.entity_id, entityLabels)
-
+function AlertRow({ alert, entityLabels, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels }) {
   return (
     <tr>
-      <td className="px-4 py-3">
-        <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
-            alert.severity === 'critical'
-              ? 'bg-rose-500/10 text-rose-700 border border-rose-500/20'
-              : 'bg-amber-500/10 text-amber-700 border border-amber-500/20'
-          }`}
-        >
-          {alert.severity === 'critical' ? 'Crítico' : 'Normal'}
-        </span>
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5">
-          <AlertTriangle size={14} className="shrink-0 text-amber-700" />
-          <span className="text-xs text-[var(--app-text)]">{getAlertTypeLabel(effectiveType)}</span>
-        </div>
-      </td>
-      <td className="px-4 py-3 text-xs text-[var(--app-muted)] whitespace-nowrap">
-        {alert.department ? (
-          <span>{AGENCY_REPORT_DEPARTMENT_LABELS[alert.department] ?? alert.department}</span>
-        ) : (
-          <NoValue label="Sem responsável" />
-        )}
-      </td>
-      <td className="app-table__text app-table__text--wrap px-4 py-3 text-[var(--app-text)]">{alert.message}</td>
-      <td className="app-table__text px-4 py-3 text-[var(--app-muted)]">
-        {entityFormatted ? (
-          <span className="text-xs">{entityFormatted}</span>
-        ) : alert.entity_type ? (
-          <span className="font-mono text-xs">
-            {ENTITY_TYPE_LABELS[alert.entity_type] ?? alert.entity_type}
-            {alert.entity_id ? ` ${alert.entity_id}` : ''}
-          </span>
-        ) : (
-          <NoValue label="Sem entidade" />
-        )}
-      </td>
-      <td className="whitespace-nowrap px-4 py-3 text-[var(--app-muted)]">{formatDate(alert.created_at)}</td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          {link ? (
-            <Link
-              to={link}
-              className="app-btn app-btn--secondary inline-flex items-center gap-1.5 text-xs whitespace-nowrap"
-            >
-              <span>{linkLabel}</span>
-              <ExternalLink size={12} className="shrink-0 text-[var(--app-muted)]" />
-            </Link>
-          ) : null}
-          {isDismissed ? (
-            <div className="flex flex-col gap-0.5">
-              <span
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700"
-                title={alert.dismissal_reason ?? ''}
-              >
-                <History size={12} />
-                <span>Dispensado até {formatDate(alert.dismissed_until)}</span>
-              </span>
-              {alert.dismissal_reason ? (
-                <span className="text-[10px] text-[var(--app-muted)] max-w-xs truncate" title={alert.dismissal_reason}>
-                  Motivo: {alert.dismissal_reason}
-                </span>
-              ) : null}
-              {alert.dismissed_by_name || alert.dismissed_by ? (
-                <span className="text-[10px] text-[var(--app-muted)]">
-                  Por: {alert.dismissed_by_name ?? alert.dismissed_by}
-                </span>
-              ) : null}
-            </div>
-          ) : alert.item_id ? (
-            <>
-              {canResolveWithJustification(effectiveType, alert.entity_type) ? (
-                <Button variant="secondary" onClick={onResolve} disabled={isMutating}>
-                  Resolver
-                </Button>
-              ) : null}
-              <Button variant="secondary" onClick={onDismiss} disabled={isMutating}>
-                Dispensar
-              </Button>
-            </>
-          ) : null}
-        </div>
-      </td>
+      <td><Severity alert={alert} /></td>
+      <td className="app-table__text">{getAlertTypeLabel(getEffectiveAlertType(alert))}</td>
+      <td className="app-table__text"><RecordCell alert={alert} entityLabels={entityLabels} /></td>
+      <td className="app-table__text app-table__text--wrap">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</td>
+      <td><Department alert={alert} /></td>
+      <td className="whitespace-nowrap">{formatDate(alert.created_at)}</td>
+      <td><AlertActions alert={alert} {...actions} /></td>
     </tr>
+  )
+}
+
+function DismissedRow({ alert, entityLabels, expanded, onToggle, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels; expanded: boolean; onToggle: () => void }) {
+  const label = getAlertTypeLabel(getEffectiveAlertType(alert))
+  return (
+    <>
+      <tr>
+        <td>
+          <button type="button" className="app-table__icon-button" aria-expanded={expanded} aria-label={`${expanded ? 'Recolher' : 'Abrir'} ${label}`} onClick={onToggle}>
+            {expanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+          </button>
+        </td>
+        <td className="app-table__text">{label}</td>
+        <td className="app-table__text"><RecordCell alert={alert} entityLabels={entityLabels} /></td>
+        <td><StatusText tone="warning">{formatDate(alert.dismissed_until)}</StatusText></td>
+        <td>{alert.dismissed_by_name ?? <NoValue label="Sem autor" />}</td>
+        <td><AlertActions alert={alert} dismissible={false} {...actions} /></td>
+      </tr>
+      {expanded ? (
+        <tr data-row-detail>
+          <td colSpan={6}>
+            <FactList columns={3}>
+              <Fact label="Motivo">{alert.dismissal_reason ?? <NoValue label="Sem motivo" />}</Fact>
+              <Fact label="Dispensado em">{alert.dismissed_at ? formatDateTime(alert.dismissed_at) : <NoValue label="Sem data" />}</Fact>
+              <Fact label="Mensagem">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</Fact>
+            </FactList>
+          </td>
+        </tr>
+      ) : null}
+    </>
+  )
+}
+
+function AlertCard({ alert, entityLabels, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels }) {
+  const isDismissed = Boolean(alert.dismissed_until && new Date(alert.dismissed_until) > new Date())
+  return (
+    <Block headingLevel={3} title={getAlertTypeLabel(getEffectiveAlertType(alert))} aside={<Severity alert={alert} />}>
+      <FactList columns={2}>
+        <Fact label="Registro"><RecordCell alert={alert} entityLabels={entityLabels} /></Fact>
+        <Fact label="Setor"><Department alert={alert} /></Fact>
+        <Fact label="Mensagem">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</Fact>
+        <Fact label={isDismissed ? 'Dispensado até' : 'Aberto em'}>{formatDate(isDismissed ? alert.dismissed_until : alert.created_at)}</Fact>
+      </FactList>
+      <div className="mt-3"><AlertActions alert={alert} dismissible={!isDismissed} {...actions} /></div>
+    </Block>
   )
 }

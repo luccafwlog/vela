@@ -2354,8 +2354,7 @@ button.app-metric-tile[aria-pressed='true'] {
   background: var(--app-surface-strong);
 }
 
-.app-input.app-review-search__input,
-.app-input.app-alerts-search__input {
+.app-input.app-review-search__input {
   padding-left: 38px;
   padding-right: 38px;
 }
@@ -5378,9 +5377,6 @@ button.app-metric-tile[aria-pressed='true'] {
   padding: 0;
 }
 
-.app-lineup-export-row {
-  background-color: var(--app-warning-bg);
-}
 
 :root[data-visual-theme='current'] .text-white,
 :root[data-visual-theme='current'] .text-slate-100,
@@ -6262,13 +6258,8 @@ button.app-metric-tile[aria-pressed='true'] {
     scroll-behavior: auto !important;
   }
 }
-/* "Atracada" e um estado operacional lido de longe (parede de TV) e por quem
-   nao distingue verde. A cor sozinha nao basta — e ela ja significa outra
-   coisa na mesma linha (data real). A barra a esquerda e o sinal de forma. */
-.app-lineup-row--berthed > td:not(:nth-last-child(-n + 2)) {
-  color: var(--app-success-fg);
-}
-
+/* Navio atracado: a faixa verde à esquerda é o sinal (lote 5a). O texto fica
+   em tinta normal; o verde já marca a data efetiva (✓) na mesma linha. */
 .app-lineup-row--berthed > td:first-child {
   box-shadow: inset 4px 0 0 var(--app-green);
 }
@@ -6393,6 +6384,102 @@ button.app-metric-tile[aria-pressed='true'] {
   .app-segmented__option {
     min-height: 44px;
   }
+}
+
+/* Barra de abas de segundo nível (lote 5a): largura do bloco, 44 px, ícone,
+   a escolhida em azul-marinho cheio e as outras na faixa sombreada, como as
+   abas do sistema (regra 7). */
+.app-segmented--bar {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  width: 100%;
+  gap: 4px;
+  padding: 4px;
+  border-color: var(--app-border-soft);
+  border-radius: 8px;
+  background: var(--app-strip);
+}
+
+.app-segmented--bar .app-segmented__option {
+  gap: 8px;
+  min-height: 40px;
+  border-radius: 6px;
+  color: var(--app-strip-text);
+  font-size: var(--app-size-body);
+  font-weight: 600;
+}
+
+.app-segmented--bar .app-segmented__option[aria-checked='true'] {
+  background: var(--app-navy);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.app-segmented__icon {
+  display: inline-flex;
+}
+
+@media (max-width: 639px) {
+  .app-segmented--bar {
+    grid-auto-flow: row;
+  }
+}
+
+/* Chave de ligar e desligar (Switch, lote 5a): o estado escrito ao lado e a
+   cor do trilho; ligada no azul do botão principal. */
+.app-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--app-control-h);
+  border: 0;
+  background: transparent;
+  color: var(--app-text-strong);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-switch__track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex: none;
+  border-radius: 11px;
+  background: var(--app-border-strong);
+  transition: background-color 0.15s;
+}
+
+.app-switch__track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.3);
+  transition: transform 0.15s;
+}
+
+.app-switch[aria-checked='true'] .app-switch__track {
+  background: var(--app-blue-btn);
+}
+
+.app-switch[aria-checked='true'] .app-switch__track::after {
+  transform: translateX(18px);
+}
+
+.app-switch:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--app-radius-control);
+}
+
+.app-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .app-summary-strip {
@@ -6624,20 +6711,6 @@ a.app-step-rail__link:focus-visible {
   gap: 8px;
 }
 
-/* Line-Up do Painel (etapa 03): os números levam às listas filtradas sem
-   pintar a tabela inteira de azul; o sublinhado pontilhado indica o atalho. */
-.app-table--lineup tbody a {
-  text-decoration: underline dotted;
-  text-decoration-color: var(--app-border-strong);
-  text-underline-offset: 3px;
-}
-
-.app-table--lineup tbody a:hover,
-.app-table--lineup tbody a:focus-visible {
-  color: var(--app-link);
-  text-decoration-style: solid;
-  text-decoration-color: currentColor;
-}
 
 /* Data efetiva (ATA, ATD): verde de concluído e um ✓, para não depender só da cor. */
 .app-date--actual {

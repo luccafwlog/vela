@@ -1,7 +1,11 @@
-import { ChevronRight, CircleAlert, ExternalLink, FilterX, Search } from 'lucide-react'
+import { ChevronRight, FilterX } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Card, EmptyState, PageHeader } from '../components/ui/Card'
+import { EmptyState, PageHeader } from '../components/ui/Card'
+import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
+import { Button } from '../components/ui/Button'
+import { Field, Input, Select } from '../components/ui/Input'
+import { StatusText } from '../components/ui/StatusText'
 import {
   ALERT_CRITICAL_FALLBACK_NOTE,
   ALERT_RULES,
@@ -29,7 +33,7 @@ const DEPARTMENTS: Array<{ value: AlertRuleDepartmentFilter; label: string }> = 
 ]
 
 const SEVERITIES: Array<{ value: 'all' | AlertRuleSeverity; label: string }> = [
-  { value: 'all', label: 'Todas as gravidades' },
+  { value: 'all', label: 'Todas' },
   { value: 'critical', label: 'Crítico' },
   { value: 'normal', label: 'Normal' },
 ]
@@ -111,83 +115,53 @@ export function AlertasRegras() {
   )
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader
-        title="Regras de Alertas"
-        description="Use esta página como legenda: entenda o que dispara cada alerta, quais setores são avisados e onde tratar a causa."
+        title="Regras de alertas"
         action={(
-          <Link to="/alertas" className="app-btn app-btn--secondary inline-flex items-center gap-2">
-            <CircleAlert size={15} aria-hidden="true" />
+          <Link to="/alertas" className="app-btn app-btn--secondary">
             Voltar para Alertas
           </Link>
         )}
       />
 
-      <Card className="p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="min-w-[240px] flex-1">
-            <span className="mb-1.5 block text-xs font-medium text-[var(--app-muted)]">Buscar uma regra</span>
-            <span className="relative block">
-              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--app-muted)]" aria-hidden="true" />
-              <input
-                className="app-input w-full pl-9"
-                value={query}
-                onChange={(event) => updateFilter('q', event.target.value)}
-                placeholder="Nome, gatilho, entidade ou tela"
-                aria-label="Buscar regras de alertas"
-              />
-            </span>
-          </label>
-
-          <FilterSelect
-            label="Setor notificado"
-            value={department}
-            options={DEPARTMENTS}
-            onChange={(value) => updateFilter('setor', value)}
+      <div className="app-filter-grid mb-4">
+        <Field label="Busca">
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => updateFilter('q', event.target.value)}
+            placeholder="Nome, gatilho, registro ou tela"
+            aria-label="Buscar regras de alertas"
           />
-          <FilterSelect
-            label="Domínio"
-            value={domain}
-            options={[{ value: ALL_FILTER_VALUE, label: 'Todos os domínios' }, ...ALERT_RULE_DOMAINS.map((item) => ({ value: item, label: item }))]}
-            onChange={(value) => updateFilter('dominio', value)}
-          />
-          <FilterSelect
-            label="Gravidade"
-            value={severity}
-            options={SEVERITIES}
-            onChange={(value) => updateFilter('gravidade', value)}
-          />
-          <button
-            type="button"
-            className="app-btn app-btn--ghost inline-flex items-center gap-2"
-            onClick={clearFilters}
-            disabled={!hasFilters}
-          >
-            <FilterX size={15} aria-hidden="true" />
-            Limpar filtros
-          </button>
-        </div>
-        <p className="mt-3 text-[11px] leading-5 text-[var(--app-muted)]">
-          O filtro de setor considera todos os setores que recebem a notificação, não apenas o responsável na fila. {ALERT_CRITICAL_FALLBACK_NOTE}
-        </p>
-      </Card>
-
-      <div className="flex items-center justify-between gap-3 text-xs text-[var(--app-muted)]">
-        <span>
-          {filteredRules.length} {filteredRules.length === 1 ? 'regra encontrada' : 'regras encontradas'}
-        </span>
-        <span className="hidden sm:inline">Selecione uma regra para ver o manual completo.</span>
+        </Field>
+        <Field label="Setor avisado">
+          <Select value={department} onChange={(event) => updateFilter('setor', event.target.value)}>
+            {DEPARTMENTS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </Select>
+        </Field>
+        <Field label="Assunto">
+          <Select value={domain} onChange={(event) => updateFilter('dominio', event.target.value)}>
+            <option value={ALL_FILTER_VALUE}>Todos</option>
+            {ALERT_RULE_DOMAINS.map((item) => <option key={item} value={item}>{item}</option>)}
+          </Select>
+        </Field>
+        <Field label="Gravidade">
+          <Select value={severity} onChange={(event) => updateFilter('gravidade', event.target.value)}>
+            {SEVERITIES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </Select>
+        </Field>
+        <div><Button variant="ghost" onClick={clearFilters} disabled={!hasFilters}>Limpar filtros</Button></div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(250px,0.78fr)_minmax(0,1.5fr)] lg:items-start">
-        <Card className="overflow-hidden p-0">
-          <div className="border-b border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-3">
-            <h2 className="text-sm font-semibold text-[var(--app-text-strong)]">Catálogo de regras</h2>
-            <p className="mt-1 text-[11px] text-[var(--app-muted)]">As regras do sistema, agrupadas para consulta.</p>
-          </div>
-
+      <div className="grid gap-4 lg:grid-cols-[minmax(250px,0.7fr)_minmax(0,1.5fr)] lg:items-start">
+        <Block
+          title="Regras"
+          aside={`${filteredRules.length} ${filteredRules.length === 1 ? 'regra' : 'regras'}`}
+          flush
+        >
           {filteredRules.length ? (
-            <div className="max-h-[min(66vh,720px)] overflow-y-auto p-2" role="list" aria-label="Regras de alertas">
+            <div className="max-h-[min(66vh,720px)] overflow-y-auto" role="list" aria-label="Regras de alertas">
               {filteredRules.map((rule) => (
                 <RuleListItem
                   key={rule.type}
@@ -204,37 +178,22 @@ export function AlertasRegras() {
               description="Tente remover um filtro ou buscar por outro termo."
             />
           )}
-        </Card>
+        </Block>
 
         {selectedRule ? <RuleDetail rule={selectedRule} /> : null}
       </div>
-    </div>
-  )
-}
-
-function FilterSelect<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string
-  value: T
-  options: Array<{ value: T; label: string }>
-  onChange: (value: string) => void
-}) {
-  return (
-    <label className="min-w-[170px]">
-      <span className="mb-1.5 block text-xs font-medium text-[var(--app-muted)]">{label}</span>
-      <select className="app-input app-select w-full" value={value} onChange={(event) => onChange(event.target.value)}>
-        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
-    </label>
+    </>
   )
 }
 
 function departmentList(departments: AlertRuleDepartment[]): string {
   return departments.map((department) => ALERT_RULE_DEPARTMENT_LABELS[department]).join(' · ')
+}
+
+function SeverityText({ severity }: { severity: AlertRuleSeverity }) {
+  return severity === 'critical'
+    ? <StatusText tone="danger">{ALERT_RULE_SEVERITY_LABELS[severity]}</StatusText>
+    : <>{ALERT_RULE_SEVERITY_LABELS[severity]}</>
 }
 
 function RuleListItem({
@@ -251,112 +210,74 @@ function RuleListItem({
       type="button"
       aria-current={selected ? 'true' : undefined}
       aria-controls={`regra-${rule.type}`}
-      className={`group flex w-full items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors ${selected
-        ? 'border-[var(--app-link)] bg-[var(--app-blue-soft)]'
-        : 'border-transparent hover:border-[var(--app-border)] hover:bg-[var(--app-surface-hover)]'}`}
+      className={`flex w-full items-center gap-3 border-b border-[var(--app-border-soft)] px-4 py-3 text-left ${selected
+        ? 'bg-[var(--app-strip)] shadow-[inset_3px_0_0_var(--app-link)]'
+        : 'hover:bg-[var(--app-surface-hover)]'}`}
       onClick={onSelect}
     >
-      <span className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${rule.severity === 'critical' ? 'bg-rose-400' : 'bg-amber-400'}`} aria-hidden="true" />
       <span className="min-w-0 flex-1">
-        <span className="block text-xs font-semibold leading-5 text-[var(--app-text-strong)]">{rule.label}</span>
-        <span className="mt-1 block text-[11px] text-[var(--app-muted)]">
-          {departmentList(rule.notifiedDepartments)} · {rule.domain}
+        <span className="block font-semibold text-[var(--app-text-strong)]">{rule.label}</span>
+        <span className="mt-0.5 block text-xs text-[var(--app-muted)]">
+          <SeverityText severity={rule.severity} /> · {departmentList(rule.responsibleDepartments)} · {rule.domain}
         </span>
       </span>
-      <ChevronRight size={15} className={`mt-1 shrink-0 ${selected ? 'text-[var(--app-link)]' : 'text-[var(--app-muted)] group-hover:text-[var(--app-text)]'}`} aria-hidden="true" />
+      <ChevronRight size={15} className={selected ? 'text-[var(--app-link)]' : 'text-[var(--app-muted)]'} aria-hidden="true" />
     </button>
   )
 }
 
+/**
+ * Detalhe da regra em três blocos com dado principal (lote 5a): Quando abre,
+ * Quem recebe e Como resolver. Sem o código interno e o endereço da tela; o
+ * código continua valendo na busca.
+ */
 function RuleDetail({ rule }: { rule: AlertRule }) {
   const alsoNotified = rule.notifiedDepartments.filter((department) => !rule.responsibleDepartments.includes(department))
 
   return (
-    <div id={`regra-${rule.type}`}>
-      <Card className="p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--app-border)] pb-5">
-        <div className="min-w-0">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <SeverityBadge severity={rule.severity} />
-            <span className="rounded-full border border-[var(--app-border)] px-2 py-0.5 text-[11px] text-[var(--app-muted)]">{rule.domain}</span>
-          </div>
-          <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">{rule.label}</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--app-muted)]">{rule.summary}</p>
-        </div>
-        <span className="rounded bg-[var(--app-bg)] px-2 py-1 font-mono text-[10px] text-[var(--app-muted)]">{rule.type}</span>
+    <div id={`regra-${rule.type}`} className="grid gap-4">
+      <div>
+        <h2 className="text-xl font-bold text-[var(--app-text-strong)]">{rule.label}</h2>
+        <p className="mt-1 text-[var(--app-muted)]"><SeverityText severity={rule.severity} /> · {rule.domain}</p>
       </div>
 
-      <dl className="mt-5 grid gap-x-6 gap-y-5 sm:grid-cols-2">
-        <DetailField label="Entidade afetada">{ENTITY_TYPE_LABELS[rule.entityType]}</DetailField>
-        <DetailField label="Setor responsável">{departmentList(rule.responsibleDepartments)}</DetailField>
-        <DetailField label="Setores notificados">
-          {departmentList(rule.notifiedDepartments)}
-          {alsoNotified.length ? (
-            <span className="mt-1 block text-xs text-[var(--app-muted)]">
-              Além do responsável, também recebe: {departmentList(alsoNotified)}.
-            </span>
+      <Block title="Quando abre" headingLevel={3}>
+        <LeadValue>{rule.trigger}</LeadValue>
+        <FactList columns={3}>
+          <Fact label="Registro">{ENTITY_TYPE_LABELS[rule.entityType] ?? rule.entityType}</Fact>
+          <Fact label="Aparece">{rule.timing}</Fact>
+          <Fact label="Fecha">{rule.afterResolution}</Fact>
+        </FactList>
+      </Block>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Block title="Quem recebe" headingLevel={3}>
+          <LeadValue>{departmentList(rule.responsibleDepartments)}</LeadValue>
+          <FactList columns={2}>
+            <Fact label="Responsável">{departmentList(rule.responsibleDepartments)}</Fact>
+            <Fact label="Avisados">{departmentList(rule.notifiedDepartments)}</Fact>
+          </FactList>
+          {alsoNotified.length ? <p className="mt-3 text-[var(--app-muted)]">Além do responsável, também recebe: {departmentList(alsoNotified)}.</p> : null}
+          {rule.routingNote ? <p className="mt-3 text-[var(--app-muted)]">{rule.routingNote}</p> : null}
+          {rule.severity === 'critical' ? <p className="mt-3 text-[var(--app-muted)]" title={ALERT_CRITICAL_FALLBACK_NOTE}>Sem ninguém ativo nesses setores, o alerta crítico vai para o Administrativo.</p> : null}
+        </Block>
+
+        <Block
+          title="Como resolver"
+          headingLevel={3}
+          aside={<Link to={rule.destination} className="app-btn app-btn--secondary app-btn--sm">{rule.destinationLabel}</Link>}
+        >
+          <LeadValue>{rule.resolution}</LeadValue>
+          {rule.destinationNote ? <p className="mt-2 text-[var(--app-muted)]">{rule.destinationNote}</p> : null}
+          <FactList columns={1}>
+            <Fact label="Dispensa">{rule.dismissal}</Fact>
+          </FactList>
+          {rule.domain === 'Portal' ? (
+            <p className="mt-3 text-[var(--app-muted)]">O Portal pode ser a origem do evento, mas este alerta é tratado pela equipe interna na fila de Alertas.</p>
           ) : null}
-        </DetailField>
-        <DetailField label="Quando aparece">{rule.timing}</DetailField>
-        <DetailField label="Gatilho">{rule.trigger}</DetailField>
-        <DetailField label="Como resolver">{rule.resolution}</DetailField>
-        <DetailField label="O que acontece depois">{rule.afterResolution}</DetailField>
-      </dl>
-
-      {rule.routingNote ? (
-        <div className="mt-5 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--app-muted)]">Como o alerta é distribuído</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--app-text)]">{rule.routingNote}</p>
-        </div>
-      ) : null}
-
-      <div className="mt-6 grid gap-4 border-t border-[var(--app-border)] pt-5 sm:grid-cols-2">
-        <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--app-muted)]">Onde resolver</p>
-          <p className="mt-2 text-sm text-[var(--app-text)]">{rule.destinationLabel}</p>
-          <p className="mt-1 font-mono text-[11px] text-[var(--app-muted)]">{rule.destination}</p>
-          {rule.destinationNote ? <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">{rule.destinationNote}</p> : null}
-          <Link
-            to={rule.destination}
-            className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-[var(--app-link)] hover:underline"
-          >
-            Abrir tela de resolução
-            <ExternalLink size={13} aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-400">Dispensa</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--app-muted)]">{rule.dismissal}</p>
-        </div>
+        </Block>
       </div>
-
-      {rule.domain === 'Portal' ? (
-        <p className="mt-5 text-[11px] leading-5 text-[var(--app-muted)]">
-          O Portal pode ser a origem do evento, mas este alerta é tratado pela equipe interna na fila de Alertas.
-        </p>
-      ) : null}
-      </Card>
     </div>
-  )
-}
-
-function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.07em] text-[var(--app-muted)]">{label}</dt>
-      <dd className="mt-1.5 text-sm leading-6 text-[var(--app-text)]">{children}</dd>
-    </div>
-  )
-}
-
-function SeverityBadge({ severity }: { severity: AlertRuleSeverity }) {
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${severity === 'critical'
-      ? 'border-rose-500/20 bg-rose-500/10 text-rose-400'
-      : 'border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${severity === 'critical' ? 'bg-rose-400' : 'bg-amber-400'}`} aria-hidden="true" />
-      {ALERT_RULE_SEVERITY_LABELS[severity]}
-    </span>
   )
 }
 

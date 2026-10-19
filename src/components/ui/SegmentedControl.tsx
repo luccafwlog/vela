@@ -1,10 +1,12 @@
-import { useRef, type KeyboardEvent } from 'react'
+import { useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 
 export type SegmentedOption<T extends string> = {
   value: T
   label: string
   disabled?: boolean
+  /** Ícone antes do nome, só na variante `bar`. */
+  icon?: ReactNode
 }
 
 /**
@@ -12,6 +14,10 @@ export type SegmentedOption<T extends string> = {
  * ou o formulário (lente, "Item da tabela" ou "Outra"). Semântica de grupo de
  * rádio: Tab entra na opção marcada e as setas trocam a escolha. Para trocar
  * de seção da página use abas; para listas maiores, select.
+ *
+ * `variant="bar"`: barra de abas de segundo nível (lote 5a, Comunicação), na
+ * largura do bloco, com ícone e a escolhida em azul-marinho cheio; fica
+ * abaixo das abas da página sem se confundir com elas.
  */
 export function SegmentedControl<T extends string>({
   label,
@@ -19,6 +25,7 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   className,
+  variant = 'default',
 }: {
   /** Nome acessível do grupo. */
   label: string
@@ -26,6 +33,7 @@ export function SegmentedControl<T extends string>({
   value: T
   onChange: (value: T) => void
   className?: string
+  variant?: 'default' | 'bar'
 }) {
   const groupRef = useRef<HTMLDivElement>(null)
   const enabled = options.filter((option) => !option.disabled)
@@ -45,7 +53,7 @@ export function SegmentedControl<T extends string>({
   }
 
   return (
-    <div ref={groupRef} role="radiogroup" aria-label={label} className={cn('app-segmented', className)} onKeyDown={onKeyDown}>
+    <div ref={groupRef} role="radiogroup" aria-label={label} className={cn('app-segmented', variant === 'bar' && 'app-segmented--bar', className)} onKeyDown={onKeyDown}>
       {options.map((option) => {
         const checked = option.value === value
         return (
@@ -59,6 +67,7 @@ export function SegmentedControl<T extends string>({
             className="app-segmented__option"
             onClick={() => onChange(option.value)}
           >
+            {variant === 'bar' && option.icon ? <span aria-hidden="true" className="app-segmented__icon">{option.icon}</span> : null}
             {option.label}
           </button>
         )

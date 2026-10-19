@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -211,6 +211,12 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({
 }))
 
 /** O modo e o modelo viraram escolhas visíveis: rádios, não selects. */
+// O Histórico é uma tabela (lote 5a): os destinatários e o reenvio do CE
+// ficam na linha aberta de cada Comunicado.
+function abrirComunicados() {
+  for (const botao of screen.queryAllByRole('button', { name: /^Abrir os destinatários do Comunicado/ })) fireEvent.click(botao)
+}
+
 function escolher(nome: RegExp) {
   fireEvent.click(screen.getByRole('radio', { name: nome }))
 }
@@ -238,7 +244,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
     expect(screen.queryByRole('radio', { name: /Disparo/ })).toBeNull()
     expect(screen.getByRole('radio', { name: /Histórico/ })).toBeTruthy()
-    expect(screen.getByText('Painel de cobertura')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Cobertura por viagem' })).toBeTruthy()
   })
 
   it('exibe o banner permanente de simulação quando communications_enabled é false', () => {
@@ -249,9 +255,34 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Modo de simulação permanente')).toBeTruthy()
-    expect(screen.getByText(/A chave global está desligada/i)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Ativar envio real' })).toBeTruthy()
+    // Canal de envio (lote 5a): "Em simulação" em âmbar e a chave desligada.
+    expect(screen.getByRole('heading', { name: 'Canal de envio' })).toBeTruthy()
+    expect(screen.getByText('Em simulação').classList.contains('app-lead__value--warning')).toBe(true)
+    expect(screen.getByText(/Nenhum e-mail sai/)).toBeTruthy()
+    expect(screen.getByRole('switch', { name: 'Envio real desligado' }).getAttribute('aria-checked')).toBe('false')
+  })
+
+  it('a chave do envio real pede a confirmação de hoje antes de ligar, e só o Administrativo a vê', async () => {
+    mockAppSettings = { communications_enabled: false }
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Envio real desligado' }))
+    await waitFor(() => expect(mockSetCommunicationsMutation.mutateAsync).toHaveBeenCalledWith(true))
+    expect(mockConfirm.mock.calls[0][0]).toMatchObject({ title: 'Ativar envio real', tone: 'danger' })
+    cleanup()
+
+    authState.canSend = false
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.getByText('Em simulação')).toBeTruthy()
   })
 
   it('exibe o banner de canal ativo quando communications_enabled é true', () => {
@@ -262,8 +293,8 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Canal de envio real ativo')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Desativar envio real' })).toBeTruthy()
+    expect(screen.getByText('Envio real')).toBeTruthy()
+    expect(screen.getByRole('switch', { name: 'Envio real ligado' }).getAttribute('aria-checked')).toBe('true')
   })
 
 
@@ -275,7 +306,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Modo de simulação permanente')).toBeTruthy()
+    expect(screen.getByText('Em simulação')).toBeTruthy()
   })
 
   it('exibe o estado de carregamento da chave sem ocultar o painel', () => {
@@ -289,7 +320,8 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     expect(screen.getByRole('status')).toBeTruthy()
-    expect(screen.queryByText('Modo de simulação permanente')).toBeNull()
+    expect(screen.queryByText('Em simulação')).toBeNull()
+    expect(screen.queryByRole('switch')).toBeNull()
   })
 
   it('exibe erro da chave e permite tentar novamente', () => {
@@ -314,10 +346,10 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Painel de cobertura')).toBeTruthy()
-    expect(screen.getByText('COSCO SHIPPING XING WANG · 2401E')).toBeTruthy()
-    expect(screen.getByText('3/3')).toBeTruthy() // NOA 3/3
-    expect(screen.getByText('2/3')).toBeTruthy() // NOR 2/3
+    expect(screen.getByRole('heading', { name: 'Cobertura por viagem' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'COSCO SHIPPING XING WANG / 2401E' })).toBeTruthy()
+    expect(screen.getByText('3 de 3').classList.contains('app-status-text--default')).toBe(true) // NOA completo
+    expect(screen.getAllByText('2 de 3').every((cell) => cell.classList.contains('app-status-text--warning'))).toBe(true) // NOR falta enviar
 
     const table = screen.getByRole('table')
     const scroll = table.closest('.app-table-scroll')
@@ -334,7 +366,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent?.trim())).toEqual([
-      'Viagem', 'Clientes', 'CE / Taxas', 'NOA', 'NOR', 'NOB',
+      'Navio / Viagem', 'Clientes', 'CE e Taxas enviados', 'Sem CE ou fatura', 'NOA', 'NOR', 'NOB',
     ])
   })
 
@@ -358,10 +390,13 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
 
     // Cliente bloqueado por preferência desligada
     expect(screen.getByText('Cliente Bloqueado S/A')).toBeTruthy()
-    expect(screen.getByText('Bloqueado')).toBeTruthy()
+    const blockedRow = screen.getByText('Cliente Bloqueado S/A').closest('tr') as HTMLElement
+    expect(blockedRow.querySelector('.app-status-text--warning')).toBeTruthy()
+    // Sem fundo vermelho na linha (lote 5a).
+    expect(blockedRow.className).toBe('')
 
     // Alerta de reenvio com discriminador > 0
-    expect(screen.getByText('Reenvio 1')).toBeTruthy()
+    expect(screen.getByText(/Reenvio 1/)).toBeTruthy()
     expect(screen.getByText(/Confirmo o reenvio\./i)).toBeTruthy()
   })
 
@@ -390,7 +425,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
 
     escolher(/^Institucional/)
     fireEvent.change(screen.getByLabelText(/^Assunto/), { target: { value: 'Aviso importante' } })
-    fireEvent.change(screen.getByLabelText(/^Mensagem/), { target: { value: 'Mensagem institucional de teste.' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /^Mensagem/ }), { target: { value: 'Mensagem institucional de teste.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ver prévia do e-mail' }))
 
     expect(screen.getAllByText('Mensagem institucional de teste.')).toHaveLength(2)
@@ -429,13 +464,13 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.queryByLabelText(/^Mensagem/)).toBeNull()
+    expect(screen.queryByRole('textbox', { name: /^Mensagem/ })).toBeNull()
 
     escolher(/Comunicado livre/)
 
     expect((screen.getByRole('radio', { name: /^Carga/ }) as HTMLInputElement).checked).toBe(true)
     expect(screen.getByLabelText(/^Assunto/)).toBeTruthy()
-    expect(screen.getByLabelText(/^Mensagem/)).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: /^Mensagem/ })).toBeTruthy()
     // O filtro da viagem continua ativo: o livre é ancorado na carga.
     expect(screen.getByLabelText('Navio / Viagem')).toBeTruthy()
   })
@@ -507,7 +542,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByText(/Escreva o assunto e a mensagem para conferir/i)).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText(/^Assunto/), { target: { value: 'Recesso' } })
-    fireEvent.change(screen.getByLabelText(/^Mensagem/), { target: { value: 'Comunicamos o recesso.' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /^Mensagem/ }), { target: { value: 'Comunicamos o recesso.' } })
     expect(conferir().disabled).toBe(false)
   })
 
@@ -599,7 +634,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.queryByLabelText('Navio / Viagem')).toBeNull()
     expect(screen.getByText('Destinatários conferidos')).toBeTruthy()
     expect(screen.getByText('Pronto para disparar')).toBeTruthy()
-    expect(screen.getByText('Modo Carga')).toBeTruthy()
+    expect(screen.getByText(/Modo Carga · sem anexos/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /Editar composição/i }))
 
@@ -636,7 +671,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Histórico de Comunicados')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Histórico de Comunicados' })).toBeTruthy()
     expect(screen.getByText('ACME Importadora')).toBeTruthy()
     expect(screen.getAllByText('Simulado').length).toBeGreaterThanOrEqual(1)
   })
@@ -825,7 +860,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     )
     fireEvent.click(screen.getByRole('radio', { name: /Comunicado livre/ }))
     fireEvent.change(screen.getByLabelText(/^Assunto/), { target: { value: 'Recesso' } })
-    fireEvent.change(screen.getByLabelText(/^Mensagem/), { target: { value: 'Comunicamos o recesso.' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /^Mensagem/ }), { target: { value: 'Comunicamos o recesso.' } })
     conferir()
 
     fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
@@ -852,11 +887,11 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     )
     fireEvent.click(screen.getByRole('radio', { name: /Comunicado livre/ }))
     fireEvent.change(screen.getByLabelText(/^Assunto/), { target: { value: 'Recesso' } })
-    fireEvent.change(screen.getByLabelText(/^Mensagem/), { target: { value: 'Comunicamos o recesso.' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /^Mensagem/ }), { target: { value: 'Comunicamos o recesso.' } })
     conferir()
 
-    expect(screen.getByText('2 envio(s) anterior(es)')).toBeTruthy()
-    expect(screen.queryByText('5 envio(s) anterior(es)')).toBeNull()
+    expect(screen.getByText(/2 envio\(s\) anterior\(es\)/)).toBeTruthy()
+    expect(screen.queryByText(/5 envio\(s\) anterior\(es\)/)).toBeNull()
   })
 
   it('disparar de novo depois do lote, com Comunicados novos, recusa e pede para conferir de novo', async () => {
@@ -949,6 +984,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
       </MemoryRouter>,
     )
 
+    abrirComunicados()
     const tabela = screen.getByRole('table', { name: 'Destinatários do Comunicado 501' })
     expect(within(tabela).getByText('a***@a***.com')).toBeTruthy()
     expect(within(tabela).getByText('Aceito pelo provedor')).toBeTruthy()
@@ -968,7 +1004,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
     const modelos = [...(screen.getByLabelText('Modelo') as HTMLSelectElement).options].map((option) => option.textContent)
     expect(modelos).toContain('CE Mercante · Taxas Locais')
     expect(modelos).toContain('Cobrança de Demurrage')
-    const status = [...(screen.getByLabelText('Status') as HTMLSelectElement).options].map((option) => option.value)
+    const status = [...(screen.getByLabelText('Situação') as HTMLSelectElement).options].map((option) => option.value)
     expect(status).toEqual(['', 'pendente', 'enviado', 'simulado', 'parcial', 'falha'])
     expect(screen.getByRole('option', { name: 'Em envio' })).toBeTruthy()
   })
@@ -984,6 +1020,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
       </MemoryRouter>,
     )
 
+    abrirComunicados()
     const botoes = screen.getAllByRole('button', { name: /Reenviar CE e Taxas/ })
     expect(botoes).toHaveLength(1)
     fireEvent.click(botoes[0])
@@ -1006,6 +1043,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
       </MemoryRouter>,
     )
 
+    abrirComunicados()
     fireEvent.click(screen.getByRole('button', { name: /Reenviar CE e Taxas/ }))
     await waitFor(() => expect(mockConfirm).toHaveBeenCalled())
     expect(mockFetchHistory).toHaveBeenCalledWith({ customerId: 1, voyageId: 7, kind: 'ce_mercante_taxas' })
@@ -1023,6 +1061,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
       </MemoryRouter>,
     )
 
+    abrirComunicados()
     fireEvent.click(screen.getByRole('button', { name: /Reenviar CE e Taxas/ }))
     expect(await screen.findByText(/Não foi possível confirmar se o envio real está ligado/)).toBeTruthy()
     expect(mockConfirm).not.toHaveBeenCalled()
@@ -1039,6 +1078,7 @@ describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3
       </MemoryRouter>,
     )
 
+    abrirComunicados()
     expect(screen.queryByRole('button', { name: /Reenviar CE e Taxas/ })).toBeNull()
   })
 

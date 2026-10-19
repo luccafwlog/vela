@@ -1,15 +1,16 @@
-import { formatCnpjCpf } from '../lib/utils'
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { formatCnpjCpf, formatDateTime } from '../lib/utils'
+import { Fragment, useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Building2, CheckCircle2, Eye, Info, Mail, Paperclip, Pencil, RotateCcw, Send, Users } from 'lucide-react'
-import { Badge, type BadgeTone } from '../components/ui/Badge'
+import { AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronRight, Eye, History, Info, Paperclip, Pencil, RotateCcw, Send, Ship, Users } from 'lucide-react'
+import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
-import { Card, InlineError, PageHeader } from '../components/ui/Card'
+import { InlineError, PageHeader } from '../components/ui/Card'
+import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
+import { Switch } from '../components/ui/Switch'
 import { ClientesTabs } from '../components/customers/ClientesTabs'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { CopyValue } from '../components/ui/CopyValue'
 import { Field, Input, Select } from '../components/ui/Input'
-import { MetricCard } from '../components/ui/MetricCard'
 import { Modal } from '../components/ui/Modal'
 import { NoValue } from '../components/ui/NoValue'
 import { StatusText } from '../components/ui/StatusText'
@@ -144,10 +145,21 @@ function conferenceSignature(conference: CustomerCommunicationConference | undef
   ])
 }
 
-function statusTone(status: string): BadgeTone {
-  if (status === 'enviado') return 'green'
-  if (status === 'falha') return 'red'
-  return 'yellow'
+/** Situação do Comunicado em texto (regra 5): falha em vermelho, parcial e pendente em âmbar. */
+function historyStatusTone(status: string) {
+  if (status === 'falha') return 'danger' as const
+  if (status === 'parcial' || status === 'pendente') return 'warning' as const
+  return 'default' as const
+}
+
+/** "0 de 3", âmbar enquanto falta enviar; "—" quando nada é devido (lote 5a). */
+function CoverageCount({ sent, total }: { sent: number; total: number }) {
+  if (total === 0) return <NoValue label="Nada devido" />
+  return <StatusText tone={sent < total ? 'warning' : 'default'}>{sent} de {total}</StatusText>
+}
+
+function plural(count: number, singular: string, pluralWord: string) {
+  return `${count} ${count === 1 ? singular : pluralWord}`
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -276,6 +288,16 @@ export function ClientesComunicacao() {
   const customerHistoryId = Number(searchParams.get('customer'))
   const historyCustomerId = Number.isInteger(customerHistoryId) && customerHistoryId > 0 ? customerHistoryId : undefined
   const historyCommunicationId = Number(searchParams.get('communication'))
+  // Linhas abertas do Histórico; o Comunicado pedido pelo endereço já abre aberto.
+  const [openHistory, setOpenHistory] = useState<ReadonlySet<number>>(() => new Set(historyCommunicationId > 0 ? [historyCommunicationId] : []))
+  function toggleHistory(id: number) {
+    setOpenHistory((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
   const historyBlId = searchParams.get('bl')?.trim() || undefined
   const tab: CommunicationTab = searchParams.get('tab') === 'historico' ? 'historico' : searchParams.get('tab') === 'disparo' && canSend ? 'disparo' : 'cobertura'
   const historyQuery = useCustomerCommunicationHistory(
@@ -290,6 +312,7 @@ export function ClientesComunicacao() {
   const ceResendMutation = useResendCeMercanteTaxasCommunication()
   const conference = conferenceQuery.data
   const signature = useMemo(() => conferenceSignature(conference), [conference])
+  const historyFailures = (historyQuery.data ?? []).filter((item) => item.status === 'falha').length
 
   const defaultSelectedKeys = useMemo(
     () => new Set((conference?.rows ?? []).filter((row) => row.selected).map((row) => row.key)),
@@ -719,171 +742,156 @@ export function ClientesComunicacao() {
     <>
       <PageHeader
         title="Comunicação com Clientes"
-        description="Conferência e envio controlado de avisos operacionais e institucionais."
       />
       <ClientesTabs active="comunicacao" />
 
-      {settingsLoading ? (
-        <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-[var(--app-border)] p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between animate-pulse">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 shrink-0 rounded-lg bg-[var(--app-border)]" />
-            <div className="space-y-2">
-              <div className="h-4 w-44 rounded bg-[var(--app-border)]" />
-              <div className="h-3 w-72 rounded bg-[var(--app-border)]" />
-            </div>
-          </div>
-        </div>
-      ) : settingsError ? (
-        <div role="alert" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-rose-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700">
-              <AlertTriangle size={18} />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-[var(--app-text-strong)]">Não foi possível carregar o status da chave de envio</div>
-              <p className="mt-0.5 text-xs text-[var(--app-muted)]">Ocorreu um erro ao consultar as configurações globais de comunicação.</p>
-            </div>
-          </div>
-          <Button type="button" variant="secondary" onClick={() => void refetchSettings()}>
-            Tentar novamente
-          </Button>
-        </div>
-      ) : settings?.communications_enabled === true ? (
-        <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-emerald-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-              <CheckCircle2 size={18} />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-[var(--app-text-strong)]">Canal de envio real ativo</div>
-              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está ligada. E-mails reais são disparados aos contatos elegíveis.</p>
-            </div>
-          </div>
-          {canToggleCommunications ? (
-            <Button
-              type="button"
-              variant="secondary"
-              loading={setCommunicationsMutation.isPending}
-              onClick={() => {
-                void (async () => {
-                  const confirmed = await confirm({
+      {/* Canal de envio (lote 5a): o estado como dado principal e a chave de
+          ligar e desligar na faixa, só para quem pode trocar. A confirmação de
+          hoje continua nos dois sentidos. */}
+      <Block
+        title="Canal de envio"
+        className="mb-4"
+        aside={canToggleCommunications && !settingsLoading && !settingsError ? (
+          <Switch
+            checked={settings?.communications_enabled === true}
+            disabled={setCommunicationsMutation.isPending}
+            onChange={(next) => {
+              void (async () => {
+                const confirmed = await confirm(next
+                  ? {
+                    title: 'Ativar envio real',
+                    message: 'Confirma a ativação da chave global de envio? Os próximos disparos de comunicados e cobranças enviarão e-mails reais aos clientes.',
+                    confirmLabel: 'Ativar envio real',
+                    tone: 'danger',
+                  }
+                  : {
                     title: 'Desativar envio real',
                     message: 'Deseja desativar a chave global de envio e retornar ao modo de simulação?',
                     confirmLabel: 'Desativar envio real',
                     tone: 'danger',
                   })
-                  if (confirmed) await setCommunicationsMutation.mutateAsync(false)
-                })()
-              }}
-            >
-              Desativar envio real
-            </Button>
-          ) : null}
-        </div>
-      ) : (
-        <div role="status" className="app-surface mb-6 flex flex-col gap-3 rounded-xl border border-l-4 border-[var(--app-border)] border-l-amber-500 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-              <AlertTriangle size={18} />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-[var(--app-text-strong)]">Modo de simulação permanente</div>
-              <p className="mt-0.5 text-xs text-[var(--app-muted)]">A chave global está desligada. Os comunicados serão registrados como simulados e nenhum e-mail será enviado.</p>
-            </div>
+                if (confirmed) await setCommunicationsMutation.mutateAsync(next)
+              })()
+            }}
+          >
+            {settings?.communications_enabled === true ? 'Envio real ligado' : 'Envio real desligado'}
+          </Switch>
+        ) : null}
+      >
+        {settingsLoading ? (
+          <p role="status" className="text-[var(--app-muted)]">Carregando a chave de envio...</p>
+        ) : settingsError ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <InlineError message="Não foi possível carregar a chave de envio." />
+            <Button type="button" variant="secondary" onClick={() => void refetchSettings()}>Tentar novamente</Button>
           </div>
-          {canToggleCommunications ? (
-            <Button
-              type="button"
-              variant="secondary"
-              loading={setCommunicationsMutation.isPending}
-              onClick={() => {
-                void (async () => {
-                  const confirmed = await confirm({
-                    title: 'Ativar envio real',
-                    message: 'Confirma a ativação da chave global de envio? Os próximos disparos de comunicados e cobranças enviarão e-mails reais aos clientes.',
-                    confirmLabel: 'Ativar envio real',
-                    tone: 'danger',
-                  })
-                  if (confirmed) await setCommunicationsMutation.mutateAsync(true)
-                })()
-              }}
-            >
-              Ativar envio real
-            </Button>
-          ) : null}
-        </div>
-      )}
+        ) : settings?.communications_enabled === true ? (
+          <LeadValue detail="Os e-mails saem para os contatos elegíveis.">Envio real</LeadValue>
+        ) : (
+          <LeadValue tone="warning" detail="Nenhum e-mail sai; os Comunicados ficam registrados como simulados.">Em simulação</LeadValue>
+        )}
+      </Block>
 
       {/* Segundo nível: as abas da página são as de Clientes (ClientesTabs); aqui a vista. */}
       <SegmentedControl<CommunicationTab>
-        className="mb-6"
+        className="mb-4"
+        variant="bar"
         label="Vista da Comunicação"
         value={tab}
         onChange={selectTab}
         options={[
-          { value: 'cobertura', label: 'Cobertura de viagens' },
-          ...(canSend ? [{ value: 'disparo' as const, label: 'Disparo' }] : []),
-          { value: 'historico', label: 'Histórico' },
+          { value: 'cobertura', label: 'Cobertura de viagens', icon: <Ship size={17} /> },
+          ...(canSend ? [{ value: 'disparo' as const, label: 'Disparo', icon: <Send size={17} /> }] : []),
+          { value: 'historico', label: 'Histórico', icon: <History size={17} /> },
         ]}
       />
 
       {tab === 'cobertura' ? (
-        <Card>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div><h2 className="text-lg font-semibold text-[var(--app-text-strong)]">Painel de cobertura</h2><p className="text-sm text-[var(--app-muted)]">Acompanhe a régua automática e os clientes ainda pendentes por viagem.</p></div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Field label="Navio"><Input value={coverageFilters.vessel} onChange={(e) => setCoverageFilters({ ...coverageFilters, vessel: e.target.value })} placeholder="Navio" /></Field>
-              <Field label="Viagem"><Input value={coverageFilters.voyage} onChange={(e) => setCoverageFilters({ ...coverageFilters, voyage: e.target.value })} placeholder="Viagem" /></Field>
-              <Field label="Mês"><Input type="month" value={coverageFilters.month} onChange={(e) => setCoverageFilters({ ...coverageFilters, month: e.target.value })} /></Field>
-            </div>
+        <>
+          <div className="app-filter-grid mb-4">
+            <Field label="Navio"><Input value={coverageFilters.vessel} onChange={(e) => setCoverageFilters({ ...coverageFilters, vessel: e.target.value })} placeholder="Navio" /></Field>
+            <Field label="Viagem"><Input value={coverageFilters.voyage} onChange={(e) => setCoverageFilters({ ...coverageFilters, voyage: e.target.value })} placeholder="Viagem" /></Field>
+            <Field label="Mês"><Input type="month" value={coverageFilters.month} onChange={(e) => setCoverageFilters({ ...coverageFilters, month: e.target.value })} /></Field>
           </div>
-          {coverageQuery.isLoading ? <div className="mt-5 text-sm text-[var(--app-muted)]">Carregando cobertura...</div> : null}
-          {coverageQuery.isError ? <div className="mt-5"><InlineError message="Não foi possível carregar a cobertura." /></div> : null}
-          <div className="mt-5 app-table-scroll rounded-xl border border-[var(--app-border)]"><table className="app-table text-sm"><caption className="sr-only">Cobertura de comunicados por viagem</caption><thead><tr><th scope="col" className="p-3 app-table__text-head">Viagem</th><th scope="col" className="p-3">Clientes</th><th scope="col" className="p-3">CE / Taxas</th><th scope="col" className="p-3">NOA</th><th scope="col" className="p-3">NOR</th><th scope="col" className="p-3">NOB</th></tr></thead><tbody>{(coverageQuery.data ?? []).map((row) => <tr key={row.voyageId}><td className="p-3 app-table__text font-medium" title={`${row.vesselName} · ${row.voyageNumber}`}>{row.vesselName} · {row.voyageNumber}</td><td className="p-3">{row.customers}</td><td className="p-3"><Badge tone={row.finance.pending ? 'yellow' : 'green'}>{row.finance.sent}/{row.finance.ready} enviados · {row.finance.pending} pendentes</Badge></td><td className="p-3"><Badge tone={row.noa.sent >= row.noa.total ? 'green' : 'yellow'}>{row.noa.sent}/{row.noa.total}</Badge></td><td className="p-3"><Badge tone={row.nor.sent >= row.nor.total ? 'green' : 'yellow'}>{row.nor.sent}/{row.nor.total}</Badge></td><td className="p-3"><Badge tone={row.nob.sent >= row.nob.total ? 'green' : 'yellow'}>{row.nob.sent}/{row.nob.total}</Badge></td></tr>)}{!coverageQuery.data?.length ? <tr><td colSpan={6} className="p-8 text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}</tbody></table></div>
-        </Card>
+          {coverageQuery.isError ? <InlineError message="Não foi possível carregar a cobertura." /> : null}
+          <Block
+            title="Cobertura por viagem"
+            aside={coverageQuery.data ? plural(coverageQuery.data.length, 'viagem', 'viagens') : null}
+            flush
+          >
+            {coverageQuery.isLoading ? <p className="px-4 py-6 text-[var(--app-muted)]">Carregando cobertura...</p> : (
+              <div className="app-table-scroll">
+                <table className="app-table">
+                  <caption className="sr-only">Cobertura de comunicados por viagem</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+                      <th scope="col">Clientes</th>
+                      <th scope="col">CE e Taxas enviados</th>
+                      <th scope="col">Sem CE ou fatura</th>
+                      <th scope="col">NOA</th>
+                      <th scope="col">NOR</th>
+                      <th scope="col">NOB</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(coverageQuery.data ?? []).map((row) => (
+                      <tr key={row.voyageId}>
+                        <td className="app-table__text"><Link className="app-link" to={`/viagens/${row.voyageId}`}>{row.vesselName} / {row.voyageNumber}</Link></td>
+                        <td>{row.customers === 0 ? 'Nenhum' : row.customers}</td>
+                        <td><CoverageCount sent={row.finance.sent} total={row.finance.ready} /></td>
+                        <td>{row.customers === 0 ? <NoValue label="Nada devido" /> : row.finance.pending}</td>
+                        <td><CoverageCount sent={row.noa.sent} total={row.noa.total} /></td>
+                        <td><CoverageCount sent={row.nor.sent} total={row.nor.total} /></td>
+                        <td><CoverageCount sent={row.nob.sent} total={row.nob.total} /></td>
+                      </tr>
+                    ))}
+                    {!coverageQuery.data?.length ? <tr><td colSpan={7} className="p-8 text-[var(--app-muted)]">Nenhuma viagem encontrada.</td></tr> : null}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-xs text-[var(--app-muted)]">
+              "0 de 2": enviados de devidos. Âmbar enquanto falta enviar. "Sem CE ou fatura": Clientes da viagem que ainda não podem receber o CE e Taxas. "—": nada devido (sem Cliente, ou o marco da escala ainda não chegou).
+            </p>
+          </Block>
+        </>
       ) : tab === 'disparo' ? (
         <div className="space-y-5">
           {showConference ? (
             /* Depois de conferir, a composição vira uma faixa de uma linha. O que
                merece a tela inteira daqui em diante é a lista de quem recebe. */
-            <Card className="flex flex-wrap items-center gap-4 p-4">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--app-blue-soft)] text-[var(--app-blue)]">
-                <Mail size={17} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm leading-snug text-[var(--app-text)]">{dispatchSentence}</p>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  <Badge tone="slate">Modo {activeModeOption?.title}</Badge>
-                  <Badge tone="slate">{attachments.length ? `${attachments.length} anexo(s)` : 'Sem anexos'}</Badge>
-                </div>
-              </div>
-              <Button type="button" variant="secondary" onClick={() => setConferenceRequested(false)}>
-                <Pencil size={15} /> Editar composição
-              </Button>
-            </Card>
+            <Block
+              title="Composição"
+              aside={(
+                <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setConferenceRequested(false)}>
+                  <Pencil size={15} /> Editar composição
+                </Button>
+              )}
+            >
+              <p>{dispatchSentence}</p>
+              <p className="mt-1 text-[var(--app-muted)]">Modo {activeModeOption?.title} · {attachments.length ? plural(attachments.length, 'anexo', 'anexos') : 'sem anexos'}</p>
+            </Block>
           ) : null}
 
           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
             {showConference ? (
-              <Card className="overflow-hidden p-0">
-                <div className="flex flex-wrap items-center justify-between gap-4 p-5">
-                  <div>
-                    <h2 className="comunicacao-titulo text-base font-bold text-[var(--app-text-strong)]">Destinatários conferidos</h2>
-                    <p className="mt-0.5 text-xs text-[var(--app-muted)]">
-                      Desmarque quem não deve receber. A seleção vale só para esta conferência.
-                    </p>
-                  </div>
-                  {selectableKeys.length ? (
-                    <div className="flex items-center gap-2">
-                      <Button type="button" variant="secondary" className="min-h-9 px-3 py-1.5 text-xs" onClick={() => setSelection(selectableKeys)}>
-                        Marcar todos
-                      </Button>
-                      <Button type="button" variant="secondary" className="min-h-9 px-3 py-1.5 text-xs" onClick={() => setSelection([])}>
-                        Desmarcar
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
+              <Block
+                title="Destinatários conferidos"
+                flush
+                aside={(
+                  <span className="flex flex-wrap items-center gap-2">
+                    {conference?.rows.length ? <span>{plural(conference.rows.length, 'Cliente', 'Clientes')}{blockedRows.length ? ` · ${plural(blockedRows.length, 'sem envio', 'sem envio')}` : ''}</span> : null}
+                    {selectableKeys.length ? (
+                      <>
+                        <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setSelection(selectableKeys)}>Marcar todos</Button>
+                        <Button type="button" variant="secondary" className="app-btn--sm" onClick={() => setSelection([])}>Desmarcar</Button>
+                      </>
+                    ) : null}
+                  </span>
+                )}
+              >
+                <p className="px-4 pt-3 text-[var(--app-muted)]">Desmarque quem não deve receber. A seleção vale só para esta conferência.</p>
 
                 {conference?.rows.length ? (
                   <>
@@ -891,11 +899,13 @@ export function ClientesComunicacao() {
                       <table className="app-table"><caption className="sr-only">Invoices na conferência de comunicação</caption>
                         <thead>
                           <tr>
-                            <th scope="col" className="w-12 p-3"><span className="sr-only">Selecionar</span></th>
-                            <th scope="col" className="p-3 app-table__text-head">Cliente</th>
-                            <th scope="col" className="w-20 p-3">B/Ls</th>
-                            <th scope="col" className="p-3 app-table__text-head">Destinatários</th>
-                            <th scope="col" className="w-44 p-3">Situação</th>
+                            <th scope="col" className="w-12"><span className="sr-only">Selecionar</span></th>
+                            <th scope="col" className="app-table__text-head">Cliente</th>
+                            <th scope="col">CNPJ</th>
+                            <th scope="col">B/Ls</th>
+                            <th scope="col" className="app-table__text-head">Destinatários</th>
+                            <th scope="col">Situação</th>
+                            <th scope="col"><span className="sr-only">Prévia</span></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -915,10 +925,6 @@ export function ClientesComunicacao() {
                         </tbody>
                       </table>
                     </div>
-                    <div className="border-t border-[var(--app-border)] bg-[var(--app-surface-muted)] px-5 py-3 text-xs text-[var(--app-muted)]">
-                      {conference.rows.length} cliente(s) no recorte
-                      {blockedRows.length ? ` · ${blockedRows.length} bloqueado(s)` : ''}
-                    </div>
                   </>
                 ) : conference?.unassignedOperationFronts ? (
                   <div className="m-5 rounded-lg border border-[var(--app-gold)]/30 bg-[var(--app-gold-soft)] p-4 text-sm text-[var(--app-gold-strong)]">
@@ -934,10 +940,10 @@ export function ClientesComunicacao() {
                       : 'Nenhuma carga atende aos critérios informados.'}
                   </div>
                 )}
-              </Card>
+              </Block>
             ) : (
-              <Card>
-                <ComposerLabel>Modo</ComposerLabel>
+              <div className="grid gap-4">
+                <Block title="Modo" headingLevel={2}>
                 {/* `name` agrupa os rádios para o teclado, mas não dá nome ao grupo:
                     sem isto o leitor de tela anuncia a opção sem dizer de que
                     pergunta ela é resposta. O rótulo visível fica fora do grupo. */}
@@ -955,8 +961,9 @@ export function ClientesComunicacao() {
                   ))}
                 </div>
 
-                <ComposerRule />
+                </Block>
 
+                <Block title={singleKindMode ? 'Modelo e público' : 'Modelo'} headingLevel={2}>
                 {/* Um select de uma opção só não é escolha: é um rótulo disfarçado de
                     controle, e obriga a repetir num hint o que o Modo já disse. Quando
                     o modo resolve modelo e público, uma frase os resume. */}
@@ -970,7 +977,6 @@ export function ClientesComunicacao() {
                   </div>
                 ) : (
                   <>
-                    <ComposerLabel>Modelo</ComposerLabel>
                     <div role="radiogroup" aria-label="Modelo" className="grid gap-2">
                       {availableKindOptions.map((option) => (
                         <ChoiceOption
@@ -1024,14 +1030,15 @@ export function ClientesComunicacao() {
                   </>
                 )}
 
-                <ComposerRule />
+                </Block>
 
+                <Block
+                  title={dispatchMode === 'carga' ? 'Recorte da carga' : 'Recorte dos clientes'}
+                  headingLevel={2}
+                  aside={dispatchMode === 'carga' ? 'Navio / Viagem, POL ou POD: ao menos um' : undefined}
+                >
                 {dispatchMode === 'carga' ? (
                   <>
-                    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                      <ComposerLabel inline>Recorte da carga</ComposerLabel>
-                      <span className="text-xs text-[var(--app-muted)]">Navio/Viagem, POL ou POD: ao menos um é obrigatório</span>
-                    </div>
                     {/* Quatro filtros numa linha só. As trilhas não são iguais de
                         propósito: navio/viagem e CNPJ recebem texto longo, POL e POD
                         recebem uma sigla de cinco letras. */}
@@ -1068,7 +1075,6 @@ export function ClientesComunicacao() {
                   </>
                 ) : (
                   <>
-                    <ComposerLabel>Recorte dos clientes</ComposerLabel>
                     {/* Nada de grid com um campo só dentro: o CNPJ ganha um par que
                         explica qual é o universo que ele restringe. */}
                     <div className="comunicacao-filtros grid gap-3 sm:grid-cols-[minmax(0,1fr)_280px]">
@@ -1091,11 +1097,11 @@ export function ClientesComunicacao() {
                   <p className="mt-3 text-xs text-[var(--app-gold-strong)]">{filterValidation.message}</p>
                 ) : null}
 
+                </Block>
+
                 {userWritten ? (
-                  <>
-                    <ComposerRule />
-                    <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-                      <ComposerLabel inline>Mensagem</ComposerLabel>
+                  <Block title="Mensagem" headingLevel={2}>
+                    <div className="mb-2.5 flex flex-wrap items-center justify-end gap-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <Select
                           aria-label="Reaproveitar modelo salvo"
@@ -1168,24 +1174,20 @@ export function ClientesComunicacao() {
                         <span className="font-mono text-[11px] text-[var(--app-muted)]">{institutionalBody.length} caracteres</span>
                       </div>
                     </div>
-                  </>
+                  </Block>
                 ) : null}
-              </Card>
+              </div>
             )}
 
-            <Card className="p-0">
+            <Block title={showConference ? 'Pronto para disparar' : 'O que será enviado'} headingLevel={2} flush>
               <div className="p-5">
-                <h2 className="comunicacao-titulo text-base font-bold text-[var(--app-text-strong)]">
-                  {showConference ? 'Pronto para disparar' : 'O que será enviado'}
-                </h2>
                 {showConference ? (
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--app-text)]">
-                    <strong className="font-bold">{selectedEmailCount} e-mail(s)</strong> para{' '}
-                    <strong className="font-bold">{selectedRows.length} cliente(s)</strong>. Um e-mail por cliente — nunca vários
-                    clientes no mesmo destinatário.
-                  </p>
+                  <>
+                    <LeadValue>{plural(selectedEmailCount, 'e-mail', 'e-mails')} para {plural(selectedRows.length, 'Cliente', 'Clientes')}</LeadValue>
+                    <p className="mt-2 text-[var(--app-muted)]">Um e-mail por Cliente, nunca vários Clientes no mesmo envio.</p>
+                  </>
                 ) : (
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--app-text)]">{dispatchSentence}</p>
+                  <p className="text-sm leading-relaxed text-[var(--app-text)]">{dispatchSentence}</p>
                 )}
                 {!showConference && kind === 'livre' ? (
                   <p className="mt-3 flex items-start gap-2 rounded-lg bg-[var(--app-blue-soft)] px-3 py-2.5 text-xs leading-relaxed text-[var(--app-blue)]">
@@ -1206,12 +1208,12 @@ export function ClientesComunicacao() {
               <PanelRule />
 
               <div className="p-5">
-                <div className="grid grid-cols-2 gap-2.5">
-                  <MetricCard label="Clientes" value={showConference ? conference.totalCustomers : <NoValue label="Sem conferência" />} />
-                  <MetricCard label="E-mails elegíveis" value={showConference ? conference.totalEligibleEmails : <NoValue label="Sem conferência" />} />
-                  <MetricCard label="Excluídos" value={showConference ? conference.totalExcludedEmails : <NoValue label="Sem conferência" />} />
-                  <MetricCard label="Selecionados" value={showConference ? selectedRows.length : <NoValue label="Sem conferência" />} tone={showConference ? 'primary' : 'secondary'} />
-                </div>
+                <FactList columns={2}>
+                  <Fact label="Clientes">{showConference ? conference.totalCustomers : <NoValue label="Sem conferência" />}</Fact>
+                  <Fact label="E-mails elegíveis">{showConference ? conference.totalEligibleEmails : <NoValue label="Sem conferência" />}</Fact>
+                  <Fact label="Excluídos">{showConference ? conference.totalExcludedEmails : <NoValue label="Sem conferência" />}</Fact>
+                  <Fact label="Selecionados">{showConference ? selectedRows.length : <NoValue label="Sem conferência" />}</Fact>
+                </FactList>
                 {!showConference ? (
                   <p className="mt-3 text-xs leading-relaxed text-[var(--app-muted)]">
                     Confira os destinatários para preencher estes números. Nenhum e-mail sai antes disso.
@@ -1341,20 +1343,13 @@ export function ClientesComunicacao() {
                   />
                 ) : null}
               </div>
-            </Card>
+            </Block>
           </div>
         </div>
       ) : (
-        <Card>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">Histórico de Comunicados</h2>
-              <p className="mt-0.5 text-sm text-[var(--app-muted)]">O histórico é permanente e mostra, por destinatário, o que foi enviado, simulado ou falhou, com o motivo.</p>
-            </div>
-            <Badge tone="blue">{historyQuery.data?.length ?? 0} registros</Badge>
-          </div>
+        <>
           {historyBlId ? (
-            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3.5 py-2.5 text-sm text-[var(--app-text)]">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
               <span>Comunicados do B/L <strong className="font-mono">{historyBlId}</strong></span>
               <Button
                 type="button"
@@ -1370,73 +1365,109 @@ export function ClientesComunicacao() {
               </Button>
             </div>
           ) : null}
-          <div className="mt-4 grid gap-3 sm:grid-cols-5">
-            <Input aria-label="Navio" placeholder="Navio" value={historyFilters.vessel} onChange={(e) => setHistoryFilters({ ...historyFilters, vessel: e.target.value })} />
-            <Input aria-label="Mês" type="month" value={historyFilters.month} onChange={(e) => setHistoryFilters({ ...historyFilters, month: e.target.value })} />
-            <Select aria-label="Modelo" value={historyFilters.kind} onChange={(e) => setHistoryFilters({ ...historyFilters, kind: e.target.value })}><option value="">Todos os modelos</option>{CUSTOMER_COMMUNICATION_KINDS.map((value) => <option key={value} value={value}>{customerCommunicationKindLabel(value)}</option>)}</Select>
-            <Select aria-label="Status" value={historyFilters.status} onChange={(e) => setHistoryFilters({ ...historyFilters, status: e.target.value })}><option value="">Todos os status</option>{HISTORY_STATUS_OPTIONS.map((value) => <option key={value} value={value}>{customerCommunicationStatusLabel(value)}</option>)}</Select>
-            <Select aria-label="Origem" value={historyFilters.origin} onChange={(e) => setHistoryFilters({ ...historyFilters, origin: e.target.value as '' | 'manual' | 'automatico' })}><option value="">Todas as origens</option><option value="automatico">Robô automático</option><option value="manual">Operador</option></Select>
+          <div className="app-filter-grid mb-4">
+            <Field label="Navio"><Input placeholder="Navio" value={historyFilters.vessel} onChange={(e) => setHistoryFilters({ ...historyFilters, vessel: e.target.value })} /></Field>
+            <Field label="Mês"><Input type="month" value={historyFilters.month} onChange={(e) => setHistoryFilters({ ...historyFilters, month: e.target.value })} /></Field>
+            <Field label="Modelo"><Select value={historyFilters.kind} onChange={(e) => setHistoryFilters({ ...historyFilters, kind: e.target.value })}><option value="">Todos</option>{CUSTOMER_COMMUNICATION_KINDS.map((value) => <option key={value} value={value}>{customerCommunicationKindLabel(value)}</option>)}</Select></Field>
+            <Field label="Situação"><Select value={historyFilters.status} onChange={(e) => setHistoryFilters({ ...historyFilters, status: e.target.value })}><option value="">Todas</option>{HISTORY_STATUS_OPTIONS.map((value) => <option key={value} value={value}>{customerCommunicationStatusLabel(value)}</option>)}</Select></Field>
+            <Field label="Origem"><Select value={historyFilters.origin} onChange={(e) => setHistoryFilters({ ...historyFilters, origin: e.target.value as '' | 'manual' | 'automatico' })}><option value="">Todas</option><option value="automatico">Automático</option><option value="manual">Operador</option></Select></Field>
           </div>
-          {historyQuery.isLoading ? <div className="mt-5 text-sm text-[var(--app-muted)]">Carregando histórico...</div> : null}
-          {historyQuery.isError ? <div className="mt-5"><InlineError message="Não foi possível carregar o histórico." /></div> : null}
-          <div className="mt-5 grid gap-3">
-            {historyQuery.data?.map((item) => {
-              const ceKey = `${item.customer_id}:${item.anchor_voyage_id}`
-              const ceResend = ceResendResults[ceKey]
-              const canResendCe = canSend && latestCeKeys.has(item.id)
-              return (
-                <div key={item.id} className="app-surface rounded-xl border border-[var(--app-border)] p-4 shadow-xs">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone={statusTone(item.status)}>{customerCommunicationStatusLabel(item.status)}</Badge>
-                    <Badge tone={item.origin === 'automatico' ? 'blue' : 'slate'}>{item.origin === 'automatico' ? 'Robô automático' : 'Operador'}</Badge>
-                    <span className="font-semibold text-[var(--app-text-strong)]">{customerCommunicationKindLabel(item.kind)}</span>
-                    <span className="text-xs text-[var(--app-muted)]">#{item.id} · tentativa {item.attempt_discriminator}</span>
-                    {canResendCe ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="app-btn--sm ml-auto"
-                        loading={ceResendMutation.isPending && ceResendMutation.variables?.customerId === item.customer_id && ceResendMutation.variables?.voyageId === item.anchor_voyage_id}
-                        disabled={ceResendMutation.isPending}
-                        onClick={() => void resendCeMercante(item)}
-                      >
-                        <RotateCcw size={14} aria-hidden="true" /> Reenviar CE e Taxas
-                      </Button>
-                    ) : null}
-                  </div>
-                  <div className="mt-2 text-sm text-[var(--app-text)]">
-                    {item.customer?.cnpj_cpf ? (
-                      <Link to={`/clientes/${encodeURIComponent(item.customer.cnpj_cpf)}`} className="font-medium text-blue-600 hover:underline">
-                        {item.customer.name}
-                      </Link>
-                    ) : (
-                      item.customer?.name ?? `Cliente ${item.customer_id}`
-                    )}
-                    {item.vessel_name ? ` · ${item.vessel_name}` : ''}
-                    {item.voyage_number ? ` / ${item.voyage_number}` : ''}
-                    {item.anchor_port ? ` · ${item.anchor_port}` : ''}
-                    {item.terminal_name ? ` · ${item.terminal_name}` : ''}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--app-muted)]">
-                    <span>{new Date(item.created_at).toLocaleString('pt-BR')}</span>
-                    {item.bl_links.length ? <span>B/Ls: {item.bl_links.map((link) => link.bl_id).join(', ')}</span> : <span>Institucional</span>}
-                    <span>{item.attempts.length} destinatário(s)</span>
-                  </div>
-                  {item.attachments.length ? (
-                    <div className="mt-2 text-xs text-[var(--app-muted-soft)]">
-                      Anexos: {item.attachments.map((attachment) => `${attachment.file_name} (${formatAttachmentSize(attachment.size_bytes)})`).join(', ')}
-                    </div>
-                  ) : null}
-                  {item.attempts.length ? <AttemptsTable communicationId={item.id} attempts={item.attempts} /> : null}
-                  {ceResend && latestCeKeys.has(item.id) ? <CeResendResult result={ceResend} /> : null}
-                </div>
-              )
-            })}
-            {!historyQuery.isLoading && !historyQuery.isError && !historyQuery.data?.length ? (
-              <div className="py-8 text-center text-sm text-[var(--app-muted)]">{historyCommunicationId > 0 ? 'Comunicado não encontrado.' : 'Nenhum comunicado registrado ainda.'}</div>
-            ) : null}
-          </div>
-        </Card>
+          {historyQuery.isError ? <InlineError message="Não foi possível carregar o histórico." /> : null}
+          <Block
+            title="Histórico de Comunicados"
+            aside={historyQuery.data ? `${plural(historyQuery.data.length, 'Comunicado', 'Comunicados')}${historyFailures ? ` · ${historyFailures} com falha` : ''}` : null}
+            flush
+          >
+            {historyQuery.isLoading ? <p className="px-4 py-6 text-[var(--app-muted)]">Carregando histórico...</p> : historyQuery.data?.length ? (
+              <div className="app-table-scroll">
+                <table className="app-table">
+                  <caption className="sr-only">Histórico de Comunicados</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col"><span className="sr-only">Abrir</span></th>
+                      <th scope="col">Registrado em</th>
+                      <th scope="col" className="app-table__text-head">Cliente</th>
+                      <th scope="col" className="app-table__text-head">Modelo</th>
+                      <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+                      <th scope="col">Origem</th>
+                      <th scope="col">Destinatários</th>
+                      <th scope="col">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyQuery.data.map((item) => {
+                      const ceKey = `${item.customer_id}:${item.anchor_voyage_id}`
+                      const ceResend = ceResendResults[ceKey]
+                      const canResendCe = canSend && latestCeKeys.has(item.id)
+                      const expanded = openHistory.has(item.id)
+                      const voyage = [item.vessel_name && item.voyage_number ? `${item.vessel_name} / ${item.voyage_number}` : item.vessel_name ?? item.voyage_number, item.anchor_port, item.terminal_name].filter(Boolean).join(' · ')
+                      return (
+                        <Fragment key={item.id}>
+                          <tr>
+                            <td>
+                              <button
+                                type="button"
+                                className="app-table__icon-button"
+                                aria-expanded={expanded}
+                                aria-label={`${expanded ? 'Recolher' : 'Abrir'} os destinatários do Comunicado de ${item.customer?.name ?? 'Cliente'}`}
+                                onClick={() => toggleHistory(item.id)}
+                              >
+                                {expanded ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
+                              </button>
+                            </td>
+                            <td className="whitespace-nowrap">{formatDateTime(item.created_at)}</td>
+                            <td className="app-table__text">
+                              {item.customer?.cnpj_cpf ? (
+                                <Link to={`/clientes/${encodeURIComponent(item.customer.cnpj_cpf)}`} className="app-link">{item.customer.name}</Link>
+                              ) : (
+                                item.customer?.name ?? `Cliente ${item.customer_id}`
+                              )}
+                            </td>
+                            <td className="app-table__text">{customerCommunicationKindLabel(item.kind)}</td>
+                            <td className="app-table__text">{voyage || <NoValue label="Sem viagem" />}</td>
+                            <td>{item.origin === 'automatico' ? 'Automático' : 'Operador'}</td>
+                            <td>{item.attempts.length}</td>
+                            <td><StatusText tone={historyStatusTone(item.status)}>{customerCommunicationStatusLabel(item.status)}</StatusText></td>
+                          </tr>
+                          {expanded ? (
+                            <tr data-row-detail>
+                              <td colSpan={8} className="p-4">
+                                <div className="grid gap-3">
+                                  <p className="text-[var(--app-muted)]">
+                                    {item.bl_links.length ? `B/Ls: ${item.bl_links.map((link) => link.bl_id).join(', ')}` : 'Sem B/L vinculado'}
+                                    {item.attachments.length ? ` · Anexos: ${item.attachments.map((attachment) => `${attachment.file_name} (${formatAttachmentSize(attachment.size_bytes)})`).join(', ')}` : ''}
+                                  </p>
+                                  {item.attempts.length ? <AttemptsTable communicationId={item.id} attempts={item.attempts} /> : <p className="text-[var(--app-muted)]">Nenhum destinatário registrado.</p>}
+                                  {canResendCe ? (
+                                    <div>
+                                      <Button
+                                        type="button"
+                                        variant="secondary"
+                                        className="app-btn--sm"
+                                        loading={ceResendMutation.isPending && ceResendMutation.variables?.customerId === item.customer_id && ceResendMutation.variables?.voyageId === item.anchor_voyage_id}
+                                        disabled={ceResendMutation.isPending}
+                                        onClick={() => void resendCeMercante(item)}
+                                      >
+                                        <RotateCcw size={14} aria-hidden="true" /> Reenviar CE e Taxas
+                                      </Button>
+                                    </div>
+                                  ) : null}
+                                  {ceResend && latestCeKeys.has(item.id) ? <CeResendResult result={ceResend} /> : null}
+                                </div>
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="py-8 text-center text-[var(--app-muted)]">{historyCommunicationId > 0 ? 'Comunicado não encontrado.' : 'Nenhum comunicado registrado ainda.'}</p>
+            )}
+          </Block>
+        </>
       )}
 
       <Modal
@@ -1504,20 +1535,6 @@ export function ClientesComunicacao() {
       </Modal>
     </>
   )
-}
-
-/** Rótulo de seção do compositor: uma régua só para a coluna inteira. */
-function ComposerLabel({ children, inline }: { children: React.ReactNode; inline?: boolean }) {
-  return (
-    <span className={`block text-xs font-semibold uppercase tracking-[0.06em] text-[var(--app-muted)] ${inline ? '' : 'mb-2'}`}>
-      {children}
-    </span>
-  )
-}
-
-/** Divisória entre as perguntas do compositor. */
-function ComposerRule() {
-  return <div className="my-5 h-px bg-[var(--app-border)]" />
 }
 
 /** Divisória interna do painel da direita, que é um cartão sem padding. */
@@ -1588,9 +1605,14 @@ function ConferenceRow({
   onToggle: () => void
   onPreview: () => void
 }) {
+  // Tabela limpa (lote 5a): sem fundo vermelho na linha; a situação em texto,
+  // âmbar no que impede o envio, com o motivo escrito.
+  const situation = row.blocked
+    ? <StatusText tone="warning">{row.eligibleRecipients.length ? row.blockedReason ?? 'Bloqueado' : 'Sem contato elegível'}</StatusText>
+    : selected ? <>Elegível</> : <StatusText tone="muted">Desmarcado</StatusText>
   return (
-    <tr className={row.blocked ? 'bg-[var(--app-red-soft)]' : selected ? 'bg-[var(--app-blue-soft)]' : ''}>
-      <td className="p-3 align-top">
+    <tr>
+      <td>
         <input
           type="checkbox"
           checked={selected}
@@ -1599,63 +1621,35 @@ function ConferenceRow({
           aria-label={`Selecionar ${row.customerName}`}
         />
       </td>
-      <td className="p-3 align-top">
-        <div className="app-table__cell-stack">
-          <div className="font-semibold text-[var(--app-text-strong)]">{row.customerName}</div>
-          <div className="mt-0.5 font-mono text-[11px] text-[var(--app-muted)]">
-            {row.customerCnpj ? <CopyValue value={formatCnpjCpf(row.customerCnpj)} label="CNPJ/CPF" /> : 'CNPJ não informado'}
-          </div>
-          {row.terminalName ? <div className="mt-1"><Badge tone="blue">{row.terminalName}</Badge></div> : null}
-        </div>
+      <td className="app-table__text">
+        <span className="font-semibold text-[var(--app-text-strong)]">{row.customerName}</span>
+        {row.terminalName ? <span className="text-[var(--app-muted)]"> · {row.terminalName}</span> : null}
       </td>
-      <td className="p-3 align-top">
+      <td className="font-mono">{row.customerCnpj ? <CopyValue value={formatCnpjCpf(row.customerCnpj)} label="CNPJ/CPF" /> : <NoValue label="CNPJ não informado" />}</td>
+      <td>
         {/* Comunicado institucional não vincula B/L: `bls` vem vazio e `sourceBls`
             só comprova que o cliente é comunicável. Somar um no outro faria a
             coluna prometer vínculo de carga onde não há nenhum. */}
         {row.bls.length ? (
-          <span className="font-mono" title={row.bls.map((bl) => bl.id).join(', ')}>{row.bls.length}</span>
+          <span title={row.bls.map((bl) => bl.id).join(', ')}>{row.bls.length}</span>
         ) : (
-          <span className="text-[11px] text-[var(--app-muted)]" title={row.sourceBls.map((bl) => bl.id).join(', ')}>
-            Sem vínculo
-            {row.sourceBls.length ? <span className="mt-0.5 block">{row.sourceBls.length} de origem</span> : null}
+          <span className="text-[var(--app-muted)]" title={row.sourceBls.map((bl) => bl.id).join(', ')}>
+            {row.sourceBls.length ? `${row.sourceBls.length} de origem` : 'Sem vínculo'}
           </span>
         )}
       </td>
-      <td className="p-3 align-top">
-        <div className="app-table__cell-stack">
-          {row.eligibleRecipients.length ? (
-            <div className="flex flex-wrap gap-1.5">
-              {row.eligibleRecipients.map((contact) => {
-                const boxCodes = (contact as { matchedBoxCodes?: string[]; boxCodes?: string[] }).matchedBoxCodes ?? (contact as { boxCodes?: string[] }).boxCodes
-                return (
-                  <span key={contact.id} className="inline-flex items-center gap-1 rounded border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-1.5 py-0.5 text-[11px] text-[var(--app-text)]">
-                    {contact.email}
-                    {boxCodes?.length ? (
-                      <span className="text-[10px] text-[var(--app-muted)]">
-                        {boxCodes.map((code) => (code === 'documentacao_operacao' ? 'D&O' : code === 'financeiro' ? 'Fin' : 'Dem')).join(', ')}
-                      </span>
-                    ) : null}
-                  </span>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="text-[var(--app-danger-fg)]">Nenhum contato elegível neste recorte.</div>
-          )}
-          {row.excludedRecipients.length ? (
-            <div className="mt-1.5 text-[11px] text-[var(--app-gold-strong)]">
-              {row.excludedRecipients.length} excluído(s) · {row.excludedRecipients.map((item) => excludedReasonLabel(item.reason)).join(', ')}
-            </div>
-          ) : null}
-        </div>
+      <td className="app-table__text app-table__text--wrap">
+        {row.eligibleRecipients.length ? row.eligibleRecipients.map((contact) => contact.email).join(', ') : <NoValue label="Sem contato elegível" />}
+        {row.excludedRecipients.length ? (
+          <span className="text-[var(--app-muted)]"> · {plural(row.excludedRecipients.length, 'excluído', 'excluídos')} ({row.excludedRecipients.map((item) => excludedReasonLabel(item.reason)).join(', ')})</span>
+        ) : null}
       </td>
-      <td className="p-3 align-top">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {row.blocked ? <Badge tone="red">Bloqueado</Badge> : selected ? <Badge tone="green">Elegível</Badge> : <Badge tone="slate">Desmarcado</Badge>}
-          {resendLabel ? <Badge tone="yellow">{resendLabel}</Badge> : null}
-        </div>
-        {row.blockedReason ? <p className="mt-1.5 text-xs text-[var(--app-danger-fg)]">{row.blockedReason}</p> : null}
-        <Button type="button" variant="secondary" className="app-btn--sm mt-2" onClick={onPreview}>
+      <td>
+        {situation}
+        {resendLabel ? <span className="text-[var(--app-muted)]"> · {resendLabel}</span> : null}
+      </td>
+      <td>
+        <Button type="button" variant="secondary" className="app-btn--sm" onClick={onPreview}>
           <Eye size={13} aria-hidden="true" /> Ver e-mail
         </Button>
       </td>

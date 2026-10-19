@@ -1,15 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import {
-  AlertTriangle,
-  ArrowRight,
-  Download,
-  Monitor,
-  RefreshCw,
-  Ship,
-} from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { Card, InlineError, PageHeader } from '../components/ui/Card'
+import { Download, Monitor, Ship } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { InlineError, PageHeader } from '../components/ui/Card'
+import { Block } from '../components/ui/Block'
+import { MetricCard } from '../components/ui/MetricCard'
+import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useToast } from '../components/ui/Toast'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { LineUpTable } from '../components/lineup/LineUpTable'
@@ -17,14 +13,22 @@ import { LineUpFilters } from '../components/lineup/LineUpFilters'
 import { countActiveLineUpFilters, emptyLineUpFilters, filterLineUpRows, type LineUpFilters as LineUpFiltersState } from '../lib/lineupFilters'
 import { fetchLineUpSnapshot } from '../services/lineup'
 import { markStartupStage } from '../lib/telemetry'
-import { getAlertDepartmentSummary, type AlertDepartmentSummary } from '../services/alerts'
+import { ALERT_DEPARTMENT_LABELS, getAlertDepartmentSummary, type AlertDepartmentSummary } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
-import { AGENCY_REPORT_DEPARTMENT_LABELS } from '../services/agencyReportLabels'
 
-const KNOWN_DEPARTMENTS = ['documentacao', 'equipamentos', 'operacoes'] as const
+const KNOWN_DEPARTMENTS = ['documentacao', 'equipamentos', 'operacoes', 'administrativo'] as const
+
+function deptCard(department: string, label: string, item: AlertDepartmentSummary | undefined, fallbackDetail?: string) {
+  const activeCount = Number(item?.active_count ?? 0)
+  const dismissedCount = Number(item?.dismissed_count ?? 0)
+  const detail = dismissedCount > 0 ? `${dismissedCount} ${dismissedCount === 1 ? 'dispensado' : 'dispensados'}` : fallbackDetail
+  return { department, label, activeCount, dismissedCount, detail }
+}
 
 export function Painel() {
   const { showToast } = useToast()
+  const navigate = useNavigate()
+  const narrow = useNarrowViewport()
   const [filters, setFilters] = useState<LineUpFiltersState>(emptyLineUpFilters)
   const [isExporting, setIsExporting] = useState(false)
   const [voyageWindow, setVoyageWindow] = useState(60)
@@ -32,8 +36,6 @@ export function Painel() {
     data: lineup,
     isLoading: isLineUpLoading,
     error: lineUpError,
-    refetch,
-    isFetching,
   } = useQuery({
     queryKey: ['lineup-tv-v3', voyageWindow],
     queryFn: () => fetchLineUpSnapshot(voyageWindow),
@@ -84,44 +86,34 @@ export function Painel() {
     return map
   }, [departmentSummary])
 
-  const mainDeptCards = KNOWN_DEPARTMENTS.map((dept) => {
-    const item = summaryByDept.get(dept)
-    return {
-      department: dept,
-      label: AGENCY_REPORT_DEPARTMENT_LABELS[dept] ?? dept,
-      activeCount: Number(item?.active_count ?? 0),
-      dismissedCount: Number(item?.dismissed_count ?? 0),
-    }
-  })
-
-  const legacyItem = summaryByDept.get('sem_departamento')
-  const legacyActiveCount = Number(legacyItem?.active_count ?? 0)
-  const legacyDismissedCount = Number(legacyItem?.dismissed_count ?? 0)
+  // Um cartão por setor, inclusive o Administrativo, responsável por parte do
+  // catálogo de alertas (lote 5a, achado A1). "Sem setor" (alertas anteriores
+  // à divisão por setor) só aparece quando tem alerta.
+  const deptCards = [
+    ...KNOWN_DEPARTMENTS.map((dept) => deptCard(dept, ALERT_DEPARTMENT_LABELS[dept] ?? dept, summaryByDept.get(dept))),
+    ...(summaryByDept.has('sem_departamento') ? [deptCard('sem_departamento', 'Sem setor', summaryByDept.get('sem_departamento'), 'anteriores aos setores')] : []),
+  ].filter((card) => card.department !== 'sem_departamento' || card.activeCount > 0 || card.dismissedCount > 0)
 
   return (
     <>
       <PageHeader
         title="Painel"
-        description="Quadro Line Up consolidado com navegação direta aos dados operacionais."
         action={
           <div className="flex flex-wrap items-center gap-3">
-            <Link to="/chegadas-saidas" className="app-btn app-btn--secondary">
-              <Ship size={14} />
-              Chegadas e Saídas
+            <Link to="/chegadas-saidas" className="app-btn app-btn--secondary h-auto gap-3 py-2 text-left">
+              <Ship size={18} aria-hidden="true" />
+              <span className="flex flex-col">
+                <span>Chegadas e Saídas</span>
+                <span className="text-xs font-normal text-[var(--app-muted)]">programação por porto</span>
+              </span>
             </Link>
-            <Link to="/line-up-tv/display" target="_blank" rel="noreferrer" className="app-btn app-btn--secondary">
-              <Monitor size={14} />
-              Abrir tela TV
+            <Link to="/line-up-tv/display" target="_blank" rel="noreferrer" className="app-btn app-btn--secondary h-auto gap-3 py-2 text-left">
+              <Monitor size={18} aria-hidden="true" />
+              <span className="flex flex-col">
+                <span>Tela TV</span>
+                <span className="text-xs font-normal text-[var(--app-muted)]">abre em outra janela</span>
+              </span>
             </Link>
-            <button type="button" onClick={() => void refetch()} className="app-btn app-btn--secondary">
-              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-              Atualizar
-            </button>
-            {lineup?.hasMore ? (
-              <button type="button" onClick={() => setVoyageWindow((current) => Math.min(current + 60, 500))} className="app-btn app-btn--secondary">
-                Carregar mais viagens
-              </button>
-            ) : null}
             <button
               type="button"
               onClick={() => void handleExport()}
@@ -129,105 +121,70 @@ export function Painel() {
               disabled={rows.length === 0 || isExporting}
             >
               <Download size={14} />
-              Exportar Excel
+              Exportar
             </button>
           </div>
         }
       />
 
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={15} className="text-amber-400" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--app-muted)]">
-              Pendências por Setor Responsável
-            </h2>
-          </div>
-          <Link to="/alertas" className="inline-flex items-center gap-1 text-xs text-[var(--app-link)] hover:underline">
-            <span>Fila completa de alertas</span>
-            <ArrowRight size={12} />
-          </Link>
+      {departmentSummaryError ? (
+        <InlineError message="Erro ao carregar os alertas por setor." />
+      ) : (
+        <div className="app-metric-row" aria-label="Alertas por setor">
+          {deptCards.map((card) => (
+            <MetricCard
+              key={card.department}
+              label={card.label}
+              value={card.activeCount === 0 ? 'Nenhum' : `${card.activeCount} ${card.activeCount === 1 ? 'alerta' : 'alertas'}`}
+              tone={card.activeCount > 0 ? 'warning' : 'secondary'}
+              detail={card.detail}
+              onSelect={() => navigate(`/alertas?departamento=${encodeURIComponent(card.department)}`)}
+            />
+          ))}
         </div>
-
-        {departmentSummaryError ? (
-          <InlineError message="Erro ao carregar pendências por setor." />
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {mainDeptCards.map((card) => (
-              <Link
-                key={card.department}
-                to={`/alertas?departamento=${encodeURIComponent(card.department)}`}
-                className="flex flex-col justify-between rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-strong)] p-3 transition-all hover:border-[var(--app-link)] hover:bg-[var(--app-surface-hover)]"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-[var(--app-muted)]">{card.label}</span>
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                      card.activeCount > 0
-                        ? 'bg-amber-500/10 text-amber-700 border border-amber-500/20'
-                        : 'bg-slate-500/10 text-[var(--app-muted)]'
-                    }`}
-                  >
-                    {card.activeCount} {card.activeCount === 1 ? 'pendência' : 'pendências'}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--app-muted)]">
-                  <span>{card.dismissedCount > 0 ? `+ ${card.dismissedCount} dispensada(s)` : 'Nenhuma dispensa'}</span>
-                  <span className="text-[var(--app-link)]">Ver fila →</span>
-                </div>
-              </Link>
-            ))}
-
-            {legacyActiveCount > 0 || legacyDismissedCount > 0 ? (
-              <Link
-                to="/alertas?departamento=sem_departamento"
-                className="flex flex-col justify-between rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-strong)] p-3 transition-all hover:border-[var(--app-link)] hover:bg-[var(--app-surface-hover)]"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-[var(--app-muted)]">Sem setor / Legado</span>
-                  <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-500/20">
-                    {legacyActiveCount}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[11px] text-[var(--app-muted)]">
-                  <span>{legacyDismissedCount > 0 ? `+ ${legacyDismissedCount} dispensado(s)` : 'Linhas históricas'}</span>
-                  <span className="text-[var(--app-link)]">Ver fila →</span>
-                </div>
-              </Link>
-            ) : null}
-          </div>
-        )}
-      </div>
+      )}
 
       <LineUpFilters
         filters={filters}
         onChange={setFilters}
         onClear={() => setFilters(emptyLineUpFilters())}
         activeCount={activeFilterCount}
-        visibleCount={rows.length}
-        totalCount={lineup?.totalVoyages ?? lineup?.rows.length ?? 0}
-        loading={isLineUpLoading}
       />
 
-      {lineUpError ? <InlineError message="Erro ao carregar o Line Up TV." /> : null}
+      {lineUpError ? <InlineError message="Erro ao carregar o Line Up." /> : null}
 
-      {isLineUpLoading ? (
-        <Card className="p-0 overflow-hidden">
+      <Block
+        title="Line Up"
+        aside={(
+          <span className="flex flex-wrap items-center gap-3">
+            <span>{isLineUpLoading ? '—' : `${rows.length} de ${lineup?.totalVoyages ?? lineup?.rows.length ?? 0} escalas`}</span>
+            {lineup?.hasMore ? (
+              <button type="button" onClick={() => setVoyageWindow((current) => Math.min(current + 60, 500))} className="app-btn app-btn--secondary app-btn--sm">
+                Carregar mais viagens
+              </button>
+            ) : null}
+          </span>
+        )}
+        flush
+      >
+        {isLineUpLoading ? (
           <SkeletonTable rows={6} cols={8} />
-        </Card>
-      ) : (
-        <Card className="overflow-hidden p-0">
-          <LineUpTable
-            rows={rows}
-            emptyTitle="Nenhuma escala encontrada."
-            emptyDescription="Ajuste os filtros ou aguarde o próximo ciclo de atualização."
-          />
-          <p className="border-t border-[var(--app-border)] px-4 py-2 text-[11px] text-[var(--app-muted)]">
-            Terminal = importação/exportação · TBC = sem atribuição · Linha com barra verde = navio atracado no terminal · ✓ = ATA registrada · VIN = veículos · VIN CNTR = containers com veículos · CG = carga geral · MTY = vazios · RTW = restow ·
-            BB = break-bulk (máquinas / packages) · CEs = status de BLs e CEs da escala · Vinculada = manifestos vinculados à escala
-          </p>
-        </Card>
-      )}
+        ) : (
+          <>
+            <LineUpTable
+              rows={rows}
+              cards={narrow}
+              emptyTitle="Nenhuma escala encontrada."
+              emptyDescription="Ajuste os filtros ou aguarde o próximo ciclo de atualização."
+            />
+            <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-xs text-[var(--app-muted)]">
+              Faixa verde à esquerda: navio atracado · ✓ data efetiva (ATA na coluna ETA, ATB na coluna ETB) · TBC: terminal sem atribuição ·
+              VIN veículos · VIN CNTR containers com veículos · CG carga geral · MTY vazios · RTW restow · BB máquinas / packages ·
+              Vinculada: manifesto vinculado à escala. Cada número abre a lista filtrada.
+            </p>
+          </>
+        )}
+      </Block>
     </>
   )
 }
