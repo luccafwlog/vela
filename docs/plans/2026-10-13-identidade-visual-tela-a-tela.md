@@ -315,6 +315,29 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   tela de Tarifas do Granito (`/granito/taxas` passa a levar ao Granito), o
   cálculo de taxas do Granito (também na Validação) e a importação de CE
   Mercante para o Granito; os dados gravados ficam no banco, sem uso.
+  **Demais telas, respostas de 2026-10-19** (comentários na página):
+  aprovadas **Vazios de importação** (Natureza só pela seleção; coluna
+  "Manifesto Mercante" com o número do manifesto da rota, "Sem número" em
+  âmbar para vazio do Baplie sem número), **Embarque de vazios** (lista de
+  embarques ao abrir; armazenagem com 0 dia escondida, porque 0 dia é
+  dentro do free time; Observação e Excluir das Linhas de serviço como
+  botões só com ícone) e **Locais (depots e terminais)**. Nos
+  **Relatórios**, "Por Cliente" e "Financeiro" com a mesma regra (fatura
+  emitida no período, sem rascunho nem cancelada), coluna "Taxas locais" no
+  Operacional e mais filtros (período, Navio / Viagem e Cliente abertos; os
+  demais em "Mais filtros"). Na **Administração**, nomes das abas ("Falhas
+  de entrega de alertas", "Histórico de ações", "Sistema", "Prazo do ADR"),
+  setor só em "Editar acesso" e o quadro "O que cada setor pode" como matriz
+  de consulta (opção A) com a lista por pessoa em "Editar acesso" (opção
+  C); a matriz editável foi descartada por exigir permissões configuráveis
+  no banco. A matriz foi mapeada contra o código de 2026-10-19 (só leitura,
+  migrations até a `324`): o banco cumpre as 68 ações documentadas; achados
+  para o lote: alertas não chegam ao papel legado `operator`
+  (`fanout_alert_item*`, migration `002`), Operações sem o e-mail de
+  recuperação na ficha (`RECOVERY_EMAIL_READER_ROLES`), citações
+  desatualizadas em [segurança](../operations/seguranca.md) e ações sem
+  linha na matriz. Pendentes: aprovação final dos Relatórios e da
+  Administração e se os botões só com ícone valem para todo o sistema.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
