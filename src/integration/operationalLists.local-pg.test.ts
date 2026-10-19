@@ -1,4 +1,5 @@
 import { execPsql, spawnPsql } from './localPsql'
+import { normalizeStoredPortCode, STORED_PORT_ALIAS_VALUES } from '../services/portCode'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -159,6 +160,15 @@ describeLocal('S12 — leituras operacionais paginadas', () => {
     } finally {
       psql(`UPDATE public.bls SET pod = 'BRVIX' WHERE id = '${blIds[1]}';`)
     }
+  })
+
+  // A URL de /bls e /containers é normalizada no navegador com a cópia da
+  // tabela do banco; se as duas divergirem, o select e o filtro se separam.
+  it('normalizeStoredPortCode é a mesma régua de public.normalize_port_code', () => {
+    const values = [...STORED_PORT_ALIAS_VALUES, ' brvit ', 'CNTCA', 'SEP', 'XXXXX']
+    const literals = values.map((value) => `('${value.replace(/'/g, "''")}')`).join(', ')
+    const rows = psql(`SELECT json_agg(public.normalize_port_code(v) ORDER BY ord) FROM (SELECT v, row_number() OVER () AS ord FROM (VALUES ${literals}) t(v)) s;`)
+    expect(JSON.parse(rows)).toEqual(values.map((value) => normalizeStoredPortCode(value)))
   })
 
   it('pagina containers e calcula agregados no mesmo conjunto filtrado', () => {

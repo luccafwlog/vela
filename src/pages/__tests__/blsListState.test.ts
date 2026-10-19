@@ -21,6 +21,8 @@ describe('estado da lista /bls na URL', () => {
     expect(filtersFromBlsSearch(new URLSearchParams('pol=CNZJG&pod=BRVIT'))).toMatchObject({ pol: 'CNZJG', pod: 'BRVIX' })
     expect(filtersFromBlsSearch(new URLSearchParams('pod=BRNVT')).pod).toBe('BRITJ')
     expect(filtersFromBlsSearch(new URLSearchParams('pod=XXXXX')).pod).toBe('XXXXX')
+    // Sinônimo só do import: o banco não o conhece, então a URL não o reescreve.
+    expect(filtersFromBlsSearch(new URLSearchParams('pol=CNTCA')).pol).toBe('CNTCA')
   })
 
   it('ignora modalidade, página e tamanho inválidos em vez de consultar com eles', () => {
