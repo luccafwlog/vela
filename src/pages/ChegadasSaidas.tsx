@@ -7,7 +7,7 @@ import { Modal } from '../components/ui/Modal'
 import { ImportFilePicker } from '../components/shared/ImportParts'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { Block } from '../components/ui/Block'
-import { ScheduleLegend, ScheduleTable } from '../components/portal/ShipScheduleWidget'
+import { ScheduleLegend, ScheduleTable, ScheduleWidthPage } from '../components/portal/ShipScheduleWidget'
 import { scheduleLaneTitle } from '../components/portal/shipScheduleCells'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
@@ -457,7 +457,7 @@ export function ChegadasSaidas() {
   }
 
   return (
-    <>
+    <ScheduleWidthPage>
       <PageHeader
         title="Chegadas e Saídas"
         description="Programação de navios publicada no Portal. Cada linha é uma Viagem; datas efetivas vêm de Viagens."
@@ -520,6 +520,6 @@ export function ChegadasSaidas() {
       <div className="mt-6">
         <SpreadsheetUpload canWrite={canWrite} onUpdate={invalidateSchedules} />
       </div>
-    </>
+    </ScheduleWidthPage>
   )
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { MapPin } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { usePortalScheduleVoyages } from '../../hooks/usePortalScheduleVoyages'
 import { PORTAL_SCHEDULE_LANES, formatScheduleDate, type PortalScheduleLane } from '../../services/portalScheduleLanes'
@@ -40,8 +41,13 @@ export function ScheduleDate({ voyage, lane }: { voyage: PortalScheduleVoyage; l
   )
 }
 
-/** Posição do navio no MarineTraffic, pelo IMO cadastrado; sem IMO, nada. */
-export function VesselMapButton({ voyage }: { voyage: PortalScheduleVoyage }) {
+/**
+ * Posição do navio no MarineTraffic, pelo IMO cadastrado; sem IMO, nada. Só o
+ * ícone na tabela (2026-10-19): em toda linha, o texto repetido pesava; o nome
+ * fica no `title` e no rótulo acessível. No cartão do celular, o botão ocupa a
+ * largura do cartão e leva o texto junto (`withText`).
+ */
+export function VesselMapButton({ voyage, withText = false }: { voyage: PortalScheduleVoyage; withText?: boolean }) {
   if (!voyage.imoNumber) return null
   return (
     <a
@@ -50,15 +56,17 @@ export function VesselMapButton({ voyage }: { voyage: PortalScheduleVoyage }) {
       rel="noopener noreferrer"
       className="app-btn app-btn--secondary app-btn--sm"
       aria-label={`Ver ${voyage.vesselName} no mapa (MarineTraffic, abre em nova aba)`}
+      title="Ver no mapa"
     >
-      Ver no mapa
+      <MapPin size={16} aria-hidden="true" />
+      {withText ? ' Ver no mapa' : null}
     </a>
   )
 }
 
 export function ScheduleLegend() {
   return (
-    <p className="app-schedule-legend">
+    <p className="app-schedule-legend [contain:inline-size]">
       <span><span className="app-schedule-date__check">✓</span> data efetiva: saída ou chegada registrada</span>
       <span><StatusText tone="warning">âmbar</StatusText>: previsão já passou e ainda não foi registrada</span>
       <span>"Omitida": escala omitida pelo armador · "—": sem data</span>
@@ -114,8 +122,23 @@ export function ScheduleTable({ vessels, caption, actions }: {
           </tbody>
         </table>
       </div>
-      {hidden > 0 ? <p className="app-schedule-legend">{hidden === 1 ? '1 porto sem data em nenhum navio não aparece.' : `${hidden} portos sem data em nenhum navio não aparecem.`}</p> : null}
+      {hidden > 0 ? <p className="app-schedule-legend [contain:inline-size]">{hidden === 1 ? '1 porto sem data em nenhum navio não aparece.' : `${hidden} portos sem data em nenhum navio não aparecem.`}</p> : null}
     </>
+  )
+}
+
+/**
+ * Largura da página pela Programação (decisão de 2026-10-19): Chegadas e
+ * Saídas e o Painel do Portal ficam da largura da tabela, centralizados, sem
+ * sobra no bloco; com mais portos a página alarga, até a tela, e daí a tabela
+ * rola. Os demais blocos da página (e a legenda) não pesam na medida
+ * (`contain: inline-size`); o piso de 960 px segura carregando, erro e vazio.
+ */
+export function ScheduleWidthPage({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-auto w-fit min-w-[min(100%,960px)] max-w-full [&>*:not(.app-schedule)]:[contain:inline-size]">
+      {children}
+    </div>
   )
 }
 
@@ -161,7 +184,7 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
                 </div>
                 <ScheduleCardGroup title="Saída na origem (ETD)" lanes={cardPolLanes} voyage={vessel} />
                 <ScheduleCardGroup title="Chegada no Brasil (ETA)" lanes={cardPodLanes} voyage={vessel} />
-                <VesselMapButton voyage={vessel} />
+                <VesselMapButton voyage={vessel} withText />
               </li>
             ))}
           </ul>
