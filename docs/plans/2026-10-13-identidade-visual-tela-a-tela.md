@@ -302,6 +302,17 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   conciliação Pix" sempre vazia, rótulos das Métricas que não batem com o
   dado e "Sem prazo" para departamento que não assinou. Aguarda a resposta
   do responsável, tela a tela.
+  **Granito, respostas de 2026-10-19** (comentários na página e na
+  conversa): a tela mostra só os dados básicos, a quantidade de blocos e o
+  peso (saem taxas, fase, pátio, recebimento dos blocos e CBM). **Regra de
+  negócio decidida pelo responsável em 2026-10-19, fora da mudança visual:**
+  o Granito não terá Cliente vinculado e serve só para totalizar a carga
+  movimentada no navio. Consequência proposta na rodada 3 da página: a
+  importação deixa de procurar Cliente, o Granito sai da Revisão e da
+  Validação de Taxas Locais e o alerta "Revisão de Granito — cliente não
+  vinculado" deixa de existir; pendentes de resposta o peso (real ou
+  declarado) e se saem também as Tarifas do Granito, o cálculo de taxas e a
+  importação de CE Mercante da tela.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
