@@ -3,6 +3,8 @@ export type BetterStackHeartbeatJob =
   | 'demurrageDunning'
   | 'customerCommunicationAutoRunner'
   | 'portalDailyDigest'
+  | 'ceUnlockNotifyEmail'
+  | 'portalEmailEvents'
 
 export type BetterStackHeartbeatStatus = 'success' | 'failure'
 
@@ -11,6 +13,8 @@ const HEARTBEAT_ENV: Record<BetterStackHeartbeatJob, string> = {
   demurrageDunning: 'BETTERSTACK_HEARTBEAT_DEMURRAGE_DUNNING_URL',
   customerCommunicationAutoRunner: 'BETTERSTACK_HEARTBEAT_CUSTOMER_COMMUNICATION_AUTO_RUNNER_URL',
   portalDailyDigest: 'BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL',
+  ceUnlockNotifyEmail: 'BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL',
+  portalEmailEvents: 'BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL',
 }
 
 const DEFAULT_TIMEOUT_MS = 1_500

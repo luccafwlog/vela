@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { maskEmail, sendPortalEmail } from './portalEmail.ts'
 import { bounceNotificationTemplate } from './portalEmailTemplates.ts'
 import { resolveBounceCascade, type BounceContact } from './portalBounceCascade.ts'
@@ -6,7 +6,10 @@ import { canonicalPortalOrigin, portalSupportEmail } from './portalUrls.ts'
 
 const BOUNCE_NOTIFICATION_KIND = 'contato_bounced_notificacao'
 
-type AdminClient = ReturnType<typeof createClient>
+// SupabaseClient sem o tipo do banco (o mesmo que createClient(url, chave)
+// devolve); ReturnType<typeof createClient> fixava os genéricos em never e o
+// deno check recusava toda chamada de rpc.
+type AdminClient = SupabaseClient
 
 type PortalEmailEventResult = {
   event_id?: number
@@ -175,14 +178,14 @@ export async function processPortalEmailEvent(
   admin: AdminClient,
   eventId: number,
   workerId: string,
-): Promise<PortalEmailEventResult> {
+): Promise<PortalEmailEventResult & { status: string }> {
   const { data, error } = await admin.rpc('process_portal_email_event', {
     p_event_id: eventId,
     p_worker_id: workerId,
   })
   if (error) throw error
 
-  const result = (data ?? {}) as PortalEmailEventResult
+  const result = (data ?? {}) as PortalEmailEventResult & { status: string }
   if (result.status !== 'processing' || result.processed !== true) return result
 
   if (result.should_cascade && result.email) {

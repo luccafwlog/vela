@@ -7,6 +7,8 @@ import { resolveEmailChangeConfirmation } from '../_shared/portalInvites.ts'
 import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
+import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import type { PortalDb } from '../_shared/portalDb.ts'
 
 // Mensagem própria para o pedido que já não tem o que aplicar. Dizer "link
 // inválido" aqui seria mentira -- o link estava válido -- e mandaria o cliente
@@ -17,13 +19,16 @@ const RATE_LIMITED = 'Muitas tentativas com a senha atual. Aguarde alguns minuto
 // como texto, e `previous_notified` sumia -- o operador via "aviso não
 // enviado" para um aviso entregue.
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+// O cliente do supabase-js não satisfaz o tipo estrutural mínimo dos helpers
+// (PortalDb, _shared/portalDb.ts) para o deno check; a forma usada é a mesma.
+const asPortalDb = <T,>(client: T) => client as T & PortalDb
 const EMAIL_CHANGE_DAILY_LIMIT = 5
 const SEND_FAILED = 'Não conseguimos enviar o email de confirmação. Nenhuma troca foi iniciada; tente novamente mais tarde.'
 
-if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
+if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-recovery-email-change', withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
   const body = await req.json().catch(() => ({})) as { action?: string; current_password?: string; new_email?: string; token?: string; customer_id?: number; reason?: string }
-  const url = Deno.env.get('SUPABASE_URL')!; const jwt = req.headers.get('Authorization') ?? ''; const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+  const url = Deno.env.get('SUPABASE_URL')!; const jwt = req.headers.get('Authorization') ?? ''; const admin = asPortalDb(createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!))
   if (body.action === 'request') {
     const portal = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: jwt } } })
     const { data: userData } = await portal.auth.getUser(); const authId = userData.user?.id
@@ -125,4 +130,4 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
     return json(200, { previous_notified: sent.ok ? 'enviado' : 'falhou' })
   }
   return new Response(JSON.stringify({ error: 'Dados inválidos.' }), { status: 422 })
-}))
+})))

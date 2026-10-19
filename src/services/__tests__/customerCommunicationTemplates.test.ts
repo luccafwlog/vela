@@ -3,6 +3,8 @@ import {
   formatCommunicationDateTime,
   renderInstitutionalTemplate,
   renderCeMercanteTaxasTemplate,
+  renderDemurrageGroupTemplate,
+  demurrageGroupLineMissing,
   renderDemurrageTemplate,
   renderNoaTemplate,
   renderNobTemplate,
@@ -145,5 +147,50 @@ describe('validação de anexos de Comunicados', () => {
     const result = validateCommunicationAttachments('livre', [{ filename: 'arquivo.zip', contentType: 'application/zip', size: 10 }])
     expect(result.valid).toBe(false)
     expect(result.errors.join(' ')).toContain('Tipo não permitido')
+  })
+})
+
+describe('cobrança agrupada de Demurrage (plano dos e-mails, 4.1)', () => {
+  const line = (doc: string, vessel: string, voyage: string, roeReferenceDate = '2026-09-08') => ({
+    docNumber: doc, blId: `BL-${doc}`, vesselName: vessel, voyageNumber: voyage, totalUsd: 1200.5, totalBrl: 6602.75, roe: 5.5, roeReferenceDate,
+  })
+
+  it('assunto geral com o número de faturas e navio/viagem em cada linha', () => {
+    const rendered = renderDemurrageGroupTemplate({
+      customerId: 7,
+      customerName: 'Cliente Teste',
+      lines: [line('DEM-1', 'NAVIO A', 'V1'), line('DEM-2', 'NAVIO B', 'V2', '2026-09-09'), line('DEM-3', 'NAVIO A', 'V1')],
+    })
+    expect(rendered.subject).toBe('Cobrança de Demurrage — 3 faturas')
+    expect(rendered.text).toContain('DEM-2 — B/L BL-DEM-2 — NAVIO B / V2')
+    expect(rendered.text).toContain('pelo ROE 5.5000 com referência em 09/09/2026')
+    expect(rendered.text).toContain('O valor em reais será recalculado no dia do pagamento.')
+    expect(rendered.html).toContain('NAVIO B / V2')
+    expect(rendered.html).toContain('ROE 5.5000, referência 08/09/2026')
+    // Layout comum dos Comunicados.
+    expect(rendered.html).toContain('fwlog-logo-white.png')
+    expect(rendered.blIds).toEqual(['BL-DEM-1', 'BL-DEM-2', 'BL-DEM-3'])
+    // D8: valores por Invoice, sem soma.
+    expect(rendered.text).toContain('Os valores são por Invoice, sem consolidação.')
+    expect(rendered.text).not.toContain('Soma')
+    expect(rendered.html).not.toContain('Soma')
+    expect(rendered.html).not.toContain('<tfoot>')
+  })
+
+  it('uma linha mantém o assunto da cobrança unitária', () => {
+    const rendered = renderDemurrageGroupTemplate({ customerId: 7, customerName: 'Cliente', lines: [line('DEM-1', 'NAVIO A', 'V1')] })
+    expect(rendered.subject).toBe('Cobrança de Demurrage — DEM-1 — NAVIO A / V1')
+  })
+
+  it('recusa linha sem valor líquido, sem ROE ou sem data da cotação', () => {
+    expect(() => renderDemurrageGroupTemplate({ customerId: 7, customerName: 'C', lines: [{ ...line('D', 'N', 'V'), totalUsd: 0 }] })).toThrow('Dados incompletos')
+    expect(() => renderDemurrageGroupTemplate({ customerId: 7, customerName: 'C', lines: [{ ...line('D', 'N', 'V'), roe: 0 }] })).toThrow('Dados incompletos')
+    expect(() => renderDemurrageGroupTemplate({ customerId: 7, customerName: 'C', lines: [line('D', 'N', 'V', ' ')] })).toThrow('Dados incompletos')
+    expect(() => renderDemurrageGroupTemplate({ customerId: 7, customerName: 'C', lines: [] })).toThrow()
+  })
+
+  it('aponta o que falta em cada linha, para a Régua tirar só a Invoice incompleta', () => {
+    expect(demurrageGroupLineMissing(line('D', 'N', 'V'))).toBeNull()
+    expect(demurrageGroupLineMissing({ ...line('D', ' ', ''), roe: Number.NaN })).toBe('navio, viagem, ROE')
   })
 })

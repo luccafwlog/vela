@@ -610,7 +610,7 @@ function AlertRow({
             </div>
           ) : alert.item_id ? (
             <>
-              {canResolveWithJustification(effectiveType) ? (
+              {canResolveWithJustification(effectiveType, alert.entity_type) ? (
                 <Button variant="secondary" onClick={onResolve} disabled={isMutating}>
                   Resolver
                 </Button>

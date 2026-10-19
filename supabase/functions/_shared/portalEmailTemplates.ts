@@ -10,8 +10,8 @@ const BORDER = '#e5e7eb'
 const CARD_BG = '#ffffff'
 const PAGE_BG = '#f1f3f6'
 
-// Layout base dos emails transacionais do Portal do Cliente: logo real da
-// Transhipping, cartão com título, quadro de identificação (empresa/CNPJ) e
+// Layout base dos emails transacionais do Portal do Cliente: logo da
+// Fwlog, cartão com título, quadro de identificação (empresa/CNPJ) e
 // rodapé com contato de suporte — mesma identidade em convite, reenvio,
 // recuperação e troca de email (decisão da #370).
 function layout(input: {
@@ -195,6 +195,23 @@ export function emailChangeAssistedAlertTemplate(i: { portalUrl: string; support
   }
 }
 
+// Aviso de segurança (D12): sai ao concluir a recuperação de senha. Suspensão e
+// reativação da conta não avisam o Cliente por e-mail.
+export function passwordChangedTemplate(i: { companyName: string; cnpjMasked: string; portalUrl: string; supportEmail: string }) {
+  const text = [`A senha de acesso da ${i.companyName} (CNPJ ${i.cnpjMasked}) ao Portal do Cliente foi alterada.`, 'As sessões abertas em outros dispositivos foram encerradas.', '', `Se não foi você, fale com o suporte imediatamente: ${i.supportEmail}.`].join('\n')
+  return {
+    subject: 'Sua senha do Portal do Cliente foi alterada',
+    text,
+    html: layout({
+      title: 'Sua senha foi alterada',
+      identity: { companyName: i.companyName, cnpjMasked: i.cnpjMasked },
+      paragraphs: ['A senha de acesso da sua conta no Portal do Cliente foi alterada. As sessões abertas em outros dispositivos foram encerradas.', 'Se foi você, nenhuma ação é necessária.', `Se não foi você, fale com o suporte imediatamente: ${i.supportEmail}.`],
+      portalUrl: i.portalUrl,
+      supportEmail: i.supportEmail,
+    }),
+  }
+}
+
 export function dailyDigestTemplate(i: {
   date: string
   failures: number
@@ -246,7 +263,7 @@ export function bounceNotificationTemplate(i: {
     html: layout({
       title: 'Falha de entrega de comunicado',
       paragraphs: [
-        `O endereço <strong>${escapeHtml(i.bouncedEmailMasked)}</strong> não recebeu um comunicado recente.`,
+        `O endereço ${i.bouncedEmailMasked} não recebeu um comunicado recente.`,
         'A entrega falhou permanentemente (bounce). Atualize o cadastro de contatos do cliente no Portal para garantir o recebimento dos próximos comunicados e avisos operacionais.',
       ],
       button: { label: 'Acessar Portal do Cliente', url: `${origin}/portal` },

@@ -87,7 +87,7 @@ EXCECOES = {
     'audit_row_changes': 'função de trigger; roda como owner (294)',
     'save_granite_bl_review': 'delega à função legada guardada (286)',
     'set_voyage_route_ce_master': 'sobrecarga guardada delegada (350)',
-    'portal_ship_schedule': 'programação de navios a toda sessão; sem anon desde a 302 (ADR 0090)',
+    'portal_ship_schedule': 'programação de navios a toda sessão; sem anon desde a 319 (ADR 0090)',
 }
 
 

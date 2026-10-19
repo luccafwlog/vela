@@ -2,10 +2,10 @@ import { execPsql, spawnPsql } from './localPsql'
 import { expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
-// Migration 302 (advisor do Supabase de 19/10/2026, ADR 0090): nenhuma função
+// Migration 319 (advisor do Supabase de 19/10/2026, ADR 0090): nenhuma função
 // do projeto executável por `anon`, trigger fora do alcance dos clientes,
 // `search_path` fixo em toda função e índice nas FKs de B/L, faturas e
-// Demurrage. Varre o catálogo inteiro, não a lista da 302: função nova que
+// Demurrage. Varre o catálogo inteiro, não a lista da 319: função nova que
 // nascer aberta ou sem `search_path` derruba esta suíte no CI, antes do advisor.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -37,7 +37,7 @@ const PROJECT_FUNCTIONS = `
       WHERE d.objid = p.oid AND d.classid = 'pg_proc'::regclass AND d.deptype = 'e'
     )`
 
-function migration302Applied(): boolean {
+function migration319Applied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_invoices_replaced_by_invoice_id';`) === '1'
@@ -46,9 +46,9 @@ function migration302Applied(): boolean {
   }
 }
 
-const describeLocal = describeWithProbe(migration302Applied, 'migration302Applied (advisor: funções fechadas e índices de FK)')
+const describeLocal = describeWithProbe(migration319Applied, 'migration319Applied (advisor: funções fechadas e índices de FK)')
 
-describeLocal('302 — funções fechadas, search_path fixo e índices de FK', () => {
+describeLocal('319 — funções fechadas, search_path fixo e índices de FK', () => {
   it('nenhuma função do projeto é executável por anon', () => {
     expect(lines(psql(`SELECT p.oid::regprocedure ${PROJECT_FUNCTIONS}
       AND has_function_privilege('anon', p.oid, 'EXECUTE') ORDER BY 1;`))).toEqual([])
@@ -74,10 +74,10 @@ describeLocal('302 — funções fechadas, search_path fixo e índices de FK', (
   it('função criada agora nasce sem EXECUTE para PUBLIC, anon e authenticated', () => {
     // execPsql termina a chamada com ROLLBACK: a função de prova não fica no banco.
     const privileges = psql(`BEGIN;
-      CREATE FUNCTION public.advisor_302_probe() RETURNS integer LANGUAGE sql SET search_path = '' AS 'SELECT 1';
-      CREATE FUNCTION ce_unlock_private.advisor_302_probe() RETURNS integer LANGUAGE sql SET search_path = '' AS 'SELECT 1';
+      CREATE FUNCTION public.advisor_319_probe() RETURNS integer LANGUAGE sql SET search_path = '' AS 'SELECT 1';
+      CREATE FUNCTION ce_unlock_private.advisor_319_probe() RETURNS integer LANGUAGE sql SET search_path = '' AS 'SELECT 1';
       SELECT string_agg(format('%s %s', role, fn), ',' ORDER BY fn, role)
-      FROM unnest(ARRAY['public.advisor_302_probe()', 'ce_unlock_private.advisor_302_probe()']) fn,
+      FROM unnest(ARRAY['public.advisor_319_probe()', 'ce_unlock_private.advisor_319_probe()']) fn,
            unnest(ARRAY['public', 'anon', 'authenticated', 'service_role']) role
       WHERE has_function_privilege(role, fn, 'EXECUTE');`)
     // service_role segue o default do schema `public` (é por ele que as Edge

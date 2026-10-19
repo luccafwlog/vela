@@ -77,6 +77,9 @@ export function DiscountModal({ open, docNumber, totalUsd, hadDiscount = false, 
           </dl>
         ) : null}
         {preview?.exceedsTotal ? <p className="app-dem-note app-dem-note--warning" role="status">O desconto fixo não pode passar do total da Invoice ({fmtUSD(totalUsd)}).</p> : null}
+        {preview && !preview.exceedsTotal && preview.netUsd <= 0 && (totalUsd ?? 0) > 0 ? (
+          <p className="app-dem-note app-dem-note--warning" role="status">Com o desconto integral, a Invoice fica quitada (isenta) ao salvar: sai da Régua de Cobrança e das pendências do Cliente no Vela e no Portal. Para desfazer, use Cancelar baixa.</p>
+        ) : null}
         <Field label="Justificativa" required error={errors.discount_justification} hint="Fica no Histórico da Invoice.">
           <Textarea rows={2} value={form.discount_justification} onChange={(event) => onFormChange({ ...form, discount_justification: event.target.value })} />
         </Field>

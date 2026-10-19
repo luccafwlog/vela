@@ -37,6 +37,12 @@ describe('Identidade visual dos emails do Portal', () => {
     expect(bounce.html).toContain('href="https://portalfwlog.com.br/portal"')
   })
 
+  it('aviso de bounce mostra o endereço mascarado sem marcação HTML literal', () => {
+    const bounce = bounceNotificationTemplate({ bouncedEmailMasked: 'c***@acme.com', portalUrl: 'https://portalfwlog.com.br', supportEmail: 'suporte@portalfwlog.com.br' })
+    expect(bounce.html).toContain('O endereço c***@acme.com não recebeu')
+    expect(bounce.html).not.toContain('&lt;strong&gt;')
+  })
+
   it('mostra um quadro de identificação com empresa e CNPJ mascarado quando fornecido', () => {
     const { html } = inviteTemplate({ companyName: 'ACME LTDA', cnpjMasked: '12.***.***/0001-90', activationUrl: 'https://x/ativar', portalUrl, supportEmail })
     expect(html).toContain('ACME LTDA')

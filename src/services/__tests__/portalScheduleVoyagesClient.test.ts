@@ -7,7 +7,7 @@ import { fetchInternalScheduleVoyages, fetchPortalScheduleVoyages } from '../por
 
 const row = { voyage_id: 7, vessel_name: 'A', voyage: '1', imo_number: null, port_code: 'BRSSA', kind: 'pod', date_value: '2026-01-22' }
 
-// Desde a migration 302 (ADR 0090) `anon` não executa portal_ship_schedule:
+// Desde a migration 319 (ADR 0090) `anon` não executa portal_ship_schedule:
 // cada tela precisa chamar pelo cliente que tem a sua sessão.
 describe('cliente da programação de navios', () => {
   beforeEach(() => {

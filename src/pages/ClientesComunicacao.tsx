@@ -1,7 +1,7 @@
 import { formatCnpjCpf } from '../lib/utils'
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Building2, CheckCircle2, Eye, Info, Mail, Paperclip, Pencil, Send, Users } from 'lucide-react'
+import { AlertTriangle, Building2, CheckCircle2, Eye, Info, Mail, Paperclip, Pencil, RotateCcw, Send, Users } from 'lucide-react'
 import { Badge, type BadgeTone } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, InlineError, PageHeader } from '../components/ui/Card'
@@ -12,13 +12,15 @@ import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
 import { Modal } from '../components/ui/Modal'
 import { NoValue } from '../components/ui/NoValue'
+import { StatusText } from '../components/ui/StatusText'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { useAppSettings, useSetCommunicationsEnabled } from '../hooks/useAppSettings'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyageOptions } from '../hooks/useBls'
-import { useCustomerCommunicationConference, useCustomerCommunicationHistory, useCustomerCommunicationSavedTemplates, useDispatchCustomerCommunication, useSaveCustomerCommunicationSavedTemplate, useVoyageCommunicationCoverage } from '../hooks/useCustomerCommunications'
+import { useCustomerCommunicationConference, useCustomerCommunicationHistory, useCustomerCommunicationSavedTemplates, useDispatchCustomerCommunicationBatch, useResendCeMercanteTaxasCommunication, useSaveCustomerCommunicationSavedTemplate, useVoyageCommunicationCoverage } from '../hooks/useCustomerCommunications'
 import {
   DEFAULT_CUSTOMER_COMMUNICATION_FILTERS,
+  communicationPortCode,
   MANUAL_CUSTOMER_COMMUNICATION_KINDS_BY_MODE,
   getCustomerCommunicationAudienceRule,
   getCustomerCommunicationDispatchMode,
@@ -29,25 +31,41 @@ import {
   requiresResendConfirmation,
   validateCustomerCommunicationFilters,
   fetchCustomerCommunicationConference,
+  fetchCustomerCommunicationHistory,
   type CustomerCommunicationConferenceRow,
   type CustomerCommunicationConference,
   type CustomerCommunicationBlCandidate,
   type CustomerCommunicationDispatchMode,
   type CustomerCommunicationFilters,
+  type CustomerCommunicationHistoryItem,
 } from '../services/customerCommunications'
+import {
+  mergeCustomerCommunicationBatchRetry,
+  summarizeCustomerCommunicationBatch,
+  type CustomerCommunicationBatchItem,
+  type CustomerCommunicationBatchOutcome,
+} from '../services/customerCommunicationDispatches'
+import type { CeMercanteCommunicationDispatchSummary } from '../services/customerFinanceCommunications'
 import {
   CUSTOMER_COMMUNICATION_BOXES,
   type CommunicationBoxCode,
   type CustomerCommunicationAudience,
 } from '../services/customerCommunicationBoxes'
 import {
+  CUSTOMER_COMMUNICATION_KINDS,
   assertValidCommunicationAttachments,
   renderCustomerCommunicationTemplate,
   type CommunicationAttachment,
   type CustomerCommunicationKind,
   type CustomerCommunicationTemplateInput,
 } from '../services/customerCommunicationTemplates'
-import { customerCommunicationKindLabel, customerCommunicationStatusLabel } from '../services/customerCommunications'
+import {
+  customerCommunicationAttemptReason,
+  customerCommunicationAttemptStatusLabel,
+  customerCommunicationKindLabel,
+  customerCommunicationStatusLabel,
+  isFailedCustomerCommunicationAttempt,
+} from '../services/customerCommunications'
 
 type CommunicationTab = 'cobertura' | 'disparo' | 'historico'
 
@@ -106,6 +124,24 @@ function describeCargoScope(filters: CustomerCommunicationFilters): React.ReactN
   }
   if (filters.cnpj.trim()) partes.push(<>do CNPJ <strong key="cnpj" className="font-bold">{filters.cnpj.trim()}</strong></>)
   return partes.map((parte, index) => <span key={index}>{index ? ', ' : ''}{parte}</span>)
+}
+
+/** Status do Histórico, na ordem do filtro; "Em envio" é o `pendente` da migration 302. */
+const HISTORY_STATUS_OPTIONS = ['pendente', 'enviado', 'simulado', 'parcial', 'falha'] as const
+
+/**
+ * Identidade da conferência na tela: Clientes, destinatários, B/Ls e discriminadores.
+ * Enquanto ela não muda, a seleção, o `dispatchId` e o resultado do lote valem —
+ * mesmo que a consulta devolva outro objeto (plano dos e-mails, 3.2).
+ */
+function conferenceSignature(conference: CustomerCommunicationConference | undefined): string | undefined {
+  if (!conference) return undefined
+  return JSON.stringify([
+    conference.kind,
+    conference.mode,
+    // B/L cancelado ou novo depois de conferir muda o que o e-mail leva.
+    conference.rows.map((row) => [row.key, row.recipientSnapshot ?? '', row.nextAttemptDiscriminator, row.blocked, row.bls.map((bl) => bl.id)]),
+  ])
 }
 
 function statusTone(status: string): BadgeTone {
@@ -184,10 +220,15 @@ export function ClientesComunicacao() {
   // `dispatchFilters`, para Modo e Modelo não poderem apontar para universos diferentes.
   const [filters, setFilters] = useState<CustomerCommunicationFilters>(DEFAULT_CUSTOMER_COMMUNICATION_FILTERS)
   const [conferenceRequested, setConferenceRequested] = useState(false)
-  const [selectionState, setSelectionState] = useState<{ scope: CustomerCommunicationConference | undefined; keys: Set<string> }>({ scope: undefined, keys: new Set() })
+  const [selectionState, setSelectionState] = useState<{ scope: string | undefined; keys: Set<string> }>({ scope: undefined, keys: new Set() })
   const [institutionalSubject, setInstitutionalSubject] = useState('')
   const [institutionalBody, setInstitutionalBody] = useState('')
-  const [resendConfirmationScope, setResendConfirmationScope] = useState<CustomerCommunicationConference | undefined>(undefined)
+  const [resendConfirmationScope, setResendConfirmationScope] = useState<string | undefined>(undefined)
+  // Um `dispatchId` por conferência e texto: repetir o disparo cai no mesmo
+  // Comunicado em vez de criar outro (plano dos e-mails, 3.2).
+  const [dispatchIdState, setDispatchIdState] = useState<{ scope: string; id: string } | null>(null)
+  const [batchState, setBatchState] = useState<{ scope: string; outcomes: CustomerCommunicationBatchOutcome[]; attachmentCustomers: number } | null>(null)
+  const [ceResendResults, setCeResendResults] = useState<Record<string, { summary?: CeMercanteCommunicationDispatchSummary; error?: string }>>({})
   const [attachments, setAttachments] = useState<Array<CommunicationAttachment & { contentBase64: string }>>([])
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [dispatchMessage, setDispatchMessage] = useState<string | null>(null)
@@ -202,7 +243,11 @@ export function ClientesComunicacao() {
     [voyageOptions],
   )
   const [coverageFilters, setCoverageFilters] = useState({ vessel: '', voyage: '', month: '' })
-  const [historyFilters, setHistoryFilters] = useState({ vessel: '', month: '', kind: '', status: '', origin: '' })
+  // `?kind=` vem do link do alerta de reenvio do CE; só um modelo conhecido vira filtro.
+  const [historyFilters, setHistoryFilters] = useState(() => {
+    const kindParam = searchParams.get('kind') ?? ''
+    return { vessel: '', month: '', kind: (CUSTOMER_COMMUNICATION_KINDS as readonly string[]).includes(kindParam) ? kindParam : '', status: '', origin: '' }
+  })
   // Só o Comunicado livre deixa o operador escolher o público; os demais modelos
   // recebem o público imposto por `getCustomerCommunicationAudienceRule`.
   const [freeAudience, setFreeAudience] = useState<CustomerCommunicationAudience>({ mode: 'todos' })
@@ -231,29 +276,42 @@ export function ClientesComunicacao() {
   const customerHistoryId = Number(searchParams.get('customer'))
   const historyCustomerId = Number.isInteger(customerHistoryId) && customerHistoryId > 0 ? customerHistoryId : undefined
   const historyCommunicationId = Number(searchParams.get('communication'))
-  const historyQuery = useCustomerCommunicationHistory({ id: Number.isInteger(historyCommunicationId) && historyCommunicationId > 0 ? historyCommunicationId : undefined, customerId: historyCustomerId, ...historyFilters })
-  const coverageQuery = useVoyageCommunicationCoverage(coverageFilters)
+  const historyBlId = searchParams.get('bl')?.trim() || undefined
+  const tab: CommunicationTab = searchParams.get('tab') === 'historico' ? 'historico' : searchParams.get('tab') === 'disparo' && canSend ? 'disparo' : 'cobertura'
+  const historyQuery = useCustomerCommunicationHistory(
+    { id: Number.isInteger(historyCommunicationId) && historyCommunicationId > 0 ? historyCommunicationId : undefined, customerId: historyCustomerId, blId: historyBlId, ...historyFilters },
+    { enabled: tab === 'historico' },
+  )
+  // A Cobertura consulta a prontidão de cada Cliente × Viagem: só na aba dela (3.7).
+  const coverageQuery = useVoyageCommunicationCoverage(coverageFilters, { enabled: tab === 'cobertura' })
   const savedTemplatesQuery = useCustomerCommunicationSavedTemplates()
   const saveTemplateMutation = useSaveCustomerCommunicationSavedTemplate()
-  const dispatchMutation = useDispatchCustomerCommunication()
+  const batchMutation = useDispatchCustomerCommunicationBatch()
+  const ceResendMutation = useResendCeMercanteTaxasCommunication()
   const conference = conferenceQuery.data
-  const tab: CommunicationTab = searchParams.get('tab') === 'historico' ? 'historico' : searchParams.get('tab') === 'disparo' && canSend ? 'disparo' : 'cobertura'
+  const signature = useMemo(() => conferenceSignature(conference), [conference])
 
   const defaultSelectedKeys = useMemo(
     () => new Set((conference?.rows ?? []).filter((row) => row.selected).map((row) => row.key)),
     [conference],
   )
-  const selectedKeys = selectionState.scope === conference ? selectionState.keys : defaultSelectedKeys
-  const resendConfirmed = resendConfirmationScope === conference && conference !== undefined
+  const selectedKeys = selectionState.scope !== undefined && selectionState.scope === signature ? selectionState.keys : defaultSelectedKeys
+  const resendConfirmed = resendConfirmationScope !== undefined && resendConfirmationScope === signature
+  const batch = batchState && batchState.scope === signature ? batchState : null
+  const batchSummary = batch ? summarizeCustomerCommunicationBatch(batch.outcomes) : null
 
   const selectedRows = useMemo(
     () => (conference?.rows ?? []).filter((row) => selectedKeys.has(row.key) && !row.blocked),
     [conference?.rows, selectedKeys],
   )
-  // Institucional e livre carregam `dispatch_id` novo a cada lote: um envio anterior
-  // não é reenvio do mesmo Comunicado, então vira informação e não trava.
+  // Institucional e livre ganham `dispatch_id` novo a cada conferência e texto: um
+  // envio anterior não é reenvio do mesmo Comunicado, então vira informação e não
+  // trava. O livre conta só os envios da mesma Viagem (`previousDispatchCount`).
   const resendGateApplies = requiresResendConfirmation(kind)
-  const previouslyContacted = selectedRows.filter((row) => row.nextAttemptDiscriminator > 0).length
+  const previousDispatches = (row: CustomerCommunicationConferenceRow) => (
+    resendGateApplies ? row.nextAttemptDiscriminator : row.previousDispatchCount ?? 0
+  )
+  const previouslyContacted = selectedRows.filter((row) => previousDispatches(row) > 0).length
   const hasResend = resendGateApplies && previouslyContacted > 0
   const activePreviewRow = customPreviewRow ?? selectedRows[0] ?? conference?.rows.find((row) => !row.blocked) ?? conference?.rows[0] ?? null
 
@@ -374,17 +432,17 @@ export function ClientesComunicacao() {
   /** Marcar todos / Desmarcar: a seleção em massa nunca alcança linha bloqueada. */
   function setSelection(keys: readonly string[]) {
     if (!conference) return
-    setSelectionState({ scope: conference, keys: new Set(keys) })
+    setSelectionState({ scope: signature, keys: new Set(keys) })
     setDispatchMessage(null)
   }
 
   function toggleRow(key: string) {
     if (!conference) return
     setSelectionState((current) => {
-      const next = current.scope === conference ? new Set(current.keys) : new Set(defaultSelectedKeys)
+      const next = current.scope !== undefined && current.scope === signature ? new Set(current.keys) : new Set(defaultSelectedKeys)
       if (next.has(key)) next.delete(key)
       else next.add(key)
-      return { scope: conference, keys: next }
+      return { scope: signature, keys: next }
     })
     setDispatchMessage(null)
   }
@@ -411,6 +469,54 @@ export function ClientesComunicacao() {
     }
   }
 
+  /**
+   * Itens do lote: um por Cliente e destinatário, com o mesmo `dispatchId`
+   * enquanto a conferência e o texto não mudam.
+   */
+  function buildBatchItems(dispatchId: string | null): CustomerCommunicationBatchItem[] {
+    const items: CustomerCommunicationBatchItem[] = []
+    for (const row of selectedRows) {
+      const input = userWritten
+        ? { ...row.renderInput, subject: institutionalSubject, body: institutionalBody }
+        : row.renderInput
+      const rendered = renderCustomerCommunicationTemplate(kind, input)
+      for (const contact of row.eligibleRecipients) {
+        const recipient = contact.email!.trim()
+        items.push({
+          key: `${row.key}::${recipient.toLowerCase()}`,
+          customerName: row.customerName,
+          input: {
+            customerId: row.customerId,
+            kind,
+            nature,
+            audience,
+            recipient,
+            subject: rendered.subject,
+            html: rendered.html,
+            text: rendered.text,
+            messageBody: userWritten ? institutionalBody : undefined,
+            blIds: row.bls.map((bl) => bl.id),
+            // O livre é um por Cliente e Viagem (D15): a Viagem entra na
+            // identidade, senão as duas viagens do Cliente cairiam no mesmo
+            // Comunicado. O institucional não tem âncora.
+            anchorVoyageId: kind === 'institucional' ? null : row.sourceBls[0]?.voyageId ?? null,
+            // Porto normalizado, como a régua grava (BRVIT → BRVIX): uma
+            // identidade só para o mesmo Comunicado.
+            anchorPort: userWritten ? null : communicationPortCode(row.sourceBls[0]?.pod),
+            anchorAtracacaoId: kind === 'aviso_atracacao_nob' ? row.sourceBls[0]?.terminalStateId ?? null : null,
+            attemptDiscriminator: row.nextAttemptDiscriminator,
+            dispatchId,
+            vesselName: input.vesselName,
+            voyageNumber: input.voyageNumber,
+            terminalName: input.terminalName,
+            attachments,
+          },
+        })
+      }
+    }
+    return items
+  }
+
   async function handleDispatch() {
     setDispatchError(null)
     setDispatchMessage(null)
@@ -426,13 +532,32 @@ export function ClientesComunicacao() {
       setDispatchError('Confirme o reenvio para clientes que já receberam este comunicado.')
       return
     }
-    if (!activePreview) {
+    if (!activePreview || !signature) {
       setDispatchError('Não foi possível renderizar o comunicado selecionado.')
       return
     }
+    if (typeof settings?.communications_enabled !== 'boolean') {
+      setDispatchError('Não foi possível conferir a chave de envio. Tente novamente antes de disparar.')
+      return
+    }
+    // D16 (ADR 0072): antes de sair, a confirmação diz se é envio real ou
+    // simulação e quantos e-mails, para quantos Clientes.
+    const real = settings.communications_enabled
+    const customersCount = new Set(selectedRows.map((row) => row.customerId)).size
+    const confirmed = await confirm({
+      title: real ? 'Enviar de verdade' : 'Registrar em simulação',
+      message: `${selectedEmailCount} destinatário(s) de ${customersCount} Cliente(s) recebem ${customerCommunicationKindLabel(kind)}.`,
+      consequence: real
+        ? 'A chave de envio está ligada: os e-mails saem agora aos Clientes, e cada envio fica no Histórico.'
+        : 'A chave de envio está desligada: nenhum e-mail sai; cada destinatário fica registrado como simulado no Histórico.',
+      reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
+      confirmLabel: 'Confirmar',
+      cancelLabel: 'Cancelar',
+      tone: real ? 'danger' : 'primary',
+    })
+    if (!confirmed) return
+
     setSending(true)
-    let sent = 0
-    let simulated = 0
     try {
       // Revalidar a lista de destinatários antes de disparar
       try {
@@ -443,67 +568,150 @@ export function ClientesComunicacao() {
           audience,
         })
         const freshMap = new Map(freshConference.rows.map((r) => [r.key, r]))
-        let snapshotMismatch = false
-        for (const row of selectedRows) {
+        const snapshotMismatch = selectedRows.some((row) => {
           const freshRow = freshMap.get(row.key)
-          if (!freshRow || freshRow.recipientSnapshot !== row.recipientSnapshot) {
-            snapshotMismatch = true
-            break
-          }
-        }
+          return !freshRow || freshRow.recipientSnapshot !== row.recipientSnapshot
+        })
         if (snapshotMismatch) {
           setResendConfirmationScope(undefined)
           setDispatchError('A lista de destinatários mudou. Confira novamente antes de enviar.')
-          setSending(false)
+          return
+        }
+        // Depois de um lote, a conferência na tela fica velha (o cache não a
+        // relê): os discriminadores dela já foram usados. Disparar com eles
+        // cairia nas mesmas tentativas e o resumo contaria "enviado" sem sair
+        // e-mail. Qualquer diferença na conferência inteira recusa o disparo.
+        if (conferenceSignature(freshConference) !== signature) {
+          setResendConfirmationScope(undefined)
+          setDispatchError('Há Comunicados novos desde a conferência. Confira de novo.')
           return
         }
       } catch {
-        setDispatchError('Não foi possível atualizar a conferência. Tente novamente antes de enviar.')
-        setSending(false)
+        setDispatchError('Não foi possível atualizar a conferência. Tente novamente antes de disparar.')
         return
       }
 
-      const dispatchId = userWritten ? crypto.randomUUID() : null
-      const dispatchAnchored = userWritten
-      for (const row of selectedRows) {
-        const input = userWritten
-          ? { ...row.renderInput, subject: institutionalSubject, body: institutionalBody }
-          : row.renderInput
-        const rendered = renderCustomerCommunicationTemplate(kind, input)
-        for (const contact of row.eligibleRecipients) {
-          const result = await dispatchMutation.mutateAsync({
-            customerId: row.customerId,
-            kind,
-            nature,
-            audience,
-            recipient: contact.email!.trim(),
-            subject: rendered.subject,
-            html: rendered.html,
-            text: rendered.text,
-            messageBody: userWritten ? institutionalBody : undefined,
-            blIds: row.bls.map((bl) => bl.id),
-            anchorVoyageId: dispatchAnchored ? null : row.sourceBls[0]?.voyageId ?? null,
-            anchorPort: dispatchAnchored ? null : row.sourceBls[0]?.pod ?? null,
-            anchorAtracacaoId: kind === 'aviso_atracacao_nob' ? row.sourceBls[0]?.terminalStateId ?? null : null,
-            attemptDiscriminator: row.nextAttemptDiscriminator,
-            dispatchId,
-            vesselName: input.vesselName,
-            voyageNumber: input.voyageNumber,
-            terminalName: input.terminalName,
-            attachments,
-          })
-          sent += 1
-          if (result.status === 'simulado') simulated += 1
-        }
+      const dispatchScope = `${signature}::${institutionalSubject}::${institutionalBody}`
+      let dispatchId: string | null = null
+      if (userWritten) {
+        dispatchId = dispatchIdState?.scope === dispatchScope ? dispatchIdState.id : crypto.randomUUID()
+        setDispatchIdState({ scope: dispatchScope, id: dispatchId })
       }
-      setDispatchMessage(settings?.communications_enabled === false
-        ? `${sent} tentativa(s) registrada(s) em simulação; nenhum e-mail saiu do sistema.`
-        : `${sent} e-mail(s) encaminhado(s)${simulated ? `, ${simulated} em simulação` : ''}.`)
-      setConferenceRequested(false)
+      const items = buildBatchItems(dispatchId)
+      const outcomes = await batchMutation.mutateAsync(items)
+      const delivered = new Set(outcomes.filter((outcome) => outcome.result !== 'falha').map((outcome) => outcome.input.customerId))
+      setBatchState({ scope: signature, outcomes, attachmentCustomers: attachments.length ? delivered.size : 0 })
+      // 3.6: o anexo vale para este disparo; o próximo começa sem nenhum.
+      if (attachments.length) setAttachments([])
     } catch (error) {
       setDispatchError(error instanceof Error ? error.message : 'Falha ao disparar os comunicados.')
     } finally {
       setSending(false)
+    }
+  }
+
+  /** Lê a chave de envio no banco agora; null quando não dá para saber. */
+  async function readCommunicationsEnabled(): Promise<boolean | null> {
+    try {
+      const { data } = await refetchSettings()
+      return typeof data?.communications_enabled === 'boolean' ? data.communications_enabled : null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Repete só os destinatários que falharam, com os mesmos itens (mesmo
+   * Comunicado). Recusa definitiva (contato inválido, endereço suprimido) fica
+   * de fora: outra tentativa daria o mesmo resultado.
+   */
+  async function retryFailures() {
+    if (!batch || !signature) return
+    const failed = summarizeCustomerCommunicationBatch(batch.outcomes).retryable
+    if (!failed.length) return
+    // A chave pode ter mudado desde o lote: a Edge lê a atual, então a
+    // repetição relê o modo e confirma de novo (D16).
+    const real = await readCommunicationsEnabled()
+    if (real === null) {
+      setDispatchError('Não foi possível conferir a chave de envio. Tente novamente antes de repetir.')
+      return
+    }
+    const confirmed = await confirm({
+      title: real ? 'Repetir de verdade' : 'Repetir em simulação',
+      message: `${failed.length} destinatário(s) de ${new Set(failed.map(({ input }) => input.customerId)).size} Cliente(s) recebem ${customerCommunicationKindLabel(kind)} de novo.`,
+      consequence: real
+        ? 'A chave de envio está ligada: os e-mails que falharam saem agora aos Clientes.'
+        : 'A chave de envio está desligada: nenhum e-mail sai; cada destinatário fica registrado como simulado no Histórico.',
+      reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
+      confirmLabel: 'Confirmar',
+      cancelLabel: 'Cancelar',
+      tone: real ? 'danger' : 'primary',
+    })
+    if (!confirmed) return
+    setDispatchError(null)
+    setSending(true)
+    try {
+      const retried = await batchMutation.mutateAsync(failed.map(({ key, customerName, input }) => ({ key, customerName, input })))
+      setBatchState({ ...batch, outcomes: mergeCustomerCommunicationBatchRetry(batch.outcomes, retried) })
+    } catch (error) {
+      setDispatchError(error instanceof Error ? error.message : 'Falha ao repetir os envios.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  /** D5: o último CE e Taxas de cada Cliente × Viagem no Histórico pode ser reenviado. */
+  async function resendCeMercante(item: CustomerCommunicationHistoryItem) {
+    if (item.anchor_voyage_id == null) return
+    const key = `${item.customer_id}:${item.anchor_voyage_id}`
+    // Sem saber se a chave está ligada, a confirmação poderia prometer
+    // simulação e a Edge mandar o e-mail de verdade: relê antes de confirmar.
+    const real = await readCommunicationsEnabled()
+    if (real === null) {
+      setCeResendResults((current) => ({ ...current, [key]: { error: 'Não foi possível confirmar se o envio real está ligado. Recarregue a tela e tente de novo.' } }))
+      return
+    }
+    // Com filtro de status, mês ou navio, o item da lista pode não ser o último
+    // da trilha: o diálogo diz qual foi o último envio de fato.
+    let latestNote = ''
+    try {
+      const [latest] = await fetchCustomerCommunicationHistory({ customerId: item.customer_id, voyageId: item.anchor_voyage_id, kind: 'ce_mercante_taxas' })
+      if (latest && latest.id !== item.id) {
+        latestNote = ` Há um envio mais recente desta viagem: ${customerCommunicationStatusLabel(latest.status)} em ${new Date(latest.created_at).toLocaleString('pt-BR')}.`
+      }
+    } catch {
+      latestNote = ' Não foi possível conferir o último envio desta viagem.'
+    }
+    const confirmed = await confirm({
+      title: 'Reenviar CE e Taxas',
+      message: `Reenviar o Comunicado de CE e Taxas de ${item.customer?.name ?? `Cliente ${item.customer_id}`} na viagem ${[item.vessel_name, item.voyage_number].filter(Boolean).join(' / ') || item.anchor_voyage_id}, com o CE e os valores atuais?${latestNote}`,
+      consequence: real
+        ? 'A chave de envio está ligada: o e-mail sai agora para as caixas Documentação e Operação e Financeiro do Cliente. O envio fecha o alerta "Reenviar Comunicado de CE e Taxas" dos B/Ls.'
+        : 'A chave de envio está desligada: o reenvio fica registrado como simulado e nenhum e-mail sai; o alerta "Reenviar Comunicado de CE e Taxas" só fecha com um envio real.',
+      reversibility: real ? 'E-mail enviado não pode ser desfeito.' : 'Nada chega ao Cliente.',
+      confirmLabel: 'Reenviar CE e Taxas',
+      cancelLabel: 'Cancelar',
+      tone: 'primary',
+    })
+    if (!confirmed) return
+    try {
+      const summary = await ceResendMutation.mutateAsync({ voyageId: item.anchor_voyage_id, customerId: item.customer_id })
+      setCeResendResults((current) => ({ ...current, [key]: { summary } }))
+    } catch (error) {
+      setCeResendResults((current) => ({ ...current, [key]: { error: error instanceof Error ? error.message : 'Falha ao reenviar o CE e Taxas.' } }))
+    }
+  }
+
+  // Só o Comunicado mais recente de cada Cliente × Viagem oferece o reenvio.
+  const latestCeKeys = new Set<number>()
+  {
+    const seen = new Set<string>()
+    for (const item of historyQuery.data ?? []) {
+      if (item.kind !== 'ce_mercante_taxas' || item.anchor_voyage_id == null) continue
+      const key = `${item.customer_id}:${item.anchor_voyage_id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      latestCeKeys.add(item.id)
     }
   }
 
@@ -696,7 +904,7 @@ export function ClientesComunicacao() {
                               key={row.key}
                               row={row}
                               selected={selectedKeys.has(row.key)}
-                              resendLabel={row.nextAttemptDiscriminator > 0 ? (resendGateApplies ? `Reenvio ${row.nextAttemptDiscriminator}` : `${row.nextAttemptDiscriminator} envio(s) anterior(es)`) : null}
+                              resendLabel={previousDispatches(row) > 0 ? (resendGateApplies ? `Reenvio ${row.nextAttemptDiscriminator}` : `${previousDispatches(row)} envio(s) anterior(es)`) : null}
                               onToggle={() => toggleRow(row.key)}
                               onPreview={() => {
                                 setCustomPreviewRow(row)
@@ -709,7 +917,7 @@ export function ClientesComunicacao() {
                     </div>
                     <div className="border-t border-[var(--app-border)] bg-[var(--app-surface-muted)] px-5 py-3 text-xs text-[var(--app-muted)]">
                       {conference.rows.length} cliente(s) no recorte
-                      {blockedRows.length ? ` · ${blockedRows.length} bloqueado(s) por cadastro` : ''}
+                      {blockedRows.length ? ` · ${blockedRows.length} bloqueado(s)` : ''}
                     </div>
                   </>
                 ) : conference?.unassignedOperationFronts ? (
@@ -1041,7 +1249,7 @@ export function ClientesComunicacao() {
                     <input
                       type="checkbox"
                       checked={resendConfirmed}
-                      onChange={(event) => setResendConfirmationScope(event.target.checked ? conference : undefined)}
+                      onChange={(event) => setResendConfirmationScope(event.target.checked ? signature : undefined)}
                       className="mt-0.5"
                     />
                     <span>
@@ -1054,7 +1262,7 @@ export function ClientesComunicacao() {
                 <>
                   <PanelRule />
                   <p className="m-5 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 text-xs leading-relaxed text-[var(--app-muted)]">
-                    {previouslyContacted} cliente(s) selecionado(s) já receberam outro comunicado deste modelo. Como o texto é escrito
+                    {previouslyContacted} cliente(s) selecionado(s) já receberam outro comunicado {kind === 'livre' ? 'livre nesta viagem' : 'deste modelo'}. Como o texto é escrito
                     a cada disparo, este envio é uma mensagem nova e não um reenvio.
                   </p>
                 </>
@@ -1070,7 +1278,7 @@ export function ClientesComunicacao() {
                       className="w-full justify-center"
                       onClick={() => void handleDispatch()}
                       loading={sending}
-                      disabled={!selectedRows.length || messageMissing || (hasResend && !resendConfirmed)}
+                      disabled={sending || !selectedRows.length || messageMissing || (hasResend && !resendConfirmed)}
                     >
                       <Send size={16} /> Disparar para {selectedRows.length} cliente(s)
                     </Button>
@@ -1124,6 +1332,14 @@ export function ClientesComunicacao() {
                     {dispatchMessage}
                   </p>
                 ) : null}
+                {batchSummary ? (
+                  <BatchResult
+                    summary={batchSummary}
+                    attachmentCustomers={batch?.attachmentCustomers ?? 0}
+                    retrying={sending}
+                    onRetry={() => void retryFailures()}
+                  />
+                ) : null}
               </div>
             </Card>
           </div>
@@ -1133,53 +1349,89 @@ export function ClientesComunicacao() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-[var(--app-text-strong)]">Histórico de Comunicados</h2>
-              <p className="mt-0.5 text-sm text-[var(--app-muted)]">O histórico é permanente e distingue enviados, simulados e falhas.</p>
+              <p className="mt-0.5 text-sm text-[var(--app-muted)]">O histórico é permanente e mostra, por destinatário, o que foi enviado, simulado ou falhou, com o motivo.</p>
             </div>
             <Badge tone="blue">{historyQuery.data?.length ?? 0} registros</Badge>
           </div>
+          {historyBlId ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3.5 py-2.5 text-sm text-[var(--app-text)]">
+              <span>Comunicados do B/L <strong className="font-mono">{historyBlId}</strong></span>
+              <Button
+                type="button"
+                variant="secondary"
+                className="app-btn--sm"
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams)
+                  next.delete('bl')
+                  setSearchParams(next, { replace: true })
+                }}
+              >
+                Ver todos
+              </Button>
+            </div>
+          ) : null}
           <div className="mt-4 grid gap-3 sm:grid-cols-5">
-            <Input placeholder="Navio" value={historyFilters.vessel} onChange={(e) => setHistoryFilters({ ...historyFilters, vessel: e.target.value })} />
-            <Input type="month" value={historyFilters.month} onChange={(e) => setHistoryFilters({ ...historyFilters, month: e.target.value })} />
-            <Select value={historyFilters.kind} onChange={(e) => setHistoryFilters({ ...historyFilters, kind: e.target.value })}><option value="">Todos os modelos</option>{KIND_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.title}</option>)}</Select>
-            <Select value={historyFilters.status} onChange={(e) => setHistoryFilters({ ...historyFilters, status: e.target.value })}><option value="">Todos os status</option><option value="enviado">Enviado</option><option value="simulado">Simulado</option><option value="parcial">Parcial</option><option value="falha">Falha</option></Select>
-            <Select value={historyFilters.origin} onChange={(e) => setHistoryFilters({ ...historyFilters, origin: e.target.value as '' | 'manual' | 'automatico' })}><option value="">Todas as origens</option><option value="automatico">Robô automático</option><option value="manual">Operador</option></Select>
+            <Input aria-label="Navio" placeholder="Navio" value={historyFilters.vessel} onChange={(e) => setHistoryFilters({ ...historyFilters, vessel: e.target.value })} />
+            <Input aria-label="Mês" type="month" value={historyFilters.month} onChange={(e) => setHistoryFilters({ ...historyFilters, month: e.target.value })} />
+            <Select aria-label="Modelo" value={historyFilters.kind} onChange={(e) => setHistoryFilters({ ...historyFilters, kind: e.target.value })}><option value="">Todos os modelos</option>{CUSTOMER_COMMUNICATION_KINDS.map((value) => <option key={value} value={value}>{customerCommunicationKindLabel(value)}</option>)}</Select>
+            <Select aria-label="Status" value={historyFilters.status} onChange={(e) => setHistoryFilters({ ...historyFilters, status: e.target.value })}><option value="">Todos os status</option>{HISTORY_STATUS_OPTIONS.map((value) => <option key={value} value={value}>{customerCommunicationStatusLabel(value)}</option>)}</Select>
+            <Select aria-label="Origem" value={historyFilters.origin} onChange={(e) => setHistoryFilters({ ...historyFilters, origin: e.target.value as '' | 'manual' | 'automatico' })}><option value="">Todas as origens</option><option value="automatico">Robô automático</option><option value="manual">Operador</option></Select>
           </div>
           {historyQuery.isLoading ? <div className="mt-5 text-sm text-[var(--app-muted)]">Carregando histórico...</div> : null}
           {historyQuery.isError ? <div className="mt-5"><InlineError message="Não foi possível carregar o histórico." /></div> : null}
           <div className="mt-5 grid gap-3">
-            {historyQuery.data?.map((item) => (
-              <div key={item.id} className="app-surface rounded-xl border border-[var(--app-border)] p-4 shadow-xs">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={statusTone(item.status)}>{customerCommunicationStatusLabel(item.status)}</Badge>
-                  <Badge tone={item.origin === 'automatico' ? 'blue' : 'slate'}>{item.origin === 'automatico' ? 'Robô automático' : 'Operador'}</Badge>
-                  <span className="font-semibold text-[var(--app-text-strong)]">{customerCommunicationKindLabel(item.kind)}</span>
-                  <span className="text-xs text-[var(--app-muted)]">#{item.id} · tentativa {item.attempt_discriminator}</span>
-                </div>
-                <div className="mt-2 text-sm text-[var(--app-text)]">
-                  {item.customer?.cnpj_cpf ? (
-                    <Link to={`/clientes/${encodeURIComponent(item.customer.cnpj_cpf)}`} className="font-medium text-blue-600 hover:underline">
-                      {item.customer.name}
-                    </Link>
-                  ) : (
-                    item.customer?.name ?? `Cliente ${item.customer_id}`
-                  )}
-                  {item.vessel_name ? ` · ${item.vessel_name}` : ''}
-                  {item.voyage_number ? ` / ${item.voyage_number}` : ''}
-                  {item.anchor_port ? ` · ${item.anchor_port}` : ''}
-                  {item.terminal_name ? ` · ${item.terminal_name}` : ''}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--app-muted)]">
-                  <span>{new Date(item.created_at).toLocaleString('pt-BR')}</span>
-                  {item.bl_links.length ? <span>B/Ls: {item.bl_links.map((link) => link.bl_id).join(', ')}</span> : <span>Institucional</span>}
-                  <span>{item.attempts.length} tentativa(s) registrada(s)</span>
-                </div>
-                {item.attachments.length ? (
-                  <div className="mt-2 text-xs text-[var(--app-muted-soft)]">
-                    Anexos: {item.attachments.map((attachment) => `${attachment.file_name} (${formatAttachmentSize(attachment.size_bytes)})`).join(', ')}
+            {historyQuery.data?.map((item) => {
+              const ceKey = `${item.customer_id}:${item.anchor_voyage_id}`
+              const ceResend = ceResendResults[ceKey]
+              const canResendCe = canSend && latestCeKeys.has(item.id)
+              return (
+                <div key={item.id} className="app-surface rounded-xl border border-[var(--app-border)] p-4 shadow-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={statusTone(item.status)}>{customerCommunicationStatusLabel(item.status)}</Badge>
+                    <Badge tone={item.origin === 'automatico' ? 'blue' : 'slate'}>{item.origin === 'automatico' ? 'Robô automático' : 'Operador'}</Badge>
+                    <span className="font-semibold text-[var(--app-text-strong)]">{customerCommunicationKindLabel(item.kind)}</span>
+                    <span className="text-xs text-[var(--app-muted)]">#{item.id} · tentativa {item.attempt_discriminator}</span>
+                    {canResendCe ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="app-btn--sm ml-auto"
+                        loading={ceResendMutation.isPending && ceResendMutation.variables?.customerId === item.customer_id && ceResendMutation.variables?.voyageId === item.anchor_voyage_id}
+                        disabled={ceResendMutation.isPending}
+                        onClick={() => void resendCeMercante(item)}
+                      >
+                        <RotateCcw size={14} aria-hidden="true" /> Reenviar CE e Taxas
+                      </Button>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-            ))}
+                  <div className="mt-2 text-sm text-[var(--app-text)]">
+                    {item.customer?.cnpj_cpf ? (
+                      <Link to={`/clientes/${encodeURIComponent(item.customer.cnpj_cpf)}`} className="font-medium text-blue-600 hover:underline">
+                        {item.customer.name}
+                      </Link>
+                    ) : (
+                      item.customer?.name ?? `Cliente ${item.customer_id}`
+                    )}
+                    {item.vessel_name ? ` · ${item.vessel_name}` : ''}
+                    {item.voyage_number ? ` / ${item.voyage_number}` : ''}
+                    {item.anchor_port ? ` · ${item.anchor_port}` : ''}
+                    {item.terminal_name ? ` · ${item.terminal_name}` : ''}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--app-muted)]">
+                    <span>{new Date(item.created_at).toLocaleString('pt-BR')}</span>
+                    {item.bl_links.length ? <span>B/Ls: {item.bl_links.map((link) => link.bl_id).join(', ')}</span> : <span>Institucional</span>}
+                    <span>{item.attempts.length} destinatário(s)</span>
+                  </div>
+                  {item.attachments.length ? (
+                    <div className="mt-2 text-xs text-[var(--app-muted-soft)]">
+                      Anexos: {item.attachments.map((attachment) => `${attachment.file_name} (${formatAttachmentSize(attachment.size_bytes)})`).join(', ')}
+                    </div>
+                  ) : null}
+                  {item.attempts.length ? <AttemptsTable communicationId={item.id} attempts={item.attempts} /> : null}
+                  {ceResend && latestCeKeys.has(item.id) ? <CeResendResult result={ceResend} /> : null}
+                </div>
+              )
+            })}
             {!historyQuery.isLoading && !historyQuery.isError && !historyQuery.data?.length ? (
               <div className="py-8 text-center text-sm text-[var(--app-muted)]">{historyCommunicationId > 0 ? 'Comunicado não encontrado.' : 'Nenhum comunicado registrado ainda.'}</div>
             ) : null}
@@ -1235,7 +1487,7 @@ export function ClientesComunicacao() {
             >
               Fechar
             </Button>
-            {conference && selectedRows.length ? (
+            {showConference && selectedRows.length ? (
               <Button
                 onClick={() => {
                   setPreviewModalOpen(false)
@@ -1388,7 +1640,7 @@ function ConferenceRow({
               })}
             </div>
           ) : (
-            <div className="text-[var(--app-red)]">Nenhum contato elegível neste recorte.</div>
+            <div className="text-[var(--app-danger-fg)]">Nenhum contato elegível neste recorte.</div>
           )}
           {row.excludedRecipients.length ? (
             <div className="mt-1.5 text-[11px] text-[var(--app-gold-strong)]">
@@ -1402,6 +1654,7 @@ function ConferenceRow({
           {row.blocked ? <Badge tone="red">Bloqueado</Badge> : selected ? <Badge tone="green">Elegível</Badge> : <Badge tone="slate">Desmarcado</Badge>}
           {resendLabel ? <Badge tone="yellow">{resendLabel}</Badge> : null}
         </div>
+        {row.blockedReason ? <p className="mt-1.5 text-xs text-[var(--app-danger-fg)]">{row.blockedReason}</p> : null}
         <Button type="button" variant="secondary" className="app-btn--sm mt-2" onClick={onPreview}>
           <Eye size={13} aria-hidden="true" /> Ver e-mail
         </Button>
@@ -1423,4 +1676,108 @@ function formatAttachmentSize(size: number): string {
   if (size < 1024) return `${size} B`
   if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`
   return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/**
+ * Uma linha por destinatário (plano dos e-mails, 3.3): o endereço mascarado
+ * como foi gravado, real ou simulado, a situação e o motivo traduzido — o texto
+ * técnico do provedor fica no `title`.
+ */
+function AttemptsTable({ communicationId, attempts }: { communicationId: number; attempts: CustomerCommunicationHistoryItem['attempts'] }) {
+  return (
+    <div className="app-table-scroll mt-3 rounded-lg border border-[var(--app-border)]">
+      <table className="app-table app-table--nested app-table--compact">
+        <caption className="sr-only">{`Destinatários do Comunicado ${communicationId}`}</caption>
+        <thead>
+          <tr>
+            <th scope="col" className="app-table__text-head">Destinatário</th>
+            <th scope="col">Envio</th>
+            <th scope="col">Situação</th>
+            <th scope="col" className="app-table__text-head">Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...attempts].sort((left, right) => left.id - right.id).map((attempt) => {
+            const failed = isFailedCustomerCommunicationAttempt(attempt.status)
+            const reason = customerCommunicationAttemptReason(attempt.last_error)
+            return (
+              <tr key={attempt.id}>
+                <td className="app-table__text text-xs">{attempt.recipient_masked}</td>
+                <td>{attempt.dispatch_mode === 'simulado' ? 'Simulado' : attempt.dispatch_mode === 'real' ? 'Real' : <NoValue label="Modo não registrado" />}</td>
+                <td>{failed ? <StatusText tone="danger">{customerCommunicationAttemptStatusLabel(attempt)}</StatusText> : customerCommunicationAttemptStatusLabel(attempt)}</td>
+                <td className="app-table__text app-table__text--wrap" title={attempt.last_error ?? undefined}>{reason ?? <NoValue label="Sem motivo registrado" />}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function CeResendResult({ result }: { result: { summary?: CeMercanteCommunicationDispatchSummary; error?: string } }) {
+  const summary = result.summary
+  const text = result.error
+    ? `Reenvio não feito: ${result.error}`
+    : !summary
+      ? null
+      : summary.status === 'enviado'
+        ? `CE e Taxas reenviado (tentativa ${summary.attemptDiscriminator}).`
+        : summary.status === 'simulado'
+          ? `Reenvio registrado em simulação (tentativa ${summary.attemptDiscriminator}); nenhum e-mail saiu.`
+          : summary.status === 'parcial'
+            ? `Reenvio parcial: ${summary.sentCount} enviado(s), ${summary.simulatedCount} simulado(s), ${summary.failedCount} falha(s)${summary.reason ? ` (${summary.reason})` : ''}; confira os destinatários no Histórico.`
+            : `Reenvio não feito: ${summary.reason ?? 'falha no envio.'}`
+  if (!text) return null
+  const problem = Boolean(result.error) || (summary ? summary.status !== 'enviado' && summary.status !== 'simulado' : false)
+  return (
+    <p role="status" className="mt-3 text-xs">
+      {problem ? <StatusText tone="warning">{text}</StatusText> : text}
+    </p>
+  )
+}
+
+/**
+ * Resumo do lote (plano dos e-mails, 3.2): quantos saíram, quantos ficaram
+ * simulados e quem falhou, com o motivo. "Repetir só as falhas" reenvia os
+ * mesmos itens, no mesmo Comunicado.
+ */
+function BatchResult({
+  summary,
+  attachmentCustomers,
+  retrying,
+  onRetry,
+}: {
+  summary: { sent: number; simulated: number; failed: CustomerCommunicationBatchOutcome[]; retryable: CustomerCommunicationBatchOutcome[] }
+  attachmentCustomers: number
+  retrying: boolean
+  onRetry: () => void
+}) {
+  return (
+    <div role="status" className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 text-xs leading-relaxed text-[var(--app-text)]">
+      <p className="font-semibold text-[var(--app-text-strong)]">Resultado do disparo</p>
+      <p className="mt-1">
+        {summary.sent} enviado(s) · {summary.simulated} simulado(s) ·{' '}
+        {summary.failed.length ? <StatusText tone="danger">{summary.failed.length} falha(s)</StatusText> : 'nenhuma falha'}
+      </p>
+      {attachmentCustomers ? <p className="mt-1">Anexo enviado a {attachmentCustomers} Cliente(s). Os anexos foram retirados para o próximo disparo.</p> : null}
+      {summary.failed.length ? (
+        <>
+          <ul className="mt-2 space-y-1">
+            {summary.failed.map((outcome) => (
+              <li key={outcome.key}>
+                <strong className="font-semibold">{outcome.customerName}</strong> · {outcome.input.recipient}: {outcome.reason ?? 'Falha no envio do comunicado.'}
+                {outcome.permanent ? <> <StatusText tone="warning">Não adianta repetir; corrija o contato.</StatusText></> : null}
+              </li>
+            ))}
+          </ul>
+          {summary.retryable.length ? (
+            <Button type="button" variant="secondary" className="app-btn--sm mt-2.5" loading={retrying} onClick={onRetry}>
+              <RotateCcw size={14} aria-hidden="true" /> Repetir só as falhas ({summary.retryable.length})
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  )
 }

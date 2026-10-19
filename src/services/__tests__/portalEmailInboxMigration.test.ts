@@ -24,7 +24,8 @@ describe('S07 — inbox durável de eventos do Portal', () => {
 
     const runner = readFileSync(runnerPath, 'utf8')
     expect(runner).toContain('PORTAL_EMAIL_EVENTS_CRON_SECRET')
-    expect(runner).toContain("admin.rpc('claim_portal_email_events'")
+    // A rodada (claim e devolução para retry) mora em _shared/portalEmailEventsRunner.ts.
+    expect(readFileSync(resolve(root, 'supabase/functions/_shared/portalEmailEventsRunner.ts'), 'utf8')).toContain("admin.rpc('claim_portal_email_events'")
     expect(runner).toContain('processPortalEmailEvent(admin')
     expect(runner).not.toContain('consumer_handlers_pending')
   })

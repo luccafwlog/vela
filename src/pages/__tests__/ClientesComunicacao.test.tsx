@@ -1,16 +1,40 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CustomerCommunicationConference } from '../../services/customerCommunications'
 import { ClientesComunicacao } from '../ClientesComunicacao'
 
-const mockSetCommunicationsMutation = {
-  mutateAsync: vi.fn(),
-  isPending: false,
+// O disparo em lote e o reenvio do CE usam os hooks reais; só o envio à Edge
+// e o reenvio do CE (serviços) são falsos.
+const { mockDispatch, mockCeDispatch, mockFetchConference, mockFetchHistory, mockConfirm } = vi.hoisted(() => ({
+  mockDispatch: vi.fn(),
+  mockCeDispatch: vi.fn(),
+  mockFetchConference: vi.fn(),
+  mockFetchHistory: vi.fn(),
+  mockConfirm: vi.fn(),
+}))
+vi.mock('../../services/customerCommunicationDispatches', async () => ({
+  ...(await vi.importActual<typeof import('../../services/customerCommunicationDispatches')>('../../services/customerCommunicationDispatches')),
+  dispatchCustomerCommunication: mockDispatch,
+}))
+vi.mock('../../services/customerFinanceCommunications', () => ({
+  dispatchCeMercanteTaxasCommunication: mockCeDispatch,
+}))
+vi.mock('../../services/customerCommunications', async () => ({
+  ...(await vi.importActual<typeof import('../../services/customerCommunications')>('../../services/customerCommunications')),
+  fetchCustomerCommunicationConference: mockFetchConference,
+  fetchCustomerCommunicationHistory: mockFetchHistory,
+}))
+
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  return renderBase(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
 }
 
-const mockDispatchMutation = {
+const mockSetCommunicationsMutation = {
   mutateAsync: vi.fn(),
   isPending: false,
 }
@@ -97,7 +121,10 @@ const mockConference = {
   rows: [acmeRow, blockedCustomerRow],
 }
 
-const mockHistory = [
+let mockHistory: unknown[] = []
+const historyCalls: Array<{ filters: unknown; enabled?: boolean }> = []
+const coverageEnabled: Array<boolean | undefined> = []
+const defaultHistory = [
   {
     id: 501,
     kind: 'aviso_chegada_noa',
@@ -150,17 +177,21 @@ vi.mock('../../hooks/useAuth', () => ({
 
 let activeMockConference: CustomerCommunicationConference | null | undefined = undefined
 
-vi.mock('../../hooks/useCustomerCommunications', () => ({
+vi.mock('../../hooks/useCustomerCommunications', async () => ({
+  ...(await vi.importActual<typeof import('../../hooks/useCustomerCommunications')>('../../hooks/useCustomerCommunications')),
   useCustomerCommunicationConference: () => ({
     data: activeMockConference !== undefined ? activeMockConference : mockConference,
     isFetching: false,
     isError: false,
   }),
-  useCustomerCommunicationHistory: () => ({
+  useCustomerCommunicationHistory: (filters: unknown, options?: { enabled?: boolean }) => {
+    historyCalls.push({ filters, enabled: options?.enabled })
+    return {
     data: mockHistory,
     isLoading: false,
     isError: false,
-  }),
+  }
+  },
   useCustomerCommunicationSavedTemplates: () => ({
     data: [],
     isLoading: false,
@@ -169,15 +200,14 @@ vi.mock('../../hooks/useCustomerCommunications', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
-  useDispatchCustomerCommunication: () => mockDispatchMutation,
-  useVoyageCommunicationCoverage: () => ({
+  useVoyageCommunicationCoverage: (_filters: unknown, options?: { enabled?: boolean }) => (coverageEnabled.push(options?.enabled), {
     data: mockCoverage,
     isLoading: false,
     isError: false,
   }),
 }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({
-  useConfirm: () => vi.fn().mockResolvedValue(true),
+  useConfirm: () => mockConfirm,
 }))
 
 /** O modo e o modelo viraram escolhas visíveis: rádios, não selects. */
@@ -188,10 +218,14 @@ function escolher(nome: RegExp) {
 describe('Página ClientesComunicacao (UI e fluxos)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockConfirm.mockResolvedValue(true)
+    mockFetchHistory.mockResolvedValue([])
+    mockHistory = defaultHistory
     activeMockConference = undefined
     mockAppSettings = { communications_enabled: false }
     mockAppSettingsLoading = false
     mockAppSettingsError = null
+    mockRefetchSettings.mockImplementation(async () => ({ data: mockAppSettings }))
     authState.canSend = true
   })
 
@@ -605,5 +639,423 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByText('Histórico de Comunicados')).toBeTruthy()
     expect(screen.getByText('ACME Importadora')).toBeTruthy()
     expect(screen.getAllByText('Simulado').length).toBeGreaterThanOrEqual(1)
+  })
+})
+
+function noaRow(customerId: number, name: string, emails: string[]) {
+  return {
+    key: `aviso_chegada_noa:${customerId}:1:BRSSZ`,
+    customerId,
+    customerName: name,
+    customerCnpj: `${customerId}${customerId}.111.111/0001-11`,
+    terminalId: null,
+    terminalName: null,
+    bls: [{ id: `BL-${customerId}`, customerId, voyageId: 1, pod: 'BRSSZ' }],
+    sourceBls: [{ id: `BL-${customerId}`, customerId, voyageId: 1, pod: 'BRSSZ' }],
+    eligibleRecipients: emails.map((email, index) => ({ id: customerId * 10 + index, email, name: email })),
+    excludedRecipients: [],
+    blocked: false,
+    selected: true,
+    nextAttemptDiscriminator: 0,
+    recipientSnapshot: `snap-${customerId}`,
+    renderInput: {
+      customerId,
+      customerName: name,
+      vesselName: 'COSCO SHIPPING XING WANG',
+      voyageNumber: '2401E',
+      port: 'BRSSZ',
+      milestoneAt: '2026-09-10T12:00:00Z',
+      bls: [{ id: `BL-${customerId}`, customerId }],
+    },
+  }
+}
+
+function conferenceOf(kind: string, rows: unknown[]) {
+  return {
+    kind,
+    nature: kind === 'livre' ? 'avisos_gerais' : 'avisos_operacionais',
+    mode: 'carga',
+    totalCustomers: rows.length,
+    totalEligibleEmails: 3,
+    totalExcludedEmails: 0,
+    excludedReasonCounts: { preferencia_desligada: 0, email_ausente: 0, suprimido_complaint: 0, suprimido_bounce: 0 },
+    blockedCustomers: [],
+    rows,
+  } as unknown as CustomerCommunicationConference
+}
+
+function conferir() {
+  fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: 'COSCO SHIPPING XING WANG' } })
+  fireEvent.click(screen.getByRole('button', { name: /Conferir destinatários/i }))
+}
+
+describe('Disparo em lote, confirmação e Histórico (plano dos e-mails, Fase 3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockConfirm.mockResolvedValue(true)
+    mockFetchHistory.mockResolvedValue([])
+    mockHistory = defaultHistory
+    mockAppSettings = { communications_enabled: false }
+    mockAppSettingsLoading = false
+    mockAppSettingsError = null
+    authState.canSend = true
+  })
+
+  it('lote com falha no 2º de 3: os 3 são chamados, o resumo aparece, a seleção fica e repetir envia só a falha com o mesmo item', async () => {
+    activeMockConference = conferenceOf('aviso_chegada_noa', [
+      noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com']),
+      noaRow(2, 'Beta Comércio', ['c@beta.com']),
+    ])
+    mockFetchConference.mockResolvedValue(activeMockConference)
+    mockDispatch
+      .mockResolvedValueOnce({ communicationId: 1, status: 'simulado' })
+      .mockRejectedValueOnce(new Error('Contato desativado para esta caixa ou modelo.'))
+      .mockResolvedValueOnce({ communicationId: 2, status: 'simulado' })
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 2 cliente/i }))
+
+    const resultado = await screen.findByText('Resultado do disparo')
+    const painel = resultado.closest('[role="status"]') as HTMLElement
+    expect(mockDispatch).toHaveBeenCalledTimes(3)
+    expect(mockDispatch.mock.calls.map(([input]) => input.recipient)).toEqual(['a@acme.com', 'b@acme.com', 'c@beta.com'])
+    expect(within(painel).getByText(/2 simulado\(s\)/)).toBeTruthy()
+    expect(within(painel).getByText('1 falha(s)')).toBeTruthy()
+    expect(within(painel).getByText(/b@acme.com: Contato desativado para esta caixa ou modelo\./)).toBeTruthy()
+    // A conferência continua na tela, com a seleção de antes.
+    expect(screen.getByText('Destinatários conferidos')).toBeTruthy()
+    expect((screen.getByLabelText('Selecionar ACME Importadora') as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByLabelText('Selecionar Beta Comércio') as HTMLInputElement).checked).toBe(true)
+
+    mockDispatch.mockResolvedValueOnce({ communicationId: 1, status: 'simulado' })
+    fireEvent.click(within(painel).getByRole('button', { name: /Repetir só as falhas \(1\)/ }))
+
+    await waitFor(() => expect(within(painel).getByText(/3 simulado\(s\)/)).toBeTruthy())
+    // D16 também na repetição: a chave pode ter mudado depois do lote.
+    expect(mockConfirm.mock.calls.at(-1)?.[0]).toMatchObject({ title: 'Repetir em simulação' })
+    expect(mockConfirm.mock.calls.at(-1)?.[0].message).toMatch(/^1 destinatário\(s\) de 1 Cliente\(s\)/)
+    expect(mockDispatch).toHaveBeenCalledTimes(4)
+    expect(mockDispatch.mock.calls[3][0]).toEqual(mockDispatch.mock.calls[1][0])
+    expect(within(painel).getByText(/nenhuma falha/)).toBeTruthy()
+  })
+
+  it('"Repetir só as falhas" relê a chave e confirma de novo: simulação que vira envio real avisa antes', async () => {
+    activeMockConference = conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com'])])
+    mockFetchConference.mockResolvedValue(activeMockConference)
+    mockDispatch
+      .mockResolvedValueOnce({ communicationId: 1, status: 'simulado' })
+      .mockRejectedValueOnce(new Error('Falha no envio do comunicado.'))
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+    const painel = (await screen.findByText('Resultado do disparo')).closest('[role="status"]') as HTMLElement
+
+    // A chave foi ligada depois do lote; a tela ainda mostra o valor antigo.
+    mockRefetchSettings.mockResolvedValueOnce({ data: { communications_enabled: true } })
+    mockConfirm.mockResolvedValueOnce(false)
+    fireEvent.click(within(painel).getByRole('button', { name: /Repetir só as falhas \(1\)/ }))
+
+    await waitFor(() => expect(mockConfirm).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Repetir de verdade', tone: 'danger' })))
+    expect(mockDispatch).toHaveBeenCalledTimes(2)
+  })
+
+  it('confirma antes de disparar, dizendo se é simulação e para quantos destinatários; Cancelar não envia nada', async () => {
+    activeMockConference = conferenceOf('aviso_chegada_noa', [
+      noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com']),
+      noaRow(2, 'Beta Comércio', ['c@beta.com']),
+    ])
+    mockConfirm.mockResolvedValue(false)
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 2 cliente/i }))
+
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1))
+    expect(mockConfirm.mock.calls[0][0]).toMatchObject({
+      title: 'Registrar em simulação',
+      message: expect.stringContaining('3 destinatário(s) de 2 Cliente(s)'),
+      confirmLabel: 'Confirmar',
+      cancelLabel: 'Cancelar',
+    })
+    expect(mockFetchConference).not.toHaveBeenCalled()
+    expect(mockDispatch).not.toHaveBeenCalled()
+  })
+
+  it('com a chave ligada, a confirmação é "Enviar de verdade"', async () => {
+    mockAppSettings = { communications_enabled: true }
+    activeMockConference = conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com'])])
+    mockConfirm.mockResolvedValue(false)
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1))
+    expect(mockConfirm.mock.calls[0][0]).toMatchObject({ title: 'Enviar de verdade', message: expect.stringContaining('1 destinatário(s) de 1 Cliente(s)') })
+  })
+
+  it('o livre leva a Viagem na identidade e repete com o mesmo dispatchId enquanto a conferência não muda', async () => {
+    const livre = { ...noaRow(1, 'ACME Importadora', ['a@acme.com']), key: 'livre:1:1' }
+    activeMockConference = conferenceOf('livre', [livre])
+    mockFetchConference.mockResolvedValue(activeMockConference)
+    mockDispatch.mockResolvedValue({ communicationId: 9, status: 'simulado' })
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: /Comunicado livre/ }))
+    fireEvent.change(screen.getByLabelText(/^Assunto/), { target: { value: 'Recesso' } })
+    fireEvent.change(screen.getByLabelText(/^Mensagem/), { target: { value: 'Comunicamos o recesso.' } })
+    conferir()
+
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+    await screen.findByText('Resultado do disparo')
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalledTimes(2))
+
+    const [first, second] = mockDispatch.mock.calls.map(([input]) => input)
+    expect(first.dispatchId).toEqual(expect.any(String))
+    expect(second.dispatchId).toBe(first.dispatchId)
+    expect(second.attemptDiscriminator).toBe(first.attemptDiscriminator)
+    expect(first.anchorVoyageId).toBe(1)
+    expect(first.anchorPort).toBeNull()
+  })
+
+  it('no livre, o rótulo de envios anteriores conta os da Viagem, não o discriminador do Cliente', () => {
+    const livre = { ...noaRow(1, 'ACME Importadora', ['a@acme.com']), key: 'livre:1:1', nextAttemptDiscriminator: 5, previousDispatchCount: 2 }
+    activeMockConference = conferenceOf('livre', [livre])
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: /Comunicado livre/ }))
+    fireEvent.change(screen.getByLabelText(/^Assunto/), { target: { value: 'Recesso' } })
+    fireEvent.change(screen.getByLabelText(/^Mensagem/), { target: { value: 'Comunicamos o recesso.' } })
+    conferir()
+
+    expect(screen.getByText('2 envio(s) anterior(es)')).toBeTruthy()
+    expect(screen.queryByText('5 envio(s) anterior(es)')).toBeNull()
+  })
+
+  it('disparar de novo depois do lote, com Comunicados novos, recusa e pede para conferir de novo', async () => {
+    activeMockConference = conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com'])])
+    // A reconferência do 1º disparo vê a mesma conferência; a do 2º já vê o
+    // Comunicado do 1º (discriminador seguinte), e a tela continua com a velha.
+    mockFetchConference
+      .mockResolvedValueOnce(activeMockConference)
+      .mockResolvedValueOnce(conferenceOf('aviso_chegada_noa', [{ ...noaRow(1, 'ACME Importadora', ['a@acme.com']), nextAttemptDiscriminator: 1 }]))
+    mockDispatch.mockResolvedValue({ communicationId: 9, status: 'enviado' })
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+    await screen.findByText('Resultado do disparo')
+    expect(mockDispatch).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+
+    expect(await screen.findByText('Há Comunicados novos desde a conferência. Confira de novo.')).toBeTruthy()
+    expect(mockFetchConference).toHaveBeenCalledTimes(2)
+    expect(mockDispatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('recusa definitiva aparece como "não adianta repetir" e fica fora de "Repetir só as falhas"', async () => {
+    const { CustomerCommunicationDispatchError } = await import('../../services/customerCommunicationDispatches')
+    activeMockConference = conferenceOf('aviso_chegada_noa', [noaRow(1, 'ACME Importadora', ['a@acme.com', 'b@acme.com', 'c@acme.com'])])
+    mockFetchConference.mockResolvedValue(activeMockConference)
+    mockDispatch
+      .mockRejectedValueOnce(new CustomerCommunicationDispatchError('O provedor recusou a mensagem (endereço ou conteúdo inválido).', { permanent: true, communicationId: 9 }))
+      .mockRejectedValueOnce(new CustomerCommunicationDispatchError('Provedor de e-mail indisponível no momento; a mensagem pode ser reenviada.', { communicationId: 9 }))
+      .mockResolvedValueOnce({ communicationId: 9, status: 'simulado' })
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+    fireEvent.click(screen.getByRole('button', { name: /Disparar para 1 cliente/i }))
+
+    const painel = (await screen.findByText('Resultado do disparo')).closest('[role="status"]') as HTMLElement
+    expect(within(painel).getByText('2 falha(s)')).toBeTruthy()
+    expect(within(painel).getByText(/a@acme.com: O provedor recusou a mensagem \(endereço ou conteúdo inválido\)\./)).toBeTruthy()
+    expect(within(painel).getAllByText('Não adianta repetir; corrija o contato.')).toHaveLength(1)
+
+    mockDispatch.mockResolvedValueOnce({ communicationId: 9, status: 'simulado' })
+    fireEvent.click(within(painel).getByRole('button', { name: /Repetir só as falhas \(1\)/ }))
+
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalledTimes(4))
+    expect(mockDispatch.mock.calls[3][0].recipient).toBe('b@acme.com')
+    expect(await within(painel).findByText('1 falha(s)')).toBeTruthy()
+    // Sobra só a recusa definitiva: não há o que repetir.
+    expect(within(painel).queryByRole('button', { name: /Repetir só as falhas/ })).toBeNull()
+  })
+
+  it('mostra na conferência o NOB bloqueado pelo terminal sem sigla, com o motivo', () => {
+    activeMockConference = conferenceOf('aviso_atracacao_nob', [
+      { ...noaRow(1, 'ACME Importadora', ['a@acme.com']), blocked: true, selected: false, blockedReason: 'Terminal da Atracação sem sigla cadastrada.' },
+    ])
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+    conferir()
+
+    expect(screen.getByText('Terminal da Atracação sem sigla cadastrada.')).toBeTruthy()
+    expect((screen.getByLabelText('Selecionar ACME Importadora') as HTMLInputElement).disabled).toBe(true)
+  })
+
+  it('o Histórico mostra cada destinatário mascarado, real ou simulado, a situação e o motivo traduzido', () => {
+    mockHistory = [{
+      ...defaultHistory[0],
+      status: 'parcial',
+      attempts: [
+        { id: 1, recipient_masked: 'a***@a***.com', dispatch_mode: 'real', status: 'aceito', retry_count: 0, provider_message_id: 'msg-1', last_error: null, created_at: '', updated_at: '' },
+        { id: 2, recipient_masked: 'b***@a***.com', dispatch_mode: 'real', status: 'falha_permanente', retry_count: 0, provider_message_id: null, last_error: 'HTTP 422 validation_error', created_at: '', updated_at: '' },
+      ],
+    }]
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    const tabela = screen.getByRole('table', { name: 'Destinatários do Comunicado 501' })
+    expect(within(tabela).getByText('a***@a***.com')).toBeTruthy()
+    expect(within(tabela).getByText('Aceito pelo provedor')).toBeTruthy()
+    expect(within(tabela).getByText('Recusado pelo provedor')).toBeTruthy()
+    const motivo = within(tabela).getByText('O provedor recusou a mensagem (endereço ou conteúdo inválido).')
+    expect(motivo.getAttribute('title')).toBe('HTTP 422 validation_error')
+    expect(within(tabela).getAllByText('Real')).toHaveLength(2)
+  })
+
+  it('os filtros do Histórico têm todos os modelos e o status "Em envio"', () => {
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    const modelos = [...(screen.getByLabelText('Modelo') as HTMLSelectElement).options].map((option) => option.textContent)
+    expect(modelos).toContain('CE Mercante · Taxas Locais')
+    expect(modelos).toContain('Cobrança de Demurrage')
+    const status = [...(screen.getByLabelText('Status') as HTMLSelectElement).options].map((option) => option.value)
+    expect(status).toEqual(['', 'pendente', 'enviado', 'simulado', 'parcial', 'falha'])
+    expect(screen.getByRole('option', { name: 'Em envio' })).toBeTruthy()
+  })
+
+  it('"Reenviar CE e Taxas" no último CE do Cliente × Viagem chama o serviço com forceRetry e mostra o resultado', async () => {
+    const ce = { ...defaultHistory[0], kind: 'ce_mercante_taxas', anchor_voyage_id: 7, status: 'simulado' }
+    mockHistory = [{ ...ce, id: 900 }, { ...ce, id: 800, attempt_discriminator: 0 }]
+    mockCeDispatch.mockResolvedValue({ status: 'simulado', attemptDiscriminator: 2, sentCount: 0, simulatedCount: 1, communicationIds: [901], reason: null })
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    const botoes = screen.getAllByRole('button', { name: /Reenviar CE e Taxas/ })
+    expect(botoes).toHaveLength(1)
+    fireEvent.click(botoes[0])
+
+    await waitFor(() => expect(mockCeDispatch).toHaveBeenCalledWith(7, 1, { forceRetry: true }))
+    expect(mockConfirm.mock.calls[0][0]).toMatchObject({ title: 'Reenviar CE e Taxas', cancelLabel: 'Cancelar' })
+    expect(mockConfirm.mock.calls[0][0].message).not.toContain('mais recente')
+    expect(await screen.findByText(/Reenvio registrado em simulação \(tentativa 2\)/)).toBeTruthy()
+  })
+
+  it('com o Histórico filtrado, o diálogo do reenvio do CE avisa o envio mais recente da viagem', async () => {
+    const ce = { ...defaultHistory[0], kind: 'ce_mercante_taxas', anchor_voyage_id: 7, status: 'falha' }
+    mockHistory = [{ ...ce, id: 800 }]
+    mockFetchHistory.mockResolvedValue([{ ...ce, id: 900, status: 'enviado', created_at: '2026-10-18T13:00:00Z' }, { ...ce, id: 800 }])
+    mockConfirm.mockResolvedValueOnce(false)
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Reenviar CE e Taxas/ }))
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalled())
+    expect(mockFetchHistory).toHaveBeenCalledWith({ customerId: 1, voyageId: 7, kind: 'ce_mercante_taxas' })
+    expect(mockConfirm.mock.calls[0][0].message).toContain('Há um envio mais recente desta viagem: Enviado')
+    expect(mockCeDispatch).not.toHaveBeenCalled()
+  })
+
+  it('"Reenviar CE e Taxas" sem saber se a chave está ligada não confirma nem envia', async () => {
+    mockAppSettings = null
+    mockHistory = [{ ...defaultHistory[0], kind: 'ce_mercante_taxas', anchor_voyage_id: 7, status: 'simulado', id: 900 }]
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Reenviar CE e Taxas/ }))
+    expect(await screen.findByText(/Não foi possível confirmar se o envio real está ligado/)).toBeTruthy()
+    expect(mockConfirm).not.toHaveBeenCalled()
+    expect(mockCeDispatch).not.toHaveBeenCalled()
+  })
+
+  it('quem não envia não vê o reenvio do CE', () => {
+    authState.canSend = false
+    mockHistory = [{ ...defaultHistory[0], kind: 'ce_mercante_taxas', anchor_voyage_id: 7 }]
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByRole('button', { name: /Reenviar CE e Taxas/ })).toBeNull()
+  })
+
+  it('o link do alerta abre o Histórico filtrado pelos CE e Taxas do B/L, e a Cobertura só carrega na aba dela', () => {
+    historyCalls.length = 0
+    coverageEnabled.length = 0
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=historico&kind=ce_mercante_taxas&bl=BL-77']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('BL-77')).toBeTruthy()
+    expect((screen.getByLabelText('Modelo') as HTMLSelectElement).value).toBe('ce_mercante_taxas')
+    expect(historyCalls.at(-1)).toMatchObject({ filters: { blId: 'BL-77', kind: 'ce_mercante_taxas' }, enabled: true })
+    // Fora da aba Cobertura, a cobertura não é consultada.
+    expect(coverageEnabled.length).toBeGreaterThan(0)
+    expect(coverageEnabled.every((enabled) => enabled === false)).toBe(true)
   })
 })

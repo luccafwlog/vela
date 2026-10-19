@@ -698,7 +698,7 @@ fica o desenho:
   nasce fechada e o acesso é concedido caso a caso na própria migration
   ([ADR 0047](adr/0047-grants-de-funcao-fechados-por-padrao.md)). Não há
   exceção pré-autenticação: `portal_ship_schedule()` deixou de ser executável
-  por `anon` na migration `302` ([ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)),
+  por `anon` na migration `319` ([ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)),
   e a exceção `anon` da ADR 0013 (`portal_resolve_login`) foi encerrada pela
   migration arquivada `182`;
 - a emissão segue a trava do Portal, sem exceção para a automação pelo CE
@@ -795,13 +795,29 @@ integração na arquitetura.
 Os e-mails do Portal e os Comunicados passam pela mecânica comum de
 `supabase/functions/_shared/email.ts`; `portalEmail.ts` adapta essa mecânica às
 tentativas e supressões do Portal. Ambos preservam idempotência e novas
-tentativas de falhas transitórias. A simulação (`simulate: true`) só acontece no
-canal de Comunicados, inclusive a Régua de Cobrança, com a chave global de envio
-desligada; sem `RESEND_API_KEY`, o envio real falha e a tentativa fica
-registrada como `falha_permanente`. A origem da API vem do secret opcional
+tentativas de falhas transitórias. A simulação (`simulate: true`) acontece com a
+chave global de envio desligada nos Comunicados (inclusive a Régua de Cobrança)
+e nos avisos do Desbloqueio de CE (D11); os demais e-mails do Portal não
+simulam. Com a chave ligada e sem `RESEND_API_KEY`, remetente ou reply-to, os
+Comunicados recusam antes de registrar o Comunicado e o Desbloqueio de CE deixa
+a fila intacta; no `sendEmail`, sem `RESEND_API_KEY`, a tentativa fica
+`falha_permanente`. Cada chamada ao provedor tem tempo limite de 15 s. Tempo
+esgotado vira `falha_transitoria` sem repetir na mesma chamada (o pedido anterior
+pode ainda estar rodando no provedor); erro de rede, 408, 429 (respeitando
+`Retry-After` até 10 s), 5xx e 409 `concurrent_idempotent_requests` ou
+`resource_locked` têm até três tentativas na rodada e terminam
+`falha_transitoria`. 401, 403 e o 400/422 de configuração (chave da API,
+remetente ou reply-to inválidos) também ficam `falha_transitoria`, com
+"(configuração do provedor)" no motivo, para a tentativa voltar a ser feita
+depois de corrigida a configuração. Os demais 4xx viram `falha_permanente`. Se o
+provedor aceitou e a gravação do id falhou, o envio conta como aceito (o
+Comunicado não fica `falha`), e a chave de idempotência evita duplicidade. Erro
+ao consultar as listas de supressão impede o envio. A origem da API vem do secret opcional
 `RESEND_BASE_URL` (padrão `https://api.resend.com`), o que permite trocar por
-um provedor compatível sem mudar código. O envio real usa `PORTAL_FROM_EMAIL` e
-`PORTAL_REPLY_TO`; domínio próprio verificado continua sendo condição para o
+um provedor compatível sem mudar código. O envio real usa `PORTAL_FROM_EMAIL` como
+remetente; o reply-to é `PORTAL_REPLY_TO` no Portal e no Desbloqueio de CE,
+`COMMUNICATIONS_REPLY_TO` nos Comunicados e `DEMURRAGE_REPLY_TO` na Régua de
+Cobrança; domínio próprio verificado continua sendo condição para o
 envio real ([Serviços externos § MillionSend](operations/servicos-externos.md#millionsend-envio)).
 
 Os eventos de entrega chegam pelo `portal-email-webhook`, que valida a

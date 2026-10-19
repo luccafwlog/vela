@@ -252,9 +252,38 @@ cumprimento é medido pela data da exportação.
 Recusa de documento (com o motivo) e documentação validada (com o
 prazo) geram um aviso no sino do Portal e uma linha na fila `ce_unlock_email_outbox`; a
 Edge Function `ce-unlock-notify-email` envia aos contatos da caixa **Documentação e
-Operação**, respeitando a chave global de Comunicados, supressão e bounce, e registra a tentativa
-em `portal_email_attempts`. Nenhum texto cita ZPT ou desbloqueio confirmado. O Portal mostra
+Operação** e registra cada tentativa em `portal_email_attempts`
+(`ce_unlock_notificacao`). Nenhum texto cita ZPT ou desbloqueio confirmado. O Portal mostra
 só a data do prazo (nunca "vencido"), e seu histórico omite exportação, entrega e VIP.
+
+Como cada aviso termina na fila (migration `307`):
+
+| Estado | Quando |
+| --- | --- |
+| `sent` | Todos os contatos da caixa receberam |
+| `partial` | Parte recebeu e o restante está na supressão do Portal (bounce ou reclamação); não volta a ser tentado |
+| `simulated` | Chave **Canal de envio real** desligada: os destinatários são resolvidos e o envio é registrado como simulado, sem chamar o provedor. O aviso **não** é enviado depois, quando a chave for ligada (D11 do [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md)) |
+| `skipped` | Nenhum destinatário: sem contato na caixa ou todos suprimidos |
+| `pending` | Falha de envio ou erro na linha; a próxima rodada tenta de novo, sem reenviar a quem já recebeu |
+| `failed` | Cinco tentativas sem sucesso |
+
+Regras da rodada:
+
+- Erro ao ler a chave de envio responde 500 e não consome a fila.
+- Com a chave ligada, sem chave do provedor, remetente ou reply-to, responde 503 e não consome a
+  fila. Com a chave desligada, simula mesmo sem essa configuração.
+- Um erro numa linha conta a tentativa dela e a rodada segue para a próxima.
+- `skipped` e `failed` abrem o alerta **Aviso do Desbloqueio de CE não enviado**
+  (`desbloqueio_ce_aviso_nao_enviado`, Administrativo, um por Cliente). "Abrir Cliente" leva à ficha
+  do Cliente (o CNPJ vai no alerta desde a migration `314`). Ele fecha sozinho quando
+  um aviso seguinte do mesmo Cliente termina `sent`, `partial` ou `simulated`; depois de
+  corrigir o contato, quando não há aviso seguinte, resolve-se com justificativa na fila
+  (migration `316`). Contato da caixa devolvido ou com reclamação não recebe: com outro
+  contato que recebeu, o aviso fecha `partial`; sem nenhum, `skipped` com o motivo
+  "todos suprimidos", não "sem contato".
+- A resposta traz `{ sent, partialSuppressed, simulated, skipped, retry, failed }`; `failed > 0` deixa o
+  heartbeat `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` vermelho. Exceções e respostas 5xx vão
+  ao Sentry.
 
 ### Envio e conciliação com a ZPT
 
@@ -369,7 +398,7 @@ que não comprovam o gateway Supabase nem o envio real de e-mail.
 
 **Não comprovado:** aceite da planilha `zpt-5-v2` pela aba "Planilha desbloqueio" da ZPT
 (sem modelo oficial de importação; o primeiro upload real é o teste), entrega real dos avisos por e-mail (em produção os Comunicados estavam
-desligados e a tentativa ficou `skipped`) e a falha física no Storage seguida de nova
+desligados e, até a migration `307`, a linha ficava `skipped` sem lista de destinatários) e a falha física no Storage seguida de nova
 tentativa no expurgo. A migration `220` está em produção desde 2026-10-13. O expurgo removeu
 em produção, na rodada de 2026-10-15, um PDF real de 145.648 bytes enviado pelo Portal num
 rascunho de teste tornado elegível: rascunho cancelado, documento com `purged_at`, objeto

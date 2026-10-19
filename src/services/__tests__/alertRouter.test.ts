@@ -107,6 +107,20 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     expect(link).toBe('/reconciliacao?tab=pendencias')
   })
 
+  it('evento de e-mail em investigação abre os Alertas, não o Portal de um Cliente com o id do evento', () => {
+    const alert = {
+      type: 'portal_reprocessamento_falhou',
+      entity_type: 'portal_email_event',
+      entity_id: '981',
+      destination: '/clientes/portal',
+    }
+    expect(alertEntityLink(alert)).toBe('/alertas')
+    expect(alertEntityLinkLabel(alert)).toBe('Abrir Alertas')
+    // O mesmo tipo por B/L continua abrindo o faturamento do B/L.
+    expect(alertEntityLink({ type: 'portal_reprocessamento_falhou', entity_type: 'bl', entity_id: 'BL-1' }))
+      .toBe('/bls/BL-1?tab=faturamento')
+  })
+
   it('rebaixa destination a fallback quando o roteador não deriva rota', () => {
     const fallbackLink = alertEntityLink({
       type: 'unknown_type',
@@ -133,5 +147,12 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     })
     expect(link).toBe('/baplie?voyage=99')
     expect(alertEntityLinkLabel({ type: 'generic_alert', item_type: 'voyage_baplie_missing', entity_type: 'voyage' })).toBe('Abrir Baplie')
+  })
+
+  // Plano dos e-mails, 3.1: o reenvio do CE e Taxas está no Histórico dos Comunicados.
+  it('abre os Comunicados de CE e Taxas do B/L no alerta de reenvio do CE', () => {
+    expect(alertEntityLink({ type: 'comunicado_ce_reenvio_pendente', entity_type: 'bl', entity_id: 'BL 1/2' }))
+      .toBe('/clientes/comunicacao?tab=historico&kind=ce_mercante_taxas&bl=BL%201%2F2')
+    expect(alertEntityLinkLabel({ type: 'comunicado_ce_reenvio_pendente', entity_type: 'bl' })).toBe('Abrir Comunicados')
   })
 })

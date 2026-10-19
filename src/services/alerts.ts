@@ -23,6 +23,7 @@ export type ActiveAlertType =
   | 'import_effect_blocked'
   | 'import_effects_queue_stalled'
   | 'demurrage_invoice_dates_changed'
+  | 'cobranca_demurrage_recusada'
   | 'ce_trocado_com_desbloqueio'
   | 'bl_vehicles_changed_on_reimport'
   | 'comunicado_ce_reenvio_pendente'
@@ -43,6 +44,10 @@ export type ActiveAlertType =
   | 'comunicado_nor_pendente'
   | 'comunicado_nob_pendente'
   | 'comunicado_recusado'
+  | 'desbloqueio_ce_aviso_nao_enviado'
+  | 'email_retorno_provedor_silencioso'
+  | 'usuario_email_devolvido'
+  | 'rotina_http_falhou'
   | 'agency_report_department_pending'
   | 'agency_report_deadline_missed'
   | 'review_customer_unlinked'
@@ -77,6 +82,7 @@ export const TYPE_LABELS: Record<string, string> = {
   import_effect_blocked: 'Efeito de importação bloqueado',
   import_effects_queue_stalled: 'Fila de efeitos de importação parada',
   demurrage_invoice_dates_changed: 'Datas mudaram em Invoice de Demurrage emitida',
+  cobranca_demurrage_recusada: 'Cobrança de Demurrage recusada',
   ce_trocado_com_desbloqueio: 'CE trocado depois do Desbloqueio conferido',
   bl_vehicles_changed_on_reimport: 'Veículos alterados na reimportação do B/L',
   comunicado_ce_reenvio_pendente: 'Reenviar Comunicado de CE e Taxas',
@@ -94,7 +100,11 @@ export const TYPE_LABELS: Record<string, string> = {
   comunicado_nor_pendente: 'Comunicado NOR pendente',
   comunicado_nob_pendente: 'Comunicado NOB pendente',
   comunicado_recusado: 'Comunicado automático recusado',
-  nob_sem_destinatario: 'NOB sem destinatário',
+  email_retorno_provedor_silencioso: 'Provedor de e-mail sem retorno',
+  usuario_email_devolvido: 'Usuário interno com e-mail devolvido',
+  rotina_http_falhou: 'Rotina agendada com resposta de erro',
+  desbloqueio_ce_aviso_nao_enviado: 'Aviso do Desbloqueio de CE não enviado',
+  nob_sem_destinatario: 'Comunicado sem destinatário',
   caixa_sem_destinatario: 'Caixa de comunicação sem destinatário',
   cliente_sem_contato_principal: 'Cliente sem contato principal',
   agency_report_department_pending: 'ADR — departamento pendente',
@@ -129,6 +139,10 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   import_effect_queue: 'Fila de efeitos de importação',
   charge_table_gap: 'Tabela de cobrança',
   pix_transaction: 'Transação PIX',
+  email_provider: 'Provedor de e-mail',
+  user_profile: 'Usuário interno',
+  cron_http: 'Rotinas agendadas',
+  portal_email_event: 'Evento de e-mail',
 }
 
 export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
@@ -161,6 +175,7 @@ import { AGENCY_REPORT_DEPARTMENT_LABELS, agencyReportSectionLabel } from './age
 const CUSTOMER_CONTACT_ALERT_TYPES: ReadonlySet<string> = new Set([
   'cliente_contato_bounced_sem_alternativa',
   'nob_sem_destinatario',
+  'desbloqueio_ce_aviso_nao_enviado',
   'caixa_sem_destinatario',
   'cliente_sem_contato_principal',
 ])
@@ -331,7 +346,17 @@ function alertEntityLinkRaw(alert: {
     return alert.destination ?? '/clientes/comunicacao'
   }
 
+  // O reenvio do CE e Taxas mora no Histórico dos Comunicados (plano dos
+  // e-mails, 3.1): o alerta abre os Comunicados deste B/L.
+  if (effectiveType === 'comunicado_ce_reenvio_pendente' && alert.entity_type === 'bl') {
+    return `/clientes/comunicacao?tab=historico&kind=ce_mercante_taxas&bl=${encodeURIComponent(alert.entity_id)}`
+  }
+
   if (alert.entity_type === 'pix_transaction') return PIX_PENDING_HREF
+  // Evento do provedor de e-mail que foi para investigação (migrations 109 e
+  // 309): o entity_id é o id do evento, não de um Cliente, e nenhuma tela
+  // mostra o evento. O alerta fica na fila, com o motivo na mensagem.
+  if (alert.entity_type === 'portal_email_event') return '/alertas'
   if (effectiveType === 'portal_dispute_opened' && alert.entity_type === 'demurrage_invoice') {
     const disputeId = alert.metadata?.dispute_id
     return typeof disputeId === 'string' || typeof disputeId === 'number'
@@ -426,6 +451,7 @@ export function alertEntityLinkLabel(alert: {
     || effectiveType === 'comunicado_nor_pendente'
     || effectiveType === 'comunicado_nob_pendente'
     || effectiveType === 'comunicado_recusado'
+    || effectiveType === 'comunicado_ce_reenvio_pendente'
   ) return 'Abrir Comunicados'
   if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType)) return 'Abrir Cliente'
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
@@ -436,6 +462,7 @@ export function alertEntityLinkLabel(alert: {
   if (effectiveType === 'review_granite_customer_unlinked') return 'Abrir Granito'
   if (effectiveType.startsWith('review_')) return 'Revisar B/Ls'
   if (alert.entity_type === 'pix_transaction') return 'Abrir Reconciliação'
+  if (alert.entity_type === 'portal_email_event') return 'Abrir Alertas'
   if (alert.entity_type === 'customer') return 'Abrir Portal'
   if (alert.entity_type === 'invoice') return 'Ver Fatura'
   if (alert.entity_type === 'demurrage_invoice') return 'Ver Demurrage'
@@ -514,17 +541,28 @@ export async function dismissAlertItem(
 /**
  * Tipos de conferência sem fato de origem: fecham com "Resolver com
  * justificativa" (ADR 0083, item 23). Espelha
- * `_alert_types_resolved_with_justification()` (migration 238); os demais
- * fecham sozinhos quando a origem é corrigida.
+ * `_alert_types_resolved_with_justification()` (migrations 238, 313 e 316); os
+ * demais fecham sozinhos quando a origem é corrigida.
  */
 export const ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION: readonly string[] = [
   'portal_abuso_login',
   'bl_vehicles_changed_on_reimport',
   'ce_trocado_com_desbloqueio',
+  // Recusa definitiva da cobrança (migration 313): resolver retoma a Régua.
+  'cobranca_demurrage_recusada',
+  // Aviso que não sai de novo depois que a solicitação terminou (migration 316).
+  'desbloqueio_ce_aviso_nao_enviado',
 ]
 
-export function canResolveWithJustification(type: string | null | undefined): boolean {
-  return Boolean(type && ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION.includes(type))
+/**
+ * Espelha `_alert_item_resolved_with_justification(tipo, entidade)` (migration
+ * 316): o evento de e-mail em investigação nunca sai de lá sozinho; o mesmo tipo
+ * no reprocessamento do faturamento por B/L fecha pela origem.
+ */
+export function canResolveWithJustification(type: string | null | undefined, entityType?: string | null): boolean {
+  if (!type) return false
+  if (type === 'portal_reprocessamento_falhou' && entityType === 'portal_email_event') return true
+  return ALERT_TYPES_RESOLVED_WITH_JUSTIFICATION.includes(type)
 }
 
 export async function resolveAlertItemWithJustification(itemId: number, reason: string): Promise<void> {

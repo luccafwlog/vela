@@ -3,7 +3,7 @@ import {
   type CommunicationAttachment,
   type CustomerCommunicationKind,
 } from './customerCommunicationTemplates'
-import { getCustomerCommunicationNature } from './customerCommunications'
+import { customerCommunicationAttemptReason, getCustomerCommunicationNature } from './customerCommunications'
 import type { CustomerCommunicationAudience } from './customerCommunicationBoxes'
 import { supabase } from './supabase'
 
@@ -38,12 +38,31 @@ export type CustomerCommunicationDispatchInput = {
 export type CustomerCommunicationDispatchResult = {
   communicationId: number
   attemptId?: number
-  status: 'enviado' | 'simulado' | 'parcial' | 'falha'
+  status: 'pendente' | 'enviado' | 'simulado' | 'parcial' | 'falha'
+  /** Modo deste destinatário; `status` é o agregado do Comunicado. */
+  dispatchMode?: 'real' | 'simulado'
   suppressed?: boolean
   message?: string
 }
 
-async function readFunctionErrorMessage(error: unknown): Promise<string | null> {
+/**
+ * Recusa da Edge com o que o corpo dela diz: o motivo e se repetir adianta.
+ * `permanent` vem do 422 de payload e do 502 com recusa definitiva do provedor;
+ * endereço suprimido (`suppressed`) também não muda com outra tentativa.
+ */
+export class CustomerCommunicationDispatchError extends Error {
+  readonly permanent: boolean
+  readonly communicationId?: number
+
+  constructor(message: string, options: { permanent?: boolean; communicationId?: number } = {}) {
+    super(message)
+    this.name = 'CustomerCommunicationDispatchError'
+    this.permanent = options.permanent ?? false
+    this.communicationId = options.communicationId
+  }
+}
+
+async function readFunctionErrorBody(error: unknown): Promise<Record<string, unknown> | null> {
   const context = error && typeof error === 'object'
     ? (error as { context?: unknown }).context
     : null
@@ -51,13 +70,31 @@ async function readFunctionErrorMessage(error: unknown): Promise<string | null> 
 
   try {
     const body = await (context as { json: () => Promise<unknown> }).json()
-    if (!body || typeof body !== 'object') return null
-    const message = (body as { error?: unknown; message?: unknown }).error
-      ?? (body as { error?: unknown; message?: unknown }).message
-    return typeof message === 'string' && message.trim() ? message.trim() : null
+    return body && typeof body === 'object' ? body as Record<string, unknown> : null
   } catch {
     return null
   }
+}
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+/**
+ * O 502 do envio comum traz `reason` com o `last_error` da tentativa; ele vem
+ * traduzido antes da mensagem genérica, para o resumo dizer por que falhou.
+ */
+function functionErrorFromBody(body: Record<string, unknown>): CustomerCommunicationDispatchError | null {
+  const technicalReason = nonEmptyString(body.reason)
+  const message = nonEmptyString(body.error)
+    ?? (technicalReason ? customerCommunicationAttemptReason(technicalReason) : null)
+    ?? nonEmptyString(body.message)
+  if (!message) return null
+  const communicationId = Number(body.communicationId)
+  return new CustomerCommunicationDispatchError(message, {
+    permanent: body.permanent === true || body.suppressed === true,
+    communicationId: Number.isFinite(communicationId) && communicationId > 0 ? communicationId : undefined,
+  })
 }
 
 function makeIdempotencyKey(input: CustomerCommunicationDispatchInput): string {
@@ -116,8 +153,9 @@ export async function dispatchCustomerCommunication(input: CustomerCommunication
     body: customerCommunicationDispatchPayload(input),
   })
   if (error) {
-    const functionMessage = await readFunctionErrorMessage(error)
-    if (functionMessage) throw new Error(functionMessage)
+    const body = await readFunctionErrorBody(error)
+    const functionError = body ? functionErrorFromBody(body) : null
+    if (functionError) throw functionError
     throw error
   }
   const result = data as CustomerCommunicationDispatchResult & { error?: string }
@@ -132,4 +170,82 @@ export async function dispatchCustomerCommunications(
   // Mantém uma tentativa por cliente e evita rajadas paralelas no provider.
   for (const input of inputs) results.push(await dispatchCustomerCommunication(input))
   return results
+}
+
+/** Um destinatário de um disparo em lote, com o rótulo que a tela mostra no resumo. */
+export type CustomerCommunicationBatchItem = {
+  key: string
+  customerName: string
+  input: CustomerCommunicationDispatchInput
+}
+
+export type CustomerCommunicationBatchOutcome = CustomerCommunicationBatchItem & {
+  result: 'enviado' | 'simulado' | 'falha'
+  communicationId?: number
+  reason?: string
+  /** Falha que outra tentativa não resolve: fica fora de "Repetir só as falhas". */
+  permanent?: boolean
+}
+
+export type CustomerCommunicationBatchSummary = {
+  outcomes: CustomerCommunicationBatchOutcome[]
+  sent: number
+  simulated: number
+  failed: CustomerCommunicationBatchOutcome[]
+  /** As falhas que "Repetir só as falhas" reenvia; as definitivas ficam de fora. */
+  retryable: CustomerCommunicationBatchOutcome[]
+}
+
+export function summarizeCustomerCommunicationBatch(outcomes: readonly CustomerCommunicationBatchOutcome[]): CustomerCommunicationBatchSummary {
+  const failed = outcomes.filter((outcome) => outcome.result === 'falha')
+  return {
+    outcomes: [...outcomes],
+    sent: outcomes.filter((outcome) => outcome.result === 'enviado').length,
+    simulated: outcomes.filter((outcome) => outcome.result === 'simulado').length,
+    failed,
+    retryable: failed.filter((outcome) => !outcome.permanent),
+  }
+}
+
+/**
+ * Disparo em lote da tela (plano dos e-mails, 3.2): um destinatário por vez, para
+ * não fazer rajada no provedor; a falha de um não interrompe os seguintes, e cada
+ * um volta com o motivo. Repetir um item reenvia o mesmo `input` — mesmo
+ * `dispatchId`, discriminador e chave —, então cai no mesmo Comunicado e o
+ * servidor não duplica quem já recebeu.
+ */
+export async function runCustomerCommunicationBatch(
+  items: readonly CustomerCommunicationBatchItem[],
+  dispatch: (input: CustomerCommunicationDispatchInput) => Promise<CustomerCommunicationDispatchResult> = dispatchCustomerCommunication,
+): Promise<CustomerCommunicationBatchOutcome[]> {
+  const outcomes: CustomerCommunicationBatchOutcome[] = []
+  for (const item of items) {
+    try {
+      const response = await dispatch(item.input)
+      if (response.status === 'falha') {
+        outcomes.push({ ...item, result: 'falha', communicationId: response.communicationId, reason: response.message ?? 'Falha no envio do comunicado.' })
+      } else {
+        // O agregado pode ser "parcial" por outro destinatário: o modo da resposta diz se este saiu simulado.
+        const simulated = response.dispatchMode ? response.dispatchMode === 'simulado' : response.status === 'simulado'
+        outcomes.push({ ...item, result: simulated ? 'simulado' : 'enviado', communicationId: response.communicationId })
+      }
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? error.message : 'Falha no envio do comunicado.'
+      if (error instanceof CustomerCommunicationDispatchError) {
+        outcomes.push({ ...item, result: 'falha', reason, communicationId: error.communicationId, permanent: error.permanent })
+      } else {
+        outcomes.push({ ...item, result: 'falha', reason })
+      }
+    }
+  }
+  return outcomes
+}
+
+/** Junta o resultado de "Repetir só as falhas" ao lote original, item a item. */
+export function mergeCustomerCommunicationBatchRetry(
+  previous: readonly CustomerCommunicationBatchOutcome[],
+  retried: readonly CustomerCommunicationBatchOutcome[],
+): CustomerCommunicationBatchOutcome[] {
+  const byKey = new Map(retried.map((outcome) => [outcome.key, outcome]))
+  return previous.map((outcome) => byKey.get(outcome.key) ?? outcome)
 }

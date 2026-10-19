@@ -1,4 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import type { PortalDb } from '../_shared/portalDb.ts'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { recoveryTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
@@ -7,6 +8,7 @@ import { withCors } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { isRecoveryRateLimited, registerRecoveryFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
+import { captureEdgeException, instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 // Achado 3.2 (auditoria 2026-08-12): a resposta antiga distinguia
 // account_found/email_sent, entao um atacante varria CNPJs distintos e
@@ -20,10 +22,23 @@ import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
 // + retries com backoff), entao o tempo de resposta sozinho reabria o oraculo
 // de enumeracao. sendPortalEmail roda em segundo piano via EdgeRuntime.waitUntil
 // e a resposta sai antes dele terminar, em todo caminho elegivel.
+// Global do runtime das Edge Functions do Supabase; não existe no deno check.
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined
+// O cliente do supabase-js não satisfaz o tipo estrutural mínimo dos helpers
+// (PortalDb, _shared/portalDb.ts) para o deno check; a forma usada é a mesma.
+const asPortalDb = <T,>(client: T) => client as T & PortalDb
 const accepted = () => new Response(JSON.stringify({ accepted: true }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 const rateLimited = () => new Response(JSON.stringify({ accepted: false, rate_limited: true }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 
-if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
+// O trabalho em segundo plano roda depois da resposta; o wrapper do Sentry só
+// vê a resposta, então a falha dele é reportada aqui (plano dos e-mails, 2.2).
+const reportBackgroundFailure = (error: unknown) => captureEdgeException(error, {
+  functionName: 'portal-password-recovery',
+  status: 'background',
+  category: 'background_failure',
+})
+
+if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-password-recovery', withCors(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
   const body = await req.json().catch(() => ({})) as { cnpj?: unknown; turnstile_token?: unknown }
   if (!await verifyTurnstileRequest(req, body.turnstile_token, 'portal_recovery')) {
@@ -32,7 +47,7 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   const cnpj = (typeof body.cnpj === 'string' ? body.cnpj : '').replace(/[^0-9a-z]/gi, '').toUpperCase()
   if (cnpj.length !== 14) return accepted()
 
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+  const admin = asPortalDb(createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!))
   const rateLimitContext = { ip: requestIp(req) }
   if (await isRecoveryRateLimited(admin, cnpj, rateLimitContext)) return rateLimited()
   await registerRecoveryFailure(admin, cnpj, rateLimitContext)
@@ -43,13 +58,16 @@ if (typeof Deno !== 'undefined') Deno.serve(withCors(async (req) => {
   // eliminando qualquer assimetria temporal observável (TTFB) entre CNPJs existentes,
   // inexistentes, inativos ou com convite já ativo.
   const recoveryWork = processRecoveryInBackground(admin, cnpj)
-    .catch((error) => console.error('[portal-password-recovery] falha no processamento em segundo plano', error))
+    .catch(async (error) => {
+      console.error('[portal-password-recovery] falha no processamento em segundo plano', error)
+      await reportBackgroundFailure(error)
+    })
 
   if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(recoveryWork)
   return accepted()
-}))
+})))
 
-async function processRecoveryInBackground(admin: ReturnType<typeof createClient>, cnpj: string) {
+async function processRecoveryInBackground(admin: SupabaseClient & PortalDb, cnpj: string) {
   const { data: account } = await admin
     .from('customer_portal_accounts')
     .select('id, customer_id, account_situation, recovery_email, customers(name, cnpj_cpf, deactivated_at)')
@@ -129,5 +147,8 @@ async function processRecoveryInBackground(admin: ReturnType<typeof createClient
     idempotencyKey: `recuperacao:${invite.id}`,
     accountId: account.id,
     inviteId: invite.id,
-  }).catch((error) => console.error('[portal-password-recovery] falha ao enviar email em segundo plano', error))
+  }).catch(async (error) => {
+    console.error('[portal-password-recovery] falha ao enviar email em segundo plano', error)
+    await reportBackgroundFailure(error)
+  })
 }

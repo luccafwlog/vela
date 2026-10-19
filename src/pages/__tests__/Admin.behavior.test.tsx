@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 const users = [
-  { id: 'u-1', full_name: 'Alice Operadora', role: 'operacoes', active: true, created_at: '2026-01-02T00:00:00Z', email: 'alice@fwlog.com.br', last_sign_in_at: '2026-08-01T12:00:00Z' },
+  { id: 'u-1', full_name: 'Alice Operadora', role: 'operacoes', active: true, created_at: '2026-01-02T00:00:00Z', email: 'alice@fwlog.com.br', last_sign_in_at: '2026-08-01T12:00:00Z', email_bounced: true },
   { id: 'u-2', full_name: 'Bruno Inativo', role: 'financeiro', active: false, created_at: '2026-01-03T00:00:00Z', email: 'bruno@fwlog.com.br', last_sign_in_at: null },
 ]
 
@@ -29,10 +29,10 @@ vi.mock('@tanstack/react-query', () => ({
     return { data: undefined, isLoading: false, error }
   },
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
-  useMutation: (opts: { mutationFn: (vars: unknown) => unknown }) => ({
+  useMutation: (opts: { mutationFn: (vars: unknown) => unknown; onSuccess?: (data: unknown, vars: unknown) => void }) => ({
     mutate: (vars: unknown) => {
       mocks.mutate(vars)
-      return opts.mutationFn(vars)
+      return Promise.resolve(opts.mutationFn(vars)).then((data) => opts.onSuccess?.(data, vars))
     },
     isPending: false,
   }),
@@ -84,6 +84,14 @@ it('US-146: lista os usuarios com nome, perfil e status', () => {
   // status badges
   expect(screen.getAllByText('Ativo').length).toBeGreaterThan(0)
   expect(screen.getAllByText('Inativo').length).toBeGreaterThan(0)
+})
+
+it('marca "E-mail devolvido" só no usuário com o e-mail suprimido (plano dos e-mails, 2.8)', () => {
+  renderAdmin()
+
+  const badges = screen.getAllByText('E-mail devolvido')
+  expect(badges).toHaveLength(1)
+  expect(badges[0].closest('tr')?.textContent).toContain('Alice Operadora')
 })
 
 it('US-147: alterna o status ativo de um usuario apos confirmar', async () => {
@@ -223,7 +231,7 @@ it('mostra as informacoes do sistema na aba Metricas, nao no topo da tela', () =
 })
 
 it('solicita confirmação com diff ao alterar credenciais de acesso', async () => {
-  mocks.updateUserCredentials.mockResolvedValue(undefined)
+  mocks.updateUserCredentials.mockResolvedValue({ released: 1 })
   renderAdmin()
   fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
   fireEvent.change(screen.getByLabelText(/E-mail de login/), { target: { value: 'novo@fwlog.com.br' } })
@@ -235,4 +243,36 @@ it('solicita confirmação com diff ao alterar credenciais de acesso', async () 
     ]),
   })))
   expect(mocks.updateUserCredentials).toHaveBeenCalled()
+})
+
+it('salvar o mesmo e-mail devolvido libera a supressão (plano dos e-mails, 2.8)', async () => {
+  mocks.updateUserCredentials.mockResolvedValue({ released: 1 })
+  renderAdmin()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
+  expect(screen.getByText(/salve o mesmo e-mail para liberá-lo/)).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+    changes: [expect.objectContaining({ field: 'E-mail', after: 'Liberado para receber de novo' })],
+  })))
+  expect(mocks.updateUserCredentials).toHaveBeenCalledWith(expect.objectContaining({ email: 'alice@fwlog.com.br' }))
+})
+
+it('redefinir só a senha de um e-mail devolvido não libera a supressão', async () => {
+  mocks.updateUserCredentials.mockResolvedValue({ released: 0 })
+  renderAdmin()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
+  fireEvent.change(screen.getByLabelText('Nova senha'), { target: { value: 'NovaSenha#2026' } })
+  fireEvent.change(screen.getByLabelText('Confirmar nova senha'), { target: { value: 'NovaSenha#2026' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.updateUserCredentials).toHaveBeenCalled())
+  expect(mocks.updateUserCredentials).toHaveBeenCalledWith(expect.objectContaining({ email: undefined, password: 'NovaSenha#2026' }))
+  expect(mocks.showToast).toHaveBeenCalledWith('Acesso atualizado.', 'success')
+})
+
+it('avisa quando o e-mail devolvido continua bloqueado por ser também de Cliente', async () => {
+  mocks.updateUserCredentials.mockResolvedValue({ released: 0 })
+  renderAdmin()
+  fireEvent.click(screen.getAllByRole('button', { name: 'Editar acesso' })[0])
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('continua bloqueado'), 'error'))
 })

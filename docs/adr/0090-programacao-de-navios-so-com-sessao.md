@@ -1,7 +1,7 @@
 # 0090 — A programação de navios do Portal só com sessão; nenhuma função para `anon`
 
 Status: aceito — 2026-10-19 (pedido do responsável a partir do advisor de
-segurança do Supabase de 19/10/2026). Implementada na migration `302`, com a
+segurança do Supabase de 19/10/2026). Implementada na migration `319`, com a
 suíte `src/integration/advisorFuncoesFechadas.local-pg.test.ts`.
 
 Supersede parcialmente a [ADR 0047](./0047-grants-de-funcao-fechados-por-padrao.md)
