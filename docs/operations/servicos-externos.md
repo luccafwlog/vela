@@ -393,7 +393,6 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
 | `customer-communication-auto-runner` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `165`) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global) | `customer-communication-auto-runner` |
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos e abre Alerta de reenvio | — |
-| `portal-refresh-general-pendencies` | a cada 15 min | Alerta para Cliente com B/L ativo sem Portal ativo ou sem e-mail de recuperação | — |
 | `demurrage-dunning` | de hora em hora, no minuto 7 (`7 * * * *`, migration `165`) | Régua de Cobrança de Demurrage (respeita a chave global) | `demurrage-dunning` |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
