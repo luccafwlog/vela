@@ -212,7 +212,8 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   alarga até a tela e daí a tabela rola. Só essas duas páginas; o resto do
   Vela e do Portal segue largo. Recusadas pelo responsável: a sobra no fim da
   linha e o bloco estreito com a página larga. "Ver no mapa" virou só o
-  ícone de alfinete, com o nome no `title`. Conferida numa página local com
+  ícone de alfinete na tabela, com o nome no `title`; no cartão do celular
+  fica o ícone com o texto. Conferida numa página local com
   dados fictícios, com 6 e 8 portos, a 1920, 1280 e 390 px; não capturada nas
   telas reais.
 - **Lote 4 aprovado e entregue em 2026-10-18** (branch

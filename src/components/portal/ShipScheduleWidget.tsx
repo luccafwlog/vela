@@ -43,10 +43,11 @@ export function ScheduleDate({ voyage, lane }: { voyage: PortalScheduleVoyage; l
 
 /**
  * Posição do navio no MarineTraffic, pelo IMO cadastrado; sem IMO, nada. Só o
- * ícone (2026-10-19): em toda linha, o texto repetido pesava na tabela; o nome
- * fica no `title` e no rótulo acessível.
+ * ícone na tabela (2026-10-19): em toda linha, o texto repetido pesava; o nome
+ * fica no `title` e no rótulo acessível. No cartão do celular, o botão ocupa a
+ * largura do cartão e leva o texto junto (`withText`).
  */
-export function VesselMapButton({ voyage }: { voyage: PortalScheduleVoyage }) {
+export function VesselMapButton({ voyage, withText = false }: { voyage: PortalScheduleVoyage; withText?: boolean }) {
   if (!voyage.imoNumber) return null
   return (
     <a
@@ -58,6 +59,7 @@ export function VesselMapButton({ voyage }: { voyage: PortalScheduleVoyage }) {
       title="Ver no mapa"
     >
       <MapPin size={16} aria-hidden="true" />
+      {withText ? ' Ver no mapa' : null}
     </a>
   )
 }
@@ -182,7 +184,7 @@ export function ShipScheduleWidget({ className }: { className?: string }) {
                 </div>
                 <ScheduleCardGroup title="Saída na origem (ETD)" lanes={cardPolLanes} voyage={vessel} />
                 <ScheduleCardGroup title="Chegada no Brasil (ETA)" lanes={cardPodLanes} voyage={vessel} />
-                <VesselMapButton voyage={vessel} />
+                <VesselMapButton voyage={vessel} withText />
               </li>
             ))}
           </ul>
