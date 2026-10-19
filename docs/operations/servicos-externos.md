@@ -553,7 +553,7 @@ mesmos.
   depende de e-mail do Auth: o usuário interno não troca o próprio e-mail em
   **Meu perfil**; quem troca é o Administrativo, em Admin › Usuários ›
   **Editar acesso** (Edge `admin-users`, confirma o e-mail na hora, sem
-  mensagem; D13 do [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md)). Para trocar a chave:
+  mensagem; D13 do [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md)). Para trocar a chave:
   crie a nova, troque o secret, teste com "Esqueci minha senha" no Portal e só
   então apague a antiga.
 - **Webhook:** a MillionSend avisa entregas, bounces e reclamações em
@@ -1054,7 +1054,7 @@ continha oito entradas legadas da Vercel.
 **URL Configuration — 2026-10-08:** Site URL `https://vela.app.br`; Redirect
 URLs só `https://vela.app.br/**`. A troca de e-mail em Meu perfil não informa
 `emailRedirectTo` e volta ao Site URL. (Nota de 2026-10-18: a troca de e-mail
-saiu de Meu perfil, D13 do [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md);
+saiu de Meu perfil, D13 do [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md);
 a confirmação do Auth não chegava pelo SMTP padrão.) Email provider com "Secure email change"
 ligado (confirmação no e-mail antigo e no novo). O Portal não depende dessas
 URLs: convite e senha usam links próprios das Edge Functions.

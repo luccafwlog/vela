@@ -1,7 +1,7 @@
 # 0074 — Usuário não se exclui; retenção definida; backup diário sem PITR
 
 > **Situação atual (2026-10-18).** A retenção dos e-mails foi estendida pela
-> decisão D17 do [plano de correção dos e-mails](../plans/2026-10-17-correcao-dos-emails.md)
+> decisão D17 do [plano de correção dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md)
 > (migration `311`): `run_retention` passou a apagar os eventos do provedor
 > (`portal_email_events`, que guardam o endereço no envelope) recebidos há
 > mais de 1 ano, junto com o histórico de processamento deles, e a mascarar o

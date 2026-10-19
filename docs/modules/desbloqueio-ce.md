@@ -262,7 +262,7 @@ Como cada aviso termina na fila (migration `307`):
 | --- | --- |
 | `sent` | Todos os contatos da caixa receberam |
 | `partial` | Parte recebeu e o restante está na supressão do Portal (bounce ou reclamação); não volta a ser tentado |
-| `simulated` | Chave **Canal de envio real** desligada: os destinatários são resolvidos e o envio é registrado como simulado, sem chamar o provedor. O aviso **não** é enviado depois, quando a chave for ligada (D11 do [plano dos e-mails](../plans/2026-10-17-correcao-dos-emails.md)) |
+| `simulated` | Chave **Canal de envio real** desligada: os destinatários são resolvidos e o envio é registrado como simulado, sem chamar o provedor. O aviso **não** é enviado depois, quando a chave for ligada (D11 do [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md)) |
 | `skipped` | Nenhum destinatário: sem contato na caixa ou todos suprimidos |
 | `pending` | Falha de envio ou erro na linha; a próxima rodada tenta de novo, sem reenviar a quem já recebeu |
 | `failed` | Cinco tentativas sem sucesso |
