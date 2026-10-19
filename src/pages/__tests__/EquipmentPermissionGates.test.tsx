@@ -25,6 +25,9 @@ vi.mock('@tanstack/react-query', () => ({
   keepPreviousData: (data: unknown) => data,
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, setQueriesData: mocks.setQueriesData }),
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
+    if (queryKey[0] === 'ports' || queryKey[0] === 'manifestos-mercante') {
+      return { data: [], isLoading: false, error: null }
+    }
     if (queryKey[0] === 'vazios-importacao-manifests') {
       return { data: [], isLoading: false, error: null }
     }
@@ -57,6 +60,7 @@ vi.mock('@tanstack/react-query', () => ({
     return { data: { rows: [], count: 0 }, isLoading: false, error: null }
   },
 }))
+vi.mock('../../hooks/useBls', async (importOriginal) => ({ ...await importOriginal<object>(), useVoyageOptions: () => ({ data: [] }) }))
 vi.mock('../../hooks/useVoyageReconciliation', () => ({ useVoyageRailDivergences: () => new Map() }))
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
@@ -112,6 +116,8 @@ vi.mock('../../services/vaziosImport', () => ({
   parseVaziosManifestFile: vi.fn(),
 }))
 vi.mock('../../services/vaziosExportOperations', () => ({
+  listVaziosExportOperationsWithUnits: vi.fn(),
+  summarizeVaziosOperations: () => [],
   getVaziosExportOperation: vi.fn(),
   listVaziosBookingsForOperation: vi.fn(),
   updateVaziosBooking: mocks.updateVaziosBooking,
@@ -207,21 +213,22 @@ describe('imports fora do escopo de Equipamentos', () => {
     renderPage(<VaziosImportacao />)
 
     expect(screen.getByRole('button', { name: 'Exportar' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Importar Planilha' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Importar planilha' })).toBeTruthy()
   })
 })
 
 describe('controles de Vazios EXP', () => {
-  it('exibe o formulário de criação para quem possui vazios_edit', () => {
+  it('oferece Novo embarque a quem tem sessão ativa', () => {
     mocks.can.mockImplementation((permission) => permission === 'vazios_edit')
     renderPage(<EmbarqueVazios />)
-    expect(screen.getByRole('button', { name: /criar/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Novo embarque/i })).toBeTruthy()
   })
 
-  it('mantém a criação bloqueada sem vazios_edit', () => {
+  it('sem sessão ativa não oferece Novo embarque', () => {
     mocks.can.mockReturnValue(false)
+    mocks.profile = null
     renderPage(<EmbarqueVazios />)
-    expect((screen.getByRole('button', { name: /criar/i }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByRole('button', { name: /Novo embarque/i })).toBeNull()
   })
 
   it('apresenta a regra de substituição total da lista', () => {

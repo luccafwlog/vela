@@ -68,19 +68,11 @@
     "src/pages/ClientesInformacoes.tsx": {
       "cor-tailwind": 6
     },
-    "src/pages/EmbarqueVazios.tsx": {
-      "hex": 1
-    },
     "src/pages/LineUpTVDisplay.tsx": {
       "hex": 1,
       "tamanho-solto": 1,
       "caixa-alta": 1,
       "cor-tailwind": 4
-    },
-    "src/pages/VaziosImportacao.tsx": {
-      "hex": 12,
-      "caixa-alta": 4,
-      "cor-tailwind": 6
     },
     "src/portal-main.tsx": {
       "hex": 2,

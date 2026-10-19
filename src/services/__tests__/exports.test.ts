@@ -28,8 +28,8 @@ describe('exportVaziosImportacaoWorkbook', () => {
     writeFile.mockClear()
   })
 
-  it('exporta colunas operacionais dos vazios de importacao', async () => {
-    const rows: VaziosImportacaoContainerListItem[] = [
+  it('exporta colunas operacionais dos vazios de importação, com a Natureza e o Nº do manifesto', async () => {
+    const rows: Array<VaziosImportacaoContainerListItem & { manifesto_numero?: string | null }> = [
       {
         id: '1',
         manifest_id: 'm1',
@@ -38,8 +38,9 @@ describe('exportVaziosImportacaoWorkbook', () => {
         tare_kg: 3800,
         pol: 'CNTAC',
         pod: 'SSZ',
-        natureza: null,
+        natureza: 'cover_plate',
         created_at: '2026-06-01T10:00:00Z',
+        manifesto_numero: '2626501234568',
         manifest: {
           id: 'm1',
           voyage_id: 10,
@@ -62,9 +63,10 @@ describe('exportVaziosImportacaoWorkbook', () => {
         'Tara (kg)': 3800,
         POL: 'CNTAC',
         POD: 'SSZ',
+        Natureza: 'Cover plate',
         Navio: 'NAVIO A',
         Viagem: '001',
-        Manifesto: 'Baplie',
+        'Manifesto Mercante': '2626501234568',
         'Importado em': '01/06/2026',
       },
     ])

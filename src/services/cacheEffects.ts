@@ -211,9 +211,18 @@ export async function afterCeUnlockChanged(queryClient: QueryInvalidator): Promi
   await invalidate(queryClient, [queryKeys.ceUnlock.all(), ['customer-detail'], ['customer-ficha']])
 }
 
-/** Mudanças no cadastro de depósitos afetam catálogo e orientações de devolução. */
+/**
+ * Mudanças no cadastro de locais (depots e terminais) e no catálogo de
+ * serviços afetam as orientações de devolução do Portal, os serviços
+ * oferecidos e a armazenagem sugerida no Embarque de vazios (achado L7 do
+ * lote 5b) e a lista de embarques, que soma a armazenagem pelo free time.
+ */
 export async function afterDepotAlterado(queryClient: QueryInvalidator): Promise<void> {
-  await invalidate(queryClient, [['depots'], queryKeys.portalInformation.all(), ['portal-operation-bls']])
+  await invalidate(queryClient, [
+    ['depots'], ['depot-services'], ['armazenagem-services'],
+    ['vazios-export-operations'], ['embarque-vazios-operation'],
+    queryKeys.portalInformation.all(), ['portal-operation-bls'],
+  ])
 }
 
 /** Referências publicadas no Portal dependem das tabelas e acordos internos. */

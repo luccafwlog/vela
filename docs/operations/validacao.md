@@ -277,8 +277,11 @@ Regras em [Manifestos & EDI](../modules/manifesto-edi.md#vazios-importacao) e
   com entrada e saída e unidade de Terminal Portuário sem datas; planilha com
   qualquer linha inválida é recusada inteira;
 - reimportar a Lista preserva as unidades incluídas à mão;
-- Linhas de Serviço são lançadas à mão; **Armazenagem pendente de lançamento**
-  oferece **Lançar** com a quantidade calculada.
+- Linhas de Serviço são lançadas à mão; **Armazenagem a lançar** oferece o
+  ícone **Lançar armazenagem** com a quantidade calculada e não mostra
+  combinação com 0 dia;
+- local ou serviço inativo não aparece nos seletores do Embarque, e o banco
+  recusa lançamento novo com eles (migration `326`).
 
 ## 7. Revisão e auto-faturamento
 

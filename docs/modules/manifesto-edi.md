@@ -1,6 +1,6 @@
 # Manifestos & EDI
 
-> **Status:** ativo · **Atualizado:** 2026-10-15 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
+> **Status:** ativo · **Atualizado:** 2026-10-19 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
 
 ## Propósito e escopo
 
@@ -299,9 +299,25 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
 
 ### `/vazios-importacao`
 
-- `src/pages/VaziosImportacao.tsx` lista e exporta containers vazios por texto, viagem e manifesto.
-- O modal importa planilha para uma viagem e exige um **Nº do manifesto Mercante
-  por rota** (POL → POD) dos vazios. Colunas obrigatórias: **Container**, **POL**
+- **Tela** (`src/pages/VaziosImportacao.tsx`, **Vazios de importação**; lote
+  5b da identidade visual): filtros sempre abertos — **Busca** (container ou
+  tipo, com pausa antes de consultar), **Viagem**, **Manifesto Mercante** (só
+  os manifestos de vazios da Viagem escolhida; escolher um filtra pela rota
+  dele e ajusta o POD) e **POD** (o POD que a Line Up manda no endereço,
+  `?voyage=&pod=`, aparece nesse campo). "Filtros ativos" diz o navio e a
+  viagem e o Nº do manifesto, nunca o número interno. A tabela mostra
+  **Container**, **Tipo**, **Tara**, **Trecho** (POL → POD), **Natureza**
+  (texto; "—" quando não há), **Navio / Viagem**, **Manifesto Mercante** e
+  **Importado em**. O Nº do manifesto é o do `manifestos_mercante` com
+  `natureza='vazio'` da mesma Viagem, POL e POD do container
+  (`vazioManifestoNumero`, porto pela forma canônica); a rota sem manifesto
+  mostra **Sem número** em âmbar, a mesma pendência do alerta **CE Mercante
+  pendente**. A natureza se define só pela seleção (marcar os containers e
+  escolher **Cama**, **Cover plate** ou **Limpar**; "Selecionar os N do
+  filtro" estende a seleção a todas as páginas). **Exportar** gera a planilha
+  do recorte com Natureza e Nº do manifesto Mercante.
+- A janela **Importar planilha de vazios** importa para uma viagem e exige um
+  **Nº do manifesto Mercante por rota** (POL → POD) dos vazios. Colunas obrigatórias: **Container**, **POL**
   e **POD**; opcionais: **Tipo** e **Tara (kg)**. O modelo está em
   `public/templates/vazios-importacao-modelo.xlsx` (e `.csv`), com link no modal.
   Depois de ler a planilha, a prévia mostra um campo de número por rota
@@ -345,23 +361,44 @@ planilha ou inclusão manual, sem preço) e as **Linhas de Serviço** (o custo,
 lançado à mão; uma linha não aponta para containers). Decisões: ADR 0033, com a
 reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
 
-- **Tela.** `src/pages/EmbarqueVazios.tsx` tem **Novo Embarque de Vazios**
-  (Viagem e **Porto de embarque**, botão **Criar**), **Embarques por escala**
-  (busca) e, no Embarque aberto, as abas **Unidades Embarcadas** e
-  **Serviços** (com o total do Embarque no rótulo). O link **Cadastro de
-  Terminais** leva a `/embarquevazios/depots`. Vindo da Viagem
-  (`?voyage=<id>`), a Viagem vem semeada e continua editável (B26); `/vazios` é apenas redirect de
-  compatibilidade para esta rota.
+- **Tela** (`src/pages/EmbarqueVazios.tsx`, **Embarque de vazios**; lote 5b
+  da identidade visual). Sem embarque escolhido, a tela lista **todos os
+  embarques**, o mais recente primeiro (pela última gravação de unidade ou
+  linha): **Navio / Viagem** (link que abre o embarque, `?embarque=<id>`),
+  **Porto de embarque**, **Unidades**, **Serviços** (total em R$),
+  **Armazenagem a lançar** (quantos locais têm armazenagem calculada sem
+  linha; "Nenhuma" quando zero) e **Atualizado em**, com **Busca** (navio ou
+  viagem) e **Porto de embarque**. **Novo embarque** abre uma janela com
+  **Viagem** e **Porto de embarque**; **Criar embarque** abre o embarque
+  criado ou, se a escala já tinha um, abre o existente dizendo "Este embarque
+  já existia e foi aberto." (`openOrCreateVaziosExportOperation`, achado V4).
+  Vindo da Viagem (`?voyage=<id>`), a lista vem filtrada por ela e o Novo
+  embarque vem com ela, os dois editáveis (B26); a viagem escolhida na janela
+  não filtra a lista. Com embarque escolhido: faixa de identidade (navio e
+  viagem, porto, unidades e total dos serviços, botão **Todos os embarques**)
+  e as abas **Unidades embarcadas · N** e **Serviços · R$ X**
+  (`?aba=servicos`). Na aba de unidades, o bloco **Resumo** (Por tipo, Por
+  local, Por condição) e a tabela com **Editar** e **Excluir** em ícone;
+  **Adicionar unidade** e **Editar** usam a mesma janela, e **Importar
+  planilha** abre a janela da planilha. Na aba Serviços, **Armazenagem a
+  lançar** e **Linhas de serviço** (com **Lançar linha** em janela e
+  **Observação** e **Excluir** em ícone). Condição aparece sempre como
+  **Vazio** ou **Com material**, natureza como **Armazenagem**,
+  **Transporte** ou **Geral**, e dias como "N dias"
+  (`src/lib/vaziosLabels.ts`). O botão **Locais (depots e terminais)** leva a
+  `/embarquevazios/depots`; `/vazios` é apenas redirect de compatibilidade
+  para esta rota.
 - **Porto de embarque** é escolhido entre as escalas brasileiras da Viagem
   (a projeção da aba Escalas, sem excluídas e omitidas), complementadas pelos
   portos do POL e do POD dos B/Ls (`fetchVoyageEscalaPorts`, normalizados por
   `normalizePortCode`); sem nenhuma, o campo diz "Nenhuma escala brasileira na
-  viagem — cadastre a escala na aba Escalas da viagem antes de criar o
-  Embarque" (B10).
+  viagem: cadastre a escala na aba Escalas da viagem antes de criar o
+  embarque" (B10).
 - **Unidade Embarcada.** Container vazio efetivamente embarcado na escala, com
   número, tipo, local de origem (sempre presente e ativo: um Depot ou um
-  Terminal Portuário do Cadastro de Terminais), condição (**vazio** ou
-  **material**, isto é, com material do armador dentro), entrada e saída do
+  Terminal Portuário do cadastro de Locais), condição (**Vazio** ou
+  **Com material**, isto é, com material do armador dentro; no banco `vazio` e
+  `material`), entrada e saída do
   depot (hand-in e hand-out) e data de embarque. Unidade de Depot exige as duas
   datas, com saída não anterior à entrada; unidade de Terminal Portuário
   (embarque direto: descarregou, ficou no terminal e é reembarcada) vem sem
@@ -373,7 +410,7 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   unidades que não geram armazenagem — e é a fonte da contagem de vazios
   embarcados e dos dias de armazenagem do ADR.
 - **Planilha de Unidades Embarcadas.** Sete colunas: CONTAINER, TIPO, LOCAL
-  (código do Cadastro de Terminais), CONDIÇÃO (vazio ou material), ENTRADA,
+  (código do cadastro de Locais), CONDIÇÃO (vazio, material ou com material), ENTRADA,
   SAÍDA e EMBARQUE; modelo em
   `public/templates/unidades-embarcadas-modelo.xlsx`, com o seletor de arquivo
   comum (`ImportFilePicker`). Datas `DD/MM/AAAA` ou data do Excel pelo parser
@@ -391,7 +428,7 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
 - **Incluir, editar e excluir unidade** à mão usa RPCs atômicas
   (`create_manual_vazios_booking`, `update_manual_vazios_booking`,
   `delete_manual_vazios_booking`) com as mesmas regras de local e datas e
-  mensagem de validação segura; a exclusão pede confirmação com motivo, gravado
+  mensagem de validação segura, com acento (migration `326`, achado V6); a exclusão pede confirmação com motivo, gravado
   no rastro, é recusada com o ADR de Saída fechado da escala (reabrir o ADR
   solta a trava; B14, migration `262`) e não deixa manifesto órfão. A exclusão
   de Linha de Serviço (`delete_catalog_row`) e a reimportação da planilha de
@@ -414,6 +451,14 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   condição) (`uq_vazios_storage_line_operation_local_condition`);
   **transporte** exige o destino vinculado ao serviço; **geral** exige só o
   local. O serviço precisa ser do local da linha.
+- **Local e serviço ativos (V1, migration `326`).** Lançamento novo — unidade
+  incluída à mão, importada ou trocada de local, e linha de serviço nova ou
+  trocada de serviço ou local — só aceita local e serviço ativos: os
+  seletores da tela só oferecem os ativos, e os gatilhos
+  `validate_vazios_booking_operation` e `validate_vazios_export_service_line`
+  recusam com "Local inativo: …" e "Serviço inativo: …". O que já foi lançado
+  continua editável sem trocar de local ou serviço (datas da unidade,
+  observação da linha), mesmo depois de o local ou o serviço ser desativado.
 - **Valor da linha.** Ao escolher local e serviço, o sistema sugere o valor
   unitário do catálogo (`valorSugerido`, do discriminante mais específico ao
   genérico: tipo de container, rota, condição); o usuário pode sobrescrevê-lo,
@@ -426,15 +471,20 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
   + 1) − free time`, nunca negativo: o +1 conta o dia de entrada e o de saída,
   e o free time é o do depot para a condição da unidade (vazio ou material). A
   quantidade da linha de armazenagem é a soma calculada pela Lista para aquele
-  (depot, condição), não digitada; **Sobrescrever cálculo** grava a quantidade
-  manual, e a tela mantém a calculada visível ao lado. **Armazenagem pendente
-  de lançamento** lista as combinações (depot, condição) com dias calculados e
-  sem linha: **Lançar** preenche serviço, quantidade calculada e valor do
-  catálogo num clique (o usuário ainda lança); sem serviço de armazenagem
-  daquela condição no depot, a tela não oferece o atalho e mostra
-  **Cadastrar**, que leva ao Cadastro de Terminais; o serviço sem condição
-  vale para as duas (B12, migration `260`).
-- **Observação** da linha é editável na tela e aparece no ADR. Excluir linha
+  (depot, condição), não digitada; **Informar a quantidade à mão** grava a
+  quantidade manual, e a calculada aparece ao passar o mouse na quantidade da
+  linha. **Armazenagem a lançar** (`armazenagemALancar`) é a tabela das
+  combinações (depot, condição) com dias calculados e sem linha: Local,
+  Condição, Dias de armazenagem, Serviço e o ícone **Lançar armazenagem**, que
+  preenche serviço, quantidade calculada e valor do catálogo num clique.
+  Combinação com **0 dia** não aparece: as unidades daquele local ficaram
+  dentro do free time e não há o que lançar (decisão de 2026-10-19). Sem
+  serviço de armazenagem daquela condição no depot (ou com o depot inativo), a
+  linha diz "Sem serviço de armazenagem cadastrado" (ou "Local inativo") e o
+  ícone abre o local em `/embarquevazios/depots?local=<id>`; o serviço sem
+  condição vale para as duas (B12, migration `260`).
+- **Observação** da linha aparece como texto na própria linha ("—" quando não
+  há), é editada pelo ícone **Observação** (janela) e aparece no ADR. Excluir linha
   pede motivo (`delete_catalog_row`, qualquer usuário ativo; migration `096`).
 - **No ADR**, a seção **Embarque de vazios** (Equipamentos) mostra
   **Containers embarcados** (a Lista, por tipo e por local) e **Operação de
@@ -446,15 +496,32 @@ reimportação da ADR 0078 (item 25) e a seção única do ADR da ADR 0036.
 
 ### `/embarquevazios/depots`
 
-`src/pages/DepotCadastro.tsx` (**Cadastro de Terminais**) registra os locais com
-que a operação de vazios trabalha e o **Catálogo sugerido** de serviços de cada
-um. A entidade é o local, não uma tabela de tarifas: o catálogo só sugere
+`src/pages/DepotCadastro.tsx` (**Locais (depots e terminais)**) registra os
+locais com que a operação de vazios trabalha e os **Serviços do catálogo** de
+cada um. A entidade é o local, não uma tabela de tarifas: o catálogo só sugere
 valores e não tem vigência — o valor sugerido vale até alguém trocá-lo, e
 trocá-lo não muda as linhas já lançadas.
 
+- **Tela** (lote 5b da identidade visual). À esquerda (em cima no celular), a
+  lista de locais com o escolhido marcado; os inativos ficam atrás da chave
+  **Mostrar os inativos**, em cinza. À direita, o bloco **Cadastro** em
+  leitura: o nome como dado principal, tipo e situação, **Código**, **Porto**
+  (terminal) ou os free times em dias (depot) e **Serviços ativos**;
+  **Editar** abre o formulário numa janela, e **Desativar/Reativar local** e
+  **Excluir local** ficam no menu ⋮ (só para o Administrativo). **Serviços do
+  catálogo** é uma tabela (Serviço, Natureza, Condição, Destino pelo nome,
+  Valor e ações: **Editar** em ícone e ⋮ com Desativar/Reativar e Excluir),
+  com **Adicionar serviço** em janela e os inativos atrás da mesma chave.
+  **Novo local** abre a janela e, depois de cadastrar, a tela abre o local
+  criado (L7). `?local=<id>` abre direto um local (link da Armazenagem a
+  lançar do Embarque). Toda gravação de local ou serviço passa por
+  `afterDepotAlterado` (`src/services/cacheEffects.ts`), que atualiza o
+  Portal (orientações de devolução), os serviços oferecidos, a armazenagem
+  sugerida do Embarque de vazios e a lista de embarques (L7).
 - **Tipos de local.** **Depot**: armazena o vazio antes do embarque, tem os
   dois free times de storage (**Free time vazio** e **Free time material**,
-  dias de armazenagem gratuita por condição) e é o único tipo que gera
+  dias de armazenagem gratuita por condição; a tela diz "Free time com
+  material") e é o único tipo que gera
   armazenagem; não tem porto. **Terminal portuário**: o próprio terminal da
   escala (ex.: TVV), sem free time (`depots_free_time_check`), que nunca gera
   armazenagem mas cobra serviços como qualquer local; exige um porto brasileiro
@@ -470,13 +537,18 @@ trocá-lo não muda as linhas já lançadas.
 - **Catálogo sugerido.** Cada serviço pertence a um local
   (`depot_services.depot_id`) e tem nome, natureza (armazenagem, transporte ou
   geral), valor sugerido e, conforme a natureza, condição (armazenagem:
-  EMPTY ou EMPTY W/ MATERIAL) ou destino da rota (transporte). A lista é
+  Vazio, Com material ou as duas, quando sem condição) ou destino da rota
+  (transporte). A lista é
   aberta: serviço novo é cadastrado escolhendo a natureza, sem mudança de
   código; não há lista fixa de serviços comum a todos os locais. Serviço pode
-  ser desativado e reativado.
+  ser desativado e reativado; serviço inativo não entra em lançamento novo
+  (migration `326`).
 - **Quem pode.** Qualquer usuário ativo cadastra e edita locais e serviços;
-  excluir é do Administrativo, com motivo (`delete_catalog_row`, migration
-  `096`). O banco recusa excluir local ou serviço em uso (B/L, escala, ADR,
+  desativar e reativar (local e serviço) é só do Administrativo, com diálogo
+  e, para reativar, motivo (`reactivate_catalog_row`; gatilho
+  `guard_catalog_active_change`, migration `263`, B15); excluir é do
+  Administrativo, com motivo (`delete_catalog_row`, migration `096`). Fora do
+  Administrativo, a tela não mostra o menu ⋮. O banco recusa excluir local ou serviço em uso (B/L, escala, ADR,
   unidade ou linha lançada; FKs `ON DELETE RESTRICT`), e a tela traduz a
   recusa de local ainda definido como terminal de B/L.
 
@@ -543,14 +615,14 @@ Duas notas de estado:
 | `/baplie` e ação rápida da Viagem — aplicar flags físicas do Baplie (automático) | Import/reimport concluído | `reimportBaplie`, depois do staging | `applyBapliePhysicalFlags` → `apply_baplie_physical_flags_atomic` (migrations `182` e `194`): aplica `is_imo`/`imo_class`/`un_number`/`is_oog` e SOC/COC do Baplie a todos os B/Ls ativos que dividem o container (Part Lot), mantém o perfil manual (vira divergência) e as marcas do B/L, apaga só as marcas vindas do Baplie anterior que caíram (confirmadas na prévia de `preview_baplie_physical_flags`); idempotente | `bl_containers`, `audit_logs`; recálculo das Taxas Locais dos B/Ls cuja marca de cobrança mudou | `afterBaplieImportado` (reconciliação, containers, viagens, ficha e Histórico do B/L, relatório da agência, taxas locais); o resultado diz onde aplicou, o que caiu e o perfil manual divergente | Falha na aplicação volta em `flagsError`: o modal mostra aviso e só Concluir, sem desfazer o staging já importado | `src/services/baplieImport.ts`; `src/services/baplieReconciliation.ts`; `src/pages/Baplie.tsx`; `src/components/shared/VoyageImportActions.tsx`; **Integração em PostgreSQL local:** `baplieMarcas.local-pg.test.ts` |
 | `/baplie` — importar/substituir/manter vazios | Staging com `status='empty'`; usuário interno ativo | `VaziosSection` | RPC lê staging, substitui opcionalmente e cria manifesto/containers na mesma transação; manter não escreve | `vazios_importacao_manifests`, `vazios_importacao_containers` | Invalida `['baplie-vazios-manifest', voyageId]`, staging, reconciliação, `['vazios-importacao']`, `['vazios-importacao-stats']` | Nenhum vazio ou manifesto duplicado sem confirmação de substituição | `src/pages/Baplie.tsx`; `src/services/vaziosImportacaoImport.ts`; `supabase/migrations_archive/146_import_vazios_transactional.sql` |
 | `/vazios-importacao` — importar planilha | Usuário interno ativo; viagem, usuário e preview | Modal da página ou ação rápida | `importVaziosImportacaoManifest` chama `import_vazios_importacao_transactional`, que grava, na mesma transação, um Manifesto Mercante `vazio` por rota POL → POD (`p_manifestos`), o manifesto de vazios e os containers; rota sem número, mesmo número em duas rotas, número de outra rota ou Viagem ou POL/POD ausente recusam sem gravar nada; `allowRowErrors` é passado somente pelo override explícito | `vazios_importacao_manifests`, `vazios_importacao_containers`, `manifestos_mercante` e o espelho `voyage_route_ce_master` | Página invalida containers/manifests, `['voyages']` e Line-Up; ação rápida invalida só voyages/Line-Up | Reimportar a mesma rota substitui os containers dela em qualquer manifesto da Viagem, preserva a natureza (cama/cover plate) e reaproveita ou corrige o Nº; erro de linha bloqueia por padrão e porto desconhecido vira ausência, nunca texto cru | `src/pages/VaziosImportacao.tsx`; `src/services/vaziosImportacaoImport.ts`; `supabase/migrations/187_vazios_reimportacao_preserva.sql`; `supabase/migrations/192_base_granito_vazios_carga_solta_correcoes.sql`; `vaziosImportacaoImport.test.ts`; `vaziosReimportacao.local-pg.test.ts` |
-| `/embarquevazios` — **Criar** Embarque de Vazios | Usuário interno ativo; Viagem e **Porto de embarque** escolhido entre as escalas brasileiras da Viagem (e os portos dos B/Ls) | Card **Novo Embarque de Vazios** em `EmbarqueVazios` | `fetchVoyageEscalaPorts` (`listVoyageRoutePorts` + `normalizePortCode`) → `upsertVaziosExportOperation` | `vazios_export_operations` (upsert por `voyage_id, embark_port`: um Embarque por escala) | Refaz a lista de Embarques e abre o criado | Viagem sem B/L não oferece porto ("Nenhuma escala encontrada…"); erro do banco aparece em toast | **Código:** `src/pages/EmbarqueVazios.tsx`, `src/services/vaziosExportOperations.ts`; **Teste:** `EmbarqueVazios.flow.test.tsx` |
-| `/embarquevazios` — **Importar planilha** de Unidades Embarcadas | Embarque aberto; usuário interno ativo; planilha `.xlsx`/`.xls`/`.csv` com CONTAINER, LOCAL e CONDIÇÃO (das sete colunas) | Modal **Importar Unidades Embarcadas** (`ImportFilePicker`) | `parseVaziosManifestFile` aponta por linha container repetido ou fora do ISO, local inexistente/inativo, condição e datas incompatíveis com o local; com linhas ou abas ocultas pede confirmação; `importVaziosManifest` recusa o lote com qualquer divergência e chama `import_vazios_bookings_transactional` | `vazios_manifests`, `vazios_bookings`; a RPC (migration `187`, com o rastro da `189`) repete a validação tudo ou nada, atualiza por container mantendo o id, insere as novas, tira só a unidade de planilha anterior ausente do arquivo, preserva a unidade incluída à mão e apaga manifesto sem unidade | Refaz unidades e Embarque e invalida o ADR da Viagem (`invalidateAgencyReportForVoyage`) | Qualquer divergência recusa a planilha inteira e nada é gravado; mensagem por linha (até 20, com o resto resumido) | **Código:** `src/services/vaziosImport.ts`; `supabase/migrations/187_vazios_reimportacao_preserva.sql`; **Teste:** `EmbarqueVazios.flow.test.tsx`, `vaziosImportAdrColumns.test.ts`; **Teste de contrato SQL:** `vaziosImportUpsert.test.ts`; **Integração em PostgreSQL local:** `vaziosReimportacao.local-pg.test.ts` |
-| `/embarquevazios` — incluir, editar ou excluir Unidade Embarcada | Embarque aberto; usuário interno ativo; container ISO e local escolhido; exclusão com confirmação | Formulário da aba **Unidades Embarcadas** (**Adicionar**, ou **Salvar** e **Voltar** na edição) e botões **Editar** e **Excluir** da linha | `createManualVaziosBooking`, `updateManualVaziosBooking`, `deleteManualVaziosBooking` | RPCs atômicas `create_manual_vazios_booking`, `update_manual_vazios_booking`, `delete_manual_vazios_booking` (migration `002`); manifesto de inclusão manual criado ou apagado na mesma RPC; `validate_vazios_booking_operation` e a constraint `vazios_bookings_movement_after_hand_out` (migration `065`) conferem local e datas | Refaz unidades e Embarque e invalida o ADR da Viagem | Depot sem as duas datas ou com saída antes da entrada, terminal portuário com datas, embarque antes da saída e container inválido são recusados com mensagem segura; exclusão não deixa manifesto órfão | **Código:** `src/services/vaziosExportOperations.ts`; **Teste:** `vaziosManualBooking.test.ts`, `vaziosManualBookingRpc.test.ts`; **Teste de contrato SQL:** `vaziosManualBookingAtomicMigration.test.ts`, `vaziosManualBookingValidationMigration.test.ts`, `vaziosManualBookingDeleteMigration.test.ts` |
-| `/embarquevazios` — **Lançar linha** ou **Lançar** armazenagem pendente | Embarque aberto; usuário interno ativo; local, natureza e serviço do catálogo do local; armazenagem só em Depot, com a condição do serviço (ou serviço sem condição, genérico, migration `260`, em que a linha escolhe a **Condição**) | Aba **Serviços**: card **Linhas de Serviço** e card **Armazenagem pendente de lançamento** | `chooseService` sugere o valor (`valorSugerido`); `veto` (`vaziosCusto.ts`) recusa transporte sem rota, armazenagem fora de Depot, percentual e segunda armazenagem do mesmo (depot, condição); `upsertServiceLine` | INSERT em `vazios_export_service_lines` com `valor_sugerido`, `quantidade_manual` e `percentual` nulo; `validate_vazios_export_service_line` e `uq_vazios_storage_line_operation_local_condition` repetem as regras no banco | Atualiza a linha na tela, o total do Embarque e invalida o ADR da Viagem | Serviço de transporte sem destino cadastrado, combinação inválida ou armazenagem repetida são recusados com a mensagem da regra | **Código:** `src/pages/EmbarqueVazios.tsx`, `src/services/vaziosCusto.ts`, `src/services/depots.ts`; **Teste:** `vaziosCusto.test.ts`, `depotsSuggestion.test.ts`, `EmbarqueVazios.flow.test.tsx` |
-| `/embarquevazios` — editar observação ou excluir Linha de Serviço | Linha lançada; usuário interno ativo; exclusão com motivo | Coluna **Observação** (botão **Adicionar observação** ou **Editar observação**) e botão **Excluir** da linha | `updateServiceLineObservation`; `deleteServiceLine` → `deleteOneById` | UPDATE de `vazios_export_service_lines.observation`; exclusão por `delete_catalog_row` (migration `096`), com o motivo no Histórico | Refaz o Embarque e invalida o ADR da Viagem; a observação aparece no ADR | Sem motivo a exclusão não acontece; erro aparece em toast | **Código:** `src/pages/EmbarqueVazios.tsx`, `src/services/vaziosExportOperations.ts`; sem teste dedicado |
-| `/embarquevazios/depots` — **Novo local** / **Salvar local** | Usuário interno ativo; código; terminal portuário com porto brasileiro e sem free time | `DepotCadastro` (card **Identificação**) | `upsertDepot` | INSERT/UPDATE em `depots`; `normalize_depot_code`, `validate_depot_terminal_port` e `depots_free_time_check` no banco; auditoria por gatilho | Refaz a lista de locais da tela; outras telas releem ao abrir | Código vazio, terminal sem porto ou com free time e código repetido são recusados | **Código:** `src/pages/DepotCadastro.tsx`, `src/services/depots.ts`; **Teste:** `DepotCadastro.behavior.test.tsx`, `depots.test.ts` |
-| `/embarquevazios/depots` — catálogo sugerido: adicionar, editar, desativar ou reativar serviço | Local selecionado; usuário interno ativo; nome do serviço. Desativar e reativar (serviço e Local) só o Administrativo, com diálogo; reativar pede motivo (`reactivate_catalog_row`; gatilho `guard_catalog_active_change`, migration `263`, B15) | Card **Catálogo sugerido** | `upsertDepotService` | INSERT/UPDATE em `depot_services` (natureza, valor sugerido, condição ou destino da rota, ativo) | Refaz o catálogo do local; linhas já lançadas não mudam | Erro do banco aparece em toast | **Código:** `src/pages/DepotCadastro.tsx`, `src/services/depots.ts`; **Teste:** `DepotCadastro.behavior.test.tsx` |
-| `/embarquevazios/depots` — excluir local ou serviço | Administrativo; motivo obrigatório | Botões **Excluir** (só para o Administrativo) | `deleteDepot`/`deleteDepotService` → `deleteOneById` | `delete_catalog_row` (migration `096`): exclui com o motivo no Histórico; excluir o local leva os serviços dele | Refaz a lista ou o catálogo | O banco recusa local ou serviço em uso (FKs `ON DELETE RESTRICT`); local ainda terminal de B/L mostra quantos B/Ls trocar antes | **Código:** `src/services/depots.ts`; **Teste:** `DepotCadastro.behavior.test.tsx` |
+| `/embarquevazios` — **Novo embarque** | Usuário interno ativo; Viagem e **Porto de embarque** escolhido entre as escalas brasileiras da Viagem (e os portos dos B/Ls) | Janela **Novo embarque** (botão **Criar embarque**) em `EmbarqueVazios` | `fetchVoyageEscalaPorts` (`listVoyageRoutePorts` + `normalizePortCode`) → `openOrCreateVaziosExportOperation` (procura o da escala; sem ele, `upsertVaziosExportOperation`) | `vazios_export_operations` (upsert por `voyage_id, embark_port`: um Embarque por escala) | Invalida `['vazios-export-operations']` e abre o embarque; o que já existia abre com "Este embarque já existia e foi aberto." (V4) | Viagem sem escala brasileira não oferece porto; erro do banco aparece em toast | **Código:** `src/pages/EmbarqueVazios.tsx`, `src/services/vaziosExportOperations.ts`; **Teste:** `EmbarqueVazios.flow.test.tsx` |
+| `/embarquevazios` — **Importar planilha** de Unidades Embarcadas | Embarque aberto; usuário interno ativo; planilha `.xlsx`/`.xls`/`.csv` com CONTAINER, LOCAL e CONDIÇÃO (das sete colunas) | Janela **Importar unidades embarcadas** (`ImportFilePicker`) | `parseVaziosManifestFile` aponta por linha container repetido ou fora do ISO, local inexistente/inativo, condição e datas incompatíveis com o local; com linhas ou abas ocultas pede confirmação; `importVaziosManifest` recusa o lote com qualquer divergência e chama `import_vazios_bookings_transactional` | `vazios_manifests`, `vazios_bookings`; a RPC (migration `187`, com o rastro da `189`) repete a validação tudo ou nada, atualiza por container mantendo o id, insere as novas, tira só a unidade de planilha anterior ausente do arquivo, preserva a unidade incluída à mão e apaga manifesto sem unidade | Refaz unidades e Embarque e invalida o ADR da Viagem (`invalidateAgencyReportForVoyage`) | Qualquer divergência recusa a planilha inteira e nada é gravado; mensagem por linha (até 20, com o resto resumido) | **Código:** `src/services/vaziosImport.ts`; `supabase/migrations/187_vazios_reimportacao_preserva.sql`; **Teste:** `EmbarqueVazios.flow.test.tsx`, `vaziosImportAdrColumns.test.ts`; **Teste de contrato SQL:** `vaziosImportUpsert.test.ts`; **Integração em PostgreSQL local:** `vaziosReimportacao.local-pg.test.ts` |
+| `/embarquevazios` — incluir, editar ou excluir Unidade Embarcada | Embarque aberto; usuário interno ativo; container ISO e local **ativo** escolhido; exclusão com confirmação | Janela **Adicionar unidade** / **Editar unidade** (aba **Unidades embarcadas**) e ícones **Editar** e **Excluir** da linha | `createManualVaziosBooking`, `updateManualVaziosBooking`, `deleteManualVaziosBooking` | RPCs atômicas `create_manual_vazios_booking`, `update_manual_vazios_booking`, `delete_manual_vazios_booking` (migration `002`; mensagens com acento na `326`); manifesto de inclusão manual criado ou apagado na mesma RPC; `validate_vazios_booking_operation` (local ativo na inclusão ou troca de local, migration `326`) e a constraint `vazios_bookings_movement_after_hand_out` (migration `065`) conferem local e datas | Refaz unidades e Embarque, invalida a lista de embarques e o ADR da Viagem | Local inativo, depot sem as duas datas ou com saída antes da entrada, terminal portuário com datas, embarque antes da saída e container inválido são recusados com mensagem segura; exclusão não deixa manifesto órfão | **Código:** `src/services/vaziosExportOperations.ts`; **Teste:** `vaziosManualBooking.test.ts`, `vaziosManualBookingRpc.test.ts`; **Teste de contrato SQL:** `vaziosManualBookingAtomicMigration.test.ts`, `vaziosManualBookingValidationMigration.test.ts`, `vaziosManualBookingDeleteMigration.test.ts`; **Integração em PostgreSQL local:** `vaziosLocalServicoInativo.local-pg.test.ts` |
+| `/embarquevazios` — **Lançar linha** ou **Lançar armazenagem** | Embarque aberto; usuário interno ativo; local e serviço **ativos** (V1), natureza e serviço do catálogo do local; armazenagem só em Depot, com a condição do serviço (ou serviço sem condição, genérico, migration `260`, em que a linha escolhe a **Condição**) | Aba **Serviços**: janela **Lançar linha** e ícone da tabela **Armazenagem a lançar** (combinações com 0 dia não aparecem) | `chooseService` sugere o valor (`valorSugerido`); `veto` (`vaziosCusto.ts`) recusa transporte sem rota, armazenagem fora de Depot, percentual e segunda armazenagem do mesmo (depot, condição); `upsertServiceLine` | INSERT em `vazios_export_service_lines` com `valor_sugerido`, `quantidade_manual` e `percentual` nulo; `validate_vazios_export_service_line` (com local e serviço ativos na linha nova ou trocada, migration `326`) e `uq_vazios_storage_line_operation_local_condition` repetem as regras no banco | Atualiza a linha na tela, o total do Embarque e invalida o ADR da Viagem | Serviço de transporte sem destino cadastrado, combinação inválida, armazenagem repetida e local ou serviço inativo são recusados com a mensagem da regra | **Código:** `src/pages/EmbarqueVazios.tsx`, `src/services/vaziosCusto.ts`, `src/services/depots.ts`; **Teste:** `vaziosCusto.test.ts`, `depotsSuggestion.test.ts`, `EmbarqueVazios.flow.test.tsx`; **Integração em PostgreSQL local:** `vaziosLocalServicoInativo.local-pg.test.ts` |
+| `/embarquevazios` — editar observação ou excluir Linha de Serviço | Linha lançada; usuário interno ativo; exclusão com motivo | Ícones **Observação** (janela) e **Excluir** da linha; a observação aparece como texto na coluna **Observação** | `updateServiceLineObservation`; `deleteServiceLine` → `deleteOneById` | UPDATE de `vazios_export_service_lines.observation`; exclusão por `delete_catalog_row` (migration `096`), com o motivo no Histórico | Refaz o Embarque e invalida o ADR da Viagem; a observação aparece no ADR | Sem motivo a exclusão não acontece; erro aparece em toast | **Código:** `src/pages/EmbarqueVazios.tsx`, `src/services/vaziosExportOperations.ts`; sem teste dedicado |
+| `/embarquevazios/depots` — **Novo local** / **Editar** local | Usuário interno ativo; código; terminal portuário com porto brasileiro e sem free time | Janela **Novo local** (**Cadastrar local**) ou **Editar local** (**Salvar local**) | `upsertDepot` (devolve o id) | INSERT/UPDATE em `depots`; `normalize_depot_code`, `validate_depot_terminal_port` e `depots_free_time_check` no banco; auditoria por gatilho | `afterDepotAlterado`: locais, serviços, armazenagem e lista do Embarque, Portal; o local criado fica aberto (L7) | Código vazio, terminal sem porto ou com free time e código repetido são recusados | **Código:** `src/pages/DepotCadastro.tsx`, `src/services/depots.ts`; **Teste:** `DepotCadastro.behavior.test.tsx`, `depots.test.ts` |
+| `/embarquevazios/depots` — serviços do catálogo: adicionar, editar, desativar ou reativar serviço; desativar ou reativar local | Local selecionado; usuário interno ativo; nome do serviço. Desativar e reativar (serviço e Local) só o Administrativo, com diálogo; reativar pede motivo (`reactivate_catalog_row`; gatilho `guard_catalog_active_change`, migration `263`, B15) | Janela **Adicionar serviço** / **Editar serviço** (ícone **Editar**) e menu ⋮ da linha e do bloco **Cadastro** | `upsertDepotService`, `upsertDepot`, `reactivateCatalogRow` | INSERT/UPDATE em `depot_services` (natureza, valor sugerido, condição ou destino da rota, ativo) e `depots.active` | `afterDepotAlterado`; linhas já lançadas não mudam | Erro do banco aparece em toast | **Código:** `src/pages/DepotCadastro.tsx`, `src/services/depots.ts`; **Teste:** `DepotCadastro.behavior.test.tsx` |
+| `/embarquevazios/depots` — excluir local ou serviço | Administrativo; motivo obrigatório | **Excluir local** / **Excluir serviço** no menu ⋮ (só para o Administrativo) | `deleteDepot`/`deleteDepotService` → `deleteOneById` | `delete_catalog_row` (migration `096`): exclui com o motivo no Histórico; excluir o local leva os serviços dele | Refaz a lista ou o catálogo | O banco recusa local ou serviço em uso (FKs `ON DELETE RESTRICT`); local ainda terminal de B/L mostra quantos B/Ls trocar antes | **Código:** `src/services/depots.ts`; **Teste:** `DepotCadastro.behavior.test.tsx` |
 | B/L — definir exceção de terminal | Terminal planejado no POD e justificativa | `BlTerminalOverrideCard` / `BlDetalhe` | mutation local → `setBlTerminalOverride` | RPC `set_bl_terminal_override`; `bls.terminal_id`, `pod_port_id`, `audit_logs` | Invalida detalhe do B/L e auditoria de B/L | RPC rejeita terminal/porto incompatível, falta de justificativa e sessão inválida | **Código:** `src/services/blTerminal.ts`; **Teste de contrato SQL:** `terminalBlMigration.test.ts`, `pr698ClaudeReviewFollowupMigration.test.ts` |
 | B/L — alterar perfil do container (aba Carga, botão **Corrigir** da linha) | Perfil atual (B/L, Baplie ou correção), novo perfil e justificativa | `BlCargaTab` / `BlContainerCorrectModal` (janela Corrigir; confirmação com antes e depois) | mutation local → `setContainerProfile` | RPC `set_bl_container_profile` (migrations `194` e `205`): `bl_containers.is_imo`, `is_oog`, `imo_class`, `un_number` e `profile_source = 'manual'` no container em todos os B/Ls ativos da Viagem que o dividem (Part Lot), com `audit_logs` e recálculo das taxas locais (`calculate_bl_local_charges`) nos B/Ls sem fatura, na mesma transação; o irmão faturado não é recalculado e segue a ADR 0077 pela base alterada (volta em `invoiced_bls`, e o aviso de sucesso diz isso) | Invalida detalhe/listas do B/L, linhas de taxa local, operações e pendências de taxa, containers e auditoria do B/L | RPC rejeita perfil inválido, falta de justificativa, perfil igual ao atual, B/L cancelado ou faturado como ponto de partida (o faturado aponta o B/L sem fatura do mesmo container) e sessão inválida (ADR 0079, decisão 5); a janela Corrigir não aparece em B/L cancelado e trava o campo em B/L faturado, com o caminho (reimportar o B/L ou aplicar o Baplie). O Baplie não troca o perfil manual: a diferença vira divergência **IMO/OOG manual diverge** | **Código:** `src/services/vaziosNatureza.ts`; **Teste de banco local:** `src/integration/containerProfile.local-pg.test.ts`, `src/integration/baplieMarcas.local-pg.test.ts` |
 | B/L — alterar SOC/COC do container (aba Carga, botão **Corrigir** da linha) | SOC/COC atual (B/L, Baplie ou correção), novo valor e justificativa | `BlCargaTab` / `BlContainerCorrectModal` (janela Corrigir; confirmação com antes e depois) | mutation local → `setContainerOwnership` | RPC `set_bl_container_ownership` (migrations `194` e `205`): `bl_containers.ownership` e `ownership_source = 'manual'` no container em todos os B/Ls ativos da Viagem que o dividem (Part Lot), com `audit_logs` (`container_ownership`) e recálculo das taxas locais nos B/Ls sem fatura, na mesma transação; o irmão faturado segue a ADR 0077 (`invoiced_bls`) | Invalida detalhe/listas do B/L, conciliação do Baplie, linhas de taxa local, operações e pendências de taxa, containers e auditoria do B/L | RPC rejeita valor inválido, falta de justificativa, valor igual ao atual, B/L cancelado ou faturado como ponto de partida e sessão inválida (ADR 0079, decisão 5); a janela Corrigir não aparece em B/L cancelado e trava o campo em B/L faturado. Nem o Baplie nem a reimportação do B/L sobrescrevem a correção manual; a diferença para o Baplie aparece como SOC/COC divergente | **Código:** `src/services/vaziosNatureza.ts`; **Teste de banco local:** `src/integration/containerOwnership.local-pg.test.ts`, `src/integration/baplieMarcas.local-pg.test.ts` |
@@ -569,9 +641,9 @@ Principais famílias de cache:
 | Containers | `['containers', filters]`, `['bl-detail', blId]`, `['demurrage-containers']`, `['demurrage-invoices']` |
 | Veículos | `['vehicles', voyageId, filters]`, `['vehicle-stats', voyageId]`, `['voyage-vehicle-stats', voyageIds]` |
 | Baplie | `['baplie-staging', voyageId]`, `['baplie-bls-exist', voyageId]`, `['baplie-vazios-manifest', voyageId]`, `['baplie-reconciliation', voyageId]` |
-| Vazios de importação | `['vazios-importacao-containers', filters]`, `['vazios-importacao-manifests']`, `['vazios-importacao-stats', voyageIds]` |
-| Embarque de Vazios | `['vazios-export-operations', voyageId]`, `['embarque-vazios-operation', operationId]`, `['embarque-vazios-units', operationId]`, `['embarque-vazios-voyage-ports', voyageId]`, `['depots']`, `['depot-services', localId]`, `['armazenagem-services']`; o ADR da Viagem por `invalidateAgencyReportForVoyage` |
-| Cadastro de Terminais | `['depots', 'list']` (`useDepots`), `['depot-services', depotId]`, `['ports', 'brazilian']`, `['depots', 'terminal-port-preflight']` |
+| Vazios de importação | `['vazios-importacao-containers', filters]`, `['manifestos-mercante', 'vazio', voyageIds]` (Nº por rota e opções do filtro), `['vazios-importacao-stats', voyageIds]` |
+| Embarque de vazios | `['vazios-export-operations']` (todos os embarques, com linhas e unidades, para a lista), `['embarque-vazios-operation', operationId]`, `['embarque-vazios-units', operationId]`, `['embarque-vazios-voyage-ports', voyageId]`, `['depots', 'list']` (`useDepots`), `['depot-services', 'ativos', localId]`, `['armazenagem-services']`; o ADR da Viagem por `invalidateAgencyReportForVoyage` |
+| Locais (depots e terminais) | `['depots', 'list']` (`useDepots`), `['depot-services', depotId]`, `['ports', 'brazilian']`, `['depots', 'terminal-port-preflight']`; toda gravação passa por `afterDepotAlterado` |
 
 As páginas e modais ainda usam várias arrays literais. A cartografia preserva essas formas: não as normaliza para `queryKeys` quando o código não o faz.
 
@@ -582,7 +654,7 @@ Dados e fronteiras:
 - **Staging físico:** `baplie_containers`.
 - **Decisões:** `baplie_reconciliation_resolutions`.
 - **Vazios:** `vazios_importacao_manifests`/`vazios_importacao_containers` (Vazios de Importação) e `vazios_export_operations` (um Embarque por escala), `vazios_manifests`/`vazios_bookings` (Unidades Embarcadas) e `vazios_export_service_lines` (Linhas de Serviço).
-- **Cadastro de Terminais:** `depots` (local, tipo, porto do terminal, free times, ativo) e `depot_services` (catálogo sugerido por local).
+- **Locais (depots e terminais):** `depots` (local, tipo, porto do terminal, free times, ativo) e `depot_services` (catálogo sugerido por local).
 - **Financeiro derivado:** `charge_calculations`, `invoices`, `invoice_bls`, recebíveis e tabelas próprias de demurrage.
 - **Histórico:** `audit_logs`, consultado por `bl_timeline`.
 

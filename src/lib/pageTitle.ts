@@ -33,9 +33,9 @@ const ROUTE_TITLES: Array<[RegExp, string]> = [
   [/^\/demurrage/, 'Demurrage'],
   [/^\/reconciliacao/, 'Conciliação PIX'],
   [/^\/granito/, 'Granito'],
-  [/^\/embarquevazios\/depots/, 'Cadastro de Terminais'],
-  [/^\/embarquevazios/, 'Embarque de Vazios'],
-  [/^\/vazios-importacao/, 'Vazios de Importação'],
+  [/^\/embarquevazios\/depots/, 'Locais (depots e terminais)'],
+  [/^\/embarquevazios/, 'Embarque de vazios'],
+  [/^\/vazios-importacao/, 'Vazios de importação'],
   [/^\/baplie/, 'Baplie EDI'],
   [/^\/chegadas-saidas/, 'Chegadas e Saídas'],
   // Cada aba de Administração tem rota própria e, portanto, título próprio.

@@ -32,6 +32,7 @@ export async function setVaziosImportacaoNaturezaMany(
 export async function fetchVaziosImportacaoContainerIds(filters: {
   manifestId?: string
   voyageId?: string
+  pol?: string
   pod?: string
   search?: string
 }): Promise<string[]> {
@@ -61,6 +62,13 @@ export async function fetchVaziosImportacaoContainerIds(filters: {
     const ids = (manifestIds ?? []).map((m: { id: string }) => m.id)
     if (!ids.length) return []
     query = query.in('manifest_id', ids)
+  }
+
+  if (filters.pol) {
+    const safe = escapeFilterTerm(filters.pol)
+    if (safe) {
+      query = query.ilike('pol', safe)
+    }
   }
 
   if (filters.pod) {

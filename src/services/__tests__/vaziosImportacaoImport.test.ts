@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes, vaziosImportacaoHiddenConfirmOptions } from '../vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes, vaziosImportacaoHiddenConfirmOptions, vazioManifestoNumero } from '../vaziosImportacaoImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
 const { rpcMock, fromMock } = vi.hoisted(() => ({ rpcMock: vi.fn(), fromMock: vi.fn() }))
@@ -168,7 +168,7 @@ describe('parseVaziosImportacaoBuffer', () => {
 	})
 })
 
-describe('Nº do manifesto Mercante dos vazios (um por porto de origem)', () => {
+describe('Nº do manifesto Mercante dos vazios (um por rota POL → POD)', () => {
   const base = { uploadedBy: 'user-1', voyageId: 7 }
   const OUTRA = { pol: 'CNSHA', pod: 'BRVIX' }
   const doisPortos = { containers: [container('MSCU1234567'), container('TGHU7654325', OUTRA)], rowErrors: [] }
@@ -187,13 +187,13 @@ describe('Nº do manifesto Mercante dos vazios (um por porto de origem)', () => 
     expect(rpcMock).not.toHaveBeenCalled()
   })
 
-  it('com dois portos de origem exige um número para cada um', async () => {
+  it('com duas rotas exige um número para cada uma', async () => {
     await expect(importVaziosImportacaoManifest({
       ...base, manifestNumbers: { CNTAC__BRVIX: '111' }, manifest: doisPortos,
     })).rejects.toThrow('CNSHA → BRVIX')
     await expect(importVaziosImportacaoManifest({
       ...base, manifestNumbers: { CNTAC__BRVIX: '111', CNSHA__BRVIX: ' 111 ' }, manifest: doisPortos,
-    })).rejects.toThrow('mais de um porto de origem')
+    })).rejects.toThrow('mais de uma rota')
     await expect(importVaziosImportacaoManifest({
       ...base, manifestNumbers: { CNTAC__BRVIX: '1' }, manifest: { containers: [container('MSCU1234567', {})], rowErrors: [] },
     })).rejects.toThrow('POL e POD são obrigatórios')
@@ -236,6 +236,12 @@ describe('resolveVaziosManifestRoutes', () => {
   it('explica o bloqueio quando falta POL/POD ou não há containers', () => {
     expect(resolveVaziosManifestRoutes({ containers: [container('A', { pol: 'CNTAC' })] }).error).toMatch(/POL e POD/)
     expect(resolveVaziosManifestRoutes({ containers: [] }).error).toMatch(/Nenhum container/)
+  })
+
+  it('V3: o mesmo POL com dois POD pede dois números (um por rota)', () => {
+    expect(resolveVaziosManifestRoutes({
+      containers: [container('A'), container('B', { pol: 'CNTAC', pod: 'BRSSZ' })],
+    }).routes).toEqual([{ pol: 'CNTAC', pod: 'BRSSZ' }, ROTA])
   })
 
   it('aceita os números quando cada porto tem o seu', () => {
@@ -286,5 +292,30 @@ describe('Vazios de Importação — linhas e abas ocultas', () => {
     expect(hidden).toEqual({ rows: 0, sheets: [] })
     expect(vaziosImportacaoHiddenConfirmOptions(hidden)).toBeNull()
     expect(vaziosImportacaoHiddenConfirmOptions({ rows: 3, sheets: [] })?.message).toMatch(/^3 linhas ocultas foram ignoradas e as unidades delas sairão do manifesto/)
+  })
+})
+
+describe('vazioManifestoNumero (coluna Manifesto Mercante)', () => {
+  const manifestos = [
+    { voyage_id: 7, pol: 'CNSHA', pod: 'BRVIX', numero: '2626501234568' },
+    { voyage_id: 7, pol: 'CNSHA', pod: 'BRSSZ', numero: '2626501234567' },
+    { voyage_id: 8, pol: 'CNSHA', pod: 'BRVIX', numero: '2626509999999' },
+  ]
+  const row = (pol: string | null, pod: string | null, voyageId: number | null = 7) => ({ pol, pod, manifest: { voyage_id: voyageId } })
+
+  it('casa pela Viagem, POL e POD do container', () => {
+    expect(vazioManifestoNumero(row('CNSHA', 'BRVIX'), manifestos)).toBe('2626501234568')
+    expect(vazioManifestoNumero(row('CNSHA', 'BRSSZ'), manifestos)).toBe('2626501234567')
+    expect(vazioManifestoNumero(row('CNSHA', 'BRVIX', 8), manifestos)).toBe('2626509999999')
+  })
+
+  it('compara o porto pela forma canônica (BRVIT é BRVIX, caixa baixa)', () => {
+    expect(vazioManifestoNumero(row('cnsha', 'BRVIT'), manifestos)).toBe('2626501234568')
+  })
+
+  it('sem manifesto da rota, sem POL/POD ou sem Viagem não tem número', () => {
+    expect(vazioManifestoNumero(row('CNNGB', 'BRVIX'), manifestos)).toBeNull()
+    expect(vazioManifestoNumero(row(null, 'BRVIX'), manifestos)).toBeNull()
+    expect(vazioManifestoNumero(row('CNSHA', 'BRVIX', null), manifestos)).toBeNull()
   })
 })

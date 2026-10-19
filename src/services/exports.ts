@@ -365,27 +365,27 @@ export async function exportCustomerBaseWorkbook(rows: CustomerListItem[]) {
   XLSX.writeFile(workbook, `base-clientes-${makeTimestamp()}.xlsx`)
 }
 
-export async function exportVaziosImportacaoWorkbook(rows: VaziosImportacaoContainerListItem[]) {
-  const XLSX = await import('@e965/xlsx')
-  const exportRows = rows.map((row) => {
-    const manifestLabel = row.manifest?.description
-      ? row.manifest.description
-      : row.manifest?.imported_at
-        ? formatDate(row.manifest.imported_at)
-        : ''
+const VAZIO_NATUREZA_LABELS: Record<string, string> = { cama: 'Cama', cover_plate: 'Cover plate' }
 
-    return {
-      Container: row.container_number,
-      Tipo: row.container_type ?? '',
-      'Tara (kg)': row.tare_kg ?? '',
-      POL: row.pol ?? '',
-      POD: row.pod ?? '',
-      Navio: row.manifest?.voyage?.vessel?.name ?? '',
-      Viagem: row.manifest?.voyage?.voyage_number ?? '',
-      Manifesto: manifestLabel,
-      'Importado em': row.manifest?.imported_at ? formatDate(row.manifest.imported_at) : '',
-    }
-  })
+/**
+ * Planilha de Vazios de importação: as colunas da tela, com a Natureza (único
+ * dado editado na tela, achado V5 do lote 5b) e o Nº do manifesto Mercante da
+ * rota, que quem chama resolve (`vazioManifestoNumero`).
+ */
+export async function exportVaziosImportacaoWorkbook(rows: Array<VaziosImportacaoContainerListItem & { manifesto_numero?: string | null }>) {
+  const XLSX = await import('@e965/xlsx')
+  const exportRows = rows.map((row) => ({
+    Container: row.container_number,
+    Tipo: row.container_type ?? '',
+    'Tara (kg)': row.tare_kg ?? '',
+    POL: row.pol ?? '',
+    POD: row.pod ?? '',
+    Natureza: row.natureza ? VAZIO_NATUREZA_LABELS[row.natureza] ?? row.natureza : '',
+    Navio: row.manifest?.voyage?.vessel?.name ?? '',
+    Viagem: row.manifest?.voyage?.voyage_number ?? '',
+    'Manifesto Mercante': row.manifesto_numero ?? '',
+    'Importado em': row.manifest?.imported_at ? formatDate(row.manifest.imported_at) : '',
+  }))
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'VaziosImportacao')
