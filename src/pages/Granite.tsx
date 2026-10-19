@@ -1,41 +1,53 @@
-import { useState, type ChangeEvent } from 'react'
+import { useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useQueryClient, useQuery } from '@tanstack/react-query'
-import { Mountain, Upload } from 'lucide-react'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Upload } from 'lucide-react'
+import { Block } from '../components/ui/Block'
 import { Button } from '../components/ui/Button'
 import { CopyValue } from '../components/ui/CopyValue'
 import { NoValue } from '../components/ui/NoValue'
-import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
+import { EmptyState, PageHeader } from '../components/ui/Card'
 import { Field, Input, Select } from '../components/ui/Input'
+import { MetricCard } from '../components/ui/MetricCard'
 import { Modal } from '../components/ui/Modal'
 import { PreviewBox } from '../components/ui/PreviewBox'
+import { SkeletonTable } from '../components/ui/Skeleton'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
+import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { TruncationNote } from '../components/shared/TruncationNote'
-import { CeMercanteImportModal } from '../components/shared/CeMercanteImportModal'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
+import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
+import { ImportReadProgress } from '../components/shared/ImportReadProgress'
 import { useAuth } from '../hooks/useAuth'
+import { useVoyageOptions } from '../hooks/useBls'
 import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { usePageFilters } from '../hooks/usePageFilters'
 import { afterManifestoImportado } from '../services/cacheEffects'
-import { PAGE_SIZES, usePageFilters } from '../hooks/usePageFilters'
+import { queryKeys } from '../services/queryKeys'
 import {
   parseGraniteManifestFile,
   describeGraniteImport,
   graniteRemovalConfirmOptions,
   importGraniteManifest,
   type ParsedGraniteManifest,
-  type ReconciliationStatus,
 } from '../services/graniteImport'
-import { listGraniteBls, calculateGraniteBlCharges } from '../services/graniteCharges'
-import { describeActiveFilters, describeEmptyState, formatResultCount } from '../lib/operationalState'
-import { userFacingErrorMessage } from '../lib/errors'
-import { CNPJ_INPUT_MAX_LENGTH, canonicalizeDocument, normalizeCnpj } from '../lib/cnpj'
-import { loadCustomerMaps, findMatchedCustomer, resolveCustomerLink, withoutDeactivatedCustomer } from '../services/customerReconciliation'
+import {
+  fetchGraniteCargoRows,
+  formatGraniteTons,
+  graniteLegLabel,
+  graniteVoyageLabel,
+  graniteWeightKg,
+  listGraniteBls,
+  summarizeGraniteCargo,
+} from '../services/graniteCargo'
 import { rowErrorsToImportIssues } from '../services/importValidation'
-import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
-import { ImportReadProgress } from '../components/shared/ImportReadProgress'
-import { ImportResultPanel } from '../components/shared/ImportResultPanel'
+import { describeActiveFilters } from '../lib/operationalState'
+import { STALE_PAGE_CLASS } from '../lib/pagination'
+import { userFacingErrorMessage } from '../lib/errors'
+import { voyageDisplayName } from '../lib/utils'
 
 type Filters = {
   search: string
@@ -45,88 +57,292 @@ type Filters = {
   pageSize: number
 }
 
+const plural = (count: number, one: string, many: string) => `${count.toLocaleString('pt-BR')} ${count === 1 ? one : many}`
+
+/**
+ * Granito (lote 5b da identidade, aprovado em 2026-10-19): só a carga
+ * movimentada no navio. Sem Cliente, sem taxa e sem CE (regra em
+ * docs/modules/granito.md).
+ */
 export function Granite() {
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const { user, profile } = useAuth()
   const canWrite = Boolean(profile || user)
-  const { showToast } = useToast()
-  const confirm = useConfirm()
   const initialVoyageId = searchParams.get('voyage') ?? ''
 
-  const { filters, updateFilter } = usePageFilters<Filters>({
+  const { filters, setFilters, updateFilter } = usePageFilters<Filters>({
     search: '',
     voyageId: initialVoyageId,
     dischargePort: '',
     page: 1,
     pageSize: 20,
   })
-
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [ceMercanteOpen, setCeMercanteOpen] = useState(false)
-  const [voyageId, setVoyageId] = useState(initialVoyageId)
-  const { file, preview: manifest, parsing, progress, readFile, cancel: cancelReading, updatePreview } = useCancellableFileRead<ParsedGraniteManifest>(parseGraniteManifestFile)
-  const [submitting, setSubmitting] = useState(false)
-  // Overrides de CNPJ feitos inline no preview
-  const [cnpjOverrides, setCnpjOverrides] = useState<Record<number, string>>({})
-  const [chargeBlId, setChargeBlId] = useState<string | null>(null)
-  const [resultBlId, setResultBlId] = useState<string | null>(null)
-  const [chargeLines, setChargeLines] = useState<Array<{ description: string | null; charge_type: string | null; quantity: number | null; unit_value: number | null; subtotal: number | null; currency: string | null }>>([])
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['granite-bls', filters],
-    queryFn: () => listGraniteBls(filters),
+  const debouncedSearch = useDebouncedValue(filters.search)
+  const listFilters = useMemo(() => ({
+    ...filters,
+    search: debouncedSearch,
+    page: debouncedSearch === filters.search ? filters.page : 1,
+  }), [debouncedSearch, filters])
+  const cargoFilters = useMemo(() => ({ search: debouncedSearch, voyageId: filters.voyageId }), [debouncedSearch, filters.voyageId])
+
+  const listQuery = useQuery({
+    queryKey: queryKeys.granite.bls(listFilters),
+    queryFn: () => listGraniteBls(listFilters),
+    placeholderData: keepPreviousData,
   })
+  const cargoQuery = useQuery({
+    queryKey: queryKeys.granite.cargo(cargoFilters),
+    queryFn: () => fetchGraniteCargoRows(cargoFilters),
+    placeholderData: keepPreviousData,
+  })
+  const { data: voyageOptions } = useVoyageOptions()
 
-  const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / filters.pageSize))
+  // O POD filtra na tela: a lista de portos vem do recorte sem ele.
+  const cargoRows = useMemo(() => cargoQuery.data ?? [], [cargoQuery.data])
+  const podOptions = useMemo(() => {
+    const ports = new Set(cargoRows.map((row) => row.discharge_port?.trim()).filter((port): port is string => Boolean(port)))
+    if (filters.dischargePort) ports.add(filters.dischargePort)
+    return [...ports].sort()
+  }, [cargoRows, filters.dischargePort])
+  const summary = useMemo(
+    () => summarizeGraniteCargo(filters.dischargePort ? cargoRows.filter((row) => row.discharge_port === filters.dischargePort) : cargoRows),
+    [cargoRows, filters.dischargePort],
+  )
+
+  const stale = listQuery.isPlaceholderData
+  const rows = listQuery.data?.rows ?? []
+  const totalCount = listQuery.data?.count ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / filters.pageSize))
+  const cargoKnown = cargoQuery.data !== undefined && !cargoQuery.error && !cargoQuery.isPlaceholderData
+  const metric = (value: string) => (cargoKnown ? value : <NoValue label="Carregando" />)
+
+  // Filtros ativos com o nome do navio e da viagem, nunca o número interno (lote 5b).
+  const selectedVoyage = voyageOptions?.find((voyage) => String(voyage.id) === filters.voyageId)
+  const voyageFilterLabel = filters.voyageId
+    ? voyageDisplayName(selectedVoyage?.vessel?.name, selectedVoyage?.voyage_number) ?? 'escolhida'
+    : ''
+  const hasActiveFilters = [filters.search, filters.voyageId, filters.dischargePort].some((value) => value.trim() !== '')
+  const filterDescription = describeActiveFilters([
+    { label: 'Busca', value: filters.search },
+    { label: 'Viagem', value: voyageFilterLabel },
+    { label: 'POD', value: filters.dischargePort },
+  ])
+
+  function clearFilters() {
+    setFilters((current) => ({ ...current, search: '', voyageId: '', dischargePort: '', page: 1 }))
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Granito"
+        action={canWrite ? (
+          <Button onClick={() => setUploadOpen(true)}>
+            <Upload size={16} aria-hidden="true" />
+            Importar planilha COSCO
+          </Button>
+        ) : undefined}
+      />
+
+      <div className="app-metric-row" role="group" aria-label="Totais do recorte">
+        <MetricCard label="B/Ls" value={metric(summary.totals.bls.toLocaleString('pt-BR'))} detail="no recorte" />
+        <MetricCard label="Blocos" value={metric(summary.totals.blocks.toLocaleString('pt-BR'))} detail="no recorte" />
+        <MetricCard label="Peso" value={metric(formatGraniteTons(summary.totals.weightKg))} detail="no recorte" />
+      </div>
+
+      <div className="app-filter-grid mb-4">
+        <Field label="Busca">
+          <Input
+            type="search"
+            placeholder="B/L ou shipper"
+            value={filters.search}
+            onChange={(event) => updateFilter('search', event.target.value)}
+          />
+        </Field>
+        <VoyageCombobox
+          clearable
+          label="Viagem"
+          placeholder="Navio ou viagem"
+          selectedVoyageId={filters.voyageId}
+          onSelect={(id) => updateFilter('voyageId', id == null ? '' : String(id))}
+        />
+        <Field label="POD">
+          <Select value={filters.dischargePort} onChange={(event) => updateFilter('dischargePort', event.target.value)}>
+            <option value="">Todos</option>
+            {podOptions.map((port) => <option key={port} value={port}>{port}</option>)}
+          </Select>
+        </Field>
+        {hasActiveFilters ? (
+          <div><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button></div>
+        ) : null}
+      </div>
+
+      {summary.byVoyage.length > 0 || cargoQuery.isLoading || cargoQuery.error ? (
+        <Block title="Carga por viagem" aside="o que o navio movimentou de Granito" flush className="mb-4">
+          <QueryStateGate
+            isLoading={cargoQuery.isLoading}
+            isError={Boolean(cargoQuery.error)}
+            isPaused={cargoQuery.fetchStatus === 'paused'}
+            hasData={cargoQuery.data !== undefined}
+            errorMessage="Não foi possível carregar a carga por viagem."
+            onRetry={() => void cargoQuery.refetch()}
+            loadingFallback={<SkeletonTable rows={2} cols={5} label="Carregando a carga por viagem" />}
+          >
+            <div className={`app-table-scroll${cargoQuery.isPlaceholderData ? ` ${STALE_PAGE_CLASS}` : ''}`} aria-busy={cargoQuery.isPlaceholderData || undefined}>
+              <table className="app-table">
+                <caption className="sr-only">Carga de Granito por navio e viagem</caption>
+                <thead>
+                  <tr>
+                    <th scope="col" className="app-table__text-head">Navio / Viagem</th>
+                    <th scope="col">Trecho</th>
+                    <th scope="col">B/Ls</th>
+                    <th scope="col">Blocos</th>
+                    <th scope="col">Peso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.byVoyage.map((group) => (
+                    <tr key={group.key}>
+                      <td className="app-table__text">
+                        {group.voyageId != null && group.voyageLabel ? (
+                          <Link className="app-link" to={`/viagens/${group.voyageId}`}>{group.voyageLabel}</Link>
+                        ) : group.voyageLabel ?? <NoValue label="Sem navio e viagem" />}
+                      </td>
+                      <td>{group.leg ?? <NoValue label="Sem trecho" />}</td>
+                      <td className="tabular-nums">{group.bls.toLocaleString('pt-BR')}</td>
+                      <td className="tabular-nums">{group.blocks.toLocaleString('pt-BR')}</td>
+                      <td className="tabular-nums"><strong>{formatGraniteTons(group.weightKg)}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </QueryStateGate>
+        </Block>
+      ) : null}
+
+      <Block
+        title="B/Ls de Granito"
+        aside={cargoKnown ? `${plural(summary.totals.bls, 'B/L', 'B/Ls')} · ${plural(summary.totals.blocks, 'bloco', 'blocos')} · ${formatGraniteTons(summary.totals.weightKg)}` : null}
+        flush
+      >
+        <QueryStateGate
+          isLoading={false}
+          isError={Boolean(listQuery.error)}
+          isPaused={listQuery.fetchStatus === 'paused'}
+          hasData={listQuery.data !== undefined}
+          errorMessage="Não foi possível carregar os B/Ls de Granito."
+          onRetry={() => void listQuery.refetch()}
+        >
+          {listQuery.isLoading || (stale && rows.length === 0) ? (
+            <SkeletonTable rows={8} cols={6} label="Carregando os B/Ls de Granito" />
+          ) : rows.length === 0 ? (
+            hasActiveFilters ? (
+              <EmptyState
+                title="Nenhum B/L de Granito neste recorte"
+                description={`${filterDescription}.`}
+                action={<Button variant="secondary" onClick={clearFilters}>Limpar filtros</Button>}
+              />
+            ) : (
+              <EmptyState
+                title="Nenhum B/L de Granito importado"
+                description="Os B/Ls entram pela planilha COSCO, aqui ou na ficha da Viagem."
+              />
+            )
+          ) : (
+            <>
+              <div className={`app-table-scroll${stale ? ` ${STALE_PAGE_CLASS}` : ''}`} aria-busy={stale || undefined}>
+                <table className="app-table">
+                  <caption className="sr-only">B/Ls de Granito do recorte atual</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">B/L</th>
+                      <th scope="col" className="app-table__text-head">Shipper</th>
+                      <th scope="col">Navio / Viagem</th>
+                      <th scope="col">Trecho</th>
+                      <th scope="col">Blocos</th>
+                      <th scope="col">Peso</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((bl) => {
+                      const weightKg = graniteWeightKg(bl)
+                      const leg = graniteLegLabel(bl)
+                      return (
+                        <tr key={bl.id}>
+                          <td><span className="app-cargo-code"><CopyValue value={bl.bl_number} label="número do B/L" /></span></td>
+                          <td className="app-table__text" title={bl.shipper_name ?? undefined}>{bl.shipper_name ?? <NoValue label="Sem shipper" />}</td>
+                          <td>{graniteVoyageLabel(bl) ?? <NoValue label="Sem navio e viagem" />}</td>
+                          <td>{leg ?? <NoValue label="Sem trecho" />}</td>
+                          <td className="tabular-nums">{bl.blocks_qty != null ? Number(bl.blocks_qty).toLocaleString('pt-BR') : <NoValue label="Sem blocos" />}</td>
+                          <td className="tabular-nums">{weightKg != null ? formatGraniteTons(weightKg) : <NoValue label="Sem peso" />}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="app-block__body"><p className="app-facts__detail">Peso: o peso real quando a planilha traz; sem ele, o declarado pelo shipper.</p></div>
+            </>
+          )}
+        </QueryStateGate>
+
+        {listQuery.data && totalCount > 0 ? (
+          <TableFooterPagination
+            page={listFilters.page}
+            pageSize={filters.pageSize}
+            totalCount={totalCount}
+            totalPages={totalPages}
+            onPageChange={(page) => updateFilter('page', page)}
+            onPageSizeChange={(pageSize) => updateFilter('pageSize', pageSize)}
+          />
+        ) : null}
+      </Block>
+
+      {uploadOpen && canWrite ? (
+        <GraniteImportModal
+          initialVoyageId={filters.voyageId}
+          onClose={() => setUploadOpen(false)}
+          onImported={async (voyageId) => {
+            await afterManifestoImportado(queryClient, { voyageId })
+          }}
+        />
+      ) : null}
+    </>
+  )
+}
+
+/** Janela da planilha COSCO: Viagem de destino, arquivo e prévia da carga. */
+function GraniteImportModal({
+  initialVoyageId,
+  onClose,
+  onImported,
+}: {
+  initialVoyageId: string
+  onClose: () => void
+  onImported: (voyageId: number) => Promise<void>
+}) {
+  const { user } = useAuth()
+  const { showToast } = useToast()
+  const confirm = useConfirm()
+  const [voyageId, setVoyageId] = useState(initialVoyageId)
+  const [submitting, setSubmitting] = useState(false)
+  const { file, preview: manifest, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedGraniteManifest>(parseGraniteManifestFile)
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    const nextFile = event.target.files?.[0] ?? null
-    setCnpjOverrides({})
     try {
-      const parsed = await readFile(nextFile)
-      if (!parsed) return
-      showToast('Preview carregado.', 'success')
+      await readFile(event.target.files?.[0] ?? null)
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Erro ao ler arquivo.', 'error')
+      showToast(err instanceof Error ? err.message : 'Não foi possível ler o arquivo.', 'error')
     }
   }
 
-  async function handleCnpjOverride(rowIndex: number, cnpj: string) {
-    setCnpjOverrides((prev) => ({ ...prev, [rowIndex]: cnpj }))
-    if (!manifest) return
-    const canonical = canonicalizeDocument(cnpj)
-    if (canonical.length < 14) return
-    const maps = await loadCustomerMaps()
-    const bl = manifest.bls[rowIndex]
-    const match = findMatchedCustomer({ cnpjCpf: cnpj, consignee: bl.shipper_name ?? '' }, maps)
-    const link = resolveCustomerLink(withoutDeactivatedCustomer(match))
-    if (link.status !== 'missing_customer') {
-      updatePreview((currentManifest) => ({
-        ...currentManifest,
-        bls: currentManifest.bls.map((b, i) =>
-          i === rowIndex
-            ? {
-                ...b,
-                shipper_cnpj: cnpj,
-                clientId: link.customerId,
-                suggestedClientId: link.suggestedCustomerId,
-                reconciliationStatus: link.status === 'matched_document' ? 'matched' as ReconciliationStatus : 'suggested_name' as ReconciliationStatus,
-              }
-            : b,
-        ),
-      }))
-    } else {
-      // CNPJ sem Cliente ativo: o vínculo do CNPJ anterior não fica na linha.
-      updatePreview((currentManifest) => ({
-        ...currentManifest,
-        bls: currentManifest.bls.map((b, i) =>
-          i === rowIndex
-            ? { ...b, shipper_cnpj: cnpj, clientId: null, suggestedClientId: null, reconciliationStatus: 'not_found' as ReconciliationStatus }
-            : b,
-        ),
-      }))
-    }
+  function close() {
+    cancelReading()
+    onClose()
   }
 
   async function handleImport() {
@@ -140,399 +356,89 @@ export function Granite() {
         uploadedBy: user.id,
         confirmRemoval: (missing) => confirm(graniteRemovalConfirmOptions(missing, manifest.hidden)),
       })
-      const { pendingCount } = result
-      await Promise.all([
-        afterManifestoImportado(queryClient, { voyageId: Number(voyageId) }),
-        queryClient.invalidateQueries({ queryKey: ['granite-bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-        // P0-4: a seção "Carga carregada" do ADR soma peso/blocos de
-        // granite_bls; sem esta linha, o import não refletia na aba.
-        queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-      ])
-      const msg = pendingCount
-        ? `Granito importado: ${describeGraniteImport(result)}. ${pendingCount} com reconciliação pendente.`
-        : `Granito importado: ${describeGraniteImport(result)}.`
-      showToast(msg, 'success')
-      closeUpload()
-      setVoyageId('')
-      setCnpjOverrides({})
+      await onImported(Number(voyageId))
+      showToast(`Granito importado: ${describeGraniteImport(result)}.`, 'success')
+      close()
     } catch (err) {
-      // O erro do PostgREST não é `Error`: a mensagem de negócio da RPC vem
-      // pela classificação compartilhada (src/lib/errors.ts).
-      showToast(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar.'), 'error')
+      showToast(userFacingErrorMessage(err, 'Não foi possível importar a planilha do Granito. Tente novamente.'), 'error')
     } finally {
       setSubmitting(false)
     }
   }
 
-  function closeUpload() {
-    cancelReading()
-    setUploadOpen(false)
-  }
-
-  async function handleCalculateCharges(blId: string) {
-    try {
-      const lines = await calculateGraniteBlCharges(blId)
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['granite-bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-      ])
-      setChargeLines(lines)
-      setChargeBlId(blId)
-      showToast('Quantidades operacionais do Granito calculadas.', 'success')
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Erro ao calcular taxas.', 'error')
-    }
-  }
-
-  const pendingInManifest = manifest?.bls.filter((bl) => bl.reconciliationStatus !== 'matched').length ?? 0
-  const activeFilterCount = [filters.search, filters.voyageId, filters.dischargePort]
-    .filter((value) => String(value ?? '').trim() !== '').length
-  const filterDescription = describeActiveFilters([
-    { label: 'Texto', value: filters.search },
-    { label: 'Viagem', value: filters.voyageId },
-    { label: 'Porto', value: filters.dischargePort },
-  ])
-  const emptyState = describeEmptyState({
-    entitySingular: 'B/L de granito',
-    entityPlural: 'B/Ls de granito',
-    hasActiveFilters: activeFilterCount > 0,
-    emptyWithoutFilters: 'Nenhum B/L de granito importado ainda.',
-    emptyWithFilters: 'Nenhum B/L de granito encontrado.',
-  })
+  const blocks = manifest?.bls.reduce((sum, bl) => sum + Number(bl.blocks_qty ?? 0), 0) ?? 0
+  const weightKg = manifest?.bls.reduce((sum, bl) => sum + (graniteWeightKg(bl) ?? 0), 0) ?? 0
 
   return (
-    <>
-      <PageHeader
-        title="Manifestos Granito"
-        description="Importação do relatório de cargas COSCO (Granito)."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#21262d] px-4 text-sm font-semibold text-slate-100 transition hover:bg-[#30363d]"
-              to="/granito/taxas"
-            >
-              <Mountain size={16} />
-              Tabela de Taxas — Granito
-            </Link>
-            {canWrite ? (
-              <>
-                <Button variant="secondary" onClick={() => setCeMercanteOpen(true)}>
-                  <Upload size={16} />
-                  Importar CE Mercante
-                </Button>
-                <Button onClick={() => setUploadOpen(true)}>
-                  <Upload size={16} />
-                  Importar Planilha COSCO
-                </Button>
-              </>
-            ) : null}
-          </div>
-        }
-      />
+    <Modal open onClose={close} title="Importar planilha COSCO">
+      <div className="grid gap-5">
+        <p className="app-panel__meta">
+          Planilha "Relatório de Cargas/Booking" exportada pela COSCO. Colunas obrigatórias: <strong>BL</strong> e <strong>Real Weight</strong>.
+        </p>
 
-      <Card className="mb-5">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Field label="Texto livre">
-            <Input
-              placeholder="B/L, Shipper ou CNPJ"
-              value={filters.search}
-              onChange={(e) => updateFilter('search', e.target.value)}
-            />
-          </Field>
-          <VoyageCombobox
-            clearable
-            label="Viagem"
-            selectedVoyageId={filters.voyageId}
-            onSelect={(id) => updateFilter('voyageId', id == null ? '' : String(id))}
-          />
-          <Field label="Porto de descarga">
-            <Input
-              placeholder="Ex: ITMDX"
-              value={filters.dischargePort}
-              onChange={(e) => updateFilter('dischargePort', e.target.value)}
-            />
-          </Field>
-          <Field label="Por página">
-            <Select value={filters.pageSize} onChange={(e) => updateFilter('pageSize', Number(e.target.value))}>
-              {PAGE_SIZES.map((s) => (
-                <option key={s} value={s}>{s}/pag.</option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-      </Card>
-
-      <Card className="overflow-hidden p-0">
-        <div className="flex flex-col gap-1 border-b border-[#30363d] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <span className="font-semibold text-white">{formatResultCount(data?.count ?? 0, 'B/L retornado', 'B/Ls retornados')}</span>
-          <span className="text-xs text-slate-400">{filterDescription}</span>
-        </div>
-        {error ? <InlineError message="Erro ao carregar B/Ls de granito." /> : null}
-
-        <div className="app-table-scroll">
-          <table className="app-table app-table--compact min-w-[1200px] text-sm whitespace-nowrap">
-            <caption className="sr-only">Manifestos de granito</caption>
-            <thead>
-              <tr>
-                <th scope="col" className="px-4 py-3">B/L</th>
-                <th scope="col" className="px-4 py-3">Booking</th>
-                <th scope="col" className="app-table__text-head px-4 py-3">Shipper</th>
-                <th scope="col" className="px-4 py-3">CNPJ</th>
-                <th scope="col" className="app-table__text-head px-4 py-3">Navio/Viagem</th>
-                <th scope="col" className="px-4 py-3">Peso Real (kg)</th>
-                <th scope="col" className="px-4 py-3">Peso Real (ton)</th>
-                <th scope="col" className="px-4 py-3">CBM Final</th>
-                <th scope="col" className="px-4 py-3">Fase</th>
-                <th scope="col" className="px-4 py-3">Status Taxas</th>
-                <th scope="col" className="px-4 py-3">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td className="px-4 py-8 text-center text-[var(--app-muted)]" colSpan={11}>
-                    Carregando...
-                  </td>
-                </tr>
-              ) : null}
-              {!isLoading && data?.rows.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="p-0">
-                    <EmptyState title={emptyState.title} description={emptyState.description} />
-                  </td>
-                </tr>
-              ) : null}
-              {(data?.rows ?? []).map((bl) => (
-                <tr key={bl.id} className="hover:bg-[#21262d]/60">
-                  <td className="px-4 py-3 font-semibold text-[#58a6ff]"><CopyValue value={bl.bl_number} label="número do B/L" /></td>
-                  <td className="px-4 py-3">{bl.booking_number ?? <NoValue label="Sem booking" />}</td>
-                  <td className="px-4 py-3">
-                    <span className="app-table__truncate app-table__truncate--lg" title={bl.shipper_name ?? '-'}>
-                      {(bl as { customer?: { name?: string } }).customer?.name ?? bl.shipper_name ?? <NoValue label="Sem shipper" />}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{bl.shipper_cnpj ? <CopyValue value={bl.shipper_cnpj} label="CNPJ" /> : <NoValue label="Sem CNPJ" />}</td>
-                  <td className="px-4 py-3">
-                    <span className="app-table__truncate app-table__truncate--xl" title={bl.vessel_voyage ?? '-'}>
-                      {bl.vessel_voyage ?? <NoValue label="Sem navio e viagem" />}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{bl.real_weight_kg != null ? Number(bl.real_weight_kg).toLocaleString('pt-BR') : <NoValue label="Sem peso real" />}</td>
-                  <td className="px-4 py-3">
-                    {bl.real_weight_kg != null ? Number(Number(bl.real_weight_kg) / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 3 }) : <NoValue label="Sem peso real" />}
-                  </td>
-                  <td className="px-4 py-3">{bl.final_m3 != null ? Number(bl.final_m3).toLocaleString('pt-BR') : <NoValue label="Sem CBM final" />}</td>
-                  <td className="px-4 py-3">{bl.phase ?? <NoValue label="Sem fase" />}</td>
-                  <td className="px-4 py-3">
-                    <ChargeStatusBadge status={bl.charge_status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    {canWrite ? (
-                      <>
-                        <button
-                          className="app-table__action mr-2"
-                          onClick={() => handleCalculateCharges(bl.id)}
-                        >
-                          Calcular taxas
-                        </button>
-                        <button
-                          className="app-table__action"
-                          onClick={() => setResultBlId(bl.id)}
-                        >
-                          Ver resultado
-                        </button>
-                      </>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <TableFooterPagination
-          page={filters.page}
-          pageSize={filters.pageSize}
-          totalCount={data?.count ?? 0}
-          totalPages={totalPages}
-          onPageChange={(page) => updateFilter('page', page)}
+        <VoyageCombobox
+          required
+          label="Viagem de destino"
+          selectedVoyageId={voyageId}
+          onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
         />
-      </Card>
 
-      {/* Modal de taxas calculadas */}
-      <Modal open={chargeBlId !== null} onClose={() => { setChargeBlId(null); setChargeLines([]) }} title="Taxas do B/L">
-        {chargeLines.length === 0 ? (
-          <p className="app-panel__meta">Nenhuma taxa ativa cadastrada. <a href="/granito/taxas">Acesse Granito &gt; Taxas</a> para cadastrar.</p>
-        ) : (
-          <div className="app-table-scroll">
-            <table className="app-table app-table--compact w-full text-sm">
-              <thead>
-                <tr>
-                  <th scope="col" className="app-table__text-head px-3 py-2">Taxa</th>
-                  <th scope="col" className="px-3 py-2">Tipo</th>
-                  <th scope="col" className="px-3 py-2">Quantidade</th>
-                  <th scope="col" className="px-3 py-2">Valor Unit.</th>
-                  <th scope="col" className="px-3 py-2">Subtotal</th>
-                  <th scope="col" className="px-3 py-2">Moeda</th>
-                </tr>
-              </thead>
-              <tbody>
-                {chargeLines.map((line, i) => (
-                  <tr key={i}>
-                    <td className="app-table__text px-3 py-2" title={line.description ?? undefined}>{line.description ?? <NoValue label="Sem descrição" />}</td>
-                    <td className="px-3 py-2">{line.charge_type ?? <NoValue label="Sem tipo" />}</td>
-                    <td className="px-3 py-2">{line.quantity != null ? Number(line.quantity).toLocaleString('pt-BR') : <NoValue label="Sem quantidade" />}</td>
-                    <td className="px-3 py-2">{line.unit_value != null ? Number(line.unit_value).toLocaleString('pt-BR', { minimumFractionDigits: 4 }) : <NoValue label="Sem valor unitário" />}</td>
-                    <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{line.subtotal != null ? Number(line.subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : <NoValue label="Sem subtotal" />}</td>
-                    <td className="px-3 py-2">{line.currency ?? 'BRL'}</td>
+        <Field label="Arquivo .xls ou .xlsx">
+          <Input accept=".xlsx,.xls" type="file" onChange={handleFile} />
+        </Field>
+
+        {parsing ? <ImportReadProgress progress={progress} /> : null}
+
+        {manifest ? (
+          <div className="grid gap-4">
+            <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
+              <PreviewBox label="B/Ls válidos" value={manifest.bls.length} />
+              <PreviewBox label="Blocos" value={blocks} />
+              <PreviewBox label="Peso" value={formatGraniteTons(weightKg)} />
+              <PreviewBox label="Erros de leitura" value={manifest.rowErrors.length} />
+            </div>
+
+            <div className="app-table-scroll max-h-80">
+              <table className="app-table">
+                <caption className="sr-only">Prévia dos B/Ls da planilha</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">B/L</th>
+                    <th scope="col" className="app-table__text-head">Shipper</th>
+                    <th scope="col">Trecho</th>
+                    <th scope="col">Blocos</th>
+                    <th scope="col">Peso</th>
                   </tr>
-                ))}
-                <tr className="border-t-2 border-[#58a6ff]/30">
-                  <td colSpan={4} className="px-3 py-2 text-right text-xs uppercase text-[var(--app-muted)]">Total</td>
-                  <td className="px-3 py-2 font-bold text-[#58a6ff]">
-                    {chargeLines.reduce((sum, l) => sum + Number(l.subtotal ?? 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="px-3 py-2">BRL</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {manifest.bls.slice(0, 50).map((bl) => {
+                    const blWeight = graniteWeightKg(bl)
+                    return (
+                      <tr key={bl.bl_number}>
+                        <td><span className="app-cargo-code">{bl.bl_number}</span></td>
+                        <td className="app-table__text" title={bl.shipper_name ?? undefined}>{bl.shipper_name ?? <NoValue label="Sem shipper" />}</td>
+                        <td>{graniteLegLabel(bl) ?? <NoValue label="Sem trecho" />}</td>
+                        <td className="tabular-nums">{bl.blocks_qty != null ? bl.blocks_qty.toLocaleString('pt-BR') : <NoValue label="Sem blocos" />}</td>
+                        <td className="tabular-nums">{blWeight != null ? formatGraniteTons(blWeight) : <NoValue label="Sem peso" />}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <TruncationNote shown={50} total={manifest.bls.length} noun="B/L" nounPlural="B/Ls" />
+
+            <ImportIssuesPanel issues={rowErrorsToImportIssues(manifest.rowErrors)} filename="granito-erros-de-leitura.csv" />
           </div>
-        )}
+        ) : null}
+
         <div className="app-modal__actions">
-          <p className="mr-auto text-sm text-[var(--app-muted)]">O apoio quantitativo permanece operacional; revise o cliente e recalcule os dados quando necessário.</p>
-          <Button variant="ghost" onClick={() => { setChargeBlId(null); setChargeLines([]) }}>
-            Fechar
+          <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : close}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
+          <Button disabled={!manifest || manifest.rowErrors.length > 0 || !voyageId || !user} loading={submitting} loadingLabel="Importando…" onClick={handleImport}>
+            Confirmar importação
           </Button>
         </div>
-      </Modal>
-
-      <Modal open={resultBlId !== null} onClose={() => setResultBlId(null)} title="Resultado persistido do B/L">
-        <ImportResultPanel entityId={resultBlId} alwaysVisible />
-        <div className="app-modal__actions">
-          <Button variant="ghost" onClick={() => setResultBlId(null)}>Fechar</Button>
-        </div>
-      </Modal>
-
-      {/* Modal de importação */}
-      <Modal open={uploadOpen && canWrite} onClose={closeUpload} title="Importar Planilha COSCO — Granito">
-        <div className="grid gap-5">
-          <div className="app-panel app-panel--padded text-sm">
-            <div className="app-panel__title">Formato esperado</div>
-            <div className="app-panel__meta mt-2">
-              Planilha "Relatorio de Cargas/Booking" exportada pela COSCO. Colunas obrigatorias: <strong>BL</strong> e <strong>Real Weight</strong>.
-              CNPJ pode vir vazio — resolva antes de confirmar.
-            </div>
-          </div>
-
-          <VoyageCombobox
-            required
-            label="Viagem de destino"
-            selectedVoyageId={voyageId}
-            onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
-          />
-
-          <Field label="Arquivo .xls / .xlsx">
-            <Input accept=".xlsx,.xls" type="file" onChange={handleFile} />
-          </Field>
-
-          {parsing ? <ImportReadProgress progress={progress} /> : null}
-
-          {manifest ? (
-            <div className="grid gap-4">
-              <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-                <PreviewBox label="B/Ls validos" value={manifest.bls.length} />
-                <PreviewBox label="Peso Real total (ton)" value={manifest.bls.reduce((s, b) => s + b.real_weight_kg / 1000, 0)} decimals={3} />
-                <PreviewBox label="Erros de parser" value={manifest.rowErrors.length} />
-              </div>
-
-              {pendingInManifest > 0 ? (
-                <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-                  {pendingInManifest} B/L(s) sem cliente resolvido. Preencha os CNPJs abaixo ou confirme importar com reconciliação pendente.
-                </div>
-              ) : null}
-
-              <div className="app-table-scroll max-h-80 rounded-xl border border-[var(--app-border)]">
-                <table className="app-table app-table--compact min-w-[900px] text-sm whitespace-nowrap">
-                  <thead>
-                    <tr>
-                      <th scope="col" className="px-3 py-2">Status</th>
-                      <th scope="col" className="px-3 py-2">BL</th>
-                      <th scope="col" className="app-table__text-head px-3 py-2">Shipper</th>
-                      <th scope="col" className="px-3 py-2">CNPJ</th>
-                      <th scope="col" className="px-3 py-2">Peso Real (kg)</th>
-                      <th scope="col" className="px-3 py-2">Fase</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {manifest.bls.slice(0, 50).map((bl, idx) => (
-                      <tr key={bl.bl_number}>
-                        <td className="px-3 py-2">
-                          <ReconciliationBadge status={bl.reconciliationStatus} />
-                        </td>
-                        <td className="px-3 py-2 font-semibold text-[var(--app-text-strong)]">{bl.bl_number}</td>
-                        <td className="px-3 py-2">
-                          <span className="app-table__truncate app-table__truncate--lg">{bl.shipper_name ?? <NoValue label="Sem shipper" />}</span>
-                        </td>
-                        <td className="px-3 py-2">
-                          {bl.reconciliationStatus !== 'matched' ? (
-                            <Input
-                              placeholder="Digite o CNPJ"
-                              className="w-40 text-xs"
-                              value={cnpjOverrides[idx] ?? ''}
-                              maxLength={CNPJ_INPUT_MAX_LENGTH}
-                              onChange={(e) => handleCnpjOverride(idx, normalizeCnpj(e.target.value))}
-                            />
-                          ) : (
-                            bl.shipper_cnpj ?? <NoValue label="Sem CNPJ" />
-                          )}
-                        </td>
-                        <td className="px-3 py-2">{Number(bl.real_weight_kg).toLocaleString('pt-BR')}</td>
-                        <td className="px-3 py-2">{bl.phase ?? <NoValue label="Sem fase" />}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <TruncationNote shown={50} total={manifest.bls.length} noun="B/L" nounPlural="B/Ls" />
-
-              <ImportIssuesPanel issues={rowErrorsToImportIssues(manifest.rowErrors)} filename="granito-issues.csv" />
-            </div>
-          ) : null}
-
-          <div className="app-modal__actions">
-            <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : closeUpload}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
-            <Button disabled={!manifest || manifest.rowErrors.length > 0 || !voyageId || !user} loading={submitting} onClick={handleImport}>
-              Confirmar importação
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <CeMercanteImportModal
-        open={ceMercanteOpen && canWrite}
-        target="granite"
-        initialVoyageId={filters.voyageId ? Number(filters.voyageId) : undefined}
-        onClose={() => setCeMercanteOpen(false)}
-      />
-    </>
+      </div>
+    </Modal>
   )
-}
-
-function ChargeStatusBadge({ status }: { status: string }) {
-  switch (status) {
-    case 'calculated': return <span className="app-badge app-badge--blue">Calculado</span>
-    case 'ready_for_billing': return <span className="app-badge app-badge--blue">Calculado (legado)</span>
-    case 'invoiced': return <span className="app-badge app-badge--slate">Estado legado</span>
-    default: return <span className="app-badge app-badge--slate">Não calc.</span>
-  }
-}
-
-function ReconciliationBadge({ status }: { status: ReconciliationStatus }) {
-  switch (status) {
-    case 'matched': return <span className="app-badge app-badge--green">✓ OK</span>
-    case 'suggested_name': return <span className="app-badge app-badge--yellow">Sugestão</span>
-    case 'missing_cnpj': return <span className="app-badge app-badge--yellow">⚠ CNPJ</span>
-    case 'not_found': return <span className="app-badge app-badge--red">✗ Não cad.</span>
-  }
 }

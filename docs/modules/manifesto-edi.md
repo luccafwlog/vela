@@ -786,11 +786,12 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
 - **Outras portas.** A importação de B/L de container não traz CE. O Manifesto
   BB e o B/L avulso não gravam CE: a coluna CE saiu do modelo e, num arquivo
   antigo, é ignorada com aviso na prévia (migration `174`).
-- **Granito.** A mesma planilha grava o CE de B/L de Granito
-  (`p_target='granite'`), com a regra do B/L (15 dígitos; vazio não apaga),
-  tudo ou nada e sem calcular nem emitir; `apply_granite_ce_mercante_update`
-  deixou de ser executável pela API (migration `212`). Ver
-  [Granito](granito.md#catálogo-de-ações).
+- **Granito.** O Granito não recebe CE desde o lote 5b (2026-10-19): a
+  planilha recusa o alvo `granite` (migration `325`) e a ação "CE Mercante
+  (Granito)" saiu da tela e da Viagem. Até então a mesma planilha gravava o CE
+  de B/L de Granito com a regra do B/L (migration `212`). O CE já gravado num
+  B/L de Granito continua contando na unicidade abaixo. Ver
+  [Granito](granito.md).
 - **Embarque de Vazios** não tem CE: é custo pago pela agência ao depot, sem
   invoice nem recebível de cliente.
 - **Portal e Comunicado.** O CE integra a liberação documental do B/L no Portal

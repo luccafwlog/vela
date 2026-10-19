@@ -43,7 +43,6 @@ import {
   applyInlineBlReviewFix,
   ConcurrentEditError,
   saveBlReview,
-  saveGraniteBlReview,
   type SaveBlReviewResult,
 } from '../services/review'
 import { logOperationalEvent } from '../services/operationalEvents'
@@ -65,7 +64,7 @@ function readQueueTarget(params: URLSearchParams) {
 }
 
 // Causas com cartão próprio; cada um filtra, "Outras pendências" inclusive.
-const CARD_CAUSES: ReviewCause[] = ['cliente', 'peso', 'portal', 'granito', 'outros']
+const CARD_CAUSES: ReviewCause[] = ['cliente', 'peso', 'portal', 'outros']
 
 function plural(count: number, singular: string, pluralForm: string) {
   return `${count} ${count === 1 ? singular : pluralForm}`
@@ -78,8 +77,7 @@ function matchesSearch(item: ReviewQueueItem, q: string) {
     (item.customer?.name ?? '').toLowerCase().includes(q) ||
     (item.customer?.cnpj_cpf ?? '').includes(q) ||
     (item.manifest_customer_cnpj_cpf ?? '').includes(q) ||
-    (item.customer_id ? String(item.customer_id) === q : false) ||
-    (item.source === 'granite' && item.bl_number ? item.bl_number.toLowerCase().includes(q) : false)
+    (item.customer_id ? String(item.customer_id) === q : false)
 }
 
 export function Revisao() {
@@ -91,7 +89,7 @@ export function Revisao() {
   const causeFilter = readReviewCauseParam(searchParams)
 
   const reviewQueue = useReviewQueue()
-  const { data, isLoading, error, graniteUnavailable } = reviewQueue
+  const { data, isLoading, error } = reviewQueue
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const { showToast } = useToast()
@@ -145,18 +143,11 @@ export function Revisao() {
     setOutcomes((current) => [{ ...outcome, id }, ...current].slice(0, 5))
   }
 
-  // Apos resolver a revisao, se as taxas locais continuam pendentes de recalculo
-  // (ou o granito ainda nao foi faturado), avisa no mesmo contexto.
+  // Apos resolver a revisao, se as taxas locais continuam pendentes de recalculo,
+  // avisa no mesmo contexto.
   function evaluateRecalcNotice(item: ReviewQueueItem) {
-    if (item.source === 'bl') {
-      if (item.charge_status === 'review_required') {
-        addRecalcNotice({ id: item.id, label: item.id, source: 'bl' })
-      }
-      return
-    }
-    const blocking = !['ready_for_billing', 'invoiced'].includes(item.charge_status ?? '')
-    if (blocking) {
-      addRecalcNotice({ id: item.id, label: item.bl_number, source: 'granite' })
+    if (item.charge_status === 'review_required') {
+      addRecalcNotice({ id: item.id, label: item.id, source: 'bl' })
     }
   }
 
@@ -277,7 +268,7 @@ export function Revisao() {
       title: 'Recalcular taxas locais',
       message: `Recalcular as taxas do registro ${notice.label}?`,
       confirmLabel: 'Recalcular',
-      affected: { summary: `${notice.source === 'granite' ? 'Granito' : 'B/L'} ${notice.label}` },
+      affected: { summary: `B/L ${notice.label}` },
       consequence: 'Atualiza o cálculo com a tabela e as regras vigentes e registra o resultado. O novo valor é calculado pelo servidor e não pode ser antecipado neste diálogo.',
       reversibility: 'É possível executar novo recálculo enquanto o registro não estiver faturado. B/Ls faturados são bloqueados.',
     })
@@ -458,7 +449,7 @@ export function Revisao() {
       confirmLabel: 'Vincular cliente',
       affected: {
         summary: `${plural(targets.length, 'registro', 'registros')} · ${group.displayName}`,
-        items: targets.map((item) => `${item.source === 'granite' ? 'Granito ' + item.bl_number : 'B/L ' + item.id}`),
+        items: targets.map((item) => `B/L ${item.id}`),
       },
       // B28 (ADR 0083, item 26; ADR 0064, item 6): o vínculo captura o e-mail do manifesto como contato.
       consequence: 'Atualiza os vínculos de cliente. O e-mail do manifesto de cada B/L entra como contato do Cliente quando o CNPJ do documento é o dele (endereço já cadastrado não é duplicado nem reativado). Para B/Ls, se essa for a última pendência e os gates estiverem liberados, a fatura poderá ser emitida automaticamente.',
@@ -472,27 +463,22 @@ export function Revisao() {
     const remaining: string[][] = []
     for (const item of targets) {
       try {
-        if (item.source === 'granite') {
-          await saveGraniteBlReview({ graniteBlId: item.id, clientId: customer.id, changedBy: user.id })
-          evaluateRecalcNotice(item)
+        const result = await applyInlineBlReviewFix({
+          blId: item.id,
+          field: 'customer_id',
+          value: customer.id,
+          previousValue: item.customer_id ?? null,
+          changedBy: user.id,
+          expectedUpdatedAt: item.updated_at ?? null,
+        })
+        if (result.resolved) {
+          if (await autoInvoiceResolvedBl(item.id, customer.id)) invoiceCount++
         } else {
-          const result = await applyInlineBlReviewFix({
-            blId: item.id,
-            field: 'customer_id',
-            value: customer.id,
-            previousValue: item.customer_id ?? null,
-            changedBy: user.id,
-            expectedUpdatedAt: item.updated_at ?? null,
-          })
-          if (result.resolved) {
-            if (await autoInvoiceResolvedBl(item.id, customer.id)) invoiceCount++
-          } else {
-            remaining.push(result.pendencias)
-          }
+          remaining.push(result.pendencias)
         }
         successCount++
       } catch {
-        failed.push(item.source === 'granite' ? item.bl_number : item.id)
+        failed.push(item.id)
       }
     }
     setSavingGroupKey(null)
@@ -553,32 +539,16 @@ export function Revisao() {
         if (await autoInvoiceResolvedBl(bl.blId, result.onboarding.customer.id)) invoiceCount++
       }
 
-      const graniteTargets = group.items.filter((item) => item.source === 'granite' && needsCustomerLink(item))
-      let graniteLinkedCount = 0
-      const graniteFailed: string[] = []
-      for (const item of graniteTargets) {
-        try {
-          await saveGraniteBlReview({ graniteBlId: item.id, clientId: result.onboarding.customer.id, changedBy: user.id })
-          graniteLinkedCount++
-          evaluateRecalcNotice(item)
-        } catch {
-          // A falha pontual no Granito não desfaz o onboarding transacional dos B/Ls.
-          graniteFailed.push(item.source === 'granite' ? item.bl_number : item.id)
-        }
-      }
-
       const remainingText = summarizeRemainingPendencies(result.onboarding.bls.filter((bl) => !bl.resolved).map((bl) => bl.pendencias))
       const resolvedCount = result.onboarding.bls.filter((bl) => bl.resolved).length
       const lines: string[] = []
       if (invoiceCount) lines.push(`${plural(invoiceCount, 'fatura emitida', 'faturas emitidas')} automaticamente.`)
       if (resolvedCount) lines.push(`${plural(resolvedCount, 'B/L saiu', 'B/Ls saíram')} da revisão.`)
       if (remainingText) lines.push(`Continuam em revisão: ${remainingText}.`)
-      if (graniteLinkedCount) lines.push(`${plural(graniteLinkedCount, 'registro de Granito vinculado', 'registros de Granito vinculados')}.`)
-      if (graniteFailed.length) lines.push(`Granito não vinculado: ${graniteFailed.join(', ')}. Vincule pelo grupo ou pelo Granito.`)
       if (result.portalInvite === 'sent') lines.push(`Convite do Portal enviado para ${input.email}.`)
       if (result.portalInvite === 'failed') lines.push('O convite do Portal não foi enviado; o cadastro foi concluído. Envie pelo Provisionamento do Portal.')
       pushOutcome({
-        tone: result.portalInvite === 'failed' || graniteFailed.length || remainingText ? 'warning' : 'success',
+        tone: result.portalInvite === 'failed' || remainingText ? 'warning' : 'success',
         title: `${result.onboarding.customer.name}: cliente ${input.customerId ? 'vinculado' : 'cadastrado'} em ${plural(result.onboarding.bls.length, 'B/L', 'B/Ls')}`,
         lines,
       })
@@ -646,13 +616,6 @@ export function Revisao() {
           </div>
         </div>
 
-        {graniteUnavailable ? (
-          <p className="app-status-text app-status-text--warning" role="alert">
-            Os registros de Granito não carregaram; a fila abaixo mostra só os B/Ls.{' '}
-            <Button variant="secondary" className="app-btn--sm" onClick={() => void reviewQueue.refetch?.()}>Tentar novamente</Button>
-          </p>
-        ) : null}
-
         <QueryStateGate
           isLoading={isLoading}
           isError={Boolean(error)}
@@ -712,9 +675,7 @@ export function Revisao() {
                           </td>
                           <td className="app-table__text"><strong>{group.displayName}</strong></td>
                           <td>
-                            {summary.blCount > 0 ? summary.blCount : null}
-                            {summary.blCount > 0 && summary.graniteCount > 0 ? ' + ' : null}
-                            {summary.graniteCount > 0 ? `${summary.graniteCount} Granito` : null}
+                            {summary.blCount}
                           </td>
                           <td className="app-table__text hidden lg:table-cell">
                             {causes.map((cause) => (cause === 'outros' ? 'Outra pendência' : REVIEW_CAUSE_LABELS[cause])).join(' · ')}

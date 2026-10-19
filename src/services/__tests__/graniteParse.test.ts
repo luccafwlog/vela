@@ -2,12 +2,8 @@ import { readFileSync } from 'node:fs'
 import { expect, it, vi } from 'vitest'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
-vi.mock('../customerReconciliation', () => ({
-  loadCustomerMaps: vi.fn(() => Promise.resolve({})),
-  findMatchedCustomer: vi.fn(() => null),
-  resolveCustomerLink: vi.fn(() => ({ customerId: null, suggestedCustomerId: null, status: 'missing_customer', notes: 'Cliente nao encontrado na base cadastral.' })),
-  withoutDeactivatedCustomer: vi.fn((match: unknown) => match),
-}))
+const { loadCustomerMaps } = vi.hoisted(() => ({ loadCustomerMaps: vi.fn(() => Promise.resolve({})) }))
+vi.mock('../customerReconciliation', () => ({ loadCustomerMaps }))
 vi.mock('../supabase', () => ({ supabase: { from: vi.fn() } }))
 
 import { graniteRemovalConfirmOptions, parseGraniteManifestFile } from '../graniteImport'
@@ -16,7 +12,8 @@ function cosco(rows: Array<Record<string, string | number>>) {
   return new File([jsonToBuffer(rows)], 'cosco.xlsx')
 }
 
-it('US-077: parseia a planilha COSCO mapeando colunas e reconciliando CNPJ', async () => {
+// O Granito não tem Cliente (lote 5b, 2026-10-19): o parser não consulta a base de Clientes.
+it('US-077: parseia a planilha COSCO mapeando colunas, com o shipper como veio e sem procurar Cliente', async () => {
   const parsed = await parseGraniteManifestFile(
     cosco([
       { '#': 1, BL: 'BL-G1', 'Navio/Viagem': 'NAVIO/14', CNPJ: '11.222.333/0001-81', Shipper: 'Granito SA', 'Real Weight': 5000 },
@@ -29,8 +26,11 @@ it('US-077: parseia a planilha COSCO mapeando colunas e reconciliando CNPJ', asy
     real_weight_kg: 5000,
     vessel_voyage: 'NAVIO/14',
     shipper_name: 'Granito SA',
-    reconciliationStatus: 'not_found',
+    shipper_cnpj: '11222333000181',
   })
+  expect(parsed.bls[0]).not.toHaveProperty('clientId')
+  expect(parsed.bls[0]).not.toHaveProperty('reconciliationStatus')
+  expect(loadCustomerMaps).not.toHaveBeenCalled()
   expect(parsed.vesselVoyage).toBe('NAVIO/14')
 })
 

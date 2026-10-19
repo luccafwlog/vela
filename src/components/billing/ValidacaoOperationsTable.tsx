@@ -121,7 +121,7 @@ export function ValidacaoOperationsTable({
                     </td>
                     <td className="whitespace-nowrap">
                       <CopyValue value={row.id} label="número do B/L">
-                        <Link className="app-invoices__bl" to={row.cargo_mode === 'granito' ? '/granito' : `/bls/${encodeURIComponent(row.id)}`}>{row.id}</Link>
+                        <Link className="app-invoices__bl" to={`/bls/${encodeURIComponent(row.id)}`}>{row.id}</Link>
                       </CopyValue>
                     </td>
                     <td className="app-table__text hidden lg:table-cell" title={row.customer?.name ?? undefined}>
@@ -155,9 +155,7 @@ export function ValidacaoOperationsTable({
                             </FactList>
                             {row.charge_status === 'review_required' ? <ReviewRequiredReasons blId={row.id} holdReason={row.billing_hold_reason} /> : null}
                           </Block>
-                          {row.cargo_mode === 'granito' ? null : (
-                            <ConferenciaCalculo blId={row.id} financialStatus={row.financial_status} calculatedAt={row.charges_calculated_at} />
-                          )}
+                          <ConferenciaCalculo blId={row.id} financialStatus={row.financial_status} calculatedAt={row.charges_calculated_at} />
                         </div>
                       </td>
                     </tr>
@@ -201,7 +199,7 @@ function ResolveAction({
     if (!row.customer?.cnpj_cpf) return null
     return <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/${encodeURIComponent(row.customer.cnpj_cpf)}`}>Abrir Cliente <ArrowRight size={14} aria-hidden="true" /></Link>
   }
-  if ((code === 'calculo_incompleto' || code === 'operacao_granito') && !isBlLockedForRecalc(row.financial_status)) {
+  if (code === 'calculo_incompleto' && !isBlLockedForRecalc(row.financial_status)) {
     return <Button variant="secondary" className="app-btn--sm" onClick={() => onRecalculate?.(row)}>Recalcular</Button>
   }
   return null
