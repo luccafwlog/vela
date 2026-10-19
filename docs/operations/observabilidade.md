@@ -80,19 +80,14 @@ a parada é avisada pelo Alerta `import_effects_queue_stalled`. O monitor no
 painel do Better Stack deve alertar pela ausência de ping além
 da janela acordada (ex.: 70 min para job horário).
 
-**Estado atual:** a instrumentação repository-side dos 4 runners principais está
-concluída e testada. Os 4 heartbeats foram cadastrados no Better Stack e suas
-URLs estão configuradas nos secrets do Supabase. O de `ce-unlock-notify-email`
-(plano dos e-mails, 2.3) existe só no código: falta cadastrar o heartbeat e o
-secret, sem os quais a função opera em no-op; a execução recorrente continua
-sendo acompanhada e não bloqueia o encerramento do plano de migração.
-O heartbeat do `portal-email-events-runner` (plano de correção dos e-mails, 2.3)
-existe no código e está testado (`portalEmailEventsRunner.test.ts`: evento que
-falha e volta para nova tentativa responde 200 com `failed` e chama `/fail`;
-falha no claim ou ao devolver o evento responde 500); falta cadastrá-lo no Better
-Stack, com tolerância de alguns minutos para o job de minuto em minuto, e
-gravar `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` nos secrets. Sem o
-secret, o runner segue em no-op de heartbeat.
+**Estado atual:** os seis runners enviam heartbeat e os seis estão cadastrados
+no Better Stack, com as URLs nos secrets do Supabase. Os de
+`ce-unlock-notify-email` (período 5 min, tolerância 5 min) e
+`portal-email-events-runner` (período 1 min, tolerância 5 min), do plano de
+correção dos e-mails (2.3), foram cadastrados em 2026-10-19 e ficaram Up. O
+`portal-email-events-runner` chama `/fail` quando um evento falha e volta para
+nova tentativa (`portalEmailEventsRunner.test.ts`); falha no claim ou ao
+devolver o evento responde 500.
 
 ### Respostas de erro das rotinas HTTP
 

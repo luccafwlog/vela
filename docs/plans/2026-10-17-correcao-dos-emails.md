@@ -92,13 +92,16 @@ refutá-lo.
   recusa; reconferência antes de disparar de novo; recusas definitivas fora
   de "Repetir só as falhas"; mês do Histórico em Brasília.
 - **Pendente:**
-  - **Depois do merge:** confirmar a aplicação das migrations e a publicação
-    das Edges em produção.
-  - **Configuração externa:** cadastrar no Better Stack os heartbeats
-    `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e
-    `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` e gravar os secrets.
-  - **Ação imediata:** corrigir o e-mail do usuário do Administrativo suprimido
-    desde 08/10 (o alerta `usuario_email_devolvido` vai apontá-lo).
+  - **Feito em 2026-10-19:** o PR #973 entrou na `main`; as migrations `302` a
+    `318` estão aplicadas em produção e as Edges de e-mail publicadas pela
+    integração (conferido no projeto); os heartbeats `ce-unlock-notify-email` e
+    `portal-email-events-runner` foram cadastrados no Better Stack, com os
+    secrets gravados, e estão Up. Na primeira rodada dos detectores novos, o
+    alerta falso de NOA pendente da escala 8 fechou e nenhum alerta novo abriu
+    além de `usuario_email_devolvido`.
+  - **Ação imediata:** corrigir o e-mail do usuário API ITAÚ
+    (`api.itau@fwlog.com.br`, Administrativo), suprimido desde 08/10; o alerta
+    `usuario_email_devolvido` está aberto para ele.
   - **Fase 6:** ligar a chave de envio real é decisão do responsável.
 
   O plano fica vivo até a Fase 6.
