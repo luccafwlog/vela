@@ -55,8 +55,11 @@ type Props<T, TResult = void> = {
   helper?: ReactNode
   /** Modelos para baixar (`ImportTemplateLinks`), na faixa do bloco Arquivo. */
   templates?: ReactNode
-  /** Verbo e objeto do botão principal, ex.: "Importar manifesto". */
-  confirmLabel?: string
+  /**
+   * Botão principal, "Importar N <o quê>" (lote 6a). Como função, recebe as
+   * prévias lidas para contar o que será gravado.
+   */
+  confirmLabel?: string | ((entries: FilePreviewEntry<T>[]) => string)
   /**
    * O que o aceite dos avisos faz neste importador. Erro nunca é aceito: com
    * qualquer erro a importação inteira é recusada (regra de 2026-10-19).
@@ -250,7 +253,9 @@ export function FileImportModal<T, TResult = void>({
   const offerOverride = entries.length > 0 && !done && !hasErrors && !entries.every((entry) => canImport(entry.preview, false))
   const primaryLabel = done
     ? 'Concluir'
-    : multiple && entries.length > 1 ? `${confirmLabel} (${plural(entries.length, 'arquivo', 'arquivos')})` : confirmLabel
+    : typeof confirmLabel === 'function'
+      ? confirmLabel(entries)
+      : multiple && entries.length > 1 ? `${confirmLabel} (${plural(entries.length, 'arquivo', 'arquivos')})` : confirmLabel
 
   let footnote: ReactNode
   if (done) footnote = <ImportFootnote tone="success">Importação gravada.</ImportFootnote>

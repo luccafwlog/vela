@@ -13,22 +13,20 @@ import { MetricCard } from '../components/ui/MetricCard'
 import { StatusText } from '../components/ui/StatusText'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
-import { SummaryStrip } from '../components/ui/SummaryStrip'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
-import { TruncationNote } from '../components/shared/TruncationNote'
-import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
+import { VehicleImportModal } from '../components/shared/VehicleImportModal'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
-import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from '../components/shared/ImportParts'
+import { ImportNotice } from '../components/shared/ImportParts'
 import { plural } from '../components/shared/importPresentation'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
-import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { useRowSelection } from '../hooks/useRowSelection'
 import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
@@ -38,15 +36,11 @@ import { deleteVehicles } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
 import { userFacingErrorMessage } from '../lib/errors'
-import { importVehicleRows, parseVehicleImportFile, vehicleUnpackingConfirmOptions, type ParsedVehicleImport } from '../services/vehicleImport'
 import { setContainerUnpackingLocation } from '../services/vaziosNatureza'
 import { exportVehicleWorkbook } from '../services/exports'
 import { listVoyageEscalaSchedulesByVoyageIds } from '../services/voyageRouteSchedules'
 import { buildVoyageRailItems, type VoyageRailModuleStats } from '../services/voyageSummaries'
 import { VoyageRail } from '../components/voyages/VoyageRail'
-import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
-import { rowErrorsToImportIssues } from '../services/importValidation'
-import { ImportReadProgress } from '../components/shared/ImportReadProgress'
 import { isMissingLabel } from './veiculosPresentation'
 
 type DesovaScope = 'selected' | 'all' | 'missing'
@@ -534,7 +528,7 @@ export function Veiculos() {
 
       {importOpen && canEditVehicles ? (
         <VehicleImportModal
-          initialVoyageId={selectedVoyageId || (options?.voyages.length === 1 ? String(options.voyages[0].id) : '')}
+          defaultVoyageId={selectedVoyageId || (options?.voyages.length === 1 ? String(options.voyages[0].id) : '')}
           onClose={() => setImportOpen(false)}
         />
       ) : null}
@@ -581,176 +575,5 @@ export function Veiculos() {
         </div>
       </Modal>
     </>
-  )
-}
-
-/**
- * Importação de veículos com viagem escolhida aqui (a ação rápida da Viagem já
- * vem com a viagem fixa). Regra da página: linha com erro bloqueia o lote.
- */
-function VehicleImportModal({ initialVoyageId, onClose }: { initialVoyageId: string; onClose: () => void }) {
-  const queryClient = useQueryClient()
-  const { showToast } = useToast()
-  const [voyageId, setVoyageId] = useState(initialVoyageId)
-  const { file, preview, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedVehicleImport>(parseVehicleImportFile)
-  const [importing, setImporting] = useState(false)
-  const [readError, setReadError] = useState<string | null>(null)
-  const [importError, setImportError] = useState<string | null>(null)
-  const [result, setResult] = useState<Awaited<ReturnType<typeof importVehicleRows>> | null>(null)
-  const confirm = useConfirm()
-
-  async function handleFiles(files: File[]) {
-    setReadError(null)
-    setImportError(null)
-    setResult(null)
-    try {
-      await readFile(files[0] ?? null)
-    } catch (err) {
-      setReadError(err instanceof Error ? err.message : 'Falha ao ler o arquivo.')
-    }
-  }
-
-  function handleClose() {
-    cancelReading()
-    onClose()
-  }
-
-  const rowErrors = preview?.rowErrors.length ?? 0
-  const canConfirm = Boolean(voyageId) && Boolean(preview?.rows.length) && rowErrors === 0 && !result
-
-  async function handleImport() {
-    if (!canConfirm || !preview) return
-    setImporting(true)
-    setImportError(null)
-    try {
-      const nextResult = await importVehicleRows({ voyageId: Number(voyageId), rows: preview.rows, confirmUnpacking: (items) => confirm(vehicleUnpackingConfirmOptions(items)) })
-      await afterCargaAlterada(queryClient)
-      if (nextResult.errorCount) {
-        // Com recusas o modal fica aberto e lista o que não entrou.
-        setResult(nextResult)
-      } else {
-        showToast(`${plural(nextResult.successCount, 'veículo importado', 'veículos importados')}.`, 'success')
-        onClose()
-      }
-    } catch (err) {
-      // A recusa do servidor (B/L cancelado, chassi em outra Viagem, desova
-      // divergente) chega como erro do banco, não como Error: a mensagem de
-      // negócio vem de userFacingErrorMessage.
-      setImportError(userFacingErrorMessage(err, 'Falha ao importar veículos.'))
-    } finally {
-      setImporting(false)
-    }
-  }
-
-  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
-  if (result) footnote = 'Importação gravada em parte. As linhas recusadas estão acima.'
-  else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
-  else if (preview && rowErrors) footnote = 'Há linhas com erro: corrija a planilha e escolha de novo. Nada é gravado enquanto houver erro.'
-  else if (preview?.rows.length && !voyageId) footnote = 'Escolha a viagem de destino para importar.'
-  else if (preview?.rows.length) footnote = `${plural(preview.rows.length, 'veículo será gravado', 'veículos serão gravados')}. Nada foi gravado ainda.`
-
-  return (
-    <Modal open onClose={handleClose} title="Importar planilha de veículos">
-      <div className="app-import">
-        <VoyageCombobox
-          required
-          label="Viagem de destino"
-          selectedVoyageId={voyageId}
-          onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
-        />
-        <ImportGuide
-          required="CHASSI, MARCA, MODELO, PESO, CUBAGEM, CONTAINER, TIPO_CONTAINER, LACRE e BL."
-          details={<p>Também aceita o Daily Report COSCO e cabeçalhos em chinês. Cada linha precisa de um B/L da viagem e de um container que case por número, tipo e lacre.</p>}
-          templates={<ImportTemplateLinks baseName="veiculos-modelo" />}
-        />
-        <ImportFilePicker accept=".xlsx,.xls,.csv" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={importing || Boolean(result)} />
-        {parsing ? <ImportReadProgress progress={progress} /> : null}
-        {readError ? (
-          <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
-            <p>{readError}</p>
-            <p>Confira o formato e escolha o arquivo de novo.</p>
-          </ImportNotice>
-        ) : null}
-        {preview ? (
-          <ImportSection
-            title={result ? 'Resultado' : 'Prévia'}
-            aside={
-              <SummaryStrip
-                label={result ? 'Resultado da importação' : 'Resumo da planilha'}
-                items={result ? [
-                  { label: 'gravados', value: result.successCount },
-                  { label: 'recusados', value: result.errorCount, tone: result.errorCount ? 'danger' : 'default' },
-                ] : [
-                  { label: preview.rows.length === 1 ? 'veículo' : 'veículos', value: preview.rows.length },
-                  { label: rowErrors === 1 ? 'linha com erro' : 'linhas com erro', value: rowErrors, tone: rowErrors ? 'danger' : 'default' },
-                ]}
-              />
-            }
-          >
-            {result?.errors.length ? (
-              <ImportIssuesPanel
-                issues={rowErrorsToImportIssues(result.errors)}
-                filename="veiculos-recusados.csv"
-                title={`${plural(result.errors.length, 'linha recusada', 'linhas recusadas')} ao gravar`}
-                hint="Os demais veículos foram gravados. Corrija estas linhas e importe uma planilha só com elas."
-              />
-            ) : (
-              <>
-                {preview.rows.length ? (
-                  <>
-                    <div className="app-table-scroll max-h-72">
-                      <table className="app-table app-cargo-table app-cargo-table--preview">
-                        <caption className="sr-only">Prévia da importação de veículos</caption>
-                        <thead>
-                          <tr>
-                            <th scope="col">Chassi</th>
-                            <th scope="col">Marca e modelo</th>
-                            <th scope="col">Container</th>
-                            <th scope="col">Lacre</th>
-                            <th scope="col">B/L</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {preview.rows.slice(0, 20).map((row) => (
-                            <tr key={`${row.rowNumber}-${row.chassis}`}>
-                              <td className="app-cargo-code">{row.chassis}</td>
-                              <td>{[row.brand, row.model].filter(Boolean).join(' ')}</td>
-                              <td><span className="app-cargo-code">{row.container_number}</span> <span className="app-cargo-cell__sub">{row.container_type}</span></td>
-                              <td>{row.seal_number || <NoValue label="Sem lacre" />}</td>
-                              <td className="app-cargo-code">{row.bl_id}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <TruncationNote shown={20} total={preview.rows.length} noun="veículo" nounPlural="veículos" />
-                  </>
-                ) : null}
-                <ImportIssuesPanel issues={rowErrorsToImportIssues(preview.rowErrors)} filename="veiculos-issues.csv" />
-              </>
-            )}
-          </ImportSection>
-        ) : null}
-        {importError ? (
-          <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
-            <p>{importError}</p>
-            <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
-          </ImportNotice>
-        ) : null}
-        <div className="app-modal__actions">
-          <ImportFootnote tone={result || (preview && rowErrors) ? 'warning' : 'default'}>{footnote}</ImportFootnote>
-          {result ? (
-            <Button onClick={onClose}>Concluir</Button>
-          ) : (
-            <>
-              <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
-              <Button disabled={!canConfirm || parsing} loading={importing} loadingLabel="Importando…" onClick={() => void handleImport()}>
-                {preview?.rows.length ? `Importar ${plural(preview.rows.length, 'veículo', 'veículos')}` : 'Importar veículos'}
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    </Modal>
   )
 }

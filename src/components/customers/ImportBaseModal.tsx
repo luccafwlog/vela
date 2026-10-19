@@ -248,7 +248,7 @@ function ImportBasePreview({ parsedBase, errors }: { parsedBase: ParsedCustomerB
                   <th scope="col">CNPJ</th>
                   <th scope="col" className="app-table__text-head">Razão Social</th>
                   <th scope="col" className="app-table__text-head">Situação</th>
-                  <th scope="col" className="app-table__text-head">B/Ls que vincula</th>
+                  <th scope="col" className="app-table__text-head">B/Ls</th>
                   <th scope="col" className="app-table__text-head">E-mails</th>
                   <th scope="col">Cidade/UF</th>
                 </tr>

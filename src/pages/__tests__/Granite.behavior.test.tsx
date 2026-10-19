@@ -106,9 +106,9 @@ it('US-079: o preview alerta sobre B/Ls pendentes sem cliente resolvido', async 
 
   await user.click(screen.getByRole('button', { name: /Importar Planilha COSCO/ }))
   await selectVoyage(user)
-  await user.upload(screen.getByLabelText(/Arquivo/), new File(['x'], 'cosco.xlsx'))
+  await user.upload(screen.getByLabelText(/^Arquivo \(/), new File(['x'], 'cosco.xlsx'))
 
-  await waitFor(() => expect(screen.getByText(/sem cliente resolvido/)).toBeTruthy())
+  await waitFor(() => expect(screen.getByText(/sem Cliente resolvido/)).toBeTruthy())
 })
 
 it('US-079: importar com pendencias chama importGraniteManifest e reporta a pendencia no toast', async () => {
@@ -121,10 +121,10 @@ it('US-079: importar com pendencias chama importGraniteManifest e reporta a pend
 
   await user.click(screen.getByRole('button', { name: /Importar Planilha COSCO/ }))
   await selectVoyage(user)
-  await user.upload(screen.getByLabelText(/Arquivo/), new File(['x'], 'cosco.xlsx'))
-  await waitFor(() => expect(screen.getByText(/sem cliente resolvido/)).toBeTruthy())
+  await user.upload(screen.getByLabelText(/^Arquivo \(/), new File(['x'], 'cosco.xlsx'))
+  await waitFor(() => expect(screen.getByText(/sem Cliente resolvido/)).toBeTruthy())
 
-  await user.click(screen.getByRole('button', { name: /Confirmar importação/ }))
+  await user.click(screen.getByRole('button', { name: 'Importar 2 B/Ls' }))
 
   await waitFor(() => expect(mocks.importManifest).toHaveBeenCalledTimes(1))
   expect(mocks.importManifest).toHaveBeenCalledWith(
@@ -151,10 +151,10 @@ it('bloqueia confirmacao quando o preview possui erro de parser', async () => {
 
   await user.click(screen.getByRole('button', { name: /Importar Planilha COSCO/ }))
   await selectVoyage(user)
-  await user.upload(screen.getByLabelText(/Arquivo/), new File(['x'], 'cosco.xlsx'))
+  await user.upload(screen.getByLabelText(/^Arquivo \(/), new File(['x'], 'cosco.xlsx'))
 
   await waitFor(() => expect(screen.getByText(/Data invalida/)).toBeTruthy())
-  expect((screen.getByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: 'Importar 1 B/L' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
 it('US-078: resolver o CNPJ no preview reconcilia o B/L pendente', async () => {
@@ -165,14 +165,14 @@ it('US-078: resolver o CNPJ no preview reconcilia o B/L pendente', async () => {
 
   await user.click(screen.getByRole('button', { name: /Importar Planilha COSCO/ }))
   await selectVoyage(user)
-  await user.upload(screen.getByLabelText(/Arquivo/), new File(['x'], 'cosco.xlsx'))
-  await waitFor(() => expect(screen.getByText(/sem cliente resolvido/)).toBeTruthy())
+  await user.upload(screen.getByLabelText(/^Arquivo \(/), new File(['x'], 'cosco.xlsx'))
+  await waitFor(() => expect(screen.getByText(/sem Cliente resolvido/)).toBeTruthy())
 
   const cnpjInput = screen.getByPlaceholderText('Digite o CNPJ') as HTMLInputElement
   expect(cnpjInput.maxLength).toBe(18)
   await user.type(cnpjInput, '11222333000181')
 
   // ao reconciliar, o alerta de pendencia desaparece
-  await waitFor(() => expect(screen.queryByText(/sem cliente resolvido/)).toBeNull())
+  await waitFor(() => expect(screen.queryByText(/sem Cliente resolvido/)).toBeNull())
   expect(mocks.findMatch).toHaveBeenCalled()
 })

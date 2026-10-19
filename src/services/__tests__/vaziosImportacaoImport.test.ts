@@ -150,10 +150,11 @@ describe('parseVaziosImportacaoBuffer', () => {
 		expect(rpcMock).not.toHaveBeenCalled()
 	})
 
-	it('só permite importar divergências quando o override de erros de linha é explícito', async () => {
-		rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1', mercante_manifest_ids: ['mercante-1'] }, error: null })
+	// Regra de 2026-10-19 (ADR 0091): não há aceite que grave só as linhas válidas.
+	it('linha com erro recusa o arquivo inteiro mesmo com aceite antigo', async () => {
+		rpcMock.mockReset()
 
-		await importVaziosImportacaoManifest({
+		await expect(importVaziosImportacaoManifest({
 			manifest: {
 				containers: [container('MSCU1234567')],
 				rowErrors: [{ row: 2, message: 'Container inválido.', raw: { Container: 'MSCU1234567' } }],
@@ -161,10 +162,10 @@ describe('parseVaziosImportacaoBuffer', () => {
 			uploadedBy: 'user-1',
 			voyageId: 7,
 			manifestNumbers: { CNTAC__BRVIX: '1226501801342' },
-			allowRowErrors: true,
-		})
+			...({ allowRowErrors: true } as object),
+		})).rejects.toThrow(/^Nada foi gravado: uma linha tem erro\./)
 
-		expect(rpcMock).toHaveBeenCalledWith('import_vazios_importacao_transactional', expect.anything())
+		expect(rpcMock).not.toHaveBeenCalled()
 	})
 })
 

@@ -91,6 +91,10 @@ export type ParsedVehicleImport = {
   rowErrors: { row: number; message: string; raw: unknown }[]
 }
 
+/**
+ * Resultado da gravação. Com qualquer linha recusada (`errorCount > 0`) nada
+ * foi gravado (`successCount` é zero): a planilha entra inteira ou não entra.
+ */
 export type VehicleImportResult = {
   processed: number
   successCount: number
@@ -197,7 +201,7 @@ export async function parseVehicleImportBuffer(buffer: ArrayBuffer): Promise<Par
   if (!chosenRows) {
     if (hiddenDataSeen && !headersChecked) throw new Error(HIDDEN_DATA_MESSAGE)
     const hiddenNote = hiddenDataSeen ? ' Há também dados em linhas ou abas ocultas, que são ignoradas.' : ''
-    throw new Error(`Planilha invalida. Colunas obrigatorias: ${lastMissing.join(', ')}.${hiddenNote}`)
+    throw new Error(`Planilha inválida. Colunas obrigatórias: ${lastMissing.join(', ')}.${hiddenNote}`)
   }
   return parseVehicleImportRows(chosenRows, chosenNumberFormat)
 }
@@ -345,18 +349,18 @@ export async function importVehicleRows({
 
   for (const row of validRows) {
     if (existingVehicleChassis.has(row.chassis)) {
-      errors.push({ row: row.rowNumber, message: 'Chassi ja cadastrado nesta viagem.' })
+      errors.push({ row: row.rowNumber, message: 'Chassi já cadastrado nesta viagem.' })
       continue
     }
     const otherVoyage = chassisInOtherVoyage.get(row.chassis)
     if (otherVoyage) {
-      errors.push({ row: row.rowNumber, message: `Chassi ja cadastrado na Viagem ${otherVoyage}.` })
+      errors.push({ row: row.rowNumber, message: `Chassi já cadastrado na Viagem ${otherVoyage}.` })
       continue
     }
 
     const matchedBl = blMap.get(normalizeKey(row.bl_id))
     if (!matchedBl) {
-      errors.push({ row: row.rowNumber, message: 'BL nao encontrado na viagem selecionada.' })
+      errors.push({ row: row.rowNumber, message: 'B/L não encontrado na viagem selecionada.' })
       continue
     }
     if (matchedBl.cancelled_at) {
@@ -367,9 +371,9 @@ export async function importVehicleRows({
     const containerCandidates = containersByBlAndNumber.get(`${normalizeKey(row.bl_id)}|${row.container_number}`) ?? []
     if (!containerCandidates.length) {
       if (!containerNumbersInVoyage.has(row.container_number)) {
-        errors.push({ row: row.rowNumber, message: 'Container nao encontrado no sistema.' })
+        errors.push({ row: row.rowNumber, message: 'Container não encontrado no sistema.' })
       } else {
-        errors.push({ row: row.rowNumber, message: 'BL nao pertence ao container informado.' })
+        errors.push({ row: row.rowNumber, message: 'B/L não pertence ao container informado.' })
       }
       continue
     }
@@ -378,7 +382,7 @@ export async function importVehicleRows({
       (container) => Boolean(container.type) && isoTypeKey(container.type) !== isoTypeKey(row.container_type),
     )
     if (typeMismatch) {
-      errors.push({ row: row.rowNumber, message: 'Tipo do container nao confere com o sistema.' })
+      errors.push({ row: row.rowNumber, message: 'Tipo do container não confere com o sistema.' })
       continue
     }
 
@@ -387,7 +391,7 @@ export async function importVehicleRows({
       (container) => Boolean(container.seal_number) && sealKey(container.seal_number) !== sealKey(row.seal_number),
     )
     if (sealMismatch) {
-      errors.push({ row: row.rowNumber, message: 'Lacre nao confere com o sistema.' })
+      errors.push({ row: row.rowNumber, message: 'Lacre não confere com o sistema.' })
       continue
     }
 
@@ -405,8 +409,8 @@ export async function importVehicleRows({
         row: row.rowNumber,
         message:
           exactMatches.length === 0
-            ? 'Nao foi possivel identificar com seguranca qual container desta BL corresponde ao veiculo (tipo ou lacre divergem).'
-            : 'Mais de um container desta BL atende ao tipo/lacre informado; revise a planilha para evitar ambiguidade.',
+            ? 'Não foi possível identificar com segurança qual container deste B/L corresponde ao veículo (tipo ou lacre divergem).'
+            : 'Mais de um container deste B/L atende ao tipo e lacre informados; revise a planilha para evitar ambiguidade.',
       })
       continue
     }
@@ -431,7 +435,8 @@ export async function importVehicleRows({
   }
 
   // Local de desova: a planilha só preenche vazio; conflito no próprio arquivo
-  // recusa as linhas daquele container; divergência do gravado pede confirmação.
+  // recusa as linhas daquele container (e, com elas, a planilha); divergência
+  // do gravado pede confirmação.
   // O conflito é pelo número do container, como no servidor (migration 184):
   // container compartilhado por dois B/Ls é a mesma caixa física.
   const unpackingByContainer = new Map<string, Set<string>>()
@@ -449,6 +454,19 @@ export async function importVehicleRows({
     errors.push({ row: row.rowNumber, message: `Local de desova diferente para o container ${row.container_number} no mesmo arquivo.` })
     return false
   })
+  // Regra de 2026-10-19 (ADR 0091): uma linha recusada na conferência com o
+  // que já está gravado recusa a planilha inteira. A RPC grava tudo numa
+  // transação e também recusa o lote inteiro; conferir antes é o que permite
+  // listar todas as linhas recusadas, e não só a primeira que o banco acharia.
+  if (errors.length) {
+    return {
+      processed: rows.length,
+      successCount: 0,
+      errorCount: errors.length,
+      errors: errors.sort((left, right) => left.row - right.row),
+    }
+  }
+
   const divergences: VehicleUnpackingDivergence[] = []
   const seenDivergent = new Set<number>()
   for (const row of accepted) {
@@ -460,29 +478,27 @@ export async function importVehicleRows({
   }
   const confirmed = divergences.length ? Boolean(await confirmUnpacking?.(divergences)) : false
 
-  if (accepted.length) {
-    const { error: insertError } = await supabase.rpc('import_vehicle_rows_transactional', {
-      p_rows: accepted.map((row) => ({
-        voyage_id: row.voyage_id,
-        container_id: row.container_id,
-        bl_id: row.bl_id,
-        chassis: row.chassis,
-        brand: row.brand,
-        model: row.model,
-        weight_kg: row.weight_kg,
-        cbm: row.cbm,
-        unpacking_location: row.unpacking_location,
-        unpacking_confirmed: confirmed,
-      })),
-    })
-    if (insertError) throw insertError
-  }
+  const { error: insertError } = await supabase.rpc('import_vehicle_rows_transactional', {
+    p_rows: accepted.map((row) => ({
+      voyage_id: row.voyage_id,
+      container_id: row.container_id,
+      bl_id: row.bl_id,
+      chassis: row.chassis,
+      brand: row.brand,
+      model: row.model,
+      weight_kg: row.weight_kg,
+      cbm: row.cbm,
+      unpacking_location: row.unpacking_location,
+      unpacking_confirmed: confirmed,
+    })),
+  })
+  if (insertError) throw insertError
 
   return {
     processed: rows.length,
     successCount: accepted.length,
-    errorCount: errors.length,
-    errors: errors.sort((left, right) => left.row - right.row),
+    errorCount: 0,
+    errors: [],
     unpackingDivergences: divergences,
   }
 }
@@ -524,12 +540,12 @@ function parseVehicleImportRows(rows: SheetRow[], headerFormat: ImportNumberForm
       (!sealNumber && !isSealOptionalType(containerType)) ||
       !blId
     ) {
-      rowErrors.push({ row: rowNumber, message: 'Todos os campos obrigatorios devem ser preenchidos.', raw: row })
+      rowErrors.push({ row: rowNumber, message: 'Todos os campos obrigatórios devem ser preenchidos.', raw: row })
       return
     }
 
     if (weight <= 0 || cbm <= 0) {
-      rowErrors.push({ row: rowNumber, message: 'Peso e cubagem devem ser numericos e maiores que zero.', raw: row })
+      rowErrors.push({ row: rowNumber, message: 'Peso e cubagem devem ser numéricos e maiores que zero.', raw: row })
       return
     }
 

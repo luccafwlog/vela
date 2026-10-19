@@ -1,4 +1,3 @@
-import { useBaplieVoyageContext } from '../hooks/useBaplieVoyageContext'
 import { afterBaplieImportado, afterCargaAlterada } from '../services/cacheEffects'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -14,23 +13,19 @@ import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
 import { SkeletonTable } from '../components/ui/Skeleton'
-import { SummaryStrip } from '../components/ui/SummaryStrip'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
-import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { ContainerOwnershipBadge } from '../components/shared/OperationalBadges'
-import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection } from '../components/shared/ImportParts'
+import { ImportNotice } from '../components/shared/ImportParts'
 import { plural } from '../components/shared/importPresentation'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
-import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
-import { parseBaplieFile } from '../services/baplieParser'
-import { applyBaplieVoyageRules, baplieImportToast, baplieReplacementConfirmOptions, baplieVoyageContextBlock, describeBaplieFlags, reimportBaplie, baplieFootnoteForPendency, hasBapliePendency, summarizeBaplieFlags, type BaplieImportDone } from '../services/baplieImport'
-import { BaplieImportPartialNotice } from '../components/shared/BaplieImportPartialNotice'
-import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { describeBaplieFlags, summarizeBaplieFlags } from '../services/baplieImport'
+import { BaplieImportModal } from '../components/shared/BaplieImportModal'
+import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { userFacingErrorMessage } from '../lib/errors'
 import { hasBlsForVoyage, listBaplieStaging } from '../services/baplieReadModel'
 import {
@@ -50,9 +45,6 @@ import { formatDate, formatDateTimeBR } from '../lib/utils'
 import { listVoyageEscalaSchedulesByVoyageIds } from '../services/voyageRouteSchedules'
 import { buildVoyageRailItems, type VoyageRailItem } from '../services/voyageSummaries'
 import { VoyageRail } from '../components/voyages/VoyageRail'
-import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
-import { ImportReadProgress } from '../components/shared/ImportReadProgress'
-import { canImportPreview } from '../services/importValidation'
 import {
   buildReconciliationOverview,
   describeRowCoverage,
@@ -61,13 +53,6 @@ import {
   type CoverageFilter,
   type ReconciliationOverview,
 } from './bapliePresentation'
-
-type VoyageOption = { id: number; voyage_number: string | null; vessel?: { name?: string | null } | null }
-
-function voyageLabel(voyages: readonly VoyageOption[], voyageId: string) {
-  const voyage = voyages.find((item) => String(item.id) === voyageId)
-  return voyage ? `${voyage.vessel?.name ?? 'Navio'} / ${voyage.voyage_number ?? '—'}` : null
-}
 
 export function Baplie() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -301,15 +286,7 @@ export function Baplie() {
       )}
 
       {uploadOpen ? (
-        <BaplieUploadModal
-          voyages={voyageRows}
-          onClose={() => setUploadOpen(false)}
-          onImported={async (importedVoyageId) => {
-            // O seletor do modal pode apontar para outra viagem que a página.
-            await afterBaplieImportado(queryClient, { voyageId: importedVoyageId })
-          }}
-          initialVoyageId={voyageId}
-        />
+        <BaplieImportModal defaultVoyageId={voyageId} onClose={() => setUploadOpen(false)} />
       ) : null}
     </>
   )
@@ -903,198 +880,4 @@ function ProfileTag({ container }: { container: BaplieContainer }) {
     container.is_oog ? 'OOG' : null,
   ].filter(Boolean)
   return <>{parts.join(' · ')}</>
-}
-
-function BaplieUploadModal({
-  voyages,
-  onClose,
-  onImported,
-  initialVoyageId,
-}: {
-  voyages: readonly VoyageOption[]
-  onClose: () => void
-  onImported: (importedVoyageId: string) => Promise<void>
-  initialVoyageId: string
-}) {
-  const { user } = useAuth()
-  const { showToast } = useToast()
-  const confirm = useConfirm()
-  const [voyageId, setVoyageId] = useState(initialVoyageId)
-  const { file, preview: parsed, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<Awaited<ReturnType<typeof parseBaplieFile>>>(parseBaplieFile)
-  const [submitting, setSubmitting] = useState(false)
-  const [excludedPods, setExcludedPods] = useState<Set<string>>(new Set())
-  const [readError, setReadError] = useState<string | null>(null)
-  const [importError, setImportError] = useState<string | null>(null)
-  const voyageContext = useBaplieVoyageContext(voyageId ? Number(voyageId) : null)
-  // Baplie gravado com IMO/OOG ou vazios pendentes: falha parcial que fica à vista.
-  const [partial, setPartial] = useState<BaplieImportDone | null>(null)
-
-  function handleClose() {
-    cancelReading()
-    onClose()
-  }
-
-  async function handleFiles(files: File[]) {
-    setExcludedPods(new Set())
-    setReadError(null)
-    setImportError(null)
-    try {
-      await readFile(files[0] ?? null)
-    } catch (err) {
-      setReadError(err instanceof Error ? err.message : 'Não foi possível ler o arquivo. Verifique o formato EDI.')
-    }
-  }
-
-  function togglePod(pod: string) {
-    setExcludedPods((prev) => {
-      const next = new Set(prev)
-      if (next.has(pod)) next.delete(pod)
-      else next.add(pod)
-      return next
-    })
-  }
-
-  // Regras que dependem da Viagem (ADR 0078, item 21): TDT de outro navio ou
-  // viagem bloqueia; POD fora das escalas é ignorado com aviso.
-  const ruled = useMemo(() => (parsed ? applyBaplieVoyageRules(parsed, voyageContext.data) : null), [parsed, voyageContext.data])
-  const pods = ruled?.pods ?? []
-  const filteredContainers = (ruled?.containers ?? []).filter((c) => !c.pod || !excludedPods.has(c.pod))
-  const issues = ruled?.issues ?? []
-  // Sem a Viagem conferida (carregando ou com falha), as regras acima não
-  // rodaram: importar fica bloqueado.
-  const contextBlock = voyageId ? baplieVoyageContextBlock(voyageContext) : null
-  const canImport = Boolean(parsed && voyageId && !contextBlock && canImportPreview(filteredContainers.length > 0, issues))
-  const destination = voyageLabel(voyages, voyageId)
-
-  async function handleImport() {
-    if (!canImport || !user) return
-    setSubmitting(true)
-    setImportError(null)
-    try {
-      const result = await reimportBaplie({
-        voyageId: Number(voyageId),
-        containers: filteredContainers,
-        actorId: user.id,
-        confirmReplacement: (plan) => confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length)),
-      })
-      if (result.status === 'cancelled') return
-      await onImported(voyageId)
-      if (hasBapliePendency(result)) {
-        setPartial(result)
-        return
-      }
-      showToast(baplieImportToast(result), 'success')
-      handleClose()
-    } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Falha ao importar Baplie EDI.')
-      await onImported(voyageId)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
-  if (partial) footnote = baplieFootnoteForPendency(partial)
-  else if (parsing) footnote = 'Lendo o arquivo. Nada foi gravado.'
-  else if (parsed && !voyageId) footnote = 'Escolha a viagem de destino para importar.'
-  else if (parsed && contextBlock) footnote = contextBlock.state === 'loading' ? contextBlock.message : 'Importação bloqueada até a Viagem ser conferida.'
-  else if (parsed && !canImport) footnote = filteredContainers.length ? 'Há erro na prévia; corrija o arquivo e escolha de novo.' : 'Nenhum container selecionado para importar.'
-  else if (parsed) footnote = `${plural(filteredContainers.length, 'container será gravado', 'containers serão gravados')}. Se a viagem já tem Baplie, você confere a diferença antes de substituir.`
-
-  return (
-    <Modal open onClose={handleClose} title="Importar Baplie EDI">
-      <div className="app-import">
-        <VoyageCombobox
-          required
-          label="Viagem de destino"
-          disabled={submitting || Boolean(partial)}
-          selectedVoyageId={voyageId}
-          onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
-        />
-        <ImportGuide
-          requiredLabel="Formato"
-          required="Baplie EDIFACT do plano de estiva da viagem."
-          details={<p>Reimportar substitui o Baplie inteiro da viagem. Com diferença, a lista do que entra, sai ou muda aparece antes de confirmar; sem diferença, o arquivo é aceito direto e os vazios ficam como estão.</p>}
-        />
-        <ImportFilePicker accept=".edi,.txt,.edi2,.bpl" files={file ? [file] : []} onFiles={(files) => void handleFiles(files)} disabled={submitting || Boolean(partial)} />
-        {parsing ? <ImportReadProgress progress={progress} /> : null}
-        {readError ? (
-          <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">
-            <p>{readError}</p>
-            <p>Confira se é o Baplie EDIFACT da viagem e escolha de novo.</p>
-          </ImportNotice>
-        ) : null}
-        {contextBlock?.state === 'error' && !partial ? (
-          <ImportNotice tone="danger" role="alert" title="Importação bloqueada">
-            <p>{contextBlock.message}</p>
-            <p>Sem essa conferência, o navio, a viagem e as escalas do arquivo não são checados.</p>
-            <Button variant="secondary" className="app-btn--sm" onClick={() => void voyageContext.refetch()}>Tentar novamente</Button>
-          </ImportNotice>
-        ) : null}
-        {parsed ? (
-          <ImportSection
-            title="Prévia"
-            aside={
-              <SummaryStrip
-                label="Resumo do Baplie"
-                items={[
-                  { label: filteredContainers.length === 1 ? 'container' : 'containers', value: filteredContainers.length },
-                  { label: 'cheios', value: filteredContainers.filter((c) => c.status === 'full').length },
-                  { label: 'IMO', value: filteredContainers.filter((c) => c.is_imo).length },
-                  { label: 'OOG', value: filteredContainers.filter((c) => c.is_oog).length },
-                ]}
-              />
-            }
-          >
-            <p className="app-import-inspection app-import-inspection__line">
-              <span>No arquivo: <strong>{parsed.vessel_name || parsed.voyage_number ? `${parsed.vessel_name ?? '—'} / ${parsed.voyage_number ?? '—'}` : 'navio e viagem não informados'}</strong></span>
-              <span>Destino: <strong>{destination ?? (voyageId ? 'viagem escolhida' : 'escolha a viagem')}</strong></span>
-            </p>
-            {pods.length > 0 ? (
-              <fieldset className="app-import-pods">
-                <legend>Portos de descarga a importar (desmarque os que não são desta operação)</legend>
-                {pods.map((pod) => (
-                  <label key={pod}>
-                    <input type="checkbox" checked={!excludedPods.has(pod)} onChange={() => togglePod(pod)} disabled={Boolean(partial)} />
-                    {pod}
-                  </label>
-                ))}
-              </fieldset>
-            ) : null}
-            <ImportIssuesPanel issues={issues} filename="baplie-issues.csv" />
-          </ImportSection>
-        ) : null}
-        {importError ? (
-          <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
-            <p>{importError}</p>
-            <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
-          </ImportNotice>
-        ) : null}
-        {partial && user ? (
-          <BaplieImportPartialNotice
-            result={partial}
-            voyageId={Number(voyageId)}
-            actorId={user.id}
-            onVaziosRetried={async () => {
-              setPartial((current) => current && { ...current, vaziosError: null, vaziosReplaced: true })
-              await onImported(voyageId)
-            }}
-          />
-        ) : null}
-        <div className="app-modal__actions">
-          <ImportFootnote tone={(partial ? hasBapliePendency(partial) : parsed && !canImport) ? 'warning' : 'default'}>{footnote}</ImportFootnote>
-          {partial ? (
-            <Button onClick={handleClose}>Concluir</Button>
-          ) : (
-            <>
-              <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
-              <Button disabled={!canImport || parsing} loading={submitting} loadingLabel="Importando…" onClick={() => void handleImport()}>
-                {canImport ? `Importar Baplie (${plural(filteredContainers.length, 'container', 'containers')})` : 'Importar Baplie'}
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    </Modal>
-  )
 }

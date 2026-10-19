@@ -73,7 +73,7 @@ export async function parseVaziosImportacaoBuffer(buffer: ArrayBuffer): Promise<
   const { missing } = matchHeaders(headers, VAZIOS_IMPORTACAO_HEADER_SPEC)
   if (missing.length) {
     const labels = missing.map((field) => VAZIOS_IMPORTACAO_HEADER_LABELS[field])
-    throw new Error(`Planilha invalida. Colunas obrigatorias: ${labels.join(', ')}.`)
+    throw new Error(`Planilha inválida. Colunas obrigatórias: ${labels.join(', ')}.`)
   }
   const mapRow = createHeaderMapper(rows[0], HEADER_MAP)
 
@@ -249,8 +249,6 @@ export type ImportVaziosImportacaoArgs = {
   /** Nº do manifesto Mercante por rota da planilha (chave `vaziosRouteKey`), obrigatório em todas. */
   manifestNumbers: Readonly<Record<string, string>>
   description?: string
-  /** Permite persistir as linhas válidas quando o preview tem erros de linha. */
-  allowRowErrors?: boolean
 }
 
 export async function importVaziosImportacaoManifest({
@@ -259,9 +257,9 @@ export async function importVaziosImportacaoManifest({
   voyageId,
   manifestNumbers,
   description,
-  allowRowErrors = false,
 }: ImportVaziosImportacaoArgs): Promise<{ manifestId: string; mercanteManifestIds: string[] }> {
-  if (manifest.rowErrors.length && !allowRowErrors) throw new Error(formatImportacaoRowErrors(manifest.rowErrors))
+  // Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo inteiro.
+  if (manifest.rowErrors.length) throw new Error(formatImportacaoRowErrors(manifest.rowErrors))
   const { manifestos, error: numbersError } = resolveVaziosManifestNumbers(manifest, manifestNumbers)
   if (!manifestos) throw new Error(numbersError)
 
@@ -288,8 +286,8 @@ export async function importVaziosImportacaoManifest({
 function formatImportacaoRowErrors(rowErrors: readonly RowError[]): string {
   const shown = rowErrors.slice(0, 20).map((error) => `Linha ${error.row}: ${error.message}`)
   const hidden = rowErrors.length - shown.length
-  if (hidden > 0) shown.push(`... e mais ${hidden} linha${hidden === 1 ? '' : 's'} com divergências.`)
-  return shown.join('\n')
+  if (hidden > 0) shown.push(`... e mais ${hidden} linha${hidden === 1 ? '' : 's'} com erro.`)
+  return [`Nada foi gravado: ${rowErrors.length === 1 ? 'uma linha tem erro' : `${rowErrors.length} linhas têm erro`}.`, ...shown].join('\n')
 }
 
 export async function importVaziosFromBaplie({

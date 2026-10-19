@@ -77,7 +77,7 @@
     "src/pages/Granite.tsx": {
       "hex": 7,
       "caixa-alta": 1,
-      "cor-tailwind": 5
+      "cor-tailwind": 2
     },
     "src/pages/GraniteRates.tsx": {
       "hex": 3,
@@ -94,9 +94,9 @@
       "cor-tailwind": 7
     },
     "src/pages/VaziosImportacao.tsx": {
-      "hex": 12,
-      "caixa-alta": 4,
-      "cor-tailwind": 6
+      "hex": 5,
+      "caixa-alta": 1,
+      "cor-tailwind": 3
     },
     "src/portal-main.tsx": {
       "hex": 2,
@@ -131,7 +131,7 @@
       "app-fin": 13,
       "app-floating": 7,
       "app-header": 58,
-      "app-import": 117,
+      "app-import": 113,
       "app-inline": 1,
       "app-input": 15,
       "app-invoice": 40,

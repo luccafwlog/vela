@@ -7089,17 +7089,7 @@ a.app-step-rail__link:focus-visible {
   margin: 0;
 }
 
-.app-import-guide__label {
-  font-weight: 600;
-  color: var(--app-text-strong);
-}
-
-.app-import-guide__muted {
-  color: var(--app-muted);
-}
-
-.app-import-guide__details summary,
-.app-import-inspection__details summary {
+.app-import-guide__details summary {
   width: fit-content;
   color: var(--app-link);
   font-size: var(--app-size-table);
@@ -7261,53 +7251,12 @@ a.app-step-rail__link:focus-visible {
   min-width: 0;
 }
 
-.app-import-section__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 12px;
-}
-
-.app-import-section__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-body);
-  font-weight: 600;
-}
-
 .app-import-inspection {
   display: grid;
   gap: 4px;
   color: var(--app-muted);
   font-size: var(--app-size-caption);
   line-height: 16px;
-}
-
-.app-import-inspection__line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 12px;
-  margin: 0;
-}
-
-.app-import-inspection__line strong {
-  color: var(--app-text);
-  font-weight: 600;
-}
-
-.app-import-inspection__details pre {
-  max-height: 8rem;
-  margin: 6px 0 0;
-  overflow: auto;
-  white-space: pre-wrap;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control);
-  background: var(--app-surface-muted);
-  padding: 8px;
-  color: var(--app-text);
-  font-family: var(--app-font-mono);
-  font-size: var(--app-size-caption);
 }
 
 .app-import-pager {
@@ -11760,6 +11709,7 @@ td.app-cargo-num {
 
 .app-facts__item {
   display: grid;
+  align-content: start;
   gap: 2px;
   min-width: 0;
 }

@@ -18,20 +18,20 @@ export async function importBlDocument({
   voyageId,
   document,
   uploadedBy,
-  allowRowErrors,
+  acceptWarnings,
 }: {
   filename: string
   voyageId: number
   document: ParsedBlDocument
   uploadedBy: string
-  allowRowErrors?: boolean
+  acceptWarnings?: boolean
 }) {
   return importBlDocuments({
     filename,
     voyageId,
     documents: [document],
     uploadedBy,
-    allowRowErrors,
+    acceptWarnings,
   })
 }
 
@@ -40,15 +40,18 @@ export async function importBlDocuments({
   voyageId,
   documents,
   uploadedBy,
-  allowRowErrors = false,
+  acceptWarnings = false,
   approval,
 }: {
   filename: string
   voyageId: number
   documents: ParsedBlDocument[]
   uploadedBy: string
-  /** Permite prosseguir com avisos; erros documentais continuam bloqueando. */
-  allowRowErrors?: boolean
+  /**
+   * Aceite dos avisos de leitura. Erro nunca é aceito: um arquivo com erro
+   * recusa o lote inteiro (regra de 2026-10-19, ADR 0091).
+   */
+  acceptWarnings?: boolean
   /** Trocas de Consignatário e rotas de B/L faturado confirmadas na prévia do lote. */
   approval?: BreakbulkApproval
 }): Promise<BreakbulkImportResult> {
@@ -58,8 +61,8 @@ export async function importBlDocuments({
   }
 
   const warnedDocument = documents.find((document) => document.warnings.length > 0)
-  if (warnedDocument && !allowRowErrors) {
-    throw new Error(`${filename}: Avisos do documento exigem confirmação explícita: ${warnedDocument.warnings.join(' ')}`)
+  if (warnedDocument && !acceptWarnings) {
+    throw new Error(`${filename}: os avisos do documento pedem o aceite antes de importar: ${warnedDocument.warnings.join(' ')}`)
   }
 
   const voyage = await fetchVoyage(voyageId)
@@ -83,7 +86,7 @@ export async function importBlDocuments({
   }
 
   return importBreakbulkManifest({
-    filename, voyageId, manifest, uploadedBy, allowRowErrors, approval,
+    filename, voyageId, manifest, uploadedBy, approval,
   })
 }
 
@@ -94,7 +97,7 @@ async function fetchVoyage(voyageId: number): Promise<BlDocumentVoyage> {
     .eq('id', voyageId)
     .maybeSingle()
   if (error) throw error
-  if (!data) throw new Error('Viagem selecionada nao encontrada.')
+  if (!data) throw new Error('Viagem selecionada não encontrada.')
 
   const voyage = data as unknown as {
     voyage_number: string | null
