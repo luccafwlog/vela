@@ -125,7 +125,7 @@ describeLocal('S12 — leituras operacionais paginadas', () => {
     expect(summary).toMatchObject({ totalBls: 3, totalDistinctContainers: 2, chargeExempt: 1, totalMachines: 2, totalPackages: 12, totalWeightTon: 1.5, totalCbm: 4.25 })
   })
 
-  // Migration 321: o link do Painel manda o POD canônico da escala (BRVIX);
+  // Migration 322: o link do Painel manda o POD canônico da escala (BRVIX);
   // B/Ls gravados com a grafia legada BRVIT ficavam fora da lista.
   it('filtro de POD e rotas da viagem comparam o porto canônico, não a grafia gravada', () => {
     // Só neste teste: as outras leituras da suíte agrupam pela grafia gravada.
@@ -151,7 +151,7 @@ describeLocal('S12 — leituras operacionais paginadas', () => {
       expect(options.pods).toContain('BRVIX')
       expect(options.pods).not.toContain('BRVIT')
 
-      // Migration 322: as duas grafias são uma rota só no resumo da viagem.
+      // Migration 323: as duas grafias são uma rota só no resumo da viagem.
       const rail = JSON.parse(lastJson(callAsAuthenticated('SELECT public.operational_list_voyage_summaries(1, 100);'))) as { rows: Array<{ id: number; routes: Array<{ pol: string; pod: string; blCount: number }> }> }
       const routes = rail.rows.find((row) => row.id === voyageId)?.routes ?? []
       expect(routes.filter((route) => route.pod === 'BRVIX')).toEqual([expect.objectContaining({ pol: 'CNSHA', pod: 'BRVIX', blCount: 2 })])

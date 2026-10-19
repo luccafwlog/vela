@@ -1,15 +1,15 @@
--- 322: rotas do resumo de viagens agrupam pelo porto, não pela grafia.
+-- 323: rotas do resumo de viagens agrupam pelo porto, não pela grafia.
 --
 -- Problema: `operational_list_voyage_summaries` (corpo da 058) agrupava as
 -- rotas de cada viagem por `b.pol, b.pod` crus. Uma viagem com B/Ls gravados
 -- como `BRVIT` e outros como `BRVIX` devolvia duas rotas para Vitória, com a
 -- contagem de B/Ls e a cobertura de CE divididas entre elas. As telas de hoje
 -- normalizam o porto no navegador antes de exibir, mas o payload contradizia
--- o filtro da lista de BLs, que desde a migration 321 trata as duas grafias
+-- o filtro da lista de BLs, que desde a migration 322 trata as duas grafias
 -- como o mesmo porto.
 --
 -- Mudança: a rota passa a ser `normalize_port_code(b.pol)` →
--- `normalize_port_code(b.pod)`, a mesma régua da 321. POL/POD vazio e nulo
+-- `normalize_port_code(b.pod)`, a mesma régua da 322. POL/POD vazio e nulo
 -- caem juntos em NULL (antes eram rotas distintas). Os totais da viagem não
 -- mudam: são a soma das rotas.
 -- O corpo é lido do catálogo e o trecho trocado com verificação, como na
@@ -31,7 +31,7 @@ DECLARE
   v_group_new CONSTANT text := $n$GROUP BY public.normalize_port_code(b.pol), public.normalize_port_code(b.pod)$n$;
 BEGIN
   IF position(v_select_old IN v_def) = 0 OR position(v_group_old IN v_def) = 0 THEN
-    RAISE EXCEPTION 'Migration 322: agrupamento de rotas por b.pol, b.pod não encontrado em operational_list_voyage_summaries.';
+    RAISE EXCEPTION 'Migration 323: agrupamento de rotas por b.pol, b.pod não encontrado em operational_list_voyage_summaries.';
   END IF;
   EXECUTE replace(replace(v_def, v_select_old, v_select_new), v_group_old, v_group_new);
 END

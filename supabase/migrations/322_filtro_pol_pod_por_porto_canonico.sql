@@ -1,4 +1,4 @@
--- 321: filtros POL/POD de B/Ls e Contêineres comparam o porto, não a grafia.
+-- 322: filtros POL/POD de B/Ls e Contêineres comparam o porto, não a grafia.
 --
 -- Problema: no Painel, o link "BB" da escala ZHONG YUAN HAI YUN KAI TUO / 42
 -- abria /bls com `pod=BRVIX` (o código canônico da escala) e a lista vinha
@@ -42,7 +42,7 @@ BEGIN
   ] LOOP
     v_def := pg_get_functiondef(v_fn);
     IF position(v_pol_old IN v_def) = 0 OR position(v_pod_old IN v_def) = 0 THEN
-      RAISE EXCEPTION 'Migration 321: filtro POL/POD por ILIKE não encontrado em %.', v_fn;
+      RAISE EXCEPTION 'Migration 322: filtro POL/POD por ILIKE não encontrado em %.', v_fn;
     END IF;
     EXECUTE replace(replace(v_def, v_pol_old, v_pol_new), v_pod_old, v_pod_new);
   END LOOP;

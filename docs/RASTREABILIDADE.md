@@ -296,7 +296,7 @@ Regra: [Viagens](modules/viagens.md).
 | `get_agency_report_actor_names_by_report_id` | `agencyDepartureReport.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `get_voyage_first_brazilian_eta` | `baplieReconciliation.ts` | `002` | DEFINER · `authenticated`, `service_role` | usuário interno ativo | — |
 | `omit_voyage_escala` | `transshipments.ts` | `016` | DEFINER · `authenticated` | usuário interno ativo; ator = sessão | Registro global da omissão, herdado pelos B/Ls; audita. |
-| `operational_list_voyage_summaries` | `operationalLists.ts` | `058`, `322` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | — |
+| `operational_list_voyage_summaries` | `operationalLists.ts` | `058`, `323` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | — |
 | `operational_voyage_vehicle_stats` | `voyageVehicleStats.ts` | `287` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Indicadores de veículos da faixa de `/viagens` e `/veiculos`: contagens por viagem, POD, marca e tipo de contêiner, e contêineres com veículo, já agrupados. |
 | `portal_ship_schedule` | `portalScheduleVoyages.ts` | `002`; grants na `320` | DEFINER · `authenticated` | toda sessão (sem guarda de Cliente; sem `anon` desde a `320`) | Projeção da Programação (`RETURNS TABLE`, `LANGUAGE sql`); distingue `OMIT` de `X`. Sem `anon` desde a ADR 0090. |
 | `reactivate_voyage` | `voyages.ts` | `211` | DEFINER · `authenticated` | Administrativo ativo | Devolve a viagem a ativa, recalcula o status e devolve à fila os efeitos encerrados pelo cancelamento (`211`). |
@@ -352,10 +352,10 @@ Regra: [Manifestos e EDI](modules/manifesto-edi.md).
 | `list_voyage_eligible_pods` | `baplieImport.ts` | `190` | DEFINER · `authenticated` | usuário interno ativo | Escalas da Viagem para a conferência do Baplie. |
 | `move_bls_to_manifesto_mercante` | `manifestosMercanteService.ts` | `209` | DEFINER · `authenticated` | usuário interno ativo | Confere o Manifesto que a tela mostrava (`p_expected`) e recusa se outra sessão o trocou. |
 | `move_vehicles_to_bl` | `vehicles.ts` | `202` | DEFINER · `authenticated` | usuário interno ativo | — |
-| `operational_list_bl_summary` | `operationalLists.ts` | `064`, `229`, `321` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | — |
-| `operational_list_bls` | `operationalLists.ts` | `064`, `229`, `321` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/bls` e o export; `operational_list_bl_summary` dá os totais. |
-| `operational_list_containers` | `operationalLists.ts` | `059`, `284`, `295`, `321` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/containers`. |
-| `operational_list_filter_options` | `operationalLists.ts` | `285`, `321` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | POL e POD distintos por porto canônico (`321`) e tipos de contêiner dos filtros de `/bls` e `/containers`. |
+| `operational_list_bl_summary` | `operationalLists.ts` | `064`, `229`, `322` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | — |
+| `operational_list_bls` | `operationalLists.ts` | `064`, `229`, `322` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/bls` e o export; `operational_list_bl_summary` dá os totais. |
+| `operational_list_containers` | `operationalLists.ts` | `059`, `284`, `295`, `322` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | Lista paginada de `/containers`. |
+| `operational_list_filter_options` | `operationalLists.ts` | `285`, `322` | INVOKER · `authenticated`, `service_role` | RLS do chamador (`INVOKER`) | POL e POD distintos por porto canônico (`322`) e tipos de contêiner dos filtros de `/bls` e `/containers`. |
 | `preflight_depots_terminal_port_mapping` | `depots.ts` | `002` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `preview_baplie_physical_flags` | `baplieImport.ts` | `182` | DEFINER · `authenticated` | usuário interno ativo | — |
 | `preview_ce_mercante_rows` | `ceMercanteImport.ts` | `181` | DEFINER · `authenticated` | usuário interno ativo | — |
