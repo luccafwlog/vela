@@ -1,9 +1,10 @@
 import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CheckSquare, ChevronDown, ChevronRight, Square } from 'lucide-react'
+import { ArrowRight, Calculator, CheckSquare, ChevronDown, ChevronRight, FileCheck2, FileText, Link2, Square, UserRound } from 'lucide-react'
 import { Block, Fact, FactList } from '../ui/Block'
 import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { EmptyState, InlineError } from '../ui/Card'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
@@ -130,7 +131,7 @@ export function ValidacaoOperationsTable({
                     <td className="app-table__text hidden lg:table-cell" title={voyage || undefined}>{voyage || <NoValue label="Sem navio e viagem" />}</td>
                     <td className="whitespace-nowrap" title={block.detail}>{block.label}</td>
                     <td className="whitespace-nowrap tabular-nums">{formatBRL(row.totals.total_brl)}</td>
-                    <td className="whitespace-nowrap"><ResolveAction row={row} code={block.code} onIssue={onIssueSingleInvoice} onRecalculate={onRecalculateRow} /></td>
+                    <td className="whitespace-nowrap"><ResolveAction row={row} code={block.code} onIssue={onIssueSingleInvoice} onRecalculate={onRecalculateRow} iconOnly /></td>
                   </tr>
                   {isExpanded ? (
                     <tr id={`validacao-${row.id}`} data-row-detail>
@@ -174,35 +175,45 @@ export function ValidacaoOperationsTable({
 
 /**
  * Uma ação por linha, a que resolve o motivo: Recalcular, Vincular na Revisão,
- * Cadastrar CE, Abrir Cliente ou Emitir (lote 1 da identidade).
+ * Cadastrar CE, Abrir Cliente ou Emitir (lote 1 da identidade). Na linha da
+ * tabela, só o ícone (`iconOnly`, regra 9); na faixa da linha aberta, com texto.
  */
 function ResolveAction({
   row,
   code,
   onIssue,
   onRecalculate,
+  iconOnly = false,
 }: {
   row: LocalChargeOperationalRow
   code: string
   onIssue: (row: LocalChargeOperationalRow) => void
   onRecalculate?: (row: LocalChargeOperationalRow) => void
+  iconOnly?: boolean
 }) {
+  const link = (to: string, label: string, Icon: typeof ArrowRight) => iconOnly
+    ? <Link className="app-btn app-btn--secondary app-btn--icon" to={to} aria-label={label} title={label}><Icon size={15} aria-hidden="true" /></Link>
+    : <Link className="app-btn app-btn--secondary app-btn--sm" to={to}>{label} <ArrowRight size={14} aria-hidden="true" /></Link>
   if (code === 'pronto' && row.customer?.id && !isBlLockedForRecalc(row.financial_status)) {
-    return <Button className="app-btn--sm" onClick={() => onIssue(row)}>Emitir</Button>
+    return iconOnly
+      ? <RowActionButton label="Emitir" icon={FileCheck2} variant="primary" onClick={() => onIssue(row)} />
+      : <Button className="app-btn--sm" onClick={() => onIssue(row)}>Emitir</Button>
   }
   if (code === 'sem_cliente') {
-    return <Link className="app-btn app-btn--secondary app-btn--sm" to={`/revisao?bl=${encodeURIComponent(row.id)}`}>Vincular na Revisão <ArrowRight size={14} aria-hidden="true" /></Link>
+    return link(`/revisao?bl=${encodeURIComponent(row.id)}`, 'Vincular na Revisão', Link2)
   }
   if (code === 'aguardando_ce') {
-    return <Link className="app-btn app-btn--secondary app-btn--sm" to={`/bls/${encodeURIComponent(row.id)}`}>Cadastrar CE <ArrowRight size={14} aria-hidden="true" /></Link>
+    return link(`/bls/${encodeURIComponent(row.id)}`, 'Cadastrar CE', FileText)
   }
   if (code === 'portal_nao_provisionado') {
     // Conhecer o bloqueio não é o mesmo que poder resolvê-lo: a ficha aplica a própria permissão.
     if (!row.customer?.cnpj_cpf) return null
-    return <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/${encodeURIComponent(row.customer.cnpj_cpf)}`}>Abrir Cliente <ArrowRight size={14} aria-hidden="true" /></Link>
+    return link(`/clientes/${encodeURIComponent(row.customer.cnpj_cpf)}`, 'Abrir Cliente', UserRound)
   }
   if ((code === 'calculo_incompleto' || code === 'operacao_granito') && !isBlLockedForRecalc(row.financial_status)) {
-    return <Button variant="secondary" className="app-btn--sm" onClick={() => onRecalculate?.(row)}>Recalcular</Button>
+    return iconOnly
+      ? <RowActionButton label="Recalcular" icon={Calculator} onClick={() => onRecalculate?.(row)} />
+      : <Button variant="secondary" className="app-btn--sm" onClick={() => onRecalculate?.(row)}>Recalcular</Button>
   }
   return null
 }

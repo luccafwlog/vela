@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Download, Inbox, SearchX, X } from "lucide-react";
+import { Download, Inbox, Receipt, RefreshCw, SearchX, Upload, X } from "lucide-react";
 import { Badge } from "../components/ui/Badge";
 import { Block, Fact, FactList, LeadValue } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
@@ -560,8 +560,8 @@ export function PortalDesbloqueioCe() {
                             ) : (
                               <span className="inline-flex items-center gap-2">
                                 <StatusText tone="warning">Em aberto</StatusText>
-                                <a className="app-btn app-btn--secondary app-btn--sm" href={portalPath(flow.scope, "/billing")}>
-                                  Ver faturas
+                                <a className="app-btn app-btn--secondary app-btn--icon" href={portalPath(flow.scope, "/billing")} aria-label="Ver faturas" title="Ver faturas">
+                                  <Receipt size={15} aria-hidden="true" />
                                 </a>
                               </span>
                             )}
@@ -957,9 +957,9 @@ function RequestDocuments({
   const fileButton = (type: DocType, label: string, variant: "primary" | "secondary") => (
     <CeUnlockFileButton
       variant={variant}
-      className="app-btn--sm"
       inputLabel={`Arquivo ${type === "termo" ? "do termo de devolução" : "da procuração"} (PDF)`}
       ariaLabel={`${label}: ${ceDocumentName(type).toLowerCase()}`}
+      icon={label === "Anexar PDF" ? Upload : RefreshCw}
       disabled={busy}
       onFile={(file) => onPick(type, file)}
     >

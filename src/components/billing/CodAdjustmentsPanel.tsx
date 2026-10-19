@@ -1,13 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, CheckCheck, FileText, Receipt } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { usePendingCodAdjustments, useSettleCodAdjustment } from '../../hooks/useBillingLedger'
 import { queryKeys } from '../../services/queryKeys'
 import { formatBRL } from '../../lib/utils'
 import { Badge } from '../ui/Badge'
-import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { Card, InlineError } from '../ui/Card'
 import { CopyValue } from '../ui/CopyValue'
 import { useToast } from '../ui/Toast'
@@ -140,13 +140,13 @@ export function CodAdjustmentsPanel() {
                       {awaitingReissue ? (
                         <div className="flex max-w-[390px] flex-wrap items-center gap-2 text-xs text-[var(--app-muted)]">
                           <span>A fatura é reemitida sozinha e este ajuste se liquida com ela. Se a reemissão travou, resolva o motivo e use Emitir fatura na ficha do B/L.</span>
-                          <Link className="app-btn app-btn--secondary app-btn--sm" to={`/bls/${encodeURIComponent(row.bl_id)}`}>Abrir B/L</Link>
+                          <Link className="app-btn app-btn--secondary app-btn--icon" to={`/bls/${encodeURIComponent(row.bl_id)}`} aria-label="Abrir B/L" title="Abrir B/L"><FileText size={15} aria-hidden="true" /></Link>
                         </div>
                       ) : isManualDocument ? (
                         <div className="flex max-w-[390px] flex-wrap items-center gap-2 text-xs text-[var(--app-muted)]">
                           <AlertTriangle size={15} className="shrink-0 text-[var(--app-warning-fg)]" />
                           <span>Emita a fatura (avulsa, se for complemento) e informe o número interno dela.</span>
-                          <Link className="app-btn app-btn--secondary app-btn--sm" to={`/taxas-locais?tab=invoices&bl=${encodeURIComponent(row.bl_id)}`}>Abrir faturas</Link>
+                          <Link className="app-btn app-btn--secondary app-btn--icon" to={`/taxas-locais?tab=invoices&bl=${encodeURIComponent(row.bl_id)}`} aria-label="Abrir faturas" title="Abrir faturas"><Receipt size={15} aria-hidden="true" /></Link>
                           <input
                             aria-label={`Número interno da fatura do ajuste ${row.id}`}
                             className="app-input w-28"
@@ -157,28 +157,24 @@ export function CodAdjustmentsPanel() {
                             type="number"
                             value={documentIds[row.id] ?? ''}
                           />
-                          <Button
-                            variant="secondary"
-                            type="button"
+                          <RowActionButton
+                            label="Vincular e concluir"
+                            icon={CheckCheck}
                             disabled={!canSettle}
                             loading={settleMutation.isPending && settlingId === row.id}
-                            title={!canSettle ? 'Somente Financeiro, Administrativo ou Admin pode liquidar.' : undefined}
+                            title={!canSettle ? 'Vincular e concluir: somente Financeiro, Administrativo ou Admin pode liquidar.' : undefined}
                             onClick={() => void settle(row.id)}
-                          >
-                            Vincular e concluir
-                          </Button>
+                          />
                         </div>
                       ) : (
-                        <Button
-                          variant="secondary"
-                          type="button"
+                        <RowActionButton
+                          label={row.action === 'refund_overpayment' ? 'Registrar restituição' : 'Aplicar abatimento'}
+                          icon={CheckCheck}
                           disabled={!canSettle}
                           loading={settleMutation.isPending && settlingId === row.id}
-                          title={!canSettle ? 'Somente Financeiro, Administrativo ou Admin pode liquidar.' : undefined}
+                          title={!canSettle ? `${row.action === 'refund_overpayment' ? 'Registrar restituição' : 'Aplicar abatimento'}: somente Financeiro, Administrativo ou Admin pode liquidar.` : undefined}
                           onClick={() => void settle(row.id)}
-                        >
-                          {row.action === 'refund_overpayment' ? 'Registrar restituição' : 'Aplicar abatimento'}
-                        </Button>
+                        />
                       )}
                     </td>
                   </tr>

@@ -265,7 +265,7 @@ describe('Conciliação PIX', () => {
     await user.click(trigger)
     expect(document.activeElement).toBe(screen.getByLabelText(/Motivo do tratamento/))
     await user.click(screen.getByRole('button', { name: 'Voltar' }))
-    await waitFor(() => expect(document.activeElement?.textContent).toBe('Marcar como tratado'))
+    await waitFor(() => expect(document.activeElement?.getAttribute('aria-label')).toBe('Marcar como tratado'))
 
     await user.click(screen.getByRole('button', { name: 'Marcar como tratado' }))
     const submit = screen.getByRole('button', { name: 'Marcar como tratado' }) as HTMLButtonElement

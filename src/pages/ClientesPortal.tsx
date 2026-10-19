@@ -204,7 +204,7 @@ export function ClientesPortal() {
                         to={`/clientes/portal/inspecao/${row.customer_id}?origem=provisionamento&aba=nova`}
                         target="_blank"
                         rel="noreferrer"
-                        className="app-btn app-btn--secondary app-btn--sm"
+                        className="app-btn app-btn--secondary app-btn--icon"
                         title="Ver o Portal como o Cliente vê"
                         aria-label={`Espiadinha: ver o Portal como ${row.customer_name} vê`}
                       >

@@ -54,7 +54,7 @@ export function VesselMapButton({ voyage, withText = false }: { voyage: PortalSc
       href={`https://www.marinetraffic.com/en/ais/details/ships/imo:${voyage.imoNumber}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="app-btn app-btn--secondary app-btn--sm"
+      className={withText ? 'app-btn app-btn--secondary app-btn--sm' : 'app-btn app-btn--secondary app-btn--icon'}
       aria-label={`Ver ${voyage.vesselName} no mapa (MarineTraffic, abre em nova aba)`}
       title="Ver no mapa"
     >

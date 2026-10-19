@@ -1,5 +1,6 @@
 import { Fragment } from 'react'
-import { Button } from '../ui/Button'
+import { Check } from 'lucide-react'
+import { RowActionButton } from '../ui/RowActionButton'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { useCustomerLookup } from '../../hooks/useCustomers'
@@ -93,15 +94,14 @@ export function ReviewCnpjCandidates({
               <td className="app-table__text">{sources.length ? sources.join(' e ') : 'B/L'}</td>
               <td className="app-table__text"><CandidateOwner cnpj={cnpj} /></td>
               <td>
-                <Button
+                <RowActionButton
                   variant={inUse ? 'primary' : 'secondary'}
-                  className="app-btn--sm"
+                  label={`Usar este CNPJ ${formatCnpjCpf(cnpj)}`}
+                  icon={Check}
+                  title={inUse ? 'Em uso' : 'Usar este CNPJ'}
                   aria-pressed={inUse}
-                  aria-label={`Usar este CNPJ ${formatCnpjCpf(cnpj)}`}
                   onClick={() => onUse(cnpj)}
-                >
-                  {inUse ? 'Em uso' : 'Usar este CNPJ'}
-                </Button>
+                />
               </td>
             </tr>
           )
