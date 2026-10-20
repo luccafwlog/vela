@@ -13,8 +13,9 @@ name: Cloudflare Pages Staging
 # nunca a produção. URL e chave pública vêm do GitHub Environment `staging`.
 # O build recusa a URL de produção.
 #
-# Fica desligado até a variável de repositório CLOUDFLARE_PAGES_STAGING_ENABLED
-# ser `true`.
+# Fica desligado até as variáveis de repositório CLOUDFLARE_PAGES_STAGING_ENABLED
+# e CLOUDFLARE_PAGES_ACCESS_CONFIGURED serem `true`.
+# Sem Turnstile: o widget não autoriza o hostname de staging, como nas prévias.
 on:
   push:
     branches:
@@ -26,7 +27,8 @@ permissions:
 
 concurrency:
   group: cloudflare-pages-staging
-  cancel-in-progress: true
+  # false: cancelar entre os dois deploys deixaria Vela e Portal em commits diferentes.
+  cancel-in-progress: false
 
 env:
   PRODUCTION_SUPABASE_PROJECT_REF: fgmkhbzhaeebrsizwccx
@@ -92,7 +94,6 @@ jobs:
           VITE_PORTAL_URL: https://staging.vela-portal.pages.dev
           VITE_PORTAL_BILLING_URL: https://staging.vela-portal.pages.dev/portal/billing
           VITE_SENTRY_ENVIRONMENT: staging
-          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
           VITE_APP_COMMIT_SHA: ${{ github.sha }}
 
       - name: Refuse a bundle that still points to production Supabase

@@ -377,8 +377,9 @@ no-op na branch e quebra a primeira migration que dependa dela. Foi o caso de
 `007` e `135` em produção (a `165` falha com `schema "ops" does not exist`):
 o reparo `supabase/scripts/reparo_schema_migrations_007_135.sql` grava o SQL
 dos arquivos no formato do CLI, guarda backup das linhas e tem rollback em
-`supabase/scripts/reparo_schema_migrations_007_135_rollback.sql`. Executá-lo
-em produção depende de autorização do dono.
+`supabase/scripts/reparo_schema_migrations_007_135_rollback.sql`. Foi
+executado em produção em 2026-10-20, com autorização do dono; o backup ficou em
+`supabase_migrations.schema_migrations_bkp_007_135`.
 
 ### Antes de criar
 
