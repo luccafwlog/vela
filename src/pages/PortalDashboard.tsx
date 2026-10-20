@@ -9,7 +9,7 @@ import { usePortalInvoices, usePortalDemurrageInvoices } from '../hooks/usePorta
 import { usePortalOperationBls } from '../hooks/usePortalOperation'
 import { countContainersInDemurrage, countContainersWithoutReturn } from '../lib/portalOperationViews'
 import { formatBRL, formatCountLabel } from '../lib/utils'
-import { OPEN_INVOICE_STATUSES, formatUsd } from '../lib/portalInvoiceStatus'
+import { formatUsd, portalInvoicesInOpenBalance } from '../lib/portalInvoiceStatus'
 import { usePortalScope } from '../hooks/usePortalScope'
 import { portalPath } from '../services/portalScope'
 import { fetchAllPortalCeUnlockRequests } from '../services/ceUnlockService'
@@ -41,7 +41,7 @@ export function PortalDashboard() {
     queryFn: () => fetchAllPortalCeUnlockRequests(scope),
   })
 
-  const openLocal = (invoices ?? []).filter((i) => (OPEN_INVOICE_STATUSES as readonly string[]).includes(i.status ?? 'issued'))
+  const openLocal = portalInvoicesInOpenBalance(invoices ?? [])
   const localTotal = openLocal.reduce((sum, i) => sum + (i.balance_brl ?? 0), 0)
 
   const openDemurrage = (demurrage ?? []).filter((i) => OPEN_DEMURRAGE_STATUSES.includes(i.status ?? 'issued'))

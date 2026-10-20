@@ -32,6 +32,12 @@
 --      não existe mais: excluir não reabre alerta da viagem apagada.
 --   5. O envelope do Baplie reconcilia também o "Baplie ausente", na mesma
 --      transação da importação (resolve com origem `baplie_import`).
+--   6. Buracos do mesmo tipo achados no estudo
+--      (docs/archive/audits/2026-10-20-auto-resolucao-de-alertas.md, L3 e L4):
+--      o audit de escala (`voyage_pod_schedule`: ETA, exclusão, omissão)
+--      reconcilia também os alertas de prazo da viagem (B/Ls esperados,
+--      Baplie ausente, CE Mercante ausente), e o audit de CE do B/L (`bl` /
+--      `ce_mercante`) reconcilia o "CE Mercante ausente" da viagem.
 --
 -- Navio (`vessels`): não há caminho de exclusão de navio na aplicação nem
 -- alerta com chave de navio; nada a corrigir.
@@ -173,6 +179,17 @@ DECLARE
   v_voyage_id BIGINT;
   v_port TEXT;
 BEGIN
+  IF NEW.entity_type = 'bl' AND NEW.field_name = 'ce_mercante' THEN
+    -- CE gravado ou removido (porta única `_set_bl_ce_mercante`, 230): o
+    -- "CE Mercante ausente" da viagem fecha ou reabre agora (341).
+    -- ponytail: uma reconciliação da viagem por B/L; a importação de CE em
+    -- lote repete a mesma conta N vezes. Agrupar no fim do lote é o upgrade.
+    SELECT b.voyage_id INTO v_voyage_id FROM public.bls b WHERE b.id = NEW.entity_id;
+    IF v_voyage_id IS NOT NULL THEN
+      PERFORM public.reconcile_voyage_ce_mercante_missing_alerts(v_voyage_id, 'voyage_operation_trigger');
+    END IF;
+    RETURN NEW;
+  END IF;
   IF NEW.entity_type NOT IN ('voyage_pod_schedule', 'voyage_pol_schedule', 'voyages') THEN
     RETURN NEW;
   END IF;
@@ -188,6 +205,13 @@ BEGIN
     v_port := NULLIF(upper(btrim(split_part(NEW.entity_id, '::', 2))), '');
     IF v_port IS NOT NULL THEN
       PERFORM public.reconcile_voyage_schedule_date_alerts(v_voyage_id, v_port, 'voyage_operation_trigger');
+    END IF;
+    -- ETA, exclusão ou omissão da escala mudam o primeiro ETA brasileiro, que
+    -- decide o prazo D-7/D-5 dos alertas de nível viagem (341).
+    IF NEW.entity_type = 'voyage_pod_schedule' THEN
+      PERFORM public.reconcile_voyage_bl_expected_alerts(v_voyage_id, 'voyage_operation_trigger');
+      PERFORM public.reconcile_voyage_baplie_missing_alerts(v_voyage_id, 'voyage_operation_trigger');
+      PERFORM public.reconcile_voyage_ce_mercante_missing_alerts(v_voyage_id, 'voyage_operation_trigger');
     END IF;
   END IF;
   RETURN NEW;

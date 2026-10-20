@@ -144,9 +144,9 @@ describeLocal('341 — alertas acompanham a viagem e o Baplie', () => {
 
   it('Obs. 3: importar só o Baplie fecha o "Baplie ausente" na mesma transação', () => {
     const eta = psql(`SELECT ((now() AT TIME ZONE 'America/Sao_Paulo')::date + 3)::text;`)
-    psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by)
+    // Gravar o ETA dentro de D-7 já abre o alerta pelo trigger de audit (341, L3).
+    asOwner(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by)
       VALUES ('voyage_pod_schedule', '${V_BAPLIE}::BRVIX', 'eta', NULL, '${eta}', '${ADMIN_ID}');`)
-    asOwner(`SELECT public.reconcile_voyage_baplie_missing_alerts(${V_BAPLIE}, 'alerts_341_test');`)
     const status = () => psql(`SELECT i.status FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE a.entity_type = 'voyage' AND a.entity_id = '${V_BAPLIE}' AND i.item_type = 'voyage_baplie_missing';`)
     expect(status()).toBe('active')

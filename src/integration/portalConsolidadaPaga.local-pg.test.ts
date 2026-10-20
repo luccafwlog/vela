@@ -148,3 +148,101 @@ describeLocal('Portal — consolidada paga e individuais cobertas (migration 162
     expect(run.status).not.toBe(0)
   })
 })
+
+// Migration 344 (sessão de testes de 2026-10-20, Obs. 6): com a consolidada
+// ainda aberta, as individuais que ela agrupa continuam emitidas; o saldo do
+// Portal conta cada B/L uma vez (R$ 200, não R$ 400). Pagar zera; desfazer a
+// consolidada devolve as individuais (R$ 200).
+describeLocal('Portal — saldo pendente com consolidada aberta (migration 344)', () => {
+  const user344 = '00000000-0000-0000-0000-000000344001'
+  const customer344 = 993441
+  const voyage344 = 993441
+  const cnpj344 = syntheticCnpj(34401)
+  const bls344 = ['BL-344-1', 'BL-344-2']
+
+  const balance = () => {
+    const run = callAs(user344, `SELECT public.portal_get_session_overview_v2();`)
+    expect(run.status, run.stderr).toBe(0)
+    return Number(JSON.parse(run.json ?? '{}').pending_balance)
+  }
+
+  function cleanup344() {
+    psql(`
+      DELETE FROM public.payments WHERE invoice_id IN (SELECT id FROM public.invoices WHERE invoice_number LIKE 'INV-344-%');
+      UPDATE public.invoices SET covered_by_invoice_id = NULL WHERE invoice_number LIKE 'INV-344-%';
+      DELETE FROM public.invoice_receivable_links WHERE invoice_id IN (SELECT id FROM public.invoices WHERE invoice_number LIKE 'INV-344-%');
+      DELETE FROM public.invoice_bls WHERE invoice_id IN (SELECT id FROM public.invoices WHERE invoice_number LIKE 'INV-344-%');
+      DELETE FROM public.invoice_lifecycle_events WHERE invoice_id IN (SELECT id FROM public.invoices WHERE invoice_number LIKE 'INV-344-%');
+      DELETE FROM public.invoices WHERE invoice_number LIKE 'INV-344-%';
+      DELETE FROM public.bl_receivables WHERE customer_id = ${customer344};
+      DELETE FROM public.bls WHERE id IN ('${bls344[0]}', '${bls344[1]}');
+      DELETE FROM public.voyages WHERE id = ${voyage344};
+    `)
+  }
+
+  beforeAll(() => {
+    cleanup344()
+    psql(`
+      INSERT INTO auth.users (id, email) VALUES ('${user344}', 'p344@example.test') ON CONFLICT (id) DO NOTHING;
+      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customer344}, '${cnpj344}', 'Cliente 344')
+      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+      INSERT INTO public.customer_portal_accounts (customer_id, active, auth_user_id, provisioning_decision, account_situation, recovery_email, portal_email, login_cnpj)
+      VALUES (${customer344}, true, '${user344}', 'aprovado_para_provisionar', 'ativo', 'p344@example.test', 'p344@example.test', '${cnpj344}')
+      ON CONFLICT (customer_id) DO UPDATE SET active = true, auth_user_id = EXCLUDED.auth_user_id,
+        provisioning_decision = EXCLUDED.provisioning_decision, account_situation = 'ativo';
+      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 162') ON CONFLICT (id) DO NOTHING;
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 162', ${carrierId}) ON CONFLICT (id) DO NOTHING;
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyage344}, ${vesselId}, '344-001', 'active') ON CONFLICT (id) DO NOTHING;
+      INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode, pol, pod, ce_mercante) VALUES
+        ('${bls344[0]}', ${voyage344}, ${customer344}, 'container', 'CNTAO', 'BRVIX', '344000000000001'),
+        ('${bls344[1]}', ${voyage344}, ${customer344}, 'container', 'CNTAO', 'BRVIX', '344000000000002');
+      INSERT INTO public.bl_receivables (bl_id, customer_id, original_amount_brl, settled_amount_brl, balance_brl, status, voyage_id)
+      VALUES ('${bls344[0]}', ${customer344}, 100, 0, 100, 'open', ${voyage344}),
+             ('${bls344[1]}', ${customer344}, 100, 0, 100, 'open', ${voyage344});
+      INSERT INTO public.invoices (invoice_number, customer_id, bl_id, invoice_type, total_brl, total_paid_brl, balance_brl, status, issued_at) VALUES
+        ('INV-344-0001', ${customer344}, '${bls344[0]}', 'individual', 100, 0, 100, 'draft', now() - interval '2 minutes'),
+        ('INV-344-0002', ${customer344}, '${bls344[1]}', 'individual', 100, 0, 100, 'draft', now() - interval '2 minutes'),
+        ('INV-344-0003', ${customer344}, NULL, 'consolidated', 200, 0, 200, 'draft', now() - interval '1 minute');
+      INSERT INTO public.invoice_bls (invoice_id, bl_id, subtotal_brl, subtotal_usd)
+      SELECT i.id, i.bl_id, i.total_brl, 0 FROM public.invoices i WHERE i.invoice_number IN ('INV-344-0001', 'INV-344-0002');
+      INSERT INTO public.invoice_receivable_links (invoice_id, receivable_id, bl_id, subtotal_brl, status)
+      SELECT i.id, r.id, r.bl_id, r.original_amount_brl, 'active'
+      FROM public.invoices i
+      JOIN public.bl_receivables r ON r.customer_id = ${customer344}
+        AND (i.invoice_type = 'consolidated' OR r.bl_id = i.bl_id)
+      WHERE i.invoice_number IN ('INV-344-0001', 'INV-344-0002', 'INV-344-0003');
+    `)
+    // Emitida direto no fixture: o gate de liberação do Portal não é o assunto aqui.
+    psql(`SET session_replication_role = replica; UPDATE public.invoices SET status = 'issued' WHERE invoice_number LIKE 'INV-344-%';`)
+  })
+
+  afterAll(cleanup344)
+
+  it('duas individuais de R$ 100 e a consolidada de R$ 200 em aberto dão saldo de R$ 200', () => {
+    expect(balance()).toBe(200)
+    // A lista continua mostrando a consolidada e as individuais.
+    const run = callAs(user344, `SELECT public.portal_list_invoices_page(25, 0, 'issued', NULL, NULL, NULL, NULL, NULL);`)
+    const numbers = (JSON.parse(run.json ?? '{}') as { rows: Row[] }).rows.map((row) => row.invoice_number).sort()
+    expect(numbers).toEqual(['INV-344-0001', 'INV-344-0002', 'INV-344-0003'])
+  })
+
+  it('pagar a consolidada zera o saldo', () => {
+    psql(`
+      UPDATE public.invoices SET status = 'paid', total_paid_brl = 200, balance_brl = 0 WHERE invoice_number = 'INV-344-0003';
+      UPDATE public.invoices SET status = 'covered', balance_brl = 0,
+        covered_by_invoice_id = (SELECT id FROM public.invoices WHERE invoice_number = 'INV-344-0003')
+      WHERE invoice_number IN ('INV-344-0001', 'INV-344-0002');
+    `)
+    expect(balance()).toBe(0)
+  })
+
+  it('desfazer a consolidada devolve o saldo das individuais', () => {
+    psql(`
+      SET session_replication_role = replica;
+      UPDATE public.invoices SET covered_by_invoice_id = NULL, status = 'issued', balance_brl = 100 WHERE invoice_number IN ('INV-344-0001', 'INV-344-0002');
+      UPDATE public.invoices SET status = 'obsolete', total_paid_brl = 0, balance_brl = 200 WHERE invoice_number = 'INV-344-0003';
+      UPDATE public.invoice_receivable_links SET status = 'obsolete' WHERE invoice_id = (SELECT id FROM public.invoices WHERE invoice_number = 'INV-344-0003');
+    `)
+    expect(balance()).toBe(200)
+  })
+})
