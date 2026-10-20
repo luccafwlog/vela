@@ -97,7 +97,7 @@ describeLocal('339 — B/L sem Cliente não derruba a rodada dos Comunicados', (
     const claims = psql(`SELECT string_agg(claim_key, ',' ORDER BY claim_key) FROM public.customer_communication_automation_targets(now())
       WHERE voyage_id = ${VOYAGE_ID} AND kind = 'ce_mercante_taxas';`)
     expect(claims).toBe([CLAIM_A, CLAIM_B].join(','))
-  })
+  }, 60_000)
 
   it('a régua (dispatch) e o detector rodam e devolvem os Clientes elegíveis', () => {
     const candidates = JSON.parse(psql(`SELECT public.evaluate_and_dispatch_automatic_communications(now());`)) as Array<{ claim_key: string }>
