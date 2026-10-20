@@ -266,6 +266,17 @@ novas não falharem na `165`.
   removido).
 - **Senha do banco:** só alfanumérica; guardada em `supabase-db-vela` (iCloud
   Senhas) e usada apenas pelo backup. Nada no repositório usa essa senha.
+- **Cadastro público do Auth desligado:** o app não usa `signUp`; contas
+  nascem só pelas Edge Functions `admin-users` e `portal-invite-activate`
+  (`auth.admin.createUser` com `service_role`, que não depende do cadastro
+  público). Em Authentication → Sign In / Providers → User Signups, "Allow new
+  users to sign up" fica desligado (`disable_signup = true`). A auditoria
+  defensiva de 2026-10-19 achou o cadastro aberto em produção
+  (`GET /auth/v1/settings`: `disable_signup: false`); **desligar é passo
+  pendente do dono** e esta linha deve ganhar a data da conferência quando
+  `GET /auth/v1/settings` voltar `disable_signup: true`. A branch `staging`
+  não foi conferida. Desde a migration `333`, uma conta criada assim também
+  não lê a programação de navios.
 - **Usuário técnico do Auth:**
   `portal-login-dummy@portal-interno.transhippingdesk.invalid`
   (`91abc3b0-96ab-49b0-9a7d-750d5e7d9e84`). **Não apague**: sem ele o login do

@@ -1,5 +1,7 @@
 # 0090 — A programação de navios do Portal só com sessão; nenhuma função para `anon`
 
+> **Situação atual (2026-10-20).** "Sessão" passou a ser checada no corpo, não só no grant: desde a migration `333`, `portal_ship_schedule()` atende usuário interno ativo (`is_active_read_user()`), conta ativa do Portal com credencial não revogada (`current_portal_customer_id()`) ou `service_role`, e recusa as demais contas `authenticated` com 28000. A auditoria defensiva de 2026-10-19 achou o cadastro público do Auth de produção aberto, o que dava a qualquer pessoa uma conta `authenticated` capaz de ler a programação. Continua sem guarda de Cliente, como diz a consequência abaixo. Regra vigente em [Segurança](../operations/seguranca.md#rls-first).
+
 Status: aceito — 2026-10-19 (pedido do responsável a partir do advisor de
 segurança do Supabase de 19/10/2026). Implementada na migration `320`, com a
 suíte `src/integration/advisorFuncoesFechadas.local-pg.test.ts`.

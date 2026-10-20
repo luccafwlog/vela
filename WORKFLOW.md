@@ -192,7 +192,9 @@ não é um contrato de frontend.
 Não existe sessão alternativa por senha armazenada em tabela. O acesso anônimo ao resolver da ADR 0013 foi revogado, e
 nenhuma função é executável antes do login: `portal_ship_schedule()`, a última
 exceção da [ADR 0047](./docs/adr/0047-grants-de-funcao-fechados-por-padrao.md),
-fechou na migration `320` ([ADR 0090](./docs/adr/0090-programacao-de-navios-so-com-sessao.md)).
+fechou na migration `320` ([ADR 0090](./docs/adr/0090-programacao-de-navios-so-com-sessao.md)),
+e desde a `333` recusa conta `authenticated` sem perfil interno ativo nem conta
+ativa do Portal.
 
 ## 3. Estrutura do repositório
 

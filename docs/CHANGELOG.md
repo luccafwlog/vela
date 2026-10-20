@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Programação de navios exige sessão válida (2026-10-20):** `portal_ship_schedule()` passou a
+  recusar conta `authenticated` sem perfil interno ativo nem conta ativa do Portal (migration `333`,
+  [ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); antes bastava qualquer login, e o
+  cadastro público do Auth de produção estava aberto. Desligar esse cadastro é passo do dono no
+  painel do Supabase ([serviços externos](operations/servicos-externos.md#supabase)).
 - **Identidade visual, lote 5a (2026-10-19):** Painel com cartões por setor (agora também o
   Administrativo) e Line-Up limpo; Alertas abre em Ativos, com Resolver e Dispensar em toda linha e
   a mensagem sem repetir o registro (migration `324`, que também reescreveu os alertas abertos e faz
