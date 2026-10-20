@@ -6,6 +6,9 @@
 
 ## 2026-10
 
+- **Suporte nas telas públicas do Portal (2026-10-20):** "Fale com o suporte" do login e das demais
+  telas públicas leva a `suporte@portalfwlog.com.br`; antes apontava para `suporte@fwlog.com.br`, que
+  não existe.
 - **Logo dos Comunicados (2026-10-20):** NOA, NOR, NOB, livre, institucional, CE e Taxas e
   Cobrança de Demurrage buscavam a logo em `/portal/branding/fwlog-logo-white.png`, que em
   produção responde com a página do Portal, e chegavam com a imagem quebrada; agora usam a origem

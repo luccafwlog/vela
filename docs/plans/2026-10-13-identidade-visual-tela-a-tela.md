@@ -439,6 +439,25 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   Para decidir, entre outras: cores FWLOG ou do Vela nos e-mails ao Cliente,
   `VELA_URL` para o botão do Resumo diário e "POL/POD" ou "Origem/Destino".
   Aguarda a resposta do responsável.
+  **Respostas de 2026-10-20** (comentários na página e na conversa): cores do
+  Portal FWLOG nos e-mails ao Cliente; título e botão centralizados; sem
+  aviso que repita o contato do rodapé (no convite e no novo convite sai a
+  nota; na troca do Email de Recuperação e na senha alterada o rodapé vira
+  "Não foi você? Fale com … imediatamente."); avisos do Desbloqueio de CE
+  com os B/Ls da solicitação e o motivo como "Motivo (procuração): …"
+  (migration); NOA, NOR e NOB com Navio / Viagem, Porto e B/Ls no bloco, sem
+  linha de apoio no título e com a frase de abertura curta; CE e Taxas com o
+  título e o assunto "CE Mercante e Taxas Locais disponíveis — Navio /
+  Viagem — Porto", uma frase de abertura sem DI/DUIMP; assunto da Demurrage
+  agrupada "N Invoices"; Resumo diário com a marca do Vela, data
+  brasileira e sem botão. **Contato do Cliente:** acesso, falha de entrega e
+  Desbloqueio de CE seguem com `suporte@portalfwlog.com.br`, Comunicados com
+  `importacao@fwlog.com.br`; a Cobrança de Demurrage mostra e recebe em
+  `eqp@fwlog.com.br`; o "Fale com o suporte" do login apontava para
+  `suporte@fwlog.com.br`, que não existe, e foi corrigido já para
+  `suporte@portalfwlog.com.br`. Faltam: "POL/POD" ou "Origem/Destino" e
+  "B/L"/"Navio / Viagem" nos impressos, a Demurrage avulsa da Comunicação no
+  mesmo endereço da régua e o par repetitivo do convite.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",

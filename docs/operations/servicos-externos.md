@@ -674,7 +674,9 @@ externo chegou às duas caixas.
 Portal e o destino dos relatórios DMARC. O rodapé dos Comunicados
 (`src/services/customerCommunicationTemplates.ts`, `COMMUNICATIONS_CONTACT_EMAIL`)
 imprime `importacao@fwlog.com.br`, o mesmo endereço de `COMMUNICATIONS_REPLY_TO`
-(D20 do plano dos e-mails, 2026-10-18). Ao trocar de responsável, troque também o destino pessoal do alias.
+(D20 do plano dos e-mails, 2026-10-18). O "Fale com o suporte" das telas públicas do Portal
+(`src/components/auth/PortalAccessHelp.tsx`) também leva a `suporte@portalfwlog.com.br`;
+até 2026-10-20 apontava para `suporte@fwlog.com.br`, que não existe. Ao trocar de responsável, troque também o destino pessoal do alias.
 
 ---
 

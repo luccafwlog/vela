@@ -7,7 +7,7 @@ export function PortalAccessHelp() {
   return (
     <p className="app-auth__meta">
       O acesso ao Portal é provisionado pela Fwlog. Problemas para entrar?{' '}
-      <a href="mailto:suporte@fwlog.com.br" className="app-auth__link">Fale com o suporte</a>.
+      <a href="mailto:suporte@portalfwlog.com.br" className="app-auth__link">Fale com o suporte</a>.
     </p>
   )
 }
