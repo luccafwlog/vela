@@ -370,6 +370,16 @@ versão sem arquivo local correspondente, e a checagem de branching falha com
 (`MIGRATIONS_FAILED`). Se acontecer, faça uma reconciliação forward explícita;
 não edite migrations aplicadas.
 
+Uma branch nova repete o histórico a partir de
+`supabase_migrations.schema_migrations.statements`, não dos arquivos. Uma linha
+que guarda só um comentário (versão marcada como aplicada fora do CLI) vira
+no-op na branch e quebra a primeira migration que dependa dela. Foi o caso de
+`007` e `135` em produção (a `165` falha com `schema "ops" does not exist`):
+o reparo `supabase/scripts/reparo_schema_migrations_007_135.sql` grava o SQL
+dos arquivos no formato do CLI, guarda backup das linhas e tem rollback em
+`supabase/scripts/reparo_schema_migrations_007_135_rollback.sql`. Executá-lo
+em produção depende de autorização do dono.
+
 ### Antes de criar
 
 1. declare o problema de negócio;
