@@ -188,8 +188,8 @@ export function CeUnlockVipCoveragePanel({
       return (
         <ActionMenu
           label={`Ações de ${lower(d.type)}`}
-          triggerClassName="app-btn app-btn--ghost app-btn--sm"
-          trigger={<MoreVertical size={16} aria-hidden="true" />}
+          triggerClassName="app-btn app-btn--ghost app-btn--icon"
+          trigger={<MoreVertical size={15} aria-hidden="true" />}
           items={[{ key: "revoke", label: "Revogar aprovação", danger: true, disabled: busy, onSelect: () => void review(d, "revoked") }]}
         />
       );

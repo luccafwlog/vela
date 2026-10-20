@@ -9,6 +9,7 @@ import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { SkeletonTable } from '../ui/Skeleton'
 import { NoValue } from '../ui/NoValue'
+import { RowActionLink } from '../ui/RowActionLink'
 import { StatusText } from '../ui/StatusText'
 
 const POL_LANES = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pol')
@@ -49,17 +50,15 @@ export function ScheduleDate({ voyage, lane }: { voyage: PortalScheduleVoyage; l
  */
 export function VesselMapButton({ voyage, withText = false }: { voyage: PortalScheduleVoyage; withText?: boolean }) {
   if (!voyage.imoNumber) return null
+  const href = `https://www.marinetraffic.com/en/ais/details/ships/imo:${voyage.imoNumber}`
+  const label = `Ver ${voyage.vesselName} no mapa (MarineTraffic, abre em nova aba)`
+  if (!withText) {
+    return <RowActionLink href={href} target="_blank" rel="noopener noreferrer" label={label} title="Ver no mapa" icon={MapPin} />
+  }
   return (
-    <a
-      href={`https://www.marinetraffic.com/en/ais/details/ships/imo:${voyage.imoNumber}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={withText ? 'app-btn app-btn--secondary app-btn--sm' : 'app-btn app-btn--secondary app-btn--icon'}
-      aria-label={`Ver ${voyage.vesselName} no mapa (MarineTraffic, abre em nova aba)`}
-      title="Ver no mapa"
-    >
+    <a href={href} target="_blank" rel="noopener noreferrer" className="app-btn app-btn--secondary app-btn--sm" aria-label={label} title="Ver no mapa">
       <MapPin size={16} aria-hidden="true" />
-      {withText ? ' Ver no mapa' : null}
+      {' Ver no mapa'}
     </a>
   )
 }

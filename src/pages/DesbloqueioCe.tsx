@@ -629,13 +629,15 @@ export function DesbloqueioCe() {
                       <td>
                         <div className="flex justify-end gap-2">
                           <RowActionButton
-                            label="Baixar lote"
+                            label={`Baixar lote de ${ceDateTime(e.created_at)}`}
+                            title="Baixar lote"
                             icon={Download}
                             onClick={() => void downloadCeUnlockExport({ export_id: e.id }).catch((err) => showToast(err instanceof Error ? err.message : "Falha ao baixar lote", "error"))}
                           />
                           <RowActionButton
                             variant="ghost"
-                            label="Reexportar"
+                            label={`Reexportar lote de ${ceDateTime(e.created_at)}`}
+                            title="Reexportar"
                             icon={RotateCcw}
                             disabled={exportBusy}
                             onClick={() => void exportSelected(e.rows.map((r) => r.bl_id), e.id)}

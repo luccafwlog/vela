@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button'
 import { CopyValue } from '../components/ui/CopyValue'
 import { MetricCard } from '../components/ui/MetricCard'
 import { NoValue } from '../components/ui/NoValue'
+import { RowActionLink } from '../components/ui/RowActionLink'
 import { StatusText } from '../components/ui/StatusText'
 import { Field, Input, Select } from '../components/ui/Input'
 import { usePortalProvisioning } from '../hooks/usePortalProvisioning'
@@ -200,16 +201,14 @@ export function ClientesPortal() {
                     <td>{row.hasCriticalAlert ? <StatusText tone="danger">Crítico</StatusText> : <NoValue label="Sem alerta crítico" />}</td>
                     <td><Button variant="secondary" className="app-btn--sm min-w-36" onClick={() => { if (!expanded) toggleRow(row) }}>{getPortalNextAction(row)}</Button></td>
                     <td>
-                      <Link
+                      <RowActionLink
                         to={`/clientes/portal/inspecao/${row.customer_id}?origem=provisionamento&aba=nova`}
                         target="_blank"
                         rel="noreferrer"
-                        className="app-btn app-btn--secondary app-btn--icon"
                         title="Ver o Portal como o Cliente vê"
-                        aria-label={`Espiadinha: ver o Portal como ${row.customer_name} vê`}
-                      >
-                        <Eye size={15} aria-hidden="true" />
-                      </Link>
+                        label={`Espiadinha: ver o Portal como ${row.customer_name} vê`}
+                        icon={Eye}
+                      />
                     </td>
                   </tr>
                   {expanded ? (

@@ -205,7 +205,8 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
                         {canReconcile && !open ? (
                           <RowActionButton
                             ref={(node) => { if (node) triggerRefs.current.set(receipt.endToEndId, node); else triggerRefs.current.delete(receipt.endToEndId) }}
-                            label="Marcar como tratado"
+                            label={`Marcar como tratado o Pix de ${formatBRL(receipt.amount)} recebido em ${cellInstant(receipt.paidAt)}`}
+                            title="Marcar como tratado"
                             icon={CheckCheck}
                             onClick={() => { setDone(null); setForm({ endToEndId: receipt.endToEndId, note: '', error: null }) }}
                           />
@@ -472,7 +473,8 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
                       <td className="whitespace-nowrap text-right">
                         {canReconcile && pendingClose ? (
                           <RowActionButton
-                            label="Encerrar exceção"
+                            label={`Encerrar exceção da linha ${exception.lineNumber}`}
+                            title="Encerrar exceção"
                             icon={CircleSlash}
                             loading={busy && closeMutation.isPending}
                             disabled={busy}
@@ -480,7 +482,8 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
                           />
                         ) : canReconcile ? (
                           <RowActionButton
-                            label="Tentar de novo"
+                            label={`Tentar de novo a linha ${exception.lineNumber}`}
+                            title="Tentar de novo"
                             icon={RotateCw}
                             loading={busy && retryMutation.isPending}
                             disabled={busy}
@@ -541,7 +544,8 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
                                         <td className="whitespace-nowrap text-right">
                                           {canReconcile ? (
                                             <RowActionButton
-                                              label="Baixar nesta fatura"
+                                              label={`Baixar na fatura ${candidate.docNumber}`}
+                                              title="Baixar nesta fatura"
                                               icon={Link2}
                                               loading={linking}
                                               disabled={busy}

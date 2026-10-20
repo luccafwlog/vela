@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, ChevronDown, ChevronRight, Clock, FileText } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronRight, Clock, FilePlus2, FileText } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { RowActionButton } from '../ui/RowActionButton'
 import { CopyValue } from '../ui/CopyValue'
@@ -295,7 +295,7 @@ export function DemurrageContainersTab({
                           </td>
                           <td className="app-table__text"><BlSituation state={state} isLead={isLead} leadBlId={leadBlId} canIssue={canIssue} onOpenInvoice={onOpenInvoice} /></td>
                           <td className="app-dem-row-action">
-                            {isLead ? <BillingAction blId={blId} state={state} canIssue={canIssue} generatingBl={generatingBl} onGenerateInvoice={onGenerateInvoice} /> : null}
+                            {isLead ? <BillingAction blId={blId} state={state} canIssue={canIssue} generatingBl={generatingBl} onGenerateInvoice={onGenerateInvoice} iconOnly /> : null}
                           </td>
                         </tr>
                         {rowError ? (
@@ -406,16 +406,30 @@ function BillingAction({
   canIssue,
   generatingBl,
   onGenerateInvoice,
+  iconOnly = false,
 }: {
   blId: string
   state: BlBillingState
   canIssue: boolean
   generatingBl: string | null
   onGenerateInvoice: (blId: string) => void
+  /** Na linha da tabela de B/Ls, só o ícone (regra 9); no grupo por B/L, com texto. */
+  iconOnly?: boolean
 }) {
   if (state.action !== 'generate' && state.action !== 'complement') return null
   const complement = state.action === 'complement'
   if (!canIssue) return null
+  if (iconOnly) {
+    return (
+      <RowActionButton
+        label={complement ? `Gerar Invoice complementar do B/L ${blId}` : `Gerar Invoice do B/L ${blId}`}
+        icon={complement ? FilePlus2 : FileText}
+        loading={generatingBl === blId}
+        disabled={Boolean(generatingBl) && generatingBl !== blId}
+        onClick={() => onGenerateInvoice(blId)}
+      />
+    )
+  }
   return (
     <Button
       variant="secondary"

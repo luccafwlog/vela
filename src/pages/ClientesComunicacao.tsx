@@ -1650,7 +1650,7 @@ function ConferenceRow({
         {resendLabel ? <span className="text-[var(--app-muted)]"> · {resendLabel}</span> : null}
       </td>
       <td>
-        <RowActionButton label="Ver e-mail" icon={Eye} onClick={onPreview} />
+        <RowActionButton label={`Ver e-mail de ${row.customerName}`} title="Ver e-mail" icon={Eye} onClick={onPreview} />
       </td>
     </tr>
   )

@@ -10,6 +10,7 @@ import { Input } from "../components/ui/Input";
 import { MetricCard } from "../components/ui/MetricCard";
 import { Modal } from "../components/ui/Modal";
 import { NoValue } from "../components/ui/NoValue";
+import { RowActionLink } from "../components/ui/RowActionLink";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { StatusText } from "../components/ui/StatusText";
 import { TabButton } from "../components/ui/TabButton";
@@ -560,9 +561,7 @@ export function PortalDesbloqueioCe() {
                             ) : (
                               <span className="inline-flex items-center gap-2">
                                 <StatusText tone="warning">Em aberto</StatusText>
-                                <a className="app-btn app-btn--secondary app-btn--icon" href={portalPath(flow.scope, "/billing")} aria-label="Ver faturas" title="Ver faturas">
-                                  <Receipt size={15} aria-hidden="true" />
-                                </a>
+                                <RowActionLink to={portalPath(flow.scope, "/billing")} label={`Ver faturas do B/L ${i.bl_id}`} title="Ver faturas" icon={Receipt} />
                               </span>
                             )}
                           </td>

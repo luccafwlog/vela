@@ -621,7 +621,7 @@ function ValeOBlButton({ blContainerId, field, label }: { blContainerId: number;
       setBusy(false)
     }
   }
-  return <RowActionButton label="Vale o B/L" icon={Check} disabled={busy} onClick={() => void handleClick()} />
+  return <RowActionButton label={`Vale o B/L: ${label}`} title="Vale o B/L" icon={Check} disabled={busy} onClick={() => void handleClick()} />
 }
 
 function CoverageFact({ label, count, anchor }: { label: string; count: number; anchor: string }) {

@@ -244,8 +244,8 @@ export function DemurrageRates() {
                                 <RowActionButton variant="ghost" label={`Editar tarifa ${rate.container_type}`} icon={Pencil} onClick={() => openRate(rate)} />
                                 {isAdmin ? <ActionMenu
                                   label={`Mais ações da tarifa ${rate.container_type}`}
-                                  triggerClassName="app-table__icon-button app-table__icon-button--sm"
-                                  trigger={<MoreVertical size={16} aria-hidden="true" />}
+                                  triggerClassName="app-btn app-btn--ghost app-btn--icon"
+                                  trigger={<MoreVertical size={15} aria-hidden="true" />}
                                   items={[
                                     { key: 'toggle', label: rate.active ? 'Desativar tarifa' : 'Reativar tarifa', onSelect: () => void handleToggleActive(rate) },
                                     // O banco só apaga tarifa que ainda não entrou em vigor (guard_used_tariff_delete, migration 091).

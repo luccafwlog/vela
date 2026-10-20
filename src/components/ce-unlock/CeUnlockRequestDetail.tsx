@@ -278,8 +278,8 @@ export function CeUnlockRequestDetail({
                         ) : d.status === "approved" ? (
                           <ActionMenu
                             label={`Ações de ${lower(d.type)}`}
-                            triggerClassName="app-btn app-btn--ghost app-btn--sm"
-                            trigger={<MoreVertical size={16} aria-hidden="true" />}
+                            triggerClassName="app-btn app-btn--ghost app-btn--icon"
+                            trigger={<MoreVertical size={15} aria-hidden="true" />}
                             items={[
                               { key: "refuse", label: "Recusar aprovação", onSelect: () => void review(d, "changes_requested") },
                             ]}
@@ -382,7 +382,8 @@ export function CeUnlockRequestDetail({
                     <CeUnlockZptState item={i} />
                     {manage && (i.reasons ?? []).some((r) => r.includes("CE alterado")) && (
                       <RowActionButton
-                        label="Reconferir CE"
+                        label={`Reconferir CE do B/L ${i.bl_id}`}
+                        title="Reconferir CE"
                         icon={RefreshCw}
                         className="ml-2"
                         disabled={busy}

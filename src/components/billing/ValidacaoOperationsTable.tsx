@@ -5,6 +5,7 @@ import { Block, Fact, FactList } from '../ui/Block'
 import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
 import { RowActionButton } from '../ui/RowActionButton'
+import { RowActionLink } from '../ui/RowActionLink'
 import { EmptyState, InlineError } from '../ui/Card'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
@@ -190,7 +191,7 @@ function ResolveAction({
   iconOnly?: boolean
 }) {
   const link = (to: string, label: string, Icon: typeof ArrowRight) => iconOnly
-    ? <Link className="app-btn app-btn--secondary app-btn--icon" to={to} aria-label={label} title={label}><Icon size={15} aria-hidden="true" /></Link>
+    ? <RowActionLink to={to} label={label} icon={Icon} />
     : <Link className="app-btn app-btn--secondary app-btn--sm" to={to}>{label} <ArrowRight size={14} aria-hidden="true" /></Link>
   if (code === 'pronto' && row.customer?.id && !isBlLockedForRecalc(row.financial_status)) {
     return iconOnly

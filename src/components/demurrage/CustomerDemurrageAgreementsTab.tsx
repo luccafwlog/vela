@@ -172,8 +172,8 @@ export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit
         <RowActionButton variant="ghost" label={`Editar acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`} icon={Pencil} onClick={() => handleOpenEdit(item)} />
         {canManage ? <ActionMenu
           label={`Mais ações do acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`}
-          triggerClassName="app-table__icon-button app-table__icon-button--sm"
-          trigger={<MoreVertical size={16} aria-hidden="true" />}
+          triggerClassName="app-btn app-btn--ghost app-btn--icon"
+          trigger={<MoreVertical size={15} aria-hidden="true" />}
           items={[
             { key: 'toggle', label: item.active ? 'Desativar acordo' : 'Reativar acordo', onSelect: () => void handleToggleActive(item) },
             // O banco só apaga acordo que ainda não entrou em vigor (guard_used_tariff_delete, migration 091).

@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { Check } from 'lucide-react'
+import { CheckCircle2, Circle } from 'lucide-react'
 import { RowActionButton } from '../ui/RowActionButton'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
@@ -97,7 +97,7 @@ export function ReviewCnpjCandidates({
                 <RowActionButton
                   variant={inUse ? 'primary' : 'secondary'}
                   label={`Usar este CNPJ ${formatCnpjCpf(cnpj)}`}
-                  icon={Check}
+                  icon={inUse ? CheckCircle2 : Circle}
                   title={inUse ? 'Em uso' : 'Usar este CNPJ'}
                   aria-pressed={inUse}
                   onClick={() => onUse(cnpj)}
