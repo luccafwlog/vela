@@ -92,6 +92,34 @@ function formatContainersMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[
   return found.length > 0 ? found.join(', ') : null
 }
 
+// Lote 6b: na fatura consolidada o quadro do topo traz só a quantidade de
+// contêineres, sem a lista (decisão do dono, plano tela a tela). Conta números únicos
+// declarados nos B/Ls; sem lista estruturada, cai nos números ISO citados nas
+// descrições dos itens — mesma fonte de formatContainersMetadata.
+// ponytail: containers_display (texto livre) é contado por números ISO
+// encontrados nele; um texto sem número ISO não entra na contagem.
+function countInvoiceContainers(bls: InvoiceDetail['bls'], items: InvoiceItem[]): number {
+  const found = new Set<string>()
+  let unnamed = 0
+  for (const bl of bls) {
+    const raw = (bl as Record<string, unknown>).containers
+    if (Array.isArray(raw) && raw.length > 0) {
+      for (const c of raw) {
+        const num = typeof c === 'string' ? c : (c as { container_number?: string } | null)?.container_number
+        if (num) found.add(num.trim().toUpperCase())
+        else unnamed += 1
+      }
+    } else if (typeof (bl as Record<string, unknown>).containers_display === 'string') {
+      for (const m of ((bl as Record<string, unknown>).containers_display as string).toUpperCase().match(/[A-Z]{4}\d{7}/g) ?? []) found.add(m)
+    }
+  }
+  if (found.size + unnamed > 0) return found.size + unnamed
+  for (const item of items) {
+    for (const m of item.description?.match(/[A-Z]{4}\d{7}/g) ?? []) found.add(m)
+  }
+  return found.size
+}
+
 function formatBreakbulkMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[]): string | null {
   const list: string[] = []
   for (const bl of bls) {
@@ -181,7 +209,12 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
   )
   const showVesselVoyages = !isManual || hasVesselVoyage
 
-  const containersMeta = isManual ? null : formatContainersMetadata(bls, items)
+  const containerCount = isManual || !isConsolidated ? 0 : countInvoiceContainers(bls, items)
+  const containersMeta = isManual
+    ? null
+    : isConsolidated
+    ? (containerCount > 0 ? String(containerCount) : null)
+    : formatContainersMetadata(bls, items)
   const breakbulkMeta = isManual ? null : formatBreakbulkMetadata(bls, items)
 
   // Flat item indexing for zebra striping
@@ -210,14 +243,14 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
           </tr>
           {!isManual || bls.length > 0 ? (
             <tr>
-              <td style={labelCell}>B/Ls:</td>
-              <td style={{ ...cell, color: DOC_NAVY, fontWeight: 600 }}>{blIds}</td>
+              <td style={labelCell}>{isConsolidated ? 'Qtd. de B/Ls:' : 'B/Ls:'}</td>
+              <td style={{ ...cell, color: DOC_NAVY, fontWeight: 600 }} data-testid="invoice-bl-summary">{isConsolidated ? bls.length : blIds}</td>
             </tr>
           ) : null}
           {containersMeta ? (
             <tr>
-              <td style={labelCell}>Contêineres:</td>
-              <td style={cell}>{containersMeta}</td>
+              <td style={labelCell}>{isConsolidated ? 'Qtd. de contêineres:' : 'Contêineres:'}</td>
+              <td style={cell} data-testid="invoice-container-summary">{containersMeta}</td>
             </tr>
           ) : null}
           {breakbulkMeta ? (
@@ -255,11 +288,10 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
             <th scope="col" style={{ padding: '9px 7px', textAlign: 'right' }}>Total BRL</th>
           </tr>
         </thead>
-        <tbody>
-          {isManual
-            ? renderItemRows(items, itemFlatIndex)
-            : isConsolidated
-            ? bls.map((blMeta) => {
+        {isManual ? (
+          <tbody>{renderItemRows(items, itemFlatIndex)}</tbody>
+        ) : isConsolidated ? (
+          bls.map((blMeta) => {
                 const blId = blMeta.bl_id
                 const blItems = items.filter((item) => item.bl_id === blId)
                 const subtotal = blItems.reduce((s, i) => s + Number(i.total_value_brl ?? 0), 0)
@@ -268,7 +300,9 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                 const headerText = `B/L ${blId}${isMisto ? ' — MISTO (CNTR + CARGA SOLTA)' : route && route !== '→' ? ` — ${route}` : ''}`
 
                 return (
-                  <React.Fragment key={blId}>
+                  // Lote 6b: um <tbody> por B/L; na impressão o bloco inteiro
+                  // (faixa, taxas e subtotal) fica numa página só.
+                  <tbody key={blId} className="invoice-document__bl-group" data-testid="invoice-bl-group" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
                     <tr style={{ background: DOC_GROUP, borderTop: '2px solid #1A2744' }}>
                       <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '12px' }}>
                         {headerText}
@@ -283,10 +317,12 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                         {fmtBRL(subtotal)}
                       </td>
                     </tr>
-                  </React.Fragment>
+                  </tbody>
                 )
               })
-            : (() => {
+        ) : (
+          <tbody>
+            {(() => {
                 const blMeta = bls[0]
                 const isMisto = blMeta?.cargo_mode === 'misto'
 
@@ -303,7 +339,10 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                   </>
                 )
               })()}
-          {type === 'receipt' ? <>
+          </tbody>
+        )}
+        {type === 'receipt' ? (
+          <tbody className="invoice-document__receipt-totals">
             <tr style={{ background: DOC_SUBTOTAL, fontWeight: 700 }} data-testid="invoice-totals" className="invoice-document__totals">
               <td colSpan={3} style={{ ...cell, textAlign: 'right' }}>Total da fatura emitida:</td>
               <td style={{ ...valueCell, textAlign: 'right' }}>{fmtBRL(invoice.total_brl)}</td>
@@ -315,8 +354,8 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
             <tr><td colSpan={3} style={cell}>Devolvido ao Cliente:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.refunded_brl ?? 0)}</td></tr>
             <tr><td colSpan={3} style={cell}>Restituição pendente:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.pending_refund_brl ?? 0)}</td></tr>
             {detail.financial_summary?.covered_by_invoice_number ? <tr><td colSpan={4} style={cell}>Quitação pela fatura consolidada {detail.financial_summary.covered_by_invoice_number}. Valores atribuídos aos B/Ls deste documento.</td></tr> : null}
-          </> : null}
-        </tbody>
+          </tbody>
+        ) : null}
       </table>
 
       {/* Lote 6b: o total sai da faixa âmbar na largura da tabela e vira caixa

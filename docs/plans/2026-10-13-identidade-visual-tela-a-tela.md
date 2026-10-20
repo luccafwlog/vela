@@ -458,6 +458,14 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   `suporte@portalfwlog.com.br`. Faltam: "POL/POD" ou "Origem/Destino" e
   "B/L"/"Navio / Viagem" nos impressos, a Demurrage avulsa da Comunicação no
   mesmo endereço da régua e o par repetitivo do convite.
+  **Paginação dos impressos, decisões de 2026-10-20:** na fatura
+  consolidada de Taxas Locais cada B/L (faixa, taxas e subtotal) fica
+  inteiro numa página, e o quadro do topo traz a quantidade de B/Ls e só a
+  quantidade de contêineres, sem a lista; no ADR as assinaturas
+  departamentais ficam juntas numa página, o Anexo começa sempre em página
+  nova com uma linha de identificação no topo, e toda página repete o
+  cabeçalho com Armador, Porto, Navio / Viagem e Terminal. Implementado na
+  branch `claude/quirky-rubin-sbfjc9` e conferido em PDF do Chromium.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",

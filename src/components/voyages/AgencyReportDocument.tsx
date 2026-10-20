@@ -439,7 +439,7 @@ function Section({
 
   return (
     <section
-      className="agency-report-document__section"
+      className={`agency-report-document__section${pageBreakBefore ? " agency-report-document__annex" : ""}`}
       style={pageBreakBefore ? { breakBefore: "page", pageBreakBefore: "always" } : { breakInside: "avoid" }}
     >
       <h2 style={sectionBar}>{title}</h2>
@@ -517,7 +517,10 @@ function DepartmentSignoffsSection({
   const hasAnyReopening = rows.some((row) => row.reopenings.length > 0);
 
   return (
-    <section className="agency-report-document__section" style={{ breakInside: "avoid" }}>
+    <section
+      className="agency-report-document__section agency-report-document__signatures"
+      style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
+    >
       <h2 style={sectionBar}>Assinaturas departamentais</h2>
       <table aria-label="Assinaturas departamentais" style={dataTable}>
         <thead>
@@ -661,39 +664,56 @@ export function AgencyReportDocument({
       data-print-filename={buildAgencyReportPrintFilename(snapshot)}
       style={documentRoot}
     >
-      <InvoiceDocHeader
-        logoSrc="/branding/transhipping-logo-cropped.png"
-        docNumber={`ADR · ${header.port ?? "—"}${header.terminalCode ? ` · ${header.terminalCode}` : ''}`}
-        numberPrefix=""
-      />
-      <InvoiceDocTitle>Agency Departure Report</InvoiceDocTitle>
-      {/* Identificação no bloco de metadados da fatura (labelCell/cell), dois
-          pares por linha. ATA/ATB/ATD/Restow ficam na seção "Escala". */}
+      {/* Lote 6b: o documento é uma tabela de uma coluna cujo <thead> leva
+          logo, título e identificação (Armador, Porto, Navio/Viagem,
+          Terminal). Na impressão o thead é table-header-group (index.css) e o
+          Chromium o repete no topo de cada página; na tela aparece uma vez. */}
       <table
-        aria-label="Identificação"
-        style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}
+        className="agency-report-document__page"
+        role="presentation"
+        style={{ width: "100%", borderCollapse: "collapse" }}
       >
+        <thead className="agency-report-document__page-header">
+          <tr>
+            <td style={{ padding: 0 }}>
+            <InvoiceDocHeader
+              logoSrc="/branding/transhipping-logo-cropped.png"
+              docNumber={`ADR · ${header.port ?? "—"}${header.terminalCode ? ` · ${header.terminalCode}` : ''}`}
+              numberPrefix=""
+            />
+            <InvoiceDocTitle>Agency Departure Report</InvoiceDocTitle>
+            {/* Identificação no bloco de metadados da fatura (labelCell/cell), dois
+                pares por linha. ATA/ATB/ATD/Restow ficam na seção "Escala". */}
+            <table
+              aria-label="Identificação"
+              style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}
+            >
+              <tbody>
+                {([
+                  [["Armador", header.carrierName ?? "—"], ["Navio / Viagem", header.voyageLabel ?? "—"]],
+                  [["Porto", header.port ?? "—"], ["Terminal", header.terminalCode ? `${header.terminalCode}${header.terminal && header.terminal !== header.terminalCode ? ` — ${header.terminal}` : ''}` : (header.terminal ?? "—")]],
+                ] as Array<Array<[string, string]>>).map((pairs) => (
+                  <tr key={pairs[0][0]}>
+                    {pairs.map(([name, value], index) => (
+                      <Fragment key={name}>
+                        {index === 0 ? (
+                          <th scope="row" style={{ ...labelCell, textAlign: "left" }}>{name}</th>
+                        ) : (
+                          <td style={{ ...labelCell, textAlign: "left" }}>{name}</td>
+                        )}
+                        <td style={cell}>{value}</td>
+                      </Fragment>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </td>
+          </tr>
+        </thead>
         <tbody>
-          {([
-            [["Armador", header.carrierName ?? "—"], ["Navio / Viagem", header.voyageLabel ?? "—"]],
-            [["Porto", header.port ?? "—"], ["Terminal", header.terminalCode ? `${header.terminalCode}${header.terminal && header.terminal !== header.terminalCode ? ` — ${header.terminal}` : ''}` : (header.terminal ?? "—")]],
-          ] as Array<Array<[string, string]>>).map((pairs) => (
-            <tr key={pairs[0][0]}>
-              {pairs.map(([name, value], index) => (
-                <Fragment key={name}>
-                  {index === 0 ? (
-                    <th scope="row" style={{ ...labelCell, textAlign: "left" }}>{name}</th>
-                  ) : (
-                    <td style={{ ...labelCell, textAlign: "left" }}>{name}</td>
-                  )}
-                  <td style={cell}>{value}</td>
-                </Fragment>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
+          <tr>
+            <td style={{ padding: 0 }}>
       <Section title="Escala" {...section("datas")}>
         <MetricsTable
           label="Escala"
@@ -926,6 +946,10 @@ export function AgencyReportDocument({
           hasData={vaziosUnidadesComPeriodo.length > 0}
           pageBreakBefore
         >
+          <p className="agency-report-document__annex-id" style={{ fontSize: "12px", margin: "6px 0 8px", color: DOC_INK }}>
+            Anexo do Agency Departure Report — {header.carrierName ?? "—"} · {header.voyageLabel ?? "—"} · {header.port ?? "—"}
+            {header.terminalCode || header.terminal ? ` · ${header.terminalCode ?? header.terminal}` : ""}
+          </p>
           <table aria-label="Unidades que geraram armazenagem" style={dataTable}>
             <thead>
               <tr style={dataHeadRow}>
@@ -952,6 +976,10 @@ export function AgencyReportDocument({
           </table>
         </Section>
       ) : null}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </article>
   );
 }

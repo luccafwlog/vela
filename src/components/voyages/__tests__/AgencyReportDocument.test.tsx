@@ -553,7 +553,7 @@ it("imprime as tabelas no padrão visual da fatura (cabeçalho navy, zebra e cai
   expect(head.style.background).toBe(rgb(DOC_NAVY));
   expect(head.style.color).toBe("white");
 
-  const bodyRows = [...table.querySelectorAll("tbody tr")] as HTMLElement[];
+  const bodyRows = [...table.querySelectorAll(":scope > tbody > tr")] as HTMLElement[];
   expect(bodyRows[0].style.background).toBe(rgb(DOC_ZEBRA));
   expect(table.textContent).not.toContain("TOTAL:");
 
@@ -758,6 +758,25 @@ it("imprime datas com hora em Brasília, traduz a condição e põe o Anexo no f
   expect(anexo.textContent).toContain("Vazio");
   expect(anexo.style.breakBefore).toBe("page");
   expect(container.textContent!.indexOf("Vitória,")).toBeLessThan(container.textContent!.indexOf("Anexo —"));
+  // Lote 6b: o Anexo se identifica no topo (a página dele pode circular solta).
+  expect(anexo.querySelector(".agency-report-document__annex-id")!.textContent).toBe(
+    "Anexo do Agency Departure Report — Armador teste · NAVIO TESTE / 01E · BRVIX",
+  );
+
+  // Lote 6b: assinaturas não se dividem entre páginas.
+  const assinaturas = container.querySelector(".agency-report-document__signatures") as HTMLElement;
+  expect(assinaturas.style.breakInside).toBe("avoid");
+  expect(assinaturas.textContent).toContain("Assinaturas departamentais");
+
+  // Lote 6b: identificação (Armador, Porto, Navio/Viagem, Terminal) no <thead>
+  // da tabela-página, que a impressão repete em cada folha; o conteúdo vai no tbody.
+  const page = container.querySelector("table.agency-report-document__page") as HTMLTableElement;
+  const pageHeader = page.tHead!;
+  for (const label of ["Armador", "Porto", "Navio / Viagem", "Terminal"]) {
+    expect(pageHeader.textContent).toContain(label);
+  }
+  expect(pageHeader.textContent).not.toContain("Escala");
+  expect(page.tBodies[0].contains(anexo)).toBe(true);
 
   // Nada abaixo de 12px no impresso.
   const small = [...container.querySelectorAll<HTMLElement>("[style]")].filter((node) => {

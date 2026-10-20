@@ -149,6 +149,36 @@ it('lote 6b: consolidada mantém o subtotal por B/L e o TOTAL vai em caixa fora 
   expect(screen.getByText('Navio / Viagem:')).toBeTruthy()
 })
 
+it('lote 6b: consolidada agrupa cada B/L num tbody indivisível e o quadro do topo traz só quantidades', () => {
+  const consolidated = {
+    invoice: { id: 111, invoice_number: 'INV-111', status: 'issued', total_brl: 300, customer_name: 'Cliente', issued_at: '2026-09-17' },
+    bls: [
+      { bl_id: 'BL-A', containers: [{ container_number: 'MSCU1234567', type: '40HC' }, { container_number: 'MSCU7654321', type: '20DC' }] },
+      { bl_id: 'BL-B', containers: ['TGHU0000001', 'MSCU1234567'] },
+      { bl_id: 'BL-C' },
+    ],
+    items: [
+      { id: 1, bl_id: 'BL-A', description: 'THC', quantity: 1, unit_value_brl: 100, total_value_brl: 100 },
+      { id: 2, bl_id: 'BL-B', description: 'THC', quantity: 1, unit_value_brl: 100, total_value_brl: 100 },
+      { id: 3, bl_id: 'BL-C', description: 'BL Fee', quantity: 1, unit_value_brl: 100, total_value_brl: 100 },
+    ],
+    payments: [],
+  } as never
+  render(<InvoiceDocumentLocal detail={consolidated} />)
+  expect(screen.getByText('Qtd. de B/Ls:')).toBeTruthy()
+  expect(screen.getByTestId('invoice-bl-summary').textContent).toBe('3')
+  // Contêiner repetido em dois B/Ls conta uma vez; a lista não sai no topo.
+  expect(screen.getByTestId('invoice-container-summary').textContent).toBe('3')
+  expect(screen.queryByText(/MSCU1234567/)).toBeNull()
+
+  const groups = screen.getAllByTestId('invoice-bl-group')
+  expect(groups.map((group) => group.tagName)).toEqual(['TBODY', 'TBODY', 'TBODY'])
+  expect(groups.every((group) => group.style.breakInside === 'avoid')).toBe(true)
+  expect(groups[1].textContent).toContain('B/L BL-B')
+  expect(groups[1].textContent).toContain('Subtotal BL-B:')
+  expect(groups[1].textContent).not.toContain('BL-A')
+})
+
 it('imprime fatura avulsa com título FATURA, descrição e contexto opcional sem categorias artificiais', () => {
   const manualDetail = {
     invoice: {
