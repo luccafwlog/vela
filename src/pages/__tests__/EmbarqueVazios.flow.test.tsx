@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   extraDepotServices: [] as unknown[],
   voyagePortsData: [] as string[],
   depotsData: [] as unknown[],
+  // Estado de leitura forçado por chave (carregando ou falha), sem dado.
+  queryOverrides: {} as Record<string, { isLoading?: boolean; error?: unknown }>,
   openOrCreate: vi.fn(() => Promise.resolve({ id: "operation-new", created: true })),
 }));
 
@@ -77,6 +79,10 @@ vi.mock("@tanstack/react-query", () => ({
                 : key === "embarque-vazios-voyage-ports"
                   ? mocks.voyagePortsData
                   : [];
+    const override = mocks.queryOverrides[String(key)];
+    if (override) {
+      return { data: undefined, isLoading: Boolean(override.isLoading), error: override.error ?? null, fetchStatus: "idle", refetch: mocks.refetch };
+    }
     return {
       data,
       isLoading: false,
@@ -145,6 +151,8 @@ beforeEach(() => {
   mocks.extraDepotServices = [];
   mocks.voyagePortsData = [];
   mocks.depotsData = DEPOTS;
+  mocks.queryOverrides = {};
+  mocks.refetch.mockClear();
   mocks.openOrCreate.mockClear();
 });
 
@@ -584,6 +592,74 @@ describe("EmbarqueVazios", () => {
     fireEvent.click(screen.getByRole("button", { name: "Novo embarque" }));
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Selecionar viagem/i }));
     await expect(Promise.resolve(queryFns.get("embarque-vazios-voyage-ports")?.())).resolves.toEqual(["BRPNG", "BRVIX"]);
+  });
+
+  it("?embarque= desconhecido diz que o embarque não existe e volta para a lista", () => {
+    renderPage("/embarquevazios?embarque=nao-existe&voyage=180");
+    expect(screen.getByText("Embarque não encontrado")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Todos os embarques" }));
+    // Volta à lista mantendo a viagem do endereço.
+    expect(screen.getByText("NAVIO AZUL / 045S")).toBeTruthy();
+    expect(screen.queryByText("NAVIO VERDE / 123N")).toBeNull();
+  });
+
+  describe("Locais (depots) ainda sem leitura", () => {
+    it("carregando: lista e detalhe esperam, sem 'Local removido' nem armazenagem escondida", () => {
+      mocks.queryOverrides = { depots: { isLoading: true } };
+      renderPage("/embarquevazios");
+      expect(screen.getByRole("status", { busy: true })).toBeTruthy();
+      expect(screen.queryByText("NAVIO VERDE / 123N")).toBeNull();
+      cleanup();
+
+      renderPage();
+      expect(screen.getByRole("status", { busy: true })).toBeTruthy();
+      expect(screen.queryByText("Embarque não encontrado")).toBeNull();
+      expect(screen.queryByRole("heading", { name: "NAVIO VERDE / 123N" })).toBeNull();
+    });
+
+    it("falha: diz que os Locais não carregaram e tenta de novo", () => {
+      mocks.queryOverrides = { depots: { error: new Error("rede") } };
+      renderPage();
+      expect(screen.getByRole("alert").textContent).toContain("Não foi possível carregar os locais (depots e terminais)");
+      expect(screen.queryByText("Embarque não encontrado")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+      expect(mocks.refetch).toHaveBeenCalled();
+      cleanup();
+
+      renderPage("/embarquevazios");
+      expect(screen.getByRole("alert").textContent).toContain("Não foi possível carregar os locais");
+      expect(screen.queryByText("NAVIO VERDE / 123N")).toBeNull();
+    });
+  });
+
+  it("Novo embarque: falha ao ler as escalas não manda cadastrar escala", () => {
+    mocks.queryOverrides = { "embarque-vazios-voyage-ports": { error: new Error("rede") } };
+    renderPage("/embarquevazios");
+    fireEvent.click(screen.getByRole("button", { name: "Novo embarque" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Selecionar viagem/i }));
+    expect(within(dialog).getByText(/Não foi possível carregar as escalas da viagem/)).toBeTruthy();
+    expect(within(dialog).queryByText(/Nenhuma escala brasileira/)).toBeNull();
+  });
+
+  it("Novo embarque: reabrir volta à viagem do endereço e sem o porto anterior", () => {
+    mocks.voyagePortsData = ["BRVIX"];
+    renderPage("/embarquevazios?voyage=180");
+    fireEvent.click(screen.getByRole("button", { name: "Novo embarque" }));
+    let dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /Selecionar viagem/i }));
+    fireEvent.change(within(dialog).getByLabelText(/Porto de embarque/), { target: { value: "BRVIX" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Voltar" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Novo embarque" }));
+    dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: /Selecionar viagem/i }).getAttribute("data-voyage")).toBe("180");
+    expect((within(dialog).getByLabelText(/Porto de embarque/) as HTMLSelectElement).value).toBe("");
+  });
+
+  it("o link da lista para o embarque mantém a viagem do endereço", () => {
+    renderPage("/embarquevazios?voyage=180");
+    expect(screen.getByRole("link", { name: "NAVIO AZUL / 045S" }).getAttribute("href")).toBe("/embarquevazios?voyage=180&embarque=operation-2");
   });
 
   describe("Importar planilha de Unidades Embarcadas com linhas ocultas", () => {

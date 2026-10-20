@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes, vaziosImportacaoHiddenConfirmOptions, vazioManifestoNumero } from '../vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, listVaziosImportacaoContainers, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes, vaziosImportacaoHiddenConfirmOptions, vazioManifestoNumero } from '../vaziosImportacaoImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
 const { rpcMock, fromMock } = vi.hoisted(() => ({ rpcMock: vi.fn(), fromMock: vi.fn() }))
@@ -317,5 +317,38 @@ describe('vazioManifestoNumero (coluna Manifesto Mercante)', () => {
     expect(vazioManifestoNumero(row('CNNGB', 'BRVIX'), manifestos)).toBeNull()
     expect(vazioManifestoNumero(row(null, 'BRVIX'), manifestos)).toBeNull()
     expect(vazioManifestoNumero(row('CNSHA', 'BRVIX', null), manifestos)).toBeNull()
+  })
+
+  it('usa a régua do banco (normalize_port_code): porto fora da lista do import ainda casa', () => {
+    const outro = [{ voyage_id: 7, pol: 'ARBUE', pod: 'BRVIX', numero: '2626500000001' }]
+    expect(vazioManifestoNumero(row('ARBUE', 'BRVIX'), outro)).toBe('2626500000001')
+  })
+})
+
+describe('listVaziosImportacaoContainers (filtros da lista)', () => {
+  beforeEach(() => fromMock.mockReset())
+
+  it('POL/POD filtram por todas as grafias gravadas do porto, não pela coluna exata', async () => {
+    const inCalls: unknown[][] = []
+    const builder: Record<string, unknown> = {}
+    Object.assign(builder, {
+      select: () => builder, range: () => builder, order: () => builder, eq: () => builder, or: () => builder,
+      in: (...args: unknown[]) => { inCalls.push(args); return builder },
+      then: (resolve: (value: unknown) => unknown) => resolve({ data: [], error: null, count: 0 }),
+    })
+    fromMock.mockReturnValue(builder)
+
+    await listVaziosImportacaoContainers({ pol: 'CNNGB', pod: 'BRVIX' })
+
+    expect(inCalls).toContainEqual(['pol', expect.arrayContaining(['CNNGB', 'CNZOS', 'NINGBO'])])
+    expect(inCalls).toContainEqual(['pod', expect.arrayContaining(['BRVIX', 'BRVIT', 'VITORIA'])])
+  })
+
+  it('falha ao ler os manifestos da Viagem é erro da tela, não "Nenhum container"', async () => {
+    fromMock.mockImplementation((table: string) => table === 'vazios_importacao_manifests'
+      ? { select: () => ({ eq: () => Promise.resolve({ data: null, error: new Error('manifestos fora do ar') }) }) }
+      : { select: () => { throw new Error('não deveria consultar os containers') } })
+
+    await expect(listVaziosImportacaoContainers({ voyageId: '7' })).rejects.toThrow('manifestos fora do ar')
   })
 })

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
@@ -107,6 +107,12 @@ export function VaziosImportacao() {
   const selectedManifesto: VaziosMercanteManifesto | null = filters.mercanteId
     ? (voyageManifestos.data ?? []).find((item) => item.id === filters.mercanteId) ?? null
     : null
+  // Manifesto que não é da Viagem (removido, reimportado ou de outra Viagem
+  // no endereço): sem a rota a lista ficaria parada com as linhas antigas.
+  const mercanteMissing = Boolean(filters.mercanteId) && voyageManifestos.isSuccess && selectedManifesto === null
+  useEffect(() => {
+    if (mercanteMissing) setFilters((current) => ({ ...current, mercanteId: '', page: 1 }))
+  }, [mercanteMissing, setFilters])
 
   const debouncedSearch = useDebouncedValue(filters.search)
   const queryFilters = useMemo(() => ({
@@ -413,7 +419,10 @@ export function VaziosImportacao() {
                             ? numero
                             : rowManifestos.isLoading
                               ? <NoValue label="Carregando o número do manifesto" />
-                              : <StatusText tone="warning">Sem número</StatusText>}
+                              : rowManifestos.error
+                                // Falha ao ler os manifestos não é pendência da rota.
+                                ? <StatusText tone="danger">Não foi possível carregar</StatusText>
+                                : <StatusText tone="warning">Sem número</StatusText>}
                         </td>
                         <td className="tabular-nums">{formatDate(row.manifest?.imported_at)}</td>
                       </tr>

@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   fetchVaziosImportacaoContainerIds: vi.fn(),
   exportVaziosImportacaoWorkbook: vi.fn(),
   containerFilters: [] as unknown[],
+  manifestosError: null as Error | null,
+  containersEnabled: [] as unknown[],
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -21,10 +23,11 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({
     invalidateQueries: mocks.invalidateQueries,
   }),
-  useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
+  useQuery: ({ queryKey, enabled }: { queryKey: unknown[]; enabled?: boolean }) => {
     const key = queryKey[0]
     if (key === 'vazios-importacao-containers') {
       mocks.containerFilters.push(queryKey[1])
+      mocks.containersEnabled.push(enabled)
       return {
         data: mocks.listVaziosImportacaoContainers(),
         isLoading: false,
@@ -34,7 +37,8 @@ vi.mock('@tanstack/react-query', () => ({
       }
     }
     if (key === 'manifestos-mercante') {
-      return { data: mocks.listVaziosMercanteManifestos(), isLoading: false, error: null }
+      if (mocks.manifestosError) return { data: undefined, isLoading: false, isSuccess: false, error: mocks.manifestosError }
+      return { data: mocks.listVaziosMercanteManifestos(), isLoading: false, isSuccess: true, error: null }
     }
     return { data: undefined, isLoading: false, error: null }
   },
@@ -104,6 +108,7 @@ describe('VaziosImportacao — Atribuição em Lote de Natureza', () => {
     mocks.fetchVaziosImportacaoContainerIds.mockResolvedValue(['c-1', 'c-2', 'c-3'])
     mocks.exportVaziosImportacaoWorkbook.mockResolvedValue(undefined)
     mocks.containerFilters.length = 0
+    mocks.manifestosError = null
     mocks.listVaziosMercanteManifestos.mockReturnValue([
       { id: 'mm-1', voyage_id: 7, pol: 'CNSHA', pod: 'BRVIX', numero: '2626501234568' },
     ])
@@ -262,5 +267,36 @@ describe('VaziosImportacao — Atribuição em Lote de Natureza', () => {
       expect(mocks.fetchVaziosImportacaoContainerIds).toHaveBeenCalled()
       expect(screen.getByText('3 containers selecionados')).toBeTruthy()
     })
+  })
+
+  it('falha ao ler os manifestos aparece como falha, não como "Sem número" pendente', () => {
+    mocks.manifestosError = new Error('rede')
+    renderPage()
+
+    const second = screen.getByText('MSCU7654321').closest('tr') as HTMLElement
+    expect(within(second).getByText('Não foi possível carregar')).toBeTruthy()
+    expect(screen.queryByText('Sem número')).toBeNull()
+  })
+
+  it('manifesto escolhido que some da Viagem limpa o filtro e a lista volta a carregar', async () => {
+    const view = renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Escolher Viagem' }))
+    fireEvent.change(screen.getByLabelText('Manifesto Mercante'), { target: { value: 'mm-1' } })
+    expect(mocks.containerFilters.at(-1)).toMatchObject({ pol: 'CNSHA' })
+
+    // Reimportação trocou o manifesto da rota: o id escolhido não existe mais.
+    mocks.listVaziosMercanteManifestos.mockReturnValue([
+      { id: 'mm-2', voyage_id: 7, pol: 'CNSHA', pod: 'BRVIX', numero: '2626509999999' },
+    ])
+    view.rerender(
+      <MemoryRouter initialEntries={['/vazios-importacao']}>
+        <VaziosImportacao />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect((screen.getByLabelText('Manifesto Mercante') as HTMLSelectElement).value).toBe(''))
+    expect(mocks.containerFilters.at(-1)).toMatchObject({ voyageId: '7', pol: '' })
+    // Sem limpar, a consulta ficaria desligada esperando uma rota que não vem.
+    expect(mocks.containersEnabled.at(-1)).toBe(true)
   })
 })

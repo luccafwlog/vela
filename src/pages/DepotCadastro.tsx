@@ -80,7 +80,7 @@ export function DepotCadastro() {
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
   const { showToast } = useToast()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const depots = useDepots()
   // O Embarque de vazios abre a tela já no local da armazenagem a lançar.
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get('local'))
@@ -107,6 +107,20 @@ export function DepotCadastro() {
   const inactiveDepotCount = allDepots.filter((depot) => !depot.active).length
   const listedDepots = allDepots.filter((depot) => showInactive || depot.active || depot.id === selectedId)
   const selected = allDepots.find((item) => item.id === selectedId) ?? listedDepots[0] ?? null
+  // Endereço com local que não existe (excluído ou link antigo): avisa em vez
+  // de abrir outro local como se fosse o pedido.
+  const missingLocal = Boolean(selectedId) && depots.data !== undefined && !allDepots.some((item) => item.id === selectedId)
+
+  /** Escolhe o local e mantém `?local=` no endereço (sem nova entrada no histórico). */
+  function selectDepot(id: string | null) {
+    setSelectedId(id)
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      if (id) next.set('local', id)
+      else next.delete('local')
+      return next
+    }, { replace: true })
+  }
 
   const services = useQuery({
     queryKey: ['depot-services', selected?.id],
@@ -191,7 +205,7 @@ export function DepotCadastro() {
       await refresh()
       setDepotModal(null)
       // L7: depois de cadastrar, a tela abre o local criado.
-      setSelectedId(saved.id)
+      selectDepot(saved.id)
     }, original ? 'Local salvo.' : 'Local cadastrado.')
   }
 
@@ -201,7 +215,7 @@ export function DepotCadastro() {
     if (reason === null) return
     await run(async () => {
       await deleteDepot(selected.id, reason)
-      setSelectedId(null)
+      selectDepot(null)
       await refresh()
     }, 'Local excluído.')
   }
@@ -318,6 +332,9 @@ export function DepotCadastro() {
           </div>
         }
       />
+      {missingLocal ? (
+        <InlineError message={`O local deste endereço não existe mais (excluído ou link antigo). ${selected ? `Mostrando ${selected.code}; escolha` : 'Escolha'} o local na lista.`} />
+      ) : null}
       {legacyMapping.data?.pending_count ? (
         <InlineError
           message={`Há ${legacyMapping.data.pending_count === 1 ? '1 terminal antigo' : `${legacyMapping.data.pending_count} terminais antigos`} sem porto brasileiro: ${legacyMapping.data.codes.join(', ')}. Escolha o porto de cada um em Editar.`}
@@ -348,7 +365,7 @@ export function DepotCadastro() {
                         <button
                           type="button"
                           aria-current={current ? 'true' : undefined}
-                          onClick={() => setSelectedId(depot.id)}
+                          onClick={() => selectDepot(depot.id)}
                           className={`grid w-full gap-0.5 rounded-md border px-3 py-2 text-left text-sm ${current ? 'border-[var(--app-navy)] bg-[var(--app-strip)]' : 'border-transparent'} ${depot.active ? '' : 'text-[var(--app-muted)]'}`}
                         >
                           <span className="font-semibold">{depot.code}</span>

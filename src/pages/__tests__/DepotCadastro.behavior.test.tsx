@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mocks, auth, depot, destination, inactiveDepot, service, inactiveService } = vi.hoisted(() => ({
@@ -30,8 +30,13 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.co
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 import { DepotCadastro } from '../DepotCadastro'
 
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location">{location.search}</output>
+}
+
 function renderPage(entry = '/embarquevazios/depots') {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[entry]}><DepotCadastro /></MemoryRouter></QueryClientProvider>)
+  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[entry]}><DepotCadastro /><LocationProbe /></MemoryRouter></QueryClientProvider>)
 }
 
 async function serviceRow(name: string) {
@@ -164,6 +169,21 @@ describe('Locais (depots e terminais)', () => {
     renderPage('/embarquevazios/depots?local=d2')
     expect(screen.getByText('Terminal Vila Velha', { selector: 'p' })).toBeTruthy()
     expect(await screen.findByText('BRVIX · Vitória')).toBeTruthy()
+  })
+
+  it('?local= desconhecido avisa em vez de abrir outro local como se fosse o pedido', () => {
+    renderPage('/embarquevazios/depots?local=nao-existe')
+    expect(screen.getByRole('alert').textContent).toContain('O local deste endereço não existe mais')
+    expect(screen.getByRole('alert').textContent).toContain('Mostrando VBR')
+
+    fireEvent.click(within(screen.getByRole('list', { name: 'Locais cadastrados' })).getByRole('button', { name: /TVV/ }))
+    expect(screen.queryByText(/O local deste endereço não existe mais/)).toBeNull()
+  })
+
+  it('escolher outro local mantém ?local= no endereço', () => {
+    renderPage('/embarquevazios/depots?local=d2&x=1')
+    fireEvent.click(within(screen.getByRole('list', { name: 'Locais cadastrados' })).getByRole('button', { name: /VBR/ }))
+    expect(screen.getByTestId('location').textContent).toBe('?local=d1&x=1')
   })
 
   it('B15: desativar o serviço confirma e diz desativado', async () => {

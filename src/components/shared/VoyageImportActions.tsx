@@ -38,7 +38,6 @@ import { BaplieImportPartialNotice } from './BaplieImportPartialNotice'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { canImportPreview, rowErrorsToImportIssues } from '../../services/importValidation'
 import { inspectImportUpload } from '../../services/importText'
-import { queryKeys } from '../../services/queryKeys'
 import { ImportIssuesPanel } from './ImportIssuesPanel'
 import { ImportReadProgress } from './ImportReadProgress'
 import { ImportContext, ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from './ImportParts'
@@ -290,18 +289,10 @@ export function VoyageImportActions({
           importer={async (preview, _file, override) => {
             await importVaziosImportacaoManifest({ manifest: preview, uploadedBy: userId, voyageId, manifestNumbers: vaziosManifestNumbers, allowRowErrors: Boolean(override) })
             setVaziosManifestNumbers({})
-            await Promise.all([
-              queryClient.invalidateQueries({ queryKey: ['voyages'] }),
-              queryClient.invalidateQueries({ queryKey: queryKeys.voyages.detail(voyageId) }),
-              queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] }),
-              queryClient.invalidateQueries({ queryKey: ['vazios-importacao-manifests'] }),
-              queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.byVoyage(voyageId) }),
-              queryClient.invalidateQueries({ queryKey: ['vazios-importacao-containers'] }),
-              queryClient.invalidateQueries({ queryKey: ['lineup-tv-v3'] }),
-              queryClient.invalidateQueries({ queryKey: ['lineup-tv-display-v2'] }),
-              // P0-4: alimenta "Vazios descarregados" no ADR.
-              queryClient.invalidateQueries({ queryKey: ['agency-report'] }),
-            ])
+            // O efeito do dono cobre a Viagem, a lista e os números de manifesto
+            // de vazios (['manifestos-mercante', 'vazio', …]), a Line Up e o
+            // ADR ("Vazios descarregados", P0-4).
+            await afterManifestoImportado(queryClient, { voyageId })
             showToast(`Manifesto Vazios Imp. importado: ${preview.containers.length} container(s).`, 'success')
           }}
           renderPreview={(preview) => (

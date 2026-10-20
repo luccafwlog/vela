@@ -197,18 +197,35 @@ export function EmbarqueVazios() {
     [operations.data, depotRows],
   );
 
-  function updateParams(changes: Record<string, string | null>) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      for (const [key, value] of Object.entries(changes)) {
-        if (value == null) next.delete(key);
-        else next.set(key, value);
-      }
-      return next;
-    });
+  function withParams(current: URLSearchParams, changes: Record<string, string | null>) {
+    const next = new URLSearchParams(current);
+    for (const [key, value] of Object.entries(changes)) {
+      if (value == null) next.delete(key);
+      else next.set(key, value);
+    }
+    return next;
   }
 
-  const selected = selectedId ? summaries.find((item) => item.id === selectedId) ?? null : null;
+  function updateParams(changes: Record<string, string | null>) {
+    setSearchParams((current) => withParams(current, changes));
+  }
+
+  // Sem os Locais, a armazenagem a lançar, o total de Serviços e o local de
+  // cada unidade sairiam incompletos ("Local removido") sem aviso: lista e
+  // detalhe esperam as duas leituras e mostram a falha de qualquer uma.
+  const readState = {
+    isLoading: operations.isLoading || depots.isLoading,
+    error: operations.error ?? depots.error,
+    fetchStatus: operations.fetchStatus === "paused" || depots.fetchStatus === "paused" ? "paused" : "idle",
+    data: operations.data !== undefined && depots.data !== undefined ? operations.data : undefined,
+    errorMessage: operations.error ? undefined : "Não foi possível carregar os locais (depots e terminais): sem eles a armazenagem e o local das unidades não aparecem.",
+    refetch: () => {
+      if (operations.error || operations.data === undefined) void operations.refetch();
+      if (depots.error || depots.data === undefined) void depots.refetch();
+    },
+  };
+
+  const selected = selectedId && depots.data !== undefined ? summaries.find((item) => item.id === selectedId) ?? null : null;
 
   if (selectedId) {
     if (selected) {
@@ -229,12 +246,12 @@ export function EmbarqueVazios() {
       <div className="grid gap-5">
         <PageHeader title="Embarque de vazios" />
         <QueryStateGate
-          isLoading={operations.isLoading}
-          isError={Boolean(operations.error)}
-          isPaused={operations.fetchStatus === "paused"}
-          hasData={operations.data !== undefined}
-          errorMessage="Não foi possível carregar o embarque."
-          onRetry={() => void operations.refetch()}
+          isLoading={readState.isLoading}
+          isError={Boolean(readState.error)}
+          isPaused={readState.fetchStatus === "paused"}
+          hasData={readState.data !== undefined}
+          errorMessage={readState.errorMessage ?? "Não foi possível carregar o embarque."}
+          onRetry={readState.refetch}
           loadingFallback={<SkeletonTable rows={4} cols={4} label="Carregando o embarque" />}
         >
           <EmptyState
@@ -250,11 +267,12 @@ export function EmbarqueVazios() {
   return (
     <EmbarquesLista
       summaries={summaries}
-      operations={operations}
+      operations={readState}
       canEdit={canEdit}
       contextVoyageId={contextVoyageId}
       onClearVoyage={() => updateParams({ voyage: null })}
       onOpen={(id) => updateParams({ embarque: id, aba: null })}
+      openHref={(id) => `/embarquevazios?${withParams(searchParams, { embarque: id, aba: null }).toString()}`}
       onCreated={() => queryClient.invalidateQueries({ queryKey: OPERATIONS_KEY })}
     />
   );
@@ -267,14 +285,17 @@ function EmbarquesLista({
   contextVoyageId,
   onClearVoyage,
   onOpen,
+  openHref,
   onCreated,
 }: {
   summaries: VaziosOperationSummary[];
-  operations: { isLoading: boolean; error: unknown; fetchStatus: string; data: unknown; refetch: () => unknown };
+  operations: { isLoading: boolean; error: unknown; fetchStatus: string; data: unknown; errorMessage?: string; refetch: () => unknown };
   canEdit: boolean;
   contextVoyageId: number | null;
   onClearVoyage: () => void;
   onOpen: (id: string) => void;
+  /** Endereço do detalhe, com os mesmos parâmetros que `onOpen` mantém (?voyage=). */
+  openHref: (id: string) => string;
   onCreated: () => Promise<unknown>;
 }) {
   const { showToast } = useToast();
@@ -312,6 +333,19 @@ function EmbarquesLista({
     if (contextVoyageId) onClearVoyage();
   }
 
+  // Cada abertura começa da Viagem do endereço naquele momento, sem o porto
+  // escolhido numa abertura anterior.
+  function openNew() {
+    setVoyageId(contextVoyageId);
+    setPort("");
+    setNewOpen(true);
+  }
+
+  function closeNew() {
+    setNewOpen(false);
+    setPort("");
+  }
+
   async function createOperation() {
     // Gravar sempre normalizado, mesmo vindo da lista de escalas já normalizadas.
     const embarkPort = normalizePortCode(port);
@@ -320,8 +354,7 @@ function EmbarquesLista({
     try {
       const result = await openOrCreateVaziosExportOperation({ voyageId, embarkPort });
       await onCreated();
-      setNewOpen(false);
-      setPort("");
+      closeNew();
       // V4: o embarque que já existia é aberto, com a mensagem certa.
       showToast(result.created ? "Embarque criado." : "Este embarque já existia e foi aberto.", result.created ? "success" : "info");
       onOpen(result.id);
@@ -343,7 +376,7 @@ function EmbarquesLista({
               Locais (depots e terminais)
             </Link>
             {canEdit ? (
-              <Button onClick={() => setNewOpen(true)}>
+              <Button onClick={openNew}>
                 <Plus size={16} aria-hidden="true" /> Novo embarque
               </Button>
             ) : null}
@@ -375,7 +408,7 @@ function EmbarquesLista({
           isError={Boolean(operations.error)}
           isPaused={operations.fetchStatus === "paused"}
           hasData={operations.data !== undefined}
-          errorMessage="Não foi possível carregar os embarques."
+          errorMessage={operations.errorMessage ?? "Não foi possível carregar os embarques."}
           onRetry={() => void operations.refetch()}
           loadingFallback={<SkeletonTable rows={5} cols={6} label="Carregando embarques" />}
         >
@@ -410,7 +443,7 @@ function EmbarquesLista({
                   {visible.map((item) => (
                     <tr key={item.id}>
                       <td className="app-table__text">
-                        <Link className="app-link" to={`/embarquevazios?embarque=${item.id}`}>{operationLabel(item)}</Link>
+                        <Link className="app-link" to={openHref(item.id)}>{operationLabel(item)}</Link>
                       </td>
                       <td>{item.embark_port}</td>
                       <td className="tabular-nums">{item.unidades.toLocaleString("pt-BR")}</td>
@@ -430,7 +463,7 @@ function EmbarquesLista({
         </QueryStateGate>
       </Block>
 
-      <Modal open={newOpen} onClose={() => setNewOpen(false)} title="Novo embarque" size="md">
+      <Modal open={newOpen} onClose={closeNew} title="Novo embarque" size="md">
         <div className="grid gap-4">
           <VoyageCombobox
             required
@@ -446,9 +479,14 @@ function EmbarquesLista({
             required
             hint="Um embarque por escala e porto; se ele já existir, abre o existente."
             error={
-              voyageId && !voyagePorts.isLoading && voyagePortOptions.length === 0
-                ? "Nenhuma escala brasileira na viagem: cadastre a escala na aba Escalas da viagem antes de criar o embarque."
-                : undefined
+              !voyageId || voyagePorts.isLoading
+                ? undefined
+                : voyagePorts.error
+                  // Falha de leitura não é "viagem sem escala": não manda cadastrar.
+                  ? "Não foi possível carregar as escalas da viagem. Tente de novo; isto não significa que a viagem esteja sem escala."
+                  : voyagePortOptions.length === 0
+                    ? "Nenhuma escala brasileira na viagem: cadastre a escala na aba Escalas da viagem antes de criar o embarque."
+                    : undefined
             }
           >
             <Select value={port} onChange={(event) => setPort(event.target.value)} disabled={!voyageId}>
@@ -457,7 +495,7 @@ function EmbarquesLista({
             </Select>
           </Field>
           <div className="app-modal__actions">
-            <Button variant="secondary" onClick={() => setNewOpen(false)}>Voltar</Button>
+            <Button variant="secondary" onClick={closeNew}>Voltar</Button>
             <Button loading={creating} disabled={!canEdit || !voyageId || !port} onClick={() => void createOperation()}>
               Criar embarque
             </Button>
