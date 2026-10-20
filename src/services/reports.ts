@@ -568,6 +568,9 @@ export async function fetchCustomerReport(filters: CustomerReportFilters, option
         reportSelectOptions(from),
       )
       .not('customer_id', 'is', null)
+      // B/L cancelado fica fora de B/Ls, Peso e CBM do Cliente, como nos
+      // cartões do Operacional (decisão do responsável de 2026-10-20).
+      .is('cancelled_at', null)
       .order('id', { ascending: true })
     if (filters.dateFrom) query = query.gte('created_at', brasiliaStartOfDay(filters.dateFrom))
     if (filters.dateTo) query = query.lte('created_at', brasiliaEndOfDay(filters.dateTo))

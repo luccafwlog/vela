@@ -562,4 +562,10 @@ describe('B/L cancelado e fatura parcialmente paga', () => {
     expect(callsOf(builders.bls[0], 'eq')).toContainEqual(['financial_status', 'invoiced'])
     expect(callsOf(builders.bls[0], 'in')).not.toContainEqual(['financial_status', ['invoiced', 'partially_paid']])
   })
+
+  it('Por Cliente pede ao banco só o B/L não cancelado', async () => {
+    const builders = installReportMocks({})
+    await fetchCustomerReport(NO_SCOPE)
+    expect(callsOf(builders.bls[0], 'is')).toContainEqual(['cancelled_at', null])
+  })
 })
