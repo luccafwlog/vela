@@ -128,7 +128,13 @@ BEGIN
 END;
 $function$;
 
-REVOKE EXECUTE ON FUNCTION public.calculate_granite_bl_charges(uuid, uuid) FROM authenticated;
+-- A 329 apaga a função; o teste reaplica esta migration depois dela.
+DO $$
+BEGIN
+  IF to_regprocedure('public.calculate_granite_bl_charges(uuid,uuid)') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.calculate_granite_bl_charges(uuid, uuid) FROM authenticated;
+  END IF;
+END $$;
 
 -- 3. Fora da Revisão --------------------------------------------------------
 

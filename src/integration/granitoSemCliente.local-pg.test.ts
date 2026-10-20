@@ -84,24 +84,8 @@ function importFile(bls: unknown[]) {
     ${bls.length}, 1000, '${userId}', '${JSON.stringify(bls)}'::jsonb, NULL);`)
 }
 
-// A 325 revoga o EXECUTE de `calculate_granite_bl_charges`, que a 329 apagou.
-// Para reaplicá-la sobre o banco atual, a função volta como casca vazia só
-// dentro da mesma transação, e sai no fim (num banco sem a 329, nada muda).
-const STUB_MARK = 'casca-a325-reaplicacao'
-const stubCalculate = `DO $stub$ BEGIN
-  IF to_regprocedure('public.calculate_granite_bl_charges(uuid,uuid)') IS NULL THEN
-    CREATE FUNCTION public.calculate_granite_bl_charges(uuid, uuid) RETURNS void
-      LANGUAGE sql SET search_path = '' AS $f$ SELECT NULL::void /* ${STUB_MARK} */ $f$;
-  END IF;
-END $stub$;`
-const dropStub = `DO $stub$ BEGIN
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE oid = to_regprocedure('public.calculate_granite_bl_charges(uuid,uuid)') AND prosrc LIKE '%${STUB_MARK}%') THEN
-    DROP FUNCTION public.calculate_granite_bl_charges(uuid, uuid);
-  END IF;
-END $stub$;`
-
 function reapplyMigration() {
-  execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-c', stubCalculate, '-f', migrationPath, '-c', dropStub], { encoding: 'utf8' })
+  execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migrationPath], { encoding: 'utf8' })
 }
 
 describeLocal('Granito sem Cliente e sem cálculo de taxas (migration 325)', () => {
