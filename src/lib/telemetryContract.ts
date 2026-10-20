@@ -43,6 +43,46 @@ export type EdgeTelemetryContext = {
   durationMs?: number
   processedCount?: number
   result?: string
+  /** SQLSTATE ou código PostgREST da falha; nunca o texto da mensagem. */
+  errorCode?: string
+  /** RPC que falhou, só se estiver em TELEMETRY_RPC_ALLOWLIST. */
+  failedRpc?: string
+}
+
+// Marcação interna de uma resposta 5xx: a Edge informa código e RPC que
+// falharam sem passar a mensagem do banco, que pode ecoar dados de Cliente.
+// instrumentHttpHandler lê, valida e retira os cabeçalhos antes de devolver.
+const ERROR_CODE_HEADER = 'x-telemetry-error-code'
+const FAILED_RPC_HEADER = 'x-telemetry-failed-rpc'
+const SAFE_ERROR_CODE_RE = /^(?:[0-9A-Z]{5}|PGRST\d{3})$/
+/** RPCs cujo nome pode ir para o Sentry como tag. */
+export const TELEMETRY_RPC_ALLOWLIST: ReadonlySet<string> = new Set([
+  'run_alert_detectors',
+  'evaluate_and_dispatch_automatic_communications',
+])
+
+/** Cabeçalhos para marcar uma resposta 5xx com o código e a RPC da falha. */
+export function telemetryFailureHeaders(rpc: string, error: unknown): Record<string, string> {
+  const headers: Record<string, string> = {}
+  const code = error && typeof error === 'object' ? (error as { code?: unknown }).code : undefined
+  if (typeof code === 'string' && SAFE_ERROR_CODE_RE.test(code)) headers[ERROR_CODE_HEADER] = code
+  if (TELEMETRY_RPC_ALLOWLIST.has(rpc)) headers[FAILED_RPC_HEADER] = rpc
+  return headers
+}
+
+/** Lê a marcação de telemetryFailureHeaders e devolve a resposta sem ela. */
+function takeFailureMarkers(response: Response): { response: Response; errorCode?: string; failedRpc?: string } {
+  const code = response.headers.get(ERROR_CODE_HEADER)
+  const rpc = response.headers.get(FAILED_RPC_HEADER)
+  if (code === null && rpc === null) return { response }
+  const headers = new Headers(response.headers)
+  headers.delete(ERROR_CODE_HEADER)
+  headers.delete(FAILED_RPC_HEADER)
+  return {
+    response: new Response(response.body, { status: response.status, statusText: response.statusText, headers }),
+    errorCode: code !== null && SAFE_ERROR_CODE_RE.test(code) ? code : undefined,
+    failedRpc: rpc !== null && TELEMETRY_RPC_ALLOWLIST.has(rpc) ? rpc : undefined,
+  }
 }
 
 type EdgeHandler = (request: Request) => Response | Promise<Response>
@@ -65,15 +105,17 @@ export function instrumentHttpHandler(
   return async (request) => {
     const startedAt = Date.now()
     try {
-      const response = await handler(request)
-      if (response.status >= 500) {
-        await reportSafely(new Error('Edge Function returned a server error'), {
-          functionName,
-          status: `http_${response.status}`,
-          category: 'server_error',
-          durationMs: Date.now() - startedAt,
-        })
-      }
+      const original = await handler(request)
+      if (original.status < 500) return original
+      const { response, errorCode, failedRpc } = takeFailureMarkers(original)
+      await reportSafely(new Error('Edge Function returned a server error'), {
+        functionName,
+        status: `http_${response.status}`,
+        category: 'server_error',
+        durationMs: Date.now() - startedAt,
+        ...(errorCode ? { errorCode } : {}),
+        ...(failedRpc ? { failedRpc } : {}),
+      })
       return response
     } catch (error) {
       await reportSafely(error, {

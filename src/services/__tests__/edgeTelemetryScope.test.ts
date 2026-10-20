@@ -29,6 +29,13 @@ describe('escopo do Sentry nas Edge Functions', () => {
     expect(second.fingerprint()).toEqual(['edge', 'portal-invite-send', 'uncaught'])
   })
 
+  it('código SQLSTATE e RPC da falha viram tags, sem mudar o agrupamento', () => {
+    const scope = fakeScope()
+    applyEdgeTelemetryScope(scope.scope, { functionName: 'alerts-detector', status: 'http_500', errorCode: '22023', failedRpc: 'run_alert_detectors' })
+    expect(scope.tags).toMatchObject({ codigo_erro: '22023', rpc: 'run_alert_detectors' })
+    expect(scope.fingerprint()).toEqual(['edge', 'alerts-detector', 'http_500'])
+  })
+
   it('sem status, agrupa em "unknown" em vez de juntar com outros status', () => {
     const scope = fakeScope()
     applyEdgeTelemetryScope(scope.scope, { functionName: 'portal-invite-send' })
