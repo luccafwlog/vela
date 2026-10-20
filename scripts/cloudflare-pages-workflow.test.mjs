@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+// ADR 0091: o passo de contratos do Pages também roda o teste da promoção.
+import './staging-release-pr.test.mjs'
 
 const workflow = await readFile(new URL('../.github/workflows/cloudflare-pages-preview.yml', import.meta.url), 'utf8')
 const lines = workflow.split(/\r?\n/)

@@ -4,6 +4,11 @@ Canonical instructions for work in Vela and Portal Fwlog. Keep shared agent
 rules here; do not recreate a root `CLAUDE.md`. Tool setup belongs in
 [WORKFLOW.md](WORKFLOW.md#claude-code-e-agentsmd).
 
+PR de feature abre contra `staging`. A `main` só recebe a PR `staging` → `main`,
+que o workflow abre e uma pessoa mergeia
+([ADR 0091](docs/adr/0091-promocao-feature-staging-main.md),
+[WORKFLOW.md](WORKFLOW.md#promoção-da-staging-para-a-main)).
+
 ## Start with the affected behavior
 
 Vela is the internal operations application; Portal Fwlog is the customer

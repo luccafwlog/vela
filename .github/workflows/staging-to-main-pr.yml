@@ -1,0 +1,142 @@
+name: Abrir PR staging → main
+
+# Quando uma PR contra a staging é mergeada, abre ou atualiza a PR da staging
+# para a main. O merge na main continua manual: push na main publica a
+# produção (cloudflare-pages-production.yml). ADR 0091.
+on:
+  pull_request:
+    types: [closed]
+    branches: [staging]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: staging-to-main-pr
+  cancel-in-progress: false
+
+jobs:
+  open-release-pr:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.STAGING_TO_MAIN_TOKEN || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      REPO: ${{ github.repository }}
+      MERGED_NUMBER: ${{ github.event.pull_request.number }}
+      MERGED_TITLE: ${{ github.event.pull_request.title }}
+      MERGED_AUTHOR: ${{ github.event.pull_request.user.login }}
+    steps:
+      - name: Baixar o script da staging
+        run: |
+          set -euo pipefail
+          mkdir -p scripts
+          if ! gh api "repos/${REPO}/contents/scripts/staging-release-pr.mjs?ref=staging" \
+            -H "Accept: application/vnd.github.raw" > scripts/staging-release-pr.mjs; then
+            echo "::error::Não achei scripts/staging-release-pr.mjs na branch staging."
+            exit 1
+          fi
+          test -s scripts/staging-release-pr.mjs
+
+      - name: Ver se a staging tem commits que a main não tem
+        id: diff
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/compare/main...staging" > compare.json
+          node scripts/staging-release-pr.mjs decide compare.json | tee -a "$GITHUB_OUTPUT"
+
+      - name: Montar o corpo da PR
+        if: steps.diff.outputs.open == 'true'
+        env:
+          AHEAD: ${{ steps.diff.outputs.ahead }}
+          BEHIND: ${{ steps.diff.outputs.behind }}
+          TRUNCATED: ${{ steps.diff.outputs.truncated }}
+          MERGE_BASE: ${{ steps.diff.outputs.merge_base }}
+        run: |
+          set -euo pipefail
+          node scripts/staging-release-pr.mjs subjects compare.json > subjects.txt
+          list_truncated="$TRUNCATED"
+          if [ "$TRUNCATED" = "true" ] && printf '%s' "$MERGE_BASE" | grep -Eq '^[0-9a-f]{40}$'; then
+            page_size=$(node scripts/staging-release-pr.mjs page-size)
+            cap=$(node scripts/staging-release-pr.mjs cap)
+            case "$page_size" in
+              ''|*[!0-9]*) echo "::error::page-size inválido."; exit 1 ;;
+            esac
+            case "$cap" in
+              ''|*[!0-9]*) echo "::error::cap inválido."; exit 1 ;;
+            esac
+            page=1
+            status=more
+            missed=true
+            : > walked.txt
+            while [ "$page" -le "$cap" ] && [ "$status" = "more" ]; do
+              gh api "repos/${REPO}/commits?sha=staging&per_page=${page_size}&page=${page}" > page.json
+              node scripts/staging-release-pr.mjs walk-page "$MERGE_BASE" page.json > walk.json
+              node scripts/staging-release-pr.mjs walk-subjects walk.json >> walked.txt
+              status=$(node scripts/staging-release-pr.mjs walk-field walk.json status)
+              missed=$(node scripts/staging-release-pr.mjs walk-field walk.json missedBase)
+              page=$((page + 1))
+            done
+            if [ "$status" = "done" ] && [ "$missed" = "false" ]; then
+              mv walked.txt subjects.txt
+              list_truncated=false
+            fi
+          fi
+          node scripts/staging-release-pr.mjs numbers subjects.txt > numbers.txt
+          lookup_cap=$(node scripts/staging-release-pr.mjs lookup-cap)
+          case "$lookup_cap" in
+            ''|*[!0-9]*) echo "::error::lookup-cap inválido."; exit 1 ;;
+          esac
+          total=$(wc -l < numbers.txt | tr -d ' ')
+          titles_capped=false
+          lookup=numbers.txt
+          if [ "$total" -gt "$lookup_cap" ]; then
+            tail -n "$lookup_cap" numbers.txt > lookup.txt
+            lookup=lookup.txt
+            titles_capped=true
+          fi
+          : > prs.jsonl
+          while IFS= read -r number; do
+            case "$number" in
+              ''|*[!0-9]*) continue ;;
+            esac
+            if gh pr view "$number" --repo "$REPO" --json number,title > "pr-${number}.json" 2>/dev/null; then
+              cat "pr-${number}.json" >> prs.jsonl
+              printf '\n' >> prs.jsonl
+            else
+              printf '{"number":%s,"title":""}\n' "$number" >> prs.jsonl
+            fi
+          done < "$lookup"
+          LIST_TRUNCATED="$list_truncated" TITLES_CAPPED="$titles_capped" \
+            node scripts/staging-release-pr.mjs body subjects.txt prs.jsonl > body.md
+          test -s body.md
+
+      - name: Abrir ou atualizar a PR staging → main
+        if: steps.diff.outputs.open == 'true'
+        run: |
+          set -euo pipefail
+          owner="${REPO%%/*}"
+          case "$owner" in
+            ''|*'/'*|*' '*) echo "::error::Dono do repositório inválido."; exit 1 ;;
+          esac
+          title="Release: staging → main ($(date -u +%Y-%m-%d))"
+          existing=$(gh api "repos/${REPO}/pulls?state=open&base=main&head=${owner}:staging&per_page=20" --jq 'map(.number) | min // empty')
+          if [ -n "${existing}" ] && [ "${existing}" != "null" ]; then
+            gh pr edit "$existing" --repo "$REPO" --title "$title" --body-file body.md
+            echo "PR #${existing} atualizada."
+            exit 0
+          fi
+          if url=$(gh pr create --repo "$REPO" --base main --head staging --title "$title" --body-file body.md); then
+            echo "PR aberta: ${url}"
+            exit 0
+          fi
+          existing=$(gh api "repos/${REPO}/pulls?state=open&base=main&head=${owner}:staging&per_page=20" --jq 'map(.number) | min // empty')
+          if [ -n "${existing}" ] && [ "${existing}" != "null" ]; then
+            gh pr edit "$existing" --repo "$REPO" --title "$title" --body-file body.md
+            echo "PR #${existing} atualizada depois de corrida."
+            exit 0
+          fi
+          echo "::error::Não foi possível abrir nem atualizar a PR staging → main."
+          exit 1
