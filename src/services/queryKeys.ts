@@ -38,7 +38,6 @@ export const queryKeys = {
     all: () => ['billing-ready-bls'] as const,
     bls: (filters?: unknown) => ['billing-ready-bls', filters] as const,
     diagnostics: (filters?: unknown) => ['billing-ready-bl-diagnostics', filters] as const,
-    graniteBls: (filters?: unknown) => ['billing-ready-granite-bls', filters] as const,
     customers: (search: string) => ['billing-customers', search] as const,
   },
   billingLedger: {
@@ -96,6 +95,12 @@ export const queryKeys = {
     escalaTerminalAll: () => ['voyage-escala-terminal'] as const,
     timeline: (voyageId: number) => ['voyage-timeline', String(voyageId)] as const,
     manifestosMercante: (voyageId: number) => ['manifestos-mercante', voyageId] as const,
+  },
+  // Granito (lote 5b): só a carga movimentada no navio, sem Cliente nem taxa.
+  granite: {
+    all: () => ['granite-bls'] as const,
+    bls: (filters?: unknown) => ['granite-bls', 'list', filters] as const,
+    cargo: (filters?: unknown) => ['granite-bls', 'cargo', filters] as const,
   },
   manifestosMercante: {
     all: () => ['manifestos-mercante'] as const,
@@ -199,4 +204,10 @@ export const queryKeys = {
   },
   appSettings: () => ['app-settings'] as const,
   dashboard: () => ['dashboard'] as const,
+  admin: {
+    users: () => ['admin-users'] as const,
+    routingFailures: (page: number) => ['admin-routing-failures', page] as const,
+    auditLogs: (filters: unknown) => ['admin-audit-logs', filters] as const,
+    metrics: () => ['admin-metrics'] as const,
+  },
 }

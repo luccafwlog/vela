@@ -4,6 +4,7 @@ import { MoreVertical, Pencil, Plus, Users } from 'lucide-react'
 import { ActionMenu } from '../ui/ActionMenu'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
@@ -168,14 +169,11 @@ export function CustomerDemurrageAgreementsTab({ canEdit, canManage }: { canEdit
     if (!canEdit) return null
     return (
       <div className="app-dem-row-buttons">
-        <Button variant="ghost" className="app-btn--sm" onClick={() => handleOpenEdit(item)} aria-label={`Editar acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`}>
-          <Pencil size={14} aria-hidden="true" />
-          Editar
-        </Button>
+        <RowActionButton variant="ghost" label={`Editar acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`} icon={Pencil} onClick={() => handleOpenEdit(item)} />
         {canManage ? <ActionMenu
           label={`Mais ações do acordo de ${item.customer?.name ?? `Cliente #${item.customer_id}`}`}
-          triggerClassName="app-table__icon-button app-table__icon-button--sm"
-          trigger={<MoreVertical size={16} aria-hidden="true" />}
+          triggerClassName="app-btn app-btn--ghost app-btn--icon"
+          trigger={<MoreVertical size={15} aria-hidden="true" />}
           items={[
             { key: 'toggle', label: item.active ? 'Desativar acordo' : 'Reativar acordo', onSelect: () => void handleToggleActive(item) },
             // O banco só apaga acordo que ainda não entrou em vigor (guard_used_tariff_delete, migration 091).

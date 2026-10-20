@@ -92,7 +92,10 @@ describe('DemurrageContainersTab', () => {
   it('B/L devolvido com sobreestadia e sem Invoice oferece Gerar Invoice', async () => {
     const user = userEvent.setup()
     const { onGenerateInvoice } = renderTab([row('BL-002', 2, { returned: true })])
-    await user.click(screen.getByRole('button', { name: 'Gerar Invoice do B/L BL-002' }))
+    const generate = screen.getByRole('button', { name: 'Gerar Invoice do B/L BL-002' })
+    // Na linha da tabela de B/Ls, só o ícone (regra 9).
+    expect(generate.textContent).toBe('')
+    await user.click(generate)
     expect(onGenerateInvoice).toHaveBeenCalledWith('BL-002')
   })
 

@@ -113,10 +113,16 @@ describeLocal('242 — plano B do extrato acha Invoice de Demurrage e avulsa pel
   })
 
   it('a baixa por TXID acha a avulsa cobrada pelo QR Itaú', () => {
-    const result = asAdmin(`SELECT public.reconcile_invoice_payment_by_txid('${MANUAL_TXID}', 130, now())`)
+    // Desde a 329 a baixa por TXID não é chamada direto pela API: passa pela
+    // confirmação do lote, que confere o setor e a executa como dono.
+    expect(asAdmin(`SELECT public.reconcile_invoice_payment_by_txid('${MANUAL_TXID}', 130, now())`).error)
+      .toMatch(/permission denied for function reconcile_invoice_payment_by_txid/)
+    const matches = [{ source: 'local', invoice_id: MANUAL_ITAU_ID, doc_number: 'AV-A242-0002', txid: MANUAL_TXID, amount: 130, paid_at: new Date().toISOString() }]
+    const result = asAdmin(`SELECT public.confirm_unified_pix_matches('${JSON.stringify(matches)}'::jsonb)`)
     expect(result.error).toBe('')
-    expect(JSON.parse(result.output)).toMatchObject({ matched: true, invoice_id: MANUAL_ITAU_ID, settled: true })
+    expect(JSON.parse(result.output)).toMatchObject({ local: 1, demurrage: 0, items: [{ source: 'local', invoice_id: MANUAL_ITAU_ID, status: 'ok' }] })
     expect(psql(`SELECT status FROM public.invoices WHERE id = ${MANUAL_ITAU_ID};`)).toBe('paid')
+    expect(psql(`SELECT count(*) || ':' || sum(amount_brl) FROM public.payments WHERE invoice_id = ${MANUAL_ITAU_ID};`)).toBe('1:130.00')
   })
 
   it('a exceção da avulsa baixada pelo TXID encerra; com outro valor, não (269)', () => {

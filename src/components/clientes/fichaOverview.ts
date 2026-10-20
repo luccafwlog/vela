@@ -30,15 +30,19 @@ type Source<T> = T | undefined | null
 type PortalFacts = Pick<QueueRow, 'account_situation' | 'provisioning_decision' | 'hasCriticalAlert' | 'recovery_email' | 'recoveryEmailStatus' | 'recoveryEmailSuppressed'>
 
 /**
- * Leitura do Gate de faturamento do Portal (conta ativa com Email de
- * Recuperação utilizável, migration `084`). O console do Portal esconde o
- * Email de Recuperação de Operações (migration `103`): sem ele visível, só a
- * situação da conta e uma falha já conhecida contam, para não acusar trava
- * que a tela não consegue ver. O banco continua sendo a autoridade.
+ * Perfis que leem o Email de Recuperação no console: os cinco, como o banco
+ * (`portal_list_provisioning_console` dá acesso completo a todos desde a
+ * migration `250`; achado P2 do lote 5b alinhou Operações).
  */
-/** Perfis que leem o Email de Recuperação no console (`v_full_access`, migration `103`). */
-export const RECOVERY_EMAIL_READER_ROLES: readonly string[] = ['administrativo', 'documentacao', 'financeiro', 'equipamentos']
+export const RECOVERY_EMAIL_READER_ROLES: readonly string[] = ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos']
 
+/**
+ * Leitura do Gate de faturamento do Portal (conta ativa com Email de
+ * Recuperação utilizável, migration `084`). Perfil que não lê o Email de
+ * Recuperação no console vê só a situação da conta e uma falha já conhecida,
+ * para não acusar trava que a tela não consegue ver. O banco continua sendo a
+ * autoridade.
+ */
 export function portalLooksReadyForBilling(portal: PortalFacts, recoveryEmailVisible: boolean) {
   return recoveryEmailVisible
     ? isPortalReadyForBilling(portal)

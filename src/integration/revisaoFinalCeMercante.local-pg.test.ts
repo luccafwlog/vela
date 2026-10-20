@@ -256,7 +256,7 @@ describeLocal('Revisão final da PR 929 — CE Mercante e Manifesto (migration 2
     expect(apply(rows, 'R212E00000001').billing_pending_bl_ids).toEqual([])
   })
 
-  it('CE do Granito: a função interna não é da API e a planilha recusa CE vazio ou fora de 15 dígitos', () => {
+  it('CE do Granito: a função interna não é da API e a planilha recusa o alvo Granito (325)', () => {
     psql(`
       INSERT INTO public.granite_manifests (id, voyage_id, vessel_voyage) VALUES ('${graniteManifestId}', ${voyageId}, 'R212 NAVIO R212A');
       INSERT INTO public.granite_bls (id, manifest_id, bl_number, ce_mercante) VALUES ('${graniteBlId}', '${graniteManifestId}', 'R212-GRA-1', '992127000000031');
@@ -267,15 +267,11 @@ describeLocal('Revisão final da PR 929 — CE Mercante e Manifesto (migration 2
     expect(asAdmin(`SELECT public.apply_granite_ce_mercante_update('${graniteBlId}'::uuid, '', '${actorId}'::uuid);`).error)
       .toMatch(/permission denied for function apply_granite_ce_mercante_update/)
 
-    for (const ce of ['', '12345', '99212700000003A']) {
-      const refused = applyGranite(ce)
-      expect(refused.ok).toBe(false)
-      expect(refused.errors?.[0].message).toMatch(/15 d[ií]gitos/)
+    // Desde a migration 325 a planilha não tem o alvo Granito: qualquer CE,
+    // válido ou não, é recusado e o gravado fica.
+    for (const ce of ['', '12345', '992127000000032']) {
+      expect(() => applyGranite(ce)).toThrow(/não se aplica ao Granito/)
     }
     expect(psql(`SELECT ce_mercante FROM public.granite_bls WHERE id = '${graniteBlId}';`)).toBe('992127000000031')
-
-    expect(applyGranite('992127 000000032')).toMatchObject({ ok: true })
-    expect(psql(`SELECT ce_mercante FROM public.granite_bls WHERE id = '${graniteBlId}';`)).toBe('992127000000032')
-    expect(applyGranite('992127000000032')).toMatchObject({ ok: true, unchanged: 1 })
   })
 })

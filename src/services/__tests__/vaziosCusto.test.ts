@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { armazenagemPorDepotCondicao, diasCobraveis, totalEmbarque, totalLinha, veto } from '../vaziosCusto'
+import { armazenagemALancar, armazenagemPorDepotCondicao, diasCobraveis, totalEmbarque, totalLinha, veto } from '../vaziosCusto'
 
 const depots = [
   { id: 'd1', tipo: 'depot' as const, free_time_vazio_days: 2, free_time_material_days: 1 },
@@ -55,5 +55,21 @@ describe('motor de custo do Embarque de Vazios', () => {
     const first = { natureza: 'armazenagem', local_id: 'd1', condition: 'vazio', quantidade: 1, percentual: null, valor_unitario: 1 }
     expect(veto(first, { depots, lines: [first, { ...first }] })).toContain('Já existe')
     expect(veto({ natureza: 'geral', local_id: 'd1', quantidade: 1, percentual: null, valor_unitario: 1 })).toBeNull()
+  })
+})
+
+describe('Armazenagem a lançar (lote 5b)', () => {
+  const freeTime = [{ id: 'd1', tipo: 'depot' as const, free_time_vazio_days: 10, free_time_material_days: 2 }]
+  const dentro = { local_id: 'd1', condition: 'vazio' as const, hand_in_date: '2026-07-01', hand_out_date: '2026-07-05' }
+  const fora = { local_id: 'd1', condition: 'material' as const, hand_in_date: '2026-07-01', hand_out_date: '2026-07-05' }
+
+  it('esconde a combinação com 0 dia: as unidades ficaram dentro do free time', () => {
+    expect(armazenagemALancar([dentro, fora], freeTime, [])).toEqual([{ depot_id: 'd1', condition: 'material', quantidade: 3 }])
+  })
+
+  it('esconde a combinação que já tem linha de armazenagem lançada', () => {
+    expect(armazenagemALancar([fora], freeTime, [{ natureza: 'armazenagem', local_id: 'd1', condition: 'material' }])).toEqual([])
+    // Linha de outra natureza no mesmo local não conta como lançada.
+    expect(armazenagemALancar([fora], freeTime, [{ natureza: 'geral', local_id: 'd1', condition: null }])).toHaveLength(1)
   })
 })

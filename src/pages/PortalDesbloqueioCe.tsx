@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Download, Inbox, SearchX, X } from "lucide-react";
+import { Download, Inbox, Receipt, RefreshCw, SearchX, Upload, X } from "lucide-react";
 import { Badge } from "../components/ui/Badge";
 import { Block, Fact, FactList, LeadValue } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
@@ -10,6 +10,7 @@ import { Input } from "../components/ui/Input";
 import { MetricCard } from "../components/ui/MetricCard";
 import { Modal } from "../components/ui/Modal";
 import { NoValue } from "../components/ui/NoValue";
+import { RowActionLink } from "../components/ui/RowActionLink";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { StatusText } from "../components/ui/StatusText";
 import { TabButton } from "../components/ui/TabButton";
@@ -560,9 +561,7 @@ export function PortalDesbloqueioCe() {
                             ) : (
                               <span className="inline-flex items-center gap-2">
                                 <StatusText tone="warning">Em aberto</StatusText>
-                                <a className="app-btn app-btn--secondary app-btn--sm" href={portalPath(flow.scope, "/billing")}>
-                                  Ver faturas
-                                </a>
+                                <RowActionLink to={portalPath(flow.scope, "/billing")} label={`Ver faturas do B/L ${i.bl_id}`} title="Ver faturas" icon={Receipt} />
                               </span>
                             )}
                           </td>
@@ -957,9 +956,9 @@ function RequestDocuments({
   const fileButton = (type: DocType, label: string, variant: "primary" | "secondary") => (
     <CeUnlockFileButton
       variant={variant}
-      className="app-btn--sm"
       inputLabel={`Arquivo ${type === "termo" ? "do termo de devolução" : "da procuração"} (PDF)`}
       ariaLabel={`${label}: ${ceDocumentName(type).toLowerCase()}`}
+      icon={label === "Anexar PDF" ? Upload : RefreshCw}
       disabled={busy}
       onFile={(file) => onPick(type, file)}
     >

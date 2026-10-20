@@ -3,6 +3,7 @@ import { Ban, ChevronDown, ChevronRight, MoreVertical, Pencil, Plus, RotateCcw, 
 import { ActionMenu, type ActionMenuItem } from '../ui/ActionMenu'
 import { Block, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { StatusText } from '../ui/StatusText'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
 import {
@@ -103,13 +104,38 @@ function tableMenu({ table, reading, canDelete, busyTableId, onToggleTableActive
   return [{ key: 'off', label: 'Desativar tabela', icon: <Ban size={14} aria-hidden="true" />, danger: true, disabled, onSelect: () => onToggleTableActive(table) }]
 }
 
-function TableActions(props: RowProps) {
+/**
+ * Desativar (só na "Ativa, mas não usada"), Editar e o ⋮. Na linha da tabela,
+ * só os ícones (`iconOnly`, regra 9); no cartão do celular, com texto.
+ */
+function TableActions({ iconOnly = false, ...props }: RowProps & { iconOnly?: boolean }) {
   const { table, reading, canEdit, canDelete, busyTableId, onEditTable, onToggleTableActive } = props
   if (!canEdit) return null
   const menu = tableMenu(props)
+  const showDeactivate = canDelete && reading.state.kind === 'shadowed'
+  const menuTrigger = menu.length ? (
+    <ActionMenu
+      label={`Mais ações da tabela ${table.name}`}
+      menuId={`charge-table-menu-${table.id}`}
+      triggerClassName={iconOnly ? 'app-btn app-btn--ghost app-btn--icon' : 'app-table__icon-button'}
+      trigger={<MoreVertical size={iconOnly ? 15 : 16} aria-hidden="true" />}
+      items={menu}
+    />
+  ) : null
+  if (iconOnly) {
+    return (
+      <div className="app-rates-table__actions">
+        {showDeactivate ? (
+          <RowActionButton label={`Desativar tabela ${table.name}`} icon={Ban} disabled={busyTableId === table.id} onClick={() => onToggleTableActive(table)} />
+        ) : null}
+        <RowActionButton label={`Editar tabela ${table.name}`} icon={Pencil} onClick={() => onEditTable(table)} />
+        {menuTrigger}
+      </div>
+    )
+  }
   return (
     <div className="app-rates-table__actions">
-      {canDelete && reading.state.kind === 'shadowed' ? (
+      {showDeactivate ? (
         <Button
           variant="secondary"
           className="app-btn--sm"
@@ -124,15 +150,7 @@ function TableActions(props: RowProps) {
         <Pencil size={14} aria-hidden="true" />
         Editar
       </Button>
-      {menu.length ? (
-        <ActionMenu
-          label={`Mais ações da tabela ${table.name}`}
-          menuId={`charge-table-menu-${table.id}`}
-          triggerClassName="app-table__icon-button"
-          trigger={<MoreVertical size={16} aria-hidden="true" />}
-          items={menu}
-        />
-      ) : null}
+      {menuTrigger}
     </div>
   )
 }
@@ -227,7 +245,7 @@ function ChargeTableRow(props: RowProps) {
         <td className="tabular-nums">{formatPeriod(table.valid_from, table.valid_to)}</td>
         <td>{itemCountText(reading)}</td>
         <td><TableWarning reading={reading} /></td>
-        <td><TableActions {...props} /></td>
+        <td><TableActions {...props} iconOnly /></td>
       </tr>
       {isOpen ? (
         <tr id={panelId} data-row-detail>
@@ -328,21 +346,30 @@ function itemMenu(item: ChargeItem, { canDelete, onToggleItemActive, onDeleteIte
   ]
 }
 
-function ItemActions({ item, ...props }: ItemsProps & { item: ChargeItem }) {
+/**
+ * Editar e o ⋮ do item. A tabela de itens fica dentro do painel da tabela
+ * aberta, mas cada item é uma linha de tabela: só os ícones (`iconOnly`,
+ * regra 9). No cartão do celular, com texto.
+ */
+function ItemActions({ item, iconOnly = false, ...props }: ItemsProps & { item: ChargeItem; iconOnly?: boolean }) {
   if (!props.canEdit) return null
   const menu = itemMenu(item, props)
   return (
     <div className="app-rates-item__actions">
-      <Button variant="secondary" className="app-btn--sm" onClick={() => props.onEditItem(props.table, item)} aria-label={`Editar item ${item.name}`}>
-        <Pencil size={14} aria-hidden="true" />
-        Editar
-      </Button>
+      {iconOnly ? (
+        <RowActionButton label={`Editar item ${item.name}`} icon={Pencil} onClick={() => props.onEditItem(props.table, item)} />
+      ) : (
+        <Button variant="secondary" className="app-btn--sm" onClick={() => props.onEditItem(props.table, item)} aria-label={`Editar item ${item.name}`}>
+          <Pencil size={14} aria-hidden="true" />
+          Editar
+        </Button>
+      )}
       {menu.length ? (
         <ActionMenu
           label={`Mais ações do item ${item.name}`}
           menuId={`charge-item-menu-${item.id}`}
-          triggerClassName="app-table__icon-button"
-          trigger={<MoreVertical size={16} aria-hidden="true" />}
+          triggerClassName={iconOnly ? 'app-btn app-btn--ghost app-btn--icon' : 'app-table__icon-button'}
+          trigger={<MoreVertical size={iconOnly ? 15 : 16} aria-hidden="true" />}
           items={menu}
         />
       ) : null}
@@ -423,7 +450,7 @@ function ChargeItemsTable(props: ItemsProps) {
             <td>{itemIncidence(item)}</td>
             <td className="tabular-nums">{formatRate(item.currency, itemUnitValue(item))}</td>
             <td className="app-table__text"><ItemWarning item={item} /></td>
-            {props.canEdit ? <td><ItemActions item={item} {...props} /></td> : null}
+            {props.canEdit ? <td><ItemActions item={item} {...props} iconOnly /></td> : null}
           </tr>
         ))}
       </tbody>

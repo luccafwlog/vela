@@ -94,7 +94,7 @@ it('CE alterado aparece uma vez na coluna Na ZPT, com Reconferir CE', async () =
   const request = base({ items: [{ ...item('BL-1', true, true), reasons: ['CE alterado: reconferência necessária'] }] as never })
   render(<CeUnlockRequestDetail request={request} manage onAction={onAction} busy={false} />)
   expect(screen.getByText('CE alterado: reconferir')).toBeTruthy()
-  await userEvent.click(screen.getByRole('button', { name: 'Reconferir CE' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Reconferir CE do B/L BL-1' }))
   expect(onAction).toHaveBeenCalledWith('reconfirm_ce', expect.objectContaining({ bl_id: 'BL-1' }))
 })
 

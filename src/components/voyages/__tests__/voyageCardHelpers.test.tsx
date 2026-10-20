@@ -292,7 +292,7 @@ describe('VoyageManifestosTab', () => {
     expect(html).toContain('title="POD omitido: BRVIX">BRVIX</s> → BRSSZ')
     expect(html).toContain('Omissão')
     expect(html).toContain('A informar')
-    expect(html).toContain('Informar manifesto')
+    expect(html).toContain('aria-label="Informar Nº de Manifesto Mercante de TAICANG → VITORIA → SANTOS"')
     expect(html).not.toContain('manifesto não informado')
     expect(html).not.toContain('Informe o CE Master pelo lápis desta linha')
   })

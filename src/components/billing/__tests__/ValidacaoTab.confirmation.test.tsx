@@ -42,7 +42,6 @@ vi.mock('../../../hooks/useLocalCharges', () => ({
   useLocalChargeOperations: () => ({ data: { rows: mocks.rows, truncated: false }, isLoading: false, error: null }),
 }))
 vi.mock('../../../services/alerts', () => ({ listFinancialAlerts: vi.fn().mockResolvedValue([]), getEffectiveAlertType: (alert: { alert_type: string }) => alert.alert_type }))
-vi.mock('../../../services/graniteBillingWorkflow', () => ({ runGraniteBatch: vi.fn() }))
 vi.mock('../../../services/billing', () => ({ markBlReadyAndCreateInvoice: mocks.issue }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))

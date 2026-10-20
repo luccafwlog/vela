@@ -7,6 +7,11 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   communications_enabled: false,
   demurrage_dunning_interval_days: 7,
   created_at: '',
+  // Defaults da migration 151.
+  pix_provider: 'static',
+  itau_pix_expiration_seconds: 2592000,
+  itau_pix_polled_until: null,
+  itau_pix_settlement_actor: null,
 }
 
 export async function fetchAppSettings(): Promise<AppSettings> {

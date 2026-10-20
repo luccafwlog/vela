@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { CheckCheck, ChevronDown, ChevronRight, CircleSlash, Link2, RotateCw } from 'lucide-react'
 import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
@@ -202,14 +203,13 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
                       <td className="app-table__text app-table__text--wrap">{receipt.reason?.trim() || <NoValue label="Sem motivo informado" />}</td>
                       <td className="whitespace-nowrap text-right">
                         {canReconcile && !open ? (
-                          <Button
+                          <RowActionButton
                             ref={(node) => { if (node) triggerRefs.current.set(receipt.endToEndId, node); else triggerRefs.current.delete(receipt.endToEndId) }}
-                            variant="secondary"
-                            className="app-btn--sm"
+                            label={`Marcar como tratado o Pix de ${formatBRL(receipt.amount)} recebido em ${cellInstant(receipt.paidAt)}`}
+                            title="Marcar como tratado"
+                            icon={CheckCheck}
                             onClick={() => { setDone(null); setForm({ endToEndId: receipt.endToEndId, note: '', error: null }) }}
-                          >
-                            Marcar como tratado
-                          </Button>
+                          />
                         ) : null}
                       </td>
                     </tr>
@@ -472,27 +472,23 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
                       <td className="app-table__text app-table__text--wrap">{ambiguous ? <StatusText tone="warning">{reason}</StatusText> : reason}</td>
                       <td className="whitespace-nowrap text-right">
                         {canReconcile && pendingClose ? (
-                          <Button
-                            variant="secondary"
-                            className="app-btn--sm"
+                          <RowActionButton
+                            label={`Encerrar exceção da linha ${exception.lineNumber}`}
+                            title="Encerrar exceção"
+                            icon={CircleSlash}
                             loading={busy && closeMutation.isPending}
-                            loadingLabel="Encerrando…"
                             disabled={busy}
                             onClick={() => closeMutation.mutate({ exception, ...pendingClose })}
-                          >
-                            Encerrar exceção
-                          </Button>
+                          />
                         ) : canReconcile ? (
-                          <Button
-                            variant="secondary"
-                            className="app-btn--sm"
+                          <RowActionButton
+                            label={`Tentar de novo a linha ${exception.lineNumber}`}
+                            title="Tentar de novo"
+                            icon={RotateCw}
                             loading={busy && retryMutation.isPending}
-                            loadingLabel="Conferindo…"
                             disabled={busy}
                             onClick={() => retryMutation.mutate(exception)}
-                          >
-                            Tentar de novo
-                          </Button>
+                          />
                         ) : null}
                       </td>
                     </tr>
@@ -547,16 +543,14 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
                                         </td>
                                         <td className="whitespace-nowrap text-right">
                                           {canReconcile ? (
-                                            <Button
-                                              variant="secondary"
-                                              className="app-btn--sm"
+                                            <RowActionButton
+                                              label={`Baixar na fatura ${candidate.docNumber}`}
+                                              title="Baixar nesta fatura"
+                                              icon={Link2}
                                               loading={linking}
-                                              loadingLabel="Baixando…"
                                               disabled={busy}
                                               onClick={() => linkMutation.mutate({ exception, candidate })}
-                                            >
-                                              Baixar nesta fatura
-                                            </Button>
+                                            />
                                           ) : null}
                                         </td>
                                       </tr>

@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, X, XCircle } from 'lucide-react'
 import { Button } from '../ui/Button'
 
@@ -14,7 +13,7 @@ export type ReviewOutcome = {
 }
 
 /** Registro que saiu da revisão com as taxas ainda por recalcular. */
-export type ReviewRecalcNotice = { id: string; label: string; source: 'bl' | 'granite' }
+export type ReviewRecalcNotice = { id: string; label: string; source: 'bl' }
 
 const toneIcon = {
   success: CheckCircle2,
@@ -64,22 +63,16 @@ export function ReviewOutcomes({
               <AlertTriangle size={16} aria-hidden="true" className="review-outcome__icon" />
               <div className="review-outcome__copy">
                 <p className="review-outcome__title">
-                  {notice.source === 'granite' ? `Granito ${notice.label}: refaça o cálculo de taxas no Granito.` : `B/L ${notice.label}: taxas locais ainda por recalcular.`}
+                  {`B/L ${notice.label}: taxas locais ainda por recalcular.`}
                 </p>
                 <p className="review-outcome__line">
-                  {notice.source === 'granite'
-                    ? 'O cliente foi vinculado, mas o cálculo de apoio continua pendente.'
-                    : 'A revisão foi salva, mas as taxas locais continuam pendentes de recálculo e a fatura não saiu.'}
+                  A revisão foi salva, mas as taxas locais continuam pendentes de recálculo e a fatura não saiu.
                 </p>
               </div>
               <div className="review-outcome__actions">
-                {notice.source === 'bl' ? (
-                  <Button variant="secondary" className="app-btn--sm" loading={recalcingId === notice.id} loadingLabel="Recalculando…" onClick={() => onRecalc(notice)}>
-                    Recalcular taxas
-                  </Button>
-                ) : (
-                  <Link className="review-link" to="/granito">Abrir Granito</Link>
-                )}
+                <Button variant="secondary" className="app-btn--sm" loading={recalcingId === notice.id} loadingLabel="Recalculando…" onClick={() => onRecalc(notice)}>
+                  Recalcular taxas
+                </Button>
                 <button type="button" className="review-outcome__dismiss" onClick={() => onDismissRecalc(notice.id)} aria-label={`Dispensar aviso de ${notice.label}`}>
                   <X size={14} aria-hidden="true" />
                 </button>

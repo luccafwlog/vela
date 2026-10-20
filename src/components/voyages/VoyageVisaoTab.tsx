@@ -1,7 +1,8 @@
 import { Fragment, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronRight, Pencil, Plus } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { Block } from '../ui/Block'
 import { StatusText } from '../ui/StatusText'
 import { NoValue } from '../ui/NoValue'
@@ -305,14 +306,11 @@ export function VoyageVisaoTab({
                       <td className="hidden lg:table-cell">{row.linked ? 'Sim' : 'Não'}</td>
                       <td>
                         {canEditVoyages ? (
-                          <Button
-                            variant="secondary"
-                            className="app-btn--sm"
-                            aria-label={`Editar planejamento da escala ${row.port}`}
+                          <RowActionButton
+                            label={`Editar planejamento da escala ${row.port}`}
+                            icon={Pencil}
                             onClick={() => onEditEscala(buildEscalaModalData(row))}
-                          >
-                            Editar
-                          </Button>
+                          />
                         ) : null}
                       </td>
                     </tr>
@@ -343,15 +341,11 @@ export function VoyageVisaoTab({
                                     <td className="tabular-nums">{atracacao.rtw ?? <NoValue label="Sem restow" />}</td>
                                     <td>
                                       {canEditVoyages ? (
-                                        <Button
-                                          type="button"
-                                          variant="secondary"
-                                          className="app-btn--sm"
-                                          aria-label={atracacaoEditLabel(atracacao, row.port)}
+                                        <RowActionButton
+                                          label={atracacaoEditLabel(atracacao, row.port)}
+                                          icon={Pencil}
                                           onClick={() => onEditEscala(buildEscalaModalData(row, atracacao.terminalId))}
-                                        >
-                                          Editar
-                                        </Button>
+                                        />
                                       ) : null}
                                     </td>
                                   </tr>
