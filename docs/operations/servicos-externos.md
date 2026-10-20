@@ -571,10 +571,10 @@ mesmos.
 | Uso | Remetente | Resposta vai para |
 |---|---|---|
 | Acesso ao Portal (convite, recuperação de senha, aviso de senha alterada, troca do Email de Recuperação) e aviso de bounce ao Cliente | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
-| Resumo diário do Portal (interno, aos usuários de Administrativo e Documentação) | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
+| Resumo diário do Portal (interno, aos usuários ativos de Administrativo e Documentação; o papel `admin`, extinto na migration `093`, saiu da consulta no lote 6b) | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
 | Avisos do Desbloqueio de CE ao Cliente | `PORTAL_FROM_EMAIL` | `PORTAL_REPLY_TO` = `suporte@portalfwlog.com.br` |
 | Comunicados | `PORTAL_FROM_EMAIL` | `COMMUNICATIONS_REPLY_TO` = `importacao@fwlog.com.br` |
-| Cobrança de Demurrage (régua automática) | `PORTAL_FROM_EMAIL` | `DEMURRAGE_REPLY_TO` = `eqp@fwlog.com.br` (obrigatório: sem ele o envio real é recusado, desde 2026-10-20) |
+| Cobrança de Demurrage (régua automática) | `PORTAL_FROM_EMAIL` | `DEMURRAGE_REPLY_TO` = `eqp@fwlog.com.br` (obrigatório: sem ele o envio real é recusado, desde 2026-10-20); o rodapé do e-mail também leva `eqp@fwlog.com.br` (lote 6b, `DEMURRAGE_CONTACT_EMAIL`) |
 
 - **Conta:** organização `FWLOG` em `app.millionsend.com` (nuvem).
 - **Domínio:** `portalfwlog.com.br` (**Verificado**, região São Paulo,
@@ -674,7 +674,10 @@ externo chegou às duas caixas.
 Portal e o destino dos relatórios DMARC. O rodapé dos Comunicados
 (`src/services/customerCommunicationTemplates.ts`, `COMMUNICATIONS_CONTACT_EMAIL`)
 imprime `importacao@fwlog.com.br`, o mesmo endereço de `COMMUNICATIONS_REPLY_TO`
-(D20 do plano dos e-mails, 2026-10-18). O "Fale com o suporte" das telas públicas do Portal
+(D20 do plano dos e-mails, 2026-10-18); o da Cobrança de Demurrage imprime
+`eqp@fwlog.com.br` (`DEMURRAGE_CONTACT_EMAIL`, lote 6b, 2026-10-20), o mesmo de
+`DEMURRAGE_REPLY_TO`. Os avisos do Desbloqueio de CE e a falha de entrega levam
+`PORTAL_SUPPORT_EMAIL`. O "Fale com o suporte" das telas públicas do Portal
 (`src/components/auth/PortalAccessHelp.tsx`) também leva a `suporte@portalfwlog.com.br`;
 até 2026-10-20 apontava para `suporte@fwlog.com.br`, que não existe. Ao trocar de responsável, troque também o destino pessoal do alias.
 

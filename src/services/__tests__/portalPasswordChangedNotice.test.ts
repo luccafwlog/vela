@@ -33,7 +33,9 @@ describe('aviso de senha alterada do Portal (D12)', () => {
   it('o e-mail orienta a falar com o suporte se não foi a pessoa', () => {
     const mail = passwordChangedTemplate({ companyName: 'Acme <b>', cnpjMasked: '12.***.***/0001-90', portalUrl: 'https://portalfwlog.com.br', supportEmail: 'suporte@fwlog.com.br' })
     expect(mail.subject).toBe('Sua senha do Portal do Cliente foi alterada')
-    expect(mail.text).toContain('Se não foi você, fale com o suporte imediatamente: suporte@fwlog.com.br')
+    expect(mail.text).toContain('Portal do Cliente · Fwlog. Não foi você? Fale com suporte@fwlog.com.br imediatamente.')
+    expect(mail.html).toContain('Não foi você? Fale com <a href="mailto:suporte@fwlog.com.br"')
+    expect(mail.text).toContain('Se foi você, não é preciso fazer nada.')
     expect(mail.html).toContain('Acme &lt;b&gt;')
   })
 })

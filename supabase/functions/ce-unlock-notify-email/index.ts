@@ -16,6 +16,27 @@ if (typeof Deno !== "undefined") {
     if (req.method !== "POST" || !validCleanupAuthorization(req.headers.get("Authorization"), secret))
       return new Response("Acesso negado", { status: 403 });
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    // Protocolo e B/Ls da solicitação, para o bloco "Solicitação" do e-mail: uma leitura por solicitação.
+    const requestCache = new Map<string, Promise<{ protocol: string; bls: string[] }>>();
+    const requestDetails = (requestId: string) => {
+      let cached = requestCache.get(requestId);
+      if (!cached) {
+        cached = (async () => {
+          const [request, items] = await Promise.all([
+            admin.from("ce_unlock_requests").select("protocol").eq("id", requestId).maybeSingle(),
+            admin.from("ce_unlock_request_bls").select("bl_id").eq("request_id", requestId).order("bl_id"),
+          ]);
+          if (request.error) throw request.error;
+          if (items.error) throw items.error;
+          return {
+            protocol: (request.data as { protocol?: string } | null)?.protocol ?? "",
+            bls: ((items.data ?? []) as Array<{ bl_id: string }>).map((item) => item.bl_id),
+          };
+        })();
+        requestCache.set(requestId, cached);
+      }
+      return cached;
+    };
     const result = await runCeUnlockNotify({
       refreshOpen: async () => await admin.rpc("ce_unlock_refresh_open"),
       providerConfigured: Boolean(Deno.env.get("RESEND_API_KEY") && Deno.env.get("PORTAL_FROM_EMAIL") && Deno.env.get("PORTAL_REPLY_TO")),
@@ -73,6 +94,7 @@ if (typeof Deno !== "undefined") {
           message: row.body,
           portalUrl: canonicalPortalOrigin(),
           supportEmail: portalSupportEmail(),
+          request: await requestDetails(row.request_id),
         });
         const result = await sendPortalEmail({
           admin,

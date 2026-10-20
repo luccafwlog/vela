@@ -55,8 +55,9 @@ describe('assunto bilíngue dos avisos operacionais', () => {
 
   it('o renderizador usa o corpo condizente com Aviso de Chegada', () => {
     const rendered = renderCustomerCommunicationTemplate('aviso_prontidao_nor', base)
-    expect(rendered.html).toContain('Registramos a chegada do navio')
-    expect(rendered.text).toContain('Registramos a chegada do navio')
+    expect(rendered.html).toContain('Registramos a chegada do seu navio conforme abaixo.')
+    expect(rendered.html).toContain('>Chegada registrada<')
+    expect(rendered.text).toContain('Registramos a chegada do seu navio conforme abaixo.')
   })
 
   it('nenhum texto vivo ainda chama o NOR de Prontidão de Descarga', () => {

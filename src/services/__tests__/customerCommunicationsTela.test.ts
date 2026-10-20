@@ -317,7 +317,8 @@ describe('3.8 — Comunicado livre com os dados da carga', () => {
     expect(rendered.html).toContain('NAVIO &lt;X&gt;')
     expect(rendered.html).toContain('V&amp;7')
     expect(rendered.html).toContain('BL&quot;1, BL-2')
-    expect(rendered.text).toContain('Navio: NAVIO <X>\nViagem: V&7\nB/Ls: BL"1, BL-2')
+    expect(rendered.html).toContain('>Sua carga<')
+    expect(rendered.text).toContain('Sua carga\nNavio / Viagem: NAVIO <X> / V&7\nB/Ls: BL"1, BL-2')
   })
 
   it('o institucional continua sem bloco de carga', () => {

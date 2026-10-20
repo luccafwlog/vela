@@ -894,11 +894,18 @@ data, o último envio ou a pausa.
 - **Comunicado:** na mesma rodada, as Invoices do mesmo Cliente com o mesmo
   número de tentativa vão numa só mensagem, que lista cada Invoice sem
   consolidar valores: não há soma das Invoices. Uma Invoice só usa o modelo unitário
-  (`renderDemurrageTemplate`); duas ou mais usam `renderDemurrageGroupTemplate`
-  (decisão D8): o mesmo layout dos Comunicados, assunto geral ("Cobrança de
-  Demurrage — 3 faturas") e, em cada linha, Invoice, B/L, navio e viagem, USD
-  líquido, BRL informativo e o ROE com a data da cotação, mais a observação de
-  que o valor em reais é recalculado no dia do pagamento. A data do ROE é a da
+  (`renderDemurrageTemplate`): linha de apoio "DEM · navio / viagem", bloco
+  "Invoice DEM" com o USD líquido em destaque ("US$ 1.840,00") e B/L, Navio /
+  Viagem, "Em reais (informativo)" e ROE ("5,4600 em 19/10/2026"), a nota do
+  recálculo e o botão "Ver a cobrança no Portal". Duas ou mais usam
+  `renderDemurrageGroupTemplate` (decisão D8): o mesmo layout dos Comunicados,
+  assunto "Cobrança de Demurrage — N Invoices" e o bloco "Invoices" em lista
+  (Invoice e B/L à esquerda; US$ e o informativo em reais à direita), com Navio /
+  Viagem na faixa do bloco quando é a mesma para todas, senão na linha de cada
+  Invoice, e a nota do ROE com a data da cotação (ROEs diferentes são listados) e
+  do recálculo no dia do pagamento. Dólar sempre como "US$ 1.840,00" e ROE com
+  vírgula, também no texto puro; o rodapé leva `eqp@fwlog.com.br`
+  (`DEMURRAGE_CONTACT_EMAIL`, lote 6b). A data do ROE é a da
   cotação vigente em `demurrage_invoice_history` (a primeira foto com o ROE
   atual; migration `305`). Sem PIX nem anexo; o link leva ao Portal.
 
