@@ -17,6 +17,7 @@ import { formatBrasiliaDateTime } from './auditLogPresentation'
 import { classifyDbError } from '../../lib/errors'
 import { departmentLabel } from '../../lib/departmentLabel'
 import { formatDate } from '../../lib/utils'
+import { useAuth } from '../../hooks/useAuth'
 import { reactivateCatalogRow } from '../../services/deleteRecords'
 import { queryKeys } from '../../services/queryKeys'
 import {
@@ -26,6 +27,7 @@ import {
   deactivateUser,
   listAllUserProfiles,
   managedProfileOf,
+  restoreUserRole,
   updateUserCredentials,
   updateUserProfile,
   type AdminUserRow,
@@ -33,10 +35,16 @@ import {
 
 type SituationFilter = 'ativos' | 'inativos' | 'todos'
 
+function sameEmail(a: string | null | undefined, b: string | null | undefined) {
+  return (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase()
+}
+
 const BOUNCED_TITLE = 'E-mail devolvido pelo provedor ou marcado como spam: o sistema não envia mais para ele. Corrija em Editar acesso.'
 
 export function AdminUsersTab() {
   const queryClient = useQueryClient()
+  const { user: sessionUser } = useAuth()
+  const currentUserId = sessionUser?.id ?? null
   const { showToast } = useToast()
   const confirm = useConfirm()
   const confirmWithReason = useConfirmWithReason()
@@ -48,7 +56,11 @@ export function AdminUsersTab() {
   const [editando, setEditando] = useState<AdminUserRow | null>(null)
 
   const usersQuery = useQuery({ queryKey: queryKeys.admin.users(), queryFn: listAllUserProfiles })
-  const invalidateUsers = () => void queryClient.invalidateQueries({ queryKey: queryKeys.admin.users() })
+  // Toda mudança de usuário grava no Histórico de ações: a aba relê os dois.
+  const invalidateUsers = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.admin.users() })
+    void queryClient.invalidateQueries({ queryKey: [queryKeys.admin.auditLogs(null)[0]] })
+  }
 
   const reactivateMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => reactivateCatalogRow('user_profiles', id, reason),
@@ -82,24 +94,25 @@ export function AdminUsersTab() {
 
   // Setor e credenciais saem da mesma janela: o setor muda primeiro (a recusa do
   // banco, como a do último Administrativo ativo, para tudo) e depois o e-mail ou a senha.
-  // Se as credenciais falharem, o setor volta ao de antes, para a edição não ficar pela metade.
+  // Se as credenciais falharem, o setor volta ao de antes, para a edição não ficar pela metade,
+  // mas só se ainda está com o setor que esta edição gravou.
   // ponytail: compensação no navegador, não transação; o upgrade é uma função só no servidor.
   const accessMutation = useMutation({
     mutationFn: async ({ user, input }: { user: AdminUserRow; input: EditarAcessoInput; releasesEmail: boolean }) => {
-      const roleChanged = Boolean(input.role) && input.role !== user.role
+      // O próprio setor não muda aqui (a janela já trava): trocando o próprio setor,
+      // a Edge Function recusaria as credenciais e a volta seria recusada pelo banco.
+      if (input.role && user.id === currentUserId) throw new Error('O seu próprio setor só pode ser trocado por outra pessoa do Administrativo.')
+      const newRole = input.role && input.role !== user.role ? input.role : null
       if (input.role) await updateUserProfile(user.id, { role: input.role })
       if (!input.email && !input.password) return null
       try {
         return await updateUserCredentials({ user_id: user.id, email: input.email, password: input.password })
       } catch (err) {
-        if (roleChanged) {
-          try {
-            await updateUserProfile(user.id, { role: user.role })
-          } catch {
-            throw new Error(`${classifyDbError(err).message} O setor já tinha sido trocado e não voltou ao anterior; confira em Editar acesso.`)
-          }
-        }
-        throw err
+        if (!newRole) throw err
+        const failure = classifyDbError(err).message
+        const restored = await restoreUserRole(user.id, newRole, user.role).catch(() => false)
+        if (restored) throw new Error(`${failure} O setor voltou a ${departmentLabel(user.role)}.`, { cause: err })
+        throw new Error(`${failure} O setor ficou como ${PROFILE_LABELS[newRole]} e não voltou a ${departmentLabel(user.role)}; confira em Editar acesso.`, { cause: err })
       }
     },
     onSuccess: (result, { releasesEmail }) => {
@@ -148,7 +161,7 @@ export function AdminUsersTab() {
   }
 
   async function handleSaveAccess(user: AdminUserRow, input: EditarAcessoInput) {
-    const emailChanged = Boolean(input.email) && input.email !== user.email
+    const emailChanged = Boolean(input.email) && !sameEmail(input.email, user.email)
     const releasesEmail = Boolean(input.email) && !emailChanged
     const changes = [
       ...(input.role ? [{ field: 'Setor', before: departmentLabel(user.role), after: PROFILE_LABELS[input.role] }] : []),
@@ -260,11 +273,11 @@ export function AdminUsersTab() {
                         <td className="tabular-nums">{user.created_at ? formatDate(user.created_at) : <NoValue label="Sem data de criação" />}</td>
                         <td>
                           <div className="flex items-center justify-center gap-2">
-                            <RowActionButton label="Editar acesso" icon={KeyRound} disabled={isBusy} onClick={() => setEditando(user)} />
+                            <RowActionButton label={`Editar acesso de ${user.full_name}`} title="Editar acesso" icon={KeyRound} disabled={isBusy} onClick={() => setEditando(user)} />
                             {user.active ? (
-                              <RowActionButton label="Desativar" icon={UserX} variant="danger" disabled={isBusy} onClick={() => void handleToggleActive(user)} />
+                              <RowActionButton label={`Desativar ${user.full_name}`} title="Desativar" icon={UserX} variant="danger" disabled={isBusy} onClick={() => void handleToggleActive(user)} />
                             ) : (
-                              <RowActionButton label="Reativar" icon={UserCheck} disabled={isBusy} loading={isBusy} onClick={() => void handleToggleActive(user)} />
+                              <RowActionButton label={`Reativar ${user.full_name}`} title="Reativar" icon={UserCheck} disabled={isBusy} loading={isBusy} onClick={() => void handleToggleActive(user)} />
                             )}
                           </div>
                         </td>
@@ -306,6 +319,7 @@ export function AdminUsersTab() {
           currentEmail={editando.email}
           currentRole={editando.role}
           emailBounced={Boolean(editando.email_bounced)}
+          isSelf={editando.id === currentUserId}
           onClose={() => setEditando(null)}
           onSubmit={(input) => void handleSaveAccess(editando, input)}
           submitting={accessMutation.isPending}

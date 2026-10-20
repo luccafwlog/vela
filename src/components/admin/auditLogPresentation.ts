@@ -122,6 +122,7 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   dispute_subject: 'Assunto da disputa',
   dispute_reason: 'Motivo da disputa',
   communications_enabled: 'Envio real de e-mails',
+  password: 'Senha',
   container_number: 'Container',
   pod: 'POD',
   pol: 'POL',
@@ -137,6 +138,31 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   vessel_id: 'Navio',
   carrier_id: 'Armador',
   customer_id: 'Cliente',
+}
+
+/** Situação gravada em código, por entidade ("open" do ADR vira "Aberto"). */
+const STATUS_LABELS_BY_ENTITY: Record<string, Record<string, string>> = {
+  agency_departure_report: { open: 'Aberto', closed: 'Fechado' },
+  agency_departure_reports: { open: 'Aberto', closed: 'Fechado' },
+}
+
+/** Frase da troca de situação, quando a entidade tem uma ("ADR de Saída reaberto"). */
+const STATUS_SUMMARY_BY_ENTITY: Record<string, Record<string, string>> = {
+  agency_departure_report: { open: 'ADR de Saída reaberto', closed: 'ADR de Saída fechado' },
+  agency_departure_reports: { open: 'ADR de Saída reaberto', closed: 'ADR de Saída fechado' },
+}
+
+/** O Usuário criado pela Edge Function `admin-users` grava "Nome (setor)". */
+const NAME_WITH_ROLE = /^(.*\S)\s*\(([a-z_]+)\)$/
+
+function roleLabel(role: string): string {
+  return DEPARTMENT_LABELS[role as keyof typeof DEPARTMENT_LABELS] ?? (role === 'operator' ? 'Documentação' : 'Outro setor')
+}
+
+/** "Ana Souza (financeiro)" → "Ana Souza · Financeiro"; `null` quando o texto não tem esse formato. */
+function nameWithRole(value: string | null): string | null {
+  const match = value ? NAME_WITH_ROLE.exec(value.trim()) : null
+  return match ? `${match[1]} · ${roleLabel(match[2])}` : null
 }
 
 const CREATED_FIELDS = new Set(['criado', 'created', 'bl_created', 'insert'])
@@ -214,15 +240,26 @@ export function formatBrasiliaDateTime(value: string): string {
   return time ? `${day}/${month}/${year} ${time}` : `${day}/${month}/${year}`
 }
 
-/** Valor de um campo em português: Sim/Não, setor, data de Brasília, "vazio". */
-export function formatAuditValue(fieldName: string | null, value: string | null): string {
+/**
+ * Valor de um campo em português: Sim/Não, setor, situação da entidade, data de
+ * Brasília, "vazio". `entityType` traduz o que só faz sentido por entidade.
+ */
+export function formatAuditValue(fieldName: string | null, value: string | null, entityType?: string): string {
   const field = (fieldName ?? '').split('|')[0]
   if (value == null || value.trim() === '' || value === 'null') return 'vazio'
   const trimmed = value.trim()
+  if (field === 'status' && entityType) {
+    const status = STATUS_LABELS_BY_ENTITY[entityType]?.[trimmed]
+    if (status) return status
+  }
+  if (entityType === 'user_profile' && CREATED_FIELDS.has(field)) {
+    const person = nameWithRole(trimmed)
+    if (person) return person
+  }
   if (blFieldLabel(field)) return formatBlFieldValue(field, trimmed)
   if (trimmed === 'true') return field === 'active' ? 'Ativo' : 'Sim'
   if (trimmed === 'false') return field === 'active' ? 'Inativo' : 'Não'
-  if (field === 'role') return DEPARTMENT_LABELS[trimmed as keyof typeof DEPARTMENT_LABELS] ?? (trimmed === 'operator' ? 'Documentação' : 'Outro setor')
+  if (field === 'role') return roleLabel(trimmed)
   if (ISO_DATE.test(trimmed)) {
     const [year, month, day] = trimmed.split('-')
     return `${day}/${month}/${year}`
@@ -245,7 +282,7 @@ export function auditValueFacts(entityType: string, value: string | null): Audit
     if (HIDDEN_JSON_KEYS.has(key) || raw == null || raw === '') return []
     const label = auditFieldLabel(entityType, key)
     if (!label || typeof raw === 'object') return []
-    return [{ label, value: formatAuditValue(key, String(raw)) }]
+    return [{ label, value: formatAuditValue(key, String(raw), entityType) }]
   })
 }
 
@@ -254,7 +291,7 @@ export function describeAuditLog(row: AuditLogLike): string {
   const noun = nounOf(row.entity_type)
   const field = (row.field_name ?? '').split('|')[0]
   if (CREATED_FIELDS.has(field)) {
-    const name = recordName(row.new_value)
+    const name = recordName(row.new_value) ?? (row.entity_type === 'user_profile' ? nameWithRole(row.new_value) : null)
     return name ? `${participle(noun, 'criado')}: ${name}` : participle(noun, 'criado')
   }
   if (DELETED_FIELDS.has(field)) {
@@ -263,9 +300,14 @@ export function describeAuditLog(row: AuditLogLike): string {
   }
   if (REACTIVATED_FIELDS.has(field) || (field === 'active' && row.new_value === 'true')) return participle(noun, 'reativado')
   if (DEACTIVATED_FIELDS.has(field) || (field === 'active' && row.new_value === 'false')) return participle(noun, 'desativado')
+  if (field === 'status') {
+    const statusSummary = STATUS_SUMMARY_BY_ENTITY[row.entity_type]?.[(row.new_value ?? '').trim()]
+    if (statusSummary) return statusSummary
+  }
+  if (row.entity_type === 'user_profile' && field === 'password') return 'Senha redefinida'
   const label = auditFieldLabel(row.entity_type, row.field_name)
   if (!label) return participle(noun, 'alterado')
-  const value = formatAuditValue(row.field_name, row.new_value)
+  const value = formatAuditValue(row.field_name, row.new_value, row.entity_type)
   if (parseJsonObject(row.new_value) || value.length > 60) return `${label} alterado`
   return `${label}: ${value}`
 }

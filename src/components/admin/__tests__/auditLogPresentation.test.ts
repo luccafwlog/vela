@@ -43,6 +43,23 @@ describe('Histórico de ações legível', () => {
     expect(unknown).not.toContain('imo_number_x')
   })
 
+  it('ADR de Saída reaberto ou fechado, com a situação em português', () => {
+    expect(describeAuditLog(log('agency_departure_report', 'status', 'closed', 'open'))).toBe('ADR de Saída reaberto')
+    expect(describeAuditLog(log('agency_departure_report', 'status', 'open', 'closed'))).toBe('ADR de Saída fechado')
+    expect(formatAuditValue('status', 'open', 'agency_departure_report')).toBe('Aberto')
+    expect(formatAuditValue('status', 'closed', 'agency_departure_report')).toBe('Fechado')
+    // A situação de outra entidade não ganha a tradução do ADR.
+    expect(formatAuditValue('status', 'open', 'invoices')).toBe('open')
+  })
+
+  it('senha redefinida e usuário criado com nome e setor, sem o código do setor', () => {
+    expect(describeAuditLog(log('user_profile', 'password', null, 'redefinida pelo administrador'))).toBe('Senha redefinida')
+    expect(describeAuditLog(log('user_profile', 'created', null, 'Ana Souza (financeiro)'))).toBe('Usuário criado: Ana Souza · Financeiro')
+    expect(formatAuditValue('created', 'Ana Souza (financeiro)', 'user_profile')).toBe('Ana Souza · Financeiro')
+    expect(formatAuditValue('created', 'José (Zé) Lima (operator)', 'user_profile')).toBe('José (Zé) Lima · Documentação')
+    expect(formatAuditValue('created', 'Texto sem setor', 'user_profile')).toBe('Texto sem setor')
+  })
+
   it('formata valores: vazio, Sim/Não, datas de Brasília', () => {
     expect(formatAuditValue('notes', null)).toBe('vazio')
     expect(formatAuditValue('applies_to_soc', 'false')).toBe('Não')

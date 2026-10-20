@@ -48,11 +48,11 @@ export function PermissionMatrixBlock() {
             {rowsByGroup(rows).map(({ group, rows: groupRows }) => (
               <Fragment key={group.id}>
                 <tr>
-                  <td colSpan={DEPARTMENTS.length + 1} className="font-semibold">{group.label}</td>
+                  <th scope="rowgroup" colSpan={DEPARTMENTS.length + 1} className="app-table__text-head font-semibold">{group.label}</th>
                 </tr>
                 {groupRows.map((row) => (
                   <tr key={row.id}>
-                    <td className="app-table__text app-table__text--wrap">{row.action}</td>
+                    <th scope="row" className="app-table__text app-table__text--wrap font-normal">{row.action}</th>
                     {DEPARTMENTS.map((department) => (
                       <td key={department}><MatrixCell value={row.can[department]} /></td>
                     ))}

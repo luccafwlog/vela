@@ -82,6 +82,7 @@ const INVOICE_ID = 99085071
 const INVOICE_ITEM_ID = 99085072
 const RECEIVABLE_ID = 99085073
 const LIFECYCLE_ID = 99085074
+const COMMUNICATION_ID = 99085081
 const COUNTER_YEAR = 2085
 const POD = 'P85PD'
 const BL = 'P85-BL1'
@@ -114,6 +115,7 @@ function cleanup() {
     DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${TABLE_ID} OR charge_item_id IN (${ITEM_THC}, ${ITEM_MANUAL});
     DELETE FROM public.charge_table_items WHERE charge_table_id = ${TABLE_ID};
     DELETE FROM public.charge_tables WHERE id = ${TABLE_ID};
+    DELETE FROM public.customer_communications WHERE id = ${COMMUNICATION_ID} OR customer_id = ${CUSTOMER_ID};
     DELETE FROM public.portal_provisioning_events WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_contact_box_links WHERE contact_id IN (SELECT id FROM public.customer_contacts WHERE customer_id = ${CUSTOMER_ID});
@@ -169,6 +171,8 @@ function seed() {
     INSERT INTO public.bl_receivables (id, bl_id, customer_id) VALUES (${RECEIVABLE_ID}, '${BL}', ${CUSTOMER_ID});
     INSERT INTO public.invoice_lifecycle_events (id, invoice_id, event_type) VALUES (${LIFECYCLE_ID}, ${INVOICE_ID}, 'issued');
     INSERT INTO public.invoice_counters (year) VALUES (${COUNTER_YEAR});
+    INSERT INTO public.customer_communications (id, customer_id, kind, nature, status)
+      VALUES (${COMMUNICATION_ID}, ${CUSTOMER_ID}, 'ce_mercante_taxas', 'documentacao', 'simulado');
     SET session_replication_role = origin;
   `)
 }
@@ -757,8 +761,10 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
         expect(runAs(profile, `SELECT public.reactivate_catalog_row('${table}', '${id}', 'voltou a operar')`).error).toBe('')
         expect(psql(`SELECT active FROM public.${table} WHERE id = '${id}';`)).toBe('t')
       }
-      // Fora do Administrativo, editar os demais campos segue liberado.
-      expect(runAs(profile, `UPDATE public.depots SET name = 'B15 editado' WHERE id = '${depotId}'`).error).toBe('')
+      // Fora do Administrativo, editar os demais campos segue liberado: a linha é alcançada (a RLS recusaria sem erro, com zero linhas).
+      const rename = runAs(profile, `WITH changed AS (UPDATE public.depots SET name = 'B15 editado' WHERE id = '${depotId}' RETURNING 1) SELECT count(*) FROM changed`)
+      expect(rename.error, profile).toBe('')
+      expect(rename.output, profile).toBe('1')
     } finally {
       psql(`SET session_replication_role = replica;
         DELETE FROM public.audit_logs WHERE entity_id IN ('${depotId}', '${serviceId}');
@@ -867,7 +873,8 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Condição de Demurrage do B/L', statement: `SELECT public.save_bl_demurrage_config('${BL}', NULL, 7, NULL, NULL, '{actor}')` },
     { row: 'Editar os dados da disputa', statement: `UPDATE public.demurrage_invoices SET dispute_notes = 'P14' WHERE id = ${DEM_INVOICE_ID}` },
     { row: 'Editar Cliente', statement: `UPDATE public.customers SET trade_name = 'P14' WHERE id = ${CUSTOMER_ID}` },
-    { row: 'Ler o Histórico de Comunicados', statement: `SELECT count(*) FROM public.customer_communications` },
+    // Lê a linha semeada: sem a leitura, a RLS devolve zero linhas e o caso dá SEM-LINHA (count(*) sempre devolveria uma).
+    { row: 'Ler o Histórico de Comunicados', statement: `SELECT id FROM public.customer_communications WHERE id = ${COMMUNICATION_ID}` },
   ]
 
   it.each(MATRIX_GLOBAL)('Catálogo: $row — os cinco setores passam da guarda', ({ statement }) => {

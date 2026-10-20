@@ -24,6 +24,26 @@ export async function updateUserProfile(
   if (error) throw error
 }
 
+/**
+ * Devolve o setor anterior só se o registro ainda está com o setor que acabou de
+ * ser gravado (`expectedRole`); se alguém o trocou no meio, não sobrescreve.
+ * `true` quando voltou; `false` quando nenhuma linha estava mais com `expectedRole`.
+ */
+export async function restoreUserRole(
+  id: string,
+  expectedRole: UserProfileRole,
+  previousRole: UserProfileRole,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .update({ role: previousRole })
+    .eq('id', id)
+    .eq('role', expectedRole)
+    .select('id')
+  if (error) throw error
+  return (data ?? []).length > 0
+}
+
 async function invokeAdminUsers(body: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await supabase.functions.invoke('admin-users', { body })
   if (!error) return data

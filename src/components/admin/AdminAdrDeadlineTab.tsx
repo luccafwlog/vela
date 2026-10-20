@@ -82,7 +82,7 @@ export function AdminAdrDeadlineTab() {
                     {DEPARTMENTS.map((department) => (
                       <th key={department} scope="col">{AGENCY_REPORT_DEPARTMENT_LABELS[department]}</th>
                     ))}
-                    <th scope="col">Fechado em</th>
+                    <th scope="col">Dias corridos do ATD ao Fechamento</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -98,7 +98,7 @@ export function AdminAdrDeadlineTab() {
                           <DepartmentOutcome entry={row.departments.find((entry) => entry.department === department)} />
                         </td>
                       ))}
-                      <td className="tabular-nums whitespace-nowrap">
+                      <td className="tabular-nums whitespace-nowrap" title={row.closedAt ? `Fechado em ${formatBrasiliaDateTime(row.closedAt)}` : undefined}>
                         {row.elapsedCalendarDaysToClosure !== null
                           ? `${row.elapsedCalendarDaysToClosure} ${row.elapsedCalendarDaysToClosure === 1 ? 'dia' : 'dias'}`
                           : <NoValue label="Sem fechamento" />}

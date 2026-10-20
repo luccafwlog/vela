@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   showToast: vi.fn(),
   listAllUserProfiles: vi.fn(),
   updateUserProfile: vi.fn(),
+  restoreUserRole: vi.fn(),
+  authUserId: 'u-admin' as string | null,
   createUser: vi.fn(),
   updateUserCredentials: vi.fn(),
   deactivateUser: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (options: unknown) => ((await mocks.confirm(options)) ? 'motivo' : null) }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.authUserId ? { id: mocks.authUserId } : null }) }))
 vi.mock('../../services/deleteRecords', () => ({ reactivateCatalogRow: mocks.reactivateCatalogRow }))
 vi.mock('../../services/adminUsers', async (importActual) => {
   const actual = await importActual<typeof import('../../services/adminUsers')>()
@@ -53,6 +56,7 @@ vi.mock('../../services/adminUsers', async (importActual) => {
     ...actual,
     listAllUserProfiles: mocks.listAllUserProfiles,
     updateUserProfile: mocks.updateUserProfile,
+    restoreUserRole: mocks.restoreUserRole,
     createUser: mocks.createUser,
     updateUserCredentials: mocks.updateUserCredentials,
     deactivateUser: mocks.deactivateUser,
@@ -83,6 +87,8 @@ beforeEach(() => {
   mocks.errorByKey = {}
   mocks.dataByKey = {}
   mocks.updateUserProfile.mockResolvedValue(undefined)
+  mocks.restoreUserRole.mockResolvedValue(true)
+  mocks.authUserId = 'u-admin'
   mocks.confirm.mockResolvedValue(true)
 })
 afterEach(cleanup)
@@ -112,7 +118,7 @@ it('a linha inativa aparece em cinza com a Situação "Todos"', () => {
   const bruno = userRow('Bruno Inativo')
   expect(bruno.className).toContain('app-table__row--muted')
   expect(within(bruno).getByText('Inativo')).toBeTruthy()
-  expect(within(bruno).getByRole('button', { name: 'Reativar' })).toBeTruthy()
+  expect(within(bruno).getByRole('button', { name: 'Reativar Bruno Inativo' })).toBeTruthy()
 })
 
 it('marca o e-mail devolvido em âmbar, com o motivo ao passar o mouse', () => {
@@ -143,7 +149,7 @@ it('filtra por busca e por setor', () => {
 it('desativa pela Edge Function depois de confirmar', async () => {
   mocks.deactivateUser.mockResolvedValue(undefined)
   renderAdmin()
-  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Desativar' }))
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Desativar Alice Operadora' }))
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
   await waitFor(() => expect(mocks.deactivateUser).toHaveBeenCalledWith('u-1'))
 })
@@ -151,7 +157,7 @@ it('desativa pela Edge Function depois de confirmar', async () => {
 it('cancelar a confirmação não desativa o usuário', async () => {
   mocks.confirm.mockResolvedValue(false)
   renderAdmin()
-  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Desativar' }))
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Desativar Alice Operadora' }))
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
   expect(mocks.deactivateUser).not.toHaveBeenCalled()
 })
@@ -160,7 +166,7 @@ it('A7: Reativar não repete a chamada enquanto a primeira está em andamento', 
   mocks.reactivateCatalogRow.mockReturnValue(new Promise(() => {}))
   renderAdmin()
   fireEvent.change(screen.getByLabelText('Situação'), { target: { value: 'inativos' } })
-  const button = within(userRow('Bruno Inativo')).getByRole('button', { name: 'Reativar' })
+  const button = within(userRow('Bruno Inativo')).getByRole('button', { name: 'Reativar Bruno Inativo' })
   fireEvent.click(button)
   await waitFor(() => expect(mocks.reactivateCatalogRow).toHaveBeenCalledWith('user_profiles', 'u-2', 'motivo'))
   fireEvent.click(button)
@@ -171,7 +177,7 @@ it('A7: Reativar não repete a chamada enquanto a primeira está em andamento', 
 
 it('troca o setor em "Editar acesso", com a lista do que a pessoa poderá fazer e confirmação', async () => {
   renderAdmin()
-  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso' }))
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
   const dialog = screen.getByRole('dialog')
   const canList = () => within(dialog).getByText('Com este setor, Alice pode').nextElementSibling as HTMLElement
   expect(within(canList()).queryByText('Registrar pagamento (baixa manual) e confirmar Restituição')).toBeNull()
@@ -187,25 +193,91 @@ it('troca o setor em "Editar acesso", com a lista do que a pessoa poderá fazer 
   expect(mocks.updateUserCredentials).not.toHaveBeenCalled()
 })
 
-it('devolve o setor anterior quando a troca de senha falha na mesma edição', async () => {
-  mocks.updateUserCredentials.mockRejectedValueOnce(new Error('Falhou a troca de senha.'))
-  renderAdmin()
-  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso' }))
+function changeSectorAndPassword() {
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
   const dialog = screen.getByRole('dialog')
   fireEvent.change(within(dialog).getByLabelText('Setor'), { target: { value: 'financeiro' } })
   fireEvent.change(within(dialog).getByLabelText('Nova senha'), { target: { value: 'SenhaNova#2026' } })
   fireEvent.change(within(dialog).getByLabelText('Confirmar nova senha'), { target: { value: 'SenhaNova#2026' } })
   fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
-  await waitFor(() => expect(mocks.updateUserProfile).toHaveBeenCalledTimes(2))
-  expect(mocks.updateUserProfile).toHaveBeenNthCalledWith(1, 'u-1', { role: 'financeiro' })
-  expect(mocks.updateUserProfile).toHaveBeenNthCalledWith(2, 'u-1', { role: 'operacoes' })
-  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Falhou a troca de senha.', 'error'))
+}
+
+it('devolve o setor anterior quando a troca de senha falha na mesma edição, e diz isso', async () => {
+  mocks.updateUserCredentials.mockRejectedValueOnce(new Error('Falhou a troca de senha.'))
+  renderAdmin()
+  changeSectorAndPassword()
+  await waitFor(() => expect(mocks.restoreUserRole).toHaveBeenCalledWith('u-1', 'financeiro', 'operacoes'))
+  expect(mocks.updateUserProfile).toHaveBeenCalledTimes(1)
+  expect(mocks.updateUserProfile).toHaveBeenCalledWith('u-1', { role: 'financeiro' })
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Falhou a troca de senha. O setor voltou a Operações.', 'error'))
+})
+
+it('avisa que o setor não voltou quando a volta é recusada ou alguém já o trocou', async () => {
+  mocks.updateUserCredentials.mockRejectedValueOnce(new Error('Falhou a troca de senha.'))
+  mocks.restoreUserRole.mockRejectedValueOnce(new Error('permission denied'))
+  renderAdmin()
+  changeSectorAndPassword()
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(
+    'Falhou a troca de senha. O setor ficou como Financeiro e não voltou a Operações; confira em Editar acesso.', 'error'))
+  // A lista relê para mostrar o setor que ficou.
+  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-users'] })
+
+  vi.clearAllMocks()
+  mocks.confirm.mockResolvedValue(true)
+  mocks.updateUserCredentials.mockRejectedValueOnce(new Error('Falhou a troca de senha.'))
+  mocks.restoreUserRole.mockResolvedValueOnce(false)
+  cleanup()
+  renderAdmin()
+  changeSectorAndPassword()
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('não voltou a Operações'), 'error'))
+})
+
+it('na própria linha, o Setor fica travado com a explicação e só a credencial é enviada', async () => {
+  mocks.authUserId = 'u-1'
+  mocks.updateUserCredentials.mockResolvedValue({ released: 0 })
+  renderAdmin()
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
+  const dialog = screen.getByRole('dialog')
+  const sectorSelect = within(dialog).getByLabelText('Setor') as HTMLSelectElement
+  expect(sectorSelect.disabled).toBe(true)
+  expect(within(dialog).getByText(/só pode ser trocado por outra pessoa do Administrativo/)).toBeTruthy()
+  fireEvent.change(within(dialog).getByLabelText('Nova senha'), { target: { value: 'SenhaNova#2026' } })
+  fireEvent.change(within(dialog).getByLabelText('Confirmar nova senha'), { target: { value: 'SenhaNova#2026' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.updateUserCredentials).toHaveBeenCalledWith(expect.objectContaining({ user_id: 'u-1', password: 'SenhaNova#2026' })))
+  expect(mocks.updateUserProfile).not.toHaveBeenCalled()
+})
+
+it('a linha de outra pessoa continua com o Setor liberado', () => {
+  renderAdmin()
+  fireEvent.click(within(userRow('Carla Nunca')).getByRole('button', { name: 'Editar acesso de Carla Nunca' }))
+  expect((within(screen.getByRole('dialog')).getByLabelText('Setor') as HTMLSelectElement).disabled).toBe(false)
+})
+
+it('salvar o acesso relê também o Histórico de ações', async () => {
+  renderAdmin()
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
+  fireEvent.change(within(screen.getByRole('dialog')).getByLabelText('Setor'), { target: { value: 'financeiro' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-audit-logs'] }))
+  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-users'] })
+})
+
+it('o mesmo e-mail em outra caixa de letra não conta como troca de e-mail', async () => {
+  mocks.updateUserCredentials.mockResolvedValue({ released: 1 })
+  renderAdmin()
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
+  fireEvent.change(screen.getByLabelText(/E-mail de login/), { target: { value: 'ALICE@fwlog.com.br' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
+    changes: [expect.objectContaining({ field: 'E-mail', after: 'Liberado para receber de novo' })],
+  })))
 })
 
 it('não troca o setor quando a confirmação é recusada', async () => {
   mocks.confirm.mockResolvedValue(false)
   renderAdmin()
-  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso' }))
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
   fireEvent.change(within(screen.getByRole('dialog')).getByLabelText('Setor'), { target: { value: 'financeiro' } })
   fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
@@ -279,7 +351,7 @@ it('recusa a criação quando a confirmação de senha não confere', () => {
 it('solicita confirmação com diff ao alterar credenciais de acesso', async () => {
   mocks.updateUserCredentials.mockResolvedValue({ released: 1 })
   renderAdmin()
-  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso' }))
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
   fireEvent.change(screen.getByLabelText(/E-mail de login/), { target: { value: 'novo@fwlog.com.br' } })
   fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
@@ -295,7 +367,7 @@ it('solicita confirmação com diff ao alterar credenciais de acesso', async () 
 it('salvar o mesmo e-mail devolvido libera a supressão (plano dos e-mails, 2.8)', async () => {
   mocks.updateUserCredentials.mockResolvedValue({ released: 1 })
   renderAdmin()
-  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso' }))
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
   expect(screen.getByText(/salve o mesmo e-mail para liberá-lo/)).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({
@@ -307,7 +379,7 @@ it('salvar o mesmo e-mail devolvido libera a supressão (plano dos e-mails, 2.8)
 it('redefinir só a senha de um e-mail devolvido não libera a supressão', async () => {
   mocks.updateUserCredentials.mockResolvedValue({ released: 0 })
   renderAdmin()
-  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso' }))
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
   fireEvent.change(screen.getByLabelText('Nova senha'), { target: { value: 'NovaSenha#2026' } })
   fireEvent.change(screen.getByLabelText('Confirmar nova senha'), { target: { value: 'NovaSenha#2026' } })
   fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
@@ -319,7 +391,7 @@ it('redefinir só a senha de um e-mail devolvido não libera a supressão', asyn
 it('avisa quando o e-mail devolvido continua bloqueado por ser também de Cliente', async () => {
   mocks.updateUserCredentials.mockResolvedValue({ released: 0 })
   renderAdmin()
-  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso' }))
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Editar acesso de Alice Operadora' }))
   fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
   await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('continua bloqueado'), 'error'))
 })
@@ -348,6 +420,9 @@ it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e fras
   const role = screen.getByText('Setor: Financeiro').closest('tr') as HTMLElement
   expect(within(role).getByText('Alice Operadora')).toBeTruthy()
   expect(within(role).getByText('Usuário')).toBeTruthy()
+  // O registro alterado: o Usuário pelo nome da lista já carregada; os demais pelo identificador.
+  expect(within(role).getByText('Carla Nunca')).toBeTruthy()
+  expect(within(created).getByText('7')).toBeTruthy()
   fireEvent.click(within(role).getByRole('button', { name: /Abrir/ }))
   const detail = role.nextElementSibling as HTMLElement
   expect(within(detail).getByText('Documentação')).toBeTruthy()
@@ -358,6 +433,35 @@ it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e fras
   expect(screen.getByLabelText('Assunto')).toBeTruthy()
   expect(within(screen.getByLabelText('Por')).getByRole('option', { name: 'Sistema' })).toBeTruthy()
   expect(screen.getByLabelText('Até')).toBeTruthy()
+})
+
+it('Histórico de ações: ADR reaberto em português, com o registro', () => {
+  mocks.dataByKey = {
+    'admin-audit-logs': {
+      count: 1,
+      rows: [
+        { id: 3, entity_type: 'agency_departure_report', entity_id: '99::BRSSZ', field_name: 'status', old_value: 'closed', new_value: 'open', changed_by: 'u-1', changed_at: '2026-10-19T21:02:00Z', justification: 'Faltou assinatura', changer_name: 'Alice Operadora' },
+      ],
+    },
+  }
+  renderAdmin('historico')
+  const row = screen.getByText('ADR de Saída reaberto').closest('tr') as HTMLElement
+  expect(within(row).getByText('99 · BRSSZ')).toBeTruthy()
+  fireEvent.click(within(row).getByRole('button', { name: /Abrir/ }))
+  const detail = row.nextElementSibling as HTMLElement
+  expect(within(detail).getByText('Fechado')).toBeTruthy()
+  expect(within(detail).getByText('Aberto')).toBeTruthy()
+  expect(document.body.textContent).not.toMatch(/\bopen\b|\bclosed\b/)
+})
+
+it('"O que cada setor pode": grupo e ação são cabeçalhos da linha', () => {
+  renderAdmin()
+  const matrix = screen.getByRole('region', { name: 'O que cada setor pode' })
+  const action = within(matrix).getByRole('rowheader', { name: 'Cancelar e reativar Viagem e B/L, com motivo' })
+  expect(action.getAttribute('scope')).toBe('row')
+  const group = matrix.querySelector('th[scope="rowgroup"]') as HTMLElement
+  expect(group).toBeTruthy()
+  expect(group.getAttribute('colspan')).toBe('6')
 })
 
 it('A5: Histórico em erro não diz "nenhuma ação"', () => {
@@ -404,6 +508,8 @@ it('Prazo do ADR: cartões "x de y no prazo" e células em texto (A6)', () => {
   expect(within(row).getByText('Atrasou 6 h')).toBeTruthy()
   expect(within(row).getByText('Não assinou')).toBeTruthy()
   expect(within(row).getByText('3 dias')).toBeTruthy()
+  expect(within(row).getByText('3 dias').getAttribute('title')).toBe('Fechado em 11/09/2026 12:00')
+  expect(screen.getByRole('columnheader', { name: 'Dias corridos do ATD ao Fechamento' })).toBeTruthy()
   expect(screen.getAllByText('1 de 1')).toHaveLength(1)
   expect(screen.queryByText('Sem prazo')).toBeNull()
 })

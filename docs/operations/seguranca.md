@@ -57,9 +57,12 @@ igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
 Todo perfil interno ativo lê dado operacional e financeiro, inclusive de
 tarifação (`is_active_read_user()`;
 [ADR 0044](../adr/0044-leitura-interna-global-departamento-restringe-escrita.md)).
-A única exceção é a área `/admin` inteira — Usuários, Falhas de entrega de alertas,
-Histórico de ações, Sistema e Prazo do ADR —, só do Administrativo, inclusive para leitura; o item Admin do menu só
-aparece para ele. Desbloqueio de CE, documentos do pedido, fila de Disputas,
+A tela `/admin` — Usuários, Falhas de entrega de alertas, Histórico de ações,
+Sistema e Prazo do ADR — só abre para o Administrativo (rota `adminOnly`; o item
+Admin do menu só aparece para ele), mas só a lista de usuários é recusada aos
+demais no banco (`admin_list_users`); os dados das outras abas, como
+`audit_logs` e `alert_notification_failures`, seguem a leitura global
+([matriz](#modelo-de-permissões-por-perfil)). Desbloqueio de CE, documentos do pedido, fila de Disputas,
 Histórico do console do Portal e Comunicados passaram à leitura global na
 migration `250` (P12; [matriz](#modelo-de-permissões-por-perfil)).
 

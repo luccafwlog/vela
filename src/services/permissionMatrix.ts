@@ -76,7 +76,7 @@ function alertTypes(count: number) {
 
 export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   // Usuários e sistema
-  { id: 'abrir-administracao', group: 'usuarios', action: 'Abrir a Administração (usuários, histórico, sistema)', can: ADM, proof: ['exceção: Abrir a Administração'] },
+  { id: 'abrir-administracao', group: 'usuarios', action: 'Abrir a tela Administração e listar os usuários', can: ADM, proof: ['exceção: Abrir a Administração'] },
   { id: 'gerir-usuarios', group: 'usuarios', action: 'Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha', can: ADM, proof: ['caso: Catálogo: só o Administrativo muda o setor e a situação de um usuário'] },
   { id: 'envio-real-emails', group: 'usuarios', action: 'Ligar e desligar o envio real de e-mails', can: ADM, proof: ['exceção: Ligar e desligar o envio real de e-mails'] },
   { id: 'ultimo-administrativo', group: 'usuarios', action: 'Desativar ou rebaixar o último Administrativo ativo', can: only(), proof: ['caso: Catálogo: ninguém desativa nem rebaixa o último Administrativo ativo'] },

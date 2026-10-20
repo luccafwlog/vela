@@ -16,6 +16,7 @@ export function EditarAcessoModal({
   currentEmail,
   currentRole,
   emailBounced = false,
+  isSelf = false,
   onClose,
   onSubmit,
   submitting,
@@ -27,6 +28,11 @@ export function EditarAcessoModal({
   currentRole: UserProfileRole
   /** Endereço suprimido por bounce ou spam: salvar o mesmo e-mail libera a supressão. */
   emailBounced?: boolean
+  /**
+   * A pessoa edita a própria linha: o Setor fica travado. Trocar o próprio setor
+   * tira o acesso à Administração no meio da edição e o banco não deixa voltar.
+   */
+  isSelf?: boolean
   onClose: () => void
   onSubmit: (input: EditarAcessoInput) => void
   submitting: boolean
@@ -43,7 +49,7 @@ export function EditarAcessoModal({
     const trimmed = email.trim().toLowerCase()
     const emailChanged = trimmed !== (currentEmail ?? '').toLowerCase()
     // O papel legado só muda quando alguém escolhe outro setor de fato.
-    const roleChanged = role !== initialRole
+    const roleChanged = !isSelf && role !== initialRole
     if (emailChanged && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) return setError('E-mail inválido.')
     if (password && !isValidPassword(password)) return setError(PASSWORD_RULE_MESSAGE)
     if (password && password !== confirmation) return setError('As senhas não conferem.')
@@ -62,8 +68,11 @@ export function EditarAcessoModal({
   return (
     <Modal open={open} title={`Editar acesso — ${userName}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="grid gap-3">
-        <Field label="Setor">
-          <Select value={role} onChange={(e) => setRole(e.target.value as Department)}>
+        <Field
+          label="Setor"
+          hint={isSelf ? 'O seu próprio setor só pode ser trocado por outra pessoa do Administrativo. Para trocar a sua senha, use Meu perfil › Alterar senha.' : undefined}
+        >
+          <Select value={role} disabled={isSelf} onChange={(e) => setRole(e.target.value as Department)}>
             {MANAGED_PROFILES.map((profile) => (
               <option key={profile} value={profile}>{PROFILE_LABELS[profile]}</option>
             ))}
