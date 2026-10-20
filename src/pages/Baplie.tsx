@@ -172,9 +172,14 @@ export function Baplie() {
 
   async function handleSubstituirVazios() {
     if (!user || !voyageId || !existingVaziosManifest) return
-    await retryBaplieVazios({ voyageId: Number(voyageId), actorId: user.id })
+    const total = await retryBaplieVazios({ voyageId: Number(voyageId), actorId: user.id })
     await afterBaplieImportado(queryClient, { voyageId })
-    showToast(`Vazios de importação atualizados: ${plural(emptyContainers.length, 'container', 'containers')}.`, 'success')
+    showToast(
+      total === 0
+        ? 'Vazios de importação do Baplie anterior removidos: este Baplie não traz vazios.'
+        : `Vazios de importação atualizados: ${plural(total, 'container', 'containers')}.`,
+      'success',
+    )
   }
 
   async function handleExport() {
@@ -274,7 +279,9 @@ export function Baplie() {
             }}
           />
 
-          {emptyContainers.length > 0 ? (
+          {/* Baplie sem vazios com vazios do Baplie anterior ainda cadastrados
+              (recadastro que falhou): o bloco fica para tirá-los (migration 336). */}
+          {emptyContainers.length > 0 || existingVaziosManifest ? (
             <VaziosSection
               emptyCount={emptyContainers.length}
               existingManifest={existingVaziosManifestLoading ? null : (existingVaziosManifest ?? null)}
@@ -678,7 +685,9 @@ function VaziosSection({
             <>
               <LeadValue
                 tone={outOfDate ? 'warning' : 'default'}
-                detail={isCountMismatch
+                detail={emptyCount === 0
+                  ? `cadastrados em ${formatDate(existingManifest.imported_at)} com ${existingManifest.total_containers}; este Baplie não traz vazios, e atualizar tira da Viagem os vazios vindos do Baplie anterior`
+                  : isCountMismatch
                   ? `cadastrados em ${formatDate(existingManifest.imported_at)} com ${existingManifest.total_containers}; atualizar substitui o cadastro pelos vazios deste Baplie`
                   : outOfDate
                     ? `cadastrados em ${formatDate(existingManifest.imported_at)} com outros containers ou rotas; atualizar substitui o cadastro pelos vazios deste Baplie`

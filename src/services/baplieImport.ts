@@ -368,6 +368,10 @@ export type BaplieReimportPlan = {
   existing: number
   diff: BaplieReplacementDiff
   hasVaziosManifest: boolean
+  /** Vazios do manifesto vindo do Baplie anterior (0 sem manifesto). */
+  vaziosManifestTotal?: number
+  /** Vazios do Baplie novo. */
+  incomingEmpties?: number
   flags?: BaplieFlagsPreview
 }
 
@@ -388,7 +392,11 @@ export function baplieReplacementConfirmOptions(plan: BaplieReimportPlan, incomi
         ...(plan.flags?.divergent_manual ?? []).map((item) => `Perfil manual mantido: ${item.container} no B/L ${item.bl_id} (o Baplie diz outra coisa; vira divergência)`),
       ],
     },
-    consequence: recadastraVazios
+    consequence: recadastraVazios && plan.incomingEmpties === 0
+      // Decisão de 2026-10-20 (migration 336): um Baplie sempre traz os
+      // vazios; sem nenhum, os do Baplie anterior saem da Viagem.
+      ? `Este Baplie não traz vazios: ${(plan.vaziosManifestTotal ?? 0) === 1 ? 'o vazio de importação vindo do Baplie anterior sai' : `os ${plan.vaziosManifestTotal ?? 0} vazios de importação vindos do Baplie anterior saem`} da Viagem, com a natureza (cama/cover plate) digitada e o Nº do manifesto Mercante de vazios das rotas que ficarem sem container.`
+      : recadastraVazios
       ? 'Os vazios de importação vindos do Baplie são recadastrados com o arquivo novo. O Nº do manifesto Mercante de vazios já informado é mantido.'
       : plan.hasVaziosManifest
         ? 'Os vazios não mudaram: o manifesto de vazios e o Nº do manifesto Mercante são mantidos.'
@@ -402,6 +410,8 @@ export type BaplieReimportResult =
       status: 'imported' | 'unchanged' | 'replaced'
       staged: number
       vaziosReplaced: boolean
+      /** Baplie novo sem vazios: os vazios do Baplie anterior saíram (migration 336). */
+      vaziosRemoved?: boolean
       /** Baplie gravado, mas IMO/OOG não chegaram aos B/Ls: falha parcial que a tela mostra. */
       flagsError: string | null
       /** O que foi aplicado e onde, as marcas que caíram e as faturas reemitidas. */
@@ -468,7 +478,10 @@ export function baplieImportToast(result: BaplieImportDone): string {
   if (result.status === 'unchanged') {
     return `Baplie reimportado sem diferenças (${result.staged} container(s)). Vazios e Nº do manifesto Mercante mantidos.${describeBaplieFlags(result.flags)}`
   }
-  return `Baplie importado: ${result.staged} container(s) em staging.${result.vaziosReplaced ? ' Vazios de importação recadastrados.' : ''}${describeBaplieFlags(result.flags)}`
+  const vazios = result.vaziosRemoved
+    ? ' Vazios de importação do Baplie anterior removidos (este Baplie não traz vazios).'
+    : result.vaziosReplaced ? ' Vazios de importação recadastrados.' : ''
+  return `Baplie importado: ${result.staged} container(s) em staging.${vazios}${describeBaplieFlags(result.flags)}`
 }
 
 /** Baplie gravado com pendência (IMO/OOG ou vazios): o modal fica aberto com este aviso. */
@@ -500,9 +513,14 @@ async function applyFlagsAfterStaging(voyageId: number, actorId: string): Promis
   }
 }
 
-/** Refaz só o recadastro dos vazios a partir do Baplie já gravado (após `vaziosError`). */
-export async function retryBaplieVazios({ voyageId, actorId }: { voyageId: number; actorId: string }): Promise<void> {
-  await replaceVaziosFromBaplie({ voyageId, uploadedBy: actorId })
+/**
+ * Refaz só o recadastro dos vazios a partir do Baplie já gravado (após
+ * `vaziosError`). Devolve quantos vazios ficaram: 0 quer dizer que o Baplie não
+ * traz vazios e os do Baplie anterior saíram (migration 336).
+ */
+export async function retryBaplieVazios({ voyageId, actorId }: { voyageId: number; actorId: string }): Promise<number> {
+  const { total } = await replaceVaziosFromBaplie({ voyageId, uploadedBy: actorId })
+  return total
 }
 
 /**
@@ -532,10 +550,13 @@ export async function reimportBaplie({
     return { status: 'imported', staged, vaziosReplaced: false, flagsError, flags, vaziosError: null }
   }
   const diff = diffBaplieStaging(existingRows, containers)
+  const vaziosManifest = await getBaplieManifestForVoyage(voyageId)
   const plan: BaplieReimportPlan = {
     existing: existingRows.length,
     diff,
-    hasVaziosManifest: Boolean(await getBaplieManifestForVoyage(voyageId)),
+    hasVaziosManifest: Boolean(vaziosManifest),
+    vaziosManifestTotal: vaziosManifest?.total_containers ?? 0,
+    incomingEmpties: containers.filter((container) => container.status === 'empty').length,
     // Baplie completo (ADR 0078, item 21): o que sai apaga as marcas vindas
     // do Baplie anterior, listadas antes de confirmar.
     flags: await previewBaplieFlags(voyageId, containers),
@@ -547,14 +568,16 @@ export async function reimportBaplie({
   // ficam para trás se o recadastro dos vazios falhar.
   const { flagsError, flags } = await applyFlagsAfterStaging(voyageId, actorId)
   let vaziosReplaced = false
+  let vaziosRemoved = false
   let vaziosError: string | null = null
   if (plan.hasVaziosManifest && diff.vaziosChanged) {
     try {
-      await replaceVaziosFromBaplie({ voyageId, uploadedBy: actorId })
-      vaziosReplaced = true
+      const { total } = await replaceVaziosFromBaplie({ voyageId, uploadedBy: actorId })
+      vaziosReplaced = total > 0
+      vaziosRemoved = total === 0
     } catch (error) {
       vaziosError = errorText(error, 'Falha ao recadastrar os vazios de importação.')
     }
   }
-  return { status: diff.items.length ? 'replaced' : 'unchanged', staged, vaziosReplaced, flagsError, flags, vaziosError }
+  return { status: diff.items.length ? 'replaced' : 'unchanged', staged, vaziosReplaced, vaziosRemoved, flagsError, flags, vaziosError }
 }

@@ -299,7 +299,7 @@ export async function importVaziosFromBaplie({
   voyageId: number
   uploadedBy: string
   description?: string
-}): Promise<{ manifestId: string; total: number }> {
+}): Promise<{ manifestId: string | null; total: number }> {
   return persistVaziosFromBaplie({ voyageId, uploadedBy, description, replaceExisting: false })
 }
 
@@ -311,7 +311,7 @@ export async function replaceVaziosFromBaplie({
   voyageId: number
   uploadedBy: string
   description?: string
-}): Promise<{ manifestId: string; total: number }> {
+}): Promise<{ manifestId: string | null; total: number }> {
   return persistVaziosFromBaplie({ voyageId, uploadedBy, description, replaceExisting: true })
 }
 
@@ -325,7 +325,7 @@ async function persistVaziosFromBaplie({
   uploadedBy: string
   description?: string
   replaceExisting: boolean
-}): Promise<{ manifestId: string; total: number }> {
+}): Promise<{ manifestId: string | null; total: number }> {
   const { data, error } = await supabase.rpc('replace_vazios_from_baplie_transactional', {
     p_voyage_id: voyageId,
     p_description: description ?? null,
@@ -333,7 +333,9 @@ async function persistVaziosFromBaplie({
     p_replace_existing: replaceExisting,
   })
   if (error) throw error
-  const result = data as { manifest_id: string; total: number }
+  // Recadastro com o Baplie sem vazios (migration 336): os vazios do Baplie
+  // anterior saem e não há manifesto novo (`manifest_id` nulo, total 0).
+  const result = data as { manifest_id: string | null; total: number }
   return { manifestId: result.manifest_id, total: result.total }
 }
 

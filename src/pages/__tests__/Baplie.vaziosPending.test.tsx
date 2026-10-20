@@ -9,9 +9,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   pending: vi.fn(() => Promise.resolve(true)),
-  retry: vi.fn(() => Promise.resolve()),
+  retry: vi.fn(() => Promise.resolve(1)),
   manifest: vi.fn(() => Promise.resolve({ id: 'vm-1', total_containers: 1, imported_at: '2026-10-08T10:00:00Z' } as unknown)),
   showToast: vi.fn(),
+  staging: vi.fn(() => Promise.resolve([
+    { id: 1, container_number: 'EMPU0000001', status: 'empty', size_type: '40HC', pol: 'CNSHA', pod: 'BRSSZ', slot: null, bl_ref: null, is_imo: false, is_oog: false, imo_class: null, un_number: null, ownership: null, imported_at: '2026-10-09T10:00:00Z' },
+  ] as Array<Record<string, unknown>>)),
 }))
 vi.mock('../../services/supabase', () => ({ supabase: {} }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, profile: { id: 'user-1' } }) }))
@@ -30,9 +33,7 @@ vi.mock('../../services/baplieReconciliation', async (importOriginal) => ({
 }))
 vi.mock('../../services/baplieReadModel', () => ({
   hasBlsForVoyage: vi.fn(() => Promise.resolve(false)),
-  listBaplieStaging: vi.fn(() => Promise.resolve([
-    { id: 1, container_number: 'EMPU0000001', status: 'empty', size_type: '40HC', pol: 'CNSHA', pod: 'BRSSZ', slot: null, bl_ref: null, is_imo: false, is_oog: false, imo_class: null, un_number: null, ownership: null, imported_at: '2026-10-09T10:00:00Z' },
-  ])),
+  listBaplieStaging: mocks.staging,
 }))
 vi.mock('../../services/vaziosImportacaoImport', () => ({
   getBaplieManifestForVoyage: mocks.manifest, importVaziosFromBaplie: vi.fn(), replaceVaziosFromBaplie: vi.fn(),
@@ -70,4 +71,22 @@ it('vazios iguais aos do Baplie: sem ação de atualizar', async () => {
   await waitFor(() => expect(mocks.pending).toHaveBeenCalled())
   expect(await screen.findByText(/cadastrados em/)).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Atualizar vazios do Baplie' })).toBeNull()
+})
+
+// Migration 336: Baplie sem vazios com os vazios do Baplie anterior ainda
+// cadastrados (recadastro que falhou antes da 336): o bloco fica e atualizar os tira.
+it('Baplie sem vazios e vazios do Baplie anterior cadastrados: atualizar os remove', async () => {
+  mocks.staging.mockResolvedValue([
+    { id: 2, container_number: 'FULU0000002', status: 'full', size_type: '40HC', pol: 'CNSHA', pod: 'BRSSZ', slot: null, bl_ref: null, is_imo: false, is_oog: false, imo_class: null, un_number: null, ownership: null, imported_at: '2026-10-09T10:00:00Z' },
+  ])
+  mocks.retry.mockResolvedValue(0)
+  renderPage()
+  const button = await screen.findByRole('button', { name: 'Atualizar vazios do Baplie' })
+  expect(screen.getByText(/este Baplie não traz vazios, e atualizar tira da Viagem/)).toBeTruthy()
+
+  mocks.manifest.mockResolvedValue(null)
+  fireEvent.click(button)
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Vazios de importação do Baplie anterior removidos: este Baplie não traz vazios.', 'success'))
+  // Sem vazios cadastrados nem no Baplie, o bloco some.
+  await waitFor(() => expect(screen.queryByText('Vazios de importação')).toBeNull())
 })

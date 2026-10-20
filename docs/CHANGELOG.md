@@ -6,6 +6,10 @@
 
 ## 2026-10
 
+- **Baplie sem vazios (2026-10-20):** substituir o Baplie por um sem nenhum vazio tira da Viagem
+  os vazios de importação vindos do Baplie anterior e o Nº do manifesto Mercante das rotas que
+  ficam sem container, com aviso no diálogo de substituição; antes, o recadastro falhava e
+  "Atualizar vazios do Baplie" nunca resolvia (migration `336`).
 - **Revisão do lote 6a (2026-10-20):** datas de containers e Base de Clientes com 60 s para gravar
   o arquivo inteiro (até 300 B/Ls e 3.000 Clientes por arquivo) e mensagem de arquivo grande;
   Razão Social conferida do mesmo jeito na tela e no banco; troca de Consignatário recusada pelo
