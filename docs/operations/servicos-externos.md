@@ -58,7 +58,7 @@ Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-re
 | GitHub → **Settings → Secrets and variables → Actions** | tokens de deploy e valores públicos de build | workflows |
 | GitHub → environment **`cloudflare-production`** | 7 variáveis `VITE_*` e secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); deployment restrito à branch `main` | só o workflow de produção |
 | GitHub → environment **`cloudflare-pages`** | secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); sem restrição de branch | jobs `publish` da Preview, limpeza e provisionamento do Pages |
-| GitHub → environment **`staging`** | variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` da branch Supabase `staging`, `VITE_TURNSTILE_SITE_KEY` (Site Key pública do widget `Vela staging`) e secret `CLOUDFLARE_PAGES_API_TOKEN` | só o workflow de staging |
+| GitHub → environment **`staging`** | variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` da branch Supabase `staging`, `VITE_TURNSTILE_SITE_KEY` (Site Key pública do widget `Vela staging`) e `SUPABASE_STAGING_PROJECT_REF` (ref da branch staging); secrets `CLOUDFLARE_PAGES_API_TOKEN` e `SUPABASE_STAGING_ACCESS_TOKEN` (token Supabase só de leitura das migrations, a criar pelo dono) | só o workflow de staging |
 | GitHub → environment **`supabase-branches`** | secrets `SUPABASE_ACCESS_TOKEN` (PAT de 2026-10-08) e `PREVIEW_ADMIN_PASSWORD` (2026-10-07); sem restrição de branch | job `prepare` da Preview e `provision-preview-admin` |
 | Windows do computador do backup → **variáveis do usuário** | `SUPABASE_DB_URL`, `BACKUP_ENCRYPTION_KEY_HEX`, `R2_*`, `BACKUP_ALLOW_PRODUCTION` | tarefa agendada do backup |
 | Windows → **Gerenciador de Credenciais** | `VelaBackup/R2AccessKeyId`, `VelaBackup/R2SecretAccessKey`, `VelaBackup/EncryptionKey` | o dono, para reconfigurar o backup |
@@ -252,6 +252,16 @@ novas não falharem na `165`.
   `API Key Secrets` e qualquer permissão de escrita ficam em `None`. O painel
   mostra o PAT (`GitHub Actions — Vela Preview branches v2`) sem expiração;
   revogue-o e gere outro se houver suspeita de exposição.
+- **Token da conferência do staging:** secret `SUPABASE_STAGING_ACCESS_TOKEN`
+  no environment GitHub `staging`, com a variável
+  `SUPABASE_STAGING_PROJECT_REF` (`uvgqfpleiyfythkhutlj`). O workflow de
+  staging o usa só para ler `GET /v1/projects/{ref}/database/migrations` e
+  conferir as migrations do push antes de publicar
+  ([deploy.md](../setup/deploy.md#staging-persistente)). Deve ser um token só
+  de leitura das migrations do banco, sem permissão de escrita; o script recusa
+  o ref de produção. Situação em 2026-10-20: proposto, ainda não criado; sem
+  ele o staging recusa como antes os pushes com migration cujo check vem
+  pulado.
   Validação: em 2026-10-08, com esse PAT, os workflows Provision Preview Admin e
   Cloudflare Pages Preview da PR 903 concluíram com sucesso.
   Histórico: o PAT de 2026-10-07 (sem `Connection Pooling`) e o PAT exposto
@@ -830,8 +840,9 @@ para eles vale o backup do próprio Supabase.
   três environments acima, e o workflow de staging o environment `staging`. Se um secret existir no escopo do environment e do
   repositório com o mesmo nome, o GitHub Actions usa o do environment. As 7
   variáveis `VITE_*` de produção vivem em `cloudflare-production`. O environment
-  `staging` tem as suas: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e
-  `VITE_TURNSTILE_SITE_KEY`. Os environments antigos
+  `staging` tem as suas: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
+  `VITE_TURNSTILE_SITE_KEY` e `SUPABASE_STAGING_PROJECT_REF`, e o secret
+  `SUPABASE_STAGING_ACCESS_TOKEN`. Os environments antigos
   `Preview`, `Preview – fwlog-portal`, `Preview – vela`, `Production` e variantes
   estão vazios e não são referenciados pelos workflows atuais.
 - **Variables:** `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_ACCESS_CONFIGURED`,

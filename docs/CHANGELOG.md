@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Staging publica com o check do Supabase pulado (2026-10-20):** num push na `staging` com
+  migration e check `skipped` ou `neutral`, `scripts/wait-supabase-migrations.mjs` confere na
+  Supabase Management API se as versões do push já estão na branch Supabase do staging e publica
+  quando todas estão; senão espera até o prazo e recusa dizendo quais faltam. Antes, todo merge
+  com migration era recusado (run `39406859570`, migrations `333` a `336`). Precisa do secret
+  `SUPABASE_STAGING_ACCESS_TOKEN` e da var `SUPABASE_STAGING_PROJECT_REF` no environment
+  `staging` ([Deploy](setup/deploy.md#staging-persistente)).
 - **Baplie sem vazios (2026-10-20):** substituir o Baplie por um sem nenhum vazio tira da Viagem
   os vazios de importação vindos do Baplie anterior e o Nº do manifesto Mercante das rotas que
   ficam sem container, com aviso no diálogo de substituição; antes, o recadastro falhava e
