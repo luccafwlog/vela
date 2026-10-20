@@ -195,9 +195,12 @@ const DEFAULT_PORTAL_BASE_URL = 'https://portalfwlog.com.br'
  */
 export const COMMUNICATIONS_CONTACT_EMAIL = 'importacao@fwlog.com.br'
 
+// Origem do site, onde fica `/branding`. Os envios passam o endereço das
+// faturas (`…/portal/billing`); `/portal/branding/…` cai na página do Portal e a
+// logo chegava quebrada no e-mail.
 function extractBasePortalUrl(url?: string | null): string {
   const raw = url?.trim() || DEFAULT_PORTAL_BASE_URL
-  return raw.replace(/\/+$/, '').replace(/\/billing$/, '')
+  return raw.replace(/\/+$/, '').replace(/\/portal(?:\/.*)?$/, '').replace(/\/billing$/, '')
 }
 
 function renderEmailTitleHtml(title: string): string {

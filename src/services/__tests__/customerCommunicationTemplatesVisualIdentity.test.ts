@@ -37,13 +37,13 @@ const sampleInput: CustomerCommunicationTemplateInput = {
 
 describe('Identidade visual dos e-mails de Comunicação com o Cliente', () => {
   const templates = [
-    { name: 'NOA', fn: () => renderNoaTemplate(sampleInput) },
-    { name: 'NOR', fn: () => renderNorTemplate(sampleInput) },
-    { name: 'NOB', fn: () => renderNobTemplate(sampleInput) },
-    { name: 'CE Mercante & Taxas', fn: () => renderCeMercanteTaxasTemplate(sampleInput) },
-    { name: 'Demurrage', fn: () => renderDemurrageTemplate(sampleInput) },
-    { name: 'Institucional', fn: () => renderInstitutionalTemplate({ ...sampleInput, bls: [] }, 'institucional') },
-    { name: 'Livre', fn: () => renderInstitutionalTemplate(sampleInput, 'livre') },
+    { name: 'NOA', fn: (input = sampleInput) => renderNoaTemplate(input) },
+    { name: 'NOR', fn: (input = sampleInput) => renderNorTemplate(input) },
+    { name: 'NOB', fn: (input = sampleInput) => renderNobTemplate(input) },
+    { name: 'CE Mercante & Taxas', fn: (input = sampleInput) => renderCeMercanteTaxasTemplate(input) },
+    { name: 'Demurrage', fn: (input = sampleInput) => renderDemurrageTemplate(input) },
+    { name: 'Institucional', fn: (input = sampleInput) => renderInstitutionalTemplate({ ...input, bls: [] }, 'institucional') },
+    { name: 'Livre', fn: (input = sampleInput) => renderInstitutionalTemplate(input, 'livre') },
   ]
 
   it.each(templates)('o template $name possui o cabeçalho marinho institucional (#152238) e a logo oficial da Fwlog', ({ fn }) => {
@@ -51,6 +51,14 @@ describe('Identidade visual dos e-mails de Comunicação com o Cliente', () => {
     expect(rendered.html).toContain('background:#152238')
     expect(rendered.html).toContain('/branding/fwlog-logo-white.png')
     expect(rendered.html).toContain('alt="Fwlog"')
+  })
+
+  // Os envios passam o endereço das faturas; `/portal/branding/…` devolve a
+  // página do Portal (HTML) e a logo chegava quebrada.
+  it.each(templates)('o template $name busca a logo na origem do site quando recebe o endereço das faturas', ({ fn }) => {
+    const rendered = fn({ ...sampleInput, portalUrl: 'https://portalfwlog.com.br/portal/billing' })
+    expect(rendered.html).toContain('<img src="https://portalfwlog.com.br/branding/fwlog-logo-white.png"')
+    expect(rendered.html).not.toContain('/portal/branding/')
   })
 
   it.each(templates)('o template $name inclui o filete dourado (#d4882e) com 3px de altura', ({ fn }) => {
