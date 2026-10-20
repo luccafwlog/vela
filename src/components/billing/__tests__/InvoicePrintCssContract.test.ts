@@ -34,7 +34,9 @@ describe('contrato CSS de impressão de invoice', () => {
     expect(tsx).toContain('data-testid="invoice-pix-box"')
     expect(tsx).toContain('className="invoice-document__pix-box"')
     expect(tsx).toContain('className="invoice-document__group-bar"')
-    expect(tsx).toContain("wordBreak: 'break-all'")
+    const kit = fs.readFileSync('src/components/shared/InvoiceDocumentKit.tsx', 'utf8')
+    expect(tsx).toContain('<PixCopyPaste')
+    expect(kit).toContain("wordBreak: 'break-all'")
   })
 
   it('folha A4 com margem em toda página e numeração, igual na página e na janela de impressão', () => {

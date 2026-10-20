@@ -13,7 +13,10 @@ import {
   dataNumberCell,
   dataTable,
   DOC_ACCENT,
+  DOC_INK,
   DOC_MUTED,
+  DOC_TEXT_MIN,
+  DOC_TEXT_TOTAL,
   documentRoot,
   groupBar,
   labelCell,
@@ -182,11 +185,11 @@ function TotalBox({ value }: { value: string }) {
           display: "inline-flex",
           gap: 12,
           background: DOC_ACCENT,
-          color: "#111",
+          color: DOC_INK,
           padding: "5px 14px",
           borderRadius: 2,
           fontWeight: 700,
-          fontSize: "13px",
+          fontSize: DOC_TEXT_TOTAL,
           whiteSpace: "nowrap",
         }}
       >
@@ -198,7 +201,7 @@ function TotalBox({ value }: { value: string }) {
 }
 
 // Faixa de seção do impresso: nada abaixo de 12px.
-const sectionBar: React.CSSProperties = { ...groupBar, fontSize: "12px" };
+const sectionBar: React.CSSProperties = { ...groupBar, fontSize: DOC_TEXT_MIN };
 
 function MetricsTable({
   label,

@@ -22,6 +22,22 @@ export function fmtUSD(v: number | null | undefined): string {
   return n < 0 ? `-US$ ${formatted}` : `US$ ${formatted}`
 }
 
+// Número com vírgula decimal e casas fixas (ex.: USD/Dia "60,00").
+export function fmtDecimal(v: number | null | undefined, digits = 2): string {
+  if (v == null) return '—'
+  const n = Number(v)
+  if (Number.isNaN(n)) return '—'
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+}
+
+// Quantidade de item: inteiro sem casas ("2"), fração com vírgula ("15,4").
+export function fmtQuantity(v: number | string | null | undefined): string {
+  if (v == null || v === '') return '—'
+  const n = Number(v)
+  if (Number.isNaN(n)) return String(v)
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })
+}
+
 // Etapa 11 do plano de faturamento (ADR 0038 decisão 6, achado 7): item
 // cadastrado em USD converte para BRL no momento da emissão, pelo ROE vigente
 // (exchange_rate_reference), e fica congelado com o resto da fatura — sem o
@@ -64,6 +80,12 @@ export const DOC_ZEBRA = '#f9fafb'
 export const DOC_GROUP = '#e8edf5'
 export const DOC_SUBTOTAL = '#f0f4fa'
 export const DOC_MUTED = '#6b7280'
+export const DOC_INK = '#111'
+export const DOC_CODE_BG = '#f3f4f6'
+export const DOC_CODE_INK = '#374151'
+// Menor letra do papel (lote 6b): nada abaixo de 12px; 13px nos totais.
+export const DOC_TEXT_MIN = '12px'
+export const DOC_TEXT_TOTAL = '13px'
 
 export const cell: React.CSSProperties = { padding: '8px 10px', borderBottom: `1px solid ${DOC_BORDER}` }
 export const labelCell: React.CSSProperties = { ...cell, fontWeight: 700, width: 130, whiteSpace: 'nowrap' }

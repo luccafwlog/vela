@@ -193,7 +193,7 @@ foi removido junto com a coluna `invoices.due_date`.
 O filtro Tipo inclui **Avulsa**. Linhas sem B/L continuam na lista; se houver
 Viagem direta, o navio e a viagem são exibidos a partir de `invoices.voyage_id`.
 O detalhe apresenta item, descrição da cobrança e contexto opcional. A impressão
-usa o mesmo modelo da invoice local, com título **FATURA AVULSA** e sem criar
+usa o mesmo modelo da invoice local, com título **FATURA** (recibo: **RECIBO**; lote 6b) e sem criar
 um B/L artificial. Quando a quantidade de um item é fracionária por container
 compartilhado, o documento identifica a razão (por exemplo, `1/7`) como fração
 do container compartilhado.
@@ -408,15 +408,24 @@ páginas, e o recibo da individual coberta diz "Recebido pela consolidada
 recebido". A nota interna da emissão pelo CE ("Sistema — CE Mercante") não é
 impressa; Pix só em fatura pagável e nunca no recibo.
 
-A fatura de Taxas Locais é **modular** (Fatura Adaptativa Modular): os itens
-são agrupados em até três blocos, cada um com subtotal — **1. Carga
-conteinerizada**, **2. Carga solta (breakbulk)** e **3. Taxas administrativas e
-documentais** —, e bloco sem item não aparece. B/L misto mostra os dois blocos
-de carga sob o cabeçalho "MISTO (CNTR + CARGA SOLTA)"; na consolidada, os
-blocos se repetem por B/L. A classificação do item vem do snapshot (categoria
-ou base de aplicação) em `classifyInvoiceItem`
-(`src/components/shared/invoiceFormat.ts`). A avulsa lista seus itens sem
-blocos. **Código:** `src/components/billing/InvoiceDocumentLocal.tsx`.
+Desde o lote 6b (2026-10-20) a fatura de Taxas Locais não divide os itens por
+tipo de carga: saíram os blocos "1. Carga conteinerizada", "2. Carga solta
+(breakbulk)" e "3. Taxas administrativas e documentais" e seus subtotais.
+Todas as taxas do B/L ficam logo abaixo da linha do B/L (B/L misto mantém o
+cabeçalho "MISTO (CNTR + CARGA SOLTA)"); a consolidada mantém o subtotal por
+B/L. Vale para individual, consolidada, avulsa e recibos. O TOTAL sai da faixa
+âmbar na largura da tabela e vira caixa âmbar compacta à direita, logo abaixo
+dela; no recibo, a última linha da tabela é o total emitido e a caixa traz o
+valor líquido recebido, com "Pago em" embaixo. Quantidade usa vírgula decimal
+("15,4"; inteiro sem casas), o rótulo é "Navio / Viagem:" e nada fica abaixo
+de 12px. No Pix, a frase do QR Code é seguida de "Depois do pagamento, a baixa
+da fatura pode levar de 1 a 5 minutos. Para ver a fatura como paga, atualize a
+página no Portal do Cliente."; "Saldo a pagar" só aparece quando a fatura está
+parcialmente paga, e o código Copia e Cola quebra em várias linhas.
+`classifyInvoiceItem` (`src/components/shared/invoiceFormat.ts`) continua só
+para achar o peso de carga solta do quadro do alto. **Código:**
+`src/components/billing/InvoiceDocumentLocal.tsx`,
+`src/components/shared/InvoiceDocumentKit.tsx`.
 
 ## Catálogo de ações
 
