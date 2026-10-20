@@ -6,6 +6,9 @@ Estende a [ADR 0010](./0010-validacao-testes-deploy-gates.md). Regra vigente
 em [WORKFLOW.md](../../WORKFLOW.md), seções "11. Testes e validação" e
 "12. CI e deploy", e em [Deploy](../setup/deploy.md#workflows).
 
+> **Nota editorial — 2026-10-20.** A [ADR 0091](./0091-promocao-feature-staging-main.md)
+> define o caminho feature → staging → main. O que esta ADR decide sobre o CI permanece.
+
 ## Contexto
 
 O CI de uma PR passou de ~1 min (2026-09-01) a ~11 min (2026-10-14), com ~21

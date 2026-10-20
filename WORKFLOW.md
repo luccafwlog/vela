@@ -859,6 +859,24 @@ PRs de forks são ignoradas pelo provisionamento porque não podem receber esses
 secrets nesse workflow. A disponibilidade de Preview remoto deve ser conferida
 na integração, não inferida da existência da PR.
 
+### Promoção da staging para a main
+
+PR de feature abre contra `staging`. O check `main-only-from-staging`
+(`.github/workflows/main-only-from-staging.yml`) falha quando a PR contra a
+`main` não vem da branch `staging` deste repositório. O merge de uma PR na
+`staging` dispara `.github/workflows/staging-to-main-pr.yml`, que abre a PR
+`staging` → `main` ou atualiza a que já estiver aberta. O merge na `main`
+continua manual: é esse push que publica a produção. A lista de PRs no corpo
+sai do assunto dos commits (`título (#n)` ou `Merge pull request #n`).
+
+O secret de repositório `STAGING_TO_MAIN_TOKEN` (PAT fine-grained só deste
+repositório, Contents em leitura e Pull requests em escrita) faz o CI dessa PR
+começar sozinho. Sem ele, o workflow usa o `GITHUB_TOKEN` e o CI fica
+esperando aprovação. Marcar o check como obrigatório, trocar a branch padrão
+para `staging` e criar o secret são passos do dono, fora do workflow. Regra
+em [ADR 0091](docs/adr/0091-promocao-feature-staging-main.md) e em
+[Deploy](docs/setup/deploy.md#workflows).
+
 ### Push em main
 
 O CI não roda de novo depois do merge. `cloudflare-pages-production.yml`

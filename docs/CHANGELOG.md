@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Promoção feature → staging → main (2026-10-20):** PR de feature abre contra
+  `staging`. O check `main-only-from-staging` falha quando a PR na `main` não
+  vem da `staging` deste repositório. O merge na `staging` abre ou atualiza a
+  PR para a `main`; o merge dessa PR continua manual e é o que publica a
+  produção ([ADR 0091](adr/0091-promocao-feature-staging-main.md)).
 - **Identidade visual, lote 5a (2026-10-19):** Painel com cartões por setor (agora também o
   Administrativo) e Line-Up limpo; Alertas abre em Ativos, com Resolver e Dispensar em toda linha e
   a mensagem sem repetir o registro (migration `324`, que também reescreveu os alertas abertos e faz

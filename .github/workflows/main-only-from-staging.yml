@@ -1,0 +1,37 @@
+name: Main só recebe da staging
+
+# Roda em toda PR contra a main. Falha se a branch de origem não for a staging
+# deste mesmo repositório. O nome do job é o check da proteção da main (ADR 0091).
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  main-only-from-staging:
+    name: main-only-from-staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir branch de origem
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          repo=$(printf '%s' "$HEAD_REPO" | tr -d '\r' | tr '\n' ' ')
+          ref=$(printf '%s' "$HEAD_REF" | tr -d '\r' | tr '\n' ' ')
+          here=$(printf '%s' "$THIS_REPO" | tr -d '\r' | tr '\n' ' ')
+          if [ -z "$ref" ] || [ -z "$repo" ] || [ -z "$here" ]; then
+            echo "::error::Não deu para ler a origem da PR."
+            exit 1
+          fi
+          if [ "$ref" = "staging" ] && [ "$repo" = "$here" ]; then
+            echo "OK: PR vem da staging deste repositório."
+            exit 0
+          fi
+          printf '::error::A main só aceita PR vinda da branch staging deste repositório. Esta PR vem de %s:%s. Abra a PR contra a staging.\n' "$repo" "$ref"
+          exit 1
