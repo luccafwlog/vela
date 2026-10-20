@@ -482,7 +482,7 @@ it('vazios não recadastrados: o aviso refaz só os vazios, porque reimportar o 
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 })
 
-// Regra de 2026-10-19 (ADR 0091): recusa da conferência com o que já está
+// Regra de 2026-10-19 (ADR 0092): recusa da conferência com o que já está
 // gravado desfaz tudo — nada é gravado e a tela lista o que foi recusado.
 it('recusa de veículos na conferência com o gravado: nada foi gravado, lista as recusadas', async () => {
   mocks.parseVehicleImportFile.mockResolvedValue({

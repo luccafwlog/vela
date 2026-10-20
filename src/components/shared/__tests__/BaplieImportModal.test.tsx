@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Regra de 2026-10-19 (ADR 0091): erro no Baplie recusa a importação inteira;
+// Regra de 2026-10-19 (ADR 0092): erro no Baplie recusa a importação inteira;
 // IMO/OOG e vazios são passos depois da gravação, retomáveis (item 5).
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'

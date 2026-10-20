@@ -407,7 +407,7 @@ it('B26: trocar a viagem durante a leitura do arquivo usa a viagem atual na pré
   expect(mocks.partition).not.toHaveBeenCalledWith([row], 7)
 })
 
-// ADR 0091, D1: B/L cancelado na planilha é aviso; o resto da planilha entra.
+// ADR 0092, D1: B/L cancelado na planilha é aviso; o resto da planilha entra.
 it('B/L cancelado aparece como aviso na conferência e não impede a importação', async () => {
   mocks.importRows.mockReset()
   const rows = [

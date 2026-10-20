@@ -582,7 +582,7 @@ it('exige a confirmação de veículos quando um container sai do B/L levando os
   await waitFor(() => expect(mocks.confirmBlFreightImport).toHaveBeenCalledWith(previewWithVehicleExit, 'user-1', new Set(), 'bl.xlsx', false, true))
 })
 
-// ADR 0091: B/L com erro recusa o arquivo inteiro; os liberados não gravam sozinhos.
+// ADR 0092: B/L com erro recusa o arquivo inteiro; os liberados não gravam sozinhos.
 it('um B/L bloqueado impede os outros: erro no painel comum e Importar desligado', async () => {
   mocks.parseBLFile
     .mockResolvedValueOnce(parsedDoc('COSU123'))

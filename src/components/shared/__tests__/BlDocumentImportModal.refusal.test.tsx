@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Regra de 2026-10-19 (ADR 0091): um arquivo com erro recusa todos os do lote.
+// Regra de 2026-10-19 (ADR 0092): um arquivo com erro recusa todos os do lote.
 // D1: B/L cancelado é aviso — o arquivo dele não é tocado e os demais entram.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

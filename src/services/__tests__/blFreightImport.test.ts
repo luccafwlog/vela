@@ -710,7 +710,7 @@ describe('blFreightImport', () => {
     expect(row?.blockedReasons[0]).toBe('Arquivo é da viagem ZYHY JIN QU / 14-w, mas você apontou ZHONG YUAN HAI YUN JIN QU / 14/W.')
   })
 
-  it('B/L bloqueado no arquivo impede todos: nada é enviado ao banco (ADR 0091)', async () => {
+  it('B/L bloqueado no arquivo impede todos: nada é enviado ao banco (ADR 0092)', async () => {
     mockRpc.mockReset()
     mockRpc.mockResolvedValue({ data: { bls_received: 1 }, error: null })
     const preview: BlFreightImportPreview = {
@@ -841,7 +841,7 @@ describe('blFreightImport', () => {
     })
     const outcome = await confirmBlFreightImport(preview, 'user-1')
     expect(mockRpc.mock.calls.map(([, args]) => (args as { p_bls: unknown[] }).p_bls.length)).toEqual([45])
-    // Cálculo é passo depois da gravação (ADR 0091, D2): fica gravado e avisa.
+    // Cálculo é passo depois da gravação (ADR 0092, D2): fica gravado e avisa.
     expect(outcome.calculationErrors).toEqual([{ blNumber: 'BL3', message: 'sem tabela' }])
 
     // Tempo-limite: a transação única foi desfeita.

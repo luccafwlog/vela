@@ -41,7 +41,7 @@ const PREVIEW_LIMIT = 20
  * Importar veículos: o mesmo modal em /veiculos (viagem escolhida aqui) e na
  * aba da Viagem (viagem fixa), A1 do lote 6a.
  *
- * Regra de 2026-10-19 (ADR 0091): linha com erro na planilha recusa a
+ * Regra de 2026-10-19 (ADR 0092): linha com erro na planilha recusa a
  * planilha inteira; linha que a conferência com o que já está gravado recusa
  * (chassi repetido, B/L fora da viagem, lacre divergente, container ausente)
  * também: nada é gravado e a tela lista todas as recusadas.

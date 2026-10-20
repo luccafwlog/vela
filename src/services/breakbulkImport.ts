@@ -96,7 +96,7 @@ export async function importBreakbulkManifest({
    */
   approval?: BreakbulkApproval
 }): Promise<BreakbulkImportResult> {
-  // Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo
+  // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo
   // inteiro. Um aviso de conferência (separador decimal ambíguo, B/L
   // cancelado) viaja para o lote como registro e não impede a gravação.
   if (hasBlockingRowErrors(manifest.rowErrors)) {

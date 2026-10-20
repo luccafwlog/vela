@@ -1,8 +1,14 @@
-# 0091 — Importação com erro é recusada inteira e não grava nada
+# 0092 — Importação com erro é recusada inteira e não grava nada
 
 Status: aceito — 2026-10-19 (decisão do responsável na página do lote 6a da
 identidade visual). Implementada no lote 6a
 ([plano](../plans/2026-10-13-identidade-visual-tela-a-tela.md)).
+
+> **Nota editorial — 2026-10-20.** Escrita como ADR 0091 e renumerada para 0092
+> antes do merge, porque a [ADR 0091](./0091-promocao-feature-staging-main.md)
+> (promoção feature → staging → main) chegou antes à `staging`. A migration
+> `335` e o comentário da função `import_bl_freight_file_atomic` ainda citam
+> "ADR 0091": leia-se esta ADR.
 
 Estende a [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md),
 que fixou as regras de entrada das importações sem decidir o que acontece com

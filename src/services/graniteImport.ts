@@ -377,7 +377,7 @@ export async function importGraniteManifest({
   uploadedBy,
   confirmRemoval,
 }: ImportGraniteArgs): Promise<GraniteImportResult> {
-  // Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo
+  // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo
   // inteiro; não há aceite que grave só as linhas válidas.
   if (manifest.rowErrors.length) throw new Error(formatGraniteRowErrors(manifest.rowErrors))
 

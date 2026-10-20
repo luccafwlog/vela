@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Regra de 2026-10-19 (ADR 0091): linha com erro recusa o manifesto BB
+// Regra de 2026-10-19 (ADR 0092): linha com erro recusa o manifesto BB
 // inteiro; B/L cancelado é aviso. Depois de gravar, a viagem e o formato ficam
 // travados: trocar um deles relia o arquivo e reabria o Importar.
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'

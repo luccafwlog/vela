@@ -138,7 +138,7 @@ export async function fetchDemurrageKPIs(): Promise<DemurrageKPIs> {
 }
 
 /**
- * Leitura do extrato "QR Codes recebidos" (ADR 0091, item 6): lançamento
+ * Leitura do extrato "QR Codes recebidos" (ADR 0092, item 6): lançamento
  * zerado ou negativo (tarifas e saídas) é ignorado e contado em `ignored`;
  * valor pago ou data de pagamento ilegível é erro (`errors`) e recusa o
  * extrato inteiro antes de qualquer gravação. Linha sem valor (rodapé
@@ -228,7 +228,7 @@ export async function readPixExtract(arrayBuffer: ArrayBuffer): Promise<PixExtra
     }
     // Sem valor e sem identificador não é lançamento (linha vazia, rodapé
     // "Total"): fica de fora sem contar. Identificador sem valor é lançamento
-    // sem o dado que concilia: erro (ADR 0091, item 6).
+    // sem o dado que concilia: erro (ADR 0092, item 6).
     // ponytail: o rodapé é reconhecido pelo texto "Total" no identificador;
     // outro rótulo de rodapé sem valor vira erro e pede para tirar a linha.
     if (parsed.kind !== 'value') {

@@ -204,7 +204,7 @@ export function CeMercanteImportModal({
       await invalidateBls()
 
       if ((preview.rowErrors.length ?? 0) === 0 && result.errorCount === 0) {
-        // D1 (ADR 0091): B/L cancelado na planilha não é tocado; o toast conta.
+        // D1 (ADR 0092): B/L cancelado na planilha não é tocado; o toast conta.
         const cancelled = result.ignored
           ? `; ${plural(result.ignored, 'B/L cancelado não foi tocado', 'B/Ls cancelados não foram tocados')}`
           : ''
@@ -276,7 +276,7 @@ export function CeMercanteImportModal({
     resetAndClose()
   }
 
-  // Planilha é "tudo ou nada" (migration 082, ADR 0091): erro na prévia
+  // Planilha é "tudo ou nada" (migration 082, ADR 0092): erro na prévia
   // bloqueia a confirmação.
   const sheetBlocked = Boolean(preview && preview.rowErrors.length > 0)
   // Cada importação de B/L é um manifesto (migration 164): o número vem antes.
@@ -454,7 +454,7 @@ type LineMessage = { row?: number; message: string }
 /**
  * Erros e avisos da planilha, da conferência e da gravação no formato do painel
  * comum. Mensagem sem linha (erro do lote) fica à parte, como "Nada foi
- * gravado: <motivo>". B/L cancelado é aviso (ADR 0091, D1): não é tocado.
+ * gravado: <motivo>". B/L cancelado é aviso (ADR 0092, D1): não é tocado.
  */
 function collectIssues(
   preview: ParsedCeMercanteFile | null,

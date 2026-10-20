@@ -55,7 +55,7 @@ vi.mock('../VoyageCombobox', () => ({
 import { BlImportModal } from '../BlImportModal'
 
 
-// Achados da revisão das importações (ADR 0091): fechar no meio da gravação e
+// Achados da revisão das importações (ADR 0092): fechar no meio da gravação e
 // prévia atrasada de uma viagem anterior.
 
 beforeEach(() => {

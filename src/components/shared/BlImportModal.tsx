@@ -82,7 +82,7 @@ function describeVehicleConfirmationRequired(rows: BlFreightImportRow[]) {
 }
 
 /**
- * Erros e avisos da prévia no painel comum (ADR 0091). Cada B/L é uma linha da
+ * Erros e avisos da prévia no painel comum (ADR 0092). Cada B/L é uma linha da
  * tabela da prévia; o número dela vai em "Linha" e o B/L no campo.
  */
 function previewIssues(preview: BlFreightImportPreview): ImportIssue[] {

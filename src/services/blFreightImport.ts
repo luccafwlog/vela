@@ -747,7 +747,7 @@ export async function confirmBlFreightImport(
   confirmCustomerChange = false,
   confirmVehicleChanges = false,
 ): Promise<BlFreightImportResult> {
-  // ADR 0091: B/L bloqueado é erro do arquivo e recusa a importação inteira;
+  // ADR 0092: B/L bloqueado é erro do arquivo e recusa a importação inteira;
   // nenhum B/L liberado é gravado sem os outros.
   const blocked = preview.rows.filter((row) => row.status === 'blocked' || !row.payload)
   if (blocked.length) {
@@ -770,7 +770,7 @@ export async function confirmBlFreightImport(
   // na prévia): o consignatário gravado fica e o resultado avisa. É decisão de
   // campo, não erro de linha: o B/L entra com os demais campos. O mesmo vale
   // para a troca aceita que o banco recusa (`customer_relinks`): exceção
-  // registrada no item 3 da ADR 0091, não desfaz o arquivo.
+  // registrada no item 3 da ADR 0092, não desfaz o arquivo.
   const keptCustomer = new Set<string>()
   const payload = preview.rows.flatMap((row) => {
     if (!row.payload) return []
@@ -797,7 +797,7 @@ export async function confirmBlFreightImport(
   // o arquivo tem uma viagem, a gravação registra o batch e calcula as taxas
   // na mesma transação. O caminho sem viagem continua avulso (ADR 0017).
   const voyageId = payload.find((bl) => bl.voyage_id != null)?.voyage_id ?? null
-  // ADR 0091: o arquivo inteiro numa chamada e numa transação (migration 335).
+  // ADR 0092: o arquivo inteiro numa chamada e numa transação (migration 335).
   // Antes dela a tela mandava lotes de 20 B/Ls / 300 contêineres, cada um uma
   // transação, para caber nos 8 s do papel authenticated; uma falha no meio
   // deixava os lotes anteriores gravados.
@@ -840,7 +840,7 @@ export async function confirmBlFreightImport(
     ...changes,
     refusedCustomerRelinks: readRefusedCustomerRelinks(data),
     customerChangesIgnored: [...keptCustomer].sort(),
-    // Passo técnico depois da gravação (ADR 0091, D2): falha no cálculo não
+    // Passo técnico depois da gravação (ADR 0092, D2): falha no cálculo não
     // desfaz a importação; a ficha do B/L recalcula.
     calculationErrors: readLocalChargeCalculationErrors(wrapped?.calculation_errors),
   }

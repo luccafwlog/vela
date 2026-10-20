@@ -200,7 +200,7 @@ describe('importBlDocument', () => {
     expect(mockImportBreakbulkManifest.mock.calls[0]?.[0]).not.toHaveProperty('allowRowErrors')
   })
 
-  // Regra de 2026-10-19 (ADR 0091): um arquivo com erro recusa o lote inteiro.
+  // Regra de 2026-10-19 (ADR 0092): um arquivo com erro recusa o lote inteiro.
   it('um arquivo com erro recusa todos os do lote, sem gravar nenhum', async () => {
     await expect(importBlDocuments({
       filename: 'bls.zip',

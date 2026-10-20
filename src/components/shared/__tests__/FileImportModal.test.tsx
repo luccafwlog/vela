@@ -118,7 +118,7 @@ it('permite cancelar a leitura de uma seleção em andamento', async () => {
   expect(parser).toHaveBeenCalledTimes(1)
 })
 
-// Regra de 2026-10-19 (ADR 0091): erro recusa a importação inteira, sem
+// Regra de 2026-10-19 (ADR 0092): erro recusa a importação inteira, sem
 // "forçar"; o aceite vale só para avisos.
 it('com erro não oferece forçar a importação e mantém o botão desligado', async () => {
   const importer = vi.fn().mockResolvedValue(undefined)

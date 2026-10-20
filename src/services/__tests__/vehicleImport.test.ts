@@ -371,7 +371,7 @@ describe('vehicleImport', () => {
 
     const result = await importVehicleRows({ voyageId: 7, rows })
 
-    // Regra de 2026-10-19 (ADR 0091): uma linha recusada recusa a planilha
+    // Regra de 2026-10-19 (ADR 0092): uma linha recusada recusa a planilha
     // inteira. Todas as recusas são listadas e nada vai ao banco.
     expect(result.processed).toBe(4)
     expect(result.successCount).toBe(0)

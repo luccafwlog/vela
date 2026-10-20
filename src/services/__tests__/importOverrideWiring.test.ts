@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const sourceRoot = resolve(process.cwd(), 'src')
 
-// Regra de 2026-10-19 (ADR 0091): importação com qualquer erro é recusada
+// Regra de 2026-10-19 (ADR 0092): importação com qualquer erro é recusada
 // inteira. Nenhum importador operacional oferece "forçar a importação" que
 // grave só as linhas válidas; o aceite que sobra é o dos avisos.
 describe('importadores operacionais sem override de erro', () => {

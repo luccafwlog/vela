@@ -464,7 +464,7 @@ componente só, aberto de todas as telas que a oferecem.
   [Confirmação de ação](#confirmação-de-ação). Os erros de linha são
   normalizados em `ImportIssue`: o painel mostra a lista completa, distingue
   erro de aviso e permite baixar um CSV sanitizado, sem o payload bruto.
-- **Erro recusa a importação inteira** ([ADR 0091](../adr/0091-importacao-com-erro-e-recusada-inteira.md),
+- **Erro recusa a importação inteira** ([ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md),
   2026-10-19, para todo o sistema): com qualquer linha com erro, ou qualquer
   arquivo ilegível ou com erro num envio de vários, o botão Importar fica
   desligado e nada é gravado; não há "forçar a importação". Aviso não bloqueia

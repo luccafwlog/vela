@@ -34,7 +34,7 @@ describe('breakbulkImport', () => {
     mockRpc.mockReset()
   })
 
-  // Regra de 2026-10-19 (ADR 0091): erro recusa o arquivo inteiro; não há override.
+  // Regra de 2026-10-19 (ADR 0092): erro recusa o arquivo inteiro; não há override.
   it('bloqueia erros de linha antes de tocar no banco, mesmo com o aceite antigo', async () => {
     await expect(importBreakbulkManifest({
       filename: 'bb.xlsx',

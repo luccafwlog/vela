@@ -129,7 +129,7 @@ describe('atomic Granite manifest import', () => {
     expect(graniteImportScope(existing, ['BL-9'], ['BL-9', 'BL-1'])).toEqual({ newManifest: true, missing: [] })
 	})
 
-	// Regra de 2026-10-19 (ADR 0091): linha com erro recusa o arquivo inteiro,
+	// Regra de 2026-10-19 (ADR 0092): linha com erro recusa o arquivo inteiro,
 	// antes de perguntar pelos ausentes e sem chamar a RPC.
 	it('linha com erro recusa o arquivo inteiro: nada é gravado nem perguntado', async () => {
     const confirmRemoval = vi.fn().mockResolvedValue(true)

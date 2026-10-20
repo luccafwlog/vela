@@ -61,7 +61,7 @@ describe('parseScheduleRows', () => {
   })
 })
 
-describe('parseScheduleRows: linha incompleta (ADR 0091)', () => {
+describe('parseScheduleRows: linha incompleta (ADR 0092)', () => {
   it('navio sem VOY, VOY sem navio ou linha com dado sem os dois recusam a planilha, com a linha de cada uma', () => {
     expect(() => parseScheduleRows([
       { 'VESSEL NAME': 'NAVIO A', VOY: '1', 'SALVADOR ETA': '22/01/2026', rowNumber: 2 },

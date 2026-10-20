@@ -332,7 +332,7 @@ describe('Conciliação PIX', () => {
     expect(screen.queryByRole('button', { name: /^Confirmar/ })).toBeNull()
   })
 
-  it('a aba do extrato oferece o arquivo de exemplo para baixar (ADR 0091, item 7)', async () => {
+  it('a aba do extrato oferece o arquivo de exemplo para baixar (ADR 0092, item 7)', async () => {
     renderPage('/reconciliacao?tab=extrato')
     const link = await screen.findByRole('link', { name: 'Baixar modelo .xlsx' })
     expect(link.getAttribute('href')).toBe('/templates/extrato-pix-exemplo.xlsx')

@@ -72,7 +72,7 @@ describe('arquivo "Exportar Tela" da ZPT', () => {
     expect(parsed.rows.map((row) => row.ce)).toEqual(['122605325622422'])
     expect(parsed.warnings).toEqual(['1 linha oculta ignorada: o filtro da planilha indica importar só o visível.'])
   })
-  it('Data Atualização preenchida e ilegível é erro; vazia continua vazia (ADR 0091)', async () => {
+  it('Data Atualização preenchida e ilegível é erro; vazia continua vazia (ADR 0092)', async () => {
     const parsed = await parseCeUnlockZptFile(xls([
       [1, 'BL1', 122605325622422, 'X', 'Bloqueado', '', OPERATOR, '', 'ontem', 'Não', 'Não', 'Não', 'Não'],
       [2, 'BL2', 122605331512625, 'X', 'Bloqueado', '', OPERATOR, '', '', 'Não', 'Não', 'Não', 'Não'],

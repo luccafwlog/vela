@@ -45,7 +45,7 @@ describe('readPixExtract', () => {
     await expect(readPixExtract(pixWorkbook(rows))).rejects.toThrow(/"valor pago" aparece mais de uma vez/)
   })
 
-  // ADR 0091: data preenchida e ilegível é erro que recusa o extrato; vazia fica vazia.
+  // ADR 0092: data preenchida e ilegível é erro que recusa o extrato; vazia fica vazia.
   it('data impossível ou ilegível em "pago em" é erro; data vazia fica vazia', async () => {
     const read = await readPixExtract(pixWorkbook([
       ['identificador', 'CPF/CNPJ', 'pago em', 'valor pago'],

@@ -40,7 +40,7 @@ export type ParsedCeUnlockZptFile = {
   /**
    * Linhas com conteúdo que não pode ser lido (CE que não tem 15 dígitos,
    * "Data Atualização" preenchida e ilegível): qualquer uma recusa o arquivo
-   * inteiro (ADR 0091).
+   * inteiro (ADR 0092).
    */
   rowErrors: Array<{ row: number; field: "CE" | "Data Atualização"; message: string }>;
   /** Erro do arquivo como um todo (mais CEs que o limite): também recusa tudo. */
@@ -98,7 +98,7 @@ export async function parseCeUnlockZptFile(buffer: ArrayBuffer): Promise<ParsedC
       rowErrors.push({ row: row.rowNumber, field: "CE", message: `CE "${rawCe}" ilegível: o CE Mercante tem 15 dígitos.` });
       continue;
     }
-    // Data preenchida que não se lê é valor ilegível (ADR 0091); vazia fica vazia.
+    // Data preenchida que não se lê é valor ilegível (ADR 0092); vazia fica vazia.
     const rawUpdatedAt = asString(get("updated_at"));
     const updatedAt = rawUpdatedAt ? parseZptDateTime(rawUpdatedAt) : null;
     if (rawUpdatedAt && !updatedAt) {

@@ -47,7 +47,7 @@ import { plural } from './importPresentation'
  * Erro no arquivo recusa a importação inteira. IMO/OOG e vazios são passos
  * depois da gravação (D2): se falharem, o Baplie fica gravado e o aviso diz o
  * que falta. As duas pendências continuam em /baplie depois de fechar (ADR
- * 0091, item 5): "Aplicar IMO/OOG agora" e "Atualizar vazios do Baplie".
+ * 0092, item 5): "Aplicar IMO/OOG agora" e "Atualizar vazios do Baplie".
  */
 export function BaplieImportModal({
   voyage,

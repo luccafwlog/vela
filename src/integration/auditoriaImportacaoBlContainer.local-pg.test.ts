@@ -930,7 +930,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(vehicleAlerts(blId)).toBe(1)
   })
 
-  // ADR 0091 (migration 335): a recusa que só o banco detecta desfaz o arquivo inteiro.
+  // ADR 0092 (migration 335): a recusa que só o banco detecta desfaz o arquivo inteiro.
   it('chassi que já está em outro B/L recusa o arquivo inteiro e nada é gravado', async () => {
     const blId = 'A202-VIN3'
     const preview = await previewBlFreightImport({
@@ -988,7 +988,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(blState('A202-FCL3')?.customer_id).toBe(alfa.id)
   })
 
-  // ADR 0091 (migration 335): erro em qualquer B/L recusa o arquivo inteiro.
+  // ADR 0092 (migration 335): erro em qualquer B/L recusa o arquivo inteiro.
   it('B/L bloqueado na prévia impede os outros, e a recusa do banco no meio do arquivo não deixa nada gravado', async () => {
     // Prévia: A202-FCL2 bloqueado (FCL de outro Cliente) impede o A202-ATM1 liberado.
     const withBlocked = await importBls(

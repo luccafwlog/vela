@@ -259,7 +259,7 @@ export async function importVaziosImportacaoManifest({
   manifestNumbers,
   description,
 }: ImportVaziosImportacaoArgs): Promise<{ manifestId: string; mercanteManifestIds: string[] }> {
-  // Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo inteiro.
+  // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo inteiro.
   if (manifest.rowErrors.length) throw new Error(formatImportacaoRowErrors(manifest.rowErrors))
   const { manifestos, error: numbersError } = resolveVaziosManifestNumbers(manifest, manifestNumbers)
   if (!manifestos) throw new Error(numbersError)

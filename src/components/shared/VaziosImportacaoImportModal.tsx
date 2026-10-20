@@ -37,7 +37,7 @@ const PREVIEW_LIMIT = 25
  * a viagem e o Nº do manifesto Mercante de cada rota (POL → POD) liberam o
  * botão Importar.
  *
- * Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo
+ * Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo
  * inteiro; aviso não impede e pede o aceite.
  */
 export function VaziosImportacaoImportModal({

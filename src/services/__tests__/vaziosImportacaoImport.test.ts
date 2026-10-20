@@ -150,7 +150,7 @@ describe('parseVaziosImportacaoBuffer', () => {
 		expect(rpcMock).not.toHaveBeenCalled()
 	})
 
-	// Regra de 2026-10-19 (ADR 0091): não há aceite que grave só as linhas válidas.
+	// Regra de 2026-10-19 (ADR 0092): não há aceite que grave só as linhas válidas.
 	it('linha com erro recusa o arquivo inteiro mesmo com aceite antigo', async () => {
 		rpcMock.mockReset()
 

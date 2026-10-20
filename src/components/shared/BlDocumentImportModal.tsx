@@ -41,7 +41,7 @@ function isCancelled(document: CheckedBlDocument) {
   return Boolean(document.reimport?.cancelled?.length)
 }
 
-/** Erro do arquivo: recusa o lote inteiro (regra de 2026-10-19, ADR 0091). */
+/** Erro do arquivo: recusa o lote inteiro (regra de 2026-10-19, ADR 0092). */
 function hasDocumentError(document: CheckedBlDocument, voyage: BlDocumentVoyage | null) {
   return document.errors.length > 0 || Boolean(describeVoyageMismatch(document, voyage)) || isOtherVoyage(document)
 }
@@ -57,7 +57,7 @@ function hasDocumentWarning(document: CheckedBlDocument) {
  * continua na mesma tela — este caminho existe para quando a viagem chega em
  * B/Ls soltos, e não em uma planilha consolidada.
  *
- * Regra de 2026-10-19 (ADR 0091): um arquivo com erro (sem número de B/L, de
+ * Regra de 2026-10-19 (ADR 0092): um arquivo com erro (sem número de B/L, de
  * outro navio ou de outra viagem) recusa todos os do lote; aviso de leitura
  * incerta pede o aceite; B/L cancelado é aviso que só informa. Nenhum dos dois
  * impede os demais.
@@ -105,7 +105,7 @@ export function BlDocumentImportModal({
       multiple
       title="Importar B/Ls de carga solta"
       accept=".pdf,.docx"
-      // ADR 0091 item 7: o B/L vem do armador; o modelo é um B/L de exemplo no
+      // ADR 0092 item 7: o B/L vem do armador; o modelo é um B/L de exemplo no
       // formato aceito, com dados fictícios.
       templates={<ImportTemplateLinks baseName="bl-avulso-exemplo" extensions={['docx']} />}
       ready={Boolean(selectedVoyageId && user)}

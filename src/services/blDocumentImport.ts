@@ -49,7 +49,7 @@ export async function importBlDocuments({
   uploadedBy: string
   /**
    * Aceite dos avisos de leitura. Erro nunca é aceito: um arquivo com erro
-   * recusa o lote inteiro (regra de 2026-10-19, ADR 0091).
+   * recusa o lote inteiro (regra de 2026-10-19, ADR 0092).
    */
   acceptWarnings?: boolean
   /** Trocas de Consignatário e rotas de B/L faturado confirmadas na prévia do lote. */

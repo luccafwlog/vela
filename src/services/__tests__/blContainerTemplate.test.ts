@@ -1,4 +1,4 @@
-// A5 (lote 6a, ADR 0091 item 7): o modelo do B/L de container é um B/L no
+// A5 (lote 6a, ADR 0092 item 7): o modelo do B/L de container é um B/L no
 // layout posicional COSCO e tem de passar pelo parser e pela prévia reais sem
 // erro nem aviso.
 import { readFileSync } from 'node:fs'

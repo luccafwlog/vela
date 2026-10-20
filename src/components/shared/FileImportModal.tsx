@@ -208,7 +208,7 @@ export function FileImportModal<T, TResult = void>({
   }, [selectedFiles, reparseKey])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Regra de 2026-10-19 (ADR 0091): importação com qualquer erro é recusada
+  // Regra de 2026-10-19 (ADR 0092): importação com qualquer erro é recusada
   // inteira. Um arquivo com erro, ilegível ou que o importador recusa bloqueia
   // todos os outros; o aceite vale só para avisos.
   function entryImportable(entry: FilePreviewEntry<T>) {

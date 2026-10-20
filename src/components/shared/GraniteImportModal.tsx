@@ -47,7 +47,7 @@ const PREVIEW_LIMIT = 50
  * libera o botão Importar. O Granito só totaliza carga (lote 5b): não há
  * Cliente nem CNPJ por B/L, e o peso é o peso real da planilha.
  *
- * Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo
+ * Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo
  * inteiro; não há aceite que grave só as válidas.
  */
 export function GraniteImportModal({

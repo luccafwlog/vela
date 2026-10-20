@@ -454,7 +454,7 @@ export async function importVehicleRows({
     errors.push({ row: row.rowNumber, message: `Local de desova diferente para o container ${row.container_number} no mesmo arquivo.` })
     return false
   })
-  // Regra de 2026-10-19 (ADR 0091): uma linha recusada na conferência com o
+  // Regra de 2026-10-19 (ADR 0092): uma linha recusada na conferência com o
   // que já está gravado recusa a planilha inteira. A RPC grava tudo numa
   // transação e também recusa o lote inteiro; conferir antes é o que permite
   // listar todas as linhas recusadas, e não só a primeira que o banco acharia.

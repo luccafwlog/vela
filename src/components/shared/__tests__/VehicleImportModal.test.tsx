@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Regra de 2026-10-19 (ADR 0091): linha com erro recusa a planilha inteira;
+// Regra de 2026-10-19 (ADR 0092): linha com erro recusa a planilha inteira;
 // a gravação não fecha no meio.
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'

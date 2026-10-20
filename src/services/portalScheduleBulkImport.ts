@@ -67,7 +67,7 @@ export function assertNoRepeatedScheduleColumns(headers: readonly string[]) {
 
 /**
  * Linha com dado mas sem VESSEL NAME ou sem VOY não identifica a Viagem: é
- * erro que recusa a planilha inteira (ADR 0091), lançado com a linha de cada
+ * erro que recusa a planilha inteira (ADR 0092), lançado com a linha de cada
  * uma. Linha vazia e a linha de exemplo do modelo ("EXEMPLO NAVIO") são
  * ignoradas.
  */

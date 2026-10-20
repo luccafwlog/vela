@@ -72,7 +72,7 @@ quando estão em viagens diferentes e o navio é achado pelo nome (a gravação
 grava o primeiro IMO no navio e recusaria o segundo). Porto removido da Viagem
 (POD com "Excluir") que volta na planilha entra com a data que tinha como
 "antes" e volta ao planejamento (`deleted=false`), como na gravação pela tela;
-antes a gravação recusava o arquivo para sempre como prévia obsoleta. Qualquer linha com erro na prévia (inclusive data ilegível) bloqueia a planilha inteira (regra de 2026-10-19). Linha com dado mas sem `VESSEL NAME` ou sem `VOY` (navio sem VOY, VOY sem navio) recusa a planilha na leitura, com o número de cada linha (`parseScheduleRows`, [ADR 0091](../adr/0091-importacao-com-erro-e-recusada-inteira.md)); linha vazia e a linha de exemplo do modelo ("EXEMPLO NAVIO") são ignoradas. **Importar N viagens** grava tudo numa transação
+antes a gravação recusava o arquivo para sempre como prévia obsoleta. Qualquer linha com erro na prévia (inclusive data ilegível) bloqueia a planilha inteira (regra de 2026-10-19). Linha com dado mas sem `VESSEL NAME` ou sem `VOY` (navio sem VOY, VOY sem navio) recusa a planilha na leitura, com o número de cada linha (`parseScheduleRows`, [ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md)); linha vazia e a linha de exemplo do modelo ("EXEMPLO NAVIO") são ignoradas. **Importar N viagens** grava tudo numa transação
 (`apply_schedule_sheet_atomic`, migrations `188`, `193`, `199`, `201`, `202`, `209`, `213` e `217`, com as mesmas regras
 de navio, IMO e Viagem cancelada): Viagem nova é criada uma vez, toda Viagem
 enviada é publicada no Portal, dois arquivos simultâneos da mesma Viagem nova

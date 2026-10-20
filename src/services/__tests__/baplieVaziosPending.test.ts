@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 
-// ADR 0091, item 5: o recadastro dos vazios que falhou fica retomável em
+// ADR 0092, item 5: o recadastro dos vazios que falhou fica retomável em
 // /baplie. A pendência é o manifesto de vazios do Baplie com containers ou
 // rotas diferentes dos vazios do Baplie gravado.
 const tables = vi.hoisted(() => ({

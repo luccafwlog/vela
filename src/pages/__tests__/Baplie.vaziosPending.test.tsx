@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// ADR 0091, item 5: o recadastro dos vazios que falhou na importação continua
+// ADR 0092, item 5: o recadastro dos vazios que falhou na importação continua
 // em /baplie depois de fechar o aviso. A tela recalcula a pendência comparando
 // os vazios do Baplie com os cadastrados — mesmo com a mesma quantidade.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

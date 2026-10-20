@@ -1,4 +1,4 @@
-// ADR 0091 item 7: o B/L avulso vem do armador em .docx ou .pdf, então o modelo
+// ADR 0092 item 7: o B/L avulso vem do armador em .docx ou .pdf, então o modelo
 // é um B/L de exemplo no formato aceito, com dados fictícios, que o leitor
 // real lê sem erro nem aviso.
 import { readFile } from 'node:fs/promises'

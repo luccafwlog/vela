@@ -36,7 +36,7 @@ export type FixedImportVoyage = { id: number; label: string }
  * bloqueio por erro e o resultado são do `FileImportModal`; aqui ficam a
  * viagem, o formato numérico e a prévia com a situação de cada B/L.
  *
- * Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo
+ * Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo
  * inteiro. B/L cancelado é aviso (D1): a linha não é tocada e o resto entra.
  */
 export function BreakbulkManifestImportModal({

@@ -287,7 +287,7 @@ function baplieEmptyKeys(list: Iterable<BaplieDiffFields>) {
 }
 
 /**
- * Vazios do Baplie pendentes de recadastro (ADR 0091, item 5): o manifesto de
+ * Vazios do Baplie pendentes de recadastro (ADR 0092, item 5): o manifesto de
  * vazios vindo do Baplie não tem os mesmos containers e rotas que os vazios do
  * Baplie gravado. É o rastro persistido de um `vaziosError` — a falha em si não
  * fica gravada —, e /baplie oferece "Atualizar vazios do Baplie" com ele.

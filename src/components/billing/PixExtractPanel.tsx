@@ -42,7 +42,7 @@ type ReadResult = {
   firstSheetHiddenRows: number
   /** Lançamentos zerados ou negativos (tarifas e saídas) ignorados (D3). */
   ignored: number
-  /** Valor pago ou data ilegível: recusa o extrato inteiro; nada é lido nem salvo (ADR 0091). */
+  /** Valor pago ou data ilegível: recusa o extrato inteiro; nada é lido nem salvo (ADR 0092). */
   errors: ImportIssue[]
 }
 

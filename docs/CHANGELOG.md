@@ -13,7 +13,7 @@
 - **Revisão do lote 6a (2026-10-20):** datas de containers e Base de Clientes com 60 s para gravar
   o arquivo inteiro (até 300 B/Ls e 3.000 Clientes por arquivo) e mensagem de arquivo grande;
   Razão Social conferida do mesmo jeito na tela e no banco; troca de Consignatário recusada pelo
-  banco registrada como exceção na ADR 0091; extrato do Pix com débito contábil ignorado e modelo
+  banco registrada como exceção na ADR 0092; extrato do Pix com débito contábil ignorado e modelo
   para baixar; ZPT, Pix e programação recusam data ou linha ilegível; modais de importação não
   fecham durante a gravação; vazios do Baplie retomados em /baplie; modelo do B/L avulso. Migrations
   do 6a renumeradas para `333`, `334` e `335` na junção com o 5b.
@@ -22,7 +22,7 @@
   blocos; todas as importações no molde comum (passos, Arquivo com modelo para baixar, Prévia,
   erros num lugar só, "Importar N …"), uma versão só de cada importação para a tela e a aba da
   Viagem. Importação com qualquer erro não grava nada, e recusa do banco desfaz tudo
-  ([ADR 0091](adr/0091-importacao-com-erro-e-recusada-inteira.md)); datas de containers, Base de
+  ([ADR 0092](adr/0092-importacao-com-erro-e-recusada-inteira.md)); datas de containers, Base de
   Clientes e B/L de container gravam o arquivo numa transação (migrations `333`, `334` e `335`).
 - **Revisão do lote 5b (2026-10-20):** a migration `330` deixa os snapshots de taxa do Granito
   (`granite_bl_charges`) só para leitura pela API. Granito sem Prontos/Faturados na Viagem;

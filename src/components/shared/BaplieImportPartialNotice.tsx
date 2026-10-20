@@ -11,7 +11,7 @@ function pendencyTitle(result: BaplieImportDone) {
 }
 
 /**
- * Cada pendência tem o seu caminho e as duas sobrevivem ao fechar (ADR 0091,
+ * Cada pendência tem o seu caminho e as duas sobrevivem ao fechar (ADR 0092,
  * item 5): IMO/OOG continuam pendentes em /baplie, que os recalcula e oferece
  * "Aplicar IMO/OOG agora" (importar o mesmo arquivo também refaz); os vazios
  * não voltam ao reimportar, porque sem diferença eles não são tocados — o
