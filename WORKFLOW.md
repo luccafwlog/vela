@@ -463,6 +463,12 @@ plano de preservação.
   SQL de volume que ficam inline por desempenho
   ([Segurança](./docs/operations/seguranca.md#rls-first));
 - revogue `PUBLIC` e `anon` no mesmo arquivo por padrão;
+- tabela nova recebe `GRANT` explícito na própria migration: `SELECT`,
+  `INSERT`, `UPDATE`, `DELETE` para `service_role` (menos o que for
+  append-only) e, para `authenticated`, só o que a tela lê ou grava direto
+  pela Data API, atrás de RLS. Branch Supabase e replay local não têm os
+  default privileges de produção; a suíte local-pg `grantsDoReplay` falha sem
+  o grant (migration `340`, [Segurança](./docs/operations/seguranca.md#rls-first));
 - grants pré-autenticação para `anon` exigem decisão explícita, controles contra
   abuso e teste focado;
 - trigger functions não precisam ser executáveis diretamente por clientes;
@@ -909,7 +915,12 @@ As Edge Functions prioritárias usam o helper best-effort
 `supabase/functions/_shared/telemetry.ts`: sem `SENTRY_DSN`, ele não envia
 eventos; quando configurado, captura exceções não tratadas e respostas 5xx sem
 mensagens brutas, usuário, headers ou corpos HTTP. Não coloque valores de
-cliente em tags/extra. Valide em Preview e confirme o ambiente antes de ativar
+cliente em tags/extra. Uma Edge que devolve 5xx por falha de RPC pode marcar a
+resposta com `telemetryFailureHeaders(rpc, error)`: o evento ganha as tags
+`codigo_erro` (só SQLSTATE ou `PGRSTnnn`) e `rpc` (só nomes de
+`TELEMETRY_RPC_ALLOWLIST`, em `src/lib/telemetryContract.ts`), e os cabeçalhos
+saem da resposta antes de ela voltar ao chamador. Hoje marcam `alerts-detector`
+e `customer-communication-auto-runner`. Valide em Preview e confirme o ambiente antes de ativar
 o DSN de produção. O SDK Deno está em beta e não isola automaticamente escopos
 por requisição.
 

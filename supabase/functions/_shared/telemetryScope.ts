@@ -21,5 +21,7 @@ export function applyEdgeTelemetryScope(scope: EdgeTelemetryScope, context: Edge
   if (context.result) scope.setTag('result', context.result)
   if (Number.isFinite(context.durationMs)) scope.setTag('duration_ms', String(context.durationMs))
   if (Number.isFinite(context.processedCount)) scope.setTag('processed_count', String(context.processedCount))
+  if (context.errorCode) scope.setTag('codigo_erro', context.errorCode)
+  if (context.failedRpc) scope.setTag('rpc', context.failedRpc)
   scope.setFingerprint(['edge', context.functionName, context.status ?? 'unknown'])
 }

@@ -68,6 +68,8 @@ A partir desta atualização, todo erro reportado pelo Vela inclui tags padroniz
 | `diagnostico` | Mensagem amigável traduzida (ex: *"Sem permissão para esta ação"*) | Explicação didática do motivo do erro |
 | `user_role` | `administrativo`, `financeiro`, `operacoes` | Papel operacional do usuário que disparou a ação |
 | `rota` | `/reconciliacao`, `/invoices` | Endereço URL no navegador |
+| `codigo_erro` | `22023`, `42501`, `PGRST202` | Só em evento de Edge Function: SQLSTATE ou código PostgREST da RPC que falhou (nunca a mensagem) |
+| `rpc` | `run_alert_detectors`, `evaluate_and_dispatch_automatic_communications` | Só em evento de Edge Function: RPC que falhou, se estiver na allowlist de `src/lib/telemetryContract.ts` |
 
 ---
 

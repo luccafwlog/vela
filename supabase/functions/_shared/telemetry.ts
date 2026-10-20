@@ -7,6 +7,8 @@ import {
 } from '../../../src/lib/telemetryContract.ts'
 import { applyEdgeTelemetryScope } from './telemetryScope.ts'
 
+export { telemetryFailureHeaders } from '../../../src/lib/telemetryContract.ts'
+
 type SentrySdk = typeof import('@sentry/deno')
 let sentryPromise: Promise<SentrySdk> | null = null
 let initialized = false
