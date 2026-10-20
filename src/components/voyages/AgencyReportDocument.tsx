@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { formatBRL, formatDate } from "../../lib/utils";
+import { formatBRL, formatDate, formatDateTimeBR } from "../../lib/utils";
 import {
   InvoiceDocFooter,
   InvoiceDocHeader,
@@ -12,8 +12,7 @@ import {
   dataHeadRow,
   dataNumberCell,
   dataTable,
-  dataTotalCell,
-  dataTotalRow,
+  DOC_ACCENT,
   DOC_MUTED,
   documentRoot,
   groupBar,
@@ -135,9 +134,71 @@ function ton(value: unknown) {
   return `${count(value)} ton`;
 }
 
-function Empty() {
-  return <p style={{ fontSize: "12px", margin: "6px 0 0" }}>—</p>;
+// Data com hora no horário de Brasília ("17/10/2026 às 13:30"). Campo só com
+// data ("2026-10-17") sai só com a data; timestamp sem fuso já é hora local de
+// Brasília (wall clock), como a aba grava.
+// eslint-disable-next-line react-refresh/only-export-components
+export function formatBrasiliaDateTime(value?: string | null): string {
+  if (!value) return "-";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return formatDate(value.trim());
+  if (!/(Z|[+-]\d{2}:?\d{2})$/i.test(value.trim())) return formatDateTimeBR(value);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return formatDateTimeBR(value);
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(date)
+      .map((part) => [part.type, part.value]),
+  );
+  return `${parts.day}/${parts.month}/${parts.year} às ${parts.hour}:${parts.minute}`;
 }
+
+// Condição do vazio embarcado: o serviço (groupEmptyEmbarkBookings) entrega o
+// rótulo do sistema de origem; o impresso traduz.
+const EMPTY_CONDITION_LABELS: Record<string, string> = {
+  EMPTY: "Vazio",
+  "EMPTY W/ MATERIAL": "Vazio com material",
+};
+
+function emptyConditionLabel(condition: string) {
+  return EMPTY_CONDITION_LABELS[condition.trim().toUpperCase()] ?? condition;
+}
+
+// TOTAL em caixa âmbar compacta à direita, logo abaixo da tabela (mesmo
+// formato das faturas impressas, lote 6b).
+function TotalBox({ value }: { value: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+      <div
+        className="agency-report-document__total"
+        style={{
+          display: "inline-flex",
+          gap: 12,
+          background: DOC_ACCENT,
+          color: "#111",
+          padding: "5px 14px",
+          borderRadius: 2,
+          fontWeight: 700,
+          fontSize: "13px",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span>TOTAL:</span>
+        <span>{value}</span>
+      </div>
+    </div>
+  );
+}
+
+// Faixa de seção do impresso: nada abaixo de 12px.
+const sectionBar: React.CSSProperties = { ...groupBar, fontSize: "12px" };
 
 function MetricsTable({
   label,
@@ -200,6 +261,7 @@ function OperatedListingTable({
   const total = combos.reduce((sum, combo) => sum + combo.quantity, 0);
 
   return (
+    <>
     <table aria-label={label} style={dataTable}>
       <thead>
         <tr style={dataHeadRow}>
@@ -209,10 +271,6 @@ function OperatedListingTable({
         </tr>
       </thead>
       <tbody>
-        <tr style={dataTotalRow}>
-          <th scope="row" colSpan={2} style={dataTotalCell}>TOTAL:</th>
-          <td style={dataTotalCell}>{count(total)}</td>
-        </tr>
         {combos.map((combo, index) => (
           <tr key={`${combo.type}:${combo.category}`} style={zebraRow(index)}>
             <th scope="row" style={dataCell}>{combo.type}</th>
@@ -222,6 +280,8 @@ function OperatedListingTable({
         ))}
       </tbody>
     </table>
+    <TotalBox value={count(total)} />
+    </>
   );
 }
 
@@ -259,6 +319,7 @@ function EmptyEmbarkTable({
   const total = rows.reduce((sum, row) => sum + row.quantity, 0);
 
   return (
+    <>
     <table aria-label={label} style={dataTable}>
       <thead>
         <tr style={dataHeadRow}>
@@ -269,20 +330,18 @@ function EmptyEmbarkTable({
         </tr>
       </thead>
       <tbody>
-        <tr style={dataTotalRow}>
-          <th scope="row" colSpan={3} style={dataTotalCell}>TOTAL:</th>
-          <td style={dataTotalCell}>{count(total)}</td>
-        </tr>
         {rows.map((row, index) => (
           <tr key={`${row.type}:${row.condition}:${row.localLabel}:${index}`} style={zebraRow(index)}>
             <th scope="row" style={dataCell}>{row.type}</th>
-            <td style={dataCell}>{row.condition}</td>
+            <td style={dataCell}>{emptyConditionLabel(row.condition)}</td>
             <td style={dataCell}>{row.localLabel}</td>
             <td style={dataNumberCell}>{count(row.quantity)}</td>
           </tr>
         ))}
       </tbody>
     </table>
+    <TotalBox value={count(total)} />
+    </>
   );
 }
 
@@ -303,7 +362,7 @@ function resolutionFor(
   const signedBy = row?.signed_by as string | null | undefined;
   if (!signedAt || state === "pending") return { label, attribution: null };
   const name = (signedBy && actorNames[signedBy]) || null;
-  return { label, attribution: `${name ?? "—"} em ${formatDate(signedAt)}` };
+  return { label, attribution: `${name ?? "—"} em ${formatBrasiliaDateTime(signedAt)}` };
 }
 
 function ResolutionLine({
@@ -319,7 +378,7 @@ function ResolutionLine({
   return (
     <p
       className="agency-report-document__resolution"
-      style={{ fontSize: "11px", color: DOC_MUTED, margin: "6px 0 0" }}
+      style={{ fontSize: "12px", color: DOC_MUTED, margin: "6px 0 0" }}
     >
       <strong>{label}</strong>
       {attribution ? ` — ${attribution}` : ""}
@@ -331,7 +390,7 @@ function TerminalScopeLine() {
   return (
     <p
       className="agency-report-document__resolution"
-      style={{ fontSize: "11px", color: DOC_MUTED, margin: "6px 0 0" }}
+      style={{ fontSize: "12px", color: DOC_MUTED, margin: "6px 0 0" }}
     >
       <strong>Sem frente atribuída a este terminal</strong>
     </p>
@@ -349,10 +408,13 @@ function Section({
   terminalScope,
   signoffs,
   actorNames,
+  pageBreakBefore = false,
   children,
 }: {
   title: string;
   section?: AgencyReportSection;
+  /** Começa sempre em página nova na impressão (Anexo). */
+  pageBreakBefore?: boolean;
   hasData?: boolean;
   // Uma seção do ciclo (ex.: 'operacao_patio') vira várias seções impressas
   // (Operação de vazios, Linhas de serviço, Anexo, Storage) — sem isto, a
@@ -373,8 +435,11 @@ function Section({
   if (!hasData && !(section && showResolution) && !outsideTerminalScope) return null;
 
   return (
-    <section className="agency-report-document__section" style={{ breakInside: "avoid" }}>
-      <h2 style={groupBar}>{title}</h2>
+    <section
+      className="agency-report-document__section"
+      style={pageBreakBefore ? { breakBefore: "page", pageBreakBefore: "always" } : { breakInside: "avoid" }}
+    >
+      <h2 style={sectionBar}>{title}</h2>
       {hasData ? children : null}
       {outsideTerminalScope && showResolution ? <TerminalScopeLine /> : null}
       {section && showResolution && !outsideTerminalScope ? (
@@ -450,7 +515,7 @@ function DepartmentSignoffsSection({
 
   return (
     <section className="agency-report-document__section" style={{ breakInside: "avoid" }}>
-      <h2 style={groupBar}>Assinaturas departamentais</h2>
+      <h2 style={sectionBar}>Assinaturas departamentais</h2>
       <table aria-label="Assinaturas departamentais" style={dataTable}>
         <thead>
           <tr style={dataHeadRow}>
@@ -469,7 +534,7 @@ function DepartmentSignoffsSection({
               <tr key={department} style={zebraRow(DEPARTMENTS.indexOf(department))}>
                 <th scope="row" style={{ ...dataCell, fontWeight: 700 }}>{AGENCY_REPORT_DEPARTMENT_LABELS[department]}</th>
                 <td style={dataCell}>{row?.signed_at ? (name ?? "—") : "Não assinado"}</td>
-                <td style={dataCell}>{row?.signed_at ? formatDate(row.signed_at) : "—"}</td>
+                <td style={dataCell}>{row?.signed_at ? formatBrasiliaDateTime(row.signed_at) : "—"}</td>
                 {hasAnyReopening ? (
                   <td style={dataCell}>
                     {reopenings.length ? (
@@ -481,7 +546,7 @@ function DepartmentSignoffsSection({
                             "—";
                           return (
                             <li key={index}>
-                              {formatDate(reopening.changed_at)} — {reopenName}
+                              {formatBrasiliaDateTime(reopening.changed_at)} — {reopenName}
                               {reopening.justification ? `: ${reopening.justification}` : ""}
                             </li>
                           );
@@ -599,18 +664,16 @@ export function AgencyReportDocument({
         numberPrefix=""
       />
       <InvoiceDocTitle>Agency Departure Report</InvoiceDocTitle>
-      {/* Fatos da escala no bloco de metadados da fatura (labelCell/cell),
-          dois pares por linha para caber o mesmo conteúdo do antigo grid. */}
+      {/* Identificação no bloco de metadados da fatura (labelCell/cell), dois
+          pares por linha. ATA/ATB/ATD/Restow ficam na seção "Escala". */}
       <table
-        aria-label="Escala"
+        aria-label="Identificação"
         style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12 }}
       >
         <tbody>
           {([
-            [["Armador", header.carrierName ?? "—"], ["Navio / viagem", header.voyageLabel ?? "—"]],
+            [["Armador", header.carrierName ?? "—"], ["Navio / Viagem", header.voyageLabel ?? "—"]],
             [["Porto", header.port ?? "—"], ["Terminal", header.terminalCode ? `${header.terminalCode}${header.terminal && header.terminal !== header.terminalCode ? ` — ${header.terminal}` : ''}` : (header.terminal ?? "—")]],
-            [["ATA", formatDate(schedule.ata)], ["ATB", formatDate(schedule.atb)]],
-            [["ATD", formatDate(schedule.atd)], ["Restow", schedule.rtw == null ? "—" : count(schedule.rtw)]],
           ] as Array<Array<[string, string]>>).map((pairs) => (
             <tr key={pairs[0][0]}>
               {pairs.map(([name, value], index) => (
@@ -628,7 +691,17 @@ export function AgencyReportDocument({
         </tbody>
       </table>
 
-      <Section title="Escala" {...section("datas")} hasData={false} />
+      <Section title="Escala" {...section("datas")}>
+        <MetricsTable
+          label="Escala"
+          metrics={[
+            ["ATA", schedule.ata ? formatBrasiliaDateTime(schedule.ata) : null],
+            ["ATB", schedule.atb ? formatBrasiliaDateTime(schedule.atb) : null],
+            ["ATD", schedule.atd ? formatBrasiliaDateTime(schedule.atd) : null],
+            ["Restow", schedule.rtw == null ? null : count(schedule.rtw)],
+          ]}
+        />
+      </Section>
       <Section
         title="Carga solta"
         {...section("carga_descarregada")}
@@ -659,9 +732,11 @@ export function AgencyReportDocument({
           />
         ) : null}
       </Section>
-      {/* ADR 0036: o título da seção é "Carga carregada"; granito é o
-          conteúdo, não o nome — decisão confirmada em 2026-09-19. */}
-      <Section title="Carga carregada" {...section("carga_carregada")} hasData={Boolean(number(granite.bls))}>
+      {/* Lote 6b: no impresso a seção leva o nome do conteúdo ("Granito
+          carregado") e só sai quando a escala tem Granito — revê, para o papel,
+          o título "Carga carregada" do ADR 0036 (a aba mantém o nome). */}
+      {number(granite.bls) ? (
+      <Section title="Granito carregado" {...section("carga_carregada")}>
         <MetricsTable
           label="Granito"
           metrics={[
@@ -671,6 +746,7 @@ export function AgencyReportDocument({
           ]}
         />
       </Section>
+      ) : null}
       <Section title="Matriz de descarga" {...section("carga_descarregada")} hasData={discargaCombos.length > 0}>
         <OperatedListingTable label="Matriz de descarga" combos={discargaCombos} />
         {(asMatrix(sections.cargaDescarregada).teu != null || asMatrix(sections.cargaDescarregada).unknownTypeCount) ? (
@@ -787,48 +863,13 @@ export function AgencyReportDocument({
                 <td style={dataCell}>{String(service.observation ?? "—")}</td>
               </tr>
             ))}
-            {/* Barra de total no padrão da fatura: soma das linhas impressas —
-                não lê `costs.total`, para o rodapé nunca divergir do que saiu
-                impresso acima. */}
-            <tr style={dataTotalRow}>
-              <th colSpan={6} style={dataTotalCell}>TOTAL:</th>
-              <td style={dataTotalCell}>
-                {formatBRL(serviceLines.reduce((sum, service) => sum + serviceLineTotal(service), 0))}
-              </td>
-              <td style={dataTotalCell} />
-            </tr>
           </tbody>
         </table>
-      </Section>
-      <Section
-        title="Anexo — unidades que geraram armazenagem"
-        {...section("vazios_embarcados")}
-        hasData={vaziosUnidadesComPeriodo.length > 0}
-      >
-        <table aria-label="Unidades que geraram armazenagem" style={dataTable}>
-          <thead>
-            <tr style={dataHeadRow}>
-              <th style={dataHeadCell}>Container</th>
-              <th style={dataHeadCell}>Tipo</th>
-              <th style={dataHeadCell}>Local</th>
-              <th style={dataHeadCell}>Condição</th>
-              <th style={dataHeadCell}>Entrada</th>
-              <th style={dataHeadCell}>Saída</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vaziosUnidadesComPeriodo.map((unit, index) => (
-              <tr key={String(unit.id ?? index)} style={zebraRow(index)}>
-                <th style={dataCell}>{String(unit.container_number ?? "—")}</th>
-                <td style={dataCell}>{String(unit.container_type ?? "—")}</td>
-                <td style={dataCell}>{String(asRecord(unit.local).name ?? asRecord(unit.local).code ?? unit.local_id ?? "—")}</td>
-                <td style={dataCell}>{String(unit.condition ?? "—")}</td>
-                <td style={dataCell}>{formatDate(unit.hand_in_date as string | null)}</td>
-                <td style={dataCell}>{formatDate(unit.hand_out_date as string | null)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Total no padrão da fatura: soma das linhas impressas — não lê
+            `costs.total`, para o total nunca divergir do que saiu acima. */}
+        <TotalBox
+          value={formatBRL(serviceLines.reduce((sum, service) => sum + serviceLineTotal(service), 0))}
+        />
       </Section>
       <Section
         title="Storage"
@@ -852,8 +893,9 @@ export function AgencyReportDocument({
           />
         </Section>
       ) : null}
+      {observations.length ? (
       <Section title="Observações por seção">
-        {observations.length ? (
+        {(
           <ul style={{ fontSize: "12px", margin: "6px 0 0", paddingLeft: 18 }}>
             {observations.map((signoff, index) => (
               <li key={String(signoff.id ?? signoff.section ?? index)}>
@@ -864,14 +906,49 @@ export function AgencyReportDocument({
               </li>
             ))}
           </ul>
-        ) : (
-          <Empty />
         )}
       </Section>
+      ) : null}
       {departmentSignoffs ? (
         <DepartmentSignoffsSection rows={departmentSignoffs} actorNames={actorNames} />
       ) : null}
       <InvoiceDocFooter />
+      {/* Anexo no fim (depois das assinaturas e da data), sempre em página
+          própria. A resolução de 'vazios_embarcados' já saiu em "Embarque de
+          vazios", então aqui só a lista é impressa. */}
+      {vaziosUnidadesComPeriodo.length > 0 ? (
+      <Section
+          title="Anexo — unidades que geraram armazenagem"
+          {...section("vazios_embarcados")}
+          hasData={vaziosUnidadesComPeriodo.length > 0}
+          pageBreakBefore
+        >
+          <table aria-label="Unidades que geraram armazenagem" style={dataTable}>
+            <thead>
+              <tr style={dataHeadRow}>
+                <th style={dataHeadCell}>Container</th>
+                <th style={dataHeadCell}>Tipo</th>
+                <th style={dataHeadCell}>Local</th>
+                <th style={dataHeadCell}>Condição</th>
+                <th style={dataHeadCell}>Entrada</th>
+                <th style={dataHeadCell}>Saída</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vaziosUnidadesComPeriodo.map((unit, index) => (
+                <tr key={String(unit.id ?? index)} style={zebraRow(index)}>
+                  <th style={dataCell}>{String(unit.container_number ?? "—")}</th>
+                  <td style={dataCell}>{String(unit.container_type ?? "—")}</td>
+                  <td style={dataCell}>{String(asRecord(unit.local).name ?? asRecord(unit.local).code ?? unit.local_id ?? "—")}</td>
+                  <td style={dataCell}>{emptyConditionLabel(String(unit.condition ?? "—"))}</td>
+                  <td style={dataCell}>{formatDate(unit.hand_in_date as string | null)}</td>
+                  <td style={dataCell}>{formatDate(unit.hand_out_date as string | null)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      ) : null}
     </article>
   );
 }
