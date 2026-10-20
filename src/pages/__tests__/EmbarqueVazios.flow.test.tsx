@@ -275,6 +275,18 @@ describe("EmbarqueVazios", () => {
     expect(within(dialog).queryByLabelText("Percentual")).toBeNull();
   });
 
+  it("não oferece transporte para destino inativo (migration 331)", () => {
+    mocks.extraDepotServices = [
+      { id: "transport-old", name: "Transporte p/ antigo", natureza: "transporte", route_destino_id: "depot-old", active: true },
+    ];
+    renderPage();
+    const dialog = openLineModal();
+    fireEvent.change(within(dialog).getByLabelText(/Local/), { target: { value: "depot-1" } });
+    fireEvent.change(within(dialog).getByLabelText(/Natureza/), { target: { value: "transporte" } });
+    const service = within(dialog).getByLabelText(/Serviço/) as HTMLSelectElement;
+    expect([...service.options].map((option) => option.text)).toEqual(["Selecione", "Transporte · Transporte"]);
+  });
+
   it("seleciona a natureza antes de ofertar os serviços", () => {
     renderPage();
     const dialog = openLineModal();

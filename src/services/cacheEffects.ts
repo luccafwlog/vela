@@ -113,6 +113,11 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, _op
   ])
 }
 
+/** Natureza (Cama, Cover plate) dos vazios de importação: a lista, os totais e o ADR, que a mostra. */
+export async function afterNaturezaVaziosAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [['vazios-importacao-containers'], ['vazios-importacao-stats'], ['agency-report']])
+}
+
 export async function afterBaplieImportado(queryClient: QueryInvalidator, options: { voyageId: string }): Promise<void> {
   await invalidate(queryClient, [
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...EMPTY_IMPORT_KEYS,

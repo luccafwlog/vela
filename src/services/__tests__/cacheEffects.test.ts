@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
+import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterNaturezaVaziosAlterada, afterRotaAlterada, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -83,6 +83,12 @@ describe('cache effects', () => {
     const { client, keys } = fakeQueryClient()
     await afterManifestoImportado(client, { voyageId: 24 })
     expect(keys()).toContain('["agency-report"]')
+  })
+
+  it('Natureza dos vazios de importação atualiza a lista, os totais e o ADR', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterNaturezaVaziosAlterada(client)
+    expect(keys()).toEqual(expect.arrayContaining(keySet([['vazios-importacao-containers'], ['vazios-importacao-stats'], ['agency-report']])))
   })
 
   it('delegates Baplie invalidation through the event seam', async () => {

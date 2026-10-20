@@ -1,12 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
 
-const pages = vi.hoisted(() => ({ rows: {} as Record<string, unknown[]>, ranges: [] as Array<[string, number, number]> }))
+const pages = vi.hoisted(() => ({ rows: {} as Record<string, unknown[]>, ranges: [] as Array<[string, number, number]>, inCalls: [] as Array<[string, unknown[]]> }))
 vi.mock('../supabase', () => ({
   supabase: {
     from: (table: string) => {
       const builder = {
         select: () => builder,
         order: () => builder,
+        eq: () => builder,
+        limit: () => builder,
+        in: (column: string, values: unknown[]) => {
+          pages.inCalls.push([column, values])
+          return builder
+        },
+        maybeSingle: () => Promise.resolve({ data: (pages.rows[table] ?? [])[0] ?? null, error: null }),
         range: (from: number, to: number) => {
           pages.ranges.push([table, from, to])
           return Promise.resolve({ data: (pages.rows[table] ?? []).slice(from, to + 1), error: null })
@@ -17,7 +24,7 @@ vi.mock('../supabase', () => ({
   },
 }))
 
-import { computeStorageTotals, listVaziosExportOperationsWithUnits, summarizeVaziosOperations } from '../vaziosExportOperations'
+import { computeStorageTotals, listVaziosExportOperationsWithUnits, openOrCreateVaziosExportOperation, summarizeVaziosOperations } from '../vaziosExportOperations'
 
 describe('computeStorageTotals', () => {
   it('soma containers e dias derivados de hand-in/hand-out', () => {
@@ -57,6 +64,17 @@ describe('summarizeVaziosOperations (lista de embarques)', () => {
     expect(summary[1]).toMatchObject({ unidades: 2, servicos: 30, armazenagemLocais: 1 })
     expect(summary[0]).toMatchObject({ unidades: 1, servicos: 0, armazenagemLocais: 0, atualizadoEm: '2026-10-10T00:00:00Z' })
   })
+
+  it('unidade alterada depois de criada sobe o "Atualizado em" (migration 332)', () => {
+    const summary = summarizeVaziosOperations(
+      [operation('a', '2026-09-01T00:00:00Z'), operation('b', '2026-09-15T00:00:00Z')],
+      [{ operation_id: 'a', local_id: 'd2', condition: 'vazio', hand_in_date: '2026-09-01', hand_out_date: '2026-09-05',
+        created_at: '2026-09-02T00:00:00Z', updated_at: '2026-10-20T08:00:00Z' }],
+      depots,
+    )
+    expect(summary.map((item) => item.id)).toEqual(['a', 'b'])
+    expect(summary[0].atualizadoEm).toBe('2026-10-20T08:00:00Z')
+  })
 })
 
 describe('listVaziosExportOperationsWithUnits', () => {
@@ -70,5 +88,16 @@ describe('listVaziosExportOperationsWithUnits', () => {
       ['vazios_export_operations', 0, 999],
       ['vazios_export_operations', 1000, 1999],
     ])
+  })
+})
+
+describe('openOrCreateVaziosExportOperation', () => {
+  it('abre o embarque legado gravado em outra grafia do mesmo porto, sem criar outro', async () => {
+    pages.rows.vazios_export_operations = [{ id: 'op-legado' }]
+    pages.inCalls = []
+    await expect(openOrCreateVaziosExportOperation({ voyageId: 1, embarkPort: 'BRVIX' })).resolves.toEqual({ id: 'op-legado', created: false })
+    const [column, values] = pages.inCalls[0]
+    expect(column).toBe('embark_port')
+    expect(values).toEqual(expect.arrayContaining(['BRVIX', 'BRVIT']))
   })
 })

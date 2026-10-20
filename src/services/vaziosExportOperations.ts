@@ -5,7 +5,7 @@ import type {
   VaziosExportServiceLine,
 } from "../types/database";
 import { supabase } from "./supabase";
-import { normalizePortCode } from "./portCode";
+import { normalizePortCode, storedPortAliases } from "./portCode";
 import { armazenagemALancar, diasCobraveis, totalEmbarque, type StorageDepot } from "./vaziosCusto";
 import { deleteOneById } from "./deleteRecords";
 
@@ -296,7 +296,11 @@ export async function openOrCreateVaziosExportOperation(input: {
     .from("vazios_export_operations")
     .select("id")
     .eq("voyage_id", input.voyageId)
-    .eq("embark_port", input.embarkPort)
+    // Embarque legado pode ter o porto em outra grafia (BRVIT); o mesmo porto
+    // não ganha um segundo embarque. O mais antigo vence se houver dois.
+    .in("embark_port", storedPortAliases(input.embarkPort))
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
   if (data) return { id: (data as { id: string }).id, created: false };
@@ -325,7 +329,10 @@ export type VaziosOperationListRow = {
 export type VaziosOperationBookingRow = Pick<
   VaziosBooking,
   "operation_id" | "local_id" | "condition" | "hand_in_date" | "hand_out_date" | "created_at"
->;
+> & {
+  /** Migration 332; vazia nas unidades anteriores a ela (`database.ts` protegido ainda não a descreve). */
+  updated_at?: string | null;
+};
 
 /**
  * Todos os embarques com as linhas de serviço e as unidades, para a lista de
@@ -357,11 +364,11 @@ export async function listVaziosExportOperationsWithUnits(): Promise<{
   for (let from = 0; ; from += OPERATION_BOOKINGS_PAGE_SIZE) {
     const { data: page, error: pageError } = await supabase
       .from("vazios_bookings")
-      .select("operation_id, local_id, condition, hand_in_date, hand_out_date, created_at")
+      .select("operation_id, local_id, condition, hand_in_date, hand_out_date, created_at, updated_at")
       .order("id")
       .range(from, from + OPERATION_BOOKINGS_PAGE_SIZE - 1);
     if (pageError) throw pageError;
-    const rows = (page ?? []) as VaziosOperationBookingRow[];
+    const rows = (page ?? []) as unknown as VaziosOperationBookingRow[];
     bookings.push(...rows);
     if (rows.length < OPERATION_BOOKINGS_PAGE_SIZE) break;
   }
@@ -406,7 +413,9 @@ export function summarizeVaziosOperations(
       const pendentes = armazenagemALancar(unidades, depots, linhas);
       const dates = [
         ...(operation.linhas ?? []).map((line) => line.updated_at ?? null),
-        ...unidades.map((unit) => unit.created_at ?? null),
+        // ponytail: unidade excluída some sem deixar data; o "Atualizado em"
+        // só sobe com a inclusão ou a alteração (migration 332).
+        ...unidades.map((unit) => unit.updated_at ?? unit.created_at ?? null),
       ].filter((value): value is string => Boolean(value));
       return {
         id: operation.id,

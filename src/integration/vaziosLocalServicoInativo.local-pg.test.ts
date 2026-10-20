@@ -4,8 +4,12 @@
 // continua editável sem trocar de local ou serviço. As mensagens chegam com
 // acento.
 //
+// Migration 331 (decisão do responsável de 2026-10-20): o destino inativo do
+// transporte também é recusado em lançamento novo.
+//
 // Namespace exclusivo: ids 99326xxx, containers 'AZCU326xxxx', depots 'A326…',
 // usuário ...0000003260NN.
+import { resolve } from 'node:path'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -20,6 +24,8 @@ const voyageId = 99326003
 const activeDepot = 'A326ATV'
 const inactiveDepot = 'A326INA'
 const terminal = 'A326TER'
+const destination = 'A326DST'
+const migration331Path = resolve(process.cwd(), 'supabase/migrations/331_vazios_destino_inativo_recusado.sql')
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -82,13 +88,16 @@ describeLocal('Embarque de vazios: local e serviço inativos recusados (migratio
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'A326', 'active');
       INSERT INTO public.depots (code, active, tipo, free_time_vazio_days, free_time_material_days) VALUES
         ('${activeDepot}', true, 'depot', 10, 10),
-        ('${inactiveDepot}', false, 'depot', 10, 10);
+        ('${inactiveDepot}', false, 'depot', 10, 10),
+        ('${destination}', true, 'depot', 10, 10);
       INSERT INTO public.depots (code, active, tipo, port_id)
         SELECT '${terminal}', true, 'terminal_portuario', id FROM public.ports WHERE locode LIKE 'BR%' ORDER BY id LIMIT 1;
       INSERT INTO public.depot_services (depot_id, name, natureza, rate_brl, active) VALUES
         (${depotId(activeDepot)}, 'A326 HANDLING', 'geral', 10, true),
         (${depotId(activeDepot)}, 'A326 HANDLING ANTIGO', 'geral', 10, false),
         (${depotId(inactiveDepot)}, 'A326 HANDLING INATIVO', 'geral', 10, true);
+      INSERT INTO public.depot_services (depot_id, name, natureza, rate_brl, active, route_destino_id) VALUES
+        (${depotId(activeDepot)}, 'A326 TRANSPORTE', 'transporte', 10, true, ${depotId(destination)});
       INSERT INTO public.vazios_export_operations (voyage_id, embark_port) VALUES (${voyageId}, 'BRVIX');
     `)
   })
@@ -111,6 +120,8 @@ describeLocal('Embarque de vazios: local e serviço inativos recusados (migratio
     try {
       expect(update(activeDepot, '2026-09-19').stderr).toBe('')
       expect(psql(`SELECT hand_out_date FROM public.vazios_bookings WHERE id = '${booking}'`)).toBe('2026-09-19')
+      // Migration 332: a alteração grava o "Atualizado em" da unidade.
+      expect(psql(`SELECT updated_at > created_at FROM public.vazios_bookings WHERE id = '${booking}'`)).toBe('t')
     } finally {
       setActive('depots', `code = '${activeDepot}'`, true)
     }
@@ -140,5 +151,21 @@ describeLocal('Embarque de vazios: local e serviço inativos recusados (migratio
       ${depotId(activeDepot)}, 'vazio', NULL, NULL, '2026-09-21')`).stderr).toMatch(/Depot exige entrada e saída válidas\./)
     expect(asUser(`SELECT public.create_manual_vazios_booking(${operationId}, ${voyageId}, '${userId}', 'XX1', '40HC',
       ${depotId(activeDepot)}, 'vazio', NULL, NULL, NULL)`).stderr).toMatch(/Container inválido\./)
+  })
+
+  it('transporte para destino inativo é recusado; a linha já lançada segue editável (migration 331)', () => {
+    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migration331Path], { encoding: 'utf8' })
+    const insertTransport = () => asUser(`INSERT INTO public.vazios_export_service_lines (operation_id, service_id, local_id, destino_id, quantidade, valor_unitario)
+      VALUES (${operationId}, ${serviceId('A326 TRANSPORTE')}, ${depotId(activeDepot)}, ${depotId(destination)}, 1, 10)`)
+    expect(insertTransport().stderr).toBe('')
+    setActive('depots', `code = '${destination}'`, false)
+    try {
+      expect(insertTransport().stderr).toMatch(/Destino inativo: escolha um transporte para local ativo/)
+      expect(asUser(`UPDATE public.vazios_export_service_lines SET observation = 'Conferido'
+        WHERE service_id = ${serviceId('A326 TRANSPORTE')}`).stderr).toBe('')
+      expect(psql(`SELECT count(*) FROM public.vazios_export_service_lines WHERE service_id = ${serviceId('A326 TRANSPORTE')}`)).toBe('1')
+    } finally {
+      setActive('depots', `code = '${destination}'`, true)
+    }
   })
 })

@@ -14,6 +14,10 @@
   1.000 containers e filtra POL/POD pelo porto canônico; Embarque de vazios espera os Locais antes
   de mostrar a armazenagem; as ações de linha que faltavam (Tabelas de taxas, Condições negociadas,
   Gerar Invoice de Demurrage) ficam só com ícone e os links de linha usam `RowActionLink`.
+  Decisões do responsável no mesmo dia: B/L cancelado fora dos totais do Operacional e do Por
+  Cliente; fatura parcialmente paga fora de Pago, com estado próprio em Taxas locais; destino de
+  transporte inativo recusado no Embarque de vazios (migration `331`). A migration `332` dá à
+  Unidade Embarcada o `updated_at` que o "Atualizado em" da lista de embarques usa.
 - **Identidade visual, lote 5b (2026-10-19):** Granito passa a só totalizar a carga do navio
   (Blocos e Peso, só o peso real), sem Cliente vinculado, cálculo de taxas, Revisão nem
   CE Mercante, e as Tarifas do Granito saem da tela (migration `325`); Vazios de importação com o

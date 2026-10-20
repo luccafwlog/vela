@@ -39,7 +39,7 @@ import { listBrazilianPorts } from '../services/depots'
 import { exportVaziosImportacaoWorkbook } from '../services/exports'
 import { rowErrorsToImportIssues } from '../services/importValidation'
 import { fetchVaziosImportacaoContainerIds, setVaziosImportacaoNaturezaMany } from '../services/vaziosNatureza'
-import { afterManifestoImportado } from '../services/cacheEffects'
+import { afterManifestoImportado, afterNaturezaVaziosAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
 import { inspectImportUpload } from '../services/importText'
 import type { VaziosImportacaoContainerListItem } from '../types/database'
@@ -211,9 +211,7 @@ export function VaziosImportacao() {
     setBulkUpdating(true)
     try {
       await setVaziosImportacaoNaturezaMany(selectedIds, natureza)
-      await queryClient.invalidateQueries({ queryKey: ['vazios-importacao-containers'] })
-      await queryClient.invalidateQueries({ queryKey: ['vazios-importacao-stats'] })
-      await queryClient.invalidateQueries({ queryKey: ['agency-report'] })
+      await afterNaturezaVaziosAlterada(queryClient)
       const count = selectedIds.length
       const what = count === 1 ? '1 container atualizado' : `${count.toLocaleString('pt-BR')} containers atualizados`
       showToast(natureza ? `${what} como ${NATUREZA_LABELS[natureza]}.` : `${what}: sem natureza.`, 'success')

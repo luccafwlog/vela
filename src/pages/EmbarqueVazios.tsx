@@ -565,7 +565,11 @@ function EmbarqueDetalhe({
   const unitRows = units.data?.rows ?? [];
   const serviceRows = (Array.isArray(services.data) ? services.data : []).filter((item) => item.active !== false);
   const armazenagemServiceRows = Array.isArray(armazenagemServices.data) ? armazenagemServices.data : [];
-  const offeredServices = serviceRows.filter((item) => !serviceNature || item.natureza === serviceNature);
+  // Transporte para destino inativo não entra em lançamento novo (o banco
+  // também recusa, migration 331).
+  const offeredServices = serviceRows.filter((item) =>
+    (!serviceNature || item.natureza === serviceNature)
+    && (item.natureza !== "transporte" || activeDepots.some((depot) => depot.id === item.route_destino_id)));
   const local = activeDepots.find((item) => item.id === line.localId);
   const selectedService = serviceRows.find((item) => item.id === line.serviceId);
   const operationLines = operation.data?.linhas ?? [];
