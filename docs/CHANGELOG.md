@@ -7,7 +7,7 @@
 ## 2026-10
 
 - **Paginação dos impressos (2026-10-20):** na fatura consolidada de Taxas Locais cada B/L sai
-  inteiro numa página e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR
+  inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR
   impresso o cabeçalho (Armador, Porto, Navio / Viagem, Terminal) se repete em cada página, as
   assinaturas ficam juntas e o Anexo começa em página nova com identificação (lote 6b,
   [plano](plans/2026-10-13-identidade-visual-tela-a-tela.md)).

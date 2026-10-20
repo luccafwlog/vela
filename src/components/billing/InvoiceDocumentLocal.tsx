@@ -224,6 +224,17 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
     itemFlatIndex.set(item.id, flatIdx++)
   }
 
+  // Larguras fixas compartilhadas pela tabela de itens e pelas tabelas internas
+  // de cada B/L da consolidada, para as colunas alinharem.
+  const itemColumns = (
+    <colgroup>
+      <col style={{ width: '55%' }} />
+      <col style={{ width: '11%' }} />
+      <col style={{ width: '17%' }} />
+      <col style={{ width: '17%' }} />
+    </colgroup>
+  )
+
   return (
     <div style={documentRoot}>
       <InvoiceDocHeader logoSrc="/branding/transhipping-logo-cropped.png" docNumber={invoice.invoice_number ?? `INV-${invoice.id}`} />
@@ -279,7 +290,8 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
       </table>
 
       {/* Items table */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', margin: '16px 0', fontSize: '12px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', margin: '16px 0', fontSize: '12px', tableLayout: 'fixed' }}>
+        {itemColumns}
         <thead>
           <tr style={{ background: DOC_NAVY, color: 'white' }}>
             <th scope="col" style={{ padding: '9px 7px', textAlign: 'left' }}>Descrição</th>
@@ -301,20 +313,34 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
 
                 return (
                   // Lote 6b: um <tbody> por B/L; na impressão o bloco inteiro
-                  // (faixa, taxas e subtotal) fica numa página só.
+                  // (faixa, taxas e subtotal) fica numa página só. Um B/L que
+                  // não cabe numa página quebra mesmo assim: a faixa fica no
+                  // <thead> de uma tabela interna, que o navegador repete no
+                  // alto da continuação.
                   <tbody key={blId} className="invoice-document__bl-group" data-testid="invoice-bl-group" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
-                    <tr style={{ background: DOC_GROUP, borderTop: '2px solid #1A2744' }}>
-                      <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '12px' }}>
-                        {headerText}
-                      </td>
-                    </tr>
-                    {renderItemRows(blItems, itemFlatIndex)}
-                    <tr style={{ background: DOC_SUBTOTAL, borderBottom: '2px solid #c8d4e8' }}>
-                      <td colSpan={3} style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
-                        Subtotal {blId}:
-                      </td>
-                      <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY, whiteSpace: 'nowrap' }}>
-                        {fmtBRL(subtotal)}
+                    <tr>
+                      <td colSpan={4} style={{ padding: 0 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                          {itemColumns}
+                          <thead>
+                            <tr style={{ background: DOC_GROUP, borderTop: '2px solid #1A2744' }}>
+                              <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '12px' }} data-testid="invoice-bl-band">
+                                {headerText}
+                              </td>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {renderItemRows(blItems, itemFlatIndex)}
+                            <tr style={{ background: DOC_SUBTOTAL, borderBottom: '2px solid #c8d4e8' }}>
+                              <td colSpan={3} style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
+                                Subtotal {blId}:
+                              </td>
+                              <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY, whiteSpace: 'nowrap' }}>
+                                {fmtBRL(subtotal)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </td>
                     </tr>
                   </tbody>

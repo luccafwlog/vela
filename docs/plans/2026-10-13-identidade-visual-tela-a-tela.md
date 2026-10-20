@@ -460,7 +460,8 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   mesmo endereço da régua e o par repetitivo do convite.
   **Paginação dos impressos, decisões de 2026-10-20:** na fatura
   consolidada de Taxas Locais cada B/L (faixa, taxas e subtotal) fica
-  inteiro numa página, e o quadro do topo traz a quantidade de B/Ls e só a
+  inteiro numa página (um B/L maior que uma página repete a faixa com o
+  número do B/L no alto da continuação), e o quadro do topo traz a quantidade de B/Ls e só a
   quantidade de contêineres, sem a lista; no ADR as assinaturas
   departamentais ficam juntas numa página, o Anexo começa sempre em página
   nova com uma linha de identificação no topo, e toda página repete o

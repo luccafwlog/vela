@@ -424,7 +424,8 @@ página no Portal do Cliente."; "Saldo a pagar" só aparece quando a fatura est�
 parcialmente paga, e o código Copia e Cola quebra em várias linhas.
 Na fatura e no recibo consolidados (decisão de paginação de 2026-10-20),
 cada B/L é um grupo próprio da tabela (faixa, taxas e subtotal) que a
-impressão não divide entre páginas, e o quadro do topo traz "Qtd. de B/Ls" e
+impressão não divide entre páginas; um B/L que não cabe numa página quebra e
+repete a faixa com o número do B/L no alto da continuação, e o quadro do topo traz "Qtd. de B/Ls" e
 "Qtd. de contêineres" (contêiner repetido em dois B/Ls conta uma vez), sem a
 lista de números; a individual continua listando B/L e contêineres.
 `classifyInvoiceItem` (`src/components/shared/invoiceFormat.ts`) continua só

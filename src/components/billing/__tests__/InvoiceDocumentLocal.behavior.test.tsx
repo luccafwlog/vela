@@ -177,6 +177,11 @@ it('lote 6b: consolidada agrupa cada B/L num tbody indivisível e o quadro do to
   expect(groups[1].textContent).toContain('B/L BL-B')
   expect(groups[1].textContent).toContain('Subtotal BL-B:')
   expect(groups[1].textContent).not.toContain('BL-A')
+  // B/L que não cabe numa página: a faixa fica num <thead>, que a impressão
+  // repete no alto da continuação.
+  const bands = screen.getAllByTestId('invoice-bl-band')
+  expect(bands.map((band) => band.closest('thead') !== null)).toEqual([true, true, true])
+  expect(bands[2].textContent).toContain('B/L BL-C')
 })
 
 it('imprime fatura avulsa com título FATURA, descrição e contexto opcional sem categorias artificiais', () => {
