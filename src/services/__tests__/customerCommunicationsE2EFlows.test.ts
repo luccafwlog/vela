@@ -361,10 +361,10 @@ describe('Revisão Completa E2E: Módulo de Comunicação com o Cliente', () => 
       })
 
       expect(rendered.subject).toContain('Cobrança de Demurrage — DEM-999 — COSCO STAR / 101S')
-      expect(rendered.text).toContain('Valor da cobrança: $1,200.00')
+      expect(rendered.text).toContain('Invoice DEM-999: US$ 1.200,00 (valor da cobrança)')
       expect(rendered.text).toContain('6.600,00')
-      expect(rendered.text).toContain('ROE 5.5000')
-      expect(rendered.text).toContain('O valor em reais será recalculado no dia do pagamento.')
+      expect(rendered.text).toContain('ROE: 5,5000 em 01/09/2026')
+      expect(rendered.text).toContain('O valor em reais é recalculado no dia do pagamento.')
       expect(rendered.html).not.toMatch(/PIX|chave pix/i)
       expect(rendered.html).toContain(CUSTOMER_PORTAL_BILLING_URL)
     })
@@ -386,7 +386,7 @@ describe('Revisão Completa E2E: Módulo de Comunicação com o Cliente', () => 
         totalBrl: 850.5,
       })
 
-      expect(rendered.subject).toBe('CE Mercante Disponível e Resumo de Taxas Locais — COSCO SHIPPING XING WANG / 2401E')
+      expect(rendered.subject).toBe('CE Mercante e Taxas Locais disponíveis — COSCO SHIPPING XING WANG / 2401E — Porto de Santos')
       expect(rendered.html).toContain('123456789012345')
       expect(rendered.html).toContain('BL-100')
       expect(rendered.html).toContain('850,50')

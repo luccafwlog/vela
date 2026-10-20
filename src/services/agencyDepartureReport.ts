@@ -657,6 +657,24 @@ function normalizeContainerNumber(containerNumber: string | null | undefined) {
   return String(containerNumber ?? '').replace(/\s+/g, '').toUpperCase()
 }
 
+// Uma linha por número de container (normalizado). `prefer` decide qual
+// duplicata fica; sem ele, a primeira.
+export function distinctByContainerNumber<T extends { container_number: string | null }>(
+  rows: readonly T[],
+  prefer?: (row: T) => boolean,
+): T[] {
+  const byNumber = new Map<string, T>()
+  const withoutNumber: T[] = []
+  for (const row of rows) {
+    const key = normalizeContainerNumber(row.container_number)
+    // Sem número não há como saber se repete: conta como está.
+    if (!key) { withoutNumber.push(row); continue }
+    const existing = byNumber.get(key)
+    if (!existing || (prefer && !prefer(existing) && prefer(row))) byNumber.set(key, row)
+  }
+  return [...byNumber.values(), ...withoutNumber]
+}
+
 export function buildContainerTypeMatrix(
   items: Array<{ type: string; category: MatrixCategory | string }>,
 ) {
@@ -906,7 +924,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     fetchAllRows((from, to) =>
       supabase
         .from('vazios_importacao_containers')
-        .select('container_type, natureza, pod, manifest:vazios_importacao_manifests!inner(voyage_id)')
+        .select('container_number, container_type, natureza, pod, manifest:vazios_importacao_manifests!inner(voyage_id)')
         .eq('manifest.voyage_id', voyageId)
         .in('pod', portCodeVariants(port))
         .range(from, to),
@@ -1067,7 +1085,11 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   })) as Array<VaziosBooking & {
     local: Pick<Depot, 'id' | 'code' | 'name' | 'tipo'> | null
   }>
-  const vaziosImp = (vaziosImpRes.data ?? []) as Pick<VaziosImportacaoContainer, 'container_type' | 'natureza' | 'pod'>[]
+  // Entre duplicatas, fica a linha com natureza classificada.
+  const vaziosImp = distinctByContainerNumber(
+    (vaziosImpRes.data ?? []) as Pick<VaziosImportacaoContainer, 'container_number' | 'container_type' | 'natureza' | 'pod'>[],
+    (row) => row.natureza !== null,
+  )
   type AgencyReportGraniteBl = Pick<GraniteBl, 'real_weight_kg' | 'blocks_qty' | 'loading_port'> & {
     manifest: Pick<GraniteManifest, 'loading_port'> | null
   }
@@ -1087,7 +1109,12 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     if (!normalized || normalized === portCode || escalaPorts.has(normalized)) continue
     orphanGraniteByPort.set(normalized, (orphanGraniteByPort.get(normalized) ?? 0) + 1)
   }
-  const baplieContainers = (baplieContainersRes.data ?? []) as Pick<BaplieContainer, 'container_number' | 'size_type' | 'status' | 'is_imo' | 'is_oog' | 'pod'>[]
+  // Todo container do ADR é contado uma vez (decisão de 2026-10-20): o Baplie
+  // não tem unicidade por número e o mesmo vazio pode estar em dois manifestos
+  // de Vazios de Importação da escala (rotas diferentes).
+  const baplieContainers = distinctByContainerNumber(
+    (baplieContainersRes.data ?? []) as Pick<BaplieContainer, 'container_number' | 'size_type' | 'status' | 'is_imo' | 'is_oog' | 'pod'>[],
+  )
   type AgencyReportBlContainer = {
     id: number
     container_number: string

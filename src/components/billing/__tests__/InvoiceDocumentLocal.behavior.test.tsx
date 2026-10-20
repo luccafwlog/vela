@@ -76,7 +76,7 @@ it('imprime recibo de taxas locais sem PIX e com o mesmo conteúdo da fatura', (
   expect(screen.queryByText(pixPayload)).toBeNull()
 })
 
-it('renderiza fatura adaptativa para B/L Misto com três blocos e subtotais', () => {
+it('lote 6b: B/L Misto lista todas as taxas logo abaixo da linha do B/L, sem divisão por tipo de carga', () => {
   const mistoDetail = {
     invoice: {
       id: 101,
@@ -112,96 +112,79 @@ it('renderiza fatura adaptativa para B/L Misto com três blocos e subtotais', ()
 
   render(<InvoiceDocumentLocal detail={mistoDetail} />)
 
-  // Metadados do cabeçalho
   expect(screen.getByText(/CSNU1234567 \(40'HC\), COSU9876543 \(20'DC\)/)).toBeTruthy()
   expect(screen.getByText(/Peso BB: 15,400 ton \| 4 packages/)).toBeTruthy()
 
-  // Bloco 1: Carga Conteinerizada
-  expect(screen.getByText(/1\. CARGA CONTEINERIZADA/)).toBeTruthy()
-  expect(screen.getByText(/Subtotal Contêineres:/)).toBeTruthy()
-  expect(screen.getByText('R$ 2.000,00')).toBeTruthy()
-
-  // Bloco 2: Carga Solta
-  expect(screen.getByText(/2\. CARGA SOLTA \(BREAKBULK\)/)).toBeTruthy()
-  expect(screen.getByText(/Subtotal Carga Solta:/)).toBeTruthy()
-  expect(screen.getAllByText('R$ 1.232,00')).toHaveLength(2)
-
-  // Bloco 3: Taxas Documentais
-  expect(screen.getByText(/3\. TAXAS ADMINISTRATIVAS E DOCUMENTAIS/)).toBeTruthy()
-  expect(screen.getByText(/Subtotal Taxas Documentais:/)).toBeTruthy()
-  expect(screen.getAllByText('R$ 450,00')).toHaveLength(3)
-
-  // Total geral
-  expect(screen.getByText('R$ 3.682,00')).toBeTruthy()
+  for (const gone of [/CARGA CONTEINERIZADA/, /CARGA SOLTA \(BREAKBULK\)/, /TAXAS ADMINISTRATIVAS/, /Subtotal Contêineres/, /Subtotal Carga Solta/, /Subtotal Taxas Documentais/]) {
+    expect(screen.queryByText(gone)).toBeNull()
+  }
+  const blRow = screen.getByText(/B\/L COSU1234567890 — MISTO/).closest('tr')!
+  const rows = [...blRow.parentElement!.querySelectorAll('tr')]
+  const after = rows.slice(rows.indexOf(blRow) + 1, rows.indexOf(blRow) + 5).map((row) => row.textContent ?? '')
+  expect(after[0]).toContain("THD Standard - 40'HC")
+  expect(after[2]).toContain('Movimentação Portuária Carga Solta')
+  expect(after[3]).toContain('Taxa de Expedição de B/L')
+  // Quantidade fracionária com vírgula decimal.
+  expect(screen.getByText('15,4')).toBeTruthy()
+  expect(screen.getByTestId('invoice-totals').textContent).toContain('R$ 3.682,00')
 })
 
-it('suprime bloco de carga solta para B/L exclusivamente container', () => {
-  const cntrDetail = {
-    invoice: {
-      id: 102,
-      invoice_number: 'INV-2026-0102',
-      status: 'issued',
-      total_brl: 1600,
-      customer_name: 'Cliente CNTR Puro',
-      issued_at: '2026-09-17',
-    },
-    bls: [
-      {
-        bl_id: 'COSU1111111111',
-        cargo_mode: 'container',
-        containers: [{ container_number: 'CSNU1234567', type: "40'HC" }],
-      },
-    ],
+it('lote 6b: consolidada mantém o subtotal por B/L e o TOTAL vai em caixa fora da tabela', () => {
+  const consolidated = {
+    invoice: { id: 110, invoice_number: 'INV-110', status: 'issued', total_brl: 1600, customer_name: 'Cliente', issued_at: '2026-09-17' },
+    bls: [{ bl_id: 'BL-A', pol: 'CNSHA', pod: 'BRVIX' }, { bl_id: 'BL-B', pol: 'CNSHA', pod: 'BRVIX' }],
     items: [
-      { id: 11, bl_id: 'COSU1111111111', description: "THD Standard - 40'HC (CSNU1234567)", quantity: 1, unit_value_brl: 1150, total_value_brl: 1150 },
-      { id: 12, bl_id: 'COSU1111111111', description: 'Taxa de Expedição de B/L (BL Fee)', quantity: 1, unit_value_brl: 450, total_value_brl: 450 },
+      { id: 1, bl_id: 'BL-A', description: 'THD', quantity: 1, unit_value_brl: 1150, total_value_brl: 1150 },
+      { id: 2, bl_id: 'BL-B', description: 'BL Fee', quantity: 1, unit_value_brl: 450, total_value_brl: 450 },
     ],
     payments: [],
   } as never
-
-  render(<InvoiceDocumentLocal detail={cntrDetail} />)
-
-  expect(screen.getByText(/1\. CARGA CONTEINERIZADA/)).toBeTruthy()
-  expect(screen.getByText(/Subtotal Contêineres:/)).toBeTruthy()
-  expect(screen.queryByText(/2\. CARGA SOLTA/)).toBeNull()
-  expect(screen.queryByText(/Subtotal Carga Solta:/)).toBeNull()
-  expect(screen.getByText(/3\. TAXAS ADMINISTRATIVAS E DOCUMENTAIS/)).toBeTruthy()
+  render(<InvoiceDocumentLocal detail={consolidated} />)
+  expect(screen.getByText('Subtotal BL-A:')).toBeTruthy()
+  expect(screen.getByText('Subtotal BL-B:')).toBeTruthy()
+  expect(screen.queryByText(/CARGA CONTEINERIZADA|TAXAS ADMINISTRATIVAS/)).toBeNull()
+  const totals = screen.getByTestId('invoice-totals')
+  expect(totals.closest('table')).toBeNull()
+  expect(totals.textContent).toContain('TOTAL:R$ 1.600,00')
+  expect(screen.getByText('Navio / Viagem:')).toBeTruthy()
 })
 
-it('suprime bloco de contêineres para B/L exclusivamente carga solta', () => {
-  const bbDetail = {
-    invoice: {
-      id: 103,
-      invoice_number: 'INV-2026-0103',
-      status: 'issued',
-      total_brl: 1682,
-      customer_name: 'Cliente BB Puro',
-      issued_at: '2026-09-17',
-    },
+it('lote 6b: consolidada agrupa cada B/L num tbody indivisível e o quadro do topo traz só quantidades', () => {
+  const consolidated = {
+    invoice: { id: 111, invoice_number: 'INV-111', status: 'issued', total_brl: 300, customer_name: 'Cliente', issued_at: '2026-09-17' },
     bls: [
-      {
-        bl_id: 'COSU2222222222',
-        cargo_mode: 'carga_solta',
-        bb_weight_ton: 15.4,
-      },
+      { bl_id: 'BL-A', containers: [{ container_number: 'MSCU1234567', type: '40HC' }, { container_number: 'MSCU7654321', type: '20DC' }] },
+      { bl_id: 'BL-B', containers: ['TGHU0000001', 'MSCU1234567'] },
+      { bl_id: 'BL-C' },
     ],
     items: [
-      { id: 21, bl_id: 'COSU2222222222', description: 'Movimentação Portuária Carga Solta', quantity: 15.4, unit_value_brl: 80, total_value_brl: 1232 },
-      { id: 22, bl_id: 'COSU2222222222', description: 'Taxa de Expedição de B/L (BL Fee)', quantity: 1, unit_value_brl: 450, total_value_brl: 450 },
+      { id: 1, bl_id: 'BL-A', description: 'THC', quantity: 1, unit_value_brl: 100, total_value_brl: 100 },
+      { id: 2, bl_id: 'BL-B', description: 'THC', quantity: 1, unit_value_brl: 100, total_value_brl: 100 },
+      { id: 3, bl_id: 'BL-C', description: 'BL Fee', quantity: 1, unit_value_brl: 100, total_value_brl: 100 },
     ],
     payments: [],
   } as never
+  render(<InvoiceDocumentLocal detail={consolidated} />)
+  expect(screen.getByText('Qtd. de B/Ls:')).toBeTruthy()
+  expect(screen.getByTestId('invoice-bl-summary').textContent).toBe('3')
+  // Contêiner repetido em dois B/Ls conta uma vez; a lista não sai no topo.
+  expect(screen.getByTestId('invoice-container-summary').textContent).toBe('3')
+  expect(screen.queryByText(/MSCU1234567/)).toBeNull()
 
-  render(<InvoiceDocumentLocal detail={bbDetail} />)
-
-  expect(screen.queryByText(/1\. CARGA CONTEINERIZADA/)).toBeNull()
-  expect(screen.queryByText(/Subtotal Contêineres:/)).toBeNull()
-  expect(screen.getByText(/2\. CARGA SOLTA \(BREAKBULK\)/)).toBeTruthy()
-  expect(screen.getByText(/Subtotal Carga Solta:/)).toBeTruthy()
-  expect(screen.getByText(/3\. TAXAS ADMINISTRATIVAS E DOCUMENTAIS/)).toBeTruthy()
+  const groups = screen.getAllByTestId('invoice-bl-group')
+  expect(groups.map((group) => group.tagName)).toEqual(['TBODY', 'TBODY', 'TBODY'])
+  expect(groups.every((group) => group.style.breakInside === 'avoid')).toBe(true)
+  expect(groups[1].textContent).toContain('B/L BL-B')
+  expect(groups[1].textContent).toContain('Subtotal BL-B:')
+  expect(groups[1].textContent).not.toContain('BL-A')
+  // B/L que não cabe numa página: a faixa fica num <thead>, que a impressão
+  // repete no alto da continuação.
+  const bands = screen.getAllByTestId('invoice-bl-band')
+  expect(bands.map((band) => band.closest('thead') !== null)).toEqual([true, true, true])
+  expect(bands[2].textContent).toContain('B/L BL-C')
 })
 
-it('imprime fatura avulsa com descrição e contexto opcional sem categorias artificiais', () => {
+it('imprime fatura avulsa com título FATURA, descrição e contexto opcional sem categorias artificiais', () => {
   const manualDetail = {
     invoice: {
       id: 104,
@@ -223,7 +206,8 @@ it('imprime fatura avulsa com descrição e contexto opcional sem categorias art
 
   render(<InvoiceDocumentLocal detail={manualDetail} />)
 
-  expect(screen.getByText('FATURA AVULSA')).toBeTruthy()
+  expect(screen.getByText('FATURA')).toBeTruthy()
+  expect(screen.queryByText('FATURA AVULSA')).toBeNull()
   expect(screen.getByText('Descrição complementar da cobrança')).toBeTruthy()
   expect(screen.getByText('Serviço extraordinário')).toBeTruthy()
   expect(screen.getByText(/Navio Manual.*42N/)).toBeTruthy()
@@ -232,7 +216,7 @@ it('imprime fatura avulsa com descrição e contexto opcional sem categorias art
   expect(screen.queryByText(/3\. TAXAS ADMINISTRATIVAS/)).toBeNull()
 })
 
-it('InvoiceDocumentLocal omite Navio/Voy. quando fatura avulsa não tem navio nem viagem', () => {
+it('InvoiceDocumentLocal omite Navio / Viagem quando fatura avulsa não tem navio nem viagem', () => {
   const noVoyageDetail = {
     invoice: {
       id: 4,
@@ -254,9 +238,10 @@ it('InvoiceDocumentLocal omite Navio/Voy. quando fatura avulsa não tem navio ne
 
   render(<InvoiceDocumentLocal detail={noVoyageDetail} />)
 
-  expect(screen.getByText('FATURA AVULSA')).toBeTruthy()
+  expect(screen.getByText('FATURA')).toBeTruthy()
+  expect(screen.queryByText('FATURA AVULSA')).toBeNull()
   expect(screen.getByText('Consultoria e honorários')).toBeTruthy()
-  expect(screen.queryByText('Navio/Voy.:')).toBeNull()
+  expect(screen.queryByText('Navio / Viagem:')).toBeNull()
   expect(screen.queryByText('B/Ls:')).toBeNull()
 })
 
@@ -267,6 +252,27 @@ it('mantém total documental e apresenta saldo corrigido no bloco Pix', () => {
   expect(screen.getByTestId('invoice-totals').textContent).toContain('100,00')
   expect(screen.getByTestId('invoice-pix-box').textContent).toContain('Saldo a pagar:')
   expect(screen.getByTestId('invoice-pix-box').textContent).toContain('40,00')
+  expect(screen.getByTestId('invoice-pix-box').textContent).toContain('a baixa da fatura pode levar de 1 a 5 minutos')
+})
+
+it('lote 6b: Pix sem "Saldo a pagar" quando o saldo é o próprio total; código em 12px', () => {
+  const open = { ...detail as object, invoice: { ...(detail as {invoice:object}).invoice, status: 'issued', balance_brl: 100, total_paid_brl: 0 } } as never
+  const { container } = render(<InvoiceDocumentLocal detail={open} />)
+  const box = screen.getByTestId('invoice-pix-box')
+  expect(box.textContent).not.toContain('Saldo a pagar')
+  expect(box.textContent).toContain('Para ver a fatura como paga, atualize a página no Portal do Cliente.')
+  expect(screen.getByText(pixPayload).style.fontSize).toBe('12px')
+  const tiny = [...container.querySelectorAll<HTMLElement>('[style]')].filter((el) => {
+    const size = parseFloat(el.style.fontSize)
+    return !Number.isNaN(size) && size < 12
+  })
+  expect(tiny).toEqual([])
+})
+
+it('lote 6b: recibo de fatura avulsa tem título RECIBO', () => {
+  const manual = { invoice: { id: 5, invoice_number: 'AV-5', invoice_type: 'manual', status: 'paid', total_brl: 10, total_paid_brl: 10, balance_brl: 0 }, bls: [], items: [], payments: [] } as never
+  render(<InvoiceDocumentLocal detail={manual} type="receipt" />)
+  expect(screen.getByText('RECIBO')).toBeTruthy()
 })
 
 it('não oferece QR de uma fatura paga, mesmo com payload legado', () => {

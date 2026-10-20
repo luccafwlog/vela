@@ -1,3 +1,17 @@
+import {
+  emailFacts,
+  emailFooter,
+  emailKit,
+  emailLead,
+  emailMono,
+  emailNote,
+  emailParagraph,
+  emailStack,
+  escapeHtml,
+  renderEmailLayout,
+  renderEmailText,
+} from './emailLayout.ts'
+
 export const CUSTOMER_COMMUNICATION_KINDS = [
   'aviso_chegada_noa',
   'aviso_prontidao_nor',
@@ -99,16 +113,6 @@ const FORBIDDEN_ATTACHMENT_KINDS = new Set(['ce_mercante_taxas', 'cobranca_demur
 const BRASILIA_TIME_ZONE = 'America/Sao_Paulo'
 export const CUSTOMER_PORTAL_BILLING_URL = 'https://portalfwlog.com.br/portal/billing'
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  })[character] ?? character)
-}
-
 function clean(value: string | null | undefined, fallback = '—'): string {
   const result = value?.trim()
   return result || fallback
@@ -181,98 +185,51 @@ function assertCommunicationScope(input: CustomerCommunicationTemplateInput, kin
   }
 }
 
-const BRAND_NAVY = '#152238'
-const BRAND_GOLD = '#d4882e'
-const BRAND_INK = '#1f2937'
-const BRAND_MUTED = '#6b7280'
-const BRAND_BORDER = '#e5e7eb'
-const BRAND_CARD_BG = '#ffffff'
-const BRAND_PAGE_BG = '#f1f3f6'
-const DEFAULT_PORTAL_BASE_URL = 'https://portalfwlog.com.br'
 /**
  * Endereço do rodapé dos Comunicados (D20): o mesmo do reply-to
  * (`COMMUNICATIONS_REPLY_TO`), para a resposta e a dúvida chegarem à mesma caixa.
  */
 export const COMMUNICATIONS_CONTACT_EMAIL = 'importacao@fwlog.com.br'
+/**
+ * Endereço do rodapé da Cobrança de Demurrage (lote 6b): a equipe de
+ * equipamentos. A resposta vai para `DEMURRAGE_REPLY_TO`.
+ */
+export const DEMURRAGE_CONTACT_EMAIL = 'eqp@fwlog.com.br'
 
-function extractBasePortalUrl(url?: string | null): string {
-  const raw = url?.trim() || DEFAULT_PORTAL_BASE_URL
-  return raw.replace(/\/+$/, '').replace(/\/billing$/, '')
-}
+const kit = emailKit('portal')
 
-function renderEmailTitleHtml(title: string): string {
-  const parts = title.split(/\s*—\s*/)
-  if (parts.length > 1) {
-    const mainType = parts[0]?.trim() || ''
-    const details = parts.slice(1).join(' — ').trim()
-    return `<div style="margin:0 0 24px;text-align:center">
-      <div style="font-size:20px;line-height:1.35;color:${BRAND_NAVY};font-weight:700;letter-spacing:-0.01em">${escapeHtml(mainType)}</div>
-      <div style="margin-top:6px;font-size:14.5px;line-height:1.45;color:${BRAND_MUTED};font-weight:500">${escapeHtml(details)}</div>
-    </div>`
+type RenderedBody = { html: string; text: string[] }
+
+function renderMail(input: {
+  title: string
+  subtitle?: string | null
+  body: RenderedBody
+  portalUrl?: string | null
+  contactEmail: string
+}): { html: string; text: string } {
+  const footer = emailFooter(input.contactEmail)
+  return {
+    html: renderEmailLayout({ siteUrl: input.portalUrl, title: input.title, subtitle: input.subtitle, body: input.body.html, footer: footer.html }),
+    text: renderEmailText({ title: input.title, subtitle: input.subtitle, body: input.body.text.join('\n'), footer: footer.text }),
   }
-  return `<h1 style="margin:0 0 20px;font-size:20px;line-height:1.35;color:${BRAND_NAVY};font-weight:700;text-align:center">${escapeHtml(title)}</h1>`
 }
 
-function layout(title: string, bodyHtml: string, portalUrl?: string | null): string {
-  const basePortalUrl = extractBasePortalUrl(portalUrl)
-  const logoUrl = `${basePortalUrl}/branding/fwlog-logo-white.png`
-  return `<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(title)}</title>
-</head>
-<body style="margin:0;padding:0;background:${BRAND_PAGE_BG};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND_INK}">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_PAGE_BG}">
-    <tr>
-      <td align="center" style="padding:32px 16px">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:${BRAND_CARD_BG};border:1px solid ${BRAND_BORDER};border-radius:12px;overflow:hidden">
-          <tr>
-            <td style="background:${BRAND_NAVY};padding:24px 32px">
-              <img src="${logoUrl}" alt="Fwlog" height="28" style="height:28px;width:auto;display:block;border:0" />
-            </td>
-          </tr>
-          <tr><td style="height:3px;line-height:3px;font-size:0;background:${BRAND_GOLD}">&nbsp;</td></tr>
-          <tr>
-            <td style="padding:32px 32px 16px">
-              ${renderEmailTitleHtml(title)}
-              <main style="line-height:1.6;color:${BRAND_INK};font-size:15px">
-                ${bodyHtml}
-              </main>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:20px 32px 24px">
-              <table role="presentation" width="100%" style="border-collapse:collapse;border-top:1px solid ${BRAND_BORDER}">
-                <tr>
-                  <td style="padding-top:16px">
-                    <p style="margin:0;font-size:12.5px;line-height:1.6;color:${BRAND_MUTED}">
-                      Portal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com <a href="mailto:${COMMUNICATIONS_CONTACT_EMAIL}" style="color:${BRAND_NAVY};text-decoration:underline">${COMMUNICATIONS_CONTACT_EMAIL}</a>.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
-}
-
-function textLayout(title: string, body: string): string {
-  return `Portal Fwlog\n${title}\n\n${body}\n\nPortal do Cliente — Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com ${COMMUNICATIONS_CONTACT_EMAIL}.`
+function hello(customer: string): RenderedBody {
+  return { html: emailParagraph(`Olá, ${escapeHtml(customer)}.`), text: [`Olá, ${customer}.`, ''] }
 }
 
 function formatBrl(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
-function formatUsd(value: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+/** Dólar sempre como "US$ 1.840,00" (pt-BR), no HTML e no texto puro. */
+export function formatUsdBr(value: number): string {
+  return `US$ ${new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}`
+}
+
+/** ROE com quatro casas e vírgula decimal ("5,4600"). */
+export function formatRoeBr(value: number): string {
+  return value.toFixed(4).replace('.', ',')
 }
 
 function assertCustomerFinanceScope(input: CustomerCommunicationTemplateInput): void {
@@ -282,7 +239,7 @@ function assertCustomerFinanceScope(input: CustomerCommunicationTemplateInput): 
   if (!input.voyageNumber.trim()) throw new Error('Viagem ausente.')
 }
 
-function customerPortalBillingUrl(input: CustomerCommunicationTemplateInput): string {
+function customerPortalBillingUrl(input: { portalUrl?: string | null }): string {
   return input.portalUrl?.trim() || CUSTOMER_PORTAL_BILLING_URL
 }
 
@@ -298,40 +255,93 @@ export function renderCeMercanteTaxasTemplate(input: CustomerCommunicationTempla
   if (!Number.isFinite(totalBrl) || totalBrl < 0) throw new Error('Total BRL inválido no resumo de taxas.')
   const vessel = clean(input.vesselName)
   const voyage = clean(input.voyageNumber)
+  const port = input.port?.trim() ?? ''
   const customer = clean(input.customerName)
-  const subject = `CE Mercante Disponível e Resumo de Taxas Locais — ${vessel} / ${voyage}`
+  const title = 'CE Mercante e Taxas Locais disponíveis'
+  const subject = `${title} — ${vessel} / ${voyage}${port ? ` — Porto de ${port}` : ''}`
+  const subtitle = `${vessel} / ${voyage}${port ? ` · Porto de ${port}` : ''}`
   const portalUrl = customerPortalBillingUrl(input)
-  const ceList = rows.map((row) => row.ceMercante.trim()).join(', ')
-  const bodyText = [
-    `Olá, ${customer}.`,
-    '',
-    `Os CEs Mercantes ${ceList} já estão disponíveis para agilizar o desembaraço e o registro da DI/DUIMP pelo despachante/importador.`,
-    '',
-    'Resumo da viagem:',
-    ...rows.map((row) => `[${row.blId.trim()}] [${row.ceMercante.trim()}] [${formatBrl(row.totalBrl)}]`),
-    `Total da viagem: ${formatBrl(totalBrl)}`,
-    '',
-    `Consulte as faturas e as formas de pagamento no Portal do Cliente: ${portalUrl}`,
-  ].join('\n')
-  const bodyHtml = [
-    `<p style="margin:0 0 14px">Olá, ${escapeHtml(customer)}.</p>`,
-    `<p style="margin:0 0 18px;padding:14px 16px;border-left:4px solid #0f766e;background:#ecfdf5;border-radius:4px;color:#134e4a;font-size:14px"><strong>CE Mercante disponível:</strong> ${escapeHtml(ceList)}. Os números estão prontos para agilizar o desembaraço e o registro da DI/DUIMP pelo despachante/importador.</p>`,
-    '<p style="margin:0 0 8px;font-weight:600">Resumo da viagem</p>',
-    `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;border:1px solid ${BRAND_BORDER};border-radius:6px;overflow:hidden"><thead><tr style="background:#f9fafb"><th style="text-align:left;padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:13px;color:${BRAND_MUTED}">B/L</th><th style="text-align:left;padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:13px;color:${BRAND_MUTED}">CE Mercante</th><th style="text-align:right;padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:13px;color:${BRAND_MUTED}">Valor BRL</th></tr></thead><tbody>`,
-    ...rows.map((row) => `<tr><td style="padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:14px">${escapeHtml(row.blId.trim())}</td><td style="padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:14px"><strong>${escapeHtml(row.ceMercante.trim())}</strong></td><td style="padding:9px 12px;text-align:right;border-bottom:1px solid ${BRAND_BORDER};font-size:14px">${escapeHtml(formatBrl(row.totalBrl))}</td></tr>`),
-    `</tbody><tfoot><tr style="background:#f9fafb"><td colspan="2" style="padding:10px 12px;font-weight:700">Total da viagem</td><td style="padding:10px 12px;text-align:right;font-weight:700;color:${BRAND_NAVY}">${escapeHtml(formatBrl(totalBrl))}</td></tr></tfoot></table>`,
-    `<table role="presentation" width="100%" style="margin:16px 0 8px"><tr><td align="center"><a href="${escapeHtml(portalUrl)}" style="background:${BRAND_NAVY};color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;font-size:14px;font-weight:600">Consultar faturas e formas de pagamento no Portal do Cliente</a></td></tr></table>`,
-  ].join('')
-  const blIds = rows.map((row) => row.blId.trim())
+  const sentence = 'Os CEs Mercantes abaixo já podem ser consultados no sistema Mercante, e as Taxas Locais da viagem podem ser pagas no Portal do Cliente.'
+  const greeting = hello(customer)
+  const body: RenderedBody = {
+    html: greeting.html
+      + emailParagraph(escapeHtml(sentence))
+      + kit.block('CE Mercante e Taxas Locais', emailStack(rows.map((row) => [
+        emailMono(row.ceMercante.trim()),
+        `B/L ${escapeHtml(row.blId.trim())}`,
+        escapeHtml(formatBrl(row.totalBrl)),
+        '',
+      ])) + kit.totalRow('Total da viagem', escapeHtml(formatBrl(totalBrl))), { flush: true })
+      + kit.button('Ver faturas e formas de pagamento', portalUrl),
+    text: [
+      ...greeting.text,
+      sentence,
+      '',
+      'CE Mercante e Taxas Locais:',
+      ...rows.map((row) => `- CE ${row.ceMercante.trim()} (B/L ${row.blId.trim()}): ${formatBrl(row.totalBrl)}`),
+      `Total da viagem: ${formatBrl(totalBrl)}`,
+      '',
+      `Ver faturas e formas de pagamento: ${portalUrl}`,
+    ],
+  }
+  const mail = renderMail({ title, subtitle, body, portalUrl: input.portalUrl, contactEmail: COMMUNICATIONS_CONTACT_EMAIL })
   return {
     kind: 'ce_mercante_taxas',
     subject,
-    html: layout(subject, bodyHtml, input.portalUrl),
-    text: textLayout(subject, bodyText),
+    ...mail,
     customerId: input.customerId,
-    blIds,
+    blIds: rows.map((row) => row.blId.trim()),
     terminalId: input.terminalId ?? null,
   }
+}
+
+type DemurrageInvoiceView = {
+  docNumber: string
+  blId: string
+  vessel: string
+  voyage: string
+  usd: string
+  brl: string
+  roe: string
+  date: string
+}
+
+/** Cobrança de uma Invoice: dado principal em US$, pares e a nota do recálculo. */
+function renderDemurrageSingle(customer: string, line: DemurrageInvoiceView, portalUrlInput?: string | null): { subject: string; html: string; text: string } {
+  const portalUrl = customerPortalBillingUrl({ portalUrl: portalUrlInput })
+  const subject = `Cobrança de Demurrage — ${line.docNumber} — ${line.vessel} / ${line.voyage}`
+  const subtitle = `${line.docNumber} · ${line.vessel} / ${line.voyage}`
+  const sentence = 'A cobrança de Demurrage abaixo está disponível no Portal do Cliente.'
+  const recalc = 'O valor em reais é recalculado no dia do pagamento.'
+  const roe = `${line.roe} em ${line.date}`
+  const greeting = hello(customer)
+  const body: RenderedBody = {
+    html: greeting.html
+      + emailParagraph(escapeHtml(sentence))
+      + kit.block(`Invoice ${line.docNumber}`, emailLead(escapeHtml(line.usd), 'valor da cobrança') + emailFacts([
+        ['B/L', escapeHtml(line.blId)],
+        ['Navio / Viagem', escapeHtml(`${line.vessel} / ${line.voyage}`)],
+        ['Em reais (informativo)', escapeHtml(line.brl)],
+        ['ROE', escapeHtml(roe)],
+      ]))
+      + emailNote(escapeHtml(recalc))
+      + kit.button('Ver a cobrança no Portal', portalUrl),
+    text: [
+      ...greeting.text,
+      sentence,
+      '',
+      `Invoice ${line.docNumber}: ${line.usd} (valor da cobrança)`,
+      `B/L: ${line.blId}`,
+      `Navio / Viagem: ${line.vessel} / ${line.voyage}`,
+      `Em reais (informativo): ${line.brl}`,
+      `ROE: ${roe}`,
+      '',
+      recalc,
+      '',
+      `Ver a cobrança no Portal: ${portalUrl}`,
+    ],
+  }
+  return { subject, ...renderMail({ title: 'Cobrança de Demurrage', subtitle, body, portalUrl: portalUrlInput, contactEmail: DEMURRAGE_CONTACT_EMAIL }) }
 }
 
 export function renderDemurrageTemplate(input: CustomerCommunicationTemplateInput): RenderedCustomerCommunication {
@@ -347,38 +357,19 @@ export function renderDemurrageTemplate(input: CustomerCommunicationTemplateInpu
   if (!data.docNumber.trim() || !Number.isFinite(data.totalUsd) || data.totalUsd <= 0 || !Number.isFinite(data.totalBrl) || data.totalBrl < 0 || !Number.isFinite(data.roe) || data.roe <= 0 || !data.roeReferenceDate.trim()) {
     throw new Error('Dados incompletos para a cobrança de Demurrage.')
   }
-  const customer = clean(input.customerName)
-  const vessel = clean(input.vesselName)
-  const voyage = clean(input.voyageNumber)
-  const subject = `Cobrança de Demurrage — ${data.docNumber.trim()} — ${vessel} / ${voyage}`
-  const portalUrl = customerPortalBillingUrl(input)
-  const referenceDate = formatDateOnly(data.roeReferenceDate.trim())
-  const bodyText = [
-    `Olá, ${customer}.`,
-    '',
-    `A cobrança de Demurrage ${data.docNumber.trim()} está disponível para o B/L ${input.bls[0]?.id.trim()}.`,
-    `Valor da cobrança: ${formatUsd(data.totalUsd)}.`,
-    `Valor informativo em reais: ${formatBrl(data.totalBrl)}, calculado pelo ROE ${data.roe.toFixed(4)} com referência em ${referenceDate}.`,
-    'O valor em reais será recalculado no dia do pagamento.',
-    '',
-    `Consulte os detalhes no Portal do Cliente: ${portalUrl}`,
-  ].join('\n')
-  const bodyHtml = [
-    `<p style="margin:0 0 14px">Olá, ${escapeHtml(customer)}.</p>`,
-    `<p style="margin:0 0 16px">A cobrança de Demurrage <strong>${escapeHtml(data.docNumber.trim())}</strong> está disponível para o B/L <strong>${escapeHtml(input.bls[0]?.id.trim() ?? '')}</strong>.</p>`,
-    `<table style="width:100%;border-collapse:collapse;margin:16px 0 20px;border:1px solid ${BRAND_BORDER};border-radius:6px;overflow:hidden">`,
-    `<tr><td style="padding:10px 14px;border-bottom:1px solid ${BRAND_BORDER};color:${BRAND_MUTED};width:42%;font-size:13.5px">Valor da cobrança</td><td style="padding:10px 14px;border-bottom:1px solid ${BRAND_BORDER};font-weight:700;color:${BRAND_NAVY};font-size:16px">${escapeHtml(formatUsd(data.totalUsd))}</td></tr>`,
-    `<tr><td style="padding:10px 14px;border-bottom:1px solid ${BRAND_BORDER};color:${BRAND_MUTED};font-size:13.5px">Valor informativo em reais</td><td style="padding:10px 14px;border-bottom:1px solid ${BRAND_BORDER};font-weight:600;color:${BRAND_GOLD};font-size:15px">${escapeHtml(formatBrl(data.totalBrl))}</td></tr>`,
-    `<tr><td style="padding:10px 14px;color:${BRAND_MUTED};font-size:13.5px">Cotação (ROE)</td><td style="padding:10px 14px;color:${BRAND_INK};font-size:14px">ROE ${escapeHtml(data.roe.toFixed(4))}, referência ${escapeHtml(referenceDate)}</td></tr>`,
-    '</table>',
-    `<p style="margin:0 0 20px;font-size:13px;color:${BRAND_MUTED}"><strong>Observação:</strong> O valor em reais será recalculado no dia do pagamento.</p>`,
-    `<table role="presentation" width="100%" style="margin:16px 0 8px"><tr><td align="center"><a href="${escapeHtml(portalUrl)}" style="background:${BRAND_NAVY};color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;font-size:14px;font-weight:600">Consultar detalhes no Portal do Cliente</a></td></tr></table>`,
-  ].join('')
+  const mail = renderDemurrageSingle(clean(input.customerName), {
+    docNumber: data.docNumber.trim(),
+    blId: input.bls[0]?.id.trim() ?? '',
+    vessel: clean(input.vesselName),
+    voyage: clean(input.voyageNumber),
+    usd: formatUsdBr(data.totalUsd),
+    brl: formatBrl(data.totalBrl),
+    roe: formatRoeBr(data.roe),
+    date: formatDateOnly(data.roeReferenceDate.trim()),
+  }, input.portalUrl)
   return {
     kind: 'cobranca_demurrage',
-    subject,
-    html: layout(subject, bodyHtml, input.portalUrl),
-    text: textLayout(subject, bodyText),
+    ...mail,
     customerId: input.customerId,
     blIds: input.bls.map((bl) => bl.id.trim()),
     terminalId: input.terminalId ?? null,
@@ -423,12 +414,17 @@ export function demurrageGroupLineMissing(line: DemurrageGroupLine): string | nu
   return missing.length ? missing.join(', ') : null
 }
 
+function joinPt(items: readonly string[]): string {
+  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`
+}
+
 /**
  * Cobrança agrupada da Régua (plano dos e-mails, 4.1; D8): um e-mail por
- * Cliente e etapa, com o layout comum, cada Invoice na sua linha (navio,
- * viagem, USD, BRL informativo e ROE com a data da cotação), sem consolidar
- * valores (não há soma), e a observação de recálculo. Uma linha só mantém o
- * assunto da cobrança unitária.
+ * Cliente e etapa, cada Invoice na sua linha da lista (Invoice e B/L à
+ * esquerda; US$ e o informativo em reais à direita), sem soma, e a nota do
+ * ROE e do recálculo. Navio / Viagem vai na faixa do bloco quando é o mesmo
+ * para todas; senão, na linha de cada Invoice. Uma linha só sai como a
+ * cobrança de uma Invoice.
  */
 export function renderDemurrageGroupTemplate(input: DemurrageGroupTemplateInput): RenderedCustomerCommunication {
   if (!Number.isInteger(input.customerId) || input.customerId <= 0) throw new Error('Cliente inválido para o comunicado.')
@@ -437,76 +433,112 @@ export function renderDemurrageGroupTemplate(input: DemurrageGroupTemplateInput)
   for (const line of input.lines) {
     if (demurrageGroupLineMissing(line)) throw new Error('Dados incompletos para a cobrança de Demurrage.')
   }
-  const lines = input.lines.map((line) => ({
+  const lines: DemurrageInvoiceView[] = input.lines.map((line) => ({
     docNumber: line.docNumber.trim(),
     blId: line.blId.trim(),
     vessel: line.vesselName.trim(),
     voyage: line.voyageNumber.trim(),
-    usd: formatUsd(line.totalUsd),
+    usd: formatUsdBr(line.totalUsd),
     brl: formatBrl(line.totalBrl),
-    roe: line.roe.toFixed(4),
+    roe: formatRoeBr(line.roe),
     date: formatDateOnly(line.roeReferenceDate.trim()),
   }))
-  const count = lines.length
-  const first = lines[0]!
-  const subject = count === 1
-    ? `Cobrança de Demurrage — ${first.docNumber} — ${first.vessel} / ${first.voyage}`
-    : `Cobrança de Demurrage — ${count} faturas`
   const customer = clean(input.customerName)
-  const portalUrl = input.portalUrl?.trim() || CUSTOMER_PORTAL_BILLING_URL
-  const intro = count === 1
-    ? 'A cobrança de Demurrage abaixo está disponível.'
-    : `Há ${count} cobranças de Demurrage disponíveis. Os valores são por Invoice, sem consolidação.`
-  const bodyText = [
-    `Olá, ${customer}.`,
-    '',
-    intro,
-    '',
-    ...lines.map((line) => `• ${line.docNumber} — B/L ${line.blId} — ${line.vessel} / ${line.voyage}: ${line.usd}; informativo ${line.brl} pelo ROE ${line.roe} com referência em ${line.date}.`),
-    '',
-    'O valor em reais será recalculado no dia do pagamento.',
-    '',
-    `Consulte os detalhes no Portal do Cliente: ${portalUrl}`,
-  ].join('\n')
-  const cell = `padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:14px;vertical-align:top`
-  const head = `text-align:left;padding:9px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:13px;color:${BRAND_MUTED}`
-  const bodyHtml = [
-    `<p style="margin:0 0 14px">Olá, ${escapeHtml(customer)}.</p>`,
-    `<p style="margin:0 0 16px">${escapeHtml(intro)}</p>`,
-    `<table style="width:100%;border-collapse:collapse;margin:16px 0 20px;border:1px solid ${BRAND_BORDER};border-radius:6px;overflow:hidden"><thead><tr style="background:#f9fafb"><th style="${head}">Invoice / B/L</th><th style="${head}">Navio / Viagem</th><th style="${head};text-align:right">Valor da cobrança</th></tr></thead><tbody>`,
-    ...lines.map((line) => `<tr><td style="${cell}"><strong>${escapeHtml(line.docNumber)}</strong><br><span style="color:${BRAND_MUTED};font-size:13px">B/L ${escapeHtml(line.blId)}</span></td><td style="${cell}">${escapeHtml(line.vessel)} / ${escapeHtml(line.voyage)}</td><td style="${cell};text-align:right"><strong style="color:${BRAND_NAVY}">${escapeHtml(line.usd)}</strong><br><span style="color:${BRAND_GOLD};font-weight:600">${escapeHtml(line.brl)}</span><br><span style="color:${BRAND_MUTED};font-size:12.5px">ROE ${escapeHtml(line.roe)}, referência ${escapeHtml(line.date)}</span></td></tr>`),
-    '</tbody>',
-    '</table>',
-    `<p style="margin:0 0 20px;font-size:13px;color:${BRAND_MUTED}"><strong>Observação:</strong> O valor em reais será recalculado no dia do pagamento.</p>`,
-    `<table role="presentation" width="100%" style="margin:16px 0 8px"><tr><td align="center"><a href="${escapeHtml(portalUrl)}" style="background:${BRAND_NAVY};color:#ffffff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;font-size:14px;font-weight:600">Consultar detalhes no Portal do Cliente</a></td></tr></table>`,
-  ].join('')
+  const blIds = lines.map((line) => line.blId)
+  if (lines.length === 1) {
+    return { kind: 'cobranca_demurrage', ...renderDemurrageSingle(customer, lines[0]!, input.portalUrl), customerId: input.customerId, blIds, terminalId: null }
+  }
+
+  const count = lines.length
+  const portalUrl = customerPortalBillingUrl(input)
+  const subject = `Cobrança de Demurrage — ${count} Invoices`
+  const subtitle = `${count} Invoices`
+  const sentence = `Há ${count} cobranças de Demurrage disponíveis. Os valores são por Invoice, sem soma.`
+  const voyageOf = (line: DemurrageInvoiceView) => `${line.vessel} / ${line.voyage}`
+  const sameVoyage = new Set(lines.map(voyageOf)).size === 1
+  const roes = [...new Set(lines.map((line) => `${line.roe} de ${line.date}`))]
+  const roeNote = roes.length === 1
+    ? `Em reais pelo ROE ${roes[0]}, só para informação: o valor em reais é recalculado no dia do pagamento.`
+    : `Em reais pelos ROEs ${joinPt(roes)}, só para informação: o valor em reais é recalculado no dia do pagamento.`
+  const greeting = hello(customer)
+  const body: RenderedBody = {
+    html: greeting.html
+      + emailParagraph(escapeHtml(sentence))
+      + kit.block('Invoices', emailStack(lines.map((line) => [
+        escapeHtml(line.docNumber),
+        escapeHtml(`B/L ${line.blId}${sameVoyage ? '' : ` · ${voyageOf(line)}`}`),
+        escapeHtml(line.usd),
+        escapeHtml(line.brl),
+      ])), { flush: true, aside: sameVoyage ? escapeHtml(voyageOf(lines[0]!)) : undefined })
+      + emailNote(escapeHtml(roeNote))
+      + kit.button('Ver as cobranças no Portal', portalUrl),
+    text: [
+      ...greeting.text,
+      sentence,
+      '',
+      `Invoices${sameVoyage ? ` (${voyageOf(lines[0]!)})` : ''}:`,
+      ...lines.map((line) => `- ${line.docNumber}, B/L ${line.blId}${sameVoyage ? '' : `, ${voyageOf(line)}`}: ${line.usd} (${line.brl})`),
+      '',
+      roeNote,
+      '',
+      `Ver as cobranças no Portal: ${portalUrl}`,
+    ],
+  }
   return {
     kind: 'cobranca_demurrage',
     subject,
-    html: layout(subject, bodyHtml, input.portalUrl),
-    text: textLayout(subject, bodyText),
+    ...renderMail({ title: 'Cobrança de Demurrage', subtitle, body, portalUrl: input.portalUrl, contactEmail: DEMURRAGE_CONTACT_EMAIL }),
     customerId: input.customerId,
-    blIds: lines.map((line) => line.blId),
+    blIds,
     terminalId: null,
   }
+}
+
+/** Data e hora do marco: valor em destaque e "horário de Brasília" embaixo. */
+function milestoneParts(value: string): { value: string; detail: string } {
+  const formatted = formatCommunicationDateTime(value)
+  const suffix = ' (horário de Brasília)'
+  return formatted.endsWith(suffix)
+    ? { value: formatted.slice(0, -suffix.length), detail: 'horário de Brasília' }
+    : { value: formatted, detail: '' }
 }
 
 function renderMilestoneContent(
   input: CustomerCommunicationTemplateInput,
   kind: CustomerCommunicationKind,
+  subject: string,
   title: string,
-  sentenceHtml: string,
-  sentenceText: string,
+  sentence: string,
+  blockTitle: string,
+  place: readonly [string, string],
 ): RenderedCustomerCommunication {
   const blIds = input.bls.map((bl) => bl.id.trim())
   const customer = clean(input.customerName)
-  const bodyText = `Olá, ${customer}.\n\n${sentenceText}\n\nB/Ls relacionados: ${blIds.join(', ')}.`
-  const bodyHtml = `<p style="margin:0 0 14px">Olá, ${escapeHtml(customer)}.</p><p style="margin:0 0 16px">${sentenceHtml}</p><p style="margin:0 0 8px;font-size:13.5px;color:${BRAND_MUTED}"><strong>B/Ls relacionados:</strong> <span style="color:${BRAND_INK}">${blIds.map(escapeHtml).join(', ')}</span></p>`
+  const vesselVoyage = `${clean(input.vesselName)} / ${clean(input.voyageNumber)}`
+  const when = milestoneParts(input.milestoneAt)
+  const greeting = hello(customer)
+  const body: RenderedBody = {
+    html: greeting.html
+      + emailParagraph(escapeHtml(sentence))
+      + kit.block(blockTitle, emailLead(escapeHtml(when.value), escapeHtml(when.detail)) + emailFacts([
+        ['Navio / Viagem', escapeHtml(vesselVoyage)],
+        [place[0], escapeHtml(place[1])],
+        ['B/Ls', escapeHtml(blIds.join(', '))],
+      ])),
+    text: [
+      ...greeting.text,
+      sentence,
+      '',
+      `${blockTitle}: ${when.value}${when.detail ? ` (${when.detail})` : ''}`,
+      `Navio / Viagem: ${vesselVoyage}`,
+      `${place[0]}: ${place[1]}`,
+      `B/Ls: ${blIds.join(', ')}`,
+    ],
+  }
   return {
     kind,
-    subject: title,
-    html: layout(title, bodyHtml, input.portalUrl),
-    text: textLayout(title, bodyText),
+    subject,
+    ...renderMail({ title, body, portalUrl: input.portalUrl, contactEmail: COMMUNICATIONS_CONTACT_EMAIL }),
     customerId: input.customerId,
     blIds,
     terminalId: input.terminalId ?? null,
@@ -516,57 +548,37 @@ function renderMilestoneContent(
 export function renderNoaTemplate(input: CustomerCommunicationTemplateInput): RenderedCustomerCommunication {
   assertCommunicationScope(input, 'aviso_chegada_noa')
   const port = clean(input.port)
-  const vessel = clean(input.vesselName)
-  const voyage = clean(input.voyageNumber)
-  const milestone = formatCommunicationDateTime(input.milestoneAt)
-  const subject = `Notice of Arrival / Chegada Próxima — ${vessel} / ${voyage} — Porto de ${port}`
-  return renderMilestoneContent(
-    input,
-    'aviso_chegada_noa',
-    subject,
-    `O navio <strong>${escapeHtml(vessel)}</strong>, viagem <strong>${escapeHtml(voyage)}</strong>, tem chegada prevista para <strong>${escapeHtml(milestone)}</strong> no Porto de ${escapeHtml(port)}.`,
-    `O navio ${vessel}, viagem ${voyage}, tem chegada prevista para ${milestone} no Porto de ${port}.`,
-  )
+  const title = 'Notice of Arrival / Chegada Próxima'
+  const subject = `${title} — ${clean(input.vesselName)} / ${clean(input.voyageNumber)} — Porto de ${port}`
+  return renderMilestoneContent(input, 'aviso_chegada_noa', subject, title, 'A chegada do seu navio está prevista conforme abaixo.', 'Chegada prevista', ['Porto', port])
 }
 
 export function renderNorTemplate(input: CustomerCommunicationTemplateInput): RenderedCustomerCommunication {
   assertCommunicationScope(input, 'aviso_prontidao_nor')
   const port = clean(input.port)
-  const vessel = clean(input.vesselName)
-  const voyage = clean(input.voyageNumber)
-  const milestone = formatCommunicationDateTime(input.milestoneAt)
-  const subject = `Notice of Readiness / Aviso de Chegada — ${vessel} / ${voyage} — Porto de ${port}`
-  const sentenceHtml = `Registramos a chegada do navio <strong>${escapeHtml(vessel)}</strong>, viagem <strong>${escapeHtml(voyage)}</strong>, em <strong>${escapeHtml(milestone)}</strong> no Porto de ${escapeHtml(port)}.`
-  const sentenceText = `Registramos a chegada do navio ${vessel}, viagem ${voyage}, em ${milestone} no Porto de ${port}.`
-  return renderMilestoneContent(input, 'aviso_prontidao_nor', subject, sentenceHtml, sentenceText)
+  const title = 'Notice of Readiness / Aviso de Chegada'
+  const subject = `${title} — ${clean(input.vesselName)} / ${clean(input.voyageNumber)} — Porto de ${port}`
+  return renderMilestoneContent(input, 'aviso_prontidao_nor', subject, title, 'Registramos a chegada do seu navio conforme abaixo.', 'Chegada registrada', ['Porto', port])
 }
 
 export function renderNobTemplate(input: CustomerCommunicationTemplateInput): RenderedCustomerCommunication {
   assertCommunicationScope(input, 'aviso_atracacao_nob')
   const port = clean(input.port)
-  const vessel = clean(input.vesselName)
-  const voyage = clean(input.voyageNumber)
   const terminal = clean(input.terminalName)
-  const milestone = formatCommunicationDateTime(input.milestoneAt)
-  const subject = `Notice of Berthing / Aviso de Atracação — ${vessel} / ${voyage} — Porto de ${port} (${terminal})`
-  const sentenceHtml = `O navio <strong>${escapeHtml(vessel)}</strong>, viagem <strong>${escapeHtml(voyage)}</strong>, atracou em <strong>${escapeHtml(milestone)}</strong> no terminal ${escapeHtml(terminal)}, Porto de ${escapeHtml(port)}.`
-  const sentenceText = `O navio ${vessel}, viagem ${voyage}, atracou em ${milestone} no terminal ${terminal}, Porto de ${port}.`
-  return renderMilestoneContent(input, 'aviso_atracacao_nob', subject, sentenceHtml, sentenceText)
+  const title = 'Notice of Berthing / Aviso de Atracação'
+  const subject = `${title} — ${clean(input.vesselName)} / ${clean(input.voyageNumber)} — Porto de ${port} (${terminal})`
+  return renderMilestoneContent(input, 'aviso_atracacao_nob', subject, title, 'O seu navio atracou conforme abaixo.', 'Atracação', ['Terminal', `${terminal}, Porto de ${port}`])
 }
 
-function renderCargoBlock(input: CustomerCommunicationTemplateInput): { html: string; text: string } {
-  const vessel = clean(input.vesselName)
-  const voyage = clean(input.voyageNumber)
+function renderCargoBlock(input: CustomerCommunicationTemplateInput): RenderedBody {
+  const vesselVoyage = `${clean(input.vesselName)} / ${clean(input.voyageNumber)}`
   const blIds = input.bls.map((bl) => bl.id.trim())
-  const cell = `padding:8px 12px;border-bottom:1px solid ${BRAND_BORDER};font-size:13.5px`
-  const label = `${cell};color:${BRAND_MUTED};width:32%`
   return {
-    html: `<table style="width:100%;border-collapse:collapse;margin:20px 0 4px;border:1px solid ${BRAND_BORDER};border-radius:6px;overflow:hidden">`
-      + `<tr><td style="${label}">Navio</td><td style="${cell};font-weight:600">${escapeHtml(vessel)}</td></tr>`
-      + `<tr><td style="${label}">Viagem</td><td style="${cell};font-weight:600">${escapeHtml(voyage)}</td></tr>`
-      + `<tr><td style="padding:8px 12px;font-size:13.5px;color:${BRAND_MUTED}">B/Ls</td><td style="padding:8px 12px;font-size:13.5px">${blIds.map(escapeHtml).join(', ')}</td></tr>`
-      + '</table>',
-    text: `Navio: ${vessel}\nViagem: ${voyage}\nB/Ls: ${blIds.join(', ')}`,
+    html: kit.block('Sua carga', emailFacts([
+      ['Navio / Viagem', escapeHtml(vesselVoyage)],
+      ['B/Ls', escapeHtml(blIds.join(', '))],
+    ])),
+    text: ['Sua carga', `Navio / Viagem: ${vesselVoyage}`, `B/Ls: ${blIds.join(', ')}`],
   }
 }
 
@@ -578,17 +590,19 @@ export function renderInstitutionalTemplate(input: CustomerCommunicationTemplate
   }
   if (kind === 'institucional' && input.bls.length) throw new Error('Comunicado institucional não pode conter B/Ls.')
   const subject = clean(input.subject, 'Comunicado Transhipping Desk')
-  const body = clean(input.body, '')
-  const safeBodyHtml = escapeHtml(body).replace(/\n/g, '<br>')
-  // D15: o livre leva os dados da carga do Cliente — Navio, Viagem e B/Ls —, que
+  const text = clean(input.body, '')
+  // D15: o livre leva os dados da carga do Cliente — Navio / Viagem e B/Ls —, que
   // a tela promete ("os dados da carga de cada cliente são acrescentados").
   const cargo = kind === 'livre' ? renderCargoBlock(input) : null
-  const bodyText = `Olá, ${clean(input.customerName)}.\n\n${body}${cargo ? `\n\n${cargo.text}` : ''}`
+  const greeting = hello(clean(input.customerName))
+  const body: RenderedBody = {
+    html: greeting.html + emailParagraph(escapeHtml(text).replace(/\n/g, '<br>')) + (cargo?.html ?? ''),
+    text: [...greeting.text, text, ...(cargo ? ['', ...cargo.text] : [])],
+  }
   return {
     kind,
     subject,
-    html: layout(subject, `<p style="margin:0 0 14px">Olá, ${escapeHtml(clean(input.customerName))}.</p><p style="margin:0">${safeBodyHtml}</p>${cargo?.html ?? ''}`, input.portalUrl),
-    text: textLayout(subject, bodyText),
+    ...renderMail({ title: subject, body, portalUrl: input.portalUrl, contactEmail: COMMUNICATIONS_CONTACT_EMAIL }),
     customerId: input.customerId,
     blIds: input.bls.map((bl) => bl.id.trim()),
     terminalId: input.terminalId ?? null,

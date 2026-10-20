@@ -6,6 +6,22 @@
 
 ## 2026-10
 
+- **Paginação dos impressos (2026-10-20):** na fatura consolidada de Taxas Locais cada B/L sai
+  inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR
+  impresso o cabeçalho (Armador, Porto, Navio / Viagem, Terminal) se repete em cada página, as
+  assinaturas ficam juntas e o Anexo começa em página nova com identificação (lote 6b,
+  [plano](plans/2026-10-13-identidade-visual-tela-a-tela.md)).
+- **ADR conta cada container uma vez (2026-10-20):** vazios descarregados e a contagem do Baplie passam a
+  deduplicar por número de container, como a carga descarregada já fazia; o mesmo vazio em dois
+  manifestos de Vazios de Importação ou repetido no Baplie contava duas vezes.
+- **Suporte nas telas públicas do Portal (2026-10-20):** "Fale com o suporte" do login e das demais
+  telas públicas leva a `suporte@portalfwlog.com.br`; antes apontava para `suporte@fwlog.com.br`, que
+  não existe.
+- **Logo dos Comunicados (2026-10-20):** NOA, NOR, NOB, livre, institucional, CE e Taxas e
+  Cobrança de Demurrage buscavam a logo em `/portal/branding/fwlog-logo-white.png`, que em
+  produção responde com a página do Portal, e chegavam com a imagem quebrada; agora usam a origem
+  do site, como os e-mails do Portal (achado A1 do lote 6b,
+  [plano](plans/2026-10-13-identidade-visual-tela-a-tela.md)).
 - **Programação de navios exige sessão válida (2026-10-20):** `portal_ship_schedule()` passou a
   recusar conta `authenticated` sem perfil interno ativo nem conta ativa do Portal (migration `337`,
   [ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); antes bastava qualquer login, e o

@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  ceUnlockNoticeBls,
   processCeUnlockEmails,
   runCeUnlockNotify,
   type CeUnlockNotifyHandlerDeps,
@@ -181,5 +183,50 @@ describe('e-mail ao cliente', () => {
     expect(mail.text).toContain('https://portal.exemplo.com.br/portal/desbloqueio-ce')
     expect(mail.html).toContain('Consulte o Mercante')
     expect(`${mail.subject}${mail.text}${mail.html}`).not.toMatch(/ZPT|desbloqueio confirmado/i)
+  })
+
+  it('mostra o bloco da solicitação com os B/Ls e o botão do módulo; sem B/L, o bloco não aparece', () => {
+    const base = {
+      title: 'Desbloqueio de CE: correção solicitada',
+      message: 'A solicitação CE-ABC precisa de correção. Motivo (procuração): sem assinatura. Reenvie os documentos pelo Portal.',
+      portalUrl: 'https://portalfwlog.com.br/portal', supportEmail: 'suporte@fwlog.com.br',
+    }
+    const mail = ceUnlockNoticeTemplate({ ...base, request: { protocol: 'CE-ABC', bls: ['MEDU1', 'MEDU2'] } })
+    expect(mail.html).toContain('>Solicitação CE-ABC<')
+    expect(mail.html).toContain('MEDU1, MEDU2')
+    expect(mail.html).toContain('href="https://portalfwlog.com.br/portal/desbloqueio-ce"')
+    expect(mail.html.indexOf('Solicitação CE-ABC<')).toBeLessThan(mail.html.indexOf('Abrir Desbloqueio de CE'))
+    expect(mail.text).toContain('Solicitação CE-ABC\nB/Ls: MEDU1, MEDU2')
+    expect(mail.html).toContain('Dúvidas ou não reconhece esta mensagem? Fale com <a href="mailto:suporte@fwlog.com.br"')
+    const empty = ceUnlockNoticeTemplate({ ...base, request: { protocol: 'CE-ABC', bls: [] } })
+    expect(empty.html).not.toContain('>Solicitação CE-ABC<')
+    expect(empty.text).not.toContain('B/Ls:')
+  })
+
+  it('a função do aviso busca protocolo e B/Ls da solicitação da linha', () => {
+    const source = readFileSync('supabase/functions/ce-unlock-notify-email/index.ts', 'utf8')
+    expect(source).toContain('from("ce_unlock_request_bls").select("bl_id").eq("request_id", requestId)')
+    expect(source).toContain('from("ce_unlock_events").select("bl_id").eq("request_id", requestId).eq("action", "bl_moved")')
+    expect(source).toContain('bls: ceUnlockNoticeBls(')
+    expect(source).toContain('request: await requestDetails(row.request_id)')
+  })
+
+  it('o bloco da solicitação deixa de fora o B/L que passou para outra solicitação, e mantém o confirmado', () => {
+    // MEDU2 mudou para outra solicitação (bl_moved); MEDU3 foi confirmado (também active=false) e continua.
+    const items = [{ bl_id: 'MEDU1' }, { bl_id: 'MEDU2' }, { bl_id: 'MEDU3' }]
+    expect(ceUnlockNoticeBls(items, [{ bl_id: 'MEDU2' }])).toEqual(['MEDU1', 'MEDU3'])
+    expect(ceUnlockNoticeBls(items, [])).toEqual(['MEDU1', 'MEDU2', 'MEDU3'])
+    expect(ceUnlockNoticeBls([{ bl_id: 'MEDU2' }], [{ bl_id: 'MEDU2' }])).toEqual([])
+  })
+
+  // Asserção de texto do SQL: confere o contrato da migration, não a execução.
+  it('migration 338 escreve o motivo por documento e mantém o aviso de documentação validada', () => {
+    const sql = readFileSync('supabase/migrations/338_desbloqueio_ce_motivo_da_recusa_por_documento.sql', 'utf8')
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION ce_unlock_private.notify(p_request uuid, p_kind text, p_text text DEFAULT NULL::text)')
+    expect(sql).toContain("regexp_match(reason,'^(Procuração|Termo de devolução):[[:space:]]*(.*)$')")
+    expect(sql).toContain("'Motivo ('||lower(doc[1])||'): '")
+    expect(sql).toContain("Consulte o Mercante para verificar o desbloqueio.")
+    expect(sql).toContain('INSERT INTO public.portal_notifications')
+    expect(sql).toContain('INSERT INTO public.ce_unlock_email_outbox')
   })
 })

@@ -346,12 +346,46 @@ consulta no sistema sem estar na audiência.
 
 O resumo diário (`portal-daily-digest`, 08:00 de Brasília) é um e-mail
 **interno**, de acompanhamento do provisionamento: não vai a Clientes. Vai aos
-usuários ativos de Administrativo e Documentação quando houve, nas últimas 24
+usuários ativos de Administrativo e Documentação (papéis `administrativo` e
+`documentacao`; o `admin` não existe desde a migration `093`) quando houve, nas últimas 24
 horas, falha ou supressão de email, atividade de provisionamento, abertura ou
 fechamento de exceção crítica de fatura (`portal_excecao_critica_fatura`), ou
 quando há Ativação pendente; sem nada disso, não sai. Não há email imediato de
 alerta crítico: a exceção crítica chega pelo resumo, pelo sino e por `/alertas`
 ([ADR 0083](../adr/0083-decisoes-da-revisao-geral-da-documentacao.md), item 19).
+
+Desde o lote 6b (2026-10-20), o resumo leva a marca Vela, o título "Resumo do
+Portal de DD/MM/AAAA" (assunto "Resumo do Portal — DD/MM/AAAA"), um bloco
+**Pede ação** (falhas de entrega e supressões, exceções críticas de fatura
+abertas, convites aguardando ativação; o número fica em âmbar quando passa de
+zero) e um bloco **Para acompanhar** (exceções críticas fechadas, atividade de
+provisionamento), sem botão (`_shared/dailyDigestEmail.ts`).
+
+#### Modelos dos e-mails
+
+Todos os e-mails (acesso ao Portal, avisos, Comunicados, Cobrança de Demurrage
+e o resumo diário) saem da base única `src/services/emailLayout.ts` (lote 6b):
+topo azul da logo (`#0d2b5e`) com a logo branca da Fwlog buscada na origem do
+site, título e botão centralizados, blocos com título em faixa, nada abaixo de
+12px e códigos (CE, CNPJ, e-mail mascarado) em monoespaçada; a versão em texto
+puro acompanha o conteúdo. Os modelos do acesso ficam em
+`supabase/functions/_shared/portalEmailTemplates.ts`; os dos Comunicados e da
+Cobrança, em `src/services/customerCommunicationTemplates.ts`.
+
+- Convite, novo convite e recuperação começam pelo bloco **Acesso para** (nome
+  da empresa e CNPJ mascarado); a recuperação termina com "Se você não fez este
+  pedido, ignore esta mensagem: nada muda na sua conta.". Rodapé padrão:
+  "Portal do Cliente · Fwlog. Dúvidas ou não reconhece esta mensagem? Fale com
+  `PORTAL_SUPPORT_EMAIL`."
+- Confirmação do novo Email de Recuperação, aviso do pedido de troca ("Pedido de
+  troca do Email de Recuperação"), troca assistida e senha alterada levam o
+  rodapé de segurança ("Não foi você? Fale com … imediatamente."), e o corpo não
+  repete o pedido de falar com o suporte.
+- Falha de entrega ("Um comunicado não foi entregue"): o endereço mascarado, o
+  motivo (o servidor do destinatário recusou) e o botão **Abrir Meu perfil**
+  (`/portal/perfil`).
+- Comunicados e Cobrança de Demurrage: ver [Clientes](clientes.md#régua-automática-de-comunicados)
+  e [Demurrage](demurrage.md); o rodapé da Cobrança leva `eqp@fwlog.com.br`.
 
 Se alguma consulta do resumo falha, a rodada responde 500 e não envia um
 resumo com contagens zeradas. A resposta traz `{ sent, failed, suppressed }`
