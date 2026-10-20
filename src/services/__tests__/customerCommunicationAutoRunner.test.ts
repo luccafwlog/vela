@@ -74,6 +74,18 @@ describe('rodada do runner com envio falso', () => {
   })
   afterEach(() => vi.restoreAllMocks())
 
+  it('falha da produtora devolve 500 marcado com o SQLSTATE e a RPC para o Sentry', async () => {
+    const rpc = vi.fn(() => Promise.resolve({ data: null, error: { code: '22023', message: 'Viagem e cliente são obrigatórios.' } }))
+    const result = await runAutomaticCommunications({
+      rpc, fetcher: vi.fn() as unknown as typeof fetch, supabaseUrl: 'https://supabase.example.test', serviceKey: 'service', secret: 'secret',
+    })
+    expect(result.status).toBe(500)
+    expect(result.headers).toEqual({
+      'x-telemetry-error-code': '22023',
+      'x-telemetry-failed-rpc': 'evaluate_and_dispatch_automatic_communications',
+    })
+  })
+
   it('422 permanente em todos os destinatários rejeita a claim e não a libera', async () => {
     const refused = { status: 422, body: { error: 'Anexos inválidos.', permanent: true } }
     const { run, claimCalls } = setup([refused, refused])

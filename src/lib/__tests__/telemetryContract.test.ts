@@ -4,6 +4,7 @@ import {
   redactTelemetryUrl,
   scrubTelemetryText,
   scrubTelemetryValue,
+  telemetryFailureHeaders,
 } from '../telemetryContract'
 
 describe('shared telemetry privacy contract', () => {
@@ -71,5 +72,28 @@ describe('shared telemetry privacy contract', () => {
       status: 'uncaught',
       category: 'uncaught_exception',
     }))
+  })
+
+  it('tags a 5xx with the allowlisted RPC and SQLSTATE, never the message, and strips the markers', async () => {
+    const report = vi.fn().mockResolvedValue(undefined)
+    const dbError = { code: '22023', message: 'Viagem e cliente são obrigatórios. cliente@example.com' }
+    const handler = instrumentHttpHandler(
+      'synthetic',
+      async () => new Response('{}', { status: 500, headers: { 'Content-Type': 'application/json', ...telemetryFailureHeaders('run_alert_detectors', dbError) } }),
+      report,
+    )
+
+    const response = await handler(new Request('https://example.test'))
+    expect(response.status).toBe(500)
+    expect(response.headers.get('content-type')).toBe('application/json')
+    expect([...response.headers.keys()].filter((key) => key.startsWith('x-telemetry'))).toEqual([])
+    expect(report).toHaveBeenCalledWith(expect.any(Error), expect.objectContaining({ errorCode: '22023', failedRpc: 'run_alert_detectors' }))
+    expect(JSON.stringify(report.mock.calls)).not.toContain('obrigatórios')
+  })
+
+  it('drops an RPC outside the allowlist and a code that is not a SQLSTATE', () => {
+    expect(telemetryFailureHeaders('outra_rpc', { code: 'PGRST202' })).toEqual({ 'x-telemetry-error-code': 'PGRST202' })
+    expect(telemetryFailureHeaders('run_alert_detectors', { code: 'cliente@example.com' })).toEqual({ 'x-telemetry-failed-rpc': 'run_alert_detectors' })
+    expect(telemetryFailureHeaders('outra_rpc', new Error('texto livre'))).toEqual({})
   })
 })

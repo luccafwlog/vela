@@ -1,6 +1,7 @@
 // Rodada do customer-communication-auto-runner sem dependência remota, para o
 // teste com fetch falso rodar no Vitest. O index.ts só autentica e injeta o
 // cliente Supabase.
+import { telemetryFailureHeaders } from '../../../src/lib/telemetryContract.ts'
 import { renderCustomerCommunicationTemplate } from './customerCommunicationTemplates.ts'
 
 export type AutoRunnerCandidate = {
@@ -46,6 +47,8 @@ export type AutoRunnerResult = {
     failed?: number
     releaseFailures?: number
   }
+  /** Marcação de telemetria do 500 (telemetryFailureHeaders): código e RPC, sem a mensagem. */
+  headers?: Record<string, string>
 }
 
 // `reason`: motivo técnico da tentativa no 502 do provedor ("HTTP 422 validation_error", "Tempo esgotado…").
@@ -106,7 +109,13 @@ async function settleClaim(rpc: AutoRunnerRpc, claimKey: string | undefined, set
 export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<AutoRunnerResult> {
   const { rpc, fetcher, supabaseUrl, serviceKey, secret } = deps
   const { data, error } = await rpc('evaluate_and_dispatch_automatic_communications', { p_as_of: (deps.asOf ?? new Date()).toISOString() })
-  if (error) return { status: 500, body: { error: (error as { message?: string }).message ?? String(error) } }
+  if (error) {
+    return {
+      status: 500,
+      body: { error: (error as { message?: string }).message ?? String(error) },
+      headers: telemetryFailureHeaders('evaluate_and_dispatch_automatic_communications', error),
+    }
+  }
   const candidates = (data ?? []) as AutoRunnerCandidate[]
   const sent: Array<{ kind: string; customerId: number; emails: number }> = []
   let releaseFailures = 0
