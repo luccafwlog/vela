@@ -23,7 +23,8 @@ type OpenBalanceRow = { status?: string | null; invoice_type?: string | null; ba
 export function portalInvoicesInOpenBalance<T extends OpenBalanceRow>(invoices: readonly T[]): T[] {
   const open = invoices.filter((invoice) => (OPEN_INVOICE_STATUSES as readonly string[]).includes(invoice.status ?? 'issued'))
   const consolidatedBls = new Set(open.filter((invoice) => invoice.invoice_type === 'consolidated').flatMap((invoice) => invoice.bls ?? []))
-  return open.filter((invoice) => invoice.invoice_type === 'consolidated'
+  // Só a individual é substituída; a avulsa (`manual`) é outra cobrança.
+  return open.filter((invoice) => invoice.invoice_type !== 'individual'
     || !(invoice.bls?.length && invoice.bls.every((bl) => consolidatedBls.has(bl))))
 }
 

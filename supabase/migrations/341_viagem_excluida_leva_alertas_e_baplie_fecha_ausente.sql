@@ -23,8 +23,10 @@
 --   1. `delete_voyage_alerts(viagem)`: apaga os alertas cujo `entity_type`
 --      começa com `voyage` e cujo `entity_id` é a viagem ou começa com
 --      `<viagem>::` (o `::` impede que a 62 leve a 620), e os itens de outros
---      alertas com `metadata.voyage_id` = a viagem. Itens, eventos, dispensas
---      e Notificações Internas saem pelo `ON DELETE CASCADE` das FKs.
+--      alertas com `metadata.voyage_id` = a viagem; o alerta de outra entidade
+--      que perde itens é recontado (`refresh_alert_aggregate`) e fecha se
+--      ficar sem item. Itens, eventos, dispensas e Notificações Internas saem
+--      pelo `ON DELETE CASCADE` das FKs.
 --   2. `delete_voyage_children` chama essa função depois da lista: a
 --      exclusão da viagem leva os alertas na mesma transação.
 --   3. `voyage_delete_preview` conta os alertas que vão junto.
@@ -82,10 +84,22 @@ AS $function$
 DECLARE
   v_alerts integer;
   v_items integer;
+  v_parents bigint[];
+  v_parent bigint;
 BEGIN
+  SELECT array_agg(DISTINCT i.alert_id) INTO v_parents
+  FROM public.alert_items i
+  WHERE i.id IN (SELECT s.alert_item_id FROM public.voyage_alert_scope(p_voyage_id) s WHERE s.alert_item_id IS NOT NULL);
+
   DELETE FROM public.alert_items
   WHERE id IN (SELECT s.alert_item_id FROM public.voyage_alert_scope(p_voyage_id) s WHERE s.alert_item_id IS NOT NULL);
   GET DIAGNOSTICS v_items = ROW_COUNT;
+
+  -- O alerta de outra entidade que perdeu itens é recontado; sem item, fecha
+  -- (alerta aberto sem item aparece na fila como linha legada).
+  FOREACH v_parent IN ARRAY COALESCE(v_parents, ARRAY[]::bigint[]) LOOP
+    PERFORM public.refresh_alert_aggregate(v_parent);
+  END LOOP;
 
   DELETE FROM public.alerts
   WHERE id IN (SELECT s.alert_id FROM public.voyage_alert_scope(p_voyage_id) s WHERE s.alert_id IS NOT NULL);

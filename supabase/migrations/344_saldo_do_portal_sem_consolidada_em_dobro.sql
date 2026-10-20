@@ -17,7 +17,8 @@
 -- sem fatura).
 --
 -- Mudança: a individual cujos B/Ls estão todos numa consolidada aberta da
--- mesma lista sai da soma; a consolidada conta no lugar dela (e um pagamento
+-- mesma lista sai da soma (só a `individual`: a avulsa, `manual`, é outra
+-- cobrança e continua contando mesmo com o B/L de contexto na consolidada); a consolidada conta no lugar dela (e um pagamento
 -- parcial da consolidada reduz o saldo). Pagar a consolidada cobre as
 -- individuais e zera; desfazer a consolidada (obsoleta/cancelada) devolve as
 -- individuais à soma. A lista de faturas não muda: mostra a consolidada e as
@@ -48,7 +49,7 @@ AS $function$
     COALESCE((
       SELECT SUM(GREATEST(COALESCE(o.balance_brl, 0), 0))
       FROM open_invoices o
-      WHERE o.invoice_type = 'consolidated'
+      WHERE o.invoice_type <> 'individual'
          OR cardinality(o.bls) = 0
          OR EXISTS (
            SELECT 1 FROM unnest(o.bls) AS b(bl_id)

@@ -23,6 +23,11 @@ describe('portalInvoicesInOpenBalance', () => {
     expect(counted.map((row) => row.invoice_number)).toEqual(['I3', 'C1'])
     expect(counted.reduce((sum, row) => sum + row.balance_brl, 0)).toBe(300)
   })
+  it('a avulsa com o mesmo B/L de contexto continua na soma', () => {
+    const rows = [ind('I1', 'BL1'), { invoice_number: 'M1', invoice_type: 'manual', status: 'issued', balance_brl: 50, bls: ['BL1'] },
+      { invoice_number: 'C1', invoice_type: 'consolidated', status: 'issued', balance_brl: 100, bls: ['BL1'] }]
+    expect(portalInvoicesInOpenBalance(rows).map((row) => row.invoice_number)).toEqual(['M1', 'C1'])
+  })
   it('consolidada paga ou cancelada devolve as individuais à soma conforme o status delas', () => {
     const paid = [ind('I1', 'BL1', 'covered'), { invoice_number: 'C1', invoice_type: 'consolidated', status: 'paid', balance_brl: 0, bls: ['BL1'] }]
     expect(portalInvoicesInOpenBalance(paid)).toEqual([])
