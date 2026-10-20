@@ -884,7 +884,10 @@ começa no próprio push em `main` e, antes de publicar, espera o check do app
 `supabase` no commit (`scripts/wait-supabase-migrations.mjs`): verde publica;
 vermelho, cancelado ou estourado recusa; pulado, ou sem check em 10 min, só
 publica se o push não mudar `supabase/migrations/`, e senão pede conferência no
-painel do Supabase e publicação manual (`workflow_dispatch`, que não espera). O
+painel do Supabase e publicação manual (`workflow_dispatch`, que não espera). No
+push em `staging`, o mesmo passo também confere na Management API se as
+migrations do push já estão na branch Supabase do staging antes de recusar um
+check pulado ([Deploy](docs/setup/deploy.md#staging-persistente)). O
 environment `cloudflare-production` fornece as variáveis públicas do build. O
 login com o usuário fixo numa preview só deve ser tentado depois que
 `Provision Preview Admin` estiver verde.

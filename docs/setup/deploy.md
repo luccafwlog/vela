@@ -55,10 +55,41 @@ publica a produção.
   variáveis de repositório `CLOUDFLARE_PAGES_STAGING_ENABLED=true` e
   `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true` (a mesma trava das prévias).
 - **GitHub Environment `staging`:** variáveis `VITE_SUPABASE_URL` e
-  `VITE_SUPABASE_ANON_KEY` (da branch staging) e `VITE_TURNSTILE_SITE_KEY`
-  (Site Key pública do widget `Vela staging`); secret
-  `CLOUDFLARE_PAGES_API_TOKEN` (o mesmo token de Pages Edit).
+  `VITE_SUPABASE_ANON_KEY` (da branch staging), `VITE_TURNSTILE_SITE_KEY`
+  (Site Key pública do widget `Vela staging`) e `SUPABASE_STAGING_PROJECT_REF`
+  (ref da branch staging, `uvgqfpleiyfythkhutlj`); secrets
+  `CLOUDFLARE_PAGES_API_TOKEN` (o mesmo token de Pages Edit) e
+  `SUPABASE_STAGING_ACCESS_TOKEN` (conferência das migrations, abaixo).
   `CLOUDFLARE_ACCOUNT_ID` vem da variável de repositório.
+- **Espera pelas migrations:** antes de publicar, o passo
+  `scripts/wait-supabase-migrations.mjs` lê o check do app `supabase` no
+  commit, com as mesmas regras da produção
+  ([WORKFLOW.md](../../WORKFLOW.md#push-em-main)). A branch persistente aplica
+  as migrations pela sincronização e marca o check do commit como pulado.
+  Por isso, no staging, um check `skipped` ou `neutral` num push com migration
+  não recusa de cara: o script tira as versões dos `supabase/migrations/NNN_*.sql`
+  adicionados ou alterados no compare do push e confere em
+  `GET /v1/projects/{ref}/database/migrations` da Supabase Management API se
+  todas já constam na branch. Repete a conferência a cada 15 s até o prazo
+  (`WAIT_SECONDS`, padrão 600). Com todas aplicadas, publica e registra no log
+  as versões conferidas. Se faltar alguma no fim do prazo, recusa e diz quais.
+  Continua recusando: check terminado com falha (`failure`, `cancelled`,
+  `timed_out`, `action_required`), ref igual ao da produção
+  (`fgmkhbzhaeebrsizwccx`), compare truncado (300 arquivos ou mais) ou push que
+  muda a pasta sem nenhum `NNN_*.sql` novo ou alterado. Sem o secret ou a var,
+  a conferência fica desligada, o log diz isso e vale a recusa de antes
+  (publicação pelo disparo manual). O token nunca é impresso. A produção não
+  recebe esse token e segue a regra sem conferência.
+- **Configurar a conferência (passo do dono):** em supabase.com → Account →
+  Access Tokens, crie um token só de leitura, escopado ao projeto Vela, com a
+  permissão de leitura das migrations do banco (Database migrations: Read, ou o
+  nome que o painel mostrar), sem nenhuma permissão de escrita. Em GitHub →
+  Settings → Environments → `staging`, cadastre o secret
+  `SUPABASE_STAGING_ACCESS_TOKEN` com esse token e a variável
+  `SUPABASE_STAGING_PROJECT_REF=uvgqfpleiyfythkhutlj`. Confira no próximo push
+  com migration que o log mostra "migrations do push já aplicadas na branch
+  Supabase". Uma resposta 401 ou 403 da Management API no log indica token sem
+  a permissão ou sem acesso à branch.
 - **Turnstile:** o build passa `vars.VITE_TURNSTILE_SITE_KEY` do environment
   `staging`, no mesmo padrão da produção. O widget `Vela staging` autoriza
   `staging.vela-portal.pages.dev`. Sem a Site Key no bundle, a tela de login
