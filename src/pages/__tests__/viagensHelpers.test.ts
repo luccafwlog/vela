@@ -7,7 +7,6 @@ import {
   countDistinctBatchIds,
   countDistinctRoutes,
   deriveEstadoConciliacao,
-  getGraniteModuleStats,
   getProximaEscala,
   getVaziosModuleStats,
   splitVoyageBls,
@@ -133,34 +132,6 @@ describe('countDistinctBatchIds', () => {
   it('conta lotes distintos ignorando nulos/duplicados', () => {
     const bls = [{ batch_id: 1 }, { batch_id: 1 }, { batch_id: 2 }, { batch_id: null }] as never
     expect(countDistinctBatchIds(bls)).toBe(2)
-  })
-})
-
-describe('getGraniteModuleStats', () => {
-  it('agrega manifestos, peso (ton) e contagens por status', () => {
-    const manifests = [
-      {
-        total_bls: 2,
-        total_weight_kg: 2000,
-        discharge_port: 'SSZ',
-        granite_bls: [
-          { id: '1', charge_status: 'ready_for_billing' },
-          { id: '2', charge_status: 'invoiced' },
-        ],
-      },
-    ] as never
-    const s = getGraniteModuleStats(manifests)
-    expect(s.totalManifests).toBe(1)
-    expect(s.totalBls).toBe(2)
-    expect(s.totalWeightTon).toBe(2)
-    expect(s.readyForBillingCount).toBe(1)
-    expect(s.invoicedCount).toBe(1)
-    expect(s.dischargePorts).toBe('SSZ')
-  })
-
-  it('usa o tamanho de granite_bls quando total_bls é nulo', () => {
-    const manifests = [{ total_bls: null, granite_bls: [{ id: '1', charge_status: null }] }] as never
-    expect(getGraniteModuleStats(manifests).totalBls).toBe(1)
   })
 })
 
@@ -704,7 +675,7 @@ describe('summarizeExportByEmbarkPort', () => {
 
   it('agrupa dois depots no mesmo terminal de embarque', () => {
     const granite = [
-      { loading_port: 'CNSHA', total_bls: 5, total_weight_kg: 2000, granite_bls: [{ id: '1', charge_status: 'invoiced' }] },
+      { loading_port: 'CNSHA', total_bls: 5, total_weight_kg: 2000, granite_bls: [{ id: '1' }] },
     ] as never
     const vazios = [
       {
@@ -722,7 +693,8 @@ describe('summarizeExportByEmbarkPort', () => {
     expect(sha.granite.manifests).toBe(1)
     expect(sha.granite.bls).toBe(5)
     expect(sha.granite.weightTon).toBe(2)
-    expect(sha.granite.invoiced).toBe(1)
+    // Granito só totaliza a carga (lote 5b): sem "Prontos" nem "Faturados".
+    expect(sha.granite).toEqual({ manifests: 1, bls: 5, weightTon: 2 })
     expect(sha.vazios.units).toBe(2)
     expect(sha.vazios.depots).toHaveLength(2)
     expect(sha.vazios.depots.map((depot) => depot.code)).toEqual(['NBO-DP', 'SHA-DP'])
@@ -754,5 +726,10 @@ describe('summarizeExportByEmbarkPort', () => {
     expect(summary[0].vazios.units).toBe(0)
     expect(summary[0].vazios.distinctContainers).toBe(0)
     expect(summary[0].vazios.depots).toEqual([])
+  })
+
+  it('usa o tamanho de granite_bls quando total_bls é nulo', () => {
+    const granite = [{ loading_port: 'BRSSA', total_bls: null, total_weight_kg: null, granite_bls: [{ id: '1' }, { id: '2' }] }] as never
+    expect(summarizeExportByEmbarkPort(granite, [])[0].granite).toEqual({ manifests: 1, bls: 2, weightTon: 0 })
   })
 })

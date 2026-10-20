@@ -89,6 +89,8 @@ export async function afterViagemAlterada(queryClient: QueryInvalidator, options
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS,
     queryKeys.voyages.options(), ['vehicle-voyage-options'], ['voyage-indicated-first-port'],
     ...EMPTY_IMPORT_KEYS, ['baplie-staging'],
+    // A lista do Granito mostra Navio / Viagem de cada B/L (lote 5b).
+    queryKeys.granite.all(),
   ])
 }
 

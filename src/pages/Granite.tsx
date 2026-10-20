@@ -117,7 +117,9 @@ export function Granite() {
   const totalCount = listQuery.data?.count ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / filters.pageSize))
   const cargoKnown = cargoQuery.data !== undefined && !cargoQuery.error && !cargoQuery.isPlaceholderData
-  const metric = (value: string) => (cargoKnown ? value : <NoValue label="Carregando" />)
+  // Com erro de leitura o cartão diz que falta o dado, não que está carregando.
+  const metricGapLabel = cargoQuery.error ? 'Sem dado' : 'Carregando'
+  const metric = (value: string) => (cargoKnown ? value : <NoValue label={metricGapLabel} />)
 
   // Filtros ativos com o nome do navio e da viagem, nunca o número interno (lote 5b).
   const selectedVoyage = voyageOptions?.find((voyage) => String(voyage.id) === filters.voyageId)

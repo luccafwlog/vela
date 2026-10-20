@@ -16,10 +16,8 @@ export function VoyageExportacaoTab({ voyage, voyageLabel, userId }: {
       manifests: totals.manifests + embarkPort.granite.manifests,
       bls: totals.bls + embarkPort.granite.bls,
       weightTon: totals.weightTon + embarkPort.granite.weightTon,
-      readyForBilling: totals.readyForBilling + embarkPort.granite.readyForBilling,
-      invoiced: totals.invoiced + embarkPort.granite.invoiced,
     }),
-    { manifests: 0, bls: 0, weightTon: 0, readyForBilling: 0, invoiced: 0 },
+    { manifests: 0, bls: 0, weightTon: 0 },
   )
   const emptyTotals = exportByEmbarkPort.reduce(
     (totals, embarkPort) => ({
@@ -112,7 +110,7 @@ function EmptyPanel({ summary, title = 'Vazios EXP', icon = <Box size={15} />, e
 function GranitePanel({ summary }: { summary: EmbarkPortExportSummary }) {
   const granite = summary.granite
   return <PanelShell title="Granito" icon={<Mountain size={15} />} lead={granite.weightTon} leadUnit={`ton em ${formatMetric(granite.bls)} ${granite.bls === 1 ? 'B/L' : 'B/Ls'}`}>
-    <MiniStats stats={[["Manifestos", granite.manifests], ["B/Ls", granite.bls], ["Prontos", granite.readyForBilling], ["Faturados", granite.invoiced]]} />
+    <MiniStats stats={[["Manifestos", granite.manifests], ["B/Ls", granite.bls]]} />
   </PanelShell>
 }
 

@@ -112,10 +112,7 @@ export type VoyageGraniteManifest = {
   discharge_port: string | null
   total_bls: number | null
   total_weight_kg: number | null
-  granite_bls?: Array<{
-    id: string
-    charge_status: 'not_calculated' | 'calculated' | 'ready_for_billing' | 'invoiced' | null
-  }> | null
+  granite_bls?: Array<{ id: string }> | null
 }
 
 export type VoyageVaziosManifest = {
@@ -195,28 +192,6 @@ export function countDistinctRoutes(bls: Array<{ pol?: string | null; pod?: stri
     routes.add(`${pol}__${pod}`)
   }
   return routes.size
-}
-
-export function getGraniteModuleStats(manifests: VoyageGraniteManifest[] | null | undefined) {
-  const totalManifests = manifests?.length ?? 0
-  const totalBls = (manifests ?? []).reduce(
-    (sum, manifest) => sum + Number(manifest.total_bls ?? manifest.granite_bls?.length ?? 0),
-    0,
-  )
-  const totalWeightTon = (manifests ?? []).reduce(
-    (sum, manifest) => sum + Number(manifest.total_weight_kg ?? 0) / 1000,
-    0,
-  )
-  const graniteBls = (manifests ?? []).flatMap((manifest) => manifest.granite_bls ?? [])
-
-  return {
-    totalManifests,
-    totalBls,
-    totalWeightTon,
-    readyForBillingCount: graniteBls.filter((bl) => bl.charge_status === 'ready_for_billing').length,
-    invoicedCount: graniteBls.filter((bl) => bl.charge_status === 'invoiced').length,
-    dischargePorts: summarizeUniqueValues((manifests ?? []).map((manifest) => manifest.discharge_port)),
-  }
 }
 
 export function getVaziosModuleStats(manifests: VoyageVaziosManifest[] | null | undefined) {
@@ -1374,7 +1349,7 @@ export function summarizeImportByPod(
 
 export type EmbarkPortExportSummary = {
   embarkPort: string
-  granite: { manifests: number; bls: number; weightTon: number; readyForBilling: number; invoiced: number }
+  granite: { manifests: number; bls: number; weightTon: number }
   vazios: {
     units: number
     distinctContainers: number
@@ -1414,7 +1389,6 @@ export function summarizeExportByEmbarkPort(
   return [...groups.entries()]
     .sort(([left], [right]) => left.localeCompare(right, 'pt-BR'))
     .map(([embarkPort, group]) => {
-    const graniteBls = group.granite.flatMap((manifest) => manifest.granite_bls ?? [])
     const depots = new Map<string, { code: string; name: string | null; bookings: typeof group.bookings }>()
 
     for (const booking of group.bookings) {
@@ -1437,8 +1411,6 @@ export function summarizeExportByEmbarkPort(
         manifests: group.granite.length,
         bls: group.granite.reduce((sum, manifest) => sum + Number(manifest.total_bls ?? manifest.granite_bls?.length ?? 0), 0),
         weightTon: group.granite.reduce((sum, manifest) => sum + Number(manifest.total_weight_kg ?? 0) / 1000, 0),
-        readyForBilling: graniteBls.filter((bl) => bl.charge_status === 'ready_for_billing').length,
-        invoiced: graniteBls.filter((bl) => bl.charge_status === 'invoiced').length,
       },
       vazios: {
         units: group.bookings.length,

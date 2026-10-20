@@ -19,6 +19,8 @@ describe('cache effects', () => {
       ['voyage-timeline'], ['lineup-tv-v3'], ['lineup-tv-display-v2'],
     ])))
     expect(keys()).not.toContain(JSON.stringify(['voyage-timeline', 24]))
+    // Renomear navio ou viagem muda a coluna Navio / Viagem do Granito.
+    expect(keys()).toContain(JSON.stringify(['granite-bls']))
   })
 
   it('invalidates the scale effect set', async () => {
@@ -60,6 +62,23 @@ describe('cache effects', () => {
   // P0-4: Importar B/L, CE Mercante e Manifesto BB alimentam "Carga
   // descarregada" e "Veículos" no ADR — a família 'agency-report' precisa
   // sair invalidada junto, ou a aba fica mostrando o número velho até F5.
+  // A importação de Vazios pela Viagem passa a usar este efeito: ele precisa
+  // cobrir, por prefixo, tudo o que a lista manual de VoyageImportActions
+  // invalidava, inclusive as chaves de manifesto Mercante por rota e de vazio.
+  it('covers every key the manual empty-import invalidation used to refresh', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterManifestoImportado(client, { voyageId: 24 })
+    const invalidated = keys().map((key) => JSON.parse(key) as unknown[])
+    const covered = (target: readonly unknown[]) => invalidated.some((prefix) =>
+      prefix.length <= target.length && prefix.every((part, index) => JSON.stringify(part) === JSON.stringify(target[index])))
+    const formerManualList: (readonly unknown[])[] = [
+      ['voyages'], ['voyage-detail', 24], ['vazios-importacao-stats'], ['vazios-importacao-manifests'],
+      ['manifestos-mercante', 24], ['manifestos-mercante', 24, 'BRSSZ', 'CNSHA'], ['manifestos-mercante', 'vazio', 24],
+      ['vazios-importacao-containers'], ['lineup-tv-v3'], ['lineup-tv-display-v2'], ['agency-report'],
+    ]
+    expect(formerManualList.filter((key) => !covered(key))).toEqual([])
+  })
+
   it('invalidates the agency report family so the ADR tab reflects the import', async () => {
     const { client, keys } = fakeQueryClient()
     await afterManifestoImportado(client, { voyageId: 24 })

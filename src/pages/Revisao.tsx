@@ -147,11 +147,13 @@ export function Revisao() {
   // avisa no mesmo contexto.
   function evaluateRecalcNotice(item: ReviewQueueItem) {
     if (item.charge_status === 'review_required') {
-      addRecalcNotice({ id: item.id, label: item.id, source: 'bl' })
+      addRecalcNotice(item.id)
     }
   }
 
-  function addRecalcNotice(notice: ReviewRecalcNotice) {
+  // A fila da Revisão só tem B/L (o Granito saiu no lote 5b): o aviso é por B/L.
+  function addRecalcNotice(blId: string) {
+    const notice: ReviewRecalcNotice = { id: blId, label: blId, source: 'bl' }
     setRecalcQueue((current) => (current.some((n) => n.id === notice.id) ? current : [...current, notice]))
   }
 
@@ -160,7 +162,7 @@ export function Revisao() {
   }
 
   async function handleInlineWeight(item: ReviewQueueItem, rawValue: string) {
-    if (!user || item.source !== 'bl') return
+    if (!user) return
     // O editor já valida junto do campo; aqui só se protege a gravação.
     const value = parseWeightTon(rawValue)
     if (value == null) return
@@ -212,9 +214,9 @@ export function Revisao() {
     try {
       const autoInvoice = await tryAutoIssueInvoice({ blId, customerId, actorId: user?.id ?? null })
       if (autoInvoice.status === 'invoiced') return true
-      if (autoInvoice.status === 'blocked') addRecalcNotice({ id: blId, label: blId, source: 'bl' })
+      if (autoInvoice.status === 'blocked') addRecalcNotice(blId)
     } catch {
-      addRecalcNotice({ id: blId, label: blId, source: 'bl' })
+      addRecalcNotice(blId)
     }
     return false
   }
@@ -256,7 +258,7 @@ export function Revisao() {
       return
     }
     if (blockedMessage) {
-      addRecalcNotice({ id: item.id, label: item.id, source: 'bl' })
+      addRecalcNotice(item.id)
       pushOutcome({ tone: 'warning', title, lines: [`Saiu da revisão, mas o faturamento automático não concluiu: ${blockedMessage}`] })
       return
     }
@@ -314,7 +316,7 @@ export function Revisao() {
 
   const groups = useMemo(() => sortReviewGroupsByPriority(groupReviewItems(filteredData)), [filteredData])
   const summaries = useMemo(() => new Map(groups.map((group) => [group.key, summarizeReviewGroup(group)])), [groups])
-  const blockedBlCount = useMemo(() => filteredData.filter((item) => item.source === 'bl').length, [filteredData])
+  const blockedBlCount = filteredData.length
 
   // Grupos que o alvo de chegada abre por padrão; o clique do operador prevalece.
   const arrivalKeys = useMemo(() => {
@@ -346,7 +348,7 @@ export function Revisao() {
 
   // Caso F ("Conferir os dados do B/L"): grava os dados conferidos e reavalia
   // as pendências, como a janela lateral fazia antes de 2026-10-16.
-  async function handleCheckSave(item: Extract<ReviewQueueItem, { source: 'bl' }>, values: ReviewBlCheckValues) {
+  async function handleCheckSave(item: ReviewQueueItem, values: ReviewBlCheckValues) {
     if (!user) return
     const changes: Array<{ field: string; before: string; after: string }> = []
     const addChange = (field: string, before: string | number | null | undefined, after: string | number | null | undefined) => {
@@ -503,7 +505,6 @@ export function Revisao() {
     if (!user) return
     const selectedCnpj = canonicalizeValidCnpj(input.cnpjCpf)
     const blIds = group.items
-      .filter((item) => item.source === 'bl')
       .filter((item) => item.customer_id == null || getReviewItemDocumentCandidates(item).every((candidate) => !selectedCnpj || candidate === selectedCnpj))
       .map((item) => item.id)
     if (!blIds.length || (group.identityKind === 'conflict' && group.items.length !== 1)) {

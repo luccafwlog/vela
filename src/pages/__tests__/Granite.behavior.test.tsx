@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   invalidate: vi.fn().mockResolvedValue(undefined),
   listRows: [] as unknown[],
   cargoRows: [] as unknown[],
+  cargoError: null as Error | null,
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -21,6 +22,7 @@ vi.mock('@tanstack/react-query', () => ({
       return { data: { rows: mocks.listRows, count: mocks.listRows.length }, isLoading: false, error: null, isPlaceholderData: false, fetchStatus: 'idle' }
     }
     if (queryKey[0] === 'granite-bls' && queryKey[1] === 'cargo') {
+      if (mocks.cargoError) return { data: undefined, isLoading: false, error: mocks.cargoError, isPlaceholderData: false, fetchStatus: 'idle', refetch: vi.fn() }
       return { data: mocks.cargoRows, isLoading: false, error: null, isPlaceholderData: false, fetchStatus: 'idle' }
     }
     return { data: undefined }
@@ -103,8 +105,18 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.listRows = []
   mocks.cargoRows = []
+  mocks.cargoError = null
 })
 afterEach(cleanup)
+
+it('com erro na leitura da carga, os cartões dizem "Sem dado", não "Carregando"', () => {
+  mocks.cargoError = new Error('falha de rede')
+  renderGranite()
+
+  const totals = screen.getByRole('group', { name: 'Totais do recorte' })
+  expect(within(totals).getAllByText('Sem dado')).toHaveLength(3)
+  expect(within(totals).queryByText('Carregando')).toBeNull()
+})
 
 it('mostra só a carga: totais do recorte, carga por viagem e B/Ls com o peso real', () => {
   const rows = [

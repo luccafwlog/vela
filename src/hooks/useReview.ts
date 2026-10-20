@@ -9,7 +9,7 @@ export type ReviewCustomer = Pick<Customer, 'id' | 'cnpj_cpf' | 'name'> & {
   customer_contacts?: { email: string | null }[] | null
 }
 
-export type ReviewQueueItem = (BL & {
+export type ReviewQueueItem = BL & {
   consignee_block?: string | null
   cargo_description?: string | null
   manifest_customer_email?: string | null
@@ -23,8 +23,9 @@ export type ReviewQueueItem = (BL & {
   }) | null
   bl_containers?: Pick<BLContainer, 'id' | 'container_number' | 'is_imo' | 'is_oog'>[] | null
   review_reasons?: string[]
+  /** Só B/L desde o lote 5b (o Granito saiu da Revisão); fica pelo contrato dos componentes da fila. */
   source: 'bl'
-})
+}
 
 const REVIEW_PAGE_SIZE = 500
 
@@ -57,16 +58,14 @@ export function useReviewQueue() {
         .order('created_at', { ascending: false })
         .range(from, to))
 
-      const blItems = (blData as unknown as (Omit<ReviewQueueItem & { source: 'bl' }, 'source'>)[]).map((row) => ({
+      return (blData as unknown as Omit<ReviewQueueItem, 'source'>[]).map((row): ReviewQueueItem => ({
         ...row,
         consignee_block: row.consignee_block ?? null,
         cargo_description: row.cargo_description ?? null,
         manifest_customer_email: row.manifest_customer_email ?? null,
         review_reasons: extractReviewReasons((row as { notes?: string | null }).notes),
-        source: 'bl' as const,
+        source: 'bl',
       }))
-
-      return blItems as ReviewQueueItem[]
     },
   })
 }

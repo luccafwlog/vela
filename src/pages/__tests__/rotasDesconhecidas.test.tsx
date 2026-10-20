@@ -1,12 +1,40 @@
 // @vitest-environment jsdom
 import { render, screen, cleanup } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, describe, expect, it } from 'vitest'
+import { MemoryRouter, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NaoEncontrado } from '../NaoEncontrado'
 import { ADMIN_TABS, DEFAULT_ADMIN_TAB, LEGACY_ADMIN_TABS, isAdminTab, legacyAdminTab } from '../adminTabs'
 import { routeTitle } from '../../lib/pageTitle'
+import AppInterno from '../../AppInterno'
+
+// As rotas reais do Vela, com cada tela trocada pelo próprio nome: o teste
+// confere o roteamento, não as telas nem a sessão.
+vi.mock('../../lib/lazyPage', () => ({
+  lazyPage: (_load: unknown, name: string) => Object.assign(() => <p>Tela {name}</p>, { preload: () => Promise.resolve() }),
+}))
+vi.mock('../../components/layout/ProtectedRoute', () => ({ ProtectedRoute: () => <Outlet /> }))
+vi.mock('../../components/layout/AppLayout', () => ({ AppLayout: () => <Outlet /> }))
+vi.mock('../../lib/telemetry', () => ({ markStartupStage: () => {} }))
 
 afterEach(cleanup)
+
+function CurrentPath() {
+  return <output aria-label="Endereço atual">{useLocation().pathname}</output>
+}
+
+describe('endereços antigos do Granito', () => {
+  it('/granito/taxas leva ao Granito, sem tela de Tarifas (lote 5b)', async () => {
+    render(
+      <MemoryRouter initialEntries={['/granito/taxas']}>
+        <AppInterno />
+        <CurrentPath />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Tela Granite')).toBeTruthy()
+    expect(screen.getByLabelText('Endereço atual').textContent).toBe('/granito')
+  })
+})
 
 // Antes, o catch-all do App mandava qualquer rota desconhecida para /painel com
 // `replace`: o usuário era realocado sem aviso e nem o Back devolvia a URL.

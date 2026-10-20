@@ -1,6 +1,6 @@
 # Granito
 
-> **Status:** ativo · **Atualizado:** 2026-10-19 · **Rotas:** `/granito` (`/granito/taxas` leva a `/granito`)
+> **Status:** ativo · **Atualizado:** 2026-10-20 · **Rotas:** `/granito` (`/granito/taxas` leva a `/granito`)
 
 ## Propósito e escopo
 
@@ -59,7 +59,8 @@ lista da identidade visual:
 
 - **Título** "Granito" e, no topo, só **Importar planilha COSCO**.
 - **Três cartões de total do recorte** (`MetricCard`): B/Ls, Blocos e Peso
-  (em t, uma casa), todos "no recorte".
+  (em t, uma casa), todos "no recorte". Enquanto o recorte carrega, ou se a
+  leitura falha, mostram "—" ("Carregando" ou "Sem dado" para leitor de tela).
 - **Filtros** sempre abertos: **Busca** por B/L ou shipper (com pausa na
   digitação), **Viagem** (navio ou viagem; `?voyage=` semeia o filtro) e
   **POD**, lista dos portos de descarga do recorte. **Limpar filtros** aparece
@@ -85,7 +86,7 @@ Com erro de leitura a confirmação fica bloqueada.
 ### `/granito/taxas`
 
 Saiu do sistema em 2026-10-19, junto com o cálculo de taxas: sem Cliente, não
-há a quem cobrar. O endereço leva a `/granito`. A tabela `granite_rates`, com
+há a quem cobrar. O endereço leva a `/granito` (teste: `rotasDesconhecidas.test.tsx`). A tabela `granite_rates`, com
 as tarifas gravadas, saiu do banco na migration `329`.
 
 ### Entrada por `/viagens/:voyageId`
@@ -101,8 +102,10 @@ blocos, toneladas (pela regra do peso) e erros; aceitar erros de linha
 
 - O ADR de Saída (seção **Carga carregada**), a aba Exportação e o card da
   Viagem leem B/Ls, blocos e peso de `granite_manifests` e `granite_bls`; a
-  Line Up marca a exportação com Granito pela declaração da escala. Continuam
-  iguais.
+  Line Up marca a exportação com Granito pela declaração da escala. O painel
+  de Granito da aba Exportação mostra só Manifestos e B/Ls, com o peso em
+  destaque (`summarizeExportByEmbarkPort`); "Prontos" e "Faturados", contados
+  de `charge_status`, saíram em 2026-10-20.
 - A Revisão e a Validação de Taxas Locais não leem mais o Granito.
 - Faturas antigas de Granito continuam consultáveis em `/taxas-locais` →
   Faturas, pelas superfícies genéricas de faturamento.
@@ -111,7 +114,7 @@ blocos, toneladas (pela regra do peso) e erros; aceitar erros de linha
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| `/granito` · filtrar e listar | Sessão interna | `Granite` | `listGraniteBls` (página) e `fetchGraniteCargoRows` (recorte inteiro, sem o POD, em páginas de 1.000) → `summarizeGraniteCargo` | SELECT em `granite_bls` com `granite_manifests!inner`, `voyages`, `vessels` | `queryKeys.granite.bls(filtros)` e `queryKeys.granite.cargo(filtros)`; troca de filtro volta à página 1 | Erro de leitura mostra o aviso com **Tentar novamente**; sem dado, os cartões mostram "—" | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`graniteCargo.ts`](../../src/services/graniteCargo.ts) · **Teste:** `graniteCargo.test.ts`, `Granite.behavior.test.tsx` |
+| `/granito` · filtrar e listar | Sessão interna | `Granite` | `listGraniteBls` (página) e `fetchGraniteCargoRows` (recorte inteiro, sem o POD, em páginas de 1.000) → `summarizeGraniteCargo` | SELECT em `granite_bls` com `granite_manifests!inner`, `voyages`, `vessels` | `queryKeys.granite.bls(filtros)` e `queryKeys.granite.cargo(filtros)`; troca de filtro volta à página 1 | Erro de leitura mostra o aviso com **Tentar novamente**; enquanto carrega ou sem dado, os cartões mostram "—" | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`graniteCargo.ts`](../../src/services/graniteCargo.ts) · **Teste:** `graniteCargo.test.ts`, `Granite.behavior.test.tsx` |
 | `/granito` · abrir a importação e escolher a Viagem | Usuário interno ativo, de qualquer Departamento (ADR 0078, item 10) | `Granite` → `GraniteImportModal`; `VoyageCombobox` | A seleção só prepara os argumentos do importador | Leitura de viagens | Estado local | Sem viagem, arquivo ou usuário o botão fica desabilitado | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx) |
 | `/viagens/:voyageId` · importar Granito | Viagem e usuário definidos; arquivo com B/Ls válidos | `VoyageImportActions`; `FileImportModal` | `parseGraniteManifestFile` → `importGraniteManifest` | `granite_manifests`, `granite_bls` | `afterManifestoImportado`, que inclui a família `granite-bls` (a lista do Granito se atualiza também por aqui) | Erro de leitura por arquivo; falha de gravação recusa o lote | **Código:** [`VoyageImportActions.tsx`](../../src/components/shared/VoyageImportActions.tsx) · **Teste:** `VoyageImportActions.behavior.test.tsx` |
 | Ler a planilha COSCO | Arquivo `.xls`/`.xlsx` dentro do limite; primeira aba visível com o cabeçalho COSCO | `handleFile` ou parser do modal genérico | `assertUploadFile` → `readSheet` (primeira aba visível; linhas e abas ocultas ignoradas com aviso) → `matchHeaders`/`createHeaderMapper`; exige B/L único e `real_weight_kg > 0` | Nenhuma escrita; não consulta a base de Clientes | Retorna `ParsedGraniteManifest` com `bls` e `rowErrors` | B/L ausente/duplicado, peso ausente/zero, data de prontidão impossível ou POL/POD fora do catálogo viram erro de linha; planilha sem as colunas obrigatórias é recusada ("Planilha inválida. Colunas obrigatórias: …") | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts), [`importCore.ts`](../../src/services/importCore.ts) · **Teste:** `graniteParse.test.ts` |
@@ -139,7 +142,8 @@ blocos, toneladas (pela regra do peso) e erros; aceitar erros de linha
   lê.
 - **Queries/cache:** família `queryKeys.granite` (`['granite-bls', …]`):
   `bls(filtros)` para a página e `cargo(filtros)` para os totais e a Carga por
-  viagem. `afterManifestoImportado` invalida a família inteira.
+  viagem. `afterManifestoImportado` e `afterViagemAlterada` (a lista mostra
+  Navio / Viagem) invalidam a família inteira.
 
 ## Fluxos e invariantes
 
@@ -234,10 +238,6 @@ flowchart LR
   somam no navegador o recorte inteiro, lido em páginas de 1.000 (`ponytail:`
   em [`graniteCargo.ts`](../../src/services/graniteCargo.ts)); com o
   histórico crescendo sem filtro de Viagem, o caminho é uma RPC de agregação.
-- **Código — leitores antigos de taxa na Viagem.** O painel de Granito da aba
-  Exportação da Viagem ainda mostra "Prontos" e "Faturados", contados de
-  `granite_bls.charge_status` (estados do modelo anterior; ficam zerados para
-  importações novas). Tirá-los é da tela da Viagem, fora deste lote.
 - **Código — corpo legado ainda enfileira o efeito.** O corpo da `206`
   (`import_granite_manifest_transactional_legacy_189`) continua inserindo
   `granite_billing`; o envelope da `325` remove essas linhas na mesma

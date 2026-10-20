@@ -321,7 +321,9 @@ e modalidade; é a fonte dos valores padrão, sem preço embutido em código.
   ao catálogo/lançamento manual e `062` corrige quantidades BB. O catálogo de
   tabelas continua com `container`, `carga_solta` e `granito`, sem cadastro
   separado de `misto`; o modo `granito` ficou sem consumidor desde o lote 5b
-  (o Granito não calcula taxas), mas continua no cadastro.
+  (o Granito não calcula taxas), mas continua no cadastro (restrição
+  `charge_tables_cargo_mode_check`). O filtro Modo de `/taxas-locais/tabelas`
+  não o oferece mais e `?modo=granito` cai em "Todos".
 - **Terminal não seleciona preço:** não faz parte da chave de `charge_tables`
   e não reprecifica Taxas Locais (ADR 0068). A herança e a exceção de terminal
   por B/L são regra de [Manifestos & EDI](manifesto-edi.md).
