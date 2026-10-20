@@ -475,20 +475,40 @@ export type Database = {
           created_at: string
           demurrage_dunning_interval_days: number
           id: number
+          itau_pix_expiration_seconds: number
+          itau_pix_polled_until: string | null
+          itau_pix_settlement_actor: string | null
+          pix_provider: string
         }
         Insert: {
           communications_enabled?: boolean
           created_at?: string
           demurrage_dunning_interval_days?: number
           id?: number
+          itau_pix_expiration_seconds?: number
+          itau_pix_polled_until?: string | null
+          itau_pix_settlement_actor?: string | null
+          pix_provider?: string
         }
         Update: {
           communications_enabled?: boolean
           created_at?: string
           demurrage_dunning_interval_days?: number
           id?: number
+          itau_pix_expiration_seconds?: number
+          itau_pix_polled_until?: string | null
+          itau_pix_settlement_actor?: string | null
+          pix_provider?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "app_settings_itau_pix_settlement_actor_fkey"
+            columns: ["itau_pix_settlement_actor"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -609,6 +629,7 @@ export type Database = {
           bl_container_id: number
           field_name: string
           id: number
+          justification: string | null
           manifest_value: string
           resolution: string
           resolved_at: string
@@ -620,6 +641,7 @@ export type Database = {
           bl_container_id: number
           field_name: string
           id?: never
+          justification?: string | null
           manifest_value: string
           resolution?: string
           resolved_at?: string
@@ -631,6 +653,7 @@ export type Database = {
           bl_container_id?: number
           field_name?: string
           id?: never
+          justification?: string | null
           manifest_value?: string
           resolution?: string
           resolved_at?: string
@@ -897,6 +920,7 @@ export type Database = {
           is_oog: boolean | null
           ownership: string | null
           ownership_source: string | null
+          profile_source: string | null
           return_date: string | null
           seal_number: string | null
           tare_weight_kg: number | null
@@ -918,6 +942,7 @@ export type Database = {
           is_oog?: boolean | null
           ownership?: string | null
           ownership_source?: string | null
+          profile_source?: string | null
           return_date?: string | null
           seal_number?: string | null
           tare_weight_kg?: number | null
@@ -939,6 +964,7 @@ export type Database = {
           is_oog?: boolean | null
           ownership?: string | null
           ownership_source?: string | null
+          profile_source?: string | null
           return_date?: string | null
           seal_number?: string | null
           tare_weight_kg?: number | null
@@ -1002,6 +1028,7 @@ export type Database = {
           balance_brl: number
           bl_id: string
           cargo_mode: string | null
+          correction_amount_brl: number
           created_at: string
           customer_id: number
           id: number
@@ -1020,6 +1047,7 @@ export type Database = {
           balance_brl?: number
           bl_id: string
           cargo_mode?: string | null
+          correction_amount_brl?: number
           created_at?: string
           customer_id: number
           id?: number
@@ -1038,6 +1066,7 @@ export type Database = {
           balance_brl?: number
           bl_id?: string
           cargo_mode?: string | null
+          correction_amount_brl?: number
           created_at?: string
           customer_id?: number
           id?: number
@@ -1131,6 +1160,9 @@ export type Database = {
           bb_weight_ton: number | null
           billing_hold_reason: string | null
           bl_emission_date: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           cargo_description: string | null
           cargo_mode: string
           ce_mercante: string | null
@@ -1197,6 +1229,9 @@ export type Database = {
           bb_weight_ton?: number | null
           billing_hold_reason?: string | null
           bl_emission_date?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           cargo_description?: string | null
           cargo_mode?: string
           ce_mercante?: string | null
@@ -1263,6 +1298,9 @@ export type Database = {
           bb_weight_ton?: number | null
           billing_hold_reason?: string | null
           bl_emission_date?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           cargo_description?: string | null
           cargo_mode?: string
           ce_mercante?: string | null
@@ -1379,6 +1417,41 @@ export type Database = {
           },
         ]
       }
+      business_holidays: {
+        Row: {
+          day: string
+        }
+        Insert: {
+          day: string
+        }
+        Update: {
+          day?: string
+        }
+        Relationships: []
+      }
+      carrier_portal_information: {
+        Row: {
+          carrier_id: number
+          tracking_url: string | null
+        }
+        Insert: {
+          carrier_id: number
+          tracking_url?: string | null
+        }
+        Update: {
+          carrier_id?: number
+          tracking_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carrier_portal_information_carrier_id_fkey"
+            columns: ["carrier_id"]
+            isOneToOne: true
+            referencedRelation: "carriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carriers: {
         Row: {
           created_at: string | null
@@ -1399,6 +1472,496 @@ export type Database = {
           scac?: string | null
         }
         Relationships: []
+      }
+      ce_unlock_bl_deliveries: {
+        Row: {
+          bl_id: string
+          delivered: boolean
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          bl_id: string
+          delivered?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Update: {
+          bl_id?: string
+          delivered?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ce_unlock_bl_deliveries_bl_id_fkey"
+            columns: ["bl_id"]
+            isOneToOne: true
+            referencedRelation: "bls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ce_unlock_documents: {
+        Row: {
+          cleanup_claimed_at: string | null
+          coverage_year: number | null
+          created_at: string
+          customer_id: number | null
+          file_name: string
+          hash: string | null
+          id: string
+          purged_at: string | null
+          reason: string | null
+          request_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          size_bytes: number
+          source: string
+          status: string
+          storage_path: string
+          type: string
+          uploaded_by: string
+          valid_from: string | null
+          valid_until: string | null
+          version: number
+        }
+        Insert: {
+          cleanup_claimed_at?: string | null
+          coverage_year?: number | null
+          created_at?: string
+          customer_id?: number | null
+          file_name: string
+          hash?: string | null
+          id?: string
+          purged_at?: string | null
+          reason?: string | null
+          request_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          size_bytes: number
+          source: string
+          status?: string
+          storage_path: string
+          type: string
+          uploaded_by: string
+          valid_from?: string | null
+          valid_until?: string | null
+          version?: number
+        }
+        Update: {
+          cleanup_claimed_at?: string | null
+          coverage_year?: number | null
+          created_at?: string
+          customer_id?: number | null
+          file_name?: string
+          hash?: string | null
+          id?: string
+          purged_at?: string | null
+          reason?: string | null
+          request_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          size_bytes?: number
+          source?: string
+          status?: string
+          storage_path?: string
+          type?: string
+          uploaded_by?: string
+          valid_from?: string | null
+          valid_until?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ce_unlock_documents_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ce_unlock_documents_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "ce_unlock_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ce_unlock_email_outbox: {
+        Row: {
+          attempts: number
+          body: string
+          created_at: string
+          customer_id: number
+          done_recipients: string[]
+          id: number
+          kind: string
+          last_error: string | null
+          processed_at: string | null
+          request_id: string
+          status: string
+          subject: string
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          created_at?: string
+          customer_id: number
+          done_recipients?: string[]
+          id?: never
+          kind: string
+          last_error?: string | null
+          processed_at?: string | null
+          request_id: string
+          status?: string
+          subject: string
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          created_at?: string
+          customer_id?: number
+          done_recipients?: string[]
+          id?: never
+          kind?: string
+          last_error?: string | null
+          processed_at?: string | null
+          request_id?: string
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ce_unlock_email_outbox_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ce_unlock_email_outbox_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "ce_unlock_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ce_unlock_events: {
+        Row: {
+          action: string
+          actor_id: string
+          bl_id: string | null
+          created_at: string
+          customer_id: number | null
+          id: number
+          payload: Json
+          reason: string | null
+          request_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          bl_id?: string | null
+          created_at?: string
+          customer_id?: number | null
+          id?: never
+          payload?: Json
+          reason?: string | null
+          request_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          bl_id?: string | null
+          created_at?: string
+          customer_id?: number | null
+          id?: never
+          payload?: Json
+          reason?: string | null
+          request_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ce_unlock_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "ce_unlock_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ce_unlock_exports: {
+        Row: {
+          created_at: string
+          created_by: string
+          hash: string | null
+          id: string
+          layout_version: string
+          reexport_of: string | null
+          reference: string | null
+          rows: Json
+          sent_at: string | null
+          snapshot: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          hash?: string | null
+          id?: string
+          layout_version?: string
+          reexport_of?: string | null
+          reference?: string | null
+          rows: Json
+          sent_at?: string | null
+          snapshot: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          hash?: string | null
+          id?: string
+          layout_version?: string
+          reexport_of?: string | null
+          reference?: string | null
+          rows?: Json
+          sent_at?: string | null
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ce_unlock_exports_reexport_of_fkey"
+            columns: ["reexport_of"]
+            isOneToOne: false
+            referencedRelation: "ce_unlock_exports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ce_unlock_request_bls: {
+        Row: {
+          active: boolean
+          bl_id: string
+          ce_at_request: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          confirmed_ce: string | null
+          export_id: string | null
+          exported_at: string | null
+          exported_by: string | null
+          external_reference: string | null
+          procuracao_approved: boolean
+          procuracao_document_id: string | null
+          request_id: string
+          termo_approved: boolean
+          termo_document_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          bl_id: string
+          ce_at_request: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_ce?: string | null
+          export_id?: string | null
+          exported_at?: string | null
+          exported_by?: string | null
+          external_reference?: string | null
+          procuracao_approved?: boolean
+          procuracao_document_id?: string | null
+          request_id: string
+          termo_approved?: boolean
+          termo_document_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          bl_id?: string
+          ce_at_request?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_ce?: string | null
+          export_id?: string | null
+          exported_at?: string | null
+          exported_by?: string | null
+          external_reference?: string | null
+          procuracao_approved?: boolean
+          procuracao_document_id?: string | null
+          request_id?: string
+          termo_approved?: boolean
+          termo_document_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ce_unlock_request_bls_bl_id_fkey"
+            columns: ["bl_id"]
+            isOneToOne: false
+            referencedRelation: "bls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ce_unlock_request_bls_export_id_fkey"
+            columns: ["export_id"]
+            isOneToOne: false
+            referencedRelation: "ce_unlock_exports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ce_unlock_request_bls_procuracao_document_id_fkey"
+            columns: ["procuracao_document_id"]
+            isOneToOne: false
+            referencedRelation: "ce_unlock_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ce_unlock_request_bls_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "ce_unlock_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ce_unlock_request_bls_termo_document_id_fkey"
+            columns: ["termo_document_id"]
+            isOneToOne: false
+            referencedRelation: "ce_unlock_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ce_unlock_requests: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_id: number
+          id: string
+          model_id: string | null
+          protocol: string
+          source: string
+          state: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          customer_id: number
+          id?: string
+          model_id?: string | null
+          protocol?: string
+          source: string
+          state?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_id?: number
+          id?: string
+          model_id?: string | null
+          protocol?: string
+          source?: string
+          state?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ce_unlock_model_fk"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "ce_unlock_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ce_unlock_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ce_unlock_vip_customers: {
+        Row: {
+          customer_id: number
+          enabled: boolean
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          customer_id: number
+          enabled?: boolean
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          customer_id?: number
+          enabled?: boolean
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ce_unlock_vip_customers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ce_unlock_zpt_status: {
+        Row: {
+          bl_id: string
+          ce_mercante: string
+          description: string | null
+          pending: string[]
+          reconciled_at: string
+          reconciled_by: string
+          status: string
+          without_export: boolean
+          zpt_status: string
+          zpt_updated_at: string | null
+        }
+        Insert: {
+          bl_id: string
+          ce_mercante: string
+          description?: string | null
+          pending?: string[]
+          reconciled_at?: string
+          reconciled_by: string
+          status: string
+          without_export?: boolean
+          zpt_status: string
+          zpt_updated_at?: string | null
+        }
+        Update: {
+          bl_id?: string
+          ce_mercante?: string
+          description?: string | null
+          pending?: string[]
+          reconciled_at?: string
+          reconciled_by?: string
+          status?: string
+          without_export?: boolean
+          zpt_status?: string
+          zpt_updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ce_unlock_zpt_status_bl_id_fkey"
+            columns: ["bl_id"]
+            isOneToOne: true
+            referencedRelation: "bls"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       charge_calculations: {
         Row: {
@@ -1649,6 +2212,7 @@ export type Database = {
       cod_adjustments: {
         Row: {
           action: string
+          applied_correction_id: number | null
           bl_id: string
           created_at: string
           created_by: string | null
@@ -1668,6 +2232,7 @@ export type Database = {
         }
         Insert: {
           action: string
+          applied_correction_id?: number | null
           bl_id: string
           created_at?: string
           created_by?: string | null
@@ -1687,6 +2252,7 @@ export type Database = {
         }
         Update: {
           action?: string
+          applied_correction_id?: number | null
           bl_id?: string
           created_at?: string
           created_by?: string | null
@@ -1705,6 +2271,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cod_adjustments_applied_correction_id_fkey"
+            columns: ["applied_correction_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_corrections"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cod_adjustments_bl_id_fkey"
             columns: ["bl_id"]
@@ -1875,18 +2448,39 @@ export type Database = {
       }
       customer_communication_automation_claims: {
         Row: {
+          attempts: number
           claim_key: string
           claimed_at: string
+          last_error: string | null
+          next_attempt_at: string | null
+          provider_failures: number
+          refusal_alerted_at: string | null
+          rejected_at: string | null
+          rejection_reason: string | null
           released_at: string | null
         }
         Insert: {
+          attempts?: number
           claim_key: string
           claimed_at?: string
+          last_error?: string | null
+          next_attempt_at?: string | null
+          provider_failures?: number
+          refusal_alerted_at?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           released_at?: string | null
         }
         Update: {
+          attempts?: number
           claim_key?: string
           claimed_at?: string
+          last_error?: string | null
+          next_attempt_at?: string | null
+          provider_failures?: number
+          refusal_alerted_at?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           released_at?: string | null
         }
         Relationships: []
@@ -2167,6 +2761,9 @@ export type Database = {
           kind: string
           nature: string
           origin: string
+          rendered_html_sha256: string | null
+          rendered_subject: string | null
+          rendered_text: string | null
           status: string
           terminal_name: string | null
           vessel_name: string | null
@@ -2186,6 +2783,9 @@ export type Database = {
           kind: string
           nature: string
           origin?: string
+          rendered_html_sha256?: string | null
+          rendered_subject?: string | null
+          rendered_text?: string | null
           status?: string
           terminal_name?: string | null
           vessel_name?: string | null
@@ -2205,6 +2805,9 @@ export type Database = {
           kind?: string
           nature?: string
           origin?: string
+          rendered_html_sha256?: string | null
+          rendered_subject?: string | null
+          rendered_text?: string | null
           status?: string
           terminal_name?: string | null
           vessel_name?: string | null
@@ -2465,6 +3068,7 @@ export type Database = {
           recovery_email: string | null
           recovery_email_source: string | null
           recovery_email_status: string
+          recovery_reset_invite_id: number | null
           updated_at: string
         }
         Insert: {
@@ -2486,6 +3090,7 @@ export type Database = {
           recovery_email?: string | null
           recovery_email_source?: string | null
           recovery_email_status?: string
+          recovery_reset_invite_id?: number | null
           updated_at?: string
         }
         Update: {
@@ -2507,6 +3112,7 @@ export type Database = {
           recovery_email?: string | null
           recovery_email_source?: string | null
           recovery_email_status?: string
+          recovery_reset_invite_id?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -2519,56 +3125,9 @@ export type Database = {
           },
         ]
       }
-      customer_portal_sessions: {
-        Row: {
-          account_id: number
-          created_at: string
-          customer_id: number
-          expires_at: string
-          id: number
-          last_seen_at: string | null
-          revoked_at: string | null
-          token_hash: string
-        }
-        Insert: {
-          account_id: number
-          created_at?: string
-          customer_id: number
-          expires_at: string
-          id?: number
-          last_seen_at?: string | null
-          revoked_at?: string | null
-          token_hash: string
-        }
-        Update: {
-          account_id?: number
-          created_at?: string
-          customer_id?: number
-          expires_at?: string
-          id?: number
-          last_seen_at?: string | null
-          revoked_at?: string | null
-          token_hash?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customer_portal_sessions_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "customer_portal_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "customer_portal_sessions_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       customer_rate_overrides: {
         Row: {
+          active: boolean
           charge_item_id: number | null
           created_at: string | null
           customer_id: number | null
@@ -2579,6 +3138,7 @@ export type Database = {
           valid_to: string | null
         }
         Insert: {
+          active?: boolean
           charge_item_id?: number | null
           created_at?: string | null
           customer_id?: number | null
@@ -2589,6 +3149,7 @@ export type Database = {
           valid_to?: string | null
         }
         Update: {
+          active?: boolean
           charge_item_id?: number | null
           created_at?: string | null
           customer_id?: number | null
@@ -2703,6 +3264,9 @@ export type Database = {
           city: string | null
           cnpj_cpf: string
           created_at: string | null
+          deactivated_at: string | null
+          deactivated_by: string | null
+          deactivation_reason: string | null
           id: number
           name: string
           notes: string | null
@@ -2717,6 +3281,9 @@ export type Database = {
           city?: string | null
           cnpj_cpf: string
           created_at?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
           id?: number
           name: string
           notes?: string | null
@@ -2731,6 +3298,9 @@ export type Database = {
           city?: string | null
           cnpj_cpf?: string
           created_at?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
           id?: number
           name?: string
           notes?: string | null
@@ -2945,24 +3515,48 @@ export type Database = {
           },
         ]
       }
+      demurrage_doc_counters: {
+        Row: {
+          last_number: number
+          year: number
+        }
+        Insert: {
+          last_number?: number
+          year: number
+        }
+        Update: {
+          last_number?: number
+          year?: number
+        }
+        Relationships: []
+      }
       demurrage_dunning_claims: {
         Row: {
           attempt_discriminator: number
           claimed_at: string
           demurrage_invoice_id: number
+          failure_count: number
+          last_error: string | null
           released_at: string | null
+          resume_generation: number
         }
         Insert: {
           attempt_discriminator: number
           claimed_at?: string
           demurrage_invoice_id: number
+          failure_count?: number
+          last_error?: string | null
           released_at?: string | null
+          resume_generation?: number
         }
         Update: {
           attempt_discriminator?: number
           claimed_at?: string
           demurrage_invoice_id?: number
+          failure_count?: number
+          last_error?: string | null
           released_at?: string | null
+          resume_generation?: number
         }
         Relationships: [
           {
@@ -3115,6 +3709,7 @@ export type Database = {
           doc_date: string | null
           doc_number: string
           due_date: string | null
+          dunning_suspended_reason: string | null
           first_billed_at: string | null
           id: number
           notes: string | null
@@ -3150,6 +3745,7 @@ export type Database = {
           doc_date?: string | null
           doc_number: string
           due_date?: string | null
+          dunning_suspended_reason?: string | null
           first_billed_at?: string | null
           id?: number
           notes?: string | null
@@ -3185,6 +3781,7 @@ export type Database = {
           doc_date?: string | null
           doc_number?: string
           due_date?: string | null
+          dunning_suspended_reason?: string | null
           first_billed_at?: string | null
           id?: number
           notes?: string | null
@@ -3304,6 +3901,126 @@ export type Database = {
           valid_to?: string | null
         }
         Relationships: []
+      }
+      demurrage_refunds: {
+        Row: {
+          amount_brl: number
+          bank_reference: string | null
+          beneficiary: string | null
+          created_at: string
+          id: number
+          invoice_id: number
+          notes: string
+          purpose: string
+          registered_by: string
+          request_id: string
+          settled_at: string | null
+          settled_by: string | null
+          status: string
+        }
+        Insert: {
+          amount_brl: number
+          bank_reference?: string | null
+          beneficiary?: string | null
+          created_at?: string
+          id?: never
+          invoice_id: number
+          notes: string
+          purpose: string
+          registered_by: string
+          request_id: string
+          settled_at?: string | null
+          settled_by?: string | null
+          status?: string
+        }
+        Update: {
+          amount_brl?: number
+          bank_reference?: string | null
+          beneficiary?: string | null
+          created_at?: string
+          id?: never
+          invoice_id?: number
+          notes?: string
+          purpose?: string
+          registered_by?: string
+          request_id?: string
+          settled_at?: string | null
+          settled_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demurrage_refunds_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "demurrage_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demurrage_refunds_registered_by_fkey"
+            columns: ["registered_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "demurrage_refunds_settled_by_fkey"
+            columns: ["settled_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      depot_portal_information: {
+        Row: {
+          address: string
+          depot_id: string
+          emails: string[]
+          instructions: string
+          opening_hours: string
+          phones: string[]
+          ports: string[]
+          published: boolean
+          restrictions: string
+          scheduling_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string
+          depot_id: string
+          emails?: string[]
+          instructions?: string
+          opening_hours?: string
+          phones?: string[]
+          ports?: string[]
+          published?: boolean
+          restrictions?: string
+          scheduling_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          depot_id?: string
+          emails?: string[]
+          instructions?: string
+          opening_hours?: string
+          phones?: string[]
+          ports?: string[]
+          published?: boolean
+          restrictions?: string
+          scheduling_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "depot_portal_information_depot_id_fkey"
+            columns: ["depot_id"]
+            isOneToOne: true
+            referencedRelation: "depots"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       depot_services: {
         Row: {
@@ -3532,6 +4249,38 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_payment_attempts: {
+        Row: {
+          created_by: string
+          payload_hash: string
+          payment_id: number | null
+          request_id: string
+          result: Json | null
+        }
+        Insert: {
+          created_by: string
+          payload_hash: string
+          payment_id?: number | null
+          request_id: string
+          result?: Json | null
+        }
+        Update: {
+          created_by?: string
+          payload_hash?: string
+          payment_id?: number | null
+          request_id?: string
+          result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_payment_attempts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       granite_bl_charges: {
         Row: {
           bl_id: string
@@ -3575,13 +4324,6 @@ export type Database = {
             columns: ["bl_id"]
             isOneToOne: false
             referencedRelation: "granite_bls"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "granite_bl_charges_rate_id_fkey"
-            columns: ["rate_id"]
-            isOneToOne: false
-            referencedRelation: "granite_rates"
             referencedColumns: ["id"]
           },
         ]
@@ -3756,42 +4498,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      granite_rates: {
-        Row: {
-          active: boolean
-          charge_type: string
-          created_at: string | null
-          currency: string
-          description: string
-          id: string
-          unit_value: number
-          valid_from: string | null
-          valid_to: string | null
-        }
-        Insert: {
-          active?: boolean
-          charge_type: string
-          created_at?: string | null
-          currency?: string
-          description: string
-          id?: string
-          unit_value: number
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Update: {
-          active?: boolean
-          charge_type?: string
-          created_at?: string | null
-          currency?: string
-          description?: string
-          id?: string
-          unit_value?: number
-          valid_from?: string | null
-          valid_to?: string | null
-        }
-        Relationships: []
       }
       import_batches: {
         Row: {
@@ -4100,10 +4806,50 @@ export type Database = {
           },
         ]
       }
+      invoice_basis_pending_changes: {
+        Row: {
+          bl_id: string
+          cod_adjustment_id: number | null
+          error_message: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          bl_id: string
+          cod_adjustment_id?: number | null
+          error_message: string
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          bl_id?: string
+          cod_adjustment_id?: number | null
+          error_message?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_basis_pending_changes_bl_id_fkey"
+            columns: ["bl_id"]
+            isOneToOne: true
+            referencedRelation: "bls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_basis_pending_changes_cod_adjustment_id_fkey"
+            columns: ["cod_adjustment_id"]
+            isOneToOne: false
+            referencedRelation: "cod_adjustments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_bls: {
         Row: {
           bl_id: string
           charge_status_snapshot: string | null
+          container_shares: Json | null
           created_at: string
           financial_status_snapshot: string | null
           id: number
@@ -4114,6 +4860,7 @@ export type Database = {
         Insert: {
           bl_id: string
           charge_status_snapshot?: string | null
+          container_shares?: Json | null
           created_at?: string
           financial_status_snapshot?: string | null
           id?: number
@@ -4124,6 +4871,7 @@ export type Database = {
         Update: {
           bl_id?: string
           charge_status_snapshot?: string | null
+          container_shares?: Json | null
           created_at?: string
           financial_status_snapshot?: string | null
           id?: number
@@ -4148,6 +4896,60 @@ export type Database = {
           },
         ]
       }
+      invoice_corrections: {
+        Row: {
+          amount_brl: number
+          corrected_total_brl: number
+          created_at: string
+          created_by: string
+          id: number
+          invoice_id: number
+          offset_brl: number
+          reason: string
+          receivable_id: number
+          refund_brl: number
+        }
+        Insert: {
+          amount_brl: number
+          corrected_total_brl: number
+          created_at?: string
+          created_by: string
+          id?: never
+          invoice_id: number
+          offset_brl: number
+          reason: string
+          receivable_id: number
+          refund_brl: number
+        }
+        Update: {
+          amount_brl?: number
+          corrected_total_brl?: number
+          created_at?: string
+          created_by?: string
+          id?: never
+          invoice_id?: number
+          offset_brl?: number
+          reason?: string
+          receivable_id?: number
+          refund_brl?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_corrections_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_corrections_receivable_id_fkey"
+            columns: ["receivable_id"]
+            isOneToOne: false
+            referencedRelation: "bl_receivables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_counters: {
         Row: {
           last_number: number
@@ -4162,6 +4964,120 @@ export type Database = {
           year?: number
         }
         Relationships: []
+      }
+      invoice_customer_changes: {
+        Row: {
+          bl_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          id: number
+          new_invoice_id: number | null
+          original_customer_id: number
+          original_invoice_ids: number[]
+          reason: string
+          receivable_id: number
+          status: string
+          target_customer_id: number
+        }
+        Insert: {
+          bl_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          id?: never
+          new_invoice_id?: number | null
+          original_customer_id: number
+          original_invoice_ids: number[]
+          reason: string
+          receivable_id: number
+          status: string
+          target_customer_id: number
+        }
+        Update: {
+          bl_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          id?: never
+          new_invoice_id?: number | null
+          original_customer_id?: number
+          original_invoice_ids?: number[]
+          reason?: string
+          receivable_id?: number
+          status?: string
+          target_customer_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_customer_changes_bl_id_fkey"
+            columns: ["bl_id"]
+            isOneToOne: false
+            referencedRelation: "bls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_customer_changes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_customer_changes_new_invoice_id_fkey"
+            columns: ["new_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_customer_changes_original_customer_id_fkey"
+            columns: ["original_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_customer_changes_receivable_id_fkey"
+            columns: ["receivable_id"]
+            isOneToOne: true
+            referencedRelation: "bl_receivables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_customer_changes_target_customer_id_fkey"
+            columns: ["target_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_document_snapshots: {
+        Row: {
+          captured_at: string
+          invoice_id: number
+          snapshot: Json
+        }
+        Insert: {
+          captured_at?: string
+          invoice_id: number
+          snapshot: Json
+        }
+        Update: {
+          captured_at?: string
+          invoice_id?: number
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_document_snapshots_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: true
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_granite_bls: {
         Row: {
@@ -4208,6 +5124,7 @@ export type Database = {
           bl_id: string | null
           calculation_key: string | null
           charge_calculation_id: number | null
+          charge_calculation_snapshot: Json | null
           charge_item_id: number | null
           charge_table_id: number | null
           currency: string | null
@@ -4229,6 +5146,7 @@ export type Database = {
           bl_id?: string | null
           calculation_key?: string | null
           charge_calculation_id?: number | null
+          charge_calculation_snapshot?: Json | null
           charge_item_id?: number | null
           charge_table_id?: number | null
           currency?: string | null
@@ -4250,6 +5168,7 @@ export type Database = {
           bl_id?: string | null
           calculation_key?: string | null
           charge_calculation_id?: number | null
+          charge_calculation_snapshot?: Json | null
           charge_item_id?: number | null
           charge_table_id?: number | null
           currency?: string | null
@@ -4431,38 +5350,59 @@ export type Database = {
       invoice_refunds: {
         Row: {
           amount_brl: number
+          bank_reference: string | null
+          beneficiary: string | null
           cod_adjustment_id: number | null
+          correction_receivable_id: number | null
           created_at: string
           id: number
           invoice_id: number
           notes: string | null
+          origin: string
           payment_id: number | null
+          purpose: string
           registered_by: string | null
+          request_id: string | null
           settled_at: string | null
+          settled_by: string | null
           status: string
         }
         Insert: {
           amount_brl: number
+          bank_reference?: string | null
+          beneficiary?: string | null
           cod_adjustment_id?: number | null
+          correction_receivable_id?: number | null
           created_at?: string
           id?: number
           invoice_id: number
           notes?: string | null
+          origin?: string
           payment_id?: number | null
+          purpose?: string
           registered_by?: string | null
+          request_id?: string | null
           settled_at?: string | null
+          settled_by?: string | null
           status?: string
         }
         Update: {
           amount_brl?: number
+          bank_reference?: string | null
+          beneficiary?: string | null
           cod_adjustment_id?: number | null
+          correction_receivable_id?: number | null
           created_at?: string
           id?: number
           invoice_id?: number
           notes?: string | null
+          origin?: string
           payment_id?: number | null
+          purpose?: string
           registered_by?: string | null
+          request_id?: string | null
           settled_at?: string | null
+          settled_by?: string | null
           status?: string
         }
         Relationships: [
@@ -4471,6 +5411,13 @@ export type Database = {
             columns: ["cod_adjustment_id"]
             isOneToOne: false
             referencedRelation: "cod_adjustments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_refunds_correction_receivable_id_fkey"
+            columns: ["correction_receivable_id"]
+            isOneToOne: false
+            referencedRelation: "bl_receivables"
             referencedColumns: ["id"]
           },
           {
@@ -4485,6 +5432,13 @@ export type Database = {
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_refunds_settled_by_fkey"
+            columns: ["settled_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -4509,11 +5463,16 @@ export type Database = {
           obsolete_reason: string | null
           pix_payload: string | null
           pix_txid: string | null
+          reissue_closed_at: string | null
+          reissue_closed_reason: string | null
+          reissue_requested_at: string | null
           replaced_by_invoice_id: number | null
+          replaces_invoice_id: number | null
           status: string | null
           total_brl: number
           total_paid_brl: number
           updated_at: string | null
+          voyage_id: number | null
         }
         Insert: {
           balance_brl?: number
@@ -4534,11 +5493,16 @@ export type Database = {
           obsolete_reason?: string | null
           pix_payload?: string | null
           pix_txid?: string | null
+          reissue_closed_at?: string | null
+          reissue_closed_reason?: string | null
+          reissue_requested_at?: string | null
           replaced_by_invoice_id?: number | null
+          replaces_invoice_id?: number | null
           status?: string | null
           total_brl: number
           total_paid_brl?: number
           updated_at?: string | null
+          voyage_id?: number | null
         }
         Update: {
           balance_brl?: number
@@ -4559,11 +5523,16 @@ export type Database = {
           obsolete_reason?: string | null
           pix_payload?: string | null
           pix_txid?: string | null
+          reissue_closed_at?: string | null
+          reissue_closed_reason?: string | null
+          reissue_requested_at?: string | null
           replaced_by_invoice_id?: number | null
+          replaces_invoice_id?: number | null
           status?: string | null
           total_brl?: number
           total_paid_brl?: number
           updated_at?: string | null
+          voyage_id?: number | null
         }
         Relationships: [
           {
@@ -4592,6 +5561,155 @@ export type Database = {
             columns: ["replaced_by_invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_replaces_invoice_id_fkey"
+            columns: ["replaces_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_voyage_id_fkey"
+            columns: ["voyage_id"]
+            isOneToOne: false
+            referencedRelation: "voyages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itau_pix_charges: {
+        Row: {
+          amount_brl: number
+          attempts: number
+          bank_created_at: string | null
+          created_at: string
+          demurrage_invoice_id: number | null
+          expiration_seconds: number
+          expires_at: string | null
+          id: number
+          invoice_id: number | null
+          last_error: string | null
+          next_attempt_at: string
+          pix_copia_e_cola: string | null
+          revision: number | null
+          status: string
+          txid: string
+          uncertain: boolean
+          updated_at: string
+        }
+        Insert: {
+          amount_brl: number
+          attempts?: number
+          bank_created_at?: string | null
+          created_at?: string
+          demurrage_invoice_id?: number | null
+          expiration_seconds: number
+          expires_at?: string | null
+          id?: never
+          invoice_id?: number | null
+          last_error?: string | null
+          next_attempt_at?: string
+          pix_copia_e_cola?: string | null
+          revision?: number | null
+          status?: string
+          txid: string
+          uncertain?: boolean
+          updated_at?: string
+        }
+        Update: {
+          amount_brl?: number
+          attempts?: number
+          bank_created_at?: string | null
+          created_at?: string
+          demurrage_invoice_id?: number | null
+          expiration_seconds?: number
+          expires_at?: string | null
+          id?: never
+          invoice_id?: number | null
+          last_error?: string | null
+          next_attempt_at?: string
+          pix_copia_e_cola?: string | null
+          revision?: number | null
+          status?: string
+          txid?: string
+          uncertain?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itau_pix_charges_demurrage_invoice_id_fkey"
+            columns: ["demurrage_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "demurrage_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itau_pix_charges_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itau_pix_receipts: {
+        Row: {
+          amount_brl: number
+          charge_id: number | null
+          created_at: string
+          end_to_end_id: string
+          handled_at: string | null
+          handled_by: string | null
+          handled_note: string | null
+          paid_at: string
+          reason: string | null
+          result: Json | null
+          status: string
+          txid: string
+        }
+        Insert: {
+          amount_brl: number
+          charge_id?: number | null
+          created_at?: string
+          end_to_end_id: string
+          handled_at?: string | null
+          handled_by?: string | null
+          handled_note?: string | null
+          paid_at: string
+          reason?: string | null
+          result?: Json | null
+          status: string
+          txid: string
+        }
+        Update: {
+          amount_brl?: number
+          charge_id?: number | null
+          created_at?: string
+          end_to_end_id?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          handled_note?: string | null
+          paid_at?: string
+          reason?: string | null
+          result?: Json | null
+          status?: string
+          txid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itau_pix_receipts_charge_id_fkey"
+            columns: ["charge_id"]
+            isOneToOne: false
+            referencedRelation: "itau_pix_charges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itau_pix_receipts_handled_by_fkey"
+            columns: ["handled_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -4681,6 +5799,41 @@ export type Database = {
           },
         ]
       }
+      local_pix_charge_versions: {
+        Row: {
+          amount_brl: number
+          created_at: string
+          id: number
+          invoice_id: number
+          payload: string
+          txid: string
+        }
+        Insert: {
+          amount_brl: number
+          created_at?: string
+          id?: never
+          invoice_id: number
+          payload: string
+          txid: string
+        }
+        Update: {
+          amount_brl?: number
+          created_at?: string
+          id?: never
+          invoice_id?: number
+          payload?: string
+          txid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "local_pix_charge_versions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manifestos_mercante: {
         Row: {
           created_at: string
@@ -4725,6 +5878,7 @@ export type Database = {
       payments: {
         Row: {
           amount_brl: number
+          bank_reference: string | null
           created_at: string | null
           id: number
           invoice_id: number
@@ -4735,6 +5889,7 @@ export type Database = {
         }
         Insert: {
           amount_brl: number
+          bank_reference?: string | null
           created_at?: string | null
           id?: number
           invoice_id: number
@@ -4745,6 +5900,7 @@ export type Database = {
         }
         Update: {
           amount_brl?: number
+          bank_reference?: string | null
           created_at?: string | null
           id?: number
           invoice_id?: number
@@ -4826,6 +5982,30 @@ export type Database = {
           status?: string
           txid?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      port_agents: {
+        Row: {
+          active: boolean
+          emails: string[]
+          id: string
+          name: string
+          ports: string[]
+        }
+        Insert: {
+          active?: boolean
+          emails?: string[]
+          id?: string
+          name: string
+          ports: string[]
+        }
+        Update: {
+          active?: boolean
+          emails?: string[]
+          id?: string
+          name?: string
+          ports?: string[]
         }
         Relationships: []
       }
@@ -5003,6 +6183,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      portal_information_contacts: {
+        Row: {
+          active: boolean
+          address: string
+          description: string
+          emails: string[]
+          key: string
+          phones: string[]
+          title: string
+          whatsapp: string | null
+        }
+        Insert: {
+          active?: boolean
+          address?: string
+          description?: string
+          emails?: string[]
+          key: string
+          phones?: string[]
+          title: string
+          whatsapp?: string | null
+        }
+        Update: {
+          active?: boolean
+          address?: string
+          description?: string
+          emails?: string[]
+          key?: string
+          phones?: string[]
+          title?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      portal_information_settings: {
+        Row: {
+          demurrage_notes: string
+          id: number
+        }
+        Insert: {
+          demurrage_notes?: string
+          id: number
+        }
+        Update: {
+          demurrage_notes?: string
+          id?: number
+        }
+        Relationships: []
       }
       portal_inspection_events: {
         Row: {
@@ -5445,6 +6673,7 @@ export type Database = {
           operation_id: string
           pod: string | null
           pol: string | null
+          updated_at: string | null
           voyage_id: number
         }
         Insert: {
@@ -5461,6 +6690,7 @@ export type Database = {
           operation_id: string
           pod?: string | null
           pol?: string | null
+          updated_at?: string | null
           voyage_id: number
         }
         Update: {
@@ -5477,6 +6707,7 @@ export type Database = {
           operation_id?: string
           pod?: string | null
           pol?: string | null
+          updated_at?: string | null
           voyage_id?: number
         }
         Relationships: [
@@ -5885,6 +7116,58 @@ export type Database = {
             columns: ["carrier_id"]
             isOneToOne: false
             referencedRelation: "carriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voyage_documental_pending: {
+        Row: {
+          transaction_id: number
+          voyage_id: number
+        }
+        Insert: {
+          transaction_id?: number
+          voyage_id: number
+        }
+        Update: {
+          transaction_id?: number
+          voyage_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voyage_documental_pending_voyage_id_fkey"
+            columns: ["voyage_id"]
+            isOneToOne: false
+            referencedRelation: "voyages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voyage_documental_state: {
+        Row: {
+          direction: string
+          port: string
+          status: string
+          voyage_id: number
+        }
+        Insert: {
+          direction: string
+          port: string
+          status: string
+          voyage_id: number
+        }
+        Update: {
+          direction?: string
+          port?: string
+          status?: string
+          voyage_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voyage_documental_state_voyage_id_fkey"
+            columns: ["voyage_id"]
+            isOneToOne: false
+            referencedRelation: "voyages"
             referencedColumns: ["id"]
           },
         ]
@@ -6305,6 +7588,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _active_demurrage_rates: {
+        Args: { p_date: string }
+        Returns: {
+          active: boolean
+          container_type: string
+          created_at: string
+          free_days: number
+          id: number
+          notes: string | null
+          p1_day_from: number
+          p1_day_to: number
+          p1_usd: number
+          p2_day_from: number
+          p2_usd: number
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "demurrage_rates"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       _add_demurrage_dispute_message_impl_20260920: {
         Args: {
           p_body: string
@@ -6312,6 +7620,45 @@ export type Database = {
           p_next_responder?: string
         }
         Returns: Json
+      }
+      _add_manual_bl_charge_impl_106: {
+        Args: {
+          p_actor?: string
+          p_bl_id: string
+          p_charge_item_id: number
+          p_notes?: string
+          p_quantity?: number
+        }
+        Returns: Json
+      }
+      _after_container_dates: {
+        Args: { p_actor: string; p_bl_ids: string[]; p_request_id: string }
+        Returns: Json
+      }
+      _alert_item_resolved_with_justification: {
+        Args: { p_entity_type: string; p_item_type: string }
+        Returns: boolean
+      }
+      _alert_types_resolved_with_justification: {
+        Args: never
+        Returns: string[]
+      }
+      _analyze_ce_mercante_rows: {
+        Args: { p_manifesto_numero: string; p_rows: Json; p_voyage_id: number }
+        Returns: Json
+      }
+      _apply_baplie_physical_flags_before_reissue_126: {
+        Args: { p_changed_by: string; p_changes: Json; p_voyage_id: number }
+        Returns: Json
+      }
+      _apply_container_dates_core: {
+        Args: {
+          p_container_id: number
+          p_discharge: string
+          p_keep_return: boolean
+          p_return: string
+        }
+        Returns: string[]
       }
       _apply_customer_contact_configuration: {
         Args: {
@@ -6325,12 +7672,89 @@ export type Database = {
         }
         Returns: Json
       }
+      _apply_invoice_document_snapshot: {
+        Args: { p_invoice_id: number; p_result: Json }
+        Returns: Json
+      }
+      _apply_paid_basis_change: {
+        Args: {
+          p_actor: string
+          p_bl_id: string
+          p_customer_changed: boolean
+          p_quote: Json
+          p_receivable_id: number
+          p_source: string
+        }
+        Returns: Json
+      }
+      _apply_paid_basis_change_legacy_134: {
+        Args: {
+          p_actor: string
+          p_bl_id: string
+          p_customer_changed: boolean
+          p_quote: Json
+          p_receivable_id: number
+          p_source: string
+        }
+        Returns: Json
+      }
+      _assert_actor_is_caller: { Args: { p_actor: string }; Returns: undefined }
+      _audit_skip_once: {
+        Args: { p_field: string; p_id: string; p_table: string }
+        Returns: undefined
+      }
       _auto_bill_bl_core: {
         Args: { p_actor: string; p_bl_id: string; p_reuse_calculation: boolean }
         Returns: Json
       }
+      _baplie_flag_plan: {
+        Args: { p_staged?: Json; p_voyage_id: number }
+        Returns: {
+          action: string
+          bl_container_id: number
+          bl_id: string
+          container_number: string
+          new_imo_class: string
+          new_is_imo: boolean
+          new_is_oog: boolean
+          new_ownership: string
+          new_ownership_source: string
+          new_profile_source: string
+          new_un_number: string
+          old_imo_class: string
+          old_is_imo: boolean
+          old_is_oog: boolean
+          old_ownership: string
+          old_un_number: string
+        }[]
+      }
+      _baplie_flags_label: {
+        Args: { p_imo: boolean; p_oog: boolean; p_ownership: string }
+        Returns: string
+      }
+      _billing_alert_origin_resolved: {
+        Args: { p_bl_id: string; p_type: string }
+        Returns: boolean
+      }
+      _bl_ce_unlock_conferred: {
+        Args: { p_bl_id: string; p_ce: string }
+        Returns: boolean
+      }
+      _bl_customer_change_cash_blockers: {
+        Args: { p_bl_id: string; p_customer_id: number }
+        Returns: string[]
+      }
+      _bl_live_invoice_numbers: { Args: { p_bl_id: string }; Returns: string[] }
       _build_customer_contact_configuration: {
         Args: { p_customer_id: number }
+        Returns: Json
+      }
+      _build_invoice_document_snapshot: {
+        Args: { p_invoice_id: number }
+        Returns: Json
+      }
+      _calculate_bl_local_charges_impl_106: {
+        Args: { p_actor?: string; p_bl_id: string; p_recalculate?: boolean }
         Returns: Json
       }
       _calculate_demurrage_invoice_authoritative: {
@@ -6341,6 +7765,28 @@ export type Database = {
         }
         Returns: Json
       }
+      _cancel_invoice_core: {
+        Args: { p_actor: string; p_invoice_id: number; p_reason: string }
+        Returns: Json
+      }
+      _capture_invoice_basis: { Args: { p_bl_id: string }; Returns: undefined }
+      _cargo_mode_label: { Args: { p_mode: string }; Returns: string }
+      _ce_row_error_message: {
+        Args: { p_message: string; p_sqlstate: string }
+        Returns: string
+      }
+      _check_expected_manifestos: {
+        Args: { p_expected: Json; p_ids: string[] }
+        Returns: undefined
+      }
+      _clear_post_billing_hold: {
+        Args: { p_bl_id: string }
+        Returns: undefined
+      }
+      _close_pending_reissue: {
+        Args: { p_invoice_id: number; p_reason: string }
+        Returns: boolean
+      }
       _compute_bl_review_pendencies: {
         Args: {
           p_bb_weight_ton: number
@@ -6349,6 +7795,91 @@ export type Database = {
           p_skip_portal: boolean
         }
         Returns: string[]
+      }
+      _container_demurrage_status: {
+        Args: {
+          p_bl_id: string
+          p_container_type: string
+          p_discharge_date: string
+          p_ownership: string
+          p_return_date: string
+        }
+        Returns: string
+      }
+      _container_free_days: {
+        Args: {
+          p_bl_id: string
+          p_container_type: string
+          p_discharge_date: string
+        }
+        Returns: number
+      }
+      _create_manual_invoice_core_272: {
+        Args: {
+          p_actor?: string
+          p_bl_id?: string
+          p_charge_item_id?: number
+          p_customer_id: number
+          p_description?: string
+          p_item_name: string
+          p_quantity: number
+          p_unit_value_brl: number
+          p_voyage_id?: number
+        }
+        Returns: Json
+      }
+      _create_manual_invoice_custom_122: {
+        Args: {
+          p_actor?: string
+          p_bl_id?: string
+          p_customer_id: number
+          p_description?: string
+          p_item_name: string
+          p_quantity: number
+          p_unit_value_brl: number
+          p_voyage_id?: number
+        }
+        Returns: Json
+      }
+      _customer_has_nob_recipient: {
+        Args: { p_customer_id: number }
+        Returns: boolean
+      }
+      _demurrage_billed_container_keys: {
+        Args: {
+          p_customer_id: number
+          p_exclude_invoice_id?: number
+          p_voyage_id: number
+        }
+        Returns: {
+          container_key: string
+          invoice_id: number
+        }[]
+      }
+      _demurrage_canonical_type: { Args: { p_type: string }; Returns: string }
+      _demurrage_dunning_block_reason: {
+        Args: { p_invoice_id: number }
+        Returns: string
+      }
+      _demurrage_dunning_invoice_billable: {
+        Args: { p_invoice_id: number }
+        Returns: boolean
+      }
+      _demurrage_dunning_roe_reference_date: {
+        Args: { p_current_roe: number; p_invoice_id: number }
+        Returns: string
+      }
+      _demurrage_dunning_window_open: {
+        Args: { p_at: string }
+        Returns: boolean
+      }
+      _demurrage_invoice_net_usd: {
+        Args: {
+          p_discount_mode: string
+          p_discount_value: number
+          p_total_usd: number
+        }
+        Returns: number
       }
       _demurrage_mutation_request: {
         Args: {
@@ -6359,17 +7890,116 @@ export type Database = {
         }
         Returns: Json
       }
+      _demurrage_ptax_from_roe: { Args: { p_roe: number }; Returns: number }
       _demurrage_roe_from_ptax: { Args: { p_ptax: number }; Returns: number }
+      _demurrage_roe_markup: { Args: never; Returns: number }
       _demurrage_spread_version: { Args: never; Returns: number }
+      _drop_bls_from_charge_table_gaps: {
+        Args: { p_bl_ids: string[]; p_source: string }
+        Returns: undefined
+      }
+      _escala_has_operation_fronts: {
+        Args: { p_port: string; p_voyage_id: number }
+        Returns: boolean
+      }
+      _finish_invoice_customer_change: {
+        Args: { p_change_id: number }
+        Returns: Json
+      }
+      _import_bl_freight_before_invoice_alert_123: {
+        Args: { p_bls: Json; p_changed_by: string }
+        Returns: Json
+      }
       _import_effect_priority: {
         Args: { p_effect_kind: string }
+        Returns: number
+      }
+      _import_effect_voyage_id: {
+        Args: { p_effect_kind: string; p_entity_id: string }
+        Returns: number
+      }
+      _invoice_financial_summary: {
+        Args: { p_invoice_id: number }
+        Returns: Json
+      }
+      _itau_pix_close_receipt: {
+        Args: { p_by: string; p_end_to_end_id: string; p_note: string }
+        Returns: undefined
+      }
+      _itau_pix_provider: { Args: never; Returns: string }
+      _itau_pix_sync: {
+        Args: {
+          p_amount_brl: number
+          p_demurrage_invoice_id: number
+          p_invoice_id: number
+          p_payable: boolean
+        }
+        Returns: string
+      }
+      _link_bls_to_manifesto: {
+        Args: {
+          p_actor: string
+          p_bl_ids: string[]
+          p_manifesto_id: string
+          p_reason: string
+        }
         Returns: number
       }
       _list_demurrage_disputes_internal_impl_20260920: {
         Args: { p_state?: string }
         Returns: Json
       }
+      _list_invoice_details_legacy_134: {
+        Args: { p_invoice_id: number }
+        Returns: Json
+      }
+      _list_invoice_details_legacy_183: {
+        Args: { p_invoice_id: number }
+        Returns: Json
+      }
+      _list_invoice_details_legacy_20260926: {
+        Args: { p_invoice_id: number }
+        Returns: Json
+      }
+      _live_local_invoice_ids_for_bl: {
+        Args: { p_bl_id: string }
+        Returns: number[]
+      }
+      _lock_bls_for_manifesto: {
+        Args: { p_bl_ids: string[] }
+        Returns: string[]
+      }
+      _lock_container_date_sets: {
+        Args: { p_container_ids: number[] }
+        Returns: undefined
+      }
+      _lock_demurrage_box_billing: {
+        Args: { p_customer_id: number; p_voyage_id: number }
+        Returns: undefined
+      }
+      _note_charge_table_gap: {
+        Args: { p_bl_id: string; p_mode: string; p_pod: string }
+        Returns: undefined
+      }
+      _pix_txid_open_candidates: {
+        Args: { p_txid: string }
+        Returns: {
+          amount_brl: number
+          customer_id: number
+          doc_number: string
+          invoice_id: number
+          source: string
+        }[]
+      }
       _portal_actor_role: { Args: never; Returns: string }
+      _portal_bl_local_charges: {
+        Args: { p_bl: string; p_customer_id: number; p_invoices: Json }
+        Returns: Json
+      }
+      _portal_customer_pending_balance: {
+        Args: { p_customer_id: number }
+        Returns: number
+      }
       _portal_get_current_roe_core: {
         Args: { p_customer_id: number }
         Returns: {
@@ -6389,17 +8019,45 @@ export type Database = {
         Args: { p_customer_id: number }
         Returns: Json
       }
+      _portal_information_core: {
+        Args: { p_internal?: boolean }
+        Returns: Json
+      }
+      _portal_information_valid_url: {
+        Args: { p_url: string }
+        Returns: boolean
+      }
       _portal_inspect_guard: {
         Args: { p_customer_id: number }
         Returns: number
       }
+      _portal_invoice_details_before_correction_123: {
+        Args: { p_customer_id: number; p_invoice_id: number }
+        Returns: Json
+      }
       _portal_invoice_details_core: {
+        Args: { p_customer_id: number; p_invoice_id: number }
+        Returns: Json
+      }
+      _portal_invoice_details_core_20260927: {
         Args: { p_customer_id: number; p_invoice_id: number }
         Returns: Json
       }
       _portal_invoice_details_core_unfiltered_20260920: {
         Args: { p_customer_id: number; p_invoice_id: number }
         Returns: Json
+      }
+      _portal_invoice_details_legacy_134: {
+        Args: { p_customer_id: number; p_invoice_id: number }
+        Returns: Json
+      }
+      _portal_invoice_details_legacy_183: {
+        Args: { p_customer_id: number; p_invoice_id: number }
+        Returns: Json
+      }
+      _portal_invoice_visible: {
+        Args: { p_customer_id: number; p_invoice_id: number }
+        Returns: boolean
       }
       _portal_list_consolidatable_receivables_core: {
         Args: { p_customer_id: number }
@@ -6506,9 +8164,21 @@ export type Database = {
         Args: { p_customer_id: number }
         Returns: number
       }
+      _quote_bl_local_charges: {
+        Args: { p_bl_id: string; p_roe: number }
+        Returns: Json
+      }
+      _quote_bl_local_charges_legacy_134: {
+        Args: { p_bl_id: string; p_roe: number }
+        Returns: Json
+      }
       _recalculate_bl_cargo_mode: {
         Args: { p_bl_id: string; p_transition?: string }
         Returns: undefined
+      }
+      _reconcile_demurrage_after_dates: {
+        Args: { p_actor: string; p_bl_ids: string[] }
+        Returns: Json
       }
       _record_import_effect_blocked_alert: {
         Args: {
@@ -6520,12 +8190,34 @@ export type Database = {
         }
         Returns: undefined
       }
+      _register_invoice_correction_core: {
+        Args: {
+          p_actor: string
+          p_corrected_total_brl: number
+          p_invoice_id: number
+          p_reason: string
+          p_receivable_id: number
+        }
+        Returns: Json
+      }
+      _reject_customer_reconciliation_impl_106: {
+        Args: { p_actor?: string; p_notes?: string; p_queue_id: number }
+        Returns: Json
+      }
       _reopen_demurrage_dispute_impl_20260920: {
         Args: { p_dispute_id: number; p_reason: string }
         Returns: undefined
       }
       _reprocess_customer_held_billing: {
         Args: { p_actor: string; p_customer_id: number; p_source: string }
+        Returns: Json
+      }
+      _reverse_invoice_payment_impl_109: {
+        Args: { p_actor?: string; p_payment_id: number; p_reason?: string }
+        Returns: Json
+      }
+      _run_billing_for_import_batch_impl_106: {
+        Args: { p_actor?: string; p_batch_id: number; p_recalculate?: boolean }
         Returns: Json
       }
       _run_import_effect_demurrage: {
@@ -6552,14 +8244,90 @@ export type Database = {
         Args: { p_port: string; p_terminal: string; p_voyage_id: number }
         Returns: undefined
       }
-      add_agency_report_occurrence: {
+      _set_bl_ce_mercante: {
         Args: {
-          p_body: string
-          p_port: string
-          p_section?: string
+          p_actor: string
+          p_bl_id: string
+          p_ce: string
+          p_reason: string
+          p_source: string
+        }
+        Returns: string
+      }
+      _set_import_context: {
+        Args: { p_kind: string; p_manifesto?: string; p_voyage_id: number }
+        Returns: undefined
+      }
+      _settle_cod_reissue_with_successor: {
+        Args: { p_bl_id: string }
+        Returns: undefined
+      }
+      _sync_local_charge_receivable_before_correction_123: {
+        Args: { p_bl_id: string }
+        Returns: number
+      }
+      _sync_refund_alert: { Args: { p_invoice_id: number }; Returns: undefined }
+      _try_recreate_consolidated: {
+        Args: { p_actor: string; p_invoice_id: number }
+        Returns: string
+      }
+      _upsert_route_manifesto: {
+        Args: {
+          p_natureza: string
+          p_numero: string
+          p_pod: string
+          p_pol: string
           p_voyage_id: number
         }
-        Returns: Json
+        Returns: string
+      }
+      _vazios_export_locked_by_adr: {
+        Args: { p_port: string; p_voyage_id: number }
+        Returns: boolean
+      }
+      _vazios_importacao_natureza_map: {
+        Args: { p_voyage_id: number }
+        Returns: {
+          container_number: string
+          natureza: string
+        }[]
+      }
+      _vazios_importacao_prune: {
+        Args: { p_voyage_id: number }
+        Returns: number
+      }
+      _vehicle_charges_follow: {
+        Args: { p_actor: string; p_bl_id: string }
+        Returns: undefined
+      }
+      _void_unbilled_bl_receivables: {
+        Args: { p_actor: string; p_bl_id: string; p_reason: string }
+        Returns: number
+      }
+      _voyage_cancelled_financial_only: {
+        Args: { p_new: Json; p_old: Json; p_table: string }
+        Returns: boolean
+      }
+      _voyage_cancelled_parent_voyage_id: {
+        Args: { p_row: Json; p_table: string }
+        Returns: number
+      }
+      _write_charge_table_gap: {
+        Args: {
+          p_bl_ids: string[]
+          p_mode: string
+          p_pod: string
+          p_source: string
+        }
+        Returns: undefined
+      }
+      acquire_import_effects_runner: {
+        Args: { p_lease_seconds?: number; p_worker_id: string }
+        Returns: boolean
+      }
+      acquire_itau_pix_runner: {
+        Args: { p_lease_seconds?: number; p_worker_id: string }
+        Returns: boolean
       }
       add_demurrage_dispute_attachment: {
         Args: {
@@ -6606,6 +8374,7 @@ export type Database = {
           active: boolean
           created_at: string
           email: string
+          email_bounced: boolean
           full_name: string
           id: string
           last_sign_in_at: string
@@ -6643,7 +8412,15 @@ export type Database = {
         Returns: string
       }
       alert_actor_is_authorized: { Args: never; Returns: boolean }
+      alert_stale_invoice_for_bl: {
+        Args: { p_bl_id: string; p_source: string }
+        Returns: undefined
+      }
       apply_baplie_physical_flags_atomic: {
+        Args: { p_changed_by: string; p_changes: Json; p_voyage_id: number }
+        Returns: Json
+      }
+      apply_baplie_physical_flags_atomic_legacy_189: {
         Args: { p_changed_by: string; p_changes: Json; p_voyage_id: number }
         Returns: Json
       }
@@ -6654,7 +8431,23 @@ export type Database = {
       apply_ce_mercante_rows_atomic: {
         Args: {
           p_changed_by: string
+          p_confirm_changes?: boolean
+          p_defer_billing?: boolean
           p_manifesto_numero?: string
+          p_reason?: string
+          p_rows: Json
+          p_target?: string
+          p_voyage_id?: number
+        }
+        Returns: Json
+      }
+      apply_ce_mercante_rows_atomic_legacy_189: {
+        Args: {
+          p_changed_by: string
+          p_confirm_changes?: boolean
+          p_defer_billing?: boolean
+          p_manifesto_numero?: string
+          p_reason?: string
           p_rows: Json
           p_target?: string
           p_voyage_id?: number
@@ -6666,6 +8459,10 @@ export type Database = {
         Returns: string
       }
       apply_cod_financial_effect: {
+        Args: { p_bl_id: string; p_omission_id: number; p_previous_pod: string }
+        Returns: undefined
+      }
+      apply_cod_financial_effect_legacy_130: {
         Args: { p_bl_id: string; p_omission_id: number; p_previous_pod: string }
         Returns: undefined
       }
@@ -6687,12 +8484,37 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_container_dates_atomic_legacy_189: {
+        Args: {
+          p_bl_id: string
+          p_changed_by: string
+          p_request_id: string
+          p_rows: Json
+        }
+        Returns: Json
+      }
       apply_customer_base_row_atomic: {
         Args: {
           p_address: string
           p_changed_by: string
           p_city: string
           p_cnpj: string
+          p_confirm_name_change?: boolean
+          p_emails: Json
+          p_name: string
+          p_state: string
+          p_trade_name: string
+          p_zip: string
+        }
+        Returns: Json
+      }
+      apply_customer_base_row_atomic_legacy_189: {
+        Args: {
+          p_address: string
+          p_changed_by: string
+          p_city: string
+          p_cnpj: string
+          p_confirm_name_change?: boolean
           p_emails: Json
           p_name: string
           p_state: string
@@ -6717,6 +8539,31 @@ export type Database = {
         Args: { p_bl_id: string; p_changed_by: string; p_new_ce: string }
         Returns: string
       }
+      apply_import_effects_review: {
+        Args: {
+          p_discard_ids: number[]
+          p_process_ids: number[]
+          p_reason: string
+          p_reviewed_by: string
+        }
+        Returns: Json
+      }
+      apply_invoice_basis_changes: {
+        Args: { p_bl_ids: string[]; p_source: string }
+        Returns: Json
+      }
+      apply_invoice_basis_changes_legacy_130: {
+        Args: { p_bl_ids: string[]; p_source: string }
+        Returns: Json
+      }
+      apply_schedule_sheet_atomic: {
+        Args: { p_carrier_name: string; p_carrier_scac: string; p_rows: Json }
+        Returns: Json
+      }
+      apply_schedule_sheet_atomic_legacy_189: {
+        Args: { p_carrier_name: string; p_carrier_scac: string; p_rows: Json }
+        Returns: Json
+      }
       approve_customer_reconciliation: {
         Args: {
           p_actor?: string
@@ -6726,7 +8573,6 @@ export type Database = {
         }
         Returns: Json
       }
-      archive_vessel_schedule: { Args: { p_vessel_id: string }; Returns: Json }
       assert_bl_ce_mercante: { Args: { p_bl_id: string }; Returns: undefined }
       assert_demurrage_invoice_complete: {
         Args: { p_invoice_id: number }
@@ -6734,6 +8580,10 @@ export type Database = {
       }
       assert_ledger_invoice_payment_allocation: {
         Args: { p_amount_brl: number; p_invoice_id: number }
+        Returns: undefined
+      }
+      assert_no_fcl_shared_between_customers: {
+        Args: { p_bl_ids: string[] }
         Returns: undefined
       }
       assert_voyage_escala_ready_for_report_close: {
@@ -6744,6 +8594,10 @@ export type Database = {
         Args: { p_actor?: string; p_bl_id: string }
         Returns: Json
       }
+      auto_reissue_invoices_for_bl: {
+        Args: { p_bl_id: string; p_source: string }
+        Returns: Json
+      }
       backfill_invoice_receivable_links: {
         Args: { p_limit?: number }
         Returns: Json
@@ -6752,11 +8606,34 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: Json
       }
+      bl_belongs_to_atracacao: {
+        Args: { p_atracacao_id: string; p_bl_id: string }
+        Returns: boolean
+      }
       bl_cargo_mode_matches_filter: {
         Args: { p_cargo_mode: string; p_filter: string }
         Returns: boolean
       }
+      bl_container_share_signature: { Args: { p_bl_id: string }; Returns: Json }
+      bl_delete_lock_reasons: { Args: { p_bl_id: string }; Returns: string[] }
       bl_has_portal_release: { Args: { p_bl_id: string }; Returns: boolean }
+      bl_invoice_basis_snapshot: { Args: { p_bl_id: string }; Returns: Json }
+      bl_local_charge_reference_date: {
+        Args: { p_bl_id: string; p_pod?: string }
+        Returns: string
+      }
+      bl_local_charges_state: {
+        Args: {
+          p_cancelled_at: string
+          p_charge_status: string
+          p_financial_status: string
+        }
+        Returns: string
+      }
+      bl_open_financial_reasons: {
+        Args: { p_bl_id: string }
+        Returns: string[]
+      }
       bl_operation_front_modalidade: {
         Args: { p_cargo_mode: string }
         Returns: string
@@ -6810,13 +8687,17 @@ export type Database = {
         Args: { p_actor?: string; p_bl_ids: string[]; p_recalculate?: boolean }
         Returns: Json
       }
-      calculate_granite_bl_charges: {
-        Args: { p_actor?: string; p_bl_id: string }
+      cancel_bl: {
+        Args: { p_bl_id: string; p_dry_run?: boolean; p_reason: string }
         Returns: Json
       }
       cancel_demurrage_invoice: {
         Args: { p_invoice_id: number; p_reason: string; p_request_id: string }
         Returns: Json
+      }
+      cancel_financial_refund_authorization: {
+        Args: { p_reason: string; p_refund_id: number; p_source: string }
+        Returns: undefined
       }
       cancel_invoice: {
         Args: { p_actor?: string; p_invoice_id: number; p_reason: string }
@@ -6826,10 +8707,59 @@ export type Database = {
         Args: { p_changed_by: string; p_reason: string; p_voyage_id: number }
         Returns: Json
       }
+      canonical_manifesto_numero: { Args: { p_value: string }; Returns: string }
       capture_manifest_financial_contact: {
         Args: { p_customer_id: number; p_email: string }
         Returns: boolean
       }
+      ce_mercante_key: { Args: { p_ce: string }; Returns: string }
+      ce_unlock_abort_upload: {
+        Args: { p_document_id: string }
+        Returns: string
+      }
+      ce_unlock_cleanup_candidates: { Args: never; Returns: Json }
+      ce_unlock_cleanup_claim: {
+        Args: { p_document_id: string }
+        Returns: Json
+      }
+      ce_unlock_cleanup_record: {
+        Args: { p_document_id: string }
+        Returns: undefined
+      }
+      ce_unlock_command: {
+        Args: { p_action: string; p_payload: Json }
+        Returns: Json
+      }
+      ce_unlock_customer_requests: {
+        Args: { p_bl_search?: string; p_customer_id: number; p_page?: number }
+        Returns: Json
+      }
+      ce_unlock_document_access: {
+        Args: { p_document_id: string }
+        Returns: string
+      }
+      ce_unlock_email_finish: {
+        Args: {
+          p_done: string[]
+          p_error?: string
+          p_id: number
+          p_status: string
+        }
+        Returns: undefined
+      }
+      ce_unlock_email_pending: { Args: { p_limit?: number }; Returns: Json }
+      ce_unlock_expire_drafts: { Args: never; Returns: number }
+      ce_unlock_finish_upload: {
+        Args: { p_document_id: string; p_hash: string }
+        Returns: Json
+      }
+      ce_unlock_prepare_upload: { Args: { p_context: Json }; Returns: Json }
+      ce_unlock_read: {
+        Args: { p_kind: string; p_payload?: Json }
+        Returns: Json
+      }
+      ce_unlock_reconcile: { Args: { p_rows: Json }; Returns: Json }
+      ce_unlock_refresh_open: { Args: never; Returns: number }
       check_bl_terminal_pendencies: {
         Args: { p_bl_id: string }
         Returns: string[]
@@ -6938,6 +8868,10 @@ export type Database = {
         Args: { p_port: string; p_voyage_id: number }
         Returns: number
       }
+      complete_customer_communication_automation_claim: {
+        Args: { p_claim_key: string }
+        Returns: boolean
+      }
       complete_import_effect: {
         Args: {
           p_effect_id: number
@@ -6986,7 +8920,44 @@ export type Database = {
         Args: { p_matches: Json }
         Returns: number
       }
+      confirm_demurrage_refund: {
+        Args: {
+          p_bank_reference: string
+          p_beneficiary: string
+          p_paid_at: string
+          p_refund_id: number
+        }
+        Returns: Json
+      }
+      confirm_invoice_refund: {
+        Args: {
+          p_bank_reference: string
+          p_beneficiary: string
+          p_paid_at: string
+          p_refund_id: number
+        }
+        Returns: Json
+      }
       confirm_unified_pix_matches: { Args: { p_matches: Json }; Returns: Json }
+      correct_bl_ce_mercante: {
+        Args: {
+          p_bl_id: string
+          p_ce: string
+          p_expected_ce?: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      correct_bl_container_data: {
+        Args: {
+          p_cbm: number
+          p_container_id: number
+          p_gross_weight_kg: number
+          p_justification: string
+          p_seal_number: string
+        }
+        Returns: Json
+      }
       count_alert_queue: { Args: { p_filter?: string }; Returns: number }
       count_distinct_containers: { Args: never; Returns: number }
       count_unread_internal_notifications: { Args: never; Returns: number }
@@ -7130,6 +9101,21 @@ export type Database = {
         }
         Returns: Json
       }
+      create_manual_invoice: {
+        Args: {
+          p_actor?: string
+          p_bl_id?: string
+          p_charge_item_id?: number
+          p_customer_id: number
+          p_description?: string
+          p_item_name: string
+          p_quantity: number
+          p_reason?: string
+          p_unit_value_brl: number
+          p_voyage_id?: number
+        }
+        Returns: Json
+      }
       create_manual_vazios_booking: {
         Args: {
           p_condition: string
@@ -7156,6 +9142,63 @@ export type Database = {
         Args: { p_customer_id: number }
         Returns: boolean
       }
+      customer_communication_anchor_validation: {
+        Args: {
+          p_anchor_atracacao_id: string
+          p_anchor_port: string
+          p_anchor_voyage_id: number
+          p_bl_ids: string[]
+          p_customer_id: number
+          p_kind: string
+        }
+        Returns: Json
+      }
+      customer_communication_automatic_recipients: {
+        Args: { p_boxes: string[]; p_customer_id: number }
+        Returns: string[]
+      }
+      customer_communication_automation_targets: {
+        Args: { p_as_of?: string }
+        Returns: {
+          anchor_atracacao_id: string
+          bl_ids: string[]
+          claim_key: string
+          customer_cnpj: string
+          customer_id: number
+          customer_name: string
+          emails: string[]
+          kind: string
+          milestone_at: string
+          milestone_text: string
+          nature: string
+          port: string
+          terminal_code: string
+          terminal_id: string
+          vessel_name: string
+          voyage_id: number
+          voyage_number: string
+        }[]
+      }
+      customer_communication_claim_customer_id: {
+        Args: { p_claim_key: string }
+        Returns: number
+      }
+      customer_communication_flag: {
+        Args: { p_value: string }
+        Returns: boolean
+      }
+      customer_communication_kind_short_label: {
+        Args: { p_kind: string }
+        Returns: string
+      }
+      customer_communication_milestone_label: {
+        Args: { p_text: string }
+        Returns: string
+      }
+      customer_communication_milestone_text: {
+        Args: { p_value: string }
+        Returns: string
+      }
       customer_communication_recipient_allowed: {
         Args: {
           p_audience_mode?: string
@@ -7166,9 +9209,52 @@ export type Database = {
         }
         Returns: boolean
       }
+      customer_communication_recipient_key: {
+        Args: { p_email: string }
+        Returns: string
+      }
+      customer_communication_retry_interval: {
+        Args: { p_attempts: number }
+        Returns: string
+      }
       customer_communication_safe_timestamptz: {
         Args: { p_value: string }
         Returns: string
+      }
+      customer_communication_scale_schedules: {
+        Args: { p_port?: string; p_voyage_id?: number }
+        Returns: {
+          ata: string
+          ata_text: string
+          deleted: boolean
+          eta: string
+          eta_text: string
+          omitted: boolean
+          port: string
+          voyage_id: number
+        }[]
+      }
+      customer_communication_target_done: {
+        Args: {
+          p_atracacao_id: string
+          p_customer_id: number
+          p_emails: string[]
+          p_kind: string
+          p_port: string
+          p_voyage_id: number
+        }
+        Returns: boolean
+      }
+      customer_communication_target_pending_recipients: {
+        Args: {
+          p_atracacao_id: string
+          p_customer_id: number
+          p_emails: string[]
+          p_kind: string
+          p_port: string
+          p_voyage_id: number
+        }
+        Returns: string[]
       }
       customer_has_contact_email: {
         Args: { p_customer_id: number }
@@ -7182,9 +9268,17 @@ export type Database = {
         Args: { p_customer_id: number; p_voyage_id: number }
         Returns: Json
       }
+      customer_local_charges_communication_port: {
+        Args: { p_customer_id: number; p_voyage_id: number }
+        Returns: string
+      }
       customer_local_charges_communication_readiness: {
         Args: { p_customer_id: number; p_voyage_id: number }
         Returns: Json
+      }
+      customer_open_financial_reasons: {
+        Args: { p_customer_id: number }
+        Returns: string[]
       }
       customer_portal_access_ready: {
         Args: { p_customer_id: number }
@@ -7194,9 +9288,34 @@ export type Database = {
         Args: { p_customer_id: number }
         Returns: boolean
       }
-      delete_baplie_manifest_for_voyage: {
-        Args: { p_voyage_id: number }
-        Returns: number
+      deactivate_customer: {
+        Args: { p_customer_id: number; p_dry_run?: boolean; p_reason: string }
+        Returns: Json
+      }
+      defer_customer_communication_automation_claim: {
+        Args: {
+          p_claim_key: string
+          p_provider_failure?: boolean
+          p_reason: string
+        }
+        Returns: Json
+      }
+      delete_catalog_row: {
+        Args: { p_id: string; p_reason: string; p_table: string }
+        Returns: undefined
+      }
+      delete_escala: {
+        Args: {
+          p_dry_run?: boolean
+          p_port: string
+          p_reason?: string
+          p_voyage_id: number
+        }
+        Returns: Json
+      }
+      delete_lock_reasons: {
+        Args: { p_port?: string; p_terminal_id?: string; p_voyage_id: number }
+        Returns: string[]
       }
       delete_manual_bl_charge: {
         Args: { p_actor?: string; p_charge_calculation_id: number }
@@ -7207,24 +9326,49 @@ export type Database = {
         Returns: Json
       }
       delete_manual_vazios_booking: {
-        Args: { p_booking_id: string }
+        Args: { p_booking_id: string; p_reason: string }
+        Returns: undefined
+      }
+      delete_record_block_reason: {
+        Args: { p_constraint: string; p_message: string; p_state: string }
+        Returns: string
+      }
+      delete_records: {
+        Args: {
+          p_dry_run?: boolean
+          p_ids: string[]
+          p_kind: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
+      delete_vehicles_with_reason: {
+        Args: { p_reason: string; p_vehicle_ids: number[] }
+        Returns: Json
+      }
+      delete_voyage_children: {
+        Args: { p_voyage_id: number }
         Returns: undefined
       }
       demurrage_dunning_candidate_sendable: {
         Args: { p_invoice_id: number }
         Returns: boolean
       }
+      demurrage_group_anchor: { Args: { p_bl_id: string }; Returns: string }
+      demurrage_group_bl_ids: { Args: { p_bl_id: string }; Returns: string[] }
       detect_agency_report_deadline_missed: { Args: never; Returns: number }
       detect_agency_report_department_pending: { Args: never; Returns: number }
       detect_agency_report_pending: { Args: never; Returns: number }
       detect_bl_review_pendencies: { Args: never; Returns: number }
       detect_customer_communication_alerts: { Args: never; Returns: Json }
+      detect_email_monitoring_alerts: { Args: never; Returns: Json }
       detect_granite_bl_review_pendencies: { Args: never; Returns: number }
       detect_voyage_operation_alerts: { Args: never; Returns: number }
       dismiss_alert_item: {
         Args: { p_item_id: number; p_reason: string; p_review_at: string }
         Returns: Json
       }
+      emit_ce_mercante_billing: { Args: { p_bl_ids: string[] }; Returns: Json }
       enqueue_import_effect: {
         Args: {
           p_created_by: string
@@ -7300,6 +9444,25 @@ export type Database = {
         Args: { p_as_of?: string; p_voyage_id?: number }
         Returns: Json
       }
+      find_manifesto_mercante: {
+        Args: { p_numero: string }
+        Returns: {
+          created_at: string
+          id: string
+          natureza: string
+          numero: string
+          pod: string
+          pol: string
+          updated_at: string
+          voyage_id: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "manifestos_mercante"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_agency_report_actor_names: {
         Args: { p_port: string; p_voyage_id: number }
         Returns: {
@@ -7372,9 +9535,25 @@ export type Database = {
           total_brl: number
         }[]
       }
+      get_invoice_correction_summary: {
+        Args: { p_invoice_id: number }
+        Returns: Json
+      }
+      get_invoice_correction_summary_legacy_130: {
+        Args: { p_invoice_id: number }
+        Returns: Json
+      }
+      get_invoice_correction_summary_legacy_134: {
+        Args: { p_invoice_id: number }
+        Returns: Json
+      }
       get_invoice_pending_refund: {
         Args: { p_invoice_id: number }
         Returns: number
+      }
+      get_invoice_reissue_links: {
+        Args: { p_invoice_id: number }
+        Returns: Json
       }
       get_voyage_eligible_pods: {
         Args: { p_voyage_id: number }
@@ -7398,11 +9577,19 @@ export type Database = {
         Args: { p_rows: Json; p_voyage_id: number }
         Returns: number
       }
+      import_baplie_staging_transactional_legacy_189: {
+        Args: { p_rows: Json; p_voyage_id: number }
+        Returns: number
+      }
       import_bl_freight_transactional: {
         Args: { p_bls: Json; p_changed_by: string }
         Returns: Json
       }
       import_bl_freight_transactional_legacy_070: {
+        Args: { p_bls: Json; p_changed_by: string }
+        Returns: Json
+      }
+      import_bl_freight_transactional_legacy_189: {
         Args: { p_bls: Json; p_changed_by: string }
         Returns: Json
       }
@@ -7423,6 +9610,10 @@ export type Database = {
         Returns: Json
       }
       import_bl_freight_with_metadata: {
+        Args: { p_batch?: Json; p_bls: Json; p_changed_by: string }
+        Returns: Json
+      }
+      import_bl_freight_with_metadata_legacy_189: {
         Args: { p_batch?: Json; p_bls: Json; p_changed_by: string }
         Returns: Json
       }
@@ -7450,11 +9641,25 @@ export type Database = {
         }
         Returns: Json
       }
+      import_breakbulk_manifest_transactional_legacy_189: {
+        Args: {
+          p_bls: Json
+          p_errors: Json
+          p_filename: string
+          p_items: Json
+          p_total_bls: number
+          p_uploaded_by: string
+          p_voyage_id: number
+        }
+        Returns: Json
+      }
+      import_effects_queue_health: { Args: never; Returns: Json }
       import_granite_manifest_transactional: {
         Args: {
           p_bls: Json
           p_discharge_port: string
           p_loading_port: string
+          p_remove_missing?: string[]
           p_total_bls: number
           p_total_weight_kg: number
           p_uploaded_by: string
@@ -7468,6 +9673,20 @@ export type Database = {
           p_bls: Json
           p_discharge_port: string
           p_loading_port: string
+          p_total_bls: number
+          p_total_weight_kg: number
+          p_uploaded_by: string
+          p_vessel_voyage: string
+          p_voyage_id: number
+        }
+        Returns: Json
+      }
+      import_granite_manifest_transactional_legacy_189: {
+        Args: {
+          p_bls: Json
+          p_discharge_port: string
+          p_loading_port: string
+          p_remove_missing?: string[]
           p_total_bls: number
           p_total_weight_kg: number
           p_uploaded_by: string
@@ -7517,6 +9736,15 @@ export type Database = {
         }
         Returns: Json
       }
+      import_vazios_bookings_transactional_legacy_189: {
+        Args: {
+          p_bookings: Json
+          p_port: string
+          p_uploaded_by: string
+          p_voyage_id: number
+        }
+        Returns: Json
+      }
       import_vazios_importacao_transactional: {
         Args: {
           p_containers: Json
@@ -7527,7 +9755,21 @@ export type Database = {
         }
         Returns: Json
       }
+      import_vazios_importacao_transactional_legacy_189: {
+        Args: {
+          p_containers: Json
+          p_description: string
+          p_manifestos?: Json
+          p_uploaded_by: string
+          p_voyage_id: number
+        }
+        Returns: Json
+      }
       import_vehicle_rows_transactional: {
+        Args: { p_rows: Json }
+        Returns: number
+      }
+      import_vehicle_rows_transactional_legacy_189: {
         Args: { p_rows: Json }
         Returns: number
       }
@@ -7543,6 +9785,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      internal_fill_empty_contact_boxes: {
+        Args: { p_customer_id: number }
+        Returns: Json
+      }
+      internal_get_portal_information: { Args: never; Returns: Json }
+      internal_revoke_sessions: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       internal_save_customer_contact_configuration: {
         Args: {
           p_contacts: Json
@@ -7551,12 +9802,80 @@ export type Database = {
         }
         Returns: Json
       }
+      internal_save_portal_information: {
+        Args: { p_data: Json; p_kind: string }
+        Returns: undefined
+      }
       is_active_read_user: { Args: never; Returns: boolean }
       is_active_user: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_financeiro_user: { Args: never; Returns: boolean }
       is_internal_auto_billing_context: { Args: never; Returns: boolean }
       is_valid_cnpj: { Args: { p_value: string }; Returns: boolean }
+      issue_demurrage_invoice_for_bl: {
+        Args: { p_bl_id: string; p_doc_number?: string }
+        Returns: Json
+      }
+      itau_pix_business_day: { Args: { p_day: string }; Returns: boolean }
+      itau_pix_checkpoint: {
+        Args: { p_polled_until?: string }
+        Returns: string
+      }
+      itau_pix_claim: {
+        Args: { p_limit?: number }
+        Returns: {
+          amount_brl: number
+          attempts: number
+          bank_created_at: string | null
+          created_at: string
+          demurrage_invoice_id: number | null
+          expiration_seconds: number
+          expires_at: string | null
+          id: number
+          invoice_id: number | null
+          last_error: string | null
+          next_attempt_at: string
+          pix_copia_e_cola: string | null
+          revision: number | null
+          status: string
+          txid: string
+          uncertain: boolean
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "itau_pix_charges"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      itau_pix_cutoff: { Args: { p_at: string }; Returns: string }
+      itau_pix_maintain: { Args: { p_now?: string }; Returns: Json }
+      itau_pix_mark_receipt_handled: {
+        Args: { p_end_to_end_id: string; p_note: string }
+        Returns: undefined
+      }
+      itau_pix_monitor: { Args: never; Returns: Json }
+      itau_pix_record: {
+        Args: {
+          p_bank_created_at?: string
+          p_error?: string
+          p_id: number
+          p_outcome: string
+          p_pix_copia_e_cola?: string
+          p_revision?: number
+        }
+        Returns: string
+      }
+      itau_pix_settle: {
+        Args: {
+          p_amount_brl: number
+          p_end_to_end_id: string
+          p_paid_at: string
+          p_txid: string
+        }
+        Returns: string
+      }
       link_invoice_to_ledger: {
         Args: { p_invoice_id: number }
         Returns: undefined
@@ -7703,7 +10022,12 @@ export type Database = {
           attempt_count: number
           invoice_id: number
           last_attempt_at: string
+          pause_reason: string
         }[]
+      }
+      list_financial_refunds: {
+        Args: { p_invoice_id: number; p_source: string }
+        Returns: Json
       }
       list_import_effects: {
         Args: { p_entity_id?: string; p_limit?: number; p_status?: string }
@@ -7758,6 +10082,11 @@ export type Database = {
           status: string
         }[]
       }
+      list_invoice_refunds_with_evidence: {
+        Args: { p_invoice_id: number }
+        Returns: Json
+      }
+      list_local_pix_candidates: { Args: { p_txids: string[] }; Returns: Json }
       list_manual_charge_items_for_bl: {
         Args: { p_bl_id: string }
         Returns: {
@@ -7779,6 +10108,27 @@ export type Database = {
         Returns: {
           created_at: string
           storage_path: string
+        }[]
+      }
+      list_payment_registrar_names: {
+        Args: { p_payment_ids: number[] }
+        Returns: {
+          payment_id: number
+          registered_by_name: string
+        }[]
+      }
+      list_pending_reissues: {
+        Args: never
+        Returns: {
+          bl_ids: string[]
+          cancel_reason: string
+          cancelled_at: string
+          customer_id: number
+          customer_name: string
+          invoice_id: number
+          invoice_number: string
+          invoice_type: string
+          receivable_ids: number[]
         }[]
       }
       list_pix_reconciliation_candidates: {
@@ -7820,6 +10170,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      list_pix_txid_candidates: { Args: { p_txids: string[] }; Returns: Json }
+      list_voyage_eligible_pods: {
+        Args: { p_voyage_id: number }
+        Returns: {
+          pod: string
+        }[]
+      }
       mark_all_internal_notifications_read: { Args: never; Returns: number }
       mark_bl_charges_reviewed: {
         Args: { p_actor?: string; p_bl_id: string }
@@ -7855,6 +10212,26 @@ export type Database = {
         Args: { p_notification_id: number }
         Returns: boolean
       }
+      mask_email_addresses: { Args: { p_text: string }; Returns: string }
+      move_bls_to_manifesto_mercante: {
+        Args: {
+          p_bl_ids: string[]
+          p_expected?: Json
+          p_numero: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      move_vehicles_to_bl: {
+        Args: {
+          p_reason: string
+          p_target_bl_id: string
+          p_target_container_id?: number
+          p_vehicle_ids: number[]
+        }
+        Returns: Json
+      }
+      next_demurrage_doc_number: { Args: never; Returns: string }
       normalize_cnpj: { Args: { p_value: string }; Returns: string }
       normalize_document_text: { Args: { p_value: string }; Returns: string }
       normalize_ncm_codes: { Args: { p_codes: Json }; Returns: string[] }
@@ -7927,8 +10304,13 @@ export type Database = {
         }
         Returns: Json
       }
+      operational_list_filter_options: { Args: never; Returns: Json }
       operational_list_voyage_summaries: {
         Args: { p_page?: number; p_page_size?: number }
+        Returns: Json
+      }
+      operational_voyage_vehicle_stats: {
+        Args: { p_voyage_ids: number[] }
         Returns: Json
       }
       pix_crc16_ccitt: { Args: { p_payload: string }; Returns: string }
@@ -7962,20 +10344,42 @@ export type Database = {
         }
         Returns: undefined
       }
+      portal_begin_password_reset: {
+        Args: { p_token_hash: string }
+        Returns: Json
+      }
       portal_billing_gate: { Args: { p_bl_id: string }; Returns: Json }
       portal_cancel_invite: {
         Args: { p_customer_id: number; p_reason: string; p_request_id?: string }
         Returns: undefined
       }
+      portal_ce_unlock_command: {
+        Args: { p_action: string; p_payload: Json }
+        Returns: Json
+      }
       portal_check_dispute_attachment_eligibility: {
         Args: { p_dispute_id: number; p_size_bytes: number }
         Returns: boolean
+      }
+      portal_confirm_recovery_email: {
+        Args: { p_token_hash: string }
+        Returns: Json
       }
       portal_create_consolidation: {
         Args: { p_receivable_ids: number[] }
         Returns: Json
       }
       portal_current_role: { Args: never; Returns: string }
+      portal_finish_password_reset: {
+        Args: { p_account_id: number; p_invite_id: number }
+        Returns: undefined
+      }
+      portal_get_ce_unlock_model: { Args: never; Returns: Json }
+      portal_get_ce_unlock_request: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      portal_get_ce_unlock_vip_coverage: { Args: never; Returns: Json }
       portal_get_contact_configuration: { Args: never; Returns: Json }
       portal_get_current_roe: {
         Args: never
@@ -7999,9 +10403,22 @@ export type Database = {
         Args: { p_invoice_id: number }
         Returns: Json
       }
+      portal_get_information: { Args: never; Returns: Json }
       portal_get_profile: { Args: never; Returns: Json }
       portal_get_profile_legacy: { Args: never; Returns: Json }
       portal_get_session_overview_v2: { Args: never; Returns: Json }
+      portal_inspect_get_ce_unlock_model: {
+        Args: { p_customer_id: number }
+        Returns: Json
+      }
+      portal_inspect_get_ce_unlock_request: {
+        Args: { p_customer_id: number; p_request_id: string }
+        Returns: Json
+      }
+      portal_inspect_get_ce_unlock_vip_coverage: {
+        Args: { p_customer_id: number }
+        Returns: Json
+      }
       portal_inspect_get_contact_configuration: {
         Args: { p_customer_id: number }
         Returns: Json
@@ -8017,12 +10434,24 @@ export type Database = {
         Args: { p_customer_id: number; p_invoice_id: number }
         Returns: Json
       }
+      portal_inspect_get_information: {
+        Args: { p_customer_id: number }
+        Returns: Json
+      }
       portal_inspect_get_profile: {
         Args: { p_customer_id: number }
         Returns: Json
       }
       portal_inspect_invoice_details: {
         Args: { p_customer_id: number; p_invoice_id: number }
+        Returns: Json
+      }
+      portal_inspect_list_ce_unlock_bls: {
+        Args: { p_customer_id: number; p_filters?: Json; p_page?: number }
+        Returns: Json
+      }
+      portal_inspect_list_ce_unlock_requests: {
+        Args: { p_customer_id: number; p_filters?: Json; p_page?: number }
         Returns: Json
       }
       portal_inspect_list_consolidatable_receivables: {
@@ -8114,6 +10543,14 @@ export type Database = {
       portal_invoice_details: { Args: { p_invoice_id: number }; Returns: Json }
       portal_invoice_details_legacy: {
         Args: { p_invoice_id: number }
+        Returns: Json
+      }
+      portal_list_ce_unlock_bls: {
+        Args: { p_filters?: Json; p_page?: number }
+        Returns: Json
+      }
+      portal_list_ce_unlock_requests: {
+        Args: { p_filters?: Json; p_page?: number }
         Returns: Json
       }
       portal_list_consolidatable_receivables: {
@@ -8307,12 +10744,6 @@ export type Database = {
         Args: { p_customer_id: number; p_origin?: string }
         Returns: Json
       }
-      portal_provisioning_backfill: {
-        Args: { p_request_id?: string }
-        Returns: {
-          created_records: number
-        }[]
-      }
       portal_recovery_check_rate_limit: {
         Args: { p_login: string }
         Returns: boolean
@@ -8321,7 +10752,6 @@ export type Database = {
         Args: { p_login: string }
         Returns: undefined
       }
-      portal_refresh_general_pendencies: { Args: never; Returns: undefined }
       portal_release_suppressed_email: {
         Args: { p_customer_id: number; p_email: string; p_reason: string }
         Returns: undefined
@@ -8379,12 +10809,45 @@ export type Database = {
         Returns: Json
       }
       preflight_depots_terminal_port_mapping: { Args: never; Returns: Json }
+      prepare_bl_financial_cancellation: {
+        Args: { p_bl_id: string; p_invoice_id: number; p_reason: string }
+        Returns: Json
+      }
+      preview_baplie_physical_flags: {
+        Args: { p_rows: Json; p_voyage_id: number }
+        Returns: Json
+      }
+      preview_ce_mercante_rows: {
+        Args: { p_manifesto_numero: string; p_rows: Json; p_voyage_id?: number }
+        Returns: Json
+      }
       process_import_effect: {
         Args: { p_effect_id: number; p_worker_id: string }
         Returns: Json
       }
+      process_invoice_basis_changes: { Args: never; Returns: Json }
       process_portal_email_event: {
         Args: { p_event_id: number; p_worker_id: string }
+        Returns: Json
+      }
+      quote_manual_invoice_charge: {
+        Args: { p_bl_id: string; p_charge_item_id: number }
+        Returns: Json
+      }
+      reactivate_bl: {
+        Args: { p_bl_id: string; p_reason: string }
+        Returns: Json
+      }
+      reactivate_catalog_row: {
+        Args: { p_id: string; p_reason: string; p_table: string }
+        Returns: undefined
+      }
+      reactivate_customer: {
+        Args: { p_customer_id: number; p_reason: string }
+        Returns: Json
+      }
+      reactivate_voyage: {
+        Args: { p_reason: string; p_voyage_id: number }
         Returns: Json
       }
       recalculate_bl_cargo_mode: {
@@ -8445,7 +10908,16 @@ export type Database = {
             Args: { p_granite_bl_id: string; p_source?: string }
             Returns: undefined
           }
+      reconcile_http_job_failures_alert: {
+        Args: { p_window?: string }
+        Returns: Json
+      }
+      reconcile_import_effects_queue_alert: { Args: never; Returns: Json }
       reconcile_invoice_payment_by_txid: {
+        Args: { p_amount_brl: number; p_paid_at?: string; p_txid: string }
+        Returns: Json
+      }
+      reconcile_invoice_payment_by_txid_legacy_130: {
         Args: { p_amount_brl: number; p_paid_at?: string; p_txid: string }
         Returns: Json
       }
@@ -8482,9 +10954,18 @@ export type Database = {
         Args: { p_port: string; p_source?: string; p_voyage_id: number }
         Returns: undefined
       }
+      reevaluate_expired_billing_releases: {
+        Args: { p_lookback?: string }
+        Returns: Json
+      }
       refresh_alert_aggregate: {
         Args: { p_alert_id: number }
         Returns: undefined
+      }
+      refresh_containers_demurrage_status: { Args: never; Returns: number }
+      refresh_customer_communication_refusal_alert: {
+        Args: { p_customer_id: number }
+        Returns: boolean
       }
       refresh_customer_communication_status: {
         Args: { p_communication_id: number }
@@ -8511,6 +10992,10 @@ export type Database = {
           p_request_id: string
           p_total_brl?: number
         }
+        Returns: Json
+      }
+      register_invoice_correction_refund: {
+        Args: { p_amount_brl: number; p_invoice_id: number; p_reason: string }
         Returns: Json
       }
       register_invoice_payment: {
@@ -8595,6 +11080,22 @@ export type Database = {
         Args: { p_customer_id: number; p_evidence: Json }
         Returns: Json
       }
+      register_verified_invoice_payment: {
+        Args: {
+          p_amount_brl: number
+          p_bank_reference: string
+          p_invoice_id: number
+          p_method: string
+          p_notes: string
+          p_paid_at: string
+          p_request_id: string
+        }
+        Returns: Json
+      }
+      reject_customer_communication_automation_claim: {
+        Args: { p_claim_key: string; p_reason: string }
+        Returns: boolean
+      }
       reject_customer_reconciliation: {
         Args: { p_actor?: string; p_notes?: string; p_queue_id: number }
         Returns: Json
@@ -8609,6 +11110,18 @@ export type Database = {
           p_demurrage_invoice_id: number
         }
         Returns: boolean
+      }
+      release_import_effects_runner: {
+        Args: { p_worker_id: string }
+        Returns: undefined
+      }
+      release_internal_user_email_suppression: {
+        Args: { p_email: string }
+        Returns: number
+      }
+      release_itau_pix_runner: {
+        Args: { p_worker_id: string }
+        Returns: undefined
       }
       relink_bl_customer: {
         Args: {
@@ -8626,6 +11139,19 @@ export type Database = {
           p_customer_id: number
           p_reason?: string
         }
+        Returns: Json
+      }
+      relink_bl_customer_legacy_134: {
+        Args: {
+          p_bl_id: string
+          p_changed_by: string
+          p_customer_id: number
+          p_reason?: string
+        }
+        Returns: Json
+      }
+      remove_bl_ce_mercante: {
+        Args: { p_bl_id: string; p_expected_ce?: string; p_reason: string }
         Returns: Json
       }
       reopen_agency_departure_report: {
@@ -8667,8 +11193,28 @@ export type Database = {
         }
         Returns: Json
       }
+      replace_vazios_from_baplie_transactional_legacy_189: {
+        Args: {
+          p_description: string
+          p_replace_existing?: boolean
+          p_uploaded_by: string
+          p_voyage_id: number
+        }
+        Returns: Json
+      }
       reprocess_customer_billing_after_portal_activation: {
         Args: { p_customer_id: number }
+        Returns: Json
+      }
+      request_financial_refund: {
+        Args: {
+          p_amount_brl: number
+          p_invoice_id: number
+          p_purpose: string
+          p_reason: string
+          p_request_id: string
+          p_source: string
+        }
         Returns: Json
       }
       resolve_alert_item: {
@@ -8691,6 +11237,14 @@ export type Database = {
           p_type: string
         }
         Returns: boolean
+      }
+      resolve_alert_item_with_justification: {
+        Args: { p_item_id: number; p_reason: string }
+        Returns: Json
+      }
+      resolve_baplie_divergence: {
+        Args: { p_bl_container_id: number; p_field: string; p_reason: string }
+        Returns: Json
       }
       resolve_billing_alert: {
         Args: { p_bl_id: string; p_metadata?: Json; p_type: string }
@@ -8726,6 +11280,14 @@ export type Database = {
         Args: { p_cargo_mode: string; p_pod: string; p_reference_date?: string }
         Returns: number
       }
+      resolve_local_pix_charge: {
+        Args: { p_txid: string }
+        Returns: {
+          charge_invoice_id: number
+          expected_brl: number
+          invoice_id: number
+        }[]
+      }
       resolve_pix_reconciliation_exception: {
         Args: {
           p_demurrage_invoice_id?: number
@@ -8736,8 +11298,21 @@ export type Database = {
         }
         Returns: Json
       }
+      resolve_stale_invoice: {
+        Args: { p_invoice_id: number; p_reason: string }
+        Returns: undefined
+      }
       retry_import_effect: {
         Args: { p_effect_id: number; p_justification: string }
+        Returns: Json
+      }
+      retry_invoice_basis_changes: { Args: { p_bl_id: string }; Returns: Json }
+      retry_invoice_basis_changes_legacy_134: {
+        Args: { p_bl_id: string }
+        Returns: Json
+      }
+      retry_pending_consolidated_reissue: {
+        Args: { p_invoice_id: number }
         Returns: Json
       }
       reverse_demurrage_payment: {
@@ -8745,6 +11320,10 @@ export type Database = {
         Returns: Json
       }
       reverse_invoice_payment: {
+        Args: { p_actor?: string; p_payment_id: number; p_reason?: string }
+        Returns: Json
+      }
+      reverse_invoice_payment_legacy_134: {
         Args: { p_actor?: string; p_payment_id: number; p_reason?: string }
         Returns: Json
       }
@@ -8773,6 +11352,7 @@ export type Database = {
         Args: { p_actor?: string; p_batch_id: number; p_recalculate?: boolean }
         Returns: Json
       }
+      run_retention: { Args: never; Returns: Json }
       save_bl_demurrage_config: {
         Args: {
           p_bl_id: string
@@ -8957,6 +11537,15 @@ export type Database = {
         }
         Returns: Json
       }
+      set_bl_container_profile: {
+        Args: {
+          p_changed_by?: string
+          p_container_id: number
+          p_justification: string
+          p_profile: string
+        }
+        Returns: Json
+      }
       set_bl_terminal_override: {
         Args: {
           p_bl_id: string
@@ -8980,8 +11569,14 @@ export type Database = {
         Args: { p_enabled: boolean }
         Returns: boolean
       }
-      set_customer_portal_account_active: {
-        Args: { p_active: boolean; p_actor?: string; p_customer_id: number }
+      set_container_dates: {
+        Args: {
+          p_container_id: number
+          p_discharge_date: string
+          p_keep_discharge?: boolean
+          p_reason?: string
+          p_return_date: string
+        }
         Returns: Json
       }
       set_demurrage_dunning_interval_days: {
@@ -9023,12 +11618,39 @@ export type Database = {
         }
         Returns: Json
       }
+      settle_cod_adjustment_legacy_130: {
+        Args: {
+          p_actor?: string
+          p_adjustment_id: number
+          p_resulting_document_id?: number
+          p_resulting_document_type?: string
+        }
+        Returns: Json
+      }
+      settle_demurrage_dunning_claim: {
+        Args: {
+          p_attempt_discriminator: number
+          p_communication_id?: number
+          p_invoice_id: number
+          p_outcome: string
+          p_reason?: string
+        }
+        Returns: boolean
+      }
       settle_invoice_refund: {
         Args: { p_actor?: string; p_refund_id: number }
         Returns: Json
       }
+      settle_stale_pending_customer_communications: {
+        Args: { p_stale_after?: string }
+        Returns: number
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      simulate_import_effects: {
+        Args: { p_entity_prefix?: string; p_limit?: number }
+        Returns: Json
+      }
       summarize_alert_queue_by_department: {
         Args: never
         Returns: {
@@ -9049,6 +11671,14 @@ export type Database = {
       sync_local_charge_receivable: {
         Args: { p_bl_id: string }
         Returns: number
+      }
+      sync_voyage_documental_status: {
+        Args: { p_backfill?: boolean; p_voyage_id: number }
+        Returns: undefined
+      }
+      unlink_bls_from_manifesto_mercante: {
+        Args: { p_bl_ids: string[]; p_expected?: Json; p_reason: string }
+        Returns: Json
       }
       update_container_demurrage_dates: {
         Args: {
@@ -9152,17 +11782,6 @@ export type Database = {
         }
         Returns: Json
       }
-      upsert_customer_portal_account: {
-        Args: {
-          p_active?: boolean
-          p_actor?: string
-          p_contact_email?: string
-          p_customer_id: number
-          p_login_cnpj?: string
-          p_password: string
-        }
-        Returns: Json
-      }
       upsert_pix_reconciliation_exceptions: {
         Args: { p_import_key: string; p_rows: Json }
         Returns: Json
@@ -9171,6 +11790,17 @@ export type Database = {
         Args: { p_bl_id: string; p_invoice_id: number }
         Returns: undefined
       }
+      voyage_delete_children_spec: {
+        Args: never
+        Returns: {
+          action: string
+          column_name: string
+          label: string
+          ord: number
+          table_name: string
+        }[]
+      }
+      voyage_delete_preview: { Args: { p_voyage_id: number }; Returns: Json }
       voyage_terminal_code: { Args: { p_terminal_id: string }; Returns: string }
     }
     Enums: {
@@ -9190,12 +11820,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -9219,11 +11849,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -9244,11 +11874,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -9269,11 +11899,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -9286,11 +11916,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -9540,7 +12170,6 @@ export type DemurrageInvoiceHistory = Tables<'demurrage_invoice_history'>
 export type DemurrageRate = Tables<'demurrage_rates'>
 export type GraniteManifest = Tables<'granite_manifests'>
 export type GraniteBl = Tables<'granite_bls'>
-export type GraniteRate = Tables<'granite_rates'>
 export type GraniteBlCharge = Tables<'granite_bl_charges'>
 export type VaziosManifest = Tables<'vazios_manifests'>
 export type VaziosBooking = Tables<'vazios_bookings'>
