@@ -226,6 +226,17 @@ describeLocal('Portal — saldo pendente com consolidada aberta (migration 344)'
     expect(numbers).toEqual(['INV-344-0001', 'INV-344-0002', 'INV-344-0003'])
   })
 
+  it('avulsa com B/L de contexto na consolidada aberta continua no saldo', () => {
+    psql(`
+      INSERT INTO public.invoices (invoice_number, customer_id, bl_id, invoice_type, total_brl, total_paid_brl, balance_brl, status, issued_at, notes)
+      VALUES ('INV-344-0004', ${customer344}, '${bls344[0]}', 'manual', 30, 0, 30, 'draft', now(), 'Avulsa 344');
+    `)
+    psql(`SET session_replication_role = replica; UPDATE public.invoices SET status = 'issued' WHERE invoice_number = 'INV-344-0004';`)
+    expect(balance()).toBe(230)
+    psql(`DELETE FROM public.invoices WHERE invoice_number = 'INV-344-0004';`)
+    expect(balance()).toBe(200)
+  })
+
   it('pagar a consolidada zera o saldo', () => {
     psql(`
       UPDATE public.invoices SET status = 'paid', total_paid_brl = 200, balance_brl = 0 WHERE invoice_number = 'INV-344-0003';

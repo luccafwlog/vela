@@ -66,7 +66,7 @@ function cleanup() {
   // itens, eventos e Notificações Internas.
   psql(`
     DELETE FROM public.alerts a WHERE ${voyageAlertKeys(V_DEL)} OR ${voyageAlertKeys(V_OTHER)} OR ${voyageAlertKeys(V_BAPLIE)};
-    DELETE FROM public.alerts a WHERE a.entity_type = 'customer' AND a.entity_id = '341-test';
+    DELETE FROM public.alerts a WHERE a.entity_type = 'customer' AND a.entity_id IN ('341-test', '341-solo');
   `)
   psql(`
     SET session_replication_role = replica;
@@ -121,6 +121,8 @@ describeLocal('341 — alertas acompanham a viagem e o Baplie', () => {
     // Item de outro alerta que diz ser da viagem (metadata.voyage_id).
     openAlert('review_customer_unlinked', 'customer', '341-test', `{"voyage_id":${V_DEL}}`)
     openAlert('cliente_sem_contato_principal', 'customer', '341-test', `{"voyage_id":${V_OTHER}}`)
+    // Alerta de outra entidade cujo único item é da viagem: fecha, não fica vazio na fila.
+    openAlert('review_customer_unlinked', 'customer', '341-solo', `{"voyage_id":${V_DEL}}`)
     const before = psql(`SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id WHERE ${voyageAlertKeys(V_DEL)};`)
     expect(before).toBe('3')
     psql(`UPDATE public.internal_notifications SET read_at = NULL WHERE entity_id LIKE '${V_DEL}%';`)
@@ -128,7 +130,7 @@ describeLocal('341 — alertas acompanham a viagem e o Baplie', () => {
     const preview = as(ADMIN_ID, `SELECT public.voyage_delete_preview(${V_DEL});`)
     expect(preview.stderr).toBe('')
     const alerts = preview.json.items.find((item: { table: string }) => item.table === 'alerts')
-    expect(alerts).toMatchObject({ action: 'delete', count: 4 })
+    expect(alerts).toMatchObject({ action: 'delete', count: 5 })
 
     const run = as(ADMIN_ID, `SELECT public.delete_records('voyage', ARRAY['${V_DEL}'], false, 'teste 341');`)
     expect(run.json.deleted).toEqual([`${V_DEL}`])
@@ -137,6 +139,8 @@ describeLocal('341 — alertas acompanham a viagem e o Baplie', () => {
     console.log(psql(`SELECT i.id, i.alert_id, i.item_type, i.metadata FROM public.alert_items i WHERE i.metadata->>'voyage_id' = '${V_DEL}';`), 'X', psql(`SELECT i.id, a.entity_type, a.entity_id, i.item_type, i.metadata FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id WHERE i.metadata->>'voyage_id' = '${V_DEL}';`))
     expect(psql(`SELECT count(*) FROM public.alert_items WHERE metadata->>'voyage_id' = '${V_DEL}';`)).toBe('0')
     expect(psql(`SELECT count(*) FROM public.internal_notifications WHERE entity_id = '${V_DEL}' OR entity_id LIKE '${V_DEL}::%';`)).toBe('0')
+    expect(psql(`SELECT status FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '341-solo';`)).toBe('closed')
+    expect(psql(`SELECT status FROM public.alerts WHERE entity_type = 'customer' AND entity_id = '341-test';`)).toBe('open')
     // A viagem de prefixo parecido continua com os três alertas e o item.
     expect(psql(`SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id WHERE ${voyageAlertKeys(V_OTHER)} AND i.status = 'active';`)).toBe('3')
     expect(psql(`SELECT count(*) FROM public.alert_items WHERE metadata->>'voyage_id' = '${V_OTHER}';`)).toBe('2')
