@@ -34,7 +34,8 @@ describe('breakbulkImport', () => {
     mockRpc.mockReset()
   })
 
-  it('bloqueia erros de linha antes de tocar no banco sem override explícito', async () => {
+  // Regra de 2026-10-19 (ADR 0092): erro recusa o arquivo inteiro; não há override.
+  it('bloqueia erros de linha antes de tocar no banco, mesmo com o aceite antigo', async () => {
     await expect(importBreakbulkManifest({
       filename: 'bb.xlsx',
       voyageId: 10,
@@ -44,7 +45,8 @@ describe('breakbulkImport', () => {
         rowErrors: [{ row: 2, message: 'Porto inválido.', raw: {} }],
       },
       uploadedBy: 'user-1',
-    })).rejects.toThrow('Linha 2')
+      ...({ allowRowErrors: true } as object),
+    })).rejects.toThrow(/Nada foi gravado: uma linha tem erro\.\nLinha 2/)
 
     expect(mockFrom).not.toHaveBeenCalled()
     expect(mockRpc).not.toHaveBeenCalled()

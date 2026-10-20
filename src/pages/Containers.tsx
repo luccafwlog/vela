@@ -265,7 +265,7 @@ export function Containers() {
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={() => setDatesImportOpen(true)}>
               <CalendarDays size={16} aria-hidden="true" />
-              Importar Datas de Descarga e Devolução
+              Importar datas
             </Button>
             <Button variant="secondary" loading={exporting} loadingLabel="Exportando…" onClick={handleExport}>
               <Download size={16} aria-hidden="true" />

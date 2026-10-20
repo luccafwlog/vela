@@ -139,7 +139,7 @@ describe('reimportBaplie', () => {
     mocks.applyFlags.mockRejectedValue(new Error('flags falharam'))
     mocks.replaceVaziosFromBaplie.mockRejectedValue(new Error('vazios falharam'))
     await expect(run([box('AAAU1111111'), box('BBBU2222222')])).resolves.toEqual({
-      status: 'replaced', staged: 2, vaziosReplaced: false, flagsError: 'flags falharam', flags: null, vaziosError: 'vazios falharam',
+      status: 'replaced', staged: 2, vaziosReplaced: false, vaziosRemoved: false, flagsError: 'flags falharam', flags: null, vaziosError: 'vazios falharam',
     })
     expect(mocks.applyFlags.mock.invocationCallOrder[0]).toBeLessThan(mocks.replaceVaziosFromBaplie.mock.invocationCallOrder[0])
   })
@@ -151,6 +151,26 @@ describe('reimportBaplie', () => {
     expect(mocks.replaceVaziosFromBaplie).not.toHaveBeenCalled()
     await retryBaplieVazios({ voyageId: 22, actorId: 'user-1' })
     expect(mocks.replaceVaziosFromBaplie).toHaveBeenCalledWith({ voyageId: 22, uploadedBy: 'user-1' })
+  })
+
+  // Migration 336: um Baplie sempre traz os vazios; sem nenhum, os do Baplie anterior saem.
+  it('Baplie novo sem vazios avisa antes de confirmar e remove os vazios do Baplie anterior', async () => {
+    mocks.existing = [box('AAAU1111111'), box('BBBU2222222')]
+    mocks.replaceVaziosFromBaplie.mockResolvedValue({ manifestId: null, total: 0 })
+    confirmReplacement.mockResolvedValue(true)
+    const result = await run([box('AAAU1111111', { status: 'full' })])
+    expect(confirmReplacement).toHaveBeenCalledWith(expect.objectContaining({ vaziosManifestTotal: 2, incomingEmpties: 0 }))
+    const plan = confirmReplacement.mock.calls[0][0] as Parameters<typeof baplieReplacementConfirmOptions>[0]
+    expect(baplieReplacementConfirmOptions(plan, 1).consequence).toMatch(/não traz vazios: os 2 vazios de importação vindos do Baplie anterior saem da Viagem/)
+    expect(result).toMatchObject({ status: 'replaced', vaziosReplaced: false, vaziosRemoved: true, vaziosError: null })
+    expect(baplieImportToast(result as Exclude<typeof result, { status: 'cancelled' }>))
+      .toContain('Vazios de importação do Baplie anterior removidos (este Baplie não traz vazios).')
+  })
+
+  it('retryBaplieVazios devolve quantos vazios ficaram (0 quando o Baplie não traz vazios)', async () => {
+    await expect(retryBaplieVazios({ voyageId: 22, actorId: 'user-1' })).resolves.toBe(2)
+    mocks.replaceVaziosFromBaplie.mockResolvedValue({ manifestId: null, total: 0 })
+    await expect(retryBaplieVazios({ voyageId: 22, actorId: 'user-1' })).resolves.toBe(0)
   })
 
   it('sem manifesto de vazios anterior não cria vazios na reimportação', async () => {

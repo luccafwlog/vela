@@ -523,9 +523,9 @@ Em `/chegadas-saidas` (regras em
 3. marque "não escala" num porto de descarga com data, uma vez como
    Administrativo e outra como outro Departamento, e confira onde a escala
    continua;
-4. baixe o modelo, confira a prévia (**Conferir prévia**) e grave
-   (**Gravar programação**); uma linha com erro fica de fora e uma falha na
-   gravação não grava nada;
+4. em **Importar programação**, baixe o modelo, escolha o arquivo, confira a
+   prévia e grave (**Importar N viagens**); uma linha com erro bloqueia a
+   planilha inteira e uma falha na gravação não grava nada;
 5. confira o widget no Portal, inclusive a marca `OMIT` de escala omitida;
 6. registre o último ATD da viagem e confira que ela sai de Chegadas e Saídas e
    do Portal.

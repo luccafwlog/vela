@@ -56,7 +56,8 @@ it('exclui do preview o BL de outra viagem e mostra erro bloqueante', async () =
   })
 
   await waitFor(() => expect(mocks.partition).toHaveBeenCalledWith([row], 7))
-  expect(screen.getByText('Linha 2: B/L BL-OUTRA pertence a outra viagem')).toBeTruthy()
+  expect(screen.getByText('B/L BL-OUTRA pertence a outra viagem')).toBeTruthy()
+  expect(screen.getByText('1 linha com erro impede a importação')).toBeTruthy()
   expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(true)
 })
 
@@ -235,7 +236,7 @@ it('X e Escape não fecham durante a emissão; o lote que falha mantém "Retomar
   failChunk(Object.assign(new Error('timeout'), { code: '57014', done: [] }))
   await screen.findByRole('button', { name: 'Retomar emissão' })
   // Parada a emissão, fechar volta a valer.
-  await waitFor(() => expect((screen.getByRole('button', { name: 'Fechar' }) as HTMLButtonElement).disabled).toBe(false))
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Concluir' }) as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(screen.getByRole('button', { name: 'Fechar modal' }))
   expect(onClose).toHaveBeenCalledTimes(1)
 })
@@ -249,7 +250,7 @@ it('erro do lote sem linha não aparece como "Linha 0"', async () => {
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(['x'], 'ce.xlsx')] } })
   await waitFor(() => expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false))
   fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
-  await screen.findByText('Os B/Ls da planilha não pertencem à viagem selecionada.')
+  await screen.findByText('Nada foi gravado: Os B/Ls da planilha não pertencem à viagem selecionada.')
   expect(screen.queryByText(/Linha 0/)).toBeNull()
 })
 
@@ -353,11 +354,11 @@ it('B26: a viagem de contexto semeia o campo, que continua editável', async () 
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
     target: { files: [new File(['x'], 'ce.xlsx')] },
   })
-  await waitFor(() => expect(screen.getByText('Linha 2: B/L BL-8 pertence a outra viagem')).toBeTruthy())
+  await waitFor(() => expect(screen.getByText('B/L BL-8 pertence a outra viagem')).toBeTruthy())
 
   fireEvent.click(screen.getByRole('button', { name: 'Outra viagem' }))
   await waitFor(() => expect(mocks.partition).toHaveBeenLastCalledWith([row], 8))
-  await waitFor(() => expect(screen.queryByText('Linha 2: B/L BL-8 pertence a outra viagem')).toBeNull())
+  await waitFor(() => expect(screen.queryByText('B/L BL-8 pertence a outra viagem')).toBeNull())
 
   fireEvent.click(screen.getByRole('button', { name: 'Limpar viagem' }))
   expect(screen.getByTestId('voyage').textContent).toBe('nenhuma')
@@ -385,7 +386,7 @@ it('B26: resposta atrasada da viagem anterior não sobrescreve a prévia da viag
   await new Promise((resolve) => setTimeout(resolve, 0))
 
   expect(screen.getByTestId('voyage').textContent).toBe('nenhuma')
-  expect(screen.queryByText('Linha 2: B/L BL-8 pertence a outra viagem')).toBeNull()
+  expect(screen.queryByText('B/L BL-8 pertence a outra viagem')).toBeNull()
 })
 
 it('B26: trocar a viagem durante a leitura do arquivo usa a viagem atual na prévia', async () => {
@@ -404,4 +405,44 @@ it('B26: trocar a viagem durante a leitura do arquivo usa a viagem atual na pré
   await waitFor(() => expect(mocks.partition).toHaveBeenCalled())
   expect(mocks.partition).toHaveBeenCalledWith([row], 8)
   expect(mocks.partition).not.toHaveBeenCalledWith([row], 7)
+})
+
+// ADR 0092, D1: B/L cancelado na planilha é aviso; o resto da planilha entra.
+it('B/L cancelado aparece como aviso na conferência e não impede a importação', async () => {
+  mocks.importRows.mockReset()
+  const rows = [
+    { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' },
+    { rowNumber: 3, bl_id: 'BL-CANC', ce_mercante: '122605051526082' },
+  ]
+  mocks.parse.mockResolvedValue({ rows, rowErrors: [] })
+  // A conferência para na troca de CE do BL001; o cancelado aparece como aviso.
+  mocks.preview.mockResolvedValue({
+    ...cleanPreview,
+    changes: 1,
+    needs_confirmation: true,
+    rows: [
+      { row: 2, bl_id: 'BL001', status: 'change', current_ce: '122605051526080', new_ce: '122605051526081', target_manifesto: '1226501860578' },
+      { row: 3, bl_id: 'BL-CANC', status: 'cancelled', new_ce: '122605051526082', target_manifesto: '1226501860578' },
+    ],
+  })
+  mocks.importRows.mockResolvedValue({ processed: 2, updated: 1, overwritten: 1, unchanged: 0, ignored: 1, errorCount: 0, errors: [], billingPendingBlIds: [] })
+
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+  fireEvent.change(screen.getByPlaceholderText('Ex.: 1226501860578'), { target: { value: '1226501860578' } })
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(['x'], 'ce.xlsx')] } })
+  await waitFor(() => expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
+
+  await screen.findByText('Cancelado, não é tocado')
+  expect(screen.getByText('B/L BL-CANC está cancelado: não é tocado, e o resto da planilha entra.')).toBeTruthy()
+  expect(screen.getByText('1 aviso para conferir')).toBeTruthy()
+  expect(screen.queryByText(/impede a importação/)).toBeNull()
+
+  fireEvent.click(screen.getByRole('checkbox'))
+  fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: 'CE retificado no Mercante' } })
+  const importar = screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement
+  await waitFor(() => expect(importar.disabled).toBe(false))
+  fireEvent.click(importar)
+  await waitFor(() => expect(mocks.importRows).toHaveBeenCalledWith(rows, expect.objectContaining({ confirmChanges: true })))
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('CE Mercante atualizado em 1 B/L; 1 B/L cancelado não foi tocado.', 'success'))
 })

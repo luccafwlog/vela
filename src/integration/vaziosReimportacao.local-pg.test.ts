@@ -121,6 +121,30 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
     expect(psql(`SELECT string_agg(source, ',') FROM public.vazios_importacao_manifests WHERE voyage_id = ${voyageId};`)).toBe('baplie')
   })
 
+  // Migration 336: Baplie novo sem vazios tira da Viagem os vazios do Baplie
+  // anterior (e o Nº Mercante da rota que ficou sem container); os vazios da
+  // planilha ficam. No primeiro cadastro, Baplie sem vazios segue recusado.
+  it('Baplie sem vazios: o recadastro remove os vazios do Baplie anterior e preserva os da planilha', () => {
+    expect(importRoute('AZCU2340041', 'BRPNG', '1226A23400041').stderr).toBe('')
+    psql(`DELETE FROM public.baplie_containers WHERE voyage_id = ${voyageId};`)
+
+    const firstTime = asUser(`SELECT public.replace_vazios_from_baplie_transactional(${voyageId}, NULL, '${userId}', false);`)
+    expect(firstTime.stderr).toMatch(/Nenhum container vazio/)
+
+    const replaced = asUser(`SELECT public.replace_vazios_from_baplie_transactional(${voyageId}, NULL, '${userId}', true);`)
+    expect(replaced.stderr).toBe('')
+    expect(JSON.parse(replaced.stdout)).toMatchObject({ manifest_id: null, total: 0, removed: true })
+    expect(psql(`SELECT string_agg(source, ',') FROM public.vazios_importacao_manifests WHERE voyage_id = ${voyageId};`)).toBe('manual')
+    expect(vazios()).toBe('AZCU2340041:-')
+    expect(psql(`SELECT string_agg(numero, ',' ORDER BY numero) FROM public.manifestos_mercante
+      WHERE voyage_id = ${voyageId} AND natureza = 'vazio';`)).toBe('1226A23400041')
+
+    // Sem vazios do Baplie a remover, repetir não muda nada.
+    const again = asUser(`SELECT public.replace_vazios_from_baplie_transactional(${voyageId}, NULL, '${userId}', true);`)
+    expect(JSON.parse(again.stdout)).toMatchObject({ total: 0, removed: false })
+    expect(vazios()).toBe('AZCU2340041:-')
+  })
+
   it('o Embarque de Vazios atualiza por container e preserva a unidade manual', () => {
     expect(bookings([{ container: 'AZCU2340011', date: '2026-10-01' }, { container: 'AZCU2340012', date: '2026-10-01' }]).stderr).toBe('')
     const operation = psql(`SELECT id FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};`)

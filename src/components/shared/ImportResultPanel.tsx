@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { useImportEffects } from '../../hooks/useImportEffects'
 import { sanitizeIssueMessage } from '../../services/importValidation'
 import type { ImportEffect, ImportEffectKind, ImportEffectState } from '../../services/importEffects'
-import { Badge, type SemanticBadgeTone } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { useConfirm } from '../ui/ConfirmDialog'
 
@@ -33,11 +32,12 @@ function importEffectStatusLabel(status: ImportEffectState): string {
   return STATUS_LABELS[status] ?? status
 }
 
-function statusTone(status: ImportEffectState): SemanticBadgeTone {
-  if (status === 'succeeded') return 'success'
-  if (status === 'blocked') return 'danger'
-  if (status === 'superseded') return 'neutral'
-  return 'warning'
+/** Situação em texto, não em selo (regra 5): vermelho bloqueado, âmbar em andamento. */
+function statusToneClass(status: ImportEffectState): string | undefined {
+  if (status === 'succeeded') return undefined
+  if (status === 'blocked') return 'app-import-tone--danger'
+  if (status === 'superseded') return 'app-import-tone--muted'
+  return 'app-import-tone--warning'
 }
 
 function formatDate(value: string | null | undefined) {
@@ -134,7 +134,7 @@ export function ImportResultPanel({
         <span className="app-import-effects__meta">Atualizado em {formatDate(effects[0]?.updated_at)}</span>
       </div>
       <p className="app-import-effects__meta">
-        O que o servidor fez depois da importação.{summary ? ` ${summary}.` : ' Nada pendente.'}
+        O que o sistema fez depois da importação.{summary ? ` ${summary}.` : ' Nada pendente.'}
       </p>
 
       <ul className="app-import-effects__list" aria-label="Efeitos da importação">
@@ -144,7 +144,7 @@ export function ImportResultPanel({
             <li key={effect.id} className="app-import-effects__item">
               <div className="app-import-effects__row">
                 <span className="app-import-effects__name">{importEffectKindLabel(effect.effect_kind)}</span>
-                <Badge tone={statusTone(effect.status)}>{importEffectStatusLabel(effect.status)}</Badge>
+                <span className={statusToneClass(effect.status)}>{importEffectStatusLabel(effect.status)}</span>
               </div>
               <div className="app-import-effects__meta">
                 {effect.attempts} {effect.attempts === 1 ? 'tentativa' : 'tentativas'} · atualizado em {formatDate(effect.updated_at)}

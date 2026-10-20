@@ -115,3 +115,4 @@ src/integration/pendenciaGeralPortalSemDuplicata.local-pg.test.ts
 src/integration/alertasSemRepetirRegistro.local-pg.test.ts
 src/integration/alertasPapelOperator.local-pg.test.ts
 src/integration/granitoSemCliente.local-pg.test.ts
+src/integration/importacaoLoteUnico.local-pg.test.ts

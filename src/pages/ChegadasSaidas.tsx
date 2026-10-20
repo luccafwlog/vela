@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Pencil, Plus, Upload } from 'lucide-react'
-import { Card, EmptyState, InlineError, PageHeader } from '../components/ui/Card'
+import { Pencil, Plus } from 'lucide-react'
+import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { RowActionButton } from '../components/ui/RowActionButton'
 import { Modal } from '../components/ui/Modal'
-import { ImportFilePicker } from '../components/shared/ImportParts'
+import { ImportFileBlock, ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportSteps, ImportTemplateLinks } from '../components/shared/ImportParts'
+import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
+import { plural } from '../components/shared/importPresentation'
+import { SummaryStrip } from '../components/ui/SummaryStrip'
+import { NoValue } from '../components/ui/NoValue'
 import { SkeletonTable } from '../components/ui/Skeleton'
-import { Block } from '../components/ui/Block'
+import { Block, Fact, FactList } from '../components/ui/Block'
 import { ScheduleLegend, ScheduleTable, ScheduleWidthPage } from '../components/portal/ShipScheduleWidget'
 import { scheduleLaneTitle } from '../components/portal/shipScheduleCells'
 import { useConfirm } from '../components/ui/ConfirmDialog'
@@ -16,13 +20,13 @@ import { assertUploadSize } from '../lib/fileGuard'
 import { useAuth } from '../hooks/useAuth'
 import { userFacingErrorMessage } from '../lib/errors'
 import { emptyScheduleForm, buildScheduleLanes, clearedPodLabels, scheduleFormFromVoyage, type ScheduleForm } from './chegadasSaidasForm'
-import { PORTAL_SCHEDULE_LANES, type PortalScheduleLane } from '../services/portalScheduleLanes'
-import { assertNoRepeatedScheduleColumns, parseScheduleRows, scheduleTemplateColumns } from '../services/portalScheduleBulkImport'
+import { PORTAL_SCHEDULE_LANES, formatScheduleDate, type PortalScheduleLane } from '../services/portalScheduleLanes'
+import { assertNoRepeatedScheduleColumns, parseScheduleRows, scheduleSheetIssues } from '../services/portalScheduleBulkImport'
 import { fetchInternalScheduleVoyages, type PortalScheduleVoyage } from '../services/portalScheduleVoyages'
 import { applyScheduleSheetPlan, createOrAttachVoyageFromSchedule, isScheduleSheetWrite, planScheduleSheet, type ScheduleSheetPlanRow } from '../services/voyageFromSchedule'
 import { afterViagemAlterada } from '../services/cacheEffects'
 import { readSheet } from '../services/importCore'
-import { inspectImportFile, type ImportFileInspection } from '../services/importText'
+import { hasBlockingIssues, type ImportIssue } from '../services/importValidation'
 
 const POL_LANES = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pol')
 const POD_LANES = PORTAL_SCHEDULE_LANES.filter((lane) => lane.kind === 'pod')
@@ -127,210 +131,229 @@ function VesselForm({ formData, onChange, onSubmit, onCancel, isEditing, saving 
   )
 }
 
-function SchedulePlanPreview({ plan, applying, onApply, onCancel }: {
-  plan: { rows: ScheduleSheetPlanRow[]; warnings: string[] }
-  applying: boolean
-  onApply: () => void
-  onCancel: () => void
-}) {
-  const valid = plan.rows.filter((row) => !row.error)
-  const writes = plan.rows.filter(isScheduleSheetWrite)
-  const errors = plan.rows.filter((row) => row.error)
-  const publishing = valid.filter((row) => !row.createsVoyage && row.publishes).length
-  const dateText = (row: ScheduleSheetPlanRow) => row.changes
-    .filter((change) => change.field_name === 'eta' || change.field_name === 'etd')
-    .map((change) => `${change.port} ${change.field_name.toUpperCase()}: ${change.old_value ?? '—'} → ${change.new_value ?? '—'}`)
-    .join('; ')
-  return (
-    <div className="mt-4 grid gap-3 border-t border-[var(--app-border)] pt-4 text-sm" role="region" aria-label="Prévia da planilha">
-      <p className="m-0 font-medium">
-        Prévia: {valid.filter((row) => row.createsVoyage).length} viagem(ns) nova(s), {valid.filter((row) => !row.createsVoyage && row.changes.length).length} com datas que mudam,{publishing ? ` ${publishing} passa(m) a aparecer no Portal,` : ''} {valid.filter((row) => !isScheduleSheetWrite(row)).length} sem mudança
-        {errors.length ? ` · ${errors.length} com erro (não entram)` : ''}
-      </p>
-      <div className="app-table-scroll max-h-72">
-        <table className="app-table app-table--compact w-full">
-          <caption className="sr-only">O que a planilha grava, por viagem</caption>
-          <thead><tr><th scope="col">Viagem</th><th scope="col" className="app-table__text-head">O que acontece</th></tr></thead>
-          <tbody>
-            {plan.rows.map((row) => (
-              <tr key={row.label}>
-                <td className="whitespace-nowrap">{row.label}</td>
-                <td>
-                  <div className="text-left">
-                  {row.error ? <span className="text-[var(--app-danger-fg)]">{row.error}</span>
-                    : row.createsVoyage ? `Cria a viagem e grava ${row.changes.filter((change) => change.field_name === 'eta' || change.field_name === 'etd').length} data(s)`
-                      : row.publishes ? ['Publica no Portal', dateText(row)].filter(Boolean).join('; ')
-                        : row.changes.length ? dateText(row) || 'Atualiza a escala'
-                          : <span className="text-[var(--app-muted)]">Sem mudança</span>}
-                  {!row.error && row.ignoredImo ? <span className="block text-[var(--app-muted)]">IMO “{row.ignoredImo}” ignorado (não tem 7 dígitos): viagem procurada pelo nome do navio.</span> : null}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {plan.warnings.length ? (
-        <ul className="m-0 list-disc pl-5 text-[var(--app-warning-fg)]">{plan.warnings.map((message) => <li key={message}>{message}</li>)}</ul>
-      ) : null}
-      <p className="m-0 text-[var(--app-muted)]">Tudo ou nada: se uma viagem não puder ser gravada, nenhuma é.</p>
-      <div className="flex gap-2">
-        <Button type="button" variant="secondary" className="app-btn--sm" onClick={onCancel} disabled={applying}>Voltar</Button>
-        <Button type="button" className="app-btn--sm" onClick={onApply} disabled={!writes.length} loading={applying} loadingLabel="Gravando…">Gravar programação ({writes.length})</Button>
-      </div>
-    </div>
-  )
+type SchedulePlan = { rows: ScheduleSheetPlanRow[]; issues: ImportIssue[] }
+
+/** O que a gravação faz com a linha, em texto (molde do lote 6a). */
+function planSituation(row: ScheduleSheetPlanRow): { text: string; tone?: 'warning' | 'danger' | 'muted' } {
+  if (row.error) return { text: 'Erro', tone: 'danger' }
+  if (row.createsVoyage) return { text: 'Cria' }
+  if (row.publishes) return { text: 'Publica no Portal', tone: 'warning' }
+  if (row.changes.length) return { text: 'Atualiza', tone: 'warning' }
+  return { text: 'Sem alteração', tone: 'muted' }
 }
 
-function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate: (voyageIds: number[]) => void }) {
-  const [uploading, setUploading] = useState(false)
+function planDates(row: ScheduleSheetPlanRow): string {
+  return row.changes
+    .filter((change) => change.field_name === 'eta' || change.field_name === 'etd')
+    .map((change) => `${change.port} ${change.field_name.toUpperCase()}: ${change.old_value ? formatScheduleDate(change.old_value) : '—'} → ${change.new_value ? formatScheduleDate(change.new_value) : '—'}`)
+    .join('; ')
+}
+
+/**
+ * Programação por planilha no molde do lote 6a: Arquivo → Prévia → Resultado.
+ * Qualquer linha com erro (data ilegível, Viagem que a prévia recusa) recusa a
+ * planilha inteira; a gravação é uma transação só (migration 188).
+ */
+function ScheduleImportModal({ onClose, onUpdate }: { onClose: () => void; onUpdate: (voyageIds: number[]) => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [reading, setReading] = useState(false)
   const [readError, setReadError] = useState<string | null>(null)
-  const [result, setResult] = useState<{ inspection: ImportFileInspection; updated: string[]; errors: string[]; warnings: string[] } | null>(null)
-  const [chosenFiles, setChosenFiles] = useState<File[]>([])
-  // Prévia da planilha (Etapa 11): nada é gravado antes de confirmar; a
-  // gravação é uma transação só (migration 188).
-  const [plan, setPlan] = useState<{ inspection: ImportFileInspection; rows: ScheduleSheetPlanRow[]; warnings: string[] } | null>(null)
+  const [plan, setPlan] = useState<SchedulePlan | null>(null)
   const [applying, setApplying] = useState(false)
+  const [writeError, setWriteError] = useState<string | null>(null)
+  const [outcome, setOutcome] = useState<{ created: number; updated: number } | null>(null)
   const { showToast } = useToast()
   const { user } = useAuth()
 
-  const downloadTemplate = async () => {
-    const XLSX = await import('@e965/xlsx')
-    const columns = scheduleTemplateColumns()
-    const example = Object.fromEntries(columns.map((column) => [column, '']))
-    example['VESSEL NAME'] = 'EXEMPLO NAVIO'
-    example.VOY = '1'
-    example.IMO = '9976501'
-    example['QINGDAO ETD'] = '2026-01-04'
-    example['SALVADOR ETA'] = '2026-01-22'
-
-    const ws = XLSX.utils.json_to_sheet([example], { header: columns })
-    ws['!cols'] = columns.map(() => ({ wch: 16 }))
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Navios')
-    XLSX.writeFile(wb, 'modelo_navios.xlsx')
-    showToast('Planilha modelo baixada!', 'info')
-  }
-
-  const handleSubmitSheet = async () => {
-    const file = chosenFiles[0]
-    if (!file) return
-    setUploading(true)
-    setResult(null)
+  async function chooseFile(chosen: File) {
+    setFile(chosen)
     setPlan(null)
     setReadError(null)
+    setWriteError(null)
+    setOutcome(null)
+    setReading(true)
     try {
-      assertUploadSize(file)
-      const buf = await file.arrayBuffer()
-      const inspection = inspectImportFile(buf)
-      const { headers, rows } = await readSheet(buf)
+      assertUploadSize(chosen)
+      const { headers, rows } = await readSheet(await chosen.arrayBuffer())
       assertNoRepeatedScheduleColumns(headers)
       const parsed = parseScheduleRows(rows)
-      const warnings = parsed
-        .filter((row) => row.invalidCells.length > 0)
-        .map((row) => `${row.vesselName} / ${row.voyageNumber}: datas ilegíveis em ${row.invalidCells.join(', ')}`)
-      setPlan({ inspection, rows: await planScheduleSheet(parsed, user?.id ?? null), warnings })
+      if (!parsed.length) throw new Error('Nenhuma viagem na planilha. Preencha VESSEL NAME e VOY em cada linha.')
+      const planned = await planScheduleSheet(parsed, user?.id ?? null)
+      const imoNotes: ImportIssue[] = planned.flatMap((row, index) => row.ignoredImo && !row.error ? [{
+        row: parsed[index]?.rowNumber ?? index + 2,
+        field: 'row',
+        code: 'invalid_group' as const,
+        severity: 'warning' as const,
+        message: `${row.label}: IMO “${row.ignoredImo}” ignorado (não tem 7 dígitos); a viagem é procurada pelo nome do navio.`,
+      }] : [])
+      setPlan({ rows: planned, issues: [...scheduleSheetIssues(parsed, planned), ...imoNotes] })
     } catch (error) {
-      // A falha de leitura fica no conteúdo; o toast não é a única explicação.
-      const message = error instanceof Error ? error.message : 'Erro ao processar planilha'
-      setReadError(`Não foi possível ler ${file.name}: ${message}. Nada foi gravado; corrija o arquivo e envie de novo.`)
-      showToast(message, 'error')
+      setReadError(error instanceof Error ? error.message : 'Não foi possível ler a planilha.')
     } finally {
-      setUploading(false)
+      setReading(false)
     }
   }
 
-  const handleApplyPlan = async () => {
-    if (!plan) return
+  async function apply() {
+    if (!plan || hasBlockingIssues(plan.issues)) return
     setApplying(true)
+    setWriteError(null)
     try {
-      const outcome = await applyScheduleSheetPlan(plan.rows)
-      const touched = plan.rows.filter(isScheduleSheetWrite)
-      setResult({
-        inspection: plan.inspection,
-        updated: touched.map((row) => row.label),
-        errors: plan.rows.filter((row) => row.error).map((row) => `${row.label}: ${row.error}`),
-        warnings: plan.warnings,
-      })
-      setPlan(null)
-      setChosenFiles([])
-      if (touched.length) {
-        showToast(`${outcome.created} viagem(ns) criada(s), ${outcome.updated} atualizada(s).`, 'success')
-        onUpdate(outcome.voyage_ids)
-      } else {
-        showToast('Nada a gravar: a planilha não muda nenhuma data.', 'info')
-      }
+      const result = await applyScheduleSheetPlan(plan.rows)
+      setOutcome({ created: result.created, updated: result.updated })
+      showToast(`${plural(result.created, 'viagem criada', 'viagens criadas')}, ${plural(result.updated, 'atualizada', 'atualizadas')}.`, 'success')
+      onUpdate(result.voyage_ids ?? [])
     } catch (error) {
       // Tudo ou nada: a falha não deixa parte da planilha gravada.
-      showToast(`Nada foi gravado: ${userFacingErrorMessage(error, 'falha ao gravar a programação')}`, 'error')
+      setWriteError(userFacingErrorMessage(error, 'falha ao gravar a programação'))
     } finally {
       setApplying(false)
     }
   }
 
+  const issues = plan?.issues ?? []
+  const hasErrors = hasBlockingIssues(issues)
+  const writes = plan?.rows.filter(isScheduleSheetWrite).length ?? 0
+  const creates = plan?.rows.filter((row) => !row.error && row.createsVoyage).length ?? 0
+  const updates = plan?.rows.filter((row) => !row.error && !row.createsVoyage && (row.changes.length || row.publishes)).length ?? 0
+  const unchanged = plan?.rows.filter((row) => !row.error && !isScheduleSheetWrite(row)).length ?? 0
+  const errorCount = issues.filter((issue) => issue.severity === 'error').length
+
+  let footnote = 'Nada é gravado antes de você conferir a prévia e confirmar.'
+  let tone: 'default' | 'warning' | 'success' = 'default'
+  if (outcome) { footnote = 'Programação gravada.'; tone = 'success' }
+  else if (reading) footnote = 'Lendo o arquivo. Nada foi gravado.'
+  else if (hasErrors) { footnote = 'Com erro na planilha, nada é importado. Corrija e escolha o arquivo de novo.'; tone = 'warning' }
+  else if (plan && !writes) { footnote = 'Nada a gravar: a planilha não muda nenhuma viagem.'; tone = 'warning' }
+  else if (plan) footnote = 'Prévia pronta. Nada foi gravado ainda.'
+  const step = outcome ? 'resultado' : plan || readError ? 'previa' : 'arquivo'
+
+  return (
+    <Modal open onClose={onClose} title="Importar programação de navios">
+      <div className="app-import">
+        <ImportSteps current={step} />
+        <ImportFileBlock templates={<ImportTemplateLinks baseName="programacao-navios-modelo" />}>
+          <ImportGuide
+            required={<><strong>VESSEL NAME</strong> e <strong>VOY</strong>.</>}
+            optional={<>IMO e uma coluna por porto: ETD na origem (ex.: QINGDAO ETD), ETA no Brasil (ex.: SALVADOR ETA).</>}
+            details={(
+              <>
+                <p>Uma linha por viagem, com as datas por porto em DD/MM/AAAA ou AAAA-MM-DD.</p>
+                <p>Célula vazia ou "X" deixa o porto como está: a planilha nunca cancela escala. Data ilegível impede a importação da planilha inteira.</p>
+              </>
+            )}
+          />
+          <ImportFilePicker
+            accept=".xlsx,.xls,.csv"
+            label="Planilha de programação"
+            files={file ? [file] : []}
+            onFiles={([chosen]) => void chooseFile(chosen)}
+            disabled={reading || applying || Boolean(outcome)}
+          />
+        </ImportFileBlock>
+
+        {readError ? (
+          <ImportNotice tone="danger" role="alert" title="Não foi possível ler a planilha">
+            <p>{readError}</p>
+            <p>Nada foi gravado; corrija o arquivo e escolha-o de novo.</p>
+          </ImportNotice>
+        ) : null}
+
+        {plan && !outcome ? (
+          <ImportSection
+            title="Prévia"
+            aside={(
+              <SummaryStrip
+                label="O que a planilha grava"
+                items={[
+                  { label: creates === 1 ? 'viagem nova' : 'viagens novas', value: creates },
+                  { label: updates === 1 ? 'atualizada' : 'atualizadas', value: updates },
+                  { label: 'sem alteração', value: unchanged },
+                  { label: errorCount === 1 ? 'linha com erro' : 'linhas com erro', value: errorCount, tone: errorCount ? 'danger' : 'default' },
+                ]}
+              />
+            )}
+          >
+            <div className="app-table-scroll app-import-table">
+              <table className="app-table app-table--compact w-full">
+                <caption className="sr-only">O que a planilha grava, por viagem</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Viagem</th>
+                    <th scope="col">Situação</th>
+                    <th scope="col" className="app-table__text-head">Datas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plan.rows.map((row, index) => {
+                    const situation = planSituation(row)
+                    const dates = planDates(row)
+                    return (
+                      <tr key={`${row.label}-${index}`}>
+                        <td className="whitespace-nowrap">{row.label}</td>
+                        <td className={situation.tone ? `app-import-tone--${situation.tone}` : undefined}>{situation.text}</td>
+                        <td className="app-table__text" title={dates || undefined}>{dates || <NoValue label="Nenhuma data muda" />}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </ImportSection>
+        ) : null}
+
+        {plan && !outcome ? <ImportIssuesPanel issues={issues} filename="programacao-erros.csv" /> : null}
+
+        {writeError ? (
+          <ImportNotice tone="danger" role="alert" title="A importação não foi concluída">
+            <p>Nada foi gravado: {writeError}</p>
+            <p>A prévia continua aqui; confirme de novo quando o problema for resolvido.</p>
+          </ImportNotice>
+        ) : null}
+
+        {outcome ? (
+          <ImportSection title="Resultado">
+            <div role="status" aria-label="Resultado da planilha">
+              <FactList columns={2}>
+                <Fact label="Viagens criadas">{outcome.created.toLocaleString('pt-BR')}</Fact>
+                <Fact label="Viagens atualizadas">{outcome.updated.toLocaleString('pt-BR')}</Fact>
+              </FactList>
+            </div>
+          </ImportSection>
+        ) : null}
+
+        <div className="app-modal__actions">
+          <ImportFootnote tone={tone}>{footnote}</ImportFootnote>
+          {outcome ? (
+            <Button onClick={onClose}>Concluir</Button>
+          ) : (
+            <>
+              <Button variant="secondary" disabled={applying} onClick={onClose}>Voltar</Button>
+              <Button disabled={!writes || hasErrors || reading} loading={applying} loadingLabel="Importando…" onClick={() => void apply()}>
+                {writes ? `Importar ${plural(writes, 'viagem', 'viagens')}` : 'Importar viagens'}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function SpreadsheetUpload({ canWrite, onUpdate }: { canWrite: boolean; onUpdate: (voyageIds: number[]) => void }) {
+  const [open, setOpen] = useState(false)
   return (
     <Card className="p-5">
       <h2 className="text-base font-semibold">Atualizar várias viagens por planilha</h2>
       <p className="mt-1 text-sm text-[var(--app-muted)]">
-        Uma linha por viagem, com as datas por porto (ISO ou DD/MM/AAAA). Célula vazia ou "X" deixa o porto como está: a planilha nunca cancela escala.
+        Uma linha por viagem, com as datas por porto. Célula vazia ou "X" deixa o porto como está: a planilha nunca cancela escala.
       </p>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button type="button" variant="secondary" className="app-btn--sm" onClick={downloadTemplate}>
-          <Download size={14} /> Baixar planilha modelo
-        </Button>
-      </div>
       {canWrite ? (
-        // Área de arquivo comum das importações (etapa 04): escolher, conferir
-        // o nome e só então enviar.
-        <div className="mt-4 grid gap-3">
-          <ImportFilePicker
-            accept=".xlsx,.xls,.csv"
-            label="Planilha de programação"
-            files={chosenFiles}
-            onFiles={(files) => { setChosenFiles(files); setReadError(null) }}
-            disabled={uploading}
-          />
-          <div>
-            <Button type="button" className="app-btn--sm" onClick={() => void handleSubmitSheet()} disabled={!chosenFiles.length} loading={uploading} loadingLabel="Lendo…">
-              <Upload size={14} /> Conferir prévia
-            </Button>
-          </div>
+        <div className="mt-4">
+          <Button type="button" className="app-btn--sm" onClick={() => setOpen(true)}>Importar programação</Button>
         </div>
       ) : null}
-      {plan ? <SchedulePlanPreview plan={plan} applying={applying} onApply={() => void handleApplyPlan()} onCancel={() => setPlan(null)} /> : null}
-      {readError ? <div className="mt-4"><InlineError message={readError} /></div> : null}
-      {result ? (
-        <div className="mt-4 grid gap-3 border-t border-[var(--app-border)] pt-4 text-sm" role="status" aria-label="Resultado da planilha">
-          <p className="m-0 font-medium">
-            {result.updated.length} atualizada(s)
-            {result.errors.length ? ` · ${result.errors.length} com erro` : ''}
-            {result.warnings.length ? ` · ${result.warnings.length} com datas ilegíveis (ignoradas)` : ''}
-          </p>
-          {result.errors.length ? (
-            <div>
-              <div className="font-medium text-[var(--app-danger-fg)]">Não atualizadas</div>
-              <ul className="mt-1 list-disc pl-5">
-                {result.errors.map((message) => <li key={message}>{message}</li>)}
-              </ul>
-            </div>
-          ) : null}
-          {result.warnings.length ? (
-            <div>
-              <div className="font-medium text-[var(--app-warning-fg)]">Datas ignoradas</div>
-              <ul className="mt-1 list-disc pl-5">
-                {result.warnings.map((message) => <li key={message}>{message}</li>)}
-              </ul>
-            </div>
-          ) : null}
-          <details className="text-xs text-[var(--app-muted)]">
-            <summary className="cursor-pointer">Diagnóstico do arquivo</summary>
-            <div className="mt-2">
-              Formato detectado: <strong>{result.inspection.format.toUpperCase()}</strong> · Encoding: <strong>{result.inspection.encoding ?? 'binário'}</strong> · BOM: <strong>{result.inspection.hadBom ? 'presente' : 'ausente'}</strong> · {result.inspection.byteLength.toLocaleString('pt-BR')} bytes
-            </div>
-            {result.inspection.preview ? <pre className="mt-2 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-2 font-mono text-xs">{result.inspection.preview}</pre> : null}
-          </details>
-        </div>
-      ) : null}
+      {open ? <ScheduleImportModal onClose={() => setOpen(false)} onUpdate={onUpdate} /> : null}
     </Card>
   )
 }

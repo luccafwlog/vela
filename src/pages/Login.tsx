@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { InlineError } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Input'
+import { AuthLayout } from '../components/auth/AuthLayout'
 import { PasswordInput } from '../components/auth/PasswordInput'
 import { isSupabaseConfigured } from '../services/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -56,62 +57,46 @@ export function Login() {
   }
 
   return (
-    <main className="app-auth">
-      <div className="app-auth__panel">
-        <div className="app-auth__branding">
-          <div className="app-auth__logo-lockup">
-            <img alt="" className="app-auth__logo app-auth__logo--vela" src="/branding/vela-mark-dark.svg" />
-            <span className="app-auth__logo-name">Vela</span>
-          </div>
-          <div className="app-auth__branding-copy">
-            <p className="app-auth__branding-label">Sistema operacional</p>
-            <p className="app-auth__branding-desc">Viagens, B/Ls, Taxas Locais, Demurrage e conciliação em um só lugar.</p>
-          </div>
+    <AuthLayout
+      brand="vela"
+      title="Acesso interno"
+      subtitle="Entre com o e-mail e a senha provisionados pelo Administrativo."
+    >
+      {!isSupabaseConfigured ? (
+        <div className="app-callout app-callout--warning">
+          Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env antes de autenticar.
         </div>
+      ) : null}
 
-        <div className="app-auth__form-wrap">
-          <div className="app-auth__form-header">
-            <h1 className="app-auth__title">Acesso interno</h1>
-            <p className="app-auth__subtitle">Entre com o e-mail e a senha provisionados pelo Administrativo.</p>
-          </div>
+      <form className="grid gap-4" onSubmit={handleSubmit}>
+        <Field label="E-mail">
+          <Input
+            required
+            type="email"
+            autoComplete="username"
+            autoFocus
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </Field>
 
-          {!isSupabaseConfigured ? (
-            <div className="app-callout app-callout--warning">
-              Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env antes de autenticar.
-            </div>
-          ) : null}
+        <Field label="Senha">
+          <PasswordInput
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </Field>
 
-          <form className="grid gap-4" onSubmit={handleSubmit}>
-            <Field label="E-mail">
-              <Input
-                required
-                type="email"
-                autoComplete="username"
-                autoFocus
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </Field>
+        {error ? <InlineError message={error} /> : null}
 
-            <Field label="Senha">
-              <PasswordInput
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </Field>
+        <Button disabled={!isSupabaseConfigured} loading={submitting} loadingLabel="Entrando..." type="submit">
+          Entrar
+        </Button>
+      </form>
 
-            {error ? <InlineError message={error} /> : null}
-
-            <Button disabled={!isSupabaseConfigured} loading={submitting} loadingLabel="Entrando..." type="submit">
-              Entrar
-            </Button>
-          </form>
-
-          <p className="app-auth__meta">Esqueceu a senha ou perdeu o acesso? Peça a redefinição ao Administrativo.</p>
-        </div>
-      </div>
-    </main>
+      <p className="app-auth__meta">Esqueceu a senha ou perdeu o acesso? Peça a redefinição ao Administrativo.</p>
+    </AuthLayout>
   )
 }

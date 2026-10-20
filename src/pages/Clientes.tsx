@@ -16,7 +16,7 @@ import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { CreateCustomerModal } from '../components/customers/CreateCustomerModal'
 import { CustomerTable } from '../components/customers/CustomerTable'
 import { ClientesTabs } from '../components/customers/ClientesTabs'
-import { ImportBaseModal, type CustomerBaseImportOutcome } from '../components/customers/ImportBaseModal'
+import { ImportBaseModal, type CustomerBaseRefusal } from '../components/customers/ImportBaseModal'
 import {
   emptyCreateCustomerForm,
   newCustomerContact,
@@ -137,7 +137,7 @@ export function Clientes() {
   const [baseFile, setBaseFile] = useState<File | null>(null)
   const [baseReadError, setBaseReadError] = useState<string | null>(null)
   const [baseWriteError, setBaseWriteError] = useState<string | null>(null)
-  const [baseOutcome, setBaseOutcome] = useState<CustomerBaseImportOutcome | null>(null)
+  const [baseRefused, setBaseRefused] = useState<CustomerBaseRefusal | null>(null)
   const [parsedBase, setParsedBase] = useState<ParsedCustomerBase | null>(null)
   const [parsingBase, setParsingBase] = useState(false)
   const [importingBase, setImportingBase] = useState(false)
@@ -234,6 +234,7 @@ export function Clientes() {
     setParsedBase(null)
     setBaseReadError(null)
     setBaseWriteError(null)
+    setBaseRefused(null)
 
     if (!nextFile) return
 
@@ -248,24 +249,23 @@ export function Clientes() {
     }
   }
 
-  async function handleImportBase() {
-    if (!parsedBase?.rows.length) return
+  // Regra de 2026-10-19: a base inteira é gravada numa chamada (migration 334);
+  // se o banco recusa um Cliente, nada é gravado e o modal lista a recusa. O
+  // aceite dos avisos no modal cobre a troca de razão social.
+  async function handleImportBase(confirmNameChange: boolean) {
+    if (!parsedBase?.rows.length || parsedBase.rowErrors.length) return
 
     setImportingBase(true)
     setBaseWriteError(null)
     try {
-      const renamed = customerNameChanges(parsedBase.rows)
-      if (renamed.length) {
-        const ok = await confirm({
-          title: 'Razão social diferente',
-          message: `${renamed.length} Cliente(s) já cadastrado(s) com outra razão social.`,
-          confirmLabel: 'Trocar a razão social',
-          consequence: 'A razão social nova vale para as próximas faturas; faturas emitidas mantêm o documento congelado.',
-          affected: { summary: `${renamed.length} Cliente(s)`, items: renamed.map((row) => `${row.currentName} → ${row.name}`) },
-        })
-        if (!ok) return
+      const result = await importCustomerBaseRows(parsedBase.rows, {
+        changedBy: user?.id ?? null,
+        confirmNameChange: confirmNameChange && customerNameChanges(parsedBase.rows).length > 0,
+      })
+      if (!result.ok) {
+        setBaseRefused(result.errors)
+        return
       }
-      const result = await importCustomerBaseRows(parsedBase.rows, { changedBy: user?.id ?? null, confirmNameChange: renamed.length > 0 })
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
         queryClient.invalidateQueries({ queryKey: ['customers-summary'] }),
@@ -275,16 +275,11 @@ export function Clientes() {
         result.blsLinked ? afterCargaAlterada(queryClient) : queryClient.invalidateQueries({ queryKey: ['bls'] }),
       ])
       const linkedMsg = result.blsLinked ? ` ${formatCountLabel(result.blsLinked, 'B/L vinculado', 'B/Ls vinculados')} automaticamente.` : ''
-      const failedMsg = result.errors?.length
-        ? ` ${result.errors.length} cliente(s) ficaram pendentes para correção.`
-        : ''
       showToast(
-        `Base importada: ${formatCountLabel(result.imported, 'novo', 'novos')}, ${formatCountLabel(result.updated, 'atualizado', 'atualizados')}, ${formatCountLabel(result.contactsCreated, 'contato', 'contatos')}.${linkedMsg}${failedMsg}`,
-        result.errors?.length ? 'info' : 'success',
+        `Base importada: ${formatCountLabel(result.imported, 'novo', 'novos')}, ${formatCountLabel(result.updated, 'atualizado', 'atualizados')}, ${formatCountLabel(result.contactsCreated, 'contato', 'contatos')}.${linkedMsg}`,
+        'success',
       )
-      // Com clientes pendentes, o modal fica aberto e lista quais e por quê.
-      if (result.errors?.length) setBaseOutcome({ ...result, errors: result.errors })
-      else resetImportModal()
+      resetImportModal()
     } catch (cause) {
       // O motivo fica no modal, junto da prévia, e não só num toast.
       setBaseWriteError(userFacingErrorMessage(cause, 'A gravação falhou. Tente de novo em instantes.'))
@@ -317,7 +312,7 @@ export function Clientes() {
     setBaseFile(null)
     setBaseReadError(null)
     setBaseWriteError(null)
-    setBaseOutcome(null)
+    setBaseRefused(null)
     setParsedBase(null)
     setParsingBase(false)
     setImportingBase(false)
@@ -584,13 +579,13 @@ export function Clientes() {
         baseFile={baseFile}
         readError={baseReadError}
         writeError={baseWriteError}
-        outcome={baseOutcome}
+        refused={baseRefused}
         parsedBase={parsedBase}
         parsingBase={parsingBase}
         importingBase={importingBase}
         onClose={() => { if (!importingBase) resetImportModal() }}
         onFileSelect={(file) => void handleBaseFile(file)}
-        onImport={() => void handleImportBase()}
+        onImport={(confirmNameChange) => void handleImportBase(confirmNameChange)}
       />
     </>
   )

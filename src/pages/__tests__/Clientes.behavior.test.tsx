@@ -140,7 +140,7 @@ describe('Clientes page behaviours', () => {
     mocks.createCustomer.mockResolvedValue({ cnpj_cpf: '12345678000195' })
     mocks.parseCustomerBaseFile.mockResolvedValue(parsedBase)
     mocks.compareCustomerBaseWithExisting.mockResolvedValue(parsedBase)
-    mocks.importCustomerBaseRows.mockResolvedValue({ imported: 1, updated: 0, contactsCreated: 1, blsLinked: 1 })
+    mocks.importCustomerBaseRows.mockResolvedValue({ ok: true, imported: 1, updated: 0, contactsCreated: 1, blsLinked: 1, errors: [] })
     mocks.checkCustomerDependencies.mockResolvedValue({ deletableIds: [42], blockedIds: [] })
     mocks.deleteCustomers.mockResolvedValue({ deletableIds: [42], blockedIds: [] })
     mocks.confirm.mockResolvedValue(true)
@@ -255,13 +255,13 @@ describe('Clientes page behaviours', () => {
     expect(await screen.findByText('Cliente Importado')).toBeTruthy()
     expect(mocks.parseCustomerBaseFile).toHaveBeenCalledWith(file)
     expect(mocks.compareCustomerBaseWithExisting).toHaveBeenCalledWith(parsedBase)
-    await user.click(within(screen.getByRole('dialog', { name: 'Importar base de clientes' })).getByRole('button', { name: 'Importar base' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Importar base de Clientes' })).getByRole('button', { name: 'Importar 1 Cliente' }))
 
     await waitFor(() => expect(mocks.importCustomerBaseRows).toHaveBeenCalledWith(parsedBase.rows, { changedBy: 'user-1', confirmNameChange: false }))
     for (const queryKey of [['customers'], ['customer-lookup'], ['bls']]) {
       expect(invalidateQueries).toHaveBeenCalledWith({ queryKey })
     }
-    expect(screen.queryByRole('dialog', { name: 'Importar base de clientes' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Importar base de Clientes' })).toBeNull()
 
     await user.click(screen.getByRole('button', { name: 'Importar base' }))
     expect(screen.queryByText('Arquivo selecionado: clientes.csv')).toBeNull()
@@ -276,12 +276,31 @@ describe('Clientes page behaviours', () => {
     await user.click(screen.getByRole('button', { name: 'Importar base' }))
     await user.upload(screen.getByLabelText('Arquivo (XLSX, XLS ou CSV)'), new File(['cnpj,nome'], 'clientes.csv', { type: 'text/csv' }))
     expect(await screen.findByText('Cliente Importado')).toBeTruthy()
-    const dialog = screen.getByRole('dialog', { name: 'Importar base de clientes' })
-    await user.click(within(dialog).getByRole('button', { name: 'Importar base' }))
+    const dialog = screen.getByRole('dialog', { name: 'Importar base de Clientes' })
+    await user.click(within(dialog).getByRole('button', { name: 'Importar 1 Cliente' }))
 
     expect(await within(dialog).findByText('Não foi possível gravar a base')).toBeTruthy()
     expect(within(dialog).getByText('Cliente Importado')).toBeTruthy()
     expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Falha'), 'error')
+  })
+
+  it('recusa do banco: nada gravado, o modal lista o Cliente recusado e nenhuma tela é invalidada', async () => {
+    const user = userEvent.setup()
+    mocks.importCustomerBaseRows.mockResolvedValue({
+      ok: false, imported: 0, updated: 0, contactsCreated: 0, blsLinked: 0,
+      errors: [{ cnpj_cpf: '98765432000110', message: 'E-mail inválido.' }],
+    })
+    const { invalidateQueries } = renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Importar base' }))
+    await user.upload(screen.getByLabelText('Arquivo (XLSX, XLS ou CSV)'), new File(['cnpj,nome'], 'clientes.csv', { type: 'text/csv' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Importar base de Clientes' })
+    await user.click(await within(dialog).findByRole('button', { name: 'Importar 1 Cliente' }))
+
+    expect(await within(dialog).findByText('Nada foi gravado: a base foi recusada')).toBeTruthy()
+    expect(within(dialog).getByText(/E-mail inválido\./)).toBeTruthy()
+    expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['customers'] })
+    expect(mocks.showToast).not.toHaveBeenCalledWith(expect.stringContaining('Base importada'), 'success')
   })
 
   it('deletes a selected customer after dependency checks and clears selection', async () => {

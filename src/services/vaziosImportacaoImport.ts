@@ -86,7 +86,7 @@ export async function parseVaziosImportacaoBuffer(buffer: ArrayBuffer): Promise<
 
     const containerNumber = String(mapped['container_number'] ?? '').trim().toUpperCase()
     if (!containerNumber) {
-      rowErrors.add(rowNumber, 'Container ausente — linha ignorada.', row)
+      rowErrors.add(rowNumber, 'Container ausente.', row)
       return
     }
     if (!IsoContainerSchema.safeParse(containerNumber).success) {
@@ -250,8 +250,6 @@ export type ImportVaziosImportacaoArgs = {
   /** Nº do manifesto Mercante por rota da planilha (chave `vaziosRouteKey`), obrigatório em todas. */
   manifestNumbers: Readonly<Record<string, string>>
   description?: string
-  /** Permite persistir as linhas válidas quando o preview tem erros de linha. */
-  allowRowErrors?: boolean
 }
 
 export async function importVaziosImportacaoManifest({
@@ -260,9 +258,9 @@ export async function importVaziosImportacaoManifest({
   voyageId,
   manifestNumbers,
   description,
-  allowRowErrors = false,
 }: ImportVaziosImportacaoArgs): Promise<{ manifestId: string; mercanteManifestIds: string[] }> {
-  if (manifest.rowErrors.length && !allowRowErrors) throw new Error(formatImportacaoRowErrors(manifest.rowErrors))
+  // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo inteiro.
+  if (manifest.rowErrors.length) throw new Error(formatImportacaoRowErrors(manifest.rowErrors))
   const { manifestos, error: numbersError } = resolveVaziosManifestNumbers(manifest, manifestNumbers)
   if (!manifestos) throw new Error(numbersError)
 
@@ -289,8 +287,8 @@ export async function importVaziosImportacaoManifest({
 function formatImportacaoRowErrors(rowErrors: readonly RowError[]): string {
   const shown = rowErrors.slice(0, 20).map((error) => `Linha ${error.row}: ${error.message}`)
   const hidden = rowErrors.length - shown.length
-  if (hidden > 0) shown.push(`... e mais ${hidden} linha${hidden === 1 ? '' : 's'} com divergências.`)
-  return shown.join('\n')
+  if (hidden > 0) shown.push(`... e mais ${hidden} linha${hidden === 1 ? '' : 's'} com erro.`)
+  return [`Nada foi gravado: ${rowErrors.length === 1 ? 'uma linha tem erro' : `${rowErrors.length} linhas têm erro`}.`, ...shown].join('\n')
 }
 
 export async function importVaziosFromBaplie({
@@ -301,7 +299,7 @@ export async function importVaziosFromBaplie({
   voyageId: number
   uploadedBy: string
   description?: string
-}): Promise<{ manifestId: string; total: number }> {
+}): Promise<{ manifestId: string | null; total: number }> {
   return persistVaziosFromBaplie({ voyageId, uploadedBy, description, replaceExisting: false })
 }
 
@@ -313,7 +311,7 @@ export async function replaceVaziosFromBaplie({
   voyageId: number
   uploadedBy: string
   description?: string
-}): Promise<{ manifestId: string; total: number }> {
+}): Promise<{ manifestId: string | null; total: number }> {
   return persistVaziosFromBaplie({ voyageId, uploadedBy, description, replaceExisting: true })
 }
 
@@ -327,7 +325,7 @@ async function persistVaziosFromBaplie({
   uploadedBy: string
   description?: string
   replaceExisting: boolean
-}): Promise<{ manifestId: string; total: number }> {
+}): Promise<{ manifestId: string | null; total: number }> {
   const { data, error } = await supabase.rpc('replace_vazios_from_baplie_transactional', {
     p_voyage_id: voyageId,
     p_description: description ?? null,
@@ -335,7 +333,9 @@ async function persistVaziosFromBaplie({
     p_replace_existing: replaceExisting,
   })
   if (error) throw error
-  const result = data as { manifest_id: string; total: number }
+  // Recadastro com o Baplie sem vazios (migration 336): os vazios do Baplie
+  // anterior saem e não há manifesto novo (`manifest_id` nulo, total 0).
+  const result = data as { manifest_id: string | null; total: number }
   return { manifestId: result.manifest_id, total: result.total }
 }
 

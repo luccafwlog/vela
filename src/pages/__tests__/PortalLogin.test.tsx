@@ -73,7 +73,7 @@ it('mostra erro de conexao quando o login falha por rede', async () => {
 
   await user.type(await screen.findByPlaceholderText('00.000.000/0000-00'), '12.345.678/0001-95')
   await user.type(screen.getByLabelText('Senha'), 'senha-secreta')
-  await user.click(screen.getByRole('button', { name: 'Entrar no portal' }))
+  await user.click(screen.getByRole('button', { name: 'Entrar no Portal' }))
 
   await waitFor(() => {
     expect(screen.getByText('Não foi possível conectar. Verifique sua internet e tente novamente.')).toBeTruthy()
@@ -92,7 +92,7 @@ it('CNPJ incompleto para no cliente, com mensagem propria, sem tentar autenticar
 
   await user.type(await screen.findByPlaceholderText('00.000.000/0000-00'), '12.345.678')
   await user.type(screen.getByLabelText('Senha'), 'senha-secreta')
-  await user.click(screen.getByRole('button', { name: 'Entrar no portal' }))
+  await user.click(screen.getByRole('button', { name: 'Entrar no Portal' }))
 
   await waitFor(() => expect(screen.getByText(INCOMPLETE_CNPJ_MESSAGE)).toBeTruthy())
   expect(auth.signIn).not.toHaveBeenCalled()
@@ -110,7 +110,7 @@ it('senha errada em CNPJ completo mantem a mensagem generica de credenciais', as
 
   await user.type(await screen.findByPlaceholderText('00.000.000/0000-00'), '12.345.678/0001-95')
   await user.type(screen.getByLabelText('Senha'), 'senha-errada')
-  await user.click(screen.getByRole('button', { name: 'Entrar no portal' }))
+  await user.click(screen.getByRole('button', { name: 'Entrar no Portal' }))
 
   await waitFor(() => expect(screen.getByText(PORTAL_LOGIN_REJECTED_MESSAGE)).toBeTruthy())
 })
