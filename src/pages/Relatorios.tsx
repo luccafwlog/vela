@@ -37,6 +37,7 @@ import {
   fetchFinancialReport,
   fetchOperationalReport,
   isReportComplete,
+  reportReviewLabel,
   type ReportLoad,
   type ReportScope,
 } from '../services/reports'
@@ -46,6 +47,7 @@ import {
   customerNameFromSearch,
   demurrageFiltersFromSearch,
   financialFiltersFromSearch,
+  hasDateParam,
   operationalFiltersFromSearch,
   reportViewFromSearch,
   withReportParam,
@@ -216,7 +218,7 @@ function useScopeHandlers({ params, setParams }: ViewProps, keepEmptyDates = fal
       if (keepEmptyDates) {
         const current = demurrageFiltersFromSearch(params)
         const other = key === 'de' ? 'ate' : 'de'
-        if (!params.has(other)) next = withReportParam(next, other, other === 'de' ? current.dateFrom : current.dateTo, true)
+        if (!hasDateParam(params, other)) next = withReportParam(next, other, other === 'de' ? current.dateFrom : current.dateTo, true)
       }
       setParams(next)
     },
@@ -232,17 +234,22 @@ function ActiveFiltersNote({ lines }: { lines: ReportFilterLine[] }) {
   return <p className="mb-4 text-xs text-[var(--app-muted)]">{describeActiveFilters(toOperationalFilters(lines))}</p>
 }
 
+type LoadSource = { load: ReportLoad | undefined; noun: string }
+
 /**
- * Aviso de limite (achado R2): a tela parou no teto declarado. Diz quantas
- * linhas faltam e que a planilha traz todas.
+ * Aviso de limite (achado R2): uma fonte parou no teto declarado. Diz, por
+ * fonte (B/Ls, faturas, Invoices), quantas foram lidas e quantas faltam, e
+ * que a planilha traz todas. "Lidas", não "mostradas": um filtro aplicado no
+ * navegador (Saldo em aberto) mostra menos linhas do que as lidas.
  */
-function LoadNotice({ load }: { load: ReportLoad | undefined }) {
-  if (!load || isReportComplete(load)) return null
-  const missing = load.total - load.loaded
+function LoadNotice({ sources, note }: { sources: LoadSource[]; note?: string }) {
+  const partial = sources.flatMap(({ load, noun }) => (load && !isReportComplete(load) ? [{ load, noun }] : []))
+  if (partial.length === 0) return null
+  const n = (value: number) => value.toLocaleString('pt-BR')
   return (
     <p className="app-bl-notice app-bl-notice--warning mb-4" role="status">
-      A tela mostra {load.loaded.toLocaleString('pt-BR')} de {load.total.toLocaleString('pt-BR')} linhas; faltam{' '}
-      {missing.toLocaleString('pt-BR')}. Os cartões contam só as linhas mostradas. A planilha traz todas.
+      {partial.map(({ load, noun }) => `A tela leu ${n(load.loaded)} de ${n(load.total)} ${noun}; faltam ${n(load.total - load.loaded)}.`).join(' ')}
+      {' '}Cartões e tabela usam só o que foi lido{note ? `; ${note}` : ''}. A planilha traz todas.
     </p>
   )
 }
@@ -330,9 +337,10 @@ function ReportTable({ title, aside, columns, minWidth, caption, isLoading, erro
 
 // ---------- Operacional ----------
 
+/** Mesmo rótulo da planilha e do filtro Revisão (`reportReviewLabel`): vazio é "Em ordem". */
 function reviewText(status: string | null) {
-  if (!status) return <NoValue label="Sem revisão" />
-  return status === 'pending_review' ? <StatusText tone="warning">Pendente</StatusText> : <StatusText>Em ordem</StatusText>
+  const label = reportReviewLabel(status)
+  return status === 'pending_review' ? <StatusText tone="warning">{label}</StatusText> : <StatusText>{label}</StatusText>
 }
 
 const REVIEW_FILTER_LABELS: Record<string, string> = { pendente: 'Pendente', 'em-ordem': 'Em ordem' }
@@ -441,7 +449,7 @@ function OperationalReportView(props: ViewProps) {
         <MetricCard label="CBM" value={decimal(data?.kpis.totalCbm ?? 0, 1)} />
       </div>
 
-      <LoadNotice load={data?.load} />
+      <LoadNotice sources={[{ load: data?.load, noun: 'B/Ls' }]} />
 
       <ReportTable
         title="B/Ls"
@@ -483,7 +491,8 @@ function OperationalReportView(props: ViewProps) {
 const FINANCIAL_STATUS_FILTER_OPTIONS = ['draft', 'issued', 'partially_paid', 'paid', 'cancelled'] as const
 
 function invoiceStatusTone(status: string | null): StatusTextTone {
-  if (status === 'paid') return 'paid'
+  // Coberta é Paga no Faturamento: quitada pela consolidada.
+  if (status === 'paid' || status === 'covered') return 'paid'
   if (status === 'cancelled' || status === 'obsolete') return 'muted'
   return 'default'
 }
@@ -584,7 +593,10 @@ function FinancialReportView(props: ViewProps) {
             <MetricCard label="Canceladas" value={(data?.kpis.totalCanceled ?? 0).toLocaleString('pt-BR')} />
           </div>
 
-          <LoadNotice load={data?.load} />
+          <LoadNotice
+            sources={[{ load: data?.load, noun: 'faturas' }]}
+            note={filters.balance ? 'o filtro de Saldo em aberto vale só sobre as faturas lidas' : undefined}
+          />
 
           <ReportTable
             title="Faturas"
@@ -671,7 +683,7 @@ function CustomerReportView(props: ViewProps) {
         <MetricCard label="Top por faturamento" value={data?.kpis.topByInvoiced ?? <NoValue label="Sem fatura no período" />} />
       </div>
 
-      <LoadNotice load={data?.load} />
+      <LoadNotice sources={[{ load: data?.load.bls, noun: 'B/Ls' }, { load: data?.load.invoices, noun: 'faturas' }]} />
 
       <ReportTable
         title="Clientes"
@@ -793,7 +805,7 @@ function DemurrageReportView(props: ViewProps) {
         <MetricCard label="Recebido (R$)" value={formatBRL(data?.kpis.paidBrl ?? 0)} />
       </div>
 
-      <LoadNotice load={data?.load} />
+      <LoadNotice sources={[{ load: data?.load, noun: 'Invoices' }]} />
 
       <ReportTable
         title="Invoices de Demurrage"

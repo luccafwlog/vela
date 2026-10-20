@@ -28,7 +28,17 @@ export type PagedRows<T> = { rows: T[]; load: ReportLoad }
  * Lê `fetchPage(from, to)` até o fim do recorte ou até `ceiling`. Avança pelo
  * que chegou, não pelo que pediu: um servidor com `max_rows` menor que a
  * página não pula linhas. A primeira página deve pedir `count: 'exact'`
- * (`reportSelectOptions`), que diz quando parar e quantas linhas faltam.
+ * (`reportSelectOptions`), que diz quantas linhas faltam quando a leitura
+ * para no teto.
+ *
+ * Fim do recorte é a página vazia, ou a curta que já alcançou a contagem: uma
+ * linha criada no meio da leitura empurra as outras uma posição, e parar só
+ * pela contagem da primeira página perderia a última. A mesma troca repete na
+ * página seguinte a linha da fronteira, descartada pelo `id`. Terminando antes
+ * do teto, o total é o que foi lido: não há "faltam N" de uma contagem velha.
+ * ponytail: paginação por deslocamento. Linha apagada no meio da leitura
+ * ainda pode fazer outra pular de página. Upgrade: paginar pela chave
+ * (`created_at`, `id`) em vez do deslocamento.
  */
 export async function fetchAllPages<T>(
   fetchPage: (from: number, to: number) => PromiseLike<PageResponse<T>>,
@@ -37,22 +47,35 @@ export async function fetchAllPages<T>(
   const pageSize = options.pageSize ?? REPORT_PAGE_SIZE
   const ceiling = options.ceiling ?? Number.POSITIVE_INFINITY
   const rows: T[] = []
-  let total: number | null = null
+  const seenIds = new Set<unknown>()
+  let offset = 0
+  let count: number | null = null
 
-  while (rows.length < ceiling) {
-    const from = rows.length
+  while (offset < ceiling) {
+    const from = offset
     const to = Math.min(from + pageSize, ceiling) - 1
-    const { data, error, count } = await fetchPage(from, to)
+    const { data, error, count: pageCount } = await fetchPage(from, to)
     if (error) throw error
-    if (total === null && typeof count === 'number') total = count
+    if (count === null && typeof pageCount === 'number') count = pageCount
     const page = data ?? []
-    rows.push(...page)
+    offset += page.length
+    for (const row of page) {
+      const id = (row as { id?: unknown } | null)?.id
+      if (id != null) {
+        if (seenIds.has(id)) continue
+        seenIds.add(id)
+      }
+      rows.push(row)
+    }
     if (page.length === 0) break
-    if (total !== null ? rows.length >= total : page.length < to - from + 1) break
+    const shortPage = page.length < to - from + 1
+    if (shortPage && (count === null || offset >= count)) break
   }
 
   const loaded = rows.length
-  return { rows, load: { loaded, total: Math.max(total ?? loaded, loaded) } }
+  // Parou no teto: a contagem diz quantas faltam. Antes dele, leu o recorte inteiro.
+  const total = offset >= ceiling ? Math.max(count ?? loaded, loaded) : loaded
+  return { rows, load: { loaded, total } }
 }
 
 /** `count: 'exact'` só na primeira página: as demais não precisam recontar. */
@@ -178,6 +201,16 @@ const OPERATIONAL_SELECT = `
 
 const LOCKED_FINANCIAL_STATUSES = '(invoiced,partially_paid,paid)'
 
+/**
+ * Revisão do B/L no relatório (tela e planilha) e no filtro: só
+ * `pending_review` é Pendente. `review_status` vazio é o B/L sem pendência
+ * gravada (a coluna nasce `ok`), como em todas as outras telas que perguntam
+ * por `pending_review`; por isso conta e aparece como "Em ordem".
+ */
+export function reportReviewLabel(status: string | null | undefined) {
+  return status === 'pending_review' ? 'Pendente' : 'Em ordem'
+}
+
 export async function fetchOperationalReport(filters: OperationalReportFilters, options: ReportOptions = {}): Promise<OperationalReportResult> {
   const ceiling = options.ceiling ?? REPORT_SCREEN_CEILING
   const { rows, load } = await fetchAllPages<OperationalReportRow>((from, to) => {
@@ -271,9 +304,22 @@ export type InvoiceTotals = { invoiceCount: number; issued: number; open: number
 const isOpenStatus = (status: string | null) => status === 'issued' || status === 'partially_paid'
 
 /**
+ * Situações que o Faturamento agrupa como Paga: a individual `covered` foi
+ * quitada pela consolidada que a cobre (docs/modules/faturamento.md).
+ */
+export const PAID_INVOICE_STATUSES = ['paid', 'covered'] as const
+
+export function countsAsPaidInvoice(status: string | null) {
+  return (PAID_INVOICE_STATUSES as readonly (string | null)[]).includes(status)
+}
+
+/**
  * Totais das faturas que contam (`countsAsIssuedInvoice`), por Cliente e no
  * todo. Emitido e Pago somam o recebível uma vez por Cliente; Em aberto soma o
  * saldo dos recebíveis ativos e abertos, ou o saldo da fatura sem recebível.
+ * Pago inclui a individual coberta: ela e a consolidada paga que a cobre
+ * apontam o mesmo recebível, que entra uma vez só. Sem recebível (granito,
+ * avulsa), Pago usa o total da fatura, como o Emitido.
  */
 export function summarizeIssuedInvoices(invoices: InvoiceForTotals[], links: ReceivableLinkRow[]) {
   const ledger = summarizeReceivableBalances(links)
@@ -293,7 +339,7 @@ export function summarizeIssuedInvoices(invoices: InvoiceForTotals[], links: Rec
     if (invoiceLinks.length === 0) {
       const total = Number(invoice.total_brl ?? 0)
       totals.issued += total
-      if (invoice.status === 'paid') totals.paid += total
+      if (countsAsPaidInvoice(invoice.status)) totals.paid += total
       if (isOpenStatus(invoice.status)) totals.open += Number(invoice.balance_brl ?? 0)
       continue
     }
@@ -307,7 +353,7 @@ export function summarizeIssuedInvoices(invoices: InvoiceForTotals[], links: Rec
         seenIssued.add(key)
         totals.issued += original
       }
-      if (invoice.status === 'paid' && !seenPaid.has(key)) {
+      if (countsAsPaidInvoice(invoice.status) && !seenPaid.has(key)) {
         seenPaid.add(key)
         totals.paid += original
       }
@@ -373,6 +419,7 @@ export type FinancialReportResult = {
     totalOpen: number
     totalCanceled: number
   }
+  /** Faturas lidas do banco, antes do filtro de Saldo (aplicado no navegador). */
   load: ReportLoad
   accessDenied: boolean
 }
@@ -424,6 +471,8 @@ export async function fetchFinancialReport(filters: FinancialReportFilters, opti
       if (customerId) query = query.eq('customer_id', customerId)
       // Cancelada inclui a consolidada obsoleta, como nos filtros do Faturamento.
       if (filters.status === 'cancelled') query = query.in('status', [...CANCELLED_INVOICE_STATUSES])
+      // Paga inclui a individual coberta pela consolidada, como no Faturamento.
+      else if (filters.status === 'paid') query = query.in('status', [...PAID_INVOICE_STATUSES])
       else if (filters.status) query = query.eq('status', filters.status)
       if (filters.consolidated === 'sim') query = query.eq('invoice_type', 'consolidated')
       else if (filters.consolidated === 'nao') query = query.neq('invoice_type', 'consolidated')
@@ -484,8 +533,8 @@ export type CustomerReportResult = {
     topByInvoiced: string | null
     totalIssued: number
   }
-  /** B/Ls e faturas: a tela fica parcial se qualquer uma das duas parou no teto. */
-  load: ReportLoad
+  /** Cada fonte com o próprio teto: o aviso diz qual delas parou (B/Ls ou faturas). */
+  load: { bls: ReportLoad; invoices: ReportLoad }
   invoicesAccessDenied: boolean
 }
 
@@ -611,10 +660,7 @@ export async function fetchCustomerReport(filters: CustomerReportFilters, option
       topByInvoiced: topByInvoiced && topByInvoiced.totalIssued > 0 ? topByInvoiced.name : null,
       totalIssued: rows.reduce((sum, row) => sum + row.totalIssued, 0),
     },
-    load: {
-      loaded: bls.load.loaded + invoices.load.loaded,
-      total: bls.load.total + invoices.load.total,
-    },
+    load: { bls: bls.load, invoices: invoices.load },
     invoicesAccessDenied,
   }
 }
@@ -690,6 +736,7 @@ type ReceivableShape = {
 }
 
 export type ReceivableLinkRow = {
+  id?: number
   invoice_id: number
   receivable_id: number
   status: string | null
@@ -717,7 +764,8 @@ async function fetchReceivableLinksByInvoiceIds(invoiceIds: number[]) {
       const batch = uniqueIds.slice(start, start + LINK_ID_BATCH)
       const { rows } = await fetchAllPages<ReceivableLinkRow>((from, to) => supabase
         .from('invoice_receivable_links')
-        .select('invoice_id, receivable_id, status, receivable:bl_receivables(id, original_amount_brl, balance_brl, status)', reportSelectOptions(from))
+        // `id` deixa `fetchAllPages` descartar a ligação repetida na fronteira da página.
+        .select('id, invoice_id, receivable_id, status, receivable:bl_receivables(id, original_amount_brl, balance_brl, status)', reportSelectOptions(from))
         .in('invoice_id', batch)
         .order('id', { ascending: true })
         .range(from, to)

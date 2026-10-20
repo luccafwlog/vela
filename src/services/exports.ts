@@ -3,14 +3,16 @@ import { containerOwnershipLabel } from '../lib/containerOwnership'
 import type { BLListItem, ContainerListItem, CustomerListItem, VehicleListItem, VaziosImportacaoContainerListItem } from '../types/database'
 import type { BaplieContainer } from '../types/database'
 import type { LocalChargeOperationalRow } from './charges/chargeOperationsService'
-import type {
-  CustomerReportRow,
-  FinancialReportRow,
-  OperationalReportRow,
+import {
+  reportReviewLabel,
+  type CustomerReportRow,
+  type FinancialReportRow,
+  type OperationalReportRow,
 } from './reports'
+import { REPORT_LOCAL_CHARGES_STATE_LABELS, reportLocalChargesState } from '../lib/chargeStatus'
 import { getInvoiceBls, getInvoicePaymentDate, invoiceTypeLabel, type InvoiceListRow } from './billing'
 import { invoiceStatusLabel } from '../pages/faturamentoInvoiceStatus'
-import { DEMURRAGE_INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
+import { DEMURRAGE_INVOICE_STATUS_LABELS, INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
 import type { DemurrageInvoiceListItem } from './demurrage/demurrageInvoices'
 import { formatDate } from '../lib/utils'
 import { arrivalDisplay } from '../lib/escalaState'
@@ -231,6 +233,7 @@ function appendFiltersSheet(XLSX: typeof import('@e965/xlsx'), workbook: import(
   XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, rows), 'Filtros')
 }
 
+/** Colunas da planilha do relatório com os mesmos rótulos e datas da tela, sem código cru. */
 export async function exportOperationalReportWorkbook(rows: OperationalReportRow[], filters: ReportFilterLine[] = []) {
   const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
@@ -246,9 +249,9 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
     Containers: (row.bl_containers ?? []).length,
     PesoKg: blTotalWeightKg(row),
     CBM: blTotalCbm(row),
-    Revisao: row.review_status ?? '',
-    Financeiro: row.financial_status ?? '',
-    CriadoEm: row.created_at ?? '',
+    Revisão: reportReviewLabel(row.review_status),
+    'Taxas locais': REPORT_LOCAL_CHARGES_STATE_LABELS[reportLocalChargesState(row.charge_status, row.financial_status, row.cancelled_at)],
+    'Criação do B/L': row.created_at ? formatDate(row.created_at) : '',
   }))
 
   const workbook = XLSX.utils.book_new()
@@ -263,10 +266,10 @@ export async function exportFinancialReportWorkbook(rows: FinancialReportRow[], 
     Invoice: row.invoice_number ?? `INV-${row.id}`,
     Cliente: row.customer?.name ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
-    Emissao: row.issued_at ?? '',
+    Emissão: row.issued_at ? formatDate(row.issued_at) : '',
     TotalBRL: Number(row.total_brl ?? 0),
     SaldoBRL: Number(row.balance_brl ?? 0),
-    Status: row.status ?? '',
+    Situação: statusLabel(INVOICE_STATUS_LABELS, row.status, ''),
   }))
 
   const workbook = XLSX.utils.book_new()

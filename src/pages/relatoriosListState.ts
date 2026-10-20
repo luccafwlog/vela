@@ -64,25 +64,50 @@ function oneOf<T extends string>(value: string | null, allowed: readonly T[]): T
   return allowed.includes(value as T) ? (value as T) : ''
 }
 
+// O endereço é digitável e compartilhável: valor fora do formato sai do
+// filtro em vez de chegar ao banco (`?de=2026-02-30` era erro do Postgres) ou
+// aparecer em "Filtros ativos" e na aba Filtros da planilha sem ter sido aplicado.
+
+/** Data real no calendário, em `AAAA-MM-DD`; qualquer outra coisa vira vazio. */
+export function calendarDateParam(value: string | null): string {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return ''
+  const [, year, month, day] = match.map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? value! : ''
+}
+
+/** Id de Navio / Viagem ou Cliente: inteiro positivo, sem sinal, zero à esquerda ou expoente. */
+export function positiveIdParam(value: string | null): string {
+  return value && /^[1-9]\d{0,14}$/.test(value) ? value : ''
+}
+
+// ponytail: só a forma do código de porto (letras e dígitos, como BRVIX); um
+// código bem formado que não existe filtra para zero linhas. Upgrade: validar
+// contra `usePortOptions`, que só carrega depois da leitura do endereço.
+function portParam(value: string | null): string {
+  return value && /^[A-Za-z0-9]{2,12}$/.test(value) ? value : ''
+}
+
 function scopeFromSearch(params: URLSearchParams): ReportScope {
   return {
-    dateFrom: params.get('de') ?? '',
-    dateTo: params.get('ate') ?? '',
-    voyageId: params.get('viagem') ?? '',
-    customerId: params.get('cliente') ?? '',
+    dateFrom: calendarDateParam(params.get('de')),
+    dateTo: calendarDateParam(params.get('ate')),
+    voyageId: positiveIdParam(params.get('viagem')),
+    customerId: positiveIdParam(params.get('cliente')),
   }
 }
 
-/** Nome do Cliente escolhido, para reabrir o campo preenchido. */
+/** Nome do Cliente escolhido, para reabrir o campo preenchido; sem Cliente válido, nenhum. */
 export function customerNameFromSearch(params: URLSearchParams) {
-  return params.get('clienteNome') ?? ''
+  return positiveIdParam(params.get('cliente')) ? params.get('clienteNome') ?? '' : ''
 }
 
 export function operationalFiltersFromSearch(params: URLSearchParams): OperationalReportFilters {
   return {
     ...scopeFromSearch(params),
-    pol: params.get('pol') ?? '',
-    pod: params.get('pod') ?? '',
+    pol: portParam(params.get('pol')),
+    pod: portParam(params.get('pod')),
     cargoMode: oneOf(params.get('modalidade'), ['container', 'carga_solta', 'misto'] as const),
     review: oneOf<Exclude<ReviewFilter, ''>>(params.get('revisao'), ['pendente', 'em-ordem']),
     localCharges: oneOf<Exclude<LocalChargesFilter, ''>>(params.get('taxas'), ['pendente', 'emitida', 'paga', 'isenta']),
@@ -102,13 +127,19 @@ export function customerFiltersFromSearch(params: URLSearchParams): CustomerRepo
   return scopeFromSearch(params)
 }
 
+/** Data escolhida no endereço: válida, ou apagada (vazia). Data inválida conta como não escolhida. */
+export function hasDateParam(params: URLSearchParams, key: 'de' | 'ate') {
+  const value = params.get(key)
+  return value === '' || Boolean(calendarDateParam(value))
+}
+
 /**
  * Demurrage abre no ano corrente (calendário de Brasília) enquanto nenhuma
  * data foi escolhida; datas apagadas ficam no endereço vazias e valem "sem limite".
  */
 export function demurrageFiltersFromSearch(params: URLSearchParams, now = new Date()): DemurrageReportFilters {
   const scope = scopeFromSearch(params)
-  const period = params.has('de') || params.has('ate')
+  const period = hasDateParam(params, 'de') || hasDateParam(params, 'ate')
     ? { dateFrom: scope.dateFrom, dateTo: scope.dateTo }
     : defaultDemurragePeriod(now)
   return {

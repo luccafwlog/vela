@@ -144,7 +144,59 @@ it('R2: aviso âmbar diz quantas linhas faltam e que a planilha traz todas', () 
   queryState['report-operational'] = { data: { ...operationalData(), load: { loaded: 10000, total: 12500 } } }
   renderPage()
 
-  expect(screen.getByText(/A tela mostra 10\.000 de 12\.500 linhas; faltam 2\.500\..*A planilha traz todas\./)).toBeTruthy()
+  expect(screen.getByText(/A tela leu 10\.000 de 12\.500 B\/Ls; faltam 2\.500\..*A planilha traz todas\./)).toBeTruthy()
+})
+
+it('achado 4: Por Cliente avisa por fonte, sem somar B/Ls e faturas', () => {
+  queryState['report-customers'] = {
+    data: {
+      invoicesAccessDenied: false,
+      load: { bls: { loaded: 10000, total: 10400 }, invoices: { loaded: 300, total: 300 } },
+      kpis: { customersWithInvoices: 0, topByBls: null, topByInvoiced: null, totalIssued: 0 },
+      rows: [],
+    },
+  }
+  renderPage('/relatorios?visao=por-cliente')
+
+  const notice = screen.getByText(/A tela leu/)
+  expect(notice.textContent).toContain('A tela leu 10.000 de 10.400 B/Ls; faltam 400.')
+  expect(notice.textContent).not.toContain('faturas;')
+  expect(notice.textContent).not.toContain('10.300')
+})
+
+it('achado 4: Financeiro com Saldo diz que a contagem é das faturas lidas', () => {
+  queryState['report-financial'] = {
+    data: {
+      accessDenied: false,
+      load: { loaded: 10000, total: 11000 },
+      kpis: { totalInvoices: 1, totalIssued: 10, totalPaid: 0, totalOpen: 10, totalCanceled: 0 },
+      rows: [{ id: 1, invoice_number: 'F-1', status: 'issued', total_brl: 10, balance_brl: 10, issued_at: '2026-05-02', customer: { name: 'C' } }],
+    },
+  }
+  renderPage('/relatorios?visao=financeiro&saldo=aberto')
+
+  const notice = screen.getByText(/A tela leu/)
+  expect(notice.textContent).toContain('A tela leu 10.000 de 11.000 faturas; faltam 1.000.')
+  expect(notice.textContent).toContain('o filtro de Saldo em aberto vale só sobre as faturas lidas')
+  expect(notice.textContent).not.toMatch(/mostra/)
+})
+
+it('achado 5: Navio / Viagem e Cliente inválidos no endereço não aparecem como filtro ativo', () => {
+  renderPage('/relatorios?viagem=abc&cliente=-1&clienteNome=ACME&de=2026-02-30')
+
+  expect(screen.getByText('Sem filtros ativos')).toBeTruthy()
+  expect((screen.getByLabelText('Cliente') as HTMLInputElement).value).toBe('')
+  expect((screen.getByLabelText('Criação do B/L de') as HTMLInputElement).value).toBe('')
+})
+
+it('achado 3: B/L sem review_status aparece "Em ordem", como no filtro', () => {
+  const data = operationalData()
+  queryState['report-operational'] = { data: { ...data, rows: [{ ...data.rows[0], review_status: null }, data.rows[1]] } }
+  renderPage()
+
+  const [first] = within(screen.getByRole('table')).getAllByRole('row').slice(1)
+  expect(within(first).getByText('Em ordem')).toBeTruthy()
+  expect(screen.queryByText('Sem revisão')).toBeNull()
 })
 
 it('item 8: erro de consulta não aparece junto com "nenhum dado"', () => {
@@ -164,6 +216,7 @@ it('Financeiro: fatura abre o registro, saldo âmbar só acima de zero e sem "IN
       rows: [
         { id: 11, invoice_number: 'FAT-2026-0011', status: 'issued', total_brl: 200, balance_brl: 200, issued_at: '2026-05-02', customer: { name: 'Cliente Fin' } },
         { id: 12, invoice_number: 'FAT-2026-0012', status: 'paid', total_brl: 100, balance_brl: 0, issued_at: '2026-05-03', customer: { name: 'Cliente Fin' } },
+        { id: 13, invoice_number: 'FAT-2026-0013', status: 'covered', total_brl: 100, balance_brl: 0, issued_at: '2026-05-03', customer: { name: 'Cliente Fin' } },
       ],
     },
   }
@@ -174,6 +227,8 @@ it('Financeiro: fatura abre o registro, saldo âmbar só acima de zero e sem "IN
   expect(rows[0].querySelector('.app-status-text--warning')?.textContent).toContain('200,00')
   expect(rows[1].querySelector('.app-status-text--warning')).toBeNull()
   expect(within(rows[1]).getByText('Paga')).toBeTruthy()
+  // Coberta é Paga no Faturamento: mesmo tom com ✓.
+  expect(within(rows[2]).getByText('Coberta').className).toBe(within(rows[1]).getByText('Paga').className)
   expect(screen.queryByText(/INV-/)).toBeNull()
 })
 

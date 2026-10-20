@@ -9,6 +9,7 @@ import {
   fetchDemurrageReport,
   fetchFinancialReport,
   fetchOperationalReport,
+  reportReviewLabel,
 } from '../reports'
 
 const { mockFrom } = vi.hoisted(() => ({
@@ -54,16 +55,17 @@ function createBuilder(rows: unknown[], options: { error?: unknown; maxRows?: nu
   return builder as { calls: Call[] } & Record<string, unknown>
 }
 
-function installReportMocks(input: { bls?: unknown[]; invoices?: unknown[]; links?: unknown[]; demurrage?: unknown[] }) {
+function installReportMocks(input: { bls?: unknown[]; invoices?: unknown[]; links?: unknown[]; invoiceBls?: unknown[]; demurrage?: unknown[] }) {
   const builders: Record<string, Array<ReturnType<typeof createBuilder>>> = {}
   mockFrom.mockImplementation((table: string) => {
     const rows = {
       bls: input.bls,
       invoices: input.invoices,
       invoice_receivable_links: input.links,
+      invoice_bls: input.invoiceBls,
       demurrage_invoices: input.demurrage,
     }[table]
-    if (!rows && !['bls', 'invoices', 'invoice_receivable_links', 'demurrage_invoices'].includes(table)) {
+    if (!rows && !['bls', 'invoices', 'invoice_receivable_links', 'invoice_bls', 'demurrage_invoices'].includes(table)) {
       throw new Error(`Tabela nao mockada: ${table}`)
     }
     const builder = createBuilder(rows ?? [])
@@ -321,5 +323,192 @@ describe('recorte de periodo em horario de Brasilia (R4)', () => {
     await fetchDemurrageReport({ ...NO_SCOPE, status: '', dispute: '', overdue: 'sim' }, { today: '2026-10-19' })
     expect(callsOf(builders.demurrage_invoices[0], 'lt')).toEqual([['due_date', '2026-10-19']])
     expect(callsOf(builders.demurrage_invoices[0], 'in')).toEqual([['status', ['issued', 'overdue']]])
+  })
+})
+
+// Achado 1: "Coberta" é Paga no Faturamento (paid|covered → Paga).
+describe('fatura coberta conta como paga', () => {
+  beforeEach(() => {
+    mockFrom.mockReset()
+  })
+
+  it('Pago inclui a individual coberta, sem somar duas vezes com a consolidada paga que a cobre', async () => {
+    installReportMocks({
+      invoices: [
+        { id: 1, invoice_number: 'INV-1', invoice_type: 'individual', status: 'covered', total_brl: 100, balance_brl: 0, issued_at: '2026-05-20', created_at: null, customer_id: 10, customer: customerAlfa },
+        { id: 2, invoice_number: 'INV-2', invoice_type: 'consolidated', status: 'paid', total_brl: 100, balance_brl: 0, issued_at: '2026-05-21', created_at: null, customer_id: 10, customer: customerAlfa },
+      ],
+      links: [
+        { id: 1, invoice_id: 1, receivable_id: 99, status: 'settled_elsewhere', receivable: { id: 99, original_amount_brl: 100, balance_brl: 0, status: 'settled' } },
+        { id: 2, invoice_id: 2, receivable_id: 99, status: 'active', receivable: { id: 99, original_amount_brl: 100, balance_brl: 0, status: 'settled' } },
+      ],
+    })
+
+    const result = await fetchFinancialReport(FINANCIAL)
+
+    expect(result.kpis.totalIssued).toBe(100)
+    expect(result.kpis.totalPaid).toBe(100)
+    expect(result.kpis.totalOpen).toBe(0)
+  })
+
+  it('so a coberta no recorte: entra no Emitido e no Pago, nao fica fora dos dois', async () => {
+    installReportMocks({
+      invoices: [
+        { id: 1, invoice_number: 'INV-1', invoice_type: 'individual', status: 'covered', total_brl: 100, balance_brl: 0, issued_at: '2026-05-20', created_at: null, customer_id: 10, customer: customerAlfa },
+      ],
+      links: [
+        { id: 1, invoice_id: 1, receivable_id: 99, status: 'settled_elsewhere', receivable: { id: 99, original_amount_brl: 100, balance_brl: 0, status: 'settled' } },
+      ],
+    })
+
+    const result = await fetchFinancialReport(FINANCIAL)
+
+    expect(result.kpis.totalIssued).toBe(100)
+    expect(result.kpis.totalPaid).toBe(100)
+  })
+
+  it('Situacao "Paga" pede paid e covered ao banco; "Cancelada" pede cancelled e obsolete', async () => {
+    let builders = installReportMocks({})
+    await fetchFinancialReport({ ...FINANCIAL, status: 'paid' })
+    expect(callsOf(builders.invoices[0], 'in')).toEqual([['status', ['paid', 'covered']]])
+    expect(callsOf(builders.invoices[0], 'eq')).toEqual([])
+
+    builders = installReportMocks({})
+    await fetchFinancialReport({ ...FINANCIAL, status: 'cancelled' })
+    expect(callsOf(builders.invoices[0], 'in')).toEqual([['status', ['cancelled', 'obsolete']]])
+  })
+
+  it('Cancelada lista as obsoletas e as conta em Canceladas, fora de Emitido', async () => {
+    installReportMocks({
+      invoices: [
+        { id: 1, invoice_number: 'F-1', invoice_type: 'manual', status: 'cancelled', total_brl: 50, balance_brl: 0, issued_at: '2026-05-02', created_at: null, customer_id: 10, customer: customerAlfa },
+        { id: 2, invoice_number: 'F-2', invoice_type: 'manual', status: 'obsolete', total_brl: 70, balance_brl: 70, issued_at: '2026-05-03', created_at: null, customer_id: 10, customer: customerAlfa },
+      ],
+    })
+    const result = await fetchFinancialReport({ ...FINANCIAL, status: 'cancelled' })
+    expect(result.rows.map((row) => row.status)).toEqual(['cancelled', 'obsolete'])
+    expect(result.kpis.totalCanceled).toBe(2)
+    expect(result.kpis.totalIssued).toBe(0)
+  })
+})
+
+describe('Cliente e Navio / Viagem no Financeiro', () => {
+  beforeEach(() => {
+    mockFrom.mockReset()
+  })
+
+  it('Cliente filtra por customer_id no banco', async () => {
+    const builders = installReportMocks({})
+    await fetchFinancialReport({ ...FINANCIAL, customerId: '10' })
+    expect(callsOf(builders.invoices[0], 'eq')).toEqual([['customer_id', 10]])
+  })
+
+  it('Navio / Viagem junta as faturas pelas quatro ligacoes e filtra pelos ids', async () => {
+    const builders = installReportMocks({
+      invoices: [{ id: 7 }, { id: 8 }],
+      invoiceBls: [{ invoice_id: 10 }],
+      links: [{ invoice_id: 9 }],
+    })
+    await fetchFinancialReport({ ...FINANCIAL, voyageId: '3' })
+    // Viagem da fatura, B/L da avulsa, invoice_bls e recebíveis; depois a consulta final.
+    const final = builders.invoices.at(-1)!
+    const ids = callsOf(final, 'in').find(([column]) => column === 'id')?.[1] as number[]
+    expect([...ids].sort((a, b) => a - b)).toEqual([7, 8, 9, 10])
+    expect(callsOf(builders.invoices[0], 'filter')).toEqual([['voyage_id', 'eq', 3]])
+  })
+
+  it('viagem sem fatura nenhuma devolve vazio sem consultar invoices de novo', async () => {
+    const builders = installReportMocks({})
+    const result = await fetchFinancialReport({ ...FINANCIAL, voyageId: '3' })
+    expect(result.rows).toEqual([])
+    expect(builders.invoices).toHaveLength(2)
+  })
+})
+
+// Achado 3: o B/L sem `review_status` não é "Sem revisão" na tela e "Em ordem" no filtro.
+describe('Revisao do relatorio operacional', () => {
+  it('so pending_review e Pendente; vazio e Em ordem, como o filtro', async () => {
+    expect(reportReviewLabel('pending_review')).toBe('Pendente')
+    expect(reportReviewLabel(null)).toBe('Em ordem')
+    expect(reportReviewLabel('ok')).toBe('Em ordem')
+    expect(reportReviewLabel('reviewed')).toBe('Em ordem')
+
+    mockFrom.mockReset()
+    const builders = installReportMocks({})
+    await fetchOperationalReport({ ...NO_SCOPE, pol: '', pod: '', cargoMode: '', review: 'em-ordem', localCharges: '' })
+    expect(callsOf(builders.bls[0], 'or')).toEqual([['review_status.is.null,review_status.neq.pending_review']])
+  })
+})
+
+// Achado 4: o aviso de limite fala de cada fonte, não da soma.
+describe('carga por fonte', () => {
+  beforeEach(() => {
+    mockFrom.mockReset()
+  })
+
+  it('Por Cliente devolve a carga de B/Ls e a de faturas separadas', async () => {
+    const bls = Array.from({ length: 3 }, (_, index) => ({ id: `BL${index}`, customer_id: 10, customer: customerAlfa }))
+    const invoices = [{ id: 1, customer_id: 10, invoice_type: 'manual', total_brl: 5, balance_brl: 0, status: 'paid', issued_at: '2026-05-20', customer: customerAlfa }]
+    installReportMocks({ bls, invoices })
+    const result = await fetchCustomerReport(NO_SCOPE, { ceiling: 2 })
+    expect(result.load).toEqual({ bls: { loaded: 2, total: 3 }, invoices: { loaded: 1, total: 1 } })
+  })
+
+  it('Financeiro com Saldo: a carga e a das faturas lidas, antes do filtro', async () => {
+    installReportMocks({
+      invoices: [
+        { id: 1, invoice_number: 'F-1', invoice_type: 'manual', status: 'issued', total_brl: 50, balance_brl: 50, issued_at: '2026-05-02', created_at: null, customer_id: 10, customer: customerAlfa },
+        { id: 2, invoice_number: 'F-2', invoice_type: 'manual', status: 'paid', total_brl: 70, balance_brl: 0, issued_at: '2026-05-03', created_at: null, customer_id: 10, customer: customerAlfa },
+      ],
+    })
+    const result = await fetchFinancialReport({ ...FINANCIAL, balance: 'aberto' })
+    expect(result.rows.map((row) => row.id)).toEqual([1])
+    expect(result.load).toEqual({ loaded: 2, total: 2 })
+    expect(result.kpis.totalPaid).toBe(0)
+  })
+})
+
+// Achados 6 e 7: leitura em páginas com o recorte mudando no meio.
+describe('leitura em paginas com o recorte mudando', () => {
+  it('linha criada no meio da leitura nao repete a da fronteira nem perde a ultima', async () => {
+    let rows = Array.from({ length: 2500 }, (_, index) => ({ id: index + 1 }))
+    let calls = 0
+    const result = await fetchAllPages(async (from, to) => {
+      calls++
+      // Depois da primeira página, um B/L novo entra no topo e empurra os outros.
+      if (calls === 2) rows = [{ id: 9999 }, ...rows]
+      return { data: rows.slice(from, to + 1), error: null, count: from === 0 ? 2500 : null }
+    })
+    const ids = result.rows.map((row) => row.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    // As 2.500 originais estão todas lá; a nova entrou depois da contagem e não é lida.
+    expect(ids.filter((id) => id <= 2500)).toHaveLength(2500)
+    expect(result.load).toEqual({ loaded: 2500, total: 2500 })
+  })
+
+  it('linha apagada no meio: termina na pagina vazia e o total e o que foi lido', async () => {
+    let rows = Array.from({ length: 2000 }, (_, index) => ({ id: index + 1 }))
+    let calls = 0
+    const result = await fetchAllPages(async (from, to) => {
+      calls++
+      if (calls === 2) rows = rows.slice(1)
+      return { data: rows.slice(from, to + 1), error: null, count: from === 0 ? 2000 : null }
+    })
+    expect(result.load.total).toBe(result.load.loaded)
+  })
+
+  it('pagina curta abaixo do teto com contagem maior nao inventa "faltam N"', async () => {
+    const result = await fetchAllPages(async (from) => (
+      from === 0
+        ? { data: [{ id: 1 }, { id: 2 }], error: null, count: 5 }
+        : { data: [], error: null, count: null }
+    ), { pageSize: 2, ceiling: 100 })
+    expect(result.load).toEqual({ loaded: 2, total: 2 })
+  })
+
+  it('no teto, a contagem diz quantas faltam', async () => {
+    const all = Array.from({ length: 30 }, (_, index) => ({ id: index + 1 }))
+    const result = await fetchAllPages(async (from, to) => ({ data: all.slice(from, to + 1), error: null, count: from === 0 ? 30 : null }), { pageSize: 10, ceiling: 20 })
+    expect(result.load).toEqual({ loaded: 20, total: 30 })
   })
 })
