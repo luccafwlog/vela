@@ -39,10 +39,12 @@ export type ParsedCeUnlockZptFile = {
   rows: CeUnlockZptRow[];
   /**
    * Linhas com conteúdo que não pode ser lido (CE que não tem 15 dígitos,
-   * arquivo grande demais): qualquer uma recusa o arquivo inteiro (regra de
-   * 2026-10-19).
+   * "Data Atualização" preenchida e ilegível): qualquer uma recusa o arquivo
+   * inteiro (ADR 0091).
    */
-  rowErrors: Array<{ row: number; message: string }>;
+  rowErrors: Array<{ row: number; field: "CE" | "Data Atualização"; message: string }>;
+  /** Erro do arquivo como um todo (mais CEs que o limite): também recusa tudo. */
+  fileError: string | null;
   /** Linhas sem CE ou sem situação: ignoradas, com a contagem na prévia (D3). */
   skippedRows: number[];
   /** Avisos do leitor comum (linhas e abas ocultas ignoradas, CSV Windows-1252), para mostrar antes de conciliar. */
@@ -93,27 +95,35 @@ export async function parseCeUnlockZptFile(buffer: ArrayBuffer): Promise<ParsedC
     // CE preenchido que não é um CE Mercante (15 dígitos) é valor ilegível:
     // recusa o arquivo inteiro.
     if (ce.length !== 15) {
-      rowErrors.push({ row: row.rowNumber, message: `CE "${rawCe}" ilegível: o CE Mercante tem 15 dígitos.` });
+      rowErrors.push({ row: row.rowNumber, field: "CE", message: `CE "${rawCe}" ilegível: o CE Mercante tem 15 dígitos.` });
+      continue;
+    }
+    // Data preenchida que não se lê é valor ilegível (ADR 0091); vazia fica vazia.
+    const rawUpdatedAt = asString(get("updated_at"));
+    const updatedAt = rawUpdatedAt ? parseZptDateTime(rawUpdatedAt) : null;
+    if (rawUpdatedAt && !updatedAt) {
+      rowErrors.push({
+        row: row.rowNumber,
+        field: "Data Atualização",
+        message: `Data Atualização "${rawUpdatedAt}" ilegível: use DD/MM/AAAA HH:MM:SS.`,
+      });
       continue;
     }
     out.push({
       ce,
       status,
       description: asString(get("description")) || null,
-      updated_at: parseZptDateTime(asString(get("updated_at"))),
+      updated_at: updatedAt,
       pending: (Object.keys(REQUIREMENT_LABELS) as Array<keyof typeof REQUIREMENT_LABELS>)
         .filter((field) => isPending(get(field)))
         .map((field) => REQUIREMENT_LABELS[field]),
     });
   }
   if (!out.length && !rowErrors.length) throw new Error("Nenhuma linha com CE e situação no arquivo da ZPT.");
-  if (out.length > ZPT_MAX_ROWS) {
-    rowErrors.push({
-      row: 0,
-      message: `O arquivo tem ${out.length.toLocaleString("pt-BR")} CEs; o limite é ${ZPT_MAX_ROWS.toLocaleString("pt-BR")} por conciliação. Divida o arquivo.`,
-    });
-  }
-  return { rows: out, rowErrors, skippedRows, warnings };
+  const fileError = out.length > ZPT_MAX_ROWS
+    ? `O arquivo tem ${out.length.toLocaleString("pt-BR")} CEs; o limite é ${ZPT_MAX_ROWS.toLocaleString("pt-BR")} por conciliação. Divida o arquivo.`
+    : null;
+  return { rows: out, rowErrors, skippedRows, fileError, warnings };
 }
 
 /**

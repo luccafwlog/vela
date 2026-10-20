@@ -138,16 +138,39 @@ export async function fetchDemurrageKPIs(): Promise<DemurrageKPIs> {
 }
 
 /**
- * Leitura do extrato "QR Codes recebidos" (regra de 2026-10-19, D3):
- * lançamento zerado ou negativo (tarifas e saídas) ou sem valor é ignorado e
- * contado em `ignored`; valor ilegível é erro (`errors`) e recusa o extrato
- * inteiro antes de qualquer gravação.
+ * Leitura do extrato "QR Codes recebidos" (ADR 0091, item 6): lançamento
+ * zerado ou negativo (tarifas e saídas) é ignorado e contado em `ignored`;
+ * valor pago ou data de pagamento ilegível é erro (`errors`) e recusa o
+ * extrato inteiro antes de qualquer gravação. Linha sem valor (rodapé
+ * "Total" vazio, "R$" sozinho) não é lançamento: fica de fora sem contar.
  */
 export type PixExtractRead = {
   transactions: PixTransaction[]
-  /** Linhas ignoradas por valor zerado, negativo ou vazio. */
+  /** Lançamentos ignorados por valor zerado ou negativo (tarifas e saídas). */
   ignored: number
-  errors: Array<{ row: number; message: string }>
+  errors: Array<{ row: number; field: 'value' | 'date'; message: string }>
+}
+
+/**
+ * Texto do valor do extrato → número pt-BR com sinal. Aceita o símbolo da
+ * moeda e as formas contábeis de débito: "(10,00)", "R$ (10,00)", "10,00-",
+ * "R$ 10,00-" e "10,00 D". "10,00 C" é crédito (positivo).
+ */
+export function normalizePixAmountText(text: string): string {
+  let rest = text.trim()
+  let negative = false
+  const dropCurrency = () => { rest = rest.replace(/^R\$\s*/i, '').trim() }
+  if (rest.startsWith('-')) { negative = true; rest = rest.slice(1).trim() }
+  dropCurrency()
+  const parens = rest.match(/^\((.*)\)$/)
+  if (parens) { negative = true; rest = parens[1].trim(); dropCurrency() }
+  const suffix = rest.match(/^(.*\d)\s*(-|D|C)$/i)
+  if (suffix) {
+    rest = suffix[1].trim()
+    if (suffix[2].toUpperCase() !== 'C') negative = true
+  }
+  if (!rest) return ''
+  return negative ? `-${rest}` : rest
 }
 
 export async function readPixExtract(arrayBuffer: ArrayBuffer): Promise<PixExtractRead> {
@@ -193,43 +216,46 @@ export async function readPixExtract(arrayBuffer: ArrayBuffer): Promise<PixExtra
     const txid = String(row[colId] ?? '').trim()
     const lineNumber = rowNumbers[i] ?? i + 1
 
-    let date = ''
-    if (colDate >= 0) {
-      date = parsePixPaidDate(row[colDate])
-    }
+    const where = txid ? ` (identificador ${txid})` : ''
 
     // Célula numérica chega como número; texto do extrato é pt-BR (1.500,50),
-    // às vezes com o símbolo da moeda ("R$ 1.500,50"), que continua legível.
+    // às vezes com o símbolo da moeda ou em forma contábil de débito.
     const rawValue = row[colValue]
-    const parsed = parseImportNumber(typeof rawValue === 'string' ? rawValue.trim().replace(/^(-?)\s*R\$\s*/i, '$1') : rawValue, 'pt-BR')
+    const parsed = parseImportNumber(typeof rawValue === 'string' ? normalizePixAmountText(rawValue) : rawValue, 'pt-BR')
     if (parsed.kind === 'invalid') {
-      errors.push({ row: lineNumber, message: `Valor pago "${String(rawValue).trim()}" ilegível${txid ? ` (identificador ${txid})` : ''}.` })
+      errors.push({ row: lineNumber, field: 'value', message: `Valor pago "${String(rawValue).trim()}" ilegível${where}.` })
       continue
     }
-    const amount = parsed.kind === 'value' ? Number(parsed.decimal) : 0
-    if (amount <= 0) {
-      // Linha totalmente vazia não é lançamento; não entra na contagem.
-      if (txid || parsed.kind === 'value') ignored += 1
+    // Sem valor e sem identificador não é lançamento (linha vazia, rodapé
+    // "Total"): fica de fora sem contar. Identificador sem valor é lançamento
+    // sem o dado que concilia: erro (ADR 0091, item 6).
+    // ponytail: o rodapé é reconhecido pelo texto "Total" no identificador;
+    // outro rótulo de rodapé sem valor vira erro e pede para tirar a linha.
+    if (parsed.kind !== 'value') {
+      if (txid && !/^total\b/i.test(txid)) errors.push({ row: lineNumber, field: 'value', message: `Valor pago vazio${where}.` })
       continue
+    }
+    const amount = Number(parsed.decimal)
+    if (amount <= 0) {
+      ignored += 1
+      continue
+    }
+
+    // Data preenchida que não se lê é erro; vazia fica vazia.
+    let date = ''
+    if (colDate >= 0) {
+      const rawDate = row[colDate]
+      date = importDateOrNull(rawDate) ?? ''
+      if (!date && String(rawDate ?? '').trim()) {
+        errors.push({ row: lineNumber, field: 'date', message: `Pago em "${String(rawDate).trim()}" ilegível${where}: use DD/MM/AAAA.` })
+        continue
+      }
     }
 
     const cnpj = colCnpj >= 0 ? String(row[colCnpj] ?? '').trim() : ''
     transactions.push({ txid, cnpj, date, amount, lineNumber })
   }
   return { transactions, ignored, errors }
-}
-
-/** Só as transações; valor ilegível recusa o extrato (lança). */
-export async function parsePixExtract(arrayBuffer: ArrayBuffer): Promise<PixTransaction[]> {
-  const read = await readPixExtract(arrayBuffer)
-  if (read.errors.length) throw new Error(read.errors.map((error) => `Linha ${error.row}: ${error.message}`).join(' '))
-  return read.transactions
-}
-
-// Data civil única dos imports (src/lib/importDate.ts): a célula de data/hora
-// do Excel chega como AAAA-MM-DD HH:MM; o texto do extrato, DD/MM/AAAA HH:MM.
-function parsePixPaidDate(raw: unknown): string {
-  return importDateOrNull(raw) ?? ''
 }
 
 export async function parsePixExtractFile(file: File): Promise<PixExtractRead> {

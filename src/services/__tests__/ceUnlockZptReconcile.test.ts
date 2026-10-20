@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as XLSX from '@e965/xlsx'
-import { parseCeUnlockZptFile, parseZptDateTime } from '../ceUnlockZptReconcile'
+import { parseCeUnlockZptFile, parseZptDateTime, ZPT_MAX_ROWS } from '../ceUnlockZptReconcile'
 
 // Layout do "Exportar Tela" da ZPT (conferido em 2026-10-07 contra dois arquivos reais, .xls BIFF8).
 // Linhas abaixo são fictícias; o CPF abaixo é de teste e nunca pode aparecer no resultado.
@@ -43,7 +43,8 @@ describe('arquivo "Exportar Tela" da ZPT', () => {
       [3, 'BL3', 122605331512625, 'X', 'Bloqueado', '', OPERATOR, '', '', 'Não', 'Não', 'Não', 'Não'],
     ]))
     expect(parsed.skippedRows).toEqual([2])
-    expect(parsed.rowErrors).toEqual([{ row: 3, message: 'CE "ABC123" ilegível: o CE Mercante tem 15 dígitos.' }])
+    expect(parsed.rowErrors).toEqual([{ row: 3, field: 'CE', message: 'CE "ABC123" ilegível: o CE Mercante tem 15 dígitos.' }])
+    expect(parsed.fileError).toBeNull()
     expect(parsed.rows.map((row) => row.ce)).toEqual(['122605331512625'])
   })
   it('o arquivo de exemplo de public/templates é lido sem erro', async () => {
@@ -70,6 +71,21 @@ describe('arquivo "Exportar Tela" da ZPT', () => {
     const parsed = await parseCeUnlockZptFile(XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
     expect(parsed.rows.map((row) => row.ce)).toEqual(['122605325622422'])
     expect(parsed.warnings).toEqual(['1 linha oculta ignorada: o filtro da planilha indica importar só o visível.'])
+  })
+  it('Data Atualização preenchida e ilegível é erro; vazia continua vazia (ADR 0091)', async () => {
+    const parsed = await parseCeUnlockZptFile(xls([
+      [1, 'BL1', 122605325622422, 'X', 'Bloqueado', '', OPERATOR, '', 'ontem', 'Não', 'Não', 'Não', 'Não'],
+      [2, 'BL2', 122605331512625, 'X', 'Bloqueado', '', OPERATOR, '', '', 'Não', 'Não', 'Não', 'Não'],
+    ]))
+    expect(parsed.rowErrors).toEqual([{ row: 2, field: 'Data Atualização', message: 'Data Atualização "ontem" ilegível: use DD/MM/AAAA HH:MM:SS.' }])
+    expect(parsed.rows).toEqual([{ ce: '122605331512625', status: 'Bloqueado', description: null, updated_at: null, pending: ['Financeiro', 'Term. Devolução', 'Procuração', 'BL Entrega'] }])
+  })
+  it('mais CEs que o limite é erro do arquivo, não de uma linha', async () => {
+    const lines = ['CE;Status']
+    for (let i = 0; i <= ZPT_MAX_ROWS; i += 1) lines.push(`${122605300000000 + i};Bloqueado`)
+    const parsed = await parseCeUnlockZptFile(new TextEncoder().encode(lines.join('\n')).buffer as ArrayBuffer)
+    expect(parsed.rowErrors).toEqual([])
+    expect(parsed.fileError).toMatch(/20\.001 CEs; o limite é 20\.000 por conciliação/)
   })
   it('interpreta data e hora de Brasília e rejeita formato desconhecido', () => {
     expect(parseZptDateTime('06/10/2026 16:29:08')).toBe('2026-10-06T16:29:08-03:00')

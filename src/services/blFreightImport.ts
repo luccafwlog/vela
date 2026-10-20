@@ -768,7 +768,9 @@ export async function confirmBlFreightImport(
   const overrides = (blNumber: string) => (typeof overrideBilling === 'boolean' ? overrideBilling : overrideBilling.has(blNumber))
   // Troca de Consignatário de B/L que já tem Cliente, sem aceite (ou impedida
   // na prévia): o consignatário gravado fica e o resultado avisa. É decisão de
-  // campo, não erro de linha: o B/L entra com os demais campos.
+  // campo, não erro de linha: o B/L entra com os demais campos. O mesmo vale
+  // para a troca aceita que o banco recusa (`customer_relinks`): exceção
+  // registrada no item 3 da ADR 0091, não desfaz o arquivo.
   const keptCustomer = new Set<string>()
   const payload = preview.rows.flatMap((row) => {
     if (!row.payload) return []

@@ -6,6 +6,13 @@
 
 ## 2026-10
 
+- **Revisão do lote 6a (2026-10-20):** datas de containers e Base de Clientes com 60 s para gravar
+  o arquivo inteiro (até 300 B/Ls e 3.000 Clientes por arquivo) e mensagem de arquivo grande;
+  Razão Social conferida do mesmo jeito na tela e no banco; troca de Consignatário recusada pelo
+  banco registrada como exceção na ADR 0091; extrato do Pix com débito contábil ignorado e modelo
+  para baixar; ZPT, Pix e programação recusam data ou linha ilegível; modais de importação não
+  fecham durante a gravação; vazios do Baplie retomados em /baplie; modelo do B/L avulso. Migrations
+  do 6a renumeradas para `333`, `334` e `335` na junção com o 5b.
 - **Identidade visual, lote 6a, e importação com erro recusada inteira (2026-10-19):** login do
   Vela e telas públicas do Portal com o mesmo painel da marca (`AuthLayout`), Meu perfil em dois
   blocos; todas as importações no molde comum (passos, Arquivo com modelo para baixar, Prévia,

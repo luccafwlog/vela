@@ -46,7 +46,8 @@ import { plural } from './importPresentation'
  * (ADR 0078, item 21) só rodam com a Viagem conferida; sem ela, nada grava.
  * Erro no arquivo recusa a importação inteira. IMO/OOG e vazios são passos
  * depois da gravação (D2): se falharem, o Baplie fica gravado e o aviso diz o
- * que falta.
+ * que falta. As duas pendências continuam em /baplie depois de fechar (ADR
+ * 0091, item 5): "Aplicar IMO/OOG agora" e "Atualizar vazios do Baplie".
  */
 export function BaplieImportModal({
   voyage,
@@ -74,6 +75,7 @@ export function BaplieImportModal({
   const voyageContext = useBaplieVoyageContext(voyageId ? Number(voyageId) : null)
   // Baplie gravado com IMO/OOG ou vazios pendentes: falha parcial que fica à vista.
   const [partial, setPartial] = useState<BaplieImportDone | null>(null)
+  const [retryingVazios, setRetryingVazios] = useState(false)
 
   async function handleFiles(files: File[]) {
     setExcludedPods(new Set())
@@ -86,7 +88,13 @@ export function BaplieImportModal({
     }
   }
 
+  // Gravação em andamento: X, Escape e Voltar não fecham (como no CE
+  // Mercante); fechar no meio deixava a gravação seguindo sem tela.
   function handleClose() {
+    if (importing || retryingVazios) {
+      showToast('Aguarde: a gravação ainda está em andamento.', 'info')
+      return
+    }
     cancelReading()
     onClose()
   }
@@ -131,7 +139,8 @@ export function BaplieImportModal({
         return
       }
       showToast(baplieImportToast(result), 'success')
-      handleClose()
+      cancelReading()
+      onClose()
     } catch (err) {
       await afterBaplieImportado(queryClient, { voyageId })
       setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar o Baplie EDI.'))
@@ -204,6 +213,13 @@ export function BaplieImportModal({
               />
             }
           >
+            {/* Viagem escolhida aqui: o destino fica à vista ao lado do que o
+                arquivo diz. Pela aba da Viagem, ela já está no topo. */}
+            {!voyage && voyageId && voyageContext.data ? (
+              <ImportContext label="Viagem">
+                {`${voyageContext.data.vesselName ?? '—'} / ${voyageContext.data.voyageNumber ?? '—'}`}
+              </ImportContext>
+            ) : null}
             <ImportContext label="Navio/viagem no arquivo">
               {parsed.vessel_name || parsed.voyage_number ? `${parsed.vessel_name ?? '—'} / ${parsed.voyage_number ?? '—'}` : 'Não informados'}
             </ImportContext>
@@ -233,6 +249,7 @@ export function BaplieImportModal({
               result={partial}
               voyageId={Number(voyageId)}
               actorId={actorId}
+              onRetryingChange={setRetryingVazios}
               onVaziosRetried={async () => {
                 setPartial((current) => current && { ...current, vaziosError: null, vaziosReplaced: true })
                 await afterBaplieImportado(queryClient, { voyageId })
@@ -243,7 +260,7 @@ export function BaplieImportModal({
         <div className="app-modal__actions">
           <ImportFootnote tone={footnoteTone}>{footnote}</ImportFootnote>
           {partial ? (
-            <Button onClick={handleClose}>Concluir</Button>
+            <Button disabled={retryingVazios} onClick={handleClose}>Concluir</Button>
           ) : (
             <>
               <Button variant="secondary" disabled={importing} onClick={parsing ? cancelReading : handleClose}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>

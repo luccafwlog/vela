@@ -67,7 +67,8 @@ export function Profile() {
       <div className="grid max-w-[720px] gap-4">
         <Block title="Dados pessoais">
           <form className="grid gap-4" onSubmit={handleSubmit}>
-            <LeadValue detail={departmentLabel(profile?.role)}>{profile?.full_name || session?.user.email || '—'}</LeadValue>
+            {/* Só o nome: e-mail e Departamento ficam na lista abaixo, sem repetir. */}
+            <LeadValue>{profile?.full_name || <NoValue label="Sem nome" />}</LeadValue>
             <Field label="Nome" required>
               <Input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
             </Field>

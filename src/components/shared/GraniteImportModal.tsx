@@ -84,7 +84,13 @@ export function GraniteImportModal({
     }
   }
 
+  // Gravação em andamento: X, Escape e Voltar não fecham (como no CE
+  // Mercante); fechar no meio deixava a gravação seguindo sem tela.
   function handleClose() {
+    if (importing) {
+      showToast('Aguarde: a gravação ainda está em andamento.', 'info')
+      return
+    }
     cancelReading()
     onClose()
   }

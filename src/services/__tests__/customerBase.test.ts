@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, parseCustomerBaseRows, sameName, type CustomerBaseRow } from '../customerBase'
+import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, MAX_CUSTOMER_BASE_ROWS, parseCustomerBaseRows, sameName, type CustomerBaseRow } from '../customerBase'
+import { userFacingErrorMessage } from '../../lib/errors'
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
@@ -116,6 +117,62 @@ describe('razão social na Base de Clientes (ADR 0078, item 24)', () => {
       { ...base },
     ]
     expect(customerNameChanges(rows).map((row) => row.existingCustomerId)).toEqual([1])
+  })
+
+  // Mesma regra do banco (migration 192, `[^[:alnum:]]+` em glibc UTF-8),
+  // conferida contra o PG local em 20/10/2026: se a prévia não pede o aceite
+  // e o banco pede, a base inteira é recusada sem oferecer o aceite.
+  it('compara a razão social como o banco: º/ª são letras, ¹/NBSP/tab são separadores', () => {
+    expect(sameName('ACME 1º LTDA', 'ACME 1 LTDA')).toBe(false)
+    expect(sameName('ACME 1ª LTDA', 'ACME 1 LTDA')).toBe(false)
+    expect(sameName('Ação Comércio Ltda.', 'AÇÃO  COMÉRCIO LTDA')).toBe(true)
+    expect(sameName('ÿ ltda', 'LTDA')).toBe(false)
+    expect(sameName('Œuvre SA', 'UVRE SA')).toBe(false)
+    expect(sameName('FOO\u00a0BAR', 'foo bar')).toBe(true)
+    expect(sameName('FOO\tBAR', 'FOO-BAR')).toBe(true)
+    expect(sameName('X¹ ltda', 'X LTDA')).toBe(true)
+    // `upper` do banco é letra a letra: ß não vira SS.
+    expect(sameName('ß gmbh', 'SS GMBH')).toBe(false)
+  })
+})
+
+describe('troca de razão social conferida com o nome gravado (migration 334)', () => {
+  beforeEach(() => { mockFrom.mockReset(); mockRpc.mockReset() })
+
+  it('manda o nome exatamente como o banco o devolveu, sem trim', async () => {
+    const cnpj = '12345678000195'
+    mockFrom.mockImplementation((table: string) => fakeQuery(table === 'customers'
+      ? [{ id: 5, cnpj_cpf: cnpj, name: 'Antiga Ltda\u00a0', trade_name: null, address: null, city: null, state: null, zip: null }]
+      : []))
+    const row: CustomerBaseRow = { cnpj_cpf: cnpj, name: 'Nova Ltda', trade_name: null, emails: ['a@b.co'], address: null, city: null, state: null, zip: null }
+    const { rows } = await compareCustomerBaseWithExisting({ rows: [row], rowErrors: [] })
+    expect(rows[0]).toMatchObject({ currentName: 'Antiga Ltda', storedName: 'Antiga Ltda\u00a0' })
+
+    mockRpc.mockResolvedValue({ data: { ok: true, updated: 1 }, error: null })
+    await importCustomerBaseRows(rows, { changedBy: 'actor-1', confirmNameChange: true })
+    const sent = (mockRpc.mock.calls[0][1] as { p_rows: Array<{ expected_current_name: string | null }> }).p_rows
+    expect(sent[0].expected_current_name).toBe('Antiga Ltda\u00a0')
+  })
+})
+
+describe('tamanho da base (migration 334: 60 s, teto de Clientes)', () => {
+  const base = { trade_name: null, address: null, city: null, state: null, zip: null, emails: ['a@b.co'], name: 'Cliente' }
+  beforeEach(() => mockRpc.mockReset())
+
+  it('tempo esgotado no banco (57014): nada gravado e a pessoa divide o arquivo', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } })
+    const failure = await importCustomerBaseRows([{ ...base, cnpj_cpf: '12345678000195' }], { changedBy: 'actor-1' }).catch((error: unknown) => error)
+    // A tela mostra "Nada foi gravado: <mensagem>" com userFacingErrorMessage.
+    expect(userFacingErrorMessage(failure, 'genérico')).toBe(
+      'o arquivo é grande demais para gravar de uma vez. Divida os Clientes em arquivos menores e importe cada um.',
+    )
+  })
+
+  it('base acima do teto é recusada antes de chamar o banco', async () => {
+    const rows = Array.from({ length: MAX_CUSTOMER_BASE_ROWS + 1 }, (_, index) => ({ ...base, cnpj_cpf: String(index).padStart(14, '0') }))
+    const failure = await importCustomerBaseRows(rows, { changedBy: 'actor-1' }).catch((error: unknown) => error)
+    expect(userFacingErrorMessage(failure, 'genérico')).toMatch(/limite é 3000 por arquivo/)
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 })
 

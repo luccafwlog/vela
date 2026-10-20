@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../hooks/useAuth'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
@@ -128,6 +128,10 @@ export function BlImportModal({
   const [readFailed, setReadFailed] = useState(false)
   const [confirmError, setConfirmError] = useState<{ message: string; refused: string[] } | null>(null)
   const [outcome, setOutcome] = useState<ConfirmOutcome | null>(null)
+  // A prévia consulta o banco com a viagem da hora e não é cancelável: só a
+  // última leitura publica (como no CE Mercante). Trocar a viagem, escolher
+  // outro arquivo ou fechar invalida a que estava em curso.
+  const previewRequestRef = useRef(0)
 
   const issues = useMemo(() => (preview ? previewIssues(preview) : []), [preview])
   const hasErrors = readFailed || issues.some((issue) => issue.severity === 'error')
@@ -168,7 +172,18 @@ export function BlImportModal({
     setConfirmVehicleChanges(false)
   }
 
+  // Gravação em andamento: X, Escape e Voltar não fecham (como no CE
+  // Mercante); fechar no meio deixava a gravação seguindo sem tela.
+  function requestClose() {
+    if (submitting) {
+      showToast('Aguarde: a gravação ainda está em andamento.', 'info')
+      return
+    }
+    resetAndClose()
+  }
+
   function resetAndClose() {
+    previewRequestRef.current += 1
     setFiles([])
     setPreview(null)
     cancelReading()
@@ -183,6 +198,7 @@ export function BlImportModal({
   }
 
   function handleVoyageSelect(nextVoyageId: number | null) {
+    previewRequestRef.current += 1
     cancelReading()
     setSelectedVoyageId(nextVoyageId)
     setPreview(null)
@@ -190,6 +206,7 @@ export function BlImportModal({
   }
 
   async function handleFiles(selectedFiles: File[]) {
+    const request = ++previewRequestRef.current
     setFiles(selectedFiles)
     setPreview(null)
     resetDecisions()
@@ -209,6 +226,7 @@ export function BlImportModal({
       const documents = (await readFiles(selectedFiles, (error, file) => {
         failures.push(`${file.name}: ${error instanceof Error ? error.message : 'Falha ao ler o arquivo.'}`)
       })) ?? []
+      if (request !== previewRequestRef.current) return
       if (failures.length) {
         setReadError(failures.join(' | '))
         setReadFailed(true)
@@ -221,8 +239,10 @@ export function BlImportModal({
         voyageId: selectedVoyageId,
         onlyBlId,
       })
+      if (request !== previewRequestRef.current) return
       setPreview(nextPreview)
     } catch (error) {
+      if (request !== previewRequestRef.current) return
       setReadError(error instanceof Error ? error.message : 'Falha ao preparar a prévia do B/L.')
     }
   }
@@ -299,7 +319,7 @@ export function BlImportModal({
   const allBillingConfirmed = billingOverrideRows.length > 0 && billingOverrideRows.every((row) => overrideBls.has(row.blNumber))
 
   return (
-    <Modal open={open} onClose={resetAndClose} title="Importar B/L de container">
+    <Modal open={open} onClose={requestClose} title="Importar B/L de container">
       <div className="app-import">
         <ImportSteps current={step} />
         {onlyBlId ? (
@@ -501,7 +521,7 @@ export function BlImportModal({
             <Button onClick={resetAndClose}>Concluir</Button>
           ) : (
             <>
-              <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : resetAndClose}>
+              <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : requestClose}>
                 {parsing ? 'Interromper leitura' : 'Voltar'}
               </Button>
               <Button

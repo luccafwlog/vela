@@ -92,7 +92,7 @@ export function PortalResetPassword() {
   // novo link, em vez de parar num erro sem saída.
   if (!token) {
     return (
-      <AuthLayout brand="portal" title="Link vencido">
+      <AuthLayout brand="portal" title="Link indisponível">
         <AuthNotice title={error || INVALID_LINK_MESSAGE}>
           O link de redefinição vale por 1 hora e só pode ser usado uma vez. Peça um novo para continuar.
         </AuthNotice>

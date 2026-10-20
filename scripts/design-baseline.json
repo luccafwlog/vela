@@ -84,7 +84,7 @@
       "active": 9,
       "agency-report": 8,
       "app-action": 1,
-      "app-auth": 41,
+      "app-auth": 40,
       "app-badge": 9,
       "app-bl": 80,
       "app-breadcrumb": 7,
@@ -107,7 +107,7 @@
       "app-fin": 13,
       "app-floating": 7,
       "app-header": 58,
-      "app-import": 117,
+      "app-import": 113,
       "app-inline": 1,
       "app-input": 15,
       "app-invoice": 40,
@@ -140,7 +140,7 @@
       "app-status-toggle": 1,
       "app-step": 25,
       "app-summary": 7,
-      "app-surface": 8,
+      "app-surface": 6,
       "app-switch": 7,
       "app-tab": 8,
       "app-table": 86,
@@ -172,7 +172,7 @@
       "p-0": 3,
       "page-header": 11,
       "portal-notifications": 2,
-      "portal-profile": 4,
+      "portal-profile": 1,
       "print-hidden": 1,
       "review-code": 2,
       "review-inline": 4,
@@ -191,7 +191,6 @@
       "text-slate": 4,
       "text-white": 2,
       "text-yellow": 1,
-      "vela-profile": 6,
       "voyage-rail": 11
     }
   }

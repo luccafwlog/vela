@@ -61,6 +61,27 @@ describe('parseScheduleRows', () => {
   })
 })
 
+describe('parseScheduleRows: linha incompleta (ADR 0091)', () => {
+  it('navio sem VOY, VOY sem navio ou linha com dado sem os dois recusam a planilha, com a linha de cada uma', () => {
+    expect(() => parseScheduleRows([
+      { 'VESSEL NAME': 'NAVIO A', VOY: '1', 'SALVADOR ETA': '22/01/2026', rowNumber: 2 },
+      { 'VESSEL NAME': 'NAVIO B', VOY: '', 'SALVADOR ETA': '22/01/2026', rowNumber: 3 },
+      { 'VESSEL NAME': '', VOY: '205', rowNumber: 4 },
+      { 'VESSEL NAME': '', VOY: '', 'SALVADOR ETA': '22/01/2026', rowNumber: 5 },
+    ])).toThrow('Linha 3: VOY vazio para o navio NAVIO B. Linha 4: VESSEL NAME vazio para a VOY 205. Linha 5: tem dados, mas está sem VESSEL NAME e VOY. Preencha VESSEL NAME e VOY em cada linha com dados e escolha o arquivo de novo.')
+  })
+
+  it('linha vazia e a linha de exemplo do modelo continuam ignoradas', () => {
+    const rows = parseScheduleRows([
+      { 'VESSEL NAME': '', VOY: '', IMO: '', rowNumber: 2 },
+      { 'VESSEL NAME': 'EXEMPLO NAVIO', VOY: '', rowNumber: 3 },
+      { 'VESSEL NAME': 'EXEMPLO NAVIO', VOY: '1', rowNumber: 4 },
+      { 'VESSEL NAME': 'NAVIO A', VOY: '1', rowNumber: 5 },
+    ])
+    expect(rows.map((row) => row.rowNumber)).toEqual([5])
+  })
+})
+
 describe('assertNoRepeatedScheduleColumns', () => {
   it('recusa a mesma coluna duas vezes (o leitor comum dá sufixo à repetição)', () => {
     expect(() => assertNoRepeatedScheduleColumns(['VESSEL NAME', 'VOY', 'SALVADOR ETA', 'SALVADOR ETA_1']))

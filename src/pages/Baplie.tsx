@@ -24,7 +24,7 @@ import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
-import { describeBaplieFlags, summarizeBaplieFlags } from '../services/baplieImport'
+import { describeBaplieFlags, hasPendingBaplieVazios, retryBaplieVazios, summarizeBaplieFlags } from '../services/baplieImport'
 import { BaplieImportModal } from '../components/shared/BaplieImportModal'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -39,7 +39,6 @@ import {
 import {
   importVaziosFromBaplie,
   getBaplieManifestForVoyage,
-  replaceVaziosFromBaplie,
 } from '../services/vaziosImportacaoImport'
 import type { BaplieContainer } from '../types/database'
 import { formatDate, formatDateTimeBR } from '../lib/utils'
@@ -115,6 +114,17 @@ export function Baplie() {
     placeholderData: null,
   })
 
+  // Falha do recadastro dos vazios na importação não fica gravada (como a de
+  // IMO/OOG): a pendência é recalculada comparando os vazios do Baplie com os
+  // do manifesto de vazios vindo dele. Sob a mesma família de chave, a
+  // importação e o recadastro a invalidam.
+  const pendingVaziosQuery = useQuery({
+    queryKey: ['baplie-vazios-manifest', voyageId, 'pending', existingVaziosManifest?.id ?? null],
+    enabled: !!voyageId && !!existingVaziosManifest?.id,
+    queryFn: () => hasPendingBaplieVazios(Number(voyageId), existingVaziosManifest!.id),
+  })
+  const pendingVazios = pendingVaziosQuery.data === true
+
   const reconciliationQuery = useQuery({
     queryKey: ['baplie-reconciliation', voyageId],
     enabled: !!voyageId && !!blsExist && (stagingData?.length ?? 0) > 0,
@@ -162,7 +172,7 @@ export function Baplie() {
 
   async function handleSubstituirVazios() {
     if (!user || !voyageId || !existingVaziosManifest) return
-    await replaceVaziosFromBaplie({ voyageId: Number(voyageId), uploadedBy: user.id })
+    await retryBaplieVazios({ voyageId: Number(voyageId), actorId: user.id })
     await afterBaplieImportado(queryClient, { voyageId })
     showToast(`Vazios de importação atualizados: ${plural(emptyContainers.length, 'container', 'containers')}.`, 'success')
   }
@@ -269,6 +279,7 @@ export function Baplie() {
               emptyCount={emptyContainers.length}
               existingManifest={existingVaziosManifestLoading ? null : (existingVaziosManifest ?? null)}
               loadingExistingManifest={existingVaziosManifestLoading}
+              pending={pendingVazios}
               voyageId={voyageId}
               canWrite={canImportVazios}
               onConfirmar={handleConfirmarVazios}
@@ -625,6 +636,7 @@ function VaziosSection({
   emptyCount,
   existingManifest,
   loadingExistingManifest,
+  pending = false,
   voyageId,
   canWrite,
   onConfirmar,
@@ -633,6 +645,8 @@ function VaziosSection({
   emptyCount: number
   existingManifest: { id: string; total_containers: number; imported_at: string } | null
   loadingExistingManifest: boolean
+  /** Os vazios cadastrados não são os deste Baplie (recadastro pendente, mesmo com a mesma quantidade). */
+  pending?: boolean
   voyageId: string
   canWrite: boolean
   onConfirmar: () => Promise<void>
@@ -650,6 +664,7 @@ function VaziosSection({
   }
 
   const isCountMismatch = Boolean(existingManifest && existingManifest.total_containers !== emptyCount)
+  const outOfDate = isCountMismatch || Boolean(existingManifest && pending)
   const vaziosLink = <Link className="app-cargo-link" to={`/vazios-importacao?voyage=${voyageId}`}>Abrir Vazios de importação →</Link>
 
   return (
@@ -662,16 +677,18 @@ function VaziosSection({
           ) : existingManifest ? (
             <>
               <LeadValue
-                tone={isCountMismatch ? 'warning' : 'default'}
+                tone={outOfDate ? 'warning' : 'default'}
                 detail={isCountMismatch
                   ? `cadastrados em ${formatDate(existingManifest.imported_at)} com ${existingManifest.total_containers}; atualizar substitui o cadastro pelos vazios deste Baplie`
-                  : `cadastrados em ${formatDate(existingManifest.imported_at)}`}
+                  : outOfDate
+                    ? `cadastrados em ${formatDate(existingManifest.imported_at)} com outros containers ou rotas; atualizar substitui o cadastro pelos vazios deste Baplie`
+                    : `cadastrados em ${formatDate(existingManifest.imported_at)}`}
               >
                 {plural(emptyCount, 'vazio', 'vazios')} neste Baplie
               </LeadValue>
               <span className="app-cargo-row__actions">
                 {vaziosLink}
-                {canWrite && isCountMismatch ? (
+                {canWrite && outOfDate ? (
                   <Button variant="secondary" loading={loading} loadingLabel="Atualizando…" onClick={() => run(onSubstituir)}>
                     Atualizar vazios do Baplie
                   </Button>

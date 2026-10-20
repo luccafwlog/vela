@@ -4,7 +4,7 @@ import { FileImportModal, type FilePreviewEntry } from './FileImportModal'
 import { VoyageCombobox } from './VoyageCombobox'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
-import { ImportGuide, ImportNotice, ImportSection } from './ImportParts'
+import { ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from './ImportParts'
 import { plural } from './importPresentation'
 import { useAuth } from '../../hooks/useAuth'
 import { useVoyageOptions } from '../../hooks/useBls'
@@ -34,7 +34,8 @@ function isOtherVoyage(document: CheckedBlDocument) {
 /**
  * B/L cancelado é somente leitura: o arquivo não é tocado, como a linha do
  * Manifesto BB. É aviso (D1 da regra de 2026-10-19), não erro: os demais
- * arquivos do lote entram.
+ * arquivos do lote entram. Como no Manifesto BB e no CE Mercante, o aviso só
+ * informa: não pede o aceite "Conferi os avisos".
  */
 function isCancelled(document: CheckedBlDocument) {
   return Boolean(document.reimport?.cancelled?.length)
@@ -45,8 +46,9 @@ function hasDocumentError(document: CheckedBlDocument, voyage: BlDocumentVoyage 
   return document.errors.length > 0 || Boolean(describeVoyageMismatch(document, voyage)) || isOtherVoyage(document)
 }
 
+/** Aviso de leitura: pede o aceite antes de gravar. */
 function hasDocumentWarning(document: CheckedBlDocument) {
-  return document.warnings.length > 0 || isCancelled(document)
+  return document.warnings.length > 0
 }
 
 /**
@@ -56,8 +58,9 @@ function hasDocumentWarning(document: CheckedBlDocument) {
  * B/Ls soltos, e não em uma planilha consolidada.
  *
  * Regra de 2026-10-19 (ADR 0091): um arquivo com erro (sem número de B/L, de
- * outro navio ou de outra viagem) recusa todos os do lote; aviso (leitura
- * incerta, B/L cancelado) pede o aceite e não impede os demais.
+ * outro navio ou de outra viagem) recusa todos os do lote; aviso de leitura
+ * incerta pede o aceite; B/L cancelado é aviso que só informa. Nenhum dos dois
+ * impede os demais.
  */
 export function BlDocumentImportModal({
   onClose,
@@ -102,23 +105,28 @@ export function BlDocumentImportModal({
       multiple
       title="Importar B/Ls de carga solta"
       accept=".pdf,.docx"
+      // ADR 0091 item 7: o B/L vem do armador; o modelo é um B/L de exemplo no
+      // formato aceito, com dados fictícios.
+      templates={<ImportTemplateLinks baseName="bl-avulso-exemplo" extensions={['docx']} />}
       ready={Boolean(selectedVoyageId && user)}
       notReadyReason="Escolha a viagem de destino para ler os arquivos: a prévia confere os B/Ls já gravados nela."
+      nothingToImport={(entries) => (entries.every((entry) => isCancelled(entry.preview)) ? 'Nenhum B/L a importar.' : null)}
       confirmLabel={(entries) => {
         const count = entries.filter((entry) => !isCancelled(entry.preview)).length
         return count ? `Importar ${plural(count, 'B/L', 'B/Ls')}` : 'Importar B/Ls'
       }}
-      overrideHint="Os arquivos com aviso entram como foram lidos; o B/L cancelado não é tocado e os demais entram."
+      overrideHint="Os arquivos com aviso de leitura entram como foram lidos."
       reparseKey={selectedVoyageId}
-      prerequisite={
+      prerequisite={({ locked }) => (
         <VoyageCombobox
           required
           label="Viagem de destino"
+          disabled={locked}
           initialValue={voyageLabel}
           selectedVoyageId={selectedVoyageId}
           onSelect={(id) => setSelectedVoyageId(id == null ? '' : String(id))}
         />
-      }
+      )}
       parser={parseDocument}
       batchImporter={async (entries, acceptWarnings) => {
         if (!user || !selectedVoyageId) return
@@ -204,7 +212,8 @@ function BatchSummary({
   voyage: BlDocumentVoyage | null
 }) {
   const withError = entries.filter((entry) => hasDocumentError(entry.preview, voyage)).length
-  const withWarnings = entries.filter((entry) => !hasDocumentError(entry.preview, voyage) && hasDocumentWarning(entry.preview)).length
+  // O cancelado conta como aviso aqui, embora não peça o aceite.
+  const withWarnings = entries.filter((entry) => !hasDocumentError(entry.preview, voyage) && (hasDocumentWarning(entry.preview) || isCancelled(entry.preview))).length
 
   return (
     <SummaryStrip

@@ -91,3 +91,14 @@ it('persists the profile only after the diff is confirmed', async () => {
   expect(mocks.update).toHaveBeenCalledWith({ full_name: 'Nome novo' })
   expect(mocks.updateUser).not.toHaveBeenCalled()
 })
+
+// Revisão do lote 6a: o destaque mostra só o nome; e-mail e Departamento
+// aparecem uma vez, na lista.
+it('shows the e-mail and the department once, and "Sem nome" when the name is empty', () => {
+  mocks.auth = { ...mocks.auth, profile: { id: 'user-1', full_name: '', role: 'operacoes' } }
+  renderProfile()
+
+  expect(screen.getAllByText('antigo@example.com')).toHaveLength(1)
+  expect(screen.getAllByText('Operações')).toHaveLength(1)
+  expect(screen.getByText('Sem nome')).toBeTruthy()
+})

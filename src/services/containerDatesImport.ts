@@ -18,6 +18,32 @@ const SPEC: HeaderSpec<DestinationField> = {
   required: ['bl_id', 'container_number', 'discharge_date'],
 }
 
+/**
+ * Teto de B/Ls por planilha de datas: a tela recusa o arquivo na leitura, e a
+ * RPC (`apply_container_dates_batch_atomic`, migration 333) recusa acima disso
+ * com 22023.
+ * ponytail: a RPC grava a planilha inteira numa transação com
+ * `statement_timeout = 60s`, e o custo de cada B/L cresce com o tamanho da
+ * Viagem (a RPC por B/L trabalha sobre a Viagem a cada chamada). Medido em
+ * 20/10/2026 no PG local: uns 25–30 µs por B/L do arquivo × container da
+ * Viagem — 300 B/Ls numa Viagem de 900 containers 6,8 s, de 3.000 containers
+ * 19 s; 700 B/Ls / 2.100 containers 39 s. Com 300 B/Ls cabe em 60 s até
+ * Viagens de uns 6.000 containers; acima disso a chamada é cancelada (57014) e
+ * nada é gravado. Upgrade: fazer o trabalho por Viagem uma vez no fim do
+ * arquivo em vez de a cada B/L, ou preparo em etapas numa tabela de staging com
+ * publicação numa RPC final.
+ */
+export const MAX_CONTAINER_DATES_BLS = 300
+
+const TOO_LARGE_MESSAGE = 'a planilha é grande demais para gravar de uma vez. Divida os B/Ls em planilhas menores e importe cada uma.'
+
+function assertWithinBlCap(rows: Array<{ bl_id: string }>) {
+  const bls = new Set(rows.map((row) => row.bl_id)).size
+  if (bls > MAX_CONTAINER_DATES_BLS) {
+    throw new Error(`A planilha tem ${bls} B/Ls; o limite é ${MAX_CONTAINER_DATES_BLS} por arquivo. Divida em planilhas menores e importe cada uma.`)
+  }
+}
+
 export type ContainerDatesImportRow = {
   bl_id: string
   container_number: string
@@ -56,6 +82,7 @@ export async function parseContainerDatesFile(file: File): Promise<ParsedContain
  */
 export async function readContainerDatesFile(file: File): Promise<ParsedContainerDatesImport> {
   const parsed = await parseContainerDatesFile(file)
+  assertWithinBlCap(parsed.rows)
   const preview = annotateContainerDates(parsed.rows, await fetchContainerDatesCurrent(parsed.rows))
   const notFound = preview.rows.filter((row) => !row.found)
   return {
@@ -97,6 +124,7 @@ type ImportableContainerDatesRow = ContainerDatesImportRow
  */
 export async function importContainerDates(rows: ImportableContainerDatesRow[]): Promise<ContainerDatesImportResult> {
   if (!rows.length) return { ok: true, updated: 0, unchanged: 0, errors: [] }
+  assertWithinBlCap(rows)
 
   const blIds = Array.from(new Set(rows.map((r) => r.bl_id)))
 
@@ -159,7 +187,11 @@ export async function importContainerDates(rows: ImportableContainerDatesRow[]):
     p_batches: batches,
     p_changed_by: actorId,
   } as never)
-  if (error) throw error
+  if (error) {
+    // Tempo esgotado (60 s da RPC): a transação foi desfeita inteira.
+    if ((error as { code?: string }).code === '57014') throw new Error(TOO_LARGE_MESSAGE, { cause: error })
+    throw error
+  }
 
   const result = (data ?? {}) as { ok?: boolean; updated?: number; unchanged?: number; errors?: Array<{ bl_id?: string; code?: string; message?: string }> }
   if (result.ok === false) {

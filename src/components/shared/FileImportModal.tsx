@@ -24,7 +24,13 @@ type ReadFailure = { name: string; message: string }
 type Props<T, TResult = void> = {
   title: string
   subtitle?: ReactNode
-  prerequisite?: ReactNode
+  /**
+   * Dados lidos antes do arquivo (viagem, formato). Como função, recebe
+   * `locked`: verdadeiro durante a gravação e depois do resultado, para o
+   * chamador travar os campos — trocar a viagem ali relia o arquivo e
+   * reabria o "Importar" para gravar o mesmo arquivo noutro destino.
+   */
+  prerequisite?: ReactNode | ((state: { locked: boolean }) => ReactNode)
   ready?: boolean
   /** Por que o arquivo ainda não pode ser escolhido quando `ready` é falso. */
   notReadyReason?: ReactNode
@@ -39,14 +45,14 @@ type Props<T, TResult = void> = {
    */
   reparseKey?: string | number
   importer?: (preview: T, file: File, allowOverride?: boolean) => Promise<TResult>
-  /**
-   * Pergunta antes de gravar cada arquivo (ex.: planilha com linhas ocultas que
-   * a gravação vai tirar). `false` interrompe sem gravar nada e mantém a prévia
-   * aberta, sem mensagem de falha: foi a pessoa que voltou.
-   */
-  confirmBeforeImport?: (preview: T, file: File) => Promise<boolean>
   batchImporter?: (entries: FilePreviewEntry<T>[], allowOverride?: boolean) => Promise<void>
   canImport: (preview: T, allowOverride?: boolean) => boolean
+  /**
+   * Sem erro, mas nada a gravar (ex.: só B/Ls cancelados, que são aviso):
+   * devolve a frase do rodapé e o "Importar" fica desativado. Não é "Com erro
+   * no arquivo": o painel de problemas só tem avisos.
+   */
+  nothingToImport?: (entries: FilePreviewEntry<T>[]) => ReactNode | null
   getIssues?: (preview: T) => readonly ImportIssue[]
   issuesFilename?: string
   renderPreview: (preview: T, file: File) => ReactNode
@@ -79,9 +85,9 @@ export function FileImportModal<T, TResult = void>({
   parser,
   reparseKey,
   importer,
-  confirmBeforeImport,
   batchImporter,
   canImport,
+  nothingToImport,
   renderPreview,
   renderBatchSummary,
   renderImportResult,
@@ -112,7 +118,11 @@ export function FileImportModal<T, TResult = void>({
   }, [])
 
 
+  // Gravação em andamento: X, Escape e Voltar não fecham (como no CE
+  // Mercante). Fechar no meio desmontava o modal com a gravação seguindo sem
+  // tela, sem o resultado e sem o erro.
   function closeModal() {
+    if (importing) return
     setSelectedFiles([])
     parseControllerRef.current?.abort()
     importControllerRef.current?.abort()
@@ -138,7 +148,6 @@ export function FileImportModal<T, TResult = void>({
     setEntries([])
     setActiveIndex(0)
     setAllowOverride(false)
-    setImportResult(undefined)
     setImportError(null)
     setReadFailures([])
     setParseProgress({ completed: 0, total: files.length, currentFile: files[0]?.name ?? null })
@@ -188,7 +197,12 @@ export function FileImportModal<T, TResult = void>({
   // uma identidade nova a cada render relançaria a leitura em laço.
   // `reparseKey` é o sinal explícito de "reler", no lugar dessa dependência.
   /* eslint-disable react-hooks/set-state-in-effect */
+  //
+  // Com a gravação em andamento ou o resultado na tela, uma troca de
+  // `reparseKey` não relê: o resultado gravado não é apagado e o "Importar"
+  // não volta (escolher outro arquivo, em `handleFiles`, é que recomeça).
   useEffect(() => {
+    if (importing || importResult !== undefined) return
     if (selectedFiles.length) void parseFiles(selectedFiles)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFiles, reparseKey])
@@ -205,11 +219,6 @@ export function FileImportModal<T, TResult = void>({
   async function handleImport() {
     if (!allImportable) return
     const importableEntries = entries
-    if (confirmBeforeImport) {
-      for (const entry of importableEntries) {
-        if (!(await confirmBeforeImport(entry.preview, entry.file))) return
-      }
-    }
     const controller = new AbortController()
     importControllerRef.current = controller
     setImporting(true)
@@ -249,8 +258,9 @@ export function FileImportModal<T, TResult = void>({
   const done = importResult !== undefined
   const hasErrors = readFailures.length > 0
     || entries.some((entry) => (getIssues && hasBlockingIssues(getIssues(entry.preview))) || !canImport(entry.preview, true))
-  const allImportable = entries.length > 0 && !hasErrors && entries.every(entryImportable)
-  const offerOverride = entries.length > 0 && !done && !hasErrors && !entries.every((entry) => canImport(entry.preview, false))
+  const emptyNote = entries.length > 0 && !hasErrors && nothingToImport ? nothingToImport(entries) : null
+  const allImportable = entries.length > 0 && !hasErrors && !emptyNote && entries.every(entryImportable)
+  const offerOverride = entries.length > 0 && !done && !hasErrors && !emptyNote && !entries.every((entry) => canImport(entry.preview, false))
   const primaryLabel = done
     ? 'Concluir'
     : typeof confirmLabel === 'function'
@@ -262,6 +272,7 @@ export function FileImportModal<T, TResult = void>({
   else if (parsing) footnote = <ImportFootnote>Lendo o arquivo. Nada foi gravado.</ImportFootnote>
   else if (!entries.length && !readFailures.length) footnote = <ImportFootnote>Nada é gravado antes de você conferir a prévia e confirmar.</ImportFootnote>
   else if (hasErrors) footnote = <ImportFootnote tone="warning">Com erro no arquivo, nada é importado. Corrija e escolha o arquivo de novo.</ImportFootnote>
+  else if (emptyNote) footnote = <ImportFootnote tone="warning">{emptyNote}</ImportFootnote>
   else if (!allImportable) footnote = <ImportFootnote tone="warning">Confira os avisos e confirme o aceite para importar.</ImportFootnote>
   else if (multiple && entries.length > 1) footnote = <ImportFootnote>{plural(entries.length, 'arquivo será importado', 'arquivos serão importados')}. Nada foi gravado ainda.</ImportFootnote>
   else footnote = <ImportFootnote>Prévia pronta. Nada foi gravado ainda.</ImportFootnote>
@@ -272,7 +283,7 @@ export function FileImportModal<T, TResult = void>({
       <div className="app-import">
         <ImportSteps current={step} />
         {subtitle ? <div className="app-import-context">{subtitle}</div> : null}
-        {prerequisite}
+        {typeof prerequisite === 'function' ? prerequisite({ locked: importing || done }) : prerequisite}
         <ImportFileBlock templates={templates}>
           {helper}
           <ImportFilePicker

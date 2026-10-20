@@ -77,7 +77,9 @@ it('um arquivo com erro recusa todos os do lote', async () => {
   expect(importBlDocuments).not.toHaveBeenCalled()
 })
 
-it('B/L cancelado é aviso: com o aceite, os demais arquivos entram', async () => {
+// Como no Manifesto BB e no CE Mercante, o cancelado só informa: não pede o
+// aceite "Conferi os avisos".
+it('B/L cancelado é aviso sem aceite: os demais arquivos entram', async () => {
   parseBlDocumentFile.mockImplementation(async (file: File) => document(file.name.replace(/\.pdf$/, '')))
   checkBreakbulkReimport.mockImplementation(async (_voyageId: number, manifest: { bls: Array<{ bl_id: string }> }) => (
     manifest.bls[0].bl_id === 'BLCAN002' ? { ...noReimport, cancelled: ['BLCAN002'] } : noReimport
@@ -89,11 +91,35 @@ it('B/L cancelado é aviso: com o aceite, os demais arquivos entram', async () =
 
   const summary = await screen.findByLabelText('Resumo dos arquivos lidos')
   expect(summary.textContent).toBe('arquivos lidos2com erro0com aviso1')
+  expect(screen.queryByRole('checkbox', { name: /Conferi os avisos/ })).toBeNull()
   const confirm = screen.getByRole('button', { name: 'Importar 1 B/L' }) as HTMLButtonElement
-  expect(confirm.disabled).toBe(true)
-  fireEvent.click(screen.getByRole('checkbox', { name: /Conferi os avisos e quero importar o arquivo/ }))
   await waitFor(() => expect(confirm.disabled).toBe(false))
   fireEvent.click(confirm)
   await waitFor(() => expect(importBlDocuments).toHaveBeenCalledTimes(1))
-  expect(importBlDocuments).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, acceptWarnings: true }))
+  expect(importBlDocuments).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, acceptWarnings: false }))
+})
+
+it('todos os B/Ls cancelados: Importar desativado com "Nenhum B/L a importar"', async () => {
+  parseBlDocumentFile.mockImplementation(async (file: File) => document(file.name.replace(/\.pdf$/, '')))
+  checkBreakbulkReimport.mockImplementation(async (_voyageId: number, manifest: { bls: Array<{ bl_id: string }> }) => (
+    { ...noReimport, cancelled: [manifest.bls[0].bl_id] }
+  ))
+  const { container } = renderModal()
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['b'], 'BLCAN002.pdf')] },
+  })
+
+  expect(await screen.findByText('Nenhum B/L a importar.')).toBeTruthy()
+  expect(screen.getByText('B/L cancelado: este arquivo não é tocado')).toBeTruthy()
+  expect(screen.queryByText(/Com erro no arquivo/)).toBeNull()
+  const confirm = screen.getByRole('button', { name: 'Importar B/Ls' }) as HTMLButtonElement
+  expect(confirm.disabled).toBe(true)
+  fireEvent.click(confirm)
+  expect(importBlDocuments).not.toHaveBeenCalled()
+})
+
+it('oferece o B/L de exemplo em .docx para baixar', () => {
+  renderModal()
+  const link = screen.getByRole('link', { name: 'Baixar modelo .docx' })
+  expect(link.getAttribute('href')).toBe('/templates/bl-avulso-exemplo.docx')
 })

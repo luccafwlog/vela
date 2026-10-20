@@ -33,7 +33,7 @@ const SAMPLE_SIZE = 25;
 /**
  * Concilia o "Exportar Tela" da ZPT com o que o Vela exportou. Resultado só
  * para o desk. Molde do lote 6a: Arquivo → Prévia → Resultado; qualquer CE
- * ilegível recusa o arquivo inteiro e linhas sem CE ou sem situação são
+ * ilegível (ou Data Atualização ilegível) recusa o arquivo inteiro e linhas sem CE ou sem situação são
  * ignoradas com a contagem à vista (D3). A conciliação é uma gravação só.
  */
 export function CeUnlockZptImport({ onClose }: { onClose: () => void }) {
@@ -64,7 +64,7 @@ export function CeUnlockZptImport({ onClose }: { onClose: () => void }) {
   }
 
   async function run() {
-    if (!parsed || parsed.rowErrors.length || !parsed.rows.length) return;
+    if (!parsed || parsed.rowErrors.length || parsed.fileError || !parsed.rows.length) return;
     setWriteError("");
     setBusy(true);
     try {
@@ -79,14 +79,15 @@ export function CeUnlockZptImport({ onClose }: { onClose: () => void }) {
 
   const issues: ImportIssue[] = (parsed?.rowErrors ?? []).map((error) => ({
     row: error.row,
-    field: "ce",
+    field: error.field,
     code: "invalid_group",
     severity: "error",
     message: error.message,
   }));
   const count = parsed?.rows.length ?? 0;
   const skipped = parsed?.skippedRows.length ?? 0;
-  const hasErrors = issues.length > 0;
+  const fileError = parsed?.fileError ?? null;
+  const hasErrors = issues.length > 0 || Boolean(fileError);
   const step = summary ? "resultado" : parsed || readError ? "previa" : "arquivo";
 
   let footnote = "Nada é gravado antes de você conferir a prévia e confirmar. Nada é enviado ao Cliente.";
@@ -111,7 +112,7 @@ export function CeUnlockZptImport({ onClose }: { onClose: () => void }) {
           details={(
             <>
               <p>Na ZPT, use <strong>Exportar Tela</strong> e envie o arquivo como veio (.xls, .xlsx ou .csv). Só a situação de cada CE é lida; os dados do operador da ZPT são descartados.</p>
-              <p>Linhas sem CE ou sem situação são ignoradas. CE que não tem 15 dígitos impede a conciliação do arquivo inteiro.</p>
+              <p>Linhas sem CE ou sem situação são ignoradas. CE que não tem 15 dígitos ou Data Atualização ilegível impede a conciliação do arquivo inteiro.</p>
             </>
           )}
         />
@@ -139,12 +140,17 @@ export function CeUnlockZptImport({ onClose }: { onClose: () => void }) {
               label="O que a conciliação lê"
               items={[
                 { label: count === 1 ? "CE" : "CEs", value: count },
-                { label: skipped === 1 ? "linha sem CE ignorada" : "linhas sem CE ignoradas", value: skipped, tone: skipped ? "warning" : "default" },
+                { label: skipped === 1 ? "linha sem CE ou situação ignorada" : "linhas sem CE ou situação ignoradas", value: skipped, tone: skipped ? "warning" : "default" },
                 { label: issues.length === 1 ? "linha com erro" : "linhas com erro", value: issues.length, tone: issues.length ? "danger" : "default" },
               ]}
             />
           )}
         >
+          {fileError ? (
+            <ImportNotice tone="danger" role="alert" title="O arquivo impede a conciliação">
+              <p>{fileError}</p>
+            </ImportNotice>
+          ) : null}
           {skipped ? (
             <ImportNotice tone="info" role="status" title={`${plural(skipped, "linha sem CE ou sem situação ignorada", "linhas sem CE ou sem situação ignoradas")}`}>
               <p>Linha {parsed.skippedRows.slice(0, 20).join(", ")}{skipped > 20 ? ` e mais ${skipped - 20}` : ""}. Elas não têm o que conciliar.</p>

@@ -35,6 +35,12 @@ conferiu.
 3. A recusa que só o banco detecta (chassi repetido, B/L não encontrado,
    container ausente) também desfaz tudo: a gravação de uma importação é uma
    transação só, e a tela lista o que foi recusado.
+   **Exceção (decisão do responsável, 2026-10-20):** na importação de B/L de
+   container, a Troca de Consignatário que o operador aceitou e o banco
+   recusa (por exemplo, recebimento que impede a troca) não desfaz o arquivo. É decisão de
+   campo, não erro de linha: o B/L entra com os demais campos, mantém o
+   consignatário gravado e o resultado avisa a troca recusada — como a troca
+   sem aceite. Ver [Manifesto e EDI](../modules/manifesto-edi.md).
 4. **B/L cancelado dentro do arquivo** (manifesto BB, CE Mercante) é aviso: o
    B/L cancelado não é tocado e o resto do arquivo entra. O arquivo do armador
    continua trazendo o B/L, e não há como corrigi-lo.

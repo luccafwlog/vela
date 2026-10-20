@@ -319,7 +319,7 @@ describe('Conciliação PIX', () => {
   // Regra de 2026-10-19: valor ilegível recusa o extrato inteiro antes de
   // procurar faturas ou salvar exceções.
   it('valor ilegível no extrato: nada é procurado, salvo nem baixado', async () => {
-    mocks.parse.mockResolvedValueOnce({ transactions: [transaction], ignored: 0, errors: [{ row: 9, message: 'Valor pago "1,2,3" ilegível.' }] })
+    mocks.parse.mockResolvedValueOnce({ transactions: [transaction], ignored: 0, errors: [{ row: 9, field: 'value', message: 'Valor pago "1,2,3" ilegível.' }] })
     const user = userEvent.setup()
     renderPage('/reconciliacao?tab=extrato')
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
@@ -330,6 +330,12 @@ describe('Conciliação PIX', () => {
     expect(mocks.match).not.toHaveBeenCalled()
     expect(mocks.persist).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: /^Confirmar/ })).toBeNull()
+  })
+
+  it('a aba do extrato oferece o arquivo de exemplo para baixar (ADR 0091, item 7)', async () => {
+    renderPage('/reconciliacao?tab=extrato')
+    const link = await screen.findByRole('link', { name: 'Baixar modelo .xlsx' })
+    expect(link.getAttribute('href')).toBe('/templates/extrato-pix-exemplo.xlsx')
   })
 
   it('lançamentos zerados ou negativos ficam fora com a contagem à vista (D3)', async () => {

@@ -86,7 +86,7 @@ export async function parseVaziosImportacaoBuffer(buffer: ArrayBuffer): Promise<
 
     const containerNumber = String(mapped['container_number'] ?? '').trim().toUpperCase()
     if (!containerNumber) {
-      rowErrors.add(rowNumber, 'Container ausente — linha ignorada.', row)
+      rowErrors.add(rowNumber, 'Container ausente.', row)
       return
     }
     if (!IsoContainerSchema.safeParse(containerNumber).success) {

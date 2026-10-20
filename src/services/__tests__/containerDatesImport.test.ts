@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { annotateContainerDates, importContainerDates, parseContainerDatesFile } from '../containerDatesImport'
+import { annotateContainerDates, importContainerDates, MAX_CONTAINER_DATES_BLS, parseContainerDatesFile } from '../containerDatesImport'
+import { classifyDbError } from '../../lib/errors'
 import { jsonToBuffer } from './testWorkbook'
 
 type FakeContainer = {
@@ -230,6 +231,31 @@ describe('importContainerDates (arquivo inteiro numa chamada)', () => {
       unchanged: 0,
       errors: [expect.objectContaining({ bl_id: 'BL001', container_number: 'TCLU2222222', message: 'Container não encontrado neste B/L.' })],
     })
+  })
+
+  // Migration 333: a planilha inteira numa transação de até 60 s.
+  it('tempo esgotado no banco (57014): nada gravado e a pessoa divide a planilha', async () => {
+    setContainers([
+      { id: 1, bl_id: 'BL001', container_number: 'TCLU1111111', discharge_date: null, return_date: null, demurrage_status: null },
+    ])
+    mockRpc.mockResolvedValue({ data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } })
+
+    const failure = await importContainerDates([
+      { bl_id: 'BL001', container_number: 'TCLU1111111', discharge_date: '2026-01-10', return_date: null },
+    ]).catch((error: unknown) => error)
+
+    // O modal mostra "Nada foi gravado: <mensagem>" com classifyDbError.
+    expect(classifyDbError(failure).message).toBe(
+      'a planilha é grande demais para gravar de uma vez. Divida os B/Ls em planilhas menores e importe cada uma.',
+    )
+  })
+
+  it('planilha acima do teto de B/Ls é recusada antes de ler ou gravar', async () => {
+    const rows = Array.from({ length: MAX_CONTAINER_DATES_BLS + 1 }, (_, index) => ({
+      bl_id: `BL${index}`, container_number: 'TCLU1111111', discharge_date: '2026-01-10', return_date: null,
+    }))
+    await expect(importContainerDates(rows)).rejects.toThrow(/limite é 300 por arquivo/)
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
   // ADR 0078, item 19: a prévia mostra "antes → depois", devolução vazia mantém

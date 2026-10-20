@@ -5712,10 +5712,6 @@ button.app-metric-tile[aria-pressed='true'] {
     padding: 22px 12px 32px;
   }
 
-  .app-auth__card {
-    width: 100%;
-  }
-
   .app-surface--padded {
     padding: 18px;
   }

@@ -70,7 +70,7 @@ export function PortalAtivacao() {
     }
   }
 
-  const title = done ? 'Acesso ativado' : company || loading ? 'Ativar acesso ao Portal' : 'Convite vencido'
+  const title = done ? 'Acesso ativado' : company || loading ? 'Ativar acesso ao Portal' : 'Convite indisponível'
 
   return (
     <AuthLayout brand="portal" title={title}>

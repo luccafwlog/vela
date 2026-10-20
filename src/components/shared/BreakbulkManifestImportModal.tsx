@@ -101,17 +101,22 @@ export function BreakbulkManifestImportModal({
           <BreakbulkImportOutcome result={result} />
         </ImportSection>
       )}
-      canImport={(manifest) => manifest.bls.length > 0 && !hasBlockingRowErrors(manifest.rowErrors)}
+      canImport={(manifest) => !hasBlockingRowErrors(manifest.rowErrors)}
+      // Só B/Ls cancelados (aviso): nada a gravar, mas não é erro no arquivo.
+      nothingToImport={(entries) => (entries.every((entry) => entry.preview.bls.length === 0) ? 'Nenhum B/L a importar.' : null)}
       getIssues={(manifest) => rowErrorsToImportIssues(manifest.rowErrors)}
       ready={Boolean(voyageId && uploadedBy)}
       notReadyReason="Escolha a viagem de destino para ler o arquivo: a prévia confere os B/Ls já gravados nela."
       confirmLabel={(entries) => entries[0]?.preview.bls.length ? `Importar ${plural(entries[0].preview.bls.length, 'B/L', 'B/Ls')}` : 'Importar B/Ls'}
-      prerequisite={
+      // Travados na gravação e depois do resultado: trocar a viagem ou o
+      // formato relia o arquivo e reabria o Importar para outro destino.
+      prerequisite={({ locked }) => (
         <div className="grid gap-3 sm:grid-cols-2">
           {voyage ? null : (
             <VoyageCombobox
               required
               label="Viagem de destino"
+              disabled={locked}
               selectedVoyageId={chosenVoyageId}
               onSelect={(id) => setChosenVoyageId(id == null ? '' : String(id))}
             />
@@ -122,14 +127,14 @@ export function BreakbulkManifestImportModal({
               ? 'Valores como "259.312" (259 mil ou 259,312) são recusados até você declarar o formato.'
               : 'Se o arquivo contradisser o formato declarado, a importação é recusada.'}
           >
-            <Select value={numberFormat} onChange={(event) => setNumberFormat(event.target.value as typeof numberFormat)}>
+            <Select value={numberFormat} disabled={locked} onChange={(event) => setNumberFormat(event.target.value as typeof numberFormat)}>
               <option value="auto">Detectar pelo arquivo</option>
               <option value="pt-BR">1.234,56 (vírgula decimal)</option>
               <option value="en-US">1,234.56 (ponto decimal)</option>
             </Select>
           </Field>
         </div>
-      }
+      )}
       renderPreview={(manifest) => (
         <>
           <BreakbulkReimportReview

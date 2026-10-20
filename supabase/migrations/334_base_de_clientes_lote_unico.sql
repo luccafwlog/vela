@@ -24,6 +24,22 @@
 -- (`expected_current_name`), conferido aqui com o Cliente travado; se outra
 -- sessão renomeou o Cliente depois da prévia, a linha é recusada.
 --
+-- O nome esperado é comparado exatamente com o gravado (sem `btrim`): a tela
+-- manda o nome como leu do banco, e qualquer diferença — inclusive só de
+-- espaço — quer dizer que o Cliente mudou depois da prévia.
+--
+-- Os Clientes são gravados em ordem de CNPJ: duas bases simultâneas travam os
+-- Clientes na mesma ordem, sem deadlock (a recusa continua apontando o CNPJ
+-- certo). A função declara `statement_timeout = 60s`, que o PostgREST (v12+)
+-- aplica à transação da chamada (`db-hoisted-tx-settings`), tirando a base do
+-- teto de 8 s do papel `authenticated`.
+-- ponytail: ~3 ms por Cliente (medido em 20/10/2026 no PG local: 2.000 novos
+-- 6–8,7 s; 3.000 já cadastrados 8,9 s; 5.000 novos 16 s). Teto: 3.000
+-- Clientes por arquivo (a tela recusa antes de chamar; aqui é 22023), uns
+-- 10 s. Acima do tempo a chamada é cancelada (57014) e nada é gravado.
+-- Upgrade: preparo em etapas numa tabela de staging com publicação numa RPC
+-- final, ou o vínculo dos B/Ls pendentes feito em conjunto no fim.
+--
 -- Permissão: o mesmo contrato da RPC por linha — usuário ativo,
 -- `p_changed_by` igual a `auth.uid()`; EXECUTE só para `authenticated` (como a
 -- 185 deu à `apply_customer_base_row_atomic`), revogado de PUBLIC e anon.
@@ -40,6 +56,7 @@ CREATE OR REPLACE FUNCTION public.apply_customer_base_batch_atomic(
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
+ SET statement_timeout TO '60s'
 AS $function$
 DECLARE
   v_actor uuid := auth.uid();
@@ -61,12 +78,16 @@ BEGIN
   IF p_rows IS NULL OR jsonb_typeof(p_rows) <> 'array' OR jsonb_array_length(p_rows) = 0 THEN
     RAISE EXCEPTION 'Base de Clientes vazia.' USING ERRCODE = '22023';
   END IF;
-  IF jsonb_array_length(p_rows) > 5000 THEN
-    RAISE EXCEPTION 'Base com mais de 5000 Clientes: divida o arquivo.' USING ERRCODE = '22023';
+  IF jsonb_array_length(p_rows) > 3000 THEN
+    RAISE EXCEPTION 'Base com mais de 3000 Clientes: divida o arquivo.' USING ERRCODE = '22023';
   END IF;
 
   BEGIN
-    FOR v_row IN SELECT * FROM jsonb_array_elements(p_rows) LOOP
+    -- Em ordem de CNPJ: bases simultâneas travam os Clientes na mesma ordem.
+    FOR v_row IN
+      SELECT r.item FROM jsonb_array_elements(p_rows) AS r(item)
+      ORDER BY btrim(COALESCE(r.item->>'cnpj', ''))
+    LOOP
       v_cnpj := NULLIF(btrim(COALESCE(v_row->>'cnpj', '')), '');
       BEGIN
         IF jsonb_typeof(v_row) <> 'object' THEN
@@ -74,8 +95,9 @@ BEGIN
         END IF;
         -- O aceite da troca vale para o nome que a prévia mostrou.
         IF COALESCE((v_row->>'confirm_name_change')::boolean, false) THEN
-          v_expected := NULLIF(btrim(COALESCE(v_row->>'expected_current_name', '')), '');
-          SELECT btrim(COALESCE(name, '')) INTO v_current
+          -- Comparação exata: a tela manda o nome como o leu (sem trim).
+          v_expected := v_row->>'expected_current_name';
+          SELECT name INTO v_current
           FROM public.customers WHERE cnpj_cpf = v_cnpj FOR UPDATE;
           IF v_expected IS NULL OR NOT FOUND OR v_current IS DISTINCT FROM v_expected THEN
             RAISE EXCEPTION 'A razão social do Cliente % mudou depois da prévia: leia o arquivo de novo.', v_cnpj

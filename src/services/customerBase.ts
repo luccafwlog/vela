@@ -27,6 +27,36 @@ const SPEC: HeaderSpec<DestinationField> = {
   required: ['cnpj_cpf', 'name'],
 }
 
+/**
+ * Teto de Clientes por base: a tela recusa o arquivo na leitura, e a RPC
+ * (`apply_customer_base_batch_atomic`, migration 334) recusa acima disso com
+ * 22023.
+ * ponytail: a RPC grava a base inteira numa transação com
+ * `statement_timeout = 60s`, a ~3 ms por Cliente (medido em 20/10/2026 no PG
+ * local: 2.000 novos 6–8,7 s; 3.000 já cadastrados 8,9 s; 5.000 novos 16 s).
+ * 3.000 Clientes dá uns 10 s, com folga para o banco de produção; acima do
+ * tempo a chamada é cancelada (57014) e nada é gravado. Upgrade: preparo em
+ * etapas numa tabela de staging com publicação numa RPC final, ou o vínculo
+ * dos B/Ls pendentes feito em conjunto no fim.
+ */
+export const MAX_CUSTOMER_BASE_ROWS = 3000
+
+/**
+ * Recusa da base que a pessoa resolve dividindo o arquivo. Leva o código 22023
+ * (validação) para que `classifyDbError`/`userFacingErrorMessage` mostrem a
+ * mensagem em vez do texto genérico.
+ */
+export class CustomerBaseTooLargeError extends Error {
+  readonly code = '22023'
+}
+
+function assertWithinCustomerCap(rows: CustomerBaseRow[]) {
+  const customers = new Set(rows.map((row) => row.cnpj_cpf)).size
+  if (customers > MAX_CUSTOMER_BASE_ROWS) {
+    throw new CustomerBaseTooLargeError(`A base tem ${customers} Clientes; o limite é ${MAX_CUSTOMER_BASE_ROWS} por arquivo. Divida em arquivos menores e importe cada um.`)
+  }
+}
+
 export type CustomerBaseRow = {
   cnpj_cpf: string
   name: string
@@ -42,6 +72,11 @@ export type CustomerBaseRow = {
   changedFields?: string[]
   /** razão social gravada, quando a planilha traz outra (pede confirmação) */
   currentName?: string | null
+  /**
+   * Razão social exatamente como o banco a devolveu na prévia (sem trim): o
+   * aceite da troca vale para ela, e a RPC recusa se o gravado for outro.
+   */
+  storedName?: string | null
   /** B/Ls pendentes de Cliente que este CNPJ vincula (ADR 0078, item 24) */
   pendingBlIds?: string[]
   /** B/Ls rejeitados na Revisão com este CNPJ: nunca vinculados pela Base */
@@ -58,7 +93,9 @@ export async function parseCustomerBaseFile(file: File): Promise<ParsedCustomerB
   const buffer = await file.arrayBuffer()
   const { headers, rows } = await readSheet(buffer)
   validateRequiredHeaders(headers)
-  return parseCustomerBaseRows(rows)
+  const parsed = parseCustomerBaseRows(rows)
+  assertWithinCustomerCap(parsed.rows)
+  return parsed
 }
 
 export async function compareCustomerBaseWithExisting(parsed: ParsedCustomerBase): Promise<ParsedCustomerBase> {
@@ -100,22 +137,40 @@ export async function compareCustomerBaseWithExisting(parsed: ParsedCustomerBase
       const links = { pendingBlIds: pending.get(row.cnpj_cpf) ?? [], rejectedBlIds: rejected.get(row.cnpj_cpf) ?? [] }
       if (!current) return { ...row, ...links }
       const changedFields = Object.keys(labels).filter((field) => String(current[field] ?? '').trim() !== String(row[field as keyof CustomerBaseRow] ?? '').trim()).map((field) => labels[field])
-      const currentName = String(current.name ?? '').trim()
+      const storedName = String(current.name ?? '')
+      const currentName = storedName.trim()
+      const renamed = !sameName(currentName, row.name)
       return {
         ...row,
         ...links,
         existingCustomerId: Number(current.id),
         changedFields,
-        currentName: sameName(currentName, row.name) ? null : currentName,
+        currentName: renamed ? currentName : null,
+        storedName: renamed ? storedName : null,
       }
     }),
   }
 }
 
-/** Razão social comparada sem caixa, espaços extras e pontuação. */
+/**
+ * Razão social comparada sem caixa, espaços extras e pontuação — a mesma regra
+ * do banco (migration 192: `upper(btrim(regexp_replace(nome, '[^[:alnum:]]+',
+ * ' ', 'g')))`), para a prévia pedir o aceite exatamente quando a gravação o
+ * exige. `[:alnum:]` do banco (glibc, UTF-8) é letra ou dígito decimal ou
+ * numeral romano: `º`/`ª` contam como letra; `¹`, `½`, acentos soltos
+ * (combinantes), NBSP e tab viram separador. A caixa alta é a simples, letra
+ * a letra, como o `upper` do banco (`ß` continua `ß`).
+ */
 export function sameName(left: string | null | undefined, right: string | null | undefined) {
-  const key = (value: string | null | undefined) => String(value ?? '').toUpperCase().replace(/[^A-Z0-9À-Ú]+/g, ' ').trim()
-  return key(left) === key(right)
+  return customerNameKey(left) === customerNameKey(right)
+}
+
+export function customerNameKey(value: string | null | undefined) {
+  const spaced = String(value ?? '').replace(/[^\p{L}\p{Nd}\p{Nl}]+/gu, ' ').trim()
+  return Array.from(spaced, (char) => {
+    const upper = char.toUpperCase()
+    return Array.from(upper).length === 1 ? upper : char
+  }).join('')
 }
 
 /** Clientes cuja razão social muda: a importação pede confirmação antes. */
@@ -149,6 +204,7 @@ export async function importCustomerBaseRows(
     return { ok: true, imported: 0, updated: 0, contactsCreated: 0, blsLinked: 0, errors: [] }
   }
   if (!options.changedBy) throw new Error('Usuário ativo obrigatório para importar a base de clientes.')
+  assertWithinCustomerCap(uniqueRows)
 
   const { data, error } = await supabase.rpc('apply_customer_base_batch_atomic' as never, {
     p_rows: uniqueRows.map((row) => {
@@ -163,12 +219,22 @@ export async function importCustomerBaseRows(
         zip: row.zip,
         emails: row.emails,
         confirm_name_change: confirmsNameChange,
-        expected_current_name: confirmsNameChange ? row.currentName!.trim() : null,
+        // O nome como o banco o devolveu: a RPC compara exatamente com o gravado.
+        expected_current_name: confirmsNameChange ? row.storedName ?? row.currentName : null,
       }
     }),
     p_changed_by: options.changedBy,
   } as never)
-  if (error) throw error
+  if (error) {
+    // Tempo esgotado (60 s da RPC): a transação foi desfeita inteira.
+    if ((error as { code?: string }).code === '57014') {
+      throw new CustomerBaseTooLargeError(
+        'o arquivo é grande demais para gravar de uma vez. Divida os Clientes em arquivos menores e importe cada um.',
+        { cause: error },
+      )
+    }
+    throw error
+  }
 
   const result = (data ?? {}) as {
     ok?: boolean

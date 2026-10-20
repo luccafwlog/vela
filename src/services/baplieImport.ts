@@ -272,9 +272,56 @@ export function diffBaplieStaging(existing: BaplieDiffFields[], incoming: Baplie
       items.push(`Removido: ${number} (${describeContainer(previous)})`)
     }
   }
-  const emptyKeys = (list: Iterable<BaplieDiffFields>) =>
-    [...list].filter((c) => c.status === 'empty').map((c) => `${c.container_number}|${c.pol}|${c.pod}`).sort().join(',')
-  return { items, added, removed, changed, vaziosChanged: emptyKeys(before.values()) !== emptyKeys(after.values()) }
+  return { items, added, removed, changed, vaziosChanged: baplieEmptyKeys(before.values()) !== baplieEmptyKeys(after.values()) }
+}
+
+type VaziosKeyFields = Pick<BaplieContainer, 'container_number' | 'pol' | 'pod'>
+
+/** Container + rota de cada vazio, na ordem: o que o recadastro dos vazios copia do Baplie. */
+function vaziosKeys(list: Iterable<VaziosKeyFields>) {
+  return [...list].map((c) => `${c.container_number}|${c.pol}|${c.pod}`).sort().join(',')
+}
+
+function baplieEmptyKeys(list: Iterable<BaplieDiffFields>) {
+  return vaziosKeys([...list].filter((c) => c.status === 'empty'))
+}
+
+/**
+ * Vazios do Baplie pendentes de recadastro (ADR 0091, item 5): o manifesto de
+ * vazios vindo do Baplie não tem os mesmos containers e rotas que os vazios do
+ * Baplie gravado. É o rastro persistido de um `vaziosError` — a falha em si não
+ * fica gravada —, e /baplie oferece "Atualizar vazios do Baplie" com ele.
+ *
+ * ponytail: a comparação também acusa a diferença quando uma planilha de Vazios
+ * de importação substituiu, de propósito, uma rota do manifesto do Baplie (a
+ * migration 187 apaga as linhas da rota em todos os manifestos da Viagem). É o
+ * mesmo limite da comparação por quantidade que a tela já fazia; separar os
+ * dois casos pede gravar a falha do recadastro (uma coluna de pendência).
+ */
+export async function hasPendingBaplieVazios(voyageId: number, manifestId: string): Promise<boolean> {
+  const [staging, registered] = await Promise.all([
+    listBaplieStagingForDiff(voyageId),
+    listVaziosManifestKeys(manifestId),
+  ])
+  return baplieEmptyKeys(staging) !== vaziosKeys(registered)
+}
+
+// Paginado como `listBaplieStagingForDiff`.
+async function listVaziosManifestKeys(manifestId: string): Promise<VaziosKeyFields[]> {
+  const PAGE = 1000
+  const rows: VaziosKeyFields[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('vazios_importacao_containers')
+      .select('container_number, pol, pod')
+      .eq('manifest_id', manifestId)
+      .order('id')
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    rows.push(...((data ?? []) as VaziosKeyFields[]))
+    if (!data || data.length < PAGE) break
+  }
+  return rows
 }
 
 // Paginado: o PostgREST devolve no máximo 1000 linhas por chamada; um Baplie

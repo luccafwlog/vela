@@ -5,7 +5,7 @@ import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
-import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice } from '../shared/ImportParts'
+import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportTemplateLinks } from '../shared/ImportParts'
 import { ImportIssuesPanel } from '../shared/ImportIssuesPanel'
 import type { ImportIssue } from '../../services/importValidation'
 import { useAuth } from '../../hooks/useAuth'
@@ -42,7 +42,7 @@ type ReadResult = {
   firstSheetHiddenRows: number
   /** Lançamentos zerados ou negativos (tarifas e saídas) ignorados (D3). */
   ignored: number
-  /** Valor ilegível: recusa o extrato inteiro; nada é lido nem salvo (regra de 2026-10-19). */
+  /** Valor pago ou data ilegível: recusa o extrato inteiro; nada é lido nem salvo (ADR 0091). */
   errors: ImportIssue[]
 }
 
@@ -65,14 +65,14 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
     mutationFn: async (chosen: File): Promise<ReadResult> => {
       const [extract, notices] = await Promise.all([parsePixExtractFile(chosen), readSpreadsheetNotices(chosen)])
       const { transactions, ignored } = extract
-      // Valor ilegível recusa o extrato inteiro antes de procurar faturas ou
+      // Valor ou data ilegível recusa o extrato inteiro antes de procurar faturas ou
       // salvar exceções: nada é gravado.
       if (extract.errors.length) {
         return {
           matches: [],
           firstSheetHiddenRows: notices.firstSheetHiddenRows,
           ignored,
-          errors: extract.errors.map((error) => ({ row: error.row, field: 'value', code: 'invalid_number' as const, severity: 'error' as const, message: error.message })),
+          errors: extract.errors.map((error) => ({ row: error.row, field: error.field, code: error.field === 'date' ? 'invalid_date' as const : 'invalid_number' as const, severity: 'error' as const, message: error.message })),
         }
       }
       if (!transactions.length) {
@@ -149,10 +149,12 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
           details={(
             <p>
               Use o relatório "QR Codes recebidos" (.xlsx ou .xls). A leitura começa na linha que tem a coluna Identificador e
-              ignora lançamentos zerados ou negativos (tarifas e saídas), com a contagem na conferência. Valor pago ilegível
-              impede a leitura do extrato inteiro. Linhas e abas ocultas ficam de fora.
+              ignora lançamentos zerados ou negativos (tarifas e saídas, inclusive em forma contábil, como "(10,00)" ou
+              "10,00 D"), com a contagem na conferência. Valor pago ou data de pagamento ilegível impede a leitura do
+              extrato inteiro. Linhas e abas ocultas ficam de fora.
             </p>
           )}
+          templates={<ImportTemplateLinks baseName="extrato-pix-exemplo" extensions={['xlsx']} />}
         />
         <ImportFilePicker
           accept=".xlsx,.xls"
@@ -227,7 +229,7 @@ function ExtractReview({
       <Block title="Conferência do extrato" aside="Nada foi lido nem salvo" bodyClassName="grid gap-4">
         <ImportIssuesPanel issues={read.errors} filename="extrato-pix-erros.csv" />
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <ImportFootnote tone="warning">Com valor ilegível no extrato, nada é baixado nem salvo em Pendências. Corrija e escolha o arquivo de novo.</ImportFootnote>
+          <ImportFootnote tone="warning">Com valor ou data ilegível no extrato, nada é baixado nem salvo em Pendências. Corrija e escolha o arquivo de novo.</ImportFootnote>
           <Button variant="ghost" onClick={onDiscard}>Descartar leitura</Button>
         </div>
       </Block>

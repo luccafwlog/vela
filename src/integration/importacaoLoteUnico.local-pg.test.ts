@@ -155,4 +155,50 @@ describeLocal('Importação com erro não grava nada (migrations 333 e 334)', ()
     expect(renamed).toMatchObject({ ok: true, updated: 1 })
     expect(asUser(`SELECT name FROM public.customers WHERE cnpj_cpf = '${baseCnpjOk}';`)).toBe('L333 NOME NOVO')
   })
+
+  // A tela manda o nome como o banco o devolveu; a RPC compara exatamente,
+  // sem `btrim` (que não tira NBSP, ao contrário do trim do navegador).
+  it('base de clientes: o nome de antes é conferido exatamente como gravado', () => {
+    asUser(`UPDATE public.customers SET name = E'L333 NOME NOVO\\u00a0' WHERE cnpj_cpf = '${baseCnpjOk}';`)
+    const trimmed = JSON.parse(asUser(`
+      SELECT public.apply_customer_base_batch_atomic('[
+        {"cnpj":"${baseCnpjOk}","name":"L333 TERCEIRO","emails":["ok@l325.example.test"],
+         "confirm_name_change":true,"expected_current_name":"L333 NOME NOVO"}
+      ]'::jsonb, '${actorId}'::uuid);
+    `)) as { ok: boolean; errors: Array<{ message: string }> }
+    expect(trimmed.ok).toBe(false)
+    expect(trimmed.errors[0].message).toMatch(/mudou depois da prévia/)
+
+    const exact = JSON.parse(asUser(`
+      SELECT public.apply_customer_base_batch_atomic('[
+        {"cnpj":"${baseCnpjOk}","name":"L333 TERCEIRO","emails":["ok@l325.example.test"],
+         "confirm_name_change":true,"expected_current_name":"L333 NOME NOVO\\u00a0"}
+      ]'::jsonb, '${actorId}'::uuid);
+    `)) as { ok: boolean }
+    expect(exact.ok).toBe(true)
+    expect(asUser(`SELECT name FROM public.customers WHERE cnpj_cpf = '${baseCnpjOk}';`)).toBe('L333 TERCEIRO')
+  })
+
+  it('base de clientes: recusas de vários Clientes apontam cada CNPJ, em ordem de CNPJ', () => {
+    // Nomes já gravados pelos testes anteriores: só o e-mail é recusado.
+    const names: Record<string, string> = { [baseCnpjOk]: 'L333 TERCEIRO', [baseCnpjBad]: 'L333 CLIENTE DOIS' }
+    const [first, second] = [baseCnpjOk, baseCnpjBad].sort()
+    const result = JSON.parse(asUser(`
+      SELECT public.apply_customer_base_batch_atomic('[
+        {"cnpj":"${second}","name":"${names[second]}","emails":["sem-arroba-2"]},
+        {"cnpj":"${first}","name":"${names[first]}","emails":["sem-arroba-1"]}
+      ]'::jsonb, '${actorId}'::uuid);
+    `)) as { ok: boolean; errors: Array<{ cnpj: string; message: string }> }
+    expect(result.ok).toBe(false)
+    expect(result.errors.map((error) => error.cnpj)).toEqual([first, second])
+    expect(result.errors[0].message).toMatch(/sem-arroba-1/)
+  })
+
+  it('datas: planilha acima de 300 B/Ls é recusada antes de gravar (teto de 60 s)', () => {
+    expect(() => asUser(`
+      SELECT public.apply_container_dates_batch_atomic(gen_random_uuid(),
+        (SELECT jsonb_agg(jsonb_build_object('bl_id', 'L333-X' || g, 'rows', '[]'::jsonb)) FROM generate_series(1, 301) g),
+        '${actorId}'::uuid);
+    `)).toThrow(/mais de 300 B\/Ls/)
+  })
 })

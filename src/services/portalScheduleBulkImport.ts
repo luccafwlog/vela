@@ -65,24 +65,41 @@ export function assertNoRepeatedScheduleColumns(headers: readonly string[]) {
   }
 }
 
+/**
+ * Linha com dado mas sem VESSEL NAME ou sem VOY não identifica a Viagem: é
+ * erro que recusa a planilha inteira (ADR 0091), lançado com a linha de cada
+ * uma. Linha vazia e a linha de exemplo do modelo ("EXEMPLO NAVIO") são
+ * ignoradas.
+ */
 export function parseScheduleRows(rows: Array<Record<string, unknown>>): BulkScheduleRow[] {
-  return rows
-    .map((row) => {
-      const vesselName = String(row['VESSEL NAME'] ?? row['Vessel Name'] ?? '').trim()
-      const voyageNumber = String(row.VOY ?? '').trim()
-      const vesselImo = String(row.IMO ?? '').trim()
-      const invalidCells: string[] = []
-      const lanes = PORTAL_SCHEDULE_LANES.map((lane) => {
-        const column = laneColumn(lane.label, lane.kind)
-        const raw = readCell(row, column) ?? row[lane.label]
-        const date = parseCellDate(raw)
-        if (date === null && !isBlankCell(raw)) invalidCells.push(column)
-        return { code: portalLaneCode(lane), kind: lane.kind, date }
-      })
-      const rowNumber = typeof row.rowNumber === 'number' ? row.rowNumber : undefined
-      return { vesselName, vesselImo, voyageNumber, lanes, invalidCells, ...(rowNumber === undefined ? {} : { rowNumber }) }
+  const incomplete: string[] = []
+  const parsed: BulkScheduleRow[] = rows.map((row, index) => {
+    const vesselName = String(row['VESSEL NAME'] ?? row['Vessel Name'] ?? '').trim()
+    const voyageNumber = String(row.VOY ?? '').trim()
+    const vesselImo = String(row.IMO ?? '').trim()
+    const invalidCells: string[] = []
+    let hasLaneContent = false
+    const lanes = PORTAL_SCHEDULE_LANES.map((lane) => {
+      const column = laneColumn(lane.label, lane.kind)
+      const raw = readCell(row, column) ?? row[lane.label]
+      const date = parseCellDate(raw)
+      if (String(raw ?? '').trim()) hasLaneContent = true
+      if (date === null && !isBlankCell(raw)) invalidCells.push(column)
+      return { code: portalLaneCode(lane), kind: lane.kind, date }
     })
-    .filter((row) => row.vesselName && row.voyageNumber && row.vesselName !== 'EXEMPLO NAVIO')
+    const rowNumber = typeof row.rowNumber === 'number' ? row.rowNumber : undefined
+    const line = rowNumber ?? index + 2
+    if (vesselName !== 'EXEMPLO NAVIO') {
+      if (vesselName && !voyageNumber) incomplete.push(`Linha ${line}: VOY vazio para o navio ${vesselName}.`)
+      else if (!vesselName && voyageNumber) incomplete.push(`Linha ${line}: VESSEL NAME vazio para a VOY ${voyageNumber}.`)
+      else if (!vesselName && !voyageNumber && (vesselImo || hasLaneContent)) incomplete.push(`Linha ${line}: tem dados, mas está sem VESSEL NAME e VOY.`)
+    }
+    return { vesselName, vesselImo, voyageNumber, lanes, invalidCells, ...(rowNumber === undefined ? {} : { rowNumber }) }
+  })
+  if (incomplete.length) {
+    throw new Error(`${incomplete.join(' ')} Preencha VESSEL NAME e VOY em cada linha com dados e escolha o arquivo de novo.`)
+  }
+  return parsed.filter((row) => row.vesselName && row.voyageNumber && row.vesselName !== 'EXEMPLO NAVIO')
 }
 
 /**

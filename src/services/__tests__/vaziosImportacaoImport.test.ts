@@ -86,7 +86,7 @@ describe('parseVaziosImportacaoBuffer', () => {
 
     expect(manifest.containers).toEqual([])
     expect(manifest.rowErrors).toEqual([
-      { row: 2, message: 'Container ausente — linha ignorada.', raw: expect.anything() },
+      { row: 2, message: 'Container ausente.', raw: expect.anything() },
       { row: 3, message: 'Container ABC123: formato ISO esperado (XXXX0000000).', raw: expect.anything() },
     ])
   })
