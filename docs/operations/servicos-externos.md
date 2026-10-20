@@ -806,17 +806,26 @@ para eles vale o backup do próprio Supabase.
   ordens), `cloudflare-pages-*.yml` (Pages; produção no push em `main`,
   esperando o check do Supabase; previews pela etiqueta `preview`),
   `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
-  etiqueta). Regra em [ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md).
+  etiqueta), `main-only-from-staging.yml` (check da PR contra a `main`) e
+  `staging-to-main-pr.yml` (abre ou atualiza a PR `staging` → `main`). Regras
+  em [ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md) e
+  [ADR 0091](../adr/0091-promocao-feature-staging-main.md).
 - **Etiqueta `preview`:** dispara a preview e o usuário admin de uma PR; a
   limpeza ao fechar só roda em PR com essa etiqueta (existe no repositório).
 - **Ruleset da `main` ("auto-merge claude"):** impede apagar a branch e
   force-push, exige PR (sem aprovação obrigatória, decisão do dono em
   2026-10-15) e o check `checks` do GitHub Actions verde, sem exigir branch atualizada (conferido pela API em 2026-10-15).
-- **Repository secrets:** só `SUPABASE_PROJECT_REF` (Preview),
-  `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Em 2026-10-08
+  O check `main-only-from-staging` existe para entrar nessa proteção; esta
+  mudança não altera o ruleset.
+- **Repository secrets:** em 2026-10-08 havia `SUPABASE_PROJECT_REF` (Preview),
+  `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Na mesma data
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,
   `SUPABASE_ACCESS_TOKEN` e `PREVIEW_ADMIN_PASSWORD`, que agora existem só nos
   environments, e o legado `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.
+  `staging-to-main-pr.yml` lê o secret de repositório `STAGING_TO_MAIN_TOKEN`
+  (PAT fine-grained só deste repositório: Contents em leitura, Pull requests
+  em leitura e escrita). O workflow não cria o secret. Sem ele, usa o
+  `GITHUB_TOKEN` e o CI da PR `staging` → `main` fica esperando aprovação.
 - **Environment secrets e variables:** os jobs referenciam explicitamente os
   três environments acima, e o workflow de staging o environment `staging`. Se um secret existir no escopo do environment e do
   repositório com o mesmo nome, o GitHub Actions usa o do environment. As 7
