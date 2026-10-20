@@ -154,20 +154,23 @@ export function InvoiceDocument({ detail, type }: Props) {
       {/* ── PIX section ── */}
       {payable && !invoice.pix_payload && Number(invoice.current_total_brl) > 0 && <PixPreparingNotice />}
       {payable && invoice.pix_payload && (
-        <div style={{ display: 'flex', gap: 18, marginTop: 20, paddingTop: 16, borderTop: '1px solid #e5e7eb', alignItems: 'flex-start' }}>
-          <div style={{ flexShrink: 0 }}>
-            <QRCodeSVG aria-label="QR Code Pix" value={invoice.pix_payload} size={90} level="M" />
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
+          <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
+            <div style={{ flexShrink: 0 }}>
+              <QRCodeSVG aria-label="QR Code Pix" value={invoice.pix_payload} size={90} level="M" />
+            </div>
+            <div style={{ flex: 1, fontSize: '12px', color: '#333', lineHeight: 1.6 }}>
+              <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: 4 }}>PAGAMENTO VIA PIX</div>
+              <div>Escaneie o QR Code ao lado ou utilize o código Pix Copia e Cola abaixo para realizar o pagamento.</div>
+              <div style={{ marginTop: 4 }}>Valor da fatura:</div>
+              <div style={{ fontWeight: 700 }}>{totalBRL == null ? '—' : fmtBRL(totalBRL)}</div>
+            </div>
           </div>
-          <div style={{ flex: 1, fontSize: '12px', color: '#333', lineHeight: 1.6 }}>
-            <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: 4 }}>PAGAMENTO VIA PIX</div>
-            <div>Escaneie o QR Code ao lado ou utilize o código Pix Copia e Cola abaixo para realizar o pagamento.</div>
-            <div style={{ marginTop: 4 }}>Valor da fatura:</div>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>{totalBRL == null ? '—' : fmtBRL(totalBRL)}</div>
-            <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 3 }}>PIX COPIA E COLA</div>
-            <span style={{ display: 'block', fontFamily: 'monospace', fontSize: '8px', background: '#f3f4f6', padding: '5px 8px', borderRadius: 3, wordBreak: 'break-all', color: '#374151' }}>
-              {invoice.pix_payload}
-            </span>
-          </div>
+          {/* Abaixo do QR e alinhado à esquerda da página, como na fatura de Taxas Locais. */}
+          <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, letterSpacing: '0.05em', margin: '10px 0 3px' }}>PIX COPIA E COLA</div>
+          <span style={{ display: 'block', fontFamily: 'monospace', fontSize: '8px', background: '#f3f4f6', padding: '5px 8px', borderRadius: 3, wordBreak: 'break-all', color: '#374151' }}>
+            {invoice.pix_payload}
+          </span>
         </div>
       )}
 
