@@ -16,8 +16,10 @@ O staging publica o `index.html` correspondente a cada projeto e copia somente s
 | Workflow | Gatilho | Resultado |
 |---|---|---|
 | `.github/workflows/ci.yml` | PR (aberta, novo commit, reaberta, pronta para revisão) | Documentação, lint, build, testes, tamanho de bundle, contratos do Pages e replay de migrations em toda PR; suítes SQL só quando o diff toca o banco ([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)). Não roda depois do merge. |
+| `.github/workflows/main-only-from-staging.yml` | PR contra `main` (aberta, novo commit, reaberta, editada, pronta para revisão) | Check `main-only-from-staging`. Falha se a origem não for a branch `staging` deste repositório ([ADR 0091](../adr/0091-promocao-feature-staging-main.md)). |
+| `.github/workflows/staging-to-main-pr.yml` | PR contra `staging` fechada com merge | Abre ou atualiza a PR `staging` → `main`. O merge na `main` continua manual. |
 | `.github/workflows/local-pg-order.yml` | Segunda, 09:17 UTC, ou execução manual | Suítes SQL nas duas ordens, cada uma num banco recriado, e bateria financeira. |
-| `.github/workflows/cloudflare-pages-preview.yml` | Etiqueta `preview` em PR interna, ou execução manual a partir da `main` com o número da PR | Aguarda o check Supabase Preview da branch vinculada à PR e publica os dois previews privados; sem essa branch, termina com falha depois de cerca de 6 min de espera. |
+| `.github/workflows/cloudflare-pages-preview.yml` | Etiqueta `preview` em PR interna cuja base é `main`, ou execução manual a partir da `main` com o número da PR | Aguarda o check Supabase Preview da branch vinculada à PR e publica os dois previews privados; sem essa branch, termina com falha depois de cerca de 6 min de espera. PR contra `staging` não dispara esta prévia. |
 | `.github/workflows/cloudflare-pages-preview-cleanup.yml` | PR interna com etiqueta `preview` fechada | Remove deployments antigos de preview da branch; a Cloudflare mantém o deployment mais recente. |
 | `.github/workflows/cloudflare-pages-production.yml` | Push em `main` ou execução manual | Publica as duas pastas na produção quando `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`. No push, espera antes o check do app `supabase` no commit: verde publica; vermelho recusa; pulado ou ausente em 10 min só publica se o push não mudar `supabase/migrations/`, e senão pede conferência no painel e execução manual, que publica sem esperar. |
 | `.github/workflows/provision-preview-admin.yml` | Etiqueta `preview` em PR interna, ou execução manual a partir da `main` | Cria o usuário administrador fixo na branch Supabase de Preview. |
@@ -34,9 +36,13 @@ Cada preview usa alias `pr-<número>` (`pr-123.vela-internal.pages.dev` e `pr-12
 
 ## Staging persistente
 
-Pedido do dono em 2026-10-19. Não é o destino das PRs rejeitado na ADR 0056
-(`stagingtdesk`): as PRs seguem para `main`; `staging` é um ambiente fixo de QA
-e treino, atualizado por push (ou merge de `main`) na git branch `staging`.
+Pedido do dono em 2026-10-19. Não é o destino de preview por PR rejeitado na
+ADR 0056 (`stagingtdesk`). A git branch `staging` é o ambiente fixo de QA.
+Desde a [ADR 0091](../adr/0091-promocao-feature-staging-main.md), a PR de
+feature abre contra `staging`. O merge publica estes sites, porque o workflow
+de staging continua no push da branch, e `staging-to-main-pr.yml` abre ou
+atualiza a PR `staging` → `main`. O merge dessa PR continua manual e é o que
+publica a produção.
 
 - **Sites:** `https://staging.vela-internal.pages.dev` e
   `https://staging.vela-portal.pages.dev`. A branch `staging` não é o

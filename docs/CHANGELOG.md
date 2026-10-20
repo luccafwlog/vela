@@ -24,6 +24,11 @@
   Viagem. Importação com qualquer erro não grava nada, e recusa do banco desfaz tudo
   ([ADR 0092](adr/0092-importacao-com-erro-e-recusada-inteira.md)); datas de containers, Base de
   Clientes e B/L de container gravam o arquivo numa transação (migrations `333`, `334` e `335`).
+- **Promoção feature → staging → main (2026-10-20):** PR de feature abre contra
+  `staging`. O check `main-only-from-staging` falha quando a PR na `main` não
+  vem da `staging` deste repositório. O merge na `staging` abre ou atualiza a
+  PR para a `main`; o merge dessa PR continua manual e é o que publica a
+  produção ([ADR 0091](adr/0091-promocao-feature-staging-main.md)).
 - **Revisão do lote 5b (2026-10-20):** a migration `330` deixa os snapshots de taxa do Granito
   (`granite_bl_charges`) só para leitura pela API. Granito sem Prontos/Faturados na Viagem;
   Relatórios com a individual Coberta em Pago, planilhas com Taxas locais e situação por extenso,
