@@ -563,6 +563,8 @@ it("imprime as tabelas no padrão visual da fatura (cabeçalho navy, zebra e cai
   expect(table.compareDocumentPosition(totalBox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   // 3 + 1 = 4 unidades operadas.
   expect(totalBox.textContent).toBe("TOTAL:4");
+  // Na impressão a caixa não abre a página sozinha, longe da tabela.
+  expect(totalBox.parentElement!.style.pageBreakBefore).toBe("avoid");
 });
 
 // ADR por terminal: cada terminal responde por parte das frentes, entao o

@@ -415,7 +415,8 @@ Todas as taxas do B/L ficam logo abaixo da linha do B/L (B/L misto mantém o
 cabeçalho "MISTO (CNTR + CARGA SOLTA)"); a consolidada mantém o subtotal por
 B/L. Vale para individual, consolidada, avulsa e recibos. O TOTAL sai da faixa
 âmbar na largura da tabela e vira caixa âmbar compacta à direita, logo abaixo
-dela; no recibo, a última linha da tabela é o total emitido e a caixa traz o
+dela, e na impressão não começa uma página sozinha (leva junto a última linha
+da tabela); no recibo, a última linha da tabela é o total emitido e a caixa traz o
 valor líquido recebido, com "Pago em" embaixo. Quantidade usa vírgula decimal
 ("15,4"; inteiro sem casas), o rótulo é "Navio / Viagem:" e nada fica abaixo
 de 12px. No Pix, a frase do QR Code é seguida de "Depois do pagamento, a baixa

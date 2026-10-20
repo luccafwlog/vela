@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
 import { validCleanupAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
-import { CE_UNLOCK_BOX, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
+import { CE_UNLOCK_BOX, ceUnlockNoticeBls, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
 import { runWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
 import { recipientKey } from "../_shared/email.ts";
 import { sendPortalEmail } from "../_shared/portalEmail.ts";
@@ -22,15 +22,17 @@ if (typeof Deno !== "undefined") {
       let cached = requestCache.get(requestId);
       if (!cached) {
         cached = (async () => {
-          const [request, items] = await Promise.all([
+          const [request, items, moved] = await Promise.all([
             admin.from("ce_unlock_requests").select("protocol").eq("id", requestId).maybeSingle(),
             admin.from("ce_unlock_request_bls").select("bl_id").eq("request_id", requestId).order("bl_id"),
+            admin.from("ce_unlock_events").select("bl_id").eq("request_id", requestId).eq("action", "bl_moved"),
           ]);
           if (request.error) throw request.error;
           if (items.error) throw items.error;
+          if (moved.error) throw moved.error;
           return {
             protocol: (request.data as { protocol?: string } | null)?.protocol ?? "",
-            bls: ((items.data ?? []) as Array<{ bl_id: string }>).map((item) => item.bl_id),
+            bls: ceUnlockNoticeBls((items.data ?? []) as Array<{ bl_id: string }>, (moved.data ?? []) as Array<{ bl_id: string | null }>),
           };
         })();
         requestCache.set(requestId, cached);

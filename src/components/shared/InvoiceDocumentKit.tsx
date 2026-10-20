@@ -70,7 +70,8 @@ export function PixPreparingNotice() {
 
 // TOTAL do documento (lote 6b): caixa âmbar compacta à direita, logo abaixo da
 // tabela, no lugar da faixa âmbar na largura da tabela. `children` recebe
-// linhas extras alinhadas à direita embaixo da caixa (ex.: VENCIMENTO).
+// linhas extras alinhadas à direita embaixo da caixa (ex.: VENCIMENTO). Na
+// impressão a caixa não começa a página sozinha (`breakBefore: avoid`).
 export function InvoiceTotalBox({ label = 'TOTAL:', value, testId, className, children }: {
   label?: string
   value: string
@@ -79,7 +80,7 @@ export function InvoiceTotalBox({ label = 'TOTAL:', value, testId, className, ch
   children?: React.ReactNode
 }) {
   return (
-    <div data-testid={testId} className={className} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, margin: '10px 0 12px' }}>
+    <div data-testid={testId} className={className} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, margin: '10px 0 12px', breakBefore: 'avoid', pageBreakBefore: 'avoid' }}>
       <div style={{ display: 'inline-flex', gap: 12, background: DOC_ACCENT, color: DOC_INK, padding: '5px 14px', borderRadius: 2, fontWeight: 700, fontSize: DOC_TEXT_TOTAL, whiteSpace: 'nowrap' }}>
         <span>{label}</span><span>{value}</span>
       </div>

@@ -130,6 +130,8 @@ it('TOTAL e VENCIMENTO ficam fora da tabela de containers, em caixa à direita',
   expect(box.textContent).toContain('VENCIMENTO:01/07/2026')
   expect(box.textContent).not.toContain('DIA')
   expect(box.style.alignItems).toBe('flex-end')
+  // Na impressão a caixa não abre a página sozinha, longe da tabela.
+  expect(box.style.pageBreakBefore).toBe('avoid')
 })
 
 it('lote 6b: rótulos POL/POD, B/L, Navio / Viagem e USD/Dia com vírgula decimal', () => {

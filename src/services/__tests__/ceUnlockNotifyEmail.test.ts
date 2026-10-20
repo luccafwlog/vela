@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  ceUnlockNoticeBls,
   processCeUnlockEmails,
   runCeUnlockNotify,
   type CeUnlockNotifyHandlerDeps,
@@ -205,7 +206,17 @@ describe('e-mail ao cliente', () => {
   it('a função do aviso busca protocolo e B/Ls da solicitação da linha', () => {
     const source = readFileSync('supabase/functions/ce-unlock-notify-email/index.ts', 'utf8')
     expect(source).toContain('from("ce_unlock_request_bls").select("bl_id").eq("request_id", requestId)')
+    expect(source).toContain('from("ce_unlock_events").select("bl_id").eq("request_id", requestId).eq("action", "bl_moved")')
+    expect(source).toContain('bls: ceUnlockNoticeBls(')
     expect(source).toContain('request: await requestDetails(row.request_id)')
+  })
+
+  it('o bloco da solicitação deixa de fora o B/L que passou para outra solicitação, e mantém o confirmado', () => {
+    // MEDU2 mudou para outra solicitação (bl_moved); MEDU3 foi confirmado (também active=false) e continua.
+    const items = [{ bl_id: 'MEDU1' }, { bl_id: 'MEDU2' }, { bl_id: 'MEDU3' }]
+    expect(ceUnlockNoticeBls(items, [{ bl_id: 'MEDU2' }])).toEqual(['MEDU1', 'MEDU3'])
+    expect(ceUnlockNoticeBls(items, [])).toEqual(['MEDU1', 'MEDU2', 'MEDU3'])
+    expect(ceUnlockNoticeBls([{ bl_id: 'MEDU2' }], [{ bl_id: 'MEDU2' }])).toEqual([])
   })
 
   // Asserção de texto do SQL: confere o contrato da migration, não a execução.

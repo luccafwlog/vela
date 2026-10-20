@@ -175,10 +175,11 @@ function emptyConditionLabel(condition: string) {
 }
 
 // TOTAL em caixa âmbar compacta à direita, logo abaixo da tabela (mesmo
-// formato das faturas impressas, lote 6b).
+// formato das faturas impressas, lote 6b). `breakBefore: avoid`: na impressão
+// a caixa não começa a página sozinha; leva junto a última linha da tabela.
 function TotalBox({ value }: { value: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8, breakBefore: "avoid", pageBreakBefore: "avoid" }}>
       <div
         className="agency-report-document__total"
         style={{
