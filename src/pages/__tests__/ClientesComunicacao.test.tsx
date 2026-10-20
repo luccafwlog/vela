@@ -44,11 +44,12 @@ const mockCoverage = [
     voyageId: 101,
     vesselName: 'COSCO SHIPPING XING WANG',
     voyageNumber: '2401E',
+    port: 'BRVIX',
     customers: 3,
     noa: { sent: 3, total: 3 },
     nor: { sent: 2, total: 3 },
     nob: { sent: 1, total: 2 },
-    finance: { sent: 2, ready: 3, total: 3, pending: 0 },
+    finance: { sent: 2, due: 3, resend: 1, ready: 2, total: 3, pending: 1 },
   },
 ]
 const blockedCustomerRow = {
@@ -244,7 +245,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
     expect(screen.queryByRole('radio', { name: /Disparo/ })).toBeNull()
     expect(screen.getByRole('radio', { name: /Histórico/ })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Cobertura por viagem' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Cobertura por viagem e porto' })).toBeTruthy()
   })
 
   it('exibe o banner permanente de simulação quando communications_enabled é false', () => {
@@ -346,10 +347,13 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'Cobertura por viagem' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Cobertura por viagem e porto' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'COSCO SHIPPING XING WANG / 2401E' })).toBeTruthy()
     expect(screen.getByText('3 de 3').classList.contains('app-status-text--default')).toBe(true) // NOA completo
     expect(screen.getAllByText('2 de 3').every((cell) => cell.classList.contains('app-status-text--warning'))).toBe(true) // NOR falta enviar
+    // Obs. 8: a linha é do porto, e o Cliente enviado com B/L novo aparece como reenvio.
+    expect(screen.getByText('BRVIX')).toBeTruthy()
+    expect(screen.getByText('1 reenvio pendente')).toBeTruthy()
 
     const table = screen.getByRole('table')
     const scroll = table.closest('.app-table-scroll')
@@ -366,7 +370,7 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     )
 
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent?.trim())).toEqual([
-      'Navio / Viagem', 'Clientes', 'CE e Taxas enviados', 'Sem CE ou fatura', 'NOA', 'NOR', 'NOB',
+      'Navio / Viagem', 'Porto', 'Clientes', 'CE e Taxas enviados', 'Sem CE ou fatura', 'NOA', 'NOR', 'NOB',
     ])
   })
 

@@ -1077,15 +1077,91 @@ export type CustomerCommunicationHistoryFilters = {
   origin?: string
 }
 
+/**
+ * Uma linha da Cobertura: navio/viagem × porto de descarga (POD), porque o
+ * envio é por escala. `port` é nulo só na viagem sem B/L com cliente.
+ *
+ * `finance` (CE e Taxas): `sent` são os Clientes enviados que continuam em
+ * dia (prontos agora), `due` os devidos (prontos agora ou já enviados) e
+ * `resend` os enviados que deixaram de estar prontos — em geral, B/L novo
+ * ainda sem fatura depois do envio, o mesmo caso do alerta
+ * `comunicado_ce_reenvio_pendente`. `sent` nunca passa de `due` (o "5 de 4"
+ * da sessão de 2026-10-20). `pending` são os Clientes que ainda não podem
+ * receber (sem CE ou sem fatura).
+ */
 export type VoyageCommunicationCoverageSummary = {
   voyageId: number
   vesselName: string
   voyageNumber: string
+  port: string | null
   customers: number
   noa: { sent: number; total: number }
   nor: { sent: number; total: number }
   nob: { sent: number; total: number }
-  finance: { sent: number; ready: number; total: number; pending: number }
+  finance: { sent: number; due: number; resend: number; ready: number; total: number; pending: number }
+}
+
+export type CoverageVoyageRow = { id: number; voyage_number: string; vessel: { name: string } | null }
+export type CoverageBlRow = { id: string; voyage_id: number; customer_id: number | null; pod: string | null; ce_mercante: string | null; financial_status: string | null }
+export type CoverageCommunicationRow = { customer_id: number | null; kind: string; status: string; anchor_voyage_id: number | null; anchor_port: string | null; anchor_atracacao_id: string | null; created_at: string }
+export type CoverageTerminalStateRow = { id: string; voyage_id: number; port: string; terminal_atb: string | null }
+
+/**
+ * Monta a Cobertura (uma linha por viagem × POD) a partir das linhas já lidas.
+ * `readiness` é a prontidão do CE e Taxas por `<viagem>:<cliente>`
+ * (`customer_local_charges_communication_readiness`, que é por viagem): o
+ * Cliente pronto conta como pronto em cada porto onde tem B/L.
+ */
+export function buildVoyageCommunicationCoverage(input: {
+  voyages: readonly CoverageVoyageRow[]
+  bls: readonly CoverageBlRow[]
+  communications: readonly CoverageCommunicationRow[]
+  terminalStates: readonly CoverageTerminalStateRow[]
+  readiness: ReadonlyMap<string, boolean>
+}): VoyageCommunicationCoverageSummary[] {
+  const result: VoyageCommunicationCoverageSummary[] = []
+  for (const voyage of input.voyages) {
+    const voyageBls = input.bls.filter((bl) => bl.voyage_id === voyage.id && bl.customer_id != null && bl.financial_status !== 'cancelled')
+    const ports = Array.from(new Set(voyageBls.map((bl) => communicationPortCode(bl.pod) ?? ''))).sort()
+    const base = { voyageId: voyage.id, vesselName: voyage.vessel?.name ?? '—', voyageNumber: voyage.voyage_number }
+    if (!ports.length) {
+      const none = { sent: 0, total: 0 }
+      result.push({ ...base, port: null, customers: 0, noa: none, nor: none, nob: none, finance: { sent: 0, due: 0, resend: 0, ready: 0, total: 0, pending: 0 } })
+      continue
+    }
+    const voyageComms = input.communications.filter((comm) => comm.anchor_voyage_id === voyage.id && comm.status === 'enviado' && comm.customer_id != null)
+    for (const port of ports) {
+      const rows = voyageBls.filter((bl) => (communicationPortCode(bl.pod) ?? '') === port)
+      const customers = new Set(rows.map((row) => row.customer_id!))
+      const portComms = voyageComms.filter((comm) => customers.has(comm.customer_id!) && (communicationPortCode(comm.anchor_port) ?? '') === port)
+      const nobTargetKeys = new Set(input.terminalStates
+        .filter((state) => state.voyage_id === voyage.id && (communicationPortCode(state.port) ?? '') === port)
+        .flatMap((state) => Array.from(customers).map((customerId) => `${customerId}:${state.id}`)))
+      const count = (kind: string) => new Set(portComms
+        .filter((comm) => comm.kind === kind)
+        .filter((comm) => kind !== 'aviso_atracacao_nob' || nobTargetKeys.has(`${comm.customer_id}:${comm.anchor_atracacao_id}`))
+        .map((comm) => `${comm.customer_id}:${comm.anchor_atracacao_id ?? ''}`)).size
+
+      const ready = new Set(Array.from(customers).filter((customerId) => input.readiness.get(`${voyage.id}:${customerId}`) === true))
+      // CE e Taxas sem porto gravado vale para todas as escalas do Cliente na viagem.
+      const financeSent = new Set(voyageComms
+        .filter((comm) => comm.kind === 'ce_mercante_taxas' && customers.has(comm.customer_id!))
+        .filter((comm) => !comm.anchor_port || (communicationPortCode(comm.anchor_port) ?? '') === port)
+        .map((comm) => comm.customer_id!))
+      const upToDate = Array.from(financeSent).filter((customerId) => ready.has(customerId)).length
+      const resend = financeSent.size - upToDate
+      result.push({
+        ...base,
+        port: port || null,
+        customers: customers.size,
+        noa: { sent: count('aviso_chegada_noa'), total: customers.size },
+        nor: { sent: count('aviso_prontidao_nor'), total: customers.size },
+        nob: { sent: count('aviso_atracacao_nob'), total: nobTargetKeys.size },
+        finance: { sent: upToDate, due: ready.size + resend, resend, ready: ready.size, total: customers.size, pending: customers.size - ready.size },
+      })
+    }
+  }
+  return result
 }
 
 export type CustomerCommunicationSavedTemplate = {
@@ -1196,7 +1272,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
     if (voyage) voyageQuery = voyageQuery.ilike('voyage_number', `%${voyage}%`)
     const monthRange = brasiliaMonthRange(filters?.month)
     if (monthRange) voyageQuery = voyageQuery.gte('eta', monthRange.start).lt('eta', monthRange.end)
-    return voyageQuery.overrideTypes<Array<{ id: number; voyage_number: string; vessel: { name: string } | null }>, { merge: false }>()
+    return voyageQuery.overrideTypes<CoverageVoyageRow[], { merge: false }>()
   })
 
   let voyages = rawVoyages ?? []
@@ -1216,7 +1292,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
         .in('voyage_id', voyageIds)
         .order('id', { ascending: false })
         .range(from, to)
-        .overrideTypes<Array<{ id: string; voyage_id: number; customer_id: number | null; pod: string | null; ce_mercante: string | null; financial_status: string | null }>, { merge: false }>(),
+        .overrideTypes<CoverageBlRow[], { merge: false }>(),
     ),
     fetchCoverageRows((from, to) =>
       supabase
@@ -1226,7 +1302,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .range(from, to)
-        .overrideTypes<Array<{ customer_id: number | null; kind: string; status: string; anchor_voyage_id: number | null; anchor_port: string | null; anchor_atracacao_id: string | null; created_at: string }>, { merge: false }>(),
+        .overrideTypes<CoverageCommunicationRow[], { merge: false }>(),
     ),
     fetchCoverageRows((from, to) =>
       supabase
@@ -1236,7 +1312,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
         .not('terminal_atb', 'is', null)
         .order('id', { ascending: false })
         .range(from, to)
-        .overrideTypes<Array<{ id: string; voyage_id: number; port: string; terminal_atb: string | null }>, { merge: false }>(),
+        .overrideTypes<CoverageTerminalStateRow[], { merge: false }>(),
     ),
   ])
   const rowsByVoyageCustomer = new Map<string, Promise<boolean>>()
@@ -1257,39 +1333,7 @@ export async function fetchVoyageCommunicationCoverage(filters?: { vessel?: stri
   const readiness = new Map<string, boolean>()
   await Promise.all([...rowsByVoyageCustomer.entries()].map(async ([key, value]) => readiness.set(key, await value)))
 
-  return voyages.map((voyage) => {
-    const rows = bls.filter((bl) => bl.voyage_id === voyage.id && bl.customer_id != null && bl.financial_status !== 'cancelled')
-    const customers = new Set(rows.map((row) => row.customer_id!))
-    const comms = communications
-    const terminalTargets = terminalStates.filter((state) => state.voyage_id === voyage.id)
-    const nobTargetKeys = new Set(rows.flatMap((row) => terminalTargets
-      .filter((state) => samePort(state.port, row.pod))
-      .map((state) => `${row.customer_id}:${state.id}`)))
-    const count = (kind: string, customerId?: number) => new Set(comms
-      .filter((comm) => comm.kind === kind && comm.status === 'enviado' && comm.anchor_voyage_id === voyage.id)
-      .filter((comm) => customerId == null || comm.customer_id === customerId)
-      .filter((comm) => customerId == null || rows.some((row) => row.customer_id === customerId && samePort(row.pod, comm.anchor_port)))
-      .filter((comm) => kind !== 'aviso_atracacao_nob' || nobTargetKeys.has(`${comm.customer_id}:${comm.anchor_atracacao_id}`))
-      .map((comm) => `${comm.customer_id}:${comm.anchor_voyage_id}:${communicationPortCode(comm.anchor_port) ?? ''}:${comm.anchor_atracacao_id ?? ''}`)).size
-    const total = (kind: string) => kind === 'aviso_atracacao_nob' ? nobTargetKeys.size : new Set(rows.map((row) => `${row.customer_id}:${communicationPortCode(row.pod)}`)).size
-
-    const customerBlMap = new Map<number, typeof rows>()
-    for (const bl of rows) {
-      if (bl.customer_id == null) continue
-      const list = customerBlMap.get(bl.customer_id) ?? []
-      list.push(bl)
-      customerBlMap.set(bl.customer_id, list)
-    }
-    const financeCustomers = new Set<number>()
-    for (const [cid, cBls] of customerBlMap.entries()) {
-      if (cBls.length > 0 && readiness.get(`${voyage.id}:${cid}`) === true) {
-        financeCustomers.add(cid)
-      }
-    }
-    const financeSent = new Set(Array.from(customers)
-      .filter((cid) => comms.some((comm) => comm.kind === 'ce_mercante_taxas' && comm.status === 'enviado' && comm.anchor_voyage_id === voyage.id && comm.customer_id === cid))).size
-    return { voyageId: voyage.id, vesselName: voyage.vessel?.name ?? '—', voyageNumber: voyage.voyage_number, customers: customers.size, noa: { sent: count('aviso_chegada_noa'), total: total('aviso_chegada_noa') }, nor: { sent: count('aviso_prontidao_nor'), total: total('aviso_prontidao_nor') }, nob: { sent: count('aviso_atracacao_nob'), total: total('aviso_atracacao_nob') }, finance: { sent: financeSent, ready: financeCustomers.size, total: customers.size, pending: customers.size - financeCustomers.size } }
-  })
+  return buildVoyageCommunicationCoverage({ voyages, bls, communications, terminalStates, readiness })
 }
 
 export async function fetchBlCommunicationHistory(blId: string): Promise<CustomerCommunicationHistoryItem[]> {
