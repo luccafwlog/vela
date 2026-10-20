@@ -72,7 +72,7 @@ export type ContainerDatesImportError = { bl_id: string; container_number: strin
 
 /**
  * Resultado da gravação. `ok: false` quer dizer que o banco recusou algum B/L
- * e NADA foi gravado (regra de 2026-10-19; migration 325): `errors` lista o
+ * e NADA foi gravado (regra de 2026-10-19; migration 333): `errors` lista o
  * que foi recusado.
  */
 export type ContainerDatesImportResult = {
@@ -93,7 +93,7 @@ type ImportableContainerDatesRow = ContainerDatesImportRow
 
 /**
  * Grava a planilha inteira numa chamada (`apply_container_dates_batch_atomic`,
- * migration 325): se o banco recusa qualquer B/L, nenhum é gravado.
+ * migration 333): se o banco recusa qualquer B/L, nenhum é gravado.
  */
 export async function importContainerDates(rows: ImportableContainerDatesRow[]): Promise<ContainerDatesImportResult> {
   if (!rows.length) return { ok: true, updated: 0, unchanged: 0, errors: [] }

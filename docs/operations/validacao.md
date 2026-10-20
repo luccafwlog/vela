@@ -258,9 +258,11 @@ Regras em [Granito](../modules/granito.md#fluxos-e-invariantes).
 - planilha COSCO gera manifesto e B/Ls;
 - reimportação com B/L em comum atualiza pelo número e pede confirmação antes
   de tirar B/L ausente; planilha sem B/L em comum cria outro manifesto;
-- revisão combina Granito com a fila comum sem perder origem;
-- o cálculo quantitativo aparece na Validação como apoio operacional, sem botão
-  **Emitir** e sem invoice nem vínculo novo no Portal.
+- a importação grava o B/L sem Cliente nem sugestão e sem efeito de cálculo;
+- `/granito` mostra os totais do recorte e a Carga por viagem, com o peso real
+  ou, sem ele, o declarado;
+- o Granito não aparece na Revisão nem na Validação, e `/granito/taxas` leva a
+  `/granito`.
 
 ### Vazios
 
@@ -275,8 +277,11 @@ Regras em [Manifestos & EDI](../modules/manifesto-edi.md#vazios-importacao) e
   com entrada e saída e unidade de Terminal Portuário sem datas; planilha com
   qualquer linha inválida é recusada inteira;
 - reimportar a Lista preserva as unidades incluídas à mão;
-- Linhas de Serviço são lançadas à mão; **Armazenagem pendente de lançamento**
-  oferece **Lançar** com a quantidade calculada.
+- Linhas de Serviço são lançadas à mão; **Armazenagem a lançar** oferece o
+  ícone **Lançar armazenagem** com a quantidade calculada e não mostra
+  combinação com 0 dia;
+- local ou serviço inativo não aparece nos seletores do Embarque, e o banco
+  recusa lançamento novo com eles (migration `326`).
 
 ## 7. Revisão e auto-faturamento
 
@@ -305,7 +310,6 @@ Passos:
 6. confirme que a auditoria registra o `review_status` efetivamente calculado pelo banco;
 7. confirme tentativa automática de cálculo/emissão somente depois de zerar as pendências;
 8. recarregue a fila e confira o estado;
-9. repita com Granito, que mantém o comportamento próprio.
 
 **Esperado:** nenhum B/L avança silenciosamente com dados incertos; B/L comum
 com todos os gates satisfeitos pode emitir automaticamente. Notas humanas são

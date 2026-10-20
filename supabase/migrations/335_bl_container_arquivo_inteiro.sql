@@ -1,4 +1,4 @@
--- 329: importação de B/L de container grava o arquivo inteiro numa transação
+-- 335: importação de B/L de container grava o arquivo inteiro numa transação
 -- (ADR 0091, lote 6a da identidade visual).
 --
 -- Problema:
@@ -85,4 +85,4 @@ REVOKE ALL ON FUNCTION public.import_bl_freight_file_atomic(jsonb, uuid, jsonb) 
 GRANT EXECUTE ON FUNCTION public.import_bl_freight_file_atomic(jsonb, uuid, jsonb) TO authenticated, service_role;
 
 COMMENT ON FUNCTION public.import_bl_freight_file_atomic(jsonb, uuid, jsonb) IS
-  'Importação de B/L de container: o arquivo inteiro numa transação (ADR 0091, migration 329).';
+  'Importação de B/L de container: o arquivo inteiro numa transação (ADR 0091, migration 335).';

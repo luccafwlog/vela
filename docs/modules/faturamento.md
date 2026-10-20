@@ -65,8 +65,9 @@ para a decisão completa.
   ativo, com CE e sem fatura que uma emissão interrompida deixou para trás. A
   tela não fecha (X ou Escape) enquanto grava ou emite. Sem CE, qualquer desses
   modos fica em “Aguardando CE Mercante” na Validação; a exceção manual é a emissão
-  individual “Emitir”, que mantém os mesmos gates. Granito é apoio operacional
-  e não emite invoice (nota de 2026-09-23 na ADR 0042). Embarque de Vazios não emite CE nem possui faturamento de
+  individual “Emitir”, que mantém os mesmos gates. Granito não emite invoice
+  (nota de 2026-09-23 na ADR 0042) e, desde o lote 5b (2026-10-19), nem entra
+  na Validação: não tem Cliente nem taxa ([Granito](granito.md)). Embarque de Vazios não emite CE nem possui faturamento de
   cliente.
 - Toda emissão, manual ou automática, exige o Gate de faturamento do Portal
   aberto: Portal pronto ou Liberação de faturamento sem Portal vigente. A regra
@@ -200,7 +201,7 @@ do container compartilhado.
 ### Validação
 
 - `src/components/billing/ValidacaoTab.tsx` orquestra consultas, mutações,
-  invalidações e estado da fila operacional de taxas locais e Granito, num
+  invalidações e estado da fila operacional de taxas locais, num
   bloco "Validação" com a contagem, **Recalcular selecionados** e **Exportar
   (n)** na faixa do título. `src/components/billing/ValidacaoControls.tsx`
   contém os filtros (Busca, Motivo — ver [Motivo de bloqueio de faturamento](#motivo-de-bloqueio-de-faturamento) — e Navio / Viagem abertos; Modo de carga, POD
@@ -268,7 +269,7 @@ do container compartilhado.
   não no B/L. Ele só responde pelo B/L quando é a **única** pendência aberta.
 - **Linha aberta (lote 1 da identidade, 2026-10-14):** dois blocos lado a lado.
   **Situação do B/L** traz o motivo numa faixa âmbar (verde quando pronto;
-  neutra para faturado, isento e Granito) com o botão que o resolve — cliente
+  neutra para faturado e isento) com o botão que o resolve — cliente
   em `/revisao?bl=<id>` (a Revisão lê `bl` junto de `cliente`/`busca`/`q`,
   filtrando a fila e abrindo o grupo daquele B/L, ADR 0061), CE Mercante na
   ficha do B/L, portal na ficha do Cliente (visível a todos os perfis; a tela de
@@ -293,7 +294,7 @@ do container compartilhado.
   este último marcado como anomalia por ser linha automática sem tabela. Cada
   grupo soma seu subtotal e o cabeçalho soma o total, BRL e USD separados, sem
   converter moeda. A conferência nasce aberta: quem expande o B/L está ali para
-  conferir. Granito não a exibe (não participa da emissão). Portos aparecem pelo
+  conferir. Portos aparecem pelo
   alias e não pelo LOCODE: `formatPortDisplayName` cobre os códigos canônicos que
   `normalize_port_code` produz (migration arquivada `365`).
 
@@ -426,8 +427,7 @@ blocos. **Código:** `src/components/billing/InvoiceDocumentLocal.tsx`.
 | `/taxas-locais` · exportar lista | Mesmos filtros; ao menos uma invoice | `TaxasLocais.handleExport` | `listInvoicesForExport` → `exportInvoicesWorkbook` | Leituras paginadas de 1000; arquivo XLSX local | Não altera cache | Sem linhas gera aviso; leitura/geração propaga erro | **Código:** `src/pages/TaxasLocais.tsx`, `src/services/billing.ts`, `src/services/exports.ts` · **Teste:** `src/services/__tests__/billingHelpers.test.ts` |
 | `/taxas-locais` · abrir invoice | ID selecionado pela tabela ou query string | `InvoicesTable.onSelectInvoice` | `useInvoiceDetail` → `listInvoiceDetails` | RPC `list_invoice_details` lê documento, links diretos, itens e pagamentos; `list_payment_registrar_names` (migration `221`) dá o nome de quem registrou cada baixa | Query `queryKeys.invoices.detail(id)` | ID ausente desabilita query; erro mostra falha no modal | **Código:** `src/components/billing/InvoicesTable.tsx`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts` · **Teste:** `src/pages/__tests__/TaxasLocais.behavior.test.tsx` |
 | Detalhe · carregar breakdown consolidado | Invoice sem itens diretos e com `invoice_receivable_links` | `listInvoiceDetails` após RPC base | Lê links/snapshots; RPC `get_consolidated_invoice_item_breakdown`; valida com Zod | `invoice_receivable_links`, `voyages`, leitura protegida de `charge_calculations` | Reusa `invoice-detail`; usa linha agregada por B/L se breakdown não reconciliar com subtotal | Erro/shape inválido do breakdown é best-effort e cai no agregado | **Código:** `src/services/billing.ts`, `supabase/migrations_archive/086_consolidated_invoice_item_breakdown.sql`, `supabase/migrations_archive/090_restrict_consolidated_invoice_breakdown.sql` |
-| Validação · recalcular selecionados | Seleção não vazia | `ValidacaoTab.runBatchOperation('recalculate')` | Hooks de Taxas Locais; Granito usa `runGraniteBatch` canônico | Uma operação por B/L | Invalida operações, invoices, B/Ls e resumo após o lote | Resultado parcial agrega erros sem interromper os demais B/Ls | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/hooks/useLocalCharges.ts`, `src/services/graniteBillingWorkflow.ts` · **Teste:** `src/services/__tests__/localCharges.test.ts`, `src/services/__tests__/graniteBillingWorkflow.test.ts` |
-| Validação · apoio operacional de Granito | Não aplicável a Granito; a fila oferece apenas recálculo | `runBatchOperation('recalculate')` | `runGraniteBatch` chama exclusivamente `calculateGraniteBlCharges` | Snapshot quantitativo operacional | Invalida operações, B/Ls e resumo | Falhas são isoladas por B/L; nenhum estado financeiro é promovido | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/services/graniteBillingWorkflow.ts` · **Teste:** `src/services/__tests__/graniteBillingWorkflow.test.ts` |
+| Validação · recalcular selecionados | Seleção não vazia | `ValidacaoTab.runBatchOperation('recalculate')` | Hooks de Taxas Locais | Uma operação por B/L | Invalida operações, invoices, B/Ls e resumo após o lote | Resultado parcial agrega erros sem interromper os demais B/Ls | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/hooks/useLocalCharges.ts` · **Teste:** `src/services/__tests__/localCharges.test.ts` |
 | Validação · emitir invoice individual | B/L "Pronto para emitir" (calculado, revisado ou pronto), não faturado e com cliente | `handleIssueSingleInvoice` | `markBlReadyAndCreateInvoice` (RPC `mark_bl_ready_and_create_invoice`: marca pronto e emite na mesma transação, como a ficha do B/L); Granito é somente apoio operacional e não oferece emissão | RPC local para B/Ls financeiros; nenhum caminho financeiro novo para Granito | Invalida operações, invoices, B/Ls e resumo após emissão local | RPC revalida estado, cliente e vínculos; Granito não exibe o botão “Emitir” | **Código:** `src/components/billing/ValidacaoTab.tsx`, `src/components/billing/ValidacaoOperationsTable.tsx` · **Teste:** `ValidacaoOperationsTable.test.tsx`, `ValidacaoTab.confirmation.test.tsx` |
 | B/L · Emitir fatura (marca pronto e emite atomicamente) | Um B/L com cliente reconciliado, taxas elegíveis e CE Mercante | `BlCobrancasTab` (botão **Emitir fatura**, qualquer Departamento desde a migration `246`; com confirmação), `reviewBillingAutomation` | `markBlReadyAndCreateInvoice` | RPC `mark_bl_ready_and_create_invoice` chama promoção + criação ledger na mesma transação; `047_bl_documental_gates.sql` reforça CE na prontidão e emissão | Chamadores invalidam seus domínios após sucesso | Qualquer falha aborta promoção e emissão juntas | **Código:** `src/components/bl/BlCobrancasTab.tsx`, `src/services/reviewBillingAutomation.ts`, `supabase/migrations_archive/102_mark_ready_and_invoice_atomic.sql`, `supabase/migrations/047_bl_documental_gates.sql` |
 | Modal consolidada · listar elegíveis | Cliente selecionado; filtros opcionais | `ConsolidatedInvoiceModal` | `useConsolidatableReceivables` → `listConsolidatableReceivables` | RPC `list_consolidatable_receivables` lê ledger e links | Query `queryKeys.billingLedger.consolidatableReceivables(filters)` | Sem cliente não consulta; rows pagas/sem saldo/em consolidada aberta ficam desabilitadas | **Código:** `src/components/billing/ConsolidatedInvoiceModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/components/billing/__tests__/ConsolidatedInvoiceSelection.test.ts` |
@@ -489,12 +489,12 @@ menores e específicas descritas no catálogo.
 | `create_manual_invoice` | valida Cliente e contexto opcional, calcula total e cria invoice/item em transação | `createManualInvoice` em `src/services/billing.ts` |
 | `register_verified_invoice_payment` | baixa no detalhe (Financeiro e Administrativo, migration `247`; referência bancária obrigatória, idempotência por tentativa): avulsa grava `payments` e agregados de `invoices` e cria restituição do excedente; demais documentos delegam a `register_ledger_invoice_payment` (`136`) | `registerLedgerInvoicePayment` / `registerInvoicePayment` no detalhe; baixa automática Itaú da avulsa (`153`) |
 | `register_ledger_invoice_payment` | cria payment, distribui settlements, atualiza receivables/invoice/B/Ls, estados cruzados, eventos e refund | `register_verified_invoice_payment`; também chamado por reconciliação TXID |
-| `reconcile_invoice_payment_by_txid` | resolve uma invoice local e delega a baixa ao ledger; sem versão de cobrança local, cai no caminho legado da `097`, que baixa avulsa por `register_invoice_payment` | `confirm_unified_pix_matches` em `/reconciliacao`; baixa automática Itaú de fatura local |
+| `reconcile_invoice_payment_by_txid` | resolve uma invoice local e delega a baixa ao ledger; sem versão de cobrança local, cai no caminho legado da `097`, que baixa avulsa por `register_invoice_payment` | `confirm_unified_pix_matches` em `/reconciliacao`; baixa automática Itaú de fatura local (`itau_pix_settle`). Sem EXECUTE para `authenticated` desde a migration `329`: só essas duas funções do dono a chamam |
 | `register_invoice_payment` | pagamento e agregados do modelo legado | caminho legado da conciliação por TXID (avulsa) |
 | `cancel_invoice` | cancelamento, estado de B/Ls e auditoria | `cancelInvoice` |
 | `confirm_invoice_refund` | `pending → settled` com referência bancária, favorecido e data (Financeiro ou Administrativo) e auditoria | `settleInvoiceRefund` |
 | `add_manual_invoice_charge` / `delete_manual_invoice_charge` | Desativadas: sem `EXECUTE` para a API desde a `122` | — |
-| `settle_invoice_refund` | Desativada: recusa sempre desde a `136` e manda usar `confirm_invoice_refund` | — |
+| `settle_invoice_refund` | Desativada: recusa sempre desde a `136` e manda usar `confirm_invoice_refund`; fora do alcance de `authenticated` desde a `328` | — |
 
 ## Fluxos e invariantes
 
@@ -507,7 +507,7 @@ sem linhas" ou "Taxa em revisão" quando é o caso), **Aguardando CE Mercante** 
 **Conta do Portal não ativa** (código `portal_nao_provisionado`). **Pronto para
 emitir** fica na fila padrão com o botão Emitir; **Faturado** e **Isento** são
 situações resolvidas, fora da fila padrão (aparecem com **Incluir faturados e
-isentos**); Granito aparece como **Apoio operacional**. A
+isentos**); o Granito não entra na fila desde o lote 5b. A
 confirmação do cálculo é o cadastro do CE Mercante: não existe ato separado de
 aprovação nem de marcação como pronto (ADR 0041; ADR 0077, decisão 7).
 

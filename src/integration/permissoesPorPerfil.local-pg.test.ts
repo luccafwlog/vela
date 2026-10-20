@@ -1,6 +1,7 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
+import { ALERT_TYPE_COUNTS, PERMISSION_MATRIX, allowedDepartments, isSharedByAll } from '../services/permissionMatrix'
 
 // Bateria por perfil do modelo de permissões (ADR 0085; matriz em
 // docs/operations/seguranca.md#modelo-de-permissões-por-perfil). Cada caso
@@ -8,6 +9,9 @@ import { describeWithProbe, syntheticCnpj } from './localTestData'
 // escrita direta pela API (PostgREST = SQL como `authenticated` sob RLS), e
 // confere permitido ou recusado. Itens P do plano
 // docs/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md.
+// A matriz "O que cada setor pode" da Administração (src/services/permissionMatrix.ts)
+// cita os casos daqui que provam cada linha; o caso "Catálogo: as linhas da tela
+// conferem" falha se o catálogo divergir de MATRIX_EXCEPTIONS ou MATRIX_GLOBAL.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
@@ -78,6 +82,7 @@ const INVOICE_ID = 99085071
 const INVOICE_ITEM_ID = 99085072
 const RECEIVABLE_ID = 99085073
 const LIFECYCLE_ID = 99085074
+const COMMUNICATION_ID = 99085081
 const COUNTER_YEAR = 2085
 const POD = 'P85PD'
 const BL = 'P85-BL1'
@@ -110,6 +115,7 @@ function cleanup() {
     DELETE FROM public.pricing_rule_versions WHERE charge_table_id = ${TABLE_ID} OR charge_item_id IN (${ITEM_THC}, ${ITEM_MANUAL});
     DELETE FROM public.charge_table_items WHERE charge_table_id = ${TABLE_ID};
     DELETE FROM public.charge_tables WHERE id = ${TABLE_ID};
+    DELETE FROM public.customer_communications WHERE id = ${COMMUNICATION_ID} OR customer_id = ${CUSTOMER_ID};
     DELETE FROM public.portal_provisioning_events WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_portal_accounts WHERE customer_id = ${CUSTOMER_ID};
     DELETE FROM public.customer_contact_box_links WHERE contact_id IN (SELECT id FROM public.customer_contacts WHERE customer_id = ${CUSTOMER_ID});
@@ -165,6 +171,8 @@ function seed() {
     INSERT INTO public.bl_receivables (id, bl_id, customer_id) VALUES (${RECEIVABLE_ID}, '${BL}', ${CUSTOMER_ID});
     INSERT INTO public.invoice_lifecycle_events (id, invoice_id, event_type) VALUES (${LIFECYCLE_ID}, ${INVOICE_ID}, 'issued');
     INSERT INTO public.invoice_counters (year) VALUES (${COUNTER_YEAR});
+    INSERT INTO public.customer_communications (id, customer_id, kind, nature, status)
+      VALUES (${COMMUNICATION_ID}, ${CUSTOMER_ID}, 'ce_mercante_taxas', 'documentacao', 'simulado');
     SET session_replication_role = origin;
   `)
 }
@@ -576,8 +584,10 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     `SELECT public.resolve_pix_reconciliation_exception(-1, 'P5-TXID', NULL, NULL, 'Encerrada no teste P5')`,
     `SELECT public.upsert_pix_reconciliation_exceptions('p5-extrato', '[]'::jsonb)`,
     `SELECT public.itau_pix_mark_receipt_handled('P5-E2E-NAO-EXISTE', 'Tratado no teste P5 por perfil')`,
-    `SELECT public.reconcile_invoice_payment_by_txid('P5-TXID-NAO-EXISTE', 1, now())`,
     `SELECT public.confirm_unified_pix_matches('[]'::jsonb)`,
+    // Item local: a confirmação chega à baixa por TXID como dono (329) e a
+    // recusa é do TXID inexistente, não de permissão.
+    `SELECT public.confirm_unified_pix_matches('[{"source":"local","invoice_id":-1,"doc_number":"P5-DOC","txid":"P5-TXID-NAO-EXISTE","amount":1,"paid_at":"2026-10-19T12:00:00Z"}]'::jsonb)`,
   ]
   const P5_READ = [
     `SELECT public.list_pix_reconciliation_exceptions(NULL)`,
@@ -598,6 +608,16 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       if (FINANCE.has(profile)) expectPastProfileGuard(result, `${profile}: ${call}`)
       else expect(result.error, `${profile}: ${call}`).toMatch(PERMISSION_DENIED)
     }
+  })
+
+  // Decisão do responsável de 2026-10-19 (migration 329): a baixa por TXID não
+  // é chamada direto pela API por nenhum setor; Financeiro e Administrativo a
+  // alcançam pela confirmação do lote (P5_SETTLE acima) e o Itaú por
+  // `itau_pix_settle` (service_role).
+  it.each(ALL_PROFILES)('P5: baixa por TXID só pela confirmação do lote (%s)', (profile) => {
+    const result = runAs(profile, `SELECT public.reconcile_invoice_payment_by_txid('P5-TXID-NAO-EXISTE', 1, now())`)
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(/ERROR:\s+42501: permission denied for function reconcile_invoice_payment_by_txid/)
   })
 
   it.each(ALL_PROFILES)('P5: %s lê a Conciliação, autoriza restituição e aplica desconto', (profile) => {
@@ -741,8 +761,10 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
         expect(runAs(profile, `SELECT public.reactivate_catalog_row('${table}', '${id}', 'voltou a operar')`).error).toBe('')
         expect(psql(`SELECT active FROM public.${table} WHERE id = '${id}';`)).toBe('t')
       }
-      // Fora do Administrativo, editar os demais campos segue liberado.
-      expect(runAs(profile, `UPDATE public.depots SET name = 'B15 editado' WHERE id = '${depotId}'`).error).toBe('')
+      // Fora do Administrativo, editar os demais campos segue liberado: a linha é alcançada (a RLS recusaria sem erro, com zero linhas).
+      const rename = runAs(profile, `WITH changed AS (UPDATE public.depots SET name = 'B15 editado' WHERE id = '${depotId}' RETURNING 1) SELECT count(*) FROM changed`)
+      expect(rename.error, profile).toBe('')
+      expect(rename.output, profile).toBe('1')
     } finally {
       psql(`SET session_replication_role = replica;
         DELETE FROM public.audit_logs WHERE entity_id IN ('${depotId}', '${serviceId}');
@@ -754,17 +776,24 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   // P14 (ADR 0085, Consequências): percorre as linhas de exceção da matriz de Segurança
   // (docs/operations/seguranca.md#modelo-de-permissões-por-perfil) que não têm caso próprio acima.
   // Cada chamada usa registro inexistente ou valor inválido: quem tem o perfil passa da checagem
-  // e cai na validação do registro; quem não tem é recusado com 42501 (privilégio).
+  // e cai na validação do registro; quem não tem é recusado com 42501 (privilégio). O que a
+  // chamada gravar é desfeito (outcomeAs).
   const ADM: Profile[] = ['administrativo']
   const FIN: Profile[] = ['administrativo', 'financeiro']
+  const ADM_DOC: Profile[] = ['administrativo', 'documentacao']
+  const ADM_DOC_EQU: Profile[] = ['administrativo', 'documentacao', 'equipamentos']
   const MATRIX_EXCEPTIONS: Array<{ row: string; allowed: Profile[]; call: string }> = [
+    { row: 'Abrir a Administração', allowed: ADM, call: `public.admin_list_users()` },
+    { row: 'Ligar e desligar o envio real de e-mails', allowed: ADM, call: `public.set_communications_enabled(true)` },
     { row: 'Cancelar viagem', allowed: ADM, call: `public.cancel_voyage(-1, 'motivo', '{actor}')` },
     { row: 'Reativar viagem', allowed: ADM, call: `public.reactivate_voyage(-1, 'motivo')` },
     { row: 'Cancelar B/L', allowed: ADM, call: `public.cancel_bl('P14-INEXISTENTE', 'motivo', false)` },
     { row: 'Reativar B/L', allowed: ADM, call: `public.reactivate_bl('P14-INEXISTENTE', 'motivo')` },
     { row: 'Excluir taxa manual do B/L', allowed: ADM, call: `public.delete_manual_bl_charge(-1, '{actor}')` },
-    { row: 'Excluir viagem com Trava', allowed: ADM, call: `public.delete_records('voyages', ARRAY['-1'], true, 'motivo')` },
+    { row: 'Excluir viagem com Trava', allowed: ADM, call: `public.delete_records('voyage', ARRAY['-1'], true, 'motivo')` },
     { row: 'Excluir escala', allowed: ADM, call: `public.delete_escala(-1, 'BRZZZ', true, 'motivo')` },
+    { row: 'Excluir Cliente', allowed: ADM, call: `public.delete_records('customer', ARRAY['-1'], true, 'motivo')` },
+    { row: 'Excluir cadastro sem uso', allowed: ADM, call: `public.delete_catalog_row('depots', '00000000-0000-0000-0000-000000000000', 'motivo')` },
     { row: 'Cancelar baixa', allowed: ADM, call: `public.reverse_invoice_payment(-1, 'motivo', '{actor}')` },
     { row: 'Cancelar fatura', allowed: ADM, call: `public.cancel_invoice(-1, 'motivo', '{actor}')` },
     { row: 'Cancelar fatura consolidada', allowed: ADM, call: `public.obsolete_consolidated_invoice(-1, 'motivo', '{actor}')` },
@@ -784,12 +813,37 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Informar PTAX', allowed: ['administrativo', 'financeiro', 'equipamentos'], call: `public.recalculate_demurrage_invoices_manual(0)` },
     { row: 'Responder Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.add_demurrage_dispute_message(-1, 'mensagem', 'invalido')` },
     { row: 'Reabrir Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.reopen_demurrage_dispute(-1, 'motivo')` },
+    { row: 'Editar contatos do Cliente', allowed: ADM_DOC_EQU, call: `public.internal_save_customer_contact_configuration(-1, '[]'::jsonb, 'motivo')` },
+    { row: 'Salvar modelo de Comunicado', allowed: ADM_DOC_EQU, call: `public.save_customer_communication_saved_template('Modelo P14', 'Assunto P14', 'Corpo P14')` },
+    { row: 'Cancelar convite do Portal', allowed: ADM_DOC, call: `public.portal_cancel_invite(-1, 'motivo', NULL)` },
+    { row: 'Trocar o e-mail de recuperação do Portal', allowed: ADM_DOC, call: `public.portal_assisted_email_change(-1, 'novo-p14@example.test', 'motivo', NULL)` },
+    { row: 'Liberar e-mail bloqueado do Portal', allowed: ADM_DOC, call: `public.portal_release_suppressed_email(-1, 'novo-p14@example.test', 'motivo')` },
+    { row: 'Reabrir análise do Portal', allowed: ADM_DOC, call: `public.portal_return_to_analysis(-1, 'motivo', NULL, NULL)` },
+    { row: 'Gerir o Desbloqueio de CE', allowed: ADM_DOC, call: `public.ce_unlock_command('p14-inexistente', '{}'::jsonb)` },
   ]
 
+  /**
+   * Executa o comando como o perfil e desfaz o que ele gravou. Devolve `OK`,
+   * `SEM-LINHA` (a escrita passou sem erro e não alcançou nenhuma linha, como
+   * faz a RLS) ou o SQLSTATE do erro.
+   */
+  function outcomeAs(profile: Profile, statement: string): string {
+    const body = statement.replaceAll('{actor}', PROFILES[profile])
+    const result = runAs(profile, `DO $p14$ DECLARE n bigint := -1; BEGIN
+      BEGIN
+        EXECUTE $s$${body}$s$;
+        GET DIAGNOSTICS n = ROW_COUNT;
+        RAISE EXCEPTION 'desfaz' USING ERRCODE = 'P0014';
+      EXCEPTION
+        WHEN SQLSTATE 'P0014' THEN RAISE NOTICE 'P14:%', CASE WHEN n = 0 THEN 'SEM-LINHA' ELSE 'OK' END;
+        WHEN OTHERS THEN RAISE NOTICE 'P14:%', SQLSTATE;
+      END;
+    END $p14$`)
+    return result.error.match(/P14:([0-9A-Z-]+)/)?.[1] ?? `sem-resultado: ${result.error}`
+  }
+
   function sqlstateAs(profile: Profile, call: string): string {
-    const body = call.replaceAll('{actor}', PROFILES[profile])
-    const result = runAs(profile, `DO $p14$ BEGIN PERFORM ${body}; RAISE NOTICE 'P14:OK'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'P14:%', SQLSTATE; END $p14$`)
-    return result.error.match(/P14:([0-9A-Z]+)/)?.[1] ?? `sem-resultado: ${result.error}`
+    return outcomeAs(profile, `SELECT ${call}`)
   }
 
   it.each(MATRIX_EXCEPTIONS)('P14: $row — só $allowed passa da checagem de perfil', ({ allowed, call }) => {
@@ -797,6 +851,112 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       const state = sqlstateAs(profile, call)
       if (allowed.includes(profile)) expect(state, `${profile}: ${call}`).not.toBe('42501')
       else expect(state, `${profile}: ${call}`).toBe('42501')
+    }
+  })
+
+  // Ações que os cinco setores fazem (linhas ✓ em todas as colunas da matriz da tela) sem caso
+  // próprio acima. Cada uma tem de passar da guarda (sem 42501, função ou coluna inexistente) e,
+  // quando é escrita direta, alcançar a linha (a RLS recusa sem erro, com zero linhas).
+  const MATRIX_GLOBAL: Array<{ row: string; statement: string }> = [
+    { row: 'Editar viagem', statement: `UPDATE public.voyages SET voyage_number = voyage_number WHERE id = ${VOYAGE_ID}` },
+    { row: 'Editar escala de exportação', statement: `UPDATE public.voyage_export_schedules SET pol = pol WHERE voyage_id = ${VOYAGE_ID}` },
+    { row: 'Fechar o ADR de Saída', statement: `SELECT public.close_agency_departure_report(-1, 'BRZZZ', '{}'::jsonb)` },
+    { row: 'Excluir veículo', statement: `SELECT public.delete_vehicles_with_reason(ARRAY[-1]::bigint[], 'motivo')` },
+    { row: 'Mover veículo', statement: `SELECT public.move_vehicles_to_bl(ARRAY[-1]::bigint[], 'P14-INEXISTENTE', 'motivo', NULL)` },
+    { row: 'Excluir unidade de Vazios', statement: `SELECT public.delete_manual_vazios_booking(gen_random_uuid(), 'motivo')` },
+    { row: 'Remover o CE Mercante do B/L', statement: `SELECT public.remove_bl_ce_mercante('P14-INEXISTENTE', 'motivo', NULL)` },
+    { row: 'Editar navio', statement: `UPDATE public.vessels SET name = name WHERE id = ${VESSEL_ID}` },
+    { row: 'Editar armador', statement: `UPDATE public.carriers SET name = name WHERE id = ${CARRIER_ID}` },
+    { row: 'Editar tabela de Taxas Locais', statement: `UPDATE public.charge_tables SET name = name WHERE id = ${TABLE_ID}` },
+    { row: 'Editar item de Taxas Locais', statement: `UPDATE public.charge_table_items SET name = name WHERE id = ${ITEM_THC}` },
+    { row: 'Lançar taxa manual', statement: `SELECT public.add_manual_bl_charge('${BL}', ${ITEM_MANUAL}, 1, 'Taxa P14', NULL)` },
+    { row: 'Condição de Demurrage do B/L', statement: `SELECT public.save_bl_demurrage_config('${BL}', NULL, 7, NULL, NULL, '{actor}')` },
+    { row: 'Editar os dados da disputa', statement: `UPDATE public.demurrage_invoices SET dispute_notes = 'P14' WHERE id = ${DEM_INVOICE_ID}` },
+    { row: 'Editar Cliente', statement: `UPDATE public.customers SET trade_name = 'P14' WHERE id = ${CUSTOMER_ID}` },
+    // Lê a linha semeada: sem a leitura, a RLS devolve zero linhas e o caso dá SEM-LINHA (count(*) sempre devolveria uma).
+    { row: 'Ler o Histórico de Comunicados', statement: `SELECT id FROM public.customer_communications WHERE id = ${COMMUNICATION_ID}` },
+  ]
+
+  it.each(MATRIX_GLOBAL)('Catálogo: $row — os cinco setores passam da guarda', ({ statement }) => {
+    for (const profile of ALL_PROFILES) {
+      expect(outcomeAs(profile, statement), `${profile}: ${statement}`).not.toMatch(/^(42501|42883|42601|42P01|42703|SEM-LINHA|sem-resultado)/)
+    }
+  })
+
+  it('Catálogo: só o Administrativo muda o setor e a situação de um usuário', () => {
+    for (const profile of ALL_PROFILES) {
+      const other = profile === 'equipamentos' ? PROFILES.financeiro : PROFILES.equipamentos
+      const change = outcomeAs(profile, `UPDATE public.user_profiles SET role = 'operacoes', active = false WHERE id = '${other}'`)
+      const ownRole = outcomeAs(profile, `UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${PROFILES[profile]}'`)
+      if (profile === 'administrativo') {
+        expect(change, profile).toBe('OK')
+        expect(ownRole, profile).toBe('OK')
+      } else {
+        // A RLS esconde o perfil alheio; o próprio setor só muda pelo Administrativo (gatilho, 42501).
+        expect(change, profile).toBe('SEM-LINHA')
+        expect(ownRole, profile).toBe('42501')
+      }
+    }
+  })
+
+  it('Catálogo: ninguém desativa nem rebaixa o último Administrativo ativo', () => {
+    const asLastAdmin = (sql: string) => spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `BEGIN;
+      SET LOCAL session_replication_role = replica;
+      UPDATE public.user_profiles SET active = false WHERE role = 'administrativo' AND id <> '${PROFILES.administrativo}';
+      SET LOCAL session_replication_role = origin;
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub = '${PROFILES.administrativo}';
+      SET LOCAL request.jwt.claim.role = 'authenticated';
+      ${sql};
+      ROLLBACK;`], { encoding: 'utf8' })
+    for (const sql of [
+      `UPDATE public.user_profiles SET role = 'financeiro' WHERE id = '${PROFILES.administrativo}'`,
+      `UPDATE public.user_profiles SET active = false WHERE id = '${PROFILES.administrativo}'`,
+    ]) {
+      const result = asLastAdmin(sql)
+      expect(result.status, sql).not.toBe(0)
+      expect(result.stderr, sql).toMatch(/último usuário Administrativo ativo/)
+    }
+    expect(psql(`SELECT role || ':' || active FROM public.user_profiles WHERE id = '${PROFILES.administrativo}';`)).toBe('administrativo:true')
+  })
+
+  it('Catálogo: assinatura e observação do ADR de Saída — o Administrativo cobre qualquer seção, cada dono só a sua', () => {
+    const SECTION_OF: Record<string, string> = { operacoes: 'datas', documentacao: 'carga_descarregada', equipamentos: 'veiculos' }
+    for (const profile of ALL_PROFILES) {
+      for (const department of ['operacoes', 'documentacao', 'equipamentos']) {
+        const allowed = profile === 'administrativo' || profile === department
+        const signoff = sqlstateAs(profile, `public.set_agency_report_department_signoff(-1, 'BRZZZ', '${department}', true, NULL)`)
+        const observation = sqlstateAs(profile, `public.set_agency_report_section_observation(-1, 'BRZZZ', '${SECTION_OF[department]}', 'Observação P14')`)
+        for (const state of [signoff, observation]) {
+          if (allowed) expect(state, `${profile} → ${department}`).not.toBe('42501')
+          else expect(state, `${profile} → ${department}`).toBe('42501')
+        }
+      }
+    }
+  })
+
+  it('Catálogo: cada setor recebe os tipos de alerta que a tela diz', () => {
+    const rows = psql(`SELECT department || '=' || count(*) FROM (
+        SELECT unnest(audience_departments) AS department FROM public.alert_type_catalog WHERE active
+      ) AS audience GROUP BY department ORDER BY department;`).split('\n')
+    const counts = Object.fromEntries(rows.map((line) => {
+      const [department, count] = line.split('=')
+      return [department, Number(count)]
+    }))
+    expect(counts).toEqual(ALERT_TYPE_COUNTS)
+  })
+
+  it('Catálogo: as linhas da tela conferem com MATRIX_EXCEPTIONS e MATRIX_GLOBAL', () => {
+    for (const row of PERMISSION_MATRIX) {
+      for (const proof of row.proof) {
+        if (proof.startsWith('exceção: ')) {
+          const entry = MATRIX_EXCEPTIONS.find((candidate) => candidate.row === proof.slice('exceção: '.length))
+          expect(entry, `${row.id}: ${proof}`).toBeDefined()
+          expect([...(entry?.allowed ?? [])].sort(), `${row.id}: ${proof}`).toEqual([...allowedDepartments(row)].sort())
+        } else if (proof.startsWith('todos: ')) {
+          expect(MATRIX_GLOBAL.some((candidate) => candidate.row === proof.slice('todos: '.length)), `${row.id}: ${proof}`).toBe(true)
+          expect(isSharedByAll(row), `${row.id}: ${proof}`).toBe(true)
+        }
+      }
     }
   })
 

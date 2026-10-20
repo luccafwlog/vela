@@ -709,7 +709,7 @@ Vínculo confirmado entre o consignatário importado (B/L ou Granito) e o
 cadastro de Cliente. Só o CNPJ exato vincula sozinho; nome, nome canônico ou
 similaridade produzem apenas Cliente sugerido, que uma pessoa confirma na
 Revisão. Sugestão não é vínculo e não libera faturamento.
-→ Regra: [Clientes § Reconciliação de cliente em B/L e Granito](docs/modules/clientes.md#reconciliação-de-cliente-em-bl-e-granito)
+→ Regra: [Clientes § Reconciliação de cliente no B/L](docs/modules/clientes.md#reconciliação-de-cliente-no-bl)
 
 **Troca de Consignatário**
 Correção do consignatário de um B/L já gravado, feita reimportando o arquivo

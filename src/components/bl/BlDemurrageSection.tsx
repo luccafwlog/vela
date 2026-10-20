@@ -4,6 +4,7 @@ import { afterDatasContainerAlteradas } from '../../services/cacheEffects'
 import { Save } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { StatusText } from '../ui/StatusText'
 import { CopyValue } from '../ui/CopyValue'
@@ -343,16 +344,12 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                             onChange={(e) => setReturnDates((prev) => ({ ...prev, [container.id]: e.target.value }))}
                           />
                           {line.returnDateChanged ? (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="app-btn--sm"
+                            <RowActionButton
+                              label={`Salvar devolução do container ${container.container_number}`}
+                              icon={Save}
                               loading={savingReturnDate === container.id}
-                              aria-label={`Salvar devolução do container ${container.container_number}`}
                               onClick={() => void handleSaveReturnDate(container.id)}
-                            >
-                              Salvar
-                            </Button>
+                            />
                           ) : null}
                         </div>
                       )}

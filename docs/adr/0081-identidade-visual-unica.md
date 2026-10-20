@@ -141,3 +141,22 @@ e vai para o detalhe, situação em texto com âmbar só no que pede ação, "Pa
 com o ícone ✓ verde e "Consolidada" como ícone pequeno. Não é aplicada de uma
 vez como a passada única, porque cada tela exige escolher quais colunas saem:
 entra em cada tela quando o lote dela for aprovado.
+
+## Nota de 2026-10-19: ação de linha de tabela só com ícone
+
+Na proposta do lote 5b (Linhas de serviço do Embarque de vazios), o responsável
+pediu os botões de linha com ícone no lugar do texto e estendeu a decisão a
+todo o sistema. A regra 9 passa a pedir, em linha de tabela, `Button` só com
+ícone, com o nome no `title` e no `aria-label`; ações do cabeçalho da tela, da
+faixa do bloco e das janelas continuam com texto. Substitui, para as linhas de
+tabela, o item "ação como botão com nome" da passada única de 2026-10-13. Como
+a passada única, vale em todas as telas de uma vez, conforme o
+[plano tela a tela](../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+
+Nota de 2026-10-19 (mesmo dia, depois da entrega do lote 5b): o responsável
+confirmou duas exceções que mantêm o texto em tabela — a ação cujo texto é a
+própria informação da coluna (Provisionamento do Portal, coluna Próxima ação)
+e as ações dentro do painel da linha aberta, que são de bloco ou de formulário
+("Reenviar CE e Taxas", "Adicionar atracação", Voltar e "Marcar como tratado"
+no formulário do Pix). A regra 9 de
+[identidade-visual.md](../identidade-visual.md#as-nove-regras) registra as duas.

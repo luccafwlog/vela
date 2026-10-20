@@ -5,7 +5,7 @@ import { Button } from '../ui/Button'
 import { CopyValue } from '../ui/CopyValue'
 import { Field, Input } from '../ui/Input'
 import { NoValue } from '../ui/NoValue'
-import { InlineCustomerPicker, InlineFieldEditor } from '../shared/ReviewInlineEditors'
+import { InlineFieldEditor } from '../shared/ReviewInlineEditors'
 import type { ReviewCustomer, ReviewQueueItem } from '../../hooks/useReview'
 import { isDeactivatedCustomerSuggestion } from '../../services/customerReconciliation'
 import { formatCnpjCpf } from '../../lib/utils'
@@ -34,10 +34,6 @@ type BlItem = Extract<ReviewQueueItem, { source: 'bl' }>
 
 function plural(count: number, singular: string, pluralForm: string) {
   return `${count} ${count === 1 ? singular : pluralForm}`
-}
-
-function itemLabel(item: ReviewQueueItem) {
-  return item.source === 'granite' ? item.bl_number : item.id
 }
 
 function voyageText(item: ReviewQueueItem) {
@@ -122,13 +118,10 @@ export function ReviewGroupDetail({
   const [proposedCnpj, setProposedCnpj] = useState<{ cnpj: string; seq: number } | null>(null)
   const [proposedCustomer, setProposedCustomer] = useState<{ customer: ReviewCustomer; seq: number } | null>(null)
   const [formCnpj, setFormCnpj] = useState<string | null>(null)
-  const [graniteTarget, setGraniteTarget] = useState<ReviewCustomer | null>(null)
   const [email, setEmail] = useState(() => group.items.find((item) => item.manifest_customer_email)?.manifest_customer_email ?? '')
 
-  const blItems = group.items.filter((item): item is BlItem => item.source === 'bl')
-  const graniteItems = group.items.filter((item) => item.source === 'granite')
+  const blItems: BlItem[] = group.items
   const unlinkedBls = blItems.filter(needsCustomerLink)
-  const unlinkedGranite = graniteItems.filter(needsCustomerLink)
   const linked = getGroupLinkedItem(group)?.customer ?? null
   const expectedCnpjs = group.candidateCnpjs.length ? group.candidateCnpjs : group.cnpj ? [group.cnpj] : []
   const weightItems = blItems.filter(needsWeightFix)
@@ -149,7 +142,6 @@ export function ReviewGroupDetail({
   const customerForm = (
     <ReviewCustomerForm
       blCount={unlinkedBls.length}
-      graniteCount={unlinkedGranite.length}
       expectedCnpjs={expectedCnpjs}
       initialName={group.displayName}
       initialCnpj={group.cnpj ?? ''}
@@ -230,53 +222,9 @@ export function ReviewGroupDetail({
     )
   }
 
-  // Fora da cadeia acima: com B/L sem cliente, o cadastro ou o vínculo do grupo
-  // já leva o Granito junto; sem ele, o Granito tem o próprio bloco, inclusive
-  // ao lado do bloco de e-mail.
-  let graniteBlock = null
-  if (unlinkedBls.length === 0 && unlinkedGranite.length > 0) {
-    graniteBlock = (
-      <Block title="Vincular o cliente ao Granito" headingLevel={3} aside="Granito não gera fatura: o vínculo libera o cálculo de apoio no módulo Granito">
-        <div className="grid gap-4">
-          <table className="app-table app-table--nested">
-            <caption className="sr-only">Registros de Granito sem cliente</caption>
-            <thead>
-              <tr>
-                <th scope="col">Registro</th>
-                <th scope="col" className="app-table__text-head">Consignatário no registro</th>
-                <th scope="col">Navio / Viagem</th>
-              </tr>
-            </thead>
-            <tbody>
-              {unlinkedGranite.map((item) => (
-                <tr key={item.id}>
-                  <td>{itemLabel(item)}</td>
-                  <td className="app-table__text">{item.consignee || item.shipper || <NoValue label="Sem consignatário" />}</td>
-                  <td>{voyageText(item) ?? <NoValue label="Sem viagem informada" />}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {unlinkedGranite.map((item) => <Suggestion key={item.id} item={item} onUse={setGraniteTarget} />)}
-          <InlineCustomerPicker label="Cliente cadastrado" saving={savingGroup} expectedCnpjs={expectedCnpjs} onSelect={setGraniteTarget} />
-          <div className="flex flex-wrap items-center gap-3 border-t border-[var(--app-border-soft)] pt-3">
-            <p className="min-w-0 flex-1 text-[var(--app-muted)]">
-              {graniteTarget ? <>Vai vincular <strong>{plural(unlinkedGranite.length, 'registro', 'registros')}</strong> a <strong>{graniteTarget.name}</strong>.</> : 'Escolha o cliente cadastrado.'}
-            </p>
-            <Link className="app-btn app-btn--secondary app-btn--sm" to="/granito">Abrir Granito</Link>
-            <Button disabled={!graniteTarget} loading={savingGroup} loadingLabel="Salvando…" onClick={() => graniteTarget && onGroupLink(graniteTarget)}>
-              Vincular
-            </Button>
-          </div>
-        </div>
-      </Block>
-    )
-  }
-
   return (
     <div className="grid gap-3">
       {customerBlock}
-      {graniteBlock}
 
       {conflictLinkedBls.length ? (
         <Block title="CNPJ do B/L diferente do cliente vinculado" headingLevel={3} aside={linked?.name}>
@@ -368,13 +316,9 @@ export function ReviewGroupDetail({
           {group.items.map((item) => (
             <tr key={item.id}>
               <td>
-                {item.source === 'bl' ? (
-                  <CopyValue value={item.id} label="número do B/L"><Link className="app-link" to={`/bls/${encodeURIComponent(item.id)}`}>{item.id}</Link></CopyValue>
-                ) : (
-                  <CopyValue value={item.bl_number} label="número do B/L">{item.bl_number}</CopyValue>
-                )}
+                <CopyValue value={item.id} label="número do B/L"><Link className="app-link" to={`/bls/${encodeURIComponent(item.id)}`}>{item.id}</Link></CopyValue>
               </td>
-              <td>{item.source === 'granite' ? 'Granito' : getReviewCargoTypeLabel(item)}</td>
+              <td>{getReviewCargoTypeLabel(item)}</td>
               <td>{voyageText(item) ?? <NoValue label="Sem viagem informada" />}</td>
               <td>{routeText(item) ?? <NoValue label="Sem trecho" />}</td>
               <td className="app-table__text">{pendencyText(item)}</td>

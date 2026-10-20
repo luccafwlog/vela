@@ -222,7 +222,7 @@ describe('revisão da etapa 9 na página Baplie', () => {
     client.setQueryData(['bl-detail', 'BL-3'], { id: 'BL-3' })
     try {
       renderPage(client)
-      fireEvent.click(await screen.findByRole('button', { name: 'Vale o B/L' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Vale o B/L: AAAU0000001 no B/L BL-3' }))
       await waitFor(() => expect(mocks.resolveDivergence).toHaveBeenCalledWith(3, 'ownership', 'Armador confirmou o B/L'))
       await waitFor(() => expect(client.getQueryState(['bl-timeline', 'BL-3'])?.isInvalidated).toBe(true))
       expect(client.getQueryState(['bl-detail', 'BL-3'])?.isInvalidated).toBe(true)

@@ -34,7 +34,7 @@ const PREVIEW_LIMIT = 25
  * Importar vazios de importação (containers vazios que descarregam): o mesmo
  * modal em /vaziosimportacao (viagem escolhida aqui) e na aba da Viagem
  * (viagem fixa), A1 do lote 6a. O arquivo pode ser lido antes da viagem (A2);
- * a viagem e o Nº do manifesto Mercante de cada porto de origem liberam o
+ * a viagem e o Nº do manifesto Mercante de cada rota (POL → POD) liberam o
  * botão Importar.
  *
  * Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo
@@ -130,7 +130,7 @@ export function VaziosImportacaoImportModal({
     footnote = 'Escolha a viagem de destino: é ela que libera o botão Importar.'
     footnoteTone = 'warning'
   } else if (manifest && !numbersReady) {
-    footnote = 'Informe o Nº do manifesto Mercante de cada porto de origem para importar.'
+    footnote = 'Informe o Nº do manifesto Mercante de cada rota (POL → POD) para importar.'
     footnoteTone = 'warning'
   } else if (manifest && warnings && !acceptWarnings) {
     footnote = 'Confira os avisos e confirme o aceite para importar.'

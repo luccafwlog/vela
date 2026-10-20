@@ -23,7 +23,7 @@ import type { CustomerBaseRow, ParsedCustomerBase } from '../../services/custome
 
 const SAMPLE_SIZE = 15
 
-/** Clientes que o banco recusou: nada da base foi gravado (migration 326). */
+/** Clientes que o banco recusou: nada da base foi gravado (migration 334). */
 export type CustomerBaseRefusal = Array<{ cnpj_cpf: string; message: string }>
 
 /**

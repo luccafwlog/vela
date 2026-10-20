@@ -16,14 +16,19 @@ it('does not promise unsupported schedule confirmation or update times', () => {
 it('uses neutral report-limit copy instead of claiming one global limit', () => {
   const source = readFileSync(resolve(process.cwd(), 'src/pages/Relatorios.tsx'), 'utf8')
   expect(source).not.toContain('Limite de 2.000 linhas por consulta')
-  expect(source).toContain('Cada visão informa seu próprio limite')
+  // Lote 5b (R2): o aviso só aparece quando o recorte passa do teto da tela,
+  // diz quantas linhas faltam e que a planilha traz todas.
+  expect(source).toContain('A planilha traz todas.')
 })
 
-it('exposes the audit author filter and clears it with the other filters', () => {
-  const source = readFileSync(resolve(process.cwd(), 'src/pages/Admin.tsx'), 'utf8')
-  expect(source).toContain('Autor (ID)')
-  expect(source).toContain('value={logFilters.changedBy}')
-  expect(source).toContain('logFilters.entityType || logFilters.changedBy || logFilters.dateFrom || logFilters.dateTo')
+it('exposes the audit author filter as a list of people and clears it with the other filters', () => {
+  const source = readFileSync(resolve(process.cwd(), 'src/components/admin/AdminHistoryTab.tsx'), 'utf8')
+  // Lote 5b: "Por" é a lista de pessoas (e "Sistema"), no lugar do número interno do autor.
+  expect(source).not.toContain('Autor (ID)')
+  expect(source).toContain('<Field label="Por">')
+  expect(source).toContain('value={filters.changedBy}')
+  expect(source).toContain('filters.subject || filters.changedBy || filters.dateFrom || filters.dateTo')
+  expect(source).toContain('setFilters(EMPTY_FILTERS)')
 })
 
 it('uses the voyage-backed schedule flow instead of the legacy schedule export', () => {

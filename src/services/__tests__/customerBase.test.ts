@@ -43,7 +43,7 @@ describe('customerBase import', () => {
     expect(result.rows[0].cnpj_cpf).toBe('12345678000195')
   })
 
-  it('grava a base inteira numa chamada só (migration 326)', async () => {
+  it('grava a base inteira numa chamada só (migration 334)', async () => {
     mockRpc.mockResolvedValue({ data: { ok: true, imported: 1, updated: 1, contacts_created: 3, bls_linked: 2 }, error: null })
     const base = { trade_name: null, address: null, city: null, state: 'SP', zip: null }
 

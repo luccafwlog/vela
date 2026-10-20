@@ -58,6 +58,7 @@ Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-re
 | GitHub → **Settings → Secrets and variables → Actions** | tokens de deploy e valores públicos de build | workflows |
 | GitHub → environment **`cloudflare-production`** | 7 variáveis `VITE_*` e secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); deployment restrito à branch `main` | só o workflow de produção |
 | GitHub → environment **`cloudflare-pages`** | secret `CLOUDFLARE_PAGES_API_TOKEN` (2026-10-07); sem restrição de branch | jobs `publish` da Preview, limpeza e provisionamento do Pages |
+| GitHub → environment **`staging`** | variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` da branch Supabase `staging`, `VITE_TURNSTILE_SITE_KEY` (Site Key pública do widget `Vela staging`) e secret `CLOUDFLARE_PAGES_API_TOKEN` | só o workflow de staging |
 | GitHub → environment **`supabase-branches`** | secrets `SUPABASE_ACCESS_TOKEN` (PAT de 2026-10-08) e `PREVIEW_ADMIN_PASSWORD` (2026-10-07); sem restrição de branch | job `prepare` da Preview e `provision-preview-admin` |
 | Windows do computador do backup → **variáveis do usuário** | `SUPABASE_DB_URL`, `BACKUP_ENCRYPTION_KEY_HEX`, `R2_*`, `BACKUP_ALLOW_PRODUCTION` | tarefa agendada do backup |
 | Windows → **Gerenciador de Credenciais** | `VelaBackup/R2AccessKeyId`, `VelaBackup/R2SecretAccessKey`, `VelaBackup/EncryptionKey` | o dono, para reconfigurar o backup |
@@ -149,6 +150,13 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   ao fechar a PR, os deployments antigos de `pr-<n>`, e o mais recente continua
   no alias da PR, atrás do Access ([deploy.md](../setup/deploy.md#workflows)).
   Só publica com `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`.
+- **Staging persistente:** `.github/workflows/cloudflare-pages-staging.yml`
+  publica a git branch `staging` em `staging.vela-internal.pages.dev` e
+  `staging.vela-portal.pages.dev` (deploy de Preview, atrás do mesmo Access),
+  contra a branch Supabase `staging`. Ligado por
+  `CLOUDFLARE_PAGES_STAGING_ENABLED=true` junto com
+  `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true`
+  ([deploy.md](../setup/deploy.md#staging-persistente)).
 - **Cabeçalhos de segurança (CSP):** gerados por
   `scripts/cloudflare-pages-stage.mjs`; mudam junto com os workflows e o staging do Pages
   ([deploy.md](../setup/deploy.md#headers-rotas-e-cors)).
@@ -157,7 +165,7 @@ Serve os dois domínios desde 2026-09-24 (Etapa 10).
   Functions do plano. O que ela responde e como é conferida estão em
   [deploy.md](../setup/deploy.md#headers-rotas-e-cors).
 - **Token:** secret `CLOUDFLARE_PAGES_API_TOKEN` nos environments GitHub
-  `cloudflare-pages` e `cloudflare-production`. O valor é o User API Token
+  `cloudflare-pages`, `cloudflare-production` e `staging`. O valor é o User API Token
   `GitHub Actions — Vela e Portal Fwlog Pages` (Cloudflare Pages: Edit, uma
   conta), criado em 2026-10-07. Em 2026-10-08 a cópia Repository-level foi
   apagada e o Account API Token anterior, `Vela Pages CI/CD` (Pages Write), foi
@@ -221,6 +229,16 @@ Cloudflare Pages Preview concluírem; remover a branch após os testes para
 encerrar o custo. Conferir a criação e a exclusão no painel. A página Branching
 estava sem branches persistentes ou de Preview na conferência de 2026-10-08;
 `codex/run2-manual-preview-probe` já tinha sido removida.
+
+**Branch persistente `staging`** (ref `uvgqfpleiyfythkhutlj`, criada em
+2026-10-19, "Sync with Git branch" `staging`): banco do staging persistente
+([deploy.md](../setup/deploy.md#staging-persistente)). Por ser persistente, a
+cobrança por hora vale enquanto ela existir. Em 2026-10-20 tinha as 322
+migrations, Vault vazio (os jobs `pg_cron` avisam e não disparam) e nenhum dado
+de produção. No mesmo dia, as linhas `007` e `135` do histórico de produção
+foram reparadas com `supabase/scripts/reparo_schema_migrations_007_135.sql`
+(backup em `supabase_migrations.schema_migrations_bkp_007_135`), para branches
+novas não falharem na `165`.
 
 - **Acesso administrativo:** painel pelo login com GitHub; CLI com
   `supabase login`. O CI usa `SUPABASE_ACCESS_TOKEN` e `SUPABASE_PROJECT_REF`.
@@ -642,14 +660,23 @@ imprime `importacao@fwlog.com.br`, o mesmo endereço de `COMMUNICATIONS_REPLY_TO
 
 Widget `Portal Fwlog` (modo Managed, sem pre-clearance), hostnames
 `portalfwlog.com.br`, `vela-portal.pages.dev`, `localhost`. Protege
-`/portal/login` e `/portal/esqueci-senha`.
+`/portal/login` e `/portal/esqueci-senha` em produção.
 
 - **Site Key** (pública): `VITE_TURNSTILE_SITE_KEY` no environment GitHub
   `cloudflare-production`.
-- **Secret Key:** `TURNSTILE_SECRET_KEY` no Supabase.
+- **Secret Key:** `TURNSTILE_SECRET_KEY` no Supabase de produção.
 - **Ordem obrigatória:** Site Key no ar antes do secret; ao desligar, apague o
   secret primeiro. Na ordem errada, todo login e recuperação recebem 403.
-- As previews não recebem Site Key e mostram o login sem widget.
+- As previews `pr-N` não recebem Site Key e mostram o login sem widget.
+
+O staging usa outro widget, `Vela staging`, com hostname
+`staging.vela-portal.pages.dev`. A Site Key pública fica em
+`VITE_TURNSTILE_SITE_KEY` no environment GitHub `staging`; o workflow de
+staging a passa ao build no mesmo padrão da produção. Na branch Supabase
+`staging` (ref `uvgqfpleiyfythkhutlj`), `TURNSTILE_SECRET_KEY` e
+`TURNSTILE_ALLOWED_HOSTNAMES=staging.vela-portal.pages.dev` fazem o
+`portal-login` exigir o token. Sem a Site Key no bundle, a tela de login mostra
+a verificação de segurança vazia e o servidor responde 403.
 
 ### Upstash (segunda trava de tentativas)
 
@@ -791,13 +818,16 @@ para eles vale o backup do próprio Supabase.
   `SUPABASE_ACCESS_TOKEN` e `PREVIEW_ADMIN_PASSWORD`, que agora existem só nos
   environments, e o legado `FIREBASE_SERVICE_ACCOUNT_TRANSHIPPING_DESK`.
 - **Environment secrets e variables:** os jobs referenciam explicitamente os
-  três environments acima. Se um secret existir no escopo do environment e do
+  três environments acima, e o workflow de staging o environment `staging`. Se um secret existir no escopo do environment e do
   repositório com o mesmo nome, o GitHub Actions usa o do environment. As 7
-  variáveis `VITE_*` vivem em `cloudflare-production`; os environments antigos
+  variáveis `VITE_*` de produção vivem em `cloudflare-production`. O environment
+  `staging` tem as suas: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e
+  `VITE_TURNSTILE_SITE_KEY`. Os environments antigos
   `Preview`, `Preview – fwlog-portal`, `Preview – vela`, `Production` e variantes
   estão vazios e não são referenciados pelos workflows atuais.
 - **Variables:** `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_ACCESS_CONFIGURED`,
-  `CLOUDFLARE_PAGES_PRODUCTION_ENABLED`.
+  `CLOUDFLARE_PAGES_PRODUCTION_ENABLED` e, para o staging,
+  `CLOUDFLARE_PAGES_STAGING_ENABLED`.
 - **Environments (auditoria run-2, #14):**
   **Conferência de 2026-10-07:** os três environments têm secrets nos locais
   esperados. `cloudflare-pages` e `supabase-branches` não têm restrição de

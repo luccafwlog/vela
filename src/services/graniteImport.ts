@@ -3,7 +3,6 @@ import { userFacingErrorMessage } from '../lib/errors'
 import { assertUploadFile } from '../lib/fileGuard'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { parseImportNumber } from '../lib/importNumber'
-import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, withoutDeactivatedCustomer } from './customerReconciliation'
 import { createHeaderMapper, createRowErrorCollector, matchHeaders, readSheet, type HeaderSpec, type RowError } from './importCore'
 import { IsoDateSchema, LocodeSchema } from './importValidation'
 import { resolvePortCode } from './portCode'
@@ -55,8 +54,6 @@ const GRANITE_HEADER_LABELS: Record<GraniteHeaderField, string> = {
   real_weight_kg: 'Real Weight',
 }
 
-export type ReconciliationStatus = 'matched' | 'suggested_name' | 'missing_cnpj' | 'not_found'
-
 export type ParsedGraniteBl = {
   rowNumber: number
   sequence: number | null
@@ -84,9 +81,6 @@ export type ParsedGraniteBl = {
   cssc_selection: string | null
   cargo_readiness_date: string | null
   phase: string | null
-  clientId: number | null
-  suggestedClientId: number | null
-  reconciliationStatus: ReconciliationStatus
 }
 
 export type ParsedGraniteManifest = {
@@ -124,7 +118,6 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
   }
   const mapRow = createHeaderMapper(rows[0], HEADER_MAP)
 
-  const customerMaps = await loadCustomerMaps()
   const bls: ParsedGraniteBl[] = []
   const rowErrors = createRowErrorCollector()
   const seenBlNumbers = new Set<string>()
@@ -136,7 +129,7 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
 
     const blNumber = String(mapped['bl_number'] ?? '').trim().toUpperCase()
     if (!blNumber) {
-      rowErrors.add(rowNumber, 'BL ausente — linha ignorada.', row)
+      rowErrors.add(rowNumber, 'BL ausente.', row)
       return
     }
     if (seenBlNumbers.has(blNumber)) {
@@ -154,22 +147,6 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
     const cnpjRaw = String(mapped['shipper_cnpj'] ?? '').trim()
     const cnpjCanonical = canonicalizeDocument(cnpjRaw)
     const shipperName = String(mapped['shipper_name'] ?? '').trim() || null
-
-    let clientId: number | null = null
-    let suggestedClientId: number | null = null
-    let reconciliationStatus: ReconciliationStatus = 'missing_cnpj'
-
-    if (cnpjCanonical || shipperName) {
-      const match = findMatchedCustomer({ cnpjCpf: cnpjRaw, consignee: shipperName ?? '' }, customerMaps)
-      const link = resolveCustomerLink(withoutDeactivatedCustomer(match))
-      clientId = link.customerId
-      suggestedClientId = link.suggestedCustomerId
-      reconciliationStatus = link.status === 'matched_document'
-        ? 'matched'
-        : link.status === 'matched_name'
-          ? 'suggested_name'
-          : cnpjCanonical ? 'not_found' : 'missing_cnpj'
-    }
 
     const loadingPort = resolveGranitePort(
       String(mapped['loading_port'] ?? '').trim() || null,
@@ -227,9 +204,6 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
       cssc_selection: String(mapped['cssc_selection'] ?? '').trim() || null,
       cargo_readiness_date: cargoReadinessDate,
       phase: String(mapped['phase'] ?? '').trim() || null,
-      clientId,
-      suggestedClientId,
-      reconciliationStatus,
     })
   })
 
@@ -302,8 +276,6 @@ export type ImportGraniteArgs = {
   voyageId: number
   manifest: ParsedGraniteManifest
   uploadedBy: string
-  /** Permite importar BLs sem client_id resolvido; esses ficarão sem faturamento */
-  allowPending?: boolean
   /**
    * Reimportação (ADR 0078, item 25): B/Ls dos manifestos que o arquivo toca e
    * que ele não traz só saem se esta confirmação devolver true; sem ela, ficam.
@@ -315,7 +287,6 @@ export type ImportGraniteArgs = {
 
 export type GraniteImportResult = {
   manifestId: string
-  pendingCount: number
   inserted: number
   updated: number
   removed: string[]
@@ -382,7 +353,7 @@ export function graniteRemovalConfirmOptions(missing: string[], hidden?: ParsedG
     confirmLabel: 'Tirar da Viagem',
     cancelLabel: 'Manter gravados',
     tone: 'danger' as const,
-    consequence: 'Os B/Ls com Invoice nunca saem; os demais saem com o CE e o vínculo de Cliente.',
+    consequence: 'Os B/Ls com Invoice antiga nunca saem; os demais saem da Viagem com o CE.',
     affected: { summary: `${missing.length} B/L(s)`, items: missing },
   }
 }
@@ -404,7 +375,6 @@ export async function importGraniteManifest({
   voyageId,
   manifest,
   uploadedBy,
-  allowPending = true,
   confirmRemoval,
 }: ImportGraniteArgs): Promise<GraniteImportResult> {
   // Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo
@@ -414,11 +384,10 @@ export async function importGraniteManifest({
   const totalWeightKg = manifest.bls.reduce((sum, bl) => sum + bl.real_weight_kg, 0)
   const vesselVoyage = manifest.vesselVoyage || manifest.bls[0]?.vessel_voyage || filename
 
+  // O Granito não tem Cliente (regra de 2026-10-19; migration 325): o B/L vai
+  // como veio na planilha, sem vínculo nem sugestão.
   const blRows = manifest.bls
-    .filter((bl) => allowPending || bl.clientId !== null || bl.suggestedClientId !== null)
     .map((bl) => ({
-      client_id: bl.clientId,
-      suggested_client_id: bl.suggestedClientId,
       sequence: bl.sequence,
       booking_number: bl.booking_number,
       bl_number: bl.bl_number,
@@ -465,12 +434,11 @@ export async function importGraniteManifest({
   } as never)
   // O erro do PostgREST não é `Error`: as duas telas (Granito e Viagem) mostram
   // a mensagem de negócio da RPC pela classificação compartilhada.
-  if (error) throw new Error(userFacingErrorMessage(error, 'Falha ao importar o manifesto Granito.'), { cause: error })
+  if (error) throw new Error(userFacingErrorMessage(error, 'Não foi possível importar a planilha do Granito. Tente novamente.'), { cause: error })
   if (data === null || typeof data !== 'object' || Array.isArray(data) || !('manifest_id' in data) || typeof data.manifest_id !== 'string') {
-    throw new Error('Falha ao criar manifesto.')
+    throw new Error('O banco não devolveu o manifesto gravado. Confira o Granito antes de importar de novo.')
   }
 
-  const pendingCount = manifest.bls.filter((bl) => bl.reconciliationStatus !== 'matched').length
   const raw = data as {
     manifest_id: string
     inserted_bls?: number
@@ -483,7 +451,6 @@ export async function importGraniteManifest({
 
   return {
     manifestId: raw.manifest_id,
-    pendingCount,
     inserted: Number(raw.inserted_bls ?? 0),
     updated: Number(raw.updated_bls ?? 0),
     removed: raw.removed_bl_numbers ?? [],

@@ -2,6 +2,7 @@
 
 > **Situação atual (2026-10-14).** A parte Vercel não vale mais: desde a [ADR 0076](./0076-cloudflare-pages-como-hosting.md), GitHub Actions publica os dois SPAs no Cloudflare Pages e os projetos Vercel ficam só para rollback manual. O Automatic branching do Supabase também não vale: o dono decidiu em 2026-10-07 mantê-lo desligado ([plano arquivado](../archive/plans/2026-09-28-remediacao-auditoria-seguranca-run-2.md)), decisão registrada na [ADR 0084](./0084-registro-de-decisoes-ja-em-producao.md) (item 2); a branch de Preview só existe quando criada à mão no painel e vinculada à branch da PR por "Sync with Git branch", com custo por hora e remoção após o teste. Continuam o Preview isolado por PR e o Deploy to production só a partir de `main`.
 > As migrations `351`–`356` citadas abaixo são da cadeia arquivada (`supabase/migrations_archive/`), anterior à consolidação da ADR 0062.
+> A branch persistente `staging` criada em 2026-10-19 não reabre a rejeição de `stagingtdesk` abaixo: as PRs continuam com Preview próprio e destino `main`; `staging` é um ambiente fixo de QA e treino, atualizado por push na git branch `staging` ([Deploy](../setup/deploy.md#staging-persistente)).
 > Regra vigente em [Deploy](../setup/deploy.md), seção "Workflows", e em [Serviços externos](../operations/servicos-externos.md), seção "Supabase".
 
 Status: supersedida parcialmente — 2026-08-27

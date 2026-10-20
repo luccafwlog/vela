@@ -1,4 +1,4 @@
--- 326 — Base de Clientes gravada numa vez só (regra de 2026-10-19, lote 6a da
+-- 334 — Base de Clientes gravada numa vez só (regra de 2026-10-19, lote 6a da
 -- identidade: importação com erro é recusada inteira e não grava nada).
 --
 -- Antes, a tela chamava `apply_customer_base_row_atomic` uma vez por Cliente e
@@ -111,9 +111,9 @@ BEGIN
 
     IF jsonb_array_length(v_errors) > 0 THEN
       -- Desfaz os Clientes aceitos: a base é recusada inteira.
-      RAISE EXCEPTION 'base de clientes recusada' USING ERRCODE = 'VB326';
+      RAISE EXCEPTION 'base de clientes recusada' USING ERRCODE = 'VB334';
     END IF;
-  EXCEPTION WHEN SQLSTATE 'VB326' THEN
+  EXCEPTION WHEN SQLSTATE 'VB334' THEN
     RETURN jsonb_build_object('ok', false, 'errors', v_errors);
   END;
 

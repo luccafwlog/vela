@@ -1,29 +1,155 @@
 import { supabase } from './supabase'
 import { classifyDbError } from '../lib/errors'
 import { blTotalCbm, blTotalWeightKg } from '../lib/cargoMode'
+import { saoPauloTodayIso } from '../lib/dates'
+import { storedPortAliases } from './portCode'
+import type { DemurrageInvoiceListItem } from './demurrage/demurrageInvoices'
 
-const REPORT_ROW_LIMIT = 2000
+// ─── Leitura em páginas (achado R2 do lote 5b) ────────────────────────────
+// O servidor entrega no máximo 1.000 linhas por consulta (`max_rows` em
+// supabase/config.toml). Pedir mais com `.limit()` não adianta: a resposta
+// para em 1.000 sem erro. Cada relatório lê em páginas até o fim do recorte;
+// a tela para num teto declarado e avisa quantas linhas faltam, e a planilha
+// lê tudo.
 
-// created_at/issued_at sao TIMESTAMPTZ; comparar com a data crua descarta tudo que
-// foi criado ou emitido depois da meia-noite do ultimo dia do filtro. Fonte unica
-// para as quatro visoes, senao cada aba interpreta o mesmo periodo de forma diferente.
-function endOfDay(date: string) {
-  return `${date}T23:59:59.999`
+export const REPORT_PAGE_SIZE = 1000
+// ponytail: teto fixo da tela. Acima dele os indicadores ficam parciais (com
+// aviso) e só a planilha traz o recorte inteiro. Upgrade: agregar no banco.
+export const REPORT_SCREEN_CEILING = 10_000
+
+type PageResponse<T> = { data: T[] | null; error: unknown; count?: number | null }
+
+/** Linhas carregadas e o total do recorte no banco (`count` da primeira página). */
+export type ReportLoad = { loaded: number; total: number }
+
+export type PagedRows<T> = { rows: T[]; load: ReportLoad }
+
+/**
+ * Lê `fetchPage(from, to)` até o fim do recorte ou até `ceiling`. Avança pelo
+ * que chegou, não pelo que pediu: um servidor com `max_rows` menor que a
+ * página não pula linhas. A primeira página deve pedir `count: 'exact'`
+ * (`reportSelectOptions`), que diz quantas linhas faltam quando a leitura
+ * para no teto.
+ *
+ * Fim do recorte é a página vazia, ou a curta que já alcançou a contagem: uma
+ * linha criada no meio da leitura empurra as outras uma posição, e parar só
+ * pela contagem da primeira página perderia a última. A mesma troca repete na
+ * página seguinte a linha da fronteira, descartada pelo `id`. Terminando antes
+ * do teto, o total é o que foi lido: não há "faltam N" de uma contagem velha.
+ * ponytail: paginação por deslocamento. Linha apagada no meio da leitura
+ * ainda pode fazer outra pular de página. Upgrade: paginar pela chave
+ * (`created_at`, `id`) em vez do deslocamento.
+ */
+export async function fetchAllPages<T>(
+  fetchPage: (from: number, to: number) => PromiseLike<PageResponse<T>>,
+  options: { pageSize?: number; ceiling?: number } = {},
+): Promise<PagedRows<T>> {
+  const pageSize = options.pageSize ?? REPORT_PAGE_SIZE
+  const ceiling = options.ceiling ?? Number.POSITIVE_INFINITY
+  const rows: T[] = []
+  const seenIds = new Set<unknown>()
+  let offset = 0
+  let count: number | null = null
+
+  while (offset < ceiling) {
+    const from = offset
+    const to = Math.min(from + pageSize, ceiling) - 1
+    const { data, error, count: pageCount } = await fetchPage(from, to)
+    if (error) throw error
+    if (count === null && typeof pageCount === 'number') count = pageCount
+    const page = data ?? []
+    offset += page.length
+    for (const row of page) {
+      const id = (row as { id?: unknown } | null)?.id
+      if (id != null) {
+        if (seenIds.has(id)) continue
+        seenIds.add(id)
+      }
+      rows.push(row)
+    }
+    if (page.length === 0) break
+    const shortPage = page.length < to - from + 1
+    if (shortPage && (count === null || offset >= count)) break
+  }
+
+  const loaded = rows.length
+  // Parou no teto: a contagem diz quantas faltam. Antes dele, leu o recorte inteiro.
+  const total = offset >= ceiling ? Math.max(count ?? loaded, loaded) : loaded
+  return { rows, load: { loaded, total } }
 }
 
-export type ReportFilters = {
+/** `count: 'exact'` só na primeira página: as demais não precisam recontar. */
+export function reportSelectOptions(from: number) {
+  return from === 0 ? { count: 'exact' as const } : undefined
+}
+
+export function isReportComplete(load: ReportLoad) {
+  return load.loaded >= load.total
+}
+
+// ─── Período em horário de Brasília (achado R4) ───────────────────────────
+// created_at/issued_at são TIMESTAMPTZ. A data crua seria lida em UTC e cortaria
+// o dia 3 horas antes da meia-noite de Brasília. Fonte única das quatro visões.
+// ponytail: fuso fixo -03:00; o Brasil não tem horário de verão desde 2019.
+
+export function brasiliaStartOfDay(date: string) {
+  return `${date}T00:00:00-03:00`
+}
+
+export function brasiliaEndOfDay(date: string) {
+  return `${date}T23:59:59.999-03:00`
+}
+
+/** Período padrão do Demurrage: do 1º de janeiro até hoje, no calendário de Brasília. */
+export function defaultDemurragePeriod(now = new Date()) {
+  const today = saoPauloTodayIso(now)
+  return { dateFrom: `${today.slice(0, 4)}-01-01`, dateTo: today }
+}
+
+// ─── Filtros ──────────────────────────────────────────────────────────────
+
+/** Período, Navio / Viagem e Cliente: sempre abertos nas quatro visões. */
+export type ReportScope = {
   dateFrom: string
   dateTo: string
+  voyageId: string
+  customerId: string
 }
 
-export type OperationalReportFilters = ReportFilters & {
+export type ReviewFilter = '' | 'pendente' | 'em-ordem'
+export type LocalChargesFilter = '' | 'pendente' | 'emitida' | 'parcial' | 'paga' | 'isenta'
+export type YesNoFilter = '' | 'sim' | 'nao'
+
+export type OperationalReportFilters = ReportScope & {
+  pol: string
   pod: string
   cargoMode: '' | 'container' | 'carga_solta' | 'misto'
+  review: ReviewFilter
+  localCharges: LocalChargesFilter
 }
 
-export type FinancialReportFilters = ReportFilters & {
+export type FinancialReportFilters = ReportScope & {
   status: '' | 'draft' | 'issued' | 'partially_paid' | 'paid' | 'cancelled'
+  consolidated: YesNoFilter
+  balance: '' | 'aberto' | 'zerado'
 }
+
+export type CustomerReportFilters = ReportScope
+
+export type DemurrageReportFilters = ReportScope & {
+  status: '' | 'draft' | 'issued' | 'paid' | 'cancelled'
+  dispute: YesNoFilter
+  overdue: '' | 'sim'
+}
+
+type ReportOptions = { ceiling?: number }
+
+function positiveId(value: string) {
+  const id = Number(value)
+  return Number.isInteger(id) && id > 0 ? id : null
+}
+
+// ─── Operacional ──────────────────────────────────────────────────────────
 
 export type OperationalReportRow = {
   id: string
@@ -32,6 +158,8 @@ export type OperationalReportRow = {
   cargo_mode: string | null
   review_status: string | null
   financial_status: string | null
+  charge_status: string | null
+  cancelled_at: string | null
   total_weight_kg: number | null
   bb_weight_ton: number | null
   total_cbm: number | null
@@ -59,60 +187,219 @@ export type OperationalReportResult = {
     totalWeightKg: number
     totalCbm: number
     totalVoyages: number
-    truncated: boolean
   }
+  load: ReportLoad
 }
 
-export async function fetchOperationalReport(filters: OperationalReportFilters): Promise<OperationalReportResult> {
-  let query = supabase
-    .from('bls')
-    .select(
-      `
-      id, pol, pod, cargo_mode, review_status, financial_status,
-      total_weight_kg, bb_weight_ton, total_cbm, bb_cbm, created_at, voyage_id,
-      customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf),
-      voyage:voyages(id, voyage_number, vessel:vessels(id, name, carrier:carriers(id, name))),
-      bl_containers(id, container_number)
-    `,
-    )
-    .order('created_at', { ascending: false })
-    .limit(REPORT_ROW_LIMIT)
+const OPERATIONAL_SELECT = `
+  id, pol, pod, cargo_mode, review_status, financial_status, charge_status, cancelled_at,
+  total_weight_kg, bb_weight_ton, total_cbm, bb_cbm, created_at, voyage_id,
+  customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf),
+  voyage:voyages(id, voyage_number, vessel:vessels(id, name, carrier:carriers(id, name))),
+  bl_containers(id, container_number)
+`
 
-  if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom)
-  if (filters.dateTo) query = query.lte('created_at', endOfDay(filters.dateTo))
-  if (filters.pod) query = query.eq('pod', filters.pod.toUpperCase())
-  if (filters.cargoMode === 'container') query = query.in('cargo_mode', ['container', 'misto'])
-  else if (filters.cargoMode === 'carga_solta') query = query.in('cargo_mode', ['carga_solta', 'misto'])
-  else if (filters.cargoMode) query = query.eq('cargo_mode', filters.cargoMode)
+const LOCKED_FINANCIAL_STATUSES = '(invoiced,partially_paid,paid)'
 
-  const { data, error } = await query.overrideTypes<OperationalReportRow[], { merge: false }>()
-  if (error) throw error
+/**
+ * Revisão do B/L no relatório (tela e planilha) e no filtro: só
+ * `pending_review` é Pendente. `review_status` vazio é o B/L sem pendência
+ * gravada (a coluna nasce `ok`), como em todas as outras telas que perguntam
+ * por `pending_review`; por isso conta e aparece como "Em ordem".
+ */
+export function reportReviewLabel(status: string | null | undefined) {
+  return status === 'pending_review' ? 'Pendente' : 'Em ordem'
+}
 
-  const rows = data ?? []
+export async function fetchOperationalReport(filters: OperationalReportFilters, options: ReportOptions = {}): Promise<OperationalReportResult> {
+  const ceiling = options.ceiling ?? REPORT_SCREEN_CEILING
+  const { rows, load } = await fetchAllPages<OperationalReportRow>((from, to) => {
+    let query = supabase
+      .from('bls')
+      .select(OPERATIONAL_SELECT, reportSelectOptions(from))
+      // id desempata: sem ele, B/Ls criados no mesmo instante trocam de página.
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
 
+    if (filters.dateFrom) query = query.gte('created_at', brasiliaStartOfDay(filters.dateFrom))
+    if (filters.dateTo) query = query.lte('created_at', brasiliaEndOfDay(filters.dateTo))
+    const voyageId = positiveId(filters.voyageId)
+    if (voyageId) query = query.eq('voyage_id', voyageId)
+    const customerId = positiveId(filters.customerId)
+    if (customerId) query = query.eq('customer_id', customerId)
+    // As opções de POL/POD são canônicas (BRVIX); a coluna guarda a grafia
+    // importada (BRVIT). Filtra por todas as grafias do mesmo porto.
+    if (filters.pol) query = query.in('pol', storedPortAliases(filters.pol))
+    if (filters.pod) query = query.in('pod', storedPortAliases(filters.pod))
+    if (filters.cargoMode === 'container') query = query.in('cargo_mode', ['container', 'misto'])
+    else if (filters.cargoMode === 'carga_solta') query = query.in('cargo_mode', ['carga_solta', 'misto'])
+    else if (filters.cargoMode) query = query.eq('cargo_mode', filters.cargoMode)
+    if (filters.review === 'pendente') query = query.eq('review_status', 'pending_review')
+    else if (filters.review === 'em-ordem') query = query.or('review_status.is.null,review_status.neq.pending_review')
+    // Mesmos estados de `localChargesListState`/`public.bl_local_charges_state`,
+    // com Paga separada de Emitida (coluna "Taxas locais" do relatório).
+    if (filters.localCharges) {
+      query = query.is('cancelled_at', null)
+      if (filters.localCharges === 'isenta') query = query.eq('charge_status', 'exempt')
+      else {
+        query = query.or('charge_status.is.null,charge_status.neq.exempt')
+        if (filters.localCharges === 'emitida') query = query.eq('financial_status', 'invoiced')
+        else if (filters.localCharges === 'parcial') query = query.eq('financial_status', 'partially_paid')
+        else if (filters.localCharges === 'paga') query = query.eq('financial_status', 'paid')
+        else query = query.or(`financial_status.is.null,financial_status.not.in.${LOCKED_FINANCIAL_STATUSES}`)
+      }
+    }
+    return query.range(from, to).overrideTypes<OperationalReportRow[], { merge: false }>()
+  }, { ceiling })
+
+  // B/L cancelado aparece na tabela ("B/L cancelado"), mas não entra nos
+  // cartões (decisão do responsável de 2026-10-20).
+  const counted = rows.filter((row) => !row.cancelled_at)
   const distinctContainers = new Set<string>()
-  for (const row of rows) {
+  const distinctVoyages = new Set<number>()
+  for (const row of counted) {
     for (const container of row.bl_containers ?? []) {
       if (container.container_number) distinctContainers.add(container.container_number)
     }
-  }
-
-  const distinctVoyages = new Set<number>()
-  for (const row of rows) {
     if (row.voyage_id != null) distinctVoyages.add(row.voyage_id)
   }
 
-  const kpis = {
-    totalBls: rows.length,
-    totalContainers: distinctContainers.size,
-    totalWeightKg: rows.reduce((sum, row) => sum + blTotalWeightKg(row), 0),
-    totalCbm: rows.reduce((sum, row) => sum + blTotalCbm(row), 0),
-    totalVoyages: distinctVoyages.size,
-    truncated: rows.length === REPORT_ROW_LIMIT,
+  return {
+    rows,
+    kpis: {
+      totalBls: counted.length,
+      totalContainers: distinctContainers.size,
+      totalWeightKg: counted.reduce((sum, row) => sum + blTotalWeightKg(row), 0),
+      totalCbm: counted.reduce((sum, row) => sum + blTotalCbm(row), 0),
+      totalVoyages: distinctVoyages.size,
+    },
+    load,
+  }
+}
+
+// ─── Regra comum de faturas (achado R3) ───────────────────────────────────
+// "Financeiro" e "Por Cliente" contam a mesma coisa (decisão de 2026-10-19):
+// a fatura emitida no período, sem rascunho e sem cancelada. O valor emitido
+// de uma fatura de Taxas Locais vem dos recebíveis do B/L, contados uma vez
+// cada: a individual e a consolidada que a cobre apontam o mesmo recebível.
+
+type InvoiceForTotals = {
+  id: number
+  customer_id: number | null
+  invoice_type: string | null
+  status: string | null
+  issued_at: string | null
+  total_brl: number | null
+  balance_brl: number | null
+}
+
+/** Situações que o Faturamento agrupa como Cancelada: a consolidada `obsolete` perdeu a validade. */
+export const CANCELLED_INVOICE_STATUSES = ['cancelled', 'obsolete'] as const
+
+/** Fatura que entra nos totais: emitida (com data), sem rascunho e sem cancelada (nem obsoleta). */
+export function countsAsIssuedInvoice(invoice: { status: string | null; issued_at: string | null }) {
+  return Boolean(invoice.issued_at)
+    && invoice.status !== 'draft'
+    && !(CANCELLED_INVOICE_STATUSES as readonly (string | null)[]).includes(invoice.status)
+}
+
+export type InvoiceTotals = { invoiceCount: number; issued: number; open: number; paid: number }
+
+const isOpenStatus = (status: string | null) => status === 'issued' || status === 'partially_paid'
+
+/**
+ * Situações que o Faturamento agrupa como Paga: a individual `covered` foi
+ * quitada pela consolidada que a cobre (docs/modules/faturamento.md).
+ */
+export const PAID_INVOICE_STATUSES = ['paid', 'covered'] as const
+
+export function countsAsPaidInvoice(status: string | null) {
+  return (PAID_INVOICE_STATUSES as readonly (string | null)[]).includes(status)
+}
+
+/**
+ * Totais das faturas que contam (`countsAsIssuedInvoice`), por Cliente e no
+ * todo. Emitido e Pago somam o recebível uma vez por Cliente; Em aberto soma o
+ * saldo dos recebíveis ativos e abertos, ou o saldo da fatura sem recebível.
+ * Pago inclui a individual coberta: ela e a consolidada paga que a cobre
+ * apontam o mesmo recebível, que entra uma vez só. Sem recebível (granito,
+ * avulsa), Pago usa o total da fatura, como o Emitido.
+ */
+export function summarizeIssuedInvoices(invoices: InvoiceForTotals[], links: ReceivableLinkRow[]) {
+  const ledger = summarizeReceivableBalances(links)
+  const byCustomer = new Map<number, InvoiceTotals>()
+  const seenIssued = new Set<string>()
+  const seenPaid = new Set<string>()
+  const seenOpen = new Set<string>()
+
+  for (const invoice of invoices) {
+    if (!countsAsIssuedInvoice(invoice)) continue
+    const customerId = invoice.customer_id ?? 0
+    const totals = byCustomer.get(customerId) ?? { invoiceCount: 0, issued: 0, open: 0, paid: 0 }
+    byCustomer.set(customerId, totals)
+    totals.invoiceCount++
+
+    const invoiceLinks = isLedgerLocalInvoice(invoice) ? ledger.linksByInvoiceId.get(invoice.id) ?? [] : []
+    if (invoiceLinks.length === 0) {
+      const total = Number(invoice.total_brl ?? 0)
+      totals.issued += total
+      if (countsAsPaidInvoice(invoice.status)) totals.paid += total
+      if (isOpenStatus(invoice.status)) totals.open += Number(invoice.balance_brl ?? 0)
+      continue
+    }
+
+    for (const link of invoiceLinks) {
+      const receivable = normalizeReceivable(link.receivable)
+      if (!receivable) continue
+      const key = `${customerId}:${link.receivable_id}`
+      const original = Number(receivable.original_amount_brl ?? 0)
+      if (!seenIssued.has(key)) {
+        seenIssued.add(key)
+        totals.issued += original
+      }
+      if (countsAsPaidInvoice(invoice.status) && !seenPaid.has(key)) {
+        seenPaid.add(key)
+        totals.paid += original
+      }
+      const balance = Number(receivable.balance_brl ?? 0)
+      if (link.status === 'active' && balance > 0 && receivable.status !== 'settled' && receivable.status !== 'void' && !seenOpen.has(key)) {
+        seenOpen.add(key)
+        totals.open += balance
+      }
+    }
   }
 
-  return { rows, kpis }
+  const all: InvoiceTotals = { invoiceCount: 0, issued: 0, open: 0, paid: 0 }
+  for (const totals of byCustomer.values()) {
+    all.invoiceCount += totals.invoiceCount
+    all.issued += totals.issued
+    all.open += totals.open
+    all.paid += totals.paid
+  }
+  return { all, byCustomer }
 }
+
+/**
+ * Faturas de uma Navio / Viagem: a própria viagem da fatura, o B/L da avulsa
+ * e os B/Ls da individual e da consolidada. Mesmo critério de `listInvoices`.
+ * `invoices` chega a `bls` também pelas tabelas de ligação; o nome da chave
+ * (`invoices_bl_id_fkey`) tira a ambiguidade.
+ */
+async function invoiceIdsForVoyage(voyageId: number): Promise<number[]> {
+  type IdRow = { id?: number; invoice_id?: number }
+  const [direct, byBl, individual, consolidated] = await Promise.all([
+    fetchAllPages<IdRow>((from, to) => supabase.from('invoices').select('id', reportSelectOptions(from)).filter('voyage_id', 'eq', voyageId).order('id').range(from, to).overrideTypes<IdRow[], { merge: false }>()),
+    fetchAllPages<IdRow>((from, to) => supabase.from('invoices').select('id, bl:bls!invoices_bl_id_fkey!inner(voyage_id)', reportSelectOptions(from)).eq('bl.voyage_id', voyageId).order('id').range(from, to).overrideTypes<IdRow[], { merge: false }>()),
+    fetchAllPages<IdRow>((from, to) => supabase.from('invoice_bls').select('invoice_id, bl:bls!inner(voyage_id)', reportSelectOptions(from)).eq('bl.voyage_id', voyageId).order('id').range(from, to).overrideTypes<IdRow[], { merge: false }>()),
+    fetchAllPages<IdRow>((from, to) => supabase.from('invoice_receivable_links').select('invoice_id, bl:bls!inner(voyage_id)', reportSelectOptions(from)).eq('bl.voyage_id', voyageId).order('id').range(from, to).overrideTypes<IdRow[], { merge: false }>()),
+  ])
+  const ids = new Set<number>()
+  for (const row of [...direct.rows, ...byBl.rows]) if (Number.isInteger(Number(row.id))) ids.add(Number(row.id))
+  for (const row of [...individual.rows, ...consolidated.rows]) if (Number.isInteger(Number(row.invoice_id))) ids.add(Number(row.invoice_id))
+  return [...ids]
+}
+
+// ─── Financeiro ───────────────────────────────────────────────────────────
 
 export type FinancialReportRow = {
   id: number
@@ -123,6 +410,7 @@ export type FinancialReportRow = {
   balance_brl: number | null
   issued_at: string | null
   created_at: string | null
+  customer_id: number | null
   customer: { id: number; name: string; cnpj_cpf: string } | null
 }
 
@@ -134,73 +422,100 @@ export type FinancialReportResult = {
     totalPaid: number
     totalOpen: number
     totalCanceled: number
-    truncated: boolean
   }
+  /** Faturas lidas do banco, antes do filtro de Saldo (aplicado no navegador). */
+  load: ReportLoad
   accessDenied: boolean
 }
 
-export async function fetchFinancialReport(filters: FinancialReportFilters): Promise<FinancialReportResult> {
-  let query = supabase
-    .from('invoices')
-    .select(
-      `
-      id, invoice_number, invoice_type, status, total_brl, balance_brl, issued_at, created_at,
-      customer:customers(id, name, cnpj_cpf)
-    `,
-    )
-    .order('issued_at', { ascending: false, nullsFirst: false })
-    .limit(REPORT_ROW_LIMIT)
+const EMPTY_LOAD: ReportLoad = { loaded: 0, total: 0 }
 
-  if (filters.dateFrom) query = query.gte('issued_at', filters.dateFrom)
-  if (filters.dateTo) query = query.lte('issued_at', endOfDay(filters.dateTo))
-  if (filters.status) query = query.eq('status', filters.status)
+function deniedFinancialResult(): FinancialReportResult {
+  return {
+    rows: [],
+    kpis: { totalInvoices: 0, totalIssued: 0, totalPaid: 0, totalOpen: 0, totalCanceled: 0 },
+    load: EMPTY_LOAD,
+    accessDenied: true,
+  }
+}
 
-  const { data, error } = await query.overrideTypes<FinancialReportRow[], { merge: false }>()
-  if (error) {
-    if (isAccessDenied(error)) {
-      return {
-        rows: [],
-        kpis: { totalInvoices: 0, totalIssued: 0, totalPaid: 0, totalOpen: 0, totalCanceled: 0, truncated: false },
-        accessDenied: true,
-      }
-    }
+export async function fetchFinancialReport(filters: FinancialReportFilters, options: ReportOptions = {}): Promise<FinancialReportResult> {
+  const ceiling = options.ceiling ?? REPORT_SCREEN_CEILING
+  const voyageId = positiveId(filters.voyageId)
+  let voyageInvoiceIds: number[] | null = null
+  try {
+    if (voyageId) voyageInvoiceIds = await invoiceIdsForVoyage(voyageId)
+  } catch (error) {
+    if (isAccessDenied(error)) return deniedFinancialResult()
+    throw error
+  }
+  if (voyageInvoiceIds && voyageInvoiceIds.length === 0) {
+    return { rows: [], kpis: { totalInvoices: 0, totalIssued: 0, totalPaid: 0, totalOpen: 0, totalCanceled: 0 }, load: EMPTY_LOAD, accessDenied: false }
+  }
+
+  let paged: PagedRows<FinancialReportRow>
+  try {
+    paged = await fetchAllPages<FinancialReportRow>((from, to) => {
+      let query = supabase
+        .from('invoices')
+        .select(
+          `id, invoice_number, invoice_type, status, total_brl, balance_brl, issued_at, created_at, customer_id,
+           customer:customers(id, name, cnpj_cpf)`,
+          reportSelectOptions(from),
+        )
+        .order('issued_at', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: false })
+
+      if (filters.dateFrom) query = query.gte('issued_at', brasiliaStartOfDay(filters.dateFrom))
+      if (filters.dateTo) query = query.lte('issued_at', brasiliaEndOfDay(filters.dateTo))
+      // ponytail: os ids da viagem vão na URL; uma viagem tem centenas de
+      // faturas, não milhares. Upgrade: filtrar a viagem numa RPC.
+      if (voyageInvoiceIds) query = query.in('id', voyageInvoiceIds)
+      const customerId = positiveId(filters.customerId)
+      if (customerId) query = query.eq('customer_id', customerId)
+      // Cancelada inclui a consolidada obsoleta, como nos filtros do Faturamento.
+      if (filters.status === 'cancelled') query = query.in('status', [...CANCELLED_INVOICE_STATUSES])
+      // Paga inclui a individual coberta pela consolidada, como no Faturamento.
+      else if (filters.status === 'paid') query = query.in('status', [...PAID_INVOICE_STATUSES])
+      else if (filters.status) query = query.eq('status', filters.status)
+      if (filters.consolidated === 'sim') query = query.eq('invoice_type', 'consolidated')
+      else if (filters.consolidated === 'nao') query = query.neq('invoice_type', 'consolidated')
+      return query.range(from, to).overrideTypes<FinancialReportRow[], { merge: false }>()
+    }, { ceiling })
+  } catch (error) {
+    // R5: só a falta de permissão vira aviso; sessão expirada é erro da
+    // consulta e pede login de novo.
+    if (isAccessDenied(error)) return deniedFinancialResult()
     throw error
   }
 
-  const rows = data ?? []
-  const receivables = await fetchReceivableLinksByInvoiceIds(rows.filter(isLedgerLocalInvoice).map((row) => row.id))
-  if (receivables.accessDenied) {
-    return {
-      rows: [],
-      kpis: { totalInvoices: 0, totalIssued: 0, totalPaid: 0, totalOpen: 0, totalCanceled: 0, truncated: false },
-      accessDenied: true,
-    }
+  const receivables = await fetchReceivableLinksByInvoiceIds(paged.rows.filter(isLedgerLocalInvoice).map((row) => row.id))
+  if (receivables.accessDenied) return deniedFinancialResult()
+
+  // O saldo da fatura de Taxas Locais vem do recebível; só então o filtro de
+  // saldo pode ser aplicado (no navegador, sobre o recorte carregado).
+  let rows = applyReceivableBalances(paged.rows, summarizeReceivableBalances(receivables.links))
+  if (filters.balance === 'aberto') rows = rows.filter((row) => Number(row.balance_brl ?? 0) > 0)
+  else if (filters.balance === 'zerado') rows = rows.filter((row) => Number(row.balance_brl ?? 0) <= 0)
+
+  const shownIds = new Set(rows.map((row) => row.id))
+  const { all } = summarizeIssuedInvoices(rows, receivables.links.filter((link) => shownIds.has(link.invoice_id)))
+
+  return {
+    rows,
+    kpis: {
+      totalInvoices: all.invoiceCount,
+      totalIssued: all.issued,
+      totalPaid: all.paid,
+      totalOpen: all.open,
+      totalCanceled: rows.filter((row) => (CANCELLED_INVOICE_STATUSES as readonly string[]).includes(row.status ?? '')).length,
+    },
+    load: paged.load,
+    accessDenied: false,
   }
-  const ledgerBalances = summarizeReceivableBalances(receivables.links)
-  const rowsWithLedgerBalances = applyReceivableBalances(rows, ledgerBalances)
-
-  const isOpen = (status: string | null) =>
-    status === 'issued' || status === 'partially_paid'
-
-  const fallbackOpen = rowsWithLedgerBalances
-    .filter((row) => isOpen(row.status) && !ledgerBalances.linksByInvoiceId.has(row.id))
-    .reduce((sum, row) => sum + Number(row.balance_brl ?? 0), 0)
-
-  const kpis = {
-    totalInvoices: rowsWithLedgerBalances.length,
-    totalIssued: rowsWithLedgerBalances
-      .filter((row) => row.status !== 'cancelled' && row.status !== 'draft')
-      .reduce((sum, row) => sum + Number(row.total_brl ?? 0), 0),
-    totalPaid: rowsWithLedgerBalances
-      .filter((row) => row.status === 'paid')
-      .reduce((sum, row) => sum + Number(row.total_brl ?? 0), 0),
-    totalOpen: ledgerBalances.uniqueOpenBalance + fallbackOpen,
-    totalCanceled: rowsWithLedgerBalances.filter((row) => row.status === 'cancelled').length,
-    truncated: rowsWithLedgerBalances.length === REPORT_ROW_LIMIT,
-  }
-
-  return { rows: rowsWithLedgerBalances, kpis, accessDenied: false }
 }
+
+// ─── Por Cliente ──────────────────────────────────────────────────────────
 
 export type CustomerReportRow = {
   customer_id: number
@@ -217,51 +532,61 @@ export type CustomerReportRow = {
 export type CustomerReportResult = {
   rows: CustomerReportRow[]
   kpis: {
-    totalCustomers: number
-    topByBls: string
-    topByInvoiced: string
+    customersWithInvoices: number
+    topByBls: string | null
+    topByInvoiced: string | null
     totalIssued: number
-    truncated: boolean
   }
+  /** Cada fonte com o próprio teto: o aviso diz qual delas parou (B/Ls ou faturas). */
+  load: { bls: ReportLoad; invoices: ReportLoad }
   invoicesAccessDenied: boolean
 }
 
-export async function fetchCustomerReport(filters: ReportFilters): Promise<CustomerReportResult> {
+type CustomerRef = { id: number; name: string; cnpj_cpf: string } | null
+
+export async function fetchCustomerReport(filters: CustomerReportFilters, options: ReportOptions = {}): Promise<CustomerReportResult> {
+  const ceiling = options.ceiling ?? REPORT_SCREEN_CEILING
+  const voyageId = positiveId(filters.voyageId)
+  const customerId = positiveId(filters.customerId)
+
   type BlRow = {
+    id: string
     customer_id: number
     total_weight_kg: number | null
     bb_weight_ton: number | null
     total_cbm: number | null
     bb_cbm: number | null
-    customer: { id: number; name: string; cnpj_cpf: string } | null
+    customer: CustomerRef
   }
 
-  let blsQuery = supabase
-    .from('bls')
-    .select(
-      `id, customer_id, total_weight_kg, bb_weight_ton, total_cbm, bb_cbm, created_at,
-       customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf)`,
-    )
-    .not('customer_id', 'is', null)
-    .limit(REPORT_ROW_LIMIT * 2)
-
-  if (filters.dateFrom) blsQuery = blsQuery.gte('created_at', filters.dateFrom)
-  if (filters.dateTo) blsQuery = blsQuery.lte('created_at', endOfDay(filters.dateTo))
-
-  const { data: blsData, error: blsError } = await blsQuery.overrideTypes<BlRow[], { merge: false }>()
-  if (blsError) throw blsError
-
-  const bls = blsData ?? []
+  const bls = await fetchAllPages<BlRow>((from, to) => {
+    let query = supabase
+      .from('bls')
+      .select(
+        `id, customer_id, total_weight_kg, bb_weight_ton, total_cbm, bb_cbm,
+         customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf)`,
+        reportSelectOptions(from),
+      )
+      .not('customer_id', 'is', null)
+      // B/L cancelado fica fora de B/Ls, Peso e CBM do Cliente, como nos
+      // cartões do Operacional (decisão do responsável de 2026-10-20).
+      .is('cancelled_at', null)
+      .order('id', { ascending: true })
+    if (filters.dateFrom) query = query.gte('created_at', brasiliaStartOfDay(filters.dateFrom))
+    if (filters.dateTo) query = query.lte('created_at', brasiliaEndOfDay(filters.dateTo))
+    if (voyageId) query = query.eq('voyage_id', voyageId)
+    if (customerId) query = query.eq('customer_id', customerId)
+    return query.range(from, to).overrideTypes<BlRow[], { merge: false }>()
+  }, { ceiling })
 
   const perCustomer = new Map<number, CustomerReportRow>()
-  for (const bl of bls) {
-    if (bl.customer_id == null || !bl.customer) continue
-    let entry = perCustomer.get(bl.customer_id)
+  const entryFor = (id: number, customer: NonNullable<CustomerRef>) => {
+    let entry = perCustomer.get(id)
     if (!entry) {
       entry = {
-        customer_id: bl.customer_id,
-        name: bl.customer.name,
-        cnpj_cpf: bl.customer.cnpj_cpf,
+        customer_id: id,
+        name: customer.name,
+        cnpj_cpf: customer.cnpj_cpf,
         blCount: 0,
         totalWeightKg: 0,
         totalCbm: 0,
@@ -269,195 +594,196 @@ export async function fetchCustomerReport(filters: ReportFilters): Promise<Custo
         totalIssued: 0,
         totalBalance: 0,
       }
-      perCustomer.set(bl.customer_id, entry)
+      perCustomer.set(id, entry)
     }
+    return entry
+  }
+
+  for (const bl of bls.rows) {
+    if (bl.customer_id == null || !bl.customer) continue
+    const entry = entryFor(bl.customer_id, bl.customer)
     entry.blCount++
     entry.totalWeightKg += blTotalWeightKg(bl)
     entry.totalCbm += blTotalCbm(bl)
   }
 
+  type InvoiceRow = InvoiceForTotals & { customer: CustomerRef }
   let invoicesAccessDenied = false
-  type InvoiceRow = {
-    id: number
-    customer_id: number
-    invoice_type: string | null
-    total_brl: number | null
-    balance_brl: number | null
-    status: string | null
-  }
-
-  let invoicesQuery = supabase
-    .from('invoices')
-    .select('id, customer_id, invoice_type, total_brl, balance_brl, status, issued_at')
-    .not('customer_id', 'is', null)
-    .limit(REPORT_ROW_LIMIT * 2)
-
-  if (filters.dateFrom) invoicesQuery = invoicesQuery.gte('issued_at', filters.dateFrom)
-  if (filters.dateTo) invoicesQuery = invoicesQuery.lte('issued_at', endOfDay(filters.dateTo))
-
-  const { data: invoicesData, error: invoicesError } = await invoicesQuery.overrideTypes<InvoiceRow[], { merge: false }>()
-  if (invoicesError) {
-    if (isAccessDenied(invoicesError)) {
-      invoicesAccessDenied = true
-    } else {
-      throw invoicesError
+  let invoices: PagedRows<InvoiceRow> = { rows: [], load: EMPTY_LOAD }
+  let links: ReceivableLinkRow[] = []
+  try {
+    const voyageInvoiceIds = voyageId ? await invoiceIdsForVoyage(voyageId) : null
+    if (!voyageInvoiceIds || voyageInvoiceIds.length > 0) {
+      invoices = await fetchAllPages<InvoiceRow>((from, to) => {
+        let query = supabase
+          .from('invoices')
+          .select('id, customer_id, invoice_type, total_brl, balance_brl, status, issued_at, customer:customers(id, name, cnpj_cpf)', reportSelectOptions(from))
+          .not('customer_id', 'is', null)
+          // A regra comum (R3): emitida no período, sem rascunho e sem cancelada (nem obsoleta).
+          .not('issued_at', 'is', null)
+          .not('status', 'in', '(draft,cancelled,obsolete)')
+          .order('id', { ascending: true })
+        if (filters.dateFrom) query = query.gte('issued_at', brasiliaStartOfDay(filters.dateFrom))
+        if (filters.dateTo) query = query.lte('issued_at', brasiliaEndOfDay(filters.dateTo))
+        if (voyageInvoiceIds) query = query.in('id', voyageInvoiceIds)
+        if (customerId) query = query.eq('customer_id', customerId)
+        return query.range(from, to).overrideTypes<InvoiceRow[], { merge: false }>()
+      }, { ceiling })
     }
+    const receivables = await fetchReceivableLinksByInvoiceIds(invoices.rows.filter(isLedgerLocalInvoice).map((invoice) => invoice.id))
+    if (receivables.accessDenied) invoicesAccessDenied = true
+    links = receivables.links
+  } catch (error) {
+    if (!isAccessDenied(error)) throw error
+    invoicesAccessDenied = true
   }
-
-  const invoices = invoicesData ?? []
-  const receivables = invoicesAccessDenied
-    ? { links: [] as ReceivableLinkRow[], accessDenied: false }
-    : await fetchReceivableLinksByInvoiceIds(invoices.filter(isLedgerLocalInvoice).map((invoice) => invoice.id))
-  if (receivables.accessDenied) invoicesAccessDenied = true
-  const ledgerBalances = summarizeReceivableBalances(receivables.links)
-  const countedReceivablesByCustomer = new Set<string>()
 
   if (!invoicesAccessDenied) {
-    for (const invoice of invoices) {
-      if (invoice.customer_id == null) continue
-      const entry = perCustomer.get(invoice.customer_id)
+    // R3: a fatura conta mesmo quando o Cliente não teve B/L criado no período.
+    for (const invoice of invoices.rows) {
+      if (invoice.customer_id != null && invoice.customer && countsAsIssuedInvoice(invoice)) entryFor(invoice.customer_id, invoice.customer)
+    }
+    const { byCustomer } = summarizeIssuedInvoices(invoices.rows, links)
+    for (const [id, totals] of byCustomer) {
+      const entry = perCustomer.get(id)
       if (!entry) continue
-      if (invoice.status === 'cancelled') continue
-      entry.invoiceCount++
-      const links = ledgerBalances.linksByInvoiceId.get(invoice.id) ?? []
-      if (isLedgerLocalInvoice(invoice) && links.length > 0) {
-        for (const link of links) {
-          const receivable = normalizeReceivable(link.receivable)
-          if (!receivable) continue
-          const key = `${invoice.customer_id}:${link.receivable_id}`
-          if (countedReceivablesByCustomer.has(key)) continue
-          countedReceivablesByCustomer.add(key)
-          entry.totalIssued += Number(receivable.original_amount_brl ?? 0)
-          entry.totalBalance += Number(receivable.balance_brl ?? 0)
-        }
-        continue
-      }
-      entry.totalIssued += Number(invoice.total_brl ?? 0)
-      entry.totalBalance += Number(invoice.balance_brl ?? 0)
+      entry.invoiceCount = totals.invoiceCount
+      entry.totalIssued = totals.issued
+      entry.totalBalance = totals.open
     }
   }
 
-  const rows = [...perCustomer.values()].sort((a, b) => {
-    if (b.totalIssued !== a.totalIssued) return b.totalIssued - a.totalIssued
-    return b.blCount - a.blCount
-  })
+  const rows = [...perCustomer.values()].sort((a, b) =>
+    b.totalIssued - a.totalIssued || b.blCount - a.blCount || a.name.localeCompare(b.name, 'pt-BR'),
+  )
+  const topByBls = [...rows].sort((a, b) => b.blCount - a.blCount)[0]
+  const topByInvoiced = rows[0]
 
-  const topByBls = [...rows].sort((a, b) => b.blCount - a.blCount)[0]?.name ?? '-'
-  const topByInvoiced = rows[0] && rows[0].totalIssued > 0 ? rows[0].name : '-'
-
-  const kpis = {
-    totalCustomers: rows.length,
-    topByBls,
-    topByInvoiced,
-    totalIssued: rows.reduce((sum, row) => sum + row.totalIssued, 0),
-    // Duas consultas independentes; qualquer uma no teto ja torna os totais parciais.
-    truncated: bls.length === REPORT_ROW_LIMIT * 2 || invoices.length === REPORT_ROW_LIMIT * 2,
+  return {
+    rows,
+    kpis: {
+      customersWithInvoices: rows.filter((row) => row.invoiceCount > 0).length,
+      topByBls: topByBls && topByBls.blCount > 0 ? topByBls.name : null,
+      topByInvoiced: topByInvoiced && topByInvoiced.totalIssued > 0 ? topByInvoiced.name : null,
+      totalIssued: rows.reduce((sum, row) => sum + row.totalIssued, 0),
+    },
+    load: { bls: bls.load, invoices: invoices.load },
+    invoicesAccessDenied,
   }
-
-  return { rows, kpis, invoicesAccessDenied }
 }
 
-// ─── Export variants (no row limit — for XLSX download) ───────────────────
+// ─── Demurrage ────────────────────────────────────────────────────────────
 
-export async function fetchOperationalReportForExport(filters: OperationalReportFilters): Promise<OperationalReportRow[]> {
-  let query = supabase
-    .from('bls')
-    .select(
-      `
-      id, pol, pod, cargo_mode, review_status, financial_status,
-      total_weight_kg, bb_weight_ton, total_cbm, bb_cbm, created_at, voyage_id,
-      customer:customers!bls_customer_id_fkey(id, name, cnpj_cpf),
-      voyage:voyages(id, voyage_number, vessel:vessels(id, name, carrier:carriers(id, name))),
-      bl_containers(id, container_number)
-    `,
-    )
-    .order('created_at', { ascending: false })
-
-  if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom)
-  if (filters.dateTo) query = query.lte('created_at', endOfDay(filters.dateTo))
-  if (filters.pod) query = query.eq('pod', filters.pod.toUpperCase())
-  if (filters.cargoMode === 'container') query = query.in('cargo_mode', ['container', 'misto'])
-  else if (filters.cargoMode === 'carga_solta') query = query.in('cargo_mode', ['carga_solta', 'misto'])
-  else if (filters.cargoMode) query = query.eq('cargo_mode', filters.cargoMode)
-
-  const { data, error } = await query.overrideTypes<OperationalReportRow[], { merge: false }>()
-  if (error) throw error
-  return data ?? []
+export type DemurrageReportResult = {
+  rows: DemurrageInvoiceListItem[]
+  kpis: { totalUsd: number; billedBrl: number; paidBrl: number }
+  load: ReportLoad
 }
 
-export async function fetchFinancialReportForExport(filters: FinancialReportFilters): Promise<FinancialReportRow[]> {
-  let query = supabase
-    .from('invoices')
-    .select(
-      `
-      id, invoice_number, invoice_type, status, total_brl, balance_brl, issued_at, created_at,
-      customer:customers(id, name, cnpj_cpf)
-    `,
-    )
-    .order('issued_at', { ascending: false, nullsFirst: false })
+const DEMURRAGE_SELECT = 'customer:customers(id,name,cnpj_cpf,address,city,state,zip)'
 
-  if (filters.dateFrom) query = query.gte('issued_at', filters.dateFrom)
-  if (filters.dateTo) query = query.lte('issued_at', endOfDay(filters.dateTo))
-  if (filters.status) query = query.eq('status', filters.status)
+export async function fetchDemurrageReport(filters: DemurrageReportFilters, options: ReportOptions & { today?: string } = {}): Promise<DemurrageReportResult> {
+  const ceiling = options.ceiling ?? REPORT_SCREEN_CEILING
+  const today = options.today ?? saoPauloTodayIso()
+  const voyageId = positiveId(filters.voyageId)
+  const customerId = positiveId(filters.customerId)
 
-  const { data, error } = await query.overrideTypes<FinancialReportRow[], { merge: false }>()
-  if (error) throw error
-  const rows = data ?? []
-  const receivables = await fetchReceivableLinksByInvoiceIds(rows.filter(isLedgerLocalInvoice).map((row) => row.id))
-  if (receivables.accessDenied) throw new Error('Visualização financeira restrita ao perfil admin.')
-  return applyReceivableBalances(rows, summarizeReceivableBalances(receivables.links))
+  const { rows, load } = await fetchAllPages<DemurrageInvoiceListItem>((from, to) => {
+    // Com Navio / Viagem, o B/L entra como junção obrigatória para filtrar por ela.
+    const bl = voyageId
+      ? 'bl:bls!inner(id,pol,pod,voyage_id,voyage:voyages(id,voyage_number,vessel:vessels(id,name)))'
+      : 'bl:bls(id,pol,pod,voyage:voyages(id,voyage_number,vessel:vessels(id,name)))'
+    let query = supabase
+      .from('demurrage_invoices')
+      .select(`*, ${DEMURRAGE_SELECT}, ${bl}`, reportSelectOptions(from))
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+    // doc_date é DATE (calendário), comparado com a data crua.
+    if (filters.dateFrom) query = query.gte('doc_date', filters.dateFrom)
+    if (filters.dateTo) query = query.lte('doc_date', filters.dateTo)
+    if (voyageId) query = query.eq('bl.voyage_id', voyageId)
+    if (customerId) query = query.eq('customer_id', customerId)
+    if (filters.status) query = query.eq('status', filters.status)
+    if (filters.dispute === 'sim') query = query.eq('dispute_open', true)
+    else if (filters.dispute === 'nao') query = query.or('dispute_open.is.null,dispute_open.eq.false')
+    if (filters.overdue === 'sim') query = query.in('status', ['issued', 'overdue']).lt('due_date', today)
+    return query.range(from, to).overrideTypes<DemurrageInvoiceListItem[], { merge: false }>()
+  }, { ceiling })
+
+  // Faturas canceladas continuam listadas (o operador precisa vê-las), mas somá-las
+  // inflaria os totais. Cada indicador declara no rótulo o recorte que agrega.
+  const active = rows.filter((invoice) => invoice.status !== 'cancelled')
+  return {
+    rows,
+    kpis: {
+      totalUsd: active.reduce((sum, invoice) => sum + Number(invoice.total_usd ?? 0), 0),
+      billedBrl: active
+        .filter((invoice) => invoice.status === 'issued' || invoice.status === 'overdue' || invoice.status === 'paid')
+        .reduce((sum, invoice) => sum + Number(invoice.current_total_brl ?? 0), 0),
+      paidBrl: rows
+        .filter((invoice) => invoice.status === 'paid')
+        .reduce((sum, invoice) => sum + Number(invoice.current_total_brl ?? 0), 0),
+    },
+    load,
+  }
 }
+
+// ─── Recebíveis das faturas de Taxas Locais ───────────────────────────────
 
 type LedgerInvoiceLike = {
   id: number
   invoice_type?: string | null
 }
 
-type ReceivableLinkRow = {
+type ReceivableShape = {
+  id?: number | null
+  original_amount_brl?: number | string | null
+  balance_brl?: number | string | null
+  status?: string | null
+}
+
+export type ReceivableLinkRow = {
+  id?: number
   invoice_id: number
   receivable_id: number
   status: string | null
-  receivable:
-    | {
-        id?: number | null
-        original_amount_brl?: number | string | null
-        balance_brl?: number | string | null
-        status?: string | null
-      }
-    | {
-        id?: number | null
-        original_amount_brl?: number | string | null
-        balance_brl?: number | string | null
-        status?: string | null
-      }[]
-    | null
+  receivable: ReceivableShape | ReceivableShape[] | null
 }
 
 function isLedgerLocalInvoice(invoice: LedgerInvoiceLike) {
   return invoice.invoice_type === 'individual' || invoice.invoice_type === 'consolidated'
 }
 
+/** Falta de permissão de leitura. Sessão expirada não entra: é erro e pede login de novo (R5). */
 function isAccessDenied(error: unknown): boolean {
-  const kind = classifyDbError(error).kind
-  return kind === 'permissao' || kind === 'sessao_expirada'
+  return classifyDbError(error).kind === 'permissao'
 }
+
+// ponytail: ids em lotes de 200 para a URL não estourar; cada lote também lê
+// em páginas, porque uma consolidada liga muitos recebíveis.
+const LINK_ID_BATCH = 200
 
 async function fetchReceivableLinksByInvoiceIds(invoiceIds: number[]) {
   const uniqueIds = [...new Set(invoiceIds)].filter((id) => Number.isFinite(id))
-  if (!uniqueIds.length) return { links: [] as ReceivableLinkRow[], accessDenied: false }
-
-  const { data, error } = await supabase
-    .from('invoice_receivable_links')
-    .select('invoice_id, receivable_id, status, receivable:bl_receivables(id, original_amount_brl, balance_brl, status)')
-    .in('invoice_id', uniqueIds)
-    .overrideTypes<ReceivableLinkRow[], { merge: false }>()
-
-  if (error) {
+  const links: ReceivableLinkRow[] = []
+  try {
+    for (let start = 0; start < uniqueIds.length; start += LINK_ID_BATCH) {
+      const batch = uniqueIds.slice(start, start + LINK_ID_BATCH)
+      const { rows } = await fetchAllPages<ReceivableLinkRow>((from, to) => supabase
+        .from('invoice_receivable_links')
+        // `id` deixa `fetchAllPages` descartar a ligação repetida na fronteira da página.
+        .select('id, invoice_id, receivable_id, status, receivable:bl_receivables(id, original_amount_brl, balance_brl, status)', reportSelectOptions(from))
+        .in('invoice_id', batch)
+        .order('id', { ascending: true })
+        .range(from, to)
+        .overrideTypes<ReceivableLinkRow[], { merge: false }>())
+      links.push(...rows)
+    }
+  } catch (error) {
     if (isAccessDenied(error)) return { links: [] as ReceivableLinkRow[], accessDenied: true }
     throw error
   }
-
-  return { links: data ?? [], accessDenied: false }
+  return { links, accessDenied: false }
 }
 
 function normalizeReceivable(receivable: ReceivableLinkRow['receivable']) {
@@ -468,7 +794,6 @@ function normalizeReceivable(receivable: ReceivableLinkRow['receivable']) {
 function summarizeReceivableBalances(links: ReceivableLinkRow[]) {
   const invoiceBalanceById = new Map<number, number>()
   const linksByInvoiceId = new Map<number, ReceivableLinkRow[]>()
-  const openReceivables = new Map<number, number>()
 
   for (const link of links) {
     const receivable = normalizeReceivable(link.receivable)
@@ -481,17 +806,9 @@ function summarizeReceivableBalances(links: ReceivableLinkRow[]) {
     if (link.status !== 'active') continue
     const balance = Number(receivable.balance_brl ?? 0)
     invoiceBalanceById.set(link.invoice_id, (invoiceBalanceById.get(link.invoice_id) ?? 0) + balance)
-
-    if (balance > 0 && receivable.status !== 'settled' && receivable.status !== 'void') {
-      openReceivables.set(link.receivable_id, balance)
-    }
   }
 
-  return {
-    invoiceBalanceById,
-    linksByInvoiceId,
-    uniqueOpenBalance: [...openReceivables.values()].reduce((sum, balance) => sum + balance, 0),
-  }
+  return { invoiceBalanceById, linksByInvoiceId }
 }
 
 function applyReceivableBalances<T extends FinancialReportRow>(rows: T[], summary: ReturnType<typeof summarizeReceivableBalances>) {

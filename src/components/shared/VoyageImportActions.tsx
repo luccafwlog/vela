@@ -12,14 +12,13 @@ import { VaziosImportacaoImportModal } from './VaziosImportacaoImportModal'
 import { BaplieImportModal } from './BaplieImportModal'
 import { VehicleImportModal } from './VehicleImportModal'
 
-type ImportType = 'bb' | 'granite' | 'ceMercanteGranite' | 'vaziosImp' | 'vaziosExp' | 'vehicles' | 'baplie' | 'blFreight' | 'blBreakbulk' | 'ceMercante'
+type ImportType = 'bb' | 'granite' | 'vaziosImp' | 'vaziosExp' | 'vehicles' | 'baplie' | 'blFreight' | 'blBreakbulk' | 'ceMercante'
 
 type ImportGroup = 'baplie' | 'bls' | 'importEquipment' | 'exportManifest' | 'exportVazios'
 
 const IMPORT_LABELS: Record<ImportType, string> = {
   bb: 'Manifesto BB',
   granite: 'Manifesto Granito',
-  ceMercanteGranite: 'CE Mercante (Granito)',
   vaziosImp: 'Vazios IMP',
   vaziosExp: 'Novo embarque de vazios',
   vehicles: 'Veículos',
@@ -29,7 +28,7 @@ const IMPORT_LABELS: Record<ImportType, string> = {
   ceMercante: 'CE Mercante',
 }
 
-const IMPORT_ORDER: ImportType[] = ['baplie', 'blFreight', 'blBreakbulk', 'ceMercante', 'bb', 'vehicles', 'vaziosImp', 'granite', 'ceMercanteGranite', 'vaziosExp']
+const IMPORT_ORDER: ImportType[] = ['baplie', 'blFreight', 'blBreakbulk', 'ceMercante', 'bb', 'vehicles', 'vaziosImp', 'granite', 'vaziosExp']
 
 const IMPORT_GROUP_BY_TYPE: Record<ImportType, ImportGroup> = {
   baplie: 'baplie',
@@ -40,7 +39,6 @@ const IMPORT_GROUP_BY_TYPE: Record<ImportType, ImportGroup> = {
   vehicles: 'importEquipment',
   vaziosImp: 'importEquipment',
   granite: 'exportManifest',
-  ceMercanteGranite: 'exportManifest',
   vaziosExp: 'exportVazios',
 }
 
@@ -53,7 +51,6 @@ const IMPORT_ICONS: Record<ImportType, LucideIcon> = {
   vehicles: Car,
   vaziosImp: PackageOpen,
   granite: Mountain,
-  ceMercanteGranite: ShieldCheck,
   vaziosExp: PackageOpen,
 }
 
@@ -149,9 +146,6 @@ export function VoyageImportActions({
         <CeMercanteImportModal open initialVoyageId={voyageId} onClose={() => setActiveType(null)} />
       ) : null}
 
-      {activeType === 'ceMercanteGranite' ? (
-        <CeMercanteImportModal open target="granite" initialVoyageId={voyageId} onClose={() => setActiveType(null)} />
-      ) : null}
     </>
   )
 }

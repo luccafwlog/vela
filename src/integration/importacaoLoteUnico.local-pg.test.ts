@@ -1,9 +1,9 @@
 // Regra de 2026-10-19 (lote 6a): importação com erro é recusada inteira. As
-// RPCs de lote único das datas de container (migration 325) e da Base de
-// Clientes (migration 326) desfazem tudo quando o banco recusa uma linha, e
+// RPCs de lote único das datas de container (migration 333) e da Base de
+// Clientes (migration 334) desfazem tudo quando o banco recusa uma linha, e
 // devolvem o que foi recusado.
 //
-// Namespace exclusivo: ids 99325xxx, B/Ls 'L325-*', usuário ...000000325001.
+// Namespace exclusivo: ids 99325xxx, B/Ls 'L333-*', usuário ...000000325001.
 import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { syntheticCnpj } from './localTestData'
@@ -17,8 +17,8 @@ const customerId = 99325001
 const carrierId = 99325002
 const vesselId = 99325003
 const voyageId = 99325004
-const blA = 'L325-BL-A'
-const blB = 'L325-BL-B'
+const blA = 'L333-BL-A'
+const blB = 'L333-BL-B'
 const containerA = 'LAAA3250001'
 const containerB = 'LBBB3250002'
 const containerIds = [99325005, 99325006]
@@ -55,16 +55,16 @@ function cleanup() {
   `)
 }
 
-describeLocal('Importação com erro não grava nada (migrations 325 e 326)', () => {
+describeLocal('Importação com erro não grava nada (migrations 333 e 334)', () => {
   beforeAll(() => {
     cleanup()
     asUser(`
-      INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'l325@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'L325', 'administrativo', true);
-      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${ownerCnpj}', 'Cliente L325');
-      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier L325');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel L325', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'L325', 'active');
+      INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'l333@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'L333', 'administrativo', true);
+      INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${ownerCnpj}', 'Cliente L333');
+      INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier L333');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel L333', ${carrierId});
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'L333', 'active');
       INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode) VALUES
         ('${blA}', ${voyageId}, ${customerId}, 'container'),
         ('${blB}', ${voyageId}, ${customerId}, 'container');
@@ -80,14 +80,14 @@ describeLocal('Importação com erro não grava nada (migrations 325 e 326)', ()
     const result = JSON.parse(asUser(`
       SELECT public.apply_container_dates_batch_atomic(gen_random_uuid(), '[
         {"bl_id":"${blA}","rows":[{"container_number":"${containerA}","discharge_date":"2026-01-10","return_date":null}]},
-        {"bl_id":"${blB}","rows":[{"container_number":"L325MISSING","discharge_date":"2026-01-10","return_date":null}]}
+        {"bl_id":"${blB}","rows":[{"container_number":"L333MISSING","discharge_date":"2026-01-10","return_date":null}]}
       ]'::jsonb, '${actorId}'::uuid);
     `)) as { ok: boolean; errors: Array<{ bl_id: string; message: string }> }
 
     expect(result.ok).toBe(false)
     expect(result.errors).toHaveLength(1)
     expect(result.errors[0].bl_id).toBe(blB)
-    expect(result.errors[0].message).toMatch(/L325MISSING/)
+    expect(result.errors[0].message).toMatch(/L333MISSING/)
     // O B/L aceito não ficou gravado, nem o Histórico da importação.
     expect(asUser(`SELECT count(*) FROM public.bl_containers WHERE id = ${containerIds[0]} AND discharge_date IS NULL;`)).toBe('1')
     expect(asUser(`SELECT count(*) FROM public.audit_logs WHERE entity_id = '${blA}' AND field_name = 'container_dates_import';`)).toBe('0')
@@ -117,8 +117,8 @@ describeLocal('Importação com erro não grava nada (migrations 325 e 326)', ()
   it('base de clientes: um Cliente recusado desfaz os outros', () => {
     const result = JSON.parse(asUser(`
       SELECT public.apply_customer_base_batch_atomic('[
-        {"cnpj":"${baseCnpjOk}","name":"L325 CLIENTE OK","emails":["ok@l325.example.test"]},
-        {"cnpj":"${baseCnpjBad}","name":"L325 CLIENTE RUIM","emails":["sem-arroba"]}
+        {"cnpj":"${baseCnpjOk}","name":"L333 CLIENTE OK","emails":["ok@l325.example.test"]},
+        {"cnpj":"${baseCnpjBad}","name":"L333 CLIENTE RUIM","emails":["sem-arroba"]}
       ]'::jsonb, '${actorId}'::uuid);
     `)) as { ok: boolean; errors: Array<{ cnpj: string; message: string }> }
 
@@ -130,29 +130,29 @@ describeLocal('Importação com erro não grava nada (migrations 325 e 326)', ()
   it('base de clientes: o arquivo sem recusa grava todos; troca de razão social exige o nome que a prévia viu', () => {
     const result = JSON.parse(asUser(`
       SELECT public.apply_customer_base_batch_atomic('[
-        {"cnpj":"${baseCnpjOk}","name":"L325 CLIENTE OK","emails":["ok@l325.example.test"]},
-        {"cnpj":"${baseCnpjBad}","name":"L325 CLIENTE DOIS","emails":["dois@l325.example.test"]}
+        {"cnpj":"${baseCnpjOk}","name":"L333 CLIENTE OK","emails":["ok@l325.example.test"]},
+        {"cnpj":"${baseCnpjBad}","name":"L333 CLIENTE DOIS","emails":["dois@l325.example.test"]}
       ]'::jsonb, '${actorId}'::uuid);
     `)) as { ok: boolean; imported: number; contacts_created: number }
     expect(result).toMatchObject({ ok: true, imported: 2, contacts_created: 2 })
 
     const stale = JSON.parse(asUser(`
       SELECT public.apply_customer_base_batch_atomic('[
-        {"cnpj":"${baseCnpjOk}","name":"L325 NOME NOVO","emails":["ok@l325.example.test"],
+        {"cnpj":"${baseCnpjOk}","name":"L333 NOME NOVO","emails":["ok@l325.example.test"],
          "confirm_name_change":true,"expected_current_name":"OUTRO NOME"}
       ]'::jsonb, '${actorId}'::uuid);
     `)) as { ok: boolean; errors: Array<{ message: string }> }
     expect(stale.ok).toBe(false)
     expect(stale.errors[0].message).toMatch(/mudou depois da prévia/)
-    expect(asUser(`SELECT name FROM public.customers WHERE cnpj_cpf = '${baseCnpjOk}';`)).toBe('L325 CLIENTE OK')
+    expect(asUser(`SELECT name FROM public.customers WHERE cnpj_cpf = '${baseCnpjOk}';`)).toBe('L333 CLIENTE OK')
 
     const renamed = JSON.parse(asUser(`
       SELECT public.apply_customer_base_batch_atomic('[
-        {"cnpj":"${baseCnpjOk}","name":"L325 NOME NOVO","emails":["ok@l325.example.test"],
-         "confirm_name_change":true,"expected_current_name":"L325 CLIENTE OK"}
+        {"cnpj":"${baseCnpjOk}","name":"L333 NOME NOVO","emails":["ok@l325.example.test"],
+         "confirm_name_change":true,"expected_current_name":"L333 CLIENTE OK"}
       ]'::jsonb, '${actorId}'::uuid);
     `)) as { ok: boolean; updated: number }
     expect(renamed).toMatchObject({ ok: true, updated: 1 })
-    expect(asUser(`SELECT name FROM public.customers WHERE cnpj_cpf = '${baseCnpjOk}';`)).toBe('L325 NOME NOVO')
+    expect(asUser(`SELECT name FROM public.customers WHERE cnpj_cpf = '${baseCnpjOk}';`)).toBe('L333 NOME NOVO')
   })
 })

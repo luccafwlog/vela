@@ -38,7 +38,6 @@ const Demurrage = lazyPage(() => import('./pages/Demurrage'), 'Demurrage')
 const DemurrageRates = lazyPage(() => import('./pages/DemurrageRates'), 'DemurrageRates')
 const Reconciliacao = lazyPage(() => import('./pages/Reconciliacao'), 'Reconciliacao')
 const Granite = lazyPage(() => import('./pages/Granite'), 'Granite')
-const GraniteRates = lazyPage(() => import('./pages/GraniteRates'), 'GraniteRates')
 const EmbarqueVazios = lazyPage(() => import('./pages/EmbarqueVazios'), 'EmbarqueVazios')
 const DepotCadastro = lazyPage(() => import('./pages/DepotCadastro'), 'DepotCadastro')
 const VaziosImportacao = lazyPage(() => import('./pages/VaziosImportacao'), 'VaziosImportacao')
@@ -102,7 +101,7 @@ const routePreloads: RoutePreloadTable = [
   ['/taxas-locais/tabelas', TaxasLocaisTabelas.preload], ['/taxas-locais', TaxasLocais.preload],
   ['/faturamento', TaxasLocais.preload], ['/alertas/regras', AlertasRegras.preload], ['/alertas', Alertas.preload],
   ['/relatorios', Relatorios.preload], ['/demurrage', Demurrage.preload], ['/reconciliacao', Reconciliacao.preload],
-  ['/granito/taxas', GraniteRates.preload], ['/granito', Granite.preload], ['/demurrage/taxas', DemurrageRates.preload],
+  ['/granito', Granite.preload], ['/demurrage/taxas', DemurrageRates.preload],
   ['/embarquevazios/depots', DepotCadastro.preload], ['/embarquevazios', EmbarqueVazios.preload],
   ['/vazios-importacao', VaziosImportacao.preload], ['/baplie', BaplieEDI.preload], ['/chegadas-saidas', ChegadasSaidas.preload],
   ['/perfil', Profile.preload], ['/admin/:tab', Admin.preload], ['/admin', Admin.preload],
@@ -167,7 +166,8 @@ export default function AppInterno() {
             <Route path="/demurrage/reconciliacao" element={<Navigate to="/reconciliacao" replace />} />
             <Route path="/reconciliacao" element={withSuspense(<Reconciliacao />)} />
             <Route path="/granito" element={withSuspense(<Granite />)} />
-            <Route path="/granito/taxas" element={withSuspense(<GraniteRates />)} />
+            {/* Tarifas do Granito saíram no lote 5b (2026-10-19): o endereço antigo leva ao Granito. */}
+            <Route path="/granito/taxas" element={<Navigate to="/granito" replace />} />
             <Route path="/demurrage/taxas" element={withSuspense(<DemurrageRates />)} />
             <Route path="/embarquevazios" element={withSuspense(<EmbarqueVazios />)} />
             <Route path="/embarquevazios/depots" element={withSuspense(<DepotCadastro />)} />

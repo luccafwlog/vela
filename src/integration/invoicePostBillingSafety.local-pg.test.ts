@@ -80,6 +80,29 @@ function asService(sql: string) {
   `], { encoding: 'utf8' })
 }
 
+// Desde a 329, `reconcile_invoice_payment_by_txid` não é executável por
+// `authenticated`: só as funções do dono a chamam (`confirm_unified_pix_matches`
+// e `itau_pix_settle`). Os casos que exercitam a função direto rodam como o
+// dono, com o JWT do mesmo usuário Administrativo, que é o contexto em que
+// esses chamadores a executam; a guarda de setor da própria função continua
+// valendo pelo `auth.uid()`.
+function asReconciler(sql: string) {
+  return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+    BEGIN;
+    SET LOCAL request.jwt.claim.role = 'authenticated';
+    SET LOCAL request.jwt.claim.sub = '${actorId}';
+    ${sql};
+    COMMIT;
+  `], { encoding: 'utf8' })
+}
+
+function reconcileJson<T>(sql: string): T {
+  const result = asReconciler(sql)
+  expect(result.status, result.stderr).toBe(0)
+  const line = result.stdout.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith('{') || l.startsWith('[')).at(-1)
+  return JSON.parse(line ?? '{}') as T
+}
+
 function adminJson<T>(sql: string): T {
   const result = asAdmin(sql)
   expect(result.status, result.stderr).toBe(0)
@@ -217,8 +240,10 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
       expect(psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'pix_unreconciled' AND status = 'active'
         AND metadata->>'end_to_end_id' = 'E151DIVERGENTE'`)).toBe('1')
       expect(psql(`SELECT status FROM public.invoices WHERE id = ${invoice}`)).toBe('issued')
-      // Pix certo: baixa com o endToEndId como referência bancária.
-      expect(psql(`SELECT public.itau_pix_settle('E151CERTO', '${txid}', 600, now())`)).toBe('settled')
+      // Pix certo: baixa com o endToEndId como referência bancária. Roda com o
+      // papel da Edge Function (service_role): sem EXECUTE direto na baixa por
+      // TXID desde a 329, ela continua alcançável por dentro de itau_pix_settle.
+      expect(psql(`SET ROLE service_role; SELECT public.itau_pix_settle('E151CERTO', '${txid}', 600, now())`)).toBe('settled')
       expect(psql(`SELECT status || '|' || balance_brl FROM public.invoices WHERE id = ${invoice}`)).toBe('paid|0.00')
       expect(psql(`SELECT count(*) || '|' || max(bank_reference) FROM public.payments WHERE invoice_id = ${invoice}`)).toBe('1|E151CERTO')
       // Repetição da consulta não baixa de novo.
@@ -240,8 +265,8 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     const txid = psql(`SELECT txid FROM public.local_pix_charge_versions WHERE invoice_id=${invoice} ORDER BY id DESC LIMIT 1`)
     const results = await Promise.all(Array.from({ length: 8 }, () => new Promise<string>((resolve, reject) => {
       execFile('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
+        -- Como o dono, com o JWT do Administrativo (ver asReconciler).
         BEGIN;
-        SET LOCAL ROLE authenticated;
         SET LOCAL request.jwt.claim.role = 'authenticated';
         SET LOCAL request.jwt.claim.sub = '${actorId}';
         SELECT public.reconcile_invoice_payment_by_txid('${txid}',600);
@@ -327,7 +352,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     const row=psql(`SELECT total_brl || '|' || balance_brl || '|' || (pix_payload LIKE '%54071200.00%') FROM public.invoices WHERE id=${inv}`);
 
     expect(row).toBe('1200.00|400.00|false'); expect(psql(`SELECT pix_payload LIKE '%5406400.00%' FROM public.invoices WHERE id=${inv}`)).toBe('t');
-    const qrPay=adminJson<{matched:boolean;settled:boolean}>(`SELECT public.reconcile_invoice_payment_by_txid((SELECT invoice_number FROM public.invoices WHERE id=${inv}),1200)`);
+    const qrPay=reconcileJson<{matched:boolean;settled:boolean}>(`SELECT public.reconcile_invoice_payment_by_txid((SELECT invoice_number FROM public.invoices WHERE id=${inv}),1200)`);
     expect(qrPay).toMatchObject({matched:true,settled:true});
     expect(psql(`SELECT sum(amount_brl) FROM public.invoice_refunds WHERE invoice_id=${inv}`)).toBe('800.00');
     expect(activeAlerts('restituicao_pendente',inv)).toBe('1');
@@ -367,7 +392,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
 
     expect(successor(con)).toMatch(/\|1000\.00\|issued$/);
     const txid = psql(`SELECT invoice_number FROM public.invoices WHERE id=${con}`);
-    expect(adminJson(`SELECT public.reconcile_invoice_payment_by_txid('${txid}',1200)`)).toMatchObject({settled:true});
+    expect(reconcileJson(`SELECT public.reconcile_invoice_payment_by_txid('${txid}',1200)`)).toMatchObject({settled:true});
     const replacement = Number(psql(`SELECT id FROM public.invoices WHERE replaces_invoice_id=${con}`));
     expect(psql(`SELECT count(*) FROM public.ledger_settlements WHERE invoice_id=${replacement} AND source='pix_extract' AND pix_txid IS NOT NULL`)).toBe('1');
     expect(psql(`SELECT sum(amount_brl) FROM public.invoice_refunds WHERE invoice_id=${replacement}`)).toBe('200.00');
@@ -376,9 +401,9 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     const inv=issueByCe(bl.baplie,'839000000000006');
     const oldTxid=psql(`SELECT invoice_number FROM public.invoices WHERE id=${inv}`);
     psql(`UPDATE public.bl_containers SET ownership='SOC' WHERE bl_id='${bl.baplie}'`);
-    const result=adminJson<{matched:boolean;reason:string}>(`SELECT public.reconcile_invoice_payment_by_txid('${oldTxid}',600)`);
+    const result=reconcileJson<{matched:boolean;reason:string}>(`SELECT public.reconcile_invoice_payment_by_txid('${oldTxid}',600)`);
 
-    expect(adminJson(`SELECT public.reconcile_invoice_payment_by_txid('${oldTxid}',600)`)).toMatchObject({matched:false,reason:'already_reconciled'});
+    expect(reconcileJson(`SELECT public.reconcile_invoice_payment_by_txid('${oldTxid}',600)`)).toMatchObject({matched:false,reason:'already_reconciled'});
     expect(result.matched).toBe(true); expect((result as unknown as {settled:boolean}).settled).toBe(true); expect(psql(`SELECT sum(amount_brl) FROM public.invoice_refunds WHERE invoice_id=(SELECT id FROM public.invoices WHERE replaces_invoice_id=${inv})`)).toBe('100.00');
   });
   it('resolve alerta após redução automática',()=>{
@@ -397,11 +422,11 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     const inv = issueByCe(bl.baplie, '839000000000011')
     const txid = psql(`SELECT invoice_number FROM public.invoices WHERE id=${inv}`)
     psql(`UPDATE public.bl_containers SET ownership='SOC' WHERE bl_id='${bl.baplie}'`)
-    expect(adminJson(`SELECT public.reconcile_invoice_payment_by_txid('${txid}',500)`))
+    expect(reconcileJson(`SELECT public.reconcile_invoice_payment_by_txid('${txid}',500)`))
       .toMatchObject({matched:true,settled:false,reason:'charge_amount_mismatch'})
     const current = psql(`SELECT txid FROM public.local_pix_charge_versions WHERE invoice_id=(SELECT id FROM public.invoices WHERE replaces_invoice_id=${inv}) ORDER BY id DESC LIMIT 1`)
-    expect(adminJson(`SELECT public.reconcile_invoice_payment_by_txid('${current}',500)`)).toMatchObject({settled:true})
-    expect(adminJson(`SELECT public.reconcile_invoice_payment_by_txid('${txid}',600)`))
+    expect(reconcileJson(`SELECT public.reconcile_invoice_payment_by_txid('${current}',500)`)).toMatchObject({settled:true})
+    expect(reconcileJson(`SELECT public.reconcile_invoice_payment_by_txid('${txid}',600)`))
       .toMatchObject({matched:false,reason:'historical_charge_requires_review'})
   })
 
@@ -409,12 +434,12 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     const inv = issueByCe(bl.baplie, '839000000000012')
     const txid = psql(`SELECT invoice_number FROM public.invoices WHERE id=${inv}`)
     psql(`UPDATE public.bls SET customer_id=${otherCustomerId} WHERE id='${bl.baplie}'`)
-    expect(adminJson(`SELECT public.reconcile_invoice_payment_by_txid('${txid}',600)`))
+    expect(reconcileJson(`SELECT public.reconcile_invoice_payment_by_txid('${txid}',600)`))
       .toMatchObject({matched:false,reason:'historical_charge_requires_review'})
     const other = issueByCe(bl.full, '839000000000013')
     const otherTxid = psql(`SELECT invoice_number FROM public.invoices WHERE id=${other}`)
     adminJson(`SELECT public.cancel_invoice(${other},'Cancelamento definitivo do teste')`)
-    expect(adminJson(`SELECT public.reconcile_invoice_payment_by_txid('${otherTxid}',600)`))
+    expect(reconcileJson(`SELECT public.reconcile_invoice_payment_by_txid('${otherTxid}',600)`))
       .toMatchObject({matched:false,reason:'historical_charge_requires_review'})
     expect(psql(`SELECT count(*) FROM public.payments WHERE invoice_id IN (${inv},${other})`)).toBe('0')
   })

@@ -169,3 +169,14 @@ export function normalizeStoredPortCode(value: string | null | undefined): strin
   if (!normalized) return null
   return STORED_PORT_CODE.get(normalized) ?? normalized
 }
+
+/**
+ * Grafias gravadas que `public.normalize_port_code` leva ao mesmo porto, para
+ * filtrar uma coluna crua (`bls.pol`/`pod`) pelo porto canônico das opções.
+ */
+export function storedPortAliases(value: string | null | undefined): string[] {
+  const canonical = normalizeStoredPortCode(value)
+  if (!canonical) return []
+  const aliases = STORED_PORT_ALIASES.find(([code]) => code === canonical)?.[1]
+  return aliases ? [...aliases] : [canonical]
+}

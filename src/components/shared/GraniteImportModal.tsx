@@ -1,19 +1,16 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
-import { Input } from '../ui/Input'
 import { Modal } from '../ui/Modal'
 import { NoValue } from '../ui/NoValue'
-import { StatusText } from '../ui/StatusText'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useAuth } from '../../hooks/useAuth'
 import { useCancellableFileRead } from '../../hooks/useCancellableFileRead'
-import { CNPJ_INPUT_MAX_LENGTH, canonicalizeDocument, normalizeCnpj } from '../../lib/cnpj'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { afterManifestoImportado } from '../../services/cacheEffects'
-import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, withoutDeactivatedCustomer } from '../../services/customerReconciliation'
+import { formatGraniteTons, graniteLegLabel, graniteWeightKg } from '../../services/graniteCargo'
 import {
   describeGraniteImport,
   graniteRemovalConfirmOptions,
@@ -21,7 +18,6 @@ import {
   parseGraniteManifestFile,
   type GraniteImportResult,
   type ParsedGraniteManifest,
-  type ReconciliationStatus,
 } from '../../services/graniteImport'
 import { rowErrorsToImportIssues } from '../../services/importValidation'
 import type { FixedImportVoyage } from './BreakbulkManifestImportModal'
@@ -48,7 +44,8 @@ const PREVIEW_LIMIT = 50
  * Importar manifesto Granito (planilha COSCO "Relatório de Cargas/Booking"):
  * o mesmo modal em /granito (viagem escolhida aqui) e na aba da Viagem (viagem
  * fixa), A1 do lote 6a. O arquivo pode ser lido antes da viagem; a viagem
- * libera o botão Importar. CNPJ que falta pode ser resolvido na prévia.
+ * libera o botão Importar. O Granito só totaliza carga (lote 5b): não há
+ * Cliente nem CNPJ por B/L, e o peso é o peso real da planilha.
  *
  * Regra de 2026-10-19 (ADR 0091): qualquer linha com erro recusa o arquivo
  * inteiro; não há aceite que grave só as válidas.
@@ -71,16 +68,13 @@ export function GraniteImportModal({
   const uploadedBy = userId ?? user?.id ?? null
   const [chosenVoyageId, setChosenVoyageId] = useState(defaultVoyageId ?? '')
   const voyageId = voyage ? String(voyage.id) : chosenVoyageId
-  const { file, preview: manifest, parsing, progress, readFile, cancel: cancelReading, updatePreview } = useCancellableFileRead<ParsedGraniteManifest>(parseGraniteManifestFile)
-  // CNPJ digitado na prévia, por linha da tabela.
-  const [cnpjOverrides, setCnpjOverrides] = useState<Record<number, string>>({})
+  const { file, preview: manifest, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedGraniteManifest>(parseGraniteManifestFile)
   const [readError, setReadError] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [result, setResult] = useState<GraniteImportResult | null>(null)
 
   async function handleFiles(files: File[]) {
-    setCnpjOverrides({})
     setReadError(null)
     setImportError(null)
     try {
@@ -95,32 +89,10 @@ export function GraniteImportModal({
     onClose()
   }
 
-  async function handleCnpjOverride(rowIndex: number, cnpj: string) {
-    setCnpjOverrides((prev) => ({ ...prev, [rowIndex]: cnpj }))
-    if (!manifest) return
-    if (canonicalizeDocument(cnpj).length < 14) return
-    const maps = await loadCustomerMaps()
-    const bl = manifest.bls[rowIndex]
-    const match = findMatchedCustomer({ cnpjCpf: cnpj, consignee: bl.shipper_name ?? '' }, maps)
-    const link = resolveCustomerLink(withoutDeactivatedCustomer(match))
-    // CNPJ sem Cliente ativo: o vínculo do CNPJ anterior não fica na linha.
-    const next = link.status === 'missing_customer'
-      ? { shipper_cnpj: cnpj, clientId: null, suggestedClientId: null, reconciliationStatus: 'not_found' as ReconciliationStatus }
-      : {
-          shipper_cnpj: cnpj,
-          clientId: link.customerId,
-          suggestedClientId: link.suggestedCustomerId,
-          reconciliationStatus: (link.status === 'matched_document' ? 'matched' : 'suggested_name') as ReconciliationStatus,
-        }
-    updatePreview((current) => ({
-      ...current,
-      bls: current.bls.map((row, index) => (index === rowIndex ? { ...row, ...next } : row)),
-    }))
-  }
-
   const errors = manifest?.rowErrors.length ?? 0
   const blCount = manifest?.bls.length ?? 0
-  const pending = manifest?.bls.filter((bl) => bl.reconciliationStatus !== 'matched').length ?? 0
+  const blocks = manifest?.bls.reduce((sum, bl) => sum + Number(bl.blocks_qty ?? 0), 0) ?? 0
+  const weightKg = manifest?.bls.reduce((sum, bl) => sum + (graniteWeightKg(bl) ?? 0), 0) ?? 0
   const canImport = Boolean(manifest && blCount > 0 && errors === 0 && voyageId && uploadedBy && !result)
 
   async function handleImport() {
@@ -135,22 +107,15 @@ export function GraniteImportModal({
         uploadedBy,
         confirmRemoval: (missing) => confirm(graniteRemovalConfirmOptions(missing, manifest.hidden)),
       })
-      await Promise.all([
-        afterManifestoImportado(queryClient, { voyageId }),
-        queryClient.invalidateQueries({ queryKey: ['granite-bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['granite-manifests'] }),
-      ])
-      showToast(
-        nextResult.pendingCount
-          ? `Granito importado: ${describeGraniteImport(nextResult)}. ${nextResult.pendingCount} com reconciliação pendente.`
-          : `Granito importado: ${describeGraniteImport(nextResult)}.`,
-        'success',
-      )
+      // Inclui a lista e os totais do Granito, a Viagem e o ADR (G6).
+      await afterManifestoImportado(queryClient, { voyageId })
+      showToast(`Granito importado: ${describeGraniteImport(nextResult)}.`, 'success')
       setResult(nextResult)
     } catch (err) {
       // O erro do PostgREST não é `Error`: a mensagem de negócio da RPC vem
-      // pela classificação compartilhada (src/lib/errors.ts).
-      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Falha ao importar.'))
+      // pela classificação compartilhada (src/lib/errors.ts); erro
+      // desconhecido não mostra o texto cru do banco (achado G7 do 5b).
+      setImportError(err instanceof Error ? err.message : userFacingErrorMessage(err, 'Não foi possível importar a planilha do Granito. Tente novamente.'))
     } finally {
       setImporting(false)
     }
@@ -196,11 +161,11 @@ export function GraniteImportModal({
         <ImportFileBlock templates={<ImportTemplateLinks baseName="granito-modelo" extensions={['xlsx']} />}>
           <ImportGuide
             required="BL e Real Weight."
-            optional="CNPJ, Shipper, Navio/Viagem, L/Port, D/Port, Blocks Qtty, Fase e as demais colunas do relatório."
+            optional="Shipper, Navio/Viagem, L/Port, D/Port, Blocks Qtty, Fase e as demais colunas do relatório."
             details={
               <p>
-                É o "Relatório de Cargas/Booking" que a COSCO exporta. O CNPJ pode vir vazio: na prévia, digite o CNPJ
-                do B/L sem Cliente; o que ficar sem Cliente entra pendente de reconciliação e é revisado antes de faturar.
+                É o "Relatório de Cargas/Booking" que a COSCO exporta. O Granito só totaliza a carga da Viagem:
+                não há Cliente nem faturamento por B/L.
               </p>
             }
           />
@@ -221,59 +186,43 @@ export function GraniteImportModal({
                 label="Resumo do manifesto"
                 items={[
                   { label: blCount === 1 ? 'B/L' : 'B/Ls', value: blCount },
-                  { label: 'blocos', value: manifest.bls.reduce((sum, bl) => sum + Number(bl.blocks_qty ?? 0), 0).toLocaleString('pt-BR') },
-                  { label: 't', value: (manifest.bls.reduce((sum, bl) => sum + Number(bl.real_weight_kg ?? 0), 0) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 }) },
+                  { label: 'blocos', value: blocks.toLocaleString('pt-BR') },
+                  { label: 'peso', value: formatGraniteTons(weightKg) },
                   { label: errors === 1 ? 'erro' : 'erros', value: errors, tone: errors ? 'danger' : 'default' },
                 ]}
               />
             }
           >
             <ImportContext label="Navio/viagem na planilha">{manifest.vesselVoyage || 'Não informado'}</ImportContext>
-            {pending > 0 ? (
-              <ImportNotice tone="warning" title={plural(pending, 'B/L sem Cliente resolvido', 'B/Ls sem Cliente resolvido')}>
-                Digite o CNPJ na tabela para vincular o Cliente, ou importe assim: o B/L entra pendente de reconciliação
-                e o vínculo é revisado antes de faturar.
-              </ImportNotice>
-            ) : null}
             {blCount ? (
               <>
                 <div className="app-table-scroll max-h-80">
-                  <table className="app-table app-table--compact min-w-[900px] whitespace-nowrap">
+                  <table className="app-table app-table--compact min-w-[720px] whitespace-nowrap">
                     <caption className="sr-only">Prévia do manifesto Granito</caption>
                     <thead>
                       <tr>
-                        <th scope="col">Cliente</th>
                         <th scope="col">B/L</th>
                         <th scope="col" className="app-table__text-head">Shipper</th>
-                        <th scope="col">CNPJ</th>
-                        <th scope="col">Peso real (kg)</th>
+                        <th scope="col">Trecho</th>
+                        <th scope="col">Blocos</th>
+                        <th scope="col">Peso</th>
                         <th scope="col">Fase</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {manifest.bls.slice(0, PREVIEW_LIMIT).map((bl, index) => (
-                        <tr key={bl.bl_number}>
-                          <td><ReconciliationText status={bl.reconciliationStatus} /></td>
-                          <td className="font-medium text-[var(--app-text-strong)]">{bl.bl_number}</td>
-                          <td className="app-table__text" title={bl.shipper_name ?? undefined}>{bl.shipper_name ?? <NoValue label="Sem shipper" />}</td>
-                          <td>
-                            {bl.reconciliationStatus !== 'matched' ? (
-                              <Input
-                                aria-label={`CNPJ do B/L ${bl.bl_number}`}
-                                placeholder="Digite o CNPJ"
-                                className="w-44"
-                                value={cnpjOverrides[index] ?? ''}
-                                maxLength={CNPJ_INPUT_MAX_LENGTH}
-                                onChange={(event) => void handleCnpjOverride(index, normalizeCnpj(event.target.value))}
-                              />
-                            ) : (
-                              bl.shipper_cnpj ?? <NoValue label="Sem CNPJ" />
-                            )}
-                          </td>
-                          <td className="tabular-nums">{Number(bl.real_weight_kg).toLocaleString('pt-BR')}</td>
-                          <td>{bl.phase ?? <NoValue label="Sem fase" />}</td>
-                        </tr>
-                      ))}
+                      {manifest.bls.slice(0, PREVIEW_LIMIT).map((bl) => {
+                        const blWeight = graniteWeightKg(bl)
+                        return (
+                          <tr key={bl.bl_number}>
+                            <td className="font-medium text-[var(--app-text-strong)]">{bl.bl_number}</td>
+                            <td className="app-table__text" title={bl.shipper_name ?? undefined}>{bl.shipper_name ?? <NoValue label="Sem shipper" />}</td>
+                            <td>{graniteLegLabel(bl) ?? <NoValue label="Sem trecho" />}</td>
+                            <td className="tabular-nums">{bl.blocks_qty != null ? bl.blocks_qty.toLocaleString('pt-BR') : <NoValue label="Sem blocos" />}</td>
+                            <td className="tabular-nums">{blWeight != null ? formatGraniteTons(blWeight) : <NoValue label="Sem peso" />}</td>
+                            <td>{bl.phase ?? <NoValue label="Sem fase" />}</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -291,16 +240,9 @@ export function GraniteImportModal({
         ) : null}
         {result ? (
           <ImportSection title="Resultado">
-            {result.pendingCount > 0 ? (
-              <ImportNotice tone="warning" role="status" title={`Manifesto gravado; ${plural(result.pendingCount, 'B/L ficou pendente', 'B/Ls ficaram pendentes')} de reconciliação`}>
-                <p>{describeGraniteImport(result)}.</p>
-                <p>Revise o vínculo do consignatário antes de faturar.</p>
-              </ImportNotice>
-            ) : (
-              <ImportNotice tone="success" role="status" title="Manifesto gravado">
-                <p>{describeGraniteImport(result)}. Nenhuma pendência de reconciliação.</p>
-              </ImportNotice>
-            )}
+            <ImportNotice tone="success" role="status" title="Manifesto gravado">
+              <p>{describeGraniteImport(result).replace(/^./, (first) => first.toUpperCase())}.</p>
+            </ImportNotice>
           </ImportSection>
         ) : null}
         <div className="app-modal__actions">
@@ -319,14 +261,4 @@ export function GraniteImportModal({
       </div>
     </Modal>
   )
-}
-
-/** Situação do vínculo com Cliente, em texto: âmbar no que pede ação. */
-function ReconciliationText({ status }: { status: ReconciliationStatus }) {
-  switch (status) {
-    case 'matched': return <StatusText>Vinculado</StatusText>
-    case 'suggested_name': return <StatusText tone="warning">Sugestão pelo nome</StatusText>
-    case 'missing_cnpj': return <StatusText tone="warning">Sem CNPJ</StatusText>
-    case 'not_found': return <StatusText tone="warning">CNPJ sem Cliente</StatusText>
-  }
 }

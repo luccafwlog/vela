@@ -67,7 +67,7 @@ test('jobs com token declaram o environment, e o build não (auditoria run-2, #1
 })
 
 test('actions dos workflows com token fixadas por SHA', async () => {
-  for (const name of ['cloudflare-pages-preview.yml', 'cloudflare-pages-preview-cleanup.yml', 'provision-preview-admin.yml', 'cloudflare-pages-production.yml', 'cloudflare-pages-provision.yml']) {
+  for (const name of ['cloudflare-pages-preview.yml', 'cloudflare-pages-preview-cleanup.yml', 'provision-preview-admin.yml', 'cloudflare-pages-production.yml', 'cloudflare-pages-provision.yml', 'cloudflare-pages-staging.yml']) {
     for (const [, ref] of (await readWorkflow(name)).matchAll(/uses: [\w./-]+@(\S+)/g)) {
       assert.match(ref, /^[0-9a-f]{40}$/, `${name} usa ${ref}`)
     }
@@ -100,4 +100,35 @@ test('publish recusa Pages Functions vindas do build da PR', () => {
   const publish = jobBlock('publish')
   assert.match(publish, /_worker\.js/)
   assert.ok(publish.indexOf('_worker.js') < publish.indexOf('Publish Vela preview'))
+})
+
+test('staging publica só da branch staging, fora do production branch e sem o banco de produção', async () => {
+  const staging = await readWorkflow('cloudflare-pages-staging.yml')
+  assert.match(staging, /push:\n {4}branches:\n {6}- staging/)
+  assert.match(staging, /github\.ref == 'refs\/heads\/staging'/)
+  assert.match(staging, /environment: staging/)
+  assert.match(staging, /--branch "\$STAGING_PAGES_BRANCH"/)
+  assert.doesNotMatch(staging, /--branch main/)
+  assert.match(staging, /PRODUCTION_SUPABASE_PROJECT_REF: fgmkhbzhaeebrsizwccx/)
+  assert.match(staging, /vars\.CLOUDFLARE_PAGES_ACCESS_CONFIGURED == 'true'/)
+  assert.match(staging, /cancel-in-progress: false/, 'não cancela entre o deploy do Vela e o do Portal')
+  const wait = staging.indexOf('node scripts/wait-supabase-migrations.mjs')
+  assert.ok(wait > 0 && wait < staging.indexOf('wrangler pages deploy'), 'espera o Supabase antes de publicar')
+  const refuse = staging.indexOf('Refuse a bundle that still points to production Supabase')
+  assert.ok(refuse > 0 && refuse < staging.indexOf('wrangler pages deploy'), 'confere o bundle antes de publicar')
+})
+
+test('staging embute a Site Key do Turnstile do environment, como a produção', async () => {
+  const staging = await readWorkflow('cloudflare-pages-staging.yml')
+  const production = await readWorkflow('cloudflare-pages-production.yml')
+  const siteKey = 'VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}'
+  assert.equal((production.match(/VITE_TURNSTILE_SITE_KEY: \$\{\{ vars\.VITE_TURNSTILE_SITE_KEY \}\}/g) ?? []).length, 1)
+  assert.equal((staging.match(/VITE_TURNSTILE_SITE_KEY: \$\{\{ vars\.VITE_TURNSTILE_SITE_KEY \}\}/g) ?? []).length, 1)
+  const build = staging.indexOf('npm run cloudflare:build:sites')
+  const key = staging.indexOf(siteKey)
+  const deploy = staging.indexOf('wrangler pages deploy')
+  assert.ok(build > 0 && key > build && key < deploy, 'a Site Key entra no build, antes de publicar')
+  assert.match(staging, /Vela staging/)
+  assert.doesNotMatch(staging, /Sem Turnstile/)
+  assert.match(staging, /PRODUCTION_SUPABASE_PROJECT_REF: fgmkhbzhaeebrsizwccx/)
 })

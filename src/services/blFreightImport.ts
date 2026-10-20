@@ -599,11 +599,11 @@ export type BlImportChangeSummary = {
 }
 
 export type BlFreightImportResult = {
-  /** retorno cru da RPC de importação (o arquivo inteiro numa chamada, migration 329) */
+  /** retorno cru da RPC de importação (o arquivo inteiro numa chamada, migration 335) */
   result: unknown[]
   containerChanges: BlImportChangeSummary[]
   vehicleChanges: BlImportChangeSummary[]
-  /** linhas da aba VIN recusadas; desde a migration 329 a recusa desfaz o arquivo inteiro, então fica vazio */
+  /** linhas da aba VIN recusadas; desde a migration 335 a recusa desfaz o arquivo inteiro, então fica vazio */
   vehiclesDiscarded: Array<{ blNumber: string; chassis: string; reason: string }>
   /** B/Ls cuja mudança de veículos não foi confirmada: nada mudou nos veículos */
   vehicleChangesPending: string[]
@@ -725,7 +725,7 @@ export class BlFreightImportRefused extends Error {
   }
 }
 
-/** Linhas da aba VIN que o banco recusou, no DETAIL da recusa (migration 329). */
+/** Linhas da aba VIN que o banco recusou, no DETAIL da recusa (migration 335). */
 function readRefusedVehicles(detail: unknown): string[] {
   if (typeof detail !== 'string' || !detail.trim()) return []
   try {
@@ -795,8 +795,8 @@ export async function confirmBlFreightImport(
   // o arquivo tem uma viagem, a gravação registra o batch e calcula as taxas
   // na mesma transação. O caminho sem viagem continua avulso (ADR 0017).
   const voyageId = payload.find((bl) => bl.voyage_id != null)?.voyage_id ?? null
-  // ADR 0091: o arquivo inteiro numa chamada e numa transação (migration 329).
-  // Até a 328 a tela mandava lotes de 20 B/Ls / 300 contêineres, cada um uma
+  // ADR 0091: o arquivo inteiro numa chamada e numa transação (migration 335).
+  // Antes dela a tela mandava lotes de 20 B/Ls / 300 contêineres, cada um uma
   // transação, para caber nos 8 s do papel authenticated; uma falha no meio
   // deixava os lotes anteriores gravados.
   // ponytail: a RPC declara `statement_timeout = 60s`, que o PostgREST aplica à

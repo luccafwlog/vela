@@ -12,7 +12,34 @@
   erros num lugar só, "Importar N …"), uma versão só de cada importação para a tela e a aba da
   Viagem. Importação com qualquer erro não grava nada, e recusa do banco desfaz tudo
   ([ADR 0091](adr/0091-importacao-com-erro-e-recusada-inteira.md)); datas de containers, Base de
-  Clientes e B/L de container gravam o arquivo numa transação (migrations `325`, `326` e `329`).
+  Clientes e B/L de container gravam o arquivo numa transação (migrations `333`, `334` e `335`).
+- **Revisão do lote 5b (2026-10-20):** a migration `330` deixa os snapshots de taxa do Granito
+  (`granite_bl_charges`) só para leitura pela API. Granito sem Prontos/Faturados na Viagem;
+  Relatórios com a individual Coberta em Pago, planilhas com Taxas locais e situação por extenso,
+  endereço validado e leitura paginada sem linha repetida; Administração sem trocar o próprio
+  setor em Editar acesso e com o Histórico de ações legível; Vazios de importação seleciona além de
+  1.000 containers e filtra POL/POD pelo porto canônico; Embarque de vazios espera os Locais antes
+  de mostrar a armazenagem; as ações de linha que faltavam (Tabelas de taxas, Condições negociadas,
+  Gerar Invoice de Demurrage) ficam só com ícone e os links de linha usam `RowActionLink`.
+  Decisões do responsável no mesmo dia: B/L cancelado fora dos totais do Operacional e do Por
+  Cliente; fatura parcialmente paga fora de Pago, com estado próprio em Taxas locais; destino de
+  transporte inativo recusado no Embarque de vazios (migration `331`). A migration `332` dá à
+  Unidade Embarcada o `updated_at` que o "Atualizado em" da lista de embarques usa.
+- **Identidade visual, lote 5b (2026-10-19):** Granito passa a só totalizar a carga do navio
+  (Blocos e Peso, só o peso real), sem Cliente vinculado, cálculo de taxas, Revisão nem
+  CE Mercante, e as Tarifas do Granito saem da tela (migration `325`); Vazios de importação com o
+  número do Manifesto Mercante e Natureza só pela seleção; Embarque de vazios abre na lista de
+  embarques e recusa local ou serviço inativo em lançamento novo (migration `326`); Locais em
+  leitura com edição em janela; Relatórios com filtros comuns, coluna Taxas locais, regra única de
+  fatura emitida e leitura além de 1.000 linhas; Administração com abas renomeadas e o quadro "O
+  que cada setor pode" conferido pela bateria de permissões (migration `328`: papel legado
+  `operator` nos alertas da Documentação e duas funções sem tela fechadas). Ações de linha de
+  tabela viram botões só com ícone em todo o sistema (`RowActionButton`), salvo o texto que é a
+  informação da coluna e as ações do painel da linha aberta. Com as decisões do responsável do
+  mesmo dia, a migration `329` apaga as tarifas do Granito (`granite_rates`) e o cálculo, mantendo
+  os snapshots e faturas antigas, e fecha a baixa por TXID (`reconcile_invoice_payment_by_txid`)
+  para a API: a Conciliação Pix a alcança pela confirmação do lote, com a guarda de Financeiro e
+  Administrativo.
 - **Identidade visual, lote 5a (2026-10-19):** Painel com cartões por setor (agora também o
   Administrativo) e Line-Up limpo; Alertas abre em Ativos, com Resolver e Dispensar em toda linha e
   a mensagem sem repetir o registro (migration `324`, que também reescreveu os alertas abertos e faz

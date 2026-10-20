@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, MoreVertical, Pencil, Plus } from 'lucide-react'
 import { ActionMenu } from '../components/ui/ActionMenu'
 import { Button } from '../components/ui/Button'
+import { RowActionButton } from '../components/ui/RowActionButton'
 import { EmptyState, PageHeader } from '../components/ui/Card'
 import { NoValue } from '../components/ui/NoValue'
 import { StatusText } from '../components/ui/StatusText'
@@ -240,14 +241,11 @@ export function DemurrageRates() {
                           {canEdit ? (
                             <td className="app-dem-row-action">
                               <div className="app-dem-row-buttons">
-                                <Button variant="ghost" className="app-btn--sm" onClick={() => openRate(rate)} aria-label={`Editar tarifa ${rate.container_type}`}>
-                                  <Pencil size={14} aria-hidden="true" />
-                                  Editar
-                                </Button>
+                                <RowActionButton variant="ghost" label={`Editar tarifa ${rate.container_type}`} icon={Pencil} onClick={() => openRate(rate)} />
                                 {isAdmin ? <ActionMenu
                                   label={`Mais ações da tarifa ${rate.container_type}`}
-                                  triggerClassName="app-table__icon-button app-table__icon-button--sm"
-                                  trigger={<MoreVertical size={16} aria-hidden="true" />}
+                                  triggerClassName="app-btn app-btn--ghost app-btn--icon"
+                                  trigger={<MoreVertical size={15} aria-hidden="true" />}
                                   items={[
                                     { key: 'toggle', label: rate.active ? 'Desativar tarifa' : 'Reativar tarifa', onSelect: () => void handleToggleActive(rate) },
                                     // O banco só apaga tarifa que ainda não entrou em vigor (guard_used_tariff_delete, migration 091).

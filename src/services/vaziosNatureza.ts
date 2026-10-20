@@ -1,6 +1,6 @@
-import { escapeFilterTerm } from '../lib/utils'
 import { supabase } from './supabase'
 import { toError } from '../lib/errors'
+import { resolveVaziosImportacaoContainerFilters, type VaziosImportacaoContainerFilters } from './vaziosImportacaoImport'
 
 export async function setVazioImportacaoNatureza(
   id: string,
@@ -29,50 +29,30 @@ export async function setVaziosImportacaoNaturezaMany(
   }
 }
 
-export async function fetchVaziosImportacaoContainerIds(filters: {
-  manifestId?: string
-  voyageId?: string
-  pod?: string
-  search?: string
-}): Promise<string[]> {
-  let query = supabase
-    .from('vazios_importacao_containers')
-    .select('id')
-    .order('created_at', { ascending: false })
+const CONTAINER_IDS_PAGE_SIZE = 1000
 
-  if (filters.search) {
-    const safe = escapeFilterTerm(filters.search)
-    if (safe) {
-      query = query.or(
-        `container_number.ilike.%${safe}%,container_type.ilike.%${safe}%`,
-      )
-    }
+/**
+ * Ids de todo o recorte da tela ("Selecionar os N do filtro"). Pagina em
+ * blocos de 1.000 (o `max_rows` do PostgREST) com ordem estável por `id`,
+ * como `listVaziosExportOperationsWithUnits`; o filtro é o mesmo da lista
+ * (`resolveVaziosImportacaoContainerFilters`).
+ */
+export async function fetchVaziosImportacaoContainerIds(
+  filters: VaziosImportacaoContainerFilters,
+): Promise<string[]> {
+  const applyFilters = await resolveVaziosImportacaoContainerFilters(filters)
+  if (!applyFilters) return []
+  const ids: string[] = []
+  for (let from = 0; ; from += CONTAINER_IDS_PAGE_SIZE) {
+    const { data, error } = await applyFilters(supabase.from('vazios_importacao_containers').select('id'))
+      .order('id')
+      .range(from, from + CONTAINER_IDS_PAGE_SIZE - 1)
+    if (error) throw error
+    const rows = (data ?? []) as Array<{ id: string }>
+    ids.push(...rows.map((row) => row.id))
+    if (rows.length < CONTAINER_IDS_PAGE_SIZE) break
   }
-
-  if (filters.manifestId) {
-    query = query.eq('manifest_id', filters.manifestId)
-  }
-
-  if (filters.voyageId) {
-    const { data: manifestIds } = await supabase
-      .from('vazios_importacao_manifests')
-      .select('id')
-      .eq('voyage_id', Number(filters.voyageId))
-    const ids = (manifestIds ?? []).map((m: { id: string }) => m.id)
-    if (!ids.length) return []
-    query = query.in('manifest_id', ids)
-  }
-
-  if (filters.pod) {
-    const safe = escapeFilterTerm(filters.pod)
-    if (safe) {
-      query = query.ilike('pod', safe)
-    }
-  }
-
-  const { data, error } = await query
-  if (error) throw error
-  return (data ?? []).map((r: { id: string }) => r.id)
+  return ids
 }
 
 export type ContainerProfile = 'standard' | 'oog' | 'imo' | 'imo_oog'

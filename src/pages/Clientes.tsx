@@ -249,7 +249,7 @@ export function Clientes() {
     }
   }
 
-  // Regra de 2026-10-19: a base inteira é gravada numa chamada (migration 326);
+  // Regra de 2026-10-19: a base inteira é gravada numa chamada (migration 334);
   // se o banco recusa um Cliente, nada é gravado e o modal lista a recusa. O
   // aceite dos avisos no modal cobre a troca de razão social.
   async function handleImportBase(confirmNameChange: boolean) {

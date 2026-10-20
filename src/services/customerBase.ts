@@ -124,7 +124,7 @@ export function customerNameChanges(rows: CustomerBaseRow[]) {
 }
 
 export type CustomerBaseImportResult = {
-  /** `false`: o banco recusou algum Cliente e NADA foi gravado (migration 326). */
+  /** `false`: o banco recusou algum Cliente e NADA foi gravado (migration 334). */
   ok: boolean
   imported: number
   updated: number
@@ -135,7 +135,7 @@ export type CustomerBaseImportResult = {
 
 /**
  * Grava a base inteira numa chamada (`apply_customer_base_batch_atomic`,
- * migration 326): se o banco recusa qualquer Cliente, nenhum é gravado e a
+ * migration 334): se o banco recusa qualquer Cliente, nenhum é gravado e a
  * resposta lista o que foi recusado. O aceite da troca de razão social vale
  * para o nome de antes que a prévia mostrou: o banco confere esse nome com o
  * Cliente travado e recusa se ele mudou depois da prévia.

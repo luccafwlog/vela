@@ -33,7 +33,6 @@ import {
   type CePreviewRow,
   type CeServerPreview,
   type ParsedCeMercanteFile,
-  type CeMercanteImportTarget,
 } from '../../services/ceMercanteImport'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { queryKeys } from '../../services/queryKeys'
@@ -45,7 +44,6 @@ export function CeMercanteImportModal({
   open,
   onClose,
   initialVoyageId,
-  target = 'bls',
 }: {
   open: boolean
   onClose: () => void
@@ -55,7 +53,6 @@ export function CeMercanteImportModal({
    * arquivo entra inteiro.
    */
   initialVoyageId?: number
-  target?: CeMercanteImportTarget
 }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -69,9 +66,7 @@ export function CeMercanteImportModal({
 
   async function restrictToVoyage(parsed: ParsedCeMercanteFile, selectedVoyageId: number | null): Promise<ParsedCeMercanteFile> {
     if (selectedVoyageId == null) return parsed
-    const partition = target === 'bls'
-      ? await partitionRowsByVoyage(parsed.rows, selectedVoyageId)
-      : await partitionRowsByVoyage(parsed.rows, selectedVoyageId, target)
+    const partition = await partitionRowsByVoyage(parsed.rows, selectedVoyageId)
     return {
       rows: partition.rows,
       rowErrors: [
@@ -167,7 +162,7 @@ export function CeMercanteImportModal({
     setSubmitError(null)
     try {
       let current = serverPreview
-      if (target === 'bls' && !current) {
+      if (!current) {
         current = await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: voyageId ?? undefined })
         setServerPreview(current)
         // Erro do lote ou troca a confirmar: a prévia mostra e para aqui.
@@ -180,7 +175,7 @@ export function CeMercanteImportModal({
       // tela mostra a troca nova em vez de gravá-la com o motivo antigo.
       // ponytail: entre esta leitura e a gravação sobra uma janela curta;
       // fechá-la exige a RPC receber o CE e o Manifesto esperados por B/L.
-      if (target === 'bls' && needsConfirmation && current) {
+      if (needsConfirmation && current) {
         const fresh = await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: voyageId ?? undefined })
         if (confirmationKey(fresh) !== confirmationKey(current)) {
           showChangedPreview(fresh)
@@ -190,18 +185,17 @@ export function CeMercanteImportModal({
 
       const result = await importCeMercanteRows(preview.rows, {
         changedBy: user?.id ?? null,
-        target,
         voyageId: voyageId ?? undefined,
-        manifestoNumero: target === 'bls' ? numeroManifesto.trim() : undefined,
+        manifestoNumero: numeroManifesto.trim(),
         confirmChanges: needsConfirmation,
         reason: needsConfirmation ? reason.trim() : undefined,
-        deferBilling: target === 'bls',
+        deferBilling: true,
       })
 
       // Outra planilha gravou CE ou Manifesto destes B/Ls depois da prévia: o
       // servidor pede confirmação. A prévia é refeita e mostra a troca a
       // confirmar, em vez de repetir a recusa a cada clique (K9).
-      if (target === 'bls' && result.needsConfirmation) {
+      if (result.needsConfirmation) {
         showChangedPreview(await previewCeMercanteRows(preview.rows, { manifestoNumero: numeroManifesto.trim(), voyageId: voyageId ?? undefined }))
         return
       }
@@ -258,17 +252,10 @@ export function CeMercanteImportModal({
   }
 
   function invalidateBls() {
-    const invalidations = [
+    return Promise.all([
       afterCargaAlterada(queryClient),
       queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.all() }),
-    ]
-    if (target === 'granite') {
-      invalidations.push(
-        queryClient.invalidateQueries({ queryKey: ['granite-bls'] }),
-        queryClient.invalidateQueries({ queryKey: ['charges'] }),
-      )
-    }
-    return Promise.all(invalidations)
+    ])
   }
 
   function resetAndClose() {
@@ -293,7 +280,7 @@ export function CeMercanteImportModal({
   // bloqueia a confirmação.
   const sheetBlocked = Boolean(preview && preview.rowErrors.length > 0)
   // Cada importação de B/L é um manifesto (migration 164): o número vem antes.
-  const missingManifesto = target === 'bls' && !numeroManifesto.trim()
+  const missingManifesto = !numeroManifesto.trim()
   const serverBlocked = Boolean(serverPreview?.errors.length)
   const awaitingConfirmation = Boolean(serverPreview?.needs_confirmation) && (!confirmed || !reason.trim())
   const canSubmit = (preview?.rows.length ?? 0) > 0 && !sheetBlocked && !missingManifesto && !serverBlocked && !awaitingConfirmation && !billing
@@ -322,20 +309,18 @@ export function CeMercanteImportModal({
     <Modal open={open} onClose={requestClose} title="Importar CE Mercante">
       <div className="app-import">
         <ImportSteps current={step} />
-        {target === 'bls' ? (
-          <Field
-            label="Nº de Manifesto Mercante"
+        <Field
+          label="Nº de Manifesto Mercante"
+          required
+          hint="13 caracteres, letras ou dígitos (espaços e separadores são ignorados). Cada importação é um manifesto: todos os B/Ls da planilha precisam ser da mesma rota (POL → POD). Outro número para B/L já vinculado move o B/L, com confirmação e motivo."
+        >
+          <Input
             required
-            hint="13 caracteres, letras ou dígitos (espaços e separadores são ignorados). Cada importação é um manifesto: todos os B/Ls da planilha precisam ser da mesma rota (POL → POD). Outro número para B/L já vinculado move o B/L, com confirmação e motivo."
-          >
-            <Input
-              required
-              value={numeroManifesto}
-              onChange={(e) => { setNumeroManifesto(e.target.value); resetServerPreview() }}
-              placeholder="Ex.: 1226501860578"
-            />
-          </Field>
-        ) : null}
+            value={numeroManifesto}
+            onChange={(e) => { setNumeroManifesto(e.target.value); resetServerPreview() }}
+            placeholder="Ex.: 1226501860578"
+          />
+        </Field>
 
         {initialVoyageId != null ? (
           <VoyageCombobox

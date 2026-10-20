@@ -129,15 +129,6 @@ export async function recomputeDiscountedBrl(invoiceId: number): Promise<void> {
   if (error) throw error
 }
 
-export async function unmarkInvoicePaid(invoiceId: number): Promise<void> {
-  const { error } = await supabase.rpc('reopen_demurrage_invoice', {
-    p_request_id: crypto.randomUUID(),
-    p_invoice_id: invoiceId,
-    p_reason: 'Reabertura manual da baixa de Demurrage.',
-  })
-  if (error) throw error
-}
-
 // O motivo vai para a auditoria do cancelamento (`audit_logs`); a RPC o exige,
 // então não há motivo padrão que o contorne.
 export async function cancelDemurrageInvoice(invoiceId: number, reason: string): Promise<void> {

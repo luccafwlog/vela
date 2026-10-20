@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  fetchVaziosImportacaoContainerIds,
   setContainerUnpackingLocation,
   setVazioImportacaoNatureza,
   setVaziosImportacaoNaturezaMany,
@@ -65,5 +66,52 @@ describe('vaziosNatureza', () => {
 
     await expect(setVazioImportacaoNatureza('empty-1', 'cama')).rejects.toThrow('db down')
   })
-})
 
+  describe('fetchVaziosImportacaoContainerIds ("Selecionar os N do filtro")', () => {
+    // Banco de mentira com o max_rows do PostgREST: nenhuma página passa de 1.000.
+    function containerTable(total: number) {
+      const all = Array.from({ length: total }, (_, i) => ({ id: `c-${String(i).padStart(5, '0')}` }))
+      const calls = { order: [] as unknown[][], range: [] as Array<[number, number]>, in: [] as unknown[][] }
+      const builder: Record<string, unknown> = {}
+      let range: [number, number] = [0, 999]
+      Object.assign(builder, {
+        select: () => builder,
+        or: () => builder,
+        eq: () => builder,
+        in: (...args: unknown[]) => { calls.in.push(args); return builder },
+        order: (...args: unknown[]) => { calls.order.push(args); return builder },
+        range: (from: number, to: number) => { range = [from, to]; calls.range.push([from, to]); return builder },
+        then: (resolve: (value: unknown) => unknown) => {
+          const [from, to] = range
+          return resolve({ data: all.slice(from, Math.min(to, from + 999) + 1), error: null })
+        },
+      })
+      return { all, calls, builder }
+    }
+
+    it('pagina além de 1.000 ids com ordem estável por id', async () => {
+      const table = containerTable(2345)
+      mockFrom.mockReturnValue(table.builder)
+
+      const ids = await fetchVaziosImportacaoContainerIds({ pod: 'BRVIT' })
+
+      expect(ids).toHaveLength(2345)
+      expect(new Set(ids).size).toBe(2345)
+      expect(table.calls.range).toEqual([[0, 999], [1000, 1999], [2000, 2999]])
+      expect(table.calls.order.every(([column]) => column === 'id')).toBe(true)
+      // POD pelo porto canônico: casa todas as grafias gravadas de Vitória.
+      expect(table.calls.in).toContainEqual(['pod', expect.arrayContaining(['BRVIX', 'BRVIT', 'VIX'])])
+    })
+
+    it('falha da consulta dos manifestos da Viagem vira erro, não recorte vazio', async () => {
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'vazios_importacao_manifests') {
+          return { select: () => ({ eq: () => Promise.resolve({ data: null, error: new Error('manifestos fora do ar') }) }) }
+        }
+        return containerTable(3).builder
+      })
+
+      await expect(fetchVaziosImportacaoContainerIds({ voyageId: '7' })).rejects.toThrow('manifestos fora do ar')
+    })
+  })
+})

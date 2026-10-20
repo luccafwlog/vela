@@ -35,7 +35,6 @@ vi.mock('../../services/review', async () => {
     ...actual,
     applyInlineBlReviewFix: vi.fn().mockResolvedValue(resolvedResult),
     saveBlReview: vi.fn().mockResolvedValue(resolvedResult),
-    saveGraniteBlReview: vi.fn(),
   }
 })
 vi.mock('../../services/reviewBillingAutomation', () => ({
@@ -45,7 +44,7 @@ vi.mock('../../services/reviewBillingAutomation', () => ({
 import { useCustomerLookup } from '../../hooks/useCustomers'
 import { useReviewQueue } from '../../hooks/useReview'
 import { useReviewCustomerGroup } from '../../hooks/useReviewCustomerGroup'
-import { applyInlineBlReviewFix, saveBlReview, saveGraniteBlReview } from '../../services/review'
+import { applyInlineBlReviewFix, saveBlReview } from '../../services/review'
 import { tryAutoIssueInvoice } from '../../services/reviewBillingAutomation'
 import { Revisao } from '../Revisao'
 
@@ -53,7 +52,6 @@ const mockedUseReviewQueue = vi.mocked(useReviewQueue)
 const mockedUseCustomerLookup = vi.mocked(useCustomerLookup)
 const mockedUseReviewCustomerGroup = vi.mocked(useReviewCustomerGroup)
 const mockedSaveBlReview = vi.mocked(saveBlReview)
-const mockedSaveGraniteBlReview = vi.mocked(saveGraniteBlReview)
 const mockedTryAutoIssueInvoice = vi.mocked(tryAutoIssueInvoice)
 const mockedApplyInlineBlReviewFix = vi.mocked(applyInlineBlReviewFix)
 
@@ -393,41 +391,11 @@ describe('Revisao', () => {
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ blIds: ['BL-CONFLICT-ONBOARD'], cnpjCpf: '11222333000181', sendPortalInvite: false })))
   })
 
-  it('vincula também as linhas de Granito quando compartilham o grupo do B/L', async () => {
-    const user = userEvent.setup()
-    mockedUseReviewQueue.mockReturnValue({
-      data: [
-        { ...makeBl('BL-MIXED', 'Cliente misto'), manifest_customer_cnpj_cpf: '11222333000181' },
-        {
-          id: 'GR-MIXED', source: 'granite', bl_number: 'GR-MIXED', consignee: 'Cliente misto',
-          manifest_customer_cnpj_cpf: '11222333000181', customer_id: null, customer: null,
-          review_reasons: ['Cliente nao vinculado (Granito)'],
-        },
-      ],
-      isLoading: false,
-      error: null,
-    } as never)
-    renderPage()
-
-    await user.click(screen.getByRole('button', { name: /Cliente misto/ }))
-    expect(screen.getByRole('heading', { name: 'Cadastrar o cliente' })).toBeTruthy()
-    await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'misto@cliente.com')
-    await choosePortalLater(user)
-    await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
-
-    await waitFor(() => expect(mockedSaveGraniteBlReview).toHaveBeenCalledWith({ graniteBlId: 'GR-MIXED', clientId: 99, changedBy: 'user-1' }))
-  })
-
-  it('vincula a um cliente cadastrado num grupo misto sem CNPJ', async () => {
+  it('vincula a um cliente cadastrado num grupo sem CNPJ', async () => {
     const user = userEvent.setup()
     mockedUseReviewQueue.mockReturnValue({
       data: [
         { ...makeBl('BL-MIXED-NAME', 'Cliente sem documento'), manifest_customer_cnpj_cpf: null },
-        {
-          id: 'GR-MIXED-NAME', source: 'granite', bl_number: 'GR-MIXED-NAME', consignee: null,
-          shipper: 'Cliente sem documento', manifest_customer_cnpj_cpf: null, customer_id: null, customer: null,
-          review_reasons: ['Cliente nao vinculado (Granito)'],
-        },
       ],
       isLoading: false,
       error: null,
@@ -438,10 +406,9 @@ describe('Revisao', () => {
     await user.click(screen.getByRole('radio', { name: 'Vincular a um cliente cadastrado' }))
     await user.type(screen.getByLabelText('Cliente cadastrado'), 'Cliente')
     await user.click(screen.getByRole('option', { name: /Cliente Modelo/ }))
-    await user.click(screen.getByRole('button', { name: 'Vincular 1 B/L e 1 registro de Granito' }))
+    await user.click(screen.getByRole('button', { name: 'Vincular 1 B/L' }))
 
-    await waitFor(() => expect(mockedSaveGraniteBlReview).toHaveBeenCalledWith({ graniteBlId: 'GR-MIXED-NAME', clientId: 99, changedBy: 'user-1' }))
-    expect(mockedApplyInlineBlReviewFix).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BL-MIXED-NAME', value: 99 }))
+    await waitFor(() => expect(mockedApplyInlineBlReviewFix).toHaveBeenCalledWith(expect.objectContaining({ blId: 'BL-MIXED-NAME', value: 99 })))
   })
 
   it('adiciona e-mail ao cliente do grupo direto da fila', async () => {
@@ -496,32 +463,6 @@ describe('Revisao', () => {
     expect(screen.queryByText(/Sugestão por nome/)).toBeNull()
     // O banco recusa o vínculo a Cliente desativado: a tela não oferece a ação.
     expect(screen.queryByRole('button', { name: 'Usar a sugestão' })).toBeNull()
-  })
-
-  it('caso G: vincula o Granito só depois de escolher o cliente', async () => {
-    const user = userEvent.setup()
-    mockedUseReviewQueue.mockReturnValue({
-      data: [{
-        id: 'granite-1', source: 'granite', bl_number: 'G-001', client_id: null,
-        suggested_client_id: 42, suggested_customer: { id: 42, name: 'Cliente Sugerido', cnpj_cpf: '11222333000181' },
-        customer: null, review_reasons: ['Cliente nao vinculado (Granito)', 'Sugerido: Cliente Sugerido'],
-      }], isLoading: false, error: null,
-    } as never)
-    renderPage()
-
-    expect(screen.queryByText('Vinculado')).toBeNull()
-    await user.click(screen.getByRole('button', { name: /G-001/ }))
-    expect(screen.getByRole('heading', { name: 'Vincular o cliente ao Granito' })).toBeTruthy()
-    expect(screen.getAllByText(/Sugestão por nome/).length).toBeGreaterThan(0)
-    const save = screen.getByRole('button', { name: 'Vincular' }) as HTMLButtonElement
-    // Sem escolha explícita a ação fica bloqueada, com o motivo à vista.
-    expect(save.disabled).toBe(true)
-    expect(screen.getByText('Escolha o cliente cadastrado.')).toBeTruthy()
-    expect(mockedSaveGraniteBlReview).not.toHaveBeenCalled()
-
-    await user.click(screen.getByRole('button', { name: 'Usar a sugestão' }))
-    await user.click(screen.getByRole('button', { name: 'Vincular' }))
-    await waitFor(() => expect(mockedSaveGraniteBlReview).toHaveBeenCalledWith({ graniteBlId: 'granite-1', clientId: 42, changedBy: 'user-1' }))
   })
 
   it('inicializa com busca pré-preenchida e auto-expande o grupo quando passado query param ?cliente=...', async () => {

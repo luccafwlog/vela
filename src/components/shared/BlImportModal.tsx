@@ -271,7 +271,7 @@ export function BlImportModal({
       showToast(`Importação de B/L concluída: ${plural(importableCount, 'B/L gravado', 'B/Ls gravados')}.`, 'success')
       resetAndClose()
     } catch (error) {
-      // A gravação é uma transação só (migration 329): na falha, nada entrou.
+      // A gravação é uma transação só (migration 335): na falha, nada entrou.
       setConfirmError({
         message: error instanceof Error ? error.message : 'Nada foi gravado: falha ao importar o B/L.',
         refused: error instanceof BlFreightImportRefused ? error.refused : [],

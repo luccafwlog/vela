@@ -25,7 +25,7 @@ export function VaziosImportacaoGuide() {
       details={
         <p>
           POL e POD usam o código do porto (ex.: CNTAC, BRVIX). Depois da leitura, informe um Nº de manifesto
-          Mercante para cada porto de origem.
+          Mercante para cada rota (POL → POD): o mesmo POL com dois POD pede dois números.
         </p>
       }
     />
@@ -40,8 +40,8 @@ type ManifestNumbersProps = {
 }
 
 /**
- * Um campo de Nº do manifesto Mercante por porto de origem (rota POL → POD) da
- * planilha. É o número que a aba Rotas e Manifestos mostra na linha VAZIOS.
+ * Um campo de Nº do manifesto Mercante por rota (POL → POD) da planilha. É o
+ * número que a aba Rotas e Manifestos mostra na linha VAZIOS.
  */
 export function VaziosImportacaoManifestNumbers({ manifest, values, onChange, disabled = false }: ManifestNumbersProps) {
   const { routes, error } = resolveVaziosManifestRoutes(manifest)
@@ -54,13 +54,13 @@ export function VaziosImportacaoManifestNumbers({ manifest, values, onChange, di
       </ImportNotice>
     )
   }
-  // Campo vazio já aparece como obrigatório; o aviso cobre o que sobra (mesmo número em dois portos).
+  // Campo vazio já aparece como obrigatório; o aviso cobre o que sobra (mesmo número em duas rotas).
   const allFilled = routes.every((route) => (values[vaziosRouteKey(route)] ?? '').trim())
   const repeated = allFilled ? resolveVaziosManifestNumbers(manifest, values).error : null
   const countOf = (key: string) => manifest.containers.filter((c) => vaziosRouteKey({ pol: c.pol as string, pod: c.pod as string }) === key).length
-  const title = 'Nº do manifesto Mercante por porto de origem'
+  const title = 'Nº do manifesto Mercante por rota (POL → POD)'
   return (
-    <ImportSection title={title} aside={plural(routes.length, 'porto de origem', 'portos de origem')}>
+    <ImportSection title={title} aside={plural(routes.length, 'rota', 'rotas')}>
       <fieldset className="grid gap-3" disabled={disabled}>
         <legend className="sr-only">{title}</legend>
         {routes.map((route) => {

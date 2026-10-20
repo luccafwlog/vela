@@ -133,7 +133,7 @@ describe('containerDatesImport', () => {
   })
 })
 
-// Regra de 2026-10-19 (migration 325): a planilha inteira vai numa chamada; se
+// Regra de 2026-10-19 (migration 333): a planilha inteira vai numa chamada; se
 // o banco recusa qualquer B/L, nada é gravado e a resposta lista a recusa.
 describe('importContainerDates (arquivo inteiro numa chamada)', () => {
   beforeEach(() => {

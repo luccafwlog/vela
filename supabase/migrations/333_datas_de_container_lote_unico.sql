@@ -1,4 +1,4 @@
--- 325 — Planilha de datas de descarga e devolução gravada numa vez só
+-- 333 — Planilha de datas de descarga e devolução gravada numa vez só
 -- (regra de 2026-10-19, lote 6a da identidade: importação com erro é recusada
 -- inteira e não grava nada).
 --
@@ -99,9 +99,9 @@ BEGIN
 
     IF jsonb_array_length(v_errors) > 0 THEN
       -- Desfaz o que os B/Ls aceitos gravaram: o arquivo é recusado inteiro.
-      RAISE EXCEPTION 'planilha de datas recusada' USING ERRCODE = 'VB325';
+      RAISE EXCEPTION 'planilha de datas recusada' USING ERRCODE = 'VB333';
     END IF;
-  EXCEPTION WHEN SQLSTATE 'VB325' THEN
+  EXCEPTION WHEN SQLSTATE 'VB333' THEN
     RETURN jsonb_build_object('ok', false, 'request_id', p_request_id, 'errors', v_errors);
   END;
 

@@ -61,33 +61,6 @@ it('exclui do preview o BL de outra viagem e mostra erro bloqueante', async () =
   expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-it('invalida caches e avisa que nada foi gravado na planilha de Granito com pendência', async () => {
-  mocks.parse.mockResolvedValue({
-    rows: [{ rowNumber: 2, bl_id: 'GR1', ce_mercante: '122605051526081' }],
-    rowErrors: [],
-  })
-  mocks.importRows.mockResolvedValue({
-    processed: 1,
-    updated: 0,
-    overwritten: 0,
-    unchanged: 0,
-    errorCount: 1,
-    errors: [{ row: 2, bl_id: 'GR1', message: 'B/L GR1 nao encontrado no manifesto de granito.' }],
-  })
-  const { container } = render(<CeMercanteImportModal open target="granite" onClose={vi.fn()} />)
-  // Granito não pede Nº de Manifesto Mercante.
-  expect(screen.queryByLabelText(/Nº de Manifesto Mercante/i)).toBeNull()
-  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
-    target: { files: [new File(['x'], 'ce.xlsx')] },
-  })
-  await waitFor(() =>
-    expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(false),
-  )
-  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
-  await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalled())
-  expect(mocks.showToast).toHaveBeenCalledWith('Nada foi gravado: 1 erro. Corrija a planilha e envie de novo.', 'error')
-})
-
 it('exige o Nº de Manifesto Mercante antes de importar CE de B/L e aceita só planilha', async () => {
   mocks.parse.mockResolvedValue({ rows: [{ rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }], rowErrors: [] })
   const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)

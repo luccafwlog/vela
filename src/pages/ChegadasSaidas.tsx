@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { RowActionButton } from '../components/ui/RowActionButton'
 import { Modal } from '../components/ui/Modal'
 import { ImportFileBlock, ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportSection, ImportSteps, ImportTemplateLinks } from '../components/shared/ImportParts'
 import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
@@ -525,15 +526,11 @@ export function ChegadasSaidas() {
             vessels={vessels}
             caption="Programação de chegadas e saídas"
             actions={canWrite ? (vessel) => (
-              <Button
-                type="button"
-                variant="secondary"
-                className="app-btn--sm"
-                aria-label={`Editar programação de ${vessel.vesselName} / ${vessel.voyage}`}
+              <RowActionButton
+                label={`Editar programação de ${vessel.vesselName} / ${vessel.voyage}`}
+                icon={Pencil}
                 onClick={() => openEdit(vessel)}
-              >
-                Editar
-              </Button>
+              />
             ) : undefined}
           />
         )}
