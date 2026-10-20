@@ -115,7 +115,7 @@ it("cartões contam e filtram; taxa aguardando fatura não conta como em aberto 
   const card = (name: RegExp) => within(cards).getByRole("button", { name });
   expect(card(/Com taxas locais em aberto/).textContent).toContain("1");
   expect(screen.getByText("Aguardando fatura")).toBeTruthy();
-  expect(screen.getAllByRole("link", { name: "Ver faturas" })).toHaveLength(1);
+  expect(screen.getAllByRole("link", { name: /^Ver faturas do B\/L / })).toHaveLength(1);
   expect(screen.queryByText(/Taxas locais sem liquidação/)).toBeNull();
   await userEvent.click(card(/Com taxas locais em aberto/));
   expect(screen.getByLabelText("Selecionar B/L BL-OPEN")).toBeTruthy();

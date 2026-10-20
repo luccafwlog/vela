@@ -11,7 +11,10 @@ import { ChargeOverridesTab } from '../components/taxasLocais/ChargeOverridesTab
 import type { CargoModeFilter, ConditionsLens, LocalChargeTab, TablesLens } from '../components/taxasLocais/chargeForms'
 import { normalizeChargeTablePod } from './taxasLocaisHelpers'
 
-const CARGO_MODES: CargoModeFilter[] = ['container', 'carga_solta', 'granito']
+// Granito só totaliza a carga e não tem taxa (lote 5b): `?modo=granito` cai
+// em "Todos". ponytail: `charge_tables_cargo_mode_check` ainda aceita
+// 'granito' no banco; tirar de lá pede migration própria.
+const CARGO_MODES: CargoModeFilter[] = ['container', 'carga_solta']
 const TABLE_LENSES: TablesLens[] = ['todas', 'aplicadas', 'nao-usadas', 'aviso', 'inativas']
 const CONDITION_LENSES: ConditionsLens[] = ['todas', 'vigentes', 'futuras', 'encerradas', 'sem-efeito']
 

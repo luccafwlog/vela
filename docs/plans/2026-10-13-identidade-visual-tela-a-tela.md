@@ -277,6 +277,141 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   inspeção"; A6 mostra "Entrou na fila do Portal", com "Sistema" na coluna
   Por.
   **Lote 5a entregue em 2026-10-19** (ver Registro). O 5b é o próximo.
+- **Lote 5b proposto em 2026-10-19** numa página só ("Lote 5b da
+  identidade", na conta do responsável), com capturas da `main` de
+  2026-10-19 (depois da PR 986) no ambiente local, a 1440 e 360 px, com o
+  login interno de teste e dados acrescentados só para a captura (um
+  manifesto de Granito com seis B/Ls e quatro tarifas, dois manifestos de
+  vazios de importação e um Embarque de vazios com unidades e serviços):
+  Granito, Tarifas do Granito, Vazios de importação, Embarque de vazios,
+  Locais (depots e terminais), Relatórios e as cinco abas da Administração.
+  Achados fora da mudança visual, propostos para correção no próprio lote:
+  no Granito, total da janela de taxas somando R$ e US$ como "BRL", busca
+  sem CNPJ com máscara, filtro de porto exato, confirmações das tarifas
+  falando em faturamento, "Fixo global" cobrado como "Por B/L", cache da
+  Validação e erros crus; nos Vazios, local e serviço inativos aceitos no
+  Embarque (tela e banco), ids internos em "Filtros ativos", POD sem campo,
+  Nº de manifesto pedido por porto de origem e não por rota, "Embarque
+  criado" para o já existente, planilha sem a Natureza, mensagens do banco
+  sem acento e o local novo que não abre depois de criado; nos Relatórios,
+  abas sem teclado (também na Administração), aviso de limite que nunca
+  aparece (a tela espera 2.000 linhas e o servidor entrega 1.000), Por
+  Cliente divergente do Financeiro, datas cortadas em UTC e sessão expirada
+  tratada como falta de perfil; na Administração, o papel "Administrador"
+  no texto dos perfis, "Produção" e "Operacional" fixos, "Última
+  conciliação Pix" sempre vazia, rótulos das Métricas que não batem com o
+  dado e "Sem prazo" para departamento que não assinou. Aguarda a resposta
+  do responsável, tela a tela.
+  **Granito, respostas de 2026-10-19** (comentários na página e na
+  conversa): a tela mostra só os dados básicos, a quantidade de blocos e o
+  peso (saem taxas, fase, pátio, recebimento dos blocos e CBM). **Regra de
+  negócio decidida pelo responsável em 2026-10-19, fora da mudança visual:**
+  o Granito não terá Cliente vinculado e serve só para totalizar a carga
+  movimentada no navio. Consequência proposta na rodada 3 da página: a
+  importação deixa de procurar Cliente, o Granito sai da Revisão e da
+  Validação de Taxas Locais e o alerta "Revisão de Granito — cliente não
+  vinculado" deixa de existir. **Granito aprovado em 2026-10-19** na
+  rodada 3: peso real quando houver (senão o declarado) e saem do sistema a
+  tela de Tarifas do Granito (`/granito/taxas` passa a levar ao Granito), o
+  cálculo de taxas do Granito (também na Validação) e a importação de CE
+  Mercante para o Granito; os dados gravados ficam no banco, sem uso.
+  **Demais telas, respostas de 2026-10-19** (comentários na página):
+  aprovadas **Vazios de importação** (Natureza só pela seleção; coluna
+  "Manifesto Mercante" com o número do manifesto da rota, "Sem número" em
+  âmbar para vazio do Baplie sem número), **Embarque de vazios** (lista de
+  embarques ao abrir; armazenagem com 0 dia escondida, porque 0 dia é
+  dentro do free time; Observação e Excluir das Linhas de serviço como
+  botões só com ícone) e **Locais (depots e terminais)**. Nos
+  **Relatórios**, "Por Cliente" e "Financeiro" com a mesma regra (fatura
+  emitida no período, sem rascunho nem cancelada), coluna "Taxas locais" no
+  Operacional e mais filtros (período, Navio / Viagem e Cliente abertos; os
+  demais em "Mais filtros"). Na **Administração**, nomes das abas ("Falhas
+  de entrega de alertas", "Histórico de ações", "Sistema", "Prazo do ADR"),
+  setor só em "Editar acesso" e o quadro "O que cada setor pode" como matriz
+  de consulta (opção A) com a lista por pessoa em "Editar acesso" (opção
+  C); a matriz editável foi descartada por exigir permissões configuráveis
+  no banco. A matriz foi mapeada contra o código de 2026-10-19 (só leitura,
+  migrations até a `324`): o banco cumpre as 68 ações documentadas; achados
+  para o lote: alertas não chegam ao papel legado `operator`
+  (`fanout_alert_item*`, migration `002`), Operações sem o e-mail de
+  recuperação na ficha (`RECOVERY_EMAIL_READER_ROLES`), citações
+  desatualizadas em [segurança](../operations/seguranca.md) e ações sem
+  linha na matriz. Relatórios e Administração aprovados em 2026-10-19.
+  **Lote 5b aprovado em 2026-10-19** (todas as telas). **Decisão do
+  responsável na mesma data, para todo o sistema:** ação em linha de tabela
+  vira botão só com ícone, com o nome ao passar o mouse e para leitor de
+  tela (regra 9 em [identidade-visual.md](../identidade-visual.md), nota na
+  ADR 0081); aplicada de uma vez em todas as telas, como a passada única,
+  junto com a implementação do 5b. **Lote 5b entregue em 2026-10-19**
+  (ver Registro), junto com os botões só com ícone nas demais telas. O
+  próximo é o lote 6.
+- **Lote 6 confirmado em 2026-10-19 e dividido em 6a e 6b** pelo
+  responsável, em paralelo com o 5b (as telas não se cruzam). **6a:** Login,
+  acesso e perfil (21) e modais de importação (19), nessa ordem. **6b:**
+  e-mails do Vela e do Portal (22) e os quatro itens de comportamento dos
+  documentos impressos (20), que têm as mesmas restrições (estilo escrito no
+  HTML, sem as fontes do site). O 6b é proposto depois do 6a.
+- **Lote 6a proposto em 2026-10-19** numa página só ("Lote 6a da
+  identidade", na conta do responsável), com capturas da `main` de
+  2026-10-19 (depois da PR 986) no ambiente local, a 1440 e 360 px, com o
+  login interno de teste; nas telas do Portal que dependem de função do
+  servidor (convite válido, link de redefinição enviado), a resposta foi
+  simulada no navegador, e nos modais os arquivos são os modelos de
+  `public/templates`. Propostas: o mesmo painel da marca no login do Vela
+  (sem a textura de pontos) e nas sete telas públicas do Portal (logo branca
+  sobre o azul-marinho FWLOG), ações secundárias como botão, Meu perfil
+  (`/perfil`) em blocos, e um molde único para as 11 importações (Arquivo,
+  Prévia, Resultado; botão "Importar N …"; modelo como botão; erros num
+  lugar só; sem texto técnico). Para decisão, entre outras: se os modais do
+  Granito e dos Vazios (tela 17, do 5b) entram no molde neste lote. Achados
+  fora da mudança visual, propostos para o lote: (A1) a mesma importação em
+  duas versões com comportamento diferente (manifesto BB, Granito, Vazios,
+  Baplie, Veículos); (A2) Vazios lê o arquivo antes da viagem e diz o
+  contrário, e "Avisos" conta erros; (A3) textos sem acento ou em inglês;
+  (A4) "Importar datas" e "Importar Datas de Descarga e Devolução" para o
+  mesmo modal; (A5) sem modelo de planilha nas datas e no Granito; (A6)
+  "FWLOG" e "Fwlog" misturados no texto do Portal. Não capturados: a
+  conciliação com a ZPT (o login de teste não abre o botão) e o resultado
+  gravado de cada importação. Aguarda a resposta do responsável, tela a
+  tela.
+  **Respostas de 2026-10-19** (comentários na página): painel da marca no
+  Portal, como proposto, com o título "Portal do Cliente" no login e
+  "Esqueci minha senha" como texto, como hoje (exceção à regra 9, a
+  registrar em [identidade-visual.md](../identidade-visual.md) na
+  implementação); Meu perfil com os dois blocos um acima do outro, até
+  720 px de largura; nos modais, linha de passos aprovada, arrastar e
+  soltar em toda importação, Granito e Vazios no molde neste lote (a
+  página do 5b não redesenha esses dois modais), Shipper, Consignee e Notify
+  em inglês; os achados A1 a A6 aprovados, e toda importação ganha um
+  modelo padrão para baixar. **Regra de negócio decidida em 2026-10-19,
+  fora da mudança visual, para todo o sistema:** importação com qualquer
+  erro é recusada inteira e não grava nada; aviso não bloqueia. Hoje,
+  pela leitura do código, Granito (aba), Vazios, manifesto BB, Veículos,
+  datas de containers, base de Clientes, B/L de container, B/Ls de carga
+  solta, ZPT, programação por planilha e extrato do Pix gravam em parte.
+  O levantamento e três pontos para decisão (D1 B/L cancelado no arquivo,
+  D2 passos depois da gravação, D3 linhas sem conteúdo) estão na rodada 2
+  da mesma página, respondidos no mesmo dia como sugerido: B/L cancelado
+  no arquivo é aviso (não é tocado, o resto entra); falha técnica depois
+  da gravação (IMO/OOG e vazios do Baplie, emissão das faturas do CE
+  Mercante, cálculo das Taxas Locais) mantém a importação e o passo é
+  retomado; linhas sem conteúdo (ZPT sem CE ou situação, lançamentos
+  zerados ou negativos do extrato) são ignoradas com a contagem à vista, e
+  valor ilegível vira erro. Na implementação, a regra entra em
+  [regras-de-negocio.md](../operations/regras-de-negocio.md) com uma ADR.
+- **Lote 6a implementado em 2026-10-19** (branch
+  `claude/fervent-shannon-6w0le9`, [PR 988](https://github.com/luccafwlog/vela/pull/988)): tela 21 com `AuthLayout`
+  no login do Vela e nas telas públicas do Portal e Meu perfil em dois
+  blocos; tela 19 com o molde comum nas importações, um componente por
+  importação aberto da tela própria e da aba da Viagem (A1), modelo para
+  baixar em todas e a regra da
+  [ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md).
+  Migrations `333` (datas de containers), `334` (Base de Clientes) e `335`
+  (B/L de container) gravam o arquivo numa transação (numeradas `325`,
+  `326` e `329` até a junção com o 5b, que já usava esses números; ZPT e
+  Veículos já gravavam numa transação). Fica para o
+  responsável conferir no navegador: gravação real de cada importação e o
+  tempo-limite de 60 s da `335` no Supabase, não verificados aqui.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -511,8 +646,9 @@ lotes tratam só da organização de cada tela.
 | 3 | Financeiro: detalhe da fatura de Taxas Locais e tabelas de taxas (7), Conciliação PIX (9), Desbloqueio de CE interno (15) | Entregue em 2026-10-16 (aprovado na rodada 2 da página "Lote 3 da identidade"), branch `claude/serene-edison-ibuix9` |
 | 4 | Restante do Portal: PIX, consolidada e disputa (10), B/Ls e Containers (11), Painel, Central de Informações, Desbloqueio de CE e Perfil (12); tabela dos Documentos anuais VIP com Aprovar e Solicitar correção, peça comum à ficha do Cliente, ao Portal e à análise do pedido (aprovada no lote 1, adiada para cá em 2026-10-14) ; no documento de Demurrage do Portal, o aviso de Invoice complementar e as restituições no recibo (achados da PR 939) | Aprovado em 2026-10-18 (todas as telas, três rodadas) e entregue em 2026-10-18 na PR 972, branch `claude/laughing-meitner-3rfy0l`, com as migrations `298` a `301` |
 | 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto e aprovado em 2026-10-19 (página "Lote 5a da identidade", três rodadas); entregue em 2026-10-19, branch `claude/stoic-cannon-v7g39p` |
-| 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado em 2026-10-19; proposto depois do 5a |
-| 6 | Peças comuns e entrada: modais de importação (19), documentos impressos (20), Login, acesso e perfil (21) | Proposto, a confirmar |
+| 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado, proposto e aprovado em 2026-10-19 (página "Lote 5b da identidade"); entregue em 2026-10-19, junto com os botões de linha só com ícone em todo o sistema |
+| 6a | Login, acesso e perfil (21); modais de importação (19) | Confirmado e dividido em 2026-10-19; proposto em 2026-10-19 (página "Lote 6a da identidade"); respostas de 2026-10-19 com a regra de importação com erro; D1 a D3 decididos no mesmo dia; aprovado e implementado em 2026-10-19 |
+| 6b | E-mails do Vela e do Portal (22, acrescentados em 2026-10-19); itens de comportamento dos documentos impressos (20) | Confirmado em 2026-10-19; proposto depois do 6a |
 
 O lote 2 vem logo depois do 1 por ser onde a operação passa mais tempo; o 6
 fica por último porque essas telas mudam pouco além da passada única.
@@ -560,11 +696,12 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 | 14 | Containers, Veículos, Baplie | `/containers`, `/veiculos`, `/baplie` | | Entregue em 2026-10-16 (lote 2), branch `claude/practical-cray-mpdw1p` |
 | 15 | Desbloqueio de CE interno | `/desbloqueio-ce` | | Entregue em 2026-10-16 (lote 3), com a aba "Andamento dos B/Ls" |
 | 16 | Provisionamento, Comunicação, Modo Inspeção | `/clientes/portal`, `/clientes/comunicacao`, faixa de inspeção | Abas de Clientes (`ClientesTabs`) abaixo do cabeçalho e vistas da Comunicação em controle segmentado desde 2026-10-16 (lote 2); barra de abas de segundo nível desde o lote 5a | Entregue em 2026-10-19 (lote 5a) |
-| 17 | Granito, Vazios, depots | `/granito`, `/vazios-importacao`, `/embarquevazios` | `VaziosImportacaoPreview` com cores fixas do tema escuro | Pendente (lote 5b) |
-| 18 | Relatórios e Administração | `/relatorios`, `/admin/:tab` | | Pendente (lote 5b) |
-| 19 | Importações (modais comuns) | modais de importação | | Pendente |
+| 17 | Granito, Vazios, depots | `/granito`, `/vazios-importacao`, `/embarquevazios` | `VaziosImportacaoPreview` com cores fixas do tema escuro (trocado pelas peças comuns); modais de importação do Granito e dos Vazios migrados ao molde no lote 6a | Entregue em 2026-10-19 (lote 5b); Tarifas do Granito retiradas |
+| 18 | Relatórios e Administração | `/relatorios`, `/admin/:tab` | | Entregue em 2026-10-19 (lote 5b) |
+| 19 | Importações (modais comuns) | modais de importação | | Implementado em 2026-10-19 (lote 6a) |
 | 20 | Documentos impressos | faturas, recibos, ADR | Marca Transhipping; só regras de impressão. Visual mantido por decisão de 2026-10-13 | Regras de impressão e comportamento entregues em 2026-10-14 (PR 939); restam, sem mudar o visual: taxas com ponto decimal (`60.00`), CNPJ sem máscara no resumo por Cliente, rótulos em inglês ("From/To") e textos de 9–11 px |
-| 21 | Login, acesso e perfil | `/login`, `/portal/login` e telas públicas | | Pendente |
+| 21 | Login, acesso e perfil | `/login`, `/portal/login` e telas públicas, `/perfil` | | Implementado em 2026-10-19 (lote 6a) |
+| 22 | E-mails do Vela e do Portal | modelos do Portal (`supabase/functions/_shared/portalEmailTemplates.ts`: convite, reenvio, recuperação de senha, troca de e-mail, senha alterada, resumo diário, aviso de devolução, aviso do Desbloqueio de CE) e dos Comunicados (`src/services/customerCommunicationTemplates.ts`: CE e Taxas, régua automática, Cobrança de Demurrage) | Acrescentada em 2026-10-19 a pedido do responsável; até então a aparência dos e-mails não tinha dono (o [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md) só corrigiu envio e conteúdo). Dois layouts separados, cada um com cópia própria das cores (`#152238`, `#d4882e`, cinzas), fonte do sistema e logo branco da Fwlog; os Comunicados usam ainda um verde-azulado (`#0f766e`) fora da identidade. Restrições de e-mail, como nos impressos: sem as fontes do site, layout em tabela e estilo escrito no HTML. Proposta mostra cada modelo como chega hoje e como ficaria; primeiro passo provável é uma base de layout só | Pendente (lote 6b) |
 
 O plano é concluído quando todas as linhas estiverem entregues e a linha de
 base de `design:check` não tiver mais famílias de CSS de página nem violações
@@ -593,3 +730,7 @@ em TSX, ou quando o responsável encerrar formalmente o que restar.
 | 2026-10-16 | Lote 3 (detalhe da fatura de Taxas Locais, Tabelas e Condições de Cliente, Conciliação PIX, Desbloqueio de CE) | `claude/serene-edison-ibuix9` (sobre `59aa729`, PR 969) | Proposto e aprovado em duas rodadas na página "Lote 3 da identidade". **Detalhe da fatura:** blocos Saldo (dado principal em aberto, ✓ Paga, Coberta ou Cancelada; B/L e trecho quando há um B/L só), Fatura desatualizada, B/Ls (só com mais de um B/L), Itens com total e coluna "Em US$" quando há dólar, Pagamentos com "Registrar pagamento" em botão, Restituições em tabela, Cancelar fatura só para o Administrativo; sai o "Nº interno". **Tabelas:** um bloco por escopo com a tabela em uso como dado principal, situações "Em uso no cálculo", "Ativa, mas não usada" (com Desativar na linha) e "Desativada", cartões que filtram (`?lente=nao-usadas` novo), itens com cabeçalho claro e "Adicionar item" uma vez. **Condições de Cliente:** tabela limpa com Cliente como link, situação em texto ("Sem efeito no cálculo" em âmbar, `?vigencia=sem-efeito`) e Valor da tabela com a diferença. **Conciliação PIX:** abre no Histórico de baixas (abas Histórico, Pendências, Conciliar extrato; alertas de Pix vão a `?tab=pendencias`), "Identificador do Pix" no lugar de "TXID", blocos e tabelas limpas nas três abas, resumo do recorte no Histórico; família `app-pix-*` removida. **Desbloqueio de CE:** abas "Solicitações" e "Andamento dos B/Ls", botões no bloco do assunto, cartões que filtram, seleção em qualquer B/L com "Registrar entrega de N B/Ls" (um comando por B/L, não atômico, marcado `ponytail:`), planilha comum do recorte com Navio, Viagem e POD, requisitos com os ícones de hoje, detalhe em blocos com "Analisar" só onde há decisão e Histórico em tabela; migration `296` (filtro `exported`/`unlocked` e autor no histórico). **Achados corrigidos:** "Única BL" passa a "Individual" (inclusive o filtro da lista de Faturas); a conferência do extrato diz "Linha sem identificador no extrato"; fatura inexistente mostra "Fatura não encontrada."; planilha do Histórico com os nomes da tela; seletor "por página" sem corte (`TableFooterPagination`); sem `#a85309` no Desbloqueio de CE. Peça comum: `StatusText` ganhou o tom `danger`. **Teste:** `typecheck`, `lint`, `npm test` (776 arquivos, 4.837 testes; integrações de banco puladas), `build`, `design:check` (linha de base atualizada, só quedas), `a11y:contrast`, `docs:check`, `migrations:check`, `rpc:check` contra o banco local com a `296`. **Runtime:** Postgres 16 local com `validation_seed`, `seed_audit` e os dados de teste da proposta, `sb-shim` e Vite, a 1440 px: detalhe da FAT-2026-0014, `/taxas-locais/tabelas` (duas abas), `/reconciliacao` (Histórico e Pendências), `/desbloqueio-ce` (duas abas e o detalhe CE-2026-000038), sem rolagem lateral da página. **Não verificado:** 768 e 360 px; Conciliar extrato em runtime depois da mudança (coberto por teste); a `296` no Supabase remoto. **Ficou de fora:** Cliente nas faturas candidatas de uma exceção (a RPC não devolve; pede migration); "Revogar aprovação" do VIP no detalhe (continua na ficha do Cliente); POD como lista no Desbloqueio (sem fonte de opções); marca VIP abaixo do nome do Cliente na tabela. |
 | 2026-10-18 | Lote 4 (restante do Portal) | `claude/laughing-meitner-3rfy0l`, PR 972 | Implementado em quatro frentes (Painel e Faturas; Demurrage; BLs e Containers, Central de Informações e Perfil; Desbloqueio de CE e Documentos anuais VIP) contra a página aprovada. Migrations `298` (só fatura emitida e liberada no Portal, ADR 0088), `299` (B/L muda de solicitação, ADR 0089) e `300` (e-mail de recuperação só na sessão do Cliente). **Revisão do Codex:** migration `301` (B/L que mudou não volta à solicitação cancelada nem pesa no reenvio dela; "aguardando fatura" só pela pendência de Taxas Locais), prévia da mudança contada por todos os B/Ls ativos da antiga e Perfil relendo o e-mail de recuperação depois da confirmação. **Diferente da página, de propósito:** "Aguardando fatura" sem valor (a maquete mostrava R$ 2.702,00, contra a regra da ADR 0088); motivo "Já está numa consolidada em aberto." sem o número (o RPC não o traz); hora do pagamento escondida também às 12:00:00 (baixa manual grava meio-dia); ícone de link externo no lugar de "↗". **Teste:** `docs:check`, `typecheck`, `lint`, `build`, `a11y:contrast`, `design:check` (linha de base atualizada, sem violação nova), `migrations:check`, `rpc:check`, `npm test` (779 arquivos, 4.904 testes; 95 de banco pulados) e a suíte Postgres local inteira (94 arquivos, 897 testes, antes da `300`; o arquivo da `300` depois, 10 testes). **Runtime:** Postgres 16 local com `sb-shim` e Vite, login do Cliente, 14 telas a 1440 e 360 px sem rolagem lateral nem erro de console. **Não verificado:** migrations no Supabase remoto; ficha do Cliente no Vela (CNPJ de teste inválido; peça coberta por teste); Cliente VIP com documentos válidos na confirmação de mudança; fatura coberta (sem dado de teste). |
 | 2026-10-19 | Lote 5a (Painel, Alertas, Regras, Provisionamento, Comunicação, faixa do Modo Inspeção) | `claude/stoic-cannon-v7g39p` | Implementado como aprovado, com os achados A1 (cartão do Administrativo), A2 e A3 (migration `324`: mensagens sem repetir o registro, alertas abertos reescritos, Crítico só com alerta crítico ativo), A4, A5 (`inspectionExit`) e A6. Peças comuns novas: `Switch` e `SegmentedControl` `variant="bar"`. **Teste:** ver a entrega (gates locais e `alertasSemRepetirRegistro.local-pg.test.ts` em Postgres 16 local). **Não verificado:** migration aplicada em produção, tema escuro. |
+| 2026-10-19 | Lote 5b (Granito, Vazios de importação, Embarque de vazios, Locais, Relatórios, Administração) e ação de linha só com ícone em todo o sistema | `claude/kind-hypatia-ngqttn` (sobre `4fee989`) | Implementado como aprovado na página "Lote 5b da identidade". **Granito:** só totaliza a carga do navio (B/L, Shipper, Navio / Viagem, Trecho, Blocos, Peso real ou, sem ele, o declarado; cartões B/Ls, Blocos e Peso; bloco Carga por viagem); sem Cliente vinculado, sem cálculo de taxas, sem Revisão nem alerta de cliente não vinculado e sem CE Mercante de Granito; Tarifas do Granito saem da tela e `/granito/taxas` redireciona (migration `325`). **Vazios de importação:** Natureza só pela seleção, coluna Manifesto Mercante com o número da rota ("Sem número" em âmbar), filtros Manifesto Mercante e POD. **Embarque de vazios:** abre na lista de embarques, Novo embarque em janela, armazenagem de 0 dia escondida; local ou serviço inativo recusado em lançamento novo (migration `326`). **Locais:** lista com o escolhido, cadastro em leitura e edição em janela, `?local=`. **Relatórios:** visão no endereço, período, Navio / Viagem e Cliente sempre abertos e os demais em "Mais filtros", coluna Taxas locais, Por Cliente e Financeiro pela mesma regra de fatura emitida, leitura paginada até 10.000 linhas por fonte com aviso (antes parava em 1.000 sem dizer). **Administração:** abas Usuários, Falhas de entrega de alertas, Histórico de ações, Sistema e Prazo do ADR; setor só em Editar acesso; "O que cada setor pode" em leitura (opção A) e a lista por pessoa em Editar acesso (C), a partir do catálogo `permissionMatrix.ts`, conferido pela bateria `permissoesPorPerfil`; papel legado `operator` recebe os alertas da Documentação e duas funções sem tela perdem o EXECUTE (migration `328`); Operações lê o e-mail de recuperação na ficha. **Ícones:** `RowActionButton` nas ações de linha de cerca de 30 telas do Vela e do Portal, com o nome no `title` e no `aria-label`. **Teste:** `docs:check`, `typecheck`, `lint`, `npm test`, `build`, `design:check` (linha de base atualizada, só quedas depois da peça nova), `a11y:contrast`, `migrations:check`; **Postgres 16 local:** `rpc:check` e `npm run test:local-pg` (109 arquivos, 1.030 testes) em banco recriado com `325` a `328`. **Runtime:** `sb-shim` e Vite com os dados de teste da proposta, as 13 vistas (Granito, Vazios, Embarque, Locais, quatro visões de Relatórios, cinco abas da Administração) a 1440, 768 e 360 px, sem rolagem lateral nem erro de console. **Não verificado:** filtros combinados de Relatórios contra PostgREST real; as demais telas com ícone no navegador; `325`, `326` e `328` no Supabase remoto. **Decisões do responsável (2026-10-19):** (1) Granito só com peso real: o declarado pelo shipper é ruído e saiu da tela, dos totais e da prévia (a leitura continua exigindo Real Weight); (2) apagar `granite_rates`: a tabela, a FK dos snapshots e `calculate_granite_bl_charges` saem, e os snapshots e faturas antigas ficam; (3) fechar `reconcile_invoice_payment_by_txid`: sem EXECUTE para `authenticated`, e a confirmação da Conciliação Pix (`confirm_unified_pix_matches`) passa a SECURITY DEFINER com a guarda de Financeiro e Administrativo; (4) Prazo do ADR conta no total o departamento que não assinou, como fora do prazo ("8 de 10"), confirmado como regra; (5) duas exceções da regra 9 mantêm o texto em tabela. A migration `329` implementa (2) e (3). **Exceção decidida da regra 9:** a ação cujo texto é a informação da coluna (Provisionamento do Portal, coluna Próxima ação) e as ações dentro do painel da linha aberta (ações de bloco ou de formulário) seguem com texto. |
+| 2026-10-19 | Lote 6a (acesso e perfil, tela 21; importações, tela 19) | `bd3eb33`, `61f61f2`, `45cc60e`, `dc2aaef`, `e9a1e39` e o commit desta entrada; `claude/fervent-shannon-6w0le9` | Implementado como aprovado na página "Lote 6a da identidade", em três frentes para as importações. **Teste:** `docs:check`, `typecheck`, `lint`, `npm test` (798 arquivos, 5.135 testes; 108 arquivos pulados sem banco), `build`, `design:check` (família `app-import` reduzida; linha de base atualizada), `a11y:contrast`, `migrations:check`, `rpc:check`; 14 suítes de importação no Postgres local (`vela_test`, 152 testes). **Runtime:** capturas a 1440 e 360 px no ambiente local dos nove modais (B/L de container, CE Mercante, Base de Clientes, datas, Veículos com e sem erro, Granito, Vazios, ZPT) e das telas de acesso; nenhuma gravação real conferida no navegador e nada aplicado no Supabase remoto. |
+| 2026-10-20 | Revisão do lote 5b (PR 987) | `claude/funny-pascal-jtadbo` (sobre `e0e38b7`) | Revisão em seis frentes (migrations, Granito, Relatórios, Vazios e Locais, Administração, ações de linha); achados corrigidos. **Banco:** migration `330` tira a escrita de `granite_bl_charges` pela API. **Granito:** sem Prontos/Faturados na Viagem, cartões "Sem dado" em erro, lista atualizada ao alterar a Viagem, filtro Modo das Tabelas de taxas sem Granito. **Relatórios:** Coberta em Pago e no filtro Paga, planilhas com Taxas locais e situação por extenso, Revisão vazia como Em ordem, aviso de limite por fonte, endereço validado, leitura paginada sem linha repetida. **Administração:** Setor bloqueado na própria linha, compensação condicional com aviso, Histórico com ADR reaberto/fechado, senha, usuário criado e coluna Registro. **Vazios:** seleção além de 1.000, filtro único e erro de manifesto visível, POL/POD pelo porto canônico, Embarque espera os Locais, `?local=` desconhecido avisa. **Ícones:** Tabelas de taxas, Condições negociadas e Gerar Invoice só com ícone; `RowActionLink`; regra 9 esclarece tabela dentro do painel e da janela. **Decisões do responsável (2026-10-20):** B/L cancelado fica fora dos cartões do Operacional (segue na tabela) e dos totais do Por Cliente; fatura parcialmente paga não entra em Pago e aparece como "Parcialmente paga" (também na coluna e no filtro Taxas locais); sem dica visível no toque para ação só com ícone; destino de transporte inativo recusado no Embarque de vazios (migration `331`, com a tela sem oferecer o serviço); "Atualizado em" da lista de embarques com a alteração da unidade (migration `332`), Natureza em lote por `afterNaturezaVaziosAlterada` e embarque legado em outra grafia do porto aberto em vez de duplicado; o modo `granito` das tabelas de taxas fica para depois. **Teste:** ver a PR. |
+| 2026-10-20 | Revisão do lote 6a e junção com o 5b | `claude/fervent-shannon-6w0le9`, PR 988 | Revisão em quatro frentes (migrations, modais, outras importações, acesso e documentos) e junção com a `staging` depois do 5b (PR 987). **Junção:** modal do Granito sem Cliente nem CNPJ e só com o peso real; CE Mercante sem o alvo Granito; Nº do manifesto dos Vazios por rota; migrations do 6a renumeradas para `333`, `334` e `335`. **Correções:** `333` e `334` com `statement_timeout` de 60 s, teto de 300 B/Ls e de 3.000 Clientes medido no Postgres local, mensagem de arquivo grande (`57014`) e gravação em ordem de B/L e de CNPJ; Razão Social comparada do mesmo jeito na tela e no banco; troca de Consignatário recusada pelo banco é a exceção ao item 3 da ADR 0092 (decisão do responsável em 2026-10-20); ZPT com data ilegível como erro e limite de tamanho como erro do arquivo; extrato do Pix com débito contábil ignorado, identificador sem valor e data ilegível como erro, e modelo para baixar; programação com linha sem navio ou sem VOY como erro; modais que não fecham durante a gravação, vazios do Baplie retomados em /baplie ("Atualizar vazios do Baplie"), Viagem e formato do manifesto BB travados depois de importar, B/L cancelado sem aceite no B/L avulso, "Nenhum B/L a importar", prévia antiga do B/L de container descartada; modelo do B/L avulso; títulos "indisponível" no Portal e Meu perfil sem dado repetido. **Teste:** `docs:check`, `typecheck`, `lint`, `migrations:check`, `rpc:check`, `a11y:contrast`, `design:check`, `build`; `npm test` (808 arquivos, 5.334 testes; 111 arquivos pulados sem banco); `npm run test:local-pg` no Postgres 16 local recriado com as 332 migrations (110 suítes, 1.050 testes). Não verificado: o tempo-limite de 60 s no Supabase e as gravações num navegador. |

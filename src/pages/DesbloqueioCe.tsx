@@ -1,12 +1,13 @@
 import { useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileSpreadsheet, History, SearchX, X } from "lucide-react";
+import { Download, FileSpreadsheet, History, RotateCcw, SearchX, X } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useCeUnlock, useCeUnlockRequest, useCeUnlockReviewQueue, useCeUnlockSituationCounts } from "../hooks/useCeUnlock";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { Block } from "../components/ui/Block";
 import { Button } from "../components/ui/Button";
+import { RowActionButton } from "../components/ui/RowActionButton";
 import { EmptyState, InlineError, PageHeader } from "../components/ui/Card";
 import { CopyValue } from "../components/ui/CopyValue";
 import { FilterBar } from "../components/ui/FilterBar";
@@ -591,7 +592,7 @@ export function DesbloqueioCe() {
       </Modal>
 
       <Modal open={manage && panel === "zpt"} title="Conciliar com a ZPT" onClose={() => setPanel(null)}>
-        <CeUnlockZptImport />
+        <CeUnlockZptImport onClose={() => setPanel(null)} />
       </Modal>
 
       <Modal open={manage && panel === "exports"} title="Planilhas enviadas à ZPT" onClose={() => setPanel(null)}>
@@ -627,22 +628,20 @@ export function DesbloqueioCe() {
                       </td>
                       <td>
                         <div className="flex justify-end gap-2">
-                          <Button
-                            variant="secondary"
-                            className="app-btn--sm"
+                          <RowActionButton
+                            label={`Baixar lote de ${ceDateTime(e.created_at)}`}
+                            title="Baixar lote"
+                            icon={Download}
                             onClick={() => void downloadCeUnlockExport({ export_id: e.id }).catch((err) => showToast(err instanceof Error ? err.message : "Falha ao baixar lote", "error"))}
-                          >
-                            <Download size={14} aria-hidden="true" />
-                            Baixar lote
-                          </Button>
-                          <Button
+                          />
+                          <RowActionButton
                             variant="ghost"
-                            className="app-btn--sm"
+                            label={`Reexportar lote de ${ceDateTime(e.created_at)}`}
+                            title="Reexportar"
+                            icon={RotateCcw}
                             disabled={exportBusy}
                             onClick={() => void exportSelected(e.rows.map((r) => r.bl_id), e.id)}
-                          >
-                            Reexportar
-                          </Button>
+                          />
                         </div>
                       </td>
                     </tr>

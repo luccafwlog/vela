@@ -9,7 +9,6 @@ import type { BL, BLContainer, BlFreightLine, Vehicle } from '../types/database'
 import { extractTaxId, type ParsedBLDocument } from './blParser'
 import { findMatchedCustomer, loadCustomerMaps, resolveCustomerLink, type CustomerMaps } from './customerReconciliation'
 import { normalizePortCode, resolvePortCode } from './portCode'
-import { calculateLocalChargesBatch } from './charges/chargeOperationsService'
 import { supabase } from './supabase'
 
 export type BlFreightImportDiff = {
@@ -358,7 +357,7 @@ export async function previewBlFreightImport(args: {
     fetchCodBlIds([...existingIds]),
     fetchOmittedPods(args.voyageId),
   ])
-  if (!selectedVoyage) throw new Error('Viagem selecionada nao encontrada.')
+  if (!selectedVoyage) throw new Error('Viagem selecionada não encontrada.')
 
   // Troca de consignatario: o preview precisa dizer de quem para quem o B/L vai
   // e o que acontece com a fatura ja emitida, antes de o operador confirmar.
@@ -446,7 +445,7 @@ export function buildBlFreightPreview({
     const blockedReasons: string[] = []
 
     if (onlyBlId && doc.blNumber !== onlyBlId) {
-      blockedReasons.push(`Arquivo contem B/L ${doc.blNumber}, mas a ficha aberta e ${onlyBlId}.`)
+      blockedReasons.push(`Arquivo contém o B/L ${doc.blNumber}, mas a ficha aberta é a do ${onlyBlId}.`)
     }
     if (!selectedVoyage) {
       blockedReasons.push('Selecione uma viagem para importar o B/L.')
@@ -481,8 +480,8 @@ export function buildBlFreightPreview({
     }
     if (!normalizeDate(doc.dates.ladenOnBoard)) {
       warnings.push(doc.dates.ladenOnBoard.trim()
-        ? `Laden on Board ilegível ("${doc.dates.ladenOnBoard.trim()}"): a data gravada não muda.`
-        : 'Laden on Board vazio no arquivo: a data gravada não muda.')
+        ? `Embarque ilegível ("${doc.dates.ladenOnBoard.trim()}"): a data gravada não muda.`
+        : 'Embarque vazio no arquivo: a data gravada não muda.')
     }
 
     const consigneeDocumentMatches = payload && existing?.manifest_customer_cnpj_cpf
@@ -600,11 +599,11 @@ export type BlImportChangeSummary = {
 }
 
 export type BlFreightImportResult = {
-  /** retorno cru da RPC de importacao, um item por lote enviado */
+  /** retorno cru da RPC de importação (o arquivo inteiro numa chamada, migration 335) */
   result: unknown[]
   containerChanges: BlImportChangeSummary[]
   vehicleChanges: BlImportChangeSummary[]
-  /** linhas da aba VIN recusadas (chassi em outro B/L, container ausente) */
+  /** linhas da aba VIN recusadas; desde a migration 335 a recusa desfaz o arquivo inteiro, então fica vazio */
   vehiclesDiscarded: Array<{ blNumber: string; chassis: string; reason: string }>
   /** B/Ls cuja mudança de veículos não foi confirmada: nada mudou nos veículos */
   vehicleChangesPending: string[]
@@ -666,7 +665,7 @@ export function readRefusedCustomerRelinks(data: unknown): RefusedCustomerRelink
     const blockers = Array.isArray(relink.blockers) ? relink.blockers.map((blocker) => String(blocker)) : []
     return [{
       blNumber: typeof relink.bl_id === 'string' ? relink.bl_id : '',
-      blockers: blockers.length ? blockers : ['Troca de consignatario recusada pelo servidor.'],
+      blockers: blockers.length ? blockers : ['Troca de consignatário recusada na gravação.'],
     }]
   })
 }
@@ -708,9 +707,35 @@ export function readLocalChargeCalculationErrors(data: unknown): LocalChargeCalc
         : ''
     const message = typeof error.message === 'string' && error.message.trim()
       ? error.message
-      : 'Erro no calculo automatico de taxas locais.'
+      : 'Erro no cálculo automático das Taxas Locais.'
     return [{ blNumber, message }]
   })
+}
+
+/**
+ * Recusa da gravação do B/L de container: nada foi gravado. `refused` lista o
+ * que o banco recusou (hoje, linhas da aba VIN), para a tela mostrar.
+ */
+export class BlFreightImportRefused extends Error {
+  readonly refused: string[]
+  constructor(message: string, refused: string[] = [], options?: { cause?: unknown }) {
+    super(message, options)
+    this.name = 'BlFreightImportRefused'
+    this.refused = refused
+  }
+}
+
+/** Linhas da aba VIN que o banco recusou, no DETAIL da recusa (migration 335). */
+function readRefusedVehicles(detail: unknown): string[] {
+  if (typeof detail !== 'string' || !detail.trim()) return []
+  try {
+    const parsed = JSON.parse(detail) as unknown
+    if (!Array.isArray(parsed)) return []
+    return readImportChanges({ vehicles_discarded: parsed }).vehiclesDiscarded
+      .map((entry) => `${entry.blNumber} — VIN ${entry.chassis}: ${entry.reason}`)
+  } catch {
+    return []
+  }
 }
 
 export async function confirmBlFreightImport(
@@ -722,18 +747,30 @@ export async function confirmBlFreightImport(
   confirmCustomerChange = false,
   confirmVehicleChanges = false,
 ): Promise<BlFreightImportResult> {
+  // ADR 0092: B/L bloqueado é erro do arquivo e recusa a importação inteira;
+  // nenhum B/L liberado é gravado sem os outros.
+  const blocked = preview.rows.filter((row) => row.status === 'blocked' || !row.payload)
+  if (blocked.length) {
+    throw new BlFreightImportRefused(
+      `Nada foi gravado: ${blocked.length === 1 ? 'o B/L' : 'os B/Ls'} ${blocked.map((row) => row.blNumber).join(', ')} ${blocked.length === 1 ? 'está bloqueado' : 'estão bloqueados'}. Corrija o arquivo e escolha de novo.`,
+    )
+  }
+  if (!preview.rows.length) throw new BlFreightImportRefused('Nada foi gravado: o arquivo não tem B/L.')
   // Contêiner que sai levando os veículos só sai com a lista confirmada: sem
-  // ela a gravação recusa o lote inteiro (migration 175, P0006). Nada é
+  // ela a gravação recusa o arquivo inteiro (migration 175, P0006). Nada é
   // enviado antes de o operador confirmar.
   const awaitingVehicles = confirmVehicleChanges
     ? []
     : preview.rows.filter((row) => row.payload && row.vehicleConfirmationRequiredFor?.length)
   if (awaitingVehicles.length) {
-    throw new Error(`Confirme a lista de veículos da aba VIN: ${describeVehicleConfirmationRequired(awaitingVehicles)}. Nada foi gravado.`)
+    throw new BlFreightImportRefused(`Nada foi gravado: confirme a lista de veículos da aba VIN (${describeVehicleConfirmationRequired(awaitingVehicles)}).`)
   }
   const overrides = (blNumber: string) => (typeof overrideBilling === 'boolean' ? overrideBilling : overrideBilling.has(blNumber))
   // Troca de Consignatário de B/L que já tem Cliente, sem aceite (ou impedida
-  // na prévia): o consignatário gravado fica e o resultado avisa.
+  // na prévia): o consignatário gravado fica e o resultado avisa. É decisão de
+  // campo, não erro de linha: o B/L entra com os demais campos. O mesmo vale
+  // para a troca aceita que o banco recusa (`customer_relinks`): exceção
+  // registrada no item 3 da ADR 0092, não desfaz o arquivo.
   const keptCustomer = new Set<string>()
   const payload = preview.rows.flatMap((row) => {
     if (!row.payload) return []
@@ -754,155 +791,59 @@ export async function confirmBlFreightImport(
     if (!row.requiresCustomerConfirmation) return [base]
     return [{ ...base, relink_customer: confirmCustomerChange }]
   })
-  if (!payload.length) {
-    throw new Error('Nenhum B/L liberado para importar.')
-  }
 
   // Mantém os dados extraídos do B/L para a revisão oferecer como sugestão;
   // o cadastro e a vinculação só ocorrem após confirmação do usuário. Quando
-  // o lote tem uma viagem, o wrapper grava B/L + batch + efeito recuperável na
-  // mesma transação. O caminho sem viagem continua avulso (ADR 0017).
+  // o arquivo tem uma viagem, a gravação registra o batch e calcula as taxas
+  // na mesma transação. O caminho sem viagem continua avulso (ADR 0017).
   const voyageId = payload.find((bl) => bl.voyage_id != null)?.voyage_id ?? null
-  const usesBatchContract = voyageId != null
-  const results: unknown[] = []
-  const changes: ReturnType<typeof readImportChanges> = { containerChanges: [], vehicleChanges: [], vehiclesDiscarded: [], vehicleChangesPending: [] }
-  const refusedCustomerRelinks: RefusedCustomerRelink[] = []
-  const calculationErrors: LocalChargeCalculationError[] = []
-  let imported = 0
-  // ponytail: o custo da RPC cresce com os contêineres (insert + triggers,
-  // flags do Baplie e cálculo de taxas, ~8 ms/contêiner medido em 08/10/2026)
-  // e o papel authenticated corta a chamada em 8 s (57014). Lotes limitados
-  // por B/Ls e por contêineres cabem com folga; cada lote e uma transacao,
-  // entao uma falha no meio preserva os anteriores (reimportar e idempotente).
-  // Teto: um único B/L com ~900+ contêineres ainda não cabe numa chamada.
-  // Upgrade: calculo de taxas e flags do Baplie fora da transacao.
-  const existingContainers = new Map(preview.rows.flatMap((row) => (
-    row.payload && row.existingContainerNumbers?.length ? [[row.payload.id, row.existingContainerNumbers] as const] : []
-  )))
-  const { chunks, recalculateAfter } = chunkBlPayload(payload, existingContainers)
-  for (const chunk of chunks) {
-    const { data: rawData, error } = usesBatchContract
-      ? await supabase.rpc('import_bl_freight_with_metadata', {
-          p_bls: chunk,
-          p_changed_by: changedBy,
-          p_batch: {
-            filename,
-            voyage_id: voyageId,
-            cargo_mode: 'container',
-          },
-        })
-      : await supabase.rpc('import_bl_freight_transactional', {
-          p_bls: chunk,
-          p_changed_by: changedBy,
-        })
-    if (error) {
-      const reason = extractErrorText(error) || 'erro desconhecido'
-      throw new Error(imported
-        ? `${imported} de ${payload.length} B/L(s) foram importados; os demais falharam (${reason}). Importe o arquivo de novo para concluir.`
-        : `Falha ao importar B/L: ${reason}`, { cause: error })
+  // ADR 0092: o arquivo inteiro numa chamada e numa transação (migration 335).
+  // Antes dela a tela mandava lotes de 20 B/Ls / 300 contêineres, cada um uma
+  // transação, para caber nos 8 s do papel authenticated; uma falha no meio
+  // deixava os lotes anteriores gravados.
+  // ponytail: a RPC declara `statement_timeout = 60s`, que o PostgREST aplica à
+  // transação da chamada; a ~8 ms por contêiner (medido em 08/10/2026), o teto
+  // é de uns 7.000 contêineres por arquivo (uns 1.000 se o tempo da função não
+  // valer). Acima disso a chamada é cancelada e nada é gravado. Upgrade: gravar
+  // em etapas numa tabela de preparo e publicar tudo numa RPC final, ou tirar o
+  // cálculo das taxas e as flags do Baplie da transação.
+  const { data: rawData, error } = await supabase.rpc('import_bl_freight_file_atomic' as never, {
+    p_bls: payload,
+    p_changed_by: changedBy,
+    p_batch: voyageId != null ? { filename, voyage_id: voyageId, cargo_mode: 'container' } : null,
+  } as never)
+  if (error) {
+    const raw = error as { code?: string; hint?: string; details?: unknown }
+    if (raw.hint === 'vehicles_discarded') {
+      throw new BlFreightImportRefused(
+        'Nada foi gravado: o banco recusou veículos da aba VIN. Corrija o arquivo e escolha de novo.',
+        readRefusedVehicles(raw.details),
+        { cause: error },
+      )
     }
-    const wrapped = rawData as { result?: unknown; calculation_errors?: unknown } | null
-    const data = usesBatchContract && wrapped && 'result' in wrapped ? wrapped.result : rawData
-    results.push(data)
-    const chunkChanges = readImportChanges(data)
-    changes.containerChanges.push(...chunkChanges.containerChanges)
-    changes.vehicleChanges.push(...chunkChanges.vehicleChanges)
-    changes.vehiclesDiscarded.push(...chunkChanges.vehiclesDiscarded)
-    changes.vehicleChangesPending.push(...chunkChanges.vehicleChangesPending)
-    refusedCustomerRelinks.push(...readRefusedCustomerRelinks(data))
-    for (const blNumber of readCustomerChangesIgnored(data)) keptCustomer.add(blNumber)
-    if (usesBatchContract && wrapped) calculationErrors.push(...readLocalChargeCalculationErrors(wrapped.calculation_errors))
-    imported += chunk.length
+    if (raw.code === '57014') {
+      throw new BlFreightImportRefused(
+        'Nada foi gravado: o arquivo é grande demais para gravar de uma vez. Divida os B/Ls em arquivos menores e importe cada um.',
+        [],
+        { cause: error },
+      )
+    }
+    throw new BlFreightImportRefused(`Nada foi gravado: ${extractErrorText(error) || 'erro desconhecido'}.`, [], { cause: error })
   }
+  const wrapped = rawData as { result?: unknown; calculation_errors?: unknown } | null
+  const data = wrapped && typeof wrapped === 'object' && 'result' in wrapped ? wrapped.result : rawData
+  const changes = readImportChanges(data)
+  for (const blNumber of readCustomerChangesIgnored(data)) keptCustomer.add(blNumber)
 
-  // Grupo de contêiner compartilhado partido entre lotes: os primeiros lotes
-  // calcularam antes de os irmãos existirem; recalcula com o rateio completo.
-  // Os lotes já foram gravados: falha aqui é aviso de cálculo, não de importação.
-  if (usesBatchContract && recalculateAfter.length) {
-    const ids = recalculateAfter.map((bl) => bl.id)
-    const superseded = new Set(ids.map((id) => id.toUpperCase()))
-    const kept = calculationErrors.filter((error) => !superseded.has(error.blNumber.toUpperCase()))
-    calculationErrors.length = 0
-    calculationErrors.push(...kept)
-    try {
-      const recalculation = await calculateLocalChargesBatch(ids, { actorId: changedBy })
-      calculationErrors.push(...recalculation.errors.map((error) => ({ blNumber: error.blId, message: error.message })))
-    } catch (error) {
-      const message = `Recalculo apos a importacao falhou: ${extractErrorText(error) || 'erro desconhecido'}`
-      calculationErrors.push(...ids.map((blNumber) => ({ blNumber, message })))
-    }
+  return {
+    result: [data],
+    ...changes,
+    refusedCustomerRelinks: readRefusedCustomerRelinks(data),
+    customerChangesIgnored: [...keptCustomer].sort(),
+    // Passo técnico depois da gravação (ADR 0092, D2): falha no cálculo não
+    // desfaz a importação; a ficha do B/L recalcula.
+    calculationErrors: readLocalChargeCalculationErrors(wrapped?.calculation_errors),
   }
-
-  return { result: results, ...changes, refusedCustomerRelinks, customerChangesIgnored: [...keptCustomer].sort(), calculationErrors }
-}
-
-const BL_IMPORT_CHUNK_SIZE = 20
-const BL_IMPORT_CHUNK_CONTAINER_BUDGET = 300
-
-/**
- * Divide o payload em lotes de até 20 B/Ls e até 300 contêineres. B/Ls que
- * compartilham contêiner vão no mesmo lote: o cálculo divide o contêiner pelos
- * B/Ls já gravados, e um irmão em lote posterior deixaria o anterior cobrando
- * o contêiner inteiro. Grupo acima dos limites é partido e volta em
- * `recalculateAfter`; um B/L sozinho acima do orçamento vai num lote próprio.
- */
-export function chunkBlPayload<T extends { id: string; containers?: unknown[] }>(
-  payload: T[],
-  existingContainers: ReadonlyMap<string, readonly string[]> = new Map(),
-  maxBls = BL_IMPORT_CHUNK_SIZE,
-  containerBudget = BL_IMPORT_CHUNK_CONTAINER_BUDGET,
-): { chunks: T[][]; recalculateAfter: T[] } {
-  // agrupa por contêiner compartilhado (union-find), preservando a ordem do arquivo
-  const parent = payload.map((_, index) => index)
-  const find = (index: number): number => (parent[index] === index ? index : (parent[index] = find(parent[index])))
-  const owner = new Map<string, number>()
-  const incomingNumbers = (bl: T) => (bl.containers ?? []).flatMap((container) => {
-    const number = (container as { container_number?: unknown } | null)?.container_number
-    return typeof number === 'string' && number ? [number] : []
-  })
-  // custo da reimportação: apaga o conjunto atual e grava o novo
-  const weight = (bl: T) => Math.max(bl.containers?.length ?? 0, existingContainers.get(bl.id)?.length ?? 0)
-  payload.forEach((bl, index) => {
-    // vínculo atual também conta: o irmão que perde o contêiner muda o rateio do outro
-    for (const number of [...incomingNumbers(bl), ...(existingContainers.get(bl.id) ?? [])]) {
-      const previous = owner.get(number)
-      if (previous === undefined) owner.set(number, index)
-      else parent[find(index)] = find(previous)
-    }
-  })
-  const groups = new Map<number, T[]>()
-  payload.forEach((bl, index) => {
-    const root = find(index)
-    groups.set(root, [...(groups.get(root) ?? []), bl])
-  })
-
-  const chunks: T[][] = []
-  const recalculateAfter: T[] = []
-  let current: T[] = []
-  let containers = 0
-  const place = (bls: T[]) => {
-    const count = bls.reduce((total, bl) => total + weight(bl), 0)
-    if (current.length && (current.length + bls.length > maxBls || containers + count > containerBudget)) {
-      chunks.push(current)
-      current = []
-      containers = 0
-    }
-    current.push(...bls)
-    containers += count
-  }
-  for (const group of groups.values()) {
-    const count = group.reduce((total, bl) => total + weight(bl), 0)
-    // Grupo acima dos limites é partido em ordem para não estourar o timeout;
-    // quem o chama recalcula esses B/Ls depois do último lote.
-    if (group.length > maxBls || count > containerBudget) {
-      group.forEach((bl) => place([bl]))
-      recalculateAfter.push(...group)
-    } else {
-      place(group)
-    }
-  }
-  if (current.length) chunks.push(current)
-  return { chunks, recalculateAfter }
 }
 
 export function buildBlFreightPayload(doc: ParsedBLDocument, voyageId: number | null): BlFreightRpcPayload {
@@ -1361,7 +1302,7 @@ export const BL_FREIGHT_DIFF_LABELS: Record<string, string> = {
   cargo_description: 'Descricao da carga (origem do NCM)',
   total_packages: 'Total de packages',
   packages_unit: 'Unidade dos packages',
-  consignee_phone: 'Telefone do consignatario',
+  consignee_phone: 'Telefone do consignatário',
   pol: 'POL',
   pod: 'POD',
   place_of_delivery: 'Place of Delivery',
@@ -1371,9 +1312,9 @@ export const BL_FREIGHT_DIFF_LABELS: Record<string, string> = {
   issue_place: 'Local de emissao',
   payment_type: 'Pagamento do frete',
   bl_emission_date: 'Data de emissao',
-  manifest_customer_cnpj_cpf: 'CNPJ/CPF do consignatario',
-  manifest_customer_name: 'Razao social do consignatario',
-  manifest_customer_email: 'E-mail do consignatario',
+  manifest_customer_cnpj_cpf: 'CNPJ/CPF do consignatário',
+  manifest_customer_name: 'Razão social do consignatário',
+  manifest_customer_email: 'E-mail do consignatário',
   ncm_codes: 'NCM',
   total_weight_kg: 'Peso total (kg)',
   total_cbm: 'CBM total',
@@ -1516,7 +1457,7 @@ function describeCustomerChange(
   const blockedReasons: string[] = []
 
   messages.push(
-    `Cliente do B/L: ${current?.name ?? existing.manifest_customer_name ?? 'sem vinculo'} -> ${next?.name ?? payload.manifest_customer_name ?? 'cliente nao cadastrado'}`,
+    `Cliente do B/L: ${current?.name ?? existing.manifest_customer_name ?? 'sem vínculo'} -> ${next?.name ?? payload.manifest_customer_name ?? 'cliente não cadastrado'}`,
   )
   if (documentChanged) {
     messages.push(`CNPJ/CPF: ${existing.manifest_customer_cnpj_cpf ?? '-'} -> ${payload.manifest_customer_cnpj_cpf ?? '-'}`)
@@ -1545,10 +1486,10 @@ function describeCustomerChange(
     // demurrage ou recebivel — e nao ha cliente de destino cadastrado.
     if (invoiceRows.length || liveReceivables.length) {
       blockedReasons.push(
-        'Cliente do novo consignatario nao esta cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.',
+        'Cliente do novo consignatário não está cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.',
       )
     } else {
-      messages.push('B/L volta para reconciliacao de cliente ate o novo consignatario ser cadastrado.')
+      messages.push('B/L volta para a reconciliação de Cliente até o novo consignatário ser cadastrado.')
     }
   } else if (invoiceRows.length) {
     messages.push(
@@ -1844,12 +1785,12 @@ function getDeclaredVoyageMismatchReason(doc: ParsedBLDocument, selectedVoyage: 
     && normalizeText(doc.route.voyage) !== normalizeText(selectedVoyage.voyageNumber),
   )
   if (!vesselMismatch && !voyageMismatch) return null
-  return `Arquivo e da viagem ${formatVoyageRef(doc.route.vessel, doc.route.voyage)}, mas voce apontou ${formatVoyageRef(selectedVoyage.vesselName, selectedVoyage.voyageNumber)}.`
+  return `Arquivo é da viagem ${formatVoyageRef(doc.route.vessel, doc.route.voyage)}, mas você apontou ${formatVoyageRef(selectedVoyage.vesselName, selectedVoyage.voyageNumber)}.`
 }
 
 function formatVoyageRef(vessel?: string | null, voyage?: string | null) {
-  const vesselLabel = String(vessel ?? '').trim() || 'Navio nao informado'
-  const voyageLabel = String(voyage ?? '').trim() || 'viagem nao informada'
+  const vesselLabel = String(vessel ?? '').trim() || 'Navio não informado'
+  const voyageLabel = String(voyage ?? '').trim() || 'viagem não informada'
   return `${vesselLabel} / ${voyageLabel}`
 }
 

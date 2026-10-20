@@ -688,6 +688,7 @@ function mapGraniteInvoiceBls(invoiceId: number, links: GraniteInvoiceLink[]): I
     subtotal_brl: Number(link.subtotal_brl ?? 0),
     subtotal_usd: 0,
     created_at: link.created_at,
+    container_shares: [],
     pol: link.granite_bl?.loading_port ?? null,
     pod: link.granite_bl?.discharge_port ?? null,
     voyage_number: link.granite_bl?.manifest?.voyage?.voyage_number ?? null,
@@ -736,6 +737,7 @@ function mapConsolidatedInvoiceBls(
       subtotal_brl: Number(link.subtotal_brl ?? 0),
       subtotal_usd: 0,
       created_at: link.created_at,
+    container_shares: [],
       pol: snapshot.pol ?? null,
       pod: snapshot.pod ?? null,
       voyage_number: voyage?.voyage_number ?? null,
@@ -798,6 +800,7 @@ function buildConsolidatedInvoiceItems(
         billing_run_id: null,
         calculation_key: null,
         snapshot_payload: null,
+        charge_calculation_snapshot: null,
       }]
     }
 
@@ -821,6 +824,7 @@ function buildConsolidatedInvoiceItems(
       billing_run_id: null,
       calculation_key: charge.calculation_key,
       snapshot_payload: null,
+        charge_calculation_snapshot: null,
     }))
   })
 }

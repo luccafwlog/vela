@@ -1,7 +1,8 @@
 import { useId, useRef, useState, type ReactNode } from "react";
-import { ExternalLink, FileText, Upload } from "lucide-react";
+import { ExternalLink, FileText, Upload, type LucideIcon } from "lucide-react";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
+import { RowActionButton } from "../ui/RowActionButton";
 import { InlineError } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { NoValue } from "../ui/NoValue";
@@ -65,6 +66,7 @@ export function CeUnlockFileButton({
   loading,
   loadingLabel,
   ariaLabel,
+  icon,
 }: {
   children: ReactNode;
   /** Nome do campo oculto (leitor de tela e testes). */
@@ -77,21 +79,35 @@ export function CeUnlockFileButton({
   loading?: boolean;
   loadingLabel?: string;
   ariaLabel?: string;
+  /** Em linha de tabela, só o ícone (regra 9); `ariaLabel` vira o nome e o `title`. */
+  icon?: LucideIcon;
 }) {
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
-      <Button
-        variant={variant}
-        className={className}
-        disabled={disabled}
-        loading={loading}
-        loadingLabel={loadingLabel}
-        aria-label={ariaLabel}
-        onClick={() => input.current?.click()}
-      >
-        {children}
-      </Button>
+      {icon && ariaLabel ? (
+        <RowActionButton
+          variant={variant}
+          className={className}
+          label={ariaLabel}
+          icon={icon}
+          disabled={disabled}
+          loading={loading}
+          onClick={() => input.current?.click()}
+        />
+      ) : (
+        <Button
+          variant={variant}
+          className={className}
+          disabled={disabled}
+          loading={loading}
+          loadingLabel={loadingLabel}
+          aria-label={ariaLabel}
+          onClick={() => input.current?.click()}
+        >
+          {children}
+        </Button>
+      )}
       <input
         ref={input}
         type="file"

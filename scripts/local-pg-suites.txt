@@ -69,6 +69,7 @@ src/integration/veiculosRegras.local-pg.test.ts
 src/integration/baseClientesVinculo.local-pg.test.ts
 src/integration/granitoReimportacao.local-pg.test.ts
 src/integration/vaziosReimportacao.local-pg.test.ts
+src/integration/vaziosLocalServicoInativo.local-pg.test.ts
 src/integration/programacaoPlanilha.local-pg.test.ts
 src/integration/rastroImportacoes.local-pg.test.ts
 src/integration/correcoesRevisaoImportacoes.local-pg.test.ts
@@ -112,3 +113,6 @@ src/integration/monitoramentoDosEmails.local-pg.test.ts
 src/integration/rotinasHttpComErro.local-pg.test.ts
 src/integration/pendenciaGeralPortalSemDuplicata.local-pg.test.ts
 src/integration/alertasSemRepetirRegistro.local-pg.test.ts
+src/integration/alertasPapelOperator.local-pg.test.ts
+src/integration/granitoSemCliente.local-pg.test.ts
+src/integration/importacaoLoteUnico.local-pg.test.ts

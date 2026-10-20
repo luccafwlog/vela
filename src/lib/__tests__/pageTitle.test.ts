@@ -14,15 +14,15 @@ describe('routeTitle (WCAG 2.4.2 — título por rota)', () => {
   it('prioriza rotas específicas sobre genéricas', () => {
     expect(routeTitle('/demurrage/taxas')).toBe('Tarifas de Demurrage · Vela')
     expect(routeTitle('/demurrage')).toBe('Demurrage · Vela')
-    expect(routeTitle('/embarquevazios/depots')).toBe('Cadastro de Terminais · Vela')
-    expect(routeTitle('/embarquevazios')).toBe('Embarque de Vazios · Vela')
+    expect(routeTitle('/embarquevazios/depots')).toBe('Locais (depots e terminais) · Vela')
+    expect(routeTitle('/embarquevazios')).toBe('Embarque de vazios · Vela')
     expect(routeTitle('/bls/COSU6401234501')).toBe('Detalhe do B/L · Vela')
     expect(routeTitle('/bls')).toBe('B/Ls · Vela')
     expect(routeTitle('/clientes/12.345.678/0001-90')).toBe('Ficha do Cliente · Vela')
     // /clientes/portal casava com o padrão de CNPJ e era titulado "Ficha do Cliente".
     expect(routeTitle('/clientes/portal')).toBe('Clientes · Provisionamento do Portal · Vela')
     expect(routeTitle('/admin')).toBe('Administração · Vela')
-    expect(routeTitle('/admin/logs')).toBe('Administração · Log de Ações · Vela')
+    expect(routeTitle('/admin/historico')).toBe('Administração · Histórico de ações · Vela')
   })
 
   it('distingue portal de app interno', () => {

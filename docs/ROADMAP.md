@@ -28,7 +28,7 @@ substituem este baseline.
 - Vazios de Importação por Baplie ou planilha;
 - Embarque de Vazios por escala, com Unidades Embarcadas importadas e Linhas de Serviço lançadas ([BLs & EDI](modules/manifesto-edi.md); ADR 0033);
 - projeção unificada de escalas POL/POD/EXP, com operação por terminal;
-- Cadastro de Terminais com valores sugeridos ([BLs & EDI](modules/manifesto-edi.md));
+- Locais (depots e terminais) com valores sugeridos ([BLs & EDI](modules/manifesto-edi.md));
 - ADR por terminal com sign-off departamental e Prazo de Conclusão ([Operação & Suporte](modules/operacao-suporte.md));
 - fluxo especializado de Granito;
 - fila de revisão operacional e reconciliação de cliente;

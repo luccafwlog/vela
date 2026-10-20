@@ -115,7 +115,7 @@ it("pagamento perdido entre seleção e envio: mostra o erro e a lista atualizad
   expect(await screen.findByText("Em aberto")).toBeTruthy();
   // O motivo longo não se repete na linha: a coluna Taxas locais já diz.
   expect(screen.queryByText(/sem liquidação integral/)).toBeNull();
-  expect(screen.getByRole("link", { name: "Ver faturas" }).getAttribute("href")).toBe("/portal/billing");
+  expect(screen.getByRole("link", { name: /^Ver faturas do B\/L / }).getAttribute("href")).toBe("/portal/billing");
   // O BL inelegível continua marcado, mas pode ser retirado da seleção.
   const box = screen.getByLabelText("Selecionar B/L BL-A") as HTMLInputElement;
   expect(box.disabled).toBe(false);
@@ -215,7 +215,7 @@ it("URL de inspeção carrega o Portal do Cliente em modo somente leitura", asyn
   const box = await screen.findByLabelText("Selecionar B/L BL-A");
   expect(box.hasAttribute("disabled")).toBe(true);
   expect(screen.queryByRole("button", { name: /Pedir desbloqueio/ })).toBeNull();
-  expect(screen.getByRole("link", { name: "Ver faturas" }).getAttribute("href")).toBe("/clientes/portal/inspecao/7/billing");
+  expect(screen.getByRole("link", { name: /^Ver faturas do B\/L / }).getAttribute("href")).toBe("/clientes/portal/inspecao/7/billing");
   expect(svc.listPortalCeUnlockBls).toHaveBeenCalledWith(expect.objectContaining({ mode: "inspect", customerId: 7 }), expect.anything(), 1);
 });
 

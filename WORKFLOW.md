@@ -193,7 +193,7 @@ Não existe sessão alternativa por senha armazenada em tabela. O acesso anônim
 nenhuma função é executável antes do login: `portal_ship_schedule()`, a última
 exceção da [ADR 0047](./docs/adr/0047-grants-de-funcao-fechados-por-padrao.md),
 fechou na migration `320` ([ADR 0090](./docs/adr/0090-programacao-de-navios-so-com-sessao.md)),
-e desde a `333` recusa conta `authenticated` sem perfil interno ativo nem conta
+e desde a `337` recusa conta `authenticated` sem perfil interno ativo nem conta
 ativa do Portal.
 
 ## 3. Estrutura do repositório
@@ -861,6 +861,24 @@ PRs de forks são ignoradas pelo provisionamento porque não podem receber esses
 secrets nesse workflow. A disponibilidade de Preview remoto deve ser conferida
 na integração, não inferida da existência da PR.
 
+### Promoção da staging para a main
+
+PR de feature abre contra `staging`. O check `main-only-from-staging`
+(`.github/workflows/main-only-from-staging.yml`) falha quando a PR contra a
+`main` não vem da branch `staging` deste repositório. O merge de uma PR na
+`staging` dispara `.github/workflows/staging-to-main-pr.yml`, que abre a PR
+`staging` → `main` ou atualiza a que já estiver aberta. O merge na `main`
+continua manual: é esse push que publica a produção. A lista de PRs no corpo
+sai do assunto dos commits (`título (#n)` ou `Merge pull request #n`).
+
+O secret de repositório `STAGING_TO_MAIN_TOKEN` (PAT fine-grained só deste
+repositório, Contents em leitura e Pull requests em escrita) faz o CI dessa PR
+começar sozinho. Sem ele, o workflow usa o `GITHUB_TOKEN` e o CI fica
+esperando aprovação. Marcar o check como obrigatório, trocar a branch padrão
+para `staging` e criar o secret são passos do dono, fora do workflow. Regra
+em [ADR 0091](docs/adr/0091-promocao-feature-staging-main.md) e em
+[Deploy](docs/setup/deploy.md#workflows).
+
 ### Push em main
 
 O CI não roda de novo depois do merge. `cloudflare-pages-production.yml`
@@ -868,7 +886,10 @@ começa no próprio push em `main` e, antes de publicar, espera o check do app
 `supabase` no commit (`scripts/wait-supabase-migrations.mjs`): verde publica;
 vermelho, cancelado ou estourado recusa; pulado, ou sem check em 10 min, só
 publica se o push não mudar `supabase/migrations/`, e senão pede conferência no
-painel do Supabase e publicação manual (`workflow_dispatch`, que não espera). O
+painel do Supabase e publicação manual (`workflow_dispatch`, que não espera). No
+push em `staging`, o mesmo passo também confere na Management API se as
+migrations do push já estão na branch Supabase do staging antes de recusar um
+check pulado ([Deploy](docs/setup/deploy.md#staging-persistente)). O
 environment `cloudflare-production` fornece as variáveis públicas do build. O
 login com o usuário fixo numa preview só deve ser tentado depois que
 `Provision Preview Admin` estiver verde.

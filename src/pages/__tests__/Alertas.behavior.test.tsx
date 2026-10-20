@@ -119,24 +119,25 @@ it('toda linha tem "Resolver", que leva ao lugar da resolução, e "Dispensar" p
   renderAlertas()
 
   const container = rowOf('Container vencendo')
-  const resolve = within(container).getByRole('button', { name: 'Resolver' })
+  const resolve = within(container).getByRole('button', { name: /^Resolver / })
+  expect(resolve.getAttribute('aria-label')).toBe('Resolver Demurrage · CNTR1')
   expect(resolve.getAttribute('title')).toBe('Ver Demurrage')
   fireEvent.click(resolve)
   expect(navigate).toHaveBeenCalledWith('/demurrage?busca=CNTR1')
-  expect(within(container).getByRole('button', { name: 'Dispensar' })).toBeTruthy()
+  expect(within(container).getByRole('button', { name: /^Dispensar / })).toBeTruthy()
 
-  fireEvent.click(within(rowOf('Cliente VALE: 5 B/Ls pendentes de vínculo com cliente')).getByRole('button', { name: 'Resolver' }))
+  fireEvent.click(within(rowOf('Cliente VALE: 5 B/Ls pendentes de vínculo com cliente')).getByRole('button', { name: /^Resolver / }))
   expect(navigate).toHaveBeenCalledWith('/revisao?cliente=VALE')
 
   // Alerta antigo, sem item: não dispensa.
-  expect(within(rowOf('Portal sem email para fatura')).queryByRole('button', { name: 'Dispensar' })).toBeNull()
+  expect(within(rowOf('Portal sem email para fatura')).queryByRole('button', { name: /^Dispensar/ })).toBeNull()
 })
 
 it('A23: nos alertas de conferência sem fato de origem, "Resolver" abre a justificativa', async () => {
   confirmWithReason.mockResolvedValue(null)
   renderAlertas()
 
-  fireEvent.click(within(rowOf('CE trocado depois do Desbloqueio')).getByRole('button', { name: 'Resolver' }))
+  fireEvent.click(within(rowOf('CE trocado depois do Desbloqueio')).getByRole('button', { name: /^Resolver / }))
   await waitFor(() => expect(confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({
     title: 'Resolver com justificativa',
     confirmLabel: 'Resolver',
@@ -166,7 +167,7 @@ it('sincroniza o filtro de setor a partir da URL e faz fallback para valores des
 it('janela de dispensa: peça comum, data mínima futura, botão com a data e campos limpos ao voltar', () => {
   renderAlertas()
 
-  fireEvent.click(within(rowOf('Container vencendo')).getByRole('button', { name: 'Dispensar' }))
+  fireEvent.click(within(rowOf('Container vencendo')).getByRole('button', { name: /^Dispensar / }))
   const dialog = screen.getByRole('dialog')
   expect(dialog.getAttribute('aria-modal')).toBe('true')
   expect(within(dialog).getByText(/não resolve a pendência/)).toBeTruthy()
@@ -182,7 +183,7 @@ it('janela de dispensa: peça comum, data mínima futura, botão com a data e ca
   fireEvent.click(within(dialog).getByRole('button', { name: 'Voltar' }))
   expect(screen.queryByRole('dialog')).toBeNull()
 
-  fireEvent.click(within(rowOf('Container vencendo')).getByRole('button', { name: 'Dispensar' }))
+  fireEvent.click(within(rowOf('Container vencendo')).getByRole('button', { name: /^Dispensar / }))
   expect((screen.getByLabelText('Motivo') as HTMLTextAreaElement).value).toBe('')
 })
 

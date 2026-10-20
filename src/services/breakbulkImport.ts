@@ -84,25 +84,22 @@ export async function importBreakbulkManifest({
   voyageId,
   manifest,
   uploadedBy,
-  allowRowErrors = false,
   approval = NO_BREAKBULK_APPROVAL,
 }: {
   filename: string
   voyageId: number
   manifest: BreakbulkImportManifest
   uploadedBy: string
-  /** Permite persistir as linhas válidas quando o preview tem erros de linha. */
-  allowRowErrors?: boolean
   /**
    * Trocas de Consignatário e rotas de B/L faturado confirmadas na prévia: o
    * CNPJ do arquivo passa a valer e a rota faturada também é corrigida.
    */
   approval?: BreakbulkApproval
 }): Promise<BreakbulkImportResult> {
-  // Só divergência bloqueante impede a importação. Um aviso de conferência
-  // (separador decimal ambíguo, por exemplo) viaja para o lote como registro,
-  // mas não exige override do operador.
-  if (hasBlockingRowErrors(manifest.rowErrors) && !allowRowErrors) {
+  // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo
+  // inteiro. Um aviso de conferência (separador decimal ambíguo, B/L
+  // cancelado) viaja para o lote como registro e não impede a gravação.
+  if (hasBlockingRowErrors(manifest.rowErrors)) {
     throw new Error(formatBreakbulkRowErrors(manifest.rowErrors.filter((rowError) => (rowError.severity ?? 'error') === 'error')))
   }
 
@@ -178,7 +175,7 @@ export async function importBreakbulkManifest({
   const raw = (data ?? {}) as RawBreakbulkImportResult
   const batchId = Number(raw.batch_id)
   if (!Number.isFinite(batchId) || batchId <= 0) {
-    throw new Error('A importacao BB nao retornou um lote valido.')
+    throw new Error('A importação BB não retornou um lote válido.')
   }
 
   // A RPC BB nao calcula taxas locais (a de container calcula); sem isto o B/L
@@ -549,6 +546,6 @@ export async function withBreakbulkReimportCheck(
 function formatBreakbulkRowErrors(rowErrors: ParsedBreakbulkManifest['rowErrors']): string {
   const shown = rowErrors.slice(0, 20).map((error) => `Linha ${error.row}: ${error.message}`)
   const hidden = rowErrors.length - shown.length
-  if (hidden > 0) shown.push(`... e mais ${hidden} linha${hidden === 1 ? '' : 's'} com divergências.`)
-  return shown.join('\n')
+  if (hidden > 0) shown.push(`... e mais ${hidden} linha${hidden === 1 ? '' : 's'} com erro.`)
+  return [`Nada foi gravado: ${rowErrors.length === 1 ? 'uma linha tem erro' : `${rowErrors.length} linhas têm erro`}.`, ...shown].join('\n')
 }

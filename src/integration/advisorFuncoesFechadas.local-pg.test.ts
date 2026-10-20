@@ -80,7 +80,7 @@ describeLocal('320 — funções fechadas, search_path fixo e índices de FK', (
   it('programação de navios só com sessão: anon recebe 42501, authenticated tem EXECUTE', () => {
     const anon = asRole('anon', 'SELECT count(*) FROM public.portal_ship_schedule()')
     expect(anon.error).toMatch(/permission denied for function portal_ship_schedule/)
-    // Quem lê, além do grant, é decidido pela guarda da migration 333 (abaixo).
+    // Quem lê, além do grant, é decidido pela guarda da migration 337 (abaixo).
     expect(psql(`SELECT has_function_privilege('authenticated', 'public.portal_ship_schedule()', 'EXECUTE');`)).toBe('t')
   })
 
@@ -149,19 +149,19 @@ describeLocal('320 — funções fechadas, search_path fixo e índices de FK', (
   })
 })
 
-// Migration 333 (auditoria defensiva de 2026-10-19, ADR 0090): EXECUTE para
+// Migration 337 (auditoria defensiva de 2026-10-19, ADR 0090): EXECUTE para
 // `authenticated` não basta. Com o cadastro do Auth aberto, qualquer pessoa
 // tinha conta `authenticated` sem perfil interno nem conta do Portal.
-const INTERNAL_ACTIVE = '33300000-0000-4000-8000-000000000001'
-const INTERNAL_INACTIVE = '33300000-0000-4000-8000-000000000002'
-const PORTAL_ACTIVE = '33300000-0000-4000-8000-000000000003'
-const PORTAL_REVOKED = '33300000-0000-4000-8000-000000000004'
-const NO_PROFILE = '33300000-0000-4000-8000-000000000005'
-const CUSTOMER_ACTIVE = 99333001
-const CUSTOMER_REVOKED = 99333002
-const CARRIER_ID = 99333011
-const VESSEL_ID = 99333021
-const VOYAGE_ID = 99333031
+const INTERNAL_ACTIVE = '33700000-0000-4000-8000-000000000001'
+const INTERNAL_INACTIVE = '33700000-0000-4000-8000-000000000002'
+const PORTAL_ACTIVE = '33700000-0000-4000-8000-000000000003'
+const PORTAL_REVOKED = '33700000-0000-4000-8000-000000000004'
+const NO_PROFILE = '33700000-0000-4000-8000-000000000005'
+const CUSTOMER_ACTIVE = 99337001
+const CUSTOMER_REVOKED = 99337002
+const CARRIER_ID = 99337011
+const VESSEL_ID = 99337021
+const VOYAGE_ID = 99337031
 
 function cleanupSchedule() {
   psql(`
@@ -179,7 +179,7 @@ function cleanupSchedule() {
   `)
 }
 
-function migration333Applied(): boolean {
+function migration337Applied(): boolean {
   if (!enabled) return false
   try {
     return psql(`SELECT count(*) FROM pg_proc WHERE oid = 'public.portal_ship_schedule()'::regprocedure
@@ -189,33 +189,33 @@ function migration333Applied(): boolean {
   }
 }
 
-const describeSchedule = describeWithProbe(migration333Applied, 'migration333Applied (programação de navios exige sessão válida)')
+const describeSchedule = describeWithProbe(migration337Applied, 'migration337Applied (programação de navios exige sessão válida)')
 
-describeSchedule('333 — programação de navios só para sessão interna ativa ou do Portal', () => {
+describeSchedule('337 — programação de navios só para sessão interna ativa ou do Portal', () => {
   const SCHEDULE = `SELECT string_agg(concat_ws('|', voyage_id, vessel_name, voyage, port_code, kind, date_value, omitted), ',' ORDER BY kind, port_code)
     FROM public.portal_ship_schedule() WHERE voyage_id = ${VOYAGE_ID}`
-  const EXPECTED = `${VOYAGE_ID}|Navio S333|S333V|BRSSZ|pod|2026-11-02|f,${VOYAGE_ID}|Navio S333|S333V|CNSHA|pol|2026-10-01|f`
+  const EXPECTED = `${VOYAGE_ID}|Navio S337|S337V|BRSSZ|pod|2026-11-02|f,${VOYAGE_ID}|Navio S337|S337V|CNSHA|pol|2026-10-01|f`
 
   beforeAll(() => {
     cleanupSchedule()
     psql(`
       INSERT INTO auth.users (id, email) VALUES
-        ('${INTERNAL_ACTIVE}', 'interno-s333@example.test'), ('${INTERNAL_INACTIVE}', 'inativo-s333@example.test'),
-        ('${PORTAL_ACTIVE}', 'portal-s333@example.test'), ('${PORTAL_REVOKED}', 'revogado-s333@example.test'),
-        ('${NO_PROFILE}', 'cadastro-aberto-s333@example.test');
+        ('${INTERNAL_ACTIVE}', 'interno-s337@example.test'), ('${INTERNAL_INACTIVE}', 'inativo-s337@example.test'),
+        ('${PORTAL_ACTIVE}', 'portal-s337@example.test'), ('${PORTAL_REVOKED}', 'revogado-s337@example.test'),
+        ('${NO_PROFILE}', 'cadastro-aberto-s337@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${INTERNAL_ACTIVE}', 'Interno S333', 'documentacao', true),
-        ('${INTERNAL_INACTIVE}', 'Inativo S333', 'documentacao', false);
+        ('${INTERNAL_ACTIVE}', 'Interno S337', 'documentacao', true),
+        ('${INTERNAL_INACTIVE}', 'Inativo S337', 'documentacao', false);
       SET session_replication_role = replica;
       INSERT INTO public.customers (id, name, cnpj_cpf) VALUES
-        (${CUSTOMER_ACTIVE}, 'CLIENTE S333', '${syntheticCnpj(333001)}'),
-        (${CUSTOMER_REVOKED}, 'CLIENTE S333 REVOGADO', '${syntheticCnpj(333002)}');
+        (${CUSTOMER_ACTIVE}, 'CLIENTE S337', '${syntheticCnpj(337001)}'),
+        (${CUSTOMER_REVOKED}, 'CLIENTE S337 REVOGADO', '${syntheticCnpj(337002)}');
       INSERT INTO public.customer_portal_accounts (customer_id, auth_user_id, active, account_situation, credentials_revoked_at) VALUES
         (${CUSTOMER_ACTIVE}, '${PORTAL_ACTIVE}', true, 'ativo', NULL),
         (${CUSTOMER_REVOKED}, '${PORTAL_REVOKED}', true, 'ativo', now() + interval '1 hour');
-      INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Armador S333');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio S333', ${CARRIER_ID});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status, show_on_portal) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'S333V', 'active', true);
+      INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Armador S337');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio S337', ${CARRIER_ID});
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status, show_on_portal) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'S337V', 'active', true);
       INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value) VALUES
         ('voyage_pol_schedule', '${VOYAGE_ID}::CNSHA', 'etd', '2026-10-01'),
         ('voyage_pod_schedule', '${VOYAGE_ID}::BRSSZ', 'eta', '2026-11-02');

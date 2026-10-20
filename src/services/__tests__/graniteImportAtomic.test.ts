@@ -46,9 +46,6 @@ const manifest: ParsedGraniteManifest = {
     cssc_selection: null,
     cargo_readiness_date: '2026-06-22',
     phase: 'READY',
-    clientId: 7,
-        reconciliationStatus: 'matched',
-        suggestedClientId: null,
   }],
 }
 
@@ -84,12 +81,15 @@ describe('atomic Granite manifest import', () => {
         p_uploaded_by: 'user-1',
         p_bls: [expect.objectContaining({
           bl_number: 'BL-1',
-          client_id: 7,
           charge_status: 'not_calculated',
         })],
       }),
     )
-		expect(result).toEqual({ manifestId: 'manifest-1', pendingCount: 0, inserted: 1, updated: 0, removed: [], keptMissing: [], keptInvoiced: [], separateManifest: false })
+    // O Granito não tem Cliente (lote 5b, migration 325): nada de vínculo nem sugestão no payload.
+    const payload = mockRpc.mock.calls[0][1] as { p_bls: Array<Record<string, unknown>> }
+    expect(payload.p_bls[0]).not.toHaveProperty('client_id')
+    expect(payload.p_bls[0]).not.toHaveProperty('suggested_client_id')
+		expect(result).toEqual({ manifestId: 'manifest-1', inserted: 1, updated: 0, removed: [], keptMissing: [], keptInvoiced: [], separateManifest: false })
 	})
 
 	it('reimportação: ausentes do arquivo só saem com confirmação', async () => {
@@ -129,18 +129,16 @@ describe('atomic Granite manifest import', () => {
     expect(graniteImportScope(existing, ['BL-9'], ['BL-9', 'BL-1'])).toEqual({ newManifest: true, missing: [] })
 	})
 
-	// Achado V4 da revisão da PR 929: B/L presente no arquivo, mas em linha com
-	// erro (peso zero, duplicada), não é ausente.
-	it('reimportação com override: B/L em linha com erro não é oferecido para sair', async () => {
-    mockRpc.mockResolvedValue({ data: { manifest_id: 'manifest-1' }, error: null })
-    mockFrom.mockReturnValue({ select: () => ({ eq: async () => ({ data: [{ bl_number: 'BL-1', manifest_id: 'm1' }, { bl_number: 'BL-ZERO', manifest_id: 'm1' }, { bl_number: 'BL-OLD', manifest_id: 'm1' }], error: null }) }) })
+	// Regra de 2026-10-19 (ADR 0092): linha com erro recusa o arquivo inteiro,
+	// antes de perguntar pelos ausentes e sem chamar a RPC.
+	it('linha com erro recusa o arquivo inteiro: nada é gravado nem perguntado', async () => {
     const confirmRemoval = vi.fn().mockResolvedValue(true)
-    await importGraniteManifest({
-      filename: 'g.xlsx', voyageId: 12, uploadedBy: 'user-1', allowRowErrors: true, confirmRemoval,
+    await expect(importGraniteManifest({
+      filename: 'g.xlsx', voyageId: 12, uploadedBy: 'user-1', confirmRemoval,
       manifest: { ...manifest, fileBlNumbers: ['BL-1', 'BL-ZERO'], rowErrors: [{ row: 3, message: 'BL BL-ZERO: Real Weight ausente ou zero.', raw: {} }] },
-    })
-    expect(confirmRemoval).toHaveBeenCalledWith(['BL-OLD'])
-    expect(mockRpc).toHaveBeenCalledWith('import_granite_manifest_transactional', expect.objectContaining({ p_remove_missing: ['BL-OLD'] }))
+    })).rejects.toThrow(/Nada foi gravado: uma linha tem erro\.\nLinha 3/)
+    expect(confirmRemoval).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
 	})
 
 	// Achado V3: o B/L com Invoice fica e o aviso diz quais não saíram; a recusa
@@ -155,12 +153,12 @@ describe('atomic Granite manifest import', () => {
     expect(result).toMatchObject({ keptMissing: ['BL-INV'], keptInvoiced: ['BL-INV'] })
     expect(describeGraniteImport(result)).toContain('1 com Invoice mantido(s): BL-INV')
 
-    mockRpc.mockResolvedValue({ data: null, error: { code: '22023', message: 'Manifesto Granito invalido.', details: null, hint: null } })
+    mockRpc.mockResolvedValue({ data: null, error: { code: '22023', message: 'A planilha não tem B/L de Granito válido para gravar.', details: null, hint: null } })
     await expect(importGraniteManifest({ filename: 'g.xlsx', voyageId: 12, manifest, uploadedBy: 'user-1' }))
-      .rejects.toThrow('Manifesto Granito invalido.')
+      .rejects.toThrow('A planilha não tem B/L de Granito válido para gravar.')
 	})
 
-	it('bloqueia erros de linha no service sem o override explícito', async () => {
+	it('não existe override que grave só as linhas válidas', async () => {
 		await expect(importGraniteManifest({
 			filename: 'granite.xlsx',
 			voyageId: 12,
@@ -169,16 +167,18 @@ describe('atomic Granite manifest import', () => {
 				rowErrors: [{ row: 2, message: 'Porto inválido.', raw: {} }],
 			},
 			uploadedBy: 'user-1',
+			// Um chamador antigo que ainda mande o aceite não muda nada.
+			...({ allowRowErrors: true } as object),
 		})).rejects.toThrow('Linha 2')
 
 		expect(mockRpc).not.toHaveBeenCalled()
 	})
 
-	it('a UI passa o override de erros de linha sem alterar o allowPending de reconciliação', () => {
-		const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/shared/VoyageImportActions.tsx'), 'utf8')
+	it('a UI não passa override de erro de linha nem pendência de Cliente', () => {
+		const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/shared/GraniteImportModal.tsx'), 'utf8')
 
-		expect(source).toContain('allowRowErrors: Boolean(override)')
-		expect(source).not.toContain('allowPending: Boolean(override)')
+		expect(source).not.toContain('allowRowErrors')
+		expect(source).not.toContain('allowPending')
 	})
 
   it('has one SQL function that inserts the header and B/L rows transactionally', () => {

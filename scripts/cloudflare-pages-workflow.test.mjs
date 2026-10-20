@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+// ADR 0091: o passo de contratos do Pages também roda o teste da promoção.
+import './staging-release-pr.test.mjs'
 
 const workflow = await readFile(new URL('../.github/workflows/cloudflare-pages-preview.yml', import.meta.url), 'utf8')
 const lines = workflow.split(/\r?\n/)
@@ -116,6 +118,15 @@ test('staging publica só da branch staging, fora do production branch e sem o b
   assert.ok(wait > 0 && wait < staging.indexOf('wrangler pages deploy'), 'espera o Supabase antes de publicar')
   const refuse = staging.indexOf('Refuse a bundle that still points to production Supabase')
   assert.ok(refuse > 0 && refuse < staging.indexOf('wrangler pages deploy'), 'confere o bundle antes de publicar')
+})
+
+test('só o staging passa token e ref para conferir as migrations aplicadas', async () => {
+  const staging = await readWorkflow('cloudflare-pages-staging.yml')
+  const production = await readWorkflow('cloudflare-pages-production.yml')
+  const step = staging.slice(staging.indexOf("Wait for Supabase to apply this commit's migrations"), staging.indexOf('node scripts/wait-supabase-migrations.mjs'))
+  assert.match(step, /SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_STAGING_ACCESS_TOKEN \}\}/)
+  assert.match(step, /SUPABASE_PROJECT_REF: \$\{\{ vars\.SUPABASE_STAGING_PROJECT_REF \}\}/)
+  assert.doesNotMatch(production, /SUPABASE_ACCESS_TOKEN|SUPABASE_PROJECT_REF/)
 })
 
 test('staging embute a Site Key do Turnstile do environment, como a produção', async () => {

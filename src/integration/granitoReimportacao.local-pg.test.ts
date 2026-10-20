@@ -160,17 +160,18 @@ describeLocal('Granito: reimportação por número do B/L na Viagem (migration 1
     expect(psql(`SELECT total_bls || ':' || total_weight_kg::int FROM public.granite_manifests WHERE id = '${legacy}';`)).toBe('1:700')
   })
 
-  // Revisão da PR 929 (198): planilha igual, mas um Cliente cadastrado depois
-  // gera agora a sugestão por nome; o B/L sem Cliente recebe a sugestão.
-  it('reimportação igual com sugestão de Cliente nova grava a sugestão', () => {
+  // A 198 gravava a sugestão de Cliente vinda do arquivo. Desde a 325 o
+  // Granito não tem Cliente: a sugestão do arquivo é ignorada e a planilha
+  // igual não conta como atualização.
+  it('reimportação igual com sugestão de Cliente no arquivo não grava a sugestão (325)', () => {
     expect(importFile([bl('A233-1', 150), bl('A233-S', 50)]).stderr).toBe('')
     expect(psql(`SELECT COALESCE(suggested_client_id::text, '-') FROM public.granite_bls WHERE bl_number = 'A233-S';`)).toBe('-')
 
     const suggested = { ...bl('A233-S', 50), suggested_client_id: customerId }
     const result = importFile([bl('A233-1', 150), suggested])
     expect(result.stderr).toBe('')
-    expect(JSON.parse(result.stdout)).toMatchObject({ updated_bls: 1 })
-    expect(psql(`SELECT suggested_client_id FROM public.granite_bls WHERE bl_number = 'A233-S';`)).toBe(String(customerId))
+    expect(JSON.parse(result.stdout)).toMatchObject({ updated_bls: 0 })
+    expect(psql(`SELECT COALESCE(suggested_client_id::text, '-') FROM public.granite_bls WHERE bl_number = 'A233-S';`)).toBe('-')
   })
 
   it('planilha sem B/L em comum é manifesto novo e não toca nos outros manifestos', () => {

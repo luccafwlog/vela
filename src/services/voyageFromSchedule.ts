@@ -411,8 +411,15 @@ export async function planScheduleSheet(rows: VoyageScheduleInput[], changedBy: 
   return plan
 }
 
-/** Grava a prévia numa transação: se uma linha falha, nada é gravado. */
+/**
+ * Grava a prévia numa transação: se uma linha falha, nada é gravado. Prévia
+ * com qualquer linha em erro é recusada inteira (regra de 2026-10-19).
+ */
 export async function applyScheduleSheetPlan(plan: ScheduleSheetPlanRow[]): Promise<{ created: number; updated: number; changes: number; voyage_ids: number[] }> {
+  const refused = plan.filter((row) => row.error)
+  if (refused.length) {
+    throw new Error(`A planilha tem ${refused.length === 1 ? '1 linha com erro' : `${refused.length} linhas com erro`}: nada foi gravado. Corrija e importe de novo.`)
+  }
   const rows = plan.filter(isScheduleSheetWrite)
   if (!rows.length) return { created: 0, updated: 0, changes: 0, voyage_ids: [] }
   const { data, error } = await supabase.rpc('apply_schedule_sheet_atomic' as never, {

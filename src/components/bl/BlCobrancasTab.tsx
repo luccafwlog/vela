@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { NoValue } from '../ui/NoValue'
 import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -399,14 +400,10 @@ export function BlCobrancasSection({ bl, activeInvoice = null }: { bl: BLDetail;
                     <td>
                       {line.source === 'manual' ? (
                         <div className="flex items-center justify-center gap-2">
-                          <Button variant="secondary" className="app-btn--sm" type="button" onClick={() => handleEditManualCharge(line.id)} aria-label="Editar cobrança manual">
-                            Editar
-                          </Button>
+                          <RowActionButton label="Editar cobrança manual" icon={Pencil} onClick={() => handleEditManualCharge(line.id)} />
                           {isAdmin ? (
                             // Excluir taxa manual é do Administrativo (migration 088; ADR 0071).
-                            <Button variant="danger" className="app-btn--sm" type="button" onClick={() => handleDeleteManualCharge(line.id)} aria-label="Excluir cobrança manual" disabled={deleteManualChargeMutation.isPending}>
-                              Excluir
-                            </Button>
+                            <RowActionButton label="Excluir cobrança manual" icon={Trash2} variant="danger" onClick={() => handleDeleteManualCharge(line.id)} disabled={deleteManualChargeMutation.isPending} />
                           ) : null}
                         </div>
                       ) : null}

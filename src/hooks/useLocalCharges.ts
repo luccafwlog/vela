@@ -236,7 +236,7 @@ export function useDeleteChargeTableItem() {
 
 export function useLocalChargeOperations(filters?: {
   search?: string
-  cargoMode?: '' | 'container' | 'carga_solta' | 'misto' | 'granito'
+  cargoMode?: '' | 'container' | 'carga_solta' | 'misto'
   pod?: string
   voyageId?: number | null
   chargeStatus?: '' | 'not_calculated' | 'calculated' | 'review_required' | 'reviewed' | 'ready_for_billing' | 'exempt'

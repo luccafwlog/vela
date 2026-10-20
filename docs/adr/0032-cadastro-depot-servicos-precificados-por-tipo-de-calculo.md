@@ -1,6 +1,6 @@
 # 0032 — Cadastro de Depot: serviços precificados por tipo de cálculo substituem tarifas estruturadas
 
-> **Situação atual (2026-10-13).** Ficam do original a lista única de serviços sob cada local e as telas `/embarquevazios/depots` e `/granito/taxas` fora do menu, abertas por botão.
+> **Situação atual (2026-10-19).** Ficam do original a lista única de serviços sob cada local e a tela `/embarquevazios/depots` fora do menu, aberta por botão. A tela `/granito/taxas` saiu do sistema no lote 5b da identidade visual (2026-10-19): o Granito não tem Cliente nem cálculo de taxas, e o endereço leva a `/granito` ([Granito](../modules/granito.md)).
 > Não valem mais o tipo de cálculo, a vigência, o overtime percentual com incidência por serviço e as quantidades por operação: o serviço tem natureza e valor sugerido, e a linha é lançada à mão ([ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md)).
 > Qualquer Departamento ativo edita o cadastro ([ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md)); excluir local ou serviço continua com o Administrativo.
 > Regra vigente: [Manifestos & EDI](../modules/manifesto-edi.md), Embarque de Vazios e Cadastro de Terminais.

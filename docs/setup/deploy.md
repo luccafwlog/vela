@@ -16,8 +16,10 @@ O staging publica o `index.html` correspondente a cada projeto e copia somente s
 | Workflow | Gatilho | Resultado |
 |---|---|---|
 | `.github/workflows/ci.yml` | PR (aberta, novo commit, reaberta, pronta para revisão) | Documentação, lint, build, testes, tamanho de bundle, contratos do Pages e replay de migrations em toda PR; suítes SQL só quando o diff toca o banco ([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)). Não roda depois do merge. |
+| `.github/workflows/main-only-from-staging.yml` | PR contra `main` (aberta, novo commit, reaberta, editada, pronta para revisão) | Check `main-only-from-staging`. Falha se a origem não for a branch `staging` deste repositório ([ADR 0091](../adr/0091-promocao-feature-staging-main.md)). |
+| `.github/workflows/staging-to-main-pr.yml` | PR contra `staging` fechada com merge | Abre ou atualiza a PR `staging` → `main`. O merge na `main` continua manual. |
 | `.github/workflows/local-pg-order.yml` | Segunda, 09:17 UTC, ou execução manual | Suítes SQL nas duas ordens, cada uma num banco recriado, e bateria financeira. |
-| `.github/workflows/cloudflare-pages-preview.yml` | Etiqueta `preview` em PR interna, ou execução manual a partir da `main` com o número da PR | Aguarda o check Supabase Preview da branch vinculada à PR e publica os dois previews privados; sem essa branch, termina com falha depois de cerca de 6 min de espera. |
+| `.github/workflows/cloudflare-pages-preview.yml` | Etiqueta `preview` em PR interna cuja base é `main`, ou execução manual a partir da `main` com o número da PR | Aguarda o check Supabase Preview da branch vinculada à PR e publica os dois previews privados; sem essa branch, termina com falha depois de cerca de 6 min de espera. PR contra `staging` não dispara esta prévia. |
 | `.github/workflows/cloudflare-pages-preview-cleanup.yml` | PR interna com etiqueta `preview` fechada | Remove deployments antigos de preview da branch; a Cloudflare mantém o deployment mais recente. |
 | `.github/workflows/cloudflare-pages-production.yml` | Push em `main` ou execução manual | Publica as duas pastas na produção quando `CLOUDFLARE_PAGES_PRODUCTION_ENABLED=true`. No push, espera antes o check do app `supabase` no commit: verde publica; vermelho recusa; pulado ou ausente em 10 min só publica se o push não mudar `supabase/migrations/`, e senão pede conferência no painel e execução manual, que publica sem esperar. |
 | `.github/workflows/provision-preview-admin.yml` | Etiqueta `preview` em PR interna, ou execução manual a partir da `main` | Cria o usuário administrador fixo na branch Supabase de Preview. |
@@ -34,9 +36,13 @@ Cada preview usa alias `pr-<número>` (`pr-123.vela-internal.pages.dev` e `pr-12
 
 ## Staging persistente
 
-Pedido do dono em 2026-10-19. Não é o destino das PRs rejeitado na ADR 0056
-(`stagingtdesk`): as PRs seguem para `main`; `staging` é um ambiente fixo de QA
-e treino, atualizado por push (ou merge de `main`) na git branch `staging`.
+Pedido do dono em 2026-10-19. Não é o destino de preview por PR rejeitado na
+ADR 0056 (`stagingtdesk`). A git branch `staging` é o ambiente fixo de QA.
+Desde a [ADR 0091](../adr/0091-promocao-feature-staging-main.md), a PR de
+feature abre contra `staging`. O merge publica estes sites, porque o workflow
+de staging continua no push da branch, e `staging-to-main-pr.yml` abre ou
+atualiza a PR `staging` → `main`. O merge dessa PR continua manual e é o que
+publica a produção.
 
 - **Sites:** `https://staging.vela-internal.pages.dev` e
   `https://staging.vela-portal.pages.dev`. A branch `staging` não é o
@@ -49,10 +55,41 @@ e treino, atualizado por push (ou merge de `main`) na git branch `staging`.
   variáveis de repositório `CLOUDFLARE_PAGES_STAGING_ENABLED=true` e
   `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true` (a mesma trava das prévias).
 - **GitHub Environment `staging`:** variáveis `VITE_SUPABASE_URL` e
-  `VITE_SUPABASE_ANON_KEY` (da branch staging) e `VITE_TURNSTILE_SITE_KEY`
-  (Site Key pública do widget `Vela staging`); secret
-  `CLOUDFLARE_PAGES_API_TOKEN` (o mesmo token de Pages Edit).
+  `VITE_SUPABASE_ANON_KEY` (da branch staging), `VITE_TURNSTILE_SITE_KEY`
+  (Site Key pública do widget `Vela staging`) e `SUPABASE_STAGING_PROJECT_REF`
+  (ref da branch staging, `uvgqfpleiyfythkhutlj`); secrets
+  `CLOUDFLARE_PAGES_API_TOKEN` (o mesmo token de Pages Edit) e
+  `SUPABASE_STAGING_ACCESS_TOKEN` (conferência das migrations, abaixo).
   `CLOUDFLARE_ACCOUNT_ID` vem da variável de repositório.
+- **Espera pelas migrations:** antes de publicar, o passo
+  `scripts/wait-supabase-migrations.mjs` lê o check do app `supabase` no
+  commit, com as mesmas regras da produção
+  ([WORKFLOW.md](../../WORKFLOW.md#push-em-main)). A branch persistente aplica
+  as migrations pela sincronização e marca o check do commit como pulado.
+  Por isso, no staging, um check `skipped` ou `neutral` num push com migration
+  não recusa de cara: o script tira as versões dos `supabase/migrations/NNN_*.sql`
+  adicionados ou alterados no compare do push e confere em
+  `GET /v1/projects/{ref}/database/migrations` da Supabase Management API se
+  todas já constam na branch. Repete a conferência a cada 15 s até o prazo
+  (`WAIT_SECONDS`, padrão 600). Com todas aplicadas, publica e registra no log
+  as versões conferidas. Se faltar alguma no fim do prazo, recusa e diz quais.
+  Continua recusando: check terminado com falha (`failure`, `cancelled`,
+  `timed_out`, `action_required`), ref igual ao da produção
+  (`fgmkhbzhaeebrsizwccx`), compare truncado (300 arquivos ou mais) ou push que
+  muda a pasta sem nenhum `NNN_*.sql` novo ou alterado. Sem o secret ou a var,
+  a conferência fica desligada, o log diz isso e vale a recusa de antes
+  (publicação pelo disparo manual). O token nunca é impresso. A produção não
+  recebe esse token e segue a regra sem conferência.
+- **Configurar a conferência (passo do dono):** em supabase.com → Account →
+  Access Tokens, crie um token só de leitura, escopado ao projeto Vela, com a
+  permissão de leitura das migrations do banco (Database migrations: Read, ou o
+  nome que o painel mostrar), sem nenhuma permissão de escrita. Em GitHub →
+  Settings → Environments → `staging`, cadastre o secret
+  `SUPABASE_STAGING_ACCESS_TOKEN` com esse token e a variável
+  `SUPABASE_STAGING_PROJECT_REF=uvgqfpleiyfythkhutlj`. Confira no próximo push
+  com migration que o log mostra "migrations do push já aplicadas na branch
+  Supabase". Uma resposta 401 ou 403 da Management API no log indica token sem
+  a permissão ou sem acesso à branch.
 - **Turnstile:** o build passa `vars.VITE_TURNSTILE_SITE_KEY` do environment
   `staging`, no mesmo padrão da produção. O widget `Vela staging` autoriza
   `staging.vela-portal.pages.dev`. Sem a Site Key no bundle, a tela de login

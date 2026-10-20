@@ -1,7 +1,8 @@
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Clock, FileText } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronRight, Clock, FilePlus2, FileText } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { RowActionButton } from '../ui/RowActionButton'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { EmptyState } from '../ui/Card'
@@ -294,7 +295,7 @@ export function DemurrageContainersTab({
                           </td>
                           <td className="app-table__text"><BlSituation state={state} isLead={isLead} leadBlId={leadBlId} canIssue={canIssue} onOpenInvoice={onOpenInvoice} /></td>
                           <td className="app-dem-row-action">
-                            {isLead ? <BillingAction blId={blId} state={state} canIssue={canIssue} generatingBl={generatingBl} onGenerateInvoice={onGenerateInvoice} /> : null}
+                            {isLead ? <BillingAction blId={blId} state={state} canIssue={canIssue} generatingBl={generatingBl} onGenerateInvoice={onGenerateInvoice} iconOnly /> : null}
                           </td>
                         </tr>
                         {rowError ? (
@@ -405,16 +406,30 @@ function BillingAction({
   canIssue,
   generatingBl,
   onGenerateInvoice,
+  iconOnly = false,
 }: {
   blId: string
   state: BlBillingState
   canIssue: boolean
   generatingBl: string | null
   onGenerateInvoice: (blId: string) => void
+  /** Na linha da tabela de B/Ls, só o ícone (regra 9); no grupo por B/L, com texto. */
+  iconOnly?: boolean
 }) {
   if (state.action !== 'generate' && state.action !== 'complement') return null
   const complement = state.action === 'complement'
   if (!canIssue) return null
+  if (iconOnly) {
+    return (
+      <RowActionButton
+        label={complement ? `Gerar Invoice complementar do B/L ${blId}` : `Gerar Invoice do B/L ${blId}`}
+        icon={complement ? FilePlus2 : FileText}
+        loading={generatingBl === blId}
+        disabled={Boolean(generatingBl) && generatingBl !== blId}
+        onClick={() => onGenerateInvoice(blId)}
+      />
+    )
+  }
   return (
     <Button
       variant="secondary"
@@ -540,16 +555,12 @@ function ContainerRow({
       <td className="tabular-nums">{result ? periodValue(result.days_p2, result.rate_p2_usd) : <NoValue label="Sem dias calculados" />}</td>
       <td title={billed.length ? 'Recalculado hoje; o valor cobrado é o da Invoice' : undefined}><UsdCell calc={calc} /><BilledIn container={container} onOpenInvoice={onOpenInvoice} /></td>
       <td className="app-dem-row-action">
-        <Button
-          type="button"
-          variant="secondary"
-          className="app-btn--sm"
-          aria-label={`Editar datas de ${container.container_number}`}
+        <RowActionButton
+          label={`Editar datas de ${container.container_number}`}
+          icon={CalendarDays}
           disabled={disabled}
           onClick={() => onEdit(container)}
-        >
-          Editar datas
-        </Button>
+        />
       </td>
     </tr>
   )

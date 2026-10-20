@@ -7,10 +7,67 @@
 ## 2026-10
 
 - **Programação de navios exige sessão válida (2026-10-20):** `portal_ship_schedule()` passou a
-  recusar conta `authenticated` sem perfil interno ativo nem conta ativa do Portal (migration `333`,
+  recusar conta `authenticated` sem perfil interno ativo nem conta ativa do Portal (migration `337`,
   [ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); antes bastava qualquer login, e o
   cadastro público do Auth de produção estava aberto. Desligar esse cadastro é passo do dono no
   painel do Supabase ([serviços externos](operations/servicos-externos.md#supabase)).
+- **Staging publica com o check do Supabase pulado (2026-10-20):** num push na `staging` com
+  migration e check `skipped` ou `neutral`, `scripts/wait-supabase-migrations.mjs` confere na
+  Supabase Management API se as versões do push já estão na branch Supabase do staging e publica
+  quando todas estão; senão espera até o prazo e recusa dizendo quais faltam. Antes, todo merge
+  com migration era recusado (run `39406859570`, migrations `333` a `336`). Precisa do secret
+  `SUPABASE_STAGING_ACCESS_TOKEN` e da var `SUPABASE_STAGING_PROJECT_REF` no environment
+  `staging` ([Deploy](setup/deploy.md#staging-persistente)).
+- **Baplie sem vazios (2026-10-20):** substituir o Baplie por um sem nenhum vazio tira da Viagem
+  os vazios de importação vindos do Baplie anterior e o Nº do manifesto Mercante das rotas que
+  ficam sem container, com aviso no diálogo de substituição; antes, o recadastro falhava e
+  "Atualizar vazios do Baplie" nunca resolvia (migration `336`).
+- **Revisão do lote 6a (2026-10-20):** datas de containers e Base de Clientes com 60 s para gravar
+  o arquivo inteiro (até 300 B/Ls e 3.000 Clientes por arquivo) e mensagem de arquivo grande;
+  Razão Social conferida do mesmo jeito na tela e no banco; troca de Consignatário recusada pelo
+  banco registrada como exceção na ADR 0092; extrato do Pix com débito contábil ignorado e modelo
+  para baixar; ZPT, Pix e programação recusam data ou linha ilegível; modais de importação não
+  fecham durante a gravação; vazios do Baplie retomados em /baplie; modelo do B/L avulso. Migrations
+  do 6a renumeradas para `333`, `334` e `335` na junção com o 5b.
+- **Identidade visual, lote 6a, e importação com erro recusada inteira (2026-10-19):** login do
+  Vela e telas públicas do Portal com o mesmo painel da marca (`AuthLayout`), Meu perfil em dois
+  blocos; todas as importações no molde comum (passos, Arquivo com modelo para baixar, Prévia,
+  erros num lugar só, "Importar N …"), uma versão só de cada importação para a tela e a aba da
+  Viagem. Importação com qualquer erro não grava nada, e recusa do banco desfaz tudo
+  ([ADR 0092](adr/0092-importacao-com-erro-e-recusada-inteira.md)); datas de containers, Base de
+  Clientes e B/L de container gravam o arquivo numa transação (migrations `333`, `334` e `335`).
+- **Promoção feature → staging → main (2026-10-20):** PR de feature abre contra
+  `staging`. O check `main-only-from-staging` falha quando a PR na `main` não
+  vem da `staging` deste repositório. O merge na `staging` abre ou atualiza a
+  PR para a `main`; o merge dessa PR continua manual e é o que publica a
+  produção ([ADR 0091](adr/0091-promocao-feature-staging-main.md)).
+- **Revisão do lote 5b (2026-10-20):** a migration `330` deixa os snapshots de taxa do Granito
+  (`granite_bl_charges`) só para leitura pela API. Granito sem Prontos/Faturados na Viagem;
+  Relatórios com a individual Coberta em Pago, planilhas com Taxas locais e situação por extenso,
+  endereço validado e leitura paginada sem linha repetida; Administração sem trocar o próprio
+  setor em Editar acesso e com o Histórico de ações legível; Vazios de importação seleciona além de
+  1.000 containers e filtra POL/POD pelo porto canônico; Embarque de vazios espera os Locais antes
+  de mostrar a armazenagem; as ações de linha que faltavam (Tabelas de taxas, Condições negociadas,
+  Gerar Invoice de Demurrage) ficam só com ícone e os links de linha usam `RowActionLink`.
+  Decisões do responsável no mesmo dia: B/L cancelado fora dos totais do Operacional e do Por
+  Cliente; fatura parcialmente paga fora de Pago, com estado próprio em Taxas locais; destino de
+  transporte inativo recusado no Embarque de vazios (migration `331`). A migration `332` dá à
+  Unidade Embarcada o `updated_at` que o "Atualizado em" da lista de embarques usa.
+- **Identidade visual, lote 5b (2026-10-19):** Granito passa a só totalizar a carga do navio
+  (Blocos e Peso, só o peso real), sem Cliente vinculado, cálculo de taxas, Revisão nem
+  CE Mercante, e as Tarifas do Granito saem da tela (migration `325`); Vazios de importação com o
+  número do Manifesto Mercante e Natureza só pela seleção; Embarque de vazios abre na lista de
+  embarques e recusa local ou serviço inativo em lançamento novo (migration `326`); Locais em
+  leitura com edição em janela; Relatórios com filtros comuns, coluna Taxas locais, regra única de
+  fatura emitida e leitura além de 1.000 linhas; Administração com abas renomeadas e o quadro "O
+  que cada setor pode" conferido pela bateria de permissões (migration `328`: papel legado
+  `operator` nos alertas da Documentação e duas funções sem tela fechadas). Ações de linha de
+  tabela viram botões só com ícone em todo o sistema (`RowActionButton`), salvo o texto que é a
+  informação da coluna e as ações do painel da linha aberta. Com as decisões do responsável do
+  mesmo dia, a migration `329` apaga as tarifas do Granito (`granite_rates`) e o cálculo, mantendo
+  os snapshots e faturas antigas, e fecha a baixa por TXID (`reconcile_invoice_payment_by_txid`)
+  para a API: a Conciliação Pix a alcança pela confirmação do lote, com a guarda de Financeiro e
+  Administrativo.
 - **Identidade visual, lote 5a (2026-10-19):** Painel com cartões por setor (agora também o
   Administrativo) e Line-Up limpo; Alertas abre em Ativos, com Resolver e Dispensar em toda linha e
   a mensagem sem repetir o registro (migration `324`, que também reescreveu os alertas abertos e faz

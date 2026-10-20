@@ -55,13 +55,19 @@ jobs:
           persist-credentials: false
 
       # Com a branch Supabase `staging` ligada à git branch `staging`
-      # ("Sync with Git branch"), a integração aplica as migrations do push.
+      # ("Sync with Git branch"), a integração aplica as migrations do push e
+      # costuma marcar o check do commit como pulado. Com o token e o ref, o
+      # script confere na Management API se as versões do push já estão
+      # aplicadas na branch; sem eles, recusa como antes. O script recusa o ref
+      # de produção.
       - name: Wait for Supabase to apply this commit's migrations
         if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           COMMIT_SHA: ${{ github.sha }}
           BEFORE_SHA: ${{ github.event.before }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_STAGING_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
         run: node scripts/wait-supabase-migrations.mjs
 
       - name: Set up Node.js

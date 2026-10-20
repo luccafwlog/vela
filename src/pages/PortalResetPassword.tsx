@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
-import { Card, InlineError } from '../components/ui/Card'
+import { InlineError } from '../components/ui/Card'
+import { AuthLayout, AuthNotice } from '../components/auth/AuthLayout'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { Field } from '../components/ui/Input'
 import { PasswordInput } from '../components/auth/PasswordInput'
@@ -78,20 +79,12 @@ export function PortalResetPassword() {
 
   if (done) {
     return (
-      <main className="app-auth">
-        <Card className="app-auth__card">
-          <div className="app-auth__brand">
-            <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-            <h1 className="app-auth__title">Senha redefinida</h1>
-          </div>
-          <div className="app-auth__body" role="status">
-            <p>Sua senha foi alterada e as sessões anteriores foram encerradas. Entre novamente com a nova senha.</p>
-          </div>
-          <div className="app-auth__actions">
-            <Button onClick={() => navigate('/portal/login', { replace: true })}>Ir para o login</Button>
-          </div>
-        </Card>
-      </main>
+      <AuthLayout brand="portal" title="Senha redefinida">
+        <div className="app-auth__body" role="status">
+          <p>Sua senha foi alterada e as sessões anteriores foram encerradas. Entre novamente com a nova senha.</p>
+        </div>
+        <Button onClick={() => navigate('/portal/login', { replace: true })}>Ir para o login</Button>
+      </AuthLayout>
     )
   }
 
@@ -99,71 +92,50 @@ export function PortalResetPassword() {
   // novo link, em vez de parar num erro sem saída.
   if (!token) {
     return (
-      <main className="app-auth">
-        <Card className="app-auth__card">
-          <div className="app-auth__brand">
-            <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-            <h1 className="app-auth__title">Link indisponível</h1>
-          </div>
-          <InlineError message={error || INVALID_LINK_MESSAGE} />
-          <div className="app-auth__body">
-            <p>O link de redefinição vale por 1 hora e só pode ser usado uma vez. Peça um novo para continuar.</p>
-          </div>
-          <div className="app-auth__actions">
-            <Link to="/portal/esqueci-senha" className="app-btn app-btn--primary">Solicitar novo link</Link>
-            <Link to="/portal/login" className="app-auth__link">Voltar para o login</Link>
-          </div>
-          <PortalAccessHelp />
-        </Card>
-      </main>
+      <AuthLayout brand="portal" title="Link indisponível">
+        <AuthNotice title={error || INVALID_LINK_MESSAGE}>
+          O link de redefinição vale por 1 hora e só pode ser usado uma vez. Peça um novo para continuar.
+        </AuthNotice>
+        <div className="app-auth__actions app-auth__actions--stack">
+          <Link to="/portal/esqueci-senha" className="app-btn app-btn--primary">Pedir um novo link</Link>
+          <Link to="/portal/login" className="app-btn app-btn--secondary">Voltar para o login</Link>
+        </div>
+        <PortalAccessHelp />
+      </AuthLayout>
     )
   }
 
   return (
-    <main className="app-auth">
-      <Card className="app-auth__card">
-        <div className="app-auth__brand">
-          <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-          <div className="app-auth__form-header">
-            <h1 className="app-auth__title">Redefinir senha</h1>
-            <p className="app-auth__subtitle">Escolha uma nova senha para acessar o Portal.</p>
-          </div>
-        </div>
-
-        <form className="grid gap-4" onSubmit={handleSubmit}>
-          <Field
-            label="Nova senha"
-            hint={fieldError?.field === 'password' ? undefined : PASSWORD_RULE_MESSAGE}
-            error={fieldError?.field === 'password' ? fieldError.message : undefined}
-          >
-            <PasswordInput
-              ref={passwordRef}
-              required
-              autoComplete="new-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </Field>
-
-          <Field label="Confirmar senha" error={fieldError?.field === 'confirm' ? fieldError.message : undefined}>
-            <PasswordInput
-              ref={confirmRef}
-              required
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(event) => setConfirm(event.target.value)}
-            />
-          </Field>
-
-          {error ? <InlineError message={error} /> : null}
-
-          <Button loading={submitting} loadingLabel="Redefinindo..." type="submit">
-            Redefinir senha
-          </Button>
-        </form>
-
-        <PortalAccessHelp />
-      </Card>
-    </main>
+    <AuthLayout brand="portal" title="Redefinir senha" subtitle="Escolha uma nova senha para acessar o Portal.">
+      <form className="grid gap-4" onSubmit={handleSubmit}>
+        <Field
+          label="Nova senha"
+          hint={fieldError?.field === 'password' ? undefined : PASSWORD_RULE_MESSAGE}
+          error={fieldError?.field === 'password' ? fieldError.message : undefined}
+        >
+          <PasswordInput
+            ref={passwordRef}
+            required
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </Field>
+        <Field label="Confirmar senha" error={fieldError?.field === 'confirm' ? fieldError.message : undefined}>
+          <PasswordInput
+            ref={confirmRef}
+            required
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(event) => setConfirm(event.target.value)}
+          />
+        </Field>
+        {error ? <InlineError message={error} /> : null}
+        <Button loading={submitting} loadingLabel="Redefinindo..." type="submit">
+          Redefinir senha
+        </Button>
+      </form>
+      <PortalAccessHelp />
+    </AuthLayout>
   )
 }

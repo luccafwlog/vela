@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   parseVehicleImportFile: vi.fn(),
   importVehicleRows: vi.fn(),
+  parseGraniteManifestFile: vi.fn(),
+  importGraniteManifest: vi.fn(),
   refetchVoyageContext: vi.fn(),
   // Viagem conferida: as regras do Baplie rodaram e a importação pode seguir.
   voyageContext: {
@@ -74,6 +76,12 @@ vi.mock('../../../services/baplieImport', async (importOriginal) => ({
 vi.mock('../../../services/vehicleImport', () => ({
   parseVehicleImportFile: mocks.parseVehicleImportFile,
   importVehicleRows: mocks.importVehicleRows,
+}))
+vi.mock('../../../services/graniteImport', () => ({
+  parseGraniteManifestFile: mocks.parseGraniteManifestFile,
+  importGraniteManifest: mocks.importGraniteManifest,
+  graniteRemovalConfirmOptions: (missing: string[]) => ({ message: missing.join(',') }),
+  describeGraniteImport: (result: { inserted: number }) => `${result.inserted} novo(s)`,
 }))
 vi.mock('../CeMercanteImportModal', () => ({
   CeMercanteImportModal: ({ initialVoyageId, target }: { initialVoyageId?: number; target?: string }) => <div>CE semeado: {initialVoyageId} · {target ?? 'bls'}</div>,
@@ -162,7 +170,7 @@ it('US-223: confirmar a importacao conecta o importador ao voyageId travado', as
 
   // Aguarda o parser rodar e o botao Confirmar habilitar (prévia válida).
   await waitFor(() => expect(mocks.parseBreakbulkManifestFile).toHaveBeenCalledWith(file))
-  const confirm = screen.getByRole('button', { name: 'Importar manifesto' }) as HTMLButtonElement
+  const confirm = screen.getByRole('button', { name: 'Importar 1 B/L' }) as HTMLButtonElement
   await waitFor(() => expect(confirm.disabled).toBe(false))
 
   fireEvent.click(confirm)
@@ -190,7 +198,13 @@ it('bloqueia manifesto BB quando a previa contem erro de linha', async () => {
   })
 
   await waitFor(() => expect(mocks.parseBreakbulkManifestFile).toHaveBeenCalledTimes(1))
-  expect((screen.getByRole('button', { name: 'Importar manifesto' }) as HTMLButtonElement).disabled).toBe(true)
+  const confirm = await screen.findByRole('button', { name: 'Importar 1 B/L' }) as HTMLButtonElement
+  expect(confirm.disabled).toBe(true)
+  // Regra de 2026-10-19: erro recusa o arquivo inteiro, sem aceite que force.
+  expect(screen.queryByText(/forçar a importação/)).toBeNull()
+  expect(screen.queryByRole('checkbox', { name: /Conferi os avisos/ })).toBeNull()
+  expect(screen.getByText('Com erro no arquivo, nada é importado. Corrija e escolha o arquivo de novo.')).toBeTruthy()
+  fireEvent.click(confirm)
   expect(mocks.importBreakbulkManifest).not.toHaveBeenCalled()
 })
 
@@ -230,7 +244,7 @@ it('bloqueia staging quando a prévia do Baplie contém issue bloqueante', async
   fireEvent.change(fileInput, { target: { files: [new File(['edi'], 'manifesto.edi', { type: 'text/plain' })] } })
 
   await waitFor(() => expect(mocks.parseBaplieFile).toHaveBeenCalledTimes(1))
-  const confirm = screen.getByRole('button', { name: /^Importar Baplie/ }) as HTMLButtonElement
+  const confirm = screen.getByRole('button', { name: 'Importar containers' }) as HTMLButtonElement
   expect(screen.getByText(/Peso inválido no conjunto 1/)).toBeTruthy()
   expect(confirm.disabled).toBe(true)
 
@@ -282,18 +296,19 @@ it('leva Vazios Exp ao Embarque semeado com a viagem', () => {
   expect(mocks.navigate).toHaveBeenCalledWith('/embarquevazios?voyage=7')
 })
 
-it('abre CE Mercante do Granito com o alvo correto e semeado com a viagem (B26)', () => {
+// Lote 5b (2026-10-19): o Granito não recebe CE; a exportação só importa a planilha COSCO.
+it('a exportação da Viagem não oferece CE Mercante para o Granito', () => {
   render(
     <VoyageImportActions
       voyageId={7}
       voyageLabel="GREEN SANTOS / 14N"
       userId="user-1"
-      types={['ceMercanteGranite']}
+      types={['granite', 'vaziosExp']}
     />,
   )
 
-  fireEvent.click(screen.getByRole('button', { name: 'CE Mercante (Granito)' }))
-  expect(screen.getByText('CE semeado: 7 · granite')).toBeTruthy()
+  expect(screen.getByRole('button', { name: /Manifesto Granito/ })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /CE Mercante/ })).toBeNull()
 })
 
 it('mantém a escrita aberta também para Equipamentos', () => {
@@ -348,7 +363,7 @@ it('manifesto BB permite importar sem override quando a prévia contém apenas a
   })
 
   await waitFor(() => expect(mocks.parseBreakbulkManifestFile).toHaveBeenCalled())
-  const confirm = screen.getByRole('button', { name: 'Importar manifesto' }) as HTMLButtonElement
+  const confirm = screen.getByRole('button', { name: 'Importar 1 B/L' }) as HTMLButtonElement
   await waitFor(() => expect(confirm.disabled).toBe(false))
 })
 
@@ -400,7 +415,7 @@ async function openBaplieWithFile() {
     target: { files: [new File(['edi'], 'baplie.edi', { type: 'text/plain' })] },
   })
   await waitFor(() => expect(mocks.parseBaplieFile).toHaveBeenCalledTimes(1))
-  const confirm = screen.getByRole('button', { name: /^Importar Baplie/ }) as HTMLButtonElement
+  const confirm = screen.getByRole('button', { name: /^Importar \d+ containers?$/ }) as HTMLButtonElement
   await waitFor(() => expect(confirm.disabled).toBe(false))
   fireEvent.click(confirm)
 }
@@ -437,7 +452,7 @@ it('Baplie gravado sem IMO/OOG nos B/Ls fica no modal com o aviso e só Concluir
   expect(screen.getByText('timeout na aplicação')).toBeTruthy()
   // O staging foi gravado: a viagem é atualizada mesmo com a falha parcial.
   expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['baplie-staging', '7'] })
-  expect(screen.queryByRole('button', { name: /^Importar Baplie/ })).toBeNull()
+  expect(screen.queryByRole('button', { name: /^Importar \d+ container/ })).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Concluir' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 })
@@ -467,14 +482,16 @@ it('vazios não recadastrados: o aviso refaz só os vazios, porque reimportar o 
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 })
 
-it('resultado parcial de veículos fica no modal com as linhas recusadas e só Concluir', async () => {
+// Regra de 2026-10-19 (ADR 0092): recusa da conferência com o que já está
+// gravado desfaz tudo — nada é gravado e a tela lista o que foi recusado.
+it('recusa de veículos na conferência com o gravado: nada foi gravado, lista as recusadas', async () => {
   mocks.parseVehicleImportFile.mockResolvedValue({
     rows: [{ rowNumber: 2, chassis: 'CH-1' }, { rowNumber: 3, chassis: 'CH-2' }],
     rowErrors: [],
   })
   mocks.importVehicleRows.mockResolvedValue({
     processed: 2,
-    successCount: 1,
+    successCount: 0,
     errorCount: 1,
     errors: [{ row: 3, message: 'B/L BL-9 não pertence à viagem' }],
   })
@@ -483,6 +500,7 @@ it('resultado parcial de veículos fica no modal com as linhas recusadas e só C
   )
 
   fireEvent.click(screen.getByRole('button', { name: /Veículos/ }))
+  expect(screen.getByText('GREEN SANTOS / 14N')).toBeTruthy()
   const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
   fireEvent.change(fileInput, { target: { files: [new File(['x'], 'veiculos.xlsx')] } })
   const confirm = await screen.findByRole('button', { name: 'Importar 2 veículos' })
@@ -490,11 +508,30 @@ it('resultado parcial de veículos fica no modal com as linhas recusadas e só C
   fireEvent.click(confirm)
 
   await waitFor(() => expect(mocks.importVehicleRows).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, rows: expect.any(Array), confirmUnpacking: expect.any(Function) })))
-  expect(await screen.findByText(/1 linha recusada ao gravar/)).toBeTruthy()
+  expect(await screen.findByText(/Nada foi gravado: 1 linha recusada/)).toBeTruthy()
   expect(screen.getByText(/BL-9 não pertence à viagem/)).toBeTruthy()
-  expect(screen.getByText('Importação gravada em parte. As linhas recusadas estão acima.')).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Concluir' })).toBeTruthy()
-  expect(screen.queryByRole('button', { name: /Importar 2 veículos/ })).toBeNull()
+  expect(screen.getByText('Nada foi gravado. Corrija as linhas recusadas e escolha a planilha de novo.')).toBeTruthy()
+  // Nada gravado: não há "Concluir" nem cache a atualizar, e o botão fica travado.
+  expect(screen.queryByRole('button', { name: 'Concluir' })).toBeNull()
+  expect((screen.getByRole('button', { name: 'Importar 2 veículos' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+})
+
+it('veículos com erro de linha na planilha: nada é importado e não há aceite para forçar', async () => {
+  mocks.parseVehicleImportFile.mockResolvedValue({
+    rows: [{ rowNumber: 2, chassis: 'CH-1' }],
+    rowErrors: [{ row: 3, message: 'Todos os campos obrigatórios devem ser preenchidos.', raw: {} }],
+  })
+  const { container } = render(
+    <VoyageImportActions voyageId={7} voyageLabel="GREEN SANTOS / 14N" userId="user-1" types={['vehicles']} />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: /Veículos/ }))
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(['x'], 'veiculos.xlsx')] } })
+  const confirm = await screen.findByRole('button', { name: 'Importar 1 veículo' }) as HTMLButtonElement
+  expect(confirm.disabled).toBe(true)
+  expect(screen.queryByRole('checkbox')).toBeNull()
+  fireEvent.click(confirm)
+  expect(mocks.importVehicleRows).not.toHaveBeenCalled()
 })
 
 // E9-01: sem a Viagem conferida, navio/viagem e escalas do arquivo não são checados.
@@ -509,7 +546,7 @@ it('Baplie: não importa enquanto a Viagem carrega nem quando a conferência fal
   await waitFor(() => expect(mocks.parseBaplieFile).toHaveBeenCalledTimes(1))
   expect(await screen.findByText('Não foi possível conferir a Viagem: a leitura do navio, da viagem e das escalas falhou. Tente novamente.')).toBeTruthy()
   expect(screen.getByText('Importação bloqueada até a Viagem ser conferida.')).toBeTruthy()
-  const confirm = screen.getByRole('button', { name: 'Importar Baplie' }) as HTMLButtonElement
+  const confirm = screen.getByRole('button', { name: 'Importar containers' }) as HTMLButtonElement
   expect(confirm.disabled).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
   expect(mocks.refetchVoyageContext).toHaveBeenCalled()
@@ -517,7 +554,34 @@ it('Baplie: não importa enquanto a Viagem carrega nem quando a conferência fal
   mocks.voyageContext = { data: undefined, isError: false, error: null }
   rerender(<VoyageImportActions voyageId={7} voyageLabel="GREEN SANTOS / 14N" userId="user-1" types={['bb', 'granite', 'baplie']} />)
   expect(await screen.findByText('Conferindo navio, viagem e escalas da Viagem…')).toBeTruthy()
-  expect((screen.getByRole('button', { name: 'Importar Baplie' }) as HTMLButtonElement).disabled).toBe(true)
-  fireEvent.click(screen.getByRole('button', { name: 'Importar Baplie' }))
+  expect((screen.getByRole('button', { name: 'Importar containers' }) as HTMLButtonElement).disabled).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Importar containers' }))
   expect(mocks.reimportBaplie).not.toHaveBeenCalled()
+})
+
+// A1 do lote 6a: o Granito da Viagem é o mesmo modal de /granito, com a viagem fixa.
+it('Granito pela Viagem: mesmo modal com a viagem fixa; erro de linha recusa o arquivo', async () => {
+  const granite = { rowNumber: 2, bl_number: 'BL-G1', shipper_name: 'Granito SA', shipper_cnpj: '11222333000181', real_weight_kg: 5000, blocks_qty: 2, phase: null, clientId: 9, suggestedClientId: null, reconciliationStatus: 'matched' }
+  mocks.parseGraniteManifestFile.mockResolvedValueOnce({ vesselVoyage: 'NAVIO/14', bls: [granite], rowErrors: [{ row: 3, message: 'BL BL-G2: Real Weight ausente ou zero.', raw: {} }], fileBlNumbers: ['BL-G1', 'BL-G2'] })
+  mocks.parseGraniteManifestFile.mockResolvedValueOnce({ vesselVoyage: 'NAVIO/14', bls: [granite], rowErrors: [], fileBlNumbers: ['BL-G1'] })
+  mocks.importGraniteManifest.mockResolvedValue({ manifestId: 'm1', pendingCount: 0, inserted: 1, updated: 0, removed: [], keptMissing: [], keptInvoiced: [] })
+  const { container } = render(<VoyageImportActions voyageId={7} voyageLabel="GREEN SANTOS / 14N" userId="user-1" types={['granite']} />)
+
+  fireEvent.click(screen.getByRole('button', { name: /Manifesto Granito/ }))
+  expect(screen.getByText('Importar manifesto Granito')).toBeTruthy()
+  expect(screen.getByText('GREEN SANTOS / 14N')).toBeTruthy()
+  const input = () => container.querySelector('input[type="file"]') as HTMLInputElement
+  fireEvent.change(input(), { target: { files: [new File(['x'], 'cosco.xlsx')] } })
+  const confirm = await screen.findByRole('button', { name: 'Importar 1 B/L' }) as HTMLButtonElement
+  expect(await screen.findByText(/Real Weight ausente ou zero/)).toBeTruthy()
+  expect(confirm.disabled).toBe(true)
+  expect(screen.queryByRole('checkbox')).toBeNull()
+
+  fireEvent.change(input(), { target: { files: [new File(['y'], 'cosco-corrigido.xlsx')] } })
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Importar 1 B/L' }) as HTMLButtonElement).disabled).toBe(false))
+  fireEvent.click(screen.getByRole('button', { name: 'Importar 1 B/L' }))
+  await waitFor(() => expect(mocks.importGraniteManifest).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, uploadedBy: 'user-1', filename: 'cosco-corrigido.xlsx' })))
+  expect(mocks.importGraniteManifest.mock.calls[0]?.[0]).not.toHaveProperty('allowRowErrors')
+  expect(await screen.findByText('Manifesto gravado')).toBeTruthy()
+  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['granite-bls'] })
 })

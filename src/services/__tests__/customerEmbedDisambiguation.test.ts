@@ -6,7 +6,7 @@ const files = [
   'src/hooks/useBls.ts',
   'src/hooks/useReview.ts',
   'src/services/charges/chargeOperationsService.ts',
-  'src/services/graniteCharges.ts',
+  'src/services/graniteCargo.ts',
 ]
 
 it('qualifica os embeds de customer nas tabelas com segunda FK', () => {

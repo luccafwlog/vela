@@ -1,4 +1,4 @@
--- 333: a programação de navios exige sessão interna ativa ou do Portal
+-- 337: a programação de navios exige sessão interna ativa ou do Portal
 -- (auditoria defensiva de 2026-10-19, ADR 0090).
 --
 -- Problema:
@@ -20,8 +20,8 @@
 --       "Sessao do portal invalida ou expirada." (28000), o mesmo erro das
 --       outras leituras do Portal.
 --   A consulta é a vigente (lida do banco recriado com todas as migrations,
---   igual à da `002`); assinatura, retorno e grants não mudam. Numerada 333
---   depois das 325 a 332 das PRs abertas.
+--   igual à da `002`); assinatura, retorno e grants não mudam. Numerada 337
+--   depois da `336` da `staging` (a 333 dela é outra migration).
 --
 -- Não reescreve nem apaga linhas.
 --

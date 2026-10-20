@@ -140,23 +140,6 @@ const ALERT_RULES_BASE = [
     dismissal: temporaryDismissal,
   },
   {
-    type: 'review_granite_customer_unlinked',
-    domain: 'Revisão',
-    responsible: 'documentacao',
-    catalogAudience: ['documentacao'],
-    entityType: 'granite_bl',
-    // Normal desde a migration 078: Granito é apoio operacional e não fatura.
-    severity: 'normal',
-    summary: 'O B/L de Granito foi recebido sem cliente vinculado.',
-    trigger: 'Registro de Granito sem cliente associado.',
-    timing: 'Aparece assim que o registro é criado ou alterado sem vínculo.',
-    resolution: 'Associe o registro de Granito ao cliente correto na revisão.',
-    destination: '/revisao',
-    destinationLabel: 'Abrir Revisão',
-    afterResolution: derivedResolution,
-    dismissal: temporaryDismissal,
-  },
-  {
     type: 'billing_calculation_blocked',
     domain: 'Financeiro',
     responsible: 'documentacao',

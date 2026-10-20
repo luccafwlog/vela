@@ -423,22 +423,25 @@ describeIntegration('supabase integration - hardening gate', () => {
   })
 
   billingFlowTest('ledger phase 2 reconciliation is TXID-only and idempotent', async () => {
-    // No TXID -> nothing settled.
-    const none = await client.rpc('reconcile_invoice_payment_by_txid', {
+    // Desde a migration 329 a baixa por TXID não é executável pela API: a
+    // Conciliação Pix a alcança pela confirmação do lote, que confere o setor.
+    const direct = await client.rpc('reconcile_invoice_payment_by_txid', {
       p_txid: 'TXID-DOES-NOT-EXIST-' + Date.now(),
       p_amount_brl: 1,
     })
-    expect(none.error).toBeNull()
-    expect((none.data as { matched: boolean })?.matched).toBe(false)
+    expect(direct.error?.code).toBe('42501')
+
+    const confirmLocal = (txid: string) => client.rpc('confirm_unified_pix_matches', {
+      p_matches: [{ source: 'local', invoice_id: -1, doc_number: 'TXID-ONLY', txid, amount: 1, paid_at: new Date().toISOString() }],
+    })
+
+    // No TXID match -> nothing settled; the whole batch is refused.
+    const none = await confirmLocal('TXID-DOES-NOT-EXIST-' + Date.now())
+    expect(none.error?.message).toContain('Falha ao conciliar fatura local TXID-ONLY: no_match')
 
     // Empty TXID is rejected cleanly, never auto-settled.
-    const empty = await client.rpc('reconcile_invoice_payment_by_txid', {
-      p_txid: '   ',
-      p_amount_brl: 1,
-    })
-    expect(empty.error).toBeNull()
-    expect((empty.data as { matched: boolean; reason?: string })?.matched).toBe(false)
-    expect((empty.data as { reason?: string })?.reason).toBe('empty_txid')
+    const empty = await confirmLocal('   ')
+    expect(empty.error?.message).toContain('Falha ao conciliar fatura local TXID-ONLY: empty_txid')
   })
 
   billingFlowTest('ledger phase 4a links an invoice into the ledger', async () => {

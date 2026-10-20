@@ -76,7 +76,7 @@ export function PortalProfile() {
             readOnly={readOnly}
           />
         ) : (
-          <Block title="Endereço da empresa" aside="no cadastro da FWLOG">
+          <Block title="Endereço da empresa" aside="no cadastro da Fwlog">
             {loadError ? <InlineError message={loadError} /> : <p className="m-0 text-sm text-[var(--app-muted)]" role="status">Carregando perfil…</p>}
             <ProfileSaveBar>
               <Button disabled type="button">Salvar endereço</Button>
@@ -201,7 +201,7 @@ function PortalProfileForm({
   // de recuperação (convites e redefinição de senha, separado dos contatos).
   return (
     <div className="grid items-start gap-4 lg:grid-cols-2">
-      <Block title="Endereço da empresa" aside="no cadastro da FWLOG">
+      <Block title="Endereço da empresa" aside="no cadastro da Fwlog">
         <form className="grid gap-4" onSubmit={handleSubmit}>
           <fieldset className={fieldsetClass} disabled={readOnly}>
             <legend className="sr-only">Endereço</legend>

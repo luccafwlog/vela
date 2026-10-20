@@ -68,3 +68,16 @@ it('mostra "As senhas não conferem." no campo de confirmação e leva o foco at
   expect(document.activeElement).toBe(confirmField)
   expect(mocks.invoke).not.toHaveBeenCalledWith('portal-invite-activate', expect.objectContaining({ body: expect.objectContaining({ action: 'activate' }) }))
 })
+
+// O ramo sem convite válido cobre token ausente, convite usado ou substituído
+// e falha de rede: o título é neutro, não "vencido".
+it('convite que não pode ser aberto mostra "Convite indisponível"', async () => {
+  mocks.invoke.mockResolvedValue({ data: null, error: new Error('network') })
+  render(
+    <MemoryRouter initialEntries={['/portal/ativar?token=TOKEN']}>
+      <PortalAtivacao />
+    </MemoryRouter>,
+  )
+
+  expect(await screen.findByRole('heading', { level: 1, name: 'Convite indisponível' })).toBeTruthy()
+})

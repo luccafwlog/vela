@@ -89,6 +89,8 @@ export async function afterViagemAlterada(queryClient: QueryInvalidator, options
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS,
     queryKeys.voyages.options(), ['vehicle-voyage-options'], ['voyage-indicated-first-port'],
     ...EMPTY_IMPORT_KEYS, ['baplie-staging'],
+    // A lista do Granito mostra Navio / Viagem de cada B/L (lote 5b).
+    queryKeys.granite.all(),
   ])
 }
 
@@ -106,7 +108,14 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, _op
     ...CARGO_READ_KEYS, ...FINANCIAL_READ_KEYS, ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS,
     ...EMPTY_IMPORT_KEYS, ...LINEUP_KEYS, ['customers'], ['customer-lookup'],
     queryKeys.voyages.options(), ['vehicle-voyage-options'], ['baplie-staging'],
+    // A planilha COSCO entra pela tela do Granito e pela ficha da Viagem (G6).
+    queryKeys.granite.all(),
   ])
+}
+
+/** Natureza (Cama, Cover plate) dos vazios de importação: a lista, os totais e o ADR, que a mostra. */
+export async function afterNaturezaVaziosAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [['vazios-importacao-containers'], ['vazios-importacao-stats'], ['agency-report']])
 }
 
 export async function afterBaplieImportado(queryClient: QueryInvalidator, options: { voyageId: string }): Promise<void> {
@@ -209,9 +218,18 @@ export async function afterCeUnlockChanged(queryClient: QueryInvalidator): Promi
   await invalidate(queryClient, [queryKeys.ceUnlock.all(), ['customer-detail'], ['customer-ficha']])
 }
 
-/** Mudanças no cadastro de depósitos afetam catálogo e orientações de devolução. */
+/**
+ * Mudanças no cadastro de locais (depots e terminais) e no catálogo de
+ * serviços afetam as orientações de devolução do Portal, os serviços
+ * oferecidos e a armazenagem sugerida no Embarque de vazios (achado L7 do
+ * lote 5b) e a lista de embarques, que soma a armazenagem pelo free time.
+ */
 export async function afterDepotAlterado(queryClient: QueryInvalidator): Promise<void> {
-  await invalidate(queryClient, [['depots'], queryKeys.portalInformation.all(), ['portal-operation-bls']])
+  await invalidate(queryClient, [
+    ['depots'], ['depot-services'], ['armazenagem-services'],
+    ['vazios-export-operations'], ['embarque-vazios-operation'],
+    queryKeys.portalInformation.all(), ['portal-operation-bls'],
+  ])
 }
 
 /** Referências publicadas no Portal dependem das tabelas e acordos internos. */

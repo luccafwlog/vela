@@ -49,4 +49,13 @@ describe('PortalResetPassword — confirmação', () => {
       body: { token: 'RESET-TOKEN', password: 'senhaNova123' },
     }))
   })
+
+  it('sem token mostra "Link indisponível", não "vencido"', () => {
+    render(
+      <MemoryRouter initialEntries={['/portal/recuperar-senha']}>
+        <PortalResetPassword />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { level: 1, name: 'Link indisponível' })).toBeTruthy()
+  })
 })

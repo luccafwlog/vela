@@ -31,6 +31,9 @@ function customer(row: Partial<CustomerListItem>): CustomerListItem {
     notes: null,
     created_at: null,
     updated_at: null,
+    deactivated_at: null,
+    deactivated_by: null,
+    deactivation_reason: null,
     pending_balance: 0,
     ...row,
   }

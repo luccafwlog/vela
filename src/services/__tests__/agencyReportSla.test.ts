@@ -116,7 +116,27 @@ describe('mapClosedReportToSlaRow', () => {
     const operacoes = row.departments.find((d) => d.department === 'operacoes')!
     expect(operacoes.signedAt).toBeNull()
     expect(operacoes.state).not.toBe('on-time')
-    expect(summarizeAgencyReportSlaByDepartment([row])[0].total).toBe(0)
+    // A6 (lote 5b): sai como "Não assinou", não "Sem prazo"; conta no total, nunca no prazo.
+    expect(operacoes.outcome).toBe('unsigned')
+    expect(operacoes.hoursLate).toBeNull()
+    const summary = summarizeAgencyReportSlaByDepartment([row])[0]
+    expect(summary).toMatchObject({ onTime: 0, unsigned: 1, total: 1, rate: 0 })
+  })
+
+  it('diz quantas horas a assinatura atrasou, pelo instante do prazo ou pelo fim do dia em Brasília', () => {
+    const legacy = mapClosedReportToSlaRow(closedReport())!
+    // Prazo 2026-02-05 (fim do dia: 06/02 02:59:59Z); assinou 09/02 10:00Z.
+    expect(legacy.departments.find((d) => d.department === 'documentacao')).toMatchObject({ outcome: 'late', hoursLate: 80 })
+    expect(legacy.departments.find((d) => d.department === 'operacoes')).toMatchObject({ outcome: 'on-time', hoursLate: null })
+
+    const instant = mapClosedReportToSlaRow(closedReport({
+      closed_snapshot: {
+        header: { unifiedAtd: '2026-02-02T10:00:00-03:00', deadlineDate: '2026-02-05', deadlineAt: '2026-02-05T13:00:00.000Z' },
+        departmentSignoffs: [{ department: 'operacoes', signed_by: 'u', signed_at: '2026-02-05T19:00:00.000Z' }],
+      },
+    }))!
+    expect(instant.deadlineAt).toBe('2026-02-05T13:00:00.000Z')
+    expect(instant.departments.find((d) => d.department === 'operacoes')).toMatchObject({ outcome: 'late', hoursLate: 6 })
   })
 })
 
@@ -197,8 +217,8 @@ describe('listClosedAgencyReports', () => {
 
     expect(supabaseMocks.from).toHaveBeenCalledWith('agency_departure_reports')
     expect(builder.eq).toHaveBeenCalledWith('status', 'closed')
-    expect(builder.gte).toHaveBeenCalledWith('closed_at', '2026-02-01')
-    expect(builder.lte).toHaveBeenCalledWith('closed_at', '2026-02-28T23:59:59.999')
+    expect(builder.gte).toHaveBeenCalledWith('closed_at', '2026-02-01T00:00:00-03:00')
+    expect(builder.lte).toHaveBeenCalledWith('closed_at', '2026-02-28T23:59:59.999-03:00')
     expect(result).toHaveLength(1)
   })
 

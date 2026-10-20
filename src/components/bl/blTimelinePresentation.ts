@@ -137,7 +137,17 @@ function formatTimelineValue(fieldName: string, val: string | null | undefined):
   return fieldLabels?.[normalized.toLowerCase()] ?? normalized
 }
 
-type ContainerDatesSnapshot = { container?: unknown; discharge_date?: unknown; return_date?: unknown }
+/** Nome legível de um campo do B/L ou do container, ou `null` quando não há rótulo. */
+export function blFieldLabel(fieldName: string): string | null {
+  return FIELD_LABELS[fieldName] ?? null
+}
+
+/** Valor de um campo do B/L no formato do Histórico ("vazio", datas, situações). */
+export function formatBlFieldValue(fieldName: string, value: string | null | undefined): string {
+  return formatTimelineValue(fieldName, value)
+}
+
+type ContainerDatesSnapshot ={ container?: unknown; discharge_date?: unknown; return_date?: unknown }
 
 function parseContainerDates(value: string | null | undefined): ContainerDatesSnapshot | null {
   if (!value) return null

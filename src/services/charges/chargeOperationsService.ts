@@ -61,7 +61,7 @@ export type LocalChargeCalculationResult = {
 
 export type LocalChargePendencyItem = {
   id: string
-  cargo_mode: 'container' | 'carga_solta' | 'misto' | 'granito' | null
+  cargo_mode: 'container' | 'carga_solta' | 'misto' | null
   pol: string | null
   pod: string | null
   charge_status: string | null
@@ -79,7 +79,7 @@ export type LocalChargePendencyItem = {
 
 export type LocalChargeOperationalFilters = {
   search?: string
-  cargoMode?: '' | 'container' | 'carga_solta' | 'granito' | 'misto'
+  cargoMode?: '' | 'container' | 'carga_solta' | 'misto'
   pod?: string
   voyageId?: number | null
   chargeStatus?: '' | 'not_calculated' | 'calculated' | 'review_required' | 'reviewed' | 'ready_for_billing' | 'exempt'
@@ -89,7 +89,7 @@ export type LocalChargeOperationalFilters = {
 
 export type LocalChargeOperationalRow = {
   id: string
-  cargo_mode: 'container' | 'carga_solta' | 'granito' | 'misto' | null
+  cargo_mode: 'container' | 'carga_solta' | 'misto' | null
   pol: string | null
   pod: string | null
   charge_status: string | null
@@ -223,16 +223,9 @@ export async function listLocalChargeOperationalRows(
 export async function listLocalChargeOperationalRowsWithMeta(
   filters?: LocalChargeOperationalFilters,
 ): Promise<LocalChargeOperationalRowsResult> {
-  const cargoMode = filters?.cargoMode ?? ''
-  const wantBls = cargoMode === '' || cargoMode === 'container' || cargoMode === 'carga_solta' || cargoMode === 'misto'
-  const wantGranite = cargoMode === '' || cargoMode === 'granito'
-
-  const [blRows, graniteRows] = await Promise.all([
-    wantBls ? loadBlOperationalRows(filters) : Promise.resolve({ rows: [], truncated: false } as LocalChargeOperationalRowsResult),
-    wantGranite ? loadGraniteOperationalRows(filters) : Promise.resolve({ rows: [], truncated: false } as LocalChargeOperationalRowsResult),
-  ])
-
-  return { rows: [...blRows.rows, ...graniteRows.rows], truncated: blRows.truncated || graniteRows.truncated }
+  // O Granito não entra na Validação desde o lote 5b (2026-10-19): não tem
+  // Cliente nem taxa; só totaliza a carga do navio.
+  return loadBlOperationalRows(filters)
 }
 
 /**
@@ -416,155 +409,6 @@ async function loadBlOperationalRows(
         last_event_field: null,
         last_event_message: null,
       },
-  })), truncated }
-}
-
-type GraniteOperationalRaw = {
-  id: string
-  bl_number: string | null
-  charge_status: string | null
-  ce_mercante: string | null
-  loading_port: string | null
-  discharge_port: string | null
-  client_id: number | null
-  created_at: string | null
-  manifest: {
-    voyage: {
-      id: number
-      voyage_number: string | null
-      vessel: { name: string | null } | null
-    } | null
-  } | null
-  customer: { id: number; name: string | null; cnpj_cpf: string | null } | null
-}
-
-async function loadGraniteOperationalRows(
-  filters?: LocalChargeOperationalFilters,
-): Promise<LocalChargeOperationalRowsResult> {
-  const limit = Math.max(50, Math.min(5000, Number(filters?.limit ?? 400)))
-
-  // Mapeia o filtro de chargeStatus do mundo bls para o domínio enxuto de granite_bls.
-  // Estados legados do Granite são somente leitura nesta fila; o workflow atual
-  // só recalcula o snapshot quantitativo.
-  const requested = filters?.chargeStatus ?? ''
-  if (requested === 'review_required' || requested === 'reviewed' || requested === 'exempt') {
-    return { rows: [], truncated: false }
-  }
-
-  let granRows: GraniteOperationalRaw[] = []
-  let truncated = false
-
-  // Pagina internamente a fila de Granito para manter cobertura em listas grandes.
-  for (let offset = 0; offset < limit; offset += OPERATIONAL_PAGE_SIZE) {
-    const pageSize = Math.min(OPERATIONAL_PAGE_SIZE, limit - offset)
-    let query = supabase
-      .from('granite_bls')
-      .select(
-        `
-        id,
-        bl_number,
-        charge_status,
-        ce_mercante,
-        loading_port,
-        discharge_port,
-        client_id,
-        created_at,
-        manifest:granite_manifests(voyage:voyages(id,voyage_number,vessel:vessels(name))),
-        customer:customers!granite_bls_client_id_fkey(id,name,cnpj_cpf)
-      `,
-      )
-      .neq('charge_status', filters?.includeResolved ? '__never__' : 'invoiced')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageSize - 1)
-
-    if (requested === 'not_calculated' || requested === 'calculated' || requested === 'ready_for_billing') {
-      query = query.eq('charge_status', requested)
-    }
-    if (filters?.pod) {
-      const pod = sanitizeLikeTerm(filters.pod)
-      if (pod) query = query.ilike('discharge_port', `%${pod}%`)
-    }
-    if (filters?.search) {
-      const search = escapeFilterTerm(filters.search)
-      if (search) {
-        query = query.or(`bl_number.ilike.%${search}%,shipper_name.ilike.%${search}%`)
-      }
-    }
-
-    const { data, error } = await query.overrideTypes<GraniteOperationalRaw[], { merge: false }>()
-    if (error) throw error
-
-    const pageRows = data ?? []
-    granRows = [...granRows, ...pageRows]
-    if (pageRows.length < pageSize) break
-    if (offset + pageSize >= limit) truncated = true
-  }
-
-  // Filtro por viagem em granite_bls passa pelo manifest.voyage (lookup client-side).
-  if (filters?.voyageId) {
-    granRows = granRows.filter((row) => row.manifest?.voyage?.id === filters.voyageId)
-  }
-
-  if (granRows.length === 0) return { rows: [], truncated }
-
-  const graniteIds = granRows.map((row) => row.id)
-  const chargeRows = await fetchForBlIds(graniteIds, (chunk, from, to) =>
-    supabase
-      .from('granite_bl_charges')
-      .select('id,bl_id,subtotal,currency')
-      .in('bl_id', chunk)
-      .order('id')
-      .range(from, to),
-  )
-
-  const totalsMap = new Map<
-    string,
-    { total_brl: number; total_usd: number; line_count: number; review_required_count: number }
-  >()
-  for (const row of chargeRows ?? []) {
-    const blId = String(row.bl_id ?? '')
-    if (!blId) continue
-    const subtotal = Number(row.subtotal ?? 0)
-    const current = totalsMap.get(blId) ?? { total_brl: 0, total_usd: 0, line_count: 0, review_required_count: 0 }
-    if (row.currency === 'USD') current.total_usd += subtotal
-    else if (row.currency === 'BRL') current.total_brl += subtotal
-    current.line_count += 1
-    totalsMap.set(blId, current)
-  }
-
-  return { rows: granRows.map((row) => ({
-    id: row.id,
-    cargo_mode: 'granito' as const,
-    pol: row.loading_port,
-    pod: row.discharge_port,
-    charge_status: row.charge_status,
-    financial_status: row.charge_status === 'invoiced' ? 'invoiced' : null,
-    ce_mercante: row.ce_mercante,
-    // granito não passa pelo gate de revisão de BL comum (workflow próprio).
-    review_status: null,
-    notes: null,
-    // granite_bls não tem workflow de conciliação de cliente — se há client_id,
-    // tratamos como conciliado pra não bloquear o pipeline; caso contrário, sinaliza pendência.
-    customer_reconciliation_status: row.client_id ? 'reconciled' : 'pending',
-    customer_reconciliation_notes: row.client_id ? null : 'Granito: cliente nao vinculado',
-    billing_hold_reason: null,
-    last_billing_run_id: null,
-    charge_exemption_reason: null,
-    charges_calculated_at: null,
-    charges_reviewed_at: null,
-    created_at: row.created_at,
-    voyage: row.manifest?.voyage
-      ? {
-          id: row.manifest.voyage.id,
-          voyage_number: row.manifest.voyage.voyage_number ?? '',
-          vessel: { name: row.manifest.voyage.vessel?.name ?? null },
-        }
-      : null,
-    customer: row.customer
-      ? { id: row.customer.id, name: row.customer.name, cnpj_cpf: row.customer.cnpj_cpf }
-      : null,
-    totals: totalsMap.get(row.id) ?? { total_brl: 0, total_usd: 0, line_count: 0, review_required_count: 0 },
-    trail: { last_event_at: null, last_event_by: null, last_event_field: null, last_event_message: null },
   })), truncated }
 }
 

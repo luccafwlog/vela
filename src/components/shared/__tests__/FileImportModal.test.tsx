@@ -1,44 +1,34 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
-import { inspectImportUpload } from '../../../services/importText'
 import { ToastProvider } from '../../ui/Toast'
 import { FileImportModal } from '../FileImportModal'
 
-it('mostra o formato e o encoding detectados junto da prévia do arquivo', async () => {
-  const inspectFile = vi.fn().mockResolvedValue({
-    format: 'csv',
-    encoding: 'utf-8-sig',
-    hadBom: true,
-    preview: 'BL;Cidade\n1;Vitória',
-    byteLength: 21,
-  })
-
+// Lote 6a: o diagnóstico técnico (formato, encoding, BOM) saiu da tela; o
+// modal mostra a linha de passos e o bloco Arquivo do molde.
+it('não mostra diagnóstico técnico; mostra os passos e o bloco Arquivo', async () => {
   const { container } = render(
     <ToastProvider>
       <FileImportModal
         title="Importar arquivo"
         accept=".csv"
         parser={async () => ({ rows: 1 })}
-        inspectFile={inspectFile}
         canImport={() => true}
         renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
         onClose={vi.fn()}
       />
     </ToastProvider>,
   )
+  expect(screen.getByRole('heading', { name: 'Arquivo' })).toBeTruthy()
+  expect(screen.getByRole('list', { name: 'Passos da importação' }).querySelector('[aria-current="step"]')?.textContent).toBe('Arquivo')
 
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
     target: { files: [new File(['BL;Cidade\n1;Vitória'], 'dados.csv')] },
   })
 
-  await waitFor(() => expect(inspectFile).toHaveBeenCalled())
-  const inspection = screen.getByRole('status')
-  expect(inspection.textContent).toContain('Formato detectado: CSV')
-  expect(inspection.textContent).toContain('Encoding: UTF-8 com BOM')
-  expect(inspection.textContent).toContain('BOM: presente')
-  expect(inspection.textContent).toContain('BL;Cidade')
-  expect(screen.getByText('Linhas: 1')).toBeTruthy()
+  expect(await screen.findByText('Linhas: 1')).toBeTruthy()
+  expect(screen.getByRole('list', { name: 'Passos da importação' }).querySelector('[aria-current="step"]')?.textContent).toBe('Prévia')
+  expect(container.textContent).not.toMatch(/Encoding|BOM|Formato detectado/)
 })
 
 it('mantem a confirmacao desabilitada quando o contrato rejeita a previa', async () => {
@@ -128,7 +118,9 @@ it('permite cancelar a leitura de uma seleção em andamento', async () => {
   expect(parser).toHaveBeenCalledTimes(1)
 })
 
-it('permite override manual quando há pendências/erros na prévia', async () => {
+// Regra de 2026-10-19 (ADR 0092): erro recusa a importação inteira, sem
+// "forçar"; o aceite vale só para avisos.
+it('com erro não oferece forçar a importação e mantém o botão desligado', async () => {
   const importer = vi.fn().mockResolvedValue(undefined)
   const { container } = render(
     <ToastProvider>
@@ -137,6 +129,35 @@ it('permite override manual quando há pendências/erros na prévia', async () =
         accept=".csv"
         parser={async () => ({ rows: 2, rowErrors: [{ row: 2, message: 'erro de porta', raw: {} }] })}
         canImport={(preview, allowOverride) => (preview.rowErrors.length > 0 ? Boolean(allowOverride) : true)}
+        getIssues={() => [{ row: 2, field: 'pod', code: 'unknown_port', severity: 'error', message: 'erro de porta' }]}
+        importer={importer}
+        renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
+        onClose={vi.fn()}
+      />
+    </ToastProvider>,
+  )
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['conteudo'], 'dados.csv')] },
+  })
+
+  await waitFor(() => expect(screen.getByText('Linhas: 2')).toBeTruthy())
+  expect((screen.getByRole('button', { name: 'Importar' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(screen.queryByRole('checkbox')).toBeNull()
+  expect(screen.getByText(/Com erro no arquivo, nada é importado/)).toBeTruthy()
+  expect(importer).not.toHaveBeenCalled()
+})
+
+it('com aviso pede o aceite e então importa o arquivo inteiro', async () => {
+  const importer = vi.fn().mockResolvedValue(undefined)
+  const { container } = render(
+    <ToastProvider>
+      <FileImportModal
+        title="Importar arquivo"
+        accept=".csv"
+        parser={async () => ({ rows: 2 })}
+        canImport={(_preview, allowOverride) => Boolean(allowOverride)}
+        getIssues={() => [{ row: 2, field: 'pod', code: 'unknown_port', severity: 'warning', message: 'confira o porto' }]}
         importer={importer}
         renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
         onClose={vi.fn()}
@@ -151,20 +172,36 @@ it('permite override manual quando há pendências/erros na prévia', async () =
   await waitFor(() => expect(screen.getByText('Linhas: 2')).toBeTruthy())
   const confirmBtn = screen.getByRole('button', { name: 'Importar' }) as HTMLButtonElement
   expect(confirmBtn.disabled).toBe(true)
-
-  const checkbox = screen.getByLabelText(/Estou ciente das divergências\/erros/i) as HTMLInputElement
-  expect(checkbox.checked).toBe(false)
-
-  fireEvent.click(checkbox)
-  expect(checkbox.checked).toBe(true)
+  fireEvent.click(screen.getByLabelText(/Conferi os avisos e quero importar o arquivo/i))
   expect(confirmBtn.disabled).toBe(false)
-
   fireEvent.click(confirmBtn)
-  await waitFor(() => expect(importer).toHaveBeenCalledWith(
-    expect.objectContaining({ rows: 2 }),
-    expect.any(File),
-    true,
-  ))
+  await waitFor(() => expect(importer).toHaveBeenCalledWith(expect.objectContaining({ rows: 2 }), expect.any(File), true))
+})
+
+it('com vários arquivos, um arquivo recusado bloqueia todos', async () => {
+  const importer = vi.fn().mockResolvedValue(undefined)
+  const { container } = render(
+    <ToastProvider>
+      <FileImportModal
+        title="Importar arquivos"
+        accept=".csv"
+        multiple
+        parser={async (file: File) => ({ ok: file.name !== 'ruim.csv' })}
+        canImport={(preview) => preview.ok}
+        importer={importer}
+        renderPreview={(preview) => <div>{preview.ok ? 'ok' : 'com erro'}</div>}
+        onClose={vi.fn()}
+      />
+    </ToastProvider>,
+  )
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['a'], 'bom.csv'), new File(['b'], 'ruim.csv')] },
+  })
+
+  expect(await screen.findByText(/Com erro no arquivo, nada é importado/)).toBeTruthy()
+  const confirmBtn = screen.getAllByRole('button').find((button) => button.textContent?.startsWith('Importar')) as HTMLButtonElement
+  expect(confirmBtn.disabled).toBe(true)
 })
 
 it('mostra a falha de leitura na tela, junto do arquivo', async () => {
@@ -232,7 +269,6 @@ it('lê o CSV Windows-1252 pelo diagnóstico comum, sem falha de leitura', async
         title="Importar arquivo"
         accept=".csv"
         parser={parser}
-        inspectFile={inspectImportUpload}
         canImport={() => true}
         renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
         onClose={vi.fn()}
@@ -248,48 +284,103 @@ it('lê o CSV Windows-1252 pelo diagnóstico comum, sem falha de leitura', async
 
   expect(await screen.findByText('Linhas: 1')).toBeTruthy()
   expect(parser).toHaveBeenCalled()
-  expect(screen.getByLabelText('Diagnóstico do arquivo').textContent).toContain('Encoding: Windows-1252')
   expect(screen.queryByText('Não foi possível ler o arquivo')).toBeNull()
 })
 
-// Revisão da PR 929: Vazios de Importação pergunta antes de gravar uma
-// planilha com ocultas. Voltar não grava, não mostra falha e mantém a prévia.
-it('confirmBeforeImport: voltar não grava e mantém a prévia; confirmar grava', async () => {
+// Fechar no meio da gravação desmontava o modal com a gravação seguindo sem
+// tela: X, Escape e Voltar não fecham enquanto grava.
+it('não fecha durante a gravação; fecha depois', async () => {
   const onClose = vi.fn()
-  const importer = vi.fn(async () => undefined)
-  const confirmBeforeImport = vi.fn<(preview: { rows: number }) => Promise<boolean>>()
-    .mockResolvedValueOnce(false)
-    .mockResolvedValueOnce(true)
+  let finish: (() => void) | undefined
+  const importer = vi.fn(() => new Promise<undefined>((resolve) => { finish = () => resolve(undefined) }))
   const { container } = render(
     <ToastProvider>
       <FileImportModal
         title="Importar arquivo"
         accept=".csv"
-        confirmLabel="Importar manifesto"
         parser={async () => ({ rows: 1 })}
         canImport={() => true}
-        confirmBeforeImport={confirmBeforeImport}
         importer={importer}
         renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
         onClose={onClose}
       />
     </ToastProvider>,
   )
-
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
     target: { files: [new File(['x'], 'ok.csv')] },
   })
-  await waitFor(() => expect(screen.getByText('Linhas: 1')).toBeTruthy())
-
-  fireEvent.click(screen.getByRole('button', { name: 'Importar manifesto' }))
-  await waitFor(() => expect(confirmBeforeImport).toHaveBeenCalledTimes(1))
-  expect(confirmBeforeImport).toHaveBeenCalledWith({ rows: 1 }, expect.any(File))
-  expect(importer).not.toHaveBeenCalled()
-  expect(screen.queryByText('A importação não foi concluída')).toBeNull()
-  expect(screen.getByText('Linhas: 1')).toBeTruthy()
-  expect(onClose).not.toHaveBeenCalled()
-
-  fireEvent.click(screen.getByRole('button', { name: 'Importar manifesto' }))
+  await screen.findByText('Linhas: 1')
+  fireEvent.click(screen.getByRole('button', { name: 'Importar' }))
   await waitFor(() => expect(importer).toHaveBeenCalledTimes(1))
-  await waitFor(() => expect(onClose).toHaveBeenCalled())
+  fireEvent.keyDown(document, { key: 'Escape' })
+  fireEvent.click(screen.getByRole('button', { name: 'Fechar modal' }))
+  expect(onClose).not.toHaveBeenCalled()
+  finish?.()
+  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+})
+
+// Só avisos e nada a gravar (manifesto BB só com B/Ls cancelados): não é
+// "Com erro no arquivo"; o rodapé diz que não há o que importar.
+it('nothingToImport: sem erro e nada a gravar desativa Importar com a frase própria', async () => {
+  const { container } = render(
+    <ToastProvider>
+      <FileImportModal
+        title="Importar arquivo"
+        accept=".csv"
+        parser={async () => ({ rows: 0 })}
+        canImport={() => true}
+        getIssues={() => [{ row: 3, field: 'bl', code: 'invalid_group', severity: 'warning', message: 'B/L X cancelado: a linha não é tocada.' }] as never}
+        nothingToImport={(entries) => entries.every((entry) => entry.preview.rows === 0) ? 'Nenhum B/L a importar.' : null}
+        renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
+        onClose={vi.fn()}
+      />
+    </ToastProvider>,
+  )
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ok.csv')] },
+  })
+  await screen.findByText('Linhas: 0')
+  expect(screen.getByText('Nenhum B/L a importar.')).toBeTruthy()
+  expect(screen.queryByText(/Com erro no arquivo/)).toBeNull()
+  expect(screen.queryByRole('checkbox')).toBeNull()
+  expect((screen.getByRole('button', { name: 'Importar' }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+// Depois do resultado, trocar a opção de leitura não relê o arquivo nem
+// reabre o Importar; o pré-requisito recebe `locked` para travar os campos.
+it('depois do resultado, reparseKey novo não apaga o resultado e o pré-requisito fica travado', async () => {
+  const parser = vi.fn(async () => ({ rows: 1 }))
+  const importer = vi.fn(async () => 'gravado')
+  const view = (key: string) => (
+    <ToastProvider>
+      <FileImportModal<{ rows: number }, string>
+        title="Importar arquivo"
+        accept=".csv"
+        parser={parser}
+        reparseKey={key}
+        canImport={() => true}
+        importer={importer}
+        prerequisite={({ locked }) => <input aria-label="Viagem" disabled={locked} readOnly />}
+        renderPreview={(preview) => <div>Linhas: {preview.rows}</div>}
+        renderImportResult={(result) => <div>Resultado: {result}</div>}
+        onClose={vi.fn()}
+      />
+    </ToastProvider>
+  )
+  const { container, rerender } = render(view('a'))
+  expect((screen.getByLabelText('Viagem') as HTMLInputElement).disabled).toBe(false)
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'ok.csv')] },
+  })
+  await screen.findByText('Linhas: 1')
+  fireEvent.click(screen.getByRole('button', { name: 'Importar' }))
+  expect(await screen.findByText('Resultado: gravado')).toBeTruthy()
+  expect((screen.getByLabelText('Viagem') as HTMLInputElement).disabled).toBe(true)
+
+  rerender(view('b'))
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(parser).toHaveBeenCalledTimes(1)
+  expect(screen.getByText('Resultado: gravado')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Concluir' })).toBeTruthy()
+  expect(importer).toHaveBeenCalledTimes(1)
 })

@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, MoreVertical, RefreshCw } from "lucide-react";
+import { ExternalLink, FileSearch, MoreVertical, RefreshCw } from "lucide-react";
 import { ActionMenu } from "../ui/ActionMenu";
 import { Block, Fact, FactList, LeadValue } from "../ui/Block";
 import { Button } from "../ui/Button";
+import { RowActionButton } from "../ui/RowActionButton";
 import { InlineError } from "../ui/Card";
 import { CopyValue } from "../ui/CopyValue";
 import { NoValue } from "../ui/NoValue";
@@ -267,19 +268,18 @@ export function CeUnlockRequestDetail({
                     {reviewable ? (
                       <td className="whitespace-nowrap text-right">
                         {canApprove(d) ? (
-                          <Button
-                            className="app-btn--sm"
-                            aria-label={`Analisar ${lower(d.type)}`}
+                          <RowActionButton
+                            variant="primary"
+                            label={`Analisar ${lower(d.type)}`}
+                            icon={FileSearch}
                             aria-expanded={analyzing === d.id}
                             onClick={() => setAnalyzing(d.id)}
-                          >
-                            Analisar
-                          </Button>
+                          />
                         ) : d.status === "approved" ? (
                           <ActionMenu
                             label={`Ações de ${lower(d.type)}`}
-                            triggerClassName="app-btn app-btn--ghost app-btn--sm"
-                            trigger={<MoreVertical size={16} aria-hidden="true" />}
+                            triggerClassName="app-btn app-btn--ghost app-btn--icon"
+                            trigger={<MoreVertical size={15} aria-hidden="true" />}
                             items={[
                               { key: "refuse", label: "Recusar aprovação", onSelect: () => void review(d, "changes_requested") },
                             ]}
@@ -381,9 +381,11 @@ export function CeUnlockRequestDetail({
                   <td className="app-table__text">
                     <CeUnlockZptState item={i} />
                     {manage && (i.reasons ?? []).some((r) => r.includes("CE alterado")) && (
-                      <Button
-                        variant="secondary"
-                        className="app-btn--sm ml-2"
+                      <RowActionButton
+                        label={`Reconferir CE do B/L ${i.bl_id}`}
+                        title="Reconferir CE"
+                        icon={RefreshCw}
+                        className="ml-2"
                         disabled={busy}
                         onClick={() =>
                           void act(
@@ -398,10 +400,7 @@ export function CeUnlockRequestDetail({
                             true,
                           )
                         }
-                      >
-                        <RefreshCw size={14} aria-hidden="true" />
-                        Reconferir CE
-                      </Button>
+                      />
                     )}
                   </td>
                 </tr>

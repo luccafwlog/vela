@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { importVaziosImportacaoManifest, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes, vaziosImportacaoHiddenConfirmOptions } from '../vaziosImportacaoImport'
+import { importVaziosImportacaoManifest, listVaziosImportacaoContainers, parseVaziosImportacaoBuffer, resolveVaziosManifestNumbers, resolveVaziosManifestRoutes, vaziosImportacaoHiddenConfirmOptions, vazioManifestoNumero } from '../vaziosImportacaoImport'
 import { aoaToBuffer, jsonToBuffer } from './testWorkbook'
 
 const { rpcMock, fromMock } = vi.hoisted(() => ({ rpcMock: vi.fn(), fromMock: vi.fn() }))
@@ -86,7 +86,7 @@ describe('parseVaziosImportacaoBuffer', () => {
 
     expect(manifest.containers).toEqual([])
     expect(manifest.rowErrors).toEqual([
-      { row: 2, message: 'Container ausente — linha ignorada.', raw: expect.anything() },
+      { row: 2, message: 'Container ausente.', raw: expect.anything() },
       { row: 3, message: 'Container ABC123: formato ISO esperado (XXXX0000000).', raw: expect.anything() },
     ])
   })
@@ -150,10 +150,11 @@ describe('parseVaziosImportacaoBuffer', () => {
 		expect(rpcMock).not.toHaveBeenCalled()
 	})
 
-	it('só permite importar divergências quando o override de erros de linha é explícito', async () => {
-		rpcMock.mockResolvedValue({ data: { manifest_id: 'manifest-1', mercante_manifest_ids: ['mercante-1'] }, error: null })
+	// Regra de 2026-10-19 (ADR 0092): não há aceite que grave só as linhas válidas.
+	it('linha com erro recusa o arquivo inteiro mesmo com aceite antigo', async () => {
+		rpcMock.mockReset()
 
-		await importVaziosImportacaoManifest({
+		await expect(importVaziosImportacaoManifest({
 			manifest: {
 				containers: [container('MSCU1234567')],
 				rowErrors: [{ row: 2, message: 'Container inválido.', raw: { Container: 'MSCU1234567' } }],
@@ -161,14 +162,14 @@ describe('parseVaziosImportacaoBuffer', () => {
 			uploadedBy: 'user-1',
 			voyageId: 7,
 			manifestNumbers: { CNTAC__BRVIX: '1226501801342' },
-			allowRowErrors: true,
-		})
+			...({ allowRowErrors: true } as object),
+		})).rejects.toThrow(/^Nada foi gravado: uma linha tem erro\./)
 
-		expect(rpcMock).toHaveBeenCalledWith('import_vazios_importacao_transactional', expect.anything())
+		expect(rpcMock).not.toHaveBeenCalled()
 	})
 })
 
-describe('Nº do manifesto Mercante dos vazios (um por porto de origem)', () => {
+describe('Nº do manifesto Mercante dos vazios (um por rota POL → POD)', () => {
   const base = { uploadedBy: 'user-1', voyageId: 7 }
   const OUTRA = { pol: 'CNSHA', pod: 'BRVIX' }
   const doisPortos = { containers: [container('MSCU1234567'), container('TGHU7654325', OUTRA)], rowErrors: [] }
@@ -187,13 +188,13 @@ describe('Nº do manifesto Mercante dos vazios (um por porto de origem)', () => 
     expect(rpcMock).not.toHaveBeenCalled()
   })
 
-  it('com dois portos de origem exige um número para cada um', async () => {
+  it('com duas rotas exige um número para cada uma', async () => {
     await expect(importVaziosImportacaoManifest({
       ...base, manifestNumbers: { CNTAC__BRVIX: '111' }, manifest: doisPortos,
     })).rejects.toThrow('CNSHA → BRVIX')
     await expect(importVaziosImportacaoManifest({
       ...base, manifestNumbers: { CNTAC__BRVIX: '111', CNSHA__BRVIX: ' 111 ' }, manifest: doisPortos,
-    })).rejects.toThrow('mais de um porto de origem')
+    })).rejects.toThrow('mais de uma rota')
     await expect(importVaziosImportacaoManifest({
       ...base, manifestNumbers: { CNTAC__BRVIX: '1' }, manifest: { containers: [container('MSCU1234567', {})], rowErrors: [] },
     })).rejects.toThrow('POL e POD são obrigatórios')
@@ -236,6 +237,12 @@ describe('resolveVaziosManifestRoutes', () => {
   it('explica o bloqueio quando falta POL/POD ou não há containers', () => {
     expect(resolveVaziosManifestRoutes({ containers: [container('A', { pol: 'CNTAC' })] }).error).toMatch(/POL e POD/)
     expect(resolveVaziosManifestRoutes({ containers: [] }).error).toMatch(/Nenhum container/)
+  })
+
+  it('V3: o mesmo POL com dois POD pede dois números (um por rota)', () => {
+    expect(resolveVaziosManifestRoutes({
+      containers: [container('A'), container('B', { pol: 'CNTAC', pod: 'BRSSZ' })],
+    }).routes).toEqual([{ pol: 'CNTAC', pod: 'BRSSZ' }, ROTA])
   })
 
   it('aceita os números quando cada porto tem o seu', () => {
@@ -286,5 +293,63 @@ describe('Vazios de Importação — linhas e abas ocultas', () => {
     expect(hidden).toEqual({ rows: 0, sheets: [] })
     expect(vaziosImportacaoHiddenConfirmOptions(hidden)).toBeNull()
     expect(vaziosImportacaoHiddenConfirmOptions({ rows: 3, sheets: [] })?.message).toMatch(/^3 linhas ocultas foram ignoradas e as unidades delas sairão do manifesto/)
+  })
+})
+
+describe('vazioManifestoNumero (coluna Manifesto Mercante)', () => {
+  const manifestos = [
+    { voyage_id: 7, pol: 'CNSHA', pod: 'BRVIX', numero: '2626501234568' },
+    { voyage_id: 7, pol: 'CNSHA', pod: 'BRSSZ', numero: '2626501234567' },
+    { voyage_id: 8, pol: 'CNSHA', pod: 'BRVIX', numero: '2626509999999' },
+  ]
+  const row = (pol: string | null, pod: string | null, voyageId: number | null = 7) => ({ pol, pod, manifest: { voyage_id: voyageId } })
+
+  it('casa pela Viagem, POL e POD do container', () => {
+    expect(vazioManifestoNumero(row('CNSHA', 'BRVIX'), manifestos)).toBe('2626501234568')
+    expect(vazioManifestoNumero(row('CNSHA', 'BRSSZ'), manifestos)).toBe('2626501234567')
+    expect(vazioManifestoNumero(row('CNSHA', 'BRVIX', 8), manifestos)).toBe('2626509999999')
+  })
+
+  it('compara o porto pela forma canônica (BRVIT é BRVIX, caixa baixa)', () => {
+    expect(vazioManifestoNumero(row('cnsha', 'BRVIT'), manifestos)).toBe('2626501234568')
+  })
+
+  it('sem manifesto da rota, sem POL/POD ou sem Viagem não tem número', () => {
+    expect(vazioManifestoNumero(row('CNNGB', 'BRVIX'), manifestos)).toBeNull()
+    expect(vazioManifestoNumero(row(null, 'BRVIX'), manifestos)).toBeNull()
+    expect(vazioManifestoNumero(row('CNSHA', 'BRVIX', null), manifestos)).toBeNull()
+  })
+
+  it('usa a régua do banco (normalize_port_code): porto fora da lista do import ainda casa', () => {
+    const outro = [{ voyage_id: 7, pol: 'ARBUE', pod: 'BRVIX', numero: '2626500000001' }]
+    expect(vazioManifestoNumero(row('ARBUE', 'BRVIX'), outro)).toBe('2626500000001')
+  })
+})
+
+describe('listVaziosImportacaoContainers (filtros da lista)', () => {
+  beforeEach(() => fromMock.mockReset())
+
+  it('POL/POD filtram por todas as grafias gravadas do porto, não pela coluna exata', async () => {
+    const inCalls: unknown[][] = []
+    const builder: Record<string, unknown> = {}
+    Object.assign(builder, {
+      select: () => builder, range: () => builder, order: () => builder, eq: () => builder, or: () => builder,
+      in: (...args: unknown[]) => { inCalls.push(args); return builder },
+      then: (resolve: (value: unknown) => unknown) => resolve({ data: [], error: null, count: 0 }),
+    })
+    fromMock.mockReturnValue(builder)
+
+    await listVaziosImportacaoContainers({ pol: 'CNNGB', pod: 'BRVIX' })
+
+    expect(inCalls).toContainEqual(['pol', expect.arrayContaining(['CNNGB', 'CNZOS', 'NINGBO'])])
+    expect(inCalls).toContainEqual(['pod', expect.arrayContaining(['BRVIX', 'BRVIT', 'VITORIA'])])
+  })
+
+  it('falha ao ler os manifestos da Viagem é erro da tela, não "Nenhum container"', async () => {
+    fromMock.mockImplementation((table: string) => table === 'vazios_importacao_manifests'
+      ? { select: () => ({ eq: () => Promise.resolve({ data: null, error: new Error('manifestos fora do ar') }) }) }
+      : { select: () => { throw new Error('não deveria consultar os containers') } })
+
+    await expect(listVaziosImportacaoContainers({ voyageId: '7' })).rejects.toThrow('manifestos fora do ar')
   })
 })
