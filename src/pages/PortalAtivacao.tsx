@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
-import { Card, InlineError } from '../components/ui/Card'
+import { InlineError } from '../components/ui/Card'
+import { AuthLayout, AuthNotice } from '../components/auth/AuthLayout'
 import { Field } from '../components/ui/Input'
 import { PasswordInput } from '../components/auth/PasswordInput'
 import { PortalAccessHelp } from '../components/auth/PortalAccessHelp'
@@ -72,71 +73,54 @@ export function PortalAtivacao() {
   const title = done ? 'Acesso ativado' : company || loading ? 'Ativar acesso ao Portal' : 'Convite indisponível'
 
   return (
-    <main className="app-auth">
-      <Card className="app-auth__card">
-        <div className="app-auth__brand">
-          <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-          <h1 className="app-auth__title">{title}</h1>
-        </div>
-
-        {loading ? (
-          <p className="app-auth__body" role="status">Verificando convite…</p>
-        ) : done ? (
-          <>
-            <div className="app-auth__body" role="status">
-              <p>Você já pode entrar com o CNPJ da empresa e a senha criada.</p>
-            </div>
-            <div className="app-auth__actions">
-              <Link className="app-btn app-btn--primary" to="/portal/login">Ir para o login</Link>
-            </div>
-          </>
-        ) : company ? (
-          <>
-            {/* Confirma para quem é o acesso antes de criar a senha. */}
-            <dl className="app-auth__identity">
-              <div>
-                <dt>Empresa</dt>
-                <dd>{company.company_name}</dd>
-              </div>
-              <div>
-                <dt>CNPJ</dt>
-                <dd>{company.cnpj_masked}</dd>
-              </div>
-            </dl>
-            <form className="grid gap-4" onSubmit={submit}>
-              <Field
-                label="Nova senha"
-                hint={fieldError?.field === 'password' ? undefined : PASSWORD_RULE_MESSAGE}
-                error={fieldError?.field === 'password' ? fieldError.message : undefined}
-              >
-                <PasswordInput
-                  ref={passwordRef}
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </Field>
-              <Field label="Confirmar senha" error={fieldError?.field === 'confirm' ? fieldError.message : undefined}>
-                <PasswordInput ref={confirmRef} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-              </Field>
-              {error ? <InlineError message={error} /> : null}
-              <Button loading={submitting} loadingLabel="Ativando..." type="submit">Ativar acesso</Button>
-            </form>
-          </>
-        ) : (
-          <>
-            <InlineError message={error || invalid} />
-            <div className="app-auth__body">
-              <p>O convite vale por 48 horas e só pode ser usado uma vez. Um convite reenviado invalida os anteriores.</p>
-            </div>
-            <div className="app-auth__actions">
-              <Link className="app-auth__link" to="/portal/login">Ir para o login</Link>
-            </div>
-          </>
-        )}
-
-        <PortalAccessHelp />
-      </Card>
-    </main>
+    <AuthLayout brand="portal" title={title}>
+      {loading ? (
+        <p className="app-auth__body" role="status">Verificando convite…</p>
+      ) : done ? (
+        <>
+          <div className="app-auth__body" role="status">
+            <p>Você já pode entrar com o CNPJ da empresa e a senha criada.</p>
+          </div>
+          <Link className="app-btn app-btn--primary" to="/portal/login">Ir para o login</Link>
+        </>
+      ) : company ? (
+        <>
+          {/* Confirma para quem é o acesso antes de criar a senha: a empresa é o
+              dado principal, o CNPJ vem embaixo (lote 6a). */}
+          <section className="app-auth__identity" aria-label="Acesso para">
+            <p className="app-auth__identity-label">Acesso para</p>
+            <p className="app-auth__identity-name">{company.company_name}</p>
+            <p className="app-auth__identity-detail">CNPJ {company.cnpj_masked}</p>
+          </section>
+          <form className="grid gap-4" onSubmit={submit}>
+            <Field
+              label="Nova senha"
+              hint={fieldError?.field === 'password' ? undefined : PASSWORD_RULE_MESSAGE}
+              error={fieldError?.field === 'password' ? fieldError.message : undefined}
+            >
+              <PasswordInput
+                ref={passwordRef}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+            <Field label="Confirmar senha" error={fieldError?.field === 'confirm' ? fieldError.message : undefined}>
+              <PasswordInput ref={confirmRef} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            </Field>
+            {error ? <InlineError message={error} /> : null}
+            <Button loading={submitting} loadingLabel="Ativando..." type="submit">Ativar acesso</Button>
+          </form>
+        </>
+      ) : (
+        <>
+          <AuthNotice title={error || invalid}>
+            O convite vale por 48 horas e só pode ser usado uma vez. Um convite reenviado invalida os anteriores.
+          </AuthNotice>
+          <Link className="app-btn app-btn--secondary" to="/portal/login">Ir para o login</Link>
+        </>
+      )}
+      <PortalAccessHelp />
+    </AuthLayout>
   )
 }

@@ -43,6 +43,7 @@ import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ParsedBLDocument } from '../services/blParser'
 import {
+  BlFreightImportRefused,
   buildBlFreightPayload,
   confirmBlFreightImport,
   previewBlFreightImport,
@@ -51,7 +52,7 @@ import {
 } from '../services/blFreightImport'
 import { syntheticCnpj } from './localTestData'
 
-type BridgeError = { code: string | null; message: string; details: string }
+type BridgeError = { code: string | null; message: string; details: string; hint?: string | null }
 type BridgeResult = { data: unknown; error: BridgeError | null }
 
 // A fábrica de vi.mock é içada para antes dos imports; a ponte é preenchida abaixo.
@@ -141,15 +142,19 @@ function jsonLiteral(value: unknown): string {
 
 // --- Ponte: a mesma RPC que confirmBlFreightImport chama -----------------------
 bridge.rpc = (name, args) => {
-  if (name !== 'import_bl_freight_with_metadata') throw new Error(`RPC não emulada nesta suíte: ${name}`)
+  if (name !== 'import_bl_freight_file_atomic') throw new Error(`RPC não emulada nesta suíte: ${name}`)
   const result = tryAsOperator(`
-    SELECT public.import_bl_freight_with_metadata(
+    SELECT public.import_bl_freight_file_atomic(
       p_bls => ${jsonLiteral(args.p_bls)},
       p_changed_by => ${sqlLiteral(args.p_changed_by)}::uuid,
       p_batch => ${jsonLiteral(args.p_batch)}
     );
   `)
-  if (result.error) return { data: null, error: result.error }
+  if (result.error) {
+    // Como o PostgREST: DETAIL e HINT da recusa vão em `details` e `hint`.
+    const line = (label: string) => result.error?.details.split('\n').find((candidate) => candidate.startsWith(`${label}:`))?.slice(label.length + 1).trim()
+    return { data: null, error: { ...result.error, details: line('DETAIL') ?? result.error.details, hint: line('HINT') ?? null } }
+  }
   return { data: JSON.parse(result.output ?? 'null') as unknown, error: null }
 }
 
@@ -925,15 +930,23 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(vehicleAlerts(blId)).toBe(1)
   })
 
-  it('chassi que já está em outro B/L recusa só a linha', async () => {
+  // ADR 0092 (migration 335): a recusa que só o banco detecta desfaz o arquivo inteiro.
+  it('chassi que já está em outro B/L recusa o arquivo inteiro e nada é gravado', async () => {
     const blId = 'A202-VIN3'
-    const result = await importBls([blDocument(blId, {
-      containers: ['AZCU2020081'],
-      vehicles: [{ chassis: 'A202VIN0000000001', container: 'AZCU2020081' }, { chassis: 'A202VIN0000000021', container: 'AZCU2020081' }],
-    })], 'a202-vin3.xlsx')
-    expect(result.error).toBeNull()
-    expect(result.result?.vehiclesDiscarded).toEqual([{ blNumber: blId, chassis: 'A202VIN0000000001', reason: 'Chassi ja esta no B/L A202-VIN1' }])
-    expect(vehiclesOf(blId).map((vehicle) => vehicle.chassis)).toEqual(['A202VIN0000000021'])
+    const preview = await previewBlFreightImport({
+      documents: [blDocument(blId, {
+        containers: ['AZCU2020081'],
+        vehicles: [{ chassis: 'A202VIN0000000001', container: 'AZCU2020081' }, { chassis: 'A202VIN0000000021', container: 'AZCU2020081' }],
+      })],
+      voyageId,
+      onlyBlId: null,
+    })
+    const refusal = await confirmBlFreightImport(preview, actorId, false, 'a202-vin3.xlsx').then(() => null, (error: unknown) => error)
+    expect(refusal).toBeInstanceOf(BlFreightImportRefused)
+    expect((refusal as BlFreightImportRefused).message).toMatch(/^Nada foi gravado: o banco recusou veículos da aba VIN/)
+    expect((refusal as BlFreightImportRefused).refused).toEqual([`${blId} — VIN A202VIN0000000001: Chassi ja esta no B/L A202-VIN1`])
+    expect(blState(blId)).toBeNull()
+    expect(vehiclesOf(blId)).toEqual([])
   })
 
   it('container ausente do arquivo sai e é informado no resultado; o que continua mantém o id', async () => {
@@ -973,6 +986,36 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     // Mesmo Cliente divide o container normalmente.
     expect((await importBls([blDocument('A202-FCL3', { containers: ['AZCU2020101'] })], 'a202-fcl3.xlsx')).error).toBeNull()
     expect(blState('A202-FCL3')?.customer_id).toBe(alfa.id)
+  })
+
+  // ADR 0092 (migration 335): erro em qualquer B/L recusa o arquivo inteiro.
+  it('B/L bloqueado na prévia impede os outros, e a recusa do banco no meio do arquivo não deixa nada gravado', async () => {
+    // Prévia: A202-FCL2 bloqueado (FCL de outro Cliente) impede o A202-ATM1 liberado.
+    const withBlocked = await importBls(
+      [blDocument('A202-ATM1', { containers: ['AZCU2020191'] }), blDocument('A202-FCL2', { containers: ['AZCU2020101'], consignee: beta })],
+      'a202-atm-bloqueado.xlsx',
+    )
+    expect(previewRow(withBlocked, 'A202-ATM1').status).toBe('new')
+    expect(withBlocked.error).toMatch(/^Nada foi gravado: o B\/L A202-FCL2 está bloqueado/)
+    expect(blState('A202-ATM1')).toBeNull()
+
+    // Banco: a mesma recusa sem a prévia (payload montado à mão), com um B/L
+    // válido antes no arquivo. A transação única desfaz o primeiro também.
+    const good = buildBlFreightPayload(blDocument('A202-ATM1', { containers: ['AZCU2020191'] }), voyageId)
+    const refused = { ...buildBlFreightPayload(blDocument('A202-FCL2', { containers: ['AZCU2020101'], consignee: beta }), voyageId), customer_id: beta.id }
+    const preview = await previewBlFreightImport({ documents: [blDocument('A202-ATM1', { containers: ['AZCU2020191'] })], voyageId, onlyBlId: null })
+    const handmade: BlFreightImportPreview = {
+      ...preview,
+      rows: [
+        { ...previewRow({ preview, result: null, error: null }, 'A202-ATM1'), payload: good },
+        { ...previewRow({ preview, result: null, error: null }, 'A202-ATM1'), blNumber: 'A202-FCL2', payload: refused as typeof good },
+      ],
+    }
+    const failure = await confirmBlFreightImport(handmade, actorId, false, 'a202-atm-banco.xlsx').then(() => null, (error: unknown) => error)
+    expect(failure).toBeInstanceOf(BlFreightImportRefused)
+    expect((failure as Error).message).toMatch(/^Nada foi gravado: .*container FCL nao e dividido entre Clientes diferentes/)
+    expect(blState('A202-ATM1')).toBeNull()
+    expect(blState('A202-FCL2')).toBeNull()
   })
 
   // --- Migration 194: correções da revisão da PR 929 ---------------------------

@@ -167,7 +167,7 @@ describe('importBlDocument', () => {
     expect(mockImportBreakbulkManifest.mock.calls[0]?.[0].manifest.bls).toHaveLength(2)
   })
 
-  it('exige override para avisos, mantendo erros documentais e divergência como bloqueios', async () => {
+  it('avisos pedem o aceite; o aceite não chega à gravação como permissão para erro', async () => {
     mockFrom.mockReturnValue({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -193,9 +193,22 @@ describe('importBlDocument', () => {
       voyageId: 10,
       documents: [document],
       uploadedBy: 'user-1',
-      allowRowErrors: true,
+      acceptWarnings: true,
     })
 
-    expect(mockImportBreakbulkManifest).toHaveBeenCalledWith(expect.objectContaining({ allowRowErrors: true }))
+    expect(mockImportBreakbulkManifest).toHaveBeenCalledTimes(1)
+    expect(mockImportBreakbulkManifest.mock.calls[0]?.[0]).not.toHaveProperty('allowRowErrors')
+  })
+
+  // Regra de 2026-10-19 (ADR 0092): um arquivo com erro recusa o lote inteiro.
+  it('um arquivo com erro recusa todos os do lote, sem gravar nenhum', async () => {
+    await expect(importBlDocuments({
+      filename: 'bls.zip',
+      voyageId: 10,
+      documents: [blDocument(), blDocument({ bl_id: 'DX75ZJGVIT03', errors: ['Número do B/L não encontrado.'] })],
+      uploadedBy: 'user-1',
+      acceptWarnings: true,
+    })).rejects.toThrow('Número do B/L não encontrado.')
+    expect(mockImportBreakbulkManifest).not.toHaveBeenCalled()
   })
 })

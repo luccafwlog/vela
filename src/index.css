@@ -4143,10 +4143,10 @@ button.app-metric-tile[aria-pressed='true'] {
   }
 }
 
-/* ─── Telas de acesso (etapa 02) ──────────────────────────────────────────
-   Login interno em dois painéis; telas do Portal em cartão único de 440 px.
-   Título em Syne 32/40 (28/36 no celular), corpo 14/20, ajuda em 12/16. O
-   padrão de pontos fica só no fundo e no painel da marca. */
+/* ─── Telas de acesso (etapa 02; lote 6a da identidade) ──────────────────
+   Vela e Portal na mesma peça (AuthLayout): painel da marca em azul-marinho
+   e formulário ao lado; no celular a marca vira uma faixa no topo. Fundo e
+   painel lisos (regra 7). Título 32/40, corpo 14/20, ajuda em 12/16. */
 .app-auth {
   display: grid;
   place-items: center;
@@ -4154,8 +4154,6 @@ button.app-metric-tile[aria-pressed='true'] {
   min-height: 100dvh;
   padding: 24px 16px;
   background-color: var(--app-bg);
-  background-image: var(--app-dot-pattern);
-  background-size: 20px 20px;
 }
 
 .app-auth__panel {
@@ -4182,22 +4180,14 @@ button.app-metric-tile[aria-pressed='true'] {
   flex-direction: column;
   justify-content: space-between;
   gap: 32px;
-  position: relative;
-  overflow: hidden;
 }
 
-.app-auth__branding::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 24px 24px;
-  pointer-events: none;
-}
-
-.app-auth__logo {
-  position: relative;
-  z-index: 1;
+.app-auth__logo--fwlog {
+  width: auto;
+  max-width: 200px;
+  height: 56px;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .app-auth__logo--vela {
@@ -4211,8 +4201,6 @@ button.app-metric-tile[aria-pressed='true'] {
   display: flex;
   align-items: center;
   gap: 14px;
-  position: relative;
-  z-index: 1;
 }
 
 .app-auth__logo-name {
@@ -4224,8 +4212,6 @@ button.app-metric-tile[aria-pressed='true'] {
 }
 
 .app-auth__branding-copy {
-  position: relative;
-  z-index: 1;
   display: grid;
   gap: 6px;
 }
@@ -4243,29 +4229,6 @@ button.app-metric-tile[aria-pressed='true'] {
   color: rgba(255, 255, 255, 0.88);
   font-size: 16px;
   line-height: 24px;
-}
-
-.app-auth__card {
-  width: min(100%, 440px);
-  display: grid;
-  gap: 20px;
-}
-
-.app-auth__card.app-surface--padded {
-  padding: 32px;
-}
-
-.app-auth__brand {
-  display: grid;
-  gap: 20px;
-}
-
-.app-auth__logo--on-light {
-  width: auto;
-  max-width: 220px;
-  height: 48px;
-  object-fit: contain;
-  object-position: left center;
 }
 
 .app-auth__form-wrap {
@@ -4309,36 +4272,69 @@ button.app-metric-tile[aria-pressed='true'] {
   margin: 0;
 }
 
-/* Empresa e CNPJ do convite: confirma para quem é o acesso. */
+/* Empresa e CNPJ do convite: confirma para quem é o acesso; a empresa é o
+   dado principal (regra 2), numa caixa com a faixa dos blocos. */
 .app-auth__identity {
   display: grid;
-  gap: 8px;
+  gap: 2px;
   margin: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--app-border);
+  padding: 10px 14px 12px;
+  border: 1px solid var(--app-border-soft);
   border-radius: var(--app-radius-control);
-  background: var(--app-surface-muted);
+  background: var(--app-surface);
 }
 
-.app-auth__identity > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  align-items: baseline;
+.app-auth__identity p {
+  margin: 0;
 }
 
-.app-auth__identity dt {
-  min-width: 64px;
-  color: var(--app-muted);
+.app-auth__identity .app-auth__identity-label {
+  margin: -10px -14px 6px;
+  padding: 6px 14px;
+  background: var(--app-strip);
+  color: var(--app-strip-text);
   font-size: 12px;
+  font-weight: 700;
   line-height: 16px;
 }
 
-.app-auth__identity dd {
-  margin: 0;
+.app-auth__identity-name {
   color: var(--app-text-strong);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.app-auth__identity-detail {
+  color: var(--app-muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* Motivo e explicação num aviso só (link vencido, convite indisponível). */
+.app-auth__notice {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-danger-border);
+  border-radius: var(--app-radius-control);
+  background: var(--app-danger-bg);
+}
+
+.app-auth__notice p {
+  margin: 0;
+}
+
+.app-auth__notice-title {
+  color: var(--app-danger-fg);
   font-size: 14px;
   font-weight: 600;
+  line-height: 20px;
+}
+
+.app-auth__notice-text {
+  color: var(--app-text);
+  font-size: 14px;
   line-height: 20px;
 }
 
@@ -4349,8 +4345,9 @@ button.app-metric-tile[aria-pressed='true'] {
   gap: 8px 16px;
 }
 
-.app-auth__actions--center {
-  justify-content: center;
+.app-auth__actions--stack {
+  display: grid;
+  gap: 8px;
 }
 
 .app-auth__row-link {
@@ -4419,16 +4416,16 @@ button.app-metric-tile[aria-pressed='true'] {
     height: 40px;
   }
 
+  .app-auth__logo--fwlog {
+    height: 40px;
+  }
+
   .app-auth__logo-name {
     font-size: var(--app-size-hero);
     line-height: 40px;
   }
 
   .app-auth__form-wrap {
-    padding: 24px;
-  }
-
-  .app-auth__card.app-surface--padded {
     padding: 24px;
   }
 }
@@ -4472,30 +4469,8 @@ button.app-metric-tile[aria-pressed='true'] {
 }
 
 /* ─── Perfil (etapa 02) ─────────────────────────────────────────────────
-   O Perfil do Portal passou aos blocos comuns (lote 4 da identidade); ficam
-   o título, a introdução e a faixa de ações que o Perfil interno ainda usa e
-   o aviso do Modo Inspeção. */
-.portal-profile__section-title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
-}
-
-.portal-profile__section-intro {
-  margin: 4px 0 0;
-  max-width: 60ch;
-  color: var(--app-muted);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.portal-profile__form-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
+   O Perfil do Portal (lote 4) e o interno (lote 6a) passaram aos blocos
+   comuns; fica o aviso do Modo Inspeção. */
 .portal-profile__inspection-note {
   margin: 0 0 16px;
   padding: 8px 12px;
@@ -4503,45 +4478,6 @@ button.app-metric-tile[aria-pressed='true'] {
   border-radius: var(--app-radius-control);
   background: var(--app-warning-bg);
   color: var(--app-warning-fg);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-/* Perfil interno: dois blocos lado a lado a partir de 1100 px. */
-.vela-profile {
-  display: grid;
-  align-items: start;
-  gap: 16px;
-  max-width: 1080px;
-}
-
-@media (min-width: 1100px) {
-  .vela-profile {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  }
-}
-
-.vela-profile__facts {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-}
-
-.vela-profile__facts > div {
-  display: grid;
-  gap: 2px;
-}
-
-.vela-profile__facts dt {
-  color: var(--app-muted);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 18px;
-}
-
-.vela-profile__facts dd {
-  margin: 0;
-  color: var(--app-text-strong);
   font-size: 14px;
   line-height: 20px;
 }
@@ -5774,10 +5710,6 @@ button.app-metric-tile[aria-pressed='true'] {
 
   .app-main {
     padding: 22px 12px 32px;
-  }
-
-  .app-auth__card {
-    width: 100%;
   }
 
   .app-surface--padded {
@@ -7074,9 +7006,57 @@ a.app-step-rail__link:focus-visible {
 
 .app-import-drop__swap {
   flex: none;
-  color: var(--app-link);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--app-control-h-sm);
+  padding: 0 12px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: var(--app-radius-control);
+  background: var(--app-surface);
+  color: var(--app-text-strong);
   font-size: var(--app-size-table);
   font-weight: 600;
+}
+
+/* Linha de passos do molde de importação (lote 6a): Arquivo · Prévia ·
+   Resultado; o passo atual em azul-marinho, os feitos com ✓ verde. */
+.app-import-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-import-steps__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-muted);
+  font-size: var(--app-size-caption);
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.app-import-steps__item--current {
+  border-color: var(--app-navy);
+  background: var(--app-navy);
+  color: #ffffff;
+}
+
+.app-import-steps__item--done {
+  color: var(--app-success-fg);
+  border-color: var(--app-success-border);
+}
+
+.app-import-file {
+  display: grid;
+  gap: 12px;
 }
 
 .app-import-picker__reason {
@@ -7098,17 +7078,7 @@ a.app-step-rail__link:focus-visible {
   margin: 0;
 }
 
-.app-import-guide__label {
-  font-weight: 600;
-  color: var(--app-text-strong);
-}
-
-.app-import-guide__muted {
-  color: var(--app-muted);
-}
-
-.app-import-guide__details summary,
-.app-import-inspection__details summary {
+.app-import-guide__details summary {
   width: fit-content;
   color: var(--app-link);
   font-size: var(--app-size-table);
@@ -7126,25 +7096,9 @@ a.app-step-rail__link:focus-visible {
 }
 
 .app-import-templates {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 6px;
-  margin: 0;
-  color: var(--app-muted);
-  font-size: var(--app-size-table);
-}
-
-.app-import-templates a {
-  color: var(--app-link);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.app-import-templates__sep {
-  margin-right: 6px;
-  color: var(--app-muted-soft);
+  gap: 6px;
 }
 
 .app-import-reading {
@@ -7284,23 +7238,6 @@ a.app-step-rail__link:focus-visible {
   display: grid;
   gap: 8px;
   min-width: 0;
-  border-top: 1px solid var(--app-border);
-  padding-top: 12px;
-}
-
-.app-import-section__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 12px;
-}
-
-.app-import-section__title {
-  margin: 0;
-  color: var(--app-text-strong);
-  font-size: var(--app-size-body);
-  font-weight: 600;
 }
 
 .app-import-inspection {
@@ -7309,32 +7246,6 @@ a.app-step-rail__link:focus-visible {
   color: var(--app-muted);
   font-size: var(--app-size-caption);
   line-height: 16px;
-}
-
-.app-import-inspection__line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 12px;
-  margin: 0;
-}
-
-.app-import-inspection__line strong {
-  color: var(--app-text);
-  font-weight: 600;
-}
-
-.app-import-inspection__details pre {
-  max-height: 8rem;
-  margin: 6px 0 0;
-  overflow: auto;
-  white-space: pre-wrap;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-control);
-  background: var(--app-surface-muted);
-  padding: 8px;
-  color: var(--app-text);
-  font-family: var(--app-font-mono);
-  font-size: var(--app-size-caption);
 }
 
 .app-import-pager {
@@ -7426,15 +7337,13 @@ a.app-step-rail__link:focus-visible {
   padding: 6px 0;
 }
 
+/* Severidade em texto, sem selo (regra 5; lote 6a). */
 .app-import-issues__tag {
-  border-radius: var(--app-radius-control);
-  padding: 0 6px;
-  font-size: var(--app-size-caption);
   font-weight: 600;
 }
 
-.app-import-issues__tag--error { background: var(--app-danger-bg); color: var(--app-danger-fg); }
-.app-import-issues__tag--warning { background: var(--app-warning-bg); color: var(--app-warning-fg); }
+.app-import-issues__tag--error { color: var(--app-danger-fg); }
+.app-import-issues__tag--warning { color: var(--app-warning-fg); }
 
 .app-import-issues__where {
   color: var(--app-muted);
@@ -11789,6 +11698,7 @@ td.app-cargo-num {
 
 .app-facts__item {
   display: grid;
+  align-content: start;
   gap: 2px;
   min-width: 0;
 }

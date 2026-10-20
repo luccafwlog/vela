@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
-import { expect, it } from 'vitest'
-import { describeWithProbe } from './localTestData'
+import { afterAll, beforeAll, expect, it } from 'vitest'
+import { describeWithProbe, syntheticCnpj } from './localTestData'
 
 // Migration 320 (advisor do Supabase de 19/10/2026, ADR 0090): nenhuma função
 // do projeto executável por `anon`, trigger fora do alcance dos clientes,
@@ -16,9 +16,13 @@ function psql(sql: string): string {
   }).trim()
 }
 
-function asRole(role: 'anon' | 'authenticated', sql: string): { output: string; error: string } {
+// `sub` simula a sessão do Supabase: auth.uid() e auth.jwt() leem estes claims.
+function asRole(role: 'anon' | 'authenticated', sql: string, sub?: string): { output: string; error: string } {
+  const claims = sub
+    ? `SET LOCAL request.jwt.claims = '${JSON.stringify({ sub, role, iat: Math.floor(Date.now() / 1000) })}';`
+    : ''
   const result = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c',
-    `BEGIN; SET LOCAL ROLE ${role}; ${sql}; COMMIT;`], { encoding: 'utf8' })
+    `BEGIN; SET LOCAL ROLE ${role}; ${claims} ${sql}; COMMIT;`], { encoding: 'utf8' })
   return { output: (result.stdout ?? '').trim(), error: (result.stderr ?? '').trim() }
 }
 
@@ -73,12 +77,11 @@ describeLocal('320 — funções fechadas, search_path fixo e índices de FK', (
       ORDER BY 1;`))).toEqual([])
   })
 
-  it('programação de navios só com sessão: anon recebe 42501, authenticated lê', () => {
+  it('programação de navios só com sessão: anon recebe 42501, authenticated tem EXECUTE', () => {
     const anon = asRole('anon', 'SELECT count(*) FROM public.portal_ship_schedule()')
     expect(anon.error).toMatch(/permission denied for function portal_ship_schedule/)
-    const logado = asRole('authenticated', 'SELECT count(*) FROM public.portal_ship_schedule()')
-    expect(logado.error).toBe('')
-    expect(logado.output).toMatch(/^\d+$/)
+    // Quem lê, além do grant, é decidido pela guarda da migration 337 (abaixo).
+    expect(psql(`SELECT has_function_privilege('authenticated', 'public.portal_ship_schedule()', 'EXECUTE');`)).toBe('t')
   })
 
   it('função criada agora nasce sem EXECUTE para PUBLIC, anon e authenticated', () => {
@@ -143,5 +146,103 @@ describeLocal('320 — funções fechadas, search_path fixo e índices de FK', (
             AND (string_to_array(i.indkey::text, ' ')::smallint[])[1:array_length(c.conkey, 1)] = c.conkey
         )
       ORDER BY 1;`))).toEqual([])
+  })
+})
+
+// Migration 337 (auditoria defensiva de 2026-10-19, ADR 0090): EXECUTE para
+// `authenticated` não basta. Com o cadastro do Auth aberto, qualquer pessoa
+// tinha conta `authenticated` sem perfil interno nem conta do Portal.
+const INTERNAL_ACTIVE = '33700000-0000-4000-8000-000000000001'
+const INTERNAL_INACTIVE = '33700000-0000-4000-8000-000000000002'
+const PORTAL_ACTIVE = '33700000-0000-4000-8000-000000000003'
+const PORTAL_REVOKED = '33700000-0000-4000-8000-000000000004'
+const NO_PROFILE = '33700000-0000-4000-8000-000000000005'
+const CUSTOMER_ACTIVE = 99337001
+const CUSTOMER_REVOKED = 99337002
+const CARRIER_ID = 99337011
+const VESSEL_ID = 99337021
+const VOYAGE_ID = 99337031
+
+function cleanupSchedule() {
+  psql(`
+    SET session_replication_role = replica;
+    DELETE FROM public.audit_logs WHERE entity_type IN ('voyage_pol_schedule', 'voyage_pod_schedule')
+      AND entity_id LIKE '${VOYAGE_ID}::%';
+    DELETE FROM public.voyages WHERE id = ${VOYAGE_ID};
+    DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
+    DELETE FROM public.carriers WHERE id = ${CARRIER_ID};
+    DELETE FROM public.customer_portal_accounts WHERE customer_id IN (${CUSTOMER_ACTIVE}, ${CUSTOMER_REVOKED});
+    DELETE FROM public.customers WHERE id IN (${CUSTOMER_ACTIVE}, ${CUSTOMER_REVOKED});
+    DELETE FROM public.user_profiles WHERE id IN ('${INTERNAL_ACTIVE}', '${INTERNAL_INACTIVE}');
+    DELETE FROM auth.users WHERE id IN ('${INTERNAL_ACTIVE}', '${INTERNAL_INACTIVE}', '${PORTAL_ACTIVE}', '${PORTAL_REVOKED}', '${NO_PROFILE}');
+    SET session_replication_role = origin;
+  `)
+}
+
+function migration337Applied(): boolean {
+  if (!enabled) return false
+  try {
+    return psql(`SELECT count(*) FROM pg_proc WHERE oid = 'public.portal_ship_schedule()'::regprocedure
+      AND prosrc LIKE '%current_portal_customer_id()%';`) === '1'
+  } catch {
+    return false
+  }
+}
+
+const describeSchedule = describeWithProbe(migration337Applied, 'migration337Applied (programação de navios exige sessão válida)')
+
+describeSchedule('337 — programação de navios só para sessão interna ativa ou do Portal', () => {
+  const SCHEDULE = `SELECT string_agg(concat_ws('|', voyage_id, vessel_name, voyage, port_code, kind, date_value, omitted), ',' ORDER BY kind, port_code)
+    FROM public.portal_ship_schedule() WHERE voyage_id = ${VOYAGE_ID}`
+  const EXPECTED = `${VOYAGE_ID}|Navio S337|S337V|BRSSZ|pod|2026-11-02|f,${VOYAGE_ID}|Navio S337|S337V|CNSHA|pol|2026-10-01|f`
+
+  beforeAll(() => {
+    cleanupSchedule()
+    psql(`
+      INSERT INTO auth.users (id, email) VALUES
+        ('${INTERNAL_ACTIVE}', 'interno-s337@example.test'), ('${INTERNAL_INACTIVE}', 'inativo-s337@example.test'),
+        ('${PORTAL_ACTIVE}', 'portal-s337@example.test'), ('${PORTAL_REVOKED}', 'revogado-s337@example.test'),
+        ('${NO_PROFILE}', 'cadastro-aberto-s337@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
+        ('${INTERNAL_ACTIVE}', 'Interno S337', 'documentacao', true),
+        ('${INTERNAL_INACTIVE}', 'Inativo S337', 'documentacao', false);
+      SET session_replication_role = replica;
+      INSERT INTO public.customers (id, name, cnpj_cpf) VALUES
+        (${CUSTOMER_ACTIVE}, 'CLIENTE S337', '${syntheticCnpj(337001)}'),
+        (${CUSTOMER_REVOKED}, 'CLIENTE S337 REVOGADO', '${syntheticCnpj(337002)}');
+      INSERT INTO public.customer_portal_accounts (customer_id, auth_user_id, active, account_situation, credentials_revoked_at) VALUES
+        (${CUSTOMER_ACTIVE}, '${PORTAL_ACTIVE}', true, 'ativo', NULL),
+        (${CUSTOMER_REVOKED}, '${PORTAL_REVOKED}', true, 'ativo', now() + interval '1 hour');
+      INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Armador S337');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio S337', ${CARRIER_ID});
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status, show_on_portal) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'S337V', 'active', true);
+      INSERT INTO public.audit_logs (entity_type, entity_id, field_name, new_value) VALUES
+        ('voyage_pol_schedule', '${VOYAGE_ID}::CNSHA', 'etd', '2026-10-01'),
+        ('voyage_pod_schedule', '${VOYAGE_ID}::BRSSZ', 'eta', '2026-11-02');
+      SET session_replication_role = origin;
+    `)
+  })
+  afterAll(cleanupSchedule)
+
+  it('conta authenticated sem perfil interno nem conta do Portal é recusada', () => {
+    const semConta = asRole('authenticated', SCHEDULE, NO_PROFILE)
+    expect(semConta.error).toMatch(/Sessao do portal invalida ou expirada/)
+    expect(semConta.output).toBe('')
+    const semSessao = asRole('authenticated', SCHEDULE)
+    expect(semSessao.error).toMatch(/Sessao do portal invalida ou expirada/)
+  })
+
+  it('usuário interno inativo e credencial do Portal revogada são recusados', () => {
+    expect(asRole('authenticated', SCHEDULE, INTERNAL_INACTIVE).error).toMatch(/Sessao do portal invalida ou expirada/)
+    expect(asRole('authenticated', SCHEDULE, PORTAL_REVOKED).error).toMatch(/Sessao do portal invalida ou expirada/)
+  })
+
+  it('sessão interna ativa e sessão do Portal leem a mesma programação', () => {
+    const interna = asRole('authenticated', SCHEDULE, INTERNAL_ACTIVE)
+    expect(interna.error).toBe('')
+    expect(interna.output).toBe(EXPECTED)
+    const portal = asRole('authenticated', SCHEDULE, PORTAL_ACTIVE)
+    expect(portal.error).toBe('')
+    expect(portal.output).toBe(EXPECTED)
   })
 })

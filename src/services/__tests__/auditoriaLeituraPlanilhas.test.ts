@@ -24,7 +24,7 @@ import { resolve } from 'node:path'
 import { parseCeMercanteBuffer } from '../ceMercanteImport'
 import { parseContainerDatesFile } from '../containerDatesImport'
 import { parseCustomerBaseFile } from '../customerBase'
-import { parsePixExtract } from '../demurrage/demurrageKpis'
+import { readPixExtract } from '../demurrage/demurrageKpis'
 import { readSheet } from '../importCore'
 import { parseScheduleRows } from '../portalScheduleBulkImport'
 import { parseVaziosManifestBuffer } from '../vaziosImport'
@@ -99,8 +99,8 @@ const observed: {
   emptyShipments?: Awaited<ReturnType<typeof parseVaziosManifestBuffer>>
   vehiclesCsv?: Awaited<ReturnType<typeof parseVehicleImportBuffer>>
   ceNumeric?: Awaited<ReturnType<typeof parseCeMercanteBuffer>>
-  pixAmounts?: Awaited<ReturnType<typeof parsePixExtract>>
-  pixPaidAt?: Awaited<ReturnType<typeof parsePixExtract>>
+  pixAmounts?: Awaited<ReturnType<typeof readPixExtract>>['transactions']
+  pixPaidAt?: Awaited<ReturnType<typeof readPixExtract>>['transactions']
   scheduleCsv?: ReturnType<typeof parseScheduleRows>
   emptyImportTare?: Awaited<ReturnType<typeof parseVaziosImportacaoBuffer>>
 } = {}
@@ -276,7 +276,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
     })
   })
 
-  describe('Extrato PIX da Reconciliação (parsePixExtract)', () => {
+  describe('Extrato PIX da Reconciliação (readPixExtract)', () => {
     it('cenário: "Valor pago" numérico com centavos, inteiro numérico e texto pt-BR', async () => {
       const buffer = await xlsxBuffer([
         ['Identificador', 'CPF/CNPJ', 'Pago em', 'Valor pago'],
@@ -286,7 +286,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
       ])
       expect((await storedCell(buffer, 'D2')).v).toBe(1500.5)
 
-      const transactions = await parsePixExtract(buffer)
+      const { transactions } = await readPixExtract(buffer)
       expect(transactions.map((transaction) => transaction.txid)).toEqual(['A205TXID0001', 'A205TXID0002', 'A205TXID0003'])
       // Controles do mesmo arquivo: inteiro numérico e texto pt-BR já saem certos.
       expect(transactions[1]?.amount).toBe(1234)
@@ -307,7 +307,7 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
           ['A205TXID0004', '11222333000181', { n: excelSerial('2026-03-05', 22, 48), z: 'dd/mm/yyyy hh:mm' }, '100,00'],
           ['A205TXID0005', '11222333000181', '05/03/2026 22:48', '100,00'],
         ])
-        return parsePixExtract(buffer)
+        return (await readPixExtract(buffer)).transactions
       })
       expect(transactions).toHaveLength(2)
       // Controle: o mesmo instante digitado como texto já sai como 05/03.

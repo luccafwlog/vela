@@ -6,6 +6,36 @@
 
 ## 2026-10
 
+- **Programação de navios exige sessão válida (2026-10-20):** `portal_ship_schedule()` passou a
+  recusar conta `authenticated` sem perfil interno ativo nem conta ativa do Portal (migration `337`,
+  [ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); antes bastava qualquer login, e o
+  cadastro público do Auth de produção estava aberto. Desligar esse cadastro é passo do dono no
+  painel do Supabase ([serviços externos](operations/servicos-externos.md#supabase)).
+- **Staging publica com o check do Supabase pulado (2026-10-20):** num push na `staging` com
+  migration e check `skipped` ou `neutral`, `scripts/wait-supabase-migrations.mjs` confere na
+  Supabase Management API se as versões do push já estão na branch Supabase do staging e publica
+  quando todas estão; senão espera até o prazo e recusa dizendo quais faltam. Antes, todo merge
+  com migration era recusado (run `39406859570`, migrations `333` a `336`). Precisa do secret
+  `SUPABASE_STAGING_ACCESS_TOKEN` e da var `SUPABASE_STAGING_PROJECT_REF` no environment
+  `staging` ([Deploy](setup/deploy.md#staging-persistente)).
+- **Baplie sem vazios (2026-10-20):** substituir o Baplie por um sem nenhum vazio tira da Viagem
+  os vazios de importação vindos do Baplie anterior e o Nº do manifesto Mercante das rotas que
+  ficam sem container, com aviso no diálogo de substituição; antes, o recadastro falhava e
+  "Atualizar vazios do Baplie" nunca resolvia (migration `336`).
+- **Revisão do lote 6a (2026-10-20):** datas de containers e Base de Clientes com 60 s para gravar
+  o arquivo inteiro (até 300 B/Ls e 3.000 Clientes por arquivo) e mensagem de arquivo grande;
+  Razão Social conferida do mesmo jeito na tela e no banco; troca de Consignatário recusada pelo
+  banco registrada como exceção na ADR 0092; extrato do Pix com débito contábil ignorado e modelo
+  para baixar; ZPT, Pix e programação recusam data ou linha ilegível; modais de importação não
+  fecham durante a gravação; vazios do Baplie retomados em /baplie; modelo do B/L avulso. Migrations
+  do 6a renumeradas para `333`, `334` e `335` na junção com o 5b.
+- **Identidade visual, lote 6a, e importação com erro recusada inteira (2026-10-19):** login do
+  Vela e telas públicas do Portal com o mesmo painel da marca (`AuthLayout`), Meu perfil em dois
+  blocos; todas as importações no molde comum (passos, Arquivo com modelo para baixar, Prévia,
+  erros num lugar só, "Importar N …"), uma versão só de cada importação para a tela e a aba da
+  Viagem. Importação com qualquer erro não grava nada, e recusa do banco desfaz tudo
+  ([ADR 0092](adr/0092-importacao-com-erro-e-recusada-inteira.md)); datas de containers, Base de
+  Clientes e B/L de container gravam o arquivo numa transação (migrations `333`, `334` e `335`).
 - **Promoção feature → staging → main (2026-10-20):** PR de feature abre contra
   `staging`. O check `main-only-from-staging` falha quando a PR na `main` não
   vem da `staging` deste repositório. O merge na `staging` abre ou atualiza a

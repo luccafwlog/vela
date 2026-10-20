@@ -129,7 +129,7 @@ async function parseGraniteManifestBuffer(buffer: ArrayBuffer): Promise<ParsedGr
 
     const blNumber = String(mapped['bl_number'] ?? '').trim().toUpperCase()
     if (!blNumber) {
-      rowErrors.add(rowNumber, 'BL ausente — linha ignorada.', row)
+      rowErrors.add(rowNumber, 'BL ausente.', row)
       return
     }
     if (seenBlNumbers.has(blNumber)) {
@@ -267,8 +267,8 @@ function resolveGranitePort(
 function formatGraniteRowErrors(rowErrors: readonly RowError[]): string {
   const shown = rowErrors.slice(0, 20).map((error) => `Linha ${error.row}: ${error.message}`)
   const hidden = rowErrors.length - shown.length
-  if (hidden > 0) shown.push(`... e mais ${hidden} linha${hidden === 1 ? '' : 's'} com divergências.`)
-  return shown.join('\n')
+  if (hidden > 0) shown.push(`... e mais ${hidden} linha${hidden === 1 ? '' : 's'} com erro.`)
+  return [`Nada foi gravado: ${rowErrors.length === 1 ? 'uma linha tem erro' : `${rowErrors.length} linhas têm erro`}.`, ...shown].join('\n')
 }
 
 export type ImportGraniteArgs = {
@@ -276,8 +276,6 @@ export type ImportGraniteArgs = {
   voyageId: number
   manifest: ParsedGraniteManifest
   uploadedBy: string
-  /** Permite persistir as linhas válidas quando o preview tem erros de linha. */
-  allowRowErrors?: boolean
   /**
    * Reimportação (ADR 0078, item 25): B/Ls dos manifestos que o arquivo toca e
    * que ele não traz só saem se esta confirmação devolver true; sem ela, ficam.
@@ -377,10 +375,11 @@ export async function importGraniteManifest({
   voyageId,
   manifest,
   uploadedBy,
-  allowRowErrors = false,
   confirmRemoval,
 }: ImportGraniteArgs): Promise<GraniteImportResult> {
-  if (manifest.rowErrors.length && !allowRowErrors) throw new Error(formatGraniteRowErrors(manifest.rowErrors))
+  // Regra de 2026-10-19 (ADR 0092): qualquer linha com erro recusa o arquivo
+  // inteiro; não há aceite que grave só as linhas válidas.
+  if (manifest.rowErrors.length) throw new Error(formatGraniteRowErrors(manifest.rowErrors))
 
   const totalWeightKg = manifest.bls.reduce((sum, bl) => sum + bl.real_weight_kg, 0)
   const vesselVoyage = manifest.vesselVoyage || manifest.bls[0]?.vessel_voyage || filename

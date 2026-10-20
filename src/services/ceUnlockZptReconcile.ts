@@ -1,4 +1,4 @@
-import { asString, chunkArray, onlyDigits } from "../lib/utils";
+import { asString, onlyDigits } from "../lib/utils";
 import { matchHeaders, readSheet, type HeaderSpec } from "./importCore";
 import { ceUnlockReconcile } from "./ceUnlockService";
 import type { CeUnlockReconcileSummary } from "../types/ceUnlock";
@@ -23,8 +23,8 @@ const SPEC: HeaderSpec<
 };
 const REQUIREMENT_LABELS = {
   financeiro: "Financeiro",
-  termo: "Term. Devolucao",
-  procuracao: "Procuracao",
+  termo: "Term. Devolução",
+  procuracao: "Procuração",
   bl_entrega: "BL Entrega",
 } as const;
 
@@ -37,10 +37,22 @@ export type CeUnlockZptRow = {
 };
 export type ParsedCeUnlockZptFile = {
   rows: CeUnlockZptRow[];
-  rowErrors: Array<{ row: number; message: string }>;
+  /**
+   * Linhas com conteúdo que não pode ser lido (CE que não tem 15 dígitos,
+   * "Data Atualização" preenchida e ilegível): qualquer uma recusa o arquivo
+   * inteiro (ADR 0092).
+   */
+  rowErrors: Array<{ row: number; field: "CE" | "Data Atualização"; message: string }>;
+  /** Erro do arquivo como um todo (mais CEs que o limite): também recusa tudo. */
+  fileError: string | null;
+  /** Linhas sem CE ou sem situação: ignoradas, com a contagem na prévia (D3). */
+  skippedRows: number[];
   /** Avisos do leitor comum (linhas e abas ocultas ignoradas, CSV Windows-1252), para mostrar antes de conciliar. */
   warnings: string[];
 };
+
+/** Limite de linhas por conciliação (o mesmo de `ce_unlock_reconcile`). */
+export const ZPT_MAX_ROWS = 20000;
 
 /** "06/10/2026 16:29:08" (horário de Brasília) -> ISO; null se o formato for desconhecido. */
 export function parseZptDateTime(value: string): string | null {
@@ -67,36 +79,61 @@ export async function parseCeUnlockZptFile(buffer: ArrayBuffer): Promise<ParsedC
     throw new Error("Arquivo não reconhecido como exportação da ZPT: faltam as colunas CE e Status.");
   const out: CeUnlockZptRow[] = [];
   const rowErrors: ParsedCeUnlockZptFile["rowErrors"] = [];
+  const skippedRows: number[] = [];
   for (const row of rows) {
     const get = (field: keyof typeof columnByField) =>
       columnByField[field] === undefined ? "" : row[columnByField[field]!];
-    const ce = onlyDigits(asString(get("ce")));
+    const rawCe = asString(get("ce"));
+    const ce = onlyDigits(rawCe);
     const status = asString(get("status"));
-    if (!ce || !status) {
-      rowErrors.push({ row: row.rowNumber, message: "Linha sem CE ou sem Status." });
+    // D3: linha sem CE ou sem situação não tem o que conciliar; fica de fora,
+    // contada na prévia.
+    if (!rawCe || !status) {
+      skippedRows.push(row.rowNumber);
+      continue;
+    }
+    // CE preenchido que não é um CE Mercante (15 dígitos) é valor ilegível:
+    // recusa o arquivo inteiro.
+    if (ce.length !== 15) {
+      rowErrors.push({ row: row.rowNumber, field: "CE", message: `CE "${rawCe}" ilegível: o CE Mercante tem 15 dígitos.` });
+      continue;
+    }
+    // Data preenchida que não se lê é valor ilegível (ADR 0092); vazia fica vazia.
+    const rawUpdatedAt = asString(get("updated_at"));
+    const updatedAt = rawUpdatedAt ? parseZptDateTime(rawUpdatedAt) : null;
+    if (rawUpdatedAt && !updatedAt) {
+      rowErrors.push({
+        row: row.rowNumber,
+        field: "Data Atualização",
+        message: `Data Atualização "${rawUpdatedAt}" ilegível: use DD/MM/AAAA HH:MM:SS.`,
+      });
       continue;
     }
     out.push({
       ce,
       status,
       description: asString(get("description")) || null,
-      updated_at: parseZptDateTime(asString(get("updated_at"))),
+      updated_at: updatedAt,
       pending: (Object.keys(REQUIREMENT_LABELS) as Array<keyof typeof REQUIREMENT_LABELS>)
         .filter((field) => isPending(get(field)))
         .map((field) => REQUIREMENT_LABELS[field]),
     });
   }
-  if (!out.length) throw new Error("Nenhuma linha válida no arquivo da ZPT.");
-  return { rows: out, rowErrors, warnings };
+  if (!out.length && !rowErrors.length) throw new Error("Nenhuma linha com CE e situação no arquivo da ZPT.");
+  const fileError = out.length > ZPT_MAX_ROWS
+    ? `O arquivo tem ${out.length.toLocaleString("pt-BR")} CEs; o limite é ${ZPT_MAX_ROWS.toLocaleString("pt-BR")} por conciliação. Divida o arquivo.`
+    : null;
+  return { rows: out, rowErrors, skippedRows, fileError, warnings };
 }
 
-const CHUNK = 5000;
-/** Envia em lotes (limite de 20000 por chamada no banco) e soma os resumos. */
+/**
+ * Concilia o arquivo inteiro numa chamada (`ce_unlock_reconcile` é uma
+ * transação): se o banco recusa, nada é gravado. Antes ia em lotes de 5000,
+ * cada um gravado por conta própria.
+ */
 export async function reconcileCeUnlockZpt(rows: CeUnlockZptRow[]): Promise<CeUnlockReconcileSummary> {
-  const total: CeUnlockReconcileSummary = { rows: 0, unlocked: 0, divergent: 0, stale: 0, ignored: 0, unknown_ce: 0 };
-  for (const chunk of chunkArray(rows, CHUNK)) {
-    const part = await ceUnlockReconcile(chunk);
-    for (const key of Object.keys(total) as Array<keyof CeUnlockReconcileSummary>) total[key] += part[key];
+  if (rows.length > ZPT_MAX_ROWS) {
+    throw new Error(`O limite é ${ZPT_MAX_ROWS.toLocaleString("pt-BR")} CEs por conciliação. Divida o arquivo.`);
   }
-  return total;
+  return ceUnlockReconcile(rows);
 }

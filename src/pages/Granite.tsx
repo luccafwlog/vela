@@ -1,6 +1,6 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Upload } from 'lucide-react'
 import { Block } from '../components/ui/Block'
 import { Button } from '../components/ui/Button'
@@ -9,31 +9,16 @@ import { NoValue } from '../components/ui/NoValue'
 import { EmptyState, PageHeader } from '../components/ui/Card'
 import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
-import { Modal } from '../components/ui/Modal'
-import { PreviewBox } from '../components/ui/PreviewBox'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
-import { useToast } from '../components/ui/Toast'
-import { useConfirm } from '../components/ui/ConfirmDialog'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
-import { TruncationNote } from '../components/shared/TruncationNote'
+import { GraniteImportModal } from '../components/shared/GraniteImportModal'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
-import { ImportIssuesPanel } from '../components/shared/ImportIssuesPanel'
-import { ImportReadProgress } from '../components/shared/ImportReadProgress'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyageOptions } from '../hooks/useBls'
-import { useCancellableFileRead } from '../hooks/useCancellableFileRead'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { usePageFilters } from '../hooks/usePageFilters'
-import { afterManifestoImportado } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
-import {
-  parseGraniteManifestFile,
-  describeGraniteImport,
-  graniteRemovalConfirmOptions,
-  importGraniteManifest,
-  type ParsedGraniteManifest,
-} from '../services/graniteImport'
 import {
   fetchGraniteCargoRows,
   formatGraniteTons,
@@ -43,10 +28,8 @@ import {
   listGraniteBls,
   summarizeGraniteCargo,
 } from '../services/graniteCargo'
-import { rowErrorsToImportIssues } from '../services/importValidation'
 import { describeActiveFilters } from '../lib/operationalState'
 import { STALE_PAGE_CLASS } from '../lib/pagination'
-import { userFacingErrorMessage } from '../lib/errors'
 import { voyageDisplayName } from '../lib/utils'
 
 type Filters = {
@@ -65,7 +48,6 @@ const plural = (count: number, one: string, many: string) => `${count.toLocaleSt
  * docs/modules/granito.md).
  */
 export function Granite() {
-  const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const { user, profile } = useAuth()
   const canWrite = Boolean(profile || user)
@@ -305,142 +287,8 @@ export function Granite() {
       </Block>
 
       {uploadOpen && canWrite ? (
-        <GraniteImportModal
-          initialVoyageId={filters.voyageId}
-          onClose={() => setUploadOpen(false)}
-          onImported={async (voyageId) => {
-            await afterManifestoImportado(queryClient, { voyageId })
-          }}
-        />
+        <GraniteImportModal defaultVoyageId={filters.voyageId} onClose={() => setUploadOpen(false)} />
       ) : null}
     </>
-  )
-}
-
-/** Janela da planilha COSCO: Viagem de destino, arquivo e prévia da carga. */
-function GraniteImportModal({
-  initialVoyageId,
-  onClose,
-  onImported,
-}: {
-  initialVoyageId: string
-  onClose: () => void
-  onImported: (voyageId: number) => Promise<void>
-}) {
-  const { user } = useAuth()
-  const { showToast } = useToast()
-  const confirm = useConfirm()
-  const [voyageId, setVoyageId] = useState(initialVoyageId)
-  const [submitting, setSubmitting] = useState(false)
-  const { file, preview: manifest, parsing, progress, readFile, cancel: cancelReading } = useCancellableFileRead<ParsedGraniteManifest>(parseGraniteManifestFile)
-
-  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    try {
-      await readFile(event.target.files?.[0] ?? null)
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Não foi possível ler o arquivo.', 'error')
-    }
-  }
-
-  function close() {
-    cancelReading()
-    onClose()
-  }
-
-  async function handleImport() {
-    if (!manifest || manifest.rowErrors.length > 0 || !voyageId || !user) return
-    setSubmitting(true)
-    try {
-      const result = await importGraniteManifest({
-        filename: file?.name ?? 'granito.xlsx',
-        voyageId: Number(voyageId),
-        manifest,
-        uploadedBy: user.id,
-        confirmRemoval: (missing) => confirm(graniteRemovalConfirmOptions(missing, manifest.hidden)),
-      })
-      await onImported(Number(voyageId))
-      showToast(`Granito importado: ${describeGraniteImport(result)}.`, 'success')
-      close()
-    } catch (err) {
-      showToast(userFacingErrorMessage(err, 'Não foi possível importar a planilha do Granito. Tente novamente.'), 'error')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const blocks = manifest?.bls.reduce((sum, bl) => sum + Number(bl.blocks_qty ?? 0), 0) ?? 0
-  const weightKg = manifest?.bls.reduce((sum, bl) => sum + (graniteWeightKg(bl) ?? 0), 0) ?? 0
-
-  return (
-    <Modal open onClose={close} title="Importar planilha COSCO">
-      <div className="grid gap-5">
-        <p className="app-panel__meta">
-          Planilha "Relatório de Cargas/Booking" exportada pela COSCO. Colunas obrigatórias: <strong>BL</strong> e <strong>Real Weight</strong>.
-        </p>
-
-        <VoyageCombobox
-          required
-          label="Viagem de destino"
-          selectedVoyageId={voyageId}
-          onSelect={(id) => setVoyageId(id == null ? '' : String(id))}
-        />
-
-        <Field label="Arquivo .xls ou .xlsx">
-          <Input accept=".xlsx,.xls" type="file" onChange={handleFile} />
-        </Field>
-
-        {parsing ? <ImportReadProgress progress={progress} /> : null}
-
-        {manifest ? (
-          <div className="grid gap-4">
-            <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(140px,1fr))]">
-              <PreviewBox label="B/Ls válidos" value={manifest.bls.length} />
-              <PreviewBox label="Blocos" value={blocks} />
-              <PreviewBox label="Peso" value={formatGraniteTons(weightKg)} />
-              <PreviewBox label="Erros de leitura" value={manifest.rowErrors.length} />
-            </div>
-
-            <div className="app-table-scroll max-h-80">
-              <table className="app-table">
-                <caption className="sr-only">Prévia dos B/Ls da planilha</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">B/L</th>
-                    <th scope="col" className="app-table__text-head">Shipper</th>
-                    <th scope="col">Trecho</th>
-                    <th scope="col">Blocos</th>
-                    <th scope="col">Peso</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {manifest.bls.slice(0, 50).map((bl) => {
-                    const blWeight = graniteWeightKg(bl)
-                    return (
-                      <tr key={bl.bl_number}>
-                        <td><span className="app-cargo-code">{bl.bl_number}</span></td>
-                        <td className="app-table__text" title={bl.shipper_name ?? undefined}>{bl.shipper_name ?? <NoValue label="Sem shipper" />}</td>
-                        <td>{graniteLegLabel(bl) ?? <NoValue label="Sem trecho" />}</td>
-                        <td className="tabular-nums">{bl.blocks_qty != null ? bl.blocks_qty.toLocaleString('pt-BR') : <NoValue label="Sem blocos" />}</td>
-                        <td className="tabular-nums">{blWeight != null ? formatGraniteTons(blWeight) : <NoValue label="Sem peso" />}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <TruncationNote shown={50} total={manifest.bls.length} noun="B/L" nounPlural="B/Ls" />
-
-            <ImportIssuesPanel issues={rowErrorsToImportIssues(manifest.rowErrors)} filename="granito-erros-de-leitura.csv" />
-          </div>
-        ) : null}
-
-        <div className="app-modal__actions">
-          <Button variant="secondary" disabled={submitting} onClick={parsing ? cancelReading : close}>{parsing ? 'Interromper leitura' : 'Voltar'}</Button>
-          <Button disabled={!manifest || manifest.rowErrors.length > 0 || !voyageId || !user} loading={submitting} loadingLabel="Importando…" onClick={handleImport}>
-            Confirmar importação
-          </Button>
-        </div>
-      </div>
-    </Modal>
   )
 }

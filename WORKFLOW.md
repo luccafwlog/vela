@@ -192,7 +192,9 @@ não é um contrato de frontend.
 Não existe sessão alternativa por senha armazenada em tabela. O acesso anônimo ao resolver da ADR 0013 foi revogado, e
 nenhuma função é executável antes do login: `portal_ship_schedule()`, a última
 exceção da [ADR 0047](./docs/adr/0047-grants-de-funcao-fechados-por-padrao.md),
-fechou na migration `320` ([ADR 0090](./docs/adr/0090-programacao-de-navios-so-com-sessao.md)).
+fechou na migration `320` ([ADR 0090](./docs/adr/0090-programacao-de-navios-so-com-sessao.md)),
+e desde a `337` recusa conta `authenticated` sem perfil interno ativo nem conta
+ativa do Portal.
 
 ## 3. Estrutura do repositório
 
@@ -884,7 +886,10 @@ começa no próprio push em `main` e, antes de publicar, espera o check do app
 `supabase` no commit (`scripts/wait-supabase-migrations.mjs`): verde publica;
 vermelho, cancelado ou estourado recusa; pulado, ou sem check em 10 min, só
 publica se o push não mudar `supabase/migrations/`, e senão pede conferência no
-painel do Supabase e publicação manual (`workflow_dispatch`, que não espera). O
+painel do Supabase e publicação manual (`workflow_dispatch`, que não espera). No
+push em `staging`, o mesmo passo também confere na Management API se as
+migrations do push já estão na branch Supabase do staging antes de recusar um
+check pulado ([Deploy](docs/setup/deploy.md#staging-persistente)). O
 environment `cloudflare-production` fornece as variáveis públicas do build. O
 login com o usuário fixo numa preview só deve ser tentado depois que
 `Provision Preview Admin` estiver verde.

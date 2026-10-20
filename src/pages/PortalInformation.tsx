@@ -19,7 +19,7 @@ const sections = [
   { key: 'devolucao', title: 'Devolução', description: 'Depots, agendamento e orientação para seus containers.', icon: Container },
   { key: 'demurrage', title: 'Demurrage', description: 'Tarifa geral, períodos de cobrança e orientações.', icon: Clock },
   { key: 'agentes', title: 'Agentes por porto', description: 'Contatos dos agentes nos portos de atendimento.', icon: Users },
-  { key: 'atendimento', title: 'Contato', description: 'Canais e orientações para falar com a FWLOG.', icon: Headphones },
+  { key: 'atendimento', title: 'Contato', description: 'Canais e orientações para falar com a Fwlog.', icon: Headphones },
   { key: 'tracking', title: 'Tracking', description: 'Consulte seu B/L no site oficial do armador.', icon: Search },
 ]
 

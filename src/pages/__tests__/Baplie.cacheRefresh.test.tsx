@@ -68,9 +68,9 @@ describe('upload na página Baplie', () => {
       fireEvent.click(await screen.findByRole('button', { name: /Importar Baplie/ }))
       fireEvent.click(screen.getAllByRole('button', { name: 'Escolher viagem 24' })[1])
       const file = new File(['edi'], 'novo.edi', { type: 'text/plain' })
-      fireEvent.change(screen.getByLabelText(/^Arquivo/), { target: { files: [file] } })
-      await waitFor(() => expect((screen.getByRole('button', { name: /Importar Baplie \(1 container\)/ }) as HTMLButtonElement).disabled).toBe(false))
-      fireEvent.click(screen.getByRole('button', { name: /Importar Baplie \(1 container\)/ }))
+      fireEvent.change(screen.getByLabelText(/^Arquivo \(/), { target: { files: [file] } })
+      await waitFor(() => expect((screen.getByRole('button', { name: 'Importar 1 container' }) as HTMLButtonElement).disabled).toBe(false))
+      fireEvent.click(screen.getByRole('button', { name: 'Importar 1 container' }))
       await waitFor(() => expect(client.getQueryState(['baplie-staging', '24'])?.isInvalidated).toBe(true))
       expect(client.getQueryState(['voyages'])?.isInvalidated).toBe(true)
       expect(mocks.reimport).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 24, actorId: 'user-1' }))
@@ -84,9 +84,9 @@ describe('upload na página Baplie', () => {
     try {
       render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=24']}><Baplie /></MemoryRouter></QueryClientProvider>)
       fireEvent.click(await screen.findByRole('button', { name: /Importar Baplie/ }))
-      fireEvent.change(screen.getByLabelText(/^Arquivo/), { target: { files: [new File(['edi'], 'novo.edi', { type: 'text/plain' })] } })
-      await waitFor(() => expect((screen.getByRole('button', { name: /Importar Baplie \(1 container\)/ }) as HTMLButtonElement).disabled).toBe(false))
-      fireEvent.click(screen.getByRole('button', { name: /Importar Baplie \(1 container\)/ }))
+      fireEvent.change(screen.getByLabelText(/^Arquivo \(/), { target: { files: [new File(['edi'], 'novo.edi', { type: 'text/plain' })] } })
+      await waitFor(() => expect((screen.getByRole('button', { name: 'Importar 1 container' }) as HTMLButtonElement).disabled).toBe(false))
+      fireEvent.click(screen.getByRole('button', { name: 'Importar 1 container' }))
       expect(await screen.findByText('Baplie importado, mas IMO/OOG não foram aplicados aos B/Ls')).toBeTruthy()
       expect(screen.getByText('timeout na aplicação')).toBeTruthy()
       expect(screen.getByRole('dialog')).toBeTruthy()
@@ -168,17 +168,17 @@ describe('revisão da etapa 9 na página Baplie', () => {
     try {
       const view = renderPage(client, '24')
       fireEvent.click(await screen.findByRole('button', { name: /Importar Baplie/ }))
-      fireEvent.change(screen.getByLabelText(/^Arquivo/), { target: { files: [new File(['edi'], 'novo.edi', { type: 'text/plain' })] } })
+      fireEvent.change(screen.getByLabelText(/^Arquivo \(/), { target: { files: [new File(['edi'], 'novo.edi', { type: 'text/plain' })] } })
       expect(await screen.findByText('Não foi possível conferir a Viagem: Sem permissao para esta acao. Solicite acesso administrativo.')).toBeTruthy()
       expect(await screen.findByText('Importação bloqueada até a Viagem ser conferida.')).toBeTruthy()
-      expect((screen.getByRole('button', { name: 'Importar Baplie' }) as HTMLButtonElement).disabled).toBe(true)
+      expect((screen.getByRole('button', { name: 'Importar containers' }) as HTMLButtonElement).disabled).toBe(true)
       fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
       expect(mocks.refetchContext).toHaveBeenCalled()
 
       mocks.voyageContext = { data: undefined, isError: false, error: null }
       view.rerender(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=24']}><Baplie /></MemoryRouter></QueryClientProvider>)
       expect(await screen.findByText('Conferindo navio, viagem e escalas da Viagem…')).toBeTruthy()
-      expect((screen.getByRole('button', { name: 'Importar Baplie' }) as HTMLButtonElement).disabled).toBe(true)
+      expect((screen.getByRole('button', { name: 'Importar containers' }) as HTMLButtonElement).disabled).toBe(true)
       expect(mocks.reimport).not.toHaveBeenCalled()
     } finally {
       mocks.voyageContext = { data: { voyageNumber: '14', vesselName: 'GREEN SANTOS', eligiblePods: [] }, isError: false, error: null }

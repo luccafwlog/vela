@@ -176,10 +176,9 @@ it('a prévia conta B/Ls, blocos e peso, sem conferência de Cliente ou CNPJ', a
 
   await openImportWithVoyage(user)
   expect(screen.getByText(/Colunas obrigatórias/)).toBeTruthy()
-  await user.upload(screen.getByLabelText(/Arquivo/), new File(['x'], 'cosco.xlsx'))
+  await user.upload(screen.getByLabelText(/^Arquivo \(/), new File(['x'], 'cosco.xlsx'))
 
-  await waitFor(() => expect(screen.getByText('B/Ls válidos')).toBeTruthy())
-  expect(screen.getByText('Erros de leitura')).toBeTruthy()
+  await waitFor(() => expect(screen.getByRole('table', { name: 'Prévia do manifesto Granito' })).toBeTruthy())
   // Só o peso real: o total e a linha do BL-G1 dão 5,0 t; o BL-G2, com peso
   // real zero, fica "Sem peso" e o declarado (7,0 t) não entra.
   expect(screen.getAllByText('5,0 t')).toHaveLength(2)
@@ -197,9 +196,9 @@ it('confirmar importa na Viagem escolhida, atualiza as telas e avisa o resultado
   renderGranite()
 
   await openImportWithVoyage(user)
-  await user.upload(screen.getByLabelText(/Arquivo/), new File(['x'], 'cosco.xlsx'))
-  await waitFor(() => expect(screen.getByText('B/Ls válidos')).toBeTruthy())
-  await user.click(screen.getByRole('button', { name: 'Confirmar importação' }))
+  await user.upload(screen.getByLabelText(/^Arquivo \(/), new File(['x'], 'cosco.xlsx'))
+  await waitFor(() => expect(screen.getByRole('table', { name: 'Prévia do manifesto Granito' })).toBeTruthy())
+  await user.click(screen.getByRole('button', { name: 'Importar 1 B/L' }))
 
   await waitFor(() => expect(mocks.importManifest).toHaveBeenCalledTimes(1))
   expect(mocks.importManifest).toHaveBeenCalledWith(expect.objectContaining({ voyageId: 7, uploadedBy: 'u1', filename: 'cosco.xlsx' }))
@@ -216,11 +215,13 @@ it('a recusa do banco chega em português, sem o texto cru', async () => {
   renderGranite()
 
   await openImportWithVoyage(user)
-  await user.upload(screen.getByLabelText(/Arquivo/), new File(['x'], 'cosco.xlsx'))
-  await waitFor(() => expect(screen.getByText('B/Ls válidos')).toBeTruthy())
-  await user.click(screen.getByRole('button', { name: 'Confirmar importação' }))
+  await user.upload(screen.getByLabelText(/^Arquivo \(/), new File(['x'], 'cosco.xlsx'))
+  await waitFor(() => expect(screen.getByRole('table', { name: 'Prévia do manifesto Granito' })).toBeTruthy())
+  await user.click(screen.getByRole('button', { name: 'Importar 1 B/L' }))
 
-  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Não foi possível importar a planilha do Granito. Tente novamente.', 'error'))
+  // A recusa fica no modal, com a prévia, para corrigir e confirmar de novo.
+  await waitFor(() => expect(screen.getByText('Não foi possível importar a planilha do Granito. Tente novamente.')).toBeTruthy())
+  expect(screen.queryByText(/0d1c-uuid/)).toBeNull()
 })
 
 it('bloqueia a confirmação quando a leitura tem erro', async () => {
@@ -234,8 +235,9 @@ it('bloqueia a confirmação quando a leitura tem erro', async () => {
   renderGranite()
 
   await openImportWithVoyage(user)
-  await user.upload(screen.getByLabelText(/Arquivo/), new File(['x'], 'cosco.xlsx'))
+  await user.upload(screen.getByLabelText(/^Arquivo \(/), new File(['x'], 'cosco.xlsx'))
 
   await waitFor(() => expect(screen.getByText(/Data inválida/)).toBeTruthy())
-  expect((screen.getByRole('button', { name: 'Confirmar importação' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: 'Importar 1 B/L' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(screen.getByText(/Com erro no arquivo, nada é importado/)).toBeTruthy()
 })

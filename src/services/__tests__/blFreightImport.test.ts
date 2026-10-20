@@ -3,7 +3,7 @@ import {
   BL_FREIGHT_DIFF_LABELS,
   buildBlFreightPayload,
   buildBlFreightPreview,
-  chunkBlPayload,
+  BlFreightImportRefused,
   confirmBlFreightImport,
   previewBlFreightImport,
   readCustomerChangesIgnored,
@@ -660,7 +660,7 @@ describe('blFreightImport', () => {
     expect(row?.status).toBe('blocked')
     expect(row?.voyageId).toBe(7)
     expect(row?.payload).toBeNull()
-    expect(row?.blockedReasons[0]).toBe('Arquivo e da viagem OTHER VESSEL / 99W, mas voce apontou GREEN SANTOS / 14.')
+    expect(row?.blockedReasons[0]).toBe('Arquivo é da viagem OTHER VESSEL / 99W, mas você apontou GREEN SANTOS / 14.')
   })
 
   it('accepts prefix vessel aliases while still requiring the same voyage number', () => {
@@ -674,7 +674,7 @@ describe('blFreightImport', () => {
 
     const row = preview.rows[0]
     expect(row?.status).not.toBe('blocked')
-    expect(row?.blockedReasons).not.toContain('Arquivo e da viagem ZYHY JIN QU / 14, mas voce apontou ZHONG YUAN HAI YUN JIN QU / 14.')
+    expect(row?.blockedReasons).not.toContain('Arquivo é da viagem ZYHY JIN QU / 14, mas você apontou ZHONG YUAN HAI YUN JIN QU / 14.')
     expect(row?.payload).not.toBeNull()
   })
 
@@ -691,7 +691,7 @@ describe('blFreightImport', () => {
     const row = preview.rows[0]
     expect(row?.status).toBe('blocked')
     expect(row?.payload).toBeNull()
-    expect(row?.blockedReasons[0]).toBe('Arquivo e da viagem CSALGOL / 14, mas voce apontou COSCO SHIPPING ALGOL / 14.')
+    expect(row?.blockedReasons[0]).toBe('Arquivo é da viagem CSALGOL / 14, mas você apontou COSCO SHIPPING ALGOL / 14.')
   })
 
   it('keeps accepted vessel aliases blocked when the declared voyage number diverges after normalizeText', () => {
@@ -707,10 +707,11 @@ describe('blFreightImport', () => {
     const row = preview.rows[0]
     expect(row?.status).toBe('blocked')
     expect(row?.payload).toBeNull()
-    expect(row?.blockedReasons[0]).toBe('Arquivo e da viagem ZYHY JIN QU / 14-w, mas voce apontou ZHONG YUAN HAI YUN JIN QU / 14/W.')
+    expect(row?.blockedReasons[0]).toBe('Arquivo é da viagem ZYHY JIN QU / 14-w, mas você apontou ZHONG YUAN HAI YUN JIN QU / 14/W.')
   })
 
-  it('calls the transactional RPC only with unblocked payloads', async () => {
+  it('B/L bloqueado no arquivo impede todos: nada é enviado ao banco (ADR 0092)', async () => {
+    mockRpc.mockReset()
     mockRpc.mockResolvedValue({ data: { bls_received: 1 }, error: null })
     const preview: BlFreightImportPreview = {
       rows: [
@@ -754,7 +755,13 @@ describe('blFreightImport', () => {
       summary: { total: 2, newCount: 1, updatedCount: 0, unchangedCount: 0, blockedCount: 1, billingOverrideCount: 0, customerChangeCount: 0 },
     }
 
-    await expect(confirmBlFreightImport(preview, 'user-1')).resolves.toEqual({
+    await expect(confirmBlFreightImport(preview, 'user-1')).rejects.toThrow(/^Nada foi gravado: o B\/L BLOCKED está bloqueado/)
+    await expect(confirmBlFreightImport(preview, 'user-1')).rejects.toBeInstanceOf(BlFreightImportRefused)
+    expect(mockRpc).not.toHaveBeenCalled()
+
+    // Sem o bloqueado, o arquivo inteiro vai numa chamada só.
+    const clean = { ...preview, rows: [preview.rows[0]!], summary: { ...preview.summary, total: 1, blockedCount: 0 } }
+    await expect(confirmBlFreightImport(clean, 'user-1')).resolves.toEqual({
       result: [{ bls_received: 1 }],
       containerChanges: [],
       vehicleChanges: [],
@@ -764,7 +771,8 @@ describe('blFreightImport', () => {
       customerChangesIgnored: [],
       calculationErrors: [],
     })
-    expect(mockRpc).toHaveBeenCalledWith('import_bl_freight_with_metadata', {
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith('import_bl_freight_file_atomic', {
       p_bls: [preview.rows[0]?.payload],
       p_changed_by: 'user-1',
       p_batch: { filename: 'importacao-bl.xlsx', voyage_id: 7, cargo_mode: 'container' },
@@ -814,51 +822,11 @@ describe('blFreightImport', () => {
     })
   })
 
-  it('limita cada lote pelo numero de conteineres, nao so de B/Ls', () => {
-    const bl = (id: string, containers: number) => ({ id, containers: Array.from({ length: containers }, (_, n) => n) })
-    // 6 B/Ls x 200 conteineres (caso GREEN BRAZIL / 8): 1.200 conteineres numa chamada estouravam 8 s
-    const big = ['A', 'B', 'C', 'D', 'E', 'F'].map((id) => bl(id, 200))
-    expect(chunkBlPayload(big).chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['A'], ['B'], ['C'], ['D'], ['E'], ['F']])
-    // B/L acima do orcamento vai sozinho, sem ser partido
-    expect(chunkBlPayload([bl('X', 2), bl('Y', 500), bl('Z', 2)]).chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['X'], ['Y'], ['Z']])
-    // B/Ls pequenos continuam em lotes de ate 20
-    const small = Array.from({ length: 45 }, (_, n) => bl(`S${n}`, 3))
-    expect(chunkBlPayload(small).chunks.map((chunk) => chunk.length)).toEqual([20, 20, 5])
-    expect(chunkBlPayload([])).toEqual({ chunks: [], recalculateAfter: [] })
-  })
-
-  it('mantem no mesmo lote os B/Ls que compartilham conteiner', () => {
-    const bl = (id: string, numbers: string[]) => ({ id, containers: numbers.map((container_number) => ({ container_number })) })
-    const many = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i}`)
-    // A e C dividem SHRD0000001; B fica entre eles no arquivo e estoura o orcamento junto
-    const { chunks } = chunkBlPayload([bl('A', [...many('A', 150), 'SHRD0000001']), bl('B', many('B', 200)), bl('C', ['SHRD0000001', ...many('C', 100)])])
-    expect(chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['A', 'C'], ['B']])
-    // grupo grande demais e partido e volta para recalculo depois do ultimo lote
-    const oversized = chunkBlPayload([bl('X', [...many('X', 200), 'SHRD0000002']), bl('Y', ['SHRD0000002', ...many('Y', 200)])])
-    expect(oversized.chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['X'], ['Y']])
-    expect(oversized.recalculateAfter.map((item) => item.id)).toEqual(['X', 'Y'])
-  })
-
-  it('considera os conteineres atuais do B/L na reimportacao', () => {
-    const bl = (id: string, numbers: string[]) => ({ id, containers: numbers.map((container_number) => ({ container_number })) })
-    const many = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i}`)
-    // A e C dividiam K no banco; o arquivo tira K de C. Separados, A ficaria com rateio de 2.
-    const relinked = chunkBlPayload(
-      [bl('A', [...many('A', 150), 'K']), bl('B', many('B', 200)), bl('C', many('C', 100))],
-      new Map([['A', ['K']], ['C', ['K']]]),
-    )
-    expect(relinked.chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['A', 'C'], ['B']])
-    // B/L que encolhe de 400 para 2 conteineres ainda apaga 400: pesa no orcamento
-    const shrinking = chunkBlPayload([bl('S', many('S', 2)), bl('T', many('T', 2))], new Map([['S', many('S', 400)]]))
-    expect(shrinking.chunks.map((chunk) => chunk.map((item) => item.id))).toEqual([['S'], ['T']])
-  })
-
-  it('envia lotes grandes em partes para nao estourar o statement_timeout e informa falha parcial', async () => {
+  it('grava o arquivo grande numa chamada só e, se o banco recusa, diz que nada foi gravado', async () => {
     const row = (id: string): BlFreightImportPreview['rows'][number] => ({
       blNumber: id, status: 'new', existing: false, voyageId: 7, voyageNumber: null, pol: null, pod: null,
       ladenOnBoard: null, consigneeDocumentMatches: null, blockedReasons: [], billingImpacts: [],
       requiresBillingOverride: false, customerChange: null, requiresCustomerConfirmation: false, diffs: [],
-      // conteiner proprio por B/L: aqui os B/Ls sao independentes (sem rateio compartilhado)
       payload: { ...buildBlFreightPayload(parsedBL(), 7), id, containers: [{ ...buildBlFreightPayload(parsedBL(), 7).containers[0], container_number: `${id}CTR` }] },
     })
     const preview: BlFreightImportPreview = {
@@ -868,21 +836,40 @@ describe('blFreightImport', () => {
 
     mockRpc.mockReset()
     mockRpc.mockResolvedValue({
-      data: { result: {}, calculation_errors: [{ bl_id: 'X', message: 'sem tabela' }] },
+      data: { result: {}, calculation_errors: [{ bl_id: 'BL3', message: 'sem tabela' }] },
       error: null,
     })
     const outcome = await confirmBlFreightImport(preview, 'user-1')
-    expect(mockRpc.mock.calls.map(([, args]) => (args as { p_bls: unknown[] }).p_bls.length)).toEqual([20, 20, 5])
-    expect(outcome.calculationErrors).toHaveLength(3)
+    expect(mockRpc.mock.calls.map(([, args]) => (args as { p_bls: unknown[] }).p_bls.length)).toEqual([45])
+    // Cálculo é passo depois da gravação (ADR 0092, D2): fica gravado e avisa.
+    expect(outcome.calculationErrors).toEqual([{ blNumber: 'BL3', message: 'sem tabela' }])
 
+    // Tempo-limite: a transação única foi desfeita.
     mockRpc.mockReset()
-    mockRpc
-      .mockResolvedValueOnce({ data: { result: {} }, error: null })
-      .mockResolvedValueOnce({ data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } })
-    await expect(confirmBlFreightImport(preview, 'user-1')).rejects.toThrow(
-      /^20 de 45 B\/L\(s\) foram importados.*57014 canceling statement/,
-    )
-    expect(mockRpc).toHaveBeenCalledTimes(2)
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } })
+    await expect(confirmBlFreightImport(preview, 'user-1')).rejects.toThrow(/^Nada foi gravado: o arquivo é grande demais/)
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+
+    // Recusa de uma linha no banco (FCL, Demurrage...): nada foi gravado, com o motivo.
+    mockRpc.mockReset()
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: 'P0008', message: 'Container X ja esta no B/L Y: container FCL nao e dividido entre Clientes diferentes.' } })
+    await expect(confirmBlFreightImport(preview, 'user-1')).rejects.toThrow(/^Nada foi gravado: .*container FCL nao e dividido/)
+
+    // Veículo da aba VIN recusado pelo banco: a recusa lista os veículos.
+    mockRpc.mockReset()
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: '23514',
+        message: 'Nada foi gravado: o banco recusou veiculos da aba VIN (1).',
+        hint: 'vehicles_discarded',
+        details: JSON.stringify([{ bl_id: 'BL1', chassis: 'VIN1', reason: 'Chassi ja esta no B/L BL9' }]),
+      },
+    })
+    const refusal = await confirmBlFreightImport(preview, 'user-1').then(() => null, (error: unknown) => error)
+    expect(refusal).toBeInstanceOf(BlFreightImportRefused)
+    expect((refusal as BlFreightImportRefused).message).toMatch(/^Nada foi gravado: o banco recusou veículos da aba VIN/)
+    expect((refusal as BlFreightImportRefused).refused).toEqual(['BL1 — VIN VIN1: Chassi ja esta no B/L BL9'])
   })
 
   it('does not trigger automatic billing during BL import after ADR 0020', async () => {
@@ -997,13 +984,13 @@ describe('blFreightImport', () => {
     }
 
     await confirmBlFreightImport(preview, 'user-1', true)
-    const sent = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<{ id: string; override_billing: boolean }>
+    const sent = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_file_atomic')?.[1]?.p_bls as Array<{ id: string; override_billing: boolean }>
     expect(sent.find((bl) => bl.id === 'IMPACT')?.override_billing).toBe(true)
     expect(sent.find((bl) => bl.id === 'FREE')?.override_billing).toBe(true)
 
     mockRpc.mockClear()
     await confirmBlFreightImport(preview, 'user-1', false)
-    const sentNoOverride = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<{ id: string; override_billing: boolean }>
+    const sentNoOverride = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_file_atomic')?.[1]?.p_bls as Array<{ id: string; override_billing: boolean }>
     // impacting row stays un-applied; the free row still applies
     expect(sentNoOverride.find((bl) => bl.id === 'IMPACT')?.override_billing).toBe(false)
     expect(sentNoOverride.find((bl) => bl.id === 'FREE')?.override_billing).toBe(true)
@@ -1149,7 +1136,7 @@ describe('blFreightImport', () => {
 
     expect(preview.rows[0]?.customerChange?.targetMissing).toBe(true)
     expect(preview.rows[0]?.customerChange?.blockedReasons).toEqual([
-      'Cliente do novo consignatario nao esta cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.',
+      'Cliente do novo consignatário não está cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.',
     ])
     expect(preview.rows[0]?.requiresCustomerConfirmation).toBe(false)
   })
@@ -1171,7 +1158,7 @@ describe('blFreightImport', () => {
     })
 
     const unconfirmed = await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', false)
-    const withoutConfirmation = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<Record<string, unknown>>
+    const withoutConfirmation = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_file_atomic')?.[1]?.p_bls as Array<Record<string, unknown>>
     expect(withoutConfirmation[0].relink_customer).toBe(false)
     // Sem aceite, o consignatário do arquivo não vai: o gravado fica (migration 213).
     for (const field of ['consignee', 'consignee_block', 'manifest_customer_cnpj_cpf', 'manifest_customer_name', 'manifest_customer_email', 'billing_hold_reason']) {
@@ -1181,7 +1168,7 @@ describe('blFreightImport', () => {
 
     mockRpc.mockClear()
     const accepted = await confirmBlFreightImport(preview, 'user-1', false, 'arquivo.xlsx', true)
-    const confirmed = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_with_metadata')?.[1]?.p_bls as Array<{ relink_customer: boolean; customer_id: number | null }>
+    const confirmed = mockRpc.mock.calls.find(([name]) => name === 'import_bl_freight_file_atomic')?.[1]?.p_bls as Array<{ relink_customer: boolean; customer_id: number | null }>
     expect(confirmed[0]).toMatchObject({ relink_customer: true, customer_id: 43, manifest_customer_cnpj_cpf: '98765432000110' })
     expect(accepted.customerChangesIgnored).toEqual([])
   })
@@ -1304,7 +1291,7 @@ describe('blFreightImport', () => {
 
     expect(semCliente.rows[0]?.customerChange?.targetMissing).toBe(true)
     expect(semCliente.rows[0]?.customerChange?.blockedReasons).toEqual([
-      'Cliente do novo consignatario nao esta cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.',
+      'Cliente do novo consignatário não está cadastrado; cadastre-o antes de reimportar para a fatura acompanhar.',
     ])
   })
 
@@ -1517,9 +1504,9 @@ describe('blFreightImport', () => {
       empty.blNumber = 'OUTROBL0001'
       empty.dates.ladenOnBoard = ''
       const preview = buildBlFreightPreview({ documents: [unreadable, empty], selectedVoyage: voyage })
-      expect(preview.rows[0]?.warnings).toEqual(['Laden on Board ilegível ("31/02/2026"): a data gravada não muda.'])
+      expect(preview.rows[0]?.warnings).toEqual(['Embarque ilegível ("31/02/2026"): a data gravada não muda.'])
       expect(preview.rows[0]?.payload?.laden_on_board).toBeNull()
-      expect(preview.rows[1]?.warnings).toEqual(['Laden on Board vazio no arquivo: a data gravada não muda.'])
+      expect(preview.rows[1]?.warnings).toEqual(['Embarque vazio no arquivo: a data gravada não muda.'])
       expect(preview.rows[0]?.status).toBe('new')
     })
 
@@ -1642,7 +1629,7 @@ describe('blFreightImport', () => {
 
       mockRpc.mockResolvedValue({ data: { result: { bls_received: 1 } }, error: null })
       await expect(confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, false))
-        .rejects.toThrow('Confirme a lista de veículos da aba VIN: no B/L CSC45250E02Y00, o container MSKU7654321 só sai do B/L com os veículos. Nada foi gravado.')
+        .rejects.toThrow('Nada foi gravado: confirme a lista de veículos da aba VIN (no B/L CSC45250E02Y00, o container MSKU7654321 só sai do B/L com os veículos).')
       expect(mockRpc).not.toHaveBeenCalled()
 
       await confirmBlFreightImport(preview, 'user-1', true, 'a.xlsx', false, true)

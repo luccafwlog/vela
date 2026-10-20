@@ -45,6 +45,9 @@ Fontes executáveis principais:
   (leitura e importação da planilha) e
   [`src/services/graniteCargo.ts`](../../src/services/graniteCargo.ts)
   (consulta, regra do peso e resumo por viagem);
+- o modal de importação
+  [`src/components/shared/GraniteImportModal.tsx`](../../src/components/shared/GraniteImportModal.tsx),
+  aberto de `/granito` e da aba da Viagem (lote 6a);
 - entrada pela Viagem em
   [`src/components/shared/VoyageImportActions.tsx`](../../src/components/shared/VoyageImportActions.tsx);
 - banco: `import_granite_manifest_transactional` na definição da migration
@@ -77,11 +80,17 @@ lista da identidade visual:
 - **Peso** em toda a tela: só o peso real (`graniteWeightKg`); sem ele, "—"
   ("Sem peso" para leitor de tela), nunca o declarado pelo shipper.
 
-A janela **Importar planilha COSCO** pede a Viagem de destino e o arquivo
-`.xls/.xlsx`, diz as colunas obrigatórias (BL e Real Weight) e mostra a
-prévia: B/Ls válidos, Blocos, Peso e Erros de leitura, mais as primeiras 50
-linhas (B/L, Shipper, Trecho, Blocos, Peso) e o relatório de erros exportável.
-Com erro de leitura a confirmação fica bloqueada.
+A janela **Importar manifesto Granito**
+([`GraniteImportModal`](../../src/components/shared/GraniteImportModal.tsx), a
+mesma da aba da Viagem, lote 6a) pede a Viagem de destino (fixa na aba da
+Viagem) e o arquivo `.xls/.xlsx`, que pode ser lido antes da Viagem; diz as
+colunas obrigatórias (BL e Real Weight), oferece o modelo
+`public/templates/granito-modelo.xlsx` e mostra a prévia: B/Ls, Blocos, Peso e
+erros, as primeiras 50 linhas (B/L, Shipper, Trecho, Blocos, Peso, Fase) e o
+relatório de erros exportável. Qualquer erro de linha recusa o arquivo inteiro
+e nada é gravado; não há aceite que grave só as linhas válidas
+([ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md)). Depois de
+gravar, o Resultado fica no modal até **Concluir**.
 
 ### `/granito/taxas`
 
@@ -92,11 +101,9 @@ as tarifas gravadas, saiu do banco na migration `329`.
 ### Entrada por `/viagens/:voyageId`
 
 Na aba Exportação, [`VoyageImportActions`](../../src/components/shared/VoyageImportActions.tsx)
-abre um [`FileImportModal`](../../src/components/shared/FileImportModal.tsx)
-já associado à viagem, com o mesmo parser e importador. A prévia resume B/Ls,
-blocos, toneladas (pela regra do peso) e erros; aceitar erros de linha
-(`allowRowErrors`) exige decisão explícita do operador. A ação "CE Mercante
-(Granito)" saiu.
+abre o mesmo [`GraniteImportModal`](../../src/components/shared/GraniteImportModal.tsx)
+de `/granito`, com a viagem fixa (lote 6a); a regra de erro é a mesma. A ação
+"CE Mercante (Granito)" saiu.
 
 ### Superfícies que leem o Granito
 
@@ -115,10 +122,10 @@ blocos, toneladas (pela regra do peso) e erros; aceitar erros de linha
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
 | `/granito` · filtrar e listar | Sessão interna | `Granite` | `listGraniteBls` (página) e `fetchGraniteCargoRows` (recorte inteiro, sem o POD, em páginas de 1.000) → `summarizeGraniteCargo` | SELECT em `granite_bls` com `granite_manifests!inner`, `voyages`, `vessels` | `queryKeys.granite.bls(filtros)` e `queryKeys.granite.cargo(filtros)`; troca de filtro volta à página 1 | Erro de leitura mostra o aviso com **Tentar novamente**; enquanto carrega ou sem dado, os cartões mostram "—" | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`graniteCargo.ts`](../../src/services/graniteCargo.ts) · **Teste:** `graniteCargo.test.ts`, `Granite.behavior.test.tsx` |
-| `/granito` · abrir a importação e escolher a Viagem | Usuário interno ativo, de qualquer Departamento (ADR 0078, item 10) | `Granite` → `GraniteImportModal`; `VoyageCombobox` | A seleção só prepara os argumentos do importador | Leitura de viagens | Estado local | Sem viagem, arquivo ou usuário o botão fica desabilitado | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx) |
-| `/viagens/:voyageId` · importar Granito | Viagem e usuário definidos; arquivo com B/Ls válidos | `VoyageImportActions`; `FileImportModal` | `parseGraniteManifestFile` → `importGraniteManifest` | `granite_manifests`, `granite_bls` | `afterManifestoImportado`, que inclui a família `granite-bls` (a lista do Granito se atualiza também por aqui) | Erro de leitura por arquivo; falha de gravação recusa o lote | **Código:** [`VoyageImportActions.tsx`](../../src/components/shared/VoyageImportActions.tsx) · **Teste:** `VoyageImportActions.behavior.test.tsx` |
-| Ler a planilha COSCO | Arquivo `.xls`/`.xlsx` dentro do limite; primeira aba visível com o cabeçalho COSCO | `handleFile` ou parser do modal genérico | `assertUploadFile` → `readSheet` (primeira aba visível; linhas e abas ocultas ignoradas com aviso) → `matchHeaders`/`createHeaderMapper`; exige B/L único e `real_weight_kg > 0` | Nenhuma escrita; não consulta a base de Clientes | Retorna `ParsedGraniteManifest` com `bls` e `rowErrors` | B/L ausente/duplicado, peso ausente/zero, data de prontidão impossível ou POL/POD fora do catálogo viram erro de linha; planilha sem as colunas obrigatórias é recusada ("Planilha inválida. Colunas obrigatórias: …") | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts), [`importCore.ts`](../../src/services/importCore.ts) · **Teste:** `graniteParse.test.ts` |
-| Confirmar importação | Viagem existente; usuário; ao menos um B/L válido | `GraniteImportModal.handleImport` ou importer de `VoyageImportActions` | `importGraniteManifest` soma o peso, lê os B/Ls já gravados na Viagem (`graniteImportScope`) e, com B/L em comum, pede confirmação para tirar os ausentes dos manifestos tocados | `import_granite_manifest_transactional` (migration `325`, corpo da `206`; uma transação): ignora `client_id` e `suggested_client_id` do arquivo; manifesto novo quando não há B/L em comum; com B/L em comum, atualiza pelo número (preservando o CE já gravado), inclui os novos e tira os ausentes só com confirmação, com Histórico; ausente com Invoice antiga nunca sai | Fecha a janela; invalida o Granito, a Viagem, o ADR e a Line Up; o aviso diz manifesto novo, novos, atualizados, retirados e mantidos | Viagem ausente, B/L repetido ou erro de escrita recusa tudo; as recusas conhecidas chegam em português, e erro desconhecido vira "Não foi possível importar a planilha do Granito. Tente novamente." (achado G7) | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts) · **Teste:** `graniteImportAtomic.test.ts`; **Teste local-pg:** `granitoReimportacao.local-pg.test.ts`, `granitoSemCliente.local-pg.test.ts` |
+| `/granito` · abrir a importação e escolher a Viagem | Usuário interno ativo, de qualquer Departamento (ADR 0078, item 10) | `Granite` → `GraniteImportModal` (o mesmo da aba da Viagem); `VoyageCombobox` no modal | A seleção só prepara os argumentos do importador; o arquivo pode ser lido antes | Leitura de viagens | Estado local | Sem viagem, arquivo ou usuário o botão fica desabilitado | **Código:** [`Granite.tsx`](../../src/pages/Granite.tsx), [`GraniteImportModal.tsx`](../../src/components/shared/GraniteImportModal.tsx) |
+| `/viagens/:voyageId` · importar Granito | Viagem e usuário definidos; arquivo com B/Ls válidos | `VoyageImportActions` → `GraniteImportModal` com a viagem fixa | `parseGraniteManifestFile` → `importGraniteManifest` | `granite_manifests`, `granite_bls` | `afterManifestoImportado`, que inclui a família `granite-bls` (a lista do Granito se atualiza também por aqui) | Erro de leitura ou de linha recusa o arquivo inteiro (ADR 0092); falha de gravação recusa tudo | **Código:** [`VoyageImportActions.tsx`](../../src/components/shared/VoyageImportActions.tsx) · **Teste:** `VoyageImportActions.behavior.test.tsx` |
+| Ler a planilha COSCO | Arquivo `.xls`/`.xlsx` dentro do limite; primeira aba visível com o cabeçalho COSCO | `GraniteImportModal` (`useCancellableFileRead`) | `assertUploadFile` → `readSheet` (primeira aba visível; linhas e abas ocultas ignoradas com aviso) → `matchHeaders`/`createHeaderMapper`; exige B/L único e `real_weight_kg > 0` | Nenhuma escrita; não consulta a base de Clientes | Retorna `ParsedGraniteManifest` com `bls` e `rowErrors` | B/L ausente/duplicado, peso ausente/zero, data de prontidão impossível ou POL/POD fora do catálogo viram erro de linha; planilha sem as colunas obrigatórias é recusada ("Planilha inválida. Colunas obrigatórias: …"); qualquer erro de linha recusa o arquivo inteiro, sem aceite (ADR 0092) | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts), [`importCore.ts`](../../src/services/importCore.ts) · **Teste:** `graniteParse.test.ts` |
+| Importar N B/Ls | Viagem existente; usuário; ao menos um B/L e nenhum erro de linha | `GraniteImportModal.handleImport` (em `/granito` e na aba da Viagem) | `importGraniteManifest` soma o peso, lê os B/Ls já gravados na Viagem (`graniteImportScope`) e, com B/L em comum, pede confirmação para tirar os ausentes dos manifestos tocados | `import_granite_manifest_transactional` (migration `325`, corpo da `206`; uma transação): ignora `client_id` e `suggested_client_id` do arquivo; manifesto novo quando não há B/L em comum; com B/L em comum, atualiza pelo número (preservando o CE já gravado), inclui os novos e tira os ausentes só com confirmação, com Histórico; ausente com Invoice antiga nunca sai | Mostra o Resultado no modal; invalida o Granito, a Viagem, o ADR e a Line Up; o aviso diz manifesto novo, novos, atualizados, retirados e mantidos | Viagem ausente, B/L repetido ou erro de escrita recusa tudo; as recusas conhecidas chegam em português, e erro desconhecido vira "Não foi possível importar a planilha do Granito. Tente novamente." (achado G7) | **Código:** [`graniteImport.ts`](../../src/services/graniteImport.ts) · **Teste:** `graniteImportAtomic.test.ts`; **Teste local-pg:** `granitoReimportacao.local-pg.test.ts`, `granitoSemCliente.local-pg.test.ts` |
 
 ## Estado e dados
 
@@ -245,3 +252,6 @@ flowchart LR
   `granite_billing`; o envelope da `325` remove essas linhas na mesma
   transação (`ponytail:` na migration). Reescrever o corpo fica para a
   limpeza das colunas sem uso.
+- **Código — erro de linha recusa o arquivo inteiro (ADR 0092, lote 6a).**
+  `importGraniteManifest` recusa qualquer `rowErrors` antes da RPC; não existe
+  mais `allowRowErrors`.

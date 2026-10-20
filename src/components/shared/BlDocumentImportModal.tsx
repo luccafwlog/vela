@@ -4,7 +4,8 @@ import { FileImportModal, type FilePreviewEntry } from './FileImportModal'
 import { VoyageCombobox } from './VoyageCombobox'
 import { SummaryStrip } from '../ui/SummaryStrip'
 import { useToast } from '../ui/Toast'
-import { ImportGuide, ImportNotice } from './ImportParts'
+import { ImportGuide, ImportNotice, ImportSection, ImportTemplateLinks } from './ImportParts'
+import { plural } from './importPresentation'
 import { useAuth } from '../../hooks/useAuth'
 import { useVoyageOptions } from '../../hooks/useBls'
 import { formatCnpj } from '../../lib/cnpj'
@@ -30,9 +31,24 @@ function isOtherVoyage(document: CheckedBlDocument) {
   return Boolean(document.reimport?.otherVoyage.length)
 }
 
-/** B/L cancelado é somente leitura: o arquivo é ignorado, como a linha do Manifesto BB. */
+/**
+ * B/L cancelado é somente leitura: o arquivo não é tocado, como a linha do
+ * Manifesto BB. É aviso (D1 da regra de 2026-10-19), não erro: os demais
+ * arquivos do lote entram. Como no Manifesto BB e no CE Mercante, o aviso só
+ * informa: não pede o aceite "Conferi os avisos".
+ */
 function isCancelled(document: CheckedBlDocument) {
   return Boolean(document.reimport?.cancelled?.length)
+}
+
+/** Erro do arquivo: recusa o lote inteiro (regra de 2026-10-19, ADR 0092). */
+function hasDocumentError(document: CheckedBlDocument, voyage: BlDocumentVoyage | null) {
+  return document.errors.length > 0 || Boolean(describeVoyageMismatch(document, voyage)) || isOtherVoyage(document)
+}
+
+/** Aviso de leitura: pede o aceite antes de gravar. */
+function hasDocumentWarning(document: CheckedBlDocument) {
+  return document.warnings.length > 0
 }
 
 /**
@@ -40,6 +56,11 @@ function isCancelled(document: CheckedBlDocument) {
  * documento que o armador emite (.pdf ou .docx). A importação de manifesto BB
  * continua na mesma tela — este caminho existe para quando a viagem chega em
  * B/Ls soltos, e não em uma planilha consolidada.
+ *
+ * Regra de 2026-10-19 (ADR 0092): um arquivo com erro (sem número de B/L, de
+ * outro navio ou de outra viagem) recusa todos os do lote; aviso de leitura
+ * incerta pede o aceite; B/L cancelado é aviso que só informa. Nenhum dos dois
+ * impede os demais.
  */
 export function BlDocumentImportModal({
   onClose,
@@ -84,79 +105,69 @@ export function BlDocumentImportModal({
       multiple
       title="Importar B/Ls de carga solta"
       accept=".pdf,.docx"
+      // ADR 0092 item 7: o B/L vem do armador; o modelo é um B/L de exemplo no
+      // formato aceito, com dados fictícios.
+      templates={<ImportTemplateLinks baseName="bl-avulso-exemplo" extensions={['docx']} />}
       ready={Boolean(selectedVoyageId && user)}
-      notReadyReason="Escolha a viagem de destino para liberar o arquivo."
-      confirmLabel="Importar B/Ls"
-      overrideHint="Os arquivos com aviso também entram, como foram lidos. Arquivos com erro, de outra viagem ou de B/L cancelado continuam de fora."
+      notReadyReason="Escolha a viagem de destino para ler os arquivos: a prévia confere os B/Ls já gravados nela."
+      nothingToImport={(entries) => (entries.every((entry) => isCancelled(entry.preview)) ? 'Nenhum B/L a importar.' : null)}
+      confirmLabel={(entries) => {
+        const count = entries.filter((entry) => !isCancelled(entry.preview)).length
+        return count ? `Importar ${plural(count, 'B/L', 'B/Ls')}` : 'Importar B/Ls'
+      }}
+      overrideHint="Os arquivos com aviso de leitura entram como foram lidos."
       reparseKey={selectedVoyageId}
-      prerequisite={
+      prerequisite={({ locked }) => (
         <VoyageCombobox
           required
           label="Viagem de destino"
+          disabled={locked}
           initialValue={voyageLabel}
           selectedVoyageId={selectedVoyageId}
           onSelect={(id) => setSelectedVoyageId(id == null ? '' : String(id))}
         />
-      }
+      )}
       parser={parseDocument}
-      batchImporter={async (entries, allowOverride) => {
+      batchImporter={async (entries, acceptWarnings) => {
         if (!user || !selectedVoyageId) return
         const result = await importBlDocuments({
           filename: entries.map((entry) => entry.file.name).join(', '),
           voyageId: Number(selectedVoyageId),
           documents: entries.map((entry) => entry.preview),
           uploadedBy: user.id,
-          allowRowErrors: Boolean(allowOverride),
+          acceptWarnings: Boolean(acceptWarnings),
           approval,
         })
         await afterManifestoImportado(queryClient, { voyageId: selectedVoyageId })
         const pending = describeBreakbulkPending(result)
+        const imported = result.inserted.length + result.updated.length + result.unchanged.length
         showToast(
           pending.length
-            ? `${entries.length} B/L(s) importado(s) como carga solta, com pendências: ${pending.join(' | ')}`
-            : `${entries.length} B/L(s) importado(s) como carga solta.`,
+            ? `${plural(imported, 'B/L importado', 'B/Ls importados')} como carga solta, com pendências: ${pending.join(' | ')}`
+            : `${plural(imported, 'B/L importado', 'B/Ls importados')} como carga solta.`,
           pending.length ? 'info' : 'success',
         )
       }}
-      canImport={(document, allowOverride) => (
-        document.errors.length === 0 &&
-        !describeVoyageMismatch(document, selectedVoyage) &&
-        !isOtherVoyage(document) &&
-        !isCancelled(document) &&
-        (document.warnings.length === 0 || Boolean(allowOverride))
+      canImport={(document, acceptWarnings) => (
+        !hasDocumentError(document, selectedVoyage) &&
+        (!hasDocumentWarning(document) || Boolean(acceptWarnings))
       )}
       renderBatchSummary={(entries) => (
         <>
-          <BatchSummary
-            entries={entries}
-            canImport={(document) => (
-              document.errors.length === 0 &&
-              !describeVoyageMismatch(document, selectedVoyage) &&
-              !isOtherVoyage(document) &&
-              !isCancelled(document) &&
-              document.warnings.length === 0
-            )}
-          />
+          <BatchSummary entries={entries} voyage={selectedVoyage} />
           {/* A Troca de Consignatário e a confirmação de faturamento valem para o
               lote inteiro: a prévia lista os B/Ls de TODOS os arquivos que podem
               entrar, não só o do arquivo aberto. */}
           <BreakbulkReimportReview
             check={mergeReimportChecks(entries.map((entry) => entry.preview).filter((document) => (
-              document.errors.length === 0 &&
-              !describeVoyageMismatch(document, selectedVoyage) &&
-              !isOtherVoyage(document) &&
-              !isCancelled(document)
+              !hasDocumentError(document, selectedVoyage) && !isCancelled(document)
             )))}
             approval={approval}
             onApprovalChange={setApproval}
           />
         </>
       )}
-      renderPreview={(document) => (
-        <>
-          <BlDocumentPreview document={document} voyage={selectedVoyage} />
-        </>
-      )}
+      renderPreview={(document) => <BlDocumentPreview document={document} voyage={selectedVoyage} />}
       helper={
         <ImportGuide
           requiredLabel="Formato"
@@ -164,7 +175,8 @@ export function BlDocumentImportModal({
           details={
             <p>
               O CE Mercante não vem no B/L: ele entra depois por Importar CE Mercante. Reimportar o B/L corrige só o
-              que o documento traz e não apaga CE, Cliente vinculado nem observações.
+              que o documento traz e não apaga CE, Cliente vinculado nem observações. Com um arquivo com erro, nenhum
+              arquivo do lote é importado.
             </p>
           }
         />
@@ -194,23 +206,22 @@ function mergeReimportChecks(documents: CheckedBlDocument[]): BreakbulkReimportC
 
 function BatchSummary({
   entries,
-  canImport,
+  voyage,
 }: {
   entries: FilePreviewEntry<CheckedBlDocument>[]
-  canImport: (document: CheckedBlDocument, allowOverride?: boolean) => boolean
+  voyage: BlDocumentVoyage | null
 }) {
-  const ready = entries.filter((entry) => canImport(entry.preview)).length
-  const withWarnings = entries.filter((entry) => entry.preview.warnings.length > 0 && canImport(entry.preview, true)).length
-  const blocked = entries.length - ready - withWarnings
+  const withError = entries.filter((entry) => hasDocumentError(entry.preview, voyage)).length
+  // O cancelado conta como aviso aqui, embora não peça o aceite.
+  const withWarnings = entries.filter((entry) => !hasDocumentError(entry.preview, voyage) && (hasDocumentWarning(entry.preview) || isCancelled(entry.preview))).length
 
   return (
     <SummaryStrip
       label="Resumo dos arquivos lidos"
       items={[
         { label: entries.length === 1 ? 'arquivo lido' : 'arquivos lidos', value: entries.length },
-        { label: 'prontos', value: ready },
+        { label: 'com erro', value: withError, tone: withError ? 'danger' : 'default' },
         { label: 'com aviso', value: withWarnings, tone: withWarnings ? 'warning' : 'default' },
-        { label: 'não entram', value: blocked, tone: blocked ? 'danger' : 'default' },
       ]}
     />
   )
@@ -228,31 +239,42 @@ function BlDocumentPreview({
   const cancelled = document.reimport?.cancelled ?? []
 
   return (
-    <div className="grid gap-3">
-      {document.errors.length || mismatch || otherVoyage.length || cancelled.length ? (
-        <ImportNotice tone="danger" role="alert" title="Este arquivo não será importado">
+    <ImportSection
+      title="Prévia"
+      aside={
+        <SummaryStrip
+          label="Resumo do B/L"
+          items={[
+            { label: 'packages', value: formatNumber(document.packages_qty) },
+            { label: 'kg', value: formatNumber(document.gross_weight_kg) },
+            { label: 'm³', value: formatNumber(document.total_cbm) },
+          ]}
+        />
+      }
+    >
+      {document.errors.length || mismatch || otherVoyage.length ? (
+        <ImportNotice tone="danger" role="alert" title="Este arquivo tem erro: nenhum arquivo do lote é importado">
           <ul className="app-import-notice__list">
             {document.errors.map((message) => <li key={message}>{message}</li>)}
             {mismatch ? <li>{mismatch}</li> : null}
             {otherVoyage.map((entry) => <li key={entry.blId}>{describeOtherVoyage(entry)}</li>)}
+          </ul>
+          <p>Corrija ou tire este arquivo e escolha os arquivos de novo.</p>
+        </ImportNotice>
+      ) : null}
+
+      {cancelled.length ? (
+        <ImportNotice tone="warning" title="B/L cancelado: este arquivo não é tocado">
+          <ul className="app-import-notice__list">
             {cancelled.map((blId) => <li key={blId}>{describeCancelledBl(blId)}</li>)}
           </ul>
         </ImportNotice>
       ) : null}
 
-      <SummaryStrip
-        label="Resumo do B/L"
-        items={[
-          { label: 'B/L', value: <span className="app-import-code">{document.bl_id || '—'}</span> },
-          { label: 'navio / viagem', value: formatVessel(document) },
-          { label: 'rota', value: `${document.pol ?? '—'} → ${document.pod ?? '—'}` },
-          { label: 'packages', value: formatNumber(document.packages_qty) },
-          { label: 'kg', value: formatNumber(document.gross_weight_kg) },
-          { label: 'm³', value: formatNumber(document.total_cbm) },
-        ]}
-      />
-
       <dl className="app-import-facts">
+        <PreviewField label="B/L" value={document.bl_id || null} />
+        <PreviewField label="Navio / viagem" value={formatVessel(document)} />
+        <PreviewField label="Rota" value={`${document.pol ?? '—'} → ${document.pod ?? '—'}`} />
         <PreviewField label="Shipper" value={document.shipper} />
         <PreviewField label="Consignee" value={document.consignee} />
         <PreviewField label="Notify" value={document.notify_party} />
@@ -268,13 +290,13 @@ function BlDocumentPreview({
       </dl>
 
       {document.warnings.length ? (
-        <ImportNotice tone="warning" title={`${document.warnings.length} ${document.warnings.length === 1 ? 'aviso de leitura' : 'avisos de leitura'}`}>
+        <ImportNotice tone="warning" title={plural(document.warnings.length, 'aviso de leitura', 'avisos de leitura')}>
           <ul className="app-import-notice__list">
             {document.warnings.map((message) => <li key={message}>{message}</li>)}
           </ul>
         </ImportNotice>
       ) : null}
-    </div>
+    </ImportSection>
   )
 }
 

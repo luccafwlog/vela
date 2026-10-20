@@ -12,11 +12,9 @@ import { Field, Input, Select } from '../components/ui/Input'
 import { SkeletonTable } from '../components/ui/Skeleton'
 import { TableFooterPagination } from '../components/ui/TableFooterPagination'
 import { useToast } from '../components/ui/Toast'
-import { useConfirm } from '../components/ui/ConfirmDialog'
 import { QueryStateGate } from '../components/shared/QueryStateGate'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
-import { FileImportModal } from '../components/shared/FileImportModal'
-import { VaziosImportacaoGuide, VaziosImportacaoPreview } from '../components/shared/VaziosImportacaoImportParts'
+import { VaziosImportacaoImportModal } from '../components/shared/VaziosImportacaoImportModal'
 import { BulkActionsBar } from '../components/shared/BulkActionsBar'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyageOptions } from '../hooks/useBls'
@@ -26,22 +24,16 @@ import { useRowSelection } from '../hooks/useRowSelection'
 import { describeActiveFilters } from '../lib/operationalState'
 import { formatDate, voyageLabel } from '../lib/utils'
 import {
-  parseVaziosImportacaoFile,
-  importVaziosImportacaoManifest,
   listVaziosMercanteManifestos,
-  resolveVaziosManifestNumbers,
-  vaziosImportacaoHiddenConfirmOptions,
   vazioManifestoNumero,
   listVaziosImportacaoContainers,
   type VaziosMercanteManifesto,
 } from '../services/vaziosImportacaoImport'
 import { listBrazilianPorts } from '../services/depots'
 import { exportVaziosImportacaoWorkbook } from '../services/exports'
-import { rowErrorsToImportIssues } from '../services/importValidation'
 import { fetchVaziosImportacaoContainerIds, setVaziosImportacaoNaturezaMany } from '../services/vaziosNatureza'
-import { afterManifestoImportado, afterNaturezaVaziosAlterada } from '../services/cacheEffects'
+import { afterNaturezaVaziosAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
-import { inspectImportUpload } from '../services/importText'
 import type { VaziosImportacaoContainerListItem } from '../types/database'
 
 const exportPageSize = 200
@@ -77,7 +69,6 @@ export function VaziosImportacao() {
   const { user, profile } = useAuth()
   const canImport = Boolean(profile || user)
   const { showToast } = useToast()
-  const confirm = useConfirm()
 
   // A Line Up abre a tela com a Viagem e o POD no endereço.
   const { filters, setFilters, updateFilter } = usePageFilters<Filters>({
@@ -90,9 +81,6 @@ export function VaziosImportacao() {
   })
 
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [voyageId, setVoyageId] = useState(searchParams.get('voyage') ?? '')
-  const [description, setDescription] = useState('')
-  const [manifestNumbers, setManifestNumbers] = useState<Record<string, string>>({})
   const [exporting, setExporting] = useState(false)
   const [bulkUpdating, setBulkUpdating] = useState(false)
   const [selectingAllFiltered, setSelectingAllFiltered] = useState(false)
@@ -184,13 +172,6 @@ export function VaziosImportacao() {
       mercanteId: selectedManifesto && selectedManifesto.pod !== pod ? '' : current.mercanteId,
       page: 1,
     }))
-  }
-
-  function resetUpload() {
-    setUploadOpen(false)
-    setVoyageId('')
-    setDescription('')
-    setManifestNumbers({})
   }
 
   async function handleSelectAllFiltered() {
@@ -444,37 +425,7 @@ export function VaziosImportacao() {
       </Block>
 
       {uploadOpen && canImport ? (
-        <FileImportModal
-          issuesFilename="vazios-importacao-issues.csv"
-          title="Importar planilha de vazios"
-          accept=".xlsx,.xls,.csv"
-          parser={parseVaziosImportacaoFile}
-          inspectFile={inspectImportUpload}
-          confirmBeforeImport={async (nextManifest) => {
-            const hiddenQuestion = vaziosImportacaoHiddenConfirmOptions(nextManifest.hidden)
-            return hiddenQuestion ? confirm(hiddenQuestion) : true
-          }}
-          importer={async (nextManifest, _file, override) => {
-            if (!user || !voyageId) return
-            await importVaziosImportacaoManifest({ manifest: nextManifest, uploadedBy: user.id, voyageId: Number(voyageId), manifestNumbers, description: description.trim() || undefined, allowRowErrors: Boolean(override) })
-            await afterManifestoImportado(queryClient, { voyageId })
-            showToast(`${containerCount(nextManifest.containers.length)} ${nextManifest.containers.length === 1 ? 'importado' : 'importados'}.`, 'success')
-          }}
-          canImport={(nextManifest, override) => resolveVaziosManifestNumbers(nextManifest, manifestNumbers).manifestos !== null && (nextManifest.rowErrors.length === 0 || Boolean(override))}
-          getIssues={(nextManifest) => rowErrorsToImportIssues(nextManifest.rowErrors)}
-          ready={Boolean(voyageId && user)}
-          notReadyReason="Escolha a viagem de destino para liberar o arquivo."
-          confirmLabel="Importar manifesto"
-          prerequisite={<VoyageCombobox required label="Viagem de destino" selectedVoyageId={voyageId} onSelect={(id) => setVoyageId(id == null ? '' : String(id))} />}
-          helper={
-            <>
-              <VaziosImportacaoGuide />
-              <Field label="Descrição (opcional)"><Input placeholder="Ex.: importação da semana 15" value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
-            </>
-          }
-          renderPreview={(nextManifest) => <VaziosImportacaoPreview manifest={nextManifest} manifestNumbers={manifestNumbers} onManifestNumbersChange={setManifestNumbers} />}
-          onClose={resetUpload}
-        />
+        <VaziosImportacaoImportModal defaultVoyageId={searchParams.get('voyage') ?? ''} onClose={() => setUploadOpen(false)} />
       ) : null}
     </>
   )

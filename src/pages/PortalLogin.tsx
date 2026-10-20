@@ -1,7 +1,8 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
-import { Card, InlineError } from '../components/ui/Card'
+import { InlineError } from '../components/ui/Card'
+import { AuthLayout } from '../components/auth/AuthLayout'
 import { Field, Input } from '../components/ui/Input'
 import { PasswordInput } from '../components/auth/PasswordInput'
 import { PortalAccessHelp } from '../components/auth/PortalAccessHelp'
@@ -85,73 +86,65 @@ export function PortalLogin() {
   }
 
   return (
-    <main className="app-auth">
-      <Card className="app-auth__card">
-        <div className="app-auth__brand">
-          <img alt="Fwlog" className="app-auth__logo app-auth__logo--on-light" src="/branding/fwlog-logo.png" />
-          <div className="app-auth__form-header">
-            <h1 className="app-auth__title">Portal do cliente</h1>
-            <p className="app-auth__subtitle">Faturas, B/Ls e containers da sua empresa.</p>
-          </div>
+    <AuthLayout brand="portal" title="Portal do Cliente">
+      {!isSupabaseConfigured ? (
+        <div className="app-callout app-callout--warning">
+          Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env antes de autenticar.
+        </div>
+      ) : null}
+
+      {notice ? (
+        <div className="app-callout app-callout--warning" role="status">
+          {notice}
+        </div>
+      ) : null}
+
+      <form className="grid gap-4" onSubmit={handleSubmit}>
+        <Field label="CNPJ">
+          <Input
+            required
+            type="text"
+            inputMode="text"
+            autoComplete="username"
+            maxLength={CNPJ_INPUT_MAX_LENGTH}
+            value={cnpj}
+            onChange={(event) => setCnpj(normalizeCnpj(event.target.value))}
+            placeholder="00.000.000/0000-00"
+          />
+        </Field>
+
+        <Field label="Senha">
+          <PasswordInput
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </Field>
+
+        {/* Único link de texto das telas de acesso (exceção à regra 9 decidida
+            no lote 6a): é o costume das telas de login. */}
+        <div className="app-auth__row-link">
+          <Link to="/portal/esqueci-senha" className="app-auth__link">
+            Esqueci minha senha
+          </Link>
         </div>
 
-        {!isSupabaseConfigured ? (
-          <div className="app-callout app-callout--warning">
-            Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env antes de autenticar.
-          </div>
-        ) : null}
+        <TurnstileChallenge
+          action="portal_login"
+          resetKey={turnstileResetKey}
+          onToken={handleTurnstileToken}
+          onError={handleTurnstileError}
+        />
 
-        {notice ? (
-          <div className="app-callout app-callout--warning" role="status">
-            {notice}
-          </div>
-        ) : null}
+        {error ? <InlineError message={error} /> : null}
 
-        <form className="grid gap-4" onSubmit={handleSubmit}>
-          <Field label="CNPJ">
-            <Input
-              required
-              type="text"
-              inputMode="text"
-              autoComplete="username"
-              maxLength={CNPJ_INPUT_MAX_LENGTH}
-              value={cnpj}
-              onChange={(event) => setCnpj(normalizeCnpj(event.target.value))}
-              placeholder="00.000.000/0000-00"
-            />
-          </Field>
+        <Button loading={submitting} loadingLabel="Entrando..." type="submit">
+          Entrar no Portal
+        </Button>
+      </form>
 
-          <Field label="Senha">
-            <PasswordInput
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </Field>
-
-          <div className="app-auth__row-link">
-            <Link to="/portal/esqueci-senha" className="app-auth__link">
-              Esqueci minha senha
-            </Link>
-          </div>
-
-          <TurnstileChallenge
-            action="portal_login"
-            resetKey={turnstileResetKey}
-            onToken={handleTurnstileToken}
-            onError={handleTurnstileError}
-          />
-
-          {error ? <InlineError message={error} /> : null}
-
-          <Button loading={submitting} loadingLabel="Entrando..." type="submit">
-            Entrar no portal
-          </Button>
-        </form>
-
-        <PortalAccessHelp />
-      </Card>
-    </main>
+      <PortalAccessHelp />
+    </AuthLayout>
   )
 }
