@@ -602,7 +602,7 @@ function FinancialReportView(props: ViewProps) {
             pagination={page.pagination}
           >
             {page.rows.map((row) => (
-              <tr key={row.id} className={row.status === 'cancelled' ? 'app-table__row--muted' : undefined}>
+              <tr key={row.id} className={row.status === 'cancelled' || row.status === 'obsolete' ? 'app-table__row--muted' : undefined}>
                 <td><Link className="app-link" to={`/taxas-locais?invoice=${row.id}`}>{row.invoice_number}</Link></td>
                 <td className="app-table__text" title={row.customer?.name ?? undefined}>{row.customer?.name ?? <NoValue label="Sem Cliente" />}</td>
                 <td>{row.issued_at ? formatDate(row.issued_at) : <NoValue label="Sem data de emissão" />}</td>

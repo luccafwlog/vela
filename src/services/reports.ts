@@ -256,9 +256,14 @@ type InvoiceForTotals = {
   balance_brl: number | null
 }
 
-/** Fatura que entra nos totais: emitida (com data), sem rascunho e sem cancelada. */
+/** Situações que o Faturamento agrupa como Cancelada: a consolidada `obsolete` perdeu a validade. */
+export const CANCELLED_INVOICE_STATUSES = ['cancelled', 'obsolete'] as const
+
+/** Fatura que entra nos totais: emitida (com data), sem rascunho e sem cancelada (nem obsoleta). */
 export function countsAsIssuedInvoice(invoice: { status: string | null; issued_at: string | null }) {
-  return Boolean(invoice.issued_at) && invoice.status !== 'draft' && invoice.status !== 'cancelled'
+  return Boolean(invoice.issued_at)
+    && invoice.status !== 'draft'
+    && !(CANCELLED_INVOICE_STATUSES as readonly (string | null)[]).includes(invoice.status)
 }
 
 export type InvoiceTotals = { invoiceCount: number; issued: number; open: number; paid: number }
@@ -417,7 +422,9 @@ export async function fetchFinancialReport(filters: FinancialReportFilters, opti
       if (voyageInvoiceIds) query = query.in('id', voyageInvoiceIds)
       const customerId = positiveId(filters.customerId)
       if (customerId) query = query.eq('customer_id', customerId)
-      if (filters.status) query = query.eq('status', filters.status)
+      // Cancelada inclui a consolidada obsoleta, como nos filtros do Faturamento.
+      if (filters.status === 'cancelled') query = query.in('status', [...CANCELLED_INVOICE_STATUSES])
+      else if (filters.status) query = query.eq('status', filters.status)
       if (filters.consolidated === 'sim') query = query.eq('invoice_type', 'consolidated')
       else if (filters.consolidated === 'nao') query = query.neq('invoice_type', 'consolidated')
       return query.range(from, to).overrideTypes<FinancialReportRow[], { merge: false }>()
@@ -448,7 +455,7 @@ export async function fetchFinancialReport(filters: FinancialReportFilters, opti
       totalIssued: all.issued,
       totalPaid: all.paid,
       totalOpen: all.open,
-      totalCanceled: rows.filter((row) => row.status === 'cancelled').length,
+      totalCanceled: rows.filter((row) => (CANCELLED_INVOICE_STATUSES as readonly string[]).includes(row.status ?? '')).length,
     },
     load: paged.load,
     accessDenied: false,
@@ -556,9 +563,9 @@ export async function fetchCustomerReport(filters: CustomerReportFilters, option
           .from('invoices')
           .select('id, customer_id, invoice_type, total_brl, balance_brl, status, issued_at, customer:customers(id, name, cnpj_cpf)', reportSelectOptions(from))
           .not('customer_id', 'is', null)
-          // A regra comum (R3): emitida no período, sem rascunho e sem cancelada.
+          // A regra comum (R3): emitida no período, sem rascunho e sem cancelada (nem obsoleta).
           .not('issued_at', 'is', null)
-          .not('status', 'in', '(draft,cancelled)')
+          .not('status', 'in', '(draft,cancelled,obsolete)')
           .order('id', { ascending: true })
         if (filters.dateFrom) query = query.gte('issued_at', brasiliaStartOfDay(filters.dateFrom))
         if (filters.dateTo) query = query.lte('issued_at', brasiliaEndOfDay(filters.dateTo))

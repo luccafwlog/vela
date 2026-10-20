@@ -173,6 +173,8 @@ describe('regra comum de faturas (R3)', () => {
     expect(countsAsIssuedInvoice({ status: 'covered', issued_at: '2026-05-01T12:00:00Z' })).toBe(true)
     expect(countsAsIssuedInvoice({ status: 'draft', issued_at: '2026-05-01T12:00:00Z' })).toBe(false)
     expect(countsAsIssuedInvoice({ status: 'cancelled', issued_at: '2026-05-01T12:00:00Z' })).toBe(false)
+    // A consolidada obsoleta (perdeu a validade quando a individual liquidou) é agrupada como Cancelada.
+    expect(countsAsIssuedInvoice({ status: 'obsolete', issued_at: '2026-05-01T12:00:00Z' })).toBe(false)
     expect(countsAsIssuedInvoice({ status: 'issued', issued_at: null })).toBe(false)
   })
 
@@ -182,6 +184,7 @@ describe('regra comum de faturas (R3)', () => {
       { id: 2, invoice_number: 'F-2', invoice_type: 'manual', status: 'paid', total_brl: 50, balance_brl: 0, issued_at: '2026-05-03T12:00:00Z', created_at: null, customer_id: 20, customer: customerBeta },
       { id: 3, invoice_number: 'F-3', invoice_type: 'manual', status: 'draft', total_brl: 999, balance_brl: 999, issued_at: '2026-05-04T12:00:00Z', created_at: null, customer_id: 10, customer: customerAlfa },
       { id: 4, invoice_number: 'F-4', invoice_type: 'manual', status: 'cancelled', total_brl: 777, balance_brl: 0, issued_at: '2026-05-05T12:00:00Z', created_at: null, customer_id: 20, customer: customerBeta },
+      { id: 5, invoice_number: 'F-5', invoice_type: 'consolidated', status: 'obsolete', total_brl: 300, balance_brl: 300, issued_at: '2026-05-06T12:00:00Z', created_at: null, customer_id: 10, customer: customerAlfa },
     ]
     // Só o Cliente Alfa teve B/L criado no período; a fatura do Beta conta mesmo assim.
     const bls = [{ id: 'BL1', customer_id: 10, total_weight_kg: 1000, total_cbm: 2, customer: customerAlfa }]
@@ -198,7 +201,8 @@ describe('regra comum de faturas (R3)', () => {
     expect(financial.kpis.totalInvoices).toBe(2)
     expect(financial.kpis.totalPaid).toBe(50)
     expect(financial.kpis.totalOpen).toBe(100)
-    expect(financial.kpis.totalCanceled).toBe(1)
+    // A cancelada e a consolidada obsoleta.
+    expect(financial.kpis.totalCanceled).toBe(2)
     expect(customers.kpis.totalIssued).toBe(financial.kpis.totalIssued)
     expect(customers.rows.reduce((sum, row) => sum + row.invoiceCount, 0)).toBe(financial.kpis.totalInvoices)
     expect(customers.rows.map((row) => row.name)).toEqual(['Cliente Alfa', 'Cliente Beta'])
@@ -212,7 +216,7 @@ describe('regra comum de faturas (R3)', () => {
     const invoicesQuery = builders.invoices[0]
     expect(callsOf(invoicesQuery, 'not')).toEqual(expect.arrayContaining([
       ['issued_at', 'is', null],
-      ['status', 'in', '(draft,cancelled)'],
+      ['status', 'in', '(draft,cancelled,obsolete)'],
     ]))
   })
 
