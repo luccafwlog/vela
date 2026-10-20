@@ -136,18 +136,18 @@ export function InvoiceDocument({ detail, type }: Props) {
             </tr>
           ))}
           {hasDiscount && <>
-            <tr style={{ background: '#f0f4fa' }}><td colSpan={8} style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600 }}>Subtotal:</td><td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{rawTotalBRL == null ? '—' : fmtBRL(rawTotalBRL)}</td></tr>
-            <tr style={{ background: '#f0fdf4' }}><td colSpan={8} style={{ padding: '7px 12px', textAlign: 'right' }}>Desconto {invoice.discount_mode === 'percent' ? `(${invoice.discount_value}%)` : 'fixo'}{invoice.discount_type ? ` — ${invoice.discount_type}` : ''}:</td><td style={{ padding: '7px 12px', textAlign: 'right', color: '#166534', whiteSpace: 'nowrap' }}>{discountBRL == null ? '—' : `- ${fmtBRL(discountBRL)}`}</td></tr>
+            <tr style={{ background: '#f0f4fa' }}><td colSpan={9} style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 600 }}>Subtotal:</td><td style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{rawTotalBRL == null ? '—' : fmtBRL(rawTotalBRL)}</td></tr>
+            <tr style={{ background: '#f0fdf4' }}><td colSpan={9} style={{ padding: '6px 7px', textAlign: 'right' }}>Desconto {invoice.discount_mode === 'percent' ? `(${invoice.discount_value}%)` : 'fixo'}{invoice.discount_type ? ` — ${invoice.discount_type}` : ''}:</td><td style={{ padding: '6px 7px', textAlign: 'right', color: '#166534', whiteSpace: 'nowrap' }}>{discountBRL == null ? '—' : `- ${fmtBRL(discountBRL)}`}</td></tr>
           </>}
-          <tr style={{ background: '#F59E0B' }}><td colSpan={8} style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700 }}>TOTAL:</td><td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>{totalBRL == null ? '—' : fmtBRL(totalBRL)}</td></tr>
+          <tr style={{ background: '#F59E0B' }}><td colSpan={9} style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 700 }}>TOTAL:</td><td style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>{totalBRL == null ? '—' : fmtBRL(totalBRL)}</td></tr>
           {!isInvoice && invoice.refund_summary ? <>
-            <tr><td colSpan={8} style={cell}>Valor recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl)}</td></tr>
-            <tr><td colSpan={8} style={cell}>Devolvido ao Cliente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
-            <tr><td colSpan={8} style={cell}>Restituição pendente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'pending').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
-            <tr><td colSpan={8} style={cell}>Valor líquido recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl - invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
+            <tr><td colSpan={9} style={cell}>Valor recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl)}</td></tr>
+            <tr><td colSpan={9} style={cell}>Devolvido ao Cliente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
+            <tr><td colSpan={9} style={cell}>Restituição pendente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'pending').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
+            <tr><td colSpan={9} style={cell}>Valor líquido recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl - invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
           </> : null}
-          {!isInvoice && invoice.paid_at && <tr><td colSpan={9} style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700 }}>PAGO EM: {fmtDate(invoice.paid_at)}</td></tr>}
-          {isInvoice && invoice.due_date && <tr style={{ background: '#1A2744', color: 'white' }}><td colSpan={8} style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 600 }}>VENCIMENTO DIA</td><td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 600 }}>{fmtDate(invoice.due_date)}</td></tr>}
+          {!isInvoice && invoice.paid_at && <tr><td colSpan={10} style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 700 }}>PAGO EM: {fmtDate(invoice.paid_at)}</td></tr>}
+          {isInvoice && invoice.due_date && <tr style={{ background: '#1A2744', color: 'white' }}><td colSpan={9} style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 600 }}>VENCIMENTO DIA</td><td style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 600 }}>{fmtDate(invoice.due_date)}</td></tr>}
         </tbody>
       </table>
 

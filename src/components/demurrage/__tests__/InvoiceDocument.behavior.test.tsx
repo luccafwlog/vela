@@ -117,3 +117,16 @@ it('B30: o recibo impresso mostra o free time de cada container', () => {
   expect(screen.getByRole('columnheader', { name: 'FREE TIME' })).toBeTruthy()
   expect(screen.getByRole('cell', { name: '14' })).toBeTruthy()
 })
+
+// As faixas de total e de vencimento ocupavam 9 das 10 colunas e terminavam antes de "LÍQUIDO".
+it('faixas de total e vencimento ocupam todas as colunas da tabela de containers', () => {
+  const { container } = render(<InvoiceDocument detail={{ ...detail, paid_at: null, status: 'issued' }} type="invoice" />)
+  const table = screen.getByText('LÍQUIDO').closest('table')!
+  const columns = table.querySelectorAll('thead th').length
+  for (const label of ['TOTAL:', 'VENCIMENTO DIA']) {
+    const row = screen.getByText(label).closest('tr')!
+    const span = Array.from(row.querySelectorAll('td')).reduce((sum, cell) => sum + Number(cell.getAttribute('colspan') ?? 1), 0)
+    expect(span).toBe(columns)
+  }
+  expect(container).toBeTruthy()
+})
