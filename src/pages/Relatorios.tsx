@@ -347,6 +347,7 @@ const REVIEW_FILTER_LABELS: Record<string, string> = { pendente: 'Pendente', 'em
 const LOCAL_CHARGES_FILTER_OPTIONS = [
   { value: 'pendente', label: REPORT_LOCAL_CHARGES_STATE_LABELS.pending },
   { value: 'emitida', label: REPORT_LOCAL_CHARGES_STATE_LABELS.issued },
+  { value: 'parcial', label: REPORT_LOCAL_CHARGES_STATE_LABELS.partially_paid },
   { value: 'paga', label: REPORT_LOCAL_CHARGES_STATE_LABELS.paid },
   { value: 'isenta', label: REPORT_LOCAL_CHARGES_STATE_LABELS.exempt },
 ]

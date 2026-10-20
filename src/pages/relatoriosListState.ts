@@ -110,7 +110,7 @@ export function operationalFiltersFromSearch(params: URLSearchParams): Operation
     pod: portParam(params.get('pod')),
     cargoMode: oneOf(params.get('modalidade'), ['container', 'carga_solta', 'misto'] as const),
     review: oneOf<Exclude<ReviewFilter, ''>>(params.get('revisao'), ['pendente', 'em-ordem']),
-    localCharges: oneOf<Exclude<LocalChargesFilter, ''>>(params.get('taxas'), ['pendente', 'emitida', 'paga', 'isenta']),
+    localCharges: oneOf<Exclude<LocalChargesFilter, ''>>(params.get('taxas'), ['pendente', 'emitida', 'parcial', 'paga', 'isenta']),
   }
 }
 

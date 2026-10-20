@@ -59,10 +59,11 @@ export const LOCAL_CHARGES_LIST_STATE_LABELS: Record<LocalChargesListState, stri
 
 /**
  * Coluna "Taxas locais" do relatório Operacional (lote 5b, decidido em
- * 2026-10-19): os mesmos estados da lista de BLs, com "Paga" separada de
- * "Emitida" quando o B/L já foi pago.
+ * 2026-10-19): os mesmos estados da lista de BLs, com "Paga" e "Parcialmente
+ * paga" separadas de "Emitida". A parcialmente paga não é Paga (decisão do
+ * responsável de 2026-10-20): mostra o estado que ela tem.
  */
-export type ReportLocalChargesState = LocalChargesListState | 'paid'
+export type ReportLocalChargesState = LocalChargesListState | 'partially_paid' | 'paid'
 
 export function reportLocalChargesState(
   chargeStatus: string | null | undefined,
@@ -70,10 +71,14 @@ export function reportLocalChargesState(
   cancelledAt?: string | null,
 ): ReportLocalChargesState {
   const state = localChargesListState(chargeStatus, financialStatus, cancelledAt)
-  return state === 'issued' && financialStatus === 'paid' ? 'paid' : state
+  if (state !== 'issued') return state
+  if (financialStatus === 'paid') return 'paid'
+  if (financialStatus === 'partially_paid') return 'partially_paid'
+  return state
 }
 
 export const REPORT_LOCAL_CHARGES_STATE_LABELS: Record<ReportLocalChargesState, string> = {
   ...LOCAL_CHARGES_LIST_STATE_LABELS,
+  partially_paid: 'Parcialmente paga',
   paid: 'Paga',
 }

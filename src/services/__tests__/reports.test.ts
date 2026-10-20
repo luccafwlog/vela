@@ -512,3 +512,54 @@ describe('leitura em paginas com o recorte mudando', () => {
     expect(result.load).toEqual({ loaded: 20, total: 30 })
   })
 })
+
+// Decisões do responsável de 2026-10-20: B/L cancelado fica fora dos cartões
+// do Operacional; fatura parcialmente paga não entra em Pago e mostra o estado
+// que tem.
+describe('B/L cancelado e fatura parcialmente paga', () => {
+  beforeEach(() => {
+    mockFrom.mockReset()
+  })
+
+  it('B/L cancelado aparece na tabela, mas fica fora dos cartões do Operacional', async () => {
+    installReportMocks({
+      bls: [
+        { id: 'BL1', voyage_id: 1, total_weight_kg: 1000, bl_containers: [{ container_number: 'AAAU1' }], cancelled_at: null },
+        { id: 'BL2', voyage_id: 2, total_weight_kg: 5000, bl_containers: [{ container_number: 'AAAU2' }], cancelled_at: '2026-05-10T12:00:00Z' },
+      ],
+    })
+
+    const result = await fetchOperationalReport({ ...NO_SCOPE, pol: '', pod: '', cargoMode: '', review: '', localCharges: '' })
+
+    expect(result.rows.map((row) => row.id)).toEqual(['BL1', 'BL2'])
+    expect(result.kpis).toMatchObject({ totalBls: 1, totalContainers: 1, totalVoyages: 1, totalWeightKg: 1000 })
+  })
+
+  it('parcialmente paga não soma em Pago; o saldo dela fica em aberto', async () => {
+    installReportMocks({
+      invoices: [
+        { id: 1, invoice_number: 'INV-1', invoice_type: 'individual', status: 'partially_paid', total_brl: 100, balance_brl: 40, issued_at: '2026-05-20', created_at: null, customer_id: 10, customer: customerAlfa },
+      ],
+      links: [
+        { id: 1, invoice_id: 1, receivable_id: 99, status: 'active', receivable: { id: 99, original_amount_brl: 100, balance_brl: 40, status: 'partially_settled' } },
+      ],
+    })
+
+    const result = await fetchFinancialReport(FINANCIAL)
+
+    expect(result.kpis.totalIssued).toBe(100)
+    expect(result.kpis.totalPaid).toBe(0)
+    expect(result.kpis.totalOpen).toBe(40)
+  })
+
+  it('Taxas locais "Parcialmente paga" e "Emitida" pedem estados separados ao banco', async () => {
+    let builders = installReportMocks({})
+    await fetchOperationalReport({ ...NO_SCOPE, pol: '', pod: '', cargoMode: '', review: '', localCharges: 'parcial' })
+    expect(callsOf(builders.bls[0], 'eq')).toContainEqual(['financial_status', 'partially_paid'])
+
+    builders = installReportMocks({})
+    await fetchOperationalReport({ ...NO_SCOPE, pol: '', pod: '', cargoMode: '', review: '', localCharges: 'emitida' })
+    expect(callsOf(builders.bls[0], 'eq')).toContainEqual(['financial_status', 'invoiced'])
+    expect(callsOf(builders.bls[0], 'in')).not.toContainEqual(['financial_status', ['invoiced', 'partially_paid']])
+  })
+})

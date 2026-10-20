@@ -117,7 +117,7 @@ export type ReportScope = {
 }
 
 export type ReviewFilter = '' | 'pendente' | 'em-ordem'
-export type LocalChargesFilter = '' | 'pendente' | 'emitida' | 'paga' | 'isenta'
+export type LocalChargesFilter = '' | 'pendente' | 'emitida' | 'parcial' | 'paga' | 'isenta'
 export type YesNoFilter = '' | 'sim' | 'nao'
 
 export type OperationalReportFilters = ReportScope & {
@@ -243,7 +243,8 @@ export async function fetchOperationalReport(filters: OperationalReportFilters, 
       if (filters.localCharges === 'isenta') query = query.eq('charge_status', 'exempt')
       else {
         query = query.or('charge_status.is.null,charge_status.neq.exempt')
-        if (filters.localCharges === 'emitida') query = query.in('financial_status', ['invoiced', 'partially_paid'])
+        if (filters.localCharges === 'emitida') query = query.eq('financial_status', 'invoiced')
+        else if (filters.localCharges === 'parcial') query = query.eq('financial_status', 'partially_paid')
         else if (filters.localCharges === 'paga') query = query.eq('financial_status', 'paid')
         else query = query.or(`financial_status.is.null,financial_status.not.in.${LOCKED_FINANCIAL_STATUSES}`)
       }
@@ -251,9 +252,12 @@ export async function fetchOperationalReport(filters: OperationalReportFilters, 
     return query.range(from, to).overrideTypes<OperationalReportRow[], { merge: false }>()
   }, { ceiling })
 
+  // B/L cancelado aparece na tabela ("B/L cancelado"), mas não entra nos
+  // cartões (decisão do responsável de 2026-10-20).
+  const counted = rows.filter((row) => !row.cancelled_at)
   const distinctContainers = new Set<string>()
   const distinctVoyages = new Set<number>()
-  for (const row of rows) {
+  for (const row of counted) {
     for (const container of row.bl_containers ?? []) {
       if (container.container_number) distinctContainers.add(container.container_number)
     }
@@ -263,10 +267,10 @@ export async function fetchOperationalReport(filters: OperationalReportFilters, 
   return {
     rows,
     kpis: {
-      totalBls: rows.length,
+      totalBls: counted.length,
       totalContainers: distinctContainers.size,
-      totalWeightKg: rows.reduce((sum, row) => sum + blTotalWeightKg(row), 0),
-      totalCbm: rows.reduce((sum, row) => sum + blTotalCbm(row), 0),
+      totalWeightKg: counted.reduce((sum, row) => sum + blTotalWeightKg(row), 0),
+      totalCbm: counted.reduce((sum, row) => sum + blTotalCbm(row), 0),
       totalVoyages: distinctVoyages.size,
     },
     load,
