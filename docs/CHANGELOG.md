@@ -6,6 +6,14 @@
 
 ## 2026-10
 
+- **Revisão do lote 5b (2026-10-20):** a migration `330` deixa os snapshots de taxa do Granito
+  (`granite_bl_charges`) só para leitura pela API. Granito sem Prontos/Faturados na Viagem;
+  Relatórios com a individual Coberta em Pago, planilhas com Taxas locais e situação por extenso,
+  endereço validado e leitura paginada sem linha repetida; Administração sem trocar o próprio
+  setor em Editar acesso e com o Histórico de ações legível; Vazios de importação seleciona além de
+  1.000 containers e filtra POL/POD pelo porto canônico; Embarque de vazios espera os Locais antes
+  de mostrar a armazenagem; as ações de linha que faltavam (Tabelas de taxas, Condições negociadas,
+  Gerar Invoice de Demurrage) ficam só com ícone e os links de linha usam `RowActionLink`.
 - **Identidade visual, lote 5b (2026-10-19):** Granito passa a só totalizar a carga do navio
   (Blocos e Peso, só o peso real), sem Cliente vinculado, cálculo de taxas, Revisão nem
   CE Mercante, e as Tarifas do Granito saem da tela (migration `325`); Vazios de importação com o

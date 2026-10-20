@@ -37,6 +37,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
 vi.mock('../../hooks/useAgencyReport', () => ({ useAgencyReportSla: () => ({ data: [], isLoading: false, error: null }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'admin-logado' } }) }))
 
 import { Admin } from '../Admin'
 

@@ -135,7 +135,9 @@ blocos, toneladas (pela regra do peso) e erros; aceitar erros de linha
 - **Tabelas sem uso desde a `325`:** `granite_bl_charges` (snapshots de
   cálculo; `rate_id` é o id histórico da tarifa, sem FK desde a `329`) e
   `invoice_granite_bls` (vínculos de faturas antigas, ainda lidos pelo detalhe
-  da fatura). `granite_rates` (tarifas) saiu do banco na `329`.
+  da fatura). `granite_rates` (tarifas) saiu do banco na `329`. Desde a `330`
+  os snapshots de `granite_bl_charges` são só leitura pela API (sem policy nem
+  grant de escrita para `authenticated`).
 - **Peso exibido:** `graniteWeightKg` usa só o peso real, quando ele existe e é
   maior que zero; sem ele, a tela mostra "—" e o total conta zero. O
   `shipper_weight_kg` continua gravado como veio na planilha, mas a tela não o
