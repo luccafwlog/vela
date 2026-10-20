@@ -6,6 +6,9 @@
 
 ## 2026-10
 
+- **ADR conta cada container uma vez (2026-10-20):** vazios descarregados e a contagem do Baplie passam a
+  deduplicar por número de container, como a carga descarregada já fazia; o mesmo vazio em dois
+  manifestos de Vazios de Importação ou repetido no Baplie contava duas vezes.
 - **Suporte nas telas públicas do Portal (2026-10-20):** "Fale com o suporte" do login e das demais
   telas públicas leva a `suporte@portalfwlog.com.br`; antes apontava para `suporte@fwlog.com.br`, que
   não existe.
