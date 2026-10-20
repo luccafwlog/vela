@@ -15,6 +15,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // os snapshots antigos de `granite_bl_charges` ficam, e a exclusão e a
 // reativação de cadastro seguem valendo para os outros cadastros.
 //
+// Migration 330: os snapshots de `granite_bl_charges` ficam só para leitura
+// pela API (sem policy nem grant de escrita para `authenticated`).
+//
 // Namespace exclusivo: ids 99325xxx, B/Ls 'A325-*', usuário ...000000325001;
 // 329: B/L 'A329-*', usuário ...000000329001, tarifas e Local 'A329*'.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -22,6 +25,7 @@ const describeLocal = enabled ? describe : describe.skip
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 const migrationPath = resolve(process.cwd(), 'supabase/migrations/325_granito_sem_cliente_e_sem_calculo.sql')
 const migration329Path = resolve(process.cwd(), 'supabase/migrations/329_granito_sem_tarifas_e_baixa_por_txid_fechada.sql')
+const migration330Path = resolve(process.cwd(), 'supabase/migrations/330_granito_snapshot_de_taxas_so_leitura.sql')
 
 const userId = '00000000-0000-0000-0000-000000325001'
 const carrierId = 99325001
@@ -288,5 +292,42 @@ describeLocal('Granito sem tarifas nem cálculo no banco (migration 329)', () =>
   it('a tarifa de Granito saiu da exclusão e da reativação de cadastro', () => {
     expect(asAdmin(`SELECT public.delete_catalog_row('granite_rates', '${a329RateId}', 'Teste A329')`).stderr).toContain('Tabela fora da exclusão de cadastro')
     expect(asAdmin(`SELECT public.reactivate_catalog_row('granite_rates', '${a329RateId}', 'Teste A329')`).stderr).toContain('Tabela fora da reativação de cadastro')
+  })
+})
+
+describeLocal('Snapshots de taxas do Granito só para leitura pela API (migration 330)', () => {
+  beforeAll(() => {
+    cleanup329()
+    psql(`
+      INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'a329-adm@example.test');
+      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'A329 Administrativo', 'administrativo', true);
+      INSERT INTO public.granite_manifests (id, vessel_voyage) VALUES ('${a329ManifestId}', 'A329 NAVIO/A329');
+      INSERT INTO public.granite_bls (id, manifest_id, bl_number) VALUES ('${a329BlId}', '${a329ManifestId}', 'A329-1');
+      INSERT INTO public.granite_bl_charges (id, bl_id, rate_id, description, charge_type, unit_value, quantity, subtotal, currency)
+      VALUES ('${a329ChargeId}', '${a329BlId}', '${a329RateId}', 'A329 THC', 'per_bl', 45, 1, 45, 'BRL');
+    `)
+  })
+
+  afterAll(cleanup329)
+
+  it('ninguém grava nem altera o snapshot pela API, mas a leitura continua', () => {
+    // Estado anterior à 330 (policies e grant da 002), reaplicando a migration.
+    psql(`
+      DROP POLICY IF EXISTS granite_bl_charges_insert_active_global ON public.granite_bl_charges;
+      DROP POLICY IF EXISTS granite_bl_charges_update_active_global ON public.granite_bl_charges;
+      CREATE POLICY granite_bl_charges_insert_active_global ON public.granite_bl_charges FOR INSERT TO authenticated WITH CHECK (public.is_active_user());
+      CREATE POLICY granite_bl_charges_update_active_global ON public.granite_bl_charges FOR UPDATE TO authenticated USING (public.is_active_user()) WITH CHECK (public.is_active_user());
+      GRANT INSERT, UPDATE, DELETE ON TABLE public.granite_bl_charges TO authenticated;
+    `)
+    expect(asAdmin(`UPDATE public.granite_bl_charges SET subtotal = 1 WHERE id = '${a329ChargeId}' RETURNING subtotal;`).stdout).toBe('1.00')
+    psql(`UPDATE public.granite_bl_charges SET subtotal = 45 WHERE id = '${a329ChargeId}';`)
+    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migration330Path], { encoding: 'utf8' })
+
+    expect(asAdmin(`UPDATE public.granite_bl_charges SET subtotal = 1 WHERE id = '${a329ChargeId}';`).stderr).toContain('permission denied')
+    expect(asAdmin(`INSERT INTO public.granite_bl_charges (bl_id, description, charge_type, unit_value, quantity, subtotal, currency)
+      VALUES ('${a329BlId}', 'A329 extra', 'per_bl', 1, 1, 1, 'BRL');`).stderr).toContain('permission denied')
+    expect(asAdmin(`DELETE FROM public.granite_bl_charges WHERE id = '${a329ChargeId}';`).stderr).toContain('permission denied')
+    expect(asAdmin(`SELECT subtotal FROM public.granite_bl_charges WHERE id = '${a329ChargeId}';`).stdout).toBe('45.00')
+    expect(psql(`SELECT count(*) FROM pg_policies WHERE schemaname = 'public' AND tablename = 'granite_bl_charges';`)).toBe('1')
   })
 })
