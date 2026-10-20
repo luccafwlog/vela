@@ -467,8 +467,10 @@ plano de preservação.
   `INSERT`, `UPDATE`, `DELETE` para `service_role` (menos o que for
   append-only) e, para `authenticated`, só o que a tela lê ou grava direto
   pela Data API, atrás de RLS. Branch Supabase e replay local não têm os
-  default privileges de produção; a suíte local-pg `grantsDoReplay` falha sem
-  o grant (migration `340`, [Segurança](./docs/operations/seguranca.md#rls-first));
+  default privileges de produção. A suíte local-pg `grantsDoReplay` falha sem
+  o grant de `service_role`; o de `authenticated` ela não tem como inferir, e
+  a falta só aparece no teste da tela (migration `340`,
+  [Segurança](./docs/operations/seguranca.md#rls-first));
 - grants pré-autenticação para `anon` exigem decisão explícita, controles contra
   abuso e teste focado;
 - trigger functions não precisam ser executáveis diretamente por clientes;

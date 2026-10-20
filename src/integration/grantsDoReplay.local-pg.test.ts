@@ -2,7 +2,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
-// Migration 340 (incidente de 2026-10-20, Sentry VELA-21/22/23): os GRANTs do
+// Migration 340 (incidente de 2026-10-20, Sentry VELA-22/23): os GRANTs do
 // schema public saem das migrations, não dos default privileges do projeto. A
 // branch staging nasceu só da cadeia e recusava (42501) leituras que produção
 // aceitava. Esta suíte roda depois do replay limpo e falha na PR quando uma
