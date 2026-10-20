@@ -14,7 +14,7 @@ import { useToast } from '../ui/Toast'
 import { useAuth } from '../../hooks/useAuth'
 import type { QueueRow } from '../../services/portalProvisioning'
 import { useAdminChangeCnpj, useAssistedEmailChange, useCancelPortalInvite, usePortalEvents, useReleaseSuppressedEmail, useReturnToAnalysis, useSendPortalInvite, useSuspendPortalAccount } from '../../hooks/usePortalProvisioning'
-import { accountSituationLabel, contactPurposeLabel, deliveryStatusLabel, hasBrokenRecoveryEmail, isPortalReadyForBilling, portalEventActorLabel, portalEventDescription, provisioningDecisionLabel, recoveryEmailSourceLabel, recoveryEmailStatusLabel } from '../../lib/portalProvisioningViewModel'
+import { accountSituationLabel, contactPurposeLabel, deliveryStatusLabel, hasBrokenRecoveryEmail, isPortalReadyForBilling, portalEventActorLabel, portalEventDescription, provisioningDecisionDetail, recoveryEmailSourceLabel, recoveryEmailStatusLabel } from '../../lib/portalProvisioningViewModel'
 import { formatDateTime } from '../../lib/utils'
 import { CNPJ_INPUT_MAX_LENGTH, normalizeCnpj } from '../../lib/cnpj'
 import { BillingPortalReleaseCard } from '../clientes/BillingPortalReleaseCard'
@@ -209,7 +209,7 @@ export function PortalReviewPanel({ row, variant = 'embedded', onSaved, onClose 
             </span>
           )}
         >
-          <LeadValue tone={situationTone} detail={provisioningDecisionLabel(row.provisioning_decision)}>
+          <LeadValue tone={situationTone} detail={provisioningDecisionDetail(row)}>
             {accountSituationLabel(situation)}
           </LeadValue>
           <FactList columns={3}>

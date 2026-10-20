@@ -32,8 +32,8 @@ const VESSEL_ID = 3420002
 const VOYAGE_ID = 3420003
 const CUSTOMER_A = 3420011
 const CUSTOMER_B = 3420012
-const CNPJ_A = '11222333000181'
-const CNPJ_B = '11444777000161'
+const CNPJ_A = '34201111000188'
+const CNPJ_B = '34202222000109'
 const BL_ID = 'BL342LINK'
 
 function as(sql: string) {
@@ -54,6 +54,8 @@ function cleanup() {
     DELETE FROM public.customer_reconciliation_queue WHERE bl_id = '${BL_ID}';
     DELETE FROM public.bls WHERE id = '${BL_ID}';
     DELETE FROM public.customer_contacts WHERE customer_id IN (${CUSTOMER_A}, ${CUSTOMER_B});
+    DELETE FROM public.portal_provisioning_events WHERE customer_id IN (${CUSTOMER_A}, ${CUSTOMER_B});
+    DELETE FROM public.customer_portal_accounts WHERE customer_id IN (${CUSTOMER_A}, ${CUSTOMER_B});
     DELETE FROM public.customers WHERE id IN (${CUSTOMER_A}, ${CUSTOMER_B});
     DELETE FROM public.voyages WHERE id = ${VOYAGE_ID};
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
