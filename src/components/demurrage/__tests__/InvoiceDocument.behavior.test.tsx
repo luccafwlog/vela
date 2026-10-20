@@ -40,7 +40,7 @@ it('US-048: imprime o recibo de quitacao quando type=receipt', () => {
   render(<InvoiceDocument detail={detail} type="receipt" />)
   expect(screen.getByText('RECIBO DE SOBREESTADIA DE CONTAINER')).toBeTruthy()
   expect(screen.getByText(/PAGO EM:/)).toBeTruthy()
-  expect(screen.getByText(/PAGO EM: 25\/06\/2026/)).toBeTruthy()
+  expect(screen.getByTestId('demurrage-total').textContent).toContain('PAGO EM:25/06/2026')
 })
 
 it('US-048: exibe QR Pix e codigo copia e cola na fatura em aberto', () => {
@@ -116,4 +116,43 @@ it('B30: o recibo impresso mostra o free time de cada container', () => {
   render(<InvoiceDocument detail={detail} type="receipt" />)
   expect(screen.getByRole('columnheader', { name: 'FREE TIME' })).toBeTruthy()
   expect(screen.getByRole('cell', { name: '14' })).toBeTruthy()
+})
+
+// Lote 6b: o TOTAL deixa de ser faixa na tabela e vira caixa compacta à
+// direita, logo abaixo dela; o vencimento sai sem fundo e sem "DIA".
+it('TOTAL e VENCIMENTO ficam fora da tabela de containers, em caixa à direita', () => {
+  render(<InvoiceDocument detail={{ ...detail, paid_at: null, status: 'issued' }} type="invoice" />)
+  const table = screen.getByText('LÍQUIDO').closest('table')!
+  const box = screen.getByTestId('demurrage-total')
+  expect(table.contains(box)).toBe(false)
+  expect(table.textContent).not.toContain('TOTAL:')
+  expect(box.textContent).toContain('TOTAL:R$ 500,00')
+  expect(box.textContent).toContain('VENCIMENTO:01/07/2026')
+  expect(box.textContent).not.toContain('DIA')
+  expect(box.style.alignItems).toBe('flex-end')
+  // Na impressão a caixa não abre a página sozinha, longe da tabela.
+  expect(box.style.pageBreakBefore).toBe('avoid')
+})
+
+it('lote 6b: rótulos POL/POD, B/L, Navio / Viagem e USD/Dia com vírgula decimal', () => {
+  render(<InvoiceDocument detail={{ ...detail, paid_at: null, status: 'issued' }} type="invoice" />)
+  for (const label of ['B/L', 'Navio / Viagem:', 'POL:', 'POD:']) expect(screen.getByText(label)).toBeTruthy()
+  expect(screen.queryByText('From:')).toBeNull()
+  expect(screen.queryByText('Navio/Voy:')).toBeNull()
+  expect(screen.getByText('20,00')).toBeTruthy()
+  expect(screen.getByText('30,00')).toBeTruthy()
+  expect(screen.queryByText('20.00')).toBeNull()
+})
+
+it('lote 6b: Pix com aviso da baixa, sem repetir o valor, código em 12px; ROE em azul-marinho', () => {
+  const { container } = render(<InvoiceDocument detail={{ ...detail, paid_at: null, status: 'issued' }} type="invoice" />)
+  expect(screen.getByText(/a baixa da fatura pode levar de 1 a 5 minutos/)).toBeTruthy()
+  expect(screen.queryByText('Valor da fatura:')).toBeNull()
+  expect(screen.getByText(detail.pix_payload!).style.fontSize).toBe('12px')
+  expect(screen.getByText('ROE').parentElement!.style.background).toBe('rgb(26, 39, 68)')
+  const tiny = [...container.querySelectorAll<HTMLElement>('[style]')].filter((el) => {
+    const size = parseFloat(el.style.fontSize)
+    return !Number.isNaN(size) && size < 12
+  })
+  expect(tiny).toEqual([])
 })

@@ -412,6 +412,66 @@ Regras e peças: [identidade visual](../identidade-visual.md).
   Veículos já gravavam numa transação). Fica para o
   responsável conferir no navegador: gravação real de cada importação e o
   tempo-limite de 60 s da `335` no Supabase, não verificados aqui.
+- **Lote 6b proposto em 2026-10-20** numa página só ("Lote 6b da
+  identidade", na conta do responsável), com capturas geradas do código da
+  `staging` de 2026-10-20 (`85a4dc5`): os 19 modelos de e-mail (11 do
+  Portal, 8 dos Comunicados) e três documentos impressos, com dados
+  fictícios, no Chromium a 640 e 360 px; nenhum e-mail enviado. A proposta é
+  um protótipo em HTML de e-mail: uma base só para os e-mails do Portal e os
+  Comunicados, nas cores do Portal FWLOG (topo `#0d2b5e` sem filete
+  dourado, botão `#1d67b3`), com bloco de título em faixa, dado principal,
+  título à esquerda, nada abaixo de 12 px e lista empilhada no lugar de
+  tabela larga; o Resumo diário, único e-mail interno, com a marca do Vela.
+  Nos impressos, os quatro itens da tela 20 (vírgula decimal também na
+  quantidade das Taxas Locais, CNPJ com máscara no resumo, "From/To" como
+  "POL/POD", mínimo de 12 px). Achados: (A1) a logo dos Comunicados apontava
+  para `/portal/branding/…`, que em produção responde com a página do Portal
+  (`text/html`), e chegava quebrada; **corrigido já** em
+  `customerCommunicationTemplates.ts`, com teste, na branch
+  `claude/quirky-rubin-sbfjc9`; (A2) dólar e ROE no formato americano nos
+  e-mails de Demurrage ("$1,840.00", "5.4600") e "$ 2.760,00" no resumo
+  impresso; (A3) Resumo diário com data ISO e rodapé do Portal do Cliente;
+  (A4) aviso de falha de entrega com "bounce" e botão para o Painel, com os
+  contatos em Meu perfil; (A5) "email" no texto corrido; (A6) CE e Taxas e a
+  cobrança agrupada mais largas que a tela a 360 px; (A7) resumo impresso
+  com a logo branca em papel branco e "Nº DEMURRAGE EM ABERTO"; (A8) motivo
+  do Desbloqueio de CE com dois-pontos seguidos (texto montado no banco).
+  Para decidir, entre outras: cores FWLOG ou do Vela nos e-mails ao Cliente,
+  `VELA_URL` para o botão do Resumo diário e "POL/POD" ou "Origem/Destino".
+  Aguarda a resposta do responsável.
+  **Respostas de 2026-10-20** (comentários na página e na conversa): cores do
+  Portal FWLOG nos e-mails ao Cliente; título e botão centralizados; sem
+  aviso que repita o contato do rodapé (no convite e no novo convite sai a
+  nota; na troca do Email de Recuperação e na senha alterada o rodapé vira
+  "Não foi você? Fale com … imediatamente."); avisos do Desbloqueio de CE
+  com os B/Ls da solicitação e o motivo como "Motivo (procuração): …"
+  (migration); NOA, NOR e NOB com Navio / Viagem, Porto e B/Ls no bloco, sem
+  linha de apoio no título e com a frase de abertura curta; CE e Taxas com o
+  título e o assunto "CE Mercante e Taxas Locais disponíveis — Navio /
+  Viagem — Porto", uma frase de abertura sem DI/DUIMP; assunto da Demurrage
+  agrupada "N Invoices"; Resumo diário com a marca do Vela, data
+  brasileira e sem botão. **Contato do Cliente:** acesso, falha de entrega e
+  Desbloqueio de CE seguem com `suporte@portalfwlog.com.br`, Comunicados com
+  `importacao@fwlog.com.br`; a Cobrança de Demurrage mostra e recebe em
+  `eqp@fwlog.com.br`; o "Fale com o suporte" do login apontava para
+  `suporte@fwlog.com.br`, que não existe, e foi corrigido já para
+  `suporte@portalfwlog.com.br`. Faltavam: "POL/POD" ou "Origem/Destino" e
+  "B/L"/"Navio / Viagem" nos impressos, a Demurrage avulsa da Comunicação no
+  mesmo endereço da régua e o par repetitivo do convite. Os rótulos dos
+  impressos ficaram "POL/POD", "B/L" e "Navio / Viagem" (aprovados na página
+  do lote 6b no mesmo dia); a Demurrage avulsa não existe, porque a
+  Comunicação recusa a Cobrança de Demurrage, que só sai pela régua
+  (`send-customer-communication`); o par repetitivo do convite segue em
+  aberto.
+  **Paginação dos impressos, decisões de 2026-10-20:** na fatura
+  consolidada de Taxas Locais cada B/L (faixa, taxas e subtotal) fica
+  inteiro numa página (um B/L maior que uma página repete a faixa com o
+  número do B/L no alto da continuação), e o quadro do topo traz a quantidade de B/Ls e só a
+  quantidade de contêineres, sem a lista; no ADR as assinaturas
+  departamentais ficam juntas numa página, o Anexo começa sempre em página
+  nova com uma linha de identificação no topo, e toda página repete o
+  cabeçalho com Armador, Porto, Navio / Viagem e Terminal. Implementado na
+  branch `claude/quirky-rubin-sbfjc9` e conferido em PDF do Chromium.
 - **Histórico da aprovação:** lote 1 (BLs, ficha da Viagem, ficha do Cliente, Taxas Locais
   e Faturas do Portal). As cinco propostas
   foram apresentadas em 2026-10-13 numa página só ("Lote 1 da identidade",
@@ -648,7 +708,7 @@ lotes tratam só da organização de cada tela.
 | 5a | Painel e Alertas (13); Provisionamento, Comunicação e Modo Inspeção (16) | Confirmado e dividido em 2026-10-19; proposto e aprovado em 2026-10-19 (página "Lote 5a da identidade", três rodadas); entregue em 2026-10-19, branch `claude/stoic-cannon-v7g39p` |
 | 5b | Granito, Vazios e depots (17); Relatórios e Administração (18) | Confirmado, proposto e aprovado em 2026-10-19 (página "Lote 5b da identidade"); entregue em 2026-10-19, junto com os botões de linha só com ícone em todo o sistema |
 | 6a | Login, acesso e perfil (21); modais de importação (19) | Confirmado e dividido em 2026-10-19; proposto em 2026-10-19 (página "Lote 6a da identidade"); respostas de 2026-10-19 com a regra de importação com erro; D1 a D3 decididos no mesmo dia; aprovado e implementado em 2026-10-19 |
-| 6b | E-mails do Vela e do Portal (22, acrescentados em 2026-10-19); itens de comportamento dos documentos impressos (20) | Confirmado em 2026-10-19; proposto depois do 6a |
+| 6b | E-mails do Vela e do Portal (22, acrescentados em 2026-10-19); itens de comportamento dos documentos impressos (20) | Confirmado em 2026-10-19; proposto e respondido em 2026-10-20 (página "Lote 6b da identidade"); implementado na branch `claude/quirky-rubin-sbfjc9` (PR 1001), ainda não entregue; em aberto só o par repetitivo do convite |
 
 O lote 2 vem logo depois do 1 por ser onde a operação passa mais tempo; o 6
 fica por último porque essas telas mudam pouco além da passada única.
@@ -699,9 +759,9 @@ plano arquivado continuam válidas e são conferidas quando a tela dona entrar.
 | 17 | Granito, Vazios, depots | `/granito`, `/vazios-importacao`, `/embarquevazios` | `VaziosImportacaoPreview` com cores fixas do tema escuro (trocado pelas peças comuns); modais de importação do Granito e dos Vazios migrados ao molde no lote 6a | Entregue em 2026-10-19 (lote 5b); Tarifas do Granito retiradas |
 | 18 | Relatórios e Administração | `/relatorios`, `/admin/:tab` | | Entregue em 2026-10-19 (lote 5b) |
 | 19 | Importações (modais comuns) | modais de importação | | Implementado em 2026-10-19 (lote 6a) |
-| 20 | Documentos impressos | faturas, recibos, ADR | Marca Transhipping; só regras de impressão. Visual mantido por decisão de 2026-10-13 | Regras de impressão e comportamento entregues em 2026-10-14 (PR 939); restam, sem mudar o visual: taxas com ponto decimal (`60.00`), CNPJ sem máscara no resumo por Cliente, rótulos em inglês ("From/To") e textos de 9–11 px |
+| 20 | Documentos impressos | faturas, recibos, ADR | Marca Transhipping; só regras de impressão. Visual mantido por decisão de 2026-10-13 | Regras de impressão e comportamento entregues em 2026-10-14 (PR 939); os restantes (taxas com ponto decimal `60.00`, CNPJ sem máscara no resumo por Cliente, rótulos em inglês "From/To" e textos de 9–11 px) foram para o lote 6b, implementado na PR 1001 |
 | 21 | Login, acesso e perfil | `/login`, `/portal/login` e telas públicas, `/perfil` | | Implementado em 2026-10-19 (lote 6a) |
-| 22 | E-mails do Vela e do Portal | modelos do Portal (`supabase/functions/_shared/portalEmailTemplates.ts`: convite, reenvio, recuperação de senha, troca de e-mail, senha alterada, resumo diário, aviso de devolução, aviso do Desbloqueio de CE) e dos Comunicados (`src/services/customerCommunicationTemplates.ts`: CE e Taxas, régua automática, Cobrança de Demurrage) | Acrescentada em 2026-10-19 a pedido do responsável; até então a aparência dos e-mails não tinha dono (o [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md) só corrigiu envio e conteúdo). Dois layouts separados, cada um com cópia própria das cores (`#152238`, `#d4882e`, cinzas), fonte do sistema e logo branco da Fwlog; os Comunicados usam ainda um verde-azulado (`#0f766e`) fora da identidade. Restrições de e-mail, como nos impressos: sem as fontes do site, layout em tabela e estilo escrito no HTML. Proposta mostra cada modelo como chega hoje e como ficaria; primeiro passo provável é uma base de layout só | Pendente (lote 6b) |
+| 22 | E-mails do Vela e do Portal | modelos do Portal (`supabase/functions/_shared/portalEmailTemplates.ts`: convite, reenvio, recuperação de senha, troca de e-mail, senha alterada, resumo diário, aviso de devolução, aviso do Desbloqueio de CE) e dos Comunicados (`src/services/customerCommunicationTemplates.ts`: CE e Taxas, régua automática, Cobrança de Demurrage) | Acrescentada em 2026-10-19 a pedido do responsável; até então a aparência dos e-mails não tinha dono (o [plano dos e-mails](../archive/plans/2026-10-17-correcao-dos-emails.md) só corrigiu envio e conteúdo). Dois layouts separados, cada um com cópia própria das cores (`#152238`, `#d4882e`, cinzas), fonte do sistema e logo branco da Fwlog; os Comunicados usam ainda um verde-azulado (`#0f766e`) fora da identidade. Restrições de e-mail, como nos impressos: sem as fontes do site, layout em tabela e estilo escrito no HTML. Proposta mostra cada modelo como chega hoje e como ficaria; primeiro passo provável é uma base de layout só | Proposto em 2026-10-20 (lote 6b), aguarda resposta; a logo dos Comunicados, que chegava quebrada, foi corrigida já |
 
 O plano é concluído quando todas as linhas estiverem entregues e a linha de
 base de `design:check` não tiver mais famílias de CSS de página nem violações

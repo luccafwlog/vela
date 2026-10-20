@@ -96,7 +96,7 @@ it("imprime o snapshot fechado nos blocos e matrizes do modelo real", () => {
 
   for (const heading of [
     "Carga solta",
-    "Carga carregada",
+    "Granito carregado",
     "Matriz de descarga",
     "Vazios descarregados",
     "Container com veículo",
@@ -509,9 +509,9 @@ it("imprime snapshot legado sem cargaSolta.transshipment sem lançar", () => {
 
 // Plano 2026-08-08: o impresso do ADR usa a linguagem visual da fatura de
 // taxas locais — cabeçalho de tabela navy com texto branco e zebra nas linhas.
-// A barra de total âmbar da listagem do operado (ADR 0035, CONTEXT.md) fica no
-// topo da tabela, como já era antes do plano.
-it("imprime as tabelas no padrão visual da fatura (cabeçalho navy, zebra e barra de total no topo)", () => {
+// Lote 6b: o TOTAL deixa de ser linha âmbar no topo e vira caixa âmbar compacta
+// à direita, logo abaixo da tabela (mesmo formato das faturas impressas).
+it("imprime as tabelas no padrão visual da fatura (cabeçalho navy, zebra e caixa de TOTAL abaixo)", () => {
   render(
     <AgencyReportDocument
       snapshot={{
@@ -534,10 +534,14 @@ it("imprime as tabelas no padrão visual da fatura (cabeçalho navy, zebra e bar
     />,
   );
 
-  // Fatos da escala no bloco de metadados do kit (labelCell/cell).
-  const facts = screen.getByRole("table", { name: "Escala" });
+  // Identificação no bloco de metadados do kit (labelCell/cell); as datas da
+  // escala ficam na seção "Escala".
+  const facts = screen.getByRole("table", { name: "Identificação" });
   expect(facts.textContent).toContain("Armador teste");
+  expect(facts.textContent).toContain("Navio / Viagem");
   expect(facts.textContent).toContain("TVV");
+  expect(facts.textContent).not.toContain("ATA");
+  expect(screen.getByRole("table", { name: "Escala" }).textContent).toContain("ATA19/07/2026");
 
   // jsdom normaliza a cor inline para rgb() — o teste compara pelo mesmo token
   // da fatura, convertido, em vez de fixar a string do navegador.
@@ -549,15 +553,18 @@ it("imprime as tabelas no padrão visual da fatura (cabeçalho navy, zebra e bar
   expect(head.style.background).toBe(rgb(DOC_NAVY));
   expect(head.style.color).toBe("white");
 
-  const bodyRows = [...table.querySelectorAll("tbody tr")] as HTMLElement[];
-  expect(bodyRows[1].style.background).toBe(rgb(DOC_ZEBRA));
+  const bodyRows = [...table.querySelectorAll(":scope > tbody > tr")] as HTMLElement[];
+  expect(bodyRows[0].style.background).toBe(rgb(DOC_ZEBRA));
+  expect(table.textContent).not.toContain("TOTAL:");
 
-  // Total no topo — ADR 0035 e CONTEXT.md exigem o total antes das combinações.
-  const totalRow = bodyRows[0];
-  expect(totalRow.style.background).toBe(rgb(DOC_ACCENT));
-  expect(totalRow.textContent).toContain("TOTAL:");
-  // 3 + 1 = 4 unidades operadas, somadas na barra do topo.
-  expect(totalRow.textContent).toContain("4");
+  const totalBox = table.parentElement!.querySelector(".agency-report-document__total") as HTMLElement;
+  expect(totalBox.style.background).toBe(rgb(DOC_ACCENT));
+  // A caixa vem depois da tabela no documento.
+  expect(table.compareDocumentPosition(totalBox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  // 3 + 1 = 4 unidades operadas.
+  expect(totalBox.textContent).toBe("TOTAL:4");
+  // Na impressão a caixa não abre a página sozinha, longe da tabela.
+  expect(totalBox.parentElement!.style.pageBreakBefore).toBe("avoid");
 });
 
 // ADR por terminal: cada terminal responde por parte das frentes, entao o
@@ -694,4 +701,89 @@ it("imprime o título Agency Departure Report sem caixa alta", () => {
     />,
   );
   expect(screen.getByText("Agency Departure Report").style.textTransform).toBe("");
+});
+
+// Lote 6b, Frente C: horário de Brasília nas datas com hora, tradução da
+// condição, seções sem conteúdo omitidas e Anexo no fim em página própria.
+it("imprime datas com hora em Brasília, traduz a condição e põe o Anexo no fim em página nova", () => {
+  const { container } = render(
+    <AgencyReportDocument
+      actorNames={{ u1: "Ana Ribeiro" }}
+      snapshot={{
+        header: {
+          carrierName: "Armador teste",
+          voyageLabel: "NAVIO TESTE / 01E",
+          port: "BRVIX",
+          // ATA só com data; ATB/ATD timestamptz em UTC.
+          schedule: { ata: "2026-10-14", atb: "2026-10-15T12:15:00+00:00", atd: "2026-10-17T11:30:00Z", rtw: 0 },
+        },
+        sections: {
+          granito: { bls: 0, blocks: 0, weightTon: 0 },
+          vaziosEmbarcados: [
+            { type: "40HC", condition: "EMPTY", localLabel: "VBR", quantity: 4 },
+            { type: "20DC", condition: "EMPTY W/ MATERIAL", localLabel: "VBR", quantity: 1 },
+          ],
+          vaziosUnidades: [
+            { id: "u", container_number: "ABCD1234567", container_type: "40HC", local: { name: "VBR" }, condition: "EMPTY", hand_in_date: "2026-10-01", hand_out_date: "2026-10-05" },
+          ],
+        },
+        signoffs: [
+          { section: "datas", state: "confirmed", signed_by: "u1", signed_at: "2026-10-17T16:30:00Z" },
+        ],
+        departmentSignoffs: [
+          { department: "operacoes", signed_by: "u1", signed_at: "2026-10-17T17:00:00Z" },
+        ],
+      }}
+    />,
+  );
+
+  const escala = screen.getByRole("heading", { name: "Escala" }).closest("section")!;
+  expect(escala.textContent).toContain("ATA14/10/2026");
+  expect(escala.textContent).not.toContain("14/10/2026 às");
+  expect(escala.textContent).toContain("ATB15/10/2026 às 09:15");
+  expect(escala.textContent).toContain("ATD17/10/2026 às 08:30");
+  // ATA/ATB/ATD/Restow vêm antes da linha de resolução.
+  expect(escala.textContent).toMatch(/Restow0Confirmado — Ana Ribeiro em 17\/10\/2026 às 13:30$/);
+
+  expect(screen.getByRole("table", { name: "Assinaturas departamentais" }).textContent).toContain("17/10/2026 às 14:00");
+  expect(screen.getByRole("table", { name: "Embarque de vazios" }).textContent).toContain("Vazio com material");
+  expect(screen.getByRole("table", { name: "Embarque de vazios" }).textContent).not.toContain("EMPTY");
+
+  // Sem Granito e sem observação, as duas seções não saem.
+  expect(screen.queryByRole("heading", { name: "Granito carregado" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Observações por seção" })).toBeNull();
+
+  // Anexo é a última seção, depois das assinaturas e da data, em página nova.
+  const sections = [...container.querySelectorAll("section")];
+  const anexo = sections.at(-1) as HTMLElement;
+  expect(anexo.textContent).toContain("Anexo — unidades que geraram armazenagem");
+  expect(anexo.textContent).toContain("Vazio");
+  expect(anexo.style.breakBefore).toBe("page");
+  expect(container.textContent!.indexOf("Vitória,")).toBeLessThan(container.textContent!.indexOf("Anexo —"));
+  // Lote 6b: o Anexo se identifica no topo (a página dele pode circular solta).
+  expect(anexo.querySelector(".agency-report-document__annex-id")!.textContent).toBe(
+    "Anexo do Agency Departure Report — Armador teste · NAVIO TESTE / 01E · BRVIX",
+  );
+
+  // Lote 6b: assinaturas não se dividem entre páginas.
+  const assinaturas = container.querySelector(".agency-report-document__signatures") as HTMLElement;
+  expect(assinaturas.style.breakInside).toBe("avoid");
+  expect(assinaturas.textContent).toContain("Assinaturas departamentais");
+
+  // Lote 6b: identificação (Armador, Porto, Navio/Viagem, Terminal) no <thead>
+  // da tabela-página, que a impressão repete em cada folha; o conteúdo vai no tbody.
+  const page = container.querySelector("table.agency-report-document__page") as HTMLTableElement;
+  const pageHeader = page.tHead!;
+  for (const label of ["Armador", "Porto", "Navio / Viagem", "Terminal"]) {
+    expect(pageHeader.textContent).toContain(label);
+  }
+  expect(pageHeader.textContent).not.toContain("Escala");
+  expect(page.tBodies[0].contains(anexo)).toBe(true);
+
+  // Nada abaixo de 12px no impresso.
+  const small = [...container.querySelectorAll<HTMLElement>("[style]")].filter((node) => {
+    const size = parseFloat(node.style.fontSize);
+    return Number.isFinite(size) && size < 12;
+  });
+  expect(small).toEqual([]);
 });

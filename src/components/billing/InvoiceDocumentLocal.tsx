@@ -6,8 +6,6 @@ import { formatDate, stripBlPrefix } from '../../lib/utils'
 import {
   cell,
   classifyInvoiceItem,
-  dataTotalCell,
-  dataTotalRow,
   describeUsdConversionNote,
   DOC_BORDER,
   DOC_GROUP,
@@ -17,10 +15,20 @@ import {
   documentRoot,
   fmtBRL,
   fmtCNPJ,
+  fmtQuantity,
   labelCell,
   zebraRow,
 } from '../shared/invoiceFormat'
-import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle, PixPreparingNotice } from '../shared/InvoiceDocumentKit'
+import {
+  InvoiceDocFooter,
+  InvoiceDocHeader,
+  InvoiceDocTitle,
+  InvoiceTotalBox,
+  InvoiceTotalLine,
+  PIX_SETTLEMENT_NOTE,
+  PixCopyPaste,
+  PixPreparingNotice,
+} from '../shared/InvoiceDocumentKit'
 
 type Props = { detail: InvoiceDetail; type?: 'invoice' | 'receipt' }
 
@@ -37,9 +45,9 @@ function invoiceQuantity(item: InvoiceItem) {
   const sharedQuantity = sharedQuantityLabel(item)
   return (
     <>
-      {sharedQuantity ?? item.quantity ?? 1}
+      {sharedQuantity ?? fmtQuantity(item.quantity ?? 1)}
       {sharedQuantity && (
-        <div style={{ marginTop: 2, fontSize: '9px', lineHeight: 1.2, color: DOC_MUTED }}>
+        <div style={{ marginTop: 2, fontSize: '12px', lineHeight: 1.2, color: DOC_MUTED }}>
           Fração do container compartilhado
         </div>
       )}
@@ -84,6 +92,34 @@ function formatContainersMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[
   return found.length > 0 ? found.join(', ') : null
 }
 
+// Lote 6b: na fatura consolidada o quadro do topo traz só a quantidade de
+// contêineres, sem a lista (decisão do dono, plano tela a tela). Conta números únicos
+// declarados nos B/Ls; sem lista estruturada, cai nos números ISO citados nas
+// descrições dos itens — mesma fonte de formatContainersMetadata.
+// ponytail: containers_display (texto livre) é contado por números ISO
+// encontrados nele; um texto sem número ISO não entra na contagem.
+function countInvoiceContainers(bls: InvoiceDetail['bls'], items: InvoiceItem[]): number {
+  const found = new Set<string>()
+  let unnamed = 0
+  for (const bl of bls) {
+    const raw = (bl as Record<string, unknown>).containers
+    if (Array.isArray(raw) && raw.length > 0) {
+      for (const c of raw) {
+        const num = typeof c === 'string' ? c : (c as { container_number?: string } | null)?.container_number
+        if (num) found.add(num.trim().toUpperCase())
+        else unnamed += 1
+      }
+    } else if (typeof (bl as Record<string, unknown>).containers_display === 'string') {
+      for (const m of ((bl as Record<string, unknown>).containers_display as string).toUpperCase().match(/[A-Z]{4}\d{7}/g) ?? []) found.add(m)
+    }
+  }
+  if (found.size + unnamed > 0) return found.size + unnamed
+  for (const item of items) {
+    for (const m of item.description?.match(/[A-Z]{4}\d{7}/g) ?? []) found.add(m)
+  }
+  return found.size
+}
+
 function formatBreakbulkMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[]): string | null {
   const list: string[] = []
   for (const bl of bls) {
@@ -114,47 +150,24 @@ function formatBreakbulkMetadata(bls: InvoiceDetail['bls'], items: InvoiceItem[]
   return null
 }
 
-function renderCategoryBlock(
-  title: string,
-  subtotalLabel: string,
-  categoryItems: InvoiceItem[],
-  itemFlatIndex: Map<number | string, number>,
-) {
-  if (categoryItems.length === 0) return null
-
-  const subtotal = categoryItems.reduce((sum, item) => sum + Number(item.total_value_brl ?? 0), 0)
-
-  return (
-    <React.Fragment key={title}>
-      <tr style={{ background: DOC_GROUP, borderTop: '1px solid #c8d4e8' }}>
-        <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '11px', letterSpacing: '0.03em' }}>
-          {title}
+// Linhas de item da fatura. Lote 6b: as taxas do B/L ficam logo abaixo da
+// linha do B/L, sem a antiga divisão por tipo de carga (contêiner, carga
+// solta, documental) nem os subtotais dessas divisões.
+function renderItemRows(rowItems: InvoiceItem[], itemFlatIndex: Map<number | string, number>) {
+  return rowItems.map((item) => {
+    const usdNote = describeUsdConversionNote(item)
+    return (
+      <tr key={item.id} style={zebraRow(itemFlatIndex.get(item.id) ?? 0)}>
+        <td style={{ padding: '8px 8px 8px 16px' }}>
+          {stripBlPrefix(item.description, item.bl_id)}
+          {usdNote && <div style={{ fontSize: '12px', color: DOC_MUTED }}>{usdNote}</div>}
         </td>
+        <td style={{ padding: '8px 7px', textAlign: 'center' }}>{invoiceQuantity(item)}</td>
+        <td style={{ padding: '8px 7px', textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtBRL(item.unit_value_brl)}</td>
+        <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtBRL(item.total_value_brl)}</td>
       </tr>
-      {categoryItems.map((item) => {
-        const usdNote = describeUsdConversionNote(item)
-        return (
-          <tr key={item.id} style={zebraRow(itemFlatIndex.get(item.id) ?? 0)}>
-            <td style={{ padding: '8px 8px 8px 16px' }}>
-              {stripBlPrefix(item.description, item.bl_id)}
-              {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
-            </td>
-            <td style={{ padding: '8px 7px', textAlign: 'center' }}>{invoiceQuantity(item)}</td>
-            <td style={{ padding: '8px 7px', textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtBRL(item.unit_value_brl)}</td>
-            <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtBRL(item.total_value_brl)}</td>
-          </tr>
-        )
-      })}
-      <tr style={{ background: DOC_SUBTOTAL, borderBottom: '1px solid #c8d4e8' }}>
-        <td colSpan={3} style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
-          {subtotalLabel}
-        </td>
-        <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY, whiteSpace: 'nowrap' }}>
-          {fmtBRL(subtotal)}
-        </td>
-      </tr>
-    </React.Fragment>
-  )
+    )
+  })
 }
 
 export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
@@ -172,8 +185,12 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
     .sort()
     .at(-1) ?? null
   const title = type === 'receipt'
-    ? (isManual ? 'RECIBO DE FATURA AVULSA' : isConsolidated ? 'RECIBO CONSOLIDADO DE TAXAS LOCAIS' : 'RECIBO DE TAXAS LOCAIS')
-    : (isManual ? 'FATURA AVULSA' : isConsolidated ? 'FATURA CONSOLIDADA DE TAXAS LOCAIS' : 'FATURA DE TAXAS LOCAIS')
+    ? (isManual ? 'RECIBO' : isConsolidated ? 'RECIBO CONSOLIDADO DE TAXAS LOCAIS' : 'RECIBO DE TAXAS LOCAIS')
+    : (isManual ? 'FATURA' : isConsolidated ? 'FATURA CONSOLIDADA DE TAXAS LOCAIS' : 'FATURA DE TAXAS LOCAIS')
+
+  // Pix: "Saldo a pagar" só quando a fatura está parcialmente paga (saldo
+  // diferente do total); com saldo igual ao total repetiria o TOTAL.
+  const showPartialBalance = invoice.balance_brl != null && Number(invoice.balance_brl) !== Number(invoice.total_brl)
 
   const blIds = bls.map((b) => b.bl_id).join(', ') || '—'
 
@@ -192,7 +209,12 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
   )
   const showVesselVoyages = !isManual || hasVesselVoyage
 
-  const containersMeta = isManual ? null : formatContainersMetadata(bls, items)
+  const containerCount = isManual || !isConsolidated ? 0 : countInvoiceContainers(bls, items)
+  const containersMeta = isManual
+    ? null
+    : isConsolidated
+    ? (containerCount > 0 ? String(containerCount) : null)
+    : formatContainersMetadata(bls, items)
   const breakbulkMeta = isManual ? null : formatBreakbulkMetadata(bls, items)
 
   // Flat item indexing for zebra striping
@@ -201,6 +223,17 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
   for (const item of items) {
     itemFlatIndex.set(item.id, flatIdx++)
   }
+
+  // Larguras fixas compartilhadas pela tabela de itens e pelas tabelas internas
+  // de cada B/L da consolidada, para as colunas alinharem.
+  const itemColumns = (
+    <colgroup>
+      <col style={{ width: '55%' }} />
+      <col style={{ width: '11%' }} />
+      <col style={{ width: '17%' }} />
+      <col style={{ width: '17%' }} />
+    </colgroup>
+  )
 
   return (
     <div style={documentRoot}>
@@ -221,14 +254,14 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
           </tr>
           {!isManual || bls.length > 0 ? (
             <tr>
-              <td style={labelCell}>B/Ls:</td>
-              <td style={{ ...cell, color: DOC_NAVY, fontWeight: 600 }}>{blIds}</td>
+              <td style={labelCell}>{isConsolidated ? 'Qtd. de B/Ls:' : 'B/Ls:'}</td>
+              <td style={{ ...cell, color: DOC_NAVY, fontWeight: 600 }} data-testid="invoice-bl-summary">{isConsolidated ? bls.length : blIds}</td>
             </tr>
           ) : null}
           {containersMeta ? (
             <tr>
-              <td style={labelCell}>Contêineres:</td>
-              <td style={cell}>{containersMeta}</td>
+              <td style={labelCell}>{isConsolidated ? 'Qtd. de contêineres:' : 'Contêineres:'}</td>
+              <td style={cell} data-testid="invoice-container-summary">{containersMeta}</td>
             </tr>
           ) : null}
           {breakbulkMeta ? (
@@ -239,7 +272,7 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
           ) : null}
           {showVesselVoyages ? (
             <tr>
-              <td style={labelCell}>Navio/Voy.:</td>
+              <td style={labelCell}>Navio / Viagem:</td>
               <td style={cell}>{vesselVoyages}</td>
             </tr>
           ) : null}
@@ -257,7 +290,8 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
       </table>
 
       {/* Items table */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', margin: '16px 0', fontSize: '12px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', margin: '16px 0', fontSize: '12px', tableLayout: 'fixed' }}>
+        {itemColumns}
         <thead>
           <tr style={{ background: DOC_NAVY, color: 'white' }}>
             <th scope="col" style={{ padding: '9px 7px', textAlign: 'left' }}>Descrição</th>
@@ -266,24 +300,10 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
             <th scope="col" style={{ padding: '9px 7px', textAlign: 'right' }}>Total BRL</th>
           </tr>
         </thead>
-        <tbody>
-          {isManual
-            ? items.map((item) => {
-                const usdNote = describeUsdConversionNote(item)
-                return (
-                  <tr key={item.id} style={zebraRow(itemFlatIndex.get(item.id) ?? 0)}>
-                    <td style={{ padding: '8px 8px 8px 16px' }}>
-                      {stripBlPrefix(item.description, item.bl_id)}
-                      {usdNote && <div style={{ fontSize: '10px', color: DOC_MUTED }}>{usdNote}</div>}
-                    </td>
-                    <td style={{ padding: '8px 7px', textAlign: 'center' }}>{invoiceQuantity(item)}</td>
-                    <td style={{ padding: '8px 7px', textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtBRL(item.unit_value_brl)}</td>
-                    <td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtBRL(item.total_value_brl)}</td>
-                  </tr>
-                )
-              })
-            : isConsolidated
-            ? bls.map((blMeta) => {
+        {isManual ? (
+          <tbody>{renderItemRows(items, itemFlatIndex)}</tbody>
+        ) : isConsolidated ? (
+          bls.map((blMeta) => {
                 const blId = blMeta.bl_id
                 const blItems = items.filter((item) => item.bl_id === blId)
                 const subtotal = blItems.reduce((s, i) => s + Number(i.total_value_brl ?? 0), 0)
@@ -291,74 +311,92 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
                 const route = `${blMeta.pol ?? ''} → ${blMeta.pod ?? ''}`.trim().replace(/^→\s*/, '').replace(/\s*→$/, '')
                 const headerText = `B/L ${blId}${isMisto ? ' — MISTO (CNTR + CARGA SOLTA)' : route && route !== '→' ? ` — ${route}` : ''}`
 
-                const cntrItems = blItems.filter((i) => classifyInvoiceItem(i) === 'container')
-                const bbItems = blItems.filter((i) => classifyInvoiceItem(i) === 'carga_solta')
-                const docItems = blItems.filter((i) => classifyInvoiceItem(i) === 'documental')
-
                 return (
-                  <React.Fragment key={blId}>
-                    <tr style={{ background: DOC_GROUP, borderTop: '2px solid #1A2744' }}>
-                      <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '11px' }}>
-                        {headerText}
+                  // Lote 6b: um <tbody> por B/L; na impressão o bloco inteiro
+                  // (faixa, taxas e subtotal) fica numa página só. Um B/L que
+                  // não cabe numa página quebra mesmo assim: a faixa fica no
+                  // <thead> de uma tabela interna, que o navegador repete no
+                  // alto da continuação.
+                  <tbody key={blId} className="invoice-document__bl-group" data-testid="invoice-bl-group" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+                    <tr>
+                      <td colSpan={4} style={{ padding: 0 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                          {itemColumns}
+                          <thead>
+                            <tr style={{ background: DOC_GROUP, borderTop: '2px solid #1A2744' }}>
+                              <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '12px' }} data-testid="invoice-bl-band">
+                                {headerText}
+                              </td>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {renderItemRows(blItems, itemFlatIndex)}
+                            <tr style={{ background: DOC_SUBTOTAL, borderBottom: '2px solid #c8d4e8' }}>
+                              <td colSpan={3} style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
+                                Subtotal {blId}:
+                              </td>
+                              <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY, whiteSpace: 'nowrap' }}>
+                                {fmtBRL(subtotal)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </td>
                     </tr>
-                    {renderCategoryBlock('1. CARGA CONTEINERIZADA', 'Subtotal Contêineres:', cntrItems, itemFlatIndex)}
-                    {renderCategoryBlock('2. CARGA SOLTA (BREAKBULK)', 'Subtotal Carga Solta:', bbItems, itemFlatIndex)}
-                    {renderCategoryBlock('3. TAXAS ADMINISTRATIVAS E DOCUMENTAIS', 'Subtotal Taxas Documentais:', docItems, itemFlatIndex)}
-                    <tr style={{ background: DOC_SUBTOTAL, borderBottom: '2px solid #c8d4e8' }}>
-                      <td colSpan={3} style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY }}>
-                        Subtotal {blId}:
-                      </td>
-                      <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: DOC_NAVY, whiteSpace: 'nowrap' }}>
-                        {fmtBRL(subtotal)}
-                      </td>
-                    </tr>
-                  </React.Fragment>
+                  </tbody>
                 )
               })
-            : (() => {
+        ) : (
+          <tbody>
+            {(() => {
                 const blMeta = bls[0]
                 const isMisto = blMeta?.cargo_mode === 'misto'
-                const cntrItems = items.filter((i) => classifyInvoiceItem(i) === 'container')
-                const bbItems = items.filter((i) => classifyInvoiceItem(i) === 'carga_solta')
-                const docItems = items.filter((i) => classifyInvoiceItem(i) === 'documental')
 
                 return (
                   <>
                     {isMisto && (
                       <tr style={{ background: DOC_GROUP }} className="invoice-document__group-bar">
-                        <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '11px' }}>
+                        <td colSpan={4} style={{ padding: '6px 8px', fontWeight: 700, color: DOC_NAVY, fontSize: '12px' }}>
                           B/L {blMeta?.bl_id ?? blIds} — MISTO (CNTR + CARGA SOLTA)
                         </td>
                       </tr>
                     )}
-                    {renderCategoryBlock('1. CARGA CONTEINERIZADA', 'Subtotal Contêineres:', cntrItems, itemFlatIndex)}
-                    {renderCategoryBlock('2. CARGA SOLTA (BREAKBULK)', 'Subtotal Carga Solta:', bbItems, itemFlatIndex)}
-                    {renderCategoryBlock('3. TAXAS ADMINISTRATIVAS E DOCUMENTAIS', 'Subtotal Taxas Documentais:', docItems, itemFlatIndex)}
+                    {renderItemRows(items, itemFlatIndex)}
                   </>
                 )
               })()}
-          <tr style={dataTotalRow} data-testid="invoice-totals" className="invoice-document__totals">
-            <td colSpan={3} style={dataTotalCell}>{type === 'receipt' ? 'Total da fatura emitida:' : 'TOTAL:'}</td>
-            <td style={dataTotalCell}>{fmtBRL(invoice.total_brl)}</td>
-          </tr>
-          {type === 'receipt' ? <>
+          </tbody>
+        )}
+        {type === 'receipt' ? (
+          <tbody className="invoice-document__receipt-totals">
+            <tr style={{ background: DOC_SUBTOTAL, fontWeight: 700 }} data-testid="invoice-totals" className="invoice-document__totals">
+              <td colSpan={3} style={{ ...cell, textAlign: 'right' }}>Total da fatura emitida:</td>
+              <td style={{ ...valueCell, textAlign: 'right' }}>{fmtBRL(invoice.total_brl)}</td>
+            </tr>
             {/* Individual coberta: o dinheiro entrou na consolidada e foi
                 atribuído aos B/Ls deste documento; não foi pago nesta fatura. */}
             <tr><td colSpan={3} style={cell}>{isCovered ? `Recebido pela consolidada${coveredBy ? ` ${coveredBy}` : ''} (atribuído a estes B/Ls):` : 'Valor recebido:'}</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.gross_received_brl ?? invoice.total_paid_brl ?? 0)}</td></tr>
             <tr><td colSpan={3} style={cell}>Abatido do saldo:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.offset_brl ?? Math.max(Number(invoice.total_brl ?? 0) - Number(invoice.total_paid_brl ?? 0) - Number(invoice.balance_brl ?? 0), 0))}</td></tr>
             <tr><td colSpan={3} style={cell}>Devolvido ao Cliente:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.refunded_brl ?? 0)}</td></tr>
             <tr><td colSpan={3} style={cell}>Restituição pendente:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.pending_refund_brl ?? 0)}</td></tr>
-            <tr style={dataTotalRow}><td colSpan={3} style={dataTotalCell}>{isCovered ? 'Valor líquido atribuído a estes B/Ls:' : 'Valor líquido recebido:'}</td><td style={dataTotalCell}>{fmtBRL(detail.financial_summary?.net_received_brl ?? invoice.total_paid_brl ?? 0)}</td></tr>
             {detail.financial_summary?.covered_by_invoice_number ? <tr><td colSpan={4} style={cell}>Quitação pela fatura consolidada {detail.financial_summary.covered_by_invoice_number}. Valores atribuídos aos B/Ls deste documento.</td></tr> : null}
-          </> : null}
-          {type === 'receipt' && paymentDate ? (
-            <tr>
-              <td colSpan={4} style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>Pago em {formatDate(paymentDate)}</td>
-            </tr>
-          ) : null}
-        </tbody>
+          </tbody>
+        ) : null}
       </table>
+
+      {/* Lote 6b: o total sai da faixa âmbar na largura da tabela e vira caixa
+          compacta à direita, logo abaixo dela. No recibo a caixa traz o valor
+          líquido recebido; o total emitido fica na última linha da tabela. */}
+      {type === 'receipt' ? (
+        <InvoiceTotalBox
+          label={isCovered ? 'Valor líquido atribuído a estes B/Ls:' : 'Valor líquido recebido:'}
+          value={fmtBRL(detail.financial_summary?.net_received_brl ?? invoice.total_paid_brl ?? 0)}
+        >
+          {paymentDate ? <InvoiceTotalLine label={`Pago em ${formatDate(paymentDate)}`} /> : null}
+        </InvoiceTotalBox>
+      ) : (
+        <InvoiceTotalBox testId="invoice-totals" className="invoice-document__totals" value={fmtBRL(invoice.total_brl)} />
+      )}
 
       {/* PIX */}
       {type === 'invoice' && invoice.pix_payload && ['issued', 'partially_paid', 'overdue'].includes(invoice.status ?? 'issued') && (
@@ -370,25 +408,13 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
             <div style={{ flex: 1, fontSize: '12px', color: '#333', lineHeight: 1.6 }}>
               <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: 4 }}>PAGAMENTO VIA PIX</div>
               <div>Escaneie o QR Code ao lado ou utilize o código Pix Copia e Cola abaixo para realizar o pagamento.</div>
-              <div style={{ marginTop: 4 }}>Saldo a pagar:</div>
-              <div style={{ fontWeight: 700 }}>{fmtBRL(invoice.balance_brl ?? invoice.total_brl)}</div>
+              <div>{PIX_SETTLEMENT_NOTE}</div>
+              {showPartialBalance ? (
+                <div style={{ marginTop: 4 }}>Saldo a pagar: <strong>{fmtBRL(invoice.balance_brl)}</strong></div>
+              ) : null}
             </div>
           </div>
-          <div style={{ fontSize: '10px', color: DOC_MUTED, fontWeight: 600, letterSpacing: '0.05em', margin: '10px 0 3px' }}>PIX COPIA E COLA</div>
-          <span
-            onClick={(event) => {
-              const selection = window.getSelection()
-              if (!selection) return
-              const range = document.createRange()
-              range.selectNodeContents(event.currentTarget)
-              selection.removeAllRanges()
-              selection.addRange(range)
-            }}
-            title="Clique para selecionar o código inteiro"
-            style={{ display: 'block', fontFamily: 'monospace', fontSize: '6.5px', background: '#f3f4f6', padding: '5px 8px', borderRadius: 3, wordBreak: 'break-all', color: '#374151', cursor: 'pointer', userSelect: 'all', WebkitUserSelect: 'all' }}
-          >
-            {invoice.pix_payload}
-          </span>
+          <PixCopyPaste payload={invoice.pix_payload} selectable />
         </div>
       )}
 

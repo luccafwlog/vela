@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { recipientKey } from '../_shared/email.ts'
 import { runPortalDailyDigest } from '../_shared/portalDailyDigest.ts'
-import { dailyDigestTemplate } from '../_shared/portalEmailTemplates.ts'
+import { dailyDigestTemplate } from '../_shared/dailyDigestEmail.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { canonicalPortalOrigin, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
@@ -35,7 +35,7 @@ if (typeof Deno !== 'undefined') {
         activity: admin.from('portal_provisioning_events').select('id').gte('created_at', since),
         // Cliente desativado não entra na contagem de convites pendentes.
         pending: admin.from('customer_portal_accounts').select('id, customers!inner(deactivated_at)').eq('account_situation', 'convite_pendente').is('customers.deactivated_at', null),
-        users: admin.from('user_profiles').select('id').eq('active', true).in('role', ['admin', 'administrativo', 'documentacao']),
+        users: admin.from('user_profiles').select('id').eq('active', true).in('role', ['administrativo', 'documentacao']),
         // Exceção crítica de fatura: abertura e fechamento nas últimas 24 horas (ADR 0083, item 19),
         // pelos eventos do item: a reabertura reaproveita a linha e mantém o `created_at`.
         criticalOpened: admin.from('alert_item_events').select('id, alert_items!inner(item_type)').eq('alert_items.item_type', 'portal_excecao_critica_fatura').eq('event_type', 'opened').gte('created_at', since),

@@ -256,6 +256,14 @@ Operação** e registra cada tentativa em `portal_email_attempts`
 (`ce_unlock_notificacao`). Nenhum texto cita ZPT ou desbloqueio confirmado. O Portal mostra
 só a data do prazo (nunca "vencido"), e seu histórico omite exportação, entrega e VIP.
 
+Desde a migration `338` (lote 6b), o motivo da recusa diz de qual documento é:
+"Motivo (procuração): …" ou "Motivo (termo de devolução): …", no sino e no e-mail
+(antes saía "Motivo: Procuração: …"). O e-mail traz, depois do texto, o bloco
+**Solicitação** (com o protocolo) e os B/Ls da solicitação (`ce_unlock_request_bls`,
+sem o B/L que passou para outra solicitação, com evento `bl_moved`, como na tela;
+o B/L confirmado continua; sem B/L, o bloco não aparece) e o botão **Abrir Desbloqueio de CE**; o rodapé leva
+`PORTAL_SUPPORT_EMAIL`.
+
 Como cada aviso termina na fila (migration `307`):
 
 | Estado | Quando |

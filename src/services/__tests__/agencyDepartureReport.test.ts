@@ -459,6 +459,38 @@ describe('getAgencyReportDerivedData', () => {
     })
   })
 
+  // Decisão de 2026-10-20: todo container do ADR é contado uma vez.
+  describe('containers distintos', () => {
+    it('não conta duas vezes o vazio repetido no Baplie nem o que está em dois manifestos de Vazios', async () => {
+      fromMock.mockImplementation((table: string) => {
+        if (table === 'baplie_containers') {
+          return queryBuilder([
+            { container_number: 'EMTY0000001', size_type: '20GP', status: 'empty', is_imo: false, pod: 'BRVIX' },
+            { container_number: 'emty 0000001', size_type: '20GP', status: 'empty', is_imo: false, pod: 'BRVIX' },
+            { container_number: 'ORPH0000009', size_type: '40HC', status: 'full', is_imo: false, pod: 'BRVIX' },
+            { container_number: 'ORPH0000009', size_type: '40HC', status: 'full', is_imo: false, pod: 'BRVIX' },
+          ])
+        }
+        if (table === 'vazios_importacao_containers') {
+          return queryBuilder([
+            { container_number: 'EMTY0000001', container_type: '20GP', natureza: null, pod: 'BRVIX' },
+            { container_number: 'EMTY0000001', container_type: '20GP', natureza: 'cama', pod: 'BRVIX' },
+            { container_number: 'EMTY0000002', container_type: '20GP', natureza: 'cama', pod: 'BRVIX' },
+          ])
+        }
+        if (table === 'vazios_export_operations') return singleQueryBuilder(null)
+        return queryBuilder()
+      })
+      schedulesMock.mockResolvedValue(new Map())
+
+      const result = await getAgencyReportDerivedData(179, 'BRVIX')
+
+      expect(result.dischargeDivergence).toEqual({ orphanFullContainers: 1 })
+      expect(result.vaziosDivergence).toEqual({ baplieCount: 1, moduleCount: 2, unclassifiedCount: 0, diverges: true })
+      expect(result.vaziosImp.map((row) => row.natureza)).toEqual(['cama', 'cama'])
+    })
+  })
+
   describe('carga em transbordo (ADR 2026-07-31, Task 1)', () => {
     it('A8: ignora omissão revertida ao buscar os B/Ls em transbordo', async () => {
       const omissions = queryBuilder([])

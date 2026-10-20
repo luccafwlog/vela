@@ -1,8 +1,8 @@
 import type { FinancialRefundSummary } from '../../services/financialRefunds'
 import { QRCodeSVG } from 'qrcode.react'
 import { COMPANY } from '../../config/company'
-import { cell, DOC_BORDER, DOC_NAVY, DOC_SUBTOTAL, documentRoot, fmtBRL, fmtCNPJ, labelCell } from '../shared/invoiceFormat'
-import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle, PixPreparingNotice } from '../shared/InvoiceDocumentKit'
+import { cell, DOC_BORDER, DOC_NAVY, DOC_SUBTOTAL, documentRoot, fmtBRL, fmtCNPJ, fmtDecimal, labelCell } from '../shared/invoiceFormat'
+import { InvoiceDocFooter, InvoiceDocHeader, InvoiceDocTitle, InvoiceTotalBox, InvoiceTotalLine, PIX_SETTLEMENT_NOTE, PixCopyPaste, PixPreparingNotice } from '../shared/InvoiceDocumentKit'
 
 export type DemurrageInvoiceDocumentItem = {
   id: number
@@ -109,11 +109,11 @@ export function InvoiceDocument({ detail, type }: Props) {
 
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
         <tbody>
-          <tr><td style={labelCell}>BL</td><td style={{ ...cell, color: '#1A2744', fontWeight: 600 }}>{invoice.bl_id}</td></tr>
+          <tr><td style={labelCell}>B/L</td><td style={{ ...cell, color: '#1A2744', fontWeight: 600 }}>{invoice.bl_id}</td></tr>
           <tr><td style={labelCell}>Container(s)</td><td style={cell}>{containers}</td></tr>
-          <tr><td style={labelCell}>Navio/Voy:</td><td style={cell}>{vesselVoyage}</td></tr>
-          <tr><td style={labelCell}>From:</td><td style={cell}>{bl?.pol ?? '—'}</td></tr>
-          <tr><td style={labelCell}>To:</td><td style={cell}>{bl?.pod ?? '—'}</td></tr>
+          <tr><td style={labelCell}>Navio / Viagem:</td><td style={cell}>{vesselVoyage}</td></tr>
+          <tr><td style={labelCell}>POL:</td><td style={cell}>{bl?.pol ?? '—'}</td></tr>
+          <tr><td style={labelCell}>POD:</td><td style={cell}>{bl?.pod ?? '—'}</td></tr>
         </tbody>
       </table>
 
@@ -123,7 +123,7 @@ export function InvoiceDocument({ detail, type }: Props) {
         </div>
       ) : null}
 
-      {roe != null && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}><div style={{ background: '#F59E0B', padding: '5px 18px', display: 'flex', justifyContent: 'space-between', gap: 60, minWidth: 125, fontWeight: 700, borderRadius: 2, fontSize: 13 }}><span>ROE</span><span>{roe.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</span></div></div>}
+      {roe != null && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}><div style={{ background: DOC_NAVY, color: 'white', padding: '5px 18px', display: 'flex', justifyContent: 'space-between', gap: 60, minWidth: 125, fontWeight: 700, borderRadius: 2, fontSize: 13 }}><span>ROE</span><span>{roe.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</span></div></div>}
 
       <table style={{ width: '100%', borderCollapse: 'collapse', margin: '16px 0 0', fontSize: '12px' }}>
         <thead><tr style={{ background: '#1A2744', color: 'white' }}>
@@ -132,46 +132,50 @@ export function InvoiceDocument({ detail, type }: Props) {
         <tbody>
           {itemsWithBRL.map((item, idx) => (
             <tr key={item.id} style={{ background: idx % 2 === 0 ? '#f9fafb' : 'white', borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: '8px 7px', fontWeight: 600 }}>{item.container_number}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.container_type}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.free_days ?? '—'}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p1}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p1_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p2}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.rate_p2_usd.toFixed(2)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.discharge_date)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.return_date)}</td><td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.subtotal_brl == null ? '—' : fmtBRL(item.subtotal_brl)}</td>
+              <td style={{ padding: '8px 7px', fontWeight: 600 }}>{item.container_number}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.container_type}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.free_days ?? '—'}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p1}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDecimal(item.rate_p1_usd)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{item.days_p2}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDecimal(item.rate_p2_usd)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.discharge_date)}</td><td style={{ padding: '8px 7px', textAlign: 'center' }}>{fmtDate(item.return_date)}</td><td style={{ padding: '8px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.subtotal_brl == null ? '—' : fmtBRL(item.subtotal_brl)}</td>
             </tr>
           ))}
           {hasDiscount && <>
-            <tr style={{ background: '#f0f4fa' }}><td colSpan={8} style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600 }}>Subtotal:</td><td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{rawTotalBRL == null ? '—' : fmtBRL(rawTotalBRL)}</td></tr>
-            <tr style={{ background: '#f0fdf4' }}><td colSpan={8} style={{ padding: '7px 12px', textAlign: 'right' }}>Desconto {invoice.discount_mode === 'percent' ? `(${invoice.discount_value}%)` : 'fixo'}{invoice.discount_type ? ` — ${invoice.discount_type}` : ''}:</td><td style={{ padding: '7px 12px', textAlign: 'right', color: '#166534', whiteSpace: 'nowrap' }}>{discountBRL == null ? '—' : `- ${fmtBRL(discountBRL)}`}</td></tr>
+            <tr style={{ background: '#f0f4fa' }}><td colSpan={9} style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 600 }}>Subtotal:</td><td style={{ padding: '6px 7px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{rawTotalBRL == null ? '—' : fmtBRL(rawTotalBRL)}</td></tr>
+            <tr style={{ background: '#f0fdf4' }}><td colSpan={9} style={{ padding: '6px 7px', textAlign: 'right' }}>Desconto {invoice.discount_mode === 'percent' ? `(${invoice.discount_value}%)` : 'fixo'}{invoice.discount_type ? ` — ${invoice.discount_type}` : ''}:</td><td style={{ padding: '6px 7px', textAlign: 'right', color: '#166534', whiteSpace: 'nowrap' }}>{discountBRL == null ? '—' : `- ${fmtBRL(discountBRL)}`}</td></tr>
           </>}
-          <tr style={{ background: '#F59E0B' }}><td colSpan={8} style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700 }}>TOTAL:</td><td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>{totalBRL == null ? '—' : fmtBRL(totalBRL)}</td></tr>
           {!isInvoice && invoice.refund_summary ? <>
-            <tr><td colSpan={8} style={cell}>Valor recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl)}</td></tr>
-            <tr><td colSpan={8} style={cell}>Devolvido ao Cliente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
-            <tr><td colSpan={8} style={cell}>Restituição pendente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'pending').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
-            <tr><td colSpan={8} style={cell}>Valor líquido recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl - invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
+            <tr><td colSpan={9} style={cell}>Valor recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl)}</td></tr>
+            <tr><td colSpan={9} style={cell}>Devolvido ao Cliente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
+            <tr><td colSpan={9} style={cell}>Restituição pendente:</td><td style={cell}>{fmtBRL(invoice.refund_summary.refunds.filter((row) => row.status === 'pending').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
+            <tr><td colSpan={9} style={cell}>Valor líquido recebido:</td><td style={cell}>{fmtBRL(invoice.refund_summary.received_brl - invoice.refund_summary.refunds.filter((row) => row.status === 'settled').reduce((sum, row) => sum + row.amount_brl, 0))}</td></tr>
           </> : null}
-          {!isInvoice && invoice.paid_at && <tr><td colSpan={9} style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700 }}>PAGO EM: {fmtDate(invoice.paid_at)}</td></tr>}
-          {isInvoice && invoice.due_date && <tr style={{ background: '#1A2744', color: 'white' }}><td colSpan={8} style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 600 }}>VENCIMENTO DIA</td><td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 600 }}>{fmtDate(invoice.due_date)}</td></tr>}
         </tbody>
       </table>
+
+      {/* Lote 6b: TOTAL em caixa âmbar compacta à direita, logo abaixo da
+          tabela; vencimento (fatura) ou data do pagamento (recibo) embaixo,
+          sem fundo. */}
+      <InvoiceTotalBox testId="demurrage-total" value={totalBRL == null ? '—' : fmtBRL(totalBRL)}>
+        {isInvoice && invoice.due_date ? <InvoiceTotalLine label="VENCIMENTO:" value={fmtDate(invoice.due_date)} /> : null}
+        {!isInvoice && invoice.paid_at ? <InvoiceTotalLine label="PAGO EM:" value={fmtDate(invoice.paid_at)} /> : null}
+      </InvoiceTotalBox>
 
       {/* ── PIX section ── */}
       {payable && !invoice.pix_payload && Number(invoice.current_total_brl) > 0 && <PixPreparingNotice />}
       {payable && invoice.pix_payload && (
-        <div style={{ display: 'flex', gap: 18, marginTop: 20, paddingTop: 16, borderTop: '1px solid #e5e7eb', alignItems: 'flex-start' }}>
-          <div style={{ flexShrink: 0 }}>
-            <QRCodeSVG aria-label="QR Code Pix" value={invoice.pix_payload} size={90} level="M" />
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
+          <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
+            <div style={{ flexShrink: 0 }}>
+              <QRCodeSVG aria-label="QR Code Pix" value={invoice.pix_payload} size={90} level="M" />
+            </div>
+            <div style={{ flex: 1, fontSize: '12px', color: '#333', lineHeight: 1.6 }}>
+              <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: 4 }}>PAGAMENTO VIA PIX</div>
+              <div>Escaneie o QR Code ao lado ou utilize o código Pix Copia e Cola abaixo para realizar o pagamento.</div>
+              <div>{PIX_SETTLEMENT_NOTE}</div>
+            </div>
           </div>
-          <div style={{ flex: 1, fontSize: '12px', color: '#333', lineHeight: 1.6 }}>
-            <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: 4 }}>PAGAMENTO VIA PIX</div>
-            <div>Escaneie o QR Code ao lado ou utilize o código Pix Copia e Cola abaixo para realizar o pagamento.</div>
-            <div style={{ marginTop: 4 }}>Valor da fatura:</div>
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>{totalBRL == null ? '—' : fmtBRL(totalBRL)}</div>
-            <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 3 }}>PIX COPIA E COLA</div>
-            <span style={{ display: 'block', fontFamily: 'monospace', fontSize: '8px', background: '#f3f4f6', padding: '5px 8px', borderRadius: 3, wordBreak: 'break-all', color: '#374151' }}>
-              {invoice.pix_payload}
-            </span>
-          </div>
+          {/* Abaixo do QR e alinhado à esquerda da página, como na fatura de Taxas Locais. */}
+          <PixCopyPaste payload={invoice.pix_payload} />
         </div>
       )}
 
-      <div style={{ borderTop: '1px solid #e5e7eb', marginTop: 30, paddingTop: 14, fontSize: 13, lineHeight: 1.45 }}><strong>Recebedor:</strong><div style={{ display: 'inline-block', verticalAlign: 'top', marginLeft: 80 }}>{COMPANY.name.toUpperCase()}<br />CNPJ: {COMPANY.cnpj}</div></div>
+      <div style={{ borderTop: '1px solid #e5e7eb', marginTop: 30, paddingTop: 14, fontSize: 12, lineHeight: 1.45 }}><strong>Recebedor:</strong><div style={{ display: 'inline-block', verticalAlign: 'top', marginLeft: 6 }}>{COMPANY.name.toUpperCase()}<br />CNPJ: {COMPANY.cnpj}</div></div>
 
       <InvoiceDocFooter marginTop={28} />
     </div>

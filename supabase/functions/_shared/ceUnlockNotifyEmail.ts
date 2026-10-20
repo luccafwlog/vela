@@ -40,6 +40,16 @@ export type NotifyDeps = {
 
 export type NotifySummary = { sent: number; partialSuppressed: number; simulated: number; skipped: number; retry: number; failed: number }
 
+/**
+ * B/Ls do bloco "Solicitação" do aviso. O B/L que passou para outra solicitação
+ * (evento `bl_moved`) segue na tabela com `active=false`, mas saiu desta, como em
+ * `request_json` (migration `301`); o B/L confirmado também fica inativo e continua.
+ */
+export function ceUnlockNoticeBls(items: ReadonlyArray<{ bl_id: string }>, moved: ReadonlyArray<{ bl_id: string | null }>): string[] {
+  const out = new Set(moved.map((event) => event.bl_id))
+  return items.map((item) => item.bl_id).filter((bl) => !out.has(bl))
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') return (error as { message: string }).message

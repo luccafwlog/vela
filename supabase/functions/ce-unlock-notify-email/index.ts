@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
 import { validCleanupAuthorization } from "../_shared/ceUnlockCleanupAuth.ts";
-import { CE_UNLOCK_BOX, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
+import { CE_UNLOCK_BOX, ceUnlockNoticeBls, runCeUnlockNotify, type Contact, type OutboxRow } from "../_shared/ceUnlockNotifyEmail.ts";
 import { runWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
 import { recipientKey } from "../_shared/email.ts";
 import { sendPortalEmail } from "../_shared/portalEmail.ts";
@@ -16,6 +16,29 @@ if (typeof Deno !== "undefined") {
     if (req.method !== "POST" || !validCleanupAuthorization(req.headers.get("Authorization"), secret))
       return new Response("Acesso negado", { status: 403 });
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    // Protocolo e B/Ls da solicitação, para o bloco "Solicitação" do e-mail: uma leitura por solicitação.
+    const requestCache = new Map<string, Promise<{ protocol: string; bls: string[] }>>();
+    const requestDetails = (requestId: string) => {
+      let cached = requestCache.get(requestId);
+      if (!cached) {
+        cached = (async () => {
+          const [request, items, moved] = await Promise.all([
+            admin.from("ce_unlock_requests").select("protocol").eq("id", requestId).maybeSingle(),
+            admin.from("ce_unlock_request_bls").select("bl_id").eq("request_id", requestId).order("bl_id"),
+            admin.from("ce_unlock_events").select("bl_id").eq("request_id", requestId).eq("action", "bl_moved"),
+          ]);
+          if (request.error) throw request.error;
+          if (items.error) throw items.error;
+          if (moved.error) throw moved.error;
+          return {
+            protocol: (request.data as { protocol?: string } | null)?.protocol ?? "",
+            bls: ceUnlockNoticeBls((items.data ?? []) as Array<{ bl_id: string }>, (moved.data ?? []) as Array<{ bl_id: string | null }>),
+          };
+        })();
+        requestCache.set(requestId, cached);
+      }
+      return cached;
+    };
     const result = await runCeUnlockNotify({
       refreshOpen: async () => await admin.rpc("ce_unlock_refresh_open"),
       providerConfigured: Boolean(Deno.env.get("RESEND_API_KEY") && Deno.env.get("PORTAL_FROM_EMAIL") && Deno.env.get("PORTAL_REPLY_TO")),
@@ -73,6 +96,7 @@ if (typeof Deno !== "undefined") {
           message: row.body,
           portalUrl: canonicalPortalOrigin(),
           supportEmail: portalSupportEmail(),
+          request: await requestDetails(row.request_id),
         });
         const result = await sendPortalEmail({
           admin,
