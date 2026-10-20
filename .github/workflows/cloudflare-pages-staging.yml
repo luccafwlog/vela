@@ -15,7 +15,9 @@ name: Cloudflare Pages Staging
 #
 # Fica desligado até as variáveis de repositório CLOUDFLARE_PAGES_STAGING_ENABLED
 # e CLOUDFLARE_PAGES_ACCESS_CONFIGURED serem `true`.
-# Sem Turnstile: o widget não autoriza o hostname de staging, como nas prévias.
+# Turnstile: o build lê vars.VITE_TURNSTILE_SITE_KEY do environment `staging`
+# (widget "Vela staging", hostname staging.vela-portal.pages.dev), no mesmo
+# padrão da produção. As prévias pr-N continuam sem Site Key.
 on:
   push:
     branches:
@@ -94,6 +96,7 @@ jobs:
           VITE_PORTAL_URL: https://staging.vela-portal.pages.dev
           VITE_PORTAL_BILLING_URL: https://staging.vela-portal.pages.dev/portal/billing
           VITE_SENTRY_ENVIRONMENT: staging
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
           VITE_APP_COMMIT_SHA: ${{ github.sha }}
 
       - name: Refuse a bundle that still points to production Supabase

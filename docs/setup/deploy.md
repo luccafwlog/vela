@@ -49,12 +49,17 @@ e treino, atualizado por push (ou merge de `main`) na git branch `staging`.
   variáveis de repositório `CLOUDFLARE_PAGES_STAGING_ENABLED=true` e
   `CLOUDFLARE_PAGES_ACCESS_CONFIGURED=true` (a mesma trava das prévias).
 - **GitHub Environment `staging`:** variáveis `VITE_SUPABASE_URL` e
-  `VITE_SUPABASE_ANON_KEY` (da branch staging); secret
+  `VITE_SUPABASE_ANON_KEY` (da branch staging) e `VITE_TURNSTILE_SITE_KEY`
+  (Site Key pública do widget `Vela staging`); secret
   `CLOUDFLARE_PAGES_API_TOKEN` (o mesmo token de Pages Edit).
   `CLOUDFLARE_ACCOUNT_ID` vem da variável de repositório.
-- **Sem Turnstile:** o widget não autoriza `staging.vela-portal.pages.dev`; como
-  nas prévias, o build não recebe Site Key e o login do Portal aparece sem widget.
-  A branch Supabase staging também não deve ter `TURNSTILE_SECRET_KEY`.
+- **Turnstile:** o build passa `vars.VITE_TURNSTILE_SITE_KEY` do environment
+  `staging`, no mesmo padrão da produção. O widget `Vela staging` autoriza
+  `staging.vela-portal.pages.dev`. Sem a Site Key no bundle, a tela de login
+  do Portal mostra a verificação de segurança vazia e o `portal-login` recusa
+  com 403, porque a branch já exige o token
+  ([Turnstile](../operations/servicos-externos.md#cloudflare-turnstile)).
+  As prévias `pr-N` continuam sem Site Key.
 - **Auth da branch staging:** em Authentication → URL Configuration da branch,
   Site URL `https://staging.vela-internal.pages.dev` e Redirect URLs com
   `https://staging.vela-internal.pages.dev/**` e
