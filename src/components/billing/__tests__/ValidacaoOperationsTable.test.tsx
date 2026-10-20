@@ -78,17 +78,6 @@ function renderTable(overrides: Partial<React.ComponentProps<typeof ValidacaoOpe
 }
 
 describe('ValidacaoOperationsTable', () => {
-  it('não oferece emissão para Granito mesmo com CE e preserva o estado operacional', () => {
-    renderTable({ rows: [{ ...row, id: 'GR-READY', cargo_mode: 'granito', ce_mercante: '122605051526081' }] })
-    expect(screen.queryByRole('button', { name: 'Emitir' })).toBeNull()
-    expect(screen.getByText('Apoio operacional')).toBeTruthy()
-    cleanup()
-
-    renderTable({ rows: [{ ...row, id: 'GR-WAIT', cargo_mode: 'granito', ce_mercante: null }] })
-    expect(screen.queryByRole('button', { name: 'Emitir' })).toBeNull()
-    expect(screen.getByText('Apoio operacional')).toBeTruthy()
-  })
-
   it('delega a emissão individual com a linha selecionada', async () => {
     const user = userEvent.setup()
     // Emitir é a ação da linha quando o B/L está pronto (tudo certo, com CE).
@@ -193,12 +182,6 @@ describe('links de resolução da pendência', () => {
     renderTable({ rows: [row] })
     const link = screen.getByRole('link', { name: 'BL-001' })
     expect(link.getAttribute('href')).toBe('/bls/BL-001')
-  })
-
-  it('aponta o número do B/L de Granito para /granito', () => {
-    renderTable({ rows: [{ ...row, id: 'GR-001', cargo_mode: 'granito' }] })
-    const link = screen.getByRole('link', { name: 'GR-001' })
-    expect(link.getAttribute('href')).toBe('/granito')
   })
 
   it('aponta o cliente não vinculado para a Revisão, no B/L certo', () => {
@@ -341,14 +324,6 @@ describe('conferência de cálculo na expansão', () => {
   it('orienta o recálculo quando não há linha nenhuma', () => {
     renderTable({ expandedBlId: 'BL-001' })
     expect(screen.getByText(/Nenhuma linha de taxa calculada/)).toBeTruthy()
-  })
-
-  // Granito entrega conferencia de quantidades e nao participa da emissao:
-  // conferir tabela de cobranca ali seria inventar cobranca que nao existe.
-  it('não monta a conferência para Granito', () => {
-    chargeLinesState.data = [chargeLine]
-    renderTable({ rows: [{ ...row, cargo_mode: 'granito' }], expandedBlId: 'BL-001' })
-    expect(screen.queryByText('Conferência de cálculo')).toBeNull()
   })
 })
 

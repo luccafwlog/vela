@@ -261,13 +261,13 @@ describe('Conciliação PIX', () => {
     const user = userEvent.setup()
     renderPage()
 
-    const trigger = await screen.findByRole('button', { name: 'Marcar como tratado' })
+    const trigger = await screen.findByRole('button', { name: /^Marcar como tratado o Pix de R\$\s5,00 recebido em / })
     await user.click(trigger)
     expect(document.activeElement).toBe(screen.getByLabelText(/Motivo do tratamento/))
     await user.click(screen.getByRole('button', { name: 'Voltar' }))
-    await waitFor(() => expect(document.activeElement?.textContent).toBe('Marcar como tratado'))
+    await waitFor(() => expect(document.activeElement?.getAttribute('aria-label')).toMatch(/^Marcar como tratado o Pix de /))
 
-    await user.click(screen.getByRole('button', { name: 'Marcar como tratado' }))
+    await user.click(screen.getByRole('button', { name: /^Marcar como tratado o Pix de / }))
     const submit = screen.getByRole('button', { name: 'Marcar como tratado' }) as HTMLButtonElement
     expect(submit.disabled).toBe(true)
     await user.type(screen.getByLabelText(/Motivo do tratamento/), 'Rest.')
@@ -411,7 +411,7 @@ describe('Conciliação PIX', () => {
     expect(screen.getByText('12.345.678/0001-90')).toBeTruthy()
     // A data do extrato fica no dia escrito, não no dia anterior de Brasília.
     expect(screen.getByText('23/06/2026')).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    await user.click(screen.getByRole('button', { name: 'Tentar de novo a linha 8' }))
     expect(await screen.findByText(/Ainda não há uma fatura segura para esta linha: Identificador repetido no mesmo extrato\./)).toBeTruthy()
     expect(mocks.confirm).not.toHaveBeenCalled()
   })
@@ -428,7 +428,7 @@ describe('Conciliação PIX', () => {
     const candidates = screen.getByRole('table', { name: 'Faturas candidatas da linha 8' })
     expect(within(candidates).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Fatura', 'Origem', 'Valor da fatura', 'Pix', 'Ação'])
     expect(within(candidates).getByTitle('Mesmo valor do Pix')).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Baixar nesta fatura' }))
+    await user.click(screen.getByRole('button', { name: 'Baixar na fatura INV-010' }))
 
     await waitFor(() => expect(mocks.resolveException).toHaveBeenCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10, txid: 'TX-42' })))
     expect(mocks.linkCandidate).toHaveBeenCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10 }))
@@ -444,14 +444,14 @@ describe('Conciliação PIX', () => {
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Abrir faturas candidatas da linha 8/ }))
-    await user.click(await screen.findByRole('button', { name: 'Baixar nesta fatura' }))
+    await user.click(await screen.findByRole('button', { name: 'Baixar na fatura INV-010' }))
     expect(await screen.findByText(/A baixa em INV-010 foi gravada, mas a exceção não foi encerrada: timeout Não repita a baixa; use Encerrar exceção/)).toBeTruthy()
     // A fatura já não está aberta: Tentar de novo e Escolher fatura não a achariam.
-    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Tentar de novo a linha 8' })).toBeNull()
     expect(screen.queryByRole('button', { name: /faturas candidatas/ })).toBeNull()
     expect(mocks.confirm).toHaveBeenCalledTimes(1)
 
-    await user.click(screen.getByRole('button', { name: 'Encerrar exceção' }))
+    await user.click(screen.getByRole('button', { name: 'Encerrar exceção da linha 8' }))
     expect(await screen.findByText('INV-010: exceção encerrada; a baixa já estava gravada.')).toBeTruthy()
     expect(mocks.resolveException).toHaveBeenLastCalledWith(42, expect.objectContaining({ source: 'local', invoiceId: 10, txid: 'TX-42' }))
     expect(mocks.confirm).toHaveBeenCalledTimes(1)
@@ -526,7 +526,7 @@ describe('Conciliação PIX', () => {
     await waitFor(() => expect(mocks.itauMonitor).toHaveBeenCalled())
     // Cobrança Itaú desligada: o dado principal diz de onde vem a baixa.
     expect(await screen.findByText('Desligada: as faturas usam o QR estático e a baixa vem do extrato')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Marcar como tratado' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Marcar como tratado/ })).toBeNull()
     await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
     expect(screen.getByText('Conciliar extrato é do Financeiro e do Administrativo')).toBeTruthy()
   })

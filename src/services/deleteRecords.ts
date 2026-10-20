@@ -43,7 +43,6 @@ export const NOTHING_DELETED_MESSAGE =
   'Nada foi excluído: você não tem permissão para excluir este registro, ou ele já não existe.'
 
 export type CatalogDeleteTable =
-  | 'granite_rates'
   | 'depots'
   | 'depot_services'
   | 'vazios_export_service_lines'
@@ -79,7 +78,6 @@ export type CatalogReactivateTable =
   | 'customer_rate_overrides'
   | 'demurrage_rates'
   | 'customer_demurrage_agreements'
-  | 'granite_rates'
   | 'user_profiles'
   | 'depots'
   | 'depot_services'

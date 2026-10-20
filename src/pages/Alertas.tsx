@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { BellOff, ChevronDown, ChevronRight, Wrench } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
+import { RowActionButton } from '../components/ui/RowActionButton'
 import { NoValue } from '../components/ui/NoValue'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block, Fact, FactList } from '../components/ui/Block'
@@ -523,12 +524,35 @@ function Department({ alert }: { alert: AlertQueueRow }) {
  * "Resolver" e "Dispensar", de largura fixa e alinhados em toda linha (lote
  * 5a). "Resolver" leva ao lugar onde a pendência se resolve (o nome do lugar
  * fica no `title`); nos alertas de conferência sem fato de origem (ADR 0083),
- * abre a justificativa. Dispensar só existe para o alerta por item.
+ * abre a justificativa. Dispensar só existe para o alerta por item. Na linha
+ * da tabela, só os ícones (`iconOnly`, regra 9); no cartão, com texto.
  */
-function AlertActions({ alert, isMutating, onDismiss, onResolve, onNavigate, dismissible = true }: RowActions & { alert: AlertQueueRow; dismissible?: boolean }) {
+function AlertActions({ alert, isMutating, onDismiss, onResolve, onNavigate, dismissible = true, iconOnly = false, subject }: RowActions & {
+  alert: AlertQueueRow
+  dismissible?: boolean
+  iconOnly?: boolean
+  /** Alerta e registro da linha, para o nome do ícone dizer de qual linha é (leitor de tela). */
+  subject?: string
+}) {
   const effectiveType = getEffectiveAlertType(alert)
   const byJustification = Boolean(alert.item_id) && canResolveWithJustification(effectiveType, alert.entity_type)
   const link = byJustification ? null : alertEntityLink(alert)
+  if (iconOnly) {
+    const of = subject ? ` ${subject}` : ''
+    const slot = <span className="app-btn--icon inline-block" aria-hidden="true" />
+    return (
+      <div className="flex items-center justify-center gap-2">
+        {byJustification ? (
+          <RowActionButton label={`Resolver${of}`} icon={Wrench} title="Resolver com justificativa" onClick={() => onResolve(alert)} disabled={isMutating} />
+        ) : link ? (
+          <RowActionButton label={`Resolver${of}`} icon={Wrench} title={alertEntityLinkLabel(alert)} onClick={() => onNavigate(link)} />
+        ) : slot}
+        {dismissible && alert.item_id ? (
+          <RowActionButton label={`Dispensar${of}`} icon={BellOff} title="Dispensar" onClick={() => onDismiss(alert)} disabled={isMutating} />
+        ) : dismissible ? slot : null}
+      </div>
+    )
+  }
   return (
     <div className="flex items-center justify-center gap-2">
       {byJustification ? (
@@ -549,6 +573,11 @@ function AlertActions({ alert, isMutating, onDismiss, onResolve, onNavigate, dis
   )
 }
 
+/** "Container vencendo · CNTR1": o alerta e o registro, que distinguem a linha. */
+function rowSubject(alert: AlertQueueRow, entityLabels?: AlertEntityLabels) {
+  return [getAlertTypeLabel(getEffectiveAlertType(alert)), alertRecord(alert, entityLabels)?.label].filter(Boolean).join(' · ')
+}
+
 function AlertRow({ alert, entityLabels, ...actions }: RowActions & { alert: AlertQueueRow; entityLabels?: AlertEntityLabels }) {
   return (
     <tr>
@@ -558,7 +587,7 @@ function AlertRow({ alert, entityLabels, ...actions }: RowActions & { alert: Ale
       <td className="app-table__text app-table__text--wrap">{alert.message?.trim() ? alert.message : <NoValue label="Sem detalhe" />}</td>
       <td><Department alert={alert} /></td>
       <td className="whitespace-nowrap">{formatDate(alert.created_at)}</td>
-      <td><AlertActions alert={alert} {...actions} /></td>
+      <td><AlertActions alert={alert} iconOnly subject={rowSubject(alert, entityLabels)} {...actions} /></td>
     </tr>
   )
 }
@@ -577,7 +606,7 @@ function DismissedRow({ alert, entityLabels, expanded, onToggle, ...actions }: R
         <td className="app-table__text"><RecordCell alert={alert} entityLabels={entityLabels} /></td>
         <td><StatusText tone="warning">{formatDate(alert.dismissed_until)}</StatusText></td>
         <td>{alert.dismissed_by_name ?? <NoValue label="Sem autor" />}</td>
-        <td><AlertActions alert={alert} dismissible={false} {...actions} /></td>
+        <td><AlertActions alert={alert} dismissible={false} iconOnly subject={rowSubject(alert, entityLabels)} {...actions} /></td>
       </tr>
       {expanded ? (
         <tr data-row-detail>

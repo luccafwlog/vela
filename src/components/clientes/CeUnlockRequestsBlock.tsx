@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Eye, FileSearch } from 'lucide-react'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { Field, Input } from '../ui/Input'
 import { NoValue } from '../ui/NoValue'
+import { RowActionLink } from '../ui/RowActionLink'
 import { StatusText } from '../ui/StatusText'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { CeUnlockSla } from '../ce-unlock/CeUnlockSla'
@@ -103,9 +104,11 @@ export function CeUnlockRequestsBlock({ customerId, manage }: { customerId: numb
                       <td><CeUnlockSla start={OPEN_STATES.has(row.state) ? row.sla_started_at : null} /></td>
                       <td className="whitespace-nowrap tabular-nums">{formatDate(row.created_at)}</td>
                       <td>
-                        <Link className="app-btn app-btn--secondary app-btn--sm" to={`/desbloqueio-ce?pedido=${row.id}`} aria-label={`${manage && OPEN_STATES.has(row.state) ? 'Analisar' : 'Ver'} ${row.protocol}`}>
-                          {manage && OPEN_STATES.has(row.state) ? 'Analisar' : 'Ver'}
-                        </Link>
+                        <RowActionLink
+                          to={`/desbloqueio-ce?pedido=${row.id}`}
+                          label={`${manage && OPEN_STATES.has(row.state) ? 'Analisar' : 'Ver'} ${row.protocol}`}
+                          icon={manage && OPEN_STATES.has(row.state) ? FileSearch : Eye}
+                        />
                       </td>
                     </tr>
                   ))}

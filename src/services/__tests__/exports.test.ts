@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { customerExportEmails, exportCustomerBaseWorkbook, exportInvoicesWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+import { customerExportEmails, exportCustomerBaseWorkbook, exportFinancialReportWorkbook, exportInvoicesWorkbook, exportOperationalReportWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
 import type { PortalOperationBL } from '../portalOperation'
 import { flattenContainers } from '../../lib/portalOperationViews'
 import type { InvoiceListRow } from '../billing'
@@ -28,8 +28,8 @@ describe('exportVaziosImportacaoWorkbook', () => {
     writeFile.mockClear()
   })
 
-  it('exporta colunas operacionais dos vazios de importacao', async () => {
-    const rows: VaziosImportacaoContainerListItem[] = [
+  it('exporta colunas operacionais dos vazios de importação, com a Natureza e o Nº do manifesto', async () => {
+    const rows: Array<VaziosImportacaoContainerListItem & { manifesto_numero?: string | null }> = [
       {
         id: '1',
         manifest_id: 'm1',
@@ -38,8 +38,9 @@ describe('exportVaziosImportacaoWorkbook', () => {
         tare_kg: 3800,
         pol: 'CNTAC',
         pod: 'SSZ',
-        natureza: null,
+        natureza: 'cover_plate',
         created_at: '2026-06-01T10:00:00Z',
+        manifesto_numero: '2626501234568',
         manifest: {
           id: 'm1',
           voyage_id: 10,
@@ -62,9 +63,10 @@ describe('exportVaziosImportacaoWorkbook', () => {
         'Tara (kg)': 3800,
         POL: 'CNTAC',
         POD: 'SSZ',
+        Natureza: 'Cover plate',
         Navio: 'NAVIO A',
         Viagem: '001',
-        Manifesto: 'Baplie',
+        'Manifesto Mercante': '2626501234568',
         'Importado em': '01/06/2026',
       },
     ])
@@ -199,5 +201,46 @@ describe('exportação da Validação (planilha única)', () => {
     const [sheet] = buildValidacaoSheetRows([{ row, block: { label: 'Pronto para emitir', detail: 'Tudo certo.' } }], { totals, sharedContainers: new Map([['BL-1', 'CSNU1 (2 B/Ls)']]) })
     expect(Object.keys(sheet)).toEqual(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Contêiner compartilhado', 'Lacre', 'THC', 'BL Fee (US$)'])
     expect(sheet).toMatchObject({ 'Navio / Viagem': 'ARIES / 088E', Motivo: 'Pronto para emitir', THC: 2000, 'BL Fee (US$)': 60, 'Contêiner compartilhado': 'CSNU1 (2 B/Ls)' })
+  })
+})
+
+// Achado 2: a planilha do relatório fala como a tela, sem código cru.
+describe('planilhas de Relatórios', () => {
+  beforeEach(() => {
+    jsonToSheet.mockClear()
+    bookAppendSheet.mockClear()
+    writeFile.mockClear()
+  })
+
+  it('Operacional traz Revisão e Taxas locais com os rótulos da tela e a data formatada', async () => {
+    await exportOperationalReportWorkbook([
+      {
+        id: 'BL1', pol: 'CNSHA', pod: 'BRSSZ', cargo_mode: 'container', review_status: 'pending_review', financial_status: 'invoiced',
+        charge_status: 'ready_for_billing', cancelled_at: null, total_weight_kg: 1000, bb_weight_ton: null, total_cbm: 5, bb_cbm: null,
+        created_at: '2026-05-10', voyage_id: 1, customer: null, voyage: null, bl_containers: [],
+      },
+      {
+        id: 'BL2', pol: null, pod: null, cargo_mode: 'container', review_status: null, financial_status: 'paid',
+        charge_status: 'ready_for_billing', cancelled_at: null, total_weight_kg: 0, bb_weight_ton: null, total_cbm: 0, bb_cbm: null,
+        created_at: null, voyage_id: null, customer: null, voyage: null, bl_containers: [],
+      },
+    ], [{ Filtro: 'Revisão', Valor: 'Pendente' }])
+
+    const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
+    expect(sheetRows[0]).toMatchObject({ Revisão: 'Pendente', 'Taxas locais': 'Emitida', 'Criação do B/L': '10/05/2026' })
+    expect(sheetRows[1]).toMatchObject({ Revisão: 'Em ordem', 'Taxas locais': 'Paga', 'Criação do B/L': '' })
+    expect(JSON.stringify(sheetRows)).not.toMatch(/pending_review|invoiced/)
+    expect(sheetRows[0]).not.toHaveProperty('Financeiro')
+    expect(jsonToSheet.mock.calls[1][0]).toEqual([{ Filtro: 'Revisão', Valor: 'Pendente' }])
+  })
+
+  it('Financeiro traz Emissão formatada e Situação com o rótulo', async () => {
+    await exportFinancialReportWorkbook([
+      { id: 1, invoice_number: 'F-1', invoice_type: 'individual', status: 'covered', total_brl: 10, balance_brl: 0, issued_at: '2026-05-02', created_at: null, customer_id: 1, customer: null },
+    ])
+
+    const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
+    expect(sheetRows[0]).toMatchObject({ Emissão: '02/05/2026', Situação: 'Coberta' })
+    expect(sheetRows[0]).not.toHaveProperty('Status')
   })
 })

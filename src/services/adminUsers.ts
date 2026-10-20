@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { DEPARTMENT_LABELS } from '../lib/departmentLabel'
+import type { Department } from './permissionMatrix'
 import type { UserProfile, UserProfileRole } from '../types/database'
 
 export type AdminUserRow = UserProfile & {
@@ -21,6 +22,26 @@ export async function updateUserProfile(
 ): Promise<void> {
   const { error } = await supabase.from('user_profiles').update(updates).eq('id', id)
   if (error) throw error
+}
+
+/**
+ * Devolve o setor anterior só se o registro ainda está com o setor que acabou de
+ * ser gravado (`expectedRole`); se alguém o trocou no meio, não sobrescreve.
+ * `true` quando voltou; `false` quando nenhuma linha estava mais com `expectedRole`.
+ */
+export async function restoreUserRole(
+  id: string,
+  expectedRole: UserProfileRole,
+  previousRole: UserProfileRole,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .update({ role: previousRole })
+    .eq('id', id)
+    .eq('role', expectedRole)
+    .select('id')
+  if (error) throw error
+  return (data ?? []).length > 0
 }
 
 async function invokeAdminUsers(body: Record<string, unknown>): Promise<unknown> {
@@ -65,16 +86,13 @@ export const PROFILE_LABELS: Record<UserProfileRole, string> = {
   ...DEPARTMENT_LABELS,
 }
 
-export const MANAGED_PROFILES: UserProfileRole[] = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']
+export const MANAGED_PROFILES: Department[] = ['administrativo', 'financeiro', 'operacoes', 'documentacao', 'equipamentos']
 
-// P14 (ADR 0085): leitura global para todos (só /admin é do Administrativo) e
-// escrita global com autor e motivo no rastro; cada texto cita as exceções da
-// lista fechada da ADR 0085 que valem para o perfil. A matriz completa está em
-// docs/operations/seguranca.md#modelo-de-permissões-por-perfil.
-export const PROFILE_SCOPES: Record<string, string> = {
-  administrativo: 'Leitura e escrita globais, e todas as exceções: usuários e /admin, cancelar fatura, Invoice de Demurrage e baixa, cancelar e reativar Viagem e B/L, desativar e reativar cadastros, trocar o CNPJ do Portal, chave global de envio, Liberação de faturamento e intervalo da Régua; cobre a assinatura do ADR de Saída.',
-  financeiro: 'Leitura e escrita globais, com autor e motivo no rastro. Exceções do perfil: baixa manual, conciliar Pix, registrar a Restituição, liquidar Ajuste de COD e Informar PTAX. Não envia Comunicados nem assina seção do ADR de Saída.',
-  operacoes: 'Leitura e escrita globais, com autor e motivo no rastro. Assina as seções de Operações do ADR de Saída. Não registra baixa nem envia Comunicados.',
-  documentacao: 'Leitura e escrita globais, com autor e motivo no rastro. Exceções do perfil: provisionar o Portal, gerir o Desbloqueio de CE e enviar Comunicados; assina as seções de Documentação do ADR de Saída.',
-  equipamentos: 'Leitura e escrita globais, com autor e motivo no rastro. Exceções do perfil: enviar Comunicados, responder Disputas de Demurrage e Informar PTAX; assina as seções de Equipamentos do ADR de Saída.',
+/**
+ * Setor gerido de um papel: o legado `operator` é Documentação, como no resto
+ * do sistema. O que cada setor pode está no catálogo `permissionMatrix.ts`.
+ */
+export function managedProfileOf(role: UserProfileRole): Department {
+  if (role === 'operator') return 'documentacao'
+  return (MANAGED_PROFILES as readonly string[]).includes(role) ? (role as Department) : 'documentacao'
 }

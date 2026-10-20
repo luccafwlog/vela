@@ -106,8 +106,10 @@ describeLocal('S09 — procedencia e integridade de ROE/PTAX', () => {
     const saved = JSON.parse(localPsql(`SELECT public.save_exchange_rate_reference_v2(5.1234, NULL::numeric, '${quoteDate}', 'bcb_live', '${quoteDate}');`)) as { roe: number }
     expect(saved.roe).toBe(5.4564)
     expect(localPsql(`SELECT public._demurrage_ptax_from_roe(5.4564)::text;`)).toBe('5.1234')
-    // 269: `confirm_unified_pix_matches` é INVOKER e chama o helper no caminho
-    // do valor corrente da Demurrage; sem EXECUTE, a confirmação do Financeiro caía.
+    // 269: `confirm_unified_pix_matches` era INVOKER (até a 329) e chamava o
+    // helper no caminho do valor corrente da Demurrage; sem EXECUTE, a
+    // confirmação do Financeiro caía. Desde a 329 a confirmação roda como
+    // dono; o grant a `authenticated` ficou como estava.
     expect(authenticatedPsql(`SELECT public._demurrage_ptax_from_roe(5.4564)::text;`)).toBe('5.1234')
   })
 

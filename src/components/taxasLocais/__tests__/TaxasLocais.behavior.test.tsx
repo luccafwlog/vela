@@ -309,7 +309,11 @@ describe('Tabelas de Taxas Locais', () => {
     mocks.saveTable.mockRejectedValueOnce(Object.assign(new Error('Somente o Administrativo desativa ou reativa tarifas.'), { code: '42501' }))
     renderTables()
 
-    await user.click(screen.getByRole('button', { name: 'Editar tabela Tabela Vitória' }))
+    // Ação de linha da tabela: só o ícone, com o nome no title (regra 9).
+    const editTable = screen.getByRole('button', { name: 'Editar tabela Tabela Vitória' })
+    expect(editTable.textContent).toBe('')
+    expect(editTable.getAttribute('title')).toBe('Editar tabela Tabela Vitória')
+    await user.click(editTable)
     const dialog = screen.getByRole('dialog')
     expect((within(dialog).getByRole('button', { name: 'Nenhuma alteração' }) as HTMLButtonElement).disabled).toBe(true)
 
@@ -363,7 +367,10 @@ describe('Tabelas de Taxas Locais', () => {
     renderTables()
 
     await user.click(screen.getByRole('button', { name: 'Tabela Vitória' }))
-    await user.click(screen.getByRole('button', { name: 'Editar item Booking (legado)' }))
+    // A tabela de itens fica no painel da linha aberta, mas cada item é linha de tabela: ícone.
+    const editItem = screen.getByRole('button', { name: 'Editar item Booking (legado)' })
+    expect(editItem.textContent).toBe('')
+    await user.click(editItem)
     const option = screen.getByRole('option', { name: /TEU/ }) as HTMLOptionElement
     expect(option.disabled).toBe(true)
     expect(option.closest('select')?.value).toBe('teu')
@@ -538,7 +545,7 @@ describe('Condições de Cliente', () => {
 
   it('quem edita mas não é Administrativo não vê o menu; sem escrita, nenhuma ação', () => {
     const { unmount } = renderConditions({ canDelete: false })
-    expect(screen.getByRole('button', { name: 'Editar condição Cliente A · THD' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Editar condição Cliente A · THD' }).textContent).toBe('')
     expect(screen.queryByRole('button', { name: /Mais ações da condição/ })).toBeNull()
     unmount()
 

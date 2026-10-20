@@ -4,7 +4,7 @@
 
 export type LocalChargeTab = 'tabelas' | 'overrides'
 
-export type CargoModeFilter = '' | 'container' | 'carga_solta' | 'granito'
+export type CargoModeFilter = '' | 'container' | 'carga_solta'
 
 /** Lente da aba Tabelas: o que olhar primeiro. */
 export type TablesLens = 'todas' | 'aplicadas' | 'nao-usadas' | 'aviso' | 'inativas'

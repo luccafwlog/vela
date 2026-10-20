@@ -105,68 +105,6 @@ describe('ceMercanteImport', () => {
     })
   })
 
-  it('resolve o numero do B/L de Granito para UUID e grava pela RPC auditavel sem auto-faturar', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table !== 'granite_bls') throw new Error(`Tabela nao mockada: ${table}`)
-      return {
-        select: () => ({
-          in: async () => ({ data: [{ id: 'uuid-gr1', bl_number: 'GR1', manifest: { voyage_id: 7 } }], error: null }),
-        }),
-      }
-    })
-    mockRpc.mockResolvedValue({ data: { ok: true, processed: 1, inserted: 1, overwritten: 0, unchanged: 0 }, error: null })
-
-    const result = await importCeMercanteRows(
-      [{ rowNumber: 2, bl_id: 'GR1', ce_mercante: '122605051526081' }],
-      { changedBy: 'user-1', target: 'granite', voyageId: 7 },
-    )
-
-    expect(result).toMatchObject({ processed: 1, updated: 1, errorCount: 0 })
-    expect(mockRpc).toHaveBeenCalledWith('apply_ce_mercante_rows_atomic', {
-      p_rows: [{ row: 2, bl_id: 'uuid-gr1', ce: '122605051526081' }],
-      p_changed_by: 'user-1',
-      p_target: 'granite',
-    })
-  })
-
-  it('conta CE de Granito unchanged sem incrementar updated', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table !== 'granite_bls') throw new Error(`Tabela nao mockada: ${table}`)
-      return {
-        select: () => ({
-          in: async () => ({ data: [{ id: 'uuid-gr1', bl_number: 'GR1', manifest: { voyage_id: 7 } }], error: null }),
-        }),
-      }
-    })
-    mockRpc.mockResolvedValue({ data: { ok: true, processed: 1, inserted: 0, overwritten: 0, unchanged: 1 }, error: null })
-    const result = await importCeMercanteRows(
-      [{ rowNumber: 2, bl_id: 'GR1', ce_mercante: '122605051526081' }],
-      { changedBy: null, target: 'granite', voyageId: 7 },
-    )
-    expect(result).toMatchObject({ processed: 1, updated: 0, unchanged: 1, overwritten: 0, errorCount: 0 })
-  })
-
-  it('reporta B/L de Granito inexistente e ambiguo sem derrubar o lote', async () => {
-    mockFrom.mockImplementation(() => ({
-      select: () => ({
-        in: async () => ({ data: [
-          { id: 'uuid-a', bl_number: 'AMB', manifest: { voyage_id: 7 } },
-          { id: 'uuid-b', bl_number: 'AMB', manifest: { voyage_id: 7 } },
-        ], error: null }),
-      }),
-    }))
-    const result = await importCeMercanteRows([
-      { rowNumber: 2, bl_id: 'MISSING', ce_mercante: '122605051526081' },
-      { rowNumber: 3, bl_id: 'AMB', ce_mercante: '122605051526082' },
-    ], { changedBy: null, target: 'granite', voyageId: 7 })
-    expect(result.errorCount).toBe(2)
-    expect(result.errors.map((error) => error.message)).toEqual(expect.arrayContaining([
-      'B/L MISSING nao encontrado no manifesto de granito.',
-      'B/L AMB ambiguo: mais de um B/L no manifesto de granito.',
-    ]))
-    expect(mockRpc).not.toHaveBeenCalled()
-  })
-
   it('separa BLs de outra viagem sem antecipar o erro de BL inexistente', async () => {
     mockFrom.mockImplementation(() => ({
       select: () => ({
@@ -188,32 +126,6 @@ describe('ceMercanteImport', () => {
     await expect(partitionRowsByVoyage(rows, 7)).resolves.toEqual({
       rows: [rows[0], rows[2]],
       blocked: [{ row: 3, bl_id: 'BL002', message: 'B/L BL002 pertence a outra viagem' }],
-    })
-  })
-
-  // Revisão automática da PR 929: o mesmo número de B/L de Granito em duas
-  // Viagens não pode esconder a linha da Viagem travada.
-  it('Granito: B/L com o mesmo número em outra Viagem não bloqueia a linha da Viagem travada', async () => {
-    mockFrom.mockImplementation(() => ({
-      select: () => ({
-        in: async () => ({
-          data: [
-            { id: 'g-7', bl_number: 'GR-1', manifest: { voyage_id: 7 } },
-            { id: 'g-8', bl_number: 'gr-1', manifest: { voyage_id: 8 } },
-            { id: 'g-9', bl_number: 'GR-2', manifest: { voyage_id: 8 } },
-          ],
-          error: null,
-        }),
-      }),
-    }))
-    const rows: CeMercanteRow[] = [
-      { rowNumber: 2, bl_id: 'GR-1', ce_mercante: '122605051526081' },
-      { rowNumber: 3, bl_id: 'GR-2', ce_mercante: '122605051526082' },
-    ]
-
-    await expect(partitionRowsByVoyage(rows, 7, 'granite')).resolves.toEqual({
-      rows: [rows[0]],
-      blocked: [{ row: 3, bl_id: 'GR-2', message: 'B/L GR-2 pertence a outra viagem' }],
     })
   })
 

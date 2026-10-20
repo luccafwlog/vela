@@ -146,58 +146,25 @@ export async function emitCeMercanteBilling(
   return results
 }
 
-export type CeMercanteImportTarget = 'bls' | 'granite'
-
-type GraniteResolution = { id: string; bl_number: string; voyage_id: number | null }
-
-async function resolveGraniteBlNumbers(numbers: string[], voyageId?: number): Promise<Map<string, GraniteResolution[]>> {
-  const matches = new Map<string, GraniteResolution[]>()
-  for (const chunk of chunkArray(Array.from(new Set(numbers.map(normalizeBlId))), 400)) {
-    const query = supabase
-      .from('granite_bls')
-      .select('id, bl_number, manifest:granite_manifests!inner(voyage_id)')
-      .in('bl_number', chunk)
-    const { data, error } = await query
-    if (error) throw error
-    for (const row of data ?? []) {
-      const item = row as { id: string; bl_number: string; manifest?: { voyage_id?: number | null } | null }
-      const itemVoyageId = item.manifest?.voyage_id ?? null
-      if (voyageId != null && itemVoyageId !== voyageId) continue
-      const key = normalizeBlId(item.bl_number)
-      const current = matches.get(key) ?? []
-      current.push({ id: item.id, bl_number: item.bl_number, voyage_id: itemVoyageId })
-      matches.set(key, current)
-    }
-  }
-  return matches
-}
-
+// O Granito não recebe CE pela planilha desde a migration 325 (lote 5b): o
+// alvo é sempre o B/L de carga.
 export async function partitionRowsByVoyage<T extends { bl_id: string; rowNumber: number }>(
   rows: T[],
   voyageId: number,
-  target: CeMercanteImportTarget = 'bls',
 ): Promise<{ rows: T[]; blocked: Array<{ row: number; bl_id: string; message: string }> }> {
-  // O número do B/L de Granito só é único dentro do manifesto: o mesmo número
-  // pode estar em mais de uma Viagem, e a da Viagem travada vale.
   const voyagesByBl = new Map<string, Set<number | null>>()
   for (const chunk of chunkArray(Array.from(new Set(rows.map((row) => row.bl_id))), 400)) {
-    const query = target === 'granite'
-      ? supabase.from('granite_bls').select('id, bl_number, manifest:granite_manifests!inner(voyage_id)').in('bl_number', chunk)
-      : supabase.from('bls').select('id, voyage_id').in('id', chunk)
-    const { data, error } = await query
+    const { data, error } = await supabase.from('bls').select('id, voyage_id').in('id', chunk)
     if (error) throw error
     for (const bl of data ?? []) {
-      const voyage = target === 'granite'
-        ? (bl as { manifest?: { voyage_id?: number | null } | null }).manifest?.voyage_id ?? null
-        : (bl as { voyage_id?: number | null }).voyage_id ?? null
-      const key = target === 'granite' ? normalizeBlId((bl as { bl_number: string }).bl_number) : String(bl.id)
-      voyagesByBl.set(key, (voyagesByBl.get(key) ?? new Set()).add(voyage))
+      const key = String(bl.id)
+      voyagesByBl.set(key, (voyagesByBl.get(key) ?? new Set()).add(bl.voyage_id ?? null))
     }
   }
 
   const blocked: Array<{ row: number; bl_id: string; message: string }> = []
   const validRows = rows.filter((row) => {
-    const rowVoyages = voyagesByBl.get(target === 'granite' ? normalizeBlId(row.bl_id) : row.bl_id)
+    const rowVoyages = voyagesByBl.get(row.bl_id)
     if (rowVoyages === undefined || rowVoyages.has(voyageId)) return true
     blocked.push({
       row: row.rowNumber,
@@ -227,7 +194,6 @@ export async function importCeMercanteRows(
   rows: CeMercanteRow[],
   options: {
     changedBy: string | null
-    target?: CeMercanteImportTarget
     voyageId?: number
     manifestoNumero?: string
     /** Confirma a troca de CE já gravado e a mudança de Manifesto (com motivo). */
@@ -237,43 +203,25 @@ export async function importCeMercanteRows(
     deferBilling?: boolean
   } = { changedBy: null },
 ): Promise<CeMercanteImportResult> {
-  const target = options.target ?? 'bls'
   const errors: CeMercanteImportResult['errors'] = []
   const manifestoNumero = options.manifestoNumero?.trim() ?? ''
   // Cada importação de B/L é um manifesto: sem o número, nada é gravado.
-  if (target === 'bls' && !manifestoNumero) {
+  if (!manifestoNumero) {
     return {
       processed: rows.length, updated: 0, overwritten: 0, unchanged: 0, errorCount: 1,
       errors: [{ row: rows[0]?.rowNumber ?? 0, message: 'Informe o número do Manifesto Mercante deste lote antes de importar.' }],
     }
   }
-  const resolvedIds = new Map<string, string>()
   const existingBlIds = new Set<string>()
   const uniqueBlIds = Array.from(new Set(rows.map((row) => row.bl_id)))
-  if (target === 'granite') {
-    const matches = await resolveGraniteBlNumbers(uniqueBlIds, options.voyageId)
-    for (const row of rows) {
-      const found = matches.get(normalizeBlId(row.bl_id)) ?? []
-      if (found.length === 1) {
-        resolvedIds.set(row.bl_id, found[0].id)
-        existingBlIds.add(row.bl_id)
-      } else if (found.length === 0) {
-        errors.push({ row: row.rowNumber, bl_id: row.bl_id, message: `B/L ${row.bl_id} nao encontrado no manifesto de granito.` })
-      } else {
-        errors.push({ row: row.rowNumber, bl_id: row.bl_id, message: `B/L ${row.bl_id} ambiguo: mais de um B/L no manifesto de granito.` })
-      }
-    }
-  } else {
-    for (const chunk of chunkArray(uniqueBlIds, 400)) {
-      const { data, error } = await supabase.from('bls').select('id').in('id', chunk)
-      if (error) throw error
-      for (const row of data ?? []) existingBlIds.add(String(row.id))
-    }
+  for (const chunk of chunkArray(uniqueBlIds, 400)) {
+    const { data, error } = await supabase.from('bls').select('id').in('id', chunk)
+    if (error) throw error
+    for (const row of data ?? []) existingBlIds.add(String(row.id))
   }
 
   const validRows = rows.filter((row) => {
     if (!existingBlIds.has(row.bl_id)) {
-      if (target === 'granite' && errors.some((error) => error.row === row.rowNumber && error.bl_id === row.bl_id)) return false
       errors.push({
         row: row.rowNumber,
         bl_id: row.bl_id,
@@ -295,22 +243,18 @@ export async function importCeMercanteRows(
   const payload = {
     p_rows: validRows.map((row) => ({
       row: row.rowNumber,
-      bl_id: target === 'granite' ? resolvedIds.get(row.bl_id) ?? row.bl_id : row.bl_id,
+      bl_id: row.bl_id,
       ce: row.ce_mercante,
     })),
     p_changed_by: options.changedBy,
-    p_target: target,
+    p_target: 'bls',
     // Migration 164/181: viagem, rota e manifesto são validados e vinculados
     // na mesma transação dos CEs; troca de CE ou de Manifesto pede confirmação.
-    ...(target === 'bls'
-      ? {
-          p_manifesto_numero: manifestoNumero,
-          p_voyage_id: options.voyageId ?? null,
-          p_confirm_changes: options.confirmChanges ?? false,
-          p_reason: options.reason?.trim() || null,
-          p_defer_billing: options.deferBilling ?? false,
-        }
-      : {}),
+    p_manifesto_numero: manifestoNumero,
+    p_voyage_id: options.voyageId ?? null,
+    p_confirm_changes: options.confirmChanges ?? false,
+    p_reason: options.reason?.trim() || null,
+    p_defer_billing: options.deferBilling ?? false,
   }
   let response = await supabase.rpc('apply_ce_mercante_rows_atomic', payload as never)
   // Deadlock com outra gravação: uma nova tentativa (ADR 0078, item 9).

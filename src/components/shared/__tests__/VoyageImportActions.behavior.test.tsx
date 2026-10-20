@@ -282,18 +282,19 @@ it('leva Vazios Exp ao Embarque semeado com a viagem', () => {
   expect(mocks.navigate).toHaveBeenCalledWith('/embarquevazios?voyage=7')
 })
 
-it('abre CE Mercante do Granito com o alvo correto e semeado com a viagem (B26)', () => {
+// Lote 5b (2026-10-19): o Granito não recebe CE; a exportação só importa a planilha COSCO.
+it('a exportação da Viagem não oferece CE Mercante para o Granito', () => {
   render(
     <VoyageImportActions
       voyageId={7}
       voyageLabel="GREEN SANTOS / 14N"
       userId="user-1"
-      types={['ceMercanteGranite']}
+      types={['granite', 'vaziosExp']}
     />,
   )
 
-  fireEvent.click(screen.getByRole('button', { name: 'CE Mercante (Granito)' }))
-  expect(screen.getByText('CE semeado: 7 · granite')).toBeTruthy()
+  expect(screen.getByRole('button', { name: /Manifesto Granito/ })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /CE Mercante/ })).toBeNull()
 })
 
 it('mantém a escrita aberta também para Equipamentos', () => {

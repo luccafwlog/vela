@@ -82,7 +82,7 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
   const { missing } = matchHeaders(headers, VAZIOS_HEADER_SPEC)
   if (missing.length) {
     const labels = missing.map((field) => VAZIOS_HEADER_LABELS[field])
-    throw new Error(`Planilha invalida. Colunas obrigatorias: ${labels.join(', ')}.`)
+    throw new Error(`Planilha inválida. Colunas obrigatórias: ${labels.join(', ')}.`)
   }
   const mapRow = createHeaderMapper(rows[0], HEADER_MAP)
   const mappedRows = rows.map(mapRow)
@@ -95,7 +95,7 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
     if (!containerNumber) { rowErrors.add(rowNumber, 'Container ausente.', row); return }
     if (!IsoContainerSchema.safeParse(containerNumber).success) rowErrors.add(rowNumber, `Container ${containerNumber}: formato ISO esperado (XXXX0000000).`, row)
     const condition = parseCondition(mapped.condition)
-    if (!condition) rowErrors.add(rowNumber, `Container ${containerNumber}: condição deve ser vazio ou material.`, row)
+    if (!condition) rowErrors.add(rowNumber, `Container ${containerNumber}: condição deve ser Vazio ou Com material.`, row)
     const localCode = text(mapped.local_code)
     const handIn = readDate(mapped.hand_in_date)
     const handOut = readDate(mapped.hand_out_date)
@@ -154,11 +154,11 @@ function validateLocalAgainstDepots(
 ): void {
   const depot = depots.find((item) => item.code.trim().toLowerCase() === localCode.trim().toLowerCase())
   if (!depot) {
-    rowErrors.add(rowNumber, `Container ${containerNumber}: local "${localCode}" não encontrado no Cadastro de Terminais.`, row)
+    rowErrors.add(rowNumber, `Container ${containerNumber}: local "${localCode}" não encontrado em Locais (depots e terminais).`, row)
     return
   }
   if (!depot.active) {
-    rowErrors.add(rowNumber, `Container ${containerNumber}: local "${localCode}" está inativo no Cadastro de Terminais.`, row)
+    rowErrors.add(rowNumber, `Container ${containerNumber}: local "${localCode}" está inativo em Locais (depots e terminais).`, row)
     return
   }
   if (depot.tipo === 'depot') {

@@ -41,7 +41,8 @@ export async function preflightDepotsTerminalPortMapping(): Promise<PendingTermi
   }
 }
 
-export async function upsertDepot(input: DepotInput): Promise<void> {
+/** Grava o local e devolve o id (o criado, para a tela abri-lo: achado L7 do lote 5b). */
+export async function upsertDepot(input: DepotInput): Promise<{ id: string }> {
   if (!input.code.trim()) throw new Error('Código do local obrigatório.')
   const rawPortId = input.port_id
   const portId = input.tipo === 'terminal_portuario'
@@ -62,9 +63,12 @@ export async function upsertDepot(input: DepotInput): Promise<void> {
     active: input.active, free_time_vazio_days: input.free_time_vazio_days ?? 0,
     free_time_material_days: input.free_time_material_days ?? 0, updated_at: new Date().toISOString(),
   }
-  const query = input.id ? supabase.from('depots').update(payload).eq('id', input.id) : supabase.from('depots').insert(payload)
-  const { error } = await query
+  const query = input.id
+    ? supabase.from('depots').update(payload).eq('id', input.id).select('id').single()
+    : supabase.from('depots').insert(payload).select('id').single()
+  const { data, error } = await query
   if (error) throw error
+  return { id: (data as { id: string }).id }
 }
 
 export async function deleteDepot(id: string, reason: string): Promise<void> {
@@ -82,8 +86,8 @@ export async function deleteDepot(id: string, reason: string): Promise<void> {
     const quantos = count ?? 0
     throw new Error(
       quantos > 0
-        ? `Este local esta definido como terminal em ${quantos} B/L. Troque o terminal desses B/Ls antes de excluir.`
-        : 'Este local ainda esta referenciado por outros registros e nao pode ser excluido.',
+        ? `Este local está definido como terminal em ${quantos} B/L. Troque o terminal desses B/Ls antes de excluir.`
+        : 'Este local ainda está em uso em outros registros e não pode ser excluído.',
     )
   }
   throw error

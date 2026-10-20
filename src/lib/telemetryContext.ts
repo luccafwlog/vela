@@ -90,10 +90,10 @@ const QUERY_KEY_MAP: Record<string, QueryKeyMapEntry> = {
     tela: 'Diagnóstico de Faturamento',
     tarefa: 'Carregar diagnóstico de faturamento',
   },
-  'billing-ready-granite-bls': {
-    modulo: 'Faturamento',
-    tela: 'Faturamento Granito',
-    tarefa: 'Listar BLs de granito para faturamento',
+  'granite-bls': {
+    modulo: 'Granito',
+    tela: 'Granito',
+    tarefa: 'Listar a carga de Granito',
   },
   'billing-customers': {
     modulo: 'Faturamento',

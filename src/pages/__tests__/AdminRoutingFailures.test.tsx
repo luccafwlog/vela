@@ -37,6 +37,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))
 vi.mock('../../hooks/useAgencyReport', () => ({ useAgencyReportSla: () => ({ data: [], isLoading: false, error: null }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'admin-logado' } }) }))
 
 import { Admin } from '../Admin'
 
@@ -56,22 +57,29 @@ function renderAdmin(tab = 'usuarios') {
 afterEach(cleanup)
 beforeEach(() => vi.clearAllMocks())
 
-describe('Admin — Falhas de Roteamento e Audiência', () => {
-  it('renderiza a aba de falhas de roteamento e lista as ocorrências', () => {
-    renderAdmin('falhas')
+describe('Admin — Falhas de entrega de alertas', () => {
+  it('lista a falha com Quando, Alerta, Setor sem destinatário, Motivo e a ação de abrir o alerta', () => {
+    renderAdmin('falhas-de-alertas')
 
-    expect(screen.getByText('Tipo do Alerta')).toBeTruthy()
-    expect(screen.getByText('Setor Esperado')).toBeTruthy()
+    expect(screen.getByText('Setor sem destinatário')).toBeTruthy()
     expect(screen.getByText('Baplie ausente')).toBeTruthy()
-    expect(screen.getByText('Nenhum usuário ativo com papel documentacao encontrado')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /Abrir Baplie/ })).toBeTruthy()
+    expect(screen.getByText('Documentação')).toBeTruthy()
+    const reason = screen.getByText('Nenhum usuário ativo com papel documentacao encontrado')
+    expect(reason.className).toContain('app-table__text--wrap')
+    expect(screen.getByRole('button', { name: 'Abrir alerta' })).toBeTruthy()
+    expect(screen.getByText('Para resolver: ativar alguém do setor na aba Usuários.')).toBeTruthy()
   })
 
-  it('exibe a explicação clara dos papéis e audiência do catálogo na aba de usuários', () => {
+  it('o endereço antigo /admin/falhas abre a aba nova', () => {
+    renderAdmin('falhas')
+    expect(screen.getByRole('tab', { name: 'Falhas de entrega de alertas' }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('a aba Usuários não fala mais em "fallback" nem no papel Administrador', () => {
     renderAdmin()
 
-    expect(screen.getByText('Audiência de Alertas e Notificações')).toBeTruthy()
-    expect(screen.getByText(/Os papéis que recebem Notificações Internas diretamente das regras ativas/)).toBeTruthy()
-    expect(screen.getByText(/exclusivamente por/)).toBeTruthy()
+    expect(screen.queryByText('Audiência de Alertas e Notificações')).toBeNull()
+    expect(document.body.textContent).not.toMatch(/fallback|Administrador\b/)
+    expect(screen.getByText('Recebe os alertas do próprio setor')).toBeTruthy()
   })
 })

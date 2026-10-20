@@ -8,7 +8,6 @@ import { useConfirm } from '../ui/ConfirmDialog'
 import { useBatchCalculateLocalCharges, useCustomerReconciliationQueue, useLocalChargeOperations } from '../../hooks/useLocalCharges'
 import { queryKeys } from '../../services/queryKeys'
 import { markBlReadyAndCreateInvoice } from '../../services/billing'
-import { runGraniteBatch } from '../../services/graniteBillingWorkflow'
 import { getBillingBlock, isBlLockedForRecalc } from './validacaoPipeline'
 import { ValidacaoControls } from './ValidacaoControls'
 import { ValidacaoOperationsTable } from './ValidacaoOperationsTable'
@@ -76,13 +75,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
     })
     if (!confirmed) return
     try {
-      const graniteIds = eligible.filter((id) => (operationsRows ?? []).find((row) => row.id === id)?.cargo_mode === 'granito')
-      const localIds = eligible.filter((id) => !graniteIds.includes(id))
-      const [graniteResult, localResult] = await Promise.all([
-        graniteIds.length ? runGraniteBatch(graniteIds) : Promise.resolve({ total: 0, successCount: 0, errorCount: 0, errors: [] as Array<{ blId: string; message: string }> }),
-        localIds.length ? batchCalculateMutation.mutateAsync({ blIds: localIds, actorId: userId, recalculate: action === 'recalculate' }) : Promise.resolve({ total: 0, successCount: 0, errorCount: 0, errors: [] as Array<{ blId: string; message: string }> }),
-      ])
-      const result = { total: graniteResult.total + localResult.total, successCount: graniteResult.successCount + localResult.successCount, errorCount: graniteResult.errorCount + localResult.errorCount, errors: [...graniteResult.errors, ...localResult.errors] }
+      const result = await batchCalculateMutation.mutateAsync({ blIds: eligible, actorId: userId, recalculate: action === 'recalculate' })
       const firstError = result.errors[0]?.message ? `: ${result.errors[0].message}` : ''
       const tone: 'success' | 'error' | 'info' = result.errorCount === 0 ? 'success' : result.successCount === 0 ? 'error' : 'info'
       showToast(`${result.successCount} B/L(s) recalculado(s).${result.errorCount ? ` ${result.errorCount} falharam${firstError}.` : ''}`, tone)
@@ -112,7 +105,6 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
     }
   }
   async function handleIssueSingleInvoice(row: LocalChargeOperationalRow) {
-    if (row.cargo_mode === 'granito') return showToast('Granito é apoio operacional; cobrança não está disponível neste fluxo.', 'info')
     if (!row.customer?.id) return showToast('Nao ha cliente vinculado para emitir esta fatura.', 'error')
     const confirmed = await confirm({
       title: 'Emitir fatura individual',

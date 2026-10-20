@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/031_import_effect_consumers.sql'), 'utf8')
 
 describe('consumidores duráveis dos efeitos de import', () => {
-  it('reprocessa Granito no servidor e falha fechado quando não há tarifa vigente', () => {
+  // Histórico: o cálculo do Granito nasceu na 031, deixou de rodar na 325 e
+  // saiu do banco, com as tarifas, na 329.
+  it('a 031 reprocessava Granito no servidor e falhava fechado sem tarifa vigente', () => {
     expect(migration).toContain('CREATE OR REPLACE FUNCTION public.calculate_granite_bl_charges(')
     expect(migration).toContain("RAISE EXCEPTION 'Nenhuma tarifa ativa de Granito")
     expect(migration).toMatch(/Nenhuma tarifa ativa de Granito[\s\S]*?DELETE FROM public\.granite_bl_charges/i)

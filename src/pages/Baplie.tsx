@@ -3,13 +3,14 @@ import { afterBaplieImportado, afterCargaAlterada } from '../services/cacheEffec
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Upload } from 'lucide-react'
+import { Check, Download, Upload } from 'lucide-react'
 import { exportBaplieWorkbook } from '../services/exports'
 import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
 import { StatusText } from '../components/ui/StatusText'
 import { CopyValue } from '../components/ui/CopyValue'
 import { NoValue } from '../components/ui/NoValue'
 import { Button } from '../components/ui/Button'
+import { RowActionButton } from '../components/ui/RowActionButton'
 import { Card, EmptyState, PageHeader } from '../components/ui/Card'
 import { FilterBar } from '../components/ui/FilterBar'
 import { Field, Input, Select } from '../components/ui/Input'
@@ -620,7 +621,7 @@ function ValeOBlButton({ blContainerId, field, label }: { blContainerId: number;
       setBusy(false)
     }
   }
-  return <Button variant="secondary" className="app-btn--sm" disabled={busy} onClick={() => void handleClick()}>Vale o B/L</Button>
+  return <RowActionButton label={`Vale o B/L: ${label}`} title="Vale o B/L" icon={Check} disabled={busy} onClick={() => void handleClick()} />
 }
 
 function CoverageFact({ label, count, anchor }: { label: string; count: number; anchor: string }) {

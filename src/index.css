@@ -2123,6 +2123,16 @@ button.app-metric-tile[aria-pressed='true'] {
   gap: 6px;
 }
 
+/* Ação de linha de tabela só com ícone (regra 9): quadrado na altura do
+   controle pequeno; o nome fica no title e no aria-label. */
+.app-btn--icon {
+  min-height: var(--app-control-h-sm);
+  width: var(--app-control-h-sm);
+  padding: 0;
+  gap: 0;
+  flex: none;
+}
+
 /* Ação em andamento: rótulo de repouso e de andamento ocupam a mesma célula
    da grade, então a largura do botão não muda ao alternar. */
 .app-btn__stack {
@@ -2392,23 +2402,6 @@ button.app-metric-tile[aria-pressed='true'] {
 .app-field {
   display: grid;
   gap: 6px;
-}
-
-/* Os filtros de Relatórios compartilham uma linha com hints somente na primeira
-   coluna. Impede que o estiramento do grid distribua esse espaço nas linhas dos
-   demais campos e desalinhe inputs e ações. */
-.reports-filter-grid .app-field {
-  align-content: start;
-}
-
-.reports-filter-action {
-  align-self: start;
-}
-
-@media (min-width: 1280px) {
-  .reports-filter-action {
-    padding-top: 26px;
-  }
 }
 
 /* Rótulo acima do campo, 13/500 em caixa normal; ajuda e erro logo abaixo. */
