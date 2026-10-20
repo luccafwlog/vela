@@ -2,7 +2,7 @@
 -- staging e qualquer replay limpo (scripts/setup-local-pg.sh --reset)
 -- chegarem ao estado funcional de produção, com menor privilégio.
 --
--- Incidente de 2026-10-20 (Sentry VELA-21, VELA-22 e VELA-23, ambiente
+-- Incidente de 2026-10-20 (Sentry VELA-22 e VELA-23, ambiente
 -- staging): "permission denied for table customer_portal_accounts" na tela
 -- Comunicações com Clientes e "agency_departure_report_signoffs" no Relatório
 -- Próprio de Agência. A branch staging (criada em 2026-10-19) nasceu só das
