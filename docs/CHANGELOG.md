@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Logo dos Comunicados (2026-10-20):** NOA, NOR, NOB, livre, institucional, CE e Taxas e
+  Cobrança de Demurrage buscavam a logo em `/portal/branding/fwlog-logo-white.png`, que em
+  produção responde com a página do Portal, e chegavam com a imagem quebrada; agora usam a origem
+  do site, como os e-mails do Portal (achado A1 do lote 6b,
+  [plano](plans/2026-10-13-identidade-visual-tela-a-tela.md)).
 - **Programação de navios exige sessão válida (2026-10-20):** `portal_ship_schedule()` passou a
   recusar conta `authenticated` sem perfil interno ativo nem conta ativa do Portal (migration `337`,
   [ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); antes bastava qualquer login, e o
