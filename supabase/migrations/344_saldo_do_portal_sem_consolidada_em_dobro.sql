@@ -39,9 +39,10 @@ AS $function$
     WHERE inv.status IN ('issued', 'partially_paid', 'overdue')
   ),
   consolidated_bls AS (
-    SELECT DISTINCT unnest(o.bls) AS bl_id
+    SELECT DISTINCT b.bl_id
     FROM open_invoices o
-    WHERE o.invoice_type = 'consolidated'
+    CROSS JOIN LATERAL unnest(o.bls) AS b(bl_id)
+    WHERE o.invoice_type = 'consolidated' AND b.bl_id IS NOT NULL
   )
   SELECT
     COALESCE((
@@ -49,7 +50,10 @@ AS $function$
       FROM open_invoices o
       WHERE o.invoice_type = 'consolidated'
          OR cardinality(o.bls) = 0
-         OR EXISTS (SELECT 1 FROM unnest(o.bls) AS b(bl_id) WHERE b.bl_id NOT IN (SELECT c.bl_id FROM consolidated_bls c))
+         OR EXISTS (
+           SELECT 1 FROM unnest(o.bls) AS b(bl_id)
+           WHERE NOT EXISTS (SELECT 1 FROM consolidated_bls c WHERE c.bl_id = b.bl_id)
+         )
     ), 0)
     + COALESCE((
       SELECT SUM(GREATEST(COALESCE((dem->>'current_total_brl')::numeric, 0), 0))

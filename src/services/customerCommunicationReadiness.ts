@@ -70,5 +70,7 @@ export function customerCommunicationReadinessReasonLabel(reason: string): strin
   if (reason === 'peso_bb_ausente') return 'Peso de carga solta ausente'
   if (reason === 'faturamento_pendente') return 'Faturamento ainda não concluído'
   if (reason === 'no_bls') return 'Nenhum B/L ativo para este cliente na viagem'
+  if (reason === 'sem_cliente') return 'B/L sem Cliente cadastrado'
+  if (reason === 'sem_viagem') return 'B/L sem Viagem'
   return reason || 'Prontidão financeira incompleta'
 }

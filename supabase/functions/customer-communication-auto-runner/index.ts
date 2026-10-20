@@ -13,8 +13,8 @@ function timingSafeEqual(leftValue: string, rightValue: string): boolean {
   return difference === 0
 }
 
-function json(status: number, value: unknown): Response {
-  return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
+function json(status: number, value: unknown, headers: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json', ...headers } })
 }
 
 async function handler(req: Request): Promise<Response> {
@@ -34,7 +34,7 @@ async function handler(req: Request): Promise<Response> {
     secret,
     portalUrl: Deno.env.get('PORTAL_URL'),
   })
-  return json(result.status, result.body)
+  return json(result.status, result.body, result.headers)
 }
 
 if (import.meta.main) {
