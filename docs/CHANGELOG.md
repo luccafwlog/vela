@@ -6,6 +6,11 @@
 
 ## 2026-10
 
+- **Programação de navios exige sessão válida (2026-10-20):** `portal_ship_schedule()` passou a
+  recusar conta `authenticated` sem perfil interno ativo nem conta ativa do Portal (migration `337`,
+  [ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); antes bastava qualquer login, e o
+  cadastro público do Auth de produção estava aberto. Desligar esse cadastro é passo do dono no
+  painel do Supabase ([serviços externos](operations/servicos-externos.md#supabase)).
 - **Staging publica com o check do Supabase pulado (2026-10-20):** num push na `staging` com
   migration e check `skipped` ou `neutral`, `scripts/wait-supabase-migrations.mjs` confere na
   Supabase Management API se as versões do push já estão na branch Supabase do staging e publica
